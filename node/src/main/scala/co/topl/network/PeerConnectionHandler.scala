@@ -9,7 +9,7 @@ import co.topl.network.message.{Handshake, HandshakeSpec, Message, MessageSerial
 import co.topl.network.peer.PenaltyType.PermanentPenalty
 import co.topl.network.peer._
 import co.topl.settings.{AppContext, AppSettings}
-import co.topl.utils.serialization.BifrostSerializer
+import co.topl.utils.codecs.binary.legacy.BifrostSerializer
 import co.topl.utils.{Logging, TimeProvider}
 
 import scala.annotation.tailrec

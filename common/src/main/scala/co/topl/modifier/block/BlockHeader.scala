@@ -7,9 +7,10 @@ import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.utils.TimeProvider
-import co.topl.utils.codecs.CryptoCodec.implicits._
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
+import co.topl.utils.codecs.binary.implicits._
+import co.topl.utils.codecs.json.codecs._
 
 case class BlockHeader(
   id:           ModifierId,

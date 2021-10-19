@@ -5,7 +5,8 @@ import co.topl.crypto.PublicKey
 import co.topl.modifier.box.{CodeBox, StateBox}
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.codecs.implicits._
+import co.topl.utils.codecs.binary.implicits._
+import co.topl.utils.codecs.json.codecs._
 import co.topl.utils.exceptions.{ChainProgramException, JsonParsingException}
 import io.circe._
 import io.circe.syntax._
@@ -151,7 +152,7 @@ object Program {
 
         bindings.getMember(s._1) match {
           case value: Value => s._1 -> stateTypeCheck(s, value, valueType)
-          case _            => throw new NoSuchElementException(s"""Element "${s._2.name}" does not exist in program state""")
+          case _ => throw new NoSuchElementException(s"""Element "${s._2.name}" does not exist in program state""")
         }
       }
 
@@ -175,11 +176,11 @@ object Program {
         //TODO Check for all valid JS types
         case "Number" => JsonNumber.fromString(member.toString).get.asJson
         case "String" => member.as(classOf[String]).asJson
-        case _        => throw new NoSuchElementException(s"""Element "${variable._1}" does not exist in program state """)
+        case _ => throw new NoSuchElementException(s"""Element "${variable._1}" does not exist in program state """)
       }
     else
       throw new ClassCastException(
-        s"""Updated state variable ${member} with type ${memberType} does not match original variable type of ${variable._2.name}"""
+        s"""Updated state variable $member with type $memberType does not match original variable type of ${variable._2.name}"""
       )
 
   private def createProgramInterface(codeBoxes: Seq[CodeBox]): Map[String, Seq[String]] =

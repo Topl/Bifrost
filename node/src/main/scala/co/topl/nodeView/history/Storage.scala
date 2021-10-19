@@ -4,11 +4,12 @@ import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.hash.digest.implicits._
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.KeyValueStore
 import co.topl.utils.Logging
+import co.topl.utils.codecs.binary.legacy.modifier.ModifierIdSerializer
+import co.topl.utils.codecs.binary.legacy.modifier.block.{BlockSerializer, BloomFilterSerializer}
 import com.google.common.primitives.Longs
 
 import scala.util.Try
@@ -29,7 +30,7 @@ class Storage(
   def bestBlockId: ModifierId =
     keyValueStore
       .get(bestBlockIdKey)
-      .flatMap(d => ModifierId.parseBytes(d).toOption)
+      .flatMap(d => ModifierIdSerializer.parseBytes(d).toOption)
       .getOrElse(History.GenesisParentId)
 
   def bestBlock: Block =
@@ -84,7 +85,7 @@ class Storage(
   def idAtHeightOf(height: Long): Option[ModifierId] =
     keyValueStore
       .get(idHeightKey(height).value)
-      .flatMap(id => ModifierId.parseBytes(id).toOption)
+      .flatMap(id => ModifierIdSerializer.parseBytes(id).toOption)
 
   def difficultyOf(blockId: ModifierId): Option[Long] =
     keyValueStore
@@ -94,12 +95,12 @@ class Storage(
   def bloomOf(blockId: ModifierId): Option[BloomFilter] =
     keyValueStore
       .get(blockBloomKey(blockId))
-      .flatMap(b => BloomFilter.parseBytes(b).toOption)
+      .flatMap(b => BloomFilterSerializer.parseBytes(b).toOption)
 
   def parentIdOf(blockId: ModifierId): Option[ModifierId] =
     keyValueStore
       .get(blockParentKey(blockId))
-      .flatMap(d => ModifierId.parseBytes(d).toOption)
+      .flatMap(d => ModifierIdSerializer.parseBytes(d).toOption)
 
   /**
    * The keys below are used to store top-level information about blocks that we might be interested in

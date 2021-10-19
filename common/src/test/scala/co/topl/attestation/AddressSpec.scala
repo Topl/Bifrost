@@ -4,7 +4,7 @@ import cats.scalatest.{ValidatedMatchers, ValidatedNecMatchers}
 import co.topl.attestation.AddressCodec.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.codecs.implicits._
+import co.topl.utils.codecs.binary.implicits._
 import co.topl.utils.{CommonGenerators, NetworkType}
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers

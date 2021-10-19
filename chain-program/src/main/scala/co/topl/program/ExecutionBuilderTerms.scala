@@ -3,7 +3,7 @@ package co.topl.program
 import cats.implicits._
 import co.topl.utils.Gzip
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.codecs.implicits._
+import co.topl.utils.codecs.binary.implicits._
 import io.circe.syntax._
 import io.circe.{Decoder, Json}
 

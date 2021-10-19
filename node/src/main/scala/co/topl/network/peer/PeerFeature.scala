@@ -1,6 +1,6 @@
 package co.topl.network.peer
 
-import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
+import co.topl.utils.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
 
 /**
  * An abstract trait to describe peer capabilities.

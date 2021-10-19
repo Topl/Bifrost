@@ -1,6 +1,6 @@
 package co.topl.program
 
-import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
+import co.topl.utils.codecs.binary.legacy._
 import io.circe.parser
 import io.circe.syntax.EncoderOps
 

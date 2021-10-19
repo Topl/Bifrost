@@ -1,6 +1,6 @@
 package co.topl.utils.codecs.binary.valuetypes
 
-import co.topl.utils.serialization.ZigZagEncoder.{decodeZigZagLong, encodeZigZagLong}
+import co.topl.utils.codecs.binary.ZigZagEncoder.{decodeZigZagLong, encodeZigZagLong}
 import scodec.bits.BitVector
 import scodec.{Attempt, Codec, DecodeResult, SizeBound}
 

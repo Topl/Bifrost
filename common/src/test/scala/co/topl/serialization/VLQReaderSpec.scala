@@ -1,8 +1,7 @@
 package co.topl.serialization
 
 import co.topl.utils.CommonGenerators
-import co.topl.utils.serialization.Reader.Aux
-import co.topl.utils.serialization.{stringCharacterSet, VLQReader}
+import co.topl.utils.codecs.binary.legacy.{Reader, VLQReader}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
@@ -13,7 +12,7 @@ class VLQReaderSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenPrope
 
   val vlqReader: VLQReader = new VLQReader {
     override type CH = this.type
-    override def newReader(chunk: this.type): Aux[this.type] = ???
+    override def newReader(chunk: this.type): Reader.Aux[this.type] = ???
     override def getChunk(size:   Int): this.type = ???
     override def peekByte(): Byte = ???
     override def getBoolean(): Boolean = ???

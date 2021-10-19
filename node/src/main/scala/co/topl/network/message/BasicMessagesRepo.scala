@@ -7,7 +7,8 @@ import co.topl.network.message.Message.MessageCode
 import co.topl.network.peer.{PeerFeature, PeerSpec, PeerSpecSerializer}
 import co.topl.utils.Extensions._
 import co.topl.utils.Logging
-import co.topl.utils.serialization.{Reader, Writer}
+import co.topl.utils.codecs.binary.legacy.modifier.ModifierIdSerializer
+import co.topl.utils.codecs.binary.legacy.{Reader, Writer}
 
 /** Sequence of modifiers to send to the remote peer */
 case class ModifiersData(typeId: ModifierTypeId, modifiers: Map[ModifierId, Array[Byte]])
@@ -41,7 +42,7 @@ class SyncInfoSpec extends MessageSpecV1[BifrostSyncInfo] {
 
   override def parse(r: Reader): BifrostSyncInfo = {
     val length = r.getUShort()
-    val ids = (1 to length).map(_ => ModifierId.parse(r))
+    val ids = (1 to length).map(_ => ModifierIdSerializer.parse(r))
     BifrostSyncInfo(ids)
   }
 }
@@ -84,7 +85,7 @@ class InvSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
     val count = r.getUInt().toIntExact
     require(count > 0, "empty inv list")
     require(count <= maxInvObjects, s"$count elements in a message while limit is $maxInvObjects")
-    val elems = (0 until count).map(_ => ModifierId.parse(r))
+    val elems = (0 until count).map(_ => ModifierIdSerializer.parse(r))
 
     InvData(typeId, elems)
   }
@@ -174,7 +175,7 @@ class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] wi
     val typeId = ModifierTypeId(r.getByte())
     val count = r.getUInt().toIntExact
     val seq = (0 until count).map { _ =>
-      val id = ModifierId.parse(r)
+      val id = ModifierIdSerializer.parse(r)
       val objBytesCnt = r.getUInt().toIntExact
       val obj = r.getBytes(objBytesCnt)
       id -> obj

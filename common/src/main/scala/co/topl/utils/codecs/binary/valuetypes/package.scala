@@ -2,7 +2,6 @@ package co.topl.utils.codecs.binary
 
 import cats.implicits._
 import co.topl.utils.StringDataTypes.Latin1Data
-import co.topl.utils.codecs.{AsBytes, FromBytes}
 import scodec.bits.BitVector
 import scodec.{Attempt, Codec, Decoder, Encoder, Err, Transform, Transformer}
 

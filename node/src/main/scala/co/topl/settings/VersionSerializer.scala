@@ -1,6 +1,6 @@
 package co.topl.settings
 
-import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
+import co.topl.utils.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
 
 /** Serializer for Version class */
 object VersionSerializer extends BifrostSerializer[Version] {

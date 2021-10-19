@@ -5,9 +5,8 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
-import co.topl.utils.Int128
+import co.topl.utils.{codecs, Int128}
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.codecs.{Int128Codec, StringDataTypesCodec}
 import io.circe._
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.syntax._
@@ -511,7 +510,7 @@ trait AdminRpcResponseEncoders extends SharedCodecs {
     deriveEncoder
 }
 
-trait SharedCodecs extends StringDataTypesCodec.JsonEncodingInstances with StringDataTypesCodec.JsonDecodingInstances {
+trait SharedCodecs extends codecs.json.Codecs {
 
   implicit def blockEncoder: Encoder[Block] = Block.jsonEncoder
   implicit def blockDecoder(implicit networkPrefix: NetworkPrefix): Decoder[Block] = Block.jsonDecoder
@@ -556,8 +555,6 @@ trait SharedCodecs extends StringDataTypesCodec.JsonEncodingInstances with Strin
   implicit def arbitBoxDecoder: Decoder[ArbitBox] = ArbitBox.jsonDecoder
   implicit def assetBoxDecoder: Decoder[AssetBox] = AssetBox.jsonDecoder
 
-  implicit def int128Encoder: Encoder[Int128] = Int128Codec.jsonEncoder
-  implicit def int128Decoder: Decoder[Int128] = Int128Codec.jsonDecoder
   implicit def simpleValueEncoder: Encoder[SimpleValue] = SimpleValue.jsonEncoder
   implicit def assetValueEncoder: Encoder[AssetValue] = AssetValue.jsonEncoder
 }

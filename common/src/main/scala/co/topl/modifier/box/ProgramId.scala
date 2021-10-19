@@ -3,16 +3,17 @@ package co.topl.modifier.box
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.codecs.binary.legacy.modifier.box.ProgramIdSerializer
+import co.topl.utils.codecs.binary.legacy.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import co.topl.utils.encode.Base58
-import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 
-case class ProgramId(private val hashBytes: Array[Byte]) extends BytesSerializable {
+case class ProgramId(hashBytes: Array[Byte]) extends BytesSerializable {
 
   override type M = ProgramId
-  override def serializer: BifrostSerializer[ProgramId] = ProgramId
+  override def serializer: BifrostSerializer[ProgramId] = ProgramIdSerializer
 
   override def equals(obj: Any): Boolean = obj match {
     case obj: ProgramId => obj.hashBytes sameElements hashBytes
@@ -24,7 +25,7 @@ case class ProgramId(private val hashBytes: Array[Byte]) extends BytesSerializab
   override def hashCode: Int = Ints.fromByteArray(hashBytes)
 }
 
-object ProgramId extends BifrostSerializer[ProgramId] {
+object ProgramId {
 
   val size: Int = Digest32.size; // number of bytes in identifier,
 
@@ -36,12 +37,6 @@ object ProgramId extends BifrostSerializer[ProgramId] {
 
   def create(seed: Array[Byte]): ProgramId =
     new ProgramId(blake2b256.hash(seed).value)
-
-  override def serialize(obj: ProgramId, w: Writer): Unit =
-    w.putBytes(obj.hashBytes)
-
-  override def parse(r: Reader): ProgramId =
-    ProgramId(r.getBytes(size))
 
   implicit val jsonEncoder: Encoder[ProgramId] = (id: ProgramId) => id.toString.asJson
   implicit val jsonKeyEncoder: KeyEncoder[ProgramId] = (id: ProgramId) => id.toString

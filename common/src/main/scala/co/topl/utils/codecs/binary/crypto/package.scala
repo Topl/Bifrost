@@ -1,10 +1,11 @@
 package co.topl.utils.codecs.binary
 
 import co.topl.crypto.PublicKey
-import co.topl.crypto.hash.digest.Digest32
+import co.topl.crypto.hash.digest.{Digest, Digest32, InvalidDigestFailure}
 import co.topl.crypto.signatures.Signature
 import co.topl.utils.codecs.binary.valuetypes.codecs.bytesCodec
 import scodec.{Attempt, Codec, Err}
+import co.topl.crypto.implicits._
 
 import scala.language.implicitConversions
 
@@ -29,5 +30,17 @@ package object crypto {
         )(digest32 => Attempt.successful(digest32.value))
   }
 
+  trait Instances {
+    implicit def digestAsBytes[T: Digest]: AsBytes[Infallible, T] = AsBytes.infallible(_.bytes)
+
+    implicit def digestFromBytes[T: Digest]: FromBytes[InvalidDigestFailure, T] = Digest[T].from
+
+    implicit val publicKeyAsBytes: AsBytes[Infallible, PublicKey] = AsBytes.infallible(_.value)
+
+    implicit val publicKeyFromBytes: FromBytes[Infallible, PublicKey] = FromBytes.infallible(PublicKey(_))
+  }
+
   object codecs extends Codecs
+
+  object implicits extends Instances
 }

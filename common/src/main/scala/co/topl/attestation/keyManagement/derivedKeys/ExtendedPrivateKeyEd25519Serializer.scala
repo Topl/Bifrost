@@ -3,7 +3,7 @@ package co.topl.attestation.keyManagement.derivedKeys
 import co.topl.utils.SizedBytes
 import co.topl.utils.SizedBytes.Types.ByteVector32
 import co.topl.utils.SizedBytes.implicits._
-import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
+import co.topl.utils.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
 import scodec.bits.ByteOrdering
 
 object ExtendedPrivateKeyEd25519Serializer extends BifrostSerializer[ExtendedPrivateKeyEd25519] {

@@ -3,7 +3,7 @@ package co.topl.attestation
 import co.topl.attestation.AddressCodec.implicits._
 import co.topl.utils.GeneratorOps.GeneratorOps
 import co.topl.utils.StringDataTypes.Latin1Data
-import co.topl.utils.codecs.implicits._
+import co.topl.utils.codecs.binary.implicits._
 import co.topl.utils.{DiskKeyFileTestHelper, NodeGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
