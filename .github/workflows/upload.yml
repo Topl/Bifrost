@@ -22,7 +22,8 @@ jobs:
         run: echo "JAR=$(find ./node/target/scala-2.13 -maxdepth 1 -name "*.jar")" >> $GITHUB_ENV
 
       - name: generate MD5 checksum
-        run: md5sum ${{ env.JAR }} | awk '{$2=$(basename $2); print $2}' > "$(basename ${{ env.JAR }} .jar).md5"
+        working-directory: ./node/target/scala-2.13
+        run: md5sum $(basename ${{ env.JAR }}) > "$(basename ${{ env.JAR }}).md5"
 
       - name: set output directory name
         run: |
