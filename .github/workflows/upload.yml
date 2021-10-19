@@ -36,7 +36,7 @@ jobs:
       - name: move checksum and jar to separate directory
         run: |
           cp ${{ env.JAR }} ${{ env.OUT_DIR }}
-          cp "$(basename ${{ env.JAR }}).md5" ${{ env.OUT_DIR }}
+          cp "${{ env.JAR }}.md5" ${{ env.OUT_DIR }}
 
       - name: upload artifact
         uses: BetaHuhn/do-spaces-action@v2
