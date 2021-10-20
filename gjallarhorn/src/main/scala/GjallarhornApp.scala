@@ -66,6 +66,7 @@ class GjallarhornApp(startupOpts: StartupOpts) extends Logging with Runnable {
       )
     ).asJson
   )
+
   try gjalBifrostRoute.handlers("onlineWallet_connectToBifrost", connectRequest, "2")
   catch {
     case _: Exception => log.warn(s"${Console.RED} Continuing to run in offline mode. ${Console.RESET}")

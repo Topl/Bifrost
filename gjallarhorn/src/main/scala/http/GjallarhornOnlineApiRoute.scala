@@ -35,7 +35,7 @@ case class GjallarhornOnlineApiRoute(
 
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
-    case (method, params, id) if method == s"${namespace.name}_connectToBifrost"      => connectToBifrost(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_connectToBifrost" => connectToBifrost(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_disconnectFromBifrost" => disconnectFromBifrost(id)
     case (method, params, id) if method == s"${namespace.name}_getConnection"         => getConnection(id)
 

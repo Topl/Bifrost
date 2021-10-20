@@ -3,13 +3,10 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 /**
-  * Must be running bifrost with "--local" and "--seed test"
-  * ex: "run --local --seed test -f"
-  */
-class GjallarhornRPCSpec extends AsyncFlatSpec
-  with Matchers
-  with GjallarhornGenerators
-  with ScalatestRouteTest {
+ * Must be running bifrost with "--local" and "--seed test"
+ * ex: "run --local --seed test -f"
+ */
+class GjallarhornRPCSpec extends AsyncFlatSpec with Matchers with GjallarhornGenerators with ScalatestRouteTest {
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 
@@ -27,56 +24,63 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 
   //generate two keys for testing
   //pk1 should be: 86tS2ExvjGEpS3Ntq5vZgHirUMuee7pJELGD8GmBoUyjXpAaAXTz
-  val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))
-    .mapTo[Try[Address]], 10.seconds) match {
+  val pk1: Address = Await.result(
+    (keyManagerRef ? GenerateKeyFile("password", Some("test")))
+      .mapTo[Try[Address]],
+    10.seconds
+  ) match {
     case Success(pubKey) => pubKey
-    case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
+    case Failure(ex)     => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
-  val pk2: Address = Await.result((keyManagerRef ? GenerateKeyFile("password2", None))
-    .mapTo[Try[Address]], 10.seconds) match {
+
+  val pk2: Address = Await.result(
+    (keyManagerRef ? GenerateKeyFile("password2", None))
+      .mapTo[Try[Address]],
+    10.seconds
+  ) match {
     case Success(pubKey) => pubKey
-    case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
+    case Failure(ex)     => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
 
   //set up WalletManager actor
-  val walletManagerRef: ActorRef = system.actorOf(
-    Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
+  val walletManagerRef: ActorRef =
+    system.actorOf(Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
 
   val amount = 10
 
   //Set up api routes
   val requests: Requests = new Requests(settings, keyManagerRef)
+
   val bifrostApiRoute: ApiRoute =
     GjallarhornOnlineApiRoute(settings.rpcApi, settings.application, keyManagerRef, walletManagerRef, requests)
+
   val gjalOnlyApiRoute: ApiRoute =
     GjallarhornOfflineApiRoute(settings.rpcApi, settings.application, keyManagerRef, walletManagerRef)
-  val route: Route = HttpService(
-    Seq(bifrostApiRoute, gjalOnlyApiRoute), settings.rpcApi).compositeRoute
+  val route: Route = HttpService(Seq(bifrostApiRoute, gjalOnlyApiRoute), settings.rpcApi).compositeRoute
 
   val httpOrigin: HttpOrigin = HttpOrigin("http://localhost:3000")
   val httpOriginHeader: Origin = Origin(httpOrigin)
+
   val chainProvider: String = settings.application.defaultChainProviders
     .get(settings.application.currentChainProvider) match {
     case Some(cp) => cp.chainProvider
-    case None => "bifrost-client@127.0.0.1:9087"
+    case None     => "bifrost-client@127.0.0.1:9087"
   }
 
   /**
-    * Method used to create http post request
-    * @param jsonRequest the request to send as a ByteString
-    * @return the HTTP request
-    */
-  def httpPOST(jsonRequest: ByteString): HttpRequest = {
+   * Method used to create http post request
+   * @param jsonRequest the request to send as a ByteString
+   * @return the HTTP request
+   */
+  def httpPOST(jsonRequest: ByteString): HttpRequest =
     HttpRequest(
       HttpMethods.POST,
       uri = "/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
     ).withHeaders(RawHeader("x-api-key", "test_key"))
-  }
 
   it should "successfully connect to Bifrost" in {
-    val connectRequest = ByteString(
-      s"""
+    val connectRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -102,9 +106,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   val assetCode: AssetCode = AssetCode(1.toByte, pk1, "test")
   var prototypeTx: Json = Map("txType" -> "AssetCreation").asJson
   var msgToSign = ""
+
   it should "succesfully create an asset offline" in {
-    val createAssetRequest = ByteString(
-      s"""
+    val createAssetRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -138,9 +142,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   }
 
   var signedTx: Json = Json.Null
+
   it should "successfully sign a transaction" in {
-    val signTxRequest = ByteString(
-      s"""
+    val signTxRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -166,9 +170,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   }
 
   val emptyTx: Null = null
+
   it should "successfully generate a signature" in {
-    val signRequest = ByteString(
-      s"""
+    val signRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -222,8 +226,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 
   it should "succesfully create online arbit tx" in {
     Thread.sleep(10000)
-    val transferArbitRequest = ByteString(
-      s"""
+    val transferArbitRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -255,8 +258,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   }
 
   it should "successfully create raw poly tx" in {
-    val transferPolyRequest = ByteString(
-      s"""
+    val transferPolyRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -287,8 +289,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 
   it should "successfully send online poly tx" in {
     Thread.sleep(10000)
-    val transferPolyRequest = ByteString(
-      s"""
+    val transferPolyRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -321,8 +322,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 
   it should "get a successful JSON response from balance request" in {
     Thread.sleep(10000)
-    val requestBody = ByteString(
-      s"""
+    val requestBody = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "1",
@@ -331,48 +331,47 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
          |}
       """.stripMargin)
 
-      httpPOST(requestBody) ~> httpOriginHeader ~> route ~> check {
-        val responseString = responseAs[String].replace("\\", "")
-        parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
-          case Left(f) => throw f
-          case Right(res: Json) =>
-            assert((res \\ "error").isEmpty)
+    httpPOST(requestBody) ~> httpOriginHeader ~> route ~> check {
+      val responseString = responseAs[String].replace("\\", "")
+      parse(responseString.replace("\"{", "{").replace("}\"", "}")) match {
+        case Left(f) => throw f
+        case Right(res: Json) =>
+          assert((res \\ "error").isEmpty)
 
-            //pk1 should have fewer polys now
-            (((res \\ "result").head \\ pk1.toString).head \\ "PolyBox").head.asNumber.get.toLong match {
-              case Some(number) => assert(number < 1000000)
-              case None => throw new Error ("balance is not a long")
-            }
+          //pk1 should have fewer polys now
+          (((res \\ "result").head \\ pk1.toString).head \\ "PolyBox").head.asNumber.get.toLong match {
+            case Some(number) => assert(number < 1000000)
+            case None         => throw new Error("balance is not a long")
+          }
 
-            //Accounting for tests being run multiple times
-            // so tests for amounts being greater than $amount and a multiple of $amount
+          //Accounting for tests being run multiple times
+          // so tests for amounts being greater than $amount and a multiple of $amount
 
-            //pk1 should have $amount of new asset
-            (((res \\ "result").head \\ pk1.toString).head \\ assetCode.toString).head.asNumber.get.toLong match {
-              case Some(number) => assert(number >= amount && number % amount == 0)
-              case None => throw new Error ("balance is not a long")
-            }
+          //pk1 should have $amount of new asset
+          (((res \\ "result").head \\ pk1.toString).head \\ assetCode.toString).head.asNumber.get.toLong match {
+            case Some(number) => assert(number >= amount && number % amount == 0)
+            case None         => throw new Error("balance is not a long")
+          }
 
-            //pk2 should have $amount poly
-            (((res \\ "result").head \\ pk2.toString).head \\ "PolyBox").head.asNumber.get.toLong match {
-              case Some(number) => assert(number >= amount && number % amount == 0)
-              case None => throw new Error ("balance is not a long")
-            }
+          //pk2 should have $amount poly
+          (((res \\ "result").head \\ pk2.toString).head \\ "PolyBox").head.asNumber.get.toLong match {
+            case Some(number) => assert(number >= amount && number % amount == 0)
+            case None         => throw new Error("balance is not a long")
+          }
 
-            //pk2 should have $amount arbit
-            (((res \\ "result").head \\ pk2.toString).head \\ "ArbitBox").head.asNumber.get.toLong match {
-              case Some(number) => assert(number >= amount && number % amount == 0)
-              case None => throw new Error ("balance is not a long")
-            }
+          //pk2 should have $amount arbit
+          (((res \\ "result").head \\ pk2.toString).head \\ "ArbitBox").head.asNumber.get.toLong match {
+            case Some(number) => assert(number >= amount && number % amount == 0)
+            case None         => throw new Error("balance is not a long")
+          }
 
-            assert((res \\ "result").head.asObject.isDefined)
-        }
+          assert((res \\ "result").head.asObject.isDefined)
       }
     }
+  }
 
   it should "successfully get wallet boxes" in {
-    val mnemonicPhraseRequest = ByteString(
-      s"""
+    val mnemonicPhraseRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -388,7 +387,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
         case Right(res: Json) =>
           assert((res \\ "error").isEmpty)
           val result = (res \\ "result").head
-          assert (result != null)
+          assert(result != null)
       }
     }
   }
@@ -398,13 +397,15 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   it should "successfuly generate a new key and send poly" in {
     val phraseTranslator = Bip39.apply("en")
     val seed = phraseTranslator.uuidSeedPhrase(java.util.UUID.randomUUID.toString)._1
-    newAddr = Await.result((keyManagerRef ? GenerateKeyFile("password3", Some(seed)))
-      .mapTo[Try[Address]], 12.seconds) match {
-        case Success(pubKey) => pubKey
-        case Failure(exception) => throw new Error("error creating key file: " + exception)
-      }
-    val transferPolyRequest = ByteString(
-      s"""
+    newAddr = Await.result(
+      (keyManagerRef ? GenerateKeyFile("password3", Some(seed)))
+        .mapTo[Try[Address]],
+      12.seconds
+    ) match {
+      case Success(pubKey)    => pubKey
+      case Failure(exception) => throw new Error("error creating key file: " + exception)
+    }
+    val transferPolyRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -437,8 +438,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 
   it should "successfully update balance for new key" in {
     Thread.sleep(10000)
-    val requestBody = ByteString(
-      s"""
+    val requestBody = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "1",
@@ -461,9 +461,9 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
 
   var rawPolyTx: Json = Json.Null
   var msgToSignPoly: String = ""
+
   it should "succesfully create a raw poly tx without bifrost" in {
-    val transferPolyRequest = ByteString(
-      s"""
+    val transferPolyRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -496,8 +496,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   var signedPolyTx: Json = Json.Null
 
   it should "successfully sign a transaction created by gjal" in {
-    val signTxRequest = ByteString(
-      s"""
+    val signTxRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -549,9 +548,8 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
     }
   }
 
- it should "successfully disconnect from Bifrost" in {
-    val disconnectRequest = ByteString(
-      s"""
+  it should "successfully disconnect from Bifrost" in {
+    val disconnectRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -573,8 +571,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   }
 
   it should "successfully get connection status" in {
-    val mnemonicPhraseRequest = ByteString(
-      s"""
+    val mnemonicPhraseRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -596,8 +593,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   }
 
   it should "successfully get network prefix" in {
-    val networkTypeRequest = ByteString(
-      s"""
+    val networkTypeRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -619,8 +615,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   }
 
   it should "successfully change the network" in {
-    val networkTypeRequest = ByteString(
-      s"""
+    val networkTypeRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -644,8 +639,7 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
   }
 
   it should "still have keys after disconnecting from bifrost and changing network back to local" in {
-    val networkTypeRequest = ByteString(
-      s"""
+    val networkTypeRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -663,15 +657,18 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
         case Right(res: Json) =>
           assert((res \\ "error").isEmpty)
           val network = ((res \\ "result").head \\ "newNetworkPrefix").head
-          val keyfiles: Map[Address, String] = Await.result((keyManagerRef ? GetAllKeyfiles)
-            .mapTo[Map[Address,String]], 10.seconds)
+          val keyfiles: Map[Address, String] = Await.result(
+            (keyManagerRef ? GetAllKeyfiles)
+              .mapTo[Map[Address, String]],
+            10.seconds
+          )
           keyfiles.keySet.size shouldBe 3
           assert(network.toString() === "48")
       }
     }
   }
 
- /* it should "successfully change the chain provider" in {
+  /* it should "successfully change the chain provider" in {
     val communicationModeRequest = ByteString(
       s"""
          |{
@@ -701,6 +698,5 @@ class GjallarhornRPCSpec extends AsyncFlatSpec
       }
     }
   }*/
-
 
 }
