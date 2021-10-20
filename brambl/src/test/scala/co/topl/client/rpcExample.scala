@@ -107,7 +107,7 @@ object ReinstateMultipleKeyFiles {
   val passwords: Seq[String] = (1 to 5).map(_ => "test")
 
   val importedKeyAddresses: Seq[Either[RpcClientFailure, Address]] =
-    Brambl.importMultipleCurve25519JsonToKeyRing(keyfileJsons, passwords, keyRing)
+    Brambl.importMultipleCurve25519JsonToKeyRing(keyfileJsons.zip(passwords), keyRing)
 
   println(s"keyRing after re-importing the generated key from Json: ${keyRing.addresses}")
 
