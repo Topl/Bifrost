@@ -1,5 +1,7 @@
 package co.topl.models.utility
 
+import co.topl.models.utility.BinaryTree.{Leaf, Node, Empty}
+
 import scala.language.postfixOps
 
 /**
@@ -290,6 +292,10 @@ trait BinaryTree[+A] {
 
 }
 
-case class Node[A](v: A, l: BinaryTree[A], r: BinaryTree[A]) extends BinaryTree[A]
-case class Leaf[A](v: A) extends BinaryTree[A]
-case object Empty extends BinaryTree[Nothing]
+object BinaryTree {
+  case class Node[T](v: T, l: BinaryTree[T], r: BinaryTree[T]) extends BinaryTree[T]
+  case class Leaf[T](v: T) extends BinaryTree[T]
+  case object Empty extends BinaryTree[Nothing]
+}
+
+

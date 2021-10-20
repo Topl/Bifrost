@@ -1,6 +1,6 @@
 package co.topl.models
 
-import co.topl.models.utility.{Lengths, Sized, BinaryTree}
+import co.topl.models.utility.{BinaryTree, KesBinaryTree, Lengths, Sized}
 
 sealed trait SecretKey
 
@@ -36,7 +36,7 @@ object SecretKeys {
     type Length = Lengths.`32`.type //todo: check this value
   }
 
-  case class KesSum(tree: BinaryTree[Array[Byte]], offset: Long) extends SecretKey
+  case class KesSum(tree: KesBinaryTree, offset: Long) extends SecretKey
 
   object KesSum {
     ///type Length = ???
@@ -56,12 +56,6 @@ object SecretKeys {
   ) extends SecretKey
 
   object KesAsymmetricProduct {
-    ///type Length = ???
-  }
-
-  case class HdKes(tree: BinaryTree[Array[Byte]]) extends SecretKey
-
-  object HdKes {
     ///type Length = ???
   }
 

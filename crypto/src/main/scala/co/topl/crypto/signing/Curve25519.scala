@@ -41,12 +41,6 @@ class Curve25519
     privateKey -> publicKey
   }
 
-  override def createKeyPair: (SecretKeys.Curve25519, VerificationKeys.Curve25519) = {
-    val random = new Array[Byte](KeyLength)
-    new java.security.SecureRandom().nextBytes(random)
-    createKeyPair(Seed(random))
-  }
-
   override def sign(
     privateKey: SecretKeys.Curve25519,
     message:    MessageToSign

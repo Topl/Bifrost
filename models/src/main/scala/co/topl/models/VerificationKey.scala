@@ -33,10 +33,10 @@ object VerificationKeys {
     type Length = Lengths.`32`.type
   }
 
-  case class KesSum(bytes: Array[Byte]) extends VerificationKey
+  case class KesSum(bytes: Sized.Strict[Bytes, KesSum.Length], step: Int) extends VerificationKey
 
   object KesSum {
-    ///type Length = ???
+    type Length = Lengths.`32`.type
   }
 
   case class KesSymmetricProduct(bytes: Array[Byte]) extends VerificationKey
@@ -49,16 +49,6 @@ object VerificationKeys {
 
   object KesAsymmetricProduct {
     ///type Length = ???
-  }
-
-  case class HdKes(
-//                       xvkM: ExtendedEd25519,
-//                       t: Long,
-    bytes: Array[Byte]
-  ) extends VerificationKey
-
-  object HdKes {
-    type Length = Lengths.`32`.type
   }
 
 }

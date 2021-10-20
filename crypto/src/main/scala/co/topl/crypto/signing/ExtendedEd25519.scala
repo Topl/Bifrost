@@ -2,7 +2,7 @@ package co.topl.crypto.signing
 
 import co.topl.crypto.Pbkdf2Sha512
 import co.topl.crypto.mnemonic.{Bip32Index, Entropy, SoftIndex}
-import co.topl.crypto.signing.ExtendedEd25519.{fromBytes, instance}
+import co.topl.crypto.signing.ExtendedEd25519.fromBytes
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
@@ -12,7 +12,6 @@ import org.bouncycastle.crypto.params.KeyParameter
 
 import java.nio.charset.StandardCharsets
 import java.nio.{ByteBuffer, ByteOrder}
-import java.security.SecureRandom
 
 class ExtendedEd25519
     extends eddsa.Ed25519
@@ -30,9 +29,6 @@ class ExtendedEd25519
     val vk = generatePublicKey(sk)
     (sk, vk)
   }
-
-  override def createKeyPair: (SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519) =
-    createKeyPair(Seed(SecureRandom.getSeed(128)))
 
   override def sign(privateKey: SecretKeys.ExtendedEd25519, message: MessageToSign): Proofs.Signature.Ed25519 = {
     // signing is a mutable process

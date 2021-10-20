@@ -30,11 +30,6 @@ class Ed25519
     (SecretKeys.Ed25519(sk), VerificationKeys.Ed25519(pk))
   }
 
-  override def createKeyPair: (SecretKeys.Ed25519, VerificationKeys.Ed25519) = {
-    val random = new SecureRandom()
-    createKeyPair(Seed(random.generateSeed(128)))
-  }
-
   override def sign(privateKey: SecretKeys.Ed25519, message: MessageToSign): Proofs.Signature.Ed25519 = {
     val sig: Sized.Strict[Bytes, Proofs.Signature.Ed25519.Length] =
       Sized.strictUnsafe(Bytes(new Array[Byte](SIGNATURE_SIZE)))

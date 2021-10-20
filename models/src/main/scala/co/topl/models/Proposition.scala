@@ -28,6 +28,4 @@ object Propositions {
   case class VerificationKeyVRF(key: VerificationKeys.VrfEd25519)
       extends Proposition // I don't think these should be propositions (insofar as a proposition typically relates to transactions)
 
-  case class VerificationKeyHdKES(key: VerificationKeys.HdKes) extends Proposition
-
 }

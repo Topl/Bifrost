@@ -1,5 +1,8 @@
 package co.topl.crypto.signing.kes
 
+import co.topl.models.utility.KesBinaryTree
+import co.topl.models.utility.KesBinaryTree.{Empty, MerkleNode, SigningLeaf}
+
 import scala.annotation.tailrec
 
 /**
@@ -22,8 +25,9 @@ import scala.annotation.tailrec
 
 class SumComposition extends KesEd25519Blake2b256 {
 
-  type SIG = (Array[Byte], Array[Byte], Array[Byte], Vector[(Array[Byte], Array[Byte])])
-  type VK = (Array[Byte], Int)
+  override type SIG = (Array[Byte], Array[Byte], Vector[Array[Byte]])
+  override type VK = (Array[Byte], Int)
+  override type SK = KesBinaryTree
 
   /**
    * Gets the public key in the sum composition
@@ -32,9 +36,9 @@ class SumComposition extends KesEd25519Blake2b256 {
    * @return binary array public key
    */
   def generateVerificationKey(keyTree: KesBinaryTree): VK = keyTree match {
-    case node: MerkleNode  => (node.witness, getKeyTime(keyTree))
-    case leaf: SigningLeaf => (hash(leaf.witness), 0)
-    case Empty             => (Array(), 0)
+    case node: MerkleNode  => (witness(node), getKeyTime(keyTree))
+    case leaf: SigningLeaf => (witness(leaf), 0)
+    case Empty             => (Array.fill(hashBytes)(0: Byte), 0)
   }
 
   /**
@@ -46,7 +50,7 @@ class SumComposition extends KesEd25519Blake2b256 {
   def getKeyTime(keyTree: KesBinaryTree): Int =
     keyTree match {
       case MerkleNode(_, _, _, Empty, _: SigningLeaf)    => 1
-      case MerkleNode(_, _, _, Empty, right: MerkleNode) => getKeyTime(right) + exp(right.height)
+      case MerkleNode(_, _, _, Empty, right: MerkleNode) => getKeyTime(right) + exp(getTreeHeight(right))
       case MerkleNode(_, _, _, left, Empty)              => getKeyTime(left)
       case _                                             => 0
     }
@@ -69,7 +73,7 @@ class SumComposition extends KesEd25519Blake2b256 {
         val r = prng(seed)
         val left = seedTree(r._1, height - 1)
         val right = seedTree(r._2, height - 1)
-        MerkleNode(r._2, left.witness, right.witness, left, right)
+        MerkleNode(r._2, witness(left), witness(right), left, right)
       }
 
     //traverse down the tree to the leftmost leaf
@@ -97,7 +101,7 @@ class SumComposition extends KesEd25519Blake2b256 {
      * Evolves key a specified number of steps
      */
     def evolveKey(step: Int, input: KesBinaryTree): KesBinaryTree = {
-      val halfTotalSteps = exp(input.height - 1)
+      val halfTotalSteps = exp(getTreeHeight(input) - 1)
       val shiftStep: Int => Int = (step: Int) => step % halfTotalSteps
 
       if (step >= halfTotalSteps) {
@@ -106,7 +110,13 @@ class SumComposition extends KesEd25519Blake2b256 {
             MerkleNode(seed, witL, witR, Empty, SigningLeaf.tupled(sGenKeypair(seed)))
 
           case MerkleNode(seed, witL, witR, _: MerkleNode, Empty) =>
-            MerkleNode(seed, witL, witR, Empty, evolveKey(shiftStep(step), generateSecretKey(seed, input.height - 1)))
+            MerkleNode(
+              seed,
+              witL,
+              witR,
+              Empty,
+              evolveKey(shiftStep(step), generateSecretKey(seed, getTreeHeight(input) - 1))
+            )
 
           case MerkleNode(seed, witL, witR, Empty, right) =>
             MerkleNode(seed, witL, witR, Empty, evolveKey(shiftStep(step), right))
@@ -128,7 +138,7 @@ class SumComposition extends KesEd25519Blake2b256 {
       }
     }
 
-    val totalSteps = exp(keyTree.height)
+    val totalSteps = exp(getTreeHeight(keyTree))
     val keyTime = getKeyTime(keyTree)
     if (step < totalSteps && keyTime < step) {
       evolveKey(step, keyTree)
@@ -148,25 +158,16 @@ class SumComposition extends KesEd25519Blake2b256 {
    */
   def sign(keyTree: KesBinaryTree, m: Array[Byte]): SIG = {
     //loop that generates the signature of m and stacks up the witness path of the key
+    @tailrec
     def loop(
       keyTree: KesBinaryTree,
-      W:       Vector[(Array[Byte], Array[Byte])] = Vector()
+      W:       Vector[Array[Byte]] = Vector()
     ): SIG = keyTree match {
-      case MerkleNode(_, witL, witR, left: MerkleNode, _)      => handleNode(left, witL, witR, W)
-      case MerkleNode(_, _, witR, left: SigningLeaf, _)        => (left.vk, sSign(m, left.sk), witR, W)
-      case MerkleNode(_, witL, witR, Empty, right: MerkleNode) => handleNode(right, witL, witR, W)
-      case MerkleNode(_, witL, _, Empty, right: SigningLeaf)   => (right.vk, sSign(m, right.sk), witL, W)
-      case leaf: SigningLeaf                                   => (leaf.vk, sSign(m, leaf.sk), Array(), W)
-      case _                                                   => (Array(), Array(), Array(), Vector((Array(), Array())))
+      case MerkleNode(_, witL, _, Empty, right) => loop(right, witL +: W)
+      case MerkleNode(_, _, witR, left, _)      => loop(left, witR +: W)
+      case leaf: SigningLeaf                    => (leaf.vk, sSign(m, leaf.sk), W)
+      case _                                    => (Array.fill(pkBytes)(0: Byte), Array.fill(sigBytes)(0: Byte), Vector(Array()))
     }
-
-    def handleNode(
-      nextNode:     MerkleNode,
-      witnessLeft:  Array[Byte],
-      witnessRight: Array[Byte],
-      accW:         Vector[(Array[Byte], Array[Byte])]
-    ): SIG =
-      loop(nextNode, accW :+ (witnessLeft, witnessRight))
 
     loop(keyTree)
   }
@@ -180,41 +181,39 @@ class SumComposition extends KesEd25519Blake2b256 {
    * @return true if the signature is valid false if otherwise
    */
   def verify(m: Array[Byte], kesVk: VK, kesSig: SIG): Boolean = {
-    val (vkSign, sigSign, partnerWitness, merkleProof) = kesSig
+    val (vkSign, sigSign, merkleProof) = kesSig
     val (root: Array[Byte], step: Int) = kesVk
 
     // determine if the step corresponds to a right or left decision at each height
     val leftGoing: Int => Boolean = (level: Int) => ((step / exp(level)) % 2) == 0
 
-    lazy val verifyHead: Boolean =
-      if (merkleProof.isEmpty) true
-      else root sameElements hash(merkleProof.head._1 ++ merkleProof.head._2)
+    def verifyMerkle(W: Vector[Array[Byte]]): Boolean =
+      if (W.isEmpty) emptyWitness
+      else if (W.length == 1) singleWitness(W.head)
+      else if (leftGoing(0)) multiWitness(W.tail, hash(vkSign), W.head, 1)
+      else multiWitness(W.tail, W.head, hash(vkSign), 1)
+
+    def emptyWitness: Boolean = root sameElements hash(vkSign)
+
+    def singleWitness(witness: Array[Byte]): Boolean =
+      if (leftGoing(0)) root sameElements hash(hash(vkSign) ++ witness)
+      else root sameElements hash(witness ++ hash(vkSign))
 
     @tailrec
-    def verifyMerkle(W: Vector[(Array[Byte], Array[Byte])]): Boolean =
-      if (W.length <= 1) true // terminating condition
-      else if (leftGoing(W.length)) (W(0)._1 sameElements hash(W(1)._1 ++ W(1)._2)) && verifyMerkle(W.tail)
-      else (W(0)._2 sameElements hash(W(1)._1 ++ W(1)._2)) && verifyMerkle(W.tail)
-
-    lazy val verifyMerkleLeaf: Boolean =
-      if (merkleProof.isEmpty) true
-      else {
-        val (witL, witR) = merkleProof.last
-        if (leftGoing(1) && leftGoing(0)) witL sameElements hash(hash(vkSign) ++ partnerWitness)
-        else if (leftGoing(1) && !leftGoing(0)) witL sameElements hash(partnerWitness ++ hash(vkSign))
-        else if (!leftGoing(1) && leftGoing(0)) witR sameElements hash(hash(vkSign) ++ partnerWitness)
-        else if (!leftGoing(1) && !leftGoing(0)) witR sameElements hash(partnerWitness ++ hash(vkSign))
-        else false
-      }
-
-    val verifySigningLeaf =
-      if (leftGoing(0)) root sameElements hash(hash(vkSign) ++ partnerWitness)
-      else root sameElements hash(partnerWitness ++ hash(vkSign))
+    def multiWitness(
+      witnessList:  Vector[Array[Byte]],
+      witnessLeft:  Array[Byte],
+      witnessRight: Array[Byte],
+      index:        Int
+    ): Boolean =
+      if (witnessList.isEmpty) root sameElements hash(witnessLeft ++ witnessRight)
+      else if (leftGoing(index))
+        multiWitness(witnessList.tail, hash(witnessLeft ++ witnessRight), witnessList.head, index + 1)
+      else multiWitness(witnessList.tail, witnessList.head, hash(witnessLeft ++ witnessRight), index + 1)
 
     val verifySign = sVerify(m, sigSign, vkSign)
 
-    if (merkleProof.nonEmpty) verifyHead && verifyMerkle(merkleProof) && verifyMerkleLeaf && verifySign
-    else verifySigningLeaf && verifySign
+    verifyMerkle(merkleProof) && verifySign
 
   }
 }

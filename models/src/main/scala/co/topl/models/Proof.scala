@@ -1,6 +1,6 @@
 package co.topl.models
 
-import co.topl.models.utility.{Lengths, Sized}
+import co.topl.models.utility.{KesBinaryTree, Lengths, Sized}
 
 sealed trait Proof
 
@@ -25,13 +25,7 @@ object Proofs {
       type Length = Lengths.`80`.type
     }
 
-    case class KesSum(
-//      ecSignature: Signature.Ed25519,
-//      vkK:         VerificationKeys.Ed25519,
-//      index:       Long, // `k` or `j` depending on context
-//      witness:     Seq[VerificationKeys.Ed25519]
-      bytes: Array[Byte]
-    ) extends Proof
+    case class KesSum(bytes: Array[Byte]) extends Proof
 
     object KesSum {
       ///type Length = ???
@@ -48,20 +42,6 @@ object Proofs {
     object KesAsymmetricProduct {
       ///type Length = ???
     }
-
-    case class HdKes(
-//                            i:           Long,
-//                            vkI:         VerificationKeys.Ed25519,
-//                            ecSignature: Signature.Ed25519,
-//                            sigSumJ:     KesSum,
-//                            sigSumK:     KesSum
-      bytes: Array[Byte]
-    ) extends Proof
-
-    object HdKes {
-      type Length = Lengths.`32`.type
-    }
-
   }
 
   object Threshold {

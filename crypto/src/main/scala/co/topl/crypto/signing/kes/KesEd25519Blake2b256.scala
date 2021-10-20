@@ -3,10 +3,16 @@ package co.topl.crypto.signing.kes
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.hash.{digest, Blake2b, Blake2bHash, Hash}
 import co.topl.crypto.signing.eddsa.Ed25519
+import co.topl.models.utility.KesBinaryTree
+import co.topl.models.utility.KesBinaryTree.{Empty, MerkleNode, SigningLeaf}
 
 import java.security.SecureRandom
 
 trait KesEd25519Blake2b256 {
+
+  type SIG
+  type VK
+  type SK
 
   protected val hash: Array[Byte] => Array[Byte] = { (input: Array[Byte]) =>
     import digest.implicits._
@@ -39,8 +45,8 @@ trait KesEd25519Blake2b256 {
    * @return tuple of two new seeds
    */
   protected def prng(seed: Array[Byte]): (Array[Byte], Array[Byte]) = {
-    val r1 = hash(seed)
-    val r2 = hash(r1 ++ seed)
+    val r1 = hash(0 +: seed)
+    val r2 = hash(1 +: seed)
     (r1, r2)
   }
 
@@ -78,36 +84,20 @@ trait KesEd25519Blake2b256 {
   protected def sVerify(m: Array[Byte], signature: Array[Byte], pk: Array[Byte]): Boolean =
     sig.verify(signature, 0, pk, 0, m, 0, m.length)
 
-  sealed trait KesBinaryTree {
-
-    val witness: Array[Byte]
-
-    def height: Int = {
-      def loop(t: KesBinaryTree): Int = t match {
-        case n: MerkleNode  => Seq(loop(n.left), loop(n.right)).max + 1
-        case _: SigningLeaf => 1
-        case Empty          => 0
-      }
-      loop(this) - 1
+  def getTreeHeight(tree: KesBinaryTree): Int = {
+    def loop(t: KesBinaryTree): Int = t match {
+      case n: MerkleNode  => Seq(loop(n.left), loop(n.right)).max + 1
+      case _: SigningLeaf => 1
+      case Empty          => 0
     }
+
+    loop(tree) - 1
   }
 
-  case class MerkleNode(
-    seed:         Array[Byte],
-    witnessLeft:  Array[Byte],
-    witnessRight: Array[Byte],
-    left:         KesBinaryTree,
-    right:        KesBinaryTree
-  ) extends KesBinaryTree {
-    val witness: Array[Byte] = hash(witnessLeft ++ witnessRight)
-  }
-
-  case class SigningLeaf(sk: Array[Byte], vk: Array[Byte]) extends KesBinaryTree {
-    val witness: Array[Byte] = hash(vk)
-  }
-
-  case object Empty extends KesBinaryTree {
-    val witness: Array[Byte] = Array()
+  def witness(tree: KesBinaryTree): Array[Byte] = tree match {
+    case MerkleNode(_, witnessLeft, witnessRight, _, _) => hash(witnessLeft ++ witnessRight)
+    case SigningLeaf(_, vk)                             => hash(vk)
+    case Empty                                          => Array.fill(hashBytes)(0: Byte)
   }
 
 }
