@@ -10,32 +10,32 @@ class KesSum extends SumComposition {
 //  override val KeyLength: Int = ???
   val defaultHeight: Int = ???
 
-  def createKeyPair(seed: Seed, height: Int): (SecretKeys.KesSum, VerificationKeys.KesSum) = {
-    val sk = generateSecretKey(seed.value, height)
-    val pk = generateVerificationKey(sk)
-
-    // todo: fix offset
-    (SecretKeys.KesSum(sk, 0), VerificationKeys.KesSum(pk))
-  }
-
-  def sign(privateKey: SecretKeys.KesSum, message: MessageToSign, index: Int): Signature.KesSum =
-    ???
-    ///Signature.KesSum(sign(privateKey.tree, message.value))
-
-  def verify(
-    signature: Signature.KesSum,
-    message:   MessageToSign,
-    verifyKey: VerificationKeys.KesSum,
-    index:     Int
-  ): Boolean = verify(verifyKey.bytes, message.value, signature.bytes, index: Int)
-
-  def deriveSecret(secretKey: SecretKeys.KesSum, index: Int): SecretKeys.KesSum =
-    SecretKeys.KesSum(updateKey(secretKey.tree, index), secretKey.offset)
-
-  def deriveVerification(
-    verificationKey: VerificationKeys.KesSum,
-    index:           Long
-  ): VerificationKeys.KesSum = ???
+//  def createKeyPair(seed: Seed, height: Int): (SecretKeys.KesSum, VerificationKeys.KesSum) = {
+//    val sk = generateSecretKey(seed.value, height)
+//    val pk = generateVerificationKey(sk)
+//
+//    // todo: fix offset
+//    (SecretKeys.KesSum(sk, 0), VerificationKeys.KesSum(pk))
+//  }
+//
+//  def sign(privateKey: SecretKeys.KesSum, message: MessageToSign, index: Int): Signature.KesSum =
+//    ???
+//    ///Signature.KesSum(sign(privateKey.tree, message.value))
+//
+//  def verify(
+//    signature: Signature.KesSum,
+//    message:   MessageToSign,
+//    verifyKey: VerificationKeys.KesSum,
+//    index:     Int
+//  ): Boolean = verify(verifyKey.bytes, message.value, signature.bytes, index: Int)
+//
+//  def deriveSecret(secretKey: SecretKeys.KesSum, index: Int): SecretKeys.KesSum =
+//    SecretKeys.KesSum(updateKey(secretKey.tree, index), secretKey.offset)
+//
+//  def deriveVerification(
+//    verificationKey: VerificationKeys.KesSum,
+//    index:           Long
+//  ): VerificationKeys.KesSum = ???
 
 //  override def createKeyPair(seed: Seed): (SecretKeys.KesSum, VerificationKeys.KesSum) =
 //    createKeyPair(seed, defaultHeight)

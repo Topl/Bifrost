@@ -8,18 +8,18 @@ import java.security.SecureRandom
 
 trait KesEd25519Blake2b256 {
 
-  val hash: Array[Byte] => Array[Byte] = { (input: Array[Byte]) =>
+  protected val hash: Array[Byte] => Array[Byte] = { (input: Array[Byte]) =>
     import digest.implicits._
     val blake2b256: Hash[Blake2b, Digest32] = new Blake2bHash[Digest32] {}
     blake2b256.hash(input).value
   }
-  val sig: Ed25519 = new Ed25519
-  val seedBytes: Int = 32
-  val pkBytes: Int = 32
-  val skBytes: Int = 32
-  val sigBytes: Int = 64
-  val hashBytes: Int = 32
-  val pkLength: Int = hashBytes
+  protected val sig: Ed25519 = new Ed25519
+  protected val seedBytes: Int = 32
+  protected val pkBytes: Int = 32
+  protected val skBytes: Int = 32
+  protected val sigBytes: Int = 64
+  protected val hashBytes: Int = 32
+  protected val pkLength: Int = hashBytes
 
   protected val random = new SecureRandom()
 
@@ -49,11 +49,11 @@ trait KesEd25519Blake2b256 {
    * @param seed input entropy for keypair generation
    * @return byte array sk||pk
    */
-  protected def sGenKeypair(seed: Array[Byte]): Array[Byte] = {
+  protected def sGenKeypair(seed: Array[Byte]): (Array[Byte], Array[Byte]) = {
     val sk = hash(seed)
     val pk = Array.fill(pkBytes)(0: Byte)
     sig.generatePublicKey(sk, 0, pk, 0)
-    sk ++ pk
+    (sk, pk)
   }
 
   /**
@@ -77,5 +77,37 @@ trait KesEd25519Blake2b256 {
    */
   protected def sVerify(m: Array[Byte], signature: Array[Byte], pk: Array[Byte]): Boolean =
     sig.verify(signature, 0, pk, 0, m, 0, m.length)
+
+  sealed trait KesBinaryTree {
+
+    val witness: Array[Byte]
+
+    def height: Int = {
+      def loop(t: KesBinaryTree): Int = t match {
+        case n: MerkleNode  => Seq(loop(n.left), loop(n.right)).max + 1
+        case _: SigningLeaf => 1
+        case Empty          => 0
+      }
+      loop(this) - 1
+    }
+  }
+
+  case class MerkleNode(
+    seed:         Array[Byte],
+    witnessLeft:  Array[Byte],
+    witnessRight: Array[Byte],
+    left:         KesBinaryTree,
+    right:        KesBinaryTree
+  ) extends KesBinaryTree {
+    val witness: Array[Byte] = hash(witnessLeft ++ witnessRight)
+  }
+
+  case class SigningLeaf(sk: Array[Byte], vk: Array[Byte]) extends KesBinaryTree {
+    val witness: Array[Byte] = hash(vk)
+  }
+
+  case object Empty extends KesBinaryTree {
+    val witness: Array[Byte] = Array()
+  }
 
 }
