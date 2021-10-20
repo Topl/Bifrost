@@ -69,8 +69,6 @@ class SumComposition extends KesEd25519Blake2b256 {
         val r = prng(seed)
         val left = seedTree(r._1, height - 1)
         val right = seedTree(r._2, height - 1)
-
-        println(s"child witnesses, left: ${left} right: ${right}")
         MerkleNode(r._2, left.witness, right.witness, left, right)
       }
 
@@ -83,20 +81,7 @@ class SumComposition extends KesEd25519Blake2b256 {
       }
 
     //executes the above functions in order
-    val g = seedTree(seed, height)
-    val f = reduceTree(g)
-    println(s"head witness: ${g.witness}")
-    g match {
-      case MerkleNode(seed, witL, witR, nodeL, nodeR) => println(s"full tree matches? ${g.witness sameElements hash(nodeL.witness ++ nodeR.witness)}")
-      case leaf: SigningLeaf                      => leaf
-      case _ => Array()
-    }
-    f match {
-      case MerkleNode(seed, witL, witR, nodeL, nodeR) => println(s"partial tree matches? ${f.witness sameElements hash(nodeL.witness ++ nodeR.witness)}")
-      case leaf: SigningLeaf                      => leaf
-      case _ => Array()
-    }
-    f
+    reduceTree(seedTree(seed, height))
   }
 
   /**
@@ -167,16 +152,21 @@ class SumComposition extends KesEd25519Blake2b256 {
       keyTree: KesBinaryTree,
       W:       Vector[(Array[Byte], Array[Byte])] = Vector()
     ): SIG = keyTree match {
-      case MerkleNode(_, _, _, left: MerkleNode, _)          => handleNode(left, W)
-      case MerkleNode(_, _, witR, left: SigningLeaf, _)      => (left.vk, sSign(m, left.sk), witR, W)
-      case MerkleNode(_, _, _, Empty, right: MerkleNode)     => handleNode(right, W)
-      case MerkleNode(_, witL, _, Empty, right: SigningLeaf) => (right.vk, sSign(m, right.sk), witL, W)
-      case leaf: SigningLeaf                                 => (leaf.vk, sSign(m, leaf.sk), Array(), W)
-      case _                                                 => (Array(), Array(), Array(), Vector((Array(), Array())))
+      case MerkleNode(_, witL, witR, left: MerkleNode, _)      => handleNode(left, witL, witR, W)
+      case MerkleNode(_, _, witR, left: SigningLeaf, _)        => (left.vk, sSign(m, left.sk), witR, W)
+      case MerkleNode(_, witL, witR, Empty, right: MerkleNode) => handleNode(right, witL, witR, W)
+      case MerkleNode(_, witL, _, Empty, right: SigningLeaf)   => (right.vk, sSign(m, right.sk), witL, W)
+      case leaf: SigningLeaf                                   => (leaf.vk, sSign(m, leaf.sk), Array(), W)
+      case _                                                   => (Array(), Array(), Array(), Vector((Array(), Array())))
     }
 
-    def handleNode(node: MerkleNode, accW: Vector[(Array[Byte], Array[Byte])]): SIG =
-      loop(node, accW :+ (node.witnessLeft, node.witnessRight))
+    def handleNode(
+      nextNode:     MerkleNode,
+      witnessLeft:  Array[Byte],
+      witnessRight: Array[Byte],
+      accW:         Vector[(Array[Byte], Array[Byte])]
+    ): SIG =
+      loop(nextNode, accW :+ (witnessLeft, witnessRight))
 
     loop(keyTree)
   }
@@ -194,11 +184,7 @@ class SumComposition extends KesEd25519Blake2b256 {
     val (root: Array[Byte], step: Int) = kesVk
 
     // determine if the step corresponds to a right or left decision at each height
-    val leftGoing: Int => Boolean = (level: Int) => {
-      val g = ((step / exp(level)) % 2)
-      println(s"step: $step, height: $level, value: $g")
-      g == 0
-    }
+    val leftGoing: Int => Boolean = (level: Int) => ((step / exp(level)) % 2) == 0
 
     lazy val verifyHead: Boolean =
       if (merkleProof.isEmpty) true
@@ -213,29 +199,13 @@ class SumComposition extends KesEd25519Blake2b256 {
     lazy val verifyMerkleLeaf: Boolean =
       if (merkleProof.isEmpty) true
       else {
-        println("---- start verifyMerkleLeaf ---")
         val (witL, witR) = merkleProof.last
-        val g = if (leftGoing(1) && leftGoing(0)) {
-          println("1")
-          println(merkleProof.last)
-          witL sameElements hash(hash(vkSign) ++ partnerWitness)
-        } else if (leftGoing(1) && !leftGoing(0)) {
-          println("2")
-          witL sameElements hash(partnerWitness ++ hash(vkSign))
-        } else if (!leftGoing(1) && leftGoing(0)) {
-          println("3")
-          witR sameElements hash(hash(vkSign) ++ partnerWitness)
-        } else if (!leftGoing(1) && !leftGoing(0)) {
-          println("4")
-          witR sameElements hash(partnerWitness ++ hash(vkSign))
-        } else {
-          println("default")
-          false
-        }
-        println("---- end verifyMerkleLeaf ---")
-        g
+        if (leftGoing(1) && leftGoing(0)) witL sameElements hash(hash(vkSign) ++ partnerWitness)
+        else if (leftGoing(1) && !leftGoing(0)) witL sameElements hash(partnerWitness ++ hash(vkSign))
+        else if (!leftGoing(1) && leftGoing(0)) witR sameElements hash(hash(vkSign) ++ partnerWitness)
+        else if (!leftGoing(1) && !leftGoing(0)) witR sameElements hash(partnerWitness ++ hash(vkSign))
+        else false
       }
-
 
     val verifySigningLeaf =
       if (leftGoing(0)) root sameElements hash(hash(vkSign) ++ partnerWitness)
@@ -243,33 +213,8 @@ class SumComposition extends KesEd25519Blake2b256 {
 
     val verifySign = sVerify(m, sigSign, vkSign)
 
-    println("---- start verify ---")
-    println(verifyHead)
-    println(verifyMerkle(merkleProof))
-    println(verifyMerkleLeaf)
-    println(verifySign)
-    println(verifySigningLeaf)
-    println("---- end verify ---")
-
     if (merkleProof.nonEmpty) verifyHead && verifyMerkle(merkleProof) && verifyMerkleLeaf && verifySign
     else verifySigningLeaf && verifySign
 
-  }
-}
-
-object jamesExample {
-  val sc = new SumComposition()
-
-  val myKey_init: sc.KesBinaryTree = sc.generateSecretKey(Array.fill(32)(0: Byte), 2)
-  val myKey: sc.KesBinaryTree = sc.updateKey(myKey_init, 0)
-  val m = Array.fill(32)(0: Byte)
-  val vk = sc.generateVerificationKey(myKey)
-  val sig = sc.sign(myKey, m)
-
-  def main(args: Array[String]): Unit = {
-    println(s"key: $myKey")
-    println(s"vk: $vk")
-    println(s"sig: $sig")
-    println(s" verification: ${sc.verify(m, vk, sig)}")
   }
 }
