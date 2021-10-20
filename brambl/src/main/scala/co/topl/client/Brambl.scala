@@ -40,7 +40,7 @@ object Brambl {
    * @return if successful, the addresses will be returned and the key is now available in the keyring
    */
   def importMultipleCurve25519JsonToKeyRing(keyfilePasswordPairs: Seq[(Json, String)], keyRing: KeyRing_PK25519)(
-    implicit networkPrefix:                           NetworkPrefix
+    implicit networkPrefix:                                       NetworkPrefix
   ): Seq[Either[RpcClientFailure, Address]] =
     keyfilePasswordPairs.map { case (keyfile, password) =>
       importCurve25519JsonToKeyRing(keyfile, password, keyRing)
