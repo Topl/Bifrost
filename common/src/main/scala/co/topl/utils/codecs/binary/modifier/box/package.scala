@@ -1,6 +1,7 @@
 package co.topl.utils.codecs.binary.modifier
 
 import co.topl.modifier.box._
+import co.topl.utils.StringDataTypes.Latin1Data
 import scodec.Codec
 import co.topl.utils.codecs.binary.valuetypes.codecs._
 import co.topl.utils.codecs.binary.attestation.codecs._
@@ -12,7 +13,14 @@ package object box {
     implicit val securityRootCodec: Codec[SecurityRoot] = bytesCodec(SecurityRoot.size).as[SecurityRoot]
 
     implicit val assetCodeCodec: Codec[AssetCode] =
-      (byteCodec :: addressCodec :: latin1DataCodec).as[AssetCode]
+      (byteCodec ::
+        addressCodec ::
+        bytesCodec(AssetCode.shortNameLimit)
+          .xmap[Latin1Data](
+            bytes => Latin1Data.fromData(bytes.filter(_ != 0)),
+            _.value.padTo(AssetCode.shortNameLimit, 0: Byte)
+          ))
+        .as[AssetCode]
 
     implicit val simpleValueCodec: Codec[SimpleValue] = int128Codec.as[SimpleValue]
 

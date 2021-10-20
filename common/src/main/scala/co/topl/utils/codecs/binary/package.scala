@@ -5,7 +5,7 @@ package object binary {
   trait Codecs extends valuetypes.Codecs with attestation.Codecs with modifier.Codecs with crypto.Codecs
 
   trait Implicits
-      extends valuetypes.Implicits
+      extends valuetypes.Instances
       with AsBytes.Instances
       with AsBytes.ToOps
       with FromBytes.Instances

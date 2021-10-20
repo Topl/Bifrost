@@ -3,7 +3,7 @@ package co.topl.utils.codecs.binary.valuetypes
 import scodec.bits.BitVector
 import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
 
-object ULongCodec {
+object ULongCodec extends Codec[ULong] {
 
   private val `0x7f` = BitVector(0x7f)
   private val `0x80` = BitVector(0x80)
@@ -19,7 +19,7 @@ object ULongCodec {
    * @param from the bit vector to attempt a `ULong` decode from
    * @return if the attempt is successful, a `ULong` value and the left-over bits, otherwise an error
    */
-  def decode(from: BitVector): Attempt[DecodeResult[ULong]] = {
+  override def decode(from: BitVector): Attempt[DecodeResult[ULong]] = {
     var result: Long = 0
     var iteration = 0
 
@@ -61,7 +61,7 @@ object ULongCodec {
    * @param value the `ULong` to encode
    * @return if successful, a bit vector of encoded data, otherwise an error
    */
-  def encode(value: ULong): Attempt[BitVector] = {
+  override def encode(value: ULong): Attempt[BitVector] = {
     var output = BitVector.empty
     var runningValue = value
 
@@ -83,21 +83,5 @@ object ULongCodec {
     Attempt.successful(output)
   }
 
-  /**
-   * `Codec` type-class for encoding/decoding a `ULong` value to/from a bit vector.
-   */
-  val codec: Codec[ULong] = new Codec[ULong] {
-    override def decode(bits: BitVector): Attempt[DecodeResult[ULong]] = ULongCodec.decode(bits)
-
-    override def encode(value: ULong): Attempt[BitVector] = ULongCodec.encode(value)
-
-    override def sizeBound: SizeBound = SizeBound.bounded(8, 64)
-  }
-
-  trait Codecs {
-    implicit val uLongCodec: Codec[ULong] = codec
-  }
-
-  object codecs extends Codecs
-
+  override def sizeBound: SizeBound = SizeBound.bounded(8, 64)
 }

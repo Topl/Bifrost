@@ -2,10 +2,10 @@ package co.topl.utils.codecs.binary.attestation
 
 import co.topl.attestation._
 import co.topl.utils.codecs.binary.crypto.codecs.signatureCodec
-import co.topl.utils.codecs.binary.valuetypes.codecs.listCodec
-import scodec.{Attempt, Codec, Err, Transform, Transformer}
+import co.topl.utils.codecs.binary.valuetypes.codecs._
 import co.topl.utils.codecs.binary.valuetypes.implicits._
 import scodec.codecs.discriminated
+import scodec.{Attempt, Codec, Err}
 
 package object proof {
 

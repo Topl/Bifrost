@@ -6,7 +6,7 @@ import co.topl.attestation.keyManagement._
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.signatures.{Curve25519, Ed25519, Signature}
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.Block
+import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.Box.Nonce
 import co.topl.modifier.box._
@@ -673,4 +673,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
 
     Block(parentId, timestamp, generatorBox, publicKey, signature, height, difficulty, txs, version)
   }
+
+  lazy val bloomFilterGen: Gen[BloomFilter] =
+    Gen.listOfN(BloomFilter.numLongs, Gen.long).map(listT => BloomFilter(listT.toArray))
 }

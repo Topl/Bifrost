@@ -70,8 +70,8 @@ object Proposition {
 
 // Knowledge propositions require the prover to supply a proof attesting to their knowledge
 // of secret information.
-sealed trait KnowledgeProposition[S <: Secret] extends Proposition
 
+sealed trait KnowledgeProposition[S <: Secret] extends Proposition
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
 case class PublicKeyPropositionCurve25519(pubKeyBytes: PublicKey) extends KnowledgeProposition[PrivateKeyCurve25519] {
