@@ -1,6 +1,6 @@
 package co.topl.utils.codecs.binary
 
-import co.topl.crypto.PublicKey
+import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.crypto.hash.digest.{Digest, Digest32, InvalidDigestFailure}
 import co.topl.crypto.signatures.Signature
 import co.topl.utils.codecs.binary.valuetypes.codecs.bytesCodec
@@ -16,12 +16,14 @@ package object crypto {
     def publicKeyCodec(size: Int): Codec[PublicKey] =
       bytesCodec(size)
         .xmap[PublicKey](bytes => PublicKey(bytes), pk => pk.value)
-        .as[PublicKey]
+
+    def privateKeyCodec(size: Int): Codec[PrivateKey] =
+      bytesCodec(size)
+        .xmap[PrivateKey](bytes => PrivateKey(bytes), sk => sk.value)
 
     def signatureCodec(size: Int): Codec[Signature] =
       bytesCodec(size)
         .xmap[Signature](bytes => Signature(bytes), signature => signature.value)
-        .as[Signature]
 
     implicit val digest32Codec: Codec[Digest32] =
       bytesCodec(Digest32.size)

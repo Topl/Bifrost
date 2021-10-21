@@ -7,7 +7,7 @@ import shapeless.{::, HList, HNil}
 
 package object attestation {
 
-  trait Codecs extends proof.Codecs with proposition.Codecs {
+  trait Codecs extends proof.Codecs with proposition.Codecs with keyManagement.Codecs {
 
     implicit val evidenceCodec: Codec[Evidence] = bytesCodec(Evidence.size).as[Evidence]
 
