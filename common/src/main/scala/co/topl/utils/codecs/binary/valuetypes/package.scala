@@ -176,7 +176,7 @@ package object valuetypes {
       uIntCodec.consume[List[T]](uInt => sizedListCodec(uInt.toInt))(listT => listT.length)
 
     implicit def listMapCodec[A: Codec, B: Codec]: Codec[ListMap[A, B]] =
-      listCodec[(A, B)].xmap[ListMap[A, B]](list => ListMap.from(list), listMap => listMap.toList)
+      listCodec[(A, B)].xmap[ListMap[A, B]](list => ListMap(list: _*), listMap => listMap.toList)
 
     def sizedArrayCodec[T: Codec: ClassTag](size: Int): Codec[Array[T]] =
       sizedListCodec[T](size).xmap[Array[T]](listT => listT.toArray, arrayT => arrayT.toList)

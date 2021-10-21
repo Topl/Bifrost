@@ -1,15 +1,15 @@
 package co.topl.utils.codecs.binary.valuetypes
 
-import akka.util.ByteString
+import akka.util.{ByteString => AkkaByteString}
 import cats.{Eq, Show}
 import co.topl.utils.EqMatcher
+import co.topl.utils.IdiomaticScalaTransition.implicits._
+import co.topl.utils.codecs.binary.legacy.{VLQByteStringReader, VLQByteStringWriter}
 import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import scodec.Codec
 import scodec.bits.BitVector
-import co.topl.utils.IdiomaticScalaTransition.implicits._
-import co.topl.utils.codecs.binary.legacy.{BifrostSerializer, Reader, VLQByteStringReader, VLQByteStringWriter, Writer}
 
 trait ValueTypesCodecCompatabilityBehavior extends AnyFlatSpec with EqMatcher with ScalaCheckDrivenPropertyChecks {
 
@@ -26,7 +26,7 @@ trait ValueTypesCodecCompatabilityBehavior extends AnyFlatSpec with EqMatcher wi
       forAll(generator) { value =>
         val encodedValue = codecGen(value).encode(value).getOrThrow()
 
-        val encodedByteString = ByteString.fromArray(encodedValue.toByteArray)
+        val encodedByteString = AkkaByteString.fromArray(encodedValue.toByteArray)
 
         val decodedValue =
           vlqDeserialize(value)(new VLQByteStringReader(encodedByteString))
