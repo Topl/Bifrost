@@ -36,7 +36,7 @@ object SecretKeys {
     type Length = Lengths.`32`.type //todo: check this value
   }
 
-  case class KesSum(tree: KesBinaryTree, offset: Long) extends SecretKey
+  case class KesSum(tree: KesBinaryTree, offset: Int) extends SecretKey
 
   object KesSum {
     ///type Length = ???

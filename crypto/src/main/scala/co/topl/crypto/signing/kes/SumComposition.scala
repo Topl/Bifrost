@@ -180,7 +180,7 @@ class SumComposition extends KesEd25519Blake2b256 {
    * @param sig signature to be verified
    * @return true if the signature is valid false if otherwise
    */
-  def verify(m: Array[Byte], kesVk: VK, kesSig: SIG): Boolean = {
+  def verify(kesSig: SIG, m: Array[Byte], kesVk: VK): Boolean = {
     val (vkSign, sigSign, merkleProof) = kesSig
     val (root: Array[Byte], step: Int) = kesVk
 
