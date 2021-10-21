@@ -22,10 +22,6 @@ trait CodecCompatabilityBehavior extends AnyFlatSpec with EqMatcher with ScalaCh
 
     it should "generate output of codec encode that can be decoded by Bifrost serializer" in {
       forAll(generator) { value =>
-        import cats.implicits._
-        import co.topl.utils.codecs.binary.implicits._
-        import co.topl.utils.StringDataTypes.implicits._
-
         val encodedValue = codec.encode(value).getOrThrow()
 
         val decodedValue = serializer.parseBytes(encodedValue.toByteArray).getOrThrow()
