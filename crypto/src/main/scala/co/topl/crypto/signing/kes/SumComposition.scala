@@ -35,7 +35,7 @@ class SumComposition extends KesEd25519Blake2b256 {
    * @param keyTree binary tree for which the key is to be calculated
    * @return binary array public key
    */
-  def generateVerificationKey(keyTree: KesBinaryTree): VK = keyTree match {
+  protected def generateVerificationKey(keyTree: KesBinaryTree): VK = keyTree match {
     case node: MerkleNode  => (witness(node), getKeyTime(keyTree))
     case leaf: SigningLeaf => (witness(leaf), 0)
     case Empty             => (Array.fill(hashBytes)(0: Byte), 0)
@@ -47,7 +47,7 @@ class SumComposition extends KesEd25519Blake2b256 {
    * @param keyTree binary tree key
    * @return time step
    */
-  def getKeyTime(keyTree: KesBinaryTree): Int =
+  protected def getKeyTime(keyTree: KesBinaryTree): Int =
     keyTree match {
       case MerkleNode(_, _, _, Empty, _: SigningLeaf)    => 1
       case MerkleNode(_, _, _, Empty, right: MerkleNode) => getKeyTime(right) + exp(getTreeHeight(right))
@@ -63,7 +63,7 @@ class SumComposition extends KesEd25519Blake2b256 {
    * @param i    height of tree
    * @return binary tree at time step 0
    */
-  def generateSecretKey(seed: Array[Byte], height: Int): KesBinaryTree = {
+  protected def generateSecretKey(seed: Array[Byte], height: Int): KesBinaryTree = {
 
     // generate the binary tree with the pseudorandom number generator
     def seedTree(seed: Array[Byte], height: Int): KesBinaryTree =
@@ -95,7 +95,7 @@ class SumComposition extends KesEd25519Blake2b256 {
    * @param step    time step key is to be updated to
    * @return updated key configuration
    */
-  def updateKey(keyTree: KesBinaryTree, step: Int): KesBinaryTree = {
+  protected def updateKey(keyTree: KesBinaryTree, step: Int): KesBinaryTree = {
 
     /**
      * Evolves key a specified number of steps
@@ -156,7 +156,7 @@ class SumComposition extends KesEd25519Blake2b256 {
    * @param m       message to be signed
    * @return byte array signature
    */
-  def sign(keyTree: KesBinaryTree, m: Array[Byte]): SIG = {
+  protected def sign(keyTree: KesBinaryTree, m: Array[Byte]): SIG = {
     //loop that generates the signature of m and stacks up the witness path of the key
     @tailrec
     def loop(
@@ -180,7 +180,7 @@ class SumComposition extends KesEd25519Blake2b256 {
    * @param sig signature to be verified
    * @return true if the signature is valid false if otherwise
    */
-  def verify(kesSig: SIG, m: Array[Byte], kesVk: VK): Boolean = {
+  protected def verify(kesSig: SIG, m: Array[Byte], kesVk: VK): Boolean = {
     val (vkSign, sigSign, merkleProof) = kesSig
     val (root: Array[Byte], step: Int) = kesVk
 
