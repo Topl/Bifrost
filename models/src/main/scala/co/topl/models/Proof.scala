@@ -26,13 +26,13 @@ object Proofs {
     }
 
     case class KesSum(
-      vk:      VerificationKeys.Ed25519,
-      sig:     Proofs.Signature.Ed25519,
-      witness: Vector[Sized.Strict[Bytes, KesSum.Digest]]
+      verificationKey: VerificationKeys.Ed25519,
+      signature:       Proofs.Signature.Ed25519,
+      witness:         Vector[Sized.Strict[Bytes, KesSum.DigestLength]]
     ) extends Proof
 
     object KesSum {
-      type Digest = Lengths.`32`.type
+      type DigestLength = Lengths.`32`.type
     }
 
     case class KesSymmetricProduct(bytes: Array[Byte]) extends Proof
@@ -42,13 +42,13 @@ object Proofs {
     }
 
     case class KesProduct(
-      sigSuper: Proofs.Signature.KesSum,
-      sigSub:   Proofs.Signature.KesSum,
-      rootSub:  Sized.Strict[Bytes, KesProduct.Digest]
+      superSignature: Proofs.Signature.KesSum,
+      subSignature:   Proofs.Signature.KesSum,
+      subRoot:        Sized.Strict[Bytes, KesProduct.DigestLength]
     ) extends Proof
 
     object KesProduct {
-      type Digest = Lengths.`32`.type
+      type DigestLength = Lengths.`32`.type
     }
   }
 

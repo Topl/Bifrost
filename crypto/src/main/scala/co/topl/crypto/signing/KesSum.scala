@@ -9,7 +9,7 @@ class KesSum
     extends SumComposition
     with KeyEvolvingSignatureScheme[SecretKeys.KesSum, VerificationKeys.KesSum, Proofs.Signature.KesSum, Int] {
 
-  override def createKeyPair(seed: Seed, height: Int, offset: Int): (SecretKeys.KesSum, VerificationKeys.KesSum) = {
+  override def createKeyPair(seed: Seed, height: Int, offset: Long): (SecretKeys.KesSum, VerificationKeys.KesSum) = {
     val sk: KesBinaryTree = generateSecretKey(seed.value, height)
     val pk: (Array[Byte], Int) = generateVerificationKey(sk)
     (SecretKeys.KesSum(sk, offset), VerificationKeys.KesSum(Sized.strictUnsafe(Bytes(pk._1)), pk._2))
@@ -30,7 +30,7 @@ class KesSum
     verifyKey: VerificationKeys.KesSum
   ): Boolean = {
     val sumSig =
-      (signature.vk.bytes.data.toArray, signature.sig.bytes.data.toArray, signature.witness.map(_.data.toArray))
+      (signature.verificationKey.bytes.data.toArray, signature.signature.bytes.data.toArray, signature.witness.map(_.data.toArray))
     val sumVk = (verifyKey.bytes.data.toArray, verifyKey.step)
     verify(sumSig, message.value, sumVk)
   }

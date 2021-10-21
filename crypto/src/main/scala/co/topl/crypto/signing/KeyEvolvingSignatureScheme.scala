@@ -4,7 +4,7 @@ import co.topl.models.{Proof, SecretKey, VerificationKey}
 
 trait KeyEvolvingSignatureScheme[SK <: SecretKey, VK <: VerificationKey, SIG <: Proof, H] {
 
-  def createKeyPair(seed: Seed, height: H, offset: Int): (SK, VK)
+  def createKeyPair(seed: Seed, height: H, offset: Long): (SK, VK)
 
   def sign(privateKey: SK, message: MessageToSign): SIG
 

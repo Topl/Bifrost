@@ -39,10 +39,10 @@ object VerificationKeys {
     type Length = Lengths.`32`.type
   }
 
-  case class KesProduct() extends VerificationKey
+  case class KesProduct(bytes: Sized.Strict[Bytes, KesProduct.Length], step: Int) extends VerificationKey
 
   object KesProduct {
-    ///type Length = ???
+    type Length = Lengths.`32`.type
   }
 
 }
