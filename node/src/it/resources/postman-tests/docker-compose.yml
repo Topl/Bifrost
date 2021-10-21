@@ -2,7 +2,7 @@ version: "3.3"
 
 services:
   bifrost:
-    build: ../node/target/docker/stage
+    build: ../../../../target/docker/stage
     ports:
       - 9085:9085
     command: -s test --apiKeyHash As3ZuwnL9LpoW3wz8HoDpHtZqJ4dhPFFnv87GYrnCYKj
