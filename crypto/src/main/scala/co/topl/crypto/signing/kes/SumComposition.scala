@@ -91,19 +91,8 @@ class SumComposition extends KesEd25519Blake2b256 {
         case _                                      => Empty
       }
 
-    val g = seedTree(seed, height)
-
-    println(s"-----------start sum generate key--------------")
-    println(s"tree: $g")
-    val f = traverseToLeaves(g)
-    val h = generateVerificationKey(g)
-    println(s"leftmost sk: ${Base58.encode(f.sk)}")
-    println(s"seed: ${Base58.encode(seed)}")
-    println(s"verification witness: ${Base58.encode(h._1)}, keyTime: ${h._2}")
-    println(s"-----------end sum generate key--------------\n")
-
     //executes the above functions in order
-    reduceTree(g)
+    reduceTree(seedTree(seed, height))
   }
 
   /**
@@ -229,10 +218,6 @@ class SumComposition extends KesEd25519Blake2b256 {
       else multiWitness(witnessList.tail, witnessList.head, hash(witnessLeft ++ witnessRight), index + 1)
 
     val verifySign = sVerify(m, sigSign, vkSign)
-
-    println(s"-------start sum verify -----------")
-    println(s"merkleProof: ${merkleProof.map(Base58.encode)}, verifyMerkle: ${verifyMerkle(merkleProof)}, verifySign: ${verifySign}")
-    println(s"-------start sum verify -----------")
 
     verifyMerkle(merkleProof) && verifySign
 

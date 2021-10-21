@@ -1,6 +1,5 @@
 package co.topl.crypto.signing.kes
 
-import co.topl.Base58
 import co.topl.models.utility.KesBinaryTree.{Empty, MerkleNode, SigningLeaf}
 
 import scala.annotation.tailrec
@@ -22,14 +21,7 @@ class ProductComposition extends KesEd25519Blake2b256 {
     val numSubSteps = exp(sumComposition.getTreeHeight(key._2))
     val tSup = sumComposition.getKeyTime(key._1)
     val tSub = sumComposition.getKeyTime(key._2)
-
-    println(s"tSup: $tSup, tSub: $tSub")
-
-    //val g = scala.math.addExact(scala.math.multiplyExact(heightSub, scala.math.pow(2,heightSub).toInt),tSub)
-    val g = (tSup * numSubSteps) + tSub
-    println(s">>>>>>>>>>>>> super keyTime: $tSup, sub keyTime: $tSub, numSubSteps: $numSubSteps, key time: $g")
-
-    g
+    (tSup * numSubSteps) + tSub
   }
 
   /**
@@ -55,9 +47,6 @@ class ProductComposition extends KesEd25519Blake2b256 {
     val kesVkSub: sumComposition.VK = sumComposition.generateVerificationKey(subScheme)
     val kesSigSup: sumComposition.SIG = sumComposition.sign(superScheme, kesVkSub._1)
 
-    println(s">>>>> next child")
-    sumComposition.generateSecretKey(prng(rSub._2)._1, heightSub)
-
     (superScheme, subScheme, rSub._2, kesSigSup)
   }
 
@@ -79,15 +68,9 @@ class ProductComposition extends KesEd25519Blake2b256 {
 
     @tailrec
     def getSeed(seeds: (Array[Byte], Array[Byte]), iter: Int): (Array[Byte], Array[Byte]) = {
-      println(s"iter: $iter, seeds: ${Base58.encode(seeds._1)}, ${Base58.encode(seeds._2)}")
       if (iter < newKeyTimeSup) getSeed(prng(seeds._2), iter + 1)
       else seeds
     }
-
-    println(s"-------------------start update key---------------------")
-    println(s"starting state, step: $step, keyTime: $keyTime, totalSsteps: $totalSteps")
-    println(s"keyTimeSup: $keyTimeSup, newKeyTimeSup: $newKeyTimeSup")
-    println(s"-------------------end update key---------------------\n")
 
     if (step == 0) key
     else if (step > keyTime && step < totalSteps) {
@@ -133,31 +116,6 @@ class ProductComposition extends KesEd25519Blake2b256 {
     val verifySup = sumComposition.verify(kesSig._1, kesSig._3, (kesVk._1, keyTimeSup))
     val verifySub = sumComposition.verify(kesSig._2, m, (kesSig._3, keyTimeSub))
 
-    println(s"verifySup: $verifySup, verifySub: $verifySub")
-
     verifySup && verifySub
-  }
-}
-
-object jamesExample {
-  val pc = new ProductComposition()
-  val sc = new SumComposition()
-
-  val myKey_init = pc.generateSecretKey(Array.fill(32)(0: Byte), 10, 10)
-  val myKey = pc.updateKey(myKey_init, 5000)
-  val m = Array.fill(32)(0: Byte)
-  val vk = pc.generateVerificationKey(myKey)
-  val sig = pc.sign(myKey, m)
-
-  def main(args: Array[String]): Unit = {
-    println(s"key: $myKey")
-    println(s"vk: $vk")
-    println(s"sig: $sig")
-    println(s" verification: ${pc.verify(sig, m, vk)}")
-    println(s"super leftmost sk: ${Base58.encode(pc.traverseToLeaves(myKey._1).sk)}")
-    println(s"sub leftmost sk: ${Base58.encode(pc.traverseToLeaves(myKey._2).sk)}")
-    println(s"right seed: ${Base58.encode(myKey_init._3)}")
-    println(s"super vk: ${Base58.encode(sc.generateVerificationKey(myKey._1)._1)}")
-    println(s"sub vk: ${Base58.encode(sc.generateVerificationKey(myKey._2)._1)}")
   }
 }
