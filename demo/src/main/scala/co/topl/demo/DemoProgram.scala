@@ -1,6 +1,6 @@
 package co.topl.demo
 
-import cats.data.{EitherT, OptionT}
+import cats.data.{EitherT, OptionT, Validated}
 import cats.effect._
 import cats.implicits._
 import cats.{Monad, MonadError, Parallel, Show}
@@ -182,12 +182,14 @@ object DemoProgram {
       _ <-
         if (localChainIsWorseThan)
           EitherT(headerValidation.validate(nextBlock.headerV2, canonicalHead))
-            .semiflatTap(_ => localChain.adopt(slotData))
+            // TODO: Now fetch the body from the network and validate against the ledger
+            .semiflatTap(_ => localChain.adopt(Validated.Valid(slotData)))
             .semiflatTap(header => Logger[F].info(show"Adopted local head block id=${header.id}"))
             .void
             .valueOrF(e =>
               Logger[F]
                 .warn(show"Invalid block header. reason=$e block=${nextBlock.headerV2}")
+                // TODO: Penalize the peer
                 .flatTap(_ => blockStore.remove(nextBlock.headerV2.id))
             )
         else

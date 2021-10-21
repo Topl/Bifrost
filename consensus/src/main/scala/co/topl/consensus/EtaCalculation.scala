@@ -23,16 +23,7 @@ object EtaCalculation {
 
   object Eval {
 
-    implicit private val cacheConfig: CacheConfig = CacheConfig(cacheKeyBuilder = new CacheKeyBuilder {
-
-      def toCacheKey(parts: Seq[Any]): String =
-        parts.map {
-          case s: SlotData => s.slotId.blockId.show
-          case s           => throw new MatchError(s)
-        }.mkString
-
-      def stringToCacheKey(key: String): String = key
-    })
+    implicit private val cacheConfig: CacheConfig = CacheConfig(cacheKeyBuilder[TypedIdentifier])
 
     def make[F[_]: Clock: Sync: MonadError[*[_], Throwable]](
       slotDataCache: SlotDataCache[F],
@@ -60,14 +51,15 @@ object EtaCalculation {
             )
 
           /**
-           * Given some header near the end of an epoch, traverse the chain upwards until reaching a block
+           * Given some header near the end of an epoch, traverse the chain (toward genesis) until reaching a block
            * that is inside of the 2/3 window of the epoch
            */
           private def locateTwoThirdsBest(child: SlotData): F[SlotData] =
             for {
-              slotsPerEpoch <- clock.slotsPerEpoch
+              epochLength <- clock.slotsPerEpoch
+              twoThirdsLength = epochLength * 2 / 3
               twoThirdsBest <- child.iterateUntilM(data => slotDataCache.get(data.parentSlotId.blockId))(data =>
-                data.slotId.slot % slotsPerEpoch < (slotsPerEpoch * 2 / 3)
+                data.slotId.slot % epochLength < twoThirdsLength
               )
             } yield twoThirdsBest
 
@@ -76,7 +68,7 @@ object EtaCalculation {
            * @param twoThirdsBest The latest block header in some tine, but within the first 2/3 of the epoch
            */
           private def calculate(twoThirdsBest: SlotData): F[Eta] =
-            cachingF(twoThirdsBest)(ttl = Some(1.day))(
+            cachingF(twoThirdsBest.slotId.blockId)(ttl = Some(1.day))(
               for {
                 epoch      <- clock.epochOf(twoThirdsBest.slotId.slot)
                 epochRange <- clock.epochRange(epoch)

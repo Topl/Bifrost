@@ -22,4 +22,8 @@ package object typeclasses {
       with RatioOps.Implicits
       with ShowInstances
       with EqInstances
+      with Prepend.Instances
+      with Prepend.ToPrependOps
+      with NonEmpty.Instances
+      with NonEmpty.ToNonEmptyOps
 }

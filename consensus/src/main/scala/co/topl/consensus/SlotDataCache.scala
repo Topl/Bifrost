@@ -8,7 +8,7 @@ import co.topl.algebras.Store
 import co.topl.crypto.signatures.Ed25519VRF
 import co.topl.models.{BlockHeaderV2, TypedIdentifier}
 import co.topl.typeclasses.implicits._
-import scalacache.cachingF
+import scalacache.{cachingF, CacheConfig}
 import scalacache.caffeine.CaffeineCache
 
 import scala.concurrent.duration._
@@ -20,6 +20,8 @@ trait SlotDataCache[F[_]] {
 object SlotDataCache {
 
   object Eval {
+
+    implicit private val cacheConfig: CacheConfig = CacheConfig(cacheKeyBuilder[TypedIdentifier])
 
     // TODO: Use Epoch thirds for storage
     def make[F[_]: MonadError[*[_], Throwable]: Clock: Sync](

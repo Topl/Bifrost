@@ -1,5 +1,6 @@
 package co.topl.consensus
 
+import cats.data.Validated
 import cats.effect.Ref
 import cats.effect.kernel.Sync
 import cats.implicits._
@@ -11,7 +12,11 @@ import co.topl.typeclasses.OrderT
 trait LocalChain[F[_]] {
 
   /**
-   * Indicates if the provided "head" results in a better chain than the current local chain
+   * Indicates if the provided "head" results in a better chain than the current local chain.
+   *
+   * The `newHead` _can_ be invalid.  (For example, the block needs to have the proper syntax,
+   * but it may not necessarily need to be validated for consensus and ledger purposes)
+   *
    * @param newHead The head of a new tine, either from a network peer or from a local staker
    * @return True if the provided segment is better than the local canonical chain
    */
@@ -19,10 +24,11 @@ trait LocalChain[F[_]] {
 
   /**
    * Instructs the node to adopt the given canonical head.  This head, along with all of its ancestors, should be
-   * pre-validated elsewhere
-   * @param newHead The new canonical head slot to adopt
+   * pre-validated elsewhere.
+   *
+   * @param newHead The new _valid_ canonical head slot to adopt
    */
-  def adopt(newHead: SlotData): F[Unit]
+  def adopt(newHead: Validated.Valid[SlotData]): F[Unit]
 
   /**
    * The head of the chain that has been adopted locally by this node.
@@ -46,8 +52,8 @@ object LocalChain {
             def isWorseThan(newHead: SlotData): F[Boolean] =
               head.flatMap(chainSelection.compare(_, newHead).map(_ < 0))
 
-            def adopt(newHead: SlotData): F[Unit] =
-              headRef.update(_ => newHead)
+            def adopt(newHead: Validated.Valid[SlotData]): F[Unit] =
+              headRef.update(_ => newHead.a)
 
             val head: F[SlotData] =
               headRef.get

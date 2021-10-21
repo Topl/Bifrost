@@ -181,12 +181,13 @@ object TetraDemo extends IOApp.Simple {
         clock,
         genesis.headerV2.eligibibilityCertificate.eta
       )
-      headerValidation <- BlockHeaderValidation.Eval.make[F](
+      underlyingHeaderValidation <- BlockHeaderValidation.Eval.make[F](
         etaCalculation,
         VrfRelativeStakeValidationLookup.Eval.make(state, clock),
         leaderElectionThreshold,
         RegistrationLookup.Eval.make(state, clock)
       )
+      cachedHeaderValidation <- BlockHeaderValidation.WithCache.make[F](underlyingHeaderValidation, blockHeaderStore)
       localChain <- LocalChain.Eval.make(
         SlotData(genesis.headerV2)(Ed25519VRF.precomputed()),
         ChainSelection.orderT(slotDataCache, 5_000, 200_000)
@@ -196,7 +197,7 @@ object TetraDemo extends IOApp.Simple {
         .run[F](
           clock,
           mints(etaCalculation, constructions),
-          headerValidation,
+          cachedHeaderValidation,
           constructions,
           state,
           blockHeaderStore,

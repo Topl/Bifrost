@@ -1,10 +1,11 @@
 package co.topl.consensus
 
 import cats._
-import cats.data._
+import cats.data.{Store => CStore, _}
 import cats.effect.Ref
 import cats.effect.kernel.Sync
 import cats.implicits._
+import co.topl.algebras.Store
 import co.topl.consensus.algebras._
 import co.topl.consensus.vrf.ProofToHash
 import co.topl.crypto.hash.blake2b256
@@ -12,7 +13,10 @@ import co.topl.crypto.signatures.Ed25519VRF
 import co.topl.crypto.typeclasses.implicits._
 import co.topl.models._
 import co.topl.models.utility.Ratio
+import co.topl.typeclasses.BlockGenesis
 import co.topl.typeclasses.implicits._
+import scalacache.CacheConfig
+import scalacache.caffeine.CaffeineCache
 
 import scala.language.implicitConversions
 
@@ -199,6 +203,46 @@ object BlockHeaderValidation {
               )
               .map(_ => header)
 
+        }
+      )
+  }
+
+  object WithCache {
+
+    implicit private val cacheConfig: CacheConfig = CacheConfig(cacheKeyBuilder[TypedIdentifier])
+
+    def make[F[_]: MonadError[*[_], Throwable]: Sync](
+      underlying:       BlockHeaderValidationAlgebra[F],
+      blockHeaderStore: Store[F, BlockHeaderV2]
+    ): F[BlockHeaderValidationAlgebra[F]] =
+      CaffeineCache[F, TypedIdentifier].map(implicit cache =>
+        new BlockHeaderValidationAlgebra[F] {
+
+          def validate(
+            child:  BlockHeaderV2,
+            parent: BlockHeaderV2
+          ): F[Either[BlockHeaderValidationFailure, BlockHeaderV2]] =
+            OptionT(scalacache.get[F, TypedIdentifier](child.id))
+              .map(_ => child.asRight[BlockHeaderValidationFailure])
+              .getOrElseF(
+                validateParent(parent)
+                  .flatMapF(_ => underlying.validate(child, parent))
+                  .semiflatTap(h => scalacache.put(h.id)(h.id))
+                  .value
+              )
+
+          private def validateParent(parent: BlockHeaderV2): EitherT[F, BlockHeaderValidationFailure, BlockHeaderV2] =
+            if (parent.parentHeaderId === BlockGenesis.ParentId)
+              EitherT.pure[F, BlockHeaderValidationFailure](parent)
+            else
+              EitherT(
+                OptionT(blockHeaderStore.get(parent.parentHeaderId))
+                  .getOrElseF(
+                    new IllegalStateException(s"Non-existent block header id=${parent.parentHeaderId}")
+                      .raiseError[F, BlockHeaderV2]
+                  )
+                  .flatMap(grandParent => Sync[F].defer(validate(parent, grandParent)))
+              )
         }
       )
   }
