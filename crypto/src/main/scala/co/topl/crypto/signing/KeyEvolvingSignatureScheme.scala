@@ -12,7 +12,9 @@ trait KeyEvolvingSignatureScheme[SK <: SecretKey, VK <: VerificationKey, SIG <: 
 
   def update(privateKey: SK, steps: Int): SK
 
-  def getKeyTime(privateKay: SK): Int
+  def getCurrentStep(privateKay: SK): Int
+
+  def getMaxStep(privateKey: SK): Int
 
   def getVerificationKey(privateKey: SK): VK
 }

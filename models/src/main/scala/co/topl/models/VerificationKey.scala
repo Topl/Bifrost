@@ -39,15 +39,9 @@ object VerificationKeys {
     type Length = Lengths.`32`.type
   }
 
-  case class KesSymmetricProduct(bytes: Array[Byte]) extends VerificationKey
+  case class KesProduct() extends VerificationKey
 
-  object KesSymmetricProduct {
-    ///type Length = ???
-  }
-
-  case class KesAsymmetricProduct(bytes: Array[Byte]) extends VerificationKey
-
-  object KesAsymmetricProduct {
+  object KesProduct {
     ///type Length = ???
   }
 

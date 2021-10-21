@@ -93,4 +93,14 @@ trait KesEd25519Blake2b256 {
     case Empty                                          => Array.fill(hashBytes)(0: Byte)
   }
 
+  def traverseToLeaves(tree: KesBinaryTree): SigningLeaf = {
+    tree match {
+      case MerkleNode(_, _, _, left: MerkleNode, _) => traverseToLeaves(left)
+      case MerkleNode(_, _, _, left: SigningLeaf, _) => left
+      case MerkleNode(_, _, _, Empty, right) => traverseToLeaves(right)
+      case leaf: SigningLeaf => leaf
+      case KesBinaryTree.Empty => throw new Error("empty leaf")
+    }
+  }
+
 }

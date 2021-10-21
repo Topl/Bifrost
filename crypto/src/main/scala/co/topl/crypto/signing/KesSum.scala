@@ -38,7 +38,9 @@ class KesSum
   override def update(privateKey: SecretKeys.KesSum, steps: Int): SecretKeys.KesSum =
     privateKey.copy(tree = updateKey(privateKey.tree, steps))
 
-  override def getKeyTime(privateKay: SecretKeys.KesSum): Int = getKeyTime(privateKay.tree)
+  override def getCurrentStep(privateKay: SecretKeys.KesSum): Int = getKeyTime(privateKay.tree)
+
+  override def getMaxStep(privateKay: SecretKeys.KesSum): Int = exp(getTreeHeight(privateKay.tree))
 
   override def getVerificationKey(privateKey: SecretKeys.KesSum): VerificationKeys.KesSum = {
     val vk = generateVerificationKey(privateKey.tree)

@@ -42,20 +42,9 @@ object SecretKeys {
     ///type Length = ???
   }
 
-  case class KesSymmetricProduct(
-    data: KeyData,
-    signature: Proofs.Signature.Ed25519
-  ) extends SecretKey
+  case class KesProduct() extends SecretKey
 
-  object KesSymmetricProduct {
-    ///type Length = ???
-  }
-
-  case class KesAsymmetricProduct(
-    data: KeyData
-  ) extends SecretKey
-
-  object KesAsymmetricProduct {
+  object KesProduct {
     ///type Length = ???
   }
 
