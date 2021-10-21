@@ -1,4 +1,4 @@
-package co.topl.crypto
+package co.topl.models.utility
 
 import cats.implicits._
 

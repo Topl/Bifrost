@@ -30,7 +30,7 @@ object KeyInitializer {
       new KeyInitializer[SecretKeys.Curve25519] {
 
         override def random(): SecretKeys.Curve25519 =
-          Curve25519.instance.createKeyPair._1
+          fromSeed(Bytes(defaultRandom))
 
         override def fromSeed(seed: Bytes): SecretKeys.Curve25519 =
           Curve25519.instance.createKeyPair(Seed(seed.toArray))._1
@@ -41,7 +41,7 @@ object KeyInitializer {
       new KeyInitializer[SecretKeys.Ed25519] {
 
         override def random(): SecretKeys.Ed25519 =
-          Ed25519.instance.createKeyPair._1
+          fromSeed(Bytes(defaultRandom))
 
         override def fromSeed(seed: Bytes): SecretKeys.Ed25519 =
           Ed25519.instance.createKeyPair(Seed(seed.toArray))._1
@@ -51,7 +51,8 @@ object KeyInitializer {
     implicit val vrfInitializer: KeyInitializer[SecretKeys.VrfEd25519] =
       new KeyInitializer[SecretKeys.VrfEd25519] {
 
-        def random(): SecretKeys.VrfEd25519 = Ed25519VRF.instance.createKeyPair._1
+        def random(): SecretKeys.VrfEd25519 =
+          fromSeed(Bytes(defaultRandom))
 
         def fromSeed(seed: Bytes): SecretKeys.VrfEd25519 =
           Ed25519VRF.instance.createKeyPair(Seed(seed.toArray))._1
@@ -62,7 +63,7 @@ object KeyInitializer {
 
         // here for compatibility with signing routines, assumes password = ""
         def random(): SecretKeys.ExtendedEd25519 =
-          fromSeed(Bytes(SecureRandom.getSeed(128)))
+          fromSeed(Bytes(defaultRandom))
 
         def fromSeed(seed: Bytes): SecretKeys.ExtendedEd25519 =
           ExtendedEd25519.instance.createKeyPair(Seed(seed.toArray))._1
@@ -72,7 +73,7 @@ object KeyInitializer {
       new KeyInitializer[String => SecretKeys.ExtendedEd25519] {
 
         def random(): String => SecretKeys.ExtendedEd25519 =
-          password => fromSeed(Bytes(SecureRandom.getSeed(128)))(password)
+          password => fromSeed(Bytes(defaultRandom))(password)
 
         def fromSeed(seed: Bytes): String => SecretKeys.ExtendedEd25519 =
           password => ExtendedEd25519.fromEntropy(Entropy(seed.toArray))(password)

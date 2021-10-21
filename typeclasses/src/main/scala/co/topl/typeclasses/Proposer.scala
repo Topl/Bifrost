@@ -41,9 +41,6 @@ object Proposer {
 
     implicit val vrfProposes: Proposer[VerificationKeys.VrfEd25519, Propositions.VerificationKeyVRF] =
       t => Propositions.VerificationKeyVRF(t)
-
-    implicit val kesProposes: Proposer[VerificationKeys.HdKes, Propositions.VerificationKeyHdKES] =
-      t => Propositions.VerificationKeyHdKES(t)
   }
 
   object instances extends Instances

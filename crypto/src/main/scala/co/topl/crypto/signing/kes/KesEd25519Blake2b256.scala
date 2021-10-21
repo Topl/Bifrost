@@ -1,12 +1,10 @@
 package co.topl.crypto.signing.kes
 
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.crypto.hash.{digest, Blake2b, Blake2bHash, Hash}
+import co.topl.crypto.hash.{Blake2b, Blake2bHash, Hash, digest}
 import co.topl.crypto.signing.eddsa.Ed25519
 import co.topl.models.utility.KesBinaryTree
 import co.topl.models.utility.KesBinaryTree.{Empty, MerkleNode, SigningLeaf}
-
-import java.security.SecureRandom
 
 trait KesEd25519Blake2b256 {
 
@@ -20,14 +18,9 @@ trait KesEd25519Blake2b256 {
     blake2b256.hash(input).value
   }
   protected val sig: Ed25519 = new Ed25519
-  protected val seedBytes: Int = 32
   protected val pkBytes: Int = 32
-  protected val skBytes: Int = 32
   protected val sigBytes: Int = 64
   protected val hashBytes: Int = 32
-  protected val pkLength: Int = hashBytes
-
-  protected val random = new SecureRandom()
 
   /**
    * Exponent base two of the argument
