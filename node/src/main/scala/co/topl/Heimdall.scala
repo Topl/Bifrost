@@ -17,6 +17,7 @@ import co.topl.network.utils.NetworkTimeProvider
 import co.topl.nodeView._
 import co.topl.rpc.ToplRpcServer
 import co.topl.settings.{AppContext, AppSettings}
+import co.topl.tools.exporter.{DataType, MongoChainRepExport}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider
 import io.circe.Encoder
@@ -362,14 +363,27 @@ object Heimdall {
     )
 
     val chainReplicator: Option[ActorRef[ChainReplicator.ReceivableMessage]] =
-      if (settings.chainReplicator.enableChainReplicator)
+      if (settings.chainReplicator.enableChainReplicator) {
+        val mongo =
+          MongoChainRepExport(
+            settings.chainReplicator.uri.getOrElse("mongodb://localhost"),
+            settings.chainReplicator.database.getOrElse("bifrost")
+          )
+
         Some(
           context.spawn(
-            ChainReplicator(state.nodeViewHolder, settings.chainReplicator),
+            ChainReplicator(
+              state.nodeViewHolder,
+              () => mongo.checkValidConnection(),
+              (start: Long, end: Long) => mongo.getExistingHeights(start, end),
+              (eleSeq: Seq[(String, String)], filterField: String, dt: DataType) =>
+                mongo.replaceInsert(eleSeq, filterField, dt),
+              settings.chainReplicator
+            ),
             ChainReplicator.actorName
           )
         )
-      else None
+      } else None
 
     ActorsInitializedState(
       state.peerManager,

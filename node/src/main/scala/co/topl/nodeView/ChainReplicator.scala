@@ -10,7 +10,7 @@ import co.topl.modifier.block.Block
 import co.topl.nodeView.NodeViewHolder.Events.SemanticallySuccessfulModifier
 import co.topl.settings.ChainReplicatorSettings
 import co.topl.tool.Exporter.txFormat
-import co.topl.tools.exporter.{DataType, MongoChainRepExport}
+import co.topl.tools.exporter.DataType
 import io.circe.syntax.EncoderOps
 import org.mongodb.scala.BulkWriteResult
 import org.slf4j.Logger
@@ -44,8 +44,11 @@ object ChainReplicator {
   }
 
   def apply(
-    nodeViewHolderRef: ActorRef[NodeViewHolder.ReceivableMessage],
-    settings:          ChainReplicatorSettings
+    nodeViewHolderRef:    ActorRef[NodeViewHolder.ReceivableMessage],
+    checkDBConnection:    () => Future[Seq[String]],
+    getExistingHeightsDB: (Long, Long) => Future[Seq[Long]],
+    replaceInsertDB:      (Seq[(String, String)], String, DataType) => Future[BulkWriteResult],
+    settings:             ChainReplicatorSettings
   ): Behavior[ReceivableMessage] =
     Behaviors.withStash(stashSize) { buffer =>
       Behaviors.setup { implicit context =>
@@ -59,30 +62,25 @@ object ChainReplicator {
 
         context.log.info(s"${Console.GREEN}Chain replicator initializing${Console.RESET}")
 
-        val mongo =
-          MongoChainRepExport(
-            settings.uri.getOrElse("mongodb://localhost"),
-            settings.database.getOrElse("bifrost")
-          )
-
-        context.pipeToSelf(mongo.checkValidConnection()) {
+        context.pipeToSelf(checkDBConnection()) {
           case Success(result) =>
             context.log.info(s"${Console.GREEN}Found collections in database: $result${Console.RESET}")
             ReceivableMessages.CheckDatabaseComplete
           case Failure(e) => ReceivableMessages.Terminate(e)
         }
 
-        new ChainReplicator(mongo, nodeViewHolderRef, buffer, settings).uninitialized
+        new ChainReplicator(nodeViewHolderRef, buffer, getExistingHeightsDB, replaceInsertDB, settings).uninitialized
 
       }
     }
 }
 
 private class ChainReplicator(
-  mongo:             MongoChainRepExport,
-  nodeViewHolderRef: ActorRef[NodeViewHolder.ReceivableMessage],
-  buffer:            StashBuffer[ChainReplicator.ReceivableMessage],
-  settings:          ChainReplicatorSettings
+  nodeViewHolderRef:    ActorRef[NodeViewHolder.ReceivableMessage],
+  buffer:               StashBuffer[ChainReplicator.ReceivableMessage],
+  getExistingHeightsDB: (Long, Long) => Future[Seq[Long]],
+  replaceInsertDB:      (Seq[(String, String)], String, DataType) => Future[BulkWriteResult],
+  settings:             ChainReplicatorSettings
 )(implicit
   context: ActorContext[ChainReplicator.ReceivableMessage]
 ) {
@@ -132,7 +130,7 @@ private class ChainReplicator(
           .map(group => (group.head, group.last))
 
         checkRange.foreach { case (startHeight, endHeight) =>
-          val existingHeightsFuture = mongo.getExistingHeights(startHeight, endHeight)
+          val existingHeightsFuture = getExistingHeightsDB(startHeight, endHeight)
           val exportResult: OptionT[Future, (BulkWriteResult, BulkWriteResult)] = for {
             existingHeights  <- OptionT[Future, Seq[Long]](existingHeightsFuture.map(_.some))
             blocksToAdd      <- OptionT[Future, Seq[Block]](missingBlocks(startHeight, endHeight, existingHeights))
@@ -209,7 +207,7 @@ private class ChainReplicator(
     implicit val ec: ExecutionContext = context.executionContext
     val blocksString = blocks.map(_.asJson(blockEncoder).toString)
     val blocksId = blocks.map(_.id.toString)
-    mongo.replaceInsert(blocksId.zip(blocksString), "id", DataType.Block)
+    replaceInsertDB(blocksId.zip(blocksString), "id", DataType.Block)
   }
 
   /**
@@ -224,7 +222,7 @@ private class ChainReplicator(
         (tx.id.toString, txFormat(b, tx).toString)
       }
     }
-    mongo.replaceInsert(txString, "txId", DataType.Transaction)
+    replaceInsertDB(txString, "txId", DataType.Transaction)
   }
 
   /**
