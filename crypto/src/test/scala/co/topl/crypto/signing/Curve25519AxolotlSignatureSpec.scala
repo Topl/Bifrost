@@ -1,8 +1,10 @@
-package co.topl.crypto.signatures
+package co.topl.crypto.signing
 
-import co.topl.crypto.signing.Curve25519
-import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.crypto.utils.Hex
+import co.topl.crypto.{PrivateKey, PublicKey}
+import co.topl.models.utility.HasLength.instances._
+import co.topl.models.utility.Sized
+import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
@@ -12,14 +14,16 @@ class Curve25519AxolotlSignatureSpec extends AnyPropSpec with ScalaCheckDrivenPr
   property("signed message should be verifiable with appropriate public key") {
     forAll { (seed1: Array[Byte], seed2: Array[Byte], message1: Array[Byte], message2: Array[Byte]) =>
       whenever(!seed1.sameElements(seed2) && !message1.sameElements(message2)) {
-        val keyPair = Curve25519.createKeyPair(seed1)
-        val keyPair2 = Curve25519.createKeyPair(seed2)
+        val curve25519 = new Curve25519
 
-        val sig = Curve25519.sign(keyPair._1, message1)
+        val keyPair = curve25519.createKeyPair(Seed(seed1))
+        val keyPair2 = curve25519.createKeyPair(Seed(seed2))
 
-        Curve25519.verify(sig, message1, keyPair._2) shouldBe true
-        Curve25519.verify(sig, message1, keyPair2._2) should not be true
-        Curve25519.verify(sig, message2, keyPair._2) should not be true
+        val sig = curve25519.sign(keyPair._1, MessageToSign(message1))
+
+        curve25519.verify(sig, MessageToSign(message1), keyPair._2) shouldBe true
+        curve25519.verify(sig, MessageToSign(message1), keyPair2._2) should not be true
+        curve25519.verify(sig, MessageToSign(message2), keyPair._2) should not be true
       }
     }
   }
@@ -27,8 +31,10 @@ class Curve25519AxolotlSignatureSpec extends AnyPropSpec with ScalaCheckDrivenPr
   property("with Curve25519, keyPairs generated with the same seed should be the same") {
     forAll { seedBytes: Array[Byte] =>
       whenever(seedBytes.size != 0) {
-        val keyPair1 = Curve25519.createKeyPair(seedBytes)
-        val keyPair2 = Curve25519.createKeyPair(seedBytes)
+        val curve25519 = new Curve25519
+
+        val keyPair1 = curve25519.createKeyPair(Seed(seedBytes))
+        val keyPair2 = curve25519.createKeyPair(Seed(seedBytes))
 
         keyPair1._1 === keyPair2._1 shouldBe true
         keyPair1._2 === keyPair2._2 shouldBe true
@@ -41,22 +47,24 @@ class Curve25519AxolotlSignatureSpec extends AnyPropSpec with ScalaCheckDrivenPr
    * Commit hash: ef396e2faa36cfb50a6ec00961a2a021491c88a6
    */
   property("test vectors with seed string: test1") {
-    val privKey = PrivateKey(Hex.decode("184F0E9851971998E732078544C96B36C3D01CEDF7CAA332359D6F1D83567054"))
-    val pubKey = PublicKey(Hex.decode("4652486EBC271520D844E5BDDA9AC243C05DCBE7BC9B93807073A32177A6F73D"))
-    val message = Array[Byte]()
-    val sig = Curve25519.sign(privKey, message)
-    val specSig = Signature(
+    val curve25519 = new Curve25519
+    val privKey = SecretKeys.Curve25519(Sized.strictUnsafe(Bytes(Hex.decode("184F0E9851971998E732078544C96B36C3D01CEDF7CAA332359D6F1D83567054"))))
+    val pubKey = VerificationKeys.Curve25519(Sized.strictUnsafe(Bytes(Hex.decode("4652486EBC271520D844E5BDDA9AC243C05DCBE7BC9B93807073A32177A6F73D"))
+    val message = MessageToSign(Array[Byte]())
+    val sig = curve25519.sign(privKey, message)
+    val specSig = Proofs.Signature.Curve25519(Sized.strictUnsafe(Bytes(
       Hex.decode(
         "AD7B2C434DE419712A55AF65D485DA4F673076D4FDBFF4730A20AA8DC1F0C05A" +
         "D757F6B50674CFB622131377F29C646DF60C7148E6B8AF33850276F98D31DA0A"
       )
-    )
+    )))
 
-    Curve25519.verify(sig, message, pubKey) shouldBe true
-    Curve25519.verify(specSig, message, pubKey) shouldBe true
+    curve25519.verify(sig, message, pubKey) shouldBe true
+    curve25519.verify(specSig, message, pubKey) shouldBe true
   }
 
   property("test vectors with seed string: test2, and one byte message length") {
+    val curve25519 = new Curve25519
     val privKey = PrivateKey(Hex.decode("60303AE22B998861BCE3B28F33EEC1BE758A213C86C93C076DBE9F558C11C752"))
     val pubKey = PublicKey(Hex.decode("FFBC7BA2E4C43BE03F8A7F020D0651F582AD1901C254EEBB4EC2ECB73148E50D"))
     val message = Hex.decode("72")

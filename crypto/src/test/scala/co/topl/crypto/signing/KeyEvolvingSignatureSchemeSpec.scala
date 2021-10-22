@@ -1,15 +1,14 @@
-package co.topl.crypto.kes
+package co.topl.crypto.signing
 
+import co.topl.crypto.kes.keys
+import co.topl.models.Proofs
+import co.topl.models.utility.Sized
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-import scala.util.{Failure, Success, Try}
 import java.security.SecureRandom
-import co.topl.crypto.signatures.Signature
-import co.topl.models.Proofs
-import co.topl.models.utility.Sized
-import co.topl.models.utility.HasLength.instances._
+import scala.util.{Failure, Success, Try}
 
 class KeyEvolvingSignatureSchemeSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
 

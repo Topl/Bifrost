@@ -1,4 +1,4 @@
-package co.topl.crypto.signatures
+package co.topl.crypto.signing
 
 import co.topl.crypto.PrivateKey
 import co.topl.crypto.signing.{Ed25519, Seed}

@@ -1,4 +1,4 @@
-package co.topl.crypto.signatures
+package co.topl.crypto.signing
 
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.hash.digest.implicits._

@@ -4,7 +4,7 @@ import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
 import co.topl.attestation.keyManagement._
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.crypto.signatures.Signature
+import co.topl.crypto.signing.Signature
 import co.topl.crypto.signing.Curve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block

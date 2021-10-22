@@ -4,7 +4,7 @@ import cats.implicits._
 import co.topl.algebras.{BlockchainState, ClockAlgebra}
 import co.topl.consensus.vrf.ProofToHash
 import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.signatures.Ed25519VRF
+import co.topl.crypto.signing.Ed25519VRF
 import co.topl.crypto.typeclasses.implicits._
 import co.topl.models.ModelGenerators._
 import co.topl.models._
