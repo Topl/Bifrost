@@ -11,9 +11,6 @@ import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.algebras.VrfProofAlgebra
 import co.topl.models.Proofs.Signature
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.Lengths._
-import co.topl.models.utility.Sized
 import co.topl.typeclasses.implicits._
 
 import scala.collection.concurrent.TrieMap
@@ -71,15 +68,6 @@ object VrfProof {
   private def compute(
     skVrf: SecretKeys.VrfEd25519,
     arg:   LeaderElectionValidation.VrfArgument
-  ): Proofs.Signature.VrfEd25519 =
-    Proofs.Signature.VrfEd25519(
-      Sized.strictUnsafe(
-        Bytes(
-          Ed25519VRF.instance.vrfProof(
-            skVrf.bytes.data.toArray,
-            arg.signableBytes.toArray
-          )
-        )
-      )
-    )
+  ): Proofs.Signature.VrfEd25519 = Ed25519VRF.instance.sign(skVrf, arg.signableBytes)
+
 }

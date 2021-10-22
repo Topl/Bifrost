@@ -15,6 +15,10 @@ trait ProofVerifier[Proof, Proposition] {
   def verifyWith[Data: Signable](proof: Proof, proposition: Proposition, data: Data): Boolean
 }
 
+// todo: James - I really want to make the typeclasses just act as controllers to the functionality implemented
+// elsewhere, it should be the responsibility of the implmentation to present interfaces (i.e. type usage) that the
+// typeclasses will be expecting. This way we have a common set of models that we can assume all modules will
+// use for their API
 object ProofVerifier {
 
   trait Ops[Proof, Proposition] {
@@ -73,15 +77,14 @@ object ProofVerifier {
       }
 
     // todo: move this logic to an implementation
-    implicit val thresholdCurve25519
-      : ProofVerifier[Proofs.Threshold.Curve25519, Propositions.ThresholdCurve25519] =
+    implicit val thresholdCurve25519: ProofVerifier[Proofs.Threshold.Curve25519, Propositions.ThresholdCurve25519] =
       new ProofVerifier[Proofs.Threshold.Curve25519, Propositions.ThresholdCurve25519] {
         private val curve25519 = new Curve25519()
 
         override def verifyWith[Data: Signable](
-                                                 proof:       Proofs.Threshold.Curve25519,
-                                                 proposition: Propositions.ThresholdCurve25519,
-                                                 data:        Data
+          proof:       Proofs.Threshold.Curve25519,
+          proposition: Propositions.ThresholdCurve25519,
+          data:        Data
         ): Boolean = {
           val dataBytes = data.signableBytes.toArray
           proposition.propositions.size >= proposition.threshold && {
@@ -116,9 +119,9 @@ object ProofVerifier {
         private val ed25519 = new Ed25519()
 
         override def verifyWith[Data: Signable](
-                                                 proof:       Proofs.Threshold.Ed25519,
-                                                 proposition: Propositions.ThresholdEd25519,
-                                                 data:        Data
+          proof:       Proofs.Threshold.Ed25519,
+          proposition: Propositions.ThresholdEd25519,
+          data:        Data
         ): Boolean = {
           val dataBytes = data.signableBytes.toArray
           proposition.propositions.size >= proposition.threshold && {
@@ -165,10 +168,10 @@ object ProofVerifier {
           data:        Data
         ): Boolean =
           Try(
-            Ed25519VRF.instance.vrfVerify(
-              proposition.key.bytes.data.toArray,
-              data.signableBytes.toArray,
-              proof.bytes.data.toArray
+            Ed25519VRF.instance.verify(
+              proof,
+              data.signableBytes,
+              proposition.key
             )
           ).getOrElse(false)
       }

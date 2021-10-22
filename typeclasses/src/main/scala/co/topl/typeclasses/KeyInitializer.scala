@@ -33,7 +33,7 @@ object KeyInitializer {
           fromSeed(Bytes(defaultRandom))
 
         override def fromSeed(seed: Bytes): SecretKeys.Curve25519 =
-          Curve25519.instance.createKeyPair(Seed(seed.toArray))._1
+          Curve25519.instance.createKeyPair(seed)._1
 
       }
 
@@ -44,7 +44,7 @@ object KeyInitializer {
           fromSeed(Bytes(defaultRandom))
 
         override def fromSeed(seed: Bytes): SecretKeys.Ed25519 =
-          Ed25519.instance.createKeyPair(Seed(seed.toArray))._1
+          Ed25519.instance.createKeyPair(seed)._1
 
       }
 
@@ -55,7 +55,7 @@ object KeyInitializer {
           fromSeed(Bytes(defaultRandom))
 
         def fromSeed(seed: Bytes): SecretKeys.VrfEd25519 =
-          Ed25519VRF.instance.createKeyPair(Seed(seed.toArray))._1
+          Ed25519VRF.instance.createKeyPair(seed)._1
       }
 
     implicit val extendedEd25519Initializer: KeyInitializer[SecretKeys.ExtendedEd25519] =
@@ -66,7 +66,7 @@ object KeyInitializer {
           fromSeed(Bytes(defaultRandom))
 
         def fromSeed(seed: Bytes): SecretKeys.ExtendedEd25519 =
-          ExtendedEd25519.instance.createKeyPair(Seed(seed.toArray))._1
+          ExtendedEd25519.instance.createKeyPair(seed)._1
       }
 
     implicit def extendedEd25519PasswordInitializer: KeyInitializer[String => SecretKeys.ExtendedEd25519] =

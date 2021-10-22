@@ -8,27 +8,29 @@ import java.security.SecureRandom
  * Elliptic curve Verifiable Random Function based on EdDSA
  * https://tools.ietf.org/html/draft-irtf-cfrg-vrf-04
  */
+//noinspection ScalaStyle
 
 class ECVRF25519 extends EC {
-  val suite: Array[Byte] = Array(0x03.toByte)
-  val cofactor: Array[Byte] = Array.fill(SCALAR_BYTES)(0x00.toByte)
-  val zeroScalar: Array[Byte] = Array.fill(SCALAR_BYTES)(0x00.toByte)
-  val oneScalar: Array[Byte] = Array.fill(SCALAR_BYTES)(0x00.toByte)
-  val np: Array[Int] = Array.fill(SCALAR_INTS)(0)
-  val nb: Array[Int] = Array.fill(SCALAR_INTS)(0)
-  val C_BYTES = 16
-  val PI_BYTES: Int = POINT_BYTES + SCALAR_BYTES + C_BYTES
-  val neutralPointBytes: Array[Byte] = Array.fill(POINT_BYTES)(0x00.toByte)
-  val NP = new PointAccum
+  private val suite: Array[Byte] = Array(0x03.toByte)
+  private val cofactor: Array[Byte] = Array.fill(SCALAR_BYTES)(0x00.toByte)
+  private val zeroScalar: Array[Byte] = Array.fill(SCALAR_BYTES)(0x00.toByte)
+  private val oneScalar: Array[Byte] = Array.fill(SCALAR_BYTES)(0x00.toByte)
+  private val np: Array[Int] = Array.fill(SCALAR_INTS)(0)
+  private val nb: Array[Int] = Array.fill(SCALAR_INTS)(0)
+  private val C_BYTES = 16
+  private val PI_BYTES: Int = POINT_BYTES + SCALAR_BYTES + C_BYTES
+  private val neutralPointBytes: Array[Byte] = Array.fill(POINT_BYTES)(0x00.toByte)
+  private val NP = new PointAccum
+
   cofactor.update(0, 0x08.toByte)
   oneScalar.update(0, 0x01.toByte)
   pointSetNeutral(NP)
   encodePoint(NP, neutralPointBytes, 0)
 
-  def generatePrivateKey(random: SecureRandom, k: Array[Byte]): Unit =
+  private[signing] def generatePrivateKey(random: SecureRandom, k: Array[Byte]): Unit =
     random.nextBytes(k)
 
-  def generatePublicKey(sk: Array[Byte], skOff: Int, pk: Array[Byte], pkOff: Int): Unit = {
+  private[signing] def generatePublicKey(sk: Array[Byte], skOff: Int, pk: Array[Byte], pkOff: Int): Unit = {
     val h = new Array[Byte](sha512Digest.getDigestSize)
     sha512Digest.update(sk, skOff, SECRET_KEY_SIZE)
     sha512Digest.doFinal(h, 0)
@@ -37,7 +39,7 @@ class ECVRF25519 extends EC {
     scalarMultBaseEncoded(s, pk, pkOff)
   }
 
-  def verifyKeyPair(sk: Array[Byte], pk: Array[Byte]): Boolean =
+  private[signing] def verifyKeyPair(sk: Array[Byte], pk: Array[Byte]): Boolean =
     if (pk.length == PUBLIC_KEY_SIZE && sk.length == SECRET_KEY_SIZE) {
       val pkt: Array[Byte] = Array.fill[Byte](PUBLIC_KEY_SIZE)(0)
       generatePublicKey(sk, 0, pkt, 0)
@@ -45,186 +47,6 @@ class ECVRF25519 extends EC {
     } else {
       false
     }
-
-  def isNeutralPoint(p: PointAccum): Boolean = {
-    val pBytes: Array[Byte] = Array.fill(POINT_BYTES)(0x00.toByte)
-    encodePoint(p, pBytes, 0)
-    pBytes sameElements neutralPointBytes
-  }
-
-  def isNeutralPoint(p: PointExt): Boolean = {
-    val pBytes: Array[Byte] = Array.fill(POINT_BYTES)(0x00.toByte)
-    val pA = new PointAccum
-    decodeScalar(oneScalar, 0, np)
-    decodeScalar(zeroScalar, 0, nb)
-    scalarMultStraussVar(nb, np, p, pA)
-    encodePoint(pA, pBytes, 0)
-    pBytes sameElements neutralPointBytes
-  }
-
-  def pruneHash(s: Array[Byte]): Array[Byte] = {
-    val h: Array[Byte] = new Array[Byte](sha512Digest.getDigestSize)
-    sha512Digest.update(s, 0, SECRET_KEY_SIZE)
-    sha512Digest.doFinal(h, 0)
-    h.update(0, (h(0) & 0xf8).toByte)
-    h.update(SCALAR_BYTES - 1, (h(SCALAR_BYTES - 1) & 0x7f).toByte)
-    h.update(SCALAR_BYTES - 1, (h(SCALAR_BYTES - 1) | 0x40).toByte)
-    h
-  }
-
-  def scalarMultBaseEncoded(s: Array[Byte]): Array[Byte] = {
-    val r: Array[Byte] = Array.fill(SCALAR_BYTES)(0x00)
-    scalarMultBaseEncoded(s, r, 0)
-    r
-  }
-
-  /*
-  ECVRF_validate_key(PK_string)
-  Input:
-  PK_string - public key, an octet string
-  Output:
-  "INVALID", or
-  Y - public key, an EC point
-  Steps:
-  1. Y = string_to_point(PK_string)
-  2. If Y is "INVALID", output "INVALID" and stop
-  3. If cofactor*Y is the EC point at infinty, output "INVALID" and
-  stop
-  4. Output Y
-   */
-
-  private def verifyPublicKey(pk: Array[Byte]): Boolean =
-    if (pk.length == PUBLIC_KEY_SIZE) {
-      val Y = new PointExt
-      val CY = new PointAccum
-      val decoded = decodePointVar(pk, 0, negate = false, Y)
-      if (decoded) {
-        decodeScalar(cofactor, 0, np)
-        decodeScalar(zeroScalar, 0, nb)
-        scalarMultStraussVar(nb, np, Y, CY)
-        !isNeutralPoint(CY)
-      } else {
-        false
-      }
-    } else {
-      false
-    }
-
-  /*
-  ECVRF_hash_to_try_and_increment(suite_string, Y, alpha_string)
-  Input:
-  suite_string - a single octet specifying ECVRF ciphersuite.
-  Y - public key, an EC point
-  alpha_string - value to be hashed, an octet string
-  Output:
-  H - hashed value, a finite EC point in G
-  Steps:
-  1. ctr = 0
-  2. PK_string = point_to_string(Y)
-  3. one_string = 0x01 = int_to_string(1, 1), a single octet with
-  value 1
-  4. H = "INVALID"
-  5. While H is "INVALID" or H is EC point at infinity:
-  6.
-  A. ctr_string = int_to_string(ctr, 1)
-  B. hash_string = Hash(suite_string || one_string || PK_string ||
-  alpha_string || ctr_string)
-  C. H = arbitrary_string_to_point(hash_string)
-  D. If H is not "INVALID" and cofactor > 1, set H = cofactor * H
-  E. ctr = ctr + 1
-  Output H
-   */
-
-  //This leads to side channel attack (timing attack) if alpha is a secret
-
-  private def ECVRF_hash_to_curve_try_and_increment(Y: Array[Byte], a: Array[Byte]): (PointAccum, Array[Byte]) = {
-    var ctr = 0
-    val one = Array(0x01.toByte)
-    val hash: Array[Byte] = new Array[Byte](POINT_BYTES)
-    val H = new PointExt
-    val HR = new PointAccum
-    var isPoint = false
-    while (!isPoint) {
-      val ctr_byte = Array(ctr.toByte)
-      val input = suite ++ one ++ Y ++ a ++ ctr_byte
-      val output = new Array[Byte](sha512Digest.getDigestSize)
-      sha512Digest.update(input, 0, input.length)
-      sha512Digest.doFinal(output, 0)
-      java.lang.System.arraycopy(output, 0, hash, 0, POINT_BYTES)
-      isPoint = decodePointVar(hash, 0, negate = false, H)
-      if (isPoint) {
-        isPoint != isNeutralPoint(H)
-      }
-      ctr += 1
-    }
-    decodeScalar(cofactor, 0, np)
-    decodeScalar(zeroScalar, 0, nb)
-    scalarMultStraussVar(nb, np, H, HR)
-    encodePoint(HR, hash, 0)
-    (HR, hash)
-  }
-
-  /*
-  ECVRF_hash_points(P1, P2, ..., PM)
-  Input:
-  P1...PM - EC points in G
-  Output:
-  c - hash value, integer between 0 and 2^(8n)-1
-  Steps:
-  1. two_string = 0x02 = int_to_string(2, 1), a single octet with
-  value 2
-  2. Initialize str = suite_string || two_string
-  3. for PJ in [P1, P2, ... PM]:
-  str = str || point_to_string(PJ)
-  4. c_string = Hash(str)
-  5. truncated_c_string = c_string[0]...c_string[n-1]
-  6. c = string_to_int(truncated_c_string)
-  7. Output c
-   */
-
-  private def ECVRF_hash_points(p1: PointAccum, p2: PointAccum, p3: PointAccum, p4: PointAccum): Array[Byte] = {
-    val two: Array[Byte] = Array(0x02.toByte)
-    var str: Array[Byte] = suite ++ two
-    val r: Array[Byte] = Array.fill(POINT_BYTES)(0x00.toByte)
-    val out: Array[Byte] = new Array[Byte](sha512Digest.getDigestSize)
-    encodePoint(p1, r, 0)
-    str = str ++ r
-    encodePoint(p2, r, 0)
-    str = str ++ r
-    encodePoint(p3, r, 0)
-    str = str ++ r
-    encodePoint(p4, r, 0)
-    str = str ++ r
-    sha512Digest.update(str, 0, str.length)
-    sha512Digest.doFinal(out, 0)
-    out.take(C_BYTES) ++ Array.fill(SCALAR_BYTES - C_BYTES)(0x00.toByte)
-  }
-
-  /*
-  ECVRF_nonce_generation_RFC8032(SK, h_string)
-  Input:
-  SK - an ECVRF secret key
-  h_string - an octet string
-  Output:
-  k - an integer between 0 and q-1
-  Steps:
-  1. hashed_sk_string = Hash (SK)
-  2. truncated_hashed_sk_string =
-  hashed_sk_string[32]...hashed_sk_string[63]
-  3. k_string = Hash(truncated_hashed_sk_string || h_string)
-  4. k = string_to_int(k_string) mod q
-   */
-
-  private def ECVRF_nonce_generation_RFC8032(sk: Array[Byte], h: Array[Byte]): Array[Byte] = {
-    val out: Array[Byte] = new Array[Byte](sha512Digest.getDigestSize)
-    sha512Digest.update(sk, 0, SECRET_KEY_SIZE)
-    sha512Digest.doFinal(out, 0)
-    val trunc_hashed_sk = out.drop(SCALAR_BYTES) ++ h
-    sha512Digest.update(trunc_hashed_sk, 0, trunc_hashed_sk.length)
-    sha512Digest.doFinal(out, 0)
-    val k_string = out
-    reduceScalar(k_string)
-  }
 
   /*
   ECVRF Proving
@@ -249,8 +71,7 @@ class ECVRF25519 extends EC {
   8. pi_string = point_to_string(Gamma) || int_to_string(c, n) || int_to_string(s, qLen)
   9. Output pi_string
    */
-
-  def vrfProof(sk: Array[Byte], alpha: Array[Byte]): Array[Byte] = {
+  private[signing] def vrfProof(sk: Array[Byte], alpha: Array[Byte]): Array[Byte] = {
     assert(sk.length == SECRET_KEY_SIZE)
     // secret scalar
     val x = pruneHash(sk)
@@ -302,8 +123,7 @@ class ECVRF25519 extends EC {
   8. If c and c’ are equal, output ("VALID",
   ECVRF_proof_to_hash(pi_string)); else output "INVALID"
    */
-
-  def vrfVerify(pk: Array[Byte], alpha: Array[Byte], pi: Array[Byte]): Boolean = {
+  private[signing] def vrfVerify(pk: Array[Byte], alpha: Array[Byte], pi: Array[Byte]): Boolean = {
     assert(pi.length == PI_BYTES)
     val gamma_str = pi.take(POINT_BYTES)
     val c = pi.slice(POINT_BYTES, POINT_BYTES + C_BYTES) ++ Array.fill(SCALAR_BYTES - C_BYTES)(0x00.toByte)
@@ -367,8 +187,7 @@ class ECVRF25519 extends EC {
   point_to_string(cofactor * Gamma))
   6. Output beta_string
    */
-
-  def vrfProofToHash(pi: Array[Byte]): Array[Byte] = {
+  private[signing] def vrfProofToHash(pi: Array[Byte]): Array[Byte] = {
     assert(pi.length == PI_BYTES)
     val gamma_str = pi.take(POINT_BYTES)
     val c = pi.slice(POINT_BYTES, POINT_BYTES + C_BYTES) ++ Array.fill(SCALAR_BYTES - C_BYTES)(0x00.toByte)
@@ -390,6 +209,181 @@ class ECVRF25519 extends EC {
     sha512Digest.update(input, 0, input.length)
     sha512Digest.doFinal(out, 0)
     out
+  }
+
+  private def isNeutralPoint(p: PointAccum): Boolean = {
+    val pBytes: Array[Byte] = Array.fill(POINT_BYTES)(0x00.toByte)
+    encodePoint(p, pBytes, 0)
+    pBytes sameElements neutralPointBytes
+  }
+
+  private def isNeutralPoint(p: PointExt): Boolean = {
+    val pBytes: Array[Byte] = Array.fill(POINT_BYTES)(0x00.toByte)
+    val pA = new PointAccum
+    decodeScalar(oneScalar, 0, np)
+    decodeScalar(zeroScalar, 0, nb)
+    scalarMultStraussVar(nb, np, p, pA)
+    encodePoint(pA, pBytes, 0)
+    pBytes sameElements neutralPointBytes
+  }
+
+  private def pruneHash(s: Array[Byte]): Array[Byte] = {
+    val h: Array[Byte] = new Array[Byte](sha512Digest.getDigestSize)
+    sha512Digest.update(s, 0, SECRET_KEY_SIZE)
+    sha512Digest.doFinal(h, 0)
+    h.update(0, (h(0) & 0xf8).toByte)
+    h.update(SCALAR_BYTES - 1, (h(SCALAR_BYTES - 1) & 0x7f).toByte)
+    h.update(SCALAR_BYTES - 1, (h(SCALAR_BYTES - 1) | 0x40).toByte)
+    h
+  }
+
+  private def scalarMultBaseEncoded(s: Array[Byte]): Array[Byte] = {
+    val r: Array[Byte] = Array.fill(SCALAR_BYTES)(0x00)
+    scalarMultBaseEncoded(s, r, 0)
+    r
+  }
+
+  /*
+  ECVRF_validate_key(PK_string)
+  Input:
+  PK_string - public key, an octet string
+  Output:
+  "INVALID", or
+  Y - public key, an EC point
+  Steps:
+  1. Y = string_to_point(PK_string)
+  2. If Y is "INVALID", output "INVALID" and stop
+  3. If cofactor*Y is the EC point at infinty, output "INVALID" and
+  stop
+  4. Output Y
+   */
+  private def verifyPublicKey(pk: Array[Byte]): Boolean =
+    if (pk.length == PUBLIC_KEY_SIZE) {
+      val Y = new PointExt
+      val CY = new PointAccum
+      val decoded = decodePointVar(pk, 0, negate = false, Y)
+      if (decoded) {
+        decodeScalar(cofactor, 0, np)
+        decodeScalar(zeroScalar, 0, nb)
+        scalarMultStraussVar(nb, np, Y, CY)
+        !isNeutralPoint(CY)
+      } else {
+        false
+      }
+    } else {
+      false
+    }
+
+  /*
+  NOTE: This method leads to side channel attack (timing attack) if alpha is a secret
+  ECVRF_hash_to_try_and_increment(suite_string, Y, alpha_string)
+  Input:
+  suite_string - a single octet specifying ECVRF ciphersuite.
+  Y - public key, an EC point
+  alpha_string - value to be hashed, an octet string
+  Output:
+  H - hashed value, a finite EC point in G
+  Steps:
+  1. ctr = 0
+  2. PK_string = point_to_string(Y)
+  3. one_string = 0x01 = int_to_string(1, 1), a single octet with
+  value 1
+  4. H = "INVALID"
+  5. While H is "INVALID" or H is EC point at infinity:
+  6.
+  A. ctr_string = int_to_string(ctr, 1)
+  B. hash_string = Hash(suite_string || one_string || PK_string ||
+  alpha_string || ctr_string)
+  C. H = arbitrary_string_to_point(hash_string)
+  D. If H is not "INVALID" and cofactor > 1, set H = cofactor * H
+  E. ctr = ctr + 1
+  Output H
+   */
+  private def ECVRF_hash_to_curve_try_and_increment(Y: Array[Byte], a: Array[Byte]): (PointAccum, Array[Byte]) = {
+    var ctr = 0
+    val one = Array(0x01.toByte)
+    val hash: Array[Byte] = new Array[Byte](POINT_BYTES)
+    val H = new PointExt
+    val HR = new PointAccum
+    var isPoint = false
+    while (!isPoint) {
+      val ctr_byte = Array(ctr.toByte)
+      val input = suite ++ one ++ Y ++ a ++ ctr_byte
+      val output = new Array[Byte](sha512Digest.getDigestSize)
+      sha512Digest.update(input, 0, input.length)
+      sha512Digest.doFinal(output, 0)
+      java.lang.System.arraycopy(output, 0, hash, 0, POINT_BYTES)
+      isPoint = decodePointVar(hash, 0, negate = false, H)
+      if (isPoint) {
+        isPoint != isNeutralPoint(H)
+      }
+      ctr += 1
+    }
+    decodeScalar(cofactor, 0, np)
+    decodeScalar(zeroScalar, 0, nb)
+    scalarMultStraussVar(nb, np, H, HR)
+    encodePoint(HR, hash, 0)
+    (HR, hash)
+  }
+
+  /*
+  ECVRF_hash_points(P1, P2, ..., PM)
+  Input:
+  P1...PM - EC points in G
+  Output:
+  c - hash value, integer between 0 and 2^(8n)-1
+  Steps:
+  1. two_string = 0x02 = int_to_string(2, 1), a single octet with
+  value 2
+  2. Initialize str = suite_string || two_string
+  3. for PJ in [P1, P2, ... PM]:
+  str = str || point_to_string(PJ)
+  4. c_string = Hash(str)
+  5. truncated_c_string = c_string[0]...c_string[n-1]
+  6. c = string_to_int(truncated_c_string)
+  7. Output c
+   */
+  private def ECVRF_hash_points(p1: PointAccum, p2: PointAccum, p3: PointAccum, p4: PointAccum): Array[Byte] = {
+    val two: Array[Byte] = Array(0x02.toByte)
+    var str: Array[Byte] = suite ++ two
+    val r: Array[Byte] = Array.fill(POINT_BYTES)(0x00.toByte)
+    val out: Array[Byte] = new Array[Byte](sha512Digest.getDigestSize)
+    encodePoint(p1, r, 0)
+    str = str ++ r
+    encodePoint(p2, r, 0)
+    str = str ++ r
+    encodePoint(p3, r, 0)
+    str = str ++ r
+    encodePoint(p4, r, 0)
+    str = str ++ r
+    sha512Digest.update(str, 0, str.length)
+    sha512Digest.doFinal(out, 0)
+    out.take(C_BYTES) ++ Array.fill(SCALAR_BYTES - C_BYTES)(0x00.toByte)
+  }
+
+  /*
+  ECVRF_nonce_generation_RFC8032(SK, h_string)
+  Input:
+  SK - an ECVRF secret key
+  h_string - an octet string
+  Output:
+  k - an integer between 0 and q-1
+  Steps:
+  1. hashed_sk_string = Hash (SK)
+  2. truncated_hashed_sk_string =
+  hashed_sk_string[32]...hashed_sk_string[63]
+  3. k_string = Hash(truncated_hashed_sk_string || h_string)
+  4. k = string_to_int(k_string) mod q
+   */
+  private def ECVRF_nonce_generation_RFC8032(sk: Array[Byte], h: Array[Byte]): Array[Byte] = {
+    val out: Array[Byte] = new Array[Byte](sha512Digest.getDigestSize)
+    sha512Digest.update(sk, 0, SECRET_KEY_SIZE)
+    sha512Digest.doFinal(out, 0)
+    val trunc_hashed_sk = out.drop(SCALAR_BYTES) ++ h
+    sha512Digest.update(trunc_hashed_sk, 0, trunc_hashed_sk.length)
+    sha512Digest.doFinal(out, 0)
+    val k_string = out
+    reduceScalar(k_string)
   }
 
 }

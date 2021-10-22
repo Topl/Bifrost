@@ -1,12 +1,14 @@
 package co.topl.attestation.keyManagement.derivedKeys
 
-import co.topl.attestation.{PublicKeyPropositionEd25519, SignatureEd25519}
+import co.topl.attestation.SignatureEd25519
 import co.topl.attestation.keyManagement.derivedKeys.ExtendedPrivateKeyEd25519.Password
 import co.topl.attestation.keyManagement.derivedKeys.implicits._
-import co.topl.attestation.keyManagement.mnemonic.Language.{English, LanguageWordList}
+import co.topl.attestation.keyManagement.mnemonic.Language.English
 import co.topl.attestation.keyManagement.mnemonic.MnemonicSize.Mnemonic12
-import co.topl.attestation.keyManagement.mnemonic.{Entropy, Phrase, derive}
+import co.topl.attestation.keyManagement.mnemonic.derive
 import co.topl.crypto.signing.Ed25519
+import co.topl.models.utility.Sized
+import co.topl.models.{Bytes, Proofs, VerificationKeys}
 import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.SizedBytes.Types.{ByteVector32, ByteVector96}
 import co.topl.utils.SizedBytes.implicits._
@@ -18,6 +20,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scodec.bits.ByteOrdering
 import scodec.bits.ByteOrdering.LittleEndian
+import co.topl.models.utility.HasLength.instances._
 
 // Test Vectors:
 // https://topl.atlassian.net/wiki/spaces/Bifrost/pages/294813812/HD+Wallet+Protocols+and+Test+Vectors
@@ -279,10 +282,12 @@ class ExtendedPrivateKeyEd25519Spec
 
     childKeyBytes shouldBe expectedChildKey
     signatureResult.sigBytes shouldBe expectedSignature
-    val ec = new Ed25519
-    ec.precompute()
     require(
-      ec.verify(signatureResult.sigBytes, "Hello World".getBytes("UTF-8"), childKey.public),
+      Ed25519.instance.verify(
+        Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(signatureResult.sigBytes.value))),
+        Bytes("Hello World".getBytes("UTF-8")),
+        VerificationKeys.Ed25519(Sized.strictUnsafe(childKey.public))
+      ),
       "Signature did not verify"
     )
   }

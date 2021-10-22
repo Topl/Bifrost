@@ -16,11 +16,11 @@ class KesProduct
     ] {
 
   override def createKeyPair(
-    seed:   Seed,
+    seed:   Bytes,
     height: (Int, Int),
     offset: Long
   ): (SecretKeys.KesProduct, VerificationKeys.KesProduct) = {
-    val sk = generateSecretKey(seed.value, height._1, height._2)
+    val sk = generateSecretKey(seed.toArray, height._1, height._2)
     val pk = generateVerificationKey(sk)
     (
       SecretKeys.KesProduct(
@@ -38,8 +38,8 @@ class KesProduct
     )
   }
 
-  override def sign(privateKey: SecretKeys.KesProduct, message: MessageToSign): Signature.KesProduct = {
-    val prodSig = sign(unpackSecret(privateKey), message.value)
+  override def sign(privateKey: SecretKeys.KesProduct, message: Bytes): Signature.KesProduct = {
+    val prodSig = sign(unpackSecret(privateKey), message.toArray)
 
     Proofs.Signature.KesProduct(
       Proofs.Signature.KesSum(
@@ -58,7 +58,7 @@ class KesProduct
 
   override def verify(
     signature: Signature.KesProduct,
-    message:   MessageToSign,
+    message:   Bytes,
     verifyKey: VerificationKeys.KesProduct
   ): Boolean = {
     val prodSig = (
@@ -76,7 +76,7 @@ class KesProduct
     )
 
     val sumVk = (verifyKey.bytes.data.toArray, verifyKey.step)
-    verify(prodSig, message.value, sumVk)
+    verify(prodSig, message.toArray, sumVk)
   }
 
   override def update(privateKey: SecretKeys.KesProduct, steps: Int): SecretKeys.KesProduct = {

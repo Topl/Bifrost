@@ -5,14 +5,13 @@ import co.topl.algebras.{BlockchainState, ClockAlgebra}
 import co.topl.consensus.vrf.ProofToHash
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signing.Ed25519VRF
-import co.topl.crypto.typeclasses.implicits._
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.Sized
-import co.topl.typeclasses.{BlockGenesis, KeyInitializer}
 import co.topl.typeclasses.implicits._
+import co.topl.typeclasses.{BlockGenesis, KeyInitializer}
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
@@ -38,22 +37,16 @@ class EtaCalculationSpec
     val genesis = BlockGenesis(Nil).value
     val epoch = 0L
     val previousEta = etaGen.first
-    val skVrf = KeyInitializer[SecretKeys.Vrf].random()
+    val skVrf = KeyInitializer[SecretKeys.VrfEd25519].random()
     val args = List.tabulate(8) { offset =>
       val slot = offset.toLong + 1
-      val nonceSignature = Proofs.Signature.VrfEd25519(
-        Sized.strictUnsafe(
-          Bytes(
-            Ed25519VRF.instance.vrfProof(
-              skVrf.ed25519.bytes.data.toArray,
-              LeaderElectionValidation
-                .VrfArgument(previousEta, slot, LeaderElectionValidation.Tokens.Nonce)
-                .signableBytes
-                .toArray
-            )
-          )
+      val nonceSignature =
+        Ed25519VRF.instance.sign(
+          skVrf,
+          LeaderElectionValidation
+            .VrfArgument(previousEta, slot, LeaderElectionValidation.Tokens.Nonce)
+            .signableBytes
         )
-      )
       slot -> nonceSignature
     }
 

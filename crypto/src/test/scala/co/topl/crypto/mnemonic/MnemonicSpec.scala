@@ -1,25 +1,15 @@
-package co.topl.attestation.keyManagement.mnemonic
+package co.topl.crypto.mnemonic
 
-import co.topl.attestation.keyManagement.derivedKeys.ExtendedPrivateKeyEd25519
-import co.topl.attestation.keyManagement.derivedKeys.ExtendedPrivateKeyEd25519.Password
-import co.topl.attestation.keyManagement.derivedKeys.implicits._
-import co.topl.attestation.keyManagement.mnemonic.Language._
-import co.topl.attestation.keyManagement.mnemonic.MnemonicSize._
-import co.topl.utils.CommonGenerators
-import co.topl.utils.IdiomaticScalaTransition.implicits._
-import co.topl.utils.SizedBytes.implicits._
-import co.topl.utils.StringDataTypes.Base16Data
-import co.topl.utils.codecs.implicits._
-import co.topl.utils.encode.Base58
+import co.topl.crypto.mnemonic.Language.English
+import co.topl.crypto.mnemonic.MnemonicSize._
+import co.topl.crypto.utils.Hex
+import co.topl.models.utility.Base58
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import sun.security.provider.SecureRandom
 
-class MnemonicSpec
-    extends AnyPropSpec
-    with CommonGenerators
-    with ScalaCheckPropertyChecks
-    with ScalaCheckDrivenPropertyChecks {
+class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaCheckDrivenPropertyChecks {
 
   implicit val entropyAsString: FromEntropy[String] =
     (e: Entropy) => Base58.encode(e.value)
@@ -56,7 +46,7 @@ class MnemonicSpec
 
   def entropyLengthTest(bytes: Int, size: MnemonicSize): Unit =
     property(s"from entropy of length $bytes should be valid") {
-      forAll(specificLengthBytesGen(bytes)) { entropy =>
+      forAll(new SecureRandom().engineNextBytes(bytes)) { entropy =>
         if (entropy.length == bytes) {
           val entropyString = derive[String](entropy, size)
 
@@ -88,14 +78,20 @@ class MnemonicSpec
         "vessel ladder alter error federal sibling chat ability sun glass valve picture",
         Mnemonic12,
         English
-      ).getOrThrow()
+      ) match {
+        case Left(value)  => throw new Error("failed test")
+        case Right(value) => value
+      }
 
     val result =
       derive[String](
         "vessel ladder alter error  federal sibling chat   ability sun glass valve picture",
         Mnemonic12,
         English
-      ).getOrThrow()
+      ) match {
+        case Left(value)  => throw new Error("failed test")
+        case Right(value) => value
+      }
 
     result shouldBe expected
   }
@@ -118,8 +114,10 @@ class MnemonicSpec
         "winner thank year wave sausage worth useful legal will",
         Mnemonic18,
         English
-      )
-        .getOrThrow()
+      ) match {
+        case Left(value)  => throw new Error("failed test")
+        case Right(value) => value
+      }
 
     val result =
       derive[String](
@@ -127,8 +125,10 @@ class MnemonicSpec
         "Winner Thank Year Wave Sausage Worth Useful Legal Will",
         Mnemonic18,
         English
-      )
-        .getOrThrow()
+      ) match {
+        case Left(value)  => throw new Error("failed test")
+        case Right(value) => value
+      }
 
     result shouldBe expectedEntropy
   }
@@ -221,10 +221,10 @@ class MnemonicSpec
 
   def testVectorTest(tv: TestVector): Unit =
     property(s"Entropy Test: ${tv.name}") {
-      val expectedPrivateKeyBase16 = Base16Data.unsafe(tv.privateKey)
+      val expectedPrivateKeyBase16 = Hex.decode(tv.privateKey)
 
       val pkResult =
-        derive[Password => ExtendedPrivateKeyEd25519](tv.phrase, tv.size, tv.language).getOrThrow()(tv.password)
+        derive[String => ExtendedPrivateKeyEd25519](tv.phrase, tv.size, tv.language).getOrThrow()(tv.password)
 
       val pkResultBase16 =
         (pkResult.leftKey.toVector ++ pkResult.rightKey.toVector ++ pkResult.chainCode.toVector).encodeAsBase16

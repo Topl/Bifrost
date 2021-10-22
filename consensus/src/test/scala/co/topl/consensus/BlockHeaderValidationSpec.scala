@@ -12,7 +12,6 @@ import co.topl.consensus.algebras.{
 import co.topl.consensus.vrf.ProofToHash
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signing.Ed25519VRF
-import co.topl.crypto.typeclasses.implicits._
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
@@ -299,26 +298,14 @@ class BlockHeaderValidationSpec
   }
 
   private def validEligibilityCertificate(
-    skVrf:                SecretKeys.Vrf,
+    skVrf:                SecretKeys.VrfEd25519,
     thresholdInterpreter: LeaderElectionValidationAlgebra[EvalF],
     eta:                  Eta,
     relativeStake:        Ratio,
     parentSlot:           Slot
   ): (EligibilityCertificate, Slot) = {
     def proof(slot: Slot, token: LeaderElectionValidation.Token) =
-      Proofs.Signature.VrfEd25519(
-        Sized.strictUnsafe(
-          Bytes(
-            Ed25519VRF.instance.vrfProof(
-              skVrf.ed25519.bytes.data.toArray,
-              LeaderElectionValidation
-                .VrfArgument(eta, slot, token)
-                .signableBytes
-                .toArray
-            )
-          )
-        )
-      )
+      Ed25519VRF.instance.sign(skVrf, LeaderElectionValidation.VrfArgument(eta, slot, token).signableBytes)
 
     var slot = parentSlot + 1
     var testProof = proof(slot, LeaderElectionValidation.Tokens.Test)
@@ -331,7 +318,7 @@ class BlockHeaderValidationSpec
     val cert = EligibilityCertificate(
       proof(slot, LeaderElectionValidation.Tokens.Nonce),
       testProof,
-      skVrf.verificationKey[VerificationKeys.Vrf],
+      skVrf.verificationKey[VerificationKeys.VrfEd25519],
       threshold.evidence,
       eta
     )
@@ -369,11 +356,11 @@ class BlockHeaderValidationSpec
 
 object BlockHeaderValidationSpec {
 
-  def validRegistration(vkVrf: VerificationKeys.Vrf): Box.Values.TaktikosRegistration =
+  def validRegistration(vkVrf: VerificationKeys.VrfEd25519): Box.Values.TaktikosRegistration =
     Box.Values
       .TaktikosRegistration(
         Sized.strictUnsafe(
-          Bytes(blake2b256.hash(vkVrf.ed25519.bytes.data.toArray).value)
+          Bytes(blake2b256.hash(vkVrf.bytes.data.toArray).value)
         ),
         VerificationKeys.ExtendedEd25519(
           VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),

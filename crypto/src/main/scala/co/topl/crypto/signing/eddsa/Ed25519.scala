@@ -15,7 +15,7 @@ import java.util
 
 class Ed25519 extends EC {
 
-  def dom2(d: SHA512Digest, phflag: Byte, ctx: Array[Byte]): Unit =
+  protected def dom2(d: SHA512Digest, phflag: Byte, ctx: Array[Byte]): Unit =
     if (ctx.nonEmpty) {
       d.update(DOM2_PREFIX, 0, DOM2_PREFIX.length)
       d.update(phflag)
@@ -23,10 +23,10 @@ class Ed25519 extends EC {
       d.update(ctx, 0, ctx.length)
     }
 
-  def generatePrivateKey(random: SecureRandom, k: Array[Byte]): Unit =
+  protected def generatePrivateKey(random: SecureRandom, k: Array[Byte]): Unit =
     random.nextBytes(k)
 
-  def generatePublicKey(sk: Array[Byte], skOff: Int, pk: Array[Byte], pkOff: Int): Unit = {
+  protected def generatePublicKey(sk: Array[Byte], skOff: Int, pk: Array[Byte], pkOff: Int): Unit = {
     val h = new Array[Byte](sha512Digest.getDigestSize)
     sha512Digest.update(sk, skOff, SECRET_KEY_SIZE)
     sha512Digest.doFinal(h, 0)
@@ -36,7 +36,7 @@ class Ed25519 extends EC {
     scalarMultBaseEncoded(s, pk, pkOff)
   }
 
-  def implSign(
+  protected def implSign(
     d:      SHA512Digest,
     h:      Array[Byte],
     s:      Array[Byte],
@@ -68,7 +68,7 @@ class Ed25519 extends EC {
     System.arraycopy(S, 0, sig, sigOff + POINT_BYTES, SCALAR_BYTES)
   }
 
-  def implSign(
+  protected def implSign(
     sk:     Array[Byte],
     skOff:  Int,
     ctx:    Array[Byte],
@@ -90,7 +90,7 @@ class Ed25519 extends EC {
     implSign(sha512Digest, h, s, pk, 0, ctx, phflag, m, mOff, mLen, sig, sigOff)
   }
 
-  def implSign(
+  protected def implSign(
     sk:     Array[Byte],
     skOff:  Int,
     pk:     Array[Byte],
@@ -112,7 +112,7 @@ class Ed25519 extends EC {
     implSign(sha512Digest, h, s, pk, pkOff, ctx, phflag, m, mOff, mLen, sig, sigOff)
   }
 
-  def implVerify(
+  protected def implVerify(
     sig:    Array[Byte],
     sigOff: Int,
     pk:     Array[Byte],
@@ -148,13 +148,21 @@ class Ed25519 extends EC {
     util.Arrays.equals(check, R)
   }
 
-  def sign(sk: Array[Byte], skOff: Int, m: Array[Byte], mOff: Int, mLen: Int, sig: Array[Byte], sigOff: Int): Unit = {
+  protected def sign(
+    sk:     Array[Byte],
+    skOff:  Int,
+    m:      Array[Byte],
+    mOff:   Int,
+    mLen:   Int,
+    sig:    Array[Byte],
+    sigOff: Int
+  ): Unit = {
     val ctx: Array[Byte] = Array.empty
     val phflag: Byte = 0x00
     implSign(sk, skOff, ctx, phflag, m, mOff, mLen, sig, sigOff)
   }
 
-  def sign(
+  protected def sign(
     sk:     Array[Byte],
     skOff:  Int,
     pk:     Array[Byte],
@@ -170,7 +178,7 @@ class Ed25519 extends EC {
     implSign(sk, skOff, pk, pkOff, ctx, phflag, m, mOff, mLen, sig, sigOff)
   }
 
-  def sign(
+  protected def sign(
     sk:     Array[Byte],
     skOff:  Int,
     ctx:    Array[Byte],
@@ -184,7 +192,7 @@ class Ed25519 extends EC {
     implSign(sk, skOff, ctx, phflag, m, mOff, mLen, sig, sigOff)
   }
 
-  def sign(
+  protected def sign(
     sk:     Array[Byte],
     skOff:  Int,
     pk:     Array[Byte],
@@ -200,7 +208,7 @@ class Ed25519 extends EC {
     implSign(sk, skOff, pk, pkOff, ctx, phflag, m, mOff, mLen, sig, sigOff)
   }
 
-  def signPrehash(
+  protected def signPrehash(
     sk:     Array[Byte],
     skOff:  Int,
     ctx:    Array[Byte],
@@ -213,7 +221,7 @@ class Ed25519 extends EC {
     implSign(sk, skOff, ctx, phflag, ph, phOff, PREHASH_SIZE, sig, sigOff)
   }
 
-  def signPrehash(
+  protected def signPrehash(
     sk:     Array[Byte],
     skOff:  Int,
     pk:     Array[Byte],
@@ -228,7 +236,7 @@ class Ed25519 extends EC {
     implSign(sk, skOff, pk, pkOff, ctx, phflag, ph, phOff, PREHASH_SIZE, sig, sigOff)
   }
 
-  def signPrehash(
+  protected def signPrehash(
     sk:     Array[Byte],
     skOff:  Int,
     ctx:    Array[Byte],
@@ -242,7 +250,7 @@ class Ed25519 extends EC {
     implSign(sk, skOff, ctx, phflag, m, 0, m.length, sig, sigOff)
   }
 
-  def signPrehash(
+  protected def signPrehash(
     sk:     Array[Byte],
     skOff:  Int,
     pk:     Array[Byte],
@@ -258,7 +266,7 @@ class Ed25519 extends EC {
     implSign(sk, skOff, pk, pkOff, ctx, phflag, m, 0, m.length, sig, sigOff)
   }
 
-  def verify(
+  protected def verify(
     sig:    Array[Byte],
     sigOff: Int,
     pk:     Array[Byte],
@@ -272,7 +280,7 @@ class Ed25519 extends EC {
     implVerify(sig, sigOff, pk, pkOff, ctx, phflag, m, mOff, mLen)
   }
 
-  def verify(
+  protected def verify(
     sig:    Array[Byte],
     sigOff: Int,
     pk:     Array[Byte],
@@ -286,7 +294,7 @@ class Ed25519 extends EC {
     implVerify(sig, sigOff, pk, pkOff, ctx, phflag, m, mOff, mLen)
   }
 
-  def verifyPrehash(
+  protected def verifyPrehash(
     sig:    Array[Byte],
     sigOff: Int,
     pk:     Array[Byte],
@@ -299,7 +307,7 @@ class Ed25519 extends EC {
     implVerify(sig, sigOff, pk, pkOff, ctx, phflag, ph, phOff, PREHASH_SIZE)
   }
 
-  def verifyPrehash(
+  protected def verifyPrehash(
     sig:    Array[Byte],
     sigOff: Int,
     pk:     Array[Byte],

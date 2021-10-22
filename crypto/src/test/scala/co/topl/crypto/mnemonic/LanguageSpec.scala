@@ -1,7 +1,6 @@
-package co.topl.attestation.keyManagement.mnemonic
+package co.topl.crypto.mnemonic
 
-import cats.implicits._
-import co.topl.attestation.keyManagement.mnemonic.Language._
+import co.topl.crypto.mnemonic.Language.{ChineseSimplified, ChineseTraditional, Czech, English, French, Italian, Japanese, Korean, LanguageWordList, Portuguese, Spanish}
 import org.scalatest.funspec.AnyFunSpec
 
 class LanguageSpec extends AnyFunSpec {

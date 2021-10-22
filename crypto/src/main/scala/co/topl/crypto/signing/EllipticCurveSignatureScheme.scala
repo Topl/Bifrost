@@ -1,8 +1,6 @@
 package co.topl.crypto.signing
 
-import co.topl.models.{Proof, SecretKey, VerificationKey}
-
-import java.security.SecureRandom
+import co.topl.models.{Bytes, Proof, SecretKey, VerificationKey}
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 
@@ -11,9 +9,9 @@ trait EllipticCurveSignatureScheme[SK <: SecretKey, VK <: VerificationKey, SIG <
   val SignatureLength: Int
   val KeyLength: Int
 
-  def createKeyPair(seed: Seed): (SK, VK)
+  def createKeyPair(seed: Bytes): (SK, VK)
 
-  def sign(privateKey: SK, message: MessageToSign): SIG
+  def sign(privateKey: SK, message: Bytes): SIG
 
-  def verify(signature: SIG, message: MessageToSign, verifyKey: VK): Boolean
+  def verify(signature: SIG, message: Bytes, verifyKey: VK): Boolean
 }

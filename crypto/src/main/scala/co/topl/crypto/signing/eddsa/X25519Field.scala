@@ -9,28 +9,29 @@ package co.topl.crypto.signing.eddsa
  * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+//noinspection ScalaStyle
 
 class X25519Field {
 
-  val SIZE = 10
-  val M24 = 0x00ffffff
-  val M25 = 0x01ffffff
-  val M26 = 0x03ffffff
+  private[signing] val SIZE = 10
+  private[signing] val M24 = 0x00ffffff
+  private[signing] val M25 = 0x01ffffff
+  private[signing] val M26 = 0x03ffffff
 
-  val ROOT_NEG_ONE: Array[Int] = Array[Int](0x020ea0b0, 0x0386c9d2, 0x00478c4e, 0x0035697f, 0x005e8630, 0x01fbd7a7,
+  private[signing] val ROOT_NEG_ONE: Array[Int] = Array[Int](0x020ea0b0, 0x0386c9d2, 0x00478c4e, 0x0035697f, 0x005e8630, 0x01fbd7a7,
     0x0340264f, 0x01f0b2b4, 0x00027e0e, 0x00570649)
 
-  def add(x: Array[Int], y: Array[Int], z: Array[Int]): Unit =
+  private[signing] def add(x: Array[Int], y: Array[Int], z: Array[Int]): Unit =
     for (i <- 0 until SIZE)
       z(i) = x(i) + y(i)
 
-  def addOne(z: Array[Int]): Unit =
+  private[signing] def addOne(z: Array[Int]): Unit =
     z(0) += 1
 
-  def addOne(z: Array[Int], zOff: Int): Unit =
+  private[signing] def addOne(z: Array[Int], zOff: Int): Unit =
     z(zOff) += 1
 
-  def apm(x: Array[Int], y: Array[Int], zp: Array[Int], zm: Array[Int]): Unit =
+  private[signing] def apm(x: Array[Int], y: Array[Int], zp: Array[Int], zm: Array[Int]): Unit =
     for (i <- 0 until SIZE) {
       val xi = x(i)
       val yi = y(i)
@@ -38,7 +39,7 @@ class X25519Field {
       zm(i) = xi - yi
     }
 
-  def carry(z: Array[Int]): Unit = {
+  private[signing] def carry(z: Array[Int]): Unit = {
     var z0 = z(0)
     var z1 = z(1)
     var z2 = z(2)
@@ -81,7 +82,7 @@ class X25519Field {
     z(9) = z9
   }
 
-  def cmov(cond: Int, x: Array[Int], xOff: Int, z: Array[Int], zOff: Int): Unit =
+  private[signing] def cmov(cond: Int, x: Array[Int], xOff: Int, z: Array[Int], zOff: Int): Unit =
     for (i <- 0 until SIZE) {
       var z_i = z(zOff + i)
       val diff = z_i ^ x(xOff + i)
@@ -89,21 +90,21 @@ class X25519Field {
       z(zOff + i) = z_i
     }
 
-  def cnegate(negate: Int, z: Array[Int]): Unit = {
+  private[signing] def cnegate(negate: Int, z: Array[Int]): Unit = {
     val mask = 0 - negate
     for (i <- 0 until SIZE)
       z(i) = (z(i) ^ mask) - mask
   }
 
-  def copy(x: Array[Int], xOff: Int, z: Array[Int], zOff: Int): Unit =
+  private[signing] def copy(x: Array[Int], xOff: Int, z: Array[Int], zOff: Int): Unit =
     for (i <- 0 until SIZE)
       z(zOff + i) = x(xOff + i)
 
-  def create = new Array[Int](SIZE)
+  private[signing] def create = new Array[Int](SIZE)
 
-  def createTable(n: Int) = new Array[Int](SIZE * n)
+  private[signing] def createTable(n: Int) = new Array[Int](SIZE * n)
 
-  def cswap(swap: Int, a: Array[Int], b: Array[Int]): Unit = {
+  private[signing] def cswap(swap: Int, a: Array[Int], b: Array[Int]): Unit = {
     val mask = 0 - swap
     for (i <- 0 until SIZE) {
       val ai = a(i)
@@ -114,13 +115,13 @@ class X25519Field {
     }
   }
 
-  def decode(x: Array[Byte], xOff: Int, z: Array[Int]): Unit = {
+  private[signing] def decode(x: Array[Byte], xOff: Int, z: Array[Int]): Unit = {
     decode128(x, xOff, z, 0)
     decode128(x, xOff + 16, z, 5)
     z(9) &= M24
   }
 
-  def decode128(bs: Array[Byte], off: Int, z: Array[Int], zOff: Int): Unit = {
+  private[signing] def decode128(bs: Array[Byte], off: Int, z: Array[Int], zOff: Int): Unit = {
     val t0 = decode32(bs, off + 0)
     val t1 = decode32(bs, off + 4)
     val t2 = decode32(bs, off + 8)
@@ -132,7 +133,7 @@ class X25519Field {
     z(zOff + 4) = t3 >>> 7
   }
 
-  def decode32(bs: Array[Byte], off: Int): Int = {
+  private[signing] def decode32(bs: Array[Byte], off: Int): Int = {
     var n = bs(off) & 0xff
     n |= (bs(off + 1) & 0xff) << 8
     n |= (bs(off + 2) & 0xff) << 16
@@ -140,12 +141,12 @@ class X25519Field {
     n
   }
 
-  def encode(x: Array[Int], z: Array[Byte], zOff: Int): Unit = {
+  private[signing] def encode(x: Array[Int], z: Array[Byte], zOff: Int): Unit = {
     encode128(x, 0, z, zOff)
     encode128(x, 5, z, zOff + 16)
   }
 
-  def encode128(x: Array[Int], xOff: Int, bs: Array[Byte], off: Int): Unit = {
+  private[signing] def encode128(x: Array[Int], xOff: Int, bs: Array[Byte], off: Int): Unit = {
     val x0 = x(xOff + 0)
     val x1 = x(xOff + 1)
     val x2 = x(xOff + 2)
@@ -161,14 +162,14 @@ class X25519Field {
     encode32(t3, bs, off + 12)
   }
 
-  def encode32(n: Int, bs: Array[Byte], off: Int): Unit = {
+  private[signing] def encode32(n: Int, bs: Array[Byte], off: Int): Unit = {
     bs(off) = n.toByte
     bs(off + 1) = (n >>> 8).toByte
     bs(off + 2) = (n >>> 16).toByte
     bs(off + 3) = (n >>> 24).toByte
   }
 
-  def inv(x: Array[Int], z: Array[Int]): Unit = {
+  private[signing] def inv(x: Array[Int], z: Array[Int]): Unit = {
     // (250 1s) (1 0s) (1 1s) (1 0s) (2 1s)
     // Addition chain: [1] [2] 3 5 10 15 25 50 75 125 [250]
     val x2 = create
@@ -178,7 +179,7 @@ class X25519Field {
     mul(t, x2, z)
   }
 
-  def isZero(x: Array[Int]): Int = {
+  private[signing] def isZero(x: Array[Int]): Int = {
     var d = 0
     for (i <- 0 until SIZE)
       d |= x(i)
@@ -186,9 +187,9 @@ class X25519Field {
     (d - 1) >> 31
   }
 
-  def isZeroVar(x: Array[Int]): Boolean = 0 != isZero(x)
+  private[signing] def isZeroVar(x: Array[Int]): Boolean = 0 != isZero(x)
 
-  def mul(x: Array[Int], y: Int, z: Array[Int]): Unit = {
+  private[signing] def mul(x: Array[Int], y: Int, z: Array[Int]): Unit = {
     val x0 = x(0)
     val x1 = x(1)
     var x2 = x(2)
@@ -240,7 +241,7 @@ class X25519Field {
     z(9) = x9 + c2.toInt
   }
 
-  def mul(x: Array[Int], y: Array[Int], z: Array[Int]): Unit = {
+  private[signing] def mul(x: Array[Int], y: Array[Int], z: Array[Int]): Unit = {
     var x0 = x(0)
     var y0 = y(0)
     var x1 = x(1)
@@ -367,23 +368,23 @@ class X25519Field {
     z(9) = z9 + t.toInt
   }
 
-  def negate(x: Array[Int], z: Array[Int]): Unit =
+  private[signing] def negate(x: Array[Int], z: Array[Int]): Unit =
     for (i <- 0 until SIZE)
       z(i) = -x(i)
 
-  def normalize(z: Array[Int]): Unit = {
+  private[signing] def normalize(z: Array[Int]): Unit = {
     val x = (z(9) >>> 23) & 1
     reduce(z, x)
     reduce(z, -x)
   }
 
-  def one(z: Array[Int]): Unit = {
+  private[signing] def one(z: Array[Int]): Unit = {
     z(0) = 1
     for (i <- 1 until SIZE)
       z(i) = 0
   }
 
-  def powPm5d8(x: Array[Int], rx2: Array[Int], rz: Array[Int]): Unit = {
+  private[signing] def powPm5d8(x: Array[Int], rx2: Array[Int], rz: Array[Int]): Unit = {
     // (250 1s) (1 0s) (1 1s)
     // Addition chain: [1] 2 3 5 10 15 25 50 75 125 [250]
     val x2 = rx2
@@ -421,7 +422,7 @@ class X25519Field {
     mul(t, x, rz)
   }
 
-  def reduce(z: Array[Int], c: Int): Unit = {
+  private[signing] def reduce(z: Array[Int], c: Int): Unit = {
     var z9 = z(9)
     var t = z9
     z9 = t & M24
@@ -459,7 +460,7 @@ class X25519Field {
     z(9) = t
   }
 
-  def sqr(x: Array[Int], z: Array[Int]): Unit = {
+  private[signing] def sqr(x: Array[Int], z: Array[Int]): Unit = {
     var x0 = x(0)
     var x1 = x(1)
     var x2 = x(2)
@@ -561,13 +562,13 @@ class X25519Field {
     z(9) = z9 + t.toInt
   }
 
-  def sqr(x: Array[Int], n: Int, z: Array[Int]): Unit = {
+  private[signing] def sqr(x: Array[Int], n: Int, z: Array[Int]): Unit = {
     var nv = n
     sqr(x, z)
     while ({ nv -= 1; nv } > 0) sqr(z, z)
   }
 
-  def sqrtRatioVar(u: Array[Int], v: Array[Int], z: Array[Int]): Boolean = {
+  private[signing] def sqrtRatioVar(u: Array[Int], v: Array[Int], z: Array[Int]): Boolean = {
     val uv3 = create
     val uv7 = create
     mul(u, v, uv3)
@@ -597,14 +598,14 @@ class X25519Field {
     false
   }
 
-  def sub(x: Array[Int], y: Array[Int], z: Array[Int]): Unit =
+  private[signing] def sub(x: Array[Int], y: Array[Int], z: Array[Int]): Unit =
     for (i <- 0 until SIZE)
       z(i) = x(i) - y(i)
 
-  def subOne(z: Array[Int]): Unit =
+  private[signing] def subOne(z: Array[Int]): Unit =
     z(0) -= 1
 
-  def zero(z: Array[Int]): Unit =
+  private[signing] def zero(z: Array[Int]): Unit =
     for (i <- 0 until SIZE)
       z(i) = 0
 

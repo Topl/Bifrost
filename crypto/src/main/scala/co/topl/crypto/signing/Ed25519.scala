@@ -13,12 +13,12 @@ class Ed25519
   override val SignatureLength: Int = SIGNATURE_SIZE
   override val KeyLength: Int = SECRET_KEY_SIZE
 
-  override def createKeyPair(seed: Seed): (SecretKeys.Ed25519, VerificationKeys.Ed25519) = {
+  override def createKeyPair(seed: Bytes): (SecretKeys.Ed25519, VerificationKeys.Ed25519) = {
     val sk: Sized.Strict[Bytes, SecretKeys.Ed25519.Length] =
       Sized.strictUnsafe(Bytes(new Array[Byte](SECRET_KEY_SIZE)))
     val pk: Sized.Strict[Bytes, VerificationKeys.Ed25519.Length] =
       Sized.strictUnsafe(Bytes(new Array[Byte](PUBLIC_KEY_SIZE)))
-    val hashedSeed = sha256.hash(seed.value)
+    val hashedSeed = sha256.hash(seed.toArray)
 
     // should we update this?
     // https://stackoverflow.com/questions/27622625/securerandom-with-nativeprng-vs-sha1prng/27638413
@@ -30,15 +30,15 @@ class Ed25519
     (SecretKeys.Ed25519(sk), VerificationKeys.Ed25519(pk))
   }
 
-  override def sign(privateKey: SecretKeys.Ed25519, message: MessageToSign): Proofs.Signature.Ed25519 = {
+  override def sign(privateKey: SecretKeys.Ed25519, message: Bytes): Proofs.Signature.Ed25519 = {
     val sig: Sized.Strict[Bytes, Proofs.Signature.Ed25519.Length] =
       Sized.strictUnsafe(Bytes(new Array[Byte](SIGNATURE_SIZE)))
     sign(
       Bytes.toByteArray(privateKey.bytes.data),
       0,
-      message.value,
+      message.toArray,
       0,
-      message.value.length,
+      message.toArray.length,
       Bytes.toByteArray(sig.data),
       0
     )
@@ -47,7 +47,7 @@ class Ed25519
 
   override def verify(
     signature: Proofs.Signature.Ed25519,
-    message:   MessageToSign,
+    message:   Bytes,
     publicKey: VerificationKeys.Ed25519
   ): Boolean =
     signature.bytes.data.length == SIGNATURE_SIZE &&
@@ -57,9 +57,9 @@ class Ed25519
       0,
       Bytes.toByteArray(publicKey.bytes.data),
       0,
-      message.value,
+      message.toArray,
       0,
-      message.value.length
+      message.toArray.length
     )
 
   def generatePublicKey(secretKey: SecretKeys.Ed25519): VerificationKeys.Ed25519 = {

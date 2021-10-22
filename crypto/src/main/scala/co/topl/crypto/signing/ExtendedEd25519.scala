@@ -24,13 +24,13 @@ class ExtendedEd25519
   override val KeyLength: Int = SECRET_KEY_SIZE
   val PublicKeyLength: Int = PUBLIC_KEY_SIZE
 
-  override def createKeyPair(seed: Seed): (SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519) = {
-    val sk = ExtendedEd25519.fromEntropy(Entropy(seed.value))("")
+  override def createKeyPair(seed: Bytes): (SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519) = {
+    val sk = ExtendedEd25519.fromEntropy(Entropy(seed.toArray))("")
     val vk = generatePublicKey(sk)
     (sk, vk)
   }
 
-  override def sign(privateKey: SecretKeys.ExtendedEd25519, message: MessageToSign): Proofs.Signature.Ed25519 = {
+  override def sign(privateKey: SecretKeys.ExtendedEd25519, message: Bytes): Proofs.Signature.Ed25519 = {
     // signing is a mutable process
     val mutableKey: SecretKeys.ExtendedEd25519 = privateKey.copy()
 
@@ -39,10 +39,10 @@ class ExtendedEd25519
     val phflag: Byte = 0x00
 
     Bytes.concat(mutableKey.leftKey.data, mutableKey.rightKey.data)
-    val h: Array[Byte] = Bytes.concat(mutableKey.leftKey.data, mutableKey.rightKey.data).toArray[Byte]
-    val s: Array[Byte] = mutableKey.leftKey.data.toArray[Byte]
-    val pk: Array[Byte] = generatePublicKey(privateKey).ed25519.bytes.data.toArray[Byte]
-    val m: Array[Byte] = message.value
+    val h: Array[Byte] = Bytes.concat(mutableKey.leftKey.data, mutableKey.rightKey.data).toArray
+    val s: Array[Byte] = mutableKey.leftKey.data.toArray
+    val pk: Array[Byte] = generatePublicKey(privateKey).ed25519.bytes.data.toArray
+    val m: Array[Byte] = message.toArray
 
     implSign(sha512Digest, h, s, pk, 0, ctx, phflag, m, 0, m.length, resultSig, 0)
 
@@ -51,7 +51,7 @@ class ExtendedEd25519
 
   override def verify(
     signature: Proofs.Signature.Ed25519,
-    message:   MessageToSign,
+    message:   Bytes,
     verifyKey: VerificationKeys.ExtendedEd25519
   ): Boolean =
     signature.bytes.data.length == SIGNATURE_SIZE &&
@@ -61,9 +61,9 @@ class ExtendedEd25519
       0,
       Bytes.toByteArray(verifyKey.ed25519.bytes.data),
       0,
-      message.value,
+      message.toArray,
       0,
-      message.value.length
+      message.toArray.length
     )
 
   def deriveSecret(

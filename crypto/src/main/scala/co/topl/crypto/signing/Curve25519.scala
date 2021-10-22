@@ -31,8 +31,8 @@ class Curve25519
     constructor.newInstance()
   }
 
-  override def createKeyPair(seed: Seed): (SecretKeys.Curve25519, VerificationKeys.Curve25519) = {
-    val hashedSeed = sha256.hash(seed.value)
+  override def createKeyPair(seed: Bytes): (SecretKeys.Curve25519, VerificationKeys.Curve25519) = {
+    val hashedSeed = sha256.hash(seed.toArray)
     val privateKey = SecretKeys.Curve25519(Sized.strictUnsafe(Bytes(provider.generatePrivateKey(hashedSeed.value))))
     val publicKey = VerificationKeys.Curve25519(
       Sized.strictUnsafe(Bytes(provider.generatePublicKey(Bytes.toByteArray(privateKey.bytes.data))))
@@ -43,7 +43,7 @@ class Curve25519
 
   override def sign(
     privateKey: SecretKeys.Curve25519,
-    message:    MessageToSign
+    message:    Bytes
   ): Proofs.Signature.Curve25519 =
     Proofs.Signature.Curve25519(
       Sized.strictUnsafe(
@@ -51,7 +51,7 @@ class Curve25519
           provider.calculateSignature(
             provider.getRandom(SignatureLength),
             privateKey.bytes.data.toArray,
-            message.value
+            message.toArray
           )
         )
       )
@@ -59,14 +59,14 @@ class Curve25519
 
   override def verify(
     signature: Proofs.Signature.Curve25519,
-    message:   MessageToSign,
+    message:   Bytes,
     publicKey: VerificationKeys.Curve25519
   ): Boolean =
     signature.bytes.data.length == SignatureLength &&
     publicKey.bytes.data.length == KeyLength &&
     provider.verifySignature(
       Bytes.toByteArray(publicKey.bytes.data),
-      message.value,
+      message.toArray,
       Bytes.toByteArray(signature.bytes.data)
     )
 
