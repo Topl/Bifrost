@@ -1,4 +1,4 @@
-package co.topl.crypto.signing
+package co.topl.attestation.keyManagement.derivedKeys
 
 import co.topl.crypto.PublicKey
 import co.topl.crypto.signing.Ed25519

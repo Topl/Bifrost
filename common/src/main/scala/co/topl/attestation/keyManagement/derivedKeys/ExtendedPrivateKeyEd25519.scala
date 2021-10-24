@@ -1,4 +1,4 @@
-package co.topl.crypto.signing
+package co.topl.attestation.keyManagement.derivedKeys
 
 import co.topl.crypto.signing.eddsa
 import co.topl.attestation.keyManagement.mnemonic.{Entropy, FromEntropy}
