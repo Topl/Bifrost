@@ -69,7 +69,7 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
 
     ed25519vrf.verify(pi, message, pubKey) shouldBe true
     ed25519vrf.verify(piSpec, message, pubKey) shouldBe true
-    ed25519vrf.proofToHash(pi) should betaSpec
+    ed25519vrf.proofToHash(pi) shouldBe betaSpec
   }
 
   property("test vectors from https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-vrf-09#appendix-A.3 - test 2"){
@@ -103,7 +103,7 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
 
     ed25519vrf.verify(pi, message, pubKey) shouldBe true
     ed25519vrf.verify(piSpec, message, pubKey) shouldBe true
-    ed25519vrf.proofToHash(pi) should betaSpec
+    ed25519vrf.proofToHash(pi) shouldBe betaSpec
   }
 
   property("test vectors from https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-vrf-09#appendix-A.3 - test 3"){
@@ -136,6 +136,6 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
 
     ed25519vrf.verify(pi, message, pubKey) shouldBe true
     ed25519vrf.verify(piSpec, message, pubKey) shouldBe true
-    ed25519vrf.proofToHash(pi) should betaSpec
+    ed25519vrf.proofToHash(pi) shouldBe betaSpec
   }
 }

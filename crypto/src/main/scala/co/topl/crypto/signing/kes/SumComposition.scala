@@ -1,6 +1,5 @@
 package co.topl.crypto.signing.kes
 
-import co.topl.Base58
 import co.topl.models.utility.KesBinaryTree
 import co.topl.models.utility.KesBinaryTree.{Empty, MerkleNode, SigningLeaf}
 

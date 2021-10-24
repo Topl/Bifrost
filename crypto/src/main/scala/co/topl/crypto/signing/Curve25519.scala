@@ -9,7 +9,6 @@ import org.whispersystems.curve25519.OpportunisticCurve25519Provider
 import java.lang.reflect.Constructor
 
 /* Forked from https://github.com/input-output-hk/scrypto */
-
 class Curve25519
     extends EllipticCurveSignatureScheme[
       SecretKeys.Curve25519,
@@ -79,5 +78,5 @@ object Curve25519 {
   val instance = new Curve25519
 
   val SignatureLength: Int = 64
-  val KeyLength: Int = instance.KeyLength
+  val KeyLength: Int = 32
 }

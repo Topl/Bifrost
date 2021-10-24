@@ -5,8 +5,6 @@ import co.topl.crypto.signing._
 import co.topl.models._
 import simulacrum.typeclass
 
-import java.security.SecureRandom
-
 @typeclass trait KeyInitializer[SK] {
   self =>
 

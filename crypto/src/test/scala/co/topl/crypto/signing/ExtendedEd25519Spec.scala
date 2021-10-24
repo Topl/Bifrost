@@ -1,0 +1,413 @@
+package co.topl.crypto.signing
+
+import co.topl.crypto.mnemonic.Bip32Indexes
+import co.topl.crypto.utils.Hex
+import co.topl.crypto.utils.Hex.implicits._
+import co.topl.models.{Bytes, SecretKeys, VerificationKeys}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+
+// Test Vectors:
+// https://topl.atlassian.net/wiki/spaces/Bifrost/pages/294813812/HD+Wallet+Protocols+and+Test+Vectors
+class ExtendedEd25519Spec
+    extends AnyFlatSpec
+    with ScalaCheckPropertyChecks
+    with ScalaCheckDrivenPropertyChecks
+    with Matchers {
+
+  "ExtendedPrivateKeyEd25519" should "verify a message signed with the appropriate public key" in {
+    forAll { (seed1: Bytes, seed2: Bytes, message1: Bytes, message2: Bytes) =>
+      whenever(!(seed1 == seed2) && !(message1 == message2)) {
+        val extendedEd25519 = new ExtendedEd25519
+        val keyPair = extendedEd25519.createKeyPair(seed1)
+        val keyPair2 = extendedEd25519.createKeyPair(seed2)
+        val sig = extendedEd25519.sign(keyPair._1, message1)
+
+        extendedEd25519.verify(sig, message1, keyPair._2) shouldBe true
+        extendedEd25519.verify(sig, message1, keyPair2._2) shouldBe false
+        extendedEd25519.verify(sig, message2, keyPair._2) shouldBe false
+      }
+    }
+  }
+
+  it should "generate identical keypairs given the same seed" in {
+    forAll { seedBytes: Bytes =>
+      whenever(seedBytes.toArray.length != 0) {
+        val extendedEd25519 = new ExtendedEd25519
+        val keyPair1 = extendedEd25519.createKeyPair(seedBytes)
+        val keyPair2 = extendedEd25519.createKeyPair(seedBytes)
+
+        keyPair1._1 === keyPair2._1 shouldBe true
+        keyPair1._2 === keyPair2._2 shouldBe true
+      }
+    }
+  }
+
+  it should "derive the correct child secret and verification keys using path m/0" in {
+    val extendedEd25519 = new ExtendedEd25519()
+    val specIn_derivationPath = Bip32Indexes.SoftIndex(0)
+    val specIn_master_xsk =
+      SecretKeys.ExtendedEd25519(
+        "c05377ef282279549898c5a15fe202bc9416c8a26fe81ffe1e19c147c2493549".toStrictBytes,
+        "d61547691b72d73947e588ded4967688f82db9628be9bb00c5ad16b5dfaf602a".toStrictBytes,
+        "c5f419bd575f8ea23fa1a599b103f85e6325bf2d34b018ff6f2b8cf3f915e19c".toStrictBytes
+      )
+    val specIn_master_xvk =
+      VerificationKeys.ExtendedEd25519(
+        VerificationKeys.Ed25519("2b1b2c00e35c9f9c2dec26ce3ba597504d2fc86862b6035b05340aff8a7ebc4b".toStrictBytes),
+        "c5f419bd575f8ea23fa1a599b103f85e6325bf2d34b018ff6f2b8cf3f915e19c".toStrictBytes
+      )
+
+    val specOut_child_xsk =
+      SecretKeys.ExtendedEd25519(
+        "08d0759cf6f08105738945ea2cd4067f173945173b5fe36a0b5d68c8c8493549".toStrictBytes,
+        "4585bf3e7b11d687c4d64c73dded58915900dc9bb13f062a9532a8366dfa971a".toStrictBytes,
+        "dcd9ae5c4ef31efedef6eedad9698a15f811d1004036b66241385081d41643cf".toStrictBytes
+      )
+    val specOut_child_xvk =
+      VerificationKeys.ExtendedEd25519(
+        VerificationKeys.Ed25519("7110b5e86240e51b40faaac78a0b92615fe96aed376cdd07255f08ae7ae9ce62".toStrictBytes),
+        "dcd9ae5c4ef31efedef6eedad9698a15f811d1004036b66241385081d41643cf".toStrictBytes
+      )
+
+    val child_xsk = extendedEd25519.deriveSecret(specIn_master_xsk, specIn_derivationPath)
+    val child_xvk = extendedEd25519.deriveVerification(specIn_master_xvk, specIn_derivationPath)
+    val child_xvk_fromSecret = extendedEd25519.generatePublicKey(child_xsk)
+
+    child_xsk shouldBe specOut_child_xsk
+    child_xvk shouldBe specOut_child_xvk
+    child_xvk shouldBe child_xvk_fromSecret
+  }
+
+  it should "derive the correct child secret and verification keys using path m/1" in {
+    val extendedEd25519 = new ExtendedEd25519()
+    val specInMasterXsk = SecretKeys.ExtendedEd25519(
+      "c05377ef282279549898c5a15fe202bc9416c8a26fe81ffe1e19c147c2493549".toStrictBytes,
+      "d61547691b72d73947e588ded4967688f82db9628be9bb00c5ad16b5dfaf602a".toStrictBytes,
+      "c5f419bd575f8ea23fa1a599b103f85e6325bf2d34b018ff6f2b8cf3f915e19c".toStrictBytes
+    )
+    val specInDerivationPath = Bip32Indexes.SoftIndex(1)
+
+    val (specOutChildXsk, specOutChildXvk) = (
+      SecretKeys.ExtendedEd25519(
+        "888ba4d32953090155cbcbd26bbe6c6d65e7463eb21a3ec95f6b1af4c7493549".toStrictBytes,
+        "6b723c972aa1de225b9e8c8f3746a034f3cf67c51e45c4983968b166764cf26c".toStrictBytes,
+        "9216b865f39b127515db9ad5591e7fcb908604b9d5056b8b7ac98cf9bd3058c6".toStrictBytes
+      ),
+      VerificationKeys.ExtendedEd25519(
+        VerificationKeys.Ed25519("393e6946e843dd3ab9ac314524dec7f822e7776cbe2e084918e71003d0baffbc".toStrictBytes),
+        "9216b865f39b127515db9ad5591e7fcb908604b9d5056b8b7ac98cf9bd3058c6".toStrictBytes
+      )
+    )
+
+    val childXsk = extendedEd25519.deriveSecret(specInMasterXsk, specInDerivationPath)
+    val childXvk = extendedEd25519.generatePublicKey(childXsk)
+
+    childXsk shouldBe specOutChildXsk
+    childXvk shouldBe specOutChildXvk
+  }
+
+  it should "derive the correct child secret and verification keys using path m/2" in {
+    val extendedEd25519 = new ExtendedEd25519()
+    val specInMasterXsk = SecretKeys.ExtendedEd25519(
+      "c05377ef282279549898c5a15fe202bc9416c8a26fe81ffe1e19c147c2493549".toStrictBytes,
+      "d61547691b72d73947e588ded4967688f82db9628be9bb00c5ad16b5dfaf602a".toStrictBytes,
+      "c5f419bd575f8ea23fa1a599b103f85e6325bf2d34b018ff6f2b8cf3f915e19c".toStrictBytes
+    )
+    val specInDerivationPath = Bip32Indexes.SoftIndex(2)
+
+    val (specOutChildXsk, specOutChildXvk) = (
+      SecretKeys.ExtendedEd25519(
+        "c0b712f4c0e2df68d0054112efb081a7fdf8a3ca920994bf555c40e4c2493549".toStrictBytes,
+        "93f774ae91005da8c69b2c4c59fa80d741ecea6722262a6b4576d259cf60ef30".toStrictBytes,
+        "c05763f0b510942627d0c8b414358841a19748ec43e1135d2f0c4d81583188e1".toStrictBytes
+      ),
+      VerificationKeys.ExtendedEd25519(
+        VerificationKeys.Ed25519("906d68169c8bbfc3f0cd901461c4c824e9ab7cdbaf38b7b6bd66e54da0411109".toStrictBytes),
+        "c05763f0b510942627d0c8b414358841a19748ec43e1135d2f0c4d81583188e1".toStrictBytes
+      )
+    )
+
+    val childXsk = extendedEd25519.deriveSecret(specInMasterXsk, specInDerivationPath)
+    val childXvk = extendedEd25519.generatePublicKey(childXsk)
+
+    childXsk shouldBe specOutChildXsk
+    childXvk shouldBe specOutChildXvk
+  }
+
+//
+//  it should "pass Test Vector #2" in {
+//    val `root private key` =
+//      Base16Data.unsafe(
+//        "f0d0f18e6ab029166fe4e89519ab64f42aa870fc2791fc472840c3a1ba507347fee30dcae1ae3941bde71e9ddd19eef33d0a7b91" +
+//          "aaa4137cea6ef4ea3c27f96a1189e5ec0628974ed7846b594ed0ee2d3ef2d8f5b91d1860ffb0a065159df8be"
+//      )
+//
+//    val `expected m/'0 private key` =
+//      Base16Data.unsafe(
+//        "b859fdcdafa6a4552e5d4a18c44b79daf1d40f1600f6745768ddcbd9bc507347b7b1cdaf0d837051ed203813f7f3c518ae8046fbd4" +
+//          "de106bf1cde33496825a390f2f8270d4724314a2a4f7175cd5765c35dffbf5ccbbfc4f8497297e9e68510f"
+//      )
+//
+//    val `expected m/'0 public key` =
+//      Base16Data.unsafe(
+//        "b983b958d41fbdfecf6c0010ac667efa3cecb02ba27099afd13bc0ef0f82e60c0f2f8270d4724314a2a4f7175cd5765c35df" +
+//          "fbf5ccbbfc4f8497297e9e68510f"
+//      )
+//
+//    val `expected m/'0/'100 private key` =
+//      Base16Data.unsafe(
+//        "30c9ae886a00e5524223d96824b28b1aff0419c6026dd07509e5b5a4c15073473890a9decc12d0400869d6daf095092863bba4" +
+//          "5363b8e33c257e70bf7d3548aacce7b986e25839573c044c389cf8f76d8adcc6f723df9f98bfa1308f0c35282c"
+//      )
+//
+//    val `expected m/'0/'100 public key` =
+//      Base16Data.unsafe(
+//        "4b95248060cc3bd0fee38cddf2c54b5e155a38de5cfe1846873355b35cc07566cce7b986e25839573c044c389cf8f76d8adcc6f723" +
+//          "df9f98bfa1308f0c35282c"
+//      )
+//
+//    val `expected m/'0/'100/55 public key` =
+//      Base16Data.unsafe(
+//        "8e59beac508fcd431c0b7b2dae81686adf45c76c0e32af7af779ecdf78adb8fb3a5c3099aeffe333f39d4107b1" +
+//          "f59227a7e5713b94518033a763a542ea289ee8"
+//      )
+//
+//    val rootKeyBytes = `root private key`.value
+//
+//    val rootKey =
+//      ExtendedPrivateKeyEd25519(
+//        SizedBytes[ByteVector32].fit(rootKeyBytes.slice(0, 32), ByteOrdering.LittleEndian),
+//        SizedBytes[ByteVector32].fit(rootKeyBytes.slice(32, 64), ByteOrdering.LittleEndian),
+//        SizedBytes[ByteVector32].fit(rootKeyBytes.slice(64, 96), ByteOrdering.LittleEndian)
+//      )
+//
+//    val `actual m/'0 private key` =
+//      rootKey.derive(DerivedKeyIndex.hardened(0)).getOrElse(throw new Error())
+//
+//    (
+//      `actual m/'0 private key`.leftKey.toVector ++
+//        `actual m/'0 private key`.rightKey.toVector ++
+//        `actual m/'0 private key`.chainCode.toVector
+//      ).encodeAsBase16 shouldBe `expected m/'0 private key`
+//
+//    val `actual m/'0 public key` =
+//      `actual m/'0 private key`.public
+//
+//    (
+//      `actual m/'0 public key`.bytes.toVector ++
+//        `actual m/'0 public key`.chainCode.toVector
+//      ).encodeAsBase16 shouldBe `expected m/'0 public key`
+//
+//    val `actual m/'0/'100 private key` =
+//      `actual m/'0 private key`
+//        .derive(DerivedKeyIndex.hardened(100))
+//        .getOrElse(throw new Error("invalid child key"))
+//
+//    (
+//      `actual m/'0/'100 private key`.leftKey.toVector ++
+//        `actual m/'0/'100 private key`.rightKey.toVector ++
+//        `actual m/'0/'100 private key`.chainCode.toVector
+//      ).encodeAsBase16 shouldBe `expected m/'0/'100 private key`
+//
+//    val `actual m/'0/'100 public key` =
+//      `actual m/'0/'100 private key`.public
+//
+//    (
+//      `actual m/'0/'100 public key`.bytes.toVector ++
+//        `actual m/'0/'100 public key`.chainCode.toVector
+//      ).encodeAsBase16 shouldBe `expected m/'0/'100 public key`
+//
+//    val `actual m/'0/'100/55 public key` =
+//      `actual m/'0/'100 public key`.derive(DerivedKeyIndex.soft(55))
+//
+//    (
+//      `actual m/'0/'100/55 public key`.bytes.toVector ++
+//        `actual m/'0/'100/55 public key`.chainCode.toVector
+//      ).encodeAsBase16 shouldBe `expected m/'0/'100/55 public key`
+//  }
+//
+//  it should "pass Test Vector #3" in {
+//    val `root private key` =
+//      Base16Data.unsafe(
+//        "2090d5cdd6bdc4537ed44f109c261f3f8dbe9c17a843a77c035f55c78a723a481c285eee9cf920be4a1e1e3564763ad100fe203b5fd7" +
+//          "9f6535943170e53597add20dd0bcf02446e2f607419163f9dbf572393b9c2258d33df59fb0e06112d285"
+//      )
+//
+//    val `expected m/'1852/'7091/'0/'0 private key` =
+//      Base16Data.unsafe(
+//        "60befd4438750e301c86713f2c1a5178d419ff9434d9d3dcf44b9ea5a1723a48a14867f43dc37a11f4b82c10b5c1e7c6b5cc91bcd8c0" +
+//          "29d180f0aca62dee72f92f5d057d61cce1664344538c61c12d99f74a8a6c331a811d8ecb468b36168ef0"
+//      )
+//
+//    val `expected m/'1852/'7091/'0/'0/0 public key` =
+//      Base16Data.unsafe(
+//        "f119694710657f95edf110002ad3974db4c22f330b6b091355cd0b5784f04ba8b415521a3550f1e59fad614aa249aa" +
+//          "3245c93005efd63faf8a02ba7787176782"
+//      )
+//
+//    val rootKeyBytes = `root private key`.value
+//
+//    val rootKey =
+//      ExtendedPrivateKeyEd25519(
+//        SizedBytes[ByteVector32].fit(rootKeyBytes.slice(0, 32), ByteOrdering.LittleEndian),
+//        SizedBytes[ByteVector32].fit(rootKeyBytes.slice(32, 64), ByteOrdering.LittleEndian),
+//        SizedBytes[ByteVector32].fit(rootKeyBytes.slice(64, 96), ByteOrdering.LittleEndian)
+//      )
+//
+//    val `actual m/'1852/'7091/'0/'0 private key` =
+//      rootKey
+//        .derive(DerivedKeyIndex.hardened(1852))
+//        .getOrElse(throw new Error("invalid child key"))
+//        .derive(DerivedKeyIndex.hardened(7091))
+//        .getOrElse(throw new Error("invalid child key"))
+//        .derive(DerivedKeyIndex.hardened(0))
+//        .getOrElse(throw new Error("invalid child key"))
+//        .derive(DerivedKeyIndex.hardened(0))
+//        .getOrElse(throw new Error("invalid child key"))
+//
+//    (
+//      `actual m/'1852/'7091/'0/'0 private key`.leftKey.toVector ++
+//        `actual m/'1852/'7091/'0/'0 private key`.rightKey.toVector ++
+//        `actual m/'1852/'7091/'0/'0 private key`.chainCode.toVector
+//      ).encodeAsBase16 shouldBe `expected m/'1852/'7091/'0/'0 private key`
+//
+//    val `actual m/'1852/'7091/'0/'0/0 public key` =
+//      `actual m/'1852/'7091/'0/'0 private key`.public.derive(DerivedKeyIndex.soft(0))
+//
+//    (
+//      `actual m/'1852/'7091/'0/'0/0 public key`.bytes.toVector ++
+//        `actual m/'1852/'7091/'0/'0/0 public key`.chainCode.toVector
+//      ).encodeAsBase16 shouldBe `expected m/'1852/'7091/'0/'0/0 public key`
+//  }
+//
+//  it should "pass Test Vector #4" in {
+//    val rootKeyBytes: Array[Byte] =
+//      Base16Data
+//        .unsafe(
+//          "f8a29231ee38d6c5bf715d5bac21c750577aa3798b22d79d65bf97d6fadea15adcd1ee1abdf78bd4be64731a12deb94" +
+//            "d3671784112eb6f364b871851fd1c9a247384db9ad6003bbd08b3b1ddc0d07a597293ff85e961bf252b331262eddfad0d"
+//        )
+//        .value
+//
+//    val rootKey =
+//      ExtendedPrivateKeyEd25519(
+//        SizedBytes[ByteVector32].fit(rootKeyBytes.slice(0, 32), ByteOrdering.LittleEndian),
+//        SizedBytes[ByteVector32].fit(rootKeyBytes.slice(32, 64), ByteOrdering.LittleEndian),
+//        SizedBytes[ByteVector32].fit(rootKeyBytes.slice(64, 96), ByteOrdering.LittleEndian)
+//      )
+//
+//    val expectedChildKey: Array[Byte] =
+//      Base16Data
+//        .unsafe(
+//          "60d399da83ef80d8d4f8d223239efdc2b8fef387e1b5219137ffb4e8fbdea15adc9366b7d003af37c11396de9a837" +
+//            "34e30e05e851efa32745c9cd7b42712c890608763770eddf77248ab652984b21b849760d1da74a6f5bd633ce41adceef07a"
+//        )
+//        .value
+//
+//    val expectedSignature: Array[Byte] =
+//      Base16Data
+//        .unsafe(
+//          "90194d57cde4fdadd01eb7cf161780c277e129fc7135b97779a3268837e4cd2e9444b9bb91c0e84d23bba870df3c4bda" +
+//            "91a110ef735638fa7a34ea2046d4be04"
+//        )
+//        .value
+//
+//    val childKey =
+//      rootKey
+//        .derive(DerivedKeyIndex.hardened(0))
+//        .getOrElse(throw new Exception("invalid child key"))
+//
+//    val childKeyBytes =
+//      childKey.leftKey.value.toArray ++ childKey.rightKey.value.toArray ++ childKey.chainCode.value.toArray
+//
+//    val signatureResult: SignatureEd25519 = SignatureEd25519(childKey.sign("Hello World".getBytes("UTF-8".toStrictBytes
+//
+//    childKeyBytes shouldBe expectedChildKey
+//    signatureResult.sigBytes shouldBe expectedSignature
+//    require(
+//      Ed25519.instance.verify(
+//        Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(signatureResult.sigBytes.value))),
+//        Bytes("Hello World".getBytes("UTF-8")),
+//        VerificationKeys.Ed25519(Sized.strictUnsafe(childKey.public))
+//      ),
+//      "Signature did not verify"
+//    )
+//  }
+//
+//  "Key from mnemonic phrase" should "output same the key with the same password" in {
+//    val createKey =
+//      derive[Password => ExtendedPrivateKeyEd25519](
+//        "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic",
+//        Mnemonic12,
+//        English
+//      ).getOrThrow()
+//
+//    forAll(stringGen) { password =>
+//      val firstAttempt = createKey(password)
+//      val secondAttempt = createKey(password)
+//
+//      firstAttempt.leftKey shouldBe secondAttempt.leftKey
+//      firstAttempt.rightKey shouldBe secondAttempt.rightKey
+//      firstAttempt.chainCode shouldBe secondAttempt.chainCode
+//    }
+//  }
+//
+//  it should "output a different key with a different password" in {
+//
+//    val createKey =
+//      derive[Password => ExtendedPrivateKeyEd25519](
+//        "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic",
+//        Mnemonic12,
+//        English
+//      ).getOrThrow()
+//
+//    forAll(stringGen, stringGen) { (password1, password2) =>
+//      val firstAttempt = createKey(password1)
+//      val secondAttempt = createKey(password2)
+//
+//      if (password1 != password2) {
+//        firstAttempt.leftKey should not be secondAttempt.leftKey
+//        firstAttempt.rightKey should not be secondAttempt.rightKey
+//        firstAttempt.chainCode should not be secondAttempt.chainCode
+//      }
+//    }
+//  }
+}
+
+object jamesEd25519 {
+  val extendedEd25519 = new ExtendedEd25519
+  val seed1 = Bytes(Array(0: Byte))
+  val message1 = Bytes(Hex.decode("FF"))
+  val (sk1, vk1) = extendedEd25519.createKeyPair(seed1)
+  val sig1 = extendedEd25519.sign(sk1, message1)
+
+  def main(args: Array[String]): Unit = {
+    def printBytes(name: String, bytes: Bytes): Unit = println(s"${name}: ${Hex.encode(bytes.toArray)}")
+
+    printBytes("seed", seed1)
+    printBytes("sk_left", sk1.leftKey.data)
+    printBytes("sk_right", sk1.rightKey.data)
+    printBytes("sk_chain code", sk1.chainCode.data)
+    printBytes("vk_ed25519", vk1.ed25519.bytes.data)
+    printBytes("vk_chain code", vk1.chainCode.data)
+    printBytes("message1", message1)
+    printBytes("sig1", sig1.bytes.data)
+    println(s"verification: ${extendedEd25519.verify(sig1, message1, vk1)}")
+  }
+
+}
+
+//(
+//SecretKeys.ExtendedEd25519(
+//"0000000000000000000000000000000000000000000000000000000000000000".toStrictBytes,
+//"0000000000000000000000000000000000000000000000000000000000000000".toStrictBytes,
+//"0000000000000000000000000000000000000000000000000000000000000000".toStrictBytes
+//),
+//VerificationKeys.ExtendedEd25519(
+//VerificationKeys.Ed25519("0000000000000000000000000000000000000000000000000000000000000000".toStrictBytes),
+//"0000000000000000000000000000000000000000000000000000000000000000".toStrictBytes,
+//),
+//Bip32Index.soft(2)
+//)

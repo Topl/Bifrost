@@ -14,10 +14,8 @@ class Ed25519
   override val KeyLength: Int = SECRET_KEY_SIZE
 
   override def createKeyPair(seed: Bytes): (SecretKeys.Ed25519, VerificationKeys.Ed25519) = {
-    val sk: Sized.Strict[Bytes, SecretKeys.Ed25519.Length] =
-      Sized.strictUnsafe(Bytes(new Array[Byte](SECRET_KEY_SIZE)))
-    val pk: Sized.Strict[Bytes, VerificationKeys.Ed25519.Length] =
-      Sized.strictUnsafe(Bytes(new Array[Byte](PUBLIC_KEY_SIZE)))
+    val sk: Array[Byte] = new Array[Byte](SECRET_KEY_SIZE)
+    val pk: Array[Byte] = new Array[Byte](SECRET_KEY_SIZE)
     val hashedSeed = sha256.hash(seed.toArray)
 
     // should we update this?
@@ -25,42 +23,48 @@ class Ed25519
     val random = SecureRandom.getInstance("SHA1PRNG")
 
     random.setSeed(hashedSeed.value)
-    generatePrivateKey(random, Bytes.toByteArray(sk.data))
-    generatePublicKey(Bytes.toByteArray(sk.data), 0, Bytes.toByteArray(pk.data), 0)
-    (SecretKeys.Ed25519(sk), VerificationKeys.Ed25519(pk))
+    generatePrivateKey(random, sk)
+    generatePublicKey(sk, 0, pk, 0)
+
+    (SecretKeys.Ed25519(Sized.strictUnsafe(Bytes(sk))), VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(pk))))
   }
 
   override def sign(privateKey: SecretKeys.Ed25519, message: Bytes): Proofs.Signature.Ed25519 = {
-    val sig: Sized.Strict[Bytes, Proofs.Signature.Ed25519.Length] =
-      Sized.strictUnsafe(Bytes(new Array[Byte](SIGNATURE_SIZE)))
+    val sig = new Array[Byte](SIGNATURE_SIZE)
     sign(
-      Bytes.toByteArray(privateKey.bytes.data),
+      privateKey.bytes.data.toArray,
       0,
       message.toArray,
       0,
       message.toArray.length,
-      Bytes.toByteArray(sig.data),
+      sig,
       0
     )
-    Proofs.Signature.Ed25519(sig)
+
+    Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(sig)))
   }
 
   override def verify(
     signature: Proofs.Signature.Ed25519,
     message:   Bytes,
     publicKey: VerificationKeys.Ed25519
-  ): Boolean =
-    signature.bytes.data.length == SIGNATURE_SIZE &&
-    publicKey.bytes.data.length == PUBLIC_KEY_SIZE &&
+  ): Boolean = {
+    val sigByteArray = signature.bytes.data.toArray
+    val vkByteArray = publicKey.bytes.data.toArray
+    val msgByteArray = message.toArray
+
+    sigByteArray.length == SIGNATURE_SIZE &&
+    vkByteArray.length == PUBLIC_KEY_SIZE &&
     verify(
-      Bytes.toByteArray(signature.bytes.data),
+      sigByteArray,
       0,
-      Bytes.toByteArray(publicKey.bytes.data),
+      vkByteArray,
       0,
-      message.toArray,
+      msgByteArray,
       0,
-      message.toArray.length
+      msgByteArray.length
     )
+  }
 
   def generatePublicKey(secretKey: SecretKeys.Ed25519): VerificationKeys.Ed25519 = {
     val pkBytes = new Array[Byte](PUBLIC_KEY_SIZE)

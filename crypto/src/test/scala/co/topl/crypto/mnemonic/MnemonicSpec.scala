@@ -2,12 +2,14 @@ package co.topl.crypto.mnemonic
 
 import co.topl.crypto.mnemonic.Language.English
 import co.topl.crypto.mnemonic.MnemonicSize._
+import co.topl.crypto.utils.Generators.genByteArrayOfSize
 import co.topl.crypto.utils.Hex
 import co.topl.models.utility.Base58
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-import sun.security.provider.SecureRandom
+import co.topl.models.SecretKeys
+import co.topl.crypto.mnemonic.FromEntropy.Instances._
 
 class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaCheckDrivenPropertyChecks {
 
@@ -16,7 +18,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
   property("12 phrase mnemonic with valid words should be valid") {
     val phrase = "cat swing flag economy stadium alone churn speed unique patch report train"
-    val mnemonic = derive[String](phrase, Mnemonic12, English)
+    val mnemonic = FromEntropy.derive[String](phrase, Mnemonic12, English)
 
     mnemonic.isRight shouldBe true
   }
@@ -24,7 +26,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
   property("12 phrase mnemonic with invalid word length should be invalid") {
     val phrase = "result fresh margin life life filter vapor trim"
 
-    val mnemonic = derive[String](phrase, Mnemonic12, English)
+    val mnemonic = FromEntropy.derive[String](phrase, Mnemonic12, English)
 
     mnemonic.isLeft shouldBe true
   }
@@ -32,23 +34,23 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
   property("12 phrase mnemonic with invalid words should be invalid") {
     val phrase = "amber glue hallway can truth drawer wave flex cousin grace close compose"
 
-    val mnemonic = derive[String](phrase, Mnemonic12, English)
+    val mnemonic = FromEntropy.derive[String](phrase, Mnemonic12, English)
 
     mnemonic.isLeft shouldBe true
   }
 
   property("12 phrase mnemonic with valid words and invalid checksum should be invalid") {
     val phrase = "ugly wire busy skate slice kidney razor eager bicycle struggle aerobic picnic"
-    val mnemonic = derive[String](phrase, Mnemonic12, English)
+    val mnemonic = FromEntropy.derive[String](phrase, Mnemonic12, English)
 
     mnemonic.isLeft shouldBe true
   }
 
   def entropyLengthTest(bytes: Int, size: MnemonicSize): Unit =
     property(s"from entropy of length $bytes should be valid") {
-      forAll(new SecureRandom().engineNextBytes(bytes)) { entropy =>
+      forAll(genByteArrayOfSize(bytes)) { entropy: Array[Byte] =>
         if (entropy.length == bytes) {
-          val entropyString = derive[String](entropy, size)
+          val entropyString = FromEntropy.derive[String](entropy, size)
 
           entropyString.isRight shouldBe true
         }
@@ -63,7 +65,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
   property("mnemonic with extra whitespace is valid") {
     val mnemonic =
-      derive[String](
+      FromEntropy.derive[String](
         "vessel ladder alter error  federal sibling chat   ability sun glass valve picture",
         Mnemonic12,
         English
@@ -74,7 +76,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
   property("mnemonic with extra whitespace has same value as single spaced") {
     val expected =
-      derive[String](
+      FromEntropy.derive[String](
         "vessel ladder alter error federal sibling chat ability sun glass valve picture",
         Mnemonic12,
         English
@@ -84,7 +86,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
       }
 
     val result =
-      derive[String](
+      FromEntropy.derive[String](
         "vessel ladder alter error  federal sibling chat   ability sun glass valve picture",
         Mnemonic12,
         English
@@ -97,7 +99,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
   }
 
   property("mnemonic with capital letters is valid") {
-    val mnemonic = derive[String](
+    val mnemonic = FromEntropy.derive[String](
       "Legal Winner Thank Year Wave Sausage Worth Useful Legal " +
       "Winner Thank Year Wave Sausage Worth Useful Legal Will",
       Mnemonic18,
@@ -109,7 +111,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
   property("mnemonic with capital letters has same entropy as lowercase") {
     val expectedEntropy =
-      derive[String](
+      FromEntropy.derive[String](
         "legal winner thank year wave sausage worth useful legal " +
         "winner thank year wave sausage worth useful legal will",
         Mnemonic18,
@@ -120,7 +122,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
       }
 
     val result =
-      derive[String](
+      FromEntropy.derive[String](
         "Legal Winner Thank Year Wave Sausage Worth Useful Legal " +
         "Winner Thank Year Wave Sausage Worth Useful Legal Will",
         Mnemonic18,
@@ -135,7 +137,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
   property("mnemonic with unusual characters is invalid") {
     val entropy =
-      derive[String](
+      FromEntropy.derive[String](
         "voi\uD83D\uDD25d come effort suffer camp su\uD83D\uDD25rvey warrior heavy shoot primary" +
         " clutch c\uD83D\uDD25rush" +
         " open amazing screen " +
@@ -224,10 +226,13 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
       val expectedPrivateKeyBase16 = Hex.decode(tv.privateKey)
 
       val pkResult =
-        derive[String => ExtendedPrivateKeyEd25519](tv.phrase, tv.size, tv.language).getOrThrow()(tv.password)
+        FromEntropy.derive[String => SecretKeys.ExtendedEd25519](tv.phrase, tv.size, tv.language) match {
+          case Left(value)  => throw new Error("failed test")
+          case Right(value) => value(tv.password)
+        }
 
       val pkResultBase16 =
-        (pkResult.leftKey.toVector ++ pkResult.rightKey.toVector ++ pkResult.chainCode.toVector).encodeAsBase16
+        Hex.encode(pkResult.leftKey.data.toArray ++ pkResult.rightKey.data.toArray ++ pkResult.chainCode.data.toArray)
 
       pkResultBase16 shouldBe expectedPrivateKeyBase16
     }

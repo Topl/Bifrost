@@ -1,5 +1,6 @@
-package co.topl.attestation.keyManagement.derivedKeys
+package co.topl.crypto.signing
 
+import co.topl.crypto.signing.eddsa
 import co.topl.attestation.keyManagement.mnemonic.{Entropy, FromEntropy}
 import co.topl.attestation.{PublicKeyPropositionEd25519, SignatureEd25519}
 import co.topl.crypto.Signature
@@ -28,7 +29,7 @@ class ExtendedPrivateKeyEd25519(
   val leftKey:   ByteVector32,
   val rightKey:  ByteVector32,
   val chainCode: ByteVector32
-) {
+) extends eddsa.Ed25519 {
 
   import ExtendedPrivateKeyEd25519.ed25519
 
@@ -41,7 +42,7 @@ class ExtendedPrivateKeyEd25519(
    * @return a `ExtendedPublicKeyEd25519` for verifying signatures made with this private key
    */
   def public: ExtendedPublicKeyEd25519 = {
-    val pk = new Array[Byte](ed25519.PUBLIC_KEY_SIZE)
+    val pk = new Array[Byte](PUBLIC_KEY_SIZE)
     ed25519.scalarMultBaseEncoded(leftKey.toArray, pk, 0)
 
     ExtendedPublicKeyEd25519(

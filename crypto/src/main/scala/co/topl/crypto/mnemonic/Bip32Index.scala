@@ -1,5 +1,6 @@
 package co.topl.crypto.mnemonic
 
+import co.topl.crypto.mnemonic.Bip32Indexes.{HardenedIndex, SoftIndex}
 import co.topl.models.Bytes
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.{Lengths, Sized}
@@ -30,10 +31,8 @@ sealed trait Bip32Index {
     )
 }
 
-case class SoftIndex private (override val value: Long) extends Bip32Index
-case class HardenedIndex private (override val value: Long) extends Bip32Index
-
 object Bip32Index {
+
   /**
    * The lower bound of the hardened index range.
    * Lower bound is `2^31` or 2147483648.
@@ -41,10 +40,9 @@ object Bip32Index {
    */
   val hardenedOffset: Long = 2147483648L
 
-  def apply(value: Long): Bip32Index = {
+  def apply(value: Long): Bip32Index =
     if (value < hardenedOffset) HardenedIndex(value)
     else SoftIndex(value)
-  }
 
   /**
    * Instantiates a new soft-index value.
@@ -66,4 +64,9 @@ object Bip32Index {
     if (value >= 0) HardenedIndex(value.toLong + hardenedOffset)
     else HardenedIndex(0.toLong + hardenedOffset)
 
+}
+
+object Bip32Indexes {
+  case class SoftIndex private (override val value: Long) extends Bip32Index
+  case class HardenedIndex private (override val value: Long) extends Bip32Index
 }
