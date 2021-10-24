@@ -91,7 +91,7 @@ case class SignatureCurve25519(private[attestation] val sigBytes: Signature)
   def isValid(proposition: PublicKeyPropositionCurve25519, message: Array[Byte]): Boolean =
     curve25519.verify(
       Proofs.Signature.Curve25519(Sized.strictUnsafe[Bytes, Proofs.Signature.Curve25519.Length](Bytes(sigBytes.value))),
-      MessageToSign(message),
+      Bytes(message),
       VerificationKeys.Curve25519(
         Sized.strictUnsafe[Bytes, VerificationKeys.Curve25519.Length](Bytes(proposition.pubKeyBytes.value))
       )
@@ -150,7 +150,7 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
           .find(prop =>
             unusedProps(prop) && curve25519.verify(
               Proofs.Signature.Curve25519(Sized.strictUnsafe(Bytes(sig.sigBytes.value))),
-              MessageToSign(message),
+              Bytes(message),
               VerificationKeys.Curve25519(Sized.strictUnsafe(Bytes(prop.pubKeyBytes.value)))
             )
           ) match {
@@ -212,12 +212,13 @@ case class SignatureEd25519(private[attestation] val sigBytes: Signature)
   def isValid(proposition: PublicKeyPropositionEd25519, message: Array[Byte]): Boolean =
     ed25519.verify(
       Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(sigBytes.value))),
-      MessageToSign(message),
+      Bytes(message),
       VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(proposition.pubKeyBytes.value)))
     )
 }
 
 object SignatureEd25519 {
+  lazy val signatureSize: Int = Ed25519.instance.SignatureLength
 
   /** Helper function to create empty signatures */
   lazy val empty: SignatureEd25519 = SignatureEd25519(Signature(Array.emptyByteArray))

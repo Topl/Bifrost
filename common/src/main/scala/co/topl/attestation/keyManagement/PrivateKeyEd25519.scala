@@ -10,6 +10,7 @@ import co.topl.models.utility.Sized
 import co.topl.models.{Bytes, SecretKeys}
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
+//noinspection ScalaStyle
 case class PrivateKeyEd25519(private val privateKey: PrivateKey, private val publicKey: PublicKey) extends Secret {
 
   private val ed25519 = new Ed25519()
@@ -31,7 +32,7 @@ case class PrivateKeyEd25519(private val privateKey: PrivateKey, private val pub
   override def sign(message: Array[Byte]): SignatureEd25519 = SignatureEd25519(
     Signature(
       ed25519
-        .sign(SecretKeys.Ed25519(Sized.strictUnsafe(Bytes(privateKey.value))), MessageToSign(message))
+        .sign(SecretKeys.Ed25519(Sized.strictUnsafe(Bytes(privateKey.value))), Bytes(message))
         .bytes
         .data
         .toArray
@@ -48,7 +49,7 @@ object PrivateKeyEd25519 extends BifrostSerializer[PrivateKeyEd25519] {
 
   implicit val secretGenerator: SecretGenerator[PrivateKeyEd25519] =
     SecretGenerator.instance[PrivateKeyEd25519] { seed: Array[Byte] =>
-      val (sk, pk) = Ed25519.instance.createKeyPair(Seed(seed))
+      val (sk, pk) = Ed25519.instance.createKeyPair(Bytes(seed))
       val secret: PrivateKeyEd25519 =
         new PrivateKeyEd25519(PrivateKey(sk.bytes.data.toArray), PublicKey(pk.bytes.data.toArray))
       secret -> secret.publicImage

@@ -40,7 +40,7 @@ class ExtendedPrivateKeyEd25519Spec
         )
         .value
 
-    val rootPublicKeyBytes =
+    val rootPublicKeyBytes =git commit -am ""
       Base16Data
         .unsafe(
           "2b1b2c00e35c9f9c2dec26ce3ba597504d2fc86862b6035b05340aff8a7ebc4bc5f419bd575f8ea23fa1a599b103f85e6" +
@@ -286,7 +286,7 @@ class ExtendedPrivateKeyEd25519Spec
       Ed25519.instance.verify(
         Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(signatureResult.sigBytes.value))),
         Bytes("Hello World".getBytes("UTF-8")),
-        VerificationKeys.Ed25519(Sized.strictUnsafe(childKey.public))
+        VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(childKey.public.bytes.toArray)))
       ),
       "Signature did not verify"
     )

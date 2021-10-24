@@ -10,6 +10,7 @@ import co.topl.models.utility.Sized
 import co.topl.models.{Bytes, SecretKeys}
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
+//noinspection ScalaStyle
 class PrivateKeyCurve25519(private val privateKey: PrivateKey, private val publicKey: PublicKey) extends Secret {
 
   private val curve25519 = new Curve25519()
@@ -31,7 +32,7 @@ class PrivateKeyCurve25519(private val privateKey: PrivateKey, private val publi
   override def sign(message: Array[Byte]): SignatureCurve25519 = SignatureCurve25519(
     Signature(
       curve25519
-        .sign(SecretKeys.Curve25519(Sized.strictUnsafe(Bytes(privateKey.value))), MessageToSign(message))
+        .sign(SecretKeys.Curve25519(Sized.strictUnsafe(Bytes(privateKey.value))), Bytes(message))
         .bytes
         .data
         .toArray
@@ -48,7 +49,7 @@ object PrivateKeyCurve25519 extends BifrostSerializer[PrivateKeyCurve25519] {
 
   implicit val secretGenerator: SecretGenerator[PrivateKeyCurve25519] =
     SecretGenerator.instance[PrivateKeyCurve25519] { seed: Array[Byte] =>
-      val (sk, pk) = Curve25519.instance.createKeyPair(Seed(seed))
+      val (sk, pk) = Curve25519.instance.createKeyPair(Bytes(seed))
       val secret: PrivateKeyCurve25519 =
         new PrivateKeyCurve25519(PrivateKey(sk.bytes.data.toArray), PublicKey(pk.bytes.data.toArray))
       secret -> secret.publicImage
