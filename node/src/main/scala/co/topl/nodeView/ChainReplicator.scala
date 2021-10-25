@@ -257,7 +257,6 @@ private class ChainReplicator(
    * @return optional sequence of blocks at given heights
    */
   private def blocksAtHeight(blockHeights: Seq[Long])(nodeView: ReadableNodeView): Option[Seq[Block]] = {
-    // TODO: Jing - add function in nodeView.history to get multiple modifier at heights
     val blocks = blockHeights.flatMap(nodeView.history.modifierByHeight)
     if (blocks.nonEmpty) blocks.some
     else None
