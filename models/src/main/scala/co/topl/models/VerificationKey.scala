@@ -18,7 +18,7 @@ object VerificationKeys {
   }
 
   case class ExtendedEd25519(
-    ed25519:   VerificationKeys.Ed25519,
+    vk:        VerificationKeys.Ed25519,
     chainCode: Sized.Strict[Bytes, ExtendedEd25519.ChainCodeLength]
   ) extends VerificationKey
 

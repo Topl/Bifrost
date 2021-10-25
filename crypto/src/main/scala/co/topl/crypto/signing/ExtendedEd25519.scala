@@ -63,11 +63,11 @@ class ExtendedEd25519
     verifyKey: VerificationKeys.ExtendedEd25519
   ): Boolean =
     signature.bytes.data.length == SIGNATURE_SIZE &&
-    verifyKey.ed25519.bytes.data.length == PUBLIC_KEY_SIZE &&
+    verifyKey.vk.bytes.data.length == PUBLIC_KEY_SIZE &&
     verify(
       signature.bytes.data.toArray,
       0,
-      verifyKey.ed25519.bytes.data.toArray,
+      verifyKey.vk.bytes.data.toArray,
       0,
       message.toArray,
       0,
@@ -85,7 +85,7 @@ class ExtendedEd25519
 
     val zHmacData: Bytes = index match {
       case _: Bip32Indexes.SoftIndex =>
-        0x02.toByte +: (public.ed25519.bytes.data ++ index.bytes.data)
+        0x02.toByte +: (public.vk.bytes.data ++ index.bytes.data)
       case _: Bip32Indexes.HardenedIndex =>
         0x00.toByte +: (secretKey.leftKey.data ++ secretKey.rightKey.data ++ index.bytes.data)
     }
@@ -117,7 +117,7 @@ class ExtendedEd25519
 
     val chaincodeHmacData = index match {
       case _: Bip32Indexes.SoftIndex =>
-        0x03.toByte +: (public.ed25519.bytes.data ++ index.bytes.data)
+        0x03.toByte +: (public.vk.bytes.data ++ index.bytes.data)
       case _: Bip32Indexes.HardenedIndex =>
         0x01.toByte +: (secretKey.leftKey.data ++ secretKey.rightKey.data ++ index.bytes.data)
     }
@@ -152,7 +152,7 @@ class ExtendedEd25519
 
     val z = ExtendedEd25519.hmac512WithKey(
       verificationKey.chainCode.data.toArray,
-      Array(0x02.toByte) ++ verificationKey.ed25519.bytes.data.toArray ++ index.bytes.data
+      Array(0x02.toByte) ++ verificationKey.vk.bytes.data.toArray ++ index.bytes.data
     )
 
     val zL = z.slice(0, 28)
@@ -170,7 +170,7 @@ class ExtendedEd25519
     scalarMultBase(zLMult8, scaledZL)
 
     val publicKeyPoint = new PointExt
-    decodePointVar(verificationKey.ed25519.bytes.data.toArray, 0, negate = false, publicKeyPoint)
+    decodePointVar(verificationKey.vk.bytes.data.toArray, 0, negate = false, publicKeyPoint)
 
     pointAddVar(negate = false, publicKeyPoint, scaledZL)
 
@@ -183,7 +183,7 @@ class ExtendedEd25519
       ExtendedEd25519
         .hmac512WithKey(
           verificationKey.chainCode.data.toArray,
-          Array(0x03.toByte) ++ verificationKey.ed25519.bytes.data.toArray ++ index.bytes.data
+          Array(0x03.toByte) ++ verificationKey.vk.bytes.data.toArray ++ index.bytes.data
         )
         .slice(32, 64)
 

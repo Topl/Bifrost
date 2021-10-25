@@ -115,7 +115,7 @@ object BasicCodecs {
     new ByteCodec[VerificationKeys.ExtendedEd25519] {
 
       def encode(t: VerificationKeys.ExtendedEd25519, writer: Writer): Unit = {
-        t.ed25519.writeBytesTo(writer)
+        t.vk.writeBytesTo(writer)
         t.chainCode.writeBytesTo(writer)
       }
 
