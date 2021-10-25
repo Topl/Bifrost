@@ -6,10 +6,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class ProgramPreprocessorSpec
-    extends AnyPropSpec
-    with ScalaCheckDrivenPropertyChecks
-    with Matchers {
+class ProgramPreprocessorSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
 
   val args: JsonObject = Map(
     "principal"        -> "0".asJson,
