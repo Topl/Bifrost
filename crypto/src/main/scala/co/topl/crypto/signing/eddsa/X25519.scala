@@ -13,12 +13,12 @@ import java.security.SecureRandom
  */
 
 class X25519 extends EC {
-   val POINT_SIZE = 32
-   val SCALAR_SIZE = 32
-   val C_A = 486662
-   val C_A24: Int = (C_A + 2) / 4
+  private[signing] val POINT_SIZE = 32
+  private[signing] val SCALAR_SIZE = 32
+  private[signing] val C_A = 486662
+  private[signing] val C_A24: Int = (C_A + 2) / 4
 
-   def calculateAgreement(
+  private[signing] def calculateAgreement(
     k:    Array[Byte],
     kOff: Int,
     u:    Array[Byte],
@@ -30,7 +30,7 @@ class X25519 extends EC {
     !areAllZeroes(r, rOff, POINT_SIZE)
   }
 
-  override  def decodeScalar(k: Array[Byte], kOff: Int, n: Array[Int]): Unit = {
+  override private[signing] def decodeScalar(k: Array[Byte], kOff: Int, n: Array[Int]): Unit = {
     for (i <- 0 until 8)
       n(i) = decode32(k, kOff + i * 4)
     n(0) &= 0xfffffff8
@@ -38,17 +38,17 @@ class X25519 extends EC {
     n(7) |= 0x40000000
   }
 
-   def generatePrivateKey(random: SecureRandom, k: Array[Byte]): Unit = {
+  private[signing] def generatePrivateKey(random: SecureRandom, k: Array[Byte]): Unit = {
     random.nextBytes(k)
     k(0) = (k(0) & 0xf8).toByte
     k(SCALAR_SIZE - 1) = (k(SCALAR_SIZE - 1) & 0x7f).toByte
     k(SCALAR_SIZE - 1) = (k(SCALAR_SIZE - 1) | 0x40).toByte
   }
 
-   def generatePublicKey(k: Array[Byte], kOff: Int, r: Array[Byte], rOff: Int): Unit =
+  private[signing] def generatePublicKey(k: Array[Byte], kOff: Int, r: Array[Byte], rOff: Int): Unit =
     scalarMultBase(k, kOff, r, rOff)
 
-   def pointDouble(x: Array[Int], z: Array[Int]): Unit = {
+  private[signing] def pointDouble(x: Array[Int], z: Array[Int]): Unit = {
     val A = x25519Field.create
     val B = x25519Field.create
     x25519Field.apm(x, z, A, B)
@@ -61,7 +61,7 @@ class X25519 extends EC {
     x25519Field.mul(z, A, z)
   }
 
-   def scalarMult(
+  private[signing] def scalarMult(
     k:    Array[Byte],
     kOff: Int,
     u:    Array[Byte],
@@ -117,7 +117,7 @@ class X25519 extends EC {
     x25519Field.encode(x2, r, rOff)
   }
 
-   def scalarMultBase(k: Array[Byte], kOff: Int, r: Array[Byte], rOff: Int): Unit = {
+  private[signing] def scalarMultBase(k: Array[Byte], kOff: Int, r: Array[Byte], rOff: Int): Unit = {
     val y = x25519Field.create
     val z = x25519Field.create
     scalarMultBaseYZ(k, kOff, y, z)

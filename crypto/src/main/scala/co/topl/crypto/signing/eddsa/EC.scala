@@ -45,15 +45,15 @@ Table 1: Parameters of Ed25519
 
 trait EC {
 
-   val x25519Field: X25519Field = new X25519Field
-   val POINT_BYTES: Int = 32
-   val SCALAR_INTS: Int = 8
-   val SCALAR_BYTES: Int = SCALAR_INTS * 4
-   val PREHASH_SIZE: Int = 64
-   val PUBLIC_KEY_SIZE: Int = POINT_BYTES
-   val SECRET_KEY_SIZE: Int = 32
-   val SIGNATURE_SIZE: Int = POINT_BYTES + SCALAR_BYTES
-   val DOM2_PREFIX: Array[Byte] = "SigEd25519 no Ed25519 collisions".getBytes()
+  private[signing] val x25519Field: X25519Field = new X25519Field
+  private[signing] val POINT_BYTES: Int = 32
+  private[signing] val SCALAR_INTS: Int = 8
+  private[signing] val SCALAR_BYTES: Int = SCALAR_INTS * 4
+  private[signing] val PREHASH_SIZE: Int = 64
+  private[signing] val PUBLIC_KEY_SIZE: Int = POINT_BYTES
+  private[signing] val SECRET_KEY_SIZE: Int = 32
+  private[signing] val SIGNATURE_SIZE: Int = POINT_BYTES + SCALAR_BYTES
+  private[signing] val DOM2_PREFIX: Array[Byte] = "SigEd25519 no Ed25519 collisions".getBytes()
 
   private val M28L = 0x0fffffffL
   private val M32L = 0xffffffffL
@@ -98,7 +98,7 @@ trait EC {
 
   private val M: Long = 0xffffffffL
 
-   class PointAccum {
+  private[signing] class PointAccum {
     val x: Array[Int] = x25519Field.create
     val y: Array[Int] = x25519Field.create
     val z: Array[Int] = x25519Field.create
@@ -106,20 +106,20 @@ trait EC {
     val v: Array[Int] = x25519Field.create
   }
 
-   class PointExt {
+  private[signing] class PointExt {
     val x: Array[Int] = x25519Field.create
     val y: Array[Int] = x25519Field.create
     val z: Array[Int] = x25519Field.create
     val t: Array[Int] = x25519Field.create
   }
 
-   class PointPrecomp {
+  private[signing] class PointPrecomp {
     val ypx_h: Array[Int] = x25519Field.create
     val ymx_h: Array[Int] = x25519Field.create
     val xyd: Array[Int] = x25519Field.create
   }
 
-   class SHA512Digest {
+  private[signing] class SHA512Digest {
 
     val digest: MessageDigest = MessageDigest.getInstance("SHA-512")
 
@@ -143,7 +143,7 @@ trait EC {
     def reset(): Unit = digest.reset()
   }
 
-   class SHA256Digest {
+  private[signing] class SHA256Digest {
 
     val digest: MessageDigest = MessageDigest.getInstance("SHA-256")
 
@@ -167,11 +167,11 @@ trait EC {
     def reset(): Unit = digest.reset()
   }
 
-   val sha512Digest: SHA512Digest = new SHA512Digest
+  private[signing] val sha512Digest: SHA512Digest = new SHA512Digest
 
-   val sha256Digest: SHA256Digest = new SHA256Digest
+  private[signing] val sha256Digest: SHA256Digest = new SHA256Digest
 
-   def mulAddTo256(x: Array[Int], y: Array[Int], zz: Array[Int]): Int = {
+  private[signing] def mulAddTo256(x: Array[Int], y: Array[Int], zz: Array[Int]): Int = {
     val y_0: Long = y(0) & M
     val y_1: Long = y(1) & M
     val y_2: Long = y(2) & M
@@ -215,7 +215,7 @@ trait EC {
     zc.toInt
   }
 
-   def gte256(x: Array[Int], y: Array[Int]): Boolean = {
+  private[signing] def gte256(x: Array[Int], y: Array[Int]): Boolean = {
     for (i <- 7 to 0 by -1) {
       val x_i = x(i) ^ Integer.MIN_VALUE
       val y_i = y(i) ^ Integer.MIN_VALUE
@@ -225,7 +225,7 @@ trait EC {
     true
   }
 
-   def cmov(len: Int, mask: Int, x: Array[Int], xOff: Int, z: Array[Int], zOff: Int): Unit = {
+  private[signing] def cmov(len: Int, mask: Int, x: Array[Int], xOff: Int, z: Array[Int], zOff: Int): Unit = {
     var maskv = mask
     maskv = -(maskv & 1)
     for (i <- 0 until len) {
@@ -236,7 +236,7 @@ trait EC {
     }
   }
 
-   def cadd(len: Int, mask: Int, x: Array[Int], y: Array[Int], z: Array[Int]): Int = {
+  private[signing] def cadd(len: Int, mask: Int, x: Array[Int], y: Array[Int], z: Array[Int]): Int = {
     val m = -(mask & 1) & M
     var c = 0L
     for (i <- 0 until len) {
@@ -247,7 +247,7 @@ trait EC {
     c.toInt
   }
 
-   def shiftDownBit(len: Int, z: Array[Int], c: Int): Int = {
+  private[signing] def shiftDownBit(len: Int, z: Array[Int], c: Int): Int = {
     var i: Int = len
     var cv = c
     while ({ i -= 1; i } >= 0) {
@@ -258,7 +258,7 @@ trait EC {
     cv << 31
   }
 
-   def shuffle2(x: Int): Int = { // "shuffle" (twice) low half to even bits and high half to odd bits
+  private[signing] def shuffle2(x: Int): Int = { // "shuffle" (twice) low half to even bits and high half to odd bits
     var t = 0
     var xv = x
     t = (xv ^ (xv >>> 7)) & 0x00aa00aa
@@ -272,14 +272,14 @@ trait EC {
     xv
   }
 
-   def areAllZeroes(buf: Array[Byte], off: Int, len: Int): Boolean = {
+  private[signing] def areAllZeroes(buf: Array[Byte], off: Int, len: Int): Boolean = {
     var bits = 0
     for (i <- 0 until len)
       bits |= buf(off + i)
     bits == 0
   }
 
-   def calculateS(r: Array[Byte], k: Array[Byte], s: Array[Byte]): Array[Byte] = {
+  private[signing] def calculateS(r: Array[Byte], k: Array[Byte], s: Array[Byte]): Array[Byte] = {
     val t = new Array[Int](SCALAR_INTS * 2)
     decodeScalar(r, 0, t)
     val u = new Array[Int](SCALAR_INTS)
@@ -293,30 +293,30 @@ trait EC {
     reduceScalar(result)
   }
 
-   def checkContextVar(ctx: Array[Byte], phflag: Byte): Boolean =
+  private[signing] def checkContextVar(ctx: Array[Byte], phflag: Byte): Boolean =
     ctx == null && phflag == 0x00 || ctx != null && ctx.length < 256
 
-   def checkPointVar(p: Array[Byte]): Boolean = {
+  private[signing] def checkPointVar(p: Array[Byte]): Boolean = {
     val t = new Array[Int](8)
     decode32(p, 0, t, 0, 8)
     t(7) &= 0x7fffffff
     !gte256(t, P)
   }
 
-   def checkScalarVar(s: Array[Byte]): Boolean = {
+  private[signing] def checkScalarVar(s: Array[Byte]): Boolean = {
     val n = new Array[Int](SCALAR_INTS)
     decodeScalar(s, 0, n)
     !gte256(n, L)
   }
 
-   def decode24(bs: Array[Byte], off: Int): Int = {
+  private[signing] def decode24(bs: Array[Byte], off: Int): Int = {
     var n = bs(off) & 0xff
     n |= (bs(off + 1) & 0xff) << 8
     n |= (bs(off + 2) & 0xff) << 16
     n
   }
 
-   def decode32(bs: Array[Byte], off: Int): Int = {
+  private[signing] def decode32(bs: Array[Byte], off: Int): Int = {
     var n = bs(off) & 0xff
     n |= (bs(off + 1) & 0xff) << 8
     n |= (bs(off + 2) & 0xff) << 16
@@ -324,11 +324,11 @@ trait EC {
     n
   }
 
-   def decode32(bs: Array[Byte], bsOff: Int, n: Array[Int], nOff: Int, nLen: Int): Unit =
+  private[signing] def decode32(bs: Array[Byte], bsOff: Int, n: Array[Int], nOff: Int, nLen: Int): Unit =
     for (i <- 0 until nLen)
       n(nOff + i) = decode32(bs, bsOff + i * 4)
 
-   def decodePointVar(p: Array[Byte], pOff: Int, negate: Boolean, r: PointExt): Boolean = {
+  private[signing] def decodePointVar(p: Array[Byte], pOff: Int, negate: Boolean, r: PointExt): Boolean = {
     val py = util.Arrays.copyOfRange(p, pOff, pOff + POINT_BYTES)
     if (!checkPointVar(py)) return false
     val x_0 = (py(POINT_BYTES - 1) & 0x80) >>> 7
@@ -348,28 +348,28 @@ trait EC {
     true
   }
 
-   def decodeScalar(k: Array[Byte], kOff: Int, n: Array[Int]): Unit =
+  private[signing] def decodeScalar(k: Array[Byte], kOff: Int, n: Array[Int]): Unit =
     decode32(k, kOff, n, 0, SCALAR_INTS)
 
-   def encode24(n: Int, bs: Array[Byte], off: Int): Unit = {
+  private[signing] def encode24(n: Int, bs: Array[Byte], off: Int): Unit = {
     bs(off) = n.toByte
     bs(off + 1) = (n >>> 8).toByte
     bs(off + 2) = (n >>> 16).toByte
   }
 
-   def encode32(n: Int, bs: Array[Byte], off: Int): Unit = {
+  private[signing] def encode32(n: Int, bs: Array[Byte], off: Int): Unit = {
     bs(off) = n.toByte
     bs(off + 1) = (n >>> 8).toByte
     bs(off + 2) = (n >>> 16).toByte
     bs(off + 3) = (n >>> 24).toByte
   }
 
-   def encode56(n: Long, bs: Array[Byte], off: Int): Unit = {
+  private[signing] def encode56(n: Long, bs: Array[Byte], off: Int): Unit = {
     encode32(n.toInt, bs, off)
     encode24((n >>> 32).toInt, bs, off + 4)
   }
 
-   def encodePoint(p: PointAccum, r: Array[Byte], rOff: Int): Unit = {
+  private[signing] def encodePoint(p: PointAccum, r: Array[Byte], rOff: Int): Unit = {
     val x = x25519Field.create
     val y = x25519Field.create
     x25519Field.inv(p.z, y)
@@ -381,7 +381,7 @@ trait EC {
     r(rOff + POINT_BYTES - 1) = (r(rOff + POINT_BYTES - 1) | ((x(0) & 1) << 7)).toByte
   }
 
-   def getWNAF(n: Array[Int], width: Int): Array[Byte] = {
+  private[signing] def getWNAF(n: Array[Int], width: Int): Array[Byte] = {
     val t = new Array[Int](SCALAR_INTS * 2)
     var tPos = t.length
     var c = 0
@@ -421,7 +421,7 @@ trait EC {
     ws
   }
 
-   def scalarMultBaseYZ(k: Array[Byte], kOff: Int, y: Array[Int], z: Array[Int]): Unit = {
+  private[signing] def scalarMultBaseYZ(k: Array[Byte], kOff: Int, y: Array[Int], z: Array[Int]): Unit = {
     val n = new Array[Byte](SCALAR_BYTES)
     pruneScalar(k, kOff, n)
     val p = new PointAccum
@@ -430,7 +430,7 @@ trait EC {
     x25519Field.copy(p.z, 0, z, 0)
   }
 
-   def pointAddVar(negate: Boolean, p: PointExt, r: PointAccum): Unit = {
+  private[signing] def pointAddVar(negate: Boolean, p: PointExt, r: PointAccum): Unit = {
     val A = x25519Field.create
     val B = x25519Field.create
     val C = x25519Field.create
@@ -471,7 +471,7 @@ trait EC {
     x25519Field.mul(F, G, r.z)
   }
 
-   def pointAddVar(negate: Boolean, p: PointExt, q: PointExt, r: PointExt): Unit = {
+  private[signing] def pointAddVar(negate: Boolean, p: PointExt, q: PointExt, r: PointExt): Unit = {
     val A = x25519Field.create
     val B = x25519Field.create
     val C = x25519Field.create
@@ -512,7 +512,7 @@ trait EC {
     x25519Field.mul(E, H, r.t)
   }
 
-   def pointAddPrecomp(p: PointPrecomp, r: PointAccum): Unit = {
+  private[signing] def pointAddPrecomp(p: PointPrecomp, r: PointAccum): Unit = {
     val A = x25519Field.create
     val B = x25519Field.create
     val C = x25519Field.create
@@ -533,7 +533,7 @@ trait EC {
     x25519Field.mul(F, G, r.z)
   }
 
-   def pointCopy(p: PointAccum): PointExt = {
+  private[signing] def pointCopy(p: PointAccum): PointExt = {
     val r = new PointExt
     x25519Field.copy(p.x, 0, r.x, 0)
     x25519Field.copy(p.y, 0, r.y, 0)
@@ -542,7 +542,7 @@ trait EC {
     r
   }
 
-   def pointCopy(p: PointExt): PointExt = {
+  private[signing] def pointCopy(p: PointExt): PointExt = {
     val r = new PointExt
     x25519Field.copy(p.x, 0, r.x, 0)
     x25519Field.copy(p.y, 0, r.y, 0)
@@ -551,7 +551,7 @@ trait EC {
     r
   }
 
-   def pointDouble(r: PointAccum): Unit = {
+  private[signing] def pointDouble(r: PointAccum): Unit = {
     val A = x25519Field.create
     val B = x25519Field.create
     val C = x25519Field.create
@@ -574,18 +574,18 @@ trait EC {
     x25519Field.mul(F, G, r.z)
   }
 
-   def pointExtendXY(p: PointAccum): Unit = {
+  private[signing] def pointExtendXY(p: PointAccum): Unit = {
     x25519Field.one(p.z)
     x25519Field.copy(p.x, 0, p.u, 0)
     x25519Field.copy(p.y, 0, p.v, 0)
   }
 
-   def pointExtendXY(p: PointExt): Unit = {
+  private[signing] def pointExtendXY(p: PointExt): Unit = {
     x25519Field.one(p.z)
     x25519Field.mul(p.x, p.y, p.t)
   }
 
-   def pointLookup(block: Int, index: Int, p: PointPrecomp): Unit = {
+  private[signing] def pointLookup(block: Int, index: Int, p: PointPrecomp): Unit = {
     var off = block * PRECOMP_POINTS * 3 * x25519Field.SIZE
     for (i <- 0 until PRECOMP_POINTS) {
       val mask = ((i ^ index) - 1) >> 31
@@ -598,7 +598,7 @@ trait EC {
     }
   }
 
-   def pointPrecompVar(p: PointExt, count: Int): Array[PointExt] = {
+  private[signing] def pointPrecompVar(p: PointExt, count: Int): Array[PointExt] = {
     val d = new PointExt
     pointAddVar(negate = false, p, p, d)
     val table = new Array[PointExt](count)
@@ -610,7 +610,7 @@ trait EC {
     table
   }
 
-   def pointSetNeutral(p: PointAccum): Unit = {
+  private[signing] def pointSetNeutral(p: PointAccum): Unit = {
     x25519Field.zero(p.x)
     x25519Field.one(p.y)
     x25519Field.one(p.z)
@@ -618,14 +618,14 @@ trait EC {
     x25519Field.one(p.v)
   }
 
-   def pointSetNeutral(p: PointExt): Unit = {
+  private[signing] def pointSetNeutral(p: PointExt): Unit = {
     x25519Field.zero(p.x)
     x25519Field.one(p.y)
     x25519Field.one(p.z)
     x25519Field.zero(p.t)
   }
 
-   def precompute(): Unit = precompLock match {
+  private[signing] def precompute(): Unit = precompLock match {
     case None =>
       precompLock = Some("Locked")
       if (precompBase.nonEmpty) return
@@ -694,14 +694,14 @@ trait EC {
     case _ =>
   }
 
-   def pruneScalar(n: Array[Byte], nOff: Int, r: Array[Byte]): Unit = {
+  private[signing] def pruneScalar(n: Array[Byte], nOff: Int, r: Array[Byte]): Unit = {
     System.arraycopy(n, nOff, r, 0, SCALAR_BYTES)
     r(0) = (r(0) & 0xf8).toByte
     r(SCALAR_BYTES - 1) = (r(SCALAR_BYTES - 1) & 0x7f).toByte
     r(SCALAR_BYTES - 1) = (r(SCALAR_BYTES - 1) | 0x40).toByte
   }
 
-   def reduceScalar(n: Array[Byte]): Array[Byte] = {
+  private[signing] def reduceScalar(n: Array[Byte]): Array[Byte] = {
     var x00 = decode32(n, 0) & M32L // x00:32/--
     var x01 = (decode24(n, 4) << 4) & M32L // x01:28/--
     var x02 = decode32(n, 7) & M32L // x02:32/--
@@ -839,7 +839,7 @@ trait EC {
     r
   }
 
-   def scalarMultBase(k: Array[Byte], r: PointAccum): Unit = {
+  private[signing] def scalarMultBase(k: Array[Byte], r: PointAccum): Unit = {
     precompute()
     pointSetNeutral(r)
     val n = new Array[Int](SCALAR_INTS)
@@ -868,13 +868,13 @@ trait EC {
     }
   }
 
-   def scalarMultBaseEncoded(k: Array[Byte], r: Array[Byte], rOff: Int): Unit = {
+  private[signing] def scalarMultBaseEncoded(k: Array[Byte], r: Array[Byte], rOff: Int): Unit = {
     val p = new PointAccum
     scalarMultBase(k, p)
     encodePoint(p, r, rOff)
   }
 
-   def scalarMultStraussVar(nb: Array[Int], np: Array[Int], p: PointExt, r: PointAccum): Unit = {
+  private[signing] def scalarMultStraussVar(nb: Array[Int], np: Array[Int], p: PointExt, r: PointAccum): Unit = {
     precompute()
     val width = 5
     val ws_b = getWNAF(nb, WNAF_WIDTH_BASE)
