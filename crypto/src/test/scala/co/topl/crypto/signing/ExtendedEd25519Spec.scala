@@ -40,10 +40,10 @@ class ExtendedEd25519Spec
       }
     }
   }
-  it should "test vector - 1 - generate the correct master secret and verification keys from a seed with no password" in {
+  it should "test vector - 1 - generate the correct master (sk,vk) from a seed with no password" in {
     //todo: figure out if we can replicate https://github.com/cardano-foundation/CIPs/blob/master/CIP-0003/Icarus.md#test-vectors
   }
-  it should "test vector - 2 - generate the correct master secret and verification keys from a seed including a password" in {
+  it should "test vector - 2 - generate the correct master (sk,vk) from a seed including a password" in {
     //todo: figure out if we can replicate https://github.com/cardano-foundation/CIPs/blob/master/CIP-0003/Icarus.md#test-vectors
   }
   it should "test vector - 3 - produce verifiable signatures with an empty message" in {
@@ -65,7 +65,7 @@ class ExtendedEd25519Spec
       "a9821dc3aa74dbf5c1253989adf49863b0b8a761ee157ee8a10af751ec15fe417f8fc605074abeb1b3a6655871f98510d77f45031ad8b0f62b562afc90eeea0c".unsafeStrictBytes
     )
 
-    val xvk = extendedEd25519.generatePublicKey(specIn_xsk)
+    val xvk = extendedEd25519.getVerificationKey(specIn_xsk)
     val sig = extendedEd25519.sign(specIn_xsk, specIn_msg)
 
     extendedEd25519.verify(sig, specIn_msg, xvk) shouldBe true
@@ -92,7 +92,7 @@ class ExtendedEd25519Spec
       "fbbbca775152d6edc69e35f34da1751f6f0f4ec74384a4dd21493c1e3c6f346d1976a76a936a01cb313425970290e9c7bac33b52449e04f66d667e16d181ef0c".unsafeStrictBytes
     )
 
-    val xvk = extendedEd25519.generatePublicKey(specIn_xsk)
+    val xvk = extendedEd25519.getVerificationKey(specIn_xsk)
     val sig = extendedEd25519.sign(specIn_xsk, specIn_msg)
 
     extendedEd25519.verify(sig, specIn_msg, xvk) shouldBe true
@@ -141,7 +141,7 @@ class ExtendedEd25519Spec
       "b37d85d75085837957e8820278a00367f75bde4884433a6af15be9f8d103ee8dd6b4d5fefaa081bb53f33a92c9fc2cbcf3d6ad93063d9b31f8f973b6d3d4f404".unsafeStrictBytes
     )
 
-    val xvk = extendedEd25519.generatePublicKey(specIn_xsk)
+    val xvk = extendedEd25519.getVerificationKey(specIn_xsk)
     val sig = extendedEd25519.sign(specIn_xsk, specIn_msg)
 
     extendedEd25519.verify(sig, specIn_msg, xvk) shouldBe true
@@ -149,7 +149,7 @@ class ExtendedEd25519Spec
     extendedEd25519.verify(specOut_sig, specIn_msg, xvk) shouldBe true
     extendedEd25519.verify(specOut_sig, specIn_msg, specOut_xvk) shouldBe true
   }
-  it should "test vector - 6 - derive the correct child secret and verification keys using path m/0" in {
+  it should "test vector - 6 - derive the correct child (sk,vk) using path m/0" in {
     val extendedEd25519 = new ExtendedEd25519()
     val specIn_derivationPath = Vector(Bip32Indexes.SoftIndex(0))
     val specIn_master_xsk =
@@ -180,13 +180,13 @@ class ExtendedEd25519Spec
       specIn_derivationPath.foldLeft(specIn_master_xsk)((xsk, ind) => extendedEd25519.deriveSecret(xsk, ind))
     val child_xvk =
       specIn_derivationPath.foldLeft(specIn_master_xvk)((xvk, ind) => extendedEd25519.deriveVerification(xvk, ind))
-    val child_xvk_fromSecret = extendedEd25519.generatePublicKey(child_xsk)
+    val child_xvk_fromSecret = extendedEd25519.getVerificationKey(child_xsk)
 
     child_xsk shouldBe specOut_child_xsk
     child_xvk shouldBe specOut_child_xvk
     child_xvk shouldBe child_xvk_fromSecret
   }
-  it should "test vector - 7 - derive the correct child secret and verification keys using path m/1" in {
+  it should "test vector - 7 - derive the correct child (sk,vk) using path m/1" in {
     val extendedEd25519 = new ExtendedEd25519()
     val specIn_derivationPath = Vector(Bip32Indexes.SoftIndex(1))
     val specIn_master_xsk =
@@ -217,13 +217,13 @@ class ExtendedEd25519Spec
       specIn_derivationPath.foldLeft(specIn_master_xsk)((xsk, ind) => extendedEd25519.deriveSecret(xsk, ind))
     val child_xvk =
       specIn_derivationPath.foldLeft(specIn_master_xvk)((xvk, ind) => extendedEd25519.deriveVerification(xvk, ind))
-    val child_xvk_fromSecret = extendedEd25519.generatePublicKey(child_xsk)
+    val child_xvk_fromSecret = extendedEd25519.getVerificationKey(child_xsk)
 
     child_xsk shouldBe specOut_child_xsk
     child_xvk shouldBe specOut_child_xvk
     child_xvk shouldBe child_xvk_fromSecret
   }
-  it should "test vector - 8 - derive the correct child secret and verification keys using path m/2" in {
+  it should "test vector - 8 - derive the correct child (sk,vk) using path m/2" in {
     val extendedEd25519 = new ExtendedEd25519()
     val specIn_derivationPath = Vector(Bip32Indexes.SoftIndex(2))
     val specIn_master_xsk =
@@ -254,13 +254,13 @@ class ExtendedEd25519Spec
       specIn_derivationPath.foldLeft(specIn_master_xsk)((xsk, ind) => extendedEd25519.deriveSecret(xsk, ind))
     val child_xvk =
       specIn_derivationPath.foldLeft(specIn_master_xvk)((xvk, ind) => extendedEd25519.deriveVerification(xvk, ind))
-    val child_xvk_fromSecret = extendedEd25519.generatePublicKey(child_xsk)
+    val child_xvk_fromSecret = extendedEd25519.getVerificationKey(child_xsk)
 
     child_xsk shouldBe specOut_child_xsk
     child_xvk shouldBe specOut_child_xvk
     child_xvk shouldBe child_xvk_fromSecret
   }
-  it should "test vector - 9 - derive the correct child secret and verification keys using path m/0`" in {
+  it should "test vector - 9 - derive the correct child (sk,vk) using path m/0`" in {
     val extendedEd25519 = new ExtendedEd25519()
     val specIn_derivationPath = Vector(Bip32Indexes.HardenedIndex(0))
     val specIn_master_xsk =
@@ -284,12 +284,12 @@ class ExtendedEd25519Spec
 
     val child_xsk =
       specIn_derivationPath.foldLeft(specIn_master_xsk)((xsk, ind) => extendedEd25519.deriveSecret(xsk, ind))
-    val child_xvk_fromSecret = extendedEd25519.generatePublicKey(child_xsk)
+    val child_xvk_fromSecret = extendedEd25519.getVerificationKey(child_xsk)
 
     child_xsk shouldBe specOut_child_xsk
     child_xvk_fromSecret shouldBe specOut_child_xvk
   }
-  it should "test vector - 10 - derive the correct child secret and verification keys using path m/0`/100`" in {
+  it should "test vector - 10 - derive the correct child (sk,vk) using path m/0`/100`" in {
     val extendedEd25519 = new ExtendedEd25519()
     val specIn_derivationPath =
       Vector(Bip32Indexes.HardenedIndex(0), Bip32Indexes.HardenedIndex(100))
@@ -314,12 +314,12 @@ class ExtendedEd25519Spec
 
     val child_xsk =
       specIn_derivationPath.foldLeft(specIn_master_xsk)((xsk, ind) => extendedEd25519.deriveSecret(xsk, ind))
-    val child_xvk_fromSecret = extendedEd25519.generatePublicKey(child_xsk)
+    val child_xvk_fromSecret = extendedEd25519.getVerificationKey(child_xsk)
 
     child_xsk shouldBe specOut_child_xsk
     child_xvk_fromSecret shouldBe specOut_child_xvk
   }
-  it should "test vector - 11 - derive the correct child secret and verification keys using path m/0`/100`/55" in {
+  it should "test vector - 11 - derive the correct child (sk,vk) using path m/0`/100`/55" in {
     val extendedEd25519 = new ExtendedEd25519()
     val specIn_derivationPath =
       Vector(Bip32Indexes.HardenedIndex(0), Bip32Indexes.HardenedIndex(100), Bip32Indexes.SoftIndex(55))
@@ -344,12 +344,12 @@ class ExtendedEd25519Spec
 
     val child_xsk =
       specIn_derivationPath.foldLeft(specIn_master_xsk)((xsk, ind) => extendedEd25519.deriveSecret(xsk, ind))
-    val child_xvk_fromSecret = extendedEd25519.generatePublicKey(child_xsk)
+    val child_xvk_fromSecret = extendedEd25519.getVerificationKey(child_xsk)
 
     child_xsk shouldBe specOut_child_xsk
     child_xvk_fromSecret shouldBe specOut_child_xvk
   }
-  it should "test vector - 12 - derive the correct child secret and verification keys using path m/1852`/7091`/0`/0`" in {
+  it should "test vector - 12 - derive the correct child (sk,vk) using path m/1852`/7091`/0`/0`" in {
     val extendedEd25519 = new ExtendedEd25519()
     val specIn_derivationPath =
       Vector(
@@ -379,12 +379,12 @@ class ExtendedEd25519Spec
 
     val child_xsk =
       specIn_derivationPath.foldLeft(specIn_master_xsk)((xsk, ind) => extendedEd25519.deriveSecret(xsk, ind))
-    val child_xvk_fromSecret = extendedEd25519.generatePublicKey(child_xsk)
+    val child_xvk_fromSecret = extendedEd25519.getVerificationKey(child_xsk)
 
     child_xsk shouldBe specOut_child_xsk
     child_xvk_fromSecret shouldBe specOut_child_xvk
   }
-  it should "test vector - 13 - derive the correct child secret and verification keys using path m/1852`/7091`/0`/0`/0" in {
+  it should "test vector - 13 - derive the correct child (sk,vk) using path m/1852`/7091`/0`/0`/0" in {
     val extendedEd25519 = new ExtendedEd25519()
     val specIn_derivationPath =
       Vector(
@@ -415,7 +415,7 @@ class ExtendedEd25519Spec
 
     val child_xsk =
       specIn_derivationPath.foldLeft(specIn_master_xsk)((xsk, ind) => extendedEd25519.deriveSecret(xsk, ind))
-    val child_xvk_fromSecret = extendedEd25519.generatePublicKey(child_xsk)
+    val child_xvk_fromSecret = extendedEd25519.getVerificationKey(child_xsk)
 
     child_xsk shouldBe specOut_child_xsk
     child_xvk_fromSecret shouldBe specOut_child_xvk

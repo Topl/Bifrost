@@ -25,7 +25,7 @@ class ExtendedEd25519
 
   override def createKeyPair(seed: Bytes): (SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519) = {
     val sk = ExtendedEd25519.fromEntropy(Entropy(seed.toArray))("")
-    val vk = generatePublicKey(sk)
+    val vk = getVerificationKey(sk)
     (sk, vk)
   }
 
@@ -81,7 +81,7 @@ class ExtendedEd25519
 
     val lNum: BigInt = ExtendedEd25519.leftNumber(secretKey)
     val rNum: BigInt = ExtendedEd25519.rightNumber(secretKey)
-    val public: VerificationKeys.ExtendedEd25519 = generatePublicKey(secretKey)
+    val public: VerificationKeys.ExtendedEd25519 = getVerificationKey(secretKey)
 
     val zHmacData: Bytes = index match {
       case _: Bip32Indexes.SoftIndex =>
@@ -193,7 +193,7 @@ class ExtendedEd25519
     )
   }
 
-  def generatePublicKey(secretKey: SecretKeys.ExtendedEd25519): VerificationKeys.ExtendedEd25519 = {
+  def getVerificationKey(secretKey: SecretKeys.ExtendedEd25519): VerificationKeys.ExtendedEd25519 = {
     val pk = new Array[Byte](PUBLIC_KEY_SIZE)
     scalarMultBaseEncoded(secretKey.leftKey.data.toArray, pk, 0)
 

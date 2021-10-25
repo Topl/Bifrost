@@ -38,8 +38,8 @@ trait KesEd25519Blake2b256 {
    * @return tuple of two new seeds
    */
   protected def prng(seed: Array[Byte]): (Array[Byte], Array[Byte]) = {
-    val r1 = hash(0 +: seed)
-    val r2 = hash(1 +: seed)
+    val r1 = hash(0x00.toByte +: seed)
+    val r2 = hash(0x01.toByte +: seed)
     (r1, r2)
   }
 
@@ -92,15 +92,4 @@ trait KesEd25519Blake2b256 {
     case SigningLeaf(_, vk)                             => hash(vk)
     case Empty                                          => Array.fill(hashBytes)(0: Byte)
   }
-
-  def traverseToLeaves(tree: KesBinaryTree): SigningLeaf = {
-    tree match {
-      case MerkleNode(_, _, _, left: MerkleNode, _) => traverseToLeaves(left)
-      case MerkleNode(_, _, _, left: SigningLeaf, _) => left
-      case MerkleNode(_, _, _, Empty, right) => traverseToLeaves(right)
-      case leaf: SigningLeaf => leaf
-      case KesBinaryTree.Empty => throw new Error("empty leaf")
-    }
-  }
-
 }

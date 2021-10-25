@@ -6,6 +6,7 @@ import co.topl.crypto.hash.implicits._
 import co.topl.crypto.hash.{Blake2b, Hash}
 import co.topl.crypto.utils.Generators._
 import co.topl.crypto.utils.randomBytes
+import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
@@ -20,8 +21,7 @@ class MerkleTreeSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
   private val leafSize = 32
 
   property("Proof generation by element") {
-    forAll(smallInt) { N: Int =>
-      whenever(N > 0) {
+    forAll(Gen.choose(1, 15)) { N: Int => {
         val d = (0 until N).map(_ => LeafData(randomBytes(leafSize)))
         val leafs = d.map(data => Leaf[HashScheme, HashDigest](data))
         val tree = MerkleTree[HashScheme, HashDigest](d)
@@ -36,8 +36,7 @@ class MerkleTreeSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
   }
 
   property("Proof generation by index") {
-    forAll(smallInt) { N: Int =>
-      whenever(N > 0) {
+    forAll(Gen.choose(1, 15)) { N: Int => {
         val d = (0 until N).map(_ => LeafData(randomBytes(leafSize)))
         val tree = MerkleTree[HashScheme, HashDigest](d)
 

@@ -22,6 +22,7 @@ object Hex {
     // will work on any string but the underlying decode implements a regex filter so the method should be safe enough for using in testing
     implicit class Ops(hexString: String) {
       def unsafeStrictBytes[L <: Length](implicit length: L): Sized.Strict[Bytes, L] = hexStringToStrictBytes(hexString)
+      def hexStringToBytes: Bytes = Bytes(decode(hexString))
     }
   }
 }

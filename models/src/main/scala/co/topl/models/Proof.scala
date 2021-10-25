@@ -35,12 +35,6 @@ object Proofs {
       type DigestLength = Lengths.`32`.type
     }
 
-    case class KesSymmetricProduct(bytes: Array[Byte]) extends Proof
-
-    object KesSymmetricProduct {
-      ///type Length = ???
-    }
-
     case class KesProduct(
       superSignature: Proofs.Signature.KesSum,
       subSignature:   Proofs.Signature.KesSum,

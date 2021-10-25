@@ -66,7 +66,7 @@ class Ed25519
     )
   }
 
-  def generatePublicKey(secretKey: SecretKeys.Ed25519): VerificationKeys.Ed25519 = {
+  override def getVerificationKey(secretKey: SecretKeys.Ed25519): VerificationKeys.Ed25519 = {
     val pkBytes = new Array[Byte](PUBLIC_KEY_SIZE)
     generatePublicKey(secretKey.bytes.data.toArray, 0, pkBytes, 0)
     VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(pkBytes)))

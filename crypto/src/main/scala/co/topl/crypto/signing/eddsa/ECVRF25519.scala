@@ -1,6 +1,7 @@
 package co.topl.crypto.signing.eddsa
 
 import java.security.SecureRandom
+import scala.util.Try
 
 /**
  * AMS 2021:
@@ -72,15 +73,15 @@ class ECVRF25519 extends EC {
   9. Output pi_string
    */
   private[signing] def vrfProof(sk: Array[Byte], alpha: Array[Byte]): Array[Byte] = {
-    assert(sk.length == SECRET_KEY_SIZE)
+//    assert(sk.length == SECRET_KEY_SIZE)
     // secret scalar
     val x = pruneHash(sk)
     // public key
     val pk = scalarMultBaseEncoded(x)
-    assert(verifyKeyPair(sk, pk))
+//    assert(verifyKeyPair(sk, pk))
     val H: (PointAccum, Array[Byte]) = ECVRF_hash_to_curve_try_and_increment(pk, alpha)
-    val nonce = ECVRF_nonce_generation_RFC8032(sk, H._2)
-    assert(checkScalarVar(nonce))
+//    val nonce = ECVRF_nonce_generation_RFC8032(sk, H._2)
+//    assert(checkScalarVar(nonce))
     val gamma = new PointAccum
     decodeScalar(x, 0, np)
     decodeScalar(zeroScalar, 0, nb)
@@ -98,7 +99,7 @@ class ECVRF25519 extends EC {
     val gamma_str: Array[Byte] = Array.fill(POINT_BYTES)(0x00.toByte)
     encodePoint(gamma, gamma_str, 0)
     val pi = gamma_str ++ c.take(C_BYTES) ++ s
-    assert(pi.length == PI_BYTES)
+//    assert(pi.length == PI_BYTES)
     pi
   }
 
@@ -124,14 +125,14 @@ class ECVRF25519 extends EC {
   ECVRF_proof_to_hash(pi_string)); else output "INVALID"
    */
   private[signing] def vrfVerify(pk: Array[Byte], alpha: Array[Byte], pi: Array[Byte]): Boolean = {
-    assert(pi.length == PI_BYTES)
+//    assert(pi.length == PI_BYTES)
     val gamma_str = pi.take(POINT_BYTES)
     val c = pi.slice(POINT_BYTES, POINT_BYTES + C_BYTES) ++ Array.fill(SCALAR_BYTES - C_BYTES)(0x00.toByte)
     val s = pi.drop(POINT_BYTES + C_BYTES)
-    assert(checkPointVar(gamma_str))
-    assert(checkScalarVar(c))
-    assert(checkScalarVar(s))
-    assert(verifyPublicKey(pk))
+//    assert(checkPointVar(gamma_str))
+//    assert(checkScalarVar(c))
+//    assert(checkScalarVar(s))
+//    assert(verifyPublicKey(pk))
     val H: (PointAccum, Array[Byte]) = ECVRF_hash_to_curve_try_and_increment(pk, alpha)
     val gamma = new PointExt
     val Y = new PointExt
@@ -188,14 +189,14 @@ class ECVRF25519 extends EC {
   6. Output beta_string
    */
   private[signing] def vrfProofToHash(pi: Array[Byte]): Array[Byte] = {
-    assert(pi.length == PI_BYTES)
+//    assert(pi.length == PI_BYTES)
     val gamma_str = pi.take(POINT_BYTES)
-    val c = pi.slice(POINT_BYTES, POINT_BYTES + C_BYTES) ++ Array.fill(SCALAR_BYTES - C_BYTES)(0x00.toByte)
-    val s = pi.drop(POINT_BYTES + C_BYTES)
+//    val c = pi.slice(POINT_BYTES, POINT_BYTES + C_BYTES) ++ Array.fill(SCALAR_BYTES - C_BYTES)(0x00.toByte)
+//    val s = pi.drop(POINT_BYTES + C_BYTES)
     val three = Array(0x03.toByte)
-    assert(checkPointVar(gamma_str))
-    assert(checkScalarVar(c))
-    assert(checkScalarVar(s))
+//    assert(checkPointVar(gamma_str))
+//    assert(checkScalarVar(c))
+//    assert(checkScalarVar(s))
     val gamma = new PointExt
     val cg = new PointAccum
     decodePointVar(gamma_str, 0, negate = false, gamma)

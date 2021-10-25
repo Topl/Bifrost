@@ -40,24 +40,24 @@ object ContainsVerificationKey {
     implicit val curve25519ContainsVerificationKey
       : ContainsVerificationKey[SecretKeys.Curve25519, VerificationKeys.Curve25519] =
       key => {
-        new Curve25519().generatePublicKey(key)
+        new Curve25519().getVerificationKey(key)
       }
 
     implicit val ed25519ContainsVerificationKey: ContainsVerificationKey[SecretKeys.Ed25519, VerificationKeys.Ed25519] =
       key => {
-        new Ed25519().generatePublicKey(key)
+        new Ed25519().getVerificationKey(key)
       }
 
     implicit val extendedEd25519ContainsVerificationKey
       : ContainsVerificationKey[SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519] =
       key => {
-        new ExtendedEd25519().generatePublicKey(key)
+        new ExtendedEd25519().getVerificationKey(key)
       }
 
     implicit val vrfContainsVerificationKey
       : ContainsVerificationKey[SecretKeys.VrfEd25519, VerificationKeys.VrfEd25519] =
       key => {
-        new Ed25519VRF().generatePublicKey(key)
+        new Ed25519VRF().getVerificationKey(key)
       }
 
 //    implicit val kesContainsVerificationKey

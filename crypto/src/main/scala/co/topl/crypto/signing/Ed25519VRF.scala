@@ -43,7 +43,7 @@ class Ed25519VRF
   ): Boolean =
     vrfVerify(publicKey.bytes.data.toArray, message.toArray, signature.bytes.data.toArray)
 
-  def generatePublicKey(secretKey: SecretKeys.VrfEd25519): VerificationKeys.VrfEd25519 = {
+  def getVerificationKey(secretKey: SecretKeys.VrfEd25519): VerificationKeys.VrfEd25519 = {
     val pkBytes = new Array[Byte](PUBLIC_KEY_SIZE)
     generatePublicKey(secretKey.bytes.data.toArray, 0, pkBytes, 0)
     VerificationKeys.VrfEd25519(Sized.strictUnsafe(Bytes(pkBytes)))

@@ -69,7 +69,7 @@ class Curve25519
       Bytes.toByteArray(signature.bytes.data)
     )
 
-  def generatePublicKey(secretKey: SecretKeys.Curve25519): VerificationKeys.Curve25519 =
+  override def getVerificationKey(secretKey: SecretKeys.Curve25519): VerificationKeys.Curve25519 =
     VerificationKeys.Curve25519(Sized.strictUnsafe(Bytes(provider.generatePublicKey(secretKey.bytes.data.toArray))))
 
 }

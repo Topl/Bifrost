@@ -14,4 +14,6 @@ trait EllipticCurveSignatureScheme[SK <: SecretKey, VK <: VerificationKey, SIG <
   def sign(privateKey: SK, message: Bytes): SIG
 
   def verify(signature: SIG, message: Bytes, verifyKey: VK): Boolean
+
+  def getVerificationKey(privateKey: SK): VK
 }
