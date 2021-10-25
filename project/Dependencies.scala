@@ -2,10 +2,10 @@ import sbt._
 
 object Dependencies {
 
-  val akkaVersion = "2.6.16"
+  val akkaVersion = "2.6.17"
   val akkaHttpVersion = "10.2.6"
   val circeVersion = "0.14.1"
-  val kamonVersion = "2.2.3"
+  val kamonVersion = "2.3.0"
   val graalVersion = "21.1.0"
 
   val logging = Seq(
@@ -16,8 +16,8 @@ object Dependencies {
   )
 
   val test = Seq(
-    "org.scalatest"      %% "scalatest"         % "3.2.9"   % "test",
-    "org.scalactic"      %% "scalactic"         % "3.2.9"   % "test",
+    "org.scalatest"      %% "scalatest"         % "3.2.10"   % "test",
+    "org.scalactic"      %% "scalactic"         % "3.2.10"   % "test",
     "org.scalacheck"     %% "scalacheck"        % "1.15.4"  % "test",
     "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
     "com.spotify"         % "docker-client"     % "8.16.0"  % "test",
@@ -61,9 +61,9 @@ object Dependencies {
     "com.chuusai"     %% "shapeless" % "2.3.7",
     "com.iheart"      %% "ficus"     % "1.5.1",
     "com.iheart"      %% "ficus"     % "1.5.0",
-    "org.scalanlp"    %% "breeze"    % "1.3",
+    "org.scalanlp"    %% "breeze"    % "2.0",
     "io.netty"         % "netty"     % "3.10.6.Final",
-    "com.google.guava" % "guava"     % "30.1.1-jre",
+    "com.google.guava" % "guava"     % "31.0.1-jre",
     "io.estatico"     %% "newtype"   % "0.4.4"
   )
 
@@ -87,11 +87,11 @@ object Dependencies {
       "com.typesafe"                % "config"             % "1.4.1",
       "com.lihaoyi"                %% "mainargs"           % "0.2.1",
       "net.jpountz.lz4"             % "lz4"                % "1.3.0",
-      "com.github.julien-truffaut" %% "monocle-core"       % "3.0.0-M6",
-      "com.github.julien-truffaut" %% "monocle-macro"      % "3.0.0-M6",
+      "com.github.julien-truffaut" %% "monocle-core"       % "3.0.0",
+      "com.github.julien-truffaut" %% "monocle-macro"      % "3.0.0",
       "org.ethereum"                % "leveldbjni-all"     % "1.18.3",
       "org.iq80.leveldb"            % "leveldb"            % "0.12",
-      "org.mongodb.scala"          %% "mongo-scala-driver" % "4.3.2"
+      "org.mongodb.scala"          %% "mongo-scala-driver" % "4.3.3"
     ) ++
     logging ++
     test ++
@@ -107,7 +107,7 @@ object Dependencies {
     Seq(
       "org.typelevel"          %% "simulacrum"              % "1.0.1",
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.5.0",
-      "org.scodec"             %% "scodec-bits"             % "1.1.28"
+      "org.scodec"             %% "scodec-bits"             % "1.1.29"
     ) ++
     logging ++
     circe ++
@@ -129,7 +129,7 @@ object Dependencies {
 
   lazy val akkaHttpRpc: Seq[ModuleID] =
     Seq(
-      "de.heikoseeberger"      %% "akka-http-circe"         % "1.37.0",
+      "de.heikoseeberger"      %% "akka-http-circe"         % "1.38.2",
       "io.circe"               %% "circe-optics"            % circeVersion,
       "io.circe"               %% "circe-generic"           % circeVersion,
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.5.0"
@@ -173,7 +173,7 @@ object Dependencies {
 
   lazy val tools: Seq[ModuleID] =
     Seq(
-      "org.mongodb.scala" %% "mongo-scala-driver" % "4.3.2"
+      "org.mongodb.scala" %% "mongo-scala-driver" % "4.3.3"
     )
   
   lazy val loadTesting: Seq[ModuleID] = {
