@@ -15,6 +15,9 @@ import scala.annotation.tailrec
  */
 object ChainSelection {
 
+  /**
+   * The normal ordering to use between tines with a recent common ancestor
+   */
   private val standardOrder: Order[NonEmptyChain[SlotData]] = {
     val lengthOrder = Order.by[NonEmptyChain[SlotData], Long](_.length)
     val slotOrder = Order.by[NonEmptyChain[SlotData], Slot](-_.last.slotId.slot)
@@ -139,12 +142,13 @@ object ChainSelection {
         // Prepend/accumulate the next parent header for the xSegment and the ySegment
         for {
           (newXSegment, newYSegment) <- prependSegments(xSegment, ySegment)
-          switchToChainDensity = // Once we've traversed back K number of blocks, switch to the chain density rule
-            (newXSegment.length > kLookback) || (newYSegment.length > kLookback)
+          // Once we've traversed back K number of blocks, switch to the chain density rule
+          switchToChainDensity = (newXSegment.length > kLookback) || (newYSegment.length > kLookback)
           nextTraversal =
             if (switchToChainDensity)
               DensityChainTraversal(newXSegment.toNonEmptyVector, newYSegment.toNonEmptyVector).slicedWithinSWindow
-            else LongestChainTraversal(newXSegment, newYSegment)
+            else
+              LongestChainTraversal(newXSegment, newYSegment)
         } yield nextTraversal
 
       def sharesCommonAncestor: Boolean =
