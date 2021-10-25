@@ -315,6 +315,7 @@ lazy val tools = project
     buildInfoPackage := "co.topl.buildinfo.tools",
     libraryDependencies ++= Dependencies.tools
   )
+  .dependsOn(common)
 
 lazy val loadTesting = project
   .in(file("load-testing"))
