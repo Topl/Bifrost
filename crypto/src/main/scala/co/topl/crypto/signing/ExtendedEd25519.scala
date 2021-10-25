@@ -31,13 +31,14 @@ class ExtendedEd25519
 
   override def sign(privateKey: SecretKeys.ExtendedEd25519, message: Bytes): Proofs.Signature.Ed25519 = {
     val resultSig = new Array[Byte](SIGNATURE_SIZE)
+    val pk: Array[Byte] = new Array[Byte](PUBLIC_KEY_SIZE)
     val ctx: Array[Byte] = Array.empty
     val phflag: Byte = 0x00
     val h: Array[Byte] = privateKey.leftKey.data.toArray ++ privateKey.rightKey.data.toArray
     val s: Array[Byte] = privateKey.leftKey.data.toArray
-    val pk: Array[Byte] = generatePublicKey(privateKey).ed25519.bytes.data.toArray
     val m: Array[Byte] = message.toArray
 
+    scalarMultBaseEncoded(privateKey.leftKey.data.toArray, pk, 0)
     implSign(sha512Digest, h, s, pk, 0, ctx, phflag, m, 0, m.length, resultSig, 0)
 
     Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(resultSig)))
@@ -60,22 +61,18 @@ class ExtendedEd25519
     signature: Proofs.Signature.Ed25519,
     message:   Bytes,
     verifyKey: VerificationKeys.ExtendedEd25519
-  ): Boolean = {
-    val a = signature.bytes.data.length == SIGNATURE_SIZE
-    val b = verifyKey.ed25519.bytes.data.length == PUBLIC_KEY_SIZE
-    val c = verify(
-      Bytes.toByteArray(signature.bytes.data),
+  ): Boolean =
+    signature.bytes.data.length == SIGNATURE_SIZE &&
+    verifyKey.ed25519.bytes.data.length == PUBLIC_KEY_SIZE &&
+    verify(
+      signature.bytes.data.toArray,
       0,
-      Bytes.toByteArray(verifyKey.ed25519.bytes.data),
+      verifyKey.ed25519.bytes.data.toArray,
       0,
       message.toArray,
       0,
       message.toArray.length
     )
-
-    println(s"sig: $a, pk: $b, verify: $c")
-    a && b && c
-  }
 
   def deriveSecret(
     secretKey: SecretKeys.ExtendedEd25519,
@@ -86,11 +83,13 @@ class ExtendedEd25519
     val rNum: BigInt = ExtendedEd25519.rightNumber(secretKey)
     val public: VerificationKeys.ExtendedEd25519 = generatePublicKey(secretKey)
 
-    val z =
-      ExtendedEd25519.hmac512WithKey(
-        secretKey.chainCode.data.toArray,
-        Array(0x02.toByte) ++ public.ed25519.bytes.data.toArray ++ index.bytes.data
-      )
+    val zHmacData: Bytes = index match {
+      case _: Bip32Indexes.SoftIndex =>
+        0x02.toByte +: (public.ed25519.bytes.data ++ index.bytes.data)
+      case _: Bip32Indexes.HardenedIndex =>
+        0x00.toByte +: (secretKey.leftKey.data ++ secretKey.rightKey.data ++ index.bytes.data)
+    }
+    val z = ExtendedEd25519.hmac512WithKey(secretKey.chainCode.data.toArray, zHmacData.toArray)
 
     val zLeft =
       BigInt(1, z.slice(0, 28).reverse.toArray)
@@ -116,13 +115,17 @@ class ExtendedEd25519
           .take(32)
       )
 
+    val chaincodeHmacData = index match {
+      case _: Bip32Indexes.SoftIndex =>
+        0x03.toByte +: (public.ed25519.bytes.data ++ index.bytes.data)
+      case _: Bip32Indexes.HardenedIndex =>
+        0x01.toByte +: (secretKey.leftKey.data ++ secretKey.rightKey.data ++ index.bytes.data)
+    }
+
     val nextChainCode =
       Bytes(
         ExtendedEd25519
-          .hmac512WithKey(
-            secretKey.chainCode.data.toArray,
-            Array(0x03.toByte) ++ public.ed25519.bytes.data.toArray ++ index.bytes.data
-          )
+          .hmac512WithKey(secretKey.chainCode.data.toArray, chaincodeHmacData.toArray)
           .slice(32, 64)
           .toArray
       )
@@ -155,7 +158,10 @@ class ExtendedEd25519
     val zL = z.slice(0, 28)
 
     val zLMult8 = ByteBuffer
-      .wrap((8 * BigInt(1, zL.reverse.toArray)).toByteArray.reverse)
+      .wrap(
+        (8 * BigInt(1, zL.reverse.toArray)).toByteArray.reverse
+          .padTo(32, 0: Byte)
+      )
       .order(ByteOrder.LITTLE_ENDIAN)
       .array()
       .take(32)
@@ -189,10 +195,10 @@ class ExtendedEd25519
 
   def generatePublicKey(secretKey: SecretKeys.ExtendedEd25519): VerificationKeys.ExtendedEd25519 = {
     val pk = new Array[Byte](PUBLIC_KEY_SIZE)
-    scalarMultBaseEncoded(Bytes.toByteArray(secretKey.leftKey.data), pk, 0)
+    scalarMultBaseEncoded(secretKey.leftKey.data.toArray, pk, 0)
 
     VerificationKeys.ExtendedEd25519(
-      VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(pk.reverse))),
+      VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(pk))),
       secretKey.chainCode
     )
   }

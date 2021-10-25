@@ -56,7 +56,7 @@ object ProofVerifier {
           data:        Data
         ): Boolean = curve25519.verify(
           proof,
-          MessageToSign(data.signableBytes.toArray),
+          data.signableBytes,
           proposition.key
         )
       }
@@ -71,7 +71,7 @@ object ProofVerifier {
           data:        Data
         ): Boolean = ed25519.verify(
           proof,
-          MessageToSign(data.signableBytes.toArray),
+          data.signableBytes,
           proposition.key
         )
       }
@@ -96,7 +96,7 @@ object ProofVerifier {
                       .find(prop =>
                         unusedProps(prop) && curve25519.verify(
                           sig,
-                          MessageToSign(dataBytes),
+                          Bytes(dataBytes),
                           prop
                         )
                       ) match {
@@ -133,7 +133,7 @@ object ProofVerifier {
                       .find(prop =>
                         unusedProps(prop) && ed25519.verify(
                           sig,
-                          MessageToSign(data.signableBytes.toArray),
+                          data.signableBytes,
                           prop
                         )
                       ) match {

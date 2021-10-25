@@ -27,14 +27,14 @@ object Prover {
       new Prover[SecretKeys.Ed25519, Proofs.Signature.Ed25519] {
 
         def proveWith[Data: Signable](t: SecretKeys.Ed25519, data: Data): Signature.Ed25519 =
-          new Ed25519().sign(t, MessageToSign(data.signableBytes.toArray))
+          new Ed25519().sign(t, data.signableBytes)
       }
 
     implicit val extendedEd25519Proves: Prover[SecretKeys.ExtendedEd25519, Proofs.Signature.Ed25519] =
       new Prover[SecretKeys.ExtendedEd25519, Proofs.Signature.Ed25519] {
 
         def proveWith[Data: Signable](t: SecretKeys.ExtendedEd25519, data: Data): Proofs.Signature.Ed25519 =
-          new ExtendedEd25519().sign(t, MessageToSign(data.signableBytes.toArray))
+          new ExtendedEd25519().sign(t, data.signableBytes)
       }
   }
 

@@ -1,6 +1,6 @@
 package co.topl.typeclasses
 
-import co.topl.crypto.mnemonic.Bip32Index
+import co.topl.crypto.mnemonic.{Bip32Index, Bip32Indexes}
 import co.topl.crypto.signing.ExtendedEd25519
 import co.topl.models.{SecretKeys, VerificationKeys}
 import simulacrum.{op, typeclass}
@@ -19,7 +19,7 @@ object Evolves {
 
     implicit val extendedEd25519VkEvolve: Evolves[VerificationKeys.ExtendedEd25519] =
       (parent: VerificationKeys.ExtendedEd25519, index: Long) =>
-        new ExtendedEd25519().deriveVerification(parent, Bip32Index.soft(index.toInt))
+        new ExtendedEd25519().deriveVerification(parent, Bip32Indexes.SoftIndex(index.toInt))
   }
 
   object instances extends Instances

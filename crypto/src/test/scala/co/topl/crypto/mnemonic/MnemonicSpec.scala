@@ -1,15 +1,15 @@
 package co.topl.crypto.mnemonic
 
+import co.topl.crypto.mnemonic.FromEntropy.Instances._
 import co.topl.crypto.mnemonic.Language.English
 import co.topl.crypto.mnemonic.MnemonicSize._
 import co.topl.crypto.utils.Generators.genByteArrayOfSize
 import co.topl.crypto.utils.Hex
+import co.topl.models.{Bytes, SecretKeys}
 import co.topl.models.utility.Base58
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-import co.topl.models.SecretKeys
-import co.topl.crypto.mnemonic.FromEntropy.Instances._
 
 class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaCheckDrivenPropertyChecks {
 

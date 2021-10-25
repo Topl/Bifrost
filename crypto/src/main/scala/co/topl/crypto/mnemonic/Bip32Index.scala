@@ -41,32 +41,20 @@ object Bip32Index {
   val hardenedOffset: Long = 2147483648L
 
   def apply(value: Long): Bip32Index =
-    if (value < hardenedOffset) HardenedIndex(value)
-    else SoftIndex(value)
-
-  /**
-   * Instantiates a new soft-index value.
-   * Any value below 0 will return a 0-value `SoftIndex`.
-   * @param value the index value
-   * @return a soft index
-   */
-  def soft(value: Int): SoftIndex =
-    if (value >= 0) SoftIndex(value.toLong)
-    else SoftIndex(0)
-
-  /**
-   * Instantiates a new hardened-index value.
-   * Any value below 0 will return a 0-value `HardenedIndex`.
-   * @param value the index value
-   * @return a hardened index
-   */
-  def hardened(value: Int): HardenedIndex =
-    if (value >= 0) HardenedIndex(value.toLong + hardenedOffset)
-    else HardenedIndex(0.toLong + hardenedOffset)
-
+    if (value < hardenedOffset) SoftIndex(value)
+    else HardenedIndex(value)
 }
 
 object Bip32Indexes {
   case class SoftIndex private (override val value: Long) extends Bip32Index
+  object SoftIndex {
+    def apply(value: Long): SoftIndex = if (value >= 0) new SoftIndex(value) else new SoftIndex(0)
+  }
+
   case class HardenedIndex private (override val value: Long) extends Bip32Index
+  object HardenedIndex {
+    def apply(value: Long): HardenedIndex =
+      if (value >= 0) new HardenedIndex(value + Bip32Index.hardenedOffset)
+      else new HardenedIndex(0 + Bip32Index.hardenedOffset)
+  }
 }

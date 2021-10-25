@@ -59,7 +59,7 @@ class BloomFilterSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wi
 
     val randAddr: Seq[Address] =
       (0 until numAddr)
-        .map(_ => Array.fill(Curve25519.vkLength)((rand.nextInt(256) - 128).toByte))
+        .map(_ => Array.fill(Curve25519.KeyLength)((rand.nextInt(256) - 128).toByte))
         .map(s => PrivateKeyCurve25519.secretGenerator.generateSecret(s)._2)
         .map(k => k.address)
 

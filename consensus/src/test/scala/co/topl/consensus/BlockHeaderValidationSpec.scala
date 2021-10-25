@@ -328,28 +328,29 @@ class BlockHeaderValidationSpec
 
   private def validOperationalCertificate(unsigned: BlockHeaderV2.Unsigned): OperationalCertificate =
     OperationalCertificate(
-      opSig = Proofs.Signature.HdKes(
-        i = 0,
-        vkI = VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
-        ecSignature = Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0)))),
-        sigSumJ = Proofs.Signature.SumProduct(
-          ecSignature = Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0)))),
-          vkK = VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
-          index = 0,
-          witness = Nil
-        ),
-        sigSumK = Proofs.Signature.SumProduct(
-          ecSignature = Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0)))),
-          vkK = VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
-          index = 0,
-          witness = Nil
-        )
-      ),
-      xvkM = VerificationKeys.ExtendedEd25519(
-        VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
-        Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))
-      ),
-      slotR = 0
+      Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0))))
+//      opSig = Proofs.Signature.HdKes(
+//        i = 0,
+//        vkI = VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
+//        ecSignature = Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0)))),
+//        sigSumJ = Proofs.Signature.SumProduct(
+//          ecSignature = Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0)))),
+//          vkK = VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
+//          index = 0,
+//          witness = Nil
+//        ),
+//        sigSumK = Proofs.Signature.SumProduct(
+//          ecSignature = Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0)))),
+//          vkK = VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
+//          index = 0,
+//          witness = Nil
+//        )
+//      ),
+//      xvkM = VerificationKeys.ExtendedEd25519(
+//        VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
+//        Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))
+//      ),
+//      slotR = 0
     )
 
 }
