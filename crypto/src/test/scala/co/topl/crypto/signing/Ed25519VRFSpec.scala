@@ -52,10 +52,11 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
       "90cf1df3b703cce59e2a35b925d411164068269d7b2d29f3301c03dd757876ff66b71dda49d2de59d03450451af026798e8f81cd2e333de5cdf4f3e140fdd8ae".unsafeStrictBytes
 
     val pi = ed25519vrf.sign(specIn_sk, specIn_msg)
+    val beta = ed25519vrf.proofToHash(pi)
 
+    pi shouldBe specOut_pi
+    beta shouldBe specOut_beta
     ed25519vrf.verify(pi, specIn_msg, specOut_vk) shouldBe true
-    ed25519vrf.verify(specOut_pi, specIn_msg, specOut_vk) shouldBe true
-    ed25519vrf.proofToHash(pi) shouldBe specOut_beta
   }
   property("test vectors from https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-vrf-09#appendix-A.3 - test 2") {
     val ed25519vrf = new Ed25519VRF
