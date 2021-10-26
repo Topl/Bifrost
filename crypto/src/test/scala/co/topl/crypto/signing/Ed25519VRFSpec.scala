@@ -24,7 +24,6 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
       }
     }
   }
-
   property("with Ed25519VRF, keyPairs generated with the same seed should be the same") {
     forAll { seedBytes: Bytes =>
       whenever(seedBytes.toArray.length != 0) {
@@ -37,7 +36,6 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
       }
     }
   }
-
   property("test vectors from https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-vrf-09#appendix-A.3 - test 1") {
     val ed25519vrf = new Ed25519VRF
     val specIn_sk =
@@ -59,7 +57,6 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
     ed25519vrf.verify(specOut_pi, specIn_msg, specOut_vk) shouldBe true
     ed25519vrf.proofToHash(pi) shouldBe specOut_beta
   }
-
   property("test vectors from https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-vrf-09#appendix-A.3 - test 2") {
     val ed25519vrf = new Ed25519VRF
     val specIn_sk =
@@ -81,7 +78,6 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
     ed25519vrf.verify(specOut_pi, specIn_msg, specOut_vk) shouldBe true
     ed25519vrf.proofToHash(pi) shouldBe specOut_beta
   }
-
   property("test vectors from https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-vrf-09#appendix-A.3 - test 3") {
     val ed25519vrf = new Ed25519VRF
     val specIn_sk =

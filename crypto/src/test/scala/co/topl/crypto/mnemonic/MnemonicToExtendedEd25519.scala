@@ -1,4 +1,4 @@
-package co.topl.crypto.signing
+package co.topl.crypto.mnemonic
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

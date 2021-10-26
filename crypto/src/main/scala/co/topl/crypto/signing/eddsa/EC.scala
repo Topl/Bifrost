@@ -625,7 +625,7 @@ trait EC {
     x25519Field.zero(p.t)
   }
 
-  private[signing] def precompute(): Unit = precompLock match {
+  def precompute(): Unit = precompLock match {
     case None =>
       precompLock = Some("Locked")
       if (precompBase.nonEmpty) return
