@@ -11,9 +11,11 @@ import co.topl.consensus.{Forger, LocallyGeneratedBlock}
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.SimpleValue
 import co.topl.modifier.transaction.PolyTransfer
+import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithms, TransferBuilder, TransferRequests}
 import co.topl.network.{NetworkControllerRef, PeerManager, PeerManagerRef}
 import co.topl.nodeView.MemPoolAuditorSpec.TestInWithActor
 import co.topl.nodeView.NodeViewTestHelpers.TestIn
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.{InMemoryKeyFileTestHelper, Int128, TestSettings, TimeProvider}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.OptionValues
@@ -48,16 +50,20 @@ class MemPoolAuditorSpec
     genesisActorTest { testIn =>
       val addressA :: addressB :: _ = keyRingCurve25519.addresses.toList
       val polyTransfer = {
-        val base = PolyTransfer
-          .createRaw[PublicKeyPropositionCurve25519](
-            testIn.testIn.nodeView.state,
-            toReceive = IndexedSeq((addressA, SimpleValue(10))),
-            sender = IndexedSeq(addressB),
-            changeAddress = addressB,
-            fee = 0,
-            data = None
-          )
-          .get
+        val base =
+          TransferBuilder
+            .buildUnsignedPolyTransfer[PublicKeyPropositionCurve25519](
+              testIn.testIn.nodeView.state,
+              TransferRequests.PolyTransferRequest(
+                List(addressB),
+                List(addressA -> 10),
+                addressB,
+                0,
+                None
+              ),
+              BoxSelectionAlgorithms.All
+            )
+            .getOrThrow()
         base.copy(attestation = keyRingCurve25519.generateAttestation(addressB)(base.messageToSign))
       }
       val transactions = List(polyTransfer)
@@ -83,16 +89,21 @@ class MemPoolAuditorSpec
 
     genesisActorTest { testIn =>
       val addressA :: addressB :: _ = keyRingCurve25519.addresses.toList
-      val fstRawTx = PolyTransfer
-        .createRaw[PublicKeyPropositionCurve25519](
-          testIn.testIn.nodeView.state,
-          toReceive = IndexedSeq((addressA, SimpleValue(10))),
-          sender = IndexedSeq(addressB),
-          changeAddress = addressB,
-          fee = 666667,
-          data = None
-        )
-        .get
+      val fstRawTx =
+        TransferBuilder
+          .buildUnsignedPolyTransfer[PublicKeyPropositionCurve25519](
+            testIn.testIn.nodeView.state,
+            TransferRequests.PolyTransferRequest(
+              List(addressB),
+              List(addressA -> 10),
+              changeAddress = addressB,
+              fee = 666667,
+              data = None
+            ),
+            BoxSelectionAlgorithms.All
+          )
+          .getOrThrow()
+
       val secRawTx = fstRawTx.copy(fee = 555555)
 
       val fstTx = fstRawTx.copy(attestation = keyRingCurve25519.generateAttestation(addressB)(fstRawTx.messageToSign))

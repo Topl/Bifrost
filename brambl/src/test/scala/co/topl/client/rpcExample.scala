@@ -10,6 +10,7 @@ import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCur
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.client.Provider.PrivateTestNet
 import co.topl.modifier.box.{AssetCode, AssetValue}
+import co.topl.modifier.transaction.builder.BoxSelectionAlgorithms
 import co.topl.rpc.ToplRpc
 import co.topl.rpc.ToplRpc.NodeView._
 import co.topl.rpc.ToplRpc.Transaction.{BroadcastTx, RawArbitTransfer, RawAssetTransfer, RawPolyTransfer}
@@ -191,7 +192,8 @@ object CreateAnDSendRawPolyTransfer {
       NonEmptyChain((externalAddress.head, 10)), // Chain of (Recipients, Value) tuples that represent the output boxes
     fee = 0, // fee to be paid to the network for the transaction (unit is nanoPoly)
     changeAddress = externalAddress.head, // who will get ALL the change from the transaction?
-    data = None // upto 128 Latin-1 encoded characters of optional data
+    data = None, // upto 128 Latin-1 encoded characters of optional data,
+    boxSelectionAlgorithm = BoxSelectionAlgorithms.All
   )
 
   /**
@@ -237,7 +239,8 @@ object CreateAnDSendRawArbitTransfer {
     fee = 0,
     changeAddress = externalAddress.head,
     consolidationAddress = externalAddress.head,
-    data = None
+    data = None,
+    boxSelectionAlgorithm = BoxSelectionAlgorithms.All
   )
 
   val response: RpcErrorOr[BroadcastTx.Response] = for {
@@ -274,7 +277,8 @@ object CreateAnDSendRawAssetMintingTransfer {
     changeAddress = externalAddress.head,
     consolidationAddress = externalAddress.head,
     minting = true,
-    data = None
+    data = None,
+    boxSelectionAlgorithm = BoxSelectionAlgorithms.All
   )
 
   val response: RpcErrorOr[BroadcastTx.Response] = for {
@@ -310,7 +314,8 @@ object CreateAnDSendRawAssetTransfer {
     changeAddress = externalAddress.head,
     consolidationAddress = externalAddress.head,
     minting = false,
-    data = None
+    data = None,
+    boxSelectionAlgorithm = BoxSelectionAlgorithms.All
   )
 
   val response: RpcErrorOr[BroadcastTx.Response] = for {
