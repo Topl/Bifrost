@@ -6,8 +6,9 @@ import akka.util.Timeout
 import cats.data.OptionT
 import cats.effect.kernel.Async
 import cats.implicits._
-import cats.{Defer, Monad}
-import co.topl.algebras.BlockchainState
+import cats.effect.implicits._
+import cats._
+import co.topl.algebras.ConsensusState
 import co.topl.models.Box.Values
 import co.topl.models._
 import co.topl.models.utility.Ratio
@@ -30,10 +31,10 @@ object NodeViewHolder {
 
   object StateEval {
 
-    def make[F[_]: Async: Defer: Monad](
+    def make[F[_]: Async](
       actorRef:        ActorRef[ReceivableMessage]
-    )(implicit system: ActorSystem[_], timeout: Timeout): BlockchainState[F] =
-      new BlockchainState[F] {
+    )(implicit system: ActorSystem[_], timeout: Timeout): ConsensusState[F] =
+      new ConsensusState[F] {
 
         import akka.actor.typed.scaladsl.AskPattern._
 

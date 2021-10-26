@@ -1,11 +1,12 @@
 package co.topl.consensus
 
 import cats.implicits._
-import co.topl.algebras.{BlockchainState, ClockAlgebra}
+import co.topl.algebras.{ClockAlgebra, ConsensusState}
 import co.topl.consensus.vrf.ProofToHash
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models.ModelGenerators._
+import co.topl.models.Proofs.Signature
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
@@ -31,14 +32,14 @@ class EtaCalculationSpec
   type F[A] = Either[Throwable, A]
 
   it should "compute the eta for an epoch" in {
-    val state = mock[BlockchainState[F]]
+    val state = mock[ConsensusState[F]]
     val clock = mock[ClockAlgebra[F]]
     val underTest = EtaCalculation.Eval.make[F](state, clock)
     val genesis = BlockGenesis(Nil).value
     val epoch = 0L
     val previousEta = etaGen.first
     val skVrf = KeyInitializer[SecretKeys.VrfEd25519].random()
-    val args = List.tabulate(8) { offset =>
+    val args: List[(Slot, Signature.VrfEd25519)] = List.tabulate(8) { offset =>
       val slot = offset.toLong + 1
       val nonceSignature =
         Ed25519VRF.instance.sign(
@@ -106,7 +107,7 @@ class EtaCalculationSpec
   }
 
   it should "compute the eta for an epoch with only a genesis block" in {
-    val state = mock[BlockchainState[F]]
+    val state = mock[ConsensusState[F]]
     val clock = mock[ClockAlgebra[F]]
     val underTest = EtaCalculation.Eval.make[F](state, clock)
     val genesis = BlockGenesis(Nil).value
@@ -154,7 +155,7 @@ class EtaCalculationSpec
 
   // TODO: For this situation, destroy the node.  "Hard Fault"
   it should "compute the eta for an epoch with no blocks" in {
-    val state = mock[BlockchainState[F]]
+    val state = mock[ConsensusState[F]]
     val clock = mock[ClockAlgebra[F]]
     val underTest = EtaCalculation.Eval.make[F](state, clock)
     val genesis = BlockGenesis(Nil).value

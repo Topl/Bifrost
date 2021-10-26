@@ -4,7 +4,7 @@ import cats.MonadError
 import cats.data.OptionT
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
-import co.topl.algebras.{BlockchainState, ClockAlgebra}
+import co.topl.algebras.{ClockAlgebra, ConsensusState}
 import co.topl.consensus.algebras.EtaCalculationAlgebra
 import co.topl.consensus.vrf.ProofToHash
 import co.topl.crypto.hash.blake2b256
@@ -18,7 +18,7 @@ object EtaCalculation {
   object Eval {
 
     def make[F[_]: MonadError[*[_], Throwable]](
-      state: BlockchainState[F],
+      state: ConsensusState[F],
       clock: ClockAlgebra[F]
     ): EtaCalculationAlgebra[F] =
       new EtaCalculationAlgebra[F] {
