@@ -29,8 +29,9 @@ services:
     links:
       - assistant
       - bifrost
-    command:
-      /mnt/wait-for-it.sh bifrost:9085 --
+    entrypoint:
+      sh
+      /mnt/wait-for-it.sh http://bifrost:9085 --
+      newman
       run https://www.getpostman.com/collections/3468057a1009eebc86bf
       -e /mnt/postman_env.json
-      --delay-request 500
