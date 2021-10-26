@@ -2,7 +2,7 @@ name: Postman Integration Tests
 
 on:
   pull_request:
-    branches: ['*']
+    branches: [dev, main]
 
 jobs:
 
