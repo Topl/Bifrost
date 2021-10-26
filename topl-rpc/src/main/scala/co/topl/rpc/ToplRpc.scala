@@ -7,9 +7,9 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.AssetCode.AssetCodeVersion
 import co.topl.modifier.box._
-import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer}
 import co.topl.modifier.transaction.Transaction.TX
-import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithm, BoxSelectionAlgorithms}
+import co.topl.modifier.transaction.builder.BoxSelectionAlgorithm
+import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer}
 import co.topl.utils.Int128
 import co.topl.utils.StringDataTypes.Latin1Data
 
