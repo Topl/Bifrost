@@ -1,9 +1,7 @@
 package co.topl.utils.mongodb.models
 
 import co.topl.attestation.Proposition
-import co.topl.modifier.box.TokenValueHolder
-import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction, TransferTransaction}
-import co.topl.modifier.transaction.Transaction.identifier
+import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
 
 import java.nio.charset.StandardCharsets
 import scala.collection.immutable.ListMap
