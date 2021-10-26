@@ -1,9 +1,14 @@
-#!/usr/bin/env bash
-# Use this script to test if a given TCP host/port are available
-
+#!/bin/ash
+#   Use this script to test if a given TCP host/port are available
+# 
+## This is ash (busybox) version wait-for-it.sh 
+## Adapt by Job Diogenes at fork (github.com/jobdiogenes/wait-for-it)
+## Tested in a docker alpine
+## Depends from grep and sed 
+#
 WAITFORIT_cmdname=${0##*/}
 
-echoerr() { if [[ $WAITFORIT_QUIET -ne 1 ]]; then echo "$@" 1>&2; fi }
+echoerr() { if [[ "$WAITFORIT_QUIET" == "" ]]; then echo "$@" 1>&2; fi }
 
 usage()
 {
@@ -36,7 +41,7 @@ wait_for()
             nc -z $WAITFORIT_HOST $WAITFORIT_PORT
             WAITFORIT_result=$?
         else
-            (echo -n > /dev/tcp/$WAITFORIT_HOST/$WAITFORIT_PORT) >/dev/null 2>&1
+            (echo > /dev/tcp/$WAITFORIT_HOST/$WAITFORIT_PORT) >/dev/null 2>&1
             WAITFORIT_result=$?
         fi
         if [[ $WAITFORIT_result -eq 0 ]]; then
@@ -67,14 +72,26 @@ wait_for_wrapper()
     return $WAITFORIT_RESULT
 }
 
+check_depends()
+{
+    IS_SED="$(type sed)"
+    IS_GREP="$(type grep)"    
+    if [[ "$IS_SED" == "sed: not found" || "$IS_GREP" == "grep: not found" ]]; then
+      echoerr "$WAITFORIT_cmdname: needs grep and sed to work, but was not found"
+      exit 1
+    fi
+    return 0
+}
+
+check_depends
+
 # process arguments
 while [[ $# -gt 0 ]]
-do
+do  
     case "$1" in
         *:* )
-        WAITFORIT_hostport=(${1//:/ })
-        WAITFORIT_HOST=${WAITFORIT_hostport[0]}
-        WAITFORIT_PORT=${WAITFORIT_hostport[1]}
+        WAITFORIT_HOST="$(echo $1 | sed -e 's,:.*,,g')"
+        WAITFORIT_PORT="$(echo $1 | sed -e 's,^.*:,:,g' -e 's,.*:\([0-9]*\).*,\1,g' -e 's,[^0-9],,g')"
         shift 1
         ;;
         --child)
@@ -118,7 +135,8 @@ do
         ;;
         --)
         shift
-        WAITFORIT_CLI=("$@")
+        WAITFORIT_CMD='$@'
+        WAITFORIT_CLI="$1"
         break
         ;;
         --help)
@@ -141,20 +159,17 @@ WAITFORIT_STRICT=${WAITFORIT_STRICT:-0}
 WAITFORIT_CHILD=${WAITFORIT_CHILD:-0}
 WAITFORIT_QUIET=${WAITFORIT_QUIET:-0}
 
-# Check to see if timeout is from busybox?
+# check to see if timeout is from busybox?
 WAITFORIT_TIMEOUT_PATH=$(type -p timeout)
 WAITFORIT_TIMEOUT_PATH=$(realpath $WAITFORIT_TIMEOUT_PATH 2>/dev/null || readlink -f $WAITFORIT_TIMEOUT_PATH)
-
-WAITFORIT_BUSYTIMEFLAG=""
-if [[ $WAITFORIT_TIMEOUT_PATH =~ "busybox" ]]; then
-    WAITFORIT_ISBUSY=1
-    # Check if busybox timeout uses -t flag
-    # (recent Alpine versions don't support -t anymore)
-    if timeout &>/dev/stdout | grep -q -e '-t '; then
+ISBUSY=`echo $WAITFORIT_TIMEOUT_PATH | grep -o "busybox"`
+if [[ $WAITFORIT_TIMEOUT_PATH = "busybox" ]]; then
+        WAITFORIT_ISBUSY=1
         WAITFORIT_BUSYTIMEFLAG="-t"
-    fi
+
 else
-    WAITFORIT_ISBUSY=0
+        WAITFORIT_ISBUSY=0
+        WAITFORIT_BUSYTIMEFLAG=""
 fi
 
 if [[ $WAITFORIT_CHILD -gt 0 ]]; then
@@ -176,7 +191,7 @@ if [[ $WAITFORIT_CLI != "" ]]; then
         echoerr "$WAITFORIT_cmdname: strict mode, refusing to execute subprocess"
         exit $WAITFORIT_RESULT
     fi
-    exec "${WAITFORIT_CLI[@]}"
+    eval "$WAITFORIT_CMD"
 else
     exit $WAITFORIT_RESULT
 fi
