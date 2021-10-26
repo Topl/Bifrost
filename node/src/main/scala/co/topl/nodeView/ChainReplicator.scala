@@ -34,9 +34,10 @@ object ChainReplicator {
 
     private[nodeView] case class GotNewBlock(block: Block) extends ReceivableMessage
 
-    private[nodeView] case class CheckMissingBlocks(maxHeight: Long) extends ReceivableMessage
+    private[nodeView] case class CheckMissingBlocks(startHeight: Long, maxHeight: Long) extends ReceivableMessage
 
-    private[nodeView] case object CheckMissingBlocksDone extends ReceivableMessage
+    private[nodeView] case class CheckMissingBlocksDone(startHeight: Long, endHeight: Long, maxHeight: Long)
+        extends ReceivableMessage
 
     private[nodeView] case object CheckDatabaseComplete extends ReceivableMessage
 
@@ -97,11 +98,11 @@ private class ChainReplicator(
         if (settings.checkMissingBlock) {
           val bestBlockHeight = withNodeView(getBestBlockHeight)
           context.pipeToSelf(bestBlockHeight) {
-            case Success(height) => ReceivableMessages.CheckMissingBlocks(height)
+            case Success(height) => ReceivableMessages.CheckMissingBlocks(settings.checkMissingStartHeight, height)
             case Failure(e)      => ReceivableMessages.Terminate(e)
           }
           log.info(s"${Console.GREEN}Chain replicator transitioning to syncing${Console.RESET}")
-          buffer.unstashAll(syncing(0, 0))
+          buffer.unstashAll(syncing)
         } else {
           log.info(s"${Console.GREEN}Chain replicator transitioning to listening for new blocks${Console.RESET}")
           buffer.unstashAll(listening)
@@ -116,51 +117,51 @@ private class ChainReplicator(
     }
 
   /** Find and send missing blocks to AppView, and transition to listening for new blocks once all checks are done */
-  private def syncing(
-    count:       Long,
-    totalChecks: Long
-  ): Behavior[ReceivableMessage] =
+  private def syncing: Behavior[ReceivableMessage] =
     Behaviors.receivePartial[ReceivableMessage] {
-      case (context, ReceivableMessages.CheckMissingBlocks(maxHeight)) =>
+      case (context, ReceivableMessages.CheckMissingBlocks(startHeight, maxHeight)) =>
         implicit val ec: ExecutionContext = context.executionContext
 
-        lazy val checkRange = (settings.checkMissingStartHeight to maxHeight)
+        lazy val checkRange = (startHeight to maxHeight)
           .grouped(settings.blockCheckSize)
           .toList
           .map(group => (group.head, group.last))
 
-        checkRange.foreach { case (startHeight, endHeight) =>
-          val existingHeightsFuture = getExistingHeightsDB(startHeight, endHeight)
-          val exportResult: OptionT[Future, (BulkWriteResult, BulkWriteResult)] = for {
-            existingHeights  <- OptionT[Future, Seq[Long]](existingHeightsFuture.map(_.some))
-            blocksToAdd      <- OptionT[Future, Seq[Block]](missingBlocks(startHeight, endHeight, existingHeights))
-            blockWriteResult <- OptionT[Future, BulkWriteResult](exportBlocks(blocksToAdd).map(_.some))
-            txWriteResult    <- OptionT[Future, BulkWriteResult](exportTransactions(blocksToAdd).map(_.some))
-          } yield (blockWriteResult, txWriteResult)
+        checkRange.head match {
+          case (startHeight, endHeight) =>
+            val existingHeightsFuture = getExistingHeightsDB(startHeight, endHeight)
+            val exportResult: OptionT[Future, (BulkWriteResult, BulkWriteResult)] = for {
+              existingHeights  <- OptionT[Future, Seq[Long]](existingHeightsFuture.map(_.some))
+              blocksToAdd      <- OptionT[Future, Seq[Block]](missingBlocks(startHeight, endHeight, existingHeights))
+              blockWriteResult <- OptionT[Future, BulkWriteResult](exportBlocks(blocksToAdd).map(_.some))
+              txWriteResult    <- OptionT[Future, BulkWriteResult](exportTransactions(blocksToAdd).map(_.some))
+            } yield (blockWriteResult, txWriteResult)
 
-          context.pipeToSelf(exportResult.value) {
-            case Success(Some(writeResults)) =>
-              log.info(
-                s"${Console.GREEN}Successfully inserted ${writeResults._1.getUpserts.size()} blocks " +
-                s"and ${writeResults._2.getUpserts.size()} transactions into AppView${Console.RESET}"
-              )
-              ReceivableMessages.CheckMissingBlocksDone
-            case Failure(err) =>
-              ReceivableMessages.Terminate(err)
-            case _ =>
-              log.info(s"${Console.GREEN}No missing blocks found between $startHeight and $endHeight${Console.RESET}")
-              ReceivableMessages.CheckMissingBlocksDone
-          }
+            context.pipeToSelf(exportResult.value) {
+              case Success(Some(writeResults)) =>
+                log.info(
+                  s"${Console.GREEN}Successfully inserted ${writeResults._1.getUpserts.size()} blocks " +
+                  s"and ${writeResults._2.getUpserts.size()} transactions into AppView${Console.RESET}"
+                )
+                ReceivableMessages.CheckMissingBlocksDone(startHeight, endHeight, maxHeight)
+              case Failure(err) =>
+                ReceivableMessages.Terminate(err)
+              case _ =>
+                log.info(s"${Console.GREEN}No missing blocks found between $startHeight and $endHeight${Console.RESET}")
+                ReceivableMessages.CheckMissingBlocksDone(startHeight, endHeight, maxHeight)
+            }
         }
-        syncing(count, checkRange.size)
+        Behaviors.same
 
-      case (_, ReceivableMessages.CheckMissingBlocksDone) =>
-        val newCount = count + 1
-        log.info(s"${Console.GREEN}Done with $newCount/$totalChecks of the checks${Console.RESET}")
-        if (newCount >= totalChecks)
+      case (context, ReceivableMessages.CheckMissingBlocksDone(startHeight, endHeight, maxHeight)) =>
+        log.info(s"${Console.GREEN}Finished checking from height $startHeight to $endHeight${Console.RESET}")
+        if (endHeight >= maxHeight) {
+          log.info(s"Done with all checks at height $endHeight")
           buffer.unstashAll(listening)
-        else
-          syncing(newCount, totalChecks)
+        } else {
+          context.self ! ReceivableMessages.CheckMissingBlocks(endHeight + 1, maxHeight)
+          Behaviors.same
+        }
 
       case (_, ReceivableMessages.Terminate(reason)) =>
         throw reason
