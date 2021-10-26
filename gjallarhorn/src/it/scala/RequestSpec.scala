@@ -4,17 +4,16 @@ import scala.concurrent.{Await, ExecutionContextExecutor}
 import scala.util.{Failure, Success, Try}
 
 /**
-  * Must be running bifrost with --local and --seed test
-  * ex: "run --local --seed test -f"
-  */
-class RequestSpec extends AsyncFlatSpec
-  with Matchers
-  with GjallarhornGenerators {
+ * Must be running bifrost with --local and --seed test
+ * ex: "run --local --seed test -f"
+ */
+class RequestSpec extends AsyncFlatSpec with Matchers with GjallarhornGenerators {
 
   //define implicit vals
   implicit val actorSystem: ActorSystem = ActorSystem("requestTest", requestConfig)
   implicit val context: ExecutionContextExecutor = actorSystem.dispatcher
   implicit val timeout: Timeout = 30.seconds
+
   /** Make sure running bifrost in local network! */
   implicit val networkPrefix: NetworkPrefix = 48.toByte
 
@@ -26,15 +25,21 @@ class RequestSpec extends AsyncFlatSpec
   val chainProvider: ChainProvider = requestSettings.application.defaultChainProviders
     .get(settings.application.currentChainProvider) match {
     case Some(cp) => cp
-    case None => throw new Exception ("The current chain provider is not in the list of chain providers!")
+    case None     => throw new Exception("The current chain provider is not in the list of chain providers!")
   }
-  val bifrostActor: ActorRef = Await.result(actorSystem.actorSelection(
-    s"akka://${chainProvider.chainProvider}/user/walletConnectionHandler")
-    .resolveOne(), 10.seconds)
-  val walletManagerRef: ActorRef = actorSystem.actorOf(
-    Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
-  val requestsManagerRef: ActorRef = actorSystem.actorOf(
-    Props(new RequestsManager(bifrostActor)), name = "RequestsManager")
+
+  val bifrostActor: ActorRef = Await.result(
+    actorSystem
+      .actorSelection(s"akka://${chainProvider.chainProvider}/user/walletConnectionHandler")
+      .resolveOne(),
+    10.seconds
+  )
+
+  val walletManagerRef: ActorRef =
+    actorSystem.actorOf(Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
+
+  val requestsManagerRef: ActorRef =
+    actorSystem.actorOf(Props(new RequestsManager(bifrostActor)), name = "RequestsManager")
 
   val requests = new Requests(requestSettings, keyManagerRef)
 
@@ -44,15 +49,22 @@ class RequestSpec extends AsyncFlatSpec
   Try(path.createDirectory())
 
   //create new keys for testing
-  val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))
-    .mapTo[Try[Address]], 10.seconds) match {
+  val pk1: Address = Await.result(
+    (keyManagerRef ? GenerateKeyFile("password", Some("test")))
+      .mapTo[Try[Address]],
+    10.seconds
+  ) match {
     case Success(pubKey) => pubKey
-    case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
+    case Failure(ex)     => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
-  val pk2: Address = Await.result((keyManagerRef ? GenerateKeyFile("password2", None))
-    .mapTo[Try[Address]], 10.seconds) match {
+
+  val pk2: Address = Await.result(
+    (keyManagerRef ? GenerateKeyFile("password2", None))
+      .mapTo[Try[Address]],
+    10.seconds
+  ) match {
     case Success(pubKey) => pubKey
-    case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
+    case Failure(ex)     => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
   val publicKeys: Set[Address] = Set(pk1, pk2)
 
@@ -65,29 +77,24 @@ class RequestSpec extends AsyncFlatSpec
   walletManagerRef ! ConnectToBifrost(bifrostActor, chainProvider.networkName)
   requests.switchOnlineStatus(Some(requestsManagerRef))
 
-
   /**
-    * Helper function for grabbing new box ids
-    * @param json json to parse for box ids
-    * @return a set of BoxIds
-    */
+   * Helper function for grabbing new box ids
+   * @param json json to parse for box ids
+   * @return a set of BoxIds
+   */
   def parseForBoxId(json: Json): Set[BoxId] = {
     val result = (json \\ "result").head
     val newBxs = (result \\ "newBoxes").head.toString()
     parser.decode[List[Box]](newBxs) match {
       case Right(newBoxes) =>
-        newBoxes.foreach(newBox => {
-          newBoxIds += newBox.id
-        })
+        newBoxes.foreach(newBox => newBoxIds += newBox.id)
         newBoxIds
       case Left(e) => sys.error(s"could not parse: $newBxs")
     }
   }
 
-
   it should "receive a successful response from Bifrost upon creating asset" in {
-    val createAssetRequest: ByteString = ByteString(
-      s"""
+    val createAssetRequest: ByteString = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "1",
@@ -116,8 +123,7 @@ class RequestSpec extends AsyncFlatSpec
   }
 
   it should "receive a successful response from Bifrost upon transfering arbit" in {
-    val transferArbitsRequest: ByteString = ByteString(
-      s"""
+    val transferArbitsRequest: ByteString = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "1",
@@ -139,7 +145,6 @@ class RequestSpec extends AsyncFlatSpec
     (transaction \\ "result").head.asObject.isDefined shouldBe true
   }
 
-
   it should "receive successful JSON response from sign transaction" in {
     val issuer: IndexedSeq[Address] = IndexedSeq(publicKeys.head)
     val response = requests.signTx(transaction, issuer)
@@ -149,9 +154,9 @@ class RequestSpec extends AsyncFlatSpec
     assert((signedTransaction \\ "signatures").head.asObject.isDefined)
     val sigs: Map[PublicKeyPropositionCurve25519, Json] =
       (signedTransaction \\ "signatures").head.as[Map[PublicKeyPropositionCurve25519, Json]] match {
-      case Left(error) => throw error
-      case Right(value) => value
-    }
+        case Left(error)  => throw error
+        case Right(value) => value
+      }
     val pubKeys = sigs.keySet.map(pubKey => pubKey.address)
     issuer.foreach(key => assert(pubKeys.contains(key)))
     (signedTransaction \\ "tx").nonEmpty shouldBe true
@@ -180,32 +185,39 @@ class RequestSpec extends AsyncFlatSpec
 
   it should "update boxes correctly with balance response" in {
     val walletBoxes: MMap[Address, MMap[BoxId, Box]] =
-      Await.result((walletManagerRef ? UpdateWallet((balanceResponse \\ "result").head))
-      .mapTo[MMap[Address, MMap[BoxId, Box]]], 10.seconds)
+      Await.result(
+        (walletManagerRef ? UpdateWallet((balanceResponse \\ "result").head))
+          .mapTo[MMap[Address, MMap[BoxId, Box]]],
+        10.seconds
+      )
 
     val pk1Boxes: Option[MMap[BoxId, Box]] = walletBoxes.get(pk1)
     pk1Boxes match {
-      case Some(map) => assert (map.size >= 2)
-      case None => sys.error(s"no mapping for given public key: ${pk1.toString}")
+      case Some(map) => assert(map.size >= 2)
+      case None      => sys.error(s"no mapping for given public key: ${pk1.toString}")
     }
     val pk2Boxes: Option[MMap[BoxId, Box]] = walletBoxes.get(pk2)
     pk2Boxes match {
-      case Some(map) => assert (map.nonEmpty)
-      case None => sys.error(s"no mapping for given public key: ${pk2.toString}")
+      case Some(map) => assert(map.nonEmpty)
+      case None      => sys.error(s"no mapping for given public key: ${pk2.toString}")
     }
   }
 
   it should "receive a block from bifrost after creating a transaction" in {
-    val newBlock: Option[List[Transaction]] = Await.result((walletManagerRef ? GetNewBlock)
-      .mapTo[Option[List[Transaction]]], 10.seconds)
+    val newBlock: Option[List[Transaction]] = Await.result(
+      (walletManagerRef ? GetNewBlock)
+        .mapTo[Option[List[Transaction]]],
+      10.seconds
+    )
     assert(newBlock.isDefined)
   }
 
-
   it should "send msg to bifrost actor when the gjallarhorn app stops" in {
     val bifrostResponse: String = Await.result((walletManagerRef ? DisconnectFromBifrost).mapTo[String], 100.seconds)
-    assert(bifrostResponse.contains("The remote wallet Actor[akka://requestTest@127.0.0.1") &&
-      bifrostResponse.contains("has been removed from the WalletConnectionHandler in Bifrost"))
+    assert(
+      bifrostResponse.contains("The remote wallet Actor[akka://requestTest@127.0.0.1") &&
+      bifrostResponse.contains("has been removed from the WalletConnectionHandler in Bifrost")
+    )
   }
 
 }

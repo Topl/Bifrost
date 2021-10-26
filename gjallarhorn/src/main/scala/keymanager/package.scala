@@ -1,5 +1,3 @@
-
-
 package object keymanager {
 
   /** This variable keeps track of the current network */
