@@ -102,7 +102,9 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
       )
     )
 
-    val (sk, vk) = kesSum.createKeyPair(specIn_seed, specIn_height, 0)
+    val (sk0, _) = kesSum.createKeyPair(specIn_seed, specIn_height, 0)
+    val sk = kesSum.update(sk0, specIn_time)
+    val vk = kesSum.getVerificationKey(sk)
     val sig = kesSum.sign(sk, specIn_msg)
 
     vk shouldBe specOut_vk
@@ -113,7 +115,7 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
     val kesSum = new KesSum()
     val specIn_seed = "928b20366943e2afd11ebc0eae2e53a93bf177a4fcf35bcc64d503704e65e202".hexStringToBytes
     val specIn_height = 7
-    val specIn_time = 1
+    val specIn_time = 10
     val specIn_msg = "6d657373616765".hexStringToBytes
 
     val specOut_vk =
@@ -137,6 +139,75 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
       )
     )
 
+    val (sk0, _) = kesSum.createKeyPair(specIn_seed, specIn_height, 0)
+    val sk = kesSum.update(sk0, specIn_time)
+    val vk = kesSum.getVerificationKey(sk)
+    val sig = kesSum.sign(sk, specIn_msg)
+
+    vk shouldBe specOut_vk
+    sig shouldBe specOut_sig
+    kesSum.verify(sig, specIn_msg, vk) shouldBe true
+  }
+  it should "test vector - 4 - Generate and verify a specified signature at `t=100`" in {
+    val kesSum = new KesSum()
+    val specIn_seed = "0000000000000000000000000000000000000000000000000000000000000000".hexStringToBytes
+    val specIn_height = 7
+    val specIn_time = 100
+    val specIn_msg = "6d657373616765".hexStringToBytes
+
+    val specOut_vk =
+      VerificationKeys.KesSum(
+        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+        specIn_time
+      )
+    val specOut_sig = Proofs.Signature.KesSum(
+      VerificationKeys.Ed25519("0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes),
+      Proofs.Signature.Ed25519(
+        "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
+      ),
+      Vector(
+        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
+      )
+    )
+
+    val (sk0, _) = kesSum.createKeyPair(specIn_seed, specIn_height, 0)
+    val sk = kesSum.update(sk0, specIn_time)
+    val vk = kesSum.getVerificationKey(sk)
+    val sig = kesSum.sign(sk, specIn_msg)
+
+    vk shouldBe specOut_vk
+    sig shouldBe specOut_sig
+    kesSum.verify(sig, specIn_msg, vk) shouldBe true
+  }
+  it should "test vector - 5 - Generate and verify a specified signature at `t=0`" in {
+    val kesSum = new KesSum()
+    val specIn_seed = "0000000000000000000000000000000000000000000000000000000000000000".hexStringToBytes
+    val specIn_height = 2
+    val specIn_time = 0
+    val specIn_msg = "6d657373616765".hexStringToBytes
+
+    val specOut_vk =
+      VerificationKeys.KesSum(
+        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+        specIn_time
+      )
+    val specOut_sig = Proofs.Signature.KesSum(
+      VerificationKeys.Ed25519("0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes),
+      Proofs.Signature.Ed25519(
+        "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
+      ),
+      Vector(
+        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
+      )
+    )
+
     val (sk, vk) = kesSum.createKeyPair(specIn_seed, specIn_height, 0)
     val sig = kesSum.sign(sk, specIn_msg)
 
@@ -144,10 +215,101 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
     sig shouldBe specOut_sig
     kesSum.verify(sig, specIn_msg, vk) shouldBe true
   }
-  it should "test vector - 4 - Generate and verify a specified signature at `t=100`" in {}
-  it should "test vector - 5 - Generate and verify a specified signature at `t=0`" in {}
-  it should "test vector - 6 - Generate and verify a specified signature at `t=1`" in {}
-  it should "test vector - 7 - Generate and verify a specified signature at `t=2`" in {}
-  it should "test vector - 8 - Generate and verify a specified signature at `t=3`" in {}
+  it should "test vector - 6 - Generate and verify a specified signature at `t=1`" in {
+    val kesSum = new KesSum()
+    val specIn_seed = "0000000000000000000000000000000000000000000000000000000000000000".hexStringToBytes
+    val specIn_height = 2
+    val specIn_time = 1
+    val specIn_msg = "6d657373616765".hexStringToBytes
+
+    val specOut_vk =
+      VerificationKeys.KesSum(
+        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+        specIn_time
+      )
+    val specOut_sig = Proofs.Signature.KesSum(
+      VerificationKeys.Ed25519("0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes),
+      Proofs.Signature.Ed25519(
+        "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
+      ),
+      Vector(
+        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
+      )
+    )
+
+    val (sk0, _) = kesSum.createKeyPair(specIn_seed, specIn_height, 0)
+    val sk = kesSum.update(sk0, specIn_time)
+    val vk = kesSum.getVerificationKey(sk)
+    val sig = kesSum.sign(sk, specIn_msg)
+
+    vk shouldBe specOut_vk
+    sig shouldBe specOut_sig
+    kesSum.verify(sig, specIn_msg, vk) shouldBe true
+  }
+  it should "test vector - 7 - Generate and verify a specified signature at `t=2`" in {
+    val kesSum = new KesSum()
+    val specIn_seed = "0000000000000000000000000000000000000000000000000000000000000000".hexStringToBytes
+    val specIn_height = 2
+    val specIn_time = 2
+    val specIn_msg = "6d657373616765".hexStringToBytes
+
+    val specOut_vk =
+      VerificationKeys.KesSum(
+        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+        specIn_time
+      )
+    val specOut_sig = Proofs.Signature.KesSum(
+      VerificationKeys.Ed25519("0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes),
+      Proofs.Signature.Ed25519(
+        "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
+      ),
+      Vector(
+        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
+      )
+    )
+
+    val (sk0, _) = kesSum.createKeyPair(specIn_seed, specIn_height, 0)
+    val sk = kesSum.update(sk0, specIn_time)
+    val vk = kesSum.getVerificationKey(sk)
+    val sig = kesSum.sign(sk, specIn_msg)
+
+    vk shouldBe specOut_vk
+    sig shouldBe specOut_sig
+    kesSum.verify(sig, specIn_msg, vk) shouldBe true
+  }
+  it should "test vector - 8 - Generate and verify a specified signature at `t=3`" in {
+    val kesSum = new KesSum()
+    val specIn_seed = "0000000000000000000000000000000000000000000000000000000000000000".hexStringToBytes
+    val specIn_height = 2
+    val specIn_time = 3
+    val specIn_msg = "6d657373616765".hexStringToBytes
+
+    val specOut_vk =
+      VerificationKeys.KesSum(
+        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+        specIn_time
+      )
+    val specOut_sig = Proofs.Signature.KesSum(
+      VerificationKeys.Ed25519("0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes),
+      Proofs.Signature.Ed25519(
+        "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
+      ),
+      Vector(
+        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
+      )
+    )
+
+    val (sk0, _) = kesSum.createKeyPair(specIn_seed, specIn_height, 0)
+    val sk = kesSum.update(sk0, specIn_time)
+    val vk = kesSum.getVerificationKey(sk)
+    val sig = kesSum.sign(sk, specIn_msg)
+
+    vk shouldBe specOut_vk
+    sig shouldBe specOut_sig
+    kesSum.verify(sig, specIn_msg, vk) shouldBe true
+  }
 
 }
