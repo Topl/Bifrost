@@ -1,14 +1,13 @@
 package co.topl.nodeView
 
-import akka.Done
-import akka.actor.testkit.typed.scaladsl.{ManualTime, ScalaTestWithActorTestKit}
+import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.actor.typed.ActorRef
 import akka.actor.typed.eventstream.EventStream
 import akka.actor.{ActorRef => CActorRef, ActorSystem => CActorSystem}
 import akka.io.{IO, Tcp}
 import co.topl.attestation.PublicKeyPropositionCurve25519
-import co.topl.consensus.{Forger, LocallyGeneratedBlock}
 import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
+import co.topl.consensus.{Forger, LocallyGeneratedBlock}
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.SimpleValue
 import co.topl.modifier.transaction.PolyTransfer
