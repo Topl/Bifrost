@@ -22,46 +22,41 @@ class AkkaSecureStore[F[_]: Async](actorRef: ActorRef[AkkaSecureStoreActor.Recei
 ) extends SecureStore[F] {
 
   def write(data: SecureData): F[Unit] =
-    Async[F]
-      .fromFuture(
-        Sync[F].delay(actorRef.ask(AkkaSecureStoreActor.ReceivableMessages.Write(data, _)))
-      )
-      .void
+    ask[Done](AkkaSecureStoreActor.ReceivableMessages.Write(data, _)).void
 
   def read(name: String): F[Option[SecureData]] =
-    Async[F]
-      .fromFuture(
-        Sync[F].delay(actorRef.ask(AkkaSecureStoreActor.ReceivableMessages.Read(name, _)))
-      )
+    ask(AkkaSecureStoreActor.ReceivableMessages.Read(name, _))
 
   def list: F[Chain[String]] =
-    Async[F]
-      .fromFuture(
-        Sync[F].delay(actorRef.ask(AkkaSecureStoreActor.ReceivableMessages.List))
-      )
+    ask(AkkaSecureStoreActor.ReceivableMessages.List)
 
   def delete(name: String): F[Unit] =
+    ask[Done](AkkaSecureStoreActor.ReceivableMessages.Delete(name, _)).void
+
+  private def ask[Res](message: ActorRef[Res] => AkkaSecureStoreActor.ReceivableMessage): F[Res] =
     Async[F]
       .fromFuture(
-        Sync[F].delay(actorRef.ask(AkkaSecureStoreActor.ReceivableMessages.Delete(name, _)))
+        Sync[F].delay(actorRef.ask[Res](message))
       )
-      .void
 }
 
 object AkkaSecureStore {
 
   object Eval {
 
-    def make[F[_]: Async](basePath: Path)(implicit system: ActorSystem[_], timeout: Timeout): F[AkkaSecureStore[F]] =
+    def make[F[_]: Async](basePath: Path)(implicit system: ActorSystem[_], timeout: Timeout): F[AkkaSecureStore[F]] = {
+      val actorName =
+        s"akka-secure-store-${basePath.toString.replace('/', '-').filter(('a' to 'z').toSet ++ ('A' to 'Z') ++ ('0' to '9') ++ Set('-'))}"
       Async[F]
         .delay(
           system.systemActorOf(
             AkkaSecureStoreActor(AkkaSecureStoreActor.State(Map.empty, basePath)),
-            s"akka-secure-store-$basePath",
+            actorName,
             DispatcherSelector.blocking()
           )
         )
         .map(new AkkaSecureStore[F](_))
+    }
   }
 }
 
@@ -88,8 +83,8 @@ object AkkaSecureStoreActor {
         val erasedState = deleteImpl(data.name, state)
         val path = Paths.get(erasedState.basePath.toString, data.name)
         data.bytes
-          .foldLeft[Id, BufferedWriter](Files.newBufferedWriter(path))((writer, byte) => writer.tap(_.write(byte)))(_ =>
-            Applicative[Id].unit
+          .foldLeft[Id, BufferedWriter](Files.newBufferedWriter(path))((writer, byte) => writer.tap(_.write(byte)))(
+            writer => writer.close().pure[Id]
           )
         val newState = erasedState.copy(entries = erasedState.entries.updated(data.name, data.bytes))
         replyTo.tell(Done)
@@ -102,12 +97,7 @@ object AkkaSecureStoreActor {
           case None =>
             val path = Paths.get(state.basePath.toString, name)
             if (Files.exists(path) && Files.isRegularFile(path)) {
-              val secureData = {
-                // Note: This _should_ be the only "hard" reference to this byte array, and this reference should
-                // go away shortly after it falls out of scope
-                val bytes = Files.readAllBytes(path)
-                SecureData(name, new SecureBytes(WeakReference(bytes), bytes.length))
-              }
+              val secureData = SecureData(name, SecureBytes(Files.readAllBytes(path)))
               val newEntries = state.entries.updated(name, secureData.bytes)
               replyTo.tell(Some(secureData))
               apply(state.copy(entries = newEntries))

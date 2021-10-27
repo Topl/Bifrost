@@ -1,14 +1,14 @@
 package co.topl.demo
 
+import cats.Monad
 import cats.data.{Chain, OptionT}
 import cats.effect.kernel.{Async, Sync}
 import cats.effect.std.Semaphore
 import cats.implicits._
-import cats.{Applicative, Monad}
 import co.topl.crypto.keyfile.{SecureBytes, SecureData, SecureStore}
 
+import java.io.BufferedWriter
 import java.nio.file.{Files, Path, Paths, StandardOpenOption}
-import scala.ref.WeakReference
 import scala.util.chaining._
 
 /**
@@ -39,10 +39,12 @@ class SemaphoreSecureStore[F[_]: Monad: Sync](baseDirectory: Path, semaphore: Se
   def write(data: SecureData): F[Unit] = withSemaphore {
     val path = Paths.get(baseDirectory.toString, data.name)
     deleteImpl(data.name) >>
-    Sync[F].delay(entries += (data.name -> data)) >>
+    Sync[F].delay(entries += (data.name -> data.bytes)) >>
     Sync[F].defer(
       data.bytes
-        .foldLeft(Files.newBufferedWriter(path))((writer, byte) => writer.tap(_.write(byte)))(_ => Applicative[F].unit)
+        .foldLeft[F, BufferedWriter](Files.newBufferedWriter(path))((writer, byte) => writer.tap(_.write(byte)))(
+          writer => writer.close().pure[F]
+        )
         .void
     )
   }
@@ -56,12 +58,7 @@ class SemaphoreSecureStore[F[_]: Monad: Sync](baseDirectory: Path, semaphore: Se
             Sync[F].defer {
               val path = Paths.get(baseDirectory.toString, name)
               if (Files.exists(path) && Files.isRegularFile(path)) {
-                val secureData = {
-                  // Note: This _should_ be the only "hard" reference to this byte array, and this reference should
-                  // go away shortly after it falls out of scope
-                  val bytes = Files.readAllBytes(path)
-                  SecureData(name, new SecureBytes(WeakReference(bytes), bytes.length))
-                }
+                val secureData = SecureData(name, SecureBytes(Files.readAllBytes(path)))
                 entries += (name -> secureData.bytes)
                 secureData.some.pure[F]
               } else

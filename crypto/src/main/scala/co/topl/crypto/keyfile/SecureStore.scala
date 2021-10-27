@@ -4,9 +4,6 @@ import cats._
 import cats.data.{Chain, OptionT}
 import cats.implicits._
 
-import scala.ref.WeakReference
-import scala.util.chaining._
-
 /**
  * Represents the operations of a "secure" data store.  "Secure" means that references to underlying value arrays
  * are internally weakly referenced and may be zeroed out at any moment.  When an entry is deleted, the implementation
@@ -73,7 +70,7 @@ case class SecureData(name: String, bytes: SecureBytes)
  * byte array cannot be directly accessed from the outside.  Consumers must traverse the bytes and form their own
  * results.
  */
-class SecureBytes(weakReference: WeakReference[Array[Byte]], val length: Int) {
+class SecureBytes private (private var underlying: Option[Array[Byte]], val length: Int) {
 
   /**
    * Consume each of the bytes one-by-one within a fold operation.  The foldOp operation produces some domain-specific
@@ -86,7 +83,7 @@ class SecureBytes(weakReference: WeakReference[Array[Byte]], val length: Int) {
     OptionT
       .fromOption[F](
         this.synchronized(
-          weakReference.get.map(_.foldLeft(initialState)(foldOp))
+          underlying.map(_.foldLeft(initialState)(foldOp))
         )
       )
       .semiflatMap(runOp)
@@ -94,14 +91,19 @@ class SecureBytes(weakReference: WeakReference[Array[Byte]], val length: Int) {
 
   def erase(): Unit =
     this.synchronized(
-      weakReference
+      underlying.foreach { arr =>
         // First, zero the array
-        .tap(_.get.foreach(arr => arr.indices.foreach(arr(_) = 0)))
+        arr.indices.foreach(arr(_) = 0)
         // Now clear the weak reference
-        .tap(_.clear())
+        underlying = None
+      }
     )
 
   def isErased(): Boolean =
-    this.synchronized(weakReference.get.isEmpty)
+    this.synchronized(underlying.isEmpty)
 
+}
+
+object SecureBytes {
+  def apply(bytes: Array[Byte]): SecureBytes = new SecureBytes(Some(bytes), bytes.length)
 }

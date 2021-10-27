@@ -198,7 +198,7 @@ object Dependencies {
     cats ++ simulacrum ++ newType
 
   lazy val demo: Seq[ModuleID] =
-    Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++ logging
+    Seq(akka("actor"), akka("actor-typed"), akka("stream"), akka("actor-testkit-typed") % Test) ++ logging
 
   lazy val tools: Seq[ModuleID] =
     Seq(
