@@ -2,7 +2,6 @@ package co.topl.crypto.keyfile
 
 import cats._
 import cats.data.{Chain, OptionT}
-import cats.implicits._
 
 /**
  * Represents the operations of a "secure" data store.  "Secure" means that references to underlying value arrays
@@ -30,34 +29,6 @@ trait SecureStore[F[_]] {
    * Securely deletes the data associated with the given name
    */
   def delete(name: String): F[Unit]
-}
-
-/**
- * A simple, in-memory, non-thread-safe implementation of a SecureStore
- */
-class EphemeralSecureStore[F[_]: Monad: Defer] extends SecureStore[F] {
-
-  private var entries: Map[String, SecureBytes] = Map.empty
-
-  def write(data: SecureData): F[Unit] =
-    delete(data.name).map(_ => entries = entries.updated(data.name, data.bytes))
-
-  def read(name: String): F[Option[SecureData]] =
-    Defer[F].defer(entries.get(name).map(SecureData(name, _)).pure[F])
-
-  def list: F[Chain[String]] =
-    Defer[F].defer(Chain.fromSeq(entries.keys.toSeq).pure[F])
-
-  def delete(name: String): F[Unit] =
-    Defer[F].defer(
-      entries
-        .get(name)
-        .foreach { bytes =>
-          entries -= name
-          bytes.erase()
-        }
-        .pure[F]
-    )
 }
 
 /**
@@ -94,7 +65,7 @@ class SecureBytes private (private var underlying: Option[Array[Byte]], val leng
       underlying.foreach { arr =>
         // First, zero the array
         arr.indices.foreach(arr(_) = 0)
-        // Now clear the weak reference
+        // Now free the strong reference to the underlying vaue
         underlying = None
       }
     )

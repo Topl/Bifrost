@@ -5,15 +5,14 @@ import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior, DispatcherSelector}
 import akka.util.Timeout
+import cats.Id
 import cats.data.Chain
 import cats.effect.kernel.{Async, Sync}
 import cats.implicits._
-import cats.{Applicative, Id}
 import co.topl.crypto.keyfile.{SecureBytes, SecureData, SecureStore}
 
 import java.io.BufferedWriter
 import java.nio.file.{Files, Path, Paths, StandardOpenOption}
-import scala.ref.WeakReference
 import scala.util.chaining._
 
 class AkkaSecureStore[F[_]: Async](actorRef: ActorRef[AkkaSecureStoreActor.ReceivableMessage])(implicit
@@ -45,8 +44,13 @@ object AkkaSecureStore {
   object Eval {
 
     def make[F[_]: Async](basePath: Path)(implicit system: ActorSystem[_], timeout: Timeout): F[AkkaSecureStore[F]] = {
-      val actorName =
-        s"akka-secure-store-${basePath.toString.replace('/', '-').filter(('a' to 'z').toSet ++ ('A' to 'Z') ++ ('0' to '9') ++ Set('-'))}"
+      val actorName = {
+        val sanitizedPath =
+          basePath.toString
+            .replace('/', '-')
+            .filter(('a' to 'z').toSet ++ ('A' to 'Z') ++ ('0' to '9') ++ Set('-'))
+        s"akka-secure-store-$sanitizedPath"
+      }
       Async[F]
         .delay(
           system.systemActorOf(
