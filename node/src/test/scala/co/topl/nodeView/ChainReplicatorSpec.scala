@@ -16,12 +16,11 @@ import com.mongodb.client.result.InsertManyResult
 import io.circe._
 import io.circe.parser._
 import org.bson.BsonValue
-import org.mongodb.scala.bson.{BsonInt32, BsonObjectId}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.OptionValues
 import org.scalatest.flatspec.AnyFlatSpecLike
 
-import scala.collection.{AbstractIterator, mutable}
+import scala.collection.{mutable, AbstractIterator}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
