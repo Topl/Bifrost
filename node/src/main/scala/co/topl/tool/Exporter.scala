@@ -8,7 +8,7 @@ import co.topl.utils.mongodb.codecs._
 import co.topl.utils.mongodb.models.{BlockDataModel, TransactionDataModel}
 import co.topl.utils.{Logging, NetworkType}
 import io.circe.Json
-import mainargs.{ParserForMethods, arg, main}
+import mainargs.{arg, main, ParserForMethods}
 import co.topl.settings.StartupOptsImplicits._
 
 import scala.concurrent.ExecutionContext.Implicits.global
