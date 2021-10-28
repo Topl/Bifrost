@@ -2,7 +2,7 @@ package co.topl.crypto.signing.kes
 
 import co.topl.models.utility.KesBinaryTree
 import co.topl.models.utility.KesBinaryTree.{Empty, MerkleNode, SigningLeaf}
-
+import java.security.SecureRandom
 import scala.annotation.tailrec
 
 /**
@@ -28,6 +28,8 @@ class SumComposition extends KesEd25519Blake2b256 {
   override type SIG = (Array[Byte], Array[Byte], Vector[Array[Byte]])
   override type VK = (Array[Byte], Int)
   override type SK = KesBinaryTree
+
+  private val random = new SecureRandom()
 
   /**
    * Get the current time step of a sum composition key
@@ -85,7 +87,9 @@ class SumComposition extends KesEd25519Blake2b256 {
     //traverse down the tree to the leftmost leaf
     def reduceTree(fullTree: KesBinaryTree): KesBinaryTree =
       fullTree match {
-        case MerkleNode(seed, witL, witR, nodeL, _) => MerkleNode(seed, witL, witR, reduceTree(nodeL), Empty)
+        case MerkleNode(seed, witL, witR, nodeL, nodeR) =>
+          eraseOldNode(nodeR)
+          MerkleNode(seed, witL, witR, reduceTree(nodeL), Empty)
         case leaf: SigningLeaf                      => leaf
         case _                                      => Empty
       }
@@ -114,6 +118,34 @@ class SumComposition extends KesEd25519Blake2b256 {
     }
   }
 
+  private def eraseOldNode(node: KesBinaryTree): Unit = {
+    node match {
+      case merkleNode: MerkleNode =>
+        random.nextBytes(merkleNode.seed)
+        random.nextBytes(merkleNode.witnessLeft)
+        random.nextBytes(merkleNode.witnessRight)
+        merkleNode.left match {
+          case l:MerkleNode => eraseOldNode(l)
+          case l:SigningLeaf =>
+            random.nextBytes(l.sk)
+            random.nextBytes(l.vk)
+          case _ =>
+        }
+        merkleNode.right match {
+          case r:MerkleNode => eraseOldNode(r)
+          case r:SigningLeaf =>
+            random.nextBytes(r.sk)
+            random.nextBytes(r.vk)
+          case _ =>
+        }
+      case leaf: SigningLeaf =>
+        random.nextBytes(leaf.sk)
+        random.nextBytes(leaf.vk)
+      case _ =>
+    }
+
+  }
+
   /**
    * Evolves key a specified number of steps
    */
@@ -123,18 +155,22 @@ class SumComposition extends KesEd25519Blake2b256 {
 
     if (step >= halfTotalSteps) {
       input match {
-        case MerkleNode(seed, witL, witR, _: SigningLeaf, Empty) =>
-          MerkleNode(seed, witL, witR, Empty, SigningLeaf.tupled(sGenKeypair(seed)))
-
-        case MerkleNode(seed, witL, witR, _: MerkleNode, Empty) =>
-          MerkleNode(
-            seed,
+        case MerkleNode(seed, witL, witR, oldLeaf: SigningLeaf, Empty) =>
+          val newNode = MerkleNode(Array.fill(seed.length)(0: Byte), witL, witR, Empty, SigningLeaf.tupled(sGenKeypair(seed)))
+          eraseOldNode(oldLeaf)
+          random.nextBytes(seed)
+          newNode
+        case MerkleNode(seed, witL, witR, oldNode: MerkleNode, Empty) =>
+          val newNode = MerkleNode(
+            Array.fill(seed.length)(0: Byte),
             witL,
             witR,
             Empty,
             evolveKey(generateSecretKey(seed, getTreeHeight(input) - 1), shiftStep(step))
           )
-
+          eraseOldNode(oldNode)
+          random.nextBytes(seed)
+          newNode
         case MerkleNode(seed, witL, witR, Empty, right) =>
           MerkleNode(seed, witL, witR, Empty, evolveKey(right, shiftStep(step)))
 
@@ -169,12 +205,11 @@ class SumComposition extends KesEd25519Blake2b256 {
       keyTree: KesBinaryTree,
       W:       Vector[Array[Byte]] = Vector()
     ): SIG = keyTree match {
-      case MerkleNode(_, witL, _, Empty, right) => loop(right, witL +: W)
-      case MerkleNode(_, _, witR, left, _)      => loop(left, witR +: W)
-      case leaf: SigningLeaf                    => (leaf.vk, sSign(m, leaf.sk), W)
+      case MerkleNode(_, witL, _, Empty, right) => loop(right, witL.clone() +: W)
+      case MerkleNode(_, _, witR, left, _)      => loop(left, witR.clone() +: W)
+      case leaf: SigningLeaf                    => (leaf.vk.clone(), sSign(m, leaf.sk).clone(), W)
       case _                                    => (Array.fill(pkBytes)(0: Byte), Array.fill(sigBytes)(0: Byte), Vector(Array()))
     }
-
     loop(keyTree)
   }
 

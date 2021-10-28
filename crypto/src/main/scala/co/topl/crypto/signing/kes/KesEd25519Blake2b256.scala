@@ -49,8 +49,8 @@ trait KesEd25519Blake2b256 {
    * @return byte array sk||pk
    */
   protected def sGenKeypair(seed: Array[Byte]): (Array[Byte], Array[Byte]) = {
-    val sk = hash(seed)
     val pk = Array.fill(pkBytes)(0: Byte)
+    val sk = seed.clone()
     sig.generatePublicKey(sk, 0, pk, 0)
     (sk, pk)
   }
