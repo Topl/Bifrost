@@ -1,5 +1,6 @@
 package co.topl.nodeView
 
+import akka.actor.PoisonPill
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.actor.typed.ActorRef
 import akka.actor.typed.eventstream.EventStream
@@ -13,14 +14,13 @@ import co.topl.settings.ChainReplicatorSettings
 import co.topl.tools.exporter.DataType
 import co.topl.utils.{InMemoryKeyFileTestHelper, TestSettings, TimeProvider}
 import com.mongodb.client.result.InsertManyResult
-import io.circe._
-import io.circe.parser._
 import org.bson.BsonValue
+import org.mongodb.scala.bson.Document
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.OptionValues
 import org.scalatest.flatspec.AnyFlatSpecLike
 
-import scala.collection.{mutable, AbstractIterator}
+import scala.collection.{AbstractIterator, mutable}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
@@ -61,12 +61,12 @@ class ChainReplicatorSpec
 
       Thread.sleep(0.5.seconds.toMillis)
 
-      spawn(
+      val chainRepRef = spawn(
         ChainReplicator(
           testIn.nodeViewHolderRef,
           () => checkValidationTest(),
           (start: Long, end: Long) => getExistingHeightsTest(start, end),
-          (eleSeq: Seq[(String, String)], dt: DataType) => insertDBTest(eleSeq, dt),
+          (eleSeq: Seq[Document], dt: DataType) => insertDBTest(eleSeq, dt),
           chainRepSettings
         ),
         ChainReplicator.actorName
@@ -74,12 +74,14 @@ class ChainReplicatorSpec
 
       Thread.sleep(1.seconds.toMillis)
       blockStore.size shouldBe blockNum + 1
+      chainRepRef ! ChainReplicator.ReceivableMessages.Terminate(new Exception("stopping first chain replicator"))
     }
   }
 
   it should "listen and send new blocks to the database" in {
     implicit val timeProvider: TimeProvider = mock[TimeProvider]
     val blockNum = 15
+    blockStore = scala.collection.mutable.Map[Long, String]()
 
     (() => timeProvider.time)
       .expects()
@@ -94,7 +96,7 @@ class ChainReplicatorSpec
           testIn.nodeViewHolderRef,
           () => checkValidationTest(),
           (start: Long, end: Long) => getExistingHeightsTest(start, end),
-          (eleSeq: Seq[(String, String)], dt: DataType) => insertDBTest(eleSeq, dt),
+          (eleSeq: Seq[Document], dt: DataType) => insertDBTest(eleSeq, dt),
           chainRepSettings
         ),
         ChainReplicator.actorName
@@ -117,24 +119,16 @@ class ChainReplicatorSpec
     Future.successful((start to end).filter(blockStore.contains(_)))
 
   private def insertDBTest(
-    eleSeq: Seq[(String, String)],
+    eleSeq: Seq[Document],
     dt:     DataType
   ): Future[InsertManyResult] = {
-    if (dt.name == "blocks")
-      eleSeq.collect(ele =>
-        parse(ele._2) match {
-          case Right(json) =>
-            val cursor: HCursor = json.hcursor
-            val pair = for {
-              blockId <- cursor.downField("id").as[String]
-              height  <- cursor.downField("height").as[Long]
-            } yield height -> blockId
-            pair match {
-              case Right(kv) => blockStore += kv
-              case Left(err) => throw err
-            }
-        }
-      )
+    if (dt.name == "blocks") {
+      eleSeq.foreach { ele =>
+        val id = ele.head._2.toString
+        val height = ele.toList(6)._2.asNumber().longValue()
+        blockStore += (height -> id)
+      }
+    }
     val insertedIds = Map[Integer, BsonValue]().asJava
     Future.successful(
       InsertManyResult.acknowledged(insertedIds)

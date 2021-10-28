@@ -21,6 +21,7 @@ import co.topl.tools.exporter.{DataType, MongoChainRepExport}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider
 import io.circe.Encoder
+import org.mongodb.scala.bson.Document
 
 import java.net.InetSocketAddress
 import scala.concurrent.Future
@@ -376,7 +377,7 @@ object Heimdall {
               state.nodeViewHolder,
               () => mongo.checkValidConnection(),
               (start: Long, end: Long) => mongo.getExistingHeights(start, end),
-              (eleSeq: Seq[(String, String)], dt: DataType) => mongo.insert(eleSeq, dt),
+              (eleSeq: Seq[Document], dt: DataType) => mongo.insert(eleSeq, dt),
               settings.chainReplicator
             ),
             ChainReplicator.actorName

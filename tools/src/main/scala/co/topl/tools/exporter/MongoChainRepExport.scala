@@ -1,9 +1,10 @@
 package co.topl.tools.exporter
 
+import org.mongodb.scala.MongoClient
+import org.mongodb.scala.bson.Document
 import org.mongodb.scala.model.Filters.{and, gte, lte}
-import org.mongodb.scala.model.{Projections, ReplaceOneModel, ReplaceOptions, WriteModel}
+import org.mongodb.scala.model.Projections
 import org.mongodb.scala.result.InsertManyResult
-import org.mongodb.scala.{BulkWriteResult, Document, MongoClient}
 
 import scala.concurrent.Future
 
@@ -16,13 +17,10 @@ class MongoChainRepExport(uri: String, database: String) {
 
   def checkValidConnection(): Future[Seq[String]] = db.listCollectionNames().toFuture()
 
-  def insert(eleSeq: Seq[(String, String)], dt: DataType): Future[InsertManyResult] = {
-    val docString = eleSeq.map(_._2)
-    db
-      .getCollection(dt.name)
-      .insertMany(docString.map(Document(_)))
-      .toFuture()
-  }
+  def insert(docSeq: Seq[Document], dt: DataType): Future[InsertManyResult] = db
+    .getCollection(dt.name)
+    .insertMany(docSeq)
+    .toFuture()
 
   def getExistingHeights(start: Long, end: Long): Future[Seq[Long]] = db
     .getCollection(DataType.Block.name)

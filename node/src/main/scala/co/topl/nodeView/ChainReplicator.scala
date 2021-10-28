@@ -9,9 +9,11 @@ import cats.implicits._
 import co.topl.modifier.block.Block
 import co.topl.nodeView.NodeViewHolder.Events.SemanticallySuccessfulModifier
 import co.topl.settings.ChainReplicatorSettings
-import co.topl.tool.Exporter.txFormat
 import co.topl.tools.exporter.DataType
-import io.circe.syntax.EncoderOps
+import co.topl.utils.mongodb.codecs._
+import co.topl.utils.mongodb.implicits._
+import co.topl.utils.mongodb.models.{BlockDataModel, TransactionDataModel}
+import org.mongodb.scala.bson.Document
 import org.mongodb.scala.result.InsertManyResult
 import org.slf4j.Logger
 
@@ -48,7 +50,7 @@ object ChainReplicator {
     nodeViewHolderRef:    ActorRef[NodeViewHolder.ReceivableMessage],
     checkDBConnection:    () => Future[Seq[String]],
     getExistingHeightsDB: (Long, Long) => Future[Seq[Long]],
-    insertDB:             (Seq[(String, String)], DataType) => Future[InsertManyResult],
+    insertDB:             (Seq[Document], DataType) => Future[InsertManyResult],
     settings:             ChainReplicatorSettings
   ): Behavior[ReceivableMessage] =
     Behaviors.withStash(stashSize) { buffer =>
@@ -80,7 +82,7 @@ private class ChainReplicator(
   nodeViewHolderRef:    ActorRef[NodeViewHolder.ReceivableMessage],
   buffer:               StashBuffer[ChainReplicator.ReceivableMessage],
   getExistingHeightsDB: (Long, Long) => Future[Seq[Long]],
-  insertDB:             (Seq[(String, String)], DataType) => Future[InsertManyResult],
+  insertDB:             (Seq[Document], DataType) => Future[InsertManyResult],
   settings:             ChainReplicatorSettings
 )(implicit
   context: ActorContext[ChainReplicator.ReceivableMessage]
@@ -88,7 +90,6 @@ private class ChainReplicator(
   implicit private val log: Logger = context.log
 
   import ChainReplicator._
-  import co.topl.tool.Exporter.blockEncoder
 
   /** The actor waits for the database check to complete, stops if chain repliactor is turned off in settings */
   def uninitialized: Behavior[ReceivableMessage] =
@@ -142,9 +143,6 @@ private class ChainReplicator(
                 log.info(
                   s"${Console.GREEN}Successfully inserted ${writeResults._1.getInsertedIds.size()} blocks " +
                   s"and ${writeResults._2.getInsertedIds.size()} transactions into AppView${Console.RESET}"
-                )
-                log.info(
-                  s"${Console.GREEN}${writeResults._2.getInsertedIds}${Console.RESET}}"
                 )
                 ReceivableMessages.CheckMissingBlocksDone(startHeight, endHeight, maxHeight)
               case Failure(err) =>
@@ -209,9 +207,7 @@ private class ChainReplicator(
    */
   private def exportBlocks(blocks: Seq[Block]): Future[InsertManyResult] = {
     implicit val ec: ExecutionContext = context.executionContext
-    val blocksString = blocks.map(_.asJson(blockEncoder).toString)
-    val blocksId = blocks.map(_.id.toString)
-    insertDB(blocksId.zip(blocksString), DataType.Block)
+    insertDB(blocks.map(BlockDataModel(_).asDocument), DataType.Block)
   }
 
   /**
@@ -221,12 +217,12 @@ private class ChainReplicator(
    */
   private def exportTransactions(blocks: Seq[Block]): Future[InsertManyResult] = {
     implicit val ec: ExecutionContext = context.executionContext
-    val txString = blocks.flatMap { b =>
+    val txDocs = blocks.flatMap { b =>
       b.transactions.map { tx =>
-        (tx.id.toString, txFormat(b, tx).toString)
+        TransactionDataModel(b.id.toString, b.height, tx).asDocument
       }
     }
-    insertDB(txString, DataType.Transaction)
+    insertDB(txDocs, DataType.Transaction)
   }
 
   /**
