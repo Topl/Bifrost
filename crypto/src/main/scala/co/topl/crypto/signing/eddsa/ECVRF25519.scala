@@ -72,6 +72,7 @@ class ECVRF25519 extends EC {
   8. pi_string = point_to_string(Gamma) || int_to_string(c, n) || int_to_string(s, qLen)
   9. Output pi_string
    */
+
   private[signing] def vrfProof(sk: Array[Byte], alpha: Array[Byte]): Array[Byte] = {
     assert(sk.length == SECRET_KEY_SIZE)
     // secret scalar
@@ -80,8 +81,8 @@ class ECVRF25519 extends EC {
     val pk = scalarMultBaseEncoded(x)
 //    assert(verifyKeyPair(sk, pk))
     val H: (PointAccum, Array[Byte]) = ECVRF_hash_to_curve_try_and_increment(pk, alpha)
-    val nonce = ECVRF_nonce_generation_RFC8032(sk, H._2)
-    assert(checkScalarVar(nonce))
+//    val nonce = ECVRF_nonce_generation_RFC8032(sk, H._2)
+//    assert(checkScalarVar(nonce))
     val gamma = new PointAccum
     decodeScalar(x, 0, np)
     decodeScalar(zeroScalar, 0, nb)
@@ -168,31 +169,35 @@ class ECVRF25519 extends EC {
   }
 
   /*
-  ECVRF_proof_to_hash(pi_string)
-  Input:
-  pi_string - VRF proof, octet string of length ptLen+n+qLen
-  Output:
-  "INVALID", or
-  beta_string - VRF hash output, octet string of length hLen
-  Important note:
-  ECVRF_proof_to_hash should be run only on pi_string that is known
-  to have been produced by ECVRF_prove, or from within ECVRF_verify
-  as specified in Section 5.3.
-  Steps:
-  1. D = ECVRF_decode_proof(pi_string)
-  2. If D is "INVALID", output "INVALID" and stop
-  3. (Gamma, c, s) = D
-  4. three_string = 0x03 = int_to_string(3, 1), a single octet with
-  value 3
-  5. beta_string = Hash(suite_string || three_string ||
-  point_to_string(cofactor * Gamma))
-  6. Output beta_string
+   ECVRF_proof_to_hash(pi_string)
+   Input:
+      pi_string - VRF proof, octet string of length ptLen+n+qLen
+   Output:
+      "INVALID", or
+      beta_string - VRF hash output, octet string of length hLen
+   Important note:
+      ECVRF_proof_to_hash should be run only on pi_string that is known
+      to have been produced by ECVRF_prove, or from within ECVRF_verify
+      as specified in Section 5.3.
+   Steps:
+   1.  D = ECVRF_decode_proof(pi_string) (see Section 5.4.4)
+   2.  If D is "INVALID", output "INVALID" and stop
+   3.  (Gamma, c, s) = D
+   4.  three_string = 0x03 = int_to_string(3, 1), a single octet with
+       value 3
+   5.  zero_string = 0x00 = int_to_string(0, 1), a single octet with
+       value 0
+   6.  beta_string = Hash(suite_string || three_string ||
+       point_to_string(cofactor * Gamma) || zero_string)
+   7.  Output beta_string
    */
+
   private[signing] def vrfProofToHash(pi: Array[Byte]): Array[Byte] = {
 //    assert(pi.length == PI_BYTES)
     val gamma_str = pi.take(POINT_BYTES)
 //    val c = pi.slice(POINT_BYTES, POINT_BYTES + C_BYTES) ++ Array.fill(SCALAR_BYTES - C_BYTES)(0x00.toByte)
 //    val s = pi.drop(POINT_BYTES + C_BYTES)
+    val zero = Array(0x00.toByte)
     val three = Array(0x03.toByte)
 //    assert(checkPointVar(gamma_str))
 //    assert(checkScalarVar(c))
@@ -205,7 +210,7 @@ class ECVRF25519 extends EC {
     scalarMultStraussVar(nb, np, gamma, cg)
     val cg_enc = Array.fill(POINT_BYTES)(0x00.toByte)
     encodePoint(cg, cg_enc, 0)
-    val input = suite ++ three ++ cg_enc
+    val input = suite ++ three ++ cg_enc ++ zero
     val out = new Array[Byte](sha512Digest.getDigestSize)
     sha512Digest.update(input, 0, input.length)
     sha512Digest.doFinal(out, 0)
@@ -277,39 +282,45 @@ class ECVRF25519 extends EC {
 
   /*
   NOTE: This method leads to side channel attack (timing attack) if alpha is a secret
-  ECVRF_hash_to_try_and_increment(suite_string, Y, alpha_string)
-  Input:
-  suite_string - a single octet specifying ECVRF ciphersuite.
-  Y - public key, an EC point
-  alpha_string - value to be hashed, an octet string
-  Output:
-  H - hashed value, a finite EC point in G
-  Steps:
-  1. ctr = 0
-  2. PK_string = point_to_string(Y)
-  3. one_string = 0x01 = int_to_string(1, 1), a single octet with
-  value 1
-  4. H = "INVALID"
-  5. While H is "INVALID" or H is EC point at infinity:
-  6.
-  A. ctr_string = int_to_string(ctr, 1)
-  B. hash_string = Hash(suite_string || one_string || PK_string ||
-  alpha_string || ctr_string)
-  C. H = arbitrary_string_to_point(hash_string)
-  D. If H is not "INVALID" and cofactor > 1, set H = cofactor * H
-  E. ctr = ctr + 1
-  Output H
+  ECVRF_hash_to_try_and_increment(Y, alpha_string)
+   Input:
+      Y - public key, an EC point
+      alpha_string - value to be hashed, an octet string
+   Output:
+      H - hashed value, a finite EC point in G
+   Fixed option (specified in Section 5.5):
+      arbitrary_string_to_point - conversion of an arbitrary octet
+      string to an EC point.
+   Steps:
+   1.  ctr = 0
+   2.  PK_string = point_to_string(Y)
+   3.  one_string = 0x01 = int_to_string(1, 1), a single octet with
+       value 1
+   4.  zero_string = 0x00 = int_to_string(0, 1), a single octet with
+       value 0
+   5.  H = "INVALID"
+   6.  While H is "INVALID" or H is the identity element of the elliptic
+       curve group:
+       A.  ctr_string = int_to_string(ctr, 1)
+       B.  hash_string = Hash(suite_string || one_string || PK_string ||
+           alpha_string || ctr_string || zero_string)
+       C.  H = arbitrary_string_to_point(hash_string)
+       D.  If H is not "INVALID" and cofactor > 1, set H = cofactor * H
+       E.  ctr = ctr + 1
+   7.  Output H
    */
+
   private def ECVRF_hash_to_curve_try_and_increment(Y: Array[Byte], a: Array[Byte]): (PointAccum, Array[Byte]) = {
     var ctr = 0
     val one = Array(0x01.toByte)
+    val zero = Array(0x00.toByte)
     val hash: Array[Byte] = new Array[Byte](POINT_BYTES)
     val H = new PointExt
     val HR = new PointAccum
     var isPoint = false
     while (!isPoint) {
       val ctr_byte = Array(ctr.toByte)
-      val input = suite ++ one ++ Y ++ a ++ ctr_byte
+      val input = suite ++ one ++ Y ++ a ++ ctr_byte ++ zero
       val output = new Array[Byte](sha512Digest.getDigestSize)
       sha512Digest.update(input, 0, input.length)
       sha512Digest.doFinal(output, 0)
@@ -328,23 +339,28 @@ class ECVRF25519 extends EC {
   }
 
   /*
-  ECVRF_hash_points(P1, P2, ..., PM)
-  Input:
-  P1...PM - EC points in G
-  Output:
-  c - hash value, integer between 0 and 2^(8n)-1
-  Steps:
-  1. two_string = 0x02 = int_to_string(2, 1), a single octet with
-  value 2
-  2. Initialize str = suite_string || two_string
-  3. for PJ in [P1, P2, ... PM]:
-  str = str || point_to_string(PJ)
-  4. c_string = Hash(str)
-  5. truncated_c_string = c_string[0]...c_string[n-1]
-  6. c = string_to_int(truncated_c_string)
-  7. Output c
+   ECVRF_hash_points(P1, P2, ..., PM)
+   Input:
+      P1...PM - EC points in G
+   Output:
+      c - hash value, integer between 0 and 2^(8n)-1
+   Steps:
+   1.  two_string = 0x02 = int_to_string(2, 1), a single octet with
+       value 2
+   2.  Initialize str = suite_string || two_string
+   3.  for PJ in [P1, P2, ... PM]:
+       str = str || point_to_string(PJ)
+   4.  zero_string = 0x00 = int_to_string(0, 1), a single octet with
+       value 0
+   5.  str = str || zero_string
+   6.  c_string = Hash(str)
+   7.  truncated_c_string = c_string[0]...c_string[n-1]
+   8.  c = string_to_int(truncated_c_string)
+   9.  Output c
    */
+
   private def ECVRF_hash_points(p1: PointAccum, p2: PointAccum, p3: PointAccum, p4: PointAccum): Array[Byte] = {
+    val zero: Array[Byte] = Array(0x00.toByte)
     val two: Array[Byte] = Array(0x02.toByte)
     var str: Array[Byte] = suite ++ two
     val r: Array[Byte] = Array.fill(POINT_BYTES)(0x00.toByte)
@@ -357,6 +373,7 @@ class ECVRF25519 extends EC {
     str = str ++ r
     encodePoint(p4, r, 0)
     str = str ++ r
+    str = str ++ zero
     sha512Digest.update(str, 0, str.length)
     sha512Digest.doFinal(out, 0)
     out.take(C_BYTES) ++ Array.fill(SCALAR_BYTES - C_BYTES)(0x00.toByte)
