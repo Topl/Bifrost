@@ -1,7 +1,9 @@
 package co.topl.tools.exporter
 
+import co.topl.utils.mongodb.DocumentEncoder
 import org.mongodb.scala.result.InsertManyResult
 import org.mongodb.scala.{Document, MongoClient, MongoDatabase}
+import co.topl.utils.mongodb.implicits._
 
 import scala.concurrent.Future
 
@@ -15,9 +17,9 @@ class MongoExport(uri: String, database: String, collection: String, dt: DataTyp
 
   private def createDatabase(db: String): MongoDatabase = client.getDatabase(db)
 
-  override def insert(ele: Seq[String]): Future[InsertManyResult] = db
+  override def insert[T: DocumentEncoder](ele: Seq[T]): Future[InsertManyResult] = db
     .getCollection(collection)
-    .insertMany(ele.map(Document(_)))
+    .insertMany(ele.map(_.asDocument))
     .toFuture()
 
   override def close(): Unit = client.close()
