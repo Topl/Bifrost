@@ -23,6 +23,7 @@ object Prover {
   def apply[T, Prf <: Proof](implicit p: Prover[T, Prf]): Prover[T, Prf] = p
 
   trait Instances {
+
     implicit val ed25519Proves: Prover[SecretKeys.Ed25519, Proofs.Signature.Ed25519] =
       new Prover[SecretKeys.Ed25519, Proofs.Signature.Ed25519] {
 

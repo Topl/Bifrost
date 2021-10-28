@@ -3,6 +3,7 @@ package co.topl.models.utility
 sealed trait KesBinaryTree
 
 object KesBinaryTree {
+
   case class MerkleNode(
     seed:         Array[Byte],
     witnessLeft:  Array[Byte],

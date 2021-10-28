@@ -1,7 +1,7 @@
 package co.topl.crypto.signing.kes
 
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.crypto.hash.{Blake2b, Blake2bHash, Hash, digest}
+import co.topl.crypto.hash.{digest, Blake2b, Blake2bHash, Hash}
 import co.topl.crypto.signing.eddsa.Ed25519
 import co.topl.models.utility.KesBinaryTree
 import co.topl.models.utility.KesBinaryTree.{Empty, MerkleNode, SigningLeaf}

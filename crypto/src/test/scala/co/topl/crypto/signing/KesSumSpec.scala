@@ -93,8 +93,8 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
     )
 
     val (sk, vk) = kesSum.createKeyPair(specIn_seed, specIn_height, 0)
-    val sk_1 = kesSum.update(sk,1)
-    val sig_1 = kesSum.sign(sk_1,specIn_msg)
+    val sk_1 = kesSum.update(sk, 1)
+    val sig_1 = kesSum.sign(sk_1, specIn_msg)
     val vk_1 = kesSum.getVerificationKey(sk_1)
     vk shouldBe specOut_vk
     sig_1 shouldBe specOut_sig_1
@@ -154,17 +154,16 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
       )
     )
 
-
     val (sk, vk) = kesSum.createKeyPair(specIn_seed, specIn_height, 0)
     val sig_0 = kesSum.sign(sk, specIn_msg)
-    val sk_1 = kesSum.update(sk,1)
-    val sig_1 = kesSum.sign(sk_1,specIn_msg)
+    val sk_1 = kesSum.update(sk, 1)
+    val sig_1 = kesSum.sign(sk_1, specIn_msg)
     val vk_1 = kesSum.getVerificationKey(sk_1)
-    val sk_2 = kesSum.update(sk_1,2)
-    val sig_2 = kesSum.sign(sk_2,specIn_msg)
+    val sk_2 = kesSum.update(sk_1, 2)
+    val sig_2 = kesSum.sign(sk_2, specIn_msg)
     val vk_2 = kesSum.getVerificationKey(sk_2)
-    val sk_3 = kesSum.update(sk_2,3)
-    val sig_3 = kesSum.sign(sk_3,specIn_msg)
+    val sk_3 = kesSum.update(sk_2, 3)
+    val sig_3 = kesSum.sign(sk_3, specIn_msg)
     val vk_3 = kesSum.getVerificationKey(sk_3)
     vk shouldBe specOut_vk
     sig_0 shouldBe specOut_sig_0
@@ -234,17 +233,16 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
       )
     )
 
-
     val (sk, vk) = kesSum.createKeyPair(specIn_seed, specIn_height, 0)
     val sig_0 = kesSum.sign(sk, specIn_msg)
-    val sk_1 = kesSum.update(sk,2)
-    val sig_1 = kesSum.sign(sk_1,specIn_msg)
+    val sk_1 = kesSum.update(sk, 2)
+    val sig_1 = kesSum.sign(sk_1, specIn_msg)
     val vk_1 = kesSum.getVerificationKey(sk_1)
-    val sk_2 = kesSum.update(sk_1,5)
-    val sig_2 = kesSum.sign(sk_2,specIn_msg)
+    val sk_2 = kesSum.update(sk_1, 5)
+    val sig_2 = kesSum.sign(sk_2, specIn_msg)
     val vk_2 = kesSum.getVerificationKey(sk_2)
-    val sk_3 = kesSum.update(sk_2,7)
-    val sig_3 = kesSum.sign(sk_3,specIn_msg)
+    val sk_3 = kesSum.update(sk_2, 7)
+    val sig_3 = kesSum.sign(sk_3, specIn_msg)
     val vk_3 = kesSum.getVerificationKey(sk_3)
     vk shouldBe specOut_vk
     sig_0 shouldBe specOut_sig_0
@@ -318,17 +316,16 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
       )
     )
 
-
     val (sk, vk) = kesSum.createKeyPair(specIn_seed, specIn_height, 0)
     val sig_0 = kesSum.sign(sk, specIn_msg)
-    val sk_1 = kesSum.update(sk,5)
-    val sig_1 = kesSum.sign(sk_1,specIn_msg)
+    val sk_1 = kesSum.update(sk, 5)
+    val sig_1 = kesSum.sign(sk_1, specIn_msg)
     val vk_1 = kesSum.getVerificationKey(sk_1)
-    val sk_2 = kesSum.update(sk_1,10)
-    val sig_2 = kesSum.sign(sk_2,specIn_msg)
+    val sk_2 = kesSum.update(sk_1, 10)
+    val sig_2 = kesSum.sign(sk_2, specIn_msg)
     val vk_2 = kesSum.getVerificationKey(sk_2)
-    val sk_3 = kesSum.update(sk_2,15)
-    val sig_3 = kesSum.sign(sk_3,specIn_msg)
+    val sk_3 = kesSum.update(sk_2, 15)
+    val sig_3 = kesSum.sign(sk_3, specIn_msg)
     val vk_3 = kesSum.getVerificationKey(sk_3)
     vk shouldBe specOut_vk
     sig_0 shouldBe specOut_sig_0
@@ -406,17 +403,16 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
       )
     )
 
-
     val (sk, vk) = kesSum.createKeyPair(specIn_seed, specIn_height, 0)
     val sig_0 = kesSum.sign(sk, specIn_msg)
-    val sk_1 = kesSum.update(sk,10)
-    val sig_1 = kesSum.sign(sk_1,specIn_msg)
+    val sk_1 = kesSum.update(sk, 10)
+    val sig_1 = kesSum.sign(sk_1, specIn_msg)
     val vk_1 = kesSum.getVerificationKey(sk_1)
-    val sk_2 = kesSum.update(sk_1,21)
-    val sig_2 = kesSum.sign(sk_2,specIn_msg)
+    val sk_2 = kesSum.update(sk_1, 21)
+    val sig_2 = kesSum.sign(sk_2, specIn_msg)
     val vk_2 = kesSum.getVerificationKey(sk_2)
-    val sk_3 = kesSum.update(sk_2,31)
-    val sig_3 = kesSum.sign(sk_3,specIn_msg)
+    val sk_3 = kesSum.update(sk_2, 31)
+    val sig_3 = kesSum.sign(sk_3, specIn_msg)
     val vk_3 = kesSum.getVerificationKey(sk_3)
     vk shouldBe specOut_vk
     sig_0 shouldBe specOut_sig_0

@@ -47,12 +47,15 @@ object Bip32Index {
 
 object Bip32Indexes {
   case class SoftIndex private (override val value: Long) extends Bip32Index
+
   object SoftIndex {
     def apply(value: Long): SoftIndex = if (value >= 0) new SoftIndex(value) else new SoftIndex(0)
   }
 
   case class HardenedIndex private (override val value: Long) extends Bip32Index
+
   object HardenedIndex {
+
     def apply(value: Long): HardenedIndex =
       if (value >= 0) new HardenedIndex(value + Bip32Index.hardenedOffset)
       else new HardenedIndex(0 + Bip32Index.hardenedOffset)

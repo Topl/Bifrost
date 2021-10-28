@@ -53,9 +53,9 @@ class KesProductSpec
     val specIn_msg = "6d657373616765".hexStringToBytes
 
     val specOut_vk = VerificationKeys.KesProduct(
-        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
-        specIn_time
-      )
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      specIn_time
+    )
     val specOut_sig = Proofs.Signature.KesProduct(
       Proofs.Signature.KesSum(
         VerificationKeys.Ed25519("0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes),
@@ -87,7 +87,7 @@ class KesProductSpec
           "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
         )
       ),
-      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
     )
 
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
@@ -105,9 +105,9 @@ class KesProductSpec
     val specIn_msg = "6d657373616765".hexStringToBytes
 
     val specOut_vk = VerificationKeys.KesProduct(
-        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
-        specIn_time
-      )
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      specIn_time
+    )
     val specOut_sig = Proofs.Signature.KesProduct(
       Proofs.Signature.KesSum(
         VerificationKeys.Ed25519("0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes),
@@ -139,7 +139,7 @@ class KesProductSpec
           "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
         )
       ),
-      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
     )
 
     val (sk0, _) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
@@ -159,9 +159,9 @@ class KesProductSpec
     val specIn_msg = "6d657373616765".hexStringToBytes
 
     val specOut_vk = VerificationKeys.KesProduct(
-        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
-        specIn_time
-      )
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      specIn_time
+    )
     val specOut_sig = Proofs.Signature.KesProduct(
       Proofs.Signature.KesSum(
         VerificationKeys.Ed25519("0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes),
@@ -193,7 +193,7 @@ class KesProductSpec
           "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
         )
       ),
-      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
     )
 
     val (sk0, _) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
@@ -213,9 +213,9 @@ class KesProductSpec
     val specIn_msg = "6d657373616765".hexStringToBytes
 
     val specOut_vk = VerificationKeys.KesProduct(
-        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
-        specIn_time
-      )
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      specIn_time
+    )
     val specOut_sig = Proofs.Signature.KesProduct(
       Proofs.Signature.KesSum(
         VerificationKeys.Ed25519("0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes),
@@ -247,7 +247,7 @@ class KesProductSpec
           "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
         )
       ),
-      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
     )
 
     val (sk0, _) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
@@ -267,9 +267,9 @@ class KesProductSpec
     val specIn_msg = "6d657373616765".hexStringToBytes
 
     val specOut_vk = VerificationKeys.KesProduct(
-        "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
-        specIn_time
-      )
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      specIn_time
+    )
     val specOut_sig = Proofs.Signature.KesProduct(
       Proofs.Signature.KesSum(
         VerificationKeys.Ed25519("0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes),
@@ -301,7 +301,7 @@ class KesProductSpec
           "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
         )
       ),
-      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
     )
 
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
@@ -353,11 +353,11 @@ class KesProductSpec
           "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
         )
       ),
-      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
     )
 
     val (sk0, _) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
-    val sk = kesProduct.update(sk0,specIn_time)
+    val sk = kesProduct.update(sk0, specIn_time)
     val vk = kesProduct.getVerificationKey(sk)
     val sig = kesProduct.sign(sk, specIn_msg)
 
@@ -407,7 +407,7 @@ class KesProductSpec
           "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
         )
       ),
-      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
     )
 
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
@@ -459,7 +459,7 @@ class KesProductSpec
           "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
         )
       ),
-      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
     )
 
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
@@ -511,7 +511,7 @@ class KesProductSpec
           "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
         )
       ),
-      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
     )
 
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
@@ -563,7 +563,7 @@ class KesProductSpec
           "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
         )
       ),
-      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
     )
 
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
@@ -615,7 +615,7 @@ class KesProductSpec
           "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
         )
       ),
-      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
     )
 
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
@@ -667,7 +667,7 @@ class KesProductSpec
           "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
         )
       ),
-      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
     )
 
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
@@ -719,7 +719,7 @@ class KesProductSpec
           "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
         )
       ),
-      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
     )
 
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
@@ -771,7 +771,7 @@ class KesProductSpec
           "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
         )
       ),
-      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
     )
 
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
@@ -823,7 +823,7 @@ class KesProductSpec
           "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
         )
       ),
-      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
     )
 
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
@@ -875,7 +875,7 @@ class KesProductSpec
           "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
         )
       ),
-      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
     )
 
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
@@ -927,7 +927,7 @@ class KesProductSpec
           "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
         )
       ),
-      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
     )
 
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
@@ -979,7 +979,7 @@ class KesProductSpec
           "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
         )
       ),
-      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
     )
 
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
@@ -1031,7 +1031,7 @@ class KesProductSpec
           "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
         )
       ),
-      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
     )
 
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
@@ -1083,7 +1083,7 @@ class KesProductSpec
           "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
         )
       ),
-      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes,
+      "0000000000000000000000000000000000000000000000000000000000000000".unsafeStrictBytes
     )
 
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)

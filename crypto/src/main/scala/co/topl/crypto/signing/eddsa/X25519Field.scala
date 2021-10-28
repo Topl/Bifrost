@@ -18,8 +18,8 @@ class X25519Field {
   private[signing] val M25 = 0x01ffffff
   private[signing] val M26 = 0x03ffffff
 
-  private[signing] val ROOT_NEG_ONE: Array[Int] = Array[Int](0x020ea0b0, 0x0386c9d2, 0x00478c4e, 0x0035697f, 0x005e8630, 0x01fbd7a7,
-    0x0340264f, 0x01f0b2b4, 0x00027e0e, 0x00570649)
+  private[signing] val ROOT_NEG_ONE: Array[Int] = Array[Int](0x020ea0b0, 0x0386c9d2, 0x00478c4e, 0x0035697f, 0x005e8630,
+    0x01fbd7a7, 0x0340264f, 0x01f0b2b4, 0x00027e0e, 0x00570649)
 
   private[signing] def add(x: Array[Int], y: Array[Int], z: Array[Int]): Unit =
     for (i <- 0 until SIZE)

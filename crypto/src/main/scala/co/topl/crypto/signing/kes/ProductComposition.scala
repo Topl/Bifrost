@@ -67,10 +67,9 @@ class ProductComposition extends KesEd25519Blake2b256 {
     val newKeyTimeSub = step % totalStepsSub
 
     @tailrec
-    def getSeed(seeds: (Array[Byte], Array[Byte]), iter: Int): (Array[Byte], Array[Byte]) = {
+    def getSeed(seeds: (Array[Byte], Array[Byte]), iter: Int): (Array[Byte], Array[Byte]) =
       if (iter < newKeyTimeSup) getSeed(prng(seeds._2), iter + 1)
       else seeds
-    }
 
     if (step == 0) key
     else if (step > keyTime && step < totalSteps) {

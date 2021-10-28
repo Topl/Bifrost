@@ -90,8 +90,8 @@ class SumComposition extends KesEd25519Blake2b256 {
         case MerkleNode(seed, witL, witR, nodeL, nodeR) =>
           eraseOldNode(nodeR)
           MerkleNode(seed, witL, witR, reduceTree(nodeL), Empty)
-        case leaf: SigningLeaf                      => leaf
-        case _                                      => Empty
+        case leaf: SigningLeaf => leaf
+        case _                 => Empty
       }
 
     //executes the above functions in order
@@ -118,22 +118,22 @@ class SumComposition extends KesEd25519Blake2b256 {
     }
   }
 
-  private def eraseOldNode(node: KesBinaryTree): Unit = {
+  private def eraseOldNode(node: KesBinaryTree): Unit =
     node match {
       case merkleNode: MerkleNode =>
         random.nextBytes(merkleNode.seed)
         random.nextBytes(merkleNode.witnessLeft)
         random.nextBytes(merkleNode.witnessRight)
         merkleNode.left match {
-          case l:MerkleNode => eraseOldNode(l)
-          case l:SigningLeaf =>
+          case l: MerkleNode => eraseOldNode(l)
+          case l: SigningLeaf =>
             random.nextBytes(l.sk)
             random.nextBytes(l.vk)
           case _ =>
         }
         merkleNode.right match {
-          case r:MerkleNode => eraseOldNode(r)
-          case r:SigningLeaf =>
+          case r: MerkleNode => eraseOldNode(r)
+          case r: SigningLeaf =>
             random.nextBytes(r.sk)
             random.nextBytes(r.vk)
           case _ =>
@@ -143,8 +143,6 @@ class SumComposition extends KesEd25519Blake2b256 {
         random.nextBytes(leaf.vk)
       case _ =>
     }
-
-  }
 
   /**
    * Evolves key a specified number of steps
@@ -156,7 +154,8 @@ class SumComposition extends KesEd25519Blake2b256 {
     if (step >= halfTotalSteps) {
       input match {
         case MerkleNode(seed, witL, witR, oldLeaf: SigningLeaf, Empty) =>
-          val newNode = MerkleNode(Array.fill(seed.length)(0: Byte), witL, witR, Empty, SigningLeaf.tupled(sGenKeypair(seed)))
+          val newNode =
+            MerkleNode(Array.fill(seed.length)(0: Byte), witL, witR, Empty, SigningLeaf.tupled(sGenKeypair(seed)))
           eraseOldNode(oldLeaf)
           random.nextBytes(seed)
           newNode

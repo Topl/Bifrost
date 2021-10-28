@@ -4,10 +4,11 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
-class MnemonicToExtendedEd25519     extends AnyFlatSpec
-  with ScalaCheckPropertyChecks
-  with ScalaCheckDrivenPropertyChecks
-  with Matchers {
+class MnemonicToExtendedEd25519
+    extends AnyFlatSpec
+    with ScalaCheckPropertyChecks
+    with ScalaCheckDrivenPropertyChecks
+    with Matchers {
 
 //  "Key from mnemonic phrase" should "output same the key with the same password" in {
 //    val createKey =

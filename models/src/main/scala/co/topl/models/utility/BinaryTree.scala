@@ -1,6 +1,6 @@
 package co.topl.models.utility
 
-import co.topl.models.utility.BinaryTree.{Leaf, Node, Empty}
+import co.topl.models.utility.BinaryTree.{Empty, Leaf, Node}
 
 import scala.language.postfixOps
 
@@ -59,7 +59,9 @@ trait BinaryTree[+A] {
    * represents common functionality of all traversal order folds
    */
   @tailrec
-  private def foldLoop[A, B](a: List[BinaryTree[A]], z: B)(f: (B, A) => B)(o: (Node[A], List[BinaryTree[A]]) => List[BinaryTree[A]]): B =
+  private def foldLoop[A, B](a: List[BinaryTree[A]], z: B)(
+    f:                          (B, A) => B
+  )(o:                          (Node[A], List[BinaryTree[A]]) => List[BinaryTree[A]]): B =
     a match {
       case (n: Node[A]) :: tl =>
         foldLoop(o(n, tl), z)(f)(o) // never directly evaluate nodes, function o will create new accumulator
@@ -297,5 +299,3 @@ object BinaryTree {
   case class Leaf[T](v: T) extends BinaryTree[T]
   case object Empty extends BinaryTree[Nothing]
 }
-
-

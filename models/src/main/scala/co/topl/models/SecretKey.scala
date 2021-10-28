@@ -47,7 +47,7 @@ object SecretKeys {
     subTree:      KesBinaryTree,
     nextSubSeed:  Sized.Strict[Bytes, KesProduct.SeedLength],
     subSignature: Proofs.Signature.KesSum,
-    offset: Long
+    offset:       Long
   ) extends SecretKey
 
   object KesProduct {
