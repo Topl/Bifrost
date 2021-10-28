@@ -12,7 +12,7 @@ import co.topl.settings.ChainReplicatorSettings
 import co.topl.tool.Exporter.txFormat
 import co.topl.tools.exporter.DataType
 import io.circe.syntax.EncoderOps
-import org.mongodb.scala.BulkWriteResult
+import org.mongodb.scala.result.InsertManyResult
 import org.slf4j.Logger
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -48,7 +48,7 @@ object ChainReplicator {
     nodeViewHolderRef:    ActorRef[NodeViewHolder.ReceivableMessage],
     checkDBConnection:    () => Future[Seq[String]],
     getExistingHeightsDB: (Long, Long) => Future[Seq[Long]],
-    replaceInsertDB:      (Seq[(String, String)], String, DataType) => Future[BulkWriteResult],
+    insertDB:             (Seq[(String, String)], DataType) => Future[InsertManyResult],
     settings:             ChainReplicatorSettings
   ): Behavior[ReceivableMessage] =
     Behaviors.withStash(stashSize) { buffer =>
@@ -70,7 +70,7 @@ object ChainReplicator {
           case Failure(e) => ReceivableMessages.Terminate(e)
         }
 
-        new ChainReplicator(nodeViewHolderRef, buffer, getExistingHeightsDB, replaceInsertDB, settings).uninitialized
+        new ChainReplicator(nodeViewHolderRef, buffer, getExistingHeightsDB, insertDB, settings).uninitialized
 
       }
     }
@@ -80,7 +80,7 @@ private class ChainReplicator(
   nodeViewHolderRef:    ActorRef[NodeViewHolder.ReceivableMessage],
   buffer:               StashBuffer[ChainReplicator.ReceivableMessage],
   getExistingHeightsDB: (Long, Long) => Future[Seq[Long]],
-  replaceInsertDB:      (Seq[(String, String)], String, DataType) => Future[BulkWriteResult],
+  insertDB:             (Seq[(String, String)], DataType) => Future[InsertManyResult],
   settings:             ChainReplicatorSettings
 )(implicit
   context: ActorContext[ChainReplicator.ReceivableMessage]
@@ -130,18 +130,21 @@ private class ChainReplicator(
         checkRange.head match {
           case (startHeight, endHeight) =>
             val existingHeightsFuture = getExistingHeightsDB(startHeight, endHeight)
-            val exportResult: OptionT[Future, (BulkWriteResult, BulkWriteResult)] = for {
+            val exportResult: OptionT[Future, (InsertManyResult, InsertManyResult)] = for {
               existingHeights  <- OptionT[Future, Seq[Long]](existingHeightsFuture.map(_.some))
               blocksToAdd      <- OptionT[Future, Seq[Block]](missingBlocks(startHeight, endHeight, existingHeights))
-              blockWriteResult <- OptionT[Future, BulkWriteResult](exportBlocks(blocksToAdd).map(_.some))
-              txWriteResult    <- OptionT[Future, BulkWriteResult](exportTransactions(blocksToAdd).map(_.some))
+              blockWriteResult <- OptionT[Future, InsertManyResult](exportBlocks(blocksToAdd).map(_.some))
+              txWriteResult    <- OptionT[Future, InsertManyResult](exportTransactions(blocksToAdd).map(_.some))
             } yield (blockWriteResult, txWriteResult)
 
             context.pipeToSelf(exportResult.value) {
               case Success(Some(writeResults)) =>
                 log.info(
-                  s"${Console.GREEN}Successfully inserted ${writeResults._1.getUpserts.size()} blocks " +
-                  s"and ${writeResults._2.getUpserts.size()} transactions into AppView${Console.RESET}"
+                  s"${Console.GREEN}Successfully inserted ${writeResults._1.getInsertedIds.size()} blocks " +
+                  s"and ${writeResults._2.getInsertedIds.size()} transactions into AppView${Console.RESET}"
+                )
+                log.info(
+                  s"${Console.GREEN}${writeResults._2.getInsertedIds}${Console.RESET}}"
                 )
                 ReceivableMessages.CheckMissingBlocksDone(startHeight, endHeight, maxHeight)
               case Failure(err) =>
@@ -187,7 +190,7 @@ private class ChainReplicator(
         res.onComplete {
           case Success(writeResults) =>
             log.info(
-              s"${Console.GREEN}Added a block and ${writeResults._2.getUpserts.size()} " +
+              s"${Console.GREEN}Added a block and ${writeResults._2.getInsertedIds.size()} " +
               s"transactions to appView at height: ${block.height}${Console.RESET}"
             )
           case Failure(err) =>
@@ -204,11 +207,11 @@ private class ChainReplicator(
    * @param blocks sequence of blocks to be inserted in AppView
    * @return Insertion result from the database
    */
-  private def exportBlocks(blocks: Seq[Block]): Future[BulkWriteResult] = {
+  private def exportBlocks(blocks: Seq[Block]): Future[InsertManyResult] = {
     implicit val ec: ExecutionContext = context.executionContext
     val blocksString = blocks.map(_.asJson(blockEncoder).toString)
     val blocksId = blocks.map(_.id.toString)
-    replaceInsertDB(blocksId.zip(blocksString), "id", DataType.Block)
+    insertDB(blocksId.zip(blocksString), DataType.Block)
   }
 
   /**
@@ -216,14 +219,14 @@ private class ChainReplicator(
    * @param blocks sequence of blocks that need transactions inserted in AppView
    * @return Insertion result from the database
    */
-  private def exportTransactions(blocks: Seq[Block]): Future[BulkWriteResult] = {
+  private def exportTransactions(blocks: Seq[Block]): Future[InsertManyResult] = {
     implicit val ec: ExecutionContext = context.executionContext
     val txString = blocks.flatMap { b =>
       b.transactions.map { tx =>
         (tx.id.toString, txFormat(b, tx).toString)
       }
     }
-    replaceInsertDB(txString, "txId", DataType.Transaction)
+    insertDB(txString, DataType.Transaction)
   }
 
   /**

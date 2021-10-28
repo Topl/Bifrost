@@ -376,8 +376,8 @@ object Heimdall {
               state.nodeViewHolder,
               () => mongo.checkValidConnection(),
               (start: Long, end: Long) => mongo.getExistingHeights(start, end),
-              (eleSeq: Seq[(String, String)], filterField: String, dt: DataType) =>
-                mongo.replaceInsert(eleSeq, filterField, dt),
+              (eleSeq: Seq[(String, String)], dt: DataType) =>
+                mongo.insert(eleSeq, dt),
               settings.chainReplicator
             ),
             ChainReplicator.actorName

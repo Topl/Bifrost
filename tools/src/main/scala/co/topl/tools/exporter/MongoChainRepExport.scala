@@ -2,6 +2,7 @@ package co.topl.tools.exporter
 
 import org.mongodb.scala.model.Filters.{and, gte, lte}
 import org.mongodb.scala.model.{Projections, ReplaceOneModel, ReplaceOptions, WriteModel}
+import org.mongodb.scala.result.InsertManyResult
 import org.mongodb.scala.{BulkWriteResult, Document, MongoClient}
 
 import scala.concurrent.Future
@@ -15,13 +16,12 @@ class MongoChainRepExport(uri: String, database: String) {
 
   def checkValidConnection(): Future[Seq[String]] = db.listCollectionNames().toFuture()
 
-  def replaceInsert(eleSeq: Seq[(String, String)], filterField: String, dt: DataType): Future[BulkWriteResult] = {
-    val updateOpt: ReplaceOptions = ReplaceOptions().upsert(true)
-    val writes: List[WriteModel[_ <: Document]] =
-      eleSeq.map { case (id, modifierString) =>
-        ReplaceOneModel(Document(filterField -> id), Document(modifierString), updateOpt)
-      }.toList
-    db.getCollection(dt.name).bulkWrite(writes).toFuture()
+  def insert(eleSeq: Seq[(String, String)], dt: DataType): Future[InsertManyResult] = {
+    val docString = eleSeq.map(_._2)
+    db
+      .getCollection(dt.name)
+      .insertMany(docString.map(Document(_)))
+      .toFuture()
   }
 
   def getExistingHeights(start: Long, end: Long): Future[Seq[Long]] = db

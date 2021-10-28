@@ -12,15 +12,16 @@ import co.topl.nodeView.NodeViewTestHelpers.TestIn
 import co.topl.settings.ChainReplicatorSettings
 import co.topl.tools.exporter.DataType
 import co.topl.utils.{InMemoryKeyFileTestHelper, TestSettings, TimeProvider}
-import com.mongodb.bulk.{BulkWriteResult, BulkWriteUpsert}
+import com.mongodb.client.result.InsertManyResult
 import io.circe._
 import io.circe.parser._
-import org.mongodb.scala.bson.BsonInt32
+import org.bson.BsonValue
+import org.mongodb.scala.bson.{BsonInt32, BsonObjectId}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.OptionValues
 import org.scalatest.flatspec.AnyFlatSpecLike
 
-import scala.collection.{mutable, AbstractIterator}
+import scala.collection.{AbstractIterator, mutable}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
@@ -66,8 +67,7 @@ class ChainReplicatorSpec
           testIn.nodeViewHolderRef,
           () => checkValidationTest(),
           (start: Long, end: Long) => getExistingHeightsTest(start, end),
-          (eleSeq: Seq[(String, String)], filterField: String, dt: DataType) =>
-            replaceInsertTest(eleSeq, filterField, dt),
+          (eleSeq: Seq[(String, String)], dt: DataType) => insertDBTest(eleSeq, dt),
           chainRepSettings
         ),
         ChainReplicator.actorName
@@ -95,8 +95,7 @@ class ChainReplicatorSpec
           testIn.nodeViewHolderRef,
           () => checkValidationTest(),
           (start: Long, end: Long) => getExistingHeightsTest(start, end),
-          (eleSeq: Seq[(String, String)], filterField: String, dt: DataType) =>
-            replaceInsertTest(eleSeq, filterField, dt),
+          (eleSeq: Seq[(String, String)], dt: DataType) => insertDBTest(eleSeq, dt),
           chainRepSettings
         ),
         ChainReplicator.actorName
@@ -118,11 +117,10 @@ class ChainReplicatorSpec
   private def getExistingHeightsTest(start: Long, end: Long): Future[Seq[Long]] =
     Future.successful((start to end).filter(blockStore.contains(_)))
 
-  private def replaceInsertTest(
-    eleSeq:      Seq[(String, String)],
-    filterField: String,
-    dt:          DataType
-  ): Future[BulkWriteResult] = {
+  private def insertDBTest(
+    eleSeq: Seq[(String, String)],
+    dt:     DataType
+  ): Future[InsertManyResult] = {
     if (dt.name == "blocks")
       eleSeq.collect(ele =>
         parse(ele._2) match {
@@ -138,9 +136,9 @@ class ChainReplicatorSpec
             }
         }
       )
-    val bulkWriteUpsertList = (1 to eleSeq.size).map(ind => new BulkWriteUpsert(ind, BsonInt32(ind))).toList.asJava
+    val insertedIds = Map[Integer, BsonValue]().asJava
     Future.successful(
-      BulkWriteResult.acknowledged(0, 0, 0, 0, bulkWriteUpsertList, List().asJava)
+      InsertManyResult.acknowledged(insertedIds)
     )
   }
 
