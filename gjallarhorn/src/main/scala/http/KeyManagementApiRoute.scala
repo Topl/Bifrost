@@ -16,7 +16,7 @@ case class KeyManagementApiRoute(settings: RPCApiSettings, keyManager: ActorRef)
   // Establish the expected network prefix for addresses
   implicit val netPrefix: NetworkPrefix = networkPrefix
 
-  //The namespace for the endpoints defined in handlers
+  // The namespace for the endpoints defined in handlers
   val namespace: Namespace = WalletNamespace
 
   // partial function for identifying local method handlers exposed by the api
