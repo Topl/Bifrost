@@ -85,6 +85,7 @@ class KeyRing[
         }
 
         secrets ++= newSecrets
+        println(s"secrets: ${secrets}")
         newSecrets
       } else throw new Error("Number of requested keys must be greater than or equal to 1")
     }
