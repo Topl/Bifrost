@@ -7,7 +7,6 @@ import co.topl.db.LDBVersionedStore
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
-import co.topl.modifier.box.serialization.BoxSerializer
 import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.validation._
 import co.topl.modifier.transaction.validation.implicits._
@@ -18,6 +17,8 @@ import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.codecs.binary.legacy.modifier.ModifierIdSerializer
+import co.topl.utils.codecs.binary.legacy.modifier.box.BoxSerializer
 import co.topl.utils.encode.Base58
 
 import java.io.File
@@ -321,7 +322,7 @@ object State extends Logging {
     val version: VersionTag =
       storage
         .latestVersionId()
-        .fold(Option(ModifierId.empty))(bw => ModifierId.parseBytes(bw).toOption)
+        .fold(Option(ModifierId.empty))(bw => ModifierIdSerializer.parseBytes(bw).toOption)
         .getOrElse(throw new Error("Unable to define state version during initialization"))
 
     // node keys are a set of keys that this node will restrict its state to update

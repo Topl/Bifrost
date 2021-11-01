@@ -5,7 +5,6 @@ import cats.data.NonEmptyChain
 import cats.implicits._
 import co.topl.attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519, Secret}
-import co.topl.attestation.serialization.PropositionSerializer
 import co.topl.crypto.PublicKey
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.implicits._
@@ -13,8 +12,10 @@ import co.topl.crypto.signatures.{Curve25519, Ed25519}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.StringDataTypes.{Base58Data, DataEncodingValidationFailure}
-import co.topl.utils.codecs.implicits._
-import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
+import co.topl.utils.codecs.binary.legacy.attestation.PropositionSerializer
+import co.topl.utils.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
+import co.topl.utils.codecs.binary.implicits._
+import co.topl.utils.codecs.json.codecs._
 import co.topl.utils.{Identifiable, Identifier}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
@@ -69,8 +70,8 @@ object Proposition {
 
 // Knowledge propositions require the prover to supply a proof attesting to their knowledge
 // of secret information.
-sealed trait KnowledgeProposition[S <: Secret] extends Proposition
 
+sealed trait KnowledgeProposition[S <: Secret] extends Proposition
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
 case class PublicKeyPropositionCurve25519(pubKeyBytes: PublicKey) extends KnowledgeProposition[PrivateKeyCurve25519] {

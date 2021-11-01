@@ -4,10 +4,11 @@ import cats.implicits.toShow
 import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.codecs.implicits._
-import co.topl.utils.codecs.{AsBytes, FromBytes, Infallible}
+import co.topl.utils.codecs.binary.legacy.modifier.block.BloomFilterSerializer
+import co.topl.utils.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
+import co.topl.utils.codecs.binary.{AsBytes, FromBytes, Infallible}
+import co.topl.utils.codecs.json.codecs._
 import co.topl.utils.encode.Base58
-import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyEncoder}
@@ -38,7 +39,7 @@ case class BloomFilter(value: Array[Long]) extends BytesSerializable {
   )
 
   override type M = BloomFilter
-  lazy val serializer: BifrostSerializer[BloomFilter] = BloomFilter
+  lazy val serializer: BifrostSerializer[BloomFilter] = BloomFilterSerializer
 
   /** Check if a given topic is included in the Bloom filter */
   def contains(topic: BloomTopic): Boolean = {
@@ -59,7 +60,7 @@ case class BloomFilter(value: Array[Long]) extends BytesSerializable {
   override def hashCode(): Int = super.hashCode()
 }
 
-object BloomFilter extends BifrostSerializer[BloomFilter] {
+object BloomFilter {
 
   @newtype
   case class BloomTopic(value: Array[Byte])
@@ -179,14 +180,6 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
   implicit val jsonDecoder: Decoder[BloomFilter] = Decoder[Base58Data].map(fromBase58)
 
   implicit val bloomTopicAsBytes: AsBytes[Infallible, BloomTopic] = AsBytes.infallible(_.value)
-
-  override def serialize(obj: BloomFilter, w: Writer): Unit =
-    obj.value.foreach(l => w.putLong(l))
-
-  override def parse(r: Reader): BloomFilter = {
-    val value: Array[Long] = (for (_ <- 0 until numLongs) yield r.getLong()).toArray
-    new BloomFilter(value)
-  }
 
   trait Instances {
     implicit val bloomTopicDecoder: AsBytes[Infallible, BloomTopic] = AsBytes.infallible(_.value)

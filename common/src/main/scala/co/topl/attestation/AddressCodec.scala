@@ -7,8 +7,9 @@ import co.topl.crypto.hash.blake2b256
 import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.codecs.implicits._
-import co.topl.utils.codecs.{AsBytes, FromBytes, Infallible}
+import co.topl.utils.codecs.binary.legacy.attestation.AddressSerializer
+import co.topl.utils.codecs.binary.{AsBytes, FromBytes, Infallible}
+import co.topl.utils.codecs.binary.implicits._
 
 import scala.language.implicitConversions
 

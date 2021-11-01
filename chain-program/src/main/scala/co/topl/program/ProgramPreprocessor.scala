@@ -3,19 +3,19 @@ package co.topl.program
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.utils.Gzip
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.codecs.implicits._
 import co.topl.utils.encode.Base58
+import co.topl.utils.codecs.json.codecs._
 import com.oracle.js.parser.ir.visitor.NodeVisitor
 import com.oracle.js.parser.ir.{FunctionNode, LexicalContext, Node, VarNode}
 import com.oracle.js.parser.{
   ErrorManager,
   Lexer,
+  Parser => GraalParser,
   ScriptEnvironment,
   Source,
   Token,
   TokenStream,
-  TokenType,
-  Parser => GraalParser
+  TokenType
 }
 import io.circe._
 import io.circe.syntax._

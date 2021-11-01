@@ -7,8 +7,7 @@ import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.TransferTransaction.{encodeFrom, BoxParams, TransferCreationState}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Latin1Data
-import co.topl.utils.codecs.Int128Codec
-import co.topl.utils.codecs.implicits._
+import co.topl.utils.codecs.json.codecs._
 import co.topl.utils.{Identifiable, Identifier, Int128}
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
@@ -116,7 +115,7 @@ object PolyTransfer {
       "from"            -> encodeFrom(tx.from),
       "to"              -> tx.to.asJson,
       "signatures"      -> tx.attestation.asJson,
-      "fee"             -> tx.fee.asJson(Int128Codec.jsonEncoder),
+      "fee"             -> tx.fee.asJson,
       "timestamp"       -> tx.timestamp.asJson,
       "minting"         -> tx.minting.asJson,
       "data"            -> tx.data.asJson
@@ -128,7 +127,7 @@ object PolyTransfer {
       for {
         from      <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
         to        <- c.downField("to").as[IndexedSeq[(Address, SimpleValue)]]
-        fee       <- c.get[Int128]("fee")(Int128Codec.jsonDecoder)
+        fee       <- c.get[Int128]("fee")
         timestamp <- c.downField("timestamp").as[Long]
         data      <- c.downField("data").as[Option[Latin1Data]]
         propType  <- c.downField("propositionType").as[String]

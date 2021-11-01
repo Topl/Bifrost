@@ -9,8 +9,10 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.StringDataTypes.implicits._
-import co.topl.utils.codecs.implicits._
-import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
+import co.topl.utils.codecs.binary.legacy.modifier.ModifierIdSerializer
+import co.topl.utils.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
+import co.topl.utils.codecs.binary.implicits._
+import co.topl.utils.codecs.json.codecs._
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
@@ -20,7 +22,7 @@ case class ModifierId(value: Array[Byte]) extends BytesSerializable {
   require(value.length == ModifierId.size, s"Invalid size for ModifierId")
 
   type M = ModifierId
-  lazy val serializer: BifrostSerializer[ModifierId] = ModifierId
+  lazy val serializer: BifrostSerializer[ModifierId] = ModifierIdSerializer
 
   def getIdBytes: Array[Byte] = value.tail
   def getModType: ModifierTypeId = ModifierTypeId(value.head)
@@ -35,7 +37,7 @@ case class ModifierId(value: Array[Byte]) extends BytesSerializable {
   override def toString: String = value.encodeAsBase58.show
 }
 
-object ModifierId extends BifrostSerializer[ModifierId] {
+object ModifierId {
 
   val size: Int = 1 + Digest32.size // ModifierId's are derived from Blake2b-256
   val empty: ModifierId = new ModifierId(Array.fill(size)(0: Byte))
@@ -90,14 +92,5 @@ object ModifierId extends BifrostSerializer[ModifierId] {
    * @return modifier id
    */
   def fromBase58(data: Base58Data): ModifierId = new ModifierId(data.value)
-
-  def serialize(obj: ModifierId, w: Writer): Unit =
-    /* value: Array[Byte] */
-    w.putBytes(obj.value)
-
-  def parse(r: Reader): ModifierId = {
-    val value: Array[Byte] = r.getBytes(size)
-    new ModifierId(value)
-  }
 
 }

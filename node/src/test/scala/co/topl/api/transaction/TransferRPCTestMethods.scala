@@ -5,7 +5,7 @@ import co.topl.api.RPCMockState
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, ThresholdSignatureCurve25519}
 import co.topl.modifier.box.AssetCode
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.codecs.implicits.base58JsonDecoder
+import co.topl.utils.codecs.json.codecs._
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._

@@ -10,7 +10,7 @@ import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.SizedBytes.Types.{ByteVector32, ByteVector96}
 import co.topl.utils.SizedBytes.implicits._
 import co.topl.utils.StringDataTypes.Base16Data
-import co.topl.utils.codecs.implicits._
+import co.topl.utils.codecs.binary.implicits._
 import co.topl.utils.{CommonGenerators, SizedBytes}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

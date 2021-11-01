@@ -2,7 +2,9 @@ package co.topl.utils.codecs.binary.attestation
 
 import co.topl.attestation._
 import co.topl.crypto.signatures.{Curve25519, Ed25519}
+import co.topl.utils.Extensions.LongOps
 import co.topl.utils.codecs.binary.crypto.codecs._
+import co.topl.utils.codecs.binary.valuetypes.codecs._
 import co.topl.utils.codecs.binary.valuetypes.implicits._
 import scodec.Codec
 import scodec.codecs.discriminated
@@ -22,7 +24,8 @@ package object proposition {
         .as[PublicKeyPropositionEd25519]
 
     implicit val thresholdPropositionCurve25519Codec: Codec[ThresholdPropositionCurve25519] =
-      (intCodec :: listCodec[PublicKeyPropositionCurve25519].as[SortedSet[PublicKeyPropositionCurve25519]])
+      (uIntCodec.xmap[Int](uInt => uInt.toIntExact, int => int) :: listCodec[PublicKeyPropositionCurve25519]
+        .as[SortedSet[PublicKeyPropositionCurve25519]])
         .as[ThresholdPropositionCurve25519]
 
     implicit val propositionCodec: Codec[Proposition] =

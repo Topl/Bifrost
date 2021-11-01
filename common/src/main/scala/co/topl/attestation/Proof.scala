@@ -2,13 +2,14 @@ package co.topl.attestation
 
 import cats.implicits._
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519, Secret}
-import co.topl.attestation.serialization.ProofSerializer
 import co.topl.crypto.PublicKey
 import co.topl.crypto.signatures.{Curve25519, Ed25519, Signature}
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.StringDataTypes.implicits._
-import co.topl.utils.codecs.implicits._
-import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable}
+import co.topl.utils.codecs.binary.legacy.attestation.ProofSerializer
+import co.topl.utils.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
+import co.topl.utils.codecs.binary.implicits._
+import co.topl.utils.codecs.json.codecs._
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}

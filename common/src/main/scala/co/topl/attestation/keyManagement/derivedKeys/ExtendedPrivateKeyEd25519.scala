@@ -7,7 +7,7 @@ import co.topl.crypto.{Pbkdf2Sha512, PublicKey}
 import co.topl.utils.SizedBytes
 import co.topl.utils.SizedBytes.Types.{ByteVector28, ByteVector32, ByteVector96}
 import co.topl.utils.SizedBytes.implicits._
-import co.topl.utils.serialization.BifrostSerializer
+import co.topl.utils.codecs.binary.legacy.BifrostSerializer
 import scodec.bits.ByteOrdering.LittleEndian
 import scodec.bits.{ByteOrdering, ByteVector}
 

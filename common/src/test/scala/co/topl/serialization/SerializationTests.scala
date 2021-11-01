@@ -2,14 +2,15 @@ package co.topl.serialization
 
 import co.topl.attestation._
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519}
-import co.topl.attestation.serialization._
-import co.topl.modifier.block.serialization.{BlockBodySerializer, BlockHeaderSerializer, BlockSerializer}
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.box._
-import co.topl.modifier.box.serialization.BoxSerializer
 import co.topl.modifier.transaction._
-import co.topl.modifier.transaction.serialization._
 import co.topl.utils.CommonGenerators
+import co.topl.utils.codecs.binary.legacy.attestation.keyManagement._
+import co.topl.utils.codecs.binary.legacy.attestation._
+import co.topl.utils.codecs.binary.legacy.modifier.block._
+import co.topl.utils.codecs.binary.legacy.modifier.box._
+import co.topl.utils.codecs.binary.legacy.modifier.transaction.TransactionSerializer
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
@@ -34,7 +35,7 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
 
   property("PrivateKeyCurve25519 serialization") {
     forAll(keyCurve25519Gen) { case (key: PrivateKeyCurve25519, _) =>
-      val parsed = PrivateKeyCurve25519.parseBytes(PrivateKeyCurve25519.toBytes(key)).get
+      val parsed = PrivateKeyCurve25519Serializer.parseBytes(PrivateKeyCurve25519Serializer.toBytes(key)).get
 
       parsed.bytes sameElements key.bytes shouldBe true
     }
@@ -42,7 +43,7 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
 
   property("PrivateKeyEd25519 serialization") {
     forAll(keyEd25519Gen) { case (key: PrivateKeyEd25519, _) =>
-      val parsed = PrivateKeyEd25519.parseBytes(PrivateKeyEd25519.toBytes(key)).get
+      val parsed = PrivateKeyEd25519Serializer.parseBytes(PrivateKeyEd25519Serializer.toBytes(key)).get
 
       parsed.bytes sameElements key.bytes shouldBe true
     }
@@ -81,7 +82,7 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
 
   property("SecurityRoot serialization") {
     forAll(securityRootGen) { root: SecurityRoot =>
-      val parsed = SecurityRoot.parseBytes(SecurityRoot.toBytes(root)).get
+      val parsed = SecurityRootSerializer.parseBytes(SecurityRootSerializer.toBytes(root)).get
 
       parsed shouldEqual root
     }
@@ -89,7 +90,7 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
 
   property("TokenValueHolder serialization") {
     forAll(Gen.oneOf(simpleValueGen, assetValueGen)) { value =>
-      val parsed = TokenValueHolder.parseBytes(TokenValueHolder.toBytes(value)).get
+      val parsed = TokenValueHolderSerializer.parseBytes(TokenValueHolderSerializer.toBytes(value)).get
 
       parsed shouldEqual value
     }
@@ -234,18 +235,18 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
 
   property("BloomFilter serialization") {
     forAll(blockCurve25519Gen) { block =>
-      val parsed: BloomFilter = BloomFilter.parseBytes(BloomFilter.toBytes(block.bloomFilter)).get
+      val parsed: BloomFilter = BloomFilterSerializer.parseBytes(BloomFilterSerializer.toBytes(block.bloomFilter)).get
 
-      BloomFilter.toBytes(parsed) sameElements
-      BloomFilter.toBytes(block.bloomFilter) shouldBe true
+      BloomFilterSerializer.toBytes(parsed) sameElements
+      BloomFilterSerializer.toBytes(block.bloomFilter) shouldBe true
     }
   }
 
   property("Evidence serialization") {
     forAll(evidenceGen) { evidence =>
-      val parsed = Evidence.parseBytes(Evidence.toBytes(evidence)).get
+      val parsed = EvidenceSerializer.parseBytes(EvidenceSerializer.toBytes(evidence)).get
 
-      Evidence.toBytes(parsed) sameElements Evidence.toBytes(evidence) shouldBe true
+      EvidenceSerializer.toBytes(parsed) sameElements EvidenceSerializer.toBytes(evidence) shouldBe true
     }
   }
 

@@ -2,9 +2,9 @@ package co.topl.modifier.box
 
 import co.topl.attestation.Evidence
 import co.topl.modifier.box.Box.Nonce
-import co.topl.modifier.box.serialization.BoxSerializer
 import co.topl.utils.Identifiable.Syntax._
-import co.topl.utils.serialization.BifrostSerializer
+import co.topl.utils.codecs.binary.legacy.BifrostSerializer
+import co.topl.utils.codecs.binary.legacy.modifier.box.BoxSerializer
 import co.topl.utils.{Identifiable, Identifier}
 import com.google.common.primitives.Ints
 import io.circe._

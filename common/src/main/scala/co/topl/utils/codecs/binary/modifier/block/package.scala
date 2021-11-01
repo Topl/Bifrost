@@ -7,10 +7,12 @@ import co.topl.utils.codecs.binary.attestation.codecs._
 import co.topl.utils.codecs.binary.crypto.codecs._
 import co.topl.utils.codecs.binary.modifier.box.codecs._
 import co.topl.utils.codecs.binary.modifier.transaction.codecs._
+import co.topl.utils.codecs.binary.valuetypes.codecs._
 import co.topl.utils.codecs.binary.valuetypes.implicits._
 import scodec.Codec
 import shapeless._
-import spire.ClassTag
+
+import scala.reflect.ClassTag
 
 package object block {
 
@@ -19,7 +21,7 @@ package object block {
     implicit val modifierIdCodec: Codec[ModifierId] = ModifierIdCodec.codec
 
     implicit def bloomFilterCodec(implicit longClassTag: ClassTag[Long]): Codec[BloomFilter] =
-      staticArrayCodec[Long](BloomFilter.numLongs)(longCodec, longClassTag).as[BloomFilter]
+      sizedArrayCodec[Long](BloomFilter.numLongs)(longCodec, longClassTag).as[BloomFilter]
 
     implicit val blockCodec: Codec[Block] =
       (byteCodec ::
@@ -46,7 +48,7 @@ package object block {
         }(block =>
           HList(
             block.version,
-            block.id,
+            block.parentId,
             block.timestamp,
             block.generatorBox,
             block.publicKey,
@@ -112,7 +114,7 @@ package object block {
         }
         .as[BlockHeader]
 
-    implicit val blockBodySerializer: Codec[BlockBody] =
+    implicit val blockBodyCodec: Codec[BlockBody] =
       (byteCodec :: modifierIdCodec :: modifierIdCodec :: listCodec(transactionCodec).as[Seq[Transaction.TX]])
         .xmapc { case version :: blockId :: parentId :: txs :: HNil =>
           BlockBody(blockId, parentId, txs, version)

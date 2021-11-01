@@ -13,7 +13,7 @@ import co.topl.network.peer.{ConnectedPeer, PenaltyType}
 import co.topl.nodeView.history.GenericHistory
 import co.topl.nodeView.{NodeViewHolder, ReadableNodeView}
 import co.topl.settings.{AppContext, AppSettings}
-import co.topl.utils.serialization.BifrostSerializer
+import co.topl.utils.codecs.binary.legacy.BifrostSerializer
 import co.topl.utils.{Logging, MalformedModifierError, TimeProvider}
 
 import java.net.InetSocketAddress

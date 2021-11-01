@@ -6,8 +6,10 @@ import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.StringDataTypes.implicits._
-import co.topl.utils.codecs.implicits._
-import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
+import co.topl.utils.codecs.binary.implicits._
+import co.topl.utils.codecs.json.codecs._
+import co.topl.utils.codecs.binary.legacy.attestation.AddressSerializer
+import co.topl.utils.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
@@ -57,21 +59,4 @@ object Address {
    */
   def from[P <: Proposition: EvidenceProducer](proposition: P)(implicit networkPrefix: NetworkPrefix): Address =
     Address(proposition.generateEvidence)
-}
-
-object AddressSerializer extends BifrostSerializer[Address] {
-
-  def serialize(obj: Address, w: Writer): Unit = {
-    /* networkType: Byte */
-    w.put(obj.networkPrefix)
-
-    /* addressBytes: Array[Byte] */
-    Evidence.serialize(obj.evidence, w)
-  }
-
-  def parse(r: Reader): Address = {
-    implicit val networkPrefix: NetworkPrefix = r.getByte()
-    val evidence: Evidence = Evidence.parse(r)
-    Address(evidence)
-  }
 }

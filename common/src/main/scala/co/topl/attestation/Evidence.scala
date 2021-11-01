@@ -4,8 +4,10 @@ import cats.implicits._
 import co.topl.crypto.hash.digest.Digest
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.StringDataTypes.implicits._
-import co.topl.utils.codecs.implicits._
-import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
+import co.topl.utils.codecs.binary.legacy.attestation.EvidenceSerializer
+import co.topl.utils.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
+import co.topl.utils.codecs.json.codecs._
+import co.topl.utils.codecs.binary.implicits._
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
@@ -25,7 +27,7 @@ import scala.util.{Failure, Success}
  */
 final case class Evidence(evBytes: Array[Byte]) extends BytesSerializable {
   override type M = Evidence
-  override def serializer: BifrostSerializer[Evidence] = Evidence
+  override def serializer: BifrostSerializer[Evidence] = EvidenceSerializer
 
   override def toString: String = bytes.encodeAsBase58.show
 
@@ -37,7 +39,7 @@ final case class Evidence(evBytes: Array[Byte]) extends BytesSerializable {
   override def hashCode(): Int = Ints.fromByteArray(bytes)
 }
 
-object Evidence extends BifrostSerializer[Evidence] {
+object Evidence {
   // below are types and values used enforce the behavior of evidence
   type EvidenceTypePrefix = Byte
 
@@ -54,7 +56,7 @@ object Evidence extends BifrostSerializer[Evidence] {
   def apply(typePrefix: EvidenceTypePrefix, content: EvidenceContent): Evidence = {
     require(content.value.length == contentLength, "Invalid evidence: incorrect EvidenceContent length")
 
-    parseBytes(typePrefix +: content.value) match {
+    EvidenceSerializer.parseBytes(typePrefix +: content.value) match {
       case Success(ec) => ec
       case Failure(ex) => throw ex
     }
@@ -63,18 +65,10 @@ object Evidence extends BifrostSerializer[Evidence] {
   private def apply(data: Base58Data): Evidence = {
     val bytes = data.value
     require(bytes.length == size, "Invalid evidence: incorrect evidence length")
-    parseBytes(bytes) match {
+    EvidenceSerializer.parseBytes(bytes) match {
       case Success(ec) => ec
       case Failure(ex) => throw ex
     }
-  }
-
-  override def serialize(obj: Evidence, w: Writer): Unit =
-    w.putBytes(obj.evBytes)
-
-  override def parse(r: Reader): Evidence = {
-    val evBytes = r.getBytes(size)
-    new Evidence(evBytes)
   }
 
   // see circe documentation for custom encoder / decoders

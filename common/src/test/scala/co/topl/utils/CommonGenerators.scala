@@ -6,13 +6,14 @@ import co.topl.attestation.keyManagement._
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.signatures.{Curve25519, Ed25519, Signature}
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.Block
+import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.Box.Nonce
 import co.topl.modifier.box._
 import co.topl.modifier.transaction._
 import co.topl.utils.StringDataTypes.Latin1Data
-import co.topl.utils.codecs.implicits._
+import co.topl.utils.codecs.binary.legacy.modifier.ModifierIdSerializer
+import co.topl.utils.codecs.binary.implicits._
 import io.circe.Json
 import io.circe.syntax._
 import org.scalacheck.rng.Seed
@@ -561,7 +562,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   lazy val positiveLongGen: Gen[Long] = Gen.choose(1, Long.MaxValue)
 
   lazy val modifierIdGen: Gen[ModifierId] =
-    Gen.listOfN(ModifierId.size, Arbitrary.arbitrary[Byte]).map(li => ModifierId.parseBytes(li.toArray).get)
+    Gen.listOfN(ModifierId.size, Arbitrary.arbitrary[Byte]).map(li => ModifierIdSerializer.parseBytes(li.toArray).get)
 
   lazy val keyCurve25519Gen: Gen[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] =
     genBytesList(Curve25519.KeyLength).map(s => PrivateKeyCurve25519.secretGenerator.generateSecret(s))
@@ -672,4 +673,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
 
     Block(parentId, timestamp, generatorBox, publicKey, signature, height, difficulty, txs, version)
   }
+
+  lazy val bloomFilterGen: Gen[BloomFilter] =
+    Gen.listOfN(BloomFilter.numLongs, Gen.long).map(listT => BloomFilter(listT.toArray))
 }
