@@ -7,20 +7,20 @@ import scala.util.{Failure, Success, Try}
  */
 class KeyManagementRPCSpec extends AsyncFlatSpec with Matchers with ScalatestRouteTest with GjallarhornGenerators {
 
-  //Make sure running bifrost in local network!
+  // Make sure running bifrost in local network!
   implicit val networkPrefix: NetworkPrefix = 48.toByte
   implicit val timeout: Timeout = 10.seconds
 
   override def createActorSystem(): ActorSystem = ActorSystem("keyManagementTest", keysConfig)
 
-  //set up key file directory and key manager actor
+  // set up key file directory and key manager actor
   val keyFileDir: String = keyManagementSettings.application.keyFileDir
   val path: Path = Path(keyFileDir)
   Try(path.deleteRecursively())
   Try(path.createDirectory())
   val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", keyManagementSettings.application)
 
-  //set up WalletManager actor
+  // set up WalletManager actor
   val walletManagerRef: ActorRef =
     system.actorOf(Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
 
@@ -39,7 +39,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec with Matchers with ScalatestRou
   val httpOrigin: HttpOrigin = HttpOrigin("http://localhost:3000")
   val httpOriginHeader: Origin = Origin(httpOrigin)
 
-  //Generate two keys for testing
+  // Generate two keys for testing
   val pk1: Address = Await.result(
     (keyManagerRef ? GenerateKeyFile("password", Some("test")))
       .mapTo[Try[Address]],

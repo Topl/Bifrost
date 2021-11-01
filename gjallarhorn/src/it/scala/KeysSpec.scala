@@ -9,14 +9,14 @@ class KeysSpec extends AsyncFlatSpec with Matchers {
   /** Make sure running bifrost in local network! */
   implicit val networkPrefix: NetworkPrefix = 48.toByte
 
-  //set up Keys
+  // set up Keys
   val keyFileDir = "keyfiles/keyManagerTest"
   val keyManager: Keys[PrivateKeyCurve25519, KeyfileCurve25519] = Keys(keyFileDir, KeyfileCurve25519)
 
   val randomBytes1: Digest32 = blake2b256.hash(java.util.UUID.randomUUID.toString.getBytes)
   val randomBytes2: Digest32 = blake2b256.hash(java.util.UUID.randomUUID.toString.getBytes)
 
-  //Create keys for testing
+  // Create keys for testing
   var privateKeys: Set[PrivateKeyCurve25519] = keyManager.generateNewKeyPairs(2, Some("keystest")) match {
     case Success(secrets) => secrets
     case Failure(ex)      => throw new Error(s"Unable to generate new keys: $ex")
@@ -32,24 +32,24 @@ class KeysSpec extends AsyncFlatSpec with Matchers {
     case Failure(ex)      => throw new Error(s"Unable to generate new keys: $ex")
   }
 
-  //Filepath to write keypairs
+  // Filepath to write keypairs
   val path: Path = Path(keyFileDir)
   Try(path.deleteRecursively())
   Try(path.createDirectory())
   val password = "password"
 
-  //generate seed
+  // generate seed
   val seedString: String = java.util.UUID.randomUUID.toString
   val seed1: Digest32 = blake2b256.hash(seedString.getBytes)
 
-  //------------------------------------------------------------------------------------
-  //Signed messages
-  //Should have same input to check determinism
+  // ------------------------------------------------------------------------------------
+  // Signed messages
+  // Should have same input to check determinism
   val messageBytes: Digest32 = blake2b256.hash("sameEntropic".getBytes)
   val messageToSign: Digest32 = blake2b256.hash(java.util.UUID.randomUUID.toString.getBytes)
 
   it should "Match its signature to the expected sender private key" in {
-    //Entropic input to input for pub/priv keypair
+    // Entropic input to input for pub/priv keypair
     val proof = sk1.sign(messageToSign.value)
     assert(proof.isValid(sk1.publicImage, messageToSign.value))
   }
@@ -61,13 +61,13 @@ class KeysSpec extends AsyncFlatSpec with Matchers {
 
   it should "Sign and verify as expected when msg is deterministic" in {
     val proof = sk2.sign(messageBytes.value)
-    //Utilize same input. Proving hashing function AND keygen methods are deterministic
+    // Utilize same input. Proving hashing function AND keygen methods are deterministic
     assert(proof.isValid(sk2.publicImage, messageBytes.value))
   }
-  //------------------------------------------------------------------------------------
-  //Key Generation
+  // ------------------------------------------------------------------------------------
+  // Key Generation
 
-  //Entropic input used to make pub/priv keypair
+  // Entropic input used to make pub/priv keypair
   it should "Come as a private key and public key pair" in {
     assert(sk1 != null)
     assert(addr1 != null)
@@ -77,18 +77,18 @@ class KeysSpec extends AsyncFlatSpec with Matchers {
   }
 
   it should "Be deterministic" in {
-    //Used the same entropic input
+    // Used the same entropic input
     assert(addr1.equals(sk3.publicImage.address))
   }
 
   it should "Have sufficient randomness in entropic keypair gen" in {
-    //Valid pretest to ensure sufficiently random input so no shared keys
+    // Valid pretest to ensure sufficiently random input so no shared keys
     assert(randomBytes1 != randomBytes2)
     assert(sk1 != null && addr1 != null && sk1.isInstanceOf[PrivateKeyCurve25519] && addr1.isInstanceOf[Address])
   }
 
-  //------------------------------------------------------------------------------------
-  //KeyManager
+  // ------------------------------------------------------------------------------------
+  // KeyManager
 
   var newAddress: Address = sk1.publicImage.address
   val password2: String = "password2"
@@ -115,8 +115,8 @@ class KeysSpec extends AsyncFlatSpec with Matchers {
     assert(keyManager.addresses.size == 3)
   }
 
-  //------------------------------------------------------------------------------------
-  //KeyFile
+  // ------------------------------------------------------------------------------------
+  // KeyFile
 
   it should "successfully export keyfiles" in {
     privateKeys.foreach(sk => keyManager.exportKeyfile(sk.publicImage.address, "password"))
@@ -143,6 +143,6 @@ class KeysSpec extends AsyncFlatSpec with Matchers {
     assert(keyManager.addresses.size == 4)
   }
 
-  //------------------------------------------------------------------------------------
+  // ------------------------------------------------------------------------------------
 
 }

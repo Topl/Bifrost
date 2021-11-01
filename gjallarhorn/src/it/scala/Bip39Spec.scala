@@ -9,14 +9,14 @@ class Bip39Spec extends AnyFlatSpec with Matchers {
   val uuidString: String = java.util.UUID.randomUUID.toString
   // language for phrase words
   val lang = "en"
-  //phrase translator
+  // phrase translator
   val pt = Bip39.apply(lang)
-  //------------------------------------------------------------------------------------
+  // ------------------------------------------------------------------------------------
 
   "A seed phrase" should "be generated" in {
     val (seedHex, phrase) = pt.uuidSeedPhrase(uuidString)
   }
-  //------------------------------------------------------------------------------------
+  // ------------------------------------------------------------------------------------
 
   "A seed phrase" should "be translated to hex" in {
     val phraseGood = "news excite upon nothing begin candy oblige situate figure method over tomato"
@@ -56,7 +56,7 @@ class Bip39Spec extends AnyFlatSpec with Matchers {
 
     assert(pt.phraseToHex(phrase) == seedHex)
   }
-  //------------------------------------------------------------------------------------
+  // ------------------------------------------------------------------------------------
   /*
   "A key file" should "be generated" in {
     Try(path.deleteRecursively())

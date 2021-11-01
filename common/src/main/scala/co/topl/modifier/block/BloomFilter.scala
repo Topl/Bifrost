@@ -64,7 +64,7 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
   @newtype
   case class BloomTopic(value: Array[Byte])
 
-  val numBytes: Int = 256 //bytes (2048 bits)
+  val numBytes: Int = 256 // bytes (2048 bits)
   private val size: Int = numBytes * 8
   private val numLongs: Int = size / 64 // filter is composed of an array of longs (64 bit elements)
 

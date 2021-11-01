@@ -15,15 +15,15 @@ class GjallarhornRPCSpec extends AsyncFlatSpec with Matchers with GjallarhornGen
 
   override def createActorSystem(): ActorSystem = ActorSystem("gjallarhornTest", config)
 
-  //set up key file director and key manager actor
+  // set up key file director and key manager actor
   val keyFileDir: String = settings.application.keyFileDir
   val path: Path = Path(keyFileDir)
   Try(path.deleteRecursively())
   Try(path.createDirectory())
   val keyManagerRef: ActorRef = KeyManagerRef("keyManager", settings.application)
 
-  //generate two keys for testing
-  //pk1 should be: 86tS2ExvjGEpS3Ntq5vZgHirUMuee7pJELGD8GmBoUyjXpAaAXTz
+  // generate two keys for testing
+  // pk1 should be: 86tS2ExvjGEpS3Ntq5vZgHirUMuee7pJELGD8GmBoUyjXpAaAXTz
   val pk1: Address = Await.result(
     (keyManagerRef ? GenerateKeyFile("password", Some("test")))
       .mapTo[Try[Address]],
@@ -42,13 +42,13 @@ class GjallarhornRPCSpec extends AsyncFlatSpec with Matchers with GjallarhornGen
     case Failure(ex)     => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
 
-  //set up WalletManager actor
+  // set up WalletManager actor
   val walletManagerRef: ActorRef =
     system.actorOf(Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
 
   val amount = 10
 
-  //Set up api routes
+  // Set up api routes
   val requests: Requests = new Requests(settings, keyManagerRef)
 
   val bifrostApiRoute: ApiRoute =
@@ -338,28 +338,28 @@ class GjallarhornRPCSpec extends AsyncFlatSpec with Matchers with GjallarhornGen
         case Right(res: Json) =>
           assert((res \\ "error").isEmpty)
 
-          //pk1 should have fewer polys now
+          // pk1 should have fewer polys now
           (((res \\ "result").head \\ pk1.toString).head \\ "PolyBox").head.asNumber.get.toLong match {
             case Some(number) => assert(number < 1000000)
             case None         => throw new Error("balance is not a long")
           }
 
-          //Accounting for tests being run multiple times
+          // Accounting for tests being run multiple times
           // so tests for amounts being greater than $amount and a multiple of $amount
 
-          //pk1 should have $amount of new asset
+          // pk1 should have $amount of new asset
           (((res \\ "result").head \\ pk1.toString).head \\ assetCode.toString).head.asNumber.get.toLong match {
             case Some(number) => assert(number >= amount && number % amount == 0)
             case None         => throw new Error("balance is not a long")
           }
 
-          //pk2 should have $amount poly
+          // pk2 should have $amount poly
           (((res \\ "result").head \\ pk2.toString).head \\ "PolyBox").head.asNumber.get.toLong match {
             case Some(number) => assert(number >= amount && number % amount == 0)
             case None         => throw new Error("balance is not a long")
           }
 
-          //pk2 should have $amount arbit
+          // pk2 should have $amount arbit
           (((res \\ "result").head \\ pk2.toString).head \\ "ArbitBox").head.asNumber.get.toLong match {
             case Some(number) => assert(number >= amount && number % amount == 0)
             case None         => throw new Error("balance is not a long")

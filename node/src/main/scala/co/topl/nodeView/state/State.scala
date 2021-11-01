@@ -184,7 +184,7 @@ case class State(
   ): Try[NVCT] =
     Try {
 
-      //Filtering boxes pertaining to public keys specified in settings file
+      // Filtering boxes pertaining to public keys specified in settings file
       val boxesToAdd = (nodeKeys match {
         case Some(keys) => stateChanges.toAppend.filter(b => keys.contains(Address(b.evidence)))
         case None       => stateChanges.toAppend

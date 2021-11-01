@@ -9,7 +9,7 @@ import scala.util.{Failure, Success, Try}
  */
 class RequestSpec extends AsyncFlatSpec with Matchers with GjallarhornGenerators {
 
-  //define implicit vals
+  // define implicit vals
   implicit val actorSystem: ActorSystem = ActorSystem("requestTest", requestConfig)
   implicit val context: ExecutionContextExecutor = actorSystem.dispatcher
   implicit val timeout: Timeout = 30.seconds
@@ -21,7 +21,7 @@ class RequestSpec extends AsyncFlatSpec with Matchers with GjallarhornGenerators
   val keyFileDir: String = requestSettings.application.keyFileDir
   val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", requestSettings.application)
 
-  //set up actors
+  // set up actors
   val chainProvider: ChainProvider = requestSettings.application.defaultChainProviders
     .get(settings.application.currentChainProvider) match {
     case Some(cp) => cp
@@ -48,7 +48,7 @@ class RequestSpec extends AsyncFlatSpec with Matchers with GjallarhornGenerators
   Try(path.deleteRecursively())
   Try(path.createDirectory())
 
-  //create new keys for testing
+  // create new keys for testing
   val pk1: Address = Await.result(
     (keyManagerRef ? GenerateKeyFile("password", Some("test")))
       .mapTo[Try[Address]],
@@ -73,7 +73,7 @@ class RequestSpec extends AsyncFlatSpec with Matchers with GjallarhornGenerators
   var signedTransaction: Json = Json.Null
   var newBoxIds: Set[BoxId] = Set()
 
-  //set up online mode
+  // set up online mode
   walletManagerRef ! ConnectToBifrost(bifrostActor, chainProvider.networkName)
   requests.switchOnlineStatus(Some(requestsManagerRef))
 

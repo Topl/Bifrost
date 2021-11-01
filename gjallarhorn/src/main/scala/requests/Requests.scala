@@ -12,10 +12,10 @@ import scala.concurrent.{Await, Future}
  */
 class Requests(settings: AppSettings, keyManagerRef: ActorRef)(implicit val actorSystem: ActorSystem) {
 
-  //akka extension for HTTP
+  // akka extension for HTTP
   val http: HttpExt = Http(actorSystem)
 
-  //optional actor reference to the RequestsManager
+  // optional actor reference to the RequestsManager
   private var requestsManager: Option[ActorRef] = None
 
   implicit val timeout: Timeout = Timeout(settings.rpcApi.timeout)
