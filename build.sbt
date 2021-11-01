@@ -2,7 +2,7 @@ import sbt.Keys.{homepage, organization, test}
 import sbtassembly.MergeStrategy
 
 val scala212 = "2.12.14"
-val scala213 = "2.13.6"
+val scala213 = "2.13.7"
 
 inThisBuild(List(
   organization := "co.topl",
