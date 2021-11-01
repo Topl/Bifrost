@@ -9,11 +9,13 @@ import co.topl.utils.codecs.binary.attestation.codecs._
 import co.topl.utils.codecs.binary.modifier.box.codecs._
 import co.topl.utils.codecs.binary.valuetypes.codecs._
 import co.topl.utils.codecs.binary.valuetypes.implicits._
+import jdk.internal.net.http.common.Utils
 import scodec.{Attempt, Codec, Err}
 import scodec.codecs.{byte, discriminated}
 import shapeless._
 
 import scala.collection.immutable.ListMap
+import scala.reflect.ClassTag
 
 package object transaction {
 
@@ -109,28 +111,29 @@ package object transaction {
         }
         .as[AssetTransfer[P]]
 
+    // NOTE: for the following codecs, the underlying types of propositions for each transfer type
+    // are unknown at runtime and must be ignored using @unchecked to avoid warnings.
+    // If the type of the proposition does not match the expected type for some reason, the codec will fail.
+
     implicit val polyTransferCodec: Codec[PolyTransfer[_ <: Proposition]] =
       byteCodec.consume[PolyTransfer[_ <: Proposition]] {
         case PublicKeyPropositionCurve25519.typePrefix =>
           polyTransferWithPropositionCodec[PublicKeyPropositionCurve25519]
             .exmapc[PolyTransfer[_ <: Proposition]](transfer => Attempt.successful(transfer)) {
-              case x: PolyTransfer[PublicKeyPropositionCurve25519] =>
+              case x: PolyTransfer[PublicKeyPropositionCurve25519] @unchecked =>
                 Attempt.successful(x)
-              case _ => Attempt.failure(Err("invalid proposition type"))
             }
         case ThresholdPropositionCurve25519.typePrefix =>
           polyTransferWithPropositionCodec[ThresholdPropositionCurve25519]
             .exmapc[PolyTransfer[_ <: Proposition]](transfer => Attempt.successful(transfer)) {
-              case x: PolyTransfer[ThresholdPropositionCurve25519] =>
+              case x: PolyTransfer[ThresholdPropositionCurve25519] @unchecked =>
                 Attempt.successful(x)
-              case _ => Attempt.failure(Err("invalid proposition type"))
             }
         case PublicKeyPropositionEd25519.typePrefix =>
           polyTransferWithPropositionCodec[PublicKeyPropositionEd25519]
             .exmapc[PolyTransfer[_ <: Proposition]](transfer => Attempt.successful(transfer)) {
-              case x: PolyTransfer[PublicKeyPropositionEd25519] =>
+              case x: PolyTransfer[PublicKeyPropositionEd25519] @unchecked =>
                 Attempt.successful(x)
-              case _ => Attempt.failure(Err("invalid proposition type"))
             }
       }(transfer => transfer.getPropIdentifier.typePrefix)
 
@@ -139,23 +142,20 @@ package object transaction {
         case PublicKeyPropositionCurve25519.typePrefix =>
           arbitTransferWithPropositionCodec[PublicKeyPropositionCurve25519]
             .exmapc[ArbitTransfer[_ <: Proposition]](transfer => Attempt.successful(transfer)) {
-              case x: ArbitTransfer[PublicKeyPropositionCurve25519] =>
+              case x: ArbitTransfer[PublicKeyPropositionCurve25519] @unchecked =>
                 Attempt.successful(x)
-              case _ => Attempt.failure(Err("invalid proposition type"))
             }
         case ThresholdPropositionCurve25519.typePrefix =>
           arbitTransferWithPropositionCodec[ThresholdPropositionCurve25519]
             .exmapc[ArbitTransfer[_ <: Proposition]](transfer => Attempt.successful(transfer)) {
-              case x: ArbitTransfer[ThresholdPropositionCurve25519] =>
+              case x: ArbitTransfer[ThresholdPropositionCurve25519] @unchecked =>
                 Attempt.successful(x)
-              case _ => Attempt.failure(Err("invalid proposition type"))
             }
         case PublicKeyPropositionEd25519.typePrefix =>
           arbitTransferWithPropositionCodec[PublicKeyPropositionEd25519]
             .exmapc[ArbitTransfer[_ <: Proposition]](transfer => Attempt.successful(transfer)) {
-              case x: ArbitTransfer[PublicKeyPropositionEd25519] =>
+              case x: ArbitTransfer[PublicKeyPropositionEd25519] @unchecked =>
                 Attempt.successful(x)
-              case _ => Attempt.failure(Err("invalid proposition type"))
             }
       }(transfer => transfer.getPropIdentifier.typePrefix)
 
@@ -164,23 +164,20 @@ package object transaction {
         case PublicKeyPropositionCurve25519.typePrefix =>
           assetTransferWithPropositionCodec[PublicKeyPropositionCurve25519]
             .exmapc[AssetTransfer[_ <: Proposition]](transfer => Attempt.successful(transfer)) {
-              case x: AssetTransfer[PublicKeyPropositionCurve25519] =>
+              case x: AssetTransfer[PublicKeyPropositionCurve25519] @unchecked =>
                 Attempt.successful(x)
-              case _ => Attempt.failure(Err("invalid proposition type"))
             }
         case ThresholdPropositionCurve25519.typePrefix =>
           assetTransferWithPropositionCodec[ThresholdPropositionCurve25519]
             .exmapc[AssetTransfer[_ <: Proposition]](transfer => Attempt.successful(transfer)) {
-              case x: AssetTransfer[ThresholdPropositionCurve25519] =>
+              case x: AssetTransfer[ThresholdPropositionCurve25519] @unchecked =>
                 Attempt.successful(x)
-              case _ => Attempt.failure(Err("invalid proposition type"))
             }
         case PublicKeyPropositionEd25519.typePrefix =>
           assetTransferWithPropositionCodec[PublicKeyPropositionEd25519]
             .exmapc[AssetTransfer[_ <: Proposition]](transfer => Attempt.successful(transfer)) {
-              case x: AssetTransfer[PublicKeyPropositionEd25519] =>
+              case x: AssetTransfer[PublicKeyPropositionEd25519] @unchecked =>
                 Attempt.successful(x)
-              case _ => Attempt.failure(Err("invalid proposition type"))
             }
       }(transfer => transfer.getPropIdentifier.typePrefix)
 

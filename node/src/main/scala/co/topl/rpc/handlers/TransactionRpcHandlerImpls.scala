@@ -4,7 +4,9 @@ import akka.actor.typed.ActorSystem
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
 import co.topl.attestation._
-import co.topl.modifier.box.{ProgramId, SimpleValue}
+import co.topl.modifier.box.ProgramId
+import co.topl.modifier.transaction.builder.BuildTransferFailure.implicits._
+import co.topl.modifier.transaction.builder.{BuildTransferFailure, TransferBuilder, TransferRequests}
 import co.topl.modifier.transaction.validation.implicits._
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.state.StateReader
@@ -17,7 +19,6 @@ import co.topl.utils.codecs.binary.implicits._
 import io.circe.Encoder
 
 import scala.concurrent.Future
-import scala.util.Try
 
 class TransactionRpcHandlerImpls(
   nodeViewHolderInterface: NodeViewHolderInterface
@@ -32,12 +33,12 @@ class TransactionRpcHandlerImpls(
   override val rawAssetTransfer: ToplRpc.Transaction.RawAssetTransfer.rpc.ServerHandler =
     params =>
       for {
-        transferTry <- withNodeView(view =>
+        unsignedTx <- withNodeView(view =>
           checkAddresses(params.sender.toList, view.state)
-            .map(tryCreateAssetTransfer(params, view.state, _))
+            .map(_ => createAssetTransfer(params, view.state))
         ).subflatMap(identity)
-        transfer <- Either
-          .fromTry(transferTry)
+        transfer <- unsignedTx
+          .leftMap(failure => new Error(failure.show))
           .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
           .toEitherT[Future]
         messageToSign = transfer.messageToSign.encodeAsBase58
@@ -46,12 +47,12 @@ class TransactionRpcHandlerImpls(
   override val rawArbitTransfer: ToplRpc.Transaction.RawArbitTransfer.rpc.ServerHandler =
     params =>
       for {
-        transferTry <- withNodeView(view =>
+        unsignedTx <- withNodeView(view =>
           checkAddresses(params.sender.toList, view.state)
-            .map(tryCreateArbitTransfer(params, view.state, _))
+            .map(_ => createArbitTransfer(params, view.state))
         ).subflatMap(identity)
-        transfer <- Either
-          .fromTry(transferTry)
+        transfer <- unsignedTx
+          .leftMap(failure => new Error(failure.show))
           .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
           .toEitherT[Future]
         messageToSign = transfer.messageToSign.encodeAsBase58
@@ -60,12 +61,12 @@ class TransactionRpcHandlerImpls(
   override val rawPolyTransfer: ToplRpc.Transaction.RawPolyTransfer.rpc.ServerHandler =
     params =>
       for {
-        transferTry <- withNodeView(view =>
+        unsignedTx <- withNodeView(view =>
           checkAddresses(params.sender.toList, view.state)
-            .map(tryCreatePolyTransfer(params, view.state, _))
+            .map(_ => tryCreatePolyTransfer(params, view.state))
         ).subflatMap(identity)
-        transfer <- Either
-          .fromTry(transferTry)
+        transfer <- unsignedTx
+          .leftMap(failure => new Error(failure.show))
           .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
           .toEitherT[Future]
         messageToSign = transfer.messageToSign.encodeAsBase58
@@ -80,78 +81,123 @@ class TransactionRpcHandlerImpls(
         _ <- processTransaction(transaction)
       } yield transaction
 
-  private def tryCreateAssetTransfer(
-    params:          ToplRpc.Transaction.RawAssetTransfer.Params,
-    state:           StateReader[ProgramId, Address],
-    senderAddresses: List[Address]
-  ): Try[AssetTransfer[Proposition]] = {
-    val createRaw = params.propositionType match {
-      case PublicKeyPropositionCurve25519.`typeString` => AssetTransfer.createRaw[PublicKeyPropositionCurve25519] _
-      case ThresholdPropositionCurve25519.`typeString` => AssetTransfer.createRaw[ThresholdPropositionCurve25519] _
-      case PublicKeyPropositionEd25519.`typeString`    => AssetTransfer.createRaw[PublicKeyPropositionEd25519] _
-    }
+  private def createAssetTransfer(
+    params: ToplRpc.Transaction.RawAssetTransfer.Params,
+    state:  StateReader[ProgramId, Address]
+  ): Either[BuildTransferFailure, AssetTransfer[Proposition]] = {
 
-    createRaw(
-      state,
-      params.recipients.toNonEmptyVector.toVector,
-      senderAddresses.toIndexedSeq,
-      params.changeAddress,
-      params.consolidationAddress,
-      params.fee,
-      params.data,
-      params.minting
-    )
-      .collect { case p: AssetTransfer[Proposition @unchecked] =>
-        p
-      }
+    val transferRequest =
+      TransferRequests.AssetTransferRequest(
+        params.sender.toList,
+        params.recipients.toList,
+        params.changeAddress,
+        params.consolidationAddress,
+        params.fee,
+        params.data,
+        params.minting
+      )
+
+    (params.propositionType match {
+      case PublicKeyPropositionCurve25519.`typeString` =>
+        TransferBuilder
+          .buildUnsignedAssetTransfer[PublicKeyPropositionCurve25519](
+            state,
+            transferRequest,
+            params.boxSelectionAlgorithm
+          )
+      case ThresholdPropositionCurve25519.`typeString` =>
+        TransferBuilder.buildUnsignedAssetTransfer[ThresholdPropositionCurve25519](
+          state,
+          transferRequest,
+          params.boxSelectionAlgorithm
+        )
+      case PublicKeyPropositionEd25519.`typeString` =>
+        TransferBuilder.buildUnsignedAssetTransfer[PublicKeyPropositionEd25519](
+          state,
+          transferRequest,
+          params.boxSelectionAlgorithm
+        )
+      // need to cast to type AssetTransfer[Proposition] because the P type param in AssetTransfer
+      // is invariant and not co-variant
+    }).map(_.asInstanceOf[AssetTransfer[Proposition]])
   }
 
-  private def tryCreateArbitTransfer(
-    params:          ToplRpc.Transaction.RawArbitTransfer.Params,
-    state:           StateReader[ProgramId, Address],
-    senderAddresses: List[Address]
-  ): Try[ArbitTransfer[Proposition]] = {
-    val createRaw = params.propositionType match {
-      case PublicKeyPropositionCurve25519.`typeString` => ArbitTransfer.createRaw[PublicKeyPropositionCurve25519] _
-      case ThresholdPropositionCurve25519.`typeString` => ArbitTransfer.createRaw[ThresholdPropositionCurve25519] _
-      case PublicKeyPropositionEd25519.`typeString`    => ArbitTransfer.createRaw[PublicKeyPropositionEd25519] _
-    }
+  private def createArbitTransfer(
+    params: ToplRpc.Transaction.RawArbitTransfer.Params,
+    state:  StateReader[ProgramId, Address]
+  ): Either[BuildTransferFailure, ArbitTransfer[Proposition]] = {
 
-    createRaw(
-      state,
-      params.recipients.map { case (address, amount) => address -> SimpleValue(amount) }.toNonEmptyVector.toVector,
-      senderAddresses.toIndexedSeq,
-      params.changeAddress,
-      params.consolidationAddress,
-      params.fee,
-      params.data
-    )
-      .collect { case p: ArbitTransfer[Proposition @unchecked] =>
-        p
-      }
+    val transferRequest =
+      TransferRequests.ArbitTransferRequest(
+        params.sender.toList,
+        params.recipients.toList,
+        params.changeAddress,
+        params.consolidationAddress,
+        params.fee,
+        params.data
+      )
+
+    (params.propositionType match {
+      case PublicKeyPropositionCurve25519.`typeString` =>
+        TransferBuilder.buildUnsignedArbitTransfer[PublicKeyPropositionCurve25519](
+          state,
+          transferRequest,
+          params.boxSelectionAlgorithm
+        )
+      case ThresholdPropositionCurve25519.`typeString` =>
+        TransferBuilder.buildUnsignedArbitTransfer[ThresholdPropositionCurve25519](
+          state,
+          transferRequest,
+          params.boxSelectionAlgorithm
+        )
+      case PublicKeyPropositionEd25519.`typeString` =>
+        TransferBuilder.buildUnsignedArbitTransfer[PublicKeyPropositionEd25519](
+          state,
+          transferRequest,
+          params.boxSelectionAlgorithm
+        )
+      // need to cast to type ArbitTransfer[Proposition] because the P type param in ArbitTransfer
+      // is invariant and not co-variant
+    }).map(_.asInstanceOf[ArbitTransfer[Proposition]])
   }
 
   private def tryCreatePolyTransfer(
-    params:          ToplRpc.Transaction.RawPolyTransfer.Params,
-    state:           StateReader[ProgramId, Address],
-    senderAddresses: List[Address]
-  ): Try[PolyTransfer[Proposition]] = {
-    val f =
-      params.propositionType match {
-        case PublicKeyPropositionCurve25519.`typeString` => PolyTransfer.createRaw[PublicKeyPropositionCurve25519] _
-        case ThresholdPropositionCurve25519.`typeString` => PolyTransfer.createRaw[ThresholdPropositionCurve25519] _
-        case PublicKeyPropositionEd25519.`typeString`    => PolyTransfer.createRaw[PublicKeyPropositionEd25519] _
-      }
+    params: ToplRpc.Transaction.RawPolyTransfer.Params,
+    state:  StateReader[ProgramId, Address]
+  ): Either[BuildTransferFailure, PolyTransfer[Proposition]] = {
 
-    f(
-      state,
-      params.recipients.map { case (address, v) => address -> SimpleValue(v) }.toNonEmptyVector.toVector,
-      senderAddresses.toIndexedSeq,
-      params.changeAddress,
-      params.fee,
-      params.data
-    )
-  }.collect { case p: PolyTransfer[Proposition @unchecked] => p }
+    val transferRequest =
+      TransferRequests.PolyTransferRequest(
+        params.sender.toList,
+        params.recipients.toList,
+        params.changeAddress,
+        params.fee,
+        params.data
+      )
+
+    (params.propositionType match {
+      case PublicKeyPropositionCurve25519.`typeString` =>
+        TransferBuilder.buildUnsignedPolyTransfer[PublicKeyPropositionCurve25519](
+          state,
+          transferRequest,
+          params.boxSelectionAlgorithm
+        )
+      case ThresholdPropositionCurve25519.`typeString` =>
+        TransferBuilder.buildUnsignedPolyTransfer[ThresholdPropositionCurve25519](
+          state,
+          transferRequest,
+          params.boxSelectionAlgorithm
+        )
+      case PublicKeyPropositionEd25519.`typeString` =>
+        TransferBuilder.buildUnsignedPolyTransfer[PublicKeyPropositionEd25519](
+          state,
+          transferRequest,
+          params.boxSelectionAlgorithm
+        )
+      // need to cast to type PolyTransfer[Proposition] because the P type param in PolyTransfer
+      // is invariant and not co-variant
+    }).map(_.asInstanceOf[PolyTransfer[Proposition]])
+  }
 
   private def processTransaction(tx: Transaction.TX) =
     nodeViewHolderInterface.applyTransactions(tx).leftMap { case NodeViewHolderInterface.ApplyFailure(throwable) =>

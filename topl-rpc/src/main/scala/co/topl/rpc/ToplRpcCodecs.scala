@@ -1,12 +1,15 @@
 package co.topl.rpc
 
+import cats.data.NonEmptyChain
 import co.topl.attestation.{Address, Proposition}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
+import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithm, BoxSelectionAlgorithms}
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
-import co.topl.utils.{codecs, Int128}
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.StringDataTypes.Latin1Data
+import co.topl.utils.{codecs, Int128}
 import io.circe._
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.syntax._
@@ -345,20 +348,85 @@ trait NodeViewRpcParamsDecoders {
 
 trait TransactionRpcParamsDecoders extends SharedCodecs {
 
+  // require custom decoders here to provide a default box selection algorithm
+
   implicit def transactionRawAssetTransferParamsDecoder(implicit
     networkPrefix: NetworkPrefix
   ): Decoder[ToplRpc.Transaction.RawAssetTransfer.Params] =
-    deriveDecoder
+    cursor =>
+      for {
+        propositionType      <- cursor.downField("propositionType").as[String]
+        sender               <- cursor.downField("sender").as[NonEmptyChain[Address]]
+        recipients           <- cursor.downField("recipients").as[NonEmptyChain[(Address, AssetValue)]]
+        fee                  <- cursor.downField("fee").as[Int128]
+        changeAddress        <- cursor.downField("changeAddress").as[Address]
+        consolidationAddress <- cursor.downField("consolidationAddress").as[Address]
+        minting              <- cursor.downField("minting").as[Boolean]
+        data                 <- cursor.downField("data").as[Option[Latin1Data]]
+        boxSelectionAlgorithm <- cursor.getOrElse("boxSelectionAlgorithm")(
+          BoxSelectionAlgorithms.All: BoxSelectionAlgorithm // default to BoxSelectionAlgorithms.All
+        )
+      } yield ToplRpc.Transaction.RawAssetTransfer.Params(
+        propositionType,
+        sender,
+        recipients,
+        fee,
+        changeAddress,
+        consolidationAddress,
+        minting,
+        data,
+        boxSelectionAlgorithm
+      )
 
   implicit def transactionRawArbitTransferParamsDecoder(implicit
     networkPrefix: NetworkPrefix
   ): Decoder[ToplRpc.Transaction.RawArbitTransfer.Params] =
-    deriveDecoder
+    cursor =>
+      for {
+        propositionType      <- cursor.downField("propositionType").as[String]
+        sender               <- cursor.downField("sender").as[NonEmptyChain[Address]]
+        recipients           <- cursor.downField("recipients").as[NonEmptyChain[(Address, Int128)]]
+        fee                  <- cursor.downField("fee").as[Int128]
+        changeAddress        <- cursor.downField("changeAddress").as[Address]
+        consolidationAddress <- cursor.downField("consolidationAddress").as[Address]
+        data                 <- cursor.downField("data").as[Option[Latin1Data]]
+        boxSelectionAlgorithm <- cursor.getOrElse("boxSelectionAlgorithm")(
+          BoxSelectionAlgorithms.All: BoxSelectionAlgorithm // default to BoxSelectionAlgorithms.All
+        )
+      } yield ToplRpc.Transaction.RawArbitTransfer.Params(
+        propositionType,
+        sender,
+        recipients,
+        fee,
+        changeAddress,
+        consolidationAddress,
+        data,
+        boxSelectionAlgorithm
+      )
 
   implicit def transactionRawPolyTransferParamsDecoder(implicit
     networkPrefix: NetworkPrefix
   ): Decoder[ToplRpc.Transaction.RawPolyTransfer.Params] =
-    deriveDecoder
+    cursor =>
+      for {
+        propositionType <- cursor.downField("propositionType").as[String]
+        sender          <- cursor.downField("sender").as[NonEmptyChain[Address]]
+        recipients      <- cursor.downField("recipients").as[NonEmptyChain[(Address, Int128)]]
+        fee             <- cursor.downField("fee").as[Int128]
+        changeAddress   <- cursor.downField("changeAddress").as[Address]
+        data            <- cursor.downField("data").as[Option[Latin1Data]]
+        boxSelectionAlgorithm <- cursor.getOrElse("boxSelectionAlgorithm")(
+          BoxSelectionAlgorithms.All: BoxSelectionAlgorithm // default to BoxSelectionAlgorithms.All
+        )
+      } yield ToplRpc.Transaction.RawPolyTransfer.Params(
+        propositionType,
+        sender,
+        recipients,
+        fee,
+        changeAddress,
+        data,
+        boxSelectionAlgorithm
+      )
 
   implicit def transactionBroadcastTxParamsDecoder(implicit
     networkPrefix: NetworkPrefix
@@ -557,4 +625,7 @@ trait SharedCodecs extends codecs.json.Codecs {
 
   implicit def simpleValueEncoder: Encoder[SimpleValue] = SimpleValue.jsonEncoder
   implicit def assetValueEncoder: Encoder[AssetValue] = AssetValue.jsonEncoder
+
+  implicit val boxSelectionAlgorithmEncoder: Encoder[BoxSelectionAlgorithm] = BoxSelectionAlgorithm.jsonEncoder
+  implicit val boxSelectionAlgorithmDecoder: Decoder[BoxSelectionAlgorithm] = BoxSelectionAlgorithm.jsonDecoder
 }

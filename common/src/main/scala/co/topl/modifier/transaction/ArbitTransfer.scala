@@ -1,10 +1,9 @@
 package co.topl.modifier.transaction
 
 import co.topl.attestation._
-import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TxType
-import co.topl.modifier.transaction.TransferTransaction.{encodeFrom, BoxParams, TransferCreationState}
+import co.topl.modifier.transaction.TransferTransaction.{encodeFrom, BoxParams}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.codecs.json.codecs._
@@ -12,9 +11,7 @@ import co.topl.utils.{Identifiable, Identifier, Int128}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 
-import java.time.Instant
 import scala.collection.immutable.ListMap
-import scala.util.Try
 
 case class ArbitTransfer[
   P <: Proposition: EvidenceProducer: Identifiable
@@ -53,69 +50,6 @@ object ArbitTransfer {
 
   implicit def identifier[P <: Proposition]: Identifiable[ArbitTransfer[P]] = Identifiable.instance { () =>
     Identifier(typeString, typePrefix)
-  }
-
-  /**
-   * @param boxReader
-   * @param toReceive
-   * @param sender
-   * @param fee
-   * @param data
-   * @return
-   */
-  def createRaw[
-    P <: Proposition: EvidenceProducer: Identifiable
-  ](
-    boxReader:            BoxReader[ProgramId, Address],
-    toReceive:            IndexedSeq[(Address, SimpleValue)],
-    sender:               IndexedSeq[Address],
-    changeAddress:        Address,
-    consolidationAddress: Address,
-    fee:                  Int128,
-    data:                 Option[Latin1Data]
-  ): Try[ArbitTransfer[P]] =
-    TransferTransaction
-      .getSenderBoxesAndCheckPolyBalance(boxReader, sender, fee, "Arbits")
-      .map { txState =>
-        // compute the amount of tokens that will be sent to the recipients
-        val amtToSpend = toReceive.map(_._2.quantity).sum
-
-        // create the list of inputs and outputs (senderChangeOut & recipientOut)
-        val (availableToSpend, inputs, outputs) =
-          ioTransfer(txState, toReceive, changeAddress, consolidationAddress, fee, amtToSpend)
-
-        // ensure there are sufficient funds from the sender boxes to create all outputs
-        require(availableToSpend >= amtToSpend, "Insufficient funds available to create transaction.")
-
-        ArbitTransfer[P](inputs, outputs, ListMap(), fee, Instant.now.toEpochMilli, data, minting = false)
-      }
-
-  /** construct input and output box sequence for a transfer transaction */
-  private def ioTransfer(
-    txInputState:         TransferCreationState,
-    toReceive:            IndexedSeq[(Address, SimpleValue)],
-    changeAddress:        Address,
-    consolidationAddress: Address,
-    fee:                  Int128,
-    amtToSpend:           Int128
-  ): (Int128, IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, SimpleValue)]) = {
-
-    val availableToSpend =
-      txInputState.senderBoxes
-        .getOrElse("Arbit", throw new Exception(s"No Arbit funds available for the transaction"))
-        .map(_._3.value.quantity)
-        .sum
-
-    val inputs =
-      txInputState.senderBoxes("Arbit").map(bxs => (bxs._2, bxs._3.nonce)) ++
-      txInputState.senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce))
-
-    val outputs = IndexedSeq(
-      (changeAddress, SimpleValue(txInputState.polyBalance - fee)),
-      (consolidationAddress, SimpleValue(availableToSpend - amtToSpend))
-    ) ++ toReceive
-
-    (availableToSpend, inputs, outputs)
   }
 
   implicit def jsonEncoder[P <: Proposition]: Encoder[ArbitTransfer[P]] = { tx: ArbitTransfer[P] =>
