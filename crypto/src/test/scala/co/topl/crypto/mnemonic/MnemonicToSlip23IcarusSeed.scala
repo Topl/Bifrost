@@ -12,11 +12,13 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
-/** This is an integration test of mnemonics -> entropy -> seed where the seed is a 96 byte input to the
+/**
+ * This is an integration test of mnemonics -> entropy -> seed where the seed is a 96 byte input to the
  * ExtendedEd25519.clampBits function (the clampBits function generates a valid Bip32-Ed25519 ExtendedEd25519 secret key).
  * These tests are adopted from
  * https://github.com/input-output-hk/rust-cardano/blob/9fad3d12341acc2ab0f9c2026149af3d839447e4/cardano/src/bip/test_vectors/bip39_english.txt
- * but crucially, we are not testing the 64 byte output specified by BIP-39 (since we follow a modification of the BIP-39 spec) */
+ * but crucially, we are not testing the 64 byte output specified by BIP-39 (since we follow a modification of the BIP-39 spec)
+ */
 class MnemonicToSlip23IcarusSeed extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaCheckDrivenPropertyChecks {
 
   case class SpecIn(words: String, size: MnemonicSize, language: Language, password: String)
@@ -73,7 +75,7 @@ class MnemonicToSlip23IcarusSeed extends AnyPropSpec with ScalaCheckPropertyChec
 
     val seed: Sized.Strict[Bytes, Length] =
       FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
-        case Left(_) => throw new Error("error deriving entropy from words")
+        case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }
 
@@ -453,7 +455,7 @@ class MnemonicToSlip23IcarusSeed extends AnyPropSpec with ScalaCheckPropertyChec
 
     val seed: Sized.Strict[Bytes, Length] =
       FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
-        case Left(_) => throw new Error("error deriving entropy from words")
+        case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }
 

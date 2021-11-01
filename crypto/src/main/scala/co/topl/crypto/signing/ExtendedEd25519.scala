@@ -256,7 +256,9 @@ object ExtendedEd25519 {
   }
 
   /** do a PBDKF2-HMAC-SHA512 per the SLIP2-0023 Icarus spec */
-  def entropyToSeed(entropy: Entropy)(password: Password = ""): Sized.Strict[Bytes, SecretKeys.ExtendedEd25519.Length] = {
+  def entropyToSeed(
+    entropy:  Entropy
+  )(password: Password = ""): Sized.Strict[Bytes, SecretKeys.ExtendedEd25519.Length] = {
     val kdf = new Pbkdf2Sha512()
     Sized.strictUnsafe(
       Bytes(

@@ -96,7 +96,7 @@ class MnemonicToExtendedEd25519
         "vessel erase town arrow girl emotion siren better fork approve spare convince sauce amused clap",
         Mnemonic15,
         English,
-        "heart",
+        "heart"
       ),
       SpecOut(
         SecretKeys.ExtendedEd25519(
@@ -120,10 +120,10 @@ class MnemonicToExtendedEd25519
       "Test Vector #3",
       SpecIn(
         "model abandon genius figure shiver craft surround sister permit output network swift slush lumber " +
-          "dune license run sugar",
+        "dune license run sugar",
         Mnemonic18,
         English,
-        "describe",
+        "describe"
       ),
       SpecOut(
         SecretKeys.ExtendedEd25519(
@@ -148,7 +148,7 @@ class MnemonicToExtendedEd25519
       "Test Vector #4",
       SpecIn(
         "acquire pretty ocean screen assist purity exchange memory universe attitude sense charge fragile emerge " +
-          "quick home asthma intact gloom giant gather",
+        "quick home asthma intact gloom giant gather",
         Mnemonic21,
         English,
         "manager"
@@ -176,7 +176,7 @@ class MnemonicToExtendedEd25519
       "Test Vector #5",
       SpecIn(
         "nice demise viable bonus flavor genre kick nominee supreme couple tattoo shadow ethics swamp rebuild pencil " +
-          "rebuild pet ignore define seek fire wrong harvest",
+        "rebuild pet ignore define seek fire wrong harvest",
         Mnemonic24,
         English,
         "exact"
@@ -204,7 +204,7 @@ class MnemonicToExtendedEd25519
       "Test Vector #6",
       SpecIn(
         "toss enrich steak utility dolphin cushion jeans work ski angle total alley trade poem february whisper toe " +
-          "office half assume keep shift also fade",
+        "office half assume keep shift also fade",
         Mnemonic24,
         English,
         ""
