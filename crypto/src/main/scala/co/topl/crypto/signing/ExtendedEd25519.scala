@@ -218,14 +218,7 @@ object ExtendedEd25519 {
    *
    * Equivalent to `2^252 + 27742317777372353535851937790883648493`
    */
-  val edBaseN: BigInt = BigInt("7237005577332262213973186563042994240857116359379907606001950938285454250989")
-
-  // Note: BigInt expects Big-Endian, but SLIP/BIP-ED25519 need Little-Endian
-  def leftNumber(secretKey: SecretKeys.ExtendedEd25519): BigInt =
-    BigInt(1, Bytes.toByteArray(secretKey.leftKey.data).reverse)
-
-  def rightNumber(secretKey: SecretKeys.ExtendedEd25519): BigInt =
-    BigInt(1, Bytes.toByteArray(secretKey.rightKey.data).reverse)
+  private val edBaseN: BigInt = BigInt("7237005577332262213973186563042994240857116359379907606001950938285454250989")
 
   /**
    * Validates that the given key is a valid derived key.
@@ -244,36 +237,45 @@ object ExtendedEd25519 {
    */
   def fromEntropy(entropy: Entropy)(password: Password = ""): SecretKeys.ExtendedEd25519 = {
 
-    val generatePrivateKey = (sizedSeed: Sized.Strict[Bytes, SecretKeys.ExtendedEd25519.Length]) => {
+    /** clamp bits to make a valid Bip32-Ed25519 private key */
+    def clampBits(sizedSeed: Sized.Strict[Bytes, SecretKeys.ExtendedEd25519.Length]): SecretKeys.ExtendedEd25519 = {
       val seed = sizedSeed.data.toArray
 
-      // turn seed into a valid ExtendedPrivateKeyEd25519 per the SLIP-0023 spec
+      // turn seed into a valid ExtendedPrivateKeyEd25519 per the SLIP-0023 Icarus spec
       seed(0) = (seed(0) & 0xf8).toByte
       seed(31) = ((seed(31) & 0x1f) | 0x40).toByte
 
-      new SecretKeys.ExtendedEd25519(
+      SecretKeys.ExtendedEd25519(
         Sized.strictUnsafe(Bytes(seed.slice(0, 32).reverse)),
         Sized.strictUnsafe(Bytes(seed.slice(32, 64).reverse)),
         Sized.strictUnsafe(Bytes(seed.slice(64, 96).reverse))
       )
     }
 
-    // first do a PBDKF2-HMAC-SHA512 per the SLIP2-0023 spec
-    val seed: Sized.Strict[Bytes, SecretKeys.ExtendedEd25519.Length] =
-      Sized.strictUnsafe(
-        Bytes(
-          Pbkdf2Sha512.generateKey(
-            password.getBytes(StandardCharsets.UTF_8),
-            entropy.value,
-            96,
-            4096
-          )
+    clampBits(entropyToSeed(entropy)(password))
+  }
+
+  /** do a PBDKF2-HMAC-SHA512 per the SLIP2-0023 Icarus spec */
+  def entropyToSeed(entropy: Entropy)(password: Password = ""): Sized.Strict[Bytes, SecretKeys.ExtendedEd25519.Length] = {
+    val kdf = new Pbkdf2Sha512()
+    Sized.strictUnsafe(
+      Bytes(
+        kdf.generateKey(
+          password.getBytes(StandardCharsets.UTF_8),
+          entropy.value,
+          96,
+          4096
         )
       )
-
-    // turn seed into a valid ExtendedPrivateKeyEd25519 per the SLIP-0023 spec
-    generatePrivateKey(seed)
+    )
   }
+
+  // Note: BigInt expects Big-Endian, but SLIP/BIP-ED25519 need Little-Endian
+  private def leftNumber(secretKey: SecretKeys.ExtendedEd25519): BigInt =
+    BigInt(1, Bytes.toByteArray(secretKey.leftKey.data).reverse)
+
+  private def rightNumber(secretKey: SecretKeys.ExtendedEd25519): BigInt =
+    BigInt(1, Bytes.toByteArray(secretKey.rightKey.data).reverse)
 
   private def hmac512WithKey(key: Array[Byte], data: Array[Byte]): Bytes = {
     val mac = new HMac(new SHA512Digest())

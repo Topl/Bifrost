@@ -14,7 +14,7 @@ class ExtendedEd25519Spec
     with ScalaCheckDrivenPropertyChecks
     with Matchers {
 
-  "ExtendedPrivateKeyEd25519" should "verify a message signed with the appropriate public key" in {
+  "ExtendedEd25519" should "verify a signed message using the appropriate public key" in {
     forAll { (seed1: Bytes, seed2: Bytes, message1: Bytes, message2: Bytes) =>
       whenever(!(seed1 == seed2) && !(message1 == message2)) {
         val extendedEd25519 = new ExtendedEd25519
