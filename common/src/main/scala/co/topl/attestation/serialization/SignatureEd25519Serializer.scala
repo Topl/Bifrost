@@ -1,7 +1,8 @@
 package co.topl.attestation.serialization
 
 import co.topl.attestation.SignatureEd25519
-import co.topl.crypto.signatures.Signature
+import co.topl.crypto.Signature
+import co.topl.crypto.signing.Ed25519
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object SignatureEd25519Serializer extends BifrostSerializer[SignatureEd25519] {
@@ -10,7 +11,7 @@ object SignatureEd25519Serializer extends BifrostSerializer[SignatureEd25519] {
     w.putBytes(obj.sigBytes.value)
 
   override def parse(r: Reader): SignatureEd25519 = {
-    val sigBytes = r.getBytes(SignatureEd25519.signatureSize)
+    val sigBytes = r.getBytes(Ed25519.instance.SignatureLength)
     SignatureEd25519(Signature(sigBytes))
   }
 }

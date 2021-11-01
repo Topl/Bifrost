@@ -36,7 +36,7 @@ object BlockHeaderValidationFailures {
 
   case class RegistrationCommitmentMismatch(
     vrfCommitment: Sized.Strict[Bytes, Lengths.`32`.type],
-    vkVrf:         VerificationKeys.Vrf
+    vkVrf:         VerificationKeys.VrfEd25519
   ) extends BlockHeaderValidationFailure
 
 }

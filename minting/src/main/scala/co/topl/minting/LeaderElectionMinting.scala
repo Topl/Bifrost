@@ -3,7 +3,6 @@ package co.topl.minting
 import cats.Monad
 import cats.implicits._
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
-import co.topl.crypto.typeclasses.implicits._
 import co.topl.minting.algebras.LeaderElectionMintingAlgebra.VrfHit
 import co.topl.minting.algebras.{LeaderElectionMintingAlgebra, VrfProofAlgebra}
 import co.topl.models._
@@ -15,7 +14,7 @@ object LeaderElectionMinting {
   object Eval {
 
     def make[F[_]: Monad](
-      secret:               SecretKeys.Vrf,
+      secret:               SecretKeys.VrfEd25519,
       thresholdInterpreter: LeaderElectionValidationAlgebra[F],
       vrfProofAlgebra:      VrfProofAlgebra[F]
     ): LeaderElectionMintingAlgebra[F] = new LeaderElectionMintingAlgebra[F] {
@@ -28,7 +27,7 @@ object LeaderElectionMinting {
               EligibilityCertificate(
                 nonceProof,
                 testProof,
-                secret.verificationKey[VerificationKeys.Vrf],
+                secret.verificationKey[VerificationKeys.VrfEd25519],
                 threshold.evidence,
                 eta
               ),

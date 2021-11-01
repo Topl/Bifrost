@@ -1,5 +1,6 @@
 package co.topl.models
 
+import co.topl.models.Proofs.Signature.KesSum
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.StringDataTypes.Latin1Data
@@ -19,7 +20,7 @@ trait ModelGenerators {
     for {
       nonceProof <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Signature.VrfEd25519(_))
       testProof  <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Signature.VrfEd25519(_))
-      vkVrf      <- ed25519VkGen.map(VerificationKeys.Vrf)
+      vkVrf      <- genSizedStrictBytes[Lengths.`32`.type]().map(VerificationKeys.VrfEd25519(_))
       thresholdEvidence <- genSizedStrictBytes[Lengths.`32`.type]().map(b =>
         Sized.strict[TypedBytes, Lengths.`33`.type](TypedBytes(1: Byte, b.data)).toOption.get
       )
@@ -35,32 +36,20 @@ trait ModelGenerators {
       chainCode <- genSizedStrictBytes[VerificationKeys.ExtendedEd25519.ChainCodeLength]()
     } yield VerificationKeys.ExtendedEd25519(ed25519, chainCode)
 
-  def witnessGen: Gen[Seq[VerificationKeys.Ed25519]] =
-    Gen.nonEmptyListOf(ed25519VkGen)
+  def witnessGen: Gen[Vector[Sized.Strict[Bytes, KesSum.DigestLength]]] =
+    Gen.nonEmptyContainerOf[Vector, Sized.Strict[Bytes, Lengths.`32`.type]](genSizedStrictBytes[Lengths.`32`.type]())
 
-  def sumProductGen: Gen[Proofs.Signature.SumProduct] =
+  def sumProductGen: Gen[Proofs.Signature.KesSum] =
     for {
-      ecSignature <- genSizedStrictBytes[Proofs.Signature.Ed25519.Length]().map(Proofs.Signature.Ed25519(_))
       vkK         <- ed25519VkGen
-      index       <- Gen.chooseNum[Long](0, 100L)
-      witness     <- witnessGen
-    } yield Proofs.Signature.SumProduct(ecSignature, vkK, index, witness)
-
-  def hdKesProofGen: Gen[Proofs.Signature.HdKes] =
-    for {
-      i           <- Gen.chooseNum[Long](0, 100L)
-      vki         <- genSizedStrictBytes[Lengths.`32`.type]().map(VerificationKeys.Ed25519(_))
       ecSignature <- genSizedStrictBytes[Proofs.Signature.Ed25519.Length]().map(Proofs.Signature.Ed25519(_))
-      sigSumJ     <- sumProductGen
-      sigSumK     <- sumProductGen
-    } yield Proofs.Signature.HdKes(i, vki, ecSignature, sigSumJ, sigSumK)
+      witness     <- witnessGen
+    } yield Proofs.Signature.KesSum(vkK, ecSignature, witness)
 
   def operationalCertificateGen: Gen[OperationalCertificate] =
     for {
-      opSig <- hdKesProofGen
-      xvkM  <- extendedEd25519VkGen
-      slotR <- Gen.chooseNum[Long](0, 100L)
-    } yield OperationalCertificate(opSig, xvkM, slotR)
+      opSig <- genSizedStrictBytes[Lengths.`64`.type]().map(Proofs.Signature.Ed25519(_))
+    } yield OperationalCertificate(opSig)
 
   def taktikosAddressGen: Gen[TaktikosAddress] =
     for {

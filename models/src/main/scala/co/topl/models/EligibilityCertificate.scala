@@ -11,7 +11,7 @@ package co.topl.models
 case class EligibilityCertificate(
   vrfNonceSig:       Proofs.Signature.VrfEd25519,
   vrfTestSig:        Proofs.Signature.VrfEd25519,
-  vkVRF:             VerificationKeys.Vrf,
+  vkVRF:             VerificationKeys.VrfEd25519,
   thresholdEvidence: Evidence,
   eta:               Eta
 )

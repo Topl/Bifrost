@@ -115,7 +115,7 @@ object BasicCodecs {
     new ByteCodec[VerificationKeys.ExtendedEd25519] {
 
       def encode(t: VerificationKeys.ExtendedEd25519, writer: Writer): Unit = {
-        t.ed25519.writeBytesTo(writer)
+        t.vk.writeBytesTo(writer)
         t.chainCode.writeBytesTo(writer)
       }
 
@@ -153,14 +153,14 @@ object BasicCodecs {
         Signature.VrfEd25519(ByteCodec[Sized.Strict[Bytes, Signature.VrfEd25519.Length]].decode(reader))
     }
 
-  implicit val vkVrfCodec: ByteCodec[VerificationKeys.Vrf] =
-    new ByteCodec[VerificationKeys.Vrf] {
+  implicit val vkVrfCodec: ByteCodec[VerificationKeys.VrfEd25519] =
+    new ByteCodec[VerificationKeys.VrfEd25519] {
 
-      def encode(t: VerificationKeys.Vrf, writer: Writer): Unit =
-        t.ed25519.writeBytesTo(writer)
+      def encode(t: VerificationKeys.VrfEd25519, writer: Writer): Unit =
+        t.bytes.writeBytesTo(writer)
 
-      def decode(reader: Reader): VerificationKeys.Vrf =
-        VerificationKeys.Vrf(ByteCodec[VerificationKeys.Ed25519].decode(reader))
+      def decode(reader: Reader): VerificationKeys.VrfEd25519 =
+        VerificationKeys.VrfEd25519(ByteCodec[Sized.Strict[Bytes, VerificationKeys.VrfEd25519.Length]].decode(reader))
     }
 
   implicit val vrfCertificateCodec: ByteCodec[EligibilityCertificate] = new ByteCodec[EligibilityCertificate] {
@@ -176,69 +176,73 @@ object BasicCodecs {
       EligibilityCertificate(
         ByteCodec[Proofs.Signature.VrfEd25519].decode(reader),
         ByteCodec[Proofs.Signature.VrfEd25519].decode(reader),
-        ByteCodec[VerificationKeys.Vrf].decode(reader),
+        ByteCodec[VerificationKeys.VrfEd25519].decode(reader),
         ByteCodec[Evidence].decode(reader),
         ByteCodec[Eta].decode(reader)
       )
   }
 
-  implicit val kesPublicKeyCodec: ByteCodec[VerificationKeys.HdKes] = new ByteCodec[VerificationKeys.HdKes] {
+//  implicit val kesPublicKeyCodec: ByteCodec[VerificationKeys.HdKes] =
+//    new ByteCodec[VerificationKeys.HdKes] {
+//
+//      def encode(t: VerificationKeys.HdKes, writer: Writer): Unit = {
+//        //todo: fix
+////      t.xvkM.writeBytesTo(writer)
+////      writer.putLong(t.t)
+//      }
+//
+//      def decode(reader: Reader): VerificationKeys.HdKes =
+//        VerificationKeys.HdKes(
+//          Array(0: Byte)
+//          //todo: fix
+////          ByteCodec[VerificationKeys.ExtendedEd25519].decode(reader)
+////          //reader.getLong()
+//        )
+//    }
 
-    def encode(t: VerificationKeys.HdKes, writer: Writer): Unit = {
-      t.xvkM.writeBytesTo(writer)
-      writer.putLong(t.t)
-    }
-
-    def decode(reader: Reader): VerificationKeys.HdKes =
-      VerificationKeys.HdKes(
-        ByteCodec[VerificationKeys.ExtendedEd25519].decode(reader),
-        reader.getLong()
-      )
-  }
-
-  implicit val sumProductSignatureCodec: ByteCodec[Proofs.Signature.SumProduct] = new ByteCodec[Signature.SumProduct] {
-
-    def encode(t: Signature.SumProduct, writer: Writer): Unit = {
-      t.ecSignature.writeBytesTo(writer)
-      t.vkK.writeBytesTo(writer)
-      t.witness.writeBytesTo(writer)
-    }
-
-    def decode(reader: Reader): Signature.SumProduct =
-      Signature.SumProduct(
-        ByteCodec[Proofs.Signature.Ed25519].decode(reader),
-        ByteCodec[VerificationKeys.Ed25519].decode(reader),
-        reader.getLong(),
-        ByteCodec[Seq[VerificationKeys.Ed25519]].decode(reader)
-      )
-  }
-
-  implicit val hdKesSignatureCodec: ByteCodec[Proofs.Signature.HdKes] = new ByteCodec[Signature.HdKes] {
-
-    def encode(t: Signature.HdKes, writer: Writer): Unit = {
-      writer.putLong(t.i)
-      t.vkI.writeBytesTo(writer)
-      t.ecSignature.writeBytesTo(writer)
-      t.sigSumJ.writeBytesTo(writer)
-      t.sigSumK.writeBytesTo(writer)
-    }
-
-    def decode(reader: Reader): Signature.HdKes = ???
-  }
-
-  implicit val kesCertificateCodec: ByteCodec[OperationalCertificate] = new ByteCodec[OperationalCertificate] {
-
-    override def encode(t: OperationalCertificate, writer: Writer): Unit = {
-      t.opSig.writeBytesTo(writer)
-      t.xvkM.writeBytesTo(writer)
-      writer.putLong(t.slotR)
-    }
-
-    override def decode(reader: Reader): OperationalCertificate =
-      OperationalCertificate(
-        ByteCodec[Proofs.Signature.HdKes].decode(reader),
-        ByteCodec[VerificationKeys.ExtendedEd25519].decode(reader),
-        reader.getLong()
-      )
-  }
+//  implicit val sumProductSignatureCodec: ByteCodec[Proofs.Signature.SumProduct] = new ByteCodec[Signature.SumProduct] {
+//
+//    def encode(t: Signature.SumProduct, writer: Writer): Unit = {
+//      t.ecSignature.writeBytesTo(writer)
+//      t.vkK.writeBytesTo(writer)
+//      t.witness.writeBytesTo(writer)
+//    }
+//
+//    def decode(reader: Reader): Signature.SumProduct =
+//      Signature.SumProduct(
+//        ByteCodec[Proofs.Signature.Ed25519].decode(reader),
+//        ByteCodec[VerificationKeys.Ed25519].decode(reader),
+//        reader.getLong(),
+//        ByteCodec[Seq[VerificationKeys.Ed25519]].decode(reader)
+//      )
+//  }
+//
+//  implicit val hdKesSignatureCodec: ByteCodec[Proofs.Signature.HdKes] = new ByteCodec[Signature.HdKes] {
+//
+//    def encode(t: Signature.HdKes, writer: Writer): Unit = {
+//      writer.putLong(t.i)
+//      t.vkI.writeBytesTo(writer)
+//      t.ecSignature.writeBytesTo(writer)
+//      t.sigSumJ.writeBytesTo(writer)
+//      t.sigSumK.writeBytesTo(writer)
+//    }
+//
+//    def decode(reader: Reader): Signature.HdKes = ???
+//  }
+//
+//  implicit val kesCertificateCodec: ByteCodec[OperationalCertificate] = new ByteCodec[OperationalCertificate] {
+//
+//    override def encode(t: OperationalCertificate, writer: Writer): Unit = {
+//      t.opSig.writeBytesTo(writer)
+//      t.xvkM.writeBytesTo(writer)
+//      writer.putLong(t.slotR)
+//    }
+//
+//    override def decode(reader: Reader): OperationalCertificate =
+//      OperationalCertificate(
+//        ByteCodec[Proofs.Signature.HdKes].decode(reader),
+//        ByteCodec[VerificationKeys.ExtendedEd25519].decode(reader),
+//        reader.getLong()
+//      )
+//  }
 }

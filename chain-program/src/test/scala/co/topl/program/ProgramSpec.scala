@@ -2,7 +2,7 @@ package co.topl.program
 
 import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.crypto.PublicKey
-import co.topl.crypto.signatures.Curve25519
+import co.topl.crypto.signing.Curve25519
 import io.circe.{Json, JsonObject}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
@@ -35,7 +35,7 @@ class ProgramSpec
     ).json
 
   def getMockPublicKeyProposition(fillByte: Byte): PublicKeyPropositionCurve25519 =
-    PublicKeyPropositionCurve25519(PublicKey(Array.fill(Curve25519.KeyLength)(fillByte)))
+    PublicKeyPropositionCurve25519(PublicKey(Array.fill(Curve25519.vkLength)(fillByte)))
 
   property("Can create program") {
     Try {
