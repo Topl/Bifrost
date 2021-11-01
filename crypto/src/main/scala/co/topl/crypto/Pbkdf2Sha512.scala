@@ -25,10 +25,9 @@ class Pbkdf2Sha512 {
    * @param iterations the number of iterations to run
    * @return the bytes of the key result
    */
-  def generateKey(password: Array[Byte], salt: Array[Byte], keySizeBytes: Int, iterations: Int): Array[Byte] =
-    synchronized {
-      val generator = new PKCS5S2ParametersGenerator(new SHA512Digest)
-      generator.init(password, salt, iterations)
-      generator.generateDerivedParameters(keySizeBytes * 8).asInstanceOf[KeyParameter].getKey
-    }
+  def generateKey(password: Array[Byte], salt: Array[Byte], keySizeBytes: Int, iterations: Int): Array[Byte] = {
+    val generator = new PKCS5S2ParametersGenerator(new SHA512Digest)
+    generator.init(password, salt, iterations)
+    generator.generateDerivedParameters(keySizeBytes * 8).asInstanceOf[KeyParameter].getKey
+  }
 }

@@ -34,7 +34,7 @@ class Curve25519
     val hashedSeed = sha256.hash(seed.toArray)
     val privateKey = SecretKeys.Curve25519(Sized.strictUnsafe(Bytes(provider.generatePrivateKey(hashedSeed.value))))
     val publicKey = VerificationKeys.Curve25519(
-      Sized.strictUnsafe(Bytes(provider.generatePublicKey(Bytes.toByteArray(privateKey.bytes.data))))
+      Sized.strictUnsafe(Bytes(provider.generatePublicKey(privateKey.bytes.data.toArray)))
     )
 
     privateKey -> publicKey
@@ -64,9 +64,9 @@ class Curve25519
     signature.bytes.data.length == SignatureLength &&
     publicKey.bytes.data.length == KeyLength &&
     provider.verifySignature(
-      Bytes.toByteArray(publicKey.bytes.data),
+      publicKey.bytes.data.toArray,
       message.toArray,
-      Bytes.toByteArray(signature.bytes.data)
+      signature.bytes.data.toArray
     )
 
   override def getVerificationKey(secretKey: SecretKeys.Curve25519): VerificationKeys.Curve25519 =

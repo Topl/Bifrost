@@ -48,9 +48,9 @@ class ExtendedEd25519
     verifyKey.bytes.data.length == PUBLIC_KEY_SIZE &&
     signature.bytes.data.length == SIGNATURE_SIZE &&
     verify(
-      Bytes.toByteArray(signature.bytes.data),
+      signature.bytes.data.toArray,
       0,
-      Bytes.toByteArray(verifyKey.bytes.data),
+      verifyKey.bytes.data.toArray,
       0,
       message.toArray,
       0,
@@ -274,10 +274,10 @@ object ExtendedEd25519 {
 
   // Note: BigInt expects Big-Endian, but SLIP/BIP-ED25519 need Little-Endian
   private def leftNumber(secretKey: SecretKeys.ExtendedEd25519): BigInt =
-    BigInt(1, Bytes.toByteArray(secretKey.leftKey.data).reverse)
+    BigInt(1, secretKey.leftKey.data.toArray.reverse)
 
   private def rightNumber(secretKey: SecretKeys.ExtendedEd25519): BigInt =
-    BigInt(1, Bytes.toByteArray(secretKey.rightKey.data).reverse)
+    BigInt(1, secretKey.rightKey.data.toArray.reverse)
 
   private def hmac512WithKey(key: Array[Byte], data: Array[Byte]): Bytes = {
     val mac = new HMac(new SHA512Digest())
