@@ -151,7 +151,7 @@ object Program {
 
         bindings.getMember(s._1) match {
           case value: Value => s._1 -> stateTypeCheck(s, value, valueType)
-          case _            => throw new NoSuchElementException(s"""Element "${s._2.name}" does not exist in program state""")
+          case _ => throw new NoSuchElementException(s"""Element "${s._2.name}" does not exist in program state""")
         }
       }
 
@@ -175,7 +175,7 @@ object Program {
         //TODO Check for all valid JS types
         case "Number" => JsonNumber.fromString(member.toString).get.asJson
         case "String" => member.as(classOf[String]).asJson
-        case _        => throw new NoSuchElementException(s"""Element "${variable._1}" does not exist in program state """)
+        case _ => throw new NoSuchElementException(s"""Element "${variable._1}" does not exist in program state """)
       }
     else
       throw new ClassCastException(

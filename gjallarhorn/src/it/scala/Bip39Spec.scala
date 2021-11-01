@@ -14,25 +14,28 @@ class Bip39Spec extends AnyFlatSpec with Matchers {
   //------------------------------------------------------------------------------------
 
   "A seed phrase" should "be generated" in {
-    val (seedHex,phrase) = pt.uuidSeedPhrase(uuidString)
+    val (seedHex, phrase) = pt.uuidSeedPhrase(uuidString)
   }
   //------------------------------------------------------------------------------------
 
-  "A seed phrase" should "be translated to hex" in{
+  "A seed phrase" should "be translated to hex" in {
     val phraseGood = "news excite upon nothing begin candy oblige situate figure method over tomato"
     val phraseBad = "this is a bad phrase that i hope will throw an error"
     val phraseShort = "news excite upon nothing begin candy oblige situate figure method over"
     val phraseMixed = "excite news upon nothing begin candy oblige situate figure method over tomato"
     val phraseColeman = "exercise crop sorry shiver jealous glue oblige evoke enrich cram air fringe"
     val hexColeman = "4f467f3de31778c7e60a704b064415ae"
-    val (seedHex,phrase) = pt.uuidSeedPhrase(uuidString)
+    val (seedHex, phrase) = pt.uuidSeedPhrase(uuidString)
 
     val phraseGood15 = "secret portion force rebuild often grow fall carbon zebra van palm bar typical enter robot"
-    val phraseGood18 = "stand earth guess employ goose aisle great next embark weapon wonder aisle monitor surface omit guilt model rule"
-    val phraseGood21 = "seven army trash viable rude ignore other arena dove wood dynamic gift broken lunch glue yellow isolate crawl damage old ripple"
-    val phraseGood24 = "siege earth jaguar gallery mom fuel unlock mimic flush develop tragic cross sense inner damp drop resist pretty example october chef energy knee cable"
+    val phraseGood18 =
+      "stand earth guess employ goose aisle great next embark weapon wonder aisle monitor surface omit guilt model rule"
+    val phraseGood21 =
+      "seven army trash viable rude ignore other arena dove wood dynamic gift broken lunch glue yellow isolate crawl damage old ripple"
+    val phraseGood24 =
+      "siege earth jaguar gallery mom fuel unlock mimic flush develop tragic cross sense inner damp drop resist pretty example october chef energy knee cable"
 
-    def checkPT(arg: String): String ={
+    def checkPT(arg: String): String = {
       val passCheckSum = pt.phraseCheckSum(arg)
       var outString = ""
       outString += "Seed Phrase:\n" + arg + "\n"
@@ -54,7 +57,7 @@ class Bip39Spec extends AnyFlatSpec with Matchers {
     assert(pt.phraseToHex(phrase) == seedHex)
   }
   //------------------------------------------------------------------------------------
-/*
+  /*
   "A key file" should "be generated" in {
     Try(path.deleteRecursively())
     Try(path.createDirectory())
@@ -74,7 +77,7 @@ class Bip39Spec extends AnyFlatSpec with Matchers {
     key2 shouldEqual key3
     key1 shouldEqual key3
   }
-*/
+   */
 
   Try(path.deleteRecursively())
 }

@@ -75,6 +75,7 @@ class KeysSpec extends AsyncFlatSpec with Matchers {
     assert(sk1.publicImage.isInstanceOf[PublicKeyPropositionCurve25519])
     assert(addr1.isInstanceOf[Address])
   }
+
   it should "Be deterministic" in {
     //Used the same entropic input
     assert(addr1.equals(sk3.publicImage.address))
