@@ -152,7 +152,9 @@ private class ChainReplicator(
               case Failure(err) =>
                 ReceivableMessages.Terminate(err)
               case _ =>
-                log.debug(s"${Console.GREEN}No missing blocks found between $startHeight and $endHeight${Console.RESET}")
+                log.debug(
+                  s"${Console.GREEN}No missing blocks found between $startHeight and $endHeight${Console.RESET}"
+                )
                 ReceivableMessages.CheckMissingBlocksDone(startHeight, endHeight, maxHeight)
             }
         }
