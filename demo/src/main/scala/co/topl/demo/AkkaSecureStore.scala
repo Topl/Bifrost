@@ -113,7 +113,7 @@ object AkkaSecureStoreActor {
 
     case class Write[A: ByteCodec](name: String, data: A, replyTo: ActorRef[Done]) extends ReceivableMessage {
 
-      private[AkkaSecureStore] def run(baseDir: Path): Unit = {
+      private[AkkaSecureStoreActor] def run(baseDir: Path): Unit = {
         val path = Paths.get(baseDir.toString, name)
         Files.write(path, data.bytes.toArray)
         replyTo.tell(Done)
@@ -122,7 +122,7 @@ object AkkaSecureStoreActor {
 
     case class Consume[A: ByteCodec](name: String, replyTo: ActorRef[Option[A]]) extends ReceivableMessage {
 
-      private[AkkaSecureStore] def run(baseDir: Path): Unit = {
+      private[AkkaSecureStoreActor] def run(baseDir: Path): Unit = {
         val path = Paths.get(baseDir.toString, name)
         if (Files.exists(path) && Files.isRegularFile(path)) {
           replyTo.tell(Bytes(Files.readAllBytes(path)).decoded[A].some)

@@ -205,8 +205,12 @@ class ExtendedEd25519
 }
 
 object ExtendedEd25519 {
-  val instance = new ExtendedEd25519
-  instance.precompute()
+
+  def precomputed(): ExtendedEd25519 = {
+    val instance = new ExtendedEd25519
+    instance.precompute()
+    instance
+  }
 
   /**
    * The type of the password used alongside a mnemonic to generate an `ExtendedPrivateKeyEd25519`

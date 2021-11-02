@@ -1,11 +1,9 @@
 package co.topl.demo
 
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import cats._
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.implicits._
-import co.topl.crypto.keyfile.{SecureBytes, SecureData}
+import co.topl.codecs.bytes.{ByteCodec, Reader, Writer}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -14,7 +12,6 @@ import org.scalatest.{BeforeAndAfterAll, EitherValues, Inspectors, OptionValues}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
 import java.util.Comparator
-import scala.collection.mutable
 
 class AkkaSecureStoreSpec
     extends ScalaTestWithActorTestKit
@@ -25,6 +22,8 @@ class AkkaSecureStoreSpec
     with OptionValues
     with BeforeAndAfterAll
     with AnyFlatSpecLike {
+
+  import AkkaSecureStoreSpec._
 
   behavior of "AkkaSecureStore"
 
@@ -45,60 +44,55 @@ class AkkaSecureStoreSpec
   }
 
   it should "write a file" in {
-    val data = SecureData("file1.txt", SecureBytes("test1".getBytes(StandardCharsets.UTF_8)))
+    val name = "file.txt"
+    val data = TestData(Array.fill[Byte](32)(1))
     val dir1 = Paths.get(testDir.toString, "write")
     Files.createDirectories(dir1)
 
     val underTest = AkkaSecureStore.Eval.make[IO](dir1).unsafeRunSync()
 
-    underTest.write(data).unsafeRunSync()
+    underTest.write(name, data).unsafeRunSync()
 
-    val fileString =
-      new String(Files.readAllBytes(Paths.get(dir1.toString, "file1.txt")), StandardCharsets.UTF_8)
+    val fileBytes =
+      Files.readAllBytes(Paths.get(dir1.toString, name))
 
-    fileString shouldBe "test1"
+    fileBytes.length shouldBe 32
+    forAll(fileBytes.toList)(_ shouldBe (1: Byte))
   }
 
   it should "read a file in a directory" in {
     val dir1 = Paths.get(testDir.toString, "read")
+    val name = "file.txt"
+    val data = TestData(Array.fill[Byte](32)(1))
     Files.createDirectories(dir1)
-    Files.write(Paths.get(dir1.toString, "file1.txt"), "test1".getBytes(StandardCharsets.UTF_8))
+    Files.write(Paths.get(dir1.toString, name), data.value)
 
     val underTest = AkkaSecureStore.Eval.make[IO](dir1).unsafeRunSync()
 
-    val data = underTest.read("file1.txt").unsafeRunSync().value
+    val dataOut = underTest.consume[TestData](name).unsafeRunSync().value
 
-    var bytesOut: Array[Byte] = null
-
-    data.bytes.foldLeft[Id, mutable.ArrayBuilder[Byte]](mutable.ArrayBuilder.make[Byte])(_.addOne(_))(builder =>
-      (bytesOut = builder.result()).pure[Id]
-    )
-
-    val string = new String(bytesOut, StandardCharsets.UTF_8)
-
-    string shouldBe "test1"
+    dataOut.value.length shouldBe 32
+    forAll(dataOut.value.toList)(_ shouldBe (1: Byte))
   }
 
   it should "securely delete a file in a directory" in {
-    val array = "test1".getBytes(StandardCharsets.UTF_8)
-    val data = SecureData("file1.txt", SecureBytes(array))
+    val name = "file.txt"
+    val data = TestData(Array.fill[Byte](32)(1))
     val dir1 = Paths.get(testDir.toString, "delete")
     Files.createDirectories(dir1)
 
     val underTest = AkkaSecureStore.Eval.make[IO](dir1).unsafeRunSync()
 
-    underTest.write(data).unsafeRunSync()
+    underTest.write(name, data).unsafeRunSync()
 
-    val fileString =
-      new String(Files.readAllBytes(Paths.get(dir1.toString, "file1.txt")), StandardCharsets.UTF_8)
+    val dataOut = underTest.consume[TestData](name).unsafeRunSync().value
 
-    fileString shouldBe "test1"
+    dataOut.value.length shouldBe 32
+    forAll(dataOut.value.toList)(_ shouldBe (1: Byte))
 
-    underTest.delete("file1.txt").unsafeRunSync()
+    underTest.erase(name).unsafeRunSync()
 
-    forAll(array.toSeq)(_ shouldBe (0: Byte))
-
-    Files.exists(Paths.get(dir1.toString, "file1.txt")) shouldBe false
+    Files.exists(Paths.get(dir1.toString, name)) shouldBe false
   }
 
   override def beforeAll(): Unit = {
@@ -113,4 +107,18 @@ class AkkaSecureStoreSpec
       .sorted(Comparator.reverseOrder[Path]())
       .forEach(Files.delete(_))
   }
+}
+
+object AkkaSecureStoreSpec {
+  case class TestData(value: Array[Byte])
+
+  implicit val testDataCodec: ByteCodec[TestData] =
+    new ByteCodec[TestData] {
+
+      def encode(t: TestData, writer: Writer): Unit =
+        writer.putBytes(t.value)
+
+      def decode(reader: Reader): TestData =
+        TestData(reader.getBytes(32))
+    }
 }
