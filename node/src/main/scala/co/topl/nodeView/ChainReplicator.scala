@@ -99,7 +99,11 @@ private class ChainReplicator(
         if (settings.checkMissingBlock) {
           val bestBlockHeight = withNodeView(getBestBlockHeight)
           context.pipeToSelf(bestBlockHeight) {
-            case Success(height) => ReceivableMessages.CheckMissingBlocks(settings.checkMissingStartHeight, height)
+            case Success(height) =>
+              if (settings.checkMissingStartHeight <= height)
+                ReceivableMessages.CheckMissingBlocks(settings.checkMissingStartHeight, height)
+              else
+                ReceivableMessages.CheckMissingBlocks(height, height)
             case Failure(e)      => ReceivableMessages.Terminate(e)
           }
           log.info(s"${Console.GREEN}Chain replicator transitioning to syncing${Console.RESET}")
