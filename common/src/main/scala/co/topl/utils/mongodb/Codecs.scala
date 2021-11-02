@@ -42,7 +42,7 @@ trait Codecs {
           case "Simple" => json.get[String]("quantity").map(SimpleValueDataModel)
           case "Asset" =>
             for {
-              assetCode    <- json.get[AssetCodeDataModel]("assetCode")
+              assetCode    <- json.get[String]("assetCode")
               quantity     <- json.get[String]("quantity")
               securityRoot <- json.get[String]("securityRoot")
               metadata     <- json.get[Option[String]]("metadata")

@@ -9,7 +9,7 @@ sealed trait TokenValueDataModel
 case class SimpleValueDataModel(quantity: String) extends TokenValueDataModel
 
 case class AssetValueDataModel(
-  assetCode:    AssetCodeDataModel,
+  assetCode:    String,
   quantity:     String,
   securityRoot: String,
   metadata:     Option[String]
@@ -22,7 +22,7 @@ object TokenValueDataModel {
       case SimpleValue(quantity) => SimpleValueDataModel(quantity.toString)
       case AssetValue(quantity, assetCode, securityRoot, metadata) =>
         AssetValueDataModel(
-          AssetCodeDataModel(assetCode),
+          assetCode.toString,
           quantity.toString,
           securityRoot.toString,
           metadata.map(data => new String(data.value, StandardCharsets.ISO_8859_1))
