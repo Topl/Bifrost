@@ -9,7 +9,7 @@ import co.topl.attestation.serialization.PropositionSerializer
 import co.topl.crypto.PublicKey
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.implicits._
-import co.topl.crypto.signatures.{Curve25519, Ed25519}
+import co.topl.crypto.signing.{Curve25519, Ed25519}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.StringDataTypes.{Base58Data, DataEncodingValidationFailure}
@@ -77,8 +77,8 @@ case class PublicKeyPropositionCurve25519(private[attestation] val pubKeyBytes: 
     extends KnowledgeProposition[PrivateKeyCurve25519] {
 
   require(
-    pubKeyBytes.value.length == Curve25519.KeyLength,
-    s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${pubKeyBytes.value.length} found"
+    pubKeyBytes.value.length == Curve25519.instance.KeyLength,
+    s"Incorrect pubKey length, ${Curve25519.instance.KeyLength} expected, ${pubKeyBytes.value.length} found"
   )
 
   def address(implicit networkPrefix: NetworkPrefix): Address = Address.from(this)
@@ -135,8 +135,8 @@ case class ThresholdPropositionCurve25519(threshold: Int, pubKeyProps: SortedSet
 
   pubKeyProps.foreach { prop =>
     require(
-      prop.pubKeyBytes.value.length == Curve25519.KeyLength,
-      s"Incorrect pubKey length, ${Curve25519.KeyLength} expected, ${prop.pubKeyBytes.value.length} found"
+      prop.pubKeyBytes.value.length == Curve25519.instance.KeyLength,
+      s"Incorrect pubKey length, ${Curve25519.instance.KeyLength} expected, ${prop.pubKeyBytes.value.length} found"
     )
   }
 
@@ -194,8 +194,8 @@ case class PublicKeyPropositionEd25519(private[attestation] val pubKeyBytes: Pub
     extends KnowledgeProposition[PrivateKeyEd25519] {
 
   require(
-    pubKeyBytes.value.length == Ed25519.KeyLength,
-    s"Incorrect pubKey length, ${Ed25519.KeyLength} expected, ${pubKeyBytes.value.length} found"
+    pubKeyBytes.value.length == Ed25519.instance.KeyLength,
+    s"Incorrect pubKey length, ${Ed25519.instance.KeyLength} expected, ${pubKeyBytes.value.length} found"
   )
 
   def address(implicit networkPrefix: NetworkPrefix): Address = Address.from(this)

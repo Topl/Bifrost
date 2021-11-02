@@ -6,7 +6,8 @@ import cats.implicits._
 import co.topl.minting.algebras.LeaderElectionMintingAlgebra.VrfHit
 import co.topl.minting.algebras._
 import co.topl.models._
-import co.topl.typeclasses.BlockGenesis
+import co.topl.models.utility.HasLength.instances._
+import co.topl.models.utility.Sized
 import co.topl.typeclasses.implicits._
 
 object Staking {
@@ -33,7 +34,7 @@ object Staking {
 
       def certifyBlock(unsignedBlock: BlockV2.Unsigned): F[BlockV2] =
         evolver
-          .evolvedKey(unsignedBlock.unsignedHeader.slot)
+          .evolveKey(unsignedBlock.unsignedHeader.slot.toInt)
           .map(evolvedKey => temporaryOpCert)
           .map(operationalCertificate =>
             BlockHeaderV2(
@@ -58,29 +59,33 @@ object Staking {
           )
 
       // TODO: Generate a _real_ operational certificate
-      private def temporaryOpCert =
-        OperationalCertificate(
-          opSig = Proofs.Signature.HdKes(
-            i = 0,
-            vkI = VerificationKeys.Ed25519(BlockGenesis.zeroBytes),
-            ecSignature = Proofs.Signature.Ed25519(BlockGenesis.zeroBytes),
-            sigSumJ = Proofs.Signature.SumProduct(
-              ecSignature = Proofs.Signature.Ed25519(BlockGenesis.zeroBytes),
-              vkK = VerificationKeys.Ed25519(BlockGenesis.zeroBytes),
-              index = 0,
-              witness = Nil
-            ),
-            sigSumK = Proofs.Signature.SumProduct(
-              ecSignature = Proofs.Signature.Ed25519(BlockGenesis.zeroBytes),
-              vkK = VerificationKeys.Ed25519(BlockGenesis.zeroBytes),
-              index = 0,
-              witness = Nil
-            )
-          ),
-          xvkM =
-            VerificationKeys.ExtendedEd25519(VerificationKeys.Ed25519(BlockGenesis.zeroBytes), BlockGenesis.zeroBytes),
-          slotR = 0
-        )
+      val temporaryOpCert: OperationalCertificate = OperationalCertificate(
+        Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(Array.fill(64)(0: Byte))))
+      )
+//
+//      private def temporaryOpCert =
+//        OperationalCertificate(
+//          opSig = Proofs.Signature.HdKes(
+//            i = 0,
+//            vkI = VerificationKeys.Ed25519(BlockGenesis.zeroBytes),
+//            ecSignature = Proofs.Signature.Ed25519(BlockGenesis.zeroBytes),
+//            sigSumJ = Proofs.Signature.SumProduct(
+//              ecSignature = Proofs.Signature.Ed25519(BlockGenesis.zeroBytes),
+//              vkK = VerificationKeys.Ed25519(BlockGenesis.zeroBytes),
+//              index = 0,
+//              witness = Nil
+//            ),
+//            sigSumK = Proofs.Signature.SumProduct(
+//              ecSignature = Proofs.Signature.Ed25519(BlockGenesis.zeroBytes),
+//              vkK = VerificationKeys.Ed25519(BlockGenesis.zeroBytes),
+//              index = 0,
+//              witness = Nil
+//            )
+//          ),
+//          xvkM =
+//            VerificationKeys.ExtendedEd25519(VerificationKeys.Ed25519(BlockGenesis.zeroBytes), BlockGenesis.zeroBytes),
+//          slotR = 0
+//        )
     }
   }
 

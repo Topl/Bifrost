@@ -7,34 +7,42 @@ sealed trait VerificationKey
 object VerificationKeys {
   case class Curve25519(bytes: Sized.Strict[Bytes, Curve25519.Length]) extends VerificationKey
 
+  object Curve25519 {
+    type Length = Lengths.`32`.type
+  }
+
   case class Ed25519(bytes: Sized.Strict[Bytes, Ed25519.Length]) extends VerificationKey
-
-  case class ExtendedEd25519(
-    ed25519:   Ed25519,
-    chainCode: Sized.Strict[Bytes, ExtendedEd25519.ChainCodeLength]
-  ) extends VerificationKey
-
-  case class Vrf(ed25519: Ed25519) extends VerificationKey
-
-  /**
-   * @param bytes Merkle Root
-   */
-  case class HdKes(xvkM: ExtendedEd25519, t: Long) extends VerificationKey
 
   object Ed25519 {
     type Length = Lengths.`32`.type
   }
+
+  case class ExtendedEd25519(
+    vk:        VerificationKeys.Ed25519,
+    chainCode: Sized.Strict[Bytes, ExtendedEd25519.ChainCodeLength]
+  ) extends VerificationKey
 
   object ExtendedEd25519 {
     type Length = Lengths.`32`.type
     type ChainCodeLength = Lengths.`32`.type
   }
 
-  object Curve25519 {
+  case class VrfEd25519(bytes: Sized.Strict[Bytes, VrfEd25519.Length]) extends VerificationKey
+
+  object VrfEd25519 {
     type Length = Lengths.`32`.type
   }
 
-  object HdKes {
+  case class KesSum(bytes: Sized.Strict[Bytes, KesSum.Length], step: Int) extends VerificationKey
+
+  object KesSum {
     type Length = Lengths.`32`.type
   }
+
+  case class KesProduct(bytes: Sized.Strict[Bytes, KesProduct.Length], step: Int) extends VerificationKey
+
+  object KesProduct {
+    type Length = Lengths.`32`.type
+  }
+
 }

@@ -19,15 +19,15 @@ case class BlockV1(
 
 // id = hash(headerBytes) INCLUDING kesCertificate proofs
 case class BlockHeaderV2(
-  parentHeaderId:           TypedIdentifier,
-  parentSlot:               Slot,
-  txRoot:                   TxRoot,
-  bloomFilter:              BloomFilter,
-  timestamp:                Timestamp,
-  height:                   Long,
-  slot:                     Slot,
-  eligibibilityCertificate: EligibilityCertificate,
-  operationalCertificate:   OperationalCertificate,
+  parentHeaderId:         TypedIdentifier,
+  parentSlot:             Slot,
+  txRoot:                 TxRoot,
+  bloomFilter:            BloomFilter,
+  timestamp:              Timestamp,
+  height:                 Long,
+  slot:                   Slot,
+  eligibilityCertificate: EligibilityCertificate,
+  operationalCertificate: OperationalCertificate,
   // TODO: Discussion on mint signatures
   metadata: Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
   address:  TaktikosAddress
