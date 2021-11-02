@@ -34,6 +34,19 @@ object Brambl {
     }
 
   /**
+   * Helper function to import multiple keyfiles from JSON format into the keyring
+   * @param keyfilePasswordPairs tuples of json keyfiles and passwords to be imported
+   * @param password the passwords used to decrypt the private keys from the keyfiles
+   * @return if successful, the addresses will be returned and the key is now available in the keyring
+   */
+  def importMultipleCurve25519JsonToKeyRing(keyfilePasswordPairs: Seq[(Json, String)], keyRing: KeyRing_PK25519)(
+    implicit networkPrefix:                                       NetworkPrefix
+  ): Seq[Either[RpcClientFailure, Address]] =
+    keyfilePasswordPairs.map { case (keyfile, password) =>
+      importCurve25519JsonToKeyRing(keyfile, password, keyRing)
+    }
+
+  /**
    * Generatees a new keyfile and address in the keyring
    * @param password string used to encrypt the returned keyfile
    * @return
@@ -49,6 +62,18 @@ object Brambl {
           case _ =>
             Left(RpcErrorFailure(CustomError(7091, "More than one key was generated when only was was asked for")))
         }
+    }
+
+  /**
+   * Generatees multiple new keyfiles and addresses in the keyring
+   * @param passwords strings used to encrypt the returned keyfiles
+   * @return
+   */
+  def generateMultipleNewCurve25519Keyfile(passwords: Seq[String], keyRing: KeyRing_PK25519)(implicit
+    networkPrefix:                                    NetworkPrefix
+  ): Seq[Either[RpcClientFailure, KeyfileCurve25519]] =
+    passwords.map { password =>
+      generateNewCurve25519Keyfile(password, keyRing)
     }
 
   /**
