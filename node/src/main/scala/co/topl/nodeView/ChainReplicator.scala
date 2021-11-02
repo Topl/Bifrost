@@ -63,11 +63,11 @@ object ChainReplicator {
           )
         )
 
-        context.log.info(s"${Console.GREEN}Chain replicator initializing${Console.RESET}")
+        context.log.debug(s"${Console.GREEN}Chain replicator initializing${Console.RESET}")
 
         context.pipeToSelf(checkDBConnection()) {
           case Success(result) =>
-            context.log.info(s"${Console.GREEN}Found collections in database: $result${Console.RESET}")
+            context.log.debug(s"${Console.GREEN}Found collections in database: $result${Console.RESET}")
             ReceivableMessages.CheckDatabaseComplete
           case Failure(e) => ReceivableMessages.Terminate(e)
         }
@@ -95,7 +95,7 @@ private class ChainReplicator(
   def uninitialized: Behavior[ReceivableMessage] =
     Behaviors.receiveMessagePartial[ReceivableMessage] {
       case ReceivableMessages.CheckDatabaseComplete =>
-        log.info(s"${Console.GREEN}Chain replicator is ready${Console.RESET}")
+        log.debug(s"${Console.GREEN}Chain replicator is ready${Console.RESET}")
         if (settings.checkMissingBlock) {
           val bestBlockHeight = withNodeView(getBestBlockHeight)
           context.pipeToSelf(bestBlockHeight) {
@@ -106,10 +106,10 @@ private class ChainReplicator(
                 ReceivableMessages.CheckMissingBlocks(height, height)
             case Failure(e) => ReceivableMessages.Terminate(e)
           }
-          log.info(s"${Console.GREEN}Chain replicator transitioning to syncing${Console.RESET}")
+          log.debug(s"${Console.GREEN}Chain replicator transitioning to syncing${Console.RESET}")
           buffer.unstashAll(syncing)
         } else {
-          log.info(s"${Console.GREEN}Chain replicator transitioning to listening for new blocks${Console.RESET}")
+          log.debug(s"${Console.GREEN}Chain replicator transitioning to listening for new blocks${Console.RESET}")
           buffer.unstashAll(listening)
         }
 
@@ -144,7 +144,7 @@ private class ChainReplicator(
 
             context.pipeToSelf(exportResult.value) {
               case Success(Some(writeResults)) =>
-                log.info(
+                log.debug(
                   s"${Console.GREEN}Successfully inserted ${writeResults._1.getInsertedIds.size()} blocks " +
                   s"and ${writeResults._2.getInsertedIds.size()} transactions into AppView${Console.RESET}"
                 )
@@ -152,16 +152,16 @@ private class ChainReplicator(
               case Failure(err) =>
                 ReceivableMessages.Terminate(err)
               case _ =>
-                log.info(s"${Console.GREEN}No missing blocks found between $startHeight and $endHeight${Console.RESET}")
+                log.debug(s"${Console.GREEN}No missing blocks found between $startHeight and $endHeight${Console.RESET}")
                 ReceivableMessages.CheckMissingBlocksDone(startHeight, endHeight, maxHeight)
             }
         }
         Behaviors.same
 
       case (context, ReceivableMessages.CheckMissingBlocksDone(startHeight, endHeight, maxHeight)) =>
-        log.info(s"${Console.GREEN}Finished checking from height $startHeight to $endHeight${Console.RESET}")
+        log.debug(s"${Console.GREEN}Finished checking from height $startHeight to $endHeight${Console.RESET}")
         if (endHeight >= maxHeight) {
-          log.info(s"Done with all checks at height $endHeight")
+          log.debug(s"Done with all checks at height $endHeight")
           buffer.unstashAll(listening)
         } else {
           context.self ! ReceivableMessages.CheckMissingBlocks(endHeight + 1, maxHeight)
@@ -191,7 +191,7 @@ private class ChainReplicator(
         } yield (blockExport, txExport)
         res.onComplete {
           case Success(writeResults) =>
-            log.info(
+            log.debug(
               s"${Console.GREEN}Added a block and ${writeResults._2.getInsertedIds.size()} " +
               s"transactions to appView at height: ${block.height}${Console.RESET}"
             )
