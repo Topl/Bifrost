@@ -34,11 +34,12 @@ class ExtendedEd25519
     val pk: Array[Byte] = new Array[Byte](PUBLIC_KEY_SIZE)
     val ctx: Array[Byte] = Array.empty
     val phflag: Byte = 0x00
-    val h: Array[Byte] = privateKey.leftKey.data.toArray ++ privateKey.rightKey.data.toArray
-    val s: Array[Byte] = privateKey.leftKey.data.toArray
+    val leftKeyDataArray = privateKey.leftKey.data.toArray
+    val h: Array[Byte] = leftKeyDataArray ++ privateKey.rightKey.data.toArray
+    val s: Array[Byte] = leftKeyDataArray
     val m: Array[Byte] = message.toArray
 
-    scalarMultBaseEncoded(privateKey.leftKey.data.toArray, pk, 0)
+    scalarMultBaseEncoded(leftKeyDataArray, pk, 0)
     implSign(sha512Digest, h, s, pk, 0, ctx, phflag, m, 0, m.length, resultSig, 0)
 
     Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(resultSig)))
@@ -46,16 +47,18 @@ class ExtendedEd25519
 
   def verify(signature: Proofs.Signature.Ed25519, message: Bytes, verifyKey: VerificationKeys.Ed25519): Boolean =
     verifyKey.bytes.data.length == PUBLIC_KEY_SIZE &&
-    signature.bytes.data.length == SIGNATURE_SIZE &&
-    verify(
-      signature.bytes.data.toArray,
-      0,
-      verifyKey.bytes.data.toArray,
-      0,
-      message.toArray,
-      0,
-      message.toArray.length
-    )
+    signature.bytes.data.length == SIGNATURE_SIZE && {
+      val messageArray = message.toArray
+      verify(
+        signature.bytes.data.toArray,
+        0,
+        verifyKey.bytes.data.toArray,
+        0,
+        messageArray,
+        0,
+        messageArray.length
+      )
+    }
 
   override def verify(
     signature: Proofs.Signature.Ed25519,
@@ -63,16 +66,18 @@ class ExtendedEd25519
     verifyKey: VerificationKeys.ExtendedEd25519
   ): Boolean =
     signature.bytes.data.length == SIGNATURE_SIZE &&
-    verifyKey.vk.bytes.data.length == PUBLIC_KEY_SIZE &&
-    verify(
-      signature.bytes.data.toArray,
-      0,
-      verifyKey.vk.bytes.data.toArray,
-      0,
-      message.toArray,
-      0,
-      message.toArray.length
-    )
+    verifyKey.vk.bytes.data.length == PUBLIC_KEY_SIZE && {
+      val messageArray = message.toArray
+      verify(
+        signature.bytes.data.toArray,
+        0,
+        verifyKey.vk.bytes.data.toArray,
+        0,
+        messageArray,
+        0,
+        messageArray.length
+      )
+    }
 
   def deriveSecret(
     secretKey: SecretKeys.ExtendedEd25519,
