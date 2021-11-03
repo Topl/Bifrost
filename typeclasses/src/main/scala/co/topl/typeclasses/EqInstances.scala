@@ -2,8 +2,9 @@ package co.topl.typeclasses
 
 import cats.Eq
 import cats.implicits._
+import co.topl.crypto.mnemonic.Entropy
 import co.topl.models.utility.Sized
-import co.topl.models.{BlockHeaderV2, BlockV2, Bytes, TypedBytes}
+import co.topl.models.{BlockHeaderV2, BlockV2, TypedBytes}
 
 trait EqInstances {
 
@@ -27,4 +28,7 @@ trait EqInstances {
 
   implicit val blockHeaderV2Eq: Eq[BlockHeaderV2] =
     Eq.fromUniversalEquals
+
+  implicit val entropyEq: Eq[Entropy] =
+    (a, b) => a.value === b.value
 }

@@ -56,17 +56,6 @@ object KeyInitializer {
           Ed25519VRF.instance.createKeyPair(seed)._1
       }
 
-    implicit val extendedEd25519Initializer: KeyInitializer[SecretKeys.ExtendedEd25519] =
-      new KeyInitializer[SecretKeys.ExtendedEd25519] {
-
-        // here for compatibility with signing routines, assumes password = ""
-        def random(): SecretKeys.ExtendedEd25519 =
-          fromSeed(Bytes(defaultRandom))
-
-        def fromSeed(seed: Bytes): SecretKeys.ExtendedEd25519 =
-          ExtendedEd25519.instance.createKeyPair(seed)._1
-      }
-
     implicit def extendedEd25519PasswordInitializer: KeyInitializer[String => SecretKeys.ExtendedEd25519] =
       new KeyInitializer[String => SecretKeys.ExtendedEd25519] {
 

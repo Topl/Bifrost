@@ -18,13 +18,17 @@ class ExtendedEd25519
       SecretKeys.ExtendedEd25519,
       VerificationKeys.ExtendedEd25519,
       Proofs.Signature.Ed25519
-    ] {
+    ]
+    with EllipticKeyGeneratorWithEntropy[SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519] {
   override val SignatureLength: Int = SIGNATURE_SIZE
   override val KeyLength: Int = SECRET_KEY_SIZE
   val PublicKeyLength: Int = PUBLIC_KEY_SIZE
 
-  override def createKeyPair(seed: Bytes): (SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519) = {
-    val sk = ExtendedEd25519.fromEntropy(Entropy(seed.toArray))("")
+  override def createKeyPair(
+    entropy:  Entropy,
+    password: String = ""
+  ): (SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519) = {
+    val sk = ExtendedEd25519.fromEntropy(entropy)(password)
     val vk = getVerificationKey(sk)
     (sk, vk)
   }

@@ -14,7 +14,8 @@ class Curve25519
       SecretKeys.Curve25519,
       VerificationKeys.Curve25519,
       Proofs.Signature.Curve25519
-    ] {
+    ]
+    with EllipticKeyGenerator[SecretKeys.Curve25519, VerificationKeys.Curve25519] {
 
   override val SignatureLength: Int = 64
   override val KeyLength: Int = 32
