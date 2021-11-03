@@ -9,9 +9,6 @@ import co.topl.utils.mongodb.models._
 import io.circe.syntax._
 
 trait Codecs {
-  implicit val assetCodeModelJsonEncoder: Encoder[AssetCodeDataModel] = deriveEncoder
-
-  implicit val assetCodeModelJsonDecoder: Decoder[AssetCodeDataModel] = deriveDecoder
 
   implicit val simpleValueDataModelJsonEncoder: Encoder[SimpleValueDataModel] = deriveEncoder
 

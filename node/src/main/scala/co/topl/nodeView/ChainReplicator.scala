@@ -127,37 +127,31 @@ private class ChainReplicator(
       case (context, ReceivableMessages.CheckMissingBlocks(startHeight, maxHeight)) =>
         implicit val ec: ExecutionContext = context.executionContext
 
-        lazy val checkRange = (startHeight to maxHeight)
-          .grouped(settings.blockCheckSize)
-          .toList
-          .map(group => (group.head, group.last))
+        val endHeight = (startHeight + settings.blockCheckSize).min(maxHeight)
+        val existingHeightsFuture = getExistingHeightsDB(startHeight, endHeight)
+        val exportResult: OptionT[Future, (InsertManyResult, InsertManyResult)] = for {
+          existingHeights  <- OptionT[Future, Seq[Long]](existingHeightsFuture.map(_.some))
+          blocksToAdd      <- OptionT[Future, Seq[Block]](missingBlocks(startHeight, endHeight, existingHeights))
+          blockWriteResult <- OptionT[Future, InsertManyResult](exportBlocks(blocksToAdd).map(_.some))
+          txWriteResult    <- OptionT[Future, InsertManyResult](exportTransactions(blocksToAdd).map(_.some))
+        } yield (blockWriteResult, txWriteResult)
 
-        checkRange.head match {
-          case (startHeight, endHeight) =>
-            val existingHeightsFuture = getExistingHeightsDB(startHeight, endHeight)
-            val exportResult: OptionT[Future, (InsertManyResult, InsertManyResult)] = for {
-              existingHeights  <- OptionT[Future, Seq[Long]](existingHeightsFuture.map(_.some))
-              blocksToAdd      <- OptionT[Future, Seq[Block]](missingBlocks(startHeight, endHeight, existingHeights))
-              blockWriteResult <- OptionT[Future, InsertManyResult](exportBlocks(blocksToAdd).map(_.some))
-              txWriteResult    <- OptionT[Future, InsertManyResult](exportTransactions(blocksToAdd).map(_.some))
-            } yield (blockWriteResult, txWriteResult)
-
-            context.pipeToSelf(exportResult.value) {
-              case Success(Some(writeResults)) =>
-                log.debug(
-                  s"${Console.GREEN}Successfully inserted ${writeResults._1.getInsertedIds.size()} blocks " +
-                  s"and ${writeResults._2.getInsertedIds.size()} transactions into AppView${Console.RESET}"
-                )
-                ReceivableMessages.CheckMissingBlocksDone(startHeight, endHeight, maxHeight)
-              case Failure(err) =>
-                ReceivableMessages.Terminate(err)
-              case _ =>
-                log.debug(
-                  s"${Console.GREEN}No missing blocks found between $startHeight and $endHeight${Console.RESET}"
-                )
-                ReceivableMessages.CheckMissingBlocksDone(startHeight, endHeight, maxHeight)
-            }
+        context.pipeToSelf(exportResult.value) {
+          case Success(Some(writeResults)) =>
+            log.debug(
+              s"${Console.GREEN}Successfully inserted ${writeResults._1.getInsertedIds.size()} blocks " +
+              s"and ${writeResults._2.getInsertedIds.size()} transactions into AppView${Console.RESET}"
+            )
+            ReceivableMessages.CheckMissingBlocksDone(startHeight, endHeight, maxHeight)
+          case Failure(err) =>
+            ReceivableMessages.Terminate(err)
+          case _ =>
+            log.debug(
+              s"${Console.GREEN}No missing blocks found between $startHeight and $endHeight${Console.RESET}"
+            )
+            ReceivableMessages.CheckMissingBlocksDone(startHeight, endHeight, maxHeight)
         }
+
         Behaviors.same
 
       case (context, ReceivableMessages.CheckMissingBlocksDone(startHeight, endHeight, maxHeight)) =>
