@@ -1,10 +1,10 @@
 package co.topl.models
 
-import co.topl.models.utility.Tree
+import co.topl.models.utility.BinaryTree
 
 case class KeyData(
-  superScheme:        Tree[Array[Byte]],
-  subScheme:          Tree[Array[Byte]],
+  superScheme:        BinaryTree[Array[Byte]],
+  subScheme:          BinaryTree[Array[Byte]],
   subSchemeSignature: Bytes,
   subSchemePublicKey: Bytes,
   subSchemeSeed:      Bytes,

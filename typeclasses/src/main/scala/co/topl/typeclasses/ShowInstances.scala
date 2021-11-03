@@ -2,11 +2,10 @@ package co.topl.typeclasses
 
 import cats.Show
 import cats.implicits._
-import co.topl.codecs.bytes.ByteCodec.implicits._
 import co.topl.codecs.bytes.BasicCodecs._
-import co.topl.crypto.Base58
+import co.topl.codecs.bytes.ByteCodec.implicits._
 import co.topl.models._
-import co.topl.models.utility.{Length, Sized}
+import co.topl.models.utility.{Base58, Length, Sized}
 import co.topl.typeclasses.Identifiable.Instances._
 import co.topl.typeclasses.Identifiable.ops._
 
@@ -14,6 +13,7 @@ import java.time.Instant
 
 trait ShowInstances {
 
+  // todo: this should use Base58 in Utils?
   implicit val showBytes: Show[Bytes] =
     bytes => Base58.encode(bytes.toArray)
 

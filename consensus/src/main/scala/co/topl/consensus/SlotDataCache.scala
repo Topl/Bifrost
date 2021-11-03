@@ -5,7 +5,7 @@ import cats.data.OptionT
 import cats.effect._
 import cats.implicits._
 import co.topl.algebras.Store
-import co.topl.crypto.signatures.Ed25519VRF
+import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models.{BlockHeaderV2, TypedIdentifier}
 import co.topl.typeclasses.implicits._
 import scalacache.{cachingF, CacheConfig}

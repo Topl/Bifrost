@@ -20,6 +20,20 @@ package object typeclasses {
       with Identifiable.Instances
       with Identifiable.ToIdentifiableOps
       with RatioOps.Implicits
+      with ContainsVerificationKey.Instances
+      with ContainsVerificationKey.Implicits
+      with Evolves.Instances
+      with Evolves.ToEvolvesOps
+      with KeyInitializer.Instances
+      with KeyInitializer.ToKeyInitializerOps
+      with ProofVerifier.Instances
+      with ProofVerifier.Implicits
+      with Proposer.Instances
+      with Proposer.implicits
+      with Prover.Instances
+      with Prover.Implicits
+      with Signable.Instances
+      with Signable.ToSignableOps
       with ShowInstances
       with EqInstances
       with Prepend.Instances

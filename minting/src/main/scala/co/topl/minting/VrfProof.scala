@@ -7,16 +7,10 @@ import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.consensus.LeaderElectionValidation
-import co.topl.consensus.LeaderElectionValidation.signableVrfArgument
-import co.topl.consensus.vrf.ProofToHash
-import co.topl.crypto.signatures.Ed25519VRF
-import co.topl.crypto.typeclasses.implicits._
+import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.algebras.VrfProofAlgebra
 import co.topl.models.Proofs.Signature
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.Lengths._
-import co.topl.models.utility.Sized
 import co.topl.typeclasses.implicits._
 import scalacache.caffeine.CaffeineCache
 import scalacache.{CacheConfig, CacheKeyBuilder}
@@ -28,7 +22,7 @@ object VrfProof {
   object Eval {
 
     def make[F[_]: MonadError[*[_], Throwable]: Sync](
-      skVrf: SecretKeys.Vrf,
+      skVrf: SecretKeys.VrfEd25519,
       clock: ClockAlgebra[F]
     ): F[VrfProofAlgebra[F]] = {
       implicit val cacheConfig: CacheConfig = CacheConfig(cacheKeyBuilder = new CacheKeyBuilder {
@@ -62,7 +56,7 @@ object VrfProof {
                             )
                           }
                         )
-                        val rhoValues = LongMap.from(testProofs.view.mapValues(ProofToHash.digest))
+                        val rhoValues = LongMap.from(testProofs.view.mapValues(ed.proofToHash))
                         ed -> (testProofs -> rhoValues)
                       }
                     )
@@ -99,15 +93,9 @@ object VrfProof {
                   arg:        LeaderElectionValidation.VrfArgument,
                   ed25519VRF: Ed25519VRF
                 ): Proofs.Signature.VrfEd25519 =
-                  Proofs.Signature.VrfEd25519(
-                    Sized.strictUnsafe(
-                      Bytes(
-                        ed25519VRF.vrfProof(
-                          skVrf.ed25519.bytes.data.toArray,
-                          arg.signableBytes.toArray
-                        )
-                      )
-                    )
+                  ed25519VRF.sign(
+                    skVrf,
+                    arg.signableBytes
                   )
               }
             )

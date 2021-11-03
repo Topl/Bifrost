@@ -3,9 +3,9 @@ package co.topl.consensus
 import cats.Monad
 import cats.implicits._
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
-import co.topl.crypto.typeclasses.Signable
 import co.topl.models._
 import co.topl.models.utility.Ratio
+import co.topl.typeclasses.Signable
 import co.topl.typeclasses.implicits._
 
 import java.nio.charset.StandardCharsets

@@ -8,7 +8,7 @@ import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras.{ClockAlgebra, ConsensusState, Store}
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, EtaCalculationAlgebra}
 import co.topl.consensus.{BlockHeaderValidationFailure, LocalChain, SlotData}
-import co.topl.crypto.signatures.Ed25519VRF
+import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.algebras.{BlockMintAlgebra, VrfProofAlgebra}
 import co.topl.models._
 import co.topl.models.utility.Ratio

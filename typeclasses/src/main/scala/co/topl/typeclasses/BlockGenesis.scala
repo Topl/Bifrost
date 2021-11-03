@@ -2,14 +2,12 @@ package co.topl.typeclasses
 
 import cats.Eval
 import co.topl.crypto.hash.blake2b256
-import co.topl.models.VerificationKeys.Ed25519
+import co.topl.models.VerificationKeys.VrfEd25519
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.{Length, Lengths, Sized}
 import co.topl.typeclasses.implicits._
-import co.topl.codecs.bytes.BasicCodecs._
-import co.topl.codecs.bytes.ByteCodec.implicits._
 
 import java.nio.charset.StandardCharsets
 
@@ -24,33 +22,36 @@ object BlockGenesis {
   def vrfCertificate(eta: Eta): EligibilityCertificate = EligibilityCertificate(
     Proofs.Signature.VrfEd25519(zeroBytes(Lengths.`80`)),
     Proofs.Signature.VrfEd25519(zeroBytes(Lengths.`80`)),
-    VerificationKeys.Vrf(VerificationKeys.Ed25519(zeroBytes[Ed25519.Length])),
+    VerificationKeys.VrfEd25519(VerificationKeys.Ed25519(zeroBytes[VrfEd25519.Length]).bytes),
     thresholdEvidence = Sized.strictUnsafe(TypedBytes(IdentifierTypes.RatioEvidence, Bytes(Array.fill[Byte](32)(0)))),
     eta = eta
   )
 
-  val kesCertificate: OperationalCertificate =
-    OperationalCertificate(
-      opSig = Proofs.Signature.HdKes(
-        i = 0,
-        vkI = VerificationKeys.Ed25519(zeroBytes),
-        ecSignature = Proofs.Signature.Ed25519(zeroBytes),
-        sigSumJ = Proofs.Signature.SumProduct(
-          ecSignature = Proofs.Signature.Ed25519(zeroBytes),
-          vkK = VerificationKeys.Ed25519(zeroBytes),
-          index = 0,
-          witness = Nil
-        ),
-        sigSumK = Proofs.Signature.SumProduct(
-          ecSignature = Proofs.Signature.Ed25519(zeroBytes),
-          vkK = VerificationKeys.Ed25519(zeroBytes),
-          index = 0,
-          witness = Nil
-        )
-      ),
-      xvkM = VerificationKeys.ExtendedEd25519(VerificationKeys.Ed25519(zeroBytes), zeroBytes),
-      slotR = 0
-    )
+//  val kesCertificate: OperationalCertificate =
+//    OperationalCertificate(
+//      opSig = Proofs.Signature.HdKes(
+//        i = 0,
+//        vkI = VerificationKeys.Ed25519(zeroBytes),
+//        ecSignature = Proofs.Signature.Ed25519(zeroBytes),
+//        sigSumJ = Proofs.Signature.SumProduct(
+//          ecSignature = Proofs.Signature.Ed25519(zeroBytes),
+//          vkK = VerificationKeys.Ed25519(zeroBytes),
+//          index = 0,
+//          witness = Nil
+//        ),
+//        sigSumK = Proofs.Signature.SumProduct(
+//          ecSignature = Proofs.Signature.Ed25519(zeroBytes),
+//          vkK = VerificationKeys.Ed25519(zeroBytes),
+//          index = 0,
+//          witness = Nil
+//        )
+//      ),
+//      xvkM = VerificationKeys.ExtendedEd25519(VerificationKeys.Ed25519(zeroBytes), zeroBytes),
+//      slotR = 0
+//    )
+  val kesCertificate: OperationalCertificate = OperationalCertificate(
+    Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(Array.fill(64)(0: Byte))))
+  )
 
   def apply(transactions: Seq[Transaction]): Eval[BlockV2] = Eval.later {
     val address = TaktikosAddress(
@@ -60,17 +61,21 @@ object BlockGenesis {
     )
 
     // TODO: Read "genesis-eta-plaintext" from application.conf, and then hash that value
-    val eta: Eta =
+    val eta: Eta = {
+      import co.topl.codecs.bytes.BasicCodecs._
+      import co.topl.codecs.bytes.ByteCodec.implicits._
       Sized.strictUnsafe(
         Bytes(
           blake2b256
             .hash(
               prefix = None,
-              "genesis".getBytes(StandardCharsets.UTF_8) +: transactions.map(_.bytes.toArray[Byte]).toList: _*
+              "genesis"
+                .getBytes(StandardCharsets.UTF_8) +: transactions.map((t: Transaction) => t.bytes.toArray).toList: _*
             )
             .value
         )
       )
+    }
 
     val header =
       BlockHeaderV2(
@@ -81,7 +86,7 @@ object BlockGenesis {
         timestamp = 0L,
         height = 1,
         slot = 0,
-        eligibibilityCertificate = vrfCertificate(eta),
+        eligibilityCertificate = vrfCertificate(eta),
         operationalCertificate = kesCertificate,
         metadata = None,
         address = address

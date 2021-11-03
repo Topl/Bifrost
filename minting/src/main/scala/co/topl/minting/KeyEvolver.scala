@@ -1,26 +1,23 @@
 package co.topl.minting
 
 import cats.Applicative
-import cats.implicits._
-import co.topl.crypto.kes.KeyEvolvingSignatureScheme
-import co.topl.crypto.typeclasses.implicits._
 import co.topl.minting.algebras.KeyEvolverAlgebra
 import co.topl.models.{SecretKeys, Slot}
+import co.topl.typeclasses.Evolves
+import co.topl.typeclasses.implicits._
 
 object KeyEvolver {
 
   object InMemory {
 
     def make[F[_]: Applicative](
-      initialKey:                          SecretKeys.SymmetricMMM
-    )(implicit keyEvolvingSignatureScheme: KeyEvolvingSignatureScheme): KeyEvolverAlgebra[F] =
+      parent: SecretKeys.ExtendedEd25519
+    ): KeyEvolverAlgebra[F] =
       new KeyEvolverAlgebra[F] {
 
-        private var key = initialKey
-
-        def evolvedKey(slot: Slot): F[SecretKeys.SymmetricMMM] = {
-          key = key.evolveSteps(slot - key.data.offset)
-          key.pure[F]
+        def evolveKey(slot: Slot): F[SecretKeys.ExtendedEd25519] = {
+          val index = slot * 1 // hacky way to convert slot to Long
+          Applicative[F].pure(Evolves[SecretKeys.ExtendedEd25519].evolve(parent, index))
         }
       }
   }

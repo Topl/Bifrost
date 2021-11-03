@@ -7,10 +7,8 @@ import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.algebras.Store
 import co.topl.consensus.algebras._
-import co.topl.consensus.vrf.ProofToHash
 import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.signatures.Ed25519VRF
-import co.topl.crypto.typeclasses.implicits._
+import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models._
 import co.topl.models.utility.Ratio
 import co.topl.typeclasses.BlockGenesis
@@ -80,13 +78,13 @@ object BlockHeaderValidation {
               .liftF(etaInterpreter.etaToBe(header.parentSlotId, header.slot))
               .flatMapF(expectedEta =>
                 ref.modify { implicit ed25519vrf =>
-                  val certificate = header.eligibibilityCertificate
+                  val certificate = header.eligibilityCertificate
                   ed25519vrf -> header
                     .asRight[BlockHeaderValidationFailure]
                     .ensure(
                       BlockHeaderValidationFailures
-                        .InvalidEligibilityCertificateEta(header.eligibibilityCertificate.eta, expectedEta)
-                    )(header => header.eligibibilityCertificate.eta === expectedEta)
+                        .InvalidEligibilityCertificateEta(header.eligibilityCertificate.eta, expectedEta)
+                    )(header => header.eligibilityCertificate.eta === expectedEta)
                     .ensure(
                       BlockHeaderValidationFailures.InvalidEligibilityCertificateTestProof(certificate.vrfTestSig)
                     )(header =>
@@ -152,7 +150,7 @@ object BlockHeaderValidation {
             threshold: Ratio
           ): EitherT[F, BlockHeaderValidationFailure, BlockHeaderV2] =
             EitherT.cond(
-              header.eligibibilityCertificate.thresholdEvidence === threshold.evidence,
+              header.eligibilityCertificate.thresholdEvidence === threshold.evidence,
               header,
               BlockHeaderValidationFailures.InvalidVrfThreshold(threshold)
             )
@@ -168,13 +166,13 @@ object BlockHeaderValidation {
               .liftF(
                 ref
                   .modify { implicit ed25519Vrf =>
-                    ed25519Vrf -> ProofToHash.digest(header.eligibibilityCertificate.vrfTestSig)
+                    ed25519Vrf -> ed25519Vrf.proofToHash(header.eligibilityCertificate.vrfTestSig)
                   }
                   .flatMap(leaderElection.isSlotLeaderForThreshold(threshold))
               )
               .ensure(
                 BlockHeaderValidationFailures
-                  .IneligibleCertificate(threshold, header.eligibibilityCertificate): BlockHeaderValidationFailure
+                  .IneligibleCertificate(threshold, header.eligibilityCertificate): BlockHeaderValidationFailure
               )(
                 identity
               )
@@ -195,10 +193,10 @@ object BlockHeaderValidation {
               .map(_.vrfCommitment)
               .toRight(BlockHeaderValidationFailures.Unregistered(header.address): BlockHeaderValidationFailure)
               .ensureOr(
-                BlockHeaderValidationFailures.RegistrationCommitmentMismatch(_, header.eligibibilityCertificate.vkVRF)
+                BlockHeaderValidationFailures.RegistrationCommitmentMismatch(_, header.eligibilityCertificate.vkVRF)
               )(
                 _.data.toArray === blake2b256
-                  .hash(header.eligibibilityCertificate.vkVRF.ed25519.bytes.data.toArray)
+                  .hash(header.eligibilityCertificate.vkVRF.bytes.data.toArray)
                   .value
               )
               .map(_ => header)

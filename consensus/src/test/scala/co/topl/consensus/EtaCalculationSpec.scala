@@ -3,19 +3,16 @@ package co.topl.consensus
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
-import co.topl.algebras.{ClockAlgebra, ConsensusState}
-import co.topl.consensus.vrf.ProofToHash
+import co.topl.algebras.ClockAlgebra
 import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.signatures.Ed25519VRF
-import co.topl.crypto.typeclasses.KeyInitializer
-import co.topl.crypto.typeclasses.implicits._
+import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models.ModelGenerators._
 import co.topl.models.Proofs.Signature
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.Sized
-import co.topl.typeclasses.BlockGenesis
+import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
@@ -43,24 +40,18 @@ class EtaCalculationSpec
     val clock = mock[ClockAlgebra[F]]
     val genesis = BlockGenesis(Nil).value
     val underTest =
-      EtaCalculation.Eval.make[F](state, clock, genesis.headerV2.eligibibilityCertificate.eta).unsafeRunSync()
+      EtaCalculation.Eval.make[F](state, clock, genesis.headerV2.eligibilityCertificate.eta).unsafeRunSync()
     val epoch = 0L
-    val skVrf = KeyInitializer[SecretKeys.Vrf].random()
+    val skVrf = KeyInitializer[SecretKeys.VrfEd25519].random()
     val args: List[(Slot, Signature.VrfEd25519)] = List.tabulate(8) { offset =>
       val slot = offset.toLong + 1
-      val nonceSignature = Proofs.Signature.VrfEd25519(
-        Sized.strictUnsafe(
-          Bytes(
-            ed25519Vrf.vrfProof(
-              skVrf.ed25519.bytes.data.toArray,
-              LeaderElectionValidation
-                .VrfArgument(genesis.headerV2.eligibibilityCertificate.eta, slot, LeaderElectionValidation.Tokens.Nonce)
-                .signableBytes
-                .toArray
-            )
-          )
+      val nonceSignature =
+        ed25519Vrf.sign(
+          skVrf,
+          LeaderElectionValidation
+            .VrfArgument(genesis.headerV2.eligibilityCertificate.eta, slot, LeaderElectionValidation.Tokens.Nonce)
+            .signableBytes
         )
-      )
       slot -> nonceSignature
     }
 
@@ -75,7 +66,7 @@ class EtaCalculationSpec
               slotGen = Gen.const[Long](slot),
               parentSlotGen = Gen.const(items.last.slot),
               eligibilityCertificateGen = eligibilityCertificateGen.map(c =>
-                c.copy(vrfNonceSig = nonceSignature, eta = genesis.headerV2.eligibibilityCertificate.eta)
+                c.copy(vrfNonceSig = nonceSignature, eta = genesis.headerV2.eligibilityCertificate.eta)
               ),
               parentHeaderIdGen = Gen.const(items.last.id)
             ).first
@@ -99,9 +90,9 @@ class EtaCalculationSpec
 
     val expected =
       EtaCalculationSpec.expectedEta(
-        genesis.headerV2.eligibibilityCertificate.eta,
+        genesis.headerV2.eligibilityCertificate.eta,
         epoch,
-        blocks.map(_.eligibibilityCertificate.vrfNonceSig).map(ProofToHash.digest)
+        blocks.map(_.eligibilityCertificate.vrfNonceSig).map(ed25519Vrf.proofToHash)
       )
 
     actual shouldBe expected
@@ -112,7 +103,7 @@ class EtaCalculationSpec
     val clock = mock[ClockAlgebra[F]]
     val genesis = BlockGenesis(Nil).value
     val underTest =
-      EtaCalculation.Eval.make[F](state, clock, genesis.headerV2.eligibibilityCertificate.eta).unsafeRunSync()
+      EtaCalculation.Eval.make[F](state, clock, genesis.headerV2.eligibilityCertificate.eta).unsafeRunSync()
     val epoch = 0L
 
     (() => clock.slotsPerEpoch)
@@ -131,9 +122,9 @@ class EtaCalculationSpec
 
     val expected =
       EtaCalculationSpec.expectedEta(
-        genesis.headerV2.eligibibilityCertificate.eta,
+        genesis.headerV2.eligibilityCertificate.eta,
         epoch,
-        List(ProofToHash.digest(genesis.headerV2.eligibibilityCertificate.vrfNonceSig))
+        List(ed25519Vrf.proofToHash(genesis.headerV2.eligibilityCertificate.vrfNonceSig))
       )
 
     actual shouldBe expected

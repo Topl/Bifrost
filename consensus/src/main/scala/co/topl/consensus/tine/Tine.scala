@@ -2,9 +2,8 @@ package co.topl.consensus.tine
 
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import co.topl.models._
-import co.topl.consensus.vrf.ProofToHash
 import co.topl.consensus.TetraParameters
-import co.topl.crypto.signatures.Ed25519VRF
+import co.topl.crypto.signing.Ed25519VRF
 
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
@@ -43,7 +42,7 @@ case class Tine(
                 case Some(header) =>
                   out = prepend(
                     out,
-                    (header.slot, testId.blockId, ProofToHash.digest(header.eligibibilityCertificate.vrfNonceSig))
+                    (header.slot, testId.blockId, ed25519Vrf.proofToHash(header.eligibilityCertificate.vrfNonceSig))
                   )
                   if (header.parentSlot < minSlot.get || BigInt(header.parentSlot / databaseInterval) != epoch3rd) {
                     buildTine = false
@@ -653,14 +652,14 @@ case class Tine(
           assert(maxSlot.get == cache.last._1)
           var id: SlotId = toSlotId(cache.last)
           var block: BlockHeaderV2 = blocks.getHeader(id).get
-          var nonce: Rho = ProofToHash.digest(block.eligibibilityCertificate.vrfNonceSig)
+          var nonce: Rho = ed25519Vrf.proofToHash(block.eligibilityCertificate.vrfNonceSig)
           assert(nonce == cache.last._3)
           for (entry <- cache.reverse.tail) {
             val pid = block.parentSlotId
             assert(toSlotId(entry) == pid)
             id = pid
             block = blocks.getHeader(id).get
-            nonce = ProofToHash.digest(block.eligibibilityCertificate.vrfNonceSig)
+            nonce = ed25519Vrf.proofToHash(block.eligibilityCertificate.vrfNonceSig)
             assert(nonce == entry._3)
           }
         } else {
@@ -684,14 +683,14 @@ case class Tine(
             })
             assert(id == best(value._1))
             var block: BlockHeaderV2 = blocks.getHeader(id).get
-            var nonce: Rho = ProofToHash.digest(block.eligibibilityCertificate.vrfNonceSig)
+            var nonce: Rho = ed25519Vrf.proofToHash(block.eligibilityCertificate.vrfNonceSig)
             assert(nonce == cache.last._3)
             for (entry <- cache.reverse.tail) {
               val pid = block.parentSlotId
               assert(toSlotId(entry) == pid)
               id = pid
               block = blocks.getHeader(id).get
-              nonce = ProofToHash.digest(block.eligibibilityCertificate.vrfNonceSig)
+              nonce = ed25519Vrf.proofToHash(block.eligibilityCertificate.vrfNonceSig)
               assert(nonce == entry._3)
             }
             if (id.slot > 0) cachePid = Some(blocks.getHeader(id).get.parentSlotId)

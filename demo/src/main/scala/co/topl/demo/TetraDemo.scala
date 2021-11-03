@@ -12,10 +12,7 @@ import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
 import co.topl.consensus.algebras.{EtaCalculationAlgebra, LeaderElectionValidationAlgebra}
 import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.kes.KeyEvolvingSignatureScheme
-import co.topl.crypto.signatures.{Ed25519, Ed25519VRF}
-import co.topl.crypto.typeclasses._
-import co.topl.crypto.typeclasses.implicits._
+import co.topl.crypto.signing.{Ed25519, Ed25519VRF}
 import co.topl.minting._
 import co.topl.minting.algebras.{BlockMintAlgebra, VrfProofAlgebra}
 import co.topl.models._
@@ -38,18 +35,15 @@ object TetraDemo extends IOApp.Simple {
     implicit val ed25519Vrf: Ed25519VRF =
       Ed25519VRF.precomputed()
 
-    implicit val ed25519: Ed25519 =
-      new Ed25519
-
     val stakerVrfKey =
-      KeyInitializer[SecretKeys.Vrf].random()
+      KeyInitializer[SecretKeys.VrfEd25519].random()
 
     val stakerRegistration: Box.Values.TaktikosRegistration =
       Box.Values.TaktikosRegistration(
         vrfCommitment = Sized.strictUnsafe(
           Bytes(
             blake2b256
-              .hash(stakerVrfKey.verificationKey[VerificationKeys.Vrf].signableBytes.toArray)
+              .hash(stakerVrfKey.verificationKey[VerificationKeys.VrfEd25519].signableBytes.toArray)
               .value
           )
         ),
@@ -59,6 +53,9 @@ object TetraDemo extends IOApp.Simple {
         ),
         registrationSlot = 0
       )
+
+    implicit val ed25519: Ed25519 =
+      new Ed25519
 
     val stakerAddress: TaktikosAddress = {
       val stakingKey = KeyInitializer[SecretKeys.Ed25519].random()
@@ -129,19 +126,17 @@ object TetraDemo extends IOApp.Simple {
     stakers
       .zip(vrfProofConstructions)
       .map { case (staker, vrfProofConstruction) =>
-        implicit val scheme: KeyEvolvingSignatureScheme = new KeyEvolvingSignatureScheme
-        import staker.ed25519
         BlockMint.Eval.make(
           Staking.Eval.make(
             staker.address,
             LeaderElectionMinting.Eval.make(
-              staker.vrfKey.verificationKey[VerificationKeys.Vrf],
+              staker.vrfKey,
               leaderElectionThreshold,
               vrfProofConstruction
             ),
             KeyEvolver.InMemory.make[F] {
               implicit val slot: Slot = 0
-              KeyInitializer[SecretKeys.SymmetricMMM].random()
+              KeyInitializer[SecretKeys.ExtendedEd25519].random()
             },
             VrfRelativeStakeMintingLookup.Eval.make(state, clock),
             etaCalculation
@@ -179,7 +174,7 @@ object TetraDemo extends IOApp.Simple {
       etaCalculation <- EtaCalculation.Eval.make(
         slotDataCache,
         clock,
-        genesis.headerV2.eligibibilityCertificate.eta
+        genesis.headerV2.eligibilityCertificate.eta
       )
       underlyingHeaderValidation <- BlockHeaderValidation.Eval.make[F](
         etaCalculation,
@@ -214,7 +209,7 @@ object TetraDemo extends IOApp.Simple {
 
 case class Staker(
   relativeStake:           Ratio,
-  vrfKey:                  SecretKeys.Vrf,
+  vrfKey:                  SecretKeys.VrfEd25519,
   registration:            Box.Values.TaktikosRegistration,
   address:                 TaktikosAddress
 )(implicit val ed25519VRF: Ed25519VRF, val ed25519: Ed25519)

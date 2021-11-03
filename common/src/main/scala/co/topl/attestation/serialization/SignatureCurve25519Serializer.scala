@@ -1,7 +1,7 @@
 package co.topl.attestation.serialization
 
 import co.topl.attestation.SignatureCurve25519
-import co.topl.crypto.signatures.Signature
+import co.topl.crypto.Signature
 import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object SignatureCurve25519Serializer extends BifrostSerializer[SignatureCurve25519] {

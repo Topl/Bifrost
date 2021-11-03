@@ -2,8 +2,7 @@ package co.topl.consensus
 
 import cats.Eq
 import cats.implicits._
-import co.topl.consensus.vrf.ProofToHash
-import co.topl.crypto.signatures.Ed25519VRF
+import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models.{BlockHeaderV2, Eta, Rho, SlotId}
 import co.topl.typeclasses.implicits._
 
@@ -20,8 +19,8 @@ object SlotData {
     SlotData(
       blockHeaderV2.slotId,
       blockHeaderV2.parentSlotId,
-      ProofToHash.digest(blockHeaderV2.eligibibilityCertificate.vrfNonceSig),
-      blockHeaderV2.eligibibilityCertificate.eta,
+      ed25519VRF.proofToHash(blockHeaderV2.eligibilityCertificate.vrfNonceSig),
+      blockHeaderV2.eligibilityCertificate.eta,
       blockHeaderV2.height
     )
 

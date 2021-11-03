@@ -30,7 +30,7 @@ class ChainSelectionSpec
   implicit private val logger: Logger[F] = Slf4jLogger.getLogger[F]
 
   it should "return 0 for equal tines" in {
-    val slotData = createSlotData(10, SlotId(9, TypedBytes(1: Byte, Bytes(Array[Byte](9)))))
+    val slotData = createSlotData(10, SlotId(9, TypedBytes(1: Byte, Bytes(Array[Byte](9)))), height = 4)
 
     val orderT = ChainSelection.orderT[F](mock[SlotDataCache[F]], kLookback = 1, sWindow = 1)
 
@@ -38,18 +38,18 @@ class ChainSelectionSpec
   }
 
   it should "use longest-chain rule for tines shorter than the kLookback parameter" in {
-    val grandAncestor = createSlotData(9, SlotId(8, TypedBytes(1: Byte, Bytes(Array[Byte](9)))))
-    val ancestor = createSlotData(10, grandAncestor.slotId)
+    val grandAncestor = createSlotData(9, SlotId(8, TypedBytes(1: Byte, Bytes(Array[Byte](9)))), height = 4)
+    val ancestor = createSlotData(10, grandAncestor.slotId, grandAncestor.height + 1)
     val xSegment = LazyList
       .unfold(ancestor)(previous =>
-        Some(createSlotData(previous.slotId.slot + 1, previous.slotId))
+        Some(createSlotData(previous.slotId.slot + 1, previous.slotId, previous.height + 1))
           .map(d => (d, d))
       )
       .take(10)
       .toList
     val ySegment = LazyList
       .unfold(ancestor)(previous =>
-        Some(createSlotData(previous.slotId.slot + 1, previous.slotId))
+        Some(createSlotData(previous.slotId.slot + 1, previous.slotId, previous.height + 1))
           .map(d => (d, d))
       )
       .take(5)
@@ -71,11 +71,11 @@ class ChainSelectionSpec
   }
 
   it should "use lowest-slot rule for equal length tines shorter than the kLookback parameter" in {
-    val grandAncestor = createSlotData(9, SlotId(8, TypedBytes(1: Byte, Bytes(Array[Byte](9)))))
-    val ancestor = createSlotData(10, grandAncestor.slotId)
+    val grandAncestor = createSlotData(9, SlotId(8, TypedBytes(1: Byte, Bytes(Array[Byte](9)))), height = 4)
+    val ancestor = createSlotData(10, grandAncestor.slotId, grandAncestor.height + 1)
     val xSegment = LazyList
       .unfold(ancestor)(previous =>
-        Some(createSlotData(previous.slotId.slot + 1, previous.slotId))
+        Some(createSlotData(previous.slotId.slot + 1, previous.slotId, previous.height + 1))
           .map(d => (d, d))
       )
       .take(10)
@@ -83,13 +83,13 @@ class ChainSelectionSpec
     val ySegment = {
       val base = LazyList
         .unfold(ancestor)(previous =>
-          Some(createSlotData(previous.slotId.slot + 1, previous.slotId))
+          Some(createSlotData(previous.slotId.slot + 1, previous.slotId, previous.height + 1))
             .map(d => (d, d))
         )
         .take(9)
         .toList
 
-      base :+ createSlotData(base.last.slotId.slot + 2, base.last.slotId)
+      base :+ createSlotData(base.last.slotId.slot + 2, base.last.slotId, base.last.height + 1)
     }
 
     xSegment.length shouldBe ySegment.length
@@ -110,12 +110,12 @@ class ChainSelectionSpec
   }
 
   it should "use lowest-rho rule for equal length tines with equal best slot shorter than the kLookback parameter" in {
-    val grandAncestor = createSlotData(9, SlotId(8, TypedBytes(1: Byte, Bytes(Array[Byte](9)))))
-    val ancestor = createSlotData(10, grandAncestor.slotId)
+    val grandAncestor = createSlotData(9, SlotId(8, TypedBytes(1: Byte, Bytes(Array[Byte](9)))), height = 4)
+    val ancestor = createSlotData(10, grandAncestor.slotId, grandAncestor.height + 1)
     val xSegment = {
       val base = LazyList
         .unfold(ancestor)(previous =>
-          Some(createSlotData(previous.slotId.slot + 1, previous.slotId))
+          Some(createSlotData(previous.slotId.slot + 1, previous.slotId, previous.height + 1))
             .map(d => (d, d))
         )
         .take(9)
@@ -124,13 +124,14 @@ class ChainSelectionSpec
       base :+ createSlotData(
         base.last.slotId.slot + 1,
         base.last.slotId,
+        base.last.height + 1,
         rho = Sized.strictUnsafe[Bytes, Lengths.`64`.type](Bytes(Array.fill[Byte](64)(1)))
       )
     }
     val ySegment = {
       val base = LazyList
         .unfold(ancestor)(previous =>
-          Some(createSlotData(previous.slotId.slot + 1, previous.slotId))
+          Some(createSlotData(previous.slotId.slot + 1, previous.slotId, previous.height + 1))
             .map(d => (d, d))
         )
         .take(9)
@@ -139,6 +140,7 @@ class ChainSelectionSpec
       base :+ createSlotData(
         base.last.slotId.slot + 1,
         base.last.slotId,
+        base.last.height + 1,
         rho = Sized.strictUnsafe[Bytes, Lengths.`64`.type](Bytes(Array.fill[Byte](64)(5)))
       )
     }
@@ -163,11 +165,11 @@ class ChainSelectionSpec
   }
 
   it should "use chain-density rule for tines longer than the kLookback parameter" in {
-    val grandAncestor = createSlotData(9, SlotId(8, TypedBytes(1: Byte, Bytes(Array[Byte](9)))))
-    val ancestor = createSlotData(10, grandAncestor.slotId)
+    val grandAncestor = createSlotData(9, SlotId(8, TypedBytes(1: Byte, Bytes(Array[Byte](9)))), height = 4)
+    val ancestor = createSlotData(10, grandAncestor.slotId, grandAncestor.height + 1)
     val xSegment = LazyList
       .unfold(ancestor)(previous =>
-        Some(createSlotData(previous.slotId.slot + 1, previous.slotId))
+        Some(createSlotData(previous.slotId.slot + 1, previous.slotId, previous.height + 1))
           .map(d => (d, d))
       )
       .take(50)
@@ -175,7 +177,7 @@ class ChainSelectionSpec
 
     val ySegment = LazyList
       .unfold(ancestor)(previous =>
-        Some(createSlotData(previous.slotId.slot + 2, previous.slotId))
+        Some(createSlotData(previous.slotId.slot + 2, previous.slotId, previous.height + 1))
           .map(d => (d, d))
       )
       .take(50)
@@ -199,13 +201,15 @@ class ChainSelectionSpec
   private def createSlotData(
     slot:         Slot,
     parentSlotId: SlotId,
+    height:       Long,
     rho:          Rho = Sized.strictUnsafe[Bytes, Lengths.`64`.type](Bytes(Array.fill[Byte](64)(0)))
   ): SlotData =
     SlotData(
       SlotId(slot, TypedBytes(1: Byte, genSizedStrictBytes[Lengths.`32`.type]().first.data)),
       parentSlotId = parentSlotId,
       rho = rho,
-      eta = Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))
+      eta = Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0))),
+      height = height
     )
 
 }
