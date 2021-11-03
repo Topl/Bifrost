@@ -34,17 +34,17 @@ object Dependencies {
   )
 
   val akka = Seq(
-		"com.typesafe.akka" %% "akka-actor"               % akkaVersion,
-		"com.typesafe.akka" %% "akka-actor-typed"         % akkaVersion,
-		"com.typesafe.akka" %% "akka-stream"              % akkaVersion,
-		"com.typesafe.akka" %% "akka-stream-typed"        % akkaVersion,
-		"com.typesafe.akka" %% "akka-http"                % akkaHttpVersion,
-		"com.typesafe.akka" %% "akka-http-core"           % akkaHttpVersion,
-		"com.typesafe.akka" %% "akka-slf4j"               % akkaVersion,
-		"com.typesafe.akka" %% "akka-testkit"             % akkaVersion     % Test,
-		"com.typesafe.akka" %% "akka-actor-testkit-typed" % akkaVersion     % Test,
-		"com.typesafe.akka" %% "akka-stream-testkit"      % akkaVersion     % Test,
-		"com.typesafe.akka" %% "akka-http-testkit"        % akkaHttpVersion % Test
+    "com.typesafe.akka" %% "akka-actor"               % akkaVersion,
+    "com.typesafe.akka" %% "akka-actor-typed"         % akkaVersion,
+    "com.typesafe.akka" %% "akka-stream"              % akkaVersion,
+    "com.typesafe.akka" %% "akka-stream-typed"        % akkaVersion,
+    "com.typesafe.akka" %% "akka-http"                % akkaHttpVersion,
+    "com.typesafe.akka" %% "akka-http-core"           % akkaHttpVersion,
+    "com.typesafe.akka" %% "akka-slf4j"               % akkaVersion,
+    "com.typesafe.akka" %% "akka-testkit"             % akkaVersion     % Test,
+    "com.typesafe.akka" %% "akka-actor-testkit-typed" % akkaVersion     % Test,
+    "com.typesafe.akka" %% "akka-stream-testkit"      % akkaVersion     % Test,
+    "com.typesafe.akka" %% "akka-http-testkit"        % akkaHttpVersion % Test
   )
 
   val network = Seq(
@@ -91,7 +91,7 @@ object Dependencies {
       "com.github.julien-truffaut" %% "monocle-macro"      % "3.0.0-M6",
       "org.ethereum"                % "leveldbjni-all"     % "1.18.3",
       "org.iq80.leveldb"            % "leveldb"            % "0.12",
-      "org.mongodb.scala"          %% "mongo-scala-driver" % "4.3.2"
+      "org.mongodb.scala"          %% "mongo-scala-driver" % "4.3.4"
     ) ++
     logging ++
     test ++
@@ -173,9 +173,9 @@ object Dependencies {
 
   lazy val tools: Seq[ModuleID] =
     Seq(
-      "org.mongodb.scala" %% "mongo-scala-driver" % "4.3.2"
+      "org.mongodb.scala" %% "mongo-scala-driver" % "4.3.4"
     )
-  
+
   lazy val loadTesting: Seq[ModuleID] = {
     Seq(
       "com.lihaoyi"    %% "mainargs" % "0.2.1",
