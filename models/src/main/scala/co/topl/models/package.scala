@@ -21,19 +21,19 @@ package object models {
   type Registration = Bytes
   type Signature = Bytes
   type Epoch = Long
-  type Address = TypedIdentifier
-  type BoxReference = (Address, Eta)
+  type DionAddress = TypedIdentifier
+  type BoxReference = (DionAddress, Eta)
   type TaktikosBoxReference = (TaktikosAddress, Eta)
-  type PolyOutput = (Address, Int128)
-  type ArbitOutput = (Address, Int128)
-  type AssetOutput = (Address, Box.Values.Asset)
+  type PolyOutput = (DionAddress, Int128)
+  type ArbitOutput = (DionAddress, Int128)
+  type AssetOutput = (DionAddress, Box.Values.Asset)
   type SlotId = (Slot, TypedIdentifier)
   type TxRoot = Sized.Strict[Bytes, Lengths.`32`.type]
   type BloomFilter = Sized.Strict[Bytes, Lengths.`256`.type]
   type Rho = Sized.Strict[Bytes, Lengths.`64`.type]
-  type Account = Propositions.PublicKeyEd25519
-  type Root = Propositions.PublicKeyEd25519
-  type StakeAddress = Propositions.PublicKeyEd25519
+  type Account = Propositions.Knowledge.Ed25519
+  type Root = Propositions.Knowledge.Ed25519
+  type StakeAddress = Propositions.Knowledge.Ed25519
   type Digest32 = Sized.Strict[Bytes, Lengths.`32`.type]
 
   object Bytes {

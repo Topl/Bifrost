@@ -36,8 +36,8 @@ object Proposer {
 
   trait Instances {
 
-    implicit val ed25519Proposes: Proposer[VerificationKeys.Ed25519, Propositions.PublicKeyEd25519] =
-      t => Propositions.PublicKeyEd25519(t)
+    implicit val ed25519Proposes: Proposer[VerificationKeys.Ed25519, Propositions.Knowledge.Ed25519] =
+      t => Propositions.Knowledge.Ed25519(t)
 
     implicit val vrfProposes: Proposer[VerificationKeys.VrfEd25519, Propositions.VerificationKeyVRF] =
       t => Propositions.VerificationKeyVRF(t)
