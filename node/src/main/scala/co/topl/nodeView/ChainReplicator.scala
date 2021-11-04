@@ -7,6 +7,7 @@ import akka.util.Timeout
 import cats.data.OptionT
 import cats.implicits._
 import co.topl.modifier.block.Block
+import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.NodeViewHolder.Events.SemanticallySuccessfulModifier
 import co.topl.settings.ChainReplicatorSettings
 import co.topl.tools.exporter.DataType
@@ -28,8 +29,6 @@ object ChainReplicator {
 
   val actorName = "ChainReplicator"
 
-  val stashSize = 20000
-
   sealed abstract class ReceivableMessage
 
   object ReceivableMessages {
@@ -50,10 +49,10 @@ object ChainReplicator {
     nodeViewHolderRef:    ActorRef[NodeViewHolder.ReceivableMessage],
     checkDBConnection:    () => Future[Seq[String]],
     getExistingHeightsDB: (Long, Long) => Future[Seq[Long]],
-    insertDB:             (Seq[Document], DataType) => Future[InsertManyResult],
+    insertDB:             (Seq[Document], String) => Future[InsertManyResult],
     settings:             ChainReplicatorSettings
   ): Behavior[ReceivableMessage] =
-    Behaviors.withStash(stashSize) { buffer =>
+    Behaviors.withStash(settings.actorStashSize) { buffer =>
       Behaviors.setup { implicit context =>
         implicit val ec: ExecutionContext = context.executionContext
 
@@ -82,7 +81,7 @@ private class ChainReplicator(
   nodeViewHolderRef:    ActorRef[NodeViewHolder.ReceivableMessage],
   buffer:               StashBuffer[ChainReplicator.ReceivableMessage],
   getExistingHeightsDB: (Long, Long) => Future[Seq[Long]],
-  insertDB:             (Seq[Document], DataType) => Future[InsertManyResult],
+  insertDB:             (Seq[Document], String) => Future[InsertManyResult],
   settings:             ChainReplicatorSettings
 )(implicit
   context: ActorContext[ChainReplicator.ReceivableMessage]
@@ -133,7 +132,7 @@ private class ChainReplicator(
           existingHeights  <- OptionT[Future, Seq[Long]](existingHeightsFuture.map(_.some))
           blocksToAdd      <- OptionT[Future, Seq[Block]](missingBlocks(startHeight, endHeight, existingHeights))
           blockWriteResult <- OptionT[Future, InsertManyResult](exportBlocks(blocksToAdd).map(_.some))
-          txWriteResult    <- OptionT[Future, InsertManyResult](exportTransactions(blocksToAdd).map(_.some))
+          txWriteResult    <- OptionT[Future, InsertManyResult](exportTxsFromBlocks(blocksToAdd).map(_.some))
         } yield (blockWriteResult, txWriteResult)
 
         context.pipeToSelf(exportResult.value) {
@@ -183,7 +182,7 @@ private class ChainReplicator(
         implicit val ec: ExecutionContext = context.executionContext
         val res = for {
           blockExport <- exportBlocks(Seq(block))
-          txExport    <- exportTransactions(Seq(block))
+          txExport    <- exportTxsFromBlocks(Seq(block))
         } yield (blockExport, txExport)
         res.onComplete {
           case Success(writeResults) =>
@@ -207,7 +206,7 @@ private class ChainReplicator(
    */
   private def exportBlocks(blocks: Seq[Block]): Future[InsertManyResult] = {
     implicit val ec: ExecutionContext = context.executionContext
-    insertDB(blocks.map(BlockDataModel(_).asDocument), DataType.Block)
+    insertDB(blocks.map(BlockDataModel(_).asDocument), settings.blockCollection)
   }
 
   /**
@@ -215,15 +214,25 @@ private class ChainReplicator(
    * @param blocks sequence of blocks that need transactions inserted in AppView
    * @return Insertion result from the database
    */
-  private def exportTransactions(blocks: Seq[Block]): Future[InsertManyResult] = {
+  private def exportTxsFromBlocks(blocks: Seq[Block]): Future[InsertManyResult] = {
     implicit val ec: ExecutionContext = context.executionContext
     val txDocs = blocks.flatMap { b =>
       b.transactions.map { tx =>
         TransactionDataModel(b.id.toString, b.height, tx).asDocument
       }
     }
-    insertDB(txDocs, DataType.Transaction)
+    insertDB(txDocs, settings.confirmedTxCollection)
   }
+
+  /**
+   * Export unconfirmed transactions from mempool to the AppView
+   * @param txs sequence of transactions that need to be send to the AppView
+   * @return Insertion result from the database
+   */
+//  private def exportUnconfirmedTxs(txs: Seq[Transaction.TX]): Future[InsertManyResult] = {
+//    implicit val ec: ExecutionContext = context.executionContext
+//    insertDB(txs.map(tx => TransactionDataModel(tx..id.toString).asDocument), settings.unconfirmedTxCollection)
+//  }
 
   /**
    * Given the height range of the database check, and the heights where at least one block exists in range, return the

@@ -97,8 +97,12 @@ case class ChainReplicatorSettings(
   checkMissingBlock:       Boolean,
   checkMissingStartHeight: Long,
   blockCheckSize:          Int,
+  actorStashSize:          Int,
   uri:                     Option[String],
-  database:                Option[String]
+  database:                Option[String],
+  blockCollection:         String,
+  confirmedTxCollection:   String,
+  unconfirmedTxCollection: String
 )
 
 case class AppSettings(

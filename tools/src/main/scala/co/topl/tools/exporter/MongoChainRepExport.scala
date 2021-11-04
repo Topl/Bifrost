@@ -17,8 +17,8 @@ class MongoChainRepExport(uri: String, database: String) {
 
   def checkValidConnection(): Future[Seq[String]] = db.listCollectionNames().toFuture()
 
-  def insert(docSeq: Seq[Document], dt: DataType): Future[InsertManyResult] = db
-    .getCollection(dt.name)
+  def insert(docSeq: Seq[Document], collectionName: String): Future[InsertManyResult] = db
+    .getCollection(collectionName)
     .insertMany(docSeq)
     .toFuture()
 
