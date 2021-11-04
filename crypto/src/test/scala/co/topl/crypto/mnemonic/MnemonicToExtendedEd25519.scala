@@ -9,6 +9,7 @@ import co.topl.crypto.utils.Hex.implicits._
 import co.topl.models.SecretKeys
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.{Lengths, Sized}
+import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
@@ -17,7 +18,8 @@ class MnemonicToExtendedEd25519
     extends AnyFlatSpec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
-    with Matchers {
+    with Matchers
+    with EitherValues {
 
   case class TestVector(name: String, specIn: SpecIn, specOut: SpecOut)
   case class SpecIn(phrase: String, size: MnemonicSize, language: Language, password: String)
@@ -43,10 +45,7 @@ class MnemonicToExtendedEd25519
         "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic",
         Mnemonic12,
         English
-      ) match {
-        case Left(value)  => throw new Error(s"Problem deriving SecretKeys.ExtendedEd25519 from mnemonic: $value")
-        case Right(value) => value
-      }
+      ).value
 
     forAll(stringGen) { password =>
       val firstAttempt = createKey(password)
@@ -63,10 +62,7 @@ class MnemonicToExtendedEd25519
         "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic",
         Mnemonic12,
         English
-      ) match {
-        case Left(value)  => throw new Error(s"Problem deriving SecretKeys.ExtendedEd25519 from mnemonic: $value")
-        case Right(value) => value
-      }
+      ).value
 
     forAll(stringGen, stringGen) { (password1, password2) =>
       val firstAttempt = createKey(password1)
@@ -95,10 +91,9 @@ class MnemonicToExtendedEd25519
     )
 
     val sk = FromEntropy
-      .derive[String => SecretKeys.ExtendedEd25519](tv.specIn.phrase, tv.specIn.size, tv.specIn.language) match {
-      case Left(value)  => throw new Error(s"failed test: $value")
-      case Right(value) => value(tv.specIn.password)
-    }
+      .derive[String => SecretKeys.ExtendedEd25519](tv.specIn.phrase, tv.specIn.size, tv.specIn.language)
+      .map(_.apply(tv.specIn.password))
+      .value
 
     sk shouldBe tv.specOut.sk
   }
@@ -118,10 +113,9 @@ class MnemonicToExtendedEd25519
     )
 
     val sk = FromEntropy
-      .derive[String => SecretKeys.ExtendedEd25519](tv.specIn.phrase, tv.specIn.size, tv.specIn.language) match {
-      case Left(value)  => throw new Error(s"failed test: $value")
-      case Right(value) => value(tv.specIn.password)
-    }
+      .derive[String => SecretKeys.ExtendedEd25519](tv.specIn.phrase, tv.specIn.size, tv.specIn.language)
+      .map(_.apply(tv.specIn.password))
+      .value
 
     sk shouldBe tv.specOut.sk
   }
@@ -142,11 +136,9 @@ class MnemonicToExtendedEd25519
     )
 
     val sk = FromEntropy
-      .derive[String => SecretKeys.ExtendedEd25519](tv.specIn.phrase, tv.specIn.size, tv.specIn.language) match {
-      case Left(value)  => throw new Error(s"failed test: $value")
-      case Right(value) => value(tv.specIn.password)
-
-    }
+      .derive[String => SecretKeys.ExtendedEd25519](tv.specIn.phrase, tv.specIn.size, tv.specIn.language)
+      .map(_.apply(tv.specIn.password))
+      .value
 
     sk shouldBe tv.specOut.sk
   }
@@ -167,11 +159,9 @@ class MnemonicToExtendedEd25519
     )
 
     val sk = FromEntropy
-      .derive[String => SecretKeys.ExtendedEd25519](tv.specIn.phrase, tv.specIn.size, tv.specIn.language) match {
-      case Left(value)  => throw new Error(s"failed test: $value")
-      case Right(value) => value(tv.specIn.password)
-
-    }
+      .derive[String => SecretKeys.ExtendedEd25519](tv.specIn.phrase, tv.specIn.size, tv.specIn.language)
+      .map(_.apply(tv.specIn.password))
+      .value
 
     sk shouldBe tv.specOut.sk
   }
@@ -192,11 +182,9 @@ class MnemonicToExtendedEd25519
     )
 
     val sk = FromEntropy
-      .derive[String => SecretKeys.ExtendedEd25519](tv.specIn.phrase, tv.specIn.size, tv.specIn.language) match {
-      case Left(value)  => throw new Error(s"failed test: $value")
-      case Right(value) => value(tv.specIn.password)
-
-    }
+      .derive[String => SecretKeys.ExtendedEd25519](tv.specIn.phrase, tv.specIn.size, tv.specIn.language)
+      .map(_.apply(tv.specIn.password))
+      .value
 
     sk shouldBe tv.specOut.sk
   }
@@ -217,11 +205,55 @@ class MnemonicToExtendedEd25519
     )
 
     val sk = FromEntropy
-      .derive[String => SecretKeys.ExtendedEd25519](tv.specIn.phrase, tv.specIn.size, tv.specIn.language) match {
-      case Left(value)  => throw new Error(s"failed test: $value")
-      case Right(value) => value(tv.specIn.password)
+      .derive[String => SecretKeys.ExtendedEd25519](tv.specIn.phrase, tv.specIn.size, tv.specIn.language)
+      .map(_.apply(tv.specIn.password))
+      .value
 
-    }
+    sk shouldBe tv.specOut.sk
+  }
+  // https://github.com/cardano-foundation/CIPs/blob/master/CIP-0003/Icarus.md#test-vectors
+  it should "satisfy test vector 1 from icarus" in {
+    val tv = TestVector(
+      "Icarus Test Vector #1",
+      SpecIn(
+        "eight country switch draw meat scout mystery blade tip drift useless good keep usage title",
+        Mnemonic15,
+        English,
+        ""
+      ),
+      SpecOut.fromHexString(
+        "c065afd2832cd8b087c4d9ab7011f481ee1e0721e78ea5dd609f3ab3f156d245d176bd8fd4ec60b4731c3918a2a72a0" +
+        "226c0cd119ec35b47e4d55884667f552a23f7fdcd4a10c6cd2c7393ac61d877873e248f417634aa3d812af327ffe9d620"
+      )
+    )
+
+    val sk = FromEntropy
+      .derive[String => SecretKeys.ExtendedEd25519](tv.specIn.phrase, tv.specIn.size, tv.specIn.language)
+      .map(_.apply(tv.specIn.password))
+      .value
+
+    sk shouldBe tv.specOut.sk
+  }
+  // https://github.com/cardano-foundation/CIPs/blob/master/CIP-0003/Icarus.md#test-vectors
+  it should "satisfy test vector 2 from icarus" in {
+    val tv = TestVector(
+      "Icarus Test Vector #1",
+      SpecIn(
+        "eight country switch draw meat scout mystery blade tip drift useless good keep usage title",
+        Mnemonic15,
+        English,
+        "foo"
+      ),
+      SpecOut.fromHexString(
+        "70531039904019351e1afb361cd1b312a4d0565d4ff9f8062d38acf4b15cce41d7b5738d9c893feea55512a3004acb0" +
+        "d222c35d3e3d5cde943a15a9824cbac59443cf67e589614076ba01e354b1a432e0e6db3b59e37fc56b5fb0222970a010e"
+      )
+    )
+
+    val sk = FromEntropy
+      .derive[String => SecretKeys.ExtendedEd25519](tv.specIn.phrase, tv.specIn.size, tv.specIn.language)
+      .map(_.apply(tv.specIn.password))
+      .value
 
     sk shouldBe tv.specOut.sk
   }
