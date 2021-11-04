@@ -7,6 +7,8 @@ import co.topl.crypto.mnemonic.MnemonicSize._
 import co.topl.crypto.utils.Generators._
 import co.topl.crypto.utils.Hex.implicits._
 import co.topl.models.SecretKeys
+import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.{Lengths, Sized}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
@@ -20,6 +22,20 @@ class MnemonicToExtendedEd25519
   case class TestVector(name: String, specIn: SpecIn, specOut: SpecOut)
   case class SpecIn(phrase: String, size: MnemonicSize, language: Language, password: String)
   case class SpecOut(sk: SecretKeys.ExtendedEd25519)
+
+  object SpecOut {
+
+    def fromHexString(hexString: String): SpecOut = {
+      val allBytes = hexString.unsafeStrictBytes[Lengths.`96`.type].data
+      SpecOut(
+        SecretKeys.ExtendedEd25519(
+          Sized.strictUnsafe(allBytes.slice(0, 32)),
+          Sized.strictUnsafe(allBytes.slice(32, 64)),
+          Sized.strictUnsafe(allBytes.slice(64, 96))
+        )
+      )
+    }
+  }
 
   "Key from mnemonic phrase" should "output same the key with the same password" in {
     val createKey: String => SecretKeys.ExtendedEd25519 =
@@ -72,12 +88,9 @@ class MnemonicToExtendedEd25519
         English,
         "dinner"
       ),
-      SpecOut(
-        SecretKeys.ExtendedEd25519(
-          "49275d5103766daaf068000326cfa0b8b18389967c1995eee2cc36fc66d2d610".unsafeStrictBytes,
-          "7e83aaa8f1afc49ffb6b5f7755b813134c98d60523d2b2f0eeea5145d50c03ff".unsafeStrictBytes,
-          "36bf96ba09651007f338c4dfc4355f79fa3f947a68037e8976b2d8eac63d7743".unsafeStrictBytes
-        )
+      SpecOut.fromHexString(
+        "10d6d266fc36cce2ee95197c968983b1b8a0cf26030068f0aa6d7603515d2749ff030cd54551eaeef0b2d22305d6984c1313b" +
+        "855775f6bfb9fc4aff1a8aa837e43773dc6ead8b276897e03687a943ffa795f35c4dfc438f307106509ba96bf36"
       )
     )
 
@@ -98,12 +111,9 @@ class MnemonicToExtendedEd25519
         English,
         "heart"
       ),
-      SpecOut(
-        SecretKeys.ExtendedEd25519(
-          "4702e7f65dbd2af89c3959cdb4e79f72552102a61d89ad9918eb89a259065c10".unsafeStrictBytes,
-          "9dc74fe3f9a498114f2656a8be4f93831dbc5d94b43fd4416602deefd8cfa414".unsafeStrictBytes,
-          "ed2f79a789e55ee34e8c186c56af710017b85a9497418f62ada9b26c2a98d5ad".unsafeStrictBytes
-        )
+      SpecOut.fromHexString(
+        "105c0659a289eb1899ad891da6022155729fe7b4cd59399cf82abd5df6e7024714a4cfd8efde026641d43fb4945dbc1d83934" +
+        "fbea856264f1198a4f9e34fc79dadd5982a6cb2a9ad628f4197945ab8170071af566c188c4ee35ee589a7792fed"
       )
     )
 
@@ -125,12 +135,9 @@ class MnemonicToExtendedEd25519
         English,
         "describe"
       ),
-      SpecOut(
-        SecretKeys.ExtendedEd25519(
-          "5ec220a0c63beccc8b273a60dd7968ed9b10c6667e435bab39514479718c01f8".unsafeStrictBytes,
-          "6a61b32fcdc5d799b327a62d968a7331f773a6ad64b1684b0a1f35b6149a0ad1".unsafeStrictBytes,
-          "4ecf48d6c5e2d7918c5405ebba037a931ae29dc7de59815a7c3af6aa5b4dd367".unsafeStrictBytes
-        )
+      SpecOut.fromHexString(
+        "f8018c7179445139ab5b437e66c6109bed6879dd603a278bccec3bc6a020c25ed10a9a14b6351f0a4b68b164ada673f731738a9" +
+        "62da627b399d7c5cd2fb3616a67d34d5baaf63a7c5a8159dec79de21a937a03baeb05548c91d7e2c5d648cf4e"
       )
     )
 
@@ -153,12 +160,9 @@ class MnemonicToExtendedEd25519
         English,
         "manager"
       ),
-      SpecOut(
-        SecretKeys.ExtendedEd25519(
-          "5555589c9bf2dfcfcf70c2199a6c59631ab04cd5898c3a2cb3e63ece6f71e790".unsafeStrictBytes,
-          "7a3c9e2d94881a051f75d729b41b5ffc15224b457c2611348a5513413d8dbabe".unsafeStrictBytes,
-          "052ce0b1aaed6d6429a3a5dcb3b364e0876d63ab2f3a87d36bf5065b3b50618c".unsafeStrictBytes
-        )
+      SpecOut.fromHexString(
+        "90e7716fce3ee6b32c3a8c89d54cb01a63596c9a19c270cfcfdff29b9c585555beba8d3d4113558a3411267c454b2215fc5f1bb" +
+        "429d7751f051a88942d9e3c7a8c61503b5b06f56bd3873a2fab636d87e064b3b3dca5a329646dedaab1e02c05"
       )
     )
 
@@ -181,12 +185,9 @@ class MnemonicToExtendedEd25519
         English,
         "exact"
       ),
-      SpecOut(
-        SecretKeys.ExtendedEd25519(
-          "5f65b9988a25ed64c1ab99a31dfb87864067bdb236262a6d3a735ae2072edf98".unsafeStrictBytes,
-          "9ffb42972d707a282b77fb270e7c9afea86e868a162f0c7ad7e225a17d509719".unsafeStrictBytes,
-          "6124807717e882b56ea96c8acb15d45b867a48b6c91ee05ddf96651393084be1".unsafeStrictBytes
-        )
+      SpecOut.fromHexString(
+        "98df2e07e25a733a6d2a2636b2bd67408687fb1da399abc164ed258a98b9655f1997507da125e2d77a0c2f168a866ea8fe9a7c0e27fb" +
+        "772b287a702d9742fb9fe14b0893136596df5de01ec9b6487a865bd415cb8a6ca96eb582e81777802461"
       )
     )
 
@@ -209,12 +210,9 @@ class MnemonicToExtendedEd25519
         English,
         ""
       ),
-      SpecOut(
-        SecretKeys.ExtendedEd25519(
-          "5385aad34e831743a6acd89017628a86bcbf93d693abc34bc1d2d393f8576668".unsafeStrictBytes,
-          "5716f1bff83f4e5b7380246d4ab859041c62abae17863bbb52b82c434a098d7d".unsafeStrictBytes,
-          "5bc52f2580c9c7728426d8edd5e58c72412212e41d87b5af3e63b7c8d3aa4a94".unsafeStrictBytes
-        )
+      SpecOut.fromHexString(
+        "686657f893d3d2c14bc3ab93d693bfbc868a621790d8aca64317834ed3aa85537d8d094a432cb852bb3b8617aeab621c0459b84a6d24" +
+        "80735b4e3ff8bff11657944aaad3c8b7633eafb5871de4122241728ce5d5edd8268472c7c980252fc55b"
       )
     )
 

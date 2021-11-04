@@ -20,6 +20,8 @@ inThisBuild(
   )
 )
 
+Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
+
 enablePlugins(ReproducibleBuildsPlugin, ReproducibleBuildsAssemblyPlugin)
 
 lazy val commonSettings = Seq(
@@ -422,7 +424,7 @@ lazy val crypto = project
     libraryDependencies ++= Dependencies.crypto
   )
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, byteCodecs)
+  .dependsOn(models % "compile->compile;test->test", byteCodecs)
 
 lazy val tools = project
   .in(file("tools"))
