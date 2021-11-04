@@ -5,7 +5,7 @@ import co.topl.modifier.box.AssetCode.AssetCodeVersion
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import co.topl.utils.codecs.binary.legacy.modifier.box.AssetCodeSerializer
 import co.topl.utils.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
-import co.topl.utils.codecs.json.codecs._
+import co.topl.utils.codecs.json._
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps

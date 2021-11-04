@@ -9,7 +9,7 @@ import co.topl.utils.CommonGenerators
 import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.SizedBytes.implicits._
 import co.topl.utils.StringDataTypes.Base16Data
-import co.topl.utils.codecs.binary.implicits._
+import co.topl.utils.codecs.binary._
 import co.topl.utils.encode.Base58
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec

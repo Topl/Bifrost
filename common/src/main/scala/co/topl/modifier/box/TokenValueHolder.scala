@@ -1,18 +1,18 @@
 package co.topl.modifier.box
 
 import co.topl.attestation.Address
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.Int128
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import co.topl.utils.codecs.binary.legacy.modifier.box.TokenValueHolderSerializer
 import co.topl.utils.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
-import co.topl.utils.codecs.json.codecs._
+import co.topl.utils.codecs._
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 
-sealed abstract class TokenValueHolder(val quantity: Int128) extends BytesSerializable {
-  override type M = TokenValueHolder
+sealed abstract class TokenValueHolder(val quantity: Int128) {
 
-  override def serializer: BifrostSerializer[TokenValueHolder] = TokenValueHolderSerializer
+  def serializer: BifrostSerializer[TokenValueHolder] = TokenValueHolderSerializer
 }
 
 object TokenValueHolder {
@@ -90,7 +90,7 @@ object AssetValue {
       metadata     <- c.downField("metadata").as[Option[Latin1Data]]
     } yield {
       val sr = securityRoot match {
-        case Some(data) => SecurityRoot.fromBase58(data)
+        case Some(data) => data.value.decodeTransmitted[SecurityRoot].getOrThrow()
         case None       => SecurityRoot.empty
       }
 

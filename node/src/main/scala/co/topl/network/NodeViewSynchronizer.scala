@@ -13,7 +13,8 @@ import co.topl.network.peer.{ConnectedPeer, PenaltyType}
 import co.topl.nodeView.history.GenericHistory
 import co.topl.nodeView.{NodeViewHolder, ReadableNodeView}
 import co.topl.settings.{AppContext, AppSettings}
-import co.topl.utils.codecs.binary.legacy.BifrostSerializer
+import co.topl.utils.codecs.binary._
+import co.topl.utils.codecs.binary.typeclasses.Transmittable
 import co.topl.utils.{Logging, MalformedModifierError, TimeProvider}
 
 import java.net.InetSocketAddress
@@ -42,10 +43,6 @@ class NodeViewSynchronizer(
 
   /** the maximum number of inventory modifiers to compare with remote peers */
   protected val desiredInvObjects: Int = settings.network.desiredInvObjects
-
-  /** serializers for blocks and transactions */
-  protected val modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
-    NodeViewModifier.modifierSerializers
 
   /** convenience variables for accessing the messages specs */
   protected val invSpec: InvSpec = appContext.nodeViewSyncRemoteMessages.invSpec
@@ -120,15 +117,8 @@ class NodeViewSynchronizer(
     /** Respond with data from the local node */
     case ResponseFromLocal(peer, _, modifiers) =>
       /** retrieve the serializer for the modifier and then send to the remote peer */
-      modifiers.headOption.foreach { head =>
-        val modType = head.modifierTypeId
-        modifierSerializers.get(modType) match {
-          case Some(serializer: BifrostSerializer[NodeViewModifier]) =>
-            sendByParts(peer, modType, modifiers.map(m => m.id -> serializer.toBytes(m)))
-          case _ =>
-            log.error(s"Undefined serializer for modifier of type $modType")
-        }
-      }
+      modifiers.headOption
+        .foreach(head => sendByParts(peer, head.modifierTypeId, modifiers.map(m => m.id -> m.transmittableBytes)))
 
     /** check whether requested modifiers have been delivered to the local node from a remote peer */
     case CheckDelivery(peerOpt, modifierTypeId, modifierId) =>
@@ -459,17 +449,17 @@ class NodeViewSynchronizer(
     val requestedModifiers = processSpam(remote, typeId, modifiers)
     import akka.actor.typed.scaladsl.adapter._
     implicit val typedSender: typed.ActorRef[Any] = context.self.toTyped
-    modifierSerializers.get(typeId) match {
+    typeId match {
       // @unchecked because `typeId == Transaction.modifierTypeId` indicates the serializer type
-      case Some(serializer: BifrostSerializer[Transaction.TX @unchecked]) if typeId == Transaction.modifierTypeId =>
+      case Transaction.modifierTypeId =>
         /** parse all transactions and send them to node view holder */
-        val parsed = parseModifiers(requestedModifiers, serializer, remote)
+        val parsed = parseModifiers[Transaction.TX](requestedModifiers, remote)
         viewHolderRef.tell(NodeViewHolder.ReceivableMessages.WriteTransactions(parsed))
 
       // @unchecked because `typeId == Transaction.modifierTypeId` indicates the serializer type
-      case Some(serializer: BifrostSerializer[Block @unchecked]) if typeId == Block.modifierTypeId =>
+      case Block.modifierTypeId =>
         /** parse all modifiers and put them to modifiers cache */
-        val parsed = parseModifiers(requestedModifiers, serializer, remote)
+        val parsed = parseModifiers[Block](requestedModifiers, remote)
         withNodeView(view => parsed.map(block => block -> view.history.applicableTry(block)))
           .onComplete(
             self ! BlockApplicableResult(_, remote)
@@ -487,14 +477,13 @@ class NodeViewSynchronizer(
    *
    * @return collection of parsed modifiers
    */
-  private def parseModifiers[M <: NodeViewModifier](
-    modifiers:  Map[ModifierId, Array[Byte]],
-    serializer: BifrostSerializer[M],
-    remote:     ConnectedPeer
+  private def parseModifiers[M <: NodeViewModifier: Transmittable](
+    modifiers: Map[ModifierId, Array[Byte]],
+    remote:    ConnectedPeer
   ): Iterable[M] =
     modifiers.flatMap { case (id, bytes) =>
-      serializer.parseBytes(bytes) match {
-        case Success(mod) if id == mod.id =>
+      bytes.decodeTransmitted[M] match {
+        case Right(mod) if id == mod.id =>
           Some(mod)
         case _ =>
           /** Penalize peer and do nothing - it will be switched to correct state on CheckDelivery */

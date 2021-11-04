@@ -8,8 +8,7 @@ import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.SecureRandom.randomBytes
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
-import co.topl.utils.codecs.json.codecs._
-import co.topl.utils.codecs.binary.implicits._
+import co.topl.utils.codecs._
 import io.circe.parser.parse
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
@@ -54,7 +53,7 @@ object KeyfileEd25519 {
       iv         <- c.downField("crypto").downField("cipherParams").downField("iv").as[Base58Data]
     } yield {
       implicit val netPrefix: NetworkPrefix = address.networkPrefix
-      new KeyfileEd25519(address, cipherText.value, mac.value, salt.value, iv.value)
+      new KeyfileEd25519(address, cipherText.encodeAsBytes, mac.encodeAsBytes, salt.encodeAsBytes, iv.encodeAsBytes)
     }
 }
 
@@ -141,10 +140,8 @@ object KeyfileEd25519Companion extends KeyfileCompanion[PrivateKeyEd25519, Keyfi
    * @param salt
    * @return
    */
-  private def getDerivedKey(password: Latin1Data, salt: Array[Byte]): Array[Byte] = {
-    val passwordBytes = password.infalliblyEncodeAsBytes
-    SCrypt.generate(passwordBytes, salt, scala.math.pow(2, 18).toInt, 8, 1, 32)
-  }
+  private def getDerivedKey(password: Latin1Data, salt: Array[Byte]): Array[Byte] =
+    SCrypt.generate(password.value, salt, scala.math.pow(2, 18).toInt, 8, 1, 32)
 
   /**
    * @param derivedKey

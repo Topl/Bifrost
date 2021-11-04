@@ -5,11 +5,11 @@ import co.topl.attestation.Evidence
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.hash.implicits._
-import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.StringDataTypes.implicits._
-import co.topl.utils.codecs.binary.implicits._
-import co.topl.utils.codecs.json.codecs._
+import co.topl.utils.catsInstances.shows._
+import co.topl.utils.codecs._
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
@@ -23,7 +23,7 @@ case class BoxId(hash: Digest32) {
     case _          => false
   }
 
-  override def toString: String = hash.encodeAsBase58.show
+  override def toString: String = hash.show
 }
 
 object BoxId {
@@ -32,17 +32,13 @@ object BoxId {
 
   def apply[T](box: Box[T]): BoxId = idFromEviNonce(box.evidence, box.nonce)
 
-  def apply(bytes: Array[Byte]): BoxId =
-    Digest32.validated(bytes).map(BoxId(_)).getOrThrow()
-
-  // requires a dummy implicit to be different from BoxId(Digest32) after type erasure
-  def apply(id: Base58Data)(implicit dummy: DummyImplicit): BoxId = apply(id.value)
-
   def idFromEviNonce(evidence: Evidence, nonce: Box.Nonce): BoxId =
-    BoxId(blake2b256.hash(evidence.bytes ++ Longs.toByteArray(nonce)))
+    BoxId(blake2b256.hash(evidence.persistedBytes ++ Longs.toByteArray(nonce)))
 
-  implicit val jsonEncoder: Encoder[BoxId] = (id: BoxId) => id.toString.asJson
-  implicit val jsonKeyEncoder: KeyEncoder[BoxId] = (id: BoxId) => id.toString
-  implicit val jsonDecoder: Decoder[BoxId] = Decoder[Base58Data].map(apply)
-  implicit val jsonKeyDecoder: KeyDecoder[BoxId] = KeyDecoder[Base58Data].map(apply)
+  implicit val jsonEncoder: Encoder[BoxId] = _.transmittableBase58.asJson
+  implicit val jsonKeyEncoder: KeyEncoder[BoxId] = _.transmittableBase58.show
+  implicit val jsonDecoder: Decoder[BoxId] = Decoder[Base58Data].emap(_.value.decodeTransmitted[BoxId])
+
+  implicit val jsonKeyDecoder: KeyDecoder[BoxId] =
+    KeyDecoder[Base58Data].map(_.value.decodeTransmitted[BoxId].getOrThrow())
 }

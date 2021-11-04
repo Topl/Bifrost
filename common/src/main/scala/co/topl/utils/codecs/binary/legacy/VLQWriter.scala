@@ -2,7 +2,7 @@ package co.topl.utils.codecs.binary.legacy
 
 import co.topl.utils.Int128
 import co.topl.utils.codecs.binary.ZigZagEncoder._
-import co.topl.utils.codecs.binary.valuetypes.stringCharacterSet
+import co.topl.utils.codecs.binary.scodecs.valuetypes.Constants.stringCharacterSet
 
 import java.util
 

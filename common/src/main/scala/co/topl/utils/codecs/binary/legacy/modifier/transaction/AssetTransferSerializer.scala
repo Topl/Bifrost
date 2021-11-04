@@ -9,7 +9,7 @@ import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.codecs.binary.legacy._
 import co.topl.utils.codecs.binary.legacy.attestation._
 import co.topl.utils.codecs.binary.legacy.modifier.box._
-import co.topl.utils.codecs.binary.valuetypes.stringCharacterSet
+import co.topl.utils.codecs.binary.scodecs.valuetypes.Constants.stringCharacterSet
 
 import scala.collection.immutable.ListMap
 import scala.language.existentials

@@ -6,10 +6,10 @@ import cats.implicits._
 import co.topl.crypto.hash.blake2b256
 import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.codecs.binary._
 import co.topl.utils.codecs.binary.legacy.attestation.AddressSerializer
-import co.topl.utils.codecs.binary.{AsBytes, FromBytes, Infallible}
-import co.topl.utils.codecs.binary.implicits._
+import co.topl.utils.codecs.binary.typeclasses.BinaryShow
+import co.topl.crypto.implicits._
 
 import scala.language.implicitConversions
 
@@ -27,71 +27,57 @@ object AddressCodec {
 
   trait Implicits {
 
-    implicit def addressFromBytes(implicit networkPrefix: NetworkPrefix): AddressFromBytes = new AddressFromBytes
+    implicit class BinaryShowOps[T: BinaryShow](value: T) {
 
-    implicit val addressToBytes: AsBytes[Infallible, Address] =
-      AsBytes.infallible[Address](address => address.bytes ++ address.bytes.checksum)
+      private val bytes = value.encodeAsBytes
 
-    implicit class Base58DataOps(value: Base58Data) {
+      val checksum: Array[Byte] = value.hash(blake2b256).value.take(ChecksumLength)
 
       def decodeAddress(implicit networkPrefix: NetworkPrefix): ValidatedNec[AddressValidationError, Address] =
-        value.decodeTo[AddressValidationError, Address]
-    }
+        networkPrefixValidation(bytes)
+          .map(_ => bytes)
+          .combine(lengthValidation(bytes))
+          .combine(checksumValidation(bytes))
+          .andThen(_ => parseValidation(bytes))
 
-    implicit class ByteArrayOps(bytes: Array[Byte]) {
+      implicit private def prefixSemigroup: Semigroup[NetworkPrefix] = (_, b) => b
+      implicit private def byteArraySemigroup: Semigroup[Array[Byte]] = (_, b) => b
 
-      /**
-       * Generates a checksum value for checking correctness of string parsed addresses
-       *
-       * @return a 4 byte checksum value
-       */
-      def checksum: Array[Byte] = blake2b256.hash(bytes).value.take(ChecksumLength)
+      private[attestation] def networkPrefixValidation(bytes: Array[Byte])(implicit
+        networkPrefix:                                        NetworkPrefix
+      ): ValidatedNec[AddressValidationError, NetworkPrefix] =
+        bytes.headOption
+          .toValidNec(InvalidAddress: AddressValidationError)
+          .andThen(prefix =>
+            NetworkType
+              .pickNetworkType(prefix)
+              .toValidNec(InvalidNetworkPrefix)
+              .map(_.netPrefix)
+              .combine(Validated.condNec(prefix == networkPrefix, prefix, NetworkTypeMismatch))
+          )
+
+      private[attestation] def lengthValidation(bytes: Array[Byte]): ValidatedNec[AddressValidationError, Array[Byte]] =
+        Validated.condNec(bytes.length == EncodedAddressLength, bytes, InvalidAddressLength)
+
+      private[attestation] def checksumValidation(
+        bytes: Array[Byte]
+      ): ValidatedNec[AddressValidationError, Array[Byte]] =
+        Validated.condNec(
+          bytes.dropRight(ChecksumLength).checksum sameElements bytes.takeRight(
+            ChecksumLength
+          ),
+          bytes,
+          InvalidChecksum
+        )
+
+      private[attestation] def parseValidation(bytes: Array[Byte]): ValidatedNec[AddressValidationError, Address] =
+        bytes.decodePersisted[Address].leftMap(AddressDecodeFailure).toValidatedNec
+
     }
 
   }
 
   object implicits extends Implicits
-
-  class AddressFromBytes(implicit networkPrefix: NetworkPrefix) extends FromBytes[AddressValidationError, Address] {
-    import implicits._
-
-    override def decode(bytes: Array[Byte]): ValidatedNec[AddressValidationError, Address] =
-      networkPrefixValidation(bytes)
-        .map(_ => bytes)
-        .combine(lengthValidation(bytes))
-        .combine(checksumValidation(bytes))
-        .andThen(_ => parseValidation(bytes))
-
-    implicit private def prefixSemigroup: Semigroup[NetworkPrefix] = (_, b) => b
-    implicit private def byteArraySemigroup: Semigroup[Array[Byte]] = (_, b) => b
-
-    private[attestation] def networkPrefixValidation(bytes: Array[Byte])(implicit
-      networkPrefix:                                        NetworkPrefix
-    ): ValidatedNec[AddressValidationError, NetworkPrefix] =
-      bytes.headOption
-        .toValidNec(InvalidAddress: AddressValidationError)
-        .andThen(prefix =>
-          NetworkType
-            .pickNetworkType(prefix)
-            .toValidNec(InvalidNetworkPrefix)
-            .map(_.netPrefix)
-            .combine(Validated.condNec(prefix == networkPrefix, prefix, NetworkTypeMismatch))
-        )
-
-    private[attestation] def lengthValidation(bytes: Array[Byte]): ValidatedNec[AddressValidationError, Array[Byte]] =
-      Validated.condNec(bytes.length == EncodedAddressLength, bytes, InvalidAddressLength)
-
-    private[attestation] def checksumValidation(bytes: Array[Byte]): ValidatedNec[AddressValidationError, Array[Byte]] =
-      Validated.condNec(
-        bytes.dropRight(ChecksumLength).checksum sameElements bytes.takeRight(ChecksumLength),
-        bytes,
-        InvalidChecksum
-      )
-
-    private[attestation] def parseValidation(bytes: Array[Byte]): ValidatedNec[AddressValidationError, Address] =
-      Validated.fromTry(AddressSerializer.parseBytes(bytes)).leftMap(AddressDecodeFailure).toValidatedNec
-
-  }
 }
 
 sealed abstract class AddressValidationError
@@ -100,4 +86,4 @@ case object InvalidAddress extends AddressValidationError
 case object NetworkTypeMismatch extends AddressValidationError
 case object InvalidAddressLength extends AddressValidationError
 case object InvalidChecksum extends AddressValidationError
-case class AddressDecodeFailure(throwable: Throwable) extends AddressValidationError
+case class AddressDecodeFailure(message: String) extends AddressValidationError

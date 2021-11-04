@@ -7,24 +7,24 @@ import co.topl.crypto.hash.digest.implicits._
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
+import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.StringDataTypes.implicits._
+import co.topl.utils.codecs._
+import co.topl.utils.codecs.binary.legacy.BifrostSerializer
 import co.topl.utils.codecs.binary.legacy.modifier.ModifierIdSerializer
-import co.topl.utils.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
-import co.topl.utils.codecs.binary.implicits._
-import co.topl.utils.codecs.json.codecs._
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 
-case class ModifierId(value: Array[Byte]) extends BytesSerializable {
+case class ModifierId(value: Array[Byte]) {
 
   require(value.length == ModifierId.size, s"Invalid size for ModifierId")
 
-  type M = ModifierId
   lazy val serializer: BifrostSerializer[ModifierId] = ModifierIdSerializer
 
   def getIdBytes: Array[Byte] = value.tail
+
   def getModType: ModifierTypeId = ModifierTypeId(value.head)
 
   override def hashCode: Int = Ints.fromByteArray(value)
@@ -50,14 +50,14 @@ object ModifierId {
   sealed trait CreateModifierIdFailure
   case object InvalidModifierFailure extends CreateModifierIdFailure
 
-  implicit val jsonEncoder: Encoder[ModifierId] = (id: ModifierId) => id.toString.asJson
-  implicit val jsonKeyEncoder: KeyEncoder[ModifierId] = (id: ModifierId) => id.toString
+  implicit val jsonEncoder: Encoder[ModifierId] = _.transmittableBase58.asJson
+  implicit val jsonKeyEncoder: KeyEncoder[ModifierId] = _.transmittableBase58.show
 
   implicit val jsonDecoder: Decoder[ModifierId] =
-    Decoder[Base58Data]
-      .ensure(_.value.length == ModifierId.size, "Invalid size for ModifierId")
-      .map(ModifierId.fromBase58)
-  implicit val jsonKeyDecoder: KeyDecoder[ModifierId] = KeyDecoder[Base58Data].map(ModifierId.fromBase58)
+    Decoder[Base58Data].emap(_.decodeTransmitted[ModifierId])
+
+  implicit val jsonKeyDecoder: KeyDecoder[ModifierId] =
+    KeyDecoder[Base58Data].map(_.decodeTransmitted[ModifierId].getOrThrow())
 
   /**
    * Creates a modifier ID from a node view modifier.
@@ -70,7 +70,9 @@ object ModifierId {
         Block.modifierTypeId.value +: blake2b256.hash(mod.messageToSign).bytes
       ).asRight[CreateModifierIdFailure]
     case mod: Transaction.TX =>
-      new ModifierId(Transaction.modifierTypeId.value +: blake2b256.hash(mod.messageToSign).bytes)
+      new ModifierId(
+        Transaction.modifierTypeId.value +: blake2b256.hash(mod.messageToSign).bytes
+      )
         .asRight[CreateModifierIdFailure]
     case _ => Left(InvalidModifierFailure)
   }
@@ -79,18 +81,10 @@ object ModifierId {
     case mod: Block =>
       new ModifierId(Block.modifierTypeId.value +: blake2b256.hash(mod.messageToSign).bytes)
     case mod: Transaction.TX =>
-      new ModifierId(Transaction.modifierTypeId.value +: blake2b256.hash(mod.messageToSign).bytes)
+      new ModifierId(
+        Transaction.modifierTypeId.value +: blake2b256.hash(mod.messageToSign).bytes
+      )
     case _ => throw new Error("Only blocks and transactions generate a modifierId")
   }
-
-  @deprecated
-  def apply(str: String): ModifierId = new ModifierId(Base58Data.unsafe(str).value)
-
-  /**
-   * Creates a modifier ID from a base 58 encoded data.
-   * @param data the string to turn into a modifier ID
-   * @return modifier id
-   */
-  def fromBase58(data: Base58Data): ModifierId = new ModifierId(data.value)
 
 }

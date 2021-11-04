@@ -4,7 +4,7 @@ import cats.scalatest.{ValidatedMatchers, ValidatedNecMatchers}
 import co.topl.attestation.AddressCodec.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.codecs.binary.implicits._
+import co.topl.utils.codecs.binary._
 import co.topl.utils.{CommonGenerators, NetworkType}
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
@@ -29,7 +29,7 @@ class AddressSpec
       val base58Data = {
         implicit val networkPrefix: NetworkPrefix = fstNetworkType.netPrefix
         val address: Address = pubkey.address
-        address.encodeAsBase58
+        address.transmittableBase58
       }
       {
         implicit val networkPrefix: NetworkPrefix = secNetworkType.netPrefix
@@ -42,7 +42,7 @@ class AddressSpec
     forAll(propositionGen) { pubkey: Proposition =>
       implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
       val address: Address = pubkey.address
-      val addressBytes: Array[Byte] = address.infalliblyEncodeAsBytes
+      val addressBytes: Array[Byte] = address.encodeAsBytes
 
       /** Alter the third byte in the address, which should be the first byte of the content */
       val corruptByte: Byte = (addressBytes(2).toInt + 1).toByte
@@ -60,7 +60,7 @@ class AddressSpec
     forAll(propositionGen) { pubkey: Proposition =>
       implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
       val address: Address = pubkey.address
-      val addrByte: Array[Byte] = address.bytes
+      val addrByte: Array[Byte] = address.encodeAsBytes
 
       /** Alter the last byte in the address, which is part of the checksum */
       val corruptByte: Byte = (addrByte(addrByte.length - 1).toInt + 1).toByte
@@ -77,7 +77,7 @@ class AddressSpec
     forAll(propositionGen) { pubkey: Proposition =>
       implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
       val address: Address = pubkey.address
-      val addrByte: Array[Byte] = address.bytes
+      val addrByte: Array[Byte] = address.encodeAsBytes
 
       /** Alter the last byte in the address, which is part of the checksum */
       val corruptByte: Byte = (addrByte(addrByte.length - 1).toInt + 1).toByte

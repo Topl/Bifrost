@@ -15,6 +15,8 @@ import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import co.topl.utils.codecs._
+import co.topl.utils.codecs.binary.typeclasses.Persistable
 
 import scala.util.{Failure, Success}
 
@@ -29,7 +31,7 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
         .parseBytes(PropositionSerializer.toBytes(prop))
         .get
 
-      parsed.bytes sameElements prop.bytes shouldBe true
+      parsed.persistedBytes sameElements prop.persistedBytes shouldBe true
     }
   }
 
@@ -55,7 +57,7 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
         .parseBytes(ProofSerializer.toBytes(sig))
         .get
 
-      parsed.bytes sameElements sig.bytes shouldBe true
+      Persistable[Proof[_]].persistedBytes(parsed) sameElements Persistable[Proof[_]].persistedBytes(sig) shouldBe true
     }
   }
 
@@ -76,7 +78,7 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
         .parseBytes(ThresholdSignatureCurve25519Serializer.toBytes(sig))
         .get
 
-      parsed.bytes sameElements sig.bytes shouldBe true
+      parsed.persistedBytes sameElements sig.persistedBytes shouldBe true
     }
   }
 
@@ -205,7 +207,7 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
         .parseBytes(BlockHeaderSerializer.toBytes(blockHeader))
         .get
 
-      parsed.bytes sameElements blockHeader.bytes shouldBe true
+      parsed.persistedBytes sameElements blockHeader.persistedBytes shouldBe true
     }
   }
 
@@ -216,7 +218,7 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
         .parseBytes(BlockBodySerializer.toBytes(blockBody))
         .get
 
-      parsed.bytes sameElements blockBody.bytes shouldBe true
+      parsed.persistedBytes sameElements blockBody.persistedBytes shouldBe true
     }
   }
 

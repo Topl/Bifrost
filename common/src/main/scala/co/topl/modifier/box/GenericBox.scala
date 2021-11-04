@@ -6,7 +6,7 @@ import co.topl.utils.codecs.binary.legacy.BytesSerializable
 /**
  * Created by cykoz on 4/13/17.
  */
-abstract class GenericBox[+T] extends BytesSerializable {
+abstract class GenericBox[+T] {
   val evidence: Evidence // a commitment to the proposition locking this box
   val value: T // a box-type dependent quantity
   val id: BoxId // a one-time only, unique reference id (computed from the input transaction data)

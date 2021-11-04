@@ -5,17 +5,17 @@ import co.topl.modifier.box.Box.Nonce
 import co.topl.utils.Identifiable.Syntax._
 import co.topl.utils.codecs.binary.legacy.BifrostSerializer
 import co.topl.utils.codecs.binary.legacy.modifier.box.BoxSerializer
+import co.topl.utils.codecs.binary.typeclasses.Transmittable
 import co.topl.utils.{Identifiable, Identifier}
 import com.google.common.primitives.Ints
 import io.circe._
 import io.circe.syntax.EncoderOps
+import co.topl.utils.codecs.binary._
 
 /**
  * Created by Matthew on 4/11/2017.
  */
 sealed abstract class Box[+T](val evidence: Evidence, val value: T, val nonce: Nonce) extends GenericBox[T] {
-
-  type M = Box[_]
 
   lazy val id: BoxId = BoxId(this)
 
@@ -24,11 +24,12 @@ sealed abstract class Box[+T](val evidence: Evidence, val value: T, val nonce: N
   override def toString: String =
     Box.identifier(this).typeString + Box.jsonEncoder(this).noSpaces
 
-  override def hashCode(): Int = Ints.fromByteArray(bytes)
+  override def hashCode(): Int = Ints.fromByteArray(Transmittable[Box[_]].transmittableBytes(this))
 
   override def equals(obj: Any): Boolean = obj match {
-    case box: Box[_] => bytes sameElements box.bytes
-    case _           => false
+    case box: Box[_] =>
+      Transmittable[Box[_]].transmittableBytes(this) sameElements Transmittable[Box[_]].transmittableBytes(box)
+    case _ => false
   }
 }
 

@@ -7,15 +7,15 @@ import co.topl.attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519, Secret}
 import co.topl.crypto.PublicKey
 import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.hash.implicits._
 import co.topl.crypto.signatures.{Curve25519, Ed25519}
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.StringDataTypes.implicits._
+import co.topl.utils.StringDataTypes.implicits.showBase58String
 import co.topl.utils.StringDataTypes.{Base58Data, DataEncodingValidationFailure}
+import co.topl.utils.codecs._
+import co.topl.utils.codecs.binary.legacy.BifrostSerializer
 import co.topl.utils.codecs.binary.legacy.attestation.PropositionSerializer
-import co.topl.utils.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
-import co.topl.utils.codecs.binary.implicits._
-import co.topl.utils.codecs.json.codecs._
+import co.topl.utils.codecs.binary.typeclasses.{BinaryShow, Transmittable}
 import co.topl.utils.{Identifiable, Identifier}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
@@ -26,21 +26,20 @@ import scala.collection.SortedSet
 // Propositions are challenges that must be satisfied by the prover.
 // In most cases, propositions are used by transactions issuers (spenders) to prove the right
 // to use a UTXO in a transaction.
-sealed trait Proposition extends BytesSerializable {
+sealed trait Proposition {
 
-  override type M = Proposition
-  override def serializer: BifrostSerializer[Proposition] = PropositionSerializer
+  def serializer: BifrostSerializer[Proposition] = PropositionSerializer
 
   def address(implicit networkPrefix: NetworkPrefix): Address
 
-  override def toString: String = bytes.encodeAsBase58.show
+  override def toString: String = BinaryShow[Proposition].encodeAsBase58(this).show
 
   override def equals(obj: Any): Boolean = obj match {
-    case prop: Proposition => prop.bytes sameElements bytes
+    case prop: Proposition => Transmittable[Proposition].transmittableBytes(this) sameElements prop.transmittableBytes
     case _                 => false
   }
 
-  override def hashCode(): Int = Ints.fromByteArray(bytes)
+  override def hashCode(): Int = Ints.fromByteArray(Transmittable[Proposition].transmittableBytes(this))
 }
 
 object Proposition {
@@ -51,16 +50,11 @@ object Proposition {
       extends PropositionFromDataFailure
   final case class BytesParsingError(error: Throwable) extends PropositionFromDataFailure
 
-  def fromString(str: String): Either[PropositionFromDataFailure, _ <: Proposition] =
-    Base58Data.validated(str).leftMap(IncorrectEncoding).toEither.flatMap(fromBase58)
+  implicit def jsonKeyEncoder[P <: Proposition]: KeyEncoder[P] =
+    value => Transmittable[Proposition].transmittableBase58(value).show
 
-  def fromBase58(data: Base58Data): Either[PropositionFromDataFailure, _ <: Proposition] =
-    PropositionSerializer.parseBytes(data.value).toEither.leftMap(BytesParsingError)
-
-  implicit def jsonKeyEncoder[P <: Proposition]: KeyEncoder[P] = (prop: P) => prop.toString
-
-  implicit val jsonKeyDecoder: KeyDecoder[Proposition] =
-    json => Base58Data.validated(json).toOption.flatMap(fromBase58(_).toOption)
+  implicit def jsonKeyDecoder: KeyDecoder[Proposition] =
+    KeyDecoder[Base58Data].map(_.value.decodeTransmitted[Proposition].getOrThrow())
 
   implicit val showPropositionFromStringFailure: Show[PropositionFromDataFailure] = {
     case IncorrectEncoding(errors) => s"String is an incorrect encoding type: $errors"
@@ -90,27 +84,11 @@ object PublicKeyPropositionCurve25519 {
   val typePrefix: EvidenceTypePrefix = 1: Byte
   val typeString: String = "PublicKeyCurve25519"
 
-  def apply(str: String): PublicKeyPropositionCurve25519 =
-    Proposition.fromString(str) match {
-      case Right(pk: PublicKeyPropositionCurve25519) => pk
-      case Right(_)                                  => throw new Error("Invalid proposition generation")
-      case Left(failure) =>
-        throw new Error(s"Failed to create PublicKeyPropositionCurve25519 from string: ${failure.show}")
-    }
-
-  def fromBase58(data: Base58Data): PublicKeyPropositionCurve25519 =
-    Proposition.fromBase58(data) match {
-      case Right(pk: PublicKeyPropositionCurve25519) => pk
-      case Right(_)                                  => throw new Error("Invalid proposition generation")
-      case Left(failure) =>
-        throw new Error(s"Failed to create PublicKeyPropositionCurve25519 from string: ${failure.show}")
-    }
-
   implicit val ord: Ordering[PublicKeyPropositionCurve25519] = Ordering.by(_.toString)
 
   implicit val evProducer: EvidenceProducer[PublicKeyPropositionCurve25519] =
     EvidenceProducer.instance[PublicKeyPropositionCurve25519] { prop: PublicKeyPropositionCurve25519 =>
-      Evidence(typePrefix, EvidenceContent(blake2b256.hash(prop.bytes.tail)))
+      Evidence(typePrefix, EvidenceContent(blake2b256.hash(prop.persistedBytes).value))
     }
 
   implicit val identifier: Identifiable[PublicKeyPropositionCurve25519] = Identifiable.instance { () =>
@@ -119,13 +97,15 @@ object PublicKeyPropositionCurve25519 {
 
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html
-  implicit val jsonEncoder: Encoder[PublicKeyPropositionCurve25519] = (prop: PublicKeyPropositionCurve25519) =>
-    prop.toString.asJson
+  implicit val jsonEncoder: Encoder[PublicKeyPropositionCurve25519] = _.transmittableBase58.asJson
 
-  implicit val jsonKeyEncoder: KeyEncoder[PublicKeyPropositionCurve25519] = (prop: PublicKeyPropositionCurve25519) =>
-    prop.toString
-  implicit val jsonDecoder: Decoder[PublicKeyPropositionCurve25519] = Decoder[Base58Data].map(fromBase58)
-  implicit val jsonKeyDecoder: KeyDecoder[PublicKeyPropositionCurve25519] = KeyDecoder[Base58Data].map(fromBase58)
+  implicit val jsonKeyEncoder: KeyEncoder[PublicKeyPropositionCurve25519] = _.transmittableBase58.show
+
+  implicit val jsonDecoder: Decoder[PublicKeyPropositionCurve25519] =
+    Decoder[Base58Data].emap(_.value.decodeTransmitted[PublicKeyPropositionCurve25519])
+
+  implicit val jsonKeyDecoder: KeyDecoder[PublicKeyPropositionCurve25519] =
+    KeyDecoder[Base58Data].map(_.value.decodeTransmitted[PublicKeyPropositionCurve25519].getOrThrow())
 }
 
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
@@ -152,25 +132,9 @@ object ThresholdPropositionCurve25519 {
   val typePrefix: EvidenceTypePrefix = 2: Byte
   val typeString: String = "ThresholdCurve25519"
 
-  def apply(str: String): ThresholdPropositionCurve25519 =
-    Proposition.fromString(str) match {
-      case Right(prop: ThresholdPropositionCurve25519) => prop
-      case Right(_)                                    => throw new Error("Invalid proposition generation")
-      case Left(failure) =>
-        throw new Error(s"Failed to create Threshold Curve 25519 proposition from string: ${failure.show}")
-    }
-
-  def fromBase58(data: Base58Data): ThresholdPropositionCurve25519 =
-    Proposition.fromBase58(data) match {
-      case Right(prop: ThresholdPropositionCurve25519) => prop
-      case Right(_)                                    => throw new Error("Invalid proposition generation")
-      case Left(failure) =>
-        throw new Error(s"Failed to create Threshold Curve 25519 proposition from string: ${failure.show}")
-    }
-
   implicit val evProducer: EvidenceProducer[ThresholdPropositionCurve25519] =
     EvidenceProducer.instance[ThresholdPropositionCurve25519] { prop: ThresholdPropositionCurve25519 =>
-      Evidence(typePrefix, EvidenceContent(blake2b256.hash(prop.bytes.tail)))
+      Evidence(typePrefix, EvidenceContent(blake2b256.hash(prop.persistedBytes).value))
     }
 
   implicit val identifier: Identifiable[ThresholdPropositionCurve25519] = Identifiable.instance { () =>
@@ -179,13 +143,15 @@ object ThresholdPropositionCurve25519 {
 
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html
-  implicit val jsonEncoder: Encoder[ThresholdPropositionCurve25519] = (prop: ThresholdPropositionCurve25519) =>
-    prop.toString.asJson
+  implicit val jsonEncoder: Encoder[ThresholdPropositionCurve25519] = _.transmittableBase58.asJson
 
-  implicit val jsonKeyEncoder: KeyEncoder[ThresholdPropositionCurve25519] = (prop: ThresholdPropositionCurve25519) =>
-    prop.toString
-  implicit val jsonDecoder: Decoder[ThresholdPropositionCurve25519] = Decoder[Base58Data].map(fromBase58)
-  implicit val jsonKeyDecoder: KeyDecoder[ThresholdPropositionCurve25519] = KeyDecoder[Base58Data].map(fromBase58)
+  implicit val jsonKeyEncoder: KeyEncoder[ThresholdPropositionCurve25519] = _.transmittableBase58.show
+
+  implicit val jsonDecoder: Decoder[ThresholdPropositionCurve25519] =
+    Decoder[Base58Data].emap(_.value.decodeTransmitted[ThresholdPropositionCurve25519])
+
+  implicit val jsonKeyDecoder: KeyDecoder[ThresholdPropositionCurve25519] =
+    KeyDecoder[Base58Data].map(data => data.value.decodeTransmitted[ThresholdPropositionCurve25519].getOrThrow())
 }
 
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
@@ -206,27 +172,11 @@ object PublicKeyPropositionEd25519 {
   val typePrefix: EvidenceTypePrefix = 3: Byte
   val typeString: String = "PublicKeyEd25519"
 
-  def apply(str: String): PublicKeyPropositionEd25519 =
-    Proposition.fromString(str) match {
-      case Right(pk: PublicKeyPropositionEd25519) => pk
-      case Right(_)                               => throw new Error("Invalid proposition generation")
-      case Left(failure) =>
-        throw new Error(s"Failed to create PublicKeyPropositionEd25519 from string: ${failure.show}")
-    }
-
-  def fromBase58(data: Base58Data): PublicKeyPropositionEd25519 =
-    Proposition.fromBase58(data) match {
-      case Right(pk: PublicKeyPropositionEd25519) => pk
-      case Right(_)                               => throw new Error("Invalid proposition generation")
-      case Left(failure) =>
-        throw new Error(s"Failed to create PublicKeyPropositionEd25519 from string: ${failure.show}")
-    }
-
   implicit val ord: Ordering[PublicKeyPropositionEd25519] = Ordering.by(_.toString)
 
   implicit val evProducer: EvidenceProducer[PublicKeyPropositionEd25519] =
     EvidenceProducer.instance[PublicKeyPropositionEd25519] { prop: PublicKeyPropositionEd25519 =>
-      Evidence(typePrefix, EvidenceContent(blake2b256.hash(prop.bytes.tail)))
+      Evidence(typePrefix, EvidenceContent(blake2b256.hash(prop.persistedBytes).value))
     }
 
   implicit val identifier: Identifiable[PublicKeyPropositionEd25519] = Identifiable.instance { () =>
@@ -235,11 +185,13 @@ object PublicKeyPropositionEd25519 {
 
   // see circe documentation for custom encoder / decoders
   // https://circe.github.io/circe/codecs/custom-codecs.html
-  implicit val jsonEncoder: Encoder[PublicKeyPropositionEd25519] = (prop: PublicKeyPropositionEd25519) =>
-    prop.toString.asJson
+  implicit val jsonEncoder: Encoder[PublicKeyPropositionEd25519] = _.transmittableBase58.asJson
 
-  implicit val jsonKeyEncoder: KeyEncoder[PublicKeyPropositionEd25519] = (prop: PublicKeyPropositionEd25519) =>
-    prop.toString
-  implicit val jsonDecoder: Decoder[PublicKeyPropositionEd25519] = Decoder[Base58Data].map(fromBase58)
-  implicit val jsonKeyDecoder: KeyDecoder[PublicKeyPropositionEd25519] = KeyDecoder[Base58Data].map(fromBase58)
+  implicit val jsonKeyEncoder: KeyEncoder[PublicKeyPropositionEd25519] = _.transmittableBase58.show
+
+  implicit val jsonDecoder: Decoder[PublicKeyPropositionEd25519] =
+    Decoder[Base58Data].emap(_.value.decodeTransmitted[PublicKeyPropositionEd25519])
+
+  implicit val jsonKeyDecoder: KeyDecoder[PublicKeyPropositionEd25519] =
+    KeyDecoder[Base58Data].map(_.value.decodeTransmitted[PublicKeyPropositionEd25519].getOrThrow())
 }

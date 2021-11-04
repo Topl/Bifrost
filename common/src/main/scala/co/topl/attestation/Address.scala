@@ -1,18 +1,19 @@
 package co.topl.attestation
 
 import cats.implicits._
-import co.topl.attestation.AddressCodec.implicits._
+import cats.{Eq, Show}
 import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.StringDataTypes.implicits._
-import co.topl.utils.codecs.binary.implicits._
-import co.topl.utils.codecs.json.codecs._
+import co.topl.utils.catsInstances._
+import co.topl.utils.codecs._
+import co.topl.utils.codecs.binary.legacy.BifrostSerializer
 import co.topl.utils.codecs.binary.legacy.attestation.AddressSerializer
-import co.topl.utils.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
+import co.topl.utils.codecs.binary.typeclasses.Transmittable
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
+import co.topl.attestation.AddressCodec.implicits._
 
 /**
  * An address is a network specific commitment to a proposition encumbering a box. Addresses incorporate the evidence type
@@ -24,20 +25,18 @@ import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
  * @param evidence a commitment produced from a proposition that identifies that proposition.
  * @param networkPrefix a runtime specified parameter denoting the type of network that is executing
  */
-case class Address(evidence: Evidence)(implicit val networkPrefix: NetworkPrefix) extends BytesSerializable {
+case class Address(evidence: Evidence)(implicit val networkPrefix: NetworkPrefix) {
 
-  type M = Address
+  override def toString: String = Show[Address].show(this)
 
-  override def toString: String = (this.bytes ++ this.bytes.checksum).encodeAsBase58.show
-
-  override def serializer: BifrostSerializer[Address] = AddressSerializer
+  def serializer: BifrostSerializer[Address] = AddressSerializer
 
   override def equals(obj: Any): Boolean = obj match {
-    case addr: Address => bytes sameElements addr.bytes
+    case addr: Address => Eq[Address].eqv(this, addr)
     case _             => false
   }
 
-  override def hashCode(): Int = Ints.fromByteArray(bytes)
+  override def hashCode(): Int = Ints.fromByteArray(Transmittable[Address].transmittableBytes(this))
 }
 
 object Address {

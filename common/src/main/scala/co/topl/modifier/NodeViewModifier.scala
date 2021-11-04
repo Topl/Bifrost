@@ -12,8 +12,7 @@ import io.estatico.newtype.macros.newtype
 
 import scala.language.implicitConversions
 
-trait NodeViewModifier extends BytesSerializable {
-  type M = NodeViewModifier
+trait NodeViewModifier {
   lazy val serializer: BifrostSerializer[NodeViewModifier] = NodeViewModifierSerializer
 
   val modifierTypeId: ModifierTypeId
@@ -31,9 +30,6 @@ object NodeViewModifier {
 
   @newtype
   case class ModifierTypeId(value: Byte)
-
-  val modifierSerializers: Map[ModifierTypeId, BifrostSerializer[_ <: NodeViewModifier]] =
-    Map(Block.modifierTypeId -> BlockSerializer, Transaction.modifierTypeId -> TransactionSerializer)
 
   def idsToString(ids: Seq[(ModifierTypeId, ModifierId)]): String =
     List(ids.headOption, ids.lastOption).flatten

@@ -2,17 +2,16 @@ package co.topl.modifier.transaction
 
 import co.topl.attestation._
 import co.topl.crypto.hash.blake2b256
-import co.topl.modifier.BoxReader
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.box._
 import co.topl.utils.StringDataTypes.Latin1Data
+import co.topl.utils.codecs.binary._
 import co.topl.utils.{Identifiable, Int128}
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
 import scala.collection.immutable.ListMap
-import scala.util.Try
 
 abstract class TransferTransaction[
   +T <: TokenValueHolder,
@@ -28,7 +27,7 @@ abstract class TransferTransaction[
 )(implicit val evidenceProducerEv: EvidenceProducer[P], identifiableEv: Identifiable[P])
     extends Transaction[TokenValueHolder, P] {
 
-  lazy val bloomTopics: IndexedSeq[BloomTopic] = to.map(b => BloomTopic(b._1.bytes))
+  lazy val bloomTopics: IndexedSeq[BloomTopic] = to.map(b => BloomTopic(b._1.persistedBytes))
 
   lazy val boxIdsToOpen: IndexedSeq[BoxId] = from.map { case (addr, nonce) =>
     BoxId.idFromEviNonce(addr.evidence, nonce)
@@ -41,11 +40,10 @@ abstract class TransferTransaction[
 
   val coinOutput: Iterable[TokenBox[T]]
 
-  override val newBoxes: Iterable[TokenBox[TokenValueHolder]]
-
   override def messageToSign: Array[Byte] =
-    super.messageToSign ++
-    data.fold(Array(0: Byte))(_.value) :+ (if (minting) 1: Byte else 0: Byte)
+    super.messageToSign ++ data.fold(Array(0: Byte))(_.value) :+ (if (minting) 1: Byte else 0: Byte)
+
+  override val newBoxes: Iterable[TokenBox[TokenValueHolder]]
 
 }
 

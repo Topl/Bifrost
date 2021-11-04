@@ -578,7 +578,7 @@ trait AdminRpcResponseEncoders extends SharedCodecs {
     deriveEncoder
 }
 
-trait SharedCodecs extends codecs.json.Codecs {
+trait SharedCodecs extends codecs.json.JsonCodecs {
 
   implicit def blockEncoder: Encoder[Block] = Block.jsonEncoder
   implicit def blockDecoder(implicit networkPrefix: NetworkPrefix): Decoder[Block] = Block.jsonDecoder

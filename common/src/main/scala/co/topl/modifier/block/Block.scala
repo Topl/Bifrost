@@ -10,6 +10,7 @@ import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider
+import co.topl.utils.codecs.binary._
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
 
@@ -46,9 +47,10 @@ case class Block(
 
   lazy val id: ModifierId = ModifierId.create(this).getOrThrow()
 
-  lazy val messageToSign: Array[Byte] = this.copy(signature = SignatureCurve25519.empty).bytes
-
   def toComponents: (BlockHeader, BlockBody) = Block.toComponents(this)
+
+  def messageToSign: Array[Byte] =
+    blockPersistable.persistedBytes(this.copy(signature = SignatureCurve25519.empty))
 
   override def toString: String = Block.jsonEncoder(this).noSpaces
 }
@@ -152,7 +154,7 @@ object Block {
     Map(
       "header"    -> header.asJson,
       "body"      -> body.asJson,
-      "blockSize" -> b.bytes.length.asJson
+      "blockSize" -> b.persistedBytes.length.asJson
     ).asJson
   }
 

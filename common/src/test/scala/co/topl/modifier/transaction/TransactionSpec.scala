@@ -13,6 +13,7 @@ import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import co.topl.utils.codecs._
 
 import scala.collection.immutable.ListMap
 
@@ -152,5 +153,5 @@ class TransactionSpec
     Base58Data.unsafe(addressString).decodeAddress.getOrThrow()
 
   def asModifierId(modifierIdString: String): ModifierId =
-    ModifierId.fromBase58(Base58Data.unsafe(modifierIdString))
+    Base58Data.unsafe(modifierIdString).decodeTransmitted[ModifierId].getOrThrow()
 }

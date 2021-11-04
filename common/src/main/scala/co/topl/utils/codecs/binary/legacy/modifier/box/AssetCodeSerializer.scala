@@ -4,7 +4,6 @@ import co.topl.modifier.box.AssetCode
 import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.codecs.binary.legacy.attestation.AddressSerializer
 import co.topl.utils.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
-import co.topl.utils.codecs.binary.FromBytes.implicits.toDecoderOps
 
 object AssetCodeSerializer extends BifrostSerializer[AssetCode] {
 

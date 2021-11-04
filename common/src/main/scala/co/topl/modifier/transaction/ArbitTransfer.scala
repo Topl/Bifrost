@@ -6,7 +6,7 @@ import co.topl.modifier.transaction.Transaction.TxType
 import co.topl.modifier.transaction.TransferTransaction.{encodeFrom, BoxParams}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Latin1Data
-import co.topl.utils.codecs.json.codecs._
+import co.topl.utils.codecs.json._
 import co.topl.utils.{Identifiable, Identifier, Int128}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}

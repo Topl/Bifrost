@@ -4,10 +4,9 @@ import cats.implicits.toShow
 import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.codecs.binary.legacy.BifrostSerializer
 import co.topl.utils.codecs.binary.legacy.modifier.block.BloomFilterSerializer
-import co.topl.utils.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
-import co.topl.utils.codecs.binary.{AsBytes, FromBytes, Infallible}
-import co.topl.utils.codecs.json.codecs._
+import co.topl.utils.codecs.json._
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
@@ -31,14 +30,13 @@ import scala.language.implicitConversions
  * we must apply two additional bit-wise AND operations on each index to find which Long should be changed in the bloom filter and
  * finally which bit of the Long must be flipped.
  */
-case class BloomFilter(value: Array[Long]) extends BytesSerializable {
+case class BloomFilter(value: Array[Long]) {
 
   require(
     value.length == BloomFilter.numLongs,
     s"Invalid bloom filter length: ${value.length}. Bloom filters must be an Array[Long] of length ${BloomFilter.numLongs}"
   )
 
-  override type M = BloomFilter
   lazy val serializer: BifrostSerializer[BloomFilter] = BloomFilterSerializer
 
   /** Check if a given topic is included in the Bloom filter */
@@ -178,13 +176,4 @@ object BloomFilter {
   implicit val jsonKeyEncoder: KeyEncoder[BloomFilter] = (bf: BloomFilter) => bf.toString
 
   implicit val jsonDecoder: Decoder[BloomFilter] = Decoder[Base58Data].map(fromBase58)
-
-  implicit val bloomTopicAsBytes: AsBytes[Infallible, BloomTopic] = AsBytes.infallible(_.value)
-
-  trait Instances {
-    implicit val bloomTopicDecoder: AsBytes[Infallible, BloomTopic] = AsBytes.infallible(_.value)
-    implicit val bloomTopicEncoder: FromBytes[Infallible, BloomTopic] = FromBytes.infallible(BloomTopic(_))
-  }
-
-  object implicits extends Instances
 }

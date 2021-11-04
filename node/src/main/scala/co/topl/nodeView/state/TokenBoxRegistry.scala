@@ -8,6 +8,7 @@ import co.topl.nodeView.{KeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
 import com.google.common.primitives.Longs
+import co.topl.utils.codecs._
 
 import java.io.File
 import scala.util.Try
@@ -24,7 +25,7 @@ class TokenBoxRegistry(protected val storage: KeyValueStore, nodeKeys: Option[Se
   import TokenBoxRegistry.{K, V}
 
   //----- input and output transformation functions
-  override protected val registryInput: K => Array[Byte] = (key: K) => key.bytes
+  override protected val registryInput: K => Array[Byte] = (key: K) => key.persistedBytes
 
   override protected val registryOutput: Array[Byte] => Seq[V] =
     (value: Array[Byte]) => value.grouped(Longs.BYTES).toSeq.map(Longs.fromByteArray)
@@ -106,7 +107,7 @@ class TokenBoxRegistry(protected val storage: KeyValueStore, nodeKeys: Option[Se
 
   private def saveToStore(newVersion: VersionTag, toDelete: Seq[K], toUpdate: Seq[(K, Seq[V])]): Try[Unit] = Try {
     storage.update(
-      newVersion.bytes,
+      newVersion.persistedBytes,
       toDelete.map(k => registryInput(k)),
       toUpdate.map { case (key, value) =>
         registryInput(key) -> value.flatMap(Longs.toByteArray).toArray
@@ -115,11 +116,11 @@ class TokenBoxRegistry(protected val storage: KeyValueStore, nodeKeys: Option[Se
   }
 
   override def rollbackTo(version: VersionTag): Try[TokenBoxRegistry] = Try {
-    if (storage.latestVersionId().exists(_ sameElements version.bytes)) {
+    if (storage.latestVersionId().exists(_ sameElements version.persistedBytes)) {
       this
     } else {
       log.debug(s"Rolling back TokenBoxRegistry to: ${version.toString}")
-      storage.rollbackTo(version.bytes)
+      storage.rollbackTo(version.persistedBytes)
       new TokenBoxRegistry(storage, nodeKeys)
     }
   }
