@@ -8,20 +8,23 @@ import co.topl.models.utility.Sized
 import org.bouncycastle.crypto.digests.SHA512Digest
 import org.bouncycastle.crypto.macs.HMac
 import org.bouncycastle.crypto.params.KeyParameter
+import scodec.bits.ByteVector
 
 import java.nio.charset.StandardCharsets
 import java.nio.{ByteBuffer, ByteOrder}
 
 class ExtendedEd25519
-    extends eddsa.Ed25519
-    with EllipticCurveSignatureScheme[
+    extends EllipticCurveSignatureScheme[
       SecretKeys.ExtendedEd25519,
       VerificationKeys.ExtendedEd25519,
       Proofs.Signature.Ed25519
     ] {
-  override val SignatureLength: Int = SIGNATURE_SIZE
-  override val KeyLength: Int = SECRET_KEY_SIZE
-  val PublicKeyLength: Int = PUBLIC_KEY_SIZE
+
+  private val impl = new eddsa.Ed25519
+
+  override val SignatureLength: Int = impl.SIGNATURE_SIZE
+  override val KeyLength: Int = impl.SECRET_KEY_SIZE
+  val PublicKeyLength: Int = impl.PUBLIC_KEY_SIZE
 
   override def createKeyPair(seed: Bytes): (SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519) = {
     val sk = ExtendedEd25519.fromEntropy(Entropy(seed.toArray))("")
@@ -30,24 +33,24 @@ class ExtendedEd25519
   }
 
   override def sign(privateKey: SecretKeys.ExtendedEd25519, message: Bytes): Proofs.Signature.Ed25519 = {
-    val resultSig = new Array[Byte](SIGNATURE_SIZE)
-    val pk: Array[Byte] = new Array[Byte](PUBLIC_KEY_SIZE)
+    val resultSig = new Array[Byte](SignatureLength)
+    val pk: Array[Byte] = new Array[Byte](PublicKeyLength)
     val ctx: Array[Byte] = Array.empty
     val phflag: Byte = 0x00
     val h: Array[Byte] = privateKey.leftKey.data.toArray ++ privateKey.rightKey.data.toArray
     val s: Array[Byte] = privateKey.leftKey.data.toArray
     val m: Array[Byte] = message.toArray
 
-    scalarMultBaseEncoded(privateKey.leftKey.data.toArray, pk, 0)
-    implSign(sha512Digest, h, s, pk, 0, ctx, phflag, m, 0, m.length, resultSig, 0)
+    impl.scalarMultBaseEncoded(privateKey.leftKey.data.toArray, pk, 0)
+    impl.implSign(impl.sha512Digest, h, s, pk, 0, ctx, phflag, m, 0, m.length, resultSig, 0)
 
     Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(resultSig)))
   }
 
   def verify(signature: Proofs.Signature.Ed25519, message: Bytes, verifyKey: VerificationKeys.Ed25519): Boolean =
-    verifyKey.bytes.data.length == PUBLIC_KEY_SIZE &&
-    signature.bytes.data.length == SIGNATURE_SIZE &&
-    verify(
+    verifyKey.bytes.data.length == PublicKeyLength &&
+    signature.bytes.data.length == SignatureLength &&
+    impl.verify(
       signature.bytes.data.toArray,
       0,
       verifyKey.bytes.data.toArray,
@@ -62,9 +65,9 @@ class ExtendedEd25519
     message:   Bytes,
     verifyKey: VerificationKeys.ExtendedEd25519
   ): Boolean =
-    signature.bytes.data.length == SIGNATURE_SIZE &&
-    verifyKey.vk.bytes.data.length == PUBLIC_KEY_SIZE &&
-    verify(
+    signature.bytes.data.length == SignatureLength &&
+    verifyKey.vk.bytes.data.length == PublicKeyLength &&
+    impl.verify(
       signature.bytes.data.toArray,
       0,
       verifyKey.vk.bytes.data.toArray,
@@ -152,7 +155,7 @@ class ExtendedEd25519
 
     val z = ExtendedEd25519.hmac512WithKey(
       verificationKey.chainCode.data.toArray,
-      Array(0x02.toByte) ++ verificationKey.vk.bytes.data.toArray ++ index.bytes.data
+      (((0x02: Byte) +: verificationKey.vk.bytes.data) ++ index.bytes.data).toArray
     )
 
     val zL = z.slice(0, 28)
@@ -166,16 +169,16 @@ class ExtendedEd25519
       .array()
       .take(32)
 
-    val scaledZL = new PointAccum
-    scalarMultBase(zLMult8, scaledZL)
+    val scaledZL = new impl.PointAccum
+    impl.scalarMultBase(zLMult8, scaledZL)
 
-    val publicKeyPoint = new PointExt
-    decodePointVar(verificationKey.vk.bytes.data.toArray, 0, negate = false, publicKeyPoint)
+    val publicKeyPoint = new impl.PointExt
+    impl.decodePointVar(verificationKey.vk.bytes.data.toArray, 0, negate = false, publicKeyPoint)
 
-    pointAddVar(negate = false, publicKeyPoint, scaledZL)
+    impl.pointAddVar(negate = false, publicKeyPoint, scaledZL)
 
-    val nextPublicKeyBytes = new Array[Byte](PUBLIC_KEY_SIZE)
-    encodePoint(scaledZL, nextPublicKeyBytes, 0)
+    val nextPublicKeyBytes = new Array[Byte](PublicKeyLength)
+    impl.encodePoint(scaledZL, nextPublicKeyBytes, 0)
 
     val nextPk = Bytes(nextPublicKeyBytes)
 
@@ -183,7 +186,7 @@ class ExtendedEd25519
       ExtendedEd25519
         .hmac512WithKey(
           verificationKey.chainCode.data.toArray,
-          Array(0x03.toByte) ++ verificationKey.vk.bytes.data.toArray ++ index.bytes.data
+          Array(0x03.toByte) ++ verificationKey.vk.bytes.data.toArray ++ index.bytes.data.toArray
         )
         .slice(32, 64)
 
@@ -194,19 +197,25 @@ class ExtendedEd25519
   }
 
   def getVerificationKey(secretKey: SecretKeys.ExtendedEd25519): VerificationKeys.ExtendedEd25519 = {
-    val pk = new Array[Byte](PUBLIC_KEY_SIZE)
-    scalarMultBaseEncoded(secretKey.leftKey.data.toArray, pk, 0)
+    val pk = new Array[Byte](PublicKeyLength)
+    impl.scalarMultBaseEncoded(secretKey.leftKey.data.toArray, pk, 0)
 
     VerificationKeys.ExtendedEd25519(
       VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(pk))),
       secretKey.chainCode
     )
   }
+
+  def precompute(): Unit = impl.precompute()
 }
 
 object ExtendedEd25519 {
-  val instance = new ExtendedEd25519
-  instance.precompute()
+
+  def precomputed(): ExtendedEd25519 = {
+    val instance = new ExtendedEd25519
+    instance.precompute()
+    instance
+  }
 
   /**
    * The type of the password used alongside a mnemonic to generate an `ExtendedPrivateKeyEd25519`
@@ -242,13 +251,13 @@ object ExtendedEd25519 {
       val seed = sizedSeed.data.toArray
 
       // turn seed into a valid ExtendedPrivateKeyEd25519 per the SLIP-0023 Icarus spec
-      seed(0) = (seed(0) & 0xf8).toByte
-      seed(31) = ((seed(31) & 0x1f) | 0x40).toByte
+      seed(0) = (seed(0) & 0xf8.toByte).toByte
+      seed(31) = ((seed(31) & 0x1f.toByte) | 0x40.toByte).toByte
 
       SecretKeys.ExtendedEd25519(
-        Sized.strictUnsafe(Bytes(seed.slice(0, 32).reverse)),
-        Sized.strictUnsafe(Bytes(seed.slice(32, 64).reverse)),
-        Sized.strictUnsafe(Bytes(seed.slice(64, 96).reverse))
+        Sized.strictUnsafe(Bytes(seed.slice(0, 32))),
+        Sized.strictUnsafe(Bytes(seed.slice(32, 64))),
+        Sized.strictUnsafe(Bytes(seed.slice(64, 96)))
       )
     }
 

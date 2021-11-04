@@ -64,7 +64,7 @@ object KeyInitializer {
           fromSeed(Bytes(defaultRandom))
 
         def fromSeed(seed: Bytes): SecretKeys.ExtendedEd25519 =
-          ExtendedEd25519.instance.createKeyPair(seed)._1
+          ExtendedEd25519.precomputed().createKeyPair(seed)._1
       }
 
     implicit def extendedEd25519PasswordInitializer: KeyInitializer[String => SecretKeys.ExtendedEd25519] =

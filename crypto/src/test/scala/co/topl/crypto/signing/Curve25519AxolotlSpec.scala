@@ -2,6 +2,7 @@ package co.topl.crypto.signing
 
 import co.topl.crypto.utils.Hex
 import co.topl.crypto.utils.Hex.implicits._
+import co.topl.models.ModelGenerators.arbitraryBytes
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
 import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}

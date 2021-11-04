@@ -11,11 +11,7 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import java.time.Instant
 import scala.util.{Failure, Success, Try}
 
-class ProgramSpec
-    extends AnyPropSpec
-    with ScalaCheckDrivenPropertyChecks
-    with Matchers
-    with ProgramGenerators {
+class ProgramSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers with ProgramGenerators {
 
   property("Json works properly for ExecutionBuilderTerms") {
     forAll(validExecutionBuilderTermsGen) { t: ExecutionBuilderTerms =>
@@ -35,7 +31,7 @@ class ProgramSpec
     ).json
 
   def getMockPublicKeyProposition(fillByte: Byte): PublicKeyPropositionCurve25519 =
-    PublicKeyPropositionCurve25519(PublicKey(Array.fill(Curve25519.vkLength)(fillByte)))
+    PublicKeyPropositionCurve25519(PublicKey(Array.fill(Curve25519.instance.KeyLength)(fillByte)))
 
   property("Can create program") {
     Try {

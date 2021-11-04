@@ -105,6 +105,10 @@ object Dependencies {
     "org.iq80.leveldb" % "leveldb"        % "0.12"
   )
 
+  val scodecBits = Seq(
+    "org.scodec" %% "scodec-bits" % "1.1.27"
+  )
+
   val node: Seq[ModuleID] = {
     Seq(
       "com.typesafe.akka"          %% "akka-cluster"  % akkaVersion,
@@ -129,10 +133,10 @@ object Dependencies {
   lazy val common: Seq[ModuleID] =
     Seq(
       "com.typesafe.akka"      %% "akka-actor"              % akkaVersion,
-      "org.scala-lang.modules" %% "scala-collection-compat" % "2.5.0",
-      "org.scodec"             %% "scodec-bits"             % "1.1.27"
+      "org.scala-lang.modules" %% "scala-collection-compat" % "2.5.0"
     ) ++
     logging ++
+    scodecBits ++
     circe ++
     simulacrum ++
     test
@@ -187,6 +191,7 @@ object Dependencies {
     Seq(
       "org.whispersystems" % "curve25519-java" % "0.5.0"
     ) ++
+    scodecBits ++
     misc ++
     circe ++
     bouncyCastle ++
@@ -195,7 +200,7 @@ object Dependencies {
     test
 
   lazy val models: Seq[ModuleID] =
-    cats ++ simulacrum ++ newType
+    cats ++ simulacrum ++ newType ++ scodecBits
 
   lazy val demo: Seq[ModuleID] =
     Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++ logging
