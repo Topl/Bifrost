@@ -13,7 +13,7 @@ import co.topl.settings.ChainReplicatorSettings
 import co.topl.tools.exporter.DataType
 import co.topl.utils.mongodb.codecs._
 import co.topl.utils.mongodb.implicits._
-import co.topl.utils.mongodb.models.{BlockDataModel, TransactionDataModel}
+import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataModel, UnconfirmedTransactionDataModel}
 import org.mongodb.scala.bson.Document
 import org.mongodb.scala.result.InsertManyResult
 import org.slf4j.Logger
@@ -218,7 +218,7 @@ private class ChainReplicator(
     implicit val ec: ExecutionContext = context.executionContext
     val txDocs = blocks.flatMap { b =>
       b.transactions.map { tx =>
-        TransactionDataModel(b.id.toString, b.height, tx).asDocument
+        ConfirmedTransactionDataModel(b.id.toString, b.height, tx).asDocument
       }
     }
     insertDB(txDocs, settings.confirmedTxCollection)
@@ -229,10 +229,10 @@ private class ChainReplicator(
    * @param txs sequence of transactions that need to be send to the AppView
    * @return Insertion result from the database
    */
-//  private def exportUnconfirmedTxs(txs: Seq[Transaction.TX]): Future[InsertManyResult] = {
-//    implicit val ec: ExecutionContext = context.executionContext
-//    insertDB(txs.map(tx => TransactionDataModel(tx..id.toString).asDocument), settings.unconfirmedTxCollection)
-//  }
+  private def exportUnconfirmedTxs(txs: Seq[Transaction.TX]): Future[InsertManyResult] = {
+    implicit val ec: ExecutionContext = context.executionContext
+    insertDB(txs.map(tx => UnconfirmedTransactionDataModel(tx).asDocument), settings.unconfirmedTxCollection)
+  }
 
   /**
    * Given the height range of the database check, and the heights where at least one block exists in range, return the

@@ -59,9 +59,13 @@ trait Codecs {
 
   implicit val blockSummaryDataModelJsonDecoder: Decoder[BlockSummaryDataModel] = deriveDecoder
 
-  implicit val transactionDataModelJsonEncoder: Encoder[TransactionDataModel] = deriveEncoder
+  implicit val transactionDataModelJsonEncoder: Encoder[ConfirmedTransactionDataModel] = deriveEncoder
 
-  implicit val transactionDataModelJsonDecoder: Decoder[TransactionDataModel] = deriveDecoder
+  implicit val transactionDataModelJsonDecoder: Decoder[ConfirmedTransactionDataModel] = deriveDecoder
+
+  implicit val unconfirmedTransactionDataModelJsonEncoder: Encoder[UnconfirmedTransactionDataModel] = deriveEncoder
+
+  implicit val unconfirmedTransactionDataModelJsonDecoder: Decoder[UnconfirmedTransactionDataModel] = deriveDecoder
 
   implicit def jsonEncoderAsDocumentEncoder[T: Encoder]: DocumentEncoder[T] =
     value => Document(value.asJson.noSpaces)

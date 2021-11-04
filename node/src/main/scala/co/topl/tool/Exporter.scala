@@ -5,7 +5,7 @@ import co.topl.settings.{AppSettings, StartupOpts}
 import co.topl.tools.exporter.{DataType, Exportable, MongoExport}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.mongodb.codecs._
-import co.topl.utils.mongodb.models.{BlockDataModel, TransactionDataModel}
+import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataModel}
 import co.topl.utils.{Logging, NetworkType}
 import io.circe.Json
 import mainargs.{arg, main, ParserForMethods}
@@ -35,7 +35,7 @@ object Exporter extends Logging {
           height <- start to end
           block  <- history.modifierByHeight(height)
         } yield connection.insert(
-          block.transactions.map(tx => TransactionDataModel(block.id.toString, block.height, tx))
+          block.transactions.map(tx => ConfirmedTransactionDataModel(block.id.toString, block.height, tx))
         )
       // TODO: Decide if the set of all boxes that have existed or the current set of boxes should be returned
       case DataType.Box => ???

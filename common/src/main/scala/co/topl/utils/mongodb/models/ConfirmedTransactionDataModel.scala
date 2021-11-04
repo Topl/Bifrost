@@ -6,7 +6,7 @@ import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer,
 import java.nio.charset.StandardCharsets
 import scala.collection.immutable.ListMap
 
-case class TransactionDataModel(
+case class ConfirmedTransactionDataModel(
   block:           BlockSummaryDataModel,
   txType:          String,
   timestamp:       String,
@@ -22,16 +22,16 @@ case class TransactionDataModel(
   propositionType: String
 )
 
-object TransactionDataModel {
+object ConfirmedTransactionDataModel {
 
   def apply(
     blockId:     String,
     blockHeight: Long,
     tx:          Transaction[_, _ <: Proposition]
-  ): TransactionDataModel =
+  ): ConfirmedTransactionDataModel =
     tx match {
       case polyTransfer: PolyTransfer[_] =>
-        TransactionDataModel(
+        ConfirmedTransactionDataModel(
           BlockSummaryDataModel(blockId, blockHeight),
           PolyTransfer.typeString,
           polyTransfer.timestamp.toString,
@@ -47,7 +47,7 @@ object TransactionDataModel {
           polyTransfer.getPropIdentifier.typeString
         )
       case arbitTransfer: ArbitTransfer[_] =>
-        TransactionDataModel(
+        ConfirmedTransactionDataModel(
           BlockSummaryDataModel(blockId, blockHeight),
           ArbitTransfer.typeString,
           arbitTransfer.timestamp.toString,
@@ -63,7 +63,7 @@ object TransactionDataModel {
           arbitTransfer.getPropIdentifier.typeString
         )
       case assetTransfer: AssetTransfer[_] =>
-        TransactionDataModel(
+        ConfirmedTransactionDataModel(
           BlockSummaryDataModel(blockId, blockHeight),
           AssetTransfer.typeString,
           assetTransfer.timestamp.toString,
