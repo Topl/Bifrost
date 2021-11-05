@@ -72,10 +72,10 @@ trait GenericHistory[
 
   def drop(modifierId: ModifierId): HT
 
-  //todo: output should be ID | Seq[ID]
+  // todo: output should be ID | Seq[ID]
   def openSurfaceIds(): Seq[ModifierId]
 
-  //todo: argument should be ID | Seq[ID]
+  // todo: argument should be ID | Seq[ID]
   def continuationIds(from: ModifierIds, size: Int): Option[ModifierIds]
 
   def syncInfo: SI

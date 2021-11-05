@@ -10,12 +10,12 @@ import com.oracle.js.parser.ir.{FunctionNode, LexicalContext, Node, VarNode}
 import com.oracle.js.parser.{
   ErrorManager,
   Lexer,
+  Parser => GraalParser,
   ScriptEnvironment,
   Source,
   Token,
   TokenStream,
-  TokenType,
-  Parser => GraalParser
+  TokenType
 }
 import io.circe._
 import io.circe.syntax._
@@ -33,7 +33,7 @@ case class ProgramPreprocessor(
   name:      String,
   initjs:    String,
   interface: Map[String, Seq[String]],
-  //state: Json,
+  // state: Json,
   variables: Json,
   code:      Map[String, String],
   signed:    Option[(PublicKeyPropositionCurve25519, SignatureCurve25519)]
@@ -91,8 +91,8 @@ object ProgramPreprocessor {
     args:         JsonObject
   ): ProgramPreprocessor = {
 
-    //val modifiedInitjs = initjs.replaceFirst("\\{", "\\{\n" + ValkyrieFunctions().reserved + "\n")
-    //println(">>>>>>>>>>>>>>>>>>>>> initjs + reservedFunctions: " + modifiedInitjs)
+    // val modifiedInitjs = initjs.replaceFirst("\\{", "\\{\n" + ValkyrieFunctions().reserved + "\n")
+    // println(">>>>>>>>>>>>>>>>>>>>> initjs + reservedFunctions: " + modifiedInitjs)
 
     val (interface, /*cleanModuleState,*/ variables, code) = deriveFromInit(initjs /*modifiedInitjs*/, name)(args)
 
@@ -113,9 +113,9 @@ object ProgramPreprocessor {
 
     val initjs: String = {
       val cleanInitjs: String = (json \\ "initjs").head.asString.get
-      //val modifiedInitjs = cleanInitjs.replaceFirst("\\{", "\\{\n" + ValkyrieFunctions().reserved + "\n")
-      //println(">>>>>>>>>>>>>>>>>>>>> initjs + reservedFunctions: " + modifiedInitjs)
-      //modifiedInitjs
+      // val modifiedInitjs = cleanInitjs.replaceFirst("\\{", "\\{\n" + ValkyrieFunctions().reserved + "\n")
+      // println(">>>>>>>>>>>>>>>>>>>>> initjs + reservedFunctions: " + modifiedInitjs)
+      // modifiedInitjs
       cleanInitjs
     }
 
@@ -138,7 +138,7 @@ object ProgramPreprocessor {
     ProgramPreprocessor(name, initjs, interface, /*parse(cleanModuleState).right.get,*/ variables, code, signed)
   }
 
-  //noinspection ScalaStyle
+  // noinspection ScalaStyle
   private def deriveFromInit(initjs: String, name: String, announcedRegistry: Option[Map[String, Seq[String]]] = None)(
     args:                            JsonObject
   ): (Map[String, Seq[String]], /*String,*/ Json, Map[String, String]) = {
@@ -172,10 +172,10 @@ object ProgramPreprocessor {
 
     jsre.eval(defineEsprimaFnParamParser)*/
 
-    //println(s">>>>>>>>>>> Registry: $interface")
+    // println(s">>>>>>>>>>> Registry: $interface")
 
-    //val variables: Seq[String] = deriveState(jsre, initjs)
-    //val code: Seq[String] = deriveFunctions(jsre, initjs)
+    // val variables: Seq[String] = deriveState(jsre, initjs)
+    // val code: Seq[String] = deriveFunctions(jsre, initjs)
 
     val variables: Json = deriveState(jsre, initjs)
 
@@ -241,9 +241,9 @@ object ProgramPreprocessor {
     paramTypes(commentTokenSource(Source.sourceFor("initjs", initjs)))
   }
 
-  //noinspection ScalaStyle
+  // noinspection ScalaStyle
   private def deriveState(jsre: Context, initjs: String): Json = {
-    //val initjsStr = s"\'${initjs.replaceAll("\n", "\\\\n").trim}\'"
+    // val initjsStr = s"\'${initjs.replaceAll("\n", "\\\\n").trim}\'"
 
     val scriptEnv: ScriptEnvironment = ScriptEnvironment.builder
       .ecmaScriptVersion(8)
@@ -329,7 +329,7 @@ object ProgramPreprocessor {
 
   implicit val encodeTerms: Encoder[ProgramPreprocessor] = (p: ProgramPreprocessor) =>
     Map(
-      //"state" -> Base64.encode(Gzip.encode(ByteString(state.noSpaces.getBytes)).toArray[Byte]).asJson,
+      // "state" -> Base64.encode(Gzip.encode(ByteString(state.noSpaces.getBytes)).toArray[Byte]).asJson,
       "name"      -> p.name.asJson,
       "initjs"    -> Base58.encode(Gzip.compress(p.initjs.getBytes)).asJson,
       "interface" -> p.interface.map(a => a._1 -> a._2.map(_.asJson).asJson).asJson,
@@ -340,7 +340,7 @@ object ProgramPreprocessor {
 
   implicit val decodeTerms: Decoder[ProgramPreprocessor] = (c: HCursor) =>
     for {
-      //state <- c.downField("state").as[String]
+      // state <- c.downField("state").as[String]
       name      <- c.downField("name").as[String]
       initjs    <- c.downField("initjs").as[Base58Data]
       interface <- c.downField("interface").as[Map[String, Seq[String]]]
@@ -359,7 +359,7 @@ object ProgramPreprocessor {
         name,
         decodeGzip(initjs),
         interface,
-        //parse(new String(decodedState.toArray[Byte])) match {case Right(re) => re; case Left(ex) => throw ex},
+        // parse(new String(decodedState.toArray[Byte])) match {case Right(re) => re; case Left(ex) => throw ex},
         variables,
         code,
         signed.map { pair =>

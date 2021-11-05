@@ -50,7 +50,7 @@ class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends Logging 
   def process(history: History, block: Block): ProgressInfo[Block] = {
     // check if the current block is starting a new branch off the main chain
     val pi: ProgressInfo[Block] = if (history.applicable(block)) {
-      val parentBlock = history.parentBlock(block).get //safe to .get since otherwise wouldn't be applicable
+      val parentBlock = history.parentBlock(block).get // safe to .get since otherwise wouldn't be applicable
       val prevTimes = history.getTimestampsFrom(parentBlock, consensus.nxtBlockNum - 1) :+ block.timestamp
 
       chainCache = chainCache.add(block, prevTimes)

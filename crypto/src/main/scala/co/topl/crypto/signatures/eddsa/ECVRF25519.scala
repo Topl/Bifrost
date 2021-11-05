@@ -135,7 +135,7 @@ private[crypto] class ECVRF25519 extends EC {
   Output H
    */
 
-  //This leads to side channel attack (timing attack) if alpha is a secret
+  // This leads to side channel attack (timing attack) if alpha is a secret
 
   private def ECVRF_hash_to_curve_try_and_increment(Y: Array[Byte], a: Array[Byte]): (PointAccum, Array[Byte]) = {
     var ctr = 0
@@ -317,10 +317,10 @@ private[crypto] class ECVRF25519 extends EC {
     val Y = new PointExt
     decodePointVar(gamma_str, 0, negate = false, gamma)
     decodePointVar(pk, 0, negate = false, Y)
-    val A = new PointAccum //s*B
-    val B = new PointAccum //c*Y
-    val C = new PointAccum //s*H
-    val D = new PointAccum //c*Gamma
+    val A = new PointAccum // s*B
+    val B = new PointAccum // c*Y
+    val C = new PointAccum // s*H
+    val D = new PointAccum // c*Gamma
     val U = new PointAccum
     val V = new PointAccum
     val g = new PointAccum
