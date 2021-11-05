@@ -16,7 +16,7 @@ import co.topl.utils.mongodb.codecs._
 import co.topl.utils.mongodb.implicits._
 import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataModel, UnconfirmedTransactionDataModel}
 import org.mongodb.scala.bson.Document
-import org.mongodb.scala.result.InsertManyResult
+import org.mongodb.scala.result.{DeleteResult, InsertManyResult}
 import org.slf4j.Logger
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -51,6 +51,9 @@ object ChainReplicator {
     checkDBConnection:    () => Future[Seq[String]],
     getExistingHeightsDB: (Long, Long, String) => Future[Seq[Long]],
     insertDB:             (Seq[Document], String) => Future[InsertManyResult],
+    removeDB:             (String, Seq[String], String) => Future[DeleteResult],
+    getUnconfirmedTxDB:   String => Future[Seq[String]],
+    getMissingBlockIdsDB: (Seq[String], String) => Future[Seq[String]],
     settings:             ChainReplicatorSettings
   ): Behavior[ReceivableMessage] =
     Behaviors.withStash(settings.actorStashSize) { buffer =>
@@ -63,16 +66,25 @@ object ChainReplicator {
           )
         )
 
-        context.log.debug(s"${Console.GREEN}Chain replicator initializing${Console.RESET}")
+        context.log.info(s"${Console.GREEN}Chain replicator initializing${Console.RESET}")
 
         context.pipeToSelf(checkDBConnection()) {
           case Success(result) =>
-            context.log.debug(s"${Console.GREEN}Found collections in database: $result${Console.RESET}")
+            context.log.info(s"${Console.GREEN}Found collections in database: $result${Console.RESET}")
             ReceivableMessages.CheckDatabaseComplete
           case Failure(e) => ReceivableMessages.Terminate(e)
         }
 
-        new ChainReplicator(nodeViewHolderRef, buffer, getExistingHeightsDB, insertDB, settings).uninitialized
+        new ChainReplicator(
+          nodeViewHolderRef,
+          buffer,
+          getExistingHeightsDB,
+          insertDB,
+          removeDB,
+          getUnconfirmedTxDB,
+          getMissingBlockIdsDB,
+          settings
+        ).uninitialized
 
       }
     }
@@ -83,6 +95,9 @@ private class ChainReplicator(
   buffer:               StashBuffer[ChainReplicator.ReceivableMessage],
   getExistingHeightsDB: (Long, Long, String) => Future[Seq[Long]],
   insertDB:             (Seq[Document], String) => Future[InsertManyResult],
+  removeDB:             (String, Seq[String], String) => Future[DeleteResult],
+  getUnconfirmedTxDB:   (String) => Future[Seq[String]],
+  getMissingBlockIdsDB: (Seq[String], String) => Future[Seq[String]],
   settings:             ChainReplicatorSettings
 )(implicit
   context: ActorContext[ChainReplicator.ReceivableMessage]
@@ -95,7 +110,7 @@ private class ChainReplicator(
   def uninitialized: Behavior[ReceivableMessage] =
     Behaviors.receiveMessagePartial[ReceivableMessage] {
       case ReceivableMessages.CheckDatabaseComplete =>
-        log.debug(s"${Console.GREEN}Chain replicator is ready${Console.RESET}")
+        log.info(s"${Console.GREEN}Chain replicator is ready${Console.RESET}")
         if (settings.checkMissingBlock) {
           val bestBlockHeight = withNodeView(getBestBlockHeight)
           context.pipeToSelf(bestBlockHeight) {
@@ -106,10 +121,10 @@ private class ChainReplicator(
                 ReceivableMessages.CheckMissingBlocks(height, height)
             case Failure(e) => ReceivableMessages.Terminate(e)
           }
-          log.debug(s"${Console.GREEN}Chain replicator transitioning to syncing${Console.RESET}")
+          log.info(s"${Console.GREEN}Chain replicator transitioning to syncing${Console.RESET}")
           buffer.unstashAll(syncing)
         } else {
-          log.debug(s"${Console.GREEN}Chain replicator transitioning to listening for new blocks${Console.RESET}")
+          log.info(s"${Console.GREEN}Chain replicator transitioning to listening for new blocks${Console.RESET}")
           buffer.unstashAll(listening)
         }
 
@@ -128,7 +143,7 @@ private class ChainReplicator(
         implicit val ec: ExecutionContext = context.executionContext
 
         val endHeight = (startHeight + settings.blockCheckSize).min(maxHeight)
-        val existingHeightsFuture = getExistingHeightsDB(startHeight, endHeight)
+        val existingHeightsFuture = getExistingHeightsDB(startHeight, endHeight, settings.blockCollection)
         val exportResult: OptionT[Future, (InsertManyResult, InsertManyResult)] = for {
           existingHeights  <- OptionT[Future, Seq[Long]](existingHeightsFuture.map(_.some))
           blocksToAdd      <- OptionT[Future, Seq[Block]](missingBlocks(startHeight, endHeight, existingHeights))
@@ -138,7 +153,7 @@ private class ChainReplicator(
 
         context.pipeToSelf(exportResult.value) {
           case Success(Some(writeResults)) =>
-            log.debug(
+            log.info(
               s"${Console.GREEN}Successfully inserted ${writeResults._1.getInsertedIds.size()} blocks " +
               s"and ${writeResults._2.getInsertedIds.size()} transactions into AppView${Console.RESET}"
             )
@@ -146,7 +161,7 @@ private class ChainReplicator(
           case Failure(err) =>
             ReceivableMessages.Terminate(err)
           case _ =>
-            log.debug(
+            log.info(
               s"${Console.GREEN}No missing blocks found between $startHeight and $endHeight${Console.RESET}"
             )
             ReceivableMessages.CheckMissingBlocksDone(startHeight, endHeight, maxHeight)
@@ -155,9 +170,9 @@ private class ChainReplicator(
         Behaviors.same
 
       case (context, ReceivableMessages.CheckMissingBlocksDone(startHeight, endHeight, maxHeight)) =>
-        log.debug(s"${Console.GREEN}Finished checking from height $startHeight to $endHeight${Console.RESET}")
+        log.info(s"${Console.GREEN}Finished checking from height $startHeight to $endHeight${Console.RESET}")
         if (endHeight >= maxHeight) {
-          log.debug(s"Done with all checks at height $endHeight")
+          log.info(s"Done with all checks at height $endHeight")
           buffer.unstashAll(listening)
         } else {
           context.self ! ReceivableMessages.CheckMissingBlocks(endHeight + 1, maxHeight)
@@ -181,16 +196,21 @@ private class ChainReplicator(
     Behaviors.receivePartial[ReceivableMessage] {
       case (context, ReceivableMessages.GotNewBlock(block)) =>
         implicit val ec: ExecutionContext = context.executionContext
-        val res = for {
-          blockExport <- exportBlocks(Seq(block))
-          txExport    <- exportTxsFromBlocks(Seq(block))
-
-        } yield (blockExport, txExport)
-        res.onComplete {
-          case Success(writeResults) =>
-            log.debug(
-              s"${Console.GREEN}Added a block and ${writeResults._2.getInsertedIds.size()} " +
-              s"transactions to appView at height: ${block.height}${Console.RESET}"
+        val exportResult = for {
+          blockExportResult        <- exportBlocks(Seq(block))
+          txExportResult           <- exportTxsFromBlocks(Seq(block))
+          unconfirmedInDB          <- getUnconfirmedTxDB(settings.unconfirmedTxCollection)
+          (txToInsert, txToRemove) <- getTxToInsertRemove(unconfirmedInDB)
+          unconfirmedTxExportRes   <- exportUnconfirmedTxs(txToInsert)
+          unconfirmedTxRemoveRes   <- removeDB("txId", txToRemove, settings.unconfirmedTxCollection)
+        } yield (blockExportResult, txExportResult, unconfirmedTxExportRes, unconfirmedTxRemoveRes)
+        exportResult.onComplete {
+          case Success(res) =>
+            log.info(
+              s"${Console.GREEN}Added a block and ${res._2.getInsertedIds.size()} " +
+              s"transactions to appView at height: ${block.height}\n" +
+              s"Added ${res._3.getInsertedIds.size()} transactions and removed ${res._4.getDeletedCount} " +
+              s"transactions from the unconfirmed transactions in appView${Console.RESET}"
             )
           case Failure(err) =>
             log.error(s"${Console.RED}$err${Console.RESET}")
@@ -274,6 +294,14 @@ private class ChainReplicator(
   }
 
   /**
+   * Get transactions to insert and remove in order to have the same unconfirmed transactions in appView and nodeView
+   * @param unconfirmedTxDB current unconfirmed transactions in the appView
+   * @return transactions to export to appView, and ids of unconfirmed transactions to remove in the appView
+   */
+  private def getTxToInsertRemove(unconfirmedTxDB: Seq[String]): Future[(Seq[Transaction.TX], Seq[String])] =
+    withNodeView(compareMempool(unconfirmedTxDB))
+
+  /**
    * Compare unconfirmed transactions between nodeView and appView
    * @param unconfirmedTxDB current unconfirmed transactions in the appView
    * @param nodeView NodeView
@@ -286,9 +314,13 @@ private class ChainReplicator(
     val toRemove = unconfirmedTxDB.filter { txString =>
       mempool.modifierById(fromBase58(Base58Data.unsafe(txString))).isEmpty
     }
-    val toInsert = mempool.take(settings.mempoolCheckSize)(-_.dateAdded).map(_.tx).filterNot { tx =>
-      unconfirmedTxDB.contains(tx.id.toString)
-    }.toSeq
+    val toInsert = mempool
+      .take(settings.mempoolCheckSize)(-_.dateAdded)
+      .map(_.tx)
+      .filterNot { tx =>
+        unconfirmedTxDB.contains(tx.id.toString)
+      }
+      .toSeq
     (toInsert, toRemove)
   }
 

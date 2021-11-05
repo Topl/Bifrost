@@ -35,7 +35,7 @@ class MongoChainRepExport(uri: String, database: String) {
     .map(_.head._2.toString)
     .toFuture()
 
-  def getMissingBlockIds(idsToCheck: String, collectionName: String): Future[Seq[String]] = db
+  def getMissingBlockIds(idsToCheck: Seq[String], collectionName: String): Future[Seq[String]] = db
     .getCollection(collectionName)
     .find(in("id", idsToCheck))
     .projection(Projections.fields(Projections.include("id"), Projections.excludeId()))

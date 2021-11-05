@@ -380,6 +380,9 @@ object Heimdall {
               (start: Long, end: Long, collectionsName: String) =>
                 mongo.getExistingHeights(start, end, collectionsName),
               (eleSeq: Seq[Document], collectionName: String) => mongo.insert(eleSeq, collectionName),
+              (field: String, value: Seq[String], collectionName: String) => mongo.remove(field, value, collectionName),
+              (collectionName: String) => mongo.getUnconfirmedTx(collectionName),
+              (idsToCheck: Seq[String], collectionName: String) => mongo.getMissingBlockIds(idsToCheck, collectionName),
               chainRepSettings
             ),
             ChainReplicator.actorName
