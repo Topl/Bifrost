@@ -1,10 +1,11 @@
 package co.topl.tools.exporter
 
+import co.topl.utils.mongodb
 import org.mongodb.scala.MongoClient
 import org.mongodb.scala.bson.Document
-import org.mongodb.scala.model.Filters.{and, gte, lte}
+import org.mongodb.scala.model.Filters.{and, gte, in, lte}
 import org.mongodb.scala.model.Projections
-import org.mongodb.scala.result.InsertManyResult
+import org.mongodb.scala.result.{DeleteResult, InsertManyResult}
 
 import scala.concurrent.Future
 
@@ -22,14 +23,34 @@ class MongoChainRepExport(uri: String, database: String) {
     .insertMany(docSeq)
     .toFuture()
 
-  def getExistingHeights(start: Long, end: Long): Future[Seq[Long]] = db
-    .getCollection(DataType.Block.name)
+  def remove(field: String, value: Seq[String], collectionName: String): Future[DeleteResult] = db
+    .getCollection(collectionName)
+    .deleteMany(in(field, value))
+    .toFuture()
+
+  def getUnconfirmedTx(collectionName: String): Future[Seq[String]] = db
+    .getCollection(collectionName)
+    .find()
+    .projection(Projections.fields(Projections.include("txId"), Projections.excludeId()))
+    .map(_.head._2.toString)
+    .toFuture()
+
+  def getMissingBlockIds(idsToCheck: String, collectionName: String): Future[Seq[String]] = db
+    .getCollection(collectionName)
+    .find(in("id", idsToCheck))
+    .projection(Projections.fields(Projections.include("id"), Projections.excludeId()))
+    .map(_.head._2.toString)
+    .toFuture()
+
+  def getExistingHeights(start: Long, end: Long, collectionName: String): Future[Seq[Long]] = db
+    .getCollection(collectionName)
     .find(and(gte("height", start), lte("height", end)))
     .projection(Projections.fields(Projections.include("height"), Projections.excludeId()))
     .map(_.head._2.asNumber().longValue())
     .toFuture()
 
   def close(): Unit = client.close()
+
 }
 
 object MongoChainRepExport {

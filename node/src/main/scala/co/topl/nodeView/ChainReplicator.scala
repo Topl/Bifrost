@@ -6,11 +6,12 @@ import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
 import cats.data.OptionT
 import cats.implicits._
+import co.topl.modifier.ModifierId.fromBase58
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.NodeViewHolder.Events.SemanticallySuccessfulModifier
 import co.topl.settings.ChainReplicatorSettings
-import co.topl.tools.exporter.DataType
+import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.mongodb.codecs._
 import co.topl.utils.mongodb.implicits._
 import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataModel, UnconfirmedTransactionDataModel}
@@ -48,7 +49,7 @@ object ChainReplicator {
   def apply(
     nodeViewHolderRef:    ActorRef[NodeViewHolder.ReceivableMessage],
     checkDBConnection:    () => Future[Seq[String]],
-    getExistingHeightsDB: (Long, Long) => Future[Seq[Long]],
+    getExistingHeightsDB: (Long, Long, String) => Future[Seq[Long]],
     insertDB:             (Seq[Document], String) => Future[InsertManyResult],
     settings:             ChainReplicatorSettings
   ): Behavior[ReceivableMessage] =
@@ -80,7 +81,7 @@ object ChainReplicator {
 private class ChainReplicator(
   nodeViewHolderRef:    ActorRef[NodeViewHolder.ReceivableMessage],
   buffer:               StashBuffer[ChainReplicator.ReceivableMessage],
-  getExistingHeightsDB: (Long, Long) => Future[Seq[Long]],
+  getExistingHeightsDB: (Long, Long, String) => Future[Seq[Long]],
   insertDB:             (Seq[Document], String) => Future[InsertManyResult],
   settings:             ChainReplicatorSettings
 )(implicit
@@ -183,6 +184,7 @@ private class ChainReplicator(
         val res = for {
           blockExport <- exportBlocks(Seq(block))
           txExport    <- exportTxsFromBlocks(Seq(block))
+
         } yield (blockExport, txExport)
         res.onComplete {
           case Success(writeResults) =>
@@ -269,6 +271,25 @@ private class ChainReplicator(
     val blocks = blockHeights.flatMap(nodeView.history.modifierByHeight)
     if (blocks.nonEmpty) blocks.some
     else None
+  }
+
+  /**
+   * Compare unconfirmed transactions between nodeView and appView
+   * @param unconfirmedTxDB current unconfirmed transactions in the appView
+   * @param nodeView NodeView
+   * @return transactions to export to appView, and ids of unconfirmed transactions to remove in the appView
+   */
+  private def compareMempool(unconfirmedTxDB: Seq[String])(
+    nodeView:                                 ReadableNodeView
+  ): (Seq[Transaction.TX], Seq[String]) = {
+    val mempool = nodeView.memPool
+    val toRemove = unconfirmedTxDB.filter { txString =>
+      mempool.modifierById(fromBase58(Base58Data.unsafe(txString))).isEmpty
+    }
+    val toInsert = mempool.take(settings.mempoolCheckSize)(-_.dateAdded).map(_.tx).filterNot { tx =>
+      unconfirmedTxDB.contains(tx.id.toString)
+    }.toSeq
+    (toInsert, toRemove)
   }
 
   /**

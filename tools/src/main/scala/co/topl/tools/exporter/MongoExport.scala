@@ -1,9 +1,9 @@
 package co.topl.tools.exporter
 
 import co.topl.utils.mongodb.DocumentEncoder
-import org.mongodb.scala.result.InsertManyResult
-import org.mongodb.scala.{Document, MongoClient, MongoDatabase}
 import co.topl.utils.mongodb.implicits._
+import org.mongodb.scala.result.InsertManyResult
+import org.mongodb.scala.{MongoClient, MongoDatabase}
 
 import scala.concurrent.Future
 

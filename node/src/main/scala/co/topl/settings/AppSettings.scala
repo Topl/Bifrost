@@ -98,6 +98,7 @@ case class ChainReplicatorSettings(
   checkMissingStartHeight: Long,
   blockCheckSize:          Int,
   actorStashSize:          Int,
+  mempoolCheckSize:        Int,
   uri:                     Option[String],
   database:                Option[String],
   blockCollection:         String,

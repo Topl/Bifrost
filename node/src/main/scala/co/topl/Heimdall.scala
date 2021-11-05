@@ -363,12 +363,13 @@ object Heimdall {
       NodeViewSynchronizer.actorName
     )
 
-    val chainReplicator: Option[ActorRef[ChainReplicator.ReceivableMessage]] =
-      if (settings.chainReplicator.enableChainReplicator) {
+    val chainReplicator: Option[ActorRef[ChainReplicator.ReceivableMessage]] = {
+      val chainRepSettings = settings.chainReplicator
+      if (chainRepSettings.enableChainReplicator) {
         val mongo =
           MongoChainRepExport(
-            settings.chainReplicator.uri.getOrElse("mongodb://localhost"),
-            settings.chainReplicator.database.getOrElse("bifrost")
+            chainRepSettings.uri.getOrElse("mongodb://localhost"),
+            chainRepSettings.database.getOrElse("bifrost")
           )
 
         Some(
@@ -376,14 +377,16 @@ object Heimdall {
             ChainReplicator(
               state.nodeViewHolder,
               () => mongo.checkValidConnection(),
-              (start: Long, end: Long) => mongo.getExistingHeights(start, end),
+              (start: Long, end: Long, collectionsName: String) =>
+                mongo.getExistingHeights(start, end, collectionsName),
               (eleSeq: Seq[Document], collectionName: String) => mongo.insert(eleSeq, collectionName),
-              settings.chainReplicator
+              chainRepSettings
             ),
             ChainReplicator.actorName
           )
         )
       } else None
+    }
 
     ActorsInitializedState(
       state.peerManager,
