@@ -72,7 +72,7 @@ class SyncTracker(
     }
   }
 
-  //todo: combine both?
+  // todo: combine both?
   def clearStatus(remote: InetSocketAddress): Unit = {
     statuses.find(_._1.connectionId.remoteAddress == remote) match {
       case Some((peer, _)) => statuses -= peer
