@@ -116,7 +116,7 @@ object TetraDemo extends IOApp.Simple {
         KeyEvolver.InMemory.make {
           new ExtendedEd25519()
             .createKeyPair(
-              Entropy.fromUuid(UUID.randomUUID())
+              Bytes(Entropy.fromUuid(UUID.randomUUID()).value)
             )
             ._1
         },

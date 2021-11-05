@@ -9,8 +9,7 @@ import java.security.SecureRandom
 
 class Ed25519VRF
     extends eddsa.ECVRF25519
-    with EllipticCurveSignatureScheme[SecretKeys.VrfEd25519, VerificationKeys.VrfEd25519, Proofs.Signature.VrfEd25519]
-    with EllipticKeyGenerator[SecretKeys.VrfEd25519, VerificationKeys.VrfEd25519] {
+    with EllipticCurveSignatureScheme[SecretKeys.VrfEd25519, VerificationKeys.VrfEd25519, Proofs.Signature.VrfEd25519] {
   override val SignatureLength: Int = SIGNATURE_SIZE
   override val KeyLength: Int = SECRET_KEY_SIZE
 

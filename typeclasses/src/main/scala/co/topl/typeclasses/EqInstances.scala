@@ -4,7 +4,7 @@ import cats.Eq
 import cats.implicits._
 import co.topl.crypto.mnemonic.Entropy
 import co.topl.models.utility.Sized
-import co.topl.models.{BlockHeaderV2, BlockV2, TypedBytes}
+import co.topl.models.{BlockHeaderV2, BlockV2, Bytes, TypedBytes}
 
 trait EqInstances {
 
