@@ -3,12 +3,13 @@ package co.topl
 import co.topl.models.utility.{Lengths, Sized}
 import io.estatico.newtype.macros.newtype
 import io.estatico.newtype.ops._
+import scodec.bits.ByteVector
 
-import scala.collection.immutable.{ArraySeq, ListMap}
+import scala.collection.immutable.ListMap
 import scala.language.implicitConversions
 
 package object models {
-  type Bytes = ArraySeq[Byte]
+  type Bytes = ByteVector
   type BoxNonce = Long
   type Eta = Sized.Strict[Bytes, Lengths.`32`.type]
   type Evidence = Sized.Strict[TypedBytes, Lengths.`33`.type]
@@ -36,24 +37,7 @@ package object models {
   type StakeAddress = Propositions.Knowledge.Ed25519
   type Digest32 = Sized.Strict[Bytes, Lengths.`32`.type]
 
-  object Bytes {
-    def apply(array:       Array[Byte]): Bytes = new ArraySeq.ofByte(array)
-    def toByteArray(bytes: Bytes): Array[Byte] = bytes.toArray
-
-    def concat(arrays: Bytes*): Bytes = {
-      var length = 0
-      for (array <- arrays)
-        length += array.length
-      val result = new Array[Byte](length)
-      var pos = 0
-      for (array <- arrays) {
-        System.arraycopy(array, 0, result, pos, array.length)
-        pos += array.length
-      }
-      Bytes(result)
-    }
-    def empty: Bytes = Bytes(Array())
-  }
+  val Bytes = ByteVector
 
   @newtype case class TypedBytes(allBytes: Bytes) {
     def typePrefix: TypePrefix = allBytes.head
@@ -63,6 +47,6 @@ package object models {
   object TypedBytes {
 
     def apply(prefix: TypePrefix, dataBytes: Bytes): TypedBytes =
-      dataBytes.prepended(prefix).coerce
+      (prefix +: dataBytes).coerce
   }
 }

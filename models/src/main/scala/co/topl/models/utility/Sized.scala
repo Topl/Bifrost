@@ -81,7 +81,7 @@ object HasLength {
   trait Instances {
 
     implicit def bytesLength: HasLength[Bytes] =
-      _.length
+      _.length.toInt
 
     implicit def arrayLength[T]: HasLength[Array[T]] =
       _.length
@@ -96,7 +96,7 @@ object HasLength {
       _.value.length
 
     implicit val typedDataLength: HasLength[TypedBytes] =
-      _.allBytes.length
+      _.allBytes.length.toInt
   }
 
   object instances extends Instances

@@ -5,6 +5,7 @@ import cats.implicits._
 import co.topl.crypto.mnemonic.{Bip32Indexes, Entropy}
 import co.topl.crypto.utils.Hex
 import co.topl.crypto.utils.Hex.implicits._
+import co.topl.models.ModelGenerators.arbitraryBytes
 import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
 import org.scalacheck.Arbitrary
 import org.scalatest.flatspec.AnyFlatSpec
@@ -48,13 +49,8 @@ class ExtendedEd25519Spec
       keyPair1._2 === keyPair2._2 shouldBe true
     }
   }
-  it should "test vector - 1 - generate the correct master (sk,vk) from a seed with no password" in {
-    //todo: figure out if we can replicate https://github.com/cardano-foundation/CIPs/blob/master/CIP-0003/Icarus.md#test-vectors
-  }
-  it should "test vector - 2 - generate the correct master (sk,vk) from a seed including a password" in {
-    //todo: figure out if we can replicate https://github.com/cardano-foundation/CIPs/blob/master/CIP-0003/Icarus.md#test-vectors
-  }
-  it should "test vector - 3 - produce verifiable signatures with an empty message" in {
+
+  it should "test vector - 1 - produce verifiable signatures with an empty message" in {
     val extendedEd25519 = new ExtendedEd25519
     val specIn_xsk =
       SecretKeys.ExtendedEd25519(
@@ -81,7 +77,7 @@ class ExtendedEd25519Spec
     extendedEd25519.verify(specOut_sig, specIn_msg, xvk) shouldBe true
     extendedEd25519.verify(specOut_sig, specIn_msg, specOut_xvk) shouldBe true
   }
-  it should "test vector - 4 - produce verifiable signatures with a short message" in {
+  it should "test vector - 2 - produce verifiable signatures with a short message" in {
     val extendedEd25519 = new ExtendedEd25519
     val specIn_xsk =
       SecretKeys.ExtendedEd25519(
@@ -108,7 +104,7 @@ class ExtendedEd25519Spec
     extendedEd25519.verify(specOut_sig, specIn_msg, xvk) shouldBe true
     extendedEd25519.verify(specOut_sig, specIn_msg, specOut_xvk) shouldBe true
   }
-  it should "test vector - 5 - produce verifiable signatures with a long message" in {
+  it should "test vector - 3 - produce verifiable signatures with a long message" in {
     val extendedEd25519 = new ExtendedEd25519
     val specIn_xsk =
       SecretKeys.ExtendedEd25519(
@@ -157,7 +153,7 @@ class ExtendedEd25519Spec
     extendedEd25519.verify(specOut_sig, specIn_msg, xvk) shouldBe true
     extendedEd25519.verify(specOut_sig, specIn_msg, specOut_xvk) shouldBe true
   }
-  it should "test vector - 6 - derive the correct child (sk,vk) using path m/0" in {
+  it should "test vector - 4 - derive the correct child (sk,vk) using path m/0" in {
     val extendedEd25519 = new ExtendedEd25519()
     val specIn_derivationPath = Vector(Bip32Indexes.SoftIndex(0))
     val specIn_master_xsk =
@@ -194,7 +190,7 @@ class ExtendedEd25519Spec
     child_xvk shouldBe specOut_child_xvk
     child_xvk shouldBe child_xvk_fromSecret
   }
-  it should "test vector - 7 - derive the correct child (sk,vk) using path m/1" in {
+  it should "test vector - 5 - derive the correct child (sk,vk) using path m/1" in {
     val extendedEd25519 = new ExtendedEd25519()
     val specIn_derivationPath = Vector(Bip32Indexes.SoftIndex(1))
     val specIn_master_xsk =
@@ -231,7 +227,7 @@ class ExtendedEd25519Spec
     child_xvk shouldBe specOut_child_xvk
     child_xvk shouldBe child_xvk_fromSecret
   }
-  it should "test vector - 8 - derive the correct child (sk,vk) using path m/2" in {
+  it should "test vector - 6 - derive the correct child (sk,vk) using path m/2" in {
     val extendedEd25519 = new ExtendedEd25519()
     val specIn_derivationPath = Vector(Bip32Indexes.SoftIndex(2))
     val specIn_master_xsk =
@@ -268,7 +264,7 @@ class ExtendedEd25519Spec
     child_xvk shouldBe specOut_child_xvk
     child_xvk shouldBe child_xvk_fromSecret
   }
-  it should "test vector - 9 - derive the correct child (sk,vk) using path m/0`" in {
+  it should "test vector - 7 - derive the correct child (sk,vk) using path m/0`" in {
     val extendedEd25519 = new ExtendedEd25519()
     val specIn_derivationPath = Vector(Bip32Indexes.HardenedIndex(0))
     val specIn_master_xsk =
@@ -297,7 +293,7 @@ class ExtendedEd25519Spec
     child_xsk shouldBe specOut_child_xsk
     child_xvk_fromSecret shouldBe specOut_child_xvk
   }
-  it should "test vector - 10 - derive the correct child (sk,vk) using path m/0`/100`" in {
+  it should "test vector - 8 - derive the correct child (sk,vk) using path m/0`/100`" in {
     val extendedEd25519 = new ExtendedEd25519()
     val specIn_derivationPath =
       Vector(Bip32Indexes.HardenedIndex(0), Bip32Indexes.HardenedIndex(100))
@@ -327,7 +323,7 @@ class ExtendedEd25519Spec
     child_xsk shouldBe specOut_child_xsk
     child_xvk_fromSecret shouldBe specOut_child_xvk
   }
-  it should "test vector - 11 - derive the correct child (sk,vk) using path m/0`/100`/55" in {
+  it should "test vector - 9 - derive the correct child (sk,vk) using path m/0`/100`/55" in {
     val extendedEd25519 = new ExtendedEd25519()
     val specIn_derivationPath =
       Vector(Bip32Indexes.HardenedIndex(0), Bip32Indexes.HardenedIndex(100), Bip32Indexes.SoftIndex(55))
@@ -357,7 +353,7 @@ class ExtendedEd25519Spec
     child_xsk shouldBe specOut_child_xsk
     child_xvk_fromSecret shouldBe specOut_child_xvk
   }
-  it should "test vector - 12 - derive the correct child (sk,vk) using path m/1852`/7091`/0`/0`" in {
+  it should "test vector - 10 - derive the correct child (sk,vk) using path m/1852`/7091`/0`/0`" in {
     val extendedEd25519 = new ExtendedEd25519()
     val specIn_derivationPath =
       Vector(
@@ -392,7 +388,7 @@ class ExtendedEd25519Spec
     child_xsk shouldBe specOut_child_xsk
     child_xvk_fromSecret shouldBe specOut_child_xvk
   }
-  it should "test vector - 13 - derive the correct child (sk,vk) using path m/1852`/7091`/0`/0`/0" in {
+  it should "test vector - 11 - derive the correct child (sk,vk) using path m/1852`/7091`/0`/0`/0" in {
     val extendedEd25519 = new ExtendedEd25519()
     val specIn_derivationPath =
       Vector(
