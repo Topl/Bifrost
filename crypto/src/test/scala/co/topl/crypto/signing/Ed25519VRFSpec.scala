@@ -1,11 +1,13 @@
 package co.topl.crypto.signing
 
+import cats.implicits._
+import co.topl.crypto.mnemonic.Entropy
+import co.topl.crypto.mnemonic.EntropySupport._
 import co.topl.crypto.utils.Hex
 import co.topl.crypto.utils.Hex.implicits._
 import co.topl.models.ModelGenerators.arbitraryBytes
 import co.topl.models.utility.{Lengths, Sized}
 import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
-import org.scalacheck.Arbitrary
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
@@ -13,11 +15,11 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
 
   property("with Ed25519VRF, signed message should be verifiable with appropriate public key") {
-    forAll { (seed1: Bytes, seed2: Bytes, message1: Bytes, message2: Bytes) =>
-      whenever(!(seed1 == seed2) && !(message1 == message2)) {
+    forAll { (entropy1: Entropy, entropy2: Entropy, message1: Bytes, message2: Bytes) =>
+      whenever((entropy1 =!= entropy2) && !(message1 == message2)) {
         val ed25519vrf = new Ed25519VRF
-        val (sk1, vk1) = ed25519vrf.createKeyPair(seed1)
-        val (_, vk2) = ed25519vrf.createKeyPair(seed2)
+        val (sk1, vk1) = ed25519vrf.createKeyPair(entropy1, None)
+        val (_, vk2) = ed25519vrf.createKeyPair(entropy2, None)
         val sig = ed25519vrf.sign(sk1, message1)
 
         ed25519vrf.verify(sig, message1, vk1) shouldBe true
@@ -27,11 +29,11 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
     }
   }
   property("with Ed25519VRF, keyPairs generated with the same seed should be the same") {
-    forAll { seedBytes: Bytes =>
-      whenever(seedBytes.toArray.length != 0) {
+    forAll { seedBytes: Entropy =>
+      whenever(seedBytes.value.length != 0) {
         val ed25519vrf = new Ed25519VRF
-        val keyPair1 = ed25519vrf.createKeyPair(seedBytes)
-        val keyPair2 = ed25519vrf.createKeyPair(seedBytes)
+        val keyPair1 = ed25519vrf.createKeyPair(seedBytes, None)
+        val keyPair2 = ed25519vrf.createKeyPair(seedBytes, None)
 
         keyPair1._1 === keyPair2._1 shouldBe true
         keyPair1._2 === keyPair2._2 shouldBe true

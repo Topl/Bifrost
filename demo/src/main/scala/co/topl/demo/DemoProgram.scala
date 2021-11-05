@@ -26,7 +26,7 @@ object DemoProgram {
     etaCalculation:   EtaCalculationAlgebra[F]
   ): F[Unit] =
     for {
-      initialSlot  <- clock.currentSlot().map(_.min(1L))
+      initialSlot  <- clock.currentSlot().map(_.max(1L))
       initialEpoch <- clock.epochOf(initialSlot)
       _ <- initialEpoch
         .iterateForeverM(epoch =>

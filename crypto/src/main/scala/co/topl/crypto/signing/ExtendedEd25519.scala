@@ -4,7 +4,7 @@ import co.topl.crypto.Pbkdf2Sha512
 import co.topl.crypto.mnemonic.{Bip32Index, Bip32Indexes, Entropy}
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.Sized
+import co.topl.models.utility.{Lengths, Sized}
 import org.bouncycastle.crypto.digests.SHA512Digest
 import org.bouncycastle.crypto.macs.HMac
 import org.bouncycastle.crypto.params.KeyParameter
@@ -16,7 +16,8 @@ class ExtendedEd25519
     extends EllipticCurveSignatureScheme[
       SecretKeys.ExtendedEd25519,
       VerificationKeys.ExtendedEd25519,
-      Proofs.Signature.Ed25519
+      Proofs.Signature.Ed25519,
+      SecretKeys.ExtendedEd25519.Length
     ] {
 
   private val impl = new eddsa.Ed25519
@@ -25,8 +26,12 @@ class ExtendedEd25519
   override val KeyLength: Int = impl.SECRET_KEY_SIZE
   val PublicKeyLength: Int = impl.PUBLIC_KEY_SIZE
 
-  override def createKeyPair(seed: Bytes): (SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519) = {
-    val sk = ExtendedEd25519.fromEntropy(Entropy(seed.toArray))("")
+  def createKeyPair[T](
+    t:      T,
+    toSeed: T => Sized.Strict[Bytes, Lengths.`96`.type]
+  ): (SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519) = {
+    val seed = toSeed(t)
+    val sk = ExtendedEd25519.clampBits(seed)
     val vk = getVerificationKey(sk)
     (sk, vk)
   }
@@ -218,11 +223,6 @@ object ExtendedEd25519 {
   }
 
   /**
-   * The type of the password used alongside a mnemonic to generate an `ExtendedPrivateKeyEd25519`
-   */
-  type Password = String
-
-  /**
    * ED-25519 Base Order N
    *
    * Equivalent to `2^252 + 27742317777372353535851937790883648493`
@@ -244,24 +244,22 @@ object ExtendedEd25519 {
    * @param password an optional password for an extra layer of security
    * @return an `ExtendedPrivateKeyEd25519`
    */
-  def fromEntropy(entropy: Entropy)(password: Password = ""): SecretKeys.ExtendedEd25519 = {
-
-    /** clamp bits to make a valid Bip32-Ed25519 private key */
-    def clampBits(sizedSeed: Sized.Strict[Bytes, SecretKeys.ExtendedEd25519.Length]): SecretKeys.ExtendedEd25519 = {
-      val seed = sizedSeed.data.toArray
-
-      // turn seed into a valid ExtendedPrivateKeyEd25519 per the SLIP-0023 Icarus spec
-      seed(0) = (seed(0) & 0xf8.toByte).toByte
-      seed(31) = ((seed(31) & 0x1f.toByte) | 0x40.toByte).toByte
-
-      SecretKeys.ExtendedEd25519(
-        Sized.strictUnsafe(Bytes(seed.slice(0, 32))),
-        Sized.strictUnsafe(Bytes(seed.slice(32, 64))),
-        Sized.strictUnsafe(Bytes(seed.slice(64, 96)))
-      )
-    }
-
+  def fromEntropy(entropy: Entropy)(password: Password = ""): SecretKeys.ExtendedEd25519 =
     clampBits(entropyToSeed(entropy)(password))
+
+  /** clamp bits to make a valid Bip32-Ed25519 private key */
+  def clampBits(sizedSeed: Sized.Strict[Bytes, SecretKeys.ExtendedEd25519.Length]): SecretKeys.ExtendedEd25519 = {
+    val seed = sizedSeed.data.toArray
+
+    // turn seed into a valid ExtendedPrivateKeyEd25519 per the SLIP-0023 Icarus spec
+    seed(0) = (seed(0) & 0xf8.toByte).toByte
+    seed(31) = ((seed(31) & 0x1f.toByte) | 0x40.toByte).toByte
+
+    SecretKeys.ExtendedEd25519(
+      Sized.strictUnsafe(Bytes(seed.slice(0, 32))),
+      Sized.strictUnsafe(Bytes(seed.slice(32, 64))),
+      Sized.strictUnsafe(Bytes(seed.slice(64, 96)))
+    )
   }
 
   /** do a PBDKF2-HMAC-SHA512 per the SLIP2-0023 Icarus spec */

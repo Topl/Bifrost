@@ -1,5 +1,6 @@
 package co.topl.crypto.signing
 
+import co.topl.crypto.mnemonic.Entropy
 import co.topl.crypto.utils.Hex
 import co.topl.crypto.utils.Hex.implicits._
 import co.topl.models.ModelGenerators.arbitraryBytes
@@ -9,6 +10,8 @@ import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import co.topl.crypto.mnemonic.EntropySupport._
+import cats.implicits._
 
 /**
  * Test vectors available at https://github.com/Topl/reference_crypto/tree/main/specs/crypto/signing/Curve25519-Axolotl
@@ -16,12 +19,12 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 class Curve25519AxolotlSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
 
   property("signed message should be verifiable with appropriate public key") {
-    forAll { (seed1: Bytes, seed2: Bytes, message1: Bytes, message2: Bytes) =>
-      whenever(!(seed1 == seed2) && !(message1 == message2)) {
+    forAll { (entropy1: Entropy, entropy2: Entropy, message1: Bytes, message2: Bytes) =>
+      whenever((entropy1 =!= entropy2) && !(message1 == message2)) {
         val curve25519 = new Curve25519
 
-        val (sk1, vk1) = curve25519.createKeyPair(seed1)
-        val (_, vk2) = curve25519.createKeyPair(seed2)
+        val (sk1, vk1) = curve25519.createKeyPair(entropy1, None)
+        val (_, vk2) = curve25519.createKeyPair(entropy2, None)
 
         val sig = curve25519.sign(sk1, message1)
 
@@ -32,12 +35,12 @@ class Curve25519AxolotlSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChe
     }
   }
   property("with Curve25519, keyPairs generated with the same seed should be the same") {
-    forAll { seedBytes: Bytes =>
-      whenever(seedBytes.nonEmpty) {
+    forAll { entropy: Entropy =>
+      whenever(entropy.value.nonEmpty) {
         val curve25519 = new Curve25519
 
-        val (sk1, vk1) = curve25519.createKeyPair(seedBytes)
-        val (sk2, vk2) = curve25519.createKeyPair(seedBytes)
+        val (sk1, vk1) = curve25519.createKeyPair(entropy, None)
+        val (sk2, vk2) = curve25519.createKeyPair(entropy, None)
 
         sk1 === sk2 shouldBe true
         vk1 === vk2 shouldBe true

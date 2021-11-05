@@ -1,6 +1,7 @@
 package co.topl.crypto.signing
 
-import co.topl.crypto.mnemonic.Bip32Indexes
+import co.topl.crypto.mnemonic.EntropySupport._
+import co.topl.crypto.mnemonic.{Bip32Indexes, Entropy}
 import co.topl.crypto.utils.Hex
 import co.topl.crypto.utils.Hex.implicits._
 import co.topl.models.ModelGenerators.arbitraryBytes
@@ -15,12 +16,14 @@ class ExtendedEd25519Spec
     with ScalaCheckDrivenPropertyChecks
     with Matchers {
 
+  private val passwordOpt: Option[Password] = None
+
   "ExtendedEd25519" should "verify a signed message using the appropriate public key" in {
-    forAll { (seed1: Bytes, seed2: Bytes, message1: Bytes, message2: Bytes) =>
-      whenever(!(seed1 == seed2) && !(message1 == message2)) {
+    forAll { (entropy1: Entropy, entropy: Entropy, message1: Bytes, message2: Bytes) =>
+      whenever(!(entropy1 == entropy) && !(message1 == message2)) {
         val extendedEd25519 = new ExtendedEd25519
-        val (sk1, vk1) = extendedEd25519.createKeyPair(seed1)
-        val (_, vk2) = extendedEd25519.createKeyPair(seed2)
+        val (sk1, vk1) = extendedEd25519.createKeyPair(entropy1, passwordOpt)
+        val (_, vk2) = extendedEd25519.createKeyPair(entropy, passwordOpt)
         val sig = extendedEd25519.sign(sk1, message1)
 
         extendedEd25519.verify(sig, message1, vk1) shouldBe true
@@ -30,11 +33,11 @@ class ExtendedEd25519Spec
     }
   }
   it should "generate identical keypairs given the same seed" in {
-    forAll { seedBytes: Bytes =>
-      whenever(seedBytes.toArray.length != 0) {
+    forAll { entropy: Entropy =>
+      whenever(entropy.value.length != 0) {
         val extendedEd25519 = new ExtendedEd25519
-        val keyPair1 = extendedEd25519.createKeyPair(seedBytes)
-        val keyPair2 = extendedEd25519.createKeyPair(seedBytes)
+        val keyPair1 = extendedEd25519.createKeyPair(entropy, passwordOpt)
+        val keyPair2 = extendedEd25519.createKeyPair(entropy, passwordOpt)
 
         keyPair1._1 === keyPair2._1 shouldBe true
         keyPair1._2 === keyPair2._2 shouldBe true

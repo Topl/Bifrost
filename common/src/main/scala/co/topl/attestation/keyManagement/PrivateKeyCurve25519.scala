@@ -3,6 +3,7 @@ package co.topl.attestation.keyManagement
 import cats.implicits._
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.crypto.implicits._
+import co.topl.crypto.mnemonic.Entropy
 import co.topl.crypto.signing.{Curve25519, MessageToSign, Seed}
 import co.topl.crypto.{PrivateKey, PublicKey, Signature}
 import co.topl.models.utility.HasLength.instances._
@@ -49,7 +50,7 @@ object PrivateKeyCurve25519 extends BifrostSerializer[PrivateKeyCurve25519] {
 
   implicit val secretGenerator: SecretGenerator[PrivateKeyCurve25519] =
     SecretGenerator.instance[PrivateKeyCurve25519] { seed: Array[Byte] =>
-      val (sk, pk) = Curve25519.instance.createKeyPair(Bytes(seed))
+      val (sk, pk) = Curve25519.instance.createKeyPair(Entropy(seed), None)
       val secret: PrivateKeyCurve25519 =
         new PrivateKeyCurve25519(PrivateKey(sk.bytes.data.toArray), PublicKey(pk.bytes.data.toArray))
       secret -> secret.publicImage

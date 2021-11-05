@@ -5,7 +5,6 @@ import co.topl.models._
 
 object ProofToHash {
   val vrf = new Ed25519VRF
-  vrf.precompute()
 
   def digest(signature: Proofs.Signature.VrfEd25519): Rho = vrf.proofToHash(signature)
 }

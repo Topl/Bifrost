@@ -10,8 +10,6 @@ import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LeaderElectionValidationAlgebra}
 import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.mnemonic.Entropy
-import co.topl.crypto.signing.ExtendedEd25519
 import co.topl.minting._
 import co.topl.minting.algebras.{BlockMintAlgebra, VrfProofAlgebra}
 import co.topl.models._
@@ -23,7 +21,6 @@ import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
-import java.util.UUID
 import scala.concurrent.duration._
 
 object TetraDemo extends IOApp.Simple {
@@ -113,13 +110,9 @@ object TetraDemo extends IOApp.Simple {
           leaderElectionThreshold,
           vrfProofConstruction
         ),
-        KeyEvolver.InMemory.make {
-          new ExtendedEd25519()
-            .createKeyPair(
-              Bytes(Entropy.fromUuid(UUID.randomUUID()).value)
-            )
-            ._1
-        },
+        KeyEvolver.InMemory.make(
+          KeyInitializer[SecretKeys.ExtendedEd25519].random()
+        ),
         VrfRelativeStakeMintingLookup.Eval.make(state, clock),
         EtaMinting.Eval.make(state, clock)
       ),

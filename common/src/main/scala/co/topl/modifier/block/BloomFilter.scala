@@ -81,17 +81,17 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
   private val bitElemMask: Int = 63 /*   63 -> 0000 0000 0011 1111 - mask for finding the bit to modify */
 
   /** Create a new Bloom filter given a sequence of topics to be hashed */
-  def apply(topics: Set[BloomTopic]): BloomFilter = update(empty, topics)
+  def apply(topics: Iterable[BloomTopic]): BloomFilter = update(empty, topics)
 
   /**
    * Returns a new Bloom filter with updated topics included in the bit array.
    * The updated bloom filter computes the indices to be flipped and merges these changes with
    * the input array of longs before returning a new filter
    */
-  def update(inputBF: BloomFilter, topics: Set[BloomTopic]): BloomFilter = {
+  def update(inputBF: BloomFilter, topics: Iterable[BloomTopic]): BloomFilter = {
 
     /** Compute the indices that should be flipped in the bloom filter */
-    val indices: Set[Int] = topics.flatMap(calculateIndices)
+    val indices: Set[Int] = topics.flatMap(calculateIndices).toSet
 
     /** Generate a long corresponding to the indices calculated */
     val longsForFilter: Map[Int, Long] = generateLongs(indices)
