@@ -27,12 +27,12 @@ object AkkaSchedulerClock {
 
         val slotsPerEpoch: F[Epoch] = _slotsPerEpoch.pure[F]
 
-        val currentTimestamp: F[Timestamp] = Sync[F].delay(System.currentTimeMillis())
+        def currentTimestamp: F[Timestamp] = Sync[F].delay(System.currentTimeMillis())
 
-        val globalSlot: F[Slot] =
+        def globalSlot: F[Slot] =
           currentTimestamp.map(currentTimestamp => (currentTimestamp - startTime) / _slotLength.toMillis)
 
-        val currentEpoch: F[Epoch] =
+        def currentEpoch: F[Epoch] =
           (globalSlot, slotsPerEpoch).mapN(_ / _)
 
         def delayedUntilSlot(slot: Slot): F[Unit] =
