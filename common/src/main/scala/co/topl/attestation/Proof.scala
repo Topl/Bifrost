@@ -84,8 +84,8 @@ case class SignatureCurve25519(private[attestation] val sigBytes: Signature)
   private val signatureLength = sigBytes.value.length
 
   require(
-    signatureLength == 0 || signatureLength == Curve25519.SignatureLength,
-    s"$signatureLength != ${Curve25519.SignatureLength}"
+    signatureLength == 0 || signatureLength == Curve25519.instance.SignatureLength,
+    s"$signatureLength != ${Curve25519.instance.SignatureLength}"
   )
 
   def isValid(proposition: PublicKeyPropositionCurve25519, message: Array[Byte]): Boolean =
@@ -99,7 +99,7 @@ case class SignatureCurve25519(private[attestation] val sigBytes: Signature)
 }
 
 object SignatureCurve25519 {
-  lazy val signatureSize: Int = Curve25519.SignatureLength
+  lazy val signatureSize: Int = Curve25519.instance.SignatureLength
 
   /** Helper function to create empty signatures */
   lazy val empty: SignatureCurve25519 = SignatureCurve25519(Signature(Array.emptyByteArray))

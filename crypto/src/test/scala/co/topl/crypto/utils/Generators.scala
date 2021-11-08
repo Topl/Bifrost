@@ -21,4 +21,6 @@ object Generators {
   def genByteArrayOfSize(n: Int): Gen[Array[Byte]] =
     Gen.listOfN(n, Arbitrary.arbitrary[Byte]).retryUntil(_.length == n).map(_.toArray)
 
+  lazy val stringGen: Gen[String] = Gen.alphaNumStr.suchThat(_.nonEmpty)
+
 }

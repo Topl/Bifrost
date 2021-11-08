@@ -1,11 +1,9 @@
 package co.topl.crypto.mnemonic
 
-import co.topl.crypto.mnemonic.FromEntropy.Instances._
 import co.topl.crypto.mnemonic.Language.English
 import co.topl.crypto.mnemonic.MnemonicSize._
 import co.topl.crypto.utils.Generators.genByteArrayOfSize
 import co.topl.crypto.utils.Hex
-import co.topl.models.{Bytes, SecretKeys}
 import co.topl.models.utility.Base58
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
@@ -149,93 +147,367 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
     entropy.isLeft shouldBe true
   }
 
-  case class TestVector(
-    name:       String,
-    phrase:     String,
-    size:       MnemonicSize,
-    language:   Language,
-    password:   String,
-    privateKey: String
-  )
+  case class SpecIn(words: String, size: MnemonicSize, language: Language)
+  case class SpecOut(entropy: Entropy)
 
-  // Test Vectors
-  // https://topl.atlassian.net/wiki/spaces/Bifrost/pages/294813812/HD+Wallet+Protocols+and+Test+Vectors
-  val testVectors = Seq(
-    TestVector(
-      "Test Vector #1",
-      "buyer bomb chapter carbon chair grid wheel protect giraffe spike pupil model",
+  property("mnemonic should generating entropy from test vector 1") {
+    val specIn = SpecIn(
+      "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
       Mnemonic12,
-      English,
-      "dinner",
-      "10d6d266fc36cce2ee95197c968983b1b8a0cf26030068f0aa6d7603515d2749ff030cd54551eaeef0b2d22305d6984c1313b" +
-      "855775f6bfb9fc4aff1a8aa837e43773dc6ead8b276897e03687a943ffa795f35c4dfc438f307106509ba96bf36"
-    ),
-    TestVector(
-      "Test Vector #2",
-      "vessel erase town arrow girl emotion siren better fork approve spare convince sauce amused clap",
-      Mnemonic15,
-      English,
-      "heart",
-      "105c0659a289eb1899ad891da6022155729fe7b4cd59399cf82abd5df6e7024714a4cfd8efde026641d43fb4945dbc1d83934" +
-      "fbea856264f1198a4f9e34fc79dadd5982a6cb2a9ad628f4197945ab8170071af566c188c4ee35ee589a7792fed"
-    ),
-    TestVector(
-      "Test Vector #3",
-      "model abandon genius figure shiver craft surround sister permit output network swift slush lumber " +
-      "dune license run sugar",
-      Mnemonic18,
-      English,
-      "describe",
-      "f8018c7179445139ab5b437e66c6109bed6879dd603a278bccec3bc6a020c25ed10a9a14b6351f0a4b68b164ada673f731738a9" +
-      "62da627b399d7c5cd2fb3616a67d34d5baaf63a7c5a8159dec79de21a937a03baeb05548c91d7e2c5d648cf4e"
-    ),
-    TestVector(
-      "Test Vector #4",
-      "acquire pretty ocean screen assist purity exchange memory universe attitude sense charge fragile emerge " +
-      "quick home asthma intact gloom giant gather",
-      Mnemonic21,
-      English,
-      "manager",
-      "90e7716fce3ee6b32c3a8c89d54cb01a63596c9a19c270cfcfdff29b9c585555beba8d3d4113558a3411267c454b2215fc5f1bb" +
-      "429d7751f051a88942d9e3c7a8c61503b5b06f56bd3873a2fab636d87e064b3b3dca5a329646dedaab1e02c05"
-    ),
-    TestVector(
-      "Test Vector #5",
-      "nice demise viable bonus flavor genre kick nominee supreme couple tattoo shadow ethics swamp rebuild pencil " +
-      "rebuild pet ignore define seek fire wrong harvest",
-      Mnemonic24,
-      English,
-      "exact",
-      "98df2e07e25a733a6d2a2636b2bd67408687fb1da399abc164ed258a98b9655f1997507da125e2d77a0c2f168a866ea8fe9a7c0e27fb" +
-      "772b287a702d9742fb9fe14b0893136596df5de01ec9b6487a865bd415cb8a6ca96eb582e81777802461"
-    ),
-    TestVector(
-      "Test Vector #6",
-      "toss enrich steak utility dolphin cushion jeans work ski angle total alley trade poem february whisper toe " +
-      "office half assume keep shift also fade",
-      Mnemonic24,
-      English,
-      "",
-      "686657f893d3d2c14bc3ab93d693bfbc868a621790d8aca64317834ed3aa85537d8d094a432cb852bb3b8617aeab621c0459b84a6d24" +
-      "80735b4e3ff8bff11657944aaad3c8b7633eafb5871de4122241728ce5d5edd8268472c7c980252fc55b"
+      English
     )
-  )
+    val specOut = SpecOut(Entropy(Hex.decode("00000000000000000000000000000000")))
 
-  def testVectorTest(tv: TestVector): Unit =
-    property(s"Entropy Test: ${tv.name}") {
-      val expectedPrivateKeyBase16 = Hex.decode(tv.privateKey)
-
-      val pkResult =
-        FromEntropy.derive[String => SecretKeys.ExtendedEd25519](tv.phrase, tv.size, tv.language) match {
-          case Left(value)  => throw new Error("failed test")
-          case Right(value) => value(tv.password)
-        }
-
-      val pkResultBase16 =
-        Hex.encode(pkResult.leftKey.data.toArray ++ pkResult.rightKey.data.toArray ++ pkResult.chainCode.data.toArray)
-
-      pkResultBase16 shouldBe expectedPrivateKeyBase16
+    val entropy: Entropy = FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      case Left(_)      => throw new Error("error deriving entropy from words")
+      case Right(value) => value
     }
 
-  testVectors.foreach(testVectorTest)
+    entropy shouldBe specOut.entropy
+  }
+  property("mnemonic should generating entropy from test vector 2") {
+    val specIn = SpecIn(
+      "legal winner thank year wave sausage worth useful legal winner thank yellow",
+      Mnemonic12,
+      English
+    )
+    val specOut = SpecOut(Entropy(Hex.decode("7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f")))
+
+    val entropy: Entropy = FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      case Left(_)      => throw new Error("error deriving entropy from words")
+      case Right(value) => value
+    }
+
+    entropy shouldBe specOut.entropy
+  }
+  property("mnemonic should generating entropy from test vector 3") {
+    val specIn = SpecIn(
+      "letter advice cage absurd amount doctor acoustic avoid letter advice cage above",
+      Mnemonic12,
+      English
+    )
+    val specOut = SpecOut(Entropy(Hex.decode("80808080808080808080808080808080")))
+
+    val entropy: Entropy = FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      case Left(_)      => throw new Error("error deriving entropy from words")
+      case Right(value) => value
+    }
+
+    entropy shouldBe specOut.entropy
+  }
+  property("mnemonic should generating entropy from test vector 4") {
+    val specIn = SpecIn(
+      "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong",
+      Mnemonic12,
+      English
+    )
+    val specOut = SpecOut(Entropy(Hex.decode("ffffffffffffffffffffffffffffffff")))
+
+    val entropy: Entropy = FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      case Left(_)      => throw new Error("error deriving entropy from words")
+      case Right(value) => value
+    }
+
+    entropy shouldBe specOut.entropy
+  }
+  property("mnemonic should generating entropy from test vector 5") {
+    val specIn = SpecIn(
+      "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon agent",
+      Mnemonic18,
+      English
+    )
+    val specOut = SpecOut(Entropy(Hex.decode("000000000000000000000000000000000000000000000000")))
+
+    val entropy: Entropy = FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      case Left(_)      => throw new Error("error deriving entropy from words")
+      case Right(value) => value
+    }
+
+    entropy shouldBe specOut.entropy
+  }
+  property("mnemonic should generating entropy from test vector 6") {
+    val specIn = SpecIn(
+      "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal will",
+      Mnemonic18,
+      English
+    )
+    val specOut = SpecOut(Entropy(Hex.decode("7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f")))
+
+    val entropy: Entropy = FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      case Left(_)      => throw new Error("error deriving entropy from words")
+      case Right(value) => value
+    }
+
+    entropy shouldBe specOut.entropy
+  }
+  property("mnemonic should generating entropy from test vector 7") {
+    val specIn = SpecIn(
+      "letter advice cage absurd amount doctor acoustic avoid letter advice cage absurd amount doctor acoustic avoid letter always",
+      Mnemonic18,
+      English
+    )
+    val specOut = SpecOut(Entropy(Hex.decode("808080808080808080808080808080808080808080808080")))
+
+    val entropy: Entropy = FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      case Left(_)      => throw new Error("error deriving entropy from words")
+      case Right(value) => value
+    }
+
+    entropy shouldBe specOut.entropy
+  }
+  property("mnemonic should generating entropy from test vector 8") {
+    val specIn = SpecIn(
+      "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo when",
+      Mnemonic18,
+      English
+    )
+    val specOut = SpecOut(Entropy(Hex.decode("ffffffffffffffffffffffffffffffffffffffffffffffff")))
+
+    val entropy: Entropy = FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      case Left(_)      => throw new Error("error deriving entropy from words")
+      case Right(value) => value
+    }
+
+    entropy shouldBe specOut.entropy
+  }
+  property("mnemonic should generating entropy from test vector 9") {
+    val specIn = SpecIn(
+      "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art",
+      Mnemonic24,
+      English
+    )
+    val specOut = SpecOut(Entropy(Hex.decode("0000000000000000000000000000000000000000000000000000000000000000")))
+
+    val entropy: Entropy = FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      case Left(_)      => throw new Error("error deriving entropy from words")
+      case Right(value) => value
+    }
+
+    entropy shouldBe specOut.entropy
+  }
+  property("mnemonic should generating entropy from test vector 10") {
+    val specIn = SpecIn(
+      "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth title",
+      Mnemonic24,
+      English
+    )
+    val specOut = SpecOut(Entropy(Hex.decode("7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f")))
+
+    val entropy: Entropy = FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      case Left(_)      => throw new Error("error deriving entropy from words")
+      case Right(value) => value
+    }
+
+    entropy shouldBe specOut.entropy
+  }
+  property("mnemonic should generating entropy from test vector 11") {
+    val specIn = SpecIn(
+      "letter advice cage absurd amount doctor acoustic avoid letter advice cage absurd amount doctor acoustic avoid letter advice cage absurd amount doctor acoustic bless",
+      Mnemonic24,
+      English
+    )
+    val specOut = SpecOut(Entropy(Hex.decode("8080808080808080808080808080808080808080808080808080808080808080")))
+
+    val entropy: Entropy = FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      case Left(_)      => throw new Error("error deriving entropy from words")
+      case Right(value) => value
+    }
+
+    entropy shouldBe specOut.entropy
+  }
+  property("mnemonic should generating entropy from test vector 12") {
+    val specIn = SpecIn(
+      "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo vote",
+      Mnemonic24,
+      English
+    )
+    val specOut = SpecOut(Entropy(Hex.decode("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")))
+
+    val entropy: Entropy = FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      case Left(_)      => throw new Error("error deriving entropy from words")
+      case Right(value) => value
+    }
+
+    entropy shouldBe specOut.entropy
+  }
+  property("mnemonic should generating entropy from test vector 13") {
+    val specIn = SpecIn(
+      "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic",
+      Mnemonic12,
+      English
+    )
+    val specOut = SpecOut(Entropy(Hex.decode("9e885d952ad362caeb4efe34a8e91bd2")))
+
+    val entropy: Entropy = FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      case Left(_)      => throw new Error("error deriving entropy from words")
+      case Right(value) => value
+    }
+
+    entropy shouldBe specOut.entropy
+  }
+  property("mnemonic should generating entropy from test vector 14") {
+    val specIn = SpecIn(
+      "gravity machine north sort system female filter attitude volume fold club stay feature office ecology stable narrow fog",
+      Mnemonic18,
+      English
+    )
+    val specOut = SpecOut(Entropy(Hex.decode("6610b25967cdcca9d59875f5cb50b0ea75433311869e930b")))
+
+    val entropy: Entropy = FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      case Left(_)      => throw new Error("error deriving entropy from words")
+      case Right(value) => value
+    }
+
+    entropy shouldBe specOut.entropy
+  }
+  property("mnemonic should generating entropy from test vector 15") {
+    val specIn = SpecIn(
+      "hamster diagram private dutch cause delay private meat slide toddler razor book happy fancy gospel tennis maple dilemma loan word shrug inflict delay length",
+      Mnemonic24,
+      English
+    )
+    val specOut = SpecOut(Entropy(Hex.decode("68a79eaca2324873eacc50cb9c6eca8cc68ea5d936f98787c60c7ebc74e6ce7c")))
+
+    val entropy: Entropy = FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      case Left(_)      => throw new Error("error deriving entropy from words")
+      case Right(value) => value
+    }
+
+    entropy shouldBe specOut.entropy
+  }
+  property("mnemonic should generating entropy from test vector 16") {
+    val specIn = SpecIn(
+      "scheme spot photo card baby mountain device kick cradle pact join borrow",
+      Mnemonic12,
+      English
+    )
+    val specOut = SpecOut(Entropy(Hex.decode("c0ba5a8e914111210f2bd131f3d5e08d")))
+
+    val entropy: Entropy = FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      case Left(_)      => throw new Error("error deriving entropy from words")
+      case Right(value) => value
+    }
+
+    entropy shouldBe specOut.entropy
+  }
+  property("mnemonic should generating entropy from test vector 17") {
+    val specIn = SpecIn(
+      "horn tenant knee talent sponsor spell gate clip pulse soap slush warm silver nephew swap uncle crack brave",
+      Mnemonic18,
+      English
+    )
+    val specOut = SpecOut(Entropy(Hex.decode("6d9be1ee6ebd27a258115aad99b7317b9c8d28b6d76431c3")))
+
+    val entropy: Entropy = FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      case Left(_)      => throw new Error("error deriving entropy from words")
+      case Right(value) => value
+    }
+
+    entropy shouldBe specOut.entropy
+  }
+  property("mnemonic should generating entropy from test vector 18") {
+    val specIn = SpecIn(
+      "panda eyebrow bullet gorilla call smoke muffin taste mesh discover soft ostrich alcohol speed nation flash devote level hobby quick inner drive ghost inside",
+      Mnemonic24,
+      English
+    )
+    val specOut = SpecOut(Entropy(Hex.decode("9f6a2878b2520799a44ef18bc7df394e7061a224d2c33cd015b157d746869863")))
+
+    val entropy: Entropy = FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      case Left(_)      => throw new Error("error deriving entropy from words")
+      case Right(value) => value
+    }
+
+    entropy shouldBe specOut.entropy
+  }
+  property("mnemonic should generating entropy from test vector 19") {
+    val specIn = SpecIn(
+      "cat swing flag economy stadium alone churn speed unique patch report train",
+      Mnemonic12,
+      English
+    )
+    val specOut = SpecOut(Entropy(Hex.decode("23db8160a31d3e0dca3688ed941adbf3")))
+
+    val entropy: Entropy = FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      case Left(_)      => throw new Error("error deriving entropy from words")
+      case Right(value) => value
+    }
+
+    entropy shouldBe specOut.entropy
+  }
+  property("mnemonic should generating entropy from test vector 20") {
+    val specIn = SpecIn(
+      "light rule cinnamon wrap drastic word pride squirrel upgrade then income fatal apart sustain crack supply proud access",
+      Mnemonic18,
+      English
+    )
+    val specOut = SpecOut(Entropy(Hex.decode("8197a4a47f0425faeaa69deebc05ca29c0a5b5cc76ceacc0")))
+
+    val entropy: Entropy = FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      case Left(_)      => throw new Error("error deriving entropy from words")
+      case Right(value) => value
+    }
+
+    entropy shouldBe specOut.entropy
+  }
+  property("mnemonic should generating entropy from test vector 21") {
+    val specIn = SpecIn(
+      "all hour make first leader extend hole alien behind guard gospel lava path output census museum junior mass reopen famous sing advance salt reform",
+      Mnemonic24,
+      English
+    )
+    val specOut = SpecOut(Entropy(Hex.decode("066dca1a2bb7e8a1db2832148ce9933eea0f3ac9548d793112d9a95c9407efad")))
+
+    val entropy: Entropy = FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      case Left(_)      => throw new Error("error deriving entropy from words")
+      case Right(value) => value
+    }
+
+    entropy shouldBe specOut.entropy
+  }
+  property("mnemonic should generating entropy from test vector 22") {
+    val specIn = SpecIn(
+      "vessel ladder alter error federal sibling chat ability sun glass valve picture",
+      Mnemonic12,
+      English
+    )
+    val specOut = SpecOut(Entropy(Hex.decode("f30f8c1da665478f49b001d94c5fc452")))
+
+    val entropy: Entropy = FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      case Left(_)      => throw new Error("error deriving entropy from words")
+      case Right(value) => value
+    }
+
+    entropy shouldBe specOut.entropy
+  }
+  property("mnemonic should generating entropy from test vector 23") {
+    val specIn = SpecIn(
+      "scissors invite lock maple supreme raw rapid void congress muscle digital elegant little brisk hair mango congress clump",
+      Mnemonic18,
+      English
+    )
+    val specOut = SpecOut(Entropy(Hex.decode("c10ec20dc3cd9f652c7fac2f1230f7a3c828389a14392f05")))
+
+    val entropy: Entropy = FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      case Left(_)      => throw new Error("error deriving entropy from words")
+      case Right(value) => value
+    }
+
+    entropy shouldBe specOut.entropy
+  }
+  property("mnemonic should generating entropy from test vector 24") {
+    val specIn = SpecIn(
+      "void come effort suffer camp survey warrior heavy shoot primary clutch crush open amazing screen patrol group space point ten exist slush involve unfold",
+      Mnemonic24,
+      English
+    )
+    val specOut = SpecOut(Entropy(Hex.decode("f585c11aec520db57dd353c69554b21a89b20fb0650966fa0a9d6f74fd989d8f")))
+
+    val entropy: Entropy = FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      case Left(_)      => throw new Error("error deriving entropy from words")
+      case Right(value) => value
+    }
+
+    entropy shouldBe specOut.entropy
+  }
 }

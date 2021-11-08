@@ -16,8 +16,8 @@ class Curve25519
       Proofs.Signature.Curve25519
     ] {
 
-  override val SignatureLength: Int = Curve25519.SignatureLength
-  override val KeyLength: Int = Curve25519.KeyLength
+  override val SignatureLength: Int = 64
+  override val KeyLength: Int = 32
 
   /* todo: dirty hack, switch to logic as described in WhisperSystem's Curve25519 tutorial when
               it would be possible to pass a random seed from outside, see
@@ -34,7 +34,7 @@ class Curve25519
     val hashedSeed = sha256.hash(seed.toArray)
     val privateKey = SecretKeys.Curve25519(Sized.strictUnsafe(Bytes(provider.generatePrivateKey(hashedSeed.value))))
     val publicKey = VerificationKeys.Curve25519(
-      Sized.strictUnsafe(Bytes(provider.generatePublicKey(Bytes.toByteArray(privateKey.bytes.data))))
+      Sized.strictUnsafe(Bytes(provider.generatePublicKey(privateKey.bytes.data.toArray)))
     )
 
     privateKey -> publicKey
@@ -64,9 +64,9 @@ class Curve25519
     signature.bytes.data.length == SignatureLength &&
     publicKey.bytes.data.length == KeyLength &&
     provider.verifySignature(
-      Bytes.toByteArray(publicKey.bytes.data),
+      publicKey.bytes.data.toArray,
       message.toArray,
-      Bytes.toByteArray(signature.bytes.data)
+      signature.bytes.data.toArray
     )
 
   override def getVerificationKey(secretKey: SecretKeys.Curve25519): VerificationKeys.Curve25519 =
@@ -76,7 +76,4 @@ class Curve25519
 
 object Curve25519 {
   val instance = new Curve25519
-
-  val SignatureLength: Int = 64
-  val KeyLength: Int = 32
 }

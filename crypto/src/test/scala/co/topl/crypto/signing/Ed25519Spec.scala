@@ -2,6 +2,7 @@ package co.topl.crypto.signing
 
 import co.topl.crypto.utils.Hex
 import co.topl.crypto.utils.Hex.implicits._
+import co.topl.models.ModelGenerators.arbitraryBytes
 import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
