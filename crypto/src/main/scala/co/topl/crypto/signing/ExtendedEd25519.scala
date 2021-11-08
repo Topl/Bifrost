@@ -259,7 +259,9 @@ object ExtendedEd25519 {
     clampBits(entropyToSeed(entropy)(password))
 
   /** clamp bits to make a valid Bip32-Ed25519 private key */
-  def clampBits(sizedSeed: Sized.Strict[Bytes, SecretKeys.ExtendedEd25519.Length]): SecretKeys.ExtendedEd25519 = {
+  private[ExtendedEd25519] def clampBits(
+    sizedSeed: Sized.Strict[Bytes, SecretKeys.ExtendedEd25519.Length]
+  ): SecretKeys.ExtendedEd25519 = {
     val seed = sizedSeed.data.toArray
 
     // turn seed into a valid ExtendedPrivateKeyEd25519 per the SLIP-0023 Icarus spec
@@ -273,7 +275,6 @@ object ExtendedEd25519 {
     )
   }
 
-  /** do a PBDKF2-HMAC-SHA512 per the SLIP2-0023 Icarus spec */
   def entropyToSeed(
     entropy:  Entropy
   )(password: Password = ""): Sized.Strict[Bytes, SecretKeys.ExtendedEd25519.Length] = {
