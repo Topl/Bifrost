@@ -1,9 +1,9 @@
 package co.topl.consensus.tine
 
-import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
-import co.topl.models._
 import co.topl.consensus.TetraParameters
 import co.topl.crypto.signing.Ed25519VRF
+import co.topl.models._
+import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
@@ -281,7 +281,7 @@ case class Tine(
             case Left(cache) =>
               val filtered = cache.filter(data => data._1 < t.minSlot.get && data._1 >= min).toSeq
               Bytes.concat(
-                Bytes.concat(filtered.map(entry => entry._3.data): _*),
+                filtered.map(entry => entry._3.data) :+
                 t.orderedNonceData(t.minSlot.get, max, None)
               )
             case Right(cache) =>
@@ -289,21 +289,21 @@ case class Tine(
               for (index <- min / databaseInterval to (t.minSlot.get - 1) / databaseInterval) {
                 val cacheKey = BigInt(index)
                 val newCache = cache.get(cacheKey).filter(data => data._1 < t.minSlot.get && data._1 >= min)
-                out = Bytes.concat(out, Bytes.concat(newCache.map(entry => entry._3.data).toIndexedSeq: _*))
+                out = Bytes.concat(out :: newCache.map(entry => entry._3.data).toList)
               }
-              Bytes.concat(out, t.orderedNonceData(t.minSlot.get, max, tine))
+              Bytes.concat(List(out, t.orderedNonceData(t.minSlot.get, max, tine)))
           }
         case _ =>
           tineDB match {
             case Left(cache) =>
               val newCache = cache.filter(data => data._1 <= max && data._1 >= min)
-              Bytes.concat(newCache.map(entry => entry._3.data).toIndexedSeq: _*)
+              Bytes.concat(newCache.map(entry => entry._3.data).toList)
             case Right(cache) =>
               var out: Bytes = Bytes.empty
               for (index <- min / databaseInterval to max / databaseInterval) {
                 val cacheKey = BigInt(index)
                 val newCache = cache.get(cacheKey).filter(data => data._1 <= max && data._1 >= min)
-                out = Bytes.concat(out, Bytes.concat(newCache.map(entry => entry._3.data).toIndexedSeq: _*))
+                out = Bytes.concat(out :: newCache.map(entry => entry._3.data).toList)
               }
               out
           }

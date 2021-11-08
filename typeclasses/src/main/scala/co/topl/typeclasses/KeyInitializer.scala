@@ -5,6 +5,8 @@ import co.topl.crypto.signing._
 import co.topl.models._
 import simulacrum.typeclass
 
+import java.util.UUID
+
 @typeclass trait KeyInitializer[SK] {
   self =>
 
@@ -16,7 +18,7 @@ import simulacrum.typeclass
   /**
    * Creates a secret key from the given seed
    */
-  def fromSeed(seed: Bytes): SK
+  def fromEntropy(entropy: Entropy, password: Option[Password]): SK
 }
 
 object KeyInitializer {
@@ -28,10 +30,10 @@ object KeyInitializer {
       new KeyInitializer[SecretKeys.Curve25519] {
 
         override def random(): SecretKeys.Curve25519 =
-          fromSeed(Bytes(defaultRandom))
+          fromEntropy(Entropy.fromUuid(UUID.randomUUID()), password = Some(""))
 
-        override def fromSeed(seed: Bytes): SecretKeys.Curve25519 =
-          Curve25519.instance.createKeyPair(seed)._1
+        override def fromEntropy(entropy: Entropy, password: Option[Password]): SecretKeys.Curve25519 =
+          Curve25519.instance.createKeyPair(entropy, password)._1
 
       }
 
@@ -39,10 +41,10 @@ object KeyInitializer {
       new KeyInitializer[SecretKeys.Ed25519] {
 
         override def random(): SecretKeys.Ed25519 =
-          fromSeed(Bytes(defaultRandom))
+          fromEntropy(Entropy.fromUuid(UUID.randomUUID()), password = Some(""))
 
-        override def fromSeed(seed: Bytes): SecretKeys.Ed25519 =
-          Ed25519.instance.createKeyPair(seed)._1
+        override def fromEntropy(entropy: Entropy, password: Option[Password]): SecretKeys.Ed25519 =
+          Ed25519.instance.createKeyPair(entropy, password)._1
 
       }
 
@@ -50,31 +52,20 @@ object KeyInitializer {
       new KeyInitializer[SecretKeys.VrfEd25519] {
 
         def random(): SecretKeys.VrfEd25519 =
-          fromSeed(Bytes(defaultRandom))
+          fromEntropy(Entropy.fromUuid(UUID.randomUUID()), password = Some(""))
 
-        def fromSeed(seed: Bytes): SecretKeys.VrfEd25519 =
-          ed25519VRF.createKeyPair(seed)._1
+        def fromEntropy(entropy: Entropy, password: Option[Password]): SecretKeys.VrfEd25519 =
+          ed25519VRF.createKeyPair(entropy, password)._1
       }
 
-    implicit val extendedEd25519Initializer: KeyInitializer[SecretKeys.ExtendedEd25519] =
+    implicit def extendedEd25519Initializer: KeyInitializer[SecretKeys.ExtendedEd25519] =
       new KeyInitializer[SecretKeys.ExtendedEd25519] {
 
-        // here for compatibility with signing routines, assumes password = ""
         def random(): SecretKeys.ExtendedEd25519 =
-          fromSeed(Bytes(defaultRandom))
+          fromEntropy(Entropy.fromUuid(UUID.randomUUID()), password = Some(""))
 
-        def fromSeed(seed: Bytes): SecretKeys.ExtendedEd25519 =
-          ExtendedEd25519.instance.createKeyPair(seed)._1
-      }
-
-    implicit def extendedEd25519PasswordInitializer: KeyInitializer[String => SecretKeys.ExtendedEd25519] =
-      new KeyInitializer[String => SecretKeys.ExtendedEd25519] {
-
-        def random(): String => SecretKeys.ExtendedEd25519 =
-          password => fromSeed(Bytes(defaultRandom))(password)
-
-        def fromSeed(seed: Bytes): String => SecretKeys.ExtendedEd25519 =
-          password => ExtendedEd25519.fromEntropy(Entropy(seed.toArray))(password)
+        def fromEntropy(entropy: Entropy, password: Option[Password]): SecretKeys.ExtendedEd25519 =
+          ExtendedEd25519.precomputed().createKeyPair(entropy, password)._1
       }
 
 //    implicit def kesSumInitializer(implicit slot: Slot): KeyInitializer[SecretKeys.KesSum] =

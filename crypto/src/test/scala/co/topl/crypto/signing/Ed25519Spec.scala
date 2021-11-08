@@ -1,20 +1,26 @@
 package co.topl.crypto.signing
 
+import cats.implicits._
+import co.topl.crypto.mnemonic.Entropy
+import co.topl.crypto.mnemonic.EntropySupport._
 import co.topl.crypto.utils.Hex
 import co.topl.crypto.utils.Hex.implicits._
+import co.topl.models.ModelGenerators.arbitraryBytes
 import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
+import java.nio.charset.StandardCharsets
+
 class Ed25519Spec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
 
   property("with Ed25519, signed message should be verifiable with appropriate public key") {
-    forAll { (seed1: Bytes, seed2: Bytes, message1: Bytes, message2: Bytes) =>
-      whenever(!(seed1 == seed2) && !(message1 == message2)) {
+    forAll { (seed1: Entropy, seed2: Entropy, message1: Bytes, message2: Bytes) =>
+      whenever((seed1 =!= seed2) && !(message1 == message2)) {
         val ed25519 = new Ed25519
-        val (sk1, vk1) = ed25519.createKeyPair(seed1)
-        val (_, vk2) = ed25519.createKeyPair(seed2)
+        val (sk1, vk1) = ed25519.createKeyPair(seed1, None)
+        val (_, vk2) = ed25519.createKeyPair(seed2, None)
         val sig = ed25519.sign(sk1, message1)
 
         ed25519.verify(sig, message1, vk1) shouldBe true
@@ -24,11 +30,11 @@ class Ed25519Spec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with M
     }
   }
   property("with Ed25519, keyPairs generated with the same seed should be the same") {
-    forAll { seedBytes: Bytes =>
-      whenever(seedBytes.toArray.length != 0) {
+    forAll { entropy: Entropy =>
+      whenever(entropy.value.length != 0) {
         val ed25519 = new Ed25519
-        val keyPair1 = ed25519.createKeyPair(seedBytes)
-        val keyPair2 = ed25519.createKeyPair(seedBytes)
+        val keyPair1 = ed25519.createKeyPair(entropy, None)
+        val keyPair2 = ed25519.createKeyPair(entropy, None)
 
         keyPair1._1 === keyPair2._1 shouldBe true
         keyPair1._2 === keyPair2._2 shouldBe true
@@ -170,5 +176,21 @@ class Ed25519Spec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with M
     ed25519.verify(sig, specInMsg, specOutVk) shouldBe true
     ed25519.verify(specOutSig, specInMsg, vk) shouldBe true
     ed25519.verify(specOutSig, specInMsg, specOutVk) shouldBe true
+  }
+
+  property(
+    "Topl seed generation mechanism should generate a specific secret key given a specific entropy and password"
+  ) {
+    val e = Entropy("topl".getBytes(StandardCharsets.UTF_8))
+    val p = "topl"
+    val specOutSK =
+      SecretKeys.Ed25519("911ccb6f6e2a37ff24cac9a570ca3b8e342e20678e30d783cd3226b22b5883e2".unsafeStrictBytes)
+    val specOutVK =
+      VerificationKeys.Ed25519("c6c07e313d0c0cb8fff25e25d660580fadbff7b1afb9cdfe9ec62c9169a92014".unsafeStrictBytes)
+
+    val underTest = new Ed25519
+    val (sk, vk) = underTest.createKeyPair(e, Some(p))
+    sk shouldBe specOutSK
+    vk shouldBe specOutVK
   }
 }

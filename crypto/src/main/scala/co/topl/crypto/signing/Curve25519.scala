@@ -1,8 +1,7 @@
 package co.topl.crypto.signing
 
-import co.topl.crypto.hash.sha256
 import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.Sized
+import co.topl.models.utility.{Lengths, Sized}
 import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
 import org.whispersystems.curve25519.OpportunisticCurve25519Provider
 
@@ -13,7 +12,8 @@ class Curve25519
     extends EllipticCurveSignatureScheme[
       SecretKeys.Curve25519,
       VerificationKeys.Curve25519,
-      Proofs.Signature.Curve25519
+      Proofs.Signature.Curve25519,
+      SecretKeys.Curve25519.Length
     ] {
 
   override val SignatureLength: Int = 64
@@ -30,13 +30,13 @@ class Curve25519
     constructor.newInstance()
   }
 
-  override def createKeyPair(seed: Bytes): (SecretKeys.Curve25519, VerificationKeys.Curve25519) = {
-    val hashedSeed = sha256.hash(seed.toArray)
-    val privateKey = SecretKeys.Curve25519(Sized.strictUnsafe(Bytes(provider.generatePrivateKey(hashedSeed.value))))
+  override protected def createKeyPair(
+    seed: Sized.Strict[Bytes, SecretKeys.Curve25519.Length]
+  ): (SecretKeys.Curve25519, VerificationKeys.Curve25519) = {
+    val privateKey = SecretKeys.Curve25519(Sized.strictUnsafe(Bytes(provider.generatePrivateKey(seed.data.toArray))))
     val publicKey = VerificationKeys.Curve25519(
       Sized.strictUnsafe(Bytes(provider.generatePublicKey(privateKey.bytes.data.toArray)))
     )
-
     privateKey -> publicKey
   }
 
@@ -71,7 +71,6 @@ class Curve25519
 
   override def getVerificationKey(secretKey: SecretKeys.Curve25519): VerificationKeys.Curve25519 =
     VerificationKeys.Curve25519(Sized.strictUnsafe(Bytes(provider.generatePublicKey(secretKey.bytes.data.toArray))))
-
 }
 
 object Curve25519 {

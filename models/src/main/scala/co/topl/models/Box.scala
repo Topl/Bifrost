@@ -20,7 +20,7 @@ object Box {
     ) extends Value
 
     object Asset {
-      case class Code(version: Byte, issuer: Address, shortName: Sized.Max[Latin1Data, Lengths.`8`.type])
+      case class Code(version: Byte, issuer: DionAddress, shortName: Sized.Max[Latin1Data, Lengths.`8`.type])
     }
 
     // Note: We don't need to worry about these for phase 0

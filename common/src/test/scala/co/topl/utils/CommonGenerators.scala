@@ -3,14 +3,19 @@ package co.topl.utils
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
 import co.topl.attestation.keyManagement._
-import co.topl.crypto.Signature
+import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.crypto.signing.{Curve25519, Ed25519}
+import co.topl.crypto.mnemonic.Entropy
+import co.topl.crypto.signing.{Curve25519, Ed25519, EntropyToSeed, Password}
+import co.topl.crypto.{PrivateKey, PublicKey, Signature}
+import co.topl.models.Bytes
+import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.{Lengths, Sized}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.Box.Nonce
-import co.topl.modifier.box.{ProgramId, _}
+import co.topl.modifier.box._
 import co.topl.modifier.transaction._
 import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.codecs.implicits._
@@ -20,6 +25,7 @@ import org.scalacheck.rng.Seed
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.Suite
 
+import java.nio.charset.StandardCharsets
 import scala.collection.SortedSet
 import scala.collection.immutable.ListMap
 import scala.util.Random
@@ -492,7 +498,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
 
   lazy val keyPairSetCurve25519Gen: Gen[Set[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)]] = for {
     seqLen <- positiveTinyIntGen
-  } yield ((0 until seqLen) map { _ => sampleUntilNonEmpty(keyCurve25519Gen) }).toSet
+  } yield ((0 until seqLen) map { _ => sampleUntilNonEmpty(keyCurve25519FastGen) }).toSet
 
   lazy val attestationCurve25519Gen
     : Gen[ListMap[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]] =
@@ -540,26 +546,52 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   lazy val modifierIdGen: Gen[ModifierId] =
     Gen.listOfN(ModifierId.size, Arbitrary.arbitrary[Byte]).map(li => ModifierId.parseBytes(li.toArray).get)
 
-  lazy val keyCurve25519Gen: Gen[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] =
-    genBytesList(Curve25519.instance.KeyLength).map(s => PrivateKeyCurve25519.secretGenerator.generateSecret(s))
+  private val fastEntropyToSeed: EntropyToSeed[Lengths.`32`.type] =
+    (entropy: Entropy, password: Option[Password]) =>
+      Sized.strictUnsafe(
+        Bytes(
+          blake2b256
+            .hash(entropy.value ++ password.map(_.getBytes(StandardCharsets.UTF_8)).getOrElse(Array.emptyByteArray))
+            .value
+        )
+      )
 
-  lazy val keyEd25519Gen: Gen[(PrivateKeyEd25519, PublicKeyPropositionEd25519)] =
-    genBytesList(Ed25519.instance.KeyLength).map(s => PrivateKeyEd25519.secretGenerator.generateSecret(s))
+  lazy val keyCurve25519FastGen: Gen[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] = {
+    implicit val entropyToSeed: EntropyToSeed[Lengths.`32`.type] = fastEntropyToSeed
 
-  lazy val keyGen: Gen[(_ <: Secret, _ <: Proposition)] = Gen.oneOf(keyCurve25519Gen, keyEd25519Gen)
+    Gen.uuid.map { uuid =>
+      val (sk, pk) = Curve25519.instance.createKeyPair(Entropy.fromUuid(uuid), None)
+      val secret: PrivateKeyCurve25519 =
+        new PrivateKeyCurve25519(PrivateKey(sk.bytes.data.toArray), PublicKey(pk.bytes.data.toArray))
+      secret -> secret.publicImage
+    }
+  }
+
+  lazy val keyEd25519FastGen: Gen[(PrivateKeyEd25519, PublicKeyPropositionEd25519)] = {
+    implicit val entropyToSeed: EntropyToSeed[Lengths.`32`.type] = fastEntropyToSeed
+
+    Gen.uuid.map { uuid =>
+      val (sk, pk) = Ed25519.instance.createKeyPair(Entropy.fromUuid(uuid), None)
+      val secret =
+        new PrivateKeyEd25519(PrivateKey(sk.bytes.data.toArray), PublicKey(pk.bytes.data.toArray))
+      secret -> secret.publicImage
+    }
+  }
+
+  lazy val keyGen: Gen[(_ <: Secret, _ <: Proposition)] = Gen.oneOf(keyCurve25519FastGen, keyEd25519FastGen)
 
   lazy val publicKeyPropositionCurve25519Gen: Gen[(PrivateKeyCurve25519, PublicKeyPropositionCurve25519)] =
-    keyCurve25519Gen.map(key => key._1 -> key._2)
+    keyCurve25519FastGen.map(key => key._1 -> key._2)
 
   lazy val publicKeyPropositionEd25519Gen: Gen[(PrivateKeyEd25519, PublicKeyPropositionEd25519)] =
-    keyEd25519Gen.map(key => key._1 -> key._2)
+    keyEd25519FastGen.map(key => key._1 -> key._2)
 
   lazy val oneOfNPropositionCurve25519Gen: Gen[(Set[PrivateKeyCurve25519], ThresholdPropositionCurve25519)] = for {
     n <- positiveTinyIntGen
   } yield {
     val setOfKeys = (0 until n)
       .map { _ =>
-        val key = sampleUntilNonEmpty(keyCurve25519Gen)
+        val key = sampleUntilNonEmpty(keyCurve25519FastGen)
         (key._1, key._2)
       }
       .foldLeft((Set[PrivateKeyCurve25519](), Set[PublicKeyPropositionCurve25519]())) { (set, cur) =>
@@ -576,7 +608,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   } yield {
     val setOfKeys = (0 until numKeys)
       .map { _ =>
-        val key = sampleUntilNonEmpty(keyCurve25519Gen)
+        val key = sampleUntilNonEmpty(keyCurve25519FastGen)
         (key._1, key._2)
       }
       .foldLeft((Set[PrivateKeyCurve25519](), Set[PublicKeyPropositionCurve25519]())) { (set, cur) =>
@@ -593,8 +625,8 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   lazy val publicKeyPropositionGen: Gen[(_ <: Secret, _ <: Proposition)] =
     Gen.oneOf(publicKeyPropositionCurve25519Gen, publicKeyPropositionEd25519Gen)
 
-  lazy val propositionCurve25519Gen: Gen[PublicKeyPropositionCurve25519] = keyCurve25519Gen.map(_._2)
-  lazy val propositionEd25519Gen: Gen[PublicKeyPropositionEd25519] = keyEd25519Gen.map(_._2)
+  lazy val propositionCurve25519Gen: Gen[PublicKeyPropositionCurve25519] = keyCurve25519FastGen.map(_._2)
+  lazy val propositionEd25519Gen: Gen[PublicKeyPropositionEd25519] = keyEd25519FastGen.map(_._2)
   lazy val propositionGen: Gen[_ <: Proposition] = Gen.oneOf(propositionCurve25519Gen, propositionEd25519Gen)
 
   lazy val evidenceCurve25519Gen: Gen[Evidence] = for { address <- addressCurve25519Gen } yield address.evidence
@@ -616,7 +648,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     message <- nonEmptyBytesGen
   } yield {
     val sigs = (0 until numKeys).map { _ =>
-      val key = sampleUntilNonEmpty(keyCurve25519Gen)
+      val key = sampleUntilNonEmpty(keyCurve25519FastGen)
       key._1.sign(message)
     }.toSet
     ThresholdSignatureCurve25519(sigs)

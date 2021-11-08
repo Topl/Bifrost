@@ -51,7 +51,8 @@ object Proofs {
     case class Ed25519(signatures: Set[Signature.Ed25519]) extends Proof
   }
 
-  case class Existence(id: TypedIdentifier) extends Proof
+  // Note: Keep these proofs in mind for future development
+  // case class Existence(boxId: TypedIdentifier) extends Proof
 
   // TODO: Delete
   object Consensus {

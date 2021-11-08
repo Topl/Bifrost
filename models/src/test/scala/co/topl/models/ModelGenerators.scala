@@ -5,7 +5,7 @@ import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{Length, Lengths, Ratio, Sized}
-import org.scalacheck.Gen
+import org.scalacheck.{Arbitrary, Gen}
 import org.scalacheck.rng.Seed
 
 trait ModelGenerators {
@@ -118,6 +118,9 @@ trait ModelGenerators {
       .containerOfN[Array, Byte](l.value, byteGen)
       .map(Bytes(_))
       .map(Sized.strict[Bytes, L](_).toOption.get)
+
+  implicit val arbitraryBytes: Arbitrary[Bytes] =
+    Arbitrary(implicitly[Arbitrary[Array[Byte]]].arbitrary.map(Bytes(_)))
 
   implicit class GenHelper[T](gen: Gen[T]) {
     def first: T = gen.pureApply(Gen.Parameters.default, Seed.random())

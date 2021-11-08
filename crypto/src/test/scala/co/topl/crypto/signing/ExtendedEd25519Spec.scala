@@ -1,12 +1,16 @@
 package co.topl.crypto.signing
 
-import co.topl.crypto.mnemonic.Bip32Indexes
+import co.topl.crypto.mnemonic.EntropySupport._
+import co.topl.crypto.mnemonic.{Bip32Indexes, Entropy}
 import co.topl.crypto.utils.Hex
 import co.topl.crypto.utils.Hex.implicits._
+import co.topl.models.ModelGenerators.arbitraryBytes
 import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+
+import java.nio.charset.StandardCharsets
 
 class ExtendedEd25519Spec
     extends AnyFlatSpec
@@ -14,12 +18,14 @@ class ExtendedEd25519Spec
     with ScalaCheckDrivenPropertyChecks
     with Matchers {
 
+  private val passwordOpt: Option[Password] = None
+
   "ExtendedEd25519" should "verify a signed message using the appropriate public key" in {
-    forAll { (seed1: Bytes, seed2: Bytes, message1: Bytes, message2: Bytes) =>
-      whenever(!(seed1 == seed2) && !(message1 == message2)) {
+    forAll { (entropy1: Entropy, entropy: Entropy, message1: Bytes, message2: Bytes) =>
+      whenever(!(entropy1 == entropy) && !(message1 == message2)) {
         val extendedEd25519 = new ExtendedEd25519
-        val (sk1, vk1) = extendedEd25519.createKeyPair(seed1)
-        val (_, vk2) = extendedEd25519.createKeyPair(seed2)
+        val (sk1, vk1) = extendedEd25519.createKeyPair(entropy1, passwordOpt)
+        val (_, vk2) = extendedEd25519.createKeyPair(entropy, passwordOpt)
         val sig = extendedEd25519.sign(sk1, message1)
 
         extendedEd25519.verify(sig, message1, vk1) shouldBe true
@@ -29,24 +35,19 @@ class ExtendedEd25519Spec
     }
   }
   it should "generate identical keypairs given the same seed" in {
-    forAll { seedBytes: Bytes =>
-      whenever(seedBytes.toArray.length != 0) {
+    forAll { entropy: Entropy =>
+      whenever(entropy.value.length != 0) {
         val extendedEd25519 = new ExtendedEd25519
-        val keyPair1 = extendedEd25519.createKeyPair(seedBytes)
-        val keyPair2 = extendedEd25519.createKeyPair(seedBytes)
+        val keyPair1 = extendedEd25519.createKeyPair(entropy, passwordOpt)
+        val keyPair2 = extendedEd25519.createKeyPair(entropy, passwordOpt)
 
         keyPair1._1 === keyPair2._1 shouldBe true
         keyPair1._2 === keyPair2._2 shouldBe true
       }
     }
   }
-  it should "test vector - 1 - generate the correct master (sk,vk) from a seed with no password" in {
-    //todo: figure out if we can replicate https://github.com/cardano-foundation/CIPs/blob/master/CIP-0003/Icarus.md#test-vectors
-  }
-  it should "test vector - 2 - generate the correct master (sk,vk) from a seed including a password" in {
-    //todo: figure out if we can replicate https://github.com/cardano-foundation/CIPs/blob/master/CIP-0003/Icarus.md#test-vectors
-  }
-  it should "test vector - 3 - produce verifiable signatures with an empty message" in {
+
+  it should "test vector - 1 - produce verifiable signatures with an empty message" in {
     val extendedEd25519 = new ExtendedEd25519
     val specIn_xsk =
       SecretKeys.ExtendedEd25519(
@@ -73,7 +74,7 @@ class ExtendedEd25519Spec
     extendedEd25519.verify(specOut_sig, specIn_msg, xvk) shouldBe true
     extendedEd25519.verify(specOut_sig, specIn_msg, specOut_xvk) shouldBe true
   }
-  it should "test vector - 4 - produce verifiable signatures with a short message" in {
+  it should "test vector - 2 - produce verifiable signatures with a short message" in {
     val extendedEd25519 = new ExtendedEd25519
     val specIn_xsk =
       SecretKeys.ExtendedEd25519(
@@ -100,7 +101,7 @@ class ExtendedEd25519Spec
     extendedEd25519.verify(specOut_sig, specIn_msg, xvk) shouldBe true
     extendedEd25519.verify(specOut_sig, specIn_msg, specOut_xvk) shouldBe true
   }
-  it should "test vector - 5 - produce verifiable signatures with a long message" in {
+  it should "test vector - 3 - produce verifiable signatures with a long message" in {
     val extendedEd25519 = new ExtendedEd25519
     val specIn_xsk =
       SecretKeys.ExtendedEd25519(
@@ -149,7 +150,7 @@ class ExtendedEd25519Spec
     extendedEd25519.verify(specOut_sig, specIn_msg, xvk) shouldBe true
     extendedEd25519.verify(specOut_sig, specIn_msg, specOut_xvk) shouldBe true
   }
-  it should "test vector - 6 - derive the correct child (sk,vk) using path m/0" in {
+  it should "test vector - 4 - derive the correct child (sk,vk) using path m/0" in {
     val extendedEd25519 = new ExtendedEd25519()
     val specIn_derivationPath = Vector(Bip32Indexes.SoftIndex(0))
     val specIn_master_xsk =
@@ -186,7 +187,7 @@ class ExtendedEd25519Spec
     child_xvk shouldBe specOut_child_xvk
     child_xvk shouldBe child_xvk_fromSecret
   }
-  it should "test vector - 7 - derive the correct child (sk,vk) using path m/1" in {
+  it should "test vector - 5 - derive the correct child (sk,vk) using path m/1" in {
     val extendedEd25519 = new ExtendedEd25519()
     val specIn_derivationPath = Vector(Bip32Indexes.SoftIndex(1))
     val specIn_master_xsk =
@@ -223,7 +224,7 @@ class ExtendedEd25519Spec
     child_xvk shouldBe specOut_child_xvk
     child_xvk shouldBe child_xvk_fromSecret
   }
-  it should "test vector - 8 - derive the correct child (sk,vk) using path m/2" in {
+  it should "test vector - 6 - derive the correct child (sk,vk) using path m/2" in {
     val extendedEd25519 = new ExtendedEd25519()
     val specIn_derivationPath = Vector(Bip32Indexes.SoftIndex(2))
     val specIn_master_xsk =
@@ -260,7 +261,7 @@ class ExtendedEd25519Spec
     child_xvk shouldBe specOut_child_xvk
     child_xvk shouldBe child_xvk_fromSecret
   }
-  it should "test vector - 9 - derive the correct child (sk,vk) using path m/0`" in {
+  it should "test vector - 7 - derive the correct child (sk,vk) using path m/0`" in {
     val extendedEd25519 = new ExtendedEd25519()
     val specIn_derivationPath = Vector(Bip32Indexes.HardenedIndex(0))
     val specIn_master_xsk =
@@ -289,7 +290,7 @@ class ExtendedEd25519Spec
     child_xsk shouldBe specOut_child_xsk
     child_xvk_fromSecret shouldBe specOut_child_xvk
   }
-  it should "test vector - 10 - derive the correct child (sk,vk) using path m/0`/100`" in {
+  it should "test vector - 8 - derive the correct child (sk,vk) using path m/0`/100`" in {
     val extendedEd25519 = new ExtendedEd25519()
     val specIn_derivationPath =
       Vector(Bip32Indexes.HardenedIndex(0), Bip32Indexes.HardenedIndex(100))
@@ -319,7 +320,7 @@ class ExtendedEd25519Spec
     child_xsk shouldBe specOut_child_xsk
     child_xvk_fromSecret shouldBe specOut_child_xvk
   }
-  it should "test vector - 11 - derive the correct child (sk,vk) using path m/0`/100`/55" in {
+  it should "test vector - 9 - derive the correct child (sk,vk) using path m/0`/100`/55" in {
     val extendedEd25519 = new ExtendedEd25519()
     val specIn_derivationPath =
       Vector(Bip32Indexes.HardenedIndex(0), Bip32Indexes.HardenedIndex(100), Bip32Indexes.SoftIndex(55))
@@ -349,7 +350,7 @@ class ExtendedEd25519Spec
     child_xsk shouldBe specOut_child_xsk
     child_xvk_fromSecret shouldBe specOut_child_xvk
   }
-  it should "test vector - 12 - derive the correct child (sk,vk) using path m/1852`/7091`/0`/0`" in {
+  it should "test vector - 10 - derive the correct child (sk,vk) using path m/1852`/7091`/0`/0`" in {
     val extendedEd25519 = new ExtendedEd25519()
     val specIn_derivationPath =
       Vector(
@@ -384,7 +385,7 @@ class ExtendedEd25519Spec
     child_xsk shouldBe specOut_child_xsk
     child_xvk_fromSecret shouldBe specOut_child_xvk
   }
-  it should "test vector - 13 - derive the correct child (sk,vk) using path m/1852`/7091`/0`/0`/0" in {
+  it should "test vector - 11 - derive the correct child (sk,vk) using path m/1852`/7091`/0`/0`/0" in {
     val extendedEd25519 = new ExtendedEd25519()
     val specIn_derivationPath =
       Vector(
@@ -419,5 +420,27 @@ class ExtendedEd25519Spec
 
     child_xsk shouldBe specOut_child_xsk
     child_xvk_fromSecret shouldBe specOut_child_xvk
+  }
+
+  it should
+  "Topl seed generation mechanism should generate a specific secret key given a specific entropy and password" in {
+    val e = Entropy("topl".getBytes(StandardCharsets.UTF_8))
+    val p = "topl"
+    val specOutSK =
+      SecretKeys.ExtendedEd25519(
+        "d8f0ad4d22ec1a143905af150e87c7f0dadd13749ef56fbd1bb380c37bc18c58".unsafeStrictBytes,
+        "a900381746984a637dd3fa454419a6d560d14d4142921895575f406c9ad8d92d".unsafeStrictBytes,
+        "cd07b700697afb30785ac4ab0ca690fd87223a12a927b4209ecf2da727ecd039".unsafeStrictBytes
+      )
+    val specOutVK =
+      VerificationKeys.ExtendedEd25519(
+        VerificationKeys.Ed25519("e684c4a4442a9e256b18460b74e0bdcd1c4c9a7f4c504e8555670f69290f142d".unsafeStrictBytes),
+        "cd07b700697afb30785ac4ab0ca690fd87223a12a927b4209ecf2da727ecd039".unsafeStrictBytes
+      )
+
+    val underTest = new ExtendedEd25519
+    val (sk, vk) = underTest.createKeyPair(e, Some(p))
+    sk shouldBe specOutSK
+    vk shouldBe specOutVK
   }
 }
