@@ -15,12 +15,15 @@ import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.mongodb.codecs._
 import co.topl.utils.mongodb.implicits._
 import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataModel, UnconfirmedTransactionDataModel}
+import com.mongodb.client.result.{DeleteResult, InsertManyResult}
+import org.bson.BsonValue
 import org.mongodb.scala.bson.Document
-import org.mongodb.scala.result.{DeleteResult, InsertManyResult}
 import org.slf4j.Logger
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success}
+
 
 /**
  * Chain replicator listens to info about new blocks from NodeViewHolder and updates the AppView with new blocks
@@ -208,9 +211,11 @@ private class ChainReplicator(
           case Success(res) =>
             log.info(
               s"${Console.GREEN}Added a block and ${res._2.getInsertedIds.size()} " +
-              s"transactions to appView at height: ${block.height}\n" +
-              s"Added ${res._3.getInsertedIds.size()} transactions and removed ${res._4.getDeletedCount} " +
-              s"transactions from the unconfirmed transactions in appView${Console.RESET}"
+              s"transactions to appView at height: ${block.height}${Console.RESET}"
+            )
+            log.info(
+              s"${Console.GREEN}Added ${res._3.getInsertedIds.size()} transactions and removed " +
+              s"${res._4.getDeletedCount} transactions from the unconfirmed transactions in appView${Console.RESET}"
             )
           case Failure(err) =>
             log.error(s"${Console.RED}$err${Console.RESET}")
@@ -253,7 +258,10 @@ private class ChainReplicator(
    */
   private def exportUnconfirmedTxs(txs: Seq[Transaction.TX]): Future[InsertManyResult] = {
     implicit val ec: ExecutionContext = context.executionContext
-    insertDB(txs.map(tx => UnconfirmedTransactionDataModel(tx).asDocument), settings.unconfirmedTxCollection)
+    if (txs.nonEmpty)
+      insertDB(txs.map(tx => UnconfirmedTransactionDataModel(tx).asDocument), settings.unconfirmedTxCollection)
+    else
+      Future.successful(InsertManyResult.acknowledged(Map[Integer, BsonValue]().asJava))
   }
 
   /**
@@ -321,6 +329,11 @@ private class ChainReplicator(
         unconfirmedTxDB.contains(tx.id.toString)
       }
       .toSeq
+    
+    //TODO: Jing - cleanup
+    println(s"${Console.GREEN_B}$unconfirmedTxDB${Console.RESET}")
+    println(s"${Console.GREEN_B}$toInsert${Console.RESET}")
+    println(s"${Console.GREEN_B}$toRemove${Console.RESET}")
     (toInsert, toRemove)
   }
 
