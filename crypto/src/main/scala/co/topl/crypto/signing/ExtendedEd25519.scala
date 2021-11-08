@@ -2,6 +2,7 @@ package co.topl.crypto.signing
 
 import co.topl.crypto.Pbkdf2Sha512
 import co.topl.crypto.mnemonic.{Bip32Index, Bip32Indexes, Entropy}
+import co.topl.models.SecretKeys.ExtendedEd25519.Length
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.{Lengths, Sized}
@@ -26,11 +27,21 @@ class ExtendedEd25519
   override val KeyLength: Int = impl.SECRET_KEY_SIZE
   val PublicKeyLength: Int = impl.PUBLIC_KEY_SIZE
 
-  def createKeyPair[T](
-    t:      T,
-    toSeed: T => Sized.Strict[Bytes, Lengths.`96`.type]
+  /**
+   * Warning: The provided entropyToSeed is ignored in order to guarantee adherence to BIP32-Ed25519 Icarus Derivation
+   * @param entropyToSeed Ignored
+   * @return
+   */
+  override def createKeyPair(entropy: Entropy, password: Option[Password])(implicit
+    entropyToSeed:                    EntropyToSeed[Length]
   ): (SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519) = {
-    val seed = toSeed(t)
+    val seed = EntropyToSeed.instances.pbkdf2Sha512[SecretKeys.ExtendedEd25519.Length].toSeed(entropy, password)
+    createKeyPair(seed)
+  }
+
+  override protected def createKeyPair(
+    seed: Sized.Strict[Bytes, Lengths.`96`.type]
+  ): (SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519) = {
     val sk = ExtendedEd25519.clampBits(seed)
     val vk = getVerificationKey(sk)
     (sk, vk)

@@ -10,6 +10,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
+import java.nio.charset.StandardCharsets
+
 class ExtendedEd25519Spec
     extends AnyFlatSpec
     with ScalaCheckPropertyChecks
@@ -418,5 +420,27 @@ class ExtendedEd25519Spec
 
     child_xsk shouldBe specOut_child_xsk
     child_xvk_fromSecret shouldBe specOut_child_xvk
+  }
+
+  it should
+  "Topl seed generation mechanism should generate a specific secret key given a specific entropy and password" in {
+    val e = Entropy("topl".getBytes(StandardCharsets.UTF_8))
+    val p = "topl"
+    val specOutSK =
+      SecretKeys.ExtendedEd25519(
+        "d8f0ad4d22ec1a143905af150e87c7f0dadd13749ef56fbd1bb380c37bc18c58".unsafeStrictBytes,
+        "a900381746984a637dd3fa454419a6d560d14d4142921895575f406c9ad8d92d".unsafeStrictBytes,
+        "cd07b700697afb30785ac4ab0ca690fd87223a12a927b4209ecf2da727ecd039".unsafeStrictBytes
+      )
+    val specOutVK =
+      VerificationKeys.ExtendedEd25519(
+        VerificationKeys.Ed25519("e684c4a4442a9e256b18460b74e0bdcd1c4c9a7f4c504e8555670f69290f142d".unsafeStrictBytes),
+        "cd07b700697afb30785ac4ab0ca690fd87223a12a927b4209ecf2da727ecd039".unsafeStrictBytes
+      )
+
+    val underTest = new ExtendedEd25519
+    val (sk, vk) = underTest.createKeyPair(e, Some(p))
+    sk shouldBe specOutSK
+    vk shouldBe specOutVK
   }
 }

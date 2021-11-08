@@ -19,11 +19,9 @@ class Ed25519VRF
   override val SignatureLength: Int = impl.SIGNATURE_SIZE
   override val KeyLength: Int = impl.SECRET_KEY_SIZE
 
-  def createKeyPair[T](
-    t:      T,
-    toSeed: T => Sized.Strict[Bytes, Lengths.`32`.type]
+  override protected def createKeyPair(
+    seed: Sized.Strict[Bytes, SecretKeys.VrfEd25519.Length]
   ): (SecretKeys.VrfEd25519, VerificationKeys.VrfEd25519) = {
-    val seed = toSeed(t)
     val sk = new Array[Byte](impl.SECRET_KEY_SIZE)
     val pk = new Array[Byte](impl.PUBLIC_KEY_SIZE)
 

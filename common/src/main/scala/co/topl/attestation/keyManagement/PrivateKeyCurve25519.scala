@@ -4,7 +4,7 @@ import cats.implicits._
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.crypto.implicits._
 import co.topl.crypto.mnemonic.Entropy
-import co.topl.crypto.signing.{Curve25519, MessageToSign, Seed}
+import co.topl.crypto.signing.Curve25519
 import co.topl.crypto.{PrivateKey, PublicKey, Signature}
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized

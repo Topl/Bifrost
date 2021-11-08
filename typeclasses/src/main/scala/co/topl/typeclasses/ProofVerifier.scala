@@ -148,16 +148,6 @@ object ProofVerifier {
           }
       }
 
-    implicit val existence: ProofVerifier[Proofs.Existence, Propositions.Existence] =
-      new ProofVerifier[Proofs.Existence, Propositions.Existence] {
-
-        override def verifyWith[Data: Signable](
-          proof:       Proofs.Existence,
-          proposition: Propositions.Existence,
-          data:        Data
-        ): Boolean = true // TODO
-      }
-
     implicit val signatureVrfEd25519: ProofVerifier[Proofs.Signature.VrfEd25519, Propositions.VerificationKeyVRF] =
       new ProofVerifier[Proofs.Signature.VrfEd25519, Propositions.VerificationKeyVRF] {
 

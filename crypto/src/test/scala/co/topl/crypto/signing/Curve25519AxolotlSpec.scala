@@ -13,6 +13,8 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import co.topl.crypto.mnemonic.EntropySupport._
 import cats.implicits._
 
+import java.nio.charset.StandardCharsets
+
 /**
  * Test vectors available at https://github.com/Topl/reference_crypto/tree/main/specs/crypto/signing/Curve25519-Axolotl
  */
@@ -189,5 +191,21 @@ class Curve25519AxolotlSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChe
     curve25519.verify(sig, specInMsg, specOutVk) shouldBe true
     curve25519.verify(specOutSig, specInMsg, vk) shouldBe true
     curve25519.verify(specOutSig, specInMsg, specOutVk) shouldBe true
+  }
+
+  property(
+    "Topl seed generation mechanism should generate a specific secret key given a specific entropy and password"
+  ) {
+    val e = Entropy("topl".getBytes(StandardCharsets.UTF_8))
+    val p = "topl"
+    val specOutSK =
+      SecretKeys.Curve25519("d8f0ad4d22ec1a143905af150e87c7f0dadd13749ef56fbd1bb380c37bc18c78".unsafeStrictBytes)
+    val specOutVK =
+      VerificationKeys.Curve25519("6f7ba13496617a75044a201608d7b96ee56f43ccbb2acd21aa5ccf9ab2bbc544".unsafeStrictBytes)
+
+    val underTest = new Curve25519
+    val (sk, vk) = underTest.createKeyPair(e, Some(p))
+    sk shouldBe specOutSK
+    vk shouldBe specOutVK
   }
 }

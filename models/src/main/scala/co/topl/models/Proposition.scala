@@ -24,7 +24,10 @@ object Propositions {
     }
   }
 
-  case class Existence() extends Proposition
+  // Note: Keep these propositions in mind for future development
+  //  case class Existence(boxIdHash: Digest32) extends Proposition
+  //  case class Timelock(height: Long) extends Proposition
+  //  case class And(a: Proposition, b: Proposition) extends Proposition
 
   // TODO: Delete
   case class VerificationKeyVRF(key: VerificationKeys.VrfEd25519) extends Proposition

@@ -1,7 +1,7 @@
 package co.topl.crypto.signing
 
 import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.{Lengths, Sized}
+import co.topl.models.utility.Sized
 import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
 
 class Ed25519
@@ -9,7 +9,7 @@ class Ed25519
       SecretKeys.Ed25519,
       VerificationKeys.Ed25519,
       Proofs.Signature.Ed25519,
-      Lengths.`32`.type
+      SecretKeys.Ed25519.Length
     ] {
   private val impl = new eddsa.Ed25519
   impl.precompute()
@@ -17,11 +17,9 @@ class Ed25519
   override val SignatureLength: Int = impl.SIGNATURE_SIZE
   override val KeyLength: Int = impl.SECRET_KEY_SIZE
 
-  def createKeyPair[T](
-    t:      T,
-    toSeed: T => Sized.Strict[Bytes, Lengths.`32`.type]
+  override protected def createKeyPair(
+    seed: Sized.Strict[Bytes, SecretKeys.Ed25519.Length]
   ): (SecretKeys.Ed25519, VerificationKeys.Ed25519) = {
-    val seed = toSeed(t)
     val sk = new Array[Byte](impl.SECRET_KEY_SIZE)
     val pk = new Array[Byte](impl.PUBLIC_KEY_SIZE)
 
