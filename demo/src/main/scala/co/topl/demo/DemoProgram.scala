@@ -6,7 +6,7 @@ import cats.implicits._
 import cats.{Monad, MonadError, Parallel, Show}
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras.{ClockAlgebra, ConsensusState, Store}
-import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, EtaCalculationAlgebra}
+import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, EtaCalculationAlgebra, LocalChainAlgebra}
 import co.topl.consensus.{BlockHeaderValidationFailure, LocalChain, SlotData}
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.algebras.{BlockMintAlgebra, VrfProofAlgebra}
@@ -29,7 +29,7 @@ object DemoProgram {
     headerStore:      Store[F, BlockHeaderV2],
     blockStore:       Store[F, BlockV2],
     etaCalculation:   EtaCalculationAlgebra[F],
-    localChain:       LocalChain[F]
+    localChain:       LocalChainAlgebra[F]
   ): F[Unit] =
     for {
       ed25519VrfRef <- Ref.of[F, Ed25519VRF](Ed25519VRF.precomputed())
@@ -70,7 +70,7 @@ object DemoProgram {
     headerStore:      Store[F, BlockHeaderV2],
     blockStore:       Store[F, BlockV2],
     etaCalculation:   EtaCalculationAlgebra[F],
-    localChain:       LocalChain[F],
+    localChain:       LocalChainAlgebra[F],
     ed25519VrfRef:    Ref[F, Ed25519VRF]
   ): F[Unit] =
     for {
@@ -98,7 +98,7 @@ object DemoProgram {
     boundary:       ClockAlgebra.EpochBoundary,
     headerStore:    Store[F, BlockHeaderV2],
     vrfProofs:      List[VrfProofAlgebra[F]],
-    localChain:     LocalChain[F],
+    localChain:     LocalChainAlgebra[F],
     etaCalculation: EtaCalculationAlgebra[F]
   ): F[Unit] =
     for {
@@ -122,7 +122,7 @@ object DemoProgram {
     headerValidation: BlockHeaderValidationAlgebra[F],
     headerStore:      Store[F, BlockHeaderV2],
     blockStore:       Store[F, BlockV2],
-    localChain:       LocalChain[F],
+    localChain:       LocalChainAlgebra[F],
     ed25519VrfRef:    Ref[F, Ed25519VRF]
   ): F[Unit] =
     fromSlot
@@ -144,7 +144,7 @@ object DemoProgram {
     headerValidation: BlockHeaderValidationAlgebra[F],
     headerStore:      Store[F, BlockHeaderV2],
     blockStore:       Store[F, BlockV2],
-    localChain:       LocalChain[F],
+    localChain:       LocalChainAlgebra[F],
     ed25519VrfRef:    Ref[F, Ed25519VRF]
   ): F[Unit] =
     for {
@@ -170,7 +170,7 @@ object DemoProgram {
     nextBlock:        BlockV2,
     headerValidation: BlockHeaderValidationAlgebra[F],
     blockStore:       Store[F, BlockV2],
-    localChain:       LocalChain[F],
+    localChain:       LocalChainAlgebra[F],
     ed25519VrfRef:    Ref[F, Ed25519VRF],
     canonicalHead:    BlockHeaderV2
   ): F[Unit] =
