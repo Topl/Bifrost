@@ -2,7 +2,7 @@ package co.topl.attestation.keyManagement
 
 import cats.data.Validated.{Invalid, Valid}
 import co.topl.attestation.Address
-import co.topl.utils.codecs._
+import co.topl.codecs._
 import co.topl.attestation.AddressCodec.implicits._
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.NetworkType.NetworkPrefix

@@ -5,7 +5,7 @@ import akka.actor._
 import akka.util.Timeout
 import cats.data.EitherT
 import cats.implicits._
-import co.topl.utils.codecs._
+import co.topl.codecs._
 import co.topl.attestation.AddressCodec.implicits._
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}

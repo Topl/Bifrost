@@ -2,17 +2,12 @@ package co.topl.attestation
 
 import cats.implicits.toShow
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519, Secret}
+import co.topl.codecs.binary.legacy.attestation.ProofSerializer
+import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
 import co.topl.crypto.signatures.{Curve25519, Ed25519, Signature}
-import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
-import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.StringDataTypes.implicits.showBase58String
-import co.topl.utils.codecs._
-import co.topl.utils.codecs.binary.legacy.BifrostSerializer
-import co.topl.utils.codecs.binary.legacy.attestation.ProofSerializer
-import co.topl.utils.codecs.binary.typeclasses.Transmittable
+import co.topl.utils.StringDataTypes.Base16Data
+import co.topl.utils.StringDataTypes.implicits.showBase16String
 import com.google.common.primitives.Ints
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 
 import scala.util.Try
 
@@ -22,21 +17,28 @@ import scala.util.Try
  *
  * A proof is non-interactive and thus serializable
  */
-sealed trait Proof[P <: Proposition] {
+sealed trait Proof[P <: Proposition] extends BytesSerializable {
 
   def isValid(proposition: P, message: Array[Byte]): Boolean
 
-  def serializer: BifrostSerializer[Proof[_]] = ProofSerializer
+  @deprecated
+  type M = Proof[_ <: Proposition]
 
-  override def toString: String = Transmittable[Proof[_]].transmittableBase58(this).show
+  @deprecated
+  override def serializer: BifrostSerializer[Proof[_ <: Proposition]] = ProofSerializer
 
+  @deprecated
+  override def toString: String = Base16Data.fromData(bytes).show
+
+  @deprecated
   override def equals(obj: Any): Boolean = obj match {
     case pr: Proof[_] =>
-      Transmittable[Proof[_]].transmittableBytes(this) sameElements Transmittable[Proof[_]].transmittableBytes(pr)
+      bytes sameElements pr.bytes
     case _ => false
   }
 
-  override def hashCode(): Int = Ints.fromByteArray(Transmittable[Proof[_]].transmittableBytes(this))
+  @deprecated
+  override def hashCode(): Int = Ints.fromByteArray(bytes)
 
 }
 
@@ -47,12 +49,9 @@ object Proof {
   case class ProofParseFailure(error: Throwable) extends ProofFromDataError
   case class ParsedIncorrectSignatureType() extends ProofFromDataError
 
-  implicit def jsonEncoder[P <: Proposition]: Encoder[Proof[P]] = value =>
-    Transmittable[Proof[_]].transmittableBase58(value).asJson
-
-  implicit def jsonDecoder: Decoder[Proof[_]] =
-    Decoder[Base58Data].emap(data => data.decodeTransmitted[Proof[_]])
 }
+
+trait ProofInstances {}
 
 /** The proof for a given type of `Secret` and `KnowledgeProposition` */
 sealed trait ProofOfKnowledge[S <: Secret, P <: KnowledgeProposition[S]] extends Proof[P]
@@ -89,16 +88,6 @@ object SignatureCurve25519 {
   lazy val genesis: SignatureCurve25519 =
     SignatureCurve25519(Signature(Array.fill(SignatureCurve25519.signatureSize)(1: Byte)))
 
-  // see circe documentation for custom encoder / decoders
-  // https://circe.github.io/circe/codecs/custom-codecs.html
-  implicit val jsonEncoder: Encoder[SignatureCurve25519] = _.transmittableBase58.asJson
-  implicit val jsonKeyEncoder: KeyEncoder[SignatureCurve25519] = _.transmittableBase58.show
-
-  implicit val jsonDecoder: Decoder[SignatureCurve25519] =
-    Decoder[Base58Data].emap(_.value.decodeTransmitted[SignatureCurve25519])
-
-  implicit val jsonKeyDecoder: KeyDecoder[SignatureCurve25519] =
-    KeyDecoder[Base58Data].map(_.value.decodeTransmitted[SignatureCurve25519].getOrThrow())
 }
 
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
@@ -143,17 +132,6 @@ object ThresholdSignatureCurve25519 {
     Set[SignatureCurve25519](SignatureCurve25519(Signature(Array.fill(SignatureCurve25519.signatureSize)(1: Byte))))
   )
 
-  // see circe documentation for custom encoder / decoders
-  // https://circe.github.io/circe/codecs/custom-codecs.html
-  implicit val jsonEncoder: Encoder[ThresholdSignatureCurve25519] = _.transmittableBase58.asJson
-
-  implicit val jsonKeyEncoder: KeyEncoder[ThresholdSignatureCurve25519] = _.transmittableBase58.show
-
-  implicit val jsonDecoder: Decoder[ThresholdSignatureCurve25519] =
-    Decoder[Base58Data].emap(_.value.decodeTransmitted[ThresholdSignatureCurve25519])
-
-  implicit val jsonKeyDecoder: KeyDecoder[ThresholdSignatureCurve25519] =
-    KeyDecoder[Base58Data].map(_.value.decodeTransmitted[ThresholdSignatureCurve25519].getOrThrow())
 }
 
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
@@ -183,14 +161,4 @@ object SignatureEd25519 {
   lazy val genesis: SignatureEd25519 =
     SignatureEd25519(Signature(Array.fill(SignatureEd25519.signatureSize)(1: Byte)))
 
-  // see circe documentation for custom encoder / decoders
-  // https://circe.github.io/circe/codecs/custom-codecs.html
-  implicit val jsonEncoder: Encoder[SignatureEd25519] = _.transmittableBase58.asJson
-  implicit val jsonKeyEncoder: KeyEncoder[SignatureEd25519] = _.transmittableBase58.show
-
-  implicit val jsonDecoder: Decoder[SignatureEd25519] =
-    Decoder[Base58Data].emap(_.value.decodeTransmitted[SignatureEd25519])
-
-  implicit val jsonKeyDecoder: KeyDecoder[SignatureEd25519] =
-    KeyDecoder[Base58Data].map(_.value.decodeTransmitted[SignatureEd25519].getOrThrow())
 }

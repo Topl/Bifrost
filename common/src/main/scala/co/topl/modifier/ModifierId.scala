@@ -10,31 +10,39 @@ import co.topl.modifier.transaction.Transaction
 import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.StringDataTypes.implicits._
-import co.topl.utils.codecs._
-import co.topl.utils.codecs.binary.legacy.BifrostSerializer
-import co.topl.utils.codecs.binary.legacy.modifier.ModifierIdSerializer
+import co.topl.codecs._
+import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
+import co.topl.codecs.binary.legacy.modifier.ModifierIdSerializer
+import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 
-case class ModifierId(value: Array[Byte]) {
+case class ModifierId(value: Array[Byte]) extends BytesSerializable {
 
   require(value.length == ModifierId.size, s"Invalid size for ModifierId")
 
-  lazy val serializer: BifrostSerializer[ModifierId] = ModifierIdSerializer
+  @deprecated
+  type M = ModifierId
+
+  @deprecated
+  override def serializer: BifrostSerializer[ModifierId] = ModifierIdSerializer
 
   def getIdBytes: Array[Byte] = value.tail
 
   def getModType: ModifierTypeId = ModifierTypeId(value.head)
 
+  @deprecated
   override def hashCode: Int = Ints.fromByteArray(value)
 
+  @deprecated
   override def equals(obj: Any): Boolean = obj match {
     case mId: ModifierId => mId.value sameElements value
     case _               => false
   }
 
-  override def toString: String = value.encodeAsBase58.show
+  @deprecated
+  override def toString: String = Base58.encode(bytes)
 }
 
 object ModifierId {
@@ -49,15 +57,6 @@ object ModifierId {
 
   sealed trait CreateModifierIdFailure
   case object InvalidModifierFailure extends CreateModifierIdFailure
-
-  implicit val jsonEncoder: Encoder[ModifierId] = _.transmittableBase58.asJson
-  implicit val jsonKeyEncoder: KeyEncoder[ModifierId] = _.transmittableBase58.show
-
-  implicit val jsonDecoder: Decoder[ModifierId] =
-    Decoder[Base58Data].emap(_.decodeTransmitted[ModifierId])
-
-  implicit val jsonKeyDecoder: KeyDecoder[ModifierId] =
-    KeyDecoder[Base58Data].map(_.decodeTransmitted[ModifierId].getOrThrow())
 
   /**
    * Creates a modifier ID from a node view modifier.

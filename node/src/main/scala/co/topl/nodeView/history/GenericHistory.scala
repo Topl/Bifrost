@@ -7,7 +7,7 @@ import co.topl.modifier.block.PersistentNodeViewModifier
 import co.topl.network.message.SyncInfo
 import co.topl.nodeView.NodeViewComponent
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.codecs._
+import co.topl.codecs._
 
 import scala.util.Try
 

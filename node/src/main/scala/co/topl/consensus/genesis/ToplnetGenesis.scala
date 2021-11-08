@@ -9,7 +9,7 @@ import co.topl.modifier.box.SimpleValue
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.codecs.binary._
+import co.topl.codecs.binary._
 import co.topl.utils.{Int128, NetworkType}
 
 import scala.collection.immutable.ListMap

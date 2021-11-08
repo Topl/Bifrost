@@ -13,7 +13,7 @@ import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import co.topl.utils.codecs._
+import co.topl.codecs._
 
 import scala.collection.immutable.ListMap
 

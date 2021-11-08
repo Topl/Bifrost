@@ -19,11 +19,4 @@ object AssetBox {
   implicit val identifier: Identifiable[AssetBox] = Identifiable.instance { () =>
     Identifier(typeString, typePrefix)
   }
-
-  implicit val jsonEncoder: Encoder[AssetBox] = (box: AssetBox) => Box.jsonEncode[AssetValue, AssetBox](box).asJson
-
-  implicit val jsonDecoder: Decoder[AssetBox] = (c: HCursor) =>
-    Box.jsonDecode[AssetValue](c).map { case (evidence, nonce, value) =>
-      AssetBox(evidence, nonce, value)
-    }
 }

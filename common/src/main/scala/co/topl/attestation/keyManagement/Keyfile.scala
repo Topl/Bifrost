@@ -4,8 +4,8 @@ import cats.data.Validated.{Invalid, Valid}
 import co.topl.attestation.Address
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Latin1Data
-import io.circe.Encoder
-import io.circe.syntax.EncoderOps
+import io.circe.{Codec, Decoder, Encoder}
+import io.circe.syntax._
 
 import java.io.{BufferedWriter, FileWriter}
 import java.time.Instant
@@ -88,10 +88,4 @@ trait KeyfileCompanion[S <: Secret, KF <: Keyfile[S]] {
   def readFile(filename: String)(implicit networkPrefix: NetworkPrefix): KF
 }
 
-object Keyfile {
-
-  implicit def jsonEncoder[KF <: Keyfile[_]]: Encoder[KF] = {
-    case kfc: KeyfileCurve25519 => KeyfileCurve25519.jsonEncoder(kfc)
-    case kfe: KeyfileEd25519    => KeyfileEd25519.jsonEncoder(kfe)
-  }
-}
+object Keyfile {}

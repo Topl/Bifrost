@@ -5,12 +5,12 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.Box
 import co.topl.modifier.transaction.Transaction.TX
-import co.topl.utils.codecs.binary.typeclasses.Persistable
+import co.topl.codecs.binary.typeclasses.Persistable
 import co.topl.utils.{FileUtils, NodeGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-import co.topl.utils.codecs._
+import co.topl.codecs._
 
 import java.io.File
 

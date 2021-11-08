@@ -16,7 +16,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import scodec.bits.ByteOrdering
 import scodec.bits.ByteOrdering.LittleEndian
-import co.topl.utils.codecs.binary._
+import co.topl.codecs.binary._
 
 // Test Vectors:
 // https://topl.atlassian.net/wiki/spaces/Bifrost/pages/294813812/HD+Wallet+Protocols+and+Test+Vectors

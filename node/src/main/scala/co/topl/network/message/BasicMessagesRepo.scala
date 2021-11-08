@@ -7,9 +7,9 @@ import co.topl.network.message.Message.MessageCode
 import co.topl.network.peer.{PeerFeature, PeerSpec, PeerSpecSerializer}
 import co.topl.utils.Extensions._
 import co.topl.utils.Logging
-import co.topl.utils.codecs.binary.legacy.modifier.ModifierIdSerializer
-import co.topl.utils.codecs.binary.legacy.{Reader, Writer}
-import co.topl.utils.codecs._
+import co.topl.codecs.binary.legacy.modifier.ModifierIdSerializer
+import co.topl.codecs.binary.legacy.{Reader, Writer}
+import co.topl.codecs._
 
 /** Sequence of modifiers to send to the remote peer */
 case class ModifiersData(typeId: ModifierTypeId, modifiers: Map[ModifierId, Array[Byte]])

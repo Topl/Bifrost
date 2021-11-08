@@ -21,7 +21,7 @@ import com.oracle.js.parser.{
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
-import co.topl.utils.codecs._
+import co.topl.codecs._
 import co.topl.utils.IdiomaticScalaTransition.implicits._
 
 import java.nio.file.{Files, Path}
@@ -338,7 +338,7 @@ object ProgramPreprocessor {
       "interface" -> p.interface.map(a => a._1 -> a._2.map(_.asJson).asJson).asJson,
       "variables" -> p.variables.asJson,
       "code"      -> p.code.map(a => a._1 -> a._2).asJson,
-      "signed"    -> p.signed.map(pair => pair._1.toString -> pair._2.toString).asJson
+      "signed"    -> p.signed.map(pair => pair._1 -> pair._2).asJson
     ).asJson
 
   implicit val decodeTerms: Decoder[ProgramPreprocessor] = (c: HCursor) =>

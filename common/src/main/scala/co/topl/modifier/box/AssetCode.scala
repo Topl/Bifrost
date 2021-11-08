@@ -3,13 +3,10 @@ package co.topl.modifier.box
 import co.topl.attestation.Address
 import co.topl.modifier.box.AssetCode.AssetCodeVersion
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
-import co.topl.utils.codecs.binary.legacy.modifier.box.AssetCodeSerializer
-import co.topl.utils.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
-import co.topl.utils.codecs.json._
+import co.topl.codecs.binary.legacy.modifier.box.AssetCodeSerializer
+import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 
 import scala.util.{Failure, Success}
 
@@ -42,15 +39,4 @@ object AssetCode {
   type AssetCodeVersion = Byte
 
   val shortNameLimit = 8 // limit to the asset shortName is 8 Latin-1 encoded characters
-
-  implicit val jsonEncoder: Encoder[AssetCode] = (ac: AssetCode) => ac.toString.asJson
-  implicit val jsonKeyEncoder: KeyEncoder[AssetCode] = (ac: AssetCode) => ac.toString
-
-  implicit val jsonDecoder: Decoder[AssetCode] = Decoder[Base58Data].map(fromBase58)
-  implicit val jsonKeyDecoder: KeyDecoder[AssetCode] = KeyDecoder[Base58Data].map(fromBase58)
-
-  private def fromBase58(data: Base58Data): AssetCode = AssetCodeSerializer.parseBytes(data.value) match {
-    case Success(ec)  => ec
-    case Failure(err) => throw err
-  }
 }

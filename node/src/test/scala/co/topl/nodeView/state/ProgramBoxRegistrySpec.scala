@@ -5,7 +5,7 @@
 //import co.topl.utils.GeneratorOps.GeneratorOps
 //import io.circe.Json
 //import io.circe.syntax._
-//import co.topl.utils.codecs._
+//import co.topl.codecs._
 //
 //class ProgramBoxRegistrySpec extends MockState {
 //

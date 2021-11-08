@@ -17,11 +17,11 @@ import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.codecs.binary.legacy.modifier.ModifierIdSerializer
-import co.topl.utils.codecs.binary.legacy.modifier.box.BoxSerializer
+import co.topl.codecs.binary.legacy.modifier.ModifierIdSerializer
+import co.topl.codecs.binary.legacy.modifier.box.BoxSerializer
 import co.topl.utils.encode.Base58
-import co.topl.utils.codecs._
-import co.topl.utils.codecs.binary.typeclasses.Persistable
+import co.topl.codecs._
+import co.topl.codecs.binary.typeclasses.Persistable
 
 import java.io.File
 import scala.reflect.ClassTag

@@ -6,14 +6,15 @@ import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.catsInstances._
-import co.topl.utils.codecs._
-import co.topl.utils.codecs.binary.legacy.BifrostSerializer
-import co.topl.utils.codecs.binary.legacy.attestation.AddressSerializer
-import co.topl.utils.codecs.binary.typeclasses.Transmittable
+import co.topl.codecs._
+import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
+import co.topl.codecs.binary.legacy.attestation.AddressSerializer
+import co.topl.codecs.binary.typeclasses.Transmittable
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import co.topl.attestation.AddressCodec.implicits._
+import co.topl.utils.encode.Base58
 
 /**
  * An address is a network specific commitment to a proposition encumbering a box. Addresses incorporate the evidence type
@@ -25,32 +26,30 @@ import co.topl.attestation.AddressCodec.implicits._
  * @param evidence a commitment produced from a proposition that identifies that proposition.
  * @param networkPrefix a runtime specified parameter denoting the type of network that is executing
  */
-case class Address(evidence: Evidence)(implicit val networkPrefix: NetworkPrefix) {
+case class Address(evidence: Evidence)(implicit val networkPrefix: NetworkPrefix) extends BytesSerializable {
 
-  override def toString: String = Show[Address].show(this)
+  @deprecated
+  type M = Address
 
-  def serializer: BifrostSerializer[Address] = AddressSerializer
+  @deprecated
+  override def toString: String = Base58.encode(bytes ++ bytes.checksum)
 
+  @deprecated
+  override def serializer: BifrostSerializer[Address] = AddressSerializer
+
+  @deprecated
   override def equals(obj: Any): Boolean = obj match {
-    case addr: Address => Eq[Address].eqv(this, addr)
+    case addr: Address => bytes sameElements addr.bytes
     case _             => false
   }
 
-  override def hashCode(): Int = Ints.fromByteArray(Transmittable[Address].transmittableBytes(this))
+  @deprecated
+  override def hashCode(): Int = Ints.fromByteArray(bytes)
 }
 
 object Address {
   // the byte length of an address (network prefix + Evidence type + evidence content)
   val addressSize: Int = 1 + Evidence.size
-
-  implicit val jsonEncoder: Encoder[Address] = (addr: Address) => addr.toString.asJson
-  implicit val jsonKeyEncoder: KeyEncoder[Address] = (addr: Address) => addr.toString
-
-  implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[Address] =
-    Decoder[Base58Data].emap(x => x.decodeAddress.toEither.leftMap(_.toString))
-
-  implicit def jsonKeyDecoder(implicit networkPrefix: NetworkPrefix): KeyDecoder[Address] =
-    json => Base58Data.validated(json).toOption.flatMap(_.decodeAddress.toOption)
 
   /**
    * Generates an Address from a proppsition. This method enables propositions to have an accessor method

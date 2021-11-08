@@ -7,6 +7,7 @@ import co.topl.attestation.keyManagement.{
   KeyfileEd25519,
   KeyfileEd25519Companion
 }
+import co.topl.codecs._
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
 import co.topl.modifier.box._
@@ -20,6 +21,15 @@ import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 class JsonTests extends AnyPropSpec with Matchers with ScalaCheckDrivenPropertyChecks with CommonGenerators {
+
+  property("attestation json") {
+    forAll(signatureEd25519Gen) { sig =>
+      val json = proofJsonEncoder(sig)
+      val decoded = proofJsonDecoder.decodeJson(json)
+
+      decoded shouldBe Right(sig)
+    }
+  }
 
   property("PublicKeyProposition json") {
     forAll(propositionCurve25519Gen)(prop => prop.asJson.as[PublicKeyPropositionCurve25519] shouldEqual Right(prop))
@@ -36,6 +46,32 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckDrivenPropertyC
     forAll(signatureCurve25519Gen)(sig => sig.asJson.as[SignatureCurve25519] shouldEqual Right(sig))
     forAll(signatureEd25519Gen)(sig => sig.asJson.as[SignatureEd25519] shouldEqual Right(sig))
   }
+
+//  property("Attestation Ed25519 json") {
+//    forAll(attestationEd25519Gen) { attestation =>
+//      val json = attestation.asJson
+//
+//      val decodedAttestation = json.as[ListMap[PublicKeyPropositionEd25519, SignatureEd25519]]
+//
+//      decodedAttestation shouldEqual Right(attestation)
+//    }
+//  }
+//
+//  property("Attestation Curve25519 json") {
+//    forAll(attestationCurve25519Gen) { attestation =>
+//      attestation.asJson
+//        .as[ListMap[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]] shouldEqual Right(
+//        attestation
+//      )
+//    }
+//  }
+//
+//  property("Attestation ThresholdCurve25519 json") {
+//    forAll(attestationEd25519Gen) { attestation =>
+//      attestation.asJson
+//        .as[ListMap[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]] shouldEqual Right(attestation)
+//    }
+//  }
 
   property("Keyfile json") {
     forAll(keyCurve25519Gen) { key =>
@@ -121,7 +157,9 @@ class JsonTests extends AnyPropSpec with Matchers with ScalaCheckDrivenPropertyC
 
   property("Transaction json") {
     forAll(transferGen) { tx =>
-      tx.asJson.as[Transaction.TX] shouldEqual Right(tx)
+      val encodedTxJson = tx.asJson
+      val encodedTx = encodedTxJson.as[Transaction.TX]
+      encodedTx shouldEqual Right(tx)
     }
   }
 

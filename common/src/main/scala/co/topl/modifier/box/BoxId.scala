@@ -8,8 +8,8 @@ import co.topl.crypto.hash.implicits._
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.StringDataTypes.implicits._
-import co.topl.utils.catsInstances.shows._
-import co.topl.utils.codecs._
+import co.topl.codecs._
+import co.topl.utils.encode.Base58
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
@@ -23,7 +23,7 @@ case class BoxId(hash: Digest32) {
     case _          => false
   }
 
-  override def toString: String = hash.show
+  override def toString: String = Base58.encode(hash.value)
 }
 
 object BoxId {
@@ -34,11 +34,4 @@ object BoxId {
 
   def idFromEviNonce(evidence: Evidence, nonce: Box.Nonce): BoxId =
     BoxId(blake2b256.hash(evidence.persistedBytes ++ Longs.toByteArray(nonce)))
-
-  implicit val jsonEncoder: Encoder[BoxId] = _.transmittableBase58.asJson
-  implicit val jsonKeyEncoder: KeyEncoder[BoxId] = _.transmittableBase58.show
-  implicit val jsonDecoder: Decoder[BoxId] = Decoder[Base58Data].emap(_.value.decodeTransmitted[BoxId])
-
-  implicit val jsonKeyDecoder: KeyDecoder[BoxId] =
-    KeyDecoder[Base58Data].map(_.value.decodeTransmitted[BoxId].getOrThrow())
 }

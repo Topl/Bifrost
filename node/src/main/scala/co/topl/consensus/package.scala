@@ -6,7 +6,7 @@ import co.topl.modifier.box.ArbitBox
 import co.topl.settings.ProtocolSettings
 import co.topl.utils.{Int128, TimeProvider}
 import com.google.common.primitives.Longs
-import co.topl.utils.codecs._
+import co.topl.codecs._
 
 import scala.concurrent.duration._
 import scala.math.{max, min}

@@ -10,7 +10,7 @@ import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks.forAll
-import co.topl.utils.codecs._
+import co.topl.codecs._
 
 class LeaderElectionTests extends AnyFlatSpec with MockFactory with CommonGenerators with EitherValues {
 

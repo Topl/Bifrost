@@ -6,17 +6,17 @@ import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.box._
 import co.topl.modifier.transaction._
 import co.topl.utils.CommonGenerators
-import co.topl.utils.codecs.binary.legacy.attestation.keyManagement._
-import co.topl.utils.codecs.binary.legacy.attestation._
-import co.topl.utils.codecs.binary.legacy.modifier.block._
-import co.topl.utils.codecs.binary.legacy.modifier.box._
-import co.topl.utils.codecs.binary.legacy.modifier.transaction.TransactionSerializer
+import co.topl.codecs.binary.legacy.attestation.keyManagement._
+import co.topl.codecs.binary.legacy.attestation._
+import co.topl.codecs.binary.legacy.modifier.block._
+import co.topl.codecs.binary.legacy.modifier.box._
+import co.topl.codecs.binary.legacy.modifier.transaction.TransactionSerializer
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import co.topl.utils.codecs._
-import co.topl.utils.codecs.binary.typeclasses.Persistable
+import co.topl.codecs._
+import co.topl.codecs.binary.typeclasses.Persistable
 
 import scala.util.{Failure, Success}
 
@@ -52,12 +52,13 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
   }
 
   property("Signature serialization") {
-    forAll(signatureGen) { sig: Proof[_] =>
+    forAll(signatureGen) { sig =>
       val parsed = ProofSerializer
         .parseBytes(ProofSerializer.toBytes(sig))
         .get
 
-      Persistable[Proof[_]].persistedBytes(parsed) sameElements Persistable[Proof[_]].persistedBytes(sig) shouldBe true
+      Persistable[Proof[_ <: Proposition]].persistedBytes(parsed) sameElements Persistable[Proof[_ <: Proposition]]
+        .persistedBytes(sig) shouldBe true
     }
   }
 

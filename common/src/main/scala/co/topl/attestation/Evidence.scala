@@ -6,10 +6,11 @@ import co.topl.crypto.implicits._
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.StringDataTypes.implicits.showBase58String
-import co.topl.utils.codecs._
-import co.topl.utils.codecs.binary.legacy.BifrostSerializer
-import co.topl.utils.codecs.binary.legacy.attestation.EvidenceSerializer
-import co.topl.utils.codecs.binary.typeclasses.Transmittable
+import co.topl.codecs._
+import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
+import co.topl.codecs.binary.legacy.attestation.EvidenceSerializer
+import co.topl.codecs.binary.typeclasses.Transmittable
+import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
@@ -25,18 +26,25 @@ import scala.language.implicitConversions
  *
  * @param evBytes an array of bytes of length 'contentLength' (currently 32 bytes) generated from a proposition
  */
-final case class Evidence(evBytes: Array[Byte]) {
+final case class Evidence(evBytes: Array[Byte]) extends BytesSerializable {
 
-  def serializer: BifrostSerializer[Evidence] = EvidenceSerializer
+  @deprecated
+  type M = Evidence
 
-  override def toString: String = Transmittable[Evidence].transmittableBase58(this).show
+  @deprecated
+  override def serializer: BifrostSerializer[Evidence] = EvidenceSerializer
 
+  @deprecated
+  override def toString: String = Base58.encode(bytes)
+
+  @deprecated
   override def equals(obj: Any): Boolean = obj match {
-    case ec: Evidence => Transmittable[Evidence].transmittableBytes(this) sameElements ec.transmittableBytes
+    case ec: Evidence => bytes sameElements ec.bytes
     case _            => false
   }
 
-  override def hashCode(): Int = Ints.fromByteArray(Transmittable[Evidence].transmittableBytes(this))
+  @deprecated
+  override def hashCode(): Int = Ints.fromByteArray(bytes)
 }
 
 object Evidence {
@@ -58,15 +66,4 @@ object Evidence {
 
     Evidence(typePrefix +: content.value)
   }
-
-  // see circe documentation for custom encoder / decoders
-  // https://circe.github.io/circe/codecs/custom-codecs.html
-  implicit val jsonEncoder: Encoder[Evidence] = _.transmittableBase58.asJson
-  implicit val jsonKeyEncoder: KeyEncoder[Evidence] = _.transmittableBase58.show
-
-  implicit val jsonDecoder: Decoder[Evidence] =
-    Decoder[Base58Data].emap(_.value.decodeTransmitted[Evidence])
-
-  implicit val jsonKeyDecoder: KeyDecoder[Evidence] =
-    KeyDecoder[Base58Data].map(_.value.decodeTransmitted[Evidence].getOrThrow())
 }

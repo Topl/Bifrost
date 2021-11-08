@@ -9,7 +9,7 @@ import co.topl.utils.exceptions.{ChainProgramException, JsonParsingException}
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.{Context, Value}
-import co.topl.utils.codecs._
+import co.topl.codecs._
 
 import scala.util.Try
 

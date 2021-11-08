@@ -5,8 +5,8 @@ import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.crypto.implicits._
 import co.topl.crypto.signatures.Curve25519
 import co.topl.crypto.{PrivateKey, PublicKey}
-import co.topl.utils.codecs.binary.legacy.BifrostSerializer
-import co.topl.utils.codecs.binary.legacy.attestation.keyManagement.PrivateKeyCurve25519Serializer
+import co.topl.codecs.binary.legacy.BifrostSerializer
+import co.topl.codecs.binary.legacy.attestation.keyManagement.PrivateKeyCurve25519Serializer
 
 case class PrivateKeyCurve25519(privateKey: PrivateKey, publicKey: PublicKey) extends Secret {
 

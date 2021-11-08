@@ -5,7 +5,7 @@ import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.box._
 import co.topl.utils.StringDataTypes.Latin1Data
-import co.topl.utils.codecs.binary._
+import co.topl.codecs.binary._
 import co.topl.utils.{Identifiable, Int128}
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.Json
@@ -27,7 +27,7 @@ abstract class TransferTransaction[
 )(implicit val evidenceProducerEv: EvidenceProducer[P], identifiableEv: Identifiable[P])
     extends Transaction[TokenValueHolder, P] {
 
-  lazy val bloomTopics: IndexedSeq[BloomTopic] = to.map(b => BloomTopic(b._1.persistedBytes))
+  lazy val bloomTopics: IndexedSeq[BloomTopic] = to.map(b => BloomTopic(b._1.bytes))
 
   lazy val boxIdsToOpen: IndexedSeq[BoxId] = from.map { case (addr, nonce) =>
     BoxId.idFromEviNonce(addr.evidence, nonce)

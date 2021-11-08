@@ -7,12 +7,8 @@ import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.box.{Box, BoxId}
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.utils.IdiomaticScalaTransition.implicits._
-import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.codecs.binary._
-import co.topl.utils.codecs.binary.persistence.boxPersistable
 import co.topl.utils.{Identifiable, Identifier, Int128}
 import com.google.common.primitives.Longs
-import io.circe.{Decoder, Encoder, HCursor}
 
 import scala.collection.immutable.ListMap
 
@@ -37,13 +33,13 @@ abstract class Transaction[+T, P <: Proposition](implicit val identifiableEv: Id
 
   def messageToSign: Array[Byte] =
     Array(Transaction.identifier(this).typePrefix) ++
-    newBoxes.foldLeft(Array[Byte]())((acc, x) => acc ++ boxPersistable.persistedBytes(x)) ++
+    newBoxes.foldLeft(Array[Byte]())((acc, x) => acc ++ x.bytes) ++
     boxIdsToOpen.foldLeft(Array[Byte]())((acc, x) => acc ++ x.hash.value) ++
     Longs.toByteArray(timestamp) ++
     fee.toByteArray
 
-  override def toString: String =
-    Transaction.identifier(this).typeString + Transaction.jsonEncoder(this).noSpaces
+//  @deprecated
+//  override def toString: String = ???
 
   def getPropIdentifier: Identifier = Identifiable[P].getId
 
@@ -68,34 +64,5 @@ object Transaction {
     case _: PolyTransfer[_]  => PolyTransfer.identifier.getId
     case _: ArbitTransfer[_] => ArbitTransfer.identifier.getId
     case _: AssetTransfer[_] => AssetTransfer.identifier.getId
-  }
-
-  implicit def jsonTypedEncoder[T, P <: Proposition]: Encoder[Transaction[T, P]] = { tx =>
-    jsonEncoder(tx)
-  }
-
-  implicit def jsonEncoder: Encoder[TX] = {
-    //    case tx: CodeCreation           => CodeCreation.jsonEncoder(tx)
-    //    case tx: ProgramCreation        => ProgramCreation.jsonEncoder(tx)
-    //    case tx: ProgramMethodExecution => ProgramMethodExecution.jsonEncoder(tx)
-    //    case tx: ProgramTransfer        => ProgramTransfer.jsonEncoder(tx)
-    case tx: PolyTransfer[_]  => PolyTransfer.jsonEncoder(tx)
-    case tx: ArbitTransfer[_] => ArbitTransfer.jsonEncoder(tx)
-    case tx: AssetTransfer[_] => AssetTransfer.jsonEncoder(tx)
-  }
-
-  implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[TX] = { c: HCursor =>
-    c.downField("txType").as[String].map {
-      //      case "CodeCreation"           => CodeCreation.jsonDecoder(c)
-      //      case "ProgramCreation"        => ProgramCreation.jsonDecoder(c)
-      //      case "ProgramMethodExecution" => ProgramMethodExecution.jsonDecoder(c)
-      //      case "ProgramTransfer"        => ProgramTransfer.jsonDecoder(c)
-      case PolyTransfer.typeString  => PolyTransfer.jsonDecoder(networkPrefix)(c)
-      case ArbitTransfer.typeString => ArbitTransfer.jsonDecoder(networkPrefix)(c)
-      case AssetTransfer.typeString => AssetTransfer.jsonDecoder(networkPrefix)(c)
-    } match {
-      case Right(tx) => tx
-      case Left(ex)  => throw ex
-    }
   }
 }

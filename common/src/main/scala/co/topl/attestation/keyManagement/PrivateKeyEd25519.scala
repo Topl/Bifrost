@@ -5,8 +5,8 @@ import co.topl.attestation.{PublicKeyPropositionEd25519, SignatureEd25519}
 import co.topl.crypto.implicits._
 import co.topl.crypto.signatures.Ed25519
 import co.topl.crypto.{PrivateKey, PublicKey}
-import co.topl.utils.codecs.binary.legacy.BifrostSerializer
-import co.topl.utils.codecs.binary.legacy.attestation.keyManagement.PrivateKeyEd25519Serializer
+import co.topl.codecs.binary.legacy.BifrostSerializer
+import co.topl.codecs.binary.legacy.attestation.keyManagement.PrivateKeyEd25519Serializer
 
 case class PrivateKeyEd25519(privateKey: PrivateKey, publicKey: PublicKey) extends Secret {
 

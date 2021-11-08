@@ -19,7 +19,7 @@ import co.topl.utils.StringDataTypes.Base58Data
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
-import co.topl.utils.codecs._
+import co.topl.codecs._
 
 import scala.concurrent.Future
 import scala.concurrent.duration._

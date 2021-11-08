@@ -9,7 +9,7 @@ import co.topl.utils.NodeGenerators
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import co.topl.utils.codecs._
+import co.topl.codecs._
 
 class BloomFilterSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with NodeGenerators with Matchers {
 

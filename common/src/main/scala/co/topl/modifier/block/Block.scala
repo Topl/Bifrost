@@ -10,7 +10,7 @@ import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider
-import co.topl.utils.codecs.binary._
+import co.topl.codecs.binary._
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
 
@@ -50,9 +50,10 @@ case class Block(
   def toComponents: (BlockHeader, BlockBody) = Block.toComponents(this)
 
   def messageToSign: Array[Byte] =
-    blockPersistable.persistedBytes(this.copy(signature = SignatureCurve25519.empty))
-
-  override def toString: String = Block.jsonEncoder(this).noSpaces
+    this.copy(signature = SignatureCurve25519.empty).bytes
+//
+//  @deprecated
+//  override def toString: String = ???
 }
 
 object Block {
@@ -148,19 +149,4 @@ object Block {
     // use the provided signing function to sign the block and return it
     signFunction(block.messageToSign).map(s => block.copy(signature = s))
   }
-
-  implicit val jsonEncoder: Encoder[Block] = { b: Block =>
-    val (header, body) = b.toComponents
-    Map(
-      "header"    -> header.asJson,
-      "body"      -> body.asJson,
-      "blockSize" -> b.persistedBytes.length.asJson
-    ).asJson
-  }
-
-  implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[Block] = (c: HCursor) =>
-    for {
-      header <- c.downField("header").as[BlockHeader]
-      body   <- c.downField("body").as[BlockBody]
-    } yield Block.fromComponents(header, body)
 }

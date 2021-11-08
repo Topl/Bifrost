@@ -8,7 +8,7 @@ import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.KeyValueStore
 import co.topl.utils.Logging
-import co.topl.utils.codecs.binary._
+import co.topl.codecs.binary._
 import com.google.common.primitives.Longs
 
 import scala.util.Try
@@ -44,7 +44,7 @@ class Storage(
     id.getModType match {
       case Transaction.modifierTypeId =>
         keyValueStore
-          .get(id.persistedBytes)
+          .get(id.getIdBytes)
           .flatMap(keyValueStore.get)
           .flatMap(bwBlock => bwBlock.tail.decodePersisted[Block].toOption)
           .map(block => (block.transactions.find(_.id == id).get, block.id, block.height))
@@ -57,7 +57,7 @@ class Storage(
     id.getModType match {
       case Block.modifierTypeId =>
         keyValueStore
-          .get(id.persistedBytes)
+          .get(id.getIdBytes)
           .flatMap(bwBlock => bwBlock.tail.decodePersisted[Block].toOption)
 
       case _ =>
@@ -141,7 +141,7 @@ class Storage(
 
     val blockK = Seq(b.id.getIdBytes -> b.persistedBytes)
 
-    val bestBlock = if (isBest) Seq(bestBlockIdKey -> b.id.getIdBytes) else Seq()
+    val bestBlock = if (isBest) Seq(bestBlockIdKey -> b.id.persistedBytes) else Seq()
 
     val newTransactionsToBlockIds = b.transactions.map(tx => (tx.id.getIdBytes, b.id.persistedBytes))
 

@@ -12,7 +12,7 @@ import co.topl.modifier.box.Box.Nonce
 import co.topl.modifier.box._
 import co.topl.modifier.transaction._
 import co.topl.utils.StringDataTypes.Latin1Data
-import co.topl.utils.codecs.binary.legacy.modifier.ModifierIdSerializer
+import co.topl.codecs.binary.legacy.modifier.ModifierIdSerializer
 import io.circe.Json
 import io.circe.syntax._
 import org.scalacheck.rng.Seed
@@ -646,7 +646,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   }
 
   //TODO: Jing - add threshold signature
-  lazy val signatureGen: Gen[_ <: Proof[_]] = Gen.oneOf(signatureCurve25519Gen, signatureEd25519Gen)
+  lazy val signatureGen: Gen[_ <: Proof[_ <: Proposition]] = Gen.oneOf(signatureCurve25519Gen, signatureEd25519Gen)
 
   def genBytesList(size: Int): Gen[Array[Byte]] = genBoundedBytes(size, size)
 

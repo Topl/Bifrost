@@ -10,7 +10,7 @@ import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType.PrivateTestnet
 import co.topl.utils.{Int128, Logging, NetworkType}
 import com.google.common.primitives.Longs
-import co.topl.utils.codecs.binary._
+import co.topl.codecs.binary._
 
 import java.io.File
 

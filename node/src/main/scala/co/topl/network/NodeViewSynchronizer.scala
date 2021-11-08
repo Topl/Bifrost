@@ -13,8 +13,8 @@ import co.topl.network.peer.{ConnectedPeer, PenaltyType}
 import co.topl.nodeView.history.GenericHistory
 import co.topl.nodeView.{NodeViewHolder, ReadableNodeView}
 import co.topl.settings.{AppContext, AppSettings}
-import co.topl.utils.codecs.binary._
-import co.topl.utils.codecs.binary.typeclasses.Transmittable
+import co.topl.codecs.binary._
+import co.topl.codecs.binary.typeclasses.Transmittable
 import co.topl.utils.{Logging, MalformedModifierError, TimeProvider}
 
 import java.net.InetSocketAddress

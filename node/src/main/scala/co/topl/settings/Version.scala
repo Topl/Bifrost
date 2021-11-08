@@ -1,6 +1,6 @@
 package co.topl.settings
 
-import co.topl.utils.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
+import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
 
 /**
  * Version of blockchain protocol

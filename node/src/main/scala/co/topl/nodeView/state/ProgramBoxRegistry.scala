@@ -7,7 +7,7 @@ import co.topl.nodeView.{KeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.Logging
-import co.topl.utils.codecs._
+import co.topl.codecs._
 
 import java.io.File
 import scala.util.{Failure, Success, Try}

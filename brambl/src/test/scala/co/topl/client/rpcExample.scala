@@ -17,7 +17,7 @@ import co.topl.rpc.implicits.client._
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
-import co.topl.utils.codecs._
+import co.topl.codecs._
 import co.topl.attestation.AddressCodec.implicits._
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 

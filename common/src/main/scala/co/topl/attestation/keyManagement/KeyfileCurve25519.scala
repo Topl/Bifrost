@@ -7,11 +7,8 @@ import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.SecureRandom.randomBytes
-import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
-import co.topl.utils.codecs._
+import co.topl.utils.StringDataTypes.Latin1Data
 import io.circe.parser.parse
-import io.circe.syntax._
-import io.circe.{Decoder, Encoder, HCursor}
 import org.bouncycastle.crypto.BufferedBlockCipher
 import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.generators.SCrypt
@@ -31,35 +28,6 @@ case class KeyfileCurve25519(
   salt:       Array[Byte],
   iv:         Array[Byte]
 ) extends Keyfile[PrivateKeyCurve25519]
-
-object KeyfileCurve25519 {
-
-  implicit val jsonEncoder: Encoder[KeyfileCurve25519] = { kf: KeyfileCurve25519 =>
-    Map(
-      "crypto" -> Map(
-        "cipher"       -> "aes-256-ctr".asJson,
-        "cipherParams" -> Map("iv" -> kf.iv.encodeAsBase58.asJson).asJson,
-        "cipherText"   -> kf.cipherText.asJson,
-        "kdf"          -> "scrypt".asJson,
-        "kdfSalt"      -> kf.salt.encodeAsBase58.asJson,
-        "mac"          -> kf.mac.encodeAsBase58.asJson
-      ).asJson,
-      "address" -> kf.address.asJson
-    ).asJson
-  }
-
-  implicit def jsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[KeyfileCurve25519] = (c: HCursor) =>
-    for {
-      address    <- c.downField("address").as[Address]
-      cipherText <- c.downField("crypto").downField("cipherText").as[Base58Data]
-      mac        <- c.downField("crypto").downField("mac").as[Base58Data]
-      salt       <- c.downField("crypto").downField("kdfSalt").as[Base58Data]
-      iv         <- c.downField("crypto").downField("cipherParams").downField("iv").as[Base58Data]
-    } yield {
-      implicit val netPrefix: NetworkPrefix = address.networkPrefix
-      new KeyfileCurve25519(address, cipherText.encodeAsBytes, mac.encodeAsBytes, salt.encodeAsBytes, iv.encodeAsBytes)
-    }
-}
 
 object KeyfileCurve25519Companion extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileCurve25519] {
 
