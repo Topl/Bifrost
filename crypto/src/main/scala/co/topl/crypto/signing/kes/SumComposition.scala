@@ -95,7 +95,9 @@ class SumComposition extends KesEd25519Blake2b256 {
       }
 
     //executes the above functions in order
-    reduceTree(seedTree(seed, height))
+    val out = reduceTree(seedTree(seed, height))
+    random.nextBytes(seed)
+    out
   }
 
   /**
@@ -143,6 +145,8 @@ class SumComposition extends KesEd25519Blake2b256 {
         random.nextBytes(leaf.vk)
       case _ =>
     }
+
+  def eraseKey(input: KesBinaryTree): Unit = eraseOldNode(input)
 
   /**
    * Evolves key a specified number of steps
