@@ -146,7 +146,7 @@ class SumComposition extends KesEd25519Blake2b256 {
       case _ =>
     }
 
-   def eraseKey(input:KesBinaryTree):Unit = eraseOldNode(input)
+  def eraseKey(input: KesBinaryTree): Unit = eraseOldNode(input)
 
   /**
    * Evolves key a specified number of steps

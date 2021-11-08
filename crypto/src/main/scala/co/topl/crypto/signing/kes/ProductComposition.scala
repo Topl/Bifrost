@@ -10,7 +10,7 @@ class ProductComposition extends KesEd25519Blake2b256 {
 
   protected val sumComposition = new SumComposition
 
-  protected val random:SecureRandom = new SecureRandom
+  protected val random: SecureRandom = new SecureRandom
 
   override type SIG = (sumComposition.SIG, sumComposition.SIG, Array[Byte])
   override type VK = (Array[Byte], Int)
@@ -63,22 +63,21 @@ class ProductComposition extends KesEd25519Blake2b256 {
    * @return new key with overwritten SigningLeaf sk
    */
 
-  def eraseLeafSecretKey(input:KesBinaryTree): KesBinaryTree = {
+  def eraseLeafSecretKey(input: KesBinaryTree): KesBinaryTree =
     input match {
-      case n:MerkleNode =>
-        (n.left,n.right) match {
-          case (Empty,_) =>
-            MerkleNode(n.seed,n.witnessLeft,n.witnessRight,Empty,eraseLeafSecretKey(n.right))
-          case (_,Empty) =>
-            MerkleNode(n.seed,n.witnessLeft,n.witnessRight,eraseLeafSecretKey(n.left),Empty)
-          case (_,_) => throw new Exception("Evolving Key Configuration Error")
+      case n: MerkleNode =>
+        (n.left, n.right) match {
+          case (Empty, _) =>
+            MerkleNode(n.seed, n.witnessLeft, n.witnessRight, Empty, eraseLeafSecretKey(n.right))
+          case (_, Empty) =>
+            MerkleNode(n.seed, n.witnessLeft, n.witnessRight, eraseLeafSecretKey(n.left), Empty)
+          case (_, _) => throw new Exception("Evolving Key Configuration Error")
         }
-      case l:SigningLeaf =>
+      case l: SigningLeaf =>
         random.nextBytes(l.sk)
-        SigningLeaf(Array.fill[Byte](sig.SECRET_KEY_SIZE)(0),l.vk)
-      case _ => throw  new Exception("Evolving Key Configuration Error")
+        SigningLeaf(Array.fill[Byte](sig.SECRET_KEY_SIZE)(0), l.vk)
+      case _ => throw new Exception("Evolving Key Configuration Error")
     }
-  }
 
   /**
    * Erases the secret key at the leaf level of a private key in the product composition
@@ -88,9 +87,8 @@ class ProductComposition extends KesEd25519Blake2b256 {
    * @return new key with overwritten child scheme SigningLeaf sk
    */
 
-  def eraseProductLeafSk(key: SK): SK = {
-    (key._1,eraseLeafSecretKey(key._2),key._3,key._4)
-  }
+  def eraseProductLeafSk(key: SK): SK =
+    (key._1, eraseLeafSecretKey(key._2), key._3, key._4)
 
   /**
    * Updates product keys to the specified time step

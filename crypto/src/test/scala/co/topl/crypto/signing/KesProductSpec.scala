@@ -147,16 +147,15 @@ class KesProductSpec
 
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
     val sig_0 = kesProduct.sign(sk, specIn_msg)
-    val sk_1 = kesProduct.update(sk,1)
+    val sk_1 = kesProduct.update(sk, 1)
     val vk_1 = kesProduct.getVerificationKey(sk_1)
     val sig_1 = kesProduct.sign(sk_1, specIn_msg)
-    val sk_2 = kesProduct.update(sk_1,2)
+    val sk_2 = kesProduct.update(sk_1, 2)
     val vk_2 = kesProduct.getVerificationKey(sk_2)
-    val sig_2 = kesProduct.sign(sk_2,specIn_msg)
-    val sk_3 = kesProduct.update(sk_2,3)
+    val sig_2 = kesProduct.sign(sk_2, specIn_msg)
+    val sk_3 = kesProduct.update(sk_2, 3)
     val vk_3 = kesProduct.getVerificationKey(sk_3)
-    val sig_3 = kesProduct.sign(sk_3,specIn_msg)
-
+    val sig_3 = kesProduct.sign(sk_3, specIn_msg)
 
     vk shouldBe specOut_vk
     sig_0 shouldBe specOut_sig_0
@@ -174,7 +173,8 @@ class KesProductSpec
     val specIn_seed = "38c2775bc7e6866e69c6acd5e12ee366fd57f7df1b30e200cae610ec4ecf378c".hexStringToBytes
     val specIn_height = (1, 2)
     val specIn_time = 0
-    val specIn_msg = "696e20612073686f7274207768696c65206372616674202d206e6f74206d75636820746f20646f2061626f7574206974".hexStringToBytes
+    val specIn_msg =
+      "696e20612073686f7274207768696c65206372616674202d206e6f74206d75636820746f20646f2061626f7574206974".hexStringToBytes
 
     val specOut_vk = VerificationKeys.KesProduct(
       "56d4f5dc6bfe518c9b6898222c1bfc97e93f760ec48df07704369bc306884bdd".unsafeStrictBytes,
@@ -274,16 +274,15 @@ class KesProductSpec
 
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
     val sig_0 = kesProduct.sign(sk, specIn_msg)
-    val sk_1 = kesProduct.update(sk,2)
+    val sk_1 = kesProduct.update(sk, 2)
     val vk_1 = kesProduct.getVerificationKey(sk_1)
     val sig_1 = kesProduct.sign(sk_1, specIn_msg)
-    val sk_2 = kesProduct.update(sk_1,4)
+    val sk_2 = kesProduct.update(sk_1, 4)
     val vk_2 = kesProduct.getVerificationKey(sk_2)
-    val sig_2 = kesProduct.sign(sk_2,specIn_msg)
-    val sk_3 = kesProduct.update(sk_2,6)
+    val sig_2 = kesProduct.sign(sk_2, specIn_msg)
+    val sk_3 = kesProduct.update(sk_2, 6)
     val vk_3 = kesProduct.getVerificationKey(sk_3)
-    val sig_3 = kesProduct.sign(sk_3,specIn_msg)
-
+    val sig_3 = kesProduct.sign(sk_3, specIn_msg)
 
     vk shouldBe specOut_vk
     sig_0 shouldBe specOut_sig_0
@@ -301,7 +300,8 @@ class KesProductSpec
     val specIn_seed = "450daa6ca8aefdba78c142a659c438d1347e76e11e665237c9aae429f175789f".hexStringToBytes
     val specIn_height = (2, 1)
     val specIn_time = 0
-    val specIn_msg = "7475726e20612073696e676c65206c6574746572202d206974206265636f6d657320612062697264206f72206c61746572".hexStringToBytes
+    val specIn_msg =
+      "7475726e20612073696e676c65206c6574746572202d206974206265636f6d657320612062697264206f72206c61746572".hexStringToBytes
 
     val specOut_vk = VerificationKeys.KesProduct(
       "74d3dc1319f1369d0149ef5229a07f7b5d057a3e30424e078da26b6df834640d".unsafeStrictBytes,
@@ -401,19 +401,18 @@ class KesProductSpec
     )
 
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
-    val sk_0 = kesProduct.update(sk,1)
+    val sk_0 = kesProduct.update(sk, 1)
     val vk_0 = kesProduct.getVerificationKey(sk_0)
     val sig_0 = kesProduct.sign(sk_0, specIn_msg)
-    val sk_1 = kesProduct.update(sk,3)
+    val sk_1 = kesProduct.update(sk, 3)
     val vk_1 = kesProduct.getVerificationKey(sk_1)
     val sig_1 = kesProduct.sign(sk_1, specIn_msg)
-    val sk_2 = kesProduct.update(sk_1,5)
+    val sk_2 = kesProduct.update(sk_1, 5)
     val vk_2 = kesProduct.getVerificationKey(sk_2)
-    val sig_2 = kesProduct.sign(sk_2,specIn_msg)
-    val sk_3 = kesProduct.update(sk_2,7)
+    val sig_2 = kesProduct.sign(sk_2, specIn_msg)
+    val sk_3 = kesProduct.update(sk_2, 7)
     val vk_3 = kesProduct.getVerificationKey(sk_3)
-    val sig_3 = kesProduct.sign(sk_3,specIn_msg)
-
+    val sig_3 = kesProduct.sign(sk_3, specIn_msg)
 
     vk shouldBe specOut_vk
     sig_0 shouldBe specOut_sig_0
@@ -431,7 +430,8 @@ class KesProductSpec
     val specIn_seed = "cbf5a7f7f8b807b5bc588b3c54e46fb20b680325890aa85c44ee360f99a0c483".hexStringToBytes
     val specIn_height = (2, 2)
     val specIn_time = 0
-    val specIn_msg = "6120737472696e672070756c6c6564206f7574206f66206120776f726420656e646c6573736c792c206e6576657220736e617073".hexStringToBytes
+    val specIn_msg =
+      "6120737472696e672070756c6c6564206f7574206f66206120776f726420656e646c6573736c792c206e6576657220736e617073".hexStringToBytes
 
     val specOut_vk = VerificationKeys.KesProduct(
       "e3050f622e37604a05532f3a9840de1da0bb6dfddc667b62de6dbe4baaea53e3".unsafeStrictBytes,
@@ -535,16 +535,15 @@ class KesProductSpec
 
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
     val sig_0 = kesProduct.sign(sk, specIn_msg)
-    val sk_1 = kesProduct.update(sk,5)
+    val sk_1 = kesProduct.update(sk, 5)
     val vk_1 = kesProduct.getVerificationKey(sk_1)
     val sig_1 = kesProduct.sign(sk_1, specIn_msg)
-    val sk_2 = kesProduct.update(sk_1,10)
+    val sk_2 = kesProduct.update(sk_1, 10)
     val vk_2 = kesProduct.getVerificationKey(sk_2)
-    val sig_2 = kesProduct.sign(sk_2,specIn_msg)
-    val sk_3 = kesProduct.update(sk_2,15)
+    val sig_2 = kesProduct.sign(sk_2, specIn_msg)
+    val sk_3 = kesProduct.update(sk_2, 15)
     val vk_3 = kesProduct.getVerificationKey(sk_3)
-    val sig_3 = kesProduct.sign(sk_3,specIn_msg)
-
+    val sig_3 = kesProduct.sign(sk_3, specIn_msg)
 
     vk shouldBe specOut_vk
     sig_0 shouldBe specOut_sig_0
@@ -562,7 +561,8 @@ class KesProductSpec
     val specIn_seed = "50c3e574fa16956b384f9c46ecf976a0eb42fd82b9e8be381d5a24b3697d9e6d".hexStringToBytes
     val specIn_height = (3, 3)
     val specIn_time = 0
-    val specIn_msg = "64697361626c656420616e642064657461696e65642c2070726f6261626c792064697370656c6c6564".hexStringToBytes
+    val specIn_msg =
+      "64697361626c656420616e642064657461696e65642c2070726f6261626c792064697370656c6c6564".hexStringToBytes
 
     val specOut_vk = VerificationKeys.KesProduct(
       "e290c6600ce59025b705362b725c522d52c749167516213a73272e6861ef5dce".unsafeStrictBytes,
@@ -674,16 +674,15 @@ class KesProductSpec
 
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
     val sig_0 = kesProduct.sign(sk, specIn_msg)
-    val sk_1 = kesProduct.update(sk,21)
+    val sk_1 = kesProduct.update(sk, 21)
     val vk_1 = kesProduct.getVerificationKey(sk_1)
     val sig_1 = kesProduct.sign(sk_1, specIn_msg)
-    val sk_2 = kesProduct.update(sk_1,42)
+    val sk_2 = kesProduct.update(sk_1, 42)
     val vk_2 = kesProduct.getVerificationKey(sk_2)
-    val sig_2 = kesProduct.sign(sk_2,specIn_msg)
-    val sk_3 = kesProduct.update(sk_2,63)
+    val sig_2 = kesProduct.sign(sk_2, specIn_msg)
+    val sk_3 = kesProduct.update(sk_2, 63)
     val vk_3 = kesProduct.getVerificationKey(sk_3)
-    val sig_3 = kesProduct.sign(sk_3,specIn_msg)
-
+    val sig_3 = kesProduct.sign(sk_3, specIn_msg)
 
     vk shouldBe specOut_vk
     sig_0 shouldBe specOut_sig_0
@@ -695,6 +694,5 @@ class KesProductSpec
     kesProduct.verify(sig_2, specIn_msg, vk_2) shouldBe true
     kesProduct.verify(sig_3, specIn_msg, vk_3) shouldBe true
   }
-
 
 }
