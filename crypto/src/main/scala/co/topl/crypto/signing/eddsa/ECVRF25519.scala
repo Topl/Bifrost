@@ -1,7 +1,6 @@
 package co.topl.crypto.signing.eddsa
 
 import java.security.SecureRandom
-import scala.util.Try
 
 /**
  * AMS 2021:

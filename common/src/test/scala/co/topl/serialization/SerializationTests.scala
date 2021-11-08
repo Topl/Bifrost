@@ -33,7 +33,7 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
   }
 
   property("PrivateKeyCurve25519 serialization") {
-    forAll(keyCurve25519Gen) { case (key: PrivateKeyCurve25519, _) =>
+    forAll(keyCurve25519FastGen) { case (key: PrivateKeyCurve25519, _) =>
       val parsed = PrivateKeyCurve25519.parseBytes(PrivateKeyCurve25519.toBytes(key)).get
 
       parsed.bytes sameElements key.bytes shouldBe true
@@ -41,7 +41,7 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
   }
 
   property("PrivateKeyEd25519 serialization") {
-    forAll(keyEd25519Gen) { case (key: PrivateKeyEd25519, _) =>
+    forAll(keyEd25519FastGen) { case (key: PrivateKeyEd25519, _) =>
       val parsed = PrivateKeyEd25519.parseBytes(PrivateKeyEd25519.toBytes(key)).get
 
       parsed.bytes sameElements key.bytes shouldBe true

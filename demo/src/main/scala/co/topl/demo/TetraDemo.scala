@@ -110,9 +110,9 @@ object TetraDemo extends IOApp.Simple {
           leaderElectionThreshold,
           vrfProofConstruction
         ),
-        KeyEvolver.InMemory.make {
+        KeyEvolver.InMemory.make(
           KeyInitializer[SecretKeys.ExtendedEd25519].random()
-        },
+        ),
         VrfRelativeStakeMintingLookup.Eval.make(state, clock),
         EtaMinting.Eval.make(state, clock)
       ),

@@ -95,24 +95,8 @@ trait VLQWriter extends Writer {
    *          see note above)
    */
   @inline override def putULong(x: Long): this.type = {
-    val buffer = new Array[Byte](10)
-    var position = 0
-    var value = x
-    // should be fast if java -> scala conversion did not botched it
-    // source: http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java/core/src/main/java/com/google/protobuf/CodedOutputStream.java#L1387
-    while (true)
-      if ((value & ~0x7fL) == 0) {
-        buffer(position) = value.asInstanceOf[Byte]
-        position += 1
-        putBytes(util.Arrays.copyOf(buffer, position))
-        return this
-      } else {
-        buffer(position) = ((value.asInstanceOf[Int] & 0x7f) | 0x80).toByte
-        position += 1
-        value >>>= 7
-      }
+    putBytes(VLQWriter.uLongSerializer(x))
     this
-    // see https://rosettacode.org/wiki/Variable-length_quantity for implementations in other languages
   }
 
   /** Insert the custom Int128 type that is 16 bytes (128 bits) */
@@ -166,5 +150,28 @@ trait VLQWriter extends Writer {
     putUInt(bytes.size)
     putBytes(bytes)
     this
+  }
+}
+
+object VLQWriter {
+
+  def uLongSerializer(x: Long): Array[Byte] = {
+    val buffer = new Array[Byte](10)
+    var position = 0
+    var value = x
+    // should be fast if java -> scala conversion did not botched it
+    // source: http://github.com/google/protobuf/blob/a7252bf42df8f0841cf3a0c85fdbf1a5172adecb/java/core/src/main/java/com/google/protobuf/CodedOutputStream.java#L1387
+    while (true)
+      if ((value & ~0x7fL) == 0) {
+        buffer(position) = value.asInstanceOf[Byte]
+        position += 1
+        return util.Arrays.copyOf(buffer, position)
+      } else {
+        buffer(position) = ((value.asInstanceOf[Int] & 0x7f) | 0x80).toByte
+        position += 1
+        value >>>= 7
+      }
+    // see https://rosettacode.org/wiki/Variable-length_quantity for implementations in other languages
+    throw new IllegalStateException()
   }
 }

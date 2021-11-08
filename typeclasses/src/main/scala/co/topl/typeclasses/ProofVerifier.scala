@@ -1,6 +1,6 @@
 package co.topl.typeclasses
 
-import co.topl.crypto.signing.{Curve25519, Ed25519, Ed25519VRF, MessageToSign}
+import co.topl.crypto.signing.{Curve25519, Ed25519, Ed25519VRF}
 import co.topl.models._
 import co.topl.typeclasses.implicits._
 
@@ -46,13 +46,13 @@ object ProofVerifier {
 
   trait Instances {
 
-    implicit val publicKeyCurve25519: ProofVerifier[Proofs.Signature.Curve25519, Propositions.PublicKeyCurve25519] =
-      new ProofVerifier[Proofs.Signature.Curve25519, Propositions.PublicKeyCurve25519] {
+    implicit val publicKeyCurve25519: ProofVerifier[Proofs.Signature.Curve25519, Propositions.Knowledge.Curve25519] =
+      new ProofVerifier[Proofs.Signature.Curve25519, Propositions.Knowledge.Curve25519] {
         private val curve25519 = new Curve25519()
 
         override def verifyWith[Data: Signable](
           proof:       Proofs.Signature.Curve25519,
-          proposition: Propositions.PublicKeyCurve25519,
+          proposition: Propositions.Knowledge.Curve25519,
           data:        Data
         ): Boolean = curve25519.verify(
           proof,
@@ -61,13 +61,13 @@ object ProofVerifier {
         )
       }
 
-    implicit val publicKeyEd25519: ProofVerifier[Proofs.Signature.Ed25519, Propositions.PublicKeyEd25519] =
-      new ProofVerifier[Proofs.Signature.Ed25519, Propositions.PublicKeyEd25519] {
+    implicit val publicKeyEd25519: ProofVerifier[Proofs.Signature.Ed25519, Propositions.Knowledge.Ed25519] =
+      new ProofVerifier[Proofs.Signature.Ed25519, Propositions.Knowledge.Ed25519] {
         private val ed25519 = new Ed25519()
 
         override def verifyWith[Data: Signable](
           proof:       Proofs.Signature.Ed25519,
-          proposition: Propositions.PublicKeyEd25519,
+          proposition: Propositions.Knowledge.Ed25519,
           data:        Data
         ): Boolean = ed25519.verify(
           proof,
@@ -77,13 +77,14 @@ object ProofVerifier {
       }
 
     // todo: move this logic to an implementation
-    implicit val thresholdCurve25519: ProofVerifier[Proofs.Threshold.Curve25519, Propositions.ThresholdCurve25519] =
-      new ProofVerifier[Proofs.Threshold.Curve25519, Propositions.ThresholdCurve25519] {
+    implicit val thresholdCurve25519
+      : ProofVerifier[Proofs.Threshold.Curve25519, Propositions.Knowledge.Threshold.Curve25519] =
+      new ProofVerifier[Proofs.Threshold.Curve25519, Propositions.Knowledge.Threshold.Curve25519] {
         private val curve25519 = new Curve25519()
 
         override def verifyWith[Data: Signable](
           proof:       Proofs.Threshold.Curve25519,
-          proposition: Propositions.ThresholdCurve25519,
+          proposition: Propositions.Knowledge.Threshold.Curve25519,
           data:        Data
         ): Boolean = {
           val dataBytes = data.signableBytes.toArray
@@ -113,17 +114,16 @@ object ProofVerifier {
       }
 
     // todo: move this logic to an implemntation
-    implicit val thresholdEd25519: ProofVerifier[Proofs.Threshold.Ed25519, Propositions.ThresholdEd25519] =
-      new ProofVerifier[Proofs.Threshold.Ed25519, Propositions.ThresholdEd25519] {
+    implicit val thresholdEd25519: ProofVerifier[Proofs.Threshold.Ed25519, Propositions.Knowledge.Threshold.Ed25519] =
+      new ProofVerifier[Proofs.Threshold.Ed25519, Propositions.Knowledge.Threshold.Ed25519] {
 
         private val ed25519 = new Ed25519()
 
         override def verifyWith[Data: Signable](
           proof:       Proofs.Threshold.Ed25519,
-          proposition: Propositions.ThresholdEd25519,
+          proposition: Propositions.Knowledge.Threshold.Ed25519,
           data:        Data
-        ): Boolean = {
-          val dataBytes = data.signableBytes.toArray
+        ): Boolean =
           proposition.propositions.size >= proposition.threshold && {
             val (validSignatureCount, _) =
               proof.signatures
@@ -146,17 +146,6 @@ object ProofVerifier {
                 }
             validSignatureCount >= proposition.threshold
           }
-        }
-      }
-
-    implicit val existence: ProofVerifier[Proofs.Existence, Propositions.Existence] =
-      new ProofVerifier[Proofs.Existence, Propositions.Existence] {
-
-        override def verifyWith[Data: Signable](
-          proof:       Proofs.Existence,
-          proposition: Propositions.Existence,
-          data:        Data
-        ): Boolean = true // TODO
       }
 
     implicit val signatureVrfEd25519: ProofVerifier[Proofs.Signature.VrfEd25519, Propositions.VerificationKeyVRF] =
