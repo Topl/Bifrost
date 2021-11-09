@@ -15,6 +15,8 @@ import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer,
 import co.topl.utils.Int128
 import co.topl.utils.StringDataTypes.implicits._
 
+import scala.collection.immutable.ListMap
+
 trait EqInstances {
 
   implicit val bytesEq: Eq[Array[Byte]] = (b1, b2) => b1 sameElements b2
@@ -48,7 +50,8 @@ trait EqInstances {
   implicit val publicKeyPropositionEd25519Eq: Eq[PublicKeyPropositionEd25519] = (p1, p2) =>
     p1.pubKeyBytes === p2.pubKeyBytes
 
-  implicit val propositionEq: Eq[Proposition] = (p1, p2) => p1.encodeAsBytes === p2.encodeAsBytes
+  implicit def propositionEq[P <: Proposition]: Eq[P] = (p1, p2) =>
+    propositionBinaryShow.encodeAsBytes(p1) === propositionBinaryShow.encodeAsBytes(p2)
 
   implicit val privateKeyCurve25519Eq: Eq[PrivateKeyCurve25519] = (p1, p2) =>
     p1.privateKey === p2.privateKey && p1.publicKey === p2.publicKey
@@ -61,19 +64,29 @@ trait EqInstances {
 
   implicit val simpleValueEq: Eq[SimpleValue] = (s1, s2) => s1.quantity === s2.quantity
 
-  implicit def arbitTransferEq[P <: Proposition]: Eq[ArbitTransfer[P]] = (a1, a2) =>
+  implicit val attestationEq: Eq[ListMap[_ <: Proposition, Proof[_ <: Proposition]]] = (l1, l2) =>
+    l1.size === l2.size &&
+    l1.toList
+      .zip(l2.toList)
+      .forall(pair =>
+        propositionBinaryShow.encodeAsBytes(pair._1._1) === propositionBinaryShow.encodeAsBytes(
+          pair._2._1
+        ) && proofBinaryShow.encodeAsBytes(pair._1._2) === proofBinaryShow.encodeAsBytes(pair._2._2)
+      )
+
+  implicit val arbitTransferEq: Eq[ArbitTransfer[_ <: Proposition]] = (a1, a2) =>
     a1.from.toSet === a2.from.toSet &&
     a1.to.toSet === a2.to.toSet &&
-    a1.attestation.toSet === a2.attestation.toSet &&
+    attestationEq.eqv(a1.attestation, a2.attestation) &&
     a1.fee === a2.fee &&
     a1.timestamp === a2.timestamp &&
     a1.data === a2.data &&
     a1.minting === a2.minting
 
-  implicit def polyTransferEq[P <: Proposition]: Eq[PolyTransfer[P]] = (p1, p2) =>
+  implicit def polyTransferEq: Eq[PolyTransfer[_ <: Proposition]] = (p1, p2) =>
     p1.from.toSet === p2.from.toSet &&
     p1.to.toSet === p2.to.toSet &&
-    p1.attestation.toSet === p2.attestation.toSet &&
+    attestationEq.eqv(p1.attestation, p2.attestation) &&
     p1.fee === p2.fee &&
     p1.timestamp === p2.timestamp &&
     p1.data === p2.data &&
@@ -92,10 +105,10 @@ trait EqInstances {
     a1.securityRoot === a2.securityRoot &&
     a1.metadata === a2.metadata
 
-  implicit def assetTransferEq[P <: Proposition]: Eq[AssetTransfer[P]] = (a1, a2) =>
+  implicit val assetTransferEq: Eq[AssetTransfer[_ <: Proposition]] = (a1, a2) =>
     a1.from.toSet === a2.from.toSet &&
     a1.to.toSet === a2.to.toSet &&
-    a1.attestation.toSet === a2.attestation.toSet &&
+    attestationEq.eqv(a1.attestation, a2.attestation) &&
     a1.fee === a2.fee &&
     a1.timestamp === a2.timestamp &&
     a1.data === a2.data &&
@@ -153,4 +166,26 @@ trait EqInstances {
     b1.version === b2.version
 
   implicit def boxEq[T]: Eq[Box[T]] = (b1, b2) => boxBinaryShow.encodeAsBytes(b1) === boxBinaryShow.encodeAsBytes(b2)
+
+  implicit val programIdEq: Eq[ProgramId] = (p1, p2) => p1.hashBytes === p2.hashBytes
+
+  implicit val codeBoxEq: Eq[CodeBox] = (c1, c2) =>
+    c1.evidence === c2.evidence &&
+    c1.nonce === c2.nonce &&
+    c1.value === c2.value &&
+    c1.code === c2.code &&
+    c1.interface === c2.interface
+
+  implicit val stateBoxEq: Eq[StateBox] = (s1, s2) =>
+    s1.evidence === s2.evidence &&
+    s1.nonce === s2.nonce &&
+    s1.value === s2.value &&
+    s1.state === s2.state
+
+  implicit val executionBoxEq: Eq[ExecutionBox] = (e1, e2) =>
+    e1.evidence === e2.evidence &&
+    e1.nonce === e2.nonce &&
+    e1.value === e2.value &&
+    e1.stateBoxIds === e2.stateBoxIds &&
+    e1.codeBoxIds === e2.codeBoxIds
 }

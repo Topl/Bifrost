@@ -14,9 +14,9 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 
 trait AttestationCodecs extends co.topl.codecs.json.attestation.keyManagement.KeyManagementCodecs {
-  implicit val addressJsonEncoder: Encoder[Address] = (addr: Address) => addr.toString.asJson
+  implicit val addressJsonEncoder: Encoder[Address] = (addr: Address) => addr.encodeAsBase58.asJson
 
-  implicit val addressJsonKeyEncoder: KeyEncoder[Address] = (addr: Address) => addr.toString
+  implicit val addressJsonKeyEncoder: KeyEncoder[Address] = (addr: Address) => addr.encodeAsBase58.show
 
   implicit def addressJsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[Address] =
     Decoder[Base58Data].emap(_.decodeAddress.toEither.leftMap(_.toString))
@@ -35,7 +35,7 @@ trait AttestationCodecs extends co.topl.codecs.json.attestation.keyManagement.Ke
     KeyDecoder[Base58Data].map(_.decodeTransmitted[Evidence].getOrThrow())
 
   implicit def proofJsonEncoder[P <: Proposition]: Encoder[Proof[P]] = value =>
-    Transmittable[Proof[_ <: Proposition]].transmittableBase58(value).asJson
+    proofTransmittable.transmittableBase58(value).asJson
 
   implicit val proofJsonDecoder: Decoder[Proof[_ <: Proposition]] =
     Decoder[Base58Data].emap(_.decodeTransmitted[Proof[_ <: Proposition]])
@@ -109,8 +109,8 @@ trait AttestationCodecs extends co.topl.codecs.json.attestation.keyManagement.Ke
     KeyDecoder[Base58Data].map(_.decodeTransmitted[SignatureEd25519].getOrThrow())
 
   implicit def propositionJsonKeyEncoder[P <: Proposition]: KeyEncoder[P] =
-    value => Transmittable[Proposition].transmittableBase58(value).show
+    value => propositionTransmittable.transmittableBase58(value).show
 
-  implicit def propositionJsonKeyDecoder: KeyDecoder[Proposition] =
-    KeyDecoder[Base58Data].map(_.decodeTransmitted[Proposition].getOrThrow())
+  implicit val propositionJsonKeyDecoder: KeyDecoder[_ <: Proposition] =
+    KeyDecoder[Base58Data].map(data => propositionTransmittable.fromTransmittableBytes(data.encodeAsBytes).getOrThrow())
 }

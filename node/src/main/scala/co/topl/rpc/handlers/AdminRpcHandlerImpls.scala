@@ -6,6 +6,7 @@ import cats.implicits._
 import co.topl.akkahttprpc.{InvalidParametersError, RpcError}
 import co.topl.consensus.{ForgerInterface, KeyManagerInterface}
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
+import co.topl.utils.catsInstances.addressShow
 
 class AdminRpcHandlerImpls(forgerInterface: ForgerInterface, keyManagerInterface: KeyManagerInterface)(implicit
   system:                                   ActorSystem[_],
@@ -20,7 +21,7 @@ class AdminRpcHandlerImpls(forgerInterface: ForgerInterface, keyManagerInterface
         .unlockKey(params.address, params.password)
         .leftMap(e => ToplRpcErrors.genericFailure(e.toString): RpcError)
         .subflatMap {
-          case addr if params.address == addr.toString => Map(addr -> "unlocked").asRight
+          case addr if params.address == addr.show => Map(addr -> "unlocked").asRight
           case _ => InvalidParametersError.adhoc("address", "Decrypted address does not match requested address").asLeft
         }
 
@@ -71,7 +72,7 @@ class AdminRpcHandlerImpls(forgerInterface: ForgerInterface, keyManagerInterface
       keyManagerInterface
         .updateRewardsAddress(params.address)
         .leftMap(e => ToplRpcErrors.genericFailure(e.toString): RpcError)
-        .map(_ => ToplRpc.Admin.UpdateRewardsAddress.Response(params.address.toString))
+        .map(_ => ToplRpc.Admin.UpdateRewardsAddress.Response(params.address.show))
 
   override val getRewardsAddress: ToplRpc.Admin.GetRewardsAddress.rpc.ServerHandler =
     _ =>

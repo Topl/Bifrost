@@ -1,6 +1,7 @@
 package co.topl.nodeView.state
 
 import cats.data.ValidatedNec
+import cats.implicits.toShow
 import co.topl.attestation.Address
 import co.topl.attestation.AddressCodec.implicits.BinaryShowOps
 import co.topl.db.LDBVersionedStore
@@ -22,6 +23,7 @@ import co.topl.codecs.binary.legacy.modifier.box.BoxSerializer
 import co.topl.utils.encode.Base58
 import co.topl.codecs._
 import co.topl.codecs.binary.typeclasses.Persistable
+import co.topl.utils.catsInstances.modifierIdShow
 
 import java.io.File
 import scala.reflect.ClassTag
@@ -143,7 +145,7 @@ case class State(
     if (storage.latestVersionId().exists(_ sameElements version.persistedBytes)) {
       this
     } else {
-      log.debug(s"Rollback State to $version from version ${this.version.toString}")
+      log.debug(s"Rollback State to $version from version ${this.version.show}")
       storage.rollbackTo(version.persistedBytes)
 
       State(version, storage, updatedTBR, updatedPBR, nodeKeys)
@@ -210,7 +212,7 @@ case class State(
       )
 
       log.debug(
-        s"Attempting update to State from version ${version.toString} to version $newVersion. " +
+        s"Attempting update to State from version ${version.show} to version $newVersion. " +
         s"Removing boxes with ids ${boxIdsToRemove.map(b => Base58.encode(b))}. " +
         s"Adding boxes ${boxesToAdd.map(b => Base58.encode(b._1))}."
       )

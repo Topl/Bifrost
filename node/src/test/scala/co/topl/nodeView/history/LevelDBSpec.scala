@@ -1,5 +1,7 @@
 package co.topl.nodeView.history
 
+import cats.implicits._
+import co.topl.utils.catsInstances._
 import co.topl.db.LDBVersionedStore
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -97,7 +99,7 @@ class LevelDBSpec
 
     ids.foreach { id =>
       val idInStorage = blocksStorage.get(id.getIdBytes) match {
-        case None    => log.warn(s"${Console.RED} Id ${id.toString} not found"); false
+        case None    => log.warn(s"${Console.RED} Id ${id.show} not found"); false
         case Some(_) => true
       }
       require(idInStorage)

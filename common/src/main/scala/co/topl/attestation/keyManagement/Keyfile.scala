@@ -1,11 +1,13 @@
 package co.topl.attestation.keyManagement
 
 import cats.data.Validated.{Invalid, Valid}
+import cats.implicits.toShow
 import co.topl.attestation.Address
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Latin1Data
 import io.circe.{Codec, Decoder, Encoder}
 import io.circe.syntax._
+import co.topl.utils.catsInstances._
 
 import java.io.{BufferedWriter, FileWriter}
 import java.time.Instant
@@ -67,7 +69,7 @@ trait KeyfileCompanion[S <: Secret, KF <: Keyfile[S]] {
 
     // save the keyfile to disk
     val dateString = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString.replace(":", "-")
-    val w = new BufferedWriter(new FileWriter(s"$dir/$dateString-${kf.address.toString}.json"))
+    val w = new BufferedWriter(new FileWriter(s"$dir/$dateString-${kf.address.show}.json"))
     w.write(kf.asJson.toString)
     w.close()
   }

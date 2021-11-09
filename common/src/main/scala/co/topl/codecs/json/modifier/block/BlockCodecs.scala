@@ -109,9 +109,9 @@ trait BlockCodecs {
       version
     )
 
-  implicit val bloomFilterJsonEncoder: Encoder[BloomFilter] = (bf: BloomFilter) => bf.toString.asJson
+  implicit val bloomFilterJsonEncoder: Encoder[BloomFilter] = (bf: BloomFilter) => bf.encodeAsBase58.asJson
 
-  implicit val bloomFilterJsonKeyEncoder: KeyEncoder[BloomFilter] = (bf: BloomFilter) => bf.toString
+  implicit val bloomFilterJsonKeyEncoder: KeyEncoder[BloomFilter] = (bf: BloomFilter) => bf.encodeAsBase58.show
 
   implicit val bloomFilterJsonDecoder: Decoder[BloomFilter] = Decoder[Base58Data].map(BloomFilter.fromBase58)
 }

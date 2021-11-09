@@ -1,5 +1,6 @@
 package co.topl.nodeView.history
 
+import cats.implicits.{catsSyntaxEq, toShow}
 import co.topl.consensus.Hiccups.HiccupBlock
 import co.topl.consensus._
 import co.topl.db.LDBVersionedStore
@@ -15,6 +16,7 @@ import co.topl.settings.AppSettings
 import co.topl.utils.IdiomaticScalaTransition.implicits.toTryOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Logging, TimeProvider}
+import co.topl.utils.catsInstances._
 
 import java.io.File
 import scala.annotation.tailrec
@@ -116,8 +118,8 @@ class History(
         } else {
           val progInfo: ProgressInfo[Block] =
             // Check if the new block extends the last best block
-            if (block.parentId.equals(storage.bestBlockId)) {
-              log.debug(s"New best block ${block.id.toString}")
+            if (block.parentId === storage.bestBlockId) {
+              log.debug(s"New best block ${block.id.show}")
 
               // update storage
               storage.update(block, isBest = true)

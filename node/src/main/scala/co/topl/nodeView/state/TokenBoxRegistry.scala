@@ -1,5 +1,6 @@
 package co.topl.nodeView.state
 
+import cats.implicits.toShow
 import co.topl.attestation.Address
 import co.topl.db.LDBVersionedStore
 import co.topl.modifier.box.{Box, BoxId, TokenBox, TokenValueHolder}
@@ -9,6 +10,7 @@ import co.topl.settings.AppSettings
 import co.topl.utils.Logging
 import com.google.common.primitives.Longs
 import co.topl.codecs._
+import co.topl.utils.catsInstances.modifierIdShow
 
 import java.io.File
 import scala.util.Try
@@ -64,7 +66,7 @@ class TokenBoxRegistry(protected val storage: KeyValueStore, nodeKeys: Option[Se
     val (deleted: Seq[K], updated: Seq[(K, Seq[V])]) = formatUpdates(filteredRemove, filteredAppend)
 
     saveToStore(newVersion, deleted, updated).map { _ =>
-      log.debug(s"${Console.GREEN} Update TokenBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
+      log.debug(s"${Console.GREEN} Update TokenBoxRegistry to version: ${newVersion.show}${Console.RESET}")
       new TokenBoxRegistry(storage, nodeKeys)
     }
   }
@@ -119,7 +121,7 @@ class TokenBoxRegistry(protected val storage: KeyValueStore, nodeKeys: Option[Se
     if (storage.latestVersionId().exists(_ sameElements version.persistedBytes)) {
       this
     } else {
-      log.debug(s"Rolling back TokenBoxRegistry to: ${version.toString}")
+      log.debug(s"Rolling back TokenBoxRegistry to: ${version.show}")
       storage.rollbackTo(version.persistedBytes)
       new TokenBoxRegistry(storage, nodeKeys)
     }

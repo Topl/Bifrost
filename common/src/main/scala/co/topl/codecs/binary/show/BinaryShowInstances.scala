@@ -10,7 +10,7 @@ import co.topl.crypto.hash.digest.implicits._
 import co.topl.crypto.hash.digest.{Digest, Digest32}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.BloomFilter
-import co.topl.modifier.box.{AssetCode, Box, BoxId, SecurityRoot}
+import co.topl.modifier.box.{AssetCode, Box, BoxId, ProgramId, SecurityRoot}
 import co.topl.modifier.transaction.Transaction
 import co.topl.utils.IdiomaticScalaTransition.implicits.toAttemptOps
 import co.topl.utils.SizedBytes
@@ -85,4 +85,6 @@ trait BinaryShowInstances {
   implicit val modifierIdBinaryShow: BinaryShow[ModifierId] = _.value
 
   implicit val boxBinaryShow: BinaryShow[Box[_]] = BinaryShow.fromEncoder
+
+  implicit val programIdBinaryShow: BinaryShow[ProgramId] = _.hashBytes
 }

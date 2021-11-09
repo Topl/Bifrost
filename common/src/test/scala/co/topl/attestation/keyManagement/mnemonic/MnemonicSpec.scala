@@ -5,21 +5,24 @@ import co.topl.attestation.keyManagement.derivedKeys.implicits._
 import co.topl.attestation.keyManagement.derivedKeys.{DerivedKeyIndex, ExtendedPrivateKeyEd25519}
 import co.topl.attestation.keyManagement.mnemonic.Language._
 import co.topl.attestation.keyManagement.mnemonic.MnemonicSize._
-import co.topl.utils.CommonGenerators
+import co.topl.codecs.binary._
 import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.SizedBytes.implicits._
 import co.topl.utils.StringDataTypes.Base16Data
-import co.topl.codecs.binary._
+import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.encode.Base58
-import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+import co.topl.utils.{CommonGenerators, EqMatcher}
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatest.matchers.should.Matchers
 
 class MnemonicSpec
     extends AnyPropSpec
+    with Matchers
     with CommonGenerators
     with ScalaCheckPropertyChecks
-    with ScalaCheckDrivenPropertyChecks {
+    with ScalaCheckDrivenPropertyChecks
+    with EqMatcher {
 
   implicit val entropyAsString: FromEntropy[String] =
     (e: Entropy) => Base58.encode(e.value)
@@ -229,7 +232,7 @@ class MnemonicSpec
       val pkResultBase16 =
         (pkResult.leftKey.toVector ++ pkResult.rightKey.toVector ++ pkResult.chainCode.toVector).encodeAsBase16
 
-      pkResultBase16 shouldBe expectedPrivateKeyBase16
+      pkResultBase16 should eqvShow(expectedPrivateKeyBase16)
     }
 
   testVectors.foreach(testVectorTest)
@@ -297,55 +300,59 @@ class MnemonicSpec
 
     val entropy = Entropy.fromPhrase(mnemonicPhrase, languageWordList, Mnemonic24)
 
-    entropy.value.encodeAsBase16 shouldBe expectedEntropy
+    entropy.value.encodeAsBase16 should eqvShow(expectedEntropy)
 
     val rootKey = ExtendedPrivateKeyEd25519(entropy, "")
 
     (rootKey.leftKey.toArray ++
     rootKey.rightKey.toArray ++
-    rootKey.chainCode.toArray).encodeAsBase16 shouldBe expectedRootSecretKey
+    rootKey.chainCode.toArray).encodeAsBase16 should eqvShow(expectedRootSecretKey)
 
     val rootPublicKey = rootKey.public
 
     (rootPublicKey.bytes.toArray ++
-    rootPublicKey.chainCode.toArray).encodeAsBase16 shouldBe expectedRootPublicKey
+    rootPublicKey.chainCode.toArray).encodeAsBase16 should eqvShow(expectedRootPublicKey)
 
     val `m/1852' secret` = rootKey.derive(DerivedKeyIndex.hardened(1852)).getOrThrow()
 
     (`m/1852' secret`.leftKey.toArray ++
     `m/1852' secret`.rightKey.toArray ++
-    `m/1852' secret`.chainCode.toArray).encodeAsBase16 shouldBe `expected m/1852' secret`
+    `m/1852' secret`.chainCode.toArray).encodeAsBase16 should eqvShow(`expected m/1852' secret`)
 
     val `m/1852'/7091' secret` = `m/1852' secret`.derive(DerivedKeyIndex.hardened(7091)).getOrThrow()
 
     (`m/1852'/7091' secret`.leftKey.toArray ++
     `m/1852'/7091' secret`.rightKey.toArray ++
-    `m/1852'/7091' secret`.chainCode.toArray).encodeAsBase16 shouldBe `expected m/1852'/7091' secret`
+    `m/1852'/7091' secret`.chainCode.toArray).encodeAsBase16 should eqvShow(`expected m/1852'/7091' secret`)
 
     val `m/1852'/7091'/0' secret` =
       `m/1852'/7091' secret`.derive(DerivedKeyIndex.hardened(0)).getOrThrow()
 
     (`m/1852'/7091'/0' secret`.leftKey.toArray ++
     `m/1852'/7091'/0' secret`.rightKey.toArray ++
-    `m/1852'/7091'/0' secret`.chainCode.toArray).encodeAsBase16 shouldBe `expected m/1852'/7091'/0' secret`
+    `m/1852'/7091'/0' secret`.chainCode.toArray).encodeAsBase16 should eqvShow(`expected m/1852'/7091'/0' secret`)
 
     val `m/1852'/7091'/0'/0 secret` =
       `m/1852'/7091'/0' secret`.derive(DerivedKeyIndex.soft(0)).getOrThrow()
 
     (`m/1852'/7091'/0'/0 secret`.leftKey.toArray ++
     `m/1852'/7091'/0'/0 secret`.rightKey.toArray ++
-    `m/1852'/7091'/0'/0 secret`.chainCode.toArray).encodeAsBase16 shouldBe `expected m/1852'/7091'/0'/0 secret`
+    `m/1852'/7091'/0'/0 secret`.chainCode.toArray).encodeAsBase16 should eqvShow(`expected m/1852'/7091'/0'/0 secret`)
 
     val `m/1852'/7091'/0'/0/0 secret` =
       `m/1852'/7091'/0'/0 secret`.derive(DerivedKeyIndex.soft(0)).getOrThrow()
 
     (`m/1852'/7091'/0'/0/0 secret`.leftKey.toArray ++
     `m/1852'/7091'/0'/0/0 secret`.rightKey.toArray ++
-    `m/1852'/7091'/0'/0/0 secret`.chainCode.toArray).encodeAsBase16 shouldBe `expected m/1852'/7091'/0'/0/0 secret`
+    `m/1852'/7091'/0'/0/0 secret`.chainCode.toArray).encodeAsBase16 should eqvShow(
+      `expected m/1852'/7091'/0'/0/0 secret`
+    )
 
     val `m/1852'/7091'/0'/0/0 verify` = `m/1852'/7091'/0'/0/0 secret`.public
 
     (`m/1852'/7091'/0'/0/0 verify`.bytes.toArray ++
-    `m/1852'/7091'/0'/0/0 verify`.chainCode.toArray).encodeAsBase16 shouldBe `expected m/1852'/7091'/0'/0/0 verify`
+    `m/1852'/7091'/0'/0/0 verify`.chainCode.toArray).encodeAsBase16 should eqvShow(
+      `expected m/1852'/7091'/0'/0/0 verify`
+    )
   }
 }

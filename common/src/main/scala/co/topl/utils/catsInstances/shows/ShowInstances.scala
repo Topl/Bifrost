@@ -12,49 +12,52 @@ import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer,
 
 trait ShowInstances {
 
-  implicit val showBytes: Show[Array[Byte]] = fromBinaryShow
+  implicit val showBytes: Show[Array[Byte]] = fromBase58
 
-  implicit val addressShow: Show[Address] = fromBinaryShow
+  implicit val addressShow: Show[Address] = fromBase58
 
-  implicit def digestShow[T: Digest]: Show[T] = fromBinaryShow
+  implicit def digestShow[T: Digest]: Show[T] = fromBase58
 
-  implicit val evidenceShow: Show[Evidence] = fromBinaryShow
+  implicit val evidenceShow: Show[Evidence] = fromBase58
 
-  implicit val signatureCurve25519Show: Show[SignatureCurve25519] = fromBinaryShow
+  implicit val signatureCurve25519Show: Show[SignatureCurve25519] = fromBase58
 
-  implicit val thresholdSignatureCurve25519Show: Show[ThresholdSignatureCurve25519] = fromBinaryShow
+  implicit val thresholdSignatureCurve25519Show: Show[ThresholdSignatureCurve25519] = fromBase58
 
-  implicit val signatureEd25519Show: Show[SignatureEd25519] = fromBinaryShow
+  implicit val signatureEd25519Show: Show[SignatureEd25519] = fromBase58
 
-  implicit val proofShow: Show[Proof[_ <: Proposition]] = fromBinaryShow
+  implicit val proofShow: Show[Proof[_ <: Proposition]] = fromBase58
 
-  implicit val publicKeyPropositionCurve25519Show: Show[PublicKeyPropositionCurve25519] = fromBinaryShow
+  implicit val publicKeyPropositionCurve25519Show: Show[PublicKeyPropositionCurve25519] = fromBase58
 
-  implicit val thresholdPropositionCurve25519Show: Show[ThresholdPropositionCurve25519] = fromBinaryShow
+  implicit val thresholdPropositionCurve25519Show: Show[ThresholdPropositionCurve25519] = fromBase58
 
-  implicit val publicKeyPropositionEd25519Show: Show[PublicKeyPropositionEd25519] = fromBinaryShow
+  implicit val publicKeyPropositionEd25519Show: Show[PublicKeyPropositionEd25519] = fromBase58
 
-  implicit val propositionShow: Show[Proposition] = fromBinaryShow
+  implicit val propositionShow: Show[Proposition] = fromBase58
 
-  implicit val privateKeyCurve25519Show: Show[PrivateKeyCurve25519] = fromBinaryShow
+  implicit val privateKeyCurve25519Show: Show[PrivateKeyCurve25519] = fromBase58
 
-  implicit val privateKeyEd25519Show: Show[PrivateKeyEd25519] = fromBinaryShow
+  implicit val privateKeyEd25519Show: Show[PrivateKeyEd25519] = fromBase58
 
-  implicit def arbitTransferShow[P <: Proposition]: Show[ArbitTransfer[P]] = fromJsonEncoder(arbitTransferJsonEncoder)
+  implicit val arbitTransferShow: Show[ArbitTransfer[_ <: Proposition]] = arbitTransfer =>
+    arbitTransferJsonEncoder(arbitTransfer).spaces2
 
-  implicit def assetTransferShow[P <: Proposition]: Show[AssetTransfer[P]] = fromJsonEncoder(assetTransferJsonEncoder)
+  implicit val assetTransferShow: Show[AssetTransfer[_ <: Proposition]] = assetTransfer =>
+    assetTransferJsonEncoder(assetTransfer).spaces2
 
-  implicit def polyTransferShow[P <: Proposition]: Show[PolyTransfer[P]] = fromJsonEncoder(polyTransferJsonEncoder)
+  implicit val polyTransferShow: Show[PolyTransfer[_ <: Proposition]] = polyTransfer =>
+    polyTransferJsonEncoder(polyTransfer).spaces2
 
   implicit val txShow: Show[Transaction.TX] = fromJsonEncoder
 
-  implicit val securityRootShow: Show[SecurityRoot] = fromBinaryShow
+  implicit val securityRootShow: Show[SecurityRoot] = fromBase58
 
-  implicit val boxIdShow: Show[BoxId] = fromBinaryShow
+  implicit val boxIdShow: Show[BoxId] = fromBase58
 
-  implicit val assetCodeShow: Show[AssetCode] = fromBinaryShow
+  implicit val assetCodeShow: Show[AssetCode] = fromBase58
 
-  implicit val bloomFilterShow: Show[BloomFilter] = fromBinaryShow
+  implicit val bloomFilterShow: Show[BloomFilter] = fromBase58
 
   implicit val arbitBoxShow: Show[ArbitBox] = fromJsonEncoder
 
@@ -74,7 +77,15 @@ trait ShowInstances {
 
   implicit val blockBodyShow: Show[BlockBody] = fromJsonEncoder
 
-  implicit val modifierIdShow: Show[ModifierId] = fromBinaryShow
+  implicit val modifierIdShow: Show[ModifierId] = fromBase58
 
   implicit val boxShow: Show[Box[_]] = fromJsonEncoder
+
+  implicit val programIdShow: Show[ProgramId] = fromBase58
+
+  implicit val codeBoxShow: Show[CodeBox] = fromJsonEncoder
+
+  implicit val stateBoxShow: Show[StateBox] = fromJsonEncoder
+
+  implicit val executionBoxShow: Show[ExecutionBox] = fromJsonEncoder
 }

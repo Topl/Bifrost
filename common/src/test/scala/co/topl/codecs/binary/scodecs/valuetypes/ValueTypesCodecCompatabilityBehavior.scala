@@ -7,11 +7,16 @@ import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.codecs.binary.legacy.{VLQByteStringReader, VLQByteStringWriter}
 import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import scodec.Codec
 import scodec.bits.BitVector
 
-trait ValueTypesCodecCompatabilityBehavior extends AnyFlatSpec with EqMatcher with ScalaCheckDrivenPropertyChecks {
+trait ValueTypesCodecCompatabilityBehavior
+    extends AnyFlatSpec
+    with Matchers
+    with EqMatcher
+    with ScalaCheckDrivenPropertyChecks {
 
   def valueTypesCodecCompatabilityBehavior[T: Show: Eq](
     name:           String,
@@ -31,7 +36,7 @@ trait ValueTypesCodecCompatabilityBehavior extends AnyFlatSpec with EqMatcher wi
         val decodedValue =
           vlqDeserialize(value)(new VLQByteStringReader(encodedByteString))
 
-        decodedValue should eqShow(value)
+        decodedValue should eqvShow(value)
       }
     }
 
@@ -43,7 +48,7 @@ trait ValueTypesCodecCompatabilityBehavior extends AnyFlatSpec with EqMatcher wi
 
         val decodedValue = codecGen(value).decode(encodedBitVector).map(_.value).getOrThrow()
 
-        decodedValue should eqShow(value)
+        decodedValue should eqvShow(value)
       }
     }
 
@@ -55,7 +60,7 @@ trait ValueTypesCodecCompatabilityBehavior extends AnyFlatSpec with EqMatcher wi
 
         val decodedValue = codec.decode(encodedValue).map(_.value).getOrThrow()
 
-        decodedValue should eqShow(value)
+        decodedValue should eqvShow(value)
       }
     }
 

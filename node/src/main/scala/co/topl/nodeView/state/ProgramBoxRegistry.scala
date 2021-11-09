@@ -1,5 +1,7 @@
 package co.topl.nodeView.state
 
+import cats.implicits._
+import co.topl.codecs._
 import co.topl.db.LDBVersionedStore
 import co.topl.modifier.box.{BoxId, ProgramBox, ProgramId}
 import co.topl.nodeView.state.MinimalState.VersionTag
@@ -7,7 +9,7 @@ import co.topl.nodeView.{KeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.Logging
-import co.topl.codecs._
+import co.topl.utils.catsInstances._
 
 import java.io.File
 import scala.util.{Failure, Success, Try}
@@ -80,17 +82,17 @@ class ProgramBoxRegistry(protected val storage: KeyValueStore)
 
     } match {
       case Success(_) =>
-        log.debug(s"${Console.GREEN} Update ProgramBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
+        log.debug(s"${Console.GREEN} Update ProgramBoxRegistry to version: ${newVersion.show}${Console.RESET}")
         Success(new ProgramBoxRegistry(storage))
 
       case Failure(ex) => Failure(ex)
     }
 
   override def rollbackTo(version: VersionTag): Try[ProgramBoxRegistry] = Try {
-    if (storage.latestVersionId().exists(_ sameElements version.persistedBytes)) {
+    if (storage.latestVersionId().exists(_ === version.persistedBytes)) {
       this
     } else {
-      log.debug(s"Rolling back ProgramBoxRegistry to: ${version.toString}")
+      log.debug(s"Rolling back ProgramBoxRegistry to: ${version.show}")
       storage.rollbackTo(version.persistedBytes)
       new ProgramBoxRegistry(storage)
     }

@@ -1,13 +1,8 @@
 package co.topl.modifier
 
-import co.topl.modifier.NodeViewModifier.ModifierTypeId
-import co.topl.modifier.block.{Block, BlockBody, BlockHeader}
-import co.topl.modifier.transaction.Transaction
 import co.topl.codecs.binary.legacy.modifier.NodeViewModifierSerializer
-import co.topl.codecs.binary.legacy.modifier.block.BlockSerializer
-import co.topl.codecs.binary.legacy.modifier.transaction.TransactionSerializer
 import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
-import io.circe.Encoder
+import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import io.estatico.newtype.macros.newtype
 
 import scala.language.implicitConversions

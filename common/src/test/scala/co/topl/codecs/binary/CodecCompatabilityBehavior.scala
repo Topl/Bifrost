@@ -6,11 +6,12 @@ import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.codecs.binary.legacy.BifrostSerializer
 import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import scodec.Codec
 import scodec.bits.BitVector
 
-trait CodecCompatabilityBehavior extends AnyFlatSpec with EqMatcher with ScalaCheckDrivenPropertyChecks {
+trait CodecCompatabilityBehavior extends AnyFlatSpec with Matchers with EqMatcher with ScalaCheckDrivenPropertyChecks {
 
   def codecCompatabilityBehavior[T: Eq: Show](
     name:       String,
@@ -26,7 +27,7 @@ trait CodecCompatabilityBehavior extends AnyFlatSpec with EqMatcher with ScalaCh
 
         val decodedValue = serializer.parseBytes(encodedValue.toByteArray).getOrThrow()
 
-        decodedValue should eqShow(value)
+        decodedValue should eqvShow(value)
       }
     }
 
@@ -36,7 +37,7 @@ trait CodecCompatabilityBehavior extends AnyFlatSpec with EqMatcher with ScalaCh
 
         val decodedValue = codec.decode(BitVector(encodedValue)).getOrThrow().value
 
-        decodedValue should eqShow(value)
+        decodedValue should eqvShow(value)
       }
     }
 
@@ -46,7 +47,7 @@ trait CodecCompatabilityBehavior extends AnyFlatSpec with EqMatcher with ScalaCh
 
         val decodedValue = codec.decode(encodedValue).getOrThrow().value
 
-        decodedValue should eqShow(decodedValue)
+        decodedValue should eqvShow(decodedValue)
       }
     }
 

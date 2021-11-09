@@ -15,6 +15,7 @@ import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType._
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
+import co.topl.utils.catsInstances._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Success, Try}
@@ -48,7 +49,7 @@ class KeyManager(settings: AppSettings, appContext: AppContext)(implicit np: Net
     case ImportKey(password, mnemonic, lang) => sender() ! keyRing.importPhrase(password, mnemonic, lang)
     case ListKeys                            => sender() ! keyRing.addresses
     case UpdateRewardsAddress(address)       => sender() ! updateRewardsAddress(keyRing, address)
-    case GetRewardsAddress                   => sender() ! rewardAddress.fold("none")(_.toString)
+    case GetRewardsAddress                   => sender() ! rewardAddress.fold("none")(_.show)
     case GetKeyView                          => sender() ! getKeyView(keyRing, rewardAddress)
     case GenerateInitialAddresses            => sender() ! generateInitialAddresses(keyRing, rewardAddress)
   }
@@ -134,7 +135,7 @@ class KeyManager(settings: AppSettings, appContext: AppContext)(implicit np: Net
   ): String = {
     val newRewardAddress = Some(address)
     context.become(receive(keyRing, newRewardAddress))
-    newRewardAddress.fold("none")(_.toString)
+    newRewardAddress.fold("none")(_.show)
   }
 }
 
