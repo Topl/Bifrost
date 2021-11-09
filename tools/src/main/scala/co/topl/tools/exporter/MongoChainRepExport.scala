@@ -1,9 +1,9 @@
 package co.topl.tools.exporter
 
 import org.mongodb.scala.MongoClient
-import org.mongodb.scala.bson.Document
+import org.mongodb.scala.bson.{BsonString, Document}
 import org.mongodb.scala.model.Filters.{and, gte, in, lte}
-import org.mongodb.scala.model.{Filters, Projections}
+import org.mongodb.scala.model.Projections
 import org.mongodb.scala.result.{DeleteResult, InsertManyResult}
 
 import scala.concurrent.Future
@@ -23,20 +23,11 @@ class MongoChainRepExport(uri: String, database: String) {
     .toFuture()
 
   def remove(field: String, values: Seq[String], collectionName: String): Future[DeleteResult] = {
-    val res = db
+    val listIds = values.map(BsonString(_))
+    db
       .getCollection(collectionName)
-      .deleteMany(in(field, values))
+      .deleteMany(in(field, listIds: _*))
       .toFuture()
-
-    //TODO: Jing - cleanup
-    val newres = db
-      .getCollection(collectionName)
-      .deleteMany(Filters.equal("txId", List("tL9YbQqT7WiGNoNH7at8GdbnYDUNRuctEM4JyLTQbwFu")))
-      .toFuture()
-    Thread.sleep(1000)
-    println(s"${Console.RED_B}$field $values --$res${Console.RESET}")
-    println(s"${Console.RED_B}$field $values --$newres${Console.RESET}")
-    res
   }
 
   def getUnconfirmedTx(collectionName: String): Future[Seq[String]] = db
@@ -46,12 +37,15 @@ class MongoChainRepExport(uri: String, database: String) {
     .map(_.head._2.asString().getValue)
     .toFuture()
 
-  def getMissingBlockIds(idsToCheck: Seq[String], collectionName: String): Future[Seq[String]] = db
-    .getCollection(collectionName)
-    .find(in("id", idsToCheck))
-    .projection(Projections.fields(Projections.include("id"), Projections.excludeId()))
-    .map(_.head._2.asString().getValue)
-    .toFuture()
+  def getMissingBlockIds(idsToCheck: Seq[String], collectionName: String): Future[Seq[String]] = {
+    val listIds = idsToCheck.map(BsonString(_))
+    db
+      .getCollection(collectionName)
+      .find(in("id", listIds: _*))
+      .projection(Projections.fields(Projections.include("id"), Projections.excludeId()))
+      .map(_.head._2.asString().getValue)
+      .toFuture()
+  }
 
   def getExistingHeights(start: Long, end: Long, collectionName: String): Future[Seq[Long]] = db
     .getCollection(collectionName)

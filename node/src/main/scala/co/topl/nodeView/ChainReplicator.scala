@@ -24,7 +24,6 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success}
 
-
 /**
  * Chain replicator listens to info about new blocks from NodeViewHolder and updates the AppView with new blocks
  * It could also find the previously missing blocks and send them to the AppView
@@ -329,11 +328,6 @@ private class ChainReplicator(
         unconfirmedTxDB.contains(tx.id.toString)
       }
       .toSeq
-    
-    //TODO: Jing - cleanup
-    println(s"${Console.GREEN_B}$unconfirmedTxDB${Console.RESET}")
-    println(s"${Console.GREEN_B}$toInsert${Console.RESET}")
-    println(s"${Console.GREEN_B}$toRemove${Console.RESET}")
     (toInsert, toRemove)
   }
 
