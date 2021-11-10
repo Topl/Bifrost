@@ -170,7 +170,10 @@ object Dependencies {
     misc ++
     test
 
-  lazy val tools: Seq[ModuleID] = Seq()
+  lazy val tools: Seq[ModuleID] =
+    Seq(
+      "org.mongodb.scala" %% "mongo-scala-driver" % "4.3.2"
+    )
 
   lazy val loadTesting: Seq[ModuleID] = {
     Seq(
