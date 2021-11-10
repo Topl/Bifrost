@@ -1,6 +1,5 @@
 package co.topl.nodeView
 
-import akka.actor.PoisonPill
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.actor.typed.ActorRef
 import akka.actor.typed.eventstream.EventStream
@@ -11,9 +10,8 @@ import co.topl.nodeView.ChainReplicatorSpec.TestInWithActor
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages
 import co.topl.nodeView.NodeViewTestHelpers.TestIn
 import co.topl.settings.ChainReplicatorSettings
-import co.topl.tools.exporter.DataType
 import co.topl.utils.{InMemoryKeyFileTestHelper, TestSettings, TimeProvider}
-import com.mongodb.client.result.InsertManyResult
+import com.mongodb.client.result.{DeleteResult, InsertManyResult}
 import org.bson.BsonValue
 import org.mongodb.scala.bson.Document
 import org.scalamock.scalatest.MockFactory
@@ -36,7 +34,12 @@ class ChainReplicatorSpec
 
   behavior of "ChainReplicator"
 
-  var blockStore: mutable.Map[Long, String] = scala.collection.mutable.Map[Long, String]()
+  val blockCollectionName: String = settings.chainReplicator.blockCollection
+  val confirmedTxCollectionName: String = settings.chainReplicator.confirmedTxCollection
+  val unconfirmedTxCollectionName: String = settings.chainReplicator.unconfirmedTxCollection
+  var blockStore: mutable.Map[String, String] = scala.collection.mutable.Map[String, String]()
+  var confirmedTxStore: mutable.Map[String, String] = scala.collection.mutable.Map[String, String]()
+  var unconfirmedTxStore: mutable.Map[String, String] = scala.collection.mutable.Map[String, String]()
 
   val chainRepSettings: ChainReplicatorSettings = settings.chainReplicator.copy(
     enableChainReplicator = true,
@@ -65,8 +68,10 @@ class ChainReplicatorSpec
         ChainReplicator(
           testIn.nodeViewHolderRef,
           () => checkValidationTest(),
-          (start: Long, end: Long) => getExistingHeightsTest(start, end),
-          (eleSeq: Seq[Document], dt: DataType) => insertDBTest(eleSeq, dt),
+          (eleSeq: Seq[Document], collectionName: String) => insertDBTest(eleSeq, collectionName),
+          (field: String, value: Seq[String], collectionName: String) => removeDBTest(field, value, collectionName),
+          (collectionName: String) => getUnconfirmedTxTest(collectionName),
+          (idsToCheck: Seq[String], collectionName: String) => getMissingBlockIdsTest(idsToCheck, collectionName),
           chainRepSettings
         ),
         ChainReplicator.actorName
@@ -81,7 +86,7 @@ class ChainReplicatorSpec
   it should "listen and send new blocks to the database" in {
     implicit val timeProvider: TimeProvider = mock[TimeProvider]
     val blockNum = 15
-    blockStore = scala.collection.mutable.Map[Long, String]()
+    blockStore = scala.collection.mutable.Map[String, String]()
 
     (() => timeProvider.time)
       .expects()
@@ -95,8 +100,10 @@ class ChainReplicatorSpec
         ChainReplicator(
           testIn.nodeViewHolderRef,
           () => checkValidationTest(),
-          (start: Long, end: Long) => getExistingHeightsTest(start, end),
-          (eleSeq: Seq[Document], dt: DataType) => insertDBTest(eleSeq, dt),
+          (eleSeq: Seq[Document], collectionName: String) => insertDBTest(eleSeq, collectionName),
+          (field: String, value: Seq[String], collectionName: String) => removeDBTest(field, value, collectionName),
+          (collectionName: String) => getUnconfirmedTxTest(collectionName),
+          (idsToCheck: Seq[String], collectionName: String) => getMissingBlockIdsTest(idsToCheck, collectionName),
           chainRepSettings
         ),
         ChainReplicator.actorName
@@ -115,24 +122,53 @@ class ChainReplicatorSpec
 
   private def checkValidationTest(): Future[Seq[String]] = Future.successful(Seq("blocks", "transactions"))
 
-  private def getExistingHeightsTest(start: Long, end: Long): Future[Seq[Long]] =
-    Future.successful((start to end).filter(blockStore.contains(_)))
-
   private def insertDBTest(
-    eleSeq: Seq[Document],
-    dt:     DataType
+    eleSeq:         Seq[Document],
+    collectionName: String
   ): Future[InsertManyResult] = {
-    if (dt.name == "blocks") {
-      eleSeq.foreach { ele =>
-        val id = ele.head._2.toString
-        val height = ele.toList(6)._2.asNumber().longValue()
-        blockStore += (height -> id)
+    collectionName match {
+      case `blockCollectionName` =>
+        eleSeq.foreach { ele =>
+          val id = ele.get("id").head.asString().getValue
+          val height = ele.get("height").head.asNumber().longValue().toString
+          blockStore += (id -> height)
+        }
+
+      case `confirmedTxCollectionName` =>
+        eleSeq.foreach { ele =>
+          val id = ele.get("txId").head.asString().getValue
+          val block = ele.get("timestamp").head.asString().getValue
+          confirmedTxStore += (id -> block)
+        }
+      case `unconfirmedTxCollectionName` =>
+        eleSeq.foreach { ele =>
+          val id = ele.get("txId").head.asString().getValue
+          val timestamp = ele.get("timestamp").head.asString().getValue
+          unconfirmedTxStore += (id -> timestamp)
+        }
+    }
+
+    val insertedIds = Map[Integer, BsonValue]().asJava
+    Future.successful(InsertManyResult.acknowledged(insertedIds))
+  }
+
+  private def removeDBTest(field: String, value: Seq[String], collectionName: String): Future[DeleteResult] = {
+    var count = 0
+    value.foreach{ key =>
+      if (collectionName == settings.chainReplicator.unconfirmedTxCollection) {
+        unconfirmedTxStore.remove(key)
+        count += 1
       }
     }
-    val insertedIds = Map[Integer, BsonValue]().asJava
-    Future.successful(
-      InsertManyResult.acknowledged(insertedIds)
-    )
+    Future.successful(DeleteResult.acknowledged(count))
+  }
+
+  private def getUnconfirmedTxTest(collectionName: String): Future[Seq[String]] =
+    Future.successful(unconfirmedTxStore.keys.toSeq)
+
+
+  private def getMissingBlockIdsTest(idsToCheck: Seq[String], collectionName: String): Future[Seq[String]] = {
+    Future.successful(idsToCheck.filterNot(blockStore.contains))
   }
 
   private def genesisActorTest(test: TestInWithActor => Unit)(implicit timeProvider: TimeProvider): Unit = {

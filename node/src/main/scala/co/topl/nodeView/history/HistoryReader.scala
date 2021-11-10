@@ -28,7 +28,7 @@ trait HistoryReader[PM <: PersistentNodeViewModifier, SI <: SyncInfo]
   /** Retrieve a series of PersistentNodeViewModifiers until the filter is satisfied */
   def filter(f: PM => Boolean): Seq[PM]
 
-  /** get block id at a certain height */
+  /** get block at a certain height */
   def modifierByHeight(height: Long): Option[PM]
 
   /** get parent block of a given block */

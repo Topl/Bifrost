@@ -6,6 +6,7 @@ import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
 import cats.data.OptionT
 import cats.implicits._
+import co.topl.modifier.ModifierId
 import co.topl.modifier.ModifierId.fromBase58
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
@@ -51,7 +52,6 @@ object ChainReplicator {
   def apply(
     nodeViewHolderRef:    ActorRef[NodeViewHolder.ReceivableMessage],
     checkDBConnection:    () => Future[Seq[String]],
-    getExistingHeightsDB: (Long, Long, String) => Future[Seq[Long]],
     insertDB:             (Seq[Document], String) => Future[InsertManyResult],
     removeDB:             (String, Seq[String], String) => Future[DeleteResult],
     getUnconfirmedTxDB:   String => Future[Seq[String]],
@@ -80,7 +80,6 @@ object ChainReplicator {
         new ChainReplicator(
           nodeViewHolderRef,
           buffer,
-          getExistingHeightsDB,
           insertDB,
           removeDB,
           getUnconfirmedTxDB,
@@ -95,7 +94,6 @@ object ChainReplicator {
 private class ChainReplicator(
   nodeViewHolderRef:    ActorRef[NodeViewHolder.ReceivableMessage],
   buffer:               StashBuffer[ChainReplicator.ReceivableMessage],
-  getExistingHeightsDB: (Long, Long, String) => Future[Seq[Long]],
   insertDB:             (Seq[Document], String) => Future[InsertManyResult],
   removeDB:             (String, Seq[String], String) => Future[DeleteResult],
   getUnconfirmedTxDB:   (String) => Future[Seq[String]],
@@ -145,19 +143,21 @@ private class ChainReplicator(
         implicit val ec: ExecutionContext = context.executionContext
 
         val endHeight = (startHeight + settings.blockCheckSize).min(maxHeight)
-        val existingHeightsFuture = getExistingHeightsDB(startHeight, endHeight, settings.blockCollection)
-        val exportResult: OptionT[Future, (InsertManyResult, InsertManyResult)] = for {
-          existingHeights  <- OptionT[Future, Seq[Long]](existingHeightsFuture.map(_.some))
-          blocksToAdd      <- OptionT[Future, Seq[Block]](missingBlocks(startHeight, endHeight, existingHeights))
-          blockWriteResult <- OptionT[Future, InsertManyResult](exportBlocks(blocksToAdd).map(_.some))
-          txWriteResult    <- OptionT[Future, InsertManyResult](exportTxsFromBlocks(blocksToAdd).map(_.some))
-        } yield (blockWriteResult, txWriteResult)
+        val exportResult = for {
+          blockIdsInRange <- OptionT[Future, Seq[String]](getIdsAtHeights(startHeight, endHeight).map(_.some))
+          missingBlockIds <- OptionT[Future, Seq[String]](
+            getMissingBlockIdsDB(blockIdsInRange, settings.blockCollection).map(_.some)
+          )
+          blocksToAdd       <- OptionT[Future, Seq[Block]](getBlocksById(missingBlockIds))
+          blockExportResult <- OptionT[Future, InsertManyResult](exportBlocks(blocksToAdd).map(_.some))
+          txExportResult    <- OptionT[Future, InsertManyResult](exportTxsFromBlocks(blocksToAdd).map(_.some))
+        } yield (blockExportResult, txExportResult)
 
         context.pipeToSelf(exportResult.value) {
-          case Success(Some(writeResults)) =>
+          case Success(Some((blockExportResult, txExportResult))) =>
             log.info(
-              s"${Console.GREEN}Successfully inserted ${writeResults._1.getInsertedIds.size()} blocks " +
-              s"and ${writeResults._2.getInsertedIds.size()} transactions into AppView${Console.RESET}"
+              s"${Console.GREEN}Successfully inserted ${blockExportResult.getInsertedIds.size()} blocks " +
+              s"and ${txExportResult.getInsertedIds.size()} transactions into AppView${Console.RESET}"
             )
             ReceivableMessages.CheckMissingBlocksDone(startHeight, endHeight, maxHeight)
           case Failure(err) =>
@@ -264,20 +264,33 @@ private class ChainReplicator(
   }
 
   /**
-   * Given the height range of the database check, and the heights where at least one block exists in range, return the
-   * blocks at missing heights from NodeView
-   * @param startHeight the start height of the database check
-   * @param existingHeights the sequence of heights where at least one block exists in the AppView
-   * @return optional sequence of blocks that are missing in the AppView
+   * Given block id strings, fetch the blocks of corresponding ids from nodeView
+   * @param blockIds id strings of blocks needed
+   * @return blocks of given ids
    */
-  private def missingBlocks(
-    startHeight:     Long,
-    endHeight:       Long,
-    existingHeights: Seq[Long]
-  ): Future[Option[Seq[Block]]] = {
-    val exisitingHeightsSet = existingHeights.toSet
-    val missingBlockHeights = (startHeight to endHeight).filterNot(exisitingHeightsSet.contains)
-    withNodeView(blocksAtHeight(missingBlockHeights)(_))
+  private def getBlocksById(blockIds: Seq[String]): Future[Option[Seq[Block]]] = {
+    def blocksById(blockIds: Seq[String])(nodeView: ReadableNodeView): Option[Seq[Block]] =
+      if (blockIds.nonEmpty)
+        blockIds.flatMap { idString =>
+          val id = ModifierId.fromBase58(Base58Data.unsafe(idString))
+          nodeView.history.modifierById(id)
+        }.some
+      else
+        None
+
+    withNodeView(blocksById(blockIds))
+  }
+
+  /**
+   * Give an start height and end height, find ids of all blocks in this range
+   * @param startHeight start height
+   * @param endHeight end height
+   * @return ids of blocks between start height and end height
+   */
+  private def getIdsAtHeights(startHeight: Long, endHeight: Long): Future[Seq[String]] = {
+    def idsAtHeights(startHeight: Long, endHeight: Long)(nodeView: ReadableNodeView): Seq[String] =
+      (startHeight to endHeight).flatMap(nodeView.history.idAtHeightOf).map(_.toString)
+    withNodeView(idsAtHeights(startHeight, endHeight))
   }
 
   /**
