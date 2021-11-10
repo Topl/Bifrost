@@ -4,7 +4,7 @@ case class Identifier(typeString: String, typePrefix: Byte)
 
 /** Helper type class to define named methods in abstract classes */
 trait Identifiable[A] { self =>
-  //def apply(a: A): Identifier = getId
+  // def apply(a: A): Identifier = getId
   def getId: Identifier
 }
 
