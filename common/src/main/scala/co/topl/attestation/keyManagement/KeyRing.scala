@@ -221,12 +221,14 @@ class KeyRing[
      */
     private def checkValid(address: Base58Data, password: Latin1Data): Try[KF] =
       Try {
-        listKeyFiles()
+        val filteredKeys = listKeyFiles()
           .map {
             _.filter {
               _.address == address.decodeAddress.getOrThrow()
             }
-          } match {
+          }
+
+        filteredKeys match {
           case Some(listOfKeyfiles) =>
             require(listOfKeyfiles.size == 1, s"Cannot find a unique matching keyfile in $keyDirectory")
             listOfKeyfiles.head

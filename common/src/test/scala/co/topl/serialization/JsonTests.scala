@@ -22,8 +22,6 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-import scala.collection.immutable.ListMap
-
 class JsonTests
     extends AnyPropSpec
     with Matchers
@@ -186,8 +184,10 @@ class JsonTests
   }
 
   property("BloomFilter json") {
-    forAll(blockCurve25519Gen)(block =>
-      block.bloomFilter.asJson.as[BloomFilter] should eqvShow(block.bloomFilter.asRight[DecodingFailure])
-    )
+    forAll(blockCurve25519Gen) { block =>
+      val bloomFilter = block.bloomFilter
+
+      bloomFilter.asJson.as[BloomFilter] should eqvShow(bloomFilter.asRight[DecodingFailure])
+    }
   }
 }

@@ -47,11 +47,11 @@ class KeySpec
     /** There will be a warning for locking again if a key is already locked */
     keyRingCurve25519.removeFromKeyring(addressCurve25519)
     keyRingCurve25519.removeFromKeyring(addressCurve25519)
-    keyRingCurve25519.addresses should contain(addressCurve25519)
+    keyRingCurve25519.addresses shouldNot contain(addressCurve25519)
 
     keyRingEd25519.removeFromKeyring(addressEd25519)
     keyRingEd25519.removeFromKeyring(addressEd25519)
-    keyRingEd25519.addresses should contain(addressEd25519)
+    keyRingEd25519.addresses shouldNot contain(addressEd25519)
   }
 
   property("Once unlocked, the address will be accessible from the keyRing again") {

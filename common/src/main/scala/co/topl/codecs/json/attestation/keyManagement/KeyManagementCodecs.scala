@@ -16,7 +16,7 @@ trait KeyManagementCodecs {
       "crypto" -> Map(
         "cipher"       -> "aes-256-ctr".asJson,
         "cipherParams" -> Map("iv" -> kf.iv.encodeAsBase58.asJson).asJson,
-        "cipherText"   -> kf.cipherText.asJson,
+        "cipherText"   -> kf.cipherText.encodeAsBase58.asJson,
         "kdf"          -> "scrypt".asJson,
         "kdfSalt"      -> kf.salt.encodeAsBase58.asJson,
         "mac"          -> kf.mac.encodeAsBase58.asJson
@@ -35,7 +35,7 @@ trait KeyManagementCodecs {
         iv         <- c.downField("crypto").downField("cipherParams").downField("iv").as[Base58Data]
       } yield {
         implicit val netPrefix: NetworkPrefix = address.networkPrefix
-        new KeyfileCurve25519(
+        KeyfileCurve25519(
           address,
           cipherText.encodeAsBytes,
           mac.encodeAsBytes,
@@ -68,7 +68,7 @@ trait KeyManagementCodecs {
         iv         <- c.downField("crypto").downField("cipherParams").downField("iv").as[Base58Data]
       } yield {
         implicit val netPrefix: NetworkPrefix = address.networkPrefix
-        new KeyfileEd25519(address, cipherText.encodeAsBytes, mac.encodeAsBytes, salt.encodeAsBytes, iv.encodeAsBytes)
+        KeyfileEd25519(address, cipherText.encodeAsBytes, mac.encodeAsBytes, salt.encodeAsBytes, iv.encodeAsBytes)
       }
 
   implicit def keyfileJsonEncoder[KF <: Keyfile[_]]: Encoder[KF] = {

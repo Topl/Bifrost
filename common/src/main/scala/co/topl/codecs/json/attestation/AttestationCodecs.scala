@@ -1,10 +1,9 @@
 package co.topl.codecs.json.attestation
 
 import cats.implicits._
-import co.topl.attestation._
 import co.topl.attestation.AddressCodec.implicits._
+import co.topl.attestation._
 import co.topl.codecs.binary._
-import co.topl.codecs.binary.typeclasses.Transmittable
 import co.topl.codecs.json.valuetypes._
 import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
@@ -14,9 +13,9 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 
 trait AttestationCodecs extends co.topl.codecs.json.attestation.keyManagement.KeyManagementCodecs {
-  implicit val addressJsonEncoder: Encoder[Address] = (addr: Address) => addr.encodeAsBase58.asJson
+  implicit val addressJsonEncoder: Encoder[Address] = addr => addr.encodeAsBase58.asJson
 
-  implicit val addressJsonKeyEncoder: KeyEncoder[Address] = (addr: Address) => addr.encodeAsBase58.show
+  implicit val addressJsonKeyEncoder: KeyEncoder[Address] = addr => addr.encodeAsBase58.show
 
   implicit def addressJsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[Address] =
     Decoder[Base58Data].emap(_.decodeAddress.toEither.leftMap(_.toString))

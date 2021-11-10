@@ -2,11 +2,22 @@ package co.topl.api.transaction
 
 import akka.util.ByteString
 import co.topl.api.RPCMockState
-import co.topl.attestation.{Address, Proof, PublicKeyPropositionCurve25519, ThresholdSignatureCurve25519}
+import co.topl.attestation.keyManagement.PrivateKeyCurve25519
+import co.topl.attestation.{
+  Address,
+  KnowledgeProposition,
+  Proof,
+  Proposition,
+  PublicKeyPropositionCurve25519,
+  PublicKeyPropositionEd25519,
+  SignatureCurve25519,
+  ThresholdPropositionCurve25519,
+  ThresholdSignatureCurve25519
+}
+import co.topl.codecs.json._
 import co.topl.modifier.box.AssetCode
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.codecs.json._
-import io.circe.Json
+import io.circe.{Encoder, Json}
 import io.circe.parser.parse
 import io.circe.syntax._
 import org.scalatest.EitherValues
@@ -32,8 +43,8 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
     httpPOST(requestBody) ~> route ~> check {
       val res = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
 
-      (res \\ "error").isEmpty shouldBe true
-      (res \\ "result").head.asObject.isDefined shouldBe true
+      (res \\ "error") should be(empty)
+      (res \\ "result").head.asObject should be(defined)
     }
   }
 
@@ -51,7 +62,7 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
 
     httpPOST(requestBody) ~> route ~> check {
       val res = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
-      res should include("Invalid proposition generation")
+      res should include("Invalid method parameter")
     }
   }
 
@@ -83,14 +94,24 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
         message <- res.hcursor.downField("result").get[Base58Data]("messageToSign")
       } yield {
         val sigJson = senderPropType match {
-          case "PublicKeyCurve25519" => keyRingCurve25519.generateAttestation(sender)(message.value).asJson
-          case "PublicKeyEd25519"    => keyRingEd25519.generateAttestation(sender)(message.value).asJson
+          case "PublicKeyCurve25519" =>
+            keyRingCurve25519
+              .generateAttestation(sender)(message.value)
+              .asInstanceOf[ListMap[Proposition, Proof[PublicKeyPropositionCurve25519]]]
+              .asJson
+          case "PublicKeyEd25519" =>
+            keyRingEd25519
+              .generateAttestation(sender)(message.value)
+              .asInstanceOf[ListMap[Proposition, Proof[PublicKeyPropositionEd25519]]]
+              .asJson
           case "ThresholdCurve25519" =>
             val thresholdProp = propsThresholdCurve25519.filter(_.address == sender).head
             val addresses = thresholdProp.pubKeyProps.toSet[PublicKeyPropositionCurve25519].map(_.address)
             val signatures = keyRingCurve25519.generateAttestation(addresses)(message.value).values.toSet
             val thresholdSignature = ThresholdSignatureCurve25519(signatures)
-            Map(thresholdProp -> thresholdSignature).asJson
+            ListMap[Proposition, Proof[ThresholdPropositionCurve25519]](
+              thresholdProp -> thresholdSignature
+            ).asJson
         }
         val signatures: Json = Map(
           "signatures" -> sigJson
@@ -98,8 +119,8 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
         rawTx.deepMerge(signatures)
       }
 
-      (res \\ "error").isEmpty shouldBe true
-      (sigTx.value \\ "signatures").head.asObject.isDefined shouldBe true
+      (res \\ "error") should be(empty)
+      (sigTx.value \\ "signatures").head.asObject should be(defined)
 
       sigTx.value
     }
@@ -132,24 +153,34 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
         rawTx   <- res.hcursor.downField("result").get[Json]("rawTx")
         message <- res.hcursor.downField("result").get[Base58Data]("messageToSign")
       } yield {
-        val sigJson = senderPropType match {
-          case "PublicKeyCurve25519" => keyRingCurve25519.generateAttestation(sender)(message.value).asJson
-          case "PublicKeyEd25519"    => keyRingEd25519.generateAttestation(sender)(message.value).asJson
+        val signaturesJson: Json = senderPropType match {
+          case "PublicKeyCurve25519" =>
+            keyRingCurve25519
+              .generateAttestation(sender)(message.value)
+              .asInstanceOf[ListMap[Proposition, Proof[PublicKeyPropositionCurve25519]]]
+              .asJson
+          case "PublicKeyEd25519" =>
+            keyRingEd25519
+              .generateAttestation(sender)(message.value)
+              .asInstanceOf[ListMap[Proposition, Proof[PublicKeyPropositionEd25519]]]
+              .asJson
           case "ThresholdCurve25519" =>
             val thresholdProp = propsThresholdCurve25519.filter(_.address == sender).head
             val addresses = thresholdProp.pubKeyProps.toSet[PublicKeyPropositionCurve25519].map(_.address)
             val signatures = keyRingCurve25519.generateAttestation(addresses)(message.value).values.toSet
             val thresholdSignature = ThresholdSignatureCurve25519(signatures)
-            Map(thresholdProp -> thresholdSignature).asJson
+            ListMap[Proposition, Proof[ThresholdPropositionCurve25519]](
+              thresholdProp -> thresholdSignature
+            ).asJson
         }
         val signatures: Json = Map(
-          "signatures" -> sigJson
+          "signatures" -> signaturesJson
         ).asJson
         rawTx.deepMerge(signatures)
       }
 
-      (res \\ "error").isEmpty shouldBe true
-      (sigTx.value \\ "signatures").head.asObject.isDefined shouldBe true
+      (res \\ "error") should be(empty)
+      (sigTx.value \\ "signatures").head.asObject should be(defined)
 
       sigTx.value
     }
@@ -197,24 +228,34 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
         rawTx   <- res.hcursor.downField("result").get[Json]("rawTx")
         message <- res.hcursor.downField("result").get[Base58Data]("messageToSign")
       } yield {
-        val sigJson = senderPropType match {
-          case "PublicKeyCurve25519" => keyRingCurve25519.generateAttestation(sender)(message.value).asJson
-          case "PublicKeyEd25519"    => keyRingEd25519.generateAttestation(sender)(message.value).asJson
+        val signaturesJson: Json = senderPropType match {
+          case "PublicKeyCurve25519" =>
+            keyRingCurve25519
+              .generateAttestation(sender)(message.value)
+              .asInstanceOf[ListMap[Proposition, Proof[PublicKeyPropositionCurve25519]]]
+              .asJson
+          case "PublicKeyEd25519" =>
+            keyRingEd25519
+              .generateAttestation(sender)(message.value)
+              .asInstanceOf[ListMap[Proposition, Proof[PublicKeyPropositionEd25519]]]
+              .asJson
           case "ThresholdCurve25519" =>
             val thresholdProp = propsThresholdCurve25519.filter(_.address == sender).head
             val addresses = thresholdProp.pubKeyProps.toSet[PublicKeyPropositionCurve25519].map(_.address)
             val signatures = keyRingCurve25519.generateAttestation(addresses)(message.value).values.toSet
             val thresholdSignature = ThresholdSignatureCurve25519(signatures)
-            Map(thresholdProp -> thresholdSignature).asJson
+            ListMap[Proposition, Proof[ThresholdPropositionCurve25519]](
+              thresholdProp -> thresholdSignature
+            ).asJson
         }
         val signatures: Json = Map(
-          "signatures" -> sigJson
+          "signatures" -> signaturesJson
         ).asJson
         rawTx.deepMerge(signatures)
       }
 
-      (res \\ "error").isEmpty shouldBe true
-      (sigTx.value \\ "signatures").head.asObject.isDefined shouldBe true
+      (res \\ "error") should be(empty)
+      (sigTx.value \\ "signatures").head.asObject should be(defined)
 
       sigTx.value
     }

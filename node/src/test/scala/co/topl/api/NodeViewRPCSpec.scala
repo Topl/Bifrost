@@ -100,7 +100,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       idTypes.zip(modifierQueryMethods).map { case (idType, rpcMethod) =>
         httpPOST(requestBody(idType, rpcMethod, invalidCharId)) ~> route ~> check {
           val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
-          res should include("Value is not Base 58")
+          res should include("failed to decode base-58 string")
         }
       }
     }
@@ -124,7 +124,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       idTypes.zip(modifierQueryMethods).map { case (idType, rpcMethod) =>
         httpPOST(requestBody(idType, rpcMethod, invalidLengthId)) ~> route ~> check {
           val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
-          res should include("Invalid size for ModifierId")
+          res should include("failed to decode modifier ID")
         }
       }
     }

@@ -16,6 +16,7 @@ import co.topl.utils.IdiomaticScalaTransition.implicits.toAttemptOps
 import co.topl.utils.SizedBytes
 import co.topl.utils.SizedBytes.implicits._
 import co.topl.utils.StringDataTypes.{Base16Data, Base58Data}
+import com.google.common.primitives.Longs
 import scodec.bits.ByteVector
 
 trait BinaryShowInstances {
@@ -78,7 +79,8 @@ trait BinaryShowInstances {
 
   implicit val assetCodeBinaryShow: BinaryShow[AssetCode] = BinaryShow.fromEncoder
 
-  implicit val bloomFilterBinaryShow: BinaryShow[BloomFilter] = BinaryShow.fromEncoder
+  implicit val bloomFilterBinaryShow: BinaryShow[BloomFilter] = bloomFilter =>
+    bloomFilter.value.flatMap(Longs.toByteArray)
 
   implicit val txBinaryShow: BinaryShow[Transaction.TX] = BinaryShow.fromEncoder
 

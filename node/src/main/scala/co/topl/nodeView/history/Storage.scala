@@ -46,7 +46,7 @@ class Storage(
         keyValueStore
           .get(id.getIdBytes)
           .flatMap(keyValueStore.get)
-          .flatMap(bwBlock => bwBlock.tail.decodePersisted[Block].toOption)
+          .flatMap(bwBlock => bwBlock.decodePersisted[Block].toOption)
           .map(block => (block.transactions.find(_.id == id).get, block.id, block.height))
 
       case _ => None
@@ -58,7 +58,7 @@ class Storage(
       case Block.modifierTypeId =>
         keyValueStore
           .get(id.getIdBytes)
-          .flatMap(bwBlock => bwBlock.tail.decodePersisted[Block].toOption)
+          .flatMap(bwBlock => bwBlock.decodePersisted[Block].toOption)
 
       case _ =>
         //
@@ -143,11 +143,11 @@ class Storage(
 
     val bestBlock = if (isBest) Seq(bestBlockIdKey -> b.id.persistedBytes) else Seq()
 
-    val newTransactionsToBlockIds = b.transactions.map(tx => (tx.id.getIdBytes, b.id.persistedBytes))
+    val newTransactionsToBlockIds = b.transactions.map(tx => (tx.id.getIdBytes, b.id.getIdBytes))
 
     val blockH = Seq(blockHeightKey(b.id) -> Longs.toByteArray(heightAt(b.parentId) + 1))
 
-    val idHeight = Seq(idHeightKey(heightAt(b.parentId) + 1).bytes -> b.id.getIdBytes)
+    val idHeight = Seq(idHeightKey(heightAt(b.parentId) + 1).bytes -> b.id.persistedBytes)
 
     val blockDiff = Seq(blockDiffKey(b.id) -> Longs.toByteArray(b.difficulty))
 
@@ -160,7 +160,7 @@ class Storage(
 
     val parentBlock =
       if (b.parentId == History.GenesisParentId) Seq()
-      else Seq(blockParentKey(b.id) -> b.parentId.getIdBytes)
+      else Seq(blockParentKey(b.id) -> b.parentId.persistedBytes)
 
     val blockBloom = Seq(blockBloomKey(b.id) -> b.bloomFilter.persistedBytes)
 
@@ -177,7 +177,7 @@ class Storage(
       parentBlock
 
     /* update storage */
-    keyValueStore.update(b.id.getIdBytes, Seq(), wrappedUpdate)
+    keyValueStore.update(b.id.persistedBytes, Seq(), wrappedUpdate)
 
   }
 
@@ -187,6 +187,6 @@ class Storage(
    * @param parentId is the parent id of the block intended to be removed
    */
   def rollback(parentId: ModifierId): Try[Unit] = Try {
-    keyValueStore.rollbackTo(parentId.getIdBytes)
+    keyValueStore.rollbackTo(parentId.persistedBytes)
   }
 }

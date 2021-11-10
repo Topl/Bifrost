@@ -586,21 +586,21 @@ trait SharedCodecs extends JsonCodecs {
 
   implicit def assetTransferDecoder(implicit networkPrefix: NetworkPrefix): Decoder[AssetTransfer[Proposition]] =
     Decoder
-      .instance(c => assetTransferDecoder.apply(c))
+      .instance(c => assetTransferJsonDecoder.apply(c))
       .map { case a: AssetTransfer[Proposition @unchecked] =>
         a
       }
 
   implicit def arbitTransferDecoder(implicit networkPrefix: NetworkPrefix): Decoder[ArbitTransfer[Proposition]] =
     Decoder
-      .instance(c => arbitTransferDecoder.apply(c))
+      .instance(c => arbitTransferJsonDecoder.apply(c))
       .map { case a: ArbitTransfer[Proposition @unchecked] =>
         a
       }
 
   implicit def polyTransferDecoder(implicit networkPrefix: NetworkPrefix): Decoder[PolyTransfer[Proposition]] =
     Decoder
-      .instance(c => polyTransferDecoder.apply(c))
+      .instance(c => polyTransferJsonDecoder.apply(c))
       .map { case a: PolyTransfer[Proposition @unchecked] =>
         a
       }

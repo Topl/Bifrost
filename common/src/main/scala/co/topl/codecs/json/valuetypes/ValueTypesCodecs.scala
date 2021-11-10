@@ -17,7 +17,7 @@ trait ValueTypesCodecs {
   implicit val base16JsonEncoder: Encoder[Base16Data] = (t: Base16Data) => Base16.encode(t.value).asJson
 
   implicit val base16JsonDecoder: Decoder[Base16Data] =
-    Decoder[String].emap(Base16Data.validated(_).toEither.leftMap(_ => "Value is not a Base 16 string"))
+    Decoder[String].emap(Base16Data.validated(_).toEither.leftMap(err => s"failed to decode base-16 string: $err"))
 
   implicit val base16JsonKeyEncoder: KeyEncoder[Base16Data] = data => Base16.encode(data.value)
 
@@ -26,7 +26,7 @@ trait ValueTypesCodecs {
   implicit val base58JsonEncoder: Encoder[Base58Data] = data => Base58.encode(data.value).asJson
 
   implicit val base58JsonDecoder: Decoder[Base58Data] =
-    Decoder[String].emap(Base58Data.validated(_).toEither.leftMap(_ => "Value is not Base 58"))
+    Decoder[String].emap(Base58Data.validated(_).toEither.leftMap(err => s"failed to decode base-58 string: $err"))
 
   implicit val base58JsonKeyEncoder: KeyEncoder[Base58Data] = data => Base58.encode(data.value)
 
@@ -36,7 +36,7 @@ trait ValueTypesCodecs {
     new String(t.value, StandardCharsets.ISO_8859_1).asJson
 
   implicit val latin1JsonDecoder: Decoder[Latin1Data] =
-    Decoder[String].emap(Latin1Data.validated(_).toEither.leftMap(_ => "Value is not a Latin-1 string"))
+    Decoder[String].emap(Latin1Data.validated(_).toEither.leftMap(err => s"failed to decode latin-1 string: $err"))
 
   implicit val latin1JsonKeyEncoder: KeyEncoder[Latin1Data] =
     data => new String(data.value, StandardCharsets.ISO_8859_1)

@@ -2,6 +2,7 @@ package co.topl.codecs.json.modifier.transaction
 
 import cats.implicits._
 import co.topl.attestation._
+import co.topl.codecs.binary._
 import co.topl.codecs.json.attestation._
 import co.topl.codecs.json.modifier.block._
 import co.topl.codecs.json.modifier.box._
@@ -15,9 +16,6 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import io.circe.syntax._
 import io.circe.{Decoder, DecodingFailure, Encoder, HCursor}
-import co.topl.codecs.binary._
-import co.topl.modifier.transaction
-import io.circe
 
 import scala.collection.immutable.ListMap
 

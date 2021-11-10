@@ -29,10 +29,15 @@ trait BlockCodecs {
   implicit val modifierIdJsonKeyEncoder: KeyEncoder[ModifierId] = _.transmittableBase58.show
 
   implicit val modifierIdJsonDecoder: Decoder[ModifierId] =
-    Decoder[Base58Data].emap(_.decodeTransmitted[ModifierId])
+    Decoder[Base58Data]
+      .emap(
+        _.decodeTransmitted[ModifierId]
+          .leftMap(err => s"failed to decode modifier ID: $err")
+      )
 
   implicit val modifierIdJsonKeyDecoder: KeyDecoder[ModifierId] =
-    KeyDecoder[Base58Data].map(_.decodeTransmitted[ModifierId].getOrThrow())
+    KeyDecoder[Base58Data]
+      .map(_.decodeTransmitted[ModifierId].leftMap(err => s"failed to decode modifier ID json key: $err").getOrThrow())
 
   implicit val blockJsonEncoder: Encoder[Block] = { b: Block =>
     val (header, body) = b.toComponents

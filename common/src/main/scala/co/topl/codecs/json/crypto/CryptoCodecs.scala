@@ -12,11 +12,13 @@ trait CryptoCodecs {
 
   implicit val digest32JsonDecoder: Decoder[Digest32] =
     Decoder[Base58Data]
-      .emap(data => Digest32.validated(data.value).toEither.leftMap(_.toString))
+      .emap(data => Digest32.validated(data.value).toEither.leftMap(err => s"failed to decode 32-byte digest: $err"))
 
   implicit val digest64JsonEncoder: Encoder[Digest64] =
     digest => Base58Data.fromData(digest.value).asJson
 
   implicit val digest64JsonDecoder: Decoder[Digest64] =
-    Decoder[Base58Data].emap(data => Digest64.validated(data.value).leftMap(_.toString).toEither)
+    Decoder[Base58Data].emap(data =>
+      Digest64.validated(data.value).leftMap(err => s"failed to decode 64-byte digest: $err").toEither
+    )
 }
