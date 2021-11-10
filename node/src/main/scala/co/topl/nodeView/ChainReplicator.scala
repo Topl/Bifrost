@@ -52,10 +52,10 @@ object ChainReplicator {
   def apply(
     nodeViewHolderRef:    ActorRef[NodeViewHolder.ReceivableMessage],
     checkDBConnection:    () => Future[Seq[String]],
-    insertDB:             (Seq[Document], String) => Future[InsertManyResult],
-    removeDB:             (String, Seq[String], String) => Future[DeleteResult],
-    getUnconfirmedTxDB:   String => Future[Seq[String]],
-    getMissingBlockIdsDB: (Seq[String], String) => Future[Seq[String]],
+    insertDocs:         (Seq[Document], String) => Future[InsertManyResult],
+    removeDocs:         (String, Seq[String], String) => Future[DeleteResult],
+    getUnconfirmedTxs:  String => Future[Seq[String]],
+    getMissingBlockIds: (Seq[String], String) => Future[Seq[String]],
     settings:             ChainReplicatorSettings
   ): Behavior[ReceivableMessage] =
     Behaviors.withStash(settings.actorStashSize) { buffer =>
@@ -80,10 +80,10 @@ object ChainReplicator {
         new ChainReplicator(
           nodeViewHolderRef,
           buffer,
-          insertDB,
-          removeDB,
-          getUnconfirmedTxDB,
-          getMissingBlockIdsDB,
+          insertDocs,
+          removeDocs,
+          getUnconfirmedTxs,
+          getMissingBlockIds,
           settings
         ).uninitialized
 
@@ -92,13 +92,13 @@ object ChainReplicator {
 }
 
 private class ChainReplicator(
-  nodeViewHolderRef:    ActorRef[NodeViewHolder.ReceivableMessage],
-  buffer:               StashBuffer[ChainReplicator.ReceivableMessage],
-  insertDB:             (Seq[Document], String) => Future[InsertManyResult],
-  removeDB:             (String, Seq[String], String) => Future[DeleteResult],
-  getUnconfirmedTxDB:   (String) => Future[Seq[String]],
-  getMissingBlockIdsDB: (Seq[String], String) => Future[Seq[String]],
-  settings:             ChainReplicatorSettings
+  nodeViewHolderRef:  ActorRef[NodeViewHolder.ReceivableMessage],
+  buffer:             StashBuffer[ChainReplicator.ReceivableMessage],
+  insertDocs:         (Seq[Document], String) => Future[InsertManyResult],
+  removeDocs:         (String, Seq[String], String) => Future[DeleteResult],
+  getUnconfirmedTxs:  String => Future[Seq[String]],
+  getMissingBlockIds: (Seq[String], String) => Future[Seq[String]],
+  settings:           ChainReplicatorSettings
 )(implicit
   context: ActorContext[ChainReplicator.ReceivableMessage]
 ) {
@@ -144,9 +144,9 @@ private class ChainReplicator(
 
         val endHeight = (startHeight + settings.blockCheckSize).min(maxHeight)
         val exportResult = for {
-          blockIdsInRange <- OptionT[Future, Seq[String]](getIdsAtHeights(startHeight, endHeight).map(_.some))
+          blockIdsInRange <- OptionT[Future, Seq[String]](getIdsInRange(startHeight, endHeight).map(_.some))
           missingBlockIds <- OptionT[Future, Seq[String]](
-            getMissingBlockIdsDB(blockIdsInRange, settings.blockCollection).map(_.some)
+            getMissingBlockIds(blockIdsInRange, settings.blockCollection).map(_.some)
           )
           blocksToAdd       <- OptionT[Future, Seq[Block]](getBlocksById(missingBlockIds))
           blockExportResult <- OptionT[Future, InsertManyResult](exportBlocks(blocksToAdd).map(_.some))
@@ -201,10 +201,10 @@ private class ChainReplicator(
         val exportResult = for {
           blockExportResult        <- exportBlocks(Seq(block))
           txExportResult           <- exportTxsFromBlocks(Seq(block))
-          unconfirmedInDB          <- getUnconfirmedTxDB(settings.unconfirmedTxCollection)
+          unconfirmedInDB          <- getUnconfirmedTxs(settings.unconfirmedTxCollection)
           (txToInsert, txToRemove) <- getTxToInsertRemove(unconfirmedInDB)
           unconfirmedTxExportRes   <- exportUnconfirmedTxs(txToInsert)
-          unconfirmedTxRemoveRes   <- removeDB("txId", txToRemove, settings.unconfirmedTxCollection)
+          unconfirmedTxRemoveRes   <- removeDocs("txId", txToRemove, settings.unconfirmedTxCollection)
         } yield (blockExportResult, txExportResult, unconfirmedTxExportRes, unconfirmedTxRemoveRes)
         exportResult.onComplete {
           case Success(res) =>
@@ -232,7 +232,7 @@ private class ChainReplicator(
    */
   private def exportBlocks(blocks: Seq[Block]): Future[InsertManyResult] = {
     implicit val ec: ExecutionContext = context.executionContext
-    insertDB(blocks.map(BlockDataModel(_).asDocument), settings.blockCollection)
+    insertDocs(blocks.map(BlockDataModel(_).asDocument), settings.blockCollection)
   }
 
   /**
@@ -247,7 +247,7 @@ private class ChainReplicator(
         ConfirmedTransactionDataModel(b.id.toString, b.height, tx).asDocument
       }
     }
-    insertDB(txDocs, settings.confirmedTxCollection)
+    insertDocs(txDocs, settings.confirmedTxCollection)
   }
 
   /**
@@ -258,7 +258,7 @@ private class ChainReplicator(
   private def exportUnconfirmedTxs(txs: Seq[Transaction.TX]): Future[InsertManyResult] = {
     implicit val ec: ExecutionContext = context.executionContext
     if (txs.nonEmpty)
-      insertDB(txs.map(tx => UnconfirmedTransactionDataModel(tx).asDocument), settings.unconfirmedTxCollection)
+      insertDocs(txs.map(tx => UnconfirmedTransactionDataModel(tx).asDocument), settings.unconfirmedTxCollection)
     else
       Future.successful(InsertManyResult.acknowledged(Map[Integer, BsonValue]().asJava))
   }
@@ -287,9 +287,10 @@ private class ChainReplicator(
    * @param endHeight end height
    * @return ids of blocks between start height and end height
    */
-  private def getIdsAtHeights(startHeight: Long, endHeight: Long): Future[Seq[String]] = {
+  private def getIdsInRange(startHeight: Long, endHeight: Long): Future[Seq[String]] = {
     def idsAtHeights(startHeight: Long, endHeight: Long)(nodeView: ReadableNodeView): Seq[String] =
       (startHeight to endHeight).flatMap(nodeView.history.idAtHeightOf).map(_.toString)
+
     withNodeView(idsAtHeights(startHeight, endHeight))
   }
 
@@ -302,46 +303,27 @@ private class ChainReplicator(
     nodeView.history.height
 
   /**
-   * Access the NodeView and gets the blocks at given heights
-   * @param blockHeights the heights of the blocks needed
-   * @param nodeView NodeView
-   * @return optional sequence of blocks at given heights
-   */
-  private def blocksAtHeight(blockHeights: Seq[Long])(nodeView: ReadableNodeView): Option[Seq[Block]] = {
-    val blocks = blockHeights.flatMap(nodeView.history.modifierByHeight)
-    if (blocks.nonEmpty) blocks.some
-    else None
-  }
-
-  /**
    * Get transactions to insert and remove in order to have the same unconfirmed transactions in appView and nodeView
    * @param unconfirmedTxDB current unconfirmed transactions in the appView
    * @return transactions to export to appView, and ids of unconfirmed transactions to remove in the appView
    */
-  private def getTxToInsertRemove(unconfirmedTxDB: Seq[String]): Future[(Seq[Transaction.TX], Seq[String])] =
-    withNodeView(compareMempool(unconfirmedTxDB))
-
-  /**
-   * Compare unconfirmed transactions between nodeView and appView
-   * @param unconfirmedTxDB current unconfirmed transactions in the appView
-   * @param nodeView NodeView
-   * @return transactions to export to appView, and ids of unconfirmed transactions to remove in the appView
-   */
-  private def compareMempool(unconfirmedTxDB: Seq[String])(
-    nodeView:                                 ReadableNodeView
-  ): (Seq[Transaction.TX], Seq[String]) = {
-    val mempool = nodeView.memPool
-    val toRemove = unconfirmedTxDB.filter { txString =>
-      mempool.modifierById(fromBase58(Base58Data.unsafe(txString))).isEmpty
-    }
-    val toInsert = mempool
-      .take(settings.mempoolCheckSize)(-_.dateAdded)
-      .map(_.tx)
-      .filterNot { tx =>
-        unconfirmedTxDB.contains(tx.id.toString)
+  private def getTxToInsertRemove(unconfirmedTxDB: Seq[String]): Future[(Seq[Transaction.TX], Seq[String])] = {
+    def compareMempool(unconfirmedTxDB: Seq[String])(nodeView: ReadableNodeView): (Seq[Transaction.TX], Seq[String]) = {
+      val mempool = nodeView.memPool
+      val toRemove = unconfirmedTxDB.filter { txString =>
+        mempool.modifierById(fromBase58(Base58Data.unsafe(txString))).isEmpty
       }
-      .toSeq
-    (toInsert, toRemove)
+      val toInsert = mempool
+        .take(settings.mempoolCheckSize)(-_.dateAdded)
+        .map(_.tx)
+        .filterNot { tx =>
+          unconfirmedTxDB.contains(tx.id.toString)
+        }
+        .toSeq
+      (toInsert, toRemove)
+    }
+
+    withNodeView(compareMempool(unconfirmedTxDB))
   }
 
   /**

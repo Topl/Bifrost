@@ -86,7 +86,7 @@ class ChainReplicatorSpec
       Thread.sleep(1.seconds.toMillis)
       blockStore.size shouldBe newBlocks.size + 1
       confirmedTxStore.size shouldBe newTxs.size + genesisBlock.transactions.size
-      chainRepRef ! ChainReplicator.ReceivableMessages.Terminate(new Exception("stopping first chain replicator"))
+      testKit.stop(chainRepRef)
     }
   }
 
@@ -129,7 +129,7 @@ class ChainReplicatorSpec
       Thread.sleep(1.seconds.toMillis)
       blockStore.size shouldBe newBlocks.size + 1
       confirmedTxStore.size shouldBe newTxs.size + genesisBlock.transactions.size
-      chainRepRef ! ChainReplicator.ReceivableMessages.Terminate(new Exception("stopping first chain replicator"))
+      testKit.stop(chainRepRef)
     }
   }
 
@@ -222,7 +222,7 @@ class ChainReplicatorSpec
       system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(genesisBlock)))
       Thread.sleep(0.5.seconds.toMillis)
       unconfirmedTxStore.keys.toSet == Set(polyTransferSec.id.toString, polyTransferTrd.id.toString) shouldBe true
-      chainRepRef ! ChainReplicator.ReceivableMessages.Terminate(new Exception("stopping first chain replicator"))
+      testKit.stop(chainRepRef)
     }
   }
 
