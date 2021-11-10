@@ -1,13 +1,14 @@
 // Comment to get more information during initialization
 logLevel := Level.Error
 
+addDependencyTreePlugin
+
 Seq(
   "com.eed3si9n"       % "sbt-assembly"              % "1.1.0",
   "org.scalastyle"    %% "scalastyle-sbt-plugin"     % "1.0.0",
   "org.scoverage"      % "sbt-scoverage"             % "1.9.2",
   "com.github.sbt"     % "sbt-release"               % "1.1.0",
-  "net.virtual-void"   % "sbt-dependency-graph"      % "0.9.2",
-  "io.kamon"           % "sbt-kanela-runner"         % "2.0.12",
+  "io.kamon"           % "sbt-kanela-runner"         % "2.0.10",
   "com.github.cb372"   % "sbt-explicit-dependencies" % "0.2.16",
   "pl.project13.scala" % "sbt-jmh"                   % "0.4.3",
   "org.scalameta"      % "sbt-scalafmt"              % "2.4.3",

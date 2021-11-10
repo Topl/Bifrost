@@ -10,12 +10,14 @@ import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCur
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.client.Provider.PrivateTestNet
 import co.topl.modifier.box.{AssetCode, AssetValue}
+import co.topl.modifier.transaction.builder.BoxSelectionAlgorithms
 import co.topl.rpc.ToplRpc
 import co.topl.rpc.ToplRpc.NodeView._
 import co.topl.rpc.ToplRpc.Transaction.{BroadcastTx, RawArbitTransfer, RawAssetTransfer, RawPolyTransfer}
 import co.topl.rpc.implicits.client._
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
+import io.circe.Json
 import io.circe.syntax.EncoderOps
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -68,6 +70,58 @@ object CreateANewKeyInTheKeyRing {
       case Left(value)  => println(s"Got some error: $value")
       case Right(value) => println(s"Got a success response: ${value.asJson}")
     }
+}
+
+object CreateMultipleNewKeysInTheKeyRing {
+
+  import exampleState._
+  import provider._
+
+  val genMultipleKeyfile: Seq[Either[RpcClientFailure, KeyfileCurve25519]] =
+    Brambl.generateMultipleNewCurve25519Keyfile((1 to 5).map(_ => "test"), keyRing)
+
+  def main(args: Array[String]): Unit =
+    genMultipleKeyfile.foreach {
+      case Left(value)  => println(s"Got some error: $value")
+      case Right(value) => println(s"Got a success response: ${value.asJson}")
+    }
+}
+
+object ReinstateMultipleKeyFiles {
+
+  import exampleState._
+  import provider._
+
+  val keyfilesGen: Seq[Either[RpcClientFailure, KeyfileCurve25519]] =
+    CreateMultipleNewKeysInTheKeyRing.genMultipleKeyfile
+
+  println(s"keyRing after generating new keys: ${keyRing.addresses}")
+
+  val keyfiles: Seq[KeyfileCurve25519] = keyfilesGen.collect { case Right(keyfile) =>
+    keyRing.removeFromKeyring(keyfile.address) // side effect mutation of keyRing
+    keyfile
+  }
+
+  println(s"keyRing after removing generated keys: ${keyRing.addresses}")
+
+  val keyfileJsons: Seq[Json] = keyfiles.map(_.asJson)
+  val passwords: Seq[String] = (1 to 5).map(_ => "test")
+
+  val importedKeyAddresses: Seq[Either[RpcClientFailure, Address]] =
+    Brambl.importMultipleCurve25519JsonToKeyRing(keyfileJsons.zip(passwords), keyRing)
+
+  println(s"keyRing after re-importing the generated key from Json: ${keyRing.addresses}")
+
+  def main(args: Array[String]): Unit = {
+    keyfilesGen.foreach {
+      case Left(value)  => println(s"Got some error: $value")
+      case Right(value) => println(s"Got a success response: $value")
+    }
+    importedKeyAddresses.foreach {
+      case Left(value)  => println(s"Got some error: $value")
+      case Right(value) => println(s"Got a success response: $value")
+    }
+  }
 }
 
 object ReinstateAKeyFile {
@@ -138,7 +192,8 @@ object CreateAnDSendRawPolyTransfer {
       NonEmptyChain((externalAddress.head, 10)), // Chain of (Recipients, Value) tuples that represent the output boxes
     fee = 0, // fee to be paid to the network for the transaction (unit is nanoPoly)
     changeAddress = externalAddress.head, // who will get ALL the change from the transaction?
-    data = None // upto 128 Latin-1 encoded characters of optional data
+    data = None, // upto 128 Latin-1 encoded characters of optional data,
+    boxSelectionAlgorithm = BoxSelectionAlgorithms.All
   )
 
   /**
@@ -184,7 +239,8 @@ object CreateAnDSendRawArbitTransfer {
     fee = 0,
     changeAddress = externalAddress.head,
     consolidationAddress = externalAddress.head,
-    data = None
+    data = None,
+    boxSelectionAlgorithm = BoxSelectionAlgorithms.All
   )
 
   val response: RpcErrorOr[BroadcastTx.Response] = for {
@@ -221,7 +277,8 @@ object CreateAnDSendRawAssetMintingTransfer {
     changeAddress = externalAddress.head,
     consolidationAddress = externalAddress.head,
     minting = true,
-    data = None
+    data = None,
+    boxSelectionAlgorithm = BoxSelectionAlgorithms.All
   )
 
   val response: RpcErrorOr[BroadcastTx.Response] = for {
@@ -257,7 +314,8 @@ object CreateAnDSendRawAssetTransfer {
     changeAddress = externalAddress.head,
     consolidationAddress = externalAddress.head,
     minting = false,
-    data = None
+    data = None,
+    boxSelectionAlgorithm = BoxSelectionAlgorithms.All
   )
 
   val response: RpcErrorOr[BroadcastTx.Response] = for {
