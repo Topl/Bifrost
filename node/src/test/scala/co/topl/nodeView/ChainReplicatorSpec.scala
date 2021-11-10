@@ -3,13 +3,15 @@ package co.topl.nodeView
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.actor.typed.ActorRef
 import akka.actor.typed.eventstream.EventStream
-import co.topl.attestation.Address
+import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
+import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithms, TransferBuilder, TransferRequests}
 import co.topl.nodeView.ChainReplicatorSpec.TestInWithActor
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages
 import co.topl.nodeView.NodeViewTestHelpers.TestIn
 import co.topl.settings.ChainReplicatorSettings
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.{InMemoryKeyFileTestHelper, TestSettings, TimeProvider}
 import com.mongodb.client.result.{DeleteResult, InsertManyResult}
 import org.bson.BsonValue
@@ -49,9 +51,12 @@ class ChainReplicatorSpec
   )
 
   it should "find and send the missing blocks to the database" in {
-
     implicit val timeProvider: TimeProvider = mock[TimeProvider]
     val blockNum = 15
+
+    blockStore = scala.collection.mutable.Map[String, String]()
+    confirmedTxStore = scala.collection.mutable.Map[String, String]()
+    unconfirmedTxStore = scala.collection.mutable.Map[String, String]()
 
     (() => timeProvider.time)
       .expects()
@@ -59,8 +64,9 @@ class ChainReplicatorSpec
       .onCall(() => System.currentTimeMillis())
 
     genesisActorTest { testIn =>
-      val nextBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head).take(blockNum).toList
-      testIn.nodeViewHolderRef.tell(ReceivableMessages.WriteBlocks(nextBlocks))
+      val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head).take(blockNum).toList
+      testIn.nodeViewHolderRef.tell(ReceivableMessages.WriteBlocks(newBlocks))
+      val newTxs = newBlocks.flatMap(_.transactions)
 
       Thread.sleep(0.5.seconds.toMillis)
 
@@ -78,7 +84,8 @@ class ChainReplicatorSpec
       )
 
       Thread.sleep(1.seconds.toMillis)
-      blockStore.size shouldBe blockNum + 1
+      blockStore.size shouldBe newBlocks.size + 1
+      confirmedTxStore.size shouldBe newTxs.size + genesisBlock.transactions.size
       chainRepRef ! ChainReplicator.ReceivableMessages.Terminate(new Exception("stopping first chain replicator"))
     }
   }
@@ -86,7 +93,10 @@ class ChainReplicatorSpec
   it should "listen and send new blocks to the database" in {
     implicit val timeProvider: TimeProvider = mock[TimeProvider]
     val blockNum = 15
+
     blockStore = scala.collection.mutable.Map[String, String]()
+    confirmedTxStore = scala.collection.mutable.Map[String, String]()
+    unconfirmedTxStore = scala.collection.mutable.Map[String, String]()
 
     (() => timeProvider.time)
       .expects()
@@ -94,9 +104,10 @@ class ChainReplicatorSpec
       .onCall(() => System.currentTimeMillis())
 
     genesisActorTest { testIn =>
-      val nextBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head).take(blockNum).toList
+      val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head).take(blockNum).toList
+      val newTxs = newBlocks.flatMap(_.transactions)
 
-      spawn(
+      val chainRepRef = spawn(
         ChainReplicator(
           testIn.nodeViewHolderRef,
           () => checkValidationTest(),
@@ -111,12 +122,107 @@ class ChainReplicatorSpec
 
       Thread.sleep(1.seconds.toMillis)
 
-      nextBlocks.foreach { block =>
+      newBlocks.foreach { block =>
         system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
       }
 
       Thread.sleep(1.seconds.toMillis)
-      blockStore.size shouldBe blockNum + 1
+      blockStore.size shouldBe newBlocks.size + 1
+      confirmedTxStore.size shouldBe newTxs.size + genesisBlock.transactions.size
+      chainRepRef ! ChainReplicator.ReceivableMessages.Terminate(new Exception("stopping first chain replicator"))
+    }
+  }
+
+  it should "Keep the unconfirmed transactions in appView the same as the ones in mempool" in {
+    implicit val timeProvider: TimeProvider = mock[TimeProvider]
+
+    blockStore = scala.collection.mutable.Map[String, String]()
+    confirmedTxStore = scala.collection.mutable.Map[String, String]()
+    unconfirmedTxStore = scala.collection.mutable.Map[String, String]()
+
+    (() => timeProvider.time)
+      .expects()
+      .anyNumberOfTimes()
+      .onCall(() => System.currentTimeMillis())
+
+    genesisActorTest { testIn =>
+      val addressA :: addressB :: _ = keyRingCurve25519.addresses.toList
+      val polyTransferFst = {
+        val base =
+          TransferBuilder
+            .buildUnsignedPolyTransfer[PublicKeyPropositionCurve25519](
+              testIn.testIn.nodeView.state,
+              TransferRequests.PolyTransferRequest(
+                List(addressB),
+                List(addressA -> 10),
+                addressB,
+                0,
+                None
+              ),
+              BoxSelectionAlgorithms.All
+            )
+            .getOrThrow()
+        base.copy(attestation = keyRingCurve25519.generateAttestation(addressB)(base.messageToSign))
+      }
+      val polyTransferSec = {
+        val base =
+          TransferBuilder
+            .buildUnsignedPolyTransfer[PublicKeyPropositionCurve25519](
+              testIn.testIn.nodeView.state,
+              TransferRequests.PolyTransferRequest(
+                List(addressB),
+                List(addressA -> 11),
+                addressB,
+                0,
+                None
+              ),
+              BoxSelectionAlgorithms.All
+            )
+            .getOrThrow()
+        base.copy(attestation = keyRingCurve25519.generateAttestation(addressB)(base.messageToSign))
+      }
+      val polyTransferTrd = {
+        val base =
+          TransferBuilder
+            .buildUnsignedPolyTransfer[PublicKeyPropositionCurve25519](
+              testIn.testIn.nodeView.state,
+              TransferRequests.PolyTransferRequest(
+                List(addressB),
+                List(addressA -> 11),
+                addressB,
+                0,
+                None
+              ),
+              BoxSelectionAlgorithms.All
+            )
+            .getOrThrow()
+        base.copy(attestation = keyRingCurve25519.generateAttestation(addressB)(base.messageToSign))
+      }
+      val chainRepRef = spawn(
+        ChainReplicator(
+          testIn.nodeViewHolderRef,
+          () => checkValidationTest(),
+          (eleSeq: Seq[Document], collectionName: String) => insertDBTest(eleSeq, collectionName),
+          (field: String, value: Seq[String], collectionName: String) => removeDBTest(field, value, collectionName),
+          (collectionName: String) => getUnconfirmedTxTest(collectionName),
+          (idsToCheck: Seq[String], collectionName: String) => getMissingBlockIdsTest(idsToCheck, collectionName),
+          chainRepSettings
+        ),
+        ChainReplicator.actorName
+      )
+      testIn.nodeViewHolderRef.tell(
+        NodeViewHolder.ReceivableMessages.WriteTransactions(List(polyTransferFst, polyTransferSec))
+      )
+      Thread.sleep(0.5.seconds.toMillis)
+      system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(genesisBlock)))
+      Thread.sleep(0.5.seconds.toMillis)
+      unconfirmedTxStore.keys.toSet == Set(polyTransferFst.id.toString, polyTransferSec.id.toString) shouldBe true
+      testIn.nodeViewHolderRef ! NodeViewHolder.ReceivableMessages.EliminateTransactions(Seq(polyTransferFst.id))
+      testIn.nodeViewHolderRef.tell(NodeViewHolder.ReceivableMessages.WriteTransactions(List(polyTransferTrd)))
+      system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(genesisBlock)))
+      Thread.sleep(0.5.seconds.toMillis)
+      unconfirmedTxStore.keys.toSet == Set(polyTransferSec.id.toString, polyTransferTrd.id.toString) shouldBe true
+      chainRepRef ! ChainReplicator.ReceivableMessages.Terminate(new Exception("stopping first chain replicator"))
     }
   }
 
@@ -154,7 +260,7 @@ class ChainReplicatorSpec
 
   private def removeDBTest(field: String, value: Seq[String], collectionName: String): Future[DeleteResult] = {
     var count = 0
-    value.foreach{ key =>
+    value.foreach { key =>
       if (collectionName == settings.chainReplicator.unconfirmedTxCollection) {
         unconfirmedTxStore.remove(key)
         count += 1
@@ -166,10 +272,8 @@ class ChainReplicatorSpec
   private def getUnconfirmedTxTest(collectionName: String): Future[Seq[String]] =
     Future.successful(unconfirmedTxStore.keys.toSeq)
 
-
-  private def getMissingBlockIdsTest(idsToCheck: Seq[String], collectionName: String): Future[Seq[String]] = {
+  private def getMissingBlockIdsTest(idsToCheck: Seq[String], collectionName: String): Future[Seq[String]] =
     Future.successful(idsToCheck.filterNot(blockStore.contains))
-  }
 
   private def genesisActorTest(test: TestInWithActor => Unit)(implicit timeProvider: TimeProvider): Unit = {
     val testIn = genesisNodeView()
