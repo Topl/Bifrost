@@ -1,18 +1,14 @@
 package co.topl.utils.mongodb
 
 import cats.implicits._
-import io.circe.{Decoder, DecodingFailure, Encoder, Json}
+import co.topl.utils.mongodb.models._
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.parser.parse
-import org.mongodb.scala.bson.Document
-import co.topl.utils.mongodb.models._
 import io.circe.syntax._
+import io.circe.{Decoder, DecodingFailure, Encoder, Json}
+import org.mongodb.scala.bson.Document
 
 trait Codecs {
-  implicit val assetCodeModelJsonEncoder: Encoder[AssetCodeDataModel] = deriveEncoder
-
-  implicit val assetCodeModelJsonDecoder: Decoder[AssetCodeDataModel] = deriveDecoder
-
   implicit val simpleValueDataModelJsonEncoder: Encoder[SimpleValueDataModel] = deriveEncoder
 
   implicit val simpleValueDataModelJsonDecoder: Decoder[SimpleValueDataModel] = deriveDecoder
@@ -42,7 +38,7 @@ trait Codecs {
           case "Simple" => json.get[String]("quantity").map(SimpleValueDataModel)
           case "Asset" =>
             for {
-              assetCode    <- json.get[AssetCodeDataModel]("assetCode")
+              assetCode    <- json.get[String]("assetCode")
               quantity     <- json.get[String]("quantity")
               securityRoot <- json.get[String]("securityRoot")
               metadata     <- json.get[Option[String]]("metadata")
@@ -62,9 +58,13 @@ trait Codecs {
 
   implicit val blockSummaryDataModelJsonDecoder: Decoder[BlockSummaryDataModel] = deriveDecoder
 
-  implicit val transactionDataModelJsonEncoder: Encoder[TransactionDataModel] = deriveEncoder
+  implicit val confirmedTransactionDataModelJsonEncoder: Encoder[ConfirmedTransactionDataModel] = deriveEncoder
 
-  implicit val transactionDataModelJsonDecoder: Decoder[TransactionDataModel] = deriveDecoder
+  implicit val confirmedTransactionDataModelJsonDecoder: Decoder[ConfirmedTransactionDataModel] = deriveDecoder
+
+  implicit val unconfirmedTransactionDataModelJsonEncoder: Encoder[UnconfirmedTransactionDataModel] = deriveEncoder
+
+  implicit val unconfirmedTransactionDataModelJsonDecoder: Decoder[UnconfirmedTransactionDataModel] = deriveDecoder
 
   implicit def jsonEncoderAsDocumentEncoder[T: Encoder]: DocumentEncoder[T] =
     value => Document(value.asJson.noSpaces)

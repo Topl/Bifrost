@@ -6,14 +6,14 @@ import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer,
 import java.nio.charset.StandardCharsets
 import scala.collection.immutable.ListMap
 
-case class TransactionDataModel(
+case class ConfirmedTransactionDataModel(
   block:           BlockSummaryDataModel,
   txType:          String,
-  timestamp:       Long,
+  timestamp:       String,
   signatures:      ListMap[String, String],
   newBoxes:        List[TokenBoxDataModel],
   data:            Option[String],
-  from:            List[(String, Long)],
+  from:            List[(String, String)],
   minting:         Boolean,
   txId:            String,
   boxesToRemove:   List[String],
@@ -22,23 +22,23 @@ case class TransactionDataModel(
   propositionType: String
 )
 
-object TransactionDataModel {
+object ConfirmedTransactionDataModel {
 
   def apply(
     blockId:     String,
     blockHeight: Long,
     tx:          Transaction[_, _ <: Proposition]
-  ): TransactionDataModel =
+  ): ConfirmedTransactionDataModel =
     tx match {
       case polyTransfer: PolyTransfer[_] =>
-        TransactionDataModel(
+        ConfirmedTransactionDataModel(
           BlockSummaryDataModel(blockId, blockHeight),
           PolyTransfer.typeString,
-          polyTransfer.timestamp,
+          polyTransfer.timestamp.toString,
           polyTransfer.attestation.map(pair => pair._1.toString -> pair._2.toString),
           polyTransfer.newBoxes.map(box => TokenBoxDataModel(box)).toList,
           polyTransfer.data.map(data => new String(data.value, StandardCharsets.ISO_8859_1)),
-          polyTransfer.from.map(pair => pair._1.toString -> pair._2).toList,
+          polyTransfer.from.map(pair => pair._1.toString -> pair._2.toString).toList,
           polyTransfer.minting,
           polyTransfer.id.toString,
           polyTransfer.boxIdsToOpen.map(_.toString).toList,
@@ -47,14 +47,14 @@ object TransactionDataModel {
           polyTransfer.getPropIdentifier.typeString
         )
       case arbitTransfer: ArbitTransfer[_] =>
-        TransactionDataModel(
+        ConfirmedTransactionDataModel(
           BlockSummaryDataModel(blockId, blockHeight),
           ArbitTransfer.typeString,
-          arbitTransfer.timestamp,
+          arbitTransfer.timestamp.toString,
           arbitTransfer.attestation.map(pair => pair._1.toString -> pair._2.toString),
           arbitTransfer.newBoxes.map(box => TokenBoxDataModel(box)).toList,
           arbitTransfer.data.map(data => new String(data.value, StandardCharsets.ISO_8859_1)),
-          arbitTransfer.from.map(pair => pair._1.toString -> pair._2).toList,
+          arbitTransfer.from.map(pair => pair._1.toString -> pair._2.toString).toList,
           arbitTransfer.minting,
           arbitTransfer.id.toString,
           arbitTransfer.boxIdsToOpen.map(_.toString).toList,
@@ -63,14 +63,14 @@ object TransactionDataModel {
           arbitTransfer.getPropIdentifier.typeString
         )
       case assetTransfer: AssetTransfer[_] =>
-        TransactionDataModel(
+        ConfirmedTransactionDataModel(
           BlockSummaryDataModel(blockId, blockHeight),
           AssetTransfer.typeString,
-          assetTransfer.timestamp,
+          assetTransfer.timestamp.toString,
           assetTransfer.attestation.map(pair => pair._1.toString -> pair._2.toString),
           assetTransfer.newBoxes.map(box => TokenBoxDataModel(box)).toList,
           assetTransfer.data.map(data => new String(data.value, StandardCharsets.ISO_8859_1)),
-          assetTransfer.from.map(pair => pair._1.toString -> pair._2).toList,
+          assetTransfer.from.map(pair => pair._1.toString -> pair._2.toString).toList,
           assetTransfer.minting,
           assetTransfer.id.toString,
           assetTransfer.boxIdsToOpen.map(_.toString).toList,

@@ -2,7 +2,7 @@ package co.topl.utils.mongodb.models
 
 import co.topl.modifier.box.{Box, TokenBox, TokenValueHolder}
 
-case class TokenBoxDataModel(boxType: String, id: String, nonce: Long, evidence: String, value: TokenValueDataModel)
+case class TokenBoxDataModel(`type`: String, id: String, nonce: Long, evidence: String, value: TokenValueDataModel)
 
 object TokenBoxDataModel {
 
