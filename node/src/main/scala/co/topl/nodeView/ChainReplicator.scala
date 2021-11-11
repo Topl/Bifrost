@@ -50,13 +50,13 @@ object ChainReplicator {
   }
 
   def apply(
-    nodeViewHolderRef:    ActorRef[NodeViewHolder.ReceivableMessage],
-    checkDBConnection:    () => Future[Seq[String]],
+    nodeViewHolderRef:  ActorRef[NodeViewHolder.ReceivableMessage],
+    checkDBConnection:  () => Future[Seq[String]],
     insertDocs:         (Seq[Document], String) => Future[InsertManyResult],
     removeDocs:         (String, Seq[String], String) => Future[DeleteResult],
     getUnconfirmedTxs:  String => Future[Seq[String]],
     getMissingBlockIds: (Seq[String], String) => Future[Seq[String]],
-    settings:             ChainReplicatorSettings
+    settings:           ChainReplicatorSettings
   ): Behavior[ReceivableMessage] =
     Behaviors.withStash(settings.actorStashSize) { buffer =>
       Behaviors.setup { implicit context =>
