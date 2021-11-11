@@ -380,7 +380,7 @@ object Heimdall {
               (eleSeq: Seq[Document], collectionName: String) => mongo.insert(eleSeq, collectionName),
               (field: String, value: Seq[String], collectionName: String) => mongo.remove(field, value, collectionName),
               (collectionName: String) => mongo.getUnconfirmedTx(collectionName),
-              (idsToCheck: Seq[String], collectionName: String) => mongo.getMissingBlockIds(idsToCheck, collectionName),
+              (idsToCheck: Seq[String], collectionName: String) => mongo.getExistingIds(idsToCheck, collectionName),
               chainRepSettings
             ),
             ChainReplicator.actorName

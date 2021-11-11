@@ -37,7 +37,7 @@ class MongoChainRepExport(uri: String, database: String) {
     .map(_.head._2.asString().getValue)
     .toFuture()
 
-  def getMissingBlockIds(idsToCheck: Seq[String], collectionName: String): Future[Seq[String]] = {
+  def getExistingIds(idsToCheck: Seq[String], collectionName: String): Future[Seq[String]] = {
     val listIds = idsToCheck.map(BsonString(_))
     db
       .getCollection(collectionName)

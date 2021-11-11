@@ -50,13 +50,13 @@ object ChainReplicator {
   }
 
   def apply(
-    nodeViewHolderRef:  ActorRef[NodeViewHolder.ReceivableMessage],
-    checkDBConnection:  () => Future[Seq[String]],
-    insertDocs:         (Seq[Document], String) => Future[InsertManyResult],
-    removeDocs:         (String, Seq[String], String) => Future[DeleteResult],
-    getUnconfirmedTxs:  String => Future[Seq[String]],
-    getMissingBlockIds: (Seq[String], String) => Future[Seq[String]],
-    settings:           ChainReplicatorSettings
+    nodeViewHolderRef: ActorRef[NodeViewHolder.ReceivableMessage],
+    checkDBConnection: () => Future[Seq[String]],
+    insertDocs:        (Seq[Document], String) => Future[InsertManyResult],
+    removeDocs:        (String, Seq[String], String) => Future[DeleteResult],
+    getUnconfirmedTxs: String => Future[Seq[String]],
+    getExistingIds:    (Seq[String], String) => Future[Seq[String]],
+    settings:          ChainReplicatorSettings
   ): Behavior[ReceivableMessage] =
     Behaviors.withStash(settings.actorStashSize) { buffer =>
       Behaviors.setup { implicit context =>
@@ -83,7 +83,7 @@ object ChainReplicator {
           insertDocs,
           removeDocs,
           getUnconfirmedTxs,
-          getMissingBlockIds,
+          getExistingIds,
           settings
         ).uninitialized
 
@@ -92,13 +92,13 @@ object ChainReplicator {
 }
 
 private class ChainReplicator(
-  nodeViewHolderRef:  ActorRef[NodeViewHolder.ReceivableMessage],
-  buffer:             StashBuffer[ChainReplicator.ReceivableMessage],
-  insertDocs:         (Seq[Document], String) => Future[InsertManyResult],
-  removeDocs:         (String, Seq[String], String) => Future[DeleteResult],
-  getUnconfirmedTxs:  String => Future[Seq[String]],
-  getMissingBlockIds: (Seq[String], String) => Future[Seq[String]],
-  settings:           ChainReplicatorSettings
+  nodeViewHolderRef: ActorRef[NodeViewHolder.ReceivableMessage],
+  buffer:            StashBuffer[ChainReplicator.ReceivableMessage],
+  insertDocs:        (Seq[Document], String) => Future[InsertManyResult],
+  removeDocs:        (String, Seq[String], String) => Future[DeleteResult],
+  getUnconfirmedTxs: String => Future[Seq[String]],
+  getExistingIds:    (Seq[String], String) => Future[Seq[String]],
+  settings:          ChainReplicatorSettings
 )(implicit
   context: ActorContext[ChainReplicator.ReceivableMessage]
 ) {
@@ -142,12 +142,13 @@ private class ChainReplicator(
       case (context, ReceivableMessages.CheckMissingBlocks(startHeight, maxHeight)) =>
         implicit val ec: ExecutionContext = context.executionContext
 
-        val endHeight = (startHeight + settings.blockCheckSize).min(maxHeight)
+        val endHeight = (startHeight + settings.blockCheckSize - 1).min(maxHeight)
         val exportResult = for {
           blockIdsInRange <- OptionT[Future, Seq[String]](getIdsInRange(startHeight, endHeight).map(_.some))
-          missingBlockIds <- OptionT[Future, Seq[String]](
-            getMissingBlockIds(blockIdsInRange, settings.blockCollection).map(_.some)
+          existingIdsInDB <- OptionT[Future, Seq[String]](
+            getExistingIds(blockIdsInRange, settings.blockCollection).map(_.some)
           )
+          missingBlockIds = blockIdsInRange.toSet.diff(existingIdsInDB.toSet).toSeq
           blocksToAdd       <- OptionT[Future, Seq[Block]](getBlocksById(missingBlockIds))
           blockExportResult <- OptionT[Future, InsertManyResult](exportBlocks(blocksToAdd).map(_.some))
           txExportResult    <- OptionT[Future, InsertManyResult](exportTxsFromBlocks(blocksToAdd).map(_.some))
@@ -174,7 +175,10 @@ private class ChainReplicator(
       case (context, ReceivableMessages.CheckMissingBlocksDone(startHeight, endHeight, maxHeight)) =>
         log.info(s"${Console.GREEN}Finished checking from height $startHeight to $endHeight${Console.RESET}")
         if (endHeight >= maxHeight) {
-          log.info(s"Done with all checks at height $endHeight")
+          log.info(
+            s"${Console.GREEN}Done with all checks at height $endHeight, " +
+            s"transitioning to listening for new blocks${Console.RESET}"
+          )
           buffer.unstashAll(listening)
         } else {
           context.self ! ReceivableMessages.CheckMissingBlocks(endHeight + 1, maxHeight)
@@ -209,7 +213,7 @@ private class ChainReplicator(
         exportResult.onComplete {
           case Success(res) =>
             log.info(
-              s"${Console.GREEN}Added a block and ${res._2.getInsertedIds.size()} " +
+              s"${Console.GREEN}Added 1 block and ${res._2.getInsertedIds.size()} " +
               s"transactions to appView at height: ${block.height}${Console.RESET}"
             )
             log.info(
