@@ -17,7 +17,7 @@ import co.topl.network.utils.NetworkTimeProvider
 import co.topl.nodeView._
 import co.topl.rpc.ToplRpcServer
 import co.topl.settings.{AppContext, AppSettings}
-import co.topl.tools.exporter.{DataType, MongoChainRepExport}
+import co.topl.tools.exporter.MongoChainRepExport
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider
 import io.circe.Encoder
