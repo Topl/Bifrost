@@ -16,10 +16,95 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import io.circe.syntax._
 import io.circe.{Decoder, DecodingFailure, Encoder, HCursor}
+import scodec.bits.BitVector
 
 import scala.collection.immutable.ListMap
 
 trait TransactionCodecs {
+
+  implicit def publicKeyCurve25519AttestationJsonDecoder
+    : Decoder[ListMap[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]] =
+    Decoder[ListMap[Base58Data, Base58Data]]
+      .emap(attestation =>
+        attestation.foldLeft(
+          ListMap[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]()
+            .asRight[String]
+        ) {
+          case (Right(signatures), (key, value)) =>
+            (for {
+              publicKey <-
+                scodec
+                  .Decoder[PublicKeyPropositionCurve25519]
+                  .decodeValue(BitVector(key.encodeAsBytes.tail))
+                  .toEither
+                  .leftMap(err => s"failed to decode public key proposition curve 25519 from binary data: $err")
+              sig <-
+                scodec
+                  .Decoder[SignatureCurve25519]
+                  .decodeValue(BitVector(value.encodeAsBytes.tail))
+                  .toEither
+                  .leftMap(err => s"failed to decode public key proposition curve 25519 from binary data: $err")
+            } yield publicKey -> sig)
+              .map(pair => signatures ++ ListMap(pair))
+          case (err, _) => err
+        }
+      )
+
+  implicit def thresholdCurve25519AttestationJsonDecoder
+    : Decoder[ListMap[ThresholdPropositionCurve25519, Proof[ThresholdPropositionCurve25519]]] =
+    Decoder[ListMap[Base58Data, Base58Data]]
+      .emap(attestation =>
+        attestation.foldLeft(
+          ListMap[ThresholdPropositionCurve25519, Proof[ThresholdPropositionCurve25519]]()
+            .asRight[String]
+        ) {
+          case (Right(signatures), (key, value)) =>
+            (for {
+              publicKey <-
+                scodec
+                  .Decoder[ThresholdPropositionCurve25519]
+                  .decodeValue(BitVector(key.encodeAsBytes.tail))
+                  .toEither
+                  .leftMap(err => s"failed to decode threshold proposition curve 25519 from binary data: $err")
+              sig <-
+                scodec
+                  .Decoder[ThresholdSignatureCurve25519]
+                  .decodeValue(BitVector(value.encodeAsBytes.tail))
+                  .toEither
+                  .leftMap(err => s"failed to decode threshold proposition curve 25519 from binary data: $err")
+            } yield publicKey -> sig)
+              .map(pair => signatures ++ ListMap(pair))
+          case (err, _) => err
+        }
+      )
+
+  implicit def publicKeyEd25519AttestationJsonDecoder
+    : Decoder[ListMap[PublicKeyPropositionEd25519, Proof[PublicKeyPropositionEd25519]]] =
+    Decoder[ListMap[Base58Data, Base58Data]]
+      .emap(attestation =>
+        attestation.foldLeft(
+          ListMap[PublicKeyPropositionEd25519, Proof[PublicKeyPropositionEd25519]]()
+            .asRight[String]
+        ) {
+          case (Right(signatures), (key, value)) =>
+            (for {
+              publicKey <-
+                scodec
+                  .Decoder[PublicKeyPropositionEd25519]
+                  .decodeValue(BitVector(key.encodeAsBytes.tail))
+                  .toEither
+                  .leftMap(err => s"failed to decode public key proposition curve 25519 from binary data: $err")
+              sig <-
+                scodec
+                  .Decoder[SignatureEd25519]
+                  .decodeValue(BitVector(value.encodeAsBytes.tail))
+                  .toEither
+                  .leftMap(err => s"failed to decode public key proposition curve 25519 from binary data: $err")
+            } yield publicKey -> sig)
+              .map(pair => signatures ++ ListMap(pair))
+          case (err, _) => err
+        }
+      )
 
   implicit def arbitTransferJsonEncoder[P <: Proposition]: Encoder[ArbitTransfer[P]] = { tx: ArbitTransfer[P] =>
     Map(
@@ -43,58 +128,25 @@ trait TransactionCodecs {
   ): Decoder[ArbitTransfer[_ <: Proposition]] =
     (c: HCursor) =>
       for {
-        from           <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
-        to             <- c.downField("to").as[IndexedSeq[(Address, SimpleValue)]]
-        fee            <- c.get[Int128]("fee")
-        timestamp      <- c.downField("timestamp").as[Long]
-        data           <- c.downField("data").as[Option[Latin1Data]]
-        propType       <- c.downField("propositionType").as[String]
-        minting        <- c.downField("minting").as[Boolean]
-        signaturesData <- c.downField("signatures").as[ListMap[Base58Data, Base58Data]]
+        from      <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
+        to        <- c.downField("to").as[IndexedSeq[(Address, SimpleValue)]]
+        fee       <- c.get[Int128]("fee")
+        timestamp <- c.downField("timestamp").as[Long]
+        data      <- c.downField("data").as[Option[Latin1Data]]
+        propType  <- c.downField("propositionType").as[String]
+        minting   <- c.downField("minting").as[Boolean]
         transfer <- propType match {
           case PublicKeyPropositionCurve25519.`typeString` =>
-            signaturesData
-              .foldLeft(
-                ListMap[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]()
-                  .asRight[DecodingFailure]
-              ) {
-                case (Right(signatures), (key, value)) =>
-                  (for {
-                    publicKey <- key.encodeAsBytes.tail.decodeTransmitted[PublicKeyPropositionCurve25519]
-                    sig       <- value.encodeAsBytes.tail.decodeTransmitted[SignatureCurve25519]
-                  } yield signatures ++ ListMap(publicKey -> sig))
-                    .leftMap(err => DecodingFailure(err, List()))
-                case (err, _) => err
-              }
+            c.downField("signatures")
+              .as[ListMap[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]]
               .map(ArbitTransfer(from, to, _, fee, timestamp, data, minting))
           case ThresholdPropositionCurve25519.`typeString` =>
-            signaturesData
-              .foldLeft(
-                ListMap[ThresholdPropositionCurve25519, Proof[ThresholdPropositionCurve25519]]()
-                  .asRight[DecodingFailure]
-              ) {
-                case (Right(signatures), (key, value)) =>
-                  (for {
-                    publicKey <- key.encodeAsBytes.tail.decodeTransmitted[ThresholdPropositionCurve25519]
-                    sig       <- value.encodeAsBytes.tail.decodeTransmitted[ThresholdSignatureCurve25519]
-                  } yield signatures ++ ListMap(publicKey -> sig))
-                    .leftMap(err => DecodingFailure(err, List()))
-                case (err, _) => err
-              }
+            c.downField("signatures")
+              .as[ListMap[ThresholdPropositionCurve25519, Proof[ThresholdPropositionCurve25519]]]
               .map(ArbitTransfer(from, to, _, fee, timestamp, data, minting))
           case PublicKeyPropositionEd25519.`typeString` =>
-            signaturesData
-              .foldLeft(
-                ListMap[PublicKeyPropositionEd25519, Proof[PublicKeyPropositionEd25519]]().asRight[DecodingFailure]
-              ) {
-                case (Right(signatures), (key, value)) =>
-                  (for {
-                    publicKey <- key.encodeAsBytes.tail.decodeTransmitted[PublicKeyPropositionEd25519]
-                    sig       <- value.encodeAsBytes.tail.decodeTransmitted[SignatureEd25519]
-                  } yield signatures ++ ListMap(publicKey -> sig))
-                    .leftMap(err => DecodingFailure(err, List()))
-                case (err, _) => err
-              }
+            c.downField("signatures")
+              .as[ListMap[PublicKeyPropositionEd25519, Proof[PublicKeyPropositionEd25519]]]
               .map(ArbitTransfer(from, to, _, fee, timestamp, data, minting))
         }
       } yield transfer
@@ -121,58 +173,25 @@ trait TransactionCodecs {
   ): Decoder[AssetTransfer[_ <: Proposition]] =
     (c: HCursor) =>
       for {
-        from           <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
-        to             <- c.downField("to").as[IndexedSeq[(Address, TokenValueHolder)]]
-        fee            <- c.get[Int128]("fee")
-        timestamp      <- c.downField("timestamp").as[Long]
-        data           <- c.downField("data").as[Option[Latin1Data]]
-        minting        <- c.downField("minting").as[Boolean]
-        propType       <- c.downField("propositionType").as[String]
-        signaturesData <- c.downField("signatures").as[ListMap[Base58Data, Base58Data]]
+        from      <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
+        to        <- c.downField("to").as[IndexedSeq[(Address, TokenValueHolder)]]
+        fee       <- c.get[Int128]("fee")
+        timestamp <- c.downField("timestamp").as[Long]
+        data      <- c.downField("data").as[Option[Latin1Data]]
+        minting   <- c.downField("minting").as[Boolean]
+        propType  <- c.downField("propositionType").as[String]
         transfer <- propType match {
           case PublicKeyPropositionCurve25519.`typeString` =>
-            signaturesData
-              .foldLeft(
-                ListMap[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]()
-                  .asRight[DecodingFailure]
-              ) {
-                case (Right(signatures), (key, value)) =>
-                  (for {
-                    publicKey <- key.encodeAsBytes.tail.decodeTransmitted[PublicKeyPropositionCurve25519]
-                    sig       <- value.encodeAsBytes.tail.decodeTransmitted[SignatureCurve25519]
-                  } yield signatures ++ ListMap(publicKey -> sig))
-                    .leftMap(err => DecodingFailure(err, List()))
-                case (err, _) => err
-              }
+            c.downField("signatures")
+              .as[ListMap[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]]
               .map(AssetTransfer(from, to, _, fee, timestamp, data, minting))
           case ThresholdPropositionCurve25519.`typeString` =>
-            signaturesData
-              .foldLeft(
-                ListMap[ThresholdPropositionCurve25519, Proof[ThresholdPropositionCurve25519]]()
-                  .asRight[DecodingFailure]
-              ) {
-                case (Right(signatures), (key, value)) =>
-                  (for {
-                    publicKey <- key.encodeAsBytes.tail.decodeTransmitted[ThresholdPropositionCurve25519]
-                    sig       <- value.encodeAsBytes.tail.decodeTransmitted[ThresholdSignatureCurve25519]
-                  } yield signatures ++ ListMap(publicKey -> sig))
-                    .leftMap(err => DecodingFailure(err, List()))
-                case (err, _) => err
-              }
+            c.downField("signatures")
+              .as[ListMap[ThresholdPropositionCurve25519, Proof[ThresholdPropositionCurve25519]]]
               .map(AssetTransfer(from, to, _, fee, timestamp, data, minting))
           case PublicKeyPropositionEd25519.`typeString` =>
-            signaturesData
-              .foldLeft(
-                ListMap[PublicKeyPropositionEd25519, Proof[PublicKeyPropositionEd25519]]().asRight[DecodingFailure]
-              ) {
-                case (Right(signatures), (key, value)) =>
-                  (for {
-                    publicKey <- key.encodeAsBytes.tail.decodeTransmitted[PublicKeyPropositionEd25519]
-                    sig       <- value.encodeAsBytes.tail.decodeTransmitted[SignatureEd25519]
-                  } yield signatures ++ ListMap(publicKey -> sig))
-                    .leftMap(err => DecodingFailure(err, List()))
-                case (err, _) => err
-              }
+            c.downField("signatures")
+              .as[ListMap[PublicKeyPropositionEd25519, Proof[PublicKeyPropositionEd25519]]]
               .map(AssetTransfer(from, to, _, fee, timestamp, data, minting))
         }
       } yield transfer
@@ -197,58 +216,25 @@ trait TransactionCodecs {
   implicit def polyTransferJsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[PolyTransfer[_ <: Proposition]] =
     (c: HCursor) =>
       for {
-        from           <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
-        to             <- c.downField("to").as[IndexedSeq[(Address, SimpleValue)]]
-        fee            <- c.get[Int128]("fee")
-        timestamp      <- c.downField("timestamp").as[Long]
-        data           <- c.downField("data").as[Option[Latin1Data]]
-        propType       <- c.downField("propositionType").as[String]
-        minting        <- c.downField("minting").as[Boolean]
-        signaturesData <- c.downField("signatures").as[ListMap[Base58Data, Base58Data]]
+        from      <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
+        to        <- c.downField("to").as[IndexedSeq[(Address, SimpleValue)]]
+        fee       <- c.get[Int128]("fee")
+        timestamp <- c.downField("timestamp").as[Long]
+        data      <- c.downField("data").as[Option[Latin1Data]]
+        propType  <- c.downField("propositionType").as[String]
+        minting   <- c.downField("minting").as[Boolean]
         transfer <- propType match {
           case PublicKeyPropositionCurve25519.`typeString` =>
-            signaturesData
-              .foldLeft(
-                ListMap[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]()
-                  .asRight[DecodingFailure]
-              ) {
-                case (Right(signatures), (key, value)) =>
-                  (for {
-                    publicKey <- key.encodeAsBytes.tail.decodeTransmitted[PublicKeyPropositionCurve25519]
-                    sig       <- value.encodeAsBytes.tail.decodeTransmitted[SignatureCurve25519]
-                  } yield signatures ++ ListMap(publicKey -> sig))
-                    .leftMap(err => DecodingFailure(err, List()))
-                case (err, _) => err
-              }
+            c.downField("signatures")
+              .as[ListMap[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]]
               .map(PolyTransfer(from, to, _, fee, timestamp, data, minting))
           case ThresholdPropositionCurve25519.`typeString` =>
-            signaturesData
-              .foldLeft(
-                ListMap[ThresholdPropositionCurve25519, Proof[ThresholdPropositionCurve25519]]()
-                  .asRight[DecodingFailure]
-              ) {
-                case (Right(signatures), (key, value)) =>
-                  (for {
-                    publicKey <- key.encodeAsBytes.tail.decodeTransmitted[ThresholdPropositionCurve25519]
-                    sig       <- value.encodeAsBytes.tail.decodeTransmitted[ThresholdSignatureCurve25519]
-                  } yield signatures ++ ListMap(publicKey -> sig))
-                    .leftMap(err => DecodingFailure(err, List()))
-                case (err, _) => err
-              }
+            c.downField("signatures")
+              .as[ListMap[ThresholdPropositionCurve25519, Proof[ThresholdPropositionCurve25519]]]
               .map(PolyTransfer(from, to, _, fee, timestamp, data, minting))
           case PublicKeyPropositionEd25519.`typeString` =>
-            signaturesData
-              .foldLeft(
-                ListMap[PublicKeyPropositionEd25519, Proof[PublicKeyPropositionEd25519]]().asRight[DecodingFailure]
-              ) {
-                case (Right(signatures), (key, value)) =>
-                  (for {
-                    publicKey <- key.encodeAsBytes.tail.decodeTransmitted[PublicKeyPropositionEd25519]
-                    sig       <- value.encodeAsBytes.tail.decodeTransmitted[SignatureEd25519]
-                  } yield signatures ++ ListMap(publicKey -> sig))
-                    .leftMap(err => DecodingFailure(err, List()))
-                case (err, _) => err
-              }
+            c.downField("signatures")
+              .as[ListMap[PublicKeyPropositionEd25519, Proof[PublicKeyPropositionEd25519]]]
               .map(PolyTransfer(from, to, _, fee, timestamp, data, minting))
         }
       } yield transfer
@@ -283,4 +269,5 @@ trait TransactionCodecs {
       case Left(ex)  => throw ex
     }
   }
+
 }

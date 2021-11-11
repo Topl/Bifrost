@@ -31,7 +31,7 @@ object AddressCodec {
 
       private val bytes = value.encodeAsBytes
 
-      val checksum: Array[Byte] = value.hash(blake2b256).value.take(ChecksumLength)
+      val checksum: Array[Byte] = blake2b256.hash(bytes).value.take(ChecksumLength)
 
       def decodeAddress(implicit networkPrefix: NetworkPrefix): ValidatedNec[AddressValidationError, Address] =
         networkPrefixValidation(bytes)

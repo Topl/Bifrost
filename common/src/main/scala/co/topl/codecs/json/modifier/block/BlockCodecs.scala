@@ -1,43 +1,39 @@
 package co.topl.codecs.json.modifier.block
 
-import cats.implicits._
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.codecs.binary._
+import co.topl.codecs.json.crypto._
+import co.topl.codecs.json.modifier.box._
+import co.topl.codecs.json.modifier.transaction._
+import co.topl.codecs.json.{
+  deriveDecoderFromScodec,
+  deriveEncoderFromScodec,
+  deriveKeyDecoderFromScodec,
+  deriveKeyEncoderFromScodec
+}
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.transaction.Transaction
-import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.TimeProvider
-import co.topl.codecs.binary._
-import co.topl.codecs.json.crypto._
-import co.topl.codecs.json.modifier.box._
-import co.topl.codecs.json.valuetypes._
-import io.circe.syntax._
 import io.circe._
-import co.topl.codecs.json.modifier.transaction._
-import co.topl.modifier.block.BloomFilter.fromBase58
+import io.circe.syntax._
 
 trait BlockCodecs {
 
-  implicit val modifierIdJsonEncoder: Encoder[ModifierId] = _.transmittableBase58.asJson
+  private val modifierIdTypeName = "Modifier ID"
+  private val bloomFilterTypeName = "Bloom Filter"
 
-  implicit val modifierIdJsonKeyEncoder: KeyEncoder[ModifierId] = _.transmittableBase58.show
+  implicit val modifierIdJsonEncoder: Encoder[ModifierId] = deriveEncoderFromScodec(modifierIdTypeName)
 
-  implicit val modifierIdJsonDecoder: Decoder[ModifierId] =
-    Decoder[Base58Data]
-      .emap(
-        _.decodeTransmitted[ModifierId]
-          .leftMap(err => s"failed to decode modifier ID: $err")
-      )
+  implicit val modifierIdJsonKeyEncoder: KeyEncoder[ModifierId] = deriveKeyEncoderFromScodec(modifierIdTypeName)
 
-  implicit val modifierIdJsonKeyDecoder: KeyDecoder[ModifierId] =
-    KeyDecoder[Base58Data]
-      .map(_.decodeTransmitted[ModifierId].leftMap(err => s"failed to decode modifier ID json key: $err").getOrThrow())
+  implicit val modifierIdJsonDecoder: Decoder[ModifierId] = deriveDecoderFromScodec(modifierIdTypeName)
+
+  implicit val modifierIdJsonKeyDecoder: KeyDecoder[ModifierId] = deriveKeyDecoderFromScodec(modifierIdTypeName)
 
   implicit val blockJsonEncoder: Encoder[Block] = { b: Block =>
     val (header, body) = b.toComponents
@@ -114,9 +110,9 @@ trait BlockCodecs {
       version
     )
 
-  implicit val bloomFilterJsonEncoder: Encoder[BloomFilter] = (bf: BloomFilter) => bf.encodeAsBase58.asJson
+  implicit val bloomFilterJsonEncoder: Encoder[BloomFilter] = deriveEncoderFromScodec(bloomFilterTypeName)
 
-  implicit val bloomFilterJsonKeyEncoder: KeyEncoder[BloomFilter] = (bf: BloomFilter) => bf.encodeAsBase58.show
+  implicit val bloomFilterJsonKeyEncoder: KeyEncoder[BloomFilter] = deriveKeyEncoderFromScodec(bloomFilterTypeName)
 
-  implicit val bloomFilterJsonDecoder: Decoder[BloomFilter] = Decoder[Base58Data].map(BloomFilter.fromBase58)
+  implicit val bloomFilterJsonDecoder: Decoder[BloomFilter] = deriveDecoderFromScodec(bloomFilterTypeName)
 }

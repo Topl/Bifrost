@@ -6,9 +6,12 @@ import co.topl.codecs.binary.scodecs.attestation._
 import co.topl.codecs.binary.scodecs.valuetypes._
 import scodec.Codec
 import scodec.codecs.discriminated
+import co.topl.codecs.binary.scodecs.crypto._
 
 trait BoxCodecs {
   implicit val securityRootCodec: Codec[SecurityRoot] = bytesCodec(SecurityRoot.size).as[SecurityRoot]
+
+  implicit val boxIdCodec: Codec[BoxId] = digest32Codec.as[BoxId]
 
   implicit val assetCodeCodec: Codec[AssetCode] =
     (byteCodec ::

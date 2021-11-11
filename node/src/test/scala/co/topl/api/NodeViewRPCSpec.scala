@@ -124,7 +124,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       idTypes.zip(modifierQueryMethods).map { case (idType, rpcMethod) =>
         httpPOST(requestBody(idType, rpcMethod, invalidLengthId)) ~> route ~> check {
           val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
-          res should include("failed to decode modifier ID")
+          res should include("failed to decode Modifier ID")
         }
       }
     }

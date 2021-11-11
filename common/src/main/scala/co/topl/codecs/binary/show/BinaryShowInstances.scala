@@ -17,10 +17,12 @@ import co.topl.utils.SizedBytes
 import co.topl.utils.SizedBytes.implicits._
 import co.topl.utils.StringDataTypes.{Base16Data, Base58Data}
 import com.google.common.primitives.Longs
-import scodec.bits.ByteVector
+import scodec.bits.{BitVector, ByteVector}
 
 trait BinaryShowInstances {
   implicit val bytesBinaryShow: BinaryShow[Array[Byte]] = x => x
+
+  implicit val bitsBinaryShow: BinaryShow[BitVector] = x => x.toByteArray
 
   implicit val base58BinaryShow: BinaryShow[Base58Data] = _.value
 

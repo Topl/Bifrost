@@ -1,21 +1,28 @@
 package co.topl.codecs.json.modifier.box
 
-import cats.implicits.toShow
 import co.topl.attestation.Evidence
-import co.topl.modifier.box.Box.Nonce
-import co.topl.modifier.box._
-import co.topl.utils.Identifiable.Syntax._
-import co.topl.utils.IdiomaticScalaTransition.implicits._
-import co.topl.utils.StringDataTypes.implicits.showBase58String
-import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import co.topl.codecs.binary._
 import co.topl.codecs.json.valuetypes._
+import co.topl.codecs.json.{
+  deriveDecoderFromScodec,
+  deriveEncoderFromScodec,
+  deriveKeyDecoderFromScodec,
+  deriveKeyEncoderFromScodec
+}
+import co.topl.modifier.box.Box.Nonce
+import co.topl.modifier.box._
 import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithm, BoxSelectionAlgorithms}
-import co.topl.utils.{Identifiable, Identifier, Int128}
-import io.circe.{Decoder, DecodingFailure, Encoder, HCursor, Json, KeyDecoder, KeyEncoder}
+import co.topl.utils.Identifiable.Syntax._
+import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
+import co.topl.utils.{Identifiable, Int128}
+import io.circe._
 import io.circe.syntax._
 
 trait BoxCodecs {
+
+  private val assetCodeTypeName = "Asset Code"
+  private val boxIdTypeName = "Box ID"
+  private val securityRootTypeName = "Security Root"
 
   implicit val arbitBoxJsonEncoder: Encoder[ArbitBox] = (box: ArbitBox) =>
     jsonEncodeBox[SimpleValue, ArbitBox](box).asJson
@@ -37,10 +44,9 @@ trait BoxCodecs {
 
   implicit val assetCodeJsonKeyEncoder: KeyEncoder[AssetCode] = (ac: AssetCode) => ac.toString
 
-  implicit val assetCodeJsonDecoder: Decoder[AssetCode] = Decoder[Base58Data].emap(_.decodeTransmitted[AssetCode])
+  implicit val assetCodeJsonDecoder: Decoder[AssetCode] = deriveDecoderFromScodec(assetCodeTypeName)
 
-  implicit val assetCodeJsonKeyDecoder: KeyDecoder[AssetCode] =
-    KeyDecoder[Base58Data].map(_.decodeTransmitted[AssetCode].getOrThrow())
+  implicit val assetCodeJsonKeyDecoder: KeyDecoder[AssetCode] = deriveKeyDecoderFromScodec(assetCodeTypeName)
 
   implicit val codeBoxJsonEncoder: Encoder[CodeBox] = { box: CodeBox =>
     (jsonEncodeBox[ProgramId, CodeBox](box) ++ Map(
@@ -113,7 +119,7 @@ trait BoxCodecs {
   implicit val tokenValueHolderJsonEncoder: Encoder[TokenValueHolder] = {
     case v: SimpleValue => simpleValueJsonEncoder(v)
     case v: AssetValue  => assetValueJsonEncoder(v)
-    case _              => throw new Error(s"No matching encoder found")
+    case _              => throw new Exception(s"No matching encoder found")
   }
 
   implicit val tokenValueHolderJsonDecoder: Decoder[TokenValueHolder] = { c: HCursor =>
@@ -152,16 +158,9 @@ trait BoxCodecs {
     for {
       quantity     <- c.get[Int128]("quantity")
       assetCode    <- c.downField("assetCode").as[AssetCode]
-      securityRoot <- c.downField("securityRoot").as[Option[Base58Data]]
+      securityRoot <- c.downField("securityRoot").as[Option[SecurityRoot]]
       metadata     <- c.downField("metadata").as[Option[Latin1Data]]
-    } yield {
-      val sr = securityRoot match {
-        case Some(data) => data.value.decodeTransmitted[SecurityRoot].getOrThrow()
-        case None       => SecurityRoot.empty
-      }
-
-      AssetValue(quantity, assetCode, sr, metadata)
-    }
+    } yield AssetValue(quantity, assetCode, securityRoot.getOrElse(SecurityRoot.empty), metadata)
 
   implicit val boxJsonEncoder: Encoder[Box[_]] = {
     case box: ArbitBox     => arbitBoxJsonEncoder(box)
@@ -201,14 +200,13 @@ trait BoxCodecs {
     case _                          => throw new Exception("no encoder found for program box type")
   }
 
-  implicit val boxIdJsonEncoder: Encoder[BoxId] = _.transmittableBase58.asJson
+  implicit val boxIdJsonEncoder: Encoder[BoxId] = deriveEncoderFromScodec(boxIdTypeName)
 
-  implicit val boxIdJsonKeyEncoder: KeyEncoder[BoxId] = _.transmittableBase58.show
+  implicit val boxIdJsonKeyEncoder: KeyEncoder[BoxId] = deriveKeyEncoderFromScodec(boxIdTypeName)
 
-  implicit val boxIdJsonDecoder: Decoder[BoxId] = Decoder[Base58Data].emap(_.value.decodeTransmitted[BoxId])
+  implicit val boxIdJsonDecoder: Decoder[BoxId] = deriveDecoderFromScodec(boxIdTypeName)
 
-  implicit val boxIdJsonKeyDecoder: KeyDecoder[BoxId] =
-    KeyDecoder[Base58Data].map(_.value.decodeTransmitted[BoxId].getOrThrow())
+  implicit val boxIdJsonKeyDecoder: KeyDecoder[BoxId] = deriveKeyDecoderFromScodec(boxIdTypeName)
 
   implicit val boxSelectionAlgorithmJsonEncoder: Encoder[BoxSelectionAlgorithm] = {
     case BoxSelectionAlgorithms.All           => "All".asJson
@@ -244,10 +242,9 @@ trait BoxCodecs {
       )
     ).reduceLeft(_ or _)
 
-  implicit val securityRootJsonEncoder: Encoder[SecurityRoot] = _.transmittableBase58.asJson
+  implicit val securityRootJsonEncoder: Encoder[SecurityRoot] = deriveEncoderFromScodec(securityRootTypeName)
 
-  implicit val securityRootJsonDecoder: Decoder[SecurityRoot] =
-    Decoder[Base58Data].emap(_.value.decodeTransmitted[SecurityRoot])
+  implicit val securityRootJsonDecoder: Decoder[SecurityRoot] = deriveDecoderFromScodec(securityRootTypeName)
 
   private def jsonEncodeBox[T: Encoder, BX <: Box[T]: Identifiable](box: BX): Map[String, Json] =
     Map(
