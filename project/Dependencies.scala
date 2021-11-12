@@ -10,8 +10,8 @@ object Dependencies {
 
   val logging = Seq(
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.4",
-    "ch.qos.logback"              % "logback-classic" % "1.2.6",
-    "ch.qos.logback"              % "logback-core"    % "1.2.6",
+    "ch.qos.logback"              % "logback-classic" % "1.2.7",
+    "ch.qos.logback"              % "logback-core"    % "1.2.7",
     "org.slf4j"                   % "slf4j-api"       % "1.7.32"
   )
 
@@ -34,17 +34,17 @@ object Dependencies {
   )
 
   val akka = Seq(
-		"com.typesafe.akka" %% "akka-actor"               % akkaVersion,
-		"com.typesafe.akka" %% "akka-actor-typed"         % akkaVersion,
-		"com.typesafe.akka" %% "akka-stream"              % akkaVersion,
-		"com.typesafe.akka" %% "akka-stream-typed"        % akkaVersion,
-		"com.typesafe.akka" %% "akka-http"                % akkaHttpVersion,
-		"com.typesafe.akka" %% "akka-http-core"           % akkaHttpVersion,
-		"com.typesafe.akka" %% "akka-slf4j"               % akkaVersion,
-		"com.typesafe.akka" %% "akka-testkit"             % akkaVersion     % Test,
-		"com.typesafe.akka" %% "akka-actor-testkit-typed" % akkaVersion     % Test,
-		"com.typesafe.akka" %% "akka-stream-testkit"      % akkaVersion     % Test,
-		"com.typesafe.akka" %% "akka-http-testkit"        % akkaHttpVersion % Test
+    "com.typesafe.akka" %% "akka-actor"               % akkaVersion,
+    "com.typesafe.akka" %% "akka-actor-typed"         % akkaVersion,
+    "com.typesafe.akka" %% "akka-stream"              % akkaVersion,
+    "com.typesafe.akka" %% "akka-stream-typed"        % akkaVersion,
+    "com.typesafe.akka" %% "akka-http"                % akkaHttpVersion,
+    "com.typesafe.akka" %% "akka-http-core"           % akkaHttpVersion,
+    "com.typesafe.akka" %% "akka-slf4j"               % akkaVersion,
+    "com.typesafe.akka" %% "akka-testkit"             % akkaVersion     % Test,
+    "com.typesafe.akka" %% "akka-actor-testkit-typed" % akkaVersion     % Test,
+    "com.typesafe.akka" %% "akka-stream-testkit"      % akkaVersion     % Test,
+    "com.typesafe.akka" %% "akka-http-testkit"        % akkaHttpVersion % Test
   )
 
   val network = Seq(
@@ -175,7 +175,7 @@ object Dependencies {
     Seq(
       "org.mongodb.scala" %% "mongo-scala-driver" % "4.3.2"
     )
-  
+
   lazy val loadTesting: Seq[ModuleID] = {
     Seq(
       "com.lihaoyi"    %% "mainargs" % "0.2.1",
