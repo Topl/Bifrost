@@ -60,7 +60,7 @@ object BlockGenesis {
       zeroBytes(Lengths.`64`)
     )
 
-    // TODO: Read "genesis-eta-plaintext" from application.conf, and then hash that value
+    // TODO: Read "genesis-eta-plaintext" from application.conf, and then hash that value and/or Magic Bytes
     val eta: Eta = {
       import co.topl.codecs.bytes.BasicCodecs._
       import co.topl.codecs.bytes.ByteCodec.implicits._

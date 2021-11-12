@@ -44,6 +44,7 @@ object Identifiable {
     implicit val identifiableBlockBodyV2: Identifiable[BlockBodyV2] =
       new Identifiable[BlockBodyV2] {
 
+        // TODO: Fix this once there's a ledger
         override def idOf(t: BlockBodyV2): TypedIdentifier =
 //          import ContainsTransactions.ops._
 //          import ContainsTransactions.Instances._

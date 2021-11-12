@@ -140,8 +140,7 @@ object EtaCalculationSpec {
       Bytes(
         blake2b256
           .hash(
-            None,
-            messages.map(_.toArray): _*
+            Bytes.concat(messages).toArray
           )
           .value
       )

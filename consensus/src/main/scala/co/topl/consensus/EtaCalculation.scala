@@ -45,6 +45,8 @@ object EtaCalculation {
                   .flatMap {
                     case (parentEpoch, childEpoch, parentSlotData) if parentEpoch === childEpoch =>
                       parentSlotData.eta.pure[F]
+                    // TODO: If childEpoch - parentEpoch > 1, destroy the node
+                    // OR: childSlot - parentSlot > slotsPerEpoch
                     case (_, _, parentSlotData) =>
                       locateTwoThirdsBest(parentSlotData).flatMap(calculate)
                   }
@@ -112,8 +114,7 @@ object EtaCalculation {
                 Bytes(
                   blake2b256
                     .hash(
-                      None,
-                      EtaCalculationArgs(previousEta, epoch, rhoValues.toIterable).digestMessages: _*
+                      Bytes.concat(EtaCalculationArgs(previousEta, epoch, rhoValues.toIterable).digestMessages).toArray
                     )
                     .value
                 )
@@ -125,8 +126,7 @@ object EtaCalculation {
 
 private case class EtaCalculationArgs(previousEta: Eta, epoch: Epoch, rhoValues: Iterable[Rho]) {
 
-  def digestMessages: List[Array[Byte]] =
+  def digestMessages: List[Bytes] =
     (List(previousEta.data) ++ List(Bytes(BigInt(epoch).toByteArray)) ++ rhoValues
       .map(_.data))
-      .map(_.toArray)
 }

@@ -29,6 +29,8 @@ class ChainSelectionSpec
 
   implicit private val logger: Logger[F] = Slf4jLogger.getLogger[F]
 
+  // TODO: Use generators to account for edge cases
+
   it should "return 0 for equal tines" in {
     val slotData = createSlotData(10, SlotId(9, TypedBytes(1: Byte, Bytes(Array[Byte](9)))), height = 4)
 
