@@ -39,8 +39,18 @@ object Proposer {
     implicit val ed25519Proposes: Proposer[VerificationKeys.Ed25519, Propositions.Knowledge.Ed25519] =
       t => Propositions.Knowledge.Ed25519(t)
 
+    implicit val extendedEd25519Proposes
+      : Proposer[VerificationKeys.ExtendedEd25519, Propositions.Knowledge.ExtendedEd25519] =
+      t => Propositions.Knowledge.ExtendedEd25519(t)
+
     implicit val vrfProposes: Proposer[VerificationKeys.VrfEd25519, Propositions.VerificationKeyVRF] =
       t => Propositions.VerificationKeyVRF(t)
+
+    implicit def containsVerificationKeyProposes[T, VK, Prop <: Proposition](implicit
+      containsVerificationKey: ContainsVerificationKey[T, VK],
+      proposer:                Proposer[VK, Prop]
+    ): Proposer[T, Prop] =
+      t => proposer.propositionOf(containsVerificationKey.verificationKeyOf(t))
   }
 
   object instances extends Instances

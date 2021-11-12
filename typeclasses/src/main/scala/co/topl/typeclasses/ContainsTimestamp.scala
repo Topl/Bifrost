@@ -18,10 +18,9 @@ object ContainsTimestamp {
     implicit val blockV1ContainsTimestamp: ContainsTimestamp[BlockV1] = _.timestamp
 
     implicit val transactionContainsTimestamp: ContainsTimestamp[Transaction] = {
-      case t: ArbitTransfer => t.timestamp
-      case t: PolyTransfer  => t.timestamp
-      case t: AssetTransfer => t.timestamp
-      case _                => ???
+      case t: Transactions.Arbit => t.timestamp
+      case t: Transactions.Poly  => t.timestamp
+      case t: Transactions.Asset => t.timestamp
     }
   }
 

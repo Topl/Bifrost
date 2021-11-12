@@ -1,5 +1,6 @@
 package co.topl
 
+import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{Lengths, Sized}
 import io.estatico.newtype.macros.newtype
 import io.estatico.newtype.ops._
@@ -10,6 +11,7 @@ import scala.language.implicitConversions
 
 package object models {
   type Bytes = ByteVector
+  val Bytes = ByteVector
   type BoxNonce = Long
   type Eta = Sized.Strict[Bytes, Lengths.`32`.type]
   type Evidence = Sized.Strict[TypedBytes, Lengths.`33`.type]
@@ -19,8 +21,7 @@ package object models {
   type Timestamp = Long
   type Slot = Long
   type Attestation = ListMap[Proposition, Proof]
-  type Registration = Bytes
-  type Signature = Bytes
+  val Attestation = ListMap
   type Epoch = Long
   type DionAddress = TypedIdentifier
   type BoxReference = (DionAddress, Eta)
@@ -32,12 +33,9 @@ package object models {
   type TxRoot = Sized.Strict[Bytes, Lengths.`32`.type]
   type BloomFilter = Sized.Strict[Bytes, Lengths.`256`.type]
   type Rho = Sized.Strict[Bytes, Lengths.`64`.type]
-  type Account = Propositions.Knowledge.Ed25519
-  type Root = Propositions.Knowledge.Ed25519
   type StakeAddress = Propositions.Knowledge.Ed25519
   type Digest32 = Sized.Strict[Bytes, Lengths.`32`.type]
-
-  val Bytes = ByteVector
+  type TransactionData = Sized.Max[Latin1Data, Lengths.`127`.type]
 
   @newtype case class TypedBytes(allBytes: Bytes) {
     def typePrefix: TypePrefix = allBytes.head

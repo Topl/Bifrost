@@ -2,7 +2,7 @@ package co.topl.typeclasses
 
 import co.topl.codecs.bytes.BasicCodecs._
 import co.topl.codecs.bytes.ByteCodec.implicits._
-import co.topl.models.{BlockHeaderV2, Bytes, VerificationKeys}
+import co.topl.models.{BlockHeaderV2, Bytes, UnprovenTransaction, UnprovenTransactions, VerificationKeys}
 import simulacrum.{op, typeclass}
 
 @typeclass trait Signable[T] {
@@ -20,14 +20,19 @@ object Signable {
 
     implicit val unsignedBlockHeaderV2Signable: Signable[BlockHeaderV2.Unsigned] =
       unsignedBlock =>
-        unsignedBlock.parentHeaderId.allBytes ++ unsignedBlock.txRoot.data ++ unsignedBlock.bloomFilter.data ++ Bytes(
-          BigInt(unsignedBlock.timestamp).toByteArray
-        ) ++
-        Bytes(BigInt(unsignedBlock.height).toByteArray) ++
-        Bytes(BigInt(unsignedBlock.slot).toByteArray) ++
-        unsignedBlock.eligibilityCertificate.bytes ++
-        Bytes(unsignedBlock.metadata.fold(Array.emptyByteArray)(_.data.value)) ++
-        unsignedBlock.address.bytes
+        Bytes.concat(
+          List(
+            unsignedBlock.parentHeaderId.allBytes,
+            unsignedBlock.txRoot.data,
+            unsignedBlock.bloomFilter.data,
+            Bytes(BigInt(unsignedBlock.timestamp).toByteArray),
+            Bytes(BigInt(unsignedBlock.height).toByteArray),
+            Bytes(BigInt(unsignedBlock.slot).toByteArray),
+            unsignedBlock.eligibilityCertificate.bytes,
+            Bytes(unsignedBlock.metadata.fold(Array.emptyByteArray)(_.data.value)),
+            unsignedBlock.address.bytes
+          )
+        )
 
     implicit val blockHeaderV2Signable: Signable[BlockHeaderV2] =
       header =>
@@ -50,6 +55,12 @@ object Signable {
 
     implicit val vkVrfSignable: Signable[VerificationKeys.VrfEd25519] =
       _.bytes.data
+
+    implicit val unprovenTransactionSignable: Signable[UnprovenTransaction] = {
+      case t: UnprovenTransactions.Poly  => ???
+      case t: UnprovenTransactions.Arbit => ???
+      case t: UnprovenTransactions.Asset => ???
+    }
   }
   object instances extends Instances
 }

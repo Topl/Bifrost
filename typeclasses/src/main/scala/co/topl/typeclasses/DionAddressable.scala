@@ -30,19 +30,29 @@ object DionAddressable {
             t.propositions.toList.map(_.bytes.data)
           )
         )
-  }
 
-  implicit val ed25519KnowledgePropositionPubKeyHashDionAddressable: DionAddressable[Propositions.Knowledge.Ed25519] =
-    t => TypedBytes(3: Byte, Bytes(blake2b256.hash(t.key.bytes.data.toArray).value))
+    implicit val ed25519KnowledgePropositionPubKeyHashDionAddressable: DionAddressable[Propositions.Knowledge.Ed25519] =
+      t => TypedBytes(3: Byte, Bytes(blake2b256.hash(t.key.bytes.data.toArray).value))
 
-  implicit val ed25519ThresholdPropositionDionAddressable: DionAddressable[Propositions.Knowledge.Threshold.Ed25519] =
-    t =>
-      TypedBytes(
-        4: Byte,
-        Bytes.concat(
-          Bytes(VLQWriter.uLongSerializer(t.threshold)) ::
-          Bytes(VLQWriter.uLongSerializer(t.propositions.size)) ::
-          t.propositions.toList.map(_.bytes.data)
+    implicit val extendeddEd25519KnowledgePropositionPubKeyHashDionAddressable
+      : DionAddressable[Propositions.Knowledge.ExtendedEd25519] =
+      t => TypedBytes(3: Byte, Bytes(blake2b256.hash((t.key.vk.bytes.data ++ t.key.chainCode.data).toArray).value))
+
+    implicit val ed25519ThresholdPropositionDionAddressable: DionAddressable[Propositions.Knowledge.Threshold.Ed25519] =
+      t =>
+        TypedBytes(
+          4: Byte,
+          Bytes.concat(
+            Bytes(VLQWriter.uLongSerializer(t.threshold)) ::
+            Bytes(VLQWriter.uLongSerializer(t.propositions.size)) ::
+            t.propositions.toList.map(_.bytes.data)
+          )
         )
-      )
+
+    implicit def proposesAddressable[T, Prop <: Proposition](implicit
+      proposer:        Proposer[T, Prop],
+      dionAddressable: DionAddressable[Prop]
+    ): DionAddressable[T] =
+      t => dionAddressable.dionAddressOf(proposer.propositionOf(t))
+  }
 }

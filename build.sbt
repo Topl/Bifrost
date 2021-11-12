@@ -253,7 +253,7 @@ lazy val brambl = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.brambl"
   )
-  .dependsOn(toplRpc, common)
+  .dependsOn(toplRpc, common, typeclasses)
 
 lazy val akkaHttpRpc = project
   .in(file("akka-http-rpc"))

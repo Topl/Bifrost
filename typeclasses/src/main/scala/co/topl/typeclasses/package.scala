@@ -32,4 +32,6 @@ package object typeclasses {
       with Signable.ToSignableOps
       with ShowInstances
       with EqInstances
+      with DionAddressable.Instances
+      with DionAddressable.ToDionAddressableOps
 }
