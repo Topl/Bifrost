@@ -72,7 +72,7 @@ object ChainReplicator {
 
         context.pipeToSelf(checkDBConnection()) {
           case Success(result) =>
-            context.log.info(s"${Console.GREEN}Found collections in database: $result${Console.RESET}")
+            context.log.debug(s"${Console.GREEN}Found collections in database: $result${Console.RESET}")
             ReceivableMessages.CheckDatabaseComplete
           case Failure(e) => ReceivableMessages.Terminate(e)
         }
@@ -156,7 +156,7 @@ private class ChainReplicator(
 
         context.pipeToSelf(exportResult.value) {
           case Success(Some((blockExportResult, txExportResult))) =>
-            log.info(
+            log.debug(
               s"${Console.GREEN}Successfully inserted ${blockExportResult.getInsertedIds.size()} blocks " +
               s"and ${txExportResult.getInsertedIds.size()} transactions into AppView${Console.RESET}"
             )
@@ -164,7 +164,7 @@ private class ChainReplicator(
           case Failure(err) =>
             ReceivableMessages.Terminate(err)
           case _ =>
-            log.info(
+            log.debug(
               s"${Console.GREEN}No missing blocks found between $startHeight and $endHeight${Console.RESET}"
             )
             ReceivableMessages.CheckMissingBlocksDone(startHeight, endHeight, maxHeight)
@@ -173,7 +173,7 @@ private class ChainReplicator(
         Behaviors.same
 
       case (context, ReceivableMessages.CheckMissingBlocksDone(startHeight, endHeight, maxHeight)) =>
-        log.info(s"${Console.GREEN}Finished checking from height $startHeight to $endHeight${Console.RESET}")
+        log.debug(s"${Console.GREEN}Finished checking from height $startHeight to $endHeight${Console.RESET}")
         if (endHeight >= maxHeight) {
           log.info(
             s"${Console.GREEN}Done with all checks at height $endHeight, " +
@@ -212,11 +212,11 @@ private class ChainReplicator(
         } yield (blockExportResult, txExportResult, unconfirmedTxExportRes, unconfirmedTxRemoveRes)
         exportResult.onComplete {
           case Success(res) =>
-            log.info(
+            log.debug(
               s"${Console.GREEN}Added 1 block and ${res._2.getInsertedIds.size()} " +
               s"transactions to appView at height: ${block.height}${Console.RESET}"
             )
-            log.info(
+            log.debug(
               s"${Console.GREEN}Added ${res._3.getInsertedIds.size()} transactions and removed " +
               s"${res._4.getDeletedCount} transactions from the unconfirmed transactions in appView${Console.RESET}"
             )
