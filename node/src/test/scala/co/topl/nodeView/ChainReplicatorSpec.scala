@@ -68,7 +68,7 @@ class ChainReplicatorSpec
       testIn.nodeViewHolderRef.tell(ReceivableMessages.WriteBlocks(newBlocks))
       val newTxs = newBlocks.flatMap(_.transactions)
 
-      Thread.sleep(0.2.seconds.toMillis)
+      Thread.sleep(0.5.seconds.toMillis)
 
       val chainRepRef = spawn(
         ChainReplicator(
@@ -83,7 +83,7 @@ class ChainReplicatorSpec
         ChainReplicator.actorName
       )
 
-      Thread.sleep(0.2.seconds.toMillis)
+      Thread.sleep(0.5.seconds.toMillis)
       blockStore.size shouldBe newBlocks.size + 1
       confirmedTxStore.size shouldBe newTxs.size + genesisBlock.transactions.size
       testKit.stop(chainRepRef)
@@ -120,13 +120,13 @@ class ChainReplicatorSpec
         ChainReplicator.actorName
       )
 
-      Thread.sleep(1.seconds.toMillis)
+      Thread.sleep(5.seconds.toMillis)
 
       newBlocks.foreach { block =>
         system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
       }
 
-      Thread.sleep(0.2.seconds.toMillis)
+      Thread.sleep(0.5.seconds.toMillis)
       blockStore.size shouldBe newBlocks.size + 1
       confirmedTxStore.size shouldBe newTxs.size + genesisBlock.transactions.size
       testKit.stop(chainRepRef)
@@ -192,14 +192,14 @@ class ChainReplicatorSpec
       testIn.nodeViewHolderRef.tell(
         NodeViewHolder.ReceivableMessages.WriteTransactions(List(polyTransferFst, polyTransferSec))
       )
-      Thread.sleep(0.2.seconds.toMillis)
+      Thread.sleep(0.5.seconds.toMillis)
       system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(genesisBlock)))
-      Thread.sleep(0.2.seconds.toMillis)
+      Thread.sleep(0.5.seconds.toMillis)
       unconfirmedTxStore.keys.toSet == Set(polyTransferFst.id.toString, polyTransferSec.id.toString) shouldBe true
       testIn.nodeViewHolderRef ! NodeViewHolder.ReceivableMessages.EliminateTransactions(Seq(polyTransferFst.id))
       testIn.nodeViewHolderRef.tell(NodeViewHolder.ReceivableMessages.WriteTransactions(List(polyTransferTrd)))
       system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(genesisBlock)))
-      Thread.sleep(0.2.seconds.toMillis)
+      Thread.sleep(0.5.seconds.toMillis)
       unconfirmedTxStore.keys.toSet == Set(polyTransferSec.id.toString, polyTransferTrd.id.toString) shouldBe true
       testKit.stop(chainRepRef)
     }
