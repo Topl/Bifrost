@@ -68,7 +68,7 @@ class ChainReplicatorSpec
       testIn.nodeViewHolderRef.tell(ReceivableMessages.WriteBlocks(newBlocks))
       val newTxs = newBlocks.flatMap(_.transactions)
 
-      Thread.sleep(0.5.seconds.toMillis)
+      Thread.sleep(0.2.seconds.toMillis)
 
       val chainRepRef = spawn(
         ChainReplicator(
@@ -77,13 +77,13 @@ class ChainReplicatorSpec
           (eleSeq: Seq[Document], collectionName: String) => insertDBTest(eleSeq, collectionName),
           (field: String, value: Seq[String], collectionName: String) => removeDBTest(field, value, collectionName),
           (collectionName: String) => getUnconfirmedTxTest(collectionName),
-          (idsToCheck: Seq[String], collectionName: String) => getMissingBlockIdsTest(idsToCheck, collectionName),
+          (idsToCheck: Seq[String], collectionName: String) => getExistingIdsTest(idsToCheck, collectionName),
           chainRepSettings
         ),
         ChainReplicator.actorName
       )
 
-      Thread.sleep(0.5.seconds.toMillis)
+      Thread.sleep(0.2.seconds.toMillis)
       blockStore.size shouldBe newBlocks.size + 1
       confirmedTxStore.size shouldBe newTxs.size + genesisBlock.transactions.size
       testKit.stop(chainRepRef)
@@ -114,7 +114,7 @@ class ChainReplicatorSpec
           (eleSeq: Seq[Document], collectionName: String) => insertDBTest(eleSeq, collectionName),
           (field: String, value: Seq[String], collectionName: String) => removeDBTest(field, value, collectionName),
           (collectionName: String) => getUnconfirmedTxTest(collectionName),
-          (idsToCheck: Seq[String], collectionName: String) => getMissingBlockIdsTest(idsToCheck, collectionName),
+          (idsToCheck: Seq[String], collectionName: String) => getExistingIdsTest(idsToCheck, collectionName),
           chainRepSettings
         ),
         ChainReplicator.actorName
@@ -126,7 +126,7 @@ class ChainReplicatorSpec
         system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
       }
 
-      Thread.sleep(0.5.seconds.toMillis)
+      Thread.sleep(0.2.seconds.toMillis)
       blockStore.size shouldBe newBlocks.size + 1
       confirmedTxStore.size shouldBe newTxs.size + genesisBlock.transactions.size
       testKit.stop(chainRepRef)
@@ -184,7 +184,7 @@ class ChainReplicatorSpec
           (eleSeq: Seq[Document], collectionName: String) => insertDBTest(eleSeq, collectionName),
           (field: String, value: Seq[String], collectionName: String) => removeDBTest(field, value, collectionName),
           (collectionName: String) => getUnconfirmedTxTest(collectionName),
-          (idsToCheck: Seq[String], collectionName: String) => getMissingBlockIdsTest(idsToCheck, collectionName),
+          (idsToCheck: Seq[String], collectionName: String) => getExistingIdsTest(idsToCheck, collectionName),
           chainRepSettings
         ),
         ChainReplicator.actorName
@@ -192,14 +192,14 @@ class ChainReplicatorSpec
       testIn.nodeViewHolderRef.tell(
         NodeViewHolder.ReceivableMessages.WriteTransactions(List(polyTransferFst, polyTransferSec))
       )
-      Thread.sleep(0.5.seconds.toMillis)
+      Thread.sleep(0.2.seconds.toMillis)
       system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(genesisBlock)))
-      Thread.sleep(0.5.seconds.toMillis)
+      Thread.sleep(0.2.seconds.toMillis)
       unconfirmedTxStore.keys.toSet == Set(polyTransferFst.id.toString, polyTransferSec.id.toString) shouldBe true
       testIn.nodeViewHolderRef ! NodeViewHolder.ReceivableMessages.EliminateTransactions(Seq(polyTransferFst.id))
       testIn.nodeViewHolderRef.tell(NodeViewHolder.ReceivableMessages.WriteTransactions(List(polyTransferTrd)))
       system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(genesisBlock)))
-      Thread.sleep(0.5.seconds.toMillis)
+      Thread.sleep(0.2.seconds.toMillis)
       unconfirmedTxStore.keys.toSet == Set(polyTransferSec.id.toString, polyTransferTrd.id.toString) shouldBe true
       testKit.stop(chainRepRef)
     }
@@ -251,8 +251,8 @@ class ChainReplicatorSpec
   private def getUnconfirmedTxTest(collectionName: String): Future[Seq[String]] =
     Future.successful(unconfirmedTxStore.keys.toSeq)
 
-  private def getMissingBlockIdsTest(idsToCheck: Seq[String], collectionName: String): Future[Seq[String]] =
-    Future.successful(idsToCheck.filterNot(blockStore.contains))
+  private def getExistingIdsTest(idsToCheck: Seq[String], collectionName: String): Future[Seq[String]] =
+    Future.successful(idsToCheck.filter(blockStore.contains))
 
   private def genesisActorTest(test: TestInWithActor => Unit)(implicit timeProvider: TimeProvider): Unit = {
     val testIn = genesisNodeView()
