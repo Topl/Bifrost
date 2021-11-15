@@ -36,8 +36,8 @@ object Evidence extends GjalSerializer[Evidence] {
     def apply[D: Digest](d: D): EvidenceContent = EvidenceContent(d.infalliblyEncodeAsBytes)
   }
 
-  val contentLength = 32 //bytes (this is generally the output of a Blake2b-256 bit hash)
-  val size: Int = 1 + contentLength //length of typePrefix + contentLength
+  val contentLength = 32 // bytes (this is generally the output of a Blake2b-256 bit hash)
+  val size: Int = 1 + contentLength // length of typePrefix + contentLength
 
   def apply(typePrefix: EvidenceTypePrefix, content: EvidenceContent): Evidence =
     fromBytes(typePrefix +: content.value) match {
