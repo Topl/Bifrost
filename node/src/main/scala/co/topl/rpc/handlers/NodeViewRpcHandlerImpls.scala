@@ -77,7 +77,10 @@ class NodeViewRpcHandlerImpls(
 
   override val blocksInRange: ToplRpc.NodeView.BlocksInRange.rpc.ServerHandler =
     params =>
-      withNodeView(view => getBlocksInRange(view.history, params.startHeight, params.endHeight))
+      withNodeView(view =>
+        checkHeightRange(view.history.height, params.startHeight, params.endHeight)
+          .map(range => getBlocksInRange(view.history, range._1, range._2))
+      ).subflatMap(identity)
 
   override val blockByHeight: ToplRpc.NodeView.BlockByHeight.rpc.ServerHandler =
     params =>

@@ -10,6 +10,8 @@ object ToplRpcErrors {
 
   val NoBlockIdsAtHeight: CustomError = CustomError(-32000, "No block ids found from that block height")
 
+  val InvalidHeightRange: CustomError = CustomError(-32009, "Invalid height range")
+
   def FailedToGenerateAssetCode(throwable: Throwable)(implicit
     throwableEncoder:                      Encoder[ThrowableData]
   ): CustomError =

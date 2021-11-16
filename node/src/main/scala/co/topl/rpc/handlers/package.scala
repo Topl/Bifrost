@@ -19,4 +19,16 @@ package object handlers {
       )
     } yield keys
 
+  private[handlers] def checkHeightRange(
+    bestBlockHeight: Long,
+    startHeight:     Long,
+    endHeight:       Long
+  ): Either[RpcError, (Long, Long)] =
+    for {
+      _ <- Either.cond(
+        startHeight >= 1 && endHeight >= startHeight && bestBlockHeight >= startHeight,
+        {},
+        ToplRpcErrors.InvalidHeightRange)
+    } yield (startHeight, endHeight)
+
 }
