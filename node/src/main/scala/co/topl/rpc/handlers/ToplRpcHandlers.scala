@@ -29,6 +29,7 @@ object ToplRpcHandlers {
 
   trait NodeView {
     def head: ToplRpc.NodeView.Head.rpc.ServerHandler
+    def headInfo: ToplRpc.NodeView.HeadInfo.rpc.ServerHandler
     def balances: ToplRpc.NodeView.Balances.rpc.ServerHandler
     def transactionById: ToplRpc.NodeView.TransactionById.rpc.ServerHandler
     def blockById: ToplRpc.NodeView.BlockById.rpc.ServerHandler

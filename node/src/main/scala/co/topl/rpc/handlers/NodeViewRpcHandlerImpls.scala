@@ -42,6 +42,17 @@ class NodeViewRpcHandlerImpls(
         )
       )
 
+  override val headInfo: ToplRpc.NodeView.HeadInfo.rpc.ServerHandler =
+    _ =>
+      withNodeView(view =>
+        ToplRpc.NodeView.HeadInfo.Response(
+          view.history.bestBlockId,
+          view.history.height,
+          view.history.difficulty,
+          view.history.score
+        )
+      )
+
   override val balances: ToplRpc.NodeView.Balances.rpc.ServerHandler =
     params =>
       withNodeView(view =>

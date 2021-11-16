@@ -155,6 +155,19 @@ object ToplRpc {
       case class Response(height: Int128, score: Long, bestBlockId: ModifierId, bestBlock: Block)
     }
 
+    object HeadInfo {
+
+      /**
+       * Retrieve the best block's id and other info
+       *
+       * Find information about the current state of the chain including height, score, bestBlockId, etc
+       */
+      val rpc: Rpc[Params, Response] = Rpc("topl_headInfo")
+
+      case class Params()
+      case class Response(bestBlockId: ModifierId, height: Int128, difficulty: Long, score: Long)
+    }
+
     object Balances {
 
       /**

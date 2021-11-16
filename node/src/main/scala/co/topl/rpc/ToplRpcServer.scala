@@ -39,6 +39,7 @@ class ToplRpcServer(handlers: ToplRpcHandlers, appContext: AppContext)(implicit
     if (appContext.settings.rpcApi.namespaceSelector.namespaceStates(ToplNamespace)) {
       RpcServer.Builder.empty
         .append(ToplRpc.NodeView.Head.rpc)(handlers.nodeView.head)
+        .append(ToplRpc.NodeView.HeadInfo.rpc)(handlers.nodeView.headInfo)
         .append(ToplRpc.NodeView.Balances.rpc)(handlers.nodeView.balances)
         .append(ToplRpc.NodeView.TransactionById.rpc)(handlers.nodeView.transactionById)
         .append(ToplRpc.NodeView.BlockById.rpc)(handlers.nodeView.blockById)

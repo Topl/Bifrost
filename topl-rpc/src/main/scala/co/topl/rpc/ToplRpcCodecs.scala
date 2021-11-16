@@ -181,6 +181,11 @@ trait NodeViewRpcResponseDecoders extends SharedCodecs {
   ): Decoder[ToplRpc.NodeView.Head.Response] =
     deriveDecoder
 
+  implicit def nodeViewHeadInfoResponseDecoder(implicit
+    networkPrefix: NetworkPrefix
+  ): Decoder[ToplRpc.NodeView.HeadInfo.Response] =
+    deriveDecoder
+
   implicit def nodeViewTransactionByIdResponseDecoder(implicit
     networkPrefix: NetworkPrefix
   ): Decoder[ToplRpc.NodeView.TransactionById.Response] =
@@ -325,6 +330,9 @@ trait UtilRpcParamsDecoders extends SharedCodecs {
 trait NodeViewRpcParamsDecoders {
 
   implicit val nodeViewHeadParamsDecoder: Decoder[ToplRpc.NodeView.Head.Params] =
+    deriveDecoder
+
+  implicit val nodeViewHeadInfoParamsDecoder: Decoder[ToplRpc.NodeView.HeadInfo.Params] =
     deriveDecoder
 
   implicit def nodeViewBalancesParamsDecoder(implicit
@@ -516,6 +524,9 @@ trait UtilRpcResponseEncoders extends SharedCodecs {
 trait NodeViewRpcResponseEncoders extends SharedCodecs {
 
   implicit val nodeViewHeadResponseEncoder: Encoder[ToplRpc.NodeView.Head.Response] =
+    deriveEncoder
+
+  implicit val nodeViewHeadInfoResponseEncoder: Encoder[ToplRpc.NodeView.HeadInfo.Response] =
     deriveEncoder
 
   implicit val nodeViewBalancesResponseEntryEncoder: Encoder[ToplRpc.NodeView.Balances.Entry] =
