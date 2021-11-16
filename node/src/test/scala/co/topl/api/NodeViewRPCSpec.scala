@@ -40,6 +40,42 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
   }
 
   "NodeView RPC" should {
+    "Get current head of the chain" in {
+      val requestBody = ByteString(s"""
+        |{
+        |   "jsonrpc": "2.0",
+        |   "id": "1",
+        |   "method": "topl_head",
+        |   "params": [{}]
+        |}
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]).value
+        val head = res.hcursor.downField("result").as[Json].toString
+        head should include("bestBlock")
+        res.hcursor.downField("error").values shouldBe None
+      }
+    }
+
+    "Get info about current head of the chain" in {
+      val requestBody = ByteString(s"""
+        |{
+        |   "jsonrpc": "2.0",
+        |   "id": "1",
+        |   "method": "topl_headInfo",
+        |   "params": [{}]
+        |}
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]).value
+        val headInfo = res.hcursor.downField("result").as[Json].toString
+        headInfo should include("bestBlockId")
+        res.hcursor.downField("error").values shouldBe None
+      }
+    }
+
     "Get first 100 transactions in mempool" in {
       val requestBody = ByteString(s"""
         |{
@@ -48,7 +84,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |   "method": "topl_mempool",
         |   "params": [{}]
         |}
-          """.stripMargin)
+        """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
@@ -68,7 +104,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |   }]
         |}
         |
-          """.stripMargin)
+        """.stripMargin)
 
       view().mempool.putWithoutCheck(Seq(txs.head), block.timestamp)
 
@@ -93,7 +129,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |   }]
         |}
         |
-          """.stripMargin)
+        """.stripMargin)
 
       idTypes.zip(modifierQueryMethods).map { case (idType, rpcMethod) =>
         httpPOST(requestBody(idType, rpcMethod, invalidCharId)) ~> route ~> check {
@@ -117,7 +153,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |   }]
         |}
         |
-          """.stripMargin)
+        """.stripMargin)
 
       idTypes.zip(modifierQueryMethods).map { case (idType, rpcMethod) =>
         httpPOST(requestBody(idType, rpcMethod, invalidLengthId)) ~> route ~> check {
@@ -139,7 +175,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |   }]
         |}
         |
-          """.stripMargin)
+        """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
@@ -161,12 +197,55 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |   }]
         |}
         |
-          """.stripMargin)
+        """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
         (res \\ "error").isEmpty shouldBe true
         (res \\ "result").isInstanceOf[List[Json]] shouldBe true
+      }
+    }
+
+    "Get a segment of the chain by height range" in {
+      val requestBody = ByteString(s"""
+        |{
+        |   "jsonrpc": "2.0",
+        |   "id": "1",
+        |   "method": "topl_blocksInRange",
+        |   "params": [{
+        |      "startHeight": 1,
+        |      "endHeight": 1
+        |    }]
+        |}
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]).value
+        val blocks = res.hcursor.downField("result").as[Json].toString
+        blocks should include("\"height\" : 1")
+        res.hcursor.downField("error").values shouldBe None
+      }
+    }
+
+    "Fail if an invalid height range is provided for blocksInRange" in {
+      val ranges = Seq((0, 1), (2, 1), (2, 2))
+      def requestBody(startHeight: Long, endHeight: Long): ByteString = ByteString(s"""
+        |{
+        |   "jsonrpc": "2.0",
+        |   "id": "1",
+        |   "method": "topl_blocksInRange",
+        |   "params": [{
+        |      "startHeight": $startHeight,
+        |      "endHeight": $endHeight
+        |    }]
+        |}
+        """.stripMargin)
+
+      ranges.map { case (startHeight, endHeight) =>
+        httpPOST(requestBody(startHeight, endHeight)) ~> route ~> check {
+          val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
+          res should include("Invalid height range")
+        }
       }
     }
   }
