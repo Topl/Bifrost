@@ -5,7 +5,11 @@ import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, InvalidParametersError, RpcError, ThrowableData}
 import co.topl.attestation.Address
+import co.topl.modifier.ModifierId
+import co.topl.modifier.block.Block
 import co.topl.modifier.box._
+import co.topl.network.message.BifrostSyncInfo
+import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView}
 import co.topl.rpc.ToplRpc
@@ -59,6 +63,10 @@ class NodeViewRpcHandlerImpls(
         .subflatMap(
           _.toRight[RpcError](InvalidParametersError.adhoc("The requested block could not be found", "blockId"))
         )
+
+  override val blocksInRange: ToplRpc.NodeView.BlocksInRange.rpc.ServerHandler =
+    params =>
+      withNodeView(view => getBlocksInRange(view.history, params.startHeight, params.endHeight))
 
   override val blockByHeight: ToplRpc.NodeView.BlockByHeight.rpc.ServerHandler =
     params =>
@@ -121,6 +129,16 @@ class NodeViewRpcHandlerImpls(
       )
     }
   }
+
+  private def getBlocksInRange(
+    view:        HistoryReader[Block, BifrostSyncInfo],
+    startHeight: Long,
+    endHeight:   Long
+  ): List[Block] =
+    (startHeight to endHeight)
+      .flatMap(view.idAtHeightOf)
+      .flatMap(view.modifierById)
+      .toList
 
   private def withNodeView[T](f: ReadableNodeView => T) =
     nodeViewHolderInterface
