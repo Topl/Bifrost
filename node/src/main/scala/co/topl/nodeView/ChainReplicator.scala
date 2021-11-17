@@ -226,7 +226,7 @@ private class ChainReplicator(
    */
   private def exportBlocks(blocks: Seq[Block]): Future[InsertManyResult] = {
     implicit val ec: ExecutionContext = context.executionContext
-    dbOps.insert(blocks.map(BlockDataModel(_).asDocument), settings.blockCollection)
+    dbOps.insert(blocks.map(BlockDataModel(_)), settings.blockCollection)
   }
 
   /**
@@ -238,7 +238,7 @@ private class ChainReplicator(
     implicit val ec: ExecutionContext = context.executionContext
     val txDocs = blocks.flatMap { b =>
       b.transactions.map { tx =>
-        ConfirmedTransactionDataModel(b.id.toString, b.height, tx).asDocument
+        ConfirmedTransactionDataModel(b.id.toString, b.height, tx)
       }
     }
     dbOps.insert(txDocs, settings.confirmedTxCollection)
@@ -252,7 +252,7 @@ private class ChainReplicator(
   private def exportUnconfirmedTxs(txs: Seq[Transaction.TX]): Future[InsertManyResult] = {
     implicit val ec: ExecutionContext = context.executionContext
     if (txs.nonEmpty)
-      dbOps.insert(txs.map(tx => UnconfirmedTransactionDataModel(tx).asDocument), settings.unconfirmedTxCollection)
+      dbOps.insert(txs.map(tx => UnconfirmedTransactionDataModel(tx)), settings.unconfirmedTxCollection)
     else
       Future.successful(InsertManyResult.acknowledged(Map[Integer, BsonValue]().asJava))
   }

@@ -1,7 +1,9 @@
 package co.topl.tools.exporter
 
+import co.topl.utils.mongodb.DocumentEncoder
+import co.topl.utils.mongodb.implicits._
 import org.mongodb.scala.MongoClient
-import org.mongodb.scala.bson.{BsonString, Document}
+import org.mongodb.scala.bson.BsonString
 import org.mongodb.scala.model.Filters.in
 import org.mongodb.scala.model.Projections
 import org.mongodb.scala.result.{DeleteResult, InsertManyResult}
@@ -17,9 +19,9 @@ class MongoDBOps(uri: String, database: String) extends DatabaseOperations {
 
   def checkValidConnection(): Future[Seq[String]] = db.listCollectionNames().toFuture()
 
-  def insert(docSeq: Seq[Document], collectionName: String): Future[InsertManyResult] = db
+  def insert[T: DocumentEncoder](ele: Seq[T], collectionName: String): Future[InsertManyResult] = db
     .getCollection(collectionName)
-    .insertMany(docSeq)
+    .insertMany(ele.map(_.asDocument))
     .toFuture()
 
   def remove(field: String, values: Seq[String], collectionName: String): Future[DeleteResult] = {

@@ -13,10 +13,17 @@ import co.topl.nodeView.NodeViewTestHelpers.TestIn
 import co.topl.settings.ChainReplicatorSettings
 import co.topl.tools.exporter.DatabaseOperations
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
+import co.topl.utils.mongodb.DocumentEncoder
+import co.topl.utils.mongodb.codecs.{
+  blockDataModelJsonEncoder,
+  jsonEncoderAsDocumentEncoder,
+  transactionDataModelJsonEncoder,
+  unconfirmedTransactionDataModelJsonEncoder
+}
+import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataModel, UnconfirmedTransactionDataModel}
 import co.topl.utils.{InMemoryKeyFileTestHelper, TestSettings, TimeProvider}
 import com.mongodb.client.result.{DeleteResult, InsertManyResult}
 import org.bson.BsonValue
-import org.mongodb.scala.bson.Document
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.OptionValues
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -76,22 +83,39 @@ class ChainReplicatorSpec
       (() => dbOps.checkValidConnection())
         .expects()
         .once()
-        .onCall(_ => checkValidationTest())
+        .onCall(_ => checkValidationTest)
 
-      (dbOps.insert _)
-        .expects(*, *)
+      (dbOps
+        .insert[BlockDataModel](_: Seq[BlockDataModel], _: String)(_: DocumentEncoder[BlockDataModel]))
+        .expects(*, chainRepSettings.blockCollection, *)
         .anyNumberOfTimes()
-        .onCall((docSeq, collectionName) => insertDBTest(docSeq, collectionName))
+        .onCall((docSeq, _, _) => insertBlockDBTest(docSeq))
+
+      (dbOps
+        .insert[ConfirmedTransactionDataModel](_: Seq[ConfirmedTransactionDataModel], _: String)(
+          _: DocumentEncoder[ConfirmedTransactionDataModel]
+        ))
+        .expects(*, chainRepSettings.confirmedTxCollection, *)
+        .anyNumberOfTimes()
+        .onCall((docSeq, _, _) => insertConfirmedTXDBTest(docSeq))
+
+      (dbOps
+        .insert[UnconfirmedTransactionDataModel](_: Seq[UnconfirmedTransactionDataModel], _: String)(
+          _: DocumentEncoder[UnconfirmedTransactionDataModel]
+        ))
+        .expects(*, chainRepSettings.unconfirmedTxCollection, *)
+        .anyNumberOfTimes()
+        .onCall((docSeq, _, _) => insertUnconfirmedTXDBTest(docSeq))
 
       (dbOps.getUnconfirmedTxs _)
         .expects(*)
         .anyNumberOfTimes()
-        .onCall(getUnconfirmedTxTest _)
+        .onCall((_: String) => getUnconfirmedTxTest)
 
       (dbOps.getExistingIds _)
         .expects(*, *)
         .anyNumberOfTimes()
-        .onCall((idsToCheck, collectionName) => getExistingIdsTest(idsToCheck, collectionName))
+        .onCall((idsToCheck, _) => getExistingIdsTest(idsToCheck))
 
       val chainRepRef = spawn(
         ChainReplicator(
@@ -131,27 +155,44 @@ class ChainReplicatorSpec
       (() => dbOps.checkValidConnection())
         .expects()
         .once()
-        .onCall(_ => checkValidationTest())
+        .onCall(_ => checkValidationTest)
 
-      (dbOps.insert _)
-        .expects(*, *)
+      (dbOps
+        .insert[BlockDataModel](_: Seq[BlockDataModel], _: String)(_: DocumentEncoder[BlockDataModel]))
+        .expects(*, chainRepSettings.blockCollection, *)
         .anyNumberOfTimes()
-        .onCall((docSeq, collectionName) => insertDBTest(docSeq, collectionName))
+        .onCall((docSeq, _, _) => insertBlockDBTest(docSeq))
+
+      (dbOps
+        .insert[ConfirmedTransactionDataModel](_: Seq[ConfirmedTransactionDataModel], _: String)(
+          _: DocumentEncoder[ConfirmedTransactionDataModel]
+        ))
+        .expects(*, chainRepSettings.confirmedTxCollection, *)
+        .anyNumberOfTimes()
+        .onCall((docSeq, _, _) => insertConfirmedTXDBTest(docSeq))
+
+      (dbOps
+        .insert[UnconfirmedTransactionDataModel](_: Seq[UnconfirmedTransactionDataModel], _: String)(
+          _: DocumentEncoder[UnconfirmedTransactionDataModel]
+        ))
+        .expects(*, chainRepSettings.unconfirmedTxCollection, *)
+        .anyNumberOfTimes()
+        .onCall((docSeq, _, _) => insertUnconfirmedTXDBTest(docSeq))
 
       (dbOps.getUnconfirmedTxs _)
         .expects(*)
         .anyNumberOfTimes()
-        .onCall(getUnconfirmedTxTest _)
+        .onCall((_: String) => getUnconfirmedTxTest)
 
       (dbOps.getExistingIds _)
         .expects(*, *)
         .anyNumberOfTimes()
-        .onCall((idsToCheck, collectionName) => getExistingIdsTest(idsToCheck, collectionName))
+        .onCall((idsToCheck, _) => getExistingIdsTest(idsToCheck))
 
       (dbOps.remove _)
         .expects(*, *, *)
         .anyNumberOfTimes()
-        .onCall((field, values, collectionName) => removeDBTest(field, values, collectionName))
+        .onCall((_, values, collectionName) => removeUnconfirmedTxDBTest(values, collectionName))
 
       val chainRepRef = spawn(
         ChainReplicator(
@@ -162,7 +203,7 @@ class ChainReplicatorSpec
         ChainReplicator.actorName
       )
 
-      Thread.sleep(5.seconds.toMillis)
+      Thread.sleep(0.5.seconds.toMillis)
 
       newBlocks.foreach { block =>
         system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
@@ -224,27 +265,44 @@ class ChainReplicatorSpec
       (() => dbOps.checkValidConnection())
         .expects()
         .once()
-        .onCall(_ => checkValidationTest())
+        .onCall(_ => checkValidationTest)
 
-      (dbOps.insert _)
-        .expects(*, *)
+      (dbOps
+        .insert[BlockDataModel](_: Seq[BlockDataModel], _: String)(_: DocumentEncoder[BlockDataModel]))
+        .expects(*, chainRepSettings.blockCollection, *)
         .anyNumberOfTimes()
-        .onCall((docSeq, collectionName) => insertDBTest(docSeq, collectionName))
+        .onCall((docSeq, _, _) => insertBlockDBTest(docSeq))
+
+      (dbOps
+        .insert[ConfirmedTransactionDataModel](_: Seq[ConfirmedTransactionDataModel], _: String)(
+          _: DocumentEncoder[ConfirmedTransactionDataModel]
+        ))
+        .expects(*, chainRepSettings.confirmedTxCollection, *)
+        .anyNumberOfTimes()
+        .onCall((docSeq, _, _) => insertConfirmedTXDBTest(docSeq))
+
+      (dbOps
+        .insert[UnconfirmedTransactionDataModel](_: Seq[UnconfirmedTransactionDataModel], _: String)(
+          _: DocumentEncoder[UnconfirmedTransactionDataModel]
+        ))
+        .expects(*, chainRepSettings.unconfirmedTxCollection, *)
+        .anyNumberOfTimes()
+        .onCall((docSeq, _, _) => insertUnconfirmedTXDBTest(docSeq))
 
       (dbOps.getUnconfirmedTxs _)
         .expects(*)
         .anyNumberOfTimes()
-        .onCall(getUnconfirmedTxTest _)
+        .onCall((_: String) => getUnconfirmedTxTest)
 
       (dbOps.getExistingIds _)
         .expects(*, *)
         .anyNumberOfTimes()
-        .onCall((idsToCheck, collectionName) => getExistingIdsTest(idsToCheck, collectionName))
+        .onCall((idsToCheck, _) => getExistingIdsTest(idsToCheck))
 
       (dbOps.remove _)
         .expects(*, *, *)
         .anyNumberOfTimes()
-        .onCall((field, values, collectionName) => removeDBTest(field, values, collectionName))
+        .onCall((_, values, collectionName) => removeUnconfirmedTxDBTest(values, collectionName))
 
       val chainRepRef = spawn(
         ChainReplicator(
@@ -270,39 +328,64 @@ class ChainReplicatorSpec
     }
   }
 
-  private def checkValidationTest(): Future[Seq[String]] = Future.successful(Seq("blocks", "transactions"))
+  private def checkValidationTest: Future[Seq[String]] = Future.successful(Seq("blocks", "transactions"))
 
-  private def insertDBTest(
-    eleSeq:         Seq[Document],
-    collectionName: String
-  ): Future[InsertManyResult] = {
+  private def insertDBTest(eleSeq: Seq[_], collectionName: String): Future[InsertManyResult] = {
     collectionName match {
-      case `blockCollectionName` =>
-        eleSeq.foreach { ele =>
-          val id = ele.get("id").head.asString().getValue
-          val height = ele.get("height").head.asNumber().longValue().toString
+      case chainRepSettings.blockCollection =>
+        eleSeq.asInstanceOf[Seq[BlockDataModel]].foreach { ele =>
+          val id = ele.id
+          val height = ele.height.toString
           blockStore += (id -> height)
         }
-
-      case `confirmedTxCollectionName` =>
-        eleSeq.foreach { ele =>
-          val id = ele.get("txId").head.asString().getValue
-          val block = ele.get("timestamp").head.asString().getValue
-          confirmedTxStore += (id -> block)
+      case chainRepSettings.confirmedTxCollection =>
+        eleSeq.asInstanceOf[Seq[ConfirmedTransactionDataModel]].foreach { ele =>
+          val id = ele.txId
+          val timestamp = ele.timestamp
+          confirmedTxStore += (id -> timestamp)
         }
-      case `unconfirmedTxCollectionName` =>
-        eleSeq.foreach { ele =>
-          val id = ele.get("txId").head.asString().getValue
-          val timestamp = ele.get("timestamp").head.asString().getValue
-          unconfirmedTxStore += (id -> timestamp)
+      case chainRepSettings.unconfirmedTxCollection =>
+        eleSeq.asInstanceOf[Seq[UnconfirmedTransactionDataModel]].foreach { ele =>
+          val id = ele.txId
+          val timestamp = ele.timestamp
+          confirmedTxStore += (id -> timestamp)
         }
     }
-
     val insertedIds = Map[Integer, BsonValue]().asJava
     Future.successful(InsertManyResult.acknowledged(insertedIds))
   }
 
-  private def removeDBTest(field: String, value: Seq[String], collectionName: String): Future[DeleteResult] = {
+  private def insertBlockDBTest(eleSeq: Seq[BlockDataModel]): Future[InsertManyResult] = {
+    eleSeq.foreach { ele =>
+      val id = ele.id
+      val height = ele.height.toString
+      blockStore += (id -> height)
+    }
+    val insertedIds = Map[Integer, BsonValue]().asJava
+    Future.successful(InsertManyResult.acknowledged(insertedIds))
+  }
+
+  private def insertConfirmedTXDBTest(eleSeq: Seq[ConfirmedTransactionDataModel]): Future[InsertManyResult] = {
+    eleSeq.foreach { ele =>
+      val id = ele.txId
+      val timestamp = ele.timestamp
+      confirmedTxStore += (id -> timestamp)
+    }
+    val insertedIds = Map[Integer, BsonValue]().asJava
+    Future.successful(InsertManyResult.acknowledged(insertedIds))
+  }
+
+  private def insertUnconfirmedTXDBTest(eleSeq: Seq[UnconfirmedTransactionDataModel]): Future[InsertManyResult] = {
+    eleSeq.foreach { ele =>
+      val id = ele.txId
+      val timestamp = ele.timestamp
+      unconfirmedTxStore += (id -> timestamp)
+    }
+    val insertedIds = Map[Integer, BsonValue]().asJava
+    Future.successful(InsertManyResult.acknowledged(insertedIds))
+  }
+
+  private def removeUnconfirmedTxDBTest(value: Seq[String], collectionName: String): Future[DeleteResult] = {
     var count = 0
     value.foreach { key =>
       if (collectionName == settings.chainReplicator.unconfirmedTxCollection) {
@@ -313,10 +396,10 @@ class ChainReplicatorSpec
     Future.successful(DeleteResult.acknowledged(count))
   }
 
-  private def getUnconfirmedTxTest(collectionName: String): Future[Seq[String]] =
+  private def getUnconfirmedTxTest: Future[Seq[String]] =
     Future.successful(unconfirmedTxStore.keys.toSeq)
 
-  private def getExistingIdsTest(idsToCheck: Seq[String], collectionName: String): Future[Seq[String]] =
+  private def getExistingIdsTest(idsToCheck: Seq[String]): Future[Seq[String]] =
     Future.successful(idsToCheck.filter(blockStore.contains))
 
   private def genesisActorTest(test: TestInWithActor => Unit)(implicit timeProvider: TimeProvider): Unit = {
