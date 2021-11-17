@@ -17,9 +17,8 @@ import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.mongodb.codecs._
 import co.topl.utils.mongodb.implicits._
 import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataModel, UnconfirmedTransactionDataModel}
-import com.mongodb.client.result.{DeleteResult, InsertManyResult}
+import com.mongodb.client.result.InsertManyResult
 import org.bson.BsonValue
-import org.mongodb.scala.bson.Document
 import org.slf4j.Logger
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -52,7 +51,7 @@ object ChainReplicator {
 
   def apply(
     nodeViewHolderRef: ActorRef[NodeViewHolder.ReceivableMessage],
-    dbOps: DatabaseOperations,
+    dbOps:             DatabaseOperations,
     settings:          ChainReplicatorSettings
   ): Behavior[ReceivableMessage] =
     Behaviors.withStash(settings.actorStashSize) { buffer =>
@@ -88,7 +87,7 @@ object ChainReplicator {
 private class ChainReplicator(
   nodeViewHolderRef: ActorRef[NodeViewHolder.ReceivableMessage],
   buffer:            StashBuffer[ChainReplicator.ReceivableMessage],
-  dbOps: DatabaseOperations,
+  dbOps:             DatabaseOperations,
   settings:          ChainReplicatorSettings
 )(implicit
   context: ActorContext[ChainReplicator.ReceivableMessage]

@@ -17,11 +17,10 @@ import co.topl.network.utils.NetworkTimeProvider
 import co.topl.nodeView._
 import co.topl.rpc.ToplRpcServer
 import co.topl.settings.{AppContext, AppSettings}
-import co.topl.tools.exporter.MongoChainRepExport
+import co.topl.tools.exporter.MongoDBOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider
 import io.circe.Encoder
-import org.mongodb.scala.bson.Document
 
 import java.net.InetSocketAddress
 import scala.concurrent.Future
@@ -367,7 +366,7 @@ object Heimdall {
       val chainRepSettings = settings.chainReplicator
       if (chainRepSettings.enableChainReplicator) {
         val dbOps =
-          MongoChainRepExport(
+          MongoDBOps(
             chainRepSettings.uri.getOrElse("mongodb://localhost"),
             chainRepSettings.database.getOrElse("bifrost")
           )

@@ -2,13 +2,13 @@ package co.topl.tools.exporter
 
 import org.mongodb.scala.MongoClient
 import org.mongodb.scala.bson.{BsonString, Document}
-import org.mongodb.scala.model.Filters.{and, gte, in, lte}
+import org.mongodb.scala.model.Filters.in
 import org.mongodb.scala.model.Projections
 import org.mongodb.scala.result.{DeleteResult, InsertManyResult}
 
 import scala.concurrent.Future
 
-class MongoChainRepExport(uri: String, database: String) extends DatabaseOperations {
+class MongoDBOps(uri: String, database: String) extends DatabaseOperations {
 
   private val client = open(uri)
   private val db = client.getDatabase(database)
@@ -51,8 +51,8 @@ class MongoChainRepExport(uri: String, database: String) extends DatabaseOperati
 
 }
 
-object MongoChainRepExport {
+object MongoDBOps {
 
-  def apply(uri: String, db: String): MongoChainRepExport =
-    new MongoChainRepExport(uri, db)
+  def apply(uri: String, db: String): MongoDBOps =
+    new MongoDBOps(uri, db)
 }
