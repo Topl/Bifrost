@@ -12,6 +12,7 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.NodeViewHolder.Events.SemanticallySuccessfulModifier
 import co.topl.settings.ChainReplicatorSettings
+import co.topl.tools.exporter.DatabaseOperations
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.mongodb.codecs._
 import co.topl.utils.mongodb.implicits._
@@ -51,11 +52,7 @@ object ChainReplicator {
 
   def apply(
     nodeViewHolderRef: ActorRef[NodeViewHolder.ReceivableMessage],
-    checkDBConnection: () => Future[Seq[String]],
-    insertDocs:        (Seq[Document], String) => Future[InsertManyResult],
-    removeDocs:        (String, Seq[String], String) => Future[DeleteResult],
-    getUnconfirmedTxs: String => Future[Seq[String]],
-    getExistingIds:    (Seq[String], String) => Future[Seq[String]],
+    dbOps: DatabaseOperations,
     settings:          ChainReplicatorSettings
   ): Behavior[ReceivableMessage] =
     Behaviors.withStash(settings.actorStashSize) { buffer =>
@@ -70,7 +67,7 @@ object ChainReplicator {
 
         context.log.info(s"${Console.GREEN}Chain replicator initializing${Console.RESET}")
 
-        context.pipeToSelf(checkDBConnection()) {
+        context.pipeToSelf(dbOps.checkValidConnection()) {
           case Success(result) =>
             context.log.debug(s"${Console.GREEN}Found collections in database: $result${Console.RESET}")
             ReceivableMessages.CheckDatabaseComplete
@@ -80,10 +77,7 @@ object ChainReplicator {
         new ChainReplicator(
           nodeViewHolderRef,
           buffer,
-          insertDocs,
-          removeDocs,
-          getUnconfirmedTxs,
-          getExistingIds,
+          dbOps,
           settings
         ).uninitialized
 
@@ -94,10 +88,7 @@ object ChainReplicator {
 private class ChainReplicator(
   nodeViewHolderRef: ActorRef[NodeViewHolder.ReceivableMessage],
   buffer:            StashBuffer[ChainReplicator.ReceivableMessage],
-  insertDocs:        (Seq[Document], String) => Future[InsertManyResult],
-  removeDocs:        (String, Seq[String], String) => Future[DeleteResult],
-  getUnconfirmedTxs: String => Future[Seq[String]],
-  getExistingIds:    (Seq[String], String) => Future[Seq[String]],
+  dbOps: DatabaseOperations,
   settings:          ChainReplicatorSettings
 )(implicit
   context: ActorContext[ChainReplicator.ReceivableMessage]
@@ -146,7 +137,7 @@ private class ChainReplicator(
         val exportResult = for {
           blockIdsInRange <- OptionT[Future, Seq[String]](getIdsInRange(startHeight, endHeight).map(_.some))
           existingIdsInDB <- OptionT[Future, Seq[String]](
-            getExistingIds(blockIdsInRange, settings.blockCollection).map(_.some)
+            dbOps.getExistingIds(blockIdsInRange, settings.blockCollection).map(_.some)
           )
           missingBlockIds = blockIdsInRange.toSet.diff(existingIdsInDB.toSet).toSeq
           blocksToAdd       <- OptionT[Future, Seq[Block]](getBlocksById(missingBlockIds))
@@ -205,10 +196,10 @@ private class ChainReplicator(
         val exportResult = for {
           blockExportResult        <- exportBlocks(Seq(block))
           txExportResult           <- exportTxsFromBlocks(Seq(block))
-          unconfirmedInDB          <- getUnconfirmedTxs(settings.unconfirmedTxCollection)
+          unconfirmedInDB          <- dbOps.getUnconfirmedTxs(settings.unconfirmedTxCollection)
           (txToInsert, txToRemove) <- getTxToInsertRemove(unconfirmedInDB)
           unconfirmedTxExportRes   <- exportUnconfirmedTxs(txToInsert)
-          unconfirmedTxRemoveRes   <- removeDocs("txId", txToRemove, settings.unconfirmedTxCollection)
+          unconfirmedTxRemoveRes   <- dbOps.remove("txId", txToRemove, settings.unconfirmedTxCollection)
         } yield (blockExportResult, txExportResult, unconfirmedTxExportRes, unconfirmedTxRemoveRes)
         exportResult.onComplete {
           case Success(res) =>
@@ -236,7 +227,7 @@ private class ChainReplicator(
    */
   private def exportBlocks(blocks: Seq[Block]): Future[InsertManyResult] = {
     implicit val ec: ExecutionContext = context.executionContext
-    insertDocs(blocks.map(BlockDataModel(_).asDocument), settings.blockCollection)
+    dbOps.insert(blocks.map(BlockDataModel(_).asDocument), settings.blockCollection)
   }
 
   /**
@@ -251,7 +242,7 @@ private class ChainReplicator(
         ConfirmedTransactionDataModel(b.id.toString, b.height, tx).asDocument
       }
     }
-    insertDocs(txDocs, settings.confirmedTxCollection)
+    dbOps.insert(txDocs, settings.confirmedTxCollection)
   }
 
   /**
@@ -262,7 +253,7 @@ private class ChainReplicator(
   private def exportUnconfirmedTxs(txs: Seq[Transaction.TX]): Future[InsertManyResult] = {
     implicit val ec: ExecutionContext = context.executionContext
     if (txs.nonEmpty)
-      insertDocs(txs.map(tx => UnconfirmedTransactionDataModel(tx).asDocument), settings.unconfirmedTxCollection)
+      dbOps.insert(txs.map(tx => UnconfirmedTransactionDataModel(tx).asDocument), settings.unconfirmedTxCollection)
     else
       Future.successful(InsertManyResult.acknowledged(Map[Integer, BsonValue]().asJava))
   }

@@ -366,7 +366,7 @@ object Heimdall {
     val chainReplicator: Option[ActorRef[ChainReplicator.ReceivableMessage]] = {
       val chainRepSettings = settings.chainReplicator
       if (chainRepSettings.enableChainReplicator) {
-        val mongo =
+        val dbOps =
           MongoChainRepExport(
             chainRepSettings.uri.getOrElse("mongodb://localhost"),
             chainRepSettings.database.getOrElse("bifrost")
@@ -376,11 +376,7 @@ object Heimdall {
           context.spawn(
             ChainReplicator(
               state.nodeViewHolder,
-              () => mongo.checkValidConnection(),
-              (eleSeq: Seq[Document], collectionName: String) => mongo.insert(eleSeq, collectionName),
-              (field: String, value: Seq[String], collectionName: String) => mongo.remove(field, value, collectionName),
-              (collectionName: String) => mongo.getUnconfirmedTx(collectionName),
-              (idsToCheck: Seq[String], collectionName: String) => mongo.getExistingIds(idsToCheck, collectionName),
+              dbOps,
               chainRepSettings
             ),
             ChainReplicator.actorName

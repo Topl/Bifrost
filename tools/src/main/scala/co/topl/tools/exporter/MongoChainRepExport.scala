@@ -8,7 +8,7 @@ import org.mongodb.scala.result.{DeleteResult, InsertManyResult}
 
 import scala.concurrent.Future
 
-class MongoChainRepExport(uri: String, database: String) {
+class MongoChainRepExport(uri: String, database: String) extends DatabaseOperations {
 
   private val client = open(uri)
   private val db = client.getDatabase(database)
@@ -30,7 +30,7 @@ class MongoChainRepExport(uri: String, database: String) {
       .toFuture()
   }
 
-  def getUnconfirmedTx(collectionName: String): Future[Seq[String]] = db
+  def getUnconfirmedTxs(collectionName: String): Future[Seq[String]] = db
     .getCollection(collectionName)
     .find()
     .projection(Projections.fields(Projections.include("txId"), Projections.excludeId()))
@@ -46,13 +46,6 @@ class MongoChainRepExport(uri: String, database: String) {
       .map(_.head._2.asString().getValue)
       .toFuture()
   }
-
-  def getExistingHeights(start: Long, end: Long, collectionName: String): Future[Seq[Long]] = db
-    .getCollection(collectionName)
-    .find(and(gte("height", start), lte("height", end)))
-    .projection(Projections.fields(Projections.include("height"), Projections.excludeId()))
-    .map(_.head._2.asNumber().longValue())
-    .toFuture()
 
   def close(): Unit = client.close()
 

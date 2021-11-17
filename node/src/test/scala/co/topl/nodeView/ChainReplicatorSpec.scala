@@ -11,6 +11,7 @@ import co.topl.nodeView.ChainReplicatorSpec.TestInWithActor
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages
 import co.topl.nodeView.NodeViewTestHelpers.TestIn
 import co.topl.settings.ChainReplicatorSettings
+import co.topl.tools.exporter.DatabaseOperations
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.{InMemoryKeyFileTestHelper, TestSettings, TimeProvider}
 import com.mongodb.client.result.{DeleteResult, InsertManyResult}
@@ -70,14 +71,32 @@ class ChainReplicatorSpec
 
       Thread.sleep(0.5.seconds.toMillis)
 
+      val dbOps = mock[DatabaseOperations]
+
+      (() => dbOps.checkValidConnection())
+        .expects()
+        .once()
+        .onCall(_ => checkValidationTest())
+
+      (dbOps.insert _)
+        .expects(*, *)
+        .anyNumberOfTimes()
+        .onCall((docSeq, collectionName) => insertDBTest(docSeq, collectionName))
+
+      (dbOps.getUnconfirmedTxs _)
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall(getUnconfirmedTxTest _)
+
+      (dbOps.getExistingIds _)
+        .expects(*, *)
+        .anyNumberOfTimes()
+        .onCall((idsToCheck, collectionName) => getExistingIdsTest(idsToCheck, collectionName))
+
       val chainRepRef = spawn(
         ChainReplicator(
           testIn.nodeViewHolderRef,
-          () => checkValidationTest(),
-          (eleSeq: Seq[Document], collectionName: String) => insertDBTest(eleSeq, collectionName),
-          (field: String, value: Seq[String], collectionName: String) => removeDBTest(field, value, collectionName),
-          (collectionName: String) => getUnconfirmedTxTest(collectionName),
-          (idsToCheck: Seq[String], collectionName: String) => getExistingIdsTest(idsToCheck, collectionName),
+          dbOps,
           chainRepSettings
         ),
         ChainReplicator.actorName
@@ -107,14 +126,37 @@ class ChainReplicatorSpec
       val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head).take(blockNum).toList
       val newTxs = newBlocks.flatMap(_.transactions)
 
+      val dbOps = mock[DatabaseOperations]
+
+      (() => dbOps.checkValidConnection())
+        .expects()
+        .once()
+        .onCall(_ => checkValidationTest())
+
+      (dbOps.insert _)
+        .expects(*, *)
+        .anyNumberOfTimes()
+        .onCall((docSeq, collectionName) => insertDBTest(docSeq, collectionName))
+
+      (dbOps.getUnconfirmedTxs _)
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall(getUnconfirmedTxTest _)
+
+      (dbOps.getExistingIds _)
+        .expects(*, *)
+        .anyNumberOfTimes()
+        .onCall((idsToCheck, collectionName) => getExistingIdsTest(idsToCheck, collectionName))
+
+      (dbOps.remove _)
+        .expects(*, *, *)
+        .anyNumberOfTimes()
+        .onCall((field, values, collectionName) => removeDBTest(field, values, collectionName))
+
       val chainRepRef = spawn(
         ChainReplicator(
           testIn.nodeViewHolderRef,
-          () => checkValidationTest(),
-          (eleSeq: Seq[Document], collectionName: String) => insertDBTest(eleSeq, collectionName),
-          (field: String, value: Seq[String], collectionName: String) => removeDBTest(field, value, collectionName),
-          (collectionName: String) => getUnconfirmedTxTest(collectionName),
-          (idsToCheck: Seq[String], collectionName: String) => getExistingIdsTest(idsToCheck, collectionName),
+          dbOps,
           chainRepSettings
         ),
         ChainReplicator.actorName
@@ -177,14 +219,37 @@ class ChainReplicatorSpec
         base.copy(attestation = keyRingCurve25519.generateAttestation(addressB)(base.messageToSign))
       }
 
+      val dbOps = mock[DatabaseOperations]
+
+      (() => dbOps.checkValidConnection())
+        .expects()
+        .once()
+        .onCall(_ => checkValidationTest())
+
+      (dbOps.insert _)
+        .expects(*, *)
+        .anyNumberOfTimes()
+        .onCall((docSeq, collectionName) => insertDBTest(docSeq, collectionName))
+
+      (dbOps.getUnconfirmedTxs _)
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall(getUnconfirmedTxTest _)
+
+      (dbOps.getExistingIds _)
+        .expects(*, *)
+        .anyNumberOfTimes()
+        .onCall((idsToCheck, collectionName) => getExistingIdsTest(idsToCheck, collectionName))
+
+      (dbOps.remove _)
+        .expects(*, *, *)
+        .anyNumberOfTimes()
+        .onCall((field, values, collectionName) => removeDBTest(field, values, collectionName))
+
       val chainRepRef = spawn(
         ChainReplicator(
           testIn.nodeViewHolderRef,
-          () => checkValidationTest(),
-          (eleSeq: Seq[Document], collectionName: String) => insertDBTest(eleSeq, collectionName),
-          (field: String, value: Seq[String], collectionName: String) => removeDBTest(field, value, collectionName),
-          (collectionName: String) => getUnconfirmedTxTest(collectionName),
-          (idsToCheck: Seq[String], collectionName: String) => getExistingIdsTest(idsToCheck, collectionName),
+          dbOps,
           chainRepSettings
         ),
         ChainReplicator.actorName
