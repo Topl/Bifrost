@@ -14,12 +14,6 @@ import co.topl.settings.ChainReplicatorSettings
 import co.topl.tools.exporter.DatabaseOperations
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.mongodb.DocumentEncoder
-import co.topl.utils.mongodb.codecs.{
-  blockDataModelJsonEncoder,
-  jsonEncoderAsDocumentEncoder,
-  transactionDataModelJsonEncoder,
-  unconfirmedTransactionDataModelJsonEncoder
-}
 import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataModel, UnconfirmedTransactionDataModel}
 import co.topl.utils.{InMemoryKeyFileTestHelper, TestSettings, TimeProvider}
 import com.mongodb.client.result.{DeleteResult, InsertManyResult}

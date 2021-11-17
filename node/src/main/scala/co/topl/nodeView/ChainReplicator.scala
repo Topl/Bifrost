@@ -15,7 +15,6 @@ import co.topl.settings.ChainReplicatorSettings
 import co.topl.tools.exporter.DatabaseOperations
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.mongodb.codecs._
-import co.topl.utils.mongodb.implicits._
 import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataModel, UnconfirmedTransactionDataModel}
 import com.mongodb.client.result.InsertManyResult
 import org.bson.BsonValue

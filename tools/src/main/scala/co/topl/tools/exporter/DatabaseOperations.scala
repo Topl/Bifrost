@@ -2,7 +2,6 @@ package co.topl.tools.exporter
 
 import co.topl.utils.mongodb.DocumentEncoder
 import com.mongodb.client.result.{DeleteResult, InsertManyResult}
-import org.mongodb.scala.bson.Document
 
 import scala.concurrent.Future
 
