@@ -1,6 +1,6 @@
 package co.topl.consensus
 
-import cats.{Applicative, Monad}
+import cats.Monad
 import cats.implicits._
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
 import co.topl.models._

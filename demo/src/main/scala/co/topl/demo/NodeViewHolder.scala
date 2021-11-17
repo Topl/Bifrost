@@ -3,16 +3,12 @@ package co.topl.demo
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
-import cats.data.OptionT
 import cats.effect.kernel.Async
 import cats.implicits._
-import cats.effect.implicits._
-import cats._
 import co.topl.algebras.ConsensusState
 import co.topl.models.Box.Values
 import co.topl.models._
 import co.topl.models.utility.Ratio
-import co.topl.typeclasses.implicits._
 
 object NodeViewHolder {
   sealed abstract class ReceivableMessage
@@ -37,32 +33,6 @@ object NodeViewHolder {
       new ConsensusState[F] {
 
         import akka.actor.typed.scaladsl.AskPattern._
-
-        val genesis: F[BlockV2] =
-          withNodeView(nodeView => (nodeView, nodeView.genesisBlock))
-
-        val canonicalHead: F[BlockV2] =
-          withNodeView(nodeView =>
-            (
-              nodeView,
-              if (nodeView.blocks.isEmpty) nodeView.genesisBlock
-              else nodeView.blocks.valuesIterator.maxBy(_.headerV2.height)
-            )
-          )
-
-        def append(blockV2: BlockV2): F[Unit] =
-          withNodeView(nodeView => (nodeView.copy(blocks = nodeView.blocks + (blockV2.headerV2.id -> blockV2)), ()))
-
-        def lookupBlock(id: TypedIdentifier): F[Option[BlockV2]] =
-          genesis.flatMap(genesis =>
-            OptionT
-              .when[F, BlockV2](genesis.headerV2.id === id)(genesis)
-              .orElseF(withNodeView(nodeView => (nodeView, nodeView.blocks.get(id))))
-              .value
-          )
-
-        def lookupBlockHeader(id: TypedIdentifier): F[Option[BlockHeaderV2]] =
-          OptionT(lookupBlock(id)).map(_.headerV2).value
 
         def lookupRelativeStake(epoch: Epoch)(address: TaktikosAddress): F[Option[Ratio]] =
           withNodeView(nodeView => (nodeView, nodeView.relativeStakes.get(epoch).flatMap(_.get(address))))
@@ -93,15 +63,9 @@ object NodeViewHolder {
           withNodeView(nodeView => (nodeView, nodeView.registrations(epoch)))
             .flatMap(_.to(LazyList).foldLeftM(s)(f))
 
-        def lookupEta(epoch: Epoch): F[Option[Eta]] =
-          withNodeView(nodeView => (nodeView, nodeView.etas.get(epoch)))
-
-        def writeEta(epoch: Epoch, eta: Eta): F[Unit] =
-          withNodeView(nodeView => (nodeView.copy(etas = nodeView.etas + (epoch -> eta)), ()))
-
         private def withNodeView[T](f: NodeView => (NodeView, T)): F[T] =
           Async[F].fromFuture(
-            Defer[F].defer(actorRef.ask[T](Run[T](f, _)).pure[F])
+            actorRef.ask[T](Run[T](f, _)).pure[F]
           )
 
       }
@@ -109,9 +73,6 @@ object NodeViewHolder {
 }
 
 case class NodeView(
-  genesisBlock:   BlockV2,
-  blocks:         Map[TypedIdentifier, BlockV2] = Map.empty,
   relativeStakes: Map[Epoch, Map[TaktikosAddress, Ratio]] = Map.empty,
-  registrations:  Map[Epoch, Map[TaktikosAddress, Box.Values.TaktikosRegistration]] = Map.empty,
-  etas:           Map[Epoch, Eta] = Map.empty
+  registrations:  Map[Epoch, Map[TaktikosAddress, Box.Values.TaktikosRegistration]] = Map.empty
 )

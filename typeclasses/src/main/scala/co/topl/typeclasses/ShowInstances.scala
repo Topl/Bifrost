@@ -2,8 +2,10 @@ package co.topl.typeclasses
 
 import cats.Show
 import cats.implicits._
+import co.topl.codecs.bytes.BasicCodecs._
+import co.topl.codecs.bytes.ByteCodec.implicits._
 import co.topl.models._
-import co.topl.models.utility.Base58
+import co.topl.models.utility.{Base58, Length, Sized}
 import co.topl.typeclasses.Identifiable.Instances._
 import co.topl.typeclasses.Identifiable.ops._
 
@@ -15,8 +17,14 @@ trait ShowInstances {
   implicit val showBytes: Show[Bytes] =
     bytes => Base58.encode(bytes.toArray)
 
+  implicit def showSizedBytes[Data: Show, L <: Length](implicit l: L): Show[Sized.Strict[Data, L]] =
+    sized => show"[${l.value}](${sized.data})"
+
   implicit val showTypedIdentifier: Show[TypedIdentifier] =
     showBytes.contramap[TypedIdentifier](_.allBytes)
+
+  implicit val showSlotId: Show[SlotId] =
+    slotID => show"{${slotID.slot},${slotID.blockId}}"
 
   implicit val showBlockHeaderV2: Show[BlockHeaderV2] =
     header =>
@@ -24,7 +32,8 @@ trait ShowInstances {
       show" parentId=${header.parentHeaderId}" +
       show" height=${header.height}" +
       show" slot=${header.slot}" +
-      show" timestamp=${Instant.ofEpochMilli(header.timestamp).toString})"
+      show" timestamp=${Instant.ofEpochMilli(header.timestamp).toString})" +
+      show" address=${header.address.bytes}"
 }
 
 object ShowInstances extends ShowInstances

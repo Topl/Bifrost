@@ -25,10 +25,10 @@ package object models {
   type DionAddress = TypedIdentifier
   type BoxReference = (DionAddress, Eta)
   type TaktikosBoxReference = (TaktikosAddress, Eta)
+
   type PolyOutput = (DionAddress, Int128)
   type ArbitOutput = (DionAddress, Int128)
   type AssetOutput = (DionAddress, Box.Values.Asset)
-  type SlotId = (Slot, TypedIdentifier)
   type TxRoot = Sized.Strict[Bytes, Lengths.`32`.type]
   type BloomFilter = Sized.Strict[Bytes, Lengths.`256`.type]
   type Rho = Sized.Strict[Bytes, Lengths.`64`.type]
@@ -36,6 +36,8 @@ package object models {
   type Root = Propositions.Knowledge.Ed25519
   type StakeAddress = Propositions.Knowledge.Ed25519
   type Digest32 = Sized.Strict[Bytes, Lengths.`32`.type]
+
+  case class SlotId(slot: Slot, blockId: TypedIdentifier)
 
   val Bytes = ByteVector
 

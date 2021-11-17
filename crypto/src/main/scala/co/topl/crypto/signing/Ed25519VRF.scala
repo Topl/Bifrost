@@ -60,5 +60,7 @@ class Ed25519VRF
 }
 
 object Ed25519VRF {
-  val instance = new Ed25519VRF
+
+  def precomputed(): Ed25519VRF =
+    new Ed25519VRF
 }
