@@ -36,6 +36,9 @@ object Proposer {
 
   trait Instances {
 
+    implicit val curve25519Proposes: Proposer[VerificationKeys.Curve25519, Propositions.Knowledge.Curve25519] =
+      t => Propositions.Knowledge.Curve25519(t)
+
     implicit val ed25519Proposes: Proposer[VerificationKeys.Ed25519, Propositions.Knowledge.Ed25519] =
       t => Propositions.Knowledge.Ed25519(t)
 

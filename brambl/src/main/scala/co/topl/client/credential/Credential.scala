@@ -20,9 +20,11 @@ object Credential {
   )(implicit
     prover:          Prover[T, Prf],
     proposer:        Proposer[T, Prop],
-    dionAddressable: DionAddressable[T]
+    dionAddressable: DionAddressable[T],
+    networkPrefix:   NetworkPrefix
   ): Credential[Prop] =
     new Credential[Prop] {
+
       val proposition: Prop = proposer.propositionOf(t)
 
       val address: DionAddress = dionAddressable.dionAddressOf(t)

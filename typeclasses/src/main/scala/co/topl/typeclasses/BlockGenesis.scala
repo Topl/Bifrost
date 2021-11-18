@@ -23,7 +23,7 @@ object BlockGenesis {
     Proofs.Signature.VrfEd25519(zeroBytes(Lengths.`80`)),
     Proofs.Signature.VrfEd25519(zeroBytes(Lengths.`80`)),
     VerificationKeys.VrfEd25519(VerificationKeys.Ed25519(zeroBytes[VrfEd25519.Length]).bytes),
-    thresholdEvidence = Sized.strictUnsafe(TypedBytes(IdentifierTypes.RatioEvidence, Bytes(Array.fill[Byte](32)(0)))),
+    thresholdEvidence = Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0))),
     eta = zeroBytes
   )
 

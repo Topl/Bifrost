@@ -36,7 +36,7 @@ class BlockGenesisSpec extends AnyFlatSpec with Matchers with EitherValues with 
     forAll(cert.vkVRF.bytes.data.toArray)(_ shouldBe (0: Byte))
     forAll(cert.vrfNonceSig.bytes.data.toArray)(_ shouldBe (0: Byte))
     forAll(cert.vrfTestSig.bytes.data.toArray)(_ shouldBe (0: Byte))
-    forAll(cert.thresholdEvidence.data.dataBytes.toArray)(_ shouldBe (0: Byte))
+    forAll(cert.thresholdEvidence.data.toArray)(_ shouldBe (0: Byte))
     forAll(cert.eta.data.toArray)(_ shouldBe (0: Byte))
   }
 

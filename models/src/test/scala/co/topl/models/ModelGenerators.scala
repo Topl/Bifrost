@@ -18,13 +18,11 @@ trait ModelGenerators {
 
   def eligibilityCertificateGen: Gen[EligibilityCertificate] =
     for {
-      nonceProof <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Signature.VrfEd25519(_))
-      testProof  <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Signature.VrfEd25519(_))
-      vkVrf      <- genSizedStrictBytes[Lengths.`32`.type]().map(VerificationKeys.VrfEd25519(_))
-      thresholdEvidence <- genSizedStrictBytes[Lengths.`32`.type]().map(b =>
-        Sized.strict[TypedBytes, Lengths.`33`.type](TypedBytes(1: Byte, b.data)).toOption.get
-      )
-      eta <- etaGen
+      nonceProof        <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Signature.VrfEd25519(_))
+      testProof         <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Signature.VrfEd25519(_))
+      vkVrf             <- genSizedStrictBytes[Lengths.`32`.type]().map(VerificationKeys.VrfEd25519(_))
+      thresholdEvidence <- genSizedStrictBytes[Lengths.`32`.type]()
+      eta               <- etaGen
     } yield EligibilityCertificate(nonceProof, testProof, vkVrf, thresholdEvidence, eta)
 
   def ed25519VkGen: Gen[VerificationKeys.Ed25519] =

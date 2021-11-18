@@ -1,12 +1,15 @@
 package co.topl.client.credential
 
-import cats.Functor
-import cats.data.Chain
+import cats.data.OptionT
 import cats.implicits._
+import cats.{Applicative, Functor}
 import co.topl.crypto.mnemonic.Bip32Indexes
-import co.topl.crypto.signing.ExtendedEd25519
+import co.topl.crypto.signing.{ExtendedEd25519, Password}
 import co.topl.models._
+import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.Sized
 import co.topl.typeclasses.implicits._
+import com.google.common.primitives.Longs
 
 /**
  * Represents a "grouping" of credentials.  In all cases, a CredentialCollection is strictly typed to its Proposition type.
@@ -14,15 +17,6 @@ import co.topl.typeclasses.implicits._
  */
 sealed abstract class CredentialCollection[Prop <: Proposition] {
   def name: String
-}
-
-object CredentialCollection {
-
-  /**
-   * Load a credential collection by name from a CredentialIO instance
-   */
-  def load[F[_]](name: String)(implicit credentialIO: CredentialIO[F]): F[Option[CredentialCollection[_]]] =
-    ???
 }
 
 /**
@@ -57,10 +51,23 @@ object ToplCredentialTree {
   /**
    * Initialize and save a new ToplCredentialTree from some root key
    */
-  def create[F[_]](name: String, rootKey: SecretKeys.ExtendedEd25519)(implicit
-    credentialIO:        CredentialIO[F]
-  ): F[ToplCredentialTree] =
-    ???
+  def create[F[_]: Applicative](name: String, roleSk: SecretKeys.ExtendedEd25519, password: Password)(implicit
+    credentialIO:                     CredentialIO[F],
+    networkPrefix:                    NetworkPrefix
+  ): F[ToplCredentialTree] = {
+    val rawBytes =
+      roleSk.leftKey.data ++
+      roleSk.rightKey.data ++
+      roleSk.chainCode.data ++
+      Bytes(Longs.toByteArray(1852)) ++
+      Bytes(Longs.toByteArray(7091)) ++
+      Bytes(Longs.toByteArray(-1)) ++
+      Bytes(Longs.toByteArray(-1))
+    credentialIO
+      .write(name, roleSk.dionAddress, rawBytes, password)
+      .as(ToplCredentialTree(name, roleSk))
+  }
+
 }
 
 /**
@@ -81,57 +88,99 @@ case class AccountCredentialTree(name: String, accountSK: SecretKeys.ExtendedEd2
 
 }
 
-/**
- * An indexed collection of Credentials such that the root is a Role secret key
- */
-case class RoleCredentialList(roleSK: SecretKeys.ExtendedEd25519) {
-
-  def credential(index: Bip32Indexes.SoftIndex): Credential[Propositions.Knowledge.ExtendedEd25519] = {
-    val extendedEd25519 = ExtendedEd25519.precomputed()
-    val indexSk = extendedEd25519.deriveSecret(roleSK, index)
-    Credential(indexSk)
-  }
-
-  def /(idx: Bip32Indexes.SoftIndex): Credential[Propositions.Knowledge.ExtendedEd25519] = credential(idx)
-
-}
-
 object AccountCredentialTree {
 
   /**
    * Initialize and save a new AccountCredentialTree from some root key
    */
-  def create[F[_]](name: String, rootKey: SecretKeys.ExtendedEd25519)(implicit
-    credentialIO:        CredentialIO[F]
-  ): F[AccountCredentialTree] =
-    ???
+  def create[F[_]: Applicative](name: String, accountSK: SecretKeys.ExtendedEd25519, account: Long, password: Password)(
+    implicit
+    credentialIO:  CredentialIO[F],
+    networkPrefix: NetworkPrefix
+  ): F[AccountCredentialTree] = {
+    val rawBytes =
+      accountSK.leftKey.data ++
+      accountSK.rightKey.data ++
+      accountSK.chainCode.data ++
+      Bytes(Longs.toByteArray(1852)) ++
+      Bytes(Longs.toByteArray(7091)) ++
+      Bytes(Longs.toByteArray(account)) ++
+      Bytes(Longs.toByteArray(-1))
+    credentialIO
+      .write(name, accountSK.dionAddress, rawBytes, password)
+      .as(AccountCredentialTree(name, accountSK))
+  }
+}
+
+/**
+ * An indexed collection of Credentials such that the root is a Role secret key
+ */
+case class RoleCredentialList(roleSK: SecretKeys.ExtendedEd25519) {
+
+  def credential(
+    index:                  Bip32Indexes.SoftIndex
+  )(implicit networkPrefix: NetworkPrefix): Credential[Propositions.Knowledge.ExtendedEd25519] = {
+    val extendedEd25519 = ExtendedEd25519.precomputed()
+    val indexSk = extendedEd25519.deriveSecret(roleSK, index)
+    Credential(indexSk)
+  }
+
+  def /(idx:       Bip32Indexes.SoftIndex)(implicit
+    networkPrefix: NetworkPrefix
+  ): Credential[Propositions.Knowledge.ExtendedEd25519] = credential(idx)
+
 }
 
 /**
  * A set of unrelated keys of the same type
  */
-case class CredentialSet[Prop <: Proposition](name: String, credentials: Set[Credential[Prop]])
+case class CredentialSet[Prop <: Proposition](name: String, credentials: Map[DionAddress, Credential[Prop]])
     extends CredentialCollection[Prop] {
 
-  /**
-   * Persist a credential and include it in this Set
-   */
-  def withCredential[F[_]: Functor](
-    credential:            Credential[Prop]
+  def unlock[F[_]: Functor](address: DionAddress, password: Password)(implicit
+    credentialIO:                    CredentialIO[F],
+    networkPrefix:                   NetworkPrefix
+  ): F[Option[Credential[Prop]]] =
+    OptionT(credentialIO.unlock(name, address, password))
+      .map(bytes =>
+        address.typedEvidence.typePrefix match {
+          case 1 =>
+            Credential(SecretKeys.Curve25519(Sized.strictUnsafe(bytes))).asInstanceOf[Credential[Prop]]
+          case 3 =>
+            Credential(SecretKeys.Ed25519(Sized.strictUnsafe(bytes))).asInstanceOf[Credential[Prop]]
+          case 5 =>
+            Credential(
+              SecretKeys.ExtendedEd25519(
+                Sized.strictUnsafe(bytes.slice(0, 32)),
+                Sized.strictUnsafe(bytes.slice(32, 64)),
+                Sized.strictUnsafe(bytes.slice(64, 96))
+              )
+            ).asInstanceOf[Credential[Prop]]
+        }
+      )
+      .value
+
+  def addresses[F[_]](implicit credentialIO: CredentialIO[F]): F[Set[DionAddress]] =
+    credentialIO.listAddresses(name)
+
+  def persistAndInclude[F[_]: Functor](
+    credential:            Credential[Prop],
+    credentialBytes:       Bytes,
+    password:              Password
   )(implicit credentialIO: CredentialIO[F]): F[CredentialSet[Prop]] =
     credentialIO
-      .write(name, credential)
-      .map(_ => copy(credentials = credentials + credential))
+      .write(name, credential.address, credentialBytes, password)
+      .as(copy(credentials = credentials.updated(credential.address, credential)))
 
   /**
    * Delete a credential and remove it from this Set
    */
   def withoutCredential[F[_]: Functor](
-    credential:            Credential[Prop]
+    address:               DionAddress
   )(implicit credentialIO: CredentialIO[F]): F[CredentialSet[Prop]] =
     credentialIO
-      .delete(name, credential.address)
-      .map(_ => copy(credentials = credentials - credential))
+      .delete(name, address)
+      .as(copy(credentials = credentials.removed(address)))
 }
 
 object CredentialSet {
@@ -139,24 +188,6 @@ object CredentialSet {
   /**
    * Create an empty credential set
    */
-  def empty[Prf <: Proof, Prop <: Proposition](name: String): CredentialSet[Prop] =
-    CredentialSet(name, Set.empty)
-}
-
-/**
- * Assumes a directory structure of
- *
- * /walletRoot/credentials/_credentialCollectionName_/_address_.json
- */
-trait CredentialIO[F[_]] {
-  def write(credentialSetName: String, credential: Credential[_]): F[Unit]
-
-  def delete(credentialSetName: String, address: DionAddress): F[Unit]
-
-  def read[Prf <: Proof, Prop <: Proposition](
-    credentialSetName: String,
-    address:           DionAddress
-  ): F[Option[CredentialCollection[Prop]]]
-
-  def listCollectionNames: F[Chain[String]]
+  def apply[Prop <: Proposition](name: String): CredentialSet[Prop] =
+    CredentialSet(name, Map.empty)
 }

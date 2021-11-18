@@ -2,7 +2,7 @@ package co.topl
 
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{Lengths, Sized}
-import io.estatico.newtype.macros.newtype
+import io.estatico.newtype.macros.{newsubtype, newtype}
 import io.estatico.newtype.ops._
 import scodec.bits.ByteVector
 
@@ -14,7 +14,11 @@ package object models {
   val Bytes = ByteVector
   type BoxNonce = Long
   type Eta = Sized.Strict[Bytes, Lengths.`32`.type]
-  type Evidence = Sized.Strict[TypedBytes, Lengths.`33`.type]
+  type Evidence = Sized.Strict[Bytes, Lengths.`32`.type]
+
+  case class TypedEvidence(typePrefix: TypePrefix, evidence: Evidence) {
+    def allBytes: Bytes = typePrefix +: evidence.data
+  }
   type TypePrefix = Byte
   type TypedIdentifier = TypedBytes
   type Int128 = Sized.Max[BigInt, Lengths.`128`.type]
@@ -23,7 +27,12 @@ package object models {
   type Attestation = ListMap[Proposition, Proof]
   val Attestation = ListMap
   type Epoch = Long
-  type DionAddress = TypedIdentifier
+
+  @newsubtype case class NetworkPrefix(value: Byte)
+
+  case class DionAddress(networkPrefix: NetworkPrefix, typedEvidence: TypedEvidence) {
+    def allBytes: Bytes = networkPrefix.value +: typedEvidence.allBytes
+  }
   type BoxReference = (DionAddress, Eta)
   type TaktikosBoxReference = (TaktikosAddress, Eta)
   type PolyOutput = (DionAddress, Int128)
