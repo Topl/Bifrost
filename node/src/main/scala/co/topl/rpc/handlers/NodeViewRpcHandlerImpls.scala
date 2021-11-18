@@ -47,9 +47,7 @@ class NodeViewRpcHandlerImpls(
       withNodeView(view =>
         ToplRpc.NodeView.HeadInfo.Response(
           view.history.bestBlockId,
-          view.history.height,
-          view.history.difficulty,
-          view.history.score
+          view.history.height
         )
       )
 

@@ -165,7 +165,7 @@ object ToplRpc {
       val rpc: Rpc[Params, Response] = Rpc("topl_headInfo")
 
       case class Params()
-      case class Response(bestBlockId: ModifierId, height: Int128, difficulty: Long, score: Long)
+      case class Response(bestBlockId: ModifierId, height: Int128)
     }
 
     object Balances {
