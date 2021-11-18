@@ -1,18 +1,21 @@
-name: Release
+name: Maven Central Release
 on:
-  push:
-    branches: [main]
-    tags: ["*"]
+  release:
+    types: [released]
+
 jobs:
-  publish:
-    runs-on: ubuntu-20.04
+  push_to_registry:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2.3.4
+      - name: Checkout repository
+        uses: actions/checkout@v2
         with:
           fetch-depth: 0
       - uses: olafurpg/setup-scala@v10
       - uses: olafurpg/setup-gpg@v3
-      - run: sbt ci-release
+
+      - name: Publish artifacts to Maven Central
+        run: sbt ci-release
         env:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
