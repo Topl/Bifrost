@@ -39,7 +39,7 @@ class CredentialCollectionSpec
         implicit val credentialIO: CredentialIO[F] = mock[CredentialIO[F]]
 
         (credentialIO.write _)
-          .expects(credentialSetName, sk.dionAddress, *, password)
+          .expects(credentialSetName, sk.dionAddress.typedEvidence.evidence, *, *, password)
           .once()
           .returning(Applicative[F].unit)
 
@@ -65,7 +65,7 @@ class CredentialCollectionSpec
         implicit val credentialIO: CredentialIO[F] = mock[CredentialIO[F]]
 
         (credentialIO.write _)
-          .expects(credentialSetName, sk.dionAddress, *, password)
+          .expects(credentialSetName, sk.dionAddress.typedEvidence.evidence, *, *, password)
           .once()
           .returning(Applicative[F].unit)
 
@@ -107,7 +107,7 @@ class CredentialCollectionSpec
         implicit val credentialIO: CredentialIO[F] = mock[CredentialIO[F]]
 
         (credentialIO.write _)
-          .expects(credentialSetName, sk.dionAddress, *, password)
+          .expects(credentialSetName, sk.dionAddress.typedEvidence.evidence, *, *, password)
           .once()
           .returning(Applicative[F].unit)
 
@@ -118,7 +118,7 @@ class CredentialCollectionSpec
           credential.address
 
         val newSet =
-          set.persistAndInclude[F](credential, credentialBytes, password).unsafeRunSync()
+          set.persistAndInclude[F](credential, credentialBytes, KeyFile.Metadata.Ed25519, password).unsafeRunSync()
 
         newSet.credentials.values.exists(_.address === address) shouldBe true
 

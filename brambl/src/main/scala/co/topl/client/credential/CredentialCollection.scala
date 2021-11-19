@@ -64,7 +64,7 @@ object ToplCredentialTree {
       Bytes(Longs.toByteArray(-1)) ++
       Bytes(Longs.toByteArray(-1))
     credentialIO
-      .write(name, roleSk.dionAddress, rawBytes, password)
+      .write(name, roleSk.dionAddress.typedEvidence.evidence, KeyFile.Metadata.ExtendedEd25519, rawBytes, password)
       .as(ToplCredentialTree(name, roleSk))
   }
 
@@ -107,7 +107,7 @@ object AccountCredentialTree {
       Bytes(Longs.toByteArray(account)) ++
       Bytes(Longs.toByteArray(-1))
     credentialIO
-      .write(name, accountSK.dionAddress, rawBytes, password)
+      .write(name, accountSK.dionAddress.typedEvidence.evidence, KeyFile.Metadata.ExtendedEd25519, rawBytes, password)
       .as(AccountCredentialTree(name, accountSK))
   }
 }
@@ -134,53 +134,52 @@ case class RoleCredentialList(roleSK: SecretKeys.ExtendedEd25519) {
 /**
  * A set of unrelated keys of the same type
  */
-case class CredentialSet[Prop <: Proposition](name: String, credentials: Map[DionAddress, Credential[Prop]])
+case class CredentialSet[Prop <: Proposition](name: String, credentials: Map[Evidence, Credential[Prop]])
     extends CredentialCollection[Prop] {
 
-  def unlock[F[_]: Functor](address: DionAddress, password: Password)(implicit
-    credentialIO:                    CredentialIO[F],
-    networkPrefix:                   NetworkPrefix
+  def unlock[F[_]: Functor](evidence: Evidence, password: Password)(implicit
+    credentialIO:                     CredentialIO[F],
+    networkPrefix:                    NetworkPrefix
   ): F[Option[Credential[Prop]]] =
-    OptionT(credentialIO.unlock(name, address, password))
-      .map(bytes =>
-        address.typedEvidence.typePrefix match {
-          case 1 =>
-            Credential(SecretKeys.Curve25519(Sized.strictUnsafe(bytes))).asInstanceOf[Credential[Prop]]
-          case 3 =>
-            Credential(SecretKeys.Ed25519(Sized.strictUnsafe(bytes))).asInstanceOf[Credential[Prop]]
-          case 5 =>
-            Credential(
-              SecretKeys.ExtendedEd25519(
-                Sized.strictUnsafe(bytes.slice(0, 32)),
-                Sized.strictUnsafe(bytes.slice(32, 64)),
-                Sized.strictUnsafe(bytes.slice(64, 96))
-              )
-            ).asInstanceOf[Credential[Prop]]
-        }
-      )
-      .value
+    OptionT(credentialIO.unlock(name, evidence, password)).map { case (bytes, metadata) =>
+      metadata.keyType match {
+        case KeyFile.Metadata.Curve25519 =>
+          Credential(SecretKeys.Curve25519(Sized.strictUnsafe(bytes))).asInstanceOf[Credential[Prop]]
+        case KeyFile.Metadata.Ed25519 =>
+          Credential(SecretKeys.Ed25519(Sized.strictUnsafe(bytes))).asInstanceOf[Credential[Prop]]
+        case KeyFile.Metadata.ExtendedEd25519 =>
+          Credential(
+            SecretKeys.ExtendedEd25519(
+              Sized.strictUnsafe(bytes.slice(0, 32)),
+              Sized.strictUnsafe(bytes.slice(32, 64)),
+              Sized.strictUnsafe(bytes.slice(64, 96))
+            )
+          ).asInstanceOf[Credential[Prop]]
+      }
+    }.value
 
-  def addresses[F[_]](implicit credentialIO: CredentialIO[F]): F[Set[DionAddress]] =
-    credentialIO.listAddresses(name)
+  def evidences[F[_]](implicit credentialIO: CredentialIO[F]): F[Set[Evidence]] =
+    credentialIO.listEvidence(name)
 
   def persistAndInclude[F[_]: Functor](
     credential:            Credential[Prop],
     credentialBytes:       Bytes,
+    keyType:               KeyFile.Metadata.KeyType,
     password:              Password
   )(implicit credentialIO: CredentialIO[F]): F[CredentialSet[Prop]] =
     credentialIO
-      .write(name, credential.address, credentialBytes, password)
-      .as(copy(credentials = credentials.updated(credential.address, credential)))
+      .write(name, credential.address.typedEvidence.evidence, keyType, credentialBytes, password)
+      .as(copy(credentials = credentials.updated(credential.address.typedEvidence.evidence, credential)))
 
   /**
    * Delete a credential and remove it from this Set
    */
   def withoutCredential[F[_]: Functor](
-    address:               DionAddress
+    evidence:              Evidence
   )(implicit credentialIO: CredentialIO[F]): F[CredentialSet[Prop]] =
     credentialIO
-      .delete(name, address)
-      .as(copy(credentials = credentials.removed(address)))
+      .delete(name, evidence)
+      .as(copy(credentials = credentials.removed(evidence)))
 }
 
 object CredentialSet {
