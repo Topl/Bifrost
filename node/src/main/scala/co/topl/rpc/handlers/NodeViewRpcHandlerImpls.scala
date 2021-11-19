@@ -114,7 +114,7 @@ class NodeViewRpcHandlerImpls(
       forgerInterface
         .checkForgerStatus()
         .leftMap(e => ToplRpcErrors.genericFailure(e.toString): RpcError)
-        .map(res => ToplRpc.NodeView.NodeStatus.Response(res.forgingStatus))
+        .map(res => ToplRpc.NodeView.NodeStatus.Response(res.forgerBehavior))
 
   private def balancesResponse(
     state:     StateReader[_, Address],

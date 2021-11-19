@@ -40,7 +40,7 @@ class NameSpaceSpec extends AnyWordSpec with Matchers with RPCMockState {
         ToplRpcHandlers(
           new DebugRpcHandlerImpls(nodeViewHolderInterface, keyManagerInterface),
           new UtilsRpcHandlerImpls,
-          new NodeViewRpcHandlerImpls(newAppContext, nodeViewHolderInterface),
+          new NodeViewRpcHandlerImpls(newAppContext, nodeViewHolderInterface, forgerInterface),
           new TransactionRpcHandlerImpls(nodeViewHolderInterface),
           new AdminRpcHandlerImpls(forgerInterface, keyManagerInterface)
         ),

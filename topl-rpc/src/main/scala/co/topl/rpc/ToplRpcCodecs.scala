@@ -92,6 +92,9 @@ trait NodeViewRpcParamsEncoders {
 
   implicit val nodeViewInfoParamsEncoder: Encoder[ToplRpc.NodeView.Info.Params] =
     deriveEncoder
+
+  implicit val nodeViewNodeStatusParamsEncoder: Encoder[ToplRpc.NodeView.NodeStatus.Params] =
+    deriveEncoder
 }
 
 trait TransactionRpcParamsEncoders extends SharedCodecs {
@@ -197,6 +200,9 @@ trait NodeViewRpcResponseDecoders extends SharedCodecs {
       } yield ToplRpc.NodeView.TransactionById.Response(tx, blockNumber, blockId)
 
   implicit val nodeViewInfoResponseDecoder: Decoder[ToplRpc.NodeView.Info.Response] =
+    deriveDecoder
+
+  implicit val nodeViewNodeStatusResponseDecoder: Decoder[ToplRpc.NodeView.NodeStatus.Response] =
     deriveDecoder
 
   implicit val nodeViewBalancesResponseEntryBalancesDecoder: Decoder[ToplRpc.NodeView.Balances.EntryBalances] =
@@ -359,6 +365,9 @@ trait NodeViewRpcParamsDecoders {
     deriveDecoder
 
   implicit val nodeViewInfoParamsDecoder: Decoder[ToplRpc.NodeView.Info.Params] =
+    deriveDecoder
+
+  implicit val nodeViewNodeStatusParamsDecoder: Decoder[ToplRpc.NodeView.NodeStatus.Params] =
     deriveDecoder
 }
 
@@ -551,6 +560,9 @@ trait NodeViewRpcResponseEncoders extends SharedCodecs {
       ).asJson.deepMerge(r.transaction.asJson)
 
   implicit val nodeViewInfoResponseEncoder: Encoder[ToplRpc.NodeView.Info.Response] =
+    deriveEncoder
+
+  implicit val nodeViewNodeStatusResponseEncoder: Encoder[ToplRpc.NodeView.NodeStatus.Response] =
     deriveEncoder
 }
 

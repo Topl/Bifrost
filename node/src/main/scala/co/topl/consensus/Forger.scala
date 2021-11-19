@@ -39,7 +39,7 @@ object Forger {
 
     case class CheckForgerStatus(replyTo: ActorRef[ForgerStatus]) extends ReceivableMessage
 
-    case class ForgerStatus(forgingStatus: String) extends ReceivableMessage
+    case class ForgerStatus(forgerBehavior: String) extends ReceivableMessage
 
     private[consensus] case object InitializationComplete extends ReceivableMessage
 
@@ -155,6 +155,9 @@ private class ForgerBehaviors(
       case ReceivableMessages.StopForging(replyTo) =>
         replyTo.tell(Done)
         Behaviors.same
+      case ReceivableMessages.CheckForgerStatus(replyTo) =>
+        replyTo.tell(ForgerStatus("idle"))
+        Behaviors.same
       case ReceivableMessages.Terminate(reason) =>
         throw reason
     }
@@ -171,6 +174,9 @@ private class ForgerBehaviors(
       case ReceivableMessages.StopForging(replyTo) =>
         replyTo.tell(Done)
         uninitialized(forgeWhenReady = false)
+      case ReceivableMessages.CheckForgerStatus(replyTo) =>
+        replyTo.tell(ForgerStatus("uninitialized"))
+        Behaviors.same
       case ReceivableMessages.InitializationComplete =>
         context.log.info(s"${Console.YELLOW}Forger is initialized${Console.RESET}")
         if (forgeWhenReady) context.self.tell(ReceivableMessages.StartForging(context.system.ignoreRef))
@@ -192,6 +198,9 @@ private class ForgerBehaviors(
           idle
         case ReceivableMessages.StartForging(replyTo) =>
           replyTo.tell(Done)
+          Behaviors.same
+        case ReceivableMessages.CheckForgerStatus(replyTo) =>
+          replyTo.tell(ForgerStatus("active"))
           Behaviors.same
         case ReceivableMessages.ForgerTick =>
           context.pipeToSelf(nextBlock().value)(result =>

@@ -38,6 +38,7 @@ object ToplRpcHandlers {
     def mempool: ToplRpc.NodeView.Mempool.rpc.ServerHandler
     def transactionFromMempool: ToplRpc.NodeView.TransactionFromMempool.rpc.ServerHandler
     def info: ToplRpc.NodeView.Info.rpc.ServerHandler
+    def nodeStatus: ToplRpc.NodeView.NodeStatus.rpc.ServerHandler
   }
 
   trait Transaction {
