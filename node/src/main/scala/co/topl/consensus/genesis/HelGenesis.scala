@@ -22,6 +22,7 @@ case object HelGenesis extends GenesisProvider {
   override protected val blockChecksum: ModifierId =
     Base58Data
       .unsafe("vKjyX77HLRUiihjWofSsacNEdDGMaJpNJTQMXkRyJkP2")
+      .value
       .decodeTransmitted[ModifierId]
       .getOrThrow()
 
