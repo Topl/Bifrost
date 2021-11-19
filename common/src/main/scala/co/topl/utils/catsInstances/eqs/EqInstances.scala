@@ -21,6 +21,8 @@ trait EqInstances {
 
   implicit val bytesEq: Eq[Array[Byte]] = (b1, b2) => b1 sameElements b2
 
+  implicit def seqEq[T: Eq]: Eq[Seq[T]] = (s1, s2) => s1.toList === s2.toList
+
   implicit val longsEq: Eq[Array[Long]] = (l1, l2) => l1 sameElements l2
 
   implicit val evidenceEq: Eq[Evidence] = (e1, e2) => e1.evBytes === e2.evBytes
@@ -165,7 +167,7 @@ trait EqInstances {
     b1.transactions === b2.transactions &&
     b1.version === b2.version
 
-  implicit def boxEq[T]: Eq[Box[T]] = (b1, b2) => boxBinaryShow.encodeAsBytes(b1) === boxBinaryShow.encodeAsBytes(b2)
+  implicit val boxEq: Eq[Box[_]] = (b1, b2) => boxBinaryShow.encodeAsBytes(b1) === boxBinaryShow.encodeAsBytes(b2)
 
   implicit val programIdEq: Eq[ProgramId] = (p1, p2) => p1.hashBytes === p2.hashBytes
 
