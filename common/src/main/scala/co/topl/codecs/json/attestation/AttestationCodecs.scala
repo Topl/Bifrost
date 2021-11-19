@@ -33,7 +33,7 @@ trait AttestationCodecs extends co.topl.codecs.json.attestation.keyManagement.Ke
   implicit val addressJsonEncoder: Encoder[Address] = addr => addr.encodeAsBase58.asJson
 
   // need to explicitly call show here to avoid a compilation bug
-  implicit val addressJsonKeyEncoder: KeyEncoder[Address] = addr => Show[Base58Data].show(addr.encodeAsBase58)
+  implicit val addressJsonKeyEncoder: KeyEncoder[Address] = addr => showBase58String.show(addr.encodeAsBase58)
 
   implicit def addressJsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[Address] =
     Decoder[Base58Data].emap(_.decodeAddress.toEither.leftMap(_.toString))
