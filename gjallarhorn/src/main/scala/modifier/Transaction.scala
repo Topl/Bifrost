@@ -9,12 +9,11 @@ case class Transaction(newBoxes: Seq[Box], boxesToRemove: Option[Seq[BoxId]])
 
 object Transaction {
 
-  implicit val txDecoder: Decoder[Transaction] = (hCursor: HCursor) => {
+  implicit val txDecoder: Decoder[Transaction] = (hCursor: HCursor) =>
     for {
       newBoxes      <- hCursor.downField("newBoxes").as[Seq[Box]]
       boxesToRemove <- hCursor.downField("boxesToRemove").as[Option[Seq[BoxId]]]
     } yield Transaction(newBoxes, boxesToRemove)
-  }
 
   implicit val txEncoder: Encoder[Transaction] = (tx: Transaction) =>
     Map(
@@ -56,12 +55,11 @@ object Box {
       "nonce"    -> box.nonce.toString.asJson
     ).asJson
 
-  implicit val newBoxDecoder: Decoder[Box] = (hCursor: HCursor) => {
+  implicit val newBoxDecoder: Decoder[Box] = (hCursor: HCursor) =>
     for {
       nonce     <- hCursor.downField("nonce").as[Long]
       typeOfBox <- hCursor.downField("type").as[String]
       evidence  <- hCursor.downField("evidence").as[Evidence]
       value     <- hCursor.downField("value").as[TokenValueHolder]
     } yield Box(evidence, nonce, typeOfBox, value)
-  }
 }

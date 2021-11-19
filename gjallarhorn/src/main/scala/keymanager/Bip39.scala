@@ -125,7 +125,7 @@ class Bip39(wordList: List[String]) extends Logging {
 
 object Bip39 {
 
-  //fixme: JAA - this won't work on compilation since the resources move
+  // fixme: JAA - this won't work on compilation since the resources move
   val phraseListDir = "src/main/resources/bip-0039/"
 
   val iso639_1_toFile: Map[String, String] = Map(
