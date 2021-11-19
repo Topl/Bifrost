@@ -1,12 +1,12 @@
 package co.topl.codecs.binary.scodecs.valuetypes
 
 import cats.implicits._
-import co.topl.utils.Extensions.LongOps
-import co.topl.utils.Int128
-import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.codecs.binary.ZigZagEncoder._
 import co.topl.codecs.binary.scodecs.valuetypes.Constants._
 import co.topl.codecs.binary.scodecs.valuetypes.Types._
+import co.topl.utils.Extensions.LongOps
+import co.topl.utils.Int128
+import co.topl.utils.StringDataTypes.Latin1Data
 import scodec.bits.BitVector
 import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
 
@@ -17,6 +17,14 @@ trait ValuetypesCodecs {
   implicit val byteCodec: Codec[Byte] = ByteCodec
 
   def bytesCodec(size: Int): Codec[Array[Byte]] = new BytesCodec(size)
+
+  implicit val uByteCodec: Codec[UByte] =
+    byteCodec
+      .exmapc(byte => Attempt.successful(byte & 0xff))(ubyte =>
+        Attempt
+          .guard(ubyte >= 0 && ubyte <= 0xff, s"$ubyte is out of unsigned byte range")
+          .map(_ => ubyte.toByte)
+      )
 
   implicit val uLongCodec: Codec[ULong] = ULongCodec
 

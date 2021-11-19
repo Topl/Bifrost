@@ -1,6 +1,5 @@
 package co.topl.codecs.binary.scodecs.valuetypes
 
-import co.topl.codecs.binary.scodecs.valuetypes.Types._
 import org.scalacheck.Gen
 
 class IntCodecSpec extends ValueTypesCodecCompatabilityBehavior {

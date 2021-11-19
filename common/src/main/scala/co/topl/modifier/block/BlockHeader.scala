@@ -7,7 +7,6 @@ import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.utils.TimeProvider
-import co.topl.codecs.json._
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 

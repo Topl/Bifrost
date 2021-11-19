@@ -4,7 +4,6 @@ import cats.Eq
 import cats.implicits._
 import co.topl.attestation._
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519}
-import co.topl.codecs.binary._
 import co.topl.crypto.PublicKey
 import co.topl.crypto.implicits._
 import co.topl.crypto.signatures.Signature
@@ -14,6 +13,7 @@ import co.topl.modifier.box._
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
 import co.topl.utils.Int128
 import co.topl.utils.StringDataTypes.implicits._
+import co.topl.codecs._
 
 import scala.collection.immutable.ListMap
 

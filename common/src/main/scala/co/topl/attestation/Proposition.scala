@@ -5,22 +5,17 @@ import cats.data.NonEmptyChain
 import cats.implicits._
 import co.topl.attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519, Secret}
+import co.topl.codecs._
+import co.topl.codecs.binary.legacy.attestation.PropositionSerializer
+import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
 import co.topl.crypto.PublicKey
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signatures.{Curve25519, Ed25519}
-import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.StringDataTypes.implicits.{showBase16String, showBase58String}
-import co.topl.utils.StringDataTypes.{Base16Data, Base58Data, DataEncodingValidationFailure}
-import co.topl.codecs._
-import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
-import co.topl.codecs.binary.legacy.attestation.PropositionSerializer
-import co.topl.codecs.binary.typeclasses.{BinaryShow, Transmittable}
-import co.topl.utils.encode.Base58
+import co.topl.utils.StringDataTypes.implicits.showBase16String
+import co.topl.utils.StringDataTypes.{Base16Data, DataEncodingValidationFailure}
 import co.topl.utils.{Identifiable, Identifier}
 import com.google.common.primitives.Ints
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 
 import scala.collection.SortedSet
 

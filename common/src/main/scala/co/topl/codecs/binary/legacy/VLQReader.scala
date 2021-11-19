@@ -1,9 +1,9 @@
 package co.topl.codecs.binary.legacy
 
-import co.topl.utils.Extensions.LongOps
-import co.topl.utils.Int128
 import co.topl.codecs.binary.ZigZagEncoder._
 import co.topl.codecs.binary.scodecs.valuetypes.Constants.stringCharacterSet
+import co.topl.utils.Extensions.LongOps
+import co.topl.utils.Int128
 
 import java.util
 

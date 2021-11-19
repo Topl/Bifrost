@@ -1,11 +1,8 @@
 package co.topl.codecs.binary.scodecs.modifier.box
 
-import cats.{Eq, Show}
-import co.topl.modifier.box.PolyBox
-import co.topl.utils.CommonGenerators
 import co.topl.codecs.binary.CodecCompatabilityBehavior
 import co.topl.codecs.binary.legacy.modifier.box.PolyBoxSerializer
-import co.topl.codecs.binary.scodecs.modifier.box._
+import co.topl.utils.CommonGenerators
 import co.topl.utils.catsInstances._
 
 class PolyBoxCodecSpec extends CodecCompatabilityBehavior with CommonGenerators {

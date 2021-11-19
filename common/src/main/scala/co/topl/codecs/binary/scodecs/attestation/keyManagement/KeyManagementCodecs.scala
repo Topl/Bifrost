@@ -2,8 +2,8 @@ package co.topl.codecs.binary.scodecs.attestation.keyManagement
 
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519}
 import co.topl.crypto.signatures.{Curve25519, Ed25519}
-import co.topl.codecs.binary.scodecs.crypto._
 import scodec.Codec
+import co.topl.codecs.binary.scodecs.crypto._
 
 trait KeyManagementCodecs {
 

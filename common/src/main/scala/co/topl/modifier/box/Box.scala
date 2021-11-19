@@ -1,10 +1,10 @@
 package co.topl.modifier.box
 
 import co.topl.attestation.Evidence
-import co.topl.modifier.box.Box.Nonce
-import co.topl.utils.Identifier
 import co.topl.codecs.binary.legacy.BifrostSerializer
 import co.topl.codecs.binary.legacy.modifier.box.BoxSerializer
+import co.topl.modifier.box.Box.Nonce
+import co.topl.utils.Identifier
 import com.google.common.primitives.Ints
 
 /**

@@ -1,7 +1,7 @@
 package co.topl.codecs.binary.legacy.modifier.box
 
-import co.topl.modifier.box.SecurityRoot
 import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
+import co.topl.modifier.box.SecurityRoot
 
 object SecurityRootSerializer extends BifrostSerializer[SecurityRoot] {
 

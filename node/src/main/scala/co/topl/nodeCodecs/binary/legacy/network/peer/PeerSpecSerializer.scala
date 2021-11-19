@@ -1,8 +1,9 @@
-package co.topl.network.peer
+package co.topl.nodeCodecs.binary.legacy.network.peer
 
+import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
+import co.topl.network.peer.{PeerFeature, PeerSpec}
 import co.topl.settings.{Version, VersionSerializer}
 import co.topl.utils.Extensions._
-import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
 
 import java.net.{InetAddress, InetSocketAddress}
 

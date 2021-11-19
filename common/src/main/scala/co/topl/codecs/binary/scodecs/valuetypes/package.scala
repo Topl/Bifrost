@@ -5,6 +5,7 @@ import java.nio.charset.{Charset, StandardCharsets}
 package object valuetypes extends ValuetypesCodecs {
 
   object Types {
+    type UByte = Int
     type ULong = Long
     type UInt = Long
     type UShort = Int

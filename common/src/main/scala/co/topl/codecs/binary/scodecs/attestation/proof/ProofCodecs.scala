@@ -1,10 +1,10 @@
 package co.topl.codecs.binary.scodecs.attestation.proof
 
 import co.topl.attestation._
-import co.topl.codecs.binary.scodecs.crypto.signatureCodec
-import co.topl.codecs.binary.scodecs.valuetypes.{byteCodec, listCodec}
 import scodec.codecs.discriminated
 import scodec.{Attempt, Codec, Err}
+import co.topl.codecs.binary.scodecs.valuetypes._
+import co.topl.codecs.binary.scodecs.crypto._
 
 trait ProofCodecs {
 

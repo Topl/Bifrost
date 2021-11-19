@@ -1,10 +1,6 @@
 package co.topl.codecs.json.modifier.block
 
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
-import co.topl.codecs.binary._
-import co.topl.codecs.json.crypto._
-import co.topl.codecs.json.modifier.box._
-import co.topl.codecs.json.modifier.transaction._
 import co.topl.codecs.json.{
   deriveDecoderFromScodec,
   deriveEncoderFromScodec,
@@ -21,6 +17,8 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider
 import io.circe._
 import io.circe.syntax._
+import co.topl.codecs.binary._
+import co.topl.codecs.json.crypto._
 
 trait BlockCodecs {
 

@@ -1,16 +1,16 @@
 package co.topl.codecs.binary.scodecs.modifier.block
 
+import co.topl.codecs.binary.scodecs.attestation._
+import co.topl.codecs.binary.scodecs.crypto._
+import co.topl.codecs.binary.scodecs.modifier.box._
+import co.topl.codecs.binary.scodecs.modifier.transaction._
+import co.topl.codecs.binary.scodecs.transformers._
+import co.topl.codecs.binary.scodecs.valuetypes._
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
 import co.topl.modifier.transaction.Transaction
-import co.topl.codecs.binary.scodecs.valuetypes._
-import co.topl.codecs.binary.scodecs.modifier.box._
-import co.topl.codecs.binary.scodecs.attestation._
-import co.topl.codecs.binary.scodecs.crypto._
-import co.topl.codecs.binary.scodecs.modifier.transaction.transactionCodec
 import scodec.Codec
 import shapeless.{::, HList, HNil}
-import co.topl.codecs.binary.scodecs.transformers._
 
 import scala.reflect.ClassTag
 

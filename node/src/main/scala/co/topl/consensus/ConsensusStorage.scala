@@ -1,5 +1,6 @@
 package co.topl.consensus
 
+import co.topl.codecs._
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.hash.digest.implicits._
@@ -10,7 +11,6 @@ import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType.PrivateTestnet
 import co.topl.utils.{Int128, Logging, NetworkType}
 import com.google.common.primitives.Longs
-import co.topl.codecs.binary._
 
 import java.io.File
 

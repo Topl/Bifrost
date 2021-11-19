@@ -5,7 +5,7 @@ import co.topl.utils.Gzip
 import co.topl.utils.StringDataTypes.Base58Data
 import io.circe.syntax._
 import io.circe.{Decoder, Json}
-import co.topl.codecs.binary._
+import co.topl.codecs._
 
 case class ExecutionBuilderTerms(terms: String) {
   /*  */

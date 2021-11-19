@@ -1,11 +1,11 @@
 package co.topl.codecs.binary.legacy.modifier
 
-import co.topl.modifier.NodeViewModifier
-import co.topl.modifier.block.{Block, BlockBody, BlockHeader}
-import co.topl.modifier.transaction.Transaction
 import co.topl.codecs.binary.legacy.modifier.block.{BlockBodySerializer, BlockHeaderSerializer, BlockSerializer}
 import co.topl.codecs.binary.legacy.modifier.transaction.TransactionSerializer
 import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
+import co.topl.modifier.NodeViewModifier
+import co.topl.modifier.block.{Block, BlockBody, BlockHeader}
+import co.topl.modifier.transaction.Transaction
 
 import scala.util.{Failure, Success}
 

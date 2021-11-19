@@ -1,5 +1,7 @@
 package co.topl.network.peer
 
+import co.topl.nodeCodecs.binary.legacy.network.peer.LocalAddressPeerFeatureSerializer
+
 import java.net.InetSocketAddress
 
 case class LocalAddressPeerFeature(address: InetSocketAddress) extends PeerFeature {

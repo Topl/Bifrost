@@ -1,10 +1,10 @@
 package co.topl.modifier.box
 
 import co.topl.attestation.Address
-import co.topl.modifier.box.AssetCode.AssetCodeVersion
-import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import co.topl.codecs.binary.legacy.modifier.box.AssetCodeSerializer
 import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
+import co.topl.modifier.box.AssetCode.AssetCodeVersion
+import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
 

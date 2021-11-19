@@ -1,16 +1,19 @@
 package co.topl.codecs.binary.legacy.modifier.block
 
-import co.topl.codecs.binary.legacy.attestation._
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.codecs.binary.legacy.attestation.{
+  PublicKeyPropositionCurve25519Serializer,
+  SignatureCurve25519Serializer
+}
+import co.topl.codecs.binary.legacy.modifier.ModifierIdSerializer
+import co.topl.codecs.binary.legacy.modifier.box.ArbitBoxSerializer
+import co.topl.codecs.binary.legacy.modifier.transaction.TransactionSerializer
+import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.transaction.Transaction
 import co.topl.utils.Extensions.LongOps
-import co.topl.codecs.binary.legacy.modifier.ModifierIdSerializer
-import co.topl.codecs.binary.legacy.modifier.box.ArbitBoxSerializer
-import co.topl.codecs.binary.legacy.modifier.transaction.TransactionSerializer
-import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
 
 object BlockSerializer extends BifrostSerializer[Block] {
 

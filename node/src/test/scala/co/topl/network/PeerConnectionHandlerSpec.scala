@@ -4,8 +4,8 @@ import akka.actor._
 import akka.actor.typed.scaladsl.adapter._
 import akka.io.{IO, Tcp}
 import akka.testkit.TestKit
-import co.topl.network.message.MessageSerializer
 import co.topl.network.utils.NetworkTimeProvider
+import co.topl.nodeCodecs.binary.legacy.network.message.TransmissionSerializer
 import co.topl.utils.{NodeGenerators, TimeProvider}
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.propspec.AnyPropSpecLike
@@ -22,7 +22,7 @@ class PeerConnectionHandlerSpec
 
   property("MessageSerializer should initialize correctly with specified message codes") {
 
-    new MessageSerializer(appContext.messageSpecs, settings.network.magicBytes)
+    new TransmissionSerializer(settings.network.magicBytes)
   }
 
   property("A new PeerConnectionHandler should be created") {

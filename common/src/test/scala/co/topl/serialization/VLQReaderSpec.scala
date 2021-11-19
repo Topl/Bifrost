@@ -1,7 +1,7 @@
 package co.topl.serialization
 
-import co.topl.utils.CommonGenerators
 import co.topl.codecs.binary.legacy.{Reader, VLQReader}
+import co.topl.utils.CommonGenerators
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks

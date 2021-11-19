@@ -1,8 +1,8 @@
 package co.topl.codecs.binary.show
 
 import co.topl.attestation.AddressCodec.implicits._
-import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519}
 import co.topl.attestation._
+import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519}
 import co.topl.codecs.binary.scodecs._
 import co.topl.codecs.binary.typeclasses.BinaryShow
 import co.topl.crypto.PublicKey
@@ -10,7 +10,7 @@ import co.topl.crypto.hash.digest.implicits._
 import co.topl.crypto.hash.digest.{Digest, Digest32}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.BloomFilter
-import co.topl.modifier.box.{AssetCode, Box, BoxId, ProgramId, SecurityRoot}
+import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction
 import co.topl.utils.IdiomaticScalaTransition.implicits.toAttemptOps
 import co.topl.utils.SizedBytes

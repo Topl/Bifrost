@@ -8,10 +8,10 @@ import co.topl.attestation.{
 }
 import co.topl.crypto.signatures.{Curve25519, Ed25519}
 import co.topl.utils.Extensions.LongOps
-import co.topl.codecs.binary.scodecs.crypto.publicKeyCodec
-import co.topl.codecs.binary.scodecs.valuetypes.{byteCodec, listCodec, uIntCodec}
 import scodec.Codec
 import scodec.codecs.discriminated
+import co.topl.codecs.binary.scodecs.crypto._
+import co.topl.codecs.binary.scodecs.valuetypes._
 import co.topl.codecs.binary.scodecs.transformers._
 
 import scala.collection.SortedSet

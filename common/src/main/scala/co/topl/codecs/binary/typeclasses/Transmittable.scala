@@ -2,7 +2,7 @@ package co.topl.codecs.binary.typeclasses
 
 import cats.implicits._
 import co.topl.utils.IdiomaticScalaTransition.implicits._
-import co.topl.utils.StringDataTypes.{Base16Data, Base58Data}
+import co.topl.utils.StringDataTypes.Base58Data
 import scodec.Codec
 import scodec.bits.BitVector
 import simulacrum.typeclass
@@ -39,20 +39,6 @@ import scala.language.implicitConversions
    * @return if successful, a value of type `T` represented by the transmitted bytes, otherwise a failure message
    */
   def fromTransmittableBytes(bytes: Array[Byte]): Either[String, T]
-
-  /**
-   * Encodes a value into a base-58 encoding of the bytes data to transmit to another blockchain node.
-   * @param value the value to encode into a transmittable Base-58 data representation
-   * @return the encoded base-58 data representing the value
-   */
-  def transmittableBase58(value: T): Base58Data = Base58Data.fromData(transmittableBytes(value))
-
-  /**
-   * Encodes a value into a base-16 encoding of the bytes data to transmit to another blockchain node.
-   * @param value the value to encode into a transmittable Base-16 data representation
-   * @return the encoded base-16 data representing the value
-   */
-  def transmittableBase16(value: T): Base16Data = Base16Data.fromData(transmittableBytes(value))
 }
 
 object Transmittable {

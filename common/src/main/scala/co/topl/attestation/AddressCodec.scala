@@ -3,13 +3,12 @@ package co.topl.attestation
 import cats.Semigroup
 import cats.data.{Validated, ValidatedNec}
 import cats.implicits._
+import co.topl.codecs.binary.typeclasses.BinaryShow
 import co.topl.crypto.hash.blake2b256
 import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.codecs.binary._
-import co.topl.codecs.binary.legacy.attestation.AddressSerializer
-import co.topl.codecs.binary.typeclasses.BinaryShow
 import co.topl.crypto.implicits._
+import co.topl.codecs.binary._
 
 import scala.language.implicitConversions
 

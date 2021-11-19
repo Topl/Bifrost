@@ -1,6 +1,6 @@
 package co.topl.codecs.binary.scodecs.valuetypes
 
-import co.topl.codecs.binary.scodecs.valuetypes.Types._
+import co.topl.codecs.binary.scodecs.valuetypes.Types.ByteString
 import co.topl.utils.encode.Base16
 import org.scalacheck.Gen
 

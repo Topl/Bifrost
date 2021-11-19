@@ -1,8 +1,8 @@
 package co.topl.codecs.binary.legacy.attestation
 
 import co.topl.attestation.{Address, Evidence}
-import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
+import co.topl.utils.NetworkType.NetworkPrefix
 
 object AddressSerializer extends BifrostSerializer[Address] {
 

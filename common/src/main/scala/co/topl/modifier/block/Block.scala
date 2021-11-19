@@ -10,7 +10,6 @@ import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider
-import co.topl.codecs.binary._
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
 

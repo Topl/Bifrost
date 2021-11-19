@@ -1,4 +1,4 @@
-package co.topl.network.message
+package co.topl.network
 
 import co.topl.nodeView.history.GenericHistory
 

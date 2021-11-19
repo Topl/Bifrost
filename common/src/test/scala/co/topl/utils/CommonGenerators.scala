@@ -3,6 +3,7 @@ package co.topl.utils
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
 import co.topl.attestation.keyManagement._
+import co.topl.codecs.binary.legacy.modifier.ModifierIdSerializer
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.signatures.{Curve25519, Ed25519, Signature}
 import co.topl.modifier.ModifierId
@@ -12,7 +13,6 @@ import co.topl.modifier.box.Box.Nonce
 import co.topl.modifier.box._
 import co.topl.modifier.transaction._
 import co.topl.utils.StringDataTypes.Latin1Data
-import co.topl.codecs.binary.legacy.modifier.ModifierIdSerializer
 import io.circe.Json
 import io.circe.syntax._
 import org.scalacheck.rng.Seed

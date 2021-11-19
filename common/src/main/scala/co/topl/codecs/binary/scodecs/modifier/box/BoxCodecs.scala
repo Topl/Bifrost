@@ -1,12 +1,12 @@
 package co.topl.codecs.binary.scodecs.modifier.box
 
+import co.topl.codecs.binary.scodecs.attestation._
+import co.topl.codecs.binary.scodecs.crypto._
+import co.topl.codecs.binary.scodecs.valuetypes._
 import co.topl.modifier.box._
 import co.topl.utils.StringDataTypes.Latin1Data
-import co.topl.codecs.binary.scodecs.attestation._
-import co.topl.codecs.binary.scodecs.valuetypes._
 import scodec.Codec
 import scodec.codecs.discriminated
-import co.topl.codecs.binary.scodecs.crypto._
 
 trait BoxCodecs {
   implicit val securityRootCodec: Codec[SecurityRoot] = bytesCodec(SecurityRoot.size).as[SecurityRoot]

@@ -2,21 +2,21 @@ package co.topl.serialization
 
 import co.topl.attestation._
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519}
+import co.topl.codecs._
+import co.topl.codecs.binary.legacy.attestation.keyManagement._
+import co.topl.codecs.binary.legacy.attestation._
+import co.topl.codecs.binary.legacy.modifier.block._
+import co.topl.codecs.binary.legacy.modifier.box.{BoxSerializer, SecurityRootSerializer, TokenValueHolderSerializer}
+import co.topl.codecs.binary.legacy.modifier.transaction.TransactionSerializer
+import co.topl.codecs.binary.typeclasses.Persistable
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.box._
 import co.topl.modifier.transaction._
 import co.topl.utils.CommonGenerators
-import co.topl.codecs.binary.legacy.attestation.keyManagement._
-import co.topl.codecs.binary.legacy.attestation._
-import co.topl.codecs.binary.legacy.modifier.block._
-import co.topl.codecs.binary.legacy.modifier.box._
-import co.topl.codecs.binary.legacy.modifier.transaction.TransactionSerializer
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import co.topl.codecs._
-import co.topl.codecs.binary.typeclasses.Persistable
 
 import scala.util.{Failure, Success}
 

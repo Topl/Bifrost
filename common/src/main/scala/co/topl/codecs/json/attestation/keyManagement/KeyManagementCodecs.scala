@@ -2,12 +2,12 @@ package co.topl.codecs.json.attestation.keyManagement
 
 import co.topl.attestation.Address
 import co.topl.attestation.keyManagement.{Keyfile, KeyfileCurve25519, KeyfileEd25519}
+import co.topl.codecs.binary._
+import co.topl.codecs.json.valuetypes._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
-import co.topl.codecs.binary._
-import co.topl.codecs.json.valuetypes._
 
 trait KeyManagementCodecs {
 

@@ -1,5 +1,6 @@
 package co.topl.network
 
+import cats.implicits._
 import akka.actor.SupervisorStrategy._
 import akka.actor._
 import akka.io.Tcp
@@ -8,11 +9,12 @@ import akka.util.Timeout
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.{DisconnectedPeer, HandshakedPeer}
 import co.topl.network.PeerConnectionHandler.ReceivableMessages.CloseConnection
 import co.topl.network.PeerManager.ReceivableMessages._
-import co.topl.network.message.Message
+import co.topl.network.message.{Message, MessageCode, Transmission}
 import co.topl.network.peer._
 import co.topl.settings.{AppContext, AppSettings, Version}
 import co.topl.utils.TimeProvider.Time
 import co.topl.utils.{Logging, NetworkUtils, TimeProvider}
+import co.topl.codecs._
 
 import java.net._
 import scala.concurrent.duration._
@@ -59,7 +61,7 @@ class NetworkController(
         Restart
     }
 
-  private var messageHandlers = Map.empty[message.Message.MessageCode, ActorRef]
+  private var messageHandlers = Map.empty[MessageCode, ActorRef]
   private var connections = Map.empty[InetSocketAddress, ConnectedPeer]
   private var unconfirmedConnections = Set.empty[InetSocketAddress]
 
@@ -104,14 +106,14 @@ class NetworkController(
     becomeOperational()
   }
 
-  private def registerMessageSpecs: Receive = { case RegisterMessageSpecs(specs, handler) =>
+  private def registerMessageSpecs: Receive = { case RegisterMessages(specs, handler) =>
     log.info(
       s"${Console.YELLOW}Registered ${sender()} as the handler for " +
-      s"${specs.map(s => s.messageCode -> s.messageName)}${Console.RESET}"
+      s"$specs${Console.RESET}"
     )
 
     /** add the message code and its corresponding handler actorRef to the map */
-    messageHandlers ++= specs.map(_.messageCode -> handler)
+    messageHandlers ++= specs.map(_ -> handler)
 
   }
 
@@ -124,19 +126,23 @@ class NetworkController(
 
   private def businessLogic: Receive = {
     /** a message was RECEIVED from a remote peer */
-    case msg @ Message(spec, _, Some(remote)) =>
+    case TransmissionReceived(transmission, Some(peer)) =>
       /** update last seen time for the peer sending us this message */
-      updatePeerStatus(remote)
-      messageHandlers.get(spec.messageCode) match {
-        /** forward the message to the appropriate handler for processing */
-        case Some(handler) => handler ! msg
-        case None          => log.error(s"No handlers found for message $remote: " + spec.messageCode)
+      updatePeerStatus(peer)
+
+      Either
+        .fromOption(
+          messageHandlers.get(transmission.header.code),
+          s"No handlers found for message $peer: ${transmission.header.code}"
+        ) match {
+        case Right(handler) => handler ! transmission
+        case Left(error)    => log.error(error)
       }
 
     /** a message to be SENT to a remote peer */
-    case SendToNetwork(msg: Message[_], sendingStrategy) =>
-      filterConnections(sendingStrategy, msg.spec.version).foreach { connectedPeer =>
-        connectedPeer.handlerRef ! msg
+    case SendToNetwork(transmission, messageVersion, sendingStrategy) =>
+      filterConnections(sendingStrategy, messageVersion).foreach { connectedPeer =>
+        connectedPeer.handlerRef ! transmission
       }
   }
 
@@ -572,9 +578,9 @@ object NetworkController {
 
     case class Handshaked(peer: PeerInfo)
 
-    case class RegisterMessageSpecs(specs: Seq[message.MessageSpec[_]], handler: ActorRef)
+    case class RegisterMessages(specs: Seq[MessageCode], handler: ActorRef)
 
-    case class SendToNetwork(message: Message[_], sendingStrategy: SendingStrategy)
+    case class SendToNetwork(transmission: Transmission, messageVersion: Version, sendingStrategy: SendingStrategy)
 
     case class ConnectTo(peer: PeerInfo)
 
@@ -591,6 +597,8 @@ object NetworkController {
     case object GetConnectedPeers
 
     case object BindP2P
+
+    case class TransmissionReceived(transmission: Transmission, connectedPeer: Option[ConnectedPeer])
   }
 }
 
