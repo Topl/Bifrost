@@ -5,6 +5,7 @@ import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, InvalidParametersError, RpcError, ThrowableData}
 import co.topl.attestation.Address
+import co.topl.consensus.ForgerInterface
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
@@ -12,7 +13,7 @@ import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView}
-import co.topl.rpc.ToplRpc
+import co.topl.rpc.{ToplRpc, ToplRpcErrors}
 import co.topl.settings.AppContext
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
@@ -22,7 +23,8 @@ import scala.language.existentials
 
 class NodeViewRpcHandlerImpls(
   appContext:              AppContext,
-  nodeViewHolderInterface: NodeViewHolderInterface
+  nodeViewHolderInterface: NodeViewHolderInterface,
+  forgerInterface:         ForgerInterface
 )(implicit
   system:           ActorSystem[_],
   throwableEncoder: Encoder[ThrowableData],
@@ -106,6 +108,13 @@ class NodeViewRpcHandlerImpls(
           appContext.settings.application.version.toString
         )
       )
+
+  override val nodeStatus: ToplRpc.NodeView.NodeStatus.rpc.ServerHandler =
+    _ =>
+      forgerInterface
+        .checkForgerStatus()
+        .leftMap(e => ToplRpcErrors.genericFailure(e.toString): RpcError)
+        .map(res => ToplRpc.NodeView.NodeStatus.Response(res.forgingStatus))
 
   private def balancesResponse(
     state:     StateReader[_, Address],
