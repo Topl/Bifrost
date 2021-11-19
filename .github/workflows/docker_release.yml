@@ -29,4 +29,4 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push images to registries
-        run: sbt docker:publish
+        run: sbt node/docker:publish
