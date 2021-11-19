@@ -4,7 +4,7 @@ on:
     types: [released]
 
 jobs:
-  push_to_registry:
+  maven_release:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

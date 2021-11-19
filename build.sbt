@@ -82,7 +82,7 @@ lazy val dockerSettings = Seq(
   ),
   dockerAliases := dockerAliases.value.flatMap { alias => Seq(
     alias.withRegistryHost(Some("docker.io/toplprotocol")),
-    alias.withRegistryHost(Some("ghcr.io/topl"))
+    alias.withRegistryHost(Some("ghcr.io/tuxman"))
   )
 
   },

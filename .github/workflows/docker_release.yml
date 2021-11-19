@@ -4,7 +4,7 @@ on:
     tags: ["*"]
 
 jobs:
-  publish:
+  docker_release:
     runs-on: ubuntu-latest
     permissions:
       contents: read
