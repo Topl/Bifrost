@@ -16,7 +16,7 @@ import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckP
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
-import java.util.Comparator
+import java.util.{Comparator, UUID}
 
 class DiskCredentialIOSpec
     extends AnyFlatSpec
@@ -59,10 +59,10 @@ class DiskCredentialIOSpec
           val underTest = DiskCredentialIO[F](basePath)
 
           underTest
-            .write("test1Creds", evidence, KeyFile.Metadata.Curve25519, secretData.data, password)
+            .write(evidence, KeyFile.Metadata.Curve25519, secretData.data, password)
             .unsafeRunSync()
 
-          val expectedKeyfilePath = Paths.get(basePath.toString, "test1Creds", evidence.data.toBase58 + ".json")
+          val expectedKeyfilePath = Paths.get(basePath.toString, evidence.data.toBase58 + ".json")
 
           Files.exists(expectedKeyfilePath) shouldBe true
 
@@ -96,7 +96,7 @@ class DiskCredentialIOSpec
             password
           )
 
-          val keyFilePath = Paths.get(basePath.toString, "test2Creds", evidence.data.toBase58 + ".json")
+          val keyFilePath = Paths.get(basePath.toString, evidence.data.toBase58 + ".json")
 
           Files.createDirectories(keyFilePath.getParent)
 
@@ -105,7 +105,7 @@ class DiskCredentialIOSpec
             keyFile.asJson.toString.getBytes(StandardCharsets.ISO_8859_1)
           )
 
-          val (secretBytes, _) = underTest.unlock("test2Creds", evidence, password).unsafeRunSync().value
+          val (secretBytes, _) = underTest.unlock(evidence, password).unsafeRunSync().value
 
           secretBytes shouldBe secretData.data
         }
@@ -130,7 +130,7 @@ class DiskCredentialIOSpec
             password
           )
 
-          val keyFilePath = Paths.get(basePath.toString, "test3Creds", evidence.data.toBase58 + ".json")
+          val keyFilePath = Paths.get(basePath.toString, evidence.data.toBase58 + ".json")
 
           Files.createDirectories(keyFilePath.getParent)
 
@@ -141,19 +141,19 @@ class DiskCredentialIOSpec
 
           Files.exists(keyFilePath) shouldBe true
 
-          underTest.delete("test3Creds", evidence).unsafeRunSync()
+          underTest.delete(evidence).unsafeRunSync()
 
           Files.exists(keyFilePath) shouldBe false
         }
     }
   }
 
-  it should "list available credential set names" in {
+  it should "list address in a credential set" in {
     forAll(Gen.alphaNumStr, sizedBytesArbitrary[Lengths.`32`.type].arbitrary) { (keyFileData, evidence) =>
-      val basePath = Paths.get(testDirectory.toString, "test4")
+      val basePath = Paths.get(testDirectory.toString, "test4" + UUID.randomUUID().toString)
       val underTest = DiskCredentialIO[F](basePath)
 
-      val keyFilePath = Paths.get(basePath.toString, "test4Creds", evidence.data.toBase58 + ".json")
+      val keyFilePath = Paths.get(basePath.toString, evidence.data.toBase58 + ".json")
 
       Files.createDirectories(keyFilePath.getParent)
 
@@ -162,29 +162,7 @@ class DiskCredentialIOSpec
         keyFileData.getBytes(StandardCharsets.UTF_8)
       )
 
-      underTest.listCollectionNames.unsafeRunSync() shouldBe Set("test4Creds")
-    }
-  }
-
-  it should "list address in a credential set" in {
-    forAll(Gen.alphaNumStr, Gen.alphaNumStr, sizedBytesArbitrary[Lengths.`32`.type].arbitrary) {
-      (credentialSetName, keyFileData, evidence) =>
-        whenever(credentialSetName.nonEmpty) {
-
-          val basePath = Paths.get(testDirectory.toString, "test5")
-          val underTest = DiskCredentialIO[F](basePath)
-
-          val keyFilePath = Paths.get(basePath.toString, credentialSetName, evidence.data.toBase58 + ".json")
-
-          Files.createDirectories(keyFilePath.getParent)
-
-          Files.write(
-            keyFilePath,
-            keyFileData.getBytes(StandardCharsets.UTF_8)
-          )
-
-          underTest.listEvidence(credentialSetName).unsafeRunSync() shouldBe Set(evidence)
-        }
+      underTest.listEvidence.unsafeRunSync() shouldBe Set(evidence)
     }
   }
 

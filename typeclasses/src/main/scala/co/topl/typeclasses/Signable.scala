@@ -2,7 +2,7 @@ package co.topl.typeclasses
 
 import co.topl.codecs.bytes.BasicCodecs._
 import co.topl.codecs.bytes.ByteCodec.implicits._
-import co.topl.models.{BlockHeaderV2, Bytes, UnprovenTransaction, UnprovenTransactions, VerificationKeys}
+import co.topl.models.{BlockHeaderV2, Bytes, Transaction, Transactions, VerificationKeys}
 import simulacrum.{op, typeclass}
 
 @typeclass trait Signable[T] {
@@ -56,10 +56,10 @@ object Signable {
     implicit val vkVrfSignable: Signable[VerificationKeys.VrfEd25519] =
       _.bytes.data
 
-    implicit val unprovenTransactionSignable: Signable[UnprovenTransaction] = {
-      case t: UnprovenTransactions.Poly  => ???
-      case t: UnprovenTransactions.Arbit => ???
-      case t: UnprovenTransactions.Asset => ???
+    implicit val transactionSignable: Signable[Transaction] = {
+      case t: Transactions.Poly  => ???
+      case t: Transactions.Arbit => ???
+      case t: Transactions.Asset => ???
     }
   }
   object instances extends Instances

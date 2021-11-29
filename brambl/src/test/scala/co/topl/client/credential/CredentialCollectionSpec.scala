@@ -3,6 +3,7 @@ package co.topl.client.credential
 import cats.Applicative
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits._
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.mnemonic.Bip32Indexes.Bip32IndexesSupport
 import co.topl.crypto.mnemonic.Entropy
@@ -11,18 +12,22 @@ import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.Sized
 import co.topl.typeclasses.implicits._
-import org.scalacheck.Arbitrary
+import com.google.common.primitives.Longs
+import org.scalacheck.{Arbitrary, Gen}
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.{BeforeAndAfterAll, OptionValues}
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+
+import java.nio.charset.StandardCharsets
 
 class CredentialCollectionSpec
     extends AnyFlatSpec
     with BeforeAndAfterAll
     with MockFactory
     with Matchers
+    with OptionValues
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks {
 
@@ -31,56 +36,151 @@ class CredentialCollectionSpec
 
   type F[A] = IO[A]
 
+  behavior of "HierarchicalCredentialCollection"
+
+  it should "ignore malformed data" in {
+    forAll { (bytes: Bytes, sk: SecretKeys.ExtendedEd25519, password: Password) =>
+      whenever(bytes.length != 128L) {
+        implicit val credentialIO: CredentialIO[F] = mock[CredentialIO[F]]
+
+        val evidence = sk.dionAddress.typedEvidence.evidence
+
+        (credentialIO.unlock _)
+          .expects(evidence, password)
+          .once()
+          .returning(
+            (bytes, KeyFile.Metadata(evidence, KeyFile.Metadata.ExtendedEd25519)).some
+              .pure[F]
+          )
+
+        HierarchicalCredentialCollection.load[F](evidence, password).unsafeRunSync() shouldBe None
+      }
+    }
+  }
+
+  it should "ignore non-Topl hierarchies" in {
+    forAll { (sk: SecretKeys.ExtendedEd25519, password: Password) =>
+      implicit val credentialIO: CredentialIO[F] = mock[CredentialIO[F]]
+
+      val evidence = sk.dionAddress.typedEvidence.evidence
+
+      val bytes = sk.leftKey.data ++ sk.rightKey.data ++ sk.chainCode.data ++
+        Bytes(Longs.toByteArray(50L)) ++
+        Bytes(Longs.toByteArray(50L)) ++
+        Bytes(Longs.toByteArray(50L)) ++
+        Bytes(Longs.toByteArray(50L))
+
+      (credentialIO.unlock _)
+        .expects(evidence, password)
+        .once()
+        .returning(
+          (bytes, KeyFile.Metadata(evidence, KeyFile.Metadata.ExtendedEd25519)).some
+            .pure[F]
+        )
+
+      HierarchicalCredentialCollection.load[F](evidence, password).unsafeRunSync() shouldBe None
+    }
+  }
+
+  it should "load a ToplCredentialTree from CredentialIO" in {
+
+    forAll { (sk: SecretKeys.ExtendedEd25519, password: Password) =>
+      implicit val credentialIO: CredentialIO[F] = mock[CredentialIO[F]]
+
+      val evidence = sk.dionAddress.typedEvidence.evidence
+
+      val bytes = sk.leftKey.data ++ sk.rightKey.data ++ sk.chainCode.data ++
+        Bytes(Longs.toByteArray(1852L)) ++
+        Bytes(Longs.toByteArray(7091L)) ++
+        Bytes(Longs.toByteArray(-1L)) ++
+        Bytes(Longs.toByteArray(-1L))
+
+      (credentialIO.unlock _)
+        .expects(evidence, password)
+        .once()
+        .returning(
+          (bytes, KeyFile.Metadata(evidence, KeyFile.Metadata.ExtendedEd25519)).some
+            .pure[F]
+        )
+
+      val tree =
+        HierarchicalCredentialCollection.load[F](evidence, password).unsafeRunSync().value
+
+      tree shouldBe a[ToplCredentialTree]
+    }
+  }
+
+  it should "load an AccountCredentialTree from CredentialIO" in {
+
+    forAll { (sk: SecretKeys.ExtendedEd25519, password: Password) =>
+      implicit val credentialIO: CredentialIO[F] = mock[CredentialIO[F]]
+
+      val evidence = sk.dionAddress.typedEvidence.evidence
+
+      val bytes = sk.leftKey.data ++ sk.rightKey.data ++ sk.chainCode.data ++
+        Bytes(Longs.toByteArray(1852L)) ++
+        Bytes(Longs.toByteArray(7091L)) ++
+        Bytes(Longs.toByteArray(50L)) ++
+        Bytes(Longs.toByteArray(-1L))
+
+      (credentialIO.unlock _)
+        .expects(evidence, password)
+        .once()
+        .returning(
+          (bytes, KeyFile.Metadata(evidence, KeyFile.Metadata.ExtendedEd25519)).some
+            .pure[F]
+        )
+
+      val tree =
+        HierarchicalCredentialCollection.load[F](evidence, password).unsafeRunSync().value
+
+      tree shouldBe a[AccountCredentialTree]
+    }
+  }
+
   behavior of "ToplCredentialTree"
 
   it should "initialize from a SK" in {
-    forAll { (sk: SecretKeys.ExtendedEd25519, password: Password, credentialSetName: String) =>
-      whenever(credentialSetName.nonEmpty) {
-        implicit val credentialIO: CredentialIO[F] = mock[CredentialIO[F]]
+    forAll { (sk: SecretKeys.ExtendedEd25519, password: Password) =>
+      implicit val credentialIO: CredentialIO[F] = mock[CredentialIO[F]]
 
-        (credentialIO.write _)
-          .expects(credentialSetName, sk.dionAddress.typedEvidence.evidence, *, *, password)
-          .once()
-          .returning(Applicative[F].unit)
+      (credentialIO.write _)
+        .expects(sk.dionAddress.typedEvidence.evidence, *, *, password)
+        .once()
+        .returning(Applicative[F].unit)
 
-        val tree =
-          ToplCredentialTree.create[F](credentialSetName, sk, password).unsafeRunSync()
+      val tree =
+        ToplCredentialTree.persisted[F](sk, password).unsafeRunSync()
 
-        tree.name shouldBe credentialSetName
+      val account =
+        tree / 0L.hardened
 
-        val account =
-          tree / 0L.hardened
-
-        account.name shouldBe credentialSetName
-        account.accountSK === sk shouldBe false
-      }
+      account.accountSK === sk shouldBe false
     }
   }
 
   behavior of "AccountCredentialTree"
 
   it should "initialize from a SK" in {
-    forAll { (sk: SecretKeys.ExtendedEd25519, password: Password, credentialSetName: String) =>
-      whenever(credentialSetName.nonEmpty) {
-        implicit val credentialIO: CredentialIO[F] = mock[CredentialIO[F]]
+    forAll { (sk: SecretKeys.ExtendedEd25519, password: Password) =>
+      implicit val credentialIO: CredentialIO[F] = mock[CredentialIO[F]]
 
-        (credentialIO.write _)
-          .expects(credentialSetName, sk.dionAddress.typedEvidence.evidence, *, *, password)
-          .once()
-          .returning(Applicative[F].unit)
+      (credentialIO.write _)
+        .expects(sk.dionAddress.typedEvidence.evidence, *, *, password)
+        .once()
+        .returning(Applicative[F].unit)
 
-        val account =
-          AccountCredentialTree.create[F](credentialSetName, sk, 0L, password).unsafeRunSync()
+      val account =
+        AccountCredentialTree(sk, 0L)
 
-        account.name shouldBe credentialSetName
+      account.persist[F](password).unsafeRunSync()
 
-        val role =
-          account.role(0L.soft)
+      val role =
+        account.role(0L.soft)
 
-        role.roleSK === sk shouldBe false
+      role.roleSK === sk shouldBe false
 
-        role.credential(0L.soft)
-      }
+      role.credential(0L.soft)
     }
   }
 
@@ -89,9 +189,8 @@ class CredentialCollectionSpec
   it should "initialize an empty set" in {
     forAll { credentialSetName: String =>
       whenever(credentialSetName.nonEmpty) {
-        val set = CredentialSet[Proposition](credentialSetName)
+        val set = CredentialSet.empty[Proposition]
 
-        set.name shouldBe credentialSetName
         set.credentials should be(empty)
       }
     }
@@ -99,35 +198,37 @@ class CredentialCollectionSpec
 
   it should "add and remove credentials" in {
 
-    forAll { (sk: SecretKeys.Ed25519, password: Password, credentialSetName: String) =>
-      whenever(credentialSetName.nonEmpty) {
-        val set = CredentialSet[Propositions.Knowledge.Ed25519](credentialSetName)
-        val credential = Credential(sk)
+    forAll { (sk: SecretKeys.Ed25519, password: Password) =>
+      val set = CredentialSet.empty[Propositions.Knowledge.Ed25519]
+      val credential = Credential(sk)
 
-        implicit val credentialIO: CredentialIO[F] = mock[CredentialIO[F]]
+      implicit val credentialIO: CredentialIO[F] = mock[CredentialIO[F]]
 
-        (credentialIO.write _)
-          .expects(credentialSetName, sk.dionAddress.typedEvidence.evidence, *, *, password)
-          .once()
-          .returning(Applicative[F].unit)
+      (credentialIO.write _)
+        .expects(sk.dionAddress.typedEvidence.evidence, *, *, password)
+        .once()
+        .returning(Applicative[F].unit)
 
-        val credentialBytes =
-          sk.bytes.data ++ sk.verificationKey[VerificationKeys.Ed25519].bytes.data
+      val credentialBytes =
+        sk.bytes.data ++ sk.verificationKey[VerificationKeys.Ed25519].bytes.data
 
-        val address =
-          credential.address
+      val address =
+        credential.address
 
-        val newSet =
-          set.persistAndInclude[F](credential, credentialBytes, KeyFile.Metadata.Ed25519, password).unsafeRunSync()
+      val newSet =
+        set.withPersistentCredential[F](credential, credentialBytes, KeyFile.Metadata.Ed25519, password).unsafeRunSync()
 
-        newSet.credentials.values.exists(_.address === address) shouldBe true
-
-      }
+      newSet.credentials.values.exists(_.address === address) shouldBe true
     }
   }
 }
 
 object CredentialCollectionSpec {
+
+  implicit val arbitraryBytes: Arbitrary[Bytes] =
+    Arbitrary(
+      Gen.alphaNumStr.map(_.getBytes(StandardCharsets.UTF_8)).map(Bytes(_))
+    )
 
   implicit val arbitraryExtendedEd25519: Arbitrary[SecretKeys.ExtendedEd25519] =
     Arbitrary(

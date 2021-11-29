@@ -9,7 +9,7 @@ import co.topl.typeclasses.implicits._
  */
 trait Credential[Prop <: Proposition] {
   def proposition: Prop
-  def prove(unsigned: UnprovenTransaction): Transaction
+  def prove(partiallyProven: Transaction): Transaction
   def address: DionAddress
 }
 
@@ -29,17 +29,17 @@ object Credential {
 
       val address: DionAddress = dionAddressable.dionAddressOf(t)
 
-      def prove(unsigned: UnprovenTransaction): Transaction = {
-        val attestation: Attestation = Attestation(
-          proposition -> prover.proveWith(t, unsigned)
-        )
-        unsigned match {
-          case UnprovenTransactions.Poly(input, feeOutput, coinOutputs, fee, timestamp, data, minting) =>
-            Transactions.Poly(input, feeOutput, coinOutputs, attestation, fee, timestamp, data, minting)
-          case UnprovenTransactions.Arbit(input, feeOutput, coinOutputs, fee, timestamp, data, minting) =>
-            Transactions.Arbit(input, feeOutput, coinOutputs, attestation, fee, timestamp, data, minting)
-          case UnprovenTransactions.Asset(input, feeOutput, coinOutputs, fee, timestamp, data, minting) =>
-            Transactions.Asset(input, feeOutput, coinOutputs, attestation, fee, timestamp, data, minting)
+      def prove(partiallyProven: Transaction): Transaction = {
+        val partialAttestation =
+          proposition -> prover.proveWith(t, partiallyProven: Transaction)
+
+        partiallyProven match {
+          case tx: Transactions.Poly =>
+            tx.copy(attestation = tx.attestation + partialAttestation)
+          case tx: Transactions.Arbit =>
+            tx.copy(attestation = tx.attestation + partialAttestation)
+          case tx: Transactions.Asset =>
+            tx.copy(attestation = tx.attestation + partialAttestation)
         }
       }
     }
