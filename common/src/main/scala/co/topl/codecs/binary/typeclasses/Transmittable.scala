@@ -71,23 +71,7 @@ object Transmittable {
     def decodeTransmitted[T: Transmittable]: Either[String, T] = Transmittable[T].fromTransmittableBytes(value)
   }
 
-  /**
-   * Extension operations for working with transmitted byte data encoded in Base-58.
-   * @param value the transmitted Base-58 encoded data to operate on
-   */
-  class Base58TransmittableOps(val value: Base58Data) extends AnyVal {
-
-    /**
-     * Attempts to decode base-58 encoded data transmitted from another blockchain node into a value of type `T`.
-     * @tparam T the type of value to try and decode the base-58 encoded to.
-     * @return if successful, the value which the transmitted base-58 data represents, otherwise a failure message
-     */
-    def decodeTransmitted[T: Transmittable]: Either[String, T] = Transmittable[T].fromTransmittableBytes(value.value)
-  }
-
   trait ToExtensionOps {
     implicit def toTransmittableBytesOps(value: Array[Byte]): BytesTransmittableOps = new BytesTransmittableOps(value)
-
-    implicit def toTransmittableBase58Ops(value: Base58Data): Base58TransmittableOps = new Base58TransmittableOps(value)
   }
 }

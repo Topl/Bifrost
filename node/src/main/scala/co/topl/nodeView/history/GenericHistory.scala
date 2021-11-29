@@ -64,7 +64,7 @@ trait GenericHistory[
   def modifierById(modifierId: String): Option[PM] =
     Base58Data
       .validated(modifierId)
-      .andThen(_.decodeTransmitted[ModifierId].toValidatedNec)
+      .andThen(_.value.decodeTransmitted[ModifierId].toValidatedNec)
       .toOption
       .flatMap(modifierById)
 

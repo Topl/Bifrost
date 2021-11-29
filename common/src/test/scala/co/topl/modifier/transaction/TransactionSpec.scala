@@ -155,5 +155,5 @@ class TransactionSpec
     Base58Data.unsafe(addressString).decodeAddress.getOrThrow()
 
   def asModifierId(modifierIdString: String): ModifierId =
-    Base58Data.unsafe(modifierIdString).decodeTransmitted[ModifierId].getOrThrow()
+    Base58Data.unsafe(modifierIdString).encodeAsBytes.decodeTransmitted[ModifierId].getOrThrow()
 }
