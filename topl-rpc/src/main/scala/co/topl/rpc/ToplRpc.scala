@@ -8,6 +8,7 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.box.AssetCode.AssetCodeVersion
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TX
+import co.topl.modifier.transaction.builder.BoxSelectionAlgorithm
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer}
 import co.topl.utils.Int128
 import co.topl.utils.StringDataTypes.Latin1Data
@@ -291,16 +292,19 @@ object ToplRpc {
        * @param consolidationAddress Address for recipient of unspent Assets
        * @param minting If this is a minting AssetTransfer or not
        * @param data Data string which can be associated with this transaction(may be empty)
+       * @param boxSelectionAlgorithm Algorithm for selecting which boxes should be included in the Asset Transfer.
+       *                              The default value is `All`.
        */
       case class Params(
-        propositionType:      String,
-        sender:               NonEmptyChain[Address],
-        recipients:           NonEmptyChain[(Address, AssetValue)],
-        fee:                  Int128,
-        changeAddress:        Address,
-        consolidationAddress: Address,
-        minting:              Boolean,
-        data:                 Option[Latin1Data]
+        propositionType:       String,
+        sender:                NonEmptyChain[Address],
+        recipients:            NonEmptyChain[(Address, AssetValue)],
+        fee:                   Int128,
+        changeAddress:         Address,
+        consolidationAddress:  Address,
+        minting:               Boolean,
+        data:                  Option[Latin1Data],
+        boxSelectionAlgorithm: BoxSelectionAlgorithm
       )
 
       case class Response(rawTx: AssetTransfer[Proposition], messageToSign: String)
@@ -333,15 +337,18 @@ object ToplRpc {
        * @param changeAddress Address for recipient of unspent Arbits
        * @param consolidationAddress Address for recipient of unspent Arbits
        * @param data Data string which can be associated with this transaction(may be empty)
+       * @param boxSelectionAlgorithm Algorithm for selecting which boxes should be included in the Arbit Transfer.
+       *                              The default value is `All`.
        */
       case class Params(
-        propositionType:      String,
-        sender:               NonEmptyChain[Address],
-        recipients:           NonEmptyChain[(Address, Int128)],
-        fee:                  Int128,
-        changeAddress:        Address,
-        consolidationAddress: Address,
-        data:                 Option[Latin1Data]
+        propositionType:       String,
+        sender:                NonEmptyChain[Address],
+        recipients:            NonEmptyChain[(Address, Int128)],
+        fee:                   Int128,
+        changeAddress:         Address,
+        consolidationAddress:  Address,
+        data:                  Option[Latin1Data],
+        boxSelectionAlgorithm: BoxSelectionAlgorithm
       )
 
       case class Response(rawTx: ArbitTransfer[Proposition], messageToSign: String)
@@ -373,14 +380,17 @@ object ToplRpc {
        * @param fee Fee for the transfer. Minting AssetTransfer requires fee to be greater than 0
        * @param changeAddress Address for recipient of unspent Polys
        * @param data Data string which can be associated with this transaction(may be empty)
+       * @param boxSelectionAlgorithm Algorithm for selecting which boxes should be included in the Poly Transfer.
+       *                              The default value is `All`.
        */
       case class Params(
-        propositionType: String,
-        sender:          NonEmptyChain[Address],
-        recipients:      NonEmptyChain[(Address, Int128)],
-        fee:             Int128,
-        changeAddress:   Address,
-        data:            Option[Latin1Data]
+        propositionType:       String,
+        sender:                NonEmptyChain[Address],
+        recipients:            NonEmptyChain[(Address, Int128)],
+        fee:                   Int128,
+        changeAddress:         Address,
+        data:                  Option[Latin1Data],
+        boxSelectionAlgorithm: BoxSelectionAlgorithm
       )
 
       case class Response(rawTx: PolyTransfer[Proposition], messageToSign: String)

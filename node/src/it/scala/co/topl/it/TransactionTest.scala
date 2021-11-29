@@ -6,6 +6,7 @@ import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCur
 import co.topl.it.util._
 import co.topl.modifier.box.{AssetCode, AssetValue}
 import co.topl.modifier.transaction.Transaction
+import co.topl.modifier.transaction.builder.BoxSelectionAlgorithms
 import co.topl.rpc.ToplRpc
 import co.topl.utils.Int128
 import co.topl.utils.StringDataTypes.Latin1Data
@@ -324,7 +325,8 @@ class TransactionTest
             recipients = recipients,
             fee = fee,
             changeAddress = changeAddress,
-            data = None
+            data = None,
+            boxSelectionAlgorithm = BoxSelectionAlgorithms.All
           )
         )
         .value
@@ -353,7 +355,8 @@ class TransactionTest
             fee = fee,
             changeAddress = changeAddress,
             consolidationAddress = consolidationAddress,
-            data = None
+            data = None,
+            boxSelectionAlgorithm = BoxSelectionAlgorithms.All
           )
         )
         .value
@@ -384,7 +387,8 @@ class TransactionTest
             changeAddress = changeAddress,
             consolidationAddress = consolidationAddress,
             minting = minting,
-            data = None
+            data = None,
+            boxSelectionAlgorithm = BoxSelectionAlgorithms.All
           )
         )
         .value
