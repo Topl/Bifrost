@@ -1,6 +1,5 @@
 package co.topl.codecs.json.attestation
 
-import cats.Show
 import cats.implicits._
 import co.topl.attestation.AddressCodec.implicits._
 import co.topl.attestation._
@@ -14,7 +13,7 @@ import co.topl.codecs.json.{
 }
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.StringDataTypes.implicits._
+import co.topl.utils.encode.Base58
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 
@@ -32,8 +31,7 @@ trait AttestationCodecs extends co.topl.codecs.json.attestation.keyManagement.Ke
 
   implicit val addressJsonEncoder: Encoder[Address] = addr => addr.encodeAsBase58.asJson
 
-  // need to explicitly call show here to avoid a compilation bug
-  implicit val addressJsonKeyEncoder: KeyEncoder[Address] = addr => showBase58String.show(addr.encodeAsBase58)
+  implicit val addressJsonKeyEncoder: KeyEncoder[Address] = addr => Base58.encode(addr.encodeAsBytes)
 
   implicit def addressJsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[Address] =
     Decoder[Base58Data].emap(_.decodeAddress.toEither.leftMap(_.toString))
