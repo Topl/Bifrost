@@ -1,6 +1,8 @@
 package co.topl.api
 
+import akka.actor.typed.scaladsl.adapter.ClassicActorSystemOps
 import akka.util.ByteString
+import co.topl.consensus.ActorForgerInterface
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.nodeView.TestableNodeViewHolder
@@ -279,12 +281,21 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |}
         """.stripMargin)
 
-      httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]).value
-        val forgingStatus = res.hcursor.downField("result").get[String]("forgingStatus").value
-        forgingStatus shouldEqual "active"
-        res.hcursor.downField("error").values shouldBe None
-      }
+      implicit val typedSystem: akka.actor.typed.ActorSystem[_] = system.toTyped
+      val forgerInterface = new ActorForgerInterface(forgerRef)
+
+      def nodeStatus(): String =
+        httpPOST(requestBody) ~> route ~> check {
+          val res: Json = parse(responseAs[String]).value
+          val forgingStatus = res.hcursor.downField("result").get[String]("forgingStatus").value
+          res.hcursor.downField("error").values shouldBe None
+          forgingStatus
+        }
+
+      forgerInterface.stopForging()
+      nodeStatus() shouldEqual "idle"
+      forgerInterface.startForging()
+      nodeStatus() shouldEqual "active"
     }
   }
 }
