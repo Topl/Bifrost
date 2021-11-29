@@ -28,7 +28,8 @@ package object handlers {
       _ <- Either.cond(
         startHeight >= 1 && endHeight >= startHeight && bestBlockHeight >= startHeight,
         {},
-        ToplRpcErrors.InvalidHeightRange)
+        ToplRpcErrors.InvalidHeightRange
+      )
     } yield (startHeight, endHeight)
 
 }
