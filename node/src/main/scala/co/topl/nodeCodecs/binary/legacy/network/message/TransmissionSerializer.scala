@@ -1,5 +1,6 @@
 package co.topl.nodeCodecs.binary.legacy.network.message
 
+import akka.util.ByteString
 import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
 import co.topl.network.MaliciousBehaviorException
 import co.topl.network.message.{Transmission, TransmissionContent, TransmissionHeader}
@@ -16,7 +17,10 @@ class TransmissionSerializer(magicBytes: Array[Byte]) extends BifrostSerializer[
   override def serialize(obj: Transmission, w: Writer): Unit = {
     w.putBytes(magicBytes)
     w.put(obj.header.code)
-    w.putInt(obj.header.dataLength)
+
+    // need to use Akka util Byte String putInt method for data length
+    val bytes = ByteString.createBuilder.putInt(obj.header.dataLength).result().toArray
+    w.putBytes(bytes)
 
     obj.content.foreach { content =>
       w.putBytes(content.checksum)
@@ -29,11 +33,16 @@ class TransmissionSerializer(magicBytes: Array[Byte]) extends BifrostSerializer[
     val numBytes = r.remaining
 
     if (numBytes < Transmission.headerLength) {
-      throw new Exception("failure occurred while parsing transmission")
+      throw new Exception(
+        s"Not enough bytes to parse transmission header: ${Transmission.headerLength} bytes required but $numBytes bytes given"
+      )
     } else {
       val magic = r.getBytes(Transmission.magicLength)
       val msgCode = r.getByte()
-      val length = r.getInt()
+
+      // need to use custom akka util ByteString getInt function
+      val lengthBytes = r.getBytes(4)
+      val length = ByteString(lengthBytes).iterator.getInt
 
       /** peer is from another network */
       if (!java.util.Arrays.equals(magic, magicBytes)) {

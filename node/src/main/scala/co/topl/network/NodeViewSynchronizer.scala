@@ -11,7 +11,7 @@ import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.network.ModifiersStatus.Requested
 import co.topl.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessages, SendToNetwork}
 import co.topl.network.message.Messages.MessagesV1
-import co.topl.network.message.Messages.MessagesV1.BifrostSyncInfoResponse
+import co.topl.network.message.Messages.MessagesV1.BifrostSyncInfoRequest
 import co.topl.network.message.{Message, MessageCode, Transmission}
 import co.topl.network.peer.{ConnectedPeer, PenaltyType}
 import co.topl.nodeView.history.GenericHistory
@@ -48,9 +48,9 @@ class NodeViewSynchronizer(
 
   /** partial functions for identifying local method handlers for the messages above */
   protected val msgHandlers: PartialFunction[(Message, ConnectedPeer), Unit] = {
-    case (message: MessagesV1.BifrostSyncInfoResponse, remote) => gotRemoteSyncInfo(message.syncInfo, remote)
-    case (message: MessagesV1.InventoryResponse, remote) => gotRemoteInventory(message.typeId, message.ids, remote)
-    case (message: MessagesV1.ModifiersRequest, remote)  => gotModifierRequest(message.typeId, message.ids, remote)
+    case (message: MessagesV1.BifrostSyncInfoRequest, remote) => gotRemoteSyncInfo(message.syncInfo, remote)
+    case (message: MessagesV1.InventoryResponse, remote)      => gotRemoteInventory(message.typeId, message.ids, remote)
+    case (message: MessagesV1.ModifiersRequest, remote)       => gotModifierRequest(message.typeId, message.ids, remote)
     case (message: MessagesV1.ModifiersResponse, remote) =>
       gotRemoteModifiers(message.typeId, message.modifiers, remote)
   }
@@ -276,7 +276,7 @@ class NodeViewSynchronizer(
       .onComplete {
         case Success(syncInfo) =>
           if (peers.nonEmpty) {
-            val msg = BifrostSyncInfoResponse(syncInfo)
+            val msg = BifrostSyncInfoRequest(syncInfo)
             networkControllerRef ! SendToNetwork(Transmission.encodeMessage(msg), msg.version, SendToPeers(peers))
           }
         case Failure(exception) =>
@@ -577,7 +577,7 @@ object NodeViewSynchronizer {
 
   val acceptableMessages: Seq[MessageCode] =
     Seq(
-      MessagesV1.BifrostSyncInfoResponse.messageCode,
+      MessagesV1.BifrostSyncInfoRequest.messageCode,
       MessagesV1.InventoryResponse.messageCode,
       MessagesV1.ModifiersResponse.messageCode,
       MessagesV1.ModifiersRequest.messageCode

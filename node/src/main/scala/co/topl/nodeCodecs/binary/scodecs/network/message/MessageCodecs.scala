@@ -6,10 +6,10 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.network.BifrostSyncInfo
 import co.topl.network.message.Messages.MessagesV1._
-import co.topl.network.message.{Message, MessageCode, Transmission, TransmissionContent, TransmissionHeader}
+import co.topl.network.message._
 import co.topl.network.peer.PeerSpec
 import co.topl.nodeCodecs.binary.scodecs.network.peer._
-import scodec.codecs.discriminated
+import scodec.codecs.{discriminated, int32}
 import scodec.{Attempt, Codec, Err}
 import shapeless.{::, HNil}
 
@@ -34,7 +34,8 @@ trait MessageCodecs {
   implicit val messageCodeCodec: Codec[MessageCode] = byteCodec.as[MessageCode]
 
   def transmissionHeaderCodec(magicBytes: Array[Byte]): Codec[TransmissionHeader] =
-    (magicBytesCodec(magicBytes) :: messageCodeCodec :: intCodec)
+    // use Scodec's int32 implementation for a fixed-length integer
+    (magicBytesCodec(magicBytes) :: messageCodeCodec :: int32)
       .xmapc { case _ :: messageCode :: dataLength :: HNil =>
         TransmissionHeader(messageCode, dataLength)
       }(header => magicBytes :: header.code :: header.dataLength :: HNil)
@@ -43,6 +44,7 @@ trait MessageCodecs {
     (bytesCodec(Transmission.checksumLength) :: bytesCodec(dataLength)).as[TransmissionContent]
 
   def transmissionCodec(magicBytes: Array[Byte]): Codec[Transmission] =
+    // only encode the transmission content when the transmission data is not an empty array
     transmissionHeaderCodec(magicBytes).consume[Transmission](header =>
       if (header.dataLength === 0) Codec[Unit].xmap[Transmission](_ => Transmission(header, None), _ => ())
       else
@@ -55,10 +57,10 @@ trait MessageCodecs {
           )
     )(transmission => transmission.header)
 
-  implicit val bifrostSyncInfoResponseCodec: Codec[BifrostSyncInfoResponse] =
+  implicit val bifrostSyncInfoResponseCodec: Codec[BifrostSyncInfoRequest] =
     listCodec[ModifierId]
       .as[Seq[ModifierId]]
-      .xmapc(ids => BifrostSyncInfoResponse(BifrostSyncInfo(ids)))(response => response.syncInfo.lastBlockIds)
+      .xmapc(ids => BifrostSyncInfoRequest(BifrostSyncInfo(ids)))(response => response.syncInfo.lastBlockIds)
 
   implicit val inventoryResponseCodec: Codec[InventoryResponse] =
     (modifierTypeIdCodec :: listCodec[ModifierId].as[Seq[ModifierId]]).as[InventoryResponse]
@@ -74,7 +76,6 @@ trait MessageCodecs {
   implicit val peersSpecResponseCodec: Codec[PeersSpecResponse] =
     listCodec[PeerSpec].as[Seq[PeerSpec]].as[PeersSpecResponse]
 
-  // TODO make a new type called shortList for a list of max size of ushort
   implicit val modifiersRequestCodec: Codec[ModifiersRequest] =
     (modifierTypeIdCodec :: listCodec[ModifierId].as[Seq[ModifierId]]).as[ModifiersRequest]
 
@@ -90,7 +91,7 @@ trait MessageCodecs {
   implicit val messageCodec: Codec[Message] =
     discriminated[Message]
       .by(byteCodec)
-      .typecase(BifrostSyncInfoResponse.messageCode, bifrostSyncInfoResponseCodec)
+      .typecase(BifrostSyncInfoRequest.messageCode, bifrostSyncInfoResponseCodec)
       .typecase(InventoryResponse.messageCode, inventoryResponseCodec)
       .typecase(Handshake.messageCode, handshakeCodec)
       .typecase(PeersSpecRequest.messageCode, peersSpecRequestCodec)
