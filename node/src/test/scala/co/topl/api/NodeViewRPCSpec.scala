@@ -6,6 +6,7 @@ import co.topl.modifier.transaction.Transaction.TX
 import co.topl.nodeView.TestableNodeViewHolder
 import co.topl.nodeView.history.History
 import co.topl.utils.GeneratorOps.GeneratorOps
+import co.topl.utils.NetworkType
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.EitherValues
@@ -246,6 +247,26 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
           val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
           res should include("Invalid height range")
         }
+      }
+    }
+
+    "Return info about the node" in {
+      val requestBody = ByteString(s"""
+        |{
+        |   "jsonrpc": "2.0",
+        |   "id": "1",
+        |   "method": "topl_info",
+        |   "params": [{}]
+        |}
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]).value
+        val info = res.hcursor.downField("result").get[String]("network").value
+        val version = res.hcursor.downField("result").get[String]("version").value
+        info shouldEqual appContext.networkType.toString
+        version shouldEqual settings.application.version.toString
+        res.hcursor.downField("error").values shouldBe None
       }
     }
   }
