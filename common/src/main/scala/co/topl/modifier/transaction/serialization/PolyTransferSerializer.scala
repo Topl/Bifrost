@@ -15,7 +15,7 @@ import scala.language.existentials
 object PolyTransferSerializer extends BifrostSerializer[PolyTransfer[_ <: Proposition]] {
 
   override def serialize(obj: PolyTransfer[_ <: Proposition], w: Writer): Unit = {
-    /* Byte */ //this is used to signal the types of propositions in the transactions
+    /* Byte */ // this is used to signal the types of propositions in the transactions
     w.put(obj.getPropIdentifier.typePrefix)
 
     /* from: IndexedSeq[(Address, Nonce)] */

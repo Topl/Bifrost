@@ -3,67 +3,75 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 /**
-  * Must be running bifrost on the local network: use "--local"
-  */
-class KeyManagementRPCSpec extends AsyncFlatSpec
-  with Matchers
-  with ScalatestRouteTest
-  with GjallarhornGenerators {
+ * Must be running bifrost on the local network: use "--local"
+ */
+class KeyManagementRPCSpec extends AsyncFlatSpec with Matchers with ScalatestRouteTest with GjallarhornGenerators {
 
-  //Make sure running bifrost in local network!
+  // Make sure running bifrost in local network!
   implicit val networkPrefix: NetworkPrefix = 48.toByte
   implicit val timeout: Timeout = 10.seconds
 
   override def createActorSystem(): ActorSystem = ActorSystem("keyManagementTest", keysConfig)
 
-  //set up key file directory and key manager actor
+  // set up key file directory and key manager actor
   val keyFileDir: String = keyManagementSettings.application.keyFileDir
   val path: Path = Path(keyFileDir)
   Try(path.deleteRecursively())
   Try(path.createDirectory())
   val keyManagerRef: ActorRef = KeyManagerRef("KeyManager", keyManagementSettings.application)
 
-  //set up WalletManager actor
-  val walletManagerRef: ActorRef = system.actorOf(
-    Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
+  // set up WalletManager actor
+  val walletManagerRef: ActorRef =
+    system.actorOf(Props(new WalletManager(keyManagerRef)), name = WalletManager.actorName)
 
   // set up API routes
   val apiRoute: ApiRoute = KeyManagementApiRoute(keyManagementSettings.rpcApi, keyManagerRef)
+
   val gjalOnlyApiRoute: ApiRoute =
-    GjallarhornOfflineApiRoute(keyManagementSettings.rpcApi, keyManagementSettings.application, keyManagerRef, walletManagerRef)
+    GjallarhornOfflineApiRoute(
+      keyManagementSettings.rpcApi,
+      keyManagementSettings.application,
+      keyManagerRef,
+      walletManagerRef
+    )
   val route: Route = HttpService(Seq(apiRoute, gjalOnlyApiRoute), keyManagementSettings.rpcApi).compositeRoute
 
   val httpOrigin: HttpOrigin = HttpOrigin("http://localhost:3000")
   val httpOriginHeader: Origin = Origin(httpOrigin)
 
-  //Generate two keys for testing
-  val pk1: Address = Await.result((keyManagerRef ? GenerateKeyFile("password", Some("test")))
-    .mapTo[Try[Address]], 10.seconds) match {
+  // Generate two keys for testing
+  val pk1: Address = Await.result(
+    (keyManagerRef ? GenerateKeyFile("password", Some("test")))
+      .mapTo[Try[Address]],
+    10.seconds
+  ) match {
     case Success(addr) => addr
-    case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
+    case Failure(ex)   => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
-  val pk2: Address = Await.result((keyManagerRef ? GenerateKeyFile("password2", None))
-    .mapTo[Try[Address]], 10.seconds) match {
+
+  val pk2: Address = Await.result(
+    (keyManagerRef ? GenerateKeyFile("password2", None))
+      .mapTo[Try[Address]],
+    10.seconds
+  ) match {
     case Success(addr) => addr
-    case Failure(ex) => throw new Error(s"An error occurred while creating a new keyfile. $ex")
+    case Failure(ex)   => throw new Error(s"An error occurred while creating a new keyfile. $ex")
   }
 
   /**
-    * Method used to create http post request
-    * @param jsonRequest the request to send as a ByteString
-    * @return the HTTP request
-    */
-  def httpPOST(jsonRequest: ByteString): HttpRequest = {
+   * Method used to create http post request
+   * @param jsonRequest the request to send as a ByteString
+   * @return the HTTP request
+   */
+  def httpPOST(jsonRequest: ByteString): HttpRequest =
     HttpRequest(
       HttpMethods.POST,
       uri = "/",
       entity = HttpEntity(MediaTypes.`application/json`, jsonRequest)
     ).withHeaders(RawHeader("x-api-key", "test_key"))
-  }
 
   it should "successfully get open keyfiles" in {
-    val openKeyfilesRequest = ByteString(
-      s"""
+    val openKeyfilesRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -88,8 +96,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
   var generatedKeyAddr: String = ""
 
   it should "successfully generate a keyfile" in {
-    val generateKeyfileRequest = ByteString(
-      s"""
+    val generateKeyfileRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -118,8 +125,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
   var importedKeyAddr: String = ""
 
   it should "successfully import a keyfile through mnemonic phrase" in {
-    val importKeyfileRequest = ByteString(
-      s"""
+    val importKeyfileRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -145,8 +151,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
   }
 
   it should "successfully lock a Keyfile" in {
-    val lockKeyRequest = ByteString(
-      s"""
+    val lockKeyRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -170,8 +175,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
 
   it should "successfully get all keyfiles" in {
     Thread.sleep(10000)
-    val allKeyfilesRequest = ByteString(
-      s"""
+    val allKeyfilesRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -194,8 +198,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
   }
 
   it should "successfully unlock a Keyfile" in {
-    val unlockKeyRequest = ByteString(
-      s"""
+    val unlockKeyRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -219,8 +222,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
   }
 
   it should "successfully get mnemonic phrase" in {
-    val mnemonicPhraseRequest = ByteString(
-      s"""
+    val mnemonicPhraseRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -244,8 +246,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
   }
 
   it should "successfully change the network" in {
-    val networkTypeRequest = ByteString(
-      s"""
+    val networkTypeRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -269,8 +270,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
   }
 
   it should "successfully generate key file with new network prefix" in {
-    val generateKeyfileRequest = ByteString(
-      s"""
+    val generateKeyfileRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -294,8 +294,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
   }
 
   it should "successfully get open keyfiles after network change" in {
-    val openKeyfilesRequest = ByteString(
-      s"""
+    val openKeyfilesRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -317,8 +316,7 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
   }
 
   it should "successfully modify the keyfile directory" in {
-    val networkTypeRequest = ByteString(
-      s"""
+    val networkTypeRequest = ByteString(s"""
          |{
          |   "jsonrpc": "2.0",
          |   "id": "2",
@@ -336,8 +334,11 @@ class KeyManagementRPCSpec extends AsyncFlatSpec
         case Right(res: Json) =>
           assert((res \\ "error").isEmpty)
           val dir = ((res \\ "result").head \\ "newDirectory").head
-          val keyfiles: Map[Address, String] = Await.result((keyManagerRef ? GetAllKeyfiles)
-            .mapTo[Map[Address,String]], 10.seconds)
+          val keyfiles: Map[Address, String] = Await.result(
+            (keyManagerRef ? GetAllKeyfiles)
+              .mapTo[Map[Address, String]],
+            10.seconds
+          )
           keyfiles.keySet.size shouldBe 0
           assert(dir.asString.get == "keyfiles/newFolder")
       }

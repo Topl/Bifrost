@@ -1,0 +1,13 @@
+{
+  "crypto" : {
+    "mac" : "D1GxoQmo4reWhMMqwNHQD8eR337Kfp5bDT1wDaEDpFPn",
+    "kdf" : "scrypt",
+    "cipherText" : "21NpD3QTPZ23QhRNqBwg8vxwvoSpybFh7dqG9Kn4pVZYwMQ943xkjpB2Pk2MbhW7oc6tSjDMzjN9ocXu7bquoqgf",
+    "kdfSalt" : "8TRFu7p4RDyZAEVcFT1efmF5U73TXXydX9CuKJTE19Y6",
+    "cipher" : "aes-256-ctr",
+    "cipherParams" : {
+      "iv" : "ELMVWpstyNM6ENFR4didwp"
+    }
+  },
+  "address" : "AUAbSWQxzfoCN4FizrKKf6E1qCSRffHhjrvo2v7L6q8xFZ7pxKqh"
+}

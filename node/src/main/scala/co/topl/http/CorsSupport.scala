@@ -27,7 +27,7 @@ trait CorsSupport extends Directives {
   private def addAccessControlHeaders: Directive0 =
     respondWithHeaders(corsResponseHeaders)
 
-  //this handles preflight OPTIONS requests.
+  // this handles preflight OPTIONS requests.
   private def preflightRequestHandler: Route = options {
     complete {
       HttpResponse(StatusCodes.OK)
