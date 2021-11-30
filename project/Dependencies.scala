@@ -109,6 +109,10 @@ object Dependencies {
     "org.iq80.leveldb" % "leveldb"        % "0.12"
   )
 
+  val scodec = Seq(
+    "org.scodec" %% "scodec-core" % "1.11.9"
+  )
+
   val scodecBits = Seq(
     "org.scodec" %% "scodec-bits" % "1.1.27"
   )
@@ -155,7 +159,7 @@ object Dependencies {
     graal
 
   lazy val brambl: Seq[ModuleID] =
-    test
+    test ++ scodec
 
   lazy val akkaHttpRpc: Seq[ModuleID] =
     Seq(

@@ -2,43 +2,21 @@ package co.topl.models
 
 import cats.data.NonEmptyChain
 
-/**
- * Represents an agreement to spend boxes to create new boxes
- */
-sealed abstract class Transaction
+case class Transaction(
+  input:       Seq[BoxReference],
+  feeOutput:   Option[Transaction.PolyOutput],
+  coinOutputs: NonEmptyChain[Transaction.CoinOutput],
+  attestation: Attestation,
+  fee:         Int128,
+  timestamp:   Timestamp,
+  data:        Option[TransactionData],
+  minting:     Boolean
+)
 
-object Transactions {
-
-  case class Poly(
-    input:       Seq[BoxReference],
-    feeOutput:   Option[PolyOutput],
-    coinOutputs: NonEmptyChain[PolyOutput],
-    attestation: Attestation,
-    fee:         Int128,
-    timestamp:   Timestamp,
-    data:        Option[TransactionData],
-    minting:     Boolean
-  ) extends Transaction
-
-  case class Arbit(
-    input:       Seq[BoxReference],
-    feeOutput:   PolyOutput,
-    coinOutputs: NonEmptyChain[ArbitOutput],
-    attestation: Attestation,
-    fee:         Int128,
-    timestamp:   Timestamp,
-    data:        Option[TransactionData],
-    minting:     Boolean
-  ) extends Transaction
-
-  case class Asset(
-    input:       Seq[BoxReference],
-    feeOutput:   PolyOutput,
-    coinOutputs: NonEmptyChain[AssetOutput],
-    attestation: Attestation,
-    fee:         Int128,
-    timestamp:   Timestamp,
-    data:        Option[TransactionData],
-    minting:     Boolean
-  ) extends Transaction
+// TODO: Syntactic and Semantic Validation
+object Transaction {
+  sealed abstract class CoinOutput
+  case class PolyOutput(dionAddress: DionAddress, value: Int128) extends CoinOutput
+  case class ArbitOutput(dionAddress: DionAddress, value: Int128) extends CoinOutput
+  case class AssetOutput(dionAddress: DionAddress, value: Box.Values.Asset) extends CoinOutput
 }

@@ -4,6 +4,7 @@ import cats.Applicative
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
+import co.topl.client.credential.Credential.instances.ed25519SKEncoder
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.mnemonic.Bip32Indexes.Bip32IndexesSupport
 import co.topl.crypto.mnemonic.Entropy
@@ -191,7 +192,7 @@ class CredentialCollectionSpec
   it should "initialize an empty set" in {
     forAll { credentialSetName: String =>
       whenever(credentialSetName.nonEmpty) {
-        val set = CredentialSet.empty[Proposition]
+        val set = CredentialSet.empty
 
         set.credentials should be(empty)
       }
@@ -201,7 +202,7 @@ class CredentialCollectionSpec
   it should "add and remove credentials" in {
 
     forAll { (sk: SecretKeys.Ed25519, password: Password) =>
-      val set = CredentialSet.empty[Propositions.Knowledge.Ed25519]
+      val set = CredentialSet.empty
       val credential = Credential(sk)
 
       implicit val credentialIO: CredentialIO[F] = mock[CredentialIO[F]]
@@ -211,14 +212,11 @@ class CredentialCollectionSpec
         .once()
         .returning(Applicative[F].unit)
 
-      val credentialBytes =
-        sk.bytes.data ++ sk.verificationKey[VerificationKeys.Ed25519].bytes.data
-
       val address =
         credential.address
 
       val newSet =
-        set.withPersistentCredential[F](credential, credentialBytes, KeyFile.Metadata.Ed25519, password).unsafeRunSync()
+        set.withPersistentCredential[F](credential, KeyFile.Metadata.Ed25519, password).unsafeRunSync()
 
       newSet.credentials.values.exists(_.address === address) shouldBe true
     }

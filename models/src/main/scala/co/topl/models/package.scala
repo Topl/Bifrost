@@ -36,9 +36,6 @@ package object models {
   type BoxReference = (DionAddress, Eta)
   type TaktikosBoxReference = (TaktikosAddress, Eta)
 
-  type PolyOutput = (DionAddress, Int128)
-  type ArbitOutput = (DionAddress, Int128)
-  type AssetOutput = (DionAddress, Box.Values.Asset)
   type TxRoot = Sized.Strict[Bytes, Lengths.`32`.type]
   type BloomFilter = Sized.Strict[Bytes, Lengths.`256`.type]
   type Rho = Sized.Strict[Bytes, Lengths.`64`.type]
