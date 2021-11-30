@@ -48,14 +48,14 @@ object KeyInitializer {
 
       }
 
-    implicit val vrfInitializer: KeyInitializer[SecretKeys.VrfEd25519] =
+    implicit def vrfInitializer(implicit ed25519VRF: Ed25519VRF): KeyInitializer[SecretKeys.VrfEd25519] =
       new KeyInitializer[SecretKeys.VrfEd25519] {
 
         def random(): SecretKeys.VrfEd25519 =
           fromEntropy(Entropy.fromUuid(UUID.randomUUID()), password = Some(""))
 
         def fromEntropy(entropy: Entropy, password: Option[Password]): SecretKeys.VrfEd25519 =
-          Ed25519VRF.instance.createKeyPair(entropy, password)._1
+          ed25519VRF.createKeyPair(entropy, password)._1
       }
 
     implicit def extendedEd25519Initializer: KeyInitializer[SecretKeys.ExtendedEd25519] =

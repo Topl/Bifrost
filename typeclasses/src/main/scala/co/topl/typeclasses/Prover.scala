@@ -31,14 +31,16 @@ object Prover {
           new Curve25519().sign(t, data.signableBytes)
       }
 
-    implicit val ed25519Proves: Prover[SecretKeys.Ed25519, Proofs.Signature.Ed25519] =
+    implicit def ed25519Proves(implicit ed: Ed25519): Prover[SecretKeys.Ed25519, Proofs.Signature.Ed25519] =
       new Prover[SecretKeys.Ed25519, Proofs.Signature.Ed25519] {
 
         def proveWith[Data: Signable](t: SecretKeys.Ed25519, data: Data): Signature.Ed25519 =
           new Ed25519().sign(t, data.signableBytes)
       }
 
-    implicit val extendedEd25519Proves: Prover[SecretKeys.ExtendedEd25519, Proofs.Signature.Ed25519] =
+    implicit def extendedEd25519Proves(implicit
+      ed: Ed25519
+    ): Prover[SecretKeys.ExtendedEd25519, Proofs.Signature.Ed25519] =
       new Prover[SecretKeys.ExtendedEd25519, Proofs.Signature.Ed25519] {
 
         def proveWith[Data: Signable](t: SecretKeys.ExtendedEd25519, data: Data): Proofs.Signature.Ed25519 =

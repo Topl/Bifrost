@@ -4,7 +4,7 @@ import cats.data.OptionT
 import cats.implicits._
 import cats.{Applicative, Functor}
 import co.topl.crypto.mnemonic.Bip32Indexes
-import co.topl.crypto.signing.{ExtendedEd25519, Password}
+import co.topl.crypto.signing.{Ed25519, ExtendedEd25519, Password}
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.{Lengths, Sized}
@@ -155,14 +155,15 @@ case class RoleCredentialList(roleSK: SecretKeys.ExtendedEd25519) {
 
   def credential(
     index:                  Bip32Indexes.SoftIndex
-  )(implicit networkPrefix: NetworkPrefix): Credential[Propositions.Knowledge.ExtendedEd25519] = {
+  )(implicit networkPrefix: NetworkPrefix, ed25519: Ed25519): Credential[Propositions.Knowledge.ExtendedEd25519] = {
     val extendedEd25519 = ExtendedEd25519.precomputed()
     val indexSk = extendedEd25519.deriveSecret(roleSK, index)
     Credential(indexSk)
   }
 
   def /(idx:       Bip32Indexes.SoftIndex)(implicit
-    networkPrefix: NetworkPrefix
+    networkPrefix: NetworkPrefix,
+    ed25519:       Ed25519
   ): Credential[Propositions.Knowledge.ExtendedEd25519] = credential(idx)
 
 }
@@ -175,7 +176,10 @@ case class CredentialSet[Prop <: Proposition](credentials: Map[Evidence, Credent
 
   def unlock[F[_]: Functor](evidence: Evidence, password: Password)(implicit
     credentialIO:                     CredentialIO[F],
-    networkPrefix:                    NetworkPrefix
+    networkPrefix:                    NetworkPrefix,
+    // TODO: Remove
+    ed25519:         Ed25519,
+    extendedEd25519: ExtendedEd25519
   ): F[Option[Credential[Prop]]] =
     OptionT(credentialIO.unlock(evidence, password)).map { case (bytes, metadata) =>
       metadata.keyType match {

@@ -92,6 +92,10 @@ object Dependencies {
     "org.typelevel" %% "cats-effect" % "3.2.8"
   )
 
+  val scalacache = Seq(
+    "com.github.cb372" %% "scalacache-caffeine" % "1.0.0-M4"
+  )
+
   val simulacrum = Seq(
     "org.typelevel" %% "simulacrum" % "1.0.1"
   )
@@ -201,6 +205,9 @@ object Dependencies {
 
   lazy val models: Seq[ModuleID] =
     cats ++ simulacrum ++ newType ++ scodecBits
+
+  lazy val consensus: Seq[ModuleID] =
+    bouncyCastle ++ Seq(akka("actor-typed")) ++ catsEffect ++ logging ++ scalacache
 
   lazy val demo: Seq[ModuleID] =
     Seq(akka("actor"), akka("actor-typed"), akka("stream"), akka("actor-testkit-typed") % Test) ++ logging

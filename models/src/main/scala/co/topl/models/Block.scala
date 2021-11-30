@@ -32,7 +32,7 @@ case class BlockHeaderV2(
   metadata: Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
   address:  TaktikosAddress
 ) {
-  def parentSlotId: SlotId = (parentSlot, parentHeaderId)
+  def parentSlotId: SlotId = SlotId(parentSlot, parentHeaderId)
 }
 
 object BlockHeaderV2 {

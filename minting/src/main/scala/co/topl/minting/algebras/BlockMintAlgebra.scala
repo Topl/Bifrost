@@ -8,5 +8,5 @@ import co.topl.models.{BlockHeaderV2, BlockV2, Slot, Transaction}
  * the attempt.
  */
 trait BlockMintAlgebra[F[_]] {
-  def mint(parent: BlockHeaderV2, transactions: Seq[Transaction], slot: Slot): F[Option[BlockV2]]
+  def attemptMint(parent: BlockHeaderV2, transactions: Seq[Transaction], slot: Slot): F[Option[BlockV2]]
 }

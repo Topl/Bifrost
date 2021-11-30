@@ -33,6 +33,8 @@ class CredentialCollectionSpec
 
   import CredentialCollectionSpec._
   implicit val networkPrefix: NetworkPrefix = NetworkPrefix(1: Byte)
+  implicit private val ed25519: Ed25519 = new Ed25519
+  implicit private val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.precomputed()
 
   type F[A] = IO[A]
 

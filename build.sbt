@@ -337,7 +337,7 @@ lazy val consensus = project
   )
   .settings(libraryDependencies ++= Dependencies.test)
   .settings(
-    libraryDependencies ++= Dependencies.bouncyCastle
+    libraryDependencies ++= Dependencies.consensus
   )
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test", typeclasses, crypto, byteCodecs, algebras)

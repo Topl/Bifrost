@@ -7,6 +7,10 @@ package object typeclasses {
       with ContainsEvidence.ToContainsEvidenceOps
       with ContainsHeight.Instances
       with ContainsHeight.ToContainsHeightOps
+      with ContainsSlot.Instances
+      with ContainsSlot.ToContainsSlotOps
+      with ContainsSlotId.Instances
+      with ContainsSlotId.ToContainsSlotIdOps
       with ContainsParent.Instances
       with ContainsParent.ToContainsParentOps
       with ContainsTimestamp.Instances
@@ -34,4 +38,8 @@ package object typeclasses {
       with EqInstances
       with DionAddressable.Instances
       with DionAddressable.ToDionAddressableOps
+      with Prepend.Instances
+      with Prepend.ToPrependOps
+      with NonEmpty.Instances
+      with NonEmpty.ToNonEmptyOps
 }

@@ -35,16 +35,18 @@ package object models {
   }
   type BoxReference = (DionAddress, Eta)
   type TaktikosBoxReference = (TaktikosAddress, Eta)
+
   type PolyOutput = (DionAddress, Int128)
   type ArbitOutput = (DionAddress, Int128)
   type AssetOutput = (DionAddress, Box.Values.Asset)
-  type SlotId = (Slot, TypedIdentifier)
   type TxRoot = Sized.Strict[Bytes, Lengths.`32`.type]
   type BloomFilter = Sized.Strict[Bytes, Lengths.`256`.type]
   type Rho = Sized.Strict[Bytes, Lengths.`64`.type]
   type StakeAddress = Propositions.Knowledge.Ed25519
   type Digest32 = Sized.Strict[Bytes, Lengths.`32`.type]
   type TransactionData = Sized.Max[Latin1Data, Lengths.`127`.type]
+
+  case class SlotId(slot: Slot, blockId: TypedIdentifier)
 
   @newtype case class TypedBytes(allBytes: Bytes) {
     def typePrefix: TypePrefix = allBytes.head

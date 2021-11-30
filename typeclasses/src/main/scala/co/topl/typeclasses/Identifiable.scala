@@ -44,14 +44,15 @@ object Identifiable {
     implicit val identifiableBlockBodyV2: Identifiable[BlockBodyV2] =
       new Identifiable[BlockBodyV2] {
 
-        override def idOf(t: BlockBodyV2): TypedIdentifier = {
-          import ContainsTransactions.ops._
-          import ContainsTransactions.Instances._
-          val bytes = t.headerId.allBytes ++ t.transactions.merkleTree.data
-          TypedBytes(IdentifierTypes.Block.BodyV2 +: Bytes(blake2b256.hash(bytes.toArray).value))
-        }
+        // TODO: Fix this once there's a ledger
+        override def idOf(t: BlockBodyV2): TypedIdentifier =
+//          import ContainsTransactions.ops._
+//          import ContainsTransactions.Instances._
+//          val bytes = t.headerId.allBytes ++ t.transactions.merkleTree.data
+//          TypedBytes(IdentifierTypes.Block.BodyV2 +: Bytes(blake2b256.hash(bytes.toArray).value))
+          t.headerId
 
-        override def typePrefix: TypePrefix = IdentifierTypes.Block.BodyV2
+        override def typePrefix: TypePrefix = IdentifierTypes.Block.HeaderV2
       }
 
     implicit val identifiableBlockV1: Identifiable[BlockV1] =
