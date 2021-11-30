@@ -23,7 +23,7 @@ class TokenBoxRegistry(protected val storage: KeyValueStore, nodeKeys: Option[Se
 
   import TokenBoxRegistry.{K, V}
 
-  //----- input and output transformation functions
+  // ----- input and output transformation functions
   override protected val registryInput: K => Array[Byte] = (key: K) => key.bytes
 
   override protected val registryOutput: Array[Byte] => Seq[V] =
