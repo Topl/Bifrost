@@ -1,8 +1,8 @@
 package co.topl.attestation.keyManagement.mnemonic
 
-import co.topl.attestation.keyManagement.derivedKeys.{DerivedKeyIndex, ExtendedPrivateKeyEd25519, HardenedIndex}
 import co.topl.attestation.keyManagement.derivedKeys.ExtendedPrivateKeyEd25519.Password
 import co.topl.attestation.keyManagement.derivedKeys.implicits._
+import co.topl.attestation.keyManagement.derivedKeys.{DerivedKeyIndex, ExtendedPrivateKeyEd25519}
 import co.topl.attestation.keyManagement.mnemonic.Language._
 import co.topl.attestation.keyManagement.mnemonic.MnemonicSize._
 import co.topl.utils.CommonGenerators
@@ -14,8 +14,6 @@ import co.topl.utils.encode.Base58
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-import co.topl.utils.StringDataTypes.implicits._
-import scodec.bits.ByteVector
 
 class MnemonicSpec
     extends AnyPropSpec
