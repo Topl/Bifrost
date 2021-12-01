@@ -132,7 +132,7 @@ class StorageCacheSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks w
     val blockStorage = new LDBVersionedStore(iFile, 100)
     val storage =
       new Storage(new CacheLayerKeyValueStore(new LDBKeyValueStore(blockStorage), 10.minutes, 20000), keySize = 32)
-    //we don't care about validation here
+    // we don't care about validation here
     val validators = Seq()
 
     var history = new History(storage, BlockProcessor(1024), validators)
