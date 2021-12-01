@@ -115,7 +115,8 @@ class NodeViewSynchronizer(
     case ResponseFromLocal(peer, _, modifiers) =>
       /** retrieve the serializer for the modifier and then send to the remote peer */
       modifiers.headOption
-        .foreach(head => sendByParts(peer, head.modifierTypeId, modifiers.map(m => m.id -> m.transmittableBytes)))
+        // remove first byte in modifier transmittable bytes because it is the modifier type id
+        .foreach(head => sendByParts(peer, head.modifierTypeId, modifiers.map(m => m.id -> m.transmittableBytes.tail)))
 
     /** check whether requested modifiers have been delivered to the local node from a remote peer */
     case CheckDelivery(peerOpt, modifierTypeId, modifierId) =>

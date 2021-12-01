@@ -5,7 +5,7 @@ import co.topl.nodeCatsInstances._
 import co.topl.nodeCodecs.binary.legacy.network.peer.PeerSpecSerializer
 import co.topl.nodeCodecs.binary.scodecs.Generators
 
-class PeerSpecCodec extends CodecCompatabilityBehavior {
+class PeerSpecCodecSpec extends CodecCompatabilityBehavior {
 
   codecCompatabilityBehavior("peer spec", peerSpecCodec, new PeerSpecSerializer(Map()), Generators.peerSpecGen)
 }

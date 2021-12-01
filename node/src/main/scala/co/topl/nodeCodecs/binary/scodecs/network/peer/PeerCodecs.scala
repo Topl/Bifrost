@@ -21,7 +21,10 @@ trait PeerCodecs {
     )(isa => (isa.getAddress.getAddress.length + 4).toByteExact)
 
   implicit val localAddressPeerFeatureCodec: Codec[LocalAddressPeerFeature] =
-    inetSocketAddressCodec.as[LocalAddressPeerFeature]
+    (bytesCodec(LocalAddressPeerFeature.addressLength) :: uIntCodec)
+      .xmapc { case fa :: port :: HNil =>
+        LocalAddressPeerFeature(new InetSocketAddress(InetAddress.getByAddress(fa), port.toIntExact))
+      }(feat => feat.address.getAddress.getAddress :: feat.address.getPort.toLong :: HNil)
 
   implicit val peerFeatureCodec: Codec[PeerFeature] =
     discriminated[PeerFeature]

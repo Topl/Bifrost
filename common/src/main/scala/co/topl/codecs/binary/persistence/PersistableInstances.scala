@@ -4,7 +4,7 @@ import co.topl.attestation._
 import co.topl.attestation.keyManagement._
 import co.topl.codecs.binary.typeclasses.Persistable
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.modifier.ModifierId
+import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.modifier.block._
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
@@ -82,4 +82,5 @@ trait PersistableInstances {
 
   implicit val transactionPersistable: Persistable[Transaction.TX] = Persistable.fromCodec
 
+  implicit val nodeViewModifierPersistable: Persistable[NodeViewModifier] = Persistable.fromCodec
 }

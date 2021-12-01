@@ -35,6 +35,8 @@ trait ShowInstances {
        | }
        |""".stripMargin
 
+  implicit val peersSpecRequestShow: Show[MessagesV1.PeersSpecRequest] = _ => s"PeersSpecRequest {}"
+
   implicit val transmissionHeaderShow: Show[TransmissionHeader] = header =>
     s"TransmissionHeader { code: '${header.code}', data length: ${header.dataLength} }"
 

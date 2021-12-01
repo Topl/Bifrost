@@ -47,7 +47,7 @@ package object message {
       }
 
       object BifrostSyncInfoRequest {
-        val messageCode: MessageCode = 1: Byte
+        val messageCode: MessageCode = 65: Byte
       }
 
       /**

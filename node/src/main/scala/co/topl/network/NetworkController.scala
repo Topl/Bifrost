@@ -1,20 +1,19 @@
 package co.topl.network
 
-import cats.implicits._
 import akka.actor.SupervisorStrategy._
 import akka.actor._
 import akka.io.Tcp
 import akka.pattern.ask
 import akka.util.Timeout
+import cats.implicits._
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.{DisconnectedPeer, HandshakedPeer}
 import co.topl.network.PeerConnectionHandler.ReceivableMessages.CloseConnection
 import co.topl.network.PeerManager.ReceivableMessages._
-import co.topl.network.message.{Message, MessageCode, Transmission}
+import co.topl.network.message.{MessageCode, Transmission}
 import co.topl.network.peer._
 import co.topl.settings.{AppContext, AppSettings, Version}
 import co.topl.utils.TimeProvider.Time
 import co.topl.utils.{Logging, NetworkUtils, TimeProvider}
-import co.topl.codecs._
 
 import java.net._
 import scala.concurrent.duration._
@@ -135,7 +134,7 @@ class NetworkController(
           messageHandlers.get(transmission.header.code),
           s"No handlers found for message $peer: ${transmission.header.code}"
         ) match {
-        case Right(handler) => handler ! transmission
+        case Right(handler) => handler ! Synchronizer.TransmissionReceived(transmission, peer)
         case Left(error)    => log.error(error)
       }
 

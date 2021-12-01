@@ -1,5 +1,6 @@
 package co.topl.network
 
+import cats.implicits._
 import akka.actor.{Actor, ActorRef, Cancellable, Props, SupervisorStrategy}
 import akka.io.Tcp
 import akka.util.{ByteString, CompactByteString}
@@ -7,7 +8,7 @@ import co.topl.codecs._
 import co.topl.network.NetworkController.ReceivableMessages.{Handshaked, PenalizePeer}
 import co.topl.network.PeerConnectionHandler.ReceivableMessages._
 import co.topl.network.message.Messages.MessagesV1
-import co.topl.network.message.{Message, Transmission}
+import co.topl.network.message.{Message, Transmission, TransmissionHeader}
 import co.topl.network.peer.PenaltyType.PermanentPenalty
 import co.topl.network.peer._
 import co.topl.settings.{AppContext, AppSettings}
@@ -15,6 +16,7 @@ import co.topl.utils.{Logging, TimeProvider}
 import co.topl.codecs._
 import co.topl.codecs.binary.typeclasses.Transmittable
 import co.topl.nodeCodecs.binary.network._
+import scodec.bits.BitVector
 
 import scala.annotation.tailrec
 import scala.collection.immutable.TreeMap
@@ -57,10 +59,12 @@ class PeerConnectionHandler(
 
   private var outMessagesCounter: Long = 0
 
-  // transmittable type-class instance for a transmission with magic bytes from settings
-  implicit private val transmissionTransmittableInstance: Transmittable[Transmission] = transmissionTransmittable(
-    settings.network.magicBytes
-  )
+  // transmittable type-class instances for providing extension methods for converting to/from transmitted data
+  implicit private val transmissionHeaderTransmittableInstance: Transmittable[TransmissionHeader] =
+    transmissionHeaderTransmittable(settings.network.magicBytes)
+
+  implicit private val transmissionTransmittableInstance: Transmittable[Transmission] =
+    transmissionTransmittable(settings.network.magicBytes)
 
   override def preStart(): Unit = {
 
@@ -170,7 +174,7 @@ class PeerConnectionHandler(
   private def localInterfaceBuffering: Receive = {
     case transmission: Transmission =>
       outMessagesCounter += 1
-      buffer(outMessagesCounter, ByteString(transmission.transmittableBytes))
+      buffer(outMessagesCounter, transmission.transmittableByteString)
 
     case Tcp.CommandFailed(Tcp.Write(msg, Ack(id))) =>
       connection ! Tcp.ResumeWriting
@@ -281,27 +285,48 @@ class PeerConnectionHandler(
 
   @tailrec
   private def processRemoteData(): Unit =
-    chunksBuffer.toArray.decodeTransmitted[Transmission] match {
-      case Right(transmission) =>
-        log.info("Received message " + transmission.header.code + " from " + connectionId)
-        networkControllerRef ! NetworkController.ReceivableMessages.TransmissionReceived(transmission, selfPeer)
-        chunksBuffer = chunksBuffer.drop(transmission.header.dataLength)
-        processRemoteData()
-      case Left(e) =>
-        e match {
-          // TODO determine if malicious behavior check is still necessary
-//          /** peer is doing bad things, ban it */
-//          case MaliciousBehaviorException(msg) =>
-//            log.warn(s"Banning peer for malicious behaviour($msg): ${connectionId.toString}")
-//
-//            /** peer will be added to the blacklist and the network controller will send CloseConnection */
-//            networkControllerRef ! PenalizePeer(connectionId.remoteAddress, PenaltyType.PermanentPenalty)
+    if (chunksBuffer.length >= Transmission.headerLength) {
+      chunksBuffer.decodeTransmitted[TransmissionHeader] match {
+        case Right(header) if header.dataLength == 0 =>
+          handleTransmission(Transmission(header, None))
+          processRemoteData()
+        case Right(header)
+            if chunksBuffer.length < Transmission.headerLength + Transmission.checksumLength + header.dataLength =>
+        // need more data
+        case Right(header) =>
+          transmissionContentTransmittable(header.dataLength)
+            .fromTransmittableByteString(chunksBuffer.drop(Transmission.headerLength)) match {
+            case Right(content) =>
+              handleTransmission(Transmission(header, content.some))
+              processRemoteData()
+            case Left(error) =>
+              log.warn(s"Banning peer for malicious behaviour($error): ${connectionId.toString}")
 
-          /** non-malicious corruptions */
-          case _ =>
-            log.info(s"Corrupted data from ${connectionId.toString}: $e")
-        }
+              /** peer will be added to the blacklist and the network controller will send CloseConnection */
+              networkControllerRef ! PenalizePeer(connectionId.remoteAddress, PenaltyType.PermanentPenalty)
+          }
+        case Left(error) =>
+          log.warn(s"Banning peer for malicious behaviour($error): ${connectionId.toString}")
+
+          /** peer will be added to the blacklist and the network controller will send CloseConnection */
+          networkControllerRef ! PenalizePeer(connectionId.remoteAddress, PenaltyType.PermanentPenalty)
+      }
     }
+
+  /**
+   * Handles processing an incoming transmission and updating the state of the chunks buffer.
+   * @param transmission the transmission that is ready for processing
+   */
+  private def handleTransmission(transmission: Transmission): Unit = {
+    log.info("Received message " + transmission.header.code + " from " + connectionId)
+
+    networkControllerRef ! NetworkController.ReceivableMessages.TransmissionReceived(transmission, selfPeer)
+
+    chunksBuffer = chunksBuffer.drop(
+      Transmission.headerLength +
+      transmission.content.map(content => Transmission.checksumLength + content.data.length).getOrElse(0)
+    )
+  }
 
 }
 

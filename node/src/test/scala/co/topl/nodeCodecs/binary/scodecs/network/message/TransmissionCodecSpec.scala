@@ -6,7 +6,6 @@ import co.topl.nodeCatsInstances._
 import co.topl.nodeCodecs.binary.legacy.network.message.TransmissionSerializer
 import co.topl.nodeCodecs.binary.scodecs.Generators
 import org.scalacheck.Gen
-import scodec.bits.BitVector
 
 class TransmissionCodecSpec extends CodecCompatabilityBehavior {
   val magicBytes: Array[Byte] = Array(1, 2, 3, 4)
@@ -26,20 +25,10 @@ class TransmissionCodecSpec extends CodecCompatabilityBehavior {
         )
     )
 
-  val failingTransmission = Transmission(TransmissionHeader(-10: Byte, 0), None)
-
-  println(transmissionCodec(magicBytes).encode(failingTransmission).getOrElse(BitVector.empty))
-
-  println(transmissionHeaderCodec(magicBytes).encode(failingTransmission.header).getOrElse(BitVector.empty))
-
-  import co.topl.codecs._
-  println(byteCodec.encode(-10: Byte))
-  println(intCodec.encode(0))
-
   codecCompatabilityBehavior(
     "transmission",
     transmissionCodec(magicBytes),
     new TransmissionSerializer(magicBytes),
-    Gen.const(failingTransmission)
+    transmissionGen
   )
 }

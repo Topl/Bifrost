@@ -13,4 +13,6 @@ case class LocalAddressPeerFeature(address: InetSocketAddress) extends PeerFeatu
 
 object LocalAddressPeerFeature {
   val featureId: PeerFeature.Id = 2: Byte
+
+  val addressLength: Int = 4
 }

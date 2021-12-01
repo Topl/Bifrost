@@ -26,6 +26,9 @@ trait EqInstances {
     h1.time === h2.time &&
     h1.peerSpec === h2.peerSpec
 
+  // trivial since class has no data
+  implicit val peersSpecRequestEq: Eq[MessagesV1.PeersSpecRequest] = (_, _) => true
+
   implicit val modifierTypeIdEq: Eq[ModifierTypeId] = (m1, m2) => m1.value === m2.value
 
   implicit val inventoryResponseEq: Eq[MessagesV1.InventoryResponse] = (i1, i2) =>

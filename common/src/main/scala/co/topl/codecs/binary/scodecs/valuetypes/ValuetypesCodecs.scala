@@ -61,8 +61,8 @@ trait ValuetypesCodecs {
     bytesCodec(Int128.numBytes).xmap(bytes => Int128(bytes), int => int.toByteArray)
 
   implicit val byteStringCodec: Codec[ByteString] =
-    byteCodec.consume[ByteString](byte =>
-      bytesCodec(byte)
+    uByteCodec.consume[ByteString](size =>
+      bytesCodec(size)
         .xmap(bytes => new String(bytes, stringCharacterSet), str => str.getBytes(stringCharacterSet))
     )(str => str.length.toByte)
 
