@@ -44,9 +44,9 @@ object SimulationActor {
    * @return an instance of `Behavior[Command]`
    */
   def apply(outputDirectory: String)(implicit
-    networkPrefix:     NetworkPrefix,
-    timeout:           Timeout,
-    requestModifier:   RequestModifier
+    networkPrefix:           NetworkPrefix,
+    timeout:                 Timeout,
+    requestModifier:         RequestModifier
   ): Behavior[Command] =
     Behaviors.setup { context =>
       val keys = context.spawn(KeysActor(), "keys")
@@ -64,10 +64,10 @@ object SimulationActor {
    * @return an actor behavior of type `Behavior[Command]`
    */
   def withState(outputDirectory: String, keys: ActorRef[KeysActor.Command])(implicit
-    timeout:          Timeout,
-    actorSystem:      ActorSystem,
-    networkPrefix:    NetworkPrefix,
-    requestModifier:  RequestModifier
+    timeout:                     Timeout,
+    actorSystem:                 ActorSystem,
+    networkPrefix:               NetworkPrefix,
+    requestModifier:             RequestModifier
   ): Behavior[Command] =
     Behaviors.receive { (context, message) =>
       implicit val materializer: Materializer = Materializer(context)

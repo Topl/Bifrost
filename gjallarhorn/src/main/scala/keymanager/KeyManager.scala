@@ -49,7 +49,7 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
       updateConfigFile("keyFileDir", settings.keyFileDir, dir)
       settings.keyFileDir = dir
 
-      //initialize keyRing with updated key file directory
+      // initialize keyRing with updated key file directory
       keyRing = Keys(settings.keyFileDir, KeyfileCurve25519)(
         PrivateKeyCurve25519.secretGenerator,
         networkPrefix = networkPrefix
@@ -128,9 +128,9 @@ class KeyManager(settings: ApplicationSettings) extends Actor with Logging {
     NetworkType.fromString(networkName) match {
       case Some(network) =>
         if (network.netPrefix != networkPrefix) {
-          //lock all keyfiles on current network
+          // lock all keyfiles on current network
           keyRing.addresses.foreach(addr => keyRing.lockKeyFile(addr.toString))
-          //change network and initialize keyRing with new network
+          // change network and initialize keyRing with new network
           networkPrefix = network.netPrefix
           keyRing = Keys(settings.keyFileDir, KeyfileCurve25519)(
             PrivateKeyCurve25519.secretGenerator,
