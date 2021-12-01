@@ -24,15 +24,21 @@ package object handlers {
     } yield keys
 
   private[handlers] def blocksByIdsResponse(
-    ids:     List[ModifierId],
-    history: HistoryReader[Block, BifrostSyncInfo]
+    ids:       List[ModifierId],
+    sizeLimit: Int,
+    history:   HistoryReader[Block, BifrostSyncInfo]
   ): Either[RpcError, ToplRpc.NodeView.BlocksByIds.Response] = {
     val blocksOption = ids.map(history.modifierById)
     for {
+      _ <- Either.cond(
+        ids.size <= sizeLimit,
+        {},
+        ToplRpcErrors.unsupportedOperation("Number of ids given exceeded blockRetrievalLimit")
+      )
       blocks <- Either.cond(
         blocksOption.forall(_.nonEmpty),
         blocksOption.map(_.get),
-        ToplRpcErrors.unsupportedOperation("No corresponding block found for id")
+        ToplRpcErrors.NoBlockWithGivenId
       )
     } yield blocks
   }
@@ -40,13 +46,19 @@ package object handlers {
   private[handlers] def checkHeightRange(
     bestBlockHeight: Long,
     startHeight:     Long,
-    endHeight:       Long
+    endHeight:       Long,
+    sizeLimit:       Int
   ): Either[RpcError, (Long, Long)] =
     for {
       _ <- Either.cond(
         startHeight >= 1 && endHeight >= startHeight && bestBlockHeight >= startHeight,
         {},
         ToplRpcErrors.InvalidHeightRange
+      )
+      _ <- Either.cond(
+        (endHeight - startHeight + 1) <= sizeLimit,
+        {},
+        ToplRpcErrors.unsupportedOperation("Height range exceeded blockRetrievalLimit")
       )
     } yield (startHeight, endHeight)
 
