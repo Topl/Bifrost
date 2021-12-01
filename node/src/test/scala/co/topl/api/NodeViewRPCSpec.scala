@@ -208,6 +208,47 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       }
     }
 
+    "Get multiple block by ids" in {
+      val requestBody = ByteString(s"""
+        |{
+        |   "jsonrpc": "2.0",
+        |
+        |   "id": "1",
+        |   "method": "topl_blocksByIds",
+        |   "params": [{
+        |      "blockIds": ["${block.id}"]
+        |   }]
+        |}
+        |
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]).value
+        res.hcursor.downField("result").as[Json].toString should include(s"${block.id}")
+        res.hcursor.downField("error").values shouldBe None
+      }
+    }
+
+    "Fail if one of the ids are invalid" in {
+      val requestBody = ByteString(s"""
+        |{
+        |   "jsonrpc": "2.0",
+        |
+        |   "id": "1",
+        |   "method": "topl_blocksByIds",
+        |   "params": [{
+        |      "blockIds": ["${block.id}", "${blockCurve25519Gen.sampleFirst().id}"]
+        |   }]
+        |}
+        |
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]).value
+        res.hcursor.downField("error").as[Json].toString should include("No corresponding block found for id")
+      }
+    }
+
     "Get a segment of the chain by height range" in {
       val requestBody = ByteString(s"""
         |{

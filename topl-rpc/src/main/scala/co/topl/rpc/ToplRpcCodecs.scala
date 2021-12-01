@@ -7,7 +7,6 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithm, BoxSelectionAlgorithms}
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
-import co.topl.rpc.ToplRpc.Transaction.RawAssetTransfer
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Latin1Data
@@ -76,6 +75,9 @@ trait NodeViewRpcParamsEncoders {
     deriveEncoder
 
   implicit val nodeViewBlockByIdParamsEncoder: Encoder[ToplRpc.NodeView.BlockById.Params] =
+    deriveEncoder
+
+  implicit val nodeViewBlocksByIdsParamsEncoder: Encoder[ToplRpc.NodeView.BlocksByIds.Params] =
     deriveEncoder
 
   implicit val nodeViewBlockByHeightParamsEncoder: Encoder[ToplRpc.NodeView.BlockByHeight.Params] =
@@ -349,7 +351,10 @@ trait NodeViewRpcParamsDecoders {
   implicit val nodeViewTransactionsByIdParamsDecoder: Decoder[ToplRpc.NodeView.TransactionById.Params] =
     deriveDecoder
 
-  implicit val nodeViewBlocksByIdParamsDecoder: Decoder[ToplRpc.NodeView.BlockById.Params] =
+  implicit val nodeViewBlockByIdParamsDecoder: Decoder[ToplRpc.NodeView.BlockById.Params] =
+    deriveDecoder
+
+  implicit val nodeViewBlocksByIdsParamsDecoder: Decoder[ToplRpc.NodeView.BlocksByIds.Params] =
     deriveDecoder
 
   implicit val nodeViewBlocksByHeightParamsDecoder: Decoder[ToplRpc.NodeView.BlockByHeight.Params] =
