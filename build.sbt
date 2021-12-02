@@ -1,3 +1,4 @@
+import com.typesafe.sbt.packager.docker.ExecCmd
 import sbt.Keys.{homepage, organization, test}
 import sbtassembly.MergeStrategy
 
@@ -68,6 +69,30 @@ lazy val publishSettings = Seq(
         <name>Nicholas Edmonds</name>
       </developer>
     </developers>
+)
+
+lazy val dockerSettings = Seq(
+  Docker / packageName := "bifrost-node",
+  dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java11-21.3.0",
+  dockerUpdateLatest := true,
+  dockerExposedPorts := Seq(9084, 9085),
+  dockerExposedVolumes += "/opt/docker/.bifrost",
+  dockerLabels ++= Map(
+    "bifrost.version" -> version.value
+  ),
+  dockerAliases := dockerAliases.value.flatMap { alias => Seq(
+    alias.withRegistryHost(Some("docker.io/toplprotocol")),
+    alias.withRegistryHost(Some("ghcr.io/topl"))
+  )
+
+  },
+  dockerCmd ++= Seq(
+    "--seed",
+    "test",
+    "-f",
+    "--apiKeyHash",
+    "6ju8SfmsrZbjCRJ8FXH8Bgygb7L3sNo3jCfcsYeDSrC2"
+  )
 )
 
 lazy val assemblySettings = Seq(
@@ -183,19 +208,13 @@ lazy val node = project
     name := "node",
     commonSettings,
     assemblySettings,
+    dockerSettings,
     Defaults.itSettings,
     crossScalaVersions := Seq(scala213), // The `monocle` library does not support Scala 2.12
     Compile / mainClass := Some("co.topl.BifrostApp"),
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
-    Docker / packageName := "bifrost-node",
-    dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java11-21.1.0",
-    dockerExposedPorts := Seq(9084, 9085),
-    dockerExposedVolumes += "/opt/docker/.bifrost",
-    dockerLabels ++= Map(
-      "bifrost.version" -> version.value
-    ),
     libraryDependencies ++= Dependencies.node,
   )
   .configs(IntegrationTest)

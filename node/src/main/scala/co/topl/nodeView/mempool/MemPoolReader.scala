@@ -14,12 +14,12 @@ case class UnconfirmedTx[TX <: Transaction.TX](tx: TX, dateAdded: TimeProvider.T
  */
 trait MemPoolReader[TX <: Transaction.TX] extends NodeViewComponent with ContainsModifiers[TX] {
 
-  //getters
+  // getters
   override def modifierById(modifierId: ModifierId): Option[TX]
 
   def contains(id: ModifierId): Boolean
 
-  //get ids from Seq, not presenting in mempool
+  // get ids from Seq, not presenting in mempool
   def notIn(ids: Seq[ModifierId]): Seq[ModifierId] = ids.filter(id => !contains(id))
 
   def getAll(ids: Seq[ModifierId]): Seq[TX]

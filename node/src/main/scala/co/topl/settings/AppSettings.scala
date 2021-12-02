@@ -74,7 +74,7 @@ case class ForgingSettings(
   minTransactionFee:    Long,
   protocolVersions:     List[ProtocolSettings],
   forgeOnStartup:       Boolean,
-  rewardsAddress:       Option[String], //String here since we don't know netPrefix when settings are read
+  rewardsAddress:       Option[String], // String here since we don't know netPrefix when settings are read
   privateTestnet:       Option[PrivateTestnetSettings]
 )
 
