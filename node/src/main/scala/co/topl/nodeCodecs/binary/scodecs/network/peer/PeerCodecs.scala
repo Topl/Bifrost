@@ -5,6 +5,7 @@ import co.topl.network.peer.{LocalAddressPeerFeature, PeerFeature, PeerSpec}
 import co.topl.nodeCodecs.binary.scodecs.settings._
 import co.topl.utils.Extensions.{IntOps, LongOps}
 import scodec.Codec
+import scodec.bits.BitVector
 import scodec.codecs.discriminated
 import shapeless.{::, HNil}
 
@@ -29,7 +30,18 @@ trait PeerCodecs {
   implicit val peerFeatureCodec: Codec[PeerFeature] =
     discriminated[PeerFeature]
       .by(byteCodec)
-      .typecase(LocalAddressPeerFeature.featureId, localAddressPeerFeatureCodec)
+      .typecase(
+        LocalAddressPeerFeature.featureId,
+        uShortCodec
+          .consume[LocalAddressPeerFeature](length =>
+            bytesCodec(length)
+              .exmapc[LocalAddressPeerFeature](bytes =>
+                localAddressPeerFeatureCodec.decode(BitVector(bytes)).map(_.value)
+              )(localAddress => localAddressPeerFeatureCodec.encode(localAddress).map(_.toByteArray))
+          )(localAddress =>
+            localAddressPeerFeatureCodec.encode(localAddress).map(_.length / 8).getOrElse(0L).toShortExact
+          )
+      )
 
   implicit val peerSpecCodec: Codec[PeerSpec] =
     (byteStringCodec ::
