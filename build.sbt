@@ -84,15 +84,7 @@ lazy val dockerSettings = Seq(
     alias.withRegistryHost(Some("docker.io/toplprotocol")),
     alias.withRegistryHost(Some("ghcr.io/topl"))
   )
-
-  },
-  dockerCmd ++= Seq(
-    "--seed",
-    "test",
-    "-f",
-    "--apiKeyHash",
-    "6ju8SfmsrZbjCRJ8FXH8Bgygb7L3sNo3jCfcsYeDSrC2"
-  )
+  }
 )
 
 lazy val assemblySettings = Seq(
