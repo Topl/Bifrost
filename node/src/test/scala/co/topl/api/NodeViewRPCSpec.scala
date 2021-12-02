@@ -247,7 +247,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
-        res.hcursor.downField("error").as[Json].toString should include("No corresponding block found for id")
+        res.hcursor.downField("error").as[Json].toString should include("No corresponding block found for the given id")
       }
     }
 
