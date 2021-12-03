@@ -5,8 +5,10 @@ import co.topl.attestation.Address
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.network.message.BifrostSyncInfo
+import co.topl.nodeView.ReadableNodeView
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.state.StateReader
+import co.topl.rpc.ToplRpc.NodeView.ConfirmationStatus.TxStatus
 
 package object handlers {
 
@@ -38,7 +40,7 @@ package object handlers {
       blocks <- Either.cond(
         blocksOption.forall(_.nonEmpty),
         blocksOption.map(_.get),
-        ToplRpcErrors.NoBlockWithGivenId
+        ToplRpcErrors.NoBlockWithId
       )
     } yield blocks
   }
@@ -61,5 +63,32 @@ package object handlers {
         ToplRpcErrors.unsupportedOperation("Height range exceeded blockRetrievalLimit")
       )
     } yield (startHeight, endHeight)
+
+  private[handlers] def checkTxIds(
+    txIds: List[ModifierId],
+    view:  ReadableNodeView
+  ): Either[RpcError, ToplRpc.NodeView.ConfirmationStatus.Response] = {
+    val txStatusOption: List[Option[(ModifierId, TxStatus)]] = txIds.map { id =>
+      val mempoolStatus = view.memPool.modifierById(id)
+      val historyStatus = view.history.transactionById(id)
+      val bestBlockHeight = view.history.height
+      (mempoolStatus, historyStatus) match {
+        case (_, Some((tx, _, height))) =>
+          Some(tx.id -> TxStatus("Confirmed", bestBlockHeight - height))
+        case (Some(tx), None) =>
+          Some(tx.id -> TxStatus("Unconfirmed", -1))
+        case (None, None) =>
+          None
+      }
+    }
+
+    for {
+      txStatus <- Either.cond(
+        txStatusOption.forall(_.nonEmpty),
+        txStatusOption.map(_.get).toMap,
+        ToplRpcErrors.NoTransactionWithId
+      )
+    } yield txStatus
+  }
 
 }

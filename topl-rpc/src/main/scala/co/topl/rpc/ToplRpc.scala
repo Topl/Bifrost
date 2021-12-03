@@ -291,6 +291,21 @@ object ToplRpc {
       type Response = TX
     }
 
+    object ConfirmationStatus {
+
+      /**
+       * Lookup the confirmation status of transactions
+       */
+      val rpc: Rpc[Params, Response] = Rpc("topl_confirmationStatus")
+
+      /**
+       * @param transactionIds Base58 encoded transaction hash
+       */
+      case class Params(transactionIds: List[ModifierId])
+      type Response = Map[ModifierId, TxStatus]
+      case class TxStatus(status: String, depthFromHead: Long)
+    }
+
     object Info {
 
       /**

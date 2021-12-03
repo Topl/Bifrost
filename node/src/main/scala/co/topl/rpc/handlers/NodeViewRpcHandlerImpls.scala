@@ -104,6 +104,9 @@ class NodeViewRpcHandlerImpls(
           _.toRight[RpcError](InvalidParametersError.adhoc("Unable to retrieve transaction", "transactionId"))
         )
 
+  override val confirmationStatus: ToplRpc.NodeView.ConfirmationStatus.rpc.ServerHandler =
+    params => withNodeView(view => checkTxIds(params.transactionIds, view)).subflatMap(identity)
+
   override val info: ToplRpc.NodeView.Info.rpc.ServerHandler =
     _ =>
       EitherT.pure(
