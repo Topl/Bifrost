@@ -33,6 +33,7 @@ object ToplRpcHandlers {
     def balances: ToplRpc.NodeView.Balances.rpc.ServerHandler
     def transactionById: ToplRpc.NodeView.TransactionById.rpc.ServerHandler
     def blockById: ToplRpc.NodeView.BlockById.rpc.ServerHandler
+    def blocksByIds: ToplRpc.NodeView.BlocksByIds.rpc.ServerHandler
     def blockByHeight: ToplRpc.NodeView.BlockByHeight.rpc.ServerHandler
     def blocksInRange: ToplRpc.NodeView.BlocksInRange.rpc.ServerHandler
     def mempool: ToplRpc.NodeView.Mempool.rpc.ServerHandler

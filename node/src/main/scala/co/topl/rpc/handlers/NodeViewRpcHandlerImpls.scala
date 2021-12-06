@@ -6,7 +6,6 @@ import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, InvalidParametersError, RpcError, ThrowableData}
 import co.topl.attestation.Address
 import co.topl.consensus.ForgerInterface
-import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
 import co.topl.network.message.BifrostSyncInfo
@@ -14,7 +13,7 @@ import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView}
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
-import co.topl.settings.AppContext
+import co.topl.settings.{AppContext, RPCApiSettings}
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Encoder
@@ -22,6 +21,7 @@ import io.circe.Encoder
 import scala.language.existentials
 
 class NodeViewRpcHandlerImpls(
+  rpcSettings:             RPCApiSettings,
   appContext:              AppContext,
   nodeViewHolderInterface: NodeViewHolderInterface,
   forgerInterface:         ForgerInterface
@@ -75,10 +75,15 @@ class NodeViewRpcHandlerImpls(
           _.toRight[RpcError](InvalidParametersError.adhoc("The requested block could not be found", "blockId"))
         )
 
+  override val blocksByIds: ToplRpc.NodeView.BlocksByIds.rpc.ServerHandler = { params =>
+    withNodeView(view => blocksByIdsResponse(params.blockIds, rpcSettings.blockRetrievalLimit, view.history))
+      .subflatMap(identity)
+  }
+
   override val blocksInRange: ToplRpc.NodeView.BlocksInRange.rpc.ServerHandler =
     params =>
       withNodeView(view =>
-        checkHeightRange(view.history.height, params.startHeight, params.endHeight)
+        checkHeightRange(view.history.height, params.startHeight, params.endHeight, rpcSettings.blockRetrievalLimit)
           .map(range => getBlocksInRange(view.history, range._1, range._2))
       ).subflatMap(identity)
 
@@ -90,7 +95,7 @@ class NodeViewRpcHandlerImpls(
         )
 
   override val mempool: ToplRpc.NodeView.Mempool.rpc.ServerHandler =
-    _ => withNodeView(_.memPool.take(100)(-_.dateAdded).map(_.tx).toList)
+    _ => withNodeView(_.memPool.take(rpcSettings.txRetrievalLimit)(-_.dateAdded).map(_.tx).toList)
 
   override val transactionFromMempool: ToplRpc.NodeView.TransactionFromMempool.rpc.ServerHandler =
     params =>
@@ -155,7 +160,7 @@ class NodeViewRpcHandlerImpls(
     view:        HistoryReader[Block, BifrostSyncInfo],
     startHeight: Long,
     endHeight:   Long
-  ): List[Block] =
+  ): ToplRpc.NodeView.BlocksByIds.Response =
     (startHeight to endHeight)
       .flatMap(view.idAtHeightOf)
       .flatMap(view.modifierById)

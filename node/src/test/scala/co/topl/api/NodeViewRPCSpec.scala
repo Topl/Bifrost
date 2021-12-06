@@ -89,9 +89,11 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
-        val txIds = (res \\ "result").head.asArray.get.flatMap(txJson => (txJson \\ "txId").head.asString)
-        txs.foreach(tx => txIds.contains(tx.id.toString))
+        val res: Json = parse(responseAs[String]).value
+        val txIds =
+          res.hcursor.downField("result").as[Seq[Json]].value.map(_.hcursor.downField("txId").as[String].value)
+        txs.foreach(tx => txIds.contains(tx.id.toString) shouldBe true)
+        res.hcursor.downField("error").values shouldBe None
       }
     }
 
@@ -111,8 +113,9 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       view().mempool.putWithoutCheck(Seq(txs.head), block.timestamp)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
-        ((res \\ "result").head \\ "txId").head.asString.get shouldEqual txId
+        val res: Json = parse(responseAs[String]).value
+        res.hcursor.downField("result").get[String]("txId").value shouldEqual txId
+        res.hcursor.downField("error").values shouldBe None
       }
       view().mempool.remove(txs.head)
     }
@@ -180,10 +183,9 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").isInstanceOf[List[Json]] shouldBe true
-        ((res \\ "result").head \\ "txId").head.asString.get shouldEqual txId
+        val res: Json = parse(responseAs[String]).value
+        res.hcursor.downField("result").as[Json].toString should include(txId)
+        res.hcursor.downField("error").values shouldBe None
       }
     }
 
@@ -202,9 +204,50 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
-        (res \\ "error").isEmpty shouldBe true
-        (res \\ "result").isInstanceOf[List[Json]] shouldBe true
+        val res: Json = parse(responseAs[String]).value
+        res.hcursor.downField("result").as[Json].toString should include(block.id.toString)
+        res.hcursor.downField("error").values shouldBe None
+      }
+    }
+
+    "Get multiple block by ids" in {
+      val requestBody = ByteString(s"""
+        |{
+        |   "jsonrpc": "2.0",
+        |
+        |   "id": "1",
+        |   "method": "topl_blocksByIds",
+        |   "params": [{
+        |      "blockIds": ["${block.id}"]
+        |   }]
+        |}
+        |
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]).value
+        res.hcursor.downField("result").as[Json].toString should include(block.id.toString)
+        res.hcursor.downField("error").values shouldBe None
+      }
+    }
+
+    "Fail if one of the ids are invalid" in {
+      val requestBody = ByteString(s"""
+        |{
+        |   "jsonrpc": "2.0",
+        |
+        |   "id": "1",
+        |   "method": "topl_blocksByIds",
+        |   "params": [{
+        |      "blockIds": ["${block.id}", "${blockCurve25519Gen.sampleFirst().id}"]
+        |   }]
+        |}
+        |
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]).value
+        res.hcursor.downField("error").as[Json].toString should include("No corresponding block found for the given id")
       }
     }
 

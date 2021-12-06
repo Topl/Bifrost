@@ -222,6 +222,20 @@ object ToplRpc {
       type Response = Block
     }
 
+    object BlocksByIds {
+
+      /**
+       * Lookup a block by its id
+       */
+      val rpc: Rpc[Params, Response] = Rpc("topl_blocksByIds")
+
+      /**
+       * @param blockIds Base58 encoded transaction hash
+       */
+      case class Params(blockIds: List[ModifierId])
+      type Response = List[Block]
+    }
+
     object BlocksInRange {
 
       /**
