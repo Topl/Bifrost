@@ -90,7 +90,7 @@ lazy val dockerSettings = Seq(
 lazy val assemblySettings = Seq(
   assembly / mainClass := Some("co.topl.BifrostApp"),
   assembly / test := {},
-  assemblyJarName := s"bifrost-${version.value}.jar",
+  assemblyJarName := s"bifrost-node-${version.value}.jar",
   assembly / assemblyMergeStrategy ~= { old: ((String) => MergeStrategy) => {
     case ps if ps.endsWith(".SF")  => MergeStrategy.discard
     case ps if ps.endsWith(".DSA") => MergeStrategy.discard
