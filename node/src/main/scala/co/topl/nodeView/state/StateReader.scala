@@ -16,7 +16,7 @@ trait StateReader[KP, KT] extends BoxReader[KP, KT] with NodeViewComponent {
   val hasPBR: Boolean
   val nodeKeys: Option[Set[KT]]
 
-  //must be ID of last applied modifier
+  // must be ID of last applied modifier
   def version: VersionTag
 
   def getBox(id: BoxId): Option[Box[_]]

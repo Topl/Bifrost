@@ -20,7 +20,7 @@ class ProgramBoxRegistry(protected val storage: KeyValueStore)
 
   import ProgramBoxRegistry.{K, V}
 
-  //----- input and output transformation functions
+  // ----- input and output transformation functions
   override protected val registryInput: K => Array[Byte] = (key: K) => key.bytes
 
   override protected val registryOutput: Array[Byte] => Seq[V] = (value: Array[Byte]) => Seq(BoxId(value))
