@@ -1,7 +1,6 @@
 package co.topl.typeclasses
 
-import co.topl.codecs.bytes.BasicCodecs._
-import co.topl.codecs.bytes.ByteCodec.implicits._
+import co.topl.codecs.bytes.implicits._
 import co.topl.models.{BlockHeaderV2, Bytes, Transaction, VerificationKeys}
 import simulacrum.{op, typeclass}
 

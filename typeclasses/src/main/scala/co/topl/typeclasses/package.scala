@@ -29,7 +29,7 @@ package object typeclasses {
       with ProofVerifier.Instances
       with ProofVerifier.Implicits
       with Proposer.Instances
-      with Proposer.implicits
+      with Proposer.Implicits
       with Prover.Instances
       with Prover.Implicits
       with Signable.Instances

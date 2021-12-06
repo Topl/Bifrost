@@ -4,7 +4,7 @@ import cats.data.Chain
 import cats.implicits._
 import cats.{Defer, Monad}
 import co.topl.codecs.bytes.ByteCodec
-import co.topl.codecs.bytes.ByteCodec.implicits._
+import co.topl.codecs.bytes.implicits._
 import co.topl.models.Bytes
 
 /**

@@ -53,9 +53,9 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
         "4162a383fd371823120a8bb8573dcb91d4b7e95e946598d202330f7cb0571a49".unsafeStrictBytes,
         specIn_time
       )
-    val specOut_sig_0 = Proofs.Signature.KesSum(
+    val specOut_sig_0 = Proofs.Knowledge.KesSum(
       VerificationKeys.Ed25519("210368f7c37b1e3c04b08dce0f28264af902388cfbc17b98e739adcf28b4edc5".unsafeStrictBytes),
-      Proofs.Signature.Ed25519(
+      Proofs.Knowledge.Ed25519(
         "3e2f86db64a383c144063c8a17a376e248e03a3e36e46607a03412f2f4d1b702f679e17368a58bb9d2f95a6eed27d6143663b116e4039fb05cb75f4bf9b1e10a".unsafeStrictBytes
       ),
       Vector(
@@ -82,9 +82,9 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
         "4162a383fd371823120a8bb8573dcb91d4b7e95e946598d202330f7cb0571a49".unsafeStrictBytes,
         specIn_time
       )
-    val specOut_sig_1 = Proofs.Signature.KesSum(
+    val specOut_sig_1 = Proofs.Knowledge.KesSum(
       VerificationKeys.Ed25519("46d553fcac44083dd37ce353ad683b9cc3c4867e49cc5ebc778a2b64f80f0510".unsafeStrictBytes),
-      Proofs.Signature.Ed25519(
+      Proofs.Knowledge.Ed25519(
         "32d9610a6a6486a45b1f0328997dc20447f245378641799ddbe35a4fec20296e53b31fc63624a55bc80ae8892ff7b05c4089dc0253c98915db1c60c2e5e1d701".unsafeStrictBytes
       ),
       Vector(
@@ -113,9 +113,9 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
         "15482211cce0a8c90a564ec64632b1eeea40c75b4575851303690afcece729e2".unsafeStrictBytes,
         specIn_time
       )
-    val specOut_sig_0 = Proofs.Signature.KesSum(
+    val specOut_sig_0 = Proofs.Knowledge.KesSum(
       VerificationKeys.Ed25519("7b3060f42759972ae50b70521f9f920587ba1aaa9434fa4e059da40f4aa53f94".unsafeStrictBytes),
-      Proofs.Signature.Ed25519(
+      Proofs.Knowledge.Ed25519(
         "5ba965947324fea9e78df19f7a2859f58aa2440ee2afad4c66e64f23ddfaafedcd27d7b8fd0db75c83caea394f270720407bdb0f4203a4d4d49f2f84b4f3a10b".unsafeStrictBytes
       ),
       Vector(
@@ -123,9 +123,9 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
         "7fcd9f9bd1c918654416cdcd2ed908a0f978c58f2123ae896d9df28b42c59367".unsafeStrictBytes
       )
     )
-    val specOut_sig_1 = Proofs.Signature.KesSum(
+    val specOut_sig_1 = Proofs.Knowledge.KesSum(
       VerificationKeys.Ed25519("9bef5555cb073c4b675fd182ca6d78dcfe19364dbeae5283a1888b42fbe55e3d".unsafeStrictBytes),
-      Proofs.Signature.Ed25519(
+      Proofs.Knowledge.Ed25519(
         "099a205e1152bf98ded60373921a32dfe9a9f28fbfc09364bf533f7bef35d5e6c4fb000fb539bcae2a5913ef3c844d466b69c6f2e52c46bafe3275da53cc520a".unsafeStrictBytes
       ),
       Vector(
@@ -133,9 +133,9 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
         "7fcd9f9bd1c918654416cdcd2ed908a0f978c58f2123ae896d9df28b42c59367".unsafeStrictBytes
       )
     )
-    val specOut_sig_2 = Proofs.Signature.KesSum(
+    val specOut_sig_2 = Proofs.Knowledge.KesSum(
       VerificationKeys.Ed25519("57d6a9536c0250183bc31d4e6fc2388a22fe498e57a6dc8a91fb8508694f6a3d".unsafeStrictBytes),
-      Proofs.Signature.Ed25519(
+      Proofs.Knowledge.Ed25519(
         "2965bae2c6c968ed160523ba886af63f3ca82bd9f8d7ecbf31a8ea0fef8bd95b2afc2a2120c5ae31db2ef29fa322e7f2db31cdf6c0c392bb1be7c9743bba3b0b".unsafeStrictBytes
       ),
       Vector(
@@ -143,9 +143,9 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
         "615244e7bd05088fb462ba9e7b995d71129b91b42652c06780b17936eb456461".unsafeStrictBytes
       )
     )
-    val specOut_sig_3 = Proofs.Signature.KesSum(
+    val specOut_sig_3 = Proofs.Knowledge.KesSum(
       VerificationKeys.Ed25519("c3dcdaab1292b810b55db8758258824cd73bf913fc59a2f1038fa707bbaff3b6".unsafeStrictBytes),
-      Proofs.Signature.Ed25519(
+      Proofs.Knowledge.Ed25519(
         "81de65fa1e27a33c006f173b2119aa190882d13034afc2ccd184c4a7e3549fc123bfa85be23438ac47fa22504b3253bf96bce3a1a849e9415e635581056d5f0c".unsafeStrictBytes
       ),
       Vector(
@@ -188,9 +188,9 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
         "deafadc6b9aa9a018871b54f5d9bfe6acaa3d1ad82e9fadefa347ae9fbc920e7".unsafeStrictBytes,
         specIn_time
       )
-    val specOut_sig_0 = Proofs.Signature.KesSum(
+    val specOut_sig_0 = Proofs.Knowledge.KesSum(
       VerificationKeys.Ed25519("79d37776daaf3a2952bdc9124d7228175f4f6fdd3fe83c42bddd4f61b68df1cc".unsafeStrictBytes),
-      Proofs.Signature.Ed25519(
+      Proofs.Knowledge.Ed25519(
         "bcb07a0e68a5ad2b696b44a56a651a95e65885a6908c8fa92825f9ad510fd84cd4e0d67601cd06d17eae8554f5eac5cca817033b3d011924245589fc047db90d".unsafeStrictBytes
       ),
       Vector(
@@ -199,9 +199,9 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
         "0ada5190f9f8a7ac5d8ba424dbc29ab4135444bbe459a77c598032d60c8d5b8e".unsafeStrictBytes
       )
     )
-    val specOut_sig_1 = Proofs.Signature.KesSum(
+    val specOut_sig_1 = Proofs.Knowledge.KesSum(
       VerificationKeys.Ed25519("8b0126047439415a5dba9e426bce4c1a991d37c5ffa1b43c1172fd6f83503069".unsafeStrictBytes),
-      Proofs.Signature.Ed25519(
+      Proofs.Knowledge.Ed25519(
         "0e95cfa983c878cee7caa3f776cd2e67fd2c6145b2fd2d8fe1bc3a72ec6812e2319a821b805ddd680605638b8571efab78ae6af957359f01b1a5b1db19d12205".unsafeStrictBytes
       ),
       Vector(
@@ -210,9 +210,9 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
         "0ada5190f9f8a7ac5d8ba424dbc29ab4135444bbe459a77c598032d60c8d5b8e".unsafeStrictBytes
       )
     )
-    val specOut_sig_2 = Proofs.Signature.KesSum(
+    val specOut_sig_2 = Proofs.Knowledge.KesSum(
       VerificationKeys.Ed25519("37a1dcaf5b889bdebf17f8c66a27b83a4a8dcf79fe8b0ab1e26c6852a29a6683".unsafeStrictBytes),
-      Proofs.Signature.Ed25519(
+      Proofs.Knowledge.Ed25519(
         "9ed7112b8a92645c34f3271d181cc29b5a4a4e2bdf90a40abffa5f6020cb56993a880a97e094c2d673fa9a789b10979b17e649a2e9ac0b7bc7bc768404255001".unsafeStrictBytes
       ),
       Vector(
@@ -221,9 +221,9 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
         "2c8b7318be3bcf7963fed0545fcae11ab48d60163487a7cf3e8574c36e5d75e0".unsafeStrictBytes
       )
     )
-    val specOut_sig_3 = Proofs.Signature.KesSum(
+    val specOut_sig_3 = Proofs.Knowledge.KesSum(
       VerificationKeys.Ed25519("4fee4bf190c11d0cf7175550343da416928a12bc6d0feb2c889f513d58fd8217".unsafeStrictBytes),
-      Proofs.Signature.Ed25519(
+      Proofs.Knowledge.Ed25519(
         "859a8e078f1f4b21303d33076c4ee0f1d1337bb5441837c66bd68f7518da98192b3c3361c1ece772adea47e09a0a230e814c64a75a6057b51cd0f7909d6c5a06".unsafeStrictBytes
       ),
       Vector(
@@ -267,9 +267,9 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
         "be127e4da6622de7785a221faa76ad008a0e1cb4f41ca2cd937554cc268ae7ce".unsafeStrictBytes,
         specIn_time
       )
-    val specOut_sig_0 = Proofs.Signature.KesSum(
+    val specOut_sig_0 = Proofs.Knowledge.KesSum(
       VerificationKeys.Ed25519("a9679e07331d0d007dcdc5097b742aa51a3a8b02ca0abd3fb627649fc0eadce7".unsafeStrictBytes),
-      Proofs.Signature.Ed25519(
+      Proofs.Knowledge.Ed25519(
         "f0c469c5771b84b88f9dd08e43ef64e976cc0d38cb73b8c9517346106cbc122399f707a4e9aa505652e88da4059a2e52eec3bb6915ac46f6157d3d4c7e61ca00".unsafeStrictBytes
       ),
       Vector(
@@ -279,9 +279,9 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
         "b737aa8e49a4b642a1162e0124a39c3bba4d83fee4d3747816e38482e6d2ae86".unsafeStrictBytes
       )
     )
-    val specOut_sig_1 = Proofs.Signature.KesSum(
+    val specOut_sig_1 = Proofs.Knowledge.KesSum(
       VerificationKeys.Ed25519("f17086c76d2ba3c587f3bbbdf6cb457e2f25b6c7e5f0f7b53916a09991edb19c".unsafeStrictBytes),
-      Proofs.Signature.Ed25519(
+      Proofs.Knowledge.Ed25519(
         "34d93cbd32f654862bdc5005def956f0791226f71b40f19cd1d656c9038ec7fa813426f3a261fec8f6645e5d4a3c8a6627ab8e41db88ba3fa383f6e01972400e".unsafeStrictBytes
       ),
       Vector(
@@ -291,9 +291,9 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
         "b737aa8e49a4b642a1162e0124a39c3bba4d83fee4d3747816e38482e6d2ae86".unsafeStrictBytes
       )
     )
-    val specOut_sig_2 = Proofs.Signature.KesSum(
+    val specOut_sig_2 = Proofs.Knowledge.KesSum(
       VerificationKeys.Ed25519("57ba0d6fd664d30a5e4186b601c887a8e7fa9c78e50cd3351b704f1a3740a4c1".unsafeStrictBytes),
-      Proofs.Signature.Ed25519(
+      Proofs.Knowledge.Ed25519(
         "d15c37f8c4fae4151fe3fa9ec5574a123dbbac849caa3c2ee124ad438aa8ff7a38eaf6da50940d42e1dff69dacb6977345125773822a8d97109a9029d8efab07".unsafeStrictBytes
       ),
       Vector(
@@ -303,9 +303,9 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
         "df602c5c6d0eafd2db7c6de7f0ee0ca72e12579450808c3827fb0cdc42836f63".unsafeStrictBytes
       )
     )
-    val specOut_sig_3 = Proofs.Signature.KesSum(
+    val specOut_sig_3 = Proofs.Knowledge.KesSum(
       VerificationKeys.Ed25519("7f31b22fd7c0240f48fd6ee684b66e7ef80a73c9fc92a38343c8add30c0c468c".unsafeStrictBytes),
-      Proofs.Signature.Ed25519(
+      Proofs.Knowledge.Ed25519(
         "6796e393202e19a74a20f6d449f0704c1891a4957a42342303bdadc7543e6e298836ab9e1374281f4514ae7794e1273efd0c6f742987fd68296c4d7a07639007".unsafeStrictBytes
       ),
       Vector(
@@ -350,9 +350,9 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
         "70c0d236d2892d1745b8c0547d93bb8ab48adbf7e4498af5dbc123a3fdf80e21".unsafeStrictBytes,
         specIn_time
       )
-    val specOut_sig_0 = Proofs.Signature.KesSum(
+    val specOut_sig_0 = Proofs.Knowledge.KesSum(
       VerificationKeys.Ed25519("bfb3bd77c3195566c00779a8a3be98e48687efb9fe0703fef255188abe3e8c86".unsafeStrictBytes),
-      Proofs.Signature.Ed25519(
+      Proofs.Knowledge.Ed25519(
         "97ed7c65fce2ede533ab5476e43e2f627d3dbf2d6f0d8baeb971e7392c291fb10c4ec2b9103b7df5052fb4f7c7df0906d2c14b22770749781f85e95654e30e0b".unsafeStrictBytes
       ),
       Vector(
@@ -363,9 +363,9 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
         "a5ae34468d39e8c5bbf8b9427444f1d507ce5678b5a73d4d2937b0dffe190f3e".unsafeStrictBytes
       )
     )
-    val specOut_sig_1 = Proofs.Signature.KesSum(
+    val specOut_sig_1 = Proofs.Knowledge.KesSum(
       VerificationKeys.Ed25519("2c3893ffb5eaa06b10baab53e2302103210465f4b02a947756040606c6047920".unsafeStrictBytes),
-      Proofs.Signature.Ed25519(
+      Proofs.Knowledge.Ed25519(
         "dd689f98054fb4d85c747a808a196434051a67a52e51c405d49c6153f767ef8586669525a9ebde5a4d5395c220c48fae29e6088a9e8419b38b9189eb9a78d206".unsafeStrictBytes
       ),
       Vector(
@@ -376,9 +376,9 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
         "a5ae34468d39e8c5bbf8b9427444f1d507ce5678b5a73d4d2937b0dffe190f3e".unsafeStrictBytes
       )
     )
-    val specOut_sig_2 = Proofs.Signature.KesSum(
+    val specOut_sig_2 = Proofs.Knowledge.KesSum(
       VerificationKeys.Ed25519("d43476ed2380b1b96902bfaec96c1f675ad113bd55d86b506c9a26895a69b496".unsafeStrictBytes),
-      Proofs.Signature.Ed25519(
+      Proofs.Knowledge.Ed25519(
         "cfd4e8a463ee8c32ca3781edeaefc4673b98631ad0b4ddfcf69baf2a5c6749734dea5401395e3c27063d1d44f13f911a7a2b738fd7bdb359ce7b4b99f8b8f90b".unsafeStrictBytes
       ),
       Vector(
@@ -389,9 +389,9 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
         "7feb24f2a47efff49217759e3e76af0def79946407710c243c19e0b4f131b326".unsafeStrictBytes
       )
     )
-    val specOut_sig_3 = Proofs.Signature.KesSum(
+    val specOut_sig_3 = Proofs.Knowledge.KesSum(
       VerificationKeys.Ed25519("decaf6e8f7f6c767b096775950d8f551b47f3975d5ec196d41f521850722d2c2".unsafeStrictBytes),
-      Proofs.Signature.Ed25519(
+      Proofs.Knowledge.Ed25519(
         "c1e8335f8a5667138839f331310b930fddcdd61cf801a4337949e6e9470bec6ca087d26737f5641aa7ff7951abd1ed5fd5bee610763c0ea24aff7ef9dfc37809".unsafeStrictBytes
       ),
       Vector(

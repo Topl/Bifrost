@@ -7,7 +7,7 @@ import co.topl.algebras.ClockAlgebra
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models.ModelGenerators._
-import co.topl.models.Proofs.Signature
+import co.topl.models.Proofs.Knowledge
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
@@ -43,7 +43,7 @@ class EtaCalculationSpec
       EtaCalculation.Eval.make[F](state, clock, genesis.headerV2.eligibilityCertificate.eta).unsafeRunSync()
     val epoch = 0L
     val skVrf = KeyInitializer[SecretKeys.VrfEd25519].random()
-    val args: List[(Slot, Signature.VrfEd25519)] = List.tabulate(8) { offset =>
+    val args: List[(Slot, Knowledge.VrfEd25519)] = List.tabulate(8) { offset =>
       val slot = offset.toLong + 1
       val nonceSignature =
         ed25519Vrf.sign(

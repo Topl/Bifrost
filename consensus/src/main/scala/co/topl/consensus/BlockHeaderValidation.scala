@@ -88,19 +88,23 @@ object BlockHeaderValidation {
                     .ensure(
                       BlockHeaderValidationFailures.InvalidEligibilityCertificateTestProof(certificate.vrfTestSig)
                     )(header =>
-                      certificate.vrfTestSig.satisfies(
-                        certificate.vkVRF.proposition,
+                      ed25519vrf.verify(
+                        certificate.vrfTestSig,
                         LeaderElectionValidation
                           .VrfArgument(expectedEta, header.slot, LeaderElectionValidation.Tokens.Test)
+                          .signableBytes,
+                        certificate.vkVRF
                       )
                     )
                     .ensure(
                       BlockHeaderValidationFailures.InvalidEligibilityCertificateNonceProof(certificate.vrfNonceSig)
                     )(header =>
-                      certificate.vrfNonceSig.satisfies(
-                        certificate.vkVRF.proposition,
+                      ed25519vrf.verify(
+                        certificate.vrfNonceSig,
                         LeaderElectionValidation
                           .VrfArgument(expectedEta, header.slot, LeaderElectionValidation.Tokens.Nonce)
+                          .signableBytes,
+                        certificate.vkVRF
                       )
                     )
                 }
@@ -150,7 +154,7 @@ object BlockHeaderValidation {
             threshold: Ratio
           ): EitherT[F, BlockHeaderValidationFailure, BlockHeaderV2] =
             EitherT.cond(
-              header.eligibilityCertificate.thresholdEvidence === threshold.evidence,
+              header.eligibilityCertificate.thresholdEvidence === threshold.typedEvidence.evidence,
               header,
               BlockHeaderValidationFailures.InvalidVrfThreshold(threshold)
             )

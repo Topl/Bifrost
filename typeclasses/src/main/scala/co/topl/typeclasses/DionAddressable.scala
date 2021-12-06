@@ -18,103 +18,15 @@ object DionAddressable {
 
   trait Instances {
 
-    implicit val curve25519KnowledgePropositionPubKeyHashDionAddressable
-      : DionAddressable[Propositions.Knowledge.Curve25519] = new DionAddressable[Knowledge.Curve25519] {
+    implicit def containsEvidenceDionAddressable[T: ContainsEvidence](implicit
+      networkPrefix: NetworkPrefix
+    ): DionAddressable[T] =
+      new DionAddressable[T] {
 
-      def dionAddressOf(t: Knowledge.Curve25519)(implicit networkPrefix: NetworkPrefix): DionAddress =
-        DionAddress(
-          networkPrefix,
-          TypedEvidence(1: Byte, Sized.strictUnsafe(Bytes(blake2b256.hash(t.key.bytes.data.toArray).value)))
-        )
-    }
-
-    implicit val curve25519ThresholdPropositionDionAddressable
-      : DionAddressable[Propositions.Knowledge.Threshold.Curve25519] =
-      new DionAddressable[Propositions.Knowledge.Threshold.Curve25519] {
-
-        def dionAddressOf(t: Propositions.Knowledge.Threshold.Curve25519)(implicit
-          networkPrefix:     NetworkPrefix
-        ): DionAddress =
+        def dionAddressOf(t: T)(implicit networkPrefix: NetworkPrefix): DionAddress =
           DionAddress(
             networkPrefix,
-            TypedEvidence(
-              2: Byte,
-              Sized.strictUnsafe(
-                Bytes(
-                  blake2b256
-                    .hash(
-                      Bytes
-                        .concat(
-                          Bytes(VLQWriter.uLongSerializer(t.threshold)) ::
-                          Bytes(VLQWriter.uLongSerializer(t.propositions.size)) ::
-                          t.propositions.toList.map(_.bytes.data)
-                        )
-                        .toArray
-                    )
-                    .value
-                )
-              )
-            )
-          )
-      }
-
-    implicit val ed25519KnowledgePropositionPubKeyHashDionAddressable: DionAddressable[Propositions.Knowledge.Ed25519] =
-      new DionAddressable[Propositions.Knowledge.Ed25519] {
-
-        def dionAddressOf(
-          t:                      Propositions.Knowledge.Ed25519
-        )(implicit networkPrefix: NetworkPrefix): DionAddress =
-          DionAddress(
-            networkPrefix,
-            TypedEvidence(
-              1: Byte,
-              Sized.strictUnsafe(Bytes(blake2b256.hash(t.key.bytes.data.toArray).value))
-            )
-          )
-      }
-
-    implicit val extendedEd25519KnowledgePropositionPubKeyHashDionAddressable
-      : DionAddressable[Propositions.Knowledge.ExtendedEd25519] =
-      new DionAddressable[Propositions.Knowledge.ExtendedEd25519] {
-
-        def dionAddressOf(
-          t:                      Propositions.Knowledge.ExtendedEd25519
-        )(implicit networkPrefix: NetworkPrefix): DionAddress =
-          DionAddress(
-            networkPrefix,
-            TypedEvidence(
-              5: Byte,
-              Sized.strictUnsafe(Bytes(blake2b256.hash((t.key.vk.bytes.data ++ t.key.chainCode.data).toArray).value))
-            )
-          )
-      }
-
-    implicit val ed25519ThresholdPropositionDionAddressable: DionAddressable[Propositions.Knowledge.Threshold.Ed25519] =
-      new DionAddressable[Propositions.Knowledge.Threshold.Ed25519] {
-
-        def dionAddressOf(t: Propositions.Knowledge.Threshold.Ed25519)(implicit
-          networkPrefix:     NetworkPrefix
-        ): DionAddress =
-          DionAddress(
-            networkPrefix,
-            TypedEvidence(
-              2: Byte,
-              Sized.strictUnsafe(
-                Bytes(
-                  blake2b256
-                    .hash(
-                      Bytes
-                        .concat(
-                          Bytes(VLQWriter.uLongSerializer(t.threshold)) ::
-                          Bytes(VLQWriter.uLongSerializer(t.propositions.size)) ::
-                          t.propositions.toList.map(_.bytes.data)
-                        )
-                        .toArray
-                    )
-                    .value
-                )
-              )
-            )
+            ContainsEvidence[T].typedEvidenceOf(t)
           )
       }
 

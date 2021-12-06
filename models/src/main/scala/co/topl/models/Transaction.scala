@@ -2,11 +2,12 @@ package co.topl.models
 
 import cats.data.NonEmptyChain
 
+import scala.collection.immutable.ListMap
+
 case class Transaction(
-  input:       Seq[BoxReference],
+  inputs:      ListMap[BoxReference, (Proposition, Proof)],
   feeOutput:   Option[Transaction.PolyOutput],
   coinOutputs: NonEmptyChain[Transaction.CoinOutput],
-  attestation: Attestation,
   fee:         Int128,
   timestamp:   Timestamp,
   data:        Option[TransactionData],

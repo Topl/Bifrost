@@ -12,7 +12,7 @@ class Curve25519
     extends EllipticCurveSignatureScheme[
       SecretKeys.Curve25519,
       VerificationKeys.Curve25519,
-      Proofs.Signature.Curve25519,
+      Proofs.Knowledge.Curve25519,
       SecretKeys.Curve25519.Length
     ] {
 
@@ -43,8 +43,8 @@ class Curve25519
   override def sign(
     privateKey: SecretKeys.Curve25519,
     message:    Bytes
-  ): Proofs.Signature.Curve25519 =
-    Proofs.Signature.Curve25519(
+  ): Proofs.Knowledge.Curve25519 =
+    Proofs.Knowledge.Curve25519(
       Sized.strictUnsafe(
         Bytes(
           provider.calculateSignature(
@@ -57,7 +57,7 @@ class Curve25519
     )
 
   override def verify(
-    signature: Proofs.Signature.Curve25519,
+    signature: Proofs.Knowledge.Curve25519,
     message:   Bytes,
     publicKey: VerificationKeys.Curve25519
   ): Boolean =

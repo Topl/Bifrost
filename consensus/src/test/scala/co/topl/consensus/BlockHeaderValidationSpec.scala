@@ -342,7 +342,7 @@ class BlockHeaderValidationSpec
       proof(slot, LeaderElectionValidation.Tokens.Nonce),
       testProof,
       skVrf.verificationKey[VerificationKeys.VrfEd25519],
-      threshold.evidence,
+      threshold.typedEvidence.evidence,
       eta
     )
 
@@ -351,7 +351,7 @@ class BlockHeaderValidationSpec
 
   private def validOperationalCertificate(unsigned: BlockHeaderV2.Unsigned): OperationalCertificate =
     OperationalCertificate(
-      Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0))))
+      Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0))))
 //      opSig = Proofs.Signature.HdKes(
 //        i = 0,
 //        vkI = VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),

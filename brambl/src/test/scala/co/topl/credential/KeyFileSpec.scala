@@ -1,9 +1,10 @@
-package co.topl.client.credential
+package co.topl.credential
 
-import co.topl.client.credential.KeyFile.Encryption.MACMismatch
+import KeyFile.Encryption.MACMismatch
+import co.topl.credential.KeyFile.Encryption.MACMismatch
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.Sized
-import co.topl.models.{Bytes, Evidence}
+import co.topl.models.{Bytes, Evidence, TypedEvidence}
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -24,7 +25,8 @@ class KeyFileSpec
 
   private val password = "test"
 
-  private val evidence: Evidence = Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0: Byte)))
+  private val evidence: TypedEvidence =
+    TypedEvidence(1: Byte, Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0: Byte))))
 
   it should "encrypt and decrypt data" in {
     forAll(
@@ -33,7 +35,7 @@ class KeyFileSpec
         .map(Bytes(_))
     ) { secretData =>
       val keyFile =
-        KeyFile.Encryption.encrypt(secretData, KeyFile.Metadata(evidence, KeyFile.Metadata.Curve25519), password)
+        KeyFile.Encryption.encrypt(secretData, KeyFile.Metadata(evidence), password)
 
       val decryptedData = KeyFile.Encryption.decrypt(keyFile, password).value
 
@@ -45,7 +47,7 @@ class KeyFileSpec
     val secretData = Bytes(Array[Byte](1, 2, 3))
 
     val keyFile =
-      KeyFile.Encryption.encrypt(secretData, KeyFile.Metadata(evidence, KeyFile.Metadata.Curve25519), password)
+      KeyFile.Encryption.encrypt(secretData, KeyFile.Metadata(evidence), password)
 
     val decryptedData = KeyFile.Encryption.decrypt(keyFile, password).value
 
@@ -55,7 +57,7 @@ class KeyFileSpec
   it should "fail to decrypt with incorrect password" in {
     val secretData = Bytes(Array[Byte](1, 2, 3))
 
-    val keyFile = KeyFile.Encryption.encrypt(secretData, KeyFile.Metadata(evidence, KeyFile.Metadata.Curve25519), "123")
+    val keyFile = KeyFile.Encryption.encrypt(secretData, KeyFile.Metadata(evidence), "123")
 
     val failure = KeyFile.Encryption.decrypt(keyFile, "456").left.value
 

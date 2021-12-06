@@ -9,8 +9,8 @@ package co.topl.models
  * TODO: Combine thresholdEvidence + eta?
  */
 case class EligibilityCertificate(
-  vrfNonceSig:       Proofs.Signature.VrfEd25519,
-  vrfTestSig:        Proofs.Signature.VrfEd25519,
+  vrfNonceSig:       Proofs.Knowledge.VrfEd25519,
+  vrfTestSig:        Proofs.Knowledge.VrfEd25519,
   vkVRF:             VerificationKeys.VrfEd25519,
   thresholdEvidence: Evidence,
   eta:               Eta

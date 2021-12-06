@@ -1,44 +1,50 @@
 package co.topl.typeclasses
 
-import co.topl.crypto.signing.{Curve25519, Ed25519, Ed25519VRF}
+import cats._
+import cats.implicits._
+import co.topl.crypto.signing.{Curve25519, Ed25519, ExtendedEd25519}
 import co.topl.models._
 import co.topl.typeclasses.implicits._
 
 import scala.language.implicitConversions
-import scala.util.Try
 
-trait ProofVerifier[Proof, Proposition] {
+trait ProofVerifier[F[_], Prop <: Proposition, Prf <: Proof] {
 
   /**
    * Does the given `proof` satisfy the given `proposition` using the given `data`?
    */
-  def verifyWith[Data: Signable](proof: Proof, proposition: Proposition, data: Data): Boolean
+  def verifyWith(proposition: Prop, proof: Prf, context: VerificationContext[F]): F[Boolean]
 }
 
-// todo: James - I really want to make the typeclasses just act as controllers to the functionality implemented
-// elsewhere, it should be the responsibility of the implmentation to present interfaces (i.e. type usage) that the
-// typeclasses will be expecting. This way we have a common set of models that we can assume all modules will
-// use for their API
 object ProofVerifier {
 
-  trait Ops[Proof, Proposition] {
+  trait Ops[F[_], Prop <: Proposition, Prf <: Proof] {
 
-    def proof: Proof
-    def typeclassInstance: ProofVerifier[Proof, Proposition]
+    def proof: Prf
+    def typeclassInstance: ProofVerifier[F, Prop, Prf]
 
-    def satisfies[Data: Signable](proposition: Proposition, data: Data): Boolean =
-      typeclassInstance.verifyWith(proof, proposition, data)
+    def satisfies(proposition: Prop, context: VerificationContext[F]): F[Boolean] =
+      typeclassInstance.verifyWith(proposition, proof, context)
   }
 
   trait Implicits {
 
-    implicit def asVerifierOps[Proof, Proposition](
-      p:                 Proof
-    )(implicit verifier: ProofVerifier[Proof, Proposition]): Ops[Proof, Proposition] =
-      new Ops[Proof, Proposition] {
-        override def proof: Proof = p
+    implicit class ProofOps(proof: Proof) {
 
-        override def typeclassInstance: ProofVerifier[Proof, Proposition] = verifier
+      def satisfies[F[_]](proposition: Proposition, context: VerificationContext[F])(implicit
+        ev:                            ProofVerifier[F, Proposition, Proof]
+      ): F[Boolean] =
+        ev.verifyWith(proposition, proof, context)
+
+    }
+
+    implicit def asVerifierOps[F[_], Prop <: Proposition, Prf <: Proof](
+      p:                 Prf
+    )(implicit verifier: ProofVerifier[F, Prop, Prf]): Ops[F, Prop, Prf] =
+      new Ops[F, Prop, Prf] {
+        override def proof: Prf = p
+
+        override def typeclassInstance: ProofVerifier[F, Prop, Prf] = verifier
       }
   }
 
@@ -46,127 +52,144 @@ object ProofVerifier {
 
   trait Instances {
 
-    implicit val publicKeyCurve25519: ProofVerifier[Proofs.Signature.Curve25519, Propositions.Knowledge.Curve25519] =
-      new ProofVerifier[Proofs.Signature.Curve25519, Propositions.Knowledge.Curve25519] {
+    implicit def publicKeyCurve25519[F[_]: Applicative]
+      : ProofVerifier[F, Propositions.Knowledge.Curve25519, Proofs.Knowledge.Curve25519] =
+      new ProofVerifier[F, Propositions.Knowledge.Curve25519, Proofs.Knowledge.Curve25519] {
         private val curve25519 = new Curve25519()
 
-        override def verifyWith[Data: Signable](
-          proof:       Proofs.Signature.Curve25519,
+        override def verifyWith(
           proposition: Propositions.Knowledge.Curve25519,
-          data:        Data
-        ): Boolean = curve25519.verify(
-          proof,
-          data.signableBytes,
-          proposition.key
-        )
+          proof:       Proofs.Knowledge.Curve25519,
+          context:     VerificationContext[F]
+        ): F[Boolean] = curve25519
+          .verify(
+            proof,
+            context.currentTransaction.signableBytes,
+            proposition.key
+          )
+          .pure[F]
       }
 
-    implicit val publicKeyEd25519: ProofVerifier[Proofs.Signature.Ed25519, Propositions.Knowledge.Ed25519] =
-      new ProofVerifier[Proofs.Signature.Ed25519, Propositions.Knowledge.Ed25519] {
-        private val ed25519 = new Ed25519()
+    implicit def publicKeyEd25519[F[_]: Applicative](implicit
+      ed25519: Ed25519
+    ): ProofVerifier[F, Propositions.Knowledge.Ed25519, Proofs.Knowledge.Ed25519] =
+      (proposition: Propositions.Knowledge.Ed25519, proof: Proofs.Knowledge.Ed25519, context: VerificationContext[F]) =>
+        ed25519
+          .verify(
+            proof,
+            context.currentTransaction.signableBytes,
+            proposition.key
+          )
+          .pure[F]
 
-        override def verifyWith[Data: Signable](
-          proof:       Proofs.Signature.Ed25519,
-          proposition: Propositions.Knowledge.Ed25519,
-          data:        Data
-        ): Boolean = ed25519.verify(
-          proof,
-          data.signableBytes,
-          proposition.key
-        )
-      }
+    implicit def publicKeyExtendedEd25519[F[_]: Applicative](implicit
+      extendedEd25519: ExtendedEd25519
+    ): ProofVerifier[F, Propositions.Knowledge.ExtendedEd25519, Proofs.Knowledge.Ed25519] =
+      (
+        proposition: Propositions.Knowledge.ExtendedEd25519,
+        proof:       Proofs.Knowledge.Ed25519,
+        context:     VerificationContext[F]
+      ) =>
+        extendedEd25519
+          .verify(
+            proof,
+            context.currentTransaction.signableBytes,
+            proposition.key
+          )
+          .pure[F]
 
-    // todo: move this logic to an implementation
-    implicit val thresholdCurve25519
-      : ProofVerifier[Proofs.Threshold.Curve25519, Propositions.Knowledge.Threshold.Curve25519] =
-      new ProofVerifier[Proofs.Threshold.Curve25519, Propositions.Knowledge.Threshold.Curve25519] {
-        private val curve25519 = new Curve25519()
+    implicit def heightLockVerifier[F[_]: Functor]
+      : ProofVerifier[F, Propositions.Contextual.HeightLock, Proofs.Contextual.HeightLock] =
+      (
+        proposition: Propositions.Contextual.HeightLock,
+        proof:       Proofs.Contextual.HeightLock,
+        context:     VerificationContext[F]
+      ) => context.heightOfBlock(proof.blockId).map(_.exists(_ >= proposition.height))
 
-        override def verifyWith[Data: Signable](
-          proof:       Proofs.Threshold.Curve25519,
-          proposition: Propositions.Knowledge.Threshold.Curve25519,
-          data:        Data
-        ): Boolean = {
-          val dataBytes = data.signableBytes.toArray
-          proposition.propositions.size >= proposition.threshold && {
-            val (validSignatureCount, _) =
-              proof.signatures
-                .foldLeft((0, proposition.propositions)) { case ((acc, unusedProps), sig) =>
-                  if (acc < proposition.threshold) {
-                    unusedProps
-                      .find(prop =>
-                        unusedProps(prop) && curve25519.verify(
-                          sig,
-                          Bytes(dataBytes),
-                          prop
-                        )
-                      ) match {
-                      case Some(prop) =>
-                        (acc + 1, unusedProps.diff(Set(prop)))
-                      case None =>
-                        (acc, unusedProps)
-                    }
-                  } else (acc, unusedProps)
+    implicit def thresholdVerifier[F[_]: Monad](implicit
+      proofVerifier: ProofVerifier[F, Proposition, Proof]
+    ): ProofVerifier[F, Propositions.Compositional.Threshold, Proofs.Compositional.Threshold] =
+      (
+        proposition: Propositions.Compositional.Threshold,
+        proof:       Proofs.Compositional.Threshold,
+        context:     VerificationContext[F]
+      ) =>
+        if (proposition.threshold === 0) true.pure[F]
+        else if (proposition.threshold > proposition.propositions.size) false.pure[F]
+        else if (proof.proofs.isEmpty) false.pure[F]
+        // We assume a one-to-one pairing of sub-proposition to sub-proof with the assumption that some of the proofs
+        // may be Proofs.False
+        else if (proof.proofs.size =!= proposition.propositions.size) false.pure[F]
+        else {
+          proposition.propositions.toList
+            .zip(proof.proofs)
+            .foldLeftM(0L) {
+              case (successCount, _) if successCount >= proposition.threshold =>
+                successCount.pure[F]
+              case (successCount, (prop, proof)) =>
+                proofVerifier.verifyWith(prop, proof, context).map {
+                  case true => successCount + 1
+                  case _    => successCount
                 }
-            validSignatureCount >= proposition.threshold
-          }
+            }
+            .map(_ >= proposition.threshold)
         }
-      }
 
-    // todo: move this logic to an implemntation
-    implicit val thresholdEd25519: ProofVerifier[Proofs.Threshold.Ed25519, Propositions.Knowledge.Threshold.Ed25519] =
-      new ProofVerifier[Proofs.Threshold.Ed25519, Propositions.Knowledge.Threshold.Ed25519] {
-
-        private val ed25519 = new Ed25519()
-
-        override def verifyWith[Data: Signable](
-          proof:       Proofs.Threshold.Ed25519,
-          proposition: Propositions.Knowledge.Threshold.Ed25519,
-          data:        Data
-        ): Boolean =
-          proposition.propositions.size >= proposition.threshold && {
-            val (validSignatureCount, _) =
-              proof.signatures
-                .foldLeft((0, proposition.propositions)) { case ((acc, unusedProps), sig) =>
-                  if (acc < proposition.threshold) {
-                    unusedProps
-                      .find(prop =>
-                        unusedProps(prop) && ed25519.verify(
-                          sig,
-                          data.signableBytes,
-                          prop
-                        )
-                      ) match {
-                      case Some(prop) =>
-                        (acc + 1, unusedProps.diff(Set(prop)))
-                      case None =>
-                        (acc, unusedProps)
-                    }
-                  } else (acc, unusedProps)
-                }
-            validSignatureCount >= proposition.threshold
+    implicit def andVerifier[F[_]: Monad](implicit
+      proofVerifier: ProofVerifier[F, Proposition, Proof]
+    ): ProofVerifier[F, Propositions.Compositional.And, Proofs.Compositional.And] =
+      (proposition: Propositions.Compositional.And, proof: Proofs.Compositional.And, context: VerificationContext[F]) =>
+        proofVerifier
+          .verifyWith(proposition.a, proof.a, context)
+          .flatMap {
+            case true => proofVerifier.verifyWith(proposition.b, proof.b, context)
+            case _    => false.pure[F]
           }
-      }
 
-    implicit def signatureVrfEd25519(implicit
-      ed25519VRF: Ed25519VRF
-    ): ProofVerifier[Proofs.Signature.VrfEd25519, Propositions.VerificationKeyVRF] =
-      new ProofVerifier[Proofs.Signature.VrfEd25519, Propositions.VerificationKeyVRF] {
+    implicit def orVerifier[F[_]: Monad](implicit
+      proofVerifier: ProofVerifier[F, Proposition, Proof]
+    ): ProofVerifier[F, Propositions.Compositional.Or, Proofs.Compositional.Or] =
+      (proposition: Propositions.Compositional.Or, proof: Proofs.Compositional.Or, context: VerificationContext[F]) =>
+        proofVerifier
+          .verifyWith(proposition.a, proof.a, context)
+          .flatMap {
+            case false => proofVerifier.verifyWith(proposition.b, proof.b, context)
+            case _     => true.pure[F]
+          }
 
-        override def verifyWith[Data: Signable](
-          proof:       Proofs.Signature.VrfEd25519,
-          proposition: Propositions.VerificationKeyVRF,
-          data:        Data
-        ): Boolean =
-          Try(
-            ed25519VRF.verify(
-              proof,
-              data.signableBytes,
-              proposition.key
-            )
-          ).getOrElse(false)
-      }
+    implicit def proofVerifier[F[_]: Monad](implicit
+      ed25519:         Ed25519,
+      extendedEd25519: ExtendedEd25519
+    ): ProofVerifier[F, Proposition, Proof] =
+      (proposition, proof, context) =>
+        (proposition, proof) match {
+          case (prop: Propositions.Knowledge.Curve25519, proof: Proofs.Knowledge.Curve25519) =>
+            publicKeyCurve25519[F].verifyWith(prop, proof, context)
+          case (prop: Propositions.Knowledge.Ed25519, proof: Proofs.Knowledge.Ed25519) =>
+            publicKeyEd25519[F].verifyWith(prop, proof, context)
+          case (prop: Propositions.Knowledge.ExtendedEd25519, proof: Proofs.Knowledge.Ed25519) =>
+            publicKeyExtendedEd25519[F].verifyWith(prop, proof, context)
+          case (prop: Propositions.Compositional.Threshold, proof: Proofs.Compositional.Threshold) =>
+            implicit def v: ProofVerifier[F, Proposition, Proof] = proofVerifier[F]
+            thresholdVerifier[F].verifyWith(prop, proof, context)
+          case (prop: Propositions.Compositional.And, proof: Proofs.Compositional.And) =>
+            implicit def v: ProofVerifier[F, Proposition, Proof] = proofVerifier[F]
+            andVerifier[F].verifyWith(prop, proof, context)
+          case (prop: Propositions.Compositional.Or, proof: Proofs.Compositional.Or) =>
+            implicit def v: ProofVerifier[F, Proposition, Proof] = proofVerifier[F]
+            orVerifier[F].verifyWith(prop, proof, context)
+          case (prop: Propositions.Contextual.HeightLock, proof: Proofs.Contextual.HeightLock) =>
+            heightLockVerifier[F].verifyWith(prop, proof, context)
+          case _ =>
+            false.pure[F]
+        }
   }
 
   object Instances extends Instances
+}
+
+trait VerificationContext[F[_]] {
+  def currentTransaction: Transaction
+  def heightOfBlock(id: TypedIdentifier): F[Option[Long]]
+  def slotOfBlock(id:   TypedIdentifier): F[Option[Slot]]
 }

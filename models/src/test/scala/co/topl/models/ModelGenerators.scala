@@ -1,6 +1,6 @@
 package co.topl.models
 
-import co.topl.models.Proofs.Signature.KesSum
+import co.topl.models.Proofs.Knowledge.KesSum
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.StringDataTypes.Latin1Data
@@ -18,8 +18,8 @@ trait ModelGenerators {
 
   def eligibilityCertificateGen: Gen[EligibilityCertificate] =
     for {
-      nonceProof        <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Signature.VrfEd25519(_))
-      testProof         <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Signature.VrfEd25519(_))
+      nonceProof        <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Knowledge.VrfEd25519(_))
+      testProof         <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Knowledge.VrfEd25519(_))
       vkVrf             <- genSizedStrictBytes[Lengths.`32`.type]().map(VerificationKeys.VrfEd25519(_))
       thresholdEvidence <- genSizedStrictBytes[Lengths.`32`.type]()
       eta               <- etaGen
@@ -37,16 +37,16 @@ trait ModelGenerators {
   def witnessGen: Gen[Vector[Sized.Strict[Bytes, KesSum.DigestLength]]] =
     Gen.nonEmptyContainerOf[Vector, Sized.Strict[Bytes, Lengths.`32`.type]](genSizedStrictBytes[Lengths.`32`.type]())
 
-  def sumProductGen: Gen[Proofs.Signature.KesSum] =
+  def sumProductGen: Gen[Proofs.Knowledge.KesSum] =
     for {
       vkK         <- ed25519VkGen
-      ecSignature <- genSizedStrictBytes[Proofs.Signature.Ed25519.Length]().map(Proofs.Signature.Ed25519(_))
+      ecSignature <- genSizedStrictBytes[Proofs.Knowledge.Ed25519.Length]().map(Proofs.Knowledge.Ed25519(_))
       witness     <- witnessGen
-    } yield Proofs.Signature.KesSum(vkK, ecSignature, witness)
+    } yield Proofs.Knowledge.KesSum(vkK, ecSignature, witness)
 
   def operationalCertificateGen: Gen[OperationalCertificate] =
     for {
-      opSig <- genSizedStrictBytes[Lengths.`64`.type]().map(Proofs.Signature.Ed25519(_))
+      opSig <- genSizedStrictBytes[Lengths.`64`.type]().map(Proofs.Knowledge.Ed25519(_))
     } yield OperationalCertificate(opSig)
 
   def taktikosAddressGen: Gen[TaktikosAddress] =

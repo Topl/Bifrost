@@ -33,8 +33,9 @@ package object models {
   case class DionAddress(networkPrefix: NetworkPrefix, typedEvidence: TypedEvidence) {
     def allBytes: Bytes = networkPrefix.value +: typedEvidence.allBytes
   }
-  type BoxReference = (DionAddress, Eta)
-  type TaktikosBoxReference = (TaktikosAddress, Eta)
+  // TODO: Maybe Evidence?
+  type BoxReference = (DionAddress, BoxNonce)
+  type TaktikosBoxReference = (TaktikosAddress, Sized.Strict[Bytes, Lengths.`32`.type])
 
   type TxRoot = Sized.Strict[Bytes, Lengths.`32`.type]
   type BloomFilter = Sized.Strict[Bytes, Lengths.`256`.type]

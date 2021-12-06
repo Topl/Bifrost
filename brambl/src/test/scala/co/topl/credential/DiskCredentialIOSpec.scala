@@ -1,9 +1,9 @@
-package co.topl.client.credential
+package co.topl.credential
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import co.topl.crypto.signing.Password
-import co.topl.models.Bytes
+import co.topl.models.{Bytes, _}
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.{Length, Lengths, Sized}
 import io.circe.syntax._
@@ -41,6 +41,14 @@ class DiskCredentialIOSpec
         .map(arr => Sized.strictUnsafe[Bytes, L](Bytes(arr)))
     )
 
+  implicit val arbitraryTypedEvidence: Arbitrary[TypedEvidence] =
+    Arbitrary(
+      for {
+        evidence <- sizedBytesArbitrary[Lengths.`32`.type].arbitrary
+        prefix   <- Gen.chooseNum[Byte](Byte.MinValue, Byte.MaxValue)
+      } yield TypedEvidence(prefix, evidence)
+    )
+
   case class PasswordImpl(password: Password)
 
   implicit private val arbitraryPassword: Arbitrary[PasswordImpl] =
@@ -49,7 +57,7 @@ class DiskCredentialIOSpec
   it should "write data to disk" in {
     forAll {
       (
-        evidence:     Sized.Strict[Bytes, Lengths.`32`.type],
+        evidence:     TypedEvidence,
         secretData:   Sized.Strict[Bytes, Lengths.`64`.type],
         passwordImpl: PasswordImpl
       ) =>
@@ -59,10 +67,10 @@ class DiskCredentialIOSpec
           val underTest = DiskCredentialIO[F](basePath)
 
           underTest
-            .write(evidence, KeyFile.Metadata.Curve25519, secretData.data, password)
+            .write(evidence, secretData.data, password)
             .unsafeRunSync()
 
-          val expectedKeyfilePath = Paths.get(basePath.toString, evidence.data.toBase58 + ".json")
+          val expectedKeyfilePath = Paths.get(basePath.toString, evidence.allBytes.toBase58 + ".json")
 
           Files.exists(expectedKeyfilePath) shouldBe true
 
@@ -81,7 +89,7 @@ class DiskCredentialIOSpec
   it should "unlock data from disk" in {
     forAll {
       (
-        evidence:     Sized.Strict[Bytes, Lengths.`32`.type],
+        evidence:     TypedEvidence,
         secretData:   Sized.Strict[Bytes, Lengths.`64`.type],
         passwordImpl: PasswordImpl
       ) =>
@@ -92,11 +100,11 @@ class DiskCredentialIOSpec
 
           val keyFile = KeyFile.Encryption.encrypt(
             secretData.data,
-            KeyFile.Metadata(evidence, KeyFile.Metadata.Curve25519),
+            KeyFile.Metadata(evidence),
             password
           )
 
-          val keyFilePath = Paths.get(basePath.toString, evidence.data.toBase58 + ".json")
+          val keyFilePath = Paths.get(basePath.toString, evidence.allBytes.toBase58 + ".json")
 
           Files.createDirectories(keyFilePath.getParent)
 
@@ -115,7 +123,7 @@ class DiskCredentialIOSpec
   it should "delete data from disk" in {
     forAll {
       (
-        evidence:     Sized.Strict[Bytes, Lengths.`32`.type],
+        evidence:     TypedEvidence,
         secretData:   Sized.Strict[Bytes, Lengths.`64`.type],
         passwordImpl: PasswordImpl
       ) =>
@@ -126,11 +134,11 @@ class DiskCredentialIOSpec
 
           val keyFile = KeyFile.Encryption.encrypt(
             secretData.data,
-            KeyFile.Metadata(evidence, KeyFile.Metadata.Curve25519),
+            KeyFile.Metadata(evidence),
             password
           )
 
-          val keyFilePath = Paths.get(basePath.toString, evidence.data.toBase58 + ".json")
+          val keyFilePath = Paths.get(basePath.toString, evidence.allBytes.toBase58 + ".json")
 
           Files.createDirectories(keyFilePath.getParent)
 
@@ -148,12 +156,12 @@ class DiskCredentialIOSpec
     }
   }
 
-  it should "list address in a credential set" in {
-    forAll(Gen.alphaNumStr, sizedBytesArbitrary[Lengths.`32`.type].arbitrary) { (keyFileData, evidence) =>
+  it should "list entries in a directory" in {
+    forAll(Gen.alphaNumStr, arbitraryTypedEvidence.arbitrary) { (keyFileData, evidence) =>
       val basePath = Paths.get(testDirectory.toString, "test4" + UUID.randomUUID().toString)
       val underTest = DiskCredentialIO[F](basePath)
 
-      val keyFilePath = Paths.get(basePath.toString, evidence.data.toBase58 + ".json")
+      val keyFilePath = Paths.get(basePath.toString, evidence.allBytes.toBase58 + ".json")
 
       Files.createDirectories(keyFilePath.getParent)
 

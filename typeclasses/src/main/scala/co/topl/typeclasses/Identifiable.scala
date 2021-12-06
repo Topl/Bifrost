@@ -1,12 +1,9 @@
 package co.topl.typeclasses
 
+import co.topl.codecs.bytes.implicits._
+import co.topl.crypto.hash.blake2b256
 import co.topl.models._
 import simulacrum.{op, typeclass}
-
-import java.nio.charset.StandardCharsets
-import co.topl.codecs.bytes.BasicCodecs._
-import co.topl.codecs.bytes.ByteCodec.implicits._
-import co.topl.crypto.hash.blake2b256
 
 /**
  * Satisfies that T can be uniquely identified

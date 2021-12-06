@@ -2,37 +2,47 @@ package co.topl.typeclasses
 
 import co.topl.models.{Proposition, Propositions, VerificationKeys}
 
+import scala.collection.immutable.ListSet
 import scala.language.implicitConversions
 
-trait Proposer[T, Prop <: Proposition] {
+/**
+ * Reveal inputs to produce a Proposition
+ * @tparam PropositionInput
+ * @tparam Prop
+ */
+trait Proposer[PropositionInput, Prop <: Proposition] {
 
   /**
    * Creates a Proposition from the given T
    * @param t a value which can be converted into a Proposition (usually a Verification Key)
    * @return a Proposition
    */
-  def propositionOf(t: T): Prop
+  def propositionOf(t: PropositionInput): Prop
 }
 
 object Proposer {
 
-  trait Ops[T, Prop <: Proposition] {
-    def t: T
-    def typeclassInstance: Proposer[T, Prop]
-    def proposition: Prop = typeclassInstance.propositionOf(t)
+  trait Implicits {
+
+    implicit class AnyOps[T](t: T) {
+
+      def proposition[Prop <: Proposition](implicit ev: Proposer[T, Prop]): Prop =
+        ev.propositionOf(t)
+    }
+
+    implicit class CompositionalOps(p: Proposition) {
+      def and(other: Proposition): Propositions.Compositional.And = Propositions.Compositional.And(p, other)
+      def or(other:  Proposition): Propositions.Compositional.Or = Propositions.Compositional.Or(p, other)
+    }
+
+    implicit class IterableOps(props: Iterable[Proposition]) {
+
+      def threshold(k: Int): Propositions.Compositional.Threshold =
+        Propositions.Compositional.Threshold(k, ListSet.from(props))
+    }
   }
 
-  trait implicits {
-
-    implicit def asProposesOps[T, Prop <: Proposition](t1: T)(implicit ev: Proposer[T, Prop]): Ops[T, Prop] =
-      new Ops[T, Prop] {
-        def t: T = t1
-
-        def typeclassInstance: Proposer[T, Prop] = ev
-      }
-  }
-
-  object implicits extends implicits
+  object implicits extends Implicits
 
   trait Instances {
 
@@ -46,8 +56,8 @@ object Proposer {
       : Proposer[VerificationKeys.ExtendedEd25519, Propositions.Knowledge.ExtendedEd25519] =
       t => Propositions.Knowledge.ExtendedEd25519(t)
 
-    implicit val vrfProposes: Proposer[VerificationKeys.VrfEd25519, Propositions.VerificationKeyVRF] =
-      t => Propositions.VerificationKeyVRF(t)
+    implicit val longProposesHeightLock: Proposer[Long, Propositions.Contextual.HeightLock] =
+      t => Propositions.Contextual.HeightLock(t)
 
     implicit def containsVerificationKeyProposes[T, VK, Prop <: Proposition](implicit
       containsVerificationKey: ContainsVerificationKey[T, VK],

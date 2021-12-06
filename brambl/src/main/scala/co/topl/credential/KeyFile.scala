@@ -1,11 +1,11 @@
-package co.topl.client.credential
+package co.topl.credential
 
 import cats.implicits._
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signing.Password
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.{Lengths, Sized}
-import co.topl.models.{Bytes, Evidence}
+import co.topl.models._
 import com.google.common.primitives.Ints
 import io.circe.{Codec, DecodingFailure}
 import io.circe.generic.semiauto.deriveCodec
@@ -29,42 +29,24 @@ object KeyFile {
   implicit val cryptokdfParamsCodec: Codec[Crypto.KdfParams] = deriveCodec
   implicit val cryptoCodec: Codec[Crypto] = deriveCodec
 
-  implicit val keyTypeCodec: Codec[Metadata.KeyType] =
-    Codec.from(
-      a =>
-        a.as[String].map(_.toLowerCase).flatMap {
-          case "curve25519"      => Metadata.Curve25519.asRight
-          case "ed25519"         => Metadata.Ed25519.asRight
-          case "extendeded25519" => Metadata.ExtendedEd25519.asRight
-          case t                 => DecodingFailure(s"Invalid keyType=$t", Nil).asLeft
-        },
-      {
-        case Metadata.Curve25519      => "curve25519".asJson
-        case Metadata.Ed25519         => "ed25519".asJson
-        case Metadata.ExtendedEd25519 => "extendedEd25519".asJson
-      }
-    )
-
-  implicit val evidenceCodec: Codec[Evidence] =
+  implicit val typedEvidenceCodec: Codec[TypedEvidence] =
     Codec.from(
       a =>
         a
           .as[String]
           .flatMap(Bytes.fromBase58(_).toRight(DecodingFailure("Not base58", Nil)))
-          .flatMap(Sized.strict[Bytes, Lengths.`32`.type](_).leftMap(_ => DecodingFailure("Invalid length", Nil))),
-      _.data.toBase58.asJson
+          .flatMap(b =>
+            (
+              Sized.strict[Bytes, Lengths.`32`.type](b.tail).leftMap(_ => DecodingFailure("Invalid length", Nil))
+            ).map(TypedEvidence(b.head, _))
+          ),
+      _.allBytes.toBase58.asJson
     )
+
   implicit val metadataCodec: Codec[Metadata] = deriveCodec
   implicit val keyFileCodec: Codec[KeyFile] = deriveCodec
 
-  case class Metadata(evidence: Evidence, keyType: Metadata.KeyType)
-
-  object Metadata {
-    sealed abstract class KeyType
-    case object Curve25519 extends KeyType
-    case object Ed25519 extends KeyType
-    case object ExtendedEd25519 extends KeyType
-  }
+  case class Metadata(evidence: TypedEvidence)
 
   /**
    * @param ciphertext Base58-encoded array.  When decrypted, the array is structured as: [dataLength] ++ [data] ++ [padding]
