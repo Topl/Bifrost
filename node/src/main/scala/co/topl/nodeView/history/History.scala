@@ -509,8 +509,7 @@ object History extends Logging {
           new LDBKeyValueStore(blockStorageDB),
           settings.application.cacheExpire.millis,
           settings.application.cacheSize
-        ),
-        keySize = 32
+        )
       )
     }
 
