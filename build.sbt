@@ -197,7 +197,7 @@ lazy val bifrost = project
 lazy val node = project
   .in(file("node"))
   .settings(
-    name := "node",
+    name := "bifrost-node",
     commonSettings,
     assemblySettings,
     dockerSettings,
