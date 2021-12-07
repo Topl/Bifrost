@@ -163,7 +163,7 @@ object Dependencies {
     Seq(
       "org.typelevel"     %% "simulacrum"      % simulacrumVersion,
       "org.typelevel"     %% "cats-core"       % "2.6.1",
-      "org.bouncycastle"   % "bcprov-jdk15on"  % "1.69",
+      "org.bouncycastle"   % "bcprov-jdk15on"  % "1.70",
       "org.whispersystems" % "curve25519-java" % "0.5.0"
     ) ++
     misc ++
