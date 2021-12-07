@@ -141,7 +141,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     nonce    <- positiveLongGen
     quantity <- positiveLongGen
     // TODO: Hard coded as 1, but change this to arbitrary in the future
-    //assetVersion <- Arbitrary.arbitrary[Byte]
+    // assetVersion <- Arbitrary.arbitrary[Byte]
     shortName <- shortNameGen
     issuer    <- addressGen
     data      <- latin1DataGen
@@ -158,7 +158,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     nonce    <- positiveLongGen
     quantity <- positiveLongGen
     // TODO: Hard coded as 1, but change this to arbitrary in the future
-    //assetVersion <- Arbitrary.arbitrary[Byte]
+    // assetVersion <- Arbitrary.arbitrary[Byte]
     shortName <- shortNameGen
     issuer    <- addressGen
     data      <- latin1DataGen
@@ -463,7 +463,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
 
   lazy val assetTransferThresholdCurve25519Gen: Gen[AssetTransfer[ThresholdPropositionCurve25519]] = for {
     from        <- fromSeqCurve25519Gen
-    to          <- assetToSeqGen //TODO: Jing - Does this need to use specific signature scheme?
+    to          <- assetToSeqGen // TODO: Jing - Does this need to use specific signature scheme?
     attestation <- attestationThresholdCurve25519Gen
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
@@ -613,7 +613,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     (setOfKeys._1, thresholdProp)
   }
 
-  //TODO: Jing - add threshold proposition
+  // TODO: Jing - add threshold proposition
   lazy val publicKeyPropositionGen: Gen[(_ <: Secret, _ <: Proposition)] =
     Gen.oneOf(publicKeyPropositionCurve25519Gen, publicKeyPropositionEd25519Gen)
 
@@ -646,7 +646,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     ThresholdSignatureCurve25519(sigs)
   }
 
-  //TODO: Jing - add threshold signature
+  // TODO: Jing - add threshold signature
   lazy val signatureGen: Gen[_ <: Proof[_]] = Gen.oneOf(signatureCurve25519Gen, signatureEd25519Gen)
 
   def genBytesList(size: Int): Gen[Array[Byte]] = genBoundedBytes(size, size)

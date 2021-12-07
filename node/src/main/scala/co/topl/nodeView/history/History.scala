@@ -27,7 +27,7 @@ import scala.util.{Failure, Success, Try}
  * @param validators rule sets that dictate validity of blocks in the history
  */
 class History(
-  val storage:            Storage, //todo: JAA - make this private[history]
+  val storage:            Storage, // todo: JAA - make this private[history]
   fullBlockProcessor:     BlockProcessor,
   validators:             Seq[BlockValidator[Block]]
 )(implicit networkPrefix: NetworkPrefix)
@@ -290,31 +290,31 @@ class History(
   override def compare(info: BifrostSyncInfo): HistoryComparisonResult =
     Option(bestBlockId) match {
 
-      //Our best header is the same as other node best header
+      // Our best header is the same as other node best header
       case Some(id) if info.lastBlockIds.lastOption.contains(id) => Equal
 
-      //Our best header is in other node best chain, but not at the last position
+      // Our best header is in other node best chain, but not at the last position
       case Some(id) if info.lastBlockIds.contains(id) => Older
 
-      //Other history is empty, our contain some headers
+      // Other history is empty, our contain some headers
       case Some(_) if info.lastBlockIds.isEmpty => Younger
 
-      //We are on different forks now.
+      // We are on different forks now.
       case Some(_) =>
         if (info.lastBlockIds.view.reverse.exists(id => contains(id))) {
-          //Return Younger, because we can send blocks from our fork that other node can download.
+          // Return Younger, because we can send blocks from our fork that other node can download.
           Fork
         } else {
-          //We don't have any of id's from other's node sync info in history.
-          //We don't know whether we can sync with it and what blocks to send in Inv message.
-          //Assume it is older and far ahead from us
+          // We don't have any of id's from other's node sync info in history.
+          // We don't know whether we can sync with it and what blocks to send in Inv message.
+          // Assume it is older and far ahead from us
           Older
         }
 
-      //Both nodes do not keep any blocks
+      // Both nodes do not keep any blocks
       case None if info.lastBlockIds.isEmpty => Equal
 
-      //Our history is empty, other contain some headers
+      // Our history is empty, other contain some headers
       case None => Older
     }
 
@@ -391,7 +391,7 @@ class History(
   override def extendsKnownTine(modifier: Block): Boolean =
     applicable(modifier) || fullBlockProcessor.applicableInCache(modifier)
 
-  //TODO used in tests, but should replace with HistoryReader.continuationIds
+  // TODO used in tests, but should replace with HistoryReader.continuationIds
   /**
    * Gather blocks from after `from` that should be added to the chain
    *
@@ -509,8 +509,7 @@ object History extends Logging {
           new LDBKeyValueStore(blockStorageDB),
           settings.application.cacheExpire.millis,
           settings.application.cacheSize
-        ),
-        keySize = 32
+        )
       )
     }
 

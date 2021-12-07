@@ -73,7 +73,7 @@ object UtilsRpcHandlerImpls {
 
   private def generateSeed(length: Int): String = {
     val seed = new Array[Byte](length)
-    new SecureRandom().nextBytes(seed) //seed mutated here!
+    new SecureRandom().nextBytes(seed) // seed mutated here!
     seed.encodeAsBase58.show
   }
 }
