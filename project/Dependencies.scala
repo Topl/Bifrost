@@ -7,6 +7,7 @@ object Dependencies {
   val circeVersion = "0.14.1"
   val kamonVersion = "2.2.3"
   val graalVersion = "21.1.0"
+  val simulacrumVersion = "1.0.1"
 
   val logging = Seq(
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.4",
@@ -34,17 +35,17 @@ object Dependencies {
   )
 
   val akka = Seq(
-		"com.typesafe.akka" %% "akka-actor"               % akkaVersion,
-		"com.typesafe.akka" %% "akka-actor-typed"         % akkaVersion,
-		"com.typesafe.akka" %% "akka-stream"              % akkaVersion,
-		"com.typesafe.akka" %% "akka-stream-typed"        % akkaVersion,
-		"com.typesafe.akka" %% "akka-http"                % akkaHttpVersion,
-		"com.typesafe.akka" %% "akka-http-core"           % akkaHttpVersion,
-		"com.typesafe.akka" %% "akka-slf4j"               % akkaVersion,
-		"com.typesafe.akka" %% "akka-testkit"             % akkaVersion     % Test,
-		"com.typesafe.akka" %% "akka-actor-testkit-typed" % akkaVersion     % Test,
-		"com.typesafe.akka" %% "akka-stream-testkit"      % akkaVersion     % Test,
-		"com.typesafe.akka" %% "akka-http-testkit"        % akkaHttpVersion % Test
+    "com.typesafe.akka" %% "akka-actor"               % akkaVersion,
+    "com.typesafe.akka" %% "akka-actor-typed"         % akkaVersion,
+    "com.typesafe.akka" %% "akka-stream"              % akkaVersion,
+    "com.typesafe.akka" %% "akka-stream-typed"        % akkaVersion,
+    "com.typesafe.akka" %% "akka-http"                % akkaHttpVersion,
+    "com.typesafe.akka" %% "akka-http-core"           % akkaHttpVersion,
+    "com.typesafe.akka" %% "akka-slf4j"               % akkaVersion,
+    "com.typesafe.akka" %% "akka-testkit"             % akkaVersion     % Test,
+    "com.typesafe.akka" %% "akka-actor-testkit-typed" % akkaVersion     % Test,
+    "com.typesafe.akka" %% "akka-stream-testkit"      % akkaVersion     % Test,
+    "com.typesafe.akka" %% "akka-http-testkit"        % akkaHttpVersion % Test
   )
 
   val network = Seq(
@@ -60,9 +61,6 @@ object Dependencies {
   val misc = Seq(
     "com.chuusai"     %% "shapeless" % "2.3.7",
     "com.iheart"      %% "ficus"     % "1.5.1",
-    "com.iheart"      %% "ficus"     % "1.5.0",
-    "org.scalanlp"    %% "breeze"    % "1.3",
-    "io.netty"         % "netty"     % "3.10.6.Final",
     "com.google.guava" % "guava"     % "30.1.1-jre",
     "io.estatico"     %% "newtype"   % "0.4.4"
   )
@@ -105,7 +103,7 @@ object Dependencies {
 
   lazy val common: Seq[ModuleID] = {
     Seq(
-      "org.typelevel"          %% "simulacrum"              % "1.0.1",
+      "org.typelevel"          %% "simulacrum"              % simulacrumVersion,
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.5.0",
       "org.scodec"             %% "scodec-bits"             % "1.1.28"
     ) ++
@@ -163,7 +161,7 @@ object Dependencies {
 
   lazy val crypto: Seq[ModuleID] =
     Seq(
-      "org.typelevel"     %% "simulacrum"      % "1.0.0",
+      "org.typelevel"     %% "simulacrum"      % simulacrumVersion,
       "org.typelevel"     %% "cats-core"       % "2.6.1",
       "org.bouncycastle"   % "bcprov-jdk15on"  % "1.69",
       "org.whispersystems" % "curve25519-java" % "0.5.0"
@@ -175,7 +173,7 @@ object Dependencies {
     Seq(
       "org.mongodb.scala" %% "mongo-scala-driver" % "4.3.2"
     )
-  
+
   lazy val loadTesting: Seq[ModuleID] = {
     Seq(
       "com.lihaoyi"    %% "mainargs" % "0.2.1",
