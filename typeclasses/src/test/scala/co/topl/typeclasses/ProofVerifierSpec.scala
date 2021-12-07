@@ -11,7 +11,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, EitherValues, OptionValues}
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
-import scala.collection.immutable.ListMap
+import scala.collection.immutable.{ListMap, ListSet}
 
 class ProofVerifierSpec
     extends AnyFlatSpec
@@ -339,6 +339,102 @@ class ProofVerifierSpec
       )
 
       implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
+
+      (() => context.currentHeight)
+        .expects()
+        .once()
+        .returning(49L)
+
+      val result =
+        proof.satisfies[F](proposition, context)
+
+      val expected = false
+
+      result shouldBe expected
+    }
+  }
+
+  "thresholdVerifier" should "verify a proof" in {
+    forAll { (sk: SecretKeys.Ed25519, sk2: SecretKeys.Curve25519, unprovenTransaction: Transaction.Unproven) =>
+      val proposition = List(
+        50L.proposition[Propositions.Contextual.HeightLock],
+        sk.vk[VerificationKeys.Ed25519].proposition[Propositions.Knowledge.Ed25519],
+        sk2.vk[VerificationKeys.Curve25519].proposition[Propositions.Knowledge.Curve25519]
+      ).threshold(2)
+
+      val proof = Proofs.Compositional.Threshold(
+        ListSet(
+          Proofs.Contextual.HeightLock(),
+          ed25519.sign(sk, unprovenTransaction.signableBytes),
+          Proofs.False
+        )
+      )
+
+      val transaction =
+        Transaction(
+          ListMap.from(unprovenTransaction.inputs.map(boxRef => boxRef -> (proposition -> proof))),
+          unprovenTransaction.feeOutput,
+          unprovenTransaction.coinOutputs,
+          unprovenTransaction.fee,
+          unprovenTransaction.timestamp,
+          unprovenTransaction.data,
+          unprovenTransaction.minting
+        )
+
+      implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
+
+      (() => context.currentTransaction)
+        .expects()
+        .once()
+        .returning(transaction)
+
+      (() => context.currentHeight)
+        .expects()
+        .once()
+        .returning(51L)
+
+      val result =
+        proof.satisfies[F](proposition, context)
+
+      val expected = true
+
+      result shouldBe expected
+    }
+  }
+
+  "thresholdVerifier" should "fail to verify if the threshold is not met" in {
+    forAll { (sk: SecretKeys.Ed25519, sk2: SecretKeys.Curve25519, unprovenTransaction: Transaction.Unproven) =>
+      val proposition = List(
+        50L.proposition[Propositions.Contextual.HeightLock],
+        sk.vk[VerificationKeys.Ed25519].proposition[Propositions.Knowledge.Ed25519],
+        sk2.vk[VerificationKeys.Curve25519].proposition[Propositions.Knowledge.Curve25519]
+      ).threshold(2)
+
+      val proof = Proofs.Compositional.Threshold(
+        ListSet(
+          Proofs.Contextual.HeightLock(),
+          ed25519.sign(sk, unprovenTransaction.signableBytes),
+          Proofs.False
+        )
+      )
+
+      val transaction =
+        Transaction(
+          ListMap.from(unprovenTransaction.inputs.map(boxRef => boxRef -> (proposition -> proof))),
+          unprovenTransaction.feeOutput,
+          unprovenTransaction.coinOutputs,
+          unprovenTransaction.fee,
+          unprovenTransaction.timestamp,
+          unprovenTransaction.data,
+          unprovenTransaction.minting
+        )
+
+      implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
+
+      (() => context.currentTransaction)
+        .expects()
+        .once()
+        .returning(transaction)
 
       (() => context.currentHeight)
         .expects()
