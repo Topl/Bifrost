@@ -79,30 +79,34 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
     }
 
     "Get first 100 transactions in mempool" in {
-      val requestBody = ByteString(s"""
+      val aliases = Seq("topl_getPendingTransactions", "topl_mempool")
+      def requestBody(methodName: String): ByteString = ByteString(s"""
         |{
         |   "jsonrpc": "2.0",
         |   "id": "1",
-        |   "method": "topl_mempool",
+        |   "method": "$methodName",
         |   "params": [{}]
         |}
         """.stripMargin)
 
-      httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]).value
-        val txIds =
-          res.hcursor.downField("result").as[Seq[Json]].value.map(_.hcursor.downField("txId").as[String].value)
-        txs.foreach(tx => txIds.contains(tx.id.toString) shouldBe true)
-        res.hcursor.downField("error").values shouldBe None
+      aliases.map { alias =>
+        httpPOST(requestBody(alias)) ~> route ~> check {
+          val res: Json = parse(responseAs[String]).value
+          val txIds =
+            res.hcursor.downField("result").as[Seq[Json]].value.map(_.hcursor.downField("txId").as[String].value)
+          txs.foreach(tx => txIds.contains(tx.id.toString) shouldBe true)
+          res.hcursor.downField("error").values shouldBe None
+        }
       }
     }
 
     "Get transaction from the mempool by id" in {
-      val requestBody = ByteString(s"""
+      val aliases = Seq("topl_getPendingTransactionById", "topl_transactionFromMempool")
+      def requestBody(methodName: String): ByteString = ByteString(s"""
         |{
         |   "jsonrpc": "2.0",
         |   "id": "1",
-        |   "method": "topl_transactionFromMempool",
+        |   "method": "$methodName",
         |   "params": [{
         |      "transactionId": "$txId"
         |   }]
@@ -112,11 +116,14 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
 
       view().mempool.putWithoutCheck(Seq(txs.head), block.timestamp)
 
-      httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]).value
-        res.hcursor.downField("result").get[String]("txId").value shouldEqual txId
-        res.hcursor.downField("error").values shouldBe None
+      aliases.map { alias =>
+        httpPOST(requestBody(alias)) ~> route ~> check {
+          val res: Json = parse(responseAs[String]).value
+          res.hcursor.downField("result").get[String]("txId").value shouldEqual txId
+          res.hcursor.downField("error").values shouldBe None
+        }
       }
+
       view().mempool.remove(txs.head)
     }
 
