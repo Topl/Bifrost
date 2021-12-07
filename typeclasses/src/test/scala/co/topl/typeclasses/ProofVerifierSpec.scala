@@ -52,7 +52,7 @@ class ProofVerifierSpec
         .returning(transaction)
 
       val result =
-        proof.satisfies[F](proposition, context)
+        proposition isSatisifiedBy proof
 
       val expected =
         Curve25519.instance.verify(proof, unprovenTransaction.signableBytes, sk.vk[VerificationKeys.Curve25519])
@@ -85,7 +85,7 @@ class ProofVerifierSpec
         .returning(transaction)
 
       val result =
-        proof.satisfies[F](proposition, context)
+        proof.satisfies(proposition)
 
       val expected =
         ed25519.verify(proof, unprovenTransaction.signableBytes, sk.vk[VerificationKeys.Ed25519])
@@ -117,11 +117,7 @@ class ProofVerifierSpec
         .once()
         .returning(transaction)
 
-      val result =
-        proof.satisfies[F](
-          proposition,
-          context
-        )
+      val result = proposition.isSatisifiedBy(proof)
 
       val expected =
         extendedEd25519.verify(proof, unprovenTransaction.signableBytes, sk.vk[VerificationKeys.ExtendedEd25519])
@@ -143,7 +139,7 @@ class ProofVerifierSpec
         .returning(headerV2.height)
 
       val result =
-        proof.satisfies[F](proposition, context)
+        proof.satisfies(proposition)
 
       val expected = true
 
@@ -164,7 +160,7 @@ class ProofVerifierSpec
         .returning(headerV2.height)
 
       val result =
-        proof.satisfies[F](proposition, context)
+        proof.satisfies(proposition)
 
       val expected = true
 
@@ -185,7 +181,7 @@ class ProofVerifierSpec
         .returning(headerV2.height)
 
       val result =
-        proof.satisfies[F](proposition, context)
+        proof.satisfies(proposition)
 
       val expected = false
 
@@ -195,11 +191,14 @@ class ProofVerifierSpec
 
   "andVerifier" should "verify a proof" in {
     forAll { (sk: SecretKeys.Ed25519, unprovenTransaction: Transaction.Unproven) =>
-      val proposition = 50L
-        .proposition[Propositions.Contextual.HeightLock]
-        .and(
-          sk.vk[VerificationKeys.Ed25519].proposition[Propositions.Knowledge.Ed25519]
-        )
+      val heightLockProposition =
+        50L.proposition[Propositions.Contextual.HeightLock]
+
+      val proposition: Propositions.Compositional.And =
+        heightLockProposition
+          .and(
+            sk.vk[VerificationKeys.Ed25519].proposition[Propositions.Knowledge.Ed25519]
+          )
 
       val proof = Proofs.Compositional.And(
         Proofs.Contextual.HeightLock(),
@@ -230,7 +229,7 @@ class ProofVerifierSpec
         .returning(51L)
 
       val result =
-        proof.satisfies[F](proposition, context)
+        proof.satisfies(proposition)
 
       val expected = true
 
@@ -259,7 +258,7 @@ class ProofVerifierSpec
         .returning(51L)
 
       val result =
-        proof.satisfies[F](proposition, context)
+        proof.satisfies(proposition)
 
       val expected = false
 
@@ -288,7 +287,7 @@ class ProofVerifierSpec
         .returning(51L)
 
       val result =
-        proof.satisfies[F](proposition, context)
+        proof.satisfies(proposition)
 
       val expected = true
 
@@ -297,7 +296,7 @@ class ProofVerifierSpec
   }
 
   "orVerifier" should "verify a proof with only one valid proof" in {
-    forAll { (sk: SecretKeys.Ed25519, sk2: SecretKeys.Ed25519, unprovenTransaction: Transaction.Unproven) =>
+    forAll { (sk: SecretKeys.Ed25519, unprovenTransaction: Transaction.Unproven) =>
       val proposition = 50L
         .proposition[Propositions.Contextual.HeightLock]
         .or(
@@ -306,18 +305,34 @@ class ProofVerifierSpec
 
       val proof = Proofs.Compositional.Or(
         Proofs.Contextual.HeightLock(),
-        ed25519.sign(sk2, unprovenTransaction.signableBytes)
+        ed25519.sign(sk, unprovenTransaction.signableBytes)
       )
 
+      val transaction =
+        Transaction(
+          ListMap.from(unprovenTransaction.inputs.map(boxRef => boxRef -> (proposition -> proof))),
+          unprovenTransaction.feeOutput,
+          unprovenTransaction.coinOutputs,
+          unprovenTransaction.fee,
+          unprovenTransaction.timestamp,
+          unprovenTransaction.data,
+          unprovenTransaction.minting
+        )
+
       implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
+
+      (() => context.currentTransaction)
+        .expects()
+        .once()
+        .returning(transaction)
 
       (() => context.currentHeight)
         .expects()
         .once()
-        .returning(51L)
+        .returning(5L)
 
       val result =
-        proof.satisfies[F](proposition, context)
+        proof.satisfies(proposition)
 
       val expected = true
 
@@ -346,7 +361,7 @@ class ProofVerifierSpec
         .returning(49L)
 
       val result =
-        proof.satisfies[F](proposition, context)
+        proof.satisfies(proposition)
 
       val expected = false
 
@@ -394,7 +409,7 @@ class ProofVerifierSpec
         .returning(51L)
 
       val result =
-        proof.satisfies[F](proposition, context)
+        proof.satisfies(proposition)
 
       val expected = true
 
@@ -442,7 +457,7 @@ class ProofVerifierSpec
         .returning(49L)
 
       val result =
-        proof.satisfies[F](proposition, context)
+        proof.satisfies(proposition)
 
       val expected = false
 

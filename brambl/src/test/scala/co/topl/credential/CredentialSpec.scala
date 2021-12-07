@@ -114,7 +114,7 @@ class CredentialSpec
           .once()
           .returning(height + 1)
 
-        andProof.satisfies[F](andProposition, context) shouldBe true
+        andProof.satisfies(andProposition) shouldBe true
 
       }
     }
@@ -142,7 +142,7 @@ class CredentialSpec
           .once()
           .returning(height + 1)
 
-        orProof.satisfies[F](orProposition, context) shouldBe true
+        orProof.satisfies(orProposition) shouldBe true
 
       }
     }
@@ -194,8 +194,7 @@ class CredentialSpec
             .once()
             .returning(height + 1)
 
-          thresholdProof.satisfies[F](thresholdProposition, context) shouldBe true
-
+          thresholdProposition isSatisifiedBy thresholdProof shouldBe true
         }
     }
   }
@@ -256,7 +255,7 @@ class CredentialSpec
             .once()
             .returning(height + 1)
 
-          andProof.satisfies[F](andProposition, context)
+          andProof.satisfies(andProposition)
         }
     }
   }

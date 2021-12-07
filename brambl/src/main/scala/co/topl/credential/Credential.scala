@@ -1,8 +1,6 @@
 package co.topl.credential
 
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.Sized
 import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._
 

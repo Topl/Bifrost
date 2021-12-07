@@ -23,7 +23,7 @@ object Prover {
   trait Instances {
 
     implicit def curve25519Proves[Data: Signable]: Prover[(SecretKeys.Curve25519, Data), Proofs.Knowledge.Curve25519] =
-      (t: (SecretKeys.Curve25519, Data)) => new Curve25519().sign(t._1, t._2.signableBytes)
+      (t: (SecretKeys.Curve25519, Data)) => Curve25519.instance.sign(t._1, t._2.signableBytes)
 
     implicit def ed25519Proves[Data: Signable](implicit
       ed: Ed25519

@@ -22,11 +22,19 @@ object ProofVerifier {
 
     implicit class ProofOps(proof: Proof) {
 
-      def satisfies[F[_]](proposition: Proposition, context: VerificationContext[F])(implicit
-        ev:                            ProofVerifier[F, Proposition, Proof]
-      ): F[Boolean] =
+      def satisfies[F[_]](
+        proposition: Proposition
+      )(implicit ev: ProofVerifier[F, Proposition, Proof], context: VerificationContext[F]): F[Boolean] =
         ev.verifyWith(proposition, proof, context)
 
+    }
+
+    implicit class PropositionOps(proposition: Proposition) {
+
+      def isSatisifiedBy[F[_]](
+        proof:            Proof
+      )(implicit context: VerificationContext[F], ev: ProofVerifier[F, Proposition, Proof]): F[Boolean] =
+        ev.verifyWith(proposition, proof, context)
     }
   }
 
@@ -97,7 +105,7 @@ object ProofVerifier {
         context:     VerificationContext[F]
       ) =>
         if (proposition.threshold === 0) true.pure[F]
-        else if (proposition.threshold > proposition.propositions.size) false.pure[F]
+        else if (proposition.threshold >= proposition.propositions.size) false.pure[F]
         else if (proof.proofs.isEmpty) false.pure[F]
         // We assume a one-to-one pairing of sub-proposition to sub-proof with the assumption that some of the proofs
         // may be Proofs.False

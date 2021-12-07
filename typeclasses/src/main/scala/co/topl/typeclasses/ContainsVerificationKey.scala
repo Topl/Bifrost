@@ -16,7 +16,6 @@ trait ContainsVerificationKey[T, VK] {
 
 object ContainsVerificationKey {
 
-  // todo: why aren't we using the simulacrum biolerplate here?
   def apply[SK, VK](implicit
     containsVerificationKey: ContainsVerificationKey[SK, VK]
   ): ContainsVerificationKey[SK, VK] =
