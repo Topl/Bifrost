@@ -53,8 +53,8 @@ class WalletManager(keyManagerRef: ActorRef)(implicit ec: ExecutionContext) exte
     wallet
   }
 
-  ////////////////////////////////////////////////////////////////////////////////////
-  ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
+  // //////////////////////////////////////////////////////////////////////////////////
+  // //////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
   // ----------- CONTEXT
   override def receive: Receive =
@@ -76,11 +76,11 @@ class WalletManager(keyManagerRef: ActorRef)(implicit ec: ExecutionContext) exte
     case DisconnectFromBifrost =>
       bifrostActorRef match {
         case Some(actor) =>
-          //tell bifrost that this wallet is disconnecting (going offline)
+          // tell bifrost that this wallet is disconnecting (going offline)
           val response: String = Await.result((actor ? "Remote wallet actor stopped").mapTo[String], 10.seconds)
           sender() ! response
 
-          //set the bifrost actor ref to None to put gjallarhorn in offline mode
+          // set the bifrost actor ref to None to put gjallarhorn in offline mode
           bifrostActorRef = None
         case None => log.warn("Already disconnected from Bifrost")
       }
@@ -91,10 +91,10 @@ class WalletManager(keyManagerRef: ActorRef)(implicit ec: ExecutionContext) exte
     case GetWallet                  => sender() ! walletBoxes
     case GetConnection              => sender() ! bifrostActorRef
     case NewKey(address)            =>
-      //add new key to walletBoxes
+      // add new key to walletBoxes
       walletBoxes.put(address, MMap.empty)
 
-      //tell bifrost about new key in order to watch new transactions for this key
+      // tell bifrost about new key in order to watch new transactions for this key
       bifrostActorRef match {
         case Some(actor) => actor ! s"New key: $address"
         case None        =>
@@ -105,8 +105,8 @@ class WalletManager(keyManagerRef: ActorRef)(implicit ec: ExecutionContext) exte
     log.warn(s"Got unexpected input $nonsense from ${sender()}")
   }
 
-  ////////////////////////////////////////////////////////////////////////////////////
-  //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
+  // //////////////////////////////////////////////////////////////////////////////////
+  // ////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
   /**
    * Handles messages received from Bifrost
    * @param msg - expected to be either: "received new wallet" or "new block added" messages.
@@ -128,10 +128,10 @@ class WalletManager(keyManagerRef: ActorRef)(implicit ec: ExecutionContext) exte
   def setUpConnection(bifrost: ActorRef, networkName: String): Unit = {
     bifrostActorRef = Some(bifrost)
 
-    //tell bifrost about this wallet
+    // tell bifrost about this wallet
     bifrost ! s"Remote wallet actor initialized."
 
-    //get network from bifrost and tell keyManager
+    // get network from bifrost and tell keyManager
     val networkResp: String = Await.result((bifrost ? "Which network is bifrost running?").mapTo[String], 10.seconds)
     val bifrostNetwork = networkResp.split("Bifrost is running on").tail.head.replaceAll("\\s", "")
     if (networkName != bifrostNetwork) {
@@ -153,11 +153,11 @@ class WalletManager(keyManagerRef: ActorRef)(implicit ec: ExecutionContext) exte
       case Success(_) | Failure(_) => throw new Exception("was not able to change network")
     }
 
-    //re-initialize walletboxes and grab keys with correct network
+    // re-initialize walletboxes and grab keys with correct network
     walletBoxes = initializeWalletBoxes()
     val addresses = walletBoxes.keySet
 
-    //get balances from bifrost
+    // get balances from bifrost
     if (addresses.nonEmpty) {
       val balances: Json = Await.result(
         (bifrost ? s"My addresses are: $addresses")
@@ -171,8 +171,8 @@ class WalletManager(keyManagerRef: ActorRef)(implicit ec: ExecutionContext) exte
     }
   }
 
-  //------------------------------------------------------------------------------------
-  //Methods for parsing balance response
+  // ------------------------------------------------------------------------------------
+  // Methods for parsing balance response
 
   /**
    * Removes all of the back-slashes from the json string
@@ -217,15 +217,15 @@ class WalletManager(keyManagerRef: ActorRef)(implicit ec: ExecutionContext) exte
     walletBoxes
   }
 
-  //------------------------------------------------------------------------------------
-  //Methods for parsing new block from Bifrost:
+  // ------------------------------------------------------------------------------------
+  // Methods for parsing new block from Bifrost:
 
   /**
    * Parses the transaction from the new block received from Bifrost and updates the walletBoxes accordingly
    * @param blockString - the json of the new block in string form.
    */
   def parseNewBlock(blockString: String): Unit =
-    //log.info(s"Wallet Manager received new block with transactions: $blockTxs")
+    // log.info(s"Wallet Manager received new block with transactions: $blockTxs")
     parser.decode[List[Transaction]](blockString) match {
       case Right(transactions) =>
         newestTransactions = Some(transactions)

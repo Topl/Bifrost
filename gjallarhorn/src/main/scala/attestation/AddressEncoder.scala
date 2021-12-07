@@ -13,7 +13,7 @@ object AddressEncoder {
 
   val checksumLength = 4
 
-  //encoded addresses are 38 bytes (1 for network prefix, 1 for type prefix, 32 for content, 4 for checksum)
+  // encoded addresses are 38 bytes (1 for network prefix, 1 for type prefix, 32 for content, 4 for checksum)
   // ENCODED ADDRESS != ADDRESS (Address are contained in an encoded address)
   private val encodedAddressLength: Int = Address.addressSize + checksumLength
 

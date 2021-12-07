@@ -317,7 +317,7 @@ object TransferTransaction {
   def syntacticValidate[P <: Proposition: EvidenceProducer](
     tx:                     TransferTransaction[P]
   )(implicit networkPrefix: NetworkPrefix): Try[Unit] = Try {
-    //enforce transaction specific requirements
+    // enforce transaction specific requirements
     tx.txType match {
       case "ArbitTransfer" if tx.minting => // Arbit block rewards
       case "PolyTransfer" if tx.minting  => // Poly block rewards

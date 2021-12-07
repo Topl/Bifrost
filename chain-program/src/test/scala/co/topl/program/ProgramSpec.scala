@@ -11,11 +11,7 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import java.time.Instant
 import scala.util.{Failure, Success, Try}
 
-class ProgramSpec
-    extends AnyPropSpec
-    with ScalaCheckDrivenPropertyChecks
-    with Matchers
-    with ProgramGenerators {
+class ProgramSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers with ProgramGenerators {
 
   property("Json works properly for ExecutionBuilderTerms") {
     forAll(validExecutionBuilderTermsGen) { t: ExecutionBuilderTerms =>
