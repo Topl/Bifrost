@@ -84,21 +84,13 @@ lazy val dockerSettings = Seq(
     alias.withRegistryHost(Some("docker.io/toplprotocol")),
     alias.withRegistryHost(Some("ghcr.io/topl"))
   )
-
-  },
-  dockerCmd ++= Seq(
-    "--seed",
-    "test",
-    "-f",
-    "--apiKeyHash",
-    "6ju8SfmsrZbjCRJ8FXH8Bgygb7L3sNo3jCfcsYeDSrC2"
-  )
+  }
 )
 
 lazy val assemblySettings = Seq(
   assembly / mainClass := Some("co.topl.BifrostApp"),
   assembly / test := {},
-  assemblyJarName := s"bifrost-${version.value}.jar",
+  assemblyJarName := s"bifrost-node-${version.value}.jar",
   assembly / assemblyMergeStrategy ~= { old: ((String) => MergeStrategy) => {
     case ps if ps.endsWith(".SF")  => MergeStrategy.discard
     case ps if ps.endsWith(".DSA") => MergeStrategy.discard
@@ -205,7 +197,7 @@ lazy val bifrost = project
 lazy val node = project
   .in(file("node"))
   .settings(
-    name := "node",
+    name := "bifrost-node",
     commonSettings,
     assemblySettings,
     dockerSettings,
