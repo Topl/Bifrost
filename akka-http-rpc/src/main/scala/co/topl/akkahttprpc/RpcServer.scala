@@ -30,11 +30,6 @@ object RpcServer {
       throwableEncoder:                      Encoder[ThrowableData]
     ): Builder =
       copy(handlers =
-// TODO: Jing - remove
-//        handlers.updated(
-//          rpc.method,
-//          Builder.BuilderHandler(handler, paramsDecoder, successResponseEncoder, throwableEncoder)
-//        )
         handlers ++ rpc.method.map(
           (_, Builder.BuilderHandler(handler, paramsDecoder, successResponseEncoder, throwableEncoder))
         )
