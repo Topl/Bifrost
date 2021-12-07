@@ -58,12 +58,6 @@ object Proposer {
 
     implicit val longProposesHeightLock: Proposer[Long, Propositions.Contextual.HeightLock] =
       t => Propositions.Contextual.HeightLock(t)
-
-    implicit def containsVerificationKeyProposes[T, VK, Prop <: Proposition](implicit
-      containsVerificationKey: ContainsVerificationKey[T, VK],
-      proposer:                Proposer[VK, Prop]
-    ): Proposer[T, Prop] =
-      t => proposer.propositionOf(containsVerificationKey.verificationKeyOf(t))
   }
 
   object instances extends Instances

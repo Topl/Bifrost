@@ -18,15 +18,6 @@ trait ProofVerifier[F[_], Prop <: Proposition, Prf <: Proof] {
 
 object ProofVerifier {
 
-  trait Ops[F[_], Prop <: Proposition, Prf <: Proof] {
-
-    def proof: Prf
-    def typeclassInstance: ProofVerifier[F, Prop, Prf]
-
-    def satisfies(proposition: Prop, context: VerificationContext[F]): F[Boolean] =
-      typeclassInstance.verifyWith(proposition, proof, context)
-  }
-
   trait Implicits {
 
     implicit class ProofOps(proof: Proof) {
@@ -37,22 +28,13 @@ object ProofVerifier {
         ev.verifyWith(proposition, proof, context)
 
     }
-
-    implicit def asVerifierOps[F[_], Prop <: Proposition, Prf <: Proof](
-      p:                 Prf
-    )(implicit verifier: ProofVerifier[F, Prop, Prf]): Ops[F, Prop, Prf] =
-      new Ops[F, Prop, Prf] {
-        override def proof: Prf = p
-
-        override def typeclassInstance: ProofVerifier[F, Prop, Prf] = verifier
-      }
   }
 
   object ops extends Implicits
 
   trait Instances {
 
-    implicit def publicKeyCurve25519[F[_]: Applicative]
+    implicit def publicKeyCurve25519Verifier[F[_]: Applicative]
       : ProofVerifier[F, Propositions.Knowledge.Curve25519, Proofs.Knowledge.Curve25519] =
       new ProofVerifier[F, Propositions.Knowledge.Curve25519, Proofs.Knowledge.Curve25519] {
         private val curve25519 = new Curve25519()
@@ -70,7 +52,7 @@ object ProofVerifier {
           .pure[F]
       }
 
-    implicit def publicKeyEd25519[F[_]: Applicative](implicit
+    implicit def publicKeyEd25519Verifier[F[_]: Applicative](implicit
       ed25519: Ed25519
     ): ProofVerifier[F, Propositions.Knowledge.Ed25519, Proofs.Knowledge.Ed25519] =
       (proposition: Propositions.Knowledge.Ed25519, proof: Proofs.Knowledge.Ed25519, context: VerificationContext[F]) =>
@@ -82,7 +64,7 @@ object ProofVerifier {
           )
           .pure[F]
 
-    implicit def publicKeyExtendedEd25519[F[_]: Applicative](implicit
+    implicit def publicKeyExtendedEd25519Verifier[F[_]: Applicative](implicit
       extendedEd25519: ExtendedEd25519
     ): ProofVerifier[F, Propositions.Knowledge.ExtendedEd25519, Proofs.Knowledge.Ed25519] =
       (
@@ -98,13 +80,13 @@ object ProofVerifier {
           )
           .pure[F]
 
-    implicit def heightLockVerifier[F[_]: Functor]
+    implicit def heightLockVerifier[F[_]: Applicative]
       : ProofVerifier[F, Propositions.Contextual.HeightLock, Proofs.Contextual.HeightLock] =
       (
         proposition: Propositions.Contextual.HeightLock,
         proof:       Proofs.Contextual.HeightLock,
         context:     VerificationContext[F]
-      ) => context.heightOfBlock(proof.blockId).map(_.exists(_ >= proposition.height))
+      ) => (context.currentHeight >= proposition.height).pure[F]
 
     implicit def thresholdVerifier[F[_]: Monad](implicit
       proofVerifier: ProofVerifier[F, Proposition, Proof]
@@ -164,11 +146,11 @@ object ProofVerifier {
       (proposition, proof, context) =>
         (proposition, proof) match {
           case (prop: Propositions.Knowledge.Curve25519, proof: Proofs.Knowledge.Curve25519) =>
-            publicKeyCurve25519[F].verifyWith(prop, proof, context)
+            publicKeyCurve25519Verifier[F].verifyWith(prop, proof, context)
           case (prop: Propositions.Knowledge.Ed25519, proof: Proofs.Knowledge.Ed25519) =>
-            publicKeyEd25519[F].verifyWith(prop, proof, context)
+            publicKeyEd25519Verifier[F].verifyWith(prop, proof, context)
           case (prop: Propositions.Knowledge.ExtendedEd25519, proof: Proofs.Knowledge.Ed25519) =>
-            publicKeyExtendedEd25519[F].verifyWith(prop, proof, context)
+            publicKeyExtendedEd25519Verifier[F].verifyWith(prop, proof, context)
           case (prop: Propositions.Compositional.Threshold, proof: Proofs.Compositional.Threshold) =>
             implicit def v: ProofVerifier[F, Proposition, Proof] = proofVerifier[F]
             thresholdVerifier[F].verifyWith(prop, proof, context)
@@ -190,6 +172,5 @@ object ProofVerifier {
 
 trait VerificationContext[F[_]] {
   def currentTransaction: Transaction
-  def heightOfBlock(id: TypedIdentifier): F[Option[Long]]
-  def slotOfBlock(id:   TypedIdentifier): F[Option[Slot]]
+  def currentHeight: Long
 }

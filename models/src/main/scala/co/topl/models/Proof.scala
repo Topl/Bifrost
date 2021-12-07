@@ -60,6 +60,6 @@ object Proofs {
   }
 
   object Contextual {
-    case class HeightLock(blockId: TypedIdentifier) extends Proof
+    case class HeightLock() extends Proof
   }
 }

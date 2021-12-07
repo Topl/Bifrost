@@ -2,6 +2,7 @@ package co.topl.typeclasses
 
 import co.topl.codecs.bytes.implicits._
 import co.topl.models.{BlockHeaderV2, Bytes, Transaction, VerificationKeys}
+import com.google.common.primitives.{Ints, Longs}
 import simulacrum.{op, typeclass}
 
 @typeclass trait Signable[T] {
@@ -51,11 +52,22 @@ object Signable {
         )
 
     implicit val byteArraySignable: Signable[Array[Byte]] = Bytes(_)
+    implicit val bytesSignable: Signable[Bytes] = identity
 
     implicit val vkVrfSignable: Signable[VerificationKeys.VrfEd25519] =
       _.bytes.data
 
-    implicit val transactionSignable: Signable[Transaction] = _ => ???
+    implicit val transactionSignable: Signable[Transaction] = t =>
+      unprovenTransactionSignable.signableBytesOf(Transaction.Unproven(t))
+
+    implicit val unprovenTransactionSignable: Signable[Transaction.Unproven] = t =>
+      Bytes.concat(
+        List(Bytes(Ints.toByteArray(t.inputs.length))) ++
+        t.inputs.map { case (a, r) => a.allBytes ++ Bytes(Longs.toByteArray(r)) } ++
+        t.feeOutput.map(o => o.dionAddress.allBytes ++ Bytes(o.value.data.toByteArray)) ++
+        List(Bytes(Ints.toByteArray(t.coinOutputs.length.toInt)))
+        // TODO: Rest of the data
+      )
   }
   object instances extends Instances
 }

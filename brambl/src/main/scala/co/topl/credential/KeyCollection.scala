@@ -29,7 +29,6 @@ class RefKeyCollection[F[_]: Monad](r: Ref[F, Map[TypedEvidence, SecretKey]])(im
           case 2 => bytes.decoded[SecretKeys.Ed25519]
           case 3 => bytes.decoded[SecretKeys.ExtendedEd25519]
         }
-
       }
       .collect { case s: SK => s.asInstanceOf[SK] }
       .semiflatTap(sk => r.update(_.updated(evidence, sk)))

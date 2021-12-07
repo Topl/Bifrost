@@ -36,7 +36,7 @@ object Credential {
     ) extends Credential {
 
       val proposition: Propositions.Knowledge.Curve25519 =
-        sk.proposition[Propositions.Knowledge.Curve25519]
+        sk.vk[VerificationKeys.Curve25519].proposition[Propositions.Knowledge.Curve25519]
 
       def prove(currentProof: Proof): Proof =
         Prover[(SecretKeys.Curve25519, Transaction), Proofs.Knowledge.Curve25519]
@@ -50,7 +50,7 @@ object Credential {
         extends Credential {
 
       val proposition: Propositions.Knowledge.Ed25519 =
-        sk.proposition[Propositions.Knowledge.Ed25519]
+        sk.vk[VerificationKeys.Ed25519].proposition[Propositions.Knowledge.Ed25519]
 
       def prove(currentProof: Proof): Proof =
         Prover[(SecretKeys.Ed25519, Transaction), Proofs.Knowledge.Ed25519]
@@ -64,7 +64,7 @@ object Credential {
         extends Credential {
 
       val proposition: Propositions.Knowledge.ExtendedEd25519 =
-        sk.proposition[Propositions.Knowledge.ExtendedEd25519]
+        sk.vk[VerificationKeys.ExtendedEd25519].proposition[Propositions.Knowledge.ExtendedEd25519]
 
       def prove(currentProof: Proof): Proof =
         Prover[(SecretKeys.ExtendedEd25519, Transaction), Proofs.Knowledge.Ed25519]

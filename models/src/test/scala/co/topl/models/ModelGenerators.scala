@@ -1,6 +1,8 @@
 package co.topl.models
 
+import cats.data.NonEmptyChain
 import co.topl.models.Proofs.Knowledge.KesSum
+import co.topl.models.Transaction.PolyOutput
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.StringDataTypes.Latin1Data
@@ -119,6 +121,72 @@ trait ModelGenerators {
 
   implicit val arbitraryBytes: Arbitrary[Bytes] =
     Arbitrary(implicitly[Arbitrary[Array[Byte]]].arbitrary.map(Bytes(_)))
+
+  implicit val arbitraryCurve25519VK: Arbitrary[VerificationKeys.Curve25519] =
+    Arbitrary(
+      genSizedStrictBytes[VerificationKeys.Curve25519.Length]().map(VerificationKeys.Curve25519(_))
+    )
+
+  implicit val arbitraryEd25519VK: Arbitrary[VerificationKeys.Ed25519] =
+    Arbitrary(
+      genSizedStrictBytes[VerificationKeys.Ed25519.Length]().map(VerificationKeys.Ed25519(_))
+    )
+
+  implicit val arbitraryExtendedEd25519VK: Arbitrary[VerificationKeys.ExtendedEd25519] =
+    Arbitrary(extendedEd25519VkGen)
+
+  implicit val arbitraryCurve25519SK: Arbitrary[SecretKeys.Curve25519] =
+    Arbitrary(
+      genSizedStrictBytes[SecretKeys.Curve25519.Length]().map(SecretKeys.Curve25519(_))
+    )
+
+  implicit val arbitraryEdSK: Arbitrary[SecretKeys.Ed25519] =
+    Arbitrary(
+      genSizedStrictBytes[SecretKeys.Ed25519.Length]().map(SecretKeys.Ed25519(_))
+    )
+
+  implicit val arbitraryExtendedEdSK: Arbitrary[SecretKeys.ExtendedEd25519] =
+    Arbitrary(
+      for {
+        l <- genSizedStrictBytes[SecretKeys.ExtendedEd25519.LeftLength]()
+        r <- genSizedStrictBytes[SecretKeys.ExtendedEd25519.RightLength]()
+        c <- genSizedStrictBytes[SecretKeys.ExtendedEd25519.ChainCodeLength]()
+      } yield SecretKeys.ExtendedEd25519(l, r, c)
+    )
+
+  implicit def arbitraryDionAddress: Arbitrary[DionAddress] =
+    Arbitrary(
+      for {
+        typePrefix <- Gen.chooseNum[Byte](0, Byte.MaxValue)
+        evidence   <- genSizedStrictBytes[Lengths.`32`.type]()
+      } yield DionAddress(NetworkPrefix(1: Byte), TypedEvidence(typePrefix, evidence))
+    )
+
+  implicit val arbitraryInt128: Arbitrary[Int128] =
+    Arbitrary(Gen.long.map(BigInt(_)).map(Sized.maxUnsafe[BigInt, Lengths.`128`.type](_)))
+
+  implicit val arbitraryPolyOutput: Arbitrary[PolyOutput] =
+    Arbitrary(
+      arbitraryDionAddress.arbitrary.flatMap(a => arbitraryInt128.arbitrary.map(v => Transaction.PolyOutput(a, v)))
+    )
+
+  implicit val arbitraryUnprovenTransaction: Arbitrary[Transaction.Unproven] =
+    Arbitrary(
+      for {
+        inputs <- Gen.nonEmptyContainerOf[List, BoxReference](
+          arbitraryDionAddress.arbitrary.flatMap(a => Gen.long.map(l => (a, l)))
+        )
+        feeOutput   <- Gen.option(arbitraryPolyOutput.arbitrary)
+        coinOutputs <- Gen.nonEmptyListOf(arbitraryPolyOutput.arbitrary).map(NonEmptyChain.fromSeq(_).get)
+        fee         <- arbitraryInt128.arbitrary
+        timestamp   <- Gen.chooseNum[Long](0L, 100_000L)
+        data = None
+        minting = false
+      } yield Transaction.Unproven(inputs, feeOutput, coinOutputs, fee, timestamp, data, minting)
+    )
+
+  implicit val arbitraryHeader: Arbitrary[BlockHeaderV2] =
+    Arbitrary(headerGen())
 
   implicit class GenHelper[T](gen: Gen[T]) {
     def first: T = gen.pureApply(Gen.Parameters.default, Seed.random())

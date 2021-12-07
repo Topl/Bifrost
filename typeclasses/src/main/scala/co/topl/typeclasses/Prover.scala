@@ -35,8 +35,8 @@ object Prover {
     ): Prover[(SecretKeys.ExtendedEd25519, Data), Proofs.Knowledge.Ed25519] =
       (t: (SecretKeys.ExtendedEd25519, Data)) => extendedEd.sign(t._1, t._2.signableBytes)
 
-    implicit val blockProvesHeightLock: Prover[BlockHeaderV2, Proofs.Contextual.HeightLock] =
-      (t: BlockHeaderV2) => Proofs.Contextual.HeightLock(t.id)
+    implicit val blockProvesHeightLock: Prover[Any, Proofs.Contextual.HeightLock] =
+      _ => Proofs.Contextual.HeightLock()
   }
 
   trait Implicits {
