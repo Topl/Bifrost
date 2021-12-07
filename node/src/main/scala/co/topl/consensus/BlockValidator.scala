@@ -76,7 +76,7 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
     blockProcessor.getCacheBlock(block.parentId) match {
       case Some(cacheParent) => (cacheParent.block, cacheParent.prevBlockTimes :+ block.timestamp)
       case None              =>
-        //we have already checked if the parent exists so can get
+        // we have already checked if the parent exists so can get
         val parent = storage.modifierById(block.parentId).get
         (parent, History.getTimestamps(storage, consensus.nxtBlockNum, parent) :+ block.timestamp)
     }
@@ -85,7 +85,7 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
 class SyntaxBlockValidator extends BlockValidator[Block] {
-  //todo: decide on a maximum size for blocks and enforce here
+  // todo: decide on a maximum size for blocks and enforce here
 
   // the signature on the block should match the signature used in the Arbit and Poly minting transactions
   val forgerEntitlementCheck: (Transaction.TX, Block) => Unit =
@@ -121,7 +121,7 @@ class SyntaxBlockValidator extends BlockValidator[Block] {
           case tx: ArbitTransfer[_] if tx.minting =>
             forgerEntitlementCheck(tx, block)
             require(
-              tx.to.map(_._2.quantity).sum == consensusStorage.inflation, //JAA -this needs to be done more carefully
+              tx.to.map(_._2.quantity).sum == consensusStorage.inflation, // JAA -this needs to be done more carefully
               "The inflation amount in the block must match the output of the Arbit rewards transaction"
             )
             require(

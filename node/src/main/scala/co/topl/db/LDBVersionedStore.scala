@@ -35,7 +35,7 @@ class LDBVersionedStore(protected val dir: File, val keepVersions: Int) extends 
   private val versions: ArrayBuffer[VersionID] = getAllVersions
   private var lastVersion: Option[VersionID] = versions.lastOption
 
-  //default write options, no sync!
+  // default write options, no sync!
   private val writeOptions = new WriteOptions()
 
   private def createDB(dir: File, storeName: String): DB = {

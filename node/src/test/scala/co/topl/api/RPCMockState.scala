@@ -48,7 +48,7 @@ trait RPCMockState
 
   implicit protected val routeTestTimeout: RouteTestTimeout = RouteTestTimeout(5.seconds)
 
-  //TODO Fails when using rpcSettings
+  // TODO Fails when using rpcSettings
   override def createActorSystem(): ActorSystem = ActorSystem(settings.network.agentName)
 
   // Create Bifrost singleton actors

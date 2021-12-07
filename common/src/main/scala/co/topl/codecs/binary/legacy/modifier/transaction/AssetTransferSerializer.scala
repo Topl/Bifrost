@@ -16,7 +16,7 @@ import scala.language.existentials
 object AssetTransferSerializer extends BifrostSerializer[AssetTransfer[_ <: Proposition]] {
 
   override def serialize(obj: AssetTransfer[_ <: Proposition], w: Writer): Unit = {
-    /* Byte */ //this is used to signal the types of propositions in the transactions
+    /* Byte */ // this is used to signal the types of propositions in the transactions
     w.put(obj.getPropIdentifier.typePrefix)
 
     /* from: IndexedSeq[(Address, Nonce)] */

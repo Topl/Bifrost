@@ -78,8 +78,8 @@ class NodeViewSynchronizer(
     statusTracker.scheduleSendSyncInfo()
   }
 
-  ////////////////////////////////////////////////////////////////////////////////////
-  ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
+  // //////////////////////////////////////////////////////////////////////////////////
+  // //////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
   // ----------- CONTEXT ----------- //
   override def receive: Receive =
@@ -189,8 +189,8 @@ class NodeViewSynchronizer(
     log.warn(s"NodeViewSynchronizer: got unexpected input $nonsense from ${sender()}")
   }
 
-  ////////////////////////////////////////////////////////////////////////////////////
-  //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
+  // //////////////////////////////////////////////////////////////////////////////////
+  // ////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
 
   /**
    * Announce a new modifier
@@ -318,7 +318,7 @@ class NodeViewSynchronizer(
 
           comparison match {
             case GenericHistory.Unknown =>
-              //todo: should we ban peer if its status is unknown after getting info from it?
+              // todo: should we ban peer if its status is unknown after getting info from it?
               log.warn("Peer status is still unknown")
 
             case GenericHistory.Nonsense =>
@@ -641,7 +641,7 @@ object NodeViewSynchronizer {
     /** getLocalSyncInfo messages */
     case object SendLocalSyncInfo
 
-    //todo: consider sending info on the rollback
+    // todo: consider sending info on the rollback
   }
 }
 

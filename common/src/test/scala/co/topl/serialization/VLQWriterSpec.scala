@@ -23,9 +23,9 @@ class VLQWriterSpec
     override def length(): Int = ???
     override def newWriter(): Writer.Aux[this.type] = ???
     override def putChunk(chunk: this.type): this.type = this
-    override def put(x:          Byte): this.type = this
-    override def putBoolean(x:   Boolean): this.type = this
-    override def putBytes(xs:    Array[Byte]): this.type = this
+    override def put(x: Byte): this.type = this
+    override def putBoolean(x: Boolean): this.type = this
+    override def putBytes(xs: Array[Byte]): this.type = this
     override def result(): this.type = this
   }
 
@@ -51,8 +51,8 @@ class VLQWriterSpec
       override def length(): Int = ???
       override def newWriter(): Writer.Aux[this.type] = ???
       override def putChunk(chunk: this.type): this.type = this
-      override def put(x:          Byte): this.type = this
-      override def putBoolean(x:   Boolean): this.type = this
+      override def put(x: Byte): this.type = this
+      override def putBoolean(x: Boolean): this.type = this
       override def putBytes(xs: Array[Byte]): this.type = {
         new String(xs, StandardCharsets.UTF_8) shouldBe inputString
         this
@@ -81,8 +81,8 @@ class VLQWriterSpec
       override def length(): Int = ???
       override def newWriter(): Writer.Aux[this.type] = ???
       override def putChunk(chunk: this.type): this.type = this
-      override def put(x:          Byte): this.type = this
-      override def putBoolean(x:   Boolean): this.type = this
+      override def put(x: Byte): this.type = this
+      override def putBoolean(x: Boolean): this.type = this
       override def putBytes(xs: Array[Byte]): this.type = {
         new String(xs, StandardCharsets.UTF_8) shouldBe inputString
         this

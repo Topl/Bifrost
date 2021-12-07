@@ -53,7 +53,7 @@ trait HistoryReader[PM <: PersistentNodeViewModifier, SI <: SyncInfo]
    */
   def applicableTry(modifier: PM): Try[Unit]
 
-  //todo: output should be ID | Seq[ID]
+  // todo: output should be ID | Seq[ID]
   def openSurfaceIds(): Seq[ModifierId]
 
   /**
