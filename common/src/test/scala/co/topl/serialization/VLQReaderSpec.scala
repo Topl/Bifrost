@@ -12,13 +12,8 @@ class VLQReaderSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenPrope
 
   val vlqReader: VLQReader = new VLQReader {
     override type CH = this.type
-<<<<<<< HEAD
     override def newReader(chunk: this.type): Reader.Aux[this.type] = ???
-    override def getChunk(size:   Int): this.type = ???
-=======
-    override def newReader(chunk: this.type): Aux[this.type] = ???
     override def getChunk(size: Int): this.type = ???
->>>>>>> dev
     override def peekByte(): Byte = ???
     override def getBoolean(): Boolean = ???
     override def getByte(): Byte = 10.toByte
