@@ -77,7 +77,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
     val stateStore = InMemoryKeyValueStore.empty()
     val tokenBoxStore = InMemoryKeyValueStore.empty()
     val nodeView = NodeView(
-      History(settings, new Storage(historyStore, 32)),
+      History(settings, new Storage(historyStore)),
       State(
         settings,
         stateStore,

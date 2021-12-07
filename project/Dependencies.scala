@@ -7,6 +7,7 @@ object Dependencies {
   val circeVersion = "0.14.1"
   val kamonVersion = "2.4.2"
   val graalVersion = "21.1.0"
+  val simulacrumVersion = "1.0.1"
 
   val logging = Seq(
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.4",
@@ -102,7 +103,7 @@ object Dependencies {
 
   lazy val common: Seq[ModuleID] = {
     Seq(
-      "org.typelevel"          %% "simulacrum"              % "1.0.1",
+      "org.typelevel"          %% "simulacrum"              % simulacrumVersion,
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.6.0",
       "org.scodec"             %% "scodec-bits"             % "1.1.30"
     ) ++
@@ -160,7 +161,7 @@ object Dependencies {
 
   lazy val crypto: Seq[ModuleID] =
     Seq(
-      "org.typelevel"     %% "simulacrum"      % "1.0.0",
+      "org.typelevel"     %% "simulacrum"      % simulacrumVersion,
       "org.typelevel"     %% "cats-core"       % "2.7.0",
       "org.bouncycastle"   % "bcprov-jdk15on"  % "1.70",
       "org.whispersystems" % "curve25519-java" % "0.5.0"
