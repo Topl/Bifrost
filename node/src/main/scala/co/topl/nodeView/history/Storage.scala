@@ -13,12 +13,9 @@ import com.google.common.primitives.Longs
 
 import scala.util.Try
 
-class Storage(
-  private[nodeView] val keyValueStore: KeyValueStore,
-  keySize:                             Int
-) extends Logging {
+class Storage(private[nodeView] val keyValueStore: KeyValueStore) extends Logging {
 
-  private val bestBlockIdKey = Array.fill(keySize)(-1: Byte)
+  private val bestBlockIdKey = Array.fill(33)(-1: Byte)
 
   def scoreAt(b: ModifierId): Long = scoreOf(b).getOrElse(0L)
 
