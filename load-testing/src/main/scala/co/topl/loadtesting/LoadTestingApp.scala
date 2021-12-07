@@ -5,7 +5,7 @@ import akka.util.Timeout
 import co.topl.client.Provider
 import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType._
-import mainargs.{ParserForMethods, TokensReader, arg, main}
+import mainargs.{arg, main, ParserForMethods, TokensReader}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
