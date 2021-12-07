@@ -145,6 +145,8 @@ object ProofVerifier {
     ): ProofVerifier[F, Proposition, Proof] =
       (proposition, proof, context) =>
         (proposition, proof) match {
+          case (Propositions.PermanentlyLocked, _) =>
+            false.pure[F]
           case (prop: Propositions.Knowledge.Curve25519, proof: Proofs.Knowledge.Curve25519) =>
             publicKeyCurve25519Verifier[F].verifyWith(prop, proof, context)
           case (prop: Propositions.Knowledge.Ed25519, proof: Proofs.Knowledge.Ed25519) =>

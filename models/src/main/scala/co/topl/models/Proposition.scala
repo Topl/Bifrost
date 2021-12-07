@@ -6,6 +6,8 @@ sealed trait Proposition
 
 object Propositions {
 
+  case object PermanentlyLocked extends Proposition
+
   object Knowledge {
     case class Curve25519(key: VerificationKeys.Curve25519) extends Proposition
     case class Ed25519(key: VerificationKeys.Ed25519) extends Proposition

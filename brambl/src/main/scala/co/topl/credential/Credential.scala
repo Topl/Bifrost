@@ -9,10 +9,30 @@ import co.topl.typeclasses.implicits._
 import scala.collection.immutable.ListSet
 
 /**
- * An addressable entity for proving transactions
+ * An entity which represents a prover for some proposition.
  */
 trait Credential {
+
+  /**
+   * Modify the given currentProof (potentially Proofs.False) to produce a new proof with some additional
+   * information added.  In the simple cases, the simple cases, a basic proof can be returned.  In more complex compositional
+   * cases, the given proof should be updated with sub-proofs which can be applied by this credential.  It
+   * should not attempt to modify already-proven sub-propositions.
+   * @param currentProof The current proof (defaulting to Proofs.False) which should be modified or replaced with a new
+   *                     proof
+   * @return a new proof
+   */
   def prove(currentProof: Proof): Proof
+
+  /**
+   * Initializes a new Proof
+   */
+  def proof: Proof = prove(Proofs.False)
+
+  /**
+   * The proposition corresponding to this credential
+   * @return
+   */
   def proposition: Proposition
 }
 
@@ -21,12 +41,10 @@ object Credential {
   case object False extends Credential {
     def prove(currentProof: Proof): Proof = Proofs.False
 
-    def proposition: Proposition =
-      // NOTE: The intention of using this made-up Curve proposition is to force it to not match any other propositions
-      Propositions.Knowledge.Curve25519(VerificationKeys.Curve25519(Sized.strictUnsafe(Bytes.fill(32)(-1: Byte))))
+    def proposition: Proposition = Propositions.PermanentlyLocked
   }
 
-  object Signing {
+  object Knowledge {
 
     case class Curve25519(
       sk:                  SecretKeys.Curve25519,
@@ -82,20 +100,13 @@ object Credential {
               ListSet.from(
                 proposition.propositions.toList
                   .zip(t.proofs)
-                  .map {
-                    case (prop, Proofs.False) =>
-                      credentials.find(_.proposition == prop).fold(Proofs.False: Proof)(_.prove(Proofs.False))
-                    case (_, proof) =>
-                      proof
-                  }
+                  .map { case (prop, proof) => compositionalProver(prop, proof, credentials) }
               )
             )
           case _ =>
             Proofs.Compositional.Threshold(
               ListSet.from(
-                proposition.propositions.toList.map(prop =>
-                  credentials.find(_.proposition == prop).fold(Proofs.False: Proof)(_.prove(Proofs.False))
-                )
+                proposition.propositions.toList.map(prop => compositionalProver(prop, Proofs.False, credentials))
               )
             )
         }
@@ -107,23 +118,13 @@ object Credential {
         currentProof match {
           case t: Proofs.Compositional.And =>
             Proofs.Compositional.And(
-              t.a match {
-                case Proofs.False =>
-                  credentials.find(_.proposition == proposition.a).fold(Proofs.False: Proof)(_.prove(Proofs.False))
-                case a =>
-                  a
-              },
-              t.b match {
-                case Proofs.False =>
-                  credentials.find(_.proposition == proposition.b).fold(Proofs.False: Proof)(_.prove(Proofs.False))
-                case b =>
-                  b
-              }
+              compositionalProver(proposition.a, t.a, credentials),
+              compositionalProver(proposition.b, t.b, credentials)
             )
           case _ =>
             Proofs.Compositional.And(
-              credentials.find(_.proposition == proposition.a).fold(Proofs.False: Proof)(_.prove(Proofs.False)),
-              credentials.find(_.proposition == proposition.b).fold(Proofs.False: Proof)(_.prove(Proofs.False))
+              compositionalProver(proposition.a, Proofs.False, credentials),
+              compositionalProver(proposition.b, Proofs.False, credentials)
             )
         }
     }
@@ -134,26 +135,36 @@ object Credential {
         currentProof match {
           case t: Proofs.Compositional.Or =>
             Proofs.Compositional.Or(
-              t.a match {
-                case Proofs.False =>
-                  credentials.find(_.proposition == proposition.a).fold(Proofs.False: Proof)(_.prove(Proofs.False))
-                case a =>
-                  a
-              },
-              t.b match {
-                case Proofs.False =>
-                  credentials.find(_.proposition == proposition.b).fold(Proofs.False: Proof)(_.prove(Proofs.False))
-                case b =>
-                  b
-              }
+              compositionalProver(proposition.a, t.a, credentials),
+              compositionalProver(proposition.b, t.b, credentials)
             )
           case _ =>
             Proofs.Compositional.Or(
-              credentials.find(_.proposition == proposition.a).fold(Proofs.False: Proof)(_.prove(Proofs.False)),
-              credentials.find(_.proposition == proposition.b).fold(Proofs.False: Proof)(_.prove(Proofs.False))
+              compositionalProver(proposition.a, Proofs.False, credentials),
+              compositionalProver(proposition.b, Proofs.False, credentials)
             )
         }
     }
+
+    private def compositionalProver(
+      proposition:  Proposition,
+      currentProof: Proof,
+      credentials:  Iterable[Credential]
+    ): Proof =
+      (proposition, currentProof) match {
+        case (Propositions.PermanentlyLocked, _) =>
+          Proofs.False
+        case (a: Propositions.Compositional.And, proof) =>
+          Credential.Compositional.And(a, credentials).prove(proof)
+        case (o: Propositions.Compositional.Or, proof) =>
+          Credential.Compositional.Or(o, credentials).prove(proof)
+        case (t: Propositions.Compositional.Threshold, proof) =>
+          Credential.Compositional.Threshold(t, credentials).prove(proof)
+        case (prop, Proofs.False) =>
+          credentials.find(_.proposition == prop).fold(Proofs.False: Proof)(_.proof)
+        case (_, proof) =>
+          proof
+      }
   }
 
   object Contextual {

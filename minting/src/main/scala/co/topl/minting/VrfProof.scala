@@ -28,8 +28,8 @@ object VrfProof {
       implicit val cacheConfig: CacheConfig = CacheConfig(cacheKeyBuilder = new CacheKeyBuilder {
         def toCacheKey(parts: Seq[Any]): String =
           parts.map {
-            case eta: Eta => eta.data.show
-            case _        => throw new MatchError()
+            case eta: Eta @unchecked => eta.data.show
+            case t                   => throw new MatchError(t)
           }.mkString
 
         def stringToCacheKey(key: String): String = key

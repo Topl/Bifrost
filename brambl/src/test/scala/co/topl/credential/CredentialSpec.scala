@@ -31,11 +31,11 @@ class CredentialSpec
 
   "CurveSigningCredential" should "create a proposition and proof" in {
     forAll { (sk: SecretKeys.Curve25519, unprovenTransaction: Transaction.Unproven) =>
-      val credential = Credential.Signing.Curve25519(sk, unprovenTransaction)
+      val credential = Credential.Knowledge.Curve25519(sk, unprovenTransaction)
 
       credential.proposition shouldBe sk.vk[VerificationKeys.Curve25519].proposition[Propositions.Knowledge.Curve25519]
       Curve25519.instance.verify(
-        credential.prove(Proofs.False).asInstanceOf[Proofs.Knowledge.Curve25519],
+        credential.proof.asInstanceOf[Proofs.Knowledge.Curve25519],
         unprovenTransaction.signableBytes,
         sk.vk[VerificationKeys.Curve25519]
       ) shouldBe true
@@ -44,11 +44,11 @@ class CredentialSpec
 
   "EdSigningCredential" should "create a proposition and proof" in {
     forAll { (sk: SecretKeys.Ed25519, unprovenTransaction: Transaction.Unproven) =>
-      val credential = Credential.Signing.Ed25519(sk, unprovenTransaction)
+      val credential = Credential.Knowledge.Ed25519(sk, unprovenTransaction)
 
       credential.proposition shouldBe sk.vk[VerificationKeys.Ed25519].proposition[Propositions.Knowledge.Ed25519]
       ed25519.verify(
-        credential.prove(Proofs.False).asInstanceOf[Proofs.Knowledge.Ed25519],
+        credential.proof.asInstanceOf[Proofs.Knowledge.Ed25519],
         unprovenTransaction.signableBytes,
         sk.vk[VerificationKeys.Ed25519]
       ) shouldBe true
@@ -57,13 +57,13 @@ class CredentialSpec
 
   "ExtendedEdSigningCredential" should "create a proposition and proof" in {
     forAll { (sk: SecretKeys.ExtendedEd25519, unprovenTransaction: Transaction.Unproven) =>
-      val credential = Credential.Signing.ExtendedEd25519(sk, unprovenTransaction)
+      val credential = Credential.Knowledge.ExtendedEd25519(sk, unprovenTransaction)
 
       credential.proposition shouldBe sk
         .vk[VerificationKeys.ExtendedEd25519]
         .proposition[Propositions.Knowledge.ExtendedEd25519]
       extendedEd25519.verify(
-        credential.prove(Proofs.False).asInstanceOf[Proofs.Knowledge.Ed25519],
+        credential.proof.asInstanceOf[Proofs.Knowledge.Ed25519],
         unprovenTransaction.signableBytes,
         sk.vk[VerificationKeys.ExtendedEd25519]
       ) shouldBe true
@@ -74,14 +74,14 @@ class CredentialSpec
     forAll { height: Long =>
       val credential = Credential.Contextual.HeightLock(height)
       credential.proposition shouldBe Propositions.Contextual.HeightLock(height)
-      credential.prove(Proofs.False) shouldBe Proofs.Contextual.HeightLock()
+      credential.proof shouldBe Proofs.Contextual.HeightLock()
     }
   }
 
   "AndCredential" should "create a proposition and proof" in {
     forAll { (sk: SecretKeys.Curve25519, unprovenTransaction: Transaction.Unproven, height: Long) =>
       whenever(height >= 0 && height < Long.MaxValue) {
-        val skCredential = Credential.Signing.Curve25519(sk, unprovenTransaction)
+        val skCredential = Credential.Knowledge.Curve25519(sk, unprovenTransaction)
         val heightCredential = Credential.Contextual.HeightLock(height)
 
         val andProposition = skCredential.proposition.and(heightCredential.proposition)
@@ -89,7 +89,7 @@ class CredentialSpec
 
         andCredential.proposition shouldBe andProposition
 
-        val andProof = andCredential.prove(Proofs.False)
+        val andProof = andCredential.proof
 
         val transaction =
           Transaction(
@@ -129,11 +129,11 @@ class CredentialSpec
           .vk[VerificationKeys.Curve25519]
           .proposition[Propositions.Knowledge.Curve25519]
           .or(heightCredential.proposition)
-        val orCredential = Credential.Compositional.Or(orProposition, List(Credential.False, heightCredential))
+        val orCredential = Credential.Compositional.Or(orProposition, List(heightCredential))
 
         orCredential.proposition shouldBe orProposition
 
-        val orProof = orCredential.prove(Proofs.False)
+        val orProof = orCredential.proof
 
         implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
 
@@ -152,7 +152,7 @@ class CredentialSpec
     forAll {
       (sk: SecretKeys.Curve25519, sk2: SecretKeys.Ed25519, unprovenTransaction: Transaction.Unproven, height: Long) =>
         whenever(height >= 0 && height < Long.MaxValue) {
-          val skCredential = Credential.Signing.Curve25519(sk, unprovenTransaction)
+          val skCredential = Credential.Knowledge.Curve25519(sk, unprovenTransaction)
           val heightCredential = Credential.Contextual.HeightLock(height)
 
           val thresholdProposition =
@@ -167,7 +167,7 @@ class CredentialSpec
 
           thresholdCredential.proposition shouldBe thresholdProposition
 
-          val thresholdProof = thresholdCredential.prove(Proofs.False)
+          val thresholdProof = thresholdCredential.proof
 
           val transaction =
             Transaction(
@@ -196,6 +196,67 @@ class CredentialSpec
 
           thresholdProof.satisfies[F](thresholdProposition, context) shouldBe true
 
+        }
+    }
+  }
+
+  "Complex Credentials" should "be formed" in {
+    forAll {
+      (
+        sk:                  SecretKeys.Curve25519,
+        vk2:                 VerificationKeys.Ed25519,
+        sk3:                 SecretKeys.Ed25519,
+        vk4:                 VerificationKeys.Ed25519,
+        unprovenTransaction: Transaction.Unproven,
+        height:              Long
+      ) =>
+        whenever(height >= 0 && height < Long.MaxValue) {
+          val skCredential = Credential.Knowledge.Curve25519(sk, unprovenTransaction)
+          val sk3Credential = Credential.Knowledge.Ed25519(sk3, unprovenTransaction)
+          val heightCredential = Credential.Contextual.HeightLock(height)
+
+          val thresholdProposition =
+            List(skCredential.proposition, vk2.proposition[Propositions.Knowledge.Ed25519], sk3Credential.proposition)
+              .threshold(2)
+
+          val orProposition =
+            vk4.proposition[Propositions.Knowledge.Ed25519] or heightCredential.proposition
+
+          val andProposition =
+            thresholdProposition and orProposition
+
+          val andCredential =
+            Credential.Compositional.And(andProposition, List(skCredential, sk3Credential, heightCredential))
+
+          val andProof =
+            andCredential.proof
+
+          val transaction =
+            Transaction(
+              ListMap.from(
+                unprovenTransaction.inputs.map(boxRef => boxRef -> (andProposition -> andProof))
+              ),
+              unprovenTransaction.feeOutput,
+              unprovenTransaction.coinOutputs,
+              unprovenTransaction.fee,
+              unprovenTransaction.timestamp,
+              unprovenTransaction.data,
+              unprovenTransaction.minting
+            )
+
+          implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
+
+          (() => context.currentTransaction)
+            .expects()
+            .anyNumberOfTimes()
+            .returning(transaction)
+
+          (() => context.currentHeight)
+            .expects()
+            .once()
+            .returning(height + 1)
+
+          andProof.satisfies[F](andProposition, context)
         }
     }
   }
