@@ -160,7 +160,7 @@ class NodeViewRpcHandlerImpls(
     view:        HistoryReader[Block, BifrostSyncInfo],
     startHeight: Long,
     endHeight:   Long
-  ): ToplRpc.NodeView.BlocksByIds.Response =
+  ): ToplRpc.NodeView.BlocksInRange.Response =
     (startHeight to endHeight)
       .flatMap(view.idAtHeightOf)
       .flatMap(view.modifierById)
