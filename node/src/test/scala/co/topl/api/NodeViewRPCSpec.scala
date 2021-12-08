@@ -2,7 +2,7 @@ package co.topl.api
 
 import akka.actor.typed.scaladsl.adapter.ClassicActorSystemOps
 import akka.util.ByteString
-import co.topl.consensus.ActorForgerInterface
+import co.topl.consensus.{ActorForgerInterface, blockVersion}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.nodeView.TestableNodeViewHolder
@@ -10,6 +10,7 @@ import co.topl.nodeView.history.History
 import co.topl.utils.GeneratorOps.GeneratorOps
 import io.circe.Json
 import io.circe.parser.parse
+import io.circe.syntax._
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -74,6 +75,35 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         val res: Json = parse(responseAs[String]).value
         val headInfo = res.hcursor.downField("result").as[Json].toString
         headInfo should include("bestBlockId")
+        res.hcursor.downField("error").values shouldBe None
+      }
+    }
+
+    "Get balances for given addresses" in {
+      val params: Json = Map("addresses" -> keyRingCurve25519.addresses.map(_.asJson).toList).asJson
+      val requestBody = ByteString(s"""
+        |{
+        |   "jsonrpc": "2.0",
+        |   "id": "1",
+        |   "method": "topl_balances",
+        |   "params": [$params]
+        |}
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        println(keyRingCurve25519.addresses)
+        val res: Json = parse(responseAs[String]).value
+        val balances = res.hcursor.downField("result").as[Json].value
+        keyRingCurve25519.addresses.map{ addr=>
+          balances.toString() should include(addr.toString)
+        }
+        keyRingCurve25519.addresses.map{ addr =>
+          balances.hcursor.downField(addr.toString).get[Json]("Balances").map{ balance =>
+            val testnetBalance = settings.forging.privateTestnet.map(_.testnetBalance).get.toString
+            balance.hcursor.downField("Polys").as[String].value shouldEqual testnetBalance
+            balance.hcursor.downField("Arbits").as[String].value shouldEqual testnetBalance
+          }
+        }
         res.hcursor.downField("error").values shouldBe None
       }
     }
