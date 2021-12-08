@@ -2,7 +2,7 @@ package co.topl.api
 
 import akka.actor.typed.scaladsl.adapter.ClassicActorSystemOps
 import akka.util.ByteString
-import co.topl.consensus.{ActorForgerInterface, blockVersion}
+import co.topl.consensus.ActorForgerInterface
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.nodeView.TestableNodeViewHolder
@@ -94,11 +94,11 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         println(keyRingCurve25519.addresses)
         val res: Json = parse(responseAs[String]).value
         val balances = res.hcursor.downField("result").as[Json].value
-        keyRingCurve25519.addresses.map{ addr=>
+        keyRingCurve25519.addresses.map { addr =>
           balances.toString() should include(addr.toString)
         }
-        keyRingCurve25519.addresses.map{ addr =>
-          balances.hcursor.downField(addr.toString).get[Json]("Balances").map{ balance =>
+        keyRingCurve25519.addresses.map { addr =>
+          balances.hcursor.downField(addr.toString).get[Json]("Balances").map { balance =>
             val testnetBalance = settings.forging.privateTestnet.map(_.testnetBalance).get.toString
             balance.hcursor.downField("Polys").as[String].value shouldEqual testnetBalance
             balance.hcursor.downField("Arbits").as[String].value shouldEqual testnetBalance
