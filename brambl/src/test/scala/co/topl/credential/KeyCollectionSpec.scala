@@ -39,7 +39,7 @@ class KeyCollectionSpec
     forAll { (sk: SecretKeys.ExtendedEd25519, password: Password) =>
       implicit val credentialIO: CredentialIO[F] = mock[CredentialIO[F]]
 
-      val evidence = sk.verificationKey[VerificationKeys.ExtendedEd25519].typedEvidence
+      val evidence = sk.vk.typedEvidence
 
       (credentialIO
         .unlock(_, _))
@@ -58,7 +58,7 @@ class KeyCollectionSpec
     forAll { (sk: SecretKeys.ExtendedEd25519, password: Password) =>
       implicit val credentialIO: CredentialIO[F] = mock[CredentialIO[F]]
 
-      val evidence = sk.verificationKey[VerificationKeys.ExtendedEd25519].typedEvidence
+      val evidence = sk.vk.typedEvidence
 
       (credentialIO
         .unlock(_, _))
@@ -78,7 +78,7 @@ class KeyCollectionSpec
     forAll { (sk: SecretKeys.ExtendedEd25519, password: Password) =>
       implicit val credentialIO: CredentialIO[F] = mock[CredentialIO[F]]
 
-      val evidence = sk.verificationKey[VerificationKeys.ExtendedEd25519].typedEvidence
+      val evidence = sk.vk.typedEvidence
 
       (credentialIO
         .unlock(_, _))

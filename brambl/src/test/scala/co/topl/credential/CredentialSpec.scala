@@ -33,11 +33,11 @@ class CredentialSpec
     forAll { (sk: SecretKeys.Curve25519, unprovenTransaction: Transaction.Unproven) =>
       val credential = Credential.Knowledge.Curve25519(sk, unprovenTransaction)
 
-      credential.proposition shouldBe sk.vk[VerificationKeys.Curve25519].proposition[Propositions.Knowledge.Curve25519]
+      credential.proposition shouldBe sk.vk.asProposition
       Curve25519.instance.verify(
         credential.proof.asInstanceOf[Proofs.Knowledge.Curve25519],
         unprovenTransaction.signableBytes,
-        sk.vk[VerificationKeys.Curve25519]
+        sk.vk.asInstanceOf[VerificationKeys.Curve25519]
       ) shouldBe true
     }
   }
@@ -46,11 +46,11 @@ class CredentialSpec
     forAll { (sk: SecretKeys.Ed25519, unprovenTransaction: Transaction.Unproven) =>
       val credential = Credential.Knowledge.Ed25519(sk, unprovenTransaction)
 
-      credential.proposition shouldBe sk.vk[VerificationKeys.Ed25519].proposition[Propositions.Knowledge.Ed25519]
+      credential.proposition shouldBe sk.vk.asProposition
       ed25519.verify(
         credential.proof.asInstanceOf[Proofs.Knowledge.Ed25519],
         unprovenTransaction.signableBytes,
-        sk.vk[VerificationKeys.Ed25519]
+        sk.vk.asInstanceOf[VerificationKeys.Ed25519]
       ) shouldBe true
     }
   }
@@ -59,13 +59,11 @@ class CredentialSpec
     forAll { (sk: SecretKeys.ExtendedEd25519, unprovenTransaction: Transaction.Unproven) =>
       val credential = Credential.Knowledge.ExtendedEd25519(sk, unprovenTransaction)
 
-      credential.proposition shouldBe sk
-        .vk[VerificationKeys.ExtendedEd25519]
-        .proposition[Propositions.Knowledge.ExtendedEd25519]
+      credential.proposition shouldBe sk.vk.asProposition
       extendedEd25519.verify(
         credential.proof.asInstanceOf[Proofs.Knowledge.Ed25519],
         unprovenTransaction.signableBytes,
-        sk.vk[VerificationKeys.ExtendedEd25519]
+        sk.vk.asInstanceOf[VerificationKeys.ExtendedEd25519]
       ) shouldBe true
     }
   }
@@ -125,9 +123,7 @@ class CredentialSpec
       whenever(height >= 0 && height < Long.MaxValue) {
         val heightCredential = Credential.Contextual.HeightLock(height)
 
-        val orProposition = sk
-          .vk[VerificationKeys.Curve25519]
-          .proposition[Propositions.Knowledge.Curve25519]
+        val orProposition = sk.vk.asProposition
           .or(heightCredential.proposition)
         val orCredential = Credential.Compositional.Or(orProposition, List(heightCredential))
 
@@ -157,8 +153,8 @@ class CredentialSpec
 
           val thresholdProposition =
             List(
-              sk.vk[VerificationKeys.Curve25519].proposition[Propositions.Knowledge.Curve25519],
-              sk2.vk[VerificationKeys.Ed25519].proposition[Propositions.Knowledge.Ed25519],
+              sk.vk.asProposition,
+              sk2.vk.asProposition,
               heightCredential.proposition
             ).threshold(2)
 
@@ -215,11 +211,11 @@ class CredentialSpec
           val heightCredential = Credential.Contextual.HeightLock(height)
 
           val thresholdProposition =
-            List(skCredential.proposition, vk2.proposition[Propositions.Knowledge.Ed25519], sk3Credential.proposition)
+            List(skCredential.proposition, vk2.asProposition, sk3Credential.proposition)
               .threshold(2)
 
           val orProposition =
-            vk4.proposition[Propositions.Knowledge.Ed25519] or heightCredential.proposition
+            vk4.asProposition or heightCredential.proposition
 
           val andProposition =
             thresholdProposition and orProposition

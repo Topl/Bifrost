@@ -43,7 +43,7 @@ object TetraDemo extends IOApp.Simple {
         vrfCommitment = Sized.strictUnsafe(
           Bytes(
             blake2b256
-              .hash(stakerVrfKey.verificationKey[VerificationKeys.VrfEd25519].signableBytes.toArray)
+              .hash(ed25519Vrf.getVerificationKey(stakerVrfKey).signableBytes.toArray)
               .value
           )
         ),
@@ -59,11 +59,9 @@ object TetraDemo extends IOApp.Simple {
 
     val stakerAddress: TaktikosAddress = {
       val stakingKey = KeyInitializer[SecretKeys.Ed25519].random()
-      val stakingVerificationKey =
-        implicitly[ContainsVerificationKey[SecretKeys.Ed25519, VerificationKeys.Ed25519]].verificationKeyOf(stakingKey)
+      val stakingVerificationKey = ed25519.getVerificationKey(stakingKey)
       val paymentKey = KeyInitializer[SecretKeys.Ed25519].random()
-      val paymentVerificationKey =
-        implicitly[ContainsVerificationKey[SecretKeys.Ed25519, VerificationKeys.Ed25519]].verificationKeyOf(paymentKey)
+      val paymentVerificationKey = ed25519.getVerificationKey(paymentKey)
       TaktikosAddress(
         Sized.strictUnsafe(
           Bytes(blake2b256.hash(paymentVerificationKey.bytes.data.toArray).value)
@@ -122,7 +120,8 @@ object TetraDemo extends IOApp.Simple {
   private def mints(
     etaCalculation:        EtaCalculationAlgebra[F],
     vrfProofConstructions: List[VrfProofAlgebra[F]]
-  ): List[BlockMintAlgebra[F]] =
+  ): List[BlockMintAlgebra[F]] = {
+    val ed25519Vrf = Ed25519VRF.precomputed()
     stakers
       .zip(vrfProofConstructions)
       .map { case (staker, vrfProofConstruction) =>
@@ -130,7 +129,7 @@ object TetraDemo extends IOApp.Simple {
           Staking.Eval.make(
             staker.address,
             LeaderElectionMinting.Eval.make(
-              staker.vrfKey,
+              ed25519Vrf.getVerificationKey(staker.vrfKey),
               leaderElectionThreshold,
               vrfProofConstruction
             ),
@@ -143,6 +142,7 @@ object TetraDemo extends IOApp.Simple {
           clock
         )
       }
+  }
 
   private def createBlockStore(
     headerStore: Store[F, BlockHeaderV2],

@@ -1,7 +1,6 @@
 package co.topl.credential
 
 import co.topl.models._
-import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._
 
 import scala.collection.immutable.ListSet
@@ -49,12 +48,11 @@ object Credential {
       unprovenTransaction: Transaction.Unproven
     ) extends Credential {
 
-      val proposition: Propositions.Knowledge.Curve25519 =
-        sk.vk[VerificationKeys.Curve25519].proposition[Propositions.Knowledge.Curve25519]
+      val proposition: Proposition =
+        sk.vk.asProposition
 
       def prove(currentProof: Proof): Proof =
-        Prover[(SecretKeys.Curve25519, Transaction.Unproven), Proofs.Knowledge.Curve25519]
-          .proveWith((sk, unprovenTransaction))
+        (sk, unprovenTransaction).asProof
     }
 
     case class Ed25519(
@@ -63,12 +61,11 @@ object Credential {
     )(implicit ed25519:    co.topl.crypto.signing.Ed25519)
         extends Credential {
 
-      val proposition: Propositions.Knowledge.Ed25519 =
-        sk.vk[VerificationKeys.Ed25519].proposition[Propositions.Knowledge.Ed25519]
+      val proposition: Proposition =
+        sk.vk.asProposition
 
       def prove(currentProof: Proof): Proof =
-        Prover[(SecretKeys.Ed25519, Transaction.Unproven), Proofs.Knowledge.Ed25519]
-          .proveWith((sk, unprovenTransaction))
+        (sk, unprovenTransaction).asProof
     }
 
     case class ExtendedEd25519(
@@ -77,12 +74,11 @@ object Credential {
     )(implicit extendedEd25519: co.topl.crypto.signing.ExtendedEd25519)
         extends Credential {
 
-      val proposition: Propositions.Knowledge.ExtendedEd25519 =
-        sk.vk[VerificationKeys.ExtendedEd25519].proposition[Propositions.Knowledge.ExtendedEd25519]
+      val proposition: Proposition =
+        sk.vk.asProposition
 
       def prove(currentProof: Proof): Proof =
-        Prover[(SecretKeys.ExtendedEd25519, Transaction.Unproven), Proofs.Knowledge.Ed25519]
-          .proveWith((sk, unprovenTransaction))
+        (sk, unprovenTransaction).asProof
     }
   }
 

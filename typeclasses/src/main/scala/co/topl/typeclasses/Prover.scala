@@ -2,53 +2,41 @@ package co.topl.typeclasses
 
 import co.topl.crypto.signing.{Curve25519, Ed25519, ExtendedEd25519}
 import co.topl.models._
-import co.topl.typeclasses.implicits._
+import co.topl.typeclasses.Signable.instances._
+import co.topl.typeclasses.Signable.ops._
 
 import scala.language.implicitConversions
 
-trait Prover[ProofInput, Prf <: Proof] {
+@simulacrum.typeclass
+trait Prover[ProofInput] {
 
   /**
    * Creates a Proof using this Prover's input type
    * @param t a value which can construct a Proof, usually a SecretKey
    * @return a Proof
    */
-  def proveWith(t: ProofInput): Prf
+  @simulacrum.op("asProof")
+  def proveWith(t: ProofInput): Proof
 }
 
 object Prover {
 
-  def apply[T, Prf <: Proof](implicit p: Prover[T, Prf]): Prover[T, Prf] = p
-
   trait Instances {
 
-    implicit def curve25519Proves[Data: Signable]: Prover[(SecretKeys.Curve25519, Data), Proofs.Knowledge.Curve25519] =
-      (t: (SecretKeys.Curve25519, Data)) => Curve25519.instance.sign(t._1, t._2.signableBytes)
+    implicit val curve25519Proves: Prover[(SecretKeys.Curve25519, Transaction.Unproven)] =
+      (t: (SecretKeys.Curve25519, Transaction.Unproven)) => Curve25519.instance.sign(t._1, t._2.signableBytes)
 
-    implicit def ed25519Proves[Data: Signable](implicit
+    implicit def ed25519Proves(implicit
       ed: Ed25519
-    ): Prover[(SecretKeys.Ed25519, Data), Proofs.Knowledge.Ed25519] =
-      (t: (SecretKeys.Ed25519, Data)) => ed.sign(t._1, t._2.signableBytes)
+    ): Prover[(SecretKeys.Ed25519, Transaction.Unproven)] =
+      (t: (SecretKeys.Ed25519, Transaction.Unproven)) => ed.sign(t._1, t._2.signableBytes)
 
-    implicit def extendedEd25519Proves[Data: Signable](implicit
+    implicit def extendedEd25519Proves(implicit
       extendedEd: ExtendedEd25519
-    ): Prover[(SecretKeys.ExtendedEd25519, Data), Proofs.Knowledge.Ed25519] =
-      (t: (SecretKeys.ExtendedEd25519, Data)) => extendedEd.sign(t._1, t._2.signableBytes)
+    ): Prover[(SecretKeys.ExtendedEd25519, Transaction.Unproven)] =
+      (t: (SecretKeys.ExtendedEd25519, Transaction.Unproven)) => extendedEd.sign(t._1, t._2.signableBytes)
 
-    implicit val blockProvesHeightLock: Prover[Any, Proofs.Contextual.HeightLock] =
-      _ => Proofs.Contextual.HeightLock()
   }
-
-  trait Implicits {
-
-    implicit class TOps[T](private val t: T) {
-
-      def prove[Prf <: Proof](implicit proves: Prover[T, Prf]): Prf =
-        proves.proveWith(t)
-    }
-  }
-
-  object implicits extends Implicits
 
   object instances extends Instances
 }

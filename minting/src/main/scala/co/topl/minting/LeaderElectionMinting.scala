@@ -14,7 +14,7 @@ object LeaderElectionMinting {
   object Eval {
 
     def make[F[_]: Monad](
-      secret:               SecretKeys.VrfEd25519,
+      vk:                   VerificationKeys.VrfEd25519,
       thresholdInterpreter: LeaderElectionValidationAlgebra[F],
       vrfProofAlgebra:      VrfProofAlgebra[F]
     ): LeaderElectionMintingAlgebra[F] = new LeaderElectionMintingAlgebra[F] {
@@ -27,7 +27,7 @@ object LeaderElectionMinting {
               EligibilityCertificate(
                 nonceProof,
                 testProof,
-                secret.verificationKey[VerificationKeys.VrfEd25519],
+                vk,
                 threshold.typedEvidence.evidence,
                 eta
               ),

@@ -32,6 +32,13 @@ object ContainsEvidence {
       t =>
         TypedEvidence(3: Byte, Sized.strictUnsafe(Bytes(blake2b256.hash((t.bytes ++ t.chainCode.data).toArray).value)))
 
+    implicit val vkContainsEvidence: ContainsEvidence[VerificationKey] = {
+      case t: VerificationKeys.Curve25519      => curve25519VKContainsEvidence.typedEvidenceOf(t)
+      case t: VerificationKeys.Ed25519         => ed25519VKContainsEvidence.typedEvidenceOf(t)
+      case t: VerificationKeys.ExtendedEd25519 => extended25519VKContainsEvidence.typedEvidenceOf(t)
+      case t                                   => throw new MatchError(t)
+    }
+
     implicit val permanentlyLockedContainsEvidence: ContainsEvidence[Propositions.PermanentlyLocked.type] =
       t =>
         TypedEvidence(

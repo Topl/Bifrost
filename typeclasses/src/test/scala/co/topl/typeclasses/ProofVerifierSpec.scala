@@ -31,7 +31,7 @@ class ProofVerifierSpec
   "publicKeyCurve25519Verifier" should "verify a proof" in {
     forAll { (sk: SecretKeys.Curve25519, unprovenTransaction: Transaction.Unproven) =>
       val proof = Curve25519.instance.sign(sk, unprovenTransaction.signableBytes)
-      val proposition = sk.vk[VerificationKeys.Curve25519].proposition[Propositions.Knowledge.Curve25519]
+      val proposition = sk.vk.asProposition
 
       val transaction =
         Transaction(
@@ -55,7 +55,11 @@ class ProofVerifierSpec
         proposition isSatisifiedBy proof
 
       val expected =
-        Curve25519.instance.verify(proof, unprovenTransaction.signableBytes, sk.vk[VerificationKeys.Curve25519])
+        Curve25519.instance.verify(
+          proof,
+          unprovenTransaction.signableBytes,
+          sk.vk.asInstanceOf[VerificationKeys.Curve25519]
+        )
 
       result shouldBe expected
     }
@@ -64,7 +68,7 @@ class ProofVerifierSpec
   "publicKeyEd25519Verifier" should "verify a proof" in {
     forAll { (sk: SecretKeys.Ed25519, unprovenTransaction: Transaction.Unproven) =>
       val proof = ed25519.sign(sk, unprovenTransaction.signableBytes)
-      val proposition = sk.vk[VerificationKeys.Ed25519].proposition[Propositions.Knowledge.Ed25519]
+      val proposition = sk.vk.asProposition
 
       val transaction =
         Transaction(
@@ -88,7 +92,7 @@ class ProofVerifierSpec
         proof.satisfies(proposition)
 
       val expected =
-        ed25519.verify(proof, unprovenTransaction.signableBytes, sk.vk[VerificationKeys.Ed25519])
+        ed25519.verify(proof, unprovenTransaction.signableBytes, sk.vk.asInstanceOf[VerificationKeys.Ed25519])
 
       result shouldBe expected
     }
@@ -97,7 +101,7 @@ class ProofVerifierSpec
   "publicKeyExtendedEd25519Verifier" should "verify a proof" in {
     forAll { (sk: SecretKeys.ExtendedEd25519, unprovenTransaction: Transaction.Unproven) =>
       val proof = extendedEd25519.sign(sk, unprovenTransaction.signableBytes)
-      val proposition = sk.vk[VerificationKeys.ExtendedEd25519].proposition[Propositions.Knowledge.ExtendedEd25519]
+      val proposition = sk.vk.asProposition
 
       val transaction =
         Transaction(
@@ -120,7 +124,11 @@ class ProofVerifierSpec
       val result = proposition.isSatisifiedBy(proof)
 
       val expected =
-        extendedEd25519.verify(proof, unprovenTransaction.signableBytes, sk.vk[VerificationKeys.ExtendedEd25519])
+        extendedEd25519.verify(
+          proof,
+          unprovenTransaction.signableBytes,
+          sk.vk.asInstanceOf[VerificationKeys.ExtendedEd25519]
+        )
 
       result shouldBe expected
     }
@@ -192,12 +200,12 @@ class ProofVerifierSpec
   "andVerifier" should "verify a proof" in {
     forAll { (sk: SecretKeys.Ed25519, unprovenTransaction: Transaction.Unproven) =>
       val heightLockProposition =
-        50L.proposition[Propositions.Contextual.HeightLock]
+        50L.asProposition
 
       val proposition: Propositions.Compositional.And =
         heightLockProposition
           .and(
-            sk.vk[VerificationKeys.Ed25519].proposition[Propositions.Knowledge.Ed25519]
+            sk.vk.asProposition
           )
 
       val proof = Proofs.Compositional.And(
@@ -239,10 +247,9 @@ class ProofVerifierSpec
 
   "andVerifier" should "fail to verify a proof with invalid a or b sub-proofs" in {
     forAll { (sk: SecretKeys.Ed25519, unprovenTransaction: Transaction.Unproven) =>
-      val proposition = 50L
-        .proposition[Propositions.Contextual.HeightLock]
+      val proposition = 50L.asProposition
         .and(
-          sk.vk[VerificationKeys.Ed25519].proposition[Propositions.Knowledge.Ed25519]
+          sk.vk.asProposition
         )
 
       val proof = Proofs.Compositional.And(
@@ -268,11 +275,11 @@ class ProofVerifierSpec
 
   "orVerifier" should "verify a proof" in {
     forAll { (sk: SecretKeys.Ed25519, unprovenTransaction: Transaction.Unproven) =>
-      val proposition = 50L
-        .proposition[Propositions.Contextual.HeightLock]
-        .or(
-          sk.vk[VerificationKeys.Ed25519].proposition[Propositions.Knowledge.Ed25519]
-        )
+      val proposition =
+        50L.asProposition
+          .or(
+            sk.vk.asProposition
+          )
 
       val proof = Proofs.Compositional.Or(
         Proofs.Contextual.HeightLock(),
@@ -297,10 +304,9 @@ class ProofVerifierSpec
 
   "orVerifier" should "verify a proof with only one valid proof" in {
     forAll { (sk: SecretKeys.Ed25519, unprovenTransaction: Transaction.Unproven) =>
-      val proposition = 50L
-        .proposition[Propositions.Contextual.HeightLock]
+      val proposition = 50L.asProposition
         .or(
-          sk.vk[VerificationKeys.Ed25519].proposition[Propositions.Knowledge.Ed25519]
+          sk.vk.asProposition
         )
 
       val proof = Proofs.Compositional.Or(
@@ -342,10 +348,9 @@ class ProofVerifierSpec
 
   "orVerifier" should "fail to verify a proof with invalid a and b sub-proofs" in {
     forAll { (sk: SecretKeys.Ed25519, unprovenTransaction: Transaction.Unproven) =>
-      val proposition = 50L
-        .proposition[Propositions.Contextual.HeightLock]
+      val proposition = 50L.asProposition
         .or(
-          sk.vk[VerificationKeys.Ed25519].proposition[Propositions.Knowledge.Ed25519]
+          sk.vk.asProposition
         )
 
       val proof = Proofs.Compositional.Or(
@@ -372,9 +377,9 @@ class ProofVerifierSpec
   "thresholdVerifier" should "verify a proof" in {
     forAll { (sk: SecretKeys.Ed25519, sk2: SecretKeys.Curve25519, unprovenTransaction: Transaction.Unproven) =>
       val proposition = List(
-        50L.proposition[Propositions.Contextual.HeightLock],
-        sk.vk[VerificationKeys.Ed25519].proposition[Propositions.Knowledge.Ed25519],
-        sk2.vk[VerificationKeys.Curve25519].proposition[Propositions.Knowledge.Curve25519]
+        50L.asProposition,
+        sk.vk.asProposition,
+        sk2.vk.asProposition
       ).threshold(2)
 
       val proof = Proofs.Compositional.Threshold(
@@ -420,9 +425,9 @@ class ProofVerifierSpec
   "thresholdVerifier" should "fail to verify if the threshold is not met" in {
     forAll { (sk: SecretKeys.Ed25519, sk2: SecretKeys.Curve25519, unprovenTransaction: Transaction.Unproven) =>
       val proposition = List(
-        50L.proposition[Propositions.Contextual.HeightLock],
-        sk.vk[VerificationKeys.Ed25519].proposition[Propositions.Knowledge.Ed25519],
-        sk2.vk[VerificationKeys.Curve25519].proposition[Propositions.Knowledge.Curve25519]
+        50L.asProposition,
+        sk.vk.asProposition,
+        sk2.vk.asProposition
       ).threshold(2)
 
       val proof = Proofs.Compositional.Threshold(
