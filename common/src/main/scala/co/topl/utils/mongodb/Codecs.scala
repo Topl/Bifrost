@@ -1,14 +1,15 @@
 package co.topl.utils.mongodb
 
 import cats.implicits._
-import co.topl.utils.mongodb.models._
+import io.circe.{Decoder, DecodingFailure, Encoder, Json}
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.parser.parse
-import io.circe.syntax._
-import io.circe.{Decoder, DecodingFailure, Encoder, Json}
 import org.mongodb.scala.bson.Document
+import co.topl.utils.mongodb.models._
+import io.circe.syntax._
 
 trait Codecs {
+
   implicit val simpleValueDataModelJsonEncoder: Encoder[SimpleValueDataModel] = deriveEncoder
 
   implicit val simpleValueDataModelJsonDecoder: Decoder[SimpleValueDataModel] = deriveDecoder
@@ -58,9 +59,9 @@ trait Codecs {
 
   implicit val blockSummaryDataModelJsonDecoder: Decoder[BlockSummaryDataModel] = deriveDecoder
 
-  implicit val confirmedTransactionDataModelJsonEncoder: Encoder[ConfirmedTransactionDataModel] = deriveEncoder
+  implicit val transactionDataModelJsonEncoder: Encoder[ConfirmedTransactionDataModel] = deriveEncoder
 
-  implicit val confirmedTransactionDataModelJsonDecoder: Decoder[ConfirmedTransactionDataModel] = deriveDecoder
+  implicit val transactionDataModelJsonDecoder: Decoder[ConfirmedTransactionDataModel] = deriveDecoder
 
   implicit val unconfirmedTransactionDataModelJsonEncoder: Encoder[UnconfirmedTransactionDataModel] = deriveEncoder
 
