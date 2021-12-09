@@ -49,7 +49,7 @@ class ToplRpcServer(handlers: ToplRpcHandlers, appContext: AppContext)(implicit
         .append(ToplRpc.NodeView.Mempool.rpc)(handlers.nodeView.mempool)
         .append(ToplRpc.NodeView.TransactionFromMempool.rpc)(handlers.nodeView.transactionFromMempool)
         .append(ToplRpc.NodeView.Info.rpc)(handlers.nodeView.info)
-        .append(ToplRpc.NodeView.NodeStatus.rpc)(handlers.nodeView.nodeStatus)
+        .append(ToplRpc.NodeView.Status.rpc)(handlers.nodeView.status)
     } else RpcServer.Builder.empty
 
   val transactionRoutes: RpcServer.Builder =

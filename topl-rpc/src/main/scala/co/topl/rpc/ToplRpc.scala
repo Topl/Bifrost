@@ -302,15 +302,15 @@ object ToplRpc {
       case class Response(network: String, nodeAddress: String, version: String)
     }
 
-    object NodeStatus {
+    object Status {
 
       /**
        * Retrieve information about this running node
        */
-      val rpc: Rpc[Params, Response] = Rpc("topl_nodeStatus")
+      val rpc: Rpc[Params, Response] = Rpc("topl_status")
 
       case class Params()
-      case class Response(forgingStatus: String)
+      case class Response(forgingStatus: String, numberOfPendingTransactions: Int)
     }
   }
 
