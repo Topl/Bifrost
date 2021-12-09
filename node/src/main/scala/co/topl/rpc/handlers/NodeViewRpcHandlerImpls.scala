@@ -90,7 +90,7 @@ class NodeViewRpcHandlerImpls(
   override val blockIdsInRange: ToplRpc.NodeView.BlockIdsInRange.rpc.ServerHandler =
     params =>
       withNodeView(view =>
-        checkHeightRange(view.history.height, params.startHeight, params.endHeight, rpcSettings.blockRetrievalLimit)
+        checkHeightRange(view.history.height, params.startHeight, params.endHeight, rpcSettings.blockIdRetrievalLimit)
           .map(range => getBlockIdsInRange(view.history, range._1, range._2))
       ).subflatMap(identity)
 
