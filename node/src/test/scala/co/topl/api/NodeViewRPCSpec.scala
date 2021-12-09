@@ -288,6 +288,26 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       }
     }
 
+    "Get block at the height given" in {
+      val requestBody = ByteString(s"""
+        |{
+        |   "jsonrpc": "2.0",
+        |   "id": "1",
+        |   "method": "topl_blockByHeight",
+        |   "params": [{
+        |      "height": 1
+        |    }]
+        |}
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]).value
+        val blockId = res.hcursor.downField("result").downField("header").get[String]("id").value
+        blockId shouldEqual block.id.toString
+        res.hcursor.downField("error").values shouldBe None
+      }
+    }
+
     "Get a segment of the chain by height range" in {
       val requestBody = ByteString(s"""
         |{
