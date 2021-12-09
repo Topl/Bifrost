@@ -6,12 +6,14 @@ import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, InvalidParametersError, RpcError, ThrowableData}
 import co.topl.attestation.Address
 import co.topl.consensus.ForgerInterface
+import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView}
+import co.topl.rpc.ToplRpc.NodeView.ConfirmationStatus.TxStatus
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
 import co.topl.settings.{AppContext, RPCApiSettings}
 import co.topl.utils.Int128
@@ -105,7 +107,11 @@ class NodeViewRpcHandlerImpls(
         )
 
   override val confirmationStatus: ToplRpc.NodeView.ConfirmationStatus.rpc.ServerHandler =
-    params => withNodeView(view => checkTxIds(params.transactionIds, view)).subflatMap(identity)
+    params =>
+      withNodeView { view =>
+        getConfirmationStatus(params.transactionIds, view)
+        checkTxIds(getConfirmationStatus(params.transactionIds, view))
+      }.subflatMap(identity)
 
   override val info: ToplRpc.NodeView.Info.rpc.ServerHandler =
     _ =>
@@ -168,6 +174,24 @@ class NodeViewRpcHandlerImpls(
       .flatMap(view.idAtHeightOf)
       .flatMap(view.modifierById)
       .toList
+
+  private def getConfirmationStatus(
+    txIds: List[ModifierId],
+    view:  ReadableNodeView
+  ): List[Option[(ModifierId, TxStatus)]] =
+    txIds.map { id =>
+      val mempoolStatus = view.memPool.modifierById(id)
+      val historyStatus = view.history.transactionById(id)
+      val bestBlockHeight = view.history.height
+      (mempoolStatus, historyStatus) match {
+        case (_, Some((tx, _, height))) =>
+          Some(tx.id -> TxStatus("Confirmed", bestBlockHeight - height))
+        case (Some(tx), None) =>
+          Some(tx.id -> TxStatus("Unconfirmed", -1))
+        case (None, None) =>
+          None
+      }
+    }
 
   private def withNodeView[T](f: ReadableNodeView => T) =
     nodeViewHolderInterface
