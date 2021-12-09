@@ -251,6 +251,21 @@ object ToplRpc {
       type Response = List[Block]
     }
 
+    object BlockIdsInRange {
+
+      /**
+       * Retrieve the ids of a segment of the chain in a height range
+       */
+      val rpc: Rpc[Params, Response] = Rpc(List("topl_blockIdsInRange"))
+
+      /**
+       * @param startHeight starting height for the segment of chain
+       * @param endHeight end heigh for the segment of chain
+       */
+      case class Params(startHeight: Long, endHeight: Long)
+      type Response = List[ModifierId]
+    }
+
     object BlockByHeight {
 
       /**

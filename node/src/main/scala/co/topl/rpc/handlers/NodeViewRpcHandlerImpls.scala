@@ -87,6 +87,13 @@ class NodeViewRpcHandlerImpls(
           .map(range => getBlocksInRange(view.history, range._1, range._2))
       ).subflatMap(identity)
 
+  override val blockIdsInRange: ToplRpc.NodeView.BlockIdsInRange.rpc.ServerHandler =
+    params =>
+      withNodeView(view =>
+        checkHeightRange(view.history.height, params.startHeight, params.endHeight, rpcSettings.blockRetrievalLimit)
+          .map(range => getBlockIdsInRange(view.history, range._1, range._2))
+      ).subflatMap(identity)
+
   override val blockByHeight: ToplRpc.NodeView.BlockByHeight.rpc.ServerHandler =
     params =>
       withNodeView(_.history.modifierByHeight(params.height))
@@ -159,15 +166,21 @@ class NodeViewRpcHandlerImpls(
     }
   }
 
+  private def getBlockIdsInRange(
+    view:        HistoryReader[Block, BifrostSyncInfo],
+    startHeight: Long,
+    endHeight:   Long
+  ): ToplRpc.NodeView.BlockIdsInRange.Response =
+    (startHeight to endHeight)
+      .flatMap(view.idAtHeightOf)
+      .toList
+
   private def getBlocksInRange(
     view:        HistoryReader[Block, BifrostSyncInfo],
     startHeight: Long,
     endHeight:   Long
-  ): ToplRpc.NodeView.BlocksByIds.Response =
-    (startHeight to endHeight)
-      .flatMap(view.idAtHeightOf)
-      .flatMap(view.modifierById)
-      .toList
+  ): ToplRpc.NodeView.BlocksInRange.Response =
+    getBlockIdsInRange(view, startHeight, endHeight).flatMap(view.modifierById)
 
   private def withNodeView[T](f: ReadableNodeView => T) =
     nodeViewHolderInterface

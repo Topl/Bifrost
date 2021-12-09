@@ -46,6 +46,7 @@ class ToplRpcServer(handlers: ToplRpcHandlers, appContext: AppContext)(implicit
         .append(ToplRpc.NodeView.BlocksByIds.rpc)(handlers.nodeView.blocksByIds)
         .append(ToplRpc.NodeView.BlockByHeight.rpc)(handlers.nodeView.blockByHeight)
         .append(ToplRpc.NodeView.BlocksInRange.rpc)(handlers.nodeView.blocksInRange)
+        .append(ToplRpc.NodeView.BlockIdsInRange.rpc)(handlers.nodeView.blockIdsInRange)
         .append(ToplRpc.NodeView.Mempool.rpc)(handlers.nodeView.mempool)
         .append(ToplRpc.NodeView.TransactionFromMempool.rpc)(handlers.nodeView.transactionFromMempool)
         .append(ToplRpc.NodeView.ConfirmationStatus.rpc)(handlers.nodeView.confirmationStatus)

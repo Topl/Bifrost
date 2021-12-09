@@ -86,6 +86,9 @@ trait NodeViewRpcParamsEncoders {
   implicit val nodeViewBlocksInRangeParamsEncoder: Encoder[ToplRpc.NodeView.BlocksInRange.Params] =
     deriveEncoder
 
+  implicit val nodeViewBlockIdsInRangeParamsEncoder: Encoder[ToplRpc.NodeView.BlockIdsInRange.Params] =
+    deriveEncoder
+
   implicit val nodeViewMempoolParamsEncoder: Encoder[ToplRpc.NodeView.Mempool.Params] =
     deriveEncoder
 
@@ -372,6 +375,9 @@ trait NodeViewRpcParamsDecoders {
     deriveDecoder
 
   implicit val nodeViewBlocksInRangeParamsDecoder: Decoder[ToplRpc.NodeView.BlocksInRange.Params] =
+    deriveDecoder
+
+  implicit val nodeViewBlockIdsInRangeParamsDecoder: Decoder[ToplRpc.NodeView.BlockIdsInRange.Params] =
     deriveDecoder
 
   implicit val nodeViewMempoolParamsDecoder: Decoder[ToplRpc.NodeView.Mempool.Params] =
