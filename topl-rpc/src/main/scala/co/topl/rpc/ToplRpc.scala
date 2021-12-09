@@ -160,7 +160,7 @@ object ToplRpc {
       /**
        * Retrieve the best block's id and other info
        *
-       * Find information about the current state of the chain including height, score, bestBlockId, etc
+       * Find information about the current state of the chain including height and bestBlockId
        */
       val rpc: Rpc[Params, Response] = Rpc(List("topl_headInfo"))
 
