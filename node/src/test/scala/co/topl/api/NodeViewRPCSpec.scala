@@ -343,7 +343,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       nodeStatus() shouldEqual "active"
     }
 
-    "Return the confimation status of a confirmed, unconfirmed transactions" in {
+    "Return the confirmation status of a confirmed, unconfirmed transactions" in {
       val unconfirmedTx = bifrostTransactionSeqGen.sampleFirst()
       val unconfirmedTxId = unconfirmedTx.head.id.toString
       val requestBody = ByteString(s"""
@@ -373,6 +373,28 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       }
 
       view().mempool.remove(unconfirmedTx.head)
+    }
+
+    "Return an error when a transaction cannot be found" in {
+      val tx = bifrostTransactionSeqGen.sampleFirst()
+      val txId = tx.head.id.toString
+      val requestBody = ByteString(s"""
+                                      |{
+                                      |   "jsonrpc": "2.0",
+                                      |
+                                      |   "id": "1",
+                                      |   "method": "topl_confirmationStatus",
+                                      |   "params": [{
+                                      |      "transactionIds": ["$txId", "$txId"]
+                                      |   }]
+                                      |}
+                                      |
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
+        res should include("Could not find one or more of the specified transactions")
+      }
     }
   }
 }

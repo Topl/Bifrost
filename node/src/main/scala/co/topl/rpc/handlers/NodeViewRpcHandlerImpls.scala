@@ -109,7 +109,6 @@ class NodeViewRpcHandlerImpls(
   override val confirmationStatus: ToplRpc.NodeView.ConfirmationStatus.rpc.ServerHandler =
     params =>
       withNodeView { view =>
-        getConfirmationStatus(params.transactionIds, view)
         checkTxIds(getConfirmationStatus(params.transactionIds, view))
       }.subflatMap(identity)
 
@@ -181,20 +180,16 @@ class NodeViewRpcHandlerImpls(
   private def getConfirmationStatus(
     txIds: List[ModifierId],
     view:  ReadableNodeView
-  ): List[Option[(ModifierId, TxStatus)]] =
+  ): List[Option[(ModifierId, TxStatus)]] = {
+    val bestBlockHeight = view.history.height
     txIds.map { id =>
-      val mempoolStatus = view.memPool.modifierById(id)
-      val historyStatus = view.history.transactionById(id)
-      val bestBlockHeight = view.history.height
-      (mempoolStatus, historyStatus) match {
-        case (_, Some((tx, _, height))) =>
-          Some(tx.id -> TxStatus("Confirmed", bestBlockHeight - height))
-        case (Some(tx), None) =>
-          Some(tx.id -> TxStatus("Unconfirmed", -1))
-        case (None, None) =>
-          None
+      (view.memPool.modifierById(id), view.history.transactionById(id)) match {
+        case (_, Some((tx, _, height))) => Some(tx.id -> TxStatus("Confirmed", bestBlockHeight - height))
+        case (Some(tx), None)           => Some(tx.id -> TxStatus("Unconfirmed", -1))
+        case (None, None)               => None
       }
     }
+  }
 
   private def withNodeView[T](f: ReadableNodeView => T) =
     nodeViewHolderInterface
