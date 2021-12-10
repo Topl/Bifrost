@@ -153,6 +153,13 @@ trait BasicCodecs {
 
     }
 
+  implicit val secretKeyKesProductCodec: ByteCodec[SecretKeys.KesProduct] =
+    new ByteCodec[SecretKeys.KesProduct] {
+      def encode(t: SecretKeys.KesProduct, writer: Writer): Unit = ???
+
+      def decode(reader: Reader): SecretKeys.KesProduct = ???
+    }
+
   implicit val proofSignatureEd25519Codec: ByteCodec[Proofs.Knowledge.Ed25519] =
     new ByteCodec[Proofs.Knowledge.Ed25519] {
 

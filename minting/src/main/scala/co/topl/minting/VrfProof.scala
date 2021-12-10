@@ -9,7 +9,6 @@ import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.consensus.LeaderElectionValidation
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.algebras.VrfProofAlgebra
-import co.topl.models.Proofs.Knowledge
 import co.topl.models._
 import co.topl.typeclasses.implicits._
 import scalacache.caffeine.CaffeineCache
@@ -35,7 +34,7 @@ object VrfProof {
         def stringToCacheKey(key: String): String = key
       })
 
-      CaffeineCache[F, LongMap[Knowledge.VrfEd25519]].flatMap { implicit testProofs =>
+      CaffeineCache[F, LongMap[Proofs.Knowledge.VrfEd25519]].flatMap { implicit testProofs =>
         CaffeineCache[F, LongMap[Rho]].flatMap { implicit rhos =>
           Ref
             .of[F, Ed25519VRF](Ed25519VRF.precomputed())
@@ -50,8 +49,7 @@ object VrfProof {
                         val testProofs = LongMap.from(
                           boundary.map { slot =>
                             slot -> compute(
-                              LeaderElectionValidation
-                                .VrfArgument(eta, slot, LeaderElectionValidation.Tokens.Test),
+                              LeaderElectionValidation.VrfArgument(eta, slot, LeaderElectionValidation.Tokens.Test),
                               ed
                             )
                           }
@@ -65,15 +63,15 @@ object VrfProof {
                     }
                     .void
 
-                def testProofForSlot(slot: Slot, eta: Eta): F[Knowledge.VrfEd25519] =
+                def testProofForSlot(slot: Slot, eta: Eta): F[Proofs.Knowledge.VrfEd25519] =
                   OptionT(testProofs.get(eta))
                     .subflatMap(_.get(slot))
                     .getOrElseF(
                       new IllegalStateException(show"testProof was not precomputed for slot=$slot eta=$eta")
-                        .raiseError[F, Knowledge.VrfEd25519]
+                        .raiseError[F, Proofs.Knowledge.VrfEd25519]
                     )
 
-                def nonceProofForSlot(slot: Slot, eta: Eta): F[Knowledge.VrfEd25519] =
+                def nonceProofForSlot(slot: Slot, eta: Eta): F[Proofs.Knowledge.VrfEd25519] =
                   ed25519VRFRef.modify(ed =>
                     ed -> compute(
                       LeaderElectionValidation.VrfArgument(eta, slot, LeaderElectionValidation.Tokens.Nonce),

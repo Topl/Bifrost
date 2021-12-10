@@ -351,6 +351,8 @@ class BlockHeaderValidationSpec
 
   private def validOperationalCertificate(unsigned: BlockHeaderV2.Unsigned): OperationalCertificate =
     OperationalCertificate(
+      Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0)))),
+      VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
       Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0))))
 //      opSig = Proofs.Signature.HdKes(
 //        i = 0,

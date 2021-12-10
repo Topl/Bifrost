@@ -22,7 +22,7 @@ object BlockMint {
       clock:  ClockAlgebra[F]
     ): BlockMintAlgebra[F] = (parent: BlockHeaderV2, transactions: Seq[Transaction], slot: Slot) =>
       OptionT(staker.elect(parent, slot))
-        .semiflatMap(hit =>
+        .flatMapF(hit =>
           (staker.address, clock.currentTimestamp)
             .mapN((address, timestamp) =>
               BlockV2

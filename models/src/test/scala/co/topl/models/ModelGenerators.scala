@@ -48,8 +48,10 @@ trait ModelGenerators {
 
   def operationalCertificateGen: Gen[OperationalCertificate] =
     for {
-      opSig <- genSizedStrictBytes[Lengths.`64`.type]().map(Proofs.Knowledge.Ed25519(_))
-    } yield OperationalCertificate(opSig)
+      opSig             <- genSizedStrictBytes[Lengths.`64`.type]().map(Proofs.Knowledge.Ed25519(_))
+      linearVK          <- ed25519VkGen
+      linearVKSignature <- genSizedStrictBytes[Lengths.`64`.type]().map(Proofs.Knowledge.Ed25519(_))
+    } yield OperationalCertificate(opSig, linearVK, linearVKSignature)
 
   def taktikosAddressGen: Gen[TaktikosAddress] =
     for {

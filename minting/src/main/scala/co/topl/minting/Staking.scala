@@ -33,9 +33,8 @@ object Staking {
               .value
           )
 
-      def certifyBlock(unsignedBlock: BlockV2.Unsigned): F[BlockV2] =
-        evolver
-          .evolveKey(unsignedBlock.unsignedHeader.slot.toInt)
+      def certifyBlock(unsignedBlock: BlockV2.Unsigned): F[Option[BlockV2]] =
+        OptionT(evolver.evolveKey(unsignedBlock.unsignedHeader.slot.toInt))
           .map(evolvedKey => temporaryOpCert)
           .map(operationalCertificate =>
             BlockHeaderV2(
@@ -58,9 +57,12 @@ object Staking {
               BlockBodyV2(header.id, unsignedBlock.transactions)
             )
           )
+          .value
 
       // TODO: Generate a _real_ operational certificate
       val temporaryOpCert: OperationalCertificate = OperationalCertificate(
+        Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(Array.fill(64)(0: Byte)))),
+        VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(Array.fill(32)(0: Byte)))),
         Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(Array.fill(64)(0: Byte))))
       )
 //
