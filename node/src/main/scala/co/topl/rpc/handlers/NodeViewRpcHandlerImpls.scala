@@ -123,12 +123,15 @@ class NodeViewRpcHandlerImpls(
         )
       )
 
-  override val nodeStatus: ToplRpc.NodeView.NodeStatus.rpc.ServerHandler =
+  override val status: ToplRpc.NodeView.Status.rpc.ServerHandler =
     _ =>
-      forgerInterface
-        .checkForgerStatus()
-        .leftMap(e => ToplRpcErrors.genericFailure(e.toString): RpcError)
-        .map(res => ToplRpc.NodeView.NodeStatus.Response(res.forgerBehavior))
+      for {
+        forgerStatus <- forgerInterface
+          .checkForgerStatus()
+          .leftMap(e => ToplRpcErrors.genericFailure(e.toString): RpcError)
+          .map(_.forgerBehavior)
+        mempoolSize <- withNodeView(_.memPool.size)
+      } yield ToplRpc.NodeView.Status.Response(forgerStatus, mempoolSize)
 
   private def balancesResponse(
     state:     StateReader[_, Address],
@@ -169,7 +172,7 @@ class NodeViewRpcHandlerImpls(
     view:        HistoryReader[Block, BifrostSyncInfo],
     startHeight: Long,
     endHeight:   Long
-  ): ToplRpc.NodeView.BlocksByIds.Response =
+  ): ToplRpc.NodeView.BlocksInRange.Response =
     (startHeight to endHeight)
       .flatMap(view.idAtHeightOf)
       .flatMap(view.modifierById)
