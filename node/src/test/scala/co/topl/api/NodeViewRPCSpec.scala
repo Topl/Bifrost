@@ -356,7 +356,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |{
         |   "jsonrpc": "2.0",
         |   "id": "1",
-        |   "method": "topl_nodeStatus",
+        |   "method": "topl_status",
         |   "params": [{}]
         |}
         """.stripMargin)
@@ -368,6 +368,8 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         httpPOST(requestBody) ~> route ~> check {
           val res: Json = parse(responseAs[String]).value
           val forgingStatus = res.hcursor.downField("result").get[String]("forgingStatus").value
+          val mempoolSize = res.hcursor.downField("result").get[Int]("numberOfPendingTransactions").value
+          mempoolSize shouldEqual view().mempool.size
           res.hcursor.downField("error").values shouldBe None
           forgingStatus
         }
