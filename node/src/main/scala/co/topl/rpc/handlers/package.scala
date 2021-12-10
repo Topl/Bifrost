@@ -7,6 +7,7 @@ import co.topl.modifier.block.Block
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.state.StateReader
+import co.topl.rpc.ToplRpc.NodeView.ConfirmationStatus.TxStatus
 
 package object handlers {
 
@@ -38,7 +39,7 @@ package object handlers {
       blocks <- Either.cond(
         blocksOption.forall(_.nonEmpty),
         blocksOption.map(_.get),
-        ToplRpcErrors.NoBlockWithGivenId
+        ToplRpcErrors.NoBlockWithId
       )
     } yield blocks
   }
@@ -61,5 +62,16 @@ package object handlers {
         ToplRpcErrors.unsupportedOperation("Height range exceeded blockRetrievalLimit")
       )
     } yield (startHeight, endHeight)
+
+  private[handlers] def checkTxIds(
+    txStatusOption: List[Option[(ModifierId, TxStatus)]]
+  ): Either[RpcError, ToplRpc.NodeView.ConfirmationStatus.Response] =
+    for {
+      txStatus <- Either.cond(
+        txStatusOption.forall(_.nonEmpty),
+        txStatusOption.map(_.get).toMap,
+        ToplRpcErrors.NoTransactionWithId
+      )
+    } yield txStatus
 
 }

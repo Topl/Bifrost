@@ -92,6 +92,9 @@ trait NodeViewRpcParamsEncoders {
   implicit val nodeViewTransactionFromMempoolParamsEncoder: Encoder[ToplRpc.NodeView.TransactionFromMempool.Params] =
     deriveEncoder
 
+  implicit val nodeViewConfirmationStatusParamsEncoder: Encoder[ToplRpc.NodeView.ConfirmationStatus.Params] =
+    deriveEncoder
+
   implicit val nodeViewInfoParamsEncoder: Encoder[ToplRpc.NodeView.Info.Params] =
     deriveEncoder
 
@@ -225,6 +228,14 @@ trait NodeViewRpcResponseDecoders extends SharedCodecs {
     networkPrefix: NetworkPrefix
   ): Decoder[ToplRpc.NodeView.Balances.Response] =
     Decoder.decodeMap[Address, ToplRpc.NodeView.Balances.Entry]
+
+  implicit val nodeViewConfirmationStatusTxStatusDecoder: Decoder[ToplRpc.NodeView.ConfirmationStatus.TxStatus] =
+    deriveDecoder
+
+  implicit def nodeViewConfirmationStatusResponseDecoder(implicit
+    networkPrefix: NetworkPrefix
+  ): Decoder[ToplRpc.NodeView.ConfirmationStatus.Response] =
+    Decoder.decodeMap[ModifierId, ToplRpc.NodeView.ConfirmationStatus.TxStatus]
 }
 
 trait TransactionRpcResponseDecoders extends SharedCodecs {
@@ -367,6 +378,11 @@ trait NodeViewRpcParamsDecoders {
     deriveDecoder
 
   implicit val nodeViewTransactionFromMempoolParamsDecoder: Decoder[ToplRpc.NodeView.TransactionFromMempool.Params] =
+    deriveDecoder
+
+  implicit def nodeViewConfirmationStatusParamsDecoder(implicit
+    networkPrefix: NetworkPrefix
+  ): Decoder[ToplRpc.NodeView.ConfirmationStatus.Params] =
     deriveDecoder
 
   implicit val nodeViewInfoParamsDecoder: Decoder[ToplRpc.NodeView.Info.Params] =
@@ -569,6 +585,14 @@ trait NodeViewRpcResponseEncoders extends SharedCodecs {
 
   implicit val nodeViewStatusResponseEncoder: Encoder[ToplRpc.NodeView.Status.Response] =
     deriveEncoder
+
+  implicit val nodeViewConfirmationStatusTxStatusEncoder: Encoder[ToplRpc.NodeView.ConfirmationStatus.TxStatus] =
+    deriveEncoder
+
+  implicit val nodeViewConfirmationStatusResponseEncoder: Encoder[ToplRpc.NodeView.ConfirmationStatus.Response] =
+    _.map { case (txId, txStatus) =>
+      ModifierId.jsonKeyEncoder(txId) -> txStatus
+    }.asJson
 }
 
 trait TransactionRpcResponseEncoders extends SharedCodecs {

@@ -38,6 +38,7 @@ object ToplRpcHandlers {
     def blocksInRange: ToplRpc.NodeView.BlocksInRange.rpc.ServerHandler
     def mempool: ToplRpc.NodeView.Mempool.rpc.ServerHandler
     def transactionFromMempool: ToplRpc.NodeView.TransactionFromMempool.rpc.ServerHandler
+    def confirmationStatus: ToplRpc.NodeView.ConfirmationStatus.rpc.ServerHandler
     def info: ToplRpc.NodeView.Info.rpc.ServerHandler
     def status: ToplRpc.NodeView.Status.rpc.ServerHandler
   }

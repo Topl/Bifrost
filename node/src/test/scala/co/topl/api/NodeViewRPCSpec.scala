@@ -342,5 +342,59 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       forgerInterface.startForging()
       nodeStatus() shouldEqual "active"
     }
+
+    "Return the confirmation status of a confirmed, unconfirmed transactions" in {
+      val unconfirmedTx = bifrostTransactionSeqGen.sampleFirst()
+      val unconfirmedTxId = unconfirmedTx.head.id.toString
+      val requestBody = ByteString(s"""
+        |{
+        |   "jsonrpc": "2.0",
+        |
+        |   "id": "1",
+        |   "method": "topl_confirmationStatus",
+        |   "params": [{
+        |      "transactionIds": ["$txId", "$unconfirmedTxId"]
+        |   }]
+        |}
+        |
+        """.stripMargin)
+
+      view().mempool.putWithoutCheck(Seq(unconfirmedTx.head), block.timestamp)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]).value
+        val confirmedStatus = res.hcursor.downField("result").get[Json](txId).value
+        val unconfirmedStatus = res.hcursor.downField("result").get[Json](unconfirmedTxId).value
+        confirmedStatus.hcursor.downField("status").as[String].value shouldEqual "Confirmed"
+        confirmedStatus.hcursor.downField("depthFromHead").as[Int].value shouldEqual 0
+        unconfirmedStatus.hcursor.downField("status").as[String].value shouldEqual "Unconfirmed"
+        unconfirmedStatus.hcursor.downField("depthFromHead").as[Int].value shouldEqual -1
+        res.hcursor.downField("error").values shouldBe None
+      }
+
+      view().mempool.remove(unconfirmedTx.head)
+    }
+
+    "Return an error when a transaction cannot be found" in {
+      val tx = bifrostTransactionSeqGen.sampleFirst()
+      val txId = tx.head.id.toString
+      val requestBody = ByteString(s"""
+                                      |{
+                                      |   "jsonrpc": "2.0",
+                                      |
+                                      |   "id": "1",
+                                      |   "method": "topl_confirmationStatus",
+                                      |   "params": [{
+                                      |      "transactionIds": ["$txId", "$txId"]
+                                      |   }]
+                                      |}
+                                      |
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
+        res should include("Could not find one or more of the specified transactions")
+      }
+    }
   }
 }
