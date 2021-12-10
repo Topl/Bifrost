@@ -41,7 +41,7 @@ object ToplRpcHandlers {
     def transactionFromMempool: ToplRpc.NodeView.TransactionFromMempool.rpc.ServerHandler
     def confirmationStatus: ToplRpc.NodeView.ConfirmationStatus.rpc.ServerHandler
     def info: ToplRpc.NodeView.Info.rpc.ServerHandler
-    def nodeStatus: ToplRpc.NodeView.NodeStatus.rpc.ServerHandler
+    def status: ToplRpc.NodeView.Status.rpc.ServerHandler
   }
 
   trait Transaction {

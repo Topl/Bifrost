@@ -101,7 +101,7 @@ trait NodeViewRpcParamsEncoders {
   implicit val nodeViewInfoParamsEncoder: Encoder[ToplRpc.NodeView.Info.Params] =
     deriveEncoder
 
-  implicit val nodeViewNodeStatusParamsEncoder: Encoder[ToplRpc.NodeView.NodeStatus.Params] =
+  implicit val nodeViewStatusParamsEncoder: Encoder[ToplRpc.NodeView.Status.Params] =
     deriveEncoder
 }
 
@@ -210,7 +210,7 @@ trait NodeViewRpcResponseDecoders extends SharedCodecs {
   implicit val nodeViewInfoResponseDecoder: Decoder[ToplRpc.NodeView.Info.Response] =
     deriveDecoder
 
-  implicit val nodeViewNodeStatusResponseDecoder: Decoder[ToplRpc.NodeView.NodeStatus.Response] =
+  implicit val nodeViewStatusResponseDecoder: Decoder[ToplRpc.NodeView.Status.Response] =
     deriveDecoder
 
   implicit val nodeViewBalancesResponseEntryBalancesDecoder: Decoder[ToplRpc.NodeView.Balances.EntryBalances] =
@@ -394,7 +394,7 @@ trait NodeViewRpcParamsDecoders {
   implicit val nodeViewInfoParamsDecoder: Decoder[ToplRpc.NodeView.Info.Params] =
     deriveDecoder
 
-  implicit val nodeViewNodeStatusParamsDecoder: Decoder[ToplRpc.NodeView.NodeStatus.Params] =
+  implicit val nodeViewStatusParamsDecoder: Decoder[ToplRpc.NodeView.Status.Params] =
     deriveDecoder
 }
 
@@ -589,7 +589,7 @@ trait NodeViewRpcResponseEncoders extends SharedCodecs {
   implicit val nodeViewInfoResponseEncoder: Encoder[ToplRpc.NodeView.Info.Response] =
     deriveEncoder
 
-  implicit val nodeViewNodeStatusResponseEncoder: Encoder[ToplRpc.NodeView.NodeStatus.Response] =
+  implicit val nodeViewStatusResponseEncoder: Encoder[ToplRpc.NodeView.Status.Response] =
     deriveEncoder
 
   implicit val nodeViewConfirmationStatusTxStatusEncoder: Encoder[ToplRpc.NodeView.ConfirmationStatus.TxStatus] =
