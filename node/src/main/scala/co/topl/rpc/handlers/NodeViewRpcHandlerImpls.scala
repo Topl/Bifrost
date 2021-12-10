@@ -80,7 +80,7 @@ class NodeViewRpcHandlerImpls(
   override val blocksByIds: ToplRpc.NodeView.BlocksByIds.rpc.ServerHandler =
     params =>
       withNodeView(view =>
-        blocksByIdsResponse(
+        checkBlocksFoundWithIds(
           params.blockIds,
           params.blockIds.map(view.history.modifierById),
           rpcSettings.blockRetrievalLimit
