@@ -122,8 +122,7 @@ class NodeViewRpcHandlerImpls(
   override val confirmationStatus: ToplRpc.NodeView.ConfirmationStatus.rpc.ServerHandler =
     params =>
       withNodeView { view =>
-        getConfirmationStatus(params.transactionIds, view.history.height, view)
-        checkTxIds(getConfirmationStatus(params.transactionIds, view))
+        checkTxIds(getConfirmationStatus(params.transactionIds, view.history.height, view))
       }.subflatMap(identity)
 
   override val info: ToplRpc.NodeView.Info.rpc.ServerHandler =
