@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package co.topl.genus.types;
+
+message Attestation {
+  string public_key = 1;
+  string signature = 2;
+}
+
+message SimpleValue {
+  string quantity = 1;
+}
+
+message AssetValue {
+  string code = 1;
+  string quantity = 2;
+  string security_root = 3;
+  string metadata = 4;
+}
+
+message TokenValue {
+  oneof value {
+    SimpleValue simple = 1;
+    AssetValue asset = 2;
+  }
+}
+
+message TokenBox {
+  string box_type = 1;
+  string id = 2;
+  string nonce = 3;
+  string evidence = 4;
+  TokenValue value = 5;
+}
+
+message InputBox {
+  string address = 1;
+  string nonce = 2;
+}
+
+message OutputBox {
+  string address = 1;
+  TokenValue value = 2;
+}
+
+message Transaction {
+  string tx_type = 1;
+  string timestamp = 2;
+  repeated Attestation signatures = 3;
+  repeated TokenBox new_boxes = 4;
+  string data = 5;
+  repeated InputBox inputs = 6;
+  bool minting = 7;
+  string tx_id = 8;
+  repeated string boxes_to_remove = 9;
+  string fee = 10;
+  repeated OutputBox outputs = 11;
+  string proposition_type = 12;
+  string block_id = 13;
+  uint64 block_height = 14;
+}
+
+message Block {
+  string id = 1;
+  string parent_id = 2;
+  string timestamp = 3;
+  TokenBox generator = 4;
+  string public_key = 5;
+  string signature = 6;
+  uint64 height = 7;
+  string difficulty = 8;
+  string tx_root = 9;
+  string bloom_filter = 10;
+  uint32 version = 11;
+  uint32 num_transactions = 12;
+}

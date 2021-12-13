@@ -337,5 +337,16 @@ lazy val loadTesting = project
   )
   .dependsOn(common, brambl)
 
+lazy val genus = project
+  .in(file("genus"))
+  .settings(
+    name := "genus",
+    commonSettings,
+    scalamacrosParadiseSettings,
+    libraryDependencies ++= Dependencies.genus,
+  )
+  .enablePlugins(AkkaGrpcPlugin)
+  .dependsOn(common)
+
 addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; + test")
 addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; + test")

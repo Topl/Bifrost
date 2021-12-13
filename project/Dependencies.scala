@@ -8,6 +8,8 @@ object Dependencies {
   val kamonVersion = "2.2.3"
   val graalVersion = "21.1.0"
   val simulacrumVersion = "1.0.1"
+  val catsCoreVersion = "2.6.1"
+  val catsEffectVersion = "3.3.0"
 
   val logging = Seq(
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.4",
@@ -41,6 +43,7 @@ object Dependencies {
     "com.typesafe.akka" %% "akka-stream-typed"        % akkaVersion,
     "com.typesafe.akka" %% "akka-http"                % akkaHttpVersion,
     "com.typesafe.akka" %% "akka-http-core"           % akkaHttpVersion,
+    "com.typesafe.akka" %% "akka-discovery"           % akkaVersion,
     "com.typesafe.akka" %% "akka-slf4j"               % akkaVersion,
     "com.typesafe.akka" %% "akka-testkit"             % akkaVersion     % Test,
     "com.typesafe.akka" %% "akka-actor-testkit-typed" % akkaVersion     % Test,
@@ -54,8 +57,9 @@ object Dependencies {
   )
 
   val circe = Seq(
-    "io.circe" %% "circe-core"   % circeVersion,
-    "io.circe" %% "circe-parser" % circeVersion
+    "io.circe" %% "circe-core"    % circeVersion,
+    "io.circe" %% "circe-parser"  % circeVersion,
+    "io.circe" %% "circe-generic" % circeVersion
   )
 
   val misc = Seq(
@@ -76,6 +80,12 @@ object Dependencies {
     "org.graalvm.sdk"     % "graal-sdk"   % graalVersion,
     "org.graalvm.js"      % "js"          % graalVersion,
     "org.graalvm.truffle" % "truffle-api" % graalVersion
+  )
+
+  val cats = Seq(
+    "org.typelevel" %% "simulacrum"  % simulacrumVersion,
+    "org.typelevel" %% "cats-core"   % catsCoreVersion,
+    "org.typelevel" %% "cats-effect" % catsEffectVersion
   )
 
   val node: Seq[ModuleID] = {
@@ -105,7 +115,8 @@ object Dependencies {
     Seq(
       "org.typelevel"          %% "simulacrum"              % simulacrumVersion,
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.5.0",
-      "org.scodec"             %% "scodec-bits"             % "1.1.28"
+      "org.scodec"             %% "scodec-bits"             % "1.1.28",
+      "org.mongodb.scala"      %% "mongo-scala-driver"      % "4.3.2"
     ) ++
     logging ++
     circe ++
@@ -161,11 +172,10 @@ object Dependencies {
 
   lazy val crypto: Seq[ModuleID] =
     Seq(
-      "org.typelevel"     %% "simulacrum"      % simulacrumVersion,
-      "org.typelevel"     %% "cats-core"       % "2.6.1",
       "org.bouncycastle"   % "bcprov-jdk15on"  % "1.69",
       "org.whispersystems" % "curve25519-java" % "0.5.0"
     ) ++
+    cats ++
     misc ++
     test
 
@@ -183,4 +193,12 @@ object Dependencies {
     circe
   }
 
+  lazy val genus: Seq[ModuleID] =
+    Seq(
+      "com.lightbend.akka" %% "akka-stream-alpakka-mongodb" % "3.0.4",
+      compilerPlugin("org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full)
+    ) ++
+    akka ++
+    circe ++
+    cats
 }
