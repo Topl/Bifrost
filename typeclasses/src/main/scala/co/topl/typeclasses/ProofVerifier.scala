@@ -90,6 +90,12 @@ object ProofVerifier {
       context:     VerificationContext[F]
     ): F[Boolean] = (context.currentHeight >= proposition.height).pure[F]
 
+    private def requiredOutputVerifier[F[_]: Applicative](
+      proposition: Propositions.Contextual.RequiredDionOutput,
+      context:     VerificationContext[F]
+    ): F[Boolean] =
+      (context.currentTransaction.coinOutputs.toList(proposition.index).dionAddress == proposition.address).pure[F]
+
     private def thresholdVerifier[F[_]: Monad](
       proposition: Propositions.Compositional.Threshold,
       proof:       Proofs.Compositional.Threshold,
@@ -171,6 +177,8 @@ object ProofVerifier {
             orVerifier[F](prop, proof, context)
           case (prop: Propositions.Contextual.HeightLock, proof: Proofs.Contextual.HeightLock) =>
             heightLockVerifier[F](prop, context)
+          case (prop: Propositions.Contextual.RequiredDionOutput, proof: Proofs.Contextual.RequiredOutput) =>
+            requiredOutputVerifier[F](prop, context)
           case _ =>
             false.pure[F]
         }

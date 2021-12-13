@@ -61,5 +61,6 @@ object Proofs {
 
   object Contextual {
     case class HeightLock() extends Proof
+    case class RequiredOutput() extends Proof
   }
 }

@@ -22,6 +22,7 @@ object Propositions {
 
   object Contextual {
     case class HeightLock(height: Long) extends Proposition
+    case class RequiredDionOutput(index: Int, address: DionAddress) extends Proposition
   }
 
 }

@@ -167,5 +167,10 @@ object Credential {
       def prove(currentProof: Proof): Proof = Proofs.Contextual.HeightLock()
       val proposition: Propositions.Contextual.HeightLock = Propositions.Contextual.HeightLock(minimumHeight)
     }
+
+    case class RequiredDionOutput(index: Int, address: DionAddress) extends Credential {
+      def prove(currentProof: Proof): Proof = Proofs.Contextual.RequiredOutput()
+      val proposition: Propositions.Contextual.RequiredDionOutput = Propositions.Contextual.RequiredDionOutput(index, address)
+    }
   }
 }
