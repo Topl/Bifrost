@@ -74,7 +74,7 @@ case class ForgingSettings(
   minTransactionFee:    Long,
   protocolVersions:     List[ProtocolSettings],
   forgeOnStartup:       Boolean,
-  rewardsAddress:       Option[String], //String here since we don't know netPrefix when settings are read
+  rewardsAddress:       Option[String], // String here since we don't know netPrefix when settings are read
   privateTestnet:       Option[PrivateTestnetSettings]
 )
 
@@ -92,13 +92,28 @@ case class GjallarhornSettings(
   clusterPort:    Option[Int]
 )
 
+case class ChainReplicatorSettings(
+  enableChainReplicator:   Boolean,
+  checkMissingBlock:       Boolean,
+  checkMissingStartHeight: Long,
+  blockCheckSize:          Int,
+  actorStashSize:          Int,
+  mempoolCheckSize:        Int,
+  uri:                     Option[String],
+  database:                Option[String],
+  blockCollection:         String,
+  confirmedTxCollection:   String,
+  unconfirmedTxCollection: String
+)
+
 case class AppSettings(
-  application: ApplicationSettings,
-  network:     NetworkSettings,
-  gjallarhorn: GjallarhornSettings,
-  forging:     ForgingSettings,
-  rpcApi:      RPCApiSettings,
-  ntp:         NetworkTimeProviderSettings
+  application:     ApplicationSettings,
+  network:         NetworkSettings,
+  gjallarhorn:     GjallarhornSettings,
+  forging:         ForgingSettings,
+  rpcApi:          RPCApiSettings,
+  ntp:             NetworkTimeProviderSettings,
+  chainReplicator: ChainReplicatorSettings
 )
 
 object AppSettings extends Logging with SettingsReaders {
