@@ -160,7 +160,7 @@ object ToplRpc {
       /**
        * Retrieve the best block's id and other info
        *
-       * Find information about the current state of the chain including height, score, bestBlockId, etc
+       * Find information about the current state of the chain including height and bestBlockId
        */
       val rpc: Rpc[Params, Response] = Rpc(List("topl_headInfo"))
 
@@ -249,6 +249,21 @@ object ToplRpc {
        */
       case class Params(startHeight: Long, endHeight: Long)
       type Response = List[Block]
+    }
+
+    object BlockIdsInRange {
+
+      /**
+       * Retrieve the ids of a segment of the chain in a height range
+       */
+      val rpc: Rpc[Params, Response] = Rpc(List("topl_blockIdsInRange"))
+
+      /**
+       * @param startHeight starting height for the segment of chain
+       * @param endHeight end heigh for the segment of chain
+       */
+      case class Params(startHeight: Long, endHeight: Long)
+      type Response = List[ModifierId]
     }
 
     object BlockByHeight {

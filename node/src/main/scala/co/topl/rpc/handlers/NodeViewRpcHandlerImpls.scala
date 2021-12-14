@@ -76,16 +76,29 @@ class NodeViewRpcHandlerImpls(
           _.toRight[RpcError](InvalidParametersError.adhoc("The requested block could not be found", "blockId"))
         )
 
-  override val blocksByIds: ToplRpc.NodeView.BlocksByIds.rpc.ServerHandler = { params =>
-    withNodeView(view => blocksByIdsResponse(params.blockIds, rpcSettings.blockRetrievalLimit, view.history))
-      .subflatMap(identity)
-  }
+  override val blocksByIds: ToplRpc.NodeView.BlocksByIds.rpc.ServerHandler =
+    params =>
+      withNodeView(view =>
+        checkBlocksFoundWithIds(
+          params.blockIds,
+          params.blockIds.map(view.history.modifierById),
+          rpcSettings.blockRetrievalLimit
+        )
+      )
+        .subflatMap(identity)
 
   override val blocksInRange: ToplRpc.NodeView.BlocksInRange.rpc.ServerHandler =
     params =>
       withNodeView(view =>
         checkHeightRange(view.history.height, params.startHeight, params.endHeight, rpcSettings.blockRetrievalLimit)
           .map(range => getBlocksInRange(view.history, range._1, range._2))
+      ).subflatMap(identity)
+
+  override val blockIdsInRange: ToplRpc.NodeView.BlockIdsInRange.rpc.ServerHandler =
+    params =>
+      withNodeView(view =>
+        checkHeightRange(view.history.height, params.startHeight, params.endHeight, rpcSettings.blockIdRetrievalLimit)
+          .map(range => getBlockIdsInRange(view.history, range._1, range._2))
       ).subflatMap(identity)
 
   override val blockByHeight: ToplRpc.NodeView.BlockByHeight.rpc.ServerHandler =
@@ -108,7 +121,7 @@ class NodeViewRpcHandlerImpls(
   override val confirmationStatus: ToplRpc.NodeView.ConfirmationStatus.rpc.ServerHandler =
     params =>
       withNodeView { view =>
-        checkTxIds(getConfirmationStatus(params.transactionIds, view))
+        checkTxIds(getConfirmationStatus(params.transactionIds, view.history.height, view))
       }.subflatMap(identity)
 
   override val info: ToplRpc.NodeView.Info.rpc.ServerHandler =
@@ -168,29 +181,34 @@ class NodeViewRpcHandlerImpls(
     }
   }
 
+  private def getBlockIdsInRange(
+    view:        HistoryReader[Block, BifrostSyncInfo],
+    startHeight: Long,
+    endHeight:   Long
+  ): ToplRpc.NodeView.BlockIdsInRange.Response =
+    (startHeight to endHeight)
+      .flatMap(view.idAtHeightOf)
+      .toList
+
   private def getBlocksInRange(
     view:        HistoryReader[Block, BifrostSyncInfo],
     startHeight: Long,
     endHeight:   Long
   ): ToplRpc.NodeView.BlocksInRange.Response =
-    (startHeight to endHeight)
-      .flatMap(view.idAtHeightOf)
-      .flatMap(view.modifierById)
-      .toList
+    getBlockIdsInRange(view, startHeight, endHeight).flatMap(view.modifierById)
 
   private def getConfirmationStatus(
-    txIds: List[ModifierId],
-    view:  ReadableNodeView
-  ): List[Option[(ModifierId, TxStatus)]] = {
-    val bestBlockHeight = view.history.height
+    txIds:      List[ModifierId],
+    headHeight: Long,
+    view:       ReadableNodeView
+  ): List[Option[(ModifierId, TxStatus)]] =
     txIds.map { id =>
       (view.memPool.modifierById(id), view.history.transactionById(id)) match {
-        case (_, Some((tx, _, height))) => Some(tx.id -> TxStatus("Confirmed", bestBlockHeight - height))
+        case (_, Some((tx, _, height))) => Some(tx.id -> TxStatus("Confirmed", headHeight - height))
         case (Some(tx), None)           => Some(tx.id -> TxStatus("Unconfirmed", -1))
         case (None, None)               => None
       }
     }
-  }
 
   private def withNodeView[T](f: ReadableNodeView => T) =
     nodeViewHolderInterface

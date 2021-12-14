@@ -288,6 +288,26 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       }
     }
 
+    "Get block at the height given" in {
+      val requestBody = ByteString(s"""
+        |{
+        |   "jsonrpc": "2.0",
+        |   "id": "1",
+        |   "method": "topl_blockByHeight",
+        |   "params": [{
+        |      "height": 1
+        |    }]
+        |}
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]).value
+        val blockId = res.hcursor.downField("result").downField("header").get[String]("id").value
+        blockId shouldEqual block.id.toString
+        res.hcursor.downField("error").values shouldBe None
+      }
+    }
+
     "Get a segment of the chain by height range" in {
       val requestBody = ByteString(s"""
         |{
@@ -303,7 +323,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
-        val blocks = res.hcursor.downField("result").as[Json].toString
+        val blocks = res.hcursor.downField("result").as[Json].value.toString
         blocks should include("\"height\" : 1")
         res.hcursor.downField("error").values shouldBe None
       }
@@ -325,9 +345,30 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
 
       ranges.map { case (startHeight, endHeight) =>
         httpPOST(requestBody(startHeight, endHeight)) ~> route ~> check {
-          val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
+          val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].value.toString
           res should include("Invalid height range")
         }
+      }
+    }
+
+    "Get block ids of a segment of the chain by height range" in {
+      val requestBody = ByteString(s"""
+        |{
+        |   "jsonrpc": "2.0",
+        |   "id": "1",
+        |   "method": "topl_blockIdsInRange",
+        |   "params": [{
+        |      "startHeight": 1,
+        |      "endHeight": 1
+        |    }]
+        |}
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]).value
+        val blockIds = res.hcursor.downField("result").as[Seq[String]].value
+        blockIds.head shouldEqual block.id.toString
+        res.hcursor.downField("error").values shouldBe None
       }
     }
 
