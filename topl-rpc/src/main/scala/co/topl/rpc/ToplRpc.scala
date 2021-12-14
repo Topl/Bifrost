@@ -314,7 +314,14 @@ object ToplRpc {
       val rpc: Rpc[Params, Response] = Rpc("topl_info")
 
       case class Params()
-      case class Response(network: String, nodeAddress: String, version: String)
+
+      case class Response(
+        network:         String,
+        nodeAddress:     String,
+        appVersion:      String,
+        protocolVersion: String,
+        blockVersion:    String
+      )
     }
 
     object Status {

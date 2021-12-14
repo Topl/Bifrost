@@ -2,7 +2,7 @@ package co.topl.api
 
 import akka.actor.typed.scaladsl.adapter.ClassicActorSystemOps
 import akka.util.ByteString
-import co.topl.consensus.ActorForgerInterface
+import co.topl.consensus.{blockVersion, getProtocolRules, ActorForgerInterface}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.nodeView.TestableNodeViewHolder
@@ -305,11 +305,13 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]).value
-        val info = res.hcursor.downField("result").get[String]("network").value
-        val version = res.hcursor.downField("result").get[String]("version").value
-        info shouldEqual appContext.networkType.toString
-        version shouldEqual settings.application.version.toString
+        val res: Json = parse(responseAs[String]).value.hcursor.downField("result").as[Json].value
+        res.hcursor.get[String]("network").value shouldEqual appContext.networkType.toString
+        res.hcursor.get[String]("appVersion").value shouldEqual settings.application.version.toString
+        res.hcursor.get[String]("protocolVersion").value shouldEqual getProtocolRules(
+          view().history.height
+        ).version.toString
+        res.hcursor.get[String]("blockVersion").value shouldEqual blockVersion(view().history.height).toString
         res.hcursor.downField("error").values shouldBe None
       }
     }
