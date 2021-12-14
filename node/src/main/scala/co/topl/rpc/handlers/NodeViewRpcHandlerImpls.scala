@@ -4,7 +4,7 @@ import akka.actor.typed.ActorSystem
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, InvalidParametersError, RpcError, ThrowableData}
 import co.topl.attestation.Address
-import co.topl.consensus.{ForgerInterface, blockVersion, getProtocolRules}
+import co.topl.consensus.{blockVersion, getProtocolRules, ForgerInterface}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
