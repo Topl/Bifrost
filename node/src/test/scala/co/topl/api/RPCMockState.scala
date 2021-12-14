@@ -51,7 +51,7 @@ trait RPCMockState
   // Initialize the protocol settings
   protocolMngr = ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
 
-  //TODO Fails when using rpcSettings
+  // TODO Fails when using rpcSettings
   override def createActorSystem(): ActorSystem = ActorSystem(settings.network.agentName)
 
   // Create Bifrost singleton actors
