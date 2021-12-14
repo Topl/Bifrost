@@ -8,14 +8,14 @@ import io.circe.{Decoder, Encoder}
 class RpcServer[Params, SuccessResponse](val rpc: Rpc[Params, SuccessResponse]) extends AnyVal {
 
   /**
-   * Constructs a Route which serves a single RPC handler
+   * Constructs a Route which serves a single RPC handler for the first rpc method name
    */
   def serve(handler:        rpc.ServerHandler)(implicit
     paramsDecoder:          Decoder[Params],
     successResponseEncoder: Encoder[SuccessResponse],
     throwableEncoder:       Encoder[ThrowableData]
   ): Route =
-    rpcRoute[Params, SuccessResponse](rpc.method, handler)
+    rpcRoute[Params, SuccessResponse](rpc.method.head, handler)
 
 }
 
@@ -30,9 +30,8 @@ object RpcServer {
       throwableEncoder:                      Encoder[ThrowableData]
     ): Builder =
       copy(handlers =
-        handlers.updated(
-          rpc.method,
-          Builder.BuilderHandler(handler, paramsDecoder, successResponseEncoder, throwableEncoder)
+        handlers ++ rpc.method.map(
+          (_, Builder.BuilderHandler(handler, paramsDecoder, successResponseEncoder, throwableEncoder))
         )
       )
   }

@@ -4,15 +4,17 @@ import akka.actor.typed.ActorSystem
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, InvalidParametersError, RpcError, ThrowableData}
 import co.topl.attestation.Address
-import co.topl.consensus.{blockVersion, getProtocolRules}
+import co.topl.consensus.{blockVersion, getProtocolRules, ForgerInterface}
+import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView}
-import co.topl.rpc.ToplRpc
-import co.topl.settings.AppContext
+import co.topl.rpc.ToplRpc.NodeView.ConfirmationStatus.TxStatus
+import co.topl.rpc.{ToplRpc, ToplRpcErrors}
+import co.topl.settings.{AppContext, RPCApiSettings}
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Encoder
@@ -20,8 +22,10 @@ import io.circe.Encoder
 import scala.language.existentials
 
 class NodeViewRpcHandlerImpls(
+  rpcSettings:             RPCApiSettings,
   appContext:              AppContext,
-  nodeViewHolderInterface: NodeViewHolderInterface
+  nodeViewHolderInterface: NodeViewHolderInterface,
+  forgerInterface:         ForgerInterface
 )(implicit
   system:           ActorSystem[_],
   throwableEncoder: Encoder[ThrowableData],
@@ -72,11 +76,29 @@ class NodeViewRpcHandlerImpls(
           _.toRight[RpcError](InvalidParametersError.adhoc("The requested block could not be found", "blockId"))
         )
 
+  override val blocksByIds: ToplRpc.NodeView.BlocksByIds.rpc.ServerHandler =
+    params =>
+      withNodeView(view =>
+        checkBlocksFoundWithIds(
+          params.blockIds,
+          params.blockIds.map(view.history.modifierById),
+          rpcSettings.blockRetrievalLimit
+        )
+      )
+        .subflatMap(identity)
+
   override val blocksInRange: ToplRpc.NodeView.BlocksInRange.rpc.ServerHandler =
     params =>
       withNodeView(view =>
-        checkHeightRange(view.history.height, params.startHeight, params.endHeight)
+        checkHeightRange(view.history.height, params.startHeight, params.endHeight, rpcSettings.blockRetrievalLimit)
           .map(range => getBlocksInRange(view.history, range._1, range._2))
+      ).subflatMap(identity)
+
+  override val blockIdsInRange: ToplRpc.NodeView.BlockIdsInRange.rpc.ServerHandler =
+    params =>
+      withNodeView(view =>
+        checkHeightRange(view.history.height, params.startHeight, params.endHeight, rpcSettings.blockIdRetrievalLimit)
+          .map(range => getBlockIdsInRange(view.history, range._1, range._2))
       ).subflatMap(identity)
 
   override val blockByHeight: ToplRpc.NodeView.BlockByHeight.rpc.ServerHandler =
@@ -87,7 +109,7 @@ class NodeViewRpcHandlerImpls(
         )
 
   override val mempool: ToplRpc.NodeView.Mempool.rpc.ServerHandler =
-    _ => withNodeView(_.memPool.take(100)(-_.dateAdded).map(_.tx).toList)
+    _ => withNodeView(_.memPool.take(rpcSettings.txRetrievalLimit)(-_.dateAdded).map(_.tx).toList)
 
   override val transactionFromMempool: ToplRpc.NodeView.TransactionFromMempool.rpc.ServerHandler =
     params =>
@@ -95,6 +117,12 @@ class NodeViewRpcHandlerImpls(
         .subflatMap(
           _.toRight[RpcError](InvalidParametersError.adhoc("Unable to retrieve transaction", "transactionId"))
         )
+
+  override val confirmationStatus: ToplRpc.NodeView.ConfirmationStatus.rpc.ServerHandler =
+    params =>
+      withNodeView { view =>
+        checkTxIds(getConfirmationStatus(params.transactionIds, view.history.height, view))
+      }.subflatMap(identity)
 
   override val info: ToplRpc.NodeView.Info.rpc.ServerHandler =
     _ =>
@@ -107,6 +135,16 @@ class NodeViewRpcHandlerImpls(
           blockVersion(view.history.height).toString
         )
       }
+
+  override val status: ToplRpc.NodeView.Status.rpc.ServerHandler =
+    _ =>
+      for {
+        forgerStatus <- forgerInterface
+          .checkForgerStatus()
+          .leftMap(e => ToplRpcErrors.genericFailure(e.toString): RpcError)
+          .map(_.forgerBehavior)
+        mempoolSize <- withNodeView(_.memPool.size)
+      } yield ToplRpc.NodeView.Status.Response(forgerStatus, mempoolSize)
 
   private def balancesResponse(
     state:     StateReader[_, Address],
@@ -143,15 +181,34 @@ class NodeViewRpcHandlerImpls(
     }
   }
 
+  private def getBlockIdsInRange(
+    view:        HistoryReader[Block, BifrostSyncInfo],
+    startHeight: Long,
+    endHeight:   Long
+  ): ToplRpc.NodeView.BlockIdsInRange.Response =
+    (startHeight to endHeight)
+      .flatMap(view.idAtHeightOf)
+      .toList
+
   private def getBlocksInRange(
     view:        HistoryReader[Block, BifrostSyncInfo],
     startHeight: Long,
     endHeight:   Long
-  ): List[Block] =
-    (startHeight to endHeight)
-      .flatMap(view.idAtHeightOf)
-      .flatMap(view.modifierById)
-      .toList
+  ): ToplRpc.NodeView.BlocksInRange.Response =
+    getBlockIdsInRange(view, startHeight, endHeight).flatMap(view.modifierById)
+
+  private def getConfirmationStatus(
+    txIds:      List[ModifierId],
+    headHeight: Long,
+    view:       ReadableNodeView
+  ): List[Option[(ModifierId, TxStatus)]] =
+    txIds.map { id =>
+      (view.memPool.modifierById(id), view.history.transactionById(id)) match {
+        case (_, Some((tx, _, height))) => Some(tx.id -> TxStatus("Confirmed", headHeight - height))
+        case (Some(tx), None)           => Some(tx.id -> TxStatus("Unconfirmed", -1))
+        case (None, None)               => None
+      }
+    }
 
   private def withNodeView[T](f: ReadableNodeView => T) =
     nodeViewHolderInterface

@@ -105,22 +105,22 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
 
   def testCreateSignArbitTransfer(sender: Address, recipient: Address, senderPropType: String, amount: Int): Json = {
     val requestBody = ByteString(s"""
-                                    |{
-                                    | "jsonrpc": "2.0",
-                                    | "id": "2",
-                                    | "method": "topl_rawArbitTransfer",
-                                    | "params": [{
-                                    |   "propositionType": "$senderPropType",
-                                    |   "recipients": [["$recipient", "$amount"]],
-                                    |   "sender": ["$sender"],
-                                    |   "changeAddress": "$sender",
-                                    |   "consolidationAddress": "$sender",
-                                    |   "minting": "false",
-                                    |   "fee": "1",
-                                    |   "data": "",
-                                    |   "boxSelectionAlgorithm": "All"
-                                    | }]
-                                    |}
+      |{
+      | "jsonrpc": "2.0",
+      | "id": "2",
+      | "method": "topl_rawArbitTransfer",
+      | "params": [{
+      |   "propositionType": "$senderPropType",
+      |   "recipients": [["$recipient", "$amount"]],
+      |   "sender": ["$sender"],
+      |   "changeAddress": "$sender",
+      |   "consolidationAddress": "$sender",
+      |   "minting": "false",
+      |   "fee": "1",
+      |   "data": "",
+      |   "boxSelectionAlgorithm": "All"
+      | }]
+      |}
       """.stripMargin)
 
     httpPOST(requestBody) ~> route ~> check {
@@ -161,31 +161,31 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
     amount:         Int
   ): Json = {
     val requestBody = ByteString(s"""
-                                    |{
-                                    | "jsonrpc": "2.0",
-                                    | "id": "2",
-                                    | "method": "topl_rawAssetTransfer",
-                                    | "params": [{
-                                    |   "propositionType": "$senderPropType",
-                                    |   "recipients":
-                                    |   [["$recipient",
-                                    |    {
-                                    |      "quantity" : "$amount",
-                                    |      "assetCode" : "${assetCode.toString}",
-                                    |      "metadata" : "ApdGzs6uwKAhuKJQswBWoVAFjNA5B8enBKfxVbzlcQ8EnpxicpRcE9B9Bgn2LGv02kYUSA1h1181ZYeECvr",
-                                    |      "type" : "Asset",
-                                    |      "securityRoot" : "11111111111111111111111111111111"
-                                    |    }
-                                    |  ]],
-                                    |   "sender": ["$sender"],
-                                    |   "changeAddress": "$sender",
-                                    |   "consolidationAddress": "$sender",
-                                    |   "fee": "1",
-                                    |   "minting": true,
-                                    |   "data": "",
-                                    |   "boxSelectionAlgorithm": "All"
-                                    | }]
-                                    |}
+      |{
+      | "jsonrpc": "2.0",
+      | "id": "2",
+      | "method": "topl_rawAssetTransfer",
+      | "params": [{
+      |   "propositionType": "$senderPropType",
+      |   "recipients":
+      |   [["$recipient",
+      |    {
+      |      "quantity" : "$amount",
+      |      "assetCode" : "${assetCode.toString}",
+      |      "metadata" : "ApdGzs6uwKAhuKJQswBWoVAFjNA5B8enBKfxVbzlcQ8EnpxicpRcE9B9Bgn2LGv02kYUSA1h1181ZYeECvr",
+      |      "type" : "Asset",
+      |      "securityRoot" : "11111111111111111111111111111111"
+      |    }
+      |  ]],
+      |   "sender": ["$sender"],
+      |   "changeAddress": "$sender",
+      |   "consolidationAddress": "$sender",
+      |   "fee": "1",
+      |   "minting": true,
+      |   "data": "",
+      |   "boxSelectionAlgorithm": "All"
+      | }]
+      |}
       """.stripMargin)
 
     httpPOST(requestBody) ~> route ~> check {

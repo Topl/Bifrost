@@ -25,7 +25,7 @@ object ToplRpc {
        * Find the average delay between blocks starting from a specified blockId and till a certain number of blocks
        * forged on top of it
        */
-      val rpc: Rpc[Params, Response] = Rpc("debug_delay")
+      val rpc: Rpc[Params, Response] = Rpc(List("debug_delay"))
 
       /**
        * @param blockId Id of block from which to start average delay computation
@@ -42,7 +42,7 @@ object ToplRpc {
        *
        * Local Only -- An unlocked keyfile must be accessible (in local storage) to fulfill this request
        */
-      val rpc: Rpc[Params, Response] = Rpc("debug_myBlocks")
+      val rpc: Rpc[Params, Response] = Rpc(List("debug_myBlocks"))
       case class Params()
       case class Response(pubkeys: Set[Address], count: Int)
     }
@@ -52,7 +52,7 @@ object ToplRpc {
       /**
        * Find distribution of block generators from all addresses in the chain's history
        */
-      val rpc: Rpc[Params, Response] = Rpc("debug_generators")
+      val rpc: Rpc[Params, Response] = Rpc(List("debug_generators"))
       case class Params()
       type Response = Map[Address, Int]
     }
@@ -62,7 +62,7 @@ object ToplRpc {
       /**
        * Return all block ids from a given height and down to a given limit
        */
-      val rpc: Rpc[Params, Response] = Rpc("debug_idsFromHeight")
+      val rpc: Rpc[Params, Response] = Rpc(List("debug_idsFromHeight"))
       case class Params(height: Long, limit: Int)
       type Response = List[ModifierId]
     }
@@ -75,7 +75,7 @@ object ToplRpc {
       /**
        * Generates random seed of 32 bytes
        */
-      val rpc: Rpc[Params, Response] = Rpc("util_seed")
+      val rpc: Rpc[Params, Response] = Rpc(List("util_seed"))
       case class Params()
       case class Response(seed: String)
     }
@@ -85,7 +85,7 @@ object ToplRpc {
       /**
        * Generates random seed of specified length
        */
-      val rpc: Rpc[Params, Response] = Rpc("util_seedOfLength")
+      val rpc: Rpc[Params, Response] = Rpc(List("util_seedOfLength"))
 
       /**
        * @param length The number of characters to return
@@ -99,7 +99,7 @@ object ToplRpc {
       /**
        * Returns Blake2b hash of specified message
        */
-      val rpc: Rpc[Params, Response] = Rpc("util_hashBlake2b256")
+      val rpc: Rpc[Params, Response] = Rpc(List("util_hashBlake2b256"))
 
       /**
        * @param message The message that will be hashed
@@ -113,7 +113,7 @@ object ToplRpc {
       /**
        * Returns an encoded assetCode generated from provided parameters
        */
-      val rpc: Rpc[Params, Response] = Rpc("util_generateAssetCode")
+      val rpc: Rpc[Params, Response] = Rpc(List("util_generateAssetCode"))
 
       /**
        * @param version AssetCode version(version 1 would be string "1")
@@ -129,7 +129,7 @@ object ToplRpc {
       /**
        * Check if the provided address is valid, returns the address and network type
        */
-      val rpc: Rpc[Params, Response] = Rpc("util_checkValidAddress")
+      val rpc: Rpc[Params, Response] = Rpc(List("util_checkValidAddress"))
 
       /**
        * @param network A Latin-1 encoded string of up to 8 characters
@@ -149,7 +149,7 @@ object ToplRpc {
        *
        * Find information about the current state of the chain including height, score, bestBlockId, etc
        */
-      val rpc: Rpc[Params, Response] = Rpc("topl_head")
+      val rpc: Rpc[Params, Response] = Rpc(List("topl_head"))
 
       case class Params()
       case class Response(height: Int128, score: Long, bestBlockId: ModifierId, bestBlock: Block)
@@ -160,9 +160,9 @@ object ToplRpc {
       /**
        * Retrieve the best block's id and other info
        *
-       * Find information about the current state of the chain including height, score, bestBlockId, etc
+       * Find information about the current state of the chain including height and bestBlockId
        */
-      val rpc: Rpc[Params, Response] = Rpc("topl_headInfo")
+      val rpc: Rpc[Params, Response] = Rpc(List("topl_headInfo"))
 
       case class Params()
       case class Response(bestBlockId: ModifierId, height: Int128)
@@ -177,7 +177,7 @@ object ToplRpc {
        *
        * Requires the Token Box Registry to be active
        */
-      val rpc: Rpc[Params, Response] = Rpc("topl_balances")
+      val rpc: Rpc[Params, Response] = Rpc(List("topl_balances"))
 
       /**
        * @param addresses Addresses whose balances are to be retrieved
@@ -194,7 +194,7 @@ object ToplRpc {
       /**
        * Lookup a transaction by its id
        */
-      val rpc: Rpc[Params, Response] = Rpc("topl_transactionById")
+      val rpc: Rpc[Params, Response] = Rpc(List("topl_transactionById"))
 
       /**
        * Base58 encoded transaction hash
@@ -213,7 +213,7 @@ object ToplRpc {
       /**
        * Lookup a block by its id
        */
-      val rpc: Rpc[Params, Response] = Rpc("topl_blockById")
+      val rpc: Rpc[Params, Response] = Rpc(List("topl_blockById"))
 
       /**
        * @param blockId Base58 encoded transaction hash
@@ -222,12 +222,26 @@ object ToplRpc {
       type Response = Block
     }
 
+    object BlocksByIds {
+
+      /**
+       * Lookup a block by its id
+       */
+      val rpc: Rpc[Params, Response] = Rpc(List("topl_blocksByIds"))
+
+      /**
+       * @param blockIds Base58 encoded transaction hash
+       */
+      case class Params(blockIds: List[ModifierId])
+      type Response = List[Block]
+    }
+
     object BlocksInRange {
 
       /**
        * Retrieve a segment of the chain in a height range
        */
-      val rpc: Rpc[Params, Response] = Rpc("topl_blocksInRange")
+      val rpc: Rpc[Params, Response] = Rpc(List("topl_blocksInRange"))
 
       /**
        * @param startHeight starting height for the segment of chain
@@ -237,12 +251,27 @@ object ToplRpc {
       type Response = List[Block]
     }
 
+    object BlockIdsInRange {
+
+      /**
+       * Retrieve the ids of a segment of the chain in a height range
+       */
+      val rpc: Rpc[Params, Response] = Rpc(List("topl_blockIdsInRange"))
+
+      /**
+       * @param startHeight starting height for the segment of chain
+       * @param endHeight end heigh for the segment of chain
+       */
+      case class Params(startHeight: Long, endHeight: Long)
+      type Response = List[ModifierId]
+    }
+
     object BlockByHeight {
 
       /**
        * Lookup a block by its height
        */
-      val rpc: Rpc[Params, Response] = Rpc("topl_blockByHeight")
+      val rpc: Rpc[Params, Response] = Rpc(List("topl_blockByHeight"))
 
       /**
        * @param height Height to retrieve on the canonical chain
@@ -256,7 +285,7 @@ object ToplRpc {
       /**
        * Get the first 100 transactions in the mempool (sorted by fee amount)
        */
-      val rpc: Rpc[Params, Response] = Rpc("topl_mempool")
+      val rpc: Rpc[Params, Response] = Rpc(List("topl_getPendingTransactions", "topl_mempool"))
 
       case class Params()
       type Response = List[TX]
@@ -267,7 +296,7 @@ object ToplRpc {
       /**
        * Lookup a transaction in the mempool by its id
        */
-      val rpc: Rpc[Params, Response] = Rpc("topl_transactionFromMempool")
+      val rpc: Rpc[Params, Response] = Rpc(List("topl_getPendingTransactionById", "topl_transactionFromMempool"))
 
       /**
        * @param transactionId Base58 encoded transaction hash
@@ -277,12 +306,27 @@ object ToplRpc {
       type Response = TX
     }
 
+    object ConfirmationStatus {
+
+      /**
+       * Lookup the confirmation status of transactions
+       */
+      val rpc: Rpc[Params, Response] = Rpc(List("topl_confirmationStatus"))
+
+      /**
+       * @param transactionIds Base58 encoded transaction hash
+       */
+      case class Params(transactionIds: List[ModifierId])
+      type Response = Map[ModifierId, TxStatus]
+      case class TxStatus(status: String, depthFromHead: Long)
+    }
+
     object Info {
 
       /**
        * Retrieve information about this running node
        */
-      val rpc: Rpc[Params, Response] = Rpc("topl_info")
+      val rpc: Rpc[Params, Response] = Rpc(List("topl_info"))
 
       case class Params()
 
@@ -293,6 +337,17 @@ object ToplRpc {
         currentProtocolRuleset: String,
         currentBlockVersion:    String
       )
+    }
+
+    object Status {
+
+      /**
+       * Retrieve information about this running node
+       */
+      val rpc: Rpc[Params, Response] = Rpc(List("topl_status"))
+
+      case class Params()
+      case class Response(forgingStatus: String, numberOfPendingTransactions: Int)
     }
   }
 
@@ -313,10 +368,10 @@ object ToplRpc {
        *
        * #### Notes
        * - `AssetCode` in `AssetValue` can be generated using `util_generateAssetCode`
-       * - `fee` and `quantity` in `AssetValue` need to be strings, they will be converted into Int128 which can go up to
-       * 178 undecillion(2^127-1)
+       * - `fee` and `quantity` in `AssetValue` need to be strings, they will be converted into Int128 which can go up
+       * to 178 undecillion(2^127-1)
        */
-      val rpc: Rpc[Params, Response] = Rpc("topl_rawAssetTransfer")
+      val rpc: Rpc[Params, Response] = Rpc(List("topl_rawAssetTransfer"))
 
       /**
        * @param propositionType Type of proposition, eg., PublicKeyCurve25519, ThresholdCurve25519
@@ -359,10 +414,10 @@ object ToplRpc {
        * The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
        *
        * #### Notes
-       * - `fee` and Arbit amounts in `recipients` need to be strings, they will be converted into Int128 which can go up
-       * to 178 undecillion(2^127-1)
+       * - `fee` and Arbit amounts in `recipients` need to be strings, they will be converted into Int128 which can go
+       * up to 178 undecillion(2^127-1)
        */
-      val rpc: Rpc[Params, Response] = Rpc("topl_rawArbitTransfer")
+      val rpc: Rpc[Params, Response] = Rpc(List("topl_rawArbitTransfer"))
 
       /**
        * @param propositionType Type of proposition, eg., PublicKeyCurve25519, ThresholdCurve25519
@@ -406,7 +461,7 @@ object ToplRpc {
        * - `fee` and Poly amounts in `recipients` need to be strings, they will be converted into Int128 which can go up
        * to 178 undecillion(2^127-1)
        */
-      val rpc: Rpc[Params, Response] = Rpc("topl_rawPolyTransfer")
+      val rpc: Rpc[Params, Response] = Rpc(List("topl_rawPolyTransfer"))
 
       /**
        * @param propositionType Type of proposition, eg., PublicKeyCurve25519, ThresholdCurve25519
@@ -446,7 +501,7 @@ object ToplRpc {
        * #### Notes
        * - Currently only enabled for `AssetCreation` and `AssetTransfer` transactions
        */
-      val rpc: Rpc[Params, Response] = Rpc("topl_broadcastTx")
+      val rpc: Rpc[Params, Response] = Rpc(List("topl_broadcastTx"))
 
       /**
        * @param tx A full formatted transaction JSON object (prototype transaction + signatures)
@@ -472,7 +527,7 @@ object ToplRpc {
        * Unlock an encrypted keyfile which exists in your keyfile directory. This will add the secret key to wallet and
        * allow signing of transactions on behalf of that key
        */
-      val rpc: Rpc[Params, Response] = Rpc("admin_unlockKeyfile")
+      val rpc: Rpc[Params, Response] = Rpc(List("admin_unlockKeyfile"))
 
       /**
        * @param address Address corresponding to an encrypted keyfile in your wallet directory
@@ -494,7 +549,7 @@ object ToplRpc {
        * #### Description
        * Lock a previously unlocked keyfile in your wallet.
        */
-      val rpc: Rpc[Params, Response] = Rpc("admin_lockKeyfile")
+      val rpc: Rpc[Params, Response] = Rpc(List("admin_lockKeyfile"))
 
       /**
        * @param address Address corresponding to an encrypted keyfile in your wallet directory
@@ -515,7 +570,7 @@ object ToplRpc {
        * #### Description
        * Generate and save a new encrypted private keyfile using Curve25519 key pairs.
        */
-      val rpc: Rpc[Params, Response] = Rpc("admin_generateKeyfile")
+      val rpc: Rpc[Params, Response] = Rpc(List("admin_generateKeyfile"))
 
       /**
        * @param password String used to encrypt the private keyfile that is stored locally
@@ -536,7 +591,7 @@ object ToplRpc {
        * #### Description
        * Allows a user to import a 12, 15, 18, 21, or 24 word mnemonic (seed phrase) and generate an encrypted Keyfile
        */
-      val rpc: Rpc[Params, Response] = Rpc("admin_importSeedPhrase")
+      val rpc: Rpc[Params, Response] = Rpc(List("admin_importSeedPhrase"))
 
       /**
        * @param password String used to encrypt the private keyfile that is stored locally
@@ -558,7 +613,7 @@ object ToplRpc {
      * Check which keyfiles are currently unlocked in your wallet. This method takes no input arguments.
      */
     object ListOpenKeyfiles {
-      val rpc: Rpc[Params, Response] = Rpc("admin_listOpenKeyfiles")
+      val rpc: Rpc[Params, Response] = Rpc(List("admin_listOpenKeyfiles"))
 
       case class Params()
       case class Response(unlocked: Set[Address])
@@ -575,7 +630,7 @@ object ToplRpc {
      * Attempt to forge blocks using any unlocked keyfiles available on the node
      */
     object StartForging {
-      val rpc: Rpc[Params, Response] = Rpc("admin_startForging")
+      val rpc: Rpc[Params, Response] = Rpc(List("admin_startForging"))
 
       case class Params()
       case class Response(msg: String)
@@ -593,7 +648,7 @@ object ToplRpc {
        * #### Description
        * Attempt to stop forging blocks
        */
-      val rpc: Rpc[Params, Response] = Rpc("admin_stopForging")
+      val rpc: Rpc[Params, Response] = Rpc(List("admin_stopForging"))
 
       case class Params()
       case class Response(msg: String)
@@ -611,7 +666,7 @@ object ToplRpc {
        * #### Description
        * Change the address used to receive block rewards. This method requires the new address as a string
        */
-      val rpc: Rpc[Params, Response] = Rpc("admin_updateRewardsAddress")
+      val rpc: Rpc[Params, Response] = Rpc(List("admin_updateRewardsAddress"))
 
       /**
        * @param address New address to receive block rewards
@@ -632,7 +687,7 @@ object ToplRpc {
        * #### Description
        * Check which keyfiles are currently unlocked in your wallet. This method takes no input arguments.
        */
-      val rpc: Rpc[Params, Response] = Rpc("admin_getRewardsAddress")
+      val rpc: Rpc[Params, Response] = Rpc(List("admin_getRewardsAddress"))
 
       case class Params()
       case class Response(rewardsAddress: String)
