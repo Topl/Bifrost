@@ -6,6 +6,7 @@ import cats.effect.Ref
 import cats.effect.kernel.Concurrent
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
+import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.codecs.bytes.implicits._
 import co.topl.crypto.keyfile.SecureStore
 import co.topl.crypto.signing._
@@ -13,15 +14,15 @@ import co.topl.minting.algebras._
 import co.topl.models._
 import co.topl.typeclasses.KeyInitializer
 import co.topl.typeclasses.implicits._
+import org.typelevel.log4cats.Logger
 
 import scala.collection.immutable.LongMap
-import ClockAlgebra.implicits._
 
-object KeyEvolver {
+object OperationalKeys {
 
   object FromSecureStore {
 
-    def make[F[_]: Concurrent](
+    def make[F[_]: Concurrent: Logger](
       secureStore:                   SecureStore[F],
       clock:                         ClockAlgebra[F],
       vrfProof:                      VrfProofAlgebra[F],
@@ -30,12 +31,16 @@ object KeyEvolver {
     )(implicit
       kesProduct: KesProduct,
       ed25519:    Ed25519
-    ): F[KeyEvolverAlgebra[F]] =
+    ): F[OperationalKeysAlgebra[F]] =
       for {
-        initialOperationalPeriod <- clock.globalSlot.map(_ / operationalPeriodLength)
-        initialKeysOpt <- consumeEvolvePersist(initialOperationalPeriod, registrationOperationalPeriod, secureStore)
-          // TODO: Transform the KES child key into the linear keys for the period
-          .map(_ => None)
+        initialSlot <- clock.globalSlot
+        initialOperationalPeriod = initialSlot / operationalPeriodLength
+        initialKeysOpt <- OptionT(
+          consumeEvolvePersist(initialOperationalPeriod, registrationOperationalPeriod, secureStore)
+        )
+          .semiflatMap(prepareOperationalPeriodKeys(_, initialSlot, operationalPeriodLength, clock, vrfProof))
+          .map(outs => LongMap.from(outs.map(o => o.slot -> o)))
+          .value
         ref <- Ref.of((initialOperationalPeriod, initialKeysOpt))
       } yield make[F](
         secureStore,
@@ -43,48 +48,32 @@ object KeyEvolver {
         vrfProof,
         operationalPeriodLength,
         registrationOperationalPeriod,
-        initialOperationalPeriod,
-        initialKeysOpt,
         ref
       )
 
-    def make[F[_]: Monad](
+    def make[F[_]: Monad: Logger](
       secureStore:                   SecureStore[F],
       clock:                         ClockAlgebra[F],
       vrfProof:                      VrfProofAlgebra[F],
       operationalPeriodLength:       Long,
       registrationOperationalPeriod: Long,
-      initialOperationalPeriod:      Long,
-      initialKeyOpt:                 Option[SecretKeys.KesProduct],
-      ref:                           Ref[F, (Long, Option[LongMap[KeyEvolverOut]])]
+      ref:                           Ref[F, (Long, Option[LongMap[OperationalKeyOut]])]
     )(implicit
       kesProduct: KesProduct,
       ed25519:    Ed25519
-    ): KeyEvolverAlgebra[F] = { (slot: Slot) =>
+    ): OperationalKeysAlgebra[F] = { (slot: Slot) =>
       val operationalPeriod = slot / operationalPeriodLength
       ref.get.flatMap {
         case (`operationalPeriod`, keysOpt) =>
           keysOpt.flatMap(_.get(slot)).pure[F]
         case _ =>
           OptionT(consumeEvolvePersist(operationalPeriod, registrationOperationalPeriod, secureStore))
-            .semiflatMap(childKesKey =>
-              clock
-                .epochOf(slot)
-                .flatMap(vrfProof.ineligibleSlots)
-                .map(_.toSet)
-                .map(ineligibleSlots =>
-                  prepareOperationalPeriodKeys(
-                    childKesKey,
-                    Vector
-                      .unfold(slot)(s => if (s + slot < operationalPeriodLength) Some(s -> (s + 1)) else None)
-                      .filterNot(ineligibleSlots)
-                  )
-                )
-            )
+            .semiflatMap(prepareOperationalPeriodKeys(_, slot, operationalPeriodLength, clock, vrfProof))
             .map(outs => LongMap.from(outs.map(o => o.slot -> o)))
+            .semiflatTap(newKeys => ref.set(operationalPeriod -> newKeys.some))
+            .flatTapNone(ref.set(operationalPeriod -> None))
+            .subflatMap(_.get(slot))
             .value
-            .flatTap(newKeysOpt => ref.set((operationalPeriod, newKeysOpt)))
-            .map(_.flatMap(_.get(slot)))
       }
     }
 
@@ -94,7 +83,7 @@ object KeyEvolver {
      * key for `currentOperationalPeriod + 1` is constructed and saved to disk.  The `currentOperationalPeriod` key is
      * returned.
      */
-    private def consumeEvolvePersist[F[_]: Monad](
+    private def consumeEvolvePersist[F[_]: Monad: Logger](
       currentOperationalPeriod:      Long,
       registrationOperationalPeriod: Long,
       secureStore:                   SecureStore[F]
@@ -104,31 +93,68 @@ object KeyEvolver {
           secureStore.list
             .map(_.flatMap(t => Chain.fromOption(t.toLongOption)).filter(_ <= currentOperationalPeriod).sorted.initLast)
         )
-        _       <- OptionT.liftF(toErase.map(_.toString).traverse(secureStore.erase))
+        _ <- OptionT.liftF(
+          toErase
+            .map(_.toString)
+            .traverse(k => Logger[F].info(show"Erasing old key idx=$k").flatMap(_ => secureStore.erase(k)))
+        )
+        _       <- OptionT.liftF(Logger[F].info(show"Consuming key idx=$latest"))
         diskKey <- OptionT(secureStore.consume[SecretKeys.KesProduct](latest.toString))
         currentPeriodKey =
           if (latest === (currentOperationalPeriod - registrationOperationalPeriod)) diskKey
           else
             KesProduct.instance.update(
               diskKey,
-              (currentOperationalPeriod - registrationOperationalPeriod - latest).toInt
+              (currentOperationalPeriod - registrationOperationalPeriod).toInt
             )
+        nextKeyIndex = currentOperationalPeriod - registrationOperationalPeriod + 1
+        _ <- OptionT.liftF(Logger[F].info(show"Saving next key idx=$nextKeyIndex"))
         _ <- OptionT.liftF(
           secureStore.write(
-            (currentOperationalPeriod - registrationOperationalPeriod + 1).toString,
-            KesProduct.instance.update(currentPeriodKey, 1)
+            nextKeyIndex.toString,
+            KesProduct.instance.update(
+              currentPeriodKey,
+              nextKeyIndex.toInt
+            )
           )
         )
       } yield currentPeriodKey
     }.value
 
+    /**
+     * Using some KES child, construct the linear keys for the upcoming operational period.  A linear key is constructed
+     * for each slot for which we _might_ be eligible for VRF.
+     */
+    private def prepareOperationalPeriodKeys[F[_]: Monad](
+      kesChild:                SecretKeys.KesProduct,
+      fromSlot:                Slot,
+      operationalPeriodLength: Long,
+      clock:                   ClockAlgebra[F],
+      vrfProof:                VrfProofAlgebra[F]
+    )(implicit
+      kesProduct: KesProduct,
+      ed25519:    Ed25519
+    ): F[Vector[OperationalKeyOut]] =
+      for {
+        epoch           <- clock.epochOf(fromSlot)
+        ineligibleSlots <- vrfProof.ineligibleSlots(epoch).map(_.toSet)
+        slots = Vector
+          .tabulate((operationalPeriodLength - (fromSlot % operationalPeriodLength)).toInt)(_ + fromSlot)
+          .filterNot(ineligibleSlots)
+        keys = prepareOperationalPeriodKeys(kesChild, slots)
+      } yield keys
+
+    /**
+     * From some "child" KES key, create several SKs for each slot in the given list of slots
+     */
     private def prepareOperationalPeriodKeys(kesChild: SecretKeys.KesProduct, slots: Vector[Slot])(implicit
       kesProduct:                                      KesProduct,
       ed25519:                                         Ed25519
-    ): Vector[KeyEvolverOut] =
+    ): Vector[OperationalKeyOut] =
       slots.map { slot =>
         val sk = KeyInitializer[SecretKeys.Ed25519].random()
-        KeyEvolverOut(slot, sk, kesProduct.sign(kesChild, ed25519.getVerificationKey(sk).bytes.data))
+        val signedVk = kesProduct.sign(kesChild, ed25519.getVerificationKey(sk).bytes.data)
+        OperationalKeyOut(slot, sk, signedVk)
       }
   }
 }

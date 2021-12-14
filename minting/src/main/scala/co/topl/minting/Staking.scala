@@ -18,7 +18,7 @@ object Staking {
     def make[F[_]: Monad](
       a:                      TaktikosAddress,
       leaderElection:         LeaderElectionMintingAlgebra[F],
-      evolver:                KeyEvolverAlgebra[F],
+      evolver:                OperationalKeysAlgebra[F],
       vrfRelativeStakeLookup: VrfRelativeStakeMintingLookupAlgebra[F],
       etaCalculation:         EtaCalculationAlgebra[F]
     ): StakingAlgebra[F] = new StakingAlgebra[F] {
@@ -34,7 +34,7 @@ object Staking {
           )
 
       def certifyBlock(unsignedBlock: BlockV2.Unsigned): F[Option[BlockV2]] =
-        OptionT(evolver.evolveKey(unsignedBlock.unsignedHeader.slot.toInt))
+        OptionT(evolver.operationalKeyForSlot(unsignedBlock.unsignedHeader.slot.toInt))
           .map(evolvedKey => temporaryOpCert)
           .map(operationalCertificate =>
             BlockHeaderV2(

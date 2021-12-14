@@ -95,6 +95,9 @@ object VrfProof {
                     skVrf,
                     arg.signableBytes
                   )
+
+                def ineligibleSlots(epoch: Epoch): F[Vector[Slot]] =
+                  Vector.empty[Slot].pure[F]
               }
             )
         }

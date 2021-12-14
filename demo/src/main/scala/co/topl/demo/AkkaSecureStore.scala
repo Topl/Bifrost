@@ -125,7 +125,9 @@ object AkkaSecureStoreActor {
       private[AkkaSecureStoreActor] def run(baseDir: Path): Unit = {
         val path = Paths.get(baseDir.toString, name)
         if (Files.exists(path) && Files.isRegularFile(path)) {
-          replyTo.tell(Bytes(Files.readAllBytes(path)).decoded[A].some)
+          val bytes = Bytes(Files.readAllBytes(path))
+          Files.delete(path)
+          replyTo.tell(bytes.decoded[A].some)
         } else {
           replyTo.tell(None)
         }
