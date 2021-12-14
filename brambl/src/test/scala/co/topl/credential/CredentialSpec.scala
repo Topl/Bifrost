@@ -190,7 +190,7 @@ class CredentialSpec
             .once()
             .returning(height + 1)
 
-          thresholdProposition isSatisifiedBy thresholdProof shouldBe true
+          thresholdProposition isSatisfiedBy thresholdProof shouldBe true
         }
     }
   }

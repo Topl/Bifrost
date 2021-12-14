@@ -52,7 +52,7 @@ class ProofVerifierSpec
         .returning(transaction)
 
       val result =
-        proposition isSatisifiedBy proof
+        proposition isSatisfiedBy proof
 
       val expected =
         Curve25519.instance.verify(
@@ -121,7 +121,7 @@ class ProofVerifierSpec
         .once()
         .returning(transaction)
 
-      val result = proposition.isSatisifiedBy(proof)
+      val result = proposition.isSatisfiedBy(proof)
 
       val expected =
         extendedEd25519.verify(

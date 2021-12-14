@@ -90,7 +90,7 @@ object JamesRequiredOutput extends App {
 
   // Locking proposition for the initial transaction
   val proposition = party1SK.vk.asProposition.and(Propositions.Contextual.RequiredDionOutput(0, party3Address))
-  println(proposition)
+  println(proposition.dionAddress)
 
   val unprovenTransaction: Transaction.Unproven = Transaction.Unproven(
     inputs = List((proposition.dionAddress, Random.nextLong())),
@@ -124,12 +124,12 @@ object JamesRequiredOutput extends App {
   )
   println(transaction)
 
-  implicit val context = new VerificationContext[Id] {
+  implicit val context: VerificationContext[Id] = new VerificationContext[Id] {
     def currentTransaction: Transaction = transaction
     def currentHeight: Long = 1
   }
 
-  println(s"Does the proof satisfy the proposition? ${proposition isSatisifiedBy proof}")
+  println(s"Does the proof satisfy the proposition? ${proposition isSatisfiedBy proof}")
 
 
 }
