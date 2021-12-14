@@ -1,11 +1,10 @@
 package co.topl.rpc.handlers
 
 import akka.actor.typed.ActorSystem
-import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, InvalidParametersError, RpcError, ThrowableData}
 import co.topl.attestation.Address
-import co.topl.modifier.ModifierId
+import co.topl.consensus.{blockVersion, getProtocolRules}
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
 import co.topl.network.message.BifrostSyncInfo
@@ -99,13 +98,15 @@ class NodeViewRpcHandlerImpls(
 
   override val info: ToplRpc.NodeView.Info.rpc.ServerHandler =
     _ =>
-      EitherT.pure(
+      withNodeView { view =>
         ToplRpc.NodeView.Info.Response(
           appContext.networkType.toString,
           appContext.externalNodeAddress.fold("N/A")(_.toString),
-          appContext.settings.application.version.toString
+          appContext.settings.application.version.toString,
+          getProtocolRules(view.history.height).version.toString,
+          blockVersion(view.history.height).toString
         )
-      )
+      }
 
   private def balancesResponse(
     state:     StateReader[_, Address],
