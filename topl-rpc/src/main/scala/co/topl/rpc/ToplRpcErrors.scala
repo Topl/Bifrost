@@ -12,7 +12,7 @@ object ToplRpcErrors {
 
   val NoBlockWithId: CustomError = CustomError(-32008, "No corresponding block found for the given id")
 
-  val NoTransactionWithId: CustomError = CustomError(-32007, "No corresponding transaction with such id")
+  val NoTransactionWithId: CustomError = CustomError(-32007, "Could not find one or more of the specified transactions")
 
   val InvalidHeightRange: CustomError = CustomError(-32009, "Invalid height range")
 
