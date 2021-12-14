@@ -83,7 +83,7 @@ object Dependencies {
       "com.typesafe.akka"          %% "akka-cluster"       % akkaVersion,
       "com.typesafe.akka"          %% "akka-remote"        % akkaVersion,
       "com.typesafe"                % "config"             % "1.4.1",
-      "com.lihaoyi"                %% "mainargs"           % "0.2.1",
+      "com.lihaoyi"                %% "mainargs"           % "0.2.2",
       "net.jpountz.lz4"             % "lz4"                % "1.3.0",
       "com.github.julien-truffaut" %% "monocle-core"       % "3.0.0-M6",
       "com.github.julien-truffaut" %% "monocle-macro"      % "3.0.0-M6",
@@ -176,7 +176,7 @@ object Dependencies {
 
   lazy val loadTesting: Seq[ModuleID] = {
     Seq(
-      "com.lihaoyi"    %% "mainargs" % "0.2.1",
+      "com.lihaoyi"    %% "mainargs" % "0.2.2",
       "com.nike.fleam" %% "fleam"    % "7.0.0"
     ) ++
       akka ++
