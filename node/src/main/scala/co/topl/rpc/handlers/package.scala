@@ -4,8 +4,6 @@ import co.topl.akkahttprpc.RpcError
 import co.topl.attestation.Address
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.network.message.BifrostSyncInfo
-import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.state.StateReader
 import co.topl.rpc.ToplRpc.NodeView.ConfirmationStatus.TxStatus
 
@@ -24,12 +22,11 @@ package object handlers {
       )
     } yield keys
 
-  private[handlers] def blocksByIdsResponse(
-    ids:       List[ModifierId],
-    sizeLimit: Int,
-    history:   HistoryReader[Block, BifrostSyncInfo]
-  ): Either[RpcError, ToplRpc.NodeView.BlocksByIds.Response] = {
-    val blocksOption = ids.map(history.modifierById)
+  private[handlers] def checkBlocksFoundWithIds(
+    ids:          List[ModifierId],
+    blocksOption: List[Option[Block]],
+    sizeLimit:    Int
+  ): Either[RpcError, ToplRpc.NodeView.BlocksByIds.Response] =
     for {
       _ <- Either.cond(
         ids.size <= sizeLimit,
@@ -42,7 +39,6 @@ package object handlers {
         ToplRpcErrors.NoBlockWithId
       )
     } yield blocks
-  }
 
   private[handlers] def checkHeightRange(
     bestBlockHeight: Long,

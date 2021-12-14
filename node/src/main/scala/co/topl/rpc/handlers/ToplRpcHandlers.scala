@@ -36,6 +36,7 @@ object ToplRpcHandlers {
     def blocksByIds: ToplRpc.NodeView.BlocksByIds.rpc.ServerHandler
     def blockByHeight: ToplRpc.NodeView.BlockByHeight.rpc.ServerHandler
     def blocksInRange: ToplRpc.NodeView.BlocksInRange.rpc.ServerHandler
+    def blockIdsInRange: ToplRpc.NodeView.BlockIdsInRange.rpc.ServerHandler
     def mempool: ToplRpc.NodeView.Mempool.rpc.ServerHandler
     def transactionFromMempool: ToplRpc.NodeView.TransactionFromMempool.rpc.ServerHandler
     def confirmationStatus: ToplRpc.NodeView.ConfirmationStatus.rpc.ServerHandler

@@ -462,7 +462,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
 
   lazy val assetTransferThresholdCurve25519Gen: Gen[AssetTransfer[ThresholdPropositionCurve25519]] = for {
     from        <- fromSeqCurve25519Gen
-    to          <- assetToSeqGen //TODO: Jing - Does this need to use specific signature scheme?
+    to          <- assetToSeqGen //TODO: Jing - Does this need specific signature scheme?
     attestation <- attestationThresholdCurve25519Gen
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
