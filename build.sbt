@@ -51,6 +51,21 @@ lazy val commonSettings = Seq(
   )
 )
 
+lazy val dockerSettings = Seq(
+  Docker / packageName := "bifrost-node",
+  dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java11-21.3.0",
+  dockerExposedPorts := Seq(9084, 9085),
+  dockerExposedVolumes += "/opt/docker/.bifrost",
+  dockerLabels ++= Map(
+    "bifrost.version" -> version.value
+  ),
+  dockerAliases := dockerAliases.value.flatMap { alias => Seq(
+    alias.withRegistryHost(Some("docker.io/toplprotocol")),
+    alias.withRegistryHost(Some("ghcr.io/topl"))
+  )
+  }
+)
+
 lazy val publishSettings = Seq(
   homepage := Some(url("https://github.com/Topl/Bifrost")),
   licenses := Seq("MPL2.0" -> url("https://www.mozilla.org/en-US/MPL/2.0/")),
@@ -183,19 +198,13 @@ lazy val node = project
     name := "node",
     commonSettings,
     assemblySettings,
+    dockerSettings,
     Defaults.itSettings,
     crossScalaVersions := Seq(scala213), // The `monocle` library does not support Scala 2.12
     Compile / mainClass := Some("co.topl.BifrostApp"),
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
-    Docker / packageName := "bifrost-node",
-    dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java11-21.1.0",
-    dockerExposedPorts := Seq(9084, 9085),
-    dockerExposedVolumes += "/opt/docker/.bifrost",
-    dockerLabels ++= Map(
-      "bifrost.version" -> version.value
-    ),
     libraryDependencies ++= Dependencies.node,
   )
   .configs(IntegrationTest)
