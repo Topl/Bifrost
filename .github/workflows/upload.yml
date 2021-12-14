@@ -28,7 +28,7 @@ jobs:
       - name: set output directory name
         run: |
           OUT_DIR=$(basename ${{ env.JAR }} .jar)
-          echo "OUT_DIR=${OUT_DIR#bifrost-}" >> $GITHUB_ENV
+          echo "OUT_DIR=${OUT_DIR#bifrost-node-}" >> $GITHUB_ENV
 
       - name: make output directory
         run: mkdir ${{ env.OUT_DIR }}
