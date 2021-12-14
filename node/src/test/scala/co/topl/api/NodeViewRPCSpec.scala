@@ -2,7 +2,7 @@ package co.topl.api
 
 import akka.actor.typed.scaladsl.adapter.ClassicActorSystemOps
 import akka.util.ByteString
-import co.topl.consensus.{blockVersion, getProtocolRules, ActorForgerInterface}
+import co.topl.consensus.{ActorForgerInterface, blockVersion, getProtocolRules}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.nodeView.TestableNodeViewHolder
@@ -91,7 +91,6 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        println(keyRingCurve25519.addresses)
         val res: Json = parse(responseAs[String]).value
         val balances = res.hcursor.downField("result").as[Json].value
         keyRingCurve25519.addresses.map { addr =>

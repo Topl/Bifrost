@@ -53,6 +53,27 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
     }
   }
 
+  def testEncodeTransfer(rawTx: Json, messageToSign: String): Unit = {
+    val requestBody = ByteString(s"""
+      |{
+      | "jsonrpc": "2.0",
+      | "id": "2",
+      | "method": "topl_encodeTransfer",
+      | "params": [{
+      |   "rawTx": $rawTx
+      | }]
+      |}
+      """.stripMargin)
+
+    httpPOST(requestBody) ~> route ~> check {
+      val res = parse(responseAs[String]).value
+      val encodedMessage = res.hcursor.downField("result").get[String]("messageToSign").value
+
+      encodedMessage shouldEqual messageToSign
+      res.hcursor.downField("error").values shouldBe None
+    }
+  }
+
   def testCreateSignPolyTransfer(sender: Address, recipient: Address, senderPropType: String, amount: Int): Json = {
     val requestBody = ByteString(s"""
       |{
@@ -93,6 +114,9 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
         val signatures: Json = Map(
           "signatures" -> sig.asJson
         ).asJson
+
+        testEncodeTransfer(rawTx, res.hcursor.downField("result").get[String]("messageToSign").value)
+
         rawTx.deepMerge(signatures)
       }
 
@@ -143,6 +167,9 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
         val signatures: Json = Map(
           "signatures" -> sig.asJson
         ).asJson
+
+        testEncodeTransfer(rawTx, res.hcursor.downField("result").get[String]("messageToSign").value)
+
         rawTx.deepMerge(signatures)
       }
 
@@ -208,6 +235,9 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
         val signatures: Json = Map(
           "signatures" -> sig.asJson
         ).asJson
+
+        testEncodeTransfer(rawTx, res.hcursor.downField("result").get[String]("messageToSign").value)
+
         rawTx.deepMerge(signatures)
       }
 

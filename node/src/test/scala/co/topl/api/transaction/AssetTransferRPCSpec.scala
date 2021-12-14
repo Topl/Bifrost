@@ -2,7 +2,6 @@ package co.topl.api.transaction
 
 import co.topl.attestation.Address
 import co.topl.modifier.box.AssetCode
-import co.topl.utils.GeneratorOps.GeneratorOps
 import co.topl.utils.StringDataTypes.Latin1Data
 import io.circe.Json
 import io.circe.syntax._
@@ -36,7 +35,7 @@ class AssetTransferRPCSpec extends TransferRPCTestMethods {
   }
 
   "AssetTransfer RPC" should {
-    "Create, sign and broadcast new asset transfer raw transaction from a Curve25519 address to itself" in {
+    "Create, encode, sign new raw asset transfer from a Curve25519 address to itself, and broadcast it" in {
       val tx =
         testCreateSignAssetTransfer(
           addressCurve25519Fst,
@@ -48,8 +47,7 @@ class AssetTransferRPCSpec extends TransferRPCTestMethods {
       testBroadcastTx(tx)
     }
 
-    "Create, sign and broadcast new asset transfer from a Curve25519 address to an Ed25519 address" +
-    " address" in {
+    "Create, encode, sign new raw asset transfer from a Curve25519 address to an Ed25519 address, and broadcast it" in {
       val tx =
         testCreateSignAssetTransfer(
           addressCurve25519Fst,
@@ -61,19 +59,20 @@ class AssetTransferRPCSpec extends TransferRPCTestMethods {
       testBroadcastTx(tx)
     }
 
-    "Create, sign and broadcast new asset transfer from an Ed25519 address to itself" in {
+    "Create, encode, sign new raw asset transfer from an Ed25519 address to itself, and broadcast it" in {
       val tx =
         testCreateSignAssetTransfer(addressEd25519Fst, addressEd25519Sec, assetCodeEd25519Fst, propTypeEd25519, 3)
       testBroadcastTx(tx)
     }
 
-    "Create, sign and broadcast new asset transfer from an Ed25519 address to a Curve25519 address" in {
+    "Create, encode, sign new raw asset transfer from an Ed25519 address to a Curve25519 address, and broadcast it" in {
       val tx =
         testCreateSignAssetTransfer(addressEd25519Fst, addressCurve25519Fst, assetCodeEd25519Fst, propTypeEd25519, 3)
       testBroadcastTx(tx)
     }
 
-    "Create, sign and broadcast new asset transfer from a threshold Curve25519 address to an address of same type" in {
+    "Create, encode, sign new raw asset transfer from a threshold Curve25519 address to an address of same type, and " +
+    "broadcast it" in {
       val tx =
         testCreateSignAssetTransfer(
           addressThresholdCurve25519Fst,
@@ -85,7 +84,8 @@ class AssetTransferRPCSpec extends TransferRPCTestMethods {
       testBroadcastTx(tx)
     }
 
-    "Create, sign and broadcast new asset transfer from a threshold Curve25519 address to a Ed25519 address" in {
+    "Create, encode, sign new raw asset transfer from a threshold Curve25519 address to a Ed25519 address, and " +
+    "broadcast it" in {
       val tx =
         testCreateSignAssetTransfer(
           addressThresholdCurve25519Fst,

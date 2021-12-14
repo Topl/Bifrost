@@ -119,6 +119,8 @@ trait TransactionRpcParamsEncoders extends SharedCodecs {
   implicit val transactionBroadcastTxParamsEncoder: Encoder[ToplRpc.Transaction.BroadcastTx.Params] =
     Encoder.forProduct1("tx")(_.tx)
 
+  implicit val transactionEncodeTransferParamsEncoder: Encoder[ToplRpc.Transaction.EncodeTransfer.Params] =
+    Encoder.forProduct1("rawTx")(_.rawTx)
 }
 
 trait AdminRpcParamsEncoders extends SharedCodecs {
@@ -256,6 +258,11 @@ trait TransactionRpcResponseDecoders extends SharedCodecs {
   implicit def transactionRawPolyTransferResponseDecoder(implicit
     networkPrefix: NetworkPrefix
   ): Decoder[ToplRpc.Transaction.RawPolyTransfer.Response] =
+    deriveDecoder
+
+  implicit def transactionEncodeTransferResponseDecoder(implicit
+    networkPrefix: NetworkPrefix
+  ): Decoder[ToplRpc.Transaction.EncodeTransfer.Response] =
     deriveDecoder
 }
 
@@ -485,6 +492,10 @@ trait TransactionRpcParamsDecoders extends SharedCodecs {
   ): Decoder[ToplRpc.Transaction.BroadcastTx.Params] =
     Decoder.forProduct1("tx")(ToplRpc.Transaction.BroadcastTx.Params.apply)
 
+  implicit def transactionEncodeTransferParamsDecoder(implicit
+    networkPrefix: NetworkPrefix
+  ): Decoder[ToplRpc.Transaction.EncodeTransfer.Params] =
+    Decoder.forProduct1("rawTx")(ToplRpc.Transaction.EncodeTransfer.Params.apply)
 }
 
 trait AdminRpcParamsDecoders extends SharedCodecs {
@@ -610,6 +621,9 @@ trait TransactionRpcResponseEncoders extends SharedCodecs {
     deriveEncoder
 
   implicit val transactionRawPolyTransferResponseEncoder: Encoder[ToplRpc.Transaction.RawPolyTransfer.Response] =
+    deriveEncoder
+
+  implicit val transactionEncodeTransferResponseEncoder: Encoder[ToplRpc.Transaction.EncodeTransfer.Response] =
     deriveEncoder
 }
 

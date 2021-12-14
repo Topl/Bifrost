@@ -49,6 +49,7 @@ object ToplRpcHandlers {
     def rawArbitTransfer: ToplRpc.Transaction.RawArbitTransfer.rpc.ServerHandler
     def rawPolyTransfer: ToplRpc.Transaction.RawPolyTransfer.rpc.ServerHandler
     def broadcastTx: ToplRpc.Transaction.BroadcastTx.rpc.ServerHandler
+    def encodeTransfer: ToplRpc.Transaction.EncodeTransfer.rpc.ServerHandler
   }
 
   trait Admin {

@@ -510,6 +510,28 @@ object ToplRpc {
 
       type Response = TX
     }
+
+    object EncodeTransfer {
+
+      /**
+       * #### Summary
+       * Encode unsigned transfer
+       *
+       * #### Type
+       * Remote -- Route must be used in conjunction with an external key manager service.
+       *
+       * #### Description
+       * Encode an unsigned transfer into the messageToSign data
+       */
+      val rpc: Rpc[Params, Response] = Rpc(List("topl_encodeTransfer"))
+
+      /**
+       * @param rawTx An unsigned transaction JSON
+       */
+      case class Params(rawTx: TX)
+
+      case class Response(messageToSign: String)
+    }
   }
 
   object Admin {
