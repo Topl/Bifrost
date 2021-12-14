@@ -48,7 +48,7 @@ package object handlers {
   ): Either[RpcError, (Long, Long)] =
     for {
       _ <- Either.cond(
-        startHeight >= 1 && endHeight >= startHeight && bestBlockHeight >= startHeight,
+        startHeight >= 1 && endHeight >= startHeight && bestBlockHeight >= startHeight && bestBlockHeight >= endHeight,
         {},
         ToplRpcErrors.InvalidHeightRange
       )

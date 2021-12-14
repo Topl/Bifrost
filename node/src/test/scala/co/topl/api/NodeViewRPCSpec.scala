@@ -2,7 +2,7 @@ package co.topl.api
 
 import akka.actor.typed.scaladsl.adapter.ClassicActorSystemOps
 import akka.util.ByteString
-import co.topl.consensus.ActorForgerInterface
+import co.topl.consensus.{blockVersion, getProtocolRules, ActorForgerInterface}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.nodeView.TestableNodeViewHolder
@@ -383,11 +383,13 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]).value
-        val info = res.hcursor.downField("result").get[String]("network").value
-        val version = res.hcursor.downField("result").get[String]("version").value
-        info shouldEqual appContext.networkType.toString
-        version shouldEqual settings.application.version.toString
+        val res: Json = parse(responseAs[String]).value.hcursor.downField("result").as[Json].value
+        res.hcursor.get[String]("network").value shouldEqual appContext.networkType.toString
+        res.hcursor.get[String]("appVersion").value shouldEqual settings.application.version.toString
+        res.hcursor.get[String]("protocolVersion").value shouldEqual getProtocolRules(
+          view().history.height
+        ).version.toString
+        res.hcursor.get[String]("blockVersion").value shouldEqual blockVersion(view().history.height).toString
         res.hcursor.downField("error").values shouldBe None
       }
     }
@@ -421,7 +423,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       nodeStatus() shouldEqual "active"
     }
 
-    "Return the confimation status of a confirmed, unconfirmed transactions" in {
+    "Return the confirmation status of a confirmed, unconfirmed transactions" in {
       val unconfirmedTx = bifrostTransactionSeqGen.sampleFirst()
       val unconfirmedTxId = unconfirmedTx.head.id.toString
       val requestBody = ByteString(s"""
@@ -451,6 +453,28 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       }
 
       view().mempool.remove(unconfirmedTx.head)
+    }
+
+    "Return an error when a transaction cannot be found" in {
+      val tx = bifrostTransactionSeqGen.sampleFirst()
+      val txId = tx.head.id.toString
+      val requestBody = ByteString(s"""
+                                      |{
+                                      |   "jsonrpc": "2.0",
+                                      |
+                                      |   "id": "1",
+                                      |   "method": "topl_confirmationStatus",
+                                      |   "params": [{
+                                      |      "transactionIds": ["$txId", "$txId"]
+                                      |   }]
+                                      |}
+                                      |
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
+        res should include("Could not find one or more of the specified transactions")
+      }
     }
   }
 }

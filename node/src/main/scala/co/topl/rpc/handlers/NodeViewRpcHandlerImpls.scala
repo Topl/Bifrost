@@ -1,11 +1,10 @@
 package co.topl.rpc.handlers
 
 import akka.actor.typed.ActorSystem
-import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, InvalidParametersError, RpcError, ThrowableData}
 import co.topl.attestation.Address
-import co.topl.consensus.ForgerInterface
+import co.topl.consensus.{ForgerInterface, blockVersion, getProtocolRules}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
@@ -127,13 +126,15 @@ class NodeViewRpcHandlerImpls(
 
   override val info: ToplRpc.NodeView.Info.rpc.ServerHandler =
     _ =>
-      EitherT.pure(
+      withNodeView { view =>
         ToplRpc.NodeView.Info.Response(
           appContext.networkType.toString,
           appContext.externalNodeAddress.fold("N/A")(_.toString),
-          appContext.settings.application.version.toString
+          appContext.settings.application.version.toString,
+          getProtocolRules(view.history.height).version.toString,
+          blockVersion(view.history.height).toString
         )
-      )
+      }
 
   override val status: ToplRpc.NodeView.Status.rpc.ServerHandler =
     _ =>
@@ -202,15 +203,10 @@ class NodeViewRpcHandlerImpls(
     view:       ReadableNodeView
   ): List[Option[(ModifierId, TxStatus)]] =
     txIds.map { id =>
-      val mempoolStatus = view.memPool.modifierById(id)
-      val historyStatus = view.history.transactionById(id)
-      (mempoolStatus, historyStatus) match {
-        case (_, Some((tx, _, height))) =>
-          Some(tx.id -> TxStatus("Confirmed", headHeight - height))
-        case (Some(tx), None) =>
-          Some(tx.id -> TxStatus("Unconfirmed", -1))
-        case (None, None) =>
-          None
+      (view.memPool.modifierById(id), view.history.transactionById(id)) match {
+        case (_, Some((tx, _, height))) => Some(tx.id -> TxStatus("Confirmed", headHeight - height))
+        case (Some(tx), None)           => Some(tx.id -> TxStatus("Unconfirmed", -1))
+        case (None, None)               => None
       }
     }
 
