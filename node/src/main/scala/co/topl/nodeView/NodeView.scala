@@ -62,8 +62,8 @@ case class NodeView(
 
   protected val log: Logger = LoggerFactory.getLogger(this.getClass)
 
-  //todo: this method causes delays in a block processing as it removes transactions from mempool and checks
-  //todo: validity of remaining transactions in a synchronous way. Do this job async!
+  // todo: this method causes delays in a block processing as it removes transactions from mempool and checks
+  // todo: validity of remaining transactions in a synchronous way. Do this job async!
   protected[nodeView] def updateMemPool(
     blocksRemoved:          Seq[Block],
     blocksApplied:          Seq[Block],
@@ -263,7 +263,7 @@ trait NodeViewBlockOps {
         val (stateToApplyTry, suffixTrimmed) =
           if (progressInfo.chainSwitchingNeeded) {
             @SuppressWarnings(Array("org.wartremover.warts.OptionPartial"))
-            val branchingPoint = progressInfo.branchPoint.get //todo: .get
+            val branchingPoint = progressInfo.branchPoint.get // todo: .get
             if (state.version != branchingPoint) {
               state.rollbackTo(branchingPoint) -> trimChainSuffix(suffixApplied, branchingPoint)
             } else {
@@ -295,7 +295,7 @@ trait NodeViewBlockOps {
           case Failure(e) =>
             log.error("Rollback failed: ", e)
             Writer.tell(List(NodeViewHolder.Events.RollbackFailed))
-            //todo: what to return here? the situation is totally wrong
+            // todo: what to return here? the situation is totally wrong
             ???
         }
       }
