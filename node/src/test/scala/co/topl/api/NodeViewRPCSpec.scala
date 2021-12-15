@@ -2,7 +2,7 @@ package co.topl.api
 
 import akka.actor.typed.scaladsl.adapter.ClassicActorSystemOps
 import akka.util.ByteString
-import co.topl.consensus.{ActorForgerInterface, blockVersion, getProtocolRules}
+import co.topl.consensus.{blockVersion, getProtocolRules, ActorForgerInterface}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.nodeView.TestableNodeViewHolder

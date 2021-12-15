@@ -46,7 +46,7 @@ class ArbitTransferRPCSpec extends TransferRPCTestMethods {
     }
 
     "Create, encode, sign new raw arbit transfer from a threshold Curve25519 address to an address of same type, and " +
-      "broadcast it" in {
+    "broadcast it" in {
       val tx =
         testCreateSignArbitTransfer(
           addressThresholdCurve25519Fst,
@@ -58,7 +58,7 @@ class ArbitTransferRPCSpec extends TransferRPCTestMethods {
     }
 
     "Create, encode, sign new raw arbit transfer from a threshold Curve25519 address to a Ed25519 address, and " +
-      "broadcast it" in {
+    "broadcast it" in {
       val tx =
         testCreateSignArbitTransfer(
           addressThresholdCurve25519Fst,

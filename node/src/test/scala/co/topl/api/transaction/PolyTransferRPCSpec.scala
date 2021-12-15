@@ -47,7 +47,7 @@ class PolyTransferRPCSpec extends TransferRPCTestMethods {
     }
 
     "Create, encode, sign new raw poly transfer from a threshold Curve25519 address to an address of same type, and " +
-      "broadcast it" in {
+    "broadcast it" in {
       val tx =
         testCreateSignPolyTransfer(
           addressThresholdCurve25519Fst,
@@ -59,7 +59,7 @@ class PolyTransferRPCSpec extends TransferRPCTestMethods {
     }
 
     "Create, encode, sign new raw poly transfer from a threshold Curve25519 address to a Ed25519 address, and " +
-      "broadcast it" in {
+    "broadcast it" in {
       val tx =
         testCreateSignPolyTransfer(
           addressThresholdCurve25519Fst,
