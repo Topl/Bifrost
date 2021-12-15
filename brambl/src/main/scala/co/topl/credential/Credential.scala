@@ -2,6 +2,7 @@ package co.topl.credential
 
 import co.topl.models._
 import co.topl.typeclasses.implicits._
+import io.circe.Json
 
 import scala.collection.immutable.ListSet
 
@@ -166,6 +167,13 @@ object Credential {
     case class HeightLock(minimumHeight: Long) extends Credential {
       def prove(currentProof: Proof): Proof = Proofs.Contextual.HeightLock()
       val proposition: Propositions.Contextual.HeightLock = Propositions.Contextual.HeightLock(minimumHeight)
+    }
+  }
+
+  object Script {
+
+    case class JS(proposition: Propositions.Script.JS, arguments: Json) extends Credential {
+      def prove(currentProof: Proof): Proof = Proofs.Script.JS(arguments.toString())
     }
   }
 }

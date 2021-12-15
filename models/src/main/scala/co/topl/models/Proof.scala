@@ -62,4 +62,8 @@ object Proofs {
   object Contextual {
     case class HeightLock() extends Proof
   }
+
+  object Script {
+    case class JS(serializedArgs: String) extends Proof
+  }
 }

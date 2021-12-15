@@ -19,6 +19,7 @@ import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility._
+import co.topl.scripting.GraalVMScripting.instances._
 import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
@@ -165,6 +166,9 @@ object TetraDemo extends IOApp.Simple {
 
   val run: IO[Unit] = {
     for {
+      jsFunction       <- "(a, b, c) => a + b + c".jsFunction[F, Int]
+      jsTestResult     <- jsFunction(2, 3, 4)
+      _                <- Logger[F].info(show"Graal JS Test.  expected=9 actual=$jsTestResult")
       blockHeaderStore <- RefStore.Eval.make[F, BlockHeaderV2]()
       blockBodyStore   <- RefStore.Eval.make[F, BlockBodyV2]()
       blockStore = createBlockStore(blockHeaderStore, blockBodyStore)

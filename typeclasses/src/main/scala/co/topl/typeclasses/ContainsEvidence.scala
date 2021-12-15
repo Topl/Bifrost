@@ -126,19 +126,36 @@ object ContainsEvidence {
           )
         )
 
+    implicit val jsScriptPropositionContainsEvidence: ContainsEvidence[Propositions.Script.JS] =
+      t =>
+        TypedEvidence(
+          9: Byte,
+          Sized.strictUnsafe(
+            Bytes(
+              blake2b256
+                .hash(t.script.value.getBytes(StandardCharsets.UTF_8))
+                .value
+            )
+          )
+        )
+
     implicit lazy val propositionContainsEvidence: ContainsEvidence[Proposition] = {
+      case Propositions.PermanentlyLocked =>
+        permanentlyLockedContainsEvidence.typedEvidenceOf(Propositions.PermanentlyLocked)
+
       case t: Propositions.Knowledge.Curve25519 => curve25519KnowledgePropositionContainsEvidence.typedEvidenceOf(t)
       case t: Propositions.Knowledge.Ed25519    => ed25519KnowledgePropositionContainsEvidence.typedEvidenceOf(t)
       case t: Propositions.Knowledge.ExtendedEd25519 =>
         extendedEd25519KnowledgePropositionContainsEvidence.typedEvidenceOf(t)
-      case t: Propositions.Contextual.HeightLock => heightLockContainsEvidence.typedEvidenceOf(t)
 
       case t: Propositions.Compositional.And => andContainsEvidence(propositionContainsEvidence).typedEvidenceOf(t)
       case t: Propositions.Compositional.Or  => orContainsEvidence(propositionContainsEvidence).typedEvidenceOf(t)
       case t: Propositions.Compositional.Threshold =>
         thresholdContainsEvidence(propositionContainsEvidence).typedEvidenceOf(t)
-      case Propositions.PermanentlyLocked =>
-        permanentlyLockedContainsEvidence.typedEvidenceOf(Propositions.PermanentlyLocked)
+
+      case t: Propositions.Contextual.HeightLock => heightLockContainsEvidence.typedEvidenceOf(t)
+
+      case t: Propositions.Script.JS => jsScriptPropositionContainsEvidence.typedEvidenceOf(t)
     }
   }
 

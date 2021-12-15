@@ -29,7 +29,7 @@ object Signable {
             Bytes(BigInt(unsignedBlock.height).toByteArray),
             Bytes(BigInt(unsignedBlock.slot).toByteArray),
             unsignedBlock.eligibilityCertificate.bytes,
-            Bytes(unsignedBlock.metadata.fold(Array.emptyByteArray)(_.data.value)),
+            Bytes(unsignedBlock.metadata.fold(Array.emptyByteArray)(_.data.bytes)),
             unsignedBlock.address.bytes
           )
         )

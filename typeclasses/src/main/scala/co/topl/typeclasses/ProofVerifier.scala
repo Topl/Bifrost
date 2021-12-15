@@ -1,10 +1,14 @@
 package co.topl.typeclasses
 
 import cats._
+import cats.data.OptionT
 import cats.implicits._
+import co.topl.codecs.json.implicits._
 import co.topl.crypto.signing.{Curve25519, Ed25519, ExtendedEd25519}
 import co.topl.models._
 import co.topl.typeclasses.implicits._
+import io.circe.Json
+import io.circe.syntax._
 
 import scala.language.implicitConversions
 
@@ -146,9 +150,29 @@ object ProofVerifier {
           case _     => true.pure[F]
         }
 
+    private def jsScriptVerifier[F[_]: Monad](
+      proposition: Propositions.Script.JS,
+      proof:       Proofs.Script.JS,
+      context:     VerificationContext[F],
+      jsExecutor:  Propositions.Script.JS.JSScript => F[(Json, Json) => F[Boolean]]
+    ): F[Boolean] =
+      OptionT
+        .fromOption[F](io.circe.parser.parse(proof.serializedArgs).toOption)
+        .semiflatMap { argsJson =>
+          val contextJson =
+            Json.obj(
+              "currentTransaction" -> context.currentTransaction.asJson,
+              "currentHeight"      -> context.currentHeight.asJson
+            )
+          jsExecutor(proposition.script)
+            .flatMap(f => f(contextJson, argsJson))
+        }
+        .getOrElse(false)
+
     implicit def proofVerifier[F[_]: Monad](implicit
       ed25519:         Ed25519,
-      extendedEd25519: ExtendedEd25519
+      extendedEd25519: ExtendedEd25519,
+      jsExecutor:      Propositions.Script.JS.JSScript => F[(Json, Json) => F[Boolean]]
     ): ProofVerifier[F] =
       (proposition, proof, context) =>
         (proposition, proof) match {
@@ -169,8 +193,10 @@ object ProofVerifier {
           case (prop: Propositions.Compositional.Or, proof: Proofs.Compositional.Or) =>
             implicit def v: ProofVerifier[F] = proofVerifier[F]
             orVerifier[F](prop, proof, context)
-          case (prop: Propositions.Contextual.HeightLock, proof: Proofs.Contextual.HeightLock) =>
+          case (prop: Propositions.Contextual.HeightLock, _: Proofs.Contextual.HeightLock) =>
             heightLockVerifier[F](prop, context)
+          case (prop: Propositions.Script.JS, proof: Proofs.Script.JS) =>
+            jsScriptVerifier[F](prop, proof, context, jsExecutor)
           case _ =>
             false.pure[F]
         }

@@ -72,7 +72,7 @@ trait ModelGenerators {
     metadataGen: Gen[Option[Sized.Max[Latin1Data, Lengths.`32`.type]]] = Gen.option(
       Gen
         .containerOfN[Array, Byte](32, Gen.choose[Byte](0, 32))
-        .map(Latin1Data(_))
+        .map(Latin1Data.fromData(_))
         .map(Sized.max[Latin1Data, Lengths.`32`.type](_).toOption.get)
     ),
     addressGen: Gen[TaktikosAddress] = taktikosAddressGen
