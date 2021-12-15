@@ -3,7 +3,7 @@ package co.topl.demo
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
-import co.topl.models.{Proofs, Propositions}
+import co.topl.models._
 import co.topl.scripting.GraalVMScripting
 import co.topl.scripting.GraalVMScripting.GraalVMValuable
 import co.topl.scripting.GraalVMScripting.instances._
@@ -16,6 +16,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, EitherValues, OptionValues}
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import co.topl.models.ModelGenerators._
 
 class ScriptedProofVerifierSpec
     extends AnyFlatSpec
@@ -31,64 +32,120 @@ class ScriptedProofVerifierSpec
 
   behavior of "JS Propositions"
 
-  it should "verify to true" in {
-    val proposition = Propositions.Script.JS(
-      Propositions.Script.JS.JSScript(
-        """(ctx, args) => ctx.currentHeight > 30 && args["foo"] == 37""".stripMargin
+  it should "verify to true for a script using context and args" in {
+    forAll { unproven: Transaction.Unproven =>
+      val proposition = Propositions.Script.JS(
+        Propositions.Script.JS.JSScript(
+          """(ctx, args) => ctx.currentHeight > 30 && args["foo"] == 37""".stripMargin
+        )
       )
-    )
 
-    val proof = Proofs.Script.JS(
-      Json.obj("foo" -> 37.asJson).toString
-    )
+      val proof = Proofs.Script.JS(
+        Json.obj("foo" -> 37.asJson).toString
+      )
 
-    implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
+      implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
 
-    (() => context.currentHeight)
-      .expects()
-      .once()
-      .returning(40L)
+      (() => context.currentHeight)
+        .expects()
+        .once()
+        .returning(40L)
 
-    val result =
-      proof.satisfies[F](proposition).unsafeRunSync()
+      val transaction = unproven.prove(_ => (proposition, proof))
 
-    val expected = true
+      (() => context.currentTransaction)
+        .expects()
+        .once()
+        .returning(transaction)
 
-    result shouldBe expected
+      val result =
+        proof.satisfies[F](proposition).unsafeRunSync()
 
+      val expected = true
+
+      result shouldBe expected
+
+    }
   }
 
   it should "verify to false" in {
-    val proposition = Propositions.Script.JS(
-      Propositions.Script.JS.JSScript(
-        """(ctx, args) => ctx.currentHeight > 30 && args["foo"] == 37""".stripMargin
+    forAll { unproven: Transaction.Unproven =>
+      val proposition = Propositions.Script.JS(
+        Propositions.Script.JS.JSScript(
+          """(ctx, args) => ctx.currentHeight > 30 && args["foo"] == 37""".stripMargin
+        )
       )
-    )
 
-    val proof = Proofs.Script.JS(
-      Json.obj("foo" -> 37.asJson).toString
-    )
+      val proof = Proofs.Script.JS(
+        Json.obj("foo" -> 37.asJson).toString
+      )
 
-    implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
+      implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
 
-    (() => context.currentHeight)
-      .expects()
-      .once()
-      .returning(20L)
+      (() => context.currentHeight)
+        .expects()
+        .once()
+        .returning(20L)
 
-    val result =
-      proof.satisfies[F](proposition).unsafeRunSync()
+      val transaction = unproven.prove(_ => (proposition, proof))
 
-    val expected = false
+      (() => context.currentTransaction)
+        .expects()
+        .once()
+        .returning(transaction)
 
-    result shouldBe expected
+      val result =
+        proof.satisfies[F](proposition).unsafeRunSync()
 
+      val expected = false
+
+      result shouldBe expected
+
+    }
+  }
+
+  it should "verify to true for a script using the current transaction" in {
+    forAll { unproven: Transaction.Unproven =>
+      val outAddr = unproven.coinOutputs.head.dionAddress.allBytes.toBase58
+      val proposition = Propositions.Script.JS(
+        Propositions.Script.JS.JSScript(
+          raw"""(ctx, args) =>
+               |    ctx.currentTransaction.coinOutputs[args.outputIndex].address == "$outAddr";
+               |""".stripMargin
+        )
+      )
+
+      val proof = Proofs.Script.JS(Json.obj("outputIndex" -> 0.asJson).toString)
+
+      implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
+
+      (() => context.currentHeight)
+        .expects()
+        .once()
+        .returning(40L)
+
+      val transaction = unproven.prove(_ => (proposition, proof))
+
+      (() => context.currentTransaction)
+        .expects()
+        .once()
+        .returning(transaction)
+
+      val result =
+        proof.satisfies[F](proposition).unsafeRunSync()
+
+      val expected = true
+
+      result shouldBe expected
+    }
   }
 }
 
 object ScriptedProofVerifierSpec {
 
   type F[A] = IO[A]
+
+  implicit val networkPrefix: NetworkPrefix = NetworkPrefix(1)
 
   implicit val ed25519: Ed25519 = new Ed25519()
   implicit val extendedEd25519: ExtendedEd25519 = new ExtendedEd25519

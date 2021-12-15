@@ -43,4 +43,5 @@ package object typeclasses {
       with Prepend.ToPrependOps
       with NonEmpty.Instances
       with NonEmpty.ToNonEmptyOps
+      with TransactionOps.Instances
 }

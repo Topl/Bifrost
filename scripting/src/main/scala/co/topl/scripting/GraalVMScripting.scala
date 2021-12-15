@@ -4,15 +4,20 @@ import cats.effect._
 import cats.implicits._
 import io.circe.syntax._
 import io.circe.{Json, JsonNumber, JsonObject}
-import org.graalvm.polyglot.proxy.ProxyObject
-import org.graalvm.polyglot.{Context, Value}
+import org.graalvm.polyglot.proxy.{ProxyArray, ProxyObject}
+import org.graalvm.polyglot.{Context, HostAccess, Value}
 
 import java.util
 import scala.language.implicitConversions
 
 object GraalVMScripting {
 
-  private val ctx = Context.create()
+  private val ctx = Context
+    .newBuilder()
+    .allowExperimentalOptions(true)
+    .option("js.experimental-foreign-object-prototype", "true")
+    .allowHostAccess(HostAccess.newBuilder().allowListAccess(true).build())
+    .build()
 
   def jsExecutor[F[_]: Sync, Res: GraalVMValuable](script: String): F[Seq[Value] => F[Res]] =
     languageExecutor[F, Res]("js", script)
@@ -137,7 +142,17 @@ object GraalVMScripting {
 
             def onString(value: String): Value = Value.asValue(value)
 
-            def onArray(value: Vector[Json]): Value = Value.asValue(value.map(toGraalValue).toArray)
+            import scala.jdk.CollectionConverters.SeqHasAsJava
+
+            def onArray(value: Vector[Json]): Value = {
+              val arr: Array[AnyRef] = new Array(value.size)
+              value.zipWithIndex.foreach { case (j, idx) =>
+                arr.update(idx, toGraalValue(j))
+              }
+              val x = Value
+                .asValue(ProxyArray.fromArray(arr: _*))
+              x
+            }
 
             def onObject(value: JsonObject): Value = {
               val map = new java.util.HashMap[String, AnyRef](value.size)
@@ -148,7 +163,8 @@ object GraalVMScripting {
             }
           }
 
-        def toGraalValue(t: Json): Value = t.foldWith(folder)
+        def toGraalValue(t: Json): Value =
+          t.foldWith(folder)
 
         def fromGraalValue(value: Value): Json =
           if (value.isNull) Json.Null
