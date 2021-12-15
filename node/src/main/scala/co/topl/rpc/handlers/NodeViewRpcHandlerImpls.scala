@@ -4,7 +4,7 @@ import akka.actor.typed.ActorSystem
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, InvalidParametersError, RpcError, ThrowableData}
 import co.topl.attestation.Address
-import co.topl.consensus.{blockVersion, getProtocolRules, ForgerInterface}
+import co.topl.consensus.{blockVersion, getProtocolRules, Forger, ForgerInterface}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
@@ -142,7 +142,11 @@ class NodeViewRpcHandlerImpls(
         forgerStatus <- forgerInterface
           .checkForgerStatus()
           .leftMap(e => ToplRpcErrors.genericFailure(e.toString): RpcError)
-          .map(_.forgerBehavior)
+          .map {
+            case Forger.Active        => "active"
+            case Forger.Idle          => "idle"
+            case Forger.Uninitialized => "uninitialized"
+          }
         mempoolSize <- withNodeView(_.memPool.size)
       } yield ToplRpc.NodeView.Status.Response(forgerStatus, mempoolSize)
 
