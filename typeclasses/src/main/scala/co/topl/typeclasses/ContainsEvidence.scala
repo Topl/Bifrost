@@ -126,14 +126,60 @@ object ContainsEvidence {
           )
         )
 
-    implicit val requiredOutputContainsEvidence: ContainsEvidence[Propositions.Contextual.RequiredDionOutput] =
-      t =>
+//    implicit val requiredOutputContainsEvidence: ContainsEvidence[Propositions.Contextual.RequiredDionOutput] =
+//      t =>
+//        TypedEvidence(
+//          9: Byte,
+//          Sized.strictUnsafe(
+//            Bytes(
+//              blake2b256
+//                .hash(Ints.toByteArray(t.index) ++ t.address.allBytes.toArray)
+//                .value
+//            )
+//          )
+//        )
+
+    implicit val requiredInputBoxStateContainsEvidence: ContainsEvidence[Propositions.Contextual.RequiredBoxState] =
+      t => {
+        val locationPrefix = t.location match {
+          case BoxLocations.Input => 0: Byte
+          case BoxLocations.Output => 1: Byte
+        }
+
         TypedEvidence(
-          9: Byte,
+          15: Byte,
           Sized.strictUnsafe(
             Bytes(
               blake2b256
-                .hash(Ints.toByteArray(t.index) ++ t.address.allBytes.toArray)
+                .hash(locationPrefix +: t.boxes.map{ case(index, box) => Ints.toByteArray(index) ++ Longs.toByteArray(box.nonce) }.foldLeft(Array.empty[Byte])((acc, a) => acc ++ a))
+                  .value
+                )
+            )
+          )
+      }
+
+
+    implicit val enumeratedOutputContainsEvidence: ContainsEvidence[Propositions.Example.EnumeratedInput] =
+      t =>
+        TypedEvidence(
+          10: Byte,
+          Sized.strictUnsafe(
+            Bytes(
+              blake2b256
+                .hash(t.values.map(Ints.toByteArray).foldLeft(Array.empty[Byte])((acc, a) => acc ++ a))
+                .value
+            )
+          )
+        )
+
+    implicit val commitRevealContainsEvidence: ContainsEvidence[Propositions.Knowledge.HashLock] =
+      t =>
+        TypedEvidence(
+          11: Byte,
+          Sized.strictUnsafe(
+            Bytes(
+              blake2b256
+                .hash(t.digest.data.toArray)
                 .value
             )
           )
@@ -146,7 +192,7 @@ object ContainsEvidence {
         extendedEd25519KnowledgePropositionContainsEvidence.typedEvidenceOf(t)
 
       case t: Propositions.Contextual.HeightLock => heightLockContainsEvidence.typedEvidenceOf(t)
-      case t: Propositions.Contextual.RequiredDionOutput => requiredOutputContainsEvidence.typedEvidenceOf(t)
+//      case t: Propositions.Contextual.RequiredDionOutput => requiredOutputContainsEvidence.typedEvidenceOf(t)
 
       case t: Propositions.Compositional.And => andContainsEvidence(propositionContainsEvidence).typedEvidenceOf(t)
       case t: Propositions.Compositional.Or  => orContainsEvidence(propositionContainsEvidence).typedEvidenceOf(t)
@@ -154,6 +200,10 @@ object ContainsEvidence {
         thresholdContainsEvidence(propositionContainsEvidence).typedEvidenceOf(t)
       case Propositions.PermanentlyLocked =>
         permanentlyLockedContainsEvidence.typedEvidenceOf(Propositions.PermanentlyLocked)
+
+      case t: Propositions.Knowledge.HashLock => commitRevealContainsEvidence.typedEvidenceOf(t)
+      case t: Propositions.Example.EnumeratedInput => enumeratedOutputContainsEvidence.typedEvidenceOf(t)
+      case t: Propositions.Contextual.RequiredBoxState => requiredInputBoxStateContainsEvidence.typedEvidenceOf(t)
     }
   }
 

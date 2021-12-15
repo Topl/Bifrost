@@ -12,6 +12,7 @@ object Propositions {
     case class Curve25519(key: VerificationKeys.Curve25519) extends Proposition
     case class Ed25519(key: VerificationKeys.Ed25519) extends Proposition
     case class ExtendedEd25519(key: VerificationKeys.ExtendedEd25519) extends Proposition
+    case class HashLock(digest: Digest32) extends Proposition
   }
 
   object Compositional {
@@ -22,7 +23,19 @@ object Propositions {
 
   object Contextual {
     case class HeightLock(height: Long) extends Proposition
-    case class RequiredDionOutput(index: Int, address: DionAddress) extends Proposition
+    //case class RequiredDionOutput(index: Int, address: DionAddress) extends Proposition
+    case class RequiredBoxState(location: BoxLocation, boxes: List[(Int, Box[Box.Value])]) extends Proposition
+  }
+
+  object Example {
+    case class EnumeratedInput(values: List[Int]) extends Proposition
   }
 
 }
+
+sealed abstract class BoxLocation
+object BoxLocations {
+  case object Input extends BoxLocation
+  case object Output extends BoxLocation
+}
+

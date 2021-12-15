@@ -2,6 +2,8 @@ package co.topl.credential
 
 import cats.Id
 import cats.data.NonEmptyChain
+import co.topl.credential.XorGameSetup.fullGameProposition
+import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
@@ -12,124 +14,293 @@ import co.topl.typeclasses.{KeyInitializer, VerificationContext}
 import scala.collection.immutable.ListMap
 import scala.util.Random
 
-object CredentialPlayground extends App {
+///**
+// *  contextual proof to check the output box of the current transaction
+// *  secret sharing structure (one of one)
+// *  HTLC
+// *  token excahnge with buyback
+// *  ICO
+// *  rock-paper-scissors
+// *  how could I make our token ontology?
+// */
+
+object SetupSandbox {
   implicit val ed25519: Ed25519 = new Ed25519
   implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.precomputed()
   implicit val networkPrefix: NetworkPrefix = NetworkPrefix(1: Byte)
 
-  // Exercise: Construct complex propositions and attempt to prove them using Credentials
+  val curve25519Sk: SecretKeys.Curve25519 = KeyInitializer[SecretKeys.Curve25519].random()
+  val ed25519Sk: SecretKeys.Ed25519 = KeyInitializer[SecretKeys.Ed25519].random()
+  val aliceSk: SecretKeys.Curve25519 = KeyInitializer[SecretKeys.Curve25519].random()
+  val bobSk: SecretKeys.Ed25519 = KeyInitializer[SecretKeys.Ed25519].random()
 
-  // Example:
-  val party1SK: SecretKeys.Ed25519 = KeyInitializer[SecretKeys.Ed25519].random()
-  val party2SK: SecretKeys.Curve25519 = KeyInitializer[SecretKeys.Curve25519].random()
+  val address0: DionAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.dionAddress
+  val address1: DionAddress = curve25519Sk.vk.asProposition.and(ed25519Sk.vk.asProposition).dionAddress
 
-  val party3Address: DionAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.dionAddress
-
-  val proposition = party1SK.vk.asProposition.and(party2SK.vk.asProposition)
-  println(proposition)
-
-  val unprovenTransaction: Transaction.Unproven = Transaction.Unproven(
-    inputs = List((proposition.dionAddress, Random.nextLong())),
-    feeOutput = None,
-    coinOutputs = NonEmptyChain(Transaction.PolyOutput(party3Address, Sized.maxUnsafe(BigInt(10)))),
-    fee = Sized.maxUnsafe(BigInt(5)),
-    timestamp = System.currentTimeMillis(),
-    data = None,
-    minting = false
-  )
-
-  val credential = Credential.Compositional.And(
-    proposition,
-    List(
-      Credential.Knowledge.Ed25519(party1SK, unprovenTransaction),
-      Credential.Knowledge.Curve25519(party2SK, unprovenTransaction)
+  def createUnprovenTransaction(
+    inputs:      List[BoxReference],
+    coinOutputs: NonEmptyChain[Transaction.CoinOutput]
+  ): Transaction.Unproven =
+    Transaction.Unproven(
+      inputs,
+      feeOutput = None,
+      coinOutputs,
+      fee = Sized.maxUnsafe(BigInt(5)),
+      timestamp = System.currentTimeMillis(),
+      data = None,
+      minting = false
     )
-  )
 
-  val proof = credential.proof
-  println(proof)
-
-  val transaction = Transaction(
-    inputs = ListMap.from(unprovenTransaction.inputs.map(_ -> (proposition, proof))),
-    feeOutput = unprovenTransaction.feeOutput,
-    coinOutputs = unprovenTransaction.coinOutputs,
-    fee = unprovenTransaction.fee,
-    timestamp = unprovenTransaction.timestamp,
-    data = unprovenTransaction.data,
-    minting = unprovenTransaction.minting
-  )
-  println(transaction)
-
+  def transactionFromUnproven(unprovenTransaction: Transaction.Unproven, attestation: Attestation): Transaction =
+    Transaction(
+      inputs = ListMap.from(unprovenTransaction.inputs.zip(attestation)),
+      feeOutput = unprovenTransaction.feeOutput,
+      coinOutputs = unprovenTransaction.coinOutputs,
+      fee = unprovenTransaction.fee,
+      timestamp = unprovenTransaction.timestamp,
+      data = unprovenTransaction.data,
+      minting = unprovenTransaction.minting
+    )
 }
 
+object CredentialPlayground extends App {
+  import SetupSandbox._
 
-/**
- * 1. Should add a contextual proof to check the output box of the current transaction
- * 2. Would be interested to explore how to "group" transactions into a "context" and evaluate a series of transactions with their intermediary state
- * 3.
- */
-object JamesRequiredOutput extends App {
-  // secret sharing structure (one of one)
-  // HTLC
-  // token excahnge with buyback
-  // ICO
-  // rock-paper-scissors
-  //
+  val proposition = curve25519Sk.vk.asProposition.and(ed25519Sk.vk.asProposition)
+  println(s"The address for the proposition is: ${proposition.dionAddress}")
 
-  implicit val ed25519: Ed25519 = new Ed25519
-  implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.precomputed()
-  implicit val networkPrefix: NetworkPrefix = NetworkPrefix(1: Byte)
-
-  // Exercise: Construct complex propositions and attempt to prove them using Credentials
-
-  // Example:
-  val party1SK: SecretKeys.Ed25519 = KeyInitializer[SecretKeys.Ed25519].random()
-  val party2SK: SecretKeys.Curve25519 = KeyInitializer[SecretKeys.Curve25519].random()
-
-  val party3Address: DionAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.dionAddress
-
-  // Locking proposition for the initial transaction
-  val proposition = party1SK.vk.asProposition.and(Propositions.Contextual.RequiredDionOutput(0, party3Address))
-  println(proposition.dionAddress)
-
-  val unprovenTransaction: Transaction.Unproven = Transaction.Unproven(
-    inputs = List((proposition.dionAddress, Random.nextLong())),
-    feeOutput = None,
-    coinOutputs = NonEmptyChain(Transaction.PolyOutput(party3Address, Sized.maxUnsafe(BigInt(10)))),
-    fee = Sized.maxUnsafe(BigInt(5)),
-    timestamp = System.currentTimeMillis(),
-    data = None,
-    minting = false
+  val unprovenTransaction: Transaction.Unproven = createUnprovenTransaction(
+    List((proposition.dionAddress, Random.nextLong())),
+    NonEmptyChain(Transaction.PolyOutput(address0, Sized.maxUnsafe(BigInt(10))))
   )
 
   val credential = Credential.Compositional.And(
     proposition,
     List(
-      Credential.Knowledge.Ed25519(party1SK, unprovenTransaction),
-      Credential.Contextual.RequiredDionOutput(0, party3Address)
+      Credential.Knowledge.Ed25519(ed25519Sk, unprovenTransaction),
+      Credential.Knowledge.Curve25519(curve25519Sk, unprovenTransaction)
     )
   )
 
   val proof = credential.proof
   println(proof)
 
-  val transaction = Transaction(
-    inputs = ListMap.from(unprovenTransaction.inputs.map(_ -> (proposition, proof))),
-    feeOutput = unprovenTransaction.feeOutput,
-    coinOutputs = unprovenTransaction.coinOutputs,
-    fee = unprovenTransaction.fee,
-    timestamp = unprovenTransaction.timestamp,
-    data = unprovenTransaction.data,
-    minting = unprovenTransaction.minting
-  )
+  val transaction = transactionFromUnproven(unprovenTransaction, ListMap(proposition -> proof))
   println(transaction)
 
   implicit val context: VerificationContext[Id] = new VerificationContext[Id] {
     def currentTransaction: Transaction = transaction
     def currentHeight: Long = 1
+    def inputBoxes: List[Box[Box.Value]] = List(Box(
+      proposition.typedEvidence,
+      unprovenTransaction.inputs.head._2,
+      Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
+      10
+    ))
   }
 
   println(s"Does the proof satisfy the proposition? ${proposition isSatisfiedBy proof}")
 
+}
 
+object RequiredOutput extends App {
+  import SetupSandbox._
+
+  val requiredBoxProposition = Propositions.Contextual.RequiredBoxState(BoxLocations.Output, List((0, Box.empty.copy(evidence = address0.typedEvidence))))
+  val proposition = curve25519Sk.vk.asProposition.and(requiredBoxProposition)
+  println(s"The address for the proposition is: ${proposition.dionAddress}")
+
+  val unprovenTransaction: Transaction.Unproven = createUnprovenTransaction(
+    List((proposition.dionAddress, Random.nextLong())),
+    NonEmptyChain(Transaction.PolyOutput(address0, Sized.maxUnsafe(BigInt(10))))
+  )
+
+  val credential = Credential.Compositional.And(
+    proposition,
+    List(
+      Credential.Knowledge.Curve25519(curve25519Sk, unprovenTransaction),
+      Credential.Contextual.RequiredBoxState(BoxLocations.Output, List((0, Box.empty.copy(evidence = address0.typedEvidence))))
+    )
+  )
+
+  val proof = credential.proof
+  println(proof)
+
+  val transaction = transactionFromUnproven(unprovenTransaction, ListMap(proposition -> proof))
+  println(transaction)
+
+  implicit val context: VerificationContext[Id] = new VerificationContext[Id] {
+    def currentTransaction: Transaction = transaction
+    def currentHeight: Long = 1
+    def inputBoxes: List[Box[Box.Value]] = List(Box(
+      proposition.typedEvidence,
+      unprovenTransaction.inputs.head._2,
+      Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
+      10
+    ))
+  }
+
+  println(s"Does the proof satisfy the proposition? ${proposition isSatisfiedBy proof}")
+}
+
+object XorGameSetup extends App {
+  import SetupSandbox._
+
+  val aliceSaltInput = blake2b256.hash("test".getBytes)
+  val aliceValueInput: Byte = 0
+  val aliceCommit: Digest32 = Sized.strictUnsafe(Bytes(blake2b256.hash(aliceSaltInput.value :+ aliceValueInput).value))
+
+  val requiredInputBoxProposition = Propositions.Contextual.RequiredBoxState(BoxLocations.Input, List((0, Box.empty.copy(data = aliceValueInput))))
+
+  val fullGameProposition = bobSk.vk.asProposition
+    .and(Propositions.Contextual.HeightLock(50))
+    .or(
+      Propositions.Knowledge.HashLock(aliceCommit)
+        .and(
+          aliceSk.vk.asProposition
+            .and(requiredInputBoxProposition)
+            .or(bobSk.vk.asProposition)
+        )
+    )
+
+  val requiredOutputBoxProposition = Propositions.Contextual.RequiredBoxState(BoxLocations.Output, List((0, Box.empty.copy(evidence = fullGameProposition.typedEvidence))))
+
+  val halfGameProposition = Propositions.Example
+    .EnumeratedInput(List(0, 1))
+    .and(requiredOutputBoxProposition)
+
+  println(s"The address for the proposition is: ${fullGameProposition.dionAddress}")
+
+  val unprovenSetupGame: Transaction.Unproven = createUnprovenTransaction(
+    List((address0, Random.nextLong())),
+    NonEmptyChain(Transaction.PolyOutput(fullGameProposition.dionAddress, Sized.maxUnsafe(BigInt(10))))
+  )
+
+  val halfGameCredential = Credential.Compositional.And(
+    halfGameProposition,
+    List(
+      Credential.Example.EnumeratedInput(List(0, 1), 0),
+      Credential.Contextual.RequiredBoxState(BoxLocations.Output, List((0, Box.empty.copy(evidence = fullGameProposition.dionAddress.typedEvidence))))
+    )
+  )
+
+  val halfGameProof = halfGameCredential.proof
+  println(halfGameProof)
+
+  val transaction = transactionFromUnproven(unprovenSetupGame, ListMap(halfGameProposition -> halfGameProof))
+  println(transaction)
+
+  implicit val context: VerificationContext[Id] = new VerificationContext[Id] {
+    def currentTransaction: Transaction = transaction
+    def currentHeight: Long = 1
+    def inputBoxes: List[Box[Box.Value]] = List()
+  }
+
+  println(s"Does the proof satisfy the proposition? ${halfGameProposition.isSatisfiedBy(halfGameProof)}")
+}
+
+object XorGameCompletion extends App {
+  import SetupSandbox._
+
+  val aliceSaltInput = blake2b256.hash("test".getBytes)
+  val aliceValueInput: Byte = 1
+  val aliceCommit: Digest32 = Sized.strictUnsafe(Bytes(blake2b256.hash(aliceSaltInput.value :+ aliceValueInput).value))
+
+  val requiredInputBoxProposition = Propositions.Contextual.RequiredBoxState(BoxLocations.Input, List((0, Box.empty.copy(data = aliceValueInput))))
+
+  val fullGameProposition = bobSk.vk.asProposition
+    .and(Propositions.Contextual.HeightLock(50))
+    .or(
+      Propositions.Knowledge.HashLock(aliceCommit)
+        .and(
+          aliceSk.vk.asProposition
+            .and(requiredInputBoxProposition)
+            .or(bobSk.vk.asProposition)
+        )
+    )
+
+  val requiredOutputBoxProposition = Propositions.Contextual.RequiredBoxState(BoxLocations.Output, List((0, Box.empty.copy(evidence = fullGameProposition.dionAddress.typedEvidence))))
+
+  val halfGameProposition = Propositions.Example
+    .EnumeratedInput(List(0, 1))
+    .and(requiredOutputBoxProposition)
+
+  println(s"The address for the proposition is: ${fullGameProposition.dionAddress}")
+
+  val unprovenTransaction: Transaction.Unproven = createUnprovenTransaction(
+    List((halfGameProposition.dionAddress, Random.nextLong())),
+    NonEmptyChain(Transaction.PolyOutput(aliceSk.vk.dionAddress, Sized.maxUnsafe(BigInt(10))))
+  )
+
+  val credential = Credential.Compositional.Or(
+    fullGameProposition,
+    List(
+      Credential.Contextual.HeightLock(50),
+      Credential.Knowledge.HashLock(Sized.strictUnsafe(Bytes(aliceSaltInput.value)), aliceValueInput),
+      Credential.Knowledge.Curve25519(aliceSk, unprovenTransaction),
+      Credential.Contextual.RequiredBoxState(BoxLocations.Input, List((0, Box.empty.copy(data = aliceValueInput))))
+    )
+  )
+
+  val proof = credential.proof
+  println(proof)
+
+  val transaction = transactionFromUnproven(unprovenTransaction, ListMap(fullGameProposition -> proof))
+  println(transaction)
+
+  implicit val context: VerificationContext[Id] = new VerificationContext[Id] {
+    def currentTransaction: Transaction = transaction
+    def currentHeight: Long = 1
+    def inputBoxes: List[Box[Box.Value]] = List(Box(
+      halfGameProposition.typedEvidence,
+      unprovenTransaction.inputs.head._2,
+      Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
+      aliceValueInput
+    ))
+  }
+
+  println(s"Does the proof satisfy the proposition? ${fullGameProposition.isSatisfiedBy(proof)}")
+}
+
+// (pk(Receiver) && sha256(H)) || (pk(Refundee) && older(10))
+object HashTimeLockContract {
+  import SetupSandbox._
+
+  val aliceSaltInput = blake2b256.hash("test".getBytes)
+  val aliceValueInput: Byte = 0
+  val aliceCommit: Digest32 = Sized.strictUnsafe(Bytes(blake2b256.hash(aliceSaltInput.value :+ aliceValueInput).value))
+
+  val proposition =
+    aliceSk.vk.asProposition.and(Propositions.Knowledge.HashLock(aliceCommit))
+      .or(bobSk.vk.asProposition.and(Propositions.Contextual.HeightLock(300)))
+
+  println(s"The address for the proposition is: ${proposition}")
+}
+
+object RequiredBoxValue extends App {
+  import SetupSandbox._
+
+  val proposition = Propositions.Contextual.RequiredBoxState(BoxLocations.Output, List((0, Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))))))
+  println(s"The address for the proposition is: ${proposition}")
+
+  val unprovenTransaction: Transaction.Unproven = createUnprovenTransaction(
+    List((proposition.dionAddress, Random.nextLong())),
+    NonEmptyChain(Transaction.PolyOutput(address0, Sized.maxUnsafe(BigInt(10))))
+  )
+
+  val credential = Credential.Contextual.RequiredBoxState(BoxLocations.Output, List((0, Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))))))
+
+  val proof = credential.proof
+  println(proof)
+
+  val transaction = transactionFromUnproven(unprovenTransaction, ListMap(proposition -> proof))
+  println(transaction)
+
+  implicit val context: VerificationContext[Id] = new VerificationContext[Id] {
+    def currentTransaction: Transaction = transaction
+    def currentHeight: Long = 1
+    def inputBoxes: List[Box[Box.Value]] = List()
+  }
+
+  println(s"Does the proof satisfy the proposition? ${proposition isSatisfiedBy proof}")
 }

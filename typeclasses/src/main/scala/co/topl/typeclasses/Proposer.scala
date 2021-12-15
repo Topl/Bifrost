@@ -59,7 +59,6 @@ object Proposer {
     implicit val longProposesHeightLock: Proposer[Long] =
       t => Propositions.Contextual.HeightLock(t)
 
-    //def requiredOutput(index: Int): Propositions.Contextual.RequiredDionOutput = Propositions.Contextual.RequiredDionOutput(index, )
   }
 
   object instances extends Instances
