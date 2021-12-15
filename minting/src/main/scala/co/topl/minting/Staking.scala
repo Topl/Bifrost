@@ -4,11 +4,10 @@ import cats.Monad
 import cats.data.OptionT
 import cats.implicits._
 import co.topl.consensus.algebras.EtaCalculationAlgebra
+import co.topl.crypto.signing.Ed25519
 import co.topl.minting.algebras.LeaderElectionMintingAlgebra.VrfHit
 import co.topl.minting.algebras._
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.Sized
 import co.topl.typeclasses.implicits._
 
 object Staking {
@@ -21,7 +20,7 @@ object Staking {
       evolver:                OperationalKeysAlgebra[F],
       vrfRelativeStakeLookup: VrfRelativeStakeMintingLookupAlgebra[F],
       etaCalculation:         EtaCalculationAlgebra[F]
-    ): StakingAlgebra[F] = new StakingAlgebra[F] {
+    )(implicit ed25519:       Ed25519): StakingAlgebra[F] = new StakingAlgebra[F] {
       val address: F[TaktikosAddress] = a.pure[F]
 
       def elect(parent: BlockHeaderV2, slot: Slot): F[Option[VrfHit]] =
@@ -33,9 +32,16 @@ object Staking {
               .value
           )
 
-      def certifyBlock(unsignedBlock: BlockV2.Unsigned): F[Option[BlockV2]] =
-        OptionT(evolver.operationalKeyForSlot(unsignedBlock.unsignedHeader.slot.toInt))
-          .map(evolvedKey => temporaryOpCert)
+      def certifyBlock(unsignedBlock: BlockV2.Unsigned): F[Option[BlockV2]] = {
+        val parentSlotId = SlotId(unsignedBlock.unsignedHeader.parentSlot, unsignedBlock.unsignedHeader.parentHeaderId)
+        OptionT(evolver.operationalKeyForSlot(unsignedBlock.unsignedHeader.slot.toInt, parentSlotId))
+          .map(evolvedKey =>
+            OperationalCertificate(
+              ed25519.sign(evolvedKey.sk, unsignedBlock.unsignedHeader.signableBytes),
+              ed25519.getVerificationKey(evolvedKey.sk),
+              evolvedKey.proofOfVk
+            )
+          )
           .map(operationalCertificate =>
             BlockHeaderV2(
               unsignedBlock.unsignedHeader.parentHeaderId,
@@ -58,37 +64,7 @@ object Staking {
             )
           )
           .value
-
-      // TODO: Generate a _real_ operational certificate
-      val temporaryOpCert: OperationalCertificate = OperationalCertificate(
-        Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(Array.fill(64)(0: Byte)))),
-        VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(Array.fill(32)(0: Byte)))),
-        Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(Array.fill(64)(0: Byte))))
-      )
-//
-//      private def temporaryOpCert =
-//        OperationalCertificate(
-//          opSig = Proofs.Signature.HdKes(
-//            i = 0,
-//            vkI = VerificationKeys.Ed25519(BlockGenesis.zeroBytes),
-//            ecSignature = Proofs.Signature.Ed25519(BlockGenesis.zeroBytes),
-//            sigSumJ = Proofs.Signature.SumProduct(
-//              ecSignature = Proofs.Signature.Ed25519(BlockGenesis.zeroBytes),
-//              vkK = VerificationKeys.Ed25519(BlockGenesis.zeroBytes),
-//              index = 0,
-//              witness = Nil
-//            ),
-//            sigSumK = Proofs.Signature.SumProduct(
-//              ecSignature = Proofs.Signature.Ed25519(BlockGenesis.zeroBytes),
-//              vkK = VerificationKeys.Ed25519(BlockGenesis.zeroBytes),
-//              index = 0,
-//              witness = Nil
-//            )
-//          ),
-//          xvkM =
-//            VerificationKeys.ExtendedEd25519(VerificationKeys.Ed25519(BlockGenesis.zeroBytes), BlockGenesis.zeroBytes),
-//          slotR = 0
-//        )
+      }
     }
   }
 

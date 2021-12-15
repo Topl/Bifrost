@@ -53,7 +53,19 @@ object BlockGenesis {
   val kesCertificate: OperationalCertificate = OperationalCertificate(
     Proofs.Knowledge.Ed25519(zeroBytes(Lengths.`64`)),
     VerificationKeys.Ed25519(zeroBytes(Lengths.`32`)),
-    Proofs.Knowledge.Ed25519(zeroBytes(Lengths.`64`))
+    Proofs.Knowledge.KesProduct(
+      Proofs.Knowledge.KesSum(
+        VerificationKeys.Ed25519(zeroBytes(Lengths.`32`)),
+        Proofs.Knowledge.Ed25519(zeroBytes(Lengths.`64`)),
+        Vector.empty
+      ),
+      Proofs.Knowledge.KesSum(
+        VerificationKeys.Ed25519(zeroBytes(Lengths.`32`)),
+        Proofs.Knowledge.Ed25519(zeroBytes(Lengths.`64`)),
+        Vector.empty
+      ),
+      zeroBytes(Lengths.`32`)
+    )
   )
 
   def apply(transactions: Seq[Transaction]): Eval[BlockV2] = Eval.later {

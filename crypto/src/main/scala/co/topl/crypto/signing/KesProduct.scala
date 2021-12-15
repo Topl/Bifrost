@@ -26,7 +26,7 @@ class KesProduct
       SecretKeys.KesProduct(
         sk._1,
         sk._2,
-        Sized.strictUnsafe(Bytes(sk._3)),
+        sk._3,
         Proofs.Knowledge.KesSum(
           VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(sk._4._1))),
           Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(sk._4._2))),
@@ -85,7 +85,7 @@ class KesProduct
     SecretKeys.KesProduct(
       sk._1,
       sk._2,
-      Sized.strictUnsafe(Bytes(sk._3)),
+      sk._3,
       Proofs.Knowledge.KesSum(
         VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(sk._4._1))),
         Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(sk._4._2))),
@@ -110,7 +110,7 @@ class KesProduct
     (
       privateKey.superTree,
       privateKey.subTree,
-      privateKey.nextSubSeed.data.toArray,
+      privateKey.nextSubSeed,
       (
         privateKey.subSignature.verificationKey.bytes.data.toArray,
         privateKey.subSignature.signature.bytes.data.toArray,

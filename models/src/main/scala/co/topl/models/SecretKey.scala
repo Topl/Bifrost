@@ -38,20 +38,12 @@ object SecretKeys {
 
   case class KesSum(tree: KesBinaryTree, offset: Long) extends SecretKey
 
-  object KesSum {
-    ///type Length = ???
-  }
-
   case class KesProduct(
-    superTree:    KesBinaryTree,
-    subTree:      KesBinaryTree,
-    nextSubSeed:  Sized.Strict[Bytes, KesProduct.SeedLength],
+    superTree:    KesBinaryTree, // Hour hand
+    subTree:      KesBinaryTree, // Minute hand
+    nextSubSeed:  Array[Byte],
     subSignature: Proofs.Knowledge.KesSum,
     offset:       Long
   ) extends SecretKey
-
-  object KesProduct {
-    type SeedLength = Lengths.`32`.type
-  }
 
 }

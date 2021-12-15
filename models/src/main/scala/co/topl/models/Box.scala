@@ -23,11 +23,10 @@ object Box {
       case class Code(version: Byte, issuer: DionAddress, shortName: Sized.Max[Latin1Data, Lengths.`8`.type])
     }
 
-    // Note: We don't need to worry about these for phase 0
     case class TaktikosRegistration(
-      vrfCommitment:    Sized.Strict[Bytes, Lengths.`32`.type],
-      extendedVk:       VerificationKeys.ExtendedEd25519,
-      registrationSlot: Slot
+      vrfCommitment:  Sized.Strict[Bytes, Lengths.`32`.type],
+      operationalVK:  VerificationKeys.KesProduct,
+      activationSlot: Slot
     ) extends Value
     case class TaktikosDelegation(address: TaktikosAddress) extends Value
   }

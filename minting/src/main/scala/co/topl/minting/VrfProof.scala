@@ -7,6 +7,8 @@ import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.consensus.LeaderElectionValidation
+import co.topl.consensus.LeaderElectionValidation.VrfConfig
+import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.algebras.VrfProofAlgebra
 import co.topl.models._
@@ -21,8 +23,10 @@ object VrfProof {
   object Eval {
 
     def make[F[_]: MonadError[*[_], Throwable]: Sync](
-      skVrf: SecretKeys.VrfEd25519,
-      clock: ClockAlgebra[F]
+      skVrf:                    SecretKeys.VrfEd25519,
+      clock:                    ClockAlgebra[F],
+      leaderElectionValidation: LeaderElectionValidationAlgebra[F],
+      vrfConfig:                VrfConfig
     ): F[VrfProofAlgebra[F]] = {
       implicit val cacheConfig: CacheConfig = CacheConfig(cacheKeyBuilder = new CacheKeyBuilder {
         def toCacheKey(parts: Seq[Any]): String =
@@ -96,8 +100,18 @@ object VrfProof {
                     arg.signableBytes
                   )
 
-                def ineligibleSlots(epoch: Epoch): F[Vector[Slot]] =
-                  Vector.empty[Slot].pure[F]
+                def ineligibleSlots(epoch: Epoch, eta: Eta): F[Vector[Slot]] =
+                  OptionT(rhos.get(eta))
+                    .getOrElseF(
+                      new IllegalStateException(show"rhos were not precomputed for epoch=$epoch eta=$eta")
+                        .raiseError[F, LongMap[Rho]]
+                    )
+                    .flatMap(_.toList.traverse { case (slot, rho) =>
+                      leaderElectionValidation
+                        .isSlotLeaderForThreshold(vrfConfig.amplitude)(rho)
+                        .map(isLeader => slot -> isLeader)
+                    })
+                    .map(_.collect { case (slot, false) => slot }.toVector)
               }
             )
         }

@@ -216,7 +216,7 @@ trait BasicCodecs {
       def encode(t: SecretKeys.KesProduct, writer: Writer): Unit = {
         t.superTree.writeBytesTo(writer)
         t.subTree.writeBytesTo(writer)
-        t.nextSubSeed.writeBytesTo(writer)
+        writer.putBytes(t.nextSubSeed)
         t.subSignature.writeBytesTo(writer)
         writer.putLong(t.offset)
       }
@@ -225,7 +225,7 @@ trait BasicCodecs {
         SecretKeys.KesProduct(
           ByteCodec[KesBinaryTree].decode(reader),
           ByteCodec[KesBinaryTree].decode(reader),
-          ByteCodec[Sized.Strict[Bytes, SecretKeys.KesProduct.SeedLength]].decode(reader),
+          reader.getBytes(32),
           ByteCodec[Proofs.Knowledge.KesSum].decode(reader),
           reader.getLong()
         )

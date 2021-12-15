@@ -8,6 +8,7 @@ import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.codecs.bytes.implicits._
+import co.topl.consensus.algebras.EtaCalculationAlgebra
 import co.topl.crypto.keyfile.SecureStore
 import co.topl.crypto.signing._
 import co.topl.minting.algebras._
@@ -16,6 +17,7 @@ import co.topl.typeclasses.KeyInitializer
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 
+import java.util.UUID
 import scala.collection.immutable.LongMap
 
 object OperationalKeys {
@@ -23,11 +25,13 @@ object OperationalKeys {
   object FromSecureStore {
 
     def make[F[_]: Concurrent: Logger](
-      secureStore:                   SecureStore[F],
-      clock:                         ClockAlgebra[F],
-      vrfProof:                      VrfProofAlgebra[F],
-      operationalPeriodLength:       Long,
-      registrationOperationalPeriod: Long
+      secureStore:                 SecureStore[F],
+      clock:                       ClockAlgebra[F],
+      vrfProof:                    VrfProofAlgebra[F],
+      etaCalculation:              EtaCalculationAlgebra[F],
+      parentSlotId:                SlotId,
+      operationalPeriodLength:     Long,
+      activationOperationalPeriod: Long
     )(implicit
       kesProduct: KesProduct,
       ed25519:    Ed25519
@@ -36,40 +40,73 @@ object OperationalKeys {
         initialSlot <- clock.globalSlot
         initialOperationalPeriod = initialSlot / operationalPeriodLength
         initialKeysOpt <- OptionT(
-          consumeEvolvePersist(initialOperationalPeriod, registrationOperationalPeriod, secureStore)
-        )
-          .semiflatMap(prepareOperationalPeriodKeys(_, initialSlot, operationalPeriodLength, clock, vrfProof))
-          .map(outs => LongMap.from(outs.map(o => o.slot -> o)))
-          .value
+          consumeEvolvePersist(
+            (initialOperationalPeriod - activationOperationalPeriod).toInt,
+            secureStore,
+            prepareOperationalPeriodKeys(
+              _,
+              initialSlot,
+              parentSlotId,
+              operationalPeriodLength,
+              clock,
+              vrfProof,
+              etaCalculation
+            )
+          )
+        ).value
         ref <- Ref.of((initialOperationalPeriod, initialKeysOpt))
       } yield make[F](
         secureStore,
         clock,
         vrfProof,
+        etaCalculation,
         operationalPeriodLength,
-        registrationOperationalPeriod,
+        activationOperationalPeriod,
         ref
       )
 
-    def make[F[_]: Monad: Logger](
-      secureStore:                   SecureStore[F],
-      clock:                         ClockAlgebra[F],
-      vrfProof:                      VrfProofAlgebra[F],
-      operationalPeriodLength:       Long,
-      registrationOperationalPeriod: Long,
-      ref:                           Ref[F, (Long, Option[LongMap[OperationalKeyOut]])]
+//    def a(slot: Slot, operationalPeriod: Long, epoch: Epoch)
+//    def slotWithinEpoch(slot:                           Slot, slotsPerEpoch:              Long) = slot % slotsPerEpoch
+//    def slotWithinOperationalPeriod(slot:               Slot, slotsPerOperationalPeriod:  Long) = slot % slotsPerOperationalPeriod
+//
+//    def operationalPeriodWithinEpoch(operationalPeriod: Long, operationalPeriodsPerEpoch: Long) =
+//      operationalPeriod % operationalPeriodsPerEpoch
+    // This _should_ be less than 2^18 (or the maximum size of the KesProduct key)
+    // def keyTimeStep(currentOperationalPeriod: Long, activationOperationalPeriod: Long) =
+    //   currentOperationalPeriod - activationOperationalPeriod
+
+    def make[F[_]: MonadError[*[_], Throwable]: Logger](
+      secureStore:                 SecureStore[F],
+      clock:                       ClockAlgebra[F],
+      vrfProof:                    VrfProofAlgebra[F],
+      etaCalculation:              EtaCalculationAlgebra[F],
+      operationalPeriodLength:     Long,
+      activationOperationalPeriod: Long,
+      ref:                         Ref[F, (Long, Option[LongMap[OperationalKeyOut]])]
     )(implicit
       kesProduct: KesProduct,
       ed25519:    Ed25519
-    ): OperationalKeysAlgebra[F] = { (slot: Slot) =>
+    ): OperationalKeysAlgebra[F] = { (slot: Slot, parentSlotId: SlotId) =>
       val operationalPeriod = slot / operationalPeriodLength
       ref.get.flatMap {
         case (`operationalPeriod`, keysOpt) =>
           keysOpt.flatMap(_.get(slot)).pure[F]
         case _ =>
-          OptionT(consumeEvolvePersist(operationalPeriod, registrationOperationalPeriod, secureStore))
-            .semiflatMap(prepareOperationalPeriodKeys(_, slot, operationalPeriodLength, clock, vrfProof))
-            .map(outs => LongMap.from(outs.map(o => o.slot -> o)))
+          OptionT(
+            consumeEvolvePersist(
+              (operationalPeriod - activationOperationalPeriod).toInt,
+              secureStore,
+              use = prepareOperationalPeriodKeys(
+                _,
+                slot,
+                parentSlotId,
+                operationalPeriodLength,
+                clock,
+                vrfProof,
+                etaCalculation
+              )
+            )
+          )
             .semiflatTap(newKeys => ref.set(operationalPeriod -> newKeys.some))
             .flatTapNone(ref.set(operationalPeriod -> None))
             .subflatMap(_.get(slot))
@@ -79,70 +116,70 @@ object OperationalKeys {
 
     /**
      * Consume the key (and any previous/lingering keys) closest to the given `currentOperationalPeriod`.  If the closest
-     * key is not yet at the `currentOperationalPeriod`, it is evolved up to the `currentOperationalPeriod`.  The
-     * key for `currentOperationalPeriod + 1` is constructed and saved to disk.  The `currentOperationalPeriod` key is
-     * returned.
+     * key is not yet at the `currentOperationalPeriod`, it is updated up to the `currentOperationalPeriod`.  The
+     * key for `timeStep + 1` is constructed and saved to disk.
      */
-    private def consumeEvolvePersist[F[_]: Monad: Logger](
-      currentOperationalPeriod:      Long,
-      registrationOperationalPeriod: Long,
-      secureStore:                   SecureStore[F]
-    ): F[Option[SecretKeys.KesProduct]] = {
+    private def consumeEvolvePersist[F[_]: MonadError[*[_], Throwable]: Logger, T](
+      timeStep:            Int,
+      secureStore:         SecureStore[F],
+      use:                 SecretKeys.KesProduct => F[T]
+    )(implicit kesProduct: KesProduct): F[Option[T]] = {
       for {
-        (toErase, latest) <- OptionT(
-          secureStore.list
-            .map(_.flatMap(t => Chain.fromOption(t.toLongOption)).filter(_ <= currentOperationalPeriod).sorted.initLast)
-        )
-        _ <- OptionT.liftF(
-          toErase
-            .map(_.toString)
-            .traverse(k => Logger[F].info(show"Erasing old key idx=$k").flatMap(_ => secureStore.erase(k)))
-        )
-        _       <- OptionT.liftF(Logger[F].info(show"Consuming key idx=$latest"))
-        diskKey <- OptionT(secureStore.consume[SecretKeys.KesProduct](latest.toString))
-        currentPeriodKey =
-          if (latest === (currentOperationalPeriod - registrationOperationalPeriod)) diskKey
-          else
-            KesProduct.instance.update(
-              diskKey,
-              (currentOperationalPeriod - registrationOperationalPeriod).toInt
+        fileName <- OptionT.liftF(secureStore.list.flatMap {
+          case Chain(fileName) => fileName.pure[F]
+          case _ =>
+            MonadError[F, Throwable].raiseError[String](
+              new IllegalStateException("SecureStore contained 0 or multiple keys")
             )
-        nextKeyIndex = currentOperationalPeriod - registrationOperationalPeriod + 1
-        _ <- OptionT.liftF(Logger[F].info(show"Saving next key idx=$nextKeyIndex"))
+        })
+        _       <- OptionT.liftF(Logger[F].info(show"Consuming key idx=$fileName"))
+        diskKey <- OptionT(secureStore.consume[SecretKeys.KesProduct](fileName))
+        latest = kesProduct.getCurrentStep(diskKey)
+        currentPeriodKey =
+          if (latest === timeStep) diskKey
+          else kesProduct.update(diskKey, timeStep.toInt)
+        res <- OptionT.liftF(use(currentPeriodKey))
+        nextTimeStep = timeStep + 1
+        _ <- OptionT.liftF(Logger[F].info(show"Saving next key idx=$nextTimeStep"))
         _ <- OptionT.liftF(
           secureStore.write(
-            nextKeyIndex.toString,
-            KesProduct.instance.update(
+            UUID.randomUUID().toString,
+            kesProduct.update(
               currentPeriodKey,
-              nextKeyIndex.toInt
+              nextTimeStep.toInt
             )
           )
         )
-      } yield currentPeriodKey
+      } yield res
     }.value
 
     /**
      * Using some KES child, construct the linear keys for the upcoming operational period.  A linear key is constructed
      * for each slot for which we _might_ be eligible for VRF.
      */
-    private def prepareOperationalPeriodKeys[F[_]: Monad](
+    private def prepareOperationalPeriodKeys[F[_]: Monad: Logger](
       kesChild:                SecretKeys.KesProduct,
       fromSlot:                Slot,
+      parentSlotId:            SlotId,
       operationalPeriodLength: Long,
       clock:                   ClockAlgebra[F],
-      vrfProof:                VrfProofAlgebra[F]
+      vrfProof:                VrfProofAlgebra[F],
+      etaCalculation:          EtaCalculationAlgebra[F]
     )(implicit
       kesProduct: KesProduct,
       ed25519:    Ed25519
-    ): F[Vector[OperationalKeyOut]] =
+    ): F[LongMap[OperationalKeyOut]] =
       for {
         epoch           <- clock.epochOf(fromSlot)
-        ineligibleSlots <- vrfProof.ineligibleSlots(epoch).map(_.toSet)
+        eta             <- etaCalculation.etaToBe(parentSlotId, fromSlot)
+        ineligibleSlots <- vrfProof.ineligibleSlots(epoch, eta).map(_.toSet)
         slots = Vector
           .tabulate((operationalPeriodLength - (fromSlot % operationalPeriodLength)).toInt)(_ + fromSlot)
           .filterNot(ineligibleSlots)
-        keys = prepareOperationalPeriodKeys(kesChild, slots)
-      } yield keys
+        _ <- Logger[F].info(s"Preparing linear keys.  count=${slots.size}")
+        outs = prepareOperationalPeriodKeys(kesChild, slots)
+        mappedKeys = LongMap.from(outs.map(o => o.slot -> o))
+      } yield mappedKeys
 
     /**
      * From some "child" KES key, create several SKs for each slot in the given list of slots

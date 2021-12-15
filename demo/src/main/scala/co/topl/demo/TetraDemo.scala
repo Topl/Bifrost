@@ -26,6 +26,7 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.nio.file.{Files, Paths}
+import java.util.UUID
 import scala.concurrent.duration._
 import scala.util.Random
 
@@ -35,11 +36,15 @@ object TetraDemo extends IOApp.Simple {
 
   private val stakers = List.fill(5) {
 
-    implicit val ed25519Vrf: Ed25519VRF =
-      Ed25519VRF.precomputed()
+    implicit val ed25519Vrf: Ed25519VRF = Ed25519VRF.precomputed()
+    implicit val ed25519: Ed25519 = new Ed25519
+    implicit val kesProduct: KesProduct = new KesProduct
 
     val stakerVrfKey =
       KeyInitializer[SecretKeys.VrfEd25519].random()
+
+    val (kesKey, kesVK) =
+      kesProduct.createKeyPair(seed = Bytes(Random.nextBytes(32)), height = (9, 9), 0)
 
     val stakerRegistration: Box.Values.TaktikosRegistration =
       Box.Values.TaktikosRegistration(
@@ -50,15 +55,9 @@ object TetraDemo extends IOApp.Simple {
               .value
           )
         ),
-        extendedVk = VerificationKeys.ExtendedEd25519(
-          VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
-          Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))
-        ),
-        registrationSlot = 0
+        operationalVK = kesVK,
+        activationSlot = 0
       )
-
-    implicit val ed25519: Ed25519 = new Ed25519
-    implicit val kesProduct: KesProduct = new KesProduct
 
     val stakerAddress: TaktikosAddress = {
       val stakingKey = KeyInitializer[SecretKeys.Ed25519].random()
@@ -73,7 +72,7 @@ object TetraDemo extends IOApp.Simple {
         Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(1)))
       )
     }
-    Staker(Ratio(1, 5), stakerVrfKey, stakerRegistration, stakerAddress)
+    Staker(Ratio(1, 5), stakerVrfKey, kesKey, stakerRegistration, stakerAddress)
   }
 
   private val genesis =
@@ -99,19 +98,22 @@ object TetraDemo extends IOApp.Simple {
 
   implicit private val logger: Logger[F] = Slf4jLogger.getLogger[F]
 
+  private val vrfConfig =
+    VrfConfig(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(1, 15))
+
   private val leaderElectionThreshold: LeaderElectionValidationAlgebra[F] =
-    LeaderElectionValidation.Eval.make(
-      VrfConfig(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(4, 15), amplitude = Ratio(4, 5))
-    )
+    LeaderElectionValidation.Eval.make(vrfConfig)
 
   private val clock: ClockAlgebra[F] =
-    AkkaSchedulerClock.Eval.make(100.milli, 150)
+    AkkaSchedulerClock.Eval.make(100.milli, 720)
 
   private val vrfProofConstructions: F[List[VrfProofAlgebra[F]]] =
     stakers.traverse(staker =>
       VrfProof.Eval.make[F](
         staker.vrfKey,
-        clock
+        clock,
+        leaderElectionThreshold,
+        vrfConfig
       )
     )
 
@@ -132,16 +134,17 @@ object TetraDemo extends IOApp.Simple {
         for {
           _            <- Logger[F].info(show"Initializing staker key idx=0 address=${staker.address}")
           stakerKeyDir <- IO.blocking(Files.createTempDirectory(show"TetraDemoStaker${staker.address}"))
-          (period0Key, period0VK) =
-            kesProduct.createKeyPair(seed = Bytes(Random.nextBytes(32)), height = (2, 1), 0)
-          _           <- IO.blocking(Files.write(Paths.get(stakerKeyDir.toString, "0"), period0Key.bytes.toArray))
-          secureStore <- AkkaSecureStore.Eval.make[F](stakerKeyDir)
+          secureStore  <- AkkaSecureStore.Eval.make[F](stakerKeyDir)
+          _            <- secureStore.write(UUID.randomUUID().toString, staker.kesKey)
+          _            <- vrfProofConstruction.precomputeForEpoch(0, genesis.headerV2.eligibilityCertificate.eta)
           operationalKeys <- OperationalKeys.FromSecureStore.make[F](
             secureStore = secureStore,
             clock = clock,
             vrfProof = vrfProofConstruction,
-            operationalPeriodLength = 30L,
-            registrationOperationalPeriod = 0L
+            etaCalculation,
+            genesis.headerV2.slotId,
+            operationalPeriodLength = 180L,
+            activationOperationalPeriod = 0L
           )
           mint =
             BlockMint.Eval.make(
@@ -228,6 +231,7 @@ object TetraDemo extends IOApp.Simple {
 private case class Staker(
   relativeStake:           Ratio,
   vrfKey:                  SecretKeys.VrfEd25519,
+  kesKey:                  SecretKeys.KesProduct,
   registration:            Box.Values.TaktikosRegistration,
   address:                 TaktikosAddress
 )(implicit val ed25519VRF: Ed25519VRF, val ed25519: Ed25519, val kesProduct: KesProduct)

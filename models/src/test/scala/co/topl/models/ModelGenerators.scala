@@ -39,18 +39,25 @@ trait ModelGenerators {
   def witnessGen: Gen[Vector[Sized.Strict[Bytes, KesSum.DigestLength]]] =
     Gen.nonEmptyContainerOf[Vector, Sized.Strict[Bytes, Lengths.`32`.type]](genSizedStrictBytes[Lengths.`32`.type]())
 
-  def sumProductGen: Gen[Proofs.Knowledge.KesSum] =
+  def kesSumProofGen: Gen[Proofs.Knowledge.KesSum] =
     for {
       vkK         <- ed25519VkGen
       ecSignature <- genSizedStrictBytes[Proofs.Knowledge.Ed25519.Length]().map(Proofs.Knowledge.Ed25519(_))
       witness     <- witnessGen
     } yield Proofs.Knowledge.KesSum(vkK, ecSignature, witness)
 
+  def kesProductProofGen: Gen[Proofs.Knowledge.KesProduct] =
+    for {
+      superSignature <- kesSumProofGen
+      subSignature   <- kesSumProofGen
+      subRoot        <- genSizedStrictBytes[Lengths.`32`.type]()
+    } yield Proofs.Knowledge.KesProduct(superSignature, subSignature, subRoot)
+
   def operationalCertificateGen: Gen[OperationalCertificate] =
     for {
       opSig             <- genSizedStrictBytes[Lengths.`64`.type]().map(Proofs.Knowledge.Ed25519(_))
       linearVK          <- ed25519VkGen
-      linearVKSignature <- genSizedStrictBytes[Lengths.`64`.type]().map(Proofs.Knowledge.Ed25519(_))
+      linearVKSignature <- kesProductProofGen
     } yield OperationalCertificate(opSig, linearVK, linearVKSignature)
 
   def taktikosAddressGen: Gen[TaktikosAddress] =
