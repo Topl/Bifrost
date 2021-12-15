@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+import "filters.proto";
+import "types.proto";
+
+package co.topl.genus.services;
+
+service BlockSubscriptions {
+  rpc Create (CreateBlockSubscriptionReq) returns (CreateBlockSubscriptionRes);
+  rpc Delete (DeleteBlockSubscriptionReq) returns (DeleteBlockSubscriptionRes);
+  rpc Read (stream ReadBlockSubscriptionReq) returns (stream ReadBlockSubscriptionRes);
+}
+
+message CreateBlockSubscriptionReq {
+  string name = 1;
+  BlockFilter filter = 2;
+  uint32 confirmation_depth = 3;
+}
+
+message CreateBlockSubscriptionRes {
+  string id = 1;
+}
+
+message DeleteBlockSubscriptionReq {
+  string id = 1;
+}
+
+message DeleteBlockSubscriptionRes {
+
+}
+
+message ReadBlockSubscriptionReq {
+  oneof request_type {
+    Start start = 1;
+    Ack ack = 2;
+    Nack nack = 3;
+  }
+
+  message Start {
+    string subscription_id = 1;
+  }
+
+  message Ack {
+    string subscription_id = 1;
+    string message_id = 2;
+  }
+
+  message Nack {
+    enum Reason {
+      PAUSE = 0;
+      RETRY = 1;
+    }
+    string message_id = 1;
+    Reason reason = 2;
+  }
+}
+
+message ReadBlockSubscriptionRes {
+  string message_id = 1;
+  Block block = 2;
+}

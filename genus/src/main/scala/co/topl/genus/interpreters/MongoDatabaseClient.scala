@@ -12,7 +12,7 @@ import com.mongodb.client.model.changestream.ChangeStreamDocument
 import org.mongodb.scala.bson.conversions.Bson
 import co.topl.utils.mongodb.models._
 
-object MongoClientInterpreter {
+object MongoDatabaseClient {
 
   object Eval {
 
