@@ -5,7 +5,7 @@ import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
-import co.topl.typeclasses.KeyInitializer
+import co.topl.typeclasses.{KeyInitializer, VerificationContext}
 import co.topl.typeclasses.implicits._
 
 import scala.collection.immutable.ListMap
@@ -58,5 +58,18 @@ object CredentialPlayground extends App {
     minting = unprovenTransaction.minting
   )
   println(transaction)
+
+  type F[A] = cats.Id[A]
+
+  implicit val verificationContext: VerificationContext[F] =
+    new VerificationContext[F] {
+      def currentTransaction: Transaction = transaction
+
+      def currentHeight: Long = 50L
+    }
+
+  val verificationResult: Boolean =
+    proposition.isSatisifiedBy[F](proof)
+  println(verificationResult)
 
 }
