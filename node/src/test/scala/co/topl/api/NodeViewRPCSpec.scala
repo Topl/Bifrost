@@ -385,10 +385,10 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         val res: Json = parse(responseAs[String]).value.hcursor.downField("result").as[Json].value
         res.hcursor.get[String]("network").value shouldEqual appContext.networkType.toString
         res.hcursor.get[String]("appVersion").value shouldEqual settings.application.version.toString
-        res.hcursor.get[String]("protocolVersion").value shouldEqual getProtocolRules(
+        res.hcursor.get[String]("currentProtocolRuleset").value shouldEqual getProtocolRules(
           view().history.height
         ).version.toString
-        res.hcursor.get[String]("blockVersion").value shouldEqual blockVersion(view().history.height).toString
+        res.hcursor.get[String]("currentBlockVersion").value shouldEqual blockVersion(view().history.height).toString
         res.hcursor.downField("error").values shouldBe None
       }
     }
@@ -458,16 +458,16 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       val tx = bifrostTransactionSeqGen.sampleFirst()
       val txId = tx.head.id.toString
       val requestBody = ByteString(s"""
-                                      |{
-                                      |   "jsonrpc": "2.0",
-                                      |
-                                      |   "id": "1",
-                                      |   "method": "topl_confirmationStatus",
-                                      |   "params": [{
-                                      |      "transactionIds": ["$txId", "$txId"]
-                                      |   }]
-                                      |}
-                                      |
+        |{
+        |   "jsonrpc": "2.0",
+        |
+        |   "id": "1",
+        |   "method": "topl_confirmationStatus",
+        |   "params": [{
+        |      "transactionIds": ["$txId", "$txId"]
+        |   }]
+        |}
+        |
         """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {

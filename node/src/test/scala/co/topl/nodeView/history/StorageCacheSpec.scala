@@ -24,7 +24,7 @@ class StorageCacheSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks w
   }
 
   property("The genesis block is stored in cache") {
-    val genesisBlockId = Array.fill(32)(-1: Byte)
+    val genesisBlockId = Array.fill(33)(-1: Byte)
 
     history.storage.keyValueStore
       .asInstanceOf[CacheLayerKeyValueStore]
@@ -34,7 +34,7 @@ class StorageCacheSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks w
   }
 
   property("Cache should invalidate all entry when it's rolled back in storage") {
-    val bestBlockIdKey = Array.fill(32)(-1: Byte)
+    val bestBlockIdKey = Array.fill(33)(-1: Byte)
 
     /* Append a new block, make sure it is updated in cache, then drop it */
     val fstBlock: Block = blockCurve25519Gen.sampleFirst().copy(parentId = history.bestBlockId)
@@ -131,8 +131,8 @@ class StorageCacheSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks w
     iFile.mkdirs()
     val blockStorage = new LDBVersionedStore(iFile, 100)
     val storage =
-      new Storage(new CacheLayerKeyValueStore(new LDBKeyValueStore(blockStorage), 10.minutes, 20000), keySize = 32)
-    //we don't care about validation here
+      new Storage(new CacheLayerKeyValueStore(new LDBKeyValueStore(blockStorage), 10.minutes, 20000))
+    // we don't care about validation here
     val validators = Seq()
 
     var history = new History(storage, BlockProcessor(1024), validators)

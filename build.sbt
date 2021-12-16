@@ -1,3 +1,4 @@
+import com.typesafe.sbt.packager.docker.ExecCmd
 import sbt.Keys.{homepage, organization, test}
 import sbtassembly.MergeStrategy
 
@@ -70,10 +71,26 @@ lazy val publishSettings = Seq(
     </developers>
 )
 
+lazy val dockerSettings = Seq(
+  Docker / packageName := "bifrost-node",
+  dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java11-21.3.0",
+  dockerUpdateLatest := true,
+  dockerExposedPorts := Seq(9084, 9085),
+  dockerExposedVolumes += "/opt/docker/.bifrost",
+  dockerLabels ++= Map(
+    "bifrost.version" -> version.value
+  ),
+  dockerAliases := dockerAliases.value.flatMap { alias => Seq(
+    alias.withRegistryHost(Some("docker.io/toplprotocol")),
+    alias.withRegistryHost(Some("ghcr.io/topl"))
+  )
+  }
+)
+
 lazy val assemblySettings = Seq(
   assembly / mainClass := Some("co.topl.BifrostApp"),
   assembly / test := {},
-  assemblyJarName := s"bifrost-${version.value}.jar",
+  assemblyJarName := s"bifrost-node-${version.value}.jar",
   assembly / assemblyMergeStrategy ~= { old: ((String) => MergeStrategy) => {
     case ps if ps.endsWith(".SF")  => MergeStrategy.discard
     case ps if ps.endsWith(".DSA") => MergeStrategy.discard
@@ -180,22 +197,16 @@ lazy val bifrost = project
 lazy val node = project
   .in(file("node"))
   .settings(
-    name := "node",
+    name := "bifrost-node",
     commonSettings,
     assemblySettings,
+    dockerSettings,
     Defaults.itSettings,
     crossScalaVersions := Seq(scala213), // The `monocle` library does not support Scala 2.12
     Compile / mainClass := Some("co.topl.BifrostApp"),
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
-    Docker / packageName := "bifrost-node",
-    dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java11-21.1.0",
-    dockerExposedPorts := Seq(9084, 9085),
-    dockerExposedVolumes += "/opt/docker/.bifrost",
-    dockerLabels ++= Map(
-      "bifrost.version" -> version.value
-    ),
     libraryDependencies ++= Dependencies.node,
   )
   .configs(IntegrationTest)
@@ -315,6 +326,7 @@ lazy val tools = project
     buildInfoPackage := "co.topl.buildinfo.tools",
     libraryDependencies ++= Dependencies.tools
   )
+  .dependsOn(common)
 
 lazy val loadTesting = project
   .in(file("load-testing"))

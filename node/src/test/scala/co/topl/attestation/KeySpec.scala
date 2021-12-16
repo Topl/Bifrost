@@ -108,5 +108,5 @@ class KeySpec
     newProofEd25519.isValid(newPropEd25519, messageByte) shouldBe true
   }
 
-  //TODO: Jing - test importPhrase
+  // TODO: Jing - test importPhrase
 }
