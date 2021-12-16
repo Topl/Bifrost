@@ -11,7 +11,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, EitherValues, OptionValues}
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
-import scala.collection.immutable.{ListMap, ListSet}
+import scala.collection.immutable.ListMap
 
 class ProofVerifierSpec
     extends AnyFlatSpec
@@ -383,7 +383,7 @@ class ProofVerifierSpec
       ).threshold(2)
 
       val proof = Proofs.Compositional.Threshold(
-        ListSet(
+        List(
           Proofs.Contextual.HeightLock(),
           ed25519.sign(sk, unprovenTransaction.signableBytes),
           Proofs.False
@@ -431,7 +431,7 @@ class ProofVerifierSpec
       ).threshold(2)
 
       val proof = Proofs.Compositional.Threshold(
-        ListSet(
+        List(
           Proofs.Contextual.HeightLock(),
           ed25519.sign(sk, unprovenTransaction.signableBytes),
           Proofs.False

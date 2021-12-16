@@ -2,8 +2,6 @@ package co.topl.models
 
 import co.topl.models.utility.{Lengths, Sized}
 
-import scala.collection.immutable.ListSet
-
 sealed trait Proof
 
 object Proofs {
@@ -54,7 +52,7 @@ object Proofs {
   }
 
   object Compositional {
-    case class Threshold(proofs: ListSet[Proof]) extends Proof
+    case class Threshold(proofs: List[Proof]) extends Proof
     case class And(a: Proof, b: Proof) extends Proof
     case class Or(a: Proof, b: Proof) extends Proof
   }
