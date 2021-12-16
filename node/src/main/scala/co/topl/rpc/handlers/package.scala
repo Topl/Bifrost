@@ -59,6 +59,26 @@ package object handlers {
       )
     } yield (startHeight, endHeight)
 
+  private[handlers] def checkLatestBlockNumber(
+    headHeight:     Long,
+    numberOfBlocks: Int,
+    sizeLimit:      Int
+  ): Either[RpcError, Long] =
+    for {
+      _ <- Either.cond(
+        numberOfBlocks <= headHeight,
+        {},
+        ToplRpcErrors.unsupportedOperation("Requested number of blocks is greater than existing number of blocks")
+      )
+      _ <- Either.cond(
+        numberOfBlocks <= sizeLimit,
+        {},
+        ToplRpcErrors.unsupportedOperation(
+          "Requested number of blocks is greater than the max retrievable block number configured"
+        )
+      )
+    } yield headHeight - numberOfBlocks + 1
+
   private[handlers] def checkTxIds(
     txStatusOption: List[Option[(ModifierId, TxStatus)]]
   ): Either[RpcError, ToplRpc.NodeView.ConfirmationStatus.Response] =

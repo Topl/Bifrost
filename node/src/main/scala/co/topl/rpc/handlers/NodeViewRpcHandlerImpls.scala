@@ -1,6 +1,7 @@
 package co.topl.rpc.handlers
 
 import akka.actor.typed.ActorSystem
+import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, InvalidParametersError, RpcError, ThrowableData}
 import co.topl.attestation.Address
@@ -19,6 +20,7 @@ import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Encoder
 
+import scala.concurrent.Future
 import scala.language.existentials
 
 class NodeViewRpcHandlerImpls(
@@ -100,6 +102,26 @@ class NodeViewRpcHandlerImpls(
         checkHeightRange(view.history.height, params.startHeight, params.endHeight, rpcSettings.blockIdRetrievalLimit)
           .map(range => getBlockIdsInRange(view.history, range._1, range._2))
       ).subflatMap(identity)
+
+  override val latestBlocks: ToplRpc.NodeView.LatestBlocks.rpc.ServerHandler =
+    params =>
+      for {
+        headHeight <- withNodeView(_.history.height)
+        startHeight <- EitherT.fromEither[Future](
+          checkLatestBlockNumber(headHeight, params.numberOfBlocks, rpcSettings.blockRetrievalLimit)
+        )
+        blocks <- withNodeView(view => getBlocksInRange(view.history, startHeight, headHeight))
+      } yield blocks
+
+  override val latestBlockIds: ToplRpc.NodeView.LatestBlockIds.rpc.ServerHandler =
+    params =>
+      for {
+        headHeight <- withNodeView(_.history.height)
+        startHeight <- EitherT.fromEither[Future](
+          checkLatestBlockNumber(headHeight, params.numberOfBlockIds, rpcSettings.blockRetrievalLimit)
+        )
+        ids <- withNodeView(view => getBlockIdsInRange(view.history, startHeight, headHeight))
+      } yield ids
 
   override val blockByHeight: ToplRpc.NodeView.BlockByHeight.rpc.ServerHandler =
     params =>
@@ -199,7 +221,9 @@ class NodeViewRpcHandlerImpls(
     startHeight: Long,
     endHeight:   Long
   ): ToplRpc.NodeView.BlocksInRange.Response =
-    getBlockIdsInRange(view, startHeight, endHeight).flatMap(view.modifierById)
+    (startHeight to endHeight)
+      .flatMap(view.modifierByHeight)
+      .toList
 
   private def getConfirmationStatus(
     txIds:      List[ModifierId],

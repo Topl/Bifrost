@@ -371,6 +371,46 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       }
     }
 
+    "Get a number of latest blocks" in {
+      val requestBody = ByteString(s"""
+        |{
+        |   "jsonrpc": "2.0",
+        |   "id": "1",
+        |   "method": "topl_latestBlocks",
+        |   "params": [{
+        |      "numberOfBlocks": 1
+        |    }]
+        |}
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]).value
+        val blocks = res.hcursor.downField("result").as[Json].value.toString
+        blocks should include(block.id.toString)
+        res.hcursor.downField("error").values shouldBe None
+      }
+    }
+
+    "Get a number of latest block ids" in {
+      val requestBody = ByteString(s"""
+        |{
+        |   "jsonrpc": "2.0",
+        |   "id": "1",
+        |   "method": "topl_latestBlockIds",
+        |   "params": [{
+        |      "numberOfBlockIds": 1
+        |    }]
+        |}
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]).value
+        val blockIds = res.hcursor.downField("result").as[Seq[String]].value
+        blockIds.head shouldEqual block.id.toString
+        res.hcursor.downField("error").values shouldBe None
+      }
+    }
+
     "Return info about the node" in {
       val requestBody = ByteString(s"""
         |{
