@@ -8,10 +8,10 @@ import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.{Base58, Sized}
 import co.topl.scripting.GraalVMScripting
-import co.topl.scripting.GraalVMScripting.instances._
 import co.topl.scripting.GraalVMScripting.GraalVMValuable
-import co.topl.typeclasses.{KeyInitializer, VerificationContext}
+import co.topl.scripting.GraalVMScripting.instances._
 import co.topl.typeclasses.implicits._
+import co.topl.typeclasses.{KeyInitializer, VerificationContext}
 import io.circe.Json
 import io.circe.syntax._
 import org.graalvm.polyglot.Value
@@ -20,7 +20,7 @@ import java.nio.charset.StandardCharsets
 import scala.collection.immutable.ListMap
 import scala.util.Random
 
-object CredentialPlayground extends App {
+object CredentialPlaygroundSean extends App {
   implicit val ed25519: Ed25519 = new Ed25519
   implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.precomputed()
   implicit val networkPrefix: NetworkPrefix = NetworkPrefix(1: Byte)
@@ -104,6 +104,8 @@ object CredentialPlayground extends App {
       def currentHeight: Long = 50L
 
       def currentSlot: Slot = 450L
+
+      def inputBoxes: List[Box[Box.Value]] = List()
     }
 
   implicit val jsExecutor: Propositions.Script.JS.JSScript => F[(Json, Json) => F[Boolean]] =
@@ -123,7 +125,7 @@ object CredentialPlayground extends App {
         )
 
   val verificationResult: Boolean =
-    proposition.isSatisifiedBy[F](proof).unsafeRunSync()
+    proposition.isSatisfiedBy(proof).unsafeRunSync()
   println(verificationResult)
 
 }

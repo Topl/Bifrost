@@ -2,7 +2,8 @@ package co.topl.typeclasses
 
 import co.topl.credential.Credential
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
-import co.topl.models.{Propositions, SecretKeys, Transaction}
+import co.topl.models.Propositions.{Compositional, Contextual, Example, Knowledge, Script}
+import co.topl.models.{Proposition, Propositions, SecretKeys, Transaction}
 
 import scala.language.implicitConversions
 
@@ -64,7 +65,6 @@ object Credentialer {
 
     implicit val OrCredentialer: Credentialer[(Propositions.Compositional.Or, Iterable[Credential])] =
       (t: (Propositions.Compositional.Or, Iterable[Credential])) => Credential.Compositional.Or(t._1, t._2)
-
     }
 
   object instances extends Instances

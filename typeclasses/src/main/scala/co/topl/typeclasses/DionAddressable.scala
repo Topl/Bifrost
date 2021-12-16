@@ -13,10 +13,9 @@ object DionAddressable {
 
   trait Instances {
 
-    implicit def coinOutputHasDioanAddress: DionAddressable[Transaction.CoinOutput] =
+    implicit def coinOutputHasDioanAddress(implicit networkPrefix: NetworkPrefix): DionAddressable[Transaction.CoinOutput] =
       new DionAddressable[Transaction.CoinOutput] {
-
-        def dionAddressOf(t: Transaction.CoinOutput)(implicit networkPrefix: NetworkPrefix): DionAddress = t match {
+        def dionAddressOf(t: Transaction.CoinOutput): DionAddress = t match {
           case b: Transaction.PolyOutput  => b.dionAddress
           case b: Transaction.ArbitOutput => b.dionAddress
           case b: Transaction.AssetOutput => b.dionAddress

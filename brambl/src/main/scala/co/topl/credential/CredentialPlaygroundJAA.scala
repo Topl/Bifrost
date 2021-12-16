@@ -1,15 +1,18 @@
 package co.topl.credential
 
-import cats.Id
 import cats.data.NonEmptyChain
-import co.topl.credential.XorGameSetup.fullGameProposition
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
+import co.topl.scripting.GraalVMScripting
+import co.topl.scripting.GraalVMScripting.GraalVMValuable
+import co.topl.scripting.GraalVMScripting.instances._
 import co.topl.typeclasses.implicits._
 import co.topl.typeclasses.{KeyInitializer, VerificationContext}
+import io.circe.Json
+import org.graalvm.polyglot.Value
 
 import scala.collection.immutable.ListMap
 import scala.util.Random
@@ -25,8 +28,25 @@ import scala.util.Random
 // */
 
 object SetupSandbox {
+  type F[A] = cats.effect.IO[A]
+
   implicit val ed25519: Ed25519 = new Ed25519
   implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.precomputed()
+  implicit val jsExecutor: Propositions.Script.JS.JSScript => F[(Json, Json) => F[Boolean]] =
+    s =>
+      GraalVMScripting
+        .jsExecutor[F, Boolean](s.value)
+        .map(f =>
+          Function.untupled(
+            f.compose[(Json, Json)] { t =>
+              Seq(
+                GraalVMValuable[Json].toGraalValue(t._1),
+                GraalVMValuable[Json].toGraalValue(t._2),
+                Value.asValue(new VerificationUtils)
+              )
+            }
+          )
+        )
   implicit val networkPrefix: NetworkPrefix = NetworkPrefix(1: Byte)
 
   val curve25519Sk: SecretKeys.Curve25519 = KeyInitializer[SecretKeys.Curve25519].random()
@@ -63,7 +83,7 @@ object SetupSandbox {
     )
 }
 
-object CredentialPlayground extends App {
+object CredentialPlaygroundJAA extends App {
   import SetupSandbox._
 
   val proposition = curve25519Sk.vk.asProposition.and(ed25519Sk.vk.asProposition)
@@ -88,7 +108,7 @@ object CredentialPlayground extends App {
   val transaction = transactionFromUnproven(unprovenTransaction, ListMap(proposition -> proof))
   println(transaction)
 
-  implicit val context: VerificationContext[Id] = new VerificationContext[Id] {
+  implicit val context: VerificationContext[F] = new VerificationContext[F] {
     def currentTransaction: Transaction = transaction
     def currentHeight: Long = 1
     def inputBoxes: List[Box[Box.Value]] = List(Box(
@@ -97,9 +117,11 @@ object CredentialPlayground extends App {
       Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
       10
     ))
+
+    def currentSlot: Slot = 1
   }
 
-  println(s"Does the proof satisfy the proposition? ${proposition isSatisfiedBy proof}")
+  println(s"Does the proof satisfy the proposition? ${proposition.isSatisfiedBy(proof)}")
 
 }
 
@@ -129,7 +151,7 @@ object RequiredOutput extends App {
   val transaction = transactionFromUnproven(unprovenTransaction, ListMap(proposition -> proof))
   println(transaction)
 
-  implicit val context: VerificationContext[Id] = new VerificationContext[Id] {
+  implicit val context: VerificationContext[F] = new VerificationContext[F] {
     def currentTransaction: Transaction = transaction
     def currentHeight: Long = 1
     def inputBoxes: List[Box[Box.Value]] = List(Box(
@@ -138,6 +160,7 @@ object RequiredOutput extends App {
       Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
       10
     ))
+    def currentSlot: Slot = 1
   }
 
   println(s"Does the proof satisfy the proposition? ${proposition isSatisfiedBy proof}")
@@ -190,10 +213,11 @@ object XorGameSetup extends App {
   val transaction = transactionFromUnproven(unprovenSetupGame, ListMap(halfGameProposition -> halfGameProof))
   println(transaction)
 
-  implicit val context: VerificationContext[Id] = new VerificationContext[Id] {
+  implicit val context: VerificationContext[F] = new VerificationContext[F] {
     def currentTransaction: Transaction = transaction
     def currentHeight: Long = 1
     def inputBoxes: List[Box[Box.Value]] = List()
+    def currentSlot: Slot = 1
   }
 
   println(s"Does the proof satisfy the proposition? ${halfGameProposition.isSatisfiedBy(halfGameProof)}")
@@ -248,7 +272,7 @@ object XorGameCompletion extends App {
   val transaction = transactionFromUnproven(unprovenTransaction, ListMap(fullGameProposition -> proof))
   println(transaction)
 
-  implicit val context: VerificationContext[Id] = new VerificationContext[Id] {
+  implicit val context: VerificationContext[F] = new VerificationContext[F] {
     def currentTransaction: Transaction = transaction
     def currentHeight: Long = 1
     def inputBoxes: List[Box[Box.Value]] = List(Box(
@@ -257,6 +281,7 @@ object XorGameCompletion extends App {
       Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
       aliceValueInput
     ))
+    def currentSlot: Slot = 1
   }
 
   println(s"Does the proof satisfy the proposition? ${fullGameProposition.isSatisfiedBy(proof)}")
@@ -296,10 +321,11 @@ object RequiredBoxValue extends App {
   val transaction = transactionFromUnproven(unprovenTransaction, ListMap(proposition -> proof))
   println(transaction)
 
-  implicit val context: VerificationContext[Id] = new VerificationContext[Id] {
+  implicit val context: VerificationContext[F] = new VerificationContext[F] {
     def currentTransaction: Transaction = transaction
     def currentHeight: Long = 1
     def inputBoxes: List[Box[Box.Value]] = List()
+    def currentSlot: Slot = 1
   }
 
   println(s"Does the proof satisfy the proposition? ${proposition isSatisfiedBy proof}")

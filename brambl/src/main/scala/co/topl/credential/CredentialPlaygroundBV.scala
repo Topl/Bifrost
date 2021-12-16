@@ -1,23 +1,41 @@
 package co.topl.credential
 
-import cats.Id
 import cats.data.NonEmptyChain
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
-import co.topl.models.Propositions.Compositional.Threshold
-import co.topl.models.Propositions.Contextual.HeightLock
 import co.topl.models.Transaction.{CoinOutput, Unproven}
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
-import co.topl.typeclasses.{KeyInitializer, VerificationContext}
+import co.topl.scripting.GraalVMScripting
+import co.topl.scripting.GraalVMScripting.GraalVMValuable
+import co.topl.scripting.GraalVMScripting.instances._
 import co.topl.typeclasses.implicits._
+import co.topl.typeclasses.{KeyInitializer, VerificationContext}
+import io.circe.Json
+import org.graalvm.polyglot.Value
 
-import scala.collection.immutable.{ListMap, ListSet}
-import scala.util.Random
+import scala.collection.immutable.ListMap
 
 object CredentialPlaygroundBV extends App {
+  type F[A] = cats.effect.IO[A]
+
   implicit val ed25519: Ed25519 = new Ed25519
   implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.precomputed()
+  implicit val jsExecutor: Propositions.Script.JS.JSScript => F[(Json, Json) => F[Boolean]] =
+    s =>
+      GraalVMScripting
+        .jsExecutor[F, Boolean](s.value)
+        .map(f =>
+          Function.untupled(
+            f.compose[(Json, Json)] { t =>
+              Seq(
+                GraalVMValuable[Json].toGraalValue(t._1),
+                GraalVMValuable[Json].toGraalValue(t._2),
+                Value.asValue(new VerificationUtils)
+              )
+            }
+          )
+        )
   implicit val networkPrefix: NetworkPrefix = NetworkPrefix(1: Byte)
 
   // Exercise: Construct complex propositions and attempt to prove them using Credentials
@@ -96,7 +114,7 @@ object CredentialPlaygroundBV extends App {
     List(Credential.Knowledge.Ed25519(playerA, randomTx))
   )
 
-  implicit val context: VerificationContext[Id] = new VerificationContext[Id] {
+  implicit val context: VerificationContext[F] = new VerificationContext[F] {
 
     override def currentTransaction: Transaction =
       Transaction(
@@ -110,9 +128,11 @@ object CredentialPlaygroundBV extends App {
       )
 
     override def currentHeight: Slot = 10
+    def inputBoxes: List[Box[Box.Value]] = List()
+    def currentSlot: Slot = 1
   }
 
-  val validProof = boardProp.isSatisifiedBy(boardCred.proof)
+  val validProof = boardProp.isSatisfiedBy(boardCred.proof)
 
   println(validProof)
 

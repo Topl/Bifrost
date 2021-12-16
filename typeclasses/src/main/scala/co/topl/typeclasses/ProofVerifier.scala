@@ -267,8 +267,6 @@ object ProofVerifier {
             orVerifier[F](prop, proof, context)
           case (prop: Propositions.Contextual.HeightLock, _: Proofs.Contextual.HeightLock) =>
             heightLockVerifier[F](prop, context)
-//          case (prop: Propositions.Contextual.RequiredDionOutput, proof: Proofs.Contextual.RequiredOutput) =>
-//            requiredOutputVerifier[F](prop, context)
           case (prop: Propositions.Contextual.RequiredBoxState, proof: Proofs.Contextual.RequiredBoxState) =>
             requiredBoxVerifier[F](prop, context)
           case (prop: Propositions.Knowledge.HashLock, proof: Proofs.Knowledge.HashLock) =>
