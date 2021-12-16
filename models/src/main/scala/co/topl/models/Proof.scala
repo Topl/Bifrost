@@ -51,6 +51,8 @@ object Proofs {
     object KesProduct {
       type DigestLength = Lengths.`32`.type
     }
+
+    case class HashLock(salt: Digest32, value: Byte) extends Proof
   }
 
   object Compositional {
@@ -61,5 +63,12 @@ object Proofs {
 
   object Contextual {
     case class HeightLock() extends Proof
+    //case class RequiredOutput() extends Proof
+    case class RequiredBoxState() extends Proof
+  }
+
+  object Example {
+    case class EnumeratedInput(value: Int) extends Proof
+
   }
 }

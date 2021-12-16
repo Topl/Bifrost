@@ -13,6 +13,16 @@ object DionAddressable {
 
   trait Instances {
 
+    implicit def coinOutputHasDioanAddress: DionAddressable[Transaction.CoinOutput] =
+      new DionAddressable[Transaction.CoinOutput] {
+
+        def dionAddressOf(t: Transaction.CoinOutput)(implicit networkPrefix: NetworkPrefix): DionAddress = t match {
+          case b: Transaction.PolyOutput  => b.dionAddress
+          case b: Transaction.ArbitOutput => b.dionAddress
+          case b: Transaction.AssetOutput => b.dionAddress
+        }
+      }
+
     implicit def containsEvidenceDionAddressable[T: ContainsEvidence](implicit
       networkPrefix: NetworkPrefix
     ): DionAddressable[T] =

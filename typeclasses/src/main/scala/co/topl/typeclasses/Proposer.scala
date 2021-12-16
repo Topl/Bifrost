@@ -58,6 +58,7 @@ object Proposer {
 
     implicit val longProposesHeightLock: Proposer[Long] =
       t => Propositions.Contextual.HeightLock(t)
+
   }
 
   object instances extends Instances
