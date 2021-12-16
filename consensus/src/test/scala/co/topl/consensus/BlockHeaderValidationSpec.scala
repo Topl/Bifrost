@@ -6,7 +6,7 @@ import cats.implicits._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus.algebras._
 import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.signing.{Ed25519, Ed25519VRF}
+import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
@@ -42,6 +42,9 @@ class BlockHeaderValidationSpec
 
   implicit private val ed25519: Ed25519 =
     new Ed25519
+
+  implicit private val kesProduct: KesProduct =
+    new KesProduct
 
   it should "invalidate blocks with non-forward slot" in {
     forAll(
@@ -383,14 +386,14 @@ class BlockHeaderValidationSpec
 
 object BlockHeaderValidationSpec {
 
-  def validRegistration(vkVrf: VerificationKeys.VrfEd25519): Box.Values.TaktikosRegistration =
+  def validRegistration(
+    vkVrf:               VerificationKeys.VrfEd25519,
+    poolVK:              VerificationKeys.Ed25519,
+    skKes:               SecretKeys.KesProduct
+  )(implicit kesProduct: KesProduct): Box.Values.TaktikosRegistration =
     Box.Values
       .TaktikosRegistration(
-        // TODO
-        ModelGenerators.kesProductProofGen.first,
-//        Sized.strictUnsafe(
-//          Bytes(blake2b256.hash(vkVrf.bytes.data.toArray).value)
-//        ),
+        kesProduct.sign(skKes, Bytes(blake2b256.hash((vkVrf.bytes.data ++ poolVK.bytes.data).toArray).value)),
         0L
       )
 }

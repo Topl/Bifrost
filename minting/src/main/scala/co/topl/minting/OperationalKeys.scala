@@ -132,7 +132,7 @@ object OperationalKeys {
               new IllegalStateException("SecureStore contained 0 or multiple keys")
             )
         })
-        _       <- OptionT.liftF(Logger[F].info(show"Consuming key idx=$fileName"))
+        _       <- OptionT.liftF(Logger[F].info(show"Consuming key id=$fileName"))
         diskKey <- OptionT(secureStore.consume[SecretKeys.KesProduct](fileName))
         latest = kesProduct.getCurrentStep(diskKey)
         currentPeriodKey =

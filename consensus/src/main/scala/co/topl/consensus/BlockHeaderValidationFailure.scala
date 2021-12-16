@@ -28,9 +28,10 @@ object BlockHeaderValidationFailures {
   case class InvalidEligibilityCertificateNonceProof(proof: Proofs.Knowledge.VrfEd25519)
       extends BlockHeaderValidationFailure
 
-  case class InvalidKesCertificateKESProof(kesCertificate: OperationalCertificate) extends BlockHeaderValidationFailure
+  case class InvalidOperationalParentSignature(operationalCertificate: OperationalCertificate)
+      extends BlockHeaderValidationFailure
 
-  case class InvalidKesCertificateMMMProof(kesCertificate: OperationalCertificate) extends BlockHeaderValidationFailure
+  case class InvalidBlockProof(operationalCertificate: OperationalCertificate) extends BlockHeaderValidationFailure
 
   case class Unregistered(address: TaktikosAddress) extends BlockHeaderValidationFailure
 
