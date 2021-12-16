@@ -46,6 +46,12 @@ trait ModelGenerators {
       witness     <- witnessGen
     } yield Proofs.Knowledge.KesSum(vkK, ecSignature, witness)
 
+  def kesVKGen: Gen[VerificationKeys.KesProduct] =
+    for {
+      bytes <- genSizedStrictBytes[Lengths.`32`.type]()
+      idx   <- Gen.posNum[Int]
+    } yield VerificationKeys.KesProduct(bytes, idx)
+
   def kesProductProofGen: Gen[Proofs.Knowledge.KesProduct] =
     for {
       superSignature <- kesSumProofGen
@@ -55,17 +61,18 @@ trait ModelGenerators {
 
   def operationalCertificateGen: Gen[OperationalCertificate] =
     for {
-      opSig             <- genSizedStrictBytes[Lengths.`64`.type]().map(Proofs.Knowledge.Ed25519(_))
-      linearVK          <- ed25519VkGen
-      linearVKSignature <- kesProductProofGen
-    } yield OperationalCertificate(opSig, linearVK, linearVKSignature)
+      parentVK        <- kesVKGen
+      parentSignature <- kesProductProofGen
+      childVK         <- ed25519VkGen
+      childSignature  <- genSizedStrictBytes[Lengths.`64`.type]().map(Proofs.Knowledge.Ed25519(_))
+    } yield OperationalCertificate(parentVK, parentSignature, childVK, childSignature)
 
   def taktikosAddressGen: Gen[TaktikosAddress] =
     for {
-      paymentVerificationKeyHash <- genSizedStrictBytes[Lengths.`32`.type]()
-      stakingVerificationKey     <- genSizedStrictBytes[Lengths.`32`.type]()
-      signature                  <- genSizedStrictBytes[Lengths.`64`.type]()
-    } yield TaktikosAddress(paymentVerificationKeyHash, stakingVerificationKey, signature)
+      paymentVKEvidence <- genSizedStrictBytes[Lengths.`32`.type]()
+      poolVK            <- genSizedStrictBytes[Lengths.`32`.type]().map(VerificationKeys.Ed25519(_))
+      signature         <- genSizedStrictBytes[Lengths.`64`.type]().map(Proofs.Knowledge.Ed25519(_))
+    } yield TaktikosAddress(paymentVKEvidence, poolVK, signature)
 
   def headerGen(
     parentHeaderIdGen: Gen[TypedIdentifier] =

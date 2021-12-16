@@ -1,7 +1,7 @@
 package co.topl.consensus
 
 import co.topl.models._
-import co.topl.models.utility.{Lengths, Ratio, Sized}
+import co.topl.models.utility.Ratio
 
 sealed abstract class BlockHeaderValidationFailure
 
@@ -35,8 +35,9 @@ object BlockHeaderValidationFailures {
   case class Unregistered(address: TaktikosAddress) extends BlockHeaderValidationFailure
 
   case class RegistrationCommitmentMismatch(
-    vrfCommitment: Sized.Strict[Bytes, Lengths.`32`.type],
-    vkVrf:         VerificationKeys.VrfEd25519
+    vrfCommitment: Proofs.Knowledge.KesProduct,
+    vrfVK:         VerificationKeys.VrfEd25519,
+    poolVK:        VerificationKeys.Ed25519
   ) extends BlockHeaderValidationFailure
 
 }

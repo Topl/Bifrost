@@ -23,11 +23,13 @@ object Box {
       case class Code(version: Byte, issuer: DionAddress, shortName: Sized.Max[Latin1Data, Lengths.`8`.type])
     }
 
+    /**
+     * @param commitment message: Hash(vrfVK | poolVK), SK: 0th timestep of the KES
+     * @param activationSlot Slot in which this staker can start staking
+     */
     case class TaktikosRegistration(
-      vrfCommitment:  Sized.Strict[Bytes, Lengths.`32`.type],
-      operationalVK:  VerificationKeys.KesProduct,
+      commitment:     Proofs.Knowledge.KesProduct,
       activationSlot: Slot
     ) extends Value
-    case class TaktikosDelegation(address: TaktikosAddress) extends Value
   }
 }

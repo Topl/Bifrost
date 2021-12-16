@@ -7,8 +7,8 @@ import cats.effect.implicits._
 import cats.effect.kernel.Sync
 import cats.effect.{Async, IO, IOApp}
 import cats.implicits._
-import co.topl.codecs.bytes.implicits._
 import co.topl.algebras._
+import co.topl.codecs.bytes.implicits._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
 import co.topl.consensus.algebras.{EtaCalculationAlgebra, LeaderElectionValidationAlgebra}
@@ -25,7 +25,7 @@ import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
-import java.nio.file.{Files, Paths}
+import java.nio.file.Files
 import java.util.UUID
 import scala.concurrent.duration._
 import scala.util.Random
@@ -33,6 +33,9 @@ import scala.util.Random
 object TetraDemo extends IOApp.Simple {
 
   // Create stubbed/sample/demo data
+
+  private val vkPool =
+    new Ed25519().getVerificationKey(KeyInitializer[SecretKeys.Ed25519].random())
 
   private val stakers = List.fill(5) {
 
@@ -48,14 +51,14 @@ object TetraDemo extends IOApp.Simple {
 
     val stakerRegistration: Box.Values.TaktikosRegistration =
       Box.Values.TaktikosRegistration(
-        vrfCommitment = Sized.strictUnsafe(
+        commitment = kesProduct.sign(
+          kesKey,
           Bytes(
             blake2b256
-              .hash(ed25519Vrf.getVerificationKey(stakerVrfKey).signableBytes.toArray)
+              .hash((ed25519Vrf.getVerificationKey(stakerVrfKey).signableBytes ++ vkPool.bytes.data).toArray)
               .value
           )
         ),
-        operationalVK = kesVK,
         activationSlot = 0
       )
 
@@ -68,8 +71,8 @@ object TetraDemo extends IOApp.Simple {
         Sized.strictUnsafe(
           Bytes(blake2b256.hash(paymentVerificationKey.bytes.data.toArray).value)
         ),
-        stakingVerificationKey.bytes,
-        Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(1)))
+        vkPool,
+        ed25519.sign(paymentKey, vkPool.bytes.data)
       )
     }
     Staker(Ratio(1, 5), stakerVrfKey, kesKey, stakerRegistration, stakerAddress)

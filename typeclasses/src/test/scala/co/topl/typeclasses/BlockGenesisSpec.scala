@@ -26,9 +26,9 @@ class BlockGenesisSpec extends AnyFlatSpec with Matchers with EitherValues with 
     val address =
       block.headerV2.address
 
-    forAll(address.stakingVerificationKey.data.toArray)(_ shouldBe (0: Byte))
-    forAll(address.signature.data.toArray)(_ shouldBe (0: Byte))
-    forAll(address.paymentVerificationKeyHash.data.toArray)(_ shouldBe (0: Byte))
+    forAll(address.paymentVKEvidence.data.toArray)(_ shouldBe (0: Byte))
+    forAll(address.poolVK.bytes.data.toArray)(_ shouldBe (0: Byte))
+    forAll(address.signature.bytes.data.toArray)(_ shouldBe (0: Byte))
   }
 
   it should "have all zeros for the Eligibility Certificate, except for the eta value" in {

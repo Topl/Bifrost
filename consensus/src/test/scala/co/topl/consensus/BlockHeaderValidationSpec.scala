@@ -350,10 +350,11 @@ class BlockHeaderValidationSpec
   }
 
   private def validOperationalCertificate(unsigned: BlockHeaderV2.Unsigned): OperationalCertificate =
-    OperationalCertificate(
-      Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0)))),
-      VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
-      Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0))))
+    ModelGenerators.operationalCertificateGen.first
+//    OperationalCertificate(
+//      Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0)))),
+//      VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
+//      Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0))))
 //      opSig = Proofs.Signature.HdKes(
 //        i = 0,
 //        vkI = VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
@@ -376,7 +377,7 @@ class BlockHeaderValidationSpec
 //        Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))
 //      ),
 //      slotR = 0
-    )
+//    )
 
 }
 
@@ -385,13 +386,11 @@ object BlockHeaderValidationSpec {
   def validRegistration(vkVrf: VerificationKeys.VrfEd25519): Box.Values.TaktikosRegistration =
     Box.Values
       .TaktikosRegistration(
-        Sized.strictUnsafe(
-          Bytes(blake2b256.hash(vkVrf.bytes.data.toArray).value)
-        ),
-        VerificationKeys.ExtendedEd25519(
-          VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
-          Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))
-        ),
+        // TODO
+        ModelGenerators.kesProductProofGen.first,
+//        Sized.strictUnsafe(
+//          Bytes(blake2b256.hash(vkVrf.bytes.data.toArray).value)
+//        ),
         0L
       )
 }

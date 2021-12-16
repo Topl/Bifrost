@@ -51,8 +51,7 @@ object BlockGenesis {
 //      slotR = 0
 //    )
   val kesCertificate: OperationalCertificate = OperationalCertificate(
-    Proofs.Knowledge.Ed25519(zeroBytes(Lengths.`64`)),
-    VerificationKeys.Ed25519(zeroBytes(Lengths.`32`)),
+    VerificationKeys.KesProduct(zeroBytes(Lengths.`32`), 0),
     Proofs.Knowledge.KesProduct(
       Proofs.Knowledge.KesSum(
         VerificationKeys.Ed25519(zeroBytes(Lengths.`32`)),
@@ -65,14 +64,16 @@ object BlockGenesis {
         Vector.empty
       ),
       zeroBytes(Lengths.`32`)
-    )
+    ),
+    VerificationKeys.Ed25519(zeroBytes(Lengths.`32`)),
+    Proofs.Knowledge.Ed25519(zeroBytes(Lengths.`64`))
   )
 
   def apply(transactions: Seq[Transaction]): Eval[BlockV2] = Eval.later {
     val address = TaktikosAddress(
       zeroBytes(Lengths.`32`),
-      zeroBytes(Lengths.`32`),
-      zeroBytes(Lengths.`64`)
+      VerificationKeys.Ed25519(zeroBytes(Lengths.`32`)),
+      Proofs.Knowledge.Ed25519(zeroBytes(Lengths.`64`))
     )
 
     // TODO: Read "genesis-eta-plaintext" from application.conf, and then hash that value and/or Magic Bytes

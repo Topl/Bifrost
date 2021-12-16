@@ -191,7 +191,7 @@ object OperationalKeys {
       slots.map { slot =>
         val sk = KeyInitializer[SecretKeys.Ed25519].random()
         val signedVk = kesProduct.sign(kesChild, ed25519.getVerificationKey(sk).bytes.data)
-        OperationalKeyOut(slot, sk, signedVk)
+        OperationalKeyOut(slot, sk, signedVk, kesProduct.getVerificationKey(kesChild))
       }
   }
 }

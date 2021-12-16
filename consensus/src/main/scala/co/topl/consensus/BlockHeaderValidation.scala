@@ -194,14 +194,16 @@ object BlockHeaderValidation {
             OptionT(
               registrationInterpreter.registrationOf(SlotId(header.slot, header.id), header.address)
             )
-              .map(_.vrfCommitment)
+              .map(_.commitment)
               .toRight(BlockHeaderValidationFailures.Unregistered(header.address): BlockHeaderValidationFailure)
               .ensureOr(
-                BlockHeaderValidationFailures.RegistrationCommitmentMismatch(_, header.eligibilityCertificate.vkVRF)
-              )(
-                _.data.toArray === blake2b256
-                  .hash(header.eligibilityCertificate.vkVRF.bytes.data.toArray)
-                  .value
+                BlockHeaderValidationFailures
+                  .RegistrationCommitmentMismatch(_, header.eligibilityCertificate.vkVRF, header.address.poolVK)
+              )(_ => true
+              // TODO
+//                _.data.toArray === blake2b256
+//                  .hash((header.eligibilityCertificate.vkVRF.bytes.data ++ header.address.poolVK.bytes.data).toArray)
+//                  .value
               )
               .map(_ => header)
 

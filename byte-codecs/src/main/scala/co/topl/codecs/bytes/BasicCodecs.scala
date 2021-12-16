@@ -39,9 +39,9 @@ trait BasicCodecs {
     new ByteCodec[TaktikosAddress] {
 
       override def encode(t: TaktikosAddress, writer: Writer): Unit = {
-        writer.putBytes(t.paymentVerificationKeyHash.data.toArray)
-        writer.putBytes(t.stakingVerificationKey.data.toArray)
-        writer.putBytes(t.signature.data.toArray)
+        t.paymentVKEvidence.writeBytesTo(writer)
+        t.poolVK.writeBytesTo(writer)
+        t.signature.writeBytesTo(writer)
       }
 
       override def decode(reader: Reader): TaktikosAddress = ???
@@ -280,70 +280,6 @@ trait BasicCodecs {
         ByteCodec[Eta].decode(reader)
       )
   }
-
-//  implicit val kesPublicKeyCodec: ByteCodec[VerificationKeys.HdKes] =
-//    new ByteCodec[VerificationKeys.HdKes] {
-//
-//      def encode(t: VerificationKeys.HdKes, writer: Writer): Unit = {
-//        //todo: fix
-////      t.xvkM.writeBytesTo(writer)
-////      writer.putLong(t.t)
-//      }
-//
-//      def decode(reader: Reader): VerificationKeys.HdKes =
-//        VerificationKeys.HdKes(
-//          Array(0: Byte)
-//          //todo: fix
-////          ByteCodec[VerificationKeys.ExtendedEd25519].decode(reader)
-////          //reader.getLong()
-//        )
-//    }
-
-//  implicit val sumProductSignatureCodec: ByteCodec[Proofs.Signature.SumProduct] = new ByteCodec[Signature.SumProduct] {
-//
-//    def encode(t: Signature.SumProduct, writer: Writer): Unit = {
-//      t.ecSignature.writeBytesTo(writer)
-//      t.vkK.writeBytesTo(writer)
-//      t.witness.writeBytesTo(writer)
-//    }
-//
-//    def decode(reader: Reader): Signature.SumProduct =
-//      Signature.SumProduct(
-//        ByteCodec[Proofs.Signature.Ed25519].decode(reader),
-//        ByteCodec[VerificationKeys.Ed25519].decode(reader),
-//        reader.getLong(),
-//        ByteCodec[Seq[VerificationKeys.Ed25519]].decode(reader)
-//      )
-//  }
-//
-//  implicit val hdKesSignatureCodec: ByteCodec[Proofs.Signature.HdKes] = new ByteCodec[Signature.HdKes] {
-//
-//    def encode(t: Signature.HdKes, writer: Writer): Unit = {
-//      writer.putLong(t.i)
-//      t.vkI.writeBytesTo(writer)
-//      t.ecSignature.writeBytesTo(writer)
-//      t.sigSumJ.writeBytesTo(writer)
-//      t.sigSumK.writeBytesTo(writer)
-//    }
-//
-//    def decode(reader: Reader): Signature.HdKes = ???
-//  }
-//
-//  implicit val kesCertificateCodec: ByteCodec[OperationalCertificate] = new ByteCodec[OperationalCertificate] {
-//
-//    override def encode(t: OperationalCertificate, writer: Writer): Unit = {
-//      t.opSig.writeBytesTo(writer)
-//      t.xvkM.writeBytesTo(writer)
-//      writer.putLong(t.slotR)
-//    }
-//
-//    override def decode(reader: Reader): OperationalCertificate =
-//      OperationalCertificate(
-//        ByteCodec[Proofs.Signature.HdKes].decode(reader),
-//        ByteCodec[VerificationKeys.ExtendedEd25519].decode(reader),
-//        reader.getLong()
-//      )
-//  }
 }
 
 object BasicCodecs extends BasicCodecs

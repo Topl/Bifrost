@@ -37,9 +37,10 @@ object Staking {
         OptionT(evolver.operationalKeyForSlot(unsignedBlock.unsignedHeader.slot.toInt, parentSlotId))
           .map(evolvedKey =>
             OperationalCertificate(
-              ed25519.sign(evolvedKey.sk, unsignedBlock.unsignedHeader.signableBytes),
+              evolvedKey.parentVK,
+              evolvedKey.proofOfVk,
               ed25519.getVerificationKey(evolvedKey.sk),
-              evolvedKey.proofOfVk
+              ed25519.sign(evolvedKey.sk, unsignedBlock.unsignedHeader.signableBytes)
             )
           )
           .map(operationalCertificate =>
