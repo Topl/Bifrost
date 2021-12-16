@@ -166,9 +166,9 @@ object TetraDemo extends IOApp.Simple {
 
   val run: IO[Unit] = {
     for {
-      jsFunction       <- "(a, b, c) => a + b + c".jsFunction[F, Int]
-      jsTestResult     <- jsFunction(2, 3, 4)
-      _                <- Logger[F].info(show"Graal JS Test.  expected=9 actual=$jsTestResult")
+//      jsFunction       <- "(a, b, c) => a + b + c".jsFunction[F, Int]
+//      jsTestResult     <- jsFunction(2, 3, 4)
+//      _                <- Logger[F].info(show"Graal JS Test.  expected=9 actual=$jsTestResult")
       blockHeaderStore <- RefStore.Eval.make[F, BlockHeaderV2]()
       blockBodyStore   <- RefStore.Eval.make[F, BlockBodyV2]()
       blockStore = createBlockStore(blockHeaderStore, blockBodyStore)

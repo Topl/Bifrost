@@ -162,7 +162,8 @@ object ProofVerifier {
           val contextJson =
             Json.obj(
               "currentTransaction" -> context.currentTransaction.asJson,
-              "currentHeight"      -> context.currentHeight.asJson
+              "currentHeight"      -> context.currentHeight.asJson,
+              "currentSlot"        -> context.currentSlot.asJson
             )
           jsExecutor(proposition.script)
             .flatMap(f => f(contextJson, argsJson))
@@ -208,4 +209,5 @@ object ProofVerifier {
 trait VerificationContext[F[_]] {
   def currentTransaction: Transaction
   def currentHeight: Long
+  def currentSlot: Slot
 }

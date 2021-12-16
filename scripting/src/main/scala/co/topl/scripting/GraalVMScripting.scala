@@ -5,7 +5,7 @@ import cats.implicits._
 import io.circe.syntax._
 import io.circe.{Json, JsonNumber, JsonObject}
 import org.graalvm.polyglot.proxy.{ProxyArray, ProxyObject}
-import org.graalvm.polyglot.{Context, HostAccess, Value}
+import org.graalvm.polyglot.{Context, HostAccess, PolyglotAccess, Value}
 
 import java.util
 import scala.language.implicitConversions
@@ -16,7 +16,10 @@ object GraalVMScripting {
     .newBuilder()
     .allowExperimentalOptions(true)
     .option("js.experimental-foreign-object-prototype", "true")
-    .allowHostAccess(HostAccess.newBuilder().allowListAccess(true).build())
+    .allowPolyglotAccess(PolyglotAccess.ALL)
+    .allowHostAccess(
+      HostAccess.newBuilder().allowPublicAccess(true).allowArrayAccess(true).allowListAccess(true).build()
+    )
     .build()
 
   def jsExecutor[F[_]: Sync, Res: GraalVMValuable](script: String): F[Seq[Value] => F[Res]] =
@@ -103,12 +106,12 @@ object GraalVMScripting {
           }.toMap
       }
 
-    private def asScalaIterator(v: Value): Iterator[Value] =
+    def asScalaIterator(v: Value): Iterator[Value] =
       if (v.isIterator) {
         Iterator.unfold(v)(i => Option.when(i.hasIteratorNextElement)(i.getIteratorNextElement -> i))
       } else asScalaIterator(v.getIterator)
 
-    private def asScalaMapIterator(v: Value): Iterator[(Value, Value)] =
+    def asScalaMapIterator(v: Value): Iterator[(Value, Value)] =
       if (v.isIterator) {
         Iterator.unfold(v)(i =>
           Option.when(i.hasIteratorNextElement) {
@@ -188,11 +191,11 @@ object GraalVMScripting {
 
     implicit def asGraalValue[T: GraalVMValuable](t: T): Value = GraalVMValuable[T].toGraalValue(t)
 
-    implicit class StringOps(string: String) {
-
-      def jsFunction[F[_]: Sync, Res: GraalVMValuable]: F[ScriptFunction[F, Res]] =
-        jsExecutor[F, Res](string).map(new ScriptFunction(_))
-    }
+//    implicit class StringOps(string: String) {
+//
+//      def jsFunction[F[_]: Sync, Res: GraalVMValuable]: F[ScriptFunction[F, Res]] =
+//        jsExecutor[F, Res](string).map(new ScriptFunction(_))
+//    }
   }
 
   object instances extends Instances
