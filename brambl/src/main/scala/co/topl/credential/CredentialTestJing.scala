@@ -1,7 +1,7 @@
 package co.topl.credential
 
 import cats.data.NonEmptyChain
-import co.topl.credential.CredentialPlayground.F
+import co.topl.credential.CredentialPlaygroundOriginal.F
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
@@ -13,7 +13,7 @@ import co.topl.credential.implicits._
 import scala.collection.immutable.ListMap
 import scala.util.Random
 
-object CredentialTest extends App {
+object CredentialTestJing extends App {
   implicit val ed25519: Ed25519 = new Ed25519
   implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.precomputed()
   implicit val networkPrefix: NetworkPrefix = NetworkPrefix(1: Byte)

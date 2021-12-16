@@ -11,7 +11,7 @@ import co.topl.typeclasses.implicits._
 import scala.collection.immutable.ListMap
 import scala.util.Random
 
-object CredentialPlayground extends App {
+object CredentialPlaygroundOriginal extends App {
   implicit val ed25519: Ed25519 = new Ed25519
   implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.precomputed()
   implicit val networkPrefix: NetworkPrefix = NetworkPrefix(1: Byte)
