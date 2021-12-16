@@ -5,6 +5,7 @@ import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
 import co.topl.typeclasses.implicits._
+import io.circe.Json
 
 import scala.collection.immutable.ListSet
 
@@ -184,6 +185,13 @@ object Credential {
     case class EnumeratedInput(inputs: List[Int], value: Int) extends Credential {
       override def prove(currentProof: Proof): Proof = Proofs.Example.EnumeratedInput(value)
       override def proposition: Proposition = Propositions.Example.EnumeratedInput(inputs)
+    }
+  }
+
+  object Script {
+
+    case class JS(proposition: Propositions.Script.JS, arguments: Json) extends Credential {
+      def prove(currentProof: Proof): Proof = Proofs.Script.JS(arguments.toString())
     }
   }
 }

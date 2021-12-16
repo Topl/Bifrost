@@ -71,4 +71,8 @@ object Proofs {
     case class EnumeratedInput(value: Int) extends Proof
 
   }
+
+  object Script {
+    case class JS(serializedArgs: String) extends Proof
+  }
 }

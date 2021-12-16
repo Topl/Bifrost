@@ -31,18 +31,4 @@ object Transaction {
     minting:     Boolean
   )
 
-  object Unproven {
-
-    def apply(transaction: Transaction): Unproven =
-      Unproven(
-        transaction.inputs.keys.toList,
-        transaction.feeOutput,
-        transaction.coinOutputs,
-        transaction.fee,
-        transaction.timestamp,
-        transaction.data,
-        transaction.minting
-      )
-  }
-
 }

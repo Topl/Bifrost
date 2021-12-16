@@ -1,6 +1,9 @@
 package co.topl.models
 
+import io.estatico.newtype.macros.newsubtype
+
 import scala.collection.immutable.ListSet
+import scala.language.implicitConversions
 
 sealed trait Proposition
 
@@ -29,6 +32,14 @@ object Propositions {
 
   object Example {
     case class EnumeratedInput(values: List[Int]) extends Proposition
+  }
+
+  object Script {
+    case class JS(script: JS.JSScript) extends Proposition
+
+    object JS {
+      @newsubtype case class JSScript(value: String)
+    }
   }
 
 }

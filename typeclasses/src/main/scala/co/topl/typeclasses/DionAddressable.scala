@@ -6,7 +6,7 @@ import co.topl.models._
 trait DionAddressable[T] {
 
   @simulacrum.op("dionAddress")
-  def dionAddressOf(t: T)(implicit networkPrefix: NetworkPrefix): DionAddress
+  def dionAddressOf(t: T): DionAddress
 }
 
 object DionAddressable {
@@ -28,7 +28,7 @@ object DionAddressable {
     ): DionAddressable[T] =
       new DionAddressable[T] {
 
-        def dionAddressOf(t: T)(implicit networkPrefix: NetworkPrefix): DionAddress =
+        def dionAddressOf(t: T): DionAddress =
           DionAddress(
             networkPrefix,
             ContainsEvidence[T].typedEvidenceOf(t)
