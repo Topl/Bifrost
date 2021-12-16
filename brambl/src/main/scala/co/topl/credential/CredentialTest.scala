@@ -8,6 +8,7 @@ import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
 import co.topl.typeclasses.implicits._
 import co.topl.typeclasses.{KeyInitializer, VerificationContext}
+import co.topl.credential.implicits._
 
 import scala.collection.immutable.ListMap
 import scala.util.Random
@@ -29,15 +30,11 @@ object CredentialTest extends App {
   val voter1Prop = voter1SK.vk.asProposition
   val voter2Prop = voter2SK.vk.asProposition
   val voter3Prop = voter3SK.vk.asProposition
-  val heightCredential = Credential.Contextual.HeightLock(1)
-  val heightCredentialProp = heightCredential.proposition
 
+  val heightProp = Propositions.Contextual.HeightLock(3)
   val adminsProp = admin1Prop.and(admin2Prop)
-
-  val votersThresholdProp = List(voter1Prop, voter2Prop, voter3Prop, heightCredentialProp).threshold(2)
-
+  val votersThresholdProp = List(voter1Prop, voter2Prop, voter3Prop, heightProp).threshold(2)
   val combinedProp = votersThresholdProp or adminsProp
-  //or heightCredentialProp
 
   val recipientAddress: DionAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.dionAddress
 
@@ -51,17 +48,15 @@ object CredentialTest extends App {
     minting = false
   )
 
-  val credential = Credential.Compositional.Or(
-    combinedProp,
-    List(
+  val credential = (combinedProp,
+    Iterable(
       Credential.Knowledge.Ed25519(voter1SK, unprovenTransaction),
       Credential.Knowledge.Ed25519(voter2SK, unprovenTransaction),
       Credential.Knowledge.Curve25519(voter3SK, unprovenTransaction),
-      heightCredential,
+      heightProp.toCredential,
       Credential.Knowledge.Ed25519(admin1SK, unprovenTransaction),
       Credential.Knowledge.Curve25519(admin2SK, unprovenTransaction)
-    )
-  )
+    )).toCredential
 
   val transactionAll = Transaction(
     inputs = ListMap.from(unprovenTransaction.inputs.map(_ -> (combinedProp, credential.proof))),

@@ -159,7 +159,7 @@ object Dependencies {
     graal
 
   lazy val brambl: Seq[ModuleID] =
-    test ++ scodec
+    test ++ scodec ++ simulacrum
 
   lazy val akkaHttpRpc: Seq[ModuleID] =
     Seq(
