@@ -145,11 +145,11 @@ object Credential {
         currentProof match {
           case t: Proofs.Compositional.Not =>
             Proofs.Compositional.Not(
-              compositionalProver(proposition.a, t.a, credentials),
+              compositionalProver(proposition.a, t.a, credentials)
             )
           case _ =>
             Proofs.Compositional.Not(
-              compositionalProver(proposition.a, Proofs.False, credentials),
+              compositionalProver(proposition.a, Proofs.False, credentials)
             )
         }
     }

@@ -114,8 +114,8 @@ object ContainsEvidence {
         )
 
     implicit def notContainsEvidence(implicit
-                                    ev: ContainsEvidence[Proposition]
-                                   ): ContainsEvidence[Propositions.Compositional.Not] =
+      ev: ContainsEvidence[Proposition]
+    ): ContainsEvidence[Propositions.Compositional.Not] =
       t =>
         TypedEvidence(
           16: Byte,

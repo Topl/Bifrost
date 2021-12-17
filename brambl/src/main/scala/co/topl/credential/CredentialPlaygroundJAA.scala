@@ -33,6 +33,7 @@ object SetupSandbox {
 
   implicit val ed25519: Ed25519 = new Ed25519
   implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.precomputed()
+
   implicit val jsExecutor: Propositions.Script.JS.JSScript => F[(Json, Json) => F[Boolean]] =
     s =>
       GraalVMScripting
@@ -392,12 +393,15 @@ object NotTest extends App {
   implicit val context: VerificationContext[F] = new VerificationContext[F] {
     def currentTransaction: Transaction = transaction
     def currentHeight: Long = 3
-    def inputBoxes: List[Box[Box.Value]] = List(Box(
-      proposition.typedEvidence,
-      unprovenTransaction.inputs.head._2,
-      Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
-      10
-    ))
+
+    def inputBoxes: List[Box[Box.Value]] = List(
+      Box(
+        proposition.typedEvidence,
+        unprovenTransaction.inputs.head._2,
+        Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
+        10
+      )
+    )
 
     def currentSlot: Slot = 1
   }
