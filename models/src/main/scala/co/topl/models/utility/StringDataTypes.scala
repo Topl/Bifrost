@@ -14,16 +14,19 @@ object StringDataTypes {
    * Byte data represented by Latin-1 encoded text.
    * @param value the data bytes
    */
-  case class Latin1Data private (value: Array[Byte]) {
+  case class Latin1Data private (value: String) {
+
+    def bytes: Array[Byte] =
+      value.getBytes(StandardCharsets.ISO_8859_1)
 
     override def equals(obj: Any): Boolean =
       obj match {
-        case o: Latin1Data => java.util.Arrays.equals(value, o.value)
+        case o: Latin1Data => java.util.Arrays.equals(bytes, o.bytes)
         case _             => false
       }
 
     override def hashCode(): Int =
-      java.util.Arrays.hashCode(value)
+      java.util.Arrays.hashCode(bytes)
   }
 
   object Latin1Data {
@@ -33,7 +36,7 @@ object StringDataTypes {
      * @param bytes the underlying data
      * @return a `Latin1Data` instance
      */
-    def fromData(bytes: Array[Byte]): Latin1Data = Latin1Data(bytes)
+    def fromData(bytes: Array[Byte]): Latin1Data = Latin1Data(new String(bytes, StandardCharsets.ISO_8859_1))
 
     /**
      * Creates a `Latin1Data` value from a `String`.
@@ -45,7 +48,7 @@ object StringDataTypes {
       Some(from.getBytes(StandardCharsets.ISO_8859_1))
         .filter(new String(_, StandardCharsets.ISO_8859_1) == from)
         .toValidNec(InvalidCharacter)
-        .map(Latin1Data(_))
+        .map(_ => Latin1Data(from))
 
     /**
      * Unsafely creates a `Latin1Data` instance from a `String`.
@@ -62,7 +65,7 @@ object StringDataTypes {
     implicit val eqLatin1Data: Eq[Latin1Data] = (a: Latin1Data, b: Latin1Data) => a.value sameElements b.value
 
     implicit val showLatin1Data: Show[Latin1Data] =
-      latin1Data => new String(latin1Data.value, StandardCharsets.ISO_8859_1)
+      _.value
   }
 
   /**

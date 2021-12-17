@@ -29,7 +29,7 @@ object Identifiable {
             Bytes(BigInt(header.slot).toByteArray) ++
             header.eligibilityCertificate.bytes ++
             //header.operationalCertificate.bytes ++
-            Bytes(header.metadata.fold(Array.emptyByteArray)(_.data.value)) ++
+            Bytes(header.metadata.fold(Array.emptyByteArray)(_.data.bytes)) ++
             header.address.bytes
 
           TypedBytes(IdentifierTypes.Block.HeaderV2 +: Bytes(blake2b256.hash(bytes.toArray).value))

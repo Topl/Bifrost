@@ -10,7 +10,7 @@ jobs:
         matrix:
           os: [ubuntu-latest]
           scala: [2.12.14]
-          java: [graalvm-ce-java11@21.0.0]
+          java: [graalvm-ce-java11@21.1.0]
     
     runs-on: ${{ matrix.os }}
 

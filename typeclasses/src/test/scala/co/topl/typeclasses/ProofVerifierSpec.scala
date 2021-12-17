@@ -1,10 +1,13 @@
 package co.topl.typeclasses
 
 import cats._
+import cats.implicits._
 import co.topl.crypto.signing.{Curve25519, Ed25519, ExtendedEd25519}
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.typeclasses.implicits._
+import io.circe.Json
+import io.circe.syntax._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -23,26 +26,14 @@ class ProofVerifierSpec
     with EitherValues
     with OptionValues {
 
-  type F[A] = Id[A]
-
-  implicit private val ed25519: Ed25519 = new Ed25519()
-  implicit private val extendedEd25519: ExtendedEd25519 = new ExtendedEd25519
+  import ProofVerifierSpec._
 
   "publicKeyCurve25519Verifier" should "verify a proof" in {
     forAll { (sk: SecretKeys.Curve25519, unprovenTransaction: Transaction.Unproven) =>
       val proof = Curve25519.instance.sign(sk, unprovenTransaction.signableBytes)
       val proposition = sk.vk.asProposition
 
-      val transaction =
-        Transaction(
-          ListMap.from(unprovenTransaction.inputs.map(boxRef => boxRef -> (proposition -> proof))),
-          unprovenTransaction.feeOutput,
-          unprovenTransaction.coinOutputs,
-          unprovenTransaction.fee,
-          unprovenTransaction.timestamp,
-          unprovenTransaction.data,
-          unprovenTransaction.minting
-        )
+      val transaction = unprovenTransaction.prove(boxRef => (proposition -> proof))
 
       implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
 
@@ -52,7 +43,7 @@ class ProofVerifierSpec
         .returning(transaction)
 
       val result =
-        proposition isSatisifiedBy proof
+        proposition isSatisfiedBy proof
 
       val expected =
         Curve25519.instance.verify(
@@ -70,16 +61,7 @@ class ProofVerifierSpec
       val proof = ed25519.sign(sk, unprovenTransaction.signableBytes)
       val proposition = sk.vk.asProposition
 
-      val transaction =
-        Transaction(
-          ListMap.from(unprovenTransaction.inputs.map(boxRef => boxRef -> (proposition -> proof))),
-          unprovenTransaction.feeOutput,
-          unprovenTransaction.coinOutputs,
-          unprovenTransaction.fee,
-          unprovenTransaction.timestamp,
-          unprovenTransaction.data,
-          unprovenTransaction.minting
-        )
+      val transaction = unprovenTransaction.prove(boxRef => (proposition -> proof))
 
       implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
 
@@ -89,7 +71,7 @@ class ProofVerifierSpec
         .returning(transaction)
 
       val result =
-        proof.satisfies(proposition)
+        proof.satisfies[F](proposition)
 
       val expected =
         ed25519.verify(proof, unprovenTransaction.signableBytes, sk.vk.asInstanceOf[VerificationKeys.Ed25519])
@@ -103,16 +85,7 @@ class ProofVerifierSpec
       val proof = extendedEd25519.sign(sk, unprovenTransaction.signableBytes)
       val proposition = sk.vk.asProposition
 
-      val transaction =
-        Transaction(
-          ListMap.from(unprovenTransaction.inputs.map(boxRef => boxRef -> (proposition -> proof))),
-          unprovenTransaction.feeOutput,
-          unprovenTransaction.coinOutputs,
-          unprovenTransaction.fee,
-          unprovenTransaction.timestamp,
-          unprovenTransaction.data,
-          unprovenTransaction.minting
-        )
+      val transaction = unprovenTransaction.prove(boxRef => (proposition -> proof))
 
       implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
 
@@ -121,7 +94,7 @@ class ProofVerifierSpec
         .once()
         .returning(transaction)
 
-      val result = proposition.isSatisifiedBy(proof)
+      val result = proposition.isSatisfiedBy(proof)
 
       val expected =
         extendedEd25519.verify(
@@ -147,7 +120,7 @@ class ProofVerifierSpec
         .returning(headerV2.height)
 
       val result =
-        proof.satisfies(proposition)
+        proof.satisfies[F](proposition)
 
       val expected = true
 
@@ -168,7 +141,7 @@ class ProofVerifierSpec
         .returning(headerV2.height)
 
       val result =
-        proof.satisfies(proposition)
+        proof.satisfies[F](proposition)
 
       val expected = true
 
@@ -189,12 +162,54 @@ class ProofVerifierSpec
         .returning(headerV2.height)
 
       val result =
-        proof.satisfies(proposition)
+        proof.satisfies[F](proposition)
 
       val expected = false
 
       result shouldBe expected
     }
+  }
+
+  "jsScriptVerifier" should "verify a proof" in {
+    val proposition = Propositions.Script.JS(
+      Propositions.Script.JS.JSScript(
+        """(ctx, args) =>
+          |  ctx.currentHeight > 30 && args["foo"] == 37
+          |""".stripMargin
+      )
+    )
+
+    val proof = Proofs.Script.JS(
+      Json.obj("foo" -> 37.asJson).toString
+    )
+
+    implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
+
+    val unprovenTransaction = ModelGenerators.arbitraryUnprovenTransaction.arbitrary.first
+
+    val transaction = unprovenTransaction.prove(boxRef => (proposition -> proof))
+
+    (() => context.currentTransaction)
+      .expects()
+      .once()
+      .returning(transaction)
+
+    (() => context.currentHeight)
+      .expects()
+      .once()
+      .returning(40L)
+
+    (() => context.currentSlot)
+      .expects()
+      .once()
+      .returning(500L)
+
+    val result =
+      proof.satisfies[F](proposition)
+
+    val expected = true
+
+    result shouldBe expected
   }
 
   "andVerifier" should "verify a proof" in {
@@ -213,16 +228,7 @@ class ProofVerifierSpec
         ed25519.sign(sk, unprovenTransaction.signableBytes)
       )
 
-      val transaction =
-        Transaction(
-          ListMap.from(unprovenTransaction.inputs.map(boxRef => boxRef -> (proposition -> proof))),
-          unprovenTransaction.feeOutput,
-          unprovenTransaction.coinOutputs,
-          unprovenTransaction.fee,
-          unprovenTransaction.timestamp,
-          unprovenTransaction.data,
-          unprovenTransaction.minting
-        )
+      val transaction = unprovenTransaction.prove(boxRef => (proposition -> proof))
 
       implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
 
@@ -237,7 +243,7 @@ class ProofVerifierSpec
         .returning(51L)
 
       val result =
-        proof.satisfies(proposition)
+        proof.satisfies[F](proposition)
 
       val expected = true
 
@@ -265,7 +271,7 @@ class ProofVerifierSpec
         .returning(51L)
 
       val result =
-        proof.satisfies(proposition)
+        proof.satisfies[F](proposition)
 
       val expected = false
 
@@ -294,7 +300,7 @@ class ProofVerifierSpec
         .returning(51L)
 
       val result =
-        proof.satisfies(proposition)
+        proof.satisfies[F](proposition)
 
       val expected = true
 
@@ -338,7 +344,7 @@ class ProofVerifierSpec
         .returning(5L)
 
       val result =
-        proof.satisfies(proposition)
+        proof.satisfies[F](proposition)
 
       val expected = true
 
@@ -366,7 +372,7 @@ class ProofVerifierSpec
         .returning(49L)
 
       val result =
-        proof.satisfies(proposition)
+        proof.satisfies[F](proposition)
 
       val expected = false
 
@@ -414,7 +420,7 @@ class ProofVerifierSpec
         .returning(51L)
 
       val result =
-        proof.satisfies(proposition)
+        proof.satisfies[F](proposition)
 
       val expected = true
 
@@ -462,7 +468,7 @@ class ProofVerifierSpec
         .returning(49L)
 
       val result =
-        proof.satisfies(proposition)
+        proof.satisfies[F](proposition)
 
       val expected = false
 
@@ -470,4 +476,15 @@ class ProofVerifierSpec
     }
   }
 
+}
+
+object ProofVerifierSpec {
+
+  type F[A] = Id[A]
+
+  implicit val ed25519: Ed25519 = new Ed25519()
+  implicit val extendedEd25519: ExtendedEd25519 = new ExtendedEd25519
+
+  implicit val jsExecutor: Propositions.Script.JS.JSScript => F[(Json, Json) => F[Boolean]] =
+    (script: Propositions.Script.JS.JSScript) => (verificationCtx: Json, args: Json) => true.pure[F]
 }

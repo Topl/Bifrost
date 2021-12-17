@@ -1,19 +1,45 @@
 package co.topl.credential
 
+import cats.implicits._
 import cats.data.NonEmptyChain
+import cats.effect.unsafe.implicits.global
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
-import co.topl.typeclasses.{KeyInitializer, VerificationContext}
+import co.topl.scripting.GraalVMScripting
+import co.topl.scripting.GraalVMScripting.GraalVMValuable
+import co.topl.scripting.GraalVMScripting.instances._
 import co.topl.typeclasses.implicits._
+import co.topl.typeclasses.{KeyInitializer, VerificationContext}
+import io.circe.Json
+import org.graalvm.polyglot.Value
 
 import scala.collection.immutable.ListMap
 import scala.util.Random
 
-object CredentialPlayground extends App {
+object CredentialPlaygroundOriginal extends App {
+  type F[A] = cats.effect.IO[A]
+
   implicit val ed25519: Ed25519 = new Ed25519
   implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.precomputed()
+
+  implicit val jsExecutor: Propositions.Script.JS.JSScript => F[(Json, Json) => F[Boolean]] =
+    s =>
+      GraalVMScripting
+        .jsExecutor[F, Boolean](s.value)
+        .map(f =>
+          Function.untupled(
+            f.compose[(Json, Json)] { t =>
+              Seq(
+                GraalVMValuable[Json].toGraalValue(t._1),
+                GraalVMValuable[Json].toGraalValue(t._2),
+                Value.asValue(new VerificationUtils)
+              )
+            }
+          )
+        )
+
   implicit val networkPrefix: NetworkPrefix = NetworkPrefix(1: Byte)
 
   // Exercise: Construct complex propositions and attempt to prove them using Credentials
@@ -59,17 +85,17 @@ object CredentialPlayground extends App {
   )
   println(transaction)
 
-  type F[A] = cats.Id[A]
-
   implicit val verificationContext: VerificationContext[F] =
     new VerificationContext[F] {
       def currentTransaction: Transaction = transaction
 
       def currentHeight: Long = 50L
+      def inputBoxes: List[Box[Box.Value]] = List()
+      def currentSlot: Slot = 1
     }
 
   val verificationResult: Boolean =
-    proposition.isSatisifiedBy[F](proof)
+    proposition.isSatisfiedBy[F](proof).unsafeRunSync()
   println(verificationResult)
 
 }
