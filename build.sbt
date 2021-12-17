@@ -174,13 +174,13 @@ lazy val bifrost = project
   )
   .configs(IntegrationTest)
   .aggregate(
-//    node,
+    node,
     common,
     akkaHttpRpc,
     models,
     typeclasses,
     toplRpc,
-//    benchmarking,
+    benchmarking,
     crypto,
     brambl,
     models,
@@ -192,33 +192,33 @@ lazy val bifrost = project
     tools
   )
 
-//lazy val node = project
-//  .in(file("node"))
-//  .settings(
-//    name := "node",
-//    commonSettings,
-//    assemblySettings,
-//    Defaults.itSettings,
-//    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
-//    Compile / run / mainClass := Some("co.topl.BifrostApp"),
-//    publish / skip := true,
-//    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-//    buildInfoPackage := "co.topl.buildinfo.bifrost",
-//    Docker / packageName := "bifrost-node",
-//    dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java11-21.1.0",
-//    dockerExposedPorts := Seq(9084, 9085),
-//    dockerExposedVolumes += "/opt/docker/.bifrost",
-//    dockerLabels ++= Map(
-//      "bifrost.version" -> version.value
-//    ),
-//    libraryDependencies ++= Dependencies.node
-//  )
-//  .configs(IntegrationTest)
-//  .settings(
-//    IntegrationTest / parallelExecution := false
-//  )
-//  .dependsOn(common % "compile->compile;test->test", toplRpc, tools)
-//  .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
+lazy val node = project
+  .in(file("node"))
+  .settings(
+    name := "node",
+    commonSettings,
+    assemblySettings,
+    Defaults.itSettings,
+    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
+    Compile / run / mainClass := Some("co.topl.BifrostApp"),
+    publish / skip := true,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.bifrost",
+    Docker / packageName := "bifrost-node",
+    dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java11-21.1.0",
+    dockerExposedPorts := Seq(9084, 9085),
+    dockerExposedVolumes += "/opt/docker/.bifrost",
+    dockerLabels ++= Map(
+      "bifrost.version" -> version.value
+    ),
+    libraryDependencies ++= Dependencies.node
+  )
+  .configs(IntegrationTest)
+  .settings(
+    IntegrationTest / parallelExecution := false
+  )
+  .dependsOn(common % "compile->compile;test->test", toplRpc, tools)
+  .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
 lazy val common = project
   .in(file("common"))
@@ -400,17 +400,17 @@ lazy val toplRpc = project
 //  .disablePlugins(sbtassembly.AssemblyPlugin)
 //  .settings(scalamacrosParadiseSettings)
 
-//lazy val benchmarking = project
-//  .in(file("benchmark"))
-//  .settings(
-//    name := "benchmark",
-//    commonSettings,
-//    publish / skip := true,
-//    libraryDependencies ++= Dependencies.benchmarking
-//  )
-//  .dependsOn(node % "compile->compile;test->test")
-//  .enablePlugins(JmhPlugin)
-//  .disablePlugins(sbtassembly.AssemblyPlugin)
+lazy val benchmarking = project
+  .in(file("benchmark"))
+  .settings(
+    name := "benchmark",
+    commonSettings,
+    publish / skip := true,
+    libraryDependencies ++= Dependencies.benchmarking
+  )
+  .dependsOn(node % "compile->compile;test->test")
+  .enablePlugins(JmhPlugin)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
 
 lazy val crypto = project
   .in(file("crypto"))
