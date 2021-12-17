@@ -45,8 +45,8 @@ object Propositions {
 }
 
 sealed abstract class BoxLocation
+
 object BoxLocations {
   case object Input extends BoxLocation
   case object Output extends BoxLocation
 }
-

@@ -142,7 +142,7 @@ object ContainsEvidence {
     implicit val requiredInputBoxStateContainsEvidence: ContainsEvidence[Propositions.Contextual.RequiredBoxState] =
       t => {
         val locationPrefix = t.location match {
-          case BoxLocations.Input => 0: Byte
+          case BoxLocations.Input  => 0: Byte
           case BoxLocations.Output => 1: Byte
         }
 
@@ -151,13 +151,16 @@ object ContainsEvidence {
           Sized.strictUnsafe(
             Bytes(
               blake2b256
-                .hash(locationPrefix +: t.boxes.map{ case(index, box) => Ints.toByteArray(index) ++ Longs.toByteArray(box.nonce) }.foldLeft(Array.empty[Byte])((acc, a) => acc ++ a))
-                  .value
+                .hash(
+                  locationPrefix +: t.boxes
+                    .map { case (index, box) => Ints.toByteArray(index) ++ Longs.toByteArray(box.nonce) }
+                    .foldLeft(Array.empty[Byte])((acc, a) => acc ++ a)
                 )
+                .value
             )
           )
+        )
       }
-
 
     implicit val enumeratedOutputContainsEvidence: ContainsEvidence[Propositions.Example.EnumeratedInput] =
       t =>
@@ -216,8 +219,8 @@ object ContainsEvidence {
 
       case t: Propositions.Script.JS => jsScriptPropositionContainsEvidence.typedEvidenceOf(t)
 
-      case t: Propositions.Knowledge.HashLock => commitRevealContainsEvidence.typedEvidenceOf(t)
-      case t: Propositions.Example.EnumeratedInput => enumeratedOutputContainsEvidence.typedEvidenceOf(t)
+      case t: Propositions.Knowledge.HashLock          => commitRevealContainsEvidence.typedEvidenceOf(t)
+      case t: Propositions.Example.EnumeratedInput     => enumeratedOutputContainsEvidence.typedEvidenceOf(t)
       case t: Propositions.Contextual.RequiredBoxState => requiredInputBoxStateContainsEvidence.typedEvidenceOf(t)
     }
   }

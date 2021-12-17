@@ -20,7 +20,8 @@ package object models {
   case class TypedEvidence(typePrefix: TypePrefix, evidence: Evidence) {
     def allBytes: Bytes = typePrefix +: evidence.data
   }
-  object TypedEvidence{
+
+  object TypedEvidence {
     val empty: TypedEvidence = TypedEvidence(0: Byte, Sized.strictUnsafe(Bytes(Array.fill(32)(0: Byte))))
   }
 

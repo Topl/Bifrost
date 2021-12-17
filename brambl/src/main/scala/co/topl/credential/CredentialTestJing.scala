@@ -23,6 +23,7 @@ object CredentialTestJing extends App {
 
   implicit val ed25519: Ed25519 = new Ed25519
   implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.precomputed()
+
   implicit val jsExecutor: Propositions.Script.JS.JSScript => F[(Json, Json) => F[Boolean]] =
     s =>
       GraalVMScripting
@@ -70,7 +71,8 @@ object CredentialTestJing extends App {
     minting = false
   )
 
-  val credential = (combinedProp,
+  val credential = (
+    combinedProp,
     Iterable(
       Credential.Knowledge.Ed25519(voter1SK, unprovenTransaction),
       Credential.Knowledge.Ed25519(voter2SK, unprovenTransaction),
@@ -78,7 +80,8 @@ object CredentialTestJing extends App {
       heightProp.toCredential,
       Credential.Knowledge.Ed25519(admin1SK, unprovenTransaction),
       Credential.Knowledge.Curve25519(admin2SK, unprovenTransaction)
-    )).toCredential
+    )
+  ).toCredential
 
   val transactionAll = Transaction(
     inputs = ListMap.from(unprovenTransaction.inputs.map(_ -> (combinedProp, credential.proof))),
@@ -91,7 +94,6 @@ object CredentialTestJing extends App {
   )
   println(s"all transaction: $transactionAll")
   println(verify(transactionAll, combinedProp, credential.proof, 2L))
-
 
   val adminsCredential = Credential.Compositional.And(
     adminsProp,

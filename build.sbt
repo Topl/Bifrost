@@ -254,6 +254,7 @@ lazy val brambl = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.brambl"
   )
+  .settings(scalamacrosParadiseSettings)
   .dependsOn(toplRpc, common, typeclasses, models % "compile->compile;test->test", scripting)
 
 lazy val akkaHttpRpc = project

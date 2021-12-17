@@ -58,14 +58,15 @@ object Credentialer {
       t => Credential.Contextual.HeightLock(t.height)
 
     implicit val thresholdCredentialer: Credentialer[(Propositions.Compositional.Threshold, Iterable[Credential])] =
-      (t: (Propositions.Compositional.Threshold, Iterable[Credential])) => Credential.Compositional.Threshold(t._1, t._2)
+      (t: (Propositions.Compositional.Threshold, Iterable[Credential])) =>
+        Credential.Compositional.Threshold(t._1, t._2)
 
     implicit val AndCredentialer: Credentialer[(Propositions.Compositional.And, Iterable[Credential])] =
       (t: (Propositions.Compositional.And, Iterable[Credential])) => Credential.Compositional.And(t._1, t._2)
 
     implicit val OrCredentialer: Credentialer[(Propositions.Compositional.Or, Iterable[Credential])] =
       (t: (Propositions.Compositional.Or, Iterable[Credential])) => Credential.Compositional.Or(t._1, t._2)
-    }
+  }
 
   object instances extends Instances
 }

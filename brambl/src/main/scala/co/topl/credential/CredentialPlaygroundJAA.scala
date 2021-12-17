@@ -32,6 +32,7 @@ object SetupSandbox {
 
   implicit val ed25519: Ed25519 = new Ed25519
   implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.precomputed()
+
   implicit val jsExecutor: Propositions.Script.JS.JSScript => F[(Json, Json) => F[Boolean]] =
     s =>
       GraalVMScripting
@@ -111,12 +112,15 @@ object CredentialPlaygroundJAA extends App {
   implicit val context: VerificationContext[F] = new VerificationContext[F] {
     def currentTransaction: Transaction = transaction
     def currentHeight: Long = 1
-    def inputBoxes: List[Box[Box.Value]] = List(Box(
-      proposition.typedEvidence,
-      unprovenTransaction.inputs.head._2,
-      Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
-      10
-    ))
+
+    def inputBoxes: List[Box[Box.Value]] = List(
+      Box(
+        proposition.typedEvidence,
+        unprovenTransaction.inputs.head._2,
+        Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
+        10
+      )
+    )
 
     def currentSlot: Slot = 1
   }
@@ -128,7 +132,10 @@ object CredentialPlaygroundJAA extends App {
 object RequiredOutput extends App {
   import SetupSandbox._
 
-  val requiredBoxProposition = Propositions.Contextual.RequiredBoxState(BoxLocations.Output, List((0, Box.empty.copy(evidence = address0.typedEvidence))))
+  val requiredBoxProposition = Propositions.Contextual.RequiredBoxState(
+    BoxLocations.Output,
+    List((0, Box.empty.copy(evidence = address0.typedEvidence)))
+  )
   val proposition = curve25519Sk.vk.asProposition.and(requiredBoxProposition)
   println(s"The address for the proposition is: ${proposition.dionAddress}")
 
@@ -141,7 +148,8 @@ object RequiredOutput extends App {
     proposition,
     List(
       Credential.Knowledge.Curve25519(curve25519Sk, unprovenTransaction),
-      Credential.Contextual.RequiredBoxState(BoxLocations.Output, List((0, Box.empty.copy(evidence = address0.typedEvidence))))
+      Credential.Contextual
+        .RequiredBoxState(BoxLocations.Output, List((0, Box.empty.copy(evidence = address0.typedEvidence))))
     )
   )
 
@@ -154,12 +162,15 @@ object RequiredOutput extends App {
   implicit val context: VerificationContext[F] = new VerificationContext[F] {
     def currentTransaction: Transaction = transaction
     def currentHeight: Long = 1
-    def inputBoxes: List[Box[Box.Value]] = List(Box(
-      proposition.typedEvidence,
-      unprovenTransaction.inputs.head._2,
-      Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
-      10
-    ))
+
+    def inputBoxes: List[Box[Box.Value]] = List(
+      Box(
+        proposition.typedEvidence,
+        unprovenTransaction.inputs.head._2,
+        Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
+        10
+      )
+    )
     def currentSlot: Slot = 1
   }
 
@@ -173,12 +184,14 @@ object XorGameSetup extends App {
   val aliceValueInput: Byte = 0
   val aliceCommit: Digest32 = Sized.strictUnsafe(Bytes(blake2b256.hash(aliceSaltInput.value :+ aliceValueInput).value))
 
-  val requiredInputBoxProposition = Propositions.Contextual.RequiredBoxState(BoxLocations.Input, List((0, Box.empty.copy(data = aliceValueInput))))
+  val requiredInputBoxProposition =
+    Propositions.Contextual.RequiredBoxState(BoxLocations.Input, List((0, Box.empty.copy(data = aliceValueInput))))
 
   val fullGameProposition = bobSk.vk.asProposition
     .and(Propositions.Contextual.HeightLock(50))
     .or(
-      Propositions.Knowledge.HashLock(aliceCommit)
+      Propositions.Knowledge
+        .HashLock(aliceCommit)
         .and(
           aliceSk.vk.asProposition
             .and(requiredInputBoxProposition)
@@ -186,7 +199,10 @@ object XorGameSetup extends App {
         )
     )
 
-  val requiredOutputBoxProposition = Propositions.Contextual.RequiredBoxState(BoxLocations.Output, List((0, Box.empty.copy(evidence = fullGameProposition.typedEvidence))))
+  val requiredOutputBoxProposition = Propositions.Contextual.RequiredBoxState(
+    BoxLocations.Output,
+    List((0, Box.empty.copy(evidence = fullGameProposition.typedEvidence)))
+  )
 
   val halfGameProposition = Propositions.Example
     .EnumeratedInput(List(0, 1))
@@ -203,7 +219,10 @@ object XorGameSetup extends App {
     halfGameProposition,
     List(
       Credential.Example.EnumeratedInput(List(0, 1), 0),
-      Credential.Contextual.RequiredBoxState(BoxLocations.Output, List((0, Box.empty.copy(evidence = fullGameProposition.dionAddress.typedEvidence))))
+      Credential.Contextual.RequiredBoxState(
+        BoxLocations.Output,
+        List((0, Box.empty.copy(evidence = fullGameProposition.dionAddress.typedEvidence)))
+      )
     )
   )
 
@@ -230,12 +249,14 @@ object XorGameCompletion extends App {
   val aliceValueInput: Byte = 1
   val aliceCommit: Digest32 = Sized.strictUnsafe(Bytes(blake2b256.hash(aliceSaltInput.value :+ aliceValueInput).value))
 
-  val requiredInputBoxProposition = Propositions.Contextual.RequiredBoxState(BoxLocations.Input, List((0, Box.empty.copy(data = aliceValueInput))))
+  val requiredInputBoxProposition =
+    Propositions.Contextual.RequiredBoxState(BoxLocations.Input, List((0, Box.empty.copy(data = aliceValueInput))))
 
   val fullGameProposition = bobSk.vk.asProposition
     .and(Propositions.Contextual.HeightLock(50))
     .or(
-      Propositions.Knowledge.HashLock(aliceCommit)
+      Propositions.Knowledge
+        .HashLock(aliceCommit)
         .and(
           aliceSk.vk.asProposition
             .and(requiredInputBoxProposition)
@@ -243,7 +264,10 @@ object XorGameCompletion extends App {
         )
     )
 
-  val requiredOutputBoxProposition = Propositions.Contextual.RequiredBoxState(BoxLocations.Output, List((0, Box.empty.copy(evidence = fullGameProposition.dionAddress.typedEvidence))))
+  val requiredOutputBoxProposition = Propositions.Contextual.RequiredBoxState(
+    BoxLocations.Output,
+    List((0, Box.empty.copy(evidence = fullGameProposition.dionAddress.typedEvidence)))
+  )
 
   val halfGameProposition = Propositions.Example
     .EnumeratedInput(List(0, 1))
@@ -275,12 +299,15 @@ object XorGameCompletion extends App {
   implicit val context: VerificationContext[F] = new VerificationContext[F] {
     def currentTransaction: Transaction = transaction
     def currentHeight: Long = 1
-    def inputBoxes: List[Box[Box.Value]] = List(Box(
-      halfGameProposition.typedEvidence,
-      unprovenTransaction.inputs.head._2,
-      Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
-      aliceValueInput
-    ))
+
+    def inputBoxes: List[Box[Box.Value]] = List(
+      Box(
+        halfGameProposition.typedEvidence,
+        unprovenTransaction.inputs.head._2,
+        Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
+        aliceValueInput
+      )
+    )
     def currentSlot: Slot = 1
   }
 
@@ -296,7 +323,8 @@ object HashTimeLockContract {
   val aliceCommit: Digest32 = Sized.strictUnsafe(Bytes(blake2b256.hash(aliceSaltInput.value :+ aliceValueInput).value))
 
   val proposition =
-    aliceSk.vk.asProposition.and(Propositions.Knowledge.HashLock(aliceCommit))
+    aliceSk.vk.asProposition
+      .and(Propositions.Knowledge.HashLock(aliceCommit))
       .or(bobSk.vk.asProposition.and(Propositions.Contextual.HeightLock(300)))
 
   println(s"The address for the proposition is: ${proposition}")
@@ -305,7 +333,10 @@ object HashTimeLockContract {
 object RequiredBoxValue extends App {
   import SetupSandbox._
 
-  val proposition = Propositions.Contextual.RequiredBoxState(BoxLocations.Output, List((0, Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))))))
+  val proposition = Propositions.Contextual.RequiredBoxState(
+    BoxLocations.Output,
+    List((0, Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10))))))
+  )
   println(s"The address for the proposition is: ${proposition}")
 
   val unprovenTransaction: Transaction.Unproven = createUnprovenTransaction(
@@ -313,7 +344,10 @@ object RequiredBoxValue extends App {
     NonEmptyChain(Transaction.PolyOutput(address0, Sized.maxUnsafe(BigInt(10))))
   )
 
-  val credential = Credential.Contextual.RequiredBoxState(BoxLocations.Output, List((0, Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))))))
+  val credential = Credential.Contextual.RequiredBoxState(
+    BoxLocations.Output,
+    List((0, Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10))))))
+  )
 
   val proof = credential.proof
   println(proof)

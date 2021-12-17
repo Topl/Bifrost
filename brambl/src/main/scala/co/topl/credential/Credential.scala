@@ -176,7 +176,9 @@ object Credential {
 
     case class RequiredBoxState(location: BoxLocation, boxes: List[(Int, Box[Box.Value])]) extends Credential {
       def prove(currentProof: Proof): Proof = Proofs.Contextual.RequiredBoxState()
-      val proposition: Propositions.Contextual.RequiredBoxState = Propositions.Contextual.RequiredBoxState(location, boxes)
+
+      val proposition: Propositions.Contextual.RequiredBoxState =
+        Propositions.Contextual.RequiredBoxState(location, boxes)
     }
   }
 

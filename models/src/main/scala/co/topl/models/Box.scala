@@ -36,8 +36,10 @@ object Box {
   }
 
   def apply(coinOutput: Transaction.CoinOutput): Box[_] = coinOutput match {
-    case Transaction.PolyOutput(dionAddress, value) => Box(dionAddress.typedEvidence, Random.nextLong(), Box.Values.Poly(value), 0)
-    case Transaction.ArbitOutput(dionAddress, value) => Box(dionAddress.typedEvidence, Random.nextLong(), Box.Values.Arbit(value), 0)
+    case Transaction.PolyOutput(dionAddress, value) =>
+      Box(dionAddress.typedEvidence, Random.nextLong(), Box.Values.Poly(value), 0)
+    case Transaction.ArbitOutput(dionAddress, value) =>
+      Box(dionAddress.typedEvidence, Random.nextLong(), Box.Values.Arbit(value), 0)
     case Transaction.AssetOutput(dionAddress, value) => Box(dionAddress.typedEvidence, Random.nextLong(), value, 0)
   }
 

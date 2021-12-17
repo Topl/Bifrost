@@ -58,6 +58,11 @@ class ScriptedProofVerifierSpec
         .once()
         .returning(transaction)
 
+      (() => context.currentSlot)
+        .expects()
+        .once()
+        .returning(400L)
+
       val result =
         proof.satisfies[F](proposition).unsafeRunSync()
 
@@ -93,6 +98,11 @@ class ScriptedProofVerifierSpec
         .expects()
         .once()
         .returning(transaction)
+
+      (() => context.currentSlot)
+        .expects()
+        .once()
+        .returning(200L)
 
       val result =
         proof.satisfies[F](proposition).unsafeRunSync()
@@ -130,6 +140,11 @@ class ScriptedProofVerifierSpec
         .expects()
         .once()
         .returning(transaction)
+
+      (() => context.currentSlot)
+        .expects()
+        .once()
+        .returning(400L)
 
       val result =
         proof.satisfies[F](proposition).unsafeRunSync()
