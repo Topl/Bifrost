@@ -1,6 +1,7 @@
 package co.topl.typeclasses
 
 import cats.Eval
+import co.topl.codecs.bytes.implicits._
 import co.topl.crypto.hash.blake2b256
 import co.topl.models.VerificationKeys.VrfEd25519
 import co.topl.models._
@@ -20,10 +21,10 @@ object BlockGenesis {
   val ParentSlot: Slot = -1
 
   def vrfCertificate(eta: Eta): EligibilityCertificate = EligibilityCertificate(
-    Proofs.Signature.VrfEd25519(zeroBytes(Lengths.`80`)),
-    Proofs.Signature.VrfEd25519(zeroBytes(Lengths.`80`)),
+    Proofs.Knowledge.VrfEd25519(zeroBytes(Lengths.`80`)),
+    Proofs.Knowledge.VrfEd25519(zeroBytes(Lengths.`80`)),
     VerificationKeys.VrfEd25519(VerificationKeys.Ed25519(zeroBytes[VrfEd25519.Length]).bytes),
-    thresholdEvidence = Sized.strictUnsafe(TypedBytes(IdentifierTypes.RatioEvidence, Bytes(Array.fill[Byte](32)(0)))),
+    thresholdEvidence = Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0))),
     eta = eta
   )
 
@@ -50,7 +51,7 @@ object BlockGenesis {
 //      slotR = 0
 //    )
   val kesCertificate: OperationalCertificate = OperationalCertificate(
-    Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(Array.fill(64)(0: Byte))))
+    Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(Array.fill(64)(0: Byte))))
   )
 
   def apply(transactions: Seq[Transaction]): Eval[BlockV2] = Eval.later {
@@ -63,7 +64,6 @@ object BlockGenesis {
     // TODO: Read "genesis-eta-plaintext" from application.conf, and then hash that value and/or Magic Bytes
     val eta: Eta = {
       import co.topl.codecs.bytes.BasicCodecs._
-      import co.topl.codecs.bytes.ByteCodec.implicits._
       Sized.strictUnsafe(
         Bytes(
           blake2b256

@@ -60,4 +60,9 @@ object Bip32Indexes {
       if (value >= 0) new HardenedIndex(value + Bip32Index.hardenedOffset)
       else new HardenedIndex(0 + Bip32Index.hardenedOffset)
   }
+
+  implicit class Bip32IndexesSupport(value: Long) {
+    def soft: SoftIndex = SoftIndex(value)
+    def hardened: HardenedIndex = HardenedIndex(value)
+  }
 }

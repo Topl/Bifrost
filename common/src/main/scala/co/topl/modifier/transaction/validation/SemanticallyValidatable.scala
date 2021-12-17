@@ -136,7 +136,7 @@ class TransferTransactionSemanticallyValidatable[T <: TokenValueHolder, P <: Pro
   ): ValidatedNec[SemanticValidationFailure, TransferTransaction[T, P]] =
     tx match {
       case _: PolyTransfer[_] if tx.minting =>
-        // Poly block rewards (skip enfocring)
+        // Poly block rewards (skip enforcing)
         tx.validNec[SemanticValidationFailure]
       case _: ArbitTransfer[_] if tx.minting =>
         // Arbit block rewards (skip enforcing)

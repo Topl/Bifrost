@@ -7,7 +7,7 @@ import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
 
 class KesSum
     extends SumComposition
-    with KeyEvolvingSignatureScheme[SecretKeys.KesSum, VerificationKeys.KesSum, Proofs.Signature.KesSum, Int] {
+    with KeyEvolvingSignatureScheme[SecretKeys.KesSum, VerificationKeys.KesSum, Proofs.Knowledge.KesSum, Int] {
 
   override def createKeyPair(seed: Bytes, height: Int, offset: Long): (SecretKeys.KesSum, VerificationKeys.KesSum) = {
     val sk: KesBinaryTree = generateSecretKey(seed.toArray, height)
@@ -15,17 +15,17 @@ class KesSum
     (SecretKeys.KesSum(sk, offset), VerificationKeys.KesSum(Sized.strictUnsafe(Bytes(pk._1)), pk._2))
   }
 
-  override def sign(privateKey: SecretKeys.KesSum, message: Bytes): Proofs.Signature.KesSum = {
+  override def sign(privateKey: SecretKeys.KesSum, message: Bytes): Proofs.Knowledge.KesSum = {
     val sumSig = sign(privateKey.tree, message.toArray)
-    Proofs.Signature.KesSum(
+    Proofs.Knowledge.KesSum(
       VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(sumSig._1))),
-      Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(sumSig._2))),
+      Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(sumSig._2))),
       sumSig._3.map(w => Sized.strictUnsafe(Bytes(w)))
     )
   }
 
   override def verify(
-    signature: Proofs.Signature.KesSum,
+    signature: Proofs.Knowledge.KesSum,
     message:   Bytes,
     verifyKey: VerificationKeys.KesSum
   ): Boolean = {

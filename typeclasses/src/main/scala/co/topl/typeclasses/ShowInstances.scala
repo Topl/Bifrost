@@ -2,8 +2,7 @@ package co.topl.typeclasses
 
 import cats.Show
 import cats.implicits._
-import co.topl.codecs.bytes.BasicCodecs._
-import co.topl.codecs.bytes.ByteCodec.implicits._
+import co.topl.codecs.bytes.implicits._
 import co.topl.models._
 import co.topl.models.utility.{Base58, Length, Sized}
 import co.topl.typeclasses.Identifiable.Instances._

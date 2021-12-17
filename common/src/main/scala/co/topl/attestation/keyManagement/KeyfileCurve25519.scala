@@ -164,7 +164,7 @@ object KeyfileCurve25519Companion extends KeyfileCompanion[PrivateKeyCurve25519,
    * @param encrypt
    * @return
    */
-  private def getAESResult(
+  def getAESResult(
     derivedKey: Array[Byte],
     ivData:     Array[Byte],
     inputText:  Array[Byte],

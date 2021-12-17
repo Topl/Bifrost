@@ -1,56 +1,42 @@
 package co.topl.typeclasses
 
-import co.topl.crypto.signing.{Ed25519, ExtendedEd25519, MessageToSign}
-import co.topl.models.Proofs.Signature
+import co.topl.crypto.signing.{Curve25519, Ed25519, ExtendedEd25519}
 import co.topl.models._
-import co.topl.typeclasses.implicits._
+import co.topl.typeclasses.Signable.instances._
+import co.topl.typeclasses.Signable.ops._
 
 import scala.language.implicitConversions
 
-trait Prover[T, Prf <: Proof] {
+@simulacrum.typeclass
+trait Prover[ProofInput] {
 
   /**
-   * Creates a Proof for some signable Data using some value T
+   * Creates a Proof using this Prover's input type
    * @param t a value which can construct a Proof, usually a SecretKey
-   * @param data unsigned data that can be represented bytes to be signed
    * @return a Proof
    */
-  def proveWith[Data: Signable](t: T, data: Data): Prf
+  @simulacrum.op("asProof")
+  def proveWith(t: ProofInput): Proof
 }
 
 object Prover {
 
-  def apply[T, Prf <: Proof](implicit p: Prover[T, Prf]): Prover[T, Prf] = p
-
   trait Instances {
 
-    implicit def ed25519Proves(implicit ed: Ed25519): Prover[SecretKeys.Ed25519, Proofs.Signature.Ed25519] =
-      new Prover[SecretKeys.Ed25519, Proofs.Signature.Ed25519] {
+    implicit val curve25519Proves: Prover[(SecretKeys.Curve25519, Transaction.Unproven)] =
+      (t: (SecretKeys.Curve25519, Transaction.Unproven)) => Curve25519.instance.sign(t._1, t._2.signableBytes)
 
-        def proveWith[Data: Signable](t: SecretKeys.Ed25519, data: Data): Signature.Ed25519 =
-          new Ed25519().sign(t, data.signableBytes)
-      }
+    implicit def ed25519Proves(implicit
+      ed: Ed25519
+    ): Prover[(SecretKeys.Ed25519, Transaction.Unproven)] =
+      (t: (SecretKeys.Ed25519, Transaction.Unproven)) => ed.sign(t._1, t._2.signableBytes)
 
     implicit def extendedEd25519Proves(implicit
-      ed: Ed25519
-    ): Prover[SecretKeys.ExtendedEd25519, Proofs.Signature.Ed25519] =
-      new Prover[SecretKeys.ExtendedEd25519, Proofs.Signature.Ed25519] {
+      extendedEd: ExtendedEd25519
+    ): Prover[(SecretKeys.ExtendedEd25519, Transaction.Unproven)] =
+      (t: (SecretKeys.ExtendedEd25519, Transaction.Unproven)) => extendedEd.sign(t._1, t._2.signableBytes)
 
-        def proveWith[Data: Signable](t: SecretKeys.ExtendedEd25519, data: Data): Proofs.Signature.Ed25519 =
-          new ExtendedEd25519().sign(t, data.signableBytes)
-      }
   }
-
-  trait Implicits {
-
-    implicit class TOps[T](private val t: T) {
-
-      def prove[Prf <: Proof, Data: Signable](data: Data)(implicit proves: Prover[T, Prf]): Prf =
-        proves.proveWith(t, data)
-    }
-  }
-
-  object implicits extends Implicits
 
   object instances extends Instances
 }

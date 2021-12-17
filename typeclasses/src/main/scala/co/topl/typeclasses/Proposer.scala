@@ -1,46 +1,63 @@
 package co.topl.typeclasses
 
-import co.topl.models.{Proposition, Propositions, VerificationKeys}
+import co.topl.models.{Proposition, Propositions, VerificationKey, VerificationKeys}
 
+import scala.collection.immutable.ListSet
 import scala.language.implicitConversions
 
-trait Proposer[T, Prop <: Proposition] {
+/**
+ * Reveal inputs to produce a Proposition
+ */
+@simulacrum.typeclass
+trait Proposer[PropositionInput] {
 
   /**
    * Creates a Proposition from the given T
    * @param t a value which can be converted into a Proposition (usually a Verification Key)
    * @return a Proposition
    */
-  def propositionOf(t: T): Prop
+  @simulacrum.op("asProposition")
+  def propositionOf(t: PropositionInput): Proposition
 }
 
 object Proposer {
 
-  trait Ops[T, Prop <: Proposition] {
-    def t: T
-    def typeclassInstance: Proposer[T, Prop]
-    def proposition: Prop = typeclassInstance.propositionOf(t)
+  trait Implicits {
+
+    implicit class CompositionalOps(p: Proposition) {
+      def and(other: Proposition): Propositions.Compositional.And = Propositions.Compositional.And(p, other)
+      def or(other:  Proposition): Propositions.Compositional.Or = Propositions.Compositional.Or(p, other)
+    }
+
+    implicit class IterableOps(props: Iterable[Proposition]) {
+
+      def threshold(k: Int): Propositions.Compositional.Threshold =
+        Propositions.Compositional.Threshold(k, ListSet.from(props))
+    }
   }
 
-  trait implicits {
-
-    implicit def asProposesOps[T, Prop <: Proposition](t1: T)(implicit ev: Proposer[T, Prop]): Ops[T, Prop] =
-      new Ops[T, Prop] {
-        def t: T = t1
-
-        def typeclassInstance: Proposer[T, Prop] = ev
-      }
-  }
-
-  object implicits extends implicits
+  object implicits extends Implicits
 
   trait Instances {
 
-    implicit val ed25519Proposes: Proposer[VerificationKeys.Ed25519, Propositions.Knowledge.Ed25519] =
+    implicit val vkProposes: Proposer[VerificationKey] = {
+      case t: VerificationKeys.Curve25519      => Propositions.Knowledge.Curve25519(t)
+      case t: VerificationKeys.Ed25519         => Propositions.Knowledge.Ed25519(t)
+      case t: VerificationKeys.ExtendedEd25519 => Propositions.Knowledge.ExtendedEd25519(t)
+      case t                                   => throw new MatchError(t)
+    }
+
+    implicit val curve25519Proposes: Proposer[VerificationKeys.Curve25519] =
+      t => Propositions.Knowledge.Curve25519(t)
+
+    implicit val ed25519Proposes: Proposer[VerificationKeys.Ed25519] =
       t => Propositions.Knowledge.Ed25519(t)
 
-    implicit val vrfProposes: Proposer[VerificationKeys.VrfEd25519, Propositions.VerificationKeyVRF] =
-      t => Propositions.VerificationKeyVRF(t)
+    implicit val extendedEd25519Proposes: Proposer[VerificationKeys.ExtendedEd25519] =
+      t => Propositions.Knowledge.ExtendedEd25519(t)
+
+    implicit val longProposesHeightLock: Proposer[Long] =
+      t => Propositions.Contextual.HeightLock(t)
   }
 
   object instances extends Instances

@@ -178,7 +178,7 @@ class BlockHeaderValidationSpec
         .once()
         .returning(
           BlockHeaderValidationSpec
-            .validRegistration(vrfSecret.verificationKey[VerificationKeys.VrfEd25519])
+            .validRegistration(ed25519Vrf.getVerificationKey(vrfSecret))
             .some
             .pure[F]
         )
@@ -258,7 +258,7 @@ class BlockHeaderValidationSpec
         .registrationOf(_: SlotId, _: TaktikosAddress))
         .expects(*, *)
         .once()
-        .returning(BlockHeaderValidationSpec.validRegistration(vrfSecret.verificationKey).some.pure[F])
+        .returning(BlockHeaderValidationSpec.validRegistration(ed25519Vrf.getVerificationKey(vrfSecret)).some.pure[F])
 
       val underTest =
         BlockHeaderValidation.Eval
@@ -341,8 +341,8 @@ class BlockHeaderValidationSpec
     val cert = EligibilityCertificate(
       proof(slot, LeaderElectionValidation.Tokens.Nonce),
       testProof,
-      skVrf.verificationKey[VerificationKeys.VrfEd25519],
-      threshold.evidence,
+      ed25519Vrf.getVerificationKey(skVrf),
+      threshold.typedEvidence.evidence,
       eta
     )
 
@@ -351,7 +351,7 @@ class BlockHeaderValidationSpec
 
   private def validOperationalCertificate(unsigned: BlockHeaderV2.Unsigned): OperationalCertificate =
     OperationalCertificate(
-      Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0))))
+      Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0))))
 //      opSig = Proofs.Signature.HdKes(
 //        i = 0,
 //        vkI = VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),

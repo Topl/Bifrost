@@ -90,7 +90,7 @@ case class SignatureCurve25519(private[attestation] val sigBytes: Signature)
 
   def isValid(proposition: PublicKeyPropositionCurve25519, message: Array[Byte]): Boolean =
     curve25519.verify(
-      Proofs.Signature.Curve25519(Sized.strictUnsafe[Bytes, Proofs.Signature.Curve25519.Length](Bytes(sigBytes.value))),
+      Proofs.Knowledge.Curve25519(Sized.strictUnsafe[Bytes, Proofs.Knowledge.Curve25519.Length](Bytes(sigBytes.value))),
       Bytes(message),
       VerificationKeys.Curve25519(
         Sized.strictUnsafe[Bytes, VerificationKeys.Curve25519.Length](Bytes(proposition.pubKeyBytes.value))
@@ -149,7 +149,7 @@ case class ThresholdSignatureCurve25519(private[attestation] val signatures: Set
         unusedProps
           .find(prop =>
             unusedProps(prop) && curve25519.verify(
-              Proofs.Signature.Curve25519(Sized.strictUnsafe(Bytes(sig.sigBytes.value))),
+              Proofs.Knowledge.Curve25519(Sized.strictUnsafe(Bytes(sig.sigBytes.value))),
               Bytes(message),
               VerificationKeys.Curve25519(Sized.strictUnsafe(Bytes(prop.pubKeyBytes.value)))
             )
@@ -211,7 +211,7 @@ case class SignatureEd25519(private[attestation] val sigBytes: Signature)
 
   def isValid(proposition: PublicKeyPropositionEd25519, message: Array[Byte]): Boolean =
     ed25519.verify(
-      Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(sigBytes.value))),
+      Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(sigBytes.value))),
       Bytes(message),
       VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(proposition.pubKeyBytes.value)))
     )

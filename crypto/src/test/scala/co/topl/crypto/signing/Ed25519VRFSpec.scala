@@ -51,7 +51,7 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
     val specOut_vk = VerificationKeys.VrfEd25519(
       "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a".unsafeStrictBytes
     )
-    val specOut_pi = Proofs.Signature.VrfEd25519(
+    val specOut_pi = Proofs.Knowledge.VrfEd25519(
       "8657106690b5526245a92b003bb079ccd1a92130477671f6fc01ad16f26f723f5e8bd1839b414219e8626d393787a192241fc442e6569e96c462f62b8079b9ed83ff2ee21c90c7c398802fdeebea4001".unsafeStrictBytes
     )
     val specOut_beta: Sized.Strict[Bytes, Lengths.`64`.type] =
@@ -73,7 +73,7 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
     val specOut_vk = VerificationKeys.VrfEd25519(
       "3d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c".unsafeStrictBytes
     )
-    val specOut_pi = Proofs.Signature.VrfEd25519(
+    val specOut_pi = Proofs.Knowledge.VrfEd25519(
       "f3141cd382dc42909d19ec5110469e4feae18300e94f304590abdced48aed593f7eaf3eb2f1a968cba3f6e23b386aeeaab7b1ea44a256e811892e13eeae7c9f6ea8992557453eac11c4d5476b1f35a08".unsafeStrictBytes
     )
     val specOut_beta: Sized.Strict[Bytes, Lengths.`64`.type] =
@@ -94,7 +94,7 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
     val specOut_vk = VerificationKeys.VrfEd25519(
       "fc51cd8e6218a1a38da47ed00230f0580816ed13ba3303ac5deb911548908025".unsafeStrictBytes
     )
-    val specOut_pi = Proofs.Signature.VrfEd25519(
+    val specOut_pi = Proofs.Knowledge.VrfEd25519(
       "9bc0f79119cc5604bf02d23b4caede71393cedfbb191434dd016d30177ccbf80e29dc513c01c3a980e0e545bcd848222d08a6c3e3665ff5a4cab13a643bef812e284c6b2ee063a2cb4f456794723ad0a".unsafeStrictBytes
     )
     val specOut_beta: Sized.Strict[Bytes, Lengths.`64`.type] =

@@ -21,7 +21,7 @@ package object typeclasses {
       with Identifiable.ToIdentifiableOps
       with RatioOps.Implicits
       with ContainsVerificationKey.Instances
-      with ContainsVerificationKey.Implicits
+      with ContainsVerificationKey.ToContainsVerificationKeyOps
       with Evolves.Instances
       with Evolves.ToEvolvesOps
       with KeyInitializer.Instances
@@ -29,13 +29,16 @@ package object typeclasses {
       with ProofVerifier.Instances
       with ProofVerifier.Implicits
       with Proposer.Instances
-      with Proposer.implicits
+      with Proposer.Implicits
+      with Proposer.ToProposerOps
       with Prover.Instances
-      with Prover.Implicits
+      with Prover.ToProverOps
       with Signable.Instances
       with Signable.ToSignableOps
       with ShowInstances
       with EqInstances
+      with DionAddressable.Instances
+      with DionAddressable.ToDionAddressableOps
       with Prepend.Instances
       with Prepend.ToPrependOps
       with NonEmpty.Instances

@@ -61,7 +61,7 @@ object Staking {
 
       // TODO: Generate a _real_ operational certificate
       val temporaryOpCert: OperationalCertificate = OperationalCertificate(
-        Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(Array.fill(64)(0: Byte))))
+        Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(Array.fill(64)(0: Byte))))
       )
 //
 //      private def temporaryOpCert =

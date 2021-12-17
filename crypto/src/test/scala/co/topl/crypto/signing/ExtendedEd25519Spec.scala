@@ -62,7 +62,7 @@ class ExtendedEd25519Spec
         VerificationKeys.Ed25519("d4d38ed7e78f2ec724b129a6842c60805d793e6731f728c8da8b310b9024f6b7".unsafeStrictBytes),
         "936fb3418dcdf821f589fc2a5b553a094918cf69ca5e10a30e644708ab55d9aa".unsafeStrictBytes
       )
-    val specOut_sig = Proofs.Signature.Ed25519(
+    val specOut_sig = Proofs.Knowledge.Ed25519(
       "a9821dc3aa74dbf5c1253989adf49863b0b8a761ee157ee8a10af751ec15fe417f8fc605074abeb1b3a6655871f98510d77f45031ad8b0f62b562afc90eeea0c".unsafeStrictBytes
     )
 
@@ -89,7 +89,7 @@ class ExtendedEd25519Spec
         VerificationKeys.Ed25519("a2886648ddd536f2bfc3f766ba0944c4aa06bfea5ba9aae073b31e7d7c15e551".unsafeStrictBytes),
         "bb8c3ca396a73fceb5111d1b12d8049ac8b1789be308c063b2e5a9b6e5a8c764".unsafeStrictBytes
       )
-    val specOut_sig = Proofs.Signature.Ed25519(
+    val specOut_sig = Proofs.Knowledge.Ed25519(
       "fbbbca775152d6edc69e35f34da1751f6f0f4ec74384a4dd21493c1e3c6f346d1976a76a936a01cb313425970290e9c7bac33b52449e04f66d667e16d181ef0c".unsafeStrictBytes
     )
 
@@ -138,7 +138,7 @@ class ExtendedEd25519Spec
         VerificationKeys.Ed25519("ba6f17a0aea15adf0133ce213bf6eabfd161f3120a4f31a40ea96432277fb88d".unsafeStrictBytes),
         "64c5e1ffad57e36b0e9fa3a4fb268da0c134fe3ea472dbf124215b2df1d4c40e".unsafeStrictBytes
       )
-    val specOut_sig = Proofs.Signature.Ed25519(
+    val specOut_sig = Proofs.Knowledge.Ed25519(
       "b37d85d75085837957e8820278a00367f75bde4884433a6af15be9f8d103ee8dd6b4d5fefaa081bb53f33a92c9fc2cbcf3d6ad93063d9b31f8f973b6d3d4f404".unsafeStrictBytes
     )
 

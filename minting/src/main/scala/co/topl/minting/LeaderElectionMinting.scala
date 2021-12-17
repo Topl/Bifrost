@@ -14,12 +14,12 @@ object LeaderElectionMinting {
   object Eval {
 
     def make[F[_]: Monad](
-      secret:               SecretKeys.VrfEd25519,
+      vk:                   VerificationKeys.VrfEd25519,
       thresholdInterpreter: LeaderElectionValidationAlgebra[F],
       vrfProofAlgebra:      VrfProofAlgebra[F]
     ): LeaderElectionMintingAlgebra[F] = new LeaderElectionMintingAlgebra[F] {
 
-      private def buildHit(slot: Slot, eta: Eta, testProof: Proofs.Signature.VrfEd25519, threshold: Ratio): F[VrfHit] =
+      private def buildHit(slot: Slot, eta: Eta, testProof: Proofs.Knowledge.VrfEd25519, threshold: Ratio): F[VrfHit] =
         vrfProofAlgebra
           .nonceProofForSlot(slot, eta)
           .map(nonceProof =>
@@ -27,8 +27,8 @@ object LeaderElectionMinting {
               EligibilityCertificate(
                 nonceProof,
                 testProof,
-                secret.verificationKey[VerificationKeys.VrfEd25519],
-                threshold.evidence,
+                vk,
+                threshold.typedEvidence.evidence,
                 eta
               ),
               slot,

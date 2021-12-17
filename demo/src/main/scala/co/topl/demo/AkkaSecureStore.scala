@@ -9,6 +9,7 @@ import cats.data.Chain
 import cats.effect.kernel.{Async, Sync}
 import cats.implicits._
 import co.topl.codecs.bytes.ByteCodec
+import co.topl.codecs.bytes.implicits._
 import co.topl.crypto.keyfile.SecureStore
 import co.topl.demo.AkkaSecureStoreActor.ReceivableMessages
 import co.topl.models.Bytes
@@ -108,7 +109,6 @@ object AkkaSecureStoreActor {
   sealed abstract class ReceivableMessage
 
   object ReceivableMessages {
-    import co.topl.codecs.bytes.ByteCodec.implicits._
     case class List(replyTo: ActorRef[Chain[String]]) extends ReceivableMessage
 
     case class Write[A: ByteCodec](name: String, data: A, replyTo: ActorRef[Done]) extends ReceivableMessage {
