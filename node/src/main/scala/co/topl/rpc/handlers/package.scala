@@ -48,36 +48,21 @@ package object handlers {
   ): Either[RpcError, (Long, Long)] =
     for {
       _ <- Either.cond(
-        startHeight >= 1 && endHeight >= startHeight && bestBlockHeight >= startHeight && bestBlockHeight >= endHeight,
+        startHeight >= 1 && endHeight >= startHeight && bestBlockHeight >= startHeight,
         {},
         ToplRpcErrors.InvalidHeightRange
       )
       _ <- Either.cond(
+        bestBlockHeight >= endHeight,
+        {},
+        ToplRpcErrors.unsupportedOperation("End height exceeded head height")
+      )
+      _ <- Either.cond(
         (endHeight - startHeight + 1) <= sizeLimit,
         {},
-        ToplRpcErrors.unsupportedOperation("Height range exceeded blockRetrievalLimit")
+        ToplRpcErrors.unsupportedOperation("Height range exceeded block/block id retrieval limit")
       )
     } yield (startHeight, endHeight)
-
-  private[handlers] def checkLatestBlockNumber(
-    headHeight:     Long,
-    numberOfBlocks: Int,
-    sizeLimit:      Int
-  ): Either[RpcError, Long] =
-    for {
-      _ <- Either.cond(
-        numberOfBlocks <= headHeight,
-        {},
-        ToplRpcErrors.unsupportedOperation("Requested number of blocks is greater than existing number of blocks")
-      )
-      _ <- Either.cond(
-        numberOfBlocks <= sizeLimit,
-        {},
-        ToplRpcErrors.unsupportedOperation(
-          "Requested number of blocks is greater than the max retrievable block number configured"
-        )
-      )
-    } yield headHeight - numberOfBlocks + 1
 
   private[handlers] def checkTxIds(
     txStatusOption: List[Option[(ModifierId, TxStatus)]]

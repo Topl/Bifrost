@@ -91,36 +91,52 @@ class NodeViewRpcHandlerImpls(
 
   override val blocksInRange: ToplRpc.NodeView.BlocksInRange.rpc.ServerHandler =
     params =>
-      withNodeView(view =>
-        checkHeightRange(view.history.height, params.startHeight, params.endHeight, rpcSettings.blockRetrievalLimit)
-          .map(range => getBlocksInRange(view.history, range._1, range._2))
-      ).subflatMap(identity)
+      for {
+        headHeight <- withNodeView(_.history.height)
+        range <- EitherT.fromEither[Future](
+          checkHeightRange(headHeight, params.startHeight, params.endHeight, rpcSettings.blockRetrievalLimit)
+        )
+        blocks <- withNodeView(view => getBlocksInRange(view.history, range._1, range._2))
+      } yield blocks
 
   override val blockIdsInRange: ToplRpc.NodeView.BlockIdsInRange.rpc.ServerHandler =
     params =>
-      withNodeView(view =>
-        checkHeightRange(view.history.height, params.startHeight, params.endHeight, rpcSettings.blockIdRetrievalLimit)
-          .map(range => getBlockIdsInRange(view.history, range._1, range._2))
-      ).subflatMap(identity)
+      for {
+        headHeight <- withNodeView(_.history.height)
+        range <- EitherT.fromEither[Future](
+          checkHeightRange(headHeight, params.startHeight, params.endHeight, rpcSettings.blockIdRetrievalLimit)
+        )
+        ids <- withNodeView(view => getBlockIdsInRange(view.history, range._1, range._2))
+      } yield ids
 
   override val latestBlocks: ToplRpc.NodeView.LatestBlocks.rpc.ServerHandler =
     params =>
       for {
         headHeight <- withNodeView(_.history.height)
-        startHeight <- EitherT.fromEither[Future](
-          checkLatestBlockNumber(headHeight, params.numberOfBlocks, rpcSettings.blockRetrievalLimit)
+        range <- EitherT.fromEither[Future](
+          checkHeightRange(
+            headHeight,
+            headHeight - params.numberOfBlocks + 1,
+            headHeight,
+            rpcSettings.blockRetrievalLimit
+          )
         )
-        blocks <- withNodeView(view => getBlocksInRange(view.history, startHeight, headHeight))
+        blocks <- withNodeView(view => getBlocksInRange(view.history, range._1, range._2))
       } yield blocks
 
   override val latestBlockIds: ToplRpc.NodeView.LatestBlockIds.rpc.ServerHandler =
     params =>
       for {
         headHeight <- withNodeView(_.history.height)
-        startHeight <- EitherT.fromEither[Future](
-          checkLatestBlockNumber(headHeight, params.numberOfBlockIds, rpcSettings.blockRetrievalLimit)
+        range <- EitherT.fromEither[Future](
+          checkHeightRange(
+            headHeight,
+            headHeight - params.numberOfBlockIds + 1,
+            headHeight,
+            rpcSettings.blockIdRetrievalLimit
+          )
         )
-        ids <- withNodeView(view => getBlockIdsInRange(view.history, startHeight, headHeight))
+        ids <- withNodeView(view => getBlockIdsInRange(view.history, range._1, range._2))
       } yield ids
 
   override val blockByHeight: ToplRpc.NodeView.BlockByHeight.rpc.ServerHandler =
