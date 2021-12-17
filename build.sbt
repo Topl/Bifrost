@@ -354,7 +354,7 @@ lazy val minting = project
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsEffect)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, typeclasses, crypto, byteCodecs, algebras, consensus)
+  .dependsOn(models % "compile->compile;test->test", typeclasses, crypto, byteCodecs, algebras, consensus)
 
 lazy val demo = project
   .in(file("demo"))

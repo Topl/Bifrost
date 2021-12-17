@@ -6,7 +6,7 @@ import co.topl.models.Transaction.PolyOutput
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.StringDataTypes.Latin1Data
-import co.topl.models.utility.{Length, Lengths, Ratio, Sized}
+import co.topl.models.utility.{KesBinaryTree, Length, Lengths, Ratio, Sized}
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalacheck.rng.Seed
 
@@ -51,6 +51,33 @@ trait ModelGenerators {
       bytes <- genSizedStrictBytes[Lengths.`32`.type]()
       idx   <- Gen.posNum[Int]
     } yield VerificationKeys.KesProduct(bytes, idx)
+
+  def kesBinaryTreeGen: Gen[KesBinaryTree] =
+    Gen.chooseNum[Int](0, 2).flatMap {
+      case 0 =>
+        for {
+          seed         <- Gen.containerOfN[Array, Byte](32, byteGen)
+          witnessLeft  <- Gen.containerOfN[Array, Byte](32, byteGen)
+          witnessRight <- Gen.containerOfN[Array, Byte](32, byteGen)
+          left         <- kesBinaryTreeGen
+          right        <- kesBinaryTreeGen
+        } yield KesBinaryTree.MerkleNode(seed, witnessLeft, witnessRight, left, right)
+      case 1 =>
+        for {
+          sk <- Gen.containerOfN[Array, Byte](32, byteGen)
+          vk <- Gen.containerOfN[Array, Byte](32, byteGen)
+        } yield KesBinaryTree.SigningLeaf(sk, vk)
+      case 2 => Gen.const(KesBinaryTree.Empty)
+    }
+
+  def kesProductSKGen: Gen[SecretKeys.KesProduct] =
+    for {
+      superTree   <- kesBinaryTreeGen
+      subTree     <- kesBinaryTreeGen
+      nextSubSeed <- Gen.containerOfN[Array, Byte](32, byteGen)
+      signature   <- kesSumProofGen
+      offset      <- Gen.long
+    } yield SecretKeys.KesProduct(superTree, subTree, nextSubSeed, signature, offset)
 
   def kesProductProofGen: Gen[Proofs.Knowledge.KesProduct] =
     for {
@@ -119,6 +146,8 @@ trait ModelGenerators {
       address
     )
 
+  def byteGen: Gen[Byte] = Gen.choose[Byte](Byte.MinValue, Byte.MaxValue)
+
   def genSizedMaxBytes[L <: Length](
     byteGen:    Gen[Byte] = Gen.choose[Byte](0, 32)
   )(implicit l: L): Gen[Sized.Max[Bytes, L]] =
@@ -160,6 +189,9 @@ trait ModelGenerators {
     Arbitrary(
       genSizedStrictBytes[SecretKeys.Ed25519.Length]().map(SecretKeys.Ed25519(_))
     )
+
+  implicit val arbitraryKesProductSK: Arbitrary[SecretKeys.KesProduct] =
+    Arbitrary(kesProductSKGen)
 
   implicit val arbitraryExtendedEdSK: Arbitrary[SecretKeys.ExtendedEd25519] =
     Arbitrary(
@@ -203,6 +235,9 @@ trait ModelGenerators {
 
   implicit val arbitraryHeader: Arbitrary[BlockHeaderV2] =
     Arbitrary(headerGen())
+
+  implicit val arbitraryEta: Arbitrary[Eta] =
+    Arbitrary(etaGen)
 
   implicit class GenHelper[T](gen: Gen[T]) {
     def first: T = gen.pureApply(Gen.Parameters.default, Seed.random())

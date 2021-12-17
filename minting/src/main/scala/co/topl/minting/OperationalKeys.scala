@@ -66,16 +66,6 @@ object OperationalKeys {
         ref
       )
 
-//    def a(slot: Slot, operationalPeriod: Long, epoch: Epoch)
-//    def slotWithinEpoch(slot:                           Slot, slotsPerEpoch:              Long) = slot % slotsPerEpoch
-//    def slotWithinOperationalPeriod(slot:               Slot, slotsPerOperationalPeriod:  Long) = slot % slotsPerOperationalPeriod
-//
-//    def operationalPeriodWithinEpoch(operationalPeriod: Long, operationalPeriodsPerEpoch: Long) =
-//      operationalPeriod % operationalPeriodsPerEpoch
-    // This _should_ be less than 2^18 (or the maximum size of the KesProduct key)
-    // def keyTimeStep(currentOperationalPeriod: Long, activationOperationalPeriod: Long) =
-    //   currentOperationalPeriod - activationOperationalPeriod
-
     def make[F[_]: MonadError[*[_], Throwable]: Logger](
       secureStore:                 SecureStore[F],
       clock:                       ClockAlgebra[F],
