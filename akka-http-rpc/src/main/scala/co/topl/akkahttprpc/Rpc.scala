@@ -4,7 +4,7 @@ import cats.data.EitherT
 
 import scala.concurrent.Future
 
-case class Rpc[P, SR](method: List[String]) {
+case class Rpc[P, SR](methods: List[String]) {
   type Params = P
   type SuccessResponse = SR
   type ClientHandler = Rpc.ClientHandler[Params, SuccessResponse]

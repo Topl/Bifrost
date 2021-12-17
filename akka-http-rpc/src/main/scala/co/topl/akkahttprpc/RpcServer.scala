@@ -15,7 +15,7 @@ class RpcServer[Params, SuccessResponse](val rpc: Rpc[Params, SuccessResponse]) 
     successResponseEncoder: Encoder[SuccessResponse],
     throwableEncoder:       Encoder[ThrowableData]
   ): Route =
-    rpcRoute[Params, SuccessResponse](rpc.method.head, handler)
+    rpcRoute[Params, SuccessResponse](rpc.methods.head, handler)
 
 }
 
@@ -30,7 +30,7 @@ object RpcServer {
       throwableEncoder:                      Encoder[ThrowableData]
     ): Builder =
       copy(handlers =
-        handlers ++ rpc.method.map(
+        handlers ++ rpc.methods.map(
           (_, Builder.BuilderHandler(handler, paramsDecoder, successResponseEncoder, throwableEncoder))
         )
       )

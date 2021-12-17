@@ -45,7 +45,7 @@ class RpcClient[Params, SuccessResponse](val rpc: Rpc[Params, SuccessResponse]) 
           RpcContext(
             id = UUID.randomUUID().toString,
             jsonrpc = "2.0",
-            method = rpc.method.head,
+            method = rpc.methods.head,
             params = List(params).asJson
           ).asJson.toString()
         )
