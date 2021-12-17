@@ -80,14 +80,12 @@ class NodeViewRpcHandlerImpls(
 
   override val blocksByIds: ToplRpc.NodeView.BlocksByIds.rpc.ServerHandler =
     params =>
-      withNodeView(view =>
-        checkBlocksFoundWithIds(
-          params.blockIds,
-          params.blockIds.map(view.history.modifierById),
-          rpcSettings.blockRetrievalLimit
+      for {
+        blocksOption <- withNodeView(view => params.blockIds.map(view.history.modifierById))
+        blocks <- EitherT.fromEither[Future](
+          checkBlocksFoundWithIds(params.blockIds, blocksOption, rpcSettings.blockRetrievalLimit)
         )
-      )
-        .subflatMap(identity)
+      } yield blocks
 
   override val blocksInRange: ToplRpc.NodeView.BlocksInRange.rpc.ServerHandler =
     params =>
@@ -113,13 +111,9 @@ class NodeViewRpcHandlerImpls(
     params =>
       for {
         headHeight <- withNodeView(_.history.height)
+        startHeight = headHeight - params.numberOfBlocks + 1
         range <- EitherT.fromEither[Future](
-          checkHeightRange(
-            headHeight,
-            headHeight - params.numberOfBlocks + 1,
-            headHeight,
-            rpcSettings.blockRetrievalLimit
-          )
+          checkHeightRange(headHeight, startHeight, headHeight, rpcSettings.blockRetrievalLimit)
         )
         blocks <- withNodeView(view => getBlocksInRange(view.history, range._1, range._2))
       } yield blocks
@@ -128,13 +122,9 @@ class NodeViewRpcHandlerImpls(
     params =>
       for {
         headHeight <- withNodeView(_.history.height)
+        startHeight = headHeight - params.numberOfBlockIds + 1
         range <- EitherT.fromEither[Future](
-          checkHeightRange(
-            headHeight,
-            headHeight - params.numberOfBlockIds + 1,
-            headHeight,
-            rpcSettings.blockIdRetrievalLimit
-          )
+          checkHeightRange(headHeight, startHeight, headHeight, rpcSettings.blockIdRetrievalLimit)
         )
         ids <- withNodeView(view => getBlockIdsInRange(view.history, range._1, range._2))
       } yield ids
