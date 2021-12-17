@@ -83,7 +83,7 @@ class TransactionRpcHandlerImpls(
   override val encodeTransfer: ToplRpc.Transaction.EncodeTransfer.rpc.ServerHandler =
     params =>
       for {
-        rawTransaction <- params.rawTx.rawSyntacticValidation.toEither
+        rawTransaction <- params.unprovenTransaction.rawSyntacticValidation.toEither
           .leftMap[RpcError](ToplRpcErrors.syntacticValidationFailure)
           .toEitherT[Future]
         messageToSign = rawTransaction.messageToSign.encodeAsBase58
