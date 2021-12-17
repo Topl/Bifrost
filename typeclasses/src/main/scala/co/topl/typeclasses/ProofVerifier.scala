@@ -221,6 +221,17 @@ object ProofVerifier {
           case _     => true.pure[F]
         }
 
+    private def notVerifier[F[_]: Monad](
+      proposition: Propositions.Compositional.Not,
+      proof:       Proofs.Compositional.Not,
+      context:     VerificationContext[F]
+    )(implicit
+      proofVerifier: ProofVerifier[F]
+    ): F[Boolean] =
+      proofVerifier
+        .verifyWith(proposition.a, proof.a, context)
+        .map(!_)
+
     private def jsScriptVerifier[F[_]: Monad](
       proposition: Propositions.Script.JS,
       proof:       Proofs.Script.JS,
@@ -265,6 +276,9 @@ object ProofVerifier {
           case (prop: Propositions.Compositional.Or, proof: Proofs.Compositional.Or) =>
             implicit def v: ProofVerifier[F] = proofVerifier[F]
             orVerifier[F](prop, proof, context)
+          case (prop: Propositions.Compositional.Not, proof: Proofs.Compositional.Not) =>
+            implicit def v: ProofVerifier[F] = proofVerifier[F]
+            notVerifier[F](prop, proof, context)
           case (prop: Propositions.Contextual.HeightLock, _: Proofs.Contextual.HeightLock) =>
             heightLockVerifier[F](prop, context)
           case (prop: Propositions.Contextual.RequiredBoxState, proof: Proofs.Contextual.RequiredBoxState) =>

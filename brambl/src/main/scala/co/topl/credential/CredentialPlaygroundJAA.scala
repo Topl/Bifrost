@@ -1,6 +1,7 @@
 package co.topl.credential
 
 import cats.data.NonEmptyChain
+import cats.effect.unsafe.implicits.global
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
 import co.topl.models._
@@ -32,7 +33,6 @@ object SetupSandbox {
 
   implicit val ed25519: Ed25519 = new Ed25519
   implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.precomputed()
-
   implicit val jsExecutor: Propositions.Script.JS.JSScript => F[(Json, Json) => F[Boolean]] =
     s =>
       GraalVMScripting
@@ -363,4 +363,45 @@ object RequiredBoxValue extends App {
   }
 
   println(s"Does the proof satisfy the proposition? ${proposition isSatisfiedBy proof}")
+}
+
+object NotTest extends App {
+  import SetupSandbox._
+
+  val proposition = Propositions.Compositional.Not(Propositions.Contextual.HeightLock(5))
+  println(s"The address for the proposition is: ${proposition.dionAddress}")
+
+  val unprovenTransaction: Transaction.Unproven = createUnprovenTransaction(
+    List((proposition.dionAddress, Random.nextLong())),
+    NonEmptyChain(Transaction.PolyOutput(address0, Sized.maxUnsafe(BigInt(10))))
+  )
+
+  val credential = Credential.Compositional.Not(
+    proposition,
+    List(
+      Credential.Contextual.HeightLock(5)
+    )
+  )
+
+  val proof = credential.proof
+  println(proof)
+
+  val transaction = transactionFromUnproven(unprovenTransaction, ListMap(proposition -> proof))
+  println(transaction)
+
+  implicit val context: VerificationContext[F] = new VerificationContext[F] {
+    def currentTransaction: Transaction = transaction
+    def currentHeight: Long = 3
+    def inputBoxes: List[Box[Box.Value]] = List(Box(
+      proposition.typedEvidence,
+      unprovenTransaction.inputs.head._2,
+      Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
+      10
+    ))
+
+    def currentSlot: Slot = 1
+  }
+
+  println(s"Does the proof satisfy the proposition? ${proposition.isSatisfiedBy(proof).unsafeRunSync()}")
+
 }

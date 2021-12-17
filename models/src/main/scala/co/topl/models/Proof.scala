@@ -59,6 +59,7 @@ object Proofs {
     case class Threshold(proofs: ListSet[Proof]) extends Proof
     case class And(a: Proof, b: Proof) extends Proof
     case class Or(a: Proof, b: Proof) extends Proof
+    case class Not(a: Proof) extends Proof
   }
 
   object Contextual {

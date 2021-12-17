@@ -139,6 +139,21 @@ object Credential {
         }
     }
 
+    case class Not(proposition: Propositions.Compositional.Not, credentials: Iterable[Credential]) extends Credential {
+
+      def prove(currentProof: Proof): Proof =
+        currentProof match {
+          case t: Proofs.Compositional.Not =>
+            Proofs.Compositional.Not(
+              compositionalProver(proposition.a, t.a, credentials),
+            )
+          case _ =>
+            Proofs.Compositional.Not(
+              compositionalProver(proposition.a, Proofs.False, credentials),
+            )
+        }
+    }
+
     private def compositionalProver(
       proposition:  Proposition,
       currentProof: Proof,
@@ -151,6 +166,8 @@ object Credential {
           Credential.Compositional.And(a, credentials).prove(proof)
         case (o: Propositions.Compositional.Or, proof) =>
           Credential.Compositional.Or(o, credentials).prove(proof)
+        case (o: Propositions.Compositional.Not, proof) =>
+          Credential.Compositional.Not(o, credentials).prove(proof)
         case (t: Propositions.Compositional.Threshold, proof) =>
           Credential.Compositional.Threshold(t, credentials).prove(proof)
         case (prop, Proofs.False) =>

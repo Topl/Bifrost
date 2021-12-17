@@ -22,6 +22,7 @@ object Propositions {
     case class Threshold(threshold: Int, propositions: ListSet[Proposition]) extends Proposition
     case class And(a: Proposition, b: Proposition) extends Proposition
     case class Or(a: Proposition, b: Proposition) extends Proposition
+    case class Not(a: Proposition) extends Proposition
   }
 
   object Contextual {

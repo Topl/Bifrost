@@ -1,9 +1,7 @@
-package co.topl.typeclasses
+package co.topl.credential
 
-import co.topl.credential.Credential
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
-import co.topl.models.Propositions.{Compositional, Contextual, Example, Knowledge, Script}
-import co.topl.models.{Proposition, Propositions, SecretKeys, Transaction}
+import co.topl.models.{Propositions, SecretKeys, Transaction}
 
 import scala.language.implicitConversions
 
@@ -34,7 +32,7 @@ object Credentialer {
       def and(proposition: Propositions.Compositional.And): Credential.Compositional.And =
         Credential.Compositional.And(proposition, creds)
 
-      def Or(proposition: Propositions.Compositional.Or): Credential.Compositional.Or =
+      def or(proposition: Propositions.Compositional.Or): Credential.Compositional.Or =
         Credential.Compositional.Or(proposition, creds)
     }
   }
