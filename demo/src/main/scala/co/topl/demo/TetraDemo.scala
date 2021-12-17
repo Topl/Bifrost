@@ -34,7 +34,7 @@ object TetraDemo extends IOApp.Simple {
 
   // Create stubbed/sample/demo data
 
-  private val vkPool =
+  private val poolVK =
     new Ed25519().getVerificationKey(KeyInitializer[SecretKeys.Ed25519].random())
 
   private val stakers = List.fill(5) {
@@ -55,7 +55,7 @@ object TetraDemo extends IOApp.Simple {
           kesKey,
           Bytes(
             blake2b256
-              .hash((ed25519Vrf.getVerificationKey(stakerVrfKey).signableBytes ++ vkPool.bytes.data).toArray)
+              .hash((ed25519Vrf.getVerificationKey(stakerVrfKey).signableBytes ++ poolVK.bytes.data).toArray)
               .value
           )
         ),
@@ -63,16 +63,14 @@ object TetraDemo extends IOApp.Simple {
       )
 
     val stakerAddress: TaktikosAddress = {
-      val stakingKey = KeyInitializer[SecretKeys.Ed25519].random()
-      val stakingVerificationKey = ed25519.getVerificationKey(stakingKey)
       val paymentKey = KeyInitializer[SecretKeys.Ed25519].random()
       val paymentVerificationKey = ed25519.getVerificationKey(paymentKey)
       TaktikosAddress(
         Sized.strictUnsafe(
           Bytes(blake2b256.hash(paymentVerificationKey.bytes.data.toArray).value)
         ),
-        vkPool,
-        ed25519.sign(paymentKey, vkPool.bytes.data)
+        poolVK,
+        ed25519.sign(paymentKey, poolVK.bytes.data)
       )
     }
     Staker(Ratio(1, 5), stakerVrfKey, kesKey, stakerRegistration, stakerAddress)

@@ -15,6 +15,7 @@ import co.topl.minting.algebras._
 import co.topl.models._
 import co.topl.typeclasses.KeyInitializer
 import co.topl.typeclasses.implicits._
+import com.google.common.primitives.Longs
 import org.typelevel.log4cats.Logger
 
 import java.util.UUID
@@ -170,8 +171,9 @@ object OperationalKeys {
       ed25519:    Ed25519
     ): F[LongMap[OperationalKeyOut]] =
       for {
-        epoch           <- clock.epochOf(fromSlot)
-        eta             <- etaCalculation.etaToBe(parentSlotId, fromSlot)
+        epoch <- clock.epochOf(fromSlot)
+        eta   <- etaCalculation.etaToBe(parentSlotId, fromSlot)
+        // TODO: Bound this value to the slots within this operational period
         ineligibleSlots <- vrfProof.ineligibleSlots(epoch, eta).map(_.toSet)
         slots = Vector
           .tabulate((operationalPeriodLength - (fromSlot % operationalPeriodLength)).toInt)(_ + fromSlot)
@@ -190,7 +192,8 @@ object OperationalKeys {
     ): Vector[OperationalKeyOut] =
       slots.map { slot =>
         val sk = KeyInitializer[SecretKeys.Ed25519].random()
-        val signedVk = kesProduct.sign(kesChild, ed25519.getVerificationKey(sk).bytes.data)
+        val signedVk =
+          kesProduct.sign(kesChild, (ed25519.getVerificationKey(sk).bytes.data ++ Bytes(Longs.toByteArray(slot))))
         OperationalKeyOut(slot, sk, signedVk, kesProduct.getVerificationKey(kesChild))
       }
   }

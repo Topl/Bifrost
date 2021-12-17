@@ -13,6 +13,7 @@ import co.topl.models._
 import co.topl.models.utility.Ratio
 import co.topl.typeclasses.BlockGenesis
 import co.topl.typeclasses.implicits._
+import com.google.common.primitives.Longs
 import scalacache.CacheConfig
 import scalacache.caffeine.CaffeineCache
 
@@ -145,7 +146,7 @@ object BlockHeaderValidation {
             .modify(kesProduct =>
               kesProduct -> kesProduct.verify(
                 header.operationalCertificate.parentSignature,
-                header.operationalCertificate.childVK.bytes.data,
+                header.operationalCertificate.childVK.bytes.data ++ Bytes(Longs.toByteArray(header.slot)),
                 header.operationalCertificate.parentVK
               )
             )
