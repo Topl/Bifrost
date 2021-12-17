@@ -6,7 +6,7 @@ object Dependencies {
   val akkaHttpVersion = "10.2.6"
   val circeVersion = "0.14.1"
   val kamonVersion = "2.1.21"
-  val graalVersion = "21.2.0"
+  val graalVersion = "21.1.0"
 
   val logging = Seq(
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.4",
