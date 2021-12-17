@@ -3,8 +3,6 @@ package co.topl.credential
 import co.topl.models._
 import co.topl.typeclasses.implicits._
 
-import scala.collection.immutable.ListSet
-
 /**
  * An entity which represents a prover for some proposition.
  */
@@ -91,17 +89,13 @@ object Credential {
         currentProof match {
           case t: Proofs.Compositional.Threshold =>
             Proofs.Compositional.Threshold(
-              ListSet.from(
-                proposition.propositions.toList
-                  .zip(t.proofs)
-                  .map { case (prop, proof) => compositionalProver(prop, proof, credentials) }
-              )
+              proposition.propositions.toList
+                .zip(t.proofs)
+                .map { case (prop, proof) => compositionalProver(prop, proof, credentials) }
             )
           case _ =>
             Proofs.Compositional.Threshold(
-              ListSet.from(
-                proposition.propositions.toList.map(prop => compositionalProver(prop, Proofs.False, credentials))
-              )
+              proposition.propositions.toList.map(prop => compositionalProver(prop, Proofs.False, credentials))
             )
         }
     }
