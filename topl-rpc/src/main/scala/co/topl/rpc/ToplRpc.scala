@@ -552,9 +552,9 @@ object ToplRpc {
       val rpc: Rpc[Params, Response] = Rpc(List("topl_encodeTransfer"))
 
       /**
-       * @param rawTx An unsigned transaction JSON
+       * @param unprovenTransaction An unsigned transaction JSON
        */
-      case class Params(rawTx: TX)
+      case class Params(unprovenTransaction: TX)
 
       case class Response(messageToSign: String)
     }

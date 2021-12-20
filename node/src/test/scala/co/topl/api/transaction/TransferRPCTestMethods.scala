@@ -53,14 +53,14 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
     }
   }
 
-  def testEncodeTransfer(rawTx: Json, messageToSign: String): Unit = {
+  def testEncodeTransfer(unprovenTransaction: Json, messageToSign: String): Unit = {
     val requestBody = ByteString(s"""
       |{
       | "jsonrpc": "2.0",
       | "id": "2",
       | "method": "topl_encodeTransfer",
       | "params": [{
-      |   "rawTx": $rawTx
+      |   "unprovenTransaction": $unprovenTransaction
       | }]
       |}
       """.stripMargin)
