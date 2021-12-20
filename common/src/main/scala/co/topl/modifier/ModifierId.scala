@@ -32,16 +32,13 @@ case class ModifierId(value: Array[Byte]) extends BytesSerializable {
 
   def getModType: ModifierTypeId = ModifierTypeId(value.head)
 
-  @deprecated
   override def hashCode: Int = Ints.fromByteArray(value)
 
-  @deprecated
   override def equals(obj: Any): Boolean = obj match {
     case mId: ModifierId => mId.value sameElements value
     case _               => false
   }
 
-  @deprecated
   override def toString: String = Base58.encode(bytes)
 }
 

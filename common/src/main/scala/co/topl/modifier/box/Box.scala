@@ -20,13 +20,8 @@ sealed abstract class Box[+T](val evidence: Evidence, val value: T, val nonce: N
   @deprecated
   override def serializer: BifrostSerializer[Box[_]] = BoxSerializer
 
-//  @deprecated
-//  override def toString: String = ???
-
-  @deprecated
   override def hashCode(): Int = Ints.fromByteArray(bytes)
 
-  @deprecated
   override def equals(obj: Any): Boolean = obj match {
     case box: Box[_] => bytes sameElements box.bytes
     case _           => false

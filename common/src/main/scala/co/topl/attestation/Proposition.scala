@@ -37,16 +37,13 @@ sealed trait Proposition extends BytesSerializable {
 
   def address(implicit networkPrefix: NetworkPrefix): Address
 
-  @deprecated
   override def toString: String = Base16Data.fromData(bytes).show
 
-  @deprecated
   override def equals(obj: Any): Boolean = obj match {
     case prop: Proposition => bytes sameElements prop.bytes
     case _                 => false
   }
 
-  @deprecated
   override def hashCode(): Int = Ints.fromByteArray(bytes)
 }
 

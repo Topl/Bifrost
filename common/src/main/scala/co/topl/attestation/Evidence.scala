@@ -34,16 +34,13 @@ final case class Evidence(evBytes: Array[Byte]) extends BytesSerializable {
   @deprecated
   override def serializer: BifrostSerializer[Evidence] = EvidenceSerializer
 
-  @deprecated
   override def toString: String = Base58.encode(bytes)
 
-  @deprecated
   override def equals(obj: Any): Boolean = obj match {
     case ec: Evidence => bytes sameElements ec.bytes
     case _            => false
   }
 
-  @deprecated
   override def hashCode(): Int = Ints.fromByteArray(bytes)
 }
 

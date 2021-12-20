@@ -27,17 +27,14 @@ sealed trait Proof[P <: Proposition] extends BytesSerializable {
   @deprecated
   override def serializer: BifrostSerializer[Proof[_ <: Proposition]] = ProofSerializer
 
-  @deprecated
   override def toString: String = Base16Data.fromData(bytes).show
 
-  @deprecated
   override def equals(obj: Any): Boolean = obj match {
     case pr: Proof[_] =>
       bytes sameElements pr.bytes
     case _ => false
   }
 
-  @deprecated
   override def hashCode(): Int = Ints.fromByteArray(bytes)
 
 }

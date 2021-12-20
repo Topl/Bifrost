@@ -31,19 +31,16 @@ case class Address(evidence: Evidence)(implicit val networkPrefix: NetworkPrefix
   @deprecated
   type M = Address
 
-  @deprecated
   override def toString: String = Base58.encode(bytes ++ bytes.checksum)
 
   @deprecated
   override def serializer: BifrostSerializer[Address] = AddressSerializer
 
-  @deprecated
   override def equals(obj: Any): Boolean = obj match {
     case addr: Address => bytes sameElements addr.bytes
     case _             => false
   }
 
-  @deprecated
   override def hashCode(): Int = Ints.fromByteArray(bytes)
 }
 

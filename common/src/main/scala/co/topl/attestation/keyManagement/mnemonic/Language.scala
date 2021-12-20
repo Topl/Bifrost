@@ -85,7 +85,7 @@ object Language {
 
     def validated(language: Language): Either[ValidationFailure, LanguageWordList] =
       Try(
-        scala.io.Source.fromResource(s"${language.wordlistDirectory}/${language.filePath}").getLines.toIndexedSeq
+        scala.io.Source.fromResource(s"${language.wordlistDirectory}/${language.filePath}").getLines().toIndexedSeq
       ).toEither
         .leftMap(FileReadFailure)
         .flatMap(words =>
