@@ -2,7 +2,7 @@ import sbt._
 
 object Dependencies {
 
-  val akkaVersion = "2.6.16"
+  val akkaVersion = "2.6.18"
   val akkaHttpVersion = "10.2.6"
   val circeVersion = "0.14.1"
   val kamonVersion = "2.2.3"
