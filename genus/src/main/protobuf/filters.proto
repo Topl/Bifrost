@@ -25,11 +25,9 @@ message BooleanSelection {
 
 message TokenValueFilter {
   oneof filter_type {
-    StringSelection asset_issuer_selection = 1;
-    StringSelection asset_name_selection = 2;
-    NumberSelection asset_version_selection = 3;
-    NumberRange quantity_range = 4;
-    StringSelection token_value_type_selection = 5;
+    StringSelection asset_code_selection = 1;
+    NumberRange quantity_range = 2;
+    StringSelection token_value_type_selection = 3;
   }
 }
 
