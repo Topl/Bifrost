@@ -8,10 +8,7 @@ import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
-import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider
-import io.circe.syntax._
-import io.circe.{Decoder, Encoder, HCursor}
 
 import scala.util.Try
 
@@ -50,9 +47,6 @@ case class Block(
 
   def messageToSign: Array[Byte] =
     this.copy(signature = SignatureCurve25519.empty).bytes
-//
-//  @deprecated
-//  override def toString: String = ???
 }
 
 object Block {

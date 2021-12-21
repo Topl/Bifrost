@@ -1,8 +1,8 @@
 package co.topl.modifier.box
 
 import co.topl.attestation.Address
-import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
 import co.topl.codecs.binary.legacy.modifier.box.TokenValueHolderSerializer
+import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
 import co.topl.utils.Int128
 import co.topl.utils.StringDataTypes.Latin1Data
 

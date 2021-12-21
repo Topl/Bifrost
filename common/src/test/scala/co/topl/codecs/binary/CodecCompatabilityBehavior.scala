@@ -4,6 +4,7 @@ import cats.{Eq, Show}
 import co.topl.codecs.binary.legacy.BifrostSerializer
 import co.topl.utils.EqMatcher
 import co.topl.utils.IdiomaticScalaTransition.implicits._
+import co.topl.utils.StringDataTypes.implicits._
 import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

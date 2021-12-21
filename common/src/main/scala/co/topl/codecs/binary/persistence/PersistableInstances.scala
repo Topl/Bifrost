@@ -2,13 +2,13 @@ package co.topl.codecs.binary.persistence
 
 import co.topl.attestation._
 import co.topl.attestation.keyManagement._
+import co.topl.codecs.binary.scodecs._
 import co.topl.codecs.binary.typeclasses.Persistable
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.modifier.block._
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
-import co.topl.codecs.binary.scodecs._
+import co.topl.modifier.{ModifierId, NodeViewModifier}
 
 trait PersistableInstances {
 

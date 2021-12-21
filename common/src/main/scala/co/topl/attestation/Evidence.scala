@@ -1,6 +1,7 @@
 package co.topl.attestation
 
-import cats.implicits.toShow
+import co.topl.codecs.binary.legacy.attestation.EvidenceSerializer
+import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
 import co.topl.crypto.hash.digest.Digest
 import co.topl.crypto.implicits._
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
@@ -11,8 +12,6 @@ import co.topl.codecs.binary.legacy.attestation.EvidenceSerializer
 import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import io.estatico.newtype.macros.newtype
 
 import scala.language.implicitConversions
@@ -33,16 +32,13 @@ final case class Evidence(evBytes: Array[Byte]) extends BytesSerializable {
   @deprecated
   override def serializer: BifrostSerializer[Evidence] = EvidenceSerializer
 
-  @deprecated
   override def toString: String = Base58.encode(bytes)
 
-  @deprecated
   override def equals(obj: Any): Boolean = obj match {
     case ec: Evidence => bytes sameElements ec.bytes
     case _            => false
   }
 
-  @deprecated
   override def hashCode(): Int = Ints.fromByteArray(bytes)
 }
 

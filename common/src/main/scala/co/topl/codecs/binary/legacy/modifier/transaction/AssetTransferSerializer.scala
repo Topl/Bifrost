@@ -1,9 +1,9 @@
 package co.topl.codecs.binary.legacy.modifier.transaction
 
 import co.topl.attestation._
-import co.topl.codecs.binary.legacy.attestation.{AddressSerializer, ProofSerializer, PropositionSerializer}
-import co.topl.codecs.binary.legacy.modifier.box.TokenValueHolderSerializer
-import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
+import co.topl.codecs.binary.legacy._
+import co.topl.codecs.binary.legacy.attestation._
+import co.topl.codecs.binary.legacy.modifier.box._
 import co.topl.codecs.binary.scodecs.valuetypes.Constants.stringCharacterSet
 import co.topl.modifier.transaction.AssetTransfer
 import co.topl.utils.Extensions.LongOps

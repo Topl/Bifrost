@@ -1,18 +1,13 @@
 package co.topl.codecs.binary.scodecs.attestation.proposition
 
-import co.topl.attestation.{
-  Proposition,
-  PublicKeyPropositionCurve25519,
-  PublicKeyPropositionEd25519,
-  ThresholdPropositionCurve25519
-}
+import co.topl.attestation._
+import co.topl.codecs.binary.scodecs.crypto.publicKeyCodec
+import co.topl.codecs.binary.scodecs.transformers._
+import co.topl.codecs.binary.scodecs.valuetypes.{byteCodec, listCodec, uIntCodec}
 import co.topl.crypto.signatures.{Curve25519, Ed25519}
 import co.topl.utils.Extensions.LongOps
 import scodec.Codec
 import scodec.codecs.discriminated
-import co.topl.codecs.binary.scodecs.crypto._
-import co.topl.codecs.binary.scodecs.valuetypes._
-import co.topl.codecs.binary.scodecs.transformers._
 
 import scala.collection.SortedSet
 

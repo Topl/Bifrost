@@ -4,13 +4,7 @@ import cats.implicits._
 import co.topl.attestation.AddressCodec.implicits._
 import co.topl.attestation._
 import co.topl.codecs.binary._
-import co.topl.codecs.json.valuetypes._
-import co.topl.codecs.json.{
-  deriveDecoderFromScodec,
-  deriveEncoderFromScodec,
-  deriveKeyDecoderFromScodec,
-  deriveKeyEncoderFromScodec
-}
+import co.topl.codecs.json._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.encode.Base58

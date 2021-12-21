@@ -11,7 +11,6 @@ abstract class GenericBox[+T] extends BytesSerializable {
   val value: T // a box-type dependent quantity
   val id: BoxId // a one-time only, unique reference id (computed from the input transaction data)
 
-  @deprecated
   override def equals(obj: Any): Boolean = obj match {
     case bx: GenericBox[T] => (bx.id == id) && bx.value == value && bx.evidence == evidence
     case _                 => false

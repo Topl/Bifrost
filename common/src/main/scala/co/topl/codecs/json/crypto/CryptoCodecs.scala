@@ -1,11 +1,11 @@
 package co.topl.codecs.json.crypto
 
 import cats.implicits._
+import co.topl.codecs.json.valuetypes._
 import co.topl.crypto.hash.digest.{Digest32, Digest64}
 import co.topl.utils.StringDataTypes.Base58Data
-import io.circe.{Decoder, Encoder}
-import co.topl.codecs.json.valuetypes._
 import io.circe.syntax.EncoderOps
+import io.circe.{Decoder, Encoder}
 
 trait CryptoCodecs {
   implicit val digest32JsonEncoder: Encoder[Digest32] = (d: Digest32) => Base58Data.fromData(d.value).asJson

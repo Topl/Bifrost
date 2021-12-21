@@ -20,16 +20,13 @@ case class SecurityRoot(root: Array[Byte]) extends BytesSerializable {
 
   def getRoot: Array[Byte] = root
 
-  @deprecated
   override def hashCode(): Int = Ints.fromByteArray(root)
 
-  @deprecated
   override def equals(obj: Any): Boolean = obj match {
     case sr: SecurityRoot => sr.root sameElements root
     case _                => false
   }
 
-  @deprecated
   override def toString: String = root.encodeAsBase58.show
 }
 

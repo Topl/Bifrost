@@ -6,7 +6,7 @@ import co.topl.attestation.keyManagement.derivedKeys.implicits._
 import co.topl.attestation.keyManagement.mnemonic.Language.English
 import co.topl.attestation.keyManagement.mnemonic.MnemonicSize.Mnemonic12
 import co.topl.attestation.keyManagement.mnemonic.derive
-import co.topl.codecs._
+import co.topl.codecs.binary._
 import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.SizedBytes.Types.{ByteVector32, ByteVector96}
 import co.topl.utils.SizedBytes.implicits._

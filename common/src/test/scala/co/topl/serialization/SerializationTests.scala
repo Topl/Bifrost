@@ -3,8 +3,8 @@ package co.topl.serialization
 import co.topl.attestation._
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519}
 import co.topl.codecs._
-import co.topl.codecs.binary.legacy.attestation.keyManagement._
 import co.topl.codecs.binary.legacy.attestation._
+import co.topl.codecs.binary.legacy.attestation.keyManagement._
 import co.topl.codecs.binary.legacy.modifier.block._
 import co.topl.codecs.binary.legacy.modifier.box.{BoxSerializer, SecurityRootSerializer, TokenValueHolderSerializer}
 import co.topl.codecs.binary.legacy.modifier.transaction.TransactionSerializer

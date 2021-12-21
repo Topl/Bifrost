@@ -2,17 +2,12 @@ package co.topl.modifier.box
 
 import cats.implicits._
 import co.topl.attestation.Evidence
+import co.topl.codecs._
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.hash.implicits._
-import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
-import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.StringDataTypes.implicits._
-import co.topl.codecs._
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.{Ints, Longs}
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 
 case class BoxId(hash: Digest32) {
 
@@ -33,5 +28,5 @@ object BoxId {
   def apply[T](box: Box[T]): BoxId = idFromEviNonce(box.evidence, box.nonce)
 
   def idFromEviNonce(evidence: Evidence, nonce: Box.Nonce): BoxId =
-    BoxId(blake2b256.hash(evidence.persistedBytes ++ Longs.toByteArray(nonce)))
+    BoxId(blake2b256.hash(evidence.transmittableBytes ++ Longs.toByteArray(nonce)))
 }

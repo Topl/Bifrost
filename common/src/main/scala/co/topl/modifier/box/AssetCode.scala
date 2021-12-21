@@ -4,11 +4,9 @@ import co.topl.attestation.Address
 import co.topl.codecs.binary.legacy.modifier.box.AssetCodeSerializer
 import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
 import co.topl.modifier.box.AssetCode.AssetCodeVersion
-import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
+import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
-
-import scala.util.{Failure, Success}
 
 /**
  * AssetCode serves as a unique identifier for user issued assets

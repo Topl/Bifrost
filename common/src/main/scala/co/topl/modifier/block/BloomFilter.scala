@@ -7,8 +7,6 @@ import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.Longs
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyEncoder}
 import io.estatico.newtype.macros.newtype
 
 import scala.language.implicitConversions
@@ -50,16 +48,13 @@ case class BloomFilter(value: Array[Long]) extends BytesSerializable {
   }
 
   /** JAA - DO NOT USE THE `.bytes` or `toBytes` methods from the BifrostSerailizer, this must be fixed length */
-  @deprecated
   override def toString: String = Base58.encode(value.flatMap(Longs.toByteArray))
 
-  @deprecated
   override def equals(obj: Any): Boolean = obj match {
     case b: BloomFilter => b.value sameElements value
     case _              => false
   }
 
-  @deprecated
   override def hashCode(): Int = super.hashCode()
 }
 
