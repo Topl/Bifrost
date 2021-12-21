@@ -257,42 +257,4 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
       sigTx.value
     }
   }
-
-  def testInvalidSecurityRoot(
-    sender:         Address,
-    recipient:      Address,
-    assetCode:      AssetCode,
-    senderPropType: String,
-    amount:         Int,
-    securityRoot:   String
-  ): Unit = {
-    val requestBody =
-      assetTransferRequestBody(sender, recipient, assetCode.toString, senderPropType, amount, securityRoot)
-
-    httpPOST(requestBody) ~> route ~> check {
-      val res = parse(responseAs[String]).value
-      val error = res.hcursor.downField("error").as[Json].toString
-//      error should include("Invalid securityRoot")
-      println(error)
-    }
-  }
-
-  def testInvalidAssetCode(
-    sender:         Address,
-    recipient:      Address,
-    assetCode:      String,
-    senderPropType: String,
-    amount:         Int
-  ): Unit = {
-    val requestBody =
-      assetTransferRequestBody(sender, recipient, assetCode, senderPropType, amount)
-
-    httpPOST(requestBody) ~> route ~> check {
-      val res = parse(responseAs[String]).value
-      val error = res.hcursor.downField("error").as[Json].toString
-//      error should include("Invalid securityRoot")
-      println(error)
-    }
-  }
-
 }

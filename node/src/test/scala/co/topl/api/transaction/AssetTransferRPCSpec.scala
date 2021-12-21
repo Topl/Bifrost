@@ -4,9 +4,11 @@ import co.topl.attestation.Address
 import co.topl.modifier.box.AssetCode
 import co.topl.utils.StringDataTypes.Latin1Data
 import io.circe.Json
+import io.circe.parser.parse
 import io.circe.syntax._
 
-class AssetTransferRPCSpec extends TransferRPCTestMethods {
+class
+AssetTransferRPCSpec extends TransferRPCTestMethods {
 
   var addressCurve25519Fst: Address = _
   var addressCurve25519Sec: Address = _
@@ -110,24 +112,50 @@ class AssetTransferRPCSpec extends TransferRPCTestMethods {
     }
 
     "Return correct error responses if securityRoot is invalid" in {
-      testInvalidSecurityRoot(
+      val requestBody = assetTransferRequestBody(
         addressCurve25519Fst,
         addressCurve25519Sec,
-        assetCodeCurve25519Fst,
+        assetCodeCurve25519Fst.toString,
         propTypeCurve25519,
         3,
         "111111111111111111111111111111=1"
       )
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).value
+        val error = res.hcursor.downField("error").as[Json].toString
+        error should (include("securityRoot") and include("Value is not Base 58"))
+      }
+    }
+
+    "Return correct error responses if decoded securityRoot bytes length is incorrect" in {
+      val requestBody = assetTransferRequestBody(
+        addressCurve25519Fst,
+        addressCurve25519Sec,
+        assetCodeCurve25519Fst.toString,
+        propTypeCurve25519,
+        3,
+        "11111111111111111111111111111121"
+      )
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).value
+        val error = res.hcursor.downField("error").as[Json].toString
+        error should include("Invalid securityRoot length")
+      }
     }
 
     "Return correct error responses if assetCode is invalid" in {
-      testInvalidAssetCode(
+      val requestBody = assetTransferRequestBody(
         addressCurve25519Fst,
         addressCurve25519Sec,
         "65GtfBmwC9NHBayMzZfzCC69L2f2ZaxEe4BwQXRAABPynuNo4k2a8hqCsl",
         propTypeCurve25519,
         3
       )
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).value
+        val error = res.hcursor.downField("error").as[Json].toString
+        error should (include("assetCode") and include("Value is not Base 58"))
+      }
     }
   }
 }
