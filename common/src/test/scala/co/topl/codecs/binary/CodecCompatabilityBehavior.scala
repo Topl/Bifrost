@@ -1,9 +1,10 @@
 package co.topl.codecs.binary
 
 import cats.{Eq, Show}
+import co.topl.codecs.binary.legacy.BifrostSerializer
 import co.topl.utils.EqMatcher
 import co.topl.utils.IdiomaticScalaTransition.implicits._
-import co.topl.codecs.binary.legacy.BifrostSerializer
+import co.topl.utils.StringDataTypes.implicits._
 import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -58,6 +59,15 @@ trait CodecCompatabilityBehavior extends AnyFlatSpec with Matchers with EqMatche
         val remaining = codec.decode(encodedValue).getOrThrow().remainder
 
         remaining should have length 0
+      }
+    }
+
+    it should "both BifrostSerializer and Scodec Codec generate the same data" in {
+      forAll(generator) { value =>
+        val bifrostSerializerEncoded = serializer.toBytes(value).encodeAsBase16
+        val scodecCodecEncoded = codec.encode(value).getOrThrow().encodeAsBase16
+
+        bifrostSerializerEncoded should eqvShow(scodecCodecEncoded)
       }
     }
   }

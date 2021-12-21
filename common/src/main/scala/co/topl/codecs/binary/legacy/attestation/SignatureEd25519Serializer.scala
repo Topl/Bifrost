@@ -1,8 +1,8 @@
 package co.topl.codecs.binary.legacy.attestation
 
 import co.topl.attestation.SignatureEd25519
-import co.topl.crypto.signatures.Signature
 import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
+import co.topl.crypto.signatures.Signature
 
 object SignatureEd25519Serializer extends BifrostSerializer[SignatureEd25519] {
 

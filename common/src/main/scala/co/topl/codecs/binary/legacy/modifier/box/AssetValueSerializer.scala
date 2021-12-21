@@ -1,9 +1,9 @@
 package co.topl.codecs.binary.legacy.modifier.box
 
-import co.topl.modifier.box.AssetValue
-import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
 import co.topl.codecs.binary.scodecs.valuetypes.Constants.stringCharacterSet
+import co.topl.modifier.box.AssetValue
+import co.topl.utils.StringDataTypes.Latin1Data
 
 object AssetValueSerializer extends BifrostSerializer[AssetValue] {
 

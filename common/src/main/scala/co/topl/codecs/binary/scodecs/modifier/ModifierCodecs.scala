@@ -1,11 +1,11 @@
 package co.topl.codecs.binary.scodecs.modifier
 
+import co.topl.codecs.binary.scodecs.valuetypes.byteCodec
 import co.topl.modifier.NodeViewModifier
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader}
 import co.topl.modifier.transaction.Transaction
 import scodec.Codec
 import scodec.codecs.discriminated
-import co.topl.codecs.binary.scodecs.valuetypes.byteCodec
 
 trait ModifierCodecs extends box.BoxCodecs with transaction.TransactionCodecs with block.BlockCodecs {
 

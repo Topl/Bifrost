@@ -1,8 +1,8 @@
 package co.topl.codecs.binary.legacy.attestation
 
 import co.topl.attestation.{SignatureCurve25519, ThresholdSignatureCurve25519}
-import co.topl.utils.Extensions._
 import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
+import co.topl.utils.Extensions._
 
 object ThresholdSignatureCurve25519Serializer extends BifrostSerializer[ThresholdSignatureCurve25519] {
 

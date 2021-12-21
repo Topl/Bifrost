@@ -1,7 +1,7 @@
 package co.topl.codecs.binary.legacy.modifier.transaction
 
-import co.topl.modifier.transaction._
 import co.topl.codecs.binary.legacy._
+import co.topl.modifier.transaction._
 
 import scala.util.{Failure, Success}
 

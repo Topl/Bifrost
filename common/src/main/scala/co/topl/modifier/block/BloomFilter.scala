@@ -1,15 +1,12 @@
 package co.topl.modifier.block
 
+import co.topl.codecs.binary.legacy.modifier.block.BloomFilterSerializer
+import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
 import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.codecs.binary.legacy.modifier.block.BloomFilterSerializer
-import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
-import co.topl.codecs.json._
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.Longs
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyEncoder}
 import io.estatico.newtype.macros.newtype
 
 import scala.language.implicitConversions

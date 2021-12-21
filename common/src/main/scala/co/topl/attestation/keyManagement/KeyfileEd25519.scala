@@ -8,7 +8,6 @@ import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.SecureRandom.randomBytes
 import co.topl.utils.StringDataTypes.Latin1Data
-import io.circe.Decoder
 import io.circe.parser.parse
 import org.bouncycastle.crypto.BufferedBlockCipher
 import org.bouncycastle.crypto.engines.AESEngine

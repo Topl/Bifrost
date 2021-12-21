@@ -2,9 +2,9 @@ package co.topl.attestation
 
 import cats.scalatest.{ValidatedMatchers, ValidatedNecMatchers}
 import co.topl.attestation.AddressCodec.implicits._
+import co.topl.codecs.binary._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.codecs.binary._
 import co.topl.utils.{CommonGenerators, NetworkType}
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
@@ -29,7 +29,7 @@ class AddressSpec
       val base58Data = {
         implicit val networkPrefix: NetworkPrefix = fstNetworkType.netPrefix
         val address: Address = pubkey.address
-        address.transmittableBase58
+        address.encodeAsBase58
       }
       {
         implicit val networkPrefix: NetworkPrefix = secNetworkType.netPrefix

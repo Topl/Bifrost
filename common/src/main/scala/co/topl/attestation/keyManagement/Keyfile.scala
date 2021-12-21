@@ -5,9 +5,8 @@ import cats.implicits.toShow
 import co.topl.attestation.Address
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Latin1Data
-import io.circe.{Codec, Decoder, Encoder}
-import io.circe.syntax._
 import co.topl.utils.catsInstances._
+import io.circe.syntax._
 
 import java.io.{BufferedWriter, FileWriter}
 import java.time.Instant

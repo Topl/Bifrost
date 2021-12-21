@@ -4,8 +4,8 @@ import cats.implicits._
 import co.topl.utils.Int128
 import co.topl.utils.StringDataTypes.{Base16Data, Base58Data, Latin1Data}
 import co.topl.utils.encode.{Base16, Base58}
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import io.circe.syntax.EncoderOps
+import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 
 import java.nio.charset.StandardCharsets
 

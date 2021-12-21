@@ -1,9 +1,9 @@
 package co.topl.codecs.binary.legacy.attestation
 
 import co.topl.attestation.PublicKeyPropositionCurve25519
+import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
 import co.topl.crypto.PublicKey
 import co.topl.crypto.signatures.Curve25519
-import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
 
 object PublicKeyPropositionCurve25519Serializer extends BifrostSerializer[PublicKeyPropositionCurve25519] {
 

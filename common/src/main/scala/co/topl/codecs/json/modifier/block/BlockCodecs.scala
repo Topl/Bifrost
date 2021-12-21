@@ -2,15 +2,7 @@ package co.topl.codecs.json.modifier.block
 
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.codecs.binary._
-import co.topl.codecs.json.crypto._
-import co.topl.codecs.json.modifier.box._
-import co.topl.codecs.json.modifier.transaction._
-import co.topl.codecs.json.{
-  deriveDecoderFromScodec,
-  deriveEncoderFromScodec,
-  deriveKeyDecoderFromScodec,
-  deriveKeyEncoderFromScodec
-}
+import co.topl.codecs.json._
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion

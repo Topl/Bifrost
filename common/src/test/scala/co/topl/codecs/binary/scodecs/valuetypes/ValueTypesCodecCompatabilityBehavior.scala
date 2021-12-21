@@ -2,9 +2,9 @@ package co.topl.codecs.binary.scodecs.valuetypes
 
 import akka.util.{ByteString => AkkaByteString}
 import cats.{Eq, Show}
+import co.topl.codecs.binary.legacy.{VLQByteStringReader, VLQByteStringWriter}
 import co.topl.utils.EqMatcher
 import co.topl.utils.IdiomaticScalaTransition.implicits._
-import co.topl.codecs.binary.legacy.{VLQByteStringReader, VLQByteStringWriter}
 import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

@@ -1,9 +1,9 @@
 package co.topl.codecs.binary.legacy.modifier.box
 
 import co.topl.attestation.Evidence
-import co.topl.modifier.box.{ProgramBox, ProgramId}
 import co.topl.codecs.binary.legacy.attestation.EvidenceSerializer
 import co.topl.codecs.binary.legacy.{Reader, Writer}
+import co.topl.modifier.box.{ProgramBox, ProgramId}
 
 object ProgramBoxSerializer {
 

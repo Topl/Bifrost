@@ -1,7 +1,7 @@
 package co.topl.codecs.binary.legacy.modifier.block
 
-import co.topl.modifier.block.BloomFilter
 import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
+import co.topl.modifier.block.BloomFilter
 
 object BloomFilterSerializer extends BifrostSerializer[BloomFilter] {
 

@@ -1,12 +1,12 @@
 package co.topl.codecs.binary.legacy.modifier.block
 
+import co.topl.codecs.binary.legacy.modifier.ModifierIdSerializer
+import co.topl.codecs.binary.legacy.modifier.transaction.TransactionSerializer
+import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.BlockBody
 import co.topl.modifier.transaction.Transaction
 import co.topl.utils.Extensions.LongOps
-import co.topl.codecs.binary.legacy.modifier.ModifierIdSerializer
-import co.topl.codecs.binary.legacy.modifier.transaction.TransactionSerializer
-import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
 
 object BlockBodySerializer extends BifrostSerializer[BlockBody] {
 

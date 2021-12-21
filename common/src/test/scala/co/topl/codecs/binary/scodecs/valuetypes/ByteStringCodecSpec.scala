@@ -11,6 +11,10 @@ class ByteStringCodecSpec extends ValueTypesCodecCompatabilityBehavior {
     _ => byteStringCodec,
     str => writer => writer.putByteString(str),
     _ => reader => reader.getByteString(),
-    Gen.posNum[Int].flatMap(int => Array(int.toByte)).filter(_.length < 256).map(Base16.encode)
+    Gen
+      .chooseNum(Int.MinValue, Int.MaxValue)
+      .flatMap(int => Array(int.toByte))
+      .filter(_.length < 256)
+      .map(Base16.encode)
   )
 }

@@ -1,15 +1,14 @@
 package co.topl.codecs.binary.legacy.modifier.transaction
 
 import co.topl.attestation._
-import co.topl.modifier.box.TokenValueHolder
-import co.topl.modifier.transaction.AssetTransfer
-import co.topl.utils.Extensions.LongOps
-import co.topl.utils.Int128
-import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.codecs.binary.legacy._
 import co.topl.codecs.binary.legacy.attestation._
 import co.topl.codecs.binary.legacy.modifier.box._
 import co.topl.codecs.binary.scodecs.valuetypes.Constants.stringCharacterSet
+import co.topl.modifier.transaction.AssetTransfer
+import co.topl.utils.Extensions.LongOps
+import co.topl.utils.Int128
+import co.topl.utils.StringDataTypes.Latin1Data
 
 import scala.collection.immutable.ListMap
 import scala.language.existentials

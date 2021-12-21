@@ -1,20 +1,13 @@
 package co.topl.attestation
 
-import cats.implicits._
-import cats.{Eq, Show}
-import co.topl.attestation.EvidenceProducer.Syntax._
-import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.catsInstances._
-import co.topl.codecs._
-import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
-import co.topl.codecs.binary.legacy.attestation.AddressSerializer
-import co.topl.codecs.binary.typeclasses.Transmittable
-import com.google.common.primitives.Ints
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import co.topl.attestation.AddressCodec.implicits._
+import co.topl.attestation.EvidenceProducer.Syntax._
+import co.topl.codecs._
+import co.topl.codecs.binary.legacy.attestation.AddressSerializer
+import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
+import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.encode.Base58
+import com.google.common.primitives.Ints
 
 /**
  * An address is a network specific commitment to a proposition encumbering a box. Addresses incorporate the evidence type

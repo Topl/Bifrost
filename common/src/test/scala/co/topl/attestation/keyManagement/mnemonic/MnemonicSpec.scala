@@ -12,9 +12,9 @@ import co.topl.utils.StringDataTypes.Base16Data
 import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.encode.Base58
 import co.topl.utils.{CommonGenerators, EqMatcher}
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-import org.scalatest.matchers.should.Matchers
 
 class MnemonicSpec
     extends AnyPropSpec

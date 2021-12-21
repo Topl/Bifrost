@@ -1,8 +1,8 @@
 package co.topl.codecs.binary.legacy.attestation
 
 import co.topl.attestation.{PublicKeyPropositionCurve25519, ThresholdPropositionCurve25519}
-import co.topl.utils.Extensions._
 import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
+import co.topl.utils.Extensions._
 
 import scala.collection.SortedSet
 

@@ -15,7 +15,7 @@ import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import io.circe.syntax._
-import io.circe.{Decoder, DecodingFailure, Encoder, HCursor}
+import io.circe.{Decoder, Encoder, HCursor}
 import scodec.bits.BitVector
 
 import scala.collection.immutable.ListMap

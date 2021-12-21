@@ -1,22 +1,16 @@
 package co.topl.modifier
 
 import cats.implicits._
+import co.topl.codecs.binary.legacy.modifier.ModifierIdSerializer
+import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.hash.digest.implicits._
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
-import co.topl.utils.IdiomaticScalaTransition.implicits._
-import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.StringDataTypes.implicits._
-import co.topl.codecs._
-import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
-import co.topl.codecs.binary.legacy.modifier.ModifierIdSerializer
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 
 case class ModifierId(value: Array[Byte]) extends BytesSerializable {
 

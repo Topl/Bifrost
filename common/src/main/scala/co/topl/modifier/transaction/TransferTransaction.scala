@@ -5,7 +5,6 @@ import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.box._
 import co.topl.utils.StringDataTypes.Latin1Data
-import co.topl.codecs.binary._
 import co.topl.utils.{Identifiable, Int128}
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.Json

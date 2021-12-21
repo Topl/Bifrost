@@ -1,19 +1,11 @@
 package co.topl.attestation
 
-import cats.implicits.toShow
+import co.topl.codecs.binary.legacy.attestation.EvidenceSerializer
+import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
 import co.topl.crypto.hash.digest.Digest
 import co.topl.crypto.implicits._
-import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
-import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.StringDataTypes.implicits.showBase58String
-import co.topl.codecs._
-import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
-import co.topl.codecs.binary.legacy.attestation.EvidenceSerializer
-import co.topl.codecs.binary.typeclasses.Transmittable
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import io.estatico.newtype.macros.newtype
 
 import scala.language.implicitConversions
