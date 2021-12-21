@@ -97,7 +97,7 @@ class AssetTransferRPCSpec extends TransferRPCTestMethods {
       testBroadcastTx(tx)
     }
 
-    "Threshold transaction with invalid attestation type should error" in {
+    "Return correct error response given a threshold transaction with invalid attestation type" in {
       val tx = testCreateSignAssetTransfer(
         addressThresholdCurve25519Fst,
         addressCurve25519Sec,
@@ -107,6 +107,27 @@ class AssetTransferRPCSpec extends TransferRPCTestMethods {
       )
       val attestation: Json = Map("signatures" -> attestationCurve25519Gen.sample.get.asJson).asJson
       testBroadcastTxInvalidProp(tx.hcursor.downField("signatures").delete.top.get.deepMerge(attestation))
+    }
+
+    "Return correct error responses if securityRoot is invalid" in {
+      testInvalidSecurityRoot(
+        addressCurve25519Fst,
+        addressCurve25519Sec,
+        assetCodeCurve25519Fst,
+        propTypeCurve25519,
+        3,
+        "111111111111111111111111111111=1"
+      )
+    }
+
+    "Return correct error responses if assetCode is invalid" in {
+      testInvalidAssetCode(
+        addressCurve25519Fst,
+        addressCurve25519Sec,
+        "65GtfBmwC9NHBayMzZfzCC69L2f2ZaxEe4BwQXRAABPynuNo4k2a8hqCsl",
+        propTypeCurve25519,
+        3
+      )
     }
   }
 }
