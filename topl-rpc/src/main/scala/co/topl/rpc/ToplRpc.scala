@@ -267,6 +267,7 @@ object ToplRpc {
     }
 
     object LatestBlocks {
+
       /**
        * Retrieve a number of latest blocks, including the current best block
        */
@@ -280,6 +281,7 @@ object ToplRpc {
     }
 
     object LatestBlockIds {
+
       /**
        * Retrieve a number of latest blocks' ids, including the current best block id
        */
