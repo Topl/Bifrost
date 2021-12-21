@@ -7,8 +7,7 @@ import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
 
-class
-AssetTransferRPCSpec extends TransferRPCTestMethods {
+class AssetTransferRPCSpec extends TransferRPCTestMethods {
 
   var addressCurve25519Fst: Address = _
   var addressCurve25519Sec: Address = _
