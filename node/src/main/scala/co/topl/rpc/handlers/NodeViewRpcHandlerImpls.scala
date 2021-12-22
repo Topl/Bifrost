@@ -240,7 +240,7 @@ class NodeViewRpcHandlerImpls(
       (view.memPool.modifierById(id), view.history.transactionById(id)) match {
         case (_, Some((tx, _, height))) => Some(tx.id -> TxStatus("Confirmed", headHeight - height))
         case (Some(tx), None)           => Some(tx.id -> TxStatus("Unconfirmed", -1))
-        case (None, None)               => None
+        case (None, None)               => Some(id -> TxStatus("Not Found", -1))
       }
     }
 
