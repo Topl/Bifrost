@@ -3,8 +3,7 @@ syntax = "proto3";
 package co.topl.genus.filters;
 
 message StringSelection {
-  bool inclusive = 1;
-  repeated string values = 2;
+  repeated string values = 1;
 }
 
 message NumberRange {
@@ -15,8 +14,7 @@ message NumberRange {
 }
 
 message NumberSelection {
-  bool inclusive = 1;
-  repeated uint64 values = 2;
+  repeated uint64 values = 1;
 }
 
 message BooleanSelection {
@@ -34,13 +32,11 @@ message TokenValueFilter {
 message TransactionFilter {
 
   message AndFilter {
-    TransactionFilter first = 1;
-    TransactionFilter second = 2;
+    repeated TransactionFilter filters = 1;
   }
 
   message OrFilter {
-    TransactionFilter first = 1;
-    TransactionFilter second = 2;
+    repeated TransactionFilter filters = 1;
   }
 
   message NotFilter {
@@ -52,11 +48,11 @@ message TransactionFilter {
   oneof filter_type {
     StringSelection tx_type_selection = 1;
     NumberRange timestamp_range = 2;
-    StringSelection input_box_address_selection = 3;
+    StringSelection input_address_selection = 3;
     NumberSelection input_nonce_selection = 4;
     StringSelection output_token_box_type_selection = 5;
     TokenValueFilter output_token_value_filter = 6;
-    StringSelection output_address = 7;
+    StringSelection output_address_selection = 7;
     BooleanSelection minting_selection = 8;
     StringSelection tx_id_selection = 9;
     StringSelection boxes_to_remove_selection = 10;
@@ -74,13 +70,11 @@ message TransactionFilter {
 message BlockFilter {
 
   message AndFilter {
-    BlockFilter first = 1;
-    BlockFilter second = 2;
+    repeated BlockFilter filters = 1;
   }
 
   message OrFilter {
-    BlockFilter first = 1;
-    BlockFilter second = 2;
+    repeated BlockFilter filters = 1;
   }
 
   message NotFilter {

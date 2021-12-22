@@ -8,58 +8,56 @@ trait MongoFilterInstances {
   implicit val transactionMongoFilter: MongoFilter[TransactionFilter] = filter =>
     filter.filterType match {
 
-      case TransactionFilter.FilterType.TxTypeSelection(select) =>
-        stringSelection("txType").toFilter(select)
+      case TransactionFilter.FilterType.TxTypeSelection(selection) =>
+        stringSelection("txType").toFilter(selection)
 
       case TransactionFilter.FilterType.TimestampRange(range) =>
         numberRangeAsString("timestamp").toFilter(range)
 
-      case TransactionFilter.FilterType.InputBoxAddressSelection(select) =>
-        stringSelection("from.0").toFilter(select)
+      case TransactionFilter.FilterType.InputAddressSelection(selection) =>
+        stringSelection("from.0").toFilter(selection)
 
-      case TransactionFilter.FilterType.InputNonceSelection(select) =>
-        numberSelection("from.1").toFilter(select)
+      case TransactionFilter.FilterType.InputNonceSelection(selection) =>
+        numberSelection("from.1").toFilter(selection)
 
-      case TransactionFilter.FilterType.OutputTokenBoxTypeSelection(select) =>
-        stringSelection("newBoxes.type").toFilter(select)
+      case TransactionFilter.FilterType.OutputTokenBoxTypeSelection(selection) =>
+        stringSelection("newBoxes.type").toFilter(selection)
 
       case TransactionFilter.FilterType.OutputTokenValueFilter(tokenValueFilter) =>
         Filters.elemMatch("to", tokenValue("1").toFilter(tokenValueFilter))
 
-      case TransactionFilter.FilterType.OutputAddress(select) =>
-        Filters.elemMatch("to", stringSelection("0").toFilter(select))
+      case TransactionFilter.FilterType.OutputAddressSelection(selection) =>
+        Filters.elemMatch("to", stringSelection("0").toFilter(selection))
 
-      case TransactionFilter.FilterType.MintingSelection(select) =>
-        booleanSelection("minting").toFilter(select)
+      case TransactionFilter.FilterType.MintingSelection(selection) =>
+        Filters.eq("minting", selection.value)
 
-      case TransactionFilter.FilterType.TxIdSelection(select) =>
-        stringSelection("txId").toFilter(select)
+      case TransactionFilter.FilterType.TxIdSelection(selection) =>
+        stringSelection("txId").toFilter(selection)
 
-      case TransactionFilter.FilterType.BoxesToRemoveSelection(select) =>
-        stringSelection("boxesToRemove").toFilter(select)
+      case TransactionFilter.FilterType.BoxesToRemoveSelection(selection) =>
+        stringSelection("boxesToRemove").toFilter(selection)
 
       case TransactionFilter.FilterType.FeeRange(range) =>
         numberRangeAsString("fee").toFilter(range)
 
-      case TransactionFilter.FilterType.PropositionSelection(select) =>
-        stringSelection("propositionType").toFilter(select)
+      case TransactionFilter.FilterType.PropositionSelection(selection) =>
+        stringSelection("propositionType").toFilter(selection)
 
-      case TransactionFilter.FilterType.BlockIdSelection(select) =>
-        stringSelection("block.id").toFilter(select)
+      case TransactionFilter.FilterType.BlockIdSelection(selection) =>
+        stringSelection("block.id").toFilter(selection)
 
       case TransactionFilter.FilterType.BlockHeightRange(range) =>
         numberRange("block.height").toFilter(range)
 
       case TransactionFilter.FilterType.And(and) =>
         Filters.and(
-          and.first.map(transactionMongoFilter.toFilter).getOrElse(Filters.empty()),
-          and.second.map(transactionMongoFilter.toFilter).getOrElse(Filters.empty())
+          and.filters.map(transactionMongoFilter.toFilter): _*
         )
 
       case TransactionFilter.FilterType.Or(or) =>
         Filters.or(
-          or.first.map(transactionMongoFilter.toFilter).getOrElse(Filters.empty()),
-          or.second.map(transactionMongoFilter.toFilter).getOrElse(Filters.empty())
+          or.filters.map(transactionMongoFilter.toFilter): _*
         )
 
       case TransactionFilter.FilterType.Not(not) =>
@@ -71,11 +69,11 @@ trait MongoFilterInstances {
   implicit val blockMongoFilter: MongoFilter[BlockFilter] = filter =>
     filter.filterType match {
 
-      case BlockFilter.FilterType.IdSelection(select) =>
-        stringSelection("id").toFilter(select)
+      case BlockFilter.FilterType.IdSelection(selection) =>
+        stringSelection("id").toFilter(selection)
 
-      case BlockFilter.FilterType.ParentIdSelection(select) =>
-        stringSelection("parentId").toFilter(select)
+      case BlockFilter.FilterType.ParentIdSelection(selection) =>
+        stringSelection("parentId").toFilter(selection)
 
       case BlockFilter.FilterType.TimestampRange(range) =>
         numberRangeAsString("timestamp").toFilter(range)
@@ -83,8 +81,8 @@ trait MongoFilterInstances {
       case BlockFilter.FilterType.GeneratorBoxTokenValueFilter(tokenValueFilter) =>
         tokenValue("generatorBox").toFilter(tokenValueFilter)
 
-      case BlockFilter.FilterType.PublicKeySelection(select) =>
-        stringSelection("publicKey").toFilter(select)
+      case BlockFilter.FilterType.PublicKeySelection(selection) =>
+        stringSelection("publicKey").toFilter(selection)
 
       case BlockFilter.FilterType.HeightRange(range) =>
         numberRange("height").toFilter(range)
@@ -100,14 +98,12 @@ trait MongoFilterInstances {
 
       case BlockFilter.FilterType.And(and) =>
         Filters.and(
-          and.first.map(blockMongoFilter.toFilter).getOrElse(Filters.empty()),
-          and.second.map(blockMongoFilter.toFilter).getOrElse(Filters.empty())
+          and.filters.map(blockMongoFilter.toFilter): _*
         )
 
       case BlockFilter.FilterType.Or(or) =>
         Filters.or(
-          or.first.map(blockMongoFilter.toFilter).getOrElse(Filters.empty()),
-          or.second.map(blockMongoFilter.toFilter).getOrElse(Filters.empty())
+          or.filters.map(blockMongoFilter.toFilter): _*
         )
 
       case BlockFilter.FilterType.Not(not) =>
@@ -117,12 +113,10 @@ trait MongoFilterInstances {
     }
 
   private def stringSelection(field: String): MongoFilter[StringSelection] = filter =>
-    if (filter.inclusive) Filters.in(field, filter.values: _*)
-    else Filters.nin(field, filter.values: _*)
+    Filters.in(field, filter.values: _*)
 
   private def numberSelection(field: String): MongoFilter[NumberSelection] = filter =>
-    if (filter.inclusive) Filters.in(field, filter.values: _*)
-    else Filters.nin(field, filter.values: _*)
+    Filters.in(field, filter.values: _*)
 
   private def numberRange(property: String): MongoFilter[NumberRange] = {
     case NumberRange(NumberRange.FilterType.Min(min), _) => Filters.gte(property, min)
@@ -135,8 +129,6 @@ trait MongoFilterInstances {
     case NumberRange(NumberRange.FilterType.Max(max), _) => Filters.lte(field, max.toString)
     case _                                               => Filters.empty()
   }
-
-  private def booleanSelection(field: String): MongoFilter[BooleanSelection] = filter => Filters.eq(field, filter.value)
 
   private def tokenValue(path: String): MongoFilter[TokenValueFilter] = {
     case TokenValueFilter(TokenValueFilter.FilterType.AssetCodeSelection(select), _) =>
