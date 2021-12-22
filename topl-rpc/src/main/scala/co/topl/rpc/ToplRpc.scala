@@ -722,7 +722,7 @@ object ToplRpc {
        * @param address New address to receive block rewards
        */
       case class Params(address: Address)
-      case class Response(rewardsAddress: String)
+      case class Response(msg: String)
     }
 
     object GetRewardsAddress {
