@@ -3,9 +3,10 @@ package co.topl.rpc
 import co.topl.akkahttprpc.RpcError
 import co.topl.attestation.Address
 import co.topl.modifier.ModifierId
+import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block
+import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.StateReader
-import co.topl.rpc.ToplRpc.NodeView.ConfirmationStatus.TxStatus
 
 package object handlers {
 
@@ -22,11 +23,28 @@ package object handlers {
       )
     } yield keys
 
+  private[handlers] def checkModifierIdType(
+    idType: ModifierTypeId,
+    ids:    List[ModifierId]
+  ): Either[RpcError, List[ModifierId]] = {
+    val modifierTypeName = idType match {
+      case Transaction.modifierTypeId => "Transaction"
+      case Block.modifierTypeId       => "Block"
+    }
+    for {
+      _ <- Either.cond(
+        ids.forall(_.getModType == idType),
+        {},
+        ToplRpcErrors.unsupportedOperation(s"The requested id's type is not an id type for $modifierTypeName")
+      )
+    } yield ids
+  }
+
   private[handlers] def checkBlocksFoundWithIds(
     ids:          List[ModifierId],
     blocksOption: List[Option[Block]],
     sizeLimit:    Int
-  ): Either[RpcError, ToplRpc.NodeView.BlocksByIds.Response] =
+  ): Either[RpcError, List[Block]] =
     for {
       _ <- Either.cond(
         ids.size <= sizeLimit,
@@ -39,6 +57,24 @@ package object handlers {
         ToplRpcErrors.NoBlockWithId
       )
     } yield blocks
+
+  private[handlers] def checkTxFoundWithIds[T](
+    ids:       List[ModifierId],
+    txOption:  List[Option[T]],
+    sizeLimit: Int
+  ): Either[RpcError, List[T]] =
+    for {
+      _ <- Either.cond(
+        ids.size <= sizeLimit,
+        {},
+        ToplRpcErrors.unsupportedOperation("Number of ids given exceeded txRetrievalLimit")
+      )
+      txs <- Either.cond(
+        txOption.forall(_.nonEmpty),
+        txOption.map(_.get),
+        ToplRpcErrors.NoTransactionWithId
+      )
+    } yield txs
 
   private[handlers] def checkHeightRange(
     bestBlockHeight: Long,
@@ -63,16 +99,4 @@ package object handlers {
         ToplRpcErrors.unsupportedOperation("Height range exceeded block/block id retrieval limit")
       )
     } yield (startHeight, endHeight)
-
-  private[handlers] def checkTxIds(
-    txStatusOption: List[Option[(ModifierId, TxStatus)]]
-  ): Either[RpcError, ToplRpc.NodeView.ConfirmationStatus.Response] =
-    for {
-      txStatus <- Either.cond(
-        txStatusOption.forall(_.nonEmpty),
-        txStatusOption.map(_.get).toMap,
-        ToplRpcErrors.NoTransactionWithId
-      )
-    } yield txStatus
-
 }

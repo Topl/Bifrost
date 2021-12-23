@@ -9,6 +9,7 @@ import co.topl.consensus.{blockVersion, getProtocolRules, Forger, ForgerInterfac
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
+import co.topl.modifier.transaction.Transaction
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.state.StateReader
@@ -65,27 +66,17 @@ class NodeViewRpcHandlerImpls(
 
   override val transactionById: ToplRpc.NodeView.TransactionById.rpc.ServerHandler =
     params =>
-      withNodeView(_.history.transactionById(params.transactionId))
-        .subflatMap(
-          _.toRight[RpcError](InvalidParametersError.adhoc("Unable to find confirmed transaction", "modifierId"))
-        )
-        .map { case (tx, blockId, blockNumber) => ToplRpc.NodeView.TransactionById.Response(tx, blockNumber, blockId) }
+      getTxsByIds(List(params.transactionId)).map {
+        _.head match {
+          case (tx, blockId, blockNumber) => ToplRpc.NodeView.TransactionById.Response(tx, blockNumber, blockId)
+        }
+      }
 
   override val blockById: ToplRpc.NodeView.BlockById.rpc.ServerHandler =
-    params =>
-      withNodeView(_.history.modifierById(params.blockId))
-        .subflatMap(
-          _.toRight[RpcError](InvalidParametersError.adhoc("The requested block could not be found", "blockId"))
-        )
+    params => getBlocksByIds(List(params.blockId)).map(_.head)
 
   override val blocksByIds: ToplRpc.NodeView.BlocksByIds.rpc.ServerHandler =
-    params =>
-      for {
-        blocksOption <- withNodeView(view => params.blockIds.map(view.history.modifierById))
-        blocks <- EitherT.fromEither[Future](
-          checkBlocksFoundWithIds(params.blockIds, blocksOption, rpcSettings.blockRetrievalLimit)
-        )
-      } yield blocks
+    params => getBlocksByIds(params.blockIds)
 
   override val blocksInRange: ToplRpc.NodeView.BlocksInRange.rpc.ServerHandler =
     params =>
@@ -141,16 +132,19 @@ class NodeViewRpcHandlerImpls(
 
   override val transactionFromMempool: ToplRpc.NodeView.TransactionFromMempool.rpc.ServerHandler =
     params =>
-      withNodeView(_.memPool.modifierById(params.transactionId))
-        .subflatMap(
-          _.toRight[RpcError](InvalidParametersError.adhoc("Unable to retrieve transaction", "transactionId"))
-        )
+      for {
+        txIds <- EitherT.fromEither[Future](checkModifierIdType(Transaction.modifierTypeId, List(params.transactionId)))
+        txsOption <- withNodeView(view => txIds.map(view.memPool.modifierById))
+        txs       <- EitherT.fromEither[Future](checkTxFoundWithIds(txIds, txsOption, rpcSettings.txRetrievalLimit))
+      } yield txs.head
 
   override val confirmationStatus: ToplRpc.NodeView.ConfirmationStatus.rpc.ServerHandler =
     params =>
-      withNodeView { view =>
-        checkTxIds(getConfirmationStatus(params.transactionIds, view.history.height, view))
-      }.subflatMap(identity)
+      for {
+        txIds <- EitherT.fromEither[Future](checkModifierIdType(Transaction.modifierTypeId, params.transactionIds))
+        txStatusOption <- withNodeView(view => getConfirmationStatus(txIds, view.history.height, view))
+        txStatus <- EitherT.fromEither[Future](checkTxFoundWithIds(txIds, txStatusOption, rpcSettings.txRetrievalLimit))
+      } yield txStatus.toMap
 
   override val info: ToplRpc.NodeView.Info.rpc.ServerHandler =
     _ =>
@@ -212,6 +206,22 @@ class NodeViewRpcHandlerImpls(
       )
     }
   }
+
+  private def getBlocksByIds(ids: List[ModifierId]): EitherT[Future, RpcError, List[Block]] =
+    for {
+      blockIds     <- EitherT.fromEither[Future](checkModifierIdType(Block.modifierTypeId, ids))
+      blocksOption <- withNodeView(view => blockIds.map(view.history.modifierById))
+      blocks <- EitherT.fromEither[Future](
+        checkBlocksFoundWithIds(blockIds, blocksOption, rpcSettings.blockRetrievalLimit)
+      )
+    } yield blocks
+
+  private def getTxsByIds(ids: List[ModifierId]): EitherT[Future, RpcError, List[(Transaction.TX, ModifierId, Long)]] =
+    for {
+      txIds     <- EitherT.fromEither[Future](checkModifierIdType(Transaction.modifierTypeId, ids))
+      txsOption <- withNodeView(view => txIds.map(view.history.transactionById))
+      txs       <- EitherT.fromEither[Future](checkTxFoundWithIds(txIds, txsOption, rpcSettings.txRetrievalLimit))
+    } yield txs
 
   private def getBlockIdsInRange(
     view:        HistoryReader[Block, BifrostSyncInfo],
