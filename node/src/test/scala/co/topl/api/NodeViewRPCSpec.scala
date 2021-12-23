@@ -494,6 +494,8 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
     "Return the confirmation status of a confirmed, unconfirmed transactions" in {
       val unconfirmedTx = bifrostTransactionSeqGen.sampleFirst()
       val unconfirmedTxId = unconfirmedTx.head.id.toString
+      val randomTx = bifrostTransactionSeqGen.sampleFirst()
+      val randomTxId = randomTx.head.id.toString
       val requestBody = ByteString(s"""
         |{
         |   "jsonrpc": "2.0",
@@ -501,7 +503,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |   "id": "1",
         |   "method": "topl_confirmationStatus",
         |   "params": [{
-        |      "transactionIds": ["$txId", "$unconfirmedTxId"]
+        |      "transactionIds": ["$txId", "$unconfirmedTxId", "$randomTxId"]
         |   }]
         |}
         |
@@ -513,10 +515,13 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         val res: Json = parse(responseAs[String]).value
         val confirmedStatus = res.hcursor.downField("result").get[Json](txId).value
         val unconfirmedStatus = res.hcursor.downField("result").get[Json](unconfirmedTxId).value
+        val randomTxStatus = res.hcursor.downField("result").get[Json](randomTxId).value
         confirmedStatus.hcursor.downField("status").as[String].value shouldEqual "Confirmed"
         confirmedStatus.hcursor.downField("depthFromHead").as[Int].value shouldEqual 0
         unconfirmedStatus.hcursor.downField("status").as[String].value shouldEqual "Unconfirmed"
         unconfirmedStatus.hcursor.downField("depthFromHead").as[Int].value shouldEqual -1
+        randomTxStatus.hcursor.downField("status").as[String].value shouldEqual "Not Found"
+        randomTxStatus.hcursor.downField("depthFromHead").as[Int].value shouldEqual -1
         res.hcursor.downField("error").values shouldBe None
       }
 
