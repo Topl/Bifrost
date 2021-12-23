@@ -29,5 +29,24 @@ class AdminRPCSpec extends AnyWordSpec with Matchers with RPCMockState with Eith
         error should include("Cannot find a unique matching keyfile")
       }
     }
+
+    "Return return a confirmation after successfully updating the reward address" in {
+      val requestBody = ByteString(s"""
+        |{
+        |   "jsonrpc": "2.0",
+        |   "id": "1",
+        |   "method": "admin_updateRewardsAddress",
+        |   "params": [{
+        |     "address": "${keyRingCurve25519.addresses.last.toString}"
+        |   }]
+        |}
+        """.stripMargin)
+
+      httpPOST(requestBody) ~> route ~> check {
+        val res: Json = parse(responseAs[String]).value
+        val msg = res.hcursor.downField("result").as[Json].value.toString
+        msg should include("Updated reward address")
+      }
+    }
   }
 }
