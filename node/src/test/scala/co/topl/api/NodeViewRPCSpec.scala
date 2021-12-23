@@ -156,17 +156,46 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       view().mempool.remove(txs.head)
     }
 
-    "Return correct error response when an id with non-base58 character is used for querying transactions" in {
-      val invalidCharId: String = "=" ++ txId.tail
-      val modifierQueryMethods = Seq("topl_transactionById", "topl_transactionFromMempool", "topl_blockById")
-      val idTypes = Seq("transactionId", "transactionId", "blockId")
-      def requestBody(idType: String, rpcMethod: String, txId: String): ByteString = ByteString(s"""
+    "Return correct error response when an incorrect modifier id type is used" in {
+      val invalidCharId: String = block.id.toString
+      val modifierQueryMethods = Seq("topl_transactionById", "topl_transactionFromMempool")
+      val idTypes = Seq("transactionId", "transactionId")
+      def requestBody(idType: String, rpcMethod: String, id: String): ByteString = ByteString(s"""
         |{
         |   "jsonrpc": "2.0",
         |   "id": "1",
         |   "method": "$rpcMethod",
         |   "params": [{
-        |      "$idType": "$txId"
+        |      "$idType": "$id"
+        |   }]
+        |}
+        |
+        """.stripMargin)
+
+      idTypes.zip(modifierQueryMethods).map { case (idType, rpcMethod) =>
+        httpPOST(requestBody(idType, rpcMethod, invalidCharId)) ~> route ~> check {
+          val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
+          res should include("The requested id's type is not an id type for Transaction")
+        }
+      }
+
+      httpPOST(requestBody("blockId", "topl_blockById", txId)) ~> route ~> check {
+        val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
+        res should include("The requested id's type is not an id type for Block")
+      }
+    }
+
+    "Return correct error response when an id with non-base58 character is used for querying transactions" in {
+      val invalidCharId: String = "=" ++ txId.tail
+      val modifierQueryMethods = Seq("topl_transactionById", "topl_transactionFromMempool", "topl_blockById")
+      val idTypes = Seq("transactionId", "transactionId", "blockId")
+      def requestBody(idType: String, rpcMethod: String, id: String): ByteString = ByteString(s"""
+        |{
+        |   "jsonrpc": "2.0",
+        |   "id": "1",
+        |   "method": "$rpcMethod",
+        |   "params": [{
+        |      "$idType": "$id"
         |   }]
         |}
         |
@@ -184,13 +213,13 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       val invalidLengthId: String = txId.tail
       val modifierQueryMethods = Seq("topl_transactionById", "topl_transactionFromMempool", "topl_blockById")
       val idTypes = Seq("transactionId", "transactionId", "blockId")
-      def requestBody(idType: String, rpcMethod: String, txId: String): ByteString = ByteString(s"""
+      def requestBody(idType: String, rpcMethod: String, id: String): ByteString = ByteString(s"""
         |{
         |   "jsonrpc": "2.0",
         |   "id": "1",
         |   "method": "$rpcMethod",
         |   "params": [{
-        |      "$idType": "$txId"
+        |      "$idType": "$id"
         |   }]
         |}
         |
