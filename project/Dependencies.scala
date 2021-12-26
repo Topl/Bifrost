@@ -23,7 +23,7 @@ object Dependencies {
     "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
     "com.spotify"         % "docker-client"     % "8.16.0"  % "test",
     "org.asynchttpclient" % "async-http-client" % "2.12.3"  % "test",
-    "org.scalamock"      %% "scalamock"         % "5.1.0"   % "test",
+    "org.scalamock"      %% "scalamock"         % "5.2.0"   % "test",
     "com.ironcorelabs"   %% "cats-scalatest"    % "3.1.1"   % "test"
   )
 
