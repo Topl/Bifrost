@@ -11,18 +11,19 @@ import co.topl.genus.types.{Block, Transaction}
 import com.mongodb.client.model.changestream.ChangeStreamDocument
 import org.mongodb.scala.bson.conversions.Bson
 import co.topl.utils.mongodb.models._
+import org.mongodb.scala.Document
 
-object MongoClientInterpreter {
+object MongoDatabaseClient {
 
   object Eval {
 
     def make[F[_]: Monad](
       transactionQuery: QueryAlg[F, Source[*, NotUsed], Bson, ConfirmedTransactionDataModel],
       blockQuery:       QueryAlg[F, Source[*, NotUsed], Bson, BlockDataModel],
-      transactionSubscription: SubscriptionAlg[F, Source[*, NotUsed], Bson, ChangeStreamDocument[
+      transactionSubscription: SubscriptionAlg[F, Source[*, NotUsed], Bson, String, ChangeStreamDocument[
         ConfirmedTransactionDataModel
       ]],
-      blockSubscription: SubscriptionAlg[F, Source[*, NotUsed], Bson, ChangeStreamDocument[BlockDataModel]]
+      blockSubscription: SubscriptionAlg[F, Source[*, NotUsed], Bson, String, ChangeStreamDocument[BlockDataModel]]
     ): DatabaseClientAlg[F, Source[*, NotUsed]] =
       new DatabaseClientAlg[F, Source[*, NotUsed]] {
 
@@ -30,12 +31,12 @@ object MongoClientInterpreter {
           filter: TransactionFilter
         ): F[Source[Transaction, NotUsed]] =
           transactionSubscription
-            .subscribe(filter.toFilter)
+            .subscribe(filter.toFilter, None)
             .map(subscription => subscription.map(_.getFullDocument.transformTo))
 
         override def subscribeToBlocks(filter: BlockFilter): F[Source[Block, NotUsed]] =
           blockSubscription
-            .subscribe(filter.toFilter)
+            .subscribe(filter.toFilter, None)
             .map(subscription => subscription.map(_.getFullDocument.transformTo))
 
         override def queryTransactions(filter: TransactionFilter): F[Source[Transaction, NotUsed]] =

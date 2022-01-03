@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+import "filters.proto";
+import "types.proto";
+
+package co.topl.genus.services;
+
+service TransactionQuery {
+  rpc Query (QueryTxReq) returns (QueryTxRes);
+}
+
+message QueryTxReq {
+  TransactionFilter filter = 1;
+  uint32 confirmation_depth = 2;
+}
+
+message QueryTxRes {
+  repeated Transaction transactions = 1;
+}

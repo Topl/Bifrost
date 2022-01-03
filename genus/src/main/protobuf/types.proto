@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package co.topl.genus.types;
+package co.topl.genus;
 
 message Attestation {
   string public_key = 1;
