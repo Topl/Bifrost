@@ -30,7 +30,7 @@ class AdminRPCSpec extends AnyWordSpec with Matchers with RPCMockState with Eith
       }
     }
 
-    "Return return a confirmation after successfully updating the reward address" in {
+    "Return a confirmation after successfully updating the reward address" in {
       val requestBody = ByteString(s"""
         |{
         |   "jsonrpc": "2.0",
