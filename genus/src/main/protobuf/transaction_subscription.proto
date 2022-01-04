@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+import "filters.proto";
+import "types.proto";
+
+package co.topl.genus.services;
+
+service TransactionSubscription {
+  rpc Create (CreateTxSubscriptionReq) returns (CreateTxSubscriptionRes);
+  rpc Delete (DeleteTxSubscriptionReq) returns (DeleteTxSubscriptionRes);
+  rpc Read (stream ReadTxSubscriptionReq) returns (stream ReadTxSubscriptionRes);
+}
+
+message CreateTxSubscriptionReq {
+  TransactionFilter filter = 1;
+  uint64 start_from = 2;
+  uint32 confirmation_depth = 3;
+}
+
+message CreateTxSubscriptionRes {
+  string subscription_id = 1;
+}
+
+message DeleteTxSubscriptionReq {
+  string id = 1;
+}
+
+message DeleteTxSubscriptionRes {}
+
+message ReadTxSubscriptionReq {
+  oneof request_type {
+    Start start = 1;
+    Checkpoint checkpoint = 2;
+    Pause pause = 3;
+  }
+
+  message Start {
+    string subscription_id = 1;
+  }
+
+  message Checkpoint {
+    uint64 timestamp = 1;
+  }
+
+  message Pause {}
+}
+
+message ReadTxSubscriptionRes {
+  Transaction transaction = 1;
+}

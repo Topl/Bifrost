@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+import "filters.proto";
+import "types.proto";
+
+package co.topl.genus.services;
+
+service BlockQuery {
+  rpc Query (QueryBlockReq) returns (QueryBlockRes);
+}
+
+message QueryBlockReq {
+  BlockFilter filter = 1;
+  uint32 confirmation_depth = 2;
+}
+
+message QueryBlockRes {
+  repeated Block blocks = 1;
+}

@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package co.topl.genus.filters;
+package co.topl.genus;
 
 message StringSelection {
   repeated string values = 1;
