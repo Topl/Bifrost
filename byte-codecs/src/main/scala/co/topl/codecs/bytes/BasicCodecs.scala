@@ -265,15 +265,13 @@ trait BasicCodecs {
   implicit val vrfCertificateCodec: ByteCodec[EligibilityCertificate] = new ByteCodec[EligibilityCertificate] {
 
     override def encode(t: EligibilityCertificate, writer: Writer): Unit = {
-      t.vrfNonceSig.writeBytesTo(writer)
-      t.vrfTestSig.writeBytesTo(writer)
+      t.vrfSig.writeBytesTo(writer)
       t.vkVRF.writeBytesTo(writer)
       writer.putBytes(t.thresholdEvidence.data.toArray)
     }
 
     override def decode(reader: Reader): EligibilityCertificate =
       EligibilityCertificate(
-        ByteCodec[Proofs.Knowledge.VrfEd25519].decode(reader),
         ByteCodec[Proofs.Knowledge.VrfEd25519].decode(reader),
         ByteCodec[VerificationKeys.VrfEd25519].decode(reader),
         ByteCodec[Evidence].decode(reader),

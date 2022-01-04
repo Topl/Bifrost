@@ -280,26 +280,25 @@ class BlockHeaderValidationSpec
     relativeStake:        Ratio,
     parentSlot:           Slot
   ): (EligibilityCertificate, Slot) = {
-    def proof(slot: Slot, token: LeaderElectionValidation.Token) =
+    def proof(slot: Slot) =
       ed25519Vrf.sign(
         skVrf,
         LeaderElectionValidation
-          .VrfArgument(eta, slot, token)
+          .VrfArgument(eta, slot)
           .signableBytes
       )
 
+    def isLeader(threshold: Ratio, testProof: Proofs.Knowledge.VrfEd25519) =
+      thresholdInterpreter.isSlotLeaderForThreshold(threshold)(ed25519Vrf.proofToHash(testProof)).unsafeRunSync()
     var slot = parentSlot + 1
-    var testProof = proof(slot, LeaderElectionValidation.Tokens.Test)
+    var testProof = proof(slot)
     var threshold = thresholdInterpreter.getThreshold(relativeStake, slot).unsafeRunSync()
-    while (
-      !thresholdInterpreter.isSlotLeaderForThreshold(threshold)(ed25519Vrf.proofToHash(testProof)).unsafeRunSync()
-    ) {
+    while (!isLeader(threshold, testProof)) {
       slot += 1
-      testProof = proof(slot, LeaderElectionValidation.Tokens.Test)
+      testProof = proof(slot)
       threshold = thresholdInterpreter.getThreshold(relativeStake, slot).unsafeRunSync()
     }
     val cert = EligibilityCertificate(
-      proof(slot, LeaderElectionValidation.Tokens.Nonce),
       testProof,
       ed25519Vrf.getVerificationKey(skVrf),
       threshold.typedEvidence.evidence,

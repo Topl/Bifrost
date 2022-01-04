@@ -34,8 +34,7 @@ class BlockGenesisSpec extends AnyFlatSpec with Matchers with EitherValues with 
   it should "have all zeros for the Eligibility Certificate, except for the eta value" in {
     val cert = block.headerV2.eligibilityCertificate
     forAll(cert.vkVRF.bytes.data.toArray)(_ shouldBe (0: Byte))
-    forAll(cert.vrfNonceSig.bytes.data.toArray)(_ shouldBe (0: Byte))
-    forAll(cert.vrfTestSig.bytes.data.toArray)(_ shouldBe (0: Byte))
+    forAll(cert.vrfSig.bytes.data.toArray)(_ shouldBe (0: Byte))
     forAll(cert.thresholdEvidence.data.toArray)(_ shouldBe (0: Byte))
   }
 

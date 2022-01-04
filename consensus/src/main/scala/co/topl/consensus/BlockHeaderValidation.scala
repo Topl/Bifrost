@@ -110,24 +110,11 @@ object BlockHeaderValidation {
                     .InvalidEligibilityCertificateEta(header.eligibilityCertificate.eta, expectedEta)
                 )(header => header.eligibilityCertificate.eta === expectedEta)
                 .ensure(
-                  BlockHeaderValidationFailures.InvalidEligibilityCertificateTestProof(certificate.vrfTestSig)
+                  BlockHeaderValidationFailures.InvalidEligibilityCertificateTestProof(certificate.vrfSig)
                 )(header =>
                   ed25519vrf.verify(
-                    certificate.vrfTestSig,
-                    LeaderElectionValidation
-                      .VrfArgument(expectedEta, header.slot, LeaderElectionValidation.Tokens.Test)
-                      .signableBytes,
-                    certificate.vkVRF
-                  )
-                )
-                .ensure(
-                  BlockHeaderValidationFailures.InvalidEligibilityCertificateNonceProof(certificate.vrfNonceSig)
-                )(header =>
-                  ed25519vrf.verify(
-                    certificate.vrfNonceSig,
-                    LeaderElectionValidation
-                      .VrfArgument(expectedEta, header.slot, LeaderElectionValidation.Tokens.Nonce)
-                      .signableBytes,
+                    certificate.vrfSig,
+                    LeaderElectionValidation.VrfArgument(expectedEta, header.slot).signableBytes,
                     certificate.vkVRF
                   )
                 )
@@ -215,7 +202,7 @@ object BlockHeaderValidation {
           .liftF(
             vrfRef
               .modify { implicit ed25519Vrf =>
-                ed25519Vrf -> ed25519Vrf.proofToHash(header.eligibilityCertificate.vrfTestSig)
+                ed25519Vrf -> ed25519Vrf.proofToHash(header.eligibilityCertificate.vrfSig)
               }
               .flatMap(leaderElection.isSlotLeaderForThreshold(threshold))
           )

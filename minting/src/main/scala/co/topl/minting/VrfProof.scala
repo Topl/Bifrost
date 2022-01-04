@@ -9,9 +9,12 @@ import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.consensus.LeaderElectionValidation
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
+import co.topl.crypto.hash.blake2b512
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.algebras.VrfProofAlgebra
 import co.topl.models._
+import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.{Lengths, Sized}
 import co.topl.typeclasses.implicits._
 import scalacache.caffeine.CaffeineCache
 import scalacache.{CacheConfig, CacheKeyBuilder}
@@ -38,8 +41,8 @@ object VrfProof {
         def stringToCacheKey(key: String): String = key
       })
 
-      CaffeineCache[F, LongMap[Proofs.Knowledge.VrfEd25519]].flatMap { implicit testProofs =>
-        CaffeineCache[F, LongMap[Rho]].flatMap { implicit rhos =>
+      CaffeineCache[F, LongMap[Proofs.Knowledge.VrfEd25519]].flatMap { implicit vrfProofsCache =>
+        CaffeineCache[F, LongMap[Rho]].flatMap { implicit rhosCache =>
           Ref
             .of[F, Ed25519VRF](Ed25519VRF.precomputed())
             .map(ed25519VRFRef =>
@@ -50,41 +53,33 @@ object VrfProof {
                     .epochRange(epoch)
                     .flatMap(boundary =>
                       ed25519VRFRef.modify { implicit ed =>
-                        val testProofs = LongMap.from(
+                        val vrfProofs = LongMap.from(
                           boundary.map { slot =>
                             slot -> compute(
-                              LeaderElectionValidation.VrfArgument(eta, slot, LeaderElectionValidation.Tokens.Test),
+                              LeaderElectionValidation.VrfArgument(eta, slot),
                               ed
                             )
                           }
                         )
-                        val rhoValues = LongMap.from(testProofs.view.mapValues(ed.proofToHash))
-                        ed -> (testProofs -> rhoValues)
+                        val rhoValues = LongMap.from(vrfProofs.view.mapValues(ed.proofToHash))
+                        ed -> (vrfProofs -> rhoValues)
                       }
                     )
-                    .flatTap { case (testProofsForEta, rhosForEta) =>
-                      (testProofs.put(eta)(testProofsForEta), rhos.put(eta)(rhosForEta)).tupled
+                    .flatTap { case (testProofsForEta, nonceRhoVaues) =>
+                      (vrfProofsCache.put(eta)(testProofsForEta), rhosCache.put(eta)(nonceRhoVaues)).tupled
                     }
                     .void
 
-                def testProofForSlot(slot: Slot, eta: Eta): F[Proofs.Knowledge.VrfEd25519] =
-                  OptionT(testProofs.get(eta))
+                def proofForSlot(slot: Slot, eta: Eta): F[Proofs.Knowledge.VrfEd25519] =
+                  OptionT(vrfProofsCache.get(eta))
                     .subflatMap(_.get(slot))
                     .getOrElseF(
                       new IllegalStateException(show"testProof was not precomputed for slot=$slot eta=$eta")
                         .raiseError[F, Proofs.Knowledge.VrfEd25519]
                     )
 
-                def nonceProofForSlot(slot: Slot, eta: Eta): F[Proofs.Knowledge.VrfEd25519] =
-                  ed25519VRFRef.modify(ed =>
-                    ed -> compute(
-                      LeaderElectionValidation.VrfArgument(eta, slot, LeaderElectionValidation.Tokens.Nonce),
-                      ed
-                    )
-                  )
-
                 def rhoForSlot(slot: Slot, eta: Eta): F[Rho] =
-                  OptionT(rhos.get(eta))
+                  OptionT(rhosCache.get(eta))
                     .subflatMap(_.get(slot))
                     .getOrElseF(
                       new IllegalStateException(show"rho was not precomputed for slot=$slot eta=$eta")
@@ -101,7 +96,7 @@ object VrfProof {
                   )
 
                 def ineligibleSlots(epoch: Epoch, eta: Eta): F[Vector[Slot]] =
-                  OptionT(rhos.get(eta))
+                  OptionT(rhosCache.get(eta))
                     .getOrElseF(
                       new IllegalStateException(show"rhos were not precomputed for epoch=$epoch eta=$eta")
                         .raiseError[F, LongMap[Rho]]

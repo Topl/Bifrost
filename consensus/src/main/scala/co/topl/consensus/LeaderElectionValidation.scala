@@ -3,8 +3,11 @@ package co.topl.consensus
 import cats.Monad
 import cats.implicits._
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
+import co.topl.crypto.hash.blake2b512
+import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models._
-import co.topl.models.utility.Ratio
+import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.{Lengths, Ratio, Sized}
 import co.topl.typeclasses.Signable
 import co.topl.typeclasses.implicits._
 
@@ -29,10 +32,10 @@ object LeaderElectionValidation {
 
   case class VrfConfig(lddCutoff: Int, precision: Int, baselineDifficulty: Ratio, amplitude: Ratio)
 
-  case class VrfArgument(eta: Eta, slot: Slot, token: Token)
+  case class VrfArgument(eta: Eta, slot: Slot)
 
   implicit val signableVrfArgument: Signable[VrfArgument] =
-    arg => arg.eta.data ++ Bytes(BigInt(arg.slot).toByteArray) ++ Bytes(arg.token.bytes)
+    arg => arg.eta.data ++ Bytes(BigInt(arg.slot).toByteArray)
 
   object Eval {
 
@@ -56,13 +59,15 @@ object LeaderElectionValidation {
          * @param proof the proof output
          * @return true if elected slot leader and false otherwise
          */
-        def isSlotLeaderForThreshold(threshold: Ratio)(proofHash: Rho): F[Boolean] =
-          (threshold > proofHash.data.toIterable
-            .zip(1 to proofHash.data.length.toInt) // zip with indexes starting from 1
+        def isSlotLeaderForThreshold(threshold: Ratio)(rho: Rho): F[Boolean] = {
+          val testRhoHash = Bytes(blake2b512.hash(rho.data.toArray ++ Tokens.Test.bytes).value)
+          (threshold > testRhoHash.toIterable
+            .zip(1 to rho.data.length.toInt) // zip with indexes starting from 1
             .foldLeft(Ratio(0)) { case (net, (byte, i)) =>
               net + Ratio(BigInt(byte & 0xff), BigInt(2).pow(8 * i))
             })
             .pure[F]
+        }
 
         /** Calculates log(1-f(slot-parentSlot)) or log(1-f) depending on the configuration */
         private def mFunction(slotDiff: Long, config: VrfConfig): Ratio =
