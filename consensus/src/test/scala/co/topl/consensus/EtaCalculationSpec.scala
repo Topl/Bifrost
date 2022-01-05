@@ -135,7 +135,9 @@ object EtaCalculationSpec {
 
   private[consensus] def expectedEta(previousEta: Eta, epoch: Epoch, rhoValues: List[Rho]): Eta = {
     val messages: List[Bytes] =
-      List(previousEta.data) ++ List(Bytes(BigInt(epoch).toByteArray)) ++ rhoValues.map(_.data)
+      List(previousEta.data) ++ List(Bytes(BigInt(epoch).toByteArray)) ++ rhoValues
+        .map(Ed25519VRF.rhoToRhoNonceHash)
+        .map(_.sizedBytes.data)
     Sized.strictUnsafe(
       Bytes(
         blake2b256

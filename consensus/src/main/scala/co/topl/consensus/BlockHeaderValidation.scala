@@ -110,7 +110,7 @@ object BlockHeaderValidation {
                     .InvalidEligibilityCertificateEta(header.eligibilityCertificate.eta, expectedEta)
                 )(header => header.eligibilityCertificate.eta === expectedEta)
                 .ensure(
-                  BlockHeaderValidationFailures.InvalidEligibilityCertificateTestProof(certificate.vrfSig)
+                  BlockHeaderValidationFailures.InvalidEligibilityCertificateProof(certificate.vrfSig)
                 )(header =>
                   ed25519vrf.verify(
                     certificate.vrfSig,

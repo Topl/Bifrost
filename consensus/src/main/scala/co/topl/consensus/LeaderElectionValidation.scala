@@ -3,32 +3,13 @@ package co.topl.consensus
 import cats.Monad
 import cats.implicits._
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
-import co.topl.crypto.hash.blake2b512
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.{Lengths, Ratio, Sized}
+import co.topl.models.utility.Ratio
 import co.topl.typeclasses.Signable
 import co.topl.typeclasses.implicits._
 
-import java.nio.charset.StandardCharsets
-
 object LeaderElectionValidation {
-
-  sealed abstract class Token {
-    def bytes: Array[Byte]
-  }
-
-  object Tokens {
-
-    case object Test extends Token {
-      val bytes: Array[Byte] = "TEST".getBytes(StandardCharsets.UTF_8)
-    }
-
-    case object Nonce extends Token {
-      val bytes: Array[Byte] = "NONCE".getBytes(StandardCharsets.UTF_8)
-    }
-  }
 
   case class VrfConfig(lddCutoff: Int, precision: Int, baselineDifficulty: Ratio, amplitude: Ratio)
 
@@ -60,9 +41,10 @@ object LeaderElectionValidation {
          * @return true if elected slot leader and false otherwise
          */
         def isSlotLeaderForThreshold(threshold: Ratio)(rho: Rho): F[Boolean] = {
-          val testRhoHash = Bytes(blake2b512.hash(rho.data.toArray ++ Tokens.Test.bytes).value)
-          (threshold > testRhoHash.toIterable
-            .zip(1 to rho.data.length.toInt) // zip with indexes starting from 1
+          val testRhoHash = Ed25519VRF.rhoToRhoTestHash(rho)
+          val testRhoHashBytes = testRhoHash.sizedBytes.data
+          (threshold > testRhoHashBytes.toIterable
+            .zip(1 to testRhoHashBytes.length.toInt) // zip with indexes starting from 1
             .foldLeft(Ratio(0)) { case (net, (byte, i)) =>
               net + Ratio(BigInt(byte & 0xff), BigInt(2).pow(8 * i))
             })

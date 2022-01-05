@@ -21,7 +21,8 @@ object ChainSelection {
   private val standardOrder: Order[NonEmptyChain[SlotData]] = {
     val lengthOrder = Order.by[NonEmptyChain[SlotData], Long](_.length)
     val slotOrder = Order.by[NonEmptyChain[SlotData], Slot](-_.last.slotId.slot)
-    val rhoOrder = Order.reverse(Order.by[NonEmptyChain[SlotData], BigInt](h => BigInt(h.last.rho.data.toArray)))
+    val rhoOrder =
+      Order.reverse(Order.by[NonEmptyChain[SlotData], BigInt](h => BigInt(h.last.rho.sizedBytes.data.toArray)))
 
     lengthOrder
       .tiebreakWith(slotOrder)

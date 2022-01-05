@@ -127,7 +127,7 @@ class ChainSelectionSpec
         base.last.slotId.slot + 1,
         base.last.slotId,
         base.last.height + 1,
-        rho = Sized.strictUnsafe[Bytes, Lengths.`64`.type](Bytes(Array.fill[Byte](64)(1)))
+        rho = Rho(Sized.strictUnsafe[Bytes, Lengths.`64`.type](Bytes(Array.fill[Byte](64)(1))))
       )
     }
     val ySegment = {
@@ -143,13 +143,13 @@ class ChainSelectionSpec
         base.last.slotId.slot + 1,
         base.last.slotId,
         base.last.height + 1,
-        rho = Sized.strictUnsafe[Bytes, Lengths.`64`.type](Bytes(Array.fill[Byte](64)(5)))
+        rho = Rho(Sized.strictUnsafe[Bytes, Lengths.`64`.type](Bytes(Array.fill[Byte](64)(5))))
       )
     }
 
     xSegment.length shouldBe ySegment.length
     xSegment.last.slotId.slot shouldBe ySegment.last.slotId.slot
-    BigInt(xSegment.last.rho.data.toArray) should be < BigInt(ySegment.last.rho.data.toArray)
+    BigInt(xSegment.last.rho.sizedBytes.data.toArray) should be < BigInt(ySegment.last.rho.sizedBytes.data.toArray)
 
     val allBlocks = (List(grandAncestor, ancestor) ++ xSegment ++ ySegment).map(d => d.slotId.blockId -> d).toMap
 
@@ -204,7 +204,7 @@ class ChainSelectionSpec
     slot:         Slot,
     parentSlotId: SlotId,
     height:       Long,
-    rho:          Rho = Sized.strictUnsafe[Bytes, Lengths.`64`.type](Bytes(Array.fill[Byte](64)(0)))
+    rho:          Rho = Rho(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0))))
   ): SlotData =
     SlotData(
       SlotId(slot, TypedBytes(1: Byte, genSizedStrictBytes[Lengths.`32`.type]().first.data)),
