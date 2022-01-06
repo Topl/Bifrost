@@ -20,30 +20,33 @@ object BlockMint {
     def make[F[_]: Monad](
       staker: StakingAlgebra[F],
       clock:  ClockAlgebra[F]
-    ): BlockMintAlgebra[F] = (parent: BlockHeaderV2, transactions: Seq[Transaction], slot: Slot) =>
+    ): BlockMintAlgebra[F] = { (parent: BlockHeaderV2, transactions: Seq[Transaction], slot: Slot) =>
       OptionT(staker.elect(parent, slot))
         .flatMapF(hit =>
           (staker.address, clock.currentTimestamp)
             .mapN((address, timestamp) =>
-              BlockV2
-                .Unsigned(
-                  BlockHeaderV2.Unsigned(
-                    parentHeaderId = parent.id,
-                    parentSlot = parent.slot,
-                    txRoot = transactions.merkleTree,
-                    bloomFilter = transactions.bloomFilter,
-                    timestamp = timestamp,
-                    height = parent.height + 1,
-                    slot = hit.slot,
-                    eligibilityCertificate = hit.cert,
-                    metadata = None,
-                    address = address
-                  ),
-                  transactions
-                )
+              (partialOperationalCertificate: BlockHeaderV2.Unsigned.PartialOperationalCertificate) =>
+                BlockV2
+                  .Unsigned(
+                    BlockHeaderV2.Unsigned(
+                      parentHeaderId = parent.id,
+                      parentSlot = parent.slot,
+                      txRoot = transactions.merkleTree,
+                      bloomFilter = transactions.bloomFilter,
+                      timestamp = timestamp,
+                      height = parent.height + 1,
+                      slot = hit.slot,
+                      eligibilityCertificate = hit.cert,
+                      partialOperationalCertificate = partialOperationalCertificate,
+                      metadata = None,
+                      address = address
+                    ),
+                    transactions
+                  )
             )
-            .flatMap(staker.certifyBlock)
+            .flatMap(staker.certifyBlock(parent.parentSlotId, slot, _))
         )
         .value
+    }
   }
 }

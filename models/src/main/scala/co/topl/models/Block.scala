@@ -38,17 +38,27 @@ case class BlockHeaderV2(
 object BlockHeaderV2 {
 
   case class Unsigned(
-    parentHeaderId:         TypedIdentifier,
-    parentSlot:             Slot,
-    txRoot:                 TxRoot,
-    bloomFilter:            BloomFilter,
-    timestamp:              Timestamp,
-    height:                 Long,
-    slot:                   Slot,
-    eligibilityCertificate: EligibilityCertificate,
-    metadata:               Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
-    address:                TaktikosAddress
+    parentHeaderId:                TypedIdentifier,
+    parentSlot:                    Slot,
+    txRoot:                        TxRoot,
+    bloomFilter:                   BloomFilter,
+    timestamp:                     Timestamp,
+    height:                        Long,
+    slot:                          Slot,
+    eligibilityCertificate:        EligibilityCertificate,
+    partialOperationalCertificate: Unsigned.PartialOperationalCertificate,
+    metadata:                      Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
+    address:                       TaktikosAddress
   )
+
+  object Unsigned {
+
+    case class PartialOperationalCertificate(
+      parentVK:        VerificationKeys.KesProduct,
+      parentSignature: Proofs.Knowledge.KesProduct,
+      childVK:         VerificationKeys.Ed25519
+    )
+  }
 }
 
 // id = hash(headerId, txRoot)

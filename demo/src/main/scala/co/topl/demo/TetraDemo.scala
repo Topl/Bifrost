@@ -100,7 +100,7 @@ object TetraDemo extends IOApp.Simple {
   implicit private val logger: Logger[F] = Slf4jLogger.getLogger[F]
 
   private val vrfConfig =
-    VrfConfig(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(1, 15))
+    VrfConfig(lddCutoff = 40, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(2, 5))
 
   private val leaderElectionThreshold: LeaderElectionValidationAlgebra[F] =
     LeaderElectionValidation.Eval.make(vrfConfig)
@@ -143,9 +143,11 @@ object TetraDemo extends IOApp.Simple {
             clock = clock,
             vrfProof = vrfProofConstruction,
             etaCalculation,
+            state,
             genesis.headerV2.slotId,
             operationalPeriodLength = 180L,
-            activationOperationalPeriod = 0L
+            activationOperationalPeriod = 0L,
+            staker.address
           )
           mint =
             BlockMint.Eval.make(

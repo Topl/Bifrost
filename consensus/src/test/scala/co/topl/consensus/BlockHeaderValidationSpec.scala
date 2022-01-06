@@ -308,21 +308,22 @@ class BlockHeaderValidationSpec
     cert -> slot
   }
 
-  private def validOperationalCertificate(
-    unsigned: BlockHeaderV2.Unsigned,
-    parentSK: SecretKeys.KesProduct
-  ): OperationalCertificate = {
+  private def withPartialOperationalCertificate(
+    slot:      Slot,
+    unsignedF: BlockHeaderV2.Unsigned.PartialOperationalCertificate => BlockHeaderV2.Unsigned,
+    parentSK:  SecretKeys.KesProduct
+  ): (BlockHeaderV2.Unsigned, SecretKeys.Ed25519) = {
     val linearSK = KeyInitializer[SecretKeys.Ed25519].random()
     val linearVK = ed25519.getVerificationKey(linearSK)
-    val message = linearVK.bytes.data ++ Bytes(Longs.toByteArray(unsigned.slot))
+
+    val message = linearVK.bytes.data ++ Bytes(Longs.toByteArray(slot))
     val parentSignature = kesProduct.sign(parentSK, message)
-    val blockSignature = ed25519.sign(linearSK, unsigned.signableBytes)
-    OperationalCertificate(
+    val partialCertificate = BlockHeaderV2.Unsigned.PartialOperationalCertificate(
       kesProduct.getVerificationKey(parentSK),
       parentSignature,
-      linearVK,
-      blockSignature
+      linearVK
     )
+    unsignedF(partialCertificate) -> linearSK
   }
 
   private def genValid(
@@ -349,20 +350,35 @@ class BlockHeaderValidationSpec
       val (eligibilityCert, slot) =
         validEligibilityCertificate(vrfSecret, leaderElectionInterpreter, eta, relativeStake, parent.slot)
 
+      val (unsignedOriginal, linearSK) =
+        withPartialOperationalCertificate(
+          slot,
+          partial =>
+            BlockHeaderV2.Unsigned(
+              parentHeaderId = parent.id,
+              parentSlot = parent.slot,
+              txRoot = txRoot,
+              bloomFilter = bloomFilter,
+              timestamp = System.currentTimeMillis(),
+              height = parent.height + 1,
+              slot = slot,
+              eligibilityCertificate = eligibilityCert,
+              partialOperationalCertificate = partial,
+              metadata = None,
+              address = address
+            ),
+          kesSK0
+        )
+
       val unsigned =
-        preSign(
-          BlockHeaderV2.Unsigned(
-            parentHeaderId = parent.id,
-            parentSlot = parent.slot,
-            txRoot = txRoot,
-            bloomFilter = bloomFilter,
-            timestamp = System.currentTimeMillis(),
-            height = parent.height + 1,
-            slot = slot,
-            eligibilityCertificate = eligibilityCert,
-            metadata = None,
-            address = address
-          )
+        preSign(unsignedOriginal)
+
+      val operationalCertificate =
+        OperationalCertificate(
+          unsigned.partialOperationalCertificate.parentVK,
+          unsigned.partialOperationalCertificate.parentSignature,
+          unsigned.partialOperationalCertificate.childVK,
+          ed25519.sign(linearSK, unsigned.signableBytes)
         )
 
       val child =
@@ -375,7 +391,7 @@ class BlockHeaderValidationSpec
           height = unsigned.height,
           slot = unsigned.slot,
           eligibilityCertificate = unsigned.eligibilityCertificate,
-          operationalCertificate = validOperationalCertificate(unsigned, kesSK0),
+          operationalCertificate = operationalCertificate,
           metadata = unsigned.metadata,
           address = unsigned.address
         )

@@ -1,6 +1,7 @@
 package co.topl.codecs.bytes
 
 import co.topl.codecs.bytes.ByteCodec.ops._
+import co.topl.models.BlockHeaderV2.Unsigned
 import co.topl.models.Proofs.Knowledge
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
@@ -278,6 +279,55 @@ trait BasicCodecs {
         ByteCodec[Eta].decode(reader)
       )
   }
+
+  implicit val kesProductVKCodec: ByteCodec[VerificationKeys.KesProduct] =
+    new ByteCodec[VerificationKeys.KesProduct] {
+
+      def encode(t: VerificationKeys.KesProduct, writer: Writer): Unit = {
+        t.bytes.writeBytesTo(writer)
+        writer.putInt(t.step)
+      }
+
+      def decode(reader: Reader): VerificationKeys.KesProduct =
+        VerificationKeys.KesProduct(
+          ByteCodec[Sized.Strict[Bytes, VerificationKeys.KesProduct.Length]].decode(reader),
+          reader.getInt()
+        )
+    }
+
+  implicit val kesProductSignatureCodec: ByteCodec[Proofs.Knowledge.KesProduct] =
+    new ByteCodec[Proofs.Knowledge.KesProduct] {
+
+      def encode(t: Proofs.Knowledge.KesProduct, writer: Writer): Unit = {
+        t.superSignature.writeBytesTo(writer)
+        t.subSignature.writeBytesTo(writer)
+        t.subRoot.writeBytesTo(writer)
+      }
+
+      def decode(reader: Reader): Proofs.Knowledge.KesProduct =
+        Proofs.Knowledge.KesProduct(
+          ByteCodec[Proofs.Knowledge.KesSum].decode(reader),
+          ByteCodec[Proofs.Knowledge.KesSum].decode(reader),
+          ByteCodec[Sized.Strict[Bytes, Proofs.Knowledge.KesProduct.DigestLength]].decode(reader)
+        )
+    }
+
+  implicit val partialOperationalCertificateCodec: ByteCodec[BlockHeaderV2.Unsigned.PartialOperationalCertificate] =
+    new ByteCodec[Unsigned.PartialOperationalCertificate] {
+
+      def encode(t: Unsigned.PartialOperationalCertificate, writer: Writer): Unit = {
+        t.parentVK.writeBytesTo(writer)
+        t.parentSignature.writeBytesTo(writer)
+        t.childVK.writeBytesTo(writer)
+      }
+
+      def decode(reader: Reader): BlockHeaderV2.Unsigned.PartialOperationalCertificate =
+        BlockHeaderV2.Unsigned.PartialOperationalCertificate(
+          ByteCodec[VerificationKeys.KesProduct].decode(reader),
+          ByteCodec[Proofs.Knowledge.KesProduct].decode(reader),
+          ByteCodec[VerificationKeys.Ed25519].decode(reader)
+        )
+    }
 }
 
 object BasicCodecs extends BasicCodecs

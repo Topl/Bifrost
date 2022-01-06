@@ -29,8 +29,9 @@ object LeaderElectionValidation {
           val mFValue = mFunction(slotDiff, config)
           val base = mFValue * relativeStake
 
+          // TODO: Where does this come from?
           (1 to config.precision)
-            .foldLeft(Ratio(0))((total, i) => total - (base.pow(i) * Ratio(BigInt(1), ProsomoMath.factorial(i))))
+            .foldLeft(Ratio(0))((total, i) => total - (base.pow(i) * Ratio(BigInt(1), MathUtils.factorial(i))))
             .pure[F]
         }
 
@@ -43,6 +44,7 @@ object LeaderElectionValidation {
         def isSlotLeaderForThreshold(threshold: Ratio)(rho: Rho): F[Boolean] = {
           val testRhoHash = Ed25519VRF.rhoToRhoTestHash(rho)
           val testRhoHashBytes = testRhoHash.sizedBytes.data
+          // TODO: Where does this come from?
           (threshold > testRhoHashBytes.toIterable
             .zip(1 to testRhoHashBytes.length.toInt) // zip with indexes starting from 1
             .foldLeft(Ratio(0)) { case (net, (byte, i)) =>
@@ -55,18 +57,19 @@ object LeaderElectionValidation {
         private def mFunction(slotDiff: Long, config: VrfConfig): Ratio =
           // use sawtooth curve if local dynamic difficulty is enabled
           if (slotDiff <= config.lddCutoff)
-            ProsomoMath.logOneMinus(
-              ProsomoMath.lddGapSawtooth(slotDiff, config.lddCutoff, config.amplitude),
+            MathUtils.logOneMinus(
+              MathUtils.lddGapSawtooth(slotDiff, config.lddCutoff, config.amplitude),
               config.precision
             )
-          else ProsomoMath.logOneMinus(config.baselineDifficulty, config.precision)
+          else MathUtils.logOneMinus(config.baselineDifficulty, config.precision)
 
       }
   }
 }
 
-private object ProsomoMath {
+private object MathUtils {
 
+  // TODO: Cache values
   def factorial(n: Int): BigInt = (1 to n).product
 
   /** Calculates log(1-f) */

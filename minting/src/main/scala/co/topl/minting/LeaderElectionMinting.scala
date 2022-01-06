@@ -26,7 +26,7 @@ object LeaderElectionMinting {
           threshold
         ).pure[F]
 
-      def getHit(relativeStake: Ratio, slot: Slot, slotDiff: Epoch, eta: Eta): F[Option[VrfHit]] =
+      def getHit(relativeStake: Ratio, slot: Slot, slotDiff: Long, eta: Eta): F[Option[VrfHit]] =
         (
           thresholdInterpreter.getThreshold(relativeStake, slotDiff),
           vrfProofAlgebra.proofForSlot(slot, eta),

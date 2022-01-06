@@ -238,6 +238,9 @@ trait ModelGenerators {
   implicit val arbitraryEta: Arbitrary[Eta] =
     Arbitrary(etaGen)
 
+  implicit val arbitraryTaktikosAddress: Arbitrary[TaktikosAddress] =
+    Arbitrary(taktikosAddressGen)
+
   implicit class GenHelper[T](gen: Gen[T]) {
     def first: T = gen.pureApply(Gen.Parameters.default, Seed.random())
   }

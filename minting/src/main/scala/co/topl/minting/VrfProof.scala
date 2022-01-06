@@ -9,17 +9,15 @@ import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.consensus.LeaderElectionValidation
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
-import co.topl.crypto.hash.blake2b512
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.algebras.VrfProofAlgebra
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.{Lengths, Sized}
+import co.topl.models.utility.Ratio
 import co.topl.typeclasses.implicits._
 import scalacache.caffeine.CaffeineCache
 import scalacache.{CacheConfig, CacheKeyBuilder}
 
-import scala.collection.immutable.LongMap
+import scala.collection.immutable.{LongMap, NumericRange}
 
 object VrfProof {
 
@@ -95,18 +93,30 @@ object VrfProof {
                     arg.signableBytes
                   )
 
-                def ineligibleSlots(epoch: Epoch, eta: Eta): F[Vector[Slot]] =
-                  OptionT(rhosCache.get(eta))
-                    .getOrElseF(
-                      new IllegalStateException(show"rhos were not precomputed for epoch=$epoch eta=$eta")
-                        .raiseError[F, LongMap[Rho]]
-                    )
-                    .flatMap(_.toList.traverse { case (slot, rho) =>
+                def ineligibleSlots(
+                  epoch:         Epoch,
+                  eta:           Eta,
+                  inRange:       Option[NumericRange.Exclusive[Long]],
+                  relativeStake: Ratio
+                ): F[Vector[Slot]] =
+                  for {
+                    rhosMap <-
+                      OptionT(rhosCache.get(eta))
+                        .getOrElseF(
+                          new IllegalStateException(show"rhos were not precomputed for epoch=$epoch eta=$eta")
+                            .raiseError[F, LongMap[Rho]]
+                        )
+                    rhosList = rhosMap.toList
+                    rhos = inRange.fold(rhosList)(r => rhosList.filter(l1 => r.contains(l1._1)))
+                    threshold <- leaderElectionValidation
+                      .getThreshold(relativeStake, vrfConfig.lddCutoff)
+                    leaderCalculations <- rhos.traverse { case (slot, rho) =>
                       leaderElectionValidation
-                        .isSlotLeaderForThreshold(vrfConfig.amplitude)(rho)
+                        .isSlotLeaderForThreshold(threshold)(rho)
                         .map(isLeader => slot -> isLeader)
-                    })
-                    .map(_.collect { case (slot, false) => slot }.toVector)
+                    }
+                    slots = leaderCalculations.collect { case (slot, false) => slot }.toVector
+                  } yield slots
               }
             )
         }
