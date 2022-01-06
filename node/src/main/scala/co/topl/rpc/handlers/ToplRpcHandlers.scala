@@ -29,13 +29,19 @@ object ToplRpcHandlers {
 
   trait NodeView {
     def head: ToplRpc.NodeView.Head.rpc.ServerHandler
+    def headInfo: ToplRpc.NodeView.HeadInfo.rpc.ServerHandler
     def balances: ToplRpc.NodeView.Balances.rpc.ServerHandler
     def transactionById: ToplRpc.NodeView.TransactionById.rpc.ServerHandler
     def blockById: ToplRpc.NodeView.BlockById.rpc.ServerHandler
+    def blocksByIds: ToplRpc.NodeView.BlocksByIds.rpc.ServerHandler
     def blockByHeight: ToplRpc.NodeView.BlockByHeight.rpc.ServerHandler
+    def blocksInRange: ToplRpc.NodeView.BlocksInRange.rpc.ServerHandler
+    def blockIdsInRange: ToplRpc.NodeView.BlockIdsInRange.rpc.ServerHandler
     def mempool: ToplRpc.NodeView.Mempool.rpc.ServerHandler
     def transactionFromMempool: ToplRpc.NodeView.TransactionFromMempool.rpc.ServerHandler
+    def confirmationStatus: ToplRpc.NodeView.ConfirmationStatus.rpc.ServerHandler
     def info: ToplRpc.NodeView.Info.rpc.ServerHandler
+    def status: ToplRpc.NodeView.Status.rpc.ServerHandler
   }
 
   trait Transaction {

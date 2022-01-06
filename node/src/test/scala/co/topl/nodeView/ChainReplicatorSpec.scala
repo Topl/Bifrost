@@ -324,31 +324,6 @@ class ChainReplicatorSpec
 
   private def checkValidationTest: Future[Seq[String]] = Future.successful(Seq("blocks", "transactions"))
 
-  private def insertDBTest(eleSeq: Seq[_], collectionName: String): Future[InsertManyResult] = {
-    collectionName match {
-      case chainRepSettings.blockCollection =>
-        eleSeq.asInstanceOf[Seq[BlockDataModel]].foreach { ele =>
-          val id = ele.id
-          val height = ele.height.toString
-          blockStore += (id -> height)
-        }
-      case chainRepSettings.confirmedTxCollection =>
-        eleSeq.asInstanceOf[Seq[ConfirmedTransactionDataModel]].foreach { ele =>
-          val id = ele.txId
-          val timestamp = ele.timestamp
-          confirmedTxStore += (id -> timestamp)
-        }
-      case chainRepSettings.unconfirmedTxCollection =>
-        eleSeq.asInstanceOf[Seq[UnconfirmedTransactionDataModel]].foreach { ele =>
-          val id = ele.txId
-          val timestamp = ele.timestamp
-          confirmedTxStore += (id -> timestamp)
-        }
-    }
-    val insertedIds = Map[Integer, BsonValue]().asJava
-    Future.successful(InsertManyResult.acknowledged(insertedIds))
-  }
-
   private def insertBlockDBTest(eleSeq: Seq[BlockDataModel]): Future[InsertManyResult] = {
     eleSeq.foreach { ele =>
       val id = ele.id

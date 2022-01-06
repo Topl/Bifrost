@@ -24,12 +24,15 @@ case class ApplicationSettings(
 )
 
 case class RPCApiSettings(
-  bindAddress:       InetSocketAddress,
-  disableAuth:       Boolean,
-  apiKeyHash:        String,
-  timeout:           FiniteDuration,
-  verboseAPI:        Boolean,
-  namespaceSelector: NamespaceSelector
+  bindAddress:           InetSocketAddress,
+  disableAuth:           Boolean,
+  apiKeyHash:            String,
+  timeout:               FiniteDuration,
+  verboseAPI:            Boolean,
+  namespaceSelector:     NamespaceSelector,
+  blockRetrievalLimit:   Int,
+  blockIdRetrievalLimit: Int,
+  txRetrievalLimit:      Int
 )
 
 case class NetworkSettings(
