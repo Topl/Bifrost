@@ -9,6 +9,8 @@ import co.topl.models.utility.Ratio
 import co.topl.typeclasses.Signable
 import co.topl.typeclasses.implicits._
 
+import scala.collection.concurrent.TrieMap
+
 object LeaderElectionValidation {
 
   case class VrfConfig(lddCutoff: Int, precision: Int, baselineDifficulty: Ratio, amplitude: Ratio)
@@ -69,8 +71,8 @@ object LeaderElectionValidation {
 
 private object MathUtils {
 
-  // TODO: Cache values
-  def factorial(n: Int): BigInt = (1 to n).product
+  private val factorialCache = TrieMap(0 -> BigInt(1))
+  def factorial(n: Int): BigInt = factorialCache.getOrElseUpdate(n, n * factorial(n - 1))
 
   /** Calculates log(1-f) */
   def logOneMinus(f: Ratio, precision: Int): Ratio =

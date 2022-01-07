@@ -25,7 +25,7 @@ import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
-import java.nio.file.Files
+import java.nio.file.{Files, Paths}
 import java.util.UUID
 import scala.concurrent.duration._
 import scala.util.Random
@@ -37,7 +37,7 @@ object TetraDemo extends IOApp.Simple {
   private val poolVK =
     new Ed25519().getVerificationKey(KeyInitializer[SecretKeys.Ed25519].random())
 
-  private val stakers = List.fill(5) {
+  private val stakers = List.fill(1) {
 
     implicit val ed25519Vrf: Ed25519VRF = Ed25519VRF.precomputed()
     implicit val ed25519: Ed25519 = new Ed25519
@@ -123,6 +123,12 @@ object TetraDemo extends IOApp.Simple {
   private val state: ConsensusState[F] =
     NodeViewHolder.StateEval.make[F](system)
 
+  private val statsDir = Paths.get(".bifrost", "stats")
+  Files.createDirectories(statsDir)
+
+  private val statsInterpreter =
+    StatsInterpreter.Eval.make[F](statsDir)
+
   private def mints(
     etaCalculation:        EtaCalculationAlgebra[F],
     vrfProofConstructions: List[VrfProofAlgebra[F]]
@@ -162,7 +168,8 @@ object TetraDemo extends IOApp.Simple {
                 VrfRelativeStakeMintingLookup.Eval.make(state, clock),
                 etaCalculation
               ),
-              clock
+              clock,
+              statsInterpreter
             )
         } yield mint
       }

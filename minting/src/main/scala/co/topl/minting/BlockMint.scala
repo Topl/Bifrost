@@ -7,6 +7,8 @@ import co.topl.algebras._
 import co.topl.minting.algebras.{BlockMintAlgebra, StakingAlgebra}
 import co.topl.models._
 import co.topl.typeclasses.implicits._
+import io.circe._
+import io.circe.syntax._
 
 /**
  * A `Mint` which produces "Unsigned" Blocks.  An UnsignedBlock has all of the components needed to form a BlockV2
@@ -19,7 +21,8 @@ object BlockMint {
 
     def make[F[_]: Monad](
       staker: StakingAlgebra[F],
-      clock:  ClockAlgebra[F]
+      clock:  ClockAlgebra[F],
+      stats:  Stats[F]
     ): BlockMintAlgebra[F] = { (parent: BlockHeaderV2, transactions: Seq[Transaction], slot: Slot) =>
       OptionT(staker.elect(parent, slot))
         .flatMapF(hit =>
@@ -45,6 +48,15 @@ object BlockMint {
                   )
             )
             .flatMap(staker.certifyBlock(parent.parentSlotId, slot, _))
+        )
+        .semiflatTap(block =>
+          stats.write(
+            block.headerV2.address.show,
+            Json.obj(
+              "h" -> block.headerV2.height.asJson,
+              "s" -> block.headerV2.slot.asJson
+            )
+          )
         )
         .value
     }
