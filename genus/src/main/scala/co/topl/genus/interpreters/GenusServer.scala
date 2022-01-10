@@ -7,10 +7,10 @@ import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.http.scaladsl.{Http, ServerBuilder}
 import cats.effect.Async
 import co.topl.genus.algebras.HttpServer
-import co.topl.genus.services.block_query.{BlockQuery, BlockQueryHandler}
-import co.topl.genus.services.block_subscription.{BlockSubscription, BlockSubscriptionHandler}
-import co.topl.genus.services.transaction_query.{TransactionQuery, TransactionQueryHandler}
-import co.topl.genus.services.transaction_subscription.{TransactionSubscription, TransactionSubscriptionHandler}
+import co.topl.genus.services.blocks_query.{BlocksQuery, BlocksQueryHandler}
+import co.topl.genus.services.blocks_subscription.{BlocksSubscription, BlocksSubscriptionHandler}
+import co.topl.genus.services.transactions_query.{TransactionsQuery, TransactionsQueryHandler}
+import co.topl.genus.services.transactions_subscription.{TransactionsSubscription, TransactionsSubscriptionHandler}
 
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
@@ -25,24 +25,24 @@ object GenusServer {
       new HttpServer[F] {
 
         val txQueryHandler: PartialFunction[HttpRequest, Future[HttpResponse]] =
-          TransactionQueryHandler.partial(TransactionQueryService.Mock.make)
+          TransactionsQueryHandler.partial(TransactionsQueryService.Mock.make)
 
         val blockQueryHandler: PartialFunction[HttpRequest, Future[HttpResponse]] =
-          BlockQueryHandler.partial(BlockQueryService.Mock.make)
+          BlocksQueryHandler.partial(BlocksQueryService.Mock.make)
 
         val blockSubscriptionServiceHandler: PartialFunction[HttpRequest, Future[HttpResponse]] =
-          BlockSubscriptionHandler.partial(BlockSubscriptionService.Mock.make)
+          BlocksSubscriptionHandler.partial(BlockSubscriptionService.Mock.make)
 
         val txSubscriptionServiceHandler: PartialFunction[HttpRequest, Future[HttpResponse]] =
-          TransactionSubscriptionHandler.partial(TransactionSubscriptionsService.Mock.make)
+          TransactionsSubscriptionHandler.partial(TransactionsSubscriptionsService.Mock.make)
 
         val reflectionServiceHandler: PartialFunction[HttpRequest, Future[HttpResponse]] =
           ServerReflection.partial(
             List(
-              TransactionQuery,
-              BlockQuery,
-              TransactionSubscription,
-              BlockSubscription
+              TransactionsQuery,
+              BlocksQuery,
+              TransactionsSubscription,
+              BlocksSubscription
             )
           )
 

@@ -5,15 +5,15 @@ import "types.proto";
 
 package co.topl.genus.services;
 
-service TransactionQuery {
-  rpc Query (QueryTxReq) returns (QueryTxRes);
+service TransactionsQuery {
+  rpc Query (QueryTxsReq) returns (QueryTxsRes);
 }
 
-message QueryTxReq {
+message QueryTxsReq {
   TransactionFilter filter = 1;
   uint32 confirmation_depth = 2;
 }
 
-message QueryTxRes {
+message QueryTxsRes {
   repeated Transaction transactions = 1;
 }

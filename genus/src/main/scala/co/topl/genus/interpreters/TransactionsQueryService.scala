@@ -8,13 +8,13 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import co.topl.genus.algebras.DatabaseClientAlg
 import co.topl.genus.filters.TransactionFilter
-import co.topl.genus.services.transaction_query.{QueryTxReq, QueryTxRes, TransactionQuery}
+import co.topl.genus.services.transactions_query.{QueryTxsReq, QueryTxsRes, TransactionsQuery}
 import co.topl.genus.types.Transaction
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 
-object TransactionQueryService {
+object TransactionsQueryService {
 
   object Eval {
 
@@ -24,25 +24,25 @@ object TransactionQueryService {
     )(implicit
       executionContext: ExecutionContext,
       materializer:     Materializer
-    ): TransactionQuery =
-      (in: QueryTxReq) =>
+    ): TransactionsQuery =
+      (in: QueryTxsReq) =>
         (for {
           transactionsSource <-
             databaseClient.queryTransactions(
               in.filter.getOrElse(TransactionFilter.of(TransactionFilter.FilterType.All(TransactionFilter.AllFilter())))
             )
           transactionsResult <- IO.fromFuture(transactionsSource.take(1000).runWith(Sink.seq).pure[IO])
-        } yield QueryTxRes(transactionsResult))
+        } yield QueryTxsRes(transactionsResult))
           .timeout(timeout)
           .unsafeToFuture()
   }
 
   object Mock {
 
-    def make: TransactionQuery =
-      (_: QueryTxReq) =>
+    def make: TransactionsQuery =
+      (_: QueryTxsReq) =>
         Future.successful(
-          QueryTxRes(
+          QueryTxsRes(
             transactions = List(
               Transaction(
                 txId = "test-id-1",

@@ -5,15 +5,15 @@ import "types.proto";
 
 package co.topl.genus.services;
 
-service BlockQuery {
-  rpc Query (QueryBlockReq) returns (QueryBlockRes);
+service BlocksQuery {
+  rpc Query (QueryBlocksReq) returns (QueryBlocksRes);
 }
 
-message QueryBlockReq {
+message QueryBlocksReq {
   BlockFilter filter = 1;
   uint32 confirmation_depth = 2;
 }
 
-message QueryBlockRes {
+message QueryBlocksRes {
   repeated Block blocks = 1;
 }

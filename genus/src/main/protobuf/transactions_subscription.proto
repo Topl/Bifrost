@@ -5,29 +5,29 @@ import "types.proto";
 
 package co.topl.genus.services;
 
-service TransactionSubscription {
-  rpc Create (CreateTxSubscriptionReq) returns (CreateTxSubscriptionRes);
-  rpc Delete (DeleteTxSubscriptionReq) returns (DeleteTxSubscriptionRes);
-  rpc Read (stream ReadTxSubscriptionReq) returns (stream ReadTxSubscriptionRes);
+service TransactionsSubscription {
+  rpc Create (CreateTxsSubscriptionReq) returns (CreateTxsSubscriptionRes);
+  rpc Delete (DeleteTxsSubscriptionReq) returns (DeleteTxsSubscriptionRes);
+  rpc Read (stream ReadTxsSubscriptionReq) returns (stream ReadTxsSubscriptionRes);
 }
 
-message CreateTxSubscriptionReq {
+message CreateTxsSubscriptionReq {
   TransactionFilter filter = 1;
   uint64 start_from = 2;
   uint32 confirmation_depth = 3;
 }
 
-message CreateTxSubscriptionRes {
+message CreateTxsSubscriptionRes {
   string subscription_id = 1;
 }
 
-message DeleteTxSubscriptionReq {
+message DeleteTxsSubscriptionReq {
   string id = 1;
 }
 
-message DeleteTxSubscriptionRes {}
+message DeleteTxsSubscriptionRes {}
 
-message ReadTxSubscriptionReq {
+message ReadTxsSubscriptionReq {
   oneof request_type {
     Start start = 1;
     Checkpoint checkpoint = 2;
@@ -45,6 +45,6 @@ message ReadTxSubscriptionReq {
   message Pause {}
 }
 
-message ReadTxSubscriptionRes {
+message ReadTxsSubscriptionRes {
   Transaction transaction = 1;
 }

@@ -8,7 +8,7 @@ import co.topl.genus.algebras.{DatabaseClientAlg, HttpServer, QueryAlg}
 import co.topl.genus.interpreters.{MongoDatabaseClient, MongoQuery, MongoSubscription, QueryServer}
 import co.topl.genus.programs.GenusProgram
 import co.topl.utils.mongodb.codecs._
-import co.topl.utils.mongodb.models.ConfirmedTransactionDataModel
+import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataModel}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.{Document, MongoClient, MongoCollection, MongoDatabase}
@@ -33,15 +33,20 @@ object GenusApp extends IOApp.Simple {
 
   val mongoDb: MongoDatabase = mongoClient.getDatabase("chain_data")
 
-  val txMongoCollection: MongoCollection[Document] = mongoDb.getCollection("confirmed_txes")
+  val txsMongoCollection: MongoCollection[Document] = mongoDb.getCollection("confirmed_txes")
 
-  val transactionQuery: QueryAlg[IO, Source[*, NotUsed], Bson, ConfirmedTransactionDataModel] =
-    MongoQuery.Eval.make[IO, ConfirmedTransactionDataModel](txMongoCollection)
+  val blocksMongoCollection: MongoCollection[Document] = mongoDb.getCollection("blocks")
+
+  val transactionsQuery: QueryAlg[IO, Source[*, NotUsed], Bson, ConfirmedTransactionDataModel] =
+    MongoQuery.Eval.make(txsMongoCollection)
+
+  val blocksQuery: QueryAlg[IO, Source[*, NotUsed], Bson, BlockDataModel] =
+    MongoQuery.Eval.make(blocksMongoCollection)
 
   val databaseClient: DatabaseClientAlg[IO, Source[*, NotUsed]] =
     MongoDatabaseClient.Eval.make(
-      transactionQuery,
-      MongoQuery.Mock.make,
+      transactionsQuery,
+      blocksQuery,
       MongoSubscription.Mock.make,
       MongoSubscription.Mock.make
     )

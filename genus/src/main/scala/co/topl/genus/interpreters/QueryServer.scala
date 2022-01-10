@@ -3,7 +3,7 @@ package co.topl.genus.interpreters
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.grpc.scaladsl.{ServerReflection, ServiceHandler}
-import akka.http.scaladsl.Http.{HttpServerTerminated, HttpTerminated}
+import akka.http.scaladsl.Http.HttpServerTerminated
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.http.scaladsl.{Http, ServerBuilder}
 import akka.stream.scaladsl.Source
@@ -11,7 +11,8 @@ import cats.Applicative
 import cats.effect.{Async, IO}
 import cats.implicits._
 import co.topl.genus.algebras.{DatabaseClientAlg, HttpServer}
-import co.topl.genus.services.transaction_query.{TransactionQuery, TransactionQueryHandler}
+import co.topl.genus.services.blocks_query.{BlocksQuery, BlocksQueryHandler}
+import co.topl.genus.services.transactions_query.{TransactionsQuery, TransactionsQueryHandler}
 
 import java.net.InetSocketAddress
 import scala.concurrent.Future
@@ -31,17 +32,21 @@ object QueryServer {
 
         import system._
 
-        val txQueryHandler: PartialFunction[HttpRequest, Future[HttpResponse]] =
-          TransactionQueryHandler.partial(TransactionQueryService.Eval.make(databaseClient, timeout))
+        val txsQueryHandler: PartialFunction[HttpRequest, Future[HttpResponse]] =
+          TransactionsQueryHandler.partial(TransactionsQueryService.Eval.make(databaseClient, timeout))
+
+        val blocksQueryHandler: PartialFunction[HttpRequest, Future[HttpResponse]] =
+          BlocksQueryHandler.partial(BlocksQueryService.Eval.make(databaseClient, timeout))
 
         val reflectionServiceHandler: PartialFunction[HttpRequest, Future[HttpResponse]] =
           ServerReflection.partial(
-            List(TransactionQuery)
+            List(TransactionsQuery, BlocksQuery)
           )
 
         val serviceHandler: HttpRequest => Future[HttpResponse] =
           ServiceHandler.concatOrNotFound(
-            txQueryHandler,
+            txsQueryHandler,
+            blocksQueryHandler,
             reflectionServiceHandler
           )
 
