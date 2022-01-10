@@ -47,7 +47,7 @@ object BlockMint {
                     transactions
                   )
             )
-            .flatMap(staker.certifyBlock(parent.parentSlotId, slot, _))
+            .flatMap(staker.certifyBlock(parent.slotId, slot, _))
         )
         .semiflatTap(block =>
           stats.write(
