@@ -201,5 +201,6 @@ object Dependencies {
     ) ++
     akka ++
     circe ++
-    cats
+    cats ++
+    test
 }

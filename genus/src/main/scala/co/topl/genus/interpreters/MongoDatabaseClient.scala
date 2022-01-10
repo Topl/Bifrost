@@ -1,17 +1,16 @@
 package co.topl.genus.interpreters
 
-import cats.implicits._
 import akka.NotUsed
 import akka.stream.scaladsl.Source
-import cats.{Id, Monad}
+import cats.Monad
+import cats.implicits._
 import co.topl.genus.algebras._
 import co.topl.genus.filters._
 import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.types.{Block, Transaction}
+import co.topl.utils.mongodb.models._
 import com.mongodb.client.model.changestream.ChangeStreamDocument
 import org.mongodb.scala.bson.conversions.Bson
-import co.topl.utils.mongodb.models._
-import org.mongodb.scala.Document
 
 object MongoDatabaseClient {
 

@@ -77,4 +77,10 @@ object MongoSubscription {
           )
           .pure[F]
   }
+
+  object Mock {
+
+    def make[F[_]: Applicative, T]: SubscriptionAlg[F, Source[*, NotUsed], Bson, String, ChangeStreamDocument[T]] =
+      (_: Bson, _: Option[String]) => Source.empty[ChangeStreamDocument[T]].pure[F]
+  }
 }

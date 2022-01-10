@@ -27,4 +27,10 @@ object MongoQuery {
           )
           .pure[F]
   }
+
+  object Mock {
+
+    def make[F[_]: Applicative, T]: QueryAlg[F, Source[*, NotUsed], Bson, T] =
+      (_: Bson) => Source.empty[T].pure[F]
+  }
 }
