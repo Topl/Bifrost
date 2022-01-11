@@ -7,6 +7,7 @@ package object typeclasses {
       with Transform.ToTransformOps
       with MongoFilterInstances
       with MongoFilter.ToMongoFilterOps
+      with FunctionKInstances
 
   object implicits extends Implicits
 }

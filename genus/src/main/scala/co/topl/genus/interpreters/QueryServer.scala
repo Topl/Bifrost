@@ -7,10 +7,11 @@ import akka.http.scaladsl.Http.HttpServerTerminated
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.http.scaladsl.{Http, ServerBuilder}
 import akka.stream.scaladsl.Source
-import cats.Applicative
+import cats.{~>, Applicative}
 import cats.effect.{Async, IO}
 import cats.implicits._
 import co.topl.genus.algebras.{DatabaseClientAlg, HttpServer}
+import co.topl.genus.interpreters.queryservices.{BlocksQueryService, TransactionsQueryService}
 import co.topl.genus.services.blocks_query.{BlocksQuery, BlocksQueryHandler}
 import co.topl.genus.services.transactions_query.{TransactionsQuery, TransactionsQueryHandler}
 
@@ -23,14 +24,13 @@ object QueryServer {
   object Eval {
 
     def make[F[_]: Async](
-      databaseClient: DatabaseClientAlg[IO, Source[*, NotUsed]],
+      databaseClient: DatabaseClientAlg[F, Source[*, NotUsed]],
       timeout:        FiniteDuration
     )(ip:             String, port: Int)(implicit
-      system:         ActorSystem
+      system:         ActorSystem,
+      toFuture:       F ~> Future
     ): HttpServer[F] =
       new HttpServer[F] {
-
-        import system._
 
         val txsQueryHandler: PartialFunction[HttpRequest, Future[HttpResponse]] =
           TransactionsQueryHandler.partial(TransactionsQueryService.Eval.make(databaseClient, timeout))

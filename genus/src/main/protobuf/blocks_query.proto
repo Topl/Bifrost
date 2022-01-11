@@ -15,5 +15,19 @@ message QueryBlocksReq {
 }
 
 message QueryBlocksRes {
-  repeated Block blocks = 1;
+  message Success {
+    repeated Block blocks = 1;
+  }
+
+  message Failure {
+    oneof reason {
+      string data_store_connection_error = 1;
+      string query_timeout = 2;
+    }
+  }
+
+  oneof result {
+    Success success = 1;
+    Failure failure = 2;
+  }
 }

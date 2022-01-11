@@ -6,23 +6,21 @@ import cats.Monad
 import cats.implicits._
 import co.topl.genus.algebras._
 import co.topl.genus.filters._
+import co.topl.genus.interpreters.MongoQuery.MongoQueryAlg
+import co.topl.genus.interpreters.MongoSubscription.MongoSubscriptionAlg
 import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.types.{Block, Transaction}
 import co.topl.utils.mongodb.models._
-import com.mongodb.client.model.changestream.ChangeStreamDocument
-import org.mongodb.scala.bson.conversions.Bson
 
 object MongoDatabaseClient {
 
   object Eval {
 
     def make[F[_]: Monad](
-      transactionQuery: QueryAlg[F, Source[*, NotUsed], Bson, ConfirmedTransactionDataModel],
-      blockQuery:       QueryAlg[F, Source[*, NotUsed], Bson, BlockDataModel],
-      transactionSubscription: SubscriptionAlg[F, Source[*, NotUsed], Bson, String, ChangeStreamDocument[
-        ConfirmedTransactionDataModel
-      ]],
-      blockSubscription: SubscriptionAlg[F, Source[*, NotUsed], Bson, String, ChangeStreamDocument[BlockDataModel]]
+      transactionQuery:        MongoQueryAlg[F, ConfirmedTransactionDataModel],
+      blockQuery:              MongoQueryAlg[F, BlockDataModel],
+      transactionSubscription: MongoSubscriptionAlg[F, ConfirmedTransactionDataModel],
+      blockSubscription:       MongoSubscriptionAlg[F, BlockDataModel]
     ): DatabaseClientAlg[F, Source[*, NotUsed]] =
       new DatabaseClientAlg[F, Source[*, NotUsed]] {
 

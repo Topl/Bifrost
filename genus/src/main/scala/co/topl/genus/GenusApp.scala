@@ -3,6 +3,8 @@ package co.topl.genus
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Source
+import cats.effect.unsafe.IORuntime
+import cats.effect.unsafe.implicits.global
 import cats.effect.{Async, IO, IOApp}
 import co.topl.genus.algebras.{DatabaseClientAlg, HttpServer, QueryAlg}
 import co.topl.genus.interpreters.{MongoDatabaseClient, MongoQuery, MongoSubscription, QueryServer}
@@ -12,6 +14,7 @@ import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataMod
 import com.typesafe.config.{Config, ConfigFactory}
 import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.{Document, MongoClient, MongoCollection, MongoDatabase}
+import co.topl.genus.typeclasses.implicits._
 
 import scala.concurrent.duration.DurationInt
 
@@ -51,7 +54,8 @@ object GenusApp extends IOApp.Simple {
       MongoSubscription.Mock.make
     )
 
-  val server: HttpServer[IO] = QueryServer.Eval.make[IO](databaseClient, 5.seconds)(serverIp, serverPort)
+  val server: HttpServer[IO] =
+    QueryServer.Eval.make[IO](databaseClient, 5.seconds)(serverIp, serverPort)
 
   override def run: IO[Unit] =
     GenusProgram.Mock

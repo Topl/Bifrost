@@ -7,6 +7,7 @@ import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.http.scaladsl.{Http, ServerBuilder}
 import cats.effect.Async
 import co.topl.genus.algebras.HttpServer
+import co.topl.genus.interpreters.queryservices.{BlocksQueryService, TransactionsQueryService}
 import co.topl.genus.services.blocks_query.{BlocksQuery, BlocksQueryHandler}
 import co.topl.genus.services.blocks_subscription.{BlocksSubscription, BlocksSubscriptionHandler}
 import co.topl.genus.services.transactions_query.{TransactionsQuery, TransactionsQueryHandler}
