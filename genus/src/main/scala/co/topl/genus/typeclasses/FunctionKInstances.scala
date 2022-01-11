@@ -13,6 +13,6 @@ trait FunctionKInstances {
   }
 
   implicit class FunctionKExtensions[F[_], A](val fa: F[A]) {
-    def mapK[G[_]](implicit fK: F ~> G): G[A] = fK.apply(fa)
+    def mapFunctor[G[_]](implicit fK: F ~> G): G[A] = fK.apply(fa)
   }
 }

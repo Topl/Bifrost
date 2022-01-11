@@ -2,16 +2,16 @@ package co.topl.genus.interpreters.queryservices
 
 import akka.NotUsed
 import akka.stream.Materializer
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.scaladsl.Source
+import cats.MonadThrow
 import cats.effect.kernel.Async
 import cats.implicits._
-import cats.{~>, MonadError}
 import co.topl.genus.algebras.DatabaseClientAlg
 import co.topl.genus.filters.TransactionFilter
+import co.topl.genus.interpreters.queryservices.implicits._
 import co.topl.genus.services.transactions_query.{QueryTxsReq, QueryTxsRes, TransactionsQuery}
 import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.types.Transaction
-import co.topl.genus.interpreters.queryservices.implicits._
 
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
@@ -20,13 +20,11 @@ object TransactionsQueryService {
 
   object Eval {
 
-    def make[F[_]: Async](
+    def make[F[_]: Async: MonadThrow: ToFuture](
       databaseClient: DatabaseClientAlg[F, Source[*, NotUsed]],
       queryTimeout:   FiniteDuration
     )(implicit
-      materializer: Materializer,
-      monadErrorF:  MonadError[F, Throwable],
-      fToFuture:    F ~> Future
+      materializer: Materializer
     ): TransactionsQuery =
       (in: QueryTxsReq) =>
         (for {
@@ -60,7 +58,7 @@ object TransactionsQueryService {
               .valueOr(failure => QueryTxsRes(QueryTxsRes.Result.Failure(QueryTxsRes.Failure(failure))))
         } yield result)
           // map the Async F functor to a `Future` which is required for Akka gRPC
-          .mapK[Future]
+          .mapFunctor[Future]
   }
 
   object Mock {

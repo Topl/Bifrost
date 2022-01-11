@@ -3,12 +3,15 @@ package co.topl.genus.interpreters
 import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}
-import cats.MonadError
 import cats.effect.kernel.Async
+import cats.{~>, MonadThrow}
 
+import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
 package object queryservices {
+
+  type ToFuture[F[_]] = F ~> Future
 
   trait Implicits {
 
@@ -23,12 +26,11 @@ package object queryservices {
        * @return a result of `F[Seq[T]]` with the possibility of a `TimeoutException` if the source
        *         does not complete before the given timeout
        */
-      def collectWithTimeout[F[_]: Async](timeout: FiniteDuration)(implicit
-        materializer:                              Materializer,
-        monadError:                                MonadError[F, Throwable]
+      def collectWithTimeout[F[_]: Async: MonadThrow](timeout: FiniteDuration)(implicit
+        materializer:                                          Materializer
       ): F[Seq[T]] =
         Async[F].fromFuture(
-          monadError.catchNonFatal(
+          MonadThrow[F].catchNonFatal(
             source.completionTimeout(timeout).runWith(Sink.seq)
           )
         )
