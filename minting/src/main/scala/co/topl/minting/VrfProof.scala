@@ -12,11 +12,12 @@ import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.algebras.VrfProofAlgebra
 import co.topl.models._
+import co.topl.models.utility.Ratio
 import co.topl.typeclasses.implicits._
 import scalacache.caffeine.CaffeineCache
 import scalacache.{CacheConfig, CacheKeyBuilder}
 
-import scala.collection.immutable.LongMap
+import scala.collection.immutable.{LongMap, NumericRange}
 
 object VrfProof {
 
@@ -38,8 +39,8 @@ object VrfProof {
         def stringToCacheKey(key: String): String = key
       })
 
-      CaffeineCache[F, LongMap[Proofs.Knowledge.VrfEd25519]].flatMap { implicit testProofs =>
-        CaffeineCache[F, LongMap[Rho]].flatMap { implicit rhos =>
+      CaffeineCache[F, LongMap[Proofs.Knowledge.VrfEd25519]].flatMap { implicit vrfProofsCache =>
+        CaffeineCache[F, LongMap[Rho]].flatMap { implicit rhosCache =>
           Ref
             .of[F, Ed25519VRF](Ed25519VRF.precomputed())
             .map(ed25519VRFRef =>
@@ -50,41 +51,33 @@ object VrfProof {
                     .epochRange(epoch)
                     .flatMap(boundary =>
                       ed25519VRFRef.modify { implicit ed =>
-                        val testProofs = LongMap.from(
+                        val vrfProofs = LongMap.from(
                           boundary.map { slot =>
                             slot -> compute(
-                              LeaderElectionValidation.VrfArgument(eta, slot, LeaderElectionValidation.Tokens.Test),
+                              LeaderElectionValidation.VrfArgument(eta, slot),
                               ed
                             )
                           }
                         )
-                        val rhoValues = LongMap.from(testProofs.view.mapValues(ed.proofToHash))
-                        ed -> (testProofs -> rhoValues)
+                        val rhoValues = LongMap.from(vrfProofs.view.mapValues(ed.proofToHash))
+                        ed -> (vrfProofs -> rhoValues)
                       }
                     )
-                    .flatTap { case (testProofsForEta, rhosForEta) =>
-                      (testProofs.put(eta)(testProofsForEta), rhos.put(eta)(rhosForEta)).tupled
+                    .flatTap { case (vrfProofs, rhoValues) =>
+                      (vrfProofsCache.put(eta)(vrfProofs), rhosCache.put(eta)(rhoValues)).tupled
                     }
                     .void
 
-                def testProofForSlot(slot: Slot, eta: Eta): F[Proofs.Knowledge.VrfEd25519] =
-                  OptionT(testProofs.get(eta))
+                def proofForSlot(slot: Slot, eta: Eta): F[Proofs.Knowledge.VrfEd25519] =
+                  OptionT(vrfProofsCache.get(eta))
                     .subflatMap(_.get(slot))
                     .getOrElseF(
                       new IllegalStateException(show"testProof was not precomputed for slot=$slot eta=$eta")
                         .raiseError[F, Proofs.Knowledge.VrfEd25519]
                     )
 
-                def nonceProofForSlot(slot: Slot, eta: Eta): F[Proofs.Knowledge.VrfEd25519] =
-                  ed25519VRFRef.modify(ed =>
-                    ed -> compute(
-                      LeaderElectionValidation.VrfArgument(eta, slot, LeaderElectionValidation.Tokens.Nonce),
-                      ed
-                    )
-                  )
-
                 def rhoForSlot(slot: Slot, eta: Eta): F[Rho] =
-                  OptionT(rhos.get(eta))
+                  OptionT(rhosCache.get(eta))
                     .subflatMap(_.get(slot))
                     .getOrElseF(
                       new IllegalStateException(show"rho was not precomputed for slot=$slot eta=$eta")
@@ -100,18 +93,30 @@ object VrfProof {
                     arg.signableBytes
                   )
 
-                def ineligibleSlots(epoch: Epoch, eta: Eta): F[Vector[Slot]] =
-                  OptionT(rhos.get(eta))
-                    .getOrElseF(
-                      new IllegalStateException(show"rhos were not precomputed for epoch=$epoch eta=$eta")
-                        .raiseError[F, LongMap[Rho]]
-                    )
-                    .flatMap(_.toList.traverse { case (slot, rho) =>
+                def ineligibleSlots(
+                  epoch:         Epoch,
+                  eta:           Eta,
+                  inRange:       Option[NumericRange.Exclusive[Long]],
+                  relativeStake: Ratio
+                ): F[Vector[Slot]] =
+                  for {
+                    rhosMap <-
+                      OptionT(rhosCache.get(eta))
+                        .getOrElseF(
+                          new IllegalStateException(show"rhos were not precomputed for epoch=$epoch eta=$eta")
+                            .raiseError[F, LongMap[Rho]]
+                        )
+                    rhosList = rhosMap.toList
+                    rhos = inRange.fold(rhosList)(r => rhosList.filter(l1 => r.contains(l1._1)))
+                    threshold <- leaderElectionValidation
+                      .getThreshold(relativeStake, vrfConfig.lddCutoff)
+                    leaderCalculations <- rhos.traverse { case (slot, rho) =>
                       leaderElectionValidation
-                        .isSlotLeaderForThreshold(vrfConfig.amplitude)(rho)
+                        .isSlotLeaderForThreshold(threshold)(rho)
                         .map(isLeader => slot -> isLeader)
-                    })
-                    .map(_.collect { case (slot, false) => slot }.toVector)
+                    }
+                    slots = leaderCalculations.collect { case (slot, false) => slot }.toVector
+                  } yield slots
               }
             )
         }

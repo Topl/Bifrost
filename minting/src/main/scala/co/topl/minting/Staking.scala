@@ -32,40 +32,42 @@ object Staking {
               .value
           )
 
-      def certifyBlock(unsignedBlock: BlockV2.Unsigned): F[Option[BlockV2]] = {
-        val parentSlotId = SlotId(unsignedBlock.unsignedHeader.parentSlot, unsignedBlock.unsignedHeader.parentHeaderId)
-        OptionT(evolver.operationalKeyForSlot(unsignedBlock.unsignedHeader.slot.toInt, parentSlotId))
-          .map(evolvedKey =>
-            OperationalCertificate(
-              evolvedKey.parentVK,
-              evolvedKey.proofOfVk,
-              ed25519.getVerificationKey(evolvedKey.sk),
-              ed25519.sign(evolvedKey.sk, unsignedBlock.unsignedHeader.signableBytes)
-            )
+      def certifyBlock(
+        parentSlotId:         SlotId,
+        slot:                 Slot,
+        unsignedBlockBuilder: BlockHeaderV2.Unsigned.PartialOperationalCertificate => BlockV2.Unsigned
+      ): F[Option[BlockV2]] =
+        OptionT(evolver.operationalKeyForSlot(slot, parentSlotId)).map { operationalKeyOut =>
+          val partialCertificate = BlockHeaderV2.Unsigned.PartialOperationalCertificate(
+            operationalKeyOut.parentVK,
+            operationalKeyOut.parentSignature,
+            ed25519.getVerificationKey(operationalKeyOut.childSK)
           )
-          .map(operationalCertificate =>
-            BlockHeaderV2(
-              unsignedBlock.unsignedHeader.parentHeaderId,
-              unsignedBlock.unsignedHeader.parentSlot,
-              unsignedBlock.unsignedHeader.txRoot,
-              unsignedBlock.unsignedHeader.bloomFilter,
-              unsignedBlock.unsignedHeader.timestamp,
-              unsignedBlock.unsignedHeader.height,
-              unsignedBlock.unsignedHeader.slot,
-              unsignedBlock.unsignedHeader.eligibilityCertificate,
-              operationalCertificate,
-              unsignedBlock.unsignedHeader.metadata,
-              unsignedBlock.unsignedHeader.address
-            )
+          val unsignedBlock = unsignedBlockBuilder(partialCertificate)
+          val operationalCertificate = OperationalCertificate(
+            operationalKeyOut.parentVK,
+            operationalKeyOut.parentSignature,
+            ed25519.getVerificationKey(operationalKeyOut.childSK),
+            ed25519.sign(operationalKeyOut.childSK, unsignedBlock.unsignedHeader.signableBytes)
           )
-          .map(header =>
-            BlockV2(
-              header,
-              BlockBodyV2(header.id, unsignedBlock.transactions)
-            )
+          val header = BlockHeaderV2(
+            unsignedBlock.unsignedHeader.parentHeaderId,
+            unsignedBlock.unsignedHeader.parentSlot,
+            unsignedBlock.unsignedHeader.txRoot,
+            unsignedBlock.unsignedHeader.bloomFilter,
+            unsignedBlock.unsignedHeader.timestamp,
+            unsignedBlock.unsignedHeader.height,
+            unsignedBlock.unsignedHeader.slot,
+            unsignedBlock.unsignedHeader.eligibilityCertificate,
+            operationalCertificate,
+            unsignedBlock.unsignedHeader.metadata,
+            unsignedBlock.unsignedHeader.address
           )
-          .value
-      }
+          BlockV2(
+            header,
+            BlockBodyV2(header.id, unsignedBlock.transactions)
+          )
+        }.value
     }
   }
 

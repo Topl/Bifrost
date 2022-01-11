@@ -3,7 +3,7 @@ package co.topl.minting
 import cats.data.Chain
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
-import co.topl.algebras.ClockAlgebra
+import co.topl.algebras.{ClockAlgebra, ConsensusState}
 import co.topl.consensus.algebras.EtaCalculationAlgebra
 import co.topl.crypto.keyfile.SecureStore
 import co.topl.crypto.signing.{Ed25519, KesProduct}
@@ -19,8 +19,10 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import ModelGenerators._
 import cats.Applicative
 import co.topl.codecs.bytes.ByteCodec
+import co.topl.models.utility.Ratio
 import com.google.common.primitives.Longs
 
+import scala.collection.immutable.NumericRange
 import scala.util.Random
 
 class OperationalKeysSpec
@@ -41,11 +43,12 @@ class OperationalKeysSpec
   implicit private val ed25519: Ed25519 = new Ed25519
 
   it should "load the initial key from SecureStore and produce (VRF-filtered) linear keys" in {
-    forAll { (eta: Eta) =>
+    forAll { (eta: Eta, address: TaktikosAddress) =>
       val secureStore = mock[SecureStore[F]]
       val clock = mock[ClockAlgebra[F]]
       val vrfProof = mock[VrfProofAlgebra[F]]
       val etaCalculation = mock[EtaCalculationAlgebra[F]]
+      val consensusState = mock[ConsensusState[F]]
       val parentSlotId = SlotId(10L, TypedBytes(1: Byte, Bytes.fill(32)(0: Byte)))
       val operationalPeriodLength = 30L
       val activationOperationalPeriod = 0L
@@ -60,7 +63,7 @@ class OperationalKeysSpec
 
       (() => clock.slotsPerEpoch)
         .expects()
-        .once()
+        .twice()
         .returning(210L.pure[F])
 
       (() => secureStore.list)
@@ -87,10 +90,16 @@ class OperationalKeysSpec
         .returning(eta.pure[F])
 
       (vrfProof
-        .ineligibleSlots(_: Epoch, _: Eta))
-        .expects(*, *)
+        .ineligibleSlots(_: Epoch, _: Eta, _: Option[NumericRange.Exclusive[Long]], _: Ratio))
+        .expects(*, *, *, *)
         .once()
         .returning(ineligibilities.pure[F])
+
+      (consensusState
+        .lookupRelativeStake(_: Epoch)(_: TaktikosAddress))
+        .expects(*, *)
+        .once()
+        .returning(Ratio(1).some.pure[F])
 
       val underTest = OperationalKeys.FromSecureStore
         .make[F](
@@ -98,9 +107,11 @@ class OperationalKeysSpec
           clock,
           vrfProof,
           etaCalculation,
+          consensusState,
           parentSlotId,
           operationalPeriodLength,
-          activationOperationalPeriod
+          activationOperationalPeriod,
+          address
         )
         .unsafeRunSync()
 
@@ -114,17 +125,22 @@ class OperationalKeysSpec
         out.slot shouldBe i
         out.parentVK shouldBe vk
         kesProduct
-          .verify(out.proofOfVk, ed25519.getVerificationKey(out.sk).bytes.data ++ Bytes(Longs.toByteArray(i)), vk)
+          .verify(
+            out.parentSignature,
+            ed25519.getVerificationKey(out.childSK).bytes.data ++ Bytes(Longs.toByteArray(i)),
+            vk
+          )
       }
     }
   }
 
   it should "update the initial key at the turn of an operational period" in {
-    forAll { (eta: Eta) =>
+    forAll { (eta: Eta, address: TaktikosAddress) =>
       val secureStore = mock[SecureStore[F]]
       val clock = mock[ClockAlgebra[F]]
       val vrfProof = mock[VrfProofAlgebra[F]]
       val etaCalculation = mock[EtaCalculationAlgebra[F]]
+      val consensusState = mock[ConsensusState[F]]
       val parentSlotId = SlotId(10L, TypedBytes(1: Byte, Bytes.fill(32)(0: Byte)))
       val operationalPeriodLength = 30L
       val activationOperationalPeriod = 0L
@@ -164,10 +180,16 @@ class OperationalKeysSpec
         .returning(eta.pure[F])
 
       (vrfProof
-        .ineligibleSlots(_: Epoch, _: Eta))
-        .expects(*, *)
+        .ineligibleSlots(_: Epoch, _: Eta, _: Option[NumericRange.Exclusive[Long]], _: Ratio))
+        .expects(*, *, *, *)
         .anyNumberOfTimes()
         .returning(Vector.empty[Slot].pure[F])
+
+      (consensusState
+        .lookupRelativeStake(_: Epoch)(_: TaktikosAddress))
+        .expects(*, *)
+        .twice()
+        .returning(Ratio(1).some.pure[F])
 
       val underTest = OperationalKeys.FromSecureStore
         .make[F](
@@ -175,9 +197,11 @@ class OperationalKeysSpec
           clock,
           vrfProof,
           etaCalculation,
+          consensusState,
           parentSlotId,
           operationalPeriodLength,
-          activationOperationalPeriod
+          activationOperationalPeriod,
+          address
         )
         .unsafeRunSync()
 
@@ -204,8 +228,8 @@ class OperationalKeysSpec
         out.parentVK shouldBe vk.copy(step = 1)
         kesProduct
           .verify(
-            out.proofOfVk,
-            ed25519.getVerificationKey(out.sk).bytes.data ++ Bytes(Longs.toByteArray(i)),
+            out.parentSignature,
+            ed25519.getVerificationKey(out.childSK).bytes.data ++ Bytes(Longs.toByteArray(i)),
             vk.copy(step = 1)
           )
       }

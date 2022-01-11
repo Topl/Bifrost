@@ -29,6 +29,7 @@ object Signable {
             Bytes(BigInt(unsignedBlock.height).toByteArray),
             Bytes(BigInt(unsignedBlock.slot).toByteArray),
             unsignedBlock.eligibilityCertificate.bytes,
+            unsignedBlock.partialOperationalCertificate.bytes,
             Bytes(unsignedBlock.metadata.fold(Array.emptyByteArray)(_.data.value)),
             unsignedBlock.address.bytes
           )
@@ -46,6 +47,11 @@ object Signable {
             header.height,
             header.slot,
             header.eligibilityCertificate,
+            BlockHeaderV2.Unsigned.PartialOperationalCertificate(
+              header.operationalCertificate.parentVK,
+              header.operationalCertificate.parentSignature,
+              header.operationalCertificate.childVK
+            ),
             header.metadata,
             header.address
           )

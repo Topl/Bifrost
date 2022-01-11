@@ -103,11 +103,11 @@ object DemoProgram {
   ): F[Unit] =
     for {
       _      <- Logger[F].info(show"Starting epoch=$epoch (${boundary.start}..${boundary.end})")
-      _      <- Logger[F].info("Precomputing VRF data")
       headId <- localChain.head.map(_.slotId.blockId)
       head <- OptionT(headerStore.get(headId))
         .getOrElseF(new IllegalStateException(show"Missing blockId=$headId").raiseError[F, BlockHeaderV2])
       nextEta <- etaCalculation.etaToBe(head.slotId, boundary.start)
+      _       <- Logger[F].info(show"Precomputing VRF data epoch=$epoch eta=$nextEta")
       _       <- vrfProofs.traverse(_.precomputeForEpoch(epoch, nextEta))
     } yield ()
 

@@ -22,8 +22,7 @@ object BlockHeaderValidationFailures {
 
   case class InvalidEligibilityCertificateEta(claimedEta: Eta, actualEta: Eta) extends BlockHeaderValidationFailure
 
-  case class InvalidEligibilityCertificateTestProof(proof: Proofs.Knowledge.VrfEd25519)
-      extends BlockHeaderValidationFailure
+  case class InvalidEligibilityCertificateProof(proof: Proofs.Knowledge.VrfEd25519) extends BlockHeaderValidationFailure
 
   case class InvalidEligibilityCertificateNonceProof(proof: Proofs.Knowledge.VrfEd25519)
       extends BlockHeaderValidationFailure

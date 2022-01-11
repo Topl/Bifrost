@@ -3,36 +3,22 @@ package co.topl.consensus
 import cats.Monad
 import cats.implicits._
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
+import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models._
 import co.topl.models.utility.Ratio
 import co.topl.typeclasses.Signable
 import co.topl.typeclasses.implicits._
 
-import java.nio.charset.StandardCharsets
+import scala.collection.concurrent.TrieMap
 
 object LeaderElectionValidation {
 
-  sealed abstract class Token {
-    def bytes: Array[Byte]
-  }
-
-  object Tokens {
-
-    case object Test extends Token {
-      val bytes: Array[Byte] = "TEST".getBytes(StandardCharsets.UTF_8)
-    }
-
-    case object Nonce extends Token {
-      val bytes: Array[Byte] = "NONCE".getBytes(StandardCharsets.UTF_8)
-    }
-  }
-
   case class VrfConfig(lddCutoff: Int, precision: Int, baselineDifficulty: Ratio, amplitude: Ratio)
 
-  case class VrfArgument(eta: Eta, slot: Slot, token: Token)
+  case class VrfArgument(eta: Eta, slot: Slot)
 
   implicit val signableVrfArgument: Signable[VrfArgument] =
-    arg => arg.eta.data ++ Bytes(BigInt(arg.slot).toByteArray) ++ Bytes(arg.token.bytes)
+    arg => arg.eta.data ++ Bytes(BigInt(arg.slot).toByteArray)
 
   object Eval {
 
@@ -45,8 +31,9 @@ object LeaderElectionValidation {
           val mFValue = mFunction(slotDiff, config)
           val base = mFValue * relativeStake
 
+          // TODO: Where does this come from?
           (1 to config.precision)
-            .foldLeft(Ratio(0))((total, i) => total - (base.pow(i) * Ratio(BigInt(1), ProsomoMath.factorial(i))))
+            .foldLeft(Ratio(0))((total, i) => total - (base.pow(i) * Ratio(BigInt(1), MathUtils.factorial(i))))
             .pure[F]
         }
 
@@ -56,31 +43,36 @@ object LeaderElectionValidation {
          * @param proof the proof output
          * @return true if elected slot leader and false otherwise
          */
-        def isSlotLeaderForThreshold(threshold: Ratio)(proofHash: Rho): F[Boolean] =
-          (threshold > proofHash.data.toIterable
-            .zip(1 to proofHash.data.length.toInt) // zip with indexes starting from 1
+        def isSlotLeaderForThreshold(threshold: Ratio)(rho: Rho): F[Boolean] = {
+          val testRhoHash = Ed25519VRF.rhoToRhoTestHash(rho)
+          val testRhoHashBytes = testRhoHash.sizedBytes.data
+          // TODO: Where does this come from?
+          (threshold > testRhoHashBytes.toIterable
+            .zip(1 to testRhoHashBytes.length.toInt) // zip with indexes starting from 1
             .foldLeft(Ratio(0)) { case (net, (byte, i)) =>
               net + Ratio(BigInt(byte & 0xff), BigInt(2).pow(8 * i))
             })
             .pure[F]
+        }
 
         /** Calculates log(1-f(slot-parentSlot)) or log(1-f) depending on the configuration */
         private def mFunction(slotDiff: Long, config: VrfConfig): Ratio =
           // use sawtooth curve if local dynamic difficulty is enabled
           if (slotDiff <= config.lddCutoff)
-            ProsomoMath.logOneMinus(
-              ProsomoMath.lddGapSawtooth(slotDiff, config.lddCutoff, config.amplitude),
+            MathUtils.logOneMinus(
+              MathUtils.lddGapSawtooth(slotDiff, config.lddCutoff, config.amplitude),
               config.precision
             )
-          else ProsomoMath.logOneMinus(config.baselineDifficulty, config.precision)
+          else MathUtils.logOneMinus(config.baselineDifficulty, config.precision)
 
       }
   }
 }
 
-private object ProsomoMath {
+private object MathUtils {
 
-  def factorial(n: Int): BigInt = (1 to n).product
+  private val factorialCache = TrieMap(0 -> BigInt(1))
+  def factorial(n: Int): BigInt = factorialCache.getOrElseUpdate(n, n * factorial(n - 1))
 
   /** Calculates log(1-f) */
   def logOneMinus(f: Ratio, precision: Int): Ratio =

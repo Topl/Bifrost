@@ -13,5 +13,9 @@ trait StakingAlgebra[F[_]] {
 
   def elect(parent: BlockHeaderV2, slot: Slot): F[Option[VrfHit]]
 
-  def certifyBlock(unsigned: BlockV2.Unsigned): F[Option[BlockV2]]
+  def certifyBlock(
+    parentSlotId:         SlotId,
+    slot:                 Slot,
+    unsignedBlockBuilder: BlockHeaderV2.Unsigned.PartialOperationalCertificate => BlockV2.Unsigned
+  ): F[Option[BlockV2]]
 }

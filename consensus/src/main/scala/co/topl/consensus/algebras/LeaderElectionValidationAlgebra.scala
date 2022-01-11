@@ -9,5 +9,5 @@ import co.topl.models.utility.Ratio
 trait LeaderElectionValidationAlgebra[F[_]] {
   def getThreshold(relativeStake: Ratio, slotDiff: Long): F[Ratio]
 
-  def isSlotLeaderForThreshold(threshold: Ratio)(proofHash: Rho): F[Boolean]
+  def isSlotLeaderForThreshold(threshold: Ratio)(rho: Rho): F[Boolean]
 }

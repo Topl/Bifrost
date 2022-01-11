@@ -20,12 +20,11 @@ trait ModelGenerators {
 
   def eligibilityCertificateGen: Gen[EligibilityCertificate] =
     for {
-      nonceProof        <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Knowledge.VrfEd25519(_))
-      testProof         <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Knowledge.VrfEd25519(_))
+      vrfProof          <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Knowledge.VrfEd25519(_))
       vkVrf             <- genSizedStrictBytes[Lengths.`32`.type]().map(VerificationKeys.VrfEd25519(_))
       thresholdEvidence <- genSizedStrictBytes[Lengths.`32`.type]()
       eta               <- etaGen
-    } yield EligibilityCertificate(nonceProof, testProof, vkVrf, thresholdEvidence, eta)
+    } yield EligibilityCertificate(vrfProof, vkVrf, thresholdEvidence, eta)
 
   def ed25519VkGen: Gen[VerificationKeys.Ed25519] =
     genSizedStrictBytes[Lengths.`32`.type]().map(VerificationKeys.Ed25519(_))
@@ -238,6 +237,9 @@ trait ModelGenerators {
 
   implicit val arbitraryEta: Arbitrary[Eta] =
     Arbitrary(etaGen)
+
+  implicit val arbitraryTaktikosAddress: Arbitrary[TaktikosAddress] =
+    Arbitrary(taktikosAddressGen)
 
   implicit class GenHelper[T](gen: Gen[T]) {
     def first: T = gen.pureApply(Gen.Parameters.default, Seed.random())

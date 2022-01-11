@@ -11,8 +11,8 @@ trait OperationalKeysAlgebra[F[_]] {
 }
 
 case class OperationalKeyOut(
-  slot:      Slot,
-  sk:        SecretKeys.Ed25519,
-  proofOfVk: Proofs.Knowledge.KesProduct,
-  parentVK:  VerificationKeys.KesProduct
+  slot:            Slot,
+  childSK:         SecretKeys.Ed25519,
+  parentSignature: Proofs.Knowledge.KesProduct,
+  parentVK:        VerificationKeys.KesProduct
 )
