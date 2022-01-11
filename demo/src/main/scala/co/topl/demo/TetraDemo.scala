@@ -32,12 +32,31 @@ import scala.util.Random
 
 object TetraDemo extends IOApp.Simple {
 
+  // Configuration Data
+  private val vrfConfig =
+    VrfConfig(lddCutoff = 40, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(2, 5))
+  //    VrfConfig(lddCutoff = 10, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(1))
+
+  private val OperationalPeriodLength = 180L
+  private val EpochLength = 720L
+  private val SlotDuration = 100.milli
+
+  require(
+    EpochLength % OperationalPeriodLength === 0L,
+    "EpochLength must be evenly divisible by OperationalPeriodLength"
+  )
+
+  private val KesKeyHeight = (9, 9)
+
   // Create stubbed/sample/demo data
+
+  private val NumberOfStakers = 5
+  private val RelativeStake = Ratio(1, 5)
 
   private val poolVK =
     new Ed25519().getVerificationKey(KeyInitializer[SecretKeys.Ed25519].random())
 
-  private val stakers = List.fill(1) {
+  private val stakers = List.fill(NumberOfStakers) {
 
     implicit val ed25519Vrf: Ed25519VRF = Ed25519VRF.precomputed()
     implicit val ed25519: Ed25519 = new Ed25519
@@ -47,7 +66,7 @@ object TetraDemo extends IOApp.Simple {
       KeyInitializer[SecretKeys.VrfEd25519].random()
 
     val (kesKey, kesVK) =
-      kesProduct.createKeyPair(seed = Bytes(Random.nextBytes(32)), height = (9, 9), 0)
+      kesProduct.createKeyPair(seed = Bytes(Random.nextBytes(32)), height = KesKeyHeight, 0)
 
     val stakerRegistration: Box.Values.TaktikosRegistration =
       Box.Values.TaktikosRegistration(
@@ -73,7 +92,7 @@ object TetraDemo extends IOApp.Simple {
         ed25519.sign(paymentKey, poolVK.bytes.data)
       )
     }
-    Staker(Ratio(1, 5), stakerVrfKey, kesKey, stakerRegistration, stakerAddress)
+    Staker(RelativeStake, stakerVrfKey, kesKey, stakerRegistration, stakerAddress)
   }
 
   private val genesis =
@@ -99,14 +118,11 @@ object TetraDemo extends IOApp.Simple {
 
   implicit private val logger: Logger[F] = Slf4jLogger.getLogger[F]
 
-  private val vrfConfig =
-    VrfConfig(lddCutoff = 40, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(2, 5))
-
   private val leaderElectionThreshold: LeaderElectionValidationAlgebra[F] =
     LeaderElectionValidation.Eval.make(vrfConfig)
 
   private val clock: ClockAlgebra[F] =
-    AkkaSchedulerClock.Eval.make(100.milli, 720)
+    AkkaSchedulerClock.Eval.make(SlotDuration, EpochLength)
 
   private val vrfProofConstructions: F[List[VrfProofAlgebra[F]]] =
     stakers.traverse(staker =>
@@ -151,7 +167,7 @@ object TetraDemo extends IOApp.Simple {
             etaCalculation,
             state,
             genesis.headerV2.slotId,
-            operationalPeriodLength = 180L,
+            operationalPeriodLength = OperationalPeriodLength,
             activationOperationalPeriod = 0L,
             staker.address
           )

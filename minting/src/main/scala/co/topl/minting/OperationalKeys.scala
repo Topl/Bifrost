@@ -5,8 +5,8 @@ import cats.data._
 import cats.effect.Ref
 import cats.effect.kernel.Concurrent
 import cats.implicits._
-import co.topl.algebras.{ClockAlgebra, ConsensusState}
 import co.topl.algebras.ClockAlgebra.implicits._
+import co.topl.algebras.{ClockAlgebra, ConsensusState}
 import co.topl.codecs.bytes.implicits._
 import co.topl.consensus.algebras.EtaCalculationAlgebra
 import co.topl.crypto.keyfile.SecureStore
@@ -26,6 +26,15 @@ object OperationalKeys {
 
   object FromSecureStore {
 
+    /**
+     * Constructs an OperationalKeys interpreter using a SecureStore.
+     * @param etaCalculation An EtaCalculation interpreter is needed to determine the eta to use when determining VRF ineligibilities.
+     * @param consensusState Used for the lookup of relative stake for VRF ineligibilities
+     * @param parentSlotId The initial parentSlotId to use when launching the node and forming the first set of operational keys
+     * @param operationalPeriodLength The number of slots in an operational period
+     * @param activationOperationalPeriod The operational period number in which the staker becomes active
+     * @param address The staker's address
+     */
     def make[F[_]: Concurrent: Logger](
       secureStore:                 SecureStore[F],
       clock:                       ClockAlgebra[F],
@@ -160,6 +169,8 @@ object OperationalKeys {
     /**
      * Using some KES parent, construct the linear keys for the upcoming operational period.  A linear key is constructed
      * for each slot for which we _might_ be eligible for VRF.
+     *
+     * @param parentSlotId Used for Eta lookup when determining ineligible VRF slots
      */
     private def prepareOperationalPeriodKeys[F[_]: Monad: Logger](
       kesParent:               SecretKeys.KesProduct,

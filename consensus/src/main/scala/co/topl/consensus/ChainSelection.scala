@@ -3,6 +3,7 @@ package co.topl.consensus
 import cats._
 import cats.data._
 import cats.implicits._
+import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models._
 import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._
@@ -22,7 +23,11 @@ object ChainSelection {
     val lengthOrder = Order.by[NonEmptyChain[SlotData], Long](_.length)
     val slotOrder = Order.by[NonEmptyChain[SlotData], Slot](-_.last.slotId.slot)
     val rhoOrder =
-      Order.reverse(Order.by[NonEmptyChain[SlotData], BigInt](h => BigInt(h.last.rho.sizedBytes.data.toArray)))
+      Order.reverse(
+        Order.by[NonEmptyChain[SlotData], BigInt](h =>
+          BigInt(Ed25519VRF.rhoToRhoTestHash(h.last.rho).sizedBytes.data.toArray)
+        )
+      )
 
     lengthOrder
       .tiebreakWith(slotOrder)

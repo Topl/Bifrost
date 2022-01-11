@@ -90,6 +90,7 @@ object AkkaSecureStoreActor {
         Behaviors.same
       case c: ReceivableMessages.Consume[_] =>
         c.run(baseDir)
+        erase(c.name, baseDir)
         Behaviors.same
       case ReceivableMessages.Erase(name, replyTo) =>
         erase(name, baseDir)
@@ -126,7 +127,6 @@ object AkkaSecureStoreActor {
         val path = Paths.get(baseDir.toString, name)
         if (Files.exists(path) && Files.isRegularFile(path)) {
           val bytes = Bytes(Files.readAllBytes(path))
-          Files.delete(path)
           replyTo.tell(bytes.decoded[A].some)
         } else {
           replyTo.tell(None)

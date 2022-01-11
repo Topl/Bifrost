@@ -149,6 +149,7 @@ object BlockHeaderValidation {
             EitherT(
               ed25519Ref
                 .modify(ed25519 =>
+                  // Use the ed25519 instance to verify the childSignature against the header's bytes
                   ed25519 -> ed25519.verify(
                     header.operationalCertificate.childSignature,
                     header.signableBytes,
@@ -156,11 +157,16 @@ object BlockHeaderValidation {
                   )
                 )
                 .map(isValid =>
-                  if (isValid) header.asRight[BlockHeaderValidationFailure]
-                  else
+                  // Verification from the previous step returns a boolean, so now check the boolean verification result
+                  if (isValid) {
+                    // If the verification was valid, just return Right(header)
+                    header.asRight[BlockHeaderValidationFailure]
+                  } else {
+                    // Otherwise, return a Left(InvalidBlockProof)
                     (BlockHeaderValidationFailures.InvalidBlockProof(
                       header.operationalCertificate
                     ): BlockHeaderValidationFailure).asLeft[BlockHeaderV2]
+                  }
                 )
             )
           )

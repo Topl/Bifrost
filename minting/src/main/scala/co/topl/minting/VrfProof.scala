@@ -63,8 +63,8 @@ object VrfProof {
                         ed -> (vrfProofs -> rhoValues)
                       }
                     )
-                    .flatTap { case (testProofsForEta, nonceRhoVaues) =>
-                      (vrfProofsCache.put(eta)(testProofsForEta), rhosCache.put(eta)(nonceRhoVaues)).tupled
+                    .flatTap { case (vrfProofs, rhoValues) =>
+                      (vrfProofsCache.put(eta)(vrfProofs), rhosCache.put(eta)(rhoValues)).tupled
                     }
                     .void
 
