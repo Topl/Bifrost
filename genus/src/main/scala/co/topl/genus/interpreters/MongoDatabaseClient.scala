@@ -28,22 +28,22 @@ object MongoDatabaseClient {
           filter: TransactionFilter
         ): F[Source[Transaction, NotUsed]] =
           transactionSubscription
-            .subscribe(filter.toFilter, None)
+            .subscribe(filter.toBsonFilter, None)
             .map(subscription => subscription.map(_.getFullDocument.transformTo))
 
         override def subscribeToBlocks(filter: BlockFilter): F[Source[Block, NotUsed]] =
           blockSubscription
-            .subscribe(filter.toFilter, None)
+            .subscribe(filter.toBsonFilter, None)
             .map(subscription => subscription.map(_.getFullDocument.transformTo))
 
         override def queryTransactions(filter: TransactionFilter): F[Source[Transaction, NotUsed]] =
           transactionQuery
-            .query(filter.toFilter)
+            .query(filter.toBsonFilter)
             .map(query => query.map(_.transformTo))
 
         override def queryBlocks(filter: BlockFilter): F[Source[Block, NotUsed]] =
           blockQuery
-            .query(filter.toFilter)
+            .query(filter.toBsonFilter)
             .map(query => query.map(_.transformTo))
       }
   }
