@@ -39,7 +39,9 @@ package object models {
 
   type TxRoot = Sized.Strict[Bytes, Lengths.`32`.type]
   type BloomFilter = Sized.Strict[Bytes, Lengths.`256`.type]
-  type Rho = Sized.Strict[Bytes, Lengths.`64`.type]
+  @newtype case class Rho(sizedBytes: Sized.Strict[Bytes, Lengths.`64`.type])
+  @newtype case class RhoTestHash(sizedBytes: Sized.Strict[Bytes, Lengths.`64`.type])
+  @newtype case class RhoNonceHash(sizedBytes: Sized.Strict[Bytes, Lengths.`64`.type])
   type StakeAddress = Propositions.Knowledge.Ed25519
   type Digest32 = Sized.Strict[Bytes, Lengths.`32`.type]
   type TransactionData = Sized.Max[Latin1Data, Lengths.`127`.type]

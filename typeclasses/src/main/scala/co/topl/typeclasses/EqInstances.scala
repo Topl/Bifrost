@@ -35,4 +35,7 @@ trait EqInstances {
   implicit val entropyEq: Eq[Entropy] =
     (a, b) => a.value === b.value
 
+  implicit val rhoEq: Eq[Rho] =
+    (a, b) => a.sizedBytes === b.sizedBytes
+
 }

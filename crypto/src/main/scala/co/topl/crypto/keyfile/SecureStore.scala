@@ -17,6 +17,8 @@ trait SecureStore[F[_]] {
   /**
    * Read a single value by name into some type `A`, and erase the persisted
    * representation.
+   *
+   * TODO: (preErase: A => F[Unit])
    */
   def consume[A: ByteCodec](name: String): F[Option[A]]
 

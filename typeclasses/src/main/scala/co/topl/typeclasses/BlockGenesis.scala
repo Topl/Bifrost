@@ -22,43 +22,35 @@ object BlockGenesis {
 
   def vrfCertificate(eta: Eta): EligibilityCertificate = EligibilityCertificate(
     Proofs.Knowledge.VrfEd25519(zeroBytes(Lengths.`80`)),
-    Proofs.Knowledge.VrfEd25519(zeroBytes(Lengths.`80`)),
     VerificationKeys.VrfEd25519(VerificationKeys.Ed25519(zeroBytes[VrfEd25519.Length]).bytes),
     thresholdEvidence = Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0))),
     eta = eta
   )
 
-//  val kesCertificate: OperationalCertificate =
-//    OperationalCertificate(
-//      opSig = Proofs.Signature.HdKes(
-//        i = 0,
-//        vkI = VerificationKeys.Ed25519(zeroBytes),
-//        ecSignature = Proofs.Signature.Ed25519(zeroBytes),
-//        sigSumJ = Proofs.Signature.SumProduct(
-//          ecSignature = Proofs.Signature.Ed25519(zeroBytes),
-//          vkK = VerificationKeys.Ed25519(zeroBytes),
-//          index = 0,
-//          witness = Nil
-//        ),
-//        sigSumK = Proofs.Signature.SumProduct(
-//          ecSignature = Proofs.Signature.Ed25519(zeroBytes),
-//          vkK = VerificationKeys.Ed25519(zeroBytes),
-//          index = 0,
-//          witness = Nil
-//        )
-//      ),
-//      xvkM = VerificationKeys.ExtendedEd25519(VerificationKeys.Ed25519(zeroBytes), zeroBytes),
-//      slotR = 0
-//    )
   val kesCertificate: OperationalCertificate = OperationalCertificate(
-    Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(Array.fill(64)(0: Byte))))
+    VerificationKeys.KesProduct(zeroBytes(Lengths.`32`), 0),
+    Proofs.Knowledge.KesProduct(
+      Proofs.Knowledge.KesSum(
+        VerificationKeys.Ed25519(zeroBytes(Lengths.`32`)),
+        Proofs.Knowledge.Ed25519(zeroBytes(Lengths.`64`)),
+        Vector.empty
+      ),
+      Proofs.Knowledge.KesSum(
+        VerificationKeys.Ed25519(zeroBytes(Lengths.`32`)),
+        Proofs.Knowledge.Ed25519(zeroBytes(Lengths.`64`)),
+        Vector.empty
+      ),
+      zeroBytes(Lengths.`32`)
+    ),
+    VerificationKeys.Ed25519(zeroBytes(Lengths.`32`)),
+    Proofs.Knowledge.Ed25519(zeroBytes(Lengths.`64`))
   )
 
   def apply(transactions: Seq[Transaction]): Eval[BlockV2] = Eval.later {
     val address = TaktikosAddress(
       zeroBytes(Lengths.`32`),
-      zeroBytes(Lengths.`32`),
-      zeroBytes(Lengths.`64`)
+      VerificationKeys.Ed25519(zeroBytes(Lengths.`32`)),
+      Proofs.Knowledge.Ed25519(zeroBytes(Lengths.`64`))
     )
 
     // TODO: Read "genesis-eta-plaintext" from application.conf, and then hash that value and/or Magic Bytes

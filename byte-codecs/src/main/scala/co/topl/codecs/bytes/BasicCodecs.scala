@@ -1,10 +1,12 @@
 package co.topl.codecs.bytes
 
 import co.topl.codecs.bytes.ByteCodec.ops._
+import co.topl.models.BlockHeaderV2.Unsigned
+import co.topl.models.Proofs.Knowledge
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
-import co.topl.models.utility.{Length, Ratio, Sized}
+import co.topl.models.utility.{KesBinaryTree, Length, Ratio, Sized}
 
 trait BasicCodecs {
 
@@ -38,9 +40,9 @@ trait BasicCodecs {
     new ByteCodec[TaktikosAddress] {
 
       override def encode(t: TaktikosAddress, writer: Writer): Unit = {
-        writer.putBytes(t.paymentVerificationKeyHash.data.toArray)
-        writer.putBytes(t.stakingVerificationKey.data.toArray)
-        writer.putBytes(t.signature.data.toArray)
+        t.paymentVKEvidence.writeBytesTo(writer)
+        t.poolVK.writeBytesTo(writer)
+        t.signature.writeBytesTo(writer)
       }
 
       override def decode(reader: Reader): TaktikosAddress = ???
@@ -153,6 +155,84 @@ trait BasicCodecs {
 
     }
 
+  implicit val kesBinaryTreeCodec: ByteCodec[KesBinaryTree] =
+    new ByteCodec[KesBinaryTree] {
+
+      def encode(t: KesBinaryTree, writer: Writer): Unit = t match {
+        case KesBinaryTree.MerkleNode(seed, witnessLeft, witnessRight, left, right) =>
+          writer.putUByte(0)
+          writer.putBytes(seed)
+          writer.putBytes(witnessLeft)
+          writer.putBytes(witnessRight)
+          encode(left, writer)
+          encode(right, writer)
+        case KesBinaryTree.SigningLeaf(sk, vk) =>
+          writer.putUByte(1)
+          writer.putBytes(sk)
+          writer.putBytes(vk)
+        case KesBinaryTree.Empty =>
+          writer.putUByte(2)
+      }
+
+      def decode(reader: Reader): KesBinaryTree =
+        reader.getUByte() match {
+          case 0 =>
+            KesBinaryTree.MerkleNode(
+              reader.getBytes(32),
+              reader.getBytes(32),
+              reader.getBytes(32),
+              decode(reader),
+              decode(reader)
+            )
+          case 1 =>
+            KesBinaryTree.SigningLeaf(
+              reader.getBytes(32),
+              reader.getBytes(32)
+            )
+          case 2 =>
+            KesBinaryTree.Empty
+        }
+    }
+
+  implicit val kesSumProofCodec: ByteCodec[Proofs.Knowledge.KesSum] =
+    new ByteCodec[Knowledge.KesSum] {
+
+      def encode(t: Knowledge.KesSum, writer: Writer): Unit = {
+        t.verificationKey.writeBytesTo(writer)
+        t.signature.writeBytesTo(writer)
+        seqCodec[Sized.Strict[Bytes, Proofs.Knowledge.KesSum.DigestLength]].encode(t.witness, writer)
+      }
+
+      def decode(reader: Reader): Knowledge.KesSum =
+        Knowledge.KesSum(
+          ByteCodec[VerificationKeys.Ed25519].decode(reader),
+          ByteCodec[Proofs.Knowledge.Ed25519].decode(reader),
+          seqCodec[Sized.Strict[Bytes, Proofs.Knowledge.KesSum.DigestLength]].decode(reader).toVector
+        )
+    }
+
+  implicit val secretKeyKesProductCodec: ByteCodec[SecretKeys.KesProduct] =
+    new ByteCodec[SecretKeys.KesProduct] {
+
+      def encode(t: SecretKeys.KesProduct, writer: Writer): Unit = {
+        t.superTree.writeBytesTo(writer)
+        t.subTree.writeBytesTo(writer)
+        writer.putBytes(t.nextSubSeed)
+        t.subSignature.writeBytesTo(writer)
+        writer.putLong(t.offset)
+      }
+
+      def decode(reader: Reader): SecretKeys.KesProduct =
+        SecretKeys.KesProduct(
+          ByteCodec[KesBinaryTree].decode(reader),
+          ByteCodec[KesBinaryTree].decode(reader),
+          reader.getBytes(32),
+          ByteCodec[Proofs.Knowledge.KesSum].decode(reader),
+          reader.getLong()
+        )
+
+    }
+
   implicit val proofSignatureEd25519Codec: ByteCodec[Proofs.Knowledge.Ed25519] =
     new ByteCodec[Proofs.Knowledge.Ed25519] {
 
@@ -186,8 +266,7 @@ trait BasicCodecs {
   implicit val vrfCertificateCodec: ByteCodec[EligibilityCertificate] = new ByteCodec[EligibilityCertificate] {
 
     override def encode(t: EligibilityCertificate, writer: Writer): Unit = {
-      t.vrfNonceSig.writeBytesTo(writer)
-      t.vrfTestSig.writeBytesTo(writer)
+      t.vrfSig.writeBytesTo(writer)
       t.vkVRF.writeBytesTo(writer)
       writer.putBytes(t.thresholdEvidence.data.toArray)
     }
@@ -195,76 +274,60 @@ trait BasicCodecs {
     override def decode(reader: Reader): EligibilityCertificate =
       EligibilityCertificate(
         ByteCodec[Proofs.Knowledge.VrfEd25519].decode(reader),
-        ByteCodec[Proofs.Knowledge.VrfEd25519].decode(reader),
         ByteCodec[VerificationKeys.VrfEd25519].decode(reader),
         ByteCodec[Evidence].decode(reader),
         ByteCodec[Eta].decode(reader)
       )
   }
 
-//  implicit val kesPublicKeyCodec: ByteCodec[VerificationKeys.HdKes] =
-//    new ByteCodec[VerificationKeys.HdKes] {
-//
-//      def encode(t: VerificationKeys.HdKes, writer: Writer): Unit = {
-//        //todo: fix
-////      t.xvkM.writeBytesTo(writer)
-////      writer.putLong(t.t)
-//      }
-//
-//      def decode(reader: Reader): VerificationKeys.HdKes =
-//        VerificationKeys.HdKes(
-//          Array(0: Byte)
-//          //todo: fix
-////          ByteCodec[VerificationKeys.ExtendedEd25519].decode(reader)
-////          //reader.getLong()
-//        )
-//    }
+  implicit val kesProductVKCodec: ByteCodec[VerificationKeys.KesProduct] =
+    new ByteCodec[VerificationKeys.KesProduct] {
 
-//  implicit val sumProductSignatureCodec: ByteCodec[Proofs.Signature.SumProduct] = new ByteCodec[Signature.SumProduct] {
-//
-//    def encode(t: Signature.SumProduct, writer: Writer): Unit = {
-//      t.ecSignature.writeBytesTo(writer)
-//      t.vkK.writeBytesTo(writer)
-//      t.witness.writeBytesTo(writer)
-//    }
-//
-//    def decode(reader: Reader): Signature.SumProduct =
-//      Signature.SumProduct(
-//        ByteCodec[Proofs.Signature.Ed25519].decode(reader),
-//        ByteCodec[VerificationKeys.Ed25519].decode(reader),
-//        reader.getLong(),
-//        ByteCodec[Seq[VerificationKeys.Ed25519]].decode(reader)
-//      )
-//  }
-//
-//  implicit val hdKesSignatureCodec: ByteCodec[Proofs.Signature.HdKes] = new ByteCodec[Signature.HdKes] {
-//
-//    def encode(t: Signature.HdKes, writer: Writer): Unit = {
-//      writer.putLong(t.i)
-//      t.vkI.writeBytesTo(writer)
-//      t.ecSignature.writeBytesTo(writer)
-//      t.sigSumJ.writeBytesTo(writer)
-//      t.sigSumK.writeBytesTo(writer)
-//    }
-//
-//    def decode(reader: Reader): Signature.HdKes = ???
-//  }
-//
-//  implicit val kesCertificateCodec: ByteCodec[OperationalCertificate] = new ByteCodec[OperationalCertificate] {
-//
-//    override def encode(t: OperationalCertificate, writer: Writer): Unit = {
-//      t.opSig.writeBytesTo(writer)
-//      t.xvkM.writeBytesTo(writer)
-//      writer.putLong(t.slotR)
-//    }
-//
-//    override def decode(reader: Reader): OperationalCertificate =
-//      OperationalCertificate(
-//        ByteCodec[Proofs.Signature.HdKes].decode(reader),
-//        ByteCodec[VerificationKeys.ExtendedEd25519].decode(reader),
-//        reader.getLong()
-//      )
-//  }
+      def encode(t: VerificationKeys.KesProduct, writer: Writer): Unit = {
+        t.bytes.writeBytesTo(writer)
+        writer.putInt(t.step)
+      }
+
+      def decode(reader: Reader): VerificationKeys.KesProduct =
+        VerificationKeys.KesProduct(
+          ByteCodec[Sized.Strict[Bytes, VerificationKeys.KesProduct.Length]].decode(reader),
+          reader.getInt()
+        )
+    }
+
+  implicit val kesProductSignatureCodec: ByteCodec[Proofs.Knowledge.KesProduct] =
+    new ByteCodec[Proofs.Knowledge.KesProduct] {
+
+      def encode(t: Proofs.Knowledge.KesProduct, writer: Writer): Unit = {
+        t.superSignature.writeBytesTo(writer)
+        t.subSignature.writeBytesTo(writer)
+        t.subRoot.writeBytesTo(writer)
+      }
+
+      def decode(reader: Reader): Proofs.Knowledge.KesProduct =
+        Proofs.Knowledge.KesProduct(
+          ByteCodec[Proofs.Knowledge.KesSum].decode(reader),
+          ByteCodec[Proofs.Knowledge.KesSum].decode(reader),
+          ByteCodec[Sized.Strict[Bytes, Proofs.Knowledge.KesProduct.DigestLength]].decode(reader)
+        )
+    }
+
+  implicit val partialOperationalCertificateCodec: ByteCodec[BlockHeaderV2.Unsigned.PartialOperationalCertificate] =
+    new ByteCodec[Unsigned.PartialOperationalCertificate] {
+
+      def encode(t: Unsigned.PartialOperationalCertificate, writer: Writer): Unit = {
+        t.parentVK.writeBytesTo(writer)
+        t.parentSignature.writeBytesTo(writer)
+        t.childVK.writeBytesTo(writer)
+      }
+
+      def decode(reader: Reader): BlockHeaderV2.Unsigned.PartialOperationalCertificate =
+        BlockHeaderV2.Unsigned.PartialOperationalCertificate(
+          ByteCodec[VerificationKeys.KesProduct].decode(reader),
+          ByteCodec[Proofs.Knowledge.KesProduct].decode(reader),
+          ByteCodec[VerificationKeys.Ed25519].decode(reader)
+        )
+    }
 }
 
 object BasicCodecs extends BasicCodecs

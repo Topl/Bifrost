@@ -4,7 +4,6 @@ import co.topl.models.utility.KesBinaryTree
 import co.topl.models.utility.KesBinaryTree.{Empty, MerkleNode, SigningLeaf}
 
 import java.security.SecureRandom
-import scala.annotation.tailrec
 
 class ProductComposition extends KesEd25519Blake2b256 {
 

@@ -6,7 +6,7 @@ import co.topl.models.Transaction.PolyOutput
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.StringDataTypes.Latin1Data
-import co.topl.models.utility.{Length, Lengths, Ratio, Sized}
+import co.topl.models.utility.{KesBinaryTree, Length, Lengths, Ratio, Sized}
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalacheck.rng.Seed
 
@@ -20,12 +20,11 @@ trait ModelGenerators {
 
   def eligibilityCertificateGen: Gen[EligibilityCertificate] =
     for {
-      nonceProof        <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Knowledge.VrfEd25519(_))
-      testProof         <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Knowledge.VrfEd25519(_))
+      vrfProof          <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Knowledge.VrfEd25519(_))
       vkVrf             <- genSizedStrictBytes[Lengths.`32`.type]().map(VerificationKeys.VrfEd25519(_))
       thresholdEvidence <- genSizedStrictBytes[Lengths.`32`.type]()
       eta               <- etaGen
-    } yield EligibilityCertificate(nonceProof, testProof, vkVrf, thresholdEvidence, eta)
+    } yield EligibilityCertificate(vrfProof, vkVrf, thresholdEvidence, eta)
 
   def ed25519VkGen: Gen[VerificationKeys.Ed25519] =
     genSizedStrictBytes[Lengths.`32`.type]().map(VerificationKeys.Ed25519(_))
@@ -39,24 +38,67 @@ trait ModelGenerators {
   def witnessGen: Gen[Vector[Sized.Strict[Bytes, KesSum.DigestLength]]] =
     Gen.nonEmptyContainerOf[Vector, Sized.Strict[Bytes, Lengths.`32`.type]](genSizedStrictBytes[Lengths.`32`.type]())
 
-  def sumProductGen: Gen[Proofs.Knowledge.KesSum] =
+  def kesSumProofGen: Gen[Proofs.Knowledge.KesSum] =
     for {
       vkK         <- ed25519VkGen
       ecSignature <- genSizedStrictBytes[Proofs.Knowledge.Ed25519.Length]().map(Proofs.Knowledge.Ed25519(_))
       witness     <- witnessGen
     } yield Proofs.Knowledge.KesSum(vkK, ecSignature, witness)
 
+  def kesVKGen: Gen[VerificationKeys.KesProduct] =
+    for {
+      bytes <- genSizedStrictBytes[Lengths.`32`.type]()
+      idx   <- Gen.posNum[Int]
+    } yield VerificationKeys.KesProduct(bytes, idx)
+
+  def kesBinaryTreeGen: Gen[KesBinaryTree] =
+    Gen.chooseNum[Int](0, 2).flatMap {
+      case 0 =>
+        for {
+          seed         <- Gen.containerOfN[Array, Byte](32, byteGen)
+          witnessLeft  <- Gen.containerOfN[Array, Byte](32, byteGen)
+          witnessRight <- Gen.containerOfN[Array, Byte](32, byteGen)
+          left         <- kesBinaryTreeGen
+          right        <- kesBinaryTreeGen
+        } yield KesBinaryTree.MerkleNode(seed, witnessLeft, witnessRight, left, right)
+      case 1 =>
+        for {
+          sk <- Gen.containerOfN[Array, Byte](32, byteGen)
+          vk <- Gen.containerOfN[Array, Byte](32, byteGen)
+        } yield KesBinaryTree.SigningLeaf(sk, vk)
+      case 2 => Gen.const(KesBinaryTree.Empty)
+    }
+
+  def kesProductSKGen: Gen[SecretKeys.KesProduct] =
+    for {
+      superTree   <- kesBinaryTreeGen
+      subTree     <- kesBinaryTreeGen
+      nextSubSeed <- Gen.containerOfN[Array, Byte](32, byteGen)
+      signature   <- kesSumProofGen
+      offset      <- Gen.long
+    } yield SecretKeys.KesProduct(superTree, subTree, nextSubSeed, signature, offset)
+
+  def kesProductProofGen: Gen[Proofs.Knowledge.KesProduct] =
+    for {
+      superSignature <- kesSumProofGen
+      subSignature   <- kesSumProofGen
+      subRoot        <- genSizedStrictBytes[Lengths.`32`.type]()
+    } yield Proofs.Knowledge.KesProduct(superSignature, subSignature, subRoot)
+
   def operationalCertificateGen: Gen[OperationalCertificate] =
     for {
-      opSig <- genSizedStrictBytes[Lengths.`64`.type]().map(Proofs.Knowledge.Ed25519(_))
-    } yield OperationalCertificate(opSig)
+      parentVK        <- kesVKGen
+      parentSignature <- kesProductProofGen
+      childVK         <- ed25519VkGen
+      childSignature  <- genSizedStrictBytes[Lengths.`64`.type]().map(Proofs.Knowledge.Ed25519(_))
+    } yield OperationalCertificate(parentVK, parentSignature, childVK, childSignature)
 
   def taktikosAddressGen: Gen[TaktikosAddress] =
     for {
-      paymentVerificationKeyHash <- genSizedStrictBytes[Lengths.`32`.type]()
-      stakingVerificationKey     <- genSizedStrictBytes[Lengths.`32`.type]()
-      signature                  <- genSizedStrictBytes[Lengths.`64`.type]()
-    } yield TaktikosAddress(paymentVerificationKeyHash, stakingVerificationKey, signature)
+      paymentVKEvidence <- genSizedStrictBytes[Lengths.`32`.type]()
+      poolVK            <- genSizedStrictBytes[Lengths.`32`.type]().map(VerificationKeys.Ed25519(_))
+      signature         <- genSizedStrictBytes[Lengths.`64`.type]().map(Proofs.Knowledge.Ed25519(_))
+    } yield TaktikosAddress(paymentVKEvidence, poolVK, signature)
 
   def headerGen(
     parentHeaderIdGen: Gen[TypedIdentifier] =
@@ -103,6 +145,8 @@ trait ModelGenerators {
       address
     )
 
+  def byteGen: Gen[Byte] = Gen.choose[Byte](Byte.MinValue, Byte.MaxValue)
+
   def genSizedMaxBytes[L <: Length](
     byteGen:    Gen[Byte] = Gen.choose[Byte](0, 32)
   )(implicit l: L): Gen[Sized.Max[Bytes, L]] =
@@ -144,6 +188,9 @@ trait ModelGenerators {
     Arbitrary(
       genSizedStrictBytes[SecretKeys.Ed25519.Length]().map(SecretKeys.Ed25519(_))
     )
+
+  implicit val arbitraryKesProductSK: Arbitrary[SecretKeys.KesProduct] =
+    Arbitrary(kesProductSKGen)
 
   implicit val arbitraryExtendedEdSK: Arbitrary[SecretKeys.ExtendedEd25519] =
     Arbitrary(
@@ -187,6 +234,12 @@ trait ModelGenerators {
 
   implicit val arbitraryHeader: Arbitrary[BlockHeaderV2] =
     Arbitrary(headerGen())
+
+  implicit val arbitraryEta: Arbitrary[Eta] =
+    Arbitrary(etaGen)
+
+  implicit val arbitraryTaktikosAddress: Arbitrary[TaktikosAddress] =
+    Arbitrary(taktikosAddressGen)
 
   implicit class GenHelper[T](gen: Gen[T]) {
     def first: T = gen.pureApply(Gen.Parameters.default, Seed.random())
