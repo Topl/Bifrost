@@ -6,7 +6,7 @@ addDependencyTreePlugin
 Seq(
   "com.eed3si9n"       % "sbt-assembly"              % "1.1.0",
   "org.scalastyle"    %% "scalastyle-sbt-plugin"     % "1.0.0",
-  "org.scoverage"      % "sbt-scoverage"             % "1.8.2",
+  "org.scoverage"      % "sbt-scoverage"             % "1.9.3",
   "com.github.sbt"     % "sbt-release"               % "1.1.0",
   "io.kamon"           % "sbt-kanela-runner"         % "2.0.10",
   "com.github.cb372"   % "sbt-explicit-dependencies" % "0.2.16",
