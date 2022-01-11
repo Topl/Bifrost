@@ -61,6 +61,7 @@ class ToplRpcServer(handlers: ToplRpcHandlers, appContext: AppContext)(implicit
         .append(ToplRpc.Transaction.RawArbitTransfer.rpc)(handlers.transaction.rawArbitTransfer)
         .append(ToplRpc.Transaction.RawPolyTransfer.rpc)(handlers.transaction.rawPolyTransfer)
         .append(ToplRpc.Transaction.BroadcastTx.rpc)(handlers.transaction.broadcastTx)
+        .append(ToplRpc.Transaction.EncodeTransfer.rpc)(handlers.transaction.encodeTransfer)
     } else RpcServer.Builder.empty
 
   val adminRoutes: RpcServer.Builder =
