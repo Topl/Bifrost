@@ -3,6 +3,7 @@ package co.topl.consensus
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
+import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
@@ -111,9 +112,15 @@ class ChainSelectionSpec
     orderT.compare(xSegment.last, ySegment.last).unsafeRunSync() should be > 0
   }
 
-  it should "use lowest-rho rule for equal length tines with equal best slot shorter than the kLookback parameter" in {
+  it should "use lowest-rho-test-hash rule for equal length tines with equal best slot shorter than the kLookback parameter" in {
     val grandAncestor = createSlotData(9, SlotId(8, TypedBytes(1: Byte, Bytes(Array[Byte](9)))), height = 4)
     val ancestor = createSlotData(10, grandAncestor.slotId, grandAncestor.height + 1)
+
+    val List(rhoX, rhoY) =
+      List
+        .tabulate(2)(i => Rho(Sized.strictUnsafe[Bytes, Lengths.`64`.type](Bytes(Array.fill[Byte](64)(i.toByte)))))
+        .sortBy(r => BigInt(Ed25519VRF.rhoToRhoTestHash(r).sizedBytes.data.toArray))
+
     val xSegment = {
       val base = LazyList
         .unfold(ancestor)(previous =>
@@ -127,7 +134,7 @@ class ChainSelectionSpec
         base.last.slotId.slot + 1,
         base.last.slotId,
         base.last.height + 1,
-        rho = Rho(Sized.strictUnsafe[Bytes, Lengths.`64`.type](Bytes(Array.fill[Byte](64)(1))))
+        rho = rhoX
       )
     }
     val ySegment = {
@@ -143,13 +150,12 @@ class ChainSelectionSpec
         base.last.slotId.slot + 1,
         base.last.slotId,
         base.last.height + 1,
-        rho = Rho(Sized.strictUnsafe[Bytes, Lengths.`64`.type](Bytes(Array.fill[Byte](64)(5))))
+        rho = rhoY
       )
     }
 
     xSegment.length shouldBe ySegment.length
     xSegment.last.slotId.slot shouldBe ySegment.last.slotId.slot
-    BigInt(xSegment.last.rho.sizedBytes.data.toArray) should be < BigInt(ySegment.last.rho.sizedBytes.data.toArray)
 
     val allBlocks = (List(grandAncestor, ancestor) ++ xSegment ++ ySegment).map(d => d.slotId.blockId -> d).toMap
 
