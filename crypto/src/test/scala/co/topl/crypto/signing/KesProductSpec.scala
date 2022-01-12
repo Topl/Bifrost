@@ -1,9 +1,9 @@
 package co.topl.crypto.signing
 
-import co.topl.crypto.utils.Hex.implicits._
 import co.topl.crypto.utils.Generators.{genBytesWithBoundedSize, genRandomlySizedBytes}
+import co.topl.crypto.utils.Hex.implicits._
+import co.topl.crypto.utils.KesTestHelper
 import co.topl.models.utility.KesBinaryTree
-import co.topl.models.utility.KesBinaryTree.MerkleNode
 import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
 import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
@@ -59,8 +59,8 @@ class KesProductSpec
       specIn_time
     )
 
-    val specOut_sk = SecretKeys.KesProduct(
-      KesBinaryTree.PrivateKeyConstructor.build(
+    val specOut_sk: SecretKeys.KesProduct = SecretKeys.KesProduct(
+      KesTestHelper.PrivateKeyConstructor.build(
         "0000000000000000000000000000000000000000000000000000000000000000".hexStringToBytes,
         "9077780e7a816f81b2be94b9cbed9248db8ce03545819387496047c6ad251f09".hexStringToBytes,
         (
@@ -72,7 +72,7 @@ class KesProductSpec
           )
         )
       ),
-      KesBinaryTree.PrivateKeyConstructor.build(
+      KesTestHelper.PrivateKeyConstructor.build(
         "57185fdef1032136515d53e1b104acbace7d9b590465c9b11a72c8943f02c7a4".hexStringToBytes,
         "d7cab746d246b5fc21b40b8778e377456a62d03636e10a0228856d61453c7595".hexStringToBytes,
         (
@@ -107,7 +107,7 @@ class KesProductSpec
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
     val sk_t = kesProduct.update(sk, 6)
     vk shouldBe specOut_vk
-    sk_t shouldBe specOut_sk
+    KesTestHelper.areEqual(sk_t, specOut_sk) shouldBe true
   }
 
   it should "test private key 2 - generate the correct private key at a given time step" in {
@@ -121,7 +121,7 @@ class KesProductSpec
     )
 
     val specOut_sk = SecretKeys.KesProduct(
-      KesBinaryTree.PrivateKeyConstructor.build(
+      KesTestHelper.PrivateKeyConstructor.build(
         "0000000000000000000000000000000000000000000000000000000000000000".hexStringToBytes,
         "19f5224ed6c6ac6fd7f6a532491befb22b29164a3af74c33bd78dcefe0f5e68b".hexStringToBytes,
         (
@@ -157,7 +157,7 @@ class KesProductSpec
           )
         )
       ),
-      KesBinaryTree.PrivateKeyConstructor.build(
+      KesTestHelper.PrivateKeyConstructor.build(
         "cee76653078945c1387f325784f63871b7e1a384927548d2fb9a76ba50ffc01b".hexStringToBytes,
         "cd77c681303d3c3e83094c0dc825bce88395ec4a6eab4a9ce84d7cb0944c3061".hexStringToBytes,
         (
@@ -211,7 +211,7 @@ class KesProductSpec
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
     val sk_t = kesProduct.update(sk, 85)
     vk shouldBe specOut_vk
-    sk_t shouldBe specOut_sk
+    KesTestHelper.areEqual(sk_t, specOut_sk) shouldBe true
   }
 
   it should "Test Vector - 1 - Generate and verify a specified product composition signature at t = [0, 1, 2, 3] using a provided seed, message, and heights of the two trees" in {
