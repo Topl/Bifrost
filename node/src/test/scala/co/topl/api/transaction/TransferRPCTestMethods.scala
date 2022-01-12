@@ -199,7 +199,7 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
       |   [["$recipient",
       |    {
       |      "quantity" : "$amount",
-      |      "assetCode" : "${assetCode.toString}",
+      |      "assetCode" : "$assetCode",
       |      "metadata" : "ApdGzs6uwKAhuKJQswBWoVAFjNA5B8enBKfxVbzlcQ8EnpxicpRcE9B9Bgn2LGv02kYUSA1h1181ZYeECvr",
       |      "type" : "Asset",
       |      "securityRoot" : "$securityRoot"
