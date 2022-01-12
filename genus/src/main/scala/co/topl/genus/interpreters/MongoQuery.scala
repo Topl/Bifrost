@@ -4,7 +4,7 @@ import akka.NotUsed
 import akka.stream.alpakka.mongodb.scaladsl.MongoSource
 import akka.stream.scaladsl.Source
 import cats.implicits._
-import cats.{Applicative, MonadError}
+import cats.{Applicative, MonadError, MonadThrow}
 import co.topl.genus.algebras.QueryAlg
 import co.topl.utils.mongodb.DocumentDecoder
 import org.mongodb.scala.bson.conversions.Bson
@@ -16,13 +16,13 @@ object MongoQuery {
 
   object Eval {
 
-    def make[F[_], T: DocumentDecoder](
-      collection:           MongoCollection[Document]
-    )(implicit monadErrorF: MonadError[F, Throwable]): MongoQueryAlg[F, T] =
+    def make[F[_]: MonadThrow, T: DocumentDecoder](
+      collection: MongoCollection[Document]
+    ): MongoQueryAlg[F, T] =
       (filter: Bson) =>
         for {
           // handle potential error with connection to Mongo
-          documentsSource <- monadErrorF.catchNonFatal(MongoSource(collection.find(filter)))
+          documentsSource <- MonadThrow[F].catchNonFatal(MongoSource(collection.find(filter)))
           querySource = documentsSource.flatMapConcat(document =>
             DocumentDecoder[T]
               .fromDocument(document)
