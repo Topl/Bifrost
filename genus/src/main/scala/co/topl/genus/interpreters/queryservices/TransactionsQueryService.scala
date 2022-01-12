@@ -20,6 +20,18 @@ object TransactionsQueryService {
 
   object Eval {
 
+    /**
+     * Creates an instance of the TransactionQuery algebra-adjacent interface.
+     * When given a query request, the handler will query the underlying data-store, collect values
+     * returned from the data-store until the configured query timeout, and wrap the resulting values
+     * into a response type.
+     *
+     * @param databaseClient the database client for retrieving transactions from some data store
+     * @param queryTimeout the amount of time to wait before a query times out
+     * @param materializer a materializer for Akka streams
+     * @tparam F a functor with instances of `Async`, `MonadThrow`, and `ToFuture`
+     * @return an instance of TransactionQuery
+     */
     def make[F[_]: Async: MonadThrow: ToFuture](
       databaseClient: DatabaseClientAlg[F, Source[*, NotUsed]],
       queryTimeout:   FiniteDuration
@@ -28,10 +40,12 @@ object TransactionsQueryService {
     ): TransactionsQuery =
       (in: QueryTxsReq) =>
         (for {
-          // query transactions as a value of Source
+          // query transactions as a value of `Source[Transaction]`
           transactionsSourceResult <-
             databaseClient
               .queryTransactions(
+                // use provided filter or default to a filter which gets all values
+                // TODO: return an error if no filter provided -> too many values to query
                 in.filter.getOrElse(
                   TransactionFilter.of(TransactionFilter.FilterType.All(TransactionFilter.AllFilter()))
                 )
@@ -44,19 +58,21 @@ object TransactionsQueryService {
             transactionsSourceResult
               .map(source =>
                 source
+                  // collect the source into a `Seq[Transaction]` with a possible timeout
                   .collectWithTimeout(queryTimeout)
-                  .map(QueryTxsRes.Success.of)
-                  .map(_.asRight[QueryTxsRes.Failure.Reason])
+                  // map successful collection into a Success response
+                  .map(txs => QueryTxsRes.Success.of(txs).asRight[QueryTxsRes.Failure.Reason])
+                  // an error here would be due to a query timeout with the collection
                   .handleError(err => QueryTxsRes.Failure.Reason.QueryTimeout(err.getMessage).asLeft)
               )
               // if we failed to create a source, return a failure
               .valueOr(err => err.asLeft.pure[F])
-          result =
+          queryResponse =
             // create the query response message to send to the client
             queryResult
               .map(success => QueryTxsRes(QueryTxsRes.Result.Success(success)))
               .valueOr(failure => QueryTxsRes(QueryTxsRes.Result.Failure(QueryTxsRes.Failure(failure))))
-        } yield result)
+        } yield queryResponse)
           // map the Async F functor to a `Future` which is required for Akka gRPC
           .mapFunctor[Future]
   }

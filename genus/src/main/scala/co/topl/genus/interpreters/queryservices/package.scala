@@ -15,7 +15,7 @@ package object queryservices {
 
   trait Implicits {
 
-    implicit class SourceExtensions[T](val source: Source[T, NotUsed]) {
+    implicit final class SourceExtensions[T](val source: Source[T, NotUsed]) {
 
       /**
        * Collects the given Source into a `Seq[T]` with a given allowed timeout.

@@ -20,6 +20,21 @@ object BlocksQueryService {
 
   object Eval {
 
+    /**
+     * Creates an instance of the BlocksQuery algebra-adjacent interface.
+     * When given a query request, the handler will query the underlying data-store, collect values
+     * returned from the data-store until the configured query timeout, and wrap the resulting values
+     * into a response type.
+     *
+     * TODO: this interpreter is a replica of the `TransactionsQueryService` interpreter,
+     *        and the general structure can probably be extracted for both
+     *
+     * @param databaseClient the database client for retrieving blocks from some data store
+     * @param queryTimeout the amount of time to wait before a query times out
+     * @param materializer a materializer for Akka streams
+     * @tparam F a functor with instances of `Async`, `MonadThrow`, and `ToFuture`
+     * @return an instance of BlocksQuery
+     */
     def make[F[_]: Async: MonadThrow: ToFuture](
       databaseClient: DatabaseClientAlg[F, Source[*, NotUsed]],
       queryTimeout:   FiniteDuration
@@ -28,10 +43,12 @@ object BlocksQueryService {
     ): BlocksQuery =
       (in: QueryBlocksReq) =>
         (for {
-          // query transactions as a value of Source
+          // query blocks as a value of `Source[Block]`
           blocksSourceResult <-
             databaseClient
               .queryBlocks(
+                // use provided filter or default to a filter which gets all values
+                // TODO: return an error if no filter provided -> too many values to query
                 in.filter.getOrElse(
                   BlockFilter.of(BlockFilter.FilterType.All(BlockFilter.AllFilter()))
                 )
@@ -44,9 +61,11 @@ object BlocksQueryService {
             blocksSourceResult
               .map(source =>
                 source
+                  // collect the Source into a `Seq[Block]` with a possible timeout
                   .collectWithTimeout(queryTimeout)
-                  .map(QueryBlocksRes.Success.of)
-                  .map(_.asRight[QueryBlocksRes.Failure.Reason])
+                  // map successful collection into a Success response
+                  .map(blocks => QueryBlocksRes.Success.of(blocks).asRight[QueryBlocksRes.Failure.Reason])
+                  // an error here would be due to a query timeout with the collection
                   .handleError(err => QueryBlocksRes.Failure.Reason.QueryTimeout(err.getMessage).asLeft)
               )
               // if we failed to create a source, return a failure
