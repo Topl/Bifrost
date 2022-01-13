@@ -156,11 +156,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       view().mempool.remove(txs.head)
     }
 
-    "Return correct error response when an incorrect modifier id type is used" in {
-      val invalidCharId: String = block.id.toString
-      val modifierQueryMethods = Seq("topl_transactionById", "topl_transactionFromMempool")
-      val idTypes = Seq("transactionId", "transactionId")
-      def requestBody(idType: String, rpcMethod: String, id: String): ByteString = ByteString(s"""
+    def modifierRequestBody(idType: String, rpcMethod: String, id: String): ByteString = ByteString(s"""
         |{
         |   "jsonrpc": "2.0",
         |   "id": "1",
@@ -172,64 +168,72 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |
         """.stripMargin)
 
-      idTypes.zip(modifierQueryMethods).map { case (idType, rpcMethod) =>
-        httpPOST(requestBody(idType, rpcMethod, invalidCharId)) ~> route ~> check {
-          val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
-          res should include("The requested id's type is not an id type for Transaction")
-        }
+    "Return correct error response when a block id is provided for transactionById" in {
+      httpPOST(modifierRequestBody("transactionId", "topl_transactionById", block.id.toString)) ~> route ~> check {
+        val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
+        res should include("The requested id's type is not an id type for Transaction")
       }
+    }
 
-      httpPOST(requestBody("blockId", "topl_blockById", txId)) ~> route ~> check {
+    "Return correct error response when a block id is provided for topl_transactionFromMempool" in {
+      httpPOST(modifierRequestBody("transactionId", "topl_transactionById", block.id.toString)) ~> route ~> check {
+        val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
+        res should include("The requested id's type is not an id type for Transaction")
+      }
+    }
+
+    "Return correct error response when a transaction id is provided for topl_blockById" in {
+      httpPOST(modifierRequestBody("blockId", "topl_blockById", txId)) ~> route ~> check {
         val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
         res should include("The requested id's type is not an id type for Block")
       }
     }
 
-    "Return correct error response when an id with non-base58 character is used for querying transactions" in {
+    "Return correct error response when an id with non-base58 character is used for topl_transactionById" in {
       val invalidCharId: String = "=" ++ txId.tail
-      val modifierQueryMethods = Seq("topl_transactionById", "topl_transactionFromMempool", "topl_blockById")
-      val idTypes = Seq("transactionId", "transactionId", "blockId")
-      def requestBody(idType: String, rpcMethod: String, id: String): ByteString = ByteString(s"""
-        |{
-        |   "jsonrpc": "2.0",
-        |   "id": "1",
-        |   "method": "$rpcMethod",
-        |   "params": [{
-        |      "$idType": "$id"
-        |   }]
-        |}
-        |
-        """.stripMargin)
-
-      idTypes.zip(modifierQueryMethods).map { case (idType, rpcMethod) =>
-        httpPOST(requestBody(idType, rpcMethod, invalidCharId)) ~> route ~> check {
-          val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
-          res should include("Value is not Base 58")
-        }
+      httpPOST(modifierRequestBody("transactionId", "topl_transactionById", invalidCharId)) ~> route ~> check {
+        val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
+        res should include("Value is not Base 58")
       }
     }
 
-    "Return correct error response when an id with incorrect size is used for querying transactions" in {
-      val invalidLengthId: String = txId.tail
-      val modifierQueryMethods = Seq("topl_transactionById", "topl_transactionFromMempool", "topl_blockById")
-      val idTypes = Seq("transactionId", "transactionId", "blockId")
-      def requestBody(idType: String, rpcMethod: String, id: String): ByteString = ByteString(s"""
-        |{
-        |   "jsonrpc": "2.0",
-        |   "id": "1",
-        |   "method": "$rpcMethod",
-        |   "params": [{
-        |      "$idType": "$id"
-        |   }]
-        |}
-        |
-        """.stripMargin)
+    "Return correct error response when an id with non-base58 character is used for topl_transactionFromMempool" in {
+      val invalidCharId: String = "=" ++ txId.tail
+      httpPOST(modifierRequestBody("transactionId", "topl_transactionFromMempool", invalidCharId)) ~> route ~> check {
+        val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
+        res should include("Value is not Base 58")
+      }
+    }
 
-      idTypes.zip(modifierQueryMethods).map { case (idType, rpcMethod) =>
-        httpPOST(requestBody(idType, rpcMethod, invalidLengthId)) ~> route ~> check {
-          val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
-          res should include("Invalid size for ModifierId")
-        }
+    "Return correct error response when an id with non-base58 character is used for topl_blockById" in {
+      val invalidCharId: String = "=" ++ txId.tail
+      httpPOST(modifierRequestBody("blockId", "topl_blockById", invalidCharId)) ~> route ~> check {
+        val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
+        res should include("Value is not Base 58")
+      }
+    }
+
+    "Return correct error response when an id with incorrect size is used for topl_transactionById" in {
+      val invalidLengthId: String = txId.tail
+      httpPOST(modifierRequestBody("transactionId", "topl_transactionById", invalidLengthId)) ~> route ~> check {
+        val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
+        res should include("Invalid size for ModifierId")
+      }
+    }
+
+    "Return correct error response when an id with incorrect size is used for topl_transactionFromMempool" in {
+      val invalidLengthId: String = txId.tail
+      httpPOST(modifierRequestBody("transactionId", "topl_transactionFromMempool", invalidLengthId)) ~> route ~> check {
+        val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
+        res should include("Invalid size for ModifierId")
+      }
+    }
+
+    "Return correct error response when an id with incorrect size is used for topl_blockById" in {
+      val invalidLengthId: String = txId.tail
+      httpPOST(modifierRequestBody("blockId", "topl_blockById", invalidLengthId)) ~> route ~> check {
+        val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
+        res should include("Invalid size for ModifierId")
       }
     }
 
