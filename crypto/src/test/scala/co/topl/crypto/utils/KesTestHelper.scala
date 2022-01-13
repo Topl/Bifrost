@@ -40,21 +40,21 @@ object KesTestHelper {
   def areEqual(a: SecretKeys.KesProduct, b: Any): Boolean =
     (a, b) match {
       case (
-        SecretKeys.KesProduct(
-        superTree_a,
-        subTree_a,
-        nextSubSeed_a,
-        subSignature_a,
-        offset_a
-        ),
-        SecretKeys.KesProduct(
-        superTree_b,
-        subTree_b,
-        nextSubSeed_b,
-        subSignature_b,
-        offset_b
-        )
-        ) =>
+            SecretKeys.KesProduct(
+              superTree_a,
+              subTree_a,
+              nextSubSeed_a,
+              subSignature_a,
+              offset_a
+            ),
+            SecretKeys.KesProduct(
+              superTree_b,
+              subTree_b,
+              nextSubSeed_b,
+              subSignature_b,
+              offset_b
+            )
+          ) =>
         areEqual(superTree_a, superTree_b) &&
           areEqual(subTree_a, subTree_b) &&
           Bytes(nextSubSeed_a) == Bytes(nextSubSeed_b) &&
@@ -63,24 +63,24 @@ object KesTestHelper {
       case _ => false
     }
 
-  def areEqual(a: KesBinaryTree, b: Any): Boolean = {
+  def areEqual(a: KesBinaryTree, b: Any): Boolean =
     (a, b) match {
       case (
-        KesBinaryTree.MerkleNode(
-        seed_a: Array[Byte],
-        witnessLeft_a: Array[Byte],
-        witnessRight_a: Array[Byte],
-        left_a: KesBinaryTree,
-        right_a: KesBinaryTree
-        ),
-        KesBinaryTree.MerkleNode(
-        seed_b: Array[Byte],
-        witnessLeft_b: Array[Byte],
-        witnessRight_b: Array[Byte],
-        left_b: KesBinaryTree,
-        right_b: KesBinaryTree
-        )
-        ) =>
+            KesBinaryTree.MerkleNode(
+              seed_a: Array[Byte],
+              witnessLeft_a: Array[Byte],
+              witnessRight_a: Array[Byte],
+              left_a: KesBinaryTree,
+              right_a: KesBinaryTree
+            ),
+            KesBinaryTree.MerkleNode(
+              seed_b: Array[Byte],
+              witnessLeft_b: Array[Byte],
+              witnessRight_b: Array[Byte],
+              left_b: KesBinaryTree,
+              right_b: KesBinaryTree
+            )
+          ) =>
         Bytes(seed_a) == Bytes(seed_b) &&
           Bytes(witnessLeft_a) == Bytes(witnessLeft_b) &&
           Bytes(witnessRight_a) == Bytes(witnessRight_b) &&
@@ -94,7 +94,5 @@ object KesTestHelper {
       case _ =>
         false
     }
-  }
-
 
 }
