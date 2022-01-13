@@ -1,8 +1,9 @@
 package co.topl.crypto.signing
 
-import co.topl.crypto.utils.Hex.implicits._
 import co.topl.crypto.utils.Generators.{genBytesWithBoundedSize, genRandomlySizedBytes}
-import co.topl.models.{Bytes, Proofs, VerificationKeys}
+import co.topl.crypto.utils.Hex.implicits._
+import co.topl.crypto.utils.KesTestHelper
+import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
 import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -35,6 +36,7 @@ class KesProductSpec
       }
     }
   }
+
   it should "generate identical keypairs given the same seed" in {
     forAll(genBytesWithBoundedSize(1, 1024), Gen.choose(1, 12), Gen.choose(1, 12)) {
       (seedBytes: Bytes, supHeight: Int, subHeight: Int) =>
@@ -45,6 +47,172 @@ class KesProductSpec
         vk1 shouldBe vk2
     }
   }
+
+  it should "test private key 1 - generate the correct private key at a given time step" in {
+    val kesProduct = new KesProduct()
+    val specIn_seed = "38c2775bc7e6866e69c6acd5e12ee366fd57f7df1b30e200cae610ec4ecf378c".hexStringToBytes
+    val specIn_height = (1, 2)
+    val specIn_time = 0
+    val specOut_vk = VerificationKeys.KesProduct(
+      "56d4f5dc6bfe518c9b6898222c1bfc97e93f760ec48df07704369bc306884bdd".unsafeStrictBytes,
+      specIn_time
+    )
+
+    val specOut_sk: SecretKeys.KesProduct = SecretKeys.KesProduct(
+      KesTestHelper.PrivateKeyConstructor.build(
+        "0000000000000000000000000000000000000000000000000000000000000000".hexStringToBytes,
+        "9077780e7a816f81b2be94b9cbed9248db8ce03545819387496047c6ad251f09".hexStringToBytes,
+        (
+          true,
+          (
+            "0000000000000000000000000000000000000000000000000000000000000000".hexStringToBytes,
+            "9ec328f26f8a298c8dfd365d513301b316c09f423f111c4ab3cc84277bb1bafc".hexStringToBytes,
+            "377b3bd79d099313a59dbac4fcb74cd9b45bfe6e32030e90c8f4a1dfae3bc986".hexStringToBytes
+          )
+        )
+      ),
+      KesTestHelper.PrivateKeyConstructor.build(
+        "57185fdef1032136515d53e1b104acbace7d9b590465c9b11a72c8943f02c7a4".hexStringToBytes,
+        "d7cab746d246b5fc21b40b8778e377456a62d03636e10a0228856d61453c7595".hexStringToBytes,
+        (
+          true,
+          (
+            "0000000000000000000000000000000000000000000000000000000000000000".hexStringToBytes,
+            "330daba116c2337d0b5414cc46a73506d709416c61554722b78b0b66e765443b".hexStringToBytes,
+            "652c7e4997aa62a06addd75ad8a5c9d54dc9479bbb1f1045c5e5246c83318b92".hexStringToBytes
+          )
+        ),
+        (
+          false,
+          (
+            "c32eb1c5e9bcd3d96243e6371f52781a4f6ac6dac6976f26544c99d31f5dbecb".hexStringToBytes,
+            "3726a93ad80a90eb8ef9abb49cfd954b7658fd5eb14d65e1b9b57d77253321dc".hexStringToBytes,
+            "9d1f9f9d03b6ed90710c7eaf2d9156a3b34a290d7baf79e775b417336a4415d1".hexStringToBytes
+          )
+        )
+      ),
+      "d82ab9526323833262ac56f65860f38faa433ff6129c24f033e6ea786fd6db6b".hexStringToBytes.toArray,
+      Proofs.Knowledge.KesSum(
+        VerificationKeys.Ed25519("9077780e7a816f81b2be94b9cbed9248db8ce03545819387496047c6ad251f09".unsafeStrictBytes),
+        Proofs.Knowledge.Ed25519(
+          "cb7af65595938758f60009dbc7312c87baef3f8f88a6babc01e392538ec331ef20766992bc91b52bedd4a2f021bbd9e10f6cd8548dd9048e56b9579cf975fe06".unsafeStrictBytes
+        ),
+        Vector(
+          "9ec328f26f8a298c8dfd365d513301b316c09f423f111c4ab3cc84277bb1bafc".unsafeStrictBytes
+        )
+      ),
+      0L
+    )
+    val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
+    val sk_t = kesProduct.update(sk, 6)
+    vk shouldBe specOut_vk
+    KesTestHelper.areEqual(sk_t, specOut_sk) shouldBe true
+  }
+
+  it should "test private key 2 - generate the correct private key at a given time step" in {
+    val kesProduct = new KesProduct()
+    val specIn_seed = "768f9760f74bab4f56fa46b7030525f227368d553c1b6de57026b675bdd6295a".hexStringToBytes
+    val specIn_height = (4, 4)
+    val specIn_time = 0
+    val specOut_vk = VerificationKeys.KesProduct(
+      "3cef287de1467276a6527f3af9f2e199aaf0efa1d0f801cc69cd7e340580fd89".unsafeStrictBytes,
+      specIn_time
+    )
+
+    val specOut_sk = SecretKeys.KesProduct(
+      KesTestHelper.PrivateKeyConstructor.build(
+        "0000000000000000000000000000000000000000000000000000000000000000".hexStringToBytes,
+        "19f5224ed6c6ac6fd7f6a532491befb22b29164a3af74c33bd78dcefe0f5e68b".hexStringToBytes,
+        (
+          false,
+          (
+            "e781753461ecb4afecb94997a8473a45f6261fd78fef170d6557a3a69140ca55".hexStringToBytes,
+            "d51207e5a59e22e6a55584766942a433426dd1582a2aeaaa749b63cfba8fc436".hexStringToBytes,
+            "3eb00d5169d07be9cfe6684a7798ecc3af0fb196dd0d108dfa2bbf051a37e061".hexStringToBytes
+          )
+        ),
+        (
+          true,
+          (
+            "0000000000000000000000000000000000000000000000000000000000000000".hexStringToBytes,
+            "f1a7b96bf5fc14b1414d0d2d421352533bf7d84a07fb58d5e0859624343b4709".hexStringToBytes,
+            "e0227b25fdc6cc314e2bd448a16aaef620e298636cd2ea1689e07ef52a9410d8".hexStringToBytes
+          )
+        ),
+        (
+          false,
+          (
+            "54d10a2bd0cf11dded3f509941212870e6d4f940902e9cca748bc54b2055c7b1".hexStringToBytes,
+            "e5cc48d270133fde59bc64d39504bd5ad57c5261f5ea34e871990e9a2e2f7475".hexStringToBytes,
+            "d67d7e5745c1bea953b1d21131d792295db7f6eef4684e5ecc3c6f75f1a2b5a4".hexStringToBytes
+          )
+        ),
+        (
+          true,
+          (
+            "0000000000000000000000000000000000000000000000000000000000000000".hexStringToBytes,
+            "5c4d66136f7b09228f6cfbf1bc8c30cd4b247d4456df869d591ddff1130f40eb".hexStringToBytes,
+            "6256516657d4f97667e1ebdf899756a39d6578f48249fdece6ead08e93df0043".hexStringToBytes
+          )
+        )
+      ),
+      KesTestHelper.PrivateKeyConstructor.build(
+        "cee76653078945c1387f325784f63871b7e1a384927548d2fb9a76ba50ffc01b".hexStringToBytes,
+        "cd77c681303d3c3e83094c0dc825bce88395ec4a6eab4a9ce84d7cb0944c3061".hexStringToBytes,
+        (
+          false,
+          (
+            "f85d7cd4630684d6f1cf1de625df020b34ae97f0c8239559efca2310d634178d".hexStringToBytes,
+            "2f67dbbcc219e32233804216fc330bb694c5215db4dc62adc89adf99057e55a5".hexStringToBytes,
+            "4d4e98f9c98c53cb6b37af3a3b5dd51d127523fd1673efe43e3e92b68da4dee0".hexStringToBytes
+          )
+        ),
+        (
+          true,
+          (
+            "0000000000000000000000000000000000000000000000000000000000000000".hexStringToBytes,
+            "6d0f9e5306bc153a4a63485af566cd420625f38f4c2f909e9256390ca18769f2".hexStringToBytes,
+            "9e788eeb57c2542e8efee7c9487c44b6fcba8a591176a6857f9196135bb6ddee".hexStringToBytes
+          )
+        ),
+        (
+          false,
+          (
+            "7ace7c3d8e3e7ef99e4833fac6074cbc23792be189304a5190540dc107a03b91".hexStringToBytes,
+            "1e3014b273fcbae4f48cb9e904e5af44b543b9ff23d173c7964dce5a31df8e86".hexStringToBytes,
+            "4b651acd0fab5573a2fed3be1d11cb46d680d63ca687756c557c0bc5824b2723".hexStringToBytes
+          )
+        ),
+        (
+          true,
+          (
+            "0000000000000000000000000000000000000000000000000000000000000000".hexStringToBytes,
+            "45e713f37f42f8dbe0b853e212d8fd3104a4ffc128aaabae49e2abfaeae68d09".hexStringToBytes,
+            "ebeb2d1b5279763f43df3def888f24c86455ee21ba914cec5fb51a4d12e5e7a1".hexStringToBytes
+          )
+        )
+      ),
+      "8bba45a219cd212097ef60d275f2df3148ef848a91bdef24bb90d496be4e3a90".hexStringToBytes.toArray,
+      Proofs.Knowledge.KesSum(
+        VerificationKeys.Ed25519("19f5224ed6c6ac6fd7f6a532491befb22b29164a3af74c33bd78dcefe0f5e68b".unsafeStrictBytes),
+        Proofs.Knowledge.Ed25519(
+          "55788caf92e501bc5dc3bacc08aa898c0d3b88c84c835193e29d4dd33e1dddfde5b042bcbc8d76b8fabc524c034cdc1a158afaded22e6abccf886c5d8148d806".unsafeStrictBytes
+        ),
+        Vector(
+          "5c4d66136f7b09228f6cfbf1bc8c30cd4b247d4456df869d591ddff1130f40eb".unsafeStrictBytes,
+          "d67d7e5745c1bea953b1d21131d792295db7f6eef4684e5ecc3c6f75f1a2b5a4".unsafeStrictBytes,
+          "f1a7b96bf5fc14b1414d0d2d421352533bf7d84a07fb58d5e0859624343b4709".unsafeStrictBytes,
+          "3eb00d5169d07be9cfe6684a7798ecc3af0fb196dd0d108dfa2bbf051a37e061".unsafeStrictBytes
+        )
+      ),
+      0L
+    )
+    val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
+    val sk_t = kesProduct.update(sk, 85)
+    vk shouldBe specOut_vk
+    KesTestHelper.areEqual(sk_t, specOut_sk) shouldBe true
+  }
+
   it should "Test Vector - 1 - Generate and verify a specified product composition signature at t = [0, 1, 2, 3] using a provided seed, message, and heights of the two trees" in {
     val kesProduct = new KesProduct()
     val specIn_seed = "2a6367c85f416ccef46a4521004228f74f24f7b0770ecced07c0dc035135bf6f".hexStringToBytes
