@@ -102,6 +102,7 @@ class NodeViewRpcHandlerImpls(
     params =>
       for {
         headHeight <- withNodeView(_.history.height)
+        // Since the block at headHeight is included, we will get more than numberOfBlocks blocks without adding 1 here
         startHeight = headHeight - params.numberOfBlocks + 1
         range <- EitherT.fromEither[Future](
           checkHeightRange(headHeight, startHeight, headHeight, rpcSettings.blockRetrievalLimit)
