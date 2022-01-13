@@ -8,23 +8,20 @@ import java.nio.ByteBuffer
 @typeclass trait ByteCodec[T] {
   @op("writeBytesTo") def encode(t: T, writer: Writer): Unit
   def decode(reader:                Reader): T
+
+  @op("bytes") def bytesOf(t: T): Bytes = {
+    val writer = new VLQByteBufferWriter(new ByteArrayBuilder())
+    encode(t, writer)
+    Bytes(writer.toBytes)
+  }
+
 }
 
 object ByteCodec {
 
-  trait Implicits {
-    import ByteCodec.ops._
+  trait Instances {
 
-    implicit class TOps[T: ByteCodec](t: T) {
-
-      def bytes: Bytes = {
-        val writer = new VLQByteBufferWriter(new ByteArrayBuilder())
-        t.writeBytesTo(writer)
-        Bytes(writer.toBytes)
-      }
-    }
-
-    implicit class ArraySeqOps(bytes: Bytes) {
+    implicit class BytesOps(bytes: Bytes) {
 
       def decoded[T: ByteCodec]: T = {
         val reader = new VLQByteBufferReader(ByteBuffer.wrap(bytes.toArray))
@@ -33,9 +30,5 @@ object ByteCodec {
     }
   }
 
-  object Instances {
-    implicit def listCodec[T: ByteCodec]: ByteCodec[List[T]] = ???
-  }
-
-  object implicits extends Implicits
+  object instances extends Instances
 }

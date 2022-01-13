@@ -14,32 +14,22 @@ object LeaderElectionMinting {
   object Eval {
 
     def make[F[_]: Monad](
-      secret:               SecretKeys.VrfEd25519,
+      vk:                   VerificationKeys.VrfEd25519,
       thresholdInterpreter: LeaderElectionValidationAlgebra[F],
       vrfProofAlgebra:      VrfProofAlgebra[F]
     ): LeaderElectionMintingAlgebra[F] = new LeaderElectionMintingAlgebra[F] {
 
-      private def buildHit(slot: Slot, eta: Eta, testProof: Proofs.Signature.VrfEd25519, threshold: Ratio): F[VrfHit] =
-        vrfProofAlgebra
-          .nonceProofForSlot(slot, eta)
-          .map(nonceProof =>
-            VrfHit(
-              EligibilityCertificate(
-                nonceProof,
-                testProof,
-                secret.verificationKey[VerificationKeys.VrfEd25519],
-                threshold.evidence,
-                eta
-              ),
-              slot,
-              threshold
-            )
-          )
+      private def buildHit(slot: Slot, eta: Eta, testProof: Proofs.Knowledge.VrfEd25519, threshold: Ratio): F[VrfHit] =
+        VrfHit(
+          EligibilityCertificate(testProof, vk, threshold.typedEvidence.evidence, eta),
+          slot,
+          threshold
+        ).pure[F]
 
-      def getHit(relativeStake: Ratio, slot: Slot, slotDiff: Epoch, eta: Eta): F[Option[VrfHit]] =
+      def getHit(relativeStake: Ratio, slot: Slot, slotDiff: Long, eta: Eta): F[Option[VrfHit]] =
         (
           thresholdInterpreter.getThreshold(relativeStake, slotDiff),
-          vrfProofAlgebra.testProofForSlot(slot, eta),
+          vrfProofAlgebra.proofForSlot(slot, eta),
           vrfProofAlgebra.rhoForSlot(slot, eta)
         ).tupled
           .flatMap { case (threshold, testProof, rho) =>

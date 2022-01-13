@@ -7,6 +7,8 @@ import co.topl.algebras._
 import co.topl.minting.algebras.{BlockMintAlgebra, StakingAlgebra}
 import co.topl.models._
 import co.topl.typeclasses.implicits._
+import io.circe._
+import io.circe.syntax._
 
 /**
  * A `Mint` which produces "Unsigned" Blocks.  An UnsignedBlock has all of the components needed to form a BlockV2
@@ -19,31 +21,44 @@ object BlockMint {
 
     def make[F[_]: Monad](
       staker: StakingAlgebra[F],
-      clock:  ClockAlgebra[F]
-    ): BlockMintAlgebra[F] = (parent: BlockHeaderV2, transactions: Seq[Transaction], slot: Slot) =>
+      clock:  ClockAlgebra[F],
+      stats:  Stats[F]
+    ): BlockMintAlgebra[F] = { (parent: BlockHeaderV2, transactions: Seq[Transaction], slot: Slot) =>
       OptionT(staker.elect(parent, slot))
-        .semiflatMap(hit =>
+        .flatMapF(hit =>
           (staker.address, clock.currentTimestamp)
             .mapN((address, timestamp) =>
-              BlockV2
-                .Unsigned(
-                  BlockHeaderV2.Unsigned(
-                    parentHeaderId = parent.id,
-                    parentSlot = parent.slot,
-                    txRoot = transactions.merkleTree,
-                    bloomFilter = transactions.bloomFilter,
-                    timestamp = timestamp,
-                    height = parent.height + 1,
-                    slot = hit.slot,
-                    eligibilityCertificate = hit.cert,
-                    metadata = None,
-                    address = address
-                  ),
-                  transactions
-                )
+              (partialOperationalCertificate: BlockHeaderV2.Unsigned.PartialOperationalCertificate) =>
+                BlockV2
+                  .Unsigned(
+                    BlockHeaderV2.Unsigned(
+                      parentHeaderId = parent.id,
+                      parentSlot = parent.slot,
+                      txRoot = transactions.merkleTree,
+                      bloomFilter = transactions.bloomFilter,
+                      timestamp = timestamp,
+                      height = parent.height + 1,
+                      slot = hit.slot,
+                      eligibilityCertificate = hit.cert,
+                      partialOperationalCertificate = partialOperationalCertificate,
+                      metadata = None,
+                      address = address
+                    ),
+                    transactions
+                  )
             )
-            .flatMap(staker.certifyBlock)
+            .flatMap(staker.certifyBlock(parent.slotId, slot, _))
+        )
+        .semiflatTap(block =>
+          stats.write(
+            block.headerV2.address.show,
+            Json.obj(
+              "h" -> block.headerV2.height.asJson,
+              "s" -> block.headerV2.slot.asJson
+            )
+          )
         )
         .value
+    }
   }
 }

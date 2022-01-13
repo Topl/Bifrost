@@ -17,7 +17,7 @@ class ExtendedEd25519
     extends EllipticCurveSignatureScheme[
       SecretKeys.ExtendedEd25519,
       VerificationKeys.ExtendedEd25519,
-      Proofs.Signature.Ed25519,
+      Proofs.Knowledge.Ed25519,
       SecretKeys.ExtendedEd25519.Length
     ] {
 
@@ -47,7 +47,7 @@ class ExtendedEd25519
     (sk, vk)
   }
 
-  override def sign(privateKey: SecretKeys.ExtendedEd25519, message: Bytes): Proofs.Signature.Ed25519 = {
+  override def sign(privateKey: SecretKeys.ExtendedEd25519, message: Bytes): Proofs.Knowledge.Ed25519 = {
     val resultSig = new Array[Byte](SignatureLength)
     val pk: Array[Byte] = new Array[Byte](PublicKeyLength)
     val ctx: Array[Byte] = Array.empty
@@ -60,10 +60,10 @@ class ExtendedEd25519
     impl.scalarMultBaseEncoded(privateKey.leftKey.data.toArray, pk, 0)
     impl.implSign(impl.sha512Digest, h, s, pk, 0, ctx, phflag, m, 0, m.length, resultSig, 0)
 
-    Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(resultSig)))
+    Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(resultSig)))
   }
 
-  def verify(signature: Proofs.Signature.Ed25519, message: Bytes, verifyKey: VerificationKeys.Ed25519): Boolean =
+  def verify(signature: Proofs.Knowledge.Ed25519, message: Bytes, verifyKey: VerificationKeys.Ed25519): Boolean =
     verifyKey.bytes.data.length == PublicKeyLength &&
     signature.bytes.data.length == SignatureLength &&
     impl.verify(
@@ -77,7 +77,7 @@ class ExtendedEd25519
     )
 
   override def verify(
-    signature: Proofs.Signature.Ed25519,
+    signature: Proofs.Knowledge.Ed25519,
     message:   Bytes,
     verifyKey: VerificationKeys.ExtendedEd25519
   ): Boolean =

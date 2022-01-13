@@ -4,11 +4,10 @@ import cats.Monad
 import cats.data.OptionT
 import cats.implicits._
 import co.topl.consensus.algebras.EtaCalculationAlgebra
+import co.topl.crypto.signing.Ed25519
 import co.topl.minting.algebras.LeaderElectionMintingAlgebra.VrfHit
 import co.topl.minting.algebras._
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.Sized
 import co.topl.typeclasses.implicits._
 
 object Staking {
@@ -18,10 +17,10 @@ object Staking {
     def make[F[_]: Monad](
       a:                      TaktikosAddress,
       leaderElection:         LeaderElectionMintingAlgebra[F],
-      evolver:                KeyEvolverAlgebra[F],
+      evolver:                OperationalKeysAlgebra[F],
       vrfRelativeStakeLookup: VrfRelativeStakeMintingLookupAlgebra[F],
       etaCalculation:         EtaCalculationAlgebra[F]
-    ): StakingAlgebra[F] = new StakingAlgebra[F] {
+    )(implicit ed25519:       Ed25519): StakingAlgebra[F] = new StakingAlgebra[F] {
       val address: F[TaktikosAddress] = a.pure[F]
 
       def elect(parent: BlockHeaderV2, slot: Slot): F[Option[VrfHit]] =
@@ -33,60 +32,42 @@ object Staking {
               .value
           )
 
-      def certifyBlock(unsignedBlock: BlockV2.Unsigned): F[BlockV2] =
-        evolver
-          .evolveKey(unsignedBlock.unsignedHeader.slot.toInt)
-          .map(evolvedKey => temporaryOpCert)
-          .map(operationalCertificate =>
-            BlockHeaderV2(
-              unsignedBlock.unsignedHeader.parentHeaderId,
-              unsignedBlock.unsignedHeader.parentSlot,
-              unsignedBlock.unsignedHeader.txRoot,
-              unsignedBlock.unsignedHeader.bloomFilter,
-              unsignedBlock.unsignedHeader.timestamp,
-              unsignedBlock.unsignedHeader.height,
-              unsignedBlock.unsignedHeader.slot,
-              unsignedBlock.unsignedHeader.eligibilityCertificate,
-              operationalCertificate,
-              unsignedBlock.unsignedHeader.metadata,
-              unsignedBlock.unsignedHeader.address
-            )
+      def certifyBlock(
+        parentSlotId:         SlotId,
+        slot:                 Slot,
+        unsignedBlockBuilder: BlockHeaderV2.Unsigned.PartialOperationalCertificate => BlockV2.Unsigned
+      ): F[Option[BlockV2]] =
+        OptionT(evolver.operationalKeyForSlot(slot, parentSlotId)).map { operationalKeyOut =>
+          val partialCertificate = BlockHeaderV2.Unsigned.PartialOperationalCertificate(
+            operationalKeyOut.parentVK,
+            operationalKeyOut.parentSignature,
+            ed25519.getVerificationKey(operationalKeyOut.childSK)
           )
-          .map(header =>
-            BlockV2(
-              header,
-              BlockBodyV2(header.id, unsignedBlock.transactions)
-            )
+          val unsignedBlock = unsignedBlockBuilder(partialCertificate)
+          val operationalCertificate = OperationalCertificate(
+            operationalKeyOut.parentVK,
+            operationalKeyOut.parentSignature,
+            ed25519.getVerificationKey(operationalKeyOut.childSK),
+            ed25519.sign(operationalKeyOut.childSK, unsignedBlock.unsignedHeader.signableBytes)
           )
-
-      // TODO: Generate a _real_ operational certificate
-      val temporaryOpCert: OperationalCertificate = OperationalCertificate(
-        Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(Array.fill(64)(0: Byte))))
-      )
-//
-//      private def temporaryOpCert =
-//        OperationalCertificate(
-//          opSig = Proofs.Signature.HdKes(
-//            i = 0,
-//            vkI = VerificationKeys.Ed25519(BlockGenesis.zeroBytes),
-//            ecSignature = Proofs.Signature.Ed25519(BlockGenesis.zeroBytes),
-//            sigSumJ = Proofs.Signature.SumProduct(
-//              ecSignature = Proofs.Signature.Ed25519(BlockGenesis.zeroBytes),
-//              vkK = VerificationKeys.Ed25519(BlockGenesis.zeroBytes),
-//              index = 0,
-//              witness = Nil
-//            ),
-//            sigSumK = Proofs.Signature.SumProduct(
-//              ecSignature = Proofs.Signature.Ed25519(BlockGenesis.zeroBytes),
-//              vkK = VerificationKeys.Ed25519(BlockGenesis.zeroBytes),
-//              index = 0,
-//              witness = Nil
-//            )
-//          ),
-//          xvkM =
-//            VerificationKeys.ExtendedEd25519(VerificationKeys.Ed25519(BlockGenesis.zeroBytes), BlockGenesis.zeroBytes),
-//          slotR = 0
-//        )
+          val header = BlockHeaderV2(
+            unsignedBlock.unsignedHeader.parentHeaderId,
+            unsignedBlock.unsignedHeader.parentSlot,
+            unsignedBlock.unsignedHeader.txRoot,
+            unsignedBlock.unsignedHeader.bloomFilter,
+            unsignedBlock.unsignedHeader.timestamp,
+            unsignedBlock.unsignedHeader.height,
+            unsignedBlock.unsignedHeader.slot,
+            unsignedBlock.unsignedHeader.eligibilityCertificate,
+            operationalCertificate,
+            unsignedBlock.unsignedHeader.metadata,
+            unsignedBlock.unsignedHeader.address
+          )
+          BlockV2(
+            header,
+            BlockBodyV2(header.id, unsignedBlock.transactions)
+          )
+        }.value
     }
   }
 

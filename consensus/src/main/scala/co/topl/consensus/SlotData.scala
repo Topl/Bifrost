@@ -19,7 +19,7 @@ object SlotData {
     SlotData(
       blockHeaderV2.slotId,
       blockHeaderV2.parentSlotId,
-      ed25519VRF.proofToHash(blockHeaderV2.eligibilityCertificate.vrfNonceSig),
+      ed25519VRF.proofToHash(blockHeaderV2.eligibilityCertificate.vrfSig),
       blockHeaderV2.eligibilityCertificate.eta,
       blockHeaderV2.height
     )

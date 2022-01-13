@@ -1,7 +1,7 @@
 package co.topl.crypto.signing
 
 import co.topl.crypto.signing.kes.ProductComposition
-import co.topl.models.Proofs.Signature
+import co.topl.models.Proofs.Knowledge
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
 import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
@@ -11,7 +11,7 @@ class KesProduct
     with KeyEvolvingSignatureScheme[
       SecretKeys.KesProduct,
       VerificationKeys.KesProduct,
-      Proofs.Signature.KesProduct,
+      Proofs.Knowledge.KesProduct,
       (Int, Int)
     ] {
 
@@ -26,10 +26,10 @@ class KesProduct
       SecretKeys.KesProduct(
         sk._1,
         sk._2,
-        Sized.strictUnsafe(Bytes(sk._3)),
-        Proofs.Signature.KesSum(
+        sk._3,
+        Proofs.Knowledge.KesSum(
           VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(sk._4._1))),
-          Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(sk._4._2))),
+          Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(sk._4._2))),
           sk._4._3.map(w => Sized.strictUnsafe(Bytes(w)))
         ),
         offset
@@ -38,18 +38,18 @@ class KesProduct
     )
   }
 
-  override def sign(privateKey: SecretKeys.KesProduct, message: Bytes): Signature.KesProduct = {
+  override def sign(privateKey: SecretKeys.KesProduct, message: Bytes): Knowledge.KesProduct = {
     val prodSig = sign(unpackSecret(privateKey), message.toArray)
 
-    Proofs.Signature.KesProduct(
-      Proofs.Signature.KesSum(
+    Proofs.Knowledge.KesProduct(
+      Proofs.Knowledge.KesSum(
         VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(prodSig._1._1))),
-        Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(prodSig._1._2))),
+        Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(prodSig._1._2))),
         prodSig._1._3.map(w => Sized.strictUnsafe(Bytes(w)))
       ),
-      Proofs.Signature.KesSum(
+      Proofs.Knowledge.KesSum(
         VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(prodSig._2._1))),
-        Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(prodSig._2._2))),
+        Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(prodSig._2._2))),
         prodSig._2._3.map(w => Sized.strictUnsafe(Bytes(w)))
       ),
       Sized.strictUnsafe(Bytes(prodSig._3))
@@ -57,7 +57,7 @@ class KesProduct
   }
 
   override def verify(
-    signature: Signature.KesProduct,
+    signature: Knowledge.KesProduct,
     message:   Bytes,
     verifyKey: VerificationKeys.KesProduct
   ): Boolean = {
@@ -85,10 +85,10 @@ class KesProduct
     SecretKeys.KesProduct(
       sk._1,
       sk._2,
-      Sized.strictUnsafe(Bytes(sk._3)),
-      Proofs.Signature.KesSum(
+      sk._3,
+      Proofs.Knowledge.KesSum(
         VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(sk._4._1))),
-        Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(sk._4._2))),
+        Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(sk._4._2))),
         sk._4._3.map(w => Sized.strictUnsafe(Bytes(w)))
       ),
       privateKey.offset
@@ -110,7 +110,7 @@ class KesProduct
     (
       privateKey.superTree,
       privateKey.subTree,
-      privateKey.nextSubSeed.data.toArray,
+      privateKey.nextSubSeed,
       (
         privateKey.subSignature.verificationKey.bytes.data.toArray,
         privateKey.subSignature.signature.bytes.data.toArray,

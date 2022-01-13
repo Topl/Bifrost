@@ -6,7 +6,12 @@ sealed trait Proof
 
 object Proofs {
 
-  object Signature {
+  /**
+   * A proof which always verifies to `false`
+   */
+  case object False extends Proof
+
+  object Knowledge {
     case class Curve25519(bytes: Sized.Strict[Bytes, Curve25519.Length]) extends Proof
 
     object Curve25519 {
@@ -27,7 +32,7 @@ object Proofs {
 
     case class KesSum(
       verificationKey: VerificationKeys.Ed25519,
-      signature:       Proofs.Signature.Ed25519,
+      signature:       Proofs.Knowledge.Ed25519,
       witness:         Vector[Sized.Strict[Bytes, KesSum.DigestLength]]
     ) extends Proof
 
@@ -36,8 +41,8 @@ object Proofs {
     }
 
     case class KesProduct(
-      superSignature: Proofs.Signature.KesSum,
-      subSignature:   Proofs.Signature.KesSum,
+      superSignature: Proofs.Knowledge.KesSum,
+      subSignature:   Proofs.Knowledge.KesSum,
       subRoot:        Sized.Strict[Bytes, KesProduct.DigestLength]
     ) extends Proof
 
@@ -46,22 +51,13 @@ object Proofs {
     }
   }
 
-  object Threshold {
-    case class Curve25519(signatures: Set[Signature.Curve25519]) extends Proof
-    case class Ed25519(signatures: Set[Signature.Ed25519]) extends Proof
+  object Compositional {
+    case class Threshold(proofs: List[Proof]) extends Proof
+    case class And(a: Proof, b: Proof) extends Proof
+    case class Or(a: Proof, b: Proof) extends Proof
   }
 
-  // Note: Keep these proofs in mind for future development
-  // case class Existence(boxId: TypedIdentifier) extends Proof
-
-  // TODO: Delete
-  object Consensus {
-
-    /**
-     * Signature with a witness path that corresponds to MMM construction
-     *
-     * @see [co.topl.crypto.kes.signatures.SymmetricSignature]
-     */
-    case class MMM(sigi: Bytes, sigm: Bytes, pki: Bytes, offset: Long, pkl: Bytes) extends Proof
+  object Contextual {
+    case class HeightLock() extends Proof
   }
 }

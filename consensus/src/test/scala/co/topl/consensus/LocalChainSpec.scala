@@ -7,7 +7,7 @@ import cats.effect.unsafe.implicits.global
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models.ModelGenerators._
 import co.topl.models.utility.Lengths
-import co.topl.models.{Bytes, SlotId, TypedBytes}
+import co.topl.models.{Bytes, Rho, SlotId, TypedBytes}
 import co.topl.typeclasses.OrderT
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
@@ -28,7 +28,7 @@ class LocalChainSpec
   implicit private val ed25519Vrf: Ed25519VRF = Ed25519VRF.precomputed()
 
   it should "store the head of the local canonical tine" in {
-    forAll(genSizedStrictBytes[Lengths.`64`.type](), etaGen) { (rho, eta) =>
+    forAll(genSizedStrictBytes[Lengths.`64`.type]().map(Rho(_)), etaGen) { (rho, eta) =>
       val initialHead =
         SlotData(SlotId(1, TypedBytes(1: Byte, Bytes(1))), SlotId(0, TypedBytes(0: Byte, Bytes(0))), rho, eta, 0)
 
@@ -41,7 +41,7 @@ class LocalChainSpec
   }
 
   it should "indicate when a new tine is worse than the local chain" in {
-    forAll(genSizedStrictBytes[Lengths.`64`.type](), etaGen) { (rho, eta) =>
+    forAll(genSizedStrictBytes[Lengths.`64`.type]().map(Rho(_)), etaGen) { (rho, eta) =>
       val initialHead =
         SlotData(SlotId(1, TypedBytes(1: Byte, Bytes(1))), SlotId(0, TypedBytes(0: Byte, Bytes(0))), rho, eta, 0)
 
@@ -57,7 +57,7 @@ class LocalChainSpec
   }
 
   it should "adopt a new tine when instructed" in {
-    forAll(genSizedStrictBytes[Lengths.`64`.type](), etaGen) { (rho, eta) =>
+    forAll(genSizedStrictBytes[Lengths.`64`.type]().map(Rho(_)), etaGen) { (rho, eta) =>
       val initialHead =
         SlotData(SlotId(1, TypedBytes(1: Byte, Bytes(1))), SlotId(0, TypedBytes(0: Byte, Bytes(0))), rho, eta, 0)
 

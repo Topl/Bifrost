@@ -2,8 +2,7 @@ package co.topl.typeclasses
 
 import cats.Show
 import cats.implicits._
-import co.topl.codecs.bytes.BasicCodecs._
-import co.topl.codecs.bytes.ByteCodec.implicits._
+import co.topl.codecs.bytes.implicits._
 import co.topl.models._
 import co.topl.models.utility.{Base58, Length, Sized}
 import co.topl.typeclasses.Identifiable.Instances._
@@ -25,6 +24,9 @@ trait ShowInstances {
 
   implicit val showSlotId: Show[SlotId] =
     slotID => show"{${slotID.slot},${slotID.blockId}}"
+
+  implicit val showTaktikosAddress: Show[TaktikosAddress] =
+    showBytes.contramap[TaktikosAddress](_.bytes)
 
   implicit val showBlockHeaderV2: Show[BlockHeaderV2] =
     header =>

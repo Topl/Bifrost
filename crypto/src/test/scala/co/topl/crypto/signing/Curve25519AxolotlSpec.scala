@@ -62,7 +62,7 @@ class Curve25519AxolotlSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChe
     val specOutVk = VerificationKeys.Curve25519(
       "4652486EBC271520D844E5BDDA9AC243C05DCBE7BC9B93807073A32177A6F73D".unsafeStrictBytes
     )
-    val specOutSig = Proofs.Signature.Curve25519(
+    val specOutSig = Proofs.Knowledge.Curve25519(
       Sized.strictUnsafe(
         Bytes(
           Hex.decode(
@@ -91,7 +91,7 @@ class Curve25519AxolotlSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChe
     val specOutVk = VerificationKeys.Curve25519(
       "FFBC7BA2E4C43BE03F8A7F020D0651F582AD1901C254EEBB4EC2ECB73148E50D".unsafeStrictBytes
     )
-    val specOutSig = Proofs.Signature.Curve25519(
+    val specOutSig = Proofs.Knowledge.Curve25519(
       "E7D628E6A25AFF86A7A81CF60B40D0C8BCA038A75CB6BEF34B384E5D098C1F291FD7068CDBF001CAF0EB82810B0A13F0B2806E02124E416B671E51241DD4EB0F".unsafeStrictBytes
     )
 
@@ -113,7 +113,7 @@ class Curve25519AxolotlSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChe
     val specOutVk = VerificationKeys.Curve25519(
       "59DF714EAD8FB10B68E31153AD01994117652CB3C960C6E32C57E7DEC28A5846".unsafeStrictBytes
     )
-    val specOutSig = Proofs.Signature.Curve25519(
+    val specOutSig = Proofs.Knowledge.Curve25519(
       "12ED7C9B5D757C23809FF620CF0B48CF054F6FC60B8B45B50C49F78C80332D1B4F1DEF16F3270E75686CF12F661CF777EBDCFF2977078D5EEC32F0EB39D11802".unsafeStrictBytes
     )
 
@@ -157,7 +157,7 @@ class Curve25519AxolotlSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChe
     val specOutVk = VerificationKeys.Curve25519(
       "05C54041990DEF35C6B163F1B6DBE5194BC4139C7D3BA8F1FCF28DE3A8B07357".unsafeStrictBytes
     )
-    val specOutSig = Proofs.Signature.Curve25519(
+    val specOutSig = Proofs.Knowledge.Curve25519(
       "AA9D3EF915F416A85717A00B69C4CB01514AEB9D743259974F36B9EEB429BE4039C0491C68EE3987F493BFB7D54039BA2D03DD8CBF83A1D978E0B18C4C363680".unsafeStrictBytes
     )
 
@@ -183,7 +183,7 @@ class Curve25519AxolotlSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChe
     val specOutVk = VerificationKeys.Curve25519(
       "5EFBB8396F73F2663403B242347E8B72FBA96DD1E92DBA71A909076643631752".unsafeStrictBytes
     )
-    val specOutSig = Proofs.Signature.Curve25519(
+    val specOutSig = Proofs.Knowledge.Curve25519(
       "DC8566EF933EEE7527E7150C5464CAA67F244BF6DCE052821B5A7424892D28798C6674E2B6671E3AB3E73B0FA8F2BC960714FF05F48DA91CD720FE7140875E87".unsafeStrictBytes
     )
 

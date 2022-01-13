@@ -7,7 +7,7 @@ import co.topl.algebras.ClockAlgebra
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models.ModelGenerators._
-import co.topl.models.Proofs.Signature
+import co.topl.models.Proofs.Knowledge
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
@@ -43,16 +43,16 @@ class EtaCalculationSpec
       EtaCalculation.Eval.make[F](state, clock, genesis.headerV2.eligibilityCertificate.eta).unsafeRunSync()
     val epoch = 0L
     val skVrf = KeyInitializer[SecretKeys.VrfEd25519].random()
-    val args: List[(Slot, Signature.VrfEd25519)] = List.tabulate(8) { offset =>
+    val args: List[(Slot, Knowledge.VrfEd25519)] = List.tabulate(8) { offset =>
       val slot = offset.toLong + 1
-      val nonceSignature =
+      val signature =
         ed25519Vrf.sign(
           skVrf,
           LeaderElectionValidation
-            .VrfArgument(genesis.headerV2.eligibilityCertificate.eta, slot, LeaderElectionValidation.Tokens.Nonce)
+            .VrfArgument(genesis.headerV2.eligibilityCertificate.eta, slot)
             .signableBytes
         )
-      slot -> nonceSignature
+      slot -> signature
     }
 
     val blocks: List[BlockHeaderV2] =
@@ -61,12 +61,12 @@ class EtaCalculationSpec
         .unfold(List(genesis.headerV2)) {
           case items if items.length == args.length + 1 => None
           case items =>
-            val (slot, nonceSignature) = args(items.length - 1)
+            val (slot, signature) = args(items.length - 1)
             val nextHeader = headerGen(
               slotGen = Gen.const[Long](slot),
               parentSlotGen = Gen.const(items.last.slot),
               eligibilityCertificateGen = eligibilityCertificateGen.map(c =>
-                c.copy(vrfNonceSig = nonceSignature, eta = genesis.headerV2.eligibilityCertificate.eta)
+                c.copy(vrfSig = signature, eta = genesis.headerV2.eligibilityCertificate.eta)
               ),
               parentHeaderIdGen = Gen.const(items.last.id)
             ).first
@@ -92,7 +92,7 @@ class EtaCalculationSpec
       EtaCalculationSpec.expectedEta(
         genesis.headerV2.eligibilityCertificate.eta,
         epoch,
-        blocks.map(_.eligibilityCertificate.vrfNonceSig).map(ed25519Vrf.proofToHash)
+        blocks.map(_.eligibilityCertificate.vrfSig).map(ed25519Vrf.proofToHash)
       )
 
     actual shouldBe expected
@@ -124,7 +124,7 @@ class EtaCalculationSpec
       EtaCalculationSpec.expectedEta(
         genesis.headerV2.eligibilityCertificate.eta,
         epoch,
-        List(ed25519Vrf.proofToHash(genesis.headerV2.eligibilityCertificate.vrfNonceSig))
+        List(ed25519Vrf.proofToHash(genesis.headerV2.eligibilityCertificate.vrfSig))
       )
 
     actual shouldBe expected
@@ -135,7 +135,9 @@ object EtaCalculationSpec {
 
   private[consensus] def expectedEta(previousEta: Eta, epoch: Epoch, rhoValues: List[Rho]): Eta = {
     val messages: List[Bytes] =
-      List(previousEta.data) ++ List(Bytes(BigInt(epoch).toByteArray)) ++ rhoValues.map(_.data)
+      List(previousEta.data) ++ List(Bytes(BigInt(epoch).toByteArray)) ++ rhoValues
+        .map(Ed25519VRF.rhoToRhoNonceHash)
+        .map(_.sizedBytes.data)
     Sized.strictUnsafe(
       Bytes(
         blake2b256

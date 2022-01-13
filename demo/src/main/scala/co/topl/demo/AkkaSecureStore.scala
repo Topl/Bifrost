@@ -9,6 +9,7 @@ import cats.data.Chain
 import cats.effect.kernel.{Async, Sync}
 import cats.implicits._
 import co.topl.codecs.bytes.ByteCodec
+import co.topl.codecs.bytes.implicits._
 import co.topl.crypto.keyfile.SecureStore
 import co.topl.demo.AkkaSecureStoreActor.ReceivableMessages
 import co.topl.models.Bytes
@@ -89,6 +90,7 @@ object AkkaSecureStoreActor {
         Behaviors.same
       case c: ReceivableMessages.Consume[_] =>
         c.run(baseDir)
+        erase(c.name, baseDir)
         Behaviors.same
       case ReceivableMessages.Erase(name, replyTo) =>
         erase(name, baseDir)
@@ -108,7 +110,6 @@ object AkkaSecureStoreActor {
   sealed abstract class ReceivableMessage
 
   object ReceivableMessages {
-    import co.topl.codecs.bytes.ByteCodec.implicits._
     case class List(replyTo: ActorRef[Chain[String]]) extends ReceivableMessage
 
     case class Write[A: ByteCodec](name: String, data: A, replyTo: ActorRef[Done]) extends ReceivableMessage {
@@ -125,7 +126,8 @@ object AkkaSecureStoreActor {
       private[AkkaSecureStoreActor] def run(baseDir: Path): Unit = {
         val path = Paths.get(baseDir.toString, name)
         if (Files.exists(path) && Files.isRegularFile(path)) {
-          replyTo.tell(Bytes(Files.readAllBytes(path)).decoded[A].some)
+          val bytes = Bytes(Files.readAllBytes(path))
+          replyTo.tell(bytes.decoded[A].some)
         } else {
           replyTo.tell(None)
         }

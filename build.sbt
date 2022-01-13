@@ -253,7 +253,7 @@ lazy val brambl = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.brambl"
   )
-  .dependsOn(toplRpc, common)
+  .dependsOn(toplRpc, common, typeclasses, models % "compile->compile;test->test")
 
 lazy val akkaHttpRpc = project
   .in(file("akka-http-rpc"))
@@ -354,7 +354,7 @@ lazy val minting = project
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsEffect)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, typeclasses, crypto, byteCodecs, algebras, consensus)
+  .dependsOn(models % "compile->compile;test->test", typeclasses, crypto, byteCodecs, algebras, consensus)
 
 lazy val demo = project
   .in(file("demo"))

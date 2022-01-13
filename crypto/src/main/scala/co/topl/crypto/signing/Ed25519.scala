@@ -8,7 +8,7 @@ class Ed25519
     extends EllipticCurveSignatureScheme[
       SecretKeys.Ed25519,
       VerificationKeys.Ed25519,
-      Proofs.Signature.Ed25519,
+      Proofs.Knowledge.Ed25519,
       SecretKeys.Ed25519.Length
     ] {
   private val impl = new eddsa.Ed25519
@@ -31,7 +31,7 @@ class Ed25519
     (SecretKeys.Ed25519(Sized.strictUnsafe(Bytes(sk))), VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(pk))))
   }
 
-  override def sign(privateKey: SecretKeys.Ed25519, message: Bytes): Proofs.Signature.Ed25519 = {
+  override def sign(privateKey: SecretKeys.Ed25519, message: Bytes): Proofs.Knowledge.Ed25519 = {
     val sig = new Array[Byte](impl.SIGNATURE_SIZE)
     impl.sign(
       privateKey.bytes.data.toArray,
@@ -43,11 +43,11 @@ class Ed25519
       0
     )
 
-    Proofs.Signature.Ed25519(Sized.strictUnsafe(Bytes(sig)))
+    Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(sig)))
   }
 
   override def verify(
-    signature: Proofs.Signature.Ed25519,
+    signature: Proofs.Knowledge.Ed25519,
     message:   Bytes,
     publicKey: VerificationKeys.Ed25519
   ): Boolean = {

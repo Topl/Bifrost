@@ -1,15 +1,18 @@
 package co.topl.crypto.signing
 
+import co.topl.crypto.hash.blake2b512
 import co.topl.crypto.signing.eddsa.ECVRF25519
 import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.{Lengths, Sized}
-import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
+import co.topl.models.utility.Sized
+import co.topl.models._
+
+import java.nio.charset.StandardCharsets
 
 class Ed25519VRF
     extends EllipticCurveSignatureScheme[
       SecretKeys.VrfEd25519,
       VerificationKeys.VrfEd25519,
-      Proofs.Signature.VrfEd25519,
+      Proofs.Knowledge.VrfEd25519,
       SecretKeys.VrfEd25519.Length
     ] {
 
@@ -32,8 +35,8 @@ class Ed25519VRF
     (SecretKeys.VrfEd25519(Sized.strictUnsafe(Bytes(sk))), VerificationKeys.VrfEd25519(Sized.strictUnsafe(Bytes(pk))))
   }
 
-  override def sign(privateKey: SecretKeys.VrfEd25519, message: Bytes): Proofs.Signature.VrfEd25519 =
-    Proofs.Signature.VrfEd25519(
+  override def sign(privateKey: SecretKeys.VrfEd25519, message: Bytes): Proofs.Knowledge.VrfEd25519 =
+    Proofs.Knowledge.VrfEd25519(
       Sized.strictUnsafe(
         Bytes(
           impl.vrfProof(privateKey.bytes.data.toArray, message.toArray)
@@ -42,7 +45,7 @@ class Ed25519VRF
     )
 
   override def verify(
-    signature: Proofs.Signature.VrfEd25519,
+    signature: Proofs.Knowledge.VrfEd25519,
     message:   Bytes,
     publicKey: VerificationKeys.VrfEd25519
   ): Boolean =
@@ -54,8 +57,8 @@ class Ed25519VRF
     VerificationKeys.VrfEd25519(Sized.strictUnsafe(Bytes(pkBytes)))
   }
 
-  def proofToHash(signature: Proofs.Signature.VrfEd25519): Sized.Strict[Bytes, Lengths.`64`.type] =
-    Sized.strictUnsafe(Bytes(impl.vrfProofToHash(signature.bytes.data.toArray)))
+  def proofToHash(signature: Proofs.Knowledge.VrfEd25519): Rho =
+    Rho(Sized.strictUnsafe(Bytes(impl.vrfProofToHash(signature.bytes.data.toArray))))
 
 }
 
@@ -63,4 +66,28 @@ object Ed25519VRF {
 
   def precomputed(): Ed25519VRF =
     new Ed25519VRF
+
+  private val TestStringBytes =
+    "TEST".getBytes(StandardCharsets.UTF_8)
+
+  private val NonceStringBytes =
+    "NONCE".getBytes(StandardCharsets.UTF_8)
+
+  def rhoToRhoTestHash(rho: Rho): RhoTestHash =
+    RhoTestHash(
+      Sized.strictUnsafe(
+        Bytes(
+          blake2b512.hash(rho.sizedBytes.data.toArray ++ TestStringBytes).value
+        )
+      )
+    )
+
+  def rhoToRhoNonceHash(rho: Rho): RhoNonceHash =
+    RhoNonceHash(
+      Sized.strictUnsafe(
+        Bytes(
+          blake2b512.hash(rho.sizedBytes.data.toArray ++ NonceStringBytes).value
+        )
+      )
+    )
 }
