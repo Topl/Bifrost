@@ -1,6 +1,7 @@
 package co.topl.crypto.utils
 
-import co.topl.models.Bytes
+import co.topl.models.{Bytes, SecretKeys}
+import co.topl.models.SecretKeys.KesProduct
 import co.topl.models.utility.KesBinaryTree
 
 object KesTestHelper {
@@ -37,7 +38,32 @@ object KesTestHelper {
       }
   }
 
-  def areEqual(a: KesBinaryTree, b: Any): Boolean =
+  def areEqual(a: SecretKeys.KesProduct, b: Any): Boolean =
+    (a, b) match {
+      case (
+        SecretKeys.KesProduct(
+          superTree_a,
+          subTree_a,
+          nextSubSeed_a,
+          subSignature_a,
+          offset_a
+        ),
+        SecretKeys.KesProduct(
+          superTree_b,
+          subTree_b,
+          nextSubSeed_b,
+          subSignature_b,
+          offset_b
+        )
+        ) =>
+      areEqual(superTree_a,superTree_b) &&
+        areEqual(subTree_a,subTree_b) &&
+        nextSubSeed_a.data == nextSubSeed_b.data &&
+        subSignature_a == subSignature_b &&
+        offset_a == offset_b
+    }
+
+  def areEqual(a:KesBinaryTree, b:Any): Boolean = {
     (a, b) match {
       case (
         KesBinaryTree.MerkleNode(
@@ -68,5 +94,7 @@ object KesTestHelper {
       case _ =>
         false
     }
+  }
+
 
 }

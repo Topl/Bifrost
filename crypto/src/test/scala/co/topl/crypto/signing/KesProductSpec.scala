@@ -3,7 +3,6 @@ package co.topl.crypto.signing
 import co.topl.crypto.utils.Generators.{genBytesWithBoundedSize, genRandomlySizedBytes}
 import co.topl.crypto.utils.Hex.implicits._
 import co.topl.crypto.utils.KesTestHelper
-import co.topl.models.utility.KesBinaryTree
 import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
 import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
