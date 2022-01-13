@@ -58,9 +58,10 @@ object KesTestHelper {
         ) =>
       areEqual(superTree_a,superTree_b) &&
         areEqual(subTree_a,subTree_b) &&
-        nextSubSeed_a.data == nextSubSeed_b.data &&
+        Bytes(nextSubSeed_a) == Bytes(nextSubSeed_b) &&
         subSignature_a == subSignature_b &&
         offset_a == offset_b
+      case _ => false
     }
 
   def areEqual(a:KesBinaryTree, b:Any): Boolean = {

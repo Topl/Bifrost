@@ -91,10 +91,10 @@ class KesProductSpec
           )
         )
       ),
-      "d82ab9526323833262ac56f65860f38faa433ff6129c24f033e6ea786fd6db6b".unsafeStrictBytes,
-      Proofs.Signature.KesSum(
+      "d82ab9526323833262ac56f65860f38faa433ff6129c24f033e6ea786fd6db6b".hexStringToBytes.toArray,
+      Proofs.Knowledge.KesSum(
         VerificationKeys.Ed25519("9077780e7a816f81b2be94b9cbed9248db8ce03545819387496047c6ad251f09".unsafeStrictBytes),
-        Proofs.Signature.Ed25519(
+        Proofs.Knowledge.Ed25519(
           "cb7af65595938758f60009dbc7312c87baef3f8f88a6babc01e392538ec331ef20766992bc91b52bedd4a2f021bbd9e10f6cd8548dd9048e56b9579cf975fe06".unsafeStrictBytes
         ),
         Vector(
@@ -192,10 +192,10 @@ class KesProductSpec
           )
         )
       ),
-      "8bba45a219cd212097ef60d275f2df3148ef848a91bdef24bb90d496be4e3a90".unsafeStrictBytes,
-      Proofs.Signature.KesSum(
+      "8bba45a219cd212097ef60d275f2df3148ef848a91bdef24bb90d496be4e3a90".hexStringToBytes.toArray,
+      Proofs.Knowledge.KesSum(
         VerificationKeys.Ed25519("19f5224ed6c6ac6fd7f6a532491befb22b29164a3af74c33bd78dcefe0f5e68b".unsafeStrictBytes),
-        Proofs.Signature.Ed25519(
+        Proofs.Knowledge.Ed25519(
           "55788caf92e501bc5dc3bacc08aa898c0d3b88c84c835193e29d4dd33e1dddfde5b042bcbc8d76b8fabc524c034cdc1a158afaded22e6abccf886c5d8148d806".unsafeStrictBytes
         ),
         Vector(
