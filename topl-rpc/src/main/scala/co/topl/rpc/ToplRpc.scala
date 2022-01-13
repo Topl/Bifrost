@@ -266,6 +266,34 @@ object ToplRpc {
       type Response = List[ModifierId]
     }
 
+    object LatestBlocks {
+
+      /**
+       * Retrieve a number of latest blocks, including the current best block
+       */
+      val rpc: Rpc[Params, Response] = Rpc(List("topl_latestBlocks"))
+
+      /**
+       * @param numberOfBlocks number of latest blocks to retrieve
+       */
+      case class Params(numberOfBlocks: Int)
+      type Response = List[Block]
+    }
+
+    object LatestBlockIds {
+
+      /**
+       * Retrieve a number of latest blocks' ids, including the current best block id
+       */
+      val rpc: Rpc[Params, Response] = Rpc(List("topl_latestBlockIds"))
+
+      /**
+       * @param numberOfBlockIds number of latest blocks to retrieve
+       */
+      case class Params(numberOfBlockIds: Int)
+      type Response = List[ModifierId]
+    }
+
     object BlockByHeight {
 
       /**
@@ -694,7 +722,7 @@ object ToplRpc {
        * @param address New address to receive block rewards
        */
       case class Params(address: Address)
-      case class Response(rewardsAddress: String)
+      case class Response(msg: String)
     }
 
     object GetRewardsAddress {

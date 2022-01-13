@@ -180,14 +180,15 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
     }
   }
 
-  def testCreateSignAssetTransfer(
+  def assetTransferRequestBody(
     sender:         Address,
     recipient:      Address,
-    assetCode:      AssetCode,
+    assetCode:      String,
     senderPropType: String,
-    amount:         Int
-  ): Json = {
-    val requestBody = ByteString(s"""
+    amount:         Int,
+    securityRoot:   String = "11111111111111111111111111111111"
+  ): ByteString =
+    ByteString(s"""
       |{
       | "jsonrpc": "2.0",
       | "id": "2",
@@ -201,7 +202,7 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
       |      "assetCode" : "${assetCode.toString}",
       |      "metadata" : "ApdGzs6uwKAhuKJQswBWoVAFjNA5B8enBKfxVbzlcQ8EnpxicpRcE9B9Bgn2LGv02kYUSA1h1181ZYeECvr",
       |      "type" : "Asset",
-      |      "securityRoot" : "11111111111111111111111111111111"
+      |      "securityRoot" : "$securityRoot"
       |    }
       |  ]],
       |   "sender": ["$sender"],
@@ -214,6 +215,15 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
       | }]
       |}
       """.stripMargin)
+
+  def testCreateSignAssetTransfer(
+    sender:         Address,
+    recipient:      Address,
+    assetCode:      AssetCode,
+    senderPropType: String,
+    amount:         Int
+  ): Json = {
+    val requestBody = assetTransferRequestBody(sender, recipient, assetCode.toString, senderPropType, amount)
 
     httpPOST(requestBody) ~> route ~> check {
       val res = parse(responseAs[String]).value

@@ -1,6 +1,7 @@
 package co.topl.rpc.handlers
 
 import akka.actor.typed.ActorSystem
+import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, InvalidParametersError, RpcError, ThrowableData}
 import co.topl.attestation.Address
@@ -8,6 +9,7 @@ import co.topl.consensus.{blockVersion, getProtocolRules, Forger, ForgerInterfac
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
+import co.topl.modifier.transaction.Transaction
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.state.StateReader
@@ -19,6 +21,7 @@ import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe.Encoder
 
+import scala.concurrent.Future
 import scala.language.existentials
 
 class NodeViewRpcHandlerImpls(
@@ -63,43 +66,59 @@ class NodeViewRpcHandlerImpls(
 
   override val transactionById: ToplRpc.NodeView.TransactionById.rpc.ServerHandler =
     params =>
-      withNodeView(_.history.transactionById(params.transactionId))
-        .subflatMap(
-          _.toRight[RpcError](InvalidParametersError.adhoc("Unable to find confirmed transaction", "modifierId"))
-        )
-        .map { case (tx, blockId, blockNumber) => ToplRpc.NodeView.TransactionById.Response(tx, blockNumber, blockId) }
+      getTxsByIds(List(params.transactionId)).map {
+        _.head match {
+          case (tx, blockId, blockNumber) => ToplRpc.NodeView.TransactionById.Response(tx, blockNumber, blockId)
+        }
+      }
 
   override val blockById: ToplRpc.NodeView.BlockById.rpc.ServerHandler =
-    params =>
-      withNodeView(_.history.modifierById(params.blockId))
-        .subflatMap(
-          _.toRight[RpcError](InvalidParametersError.adhoc("The requested block could not be found", "blockId"))
-        )
+    params => getBlocksByIds(List(params.blockId)).map(_.head)
 
   override val blocksByIds: ToplRpc.NodeView.BlocksByIds.rpc.ServerHandler =
-    params =>
-      withNodeView(view =>
-        checkBlocksFoundWithIds(
-          params.blockIds,
-          params.blockIds.map(view.history.modifierById),
-          rpcSettings.blockRetrievalLimit
-        )
-      )
-        .subflatMap(identity)
+    params => getBlocksByIds(params.blockIds)
 
   override val blocksInRange: ToplRpc.NodeView.BlocksInRange.rpc.ServerHandler =
     params =>
-      withNodeView(view =>
-        checkHeightRange(view.history.height, params.startHeight, params.endHeight, rpcSettings.blockRetrievalLimit)
-          .map(range => getBlocksInRange(view.history, range._1, range._2))
-      ).subflatMap(identity)
+      for {
+        headHeight <- withNodeView(_.history.height)
+        range <- EitherT.fromEither[Future](
+          checkHeightRange(headHeight, params.startHeight, params.endHeight, rpcSettings.blockRetrievalLimit)
+        )
+        blocks <- withNodeView(view => getBlocksInRange(view.history, range._1, range._2))
+      } yield blocks
 
   override val blockIdsInRange: ToplRpc.NodeView.BlockIdsInRange.rpc.ServerHandler =
     params =>
-      withNodeView(view =>
-        checkHeightRange(view.history.height, params.startHeight, params.endHeight, rpcSettings.blockIdRetrievalLimit)
-          .map(range => getBlockIdsInRange(view.history, range._1, range._2))
-      ).subflatMap(identity)
+      for {
+        headHeight <- withNodeView(_.history.height)
+        range <- EitherT.fromEither[Future](
+          checkHeightRange(headHeight, params.startHeight, params.endHeight, rpcSettings.blockIdRetrievalLimit)
+        )
+        ids <- withNodeView(view => getBlockIdsInRange(view.history, range._1, range._2))
+      } yield ids
+
+  override val latestBlocks: ToplRpc.NodeView.LatestBlocks.rpc.ServerHandler =
+    params =>
+      for {
+        headHeight <- withNodeView(_.history.height)
+        startHeight = headHeight - params.numberOfBlocks + 1
+        range <- EitherT.fromEither[Future](
+          checkHeightRange(headHeight, startHeight, headHeight, rpcSettings.blockRetrievalLimit)
+        )
+        blocks <- withNodeView(view => getBlocksInRange(view.history, range._1, range._2))
+      } yield blocks
+
+  override val latestBlockIds: ToplRpc.NodeView.LatestBlockIds.rpc.ServerHandler =
+    params =>
+      for {
+        headHeight <- withNodeView(_.history.height)
+        startHeight = headHeight - params.numberOfBlockIds + 1
+        range <- EitherT.fromEither[Future](
+          checkHeightRange(headHeight, startHeight, headHeight, rpcSettings.blockIdRetrievalLimit)
+        )
+        ids <- withNodeView(view => getBlockIdsInRange(view.history, range._1, range._2))
+      } yield ids
 
   override val blockByHeight: ToplRpc.NodeView.BlockByHeight.rpc.ServerHandler =
     params =>
@@ -113,16 +132,19 @@ class NodeViewRpcHandlerImpls(
 
   override val transactionFromMempool: ToplRpc.NodeView.TransactionFromMempool.rpc.ServerHandler =
     params =>
-      withNodeView(_.memPool.modifierById(params.transactionId))
-        .subflatMap(
-          _.toRight[RpcError](InvalidParametersError.adhoc("Unable to retrieve transaction", "transactionId"))
-        )
+      for {
+        txIds <- EitherT.fromEither[Future](checkModifierIdType(Transaction.modifierTypeId, List(params.transactionId)))
+        txsOption <- withNodeView(view => txIds.map(view.memPool.modifierById))
+        txs       <- EitherT.fromEither[Future](checkTxFoundWithIds(txIds, txsOption, rpcSettings.txRetrievalLimit))
+      } yield txs.head
 
   override val confirmationStatus: ToplRpc.NodeView.ConfirmationStatus.rpc.ServerHandler =
     params =>
-      withNodeView { view =>
-        checkTxIds(getConfirmationStatus(params.transactionIds, view.history.height, view))
-      }.subflatMap(identity)
+      for {
+        txIds <- EitherT.fromEither[Future](checkModifierIdType(Transaction.modifierTypeId, params.transactionIds))
+        txStatusOption <- withNodeView(view => getConfirmationStatus(txIds, view.history.height, view))
+        txStatus <- EitherT.fromEither[Future](checkTxFoundWithIds(txIds, txStatusOption, rpcSettings.txRetrievalLimit))
+      } yield txStatus.toMap
 
   override val info: ToplRpc.NodeView.Info.rpc.ServerHandler =
     _ =>
@@ -185,6 +207,22 @@ class NodeViewRpcHandlerImpls(
     }
   }
 
+  private def getBlocksByIds(ids: List[ModifierId]): EitherT[Future, RpcError, List[Block]] =
+    for {
+      blockIds     <- EitherT.fromEither[Future](checkModifierIdType(Block.modifierTypeId, ids))
+      blocksOption <- withNodeView(view => blockIds.map(view.history.modifierById))
+      blocks <- EitherT.fromEither[Future](
+        checkBlocksFoundWithIds(blockIds, blocksOption, rpcSettings.blockRetrievalLimit)
+      )
+    } yield blocks
+
+  private def getTxsByIds(ids: List[ModifierId]): EitherT[Future, RpcError, List[(Transaction.TX, ModifierId, Long)]] =
+    for {
+      txIds     <- EitherT.fromEither[Future](checkModifierIdType(Transaction.modifierTypeId, ids))
+      txsOption <- withNodeView(view => txIds.map(view.history.transactionById))
+      txs       <- EitherT.fromEither[Future](checkTxFoundWithIds(txIds, txsOption, rpcSettings.txRetrievalLimit))
+    } yield txs
+
   private def getBlockIdsInRange(
     view:        HistoryReader[Block, BifrostSyncInfo],
     startHeight: Long,
@@ -199,7 +237,9 @@ class NodeViewRpcHandlerImpls(
     startHeight: Long,
     endHeight:   Long
   ): ToplRpc.NodeView.BlocksInRange.Response =
-    getBlockIdsInRange(view, startHeight, endHeight).flatMap(view.modifierById)
+    (startHeight to endHeight)
+      .flatMap(view.modifierByHeight)
+      .toList
 
   private def getConfirmationStatus(
     txIds:      List[ModifierId],
@@ -210,7 +250,7 @@ class NodeViewRpcHandlerImpls(
       (view.memPool.modifierById(id), view.history.transactionById(id)) match {
         case (_, Some((tx, _, height))) => Some(tx.id -> TxStatus("Confirmed", headHeight - height))
         case (Some(tx), None)           => Some(tx.id -> TxStatus("Unconfirmed", -1))
-        case (None, None)               => None
+        case (None, None)               => Some(id -> TxStatus("Not Found", -1))
       }
     }
 

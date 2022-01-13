@@ -71,7 +71,7 @@ class AdminRpcHandlerImpls(forgerInterface: ForgerInterface, keyManagerInterface
       keyManagerInterface
         .updateRewardsAddress(params.address)
         .leftMap(e => ToplRpcErrors.genericFailure(e.toString): RpcError)
-        .map(_ => ToplRpc.Admin.UpdateRewardsAddress.Response(params.address.toString))
+        .map(_ => ToplRpc.Admin.UpdateRewardsAddress.Response(s"Updated reward address to ${params.address}"))
 
   override val getRewardsAddress: ToplRpc.Admin.GetRewardsAddress.rpc.ServerHandler =
     _ =>
