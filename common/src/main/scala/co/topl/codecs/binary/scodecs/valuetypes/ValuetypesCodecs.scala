@@ -18,7 +18,7 @@ trait ValuetypesCodecs {
 
   def bytesCodec(size: Int): Codec[Array[Byte]] = new BytesCodec(size)
 
-  implicit val uLongCodec: Codec[ULong] = ULongCodec
+  implicit val uLongCodec: Codec[ULong] = ULongFastCodec
 
   implicit val uIntCodec: Codec[UInt] =
     uLongCodec.exmapc[UInt](uLong =>

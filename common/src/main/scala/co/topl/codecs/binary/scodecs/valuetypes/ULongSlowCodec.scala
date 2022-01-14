@@ -5,7 +5,7 @@ import co.topl.codecs.binary.scodecs.valuetypes.Types.ULong
 import scodec.bits.BitVector
 import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
 
-object ULongCodec extends Codec[ULong] {
+object ULongSlowCodec extends Codec[ULong] {
 
   private val `0x7f` = BitVector(0x7f)
   private val `0x80` = BitVector(0x80)

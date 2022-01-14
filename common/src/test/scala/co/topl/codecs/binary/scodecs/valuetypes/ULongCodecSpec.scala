@@ -11,6 +11,6 @@ class ULongCodecSpec extends ValueTypesCodecCompatabilityBehavior {
     _ => uLongCodec,
     uLong => writer => writer.putULong(uLong),
     _ => reader => reader.getULong(),
-    Gen.posNum[ULong]
+    Gen.chooseNum(0L, Long.MaxValue)
   )
 }
