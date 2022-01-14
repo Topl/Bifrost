@@ -4,6 +4,7 @@ import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
+import akka.testkit.TestKit
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
@@ -13,16 +14,26 @@ import co.topl.genus.services.blocks_query.{BlocksQuery, QueryBlocksReq}
 import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.types.Block
 import org.scalamock.scalatest.AsyncMockFactory
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration.DurationInt
 
-class BlocksQueryServiceSpec extends AsyncFlatSpec with AsyncMockFactory with Matchers {
+class BlocksQueryServiceSpec
+    extends AsyncFlatSpec
+    with AsyncMockFactory
+    with BeforeAndAfterAll
+    with Matchers
+    with ScalaFutures {
+
   behavior of "BlocksQueryService.Eval.make query"
 
-  val actorSystem: ActorSystem = ActorSystem("test")
-  implicit val materializer: Materializer = Materializer(actorSystem)
+  val system: ActorSystem = ActorSystem("test")
+  implicit val materializer: Materializer = Materializer(system)
+
+  override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
 
   it should "return an empty list of blocks when the database is empty" in {
     val queryFilter = BlockFilter(BlockFilter.FilterType.All(BlockFilter.AllFilter()))
@@ -36,9 +47,9 @@ class BlocksQueryServiceSpec extends AsyncFlatSpec with AsyncMockFactory with Ma
     val underTest: BlocksQuery =
       BlocksQueryService.Eval.make(databaseClient, 5.seconds)
 
-    val result = underTest.query(queryBlocksReq)
+    val queryResult = underTest.query(queryBlocksReq)
 
-    result map { r => r.result.success.get.blocks should be(empty) }
+    queryResult.futureValue.result.success.get.blocks should be(empty)
   }
 
   it should "return all existing transactions when the database is not empty and no filters are provided" in {
@@ -57,9 +68,9 @@ class BlocksQueryServiceSpec extends AsyncFlatSpec with AsyncMockFactory with Ma
     val underTest: BlocksQuery =
       BlocksQueryService.Eval.make(databaseClient, 5.seconds)
 
-    val result = underTest.query(queryBlocksReq)
+    val queryResult = underTest.query(queryBlocksReq)
 
-    result map { r => r.result.success.get.blocks shouldNot be(empty) }
+    queryResult.futureValue.result.success.get.blocks shouldNot be(empty)
   }
 
   it should "return timeout failure when the query takes longer than the configured time to evaluate" in {
@@ -71,13 +82,11 @@ class BlocksQueryServiceSpec extends AsyncFlatSpec with AsyncMockFactory with Ma
       .returns(Source.never.pure[IO])
 
     val underTest: BlocksQuery =
-      BlocksQueryService.Eval.make(databaseClient, 1.seconds)
+      BlocksQueryService.Eval.make(databaseClient, 1.millis)
 
-    val result = underTest.query(queryBlocksReq)
+    val queryResult = underTest.query(queryBlocksReq)
 
-    result map { r =>
-      r.result.failure.get.reason.isQueryTimeout shouldBe true
-    }
+    queryResult.futureValue.result.failure.get.reason.isQueryTimeout shouldBe true
   }
 
   it should "return data store error failure when the database client has an error" in {
@@ -95,8 +104,6 @@ class BlocksQueryServiceSpec extends AsyncFlatSpec with AsyncMockFactory with Ma
 
     val result = underTest.query(queryBlocksReq)
 
-    result map { r =>
-      r.result.failure.get.reason.dataStoreConnectionError.get shouldBe errorMessage
-    }
+    result.futureValue.result.failure.get.reason.dataStoreConnectionError.get shouldBe errorMessage
   }
 }

@@ -4,6 +4,7 @@ import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
+import akka.testkit.TestKit
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
@@ -13,16 +14,25 @@ import co.topl.genus.services.transactions_query.{QueryTxsReq, TransactionsQuery
 import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.types.Transaction
 import org.scalamock.scalatest.AsyncMockFactory
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration.DurationInt
 
-class TransactionsQueryServiceSpec extends AsyncFlatSpec with AsyncMockFactory with Matchers {
+class TransactionsQueryServiceSpec
+    extends AsyncFlatSpec
+    with AsyncMockFactory
+    with BeforeAndAfterAll
+    with Matchers
+    with ScalaFutures {
   behavior of "TransactionQueryService.Eval.make query"
 
-  val actorSystem: ActorSystem = ActorSystem("test")
-  implicit val materializer: Materializer = Materializer(actorSystem)
+  val system: ActorSystem = ActorSystem("test")
+  implicit val materializer: Materializer = Materializer(system)
+
+  override def afterAll(): Unit = TestKit.shutdownActorSystem(system)
 
   it should "return an empty list of transactions when the database is empty" in {
     val queryFilter = TransactionFilter(TransactionFilter.FilterType.All(TransactionFilter.AllFilter()))
@@ -36,9 +46,9 @@ class TransactionsQueryServiceSpec extends AsyncFlatSpec with AsyncMockFactory w
     val underTest: TransactionsQuery =
       TransactionsQueryService.Eval.make(databaseClient, 5.seconds)
 
-    val result = underTest.query(queryTxReq)
+    val queryResult = underTest.query(queryTxReq)
 
-    result map { r => r.result.success.get.transactions should be(empty) }
+    queryResult.futureValue.result.success.get.transactions should be(empty)
   }
 
   it should "return all existing transactions when the database is not empty and no filters are provided" in {
@@ -57,9 +67,9 @@ class TransactionsQueryServiceSpec extends AsyncFlatSpec with AsyncMockFactory w
     val underTest: TransactionsQuery =
       TransactionsQueryService.Eval.make(databaseClient, 5.seconds)
 
-    val result = underTest.query(queryTxReq)
+    val queryResult = underTest.query(queryTxReq)
 
-    result map { r => r.result.success.get.transactions shouldNot be(empty) }
+    queryResult.futureValue.result.success.get.transactions shouldNot be(empty)
   }
 
   it should "return timeout failure when the query takes longer than the configured time to evaluate" in {
@@ -71,13 +81,11 @@ class TransactionsQueryServiceSpec extends AsyncFlatSpec with AsyncMockFactory w
       .returns(Source.never.pure[IO])
 
     val underTest: TransactionsQuery =
-      TransactionsQueryService.Eval.make(databaseClient, 1.seconds)
+      TransactionsQueryService.Eval.make(databaseClient, 1.millis)
 
-    val result = underTest.query(queryTxReq)
+    val queryResult = underTest.query(queryTxReq)
 
-    result map { r =>
-      r.result.failure.get.reason.isQueryTimeout shouldBe true
-    }
+    queryResult.futureValue.result.failure.get.reason.isQueryTimeout shouldBe true
   }
 
   it should "return data store error failure when the database client has an error" in {
@@ -93,10 +101,8 @@ class TransactionsQueryServiceSpec extends AsyncFlatSpec with AsyncMockFactory w
     val underTest: TransactionsQuery =
       TransactionsQueryService.Eval.make(databaseClient, 1.seconds)
 
-    val result = underTest.query(queryTxReq)
+    val queryResult = underTest.query(queryTxReq)
 
-    result map { r =>
-      r.result.failure.get.reason.dataStoreConnectionError.get shouldBe errorMessage
-    }
+    queryResult.futureValue.result.failure.get.reason.dataStoreConnectionError.get shouldBe errorMessage
   }
 }
