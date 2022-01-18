@@ -51,7 +51,8 @@ object BlocksQueryService {
                 // TODO: return an error if no filter provided -> too many values to query
                 in.filter.getOrElse(
                   BlockFilter.of(BlockFilter.FilterType.All(BlockFilter.AllFilter()))
-                )
+                ),
+                in.pagingOptions
               )
               .map(_.asRight[QueryBlocksRes.Failure.Reason])
               // handle a Mongo failure as a data store connection error

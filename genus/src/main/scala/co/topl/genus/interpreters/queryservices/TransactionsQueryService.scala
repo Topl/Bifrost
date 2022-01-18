@@ -48,7 +48,8 @@ object TransactionsQueryService {
                 // TODO: return an error if no filter provided -> too many values to query
                 in.filter.getOrElse(
                   TransactionFilter.of(TransactionFilter.FilterType.All(TransactionFilter.AllFilter()))
-                )
+                ),
+                in.pagingOptions
               )
               .map(_.asRight[QueryTxsRes.Failure.Reason])
               // handle a Mongo failure as a data store connection error

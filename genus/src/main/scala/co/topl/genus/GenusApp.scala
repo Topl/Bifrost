@@ -7,6 +7,7 @@ import cats.effect.unsafe.IORuntime
 import cats.effect.unsafe.implicits.global
 import cats.effect.{Async, IO, IOApp}
 import co.topl.genus.algebras.{DatabaseClientAlg, HttpServer, QueryAlg}
+import co.topl.genus.interpreters.MongoQuery.MongoQueryAlg
 import co.topl.genus.interpreters.{MongoDatabaseClient, MongoQuery, MongoSubscription, QueryServer}
 import co.topl.genus.programs.GenusProgram
 import co.topl.utils.mongodb.codecs._
@@ -40,10 +41,10 @@ object GenusApp extends IOApp.Simple {
 
   val blocksMongoCollection: MongoCollection[Document] = mongoDb.getCollection("blocks")
 
-  val transactionsQuery: QueryAlg[IO, Source[*, NotUsed], Bson, ConfirmedTransactionDataModel] =
+  val transactionsQuery: MongoQueryAlg[IO, ConfirmedTransactionDataModel] =
     MongoQuery.Eval.make(txsMongoCollection)
 
-  val blocksQuery: QueryAlg[IO, Source[*, NotUsed], Bson, BlockDataModel] =
+  val blocksQuery: MongoQueryAlg[IO, BlockDataModel] =
     MongoQuery.Eval.make(blocksMongoCollection)
 
   val databaseClient: DatabaseClientAlg[IO, Source[*, NotUsed]] =

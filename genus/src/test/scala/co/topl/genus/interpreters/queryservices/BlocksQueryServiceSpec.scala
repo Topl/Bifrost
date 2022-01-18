@@ -11,6 +11,7 @@ import cats.implicits._
 import co.topl.genus.algebras.DatabaseClientAlg
 import co.topl.genus.filters.BlockFilter
 import co.topl.genus.services.blocks_query.{BlocksQuery, QueryBlocksReq}
+import co.topl.genus.services.services_types.Paging
 import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.types.Block
 import org.scalamock.scalatest.AsyncMockFactory
@@ -41,7 +42,7 @@ class BlocksQueryServiceSpec
 
     val databaseClient: DatabaseClientAlg[IO, Source[*, NotUsed]] = mock[DatabaseClientAlg[IO, Source[*, NotUsed]]]
     (databaseClient.queryBlocks _)
-      .expects(*)
+      .expects(*, *)
       .returns(Source.empty.pure[IO])
 
     val underTest: BlocksQuery =
@@ -62,7 +63,7 @@ class BlocksQueryServiceSpec
 
     val databaseClient: DatabaseClientAlg[IO, Source[*, NotUsed]] = mock[DatabaseClientAlg[IO, Source[*, NotUsed]]]
     (databaseClient.queryBlocks _)
-      .expects(*)
+      .expects(*, *)
       .returns(Source(existingBlocks).pure[IO])
 
     val underTest: BlocksQuery =
@@ -78,7 +79,7 @@ class BlocksQueryServiceSpec
 
     val databaseClient: DatabaseClientAlg[IO, Source[*, NotUsed]] = mock[DatabaseClientAlg[IO, Source[*, NotUsed]]]
     (databaseClient.queryBlocks _)
-      .expects(*)
+      .expects(*, *)
       .returns(Source.never.pure[IO])
 
     val underTest: BlocksQuery =
@@ -96,7 +97,7 @@ class BlocksQueryServiceSpec
     val databaseClient: DatabaseClientAlg[IO, Source[*, NotUsed]] =
       mock[DatabaseClientAlg[IO, Source[*, NotUsed]]]
     (databaseClient.queryBlocks _)
-      .expects(*)
+      .expects(*, *)
       .returns(IO.fromEither(Left(new Throwable(errorMessage))))
 
     val underTest: BlocksQuery =
@@ -105,5 +106,28 @@ class BlocksQueryServiceSpec
     val result = underTest.query(queryBlocksReq)
 
     result.futureValue.result.failure.get.reason.dataStoreConnectionError.get shouldBe errorMessage
+  }
+
+  it should "provide the database client with correct paging options" in {
+    val paging = Some(Paging(0, 5))
+
+    val queryBlocksReq: QueryBlocksReq =
+      QueryBlocksReq(None, 0, paging)
+
+    val resultBlocks = List(Block(id = "test1"))
+
+    val databaseClient: DatabaseClientAlg[IO, Source[*, NotUsed]] =
+      mock[DatabaseClientAlg[IO, Source[*, NotUsed]]]
+
+    (databaseClient.queryBlocks _)
+      .expects(*, paging)
+      .returns(Source(resultBlocks).pure[IO])
+
+    val underTest: BlocksQuery =
+      BlocksQueryService.Eval.make(databaseClient, 1.second)
+
+    val result = underTest.query(queryBlocksReq)
+
+    result.futureValue.result.success.get.blocks shouldBe resultBlocks
   }
 }
