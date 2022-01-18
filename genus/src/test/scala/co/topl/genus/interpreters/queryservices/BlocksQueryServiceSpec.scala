@@ -130,4 +130,52 @@ class BlocksQueryServiceSpec
 
     result.futureValue.result.success.get.blocks shouldBe resultBlocks
   }
+
+  it should "fail with an error when paging options are invalid" in {
+    val paging = Some(Paging(-1, -1))
+
+    val queryBlocksReq: QueryBlocksReq =
+      QueryBlocksReq(None, 0, paging)
+
+    val resultBlocks = List()
+
+    val databaseClient: DatabaseClientAlg[IO, Source[*, NotUsed]] =
+      mock[DatabaseClientAlg[IO, Source[*, NotUsed]]]
+
+    (databaseClient.queryBlocks _)
+      .expects(*, *)
+      .never
+      .returns(Source(resultBlocks).pure[IO])
+
+    val underTest: BlocksQuery =
+      BlocksQueryService.Eval.make(databaseClient, 1.second)
+
+    val result = underTest.query(queryBlocksReq)
+
+    result.futureValue.result.failure.get.reason.isInvalidQuery shouldBe true
+  }
+
+  it should "fail with an error when confirmation depth is negative" in {
+    val confirmationDepth = -1
+
+    val queryBlocksReq: QueryBlocksReq =
+      QueryBlocksReq(None, confirmationDepth, None)
+
+    val resultBlocks = List()
+
+    val databaseClient: DatabaseClientAlg[IO, Source[*, NotUsed]] =
+      mock[DatabaseClientAlg[IO, Source[*, NotUsed]]]
+
+    (databaseClient.queryBlocks _)
+      .expects(*, *)
+      .never
+      .returns(Source(resultBlocks).pure[IO])
+
+    val underTest: BlocksQuery =
+      BlocksQueryService.Eval.make(databaseClient, 1.second)
+
+    val result = underTest.query(queryBlocksReq)
+
+    result.futureValue.result.failure.get.reason.isInvalidQuery shouldBe true
+  }
 }

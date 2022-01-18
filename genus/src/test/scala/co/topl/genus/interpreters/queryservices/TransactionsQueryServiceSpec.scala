@@ -129,4 +129,52 @@ class TransactionsQueryServiceSpec
 
     result.futureValue.result.success.get.transactions shouldBe resultTxs
   }
+
+  it should "fail with an error when paging options are invalid" in {
+    val paging = Some(Paging(-1, -1))
+
+    val queryTxsReq: QueryTxsReq =
+      QueryTxsReq(None, 0, paging)
+
+    val resultTxs = List()
+
+    val databaseClient: DatabaseClientAlg[IO, Source[*, NotUsed]] =
+      mock[DatabaseClientAlg[IO, Source[*, NotUsed]]]
+
+    (databaseClient.queryTransactions _)
+      .expects(*, *)
+      .never
+      .returns(Source(resultTxs).pure[IO])
+
+    val underTest: TransactionsQuery =
+      TransactionsQueryService.Eval.make(databaseClient, 1.second)
+
+    val result = underTest.query(queryTxsReq)
+
+    result.futureValue.result.failure.get.reason.isInvalidQuery shouldBe true
+  }
+
+  it should "fail with an error when confirmation depth is negative" in {
+    val confirmationDepth = -1;
+
+    val queryTxsReq: QueryTxsReq =
+      QueryTxsReq(None, confirmationDepth, None)
+
+    val resultTxs = List()
+
+    val databaseClient: DatabaseClientAlg[IO, Source[*, NotUsed]] =
+      mock[DatabaseClientAlg[IO, Source[*, NotUsed]]]
+
+    (databaseClient.queryTransactions _)
+      .expects(*, *)
+      .never
+      .returns(Source(resultTxs).pure[IO])
+
+    val underTest: TransactionsQuery =
+      TransactionsQueryService.Eval.make(databaseClient, 1.second)
+
+    val result = underTest.query(queryTxsReq)
+
+    result.futureValue.result.failure.get.reason.isInvalidQuery shouldBe true
+  }
 }

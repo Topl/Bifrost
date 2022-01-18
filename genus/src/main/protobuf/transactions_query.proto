@@ -25,6 +25,7 @@ message QueryTxsRes {
     oneof reason {
       string data_store_connection_error = 1;
       string query_timeout = 2;
+      string invalid_query = 3;
     }
   }
 
