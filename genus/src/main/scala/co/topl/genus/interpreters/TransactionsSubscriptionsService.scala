@@ -3,32 +3,32 @@ package co.topl.genus.interpreters
 import cats.implicits._
 import akka.NotUsed
 import akka.stream.scaladsl.Source
-import co.topl.genus.services.transaction_subscription.ReadTxSubscriptionReq.RequestType
-import co.topl.genus.services.transaction_subscription._
+import co.topl.genus.services.transactions_subscription.ReadTxsSubscriptionReq.RequestType
+import co.topl.genus.services.transactions_subscription._
 import co.topl.genus.types.Transaction
 
 import java.util.UUID
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
-object TransactionSubscriptionsService {
+object TransactionsSubscriptionsService {
 
   object Mock {
 
-    def make: TransactionSubscription =
-      new TransactionSubscription {
+    def make: TransactionsSubscription =
+      new TransactionsSubscription {
 
-        override def create(in: CreateTxSubscriptionReq): Future[CreateTxSubscriptionRes] =
+        override def create(in: CreateTxsSubscriptionReq): Future[CreateTxsSubscriptionRes] =
           Future.successful(
-            CreateTxSubscriptionRes.of(UUID.randomUUID().toString)
+            CreateTxsSubscriptionRes.of(UUID.randomUUID().toString)
           )
 
-        override def delete(in: DeleteTxSubscriptionReq): Future[DeleteTxSubscriptionRes] =
+        override def delete(in: DeleteTxsSubscriptionReq): Future[DeleteTxsSubscriptionRes] =
           Future.successful(
-            DeleteTxSubscriptionRes.of()
+            DeleteTxsSubscriptionRes.of()
           )
 
-        override def read(in: Source[ReadTxSubscriptionReq, NotUsed]): Source[ReadTxSubscriptionRes, NotUsed] =
+        override def read(in: Source[ReadTxsSubscriptionReq, NotUsed]): Source[ReadTxsSubscriptionRes, NotUsed] =
           in.flatMapConcat(request =>
             request.requestType match {
               case RequestType.Checkpoint(_) => Source.empty
@@ -37,7 +37,7 @@ object TransactionSubscriptionsService {
                 Source.tick(
                   3.seconds,
                   5.seconds,
-                  ReadTxSubscriptionRes.of(Transaction().withTxId("mock-tx-id").some)
+                  ReadTxsSubscriptionRes.of(Transaction().withTxId("mock-tx-id").some)
                 )
               case RequestType.Empty => Source.empty
             }
