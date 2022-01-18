@@ -3,28 +3,38 @@ package co.topl.genus.interpreters
 import akka.NotUsed
 import akka.stream.alpakka.mongodb.scaladsl.MongoSource
 import akka.stream.scaladsl.Source
-import cats.Applicative
 import cats.implicits._
+import cats.{Applicative, MonadError, MonadThrow}
 import co.topl.genus.algebras.QueryAlg
-import co.topl.utils.mongodb.{DocumentDecoder, DocumentEncoder}
-import org.mongodb.scala.{Document, MongoCollection}
+import co.topl.utils.mongodb.DocumentDecoder
 import org.mongodb.scala.bson.conversions.Bson
+import org.mongodb.scala.{Document, MongoCollection}
 
 object MongoQuery {
 
+  type MongoQueryAlg[F[_], T] = QueryAlg[F, Source[*, NotUsed], Bson, T]
+
   object Eval {
 
-    def make[F[_]: Applicative, T: DocumentDecoder](
+    def make[F[_]: MonadThrow, T: DocumentDecoder](
       collection: MongoCollection[Document]
-    ): QueryAlg[F, Source[*, NotUsed], Bson, T] =
+    ): MongoQueryAlg[F, T] =
       (filter: Bson) =>
-        MongoSource(collection.find(filter))
-          .flatMapConcat(document =>
+        for {
+          // handle potential error with connection to Mongo
+          documentsSource <- MonadThrow[F].catchNonFatal(MongoSource(collection.find(filter)))
+          querySource = documentsSource.flatMapConcat(document =>
             DocumentDecoder[T]
               .fromDocument(document)
-              .map(value => Source.single(value))
+              .map(Source.single)
               .getOrElse(Source.empty)
           )
-          .pure[F]
+        } yield querySource
+  }
+
+  object Mock {
+
+    def make[F[_]: Applicative, T]: QueryAlg[F, Source[*, NotUsed], Bson, T] =
+      (_: Bson) => Source.empty[T].pure[F]
   }
 }

@@ -14,13 +14,15 @@ import org.mongodb.scala.model.{Aggregates, Filters}
 
 object MongoSubscription {
 
+  type MongoSubscriptionAlg[F[_], T] = SubscriptionAlg[F, Source[*, NotUsed], Bson, String, ChangeStreamDocument[T]]
+
   object Eval {
 
     def make[F[_]: Applicative, T: DocumentDecoder](
       mongoClient:    MongoClient,
       databaseName:   String,
       collectionName: String
-    ): SubscriptionAlg[F, Source[*, NotUsed], Bson, String, ChangeStreamDocument[T]] =
+    ): MongoSubscriptionAlg[F, T] =
       (filter: Bson, lastSeenMessage: Option[String]) =>
         lastSeenMessage
           .map(message =>
@@ -76,5 +78,11 @@ object MongoSubscription {
               .getOrElse(Source.empty)
           )
           .pure[F]
+  }
+
+  object Mock {
+
+    def make[F[_]: Applicative, T]: SubscriptionAlg[F, Source[*, NotUsed], Bson, String, ChangeStreamDocument[T]] =
+      (_: Bson, _: Option[String]) => Source.empty[ChangeStreamDocument[T]].pure[F]
   }
 }
