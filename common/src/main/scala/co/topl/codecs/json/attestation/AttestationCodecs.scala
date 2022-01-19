@@ -62,7 +62,7 @@ trait AttestationCodecs extends co.topl.codecs.json.attestation.keyManagement.Ke
       publicKeyPropositionCurve25519Codec.asDecoder
     )
 
-  implicit val publciKeyPropositionCurve25519JsonKeyDecoder: KeyDecoder[PublicKeyPropositionCurve25519] =
+  implicit val publicKeyPropositionCurve25519JsonKeyDecoder: KeyDecoder[PublicKeyPropositionCurve25519] =
     deriveKeyDecoderFromScodec(publicKeyPropositionCurve25519TypeName)(
       publicKeyPropositionCurve25519Codec.asDecoder
     )

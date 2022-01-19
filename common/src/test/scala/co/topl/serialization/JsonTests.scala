@@ -15,12 +15,14 @@ import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction
 import co.topl.utils.catsInstances._
 import co.topl.utils.{CommonGenerators, EqMatcher}
-import io.circe.DecodingFailure
 import io.circe.syntax.EncoderOps
+import io.circe.{DecodingFailure, Encoder}
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+
+import scala.collection.immutable.ListMap
 
 class JsonTests
     extends AnyPropSpec
@@ -51,31 +53,45 @@ class JsonTests
     forAll(signatureEd25519Gen)(sig => sig.asJson.as[SignatureEd25519] should eqvShow(sig.asRight[DecodingFailure]))
   }
 
-//  property("Attestation Ed25519 json") {
-//    forAll(attestationEd25519Gen) { attestation =>
-//      val json = attestation.asJson
-//
-//      val decodedAttestation = json.as[ListMap[PublicKeyPropositionEd25519, SignatureEd25519]]
-//
-//      decodedAttestation shouldEqual Right(attestation)
-//    }
-//  }
-//
-//  property("Attestation Curve25519 json") {
-//    forAll(attestationCurve25519Gen) { attestation =>
-//      attestation.asJson
-//        .as[ListMap[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]] shouldEqual Right(
-//        attestation
-//      )
-//    }
-//  }
-//
-//  property("Attestation ThresholdCurve25519 json") {
-//    forAll(attestationEd25519Gen) { attestation =>
-//      attestation.asJson
-//        .as[ListMap[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]] shouldEqual Right(attestation)
-//    }
-//  }
+  property("Attestation Ed25519 json") {
+    forAll(attestationEd25519Gen) { attestation =>
+      // must encode as a generic proposition and proof
+      val json = Encoder[ListMap[Proposition, Proof[Proposition]]].apply(
+        attestation.asInstanceOf[ListMap[Proposition, Proof[Proposition]]]
+      )
+
+      val decodedAttestation = json.as[ListMap[PublicKeyPropositionEd25519, Proof[PublicKeyPropositionEd25519]]]
+
+      decodedAttestation shouldEqual Right(attestation)
+    }
+  }
+
+  property("Attestation Curve25519 json") {
+    forAll(attestationCurve25519Gen) { attestation =>
+      // must encode as a generic proposition and proof
+      val json = Encoder[ListMap[Proposition, Proof[Proposition]]].apply(
+        attestation.asInstanceOf[ListMap[Proposition, Proof[Proposition]]]
+      )
+
+      json.as[ListMap[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]] shouldEqual Right(
+        attestation
+      )
+    }
+  }
+
+  property("Attestation ThresholdCurve25519 json") {
+    forAll(attestationThresholdCurve25519Gen) { attestation =>
+      // must encode as a generic proposition and proof
+      val json = Encoder[ListMap[Proposition, Proof[Proposition]]].apply(
+        attestation.asInstanceOf[ListMap[Proposition, Proof[Proposition]]]
+      )
+
+      json
+        .as[ListMap[ThresholdPropositionCurve25519, Proof[ThresholdPropositionCurve25519]]] shouldEqual Right(
+        attestation
+      )
+    }
+  }
 
   property("Keyfile json") {
     forAll(keyCurve25519Gen) { key =>

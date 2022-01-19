@@ -22,7 +22,7 @@ import scala.collection.immutable.ListMap
 
 trait TransactionCodecs {
 
-  implicit def publicKeyCurve25519AttestationJsonDecoder
+  implicit val publicKeyCurve25519AttestationJsonDecoder
     : Decoder[ListMap[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]] =
     Decoder[ListMap[Base58Data, Base58Data]]
       .emap(attestation =>
@@ -35,22 +35,26 @@ trait TransactionCodecs {
               publicKey <-
                 scodec
                   .Decoder[PublicKeyPropositionCurve25519]
+                  // We are assuming here that the first byte in the key will be a proposition type byte.
+                  // If the first byte is not a proposition type byte, then this will fail or yield an incorrect result.
                   .decodeValue(BitVector(key.encodeAsBytes.tail))
                   .toEither
-                  .leftMap(err => s"failed to decode public key proposition curve 25519 from binary data: $err")
+                  .leftMap(err => s"failed to decode public key curve 25519 proposition from binary data: $err")
               sig <-
                 scodec
                   .Decoder[SignatureCurve25519]
+                  // We are assuming here that the first byte in the key will be a proof type byte.
+                  // If the first byte is not a proof type byte, then this will fail or yield an incorrect result.
                   .decodeValue(BitVector(value.encodeAsBytes.tail))
                   .toEither
-                  .leftMap(err => s"failed to decode public key proposition curve 25519 from binary data: $err")
+                  .leftMap(err => s"failed to decode curve 25519 signature from binary data: $err")
             } yield publicKey -> sig)
               .map(pair => signatures ++ ListMap(pair))
           case (err, _) => err
         }
       )
 
-  implicit def thresholdCurve25519AttestationJsonDecoder
+  implicit val thresholdCurve25519AttestationJsonDecoder
     : Decoder[ListMap[ThresholdPropositionCurve25519, Proof[ThresholdPropositionCurve25519]]] =
     Decoder[ListMap[Base58Data, Base58Data]]
       .emap(attestation =>
@@ -63,22 +67,26 @@ trait TransactionCodecs {
               publicKey <-
                 scodec
                   .Decoder[ThresholdPropositionCurve25519]
+                  // We are assuming here that the first byte in the key will be a proposition type byte.
+                  // If the first byte is not a proposition type byte, then this will fail or yield an incorrect result.
                   .decodeValue(BitVector(key.encodeAsBytes.tail))
                   .toEither
-                  .leftMap(err => s"failed to decode threshold proposition curve 25519 from binary data: $err")
+                  .leftMap(err => s"failed to decode threshold curve 25519 proposition from binary data: $err")
               sig <-
                 scodec
                   .Decoder[ThresholdSignatureCurve25519]
+                  // We are assuming here that the first byte in the key will be a proof type byte.
+                  // If the first byte is not a proof type byte, then this will fail or yield an incorrect result.
                   .decodeValue(BitVector(value.encodeAsBytes.tail))
                   .toEither
-                  .leftMap(err => s"failed to decode threshold proposition curve 25519 from binary data: $err")
+                  .leftMap(err => s"failed to decode threshold curve 25519 signature from binary data: $err")
             } yield publicKey -> sig)
               .map(pair => signatures ++ ListMap(pair))
           case (err, _) => err
         }
       )
 
-  implicit def publicKeyEd25519AttestationJsonDecoder
+  implicit val publicKeyEd25519AttestationJsonDecoder
     : Decoder[ListMap[PublicKeyPropositionEd25519, Proof[PublicKeyPropositionEd25519]]] =
     Decoder[ListMap[Base58Data, Base58Data]]
       .emap(attestation =>
@@ -91,15 +99,19 @@ trait TransactionCodecs {
               publicKey <-
                 scodec
                   .Decoder[PublicKeyPropositionEd25519]
+                  // We are assuming here that the first byte in the key will be a proposition type byte.
+                  // If the first byte is not a proposition type byte, then this will fail or yield an incorrect result.
                   .decodeValue(BitVector(key.encodeAsBytes.tail))
                   .toEither
-                  .leftMap(err => s"failed to decode public key proposition curve 25519 from binary data: $err")
+                  .leftMap(err => s"failed to decode public key ed 25519 proposition from binary data: $err")
               sig <-
                 scodec
                   .Decoder[SignatureEd25519]
+                  // We are assuming here that the first byte in the key will be a proof type byte.
+                  // If the first byte is not a proof type byte, then this will fail or yield an incorrect result.
                   .decodeValue(BitVector(value.encodeAsBytes.tail))
                   .toEither
-                  .leftMap(err => s"failed to decode public key proposition curve 25519 from binary data: $err")
+                  .leftMap(err => s"failed to decode signature ed 25519 from binary data: $err")
             } yield publicKey -> sig)
               .map(pair => signatures ++ ListMap(pair))
           case (err, _) => err
