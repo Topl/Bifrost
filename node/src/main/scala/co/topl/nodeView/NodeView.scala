@@ -6,7 +6,7 @@ import cats.implicits._
 import co.topl.attestation.Address
 import co.topl.consensus.Hiccups.HiccupBlock
 import co.topl.consensus.KeyManager.StartupKeyView
-import co.topl.consensus.{Forger, Hiccups}
+import co.topl.consensus.{Forger, Hiccups, NxtLeaderElection}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ProgramId
@@ -90,10 +90,13 @@ object NodeView {
     settings:       AppSettings,
     networkType:    NetworkType,
     startupKeyView: () => Future[StartupKeyView]
-  )(implicit ec:    ExecutionContext): Future[NodeView] =
-    local(settings)(networkType.netPrefix).fold(genesis(settings, networkType, startupKeyView))(Future.successful)
+  )(implicit ec:    ExecutionContext, nxtLeaderElection: NxtLeaderElection): Future[NodeView] =
+    local(settings)(networkType.netPrefix, nxtLeaderElection)
+      .fold(genesis(settings, networkType, startupKeyView))(Future.successful)
 
-  def local(settings: AppSettings)(implicit networkPrefix: NetworkPrefix): Option[NodeView] =
+  def local(
+    settings:               AppSettings
+  )(implicit networkPrefix: NetworkPrefix, nxtLeaderElection: NxtLeaderElection): Option[NodeView] =
     if (State.exists(settings)) {
       Some(
         NodeView(
@@ -105,7 +108,8 @@ object NodeView {
     } else None
 
   def genesis(settings: AppSettings, networkType: NetworkType, startupKeyView: () => Future[StartupKeyView])(implicit
-    ec:                 ExecutionContext
+    ec:                 ExecutionContext,
+    nxtLeaderElection:  NxtLeaderElection
   ): Future[NodeView] = {
     implicit def networkPrefix: NetworkPrefix = networkType.netPrefix
     Forger
@@ -113,7 +117,9 @@ object NodeView {
       .map(genesis(settings, networkType, _))
   }
 
-  def genesis(settings: AppSettings, networkType: NetworkType, genesisBlock: Block): NodeView = {
+  def genesis(settings: AppSettings, networkType: NetworkType, genesisBlock: Block)(implicit
+    nxtLeaderElection:  NxtLeaderElection
+  ): NodeView = {
     implicit def networkPrefix: NetworkPrefix = networkType.netPrefix
     NodeView(
       History.readOrGenerate(settings).append(genesisBlock).get._1,

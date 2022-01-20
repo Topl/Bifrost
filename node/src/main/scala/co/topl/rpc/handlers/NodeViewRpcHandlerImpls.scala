@@ -5,7 +5,7 @@ import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, InvalidParametersError, RpcError, ThrowableData}
 import co.topl.attestation.Address
-import co.topl.consensus.{blockVersion, getProtocolRules, Forger, ForgerInterface}
+import co.topl.consensus.{Forger, ForgerInterface, NxtLeaderElection}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
@@ -32,7 +32,8 @@ class NodeViewRpcHandlerImpls(
 )(implicit
   system:           ActorSystem[_],
   throwableEncoder: Encoder[ThrowableData],
-  networkPrefix:    NetworkPrefix
+  networkPrefix:    NetworkPrefix,
+  nxtLeaderElection: NxtLeaderElection
 ) extends ToplRpcHandlers.NodeView {
 
   import system.executionContext
@@ -154,8 +155,8 @@ class NodeViewRpcHandlerImpls(
           appContext.networkType.toString,
           appContext.externalNodeAddress.fold("N/A")(_.toString),
           appContext.settings.application.version.toString,
-          getProtocolRules(view.history.height).version.toString,
-          blockVersion(view.history.height).toString
+          nxtLeaderElection.protocolMngr.getProtocolRules(view.history.height).version.toString,
+          nxtLeaderElection.protocolMngr.blockVersion(view.history.height).toString
         )
       }
 

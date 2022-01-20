@@ -30,7 +30,7 @@ class History(
   val storage:            Storage, // todo: JAA - make this private[history]
   fullBlockProcessor:     BlockProcessor,
   validators:             Seq[BlockValidator[Block]]
-)(implicit networkPrefix: NetworkPrefix)
+)(implicit networkPrefix: NetworkPrefix, nxtLeaderElection: NxtLeaderElection)
     extends GenericHistory[Block, BifrostSyncInfo, History]
     with AutoCloseable
     with Logging {
@@ -494,7 +494,9 @@ object History extends Logging {
 
   val GenesisParentId: ModifierId = ModifierId.genesisParentId
 
-  def readOrGenerate(settings: AppSettings)(implicit networkPrefix: NetworkPrefix): History = {
+  def readOrGenerate(
+    settings:               AppSettings
+  )(implicit networkPrefix: NetworkPrefix, nxtLeaderElection: NxtLeaderElection): History = {
     val storage = {
 
       /** Setup persistent on-disk storage */
@@ -516,7 +518,10 @@ object History extends Logging {
     apply(settings, storage)
   }
 
-  def apply(settings: AppSettings, storage: Storage)(implicit networkPrefix: NetworkPrefix): History = {
+  def apply(settings:  AppSettings, storage: Storage)(implicit
+    networkPrefix:     NetworkPrefix,
+    nxtLeaderElection: NxtLeaderElection
+  ): History = {
 
     /** This in-memory cache helps us to keep track of tines sprouting off the canonical chain */
     val blockProcessor = BlockProcessor(settings.network.maxChainCacheDepth)

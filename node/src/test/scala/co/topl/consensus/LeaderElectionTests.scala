@@ -3,7 +3,7 @@ package co.topl.consensus
 import co.topl.attestation.Address
 import co.topl.attestation.AddressCodec.implicits.Base58DataOps
 import co.topl.consensus.LeaderElection.{NoAddressesAvailable, NoArbitBoxesAvailable}
-import co.topl.utils.CommonGenerators
+import co.topl.utils.{CommonGenerators, TestSettings}
 import co.topl.utils.StringDataTypes.Base58Data
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
@@ -12,6 +12,8 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks.forAll
 
 class LeaderElectionTests extends AnyFlatSpec with MockFactory with CommonGenerators with EitherValues {
+
+  implicit val nxtLeaderElection: NxtLeaderElection = NxtLeaderElection(TestSettings.defaultSettings)
 
   val address: Address =
     Base58Data.unsafe("AUAvJqLKc8Un3C6bC4aj8WgHZo74vamvX8Kdm6MhtdXgw51cGfix").decodeAddress.toEither.value

@@ -1,6 +1,6 @@
 package co.topl.nodeView.history
 
-import co.topl.consensus.consensusHelper.setProtocolMngr
+import co.topl.consensus.NxtLeaderElection
 import co.topl.db.LDBVersionedStore
 import co.topl.modifier.block.Block
 import co.topl.nodeView.{CacheLayerKeyValueStore, LDBKeyValueStore}
@@ -16,9 +16,6 @@ class StorageCacheSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks w
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-
-    /* Initialize protocolMngr */
-    setProtocolMngr(settings)
 
     history = generateHistory()
   }

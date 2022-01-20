@@ -2,19 +2,16 @@ package co.topl.utils
 
 import co.topl.attestation._
 import co.topl.attestation.keyManagement._
+import co.topl.consensus.NxtLeaderElection
 import co.topl.consensus.genesis.TestGenesis
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.Box.identifier
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithms, TransferBuilder}
-import co.topl.modifier.transaction.builder.TransferRequests.{
-  ArbitTransferRequest,
-  AssetTransferRequest,
-  PolyTransferRequest
-}
+import co.topl.modifier.transaction.builder.TransferRequests.{ArbitTransferRequest, AssetTransferRequest, PolyTransferRequest}
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
-import co.topl.modifier.{transaction, ModifierId}
+import co.topl.modifier.{ModifierId, transaction}
 import co.topl.nodeView.history.{BlockProcessor, History, InMemoryKeyValueStore, Storage}
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppContext, AppSettings, StartupOpts, Version}
@@ -31,6 +28,7 @@ import scala.util.Random
 trait TestSettings {
   implicit def settings: AppSettings = TestSettings.defaultSettings
   implicit def appContext: AppContext = TestSettings.defaultAppContext
+  implicit val nxtLeaderElection: NxtLeaderElection = NxtLeaderElection(settings)
 }
 
 object TestSettings {

@@ -1,47 +1,18 @@
-package co.topl
+package co.topl.consensus
 
 import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
-import co.topl.settings.ProtocolSettings
+import co.topl.settings.AppSettings
 import co.topl.utils.{Int128, TimeProvider}
 import com.google.common.primitives.Longs
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.MILLISECONDS
 import scala.math.{max, min}
 
-package object consensus {
-
-  // Initialize or restore a consensus storage that keeps track of the maxStake, difficulty, height, and inflation
-  private[topl] var consensusStorage: ConsensusStorage = ConsensusStorage.emptyStorage()
-
-  //TODO: Jing - remove everything below
-  /**
-  private var _protocolMngr: ProtocolVersioner = ProtocolVersioner.empty
-
-  // setter
-  private[topl] def protocolMngr_=(value: ProtocolVersioner): Unit = _protocolMngr = value
-
-  // getters
-  def protocolMngr: ProtocolVersioner = _protocolMngr
-
+class NxtLeaderElection(val protocolMngr: ProtocolVersioner) {
   // number of blocks to use for determining the avg block delay
   def nxtBlockNum: Int = 3
-
-  /** Find the rule set for the given app version and block height */
-  def getProtocolRules(blockHeight: Long): ProtocolSettings =
-    protocolMngr
-      .current(blockHeight)
-      .getOrElse(throw new Error("Unable to find applicable protocol rules"))
-
-  def targetBlockTime(blockHeight: Long): FiniteDuration =
-    getProtocolRules(blockHeight).targetBlockTime.get
-
-  def numTxInBlock(blockHeight: Long): Int =
-    getProtocolRules(blockHeight).numTxPerBlock.get
-
-  def blockVersion(blockHeight: Long): Byte =
-    getProtocolRules(blockHeight).blockVersion.get
 
   /**
    * Defines how we calculate the test value for determining eligibility to forge
@@ -60,15 +31,22 @@ package object consensus {
    * Gets the target threshold.
    * threshold = ( (address stake) * (time delta) * (difficulty) ) / ( (total stake) * (target block time) )
    * @param stakeAmount amount of stake held in address
+   * @param totalStake amount of
    * @param timeDelta delta from previous block time to the current time
    * @param difficulty forging difficulty
    * @param parentHeight parent block height
    * @return the target value
    */
-  def calcTarget(stakeAmount: Int128, timeDelta: Long, difficulty: Long, parentHeight: Long): BigInt =
+  def calcTarget(
+    stakeAmount:  Int128,
+    totalStake:   Int128,
+    timeDelta:    Long,
+    difficulty:   Long,
+    parentHeight: Long
+  ): BigInt =
     (BigInt(stakeAmount.toByteArray) * BigInt(difficulty) * BigInt(timeDelta)) /
-    (BigInt(consensusStorage.totalStake.toByteArray) * BigInt(
-      targetBlockTime(parentHeight).toUnit(MILLISECONDS).toLong
+    (BigInt(totalStake.toByteArray) * BigInt(
+      protocolMngr.targetBlockTime(parentHeight).toUnit(MILLISECONDS).toLong
     ))
 
   /**
@@ -82,7 +60,7 @@ package object consensus {
   def calcNewBaseDifficulty(newHeight: Long, prevDifficulty: Long, prevTimes: Seq[TimeProvider.Time]): Long = {
 
     val averageDelay = prevTimes.drop(1).lazyZip(prevTimes).map(_ - _).sum / (prevTimes.length - 1)
-    val targetTimeMilli = targetBlockTime(newHeight).toUnit(MILLISECONDS)
+    val targetTimeMilli = protocolMngr.targetBlockTime(newHeight).toUnit(MILLISECONDS)
 
     // magic numbers here (1.1, 0.9, and 0.64) are straight from NXT
     if (averageDelay > targetTimeMilli) {
@@ -91,5 +69,12 @@ package object consensus {
       (prevDifficulty * (1 - 0.64 * (1 - (max(averageDelay.toDouble, targetTimeMilli * 0.9) / targetTimeMilli)))).toLong
     }
   }
-  */
+}
+
+object NxtLeaderElection {
+
+  def apply(settings: AppSettings): NxtLeaderElection = {
+    val protocolMngr = ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
+    new NxtLeaderElection(protocolMngr)
+  }
 }

@@ -1,6 +1,5 @@
 package co.topl.consensus
 
-import co.topl.consensus.consensusHelper.setProtocolMngr
 import co.topl.nodeView.history.{BlockProcessor, History}
 import co.topl.utils.NodeGenerators
 import org.scalatest.matchers.must.Matchers
@@ -14,10 +13,6 @@ class BlockValidatorSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-
-    /* Initialize protocolMngr */
-    setProtocolMngr(settings)
-
     history = generateHistory()
   }
 

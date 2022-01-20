@@ -1,5 +1,6 @@
 package co.topl.tool
 
+import co.topl.consensus.NxtLeaderElection
 import co.topl.nodeView.history.History
 import co.topl.settings.{AppSettings, StartupOpts}
 import co.topl.tools.exporter.{DataType, Exportable, MongoExport}
@@ -18,7 +19,8 @@ import scala.util.{Failure, Success}
 
 object Exporter extends Logging {
 
-  private def initHistory(settings: AppSettings, np: NetworkPrefix): History = History.readOrGenerate(settings)(np)
+  private def initHistory(settings: AppSettings, np: NetworkPrefix): History =
+    History.readOrGenerate(settings)(np, nxtLeaderElection = NxtLeaderElection(settings))
 
   private def export(connection: Exportable, history: History, start: Long = 1L, end: Long): Unit = {
 

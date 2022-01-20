@@ -16,7 +16,9 @@ sealed trait BlockValidator[PM <: Block] {
   def validate(block: PM): Try[Unit]
 }
 
-class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor) extends BlockValidator[Block] {
+class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)(implicit
+  nxtLeaderElection: NxtLeaderElection
+) extends BlockValidator[Block] {
 
   def validate(block: Block): Try[Unit] = Try {
     // lookup our local data about the parent
@@ -39,7 +41,7 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
     Try {
       // calculate the new base difficulty
       val newHeight = parent.height + 1
-      val newBaseDifficulty = consensus.calcNewBaseDifficulty(newHeight, parent.difficulty, prevTimes)
+      val newBaseDifficulty = nxtLeaderElection.calcNewBaseDifficulty(newHeight, parent.difficulty, prevTimes)
 
       // does the difficulty stamped on the block match what we would calculate locally?
       require(
@@ -56,11 +58,12 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
 
   private def ensureValidHit(block: Block, parent: Block): Try[Unit] = Try {
     // calculate the hit value from the forger box included in the new block
-    val hit = calcHit(parent)(block.generatorBox)
+    val hit = nxtLeaderElection.calcHit(parent)(block.generatorBox)
 
     // calculate the difficulty the forger would have used to determine eligibility
-    val target = calcTarget(
+    val target = nxtLeaderElection.calcTarget(
       block.generatorBox.value.quantity,
+      consensusStorage.totalStake,
       block.timestamp - parent.timestamp,
       parent.difficulty,
       parent.height
@@ -77,7 +80,7 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
       case None              =>
         // we have already checked if the parent exists so can get
         val parent = storage.modifierById(block.parentId).get
-        (parent, History.getTimestamps(storage, consensus.nxtBlockNum, parent) :+ block.timestamp)
+        (parent, History.getTimestamps(storage, nxtLeaderElection.nxtBlockNum, parent) :+ block.timestamp)
     }
 }
 

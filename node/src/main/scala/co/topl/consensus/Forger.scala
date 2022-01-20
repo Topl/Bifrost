@@ -59,13 +59,17 @@ object Forger {
   case class ChainParams(totalStake: Int128, difficulty: Long)
 
   def behavior(
-    blockGenerationDelay:   FiniteDuration,
-    minTransactionFee:      Int128,
-    forgeOnStartup:         Boolean,
-    fetchKeyView:           () => Future[KeyView],
-    fetchStartupKeyView:    () => Future[StartupKeyView],
-    nodeViewReader:         NodeViewReader
-  )(implicit networkPrefix: NetworkPrefix, timeProvider: TimeProvider): Behavior[ReceivableMessage] =
+    blockGenerationDelay: FiniteDuration,
+    minTransactionFee:    Int128,
+    forgeOnStartup:       Boolean,
+    fetchKeyView:         () => Future[KeyView],
+    fetchStartupKeyView:  () => Future[StartupKeyView],
+    nodeViewReader:       NodeViewReader
+  )(implicit
+    networkPrefix:     NetworkPrefix,
+    nxtLeaderElection: NxtLeaderElection,
+    timeProvider:      TimeProvider
+  ): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
       import context.executionContext
 
@@ -141,7 +145,12 @@ private class ForgerBehaviors(
   minTransactionFee:    Int128,
   fetchKeyView:         () => Future[KeyView],
   nodeViewReader:       NodeViewReader
-)(implicit context: ActorContext[Forger.ReceivableMessage], networkPrefix: NetworkPrefix, timeProvider: TimeProvider) {
+)(implicit
+  context:           ActorContext[Forger.ReceivableMessage],
+  networkPrefix:     NetworkPrefix,
+  nxtLeaderElection: NxtLeaderElection,
+  timeProvider:      TimeProvider
+) {
   import context.executionContext
   implicit private val log: Logger = context.log
 

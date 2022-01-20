@@ -56,7 +56,11 @@ object Heimdall {
       implicit val timeout: Timeout = Timeout(10.minutes)
 
       context.log.info("Initializing ProtocolVersioner and ConsensusStorage")
-      protocolMngr = ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
+
+      // TODO: Jing - remove
+//      protocolMngr = ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
+
+      implicit val nxtLeaderElection: NxtLeaderElection = NxtLeaderElection(settings)
       consensusStorage = ConsensusStorage(settings, appContext.networkType)
 
       implicit val timeProvider: NetworkTimeProvider = new NetworkTimeProvider(settings.ntp)(context.system)
@@ -70,7 +74,7 @@ object Heimdall {
         case Failure(exception) => ReceivableMessages.Fail(exception)
         case Success(_)         => ReceivableMessages.NodeViewHolderReady
       }
-      awaitingNodeViewReady(settings, appContext, state)(timeProvider)
+      awaitingNodeViewReady(settings, appContext, state)(timeProvider, nxtLeaderElection)
     }
 
   /**
@@ -81,7 +85,7 @@ object Heimdall {
     settings:              AppSettings,
     appContext:            AppContext,
     state:                 NodeViewHolderInitializingState
-  )(implicit timeProvider: TimeProvider): Behavior[ReceivableMessage] =
+  )(implicit timeProvider: TimeProvider, nxtLeaderElection: NxtLeaderElection): Behavior[ReceivableMessage] =
     Behaviors.receivePartial {
       case (context, ReceivableMessages.NodeViewHolderReady) =>
         implicit def ctx: ActorContext[ReceivableMessage] = context
@@ -101,8 +105,8 @@ object Heimdall {
     settings:              AppSettings,
     appContext:            AppContext,
     state:                 NetworkControllerInitializingState
-  )(implicit timeProvider: TimeProvider): Behavior[ReceivableMessage] = Behaviors.receivePartial {
-    case (context, ReceivableMessages.NetworkControllerReady) =>
+  )(implicit timeProvider: TimeProvider, nxtLeaderElection: NxtLeaderElection): Behavior[ReceivableMessage] =
+    Behaviors.receivePartial { case (context, ReceivableMessages.NetworkControllerReady) =>
       context.log.info(
         "Initializing PeerSynchronizer, NodeViewSynchronizer, and ChainReplicator"
       )
@@ -120,16 +124,16 @@ object Heimdall {
       context.self.tell(ReceivableMessages.BindExternalTraffic)
 
       awaitingBindExternalTraffic(settings, appContext, nextState)
-  }
+    }
 
   /**
    * The Heimdall state in which the child actors have been created but more initialization is needed.
    */
   private def awaitingBindExternalTraffic(
-    settings:   AppSettings,
-    appContext: AppContext,
-    state:      ActorsInitializedState
-  ): Behavior[ReceivableMessage] =
+    settings:                   AppSettings,
+    appContext:                 AppContext,
+    state:                      ActorsInitializedState
+  )(implicit nxtLeaderElection: NxtLeaderElection): Behavior[ReceivableMessage] =
     Behaviors.receivePartial {
       case (context, ReceivableMessages.BindExternalTraffic) =>
         implicit val bindTimeout: Timeout = Timeout(10.seconds)
@@ -150,7 +154,10 @@ object Heimdall {
       case (context, ReceivableMessages.P2PTrafficBound(p2pAddress)) =>
         context.log.info(s"${Console.YELLOW}P2P protocol bound to $p2pAddress${Console.RESET}")
         val service =
-          httpService(settings, appContext, state.keyManager, state.forger, state.nodeViewHolder)(context.system)
+          httpService(settings, appContext, state.keyManager, state.forger, state.nodeViewHolder)(
+            context.system,
+            nxtLeaderElection
+          )
         val httpHost = settings.rpcApi.bindAddress.getHostName
         val httpPort = settings.rpcApi.bindAddress.getPort
 
@@ -223,7 +230,7 @@ object Heimdall {
     keyManagerRef:     CActorRef,
     forgerRef:         ActorRef[Forger.ReceivableMessage],
     nodeViewHolderRef: ActorRef[NodeViewHolder.ReceivableMessage]
-  )(implicit system:   ActorSystem[_]): HttpService = {
+  )(implicit system:   ActorSystem[_], nxtLeaderElection: NxtLeaderElection): HttpService = {
     import system.executionContext
 
     implicit val networkPrefix: NetworkPrefix =
@@ -260,7 +267,8 @@ object Heimdall {
 
   private def prepareKeyManagerAndNodeViewActors(settings: AppSettings, appContext: AppContext)(implicit
     context:                                               ActorContext[ReceivableMessage],
-    timeProvider:                                          TimeProvider
+    timeProvider:                                          TimeProvider,
+    nxtLeaderElection:                                     NxtLeaderElection
   ): NodeViewHolderInitializingState = {
     import context.executionContext
     implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
@@ -295,8 +303,9 @@ object Heimdall {
     appContext: AppContext,
     state:      NodeViewHolderInitializingState
   )(implicit
-    context:      ActorContext[ReceivableMessage],
-    timeProvider: TimeProvider
+    context:           ActorContext[ReceivableMessage],
+    nxtLeaderElection: NxtLeaderElection,
+    timeProvider:      TimeProvider
   ): NetworkControllerInitializingState = {
 
     import context.executionContext

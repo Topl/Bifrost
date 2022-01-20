@@ -2,7 +2,6 @@ package co.topl.consensus
 
 import co.topl.attestation.Address
 import co.topl.consensus.KeyManager.KeyView
-import co.topl.consensus.consensusHelper.setProtocolMngr
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, ProgramId, SimpleValue}
 import co.topl.modifier.transaction.Transaction
@@ -167,7 +166,6 @@ class ForgeSpec
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    setProtocolMngr(settings)
     consensusStorage = ConsensusStorage(settings, appContext.networkType)
   }
 

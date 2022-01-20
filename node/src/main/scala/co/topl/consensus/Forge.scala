@@ -40,7 +40,10 @@ case class Forge(
   getPublicKey:          Address => Try[PublicKeyPropositionCurve25519]
 ) {
 
-  def make(implicit networkPrefix: NetworkPrefix): Either[Forge.Failure, Block] = {
+  def make(implicit
+    networkPrefix:     NetworkPrefix,
+    nxtLeaderElection: NxtLeaderElection
+  ): Either[Forge.Failure, Block] = {
 
     // generate the address the owns the generator box
     val matchingAddr = Address(box.evidence)
@@ -66,7 +69,7 @@ case class Forge(
       }
 
       // calculate the newly forged blocks updated difficulty
-      newDifficulty = calcNewBaseDifficulty(
+      newDifficulty = nxtLeaderElection.calcNewBaseDifficulty(
         parent.height + 1,
         parent.difficulty,
         previousBlockTimes :+ forgeTime
@@ -80,7 +83,7 @@ case class Forge(
           publicKey,
           parent.height + 1,
           newDifficulty,
-          blockVersion(parent.height + 1)
+          nxtLeaderElection.protocolMngr.blockVersion(parent.height + 1)
         )(signingFunction)
         .toEither
         .leftMap(Forge.ForgingError)
@@ -93,6 +96,7 @@ object Forge {
   def fromNodeView(nodeView: ReadableNodeView, keyView: KeyView, minTransactionFee: Int128)(implicit
     timeProvider:            TimeProvider,
     networkPrefix:           NetworkPrefix,
+    nxtLeaderElection:       NxtLeaderElection,
     logger:                  Logger
   ): Either[Failure, Forge] =
     for {
@@ -106,7 +110,7 @@ object Forge {
       parentBlock = nodeView.history.bestBlock
       forgeTime = timeProvider.time
       rewards <- Rewards(transactions, rewardAddress, parentBlock.id, forgeTime).toEither.leftMap(ForgingError)
-      prevTimes = nodeView.history.getTimestampsFrom(parentBlock, nxtBlockNum)
+      prevTimes = nodeView.history.getTimestampsFrom(parentBlock, nxtLeaderElection.nxtBlockNum)
       arbitBox <- LeaderElection
         .getEligibleBox(parentBlock, keyView.addresses, forgeTime, nodeView.state)
         .leftMap(LeaderElectionFailure)
@@ -129,14 +133,19 @@ object Forge {
    * @return a sequence of valid transactions
    */
   private[consensus] def pickTransactions(
-    minTransactionFee:      Int128,
-    memPoolReader:          MemPoolReader[Transaction.TX],
-    stateReader:            StateReader[ProgramId, Address],
-    chainHeight:            Long
-  )(implicit networkPrefix: NetworkPrefix, log: Logger): Either[Failure, PickTransactionsResult] =
+    minTransactionFee: Int128,
+    memPoolReader:     MemPoolReader[Transaction.TX],
+    stateReader:       StateReader[ProgramId, Address],
+    chainHeight:       Long
+  )(implicit
+    networkPrefix:     NetworkPrefix,
+    nxtLeaderElection: NxtLeaderElection,
+    log:               Logger
+  ): Either[Failure, PickTransactionsResult] =
     Try(
       memPoolReader
-        .take[Int128](numTxInBlock(chainHeight))(-_.tx.fee) // returns a sequence of transactions ordered by their fee
+        // returns a sequence of transactions ordered by their fee
+        .take[Int128](nxtLeaderElection.protocolMngr.numTxInBlock(chainHeight))(-_.tx.fee)
         .filter(
           _.tx.fee >= minTransactionFee
         ) // default strategy ignores zero fee transactions in mempool

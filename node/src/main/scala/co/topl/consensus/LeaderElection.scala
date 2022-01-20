@@ -23,11 +23,11 @@ object LeaderElection extends Logging {
    * @return an eligible box if one is found
    */
   def getEligibleBox(
-    parent:      Block,
-    addresses:   Set[Address],
-    timestamp:   TimeProvider.Time,
-    stateReader: SR
-  ): Either[IneligibilityReason, ArbitBox] =
+    parent:            Block,
+    addresses:         Set[Address],
+    timestamp:         TimeProvider.Time,
+    stateReader:       SR
+  )(implicit nxtLeaderElection: NxtLeaderElection): Either[IneligibilityReason, ArbitBox] =
     if (addresses.isEmpty) {
       Left(NoAddressesAvailable)
     } else {
@@ -45,9 +45,15 @@ object LeaderElection extends Logging {
       if (arbitBoxesIterator.hasNext) {
         while (arbitBoxesIterator.hasNext) {
           val box = arbitBoxesIterator.next()
-          val hit = calcHit(parent)(box)
+          val hit = nxtLeaderElection.calcHit(parent)(box)
           val calculatedTarget =
-            calcTarget(box.value.quantity, timestamp - parent.timestamp, parent.difficulty, parent.height)
+            nxtLeaderElection.calcTarget(
+              box.value.quantity,
+              consensusStorage.totalStake,
+              timestamp - parent.timestamp,
+              parent.difficulty,
+              parent.height
+            )
           if (BigInt(hit) < calculatedTarget) return Right(box)
         }
         Left(NoBoxesEligible)
