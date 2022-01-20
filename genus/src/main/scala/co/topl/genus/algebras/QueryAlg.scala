@@ -1,5 +1,7 @@
 package co.topl.genus.algebras
 
-trait QueryAlg[F[_], G[_], Filter, T] {
-  def query(filter: Filter): F[G[T]]
+import co.topl.genus.services.services_types.Paging
+
+trait QueryAlg[F[_], G[_], Sorting, Filter, T] {
+  def query(filter: Filter, sort: Sorting, paging: Option[Paging]): F[G[T]]
 }

@@ -10,6 +10,7 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import co.topl.genus.algebras.DatabaseClientAlg
 import co.topl.genus.filters.TransactionFilter
+import co.topl.genus.services.services_types.Paging
 import co.topl.genus.services.transactions_query.{QueryTxsReq, TransactionsQuery}
 import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.types.Transaction
@@ -40,7 +41,7 @@ class TransactionsQueryServiceSpec
 
     val databaseClient: DatabaseClientAlg[IO, Source[*, NotUsed]] = mock[DatabaseClientAlg[IO, Source[*, NotUsed]]]
     (databaseClient.queryTransactions _)
-      .expects(*)
+      .expects(*, *)
       .returns(Source.empty.pure[IO])
 
     val underTest: TransactionsQuery =
@@ -61,7 +62,7 @@ class TransactionsQueryServiceSpec
 
     val databaseClient: DatabaseClientAlg[IO, Source[*, NotUsed]] = mock[DatabaseClientAlg[IO, Source[*, NotUsed]]]
     (databaseClient.queryTransactions _)
-      .expects(*)
+      .expects(*, *)
       .returns(Source(existingTxs).pure[IO])
 
     val underTest: TransactionsQuery =
@@ -77,7 +78,7 @@ class TransactionsQueryServiceSpec
 
     val databaseClient: DatabaseClientAlg[IO, Source[*, NotUsed]] = mock[DatabaseClientAlg[IO, Source[*, NotUsed]]]
     (databaseClient.queryTransactions _)
-      .expects(*)
+      .expects(*, *)
       .returns(Source.never.pure[IO])
 
     val underTest: TransactionsQuery =
@@ -95,7 +96,7 @@ class TransactionsQueryServiceSpec
     val databaseClient: DatabaseClientAlg[IO, Source[*, NotUsed]] =
       mock[DatabaseClientAlg[IO, Source[*, NotUsed]]]
     (databaseClient.queryTransactions _)
-      .expects(*)
+      .expects(*, *)
       .returns(IO.fromEither(Left(new Throwable(errorMessage))))
 
     val underTest: TransactionsQuery =
@@ -104,5 +105,76 @@ class TransactionsQueryServiceSpec
     val queryResult = underTest.query(queryTxReq)
 
     queryResult.futureValue.result.failure.get.reason.dataStoreConnectionError.get shouldBe errorMessage
+  }
+
+  it should "provide the database client with correct paging options" in {
+    val paging = Some(Paging(0, 5))
+
+    val queryTxsReq: QueryTxsReq =
+      QueryTxsReq(None, 0, paging)
+
+    val resultTxs = List(Transaction(data = "test"))
+
+    val databaseClient: DatabaseClientAlg[IO, Source[*, NotUsed]] =
+      mock[DatabaseClientAlg[IO, Source[*, NotUsed]]]
+
+    (databaseClient.queryTransactions _)
+      .expects(*, paging)
+      .returns(Source(resultTxs).pure[IO])
+
+    val underTest: TransactionsQuery =
+      TransactionsQueryService.Eval.make(databaseClient, 1.second)
+
+    val result = underTest.query(queryTxsReq)
+
+    result.futureValue.result.success.get.transactions shouldBe resultTxs
+  }
+
+  it should "fail with an error when paging options are invalid" in {
+    val paging = Some(Paging(-1, -1))
+
+    val queryTxsReq: QueryTxsReq =
+      QueryTxsReq(None, 0, paging)
+
+    val resultTxs = List()
+
+    val databaseClient: DatabaseClientAlg[IO, Source[*, NotUsed]] =
+      mock[DatabaseClientAlg[IO, Source[*, NotUsed]]]
+
+    (databaseClient.queryTransactions _)
+      .expects(*, *)
+      .never
+      .returns(Source(resultTxs).pure[IO])
+
+    val underTest: TransactionsQuery =
+      TransactionsQueryService.Eval.make(databaseClient, 1.second)
+
+    val result = underTest.query(queryTxsReq)
+
+    result.futureValue.result.failure.get.reason.isInvalidQuery shouldBe true
+  }
+
+  it should "fail with an error when confirmation depth is negative" in {
+    val confirmationDepth = -1;
+
+    val queryTxsReq: QueryTxsReq =
+      QueryTxsReq(None, confirmationDepth, None)
+
+    val resultTxs = List()
+
+    val databaseClient: DatabaseClientAlg[IO, Source[*, NotUsed]] =
+      mock[DatabaseClientAlg[IO, Source[*, NotUsed]]]
+
+    (databaseClient.queryTransactions _)
+      .expects(*, *)
+      .never
+      .returns(Source(resultTxs).pure[IO])
+
+    val underTest: TransactionsQuery =
+      TransactionsQueryService.Eval.make(databaseClient, 1.second)
+
+    val result = underTest.query(queryTxsReq)
+
+    result.futureValue.result.failure.get.reason.isInvalidQuery shouldBe true
   }
 }

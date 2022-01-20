@@ -8,6 +8,8 @@ package object typeclasses {
       with MongoFilterInstances
       with MongoFilter.ToMongoFilterOps
       with FunctionKInstances
+      with Validation.ToValidationOps
+      with ValidationInstances
 
   object implicits extends Implicits
 }

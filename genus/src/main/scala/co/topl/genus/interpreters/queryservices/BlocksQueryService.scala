@@ -4,6 +4,7 @@ import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.Source
 import cats.MonadThrow
+import cats.data.EitherT
 import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.genus.algebras.DatabaseClientAlg
@@ -43,39 +44,42 @@ object BlocksQueryService {
     ): BlocksQuery =
       (in: QueryBlocksReq) =>
         (for {
+          // validate query and convert into a possible `InvalidQuery` failure
+          _ <-
+            EitherT.fromEither[F](
+              in.validate.toEither
+                .leftMap(errs => QueryBlocksRes.Failure.Reason.InvalidQuery(errs.show))
+            )
           // query blocks as a value of `Source[Block]`
-          blocksSourceResult <-
-            databaseClient
-              .queryBlocks(
-                // use provided filter or default to a filter which gets all values
-                // TODO: return an error if no filter provided -> too many values to query
-                in.filter.getOrElse(
-                  BlockFilter.of(BlockFilter.FilterType.All(BlockFilter.AllFilter()))
+          blocksSource <-
+            EitherT(
+              databaseClient
+                .queryBlocks(
+                  // use provided filter or default to a filter which gets all values
+                  in.filter.getOrElse(
+                    BlockFilter.of(BlockFilter.FilterType.All(BlockFilter.AllFilter()))
+                  ),
+                  in.pagingOptions
                 )
-              )
-              .map(_.asRight[QueryBlocksRes.Failure.Reason])
-              // handle a Mongo failure as a data store connection error
-              .handleError(error => QueryBlocksRes.Failure.Reason.DataStoreConnectionError(error.getMessage).asLeft)
-          queryResult <-
-            // collect the source to a Success result unless we hit the configured timeout
-            blocksSourceResult
-              .map(source =>
-                source
-                  // collect the Source into a `Seq[Block]` with a possible timeout
-                  .collectWithTimeout(queryTimeout)
-                  // map successful collection into a Success response
-                  .map(blocks => QueryBlocksRes.Success.of(blocks).asRight[QueryBlocksRes.Failure.Reason])
-                  // an error here would be due to a query timeout with the collection
-                  .handleError(err => QueryBlocksRes.Failure.Reason.QueryTimeout(err.getMessage).asLeft)
-              )
-              // if we failed to create a source, return a failure
-              .valueOr(err => err.asLeft.pure[F])
-          result =
-            // create the query response message to send to the client
-            queryResult
-              .map(success => QueryBlocksRes(QueryBlocksRes.Result.Success(success)))
-              .valueOr(failure => QueryBlocksRes(QueryBlocksRes.Result.Failure(QueryBlocksRes.Failure(failure))))
+                .map(_.asRight[QueryBlocksRes.Failure.Reason])
+                // handle a Mongo failure as a data store connection error
+                .handleError(error => QueryBlocksRes.Failure.Reason.DataStoreConnectionError(error.getMessage).asLeft)
+            )
+          // collect the source to a Success result unless we hit the configured timeout
+          result <-
+            EitherT(
+              blocksSource
+                // collect the Source into a `Seq[Block]` with a possible timeout
+                .collectWithTimeout(queryTimeout)
+                // map successful collection into a Success response
+                .map(blocks => QueryBlocksRes.Success.of(blocks).asRight[QueryBlocksRes.Failure.Reason])
+                // an error here would be due to a query timeout with the collection
+                .handleError(err => QueryBlocksRes.Failure.Reason.QueryTimeout(err.getMessage).asLeft)
+            )
         } yield result)
+          .map[QueryBlocksRes.Result](s => QueryBlocksRes.Result.Success(s))
+          .valueOr(f => QueryBlocksRes.Result.Failure(QueryBlocksRes.Failure(f)))
+          .map(result => QueryBlocksRes(result))
           // map the Async F functor to a `Future` which is required for Akka gRPC
           .mapFunctor[Future]
   }

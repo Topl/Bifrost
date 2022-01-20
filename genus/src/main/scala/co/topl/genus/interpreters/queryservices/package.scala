@@ -21,7 +21,6 @@ package object queryservices {
        * Collects the given Source into a `Seq[T]` with a given allowed timeout.
        * @param timeout the amount of time to allow for the source to complete
        * @param materializer the stream's materializer
-       * @param monadError an instance of `MonadError[*, Throwable]`
        * @tparam F a functor to wrap the result sequence with an instance of `Async`
        * @return a result of `F[Seq[T]]` with the possibility of a `TimeoutException` if the source
        *         does not complete before the given timeout
@@ -30,9 +29,8 @@ package object queryservices {
         materializer:                                          Materializer
       ): F[Seq[T]] =
         Async[F].fromFuture(
-          MonadThrow[F].catchNonFatal(
-            source.completionTimeout(timeout).runWith(Sink.seq)
-          )
+          MonadThrow[F]
+            .catchNonFatal(source.completionTimeout(timeout).runWith(Sink.seq))
         )
     }
   }
