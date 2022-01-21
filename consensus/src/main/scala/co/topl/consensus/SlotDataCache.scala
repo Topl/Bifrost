@@ -4,7 +4,7 @@ import cats.MonadError
 import cats.data.OptionT
 import cats.effect._
 import cats.implicits._
-import co.topl.algebras.Store
+import co.topl.algebras.{Store, UnsafeResource}
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models.{BlockHeaderV2, TypedIdentifier}
 import co.topl.typeclasses.implicits._
@@ -25,19 +25,16 @@ object SlotDataCache {
 
     // TODO: Use Epoch thirds for storage
     def make[F[_]: MonadError[*[_], Throwable]: Clock: Sync](
-      blockHeaderLookup: Store[F, BlockHeaderV2]
+      blockHeaderLookup:  Store[F, BlockHeaderV2],
+      ed25519VRFResource: UnsafeResource[F, Ed25519VRF]
     ): F[SlotDataCache[F]] =
-      Ref
-        .of[F, Ed25519VRF](Ed25519VRF.precomputed())
-        .flatMap(ref =>
-          CaffeineCache[F, SlotData].map(implicit cache =>
-            (blockId: TypedIdentifier) =>
-              cachingF(blockId)(ttl = Some(1.day))(
-                OptionT(blockHeaderLookup.get(blockId))
-                  .getOrElseF(new IllegalStateException(blockId.show).raiseError[F, BlockHeaderV2])
-                  .flatMap(header => ref.modify(implicit ed25519Vrf => ed25519Vrf -> SlotData(header)))
-              )
+      CaffeineCache[F, SlotData].map(implicit cache =>
+        (blockId: TypedIdentifier) =>
+          cachingF(blockId)(ttl = Some(1.day))(
+            OptionT(blockHeaderLookup.get(blockId))
+              .getOrElseF(new IllegalStateException(blockId.show).raiseError[F, BlockHeaderV2])
+              .flatMap(header => ed25519VRFResource.use(implicit ed25519Vrf => SlotData(header)))
           )
-        )
+      )
   }
 }

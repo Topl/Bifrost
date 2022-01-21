@@ -1,20 +1,17 @@
 package co.topl.consensus
 
 import cats.MonadError
-import cats.data.{EitherT, NonEmptyChain}
+import cats.data.NonEmptyChain
 import cats.effect.{Clock, Sync}
 import cats.implicits._
-import co.topl.algebras.ClockAlgebra
 import co.topl.algebras.ClockAlgebra.implicits._
+import co.topl.algebras.{ClockAlgebra, UnsafeResource}
 import co.topl.consensus.algebras.EtaCalculationAlgebra
-import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.Lengths._
-import co.topl.models.utility.Sized
-import co.topl.typeclasses.BlockGenesis
 import co.topl.typeclasses.implicits._
+import org.typelevel.log4cats.Logger
 import scalacache._
 import scalacache.caffeine.CaffeineCache
 
@@ -26,51 +23,67 @@ object EtaCalculation {
 
     implicit private val cacheConfig: CacheConfig = CacheConfig(cacheKeyBuilder[TypedIdentifier])
 
-    def make[F[_]: Clock: Sync: MonadError[*[_], Throwable]](
-      slotDataCache: SlotDataCache[F],
-      clock:         ClockAlgebra[F],
-      genesisEta:    Eta
+    def make[F[_]: Clock: Sync: MonadError[*[_], Throwable]: Logger](
+      slotDataCache:      SlotDataCache[F],
+      clock:              ClockAlgebra[F],
+      genesisEta:         Eta,
+      blake2b256Resource: UnsafeResource[F, Blake2b256],
+      blake2b512Resource: UnsafeResource[F, Blake2b512]
     ): F[EtaCalculationAlgebra[F]] =
-      CaffeineCache[F, Eta].map(implicit cache => new Impl[F](slotDataCache, clock, genesisEta))
+      for {
+        implicit0(cache: CaffeineCache[F, Eta]) <- CaffeineCache[F, Eta]
+        slotsPerEpoch                           <- clock.slotsPerEpoch
+        impl = new Impl[F](slotDataCache, clock, genesisEta, slotsPerEpoch, blake2b256Resource, blake2b512Resource)
+      } yield impl
 
-    private class Impl[F[_]: Clock: Sync: MonadError[*[_], Throwable]](
-      slotDataCache:  SlotDataCache[F],
-      clock:          ClockAlgebra[F],
-      genesisEta:     Eta
-    )(implicit cache: CaffeineCache[F, Eta])
+    private class Impl[F[_]: Clock: Sync: MonadError[*[_], Throwable]: Logger](
+      slotDataCache:      SlotDataCache[F],
+      clock:              ClockAlgebra[F],
+      genesisEta:         Eta,
+      slotsPerEpoch:      Long,
+      blake2b256Resource: UnsafeResource[F, Blake2b256],
+      blake2b512Resource: UnsafeResource[F, Blake2b512]
+    )(implicit cache:     CaffeineCache[F, Eta])
         extends EtaCalculationAlgebra[F] {
 
+      private val twoThirdsLength = slotsPerEpoch * 2 / 3
+
       override def etaToBe(parentSlotId: SlotId, childSlot: Slot): F[Eta] =
-        clock.slotsPerEpoch.flatMap(slotsPerEpoch =>
-          if (childSlot < slotsPerEpoch) genesisEta.pure[F]
-          else
-            (
-              clock.epochOf(parentSlotId.slot),
-              clock.epochOf(childSlot),
-              slotDataCache.get(parentSlotId.blockId)
-            ).tupled
-              .flatMap {
-                case (parentEpoch, childEpoch, parentSlotData) if parentEpoch === childEpoch =>
-                  parentSlotData.eta.pure[F]
-                // TODO: If childEpoch - parentEpoch > 1, destroy the node
-                // OR: childSlot - parentSlot > slotsPerEpoch
-                case (_, _, parentSlotData) =>
-                  locateTwoThirdsBest(parentSlotData).flatMap(calculate)
-              }
-        )
+        if (childSlot < slotsPerEpoch) genesisEta.pure[F]
+        else
+          (
+            clock.epochOf(parentSlotId.slot),
+            clock.epochOf(childSlot),
+            slotDataCache.get(parentSlotId.blockId)
+          ).tupled
+            .flatMap {
+              case (parentEpoch, childEpoch, parentSlotData) if parentEpoch === childEpoch =>
+                parentSlotData.eta.pure[F]
+              // TODO: If childEpoch - parentEpoch > 1, destroy the node
+              // OR: childSlot - parentSlot > slotsPerEpoch
+              case (_, childEpoch, parentSlotData) =>
+                cachingF(parentSlotId.blockId)(ttl = Some(1.day))(
+                  locateTwoThirdsBest(parentSlotData)
+                    .flatMap(calculate)
+                    .flatTap(nextEta =>
+                      Logger[F]
+                        .info(show"Caching child epoch's eta for parent id=${parentSlotId.blockId} nextEta=$nextEta")
+                    )
+                )
+            }
 
       /**
        * Given some header near the end of an epoch, traverse the chain (toward genesis) until reaching a block
        * that is inside of the 2/3 window of the epoch
        */
-      private def locateTwoThirdsBest(child: SlotData): F[SlotData] =
-        for {
-          epochLength <- clock.slotsPerEpoch
-          twoThirdsLength = epochLength * 2 / 3
-          twoThirdsBest <- child.iterateUntilM(data => slotDataCache.get(data.parentSlotId.blockId))(data =>
-            data.slotId.slot % epochLength < twoThirdsLength
+      private def locateTwoThirdsBest(from: SlotData): F[SlotData] =
+        from
+          .iterateUntilM(data => slotDataCache.get(data.parentSlotId.blockId))(data =>
+            data.slotId.slot % slotsPerEpoch < twoThirdsLength
           )
-        } yield twoThirdsBest
+          .flatTap(twoThirdsBest =>
+            Logger[F].info(show"Located twoThirdsBest=${twoThirdsBest.slotId.blockId} from=${from.slotId.blockId}")
+          )
 
       /**
        * Compute the Eta value for the epoch containing the given header
@@ -81,42 +94,33 @@ object EtaCalculation {
           for {
             epoch      <- clock.epochOf(twoThirdsBest.slotId.slot)
             epochRange <- clock.epochRange(epoch)
-            epochData <- collectUntil(twoThirdsBest)(head =>
-              head.parentSlotId.slot < epochRange.start || head.parentSlotId.slot === BlockGenesis.ParentSlot
-            )
-            previousEta = epochData.head.eta
-            nextEta = calculate(previousEta, epoch, epochData.map(_.rho))
+            epochData <- NonEmptyChain(twoThirdsBest).iterateUntilM(items =>
+              slotDataCache.get(items.head.parentSlotId.blockId).map(items.prepend)
+            )(items => items.head.parentSlotId.slot < epochRange.start)
+            rhoValues = epochData.map(_.rho)
+            nextEta <- calculate(previousEta = twoThirdsBest.eta, epoch + 1, rhoValues)
           } yield nextEta
         )
 
       /**
-       * Traverse a tine backwards from some "head" block until a predicate is met
-       * @param head The starting point for the backwards-traversal
-       * @param predicate A condition (applied to the traversal's current earliest block) which stops the traversal
-       */
-      private def collectUntil(head: SlotData)(predicate: SlotData => Boolean): F[NonEmptyChain[SlotData]] =
-        EitherT(
-          NonEmptyChain(head)
-            .asLeft[NonEmptyChain[SlotData]]
-            .iterateUntilM {
-              // Treat "Left" as incomplete
-              case Left(acc) =>
-                if (predicate(acc.head))
-                  acc.asRight[NonEmptyChain[SlotData]].pure[F]
-                else
-                  slotDataCache
-                    .get(acc.head.parentSlotId.blockId)
-                    .map(acc.prepend(_).asLeft[NonEmptyChain[SlotData]])
-              case r =>
-                r.pure[F]
-            }(_.isRight)
-        ).merge
-
-      /**
        * Calculate a new Eta value once all the necessary pre-requisites have been gathered
        */
-      private def calculate(previousEta: Eta, epoch: Epoch, rhoValues: NonEmptyChain[Rho]): Eta =
-        calculateFromNonceHashValues(previousEta, epoch, rhoValues.map(Ed25519VRF.rhoToRhoNonceHash))
+      private def calculate(
+        previousEta: Eta,
+        epoch:       Epoch,
+        rhoValues:   NonEmptyChain[Rho]
+      ): F[Eta] =
+        (Logger[F].info(
+          show"Calculating new eta.  previousEta=$previousEta epoch=$epoch rhoValues=[${rhoValues.length}]{${rhoValues.head}..${rhoValues.last}}"
+        ) >>
+          blake2b512Resource
+            .use(implicit blake2b512 => rhoValues.map(Ed25519VRF.rhoToRhoNonceHash))
+            .flatMap(calculateFromNonceHashValues(previousEta, epoch, _)))
+          .flatTap(nextEta =>
+            Logger[F].info(
+              show"Finished calculating new eta.  previousEta=$previousEta epoch=$epoch rhoValues=[${rhoValues.length}]{${rhoValues.head}..${rhoValues.last}} nextEta=$nextEta"
+            )
+          )
 
       /**
        * Calculate a new Eta value once all the necessary pre-requisites have been gathered
@@ -125,19 +129,13 @@ object EtaCalculation {
         previousEta:        Eta,
         epoch:              Epoch,
         rhoNonceHashValues: NonEmptyChain[RhoNonceHash]
-      ): Eta =
-        Sized
-          .strictUnsafe(
-            Bytes(
-              blake2b256
-                .hash(
-                  Bytes
-                    .concat(EtaCalculationArgs(previousEta, epoch, rhoNonceHashValues.toIterable).digestMessages)
-                    .toArray
-                )
-                .value
-            )
+      ): F[Eta] =
+        blake2b256Resource.use(
+          _.hash(
+            Bytes
+              .concat(EtaCalculationArgs(previousEta, epoch, rhoNonceHashValues.toIterable).digestMessages)
           )
+        )
     }
 
   }
@@ -146,6 +144,7 @@ object EtaCalculation {
 private case class EtaCalculationArgs(previousEta: Eta, epoch: Epoch, rhoNonceHashValues: Iterable[RhoNonceHash]) {
 
   def digestMessages: List[Bytes] =
-    (List(previousEta.data) ++ List(Bytes(BigInt(epoch).toByteArray)) ++ rhoNonceHashValues
-      .map(_.sizedBytes.data))
+    List(previousEta.data) ++
+    List(Bytes(BigInt(epoch).toByteArray)) ++
+    rhoNonceHashValues.map(_.sizedBytes.data)
 }

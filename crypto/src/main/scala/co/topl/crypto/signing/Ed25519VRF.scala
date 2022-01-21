@@ -1,6 +1,6 @@
 package co.topl.crypto.signing
 
-import co.topl.crypto.hash.blake2b512
+import co.topl.crypto.hash.{blake2b512, Blake2b512}
 import co.topl.crypto.signing.eddsa.ECVRF25519
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.Sized
@@ -82,12 +82,8 @@ object Ed25519VRF {
       )
     )
 
-  def rhoToRhoNonceHash(rho: Rho): RhoNonceHash =
+  def rhoToRhoNonceHash(rho: Rho)(implicit blake2b512: Blake2b512): RhoNonceHash =
     RhoNonceHash(
-      Sized.strictUnsafe(
-        Bytes(
-          blake2b512.hash(rho.sizedBytes.data.toArray ++ NonceStringBytes).value
-        )
-      )
+      blake2b512.hash(rho.sizedBytes.data ++ Bytes(NonceStringBytes))
     )
 }

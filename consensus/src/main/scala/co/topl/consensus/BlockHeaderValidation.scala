@@ -2,10 +2,9 @@ package co.topl.consensus
 
 import cats._
 import cats.data._
-import cats.effect.Ref
 import cats.effect.kernel.Sync
 import cats.implicits._
-import co.topl.algebras.Store
+import co.topl.algebras.{Store, UnsafeResource}
 import co.topl.consensus.algebras._
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
@@ -32,33 +31,31 @@ object BlockHeaderValidation {
       etaInterpreter:           EtaCalculationAlgebra[F],
       relativeStakeInterpreter: VrfRelativeStakeValidationLookupAlgebra[F],
       leaderElection:           LeaderElectionValidationAlgebra[F],
-      registrationInterpreter:  RegistrationLookupAlgebra[F]
+      registrationInterpreter:  RegistrationLookupAlgebra[F],
+      ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
+      kesProductResource:       UnsafeResource[F, KesProduct],
+      ed25519Resource:          UnsafeResource[F, Ed25519]
     ): F[BlockHeaderValidationAlgebra[F]] =
-      (
-        Ref.of[F, Ed25519VRF](Ed25519VRF.precomputed()),
-        Ref.of[F, KesProduct](new KesProduct),
-        Ref.of[F, Ed25519](new Ed25519)
-      )
-        .mapN((vrfRef, kesRef, ed25519Ref) =>
-          new Impl[F](
-            etaInterpreter,
-            relativeStakeInterpreter,
-            leaderElection,
-            registrationInterpreter,
-            vrfRef,
-            kesRef,
-            ed25519Ref
-          )
+      Sync[F].delay(
+        new Impl[F](
+          etaInterpreter,
+          relativeStakeInterpreter,
+          leaderElection,
+          registrationInterpreter,
+          ed25519VRFResource,
+          kesProductResource,
+          ed25519Resource
         )
+      )
 
     private class Impl[F[_]: Monad: Sync](
       etaInterpreter:           EtaCalculationAlgebra[F],
       relativeStakeInterpreter: VrfRelativeStakeValidationLookupAlgebra[F],
       leaderElection:           LeaderElectionValidationAlgebra[F],
       registrationInterpreter:  RegistrationLookupAlgebra[F],
-      vrfRef:                   Ref[F, Ed25519VRF],
-      kesRef:                   Ref[F, KesProduct],
-      ed25519Ref:               Ref[F, Ed25519]
+      ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
+      kesProductResource:       UnsafeResource[F, KesProduct],
+      ed25519Resource:          UnsafeResource[F, Ed25519]
     ) extends BlockHeaderValidationAlgebra[F] {
 
       def validate(
@@ -101,9 +98,9 @@ object BlockHeaderValidation {
         EitherT
           .liftF(etaInterpreter.etaToBe(header.parentSlotId, header.slot))
           .flatMapF(expectedEta =>
-            vrfRef.modify { implicit ed25519vrf =>
+            ed25519VRFResource.use { implicit ed25519vrf =>
               val certificate = header.eligibilityCertificate
-              ed25519vrf -> header
+              header
                 .asRight[BlockHeaderValidationFailure]
                 .ensure(
                   BlockHeaderValidationFailures
@@ -129,9 +126,9 @@ object BlockHeaderValidation {
         header: BlockHeaderV2
       ): EitherT[F, BlockHeaderValidationFailure, BlockHeaderV2] =
         EitherT(
-          kesRef
-            .modify(kesProduct =>
-              kesProduct -> kesProduct.verify(
+          kesProductResource
+            .use(kesProduct =>
+              kesProduct.verify(
                 header.operationalCertificate.parentSignature,
                 header.operationalCertificate.childVK.bytes.data ++ Bytes(Longs.toByteArray(header.slot)),
                 header.operationalCertificate.parentVK
@@ -147,10 +144,10 @@ object BlockHeaderValidation {
         )
           .flatMap(_ =>
             EitherT(
-              ed25519Ref
-                .modify(ed25519 =>
+              ed25519Resource
+                .use(ed25519 =>
                   // Use the ed25519 instance to verify the childSignature against the header's bytes
-                  ed25519 -> ed25519.verify(
+                  ed25519.verify(
                     header.operationalCertificate.childSignature,
                     header.signableBytes,
                     header.operationalCertificate.childVK
@@ -206,9 +203,9 @@ object BlockHeaderValidation {
       ): EitherT[F, BlockHeaderValidationFailure, BlockHeaderV2] =
         EitherT
           .liftF(
-            vrfRef
-              .modify { implicit ed25519Vrf =>
-                ed25519Vrf -> ed25519Vrf.proofToHash(header.eligibilityCertificate.vrfSig)
+            ed25519VRFResource
+              .use { implicit ed25519Vrf =>
+                ed25519Vrf.proofToHash(header.eligibilityCertificate.vrfSig)
               }
               .flatMap(leaderElection.isSlotLeaderForThreshold(threshold))
           )
@@ -242,8 +239,8 @@ object BlockHeaderValidation {
                 )
                 .value
             )
-            kesRef
-              .modify(p => (p, p.verify(commitment, message, header.operationalCertificate.parentVK.copy(step = 0))))
+            kesProductResource
+              .use(p => p.verify(commitment, message, header.operationalCertificate.parentVK.copy(step = 0)))
               .map(isValid =>
                 Either.cond(
                   isValid,

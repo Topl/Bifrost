@@ -25,6 +25,9 @@ trait ShowInstances {
   implicit val showSlotId: Show[SlotId] =
     slotID => show"{${slotID.slot},${slotID.blockId}}"
 
+  implicit val showRho: Show[Rho] =
+    _.sizedBytes.show
+
   implicit val showTaktikosAddress: Show[TaktikosAddress] =
     showBytes.contramap[TaktikosAddress](_.bytes)
 
