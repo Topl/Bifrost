@@ -18,7 +18,9 @@ import co.topl.genus.types._
 import co.topl.utils.mongodb.codecs._
 import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataModel}
 import com.typesafe.config.{Config, ConfigFactory}
+import org.bson.conversions.Bson
 import org.mongodb.scala.bson.conversions.Bson
+import org.mongodb.scala.model.Sorts
 import org.mongodb.scala.{Document, MongoClient, MongoCollection, MongoDatabase}
 
 import scala.concurrent.duration.DurationInt
@@ -58,19 +60,26 @@ object GenusApp extends IOApp.Simple {
       MongoQueryInterp.Eval.make[F, BlockDataModel, BlockFilter](blocksMongoCollection)
     )(_.transformTo[Block])
 
+  val defaultTransactionFilter: TransactionFilter =
+    TransactionFilter.of(TransactionFilter.FilterType.All(TransactionFilter.AllFilter()))
+  val defaultTransactionSort: Bson = Sorts.ascending("block.height")
+
   val transactionsQueryService: QueryServiceAlg[F, Transaction, TransactionFilter, Bson] =
     QueryServiceInterp.Eval.make[F, Transaction, TransactionFilter, Bson](
       txsDataStoreQuery,
-      interpreters.defaultTransactionFilter,
-      interpreters.defaultTransactionSort,
+      defaultTransactionFilter,
+      defaultTransactionSort,
       5.seconds
     )
+
+  val defaultBlockFilter: BlockFilter = BlockFilter.of(BlockFilter.FilterType.All(BlockFilter.AllFilter()))
+  val defaultBlockSort: Bson = Sorts.ascending("height")
 
   val blocksQueryService: QueryServiceAlg[F, Block, BlockFilter, Bson] =
     QueryServiceInterp.Eval.make[F, Block, BlockFilter, Bson](
       blocksDataStoreQuery,
-      interpreters.defaultBlockFilter,
-      interpreters.defaultBlockSort,
+      defaultBlockFilter,
+      defaultBlockSort,
       5.seconds
     )
 

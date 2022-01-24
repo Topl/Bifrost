@@ -16,7 +16,7 @@ trait Extensions {
      * Collects the given Source into a `Seq[T]` with a given allowed timeout.
      * @param timeout the amount of time to allow for the source to complete
      * @param materializer the stream's materializer
-     * @tparam F a functor to wrap the result sequence with an instance of `Async`
+     * @tparam F an effect-ful type to wrap the resulting sequence with an instance of `Async` and `MonadThrow`
      * @return a result of `F[Seq[T]]` with the possibility of a `TimeoutException` if the source
      *         does not complete before the given timeout
      */
