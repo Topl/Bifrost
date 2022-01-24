@@ -17,7 +17,7 @@ object Dependencies {
   )
 
   val test = Seq(
-    "org.scalatest"      %% "scalatest"         % "3.2.9"   % "test",
+    "org.scalatest"      %% "scalatest"         % "3.2.11"  % "test",
     "org.scalactic"      %% "scalactic"         % "3.2.9"   % "test",
     "org.scalacheck"     %% "scalacheck"        % "1.15.4"  % "test",
     "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
