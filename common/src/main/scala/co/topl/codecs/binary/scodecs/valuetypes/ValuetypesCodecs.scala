@@ -10,6 +10,7 @@ import co.topl.utils.StringDataTypes.Latin1Data
 import scodec.bits.BitVector
 import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
 
+import scala.collection.SortedSet
 import scala.collection.immutable.ListMap
 import scala.reflect.ClassTag
 
@@ -104,6 +105,21 @@ trait ValuetypesCodecs {
 
   implicit def listCodec[T: Codec]: Codec[List[T]] =
     uIntCodec.consume[List[T]](uInt => sizedListCodec(uInt.toInt))(listT => listT.length)
+
+  implicit def setCodec[T: Codec]: Codec[Set[T]] =
+    listCodec[T].xmap(list => list.toSet, set => set.toList)
+
+  implicit def sortedSetCodec[T: Codec: Ordering]: Codec[SortedSet[T]] =
+    listCodec[T].xmap(list => SortedSet(list: _*), sortedSet => sortedSet.toList)
+
+  implicit def indexedSeqCodec[T: Codec]: Codec[IndexedSeq[T]] =
+    listCodec[T].xmap(list => list.toIndexedSeq, seq => seq.toList)
+
+  implicit def seqCodec[T: Codec]: Codec[Seq[T]] =
+    listCodec[T].xmap(list => list.toSeq, seq => seq.toList)
+
+  implicit def arrayCodec[T: Codec: ClassTag]: Codec[Array[T]] =
+    listCodec[T].xmap(list => list.toArray, array => array.toList)
 
   implicit def listMapCodec[A: Codec, B: Codec]: Codec[ListMap[A, B]] =
     listCodec[(A, B)].xmap[ListMap[A, B]](list => ListMap(list: _*), listMap => listMap.toList)
