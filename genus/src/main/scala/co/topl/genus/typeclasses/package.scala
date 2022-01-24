@@ -10,6 +10,7 @@ package object typeclasses {
       with FunctionKInstances
       with Validation.ToValidationOps
       with ValidationInstances
+      with FunctorInstances
 
   object implicits extends Implicits
 }

@@ -5,15 +5,17 @@ import akka.stream.alpakka.mongodb.scaladsl.MongoSource
 import akka.stream.scaladsl.Source
 import cats.implicits._
 import cats.{Applicative, MonadError, MonadThrow}
-import co.topl.genus.algebras.QueryAlg
+import co.topl.genus.algebras.DataStoreQueryAlg
 import co.topl.genus.services.services_types.Paging
+import co.topl.genus.typeclasses.MongoFilter
 import co.topl.utils.mongodb.DocumentDecoder
 import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.{Document, MongoCollection}
+import co.topl.genus.typeclasses.implicits._
 
-object MongoQuery {
+object MongoQueryInterp {
 
-  type MongoQueryAlg[F[_], T] = QueryAlg[F, Source[*, NotUsed], Bson, Bson, T]
+  type MongoQueryAlg[F[_], T, Filter] = DataStoreQueryAlg[F, Source[*, NotUsed], Bson, Filter, T]
 
   object Eval {
 
@@ -25,13 +27,13 @@ object MongoQuery {
      * @tparam T the type of document to query for with an instnace of `DocumentDecoder`
      * @return a new instance of the query algebra which can query a mongo collection
      */
-    def make[F[_]: MonadThrow, T: DocumentDecoder](
+    def make[F[_]: MonadThrow, T: DocumentDecoder, Filter: MongoFilter](
       collection: MongoCollection[Document]
-    ): MongoQueryAlg[F, T] =
-      (filter: Bson, sort: Bson, paging: Option[Paging]) =>
+    ): MongoQueryAlg[F, T, Filter] =
+      (filter: Filter, sort: Bson, paging: Option[Paging]) =>
         for {
           // catch error with finding and sorting on a mongo collection
-          queryRequest    <- MonadThrow[F].catchNonFatal(collection.find(filter).sort(sort))
+          queryRequest    <- MonadThrow[F].catchNonFatal(collection.find(filter.toBsonFilter).sort(sort))
           queryWithPaging <-
             // catch error with setting a limit and skip value
             MonadThrow[F].catchNonFatal(
@@ -54,7 +56,7 @@ object MongoQuery {
 
   object Mock {
 
-    def make[F[_]: Applicative, T]: MongoQueryAlg[F, T] =
-      (_: Bson, _: Bson, _: Option[Paging]) => Source.empty[T].pure[F]
+    def make[F[_]: Applicative, T, Filter]: MongoQueryAlg[F, T, Filter] =
+      (_: Filter, _: Bson, _: Option[Paging]) => Source.empty[T].pure[F]
   }
 }
