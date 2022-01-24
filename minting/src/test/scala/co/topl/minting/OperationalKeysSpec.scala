@@ -1,26 +1,26 @@
 package co.topl.minting
 
-import cats.data.Chain
+import cats.Applicative
+import cats.data.{Chain, NonEmptyChain}
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
-import co.topl.algebras.{ClockAlgebra, ConsensusState}
+import co.topl.algebras.testInterpreters.NoOpLogger
+import co.topl.algebras.{ClockAlgebra, ConsensusState, UnsafeResource}
+import co.topl.codecs.bytes.ByteCodec
 import co.topl.consensus.algebras.EtaCalculationAlgebra
 import co.topl.crypto.keyfile.SecureStore
 import co.topl.crypto.signing.{Ed25519, KesProduct}
-import co.topl.minting.algebras.VrfProofAlgebra
+import co.topl.minting.algebras.{OperationalKeyOut, VrfProofAlgebra}
+import co.topl.models.ModelGenerators._
 import co.topl.models._
-import org.scalamock.scalatest.MockFactory
-import org.scalatest.{EitherValues, OptionValues}
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import org.typelevel.log4cats.Logger
-import org.typelevel.log4cats.slf4j.Slf4jLogger
-import ModelGenerators._
-import cats.Applicative
-import co.topl.codecs.bytes.ByteCodec
 import co.topl.models.utility.Ratio
 import com.google.common.primitives.Longs
+import org.scalamock.scalatest.MockFactory
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.{EitherValues, OptionValues}
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import org.typelevel.log4cats.Logger
 
 import scala.collection.immutable.NumericRange
 import scala.util.Random
@@ -49,6 +49,8 @@ class OperationalKeysSpec
       val vrfProof = mock[VrfProofAlgebra[F]]
       val etaCalculation = mock[EtaCalculationAlgebra[F]]
       val consensusState = mock[ConsensusState[F]]
+      val kesProductResource = mock[UnsafeResource[F, KesProduct]]
+      val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
       val parentSlotId = SlotId(10L, TypedBytes(1: Byte, Bytes.fill(32)(0: Byte)))
       val operationalPeriodLength = 30L
       val activationOperationalPeriod = 0L
@@ -101,6 +103,32 @@ class OperationalKeysSpec
         .once()
         .returning(Ratio(1).some.pure[F])
 
+      (kesProductResource
+        .use[Int](_: Function1[KesProduct, Int]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[KesProduct, Int] => f(kesProduct).pure[F] }
+
+      (kesProductResource
+        .use[SecretKeys.KesProduct](_: Function1[KesProduct, SecretKeys.KesProduct]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[KesProduct, SecretKeys.KesProduct] => f(kesProduct).pure[F] }
+
+      (kesProductResource
+        .use[Vector[OperationalKeyOut]](_: Function1[KesProduct, Vector[OperationalKeyOut]]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[KesProduct, Vector[OperationalKeyOut]] => f(kesProduct).pure[F] }
+
+      (ed25519Resource
+        .use[List[(SecretKeys.Ed25519, VerificationKeys.Ed25519)]](
+          _: Function1[Ed25519, List[(SecretKeys.Ed25519, VerificationKeys.Ed25519)]]
+        ))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[Ed25519, List[(SecretKeys.Ed25519, VerificationKeys.Ed25519)]] => f(ed25519).pure[F] }
+
       val underTest = OperationalKeys.FromSecureStore
         .make[F](
           secureStore,
@@ -108,6 +136,8 @@ class OperationalKeysSpec
           vrfProof,
           etaCalculation,
           consensusState,
+          kesProductResource,
+          ed25519Resource,
           parentSlotId,
           operationalPeriodLength,
           activationOperationalPeriod,
@@ -141,6 +171,8 @@ class OperationalKeysSpec
       val vrfProof = mock[VrfProofAlgebra[F]]
       val etaCalculation = mock[EtaCalculationAlgebra[F]]
       val consensusState = mock[ConsensusState[F]]
+      val kesProductResource = mock[UnsafeResource[F, KesProduct]]
+      val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
       val parentSlotId = SlotId(10L, TypedBytes(1: Byte, Bytes.fill(32)(0: Byte)))
       val operationalPeriodLength = 30L
       val activationOperationalPeriod = 0L
@@ -191,6 +223,32 @@ class OperationalKeysSpec
         .twice()
         .returning(Ratio(1).some.pure[F])
 
+      (kesProductResource
+        .use[Int](_: Function1[KesProduct, Int]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[KesProduct, Int] => f(kesProduct).pure[F] }
+
+      (kesProductResource
+        .use[SecretKeys.KesProduct](_: Function1[KesProduct, SecretKeys.KesProduct]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[KesProduct, SecretKeys.KesProduct] => f(kesProduct).pure[F] }
+
+      (kesProductResource
+        .use[Vector[OperationalKeyOut]](_: Function1[KesProduct, Vector[OperationalKeyOut]]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[KesProduct, Vector[OperationalKeyOut]] => f(kesProduct).pure[F] }
+
+      (ed25519Resource
+        .use[List[(SecretKeys.Ed25519, VerificationKeys.Ed25519)]](
+          _: Function1[Ed25519, List[(SecretKeys.Ed25519, VerificationKeys.Ed25519)]]
+        ))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[Ed25519, List[(SecretKeys.Ed25519, VerificationKeys.Ed25519)]] => f(ed25519).pure[F] }
+
       val underTest = OperationalKeys.FromSecureStore
         .make[F](
           secureStore,
@@ -198,6 +256,8 @@ class OperationalKeysSpec
           vrfProof,
           etaCalculation,
           consensusState,
+          kesProductResource,
+          ed25519Resource,
           parentSlotId,
           operationalPeriodLength,
           activationOperationalPeriod,
@@ -236,26 +296,4 @@ class OperationalKeysSpec
     }
   }
 
-}
-
-class NoOpLogger[F[_]: Applicative] extends Logger[F] {
-  def error(t: Throwable)(message: => String): F[Unit] = Applicative[F].unit
-
-  def warn(t: Throwable)(message: => String): F[Unit] = Applicative[F].unit
-
-  def info(t: Throwable)(message: => String): F[Unit] = Applicative[F].unit
-
-  def debug(t: Throwable)(message: => String): F[Unit] = Applicative[F].unit
-
-  def trace(t: Throwable)(message: => String): F[Unit] = Applicative[F].unit
-
-  def error(message: => String): F[Unit] = Applicative[F].unit
-
-  def warn(message: => String): F[Unit] = Applicative[F].unit
-
-  def info(message: => String): F[Unit] = Applicative[F].unit
-
-  def debug(message: => String): F[Unit] = Applicative[F].unit
-
-  def trace(message: => String): F[Unit] = Applicative[F].unit
 }

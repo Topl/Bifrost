@@ -6,7 +6,7 @@ import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.algebras.{Store, UnsafeResource}
 import co.topl.consensus.algebras._
-import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.models._
 import co.topl.models.utility.Ratio
@@ -34,7 +34,8 @@ object BlockHeaderValidation {
       registrationInterpreter:  RegistrationLookupAlgebra[F],
       ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
       kesProductResource:       UnsafeResource[F, KesProduct],
-      ed25519Resource:          UnsafeResource[F, Ed25519]
+      ed25519Resource:          UnsafeResource[F, Ed25519],
+      blake2b256Resource:       UnsafeResource[F, Blake2b256]
     ): F[BlockHeaderValidationAlgebra[F]] =
       Sync[F].delay(
         new Impl[F](
@@ -44,7 +45,8 @@ object BlockHeaderValidation {
           registrationInterpreter,
           ed25519VRFResource,
           kesProductResource,
-          ed25519Resource
+          ed25519Resource,
+          blake2b256Resource
         )
       )
 
@@ -55,7 +57,8 @@ object BlockHeaderValidation {
       registrationInterpreter:  RegistrationLookupAlgebra[F],
       ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
       kesProductResource:       UnsafeResource[F, KesProduct],
-      ed25519Resource:          UnsafeResource[F, Ed25519]
+      ed25519Resource:          UnsafeResource[F, Ed25519],
+      blake2b256Resource:       UnsafeResource[F, Blake2b256]
     ) extends BlockHeaderValidationAlgebra[F] {
 
       def validate(
@@ -97,25 +100,34 @@ object BlockHeaderValidation {
       ): EitherT[F, BlockHeaderValidationFailure, BlockHeaderV2] =
         EitherT
           .liftF(etaInterpreter.etaToBe(header.parentSlotId, header.slot))
-          .flatMapF(expectedEta =>
-            ed25519VRFResource.use { implicit ed25519vrf =>
-              val certificate = header.eligibilityCertificate
-              header
-                .asRight[BlockHeaderValidationFailure]
-                .ensure(
-                  BlockHeaderValidationFailures
-                    .InvalidEligibilityCertificateEta(header.eligibilityCertificate.eta, expectedEta)
-                )(header => header.eligibilityCertificate.eta === expectedEta)
-                .ensure(
-                  BlockHeaderValidationFailures.InvalidEligibilityCertificateProof(certificate.vrfSig)
-                )(header =>
-                  ed25519vrf.verify(
-                    certificate.vrfSig,
-                    LeaderElectionValidation.VrfArgument(expectedEta, header.slot).signableBytes,
-                    certificate.vkVRF
-                  )
+          .flatMap(expectedEta =>
+            EitherT
+              .cond[F](
+                header.eligibilityCertificate.eta === expectedEta,
+                header,
+                BlockHeaderValidationFailures
+                  .InvalidEligibilityCertificateEta(header.eligibilityCertificate.eta, expectedEta)
+              )
+              .flatMap(_ =>
+                EitherT(
+                  ed25519VRFResource
+                    .use { implicit ed25519vrf =>
+                      ed25519vrf.verify(
+                        header.eligibilityCertificate.vrfSig,
+                        LeaderElectionValidation.VrfArgument(expectedEta, header.slot).signableBytes,
+                        header.eligibilityCertificate.vkVRF
+                      )
+                    }
+                    .map(
+                      Either.cond(
+                        _,
+                        header,
+                        BlockHeaderValidationFailures
+                          .InvalidEligibilityCertificateProof(header.eligibilityCertificate.vrfSig)
+                      )
+                    )
                 )
-            }
+              )
           )
 
       /**
@@ -134,12 +146,14 @@ object BlockHeaderValidation {
                 header.operationalCertificate.parentVK
               )
             )
-            .map(isValid =>
-              if (isValid) header.asRight[BlockHeaderValidationFailure]
-              else
-                (BlockHeaderValidationFailures.InvalidOperationalParentSignature(
+            .map(
+              Either.cond(
+                _,
+                header,
+                BlockHeaderValidationFailures.InvalidOperationalParentSignature(
                   header.operationalCertificate
-                ): BlockHeaderValidationFailure).asLeft[BlockHeaderV2]
+                ): BlockHeaderValidationFailure
+              )
             )
         )
           .flatMap(_ =>
@@ -231,29 +245,23 @@ object BlockHeaderValidation {
         )
           .map(_.commitment)
           .toRight(BlockHeaderValidationFailures.Unregistered(header.address): BlockHeaderValidationFailure)
-          .flatMapF { commitment =>
-            val message = Bytes(
-              blake2b256
-                .hash(
-                  (header.eligibilityCertificate.vkVRF.bytes.data ++ header.address.poolVK.bytes.data).toArray
+          .flatMapF(commitment =>
+            for {
+              message <- blake2b256Resource
+                .use(_.hash(header.eligibilityCertificate.vkVRF.bytes.data, header.address.poolVK.bytes.data))
+              isValid <- kesProductResource
+                .use(p => p.verify(commitment, message.data, header.operationalCertificate.parentVK.copy(step = 0)))
+            } yield Either.cond(
+              isValid,
+              header,
+              BlockHeaderValidationFailures
+                .RegistrationCommitmentMismatch(
+                  commitment,
+                  header.eligibilityCertificate.vkVRF,
+                  header.address.poolVK
                 )
-                .value
             )
-            kesProductResource
-              .use(p => p.verify(commitment, message, header.operationalCertificate.parentVK.copy(step = 0)))
-              .map(isValid =>
-                Either.cond(
-                  isValid,
-                  header,
-                  BlockHeaderValidationFailures
-                    .RegistrationCommitmentMismatch(
-                      commitment,
-                      header.eligibilityCertificate.vkVRF,
-                      header.address.poolVK
-                    )
-                )
-              )
-          }
+          )
     }
   }
 

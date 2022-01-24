@@ -237,7 +237,8 @@ object TetraDemo extends IOApp.Simple {
         RegistrationLookup.Eval.make(state, clock),
         ed25519VRFResource,
         kesProductResource,
-        ed25519Resource
+        ed25519Resource,
+        blake2b256Resource
       )
       cachedHeaderValidation <- BlockHeaderValidation.WithCache.make[F](underlyingHeaderValidation, blockHeaderStore)
       localChain <- LocalChain.Eval.make(

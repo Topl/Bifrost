@@ -8,12 +8,15 @@ object Dependencies {
   val kamonVersion = "2.1.21"
   val graalVersion = "21.1.0"
 
+  val catsSlf4j =
+    "org.typelevel" %% "log4cats-slf4j" % "2.1.1"
+
   val logging = Seq(
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.4",
     "ch.qos.logback"              % "logback-classic" % "1.2.5",
     "ch.qos.logback"              % "logback-core"    % "1.2.5",
     "org.slf4j"                   % "slf4j-api"       % "1.7.32",
-    "org.typelevel"              %% "log4cats-slf4j"  % "2.1.1"
+    catsSlf4j
   )
 
   val test = Seq(

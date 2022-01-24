@@ -77,13 +77,16 @@ object EtaCalculation {
        * that is inside of the 2/3 window of the epoch
        */
       private def locateTwoThirdsBest(from: SlotData): F[SlotData] =
-        from
-          .iterateUntilM(data => slotDataCache.get(data.parentSlotId.blockId))(data =>
-            data.slotId.slot % slotsPerEpoch < twoThirdsLength
-          )
-          .flatTap(twoThirdsBest =>
-            Logger[F].info(show"Located twoThirdsBest=${twoThirdsBest.slotId.blockId} from=${from.slotId.blockId}")
-          )
+        if (isWithinTwoThirds(from)) from.pure[F]
+        else
+          from
+            .iterateUntilM(data => slotDataCache.get(data.parentSlotId.blockId))(isWithinTwoThirds)
+            .flatTap(twoThirdsBest =>
+              Logger[F].info(show"Located twoThirdsBest=${twoThirdsBest.slotId.blockId} from=${from.slotId.blockId}")
+            )
+
+      private def isWithinTwoThirds(from: SlotData): Boolean =
+        from.slotId.slot % slotsPerEpoch <= twoThirdsLength
 
       /**
        * Compute the Eta value for the epoch containing the given header

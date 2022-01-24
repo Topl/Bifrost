@@ -3,9 +3,10 @@ package co.topl.consensus
 import cats.effect._
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
+import co.topl.algebras.UnsafeResource
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus.algebras._
-import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.hash.{blake2b256, Blake2b256}
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.models.ModelGenerators._
 import co.topl.models._
@@ -51,14 +52,30 @@ class BlockHeaderValidationSpec
   implicit private val kesProduct: KesProduct =
     new KesProduct
 
+  private val blake2b256: Blake2b256 =
+    new Blake2b256
+
   it should "invalidate blocks with non-forward slot" in {
     forAll(genValid(u => u.copy(slot = 0L))) { case (parent, child, registration, eta, relativeStake) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val relativeStakeInterpreter = mock[VrfRelativeStakeValidationLookupAlgebra[F]]
       val registrationInterpreter = mock[RegistrationLookupAlgebra[F]]
+      val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
+      val kesProductResource = mock[UnsafeResource[F, KesProduct]]
+      val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
+      val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
       val underTest =
         BlockHeaderValidation.Eval
-          .make[F](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter, registrationInterpreter)
+          .make[F](
+            etaInterpreter,
+            relativeStakeInterpreter,
+            leaderElectionInterpreter,
+            registrationInterpreter,
+            ed25519VRFResource,
+            kesProductResource,
+            ed25519Resource,
+            blake2b256Resource
+          )
           .unsafeRunSync()
 
       underTest.validate(child, parent).unsafeRunSync().left.value shouldBe BlockHeaderValidationFailures
@@ -71,9 +88,22 @@ class BlockHeaderValidationSpec
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val relativeStakeInterpreter = mock[VrfRelativeStakeValidationLookupAlgebra[F]]
       val registrationInterpreter = mock[RegistrationLookupAlgebra[F]]
+      val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
+      val kesProductResource = mock[UnsafeResource[F, KesProduct]]
+      val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
+      val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
       val underTest =
         BlockHeaderValidation.Eval
-          .make[F](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter, registrationInterpreter)
+          .make[F](
+            etaInterpreter,
+            relativeStakeInterpreter,
+            leaderElectionInterpreter,
+            registrationInterpreter,
+            ed25519VRFResource,
+            kesProductResource,
+            ed25519Resource,
+            blake2b256Resource
+          )
           .unsafeRunSync()
 
       underTest.validate(child, parent).unsafeRunSync().left.value shouldBe BlockHeaderValidationFailures
@@ -87,9 +117,22 @@ class BlockHeaderValidationSpec
         val etaInterpreter = mock[EtaCalculationAlgebra[F]]
         val relativeStakeInterpreter = mock[VrfRelativeStakeValidationLookupAlgebra[F]]
         val registrationInterpreter = mock[RegistrationLookupAlgebra[F]]
+        val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
+        val kesProductResource = mock[UnsafeResource[F, KesProduct]]
+        val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
+        val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
         val underTest =
           BlockHeaderValidation.Eval
-            .make[F](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter, registrationInterpreter)
+            .make[F](
+              etaInterpreter,
+              relativeStakeInterpreter,
+              leaderElectionInterpreter,
+              registrationInterpreter,
+              ed25519VRFResource,
+              kesProductResource,
+              ed25519Resource,
+              blake2b256Resource
+            )
             .unsafeRunSync()
 
         underTest.validate(child, parent).unsafeRunSync().left.value shouldBe BlockHeaderValidationFailures
@@ -120,9 +163,22 @@ class BlockHeaderValidationSpec
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val relativeStakeInterpreter = mock[VrfRelativeStakeValidationLookupAlgebra[F]]
       val registrationInterpreter = mock[RegistrationLookupAlgebra[F]]
+      val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
+      val kesProductResource = mock[UnsafeResource[F, KesProduct]]
+      val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
+      val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
       val underTest =
         BlockHeaderValidation.Eval
-          .make[F](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter, registrationInterpreter)
+          .make[F](
+            etaInterpreter,
+            relativeStakeInterpreter,
+            leaderElectionInterpreter,
+            registrationInterpreter,
+            ed25519VRFResource,
+            kesProductResource,
+            ed25519Resource,
+            blake2b256Resource
+          )
           .unsafeRunSync()
 
       (etaInterpreter
@@ -131,6 +187,18 @@ class BlockHeaderValidationSpec
         .anyNumberOfTimes()
         // This epoch nonce does not satisfy the generated VRF certificate
         .returning(eta.pure[F])
+
+      (ed25519VRFResource
+        .use[Boolean](_: Function1[Ed25519VRF, Boolean]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[Ed25519VRF, Boolean] => f(ed25519Vrf).pure[F] }
+
+      (ed25519VRFResource
+        .use[Rho](_: Function1[Ed25519VRF, Rho]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[Ed25519VRF, Rho] => f(ed25519Vrf).pure[F] }
 
       underTest
         .validate(child, parent)
@@ -145,20 +213,56 @@ class BlockHeaderValidationSpec
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val relativeStakeInterpreter = mock[VrfRelativeStakeValidationLookupAlgebra[F]]
       val registrationInterpreter = mock[RegistrationLookupAlgebra[F]]
+      val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
+      val kesProductResource = mock[UnsafeResource[F, KesProduct]]
+      val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
+      val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
+      val underTest =
+        BlockHeaderValidation.Eval
+          .make[F](
+            etaInterpreter,
+            relativeStakeInterpreter,
+            leaderElectionInterpreter,
+            registrationInterpreter,
+            ed25519VRFResource,
+            kesProductResource,
+            ed25519Resource,
+            blake2b256Resource
+          )
+          .unsafeRunSync()
 
       // Changing any bytes of the block will result in a bad block signature
       val badBlock = child.copy(timestamp = child.timestamp + 1)
-
-      val underTest =
-        BlockHeaderValidation.Eval
-          .make[F](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter, registrationInterpreter)
-          .unsafeRunSync()
 
       (etaInterpreter
         .etaToBe(_: SlotId, _: Slot))
         .expects(parent.slotId, badBlock.slot)
         .anyNumberOfTimes()
         .returning(eta.pure[F])
+
+      (ed25519VRFResource
+        .use[Boolean](_: Function1[Ed25519VRF, Boolean]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[Ed25519VRF, Boolean] => f(ed25519Vrf).pure[F] }
+
+      (ed25519VRFResource
+        .use[Rho](_: Function1[Ed25519VRF, Rho]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[Ed25519VRF, Rho] => f(ed25519Vrf).pure[F] }
+
+      (kesProductResource
+        .use[Boolean](_: Function1[KesProduct, Boolean]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[KesProduct, Boolean] => f(kesProduct).pure[F] }
+
+      (ed25519Resource
+        .use[Boolean](_: Function1[Ed25519, Boolean]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[Ed25519, Boolean] => f(ed25519).pure[F] }
 
       underTest
         .validate(badBlock, parent)
@@ -177,10 +281,22 @@ class BlockHeaderValidationSpec
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val relativeStakeInterpreter = mock[VrfRelativeStakeValidationLookupAlgebra[F]]
       val registrationInterpreter = mock[RegistrationLookupAlgebra[F]]
-
+      val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
+      val kesProductResource = mock[UnsafeResource[F, KesProduct]]
+      val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
+      val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
       val underTest =
         BlockHeaderValidation.Eval
-          .make[F](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter, registrationInterpreter)
+          .make[F](
+            etaInterpreter,
+            relativeStakeInterpreter,
+            leaderElectionInterpreter,
+            registrationInterpreter,
+            ed25519VRFResource,
+            kesProductResource,
+            ed25519Resource,
+            blake2b256Resource
+          )
           .unsafeRunSync()
 
       (registrationInterpreter
@@ -195,6 +311,36 @@ class BlockHeaderValidationSpec
         .anyNumberOfTimes()
         .returning(eta.pure[F])
 
+      (ed25519VRFResource
+        .use[Boolean](_: Function1[Ed25519VRF, Boolean]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[Ed25519VRF, Boolean] => f(ed25519Vrf).pure[F] }
+
+      (ed25519VRFResource
+        .use[Rho](_: Function1[Ed25519VRF, Rho]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[Ed25519VRF, Rho] => f(ed25519Vrf).pure[F] }
+
+      (kesProductResource
+        .use[Boolean](_: Function1[KesProduct, Boolean]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[KesProduct, Boolean] => f(kesProduct).pure[F] }
+
+      (ed25519Resource
+        .use[Boolean](_: Function1[Ed25519, Boolean]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[Ed25519, Boolean] => f(ed25519).pure[F] }
+
+      (blake2b256Resource
+        .use[Evidence](_: Function1[Blake2b256, Evidence]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[Blake2b256, Evidence] => f(blake2b256).pure[F] }
+
       underTest
         .validate(child, parent)
         .unsafeRunSync()
@@ -208,10 +354,22 @@ class BlockHeaderValidationSpec
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val relativeStakeInterpreter = mock[VrfRelativeStakeValidationLookupAlgebra[F]]
       val registrationInterpreter = mock[RegistrationLookupAlgebra[F]]
-
+      val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
+      val kesProductResource = mock[UnsafeResource[F, KesProduct]]
+      val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
+      val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
       val underTest =
         BlockHeaderValidation.Eval
-          .make[F](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter, registrationInterpreter)
+          .make[F](
+            etaInterpreter,
+            relativeStakeInterpreter,
+            leaderElectionInterpreter,
+            registrationInterpreter,
+            ed25519VRFResource,
+            kesProductResource,
+            ed25519Resource,
+            blake2b256Resource
+          )
           .unsafeRunSync()
 
       (registrationInterpreter
@@ -232,6 +390,36 @@ class BlockHeaderValidationSpec
         .once()
         .returning(Ratio(0).some.pure[F])
 
+      (ed25519VRFResource
+        .use[Boolean](_: Function1[Ed25519VRF, Boolean]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[Ed25519VRF, Boolean] => f(ed25519Vrf).pure[F] }
+
+      (ed25519VRFResource
+        .use[Rho](_: Function1[Ed25519VRF, Rho]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[Ed25519VRF, Rho] => f(ed25519Vrf).pure[F] }
+
+      (kesProductResource
+        .use[Boolean](_: Function1[KesProduct, Boolean]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[KesProduct, Boolean] => f(kesProduct).pure[F] }
+
+      (ed25519Resource
+        .use[Boolean](_: Function1[Ed25519, Boolean]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[Ed25519, Boolean] => f(ed25519).pure[F] }
+
+      (blake2b256Resource
+        .use[Evidence](_: Function1[Blake2b256, Evidence]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[Blake2b256, Evidence] => f(blake2b256).pure[F] }
+
       underTest
         .validate(child, parent)
         .unsafeRunSync()
@@ -245,10 +433,22 @@ class BlockHeaderValidationSpec
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val relativeStakeInterpreter = mock[VrfRelativeStakeValidationLookupAlgebra[F]]
       val registrationInterpreter = mock[RegistrationLookupAlgebra[F]]
-
+      val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
+      val kesProductResource = mock[UnsafeResource[F, KesProduct]]
+      val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
+      val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
       val underTest =
         BlockHeaderValidation.Eval
-          .make[F](etaInterpreter, relativeStakeInterpreter, leaderElectionInterpreter, registrationInterpreter)
+          .make[F](
+            etaInterpreter,
+            relativeStakeInterpreter,
+            leaderElectionInterpreter,
+            registrationInterpreter,
+            ed25519VRFResource,
+            kesProductResource,
+            ed25519Resource,
+            blake2b256Resource
+          )
           .unsafeRunSync()
 
       (registrationInterpreter
@@ -268,6 +468,36 @@ class BlockHeaderValidationSpec
         .expects(child.slotId, *)
         .once()
         .returning(relativeStake.some.pure[F])
+
+      (ed25519VRFResource
+        .use[Boolean](_: Function1[Ed25519VRF, Boolean]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[Ed25519VRF, Boolean] => f(ed25519Vrf).pure[F] }
+
+      (ed25519VRFResource
+        .use[Rho](_: Function1[Ed25519VRF, Rho]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[Ed25519VRF, Rho] => f(ed25519Vrf).pure[F] }
+
+      (kesProductResource
+        .use[Boolean](_: Function1[KesProduct, Boolean]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[KesProduct, Boolean] => f(kesProduct).pure[F] }
+
+      (ed25519Resource
+        .use[Boolean](_: Function1[Ed25519, Boolean]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[Ed25519, Boolean] => f(ed25519).pure[F] }
+
+      (blake2b256Resource
+        .use[Evidence](_: Function1[Blake2b256, Evidence]))
+        .expects(*)
+        .anyNumberOfTimes()
+        .onCall { f: Function1[Blake2b256, Evidence] => f(blake2b256).pure[F] }
 
       underTest.validate(child, parent).unsafeRunSync().value shouldBe child
     }
