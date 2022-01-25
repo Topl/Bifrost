@@ -2,17 +2,20 @@ package co.topl.demo
 
 import akka.actor.typed.ActorSystem
 import akka.util.Timeout
+import cats.arrow.FunctionK
 import cats.data.OptionT
 import cats.effect.implicits._
 import cats.effect.kernel.Sync
 import cats.effect.{Async, IO, IOApp}
 import cats.implicits._
+import cats.~>
 import co.topl.algebras._
 import co.topl.codecs.bytes.implicits._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
 import co.topl.consensus.algebras.{EtaCalculationAlgebra, LeaderElectionValidationAlgebra}
 import co.topl.crypto.hash.{blake2b256, Blake2b256, Blake2b512}
+import co.topl.crypto.mnemonic.Entropy
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.minting._
 import co.topl.minting.algebras.BlockMintAlgebra
@@ -38,8 +41,9 @@ object TetraDemo extends IOApp.Simple {
     VrfConfig(lddCutoff = 10, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(1))
 
   private val OperationalPeriodLength = 180L
-  private val EpochLength = OperationalPeriodLength * 4
-  private val SlotDuration = 100.milli
+  private val OperationalPeriodsPerEpoch = 4L
+  private val EpochLength = OperationalPeriodLength * OperationalPeriodsPerEpoch
+  private val SlotDuration = 50.milli
 
   require(
     EpochLength % OperationalPeriodLength === 0L,
@@ -50,11 +54,11 @@ object TetraDemo extends IOApp.Simple {
 
   // Create stubbed/sample/demo data
 
-  private val NumberOfStakers = 20
-  private val RelativeStake = Ratio(1, 20)
+  private val NumberOfStakers = 10
+  private val RelativeStake = Ratio(1, NumberOfStakers)
 
-  private val poolVK =
-    new Ed25519().getVerificationKey(KeyInitializer[SecretKeys.Ed25519].random())
+  private val (_, poolVK) =
+    new Ed25519().createKeyPair(Entropy.fromUuid(UUID.randomUUID()), None)
 
   private val stakers = List.fill(NumberOfStakers) {
 
@@ -62,28 +66,23 @@ object TetraDemo extends IOApp.Simple {
     implicit val ed25519: Ed25519 = new Ed25519
     implicit val kesProduct: KesProduct = new KesProduct
 
-    val stakerVrfKey =
-      KeyInitializer[SecretKeys.VrfEd25519].random()
+    val (stakerVrfKey, _) =
+      ed25519Vrf.createKeyPair(Entropy.fromUuid(UUID.randomUUID()), None)
 
-    val (kesKey, kesVK) =
+    val (kesKey, _) =
       kesProduct.createKeyPair(seed = Bytes(Random.nextBytes(32)), height = KesKeyHeight, 0)
 
     val stakerRegistration: Box.Values.TaktikosRegistration =
       Box.Values.TaktikosRegistration(
         commitment = kesProduct.sign(
           kesKey,
-          Bytes(
-            blake2b256
-              .hash((ed25519Vrf.getVerificationKey(stakerVrfKey).signableBytes ++ poolVK.bytes.data).toArray)
-              .value
-          )
+          new Blake2b256().hash(ed25519Vrf.getVerificationKey(stakerVrfKey).signableBytes, poolVK.bytes.data).data
         ),
         activationSlot = 0
       )
 
     val stakerAddress: TaktikosAddress = {
-      val paymentKey = KeyInitializer[SecretKeys.Ed25519].random()
-      val paymentVerificationKey = ed25519.getVerificationKey(paymentKey)
+      val (paymentKey, paymentVerificationKey) = ed25519.createKeyPair(Entropy.fromUuid(UUID.randomUUID()), None)
       TaktikosAddress(
         Sized.strictUnsafe(
           Bytes(blake2b256.hash(paymentVerificationKey.bytes.data.toArray).value)
@@ -169,7 +168,7 @@ object TetraDemo extends IOApp.Simple {
             activationOperationalPeriod = 0L,
             staker.address
           )
-          stakerVRFVK <- ed25519VRFResource.use(_.getVerificationKey(staker.vrfKey))
+          stakerVRFVK <- ed25519VRFResource.use(_.getVerificationKey(staker.vrfKey).pure[F])
           mint =
             BlockMint.Eval.make(
               Staking.Eval.make(
@@ -210,6 +209,8 @@ object TetraDemo extends IOApp.Simple {
     }
 
   // Program definition
+
+  implicit val fToIo: ~>[F, IO] = FunctionK.id
 
   val run: IO[Unit] = {
     for {

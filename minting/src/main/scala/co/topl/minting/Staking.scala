@@ -76,7 +76,7 @@ object Staking {
             BlockV2(
               header,
               BlockBodyV2(header.id, unsignedBlock.transactions)
-            )
+            ).pure[F]
           }
         }.value
     }

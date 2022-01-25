@@ -154,14 +154,14 @@ object OperationalKeys {
         })
         _       <- OptionT.liftF(Logger[F].info(show"Consuming key id=$fileName"))
         diskKey <- OptionT(secureStore.consume[SecretKeys.KesProduct](fileName))
-        latest  <- OptionT.liftF(kesProductResource.use(_.getCurrentStep(diskKey)))
+        latest  <- OptionT.liftF(kesProductResource.use(_.getCurrentStep(diskKey).pure[F]))
         currentPeriodKey <-
           if (latest === timeStep) OptionT.pure[F](diskKey)
-          else OptionT.liftF(kesProductResource.use(_.update(diskKey, timeStep.toInt)))
+          else OptionT.liftF(kesProductResource.use(_.update(diskKey, timeStep.toInt).pure[F]))
         res <- OptionT.liftF(use(currentPeriodKey))
         nextTimeStep = timeStep + 1
         _       <- OptionT.liftF(Logger[F].info(show"Saving next key idx=$nextTimeStep"))
-        updated <- OptionT.liftF(kesProductResource.use(_.update(currentPeriodKey, nextTimeStep)))
+        updated <- OptionT.liftF(kesProductResource.use(_.update(currentPeriodKey, nextTimeStep).pure[F]))
         _ <- OptionT.liftF(
           secureStore.write(
             UUID.randomUUID().toString,
@@ -223,18 +223,21 @@ object OperationalKeys {
       ed25519Resource:    UnsafeResource[F, Ed25519]
     ): F[Vector[OperationalKeyOut]] =
       ed25519Resource
-        .use(ed => List.fill(slots.size)(ed.createKeyPair(Entropy.fromUuid(UUID.randomUUID()), None)))
+        .use(ed => List.fill(slots.size)(ed.createKeyPair(Entropy.fromUuid(UUID.randomUUID()), None)).pure[F])
         .flatMap(children =>
           kesProductResource.use { kesProductScheme =>
             val parentVK = kesProductScheme.getVerificationKey(kesParent)
-            slots.zip(children).map { case (slot, (childSK, childVK)) =>
-              val parentSignature =
-                kesProductScheme.sign(
-                  kesParent,
-                  (childVK.bytes.data ++ Bytes(Longs.toByteArray(slot)))
-                )
-              OperationalKeyOut(slot, childSK, parentSignature, parentVK)
-            }
+            slots
+              .zip(children)
+              .map { case (slot, (childSK, childVK)) =>
+                val parentSignature =
+                  kesProductScheme.sign(
+                    kesParent,
+                    (childVK.bytes.data ++ Bytes(Longs.toByteArray(slot)))
+                  )
+                OperationalKeyOut(slot, childSK, parentSignature, parentVK)
+              }
+              .pure[F]
           }
         )
   }

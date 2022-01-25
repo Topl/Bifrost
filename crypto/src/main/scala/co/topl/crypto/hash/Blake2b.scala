@@ -13,7 +13,7 @@ abstract class Blake2bHash[D: Digest] extends Hash[Blake2b, D] {
 
   override def hash(prefix: Option[Byte], messages: Message*): D =
     // must be synchronized on the digest function so that everyone shares an instance
-    {
+    synchronized {
       // update digest with prefix and messages
       prefix.foreach(p => digestFunc.update(p))
       messages.iterator.foreach { m =>

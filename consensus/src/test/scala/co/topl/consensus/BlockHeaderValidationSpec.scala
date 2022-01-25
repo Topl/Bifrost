@@ -189,16 +189,16 @@ class BlockHeaderValidationSpec
         .returning(eta.pure[F])
 
       (ed25519VRFResource
-        .use[Boolean](_: Function1[Ed25519VRF, Boolean]))
+        .use[Boolean](_: Function1[Ed25519VRF, F[Boolean]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[Ed25519VRF, Boolean] => f(ed25519Vrf).pure[F] }
+        .onCall { f: Function1[Ed25519VRF, F[Boolean]] => f(ed25519Vrf) }
 
       (ed25519VRFResource
-        .use[Rho](_: Function1[Ed25519VRF, Rho]))
+        .use[Rho](_: Function1[Ed25519VRF, F[Rho]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[Ed25519VRF, Rho] => f(ed25519Vrf).pure[F] }
+        .onCall { f: Function1[Ed25519VRF, F[Rho]] => f(ed25519Vrf) }
 
       underTest
         .validate(child, parent)
@@ -241,28 +241,28 @@ class BlockHeaderValidationSpec
         .returning(eta.pure[F])
 
       (ed25519VRFResource
-        .use[Boolean](_: Function1[Ed25519VRF, Boolean]))
+        .use[Boolean](_: Function1[Ed25519VRF, F[Boolean]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[Ed25519VRF, Boolean] => f(ed25519Vrf).pure[F] }
+        .onCall { f: Function1[Ed25519VRF, F[Boolean]] => f(ed25519Vrf) }
 
       (ed25519VRFResource
-        .use[Rho](_: Function1[Ed25519VRF, Rho]))
+        .use[Rho](_: Function1[Ed25519VRF, F[Rho]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[Ed25519VRF, Rho] => f(ed25519Vrf).pure[F] }
+        .onCall { f: Function1[Ed25519VRF, F[Rho]] => f(ed25519Vrf) }
 
       (kesProductResource
-        .use[Boolean](_: Function1[KesProduct, Boolean]))
+        .use[Boolean](_: Function1[KesProduct, F[Boolean]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[KesProduct, Boolean] => f(kesProduct).pure[F] }
+        .onCall { f: Function1[KesProduct, F[Boolean]] => f(kesProduct) }
 
       (ed25519Resource
-        .use[Boolean](_: Function1[Ed25519, Boolean]))
+        .use[Boolean](_: Function1[Ed25519, F[Boolean]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[Ed25519, Boolean] => f(ed25519).pure[F] }
+        .onCall { f: Function1[Ed25519, F[Boolean]] => f(ed25519) }
 
       underTest
         .validate(badBlock, parent)
@@ -312,34 +312,34 @@ class BlockHeaderValidationSpec
         .returning(eta.pure[F])
 
       (ed25519VRFResource
-        .use[Boolean](_: Function1[Ed25519VRF, Boolean]))
+        .use[Boolean](_: Function1[Ed25519VRF, F[Boolean]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[Ed25519VRF, Boolean] => f(ed25519Vrf).pure[F] }
+        .onCall { f: Function1[Ed25519VRF, F[Boolean]] => f(ed25519Vrf) }
 
       (ed25519VRFResource
-        .use[Rho](_: Function1[Ed25519VRF, Rho]))
+        .use[Rho](_: Function1[Ed25519VRF, F[Rho]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[Ed25519VRF, Rho] => f(ed25519Vrf).pure[F] }
+        .onCall { f: Function1[Ed25519VRF, F[Rho]] => f(ed25519Vrf) }
 
       (kesProductResource
-        .use[Boolean](_: Function1[KesProduct, Boolean]))
+        .use[Boolean](_: Function1[KesProduct, F[Boolean]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[KesProduct, Boolean] => f(kesProduct).pure[F] }
+        .onCall { f: Function1[KesProduct, F[Boolean]] => f(kesProduct) }
 
       (ed25519Resource
-        .use[Boolean](_: Function1[Ed25519, Boolean]))
+        .use[Boolean](_: Function1[Ed25519, F[Boolean]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[Ed25519, Boolean] => f(ed25519).pure[F] }
+        .onCall { f: Function1[Ed25519, F[Boolean]] => f(ed25519) }
 
       (blake2b256Resource
-        .use[Evidence](_: Function1[Blake2b256, Evidence]))
+        .use[Evidence](_: Function1[Blake2b256, F[Evidence]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[Blake2b256, Evidence] => f(blake2b256).pure[F] }
+        .onCall { f: Function1[Blake2b256, F[Evidence]] => f(blake2b256) }
 
       underTest
         .validate(child, parent)
@@ -391,34 +391,34 @@ class BlockHeaderValidationSpec
         .returning(Ratio(0).some.pure[F])
 
       (ed25519VRFResource
-        .use[Boolean](_: Function1[Ed25519VRF, Boolean]))
+        .use[Boolean](_: Function1[Ed25519VRF, F[Boolean]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[Ed25519VRF, Boolean] => f(ed25519Vrf).pure[F] }
+        .onCall { f: Function1[Ed25519VRF, F[Boolean]] => f(ed25519Vrf) }
 
       (ed25519VRFResource
-        .use[Rho](_: Function1[Ed25519VRF, Rho]))
+        .use[Rho](_: Function1[Ed25519VRF, F[Rho]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[Ed25519VRF, Rho] => f(ed25519Vrf).pure[F] }
+        .onCall { f: Function1[Ed25519VRF, F[Rho]] => f(ed25519Vrf) }
 
       (kesProductResource
-        .use[Boolean](_: Function1[KesProduct, Boolean]))
+        .use[Boolean](_: Function1[KesProduct, F[Boolean]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[KesProduct, Boolean] => f(kesProduct).pure[F] }
+        .onCall { f: Function1[KesProduct, F[Boolean]] => f(kesProduct) }
 
       (ed25519Resource
-        .use[Boolean](_: Function1[Ed25519, Boolean]))
+        .use[Boolean](_: Function1[Ed25519, F[Boolean]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[Ed25519, Boolean] => f(ed25519).pure[F] }
+        .onCall { f: Function1[Ed25519, F[Boolean]] => f(ed25519) }
 
       (blake2b256Resource
-        .use[Evidence](_: Function1[Blake2b256, Evidence]))
+        .use[Evidence](_: Function1[Blake2b256, F[Evidence]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[Blake2b256, Evidence] => f(blake2b256).pure[F] }
+        .onCall { f: Function1[Blake2b256, F[Evidence]] => f(blake2b256) }
 
       underTest
         .validate(child, parent)
@@ -470,34 +470,34 @@ class BlockHeaderValidationSpec
         .returning(relativeStake.some.pure[F])
 
       (ed25519VRFResource
-        .use[Boolean](_: Function1[Ed25519VRF, Boolean]))
+        .use[Boolean](_: Function1[Ed25519VRF, F[Boolean]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[Ed25519VRF, Boolean] => f(ed25519Vrf).pure[F] }
+        .onCall { f: Function1[Ed25519VRF, F[Boolean]] => f(ed25519Vrf) }
 
       (ed25519VRFResource
-        .use[Rho](_: Function1[Ed25519VRF, Rho]))
+        .use[Rho](_: Function1[Ed25519VRF, F[Rho]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[Ed25519VRF, Rho] => f(ed25519Vrf).pure[F] }
+        .onCall { f: Function1[Ed25519VRF, F[Rho]] => f(ed25519Vrf) }
 
       (kesProductResource
-        .use[Boolean](_: Function1[KesProduct, Boolean]))
+        .use[Boolean](_: Function1[KesProduct, F[Boolean]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[KesProduct, Boolean] => f(kesProduct).pure[F] }
+        .onCall { f: Function1[KesProduct, F[Boolean]] => f(kesProduct) }
 
       (ed25519Resource
-        .use[Boolean](_: Function1[Ed25519, Boolean]))
+        .use[Boolean](_: Function1[Ed25519, F[Boolean]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[Ed25519, Boolean] => f(ed25519).pure[F] }
+        .onCall { f: Function1[Ed25519, F[Boolean]] => f(ed25519) }
 
       (blake2b256Resource
-        .use[Evidence](_: Function1[Blake2b256, Evidence]))
+        .use[Evidence](_: Function1[Blake2b256, F[Evidence]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[Blake2b256, Evidence] => f(blake2b256).pure[F] }
+        .onCall { f: Function1[Blake2b256, F[Evidence]] => f(blake2b256) }
 
       underTest.validate(child, parent).unsafeRunSync().value shouldBe child
     }

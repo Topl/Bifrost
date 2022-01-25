@@ -112,11 +112,13 @@ object BlockHeaderValidation {
                 EitherT(
                   ed25519VRFResource
                     .use { implicit ed25519vrf =>
-                      ed25519vrf.verify(
-                        header.eligibilityCertificate.vrfSig,
-                        LeaderElectionValidation.VrfArgument(expectedEta, header.slot).signableBytes,
-                        header.eligibilityCertificate.vkVRF
-                      )
+                      ed25519vrf
+                        .verify(
+                          header.eligibilityCertificate.vrfSig,
+                          LeaderElectionValidation.VrfArgument(expectedEta, header.slot).signableBytes,
+                          header.eligibilityCertificate.vkVRF
+                        )
+                        .pure[F]
                     }
                     .map(
                       Either.cond(
@@ -140,11 +142,13 @@ object BlockHeaderValidation {
         EitherT(
           kesProductResource
             .use(kesProduct =>
-              kesProduct.verify(
-                header.operationalCertificate.parentSignature,
-                header.operationalCertificate.childVK.bytes.data ++ Bytes(Longs.toByteArray(header.slot)),
-                header.operationalCertificate.parentVK
-              )
+              kesProduct
+                .verify(
+                  header.operationalCertificate.parentSignature,
+                  header.operationalCertificate.childVK.bytes.data ++ Bytes(Longs.toByteArray(header.slot)),
+                  header.operationalCertificate.parentVK
+                )
+                .pure[F]
             )
             .map(
               Either.cond(
@@ -161,11 +165,13 @@ object BlockHeaderValidation {
               ed25519Resource
                 .use(ed25519 =>
                   // Use the ed25519 instance to verify the childSignature against the header's bytes
-                  ed25519.verify(
-                    header.operationalCertificate.childSignature,
-                    header.signableBytes,
-                    header.operationalCertificate.childVK
-                  )
+                  ed25519
+                    .verify(
+                      header.operationalCertificate.childSignature,
+                      header.signableBytes,
+                      header.operationalCertificate.childVK
+                    )
+                    .pure[F]
                 )
                 .map(isValid =>
                   // Verification from the previous step returns a boolean, so now check the boolean verification result
@@ -219,7 +225,7 @@ object BlockHeaderValidation {
           .liftF(
             ed25519VRFResource
               .use { implicit ed25519Vrf =>
-                ed25519Vrf.proofToHash(header.eligibilityCertificate.vrfSig)
+                ed25519Vrf.proofToHash(header.eligibilityCertificate.vrfSig).pure[F]
               }
               .flatMap(leaderElection.isSlotLeaderForThreshold(threshold))
           )
@@ -248,9 +254,11 @@ object BlockHeaderValidation {
           .flatMapF(commitment =>
             for {
               message <- blake2b256Resource
-                .use(_.hash(header.eligibilityCertificate.vkVRF.bytes.data, header.address.poolVK.bytes.data))
+                .use(_.hash(header.eligibilityCertificate.vkVRF.bytes.data, header.address.poolVK.bytes.data).pure[F])
               isValid <- kesProductResource
-                .use(p => p.verify(commitment, message.data, header.operationalCertificate.parentVK.copy(step = 0)))
+                .use(p =>
+                  p.verify(commitment, message.data, header.operationalCertificate.parentVK.copy(step = 0)).pure[F]
+                )
             } yield Either.cond(
               isValid,
               header,

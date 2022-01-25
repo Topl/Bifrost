@@ -1,7 +1,7 @@
 package co.topl.minting
 
 import cats.Applicative
-import cats.data.{Chain, NonEmptyChain}
+import cats.data.Chain
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import co.topl.algebras.testInterpreters.NoOpLogger
@@ -104,30 +104,30 @@ class OperationalKeysSpec
         .returning(Ratio(1).some.pure[F])
 
       (kesProductResource
-        .use[Int](_: Function1[KesProduct, Int]))
+        .use[Int](_: Function1[KesProduct, F[Int]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[KesProduct, Int] => f(kesProduct).pure[F] }
+        .onCall { f: Function1[KesProduct, F[Int]] => f(kesProduct) }
 
       (kesProductResource
-        .use[SecretKeys.KesProduct](_: Function1[KesProduct, SecretKeys.KesProduct]))
+        .use[SecretKeys.KesProduct](_: Function1[KesProduct, F[SecretKeys.KesProduct]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[KesProduct, SecretKeys.KesProduct] => f(kesProduct).pure[F] }
+        .onCall { f: Function1[KesProduct, F[SecretKeys.KesProduct]] => f(kesProduct) }
 
       (kesProductResource
-        .use[Vector[OperationalKeyOut]](_: Function1[KesProduct, Vector[OperationalKeyOut]]))
+        .use[Vector[OperationalKeyOut]](_: Function1[KesProduct, F[Vector[OperationalKeyOut]]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[KesProduct, Vector[OperationalKeyOut]] => f(kesProduct).pure[F] }
+        .onCall { f: Function1[KesProduct, F[Vector[OperationalKeyOut]]] => f(kesProduct) }
 
       (ed25519Resource
         .use[List[(SecretKeys.Ed25519, VerificationKeys.Ed25519)]](
-          _: Function1[Ed25519, List[(SecretKeys.Ed25519, VerificationKeys.Ed25519)]]
+          _: Function1[Ed25519, F[List[(SecretKeys.Ed25519, VerificationKeys.Ed25519)]]]
         ))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[Ed25519, List[(SecretKeys.Ed25519, VerificationKeys.Ed25519)]] => f(ed25519).pure[F] }
+        .onCall { f: Function1[Ed25519, F[List[(SecretKeys.Ed25519, VerificationKeys.Ed25519)]]] => f(ed25519) }
 
       val underTest = OperationalKeys.FromSecureStore
         .make[F](
@@ -224,30 +224,30 @@ class OperationalKeysSpec
         .returning(Ratio(1).some.pure[F])
 
       (kesProductResource
-        .use[Int](_: Function1[KesProduct, Int]))
+        .use[Int](_: Function1[KesProduct, F[Int]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[KesProduct, Int] => f(kesProduct).pure[F] }
+        .onCall { f: Function1[KesProduct, F[Int]] => f(kesProduct) }
 
       (kesProductResource
-        .use[SecretKeys.KesProduct](_: Function1[KesProduct, SecretKeys.KesProduct]))
+        .use[SecretKeys.KesProduct](_: Function1[KesProduct, F[SecretKeys.KesProduct]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[KesProduct, SecretKeys.KesProduct] => f(kesProduct).pure[F] }
+        .onCall { f: Function1[KesProduct, F[SecretKeys.KesProduct]] => f(kesProduct) }
 
       (kesProductResource
-        .use[Vector[OperationalKeyOut]](_: Function1[KesProduct, Vector[OperationalKeyOut]]))
+        .use[Vector[OperationalKeyOut]](_: Function1[KesProduct, F[Vector[OperationalKeyOut]]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[KesProduct, Vector[OperationalKeyOut]] => f(kesProduct).pure[F] }
+        .onCall { f: Function1[KesProduct, F[Vector[OperationalKeyOut]]] => f(kesProduct) }
 
       (ed25519Resource
         .use[List[(SecretKeys.Ed25519, VerificationKeys.Ed25519)]](
-          _: Function1[Ed25519, List[(SecretKeys.Ed25519, VerificationKeys.Ed25519)]]
+          _: Function1[Ed25519, F[List[(SecretKeys.Ed25519, VerificationKeys.Ed25519)]]]
         ))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[Ed25519, List[(SecretKeys.Ed25519, VerificationKeys.Ed25519)]] => f(ed25519).pure[F] }
+        .onCall { f: Function1[Ed25519, F[List[(SecretKeys.Ed25519, VerificationKeys.Ed25519)]]] => f(ed25519) }
 
       val underTest = OperationalKeys.FromSecureStore
         .make[F](

@@ -79,7 +79,7 @@ object VrfProof {
               }
             )
             val rhoValues = LongMap.from(vrfProofs.view.mapValues(ed.proofToHash))
-            vrfProofs -> rhoValues
+            (vrfProofs -> rhoValues).pure[F]
           }
           _ <- (vrfProofsCache.put(eta)(vrfProofs), rhosCache.put(eta)(rhoValues)).tupled
         } yield ()

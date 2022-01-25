@@ -95,16 +95,16 @@ class EtaCalculationSpec
       .anyNumberOfTimes()
 
     (blake2b256Resource
-      .use[NonEmptyChain[RhoNonceHash]](_: Function1[Blake2b256, NonEmptyChain[RhoNonceHash]]))
+      .use[NonEmptyChain[RhoNonceHash]](_: Function1[Blake2b256, F[NonEmptyChain[RhoNonceHash]]]))
       .expects(*)
       .anyNumberOfTimes()
-      .onCall { f: Function1[Blake2b256, NonEmptyChain[RhoNonceHash]] => f(blake2b256).pure[F] }
+      .onCall { f: Function1[Blake2b256, F[NonEmptyChain[RhoNonceHash]]] => f(blake2b256) }
 
     (blake2b512Resource
-      .use[NonEmptyChain[RhoNonceHash]](_: Function1[Blake2b512, NonEmptyChain[RhoNonceHash]]))
+      .use[NonEmptyChain[RhoNonceHash]](_: Function1[Blake2b512, F[NonEmptyChain[RhoNonceHash]]]))
       .expects(*)
       .anyNumberOfTimes()
-      .onCall { f: Function1[Blake2b512, NonEmptyChain[RhoNonceHash]] => f(blake2b512).pure[F] }
+      .onCall { f: Function1[Blake2b512, F[NonEmptyChain[RhoNonceHash]]] => f(blake2b512) }
 
     val actual =
       underTest.etaToBe(blocks.last.slotId, 16L).unsafeRunSync()
@@ -144,16 +144,16 @@ class EtaCalculationSpec
       .returning(SlotData(genesis.headerV2).pure[F])
 
     (blake2b256Resource
-      .use[NonEmptyChain[RhoNonceHash]](_: Function1[Blake2b256, NonEmptyChain[RhoNonceHash]]))
+      .use[NonEmptyChain[RhoNonceHash]](_: Function1[Blake2b256, F[NonEmptyChain[RhoNonceHash]]]))
       .expects(*)
       .anyNumberOfTimes()
-      .onCall { f: Function1[Blake2b256, NonEmptyChain[RhoNonceHash]] => f(blake2b256).pure[F] }
+      .onCall { f: Function1[Blake2b256, F[NonEmptyChain[RhoNonceHash]]] => f(blake2b256) }
 
     (blake2b512Resource
-      .use[NonEmptyChain[RhoNonceHash]](_: Function1[Blake2b512, NonEmptyChain[RhoNonceHash]]))
+      .use[NonEmptyChain[RhoNonceHash]](_: Function1[Blake2b512, F[NonEmptyChain[RhoNonceHash]]]))
       .expects(*)
       .anyNumberOfTimes()
-      .onCall { f: Function1[Blake2b512, NonEmptyChain[RhoNonceHash]] => f(blake2b512).pure[F] }
+      .onCall { f: Function1[Blake2b512, F[NonEmptyChain[RhoNonceHash]]] => f(blake2b512) }
 
     val actual =
       underTest.etaToBe(genesis.headerV2.slotId, 16L).unsafeRunSync()

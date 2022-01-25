@@ -61,7 +61,7 @@ object EtaCalculation {
                 parentSlotData.eta.pure[F]
               // TODO: If childEpoch - parentEpoch > 1, destroy the node
               // OR: childSlot - parentSlot > slotsPerEpoch
-              case (_, childEpoch, parentSlotData) =>
+              case (_, _, parentSlotData) =>
                 cachingF(parentSlotId.blockId)(ttl = Some(1.day))(
                   locateTwoThirdsBest(parentSlotData)
                     .flatMap(calculate)
@@ -117,7 +117,7 @@ object EtaCalculation {
           show"Calculating new eta.  previousEta=$previousEta epoch=$epoch rhoValues=[${rhoValues.length}]{${rhoValues.head}..${rhoValues.last}}"
         ) >>
           blake2b512Resource
-            .use(implicit blake2b512 => rhoValues.map(Ed25519VRF.rhoToRhoNonceHash))
+            .use(implicit blake2b512 => rhoValues.map(Ed25519VRF.rhoToRhoNonceHash).pure[F])
             .flatMap(calculateFromNonceHashValues(previousEta, epoch, _)))
           .flatTap(nextEta =>
             Logger[F].info(
@@ -137,7 +137,7 @@ object EtaCalculation {
           _.hash(
             Bytes
               .concat(EtaCalculationArgs(previousEta, epoch, rhoNonceHashValues.toIterable).digestMessages)
-          )
+          ).pure[F]
         )
     }
 

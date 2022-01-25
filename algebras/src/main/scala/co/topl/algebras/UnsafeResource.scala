@@ -8,5 +8,5 @@ trait UnsafeResource[F[_], T] {
   /**
    * Use the thread-unsafe resource in a thread-safe manner
    */
-  def use[Res](f: T => Res): F[Res]
+  def use[Res](f: T => F[Res]): F[Res]
 }

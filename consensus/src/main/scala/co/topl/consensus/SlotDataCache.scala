@@ -33,7 +33,7 @@ object SlotDataCache {
           cachingF(blockId)(ttl = Some(1.day))(
             OptionT(blockHeaderLookup.get(blockId))
               .getOrElseF(new IllegalStateException(blockId.show).raiseError[F, BlockHeaderV2])
-              .flatMap(header => ed25519VRFResource.use(implicit ed25519Vrf => SlotData(header)))
+              .flatMap(header => ed25519VRFResource.use(implicit ed25519Vrf => SlotData(header).pure[F]))
           )
       )
   }
