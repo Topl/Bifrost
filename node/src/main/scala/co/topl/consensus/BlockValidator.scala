@@ -13,14 +13,14 @@ import scala.util.{Failure, Try}
 
 //PoS consensus rules checks, throws exception if anything wrong
 sealed trait BlockValidator[PM <: Block] {
-  def validate(block: PM): Try[Unit]
+  def validate(block: PM, consensusParams: ConsensusVariables.ConsensusParams): Try[Unit]
 }
 
 class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)(implicit
-  nxtLeaderElection: NxtLeaderElection
+  nxtLeaderElection:                    NxtLeaderElection
 ) extends BlockValidator[Block] {
 
-  def validate(block: Block): Try[Unit] = Try {
+  def validate(block: Block, consensusParams: ConsensusVariables.ConsensusParams): Try[Unit] = Try {
     // lookup our local data about the parent
     val (parent, prevBlockTimes) = getParentDetailsOf(block)
 
@@ -31,7 +31,7 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
     }
 
     // next, ensure the hit was valid
-    ensureValidHit(block, parent) match {
+    ensureValidHit(block, parent, consensusParams) match {
       case Failure(ex) => throw ex
       case _           => // continue on
     }
@@ -56,14 +56,18 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
       )
     }
 
-  private def ensureValidHit(block: Block, parent: Block): Try[Unit] = Try {
+  private def ensureValidHit(
+    block:           Block,
+    parent:          Block,
+    consensusParams: ConsensusVariables.ConsensusParams
+  ): Try[Unit] = Try {
     // calculate the hit value from the forger box included in the new block
     val hit = nxtLeaderElection.calcHit(parent)(block.generatorBox)
 
     // calculate the difficulty the forger would have used to determine eligibility
     val target = nxtLeaderElection.calcTarget(
       block.generatorBox.value.quantity,
-      consensusStorage.totalStake,
+      consensusParams.totalStake,
       block.timestamp - parent.timestamp,
       parent.difficulty,
       parent.height
@@ -97,7 +101,7 @@ class SyntaxBlockValidator extends BlockValidator[Block] {
         "The forger entitled transactions must match the block details"
       )
 
-  def validate(block: Block): Try[Unit] = Try {
+  def validate(block: Block, consensusParams: ConsensusVariables.ConsensusParams): Try[Unit] = Try {
 
     // check block signature is valid
     require(block.signature.isValid(block.publicKey, block.messageToSign), "Failed to validate block signature")
@@ -123,7 +127,7 @@ class SyntaxBlockValidator extends BlockValidator[Block] {
           case tx: ArbitTransfer[_] if tx.minting =>
             forgerEntitlementCheck(tx, block)
             require(
-              tx.to.map(_._2.quantity).sum == consensusStorage.inflation, // JAA -this needs to be done more carefully
+              tx.to.map(_._2.quantity).sum == consensusParams.inflation, // JAA -this needs to be done more carefully
               "The inflation amount in the block must match the output of the Arbit rewards transaction"
             )
             require(
@@ -160,7 +164,7 @@ class TimestampValidator(storage: Storage, blockProcessor: BlockProcessor) exten
   private def blockTimestamp(id: ModifierId): Option[TimeProvider.Time] =
     blockProcessor.getCacheBlock(id).map(_.block.timestamp).orElse(storage.timestampOf(id))
 
-  override def validate(block: Block): Try[Unit] = Try {
+  override def validate(block: Block, consensusParams: ConsensusVariables.ConsensusParams): Try[Unit] = Try {
     blockTimestamp(block.parentId) match {
       case Some(parentTimestamp) =>
         require(

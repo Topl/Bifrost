@@ -1,5 +1,9 @@
 package co.topl.consensus
 
+import akka.actor.typed.scaladsl.ActorContext
+import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.typed.scaladsl.AskPattern.Askable
+import akka.util.Timeout
 import cats.data.Validated
 import cats.implicits._
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
@@ -15,6 +19,7 @@ import co.topl.utils.{Int128, TimeProvider}
 import org.slf4j.Logger
 
 import scala.collection.immutable.ListMap
+import scala.concurrent.Future
 import scala.util.Try
 
 /**
@@ -93,11 +98,17 @@ case class Forge(
 
 object Forge {
 
-  def fromNodeView(nodeView: ReadableNodeView, keyView: KeyView, minTransactionFee: Int128)(implicit
-    timeProvider:            TimeProvider,
-    networkPrefix:           NetworkPrefix,
-    nxtLeaderElection:       NxtLeaderElection,
-    logger:                  Logger
+  def fromNodeView(
+    nodeView:          ReadableNodeView,
+    consensusParams:   ConsensusVariables.ConsensusParams,
+    keyView:           KeyView,
+    minTransactionFee: Int128
+  )(implicit
+    timeProvider:      TimeProvider,
+    networkPrefix:     NetworkPrefix,
+    context:           ActorContext[Forger.ReceivableMessage],
+    nxtLeaderElection: NxtLeaderElection,
+    logger:            Logger
   ): Either[Failure, Forge] =
     for {
       rewardAddress <- keyView.rewardAddr.toRight(NoRewardsAddressSpecified)
@@ -109,10 +120,11 @@ object Forge {
       ).map(_.toApply)
       parentBlock = nodeView.history.bestBlock
       forgeTime = timeProvider.time
-      rewards <- Rewards(transactions, rewardAddress, parentBlock.id, forgeTime).toEither.leftMap(ForgingError)
+      rewards <- Rewards(transactions, rewardAddress, parentBlock.id, forgeTime, consensusParams.inflation).toEither
+        .leftMap(ForgingError)
       prevTimes = nodeView.history.getTimestampsFrom(parentBlock, nxtLeaderElection.nxtBlockNum)
       arbitBox <- LeaderElection
-        .getEligibleBox(parentBlock, keyView.addresses, forgeTime, nodeView.state)
+        .getEligibleBox(parentBlock, keyView.addresses, forgeTime, consensusParams, nodeView.state)
         .leftMap(LeaderElectionFailure)
     } yield Forge(
       arbitBox,

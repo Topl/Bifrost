@@ -7,6 +7,8 @@ import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
 import cats.data.EitherT
 import cats.implicits._
+import co.topl.consensus.ConsensusVariables.ConsensusParamsUpdate
+import co.topl.consensus.ConsensusVariables.ReceivableMessages.UpdateConsensusVariables
 import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
 import co.topl.consensus.genesis.{HelGenesis, PrivateGenesis, ToplnetGenesis, ValhallaGenesis}
 import co.topl.modifier.block.Block
@@ -64,7 +66,8 @@ object Forger {
     forgeOnStartup:       Boolean,
     fetchKeyView:         () => Future[KeyView],
     fetchStartupKeyView:  () => Future[StartupKeyView],
-    nodeViewReader:       NodeViewReader
+    nodeViewReader:       NodeViewReader,
+    consensusStorageRef:  ActorRef[ConsensusVariables.ReceivableMessage]
   )(implicit
     networkPrefix:     NetworkPrefix,
     nxtLeaderElection: NxtLeaderElection,
@@ -85,7 +88,8 @@ object Forger {
         blockGenerationDelay,
         minTransactionFee,
         fetchKeyView,
-        nodeViewReader
+        nodeViewReader,
+        consensusStorageRef
       ).uninitialized(forgeWhenReady = forgeOnStartup)
 
     }
@@ -108,17 +112,33 @@ object Forger {
       Future.successful(Done)
     }
 
-  def genesisBlock(settings: AppSettings, networkType: NetworkType, fetchStartupKeyView: () => Future[StartupKeyView])(
-    implicit ec:             ExecutionContext
+  def genesisBlock(
+    settings:            AppSettings,
+    networkType:         NetworkType,
+    fetchStartupKeyView: () => Future[StartupKeyView],
+    consensusStorageRef: ActorRef[ConsensusVariables.ReceivableMessage]
+  )(implicit
+    system: ActorSystem[_],
+    ec: ExecutionContext
   ): Future[Block] = {
     implicit val networkPrefix: NetworkPrefix = networkType.netPrefix
 
-    def initializeFromChainParamsAndGetBlock(block: Try[(Block, ChainParams)]): Try[Block] =
+    def initializeFromChainParamsAndGetBlock(block: Try[(Block, ChainParams)]): Try[Block] = {
+      import akka.actor.typed.scaladsl.AskPattern._
+
+      import scala.concurrent.duration._
+      implicit val timeout: Timeout = Timeout(10.seconds)
+
       block.map { case (block: Block, ChainParams(totalStake, initDifficulty)) =>
-        consensusStorage.updateConsensusStorage(block.id, ConsensusParams(totalStake, initDifficulty, 0, 0))
+        consensusStorageRef.askWithStatus[Done](UpdateConsensusVariables(
+          block.id,
+          ConsensusParamsUpdate(Some(totalStake), Some(initDifficulty), Some(0L), Some(0L)),
+          _
+        ))
 
         block
       }
+    }
 
     networkType match {
       case Mainnet         => Future.fromTry(initializeFromChainParamsAndGetBlock(ToplnetGenesis.getGenesisBlock))
@@ -144,7 +164,8 @@ private class ForgerBehaviors(
   blockGenerationDelay: FiniteDuration,
   minTransactionFee:    Int128,
   fetchKeyView:         () => Future[KeyView],
-  nodeViewReader:       NodeViewReader
+  nodeViewReader:       NodeViewReader,
+  consensusStorageRef:  ActorRef[ConsensusVariables.ReceivableMessage]
 )(implicit
   context:           ActorContext[Forger.ReceivableMessage],
   networkPrefix:     NetworkPrefix,
@@ -245,14 +266,31 @@ private class ForgerBehaviors(
    * Forge the "next" block based on the "current" NodeView
    */
   private def nextBlock(): EitherT[Future, ForgerFailure, Block] =
-    EitherT(fetchKeyView().map(Right(_)).recover { case e => Left(ForgingError(e)) })
-      .flatMap(keyView =>
-        nodeViewReader
-          .withNodeView(Forge.fromNodeView(_, keyView, minTransactionFee))
-          .leftMap(e => ForgingError(e.reason))
-          .subflatMap(_.leftMap(ForgeFailure))
+    for {
+      keyView <- EitherT[Future, ForgerFailure, KeyView](
+        fetchKeyView().map(Right(_)).recover { case e => Left(ForgingError(e)) }
       )
-      .subflatMap(_.make.leftMap(ForgeFailure))
+      consensusParams <- EitherT[Future, ForgerFailure, ConsensusVariables.ConsensusParams](
+        getConsensusParams(consensusStorageRef).map(_.asRight)
+      )
+      forge <- nodeViewReader
+        .withNodeView(Forge.fromNodeView(_, consensusParams, keyView, minTransactionFee))
+        .leftMap(e => ForgingError(e.reason))
+        .subflatMap(_.leftMap(ForgeFailure(_): ForgerFailure))
+      block <- EitherT.fromEither[Future](forge.make.leftMap(ForgeFailure(_): ForgerFailure))
+    } yield block
+
+  private[consensus] def getConsensusParams(
+    consensusStorageRef: ActorRef[ConsensusVariables.ReceivableMessage]
+  )(implicit context:    ActorContext[Forger.ReceivableMessage]): Future[ConsensusVariables.ConsensusParams] = {
+    import akka.actor.typed.scaladsl.AskPattern._
+    import scala.concurrent.duration._
+    implicit val timeout: Timeout = Timeout(10.seconds)
+    implicit val typedSystem: ActorSystem[_] = context.system
+    consensusStorageRef.ask[ConsensusVariables.ConsensusParams](
+      ConsensusVariables.ReceivableMessages.GetConsensusVariables
+    )
+  }
 
   /**
    * Log the result of a forging attempt

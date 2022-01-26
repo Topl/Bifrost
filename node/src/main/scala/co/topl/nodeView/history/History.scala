@@ -79,7 +79,10 @@ class History(
    * @param block block to append
    * @return the update history including `block` as the most recent block
    */
-  override def append(block: Block): Try[(History, ProgressInfo[Block])] = Try {
+  override def append(
+    block:           Block,
+    consensusParams: ConsensusVariables.ConsensusParams
+  ): Try[(History, ProgressInfo[Block])] = Try {
 
     log.debug(s"Trying to append block ${block.id} to history")
 
@@ -94,7 +97,7 @@ class History(
     // test new block against all validators
     val validationResults =
       if (!isGenesis(block) && !isHiccupBlock) {
-        validators.map(_.validate(block)).map {
+        validators.map(_.validate(block, consensusParams)).map {
           case Failure(e) =>
             log.warn(s"Block validation failed", e)
             false

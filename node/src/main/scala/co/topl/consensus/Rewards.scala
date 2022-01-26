@@ -17,13 +17,14 @@ object ArbitReward {
     rewardAdr: Address,
     parentId:  ModifierId,
     forgeTime: Time,
+    inflation: Int128,
     fee:       Int128 = 0
   ): ArbitTransfer[PublicKeyPropositionCurve25519] =
     ArbitTransfer(
       IndexedSeq(),
       IndexedSeq(
         (rewardAdr, SimpleValue(0)), // feeChangeOutput (Polys)
-        (rewardAdr, SimpleValue(consensusStorage.inflation)) // coinOutput (Arbits)
+        (rewardAdr, SimpleValue(inflation)) // coinOutput (Arbits)
       ),
       ListMap[PublicKeyPropositionCurve25519, SignatureCurve25519](),
       fee,
@@ -63,12 +64,13 @@ object Rewards {
     rewardAddr:   Address,
     parentId:     ModifierId,
     forgeTime:    Time,
+    inflation:    Int128,
     arbitFee:     Int128 = 0,
     polyFee:      Int128 = 0
   ): Try[Seq[TX]] =
     Try(
       Seq(
-        ArbitReward(rewardAddr, parentId, forgeTime, arbitFee),
+        ArbitReward(rewardAddr, parentId, forgeTime, inflation, arbitFee),
         PolyReward(transactions.map(_.fee).sum, rewardAddr, parentId, forgeTime, polyFee)
       )
     )

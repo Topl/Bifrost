@@ -26,6 +26,7 @@ object LeaderElection extends Logging {
     parent:            Block,
     addresses:         Set[Address],
     timestamp:         TimeProvider.Time,
+    consensusParams:   ConsensusVariables.ConsensusParams,
     stateReader:       SR
   )(implicit nxtLeaderElection: NxtLeaderElection): Either[IneligibilityReason, ArbitBox] =
     if (addresses.isEmpty) {
@@ -49,7 +50,7 @@ object LeaderElection extends Logging {
           val calculatedTarget =
             nxtLeaderElection.calcTarget(
               box.value.quantity,
-              consensusStorage.totalStake,
+              consensusParams.totalStake,
               timestamp - parent.timestamp,
               parent.difficulty,
               parent.height

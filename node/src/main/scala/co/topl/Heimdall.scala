@@ -57,9 +57,6 @@ object Heimdall {
 
       context.log.info("Initializing ProtocolVersioner and ConsensusStorage")
 
-      // TODO: Jing - remove
-//      protocolMngr = ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
-
       implicit val nxtLeaderElection: NxtLeaderElection = NxtLeaderElection(settings)
       consensusStorage = ConsensusStorage(settings, appContext.networkType)
 
@@ -70,6 +67,7 @@ object Heimdall {
       val state = prepareKeyManagerAndNodeViewActors(settings, appContext)
       context.watch(state.keyManager)
       context.watch(state.nodeViewHolder)
+      context.watch(state.consensusStorage)
       context.pipeToSelf(new ActorNodeViewHolderInterface(state.nodeViewHolder).onReady()) {
         case Failure(exception) => ReceivableMessages.Fail(exception)
         case Success(_)         => ReceivableMessages.NodeViewHolderReady
@@ -194,8 +192,9 @@ object Heimdall {
       }
 
   private case class NodeViewHolderInitializingState(
-    keyManager:     CActorRef,
-    nodeViewHolder: ActorRef[NodeViewHolder.ReceivableMessage]
+    keyManager:       CActorRef,
+    nodeViewHolder:   ActorRef[NodeViewHolder.ReceivableMessage],
+    consensusStorage: ActorRef[ConsensusVariables.ReceivableMessage]
   )
 
   private case class NetworkControllerInitializingState(
@@ -275,27 +274,32 @@ object Heimdall {
 
     val keyManagerRef = context.actorOf(KeyManagerRef.props(settings, appContext), KeyManager.actorName)
 
+    val consensusStorageRef =
+      context.spawn(ConsensusVariables(settings, appContext.networkType), ConsensusVariables.actorName)
+
     val nodeViewHolderRef = {
       implicit val getKeyViewAskTimeout: Timeout = Timeout(10.seconds)
       context.spawn(
         NodeViewHolder(
           settings,
+          consensusStorageRef,
           () =>
             NodeView.persistent(
               settings,
               appContext.networkType,
+              consensusStorageRef,
               () =>
                 (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
                   .mapTo[Try[StartupKeyView]]
                   .flatMap(Future.fromTry)
-            )
+            )(context.system, implicitly, implicitly)
         ),
         NodeViewHolder.ActorName,
         DispatcherSelector.fromConfig("bifrost.application.node-view.dispatcher")
       )
     }
 
-    NodeViewHolderInitializingState(keyManagerRef, nodeViewHolderRef)
+    NodeViewHolderInitializingState(keyManagerRef, nodeViewHolderRef, consensusStorageRef)
   }
 
   private def prepareNetworkControllerState(
@@ -330,7 +334,8 @@ object Heimdall {
             (state.keyManager ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
               .mapTo[Try[StartupKeyView]]
               .flatMap(Future.fromTry),
-          new ActorNodeViewHolderInterface(state.nodeViewHolder)
+          new ActorNodeViewHolderInterface(state.nodeViewHolder),
+          state.consensusStorage
         ),
         Forger.ActorName
       )
