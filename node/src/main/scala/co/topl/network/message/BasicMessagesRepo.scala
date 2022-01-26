@@ -7,8 +7,9 @@ import co.topl.network.message.Message.MessageCode
 import co.topl.network.peer.{PeerFeature, PeerSpec, PeerSpecSerializer}
 import co.topl.utils.Extensions._
 import co.topl.utils.Logging
-import co.topl.utils.codecs.binary.legacy.modifier.ModifierIdSerializer
-import co.topl.utils.codecs.binary.legacy.{Reader, Writer}
+import co.topl.codecs.binary.legacy.modifier.ModifierIdSerializer
+import co.topl.codecs.binary.legacy.{Reader, Writer}
+import co.topl.codecs._
 
 /** Sequence of modifiers to send to the remote peer */
 case class ModifiersData(typeId: ModifierTypeId, modifiers: Map[ModifierId, Array[Byte]])
@@ -37,7 +38,7 @@ class SyncInfoSpec extends MessageSpecV1[BifrostSyncInfo] {
 
   override def serialize(data: BifrostSyncInfo, w: Writer): Unit = {
     w.putUShort(data.lastBlockIds.size)
-    data.lastBlockIds.foreach(id => w.putBytes(id.bytes))
+    data.lastBlockIds.foreach(id => w.putBytes(ModifierIdSerializer.toBytes(id)))
   }
 
   override def parse(r: Reader): BifrostSyncInfo = {
@@ -74,7 +75,7 @@ class InvSpec(maxInvObjects: Int) extends MessageSpecV1[InvData] {
     w.put(typeId.value)
     w.putUInt(elems.size)
     elems.foreach { id =>
-      val bytes = id.bytes
+      val bytes = ModifierIdSerializer.toBytes(id)
       assert(bytes.length == NodeViewModifier.modifierIdSize)
       w.putBytes(bytes)
     }
@@ -158,7 +159,7 @@ class ModifiersSpec(maxMessageSize: Int) extends MessageSpecV1[ModifiersData] wi
     w.putUInt(msgCount)
 
     modifiers.take(msgCount).foreach { case (id, modifier) =>
-      w.putBytes(id.bytes)
+      w.putBytes(ModifierIdSerializer.toBytes(id))
       w.putUInt(modifier.length)
       w.putBytes(modifier)
     }

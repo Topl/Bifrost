@@ -10,6 +10,7 @@ import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType.PrivateTestnet
 import co.topl.utils.{Int128, Logging, NetworkType}
 import com.google.common.primitives.Longs
+import co.topl.codecs.binary._
 
 import java.io.File
 
@@ -74,7 +75,7 @@ class ConsensusStorage(storage: Option[KeyValueStore], private val defaultTotalS
     _inflation = params.inflation
     _height = params.height
 
-    val versionId = blockId.getIdBytes
+    val versionId = blockId.persistedBytes
 
     val totalStakePair = Seq(totalStakeKey.bytes -> params.totalStake.toByteArray)
     val difficultyPair = Seq(difficultyKey.bytes -> Longs.toByteArray(params.difficulty))
@@ -98,7 +99,7 @@ class ConsensusStorage(storage: Option[KeyValueStore], private val defaultTotalS
   def rollbackTo(blockId: ModifierId): Either[NoStorageError, Unit] =
     storage match {
       case Some(store) =>
-        store.rollbackTo(blockId.getIdBytes)
+        store.rollbackTo(blockId.persistedBytes)
 
         // reset cached values to stored values or defaults
         _difficulty = difficultyFromStorageOrDefault

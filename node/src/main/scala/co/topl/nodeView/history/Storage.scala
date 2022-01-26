@@ -8,8 +8,7 @@ import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.KeyValueStore
 import co.topl.utils.Logging
-import co.topl.utils.codecs.binary.legacy.modifier.ModifierIdSerializer
-import co.topl.utils.codecs.binary.legacy.modifier.block.{BlockSerializer, BloomFilterSerializer}
+import co.topl.codecs.binary._
 import com.google.common.primitives.Longs
 
 import scala.util.Try
@@ -27,7 +26,7 @@ class Storage(private[nodeView] val keyValueStore: KeyValueStore) extends Loggin
   def bestBlockId: ModifierId =
     keyValueStore
       .get(bestBlockIdKey)
-      .flatMap(d => ModifierIdSerializer.parseBytes(d).toOption)
+      .flatMap(d => d.decodePersisted[ModifierId].toOption)
       .getOrElse(History.GenesisParentId)
 
   def bestBlock: Block =
@@ -44,7 +43,7 @@ class Storage(private[nodeView] val keyValueStore: KeyValueStore) extends Loggin
         keyValueStore
           .get(id.getIdBytes)
           .flatMap(keyValueStore.get)
-          .flatMap(bwBlock => BlockSerializer.parseBytes(bwBlock.tail).toOption)
+          .flatMap(bwBlock => bwBlock.decodePersisted[Block].toOption)
           .map(block => (block.transactions.find(_.id == id).get, block.id, block.height))
 
       case _ => None
@@ -56,7 +55,7 @@ class Storage(private[nodeView] val keyValueStore: KeyValueStore) extends Loggin
       case Block.modifierTypeId =>
         keyValueStore
           .get(id.getIdBytes)
-          .flatMap(bwBlock => BlockSerializer.parseBytes(bwBlock.tail).toOption)
+          .flatMap(bwBlock => bwBlock.decodePersisted[Block].toOption)
 
       case _ =>
         //
@@ -82,7 +81,7 @@ class Storage(private[nodeView] val keyValueStore: KeyValueStore) extends Loggin
   def idAtHeightOf(height: Long): Option[ModifierId] =
     keyValueStore
       .get(idHeightKey(height).value)
-      .flatMap(id => ModifierIdSerializer.parseBytes(id).toOption)
+      .flatMap(id => id.decodePersisted[ModifierId].toOption)
 
   def difficultyOf(blockId: ModifierId): Option[Long] =
     keyValueStore
@@ -92,12 +91,12 @@ class Storage(private[nodeView] val keyValueStore: KeyValueStore) extends Loggin
   def bloomOf(blockId: ModifierId): Option[BloomFilter] =
     keyValueStore
       .get(blockBloomKey(blockId))
-      .flatMap(b => BloomFilterSerializer.parseBytes(b).toOption)
+      .flatMap(b => b.decodePersisted[BloomFilter].toOption)
 
   def parentIdOf(blockId: ModifierId): Option[ModifierId] =
     keyValueStore
       .get(blockParentKey(blockId))
-      .flatMap(d => ModifierIdSerializer.parseBytes(d).toOption)
+      .flatMap(d => d.decodePersisted[ModifierId].toOption)
 
   /**
    * The keys below are used to store top-level information about blocks that we might be interested in
@@ -137,15 +136,15 @@ class Storage(private[nodeView] val keyValueStore: KeyValueStore) extends Loggin
   def update(b: Block, isBest: Boolean): Unit = {
     log.debug(s"Write new best=$isBest block ${b.id}")
 
-    val blockK = Seq(b.id.getIdBytes -> b.bytes)
+    val blockK = Seq(b.id.getIdBytes -> b.persistedBytes)
 
-    val bestBlock = if (isBest) Seq(bestBlockIdKey -> b.id.bytes) else Seq()
+    val bestBlock = if (isBest) Seq(bestBlockIdKey -> b.id.persistedBytes) else Seq()
 
     val newTransactionsToBlockIds = b.transactions.map(tx => (tx.id.getIdBytes, b.id.getIdBytes))
 
     val blockH = Seq(blockHeightKey(b.id) -> Longs.toByteArray(heightAt(b.parentId) + 1))
 
-    val idHeight = Seq(idHeightKey(heightAt(b.parentId) + 1).bytes -> b.id.bytes)
+    val idHeight = Seq(idHeightKey(heightAt(b.parentId) + 1).bytes -> b.id.persistedBytes)
 
     val blockDiff = Seq(blockDiffKey(b.id) -> Longs.toByteArray(b.difficulty))
 
@@ -158,9 +157,9 @@ class Storage(private[nodeView] val keyValueStore: KeyValueStore) extends Loggin
 
     val parentBlock =
       if (b.parentId == History.GenesisParentId) Seq()
-      else Seq(blockParentKey(b.id) -> b.parentId.bytes)
+      else Seq(blockParentKey(b.id) -> b.parentId.persistedBytes)
 
-    val blockBloom = Seq(blockBloomKey(b.id) -> b.bloomFilter.bytes)
+    val blockBloom = Seq(blockBloomKey(b.id) -> b.bloomFilter.persistedBytes)
 
     val wrappedUpdate =
       blockK ++
@@ -175,7 +174,7 @@ class Storage(private[nodeView] val keyValueStore: KeyValueStore) extends Loggin
       parentBlock
 
     /* update storage */
-    keyValueStore.update(b.id.bytes, Seq(), wrappedUpdate)
+    keyValueStore.update(b.id.persistedBytes, Seq(), wrappedUpdate)
 
   }
 
@@ -185,6 +184,6 @@ class Storage(private[nodeView] val keyValueStore: KeyValueStore) extends Loggin
    * @param parentId is the parent id of the block intended to be removed
    */
   def rollback(parentId: ModifierId): Try[Unit] = Try {
-    keyValueStore.rollbackTo(parentId.bytes)
+    keyValueStore.rollbackTo(parentId.persistedBytes)
   }
 }

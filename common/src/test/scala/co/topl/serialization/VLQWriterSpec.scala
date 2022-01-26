@@ -1,8 +1,8 @@
 package co.topl.serialization
 
+import co.topl.codecs.binary.legacy.{VLQWriter, Writer}
+import co.topl.codecs.binary.scodecs.valuetypes.Constants.stringCharacterSet
 import co.topl.utils.CommonGenerators
-import co.topl.utils.codecs.binary.legacy.{VLQWriter, Writer}
-import co.topl.utils.codecs.binary.valuetypes.stringCharacterSet
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

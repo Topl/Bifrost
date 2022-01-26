@@ -1,21 +1,14 @@
 package co.topl.attestation
 
-import cats.implicits._
+import co.topl.codecs.binary.legacy.attestation.EvidenceSerializer
+import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
 import co.topl.crypto.hash.digest.Digest
-import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.StringDataTypes.implicits._
-import co.topl.utils.codecs.binary.legacy.attestation.EvidenceSerializer
-import co.topl.utils.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
-import co.topl.utils.codecs.json.codecs._
-import co.topl.utils.codecs.binary.implicits._
+import co.topl.crypto.implicits._
+import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import io.estatico.newtype.macros.newtype
-import io.estatico.newtype.ops._
 
 import scala.language.implicitConversions
-import scala.util.{Failure, Success}
 
 /**
  * Evidence content serves as a fingerprint (or commitment) of a particular proposition that is used to lock a box. Boxes
@@ -26,10 +19,14 @@ import scala.util.{Failure, Success}
  * @param evBytes an array of bytes of length 'contentLength' (currently 32 bytes) generated from a proposition
  */
 final case class Evidence(evBytes: Array[Byte]) extends BytesSerializable {
-  override type M = Evidence
+
+  @deprecated
+  type M = Evidence
+
+  @deprecated
   override def serializer: BifrostSerializer[Evidence] = EvidenceSerializer
 
-  override def toString: String = bytes.encodeAsBase58.show
+  override def toString: String = Base58.encode(bytes)
 
   override def equals(obj: Any): Boolean = obj match {
     case ec: Evidence => bytes sameElements ec.bytes
@@ -47,7 +44,7 @@ object Evidence {
   case class EvidenceContent(value: Array[Byte])
 
   object EvidenceContent {
-    def apply[D: Digest](d: D): EvidenceContent = d.infalliblyEncodeAsBytes.coerce
+    def apply[D: Digest](d: D): EvidenceContent = EvidenceContent(d.bytes)
   }
 
   val contentLength = 32 // bytes (this is generally the output of a Blake2b-256 bit hash)
@@ -56,25 +53,6 @@ object Evidence {
   def apply(typePrefix: EvidenceTypePrefix, content: EvidenceContent): Evidence = {
     require(content.value.length == contentLength, "Invalid evidence: incorrect EvidenceContent length")
 
-    EvidenceSerializer.parseBytes(typePrefix +: content.value) match {
-      case Success(ec) => ec
-      case Failure(ex) => throw ex
-    }
+    Evidence(typePrefix +: content.value)
   }
-
-  private def apply(data: Base58Data): Evidence = {
-    val bytes = data.value
-    require(bytes.length == size, "Invalid evidence: incorrect evidence length")
-    EvidenceSerializer.parseBytes(bytes) match {
-      case Success(ec) => ec
-      case Failure(ex) => throw ex
-    }
-  }
-
-  // see circe documentation for custom encoder / decoders
-  // https://circe.github.io/circe/codecs/custom-codecs.html
-  implicit val jsonEncoder: Encoder[Evidence] = (ec: Evidence) => ec.toString.asJson
-  implicit val jsonKeyEncoder: KeyEncoder[Evidence] = (ec: Evidence) => ec.toString
-  implicit val jsonDecoder: Decoder[Evidence] = Decoder[Base58Data].map(apply)
-  implicit val jsonKeyDecoder: KeyDecoder[Evidence] = KeyDecoder[Base58Data].map(apply)
 }

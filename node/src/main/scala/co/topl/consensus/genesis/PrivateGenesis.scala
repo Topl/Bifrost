@@ -1,5 +1,6 @@
 package co.topl.consensus.genesis
 
+import cats.implicits._
 import co.topl.attestation.{Address, SignatureCurve25519}
 import co.topl.consensus.Forger.ChainParams
 import co.topl.modifier.ModifierId
@@ -9,6 +10,7 @@ import co.topl.modifier.box.SimpleValue
 import co.topl.settings.AppSettings
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.catsInstances._
 
 import scala.collection.immutable.ListMap
 import scala.util.Try
@@ -37,7 +39,7 @@ case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implic
 
   override protected[genesis] val members: ListMap[String, Int128] = ListMap.from(
     addresses
-      .map(_.toString -> balance)
+      .map(_.show -> balance)
   )
 
   def formNewBlock: (Block, ChainParams) = {

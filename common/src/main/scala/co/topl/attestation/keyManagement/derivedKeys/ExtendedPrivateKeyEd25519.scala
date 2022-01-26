@@ -2,12 +2,13 @@ package co.topl.attestation.keyManagement.derivedKeys
 
 import co.topl.attestation.keyManagement.mnemonic.{Entropy, FromEntropy}
 import co.topl.attestation.{PublicKeyPropositionEd25519, SignatureEd25519}
+import co.topl.codecs.binary.legacy.BifrostSerializer
+import co.topl.codecs.binary.legacy.attestation.keyManagement.ExtendedPrivateKeyEd25519Serializer
 import co.topl.crypto.signatures.{Ed25519, Signature}
 import co.topl.crypto.{Pbkdf2Sha512, PublicKey}
 import co.topl.utils.SizedBytes
 import co.topl.utils.SizedBytes.Types.{ByteVector28, ByteVector32, ByteVector96}
 import co.topl.utils.SizedBytes.implicits._
-import co.topl.utils.codecs.binary.legacy.BifrostSerializer
 import scodec.bits.ByteOrdering.LittleEndian
 import scodec.bits.{ByteOrdering, ByteVector}
 

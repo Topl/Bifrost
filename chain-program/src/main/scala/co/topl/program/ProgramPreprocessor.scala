@@ -1,10 +1,11 @@
 package co.topl.program
 
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.crypto.PublicKey
+import co.topl.crypto.signatures.Signature
 import co.topl.utils.Gzip
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.encode.Base58
-import co.topl.utils.codecs.json.codecs._
 import com.oracle.js.parser.ir.visitor.NodeVisitor
 import com.oracle.js.parser.ir.{FunctionNode, LexicalContext, Node, VarNode}
 import com.oracle.js.parser.{
@@ -20,6 +21,8 @@ import com.oracle.js.parser.{
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.Context
+import co.topl.codecs._
+import co.topl.utils.IdiomaticScalaTransition.implicits._
 
 import java.nio.file.{Files, Path}
 import scala.collection.mutable
@@ -128,8 +131,8 @@ object ProgramPreprocessor {
     val signed: Option[(PublicKeyPropositionCurve25519, SignatureCurve25519)] = (json \\ "signed").headOption
       .map(_.as[(String, String)] match { case Right(re) => re; case Left(ex) => throw ex })
       .map { pair =>
-        val pub = PublicKeyPropositionCurve25519(pair._1)
-        val sig = SignatureCurve25519(Base58Data.unsafe(pair._2))
+        val pub = PublicKeyPropositionCurve25519(PublicKey(Base58Data.unsafe(pair._1).encodeAsBytes))
+        val sig = SignatureCurve25519(Signature(Base58Data.unsafe(pair._2).encodeAsBytes))
         pub -> sig
       }
 
@@ -335,7 +338,7 @@ object ProgramPreprocessor {
       "interface" -> p.interface.map(a => a._1 -> a._2.map(_.asJson).asJson).asJson,
       "variables" -> p.variables.asJson,
       "code"      -> p.code.map(a => a._1 -> a._2).asJson,
-      "signed"    -> p.signed.map(pair => pair._1.toString -> pair._2.toString).asJson
+      "signed"    -> p.signed.map(pair => pair._1 -> pair._2).asJson
     ).asJson
 
   implicit val decodeTerms: Decoder[ProgramPreprocessor] = (c: HCursor) =>
@@ -350,7 +353,7 @@ object ProgramPreprocessor {
     } yield {
 
       def decodeGzip(zippedStr: Base58Data): String = {
-        val zipped: Array[Byte] = zippedStr.value
+        val zipped: Array[Byte] = zippedStr.encodeAsBytes
         val unzipped: Array[Byte] = Gzip.decompress(zipped)
         new String(unzipped)
       }
@@ -363,8 +366,8 @@ object ProgramPreprocessor {
         variables,
         code,
         signed.map { pair =>
-          val pub = PublicKeyPropositionCurve25519(pair._1)
-          val sig = SignatureCurve25519(Base58Data.unsafe(pair._2))
+          val pub = PublicKeyPropositionCurve25519(PublicKey(Base58Data.unsafe(pair._1).encodeAsBytes))
+          val sig = SignatureCurve25519(Signature(Base58Data.unsafe(pair._2).encodeAsBytes))
           pub -> sig
         }
       )

@@ -3,9 +3,9 @@ package co.topl.program
 import cats.implicits._
 import co.topl.utils.Gzip
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.codecs.binary.implicits._
 import io.circe.syntax._
 import io.circe.{Decoder, Json}
+import co.topl.codecs.binary._
 
 case class ExecutionBuilderTerms(terms: String) {
   /*  */
@@ -26,7 +26,7 @@ object ExecutionBuilderTerms {
   case class InvalidZippedData(message: String) extends DecodeGzipFailure
 
   def decodeBase58GzipData(zippedData: Base58Data): String = {
-    val zipped: Array[Byte] = zippedData.value
+    val zipped: Array[Byte] = zippedData.encodeAsBytes
     val unzipped: Array[Byte] = Gzip.decompress(zipped)
     new String(unzipped)
   }

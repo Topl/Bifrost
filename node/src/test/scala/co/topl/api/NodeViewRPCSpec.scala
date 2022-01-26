@@ -1,5 +1,7 @@
 package co.topl.api
 
+import cats.implicits._
+import co.topl.utils.catsInstances._
 import akka.util.ByteString
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.TX
@@ -22,7 +24,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
     super.beforeAll()
 
     txs = bifrostTransactionSeqGen.sampleFirst()
-    txId = txs.head.id.toString
+    txId = txs.head.id.show
     block = blockCurve25519Gen.sampleFirst().copy(transactions = txs)
 
     import akka.actor.typed.scaladsl.adapter._
@@ -53,7 +55,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]) match { case Right(re) => re; case Left(ex) => throw ex }
         val txIds = (res \\ "result").head.asArray.get.flatMap(txJson => (txJson \\ "txId").head.asString)
-        txs.foreach(tx => txIds.contains(tx.id.toString))
+        txs.foreach(tx => txIds.contains(tx.id.show))
       }
     }
 
@@ -98,7 +100,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       idTypes.zip(modifierQueryMethods).map { case (idType, rpcMethod) =>
         httpPOST(requestBody(idType, rpcMethod, invalidCharId)) ~> route ~> check {
           val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
-          res should include("Value is not Base 58")
+          res should include("failed to decode base-58 string")
         }
       }
     }
@@ -122,7 +124,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       idTypes.zip(modifierQueryMethods).map { case (idType, rpcMethod) =>
         httpPOST(requestBody(idType, rpcMethod, invalidLengthId)) ~> route ~> check {
           val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
-          res should include("Invalid size for ModifierId")
+          res should include("failed to decode Modifier ID")
         }
       }
     }
@@ -157,7 +159,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |   "id": "1",
         |   "method": "topl_blockById",
         |   "params": [{
-        |      "blockId": "${block.id}"
+        |      "blockId": "${block.id.show}"
         |   }]
         |}
         |

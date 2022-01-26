@@ -15,6 +15,7 @@ import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import co.topl.utils.{Int128, Logging}
+import co.topl.codecs._
 
 import scala.collection.immutable.ListMap
 import scala.util.Try

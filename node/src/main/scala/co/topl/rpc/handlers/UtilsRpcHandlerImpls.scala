@@ -12,7 +12,7 @@ import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
-import co.topl.utils.codecs.binary.implicits._
+import co.topl.codecs.binary._
 import co.topl.utils.encode.Base58
 import io.circe.Encoder
 

@@ -7,9 +7,11 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.SimpleValue
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, TransferTransaction}
+import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.{Int128, NetworkType}
+import co.topl.codecs.binary._
 
 import scala.collection.immutable.ListMap
 import scala.util.Try
@@ -19,7 +21,7 @@ case object ValhallaGenesis extends GenesisProvider {
   implicit val networkPrefix: NetworkPrefix = NetworkType.ValhallaTestnet.netPrefix
 
   override protected val blockChecksum: ModifierId =
-    ModifierId.fromBase58(Base58Data.unsafe("wgUeiENYY32eC5T6WM2UiqAf6Ayba2tFNtvFkgn999iG"))
+    Base58Data.unsafe("wgUeiENYY32eC5T6WM2UiqAf6Ayba2tFNtvFkgn999iG").value.decodeTransmitted[ModifierId].getOrThrow()
 
   override protected val blockVersion: PNVMVersion = 1: Byte
 

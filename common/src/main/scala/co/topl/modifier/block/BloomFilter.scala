@@ -1,17 +1,12 @@
 package co.topl.modifier.block
 
-import cats.implicits.toShow
+import co.topl.codecs.binary.legacy.modifier.block.BloomFilterSerializer
+import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
 import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.codecs.binary.legacy.modifier.block.BloomFilterSerializer
-import co.topl.utils.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
-import co.topl.utils.codecs.binary.{AsBytes, FromBytes, Infallible}
-import co.topl.utils.codecs.json.codecs._
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.Longs
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyEncoder}
 import io.estatico.newtype.macros.newtype
 
 import scala.language.implicitConversions
@@ -38,8 +33,11 @@ case class BloomFilter(value: Array[Long]) extends BytesSerializable {
     s"Invalid bloom filter length: ${value.length}. Bloom filters must be an Array[Long] of length ${BloomFilter.numLongs}"
   )
 
-  override type M = BloomFilter
-  lazy val serializer: BifrostSerializer[BloomFilter] = BloomFilterSerializer
+  @deprecated
+  type M = BloomFilter
+
+  @deprecated
+  override def serializer: BifrostSerializer[BloomFilter] = BloomFilterSerializer
 
   /** Check if a given topic is included in the Bloom filter */
   def contains(topic: BloomTopic): Boolean = {
@@ -50,7 +48,7 @@ case class BloomFilter(value: Array[Long]) extends BytesSerializable {
   }
 
   /** JAA - DO NOT USE THE `.bytes` or `toBytes` methods from the BifrostSerailizer, this must be fixed length */
-  override def toString: String = Base58.encode(value.flatMap(Longs.toByteArray)).show
+  override def toString: String = Base58.encode(value.flatMap(Longs.toByteArray))
 
   override def equals(obj: Any): Boolean = obj match {
     case b: BloomFilter => b.value sameElements value
@@ -171,20 +169,6 @@ object BloomFilter {
 
   /** Recreate a bloom filter from a string encoding */
   /** JAA - DO NOT USE THE `parseBytes` method from BifrostSerializer, this must be fixed length */
-  private def fromBase58(data: Base58Data): BloomFilter =
+  def fromBase58(data: Base58Data): BloomFilter =
     new BloomFilter(data.value.grouped(Longs.BYTES).map(Longs.fromByteArray).toArray)
-
-  implicit val jsonEncoder: Encoder[BloomFilter] = (bf: BloomFilter) => bf.toString.asJson
-  implicit val jsonKeyEncoder: KeyEncoder[BloomFilter] = (bf: BloomFilter) => bf.toString
-
-  implicit val jsonDecoder: Decoder[BloomFilter] = Decoder[Base58Data].map(fromBase58)
-
-  implicit val bloomTopicAsBytes: AsBytes[Infallible, BloomTopic] = AsBytes.infallible(_.value)
-
-  trait Instances {
-    implicit val bloomTopicDecoder: AsBytes[Infallible, BloomTopic] = AsBytes.infallible(_.value)
-    implicit val bloomTopicEncoder: FromBytes[Infallible, BloomTopic] = FromBytes.infallible(BloomTopic(_))
-  }
-
-  object implicits extends Instances
 }

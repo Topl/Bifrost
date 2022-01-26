@@ -78,7 +78,14 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
     var history = new History(storage, BlockProcessor(1024), validators)
 
     history = history.append(genesisBlock).get._1
-    assert(history.modifierById(genesisBlock.id).isDefined)
+
+    val genesisBlockId = genesisBlock.id
+
+    val historyModifierId = history.modifierById(genesisBlockId)
+
+    val isDefined = historyModifierId.isDefined
+
+    assert(isDefined)
     history
   }
 

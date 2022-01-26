@@ -1,7 +1,7 @@
 package co.topl.network.message
 
 import co.topl.settings.Version
-import co.topl.utils.codecs.binary.legacy.BifrostSerializer
+import co.topl.codecs.binary.legacy.BifrostSerializer
 
 /** Base trait for app p2p messages in the network */
 trait MessageSpec[Content] extends BifrostSerializer[Content] {

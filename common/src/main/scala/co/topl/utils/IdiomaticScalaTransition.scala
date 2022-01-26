@@ -2,7 +2,6 @@ package co.topl.utils
 
 import cats.data.Validated
 import scodec.Attempt
-import scodec.Attempt.Successful
 
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}

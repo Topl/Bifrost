@@ -1,7 +1,7 @@
 package co.topl.modifier.box
 
 import co.topl.attestation.Evidence
-import co.topl.utils.codecs.binary.legacy.BytesSerializable
+import co.topl.codecs.binary.legacy.BytesSerializable
 
 /**
  * Created by cykoz on 4/13/17.

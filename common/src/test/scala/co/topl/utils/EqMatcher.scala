@@ -1,12 +1,11 @@
 package co.topl.utils
 
 import cats.{Eq, Show}
-import org.scalatest.matchers.should.Matchers
 import org.scalatest.matchers.{MatchResult, Matcher}
 
-trait EqMatcher extends Matchers {
+trait EqMatcher {
 
-  def eqShow[T: Eq: Show](expected: T): Matcher[T] =
+  def eqvShow[T: Eq: Show](expected: T): Matcher[T] =
     (left: T) =>
       MatchResult(
         Eq[T].eqv(left, expected),
