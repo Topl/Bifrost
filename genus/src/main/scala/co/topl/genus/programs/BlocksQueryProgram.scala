@@ -3,14 +3,15 @@ package co.topl.genus.programs
 import akka.NotUsed
 import akka.stream.scaladsl.Source
 import cats.effect.kernel.Async
+import cats.implicits._
 import cats.~>
 import co.topl.genus.algebras.QueryServiceAlg
-import co.topl.genus.algebras.QueryServiceAlg.{QueryFailures, QueryRequest}
 import co.topl.genus.filters.BlockFilter
+import co.topl.genus.ops.implicits._
 import co.topl.genus.services.blocks_query._
-import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.types.Block
 import org.mongodb.scala.bson.conversions.Bson
+import co.topl.genus.typeclasses.implicits._
 
 import scala.concurrent.Future
 
@@ -25,57 +26,19 @@ object BlocksQueryProgram {
 
         override def query(in: QueryBlocksReq): Future[QueryBlocksRes] =
           queryService
-            .asList(QueryRequest(in.filter, None, in.pagingOptions, in.confirmationDepth))
-            .map(blocks => QueryBlocksRes(QueryBlocksRes.Result.Success(QueryBlocksRes.Success(blocks))))
-            .valueOr {
-              case QueryFailures.InvalidQuery(failures) =>
-                QueryBlocksRes(
-                  QueryBlocksRes.Result
-                    .Failure(QueryBlocksRes.Failure(QueryBlocksRes.Failure.Reason.InvalidQuery(failures.show)))
-                )
-              case QueryFailures.DataStoreConnectionError(error) =>
-                QueryBlocksRes(
-                  QueryBlocksRes.Result
-                    .Failure(QueryBlocksRes.Failure(QueryBlocksRes.Failure.Reason.DataStoreConnectionError(error)))
-                )
-              case QueryFailures.QueryTimeout(message) =>
-                QueryBlocksRes(
-                  QueryBlocksRes.Result
-                    .Failure(QueryBlocksRes.Failure(QueryBlocksRes.Failure.Reason.QueryTimeout(message)))
-                )
-            }
+            .asList(in.toQueryRequest)
+            .fold(QueryBlocksRes.fromQueryFailure, QueryBlocksRes.fromBlocks[List])
             .mapFunctor
 
         override def queryStream(in: BlocksQueryStreamReq): Source[BlocksQueryStreamRes, NotUsed] =
           Source
             .futureSource(
               queryService
-                .asSource(QueryRequest(in.filter, None, None, in.confirmationDepth))
-                .map(source => source.map(block => BlocksQueryStreamRes(BlocksQueryStreamRes.Result.Block(block))))
-                .valueOr {
-                  case QueryFailures.InvalidQuery(failures) =>
-                    Source.single(
-                      BlocksQueryStreamRes(
-                        BlocksQueryStreamRes.Result
-                          .Failure(
-                            BlocksQueryStreamRes
-                              .Failure(BlocksQueryStreamRes.Failure.Reason.InvalidQuery(failures.show))
-                          )
-                      )
-                    )
-                  case QueryFailures.DataStoreConnectionError(error) =>
-                    Source.single(
-                      BlocksQueryStreamRes(
-                        BlocksQueryStreamRes.Result
-                          .Failure(
-                            BlocksQueryStreamRes
-                              .Failure(BlocksQueryStreamRes.Failure.Reason.DataStoreConnectionError(error))
-                          )
-                      )
-                    )
-                  // this case should not happen since timeout can only occur on collection
-                  case _: QueryFailures.QueryTimeout => Source.empty
-                }
+                .asSource(in.toQueryRequest)
+                .fold(
+                  failure => Source.single(BlocksQueryStreamRes.fromQueryFailure(failure)),
+                  BlocksQueryStreamRes.fromBlocks[Source[*, NotUsed]]
+                )
                 .mapFunctor
             )
             .mapMaterializedValue(_ => NotUsed)

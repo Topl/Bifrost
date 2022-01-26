@@ -5,8 +5,9 @@ import akka.stream.scaladsl.Source
 import cats.effect.kernel.Async
 import cats.~>
 import co.topl.genus.algebras.QueryServiceAlg
-import co.topl.genus.algebras.QueryServiceAlg.{QueryFailures, QueryRequest}
+import co.topl.genus.algebras.QueryServiceAlg.QueryRequest
 import co.topl.genus.filters.TransactionFilter
+import co.topl.genus.ops.implicits._
 import co.topl.genus.services.transactions_query._
 import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.types._
@@ -26,24 +27,7 @@ object TransactionsQueryProgram {
         override def query(in: QueryTxsReq): Future[QueryTxsRes] =
           queryService
             .asList(QueryRequest(in.filter, None, in.pagingOptions, in.confirmationDepth))
-            .map(txs => QueryTxsRes(QueryTxsRes.Result.Success(QueryTxsRes.Success(txs))))
-            .valueOr {
-              case QueryFailures.InvalidQuery(failures) =>
-                QueryTxsRes(
-                  QueryTxsRes.Result
-                    .Failure(QueryTxsRes.Failure(QueryTxsRes.Failure.Reason.InvalidQuery(failures.show)))
-                )
-              case QueryFailures.DataStoreConnectionError(error) =>
-                QueryTxsRes(
-                  QueryTxsRes.Result
-                    .Failure(QueryTxsRes.Failure(QueryTxsRes.Failure.Reason.DataStoreConnectionError(error)))
-                )
-              case QueryFailures.QueryTimeout(message) =>
-                QueryTxsRes(
-                  QueryTxsRes.Result
-                    .Failure(QueryTxsRes.Failure(QueryTxsRes.Failure.Reason.QueryTimeout(message)))
-                )
-            }
+            .fold(QueryTxsRes.fromQueryFailure, QueryTxsRes.fromTransactions[List])
             .mapFunctor
 
         override def queryStreamed(in: TxsQueryStreamReq): Source[TxsQueryStreamRes, NotUsed] =
@@ -51,29 +35,10 @@ object TransactionsQueryProgram {
             .futureSource(
               queryService
                 .asSource(QueryRequest(in.filter, None, None, in.confirmationDepth))
-                .map(source => source.map(tx => TxsQueryStreamRes(TxsQueryStreamRes.Result.Tx(tx))))
-                .valueOr {
-                  case QueryFailures.InvalidQuery(failures) =>
-                    Source.single(
-                      TxsQueryStreamRes(
-                        TxsQueryStreamRes.Result
-                          .Failure(
-                            TxsQueryStreamRes.Failure(TxsQueryStreamRes.Failure.Reason.InvalidQuery(failures.show))
-                          )
-                      )
-                    )
-                  case QueryFailures.DataStoreConnectionError(error) =>
-                    Source.single(
-                      TxsQueryStreamRes(
-                        TxsQueryStreamRes.Result
-                          .Failure(
-                            TxsQueryStreamRes.Failure(TxsQueryStreamRes.Failure.Reason.DataStoreConnectionError(error))
-                          )
-                      )
-                    )
-                  // this case should not happen since timeout can only occur on collection
-                  case _: QueryFailures.QueryTimeout => Source.empty
-                }
+                .fold(
+                  failure => Source.single(TxsQueryStreamRes.fromQueryFailure(failure)),
+                  TxsQueryStreamRes.fromTransactions[Source[*, NotUsed]]
+                )
                 .mapFunctor
             )
             .mapMaterializedValue(_ => NotUsed)

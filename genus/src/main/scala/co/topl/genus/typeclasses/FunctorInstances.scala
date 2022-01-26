@@ -1,28 +1,24 @@
 package co.topl.genus.typeclasses
 
-import akka.NotUsed
 import akka.stream.scaladsl.Source
-import cats.implicits._
 import cats.Functor
-import co.topl.genus.algebras.DataStoreQueryAlg
+import cats.implicits._
+import co.topl.genus.interpreters.MongoQueryInterp.MongoQueryAlg
 import co.topl.genus.services.services_types.Paging
+import org.mongodb.scala.bson.conversions.Bson
 
 trait FunctorInstances {
 
-  implicit val sourceFunctor: Functor[Source[*, NotUsed]] = new Functor[Source[*, NotUsed]] {
-    override def map[A, B](fa: Source[A, NotUsed])(f: A => B): Source[B, NotUsed] = fa.map(f)
+  implicit def sourceFunctor[Mat]: Functor[Source[*, Mat]] = new Functor[Source[*, Mat]] {
+
+    override def map[A, B](fa: Source[A, Mat])(f: A => B): Source[B, Mat] =
+      fa.map(f)
   }
 
-  implicit def dataStoreQueryAlgFunctor[F[_]: Functor, G[_]: Functor, Sort, Filter, *]
-    : Functor[DataStoreQueryAlg[F, G, Sort, Filter, *]] =
-    new Functor[DataStoreQueryAlg[F, G, Sort, Filter, *]] {
+  implicit def mongoQueryAlgFunctor[F[_]: Functor, Filter]: Functor[MongoQueryAlg[F, *, Filter]] =
+    new Functor[MongoQueryAlg[F, *, Filter]] {
 
-      override def map[A, B](fa: DataStoreQueryAlg[F, G, Sort, Filter, A])(
-        f:                       A => B
-      ): DataStoreQueryAlg[F, G, Sort, Filter, B] =
-        (filter: Filter, sort: Sort, paging: Option[Paging]) =>
-          fa
-            .query(filter, sort, paging)
-            .map(_.map(f))
+      override def map[A, B](fa: MongoQueryAlg[F, A, Filter])(f: A => B): MongoQueryAlg[F, B, Filter] =
+        (filter: Filter, sort: Bson, paging: Option[Paging]) => fa.query(filter, sort, paging).map(_.map(f))
     }
 }

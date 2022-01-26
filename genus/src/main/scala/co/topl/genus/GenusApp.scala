@@ -1,9 +1,7 @@
 package co.topl.genus
 
-import cats.implicits._
-import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.Source
+import cats.Functor
 import cats.effect.unsafe.implicits.global
 import cats.effect.{Async, IO, IOApp}
 import co.topl.genus.algebras.{HttpServerAlg, QueryServiceAlg}
@@ -19,7 +17,6 @@ import co.topl.utils.mongodb.codecs._
 import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataModel}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.bson.conversions.Bson
-import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.Sorts
 import org.mongodb.scala.{Document, MongoClient, MongoCollection, MongoDatabase}
 
@@ -50,15 +47,19 @@ object GenusApp extends IOApp.Simple {
   val blocksMongoCollection: MongoCollection[Document] = mongoDb.getCollection("blocks")
 
   val txsDataStoreQuery: MongoQueryAlg[F, Transaction, TransactionFilter] =
-    // TODO: figure out how to get this implicit functor to work
-    dataStoreQueryAlgFunctor[F, Source[*, NotUsed], Bson, TransactionFilter, Transaction].map(
-      MongoQueryInterp.Eval.make[F, ConfirmedTransactionDataModel, TransactionFilter](txsMongoCollection)
-    )(_.transformTo[Transaction])
+    // TODO: call the map function directly on the algebra
+    Functor[MongoQueryAlg[F, *, TransactionFilter]]
+      .map(
+        MongoQueryInterp.Eval
+          .make[F, ConfirmedTransactionDataModel, TransactionFilter](txsMongoCollection)
+      )(_.transformTo[Transaction])
 
   val blocksDataStoreQuery: MongoQueryAlg[F, Block, BlockFilter] =
-    dataStoreQueryAlgFunctor[F, Source[*, NotUsed], Bson, BlockFilter, Block].map(
-      MongoQueryInterp.Eval.make[F, BlockDataModel, BlockFilter](blocksMongoCollection)
-    )(_.transformTo[Block])
+    Functor[MongoQueryAlg[F, *, BlockFilter]]
+      .map(
+        MongoQueryInterp.Eval
+          .make[F, BlockDataModel, BlockFilter](blocksMongoCollection)
+      )(_.transformTo[Block])
 
   val defaultTransactionFilter: TransactionFilter =
     TransactionFilter.of(TransactionFilter.FilterType.All(TransactionFilter.AllFilter()))

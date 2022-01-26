@@ -9,7 +9,7 @@ import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.genus.algebras.QueryServiceAlg._
 import co.topl.genus.algebras._
-import co.topl.genus.extensions.implicits._
+import co.topl.genus.ops.implicits._
 import co.topl.genus.typeclasses.implicits._
 
 import scala.concurrent.duration.FiniteDuration
