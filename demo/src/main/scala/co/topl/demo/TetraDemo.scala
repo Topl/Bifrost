@@ -6,6 +6,7 @@ import cats.arrow.FunctionK
 import cats.data.OptionT
 import cats.effect.implicits._
 import cats.effect.kernel.Sync
+import cats.effect.unsafe.{IORuntime, IORuntimeConfig}
 import cats.effect.{Async, IO, IOApp}
 import cats.implicits._
 import cats.~>
@@ -110,6 +111,9 @@ object TetraDemo extends IOApp.Simple {
       NodeViewHolder(initialNodeView),
       "TetraDemo"
     )
+
+  override val runtime: IORuntime = AkkaCatsRuntime(system).runtime
+  override val runtimeConfig: IORuntimeConfig = AkkaCatsRuntime(system).ioRuntimeConfig
 
   // Interpreter initialization
 

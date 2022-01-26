@@ -7,7 +7,9 @@ import scala.concurrent.duration.FiniteDuration
 
 class AkkaCatsRuntime(system: ActorSystem[_]) extends Extension {
 
-  val scheduler = new Scheduler {
+  val ioRuntimeConfig = IORuntimeConfig.apply()
+
+  val scheduler: Scheduler = new Scheduler {
 
     def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
       val c =
@@ -15,9 +17,9 @@ class AkkaCatsRuntime(system: ActorSystem[_]) extends Extension {
       () => c.cancel()
     }
 
-    def nowMillis(): Long = cats.effect.unsafe.implicits.global.scheduler.nowMillis()
+    def nowMillis(): Long = System.currentTimeMillis()
 
-    def monotonicNanos(): Long = cats.effect.unsafe.implicits.global.scheduler.monotonicNanos()
+    def monotonicNanos(): Long = System.nanoTime()
   }
 
   val runtime: IORuntime =
@@ -26,7 +28,7 @@ class AkkaCatsRuntime(system: ActorSystem[_]) extends Extension {
       system.dispatchers.lookup(DispatcherSelector.blocking()),
       scheduler = scheduler,
       shutdown = () => system.terminate(),
-      config = IORuntimeConfig.apply()
+      config = ioRuntimeConfig
     )
 }
 
