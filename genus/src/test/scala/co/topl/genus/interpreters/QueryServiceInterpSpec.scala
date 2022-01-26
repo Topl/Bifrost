@@ -121,7 +121,7 @@ class QueryServiceInterpSpec
       val paging: Option[Paging] = None
       val confirmationDepth = 0
 
-      val dataValues = Seq.empty[String]
+      val dataValues = List.empty[String]
 
       val defaultFilter = "test"
       val defaultSort = true
@@ -208,7 +208,7 @@ class QueryServiceInterpSpec
       val paging: Option[Paging] = None
       val confirmationDepth = 0
 
-      val dataValues = Seq.empty[String]
+      val dataValues = List.empty[String]
 
       val defaultSort = true
 
@@ -241,7 +241,7 @@ class QueryServiceInterpSpec
       val paging: Option[Paging] = None
       val confirmationDepth = 0
 
-      val dataValues = Seq.empty[String]
+      val dataValues = List.empty[String]
 
       val defaultFilter = "test"
       val defaultSort = true
