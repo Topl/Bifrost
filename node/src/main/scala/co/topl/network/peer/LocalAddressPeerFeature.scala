@@ -1,6 +1,6 @@
 package co.topl.network.peer
 
-import co.topl.nodeCodecs.binary.legacy.network.peer.LocalAddressPeerFeatureSerializer
+import co.topl.network.codecs.legacy.peer.LocalAddressPeerFeatureSerializer
 
 import java.net.InetSocketAddress
 

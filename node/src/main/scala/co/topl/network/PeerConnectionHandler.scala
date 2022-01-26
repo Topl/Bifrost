@@ -1,22 +1,20 @@
 package co.topl.network
 
-import cats.implicits._
 import akka.actor.{Actor, ActorRef, Cancellable, Props, SupervisorStrategy}
 import akka.io.Tcp
 import akka.util.{ByteString, CompactByteString}
+import cats.implicits._
+import co.topl.network.codecs._
 import co.topl.codecs._
+import co.topl.codecs.binary.typeclasses.Transmittable
 import co.topl.network.NetworkController.ReceivableMessages.{Handshaked, PenalizePeer}
 import co.topl.network.PeerConnectionHandler.ReceivableMessages._
 import co.topl.network.message.Messages.MessagesV1
-import co.topl.network.message.{Message, Transmission, TransmissionHeader}
+import co.topl.network.message.{Transmission, TransmissionHeader}
 import co.topl.network.peer.PenaltyType.PermanentPenalty
 import co.topl.network.peer._
 import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.{Logging, TimeProvider}
-import co.topl.codecs._
-import co.topl.codecs.binary.typeclasses.Transmittable
-import co.topl.nodeCodecs.binary.network._
-import scodec.bits.BitVector
 
 import scala.annotation.tailrec
 import scala.collection.immutable.TreeMap

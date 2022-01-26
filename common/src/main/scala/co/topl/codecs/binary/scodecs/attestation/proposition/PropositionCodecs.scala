@@ -2,8 +2,7 @@ package co.topl.codecs.binary.scodecs.attestation.proposition
 
 import co.topl.attestation._
 import co.topl.codecs.binary.scodecs.crypto.publicKeyCodec
-import co.topl.codecs.binary.scodecs.transformers._
-import co.topl.codecs.binary.scodecs.valuetypes.{byteCodec, listCodec, uIntCodec}
+import co.topl.codecs.binary.scodecs.valuetypes._
 import co.topl.crypto.signatures.{Curve25519, Ed25519}
 import co.topl.utils.Extensions.LongOps
 import scodec.Codec
@@ -22,8 +21,7 @@ trait PropositionCodecs {
       .as[PublicKeyPropositionEd25519]
 
   implicit val thresholdPropositionCurve25519Codec: Codec[ThresholdPropositionCurve25519] =
-    (uIntCodec.xmap[Int](uInt => uInt.toIntExact, int => int) :: listCodec[PublicKeyPropositionCurve25519]
-      .as[SortedSet[PublicKeyPropositionCurve25519]])
+    (uIntCodec.xmap[Int](uInt => uInt.toIntExact, int => int) :: sortedSetCodec[PublicKeyPropositionCurve25519])
       .as[ThresholdPropositionCurve25519]
 
   implicit val propositionCodec: Codec[Proposition] =

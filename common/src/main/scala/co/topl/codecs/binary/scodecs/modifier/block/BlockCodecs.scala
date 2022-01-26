@@ -4,7 +4,6 @@ import co.topl.codecs.binary.scodecs.attestation._
 import co.topl.codecs.binary.scodecs.crypto._
 import co.topl.codecs.binary.scodecs.modifier.box._
 import co.topl.codecs.binary.scodecs.modifier.transaction.transactionCodec
-import co.topl.codecs.binary.scodecs.transformers._
 import co.topl.codecs.binary.scodecs.valuetypes._
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
@@ -29,7 +28,7 @@ trait BlockCodecs {
       signatureCurve25519Codec ::
       uLongCodec ::
       uLongCodec ::
-      listCodec(transactionCodec).as[Seq[Transaction.TX]])
+      seqCodec(transactionCodec))
       .xmapc[Block] {
         case version ::
             modifierId ::
@@ -112,7 +111,7 @@ trait BlockCodecs {
       .as[BlockHeader]
 
   implicit val blockBodyCodec: Codec[BlockBody] =
-    (byteCodec :: modifierIdCodec :: modifierIdCodec :: listCodec(transactionCodec).as[Seq[Transaction.TX]])
+    (byteCodec :: modifierIdCodec :: modifierIdCodec :: seqCodec(transactionCodec))
       .xmapc { case version :: blockId :: parentId :: txs :: HNil =>
         BlockBody(blockId, parentId, txs, version)
       }(blockBody => HList(blockBody.version, blockBody.id, blockBody.parentId, blockBody.transactions))

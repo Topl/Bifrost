@@ -2,7 +2,7 @@ package co.topl.network.message
 
 import co.topl.codecs._
 import co.topl.crypto.hash.blake2b256
-import co.topl.nodeCodecs.binary.network._
+import co.topl.network.codecs.network._
 
 /**
  * The header info of the transmitted message.

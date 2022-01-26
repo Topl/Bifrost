@@ -3,7 +3,6 @@ package co.topl.codecs.binary.scodecs.modifier.transaction
 import co.topl.attestation._
 import co.topl.codecs.binary.scodecs.attestation._
 import co.topl.codecs.binary.scodecs.modifier.box._
-import co.topl.codecs.binary.scodecs.transformers._
 import co.topl.codecs.binary.scodecs.valuetypes._
 import co.topl.modifier.box.Box.Nonce
 import co.topl.modifier.box.{SimpleValue, TokenValueHolder}
@@ -19,13 +18,13 @@ trait TransactionCodecs {
 
   implicit def polyTransferWithPropositionCodec[P <: Proposition: Identifiable: EvidenceProducer]
     : Codec[PolyTransfer[P]] =
-    (listCodec(tupleCodec(addressCodec, longCodec)).as[IndexedSeq[(Address, Nonce)]] ::
-      listCodec(
+    (indexedSeqCodec(tupleCodec(addressCodec, longCodec)) ::
+      indexedSeqCodec(
         tupleCodec(
           addressCodec,
           tokenValueHolderCodec.xmap[SimpleValue](token => token.asInstanceOf[SimpleValue], value => value)
         )
-      ).as[IndexedSeq[(Address, SimpleValue)]] ::
+      ) ::
       listMapCodec(propositionCodec, proofCodec) ::
       int128Codec ::
       uLongCodec ::
@@ -56,13 +55,13 @@ trait TransactionCodecs {
 
   implicit def arbitTransferWithPropositionCodec[P <: Proposition: Identifiable: EvidenceProducer]
     : Codec[ArbitTransfer[P]] =
-    (listCodec(tupleCodec(addressCodec, longCodec)).as[IndexedSeq[(Address, Nonce)]] ::
-      listCodec(
+    (indexedSeqCodec(tupleCodec(addressCodec, longCodec)) ::
+      indexedSeqCodec(
         tupleCodec(
           addressCodec,
           tokenValueHolderCodec.xmap[SimpleValue](token => token.asInstanceOf[SimpleValue], value => value)
         )
-      ).as[IndexedSeq[(Address, SimpleValue)]] ::
+      ) ::
       listMapCodec(propositionCodec, proofCodec) ::
       int128Codec ::
       uLongCodec ::
@@ -85,8 +84,8 @@ trait TransactionCodecs {
 
   implicit def assetTransferWithPropositionCodec[P <: Proposition: Identifiable: EvidenceProducer]
     : Codec[AssetTransfer[P]] =
-    (listCodec(tupleCodec(addressCodec, longCodec)).as[IndexedSeq[(Address, Nonce)]] ::
-      listCodec(tupleCodec(addressCodec, tokenValueHolderCodec)).as[IndexedSeq[(Address, TokenValueHolder)]] ::
+    (indexedSeqCodec(tupleCodec(addressCodec, longCodec)) ::
+      indexedSeqCodec(tupleCodec(addressCodec, tokenValueHolderCodec)) ::
       listMapCodec(propositionCodec, proofCodec) ::
       int128Codec ::
       uLongCodec ::
