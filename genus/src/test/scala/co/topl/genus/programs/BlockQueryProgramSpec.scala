@@ -9,23 +9,23 @@ import co.topl.genus.algebras.QueryServiceAlg
 import co.topl.genus.algebras.QueryServiceAlg.QueryFailures
 import co.topl.genus.filters.BlockFilter
 import co.topl.genus.services.blocks_query.{BlocksQuery, BlocksQueryStreamReq, QueryBlocksReq, QueryBlocksRes}
+import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.types._
 import org.mongodb.scala.bson.conversions.Bson
-import org.scalamock.scalatest.AsyncMockFactory
-import org.scalatest.flatspec.AsyncFlatSpec
-import co.topl.genus.typeclasses.implicits._
-import org.scalatest.{BeforeAndAfterAll, EitherValues}
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.{BeforeAndAfterAll, EitherValues}
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
 
 class BlockQueryProgramSpec
-    extends AsyncFlatSpec
+    extends AnyFlatSpec
     with ScalaFutures
     with EitherValues
-    with AsyncMockFactory
+    with MockFactory
     with Matchers
     with BeforeAndAfterAll {
 

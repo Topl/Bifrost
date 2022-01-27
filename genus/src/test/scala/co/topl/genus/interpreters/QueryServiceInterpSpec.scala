@@ -10,10 +10,10 @@ import co.topl.genus.algebras.QueryServiceAlg._
 import co.topl.genus.algebras._
 import co.topl.genus.services.services_types.Paging
 import org.scalacheck.Gen
-import org.scalamock.scalatest.AsyncMockFactory
+import org.scalamock.scalatest.{AsyncMockFactory, MockFactory}
 import org.scalatest.{BeforeAndAfterAll, EitherValues}
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.flatspec.AsyncFlatSpecLike
+import org.scalatest.flatspec.{AnyFlatSpec, AnyFlatSpecLike, AsyncFlatSpecLike}
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
@@ -21,11 +21,11 @@ import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 
 class QueryServiceInterpSpec
-    extends AsyncFlatSpecLike
+    extends AnyFlatSpec
     with ScalaCheckPropertyChecks
     with ScalaFutures
     with EitherValues
-    with AsyncMockFactory
+    with MockFactory
     with Matchers
     with BeforeAndAfterAll {
 
