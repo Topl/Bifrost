@@ -19,14 +19,15 @@ object Dependencies {
   )
 
   val test = Seq(
-    "org.scalatest"      %% "scalatest"         % "3.2.10"  % "test",
-    "org.scalactic"      %% "scalactic"         % "3.2.10"  % "test",
-    "org.scalacheck"     %% "scalacheck"        % "1.15.4"  % "test",
-    "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
-    "com.spotify"         % "docker-client"     % "8.16.0"  % "test",
-    "org.asynchttpclient" % "async-http-client" % "2.12.3"  % "test",
-    "org.scalamock"      %% "scalamock"         % "5.1.0"   % "test",
-    "com.ironcorelabs"   %% "cats-scalatest"    % "3.1.1"   % "test"
+    "org.scalatest"      %% "scalatest"                     % "3.2.10"  % "test",
+    "org.scalactic"      %% "scalactic"                     % "3.2.10"  % "test",
+    "org.scalacheck"     %% "scalacheck"                    % "1.15.4"  % "test",
+    "org.scalatestplus"  %% "scalacheck-1-14"               % "3.2.2.0" % "test",
+    "com.spotify"         % "docker-client"                 % "8.16.0"  % "test",
+    "org.asynchttpclient" % "async-http-client"             % "2.12.3"  % "test",
+    "org.scalamock"      %% "scalamock"                     % "5.1.0"   % "test",
+    "com.ironcorelabs"   %% "cats-scalatest"                % "3.1.1"   % "test",
+    "org.typelevel"      %% "cats-effect-testing-scalatest" % "1.3.0"   % "test"
   )
 
   val it = Seq(
@@ -175,8 +176,8 @@ object Dependencies {
       "org.bouncycastle"   % "bcprov-jdk15on"  % "1.70",
       "org.whispersystems" % "curve25519-java" % "0.5.0"
     ) ++
-    cats ++
     misc ++
+    cats ++
     test
 
   lazy val tools: Seq[ModuleID] =
