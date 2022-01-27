@@ -6,45 +6,25 @@ import "types.proto";
 package co.topl.genus.services;
 
 service BlocksSubscription {
-  rpc Create (CreateBlocksSubscriptionReq) returns (CreateBlocksSubscriptionRes);
-  rpc Delete (DeleteBlocksSubscriptionReq) returns (DeleteBlocksSubscriptionRes);
-  rpc Read (stream ReadBlocksSubscriptionReq) returns (stream ReadBlocksSubscriptionRes);
+  rpc Create (CreateBlocksSubscriptionReq) returns (stream BlocksSubscriptionRes);
 }
 
 message CreateBlocksSubscriptionReq {
   BlockFilter filter = 1;
-  uint64 start_from = 3;
   uint32 confirmation_depth = 2;
+  uint64 start_height = 3;
 }
 
-message CreateBlocksSubscriptionRes {
-  string subscription_id = 1;
-}
-
-message DeleteBlocksSubscriptionReq {
-  string id = 1;
-}
-
-message DeleteBlocksSubscriptionRes {}
-
-message ReadBlocksSubscriptionReq {
-  oneof request_type {
-    Start start = 1;
-    Checkpoint checkpoint = 2;
-    Pause pause = 3;
+message BlocksSubscriptionRes {
+  message Failure {
+    oneof reason {
+      string invalid_request = 1;
+      string data_connection_error = 2;
+    }
   }
 
-  message Start {
-    string subscription_id = 1;
+  oneof result {
+    Block success = 1;
+    Failure failure = 2;
   }
-
-  message Checkpoint {
-    uint64 timestamp = 1;
-  }
-
-  message Pause {}
-}
-
-message ReadBlocksSubscriptionRes {
-  Block block = 1;
 }

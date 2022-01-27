@@ -6,45 +6,26 @@ import "types.proto";
 package co.topl.genus.services;
 
 service TransactionsSubscription {
-  rpc Create (CreateTxsSubscriptionReq) returns (CreateTxsSubscriptionRes);
-  rpc Delete (DeleteTxsSubscriptionReq) returns (DeleteTxsSubscriptionRes);
-  rpc Read (stream ReadTxsSubscriptionReq) returns (stream ReadTxsSubscriptionRes);
+  rpc Create (CreateTxsSubscriptionReq) returns (stream TxsSubscriptionRes);
 }
 
 message CreateTxsSubscriptionReq {
   TransactionFilter filter = 1;
-  uint64 start_from = 2;
+  uint64 start_height = 2;
   uint32 confirmation_depth = 3;
 }
 
-message CreateTxsSubscriptionRes {
-  string subscription_id = 1;
-}
 
-message DeleteTxsSubscriptionReq {
-  string id = 1;
-}
-
-message DeleteTxsSubscriptionRes {}
-
-message ReadTxsSubscriptionReq {
-  oneof request_type {
-    Start start = 1;
-    Checkpoint checkpoint = 2;
-    Pause pause = 3;
+message TxsSubscriptionRes {
+  message Failure {
+    oneof reason {
+      string invalid_request = 1;
+      string data_connection_error = 2;
+    }
   }
 
-  message Start {
-    string subscription_id = 1;
+  oneof result {
+    Transaction success = 1;
+    Failure failure = 2;
   }
-
-  message Checkpoint {
-    uint64 timestamp = 1;
-  }
-
-  message Pause {}
-}
-
-message ReadTxsSubscriptionRes {
-  Transaction transaction = 1;
 }
