@@ -1,5 +1,6 @@
 package co.topl.consensus
 
+import co.topl.consensus.ConsensusVariables.ConsensusParams
 import co.topl.nodeView.history.{BlockProcessor, History}
 import co.topl.utils.NodeGenerators
 import org.scalatest.matchers.must.Matchers
@@ -20,10 +21,15 @@ class BlockValidatorSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
     forAll(blockCurve25519Gen) { blockTemp =>
       val block = blockTemp.copy(parentId = history.bestBlockId)
       val nextBlock = block.copy(timestamp = block.timestamp - 1, parentId = block.id)
-      val newHistory = history.append(block).get._1
+      val newHistory = history
+        .append(block, ConsensusParams(10000000, history.bestBlock.difficulty, 0L, history.bestBlock.height))
+        .get
+        ._1
       val blockProcessor = BlockProcessor(1024)
       val validator = new DifficultyBlockValidator(newHistory.storage, blockProcessor)
-      validator.validate(nextBlock).isSuccess shouldBe false
+      validator
+        .validate(nextBlock, ConsensusParams(10000000, history.bestBlock.difficulty, 0L, history.bestBlock.height))
+        .isSuccess shouldBe false
     }
   }
 }

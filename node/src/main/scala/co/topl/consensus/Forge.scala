@@ -106,7 +106,6 @@ object Forge {
   )(implicit
     timeProvider:      TimeProvider,
     networkPrefix:     NetworkPrefix,
-    context:           ActorContext[Forger.ReceivableMessage],
     nxtLeaderElection: NxtLeaderElection,
     logger:            Logger
   ): Either[Failure, Forge] =

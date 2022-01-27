@@ -58,6 +58,7 @@ trait RPCMockState
   protected var keyManagerRef: TestActorRef[KeyManager] = _
   protected var forgerRef: akka.actor.typed.ActorRef[Forger.ReceivableMessage] = _
 
+  protected var consensusStorageRef: akka.actor.typed.ActorRef[ConsensusVariables.ReceivableMessage] = _
   protected var nodeViewHolderRef: akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage] = _
 
   protected var km: KeyManager = _
@@ -77,18 +78,24 @@ trait RPCMockState
       new KeyManager(settings, appContext)(appContext.networkType.netPrefix)
     )
 
+    consensusStorageRef = system.toTyped.systemActorOf(
+      ConsensusVariables(settings, appContext.networkType), ConsensusVariables.actorName
+    )
+
     nodeViewHolderRef = system.toTyped.systemActorOf(
       NodeViewHolder(
         settings,
+        consensusStorageRef,
         () =>
           NodeView.persistent(
             settings,
             appContext.networkType,
+            consensusStorageRef,
             () =>
               (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
                 .mapTo[Try[StartupKeyView]]
                 .flatMap(Future.fromTry)
-          )
+          )(system.toTyped, implicitly, implicitly)
       ),
       NodeViewHolder.ActorName
     )
@@ -103,7 +110,8 @@ trait RPCMockState
           (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
             .mapTo[Try[StartupKeyView]]
             .flatMap(Future.fromTry),
-        new ActorNodeViewHolderInterface(nodeViewHolderRef)(system.toTyped, implicitly[Timeout])
+        new ActorNodeViewHolderInterface(nodeViewHolderRef)(system.toTyped, implicitly[Timeout]),
+        consensusStorageRef
       ),
       Forger.ActorName
     )

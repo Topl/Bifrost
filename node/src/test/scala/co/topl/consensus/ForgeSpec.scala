@@ -1,6 +1,7 @@
 package co.topl.consensus
 
 import co.topl.attestation.Address
+import co.topl.consensus.ConsensusVariables.ConsensusParams
 import co.topl.consensus.KeyManager.KeyView
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, ProgramId, SimpleValue}
@@ -84,7 +85,7 @@ class ForgeSpec
           keyRingCurve25519.lookupPublicKey
         )
 
-      val forge = Forge.fromNodeView(nodeView, keyView, 0).value
+      val forge = Forge.fromNodeView(nodeView, ConsensusParams(Int128(0), 0L, 0L, 0L), keyView, 0).value
 
       val block = forge.make.value
       block.parentId shouldBe parentBlock.id
@@ -102,7 +103,10 @@ class ForgeSpec
     val keyView =
       KeyView(keyRingCurve25519.addresses, None, keyRingCurve25519.signWithAddress, keyRingCurve25519.lookupPublicKey)
 
-    Forge.fromNodeView(nodeView, keyView, 0).left.value shouldBe Forge.NoRewardsAddressSpecified
+    Forge
+      .fromNodeView(nodeView, ConsensusParams(Int128(0), 0L, 0L, 0L), keyView, 0)
+      .left
+      .value shouldBe Forge.NoRewardsAddressSpecified
 
   }
 
@@ -158,15 +162,21 @@ class ForgeSpec
           keyRingCurve25519.lookupPublicKey
         )
 
-      Forge.fromNodeView(nodeView, keyView, 0).left.value shouldBe Forge.LeaderElectionFailure(
+      Forge
+        .fromNodeView(
+          nodeView,
+          ConsensusParams(10000000, parentBlock.difficulty, 0L, parentBlock.height),
+          keyView,
+          0
+        )
+        .left
+        .value shouldBe Forge.LeaderElectionFailure(
         LeaderElection.NoBoxesEligible
       )
     }
   }
 
-  override def beforeAll(): Unit = {
+  override def beforeAll(): Unit =
     super.beforeAll()
-    consensusStorage = ConsensusStorage(settings, appContext.networkType)
-  }
 
 }

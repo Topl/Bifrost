@@ -1,5 +1,6 @@
 package co.topl.consensus
 
+import co.topl.consensus.ConsensusVariables.ConsensusParams
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.history.History
@@ -43,7 +44,10 @@ class BlockVersionTests extends MockState with NodeGenerators with DiskKeyFileTe
           transactions = Seq(),
           version = nxtLeaderElection.protocolMngr.blockVersion(history.height + 1)
         )
-      history = history.append(oneBlock).get._1
+      history = history
+        .append(oneBlock, ConsensusParams(10000000, history.bestBlock.difficulty, 0L, history.bestBlock.height))
+        .get
+        ._1
       state = state.applyModifier(oneBlock).get
     }
 

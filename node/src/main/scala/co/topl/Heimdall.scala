@@ -58,8 +58,6 @@ object Heimdall {
       context.log.info("Initializing ProtocolVersioner and ConsensusStorage")
 
       implicit val nxtLeaderElection: NxtLeaderElection = NxtLeaderElection(settings)
-      consensusStorage = ConsensusStorage(settings, appContext.networkType)
-
       implicit val timeProvider: NetworkTimeProvider = new NetworkTimeProvider(settings.ntp)(context.system)
 
       context.log.info("Initializing KeyManager and NodeViewHolder")

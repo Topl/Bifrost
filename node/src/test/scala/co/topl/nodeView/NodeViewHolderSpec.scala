@@ -3,6 +3,7 @@ package co.topl.nodeView
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.actor.typed.ActorRef
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
+import co.topl.consensus.ConsensusVariables
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.transaction.builder
@@ -66,11 +67,11 @@ class NodeViewHolderSpec
         )
 
       val transactions = List(polyTransfer)
-      testIn.actorRef.tell(NodeViewHolder.ReceivableMessages.WriteTransactions(transactions))
+      testIn.nodeViewHolderRef.tell(NodeViewHolder.ReceivableMessages.WriteTransactions(transactions))
       Thread.sleep(1.seconds.toMillis)
       testIn.testIn.nodeView.mempool.modifierById(transactions.head.id).value shouldBe transactions.head
 
-      testIn.actorRef.tell(NodeViewHolder.ReceivableMessages.EliminateTransactions(transactions.map(_.id)))
+      testIn.nodeViewHolderRef.tell(NodeViewHolder.ReceivableMessages.EliminateTransactions(transactions.map(_.id)))
       Thread.sleep(1.seconds.toMillis)
       testIn.testIn.nodeView.mempool.modifierById(transactions.head.id) shouldBe None
     }
@@ -88,7 +89,7 @@ class NodeViewHolderSpec
     genesisActorTest { testIn =>
       val next =
         nextBlock(testIn.testIn.nodeView.history.bestBlock, testIn.testIn.nodeView, keyRingCurve25519.addresses.head)
-      testIn.actorRef.tell(ReceivableMessages.WriteBlocks(List(next)))
+      testIn.nodeViewHolderRef.tell(ReceivableMessages.WriteBlocks(List(next)))
 
       Thread.sleep(1.seconds.toMillis)
       testIn.testIn.nodeView.history.modifierById(next.id).value shouldBe next
@@ -106,7 +107,7 @@ class NodeViewHolderSpec
 
     genesisActorTest { testIn =>
       val nextBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head).take(3).toList
-      testIn.actorRef.tell(ReceivableMessages.WriteBlocks(nextBlocks))
+      testIn.nodeViewHolderRef.tell(ReceivableMessages.WriteBlocks(nextBlocks))
       Thread.sleep(2.seconds.toMillis)
       forAll(nextBlocks) { block =>
         testIn.testIn.nodeView.history.modifierById(block.id).value
@@ -126,14 +127,14 @@ class NodeViewHolderSpec
     genesisActorTest { testIn =>
       val nextBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head).take(3).toList
       // Insert blocks 2 and 3, but not block 1
-      testIn.actorRef.tell(ReceivableMessages.WriteBlocks(nextBlocks.takeRight(2)))
+      testIn.nodeViewHolderRef.tell(ReceivableMessages.WriteBlocks(nextBlocks.takeRight(2)))
       Thread.sleep(2.seconds.toMillis)
       // Because block 1 is not available yet, blocks 2 and 3 should not be in history yet either
       forAll(nextBlocks) { block =>
         testIn.testIn.nodeView.history.modifierById(block.id) shouldBe None
       }
       // Now write block 1
-      testIn.actorRef.tell(ReceivableMessages.WriteBlocks(nextBlocks.take(1)))
+      testIn.nodeViewHolderRef.tell(ReceivableMessages.WriteBlocks(nextBlocks.take(1)))
       Thread.sleep(2.seconds.toMillis)
       // And verify that block 1 was written, as well as blocks 2 and 3 from the previous attempt
       forAll(nextBlocks) { block =>
@@ -144,10 +145,14 @@ class NodeViewHolderSpec
 
   private def genesisActorTest(test: TestInWithActor => Unit)(implicit timeProvider: TimeProvider): Unit = {
     val testIn = genesisNodeView()
-    val ref = spawn(NodeViewHolder(settings, () => Future.successful(testIn.nodeView)))
-    val testInWithActor = TestInWithActor(testIn, ref)
+    val consensusStorageRef = spawn(ConsensusVariables(settings, appContext.networkType), ConsensusVariables.actorName)
+    val nodeViewHolderRef = spawn(
+      NodeViewHolder(settings, consensusStorageRef, () => Future.successful(testIn.nodeView))
+    )
+    val testInWithActor = TestInWithActor(testIn, nodeViewHolderRef, consensusStorageRef)
     test(testInWithActor)
-    testKit.stop(ref)
+    testKit.stop(nodeViewHolderRef)
+    testKit.stop(consensusStorageRef)
   }
 
   private def generateBlocks(previousBlocks: List[Block], forgerAddress: Address): Iterator[Block] =
@@ -181,5 +186,10 @@ class NodeViewHolderSpec
 }
 
 object NodeViewHolderSpec {
-  case class TestInWithActor(testIn: TestIn, actorRef: ActorRef[NodeViewHolder.ReceivableMessage])
+
+  case class TestInWithActor(
+    testIn:              TestIn,
+    nodeViewHolderRef:   ActorRef[NodeViewHolder.ReceivableMessage],
+    consensusStorageRef: ActorRef[ConsensusVariables.ReceivableMessage]
+  )
 }

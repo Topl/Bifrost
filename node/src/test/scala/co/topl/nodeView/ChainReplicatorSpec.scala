@@ -4,6 +4,7 @@ import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.actor.typed.ActorRef
 import akka.actor.typed.eventstream.EventStream
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
+import co.topl.consensus.ConsensusVariables
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithms, TransferBuilder, TransferRequests}
@@ -373,10 +374,14 @@ class ChainReplicatorSpec
 
   private def genesisActorTest(test: TestInWithActor => Unit)(implicit timeProvider: TimeProvider): Unit = {
     val testIn = genesisNodeView()
-    val ref = spawn(NodeViewHolder(settings, () => Future.successful(testIn.nodeView)))
-    val testInWithActor = TestInWithActor(testIn, ref)
+    val consensusStorageRef = spawn(ConsensusVariables(settings, appContext.networkType), ConsensusVariables.actorName)
+    val nodeViewHolderRef = spawn(
+      NodeViewHolder(settings, consensusStorageRef, () => Future.successful(testIn.nodeView))
+    )
+    val testInWithActor = TestInWithActor(testIn, nodeViewHolderRef, consensusStorageRef)
     test(testInWithActor)
-    testKit.stop(ref)
+    testKit.stop(nodeViewHolderRef)
+    testKit.stop(consensusStorageRef)
   }
 
   private def generateBlocks(previousBlocks: List[Block], forgerAddress: Address): Iterator[Block] =
@@ -410,5 +415,10 @@ class ChainReplicatorSpec
 }
 
 object ChainReplicatorSpec {
-  case class TestInWithActor(testIn: TestIn, nodeViewHolderRef: ActorRef[NodeViewHolder.ReceivableMessage])
+
+  case class TestInWithActor(
+    testIn:              TestIn,
+    nodeViewHolderRef:   ActorRef[NodeViewHolder.ReceivableMessage],
+    consensusStorageRef: ActorRef[ConsensusVariables.ReceivableMessage]
+  )
 }

@@ -2,6 +2,7 @@ package co.topl.utils
 
 import co.topl.attestation._
 import co.topl.attestation.keyManagement._
+import co.topl.consensus.ConsensusVariables.ConsensusParams
 import co.topl.consensus.NxtLeaderElection
 import co.topl.consensus.genesis.TestGenesis
 import co.topl.modifier.block.Block
@@ -75,17 +76,17 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
 
     var history = new History(storage, BlockProcessor(1024), validators)
 
-    history = history.append(genesisBlock).get._1
+    history = history.append(genesisBlock, ConsensusParams(Int128(0), 0L, 0L, 0L)).get._1
     assert(history.modifierById(genesisBlock.id).isDefined)
     history
   }
 
-  def genesisState(settings: AppSettings, genesisBlockWithVersion: Block = genesisBlock): State = {
-    History.readOrGenerate(settings).append(genesisBlock)
+  def genesisState(settings: AppSettings, genesisBlockWithVersion: Block = genesisBlock, consensusParams: ConsensusParams): State = {
+    History.readOrGenerate(settings).append(genesisBlock, consensusParams)
     State.genesisState(settings, Seq(genesisBlockWithVersion))
   }
 
-  lazy val genesisState: State = genesisState(settings)
+  lazy val genesisState: State = genesisState(settings, genesisBlock, ConsensusParams(Int128(0), 0L, 0L, 0L))
 
   lazy val validBifrostTransactionSeqGen: Gen[Seq[TX]] = for {
     seqLen <- positiveMediumIntGen

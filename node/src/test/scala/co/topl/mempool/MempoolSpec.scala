@@ -5,6 +5,7 @@ import akka.actor.typed.eventstream.EventStream
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.Behaviors
 import akka.util.Timeout
+import co.topl.consensus.ConsensusVariables
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.message.BifrostSyncInfo
@@ -28,10 +29,15 @@ class MempoolSpec extends AnyPropSpec with Matchers with NodeGenerators with Bef
 
   implicit private val timeProvider: TimeProvider = new NetworkTimeProvider(settings.ntp)
 
+  private val consensusStorageRef = actorSystem.systemActorOf(
+    ConsensusVariables(settings, appContext.networkType), ConsensusVariables.actorName
+  )
+
   private val nodeViewHolderRef =
     actorSystem.systemActorOf(
       NodeViewHolder(
         settings,
+        consensusStorageRef,
         () => ???
       ),
       NodeViewHolder.ActorName

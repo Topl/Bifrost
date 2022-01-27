@@ -1,6 +1,7 @@
 package co.topl.nodeView
 
 import co.topl.attestation.Address
+import co.topl.consensus.ConsensusVariables.ConsensusParams
 import co.topl.consensus._
 import co.topl.consensus.genesis.PrivateGenesis
 import co.topl.modifier.block.Block
@@ -10,7 +11,7 @@ import co.topl.nodeView.NodeViewTestHelpers.TestIn
 import co.topl.nodeView.history.{History, InMemoryKeyValueStore, Storage}
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.{State, TokenBoxRegistry}
-import co.topl.utils.{InMemoryKeyFileTestHelper, TestSettings, TimeProvider}
+import co.topl.utils.{InMemoryKeyFileTestHelper, Int128, TestSettings, TimeProvider}
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
 trait NodeViewTestHelpers extends BeforeAndAfterAll {
@@ -25,6 +26,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
         parent,
         keyRingCurve25519.addresses,
         timestamp,
+        ConsensusParams(10000000, parent.difficulty, 0L, parent.height),
         nodeView.state
       )
       .toOption
@@ -45,7 +47,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
   ): Block = {
     val timestamp = parent.timestamp + 50000
     val rewards = {
-      val base = Rewards(Nil, rewardsAddress, parent.id, timestamp).get
+      val base = Rewards(Nil, rewardsAddress, parent.id, timestamp, 0L).get
       base.map {
         case b: PolyTransfer[_] =>
           b.copy(attestation = keyRingCurve25519.generateAttestation(keyRingCurve25519.addresses)(b.messageToSign))
@@ -86,7 +88,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
       MemPool.empty()
     )
 
-    nodeView.history.append(genesisBlock)
+    nodeView.history.append(genesisBlock, ConsensusParams(Int128(0), 0L, 0L, 0L))
     nodeView.state.applyModifier(genesisBlock)
     TestIn(nodeView, historyStore, stateStore, tokenBoxStore)
   }
@@ -95,7 +97,6 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
     super.beforeAll()
     // A beforeAll step generates 3 keys.  We need 7 more to hit 10.
     keyRingCurve25519.generateNewKeyPairs(7)
-    consensusStorage = ConsensusStorage(settings, appContext.networkType)
     genesisBlock = PrivateGenesis(keyRingCurve25519.addresses, settings).formNewBlock._1
   }
 }

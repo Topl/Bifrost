@@ -1,11 +1,12 @@
 package co.topl.nodeView.history
 
+import co.topl.consensus.ConsensusVariables.ConsensusParams
 import co.topl.consensus.NxtLeaderElection
 import co.topl.db.LDBVersionedStore
 import co.topl.modifier.block.Block
 import co.topl.nodeView.{CacheLayerKeyValueStore, LDBKeyValueStore}
 import co.topl.utils.GeneratorOps.GeneratorOps
-import co.topl.utils.NodeGenerators
+import co.topl.utils.{Int128, NodeGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
@@ -35,7 +36,10 @@ class StorageCacheSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks w
 
     /* Append a new block, make sure it is updated in cache, then drop it */
     val fstBlock: Block = blockCurve25519Gen.sampleFirst().copy(parentId = history.bestBlockId)
-    history = history.append(fstBlock).get._1
+    history = history
+      .append(fstBlock, ConsensusParams(10000000, history.bestBlock.difficulty, 0L, history.bestBlock.height))
+      .get
+      ._1
 
     history.storage.keyValueStore
       .asInstanceOf[CacheLayerKeyValueStore]
@@ -52,7 +56,10 @@ class StorageCacheSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks w
     forAll(blockCurve25519Gen) { blockTemp =>
       val block: Block = blockTemp.copy(parentId = history.bestBlockId)
 
-      history = history.append(block).get._1
+      history = history
+        .append(block, ConsensusParams(10000000, history.bestBlock.difficulty, 0L, history.bestBlock.height))
+        .get
+        ._1
     }
 
     /* Drop all new blocks */
@@ -76,7 +83,10 @@ class StorageCacheSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks w
     forAll(blockCurve25519Gen) { blockTemp =>
       val block: Block = blockTemp.copy(parentId = history.bestBlockId)
 
-      history = history.append(block).get._1
+      history = history
+        .append(block, ConsensusParams(10000000, history.bestBlock.difficulty, 0L, history.bestBlock.height))
+        .get
+        ._1
       history.storage.keyValueStore
         .asInstanceOf[CacheLayerKeyValueStore]
         .cache
@@ -112,7 +122,10 @@ class StorageCacheSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks w
 
   property("blockLoader should correctly return a block from storage not found in cache") {
     val block: Block = blockCurve25519Gen.sampleFirst().copy(parentId = history.bestBlockId)
-    history = history.append(block).get._1
+    history = history
+      .append(block, ConsensusParams(10000000, history.bestBlock.difficulty, 0L, history.bestBlock.height))
+      .get
+      ._1
 
     history.storage.keyValueStore.asInstanceOf[CacheLayerKeyValueStore].cache.invalidateAll()
     history.modifierById(block.id).get should not be None
@@ -134,7 +147,7 @@ class StorageCacheSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks w
 
     var history = new History(storage, BlockProcessor(1024), validators)
 
-    history = history.append(genesisBlock).get._1
+    history = history.append(genesisBlock, ConsensusParams(Int128(0), 0L, 0L, 0L)).get._1
     assert(history.modifierById(genesisBlock.id).isDefined)
     history
   }

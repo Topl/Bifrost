@@ -1,5 +1,6 @@
 package co.topl.nodeView.history
 
+import co.topl.consensus.ConsensusVariables.ConsensusParams
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.utils.NodeGenerators
@@ -25,7 +26,10 @@ class BifrostHistorySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
     forAll(blockCurve25519Gen) { blockTemp =>
       val block = blockTemp.copy(parentId = history.bestBlockId)
 
-      history = history.append(block).get._1
+      history = history
+        .append(block, ConsensusParams(10000000, history.bestBlock.difficulty, 0L, history.bestBlock.height))
+        .get
+        ._1
 
       history.modifierById(block.id).isDefined shouldBe true
       ids = ids :+ block.id

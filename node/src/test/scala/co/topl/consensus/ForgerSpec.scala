@@ -122,15 +122,6 @@ class ForgerSpec
       .anyNumberOfTimes()
       .onCall((a: Address) => Some(List(ArbitBox(a.evidence, nonce = Long.MaxValue, value = SimpleValue(1)))))
 
-    val behavior = Forger.behavior(
-      blockGenerationDelay,
-      minTransactionFee,
-      forgeOnStartup = false,
-      fetchKeyView,
-      fetchStartupKeyView,
-      reader
-    )
-
     val probe = createTestProbe[LocallyGeneratedBlock]()
     val initializedProbe = createTestProbe[Done]()
 
@@ -143,9 +134,21 @@ class ForgerSpec
     LoggingTestKit.info("Forger is initialized").expect {
       LoggingTestKit.info("Starting forging").expect {
         LoggingTestKit.debug("New local block").withOccurrences(newBlockCount + 1).expect {
-          val ref = spawn(behavior)
+          val consensusStorageRef =
+            spawn(ConsensusVariables(settings, appContext.networkType), ConsensusVariables.actorName)
+          val forgerRef = spawn(
+            Forger.behavior(
+              blockGenerationDelay,
+              minTransactionFee,
+              forgeOnStartup = false,
+              fetchKeyView,
+              fetchStartupKeyView,
+              reader,
+              consensusStorageRef
+            )
+          )
 
-          ref.tell(Forger.ReceivableMessages.StartForging(initializedProbe.ref))
+          forgerRef.tell(Forger.ReceivableMessages.StartForging(initializedProbe.ref))
           initializedProbe.expectMessage(2.seconds, Done)
 
           for (_ <- 0 until newBlockCount) {
@@ -192,23 +195,25 @@ class ForgerSpec
 
     val reader = mock[NodeViewReader]
 
-    val behavior = Forger.behavior(
-      blockGenerationDelay,
-      minTransactionFee,
-      forgeOnStartup = false,
-      fetchKeyView,
-      fetchStartupKeyView,
-      reader
-    )
-
     val probe = createTestProbe[LocallyGeneratedBlock]()
 
     system.eventStream.tell(EventStream.Subscribe(probe.ref))
 
     val newBlockCount = 4
 
-    val ref = spawn(behavior)
-    ref.tell(Forger.ReceivableMessages.StartForging(system.ignoreRef))
+    val consensusStorageRef = spawn(ConsensusVariables(settings, appContext.networkType), ConsensusVariables.actorName)
+
+    val forgerRef = spawn(Forger.behavior(
+      blockGenerationDelay,
+      minTransactionFee,
+      forgeOnStartup = false,
+      fetchKeyView,
+      fetchStartupKeyView,
+      reader,
+      consensusStorageRef
+    ))
+
+    forgerRef.tell(Forger.ReceivableMessages.StartForging(system.ignoreRef))
 
     for (_ <- 0 until newBlockCount) {
       probe.expectNoMessage(1.seconds)
@@ -233,17 +238,19 @@ class ForgerSpec
       .once()
       .returning(Future.successful(StartupKeyView(keyView.addresses, keyView.rewardAddr)))
     val reader = mock[NodeViewReader]
-    val behavior = Forger.behavior(
-      blockGenerationDelay,
-      minTransactionFee,
-      forgeOnStartup = true,
-      fetchKeyView,
-      fetchStartupKeyView,
-      reader
-    )
 
     LoggingTestKit.error("Forging requires a rewards address").expect {
-      val ref = spawn(behavior)
+      val consensusStorageRef =
+        spawn(ConsensusVariables(settings, appContext.networkType), ConsensusVariables.actorName)
+      val ref = spawn(Forger.behavior(
+        blockGenerationDelay,
+        minTransactionFee,
+        forgeOnStartup = true,
+        fetchKeyView,
+        fetchStartupKeyView,
+        reader,
+        consensusStorageRef
+      ))
       createTestProbe().expectTerminated(ref)
     }
   }
