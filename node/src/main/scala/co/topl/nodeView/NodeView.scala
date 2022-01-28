@@ -18,7 +18,7 @@ import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.history.{GenericHistory, History, HistoryReader}
 import co.topl.nodeView.mempool.{MemPool, MemPoolReader, MemoryPool}
 import co.topl.nodeView.state.{MinimalState, State, StateReader}
-import co.topl.settings.{AppContext, AppSettings}
+import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Int128, NetworkType, TimeProvider}
 import org.slf4j.{Logger, LoggerFactory}

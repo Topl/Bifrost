@@ -23,11 +23,11 @@ object LeaderElection extends Logging {
    * @return an eligible box if one is found
    */
   def getEligibleBox(
-    parent:            Block,
-    addresses:         Set[Address],
-    timestamp:         TimeProvider.Time,
-    consensusParams:   ConsensusVariables.ConsensusParams,
-    stateReader:       SR
+    parent:                     Block,
+    addresses:                  Set[Address],
+    timestamp:                  TimeProvider.Time,
+    consensusParams:            ConsensusVariables.ConsensusParams,
+    stateReader:                SR
   )(implicit nxtLeaderElection: NxtLeaderElection): Either[IneligibilityReason, ArbitBox] =
     if (addresses.isEmpty) {
       Left(NoAddressesAvailable)

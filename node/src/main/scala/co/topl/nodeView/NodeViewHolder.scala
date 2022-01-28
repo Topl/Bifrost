@@ -280,6 +280,7 @@ object NodeViewHolder {
     consensusStorageRef: ActorRef[ConsensusVariables.ReceivableMessage]
   )(implicit context:    ActorContext[NodeViewHolder.ReceivableMessage]): Future[ConsensusVariables.ConsensusParams] = {
     import akka.actor.typed.scaladsl.AskPattern._
+
     import scala.concurrent.duration._
     implicit val timeout: Timeout = Timeout(10.seconds)
     implicit val typedSystem: ActorSystem[_] = context.system

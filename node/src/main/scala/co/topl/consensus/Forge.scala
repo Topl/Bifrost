@@ -1,9 +1,5 @@
 package co.topl.consensus
 
-import akka.actor.typed.scaladsl.ActorContext
-import akka.actor.typed.{ActorRef, ActorSystem}
-import akka.actor.typed.scaladsl.AskPattern.Askable
-import akka.util.Timeout
 import cats.data.Validated
 import cats.implicits._
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
@@ -19,7 +15,6 @@ import co.topl.utils.{Int128, TimeProvider}
 import org.slf4j.Logger
 
 import scala.collection.immutable.ListMap
-import scala.concurrent.Future
 import scala.util.Try
 
 /**

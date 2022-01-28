@@ -119,7 +119,7 @@ object Forger {
     consensusStorageRef: ActorRef[ConsensusVariables.ReceivableMessage]
   )(implicit
     system: ActorSystem[_],
-    ec: ExecutionContext
+    ec:     ExecutionContext
   ): Future[Block] = {
     implicit val networkPrefix: NetworkPrefix = networkType.netPrefix
 
@@ -130,11 +130,13 @@ object Forger {
       implicit val timeout: Timeout = Timeout(10.seconds)
 
       block.map { case (block: Block, ChainParams(totalStake, initDifficulty)) =>
-        consensusStorageRef.askWithStatus[Done](UpdateConsensusVariables(
-          block.id,
-          ConsensusParamsUpdate(Some(totalStake), Some(initDifficulty), Some(0L), Some(0L)),
-          _
-        ))
+        consensusStorageRef.askWithStatus[Done](
+          UpdateConsensusVariables(
+            block.id,
+            ConsensusParamsUpdate(Some(totalStake), Some(initDifficulty), Some(0L), Some(0L)),
+            _
+          )
+        )
 
         block
       }
@@ -284,6 +286,7 @@ private class ForgerBehaviors(
     consensusStorageRef: ActorRef[ConsensusVariables.ReceivableMessage]
   )(implicit context:    ActorContext[Forger.ReceivableMessage]): Future[ConsensusVariables.ConsensusParams] = {
     import akka.actor.typed.scaladsl.AskPattern._
+
     import scala.concurrent.duration._
     implicit val timeout: Timeout = Timeout(10.seconds)
     implicit val typedSystem: ActorSystem[_] = context.system

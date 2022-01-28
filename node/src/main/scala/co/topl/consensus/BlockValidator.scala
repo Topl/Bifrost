@@ -1,7 +1,6 @@
 package co.topl.consensus
 
 import cats.implicits._
-import co.topl.consensus
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}

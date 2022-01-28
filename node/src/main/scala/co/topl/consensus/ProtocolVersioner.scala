@@ -25,7 +25,7 @@ class ProtocolVersioner(appVersion: Version, protocolVersions: SortedSet[Protoco
 
   /** Find the rule set for the given app version and block height */
   def getProtocolRules(blockHeight: Long): ProtocolSettings =
-      current(blockHeight)
+    current(blockHeight)
       .getOrElse(throw new Error("Unable to find applicable protocol rules"))
 
   def targetBlockTime(blockHeight: Long): FiniteDuration =
