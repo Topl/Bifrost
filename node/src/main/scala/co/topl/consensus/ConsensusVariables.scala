@@ -77,13 +77,15 @@ object ConsensusVariables {
         )
       )
 
-      ready(
+      context.log.info(s"${Console.YELLOW}Consensus Storage actor transitioning to the active state${Console.RESET}")
+
+      active(
         versionedStore,
         paramsFromStorage(versionedStore, defaultTotalStake)
       )
     }
 
-  private def ready(storage: LDBKeyValueStore, consensusParams: ConsensusParams): Behavior[ReceivableMessage] =
+  private def active(storage: LDBKeyValueStore, consensusParams: ConsensusParams): Behavior[ReceivableMessage] =
     Behaviors.receivePartial {
       case (_, ReceivableMessages.GetConsensusVariables(replyTo)) =>
         replyTo ! consensusParams
@@ -108,7 +110,7 @@ object ConsensusVariables {
         storage.update(versionId, Seq(), toUpdate)
         replyTo ! StatusReply.success(Done)
 
-        ready(storage, updatedParams)
+        active(storage, updatedParams)
 
       case (_, ReceivableMessages.RollBackTo(blockId, replyTo)) =>
         storage.rollbackTo(blockId.getIdBytes)
@@ -123,7 +125,7 @@ object ConsensusVariables {
         }
         replyTo ! StatusReply.success(params)
 
-        ready(storage, params)
+        active(storage, params)
     }
 
   /**
