@@ -10,9 +10,13 @@ import co.topl.modifier.box.Box.identifier
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithms, TransferBuilder}
-import co.topl.modifier.transaction.builder.TransferRequests.{ArbitTransferRequest, AssetTransferRequest, PolyTransferRequest}
+import co.topl.modifier.transaction.builder.TransferRequests.{
+  ArbitTransferRequest,
+  AssetTransferRequest,
+  PolyTransferRequest
+}
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
-import co.topl.modifier.{ModifierId, transaction}
+import co.topl.modifier.{transaction, ModifierId}
 import co.topl.nodeView.history.{BlockProcessor, History, InMemoryKeyValueStore, Storage}
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppContext, AppSettings, StartupOpts, Version}
@@ -76,17 +80,22 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
 
     var history = new History(storage, BlockProcessor(1024), validators)
 
-    history = history.append(genesisBlock, ConsensusParams(Int128(0), 0L, 0L, 0L)).get._1
+    history = history.append(genesisBlock, ConsensusParams(Int128(10000000), 1000000000000000000L, 0L, 0L)).get._1
     assert(history.modifierById(genesisBlock.id).isDefined)
     history
   }
 
-  def genesisState(settings: AppSettings, genesisBlockWithVersion: Block = genesisBlock, consensusParams: ConsensusParams): State = {
+  def genesisState(
+    settings:                AppSettings,
+    genesisBlockWithVersion: Block = genesisBlock,
+    consensusParams:         ConsensusParams
+  ): State = {
     History.readOrGenerate(settings).append(genesisBlock, consensusParams)
     State.genesisState(settings, Seq(genesisBlockWithVersion))
   }
 
-  lazy val genesisState: State = genesisState(settings, genesisBlock, ConsensusParams(Int128(0), 0L, 0L, 0L))
+  lazy val genesisState: State =
+    genesisState(settings, genesisBlock, ConsensusParams(Int128(10000000), 1000000000000000000L, 0L, 0L))
 
   lazy val validBifrostTransactionSeqGen: Gen[Seq[TX]] = for {
     seqLen <- positiveMediumIntGen

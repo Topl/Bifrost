@@ -85,7 +85,8 @@ class ForgeSpec
           keyRingCurve25519.lookupPublicKey
         )
 
-      val forge = Forge.fromNodeView(nodeView, ConsensusParams(Int128(0), 0L, 0L, 0L), keyView, 0).value
+      val forge =
+        Forge.fromNodeView(nodeView, ConsensusParams(Int128(10000000), 1000000000000000000L, 0L, 0L), keyView, 0).value
 
       val block = forge.make.value
       block.parentId shouldBe parentBlock.id
@@ -104,7 +105,7 @@ class ForgeSpec
       KeyView(keyRingCurve25519.addresses, None, keyRingCurve25519.signWithAddress, keyRingCurve25519.lookupPublicKey)
 
     Forge
-      .fromNodeView(nodeView, ConsensusParams(Int128(0), 0L, 0L, 0L), keyView, 0)
+      .fromNodeView(nodeView, ConsensusParams(Int128(10000000), 1000000000000000000L, 0L, 0L), keyView, 0)
       .left
       .value shouldBe Forge.NoRewardsAddressSpecified
 

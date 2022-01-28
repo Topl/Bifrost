@@ -4,7 +4,7 @@ import akka.actor.typed.{ActorRef, ActorSystem}
 import cats.data.{Validated, Writer}
 import cats.implicits._
 import co.topl.attestation.Address
-import co.topl.consensus.ConsensusVariables.ReceivableMessage
+import co.topl.consensus.ConsensusVariables.ConsensusParams
 import co.topl.consensus.Hiccups.HiccupBlock
 import co.topl.consensus.KeyManager.StartupKeyView
 import co.topl.consensus.{ConsensusVariables, Forger, Hiccups, NxtLeaderElection}
@@ -135,7 +135,7 @@ object NodeView {
     implicit def networkPrefix: NetworkPrefix = networkType.netPrefix
 
     // Using invalid consensus params since validation is skipped for appending genesis block
-    val genesisParams = ConsensusVariables.ConsensusParams(Int128(0), 0L, 0L, 0L)
+    val genesisParams = ConsensusParams(Int128(10000000), 1000000000000000000L, 0L, 0L)
 
     NodeView(
       History.readOrGenerate(settings).append(genesisBlock, genesisParams).get._1,

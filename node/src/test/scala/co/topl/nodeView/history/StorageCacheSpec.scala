@@ -147,7 +147,7 @@ class StorageCacheSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks w
 
     var history = new History(storage, BlockProcessor(1024), validators)
 
-    history = history.append(genesisBlock, ConsensusParams(Int128(0), 0L, 0L, 0L)).get._1
+    history = history.append(genesisBlock, ConsensusParams(Int128(10000000), 1000000000000000000L, 0L, 0L)).get._1
     assert(history.modifierById(genesisBlock.id).isDefined)
     history
   }

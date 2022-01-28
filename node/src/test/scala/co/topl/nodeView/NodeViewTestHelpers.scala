@@ -88,7 +88,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
       MemPool.empty()
     )
 
-    nodeView.history.append(genesisBlock, ConsensusParams(Int128(0), 0L, 0L, 0L))
+    nodeView.history.append(genesisBlock, ConsensusParams(Int128(10000000), 1000000000000000000L, 0L, 0L))
     nodeView.state.applyModifier(genesisBlock)
     TestIn(nodeView, historyStore, stateStore, tokenBoxStore)
   }

@@ -121,7 +121,7 @@ class NodeViewSpec
     withGenesisNodeView { testIn =>
       val initialHistoryStoreState = testIn.historyStore.state
       val (events, _) =
-        testIn.nodeView.withBlock(genesisBlock, ConsensusParams(Int128(0), 0L, 0L, 0L)).run
+        testIn.nodeView.withBlock(genesisBlock, ConsensusParams(Int128(10000000), 1000000000000000000L, 0L, 0L)).run
 
       testIn.historyStore.state shouldBe initialHistoryStoreState
       events shouldBe Nil
