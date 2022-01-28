@@ -37,22 +37,22 @@ object ConsensusVariables {
   object ReceivableMessages {
 
     case class UpdateConsensusVariables(
-                                         blockId: ModifierId,
-                                         params: ConsensusParamsUpdate,
-                                         replyTo: ActorRef[StatusReply[Done]]
-                                       ) extends ReceivableMessage
+      blockId: ModifierId,
+      params:  ConsensusParamsUpdate,
+      replyTo: ActorRef[StatusReply[Done]]
+    ) extends ReceivableMessage
 
     case class RollBackTo(blockId: ModifierId, replyTo: ActorRef[StatusReply[ConsensusParams]])
-      extends ReceivableMessage
+        extends ReceivableMessage
 
     case class GetConsensusVariables(replyTo: ActorRef[ConsensusParams]) extends ReceivableMessage
 
   }
 
   def apply(
-             settings: AppSettings,
-             networkType: NetworkType
-           ): Behavior[ReceivableMessage] =
+    settings:    AppSettings,
+    networkType: NetworkType
+  ): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
       implicit val ec: ExecutionContext = context.executionContext
 
@@ -78,8 +78,10 @@ object ConsensusVariables {
         )
       )
 
-      context.log.info(s"${Console.YELLOW}Consensus Storage actor transitioning to the operational state" +
-        s"${Console.RESET}")
+      context.log.info(
+        s"${Console.YELLOW}Consensus Storage actor transitioning to the operational state" +
+        s"${Console.RESET}"
+      )
 
       active(
         versionedStore,
@@ -141,11 +143,11 @@ object ConsensusVariables {
   case class ConsensusParams(totalStake: Int128, difficulty: Long, inflation: Long, height: Long)
 
   case class ConsensusParamsUpdate(
-                                    totalStake: Option[Int128],
-                                    difficulty: Option[Long],
-                                    inflation: Option[Long],
-                                    height: Option[Long]
-                                  )
+    totalStake: Option[Int128],
+    difficulty: Option[Long],
+    inflation:  Option[Long],
+    height:     Option[Long]
+  )
 
   private def totalStakeFromStorage(storage: LDBKeyValueStore): Option[Int128] =
     storage
