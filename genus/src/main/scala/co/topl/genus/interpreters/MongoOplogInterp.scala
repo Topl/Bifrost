@@ -6,8 +6,9 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}
 import cats.effect.kernel.Async
 import co.topl.genus.algebras.MongoOplogAlg
-import org.mongodb.scala.MongoClient
+import org.mongodb.scala.{Document, MongoClient, MongoCollection}
 import org.mongodb.scala.bson.BsonTimestamp
+import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.Filters
 
 import scala.util.Try
@@ -16,18 +17,42 @@ object MongoOplogInterp {
 
   object Eval {
 
-    def make[F[_]: Async](mongoClient: MongoClient)(implicit materializer: Materializer): MongoOplogAlg[F] =
-      (databaseName: String, collectionName: String) =>
-        Async[F]
-          .fromFuture(
+    def make[F[_]: Async](
+      oplogCollection:       MongoCollection[Document]
+    )(implicit materializer: Materializer): MongoOplogAlg[F] =
+      new MongoOplogAlg[F] {
+
+        override def getFirstDocTimestamp(databaseName: String, collectionName: String): F[Option[BsonTimestamp]] =
+          getFirstTimestamp(
+            Source
+              .fromPublisher(
+                oplogCollection
+                  .find(Filters.eq("ns", s"$databaseName.$collectionName"))
+              )
+          )
+
+        override def getFirstMatchingDocTimestamp(
+          databaseName:   String,
+          collectionName: String,
+          matching:       Bson
+        ): F[Option[BsonTimestamp]] =
+          getFirstTimestamp(
+            Source
+              .fromPublisher(
+                oplogCollection
+                  .find(
+                    Filters.and(
+                      Filters.eq("ns", s"$databaseName.$collectionName"),
+                      matching
+                    )
+                  )
+              )
+          )
+
+        private def getFirstTimestamp(source: Source[Document, NotUsed]): F[Option[BsonTimestamp]] =
+          Async[F].fromFuture(
             Async[F].delay(
-              Source
-                .fromPublisher(
-                  mongoClient
-                    .getDatabase("local")
-                    .getCollection("oplog.rs")
-                    .find(Filters.eq("ns", s"$databaseName.$collectionName"))
-                )
+              source
                 .take(1)
                 .flatMapConcat(document =>
                   document
@@ -35,9 +60,9 @@ object MongoOplogInterp {
                     .flatMap(value => Try(value.asTimestamp()).toOption)
                     .fold[Source[BsonTimestamp, NotUsed]](Source.empty)(t => Source.single(t))
                 )
-                .runWith(Sink.seq)
+                .runWith(Sink.fold[Option[BsonTimestamp], BsonTimestamp](None)((_, ts: BsonTimestamp) => Some(ts)))
             )
           )
-          .map(_.headOption)
+      }
   }
 }

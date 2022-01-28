@@ -12,7 +12,7 @@ import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.types.Transaction
 import co.topl.utils.mongodb.codecs._
 import co.topl.utils.mongodb.models.ConfirmedTransactionDataModel
-import org.mongodb.scala.MongoClient
+import org.mongodb.scala.{Document, MongoClient, MongoCollection}
 
 object TestSubApp extends IOApp.Simple {
   implicit val system: ActorSystem = ActorSystem("test")
@@ -23,7 +23,10 @@ object TestSubApp extends IOApp.Simple {
 
   val mongoClient: MongoClient = MongoClient("mongodb://localhost:27017/?replicaset=bifrost")
 
-  val mongoOpLog: MongoOplogAlg[IO] = MongoOplogInterp.Eval.make(mongoClient)
+  val oplogCollection: MongoCollection[Document] =
+    mongoClient.getDatabase("local").getCollection("oplog.rs")
+
+  val mongoOpLog: MongoOplogAlg[IO] = MongoOplogInterp.Eval.make(oplogCollection)
 
   val dataStore: MongoSubscriptionAlg[IO, Transaction, TransactionFilter] =
     Functor[MongoSubscriptionAlg[IO, *, TransactionFilter]]
@@ -33,6 +36,7 @@ object TestSubApp extends IOApp.Simple {
             mongoClient,
             "chain_data",
             "confirmed_txes",
+            "block.height",
             mongoOpLog
           )
       )(_.transformTo[Transaction])

@@ -17,7 +17,7 @@ object TestSubProgram {
       subService:            SubscriptionServiceAlg[F, Transaction, TransactionFilter, Long]
     )(implicit materializer: Materializer): F[Unit] =
       (for {
-        sub <- subService.create(CreateRequest[TransactionFilter, Long](None, None, 0))
+        sub <- subService.create(CreateRequest[TransactionFilter, Long](None, Some(1000), 0))
         result <- EitherT.right[CreateSubscriptionFailure](
           Async[F].fromFuture(Async[F].delay(sub.runForeach(tx => println(tx.blockHeight))))
         )
