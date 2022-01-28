@@ -185,6 +185,8 @@ class MemPoolAuditorSpec
     test(testInWithActor)
     testKit.stop(nodeViewHolderRef)
     testKit.stop(memPoolAuditorRef)
+    testKit.stop(consensusStorageRef)
+    testKit.stop(forgerRef)
   }
 }
 
