@@ -11,6 +11,7 @@ import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithms, TransferBui
 import co.topl.nodeView.ChainReplicatorSpec.TestInWithActor
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages
 import co.topl.nodeView.NodeViewTestHelpers.TestIn
+import co.topl.nodeView.state.{MinimalState, State}
 import co.topl.settings.ChainReplicatorSettings
 import co.topl.tools.exporter.DatabaseOperations
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
@@ -225,11 +226,14 @@ class ChainReplicatorSpec
 
     genesisActorTest { testIn =>
       val addressA :: addressB :: _ = keyRingCurve25519.addresses.toList
-      val polyTransferParams = (
+      val rand = scala.util.Random
+      def polyTransferParams(
+        transferAmount: Int
+      ): (MinimalState[Block, State], TransferRequests.PolyTransferRequest, BoxSelectionAlgorithms.All.type) = (
         testIn.testIn.nodeView.state,
         TransferRequests.PolyTransferRequest(
           List(addressB),
-          List(addressA -> 10),
+          List(addressA -> transferAmount),
           addressB,
           0,
           None
@@ -238,19 +242,19 @@ class ChainReplicatorSpec
       )
       val polyTransferFst = {
         val base = (TransferBuilder.buildUnsignedPolyTransfer[PublicKeyPropositionCurve25519] _)
-          .tupled(polyTransferParams)
+          .tupled(polyTransferParams(rand.nextInt(20)))
           .getOrThrow()
         base.copy(attestation = keyRingCurve25519.generateAttestation(addressB)(base.messageToSign))
       }
       val polyTransferSec = {
         val base = (TransferBuilder.buildUnsignedPolyTransfer[PublicKeyPropositionCurve25519] _)
-          .tupled(polyTransferParams)
+          .tupled(polyTransferParams(rand.nextInt(20)))
           .getOrThrow()
         base.copy(attestation = keyRingCurve25519.generateAttestation(addressB)(base.messageToSign))
       }
       val polyTransferTrd = {
         val base = (TransferBuilder.buildUnsignedPolyTransfer[PublicKeyPropositionCurve25519] _)
-          .tupled(polyTransferParams)
+          .tupled(polyTransferParams(rand.nextInt(20)))
           .getOrThrow()
         base.copy(attestation = keyRingCurve25519.generateAttestation(addressB)(base.messageToSign))
       }
