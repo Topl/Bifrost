@@ -1,75 +1,69 @@
 package co.topl.genus.interpreters
 
 import akka.NotUsed
-import akka.stream.alpakka.mongodb.scaladsl.MongoSource
 import akka.stream.scaladsl.Source
-import cats.Applicative
-import cats.implicits._
-import co.topl.genus.algebras.DataStoreSubscriptionAlg
+import cats.data.OptionT
+import cats.effect.Async
+import cats.{Applicative, MonadThrow}
+import co.topl.genus.algebras.{DataStoreSubscriptionAlg, MongoOplogAlg}
+import co.topl.genus.interpreters.MongoSubscriptionInterp.MongoSubscriptionAlg
 import co.topl.genus.typeclasses.MongoFilter
 import co.topl.genus.typeclasses.implicits._
 import co.topl.utils.mongodb.DocumentDecoder
-import org.mongodb.scala.model.{Aggregates, Filters}
+import org.mongodb.scala.model.Aggregates
+import org.mongodb.scala.model.changestream.ChangeStreamDocument
 import org.mongodb.scala.{Document, MongoClient}
 
 object MongoSubscriptionInterp {
 
   type MongoSubscriptionAlg[F[_], T, Filter] =
-    DataStoreSubscriptionAlg[F, Source[*, NotUsed], Filter, String, T]
+    DataStoreSubscriptionAlg[F, Source[*, NotUsed], Filter, Long, T]
 
   object Eval {
 
-    def make[F[_]: Applicative, T: DocumentDecoder, Filter: MongoFilter](
+    def make[F[_]: Async: MonadThrow, T: DocumentDecoder, Filter: MongoFilter](
       mongoClient:    MongoClient,
       databaseName:   String,
-      collectionName: String
+      collectionName: String,
+      oplog:          MongoOplogAlg[F]
     ): MongoSubscriptionAlg[F, T, Filter] =
-      (filter: Filter, lastSeenMessage: Option[String]) =>
-        lastSeenMessage
-          .map(message =>
-            MongoSource(
-              mongoClient
-                .getDatabase(databaseName)
-                .getCollection(collectionName)
-                .watch(Seq(Aggregates.filter(filter.toBsonFilter)))
-                .resumeAfter(Document("_data" -> message))
-            )
-          )
-          .getOrElse(
-            MongoSource(
-              mongoClient
-                .getDatabase("local")
-                .getCollection("oplog.rs")
-                .find(Filters.eq("ns", databaseName + "." + collectionName))
-            )
-              .take(1)
-              .map(document => document.get("ts").map(_.asTimestamp()))
-              .flatMapConcat(timestampOpt =>
-                timestampOpt
-                  .map(timestamp =>
-                    MongoSource(
-                      mongoClient
-                        .getDatabase(databaseName)
-                        .getCollection(collectionName)
-                        .watch(Seq(Aggregates.filter(filter.toBsonFilter)))
-                        .startAtOperationTime(timestamp)
-                    )
-                  )
-                  .getOrElse(Source.empty)
+      new MongoSubscriptionAlg[F, T, Filter] {
+
+        override def fromStart(filter: Filter): F[Source[T, NotUsed]] =
+          (for {
+            startingTimestamp <-
+              OptionT(oplog.getFirstDocumentTimestamp(databaseName, collectionName))
+            changeStream =
+              Source.fromPublisher(
+                mongoClient
+                  .getDatabase(databaseName)
+                  .getCollection(collectionName)
+                  .watch(Seq(Aggregates.filter(filter.toBsonFilter)))
+                  .startAtOperationTime(startingTimestamp)
               )
-          )
-          .flatMapConcat(change =>
-            DocumentDecoder[T]
-              .fromDocument(change.getFullDocument)
-              .map(Source.single)
-              .getOrElse(Source.empty)
-          )
-          .pure[F]
+            documents = fromChangeStreamSource[NotUsed](changeStream)
+          } yield documents)
+            .fold[Source[T, NotUsed]](Source.empty)(source => source)
+
+        override def fromCheckpoint(filter: Filter, checkpoint: Long): F[Source[T, NotUsed]] = ???
+
+        private def fromChangeStreamSource[Mat](source: Source[ChangeStreamDocument[Document], Mat]): Source[T, Mat] =
+          source
+            .flatMapConcat(change =>
+              DocumentDecoder[T]
+                .fromDocument(change.getFullDocument)
+                .fold(_ => Source.empty, t => Source.single(t))
+            )
+      }
   }
 
   object Mock {
 
     def make[F[_]: Applicative, T, Filter]: MongoSubscriptionAlg[F, T, Filter] =
-      (_: Filter, _: Option[String]) => Source.empty[T].pure[F]
+      new MongoSubscriptionAlg[F, T, Filter] {
+        override def fromStart(filter: Filter): F[Source[T, NotUsed]] = ???
+
+        override def fromCheckpoint(filter: Filter, checkpoint: Long): F[Source[T, NotUsed]] = ???
+      }
   }
 }
