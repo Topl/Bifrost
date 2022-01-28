@@ -290,19 +290,22 @@ class PeerConnectionHandler(
           processRemoteData()
         case Right(header)
             if chunksBuffer.length < Transmission.headerLength + Transmission.checksumLength + header.dataLength =>
-        // need more data
+          // need to wait for more data
+          ()
         case Right(header) =>
           transmissionContentTransmittable(header.dataLength)
             .fromTransmittableByteString(chunksBuffer.drop(Transmission.headerLength)) match {
             case Right(content) =>
               handleTransmission(Transmission(header, content.some))
               processRemoteData()
+            // if the transmission content is malformed, we must ban the peer to avoid DoS attacks
             case Left(error) =>
               log.warn(s"Banning peer for malicious behaviour($error): ${connectionId.toString}")
 
               /** peer will be added to the blacklist and the network controller will send CloseConnection */
               networkControllerRef ! PenalizePeer(connectionId.remoteAddress, PenaltyType.PermanentPenalty)
           }
+        // if the transmission header is malformed, we must ban the peer to avoid DoS attacks
         case Left(error) =>
           log.warn(s"Banning peer for malicious behaviour($error): ${connectionId.toString}")
 

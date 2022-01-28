@@ -81,11 +81,11 @@ class NetworkController(
     businessLogic orElse
     peerCommands orElse
     connectionEvents orElse
-    registerMessageSpecs orElse
+    registerMessages orElse
     nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS ----------- //
-  private def initialization: Receive = bindP2P orElse registerMessageSpecs orElse nonsense
+  private def initialization: Receive = bindP2P orElse registerMessages orElse nonsense
 
   private def bindP2P: Receive = { case BindP2P =>
     /** check own declared address for validity */
@@ -105,14 +105,14 @@ class NetworkController(
     becomeOperational()
   }
 
-  private def registerMessageSpecs: Receive = { case RegisterMessages(specs, handler) =>
+  private def registerMessages: Receive = { case RegisterMessages(messageCodes, handler) =>
     log.info(
       s"${Console.YELLOW}Registered ${sender()} as the handler for " +
-      s"$specs${Console.RESET}"
+      s"message codes [${messageCodes.sorted.mkString(",")}]${Console.RESET}"
     )
 
     /** add the message code and its corresponding handler actorRef to the map */
-    messageHandlers ++= specs.map(_ -> handler)
+    messageHandlers ++= messageCodes.map(_ -> handler)
 
   }
 
