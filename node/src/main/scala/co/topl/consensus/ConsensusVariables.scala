@@ -26,6 +26,7 @@ object ConsensusVariables {
 
   // constant keys for each piece of consensus state
   private def byteArrayWrappedKey(name: String): Digest32 = blake2b256.hash(name.getBytes)
+
   private val totalStakeKey = byteArrayWrappedKey("totalStake")
   private val difficultyKey = byteArrayWrappedKey("difficulty")
   private val inflationKey = byteArrayWrappedKey("inflation")
@@ -36,22 +37,22 @@ object ConsensusVariables {
   object ReceivableMessages {
 
     case class UpdateConsensusVariables(
-      blockId: ModifierId,
-      params:  ConsensusParamsUpdate,
-      replyTo: ActorRef[StatusReply[Done]]
-    ) extends ReceivableMessage
+                                         blockId: ModifierId,
+                                         params: ConsensusParamsUpdate,
+                                         replyTo: ActorRef[StatusReply[Done]]
+                                       ) extends ReceivableMessage
 
     case class RollBackTo(blockId: ModifierId, replyTo: ActorRef[StatusReply[ConsensusParams]])
-        extends ReceivableMessage
+      extends ReceivableMessage
 
     case class GetConsensusVariables(replyTo: ActorRef[ConsensusParams]) extends ReceivableMessage
 
   }
 
   def apply(
-    settings:    AppSettings,
-    networkType: NetworkType
-  ): Behavior[ReceivableMessage] =
+             settings: AppSettings,
+             networkType: NetworkType
+           ): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
       implicit val ec: ExecutionContext = context.executionContext
 
@@ -77,7 +78,8 @@ object ConsensusVariables {
         )
       )
 
-      context.log.info(s"${Console.YELLOW}Consensus Storage actor transitioning to the active state${Console.RESET}")
+      context.log.info(s"${Console.YELLOW}Consensus Storage actor transitioning to the operational state" +
+        s"${Console.RESET}")
 
       active(
         versionedStore,
@@ -130,19 +132,20 @@ object ConsensusVariables {
 
   /**
    * Global parameters used by the consensus package.
+   *
    * @param totalStake the total stake in the system
    * @param difficulty the current forging difficulty
-   * @param inflation the current value of inflation
-   * @param height the height of the main chain
+   * @param inflation  the current value of inflation
+   * @param height     the height of the main chain
    */
   case class ConsensusParams(totalStake: Int128, difficulty: Long, inflation: Long, height: Long)
 
   case class ConsensusParamsUpdate(
-    totalStake: Option[Int128],
-    difficulty: Option[Long],
-    inflation:  Option[Long],
-    height:     Option[Long]
-  )
+                                    totalStake: Option[Int128],
+                                    difficulty: Option[Long],
+                                    inflation: Option[Long],
+                                    height: Option[Long]
+                                  )
 
   private def totalStakeFromStorage(storage: LDBKeyValueStore): Option[Int128] =
     storage
