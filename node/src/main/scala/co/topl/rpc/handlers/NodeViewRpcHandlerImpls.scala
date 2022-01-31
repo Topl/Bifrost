@@ -30,9 +30,9 @@ class NodeViewRpcHandlerImpls(
   nodeViewHolderInterface: NodeViewHolderInterface,
   forgerInterface:         ForgerInterface
 )(implicit
-  system:           ActorSystem[_],
-  throwableEncoder: Encoder[ThrowableData],
-  networkPrefix:    NetworkPrefix,
+  system:            ActorSystem[_],
+  throwableEncoder:  Encoder[ThrowableData],
+  networkPrefix:     NetworkPrefix,
   nxtLeaderElection: NxtLeaderElection
 ) extends ToplRpcHandlers.NodeView {
 

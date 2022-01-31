@@ -79,7 +79,8 @@ trait RPCMockState
     )
 
     consensusStorageRef = system.toTyped.systemActorOf(
-      ConsensusVariables(settings, appContext.networkType), ConsensusVariables.actorName
+      ConsensusVariables(settings, appContext.networkType),
+      ConsensusVariables.actorName
     )
 
     nodeViewHolderRef = system.toTyped.systemActorOf(

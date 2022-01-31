@@ -30,7 +30,8 @@ class MempoolSpec extends AnyPropSpec with Matchers with NodeGenerators with Bef
   implicit private val timeProvider: TimeProvider = new NetworkTimeProvider(settings.ntp)
 
   private val consensusStorageRef = actorSystem.systemActorOf(
-    ConsensusVariables(settings, appContext.networkType), ConsensusVariables.actorName
+    ConsensusVariables(settings, appContext.networkType),
+    ConsensusVariables.actorName
   )
 
   private val nodeViewHolderRef =

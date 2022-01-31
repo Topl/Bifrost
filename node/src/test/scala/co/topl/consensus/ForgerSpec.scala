@@ -203,15 +203,17 @@ class ForgerSpec
 
     val consensusStorageRef = spawn(ConsensusVariables(settings, appContext.networkType), ConsensusVariables.actorName)
 
-    val forgerRef = spawn(Forger.behavior(
-      blockGenerationDelay,
-      minTransactionFee,
-      forgeOnStartup = false,
-      fetchKeyView,
-      fetchStartupKeyView,
-      reader,
-      consensusStorageRef
-    ))
+    val forgerRef = spawn(
+      Forger.behavior(
+        blockGenerationDelay,
+        minTransactionFee,
+        forgeOnStartup = false,
+        fetchKeyView,
+        fetchStartupKeyView,
+        reader,
+        consensusStorageRef
+      )
+    )
 
     forgerRef.tell(Forger.ReceivableMessages.StartForging(system.ignoreRef))
 
@@ -242,15 +244,17 @@ class ForgerSpec
     LoggingTestKit.error("Forging requires a rewards address").expect {
       val consensusStorageRef =
         spawn(ConsensusVariables(settings, appContext.networkType), ConsensusVariables.actorName)
-      val ref = spawn(Forger.behavior(
-        blockGenerationDelay,
-        minTransactionFee,
-        forgeOnStartup = true,
-        fetchKeyView,
-        fetchStartupKeyView,
-        reader,
-        consensusStorageRef
-      ))
+      val ref = spawn(
+        Forger.behavior(
+          blockGenerationDelay,
+          minTransactionFee,
+          forgeOnStartup = true,
+          fetchKeyView,
+          fetchStartupKeyView,
+          reader,
+          consensusStorageRef
+        )
+      )
       createTestProbe().expectTerminated(ref)
     }
   }
