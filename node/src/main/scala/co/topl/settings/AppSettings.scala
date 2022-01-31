@@ -11,16 +11,17 @@ import java.net.InetSocketAddress
 import scala.concurrent.duration._
 
 case class ApplicationSettings(
-  cacheExpire:      Int,
-  cacheSize:        Int,
-  dataDir:          Option[String],
-  keyFileDir:       Option[String],
-  enablePBR:        Boolean,
-  enableTBR:        Boolean,
-  mempoolTimeout:   FiniteDuration,
-  nodeKeys:         Option[Set[String]],
-  rebroadcastCount: Int,
-  version:          Version
+  cacheExpire:                  Int,
+  cacheSize:                    Int,
+  dataDir:                      Option[String],
+  keyFileDir:                   Option[String],
+  enablePBR:                    Boolean,
+  enableTBR:                    Boolean,
+  mempoolTimeout:               FiniteDuration,
+  nodeKeys:                     Option[Set[String]],
+  rebroadcastCount:             Int,
+  consensusStoreVersionsToKeep: Int,
+  version:                      Version
 )
 
 case class RPCApiSettings(

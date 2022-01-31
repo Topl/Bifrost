@@ -43,7 +43,8 @@ object TestSettings {
     val (s, c) = AppSettings.read(StartupOpts(Some(settingsFilename)))
     s.copy(
       application = s.application.copy(
-        dataDir = Some(Files.createTempDirectory("bifrost-test-data").toString)
+        dataDir = Some(Files.createTempDirectory("bifrost-test-data").toString),
+        consensusStoreVersionsToKeep = 10
       )
     ) -> c
   }

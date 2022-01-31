@@ -3,10 +3,11 @@ package co.topl.consensus
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.actor.typed.ActorRef
 import akka.actor.typed.eventstream.EventStream
+import akka.pattern.StatusReply
 import co.topl.attestation.Address
 import co.topl.consensus.ConsenesusVariablesSpec.TestInWithActor
 import co.topl.consensus.ConsensusVariables.ConsensusParams
-import co.topl.consensus.ConsensusVariables.ReceivableMessages.GetConsensusVariables
+import co.topl.consensus.ConsensusVariables.ReceivableMessages.{GetConsensusVariables, RollBackTo}
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
 import co.topl.nodeView.NodeViewTestHelpers.TestIn
@@ -62,7 +63,9 @@ class ConsenesusVariablesSpec
 
     genesisActorTest { testIn =>
       val probe = createTestProbe[ConsensusParams]()
-      val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head).take(5).toList
+      val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head)
+        .take(settings.application.consensusStoreVersionsToKeep / 2)
+        .toList
       Thread.sleep(0.1.seconds.toMillis)
       newBlocks.foreach { block =>
         system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
@@ -87,7 +90,9 @@ class ConsenesusVariablesSpec
     var params = ConsensusParams(Int128(0), 0, 0, 0)
 
     genesisActorTest { testIn =>
-      val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head).take(5).toList
+      val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head)
+        .take(settings.application.consensusStoreVersionsToKeep / 2)
+        .toList
       Thread.sleep(0.1.seconds.toMillis)
       newBlocks.foreach { block =>
         system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
@@ -100,6 +105,58 @@ class ConsenesusVariablesSpec
     consensusStorageRef ! GetConsensusVariables(probe.ref)
     probe.expectMessage(params)
     testKit.stop(consensusStorageRef)
+  }
+
+  it should "roll back to a previous version" in {
+
+    implicit val timeProvider: TimeProvider = mock[TimeProvider]
+
+    (() => timeProvider.time)
+      .expects()
+      .anyNumberOfTimes()
+      .onCall(() => System.currentTimeMillis())
+
+    genesisActorTest { testIn =>
+      val probe = createTestProbe[StatusReply[ConsensusParams]]()
+      val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head)
+        .take(settings.application.consensusStoreVersionsToKeep / 2)
+        .toList
+      Thread.sleep(0.1.seconds.toMillis)
+      newBlocks.foreach { block =>
+        system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
+      }
+      Thread.sleep(0.1.seconds.toMillis)
+      testIn.consensusStorageRef ! RollBackTo(newBlocks.head.id, probe.ref)
+      // the first of the newBlocks would be at height 2 since it's the first one after the genesis block
+      probe.expectMessage(
+        StatusReply.success(ConsensusParams(Int128(defaultTotalStake), newBlocks.head.difficulty, 0L, 2L))
+      )
+    }
+  }
+
+  it should "fail to roll back to a previous version if it's not within the consensusStoreVersionsToKeep" in {
+
+    implicit val timeProvider: TimeProvider = mock[TimeProvider]
+
+    (() => timeProvider.time)
+      .expects()
+      .anyNumberOfTimes()
+      .onCall(() => System.currentTimeMillis())
+
+    genesisActorTest { testIn =>
+      val probe = createTestProbe[StatusReply[ConsensusParams]]()
+      val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head)
+        .take(settings.application.consensusStoreVersionsToKeep + 1)
+        .toList
+      Thread.sleep(0.1.seconds.toMillis)
+      newBlocks.foreach { block =>
+        system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
+      }
+      Thread.sleep(0.1.seconds.toMillis)
+      testIn.consensusStorageRef ! RollBackTo(newBlocks.head.id, probe.ref)
+      // the first of the newBlocks would be at height 2 since it's the first one after the genesis block
+      probe.receiveMessage(1.seconds).toString() shouldEqual "Error(Failed to roll back to the given version)"
+    }
   }
 
   private def genesisActorTest(test: TestInWithActor => Unit)(implicit timeProvider: TimeProvider): Unit = {

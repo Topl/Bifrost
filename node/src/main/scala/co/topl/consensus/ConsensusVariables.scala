@@ -20,13 +20,15 @@ import com.google.common.primitives.Longs
 import java.io.File
 import scala.concurrent.ExecutionContext
 
+/**
+ * Consensus storage that keeps totalStake, difficulty, inflation, and height both in memory and in file
+ */
 object ConsensusVariables {
 
   val actorName = "ConsensusVariables"
 
   // constant keys for each piece of consensus state
   private def byteArrayWrappedKey(name: String): Digest32 = blake2b256.hash(name.getBytes)
-
   private val totalStakeKey = byteArrayWrappedKey("totalStake")
   private val difficultyKey = byteArrayWrappedKey("difficulty")
   private val inflationKey = byteArrayWrappedKey("inflation")
@@ -58,6 +60,7 @@ object ConsensusVariables {
 
       context.log.info(s"${Console.GREEN}Consensus variable actor initializing${Console.RESET}")
 
+      // Read or generate LDB key value store for persistence
       val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
       val defaultTotalStake = networkType match {
         case PrivateTestnet =>
@@ -66,9 +69,10 @@ object ConsensusVariables {
       }
       val file = new File(s"$dataDir/consensus")
       file.mkdirs()
+      val versionedStore: LDBKeyValueStore =
+        new LDBKeyValueStore(new LDBVersionedStore(file, settings.application.consensusStoreVersionsToKeep))
 
-      val versionedStore: LDBKeyValueStore = new LDBKeyValueStore(new LDBVersionedStore(file, 1000))
-
+      // Subscribe to new appended blocks to update the difficulty and height
       context.system.eventStream.tell(
         EventStream.Subscribe[SemanticallySuccessfulModifier[Block]](
           context.messageAdapter { block =>
@@ -110,26 +114,28 @@ object ConsensusVariables {
         val heightPair = Seq(heightKey.value -> Longs.toByteArray(height))
         val toUpdate = totalStakePair ++ difficultyPair ++ inflationPair ++ heightPair
 
-        // update cached values here
+        // Update the storage values
         storage.update(versionId, Seq(), toUpdate)
-        replyTo ! StatusReply.success(Done)
 
+        replyTo ! StatusReply.success(Done)
         active(storage, updatedParams)
 
       case (_, ReceivableMessages.RollBackTo(blockId, replyTo)) =>
         storage.rollbackTo(blockId.getIdBytes)
+        // Check if the storage is rolled back to the given version by comparing the last version in storage
+        val rollBackResult = storage.latestVersionId().getOrElse(Array[String]()) sameElements blockId.getIdBytes
         (
           totalStakeFromStorage(storage),
           difficultyFromStorage(storage),
           inflationFromStorage(storage),
           heightFromStorage(storage)
         ) match {
-          case (Some(totalStake), Some(difficulty), Some(inflation), Some(height)) =>
+          case (Some(totalStake), Some(difficulty), Some(inflation), Some(height)) if rollBackResult =>
             val params = ConsensusParams(totalStake, difficulty, inflation, height)
             replyTo ! StatusReply.success(params)
             active(storage, params)
           case _ =>
-            replyTo ! StatusReply.error(new NoSuchElementException("Failed to get params from storage"))
+            replyTo ! StatusReply.error(new NoSuchElementException("Failed to roll back to the given version"))
             Behaviors.same
         }
     }
@@ -171,12 +177,11 @@ object ConsensusVariables {
       .get(heightKey.value)
       .map(Longs.fromByteArray)
 
-  private def paramsFromStorage(storage: LDBKeyValueStore, defaultTotalStake: Int128): ConsensusParams = {
+  private def paramsFromStorage(storage: LDBKeyValueStore, defaultTotalStake: Int128): ConsensusParams =
     ConsensusParams(
       totalStakeFromStorage(storage).getOrElse(defaultTotalStake),
       difficultyFromStorage(storage).getOrElse(0L),
       inflationFromStorage(storage).getOrElse(0L),
       heightFromStorage(storage).getOrElse(0L)
     )
-  }
 }
