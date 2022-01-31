@@ -1,16 +1,21 @@
 package co.topl.genus
 
 import akka.actor.ActorSystem
+import akka.grpc.scaladsl.ServerReflection
+import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import cats.Functor
 import cats.effect.unsafe.implicits.global
 import cats.effect.{Async, IO, IOApp}
-import co.topl.genus.algebras.{HttpServerAlg, QueryServiceAlg}
+import co.topl.genus.algebras.{HttpServerAlg, MongoOplogAlg, QueryServiceAlg, SubscriptionServiceAlg}
 import co.topl.genus.filters.{BlockFilter, TransactionFilter}
 import co.topl.genus.interpreters.MongoQueryInterp.MongoQueryAlg
-import co.topl.genus.interpreters.{MongoQueryInterp, QueryServer, QueryServiceInterp}
-import co.topl.genus.programs.{BlocksQueryProgram, RunServerProgram, TransactionsQueryProgram}
-import co.topl.genus.services.blocks_query.BlocksQuery
-import co.topl.genus.services.transactions_query.TransactionsQuery
+import co.topl.genus.interpreters.MongoSubscriptionInterp.MongoSubscriptionAlg
+import co.topl.genus.interpreters._
+import co.topl.genus.programs._
+import co.topl.genus.services.blocks_query.{BlocksQuery, BlocksQueryHandler}
+import co.topl.genus.services.blocks_subscription.{BlocksSubscription, BlocksSubscriptionHandler}
+import co.topl.genus.services.transactions_query.{TransactionsQuery, TransactionsQueryHandler}
+import co.topl.genus.services.transactions_subscription.{TransactionsSubscription, TransactionsSubscriptionHandler}
 import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.types._
 import co.topl.utils.mongodb.codecs._
@@ -20,12 +25,14 @@ import org.bson.conversions.Bson
 import org.mongodb.scala.model.Sorts
 import org.mongodb.scala.{Document, MongoClient, MongoCollection, MongoDatabase}
 
+import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 object GenusApp extends IOApp.Simple {
 
   type F[T] = IO[T]
 
+  // akka setup
   val config: Config =
     ConfigFactory
       .parseString("akka.http.server.preview.enable-http2 = on")
@@ -33,18 +40,28 @@ object GenusApp extends IOApp.Simple {
 
   implicit val system: ActorSystem = ActorSystem("genus", config)
 
+  // server constants
   val serverIp = "127.0.0.1"
   val serverPort = 8080
 
+  // mongo names
   val mongoConnectionString = "mongodb://localhost:27017/?replSet=Bifrost"
+  val databaseName = "chain_data"
+  val txsCollectionName = "confirmed_txes"
+  val blocksCollectionName = "blocks"
 
+  // mongo clients and database
   val mongoClient: MongoClient = MongoClient(mongoConnectionString)
+  val mongoDb: MongoDatabase = mongoClient.getDatabase(databaseName)
 
-  val mongoDb: MongoDatabase = mongoClient.getDatabase("chain_data")
+  // mongo collections
+  val oplogCollectionName: MongoCollection[Document] =
+    mongoClient.getDatabase("local").getCollection("oplog.rs")
+  val txsMongoCollection: MongoCollection[Document] = mongoDb.getCollection(txsCollectionName)
+  val blocksMongoCollection: MongoCollection[Document] = mongoDb.getCollection(blocksCollectionName)
 
-  val txsMongoCollection: MongoCollection[Document] = mongoDb.getCollection("confirmed_txes")
-
-  val blocksMongoCollection: MongoCollection[Document] = mongoDb.getCollection("blocks")
+  // mongo algebras
+  val mongoOplog: MongoOplogAlg[F] = MongoOplogInterp.Eval.make(oplogCollectionName)
 
   val txsDataStoreQuery: MongoQueryAlg[F, Transaction, TransactionFilter] =
     // TODO: call the map function directly on the algebra
@@ -61,10 +78,38 @@ object GenusApp extends IOApp.Simple {
           .make[F, BlockDataModel, BlockFilter](blocksMongoCollection)
       )(_.transformTo[Block])
 
+  val txsDataStoreSub: MongoSubscriptionAlg[F, Transaction, TransactionFilter] =
+    Functor[MongoSubscriptionAlg[F, *, TransactionFilter]]
+      .map(
+        MongoSubscriptionInterp.Eval.make[F, ConfirmedTransactionDataModel, TransactionFilter](
+          mongoClient,
+          databaseName,
+          txsCollectionName,
+          "block.height",
+          mongoOplog
+        )
+      )(_.transformTo[Transaction])
+
+  val blocksDataStoreSub: MongoSubscriptionAlg[F, Block, BlockFilter] =
+    Functor[MongoSubscriptionAlg[F, *, BlockFilter]]
+      .map(
+        MongoSubscriptionInterp.Eval.make[F, BlockDataModel, BlockFilter](
+          mongoClient,
+          databaseName,
+          blocksCollectionName,
+          "height",
+          mongoOplog
+        )
+      )(_.transformTo[Block])
+
+  // default filters and sorts
   val defaultTransactionFilter: TransactionFilter =
     TransactionFilter.of(TransactionFilter.FilterType.All(TransactionFilter.AllFilter()))
   val defaultTransactionSort: Bson = Sorts.ascending("block.height")
+  val defaultBlockFilter: BlockFilter = BlockFilter.of(BlockFilter.FilterType.All(BlockFilter.AllFilter()))
+  val defaultBlockSort: Bson = Sorts.ascending("height")
 
+  // service implementations
   val transactionsQueryService: QueryServiceAlg[F, Transaction, TransactionFilter, Bson] =
     QueryServiceInterp.Eval.make[F, Transaction, TransactionFilter, Bson](
       txsDataStoreQuery,
@@ -72,9 +117,6 @@ object GenusApp extends IOApp.Simple {
       defaultTransactionSort,
       5.seconds
     )
-
-  val defaultBlockFilter: BlockFilter = BlockFilter.of(BlockFilter.FilterType.All(BlockFilter.AllFilter()))
-  val defaultBlockSort: Bson = Sorts.ascending("height")
 
   val blocksQueryService: QueryServiceAlg[F, Block, BlockFilter, Bson] =
     QueryServiceInterp.Eval.make[F, Block, BlockFilter, Bson](
@@ -84,16 +126,38 @@ object GenusApp extends IOApp.Simple {
       5.seconds
     )
 
-  val transactionsQuery: TransactionsQuery = TransactionsQueryProgram.Eval.make[F](
-    transactionsQueryService
-  )
+  val txsSubService: SubscriptionServiceAlg[F, Transaction, TransactionFilter] =
+    SubscriptionServiceInterp.Eval.make(defaultTransactionFilter, txsDataStoreSub)
 
-  val blocksQuery: BlocksQuery = BlocksQueryProgram.Eval.make[F](
-    blocksQueryService
-  )
+  val blocksSubService: SubscriptionServiceAlg[F, Block, BlockFilter] =
+    SubscriptionServiceInterp.Eval.make(defaultBlockFilter, blocksDataStoreSub)
+
+  // HTTP service handlers
+  val transactionsQueryHandler: PartialFunction[HttpRequest, Future[HttpResponse]] =
+    TransactionsQueryHandler.partial(TransactionsQueryProgram.Eval.make(transactionsQueryService))
+
+  val blocksQueryHandler: PartialFunction[HttpRequest, Future[HttpResponse]] =
+    BlocksQueryHandler.partial(BlocksQueryProgram.Eval.make(blocksQueryService))
+
+  val transactionsSubHandler: PartialFunction[HttpRequest, Future[HttpResponse]] =
+    TransactionsSubscriptionHandler.partial(TxsSubscriptionProgram.Eval.make(txsSubService))
+
+  val blocksSubHandler: PartialFunction[HttpRequest, Future[HttpResponse]] =
+    BlocksSubscriptionHandler.partial(BlocksSubscriptionProgram.Eval.make(blocksSubService))
+
+  val reflectionServiceHandler: PartialFunction[HttpRequest, Future[HttpResponse]] =
+    ServerReflection.partial(
+      List(TransactionsQuery, BlocksQuery, TransactionsSubscription, BlocksSubscription)
+    )
 
   val server: HttpServerAlg[F] =
-    QueryServer.Eval.make[IO](transactionsQuery, blocksQuery)(serverIp, serverPort)
+    HttpServerInterp.Eval.make[IO](
+      transactionsQueryHandler,
+      blocksQueryHandler,
+      transactionsSubHandler,
+      blocksSubHandler,
+      reflectionServiceHandler
+    )(serverIp, serverPort)
 
   override def run: IO[Unit] =
     RunServerProgram.Eval
