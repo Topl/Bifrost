@@ -118,18 +118,20 @@ object ConsensusVariables {
 
       case (_, ReceivableMessages.RollBackTo(blockId, replyTo)) =>
         storage.rollbackTo(blockId.getIdBytes)
-        val params = (
+        (
           totalStakeFromStorage(storage),
           difficultyFromStorage(storage),
           inflationFromStorage(storage),
           heightFromStorage(storage)
         ) match {
           case (Some(totalStake), Some(difficulty), Some(inflation), Some(height)) =>
-            ConsensusParams(totalStake, difficulty, inflation, height)
+            val params = ConsensusParams(totalStake, difficulty, inflation, height)
+            replyTo ! StatusReply.success(params)
+            active(storage, params)
+          case _ =>
+            replyTo ! StatusReply.error(new NoSuchElementException("Failed to get params from storage"))
+            Behaviors.same
         }
-        replyTo ! StatusReply.success(params)
-
-        active(storage, params)
     }
 
   /**
@@ -169,11 +171,12 @@ object ConsensusVariables {
       .get(heightKey.value)
       .map(Longs.fromByteArray)
 
-  private def paramsFromStorage(storage: LDBKeyValueStore, defaultTotalStake: Int128): ConsensusParams =
+  private def paramsFromStorage(storage: LDBKeyValueStore, defaultTotalStake: Int128): ConsensusParams = {
     ConsensusParams(
       totalStakeFromStorage(storage).getOrElse(defaultTotalStake),
       difficultyFromStorage(storage).getOrElse(0L),
       inflationFromStorage(storage).getOrElse(0L),
       heightFromStorage(storage).getOrElse(0L)
     )
+  }
 }

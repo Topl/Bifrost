@@ -1,0 +1,154 @@
+package co.topl.consensus
+
+import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import akka.actor.typed.ActorRef
+import akka.actor.typed.eventstream.EventStream
+import co.topl.attestation.Address
+import co.topl.consensus.ConsenesusVariablesSpec.TestInWithActor
+import co.topl.consensus.ConsensusVariables.ConsensusParams
+import co.topl.consensus.ConsensusVariables.ReceivableMessages.GetConsensusVariables
+import co.topl.modifier.block.Block
+import co.topl.modifier.box.ArbitBox
+import co.topl.nodeView.NodeViewTestHelpers.TestIn
+import co.topl.nodeView.{NodeViewHolder, NodeViewTestHelpers}
+import co.topl.utils.{InMemoryKeyFileTestHelper, Int128, TestSettings, TimeProvider}
+import org.scalamock.scalatest.MockFactory
+import org.scalatest.OptionValues
+import org.scalatest.flatspec.AnyFlatSpecLike
+
+import scala.collection.AbstractIterator
+import scala.concurrent.Future
+import scala.concurrent.duration.DurationDouble
+
+class ConsenesusVariablesSpec
+    extends ScalaTestWithActorTestKit
+    with AnyFlatSpecLike
+    with TestSettings
+    with InMemoryKeyFileTestHelper
+    with NodeViewTestHelpers
+    with MockFactory
+    with OptionValues {
+
+  behavior of "ConsensusStorage"
+
+  private val defaultTotalStake = settings.forging.privateTestnet.map { testnetSettings =>
+    testnetSettings.numTestnetAccts * testnetSettings.testnetBalance
+  }.value
+
+  it should "return default consensus params after no updates with empty storage" in {
+
+    implicit val timeProvider: TimeProvider = mock[TimeProvider]
+
+    (() => timeProvider.time)
+      .expects()
+      .anyNumberOfTimes()
+      .onCall(() => System.currentTimeMillis())
+
+    genesisActorTest { testIn =>
+      val probe = createTestProbe[ConsensusParams]()
+      testIn.consensusStorageRef ! GetConsensusVariables(probe.ref)
+      probe.expectMessage(ConsensusParams(Int128(defaultTotalStake), 0L, 0L, 0L))
+    }
+  }
+
+  it should "load total stake from storage on start" in {
+
+    implicit val timeProvider: TimeProvider = mock[TimeProvider]
+
+    (() => timeProvider.time)
+      .expects()
+      .anyNumberOfTimes()
+      .onCall(() => System.currentTimeMillis())
+
+    genesisActorTest { testIn =>
+      val probe = createTestProbe[ConsensusParams]()
+      val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head).take(5).toList
+      Thread.sleep(0.1.seconds.toMillis)
+      newBlocks.foreach { block =>
+        system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
+      }
+      Thread.sleep(0.1.seconds.toMillis)
+      testIn.consensusStorageRef ! GetConsensusVariables(probe.ref)
+      // Increasing the newBlock number by one as the height since we start out with a genesis block
+      probe.expectMessage(ConsensusParams(Int128(defaultTotalStake), newBlocks.last.difficulty, 0L, newBlocks.size + 1))
+    }
+  }
+
+  it should "update the consensus params when there is a new block published" in {
+
+    implicit val timeProvider: TimeProvider = mock[TimeProvider]
+
+    (() => timeProvider.time)
+      .expects()
+      .anyNumberOfTimes()
+      .onCall(() => System.currentTimeMillis())
+
+    val probe = createTestProbe[ConsensusParams]()
+    var params = ConsensusParams(Int128(0), 0, 0, 0)
+
+    genesisActorTest { testIn =>
+      val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head).take(5).toList
+      Thread.sleep(0.1.seconds.toMillis)
+      newBlocks.foreach { block =>
+        system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
+      }
+      Thread.sleep(0.1.seconds.toMillis)
+      testIn.consensusStorageRef ! GetConsensusVariables(probe.ref)
+      params = probe.receiveMessage(0.1.seconds)
+    }
+    val consensusStorageRef = spawn(ConsensusVariables(settings, appContext.networkType), ConsensusVariables.actorName)
+    consensusStorageRef ! GetConsensusVariables(probe.ref)
+    probe.expectMessage(params)
+    testKit.stop(consensusStorageRef)
+  }
+
+  private def genesisActorTest(test: TestInWithActor => Unit)(implicit timeProvider: TimeProvider): Unit = {
+    val testIn = genesisNodeView()
+    val consensusStorageRef = spawn(ConsensusVariables(settings, appContext.networkType), ConsensusVariables.actorName)
+    val nodeViewHolderRef = spawn(
+      NodeViewHolder(settings, consensusStorageRef, () => Future.successful(testIn.nodeView))
+    )
+    val testInWithActor = TestInWithActor(testIn, nodeViewHolderRef, consensusStorageRef)
+    test(testInWithActor)
+    testKit.stop(nodeViewHolderRef)
+    testKit.stop(consensusStorageRef)
+  }
+
+  private def generateBlocks(previousBlocks: List[Block], forgerAddress: Address): Iterator[Block] =
+    new AbstractIterator[Block] {
+
+      // Because the reward fee is 0, the genesis arbit box is never destroyed during forging, so we can re-use it
+      private val arbitBox =
+        previousBlocks.last.transactions
+          .flatMap(_.newBoxes)
+          .collectFirst { case a: ArbitBox if a.evidence == forgerAddress.evidence => a }
+          .value
+      private var previous3Blocks: List[Block] = previousBlocks.takeRight(3)
+
+      override def hasNext: Boolean = true
+
+      override def next(): Block =
+        if (previous3Blocks.isEmpty) {
+          previous3Blocks = List(genesisBlock)
+          genesisBlock
+        } else {
+          val newBlock = nextBlock(
+            previous3Blocks.last,
+            arbitBox,
+            previous3Blocks.map(_.timestamp),
+            forgerAddress
+          )
+          previous3Blocks = (previous3Blocks :+ newBlock).takeRight(3)
+          newBlock
+        }
+    }
+}
+
+object ConsenesusVariablesSpec {
+
+  case class TestInWithActor(
+    testIn:              TestIn,
+    nodeViewHolderRef:   ActorRef[NodeViewHolder.ReceivableMessage],
+    consensusStorageRef: ActorRef[ConsensusVariables.ReceivableMessage]
+  )
+}
