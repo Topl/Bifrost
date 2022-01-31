@@ -43,6 +43,10 @@ message OutputBox {
   TokenValue value = 2;
 }
 
+message BlockHeight {
+  uint64 value = 1;
+}
+
 message Transaction {
   string tx_type = 1;
   string timestamp = 2;

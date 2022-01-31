@@ -7,6 +7,7 @@ import cats.implicits._
 import co.topl.genus.interpreters.MongoQueryInterp.MongoQueryAlg
 import co.topl.genus.interpreters.MongoSubscriptionInterp.MongoSubscriptionAlg
 import co.topl.genus.services.services_types.Paging
+import co.topl.genus.types.BlockHeight
 import org.mongodb.scala.bson.conversions.Bson
 
 trait FunctorInstances {
@@ -33,7 +34,7 @@ trait FunctorInstances {
           override def fromStart(filter: Filter): F[Source[B, NotUsed]] =
             fa.fromStart(filter).map(_.map(f))
 
-          override def fromCheckpoint(filter: Filter, checkpoint: Long): F[Source[B, NotUsed]] =
+          override def fromCheckpoint(filter: Filter, checkpoint: BlockHeight): F[Source[B, NotUsed]] =
             fa.fromCheckpoint(filter, checkpoint).map(_.map(f))
         }
     }

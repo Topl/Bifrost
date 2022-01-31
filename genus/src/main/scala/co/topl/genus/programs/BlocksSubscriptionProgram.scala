@@ -12,7 +12,7 @@ import co.topl.genus.services.blocks_subscription.{
   BlocksSubscriptionRes,
   CreateBlocksSubscriptionReq
 }
-import co.topl.genus.types.Block
+import co.topl.genus.types.{Block, BlockHeight}
 import co.topl.genus.typeclasses.implicits._
 
 import scala.concurrent.Future
@@ -22,7 +22,7 @@ object BlocksSubscriptionProgram {
   object Eval {
 
     def make[F[_]: Async: *[_] ~> Future](
-      subsService: SubscriptionServiceAlg[F, Block, BlockFilter, Long]
+      subsService: SubscriptionServiceAlg[F, Block, BlockFilter]
     ): BlocksSubscription =
       (in: CreateBlocksSubscriptionReq) =>
         Source

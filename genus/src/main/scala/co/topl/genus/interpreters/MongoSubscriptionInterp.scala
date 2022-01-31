@@ -9,6 +9,7 @@ import cats.{Applicative, MonadThrow}
 import co.topl.genus.algebras.{DataStoreSubscriptionAlg, MongoOplogAlg}
 import co.topl.genus.typeclasses.MongoFilter
 import co.topl.genus.typeclasses.implicits._
+import co.topl.genus.types.BlockHeight
 import co.topl.utils.mongodb.DocumentDecoder
 import org.mongodb.scala.MongoClient
 import org.mongodb.scala.bson.BsonTimestamp
@@ -17,7 +18,7 @@ import org.mongodb.scala.model.{Aggregates, Filters}
 object MongoSubscriptionInterp {
 
   type MongoSubscriptionAlg[F[_], T, Filter] =
-    DataStoreSubscriptionAlg[F, Source[*, NotUsed], Filter, Long, T]
+    DataStoreSubscriptionAlg[F, Source[*, NotUsed], Filter, T]
 
   object Eval {
 
@@ -38,7 +39,7 @@ object MongoSubscriptionInterp {
           } yield stream)
             .fold[Source[T, NotUsed]](Source.empty)(source => source)
 
-        override def fromCheckpoint(filter: Filter, checkpoint: Long): F[Source[T, NotUsed]] =
+        override def fromCheckpoint(filter: Filter, checkpoint: BlockHeight): F[Source[T, NotUsed]] =
           (for {
             startingTimestamp <-
               OptionT(
@@ -71,14 +72,17 @@ object MongoSubscriptionInterp {
 
   object Mock {
 
-    def make[F[_]: Applicative, T, Filter]: MongoSubscriptionAlg[F, T, Filter] =
+    def make[F[_]: Applicative, T, Filter](
+      fromStartResults:      List[T],
+      fromCheckpointResults: List[T]
+    ): MongoSubscriptionAlg[F, T, Filter] =
       new MongoSubscriptionAlg[F, T, Filter] {
 
         override def fromStart(filter: Filter): F[Source[T, NotUsed]] =
-          Source.empty[T].pure[F]
+          Source(fromStartResults).pure[F]
 
-        override def fromCheckpoint(filter: Filter, checkpoint: Long): F[Source[T, NotUsed]] =
-          Source.empty[T].pure[F]
+        override def fromCheckpoint(filter: Filter, checkpoint: BlockHeight): F[Source[T, NotUsed]] =
+          Source(fromCheckpointResults).pure[F]
       }
   }
 }

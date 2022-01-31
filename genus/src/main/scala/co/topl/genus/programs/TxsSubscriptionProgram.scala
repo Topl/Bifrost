@@ -11,7 +11,7 @@ import co.topl.genus.services.transactions_subscription.{
   TransactionsSubscription,
   TxsSubscriptionRes
 }
-import co.topl.genus.types.Transaction
+import co.topl.genus.types.{BlockHeight, Transaction}
 import co.topl.genus.ops.implicits._
 import co.topl.genus.typeclasses.implicits._
 
@@ -22,7 +22,7 @@ object TxsSubscriptionProgram {
   object Eval {
 
     def make[F[_]: Async: *[_] ~> Future](
-      subsService: SubscriptionServiceAlg[F, Transaction, TransactionFilter, Long]
+      subsService: SubscriptionServiceAlg[F, Transaction, TransactionFilter]
     ): TransactionsSubscription =
       (in: CreateTxsSubscriptionReq) =>
         Source

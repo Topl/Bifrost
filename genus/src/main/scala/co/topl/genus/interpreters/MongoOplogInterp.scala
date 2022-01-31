@@ -4,6 +4,7 @@ import akka.NotUsed
 import cats.implicits._
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}
+import cats.Applicative
 import cats.effect.kernel.Async
 import co.topl.genus.algebras.MongoOplogAlg
 import org.mongodb.scala.{Document, MongoClient, MongoCollection}
@@ -64,5 +65,24 @@ object MongoOplogInterp {
             )
           )
       }
+  }
+
+  object Mock {
+
+    def make[F[_]: Applicative](
+      firstTimestamp:    Option[BsonTimestamp],
+      matchingTimestamp: Option[BsonTimestamp]
+    ): MongoOplogAlg[F] = new MongoOplogAlg[F] {
+
+      override def getFirstDocTimestamp(databaseName: String, collectionName: String): F[Option[BsonTimestamp]] =
+        firstTimestamp.pure[F]
+
+      override def getFirstMatchingDocTimestamp(
+        databaseName:   String,
+        collectionName: String,
+        matching:       Bson
+      ): F[Option[BsonTimestamp]] =
+        matchingTimestamp.pure[F]
+    }
   }
 }

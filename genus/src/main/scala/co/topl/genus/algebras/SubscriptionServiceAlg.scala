@@ -4,13 +4,14 @@ import akka.NotUsed
 import akka.stream.scaladsl.Source
 import cats.data.{EitherT, NonEmptyChain}
 import co.topl.genus.algebras.SubscriptionServiceAlg.{CreateRequest, CreateSubscriptionFailure}
+import co.topl.genus.types.BlockHeight
 
-trait SubscriptionServiceAlg[F[_], T, Filter, Token] {
-  def create(request: CreateRequest[Filter, Token]): EitherT[F, CreateSubscriptionFailure, Source[T, NotUsed]]
+trait SubscriptionServiceAlg[F[_], T, Filter] {
+  def create(request: CreateRequest[Filter]): EitherT[F, CreateSubscriptionFailure, Source[T, NotUsed]]
 }
 
 object SubscriptionServiceAlg {
-  case class CreateRequest[Filter, Token](filter: Option[Filter], resumeToken: Option[Token], confirmationDepth: Long)
+  case class CreateRequest[Filter](filter: Option[Filter], startFromHeight: Option[BlockHeight], confirmationDepth: Int)
 
   sealed trait CreateSubscriptionFailure
 

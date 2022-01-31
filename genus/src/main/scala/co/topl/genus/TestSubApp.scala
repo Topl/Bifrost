@@ -9,7 +9,7 @@ import co.topl.genus.interpreters.MongoSubscriptionInterp.MongoSubscriptionAlg
 import co.topl.genus.interpreters.{MongoOplogInterp, MongoSubscriptionInterp, SubscriptionServiceInterp}
 import co.topl.genus.programs.TestSubProgram
 import co.topl.genus.typeclasses.implicits._
-import co.topl.genus.types.Transaction
+import co.topl.genus.types.{BlockHeight, Transaction}
 import co.topl.utils.mongodb.codecs._
 import co.topl.utils.mongodb.models.ConfirmedTransactionDataModel
 import org.mongodb.scala.{Document, MongoClient, MongoCollection}
@@ -41,7 +41,7 @@ object TestSubApp extends IOApp.Simple {
           )
       )(_.transformTo[Transaction])
 
-  val subservice: SubscriptionServiceAlg[IO, Transaction, TransactionFilter, Long] =
+  val subservice: SubscriptionServiceAlg[IO, Transaction, TransactionFilter] =
     SubscriptionServiceInterp.Eval.make[IO, Transaction, TransactionFilter](defaultFilter, dataStore)
 
   override def run: IO[Unit] =
