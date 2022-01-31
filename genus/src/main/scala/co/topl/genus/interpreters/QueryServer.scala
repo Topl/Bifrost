@@ -1,17 +1,14 @@
 package co.topl.genus.interpreters
 
-import akka.NotUsed
-import akka.actor.ActorSystem
+import akka.actor.ClassicActorSystemProvider
 import akka.grpc.scaladsl.{ServerReflection, ServiceHandler}
 import akka.http.scaladsl.Http.HttpServerTerminated
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.http.scaladsl.{Http, ServerBuilder}
-import akka.stream.scaladsl.Source
-import cats.{~>, Applicative}
-import cats.effect.{Async, IO}
+import cats.Applicative
+import cats.effect.Async
 import cats.implicits._
-import co.topl.genus.algebras.{DatabaseClientAlg, HttpServer}
-import co.topl.genus.interpreters.queryservices.{BlocksQueryService, TransactionsQueryService}
+import co.topl.genus.algebras.HttpServerAlg
 import co.topl.genus.services.blocks_query.{BlocksQuery, BlocksQueryHandler}
 import co.topl.genus.services.transactions_query.{TransactionsQuery, TransactionsQueryHandler}
 
@@ -24,19 +21,16 @@ object QueryServer {
   object Eval {
 
     def make[F[_]: Async](
-      databaseClient: DatabaseClientAlg[F, Source[*, NotUsed]],
-      timeout:        FiniteDuration
-    )(ip:             String, port: Int)(implicit
-      system:         ActorSystem,
-      toFuture:       F ~> Future
-    ): HttpServer[F] =
-      new HttpServer[F] {
+      txsQuery:    TransactionsQuery,
+      blocksQuery: BlocksQuery
+    )(ip:          String, port: Int)(implicit system: ClassicActorSystemProvider): HttpServerAlg[F] =
+      new HttpServerAlg[F] {
 
         val txsQueryHandler: PartialFunction[HttpRequest, Future[HttpResponse]] =
-          TransactionsQueryHandler.partial(TransactionsQueryService.Eval.make(databaseClient, timeout))
+          TransactionsQueryHandler.partial(txsQuery)
 
         val blocksQueryHandler: PartialFunction[HttpRequest, Future[HttpResponse]] =
-          BlocksQueryHandler.partial(BlocksQueryService.Eval.make(databaseClient, timeout))
+          BlocksQueryHandler.partial(blocksQuery)
 
         val reflectionServiceHandler: PartialFunction[HttpRequest, Future[HttpResponse]] =
           ServerReflection.partial(
@@ -65,7 +59,7 @@ object QueryServer {
 
   object Mock {
 
-    def make[F[_]: Applicative]: HttpServer[F] = new HttpServer[F] {
+    def make[F[_]: Applicative]: HttpServerAlg[F] = new HttpServerAlg[F] {
 
       override def run: F[Http.ServerBinding] =
         Http

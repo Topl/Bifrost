@@ -5,32 +5,33 @@ import akka.stream.alpakka.mongodb.scaladsl.MongoSource
 import akka.stream.scaladsl.Source
 import cats.Applicative
 import cats.implicits._
-import co.topl.genus.algebras.SubscriptionAlg
+import co.topl.genus.algebras.DataStoreSubscriptionAlg
+import co.topl.genus.typeclasses.MongoFilter
+import co.topl.genus.typeclasses.implicits._
 import co.topl.utils.mongodb.DocumentDecoder
-import com.mongodb.client.model.changestream.ChangeStreamDocument
-import org.mongodb.scala.{Document, MongoClient}
-import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.{Aggregates, Filters}
+import org.mongodb.scala.{Document, MongoClient}
 
-object MongoSubscription {
+object MongoSubscriptionInterp {
 
-  type MongoSubscriptionAlg[F[_], T] = SubscriptionAlg[F, Source[*, NotUsed], Bson, String, ChangeStreamDocument[T]]
+  type MongoSubscriptionAlg[F[_], T, Filter] =
+    DataStoreSubscriptionAlg[F, Source[*, NotUsed], Filter, String, T]
 
   object Eval {
 
-    def make[F[_]: Applicative, T: DocumentDecoder](
+    def make[F[_]: Applicative, T: DocumentDecoder, Filter: MongoFilter](
       mongoClient:    MongoClient,
       databaseName:   String,
       collectionName: String
-    ): MongoSubscriptionAlg[F, T] =
-      (filter: Bson, lastSeenMessage: Option[String]) =>
+    ): MongoSubscriptionAlg[F, T, Filter] =
+      (filter: Filter, lastSeenMessage: Option[String]) =>
         lastSeenMessage
           .map(message =>
             MongoSource(
               mongoClient
                 .getDatabase(databaseName)
                 .getCollection(collectionName)
-                .watch(Seq(Aggregates.filter(filter)))
+                .watch(Seq(Aggregates.filter(filter.toBsonFilter)))
                 .resumeAfter(Document("_data" -> message))
             )
           )
@@ -50,7 +51,7 @@ object MongoSubscription {
                       mongoClient
                         .getDatabase(databaseName)
                         .getCollection(collectionName)
-                        .watch(Seq(Aggregates.filter(filter)))
+                        .watch(Seq(Aggregates.filter(filter.toBsonFilter)))
                         .startAtOperationTime(timestamp)
                     )
                   )
@@ -60,20 +61,6 @@ object MongoSubscription {
           .flatMapConcat(change =>
             DocumentDecoder[T]
               .fromDocument(change.getFullDocument)
-              .map(value =>
-                new ChangeStreamDocument[T](
-                  change.getOperationType,
-                  change.getResumeToken,
-                  change.getNamespaceDocument,
-                  change.getDestinationNamespaceDocument,
-                  value,
-                  change.getDocumentKey,
-                  change.getClusterTime,
-                  change.getUpdateDescription,
-                  change.getTxnNumber,
-                  change.getLsid
-                )
-              )
               .map(Source.single)
               .getOrElse(Source.empty)
           )
@@ -82,7 +69,7 @@ object MongoSubscription {
 
   object Mock {
 
-    def make[F[_]: Applicative, T]: SubscriptionAlg[F, Source[*, NotUsed], Bson, String, ChangeStreamDocument[T]] =
-      (_: Bson, _: Option[String]) => Source.empty[ChangeStreamDocument[T]].pure[F]
+    def make[F[_]: Applicative, T, Filter]: MongoSubscriptionAlg[F, T, Filter] =
+      (_: Filter, _: Option[String]) => Source.empty[T].pure[F]
   }
 }

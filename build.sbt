@@ -191,7 +191,8 @@ lazy val bifrost = project
     benchmarking,
     crypto,
     brambl,
-    tools
+    tools,
+    genus
   )
 
 lazy val node = project

@@ -2,32 +2,22 @@ package co.topl.genus.typeclasses
 
 import cats.data.{Validated, ValidatedNec}
 import cats.implicits._
-import co.topl.genus.services.blocks_query.QueryBlocksReq
+import co.topl.genus.algebras.QueryServiceAlg.QueryRequest
 import co.topl.genus.services.services_types.Paging
-import co.topl.genus.services.transactions_query.QueryTxsReq
 
 trait ValidationInstances {
 
   implicit val pagingValidation: Validation[Paging] =
     paging =>
-      (
-        Validated.condNec(paging.pageSize >= 0, paging, "page size can not be negative"),
-        Validated.condNec(paging.pageNumber >= 0, paging, "page number can not be negative")
-      ).mapN((_, _) => paging).leftMap(_.map("invalid paging: " + _))
+      Validated
+        .condNec(paging.pageSize >= 0, paging, "page size can not be negative")
+        .andThen(_ => Validated.condNec(paging.pageNumber >= 0, paging, "page number can not be negative"))
 
-  implicit val queryTxsReqValidation: Validation[QueryTxsReq] =
+  implicit def queryRequestValidation[Filter, Sort]: Validation[QueryRequest[Filter, Sort]] =
     request =>
-      (
-        validatePaging(request.pagingOptions),
-        validateConfirmationDepth(request.confirmationDepth)
-      ).mapN((_, _) => request).leftMap(_.map("invalid transactions query: " + _))
-
-  implicit val blockTxsReqValidation: Validation[QueryBlocksReq] =
-    request =>
-      (
-        validatePaging(request.pagingOptions),
-        validateConfirmationDepth(request.confirmationDepth)
-      ).mapN((_, _) => request).leftMap(_.map("invalid blocks query: " + _))
+      validatePaging(request.paging)
+        .andThen(_ => validateConfirmationDepth(request.confirmationDepth))
+        .map(_ => request)
 
   private def validatePaging(pagingOpt: Option[Paging]): ValidatedNec[String, Option[Paging]] =
     pagingOpt

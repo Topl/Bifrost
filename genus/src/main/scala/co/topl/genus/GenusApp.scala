@@ -1,25 +1,30 @@
 package co.topl.genus
 
-import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.Source
-import cats.effect.unsafe.IORuntime
+import cats.Functor
 import cats.effect.unsafe.implicits.global
 import cats.effect.{Async, IO, IOApp}
-import co.topl.genus.algebras.{DatabaseClientAlg, HttpServer, QueryAlg}
-import co.topl.genus.interpreters.MongoQuery.MongoQueryAlg
-import co.topl.genus.interpreters.{MongoDatabaseClient, MongoQuery, MongoSubscription, QueryServer}
-import co.topl.genus.programs.GenusProgram
+import co.topl.genus.algebras.{HttpServerAlg, QueryServiceAlg}
+import co.topl.genus.filters.{BlockFilter, TransactionFilter}
+import co.topl.genus.interpreters.MongoQueryInterp.MongoQueryAlg
+import co.topl.genus.interpreters.{MongoQueryInterp, QueryServer, QueryServiceInterp}
+import co.topl.genus.programs.{BlocksQueryProgram, RunServerProgram, TransactionsQueryProgram}
+import co.topl.genus.services.blocks_query.BlocksQuery
+import co.topl.genus.services.transactions_query.TransactionsQuery
+import co.topl.genus.typeclasses.implicits._
+import co.topl.genus.types._
 import co.topl.utils.mongodb.codecs._
 import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataModel}
 import com.typesafe.config.{Config, ConfigFactory}
-import org.mongodb.scala.bson.conversions.Bson
+import org.bson.conversions.Bson
+import org.mongodb.scala.model.Sorts
 import org.mongodb.scala.{Document, MongoClient, MongoCollection, MongoDatabase}
-import co.topl.genus.typeclasses.implicits._
 
 import scala.concurrent.duration.DurationInt
 
 object GenusApp extends IOApp.Simple {
+
+  type F[T] = IO[T]
 
   val config: Config =
     ConfigFactory
@@ -41,26 +46,58 @@ object GenusApp extends IOApp.Simple {
 
   val blocksMongoCollection: MongoCollection[Document] = mongoDb.getCollection("blocks")
 
-  val transactionsQuery: MongoQueryAlg[IO, ConfirmedTransactionDataModel] =
-    MongoQuery.Eval.make(txsMongoCollection)
+  val txsDataStoreQuery: MongoQueryAlg[F, Transaction, TransactionFilter] =
+    // TODO: call the map function directly on the algebra
+    Functor[MongoQueryAlg[F, *, TransactionFilter]]
+      .map(
+        MongoQueryInterp.Eval
+          .make[F, ConfirmedTransactionDataModel, TransactionFilter](txsMongoCollection)
+      )(_.transformTo[Transaction])
 
-  val blocksQuery: MongoQueryAlg[IO, BlockDataModel] =
-    MongoQuery.Eval.make(blocksMongoCollection)
+  val blocksDataStoreQuery: MongoQueryAlg[F, Block, BlockFilter] =
+    Functor[MongoQueryAlg[F, *, BlockFilter]]
+      .map(
+        MongoQueryInterp.Eval
+          .make[F, BlockDataModel, BlockFilter](blocksMongoCollection)
+      )(_.transformTo[Block])
 
-  val databaseClient: DatabaseClientAlg[IO, Source[*, NotUsed]] =
-    MongoDatabaseClient.Eval.make(
-      transactionsQuery,
-      blocksQuery,
-      MongoSubscription.Mock.make,
-      MongoSubscription.Mock.make
+  val defaultTransactionFilter: TransactionFilter =
+    TransactionFilter.of(TransactionFilter.FilterType.All(TransactionFilter.AllFilter()))
+  val defaultTransactionSort: Bson = Sorts.ascending("block.height")
+
+  val transactionsQueryService: QueryServiceAlg[F, Transaction, TransactionFilter, Bson] =
+    QueryServiceInterp.Eval.make[F, Transaction, TransactionFilter, Bson](
+      txsDataStoreQuery,
+      defaultTransactionFilter,
+      defaultTransactionSort,
+      5.seconds
     )
 
-  val server: HttpServer[IO] =
-    QueryServer.Eval.make[IO](databaseClient, 5.seconds)(serverIp, serverPort)
+  val defaultBlockFilter: BlockFilter = BlockFilter.of(BlockFilter.FilterType.All(BlockFilter.AllFilter()))
+  val defaultBlockSort: Bson = Sorts.ascending("height")
+
+  val blocksQueryService: QueryServiceAlg[F, Block, BlockFilter, Bson] =
+    QueryServiceInterp.Eval.make[F, Block, BlockFilter, Bson](
+      blocksDataStoreQuery,
+      defaultBlockFilter,
+      defaultBlockSort,
+      5.seconds
+    )
+
+  val transactionsQuery: TransactionsQuery = TransactionsQueryProgram.Eval.make[F](
+    transactionsQueryService
+  )
+
+  val blocksQuery: BlocksQuery = BlocksQueryProgram.Eval.make[F](
+    blocksQueryService
+  )
+
+  val server: HttpServerAlg[F] =
+    QueryServer.Eval.make[IO](transactionsQuery, blocksQuery)(serverIp, serverPort)
 
   override def run: IO[Unit] =
-    GenusProgram.Mock
-      .make[IO](server)
+    RunServerProgram.Eval
+      .make[F](server)
       .flatMap(_ => IO.never)
       .guarantee(Async[IO].fromFuture(IO.delay(system.terminate())).void)
 }
