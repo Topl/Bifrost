@@ -18,6 +18,13 @@ object MongoOplogInterp {
 
   object Eval {
 
+    /**
+     * Creates an interpreter which can be used to get data from the Mongo oplog.
+     * @param oplogCollection the Mongo oplog collection
+     * @param materializer a stream materializer
+     * @tparam F the effect-ful type of the final value in the program
+     * @return an instance of the [[MongoOplogAlg]]
+     */
     def make[F[_]: Async](
       oplogCollection:       MongoCollection[Document]
     )(implicit materializer: Materializer): MongoOplogAlg[F] =
@@ -28,6 +35,8 @@ object MongoOplogInterp {
             Source
               .fromPublisher(
                 oplogCollection
+                  // the "ns" value represents the path to the collection and can be used to filter on
+                  // operations from a specific collection
                   .find(Filters.eq("ns", s"$databaseName.$collectionName"))
               )
           )
@@ -40,6 +49,7 @@ object MongoOplogInterp {
           getFirstTimestamp(
             Source
               .fromPublisher(
+                // find the operations on the collection that also match the given filter
                 oplogCollection
                   .find(
                     Filters.and(
@@ -50,17 +60,26 @@ object MongoOplogInterp {
               )
           )
 
+        /**
+         * Gets the timestamp of the first document in the stream.
+         * @param source the source to get the first value from
+         * @return the timestamp if at least one document exists
+         */
         private def getFirstTimestamp(source: Source[Document, NotUsed]): F[Option[BsonTimestamp]] =
           Async[F].fromFuture(
             Async[F].delay(
               source
+                // get the first document from the source
                 .take(1)
                 .flatMapConcat(document =>
+                  // the "ts" key in an oplog document contains the timestamp data
                   document
                     .get("ts")
                     .flatMap(value => Try(value.asTimestamp()).toOption)
+                    // if the timestamp value is found then return it, otherwise return nothing
                     .fold[Source[BsonTimestamp, NotUsed]](Source.empty)(t => Source.single(t))
                 )
+                // get the found timestamp if it exists
                 .runWith(Sink.fold[Option[BsonTimestamp], BsonTimestamp](None)((_, ts: BsonTimestamp) => Some(ts)))
             )
           )

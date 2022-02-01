@@ -35,6 +35,16 @@ trait QueryServiceAlg[F[_], T, Filter, Sort] {
 
 object QueryServiceAlg {
 
+  /**
+   * A generic query request for some data with optional sorting, filtering, and paging.
+   * @param filter a filter which matches particular documents
+   * @param sort a value which orders the returned collection
+   * @param paging provides information for tabulating the results
+   * @param confirmationDepth the minimum distance between the block of the returned results and the current head of
+   *                          the chain
+   * @tparam Filter the type of filtering value
+   * @tparam Sort the type of sorting value
+   */
   case class QueryRequest[Filter, Sort](
     filter:            Option[Filter],
     sort:              Option[Sort],
@@ -42,14 +52,29 @@ object QueryServiceAlg {
     confirmationDepth: Int
   )
 
+  /**
+   * A failure that occurred while querying for data.
+   */
   sealed trait QueryFailure
 
   object QueryFailures {
 
-    case class InvalidQuery[Filter, Sort](failures: NonEmptyChain[String]) extends QueryFailure
+    /**
+     * The query request contained some invalid options.
+     * @param failures the list of reasons why the query was invalid
+     */
+    case class InvalidQuery(failures: NonEmptyChain[String]) extends QueryFailure
 
+    /**
+     * An error occurred while retrieving data from the data store.
+     * @param failure the failure reason
+     */
     case class DataStoreConnectionError(failure: String) extends QueryFailure
 
+    /**
+     * The query took too long to complete.
+     * @param message an additional message on why the wquery timed out
+     */
     case class QueryTimeout(message: String) extends QueryFailure
   }
 }

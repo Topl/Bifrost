@@ -1,5 +1,6 @@
 package co.topl.genus.programs
 
+import cats.implicits._
 import akka.NotUsed
 import akka.stream.scaladsl.Source
 import cats.effect.kernel.Async

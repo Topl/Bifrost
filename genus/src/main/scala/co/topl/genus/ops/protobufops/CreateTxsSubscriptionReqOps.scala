@@ -1,5 +1,6 @@
 package co.topl.genus.ops.protobufops
 
+import cats.implicits._
 import co.topl.genus.algebras.SubscriptionServiceAlg
 import co.topl.genus.filters.TransactionFilter
 import co.topl.genus.services.transactions_subscription.CreateTxsSubscriptionReq
@@ -12,7 +13,7 @@ final class CreateTxsSubscriptionReqOps(val value: CreateTxsSubscriptionReq) ext
   def toRequest: SubscriptionServiceAlg.CreateRequest[TransactionFilter] =
     SubscriptionServiceAlg.CreateRequest(
       value.filter,
-      Option.when(value.startHeight >= 1)(BlockHeight(value.startHeight)),
+      if (value.startHeight >= 1) BlockHeight(value.startHeight).some else None,
       value.confirmationDepth
     )
 }

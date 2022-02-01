@@ -14,6 +14,15 @@ object HttpServerInterp {
 
   object Eval {
 
+    /**
+     * Creates an HTTP server from a set of provided handlers, an IP address, and a port.
+     * @param handlers the collection of handlers to route requests to
+     * @param ip the IP address to run this server on
+     * @param port the port to run the server on
+     * @param system the Akka [[ActorSystem]] to manage the server with
+     * @tparam F an effect-ful type representing the final value of the program
+     * @return an instance of the [[HttpServerAlg]]
+     */
     def make[F[_]: Async](handlers: PartialFunction[HttpRequest, Future[HttpResponse]]*)(ip: String, port: Int)(implicit
       system:                       ActorSystem
     ): HttpServerAlg[F] =

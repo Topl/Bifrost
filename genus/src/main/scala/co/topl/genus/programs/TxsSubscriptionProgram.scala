@@ -1,5 +1,6 @@
 package co.topl.genus.programs
 
+import cats.implicits._
 import akka.NotUsed
 import akka.stream.scaladsl.Source
 import cats.effect.Async
@@ -24,7 +25,8 @@ object TxsSubscriptionProgram {
     def make[F[_]: Async: *[_] ~> Future](
       subsService: SubscriptionServiceAlg[F, Transaction, TransactionFilter]
     ): TransactionsSubscription =
-      (in: CreateTxsSubscriptionReq) =>
+      (in: CreateTxsSubscriptionReq) => {
+        println(in)
         Source
           .futureSource(
             subsService
@@ -33,8 +35,10 @@ object TxsSubscriptionProgram {
                 failure => Source.single(TxsSubscriptionRes.fromCreateFailure(failure)),
                 txs => TxsSubscriptionRes.fromTransactions[Source[*, NotUsed]](txs)
               )
+              .map(_.wireTap(result => println(result)))
               .mapFunctor
           )
           .mapMaterializedValue(_ => NotUsed)
+      }
   }
 }
