@@ -77,8 +77,7 @@ object TetraDemo extends IOApp.Simple {
               .hash((ed25519Vrf.getVerificationKey(stakerVrfKey).signableBytes ++ poolVK.bytes.data).toArray)
               .value
           )
-        ),
-        activationSlot = 0
+        )
       )
 
     val stakerAddress: TaktikosAddress = {
