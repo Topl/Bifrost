@@ -29,11 +29,9 @@ object RpcServer {
       successResponseEncoder:                Encoder[SuccessResponse],
       throwableEncoder:                      Encoder[ThrowableData]
     ): Builder =
-      copy(handlers =
-        handlers ++ (rpc.method +: rpc.aliases).map { name =>
-          name -> Builder.BuilderHandler(handler, paramsDecoder, successResponseEncoder, throwableEncoder)
-        }
-      )
+      copy(handlers = handlers ++ (rpc.method +: rpc.aliases).map { name =>
+        name -> Builder.BuilderHandler(handler, paramsDecoder, successResponseEncoder, throwableEncoder)
+      })
   }
 
   /**

@@ -324,7 +324,8 @@ object ToplRpc {
       /**
        * Lookup a transaction in the mempool by its id
        */
-      val rpc: Rpc[Params, Response] = Rpc("topl_transactionFromMempool", aliases = List("topl_getPendingTransactionById"))
+      val rpc: Rpc[Params, Response] =
+        Rpc("topl_transactionFromMempool", aliases = List("topl_getPendingTransactionById"))
 
       /**
        * @param transactionId Base58 encoded transaction hash
@@ -735,8 +736,8 @@ object ToplRpc {
     object Status {
 
       /**
-        * Retrieve information about this running node
-        */
+       * Retrieve information about this running node
+       */
       val rpc: Rpc[Params, Response] = Rpc("admin_status")
 
       case class Params()
