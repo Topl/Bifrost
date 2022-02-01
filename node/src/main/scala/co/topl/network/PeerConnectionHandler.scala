@@ -36,7 +36,7 @@ class PeerConnectionHandler(
   private val ownSocketAddress = connectionDescription.ownSocketAddress
   private val localFeatures = connectionDescription.localFeatures
 
-  private val localPeerSpec = PeerMetadata(
+  private val localPeerMetadata = PeerMetadata(
     settings.network.agentName,
     settings.application.version,
     settings.network.nodeName,
@@ -249,7 +249,7 @@ class PeerConnectionHandler(
     }
 
   private def createHandshakeMessage(): Unit = {
-    val nodeInfo = MessagesV1.Handshake(localPeerSpec, timeProvider.time)
+    val nodeInfo = MessagesV1.Handshake(localPeerMetadata, timeProvider.time)
 
     /**
      * create, save, and schedule a timeout option. The variable lets us cancel the timeout message
