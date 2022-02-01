@@ -38,24 +38,26 @@ object TetraDemo extends IOApp.Simple {
 
   // Configuration Data
   private val vrfConfig =
-//    VrfConfig(lddCutoff = 40, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(2, 5))
-    VrfConfig(lddCutoff = 10, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(1))
+    VrfConfig(lddCutoff = 40, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(2, 5))
 
   private val OperationalPeriodLength = 180L
   private val OperationalPeriodsPerEpoch = 4L
   private val EpochLength = OperationalPeriodLength * OperationalPeriodsPerEpoch
-  private val SlotDuration = 50.milli
+  private val SlotDuration = 100.milli
 
   require(
     EpochLength % OperationalPeriodLength === 0L,
     "EpochLength must be evenly divisible by OperationalPeriodLength"
   )
 
+  private val ChainSelectionKLookback = 5_000L
+  private val ChainSelectionSWindow = 200_000L
+
   private val KesKeyHeight = (9, 9)
 
   // Create stubbed/sample/demo data
 
-  private val NumberOfStakers = 10
+  private val NumberOfStakers = 2
   private val RelativeStake = Ratio(1, NumberOfStakers)
 
   private val (_, poolVK) =
@@ -121,9 +123,6 @@ object TetraDemo extends IOApp.Simple {
 
   implicit private val logger: Logger[F] = Slf4jLogger.getLogger[F]
 
-  private val leaderElectionThreshold: LeaderElectionValidationAlgebra[F] =
-    LeaderElectionValidation.Eval.make(vrfConfig)
-
   private val clock: ClockAlgebra[F] =
     AkkaSchedulerClock.Eval.make(SlotDuration, EpochLength)
 
@@ -139,10 +138,11 @@ object TetraDemo extends IOApp.Simple {
     StatsInterpreter.Eval.make[F](statsDir)
 
   private def mints(
-    etaCalculation:     EtaCalculationAlgebra[F],
-    ed25519VRFResource: UnsafeResource[F, Ed25519VRF],
-    kesProductResource: UnsafeResource[F, KesProduct],
-    ed25519Resource:    UnsafeResource[F, Ed25519]
+    etaCalculation:          EtaCalculationAlgebra[F],
+    leaderElectionThreshold: LeaderElectionValidationAlgebra[F],
+    ed25519VRFResource:      UnsafeResource[F, Ed25519VRF],
+    kesProductResource:      UnsafeResource[F, KesProduct],
+    ed25519Resource:         UnsafeResource[F, Ed25519]
   ): F[List[BlockMintAlgebra[F]]] =
     stakers
       .parTraverse(staker =>
@@ -235,6 +235,7 @@ object TetraDemo extends IOApp.Simple {
         blake2b256Resource,
         blake2b512Resource
       )
+      leaderElectionThreshold = LeaderElectionValidation.Eval.make[F](vrfConfig, blake2b512Resource)
       underlyingHeaderValidation <- BlockHeaderValidation.Eval.make[F](
         etaCalculation,
         VrfRelativeStakeValidationLookup.Eval.make(state, clock),
@@ -248,9 +249,9 @@ object TetraDemo extends IOApp.Simple {
       cachedHeaderValidation <- BlockHeaderValidation.WithCache.make[F](underlyingHeaderValidation, blockHeaderStore)
       localChain <- LocalChain.Eval.make(
         SlotData(genesis.headerV2)(Ed25519VRF.precomputed()),
-        ChainSelection.orderT(slotDataCache, 5_000, 200_000)
+        ChainSelection.orderT[F](slotDataCache, blake2b512Resource, ChainSelectionKLookback, ChainSelectionSWindow)
       )
-      m <- mints(etaCalculation, ed25519VRFResource, kesProductResource, ed25519Resource)
+      m <- mints(etaCalculation, leaderElectionThreshold, ed25519VRFResource, kesProductResource, ed25519Resource)
       _ <- DemoProgram
         .run[F](
           clock,

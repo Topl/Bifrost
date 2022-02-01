@@ -31,6 +31,9 @@ abstract class Blake2bHash[D: Digest] extends Hash[Blake2b, D] {
     }
 }
 
+/**
+ * A thread-unsafe version of the blake2b interface defined above
+ */
 class Blake2b256 {
   private val digest = new Blake2bDigest(256)
 
@@ -42,6 +45,9 @@ class Blake2b256 {
   }
 }
 
+/**
+ * A thread-unsafe version of the blake2b interface defined above
+ */
 class Blake2b512 {
   private val digest = new Blake2bDigest(512)
 

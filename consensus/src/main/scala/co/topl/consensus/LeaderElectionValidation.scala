@@ -2,7 +2,9 @@ package co.topl.consensus
 
 import cats.Monad
 import cats.implicits._
+import co.topl.algebras.UnsafeResource
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
+import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models._
 import co.topl.models.utility.Ratio
@@ -22,7 +24,10 @@ object LeaderElectionValidation {
 
   object Eval {
 
-    def make[F[_]: Monad](config: VrfConfig): LeaderElectionValidationAlgebra[F] =
+    def make[F[_]: Monad](
+      config:             VrfConfig,
+      blake2b512Resource: UnsafeResource[F, Blake2b512]
+    ): LeaderElectionValidationAlgebra[F] =
       new LeaderElectionValidationAlgebra[F] {
 
         // TODO: Cache of relative stake for each address
@@ -43,16 +48,17 @@ object LeaderElectionValidation {
          * @param proof the proof output
          * @return true if elected slot leader and false otherwise
          */
-        def isSlotLeaderForThreshold(threshold: Ratio)(rho: Rho): F[Boolean] = {
-          val testRhoHash = Ed25519VRF.rhoToRhoTestHash(rho)
-          val testRhoHashBytes = testRhoHash.sizedBytes.data
-          // TODO: Where does this come from?
-          (threshold > testRhoHashBytes.toIterable
-            .zip(1 to testRhoHashBytes.length.toInt) // zip with indexes starting from 1
-            .foldLeft(Ratio(0)) { case (net, (byte, i)) =>
-              net + Ratio(BigInt(byte & 0xff), BigInt(2).pow(8 * i))
-            })
-            .pure[F]
+        def isSlotLeaderForThreshold(threshold: Ratio)(rho: Rho): F[Boolean] = blake2b512Resource.use {
+          implicit blake2b512 =>
+            val testRhoHash = Ed25519VRF.rhoToRhoTestHash(rho)
+            val testRhoHashBytes = testRhoHash.sizedBytes.data
+            // TODO: Where does this come from?
+            (threshold > testRhoHashBytes.toIterable
+              .zip(1 to testRhoHashBytes.length.toInt) // zip with indexes starting from 1
+              .foldLeft(Ratio(0)) { case (net, (byte, i)) =>
+                net + Ratio(BigInt(byte & 0xff), BigInt(2).pow(8 * i))
+              })
+              .pure[F]
         }
 
         /** Calculates log(1-f(slot-parentSlot)) or log(1-f) depending on the configuration */

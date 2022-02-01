@@ -3,6 +3,8 @@ package co.topl.consensus
 import cats._
 import cats.data._
 import cats.implicits._
+import co.topl.algebras.UnsafeResource
+import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models._
 import co.topl.typeclasses._
@@ -19,7 +21,7 @@ object ChainSelection {
   /**
    * The normal ordering to use between tines with a recent common ancestor
    */
-  private val standardOrder: Order[NonEmptyChain[SlotData]] = {
+  private def standardOrder(implicit blake2b512: Blake2b512): Order[NonEmptyChain[SlotData]] = {
     val lengthOrder = Order.by[NonEmptyChain[SlotData], Long](_.length)
     val slotOrder = Order.by[NonEmptyChain[SlotData], Slot](-_.last.slotId.slot)
     val rhoTestHashOrder =
@@ -40,18 +42,20 @@ object ChainSelection {
    * @param sWindow The number of slots of the forward-moving window of blocks for chain-density rule
    */
   def orderT[F[_]: Monad: Logger](
-    storage:   SlotDataCache[F],
-    kLookback: Long,
-    sWindow:   Int
-  ): OrderT[F, SlotData] = new ChainSelectionOrderT[F](storage, kLookback, sWindow)
+    storage:            SlotDataCache[F],
+    blake2b512Resource: UnsafeResource[F, Blake2b512],
+    kLookback:          Long,
+    sWindow:            Long
+  ): OrderT[F, SlotData] = new ChainSelectionOrderT[F](storage, blake2b512Resource, kLookback, sWindow)
 
   /**
    * Implementation of OrderT which provides F[_]-context-based ordering to SlotData (block headers)
    */
   private class ChainSelectionOrderT[F[_]: Monad: Logger](
-    storage:   SlotDataCache[F],
-    kLookback: Long,
-    sWindow:   Int
+    storage:            SlotDataCache[F],
+    blake2b512Resource: UnsafeResource[F, Blake2b512],
+    kLookback:          Long,
+    sWindow:            Long
   ) extends OrderT[F, SlotData] {
 
     override def compare(x: SlotData, y: SlotData): F[Int] =
@@ -60,7 +64,7 @@ object ChainSelection {
         TineComparisonTraversal
           .build(x, y)
           .flatTap(logTraversal)
-          .map(_.comparisonResult)
+          .flatMap(_.comparisonResult)
 
     /**
      * Print out the traversal result, but only if an actual chain selection takes place (and not just a simple append)
@@ -90,7 +94,7 @@ object ChainSelection {
     sealed abstract private class TineComparisonTraversal {
       def next: F[TineComparisonTraversal]
       def sharesCommonAncestor: Boolean
-      def comparisonResult: Int
+      def comparisonResult: F[Int]
 
       /**
        * Compares the heads of each of the given chains.  If the heights are equal, traverses both chains up a block.
@@ -160,8 +164,8 @@ object ChainSelection {
       def sharesCommonAncestor: Boolean =
         xSegment.head === ySegment.head
 
-      def comparisonResult: Int =
-        standardOrder.compare(xSegment, ySegment)
+      def comparisonResult: F[Int] =
+        blake2b512Resource.use(implicit blake2b512 => standardOrder.compare(xSegment, ySegment).pure[F])
     }
 
     /**
@@ -180,8 +184,8 @@ object ChainSelection {
       def sharesCommonAncestor: Boolean =
         xSegment.head === ySegment.head
 
-      def comparisonResult: Int =
-        xSegment.length.compare(ySegment.length)
+      def comparisonResult: F[Int] =
+        xSegment.length.compare(ySegment.length).pure[F]
 
       /**
        * In cases where a common-ancestor search traces back more than `kLookback` blocks, we only need to aggregate

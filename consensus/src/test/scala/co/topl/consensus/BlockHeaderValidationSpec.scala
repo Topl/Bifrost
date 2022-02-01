@@ -6,7 +6,7 @@ import cats.implicits._
 import co.topl.algebras.UnsafeResource
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus.algebras._
-import co.topl.crypto.hash.{blake2b256, Blake2b256}
+import co.topl.crypto.hash.{blake2b256, Blake2b256, Blake2b512}
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.models.ModelGenerators._
 import co.topl.models._
@@ -38,11 +38,6 @@ class BlockHeaderValidationSpec
 
   import BlockHeaderValidationSpec._
 
-  private val leaderElectionInterpreter =
-    LeaderElectionValidation.Eval.make[F](
-      VrfConfig(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
-    )
-
   implicit private val ed25519Vrf: Ed25519VRF =
     Ed25519VRF.precomputed()
 
@@ -54,6 +49,17 @@ class BlockHeaderValidationSpec
 
   private val blake2b256: Blake2b256 =
     new Blake2b256
+
+  private val blake2b512: Blake2b512 =
+    new Blake2b512
+
+  private val leaderElectionInterpreter =
+    LeaderElectionValidation.Eval.make[F](
+      VrfConfig(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5)),
+      new UnsafeResource[F, Blake2b512] {
+        def use[Res](f: Blake2b512 => F[Res]): F[Res] = f(blake2b512)
+      }
+    )
 
   it should "invalidate blocks with non-forward slot" in {
     forAll(genValid(u => u.copy(slot = 0L))) { case (parent, child, registration, eta, relativeStake) =>
