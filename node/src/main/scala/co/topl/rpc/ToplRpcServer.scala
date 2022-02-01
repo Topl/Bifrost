@@ -53,7 +53,6 @@ class ToplRpcServer(handlers: ToplRpcHandlers, appContext: AppContext)(implicit
         .append(ToplRpc.NodeView.TransactionFromMempool.rpc)(handlers.nodeView.transactionFromMempool)
         .append(ToplRpc.NodeView.ConfirmationStatus.rpc)(handlers.nodeView.confirmationStatus)
         .append(ToplRpc.NodeView.Info.rpc)(handlers.nodeView.info)
-        .append(ToplRpc.NodeView.Status.rpc)(handlers.nodeView.status)
     } else RpcServer.Builder.empty
 
   val transactionRoutes: RpcServer.Builder =
@@ -78,6 +77,7 @@ class ToplRpcServer(handlers: ToplRpcHandlers, appContext: AppContext)(implicit
         .append(ToplRpc.Admin.StopForging.rpc)(handlers.admin.stopForging)
         .append(ToplRpc.Admin.UpdateRewardsAddress.rpc)(handlers.admin.updateRewardsAddress)
         .append(ToplRpc.Admin.GetRewardsAddress.rpc)(handlers.admin.getRewardsAddress)
+        .append(ToplRpc.Admin.Status.rpc)(handlers.admin.status)
     } else RpcServer.Builder.empty
 
   val route: Route =

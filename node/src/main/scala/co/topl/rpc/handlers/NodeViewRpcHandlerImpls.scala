@@ -3,9 +3,9 @@ package co.topl.rpc.handlers
 import akka.actor.typed.ActorSystem
 import cats.data.EitherT
 import cats.implicits._
-import co.topl.akkahttprpc.{CustomError, InvalidParametersError, RpcError, ThrowableData}
+import co.topl.akkahttprpc.{InvalidParametersError, RpcError, ThrowableData}
 import co.topl.attestation.Address
-import co.topl.consensus.{blockVersion, getProtocolRules, Forger, ForgerInterface}
+import co.topl.consensus.{blockVersion, getProtocolRules}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
@@ -14,8 +14,8 @@ import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView}
+import co.topl.rpc.ToplRpc
 import co.topl.rpc.ToplRpc.NodeView.ConfirmationStatus.TxStatus
-import co.topl.rpc.{ToplRpc, ToplRpcErrors}
 import co.topl.settings.{AppContext, RPCApiSettings}
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
@@ -27,8 +27,7 @@ import scala.language.existentials
 class NodeViewRpcHandlerImpls(
   rpcSettings:             RPCApiSettings,
   appContext:              AppContext,
-  nodeViewHolderInterface: NodeViewHolderInterface,
-  forgerInterface:         ForgerInterface
+  nodeViewHolderInterface: NodeViewHolderInterface
 )(implicit
   system:           ActorSystem[_],
   throwableEncoder: Encoder[ThrowableData],
@@ -159,20 +158,6 @@ class NodeViewRpcHandlerImpls(
         )
       }
 
-  override val status: ToplRpc.NodeView.Status.rpc.ServerHandler =
-    _ =>
-      for {
-        forgerStatus <- forgerInterface
-          .checkForgerStatus()
-          .leftMap(e => ToplRpcErrors.genericFailure(e.toString): RpcError)
-          .map {
-            case Forger.Active        => "active"
-            case Forger.Idle          => "idle"
-            case Forger.Uninitialized => "uninitialized"
-          }
-        mempoolSize <- withNodeView(_.memPool.size)
-      } yield ToplRpc.NodeView.Status.Response(forgerStatus, mempoolSize)
-
   private def balancesResponse(
     state:     StateReader[_, Address],
     addresses: List[Address]
@@ -255,10 +240,6 @@ class NodeViewRpcHandlerImpls(
       }
     }
 
-  private def withNodeView[T](f: ReadableNodeView => T) =
-    nodeViewHolderInterface
-      .withNodeView(f)
-      .leftMap { case NodeViewHolderInterface.ReadFailure(throwable) =>
-        CustomError.fromThrowable(throwable): RpcError
-      }
+  private def withNodeView[T](f: ReadableNodeView => T): EitherT[Future, RpcError, T] =
+    readFromNodeViewHolder(nodeViewHolderInterface)(f)
 }

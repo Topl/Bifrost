@@ -131,9 +131,9 @@ trait RPCMockState
         ToplRpcHandlers(
           new DebugRpcHandlerImpls(nodeViewHolderInterface, keyManagerInterface),
           new UtilsRpcHandlerImpls,
-          new NodeViewRpcHandlerImpls(settings.rpcApi, appContext, nodeViewHolderInterface, forgerInterface),
+          new NodeViewRpcHandlerImpls(settings.rpcApi, appContext, nodeViewHolderInterface),
           new TransactionRpcHandlerImpls(nodeViewHolderInterface),
-          new AdminRpcHandlerImpls(forgerInterface, keyManagerInterface)
+          new AdminRpcHandlerImpls(forgerInterface, keyManagerInterface, nodeViewHolderInterface)
         ),
         appContext
       )

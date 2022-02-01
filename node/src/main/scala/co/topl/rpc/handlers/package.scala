@@ -1,12 +1,18 @@
 package co.topl.rpc
 
-import co.topl.akkahttprpc.RpcError
+import cats.data.EitherT
+import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
 import co.topl.attestation.Address
 import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.StateReader
+import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView}
+import io.circe.Encoder
+
+import scala.concurrent.{ExecutionContext, Future}
+import scala.language.existentials
 
 package object handlers {
 
@@ -99,4 +105,16 @@ package object handlers {
         ToplRpcErrors.unsupportedOperation("Height range exceeded block/block id retrieval limit")
       )
     } yield (startHeight, endHeight)
+
+  private[handlers] def readFromNodeViewHolder[T](
+    nodeViewHolderInterface: NodeViewHolderInterface
+  )(f:                       ReadableNodeView => T)(implicit
+    throwableEncoder:        Encoder[ThrowableData],
+    executionContext:        ExecutionContext
+  ): EitherT[Future, RpcError, T] =
+    nodeViewHolderInterface
+      .withNodeView(f)
+      .leftMap { case NodeViewHolderInterface.ReadFailure(throwable) =>
+        CustomError.fromThrowable(throwable): RpcError
+      }
 }

@@ -124,7 +124,7 @@ class RpcSpec
   it should "choose the correct handler" in {
 
     val underTest =
-      Rpc[TestMethodParams, TestMethodSuccess](List("test_method2")).serve(params =>
+      Rpc[TestMethodParams, TestMethodSuccess]("test_method2").serve(params =>
         TestMethodSuccess(params.userId.length).asRight[RpcError].toEitherT[Future]
       ) ~ normalRoute
 
@@ -148,7 +148,7 @@ class RpcSpec
 
     val underTest =
       RpcServer.Builder.empty
-        .append(Rpc[TestMethodParams, TestMethodSuccess](List("test_method2")))(params =>
+        .append(Rpc[TestMethodParams, TestMethodSuccess]("test_method2"))(params =>
           TestMethodSuccess(params.userId.length).asRight[RpcError].toEitherT[Future]
         )
         .append(normalRpc)(normalRpcHandler)
@@ -175,7 +175,7 @@ class RpcSpec
 
     val underTest =
       RpcServer.Builder.empty
-        .append(Rpc[TestMethodParams, TestMethodSuccess](List("test_method2")))(params =>
+        .append(Rpc[TestMethodParams, TestMethodSuccess]("test_method2"))(params =>
           TestMethodSuccess(params.userId.length).asRight[RpcError].toEitherT[Future]
         )
         .append(normalRpc)(normalRpcHandler)
@@ -217,7 +217,7 @@ class RpcSpec
 
   it should "return a custom error when an RPC results in an unhandled exception" in {
     val underTest =
-      Rpc[TestMethodParams, TestMethodSuccess](List("test_method1")).serve(_ =>
+      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(_ =>
         EitherT[Future, RpcError, TestMethodSuccess](Future.failed(new Exception("Heck")))
       )
 
@@ -241,7 +241,7 @@ class RpcSpec
   it should "return a custom error when an RPC results in a known error" in {
 
     val underTest =
-      Rpc[TestMethodParams, TestMethodSuccess](List("test_method1")).serve(_ =>
+      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(_ =>
         EitherT.leftT[Future, TestMethodSuccess](CustomError(-32005, "Heck"))
       )
 
@@ -265,7 +265,7 @@ class RpcSpec
     normalRpc.serve(normalRpcHandler)
 
   private def normalRpc =
-    Rpc[TestMethodParams, TestMethodSuccess](List("test_method1"))
+    Rpc[TestMethodParams, TestMethodSuccess]("test_method1")
 
   private def normalRpcHandler = (params: TestMethodParams) =>
     TestMethodSuccess(params.userId.length).asRight[RpcError].toEitherT[Future]
