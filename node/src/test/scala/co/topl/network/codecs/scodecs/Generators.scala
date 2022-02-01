@@ -2,7 +2,7 @@ package co.topl.network.codecs.scodecs
 
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.network.message.Messages.MessagesV1
-import co.topl.network.peer.{LocalAddressPeerFeature, PeerFeature, PeerSpec}
+import co.topl.network.peer.{LocalAddressPeerFeature, PeerFeature, PeerMetadata}
 import co.topl.settings.Version
 import io.netty.channel.local.LocalAddress
 import org.scalacheck.Gen
@@ -33,7 +33,7 @@ object Generators {
 
   val peerFeatureGen: Gen[PeerFeature] = inetSocketAddressGen.map(a => LocalAddressPeerFeature(a))
 
-  val peerSpecGen: Gen[PeerSpec] =
+  val peerMetadataGen: Gen[PeerMetadata] =
     Gen
       .zip(
         Gen.asciiPrintableStr.filter(_.nonEmpty),
@@ -43,11 +43,11 @@ object Generators {
         Gen.listOf(peerFeatureGen)
       )
       .map { case (agent, version, name, address, features) =>
-        PeerSpec(agent, version, name, address, features)
+        PeerMetadata(agent, version, name, address, features)
       }
 
   val handshakeGen: Gen[MessagesV1.Handshake] =
-    Gen.zip(peerSpecGen, Gen.posNum[Long]).map(values => MessagesV1.Handshake(values._1, values._2))
+    Gen.zip(peerMetadataGen, Gen.posNum[Long]).map(values => MessagesV1.Handshake(values._1, values._2))
 
   val modifierTypeIdGen: Gen[ModifierTypeId] =
     Gen.oneOf((0 to 255).map(_.toByte)).map(x => ModifierTypeId(x))

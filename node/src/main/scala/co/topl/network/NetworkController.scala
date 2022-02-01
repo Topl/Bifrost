@@ -381,7 +381,7 @@ class NetworkController(
   private def handleHandshake(peerInfo: PeerInfo, peerHandlerRef: ActorRef): Unit =
     connectionForHandler(peerHandlerRef).foreach { connectedPeer =>
       val remoteAddress = connectedPeer.connectionId.remoteAddress
-      val peerAddress = peerInfo.peerSpec.address.getOrElse(remoteAddress)
+      val peerAddress = peerInfo.metadata.address.getOrElse(remoteAddress)
 
       /** drop connection to self if occurred or peer already connected */
       val shouldDrop = isSelf(remoteAddress) ||
@@ -397,8 +397,8 @@ class NetworkController(
 
         /** Use remoteAddress as peer's address, if there is no address info in it's PeerInfo */
         val updatedPeerSpec =
-          peerInfo.peerSpec.copy(declaredAddress = Some(peerInfo.peerSpec.address.getOrElse(remoteAddress)))
-        val updatedPeerInfo = peerInfo.copy(peerSpec = updatedPeerSpec)
+          peerInfo.metadata.copy(declaredAddress = Some(peerInfo.metadata.address.getOrElse(remoteAddress)))
+        val updatedPeerInfo = peerInfo.copy(metadata = updatedPeerSpec)
         val updatedConnectedPeer =
           connectedPeer.copy(peerInfo = Some(updatedPeerInfo))
 
@@ -421,7 +421,7 @@ class NetworkController(
   private def filterConnections(sendingStrategy: SendingStrategy, version: Version): Seq[ConnectedPeer] =
     sendingStrategy.choose(
       connections.values.toSeq
-        .filter(_.peerInfo.exists(_.peerSpec.version >= version))
+        .filter(_.peerInfo.exists(_.metadata.version >= version))
     )
 
   /**
@@ -465,7 +465,7 @@ class NetworkController(
    * @return socket address of the peer
    */
   private def getPeerAddress(peer: PeerInfo): Option[InetSocketAddress] =
-    (peer.peerSpec.localAddressOpt, peer.peerSpec.declaredAddress) match {
+    (peer.metadata.localAddressOpt, peer.metadata.declaredAddress) match {
       case (Some(localAddr), _) =>
         Some(localAddr)
 
@@ -473,7 +473,7 @@ class NetworkController(
           if appContext.externalNodeAddress.exists(_.getAddress == declaredAddress.getAddress) =>
         appContext.upnpGateway.flatMap(_.getLocalAddressForExternalPort(declaredAddress.getPort))
 
-      case _ => peer.peerSpec.declaredAddress
+      case _ => peer.metadata.declaredAddress
     }
 
   /**

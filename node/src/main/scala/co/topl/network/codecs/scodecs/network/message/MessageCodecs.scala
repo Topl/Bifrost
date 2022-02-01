@@ -7,7 +7,7 @@ import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.network.BifrostSyncInfo
 import co.topl.network.message.Messages.MessagesV1._
 import co.topl.network.message._
-import co.topl.network.peer.PeerSpec
+import co.topl.network.peer.PeerMetadata
 import co.topl.network.codecs.scodecs.network.peer._
 import scodec.codecs.{discriminated, int32}
 import scodec.{Attempt, Codec, Err}
@@ -65,15 +65,15 @@ trait MessageCodecs {
     (modifierTypeIdCodec :: seqCodec[ModifierId]).as[InventoryResponse]
 
   implicit val handshakeCodec: Codec[Handshake] =
-    (uLongCodec :: peerSpecCodec).xmapc { case time :: peerSpec :: HNil =>
+    (uLongCodec :: peerMetadataCodec).xmapc { case time :: peerSpec :: HNil =>
       Handshake(peerSpec, time)
     }(handshake => handshake.time :: handshake.peerSpec :: HNil)
 
-  implicit val peersSpecRequestCodec: Codec[PeersSpecRequest] =
-    Codec[Unit].xmap[PeersSpecRequest](_ => PeersSpecRequest(), _ => ())
+  implicit val peersMetadataRequestCodec: Codec[PeersMetadataRequest] =
+    Codec[Unit].xmap[PeersMetadataRequest](_ => PeersMetadataRequest(), _ => ())
 
-  implicit val peersSpecResponseCodec: Codec[PeersSpecResponse] =
-    seqCodec[PeerSpec].as[PeersSpecResponse]
+  implicit val peersMetadataResponseCodec: Codec[PeersMetadataResponse] =
+    seqCodec[PeerMetadata].as[PeersMetadataResponse]
 
   implicit val modifiersRequestCodec: Codec[ModifiersRequest] =
     (modifierTypeIdCodec :: seqCodec[ModifierId]).as[ModifiersRequest]
@@ -92,8 +92,8 @@ trait MessageCodecs {
       .typecase(BifrostSyncInfoRequest.messageCode, bifrostSyncInfoResponseCodec)
       .typecase(InventoryResponse.messageCode, inventoryResponseCodec)
       .typecase(Handshake.messageCode, handshakeCodec)
-      .typecase(PeersSpecRequest.messageCode, peersSpecRequestCodec)
-      .typecase(PeersSpecResponse.messageCode, peersSpecResponseCodec)
+      .typecase(PeersMetadataRequest.messageCode, peersMetadataRequestCodec)
+      .typecase(PeersMetadataResponse.messageCode, peersMetadataResponseCodec)
       .typecase(ModifiersRequest.messageCode, modifiersRequestCodec)
       .typecase(ModifiersResponse.messageCode, modifiersResponseCodec)
 }

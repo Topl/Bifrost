@@ -1,7 +1,7 @@
 package co.topl.network.codecs.scodecs.network.peer
 
 import co.topl.codecs._
-import co.topl.network.peer.{LocalAddressPeerFeature, PeerFeature, PeerSpec}
+import co.topl.network.peer.{LocalAddressPeerFeature, PeerFeature, PeerMetadata}
 import co.topl.network.codecs.scodecs.settings._
 import co.topl.utils.Extensions.{IntOps, LongOps}
 import scodec.Codec
@@ -43,11 +43,11 @@ trait PeerCodecs {
           )
       )
 
-  implicit val peerSpecCodec: Codec[PeerSpec] =
+  implicit val peerMetadataCodec: Codec[PeerMetadata] =
     (byteStringCodec ::
       versionCodec ::
       byteStringCodec ::
       optionCodec[InetSocketAddress] ::
       seqCodec[PeerFeature])
-      .as[PeerSpec]
+      .as[PeerMetadata]
 }

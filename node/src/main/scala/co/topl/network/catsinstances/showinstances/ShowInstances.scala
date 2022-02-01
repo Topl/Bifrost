@@ -5,19 +5,19 @@ import cats.implicits._
 import co.topl.codecs._
 import co.topl.network.message.Messages.MessagesV1
 import co.topl.network.message.{Transmission, TransmissionContent, TransmissionHeader}
-import co.topl.network.peer.PeerSpec
+import co.topl.network.peer.PeerMetadata
 import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.catsInstances._
 
 trait ShowInstances {
 
-  implicit val peerSpecShow: Show[PeerSpec] = peerSpec => s"""
-          |PeerSpec {
-          |  agentName: ${peerSpec.agentName},
-          |  version: ${peerSpec.version},
-          |  nodeName: ${peerSpec.nodeName},
-          |  address: ${peerSpec.declaredAddress},
-          |  features: ${peerSpec.features}
+  implicit val peerMetadataShow: Show[PeerMetadata] = peerMetadata => s"""
+          |PeerMetadata {
+          |  agentName: ${peerMetadata.agentName},
+          |  version: ${peerMetadata.version},
+          |  nodeName: ${peerMetadata.nodeName},
+          |  address: ${peerMetadata.declaredAddress},
+          |  features: ${peerMetadata.features}
           |}
           |""".stripMargin
 
@@ -35,7 +35,7 @@ trait ShowInstances {
        | }
        |""".stripMargin
 
-  implicit val peersSpecRequestShow: Show[MessagesV1.PeersSpecRequest] = _ => s"PeersSpecRequest {}"
+  implicit val peersMetadataRequestShow: Show[MessagesV1.PeersMetadataRequest] = _ => s"PeersMetadataRequest {}"
 
   implicit val transmissionHeaderShow: Show[TransmissionHeader] = header =>
     s"TransmissionHeader { code: '${header.code}', data length: ${header.dataLength} }"

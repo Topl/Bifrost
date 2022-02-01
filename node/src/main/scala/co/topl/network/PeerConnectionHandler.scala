@@ -36,7 +36,7 @@ class PeerConnectionHandler(
   private val ownSocketAddress = connectionDescription.ownSocketAddress
   private val localFeatures = connectionDescription.localFeatures
 
-  private val localPeerSpec = PeerSpec(
+  private val localPeerSpec = PeerMetadata(
     settings.network.agentName,
     settings.application.version,
     settings.network.nodeName,

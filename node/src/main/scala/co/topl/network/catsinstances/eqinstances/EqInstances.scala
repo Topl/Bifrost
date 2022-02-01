@@ -5,7 +5,7 @@ import cats.Eq
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.network.message.Messages.MessagesV1
 import co.topl.network.message.{Transmission, TransmissionContent, TransmissionHeader}
-import co.topl.network.peer.PeerSpec
+import co.topl.network.peer.PeerMetadata
 import co.topl.utils.catsInstances._
 
 import java.net.InetSocketAddress
@@ -14,7 +14,7 @@ trait EqInstances {
 
   implicit val inetSocketAddressEq: Eq[InetSocketAddress] = Eq.fromUniversalEquals
 
-  implicit val peerSpecEq: Eq[PeerSpec] = (p1, p2) =>
+  implicit val peerMetadataEq: Eq[PeerMetadata] = (p1, p2) =>
     p1.agentName === p2.agentName &&
     p1.version.firstDigit === p1.version.firstDigit &&
     p1.version.secondDigit === p2.version.secondDigit &&
@@ -27,7 +27,7 @@ trait EqInstances {
     h1.peerSpec === h2.peerSpec
 
   // trivial since class has no data
-  implicit val peersSpecRequestEq: Eq[MessagesV1.PeersSpecRequest] = (_, _) => true
+  implicit val peersMetadataRequestEq: Eq[MessagesV1.PeersMetadataRequest] = (_, _) => true
 
   implicit val modifierTypeIdEq: Eq[ModifierTypeId] = (m1, m2) => m1.value === m2.value
 

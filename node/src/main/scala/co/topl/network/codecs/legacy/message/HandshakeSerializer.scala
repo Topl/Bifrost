@@ -1,14 +1,14 @@
 package co.topl.network.codecs.legacy.message
 
 import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
-import co.topl.network.codecs.legacy.peer.PeerSpecSerializer
+import co.topl.network.codecs.legacy.peer.PeerMetadataSerializer
 import co.topl.network.message.Messages.MessagesV1
 import co.topl.network.peer.PeerFeature
 
 class HandshakeSerializer(featureSerializers: PeerFeature.Serializers, sizeLimit: Int)
     extends BifrostSerializer[MessagesV1.Handshake] {
 
-  private val peersDataSerializer = new PeerSpecSerializer(featureSerializers)
+  private val peersDataSerializer = new PeerMetadataSerializer(featureSerializers)
 
   override def serialize(obj: MessagesV1.Handshake, w: Writer): Unit = {
     w.putULong(obj.time)

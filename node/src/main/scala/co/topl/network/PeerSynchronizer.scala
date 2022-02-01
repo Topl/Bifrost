@@ -7,7 +7,7 @@ import co.topl.network.NetworkController.ReceivableMessages.{PenalizePeer, Regis
 import co.topl.network.PeerManager.ReceivableMessages.{AddPeerIfEmpty, RecentlySeenPeers}
 import co.topl.network.message.Messages.MessagesV1
 import co.topl.network.message.{Message, MessageCode, Transmission}
-import co.topl.network.peer.{ConnectedPeer, PeerInfo, PeerSpec, PenaltyType}
+import co.topl.network.peer.{ConnectedPeer, PeerInfo, PeerMetadata, PenaltyType}
 import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.Logging
 import shapeless.syntax.typeable._
@@ -30,8 +30,8 @@ class PeerSynchronizer(
 
   /** partial functions for identifying local method handlers for the messages above */
   protected val msgHandlers: PartialFunction[(Message, ConnectedPeer), Unit] = {
-    case (message: MessagesV1.PeersSpecResponse, _) => addNewPeers(message.peers)
-    case (_: MessagesV1.PeersSpecRequest, remote)   => gossipPeers(remote)
+    case (message: MessagesV1.PeersMetadataResponse, _) => addNewPeers(message.peers)
+    case (_: MessagesV1.PeersMetadataRequest, remote)   => gossipPeers(remote)
   }
 
   override def preStart(): Unit = {
@@ -59,7 +59,7 @@ class PeerSynchronizer(
   // ////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
   /** Schedule a message to gossip about our locally known peers */
   private def scheduleGetPeers(): Unit = {
-    val msg = MessagesV1.PeersSpecRequest()
+    val msg = MessagesV1.PeersMetadataRequest()
 
     context.system.scheduler.scheduleWithFixedDelay(
       2.seconds,
@@ -74,8 +74,8 @@ class PeerSynchronizer(
    *
    * @param peers sequence of peer specs describing a remote peers details
    */
-  private def addNewPeers(peers: Seq[PeerSpec]): Unit =
-    if (peers.cast[Seq[PeerSpec]].isDefined) {
+  private def addNewPeers(peers: Seq[PeerMetadata]): Unit =
+    if (peers.cast[Seq[PeerMetadata]].isDefined) {
       peers.foreach(peerSpec => peerManager ! AddPeerIfEmpty(peerSpec))
     }
 
@@ -88,7 +88,7 @@ class PeerSynchronizer(
     (peerManager ? RecentlySeenPeers(settings.network.maxPeerSpecObjects))
       .mapTo[Seq[PeerInfo]]
       .foreach { peers =>
-        val msg = MessagesV1.PeersSpecResponse(peers.map(_.peerSpec))
+        val msg = MessagesV1.PeersMetadataResponse(peers.map(_.metadata))
         networkControllerRef ! SendToNetwork(Transmission.encodeMessage(msg), msg.version, SendToPeer(remote))
       }
 
@@ -107,8 +107,8 @@ object PeerSynchronizer {
 
   val acceptableMessages: Seq[MessageCode] =
     Seq(
-      MessagesV1.PeersSpecResponse.messageCode,
-      MessagesV1.PeersSpecRequest.messageCode
+      MessagesV1.PeersMetadataResponse.messageCode,
+      MessagesV1.PeersMetadataRequest.messageCode
     )
 
   val actorName = "peerSynchronizer"

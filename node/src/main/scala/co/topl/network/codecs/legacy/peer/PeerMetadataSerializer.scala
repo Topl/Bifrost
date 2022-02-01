@@ -1,15 +1,15 @@
 package co.topl.network.codecs.legacy.peer
 
 import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
-import co.topl.network.peer.{PeerFeature, PeerSpec}
+import co.topl.network.peer.{PeerFeature, PeerMetadata}
 import co.topl.settings.{Version, VersionSerializer}
 import co.topl.utils.Extensions._
 
 import java.net.{InetAddress, InetSocketAddress}
 
-class PeerSpecSerializer(featureSerializers: PeerFeature.Serializers) extends BifrostSerializer[PeerSpec] {
+class PeerMetadataSerializer(featureSerializers: PeerFeature.Serializers) extends BifrostSerializer[PeerMetadata] {
 
-  override def serialize(obj: PeerSpec, w: Writer): Unit = {
+  override def serialize(obj: PeerMetadata, w: Writer): Unit = {
     /* agentName: String */
     w.putByteString(obj.agentName)
 
@@ -37,7 +37,7 @@ class PeerSpecSerializer(featureSerializers: PeerFeature.Serializers) extends Bi
     }
   }
 
-  override def parse(r: Reader): PeerSpec = {
+  override def parse(r: Reader): PeerMetadata = {
 
     val appName: String = r.getByteString()
     require(appName.nonEmpty)
@@ -64,6 +64,6 @@ class PeerSpecSerializer(featureSerializers: PeerFeature.Serializers) extends Bi
       }
     }
 
-    PeerSpec(appName, version, nodeName, declaredAddressOpt, feats)
+    PeerMetadata(appName, version, nodeName, declaredAddressOpt, feats)
   }
 }
