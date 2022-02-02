@@ -243,7 +243,9 @@ class RpcSpec
   }
 
   private def normalRoute: Route =
-    normalRpc.serve(normalRpcHandler)
+    RpcServer.Builder.empty
+      .append(normalRpc)(normalRpcHandler)
+      .route
 
   private def normalRpc: Rpc[TestMethodParams, TestMethodSuccess] =
     Rpc[TestMethodParams, TestMethodSuccess]("test_method1")

@@ -5,19 +5,7 @@ import cats.kernel.Semigroup
 import co.topl.akkahttprpc.RpcDirectives.{rpcRoute, rpcRoutes}
 import io.circe.{Decoder, Encoder}
 
-class RpcServer[Params, SuccessResponse](val rpc: Rpc[Params, SuccessResponse]) extends AnyVal {
-
-  /**
-   * Constructs a Route which serves a single RPC handler for the first rpc method name
-   */
-  def serve(handler:        rpc.ServerHandler)(implicit
-    paramsDecoder:          Decoder[Params],
-    successResponseEncoder: Encoder[SuccessResponse],
-    throwableEncoder:       Encoder[ThrowableData]
-  ): Route =
-    rpcRoute[Params, SuccessResponse](rpc.method, handler)
-
-}
+class RpcServer[Params, SuccessResponse](val rpc: Rpc[Params, SuccessResponse]) extends AnyVal
 
 object RpcServer {
 
