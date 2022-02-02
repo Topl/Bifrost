@@ -55,24 +55,6 @@ package object handlers {
       ToplRpcErrors.unsupportedOperation(s"Number of ids given exceeded retrieval limit of $sizeLimit")
     )
 
-//  private[handlers] def checkBlocksFoundWithIds(
-//    blockOptions: List[Option[Block]],
-//  ): Either[RpcError, List[Block]] = blockOptions.sequence.toRight(ToplRpcErrors.NoBlockWithId)
-//
-//  private[handlers] def checkTxFoundWithIds[T](
-//    ids:       List[ModifierId],
-//    txOptions:  List[Option[T]],
-//    sizeLimit: Int
-//  ): Either[RpcError, List[T]] =
-//    for {
-//      _ <- Either.cond(
-//        ids.size <= sizeLimit,
-//        {},
-//        ToplRpcErrors.unsupportedOperation("Number of ids given exceeded txRetrievalLimit")
-//      )
-//      txs <- txOptions.sequence.toRight(ToplRpcErrors.NoTransactionWithId)
-//    } yield txs
-
   private[handlers] def checkHeightRange(
     bestBlockHeight: Long,
     startHeight:     Long,
