@@ -1,20 +1,45 @@
 package co.topl.credential
 
 import cats.data.NonEmptyChain
+import cats.effect.unsafe.implicits.global
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
+import co.topl.scripting.GraalVMScripting
+import co.topl.scripting.GraalVMScripting.GraalVMValuable
+import co.topl.scripting.GraalVMScripting.instances._
 import co.topl.typeclasses.{KeyInitializer, VerificationContext}
 import co.topl.typeclasses.implicits._
+import io.circe.Json
+import io.circe.syntax.EncoderOps
+import org.graalvm.polyglot.Value
 
 import scala.annotation.tailrec
 import scala.collection.immutable.ListMap
 import scala.util.Random
 
 object CredentialPlaygroundNE extends App {
+  type F[A] = cats.effect.IO[A]
+
   implicit val ed25519: Ed25519 = new Ed25519
   implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.precomputed()
+
+  implicit val jsExecutor: Propositions.Script.JS.JSScript => F[(Json, Json) => F[Boolean]] =
+    s =>
+      GraalVMScripting
+        .jsExecutor[F, Boolean](s.value)
+        .map(f =>
+          Function.untupled(
+            f.compose[(Json, Json)] { t =>
+              Seq(
+                GraalVMValuable[Json].toGraalValue(t._1),
+                GraalVMValuable[Json].toGraalValue(t._2),
+                Value.asValue(new VerificationUtils)
+              )
+            }
+          )
+        )
   implicit val networkPrefix: NetworkPrefix = NetworkPrefix(1: Byte)
 
   // Exercise: Construct complex propositions and attempt to prove them using Credentials
@@ -25,7 +50,7 @@ object CredentialPlaygroundNE extends App {
 
   val party3Address: DionAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.dionAddress
 
-  val proposition = party1SK.vk.asProposition.and(party2SK.vk.asProposition)
+  val proposition: Propositions.Compositional.And = party1SK.vk.asProposition.and(party2SK.vk.asProposition)
   println(proposition)
 
   val unprovenTransaction: Transaction.Unproven = Transaction.Unproven(
@@ -46,7 +71,7 @@ object CredentialPlaygroundNE extends App {
     )
   )
 
-  val proof = credential.proof
+  val proof: Proof = credential.proof
   println(proof)
 
   val transaction = Transaction(
@@ -60,17 +85,26 @@ object CredentialPlaygroundNE extends App {
   )
   println(transaction)
 
-  type F[A] = cats.Id[A]
-
   implicit val verificationContext: VerificationContext[F] =
     new VerificationContext[F] {
       def currentTransaction: Transaction = transaction
 
       def currentHeight: Long = 50L
+
+      def inputBoxes: List[Box[Box.Value]] = List(
+        Box(
+          proposition.typedEvidence,
+          unprovenTransaction.inputs.head._2,
+          Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
+          10
+        )
+      )
+
+      def currentSlot: Slot = 1
     }
 
-  val verificationResult: Boolean =
-    proposition.isSatisifiedBy[F](proof)
+  val verificationResult =
+    proposition.isSatisfiedBy(proof)
   println(verificationResult)
 
 }
@@ -102,8 +136,26 @@ object Tabulator {
 }
 
 object TruthTable extends App {
+  type F[A] = cats.effect.IO[A]
+
   implicit val ed25519: Ed25519 = new Ed25519
   implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.precomputed()
+
+  implicit val jsExecutor: Propositions.Script.JS.JSScript => F[(Json, Json) => F[Boolean]] =
+    s =>
+      GraalVMScripting
+        .jsExecutor[F, Boolean](s.value)
+        .map(f =>
+          Function.untupled(
+            f.compose[(Json, Json)] { t =>
+              Seq(
+                GraalVMValuable[Json].toGraalValue(t._1),
+                GraalVMValuable[Json].toGraalValue(t._2),
+                Value.asValue(new VerificationUtils)
+              )
+            }
+          )
+        )
   implicit val networkPrefix: NetworkPrefix = NetworkPrefix(1: Byte)
 
   val party1SK: SecretKeys.Ed25519 = KeyInitializer[SecretKeys.Ed25519].random()
@@ -162,24 +214,33 @@ object TruthTable extends App {
   )
   println(transaction)
 
-  type F[A] = cats.Id[A]
-
   implicit val verificationContext: VerificationContext[F] =
     new VerificationContext[F] {
       def currentTransaction: Transaction = transaction
 
       def currentHeight: Long = 50L
+
+      def inputBoxes: List[Box[Box.Value]] = List(
+        Box(
+          proposition.typedEvidence,
+          unprovenTransaction.inputs.head._2,
+          Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
+          10
+        )
+      )
+
+      def currentSlot: Slot = 1
     }
 
   val verificationResult: Boolean =
-    proposition.isSatisifiedBy[F](proof)
+    proposition.isSatisfiedBy(proof).unsafeRunSync()
   println(verificationResult)
 
-  proofs.foreach(p => println(proposition.isSatisifiedBy[F](p)))
-
-  val propMatrix = for {
-    
-  } yield ???
+  proofs.foreach(p => println(proposition.isSatisfiedBy(p).unsafeRunSync()))
+//
+//  val propMatrix = for {
+//
+//  } yield ???
 
   println(Tabulator.format(Seq(Seq.range(1, parties.size + 1).map(_.toString) ++ "Result")))
 

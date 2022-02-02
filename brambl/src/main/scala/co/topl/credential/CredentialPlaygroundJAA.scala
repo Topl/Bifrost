@@ -135,7 +135,7 @@ object RequiredOutput extends App {
 
   val requiredBoxProposition = Propositions.Contextual.RequiredBoxState(
     BoxLocations.Output,
-    List((0, Box.empty.copy(evidence = address0.typedEvidence)))
+    List((0, Box.empty.copy(evidence = address0.typedEvidence))) // todo: helper function name for Box.empty.copy
   )
   val proposition = curve25519Sk.vk.asProposition.and(requiredBoxProposition)
   println(s"The address for the proposition is: ${proposition.dionAddress}")
