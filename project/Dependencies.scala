@@ -82,7 +82,7 @@ object Dependencies {
     Seq(
       "com.typesafe.akka"          %% "akka-cluster"       % akkaVersion,
       "com.typesafe.akka"          %% "akka-remote"        % akkaVersion,
-      "com.typesafe"                % "config"             % "1.4.1",
+      "com.typesafe"                % "config"             % "1.4.2",
       "com.lihaoyi"                %% "mainargs"           % "0.2.2",
       "net.jpountz.lz4"             % "lz4"                % "1.3.0",
       "com.github.julien-truffaut" %% "monocle-core"       % "3.0.0-M6",
