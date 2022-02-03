@@ -66,7 +66,7 @@ class NodeViewRpcHandlerImpls(
   override val transactionById: ToplRpc.NodeView.TransactionById.rpc.ServerHandler =
     params =>
       getTxsByIds(List(params.transactionId)).subflatMap {
-        case (tx, blockId, blockNumber) :: Nil =>
+        case (tx, blockId, blockNumber) :: _ =>
           Either.right(ToplRpc.NodeView.TransactionById.Response(tx, blockNumber, blockId))
         case _ => Either.left(ToplRpcErrors.NoTransactionWithId)
       }
