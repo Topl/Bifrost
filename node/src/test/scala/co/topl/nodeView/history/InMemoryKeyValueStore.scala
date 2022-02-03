@@ -40,7 +40,7 @@ class InMemoryKeyValueStore extends KeyValueStore {
           state += (new WrappedBytes(key) -> previous)
       }
     }
-    while (changes.nonEmpty && !java.util.Arrays.equals(changes.head.version, version)) revertLatest()
+    while (changes.nonEmpty && !java.util.Arrays.equals(changes.last.version, version)) revertLatest()
   }
 
   override def get(key: Array[Byte]): Option[Array[Byte]] =
