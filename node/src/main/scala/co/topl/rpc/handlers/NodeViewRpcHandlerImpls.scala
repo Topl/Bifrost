@@ -14,8 +14,8 @@ import co.topl.network.message.BifrostSyncInfo
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView}
-import co.topl.rpc.ToplRpc
 import co.topl.rpc.ToplRpc.NodeView.ConfirmationStatus.TxStatus
+import co.topl.rpc.{ToplRpc, ToplRpcErrors}
 import co.topl.settings.{AppContext, RPCApiSettings}
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
@@ -65,10 +65,10 @@ class NodeViewRpcHandlerImpls(
 
   override val transactionById: ToplRpc.NodeView.TransactionById.rpc.ServerHandler =
     params =>
-      getTxsByIds(List(params.transactionId)).map {
-        _.head match {
-          case (tx, blockId, blockNumber) => ToplRpc.NodeView.TransactionById.Response(tx, blockNumber, blockId)
-        }
+      getTxsByIds(List(params.transactionId)).subflatMap {
+        case (tx, blockId, blockNumber) :: _ =>
+          Either.right(ToplRpc.NodeView.TransactionById.Response(tx, blockNumber, blockId))
+        case _ => Either.left(ToplRpcErrors.NoTransactionWithId)
       }
 
   override val blockById: ToplRpc.NodeView.BlockById.rpc.ServerHandler =
@@ -81,9 +81,8 @@ class NodeViewRpcHandlerImpls(
     params =>
       for {
         headHeight <- withNodeView(_.history.height)
-        range <- EitherT.fromEither[Future](
-          checkHeightRange(headHeight, params.startHeight, params.endHeight, rpcSettings.blockRetrievalLimit)
-        )
+        range <- checkHeightRange(headHeight, params.startHeight, params.endHeight, rpcSettings.blockRetrievalLimit)
+          .toEitherT[Future]
         blocks <- withNodeView(view => getBlocksInRange(view.history, range._1, range._2))
       } yield blocks
 
@@ -91,9 +90,8 @@ class NodeViewRpcHandlerImpls(
     params =>
       for {
         headHeight <- withNodeView(_.history.height)
-        range <- EitherT.fromEither[Future](
-          checkHeightRange(headHeight, params.startHeight, params.endHeight, rpcSettings.blockIdRetrievalLimit)
-        )
+        range <- checkHeightRange(headHeight, params.startHeight, params.endHeight, rpcSettings.blockIdRetrievalLimit)
+          .toEitherT[Future]
         ids <- withNodeView(view => getBlockIdsInRange(view.history, range._1, range._2))
       } yield ids
 
@@ -103,9 +101,8 @@ class NodeViewRpcHandlerImpls(
         headHeight <- withNodeView(_.history.height)
         // Since the block at headHeight is included, we will get more than numberOfBlocks blocks without adding 1 here
         startHeight = headHeight - params.numberOfBlocks + 1
-        range <- EitherT.fromEither[Future](
-          checkHeightRange(headHeight, startHeight, headHeight, rpcSettings.blockRetrievalLimit)
-        )
+        range <- checkHeightRange(headHeight, startHeight, headHeight, rpcSettings.blockRetrievalLimit)
+          .toEitherT[Future]
         blocks <- withNodeView(view => getBlocksInRange(view.history, range._1, range._2))
       } yield blocks
 
@@ -114,9 +111,9 @@ class NodeViewRpcHandlerImpls(
       for {
         headHeight <- withNodeView(_.history.height)
         startHeight = headHeight - params.numberOfBlockIds + 1
-        range <- EitherT.fromEither[Future](
-          checkHeightRange(headHeight, startHeight, headHeight, rpcSettings.blockIdRetrievalLimit)
-        )
+        range <-
+          checkHeightRange(headHeight, startHeight, headHeight, rpcSettings.blockIdRetrievalLimit).toEitherT[Future]
+
         ids <- withNodeView(view => getBlockIdsInRange(view.history, range._1, range._2))
       } yield ids
 
@@ -133,9 +130,9 @@ class NodeViewRpcHandlerImpls(
   override val transactionFromMempool: ToplRpc.NodeView.TransactionFromMempool.rpc.ServerHandler =
     params =>
       for {
-        txIds <- EitherT.fromEither[Future](checkModifierIdType(Transaction.modifierTypeId, List(params.transactionId)))
-        txsOption <- withNodeView(view => txIds.map(view.memPool.modifierById))
-        txs       <- EitherT.fromEither[Future](checkTxFoundWithIds(txIds, txsOption, rpcSettings.txRetrievalLimit))
+        txIds     <- checkModifierIdType(Transaction.modifierTypeId, List(params.transactionId)).toEitherT[Future]
+        txOptions <- withNodeView(view => txIds.map(view.memPool.modifierById))
+        txs       <- txOptions.sequence.toRight(ToplRpcErrors.NoTransactionWithId: RpcError).toEitherT[Future]
       } yield txs.head
 
   override val confirmationStatus: ToplRpc.NodeView.ConfirmationStatus.rpc.ServerHandler =
@@ -143,7 +140,7 @@ class NodeViewRpcHandlerImpls(
       for {
         txIds <- EitherT.fromEither[Future](checkModifierIdType(Transaction.modifierTypeId, params.transactionIds))
         txStatusOption <- withNodeView(view => getConfirmationStatus(txIds, view.history.height, view))
-        txStatus <- EitherT.fromEither[Future](checkTxFoundWithIds(txIds, txStatusOption, rpcSettings.txRetrievalLimit))
+        txStatus       <- txStatusOption.sequence.toRight(ToplRpcErrors.NoTransactionWithId: RpcError).toEitherT[Future]
       } yield txStatus.toMap
 
   override val info: ToplRpc.NodeView.Info.rpc.ServerHandler =
@@ -195,20 +192,21 @@ class NodeViewRpcHandlerImpls(
 
   private def getBlocksByIds(ids: List[ModifierId]): EitherT[Future, RpcError, List[Block]] =
     for {
-      blockIds     <- EitherT.fromEither[Future](checkModifierIdType(Block.modifierTypeId, ids))
-      blocksOption <- withNodeView(view => blockIds.map(view.history.modifierById))
-      blocks <- EitherT.fromEither[Future](
-        checkBlocksFoundWithIds(blockIds, blocksOption, rpcSettings.blockRetrievalLimit)
-      )
+      _            <- checkModifierRetrievalLimit(ids, rpcSettings.blockRetrievalLimit).toEitherT[Future]
+      _            <- checkModifierIdType(Block.modifierTypeId, ids).toEitherT[Future]
+      blockOptions <- withNodeView(view => ids.map(view.history.modifierById))
+      blocks       <- blockOptions.sequence.toRight(ToplRpcErrors.NoBlockWithId: RpcError).toEitherT[Future]
     } yield blocks
 
   private def getTxsByIds(ids: List[ModifierId]): EitherT[Future, RpcError, List[(Transaction.TX, ModifierId, Long)]] =
     for {
-      txIds     <- EitherT.fromEither[Future](checkModifierIdType(Transaction.modifierTypeId, ids))
-      txsOption <- withNodeView(view => txIds.map(view.history.transactionById))
-      txs       <- EitherT.fromEither[Future](checkTxFoundWithIds(txIds, txsOption, rpcSettings.txRetrievalLimit))
+      _         <- checkModifierRetrievalLimit(ids, rpcSettings.txRetrievalLimit).toEitherT[Future]
+      _         <- checkModifierIdType(Transaction.modifierTypeId, ids).toEitherT[Future]
+      txOptions <- withNodeView(view => ids.map(view.history.transactionById))
+      txs       <- txOptions.sequence.toRight(ToplRpcErrors.NoTransactionWithId: RpcError).toEitherT[Future]
     } yield txs
 
+  /** this function should be faster than getting the entire block out of storage and grabbing the id since the block id is stored separately */
   private def getBlockIdsInRange(
     view:        HistoryReader[Block, BifrostSyncInfo],
     startHeight: Long,

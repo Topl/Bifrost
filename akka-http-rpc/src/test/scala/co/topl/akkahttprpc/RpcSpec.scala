@@ -243,13 +243,15 @@ class RpcSpec
   }
 
   private def normalRoute: Route =
-    normalRpc.serve(normalRpcHandler)
+    RpcServer.Builder.empty
+      .append(normalRpc)(normalRpcHandler)
+      .route
 
   private def normalRpc: Rpc[TestMethodParams, TestMethodSuccess] =
     Rpc[TestMethodParams, TestMethodSuccess]("test_method1")
 
-  private def normalRpcHandler: TestMethodParams => EitherT[Future, RpcError, TestMethodSuccess] = (params: TestMethodParams) =>
-    TestMethodSuccess(params.userId.length).asRight[RpcError].toEitherT[Future]
+  private def normalRpcHandler: TestMethodParams => EitherT[Future, RpcError, TestMethodSuccess] =
+    (params: TestMethodParams) => TestMethodSuccess(params.userId.length).asRight[RpcError].toEitherT[Future]
 
 }
 

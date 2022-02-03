@@ -1,6 +1,7 @@
 package co.topl.rpc
 
 import cats.data.EitherT
+import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
 import co.topl.attestation.Address
 import co.topl.modifier.ModifierId
@@ -37,50 +38,22 @@ package object handlers {
       case Transaction.modifierTypeId => "Transaction"
       case Block.modifierTypeId       => "Block"
     }
-    for {
-      _ <- Either.cond(
-        ids.forall(_.getModType == idType),
-        {},
-        ToplRpcErrors.unsupportedOperation(s"The requested id's type is not an id type for $modifierTypeName")
-      )
-    } yield ids
+    Either.cond(
+      ids.forall(_.getModType == idType),
+      ids,
+      ToplRpcErrors.unsupportedOperation(s"The requested id's type is not an id type for $modifierTypeName")
+    )
   }
 
-  private[handlers] def checkBlocksFoundWithIds(
-    ids:          List[ModifierId],
-    blocksOption: List[Option[Block]],
-    sizeLimit:    Int
-  ): Either[RpcError, List[Block]] =
-    for {
-      _ <- Either.cond(
-        ids.size <= sizeLimit,
-        {},
-        ToplRpcErrors.unsupportedOperation("Number of ids given exceeded blockRetrievalLimit")
-      )
-      blocks <- Either.cond(
-        blocksOption.forall(_.nonEmpty),
-        blocksOption.map(_.get),
-        ToplRpcErrors.NoBlockWithId
-      )
-    } yield blocks
-
-  private[handlers] def checkTxFoundWithIds[T](
+  private[handlers] def checkModifierRetrievalLimit(
     ids:       List[ModifierId],
-    txOption:  List[Option[T]],
     sizeLimit: Int
-  ): Either[RpcError, List[T]] =
-    for {
-      _ <- Either.cond(
-        ids.size <= sizeLimit,
-        {},
-        ToplRpcErrors.unsupportedOperation("Number of ids given exceeded txRetrievalLimit")
-      )
-      txs <- Either.cond(
-        txOption.forall(_.nonEmpty),
-        txOption.map(_.get),
-        ToplRpcErrors.NoTransactionWithId
-      )
-    } yield txs
+  ): Either[CustomError, List[ModifierId]] =
+    Either.cond(
+      ids.size <= sizeLimit,
+      ids,
+      ToplRpcErrors.unsupportedOperation(s"Number of ids given exceeded retrieval limit of $sizeLimit")
+    )
 
   private[handlers] def checkHeightRange(
     bestBlockHeight: Long,
