@@ -3,15 +3,15 @@ package co.topl.nodeView
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.actor.typed.ActorRef
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
-import co.topl.consensus.ConsensusVariables
+import co.topl.consensus.{ActorConsensusVariablesInterface, ConsensusVariables}
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
-import co.topl.modifier.transaction.builder
-import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithms, TransferBuilder}
 import co.topl.modifier.transaction.builder.TransferRequests.PolyTransferRequest
+import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithms, TransferBuilder}
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages
 import co.topl.nodeView.NodeViewHolderSpec.TestInWithActor
 import co.topl.nodeView.NodeViewTestHelpers.TestIn
+import co.topl.nodeView.history.InMemoryKeyValueStore
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.{InMemoryKeyFileTestHelper, TestSettings, TimeProvider}
 import org.scalamock.scalatest.MockFactory
@@ -145,9 +145,17 @@ class NodeViewHolderSpec
 
   private def genesisActorTest(test: TestInWithActor => Unit)(implicit timeProvider: TimeProvider): Unit = {
     val testIn = genesisNodeView()
-    val consensusStorageRef = spawn(ConsensusVariables(settings, appContext.networkType), ConsensusVariables.actorName)
+    val consensusStorageRef =
+      spawn(
+        ConsensusVariables(settings, appContext.networkType, Some(InMemoryKeyValueStore.empty())),
+        ConsensusVariables.actorName
+      )
     val nodeViewHolderRef = spawn(
-      NodeViewHolder(settings, consensusStorageRef, () => Future.successful(testIn.nodeView))
+      NodeViewHolder(
+        settings,
+        new ActorConsensusVariablesInterface(consensusStorageRef),
+        () => Future.successful(testIn.nodeView)
+      )
     )
     val testInWithActor = TestInWithActor(testIn, nodeViewHolderRef, consensusStorageRef)
     test(testInWithActor)

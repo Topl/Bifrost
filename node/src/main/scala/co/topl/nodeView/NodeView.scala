@@ -1,13 +1,13 @@
 package co.topl.nodeView
 
-import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.typed.ActorSystem
 import cats.data.{Validated, Writer}
 import cats.implicits._
 import co.topl.attestation.Address
 import co.topl.consensus.ConsensusVariables.ConsensusParams
 import co.topl.consensus.Hiccups.HiccupBlock
 import co.topl.consensus.KeyManager.StartupKeyView
-import co.topl.consensus.{ConsensusVariables, Forger, Hiccups, NxtLeaderElection}
+import co.topl.consensus._
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ProgramId
@@ -88,13 +88,13 @@ case class NodeView(
 object NodeView {
 
   def persistent(
-    settings:            AppSettings,
-    networkType:         NetworkType,
-    consensusStorageRef: ActorRef[ConsensusVariables.ReceivableMessage],
-    startupKeyView:      () => Future[StartupKeyView]
-  )(implicit system:     ActorSystem[_], ec: ExecutionContext, nxtLeaderElection: NxtLeaderElection): Future[NodeView] =
+    settings:                    AppSettings,
+    networkType:                 NetworkType,
+    consensusVariablesInterface: ConsensusVariablesInterface,
+    startupKeyView:              () => Future[StartupKeyView]
+  )(implicit system: ActorSystem[_], ec: ExecutionContext, nxtLeaderElection: NxtLeaderElection): Future[NodeView] =
     local(settings)(networkType.netPrefix, nxtLeaderElection)
-      .fold(genesis(settings, networkType, consensusStorageRef, startupKeyView))(Future.successful)
+      .fold(genesis(settings, networkType, consensusVariablesInterface, startupKeyView))(Future.successful)
 
   def local(
     settings:               AppSettings
@@ -110,10 +110,10 @@ object NodeView {
     } else None
 
   def genesis(
-    settings:            AppSettings,
-    networkType:         NetworkType,
-    consensusStorageRef: ActorRef[ConsensusVariables.ReceivableMessage],
-    startupKeyView:      () => Future[StartupKeyView]
+    settings:                    AppSettings,
+    networkType:                 NetworkType,
+    consensusVariablesInterface: ConsensusVariablesInterface,
+    startupKeyView:              () => Future[StartupKeyView]
   )(implicit
     system:            ActorSystem[_],
     ec:                ExecutionContext,
@@ -121,7 +121,7 @@ object NodeView {
   ): Future[NodeView] = {
     implicit def networkPrefix: NetworkPrefix = networkType.netPrefix
     Forger
-      .genesisBlock(settings, networkType, startupKeyView, consensusStorageRef)
+      .genesisBlock(settings, networkType, startupKeyView, consensusVariablesInterface)
       .map(genesis(settings, networkType, _))
   }
 

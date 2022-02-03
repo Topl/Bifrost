@@ -16,7 +16,7 @@ import co.topl.http.HttpService
 import co.topl.modifier.block.Block
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.network.utils.NetworkTimeProvider
-import co.topl.nodeView.history.History
+import co.topl.nodeView.history.{History, InMemoryKeyValueStore}
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.nodeView.{ActorNodeViewHolderInterface, NodeView, NodeViewHolder, TestableNodeViewHolder}
@@ -59,6 +59,7 @@ trait RPCMockState
   protected var forgerRef: akka.actor.typed.ActorRef[Forger.ReceivableMessage] = _
 
   protected var consensusStorageRef: akka.actor.typed.ActorRef[ConsensusVariables.ReceivableMessage] = _
+  protected var consensusVariablesInterface: ConsensusVariablesInterface = _
   protected var nodeViewHolderRef: akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage] = _
 
   protected var km: KeyManager = _
@@ -79,19 +80,21 @@ trait RPCMockState
     )
 
     consensusStorageRef = system.toTyped.systemActorOf(
-      ConsensusVariables(settings, appContext.networkType),
+      ConsensusVariables(settings, appContext.networkType, Some(InMemoryKeyValueStore.empty())),
       ConsensusVariables.actorName
     )
+
+    consensusVariablesInterface = new ActorConsensusVariablesInterface(consensusStorageRef)(system.toTyped, 10.seconds)
 
     nodeViewHolderRef = system.toTyped.systemActorOf(
       NodeViewHolder(
         settings,
-        consensusStorageRef,
+        consensusVariablesInterface,
         () =>
           NodeView.persistent(
             settings,
             appContext.networkType,
-            consensusStorageRef,
+            consensusVariablesInterface,
             () =>
               (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
                 .mapTo[Try[StartupKeyView]]
@@ -112,7 +115,7 @@ trait RPCMockState
             .mapTo[Try[StartupKeyView]]
             .flatMap(Future.fromTry),
         new ActorNodeViewHolderInterface(nodeViewHolderRef)(system.toTyped, implicitly[Timeout]),
-        consensusStorageRef
+        new ActorConsensusVariablesInterface(consensusStorageRef)(system.toTyped, 10.seconds)
       ),
       Forger.ActorName
     )

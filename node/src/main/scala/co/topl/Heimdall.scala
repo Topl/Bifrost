@@ -269,23 +269,26 @@ object Heimdall {
   ): NodeViewHolderInitializingState = {
     import context.executionContext
     implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
+    implicit def system: ActorSystem[_] = context.system
 
     val keyManagerRef = context.actorOf(KeyManagerRef.props(settings, appContext), KeyManager.actorName)
 
     val consensusStorageRef =
-      context.spawn(ConsensusVariables(settings, appContext.networkType), ConsensusVariables.actorName)
+      context.spawn(ConsensusVariables(settings, appContext.networkType, None), ConsensusVariables.actorName)
+
+    val consensusVariablesInterface = new ActorConsensusVariablesInterface(consensusStorageRef)(implicitly, 10.seconds)
 
     val nodeViewHolderRef = {
       implicit val getKeyViewAskTimeout: Timeout = Timeout(10.seconds)
       context.spawn(
         NodeViewHolder(
           settings,
-          consensusStorageRef,
+          consensusVariablesInterface,
           () =>
             NodeView.persistent(
               settings,
               appContext.networkType,
-              consensusStorageRef,
+              consensusVariablesInterface,
               () =>
                 (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
                   .mapTo[Try[StartupKeyView]]
@@ -319,7 +322,6 @@ object Heimdall {
     val networkController = context.actorOf(
       NetworkControllerRef.props(settings, peerManager, appContext, IO(Tcp)(context.system.toClassic))
     )
-
     val forgerRef = {
       implicit val timeout: Timeout = Timeout(10.seconds)
       context.spawn(
@@ -333,7 +335,7 @@ object Heimdall {
               .mapTo[Try[StartupKeyView]]
               .flatMap(Future.fromTry),
           new ActorNodeViewHolderInterface(state.nodeViewHolder),
-          state.consensusStorage
+          new ActorConsensusVariablesInterface(state.consensusStorage)
         ),
         Forger.ActorName
       )

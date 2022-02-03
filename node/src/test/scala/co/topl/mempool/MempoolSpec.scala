@@ -5,13 +5,13 @@ import akka.actor.typed.eventstream.EventStream
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.Behaviors
 import akka.util.Timeout
-import co.topl.consensus.ConsensusVariables
+import co.topl.consensus.{ActorConsensusVariablesInterface, ConsensusVariables}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.message.BifrostSyncInfo
 import co.topl.network.utils.NetworkTimeProvider
 import co.topl.nodeView.NodeViewHolder
-import co.topl.nodeView.history.HistoryReader
+import co.topl.nodeView.history.{HistoryReader, InMemoryKeyValueStore}
 import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.utils.{NodeGenerators, TimeProvider}
 import org.scalatest.matchers.must.Matchers
@@ -30,7 +30,7 @@ class MempoolSpec extends AnyPropSpec with Matchers with NodeGenerators with Bef
   implicit private val timeProvider: TimeProvider = new NetworkTimeProvider(settings.ntp)
 
   private val consensusStorageRef = actorSystem.systemActorOf(
-    ConsensusVariables(settings, appContext.networkType),
+    ConsensusVariables(settings, appContext.networkType, Some(InMemoryKeyValueStore.empty())),
     ConsensusVariables.actorName
   )
 
@@ -38,7 +38,7 @@ class MempoolSpec extends AnyPropSpec with Matchers with NodeGenerators with Bef
     actorSystem.systemActorOf(
       NodeViewHolder(
         settings,
-        consensusStorageRef,
+        new ActorConsensusVariablesInterface(consensusStorageRef)(implicitly, 10.seconds),
         () => ???
       ),
       NodeViewHolder.ActorName
