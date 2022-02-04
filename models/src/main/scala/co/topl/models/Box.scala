@@ -25,11 +25,7 @@ object Box {
 
     /**
      * @param commitment message: Hash(vrfVK | poolVK), SK: 0th timestep of the KES
-     * @param activationSlot Slot in which this staker can start staking
      */
-    case class TaktikosRegistration(
-      commitment:     Proofs.Knowledge.KesProduct,
-      activationSlot: Slot
-    ) extends Value
+    case class TaktikosRegistration(commitment: Proofs.Knowledge.KesProduct) extends Value
   }
 }

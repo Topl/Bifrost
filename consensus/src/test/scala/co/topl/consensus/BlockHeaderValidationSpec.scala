@@ -646,11 +646,7 @@ object BlockHeaderValidationSpec {
     skKes:               SecretKeys.KesProduct
   )(implicit kesProduct: KesProduct): Box.Values.TaktikosRegistration = {
     val commitmentMessage = Bytes(blake2b256.hash((vkVrf.bytes.data ++ poolVK.bytes.data).toArray).value)
-    Box.Values
-      .TaktikosRegistration(
-        kesProduct.sign(skKes, commitmentMessage),
-        0L
-      )
+    Box.Values.TaktikosRegistration(kesProduct.sign(skKes, commitmentMessage))
   }
 
   def validAddress(paymentSK: SecretKeys.Ed25519, poolVK: VerificationKeys.Ed25519)(implicit

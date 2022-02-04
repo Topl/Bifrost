@@ -80,8 +80,7 @@ object TetraDemo extends IOApp.Simple {
         commitment = kesProduct.sign(
           kesKey,
           new Blake2b256().hash(ed25519Vrf.getVerificationKey(stakerVrfKey).signableBytes, poolVK.bytes.data).data
-        ),
-        activationSlot = 0
+        )
       )
 
     val stakerAddress: TaktikosAddress = {
