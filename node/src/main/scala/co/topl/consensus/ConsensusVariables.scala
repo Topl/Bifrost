@@ -54,6 +54,13 @@ object ConsensusVariables {
 
   }
 
+  /**
+   * Initializes a consensus variable actor. It is optional to pass in a KeyValueStore for persistence or in memory
+   * store for testing. If None is provided, read or generate a LDBKeyValueStore using the settings
+   * @param settings app settings
+   * @param networkType network type
+   * @param storageOpt optional KeyValueStore for manual initialization or testing
+   */
   def apply(
     settings:    AppSettings,
     networkType: NetworkType,
