@@ -5,6 +5,7 @@ import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.signatures.Signature
 import co.topl.crypto.{PrivateKey, PublicKey}
 import scodec.{Attempt, Codec, Err}
+import co.topl.codecs.binary.scodecs.valuetypes._
 
 trait CryptoCodecs {
 

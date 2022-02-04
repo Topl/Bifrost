@@ -8,6 +8,7 @@ import co.topl.codecs.binary.typeclasses.BinaryShow
 import co.topl.crypto.hash.blake2b256
 import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.crypto.implicits._
 
 import scala.language.implicitConversions
 

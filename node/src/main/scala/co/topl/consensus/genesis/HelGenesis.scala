@@ -1,6 +1,7 @@
 package co.topl.consensus.genesis
 
 import co.topl.attestation.SignatureCurve25519
+import co.topl.codecs._
 import co.topl.consensus.Forger.ChainParams
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -10,7 +11,6 @@ import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.{Int128, NetworkType}
-import co.topl.codecs.binary._
 
 import scala.collection.immutable.ListMap
 import scala.util.Try

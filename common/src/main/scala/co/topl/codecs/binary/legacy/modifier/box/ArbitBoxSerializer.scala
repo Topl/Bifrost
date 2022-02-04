@@ -1,7 +1,7 @@
 package co.topl.codecs.binary.legacy.modifier.box
 
+import co.topl.codecs.binary.legacy._
 import co.topl.codecs.binary.legacy.attestation.EvidenceSerializer
-import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
 import co.topl.modifier.box.ArbitBox
 
 object ArbitBoxSerializer extends BifrostSerializer[ArbitBox] {

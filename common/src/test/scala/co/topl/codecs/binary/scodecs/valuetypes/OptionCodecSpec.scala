@@ -1,6 +1,6 @@
 package co.topl.codecs.binary.scodecs.valuetypes
 
-import co.topl.codecs.binary.scodecs.valuetypes.Types._
+import co.topl.codecs.binary.scodecs.valuetypes.Types.ULong
 import org.scalacheck.Gen
 
 class OptionCodecSpec extends ValueTypesCodecCompatabilityBehavior {

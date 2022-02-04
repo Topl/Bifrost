@@ -1,8 +1,7 @@
 package co.topl.settings
 
-import co.topl.network.message._
+import co.topl.network.peer
 import co.topl.network.utils.UPnPGateway
-import co.topl.network.{peer, NodeViewSynchronizer, PeerSynchronizer}
 import co.topl.utils.NetworkType
 
 import java.net.InetSocketAddress
@@ -35,25 +34,4 @@ class AppContext(
 
   /** Enumerate features and message specs present for communicating between peers */
   val features: Seq[peer.PeerFeature] = Seq()
-  val featureSerializers: peer.PeerFeature.Serializers = features.map(f => f.featureId -> f.serializer).toMap
-
-  /** Instantiate and populate the local message handler for peer management requests from remote peers */
-  val peerSyncRemoteMessages: PeerSynchronizer.RemoteMessageHandler = {
-    val getPeersSpec = new GetPeersSpec
-    val peersSpec = new PeersSpec(featureSerializers, settings.network.maxPeerSpecObjects)
-
-    PeerSynchronizer.RemoteMessageHandler(peersSpec, getPeersSpec)
-  }
-
-  /** Instantiate and populate the local message handler for node view management requests from remote peers */
-  val nodeViewSyncRemoteMessages: NodeViewSynchronizer.RemoteMessageHandler = {
-    val syncInfoSpec = new SyncInfoSpec
-    val invSpec = new InvSpec(settings.network.maxInvObjects)
-    val requestModifierSpec = new RequestModifierSpec(settings.network.maxInvObjects)
-    val modifiersSpec = new ModifiersSpec(settings.network.maxPacketSize)
-
-    NodeViewSynchronizer.RemoteMessageHandler(syncInfoSpec, invSpec, requestModifierSpec, modifiersSpec)
-  }
-
-  val messageSpecs: Seq[MessageSpec[_]] = peerSyncRemoteMessages.toSeq ++ nodeViewSyncRemoteMessages.toSeq
 }

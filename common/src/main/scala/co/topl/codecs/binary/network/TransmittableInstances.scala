@@ -2,13 +2,13 @@ package co.topl.codecs.binary.network
 
 import co.topl.attestation._
 import co.topl.attestation.keyManagement._
-import co.topl.codecs.binary.scodecs._
 import co.topl.codecs.binary.typeclasses.Transmittable
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.modifier.block._
 import co.topl.modifier.box._
 import co.topl.modifier.transaction._
 import co.topl.modifier.{ModifierId, NodeViewModifier}
+import co.topl.codecs.binary.scodecs._
 
 trait TransmittableInstances {
 

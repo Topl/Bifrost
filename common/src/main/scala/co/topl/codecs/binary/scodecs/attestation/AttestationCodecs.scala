@@ -1,9 +1,9 @@
 package co.topl.codecs.binary.scodecs.attestation
 
 import co.topl.attestation.{Address, Evidence}
-import co.topl.codecs.binary.scodecs.valuetypes._
 import scodec.Codec
 import shapeless.{::, HList, HNil}
+import co.topl.codecs.binary.scodecs.valuetypes._
 
 trait AttestationCodecs
     extends keyManagement.KeyManagementCodecs

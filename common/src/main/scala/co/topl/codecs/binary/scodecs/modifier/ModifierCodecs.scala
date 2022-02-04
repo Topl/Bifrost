@@ -1,6 +1,6 @@
 package co.topl.codecs.binary.scodecs.modifier
 
-import co.topl.codecs.binary.scodecs.valuetypes.byteCodec
+import co.topl.codecs.binary.scodecs.valuetypes._
 import co.topl.modifier.NodeViewModifier
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader}
 import co.topl.modifier.transaction.Transaction

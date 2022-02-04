@@ -3,12 +3,14 @@ package co.topl.nodeView.history
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.hash.digest.implicits._
-import co.topl.modifier.ModifierId
+import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.KeyValueStore
 import co.topl.utils.Logging
 import co.topl.codecs.binary._
+import co.topl.codecs.binary.typeclasses.Persistable
+import co.topl.modifier
 import com.google.common.primitives.Longs
 
 import scala.util.Try
@@ -43,7 +45,8 @@ class Storage(private[nodeView] val keyValueStore: KeyValueStore) extends Loggin
         keyValueStore
           .get(id.getIdBytes)
           .flatMap(keyValueStore.get)
-          .flatMap(bwBlock => bwBlock.decodePersisted[Block].toOption)
+          // ignore first stored block byte which is the modifier type ID (3)
+          .flatMap(bwBlock => bwBlock.tail.decodePersisted[Block].toOption)
           .map(block => (block.transactions.find(_.id == id).get, block.id, block.height))
 
       case _ => None
@@ -55,7 +58,8 @@ class Storage(private[nodeView] val keyValueStore: KeyValueStore) extends Loggin
       case Block.modifierTypeId =>
         keyValueStore
           .get(id.getIdBytes)
-          .flatMap(bwBlock => bwBlock.decodePersisted[Block].toOption)
+          // ignore first stored block byte which is the modifier type ID (3)
+          .flatMap(bwBlock => bwBlock.tail.decodePersisted[Block].toOption)
 
       case _ =>
         //
@@ -136,9 +140,11 @@ class Storage(private[nodeView] val keyValueStore: KeyValueStore) extends Loggin
   def update(b: Block, isBest: Boolean): Unit = {
     log.debug(s"Write new best=$isBest block ${b.id}")
 
-    val blockK = Seq(b.id.getIdBytes -> b.persistedBytes)
+    // store block data with Modifier Type ID for storage backwards compatibility
+    val blockK = Seq(b.id.getIdBytes -> Persistable[NodeViewModifier].persistedBytes(b))
 
-    val bestBlock = if (isBest) Seq(bestBlockIdKey -> b.id.persistedBytes) else Seq()
+    val bestBlock =
+      if (isBest) Seq(bestBlockIdKey -> b.id.persistedBytes) else Seq()
 
     val newTransactionsToBlockIds = b.transactions.map(tx => (tx.id.getIdBytes, b.id.getIdBytes))
 

@@ -4,10 +4,10 @@ import cats.implicits._
 import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.PersistentNodeViewModifier
-import co.topl.network.message.SyncInfo
 import co.topl.nodeView.NodeViewComponent
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.codecs._
+import co.topl.network.SyncInfo
 
 import scala.util.Try
 

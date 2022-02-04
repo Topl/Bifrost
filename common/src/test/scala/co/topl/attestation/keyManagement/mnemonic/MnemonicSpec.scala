@@ -5,7 +5,7 @@ import co.topl.attestation.keyManagement.derivedKeys.implicits._
 import co.topl.attestation.keyManagement.derivedKeys.{DerivedKeyIndex, ExtendedPrivateKeyEd25519}
 import co.topl.attestation.keyManagement.mnemonic.Language._
 import co.topl.attestation.keyManagement.mnemonic.MnemonicSize._
-import co.topl.codecs.binary._
+import co.topl.codecs._
 import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.SizedBytes.implicits._
 import co.topl.utils.StringDataTypes.Base16Data

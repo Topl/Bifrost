@@ -14,7 +14,7 @@ import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
 import co.topl.consensus._
 import co.topl.http.HttpService
 import co.topl.modifier.block.Block
-import co.topl.network.message.BifrostSyncInfo
+import co.topl.network.BifrostSyncInfo
 import co.topl.network.utils.NetworkTimeProvider
 import co.topl.nodeView.history.History
 import co.topl.nodeView.mempool.MemPool

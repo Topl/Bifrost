@@ -11,6 +11,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import scodec.Codec
 import scodec.bits.BitVector
+import co.topl.utils.StringDataTypes.implicits._
 
 trait CodecCompatabilityBehavior extends AnyFlatSpec with Matchers with EqMatcher with ScalaCheckDrivenPropertyChecks {
 

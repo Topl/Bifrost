@@ -19,6 +19,14 @@ trait ValuetypesCodecs {
 
   def bytesCodec(size: Int): Codec[Array[Byte]] = new BytesCodec(size)
 
+  val uByteCodec: Codec[UByte] =
+    byteCodec
+      .exmapc(byte => Attempt.successful(byte & 0xff))(ubyte =>
+        Attempt
+          .guard(ubyte >= 0 && ubyte <= 0xff, s"$ubyte is out of unsigned byte range")
+          .map(_ => ubyte.toByte)
+      )
+
   implicit val uLongCodec: Codec[ULong] = ULongFastCodec
 
   implicit val uIntCodec: Codec[UInt] =
@@ -54,8 +62,8 @@ trait ValuetypesCodecs {
     bytesCodec(Int128.numBytes).xmap(bytes => Int128(bytes), int => int.toByteArray)
 
   implicit val byteStringCodec: Codec[ByteString] =
-    byteCodec.consume[ByteString](byte =>
-      bytesCodec(byte)
+    uByteCodec.consume[ByteString](size =>
+      bytesCodec(size)
         .xmap(bytes => new String(bytes, stringCharacterSet), str => str.getBytes(stringCharacterSet))
     )(str => str.length.toByte)
 
@@ -123,6 +131,9 @@ trait ValuetypesCodecs {
 
   implicit def listMapCodec[A: Codec, B: Codec]: Codec[ListMap[A, B]] =
     listCodec[(A, B)].xmap[ListMap[A, B]](list => ListMap(list: _*), listMap => listMap.toList)
+
+  implicit def mapCodec[A: Codec, B: Codec]: Codec[Map[A, B]] =
+    listMapCodec[A, B].xmap(listMap => listMap, map => ListMap(map.toList: _*))
 
   def sizedArrayCodec[T: Codec: ClassTag](size: Int): Codec[Array[T]] =
     sizedListCodec[T](size).xmap[Array[T]](listT => listT.toArray, arrayT => arrayT.toList)

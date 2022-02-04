@@ -8,15 +8,15 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
-import co.topl.network.message.BifrostSyncInfo
+import co.topl.network.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.History.GenesisParentId
 import co.topl.nodeView.{CacheLayerKeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
 import co.topl.utils.IdiomaticScalaTransition.implicits.toTryOps
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.{Logging, TimeProvider}
 import co.topl.utils.catsInstances._
+import co.topl.utils.{Logging, TimeProvider}
 
 import java.io.File
 import scala.annotation.tailrec
@@ -481,7 +481,7 @@ class History(
     if (isEmpty)
       BifrostSyncInfo(Seq.empty)
     else {
-      val startingPoints = lastHeaders(BifrostSyncInfo.MaxLastBlocks)
+      val startingPoints = lastHeaders(BifrostSyncInfo.maxLastBlocks)
 
       if (startingPoints.headOption.contains(GenesisParentId))
         BifrostSyncInfo(GenesisParentId +: startingPoints)

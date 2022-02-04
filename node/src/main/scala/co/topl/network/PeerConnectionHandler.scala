@@ -3,18 +3,21 @@ package co.topl.network
 import akka.actor.{Actor, ActorRef, Cancellable, Props, SupervisorStrategy}
 import akka.io.Tcp
 import akka.util.{ByteString, CompactByteString}
+import cats.implicits._
+import co.topl.network.codecs._
+import co.topl.codecs._
+import co.topl.codecs.binary.typeclasses.Transmittable
 import co.topl.network.NetworkController.ReceivableMessages.{Handshaked, PenalizePeer}
 import co.topl.network.PeerConnectionHandler.ReceivableMessages._
-import co.topl.network.message.{Handshake, HandshakeSpec, Message, MessageSerializer}
+import co.topl.network.message.Messages.MessagesV1
+import co.topl.network.message.{Transmission, TransmissionHeader}
 import co.topl.network.peer.PenaltyType.PermanentPenalty
 import co.topl.network.peer._
 import co.topl.settings.{AppContext, AppSettings}
-import co.topl.codecs.binary.legacy.BifrostSerializer
 import co.topl.utils.{Logging, TimeProvider}
 
 import scala.annotation.tailrec
 import scala.collection.immutable.TreeMap
-import scala.util.{Failure, Success}
 
 class PeerConnectionHandler(
   networkControllerRef:  ActorRef,
@@ -33,19 +36,13 @@ class PeerConnectionHandler(
   private val ownSocketAddress = connectionDescription.ownSocketAddress
   private val localFeatures = connectionDescription.localFeatures
 
-  private val localPeerSpec = PeerSpec(
+  private val localPeerMetadata = PeerMetadata(
     settings.network.agentName,
     settings.application.version,
     settings.network.nodeName,
     ownSocketAddress,
     localFeatures
   )
-
-  private val featureSerializers: PeerFeature.Serializers =
-    localFeatures.map(f => f.featureId -> (f.serializer: BifrostSerializer[_ <: PeerFeature])).toMap
-
-  private val handshakeSerializer = new HandshakeSpec(featureSerializers, settings.network.maxHandshakeSize)
-  private val messageSerializer = new MessageSerializer(appContext.messageSpecs, settings.network.magicBytes)
 
   /** there is no recovery for broken connections */
   override val supervisorStrategy: SupervisorStrategy = SupervisorStrategy.stoppingStrategy
@@ -59,6 +56,13 @@ class PeerConnectionHandler(
   private var outMessagesBuffer: TreeMap[Long, ByteString] = TreeMap.empty
 
   private var outMessagesCounter: Long = 0
+
+  // transmittable type-class instances for providing extension methods for converting to/from transmitted data
+  implicit private val transmissionHeaderTransmittableInstance: Transmittable[TransmissionHeader] =
+    transmissionHeaderTransmittable(settings.network.magicBytes)
+
+  implicit private val transmissionTransmittableInstance: Transmittable[Transmission] =
+    transmissionTransmittable(settings.network.magicBytes)
 
   override def preStart(): Unit = {
 
@@ -123,12 +127,12 @@ class PeerConnectionHandler(
   /** Some functions are only accessible in certain contexts so be sure to consult the lists above */
 
   private def receiveAndHandleHandshake: Receive = { case Tcp.Received(data) =>
-    handshakeSerializer.parseBytes(data.toArray) match {
-      case Success(handshake) =>
+    data.toArray.decodeTransmitted[MessagesV1.Handshake] match {
+      case Right(handshake) =>
         processHandshake(handshake)
 
-      case Failure(t) =>
-        log.info(s"Error during parsing a handshake", t)
+      case Left(err) =>
+        log.info(s"Error during parsing a handshake", err)
 
         /** ban the peer for the wrong handshake message */
         /** peer will be added to the blacklist and the network controller will send CloseConnection */
@@ -142,10 +146,10 @@ class PeerConnectionHandler(
   }
 
   private def localInterfaceWriting: Receive = {
-    case msg: Message[_] =>
-      log.info("Send message " + msg.spec + " to " + connectionId)
+    case transmission: Transmission =>
+      log.info("Send message " + transmission.header.code + " to " + connectionId)
       outMessagesCounter += 1
-      connection ! Tcp.Write(messageSerializer.serialize(msg), Ack(outMessagesCounter))
+      connection ! Tcp.Write(ByteString(transmission.transmittableBytes), Ack(outMessagesCounter))
 
     case Tcp.CommandFailed(Tcp.Write(msg, Ack(id))) =>
       log.warn(s"Failed to write ${msg.length} bytes to $connectionId, switching to buffering mode")
@@ -166,9 +170,9 @@ class PeerConnectionHandler(
 
   /** operate in ACK mode until all buffered messages are transmitted */
   private def localInterfaceBuffering: Receive = {
-    case msg: Message[_] =>
+    case transmission: Transmission =>
       outMessagesCounter += 1
-      buffer(outMessagesCounter, messageSerializer.serialize(msg))
+      buffer(outMessagesCounter, transmission.transmittableByteString)
 
     case Tcp.CommandFailed(Tcp.Write(msg, Ack(id))) =>
       connection ! Tcp.ResumeWriting
@@ -245,7 +249,7 @@ class PeerConnectionHandler(
     }
 
   private def createHandshakeMessage(): Unit = {
-    val nodeInfo = message.Handshake(localPeerSpec, timeProvider.time)
+    val nodeInfo = MessagesV1.Handshake(localPeerMetadata, timeProvider.time)
 
     /**
      * create, save, and schedule a timeout option. The variable lets us cancel the timeout message
@@ -256,11 +260,11 @@ class PeerConnectionHandler(
     )
 
     /** send a handshake message with our node information to the remote peer */
-    connection ! Tcp.Write(ByteString(handshakeSerializer.toBytes(nodeInfo)), Tcp.NoAck)
+    connection ! Tcp.Write(ByteString(nodeInfo.transmittableBytes), Tcp.NoAck)
     log.info(s"Handshake sent to $connectionId")
   }
 
-  private def processHandshake(receivedHandshake: Handshake): Unit = {
+  private def processHandshake(receivedHandshake: MessagesV1.Handshake): Unit = {
     log.info(s"Got a Handshake from $connectionId")
 
     val peerInfo = PeerInfo(
@@ -279,27 +283,51 @@ class PeerConnectionHandler(
 
   @tailrec
   private def processRemoteData(): Unit =
-    messageSerializer.deserialize(chunksBuffer, selfPeer) match {
-      case Success(Some(message)) =>
-        log.info("Received message " + message.spec + " from " + connectionId)
-        networkControllerRef ! message
-        chunksBuffer = chunksBuffer.drop(message.messageLength)
-        processRemoteData()
-      case Success(None) =>
-      case Failure(e) =>
-        e match {
-          /** peer is doing bad things, ban it */
-          case MaliciousBehaviorException(msg) =>
-            log.warn(s"Banning peer for malicious behaviour($msg): ${connectionId.toString}")
+    if (chunksBuffer.length >= Transmission.headerLength) {
+      chunksBuffer.decodeTransmitted[TransmissionHeader] match {
+        case Right(header) if header.dataLength == 0 =>
+          handleTransmission(Transmission(header, None))
+          processRemoteData()
+        case Right(header)
+            if chunksBuffer.length < Transmission.headerLength + Transmission.checksumLength + header.dataLength =>
+          // need to wait for more data
+          ()
+        case Right(header) =>
+          transmissionContentTransmittable(header.dataLength)
+            .fromTransmittableByteString(chunksBuffer.drop(Transmission.headerLength)) match {
+            case Right(content) =>
+              handleTransmission(Transmission(header, content.some))
+              processRemoteData()
+            // if the transmission content is malformed, we must ban the peer to avoid DoS attacks
+            case Left(error) =>
+              log.warn(s"Banning peer for malicious behaviour($error): ${connectionId.toString}")
 
-            /** peer will be added to the blacklist and the network controller will send CloseConnection */
-            networkControllerRef ! PenalizePeer(connectionId.remoteAddress, PenaltyType.PermanentPenalty)
+              /** peer will be added to the blacklist and the network controller will send CloseConnection */
+              networkControllerRef ! PenalizePeer(connectionId.remoteAddress, PenaltyType.PermanentPenalty)
+          }
+        // if the transmission header is malformed, we must ban the peer to avoid DoS attacks
+        case Left(error) =>
+          log.warn(s"Banning peer for malicious behaviour($error): ${connectionId.toString}")
 
-          /** non-malicious corruptions */
-          case _ =>
-            log.info(s"Corrupted data from ${connectionId.toString}: ${e.getMessage}")
-        }
+          /** peer will be added to the blacklist and the network controller will send CloseConnection */
+          networkControllerRef ! PenalizePeer(connectionId.remoteAddress, PenaltyType.PermanentPenalty)
+      }
     }
+
+  /**
+   * Handles processing an incoming transmission and updating the state of the chunks buffer.
+   * @param transmission the transmission that is ready for processing
+   */
+  private def handleTransmission(transmission: Transmission): Unit = {
+    log.info("Received message " + transmission.header.code + " from " + connectionId)
+
+    networkControllerRef ! NetworkController.ReceivableMessages.TransmissionReceived(transmission, selfPeer)
+
+    chunksBuffer = chunksBuffer.drop(
+      Transmission.headerLength +
+      transmission.content.map(content => Transmission.checksumLength + content.data.length).getOrElse(0)
+    )
+  }
 
 }
 

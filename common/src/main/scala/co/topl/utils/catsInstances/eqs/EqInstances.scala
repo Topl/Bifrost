@@ -14,6 +14,7 @@ import co.topl.modifier.box._
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
 import co.topl.utils.Int128
 import co.topl.utils.StringDataTypes.implicits._
+import co.topl.codecs._
 
 import scala.collection.immutable.ListMap
 

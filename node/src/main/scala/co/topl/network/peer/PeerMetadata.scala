@@ -16,7 +16,7 @@ import java.net.InetSocketAddress
  * @param declaredAddress Public network address of the node if any
  * @param features Set of node capabilities
  */
-case class PeerSpec(
+case class PeerMetadata(
   agentName:       String,
   version:         Version,
   nodeName:        String,

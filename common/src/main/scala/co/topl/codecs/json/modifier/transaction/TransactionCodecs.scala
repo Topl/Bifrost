@@ -3,8 +3,6 @@ package co.topl.codecs.json.modifier.transaction
 import cats.implicits._
 import co.topl.attestation._
 import co.topl.codecs.binary._
-import co.topl.codecs.json.attestation._
-import co.topl.codecs.json.modifier.block._
 import co.topl.codecs.json.modifier.box._
 import co.topl.codecs.json.valuetypes._
 import co.topl.modifier.box.{Box, SimpleValue, TokenValueHolder}

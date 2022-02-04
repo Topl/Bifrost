@@ -1,6 +1,6 @@
 package co.topl.codecs.binary.scodecs.valuetypes
 
-import co.topl.codecs.binary.scodecs.valuetypes.Types._
+import co.topl.codecs.binary.scodecs.valuetypes.Types.UShort
 import org.scalacheck.Gen
 
 class UShortCodecSpec extends ValueTypesCodecCompatabilityBehavior {

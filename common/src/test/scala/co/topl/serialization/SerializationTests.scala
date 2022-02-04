@@ -6,7 +6,7 @@ import co.topl.codecs._
 import co.topl.codecs.binary.legacy.attestation._
 import co.topl.codecs.binary.legacy.attestation.keyManagement._
 import co.topl.codecs.binary.legacy.modifier.block._
-import co.topl.codecs.binary.legacy.modifier.box._
+import co.topl.codecs.binary.legacy.modifier.box.{BoxSerializer, SecurityRootSerializer, TokenValueHolderSerializer}
 import co.topl.codecs.binary.legacy.modifier.transaction.TransactionSerializer
 import co.topl.codecs.binary.typeclasses.Persistable
 import co.topl.modifier.block.{Block, BloomFilter}
