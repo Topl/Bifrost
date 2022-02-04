@@ -6,16 +6,16 @@ import cats.effect.Ref
 import cats.effect.kernel.Concurrent
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
-import co.topl.algebras.{ClockAlgebra, ConsensusState}
+import co.topl.algebras.{ClockAlgebra, ConsensusState, UnsafeResource}
 import co.topl.codecs.bytes.implicits._
 import co.topl.consensus.algebras.EtaCalculationAlgebra
 import co.topl.crypto.keyfile.SecureStore
+import co.topl.crypto.mnemonic.Entropy
 import co.topl.crypto.signing._
 import co.topl.minting.algebras._
 import co.topl.models._
-import co.topl.models.utility.Ratio
-import co.topl.typeclasses.KeyInitializer
 import co.topl.typeclasses.implicits._
+import co.topl.models.utility.Ratio
 import com.google.common.primitives.Longs
 import org.typelevel.log4cats.Logger
 
@@ -41,13 +41,12 @@ object OperationalKeys {
       vrfProof:                    VrfProofAlgebra[F],
       etaCalculation:              EtaCalculationAlgebra[F],
       consensusState:              ConsensusState[F],
+      kesProductResource:          UnsafeResource[F, KesProduct],
+      ed25519Resource:             UnsafeResource[F, Ed25519],
       parentSlotId:                SlotId,
       operationalPeriodLength:     Long,
       activationOperationalPeriod: Long,
       address:                     TaktikosAddress
-    )(implicit
-      kesProductScheme: KesProduct,
-      ed25519Scheme:    Ed25519
     ): F[OperationalKeysAlgebra[F]] =
       for {
         initialSlot <- clock.globalSlot
@@ -66,8 +65,11 @@ object OperationalKeys {
                   relativeStake,
                   clock,
                   vrfProof,
-                  etaCalculation
-                )
+                  etaCalculation,
+                  kesProductResource,
+                  ed25519Resource
+                ),
+                kesProductResource
               )
             )
             .value
@@ -78,6 +80,8 @@ object OperationalKeys {
         vrfProof,
         etaCalculation,
         consensusState,
+        kesProductResource,
+        ed25519Resource,
         operationalPeriodLength,
         activationOperationalPeriod,
         address,
@@ -90,13 +94,12 @@ object OperationalKeys {
       vrfProof:                    VrfProofAlgebra[F],
       etaCalculation:              EtaCalculationAlgebra[F],
       consensusState:              ConsensusState[F],
+      kesProductResource:          UnsafeResource[F, KesProduct],
+      ed25519Resource:             UnsafeResource[F, Ed25519],
       operationalPeriodLength:     Long,
       activationOperationalPeriod: Long,
       address:                     TaktikosAddress,
       ref:                         Ref[F, (Long, Option[LongMap[OperationalKeyOut]])]
-    )(implicit
-      kesProductScheme: KesProduct,
-      ed25519Scheme:    Ed25519
     ): OperationalKeysAlgebra[F] = { (slot: Slot, parentSlotId: SlotId) =>
       val operationalPeriod = slot / operationalPeriodLength
       ref.get.flatMap {
@@ -116,8 +119,11 @@ object OperationalKeys {
                   relativeStake,
                   clock,
                   vrfProof,
-                  etaCalculation
-                )
+                  etaCalculation,
+                  kesProductResource,
+                  ed25519Resource
+                ),
+                kesProductResource
               )
             )
             .semiflatTap(newKeys => ref.set(operationalPeriod -> newKeys.some))
@@ -133,10 +139,11 @@ object OperationalKeys {
      * key for `timeStep + 1` is constructed and saved to disk.
      */
     private def consumeEvolvePersist[F[_]: MonadError[*[_], Throwable]: Logger, T](
-      timeStep:                  Int,
-      secureStore:               SecureStore[F],
-      use:                       SecretKeys.KesProduct => F[T]
-    )(implicit kesProductScheme: KesProduct): F[Option[T]] = {
+      timeStep:           Int,
+      secureStore:        SecureStore[F],
+      use:                SecretKeys.KesProduct => F[T],
+      kesProductResource: UnsafeResource[F, KesProduct]
+    ): F[Option[T]] = {
       for {
         fileName <- OptionT.liftF(secureStore.list.flatMap {
           case Chain(fileName) => fileName.pure[F]
@@ -147,20 +154,18 @@ object OperationalKeys {
         })
         _       <- OptionT.liftF(Logger[F].info(show"Consuming key id=$fileName"))
         diskKey <- OptionT(secureStore.consume[SecretKeys.KesProduct](fileName))
-        latest = kesProductScheme.getCurrentStep(diskKey)
-        currentPeriodKey =
-          if (latest === timeStep) diskKey
-          else kesProductScheme.update(diskKey, timeStep.toInt)
+        latest  <- OptionT.liftF(kesProductResource.use(_.getCurrentStep(diskKey).pure[F]))
+        currentPeriodKey <-
+          if (latest === timeStep) OptionT.pure[F](diskKey)
+          else OptionT.liftF(kesProductResource.use(_.update(diskKey, timeStep.toInt).pure[F]))
         res <- OptionT.liftF(use(currentPeriodKey))
         nextTimeStep = timeStep + 1
-        _ <- OptionT.liftF(Logger[F].info(show"Saving next key idx=$nextTimeStep"))
+        _       <- OptionT.liftF(Logger[F].info(show"Saving next key idx=$nextTimeStep"))
+        updated <- OptionT.liftF(kesProductResource.use(_.update(currentPeriodKey, nextTimeStep).pure[F]))
         _ <- OptionT.liftF(
           secureStore.write(
             UUID.randomUUID().toString,
-            kesProductScheme.update(
-              currentPeriodKey,
-              nextTimeStep
-            )
+            updated
           )
         )
       } yield res
@@ -180,10 +185,9 @@ object OperationalKeys {
       relativeStake:           Ratio,
       clock:                   ClockAlgebra[F],
       vrfProof:                VrfProofAlgebra[F],
-      etaCalculation:          EtaCalculationAlgebra[F]
-    )(implicit
-      kesProductScheme: KesProduct,
-      ed25519Scheme:    Ed25519
+      etaCalculation:          EtaCalculationAlgebra[F],
+      kesProductResource:      UnsafeResource[F, KesProduct],
+      ed25519Resource:         UnsafeResource[F, Ed25519]
     ): F[LongMap[OperationalKeyOut]] =
       for {
         epoch <- clock.epochOf(fromSlot)
@@ -194,30 +198,47 @@ object OperationalKeys {
           (operationalPeriod + 1) * operationalPeriodLength,
           1L
         )
+        _ <- Logger[F].info(
+          show"Computing ineligible slots for" +
+          show" epoch=$epoch" +
+          show" eta=$eta" +
+          show" range=${operationalPeriodSlots.start}..${operationalPeriodSlots.last}"
+        )
         ineligibleSlots <- vrfProof.ineligibleSlots(epoch, eta, operationalPeriodSlots.some, relativeStake).map(_.toSet)
         slots = Vector
           .tabulate((operationalPeriodLength - (fromSlot % operationalPeriodLength)).toInt)(_ + fromSlot)
           .filterNot(ineligibleSlots)
-        _ <- Logger[F].info(s"Preparing linear keys.  count=${slots.size}")
-        outs = prepareOperationalPeriodKeys(kesParent, slots)
+        _    <- Logger[F].info(s"Preparing linear keys.  count=${slots.size}")
+        outs <- prepareOperationalPeriodKeys(kesParent, slots, kesProductResource, ed25519Resource)
         mappedKeys = LongMap.from(outs.map(o => o.slot -> o))
       } yield mappedKeys
 
     /**
      * From some "parent" KES key, create several SKs for each slot in the given list of slots
      */
-    private def prepareOperationalPeriodKeys(kesParent: SecretKeys.KesProduct, slots: Vector[Slot])(implicit
-      kesProductScheme:                                 KesProduct,
-      ed25519Scheme:                                    Ed25519
-    ): Vector[OperationalKeyOut] =
-      slots.map { slot =>
-        val childSK = KeyInitializer[SecretKeys.Ed25519].random()
-        val signedVK =
-          kesProductScheme.sign(
-            kesParent,
-            (ed25519Scheme.getVerificationKey(childSK).bytes.data ++ Bytes(Longs.toByteArray(slot)))
-          )
-        OperationalKeyOut(slot, childSK, signedVK, kesProductScheme.getVerificationKey(kesParent))
-      }
+    private def prepareOperationalPeriodKeys[F[_]: Monad](
+      kesParent:          SecretKeys.KesProduct,
+      slots:              Vector[Slot],
+      kesProductResource: UnsafeResource[F, KesProduct],
+      ed25519Resource:    UnsafeResource[F, Ed25519]
+    ): F[Vector[OperationalKeyOut]] =
+      ed25519Resource
+        .use(ed => List.fill(slots.size)(ed.createKeyPair(Entropy.fromUuid(UUID.randomUUID()), None)).pure[F])
+        .flatMap(children =>
+          kesProductResource.use { kesProductScheme =>
+            val parentVK = kesProductScheme.getVerificationKey(kesParent)
+            slots
+              .zip(children)
+              .map { case (slot, (childSK, childVK)) =>
+                val parentSignature =
+                  kesProductScheme.sign(
+                    kesParent,
+                    (childVK.bytes.data ++ Bytes(Longs.toByteArray(slot)))
+                  )
+                OperationalKeyOut(slot, childSK, parentSignature, parentVK)
+              }
+              .pure[F]
+          }
+        )
   }
 }
