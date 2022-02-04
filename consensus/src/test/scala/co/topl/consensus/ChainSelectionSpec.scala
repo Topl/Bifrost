@@ -3,6 +3,8 @@ package co.topl.consensus
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
+import co.topl.algebras.UnsafeResource
+import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models.ModelGenerators._
 import co.topl.models._
@@ -30,12 +32,20 @@ class ChainSelectionSpec
 
   implicit private val logger: Logger[F] = Slf4jLogger.getLogger[F]
 
+  implicit private val blake2b512: Blake2b512 = new Blake2b512
+
+  private val blake2b512Resource: UnsafeResource[F, Blake2b512] =
+    new UnsafeResource[F, Blake2b512] {
+      def use[Res](f: Blake2b512 => F[Res]): F[Res] = f(blake2b512)
+    }
+
   // TODO: Use generators to account for edge cases
 
   it should "return 0 for equal tines" in {
     val slotData = createSlotData(10, SlotId(9, TypedBytes(1: Byte, Bytes(Array[Byte](9)))), height = 4)
 
-    val orderT = ChainSelection.orderT[F](mock[SlotDataCache[F]], kLookback = 1, sWindow = 1)
+    val orderT =
+      ChainSelection.orderT[F](mock[SlotDataCache[F]], blake2b512Resource, kLookback = 1, sWindow = 1)
 
     orderT.compare(slotData, slotData).unsafeRunSync() shouldBe 0
   }
@@ -68,7 +78,7 @@ class ChainSelectionSpec
       .anyNumberOfTimes()
       .onCall((id: TypedIdentifier) => allBlocks(id).pure[F])
 
-    val orderT = ChainSelection.orderT[F](cache, kLookback = 100, sWindow = 1)
+    val orderT = ChainSelection.orderT[F](cache, blake2b512Resource, kLookback = 100, sWindow = 1)
 
     orderT.compare(xSegment.last, ySegment.last).unsafeRunSync() should be > 0
   }
@@ -107,7 +117,7 @@ class ChainSelectionSpec
       .anyNumberOfTimes()
       .onCall((id: TypedIdentifier) => allBlocks(id).pure[F])
 
-    val orderT = ChainSelection.orderT[F](cache, kLookback = 100, sWindow = 1)
+    val orderT = ChainSelection.orderT[F](cache, blake2b512Resource, kLookback = 100, sWindow = 1)
 
     orderT.compare(xSegment.last, ySegment.last).unsafeRunSync() should be > 0
   }
@@ -167,7 +177,7 @@ class ChainSelectionSpec
       .anyNumberOfTimes()
       .onCall((id: TypedIdentifier) => allBlocks(id).pure[F])
 
-    val orderT = ChainSelection.orderT[F](cache, kLookback = 100, sWindow = 1)
+    val orderT = ChainSelection.orderT[F](cache, blake2b512Resource, kLookback = 100, sWindow = 1)
 
     orderT.compare(xSegment.last, ySegment.last).unsafeRunSync() should be > 0
   }
@@ -201,7 +211,7 @@ class ChainSelectionSpec
       .anyNumberOfTimes()
       .onCall((id: TypedIdentifier) => allBlocks(id).pure[F])
 
-    val orderT = ChainSelection.orderT[F](cache, kLookback = 10, sWindow = 20)
+    val orderT = ChainSelection.orderT[F](cache, blake2b512Resource, kLookback = 10, sWindow = 20)
 
     orderT.compare(xSegment.last, ySegment.last).unsafeRunSync() should be > 0
   }

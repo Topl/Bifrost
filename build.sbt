@@ -53,8 +53,8 @@ lazy val commonSettings = Seq(
     "Sonatype Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots/",
     "Bintray" at "https://jcenter.bintray.com/"
   ),
-  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full),
-  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1")
+  addCompilerPlugin("org.typelevel" % "kind-projector"     % "0.13.2" cross CrossVersion.full),
+  addCompilerPlugin("com.olegpy"   %% "better-monadic-for" % "0.3.1")
 )
 
 lazy val publishSettings = Seq(
@@ -321,7 +321,7 @@ lazy val algebras = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.algebras"
   )
-  .settings(libraryDependencies ++= Dependencies.test)
+  .settings(libraryDependencies ++= Dependencies.test ++ Seq(Dependencies.catsSlf4j % "test"))
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, crypto, byteCodecs)
 
@@ -340,7 +340,13 @@ lazy val consensus = project
     libraryDependencies ++= Dependencies.consensus
   )
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models % "compile->compile;test->test", typeclasses, crypto, byteCodecs, algebras)
+  .dependsOn(
+    models % "compile->compile;test->test",
+    typeclasses,
+    crypto,
+    byteCodecs,
+    algebras % "compile->compile;test->test"
+  )
 
 lazy val minting = project
   .in(file("minting"))
@@ -354,7 +360,14 @@ lazy val minting = project
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsEffect)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models % "compile->compile;test->test", typeclasses, crypto, byteCodecs, algebras, consensus)
+  .dependsOn(
+    models % "compile->compile;test->test",
+    typeclasses,
+    crypto,
+    byteCodecs,
+    algebras % "compile->compile;test->test",
+    consensus
+  )
 
 lazy val demo = project
   .in(file("demo"))
