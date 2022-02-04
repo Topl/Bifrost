@@ -144,32 +144,32 @@ class ConsenesusVariablesSpec
     }
   }
 
-//TODO: Jing - Not testing since the in memory key value store doesn't support changing versionsToKeep
-//
-//  it should "fail to roll back to an invalid version" in {
-//
-//    implicit val timeProvider: TimeProvider = mock[TimeProvider]
-//
-//    (() => timeProvider.time)
-//      .expects()
-//      .anyNumberOfTimes()
-//      .onCall(() => System.currentTimeMillis())
-//
-//    genesisActorTest { testIn =>
-//      val probe = createTestProbe[StatusReply[ConsensusParams]]()
-//      val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head)
-//        .take(settings.application.consensusStoreVersionsToKeep + 1)
-//        .toList
-//      Thread.sleep(0.1.seconds.toMillis)
-//      newBlocks.foreach { block =>
-//        system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
-//      }
-//      Thread.sleep(0.1.seconds.toMillis)
-//      testIn.consensusStorageRef ! RollbackConsensusVariables(modifierIdGen.sample.get, probe.ref)
-//      // the first of the newBlocks would be at height 2 since it's the first one after the genesis block
-//      probe.receiveMessage(1.seconds).toString() shouldEqual "Error(Failed to roll back to the given version)"
-//    }
-//  }
+
+  it should "fail to roll back to an invalid version" in {
+
+    implicit val timeProvider: TimeProvider = mock[TimeProvider]
+
+    (() => timeProvider.time)
+      .expects()
+      .anyNumberOfTimes()
+      .onCall(() => System.currentTimeMillis())
+
+    val consensusStorageRef =
+      spawn(ConsensusVariables(settings, appContext.networkType, None), ConsensusVariables.actorName)
+    val probe = createTestProbe[StatusReply[ConsensusParams]]()
+    val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head)
+      .take(settings.application.consensusStoreVersionsToKeep + 1)
+      .toList
+    Thread.sleep(0.1.seconds.toMillis)
+    newBlocks.foreach { block =>
+      system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
+    }
+    Thread.sleep(0.1.seconds.toMillis)
+    consensusStorageRef ! RollbackConsensusVariables(modifierIdGen.sample.get, probe.ref)
+    // the first of the newBlocks would be at height 2 since it's the first one after the genesis block
+    probe.receiveMessage(1.seconds).toString() shouldEqual "Error(Failed to roll back to the given version)"
+
+  }
 
   private def genesisActorTest(test: TestInWithActor => Unit)(implicit timeProvider: TimeProvider): Unit = {
     val testIn = genesisNodeView()
