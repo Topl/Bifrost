@@ -28,6 +28,14 @@ object Forger {
 
   val ActorName = "forger"
 
+  sealed abstract class ForgerStatus
+
+  case object Active extends ForgerStatus
+
+  case object Idle extends ForgerStatus
+
+  case object Uninitialized extends ForgerStatus
+
   sealed trait ReceivableMessage
 
   object ReceivableMessages {
@@ -35,6 +43,8 @@ object Forger {
     case class StartForging(replyTo: ActorRef[Done]) extends ReceivableMessage
 
     case class StopForging(replyTo: ActorRef[Done]) extends ReceivableMessage
+
+    case class CheckForgerStatus(replyTo: ActorRef[ForgerStatus]) extends ReceivableMessage
 
     private[consensus] case object InitializationComplete extends ReceivableMessage
 
@@ -150,6 +160,9 @@ private class ForgerBehaviors(
       case ReceivableMessages.StopForging(replyTo) =>
         replyTo.tell(Done)
         Behaviors.same
+      case ReceivableMessages.CheckForgerStatus(replyTo) =>
+        replyTo.tell(Idle)
+        Behaviors.same
       case ReceivableMessages.Terminate(reason) =>
         throw reason
     }
@@ -166,6 +179,9 @@ private class ForgerBehaviors(
       case ReceivableMessages.StopForging(replyTo) =>
         replyTo.tell(Done)
         uninitialized(forgeWhenReady = false)
+      case ReceivableMessages.CheckForgerStatus(replyTo) =>
+        replyTo.tell(Uninitialized)
+        Behaviors.same
       case ReceivableMessages.InitializationComplete =>
         context.log.info(s"${Console.YELLOW}Forger is initialized${Console.RESET}")
         if (forgeWhenReady) context.self.tell(ReceivableMessages.StartForging(context.system.ignoreRef))
@@ -187,6 +203,9 @@ private class ForgerBehaviors(
           idle
         case ReceivableMessages.StartForging(replyTo) =>
           replyTo.tell(Done)
+          Behaviors.same
+        case ReceivableMessages.CheckForgerStatus(replyTo) =>
+          replyTo.tell(Active)
           Behaviors.same
         case ReceivableMessages.ForgerTick =>
           context.pipeToSelf(nextBlock().value)(result =>
@@ -269,12 +288,18 @@ trait ForgerInterface {
    * may not stop immediately.  A successful response indicates the Forger received and acknowledges the signal.
    */
   def stopForging(): EitherT[Future, ForgerInterface.StopForgingFailure, Done]
+
+  /**
+   * Check the status of the node. A successful response indicates the status(eg. forging status) of the forger.
+   */
+  def checkForgerStatus(): EitherT[Future, ForgerInterface.CheckStatusFailure, Forger.ForgerStatus]
 }
 
 object ForgerInterface {
 
   sealed trait StartForgingFailure
   sealed trait StopForgingFailure
+  sealed trait CheckStatusFailure
 }
 
 class ActorForgerInterface(actorRef: ActorRef[Forger.ReceivableMessage])(implicit system: ActorSystem[_])
@@ -290,6 +315,9 @@ class ActorForgerInterface(actorRef: ActorRef[Forger.ReceivableMessage])(implici
 
   override def stopForging(): EitherT[Future, ForgerInterface.StopForgingFailure, Done] =
     EitherT.liftF(actorRef.ask[Done](Forger.ReceivableMessages.StopForging))
+
+  override def checkForgerStatus(): EitherT[Future, ForgerInterface.CheckStatusFailure, Forger.ForgerStatus] =
+    EitherT.liftF(actorRef.ask[Forger.ForgerStatus](Forger.ReceivableMessages.CheckForgerStatus))
 }
 
 /**
