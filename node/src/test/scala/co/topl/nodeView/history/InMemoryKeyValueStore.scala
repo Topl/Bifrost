@@ -27,7 +27,7 @@ class InMemoryKeyValueStore(val keepVersions: Int = 0) extends KeyValueStore {
     while (keepVersions > 0 && changes.size > keepVersions) changes = changes.tail
   }
 
-  override def rollbackTo(version: Array[Byte]): Unit = {
+  override def rollbackTo(version: Array[Byte]): Unit =
     if (changes.exists(_.version sameElements version)) {
       def revertLatest(): Unit = {
         val latest = changes.last
@@ -43,7 +43,6 @@ class InMemoryKeyValueStore(val keepVersions: Int = 0) extends KeyValueStore {
       }
       while (changes.nonEmpty && !java.util.Arrays.equals(changes.last.version, version)) revertLatest()
     }
-  }
 
   override def get(key: Array[Byte]): Option[Array[Byte]] =
     state.get(new WrappedBytes(key))

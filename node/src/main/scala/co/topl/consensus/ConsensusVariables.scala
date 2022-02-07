@@ -64,7 +64,7 @@ object ConsensusVariables {
   def apply(
     settings:    AppSettings,
     networkType: NetworkType,
-    storage:  KeyValueStore
+    storage:     KeyValueStore
   ): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
       implicit val ec: ExecutionContext = context.executionContext
