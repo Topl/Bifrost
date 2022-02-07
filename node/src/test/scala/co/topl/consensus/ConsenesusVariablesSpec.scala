@@ -144,8 +144,7 @@ class ConsenesusVariablesSpec
     }
   }
 
-
-  it should "fail to roll back to an invalid version" in {
+  it should "fail to roll back to a version beyond the number of versions to keep" in {
 
     implicit val timeProvider: TimeProvider = mock[TimeProvider]
 
@@ -154,28 +153,30 @@ class ConsenesusVariablesSpec
       .anyNumberOfTimes()
       .onCall(() => System.currentTimeMillis())
 
-    val consensusStorageRef =
-      spawn(ConsensusVariables(settings, appContext.networkType, None), ConsensusVariables.actorName)
-    val probe = createTestProbe[StatusReply[ConsensusParams]]()
-    val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head)
-      .take(settings.application.consensusStoreVersionsToKeep + 1)
-      .toList
-    Thread.sleep(0.1.seconds.toMillis)
-    newBlocks.foreach { block =>
-      system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
+    genesisActorTest { testIn =>
+      val probe = createTestProbe[StatusReply[ConsensusParams]]()
+      val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head)
+        .take(settings.application.consensusStoreVersionsToKeep + 1)
+        .toList
+      Thread.sleep(0.1.seconds.toMillis)
+      newBlocks.foreach { block =>
+        system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
+      }
+      Thread.sleep(0.1.seconds.toMillis)
+      testIn.consensusStorageRef ! RollbackConsensusVariables(newBlocks.head.id, probe.ref)
+      probe.receiveMessage(1.seconds).toString() shouldEqual "Error(Failed to roll back to the given version)"
     }
-    Thread.sleep(0.1.seconds.toMillis)
-    consensusStorageRef ! RollbackConsensusVariables(modifierIdGen.sample.get, probe.ref)
-    // the first of the newBlocks would be at height 2 since it's the first one after the genesis block
-    probe.receiveMessage(1.seconds).toString() shouldEqual "Error(Failed to roll back to the given version)"
-
   }
 
   private def genesisActorTest(test: TestInWithActor => Unit)(implicit timeProvider: TimeProvider): Unit = {
     val testIn = genesisNodeView()
     val consensusStorageRef =
       spawn(
-        ConsensusVariables(settings, appContext.networkType, Some(InMemoryKeyValueStore.empty())),
+        ConsensusVariables(
+          settings,
+          appContext.networkType,
+          Some(InMemoryKeyValueStore(settings.application.consensusStoreVersionsToKeep))
+        ),
         ConsensusVariables.actorName
       )
     val nodeViewHolderRef = spawn(
