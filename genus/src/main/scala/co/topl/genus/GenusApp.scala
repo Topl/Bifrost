@@ -1,10 +1,9 @@
 package co.topl.genus
 
 import akka.actor.ActorSystem
-import cats.Functor
 import cats.effect.unsafe.implicits.global
 import cats.effect.{Async, IO, IOApp}
-import co.topl.genus.algebras.{HttpServerAlg, QueryServiceAlg}
+import co.topl.genus.algebras.{DataStoreQueryAlg, HttpServerAlg, QueryServiceAlg}
 import co.topl.genus.filters.{BlockFilter, TransactionFilter}
 import co.topl.genus.interpreters.MongoQueryInterp.MongoQueryAlg
 import co.topl.genus.interpreters.{MongoQueryInterp, QueryServer, QueryServiceInterp}
@@ -37,29 +36,29 @@ object GenusApp extends IOApp.Simple {
   val serverPort = 8080
 
   val mongoConnectionString = "mongodb://localhost:27017/?replSet=Bifrost"
+  val mongoDatabaseName = "chain_data"
+  val txsMongoCollectionName = "confirmed_txes"
+  val blocksMongoCollectionName = "blocks"
 
   val mongoClient: MongoClient = MongoClient(mongoConnectionString)
 
-  val mongoDb: MongoDatabase = mongoClient.getDatabase("chain_data")
+  val mongoDb: MongoDatabase = mongoClient.getDatabase(mongoDatabaseName)
 
-  val txsMongoCollection: MongoCollection[Document] = mongoDb.getCollection("confirmed_txes")
+  val txsMongoCollection: MongoCollection[Document] = mongoDb.getCollection(txsMongoCollectionName)
 
-  val blocksMongoCollection: MongoCollection[Document] = mongoDb.getCollection("blocks")
+  val blocksMongoCollection: MongoCollection[Document] = mongoDb.getCollection(blocksMongoCollectionName)
 
   val txsDataStoreQuery: MongoQueryAlg[F, Transaction, TransactionFilter] =
-    // TODO: call the map function directly on the algebra
-    Functor[MongoQueryAlg[F, *, TransactionFilter]]
-      .map(
-        MongoQueryInterp.Eval
-          .make[F, ConfirmedTransactionDataModel, TransactionFilter](txsMongoCollection)
-      )(_.transformTo[Transaction])
+    DataStoreQueryAlg.mapQueryType(
+      MongoQueryInterp.Eval.make[F, ConfirmedTransactionDataModel, TransactionFilter](txsMongoCollection),
+      (dataModel: ConfirmedTransactionDataModel) => dataModel.transformTo[Transaction]
+    )
 
   val blocksDataStoreQuery: MongoQueryAlg[F, Block, BlockFilter] =
-    Functor[MongoQueryAlg[F, *, BlockFilter]]
-      .map(
-        MongoQueryInterp.Eval
-          .make[F, BlockDataModel, BlockFilter](blocksMongoCollection)
-      )(_.transformTo[Block])
+    DataStoreQueryAlg.mapQueryType(
+      MongoQueryInterp.Eval.make[F, BlockDataModel, BlockFilter](blocksMongoCollection),
+      (dataModel: BlockDataModel) => dataModel.transformTo[Block]
+    )
 
   val defaultTransactionFilter: TransactionFilter =
     TransactionFilter.of(TransactionFilter.FilterType.All(TransactionFilter.AllFilter()))
