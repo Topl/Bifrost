@@ -380,7 +380,7 @@ class ChainReplicatorSpec
   private def genesisActorTest(test: TestInWithActor => Unit)(implicit timeProvider: TimeProvider): Unit = {
     val testIn = genesisNodeView()
     val consensusStorageRef = spawn(
-      ConsensusVariables(settings, appContext.networkType, Some(InMemoryKeyValueStore.empty())),
+      ConsensusVariables(settings, appContext.networkType, InMemoryKeyValueStore.empty()),
       ConsensusVariables.actorName
     )
     val nodeViewHolderRef = spawn(

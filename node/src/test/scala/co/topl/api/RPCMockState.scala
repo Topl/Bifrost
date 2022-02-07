@@ -80,7 +80,7 @@ trait RPCMockState
     )
 
     consensusStorageRef = system.toTyped.systemActorOf(
-      ConsensusVariables(settings, appContext.networkType, Some(InMemoryKeyValueStore.empty())),
+      ConsensusVariables(settings, appContext.networkType, InMemoryKeyValueStore.empty()),
       ConsensusVariables.actorName
     )
 

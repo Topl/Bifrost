@@ -147,7 +147,7 @@ class NodeViewHolderSpec
     val testIn = genesisNodeView()
     val consensusStorageRef =
       spawn(
-        ConsensusVariables(settings, appContext.networkType, Some(InMemoryKeyValueStore.empty())),
+        ConsensusVariables(settings, appContext.networkType, InMemoryKeyValueStore.empty()),
         ConsensusVariables.actorName
       )
     val nodeViewHolderRef = spawn(

@@ -163,7 +163,7 @@ class MemPoolAuditorSpec
     val networkControllerRef: CActorRef =
       cSystem.actorOf(NetworkControllerRef.props(testSettings, peerManagerRef, appContext, IO(Tcp)))
     val consensusStorageRef = spawn(
-      ConsensusVariables(settings, appContext.networkType, Some(InMemoryKeyValueStore.empty())),
+      ConsensusVariables(settings, appContext.networkType, InMemoryKeyValueStore.empty()),
       ConsensusVariables.actorName
     )
     val consensusVariablesInterface = new ActorConsensusVariablesInterface(consensusStorageRef)

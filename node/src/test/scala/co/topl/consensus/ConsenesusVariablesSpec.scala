@@ -91,7 +91,7 @@ class ConsenesusVariablesSpec
     val probe = createTestProbe[ConsensusParams]()
     val store = InMemoryKeyValueStore.empty()
     val consensusStorageRef = spawn(
-      ConsensusVariables(settings, appContext.networkType, Some(store)),
+      ConsensusVariables(settings, appContext.networkType, store),
       ConsensusVariables.actorName
     )
     val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head)
@@ -109,7 +109,7 @@ class ConsenesusVariablesSpec
 
     // initialize a new consensus actor with the modified InMemoryKeyValueStore
     val newConsensusStorageRef = spawn(
-      ConsensusVariables(settings, appContext.networkType, Some(store)),
+      ConsensusVariables(settings, appContext.networkType, store),
       ConsensusVariables.actorName
     )
     newConsensusStorageRef ! GetConsensusVariables(probe.ref)
@@ -175,7 +175,7 @@ class ConsenesusVariablesSpec
         ConsensusVariables(
           settings,
           appContext.networkType,
-          Some(InMemoryKeyValueStore(settings.application.consensusStoreVersionsToKeep))
+          InMemoryKeyValueStore(settings.application.consensusStoreVersionsToKeep)
         ),
         ConsensusVariables.actorName
       )

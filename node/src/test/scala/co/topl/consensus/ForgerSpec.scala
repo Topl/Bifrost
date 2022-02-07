@@ -136,7 +136,7 @@ class ForgerSpec
         LoggingTestKit.debug("New local block").withOccurrences(newBlockCount + 1).expect {
           val consensusStorageRef =
             spawn(
-              ConsensusVariables(settings, appContext.networkType, Some(InMemoryKeyValueStore.empty())),
+              ConsensusVariables(settings, appContext.networkType, InMemoryKeyValueStore.empty()),
               ConsensusVariables.actorName
             )
           val forgerRef = spawn(
@@ -206,7 +206,7 @@ class ForgerSpec
 
     val consensusStorageRef =
       spawn(
-        ConsensusVariables(settings, appContext.networkType, Some(InMemoryKeyValueStore.empty())),
+        ConsensusVariables(settings, appContext.networkType, InMemoryKeyValueStore.empty()),
         ConsensusVariables.actorName
       )
 
@@ -251,7 +251,7 @@ class ForgerSpec
     LoggingTestKit.error("Forging requires a rewards address").expect {
       val consensusStorageRef =
         spawn(
-          ConsensusVariables(settings, appContext.networkType, Some(InMemoryKeyValueStore.empty())),
+          ConsensusVariables(settings, appContext.networkType, InMemoryKeyValueStore.empty()),
           ConsensusVariables.actorName
         )
       val forgerRef = spawn(

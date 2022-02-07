@@ -64,7 +64,7 @@ object ConsensusVariables {
   def apply(
     settings:    AppSettings,
     networkType: NetworkType,
-    storageOpt:  Option[KeyValueStore]
+    storage:  KeyValueStore
   ): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
       implicit val ec: ExecutionContext = context.executionContext
@@ -75,17 +75,6 @@ object ConsensusVariables {
         case PrivateTestnet =>
           settings.forging.privateTestnet.map(sfp => sfp.numTestnetAccts * sfp.testnetBalance).getOrElse(10000000L)
         case _ => 200000000000000000L // todo: JAA - this should be with other genesis consensus parameters
-      }
-
-      val storage = storageOpt match {
-        case Some(store) =>
-          store
-        case None =>
-          // Read or generate LDB key value store for persistence
-          val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
-          val file = new File(s"$dataDir/consensus")
-          file.mkdirs()
-          new LDBKeyValueStore(new LDBVersionedStore(file, settings.application.consensusStoreVersionsToKeep))
       }
 
       // Subscribe to new appended blocks to update the difficulty and height
@@ -108,6 +97,18 @@ object ConsensusVariables {
         paramsFromStorage(storage, defaultTotalStake)
       )
     }
+
+  /**
+   * Read or generate LDB key value store for persistence
+   * @param settings for getting the data directory
+   * @return LDBKeyValueStore for the consensus variable actor
+   */
+  def readOrGenerateConsensusStore(settings: AppSettings): KeyValueStore = {
+    val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
+    val file = new File(s"$dataDir/consensus")
+    file.mkdirs()
+    new LDBKeyValueStore(new LDBVersionedStore(file, settings.application.consensusStoreVersionsToKeep))
+  }
 
   private def active(storage: KeyValueStore, consensusParams: ConsensusParams): Behavior[ReceivableMessage] =
     Behaviors.receivePartial {
