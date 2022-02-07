@@ -18,7 +18,7 @@ case class MemPool(private val unconfirmed: TrieMap[ModifierId, UnconfirmedTx[Tr
 
   private val boxesInMempool = new TrieMap[BoxId, BoxId]()
 
-  //getters
+  // getters
   override def modifierById(id: ModifierId): Option[TX] = unconfirmed.get(id).map(_.tx)
 
   override def contains(id: ModifierId): Boolean = unconfirmed.contains(id)
@@ -27,7 +27,7 @@ case class MemPool(private val unconfirmed: TrieMap[ModifierId, UnconfirmedTx[Tr
 
   override def size: Int = unconfirmed.size
 
-  //modifiers
+  // modifiers
   override def put(tx: TX, time: TimeProvider.Time): Try[MemPool] = Try {
     unconfirmed.put(tx.id, UnconfirmedTx(tx, time))
     tx.boxIdsToOpen.foreach(boxId => require(!boxesInMempool.contains(boxId)))
@@ -105,6 +105,6 @@ case class MemPool(private val unconfirmed: TrieMap[ModifierId, UnconfirmedTx[Tr
 }
 
 object MemPool {
-  lazy val emptyPool: MemPool = MemPool(TrieMap())
+  def empty(): MemPool = MemPool(TrieMap())
 
 }

@@ -1,25 +1,5 @@
-import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.http.scaladsl.model.headers.{HttpOrigin, Origin, RawHeader}
-import akka.http.scaladsl.model.{HttpEntity, HttpMethods, HttpRequest, MediaTypes}
-import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.testkit.ScalatestRouteTest
-import akka.pattern.ask
-import akka.util.{ByteString, Timeout}
-import attestation.Address
-import attestation.AddressEncoder.NetworkPrefix
-import http.{GjallarhornOfflineApiRoute, HttpService, KeyManagementApiRoute}
-import io.circe.Json
-import io.circe.parser.parse
-import keymanager.KeyManager.{GenerateKeyFile, GetAllKeyfiles}
-import keymanager.KeyManagerRef
-import org.scalatest.flatspec.AsyncFlatSpec
-import org.scalatest.matchers.should.Matchers
-import requests.ApiRoute
-import wallet.WalletManager
-
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import scala.reflect.io.Path
 import scala.util.{Failure, Success, Try}
 
 /**

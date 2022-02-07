@@ -1,16 +1,5 @@
 package attestation
 
-import cats.implicits._
-import co.topl.crypto.hash.digest.Digest
-import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.StringDataTypes.implicits._
-import co.topl.utils.codecs.implicits._
-import com.google.common.primitives.Ints
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import io.estatico.newtype.macros.newtype
-import utils.serialization.{BytesSerializable, GjalSerializer, Reader, Writer}
-
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
 

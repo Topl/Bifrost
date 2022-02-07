@@ -10,10 +10,10 @@ import co.topl.modifier.box.AssetCode
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
 import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import co.topl.utils.StringDataTypes.implicits._
-import co.topl.utils.encode.Base58
+import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import co.topl.utils.codecs.implicits._
+import co.topl.utils.encode.Base58
 import io.circe.Encoder
 
 import java.security.SecureRandom
@@ -73,7 +73,7 @@ object UtilsRpcHandlerImpls {
 
   private def generateSeed(length: Int): String = {
     val seed = new Array[Byte](length)
-    new SecureRandom().nextBytes(seed) //seed mutated here!
+    new SecureRandom().nextBytes(seed) // seed mutated here!
     seed.encodeAsBase58.show
   }
 }

@@ -1,9 +1,10 @@
 package co.topl.nodeView.state
 
 import co.topl.attestation.Address
-import co.topl.db.{LDBVersionedStore, VersionedKVStore}
+import co.topl.db.LDBVersionedStore
 import co.topl.modifier.box.{Box, BoxId, TokenBox, TokenValueHolder}
 import co.topl.nodeView.state.MinimalState.VersionTag
+import co.topl.nodeView.{KeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
 import com.google.common.primitives.Longs
@@ -17,12 +18,12 @@ import scala.util.Try
  * @param storage Persistent storage object for saving the TokenBoxRegistry to disk
  * @param nodeKeys set of node keys that denote the state this node will maintain (useful for personal wallet nodes)
  */
-class TokenBoxRegistry(protected val storage: VersionedKVStore, nodeKeys: Option[Set[Address]])
+class TokenBoxRegistry(protected val storage: KeyValueStore, nodeKeys: Option[Set[Address]])
     extends Registry[TokenBoxRegistry.K, TokenBoxRegistry.V] {
 
   import TokenBoxRegistry.{K, V}
 
-  //----- input and output transformation functions
+  // ----- input and output transformation functions
   override protected val registryInput: K => Array[Byte] = (key: K) => key.bytes
 
   override protected val registryOutput: Array[Byte] => Seq[V] =
@@ -114,7 +115,7 @@ class TokenBoxRegistry(protected val storage: VersionedKVStore, nodeKeys: Option
   }
 
   override def rollbackTo(version: VersionTag): Try[TokenBoxRegistry] = Try {
-    if (storage.lastVersionID().exists(_ sameElements version.bytes)) {
+    if (storage.latestVersionId().exists(_ sameElements version.bytes)) {
       this
     } else {
       log.debug(s"Rolling back TokenBoxRegistry to: ${version.toString}")
@@ -137,7 +138,7 @@ object TokenBoxRegistry extends Logging {
 
       val file = new File(s"$dataDir/tokenBoxRegistry")
       file.mkdirs()
-      val storage = new LDBVersionedStore(file, 1000)
+      val storage = new LDBKeyValueStore(new LDBVersionedStore(file, keepVersions = 100))
 
       Some(new TokenBoxRegistry(storage, nodeKeys))
 

@@ -25,7 +25,7 @@ object TokenRegistryChanges {
         mod.transactions
           .map {
             case tx: TransferTransaction[_, _] => (tx.from, tx.newBoxes)
-            case _                             => (Seq(), Seq()) // JAA - not sure if this is needed but added to be exhaustive
+            case _ => (Seq(), Seq()) // JAA - not sure if this is needed but added to be exhaustive
           }
           .foldLeft((Seq[(K, Box.Nonce)](), Seq[Box[TokenValueHolder]]())) { (acc, txData) =>
             (acc._1 ++ txData._1, acc._2 ++ txData._2)

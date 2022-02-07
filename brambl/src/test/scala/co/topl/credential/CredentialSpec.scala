@@ -1,6 +1,6 @@
 package co.topl.credential
 
-import cats._
+import cats.implicits._
 import co.topl.crypto.signing.{Curve25519, Ed25519, ExtendedEd25519}
 import co.topl.models.ModelGenerators._
 import co.topl.models._
@@ -27,7 +27,7 @@ class CredentialSpec
   implicit private val ed25519: Ed25519 = new Ed25519()
   implicit private val extendedEd25519: ExtendedEd25519 = new ExtendedEd25519
 
-  type F[A] = Id[A]
+  type F[A] = cats.Id[A]
 
   "CurveSigningCredential" should "create a proposition and proof" in {
     forAll { (sk: SecretKeys.Curve25519, unprovenTransaction: Transaction.Unproven) =>
@@ -112,8 +112,7 @@ class CredentialSpec
           .once()
           .returning(height + 1)
 
-        andProof.satisfies(andProposition) shouldBe true
-
+        andProposition.isSatisifiedBy(andProof) shouldBe true
       }
     }
   }
@@ -138,8 +137,7 @@ class CredentialSpec
           .once()
           .returning(height + 1)
 
-        orProof.satisfies(orProposition) shouldBe true
-
+        orProposition.isSatisifiedBy(orProof) shouldBe true
       }
     }
   }
@@ -251,7 +249,7 @@ class CredentialSpec
             .once()
             .returning(height + 1)
 
-          andProof.satisfies(andProposition)
+          andProposition.isSatisifiedBy(andProof) shouldBe true
         }
     }
   }

@@ -4,10 +4,10 @@ import cats.implicits.toShow
 import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.codecs.implicits._
+import co.topl.utils.codecs.{AsBytes, FromBytes, Infallible}
 import co.topl.utils.encode.Base58
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
-import co.topl.utils.codecs.{AsBytes, FromBytes, Infallible}
-import co.topl.utils.codecs.implicits._
 import com.google.common.primitives.Longs
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyEncoder}
@@ -64,7 +64,7 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
   @newtype
   case class BloomTopic(value: Array[Byte])
 
-  val numBytes: Int = 256 //bytes (2048 bits)
+  val numBytes: Int = 256 // bytes (2048 bits)
   private val size: Int = numBytes * 8
   private val numLongs: Int = size / 64 // filter is composed of an array of longs (64 bit elements)
 
@@ -76,6 +76,7 @@ object BloomFilter extends BifrostSerializer[BloomFilter] {
   // NOTE - these values are highly dependent on the length of the bloom filter, manipulate carefully
   private val idxMask: Int =
     size - 1 /* 2047 -> 0000 0111 1111 1111 - mask for taking the low-order 11 bits of the byte pairs */
+
   private val longElemMask: Int =
     size - 64 /* 1984 -> 0000 0111 1100 0000 - mask for finding the long to modify */
   private val bitElemMask: Int = 63 /*   63 -> 0000 0000 0011 1111 - mask for finding the bit to modify */

@@ -1,16 +1,13 @@
 package co.topl.modifier.transaction.serialization
 
-import cats.implicits._
 import co.topl.attestation._
 import co.topl.attestation.serialization.{ProofSerializer, PropositionSerializer}
 import co.topl.modifier.box.{SimpleValue, TokenValueHolder}
 import co.topl.modifier.transaction.PolyTransfer
 import co.topl.utils.Extensions._
 import co.topl.utils.Int128
-import co.topl.utils.StringDataTypes.implicits._
-import co.topl.utils.serialization.{stringCharacterSet, BifrostSerializer, Reader, Writer}
 import co.topl.utils.StringDataTypes.Latin1Data
-import co.topl.utils.StringDataTypes.implicits._
+import co.topl.utils.serialization.{stringCharacterSet, BifrostSerializer, Reader, Writer}
 
 import scala.collection.immutable.ListMap
 import scala.language.existentials
@@ -18,7 +15,7 @@ import scala.language.existentials
 object PolyTransferSerializer extends BifrostSerializer[PolyTransfer[_ <: Proposition]] {
 
   override def serialize(obj: PolyTransfer[_ <: Proposition], w: Writer): Unit = {
-    /* Byte */ //this is used to signal the types of propositions in the transactions
+    /* Byte */ // this is used to signal the types of propositions in the transactions
     w.put(obj.getPropIdentifier.typePrefix)
 
     /* from: IndexedSeq[(Address, Nonce)] */

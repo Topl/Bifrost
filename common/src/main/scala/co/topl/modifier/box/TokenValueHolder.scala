@@ -9,8 +9,6 @@ import co.topl.utils.serialization.{stringCharacterSet, BifrostSerializer, Bytes
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor}
 
-import java.nio.charset.StandardCharsets
-
 sealed abstract class TokenValueHolder(val quantity: Int128) extends BytesSerializable {
   override type M = TokenValueHolder
 
@@ -67,7 +65,7 @@ object SimpleValue extends BifrostSerializer[SimpleValue] {
   implicit val jsonEncoder: Encoder[SimpleValue] = { (value: SimpleValue) =>
     Map(
       "type"     -> valueTypeString.asJson,
-      "quantity" -> Int128Codec.jsonEncoder(value.quantity)
+      "quantity" -> value.quantity.asJson
     ).asJson
   }
 
@@ -103,7 +101,7 @@ object AssetValue extends BifrostSerializer[AssetValue] {
   implicit val jsonEncoder: Encoder[AssetValue] = { (value: AssetValue) =>
     Map(
       "type"         -> valueTypeString.asJson,
-      "quantity"     -> value.quantity.asJson(Int128Codec.jsonEncoder),
+      "quantity"     -> value.quantity.asJson,
       "assetCode"    -> value.assetCode.asJson,
       "securityRoot" -> value.securityRoot.asJson,
       "metadata"     -> value.metadata.asJson
@@ -112,7 +110,7 @@ object AssetValue extends BifrostSerializer[AssetValue] {
 
   implicit val jsonDecoder: Decoder[AssetValue] = (c: HCursor) =>
     for {
-      quantity     <- c.get[Int128]("quantity")(Int128Codec.jsonDecoder)
+      quantity     <- c.get[Int128]("quantity")
       assetCode    <- c.downField("assetCode").as[AssetCode]
       securityRoot <- c.downField("securityRoot").as[Option[Base58Data]]
       metadata     <- c.downField("metadata").as[Option[Latin1Data]]

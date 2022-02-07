@@ -1,9 +1,5 @@
 package attestation.serialization
 
-import attestation.SignatureCurve25519
-import co.topl.crypto.signatures.Signature
-import utils.serialization.{GjalSerializer, Reader, Writer}
-
 /**
  * For serializing a Signature for a PublicKeyProposition
  */

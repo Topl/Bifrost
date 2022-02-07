@@ -1,14 +1,14 @@
+import com.typesafe.sbt.packager.docker.ExecCmd
 import sbt.Keys.{homepage, organization, test}
 import sbtassembly.MergeStrategy
 
-val scala212 = "2.12.14"
+val scala212 = "2.12.15"
 val scala213 = "2.13.6"
 
 inThisBuild(
   List(
     organization := "co.topl",
     scalaVersion := scala213,
-    crossScalaVersions := Seq(scala212, scala213),
     versionScheme := Some("early-semver"),
     dynverSeparator := "-",
     version := dynverGitDescribeOutput.value.mkVersion(versionFmt, fallbackVersion(dynverCurrentDate.value)),
@@ -37,6 +37,7 @@ lazy val commonSettings = Seq(
       case _                       => sourceDir / "scala-2.12-"
     }
   },
+  crossScalaVersions := Seq(scala212, scala213),
   Test / testOptions ++= Seq(
     Tests.Argument("-oD", "-u", "target/test-reports"),
     Tests.Argument(TestFrameworks.ScalaCheck, "-verbosity", "2"),
@@ -76,10 +77,26 @@ lazy val publishSettings = Seq(
     </developers>
 )
 
+lazy val dockerSettings = Seq(
+  Docker / packageName := "bifrost-node",
+  dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java11-21.3.0",
+  dockerUpdateLatest := true,
+  dockerExposedPorts := Seq(9084, 9085),
+  dockerExposedVolumes += "/opt/docker/.bifrost",
+  dockerLabels ++= Map(
+    "bifrost.version" -> version.value
+  ),
+  dockerAliases := dockerAliases.value.flatMap { alias => Seq(
+    alias.withRegistryHost(Some("docker.io/toplprotocol")),
+    alias.withRegistryHost(Some("ghcr.io/topl"))
+  )
+  }
+)
+
 lazy val assemblySettings = Seq(
   assembly / mainClass := Some("co.topl.BifrostApp"),
   assembly / test := {},
-  assemblyJarName := s"bifrost-${version.value}.jar",
+  assemblyJarName := s"bifrost-node-${version.value}.jar",
   assembly / assemblyMergeStrategy ~= { old: ((String) => MergeStrategy) =>
     {
       case ps if ps.endsWith(".SF")  => MergeStrategy.discard
@@ -195,23 +212,17 @@ lazy val bifrost = project
 lazy val node = project
   .in(file("node"))
   .settings(
-    name := "node",
+    name := "bifrost-node",
     commonSettings,
     assemblySettings,
+    dockerSettings,
     Defaults.itSettings,
-    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
-    Compile / run / mainClass := Some("co.topl.BifrostApp"),
+    crossScalaVersions := Seq(scala213), // The `monocle` library does not support Scala 2.12
+    Compile / mainClass := Some("co.topl.BifrostApp"),
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
-    Docker / packageName := "bifrost-node",
-    dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java11-21.1.0",
-    dockerExposedPorts := Seq(9084, 9085),
-    dockerExposedVolumes += "/opt/docker/.bifrost",
-    dockerLabels ++= Map(
-      "bifrost.version" -> version.value
-    ),
-    libraryDependencies ++= Dependencies.node
+    libraryDependencies ++= Dependencies.node,
   )
   .configs(IntegrationTest)
   .settings(
@@ -403,7 +414,6 @@ lazy val toplRpc = project
 //  .settings(
 //    name := "gjallarhorn",
 //    commonSettings,
-//    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
 //    publish / skip := true,
 //    Defaults.itSettings,
 //    libraryDependencies ++= Dependencies.gjallarhorn
@@ -421,7 +431,6 @@ lazy val benchmarking = project
     publish / skip := true,
     libraryDependencies ++= Dependencies.benchmarking
   )
-  .dependsOn(node % "compile->compile;test->test")
   .enablePlugins(JmhPlugin)
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
@@ -450,6 +459,7 @@ lazy val tools = project
     buildInfoPackage := "co.topl.buildinfo.tools",
     libraryDependencies ++= Dependencies.tools
   )
+  .dependsOn(common)
 
 lazy val loadTesting = project
   .in(file("load-testing"))
@@ -461,5 +471,5 @@ lazy val loadTesting = project
   )
   .dependsOn(common, brambl)
 
-addCommandAlias("checkPR", "; scalafixAll --check; scalafmtCheckAll; test")
-addCommandAlias("preparePR", "; scalafixAll; scalafmtAll; test")
+addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; + test")
+addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; + test")

@@ -2,9 +2,9 @@ package co.topl.attestation
 
 import cats.implicits._
 import co.topl.crypto.hash.digest.Digest
-import co.topl.utils.codecs.implicits._
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.StringDataTypes.implicits._
+import co.topl.utils.codecs.implicits._
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
@@ -48,8 +48,8 @@ object Evidence extends BifrostSerializer[Evidence] {
     def apply[D: Digest](d: D): EvidenceContent = d.infalliblyEncodeAsBytes.coerce
   }
 
-  val contentLength = 32 //bytes (this is generally the output of a Blake2b-256 bit hash)
-  val size: Int = 1 + contentLength //length of typePrefix + contentLength
+  val contentLength = 32 // bytes (this is generally the output of a Blake2b-256 bit hash)
+  val size: Int = 1 + contentLength // length of typePrefix + contentLength
 
   def apply(typePrefix: EvidenceTypePrefix, content: EvidenceContent): Evidence = {
     require(content.value.length == contentLength, "Invalid evidence: incorrect EvidenceContent length")

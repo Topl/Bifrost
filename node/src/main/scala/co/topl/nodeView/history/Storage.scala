@@ -3,42 +3,19 @@ package co.topl.nodeView.history
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.hash.digest.implicits._
-import co.topl.db.VersionedKVStore
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.serialization.BlockSerializer
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.transaction.Transaction
+import co.topl.nodeView.KeyValueStore
 import co.topl.utils.Logging
-import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.google.common.primitives.Longs
 
-import scala.concurrent.duration.MILLISECONDS
 import scala.util.Try
 
-class Storage(private[history] val storage: VersionedKVStore, private val cacheExpire: Int, private val cacheSize: Int)
-    extends Logging {
-  /* ------------------------------- Cache Initialization ------------------------------- */
-  type KEY = Array[Byte]
-  type VAL = Array[Byte]
+class Storage(private[nodeView] val keyValueStore: KeyValueStore) extends Logging {
 
-  private val blockLoader: CacheLoader[KEY, Option[VAL]] = new CacheLoader[KEY, Option[VAL]] {
-
-    def load(key: KEY): Option[VAL] =
-      storage.get(key) match {
-        case Some(blockData: VAL) => Some(blockData)
-        case _                    => None
-      }
-  }
-
-  // todo: change key from Array[byte], the cache cannot match on an array of bytes
-  val blockCache: LoadingCache[KEY, Option[VAL]] = CacheBuilder
-    .newBuilder()
-    .expireAfterAccess(cacheExpire, MILLISECONDS)
-    .maximumSize(cacheSize)
-    .build[KEY, Option[VAL]](blockLoader)
-  /* ------------------------------------------------------------------------------------- */
-
-  private val bestBlockIdKey = Array.fill(ModifierId.size)(-1: Byte)
+  private val bestBlockIdKey = Array.fill(33)(-1: Byte)
 
   def scoreAt(b: ModifierId): Long = scoreOf(b).getOrElse(0L)
 
@@ -47,7 +24,7 @@ class Storage(private[history] val storage: VersionedKVStore, private val cacheE
   def difficultyAt(b: ModifierId): Long = difficultyOf(b).getOrElse(0L)
 
   def bestBlockId: ModifierId =
-    blockCache
+    keyValueStore
       .get(bestBlockIdKey)
       .flatMap(d => ModifierId.parseBytes(d).toOption)
       .getOrElse(History.GenesisParentId)
@@ -57,15 +34,15 @@ class Storage(private[history] val storage: VersionedKVStore, private val cacheE
 
   /** Check for the existence of a modifier in storage without parsing the bytes */
   def containsModifier(id: ModifierId): Boolean =
-    blockCache.get(id.getIdBytes).isDefined
+    keyValueStore.get(id.getIdBytes).isDefined
 
   /** Retrieve a transaction and its block details from storage */
   def lookupConfirmedTransaction(id: ModifierId): Option[(Transaction.TX, ModifierId, Long)] =
     id.getModType match {
       case Transaction.modifierTypeId =>
-        blockCache
+        keyValueStore
           .get(id.getIdBytes)
-          .flatMap(blockCache.get)
+          .flatMap(keyValueStore.get)
           .flatMap(bwBlock => BlockSerializer.parseBytes(bwBlock.tail).toOption)
           .map(block => (block.transactions.find(_.id == id).get, block.id, block.height))
 
@@ -76,70 +53,72 @@ class Storage(private[history] val storage: VersionedKVStore, private val cacheE
   def modifierById(id: ModifierId): Option[Block] =
     id.getModType match {
       case Block.modifierTypeId =>
-        blockCache
+        keyValueStore
           .get(id.getIdBytes)
           .flatMap(bwBlock => BlockSerializer.parseBytes(bwBlock.tail).toOption)
 
-      case _ => None
+      case _ =>
+        //
+        None
     }
 
   /** These methods allow us to lookup top-level information from blocks using the special keys defined below */
   def scoreOf(blockId: ModifierId): Option[Long] =
-    blockCache
-      .get(blockScoreKey(blockId).bytes)
+    keyValueStore
+      .get(blockScoreKey(blockId))
       .map(b => Longs.fromByteArray(b))
 
   def heightOf(blockId: ModifierId): Option[Long] =
-    blockCache
-      .get(blockHeightKey(blockId).bytes)
+    keyValueStore
+      .get(blockHeightKey(blockId))
       .map(b => Longs.fromByteArray(b))
 
   def timestampOf(blockId: ModifierId): Option[Long] =
-    blockCache
-      .get(blockTimestampKey(blockId).bytes)
+    keyValueStore
+      .get(blockTimestampKey(blockId))
       .map(b => Longs.fromByteArray(b))
 
   def idAtHeightOf(height: Long): Option[ModifierId] =
-    blockCache
-      .get(idHeightKey(height).bytes)
+    keyValueStore
+      .get(idHeightKey(height).value)
       .flatMap(id => ModifierId.parseBytes(id).toOption)
 
   def difficultyOf(blockId: ModifierId): Option[Long] =
-    blockCache
-      .get(blockDiffKey(blockId).bytes)
+    keyValueStore
+      .get(blockDiffKey(blockId))
       .map(b => Longs.fromByteArray(b))
 
   def bloomOf(blockId: ModifierId): Option[BloomFilter] =
-    blockCache
-      .get(blockBloomKey(blockId).bytes)
+    keyValueStore
+      .get(blockBloomKey(blockId))
       .flatMap(b => BloomFilter.parseBytes(b).toOption)
 
   def parentIdOf(blockId: ModifierId): Option[ModifierId] =
-    blockCache
-      .get(blockParentKey(blockId).bytes)
+    keyValueStore
+      .get(blockParentKey(blockId))
       .flatMap(d => ModifierId.parseBytes(d).toOption)
 
   /**
    * The keys below are used to store top-level information about blocks that we might be interested in
    * without needing to parse the entire block from storage
    */
-  private def blockScoreKey(blockId: ModifierId): Digest32 =
-    blake2b256.hash("score".getBytes ++ blockId.getIdBytes)
+  private def blockScoreKey(blockId: ModifierId): Array[Byte] =
+    blake2b256.hash("score".getBytes ++ blockId.getIdBytes).value
 
-  private def blockHeightKey(blockId: ModifierId): Digest32 =
-    blake2b256.hash("height".getBytes ++ blockId.getIdBytes)
+  private def blockHeightKey(blockId: ModifierId): Array[Byte] =
+    blake2b256.hash("height".getBytes ++ blockId.getIdBytes).value
 
-  private def blockDiffKey(blockId: ModifierId): Digest32 =
-    blake2b256.hash("difficulty".getBytes ++ blockId.getIdBytes)
+  private def blockDiffKey(blockId: ModifierId): Array[Byte] =
+    blake2b256.hash("difficulty".getBytes ++ blockId.getIdBytes).value
 
-  private def blockTimestampKey(blockId: ModifierId): Digest32 =
-    blake2b256.hash("timestamp".getBytes ++ blockId.getIdBytes)
+  private def blockTimestampKey(blockId: ModifierId): Array[Byte] =
+    blake2b256.hash("timestamp".getBytes ++ blockId.getIdBytes).value
 
-  private def blockBloomKey(blockId: ModifierId): Digest32 =
-    blake2b256.hash("bloom".getBytes ++ blockId.getIdBytes)
+  private def blockBloomKey(blockId: ModifierId): Array[Byte] =
+    blake2b256.hash("bloom".getBytes ++ blockId.getIdBytes).value
 
-  private def blockParentKey(blockId: ModifierId): Digest32 =
-    blake2b256.hash("parentId".getBytes ++ blockId.getIdBytes)
+  private def blockParentKey(blockId: ModifierId): Array[Byte] =
+    blake2b256.hash("parentId".getBytes ++ blockId.getIdBytes).value
 
   private def idHeightKey(height: Long): Digest32 = blake2b256.hash(Longs.toByteArray(height))
 
@@ -163,26 +142,26 @@ class Storage(private[history] val storage: VersionedKVStore, private val cacheE
 
     val newTransactionsToBlockIds = b.transactions.map(tx => (tx.id.getIdBytes, b.id.getIdBytes))
 
-    val blockH = Seq(blockHeightKey(b.id).bytes -> Longs.toByteArray(heightAt(b.parentId) + 1))
+    val blockH = Seq(blockHeightKey(b.id) -> Longs.toByteArray(heightAt(b.parentId) + 1))
 
     val idHeight = Seq(idHeightKey(heightAt(b.parentId) + 1).bytes -> b.id.bytes)
 
-    val blockDiff = Seq(blockDiffKey(b.id).bytes -> Longs.toByteArray(b.difficulty))
+    val blockDiff = Seq(blockDiffKey(b.id) -> Longs.toByteArray(b.difficulty))
 
-    val blockTimestamp = Seq(blockTimestampKey(b.id).bytes -> Longs.toByteArray(b.timestamp))
+    val blockTimestamp = Seq(blockTimestampKey(b.id) -> Longs.toByteArray(b.timestamp))
 
     // reference Bifrost #519 & #527 for discussion on this division of the score
     val blockScore = Seq(
-      blockScoreKey(b.id).bytes -> Longs.toByteArray(scoreAt(b.parentId) + b.difficulty / 10000000000L)
+      blockScoreKey(b.id) -> Longs.toByteArray(scoreAt(b.parentId) + b.difficulty / 10000000000L)
     )
 
     val parentBlock =
       if (b.parentId == History.GenesisParentId) Seq()
-      else Seq(blockParentKey(b.id).bytes -> b.parentId.bytes)
+      else Seq(blockParentKey(b.id) -> b.parentId.bytes)
 
-    val blockBloom = Seq(blockBloomKey(b.id).bytes -> b.bloomFilter.bytes)
+    val blockBloom = Seq(blockBloomKey(b.id) -> b.bloomFilter.bytes)
 
-    val wrappedUpdate: Seq[(Array[Byte], Array[Byte])] =
+    val wrappedUpdate =
       blockK ++
       blockDiff ++
       blockTimestamp ++
@@ -195,10 +174,8 @@ class Storage(private[history] val storage: VersionedKVStore, private val cacheE
       parentBlock
 
     /* update storage */
-    storage.update(b.id.bytes, Seq(), wrappedUpdate)
+    keyValueStore.update(b.id.bytes, Seq(), wrappedUpdate)
 
-    /* update the cache the in the same way */
-    wrappedUpdate.foreach(pair => blockCache.put(pair._1, Some(pair._2)))
   }
 
   /**
@@ -207,7 +184,6 @@ class Storage(private[history] val storage: VersionedKVStore, private val cacheE
    * @param parentId is the parent id of the block intended to be removed
    */
   def rollback(parentId: ModifierId): Try[Unit] = Try {
-    blockCache.invalidateAll()
-    storage.rollbackTo(parentId.bytes)
+    keyValueStore.rollbackTo(parentId.bytes)
   }
 }

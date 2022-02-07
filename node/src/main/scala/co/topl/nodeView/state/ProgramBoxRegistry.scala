@@ -1,8 +1,9 @@
 package co.topl.nodeView.state
 
-import co.topl.db.{LDBVersionedStore, VersionedKVStore}
+import co.topl.db.LDBVersionedStore
 import co.topl.modifier.box.{BoxId, ProgramBox, ProgramId}
 import co.topl.nodeView.state.MinimalState.VersionTag
+import co.topl.nodeView.{KeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
 
@@ -14,12 +15,12 @@ import scala.util.{Failure, Success, Try}
  *
  * @param storage Persistent storage object for saving the ProgramBoxRegistry to disk
  */
-class ProgramBoxRegistry(protected val storage: VersionedKVStore)
+class ProgramBoxRegistry(protected val storage: KeyValueStore)
     extends Registry[ProgramBoxRegistry.K, ProgramBoxRegistry.V] {
 
   import ProgramBoxRegistry.{K, V}
 
-  //----- input and output transformation functions
+  // ----- input and output transformation functions
   override protected val registryInput: K => Array[Byte] = (key: K) => key.bytes
 
   override protected val registryOutput: Array[Byte] => Seq[V] = (value: Array[Byte]) => Seq(BoxId(value))
@@ -83,7 +84,7 @@ class ProgramBoxRegistry(protected val storage: VersionedKVStore)
     }
 
   override def rollbackTo(version: VersionTag): Try[ProgramBoxRegistry] = Try {
-    if (storage.lastVersionID().exists(_ sameElements version.bytes)) {
+    if (storage.latestVersionId().exists(_ sameElements version.bytes)) {
       this
     } else {
       log.debug(s"Rolling back ProgramBoxRegistry to: ${version.toString}")
@@ -106,7 +107,7 @@ object ProgramBoxRegistry extends Logging {
 
       val file = new File(s"$dataDir/programBoxRegistry")
       file.mkdirs()
-      val storage = new LDBVersionedStore(file, 1000)
+      val storage = new LDBKeyValueStore(new LDBVersionedStore(file, keepVersions = 100))
 
       Some(new ProgramBoxRegistry(storage))
 

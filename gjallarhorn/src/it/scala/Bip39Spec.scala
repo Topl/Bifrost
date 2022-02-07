@@ -1,8 +1,3 @@
-import keymanager.Bip39
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-
-import scala.reflect.io.Path
 import scala.util.Try
 
 class Bip39Spec extends AnyFlatSpec with Matchers {

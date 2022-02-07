@@ -5,7 +5,6 @@ on:
     branches: ['*']
   push:
     branches: [dev, main]
-    tags: [v*]
 
 jobs:
   build:
@@ -13,7 +12,6 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        scala: [2.12.14]
         java: [graalvm-ce-java11@21.0.0]
     runs-on: ${{ matrix.os }}
     steps:
@@ -22,7 +20,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Java and Scala
+      - name: Setup Java
         uses: olafurpg/setup-scala@v10
         with:
           java-version: ${{ matrix.java }}
@@ -39,15 +37,5 @@ jobs:
             ~/Library/Caches/Coursier/v1
           key: ${{ runner.os }}-sbt-cache-v2-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
-
-      - name: Check formatting
-        run: sbt scalafmtCheckAll
-
-      - name: Check Scalafix
-        run: sbt "scalafixAll --check"
-
-      - name: Compile
-        run: sbt test:compile
-
-      - name: Test
-        run: sbt test:test
+      - name: Compile and Test
+        run: sbt checkPR

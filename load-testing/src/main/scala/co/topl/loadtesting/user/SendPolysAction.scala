@@ -13,6 +13,7 @@ import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCu
 import co.topl.loadtesting.statistics._
 import co.topl.loadtesting.user.SendAssetsAction.{Failure, Success}
 import co.topl.modifier.ModifierId
+import co.topl.modifier.transaction.builder.BoxSelectionAlgorithms
 import co.topl.rpc.ToplRpc
 import co.topl.rpc.ToplRpc.NodeView.Balances
 import co.topl.rpc.ToplRpc.Transaction.{BroadcastTx, RawPolyTransfer}
@@ -156,7 +157,8 @@ object SendPolysAction {
       recipients = NonEmptyChain(random.shuffle(contacts).headOption.getOrElse(address) -> sendAmount),
       fee = feeAmount,
       changeAddress = address,
-      data = Some(Latin1Data.unsafe(random.alphanumeric.take(random.between(0, 127)).mkString))
+      data = Some(Latin1Data.unsafe(random.alphanumeric.take(random.between(0, 127)).mkString)),
+      boxSelectionAlgorithm = BoxSelectionAlgorithms.All
     )
 
   /**

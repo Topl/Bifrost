@@ -1,15 +1,16 @@
 package co.topl.crypto.accumulators.merkle
 
 import co.topl.crypto.accumulators.{LeafData, Side}
+import co.topl.crypto.hash.Hash
 import co.topl.crypto.hash.digest.Digest
 import co.topl.crypto.hash.digest.implicits._
-import co.topl.crypto.hash.Hash
 
 import scala.annotation.tailrec
 import scala.collection.mutable
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 
+/* NOTE: Use of mutable.WrappedArray.ofByte for Scala 2.12 compatibility */
 class MerkleTree[H, D: Digest](
   topNode:           Option[Node[D]],
   elementsHashIndex: Map[mutable.WrappedArray.ofByte, Int]

@@ -1,21 +1,16 @@
 package co.topl.modifier.transaction
 
 import co.topl.attestation._
-import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TxType
-import co.topl.modifier.transaction.TransferTransaction.{encodeFrom, BoxParams, TransferCreationState}
+import co.topl.modifier.transaction.TransferTransaction.{encodeFrom, BoxParams}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Latin1Data
-import co.topl.utils.codecs.Int128Codec
 import co.topl.utils.codecs.implicits._
 import co.topl.utils.{Identifiable, Identifier, Int128}
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
 
-import java.time.Instant
-import scala.util.Try
-import scala.Iterable
 import scala.collection.immutable.ListMap
 
 case class AssetTransfer[
@@ -31,8 +26,11 @@ case class AssetTransfer[
 ) extends TransferTransaction[TokenValueHolder, P](from, to, attestation, fee, timestamp, data, minting) {
 
   override val coinOutput: Iterable[AssetBox] =
-    coinOutputParams.map { case BoxParams(evi, nonce, value: AssetValue) =>
-      AssetBox(evi, nonce, value)
+    coinOutputParams.map {
+      case BoxParams(evi, nonce, value: AssetValue) =>
+        AssetBox(evi, nonce, value)
+      case BoxParams(_, _, value) =>
+        throw new IllegalArgumentException(s"AssetTransfer Coin output params contained invalid value=$value")
     }
 
   override val newBoxes: Iterable[TokenBox[TokenValueHolder]] = {
@@ -57,95 +55,6 @@ object AssetTransfer {
     Identifier(typeString, typePrefix)
   }
 
-  /**
-   * @param boxReader
-   * @param toReceive
-   * @param sender
-   * @param fee
-   * @param data
-   * @return
-   */
-  def createRaw[
-    P <: Proposition
-  ](
-    boxReader:                   BoxReader[ProgramId, Address],
-    toReceive:                   IndexedSeq[(Address, AssetValue)],
-    sender:                      IndexedSeq[Address],
-    changeAddress:               Address,
-    consolidationAddress:        Address,
-    fee:                         Int128,
-    data:                        Option[Latin1Data],
-    minting:                     Boolean
-  )(implicit evidenceProducerEv: EvidenceProducer[P], identifiableEv: Identifiable[P]): Try[AssetTransfer[P]] = {
-
-    val assetCode =
-      toReceive
-        .map(_._2.assetCode)
-        .toSet
-        .ensuring(_.size == 1, s"Found multiple asset codes when only one was expected")
-        .head
-
-    TransferTransaction
-      .getSenderBoxesAndCheckPolyBalance(boxReader, sender, fee, "Assets", Some(assetCode))
-      .map { txState =>
-        // compute the amount of tokens that will be sent to the recipients
-        val amtToSpend = toReceive.map(_._2.quantity).sum
-
-        // create the list of inputs and outputs (senderChangeOut & recipientOut)
-        val (availableToSpend, inputs, outputs) =
-          if (minting) ioMint(txState, toReceive, changeAddress, fee)
-          else ioTransfer(txState, toReceive, changeAddress, consolidationAddress, fee, amtToSpend, assetCode)
-
-        // ensure there are sufficient funds from the sender boxes to create all outputs
-        require(availableToSpend >= amtToSpend, "Insufficient funds available to create transaction.")
-
-        AssetTransfer[P](inputs, outputs, ListMap(), fee, Instant.now.toEpochMilli, data, minting)
-      }
-  }
-
-  /** Construct input and output box sequences for a minting transaction */
-  private def ioMint(
-    txInputState:  TransferCreationState,
-    toReceive:     IndexedSeq[(Address, AssetValue)],
-    changeAddress: Address,
-    fee:           Int128
-  ): (Int128, IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, TokenValueHolder)]) = {
-    val availableToSpend = Int128.MaxValue // you cannot mint more than the max number we can represent
-    val inputs = txInputState.senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce))
-    val outputs = (changeAddress, SimpleValue(txInputState.polyBalance - fee)) +: toReceive
-
-    (availableToSpend, inputs, outputs)
-  }
-
-  /** construct input and output box sequence for a transfer transaction */
-  private def ioTransfer(
-    txInputState:         TransferCreationState,
-    toReceive:            IndexedSeq[(Address, AssetValue)],
-    changeAddress:        Address,
-    consolidationAddress: Address,
-    fee:                  Int128,
-    amtToSpend:           Int128,
-    assetCode:            AssetCode
-  ): (Int128, IndexedSeq[(Address, Box.Nonce)], IndexedSeq[(Address, TokenValueHolder)]) = {
-
-    val availableToSpend =
-      txInputState.senderBoxes
-        .getOrElse("Asset", throw new Exception(s"No Assets found with assetCode $assetCode"))
-        .map(_._3.value.quantity)
-        .sum
-
-    // create the list of inputs and outputs (senderChangeOut & recipientOut)
-    val inputs = txInputState.senderBoxes("Asset").map(bxs => (bxs._2, bxs._3.nonce)) ++
-      txInputState.senderBoxes("Poly").map(bxs => (bxs._2, bxs._3.nonce))
-
-    val outputs = IndexedSeq(
-      (changeAddress, SimpleValue(txInputState.polyBalance - fee)),
-      (consolidationAddress, AssetValue(availableToSpend - amtToSpend, assetCode))
-    ) ++ toReceive
-
-    (availableToSpend, inputs, outputs)
-  }
-
   implicit def jsonEncoder[P <: Proposition]: Encoder[AssetTransfer[P]] = { tx: AssetTransfer[P] =>
     Map(
       "txId"            -> tx.id.asJson,
@@ -156,7 +65,7 @@ object AssetTransfer {
       "from"            -> encodeFrom(tx.from),
       "to"              -> tx.to.asJson,
       "signatures"      -> tx.attestation.asJson,
-      "fee"             -> tx.fee.asJson(Int128Codec.jsonEncoder),
+      "fee"             -> tx.fee.asJson,
       "timestamp"       -> tx.timestamp.asJson,
       "data"            -> tx.data.asJson,
       "minting"         -> tx.minting.asJson
@@ -168,7 +77,7 @@ object AssetTransfer {
       for {
         from      <- c.downField("from").as[IndexedSeq[(Address, Box.Nonce)]]
         to        <- c.downField("to").as[IndexedSeq[(Address, TokenValueHolder)]]
-        fee       <- c.get[Int128]("fee")(Int128Codec.jsonDecoder)
+        fee       <- c.get[Int128]("fee")
         timestamp <- c.downField("timestamp").as[Long]
         data      <- c.downField("data").as[Option[Latin1Data]]
         minting   <- c.downField("minting").as[Boolean]

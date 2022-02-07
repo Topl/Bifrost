@@ -3,10 +3,10 @@ package co.topl.attestation
 import cats.implicits._
 import co.topl.attestation.AddressCodec.implicits._
 import co.topl.attestation.EvidenceProducer.Syntax._
-import co.topl.utils.codecs.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.StringDataTypes.implicits._
+import co.topl.utils.codecs.implicits._
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps

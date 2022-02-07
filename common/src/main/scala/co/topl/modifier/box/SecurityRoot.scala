@@ -2,9 +2,9 @@ package co.topl.modifier.box
 
 import cats.implicits._
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.utils.codecs.implicits._
-import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.StringDataTypes.implicits._
+import co.topl.utils.codecs.implicits._
 import co.topl.utils.serialization.{BifrostSerializer, BytesSerializable, Reader, Writer}
 import com.google.common.primitives.Ints
 import io.circe.syntax.EncoderOps
@@ -12,7 +12,7 @@ import io.circe.{Decoder, Encoder}
 
 class SecurityRoot private (private val root: Array[Byte]) extends BytesSerializable {
 
-  require(root.length == SecurityRoot.size, "Invalid securityRoot")
+  require(root.length == SecurityRoot.size, "Invalid securityRoot length")
 
   type M = SecurityRoot
   lazy val serializer: BifrostSerializer[SecurityRoot] = SecurityRoot

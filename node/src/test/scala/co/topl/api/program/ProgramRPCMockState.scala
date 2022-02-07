@@ -4,7 +4,6 @@ import co.topl.api.RPCMockState
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.box._
-import co.topl.nodeView.state
 import co.topl.utils.GeneratorOps.GeneratorOps
 import io.circe.syntax._
 import org.scalatest.matchers.should
@@ -13,7 +12,8 @@ trait ProgramRPCMockState extends RPCMockState with should.Matchers {
 
   def directlyAddPBRStorage(version: ModifierId, boxes: Seq[ProgramBox]): Unit =
     // Manually manipulate state
-    state.directlyAddPBRStorage(version, boxes, view()._2)
+//    state.directlyAddPBRStorage(version, boxes, view().state)
+    ???
 
   lazy val (signSk, signPk) = sampleUntilNonEmpty(keyPairSetCurve25519Gen).head
 

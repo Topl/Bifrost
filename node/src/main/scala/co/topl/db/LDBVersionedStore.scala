@@ -20,7 +20,7 @@ import scala.util.Try
  * @param dir - folder to store data
  * @param keepVersions - number of versions to keep
  */
-class LDBVersionedStore(protected val dir: File, val keepVersions: Int) extends VersionedKVStore {
+class LDBVersionedStore(protected val dir: File, val keepVersions: Int) extends VersionedLDBKVStore {
 
   type LSN = Long // logical serial number: type used to provide order of records in undo list
 
@@ -35,7 +35,7 @@ class LDBVersionedStore(protected val dir: File, val keepVersions: Int) extends 
   private val versions: ArrayBuffer[VersionID] = getAllVersions
   private var lastVersion: Option[VersionID] = versions.lastOption
 
-  //default write options, no sync!
+  // default write options, no sync!
   private val writeOptions = new WriteOptions()
 
   private def createDB(dir: File, storeName: String): DB = {

@@ -4,8 +4,9 @@ import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.crypto.hash.digest.{Digest, Digest32, Digest64, InvalidDigestFailure}
 import co.topl.crypto.hash.implicits._
 import co.topl.crypto.Signature
-import co.topl.utils.codecs.StringDataTypesCodec.implicits._
+import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.codecs.StringDataTypesCodec.implicits._
 import co.topl.utils.codecs.implicits.toDecoderOps
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder}

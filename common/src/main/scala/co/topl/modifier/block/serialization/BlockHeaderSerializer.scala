@@ -7,8 +7,8 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{BlockHeader, BloomFilter}
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.box.serialization.ArbitBoxSerializer
-import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
+import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
 object BlockHeaderSerializer extends BifrostSerializer[BlockHeader] {
 
