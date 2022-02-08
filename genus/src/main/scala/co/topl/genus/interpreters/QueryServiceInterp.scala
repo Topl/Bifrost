@@ -39,7 +39,7 @@ object QueryServiceInterp {
           } yield collectedList
 
         override def asSource(req: QueryRequest[Filter, Sort]): EitherT[F, QueryFailure, Source[T, NotUsed]] =
-          (for {
+          for {
             // validate query and convert into a possible `InvalidQuery` failure
             _ <-
               EitherT.fromEither[F](
@@ -60,7 +60,7 @@ object QueryServiceInterp {
                   // handle a Mongo failure as a data store connection error
                   .handleError(error => QueryFailures.DataStoreConnectionError(error.getMessage).asLeft)
               )
-          } yield result)
+          } yield result
       }
   }
 }
