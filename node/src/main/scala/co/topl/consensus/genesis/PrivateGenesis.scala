@@ -10,7 +10,7 @@ import co.topl.modifier.box.SimpleValue
 import co.topl.settings.AppSettings
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.catsInstances._
+import co.topl.utils.implicits._
 
 import scala.collection.immutable.ListMap
 import scala.util.Try

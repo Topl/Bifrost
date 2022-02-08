@@ -6,9 +6,8 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
-import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.TimeProvider
-import co.topl.utils.catsInstances.modifierIdShow
+import co.topl.utils.implicits._
 
 import scala.util.{Failure, Try}
 

@@ -3,11 +3,11 @@ package co.topl.codecs
 import cats.implicits._
 import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.StringDataTypes.implicits._
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import scodec.{Decoder => ScodecDecoder, Encoder => ScodecEncoder}
+import co.topl.utils.encode.Base58
 import io.circe.syntax._
+import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
 import scodec.bits.BitVector
+import scodec.{Decoder => ScodecDecoder, Encoder => ScodecEncoder}
 
 /**
  * Contains instances of the Circe `Encoder` and `Decoder` typeclasses.
@@ -55,7 +55,7 @@ package object json extends JsonCodecs {
     ScodecEncoder[T]
       .encode(value)
       .toEither
-      .map(_.encodeAsBase58.show)
+      .map(bits => Base58.encode(bits.toByteArray))
       .leftMap(err => s"failed to encode $typeName as binary data: $err")
       .getOrThrow()
 
@@ -90,7 +90,7 @@ package object json extends JsonCodecs {
         ScodecDecoder[T]
           .decodeValue(BitVector(data.encodeAsBytes))
           .toEither
-          .leftMap(err => s"failed to decode $typeName from binary data")
+          .leftMap(err => s"failed to decode $typeName from binary data: $err")
           .getOrThrow()
       )
 }

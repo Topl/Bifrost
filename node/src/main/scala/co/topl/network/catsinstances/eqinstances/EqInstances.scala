@@ -6,11 +6,11 @@ import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.network.message.Messages.MessagesV1
 import co.topl.network.message.{Transmission, TransmissionContent, TransmissionHeader}
 import co.topl.network.peer.PeerMetadata
-import co.topl.utils.catsInstances._
+import co.topl.utils.catsinstances.{EqInstances => CommonEqInstances}
 
 import java.net.InetSocketAddress
 
-trait EqInstances {
+trait EqInstances extends CommonEqInstances {
 
   implicit val inetSocketAddressEq: Eq[InetSocketAddress] = Eq.fromUniversalEquals
 

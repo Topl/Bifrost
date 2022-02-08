@@ -1,7 +1,7 @@
 package co.topl.utils
 
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
-import co.topl.attestation._
+import co.topl.attestation.{Address, _}
 import co.topl.attestation.keyManagement._
 import co.topl.codecs.binary.legacy.modifier.ModifierIdSerializer
 import co.topl.crypto.hash.digest.Digest32

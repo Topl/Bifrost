@@ -1,9 +1,8 @@
 package co.topl.nodeView.state
 
 import cats.data.ValidatedNec
-import cats.implicits.toShow
+import cats.implicits._
 import co.topl.attestation.Address
-import co.topl.attestation.AddressCodec.implicits.BinaryShowOps
 import co.topl.db.LDBVersionedStore
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -14,7 +13,7 @@ import co.topl.modifier.transaction.validation.implicits._
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.nodeView.{KeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
-import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
+import co.topl.utils.implicits._
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
@@ -23,7 +22,7 @@ import co.topl.codecs.binary.legacy.modifier.box.BoxSerializer
 import co.topl.utils.encode.Base58
 import co.topl.codecs._
 import co.topl.codecs.binary.typeclasses.Persistable
-import co.topl.utils.catsInstances.modifierIdShow
+import co.topl.attestation.implicits._
 
 import java.io.File
 import scala.reflect.ClassTag
@@ -333,8 +332,17 @@ object State extends Logging {
     val nodeKeys: Option[Set[Address]] = settings.application.nodeKeys match {
       case None                       => None
       case Some(keys) if keys.isEmpty => None
-      case Some(keys) =>
-        Some(keys.map(Base58Data.unsafe(_).decodeAddress.getOrThrow()))
+      case Some(keys)                 =>
+        // decode keys into valid addresses
+        (for {
+          key <- keys
+          decodedKeyOption =
+            for {
+              base58Key  <- Base58Data.validated(key).toOption
+              keyAddress <- base58Key.decodeAddress.toOption
+            } yield keyAddress
+          decodedKey <- decodedKeyOption.toSet[Address]
+        } yield decodedKey).some
     }
 
     if (nodeKeys.isDefined) log.info(s"Initializing state to watch for public keys: $nodeKeys")

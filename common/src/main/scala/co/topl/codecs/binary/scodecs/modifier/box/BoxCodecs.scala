@@ -1,15 +1,21 @@
 package co.topl.codecs.binary.scodecs.modifier.box
 
+import cats.implicits._
 import co.topl.codecs.binary.scodecs.attestation._
 import co.topl.codecs.binary.scodecs.crypto._
 import co.topl.codecs.binary.scodecs.valuetypes._
 import co.topl.modifier.box._
 import co.topl.utils.StringDataTypes.Latin1Data
-import scodec.Codec
+import scodec.{Codec, Err}
 import scodec.codecs.discriminated
+import co.topl.codecs.binary.scodecs.ops.implicits._
 
 trait BoxCodecs {
-  implicit val securityRootCodec: Codec[SecurityRoot] = bytesCodec(SecurityRoot.size).as[SecurityRoot]
+
+  implicit val securityRootCodec: Codec[SecurityRoot] =
+    bytesCodec(SecurityRoot.size)
+      .mapDecodeErr(_ => Err(s"security root must be ${SecurityRoot.size} bytes long"))
+      .as[SecurityRoot]
 
   implicit val boxIdCodec: Codec[BoxId] = digest32Codec.as[BoxId]
 

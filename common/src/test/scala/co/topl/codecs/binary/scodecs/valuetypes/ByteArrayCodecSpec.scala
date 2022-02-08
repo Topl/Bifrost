@@ -1,6 +1,6 @@
 package co.topl.codecs.binary.scodecs.valuetypes
 
-import co.topl.utils.catsInstances._
+import co.topl.utils.implicits._
 import org.scalacheck.Gen
 
 class ByteArrayCodecSpec extends ValueTypesCodecCompatabilityBehavior {

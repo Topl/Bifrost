@@ -6,7 +6,7 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.history.BlockProcessor.ChainCache
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
-import co.topl.utils.catsInstances._
+import co.topl.utils.implicits._
 import co.topl.utils.{Logging, TimeProvider}
 
 import scala.annotation.tailrec

@@ -3,6 +3,7 @@ package co.topl.codecs.binary.typeclasses
 import akka.util.ByteString
 import cats.implicits._
 import co.topl.utils.IdiomaticScalaTransition.implicits._
+import co.topl.utils.StringDataTypes.{Base16Data, Base58Data}
 import scodec.Codec
 import scodec.bits.BitVector
 import simulacrum.typeclass
@@ -66,7 +67,7 @@ object Transmittable {
    * @tparam T the type of value that can be transmitted with an existing `Codec` instance
    * @return an instance of the `Transmittable` typeclass for value `T`
    */
-  def fromCodec[T: Codec]: Transmittable[T] = new Transmittable[T] {
+  def instanceFromCodec[T: Codec]: Transmittable[T] = new Transmittable[T] {
 
     override def transmittableBytes(value: T): Array[Byte] =
       Codec[T].encode(value).getOrThrow().toByteArray
@@ -82,34 +83,41 @@ object Transmittable {
    * Extension operations for working with transmitted byte data.
    * @param value the transmitted byte data to operate on
    */
-  class BytesTransmittableOps(val value: Array[Byte]) extends AnyVal {
+  class BytesTransmittableOps(private val bytes: Array[Byte]) extends AnyVal {
 
     /**
      * Attempts to decode byte data transmitted from another blockchain node into a value of type `T`.
      * @tparam T the type of value to try and decode the byte data to.
      * @return if successful, the value which the transmitted byte data represents, otherwise a failure message
      */
-    def decodeTransmitted[T: Transmittable]: Either[String, T] = Transmittable[T].fromTransmittableBytes(value)
+    def decodeTransmitted[T: Transmittable]: Either[String, T] = Transmittable[T].fromTransmittableBytes(bytes)
   }
 
   /**
    * Extension operations for working with transmitted data in the form of an Akka Byte String
    * @param value the transmitted byte string value
    */
-  class ByteStringTransmittableOps(val value: ByteString) extends AnyVal {
+  class ByteStringTransmittableOps(private val byteString: ByteString) extends AnyVal {
 
     /**
      * Attempts to decode byte data transmitted from another blockchain node into a value of type `T`.
      * @tparam T the type of value to try and decode the byte data to.
      * @return if successful, the value which the transmitted byte data represents, otherwise a failure message
      */
-    def decodeTransmitted[T: Transmittable]: Either[String, T] = Transmittable[T].fromTransmittableByteString(value)
+    def decodeTransmitted[T: Transmittable]: Either[String, T] =
+      Transmittable[T].fromTransmittableByteString(byteString)
   }
 
   trait ToExtensionOps {
-    implicit def toTransmittableBytesOps(value: Array[Byte]): BytesTransmittableOps = new BytesTransmittableOps(value)
+    implicit def transmittableFromBytes(value: Array[Byte]): BytesTransmittableOps = new BytesTransmittableOps(value)
 
-    implicit def toTransmittableByteStringOps(value: ByteString): ByteStringTransmittableOps =
+    implicit def transmittableFromBase58(value: Base58Data): BytesTransmittableOps =
+      new BytesTransmittableOps(value.value)
+
+    implicit def transmittableFromBase16(value: Base16Data): BytesTransmittableOps =
+      new BytesTransmittableOps(value.value)
+
+    implicit def transmittableFromByteString(value: ByteString): ByteStringTransmittableOps =
       new ByteStringTransmittableOps(value)
   }
 }

@@ -34,7 +34,7 @@ class ExtendedPrivateKeyEd25519Spec
           "c05377ef282279549898c5a15fe202bc9416c8a26fe81ffe1e19c147c2493549d61547691b72d73947e588ded4967" +
           "688f82db9628be9bb00c5ad16b5dfaf602ac5f419bd575f8ea23fa1a599b103f85e6325bf2d34b018ff6f2b8cf3f915e19c"
         )
-        .value
+        .encodeAsBytes
 
     val rootPublicKeyBytes =
       Base16Data
@@ -42,7 +42,7 @@ class ExtendedPrivateKeyEd25519Spec
           "2b1b2c00e35c9f9c2dec26ce3ba597504d2fc86862b6035b05340aff8a7ebc4bc5f419bd575f8ea23fa1a599b103f85e6" +
           "325bf2d34b018ff6f2b8cf3f915e19c"
         )
-        .value
+        .encodeAsBytes
 
     val expectedKeyPairs = Seq(
       (
@@ -126,7 +126,7 @@ class ExtendedPrivateKeyEd25519Spec
         "f59227a7e5713b94518033a763a542ea289ee8"
       )
 
-    val rootKeyBytes = `root private key`.value
+    val rootKeyBytes = `root private key`.encodeAsBytes
 
     val rootKey =
       ExtendedPrivateKeyEd25519(
@@ -199,7 +199,7 @@ class ExtendedPrivateKeyEd25519Spec
         "3245c93005efd63faf8a02ba7787176782"
       )
 
-    val rootKeyBytes = `root private key`.value
+    val rootKeyBytes = `root private key`.encodeAsBytes
 
     val rootKey =
       ExtendedPrivateKeyEd25519(
@@ -241,7 +241,7 @@ class ExtendedPrivateKeyEd25519Spec
           "f8a29231ee38d6c5bf715d5bac21c750577aa3798b22d79d65bf97d6fadea15adcd1ee1abdf78bd4be64731a12deb94" +
           "d3671784112eb6f364b871851fd1c9a247384db9ad6003bbd08b3b1ddc0d07a597293ff85e961bf252b331262eddfad0d"
         )
-        .value
+        .encodeAsBytes
 
     val rootKey =
       ExtendedPrivateKeyEd25519(
@@ -256,7 +256,7 @@ class ExtendedPrivateKeyEd25519Spec
           "60d399da83ef80d8d4f8d223239efdc2b8fef387e1b5219137ffb4e8fbdea15adc9366b7d003af37c11396de9a837" +
           "34e30e05e851efa32745c9cd7b42712c890608763770eddf77248ab652984b21b849760d1da74a6f5bd633ce41adceef07a"
         )
-        .value
+        .encodeAsBytes
 
     val expectedSignature: Array[Byte] =
       Base16Data
@@ -264,7 +264,7 @@ class ExtendedPrivateKeyEd25519Spec
           "90194d57cde4fdadd01eb7cf161780c277e129fc7135b97779a3268837e4cd2e9444b9bb91c0e84d23bba870df3c4bda" +
           "91a110ef735638fa7a34ea2046d4be04"
         )
-        .value
+        .encodeAsBytes
 
     val childKey =
       rootKey

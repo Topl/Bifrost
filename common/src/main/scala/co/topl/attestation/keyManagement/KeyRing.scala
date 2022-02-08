@@ -2,13 +2,14 @@ package co.topl.attestation.keyManagement
 
 import cats.data.Validated.{Invalid, Valid}
 import co.topl.attestation.Address
-import co.topl.attestation.AddressCodec.implicits._
+import co.topl.attestation.implicits._
 import co.topl.codecs._
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.SecureRandom.randomBytes
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import com.google.common.primitives.Ints
+import io.circe.Encoder
 
 import java.io.File
 import scala.collection.immutable.ListMap

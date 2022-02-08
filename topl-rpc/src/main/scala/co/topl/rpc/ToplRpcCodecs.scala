@@ -5,12 +5,13 @@ import co.topl.attestation.{Address, Proposition}
 import co.topl.codecs.json.JsonCodecs
 import co.topl.modifier.ModifierId
 import co.topl.modifier.box._
-import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
 import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithm, BoxSelectionAlgorithms}
+import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Latin1Data
 import io.circe._
+import io.circe.generic.auto._
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.syntax._
 
@@ -76,13 +77,31 @@ trait NodeViewRpcParamsEncoders {
   implicit val nodeViewBlockByIdParamsEncoder: Encoder[ToplRpc.NodeView.BlockById.Params] =
     deriveEncoder
 
+  implicit val nodeViewBlocksByIdsParamsEncoder: Encoder[ToplRpc.NodeView.BlocksByIds.Params] =
+    deriveEncoder
+
   implicit val nodeViewBlockByHeightParamsEncoder: Encoder[ToplRpc.NodeView.BlockByHeight.Params] =
+    deriveEncoder
+
+  implicit val nodeViewBlocksInRangeParamsEncoder: Encoder[ToplRpc.NodeView.BlocksInRange.Params] =
+    deriveEncoder
+
+  implicit val nodeViewBlockIdsInRangeParamsEncoder: Encoder[ToplRpc.NodeView.BlockIdsInRange.Params] =
+    deriveEncoder
+
+  implicit val nodeViewLatestBlocksParamsEncoder: Encoder[ToplRpc.NodeView.LatestBlocks.Params] =
+    deriveEncoder
+
+  implicit val nodeViewLatestBlockIdsParamsEncoder: Encoder[ToplRpc.NodeView.LatestBlockIds.Params] =
     deriveEncoder
 
   implicit val nodeViewMempoolParamsEncoder: Encoder[ToplRpc.NodeView.Mempool.Params] =
     deriveEncoder
 
   implicit val nodeViewTransactionFromMempoolParamsEncoder: Encoder[ToplRpc.NodeView.TransactionFromMempool.Params] =
+    deriveEncoder
+
+  implicit val nodeViewConfirmationStatusParamsEncoder: Encoder[ToplRpc.NodeView.ConfirmationStatus.Params] =
     deriveEncoder
 
   implicit val nodeViewInfoParamsEncoder: Encoder[ToplRpc.NodeView.Info.Params] =
@@ -103,6 +122,8 @@ trait TransactionRpcParamsEncoders extends SharedCodecs {
   implicit val transactionBroadcastTxParamsEncoder: Encoder[ToplRpc.Transaction.BroadcastTx.Params] =
     Encoder.forProduct1("tx")(_.tx)
 
+  implicit val transactionEncodeTransferParamsEncoder: Encoder[ToplRpc.Transaction.EncodeTransfer.Params] =
+    Encoder.forProduct1("unprovenTransaction")(_.unprovenTransaction)
 }
 
 trait AdminRpcParamsEncoders extends SharedCodecs {
@@ -132,6 +153,9 @@ trait AdminRpcParamsEncoders extends SharedCodecs {
     deriveEncoder
 
   implicit val getRewardsAddressParamsEncoder: Encoder[ToplRpc.Admin.GetRewardsAddress.Params] =
+    deriveEncoder
+
+  implicit val statusParamsEncoder: Encoder[ToplRpc.Admin.Status.Params] =
     deriveEncoder
 }
 
@@ -176,6 +200,11 @@ trait NodeViewRpcResponseDecoders extends SharedCodecs {
   ): Decoder[ToplRpc.NodeView.Head.Response] =
     deriveDecoder
 
+  implicit def nodeViewHeadInfoResponseDecoder(implicit
+    networkPrefix: NetworkPrefix
+  ): Decoder[ToplRpc.NodeView.HeadInfo.Response] =
+    deriveDecoder
+
   implicit def nodeViewTransactionByIdResponseDecoder(implicit
     networkPrefix: NetworkPrefix
   ): Decoder[ToplRpc.NodeView.TransactionById.Response] =
@@ -207,6 +236,14 @@ trait NodeViewRpcResponseDecoders extends SharedCodecs {
     networkPrefix: NetworkPrefix
   ): Decoder[ToplRpc.NodeView.Balances.Response] =
     Decoder.decodeMap[Address, ToplRpc.NodeView.Balances.Entry]
+
+  implicit val nodeViewConfirmationStatusTxStatusDecoder: Decoder[ToplRpc.NodeView.ConfirmationStatus.TxStatus] =
+    deriveDecoder
+
+  implicit def nodeViewConfirmationStatusResponseDecoder(implicit
+    networkPrefix: NetworkPrefix
+  ): Decoder[ToplRpc.NodeView.ConfirmationStatus.Response] =
+    Decoder.decodeMap[ModifierId, ToplRpc.NodeView.ConfirmationStatus.TxStatus]
 }
 
 trait TransactionRpcResponseDecoders extends SharedCodecs {
@@ -228,6 +265,11 @@ trait TransactionRpcResponseDecoders extends SharedCodecs {
   implicit def transactionRawPolyTransferResponseDecoder(implicit
     networkPrefix: NetworkPrefix
   ): Decoder[ToplRpc.Transaction.RawPolyTransfer.Response] =
+    deriveDecoder
+
+  implicit def transactionEncodeTransferResponseDecoder(implicit
+    networkPrefix: NetworkPrefix
+  ): Decoder[ToplRpc.Transaction.EncodeTransfer.Response] =
     deriveDecoder
 }
 
@@ -269,6 +311,9 @@ trait AdminRpcResponseDecoders extends SharedCodecs {
     deriveDecoder
 
   implicit val getRewardsAddressResponseDecoder: Decoder[ToplRpc.Admin.GetRewardsAddress.Response] =
+    deriveDecoder
+
+  implicit val statusResponseDecoder: Decoder[ToplRpc.Admin.Status.Response] =
     deriveDecoder
 }
 
@@ -326,6 +371,9 @@ trait NodeViewRpcParamsDecoders {
   implicit val nodeViewHeadParamsDecoder: Decoder[ToplRpc.NodeView.Head.Params] =
     deriveDecoder
 
+  implicit val nodeViewHeadInfoParamsDecoder: Decoder[ToplRpc.NodeView.HeadInfo.Params] =
+    deriveDecoder
+
   implicit def nodeViewBalancesParamsDecoder(implicit
     networkPrefix: NetworkPrefix
   ): Decoder[ToplRpc.NodeView.Balances.Params] =
@@ -334,16 +382,36 @@ trait NodeViewRpcParamsDecoders {
   implicit val nodeViewTransactionsByIdParamsDecoder: Decoder[ToplRpc.NodeView.TransactionById.Params] =
     deriveDecoder
 
-  implicit val nodeViewBlocksByIdParamsDecoder: Decoder[ToplRpc.NodeView.BlockById.Params] =
+  implicit val nodeViewBlockByIdParamsDecoder: Decoder[ToplRpc.NodeView.BlockById.Params] =
+    deriveDecoder
+
+  implicit val nodeViewBlocksByIdsParamsDecoder: Decoder[ToplRpc.NodeView.BlocksByIds.Params] =
     deriveDecoder
 
   implicit val nodeViewBlocksByHeightParamsDecoder: Decoder[ToplRpc.NodeView.BlockByHeight.Params] =
+    deriveDecoder
+
+  implicit val nodeViewBlocksInRangeParamsDecoder: Decoder[ToplRpc.NodeView.BlocksInRange.Params] =
+    deriveDecoder
+
+  implicit val nodeViewBlockIdsInRangeParamsDecoder: Decoder[ToplRpc.NodeView.BlockIdsInRange.Params] =
+    deriveDecoder
+
+  implicit val nodeViewLatestBlocksParamsDecoder: Decoder[ToplRpc.NodeView.LatestBlocks.Params] =
+    deriveDecoder
+
+  implicit val nodeViewLatestBlockIdsParamsDecoder: Decoder[ToplRpc.NodeView.LatestBlockIds.Params] =
     deriveDecoder
 
   implicit val nodeViewMempoolParamsDecoder: Decoder[ToplRpc.NodeView.Mempool.Params] =
     deriveDecoder
 
   implicit val nodeViewTransactionFromMempoolParamsDecoder: Decoder[ToplRpc.NodeView.TransactionFromMempool.Params] =
+    deriveDecoder
+
+  implicit def nodeViewConfirmationStatusParamsDecoder(implicit
+    networkPrefix: NetworkPrefix
+  ): Decoder[ToplRpc.NodeView.ConfirmationStatus.Params] =
     deriveDecoder
 
   implicit val nodeViewInfoParamsDecoder: Decoder[ToplRpc.NodeView.Info.Params] =
@@ -437,6 +505,10 @@ trait TransactionRpcParamsDecoders extends SharedCodecs {
   ): Decoder[ToplRpc.Transaction.BroadcastTx.Params] =
     Decoder.forProduct1("tx")(ToplRpc.Transaction.BroadcastTx.Params.apply)
 
+  implicit def transactionEncodeTransferParamsDecoder(implicit
+    networkPrefix: NetworkPrefix
+  ): Decoder[ToplRpc.Transaction.EncodeTransfer.Params] =
+    Decoder.forProduct1("unprovenTransaction")(ToplRpc.Transaction.EncodeTransfer.Params.apply)
 }
 
 trait AdminRpcParamsDecoders extends SharedCodecs {
@@ -470,6 +542,9 @@ trait AdminRpcParamsDecoders extends SharedCodecs {
     deriveDecoder
 
   implicit val getRewardsAddressParamsDecoder: Decoder[ToplRpc.Admin.GetRewardsAddress.Params] =
+    deriveDecoder
+
+  implicit val statusParamsDecoder: Decoder[ToplRpc.Admin.Status.Params] =
     deriveDecoder
 }
 
@@ -514,6 +589,9 @@ trait NodeViewRpcResponseEncoders extends SharedCodecs {
   implicit val nodeViewHeadResponseEncoder: Encoder[ToplRpc.NodeView.Head.Response] =
     deriveEncoder
 
+  implicit val nodeViewHeadInfoResponseEncoder: Encoder[ToplRpc.NodeView.HeadInfo.Response] =
+    deriveEncoder
+
   implicit val nodeViewBalancesResponseEntryEncoder: Encoder[ToplRpc.NodeView.Balances.Entry] =
     deriveEncoder
 
@@ -537,6 +615,12 @@ trait NodeViewRpcResponseEncoders extends SharedCodecs {
 
   implicit val nodeViewInfoResponseEncoder: Encoder[ToplRpc.NodeView.Info.Response] =
     deriveEncoder
+
+  implicit val nodeViewConfirmationStatusTxStatusEncoder: Encoder[ToplRpc.NodeView.ConfirmationStatus.TxStatus] =
+    deriveEncoder
+
+  implicit val nodeViewConfirmationStatusResponseEncoder: Encoder[ToplRpc.NodeView.ConfirmationStatus.Response] =
+    Encoder.encodeMap
 }
 
 trait TransactionRpcResponseEncoders extends SharedCodecs {
@@ -548,6 +632,9 @@ trait TransactionRpcResponseEncoders extends SharedCodecs {
     deriveEncoder
 
   implicit val transactionRawPolyTransferResponseEncoder: Encoder[ToplRpc.Transaction.RawPolyTransfer.Response] =
+    deriveEncoder
+
+  implicit val transactionEncodeTransferResponseEncoder: Encoder[ToplRpc.Transaction.EncodeTransfer.Response] =
     deriveEncoder
 }
 
@@ -579,6 +666,9 @@ trait AdminRpcResponseEncoders extends SharedCodecs {
     deriveEncoder
 
   implicit val getRewardsAddressResponseEncoder: Encoder[ToplRpc.Admin.GetRewardsAddress.Response] =
+    deriveEncoder
+
+  implicit val statusResponseEncoder: Encoder[ToplRpc.Admin.Status.Response] =
     deriveEncoder
 }
 

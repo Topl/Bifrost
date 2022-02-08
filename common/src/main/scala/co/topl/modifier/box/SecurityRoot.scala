@@ -1,16 +1,14 @@
 package co.topl.modifier.box
 
-import cats.implicits._
-import co.topl.codecs._
-import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
 import co.topl.codecs.binary.legacy.modifier.box.SecurityRootSerializer
+import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.utils.StringDataTypes.implicits._
+import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
 
 case class SecurityRoot(root: Array[Byte]) extends BytesSerializable {
 
-  require(root.length == SecurityRoot.size, "Invalid securityRoot")
+  require(root.length == SecurityRoot.size, "Invalid securityRoot length")
 
   @deprecated
   type M = SecurityRoot
@@ -27,7 +25,7 @@ case class SecurityRoot(root: Array[Byte]) extends BytesSerializable {
     case _                => false
   }
 
-  override def toString: String = root.encodeAsBase58.show
+  override def toString: String = Base58.encode(root)
 }
 
 object SecurityRoot {

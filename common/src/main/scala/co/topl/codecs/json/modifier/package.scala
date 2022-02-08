@@ -1,3 +1,3 @@
 package co.topl.codecs.json
 
-package object modifier extends ModifierCodecs
+package object modifier extends ModifierJsonCodecs

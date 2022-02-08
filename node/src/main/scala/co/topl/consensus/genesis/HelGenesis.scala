@@ -7,7 +7,7 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.SimpleValue
-import co.topl.utils.IdiomaticScalaTransition.implicits._
+import co.topl.utils.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.{Int128, NetworkType}
@@ -22,7 +22,6 @@ case object HelGenesis extends GenesisProvider {
   override protected val blockChecksum: ModifierId =
     Base58Data
       .unsafe("vKjyX77HLRUiihjWofSsacNEdDGMaJpNJTQMXkRyJkP2")
-      .value
       .decodeTransmitted[ModifierId]
       .getOrThrow()
 

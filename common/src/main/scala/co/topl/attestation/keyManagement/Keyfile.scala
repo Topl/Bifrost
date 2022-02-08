@@ -1,11 +1,11 @@
 package co.topl.attestation.keyManagement
 
 import cats.data.Validated.{Invalid, Valid}
-import cats.implicits.toShow
+import cats.implicits._
 import co.topl.attestation.Address
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Latin1Data
-import co.topl.utils.catsInstances._
+import co.topl.utils.catsinstances.implicits._
 import io.circe.syntax._
 
 import java.io.{BufferedWriter, FileWriter}

@@ -4,7 +4,7 @@ import co.topl.codecs.binary.CodecCompatabilityBehavior
 import co.topl.codecs.binary.legacy.modifier.box.BoxSerializer
 import co.topl.modifier.box.Box
 import co.topl.utils.CommonGenerators
-import co.topl.utils.catsInstances._
+import co.topl.utils.implicits._
 import org.scalacheck.Gen
 
 class BoxCodecSpec extends CodecCompatabilityBehavior with CommonGenerators {

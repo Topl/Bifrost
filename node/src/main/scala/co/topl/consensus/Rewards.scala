@@ -8,7 +8,7 @@ import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.utils.Int128
 import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.TimeProvider.Time
-import co.topl.utils.catsInstances._
+import co.topl.utils.implicits._
 
 import scala.collection.immutable.ListMap
 import scala.util.Try

@@ -1,20 +1,20 @@
 package co.topl.modifier.transaction
 
 import cats.implicits._
-import co.topl.attestation.AddressCodec.implicits._
+import co.topl.attestation.implicits._
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
+import co.topl.codecs._
 import co.topl.modifier.ModifierId
 import co.topl.modifier.box._
-import co.topl.utils.{CommonGenerators, EqMatcher}
 import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
+import co.topl.utils.catsinstances.implicits._
+import co.topl.utils.{CommonGenerators, EqMatcher}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import co.topl.codecs._
-import co.topl.utils.catsInstances._
 
 import scala.collection.immutable.ListMap
 

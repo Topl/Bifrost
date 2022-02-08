@@ -1,6 +1,6 @@
 package co.topl.nodeView.history
 
-import cats.implicits.{catsSyntaxEq, toShow}
+import cats.implicits._
 import co.topl.consensus.Hiccups.HiccupBlock
 import co.topl.consensus._
 import co.topl.db.LDBVersionedStore
@@ -15,7 +15,7 @@ import co.topl.nodeView.{CacheLayerKeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
 import co.topl.utils.IdiomaticScalaTransition.implicits.toTryOps
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.catsInstances._
+import co.topl.utils.implicits._
 import co.topl.utils.{Logging, TimeProvider}
 
 import java.io.File

@@ -1,3 +1,3 @@
 package co.topl.codecs.json
 
-package object crypto extends CryptoCodecs
+package object crypto extends CryptoJsonCodecs

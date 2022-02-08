@@ -1,10 +1,9 @@
 package co.topl.attestation
 
-import co.topl.attestation.AddressCodec.implicits._
 import co.topl.attestation.EvidenceProducer.Syntax._
-import co.topl.codecs._
 import co.topl.codecs.binary.legacy.attestation.AddressSerializer
 import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
+import co.topl.crypto.hash.blake2b256
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
@@ -24,7 +23,7 @@ case class Address(evidence: Evidence)(implicit val networkPrefix: NetworkPrefix
   @deprecated
   type M = Address
 
-  override def toString: String = Base58.encode(bytes ++ bytes.checksum)
+  override def toString: String = Base58.encode(bytes ++ Address.checksum(bytes))
 
   @deprecated
   override def serializer: BifrostSerializer[Address] = AddressSerializer
@@ -42,9 +41,16 @@ object Address {
   val addressSize: Int = 1 + Evidence.size
 
   /**
+   * The length of an address's checksum
+   */
+  val ChecksumLength = 4
+
+  /**
    * Generates an Address from a proppsition. This method enables propositions to have an accessor method
    * like .address that will return the Address for that instance of the proposition.
    */
   def from[P <: Proposition: EvidenceProducer](proposition: P)(implicit networkPrefix: NetworkPrefix): Address =
     Address(proposition.generateEvidence)
+
+  def checksum(bytes: Array[Byte]): Array[Byte] = blake2b256.hash(bytes).value.take(ChecksumLength)
 }

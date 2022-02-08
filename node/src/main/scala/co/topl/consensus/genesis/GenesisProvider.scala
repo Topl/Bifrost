@@ -1,9 +1,10 @@
 package co.topl.consensus.genesis
 
-import co.topl.attestation.AddressCodec.implicits._
 import co.topl.attestation.EvidenceProducer.Syntax.ProducerOps
+import co.topl.attestation.implicits._
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519}
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.codecs._
 import co.topl.consensus.Forger.ChainParams
 import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.modifier.ModifierId
@@ -15,7 +16,6 @@ import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import co.topl.utils.{Int128, Logging}
-import co.topl.codecs._
 
 import scala.collection.immutable.ListMap
 import scala.util.Try

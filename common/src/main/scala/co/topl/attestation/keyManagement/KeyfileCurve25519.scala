@@ -14,6 +14,7 @@ import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.modes.SICBlockCipher
 import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
+import co.topl.codecs._
 
 import scala.util.Try
 
@@ -91,7 +92,9 @@ object KeyfileCurve25519Companion extends KeyfileCompanion[PrivateKeyCurve25519,
    * @param filename
    * @return
    */
-  def readFile(filename: String)(implicit networkPrefix: NetworkPrefix): KeyfileCurve25519 = {
+  def readFile(
+    filename:               String
+  )(implicit networkPrefix: NetworkPrefix): KeyfileCurve25519 = {
     // read data from disk
     val src = scala.io.Source.fromFile(filename)
 

@@ -2,7 +2,7 @@ package co.topl.codecs.binary.typeclasses
 
 import cats.implicits._
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
-import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.StringDataTypes.{Base16Data, Base58Data}
 import scodec.Codec
 import scodec.bits.BitVector
 import simulacrum.typeclass
@@ -50,7 +50,7 @@ object Persistable {
    * @tparam T the type of value that can be persisted with an existing `Codec` instance
    * @return an instance of the `Persistable` typeclass for value `T`
    */
-  def fromCodec[T: Codec]: Persistable[T] = new Persistable[T] {
+  def instanceFromCodec[T: Codec]: Persistable[T] = new Persistable[T] {
 
     override def persistedBytes(value: T): Array[Byte] =
       Codec[T].encode(value).toEither.getOrThrow().toByteArray
@@ -61,9 +61,9 @@ object Persistable {
 
   /**
    * Extension operations for working with persisted byte data.
-   * @param value the persisted byte data to operate on
+   * @param bytes the persisted byte data to operate on
    */
-  class BytesPersistableOps(val value: Array[Byte]) extends AnyVal {
+  class BytesPersistableOps(private val bytes: Array[Byte]) extends AnyVal {
 
     /**
      * Attempts to decode persisted byte data into a value of type `T`.
@@ -73,10 +73,14 @@ object Persistable {
      * @return if successful, the value of type `T` that the data represents, otherwise a failure message
      */
     def decodePersisted[T: Persistable]: Either[String, T] =
-      Persistable[T].fromPersistedBytes(value)
+      Persistable[T].fromPersistedBytes(bytes)
   }
 
   trait ToExtensionOps {
-    implicit def toPersistableBytesOps(value: Array[Byte]): BytesPersistableOps = new BytesPersistableOps(value)
+    implicit def persistableFromBytes(value: Array[Byte]): BytesPersistableOps = new BytesPersistableOps(value)
+
+    implicit def persistableFromBase58(value: Base58Data): BytesPersistableOps = new BytesPersistableOps(value.value)
+
+    implicit def persistableFromBase16(value: Base16Data): BytesPersistableOps = new BytesPersistableOps(value.value)
   }
 }

@@ -1,12 +1,10 @@
 package co.topl.attestation
 
-import cats.implicits.toShow
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519, Secret}
 import co.topl.codecs.binary.legacy.attestation.ProofSerializer
 import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
 import co.topl.crypto.signatures.{Curve25519, Ed25519, Signature}
-import co.topl.utils.StringDataTypes.Base16Data
-import co.topl.utils.StringDataTypes.implicits.showBase16String
+import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
 
 import scala.util.Try
@@ -27,7 +25,7 @@ sealed trait Proof[P <: Proposition] extends BytesSerializable {
   @deprecated
   override def serializer: BifrostSerializer[Proof[_ <: Proposition]] = ProofSerializer
 
-  override def toString: String = Base16Data.fromData(bytes).show
+  override def toString: String = Base58.encode(bytes)
 
   override def equals(obj: Any): Boolean = obj match {
     case pr: Proof[_] =>

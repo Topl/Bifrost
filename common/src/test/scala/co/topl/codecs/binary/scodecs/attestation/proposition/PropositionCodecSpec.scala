@@ -3,7 +3,7 @@ package co.topl.codecs.binary.scodecs.attestation.proposition
 import co.topl.codecs.binary.CodecCompatabilityBehavior
 import co.topl.codecs.binary.legacy.attestation.PropositionSerializer
 import co.topl.utils.CommonGenerators
-import co.topl.utils.catsInstances._
+import co.topl.utils.implicits._
 
 class PropositionCodecSpec extends CodecCompatabilityBehavior with CommonGenerators {
 

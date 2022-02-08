@@ -8,16 +8,16 @@ import co.topl.network.codecs.scodecs._
 trait TransmittableInstances {
 
   def transmissionHeaderTransmittable(magicBytes: Array[Byte]): Transmittable[TransmissionHeader] =
-    Transmittable.fromCodec[TransmissionHeader](transmissionHeaderCodec(magicBytes))
+    Transmittable.instanceFromCodec[TransmissionHeader](transmissionHeaderCodec(magicBytes))
 
   def transmissionContentTransmittable(dataLength: Int): Transmittable[TransmissionContent] =
-    Transmittable.fromCodec[TransmissionContent](transmissionContentCodec(dataLength))
+    Transmittable.instanceFromCodec[TransmissionContent](transmissionContentCodec(dataLength))
 
   def transmissionTransmittable(magicBytes: Array[Byte]): Transmittable[Transmission] =
-    Transmittable.fromCodec[Transmission](transmissionCodec(magicBytes))
+    Transmittable.instanceFromCodec[Transmission](transmissionCodec(magicBytes))
 
-  implicit val messageTransmittable: Transmittable[Message] = Transmittable.fromCodec[Message]
+  implicit val messageTransmittable: Transmittable[Message] = Transmittable.instanceFromCodec[Message]
 
   implicit val handshakeTransmittable: Transmittable[MessagesV1.Handshake] =
-    Transmittable.fromCodec[MessagesV1.Handshake]
+    Transmittable.instanceFromCodec[MessagesV1.Handshake]
 }

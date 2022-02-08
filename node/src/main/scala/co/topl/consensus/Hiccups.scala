@@ -3,7 +3,7 @@ package co.topl.consensus
 import cats.implicits._
 import co.topl.modifier.block.Block
 import co.topl.utils.NetworkType.{NetworkPrefix, ValhallaTestnet}
-import co.topl.utils.catsInstances._
+import co.topl.utils.implicits._
 
 /**
  * Represents the sets of blocks that should have failed to be added to networks, but were anyways.

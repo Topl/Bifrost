@@ -1,7 +1,6 @@
 package co.topl.consensus
 
 import co.topl.attestation.Address
-import co.topl.attestation.AddressCodec.implicits._
 import co.topl.consensus.LeaderElection.{NoAddressesAvailable, NoArbitBoxesAvailable}
 import co.topl.utils.CommonGenerators
 import co.topl.utils.StringDataTypes.Base58Data
@@ -10,6 +9,7 @@ import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks.forAll
+import co.topl.attestation.implicits._
 import co.topl.codecs._
 
 class LeaderElectionTests extends AnyFlatSpec with MockFactory with CommonGenerators with EitherValues {

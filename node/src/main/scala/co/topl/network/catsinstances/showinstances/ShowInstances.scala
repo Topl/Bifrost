@@ -6,8 +6,7 @@ import co.topl.codecs._
 import co.topl.network.message.Messages.MessagesV1
 import co.topl.network.message.{Transmission, TransmissionContent, TransmissionHeader}
 import co.topl.network.peer.PeerMetadata
-import co.topl.utils.StringDataTypes.implicits._
-import co.topl.utils.catsInstances._
+import co.topl.utils.implicits._
 
 trait ShowInstances {
 

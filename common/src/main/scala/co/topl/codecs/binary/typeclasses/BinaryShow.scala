@@ -55,5 +55,5 @@ object BinaryShow {
    * @tparam T the value to create an instance of `BinaryShow` for
    * @return an instance of `BinaryShow` for type `T`
    */
-  def fromEncoder[T: Encoder]: BinaryShow[T] = Encoder[T].encode(_).getOrThrow().toByteArray
+  def instanceFromEncoder[T: Encoder]: BinaryShow[T] = Encoder[T].encode(_).getOrThrow().toByteArray
 }

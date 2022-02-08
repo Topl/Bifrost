@@ -3,15 +3,13 @@ package co.topl.codecs.binary
 import cats.{Eq, Show}
 import co.topl.codecs.binary.legacy.BifrostSerializer
 import co.topl.utils.EqMatcher
-import co.topl.utils.IdiomaticScalaTransition.implicits._
-import co.topl.utils.StringDataTypes.implicits._
+import co.topl.utils.implicits._
 import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import scodec.Codec
 import scodec.bits.BitVector
-import co.topl.utils.StringDataTypes.implicits._
 
 trait CodecCompatabilityBehavior extends AnyFlatSpec with Matchers with EqMatcher with ScalaCheckDrivenPropertyChecks {
 

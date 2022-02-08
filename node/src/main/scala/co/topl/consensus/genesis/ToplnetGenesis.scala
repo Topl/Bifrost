@@ -22,7 +22,6 @@ case object ToplnetGenesis extends GenesisProvider {
   override protected val blockChecksum: ModifierId =
     Base58Data
       .unsafe("228AWnLyoHdV3hzNaJmABsmB4VoS9rxPREA3AofbZnJob")
-      .value
       .decodeTransmitted[ModifierId]
       .getOrThrow()
 

@@ -34,8 +34,6 @@ object MemPoolAuditor {
 
   object ReceivableMessages {
 
-    private[nodeView] case class CleanupDone(toBeBroadcast: Seq[Transaction.TX]) extends ReceivableMessage
-
     private[nodeView] case object RunCleanup extends ReceivableMessage
 
     private[nodeView] case class CleanupDecision(
@@ -91,7 +89,8 @@ private class MemPoolAuditorBehaviors(
 
   def idle(validatedTx: TreeSet[Transaction.TX], iteration: Int): Behavior[ReceivableMessage] =
     Behaviors.receiveMessagePartial[ReceivableMessage] { case ReceivableMessages.RunCleanup =>
-      context.pipeToSelf(withNodeView(splitIds(validatedTx, _))) {
+      val splitIdsFunc = splitIds(validatedTx)(_)
+      context.pipeToSelf(withNodeView(splitIdsFunc)) {
         case Success(decision)  => decision
         case Failure(exception) => ReceivableMessages.Fail(exception)
       }
@@ -129,9 +128,8 @@ private class MemPoolAuditorBehaviors(
    *  stale (by exceeding the mempoolTimeout). If either are true, the transaction is removed from the mempool
    */
   private def splitIds(
-    validatedIndex:        TreeSet[Transaction.TX],
-    nodeView:              ReadableNodeView
-  )(implicit timeProvider: TimeProvider): ReceivableMessages.CleanupDecision = {
+    validatedIndex: TreeSet[Transaction.TX]
+  )(nodeView:       ReadableNodeView)(implicit timeProvider: TimeProvider): ReceivableMessages.CleanupDecision = {
     val (valid, invalid) =
       nodeView.memPool
         .take(Int.MaxValue)(-_.dateAdded)

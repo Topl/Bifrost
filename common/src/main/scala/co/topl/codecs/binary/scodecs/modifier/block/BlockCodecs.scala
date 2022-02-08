@@ -8,13 +8,18 @@ import co.topl.codecs.binary.scodecs.valuetypes._
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
 import co.topl.modifier.transaction.Transaction
-import scodec.Codec
+import scodec.{Codec, Err}
 import shapeless.{::, HList, HNil}
+import co.topl.codecs.binary.scodecs.ops.implicits._
 
 import scala.reflect.ClassTag
 
 trait BlockCodecs {
-  implicit val modifierIdCodec: Codec[ModifierId] = bytesCodec(ModifierId.size).as[ModifierId]
+
+  implicit val modifierIdCodec: Codec[ModifierId] =
+    bytesCodec(ModifierId.size)
+      .mapDecodeErr(_ => Err(s"Modifier ID must be ${ModifierId.size} bytes long"))
+      .as[ModifierId]
 
   implicit def bloomFilterCodec(implicit longClassTag: ClassTag[Long]): Codec[BloomFilter] =
     sizedArrayCodec[Long](BloomFilter.numLongs)(longCodec, longClassTag).as[BloomFilter]

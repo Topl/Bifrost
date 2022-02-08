@@ -5,21 +5,21 @@ import cats.data.{EitherT, NonEmptyChain}
 import cats.implicits._
 import co.topl.akkahttprpc.RpcClientFailure
 import co.topl.akkahttprpc.implicits.client.rpcToClient
+import co.topl.attestation.implicits._
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.client.Provider.PrivateTestNet
+import co.topl.codecs._
 import co.topl.modifier.box.{AssetCode, AssetValue}
 import co.topl.modifier.transaction.builder.BoxSelectionAlgorithms
 import co.topl.rpc.ToplRpc
 import co.topl.rpc.ToplRpc.NodeView._
 import co.topl.rpc.ToplRpc.Transaction.{BroadcastTx, RawArbitTransfer, RawAssetTransfer, RawPolyTransfer}
 import co.topl.rpc.implicits.client._
+import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
-import co.topl.codecs._
-import co.topl.attestation.AddressCodec.implicits._
-import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 
 import scala.concurrent.{ExecutionContext, Future}
 

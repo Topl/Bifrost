@@ -6,20 +6,20 @@ import akka.pattern.pipe
 import akka.util.Timeout
 import cats.data.Validated.Valid
 import co.topl.attestation.Address
-import co.topl.attestation.AddressCodec.implicits._
+import co.topl.codecs._
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.block.{Block, BloomFilter, PersistentNodeViewModifier}
 import co.topl.modifier.transaction._
 import co.topl.nodeView.NodeViewHolder
 import co.topl.settings.{AppContext, AppSettings, RPCApiSettings}
-import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
-import co.topl.codecs._
+import co.topl.attestation.implicits._
+import co.topl.utils.implicits._
 
 import scala.concurrent.Future
 import scala.concurrent.duration._

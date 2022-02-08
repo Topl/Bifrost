@@ -1,7 +1,6 @@
 package co.topl.attestation
 
 import cats.scalatest.{ValidatedMatchers, ValidatedNecMatchers}
-import co.topl.attestation.AddressCodec.implicits._
 import co.topl.codecs.binary._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
@@ -10,6 +9,7 @@ import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import co.topl.attestation.implicits._
 
 class AddressSpec
     extends AnyPropSpec
@@ -33,7 +33,9 @@ class AddressSpec
       }
       {
         implicit val networkPrefix: NetworkPrefix = secNetworkType.netPrefix
-        base58Data.decodeAddress should haveInvalidC[AddressValidationError](NetworkTypeMismatch)
+        base58Data.decodeAddress should haveInvalidC[AddressValidationError](
+          AddressValidationErrors.NetworkTypeMismatch
+        )
       }
     }
   }
@@ -52,7 +54,7 @@ class AddressSpec
 
       addressBytes should not contain theSameElementsInOrderAs(modedAddrByte)
 
-      modedAddrBase58.decodeAddress should haveInvalidC[AddressValidationError](InvalidChecksum)
+      modedAddrBase58.decodeAddress should haveInvalidC[AddressValidationError](AddressValidationErrors.InvalidChecksum)
     }
   }
 
@@ -69,7 +71,7 @@ class AddressSpec
 
       addrByte should not contain theSameElementsInOrderAs(modedAddrByte)
 
-      modedAddrBase58.decodeAddress should haveInvalidC[AddressValidationError](InvalidChecksum)
+      modedAddrBase58.decodeAddress should haveInvalidC[AddressValidationError](AddressValidationErrors.InvalidChecksum)
     }
   }
 
@@ -86,7 +88,9 @@ class AddressSpec
 
       addrByte should not contain theSameElementsInOrderAs(modedAddrByte)
 
-      modedAddrBase58.decodeAddress should haveInvalidC[AddressValidationError](InvalidAddressLength)
+      modedAddrBase58.decodeAddress should haveInvalidC[AddressValidationError](
+        AddressValidationErrors.InvalidAddressLength
+      )
     }
   }
 
@@ -96,7 +100,7 @@ class AddressSpec
       val address: Address = pubkey.address
       val addrBase58: Base58Data = address.encodeAsBase58
 
-      addrBase58.decodeAddress should haveInvalidC[AddressValidationError](InvalidNetworkPrefix)
+      addrBase58.decodeAddress should haveInvalidC[AddressValidationError](AddressValidationErrors.InvalidNetworkPrefix)
     }
   }
 }

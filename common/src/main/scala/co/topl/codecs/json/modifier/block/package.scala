@@ -1,3 +1,3 @@
 package co.topl.codecs.json.modifier
 
-package object block extends BlockCodecs
+package object block extends BlockJsonCodecs

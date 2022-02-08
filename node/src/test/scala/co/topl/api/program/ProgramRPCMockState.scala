@@ -1,7 +1,7 @@
 package co.topl.api.program
 
 import cats.implicits._
-import co.topl.utils.catsInstances._
+import co.topl.utils.implicits._
 import co.topl.api.RPCMockState
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.modifier.ModifierId

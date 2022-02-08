@@ -48,6 +48,9 @@ trait RPCMockState
 
   implicit protected val routeTestTimeout: RouteTestTimeout = RouteTestTimeout(5.seconds)
 
+  // Initialize the protocol settings
+  protocolMngr = ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
+
   // TODO Fails when using rpcSettings
   override def createActorSystem(): ActorSystem = ActorSystem(settings.network.agentName)
 
@@ -128,9 +131,9 @@ trait RPCMockState
         ToplRpcHandlers(
           new DebugRpcHandlerImpls(nodeViewHolderInterface, keyManagerInterface),
           new UtilsRpcHandlerImpls,
-          new NodeViewRpcHandlerImpls(appContext, nodeViewHolderInterface),
+          new NodeViewRpcHandlerImpls(settings.rpcApi, appContext, nodeViewHolderInterface),
           new TransactionRpcHandlerImpls(nodeViewHolderInterface),
-          new AdminRpcHandlerImpls(forgerInterface, keyManagerInterface)
+          new AdminRpcHandlerImpls(forgerInterface, keyManagerInterface, nodeViewHolderInterface)
         ),
         appContext
       )

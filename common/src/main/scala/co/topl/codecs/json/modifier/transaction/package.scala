@@ -1,3 +1,3 @@
 package co.topl.codecs.json.modifier
 
-package object transaction extends TransactionCodecs
+package object transaction extends TransactionJsonCodecs

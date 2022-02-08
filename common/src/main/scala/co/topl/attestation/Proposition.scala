@@ -12,8 +12,8 @@ import co.topl.crypto.PublicKey
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signatures.{Curve25519, Ed25519}
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.StringDataTypes.implicits.showBase16String
 import co.topl.utils.StringDataTypes.{Base16Data, DataEncodingValidationFailure}
+import co.topl.utils.encode.Base16
 import co.topl.utils.{Identifiable, Identifier}
 import com.google.common.primitives.Ints
 
@@ -32,7 +32,7 @@ sealed trait Proposition extends BytesSerializable {
 
   def address(implicit networkPrefix: NetworkPrefix): Address
 
-  override def toString: String = Base16Data.fromData(bytes).show
+  override def toString: String = Base16.encode(bytes)
 
   override def equals(obj: Any): Boolean = obj match {
     case prop: Proposition => bytes sameElements prop.bytes

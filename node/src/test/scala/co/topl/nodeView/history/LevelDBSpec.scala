@@ -1,7 +1,7 @@
 package co.topl.nodeView.history
 
 import cats.implicits._
-import co.topl.utils.catsInstances._
+import co.topl.utils.implicits._
 import co.topl.db.LDBVersionedStore
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block

@@ -10,7 +10,7 @@ import co.topl.settings.AppSettings
 import co.topl.utils.Logging
 import com.google.common.primitives.Longs
 import co.topl.codecs._
-import co.topl.utils.catsInstances.modifierIdShow
+import co.topl.utils.implicits._
 
 import java.io.File
 import scala.util.Try

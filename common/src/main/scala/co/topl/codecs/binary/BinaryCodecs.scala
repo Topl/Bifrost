@@ -1,5 +1,7 @@
 package co.topl.codecs.binary
 
+import co.topl.codecs.binary.typeclasses.{BinaryShowInstances, PersistableInstances, TransmittableInstances}
+
 trait BinaryCodecs
     extends scodecs.ScodecImplicits
     with typeclasses.Persistable.ToPersistableOps
@@ -7,6 +9,6 @@ trait BinaryCodecs
     with typeclasses.Transmittable.ToTransmittableOps
     with typeclasses.Transmittable.ToExtensionOps
     with typeclasses.BinaryShow.ToBinaryShowOps
-    with network.TransmittableInstances
-    with persistence.PersistableInstances
-    with show.BinaryShowInstances
+    with TransmittableInstances
+    with PersistableInstances
+    with BinaryShowInstances

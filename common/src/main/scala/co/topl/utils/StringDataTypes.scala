@@ -2,13 +2,13 @@ package co.topl.utils
 
 import cats.data.ValidatedNec
 import cats.implicits._
-import cats.{Eq, Show}
 import co.topl.utils.Extensions.StringOps
+import co.topl.utils.encode.Base16.Base16DecodingFailure
+import co.topl.utils.encode.Base58.Base58DecodingFailure
 import co.topl.utils.encode.{Base16, Base58}
 import io.estatico.newtype.macros.newtype
 import io.estatico.newtype.ops._
 
-import java.nio.charset.StandardCharsets
 import scala.language.implicitConversions
 
 object StringDataTypes {
@@ -47,7 +47,7 @@ object StringDataTypes {
      * @return a `DataEncodingValidationResult` representing a validation error or the `Latin1Data`
      */
     def validated(from: String): DataEncodingValidationResult[Latin1Data] =
-      from.getValidLatin1Bytes.toValidNec(InvalidCharacter).map(Latin1Data(_))
+      from.getValidLatin1Bytes.toValidNec(DataEncodingValidationFailures.InvalidCharacter("")).map(Latin1Data(_))
 
     /**
      * Unsafely creates a `Latin1Data` instance from a `String`.
@@ -58,13 +58,6 @@ object StringDataTypes {
      */
     def unsafe(from: String): Latin1Data =
       validated(from).valueOr(err => throw new IllegalArgumentException(s"Invalid Latin-1 string: $err"))
-  }
-
-  trait Latin1DataInstances {
-    implicit val eqLatin1Data: Eq[Latin1Data] = (a: Latin1Data, b: Latin1Data) => a.value sameElements b.value
-
-    implicit val showLatin1Data: Show[Latin1Data] =
-      latin1Data => new String(latin1Data.value, StandardCharsets.ISO_8859_1)
   }
 
   /**
@@ -90,7 +83,7 @@ object StringDataTypes {
      * @return a `DataEncodingValidationFailure` representing a validation error or the `Base58Data` instance
      */
     def validated(from: String): DataEncodingValidationResult[Base58Data] =
-      Base58.decode(from).map(_.coerce).leftMap(_ => InvalidCharacter).toValidatedNec
+      Base58.decode(from).map(_.coerce).leftMap(DataEncodingValidationFailures.fromBase58DecodingFailure).toValidatedNec
 
     /**
      * Unsafely creates a `Base58Data` instance from a `String`.
@@ -101,12 +94,6 @@ object StringDataTypes {
      */
     def unsafe(from: String): Base58Data =
       validated(from).valueOr(err => throw new IllegalArgumentException(s"Invalid Base-58 string: $err"))
-  }
-
-  trait Base58DataInstances {
-    implicit val eqBase58String: Eq[Base58Data] = (a: Base58Data, b: Base58Data) => a.value sameElements b.value
-
-    implicit val showBase58String: Show[Base58Data] = data => Base58.encode(data.value)
   }
 
   /**
@@ -126,17 +113,14 @@ object StringDataTypes {
     def fromData(bytes: Array[Byte]): Base16Data = bytes.coerce
 
     def validated(from: String): DataEncodingValidationResult[Base16Data] =
-      Base16.decode(from).map(_.coerce).leftMap(_ => InvalidCharacter).toValidatedNec
+      Base16
+        .decode(from)
+        .map(_.coerce)
+        .leftMap(DataEncodingValidationFailures.fromBase16DecodingFailure)
+        .toValidatedNec
 
     def unsafe(from: String): Base16Data =
       validated(from).valueOr(err => throw new IllegalArgumentException(s"Invalid Base-16 string: $err"))
-  }
-
-  trait Base16DataInstances {
-
-    implicit val eqBase16String: Eq[Base16Data] = (a: Base16Data, b: Base16Data) => a.value sameElements b.value
-
-    implicit val showBase16String: Show[Base16Data] = base16Data => Base16.encode(base16Data.value)
   }
 
   /**
@@ -144,10 +128,26 @@ object StringDataTypes {
    */
   sealed trait DataEncodingValidationFailure
 
-  /**
-   * Failure when a character is not in the valid encoding set.
-   */
-  case object InvalidCharacter extends DataEncodingValidationFailure
+  object DataEncodingValidationFailures {
 
-  object implicits extends Latin1DataInstances with Base16DataInstances with Base58DataInstances
+    /**
+     * Failure when a character is not in the valid encoding set.
+     */
+    case class InvalidCharacter(character: String) extends DataEncodingValidationFailure
+
+    /**
+     * Failure when the length of the data is expected to be even but is not.
+     */
+    case object NonEvenLength extends DataEncodingValidationFailure
+
+    def fromBase16DecodingFailure(failure: Base16DecodingFailure): DataEncodingValidationFailure = failure match {
+      case Base16.InvalidCharacter(c) => InvalidCharacter(c)
+      case Base16.NonEvenLength()     => NonEvenLength
+    }
+
+    def fromBase58DecodingFailure(failure: Base58DecodingFailure): DataEncodingValidationFailure = failure match {
+      case Base58.InvalidCharacter(c) => InvalidCharacter(c.toString)
+    }
+  }
+
 }

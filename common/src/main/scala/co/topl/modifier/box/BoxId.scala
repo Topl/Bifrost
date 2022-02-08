@@ -6,6 +6,7 @@ import co.topl.codecs._
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.hash.implicits._
+import co.topl.crypto.catsinstances.implicits._
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.{Ints, Longs}
 
