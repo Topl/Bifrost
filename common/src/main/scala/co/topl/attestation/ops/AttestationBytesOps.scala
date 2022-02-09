@@ -66,6 +66,7 @@ object AttestationBytesOps {
   implicit private val byteArraySemigroup: Semigroup[Array[Byte]] = (_, b) => b
 
   trait ToAttestationBytesOps {
+
     implicit def attestationOpsFromBinaryShow[T: BinaryShow](value: T): AttestationBytesOps =
       new AttestationBytesOps(value.encodeAsBytes)
   }
