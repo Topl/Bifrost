@@ -11,7 +11,7 @@ import co.topl.utils.NetworkType.NetworkPrefix
 
 import scala.language.implicitConversions
 
-class AttestationBytesOps(val value: Array[Byte]) extends AnyVal {
+class AttestationBytesOps(private val value: Array[Byte]) extends AnyVal {
   import AttestationBytesOps.byteArraySemigroup
 
   def decodeAddress(implicit networkPrefix: NetworkPrefix): ValidatedNec[AddressValidationError, Address] =
@@ -65,9 +65,7 @@ object AttestationBytesOps {
   implicit private val prefixSemigroup: Semigroup[NetworkPrefix] = (_, b) => b
   implicit private val byteArraySemigroup: Semigroup[Array[Byte]] = (_, b) => b
 
-  trait ToOps {
-    implicit def attestationOpsFromBytes(value: Array[Byte]): AttestationBytesOps = new AttestationBytesOps(value)
-
+  trait ToAttestationBytesOps {
     implicit def attestationOpsFromBinaryShow[T: BinaryShow](value: T): AttestationBytesOps =
       new AttestationBytesOps(value.encodeAsBytes)
   }
