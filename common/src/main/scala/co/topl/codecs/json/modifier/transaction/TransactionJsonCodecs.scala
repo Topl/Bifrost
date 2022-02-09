@@ -3,8 +3,9 @@ package co.topl.codecs.json.modifier.transaction
 import cats.implicits._
 import co.topl.attestation._
 import co.topl.codecs.binary._
+import co.topl.codecs.json.modifier.block._
 import co.topl.codecs.json.modifier.box._
-import co.topl.codecs.json.valuetypes.ValueTypesJsonCodecs
+import co.topl.codecs.json.valuetypes._
 import co.topl.modifier.box.{Box, SimpleValue, TokenValueHolder}
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.modifier.transaction.TransferTransaction.encodeFrom
@@ -18,7 +19,7 @@ import scodec.bits.BitVector
 
 import scala.collection.immutable.ListMap
 
-trait TransactionJsonCodecs extends ValueTypesJsonCodecs {
+trait TransactionJsonCodecs {
 
   implicit val publicKeyCurve25519AttestationJsonDecoder
     : Decoder[ListMap[PublicKeyPropositionCurve25519, Proof[PublicKeyPropositionCurve25519]]] =

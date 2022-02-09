@@ -3,11 +3,11 @@ package co.topl.attestation.ops
 import cats.Semigroup
 import cats.data.{Validated, ValidatedNec}
 import cats.implicits._
-import co.topl.attestation._
+import co.topl.attestation.{Address, AddressValidationError, AddressValidationErrors}
 import co.topl.codecs.binary.typeclasses.implicits._
-import co.topl.codecs.binary.typeclasses.BinaryShow
 import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.StringDataTypes.{Base16Data, Base58Data}
 
 import scala.language.implicitConversions
 
@@ -67,7 +67,14 @@ object AttestationBytesOps {
 
   trait ToAttestationBytesOps {
 
-    implicit def attestationOpsFromBinaryShow[T: BinaryShow](value: T): AttestationBytesOps =
-      new AttestationBytesOps(value.encodeAsBytes)
+    implicit def attestationBytesOpsFromBytes(bytes: Array[Byte]): AttestationBytesOps =
+      new AttestationBytesOps(bytes)
+
+    implicit def attestationBytesOpsFromBase58(data: Base58Data): AttestationBytesOps =
+      new AttestationBytesOps(data.value)
+
+    implicit def attestationBytesOpsFromBase16(data: Base16Data): AttestationBytesOps =
+      new AttestationBytesOps(data.value)
+
   }
 }

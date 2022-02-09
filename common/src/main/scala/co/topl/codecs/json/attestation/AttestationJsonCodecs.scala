@@ -14,10 +14,10 @@ import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.encode.Base58
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import co.topl.codecs.json.valuetypes.ValueTypesJsonCodecs
 import co.topl.attestation.implicits._
+import co.topl.codecs.json.valuetypes._
 
-trait AttestationJsonCodecs extends ValueTypesJsonCodecs {
+trait AttestationJsonCodecs {
 
   private val evidenceTypeName = "Evidence"
   private val proofTypeName = "Proof"

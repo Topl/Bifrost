@@ -3,7 +3,7 @@ package co.topl.codecs.json.modifier.box
 import cats.implicits._
 import co.topl.attestation.Evidence
 import co.topl.codecs.binary._
-import co.topl.codecs.json.valuetypes.ValueTypesJsonCodecs
+import co.topl.codecs.json.valuetypes._
 import co.topl.codecs.json.{
   deriveDecoderFromScodec,
   deriveEncoderFromScodec,
@@ -19,7 +19,7 @@ import co.topl.utils.{Identifiable, Int128}
 import io.circe._
 import io.circe.syntax._
 
-trait BoxJsonCodecs extends ValueTypesJsonCodecs {
+trait BoxJsonCodecs {
 
   private val assetCodeTypeName = "Asset Code"
   private val boxIdTypeName = "Box ID"

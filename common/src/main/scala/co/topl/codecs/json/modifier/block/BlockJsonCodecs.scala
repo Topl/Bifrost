@@ -2,14 +2,15 @@ package co.topl.codecs.json.modifier.block
 
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.codecs.binary._
-import co.topl.codecs.json.crypto.CryptoJsonCodecs
+import co.topl.codecs.json.crypto._
+import co.topl.codecs.json.modifier.box._
+import co.topl.codecs.json.modifier.transaction._
 import co.topl.codecs.json.{
   deriveDecoderFromScodec,
   deriveEncoderFromScodec,
   deriveKeyDecoderFromScodec,
   deriveKeyEncoderFromScodec
 }
-import co.topl.codecs.json.valuetypes.ValueTypesJsonCodecs
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
@@ -21,7 +22,7 @@ import co.topl.utils.TimeProvider
 import io.circe._
 import io.circe.syntax._
 
-trait BlockJsonCodecs extends ValueTypesJsonCodecs with CryptoJsonCodecs {
+trait BlockJsonCodecs {
 
   private val modifierIdTypeName = "Modifier ID"
   private val bloomFilterTypeName = "Bloom Filter"
