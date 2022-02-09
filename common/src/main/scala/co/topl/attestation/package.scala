@@ -1,9 +1,7 @@
 package co.topl
 
-import co.topl.attestation.ops
-
 package object attestation {
-  trait Implicits extends ops.AttestationBytesOps.ToAttestationBytesOps
+  trait Implicits extends ops.Implicits
 
   object implicits extends Implicits
 }

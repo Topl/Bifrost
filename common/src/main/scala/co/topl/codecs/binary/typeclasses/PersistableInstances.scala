@@ -50,7 +50,7 @@ trait PersistableInstances {
 
   implicit val evidencePersistable: Persistable[Evidence] = Persistable.instanceFromCodec
 
-  implicit val addressPersistable: Persistable[Address] = Persistable.instanceFromCodec
+  implicit val addressPersistable: Persistable[Address] = Persistable.instanceFromCodec[Address]
 
   implicit val modifierIdPersistable: Persistable[ModifierId] = Persistable.instanceFromCodec
 

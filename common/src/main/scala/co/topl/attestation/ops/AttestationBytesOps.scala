@@ -4,7 +4,7 @@ import cats.Semigroup
 import cats.data.{Validated, ValidatedNec}
 import cats.implicits._
 import co.topl.attestation._
-import co.topl.codecs._
+import co.topl.codecs.binary.typeclasses.implicits._
 import co.topl.codecs.binary.typeclasses.BinaryShow
 import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
