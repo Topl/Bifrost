@@ -122,29 +122,27 @@ object Forger {
   ): Future[Block] = {
     implicit val networkPrefix: NetworkPrefix = networkType.netPrefix
 
-    def initializeFromChainParamsAndGetBlock(block: Try[(Block, ChainParams)]): Try[Block] = {
+    def initializeFromChainParamsAndGetBlock(block: Try[(Block, ChainParams)]): Future[Block] = {
 
       import scala.concurrent.duration._
       implicit val timeout: Timeout = Timeout(10.seconds)
 
-      block.map { case (block: Block, ChainParams(totalStake, initDifficulty)) =>
-        consensusVariablesInterface.updateVariables(
-          block.id,
-          ConsensusParamsUpdate(Some(totalStake), Some(initDifficulty), Some(0L), Some(0L))
-        )
-
-        block
+      Future.fromTry(block).flatMap { case (block: Block, ChainParams(totalStake, initDifficulty)) =>
+        consensusVariablesInterface
+          .update(block.id, ConsensusParamsUpdate(Some(totalStake), Some(initDifficulty), Some(0L), Some(0L)))
+          .valueOrF(e => Future.failed(e.reason))
+          .map(_ => block)
       }
     }
 
     networkType match {
-      case Mainnet         => Future.fromTry(initializeFromChainParamsAndGetBlock(ToplnetGenesis.getGenesisBlock))
-      case ValhallaTestnet => Future.fromTry(initializeFromChainParamsAndGetBlock(ValhallaGenesis.getGenesisBlock))
-      case HelTestnet      => Future.fromTry(initializeFromChainParamsAndGetBlock(HelGenesis.getGenesisBlock))
+      case Mainnet         => initializeFromChainParamsAndGetBlock(ToplnetGenesis.getGenesisBlock)
+      case ValhallaTestnet => initializeFromChainParamsAndGetBlock(ValhallaGenesis.getGenesisBlock)
+      case HelTestnet      => initializeFromChainParamsAndGetBlock(HelGenesis.getGenesisBlock)
       case PrivateTestnet =>
         fetchStartupKeyView()
           .map(view => PrivateGenesis(view.addresses, settings).getGenesisBlock)
-          .flatMap(r => Future.fromTry(initializeFromChainParamsAndGetBlock(r)))
+          .flatMap(r => initializeFromChainParamsAndGetBlock(r))
       case _ =>
         Future.failed(new IllegalArgumentException(s"Undefined network type $networkType"))
     }
@@ -267,7 +265,7 @@ private class ForgerBehaviors(
       keyView <- EitherT[Future, ForgerFailure, KeyView](
         fetchKeyView().map(Right(_)).recover { case e => Left(ForgingError(e)) }
       )
-      consensusParams <- consensusVariablesInterface.getVariables
+      consensusParams <- consensusVariablesInterface.get
         .leftMap(e => ForgingError(e.reason))
       forge <- nodeViewReader
         .withNodeView(Forge.fromNodeView(_, consensusParams, keyView, minTransactionFee))
