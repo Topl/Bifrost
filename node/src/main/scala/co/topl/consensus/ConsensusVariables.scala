@@ -147,7 +147,7 @@ object ConsensusVariables {
       case (_, ReceivableMessages.RollbackConsensusVariables(blockId, replyTo)) =>
         storage.rollbackTo(blockId.getIdBytes)
         // Check if the storage is rolled back to the given version by comparing the last version in storage
-        val rollBackResult = storage.latestVersionId().getOrElse(Array[String]()) sameElements blockId.getIdBytes
+        val rollBackResult = storage.latestVersionId().exists(id => id sameElements blockId.getIdBytes)
         (
           totalStakeFromStorage(storage),
           difficultyFromStorage(storage),
