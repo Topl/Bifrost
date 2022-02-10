@@ -56,7 +56,7 @@ object MongoQueryInterp {
 
   object Mock {
 
-    def make[F[_]: Applicative, T, Filter]: MongoQueryAlg[F, T, Filter] =
-      (_: Filter, _: Bson, _: Option[Paging]) => Source.empty[T].pure[F]
+    def make[F[_]: Applicative, T, Filter](results: List[T]): MongoQueryAlg[F, T, Filter] =
+      (_: Filter, _: Bson, _: Option[Paging]) => Source(results).pure[F]
   }
 }

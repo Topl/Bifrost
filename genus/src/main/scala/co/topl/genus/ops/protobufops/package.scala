@@ -11,12 +11,16 @@ package object protobufops {
   trait Implicits
       extends BlocksQueryStreamReqOps.ToBlocksQueryStreamReqOps
       with BlocksQueryStreamResCompanionOps.ToBlocksQueryStreamResCompanionOps
+      with BlocksSubscriptionResCompanionOps.ToBlocksSubscriptionResCompanionOps
+      with CreateBlocksSubscriptionReqOps.ToCreateBlocksSubscriptionReqOps
+      with CreateTxsSubscriptionReqOps.ToCreateTxsSubscriptionReqOps
       with QueryBlocksReqOps.ToQueryBlocksReqOps
       with QueryBlocksResCompanionOps.ToQueryBlocksResCompanionExtensions
       with QueryTxsReqOps.ToQueryTxsReqOps
       with QueryTxsResCompanionOps.ToQueryTxsResCompanionOps
       with TxsQueryStreamReqOps.ToTxsQueryStreamReqOps
       with TxsQueryStreamResCompanionOps.ToTxsQueryStreamResCompanionOps
+      with TxsSubscriptionResCompanionOps.ToTxsSubscriptionResCompanionOps
 
   object implicits extends Implicits
 }

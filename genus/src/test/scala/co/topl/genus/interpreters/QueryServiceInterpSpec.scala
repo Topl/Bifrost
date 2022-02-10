@@ -58,7 +58,7 @@ class QueryServiceInterpSpec
 
     val result: EitherT[IO, QueryFailure, List[String]] = underTest.asList(request)
 
-    result.value.asserting(_.left.value shouldBe a[QueryFailures.InvalidQuery[String, Boolean]])
+    result.value.asserting(_.left.value shouldBe a[QueryFailures.InvalidQuery])
   }
 
   it should "fail with an error when confirmation depth is negative" in {
@@ -79,7 +79,7 @@ class QueryServiceInterpSpec
 
     val result: EitherT[IO, QueryFailure, List[String]] = underTest.asList(request)
 
-    result.value.asserting(_.left.value shouldBe a[QueryFailures.InvalidQuery[String, Boolean]])
+    result.value.asserting(_.left.value shouldBe a[QueryFailures.InvalidQuery])
   }
 
   it should "use default filter when no filter provided" in {
@@ -160,7 +160,7 @@ class QueryServiceInterpSpec
 
     val result: EitherT[IO, QueryFailure, Source[String, NotUsed]] = underTest.asSource(request)
 
-    result.value.asserting(_.left.value shouldBe a[QueryFailures.InvalidQuery[String, Boolean]])
+    result.value.asserting(_.left.value shouldBe a[QueryFailures.InvalidQuery])
   }
 
   it should "fail with an error when confirmation depth is negative" in {
@@ -181,7 +181,7 @@ class QueryServiceInterpSpec
 
     val result: EitherT[IO, QueryFailure, Source[String, NotUsed]] = underTest.asSource(request)
 
-    result.value.asserting(_.left.value shouldBe a[QueryFailures.InvalidQuery[String, Boolean]])
+    result.value.asserting(_.left.value shouldBe a[QueryFailures.InvalidQuery])
   }
 
   it should "use default filter when no filter provided" in {

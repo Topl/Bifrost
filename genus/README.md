@@ -9,9 +9,9 @@ The current hard-coded options are:
 - `serverIp`
 - `serverPort`
 - `mongoConnectionString`
-- `mongoDatabaseName`
-- `txsMongoCollectionName`
-- `blocksMongoCollectionName`
+- `databaseName`
+- `txsCollectionName`
+- `blocksCollectionName`
 
 ## Running The Service
 
