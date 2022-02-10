@@ -238,8 +238,7 @@ class ActorConsensusVariablesInterface(actorRef: ActorRef[ConsensusVariables.Rec
   import akka.actor.typed.scaladsl.AskPattern._
   import system.executionContext
 
-  override def getVariables
-    : EitherT[Future, ConsensusVariablesInterface.GetConsensusParamsFailure, ConsensusParams] = {
+  override def getVariables: EitherT[Future, ConsensusVariablesInterface.GetConsensusParamsFailure, ConsensusParams] = {
     import scala.concurrent.duration._
     implicit val timeout: Timeout = Timeout(5.seconds)
     EitherT.liftF(actorRef.ask[ConsensusParams](ConsensusVariables.ReceivableMessages.GetConsensusVariables))
