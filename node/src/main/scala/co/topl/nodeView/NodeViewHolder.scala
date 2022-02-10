@@ -227,7 +227,7 @@ object NodeViewHolder {
           Behaviors.same
 
         case (context, ReceivableMessages.WriteBlock(block)) =>
-          context.pipeToSelf(consensusVariablesInterface.getVariables.value) {
+          context.pipeToSelf(consensusVariablesInterface.get.value) {
             case Success(params) =>
               params match {
                 case Right(params) =>
