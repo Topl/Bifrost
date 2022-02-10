@@ -128,7 +128,7 @@ object Forger {
       implicit val timeout: Timeout = Timeout(10.seconds)
 
       block.map { case (block: Block, ChainParams(totalStake, initDifficulty)) =>
-        consensusVariablesInterface.updateConsensusVariables(
+        consensusVariablesInterface.updateVariables(
           block.id,
           ConsensusParamsUpdate(Some(totalStake), Some(initDifficulty), Some(0L), Some(0L))
         )
@@ -267,7 +267,7 @@ private class ForgerBehaviors(
       keyView <- EitherT[Future, ForgerFailure, KeyView](
         fetchKeyView().map(Right(_)).recover { case e => Left(ForgingError(e)) }
       )
-      consensusParams <- consensusVariablesInterface.getConsensusVariables
+      consensusParams <- consensusVariablesInterface.getVariables
         .leftMap(e => ForgingError(e.reason))
       forge <- nodeViewReader
         .withNodeView(Forge.fromNodeView(_, consensusParams, keyView, minTransactionFee))
