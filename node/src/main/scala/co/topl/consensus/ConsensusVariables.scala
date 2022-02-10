@@ -8,6 +8,7 @@ import akka.pattern.StatusReply
 import akka.util.Timeout
 import cats.data.EitherT
 import co.topl.consensus.ConsensusVariables.{ConsensusParams, ConsensusParamsUpdate}
+import co.topl.consensus.ConsensusVariablesInterface.GetConsensusParamsFailure
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.db.LDBVersionedStore
@@ -135,12 +136,8 @@ object ConsensusVariables {
         // Update the storage values
         storage.update(versionId, Seq(), toUpdate)
 
-        storage.latestVersionId() match {
-          case Some(versionBytes) if versionBytes sameElements versionId =>
-            replyTo ! StatusReply.success(Done)
-          case _ =>
-            replyTo ! StatusReply.error(new Exception("Failed to update consensus variables in storage"))
-        }
+        if (storage.latestVersionId().exists(id => id sameElements versionId)) replyTo ! StatusReply.success(Done)
+        else replyTo ! StatusReply.error(new Exception("Failed to update consensus variables in storage"))
 
         active(storage, updatedParams)
 
@@ -212,16 +209,12 @@ object ConsensusVariables {
 
 trait ConsensusVariablesInterface {
 
-  def getVariables: EitherT[Future, ConsensusVariablesInterface.GetConsensusParamsFailure, ConsensusParams]
+  def get: EitherT[Future, ConsensusVariablesInterface.GetConsensusParamsFailure, ConsensusParams]
 
-  def updateVariables(
+  def update(
     blockId:               ModifierId,
     consensusParamsUpdate: ConsensusParamsUpdate
   ): EitherT[Future, ConsensusVariablesInterface.UpdateConsensusParamsFailure, Done]
-
-  def rollbackVariables(
-    blockId: ModifierId
-  ): EitherT[Future, ConsensusVariablesInterface.RollbackConsensusParamsFailure, ConsensusParams]
 }
 
 object ConsensusVariablesInterface {
@@ -238,13 +231,18 @@ class ActorConsensusVariablesInterface(actorRef: ActorRef[ConsensusVariables.Rec
   import akka.actor.typed.scaladsl.AskPattern._
   import system.executionContext
 
-  override def getVariables: EitherT[Future, ConsensusVariablesInterface.GetConsensusParamsFailure, ConsensusParams] = {
+  override def get: EitherT[Future, ConsensusVariablesInterface.GetConsensusParamsFailure, ConsensusParams] = {
     import scala.concurrent.duration._
     implicit val timeout: Timeout = Timeout(5.seconds)
-    EitherT.liftF(actorRef.ask[ConsensusParams](ConsensusVariables.ReceivableMessages.GetConsensusVariables))
+    EitherT(
+      actorRef
+        .ask[ConsensusParams](ConsensusVariables.ReceivableMessages.GetConsensusVariables)
+        .map(Right(_))
+        .recover { case e => Left(GetConsensusParamsFailure(e)) }
+    )
   }
 
-  override def updateVariables(
+  override def update(
     blockId:               ModifierId,
     consensusParamsUpdate: ConsensusParamsUpdate
   ): EitherT[Future, ConsensusVariablesInterface.UpdateConsensusParamsFailure, Done] =
@@ -252,13 +250,5 @@ class ActorConsensusVariablesInterface(actorRef: ActorRef[ConsensusVariables.Rec
       actorRef.askWithStatus[Done](
         ConsensusVariables.ReceivableMessages.UpdateConsensusVariables(blockId, consensusParamsUpdate, _)
       )
-    )
-
-  override def rollbackVariables(
-    blockId: ModifierId
-  ): EitherT[Future, ConsensusVariablesInterface.RollbackConsensusParamsFailure, ConsensusParams] =
-    EitherT.liftF(
-      actorRef
-        .askWithStatus[ConsensusParams](ConsensusVariables.ReceivableMessages.RollbackConsensusVariables(blockId, _))
     )
 }
