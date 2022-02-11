@@ -155,9 +155,9 @@ object NodeViewHolder {
   }
 
   def apply(
-             appSettings:                 AppSettings,
-             consensusVariablesInterface: ConsensusVariablesHolder,
-             initialState:                () => Future[NodeView]
+    appSettings:                 AppSettings,
+    consensusVariablesInterface: ConsensusVariablesHolder,
+    initialState:                () => Future[NodeView]
   )(implicit networkPrefix:      NetworkPrefix, timeProvider: TimeProvider): Behavior[ReceivableMessage] =
     Behaviors.setup { context =>
       context.pipeToSelf(initialState())(
@@ -178,8 +178,8 @@ object NodeViewHolder {
    * @return A Behavior that is uninitialized
    */
   private def uninitialized(cacheSize: Int, consensusVariablesInterface: ConsensusVariablesHolder)(implicit
-                                                                                                   networkPrefix:                     NetworkPrefix,
-                                                                                                   timeProvider:                      TimeProvider
+    networkPrefix:                     NetworkPrefix,
+    timeProvider:                      TimeProvider
   ): Behavior[ReceivableMessage] =
     Behaviors.withStash(UninitializedStashSize)(stash =>
       Behaviors.receivePartial {

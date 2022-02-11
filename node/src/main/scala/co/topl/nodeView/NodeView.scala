@@ -88,10 +88,10 @@ case class NodeView(
 object NodeView {
 
   def persistent(
-                  settings:                    AppSettings,
-                  networkType:                 NetworkType,
-                  consensusVariablesInterface: ConsensusVariablesHolder,
-                  startupKeyView:              () => Future[StartupKeyView]
+    settings:                    AppSettings,
+    networkType:                 NetworkType,
+    consensusVariablesInterface: ConsensusVariablesHolder,
+    startupKeyView:              () => Future[StartupKeyView]
   )(implicit system: ActorSystem[_], ec: ExecutionContext, nxtLeaderElection: NxtLeaderElection): Future[NodeView] =
     local(settings)(networkType.netPrefix, nxtLeaderElection)
       .fold(genesis(settings, networkType, consensusVariablesInterface, startupKeyView))(Future.successful)
@@ -110,10 +110,10 @@ object NodeView {
     } else None
 
   def genesis(
-               settings:                    AppSettings,
-               networkType:                 NetworkType,
-               consensusVariablesInterface: ConsensusVariablesHolder,
-               startupKeyView:              () => Future[StartupKeyView]
+    settings:                    AppSettings,
+    networkType:                 NetworkType,
+    consensusVariablesInterface: ConsensusVariablesHolder,
+    startupKeyView:              () => Future[StartupKeyView]
   )(implicit
     system:            ActorSystem[_],
     ec:                ExecutionContext,
