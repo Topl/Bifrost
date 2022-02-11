@@ -1,8 +1,10 @@
 package co.topl.genus
 
+import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.grpc.scaladsl.ServerReflection
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
+import akka.stream.scaladsl.Source
 import cats.effect.unsafe.implicits.global
 import cats.effect.{Async, IO, IOApp}
 import co.topl.genus.algebras._
@@ -67,40 +69,44 @@ object GenusApp extends IOApp.Simple {
   val mongoOplog: MongoOplogAlg[F] = MongoOplogInterp.Eval.make(oplogCollection)
 
   val txsDataStoreQuery: MongoQueryAlg[F, Transaction, TransactionFilter] =
-    DataStoreQueryAlg.mapQueryType(
-      MongoQueryInterp.Eval.make[F, ConfirmedTransactionDataModel, TransactionFilter](txsMongoCollection),
-      (dataModel: ConfirmedTransactionDataModel) => dataModel.transformTo[Transaction]
-    )
+    DataStoreQueryAlg
+      .mapQueryType[F, Source[*, NotUsed], Bson, TransactionFilter, ConfirmedTransactionDataModel, Transaction](
+        MongoQueryInterp.Eval.make[F, ConfirmedTransactionDataModel, TransactionFilter](txsMongoCollection),
+        dataModel => dataModel.transformTo[Transaction]
+      )
 
   val blocksDataStoreQuery: MongoQueryAlg[F, Block, BlockFilter] =
-    DataStoreQueryAlg.mapQueryType(
-      MongoQueryInterp.Eval.make[F, BlockDataModel, BlockFilter](blocksMongoCollection),
-      (dataModel: BlockDataModel) => dataModel.transformTo[Block]
-    )
+    DataStoreQueryAlg
+      .mapQueryType[F, Source[*, NotUsed], Bson, BlockFilter, BlockDataModel, Block](
+        MongoQueryInterp.Eval.make[F, BlockDataModel, BlockFilter](blocksMongoCollection),
+        dataModel => dataModel.transformTo[Block]
+      )
 
   val txsDataStoreSub: MongoSubscriptionAlg[F, Transaction, TransactionFilter] =
-    DataStoreSubscriptionAlg.mapSubscriptionType(
-      MongoSubscriptionInterp.Eval.make[F, ConfirmedTransactionDataModel, TransactionFilter](
-        mongoClient,
-        databaseName,
-        txsCollectionName,
-        "block.height",
-        mongoOplog
-      ),
-      (dataModel: ConfirmedTransactionDataModel) => dataModel.transformTo[Transaction]
-    )
+    DataStoreSubscriptionAlg
+      .mapSubscriptionType[F, Source[*, NotUsed], TransactionFilter, ConfirmedTransactionDataModel, Transaction](
+        MongoSubscriptionInterp.Eval.make[F, ConfirmedTransactionDataModel, TransactionFilter](
+          mongoClient,
+          databaseName,
+          txsCollectionName,
+          "block.height",
+          mongoOplog
+        ),
+        dataModel => dataModel.transformTo[Transaction]
+      )
 
   val blocksDataStoreSub: MongoSubscriptionAlg[F, Block, BlockFilter] =
-    DataStoreSubscriptionAlg.mapSubscriptionType(
-      MongoSubscriptionInterp.Eval.make[F, BlockDataModel, BlockFilter](
-        mongoClient,
-        databaseName,
-        blocksCollectionName,
-        "height",
-        mongoOplog
-      ),
-      (dataModel: BlockDataModel) => dataModel.transformTo[Block]
-    )
+    DataStoreSubscriptionAlg
+      .mapSubscriptionType[F, Source[*, NotUsed], BlockFilter, BlockDataModel, Block](
+        MongoSubscriptionInterp.Eval.make[F, BlockDataModel, BlockFilter](
+          mongoClient,
+          databaseName,
+          blocksCollectionName,
+          "height",
+          mongoOplog
+        ),
+        dataModel => dataModel.transformTo[Block]
+      )
 
   // default filters and sorts
   val defaultTransactionFilter: TransactionFilter =
