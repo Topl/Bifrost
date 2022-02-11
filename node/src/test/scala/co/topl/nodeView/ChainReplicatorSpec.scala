@@ -4,7 +4,7 @@ import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.actor.typed.ActorRef
 import akka.actor.typed.eventstream.EventStream
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
-import co.topl.consensus.{ActorConsensusVariablesInterface, ConsensusVariables}
+import co.topl.consensus.{ActorConsensusVariablesHolder, ConsensusVariables}
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithms, TransferBuilder, TransferRequests}
@@ -386,7 +386,7 @@ class ChainReplicatorSpec
     val nodeViewHolderRef = spawn(
       NodeViewHolder(
         settings,
-        new ActorConsensusVariablesInterface(consensusStorageRef),
+        new ActorConsensusVariablesHolder(consensusStorageRef),
         () => Future.successful(testIn.nodeView)
       )
     )

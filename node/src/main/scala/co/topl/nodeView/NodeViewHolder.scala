@@ -9,7 +9,7 @@ import akka.pattern.StatusReply
 import akka.util.Timeout
 import cats.Show
 import cats.data.{EitherT, Writer}
-import co.topl.consensus.{ConsensusVariables, ConsensusVariablesInterface, LocallyGeneratedBlock}
+import co.topl.consensus.{ConsensusVariables, ConsensusVariablesHolder, LocallyGeneratedBlock}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
@@ -155,9 +155,9 @@ object NodeViewHolder {
   }
 
   def apply(
-    appSettings:                 AppSettings,
-    consensusVariablesInterface: ConsensusVariablesInterface,
-    initialState:                () => Future[NodeView]
+             appSettings:                 AppSettings,
+             consensusVariablesInterface: ConsensusVariablesHolder,
+             initialState:                () => Future[NodeView]
   )(implicit networkPrefix:      NetworkPrefix, timeProvider: TimeProvider): Behavior[ReceivableMessage] =
     Behaviors.setup { context =>
       context.pipeToSelf(initialState())(
@@ -177,9 +177,9 @@ object NodeViewHolder {
    * be fetching a NodeView and forwarding it to this uninitialized state.
    * @return A Behavior that is uninitialized
    */
-  private def uninitialized(cacheSize: Int, consensusVariablesInterface: ConsensusVariablesInterface)(implicit
-    networkPrefix:                     NetworkPrefix,
-    timeProvider:                      TimeProvider
+  private def uninitialized(cacheSize: Int, consensusVariablesInterface: ConsensusVariablesHolder)(implicit
+                                                                                                   networkPrefix:                     NetworkPrefix,
+                                                                                                   timeProvider:                      TimeProvider
   ): Behavior[ReceivableMessage] =
     Behaviors.withStash(UninitializedStashSize)(stash =>
       Behaviors.receivePartial {
@@ -214,7 +214,7 @@ object NodeViewHolder {
   private def initialized(
     nodeView:                    NodeView,
     cache:                       ActorRef[SortedCache.ReceivableMessage[Block]],
-    consensusVariablesInterface: ConsensusVariablesInterface
+    consensusVariablesInterface: ConsensusVariablesHolder
   )(implicit networkPrefix:      NetworkPrefix, timeProvider: TimeProvider): Behavior[ReceivableMessage] =
     Behaviors
       .receivePartial[ReceivableMessage] {

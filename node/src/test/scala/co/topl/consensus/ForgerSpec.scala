@@ -147,7 +147,7 @@ class ForgerSpec
               fetchKeyView,
               fetchStartupKeyView,
               reader,
-              new ActorConsensusVariablesInterface(consensusStorageRef)
+              new ActorConsensusVariablesHolder(consensusStorageRef)
             )
           )
 
@@ -218,7 +218,7 @@ class ForgerSpec
         fetchKeyView,
         fetchStartupKeyView,
         reader,
-        new ActorConsensusVariablesInterface(consensusStorageRef)
+        new ActorConsensusVariablesHolder(consensusStorageRef)
       )
     )
 
@@ -262,7 +262,7 @@ class ForgerSpec
           fetchKeyView,
           fetchStartupKeyView,
           reader,
-          new ActorConsensusVariablesInterface(consensusStorageRef)
+          new ActorConsensusVariablesHolder(consensusStorageRef)
         )
       )
       createTestProbe().expectTerminated(forgerRef)

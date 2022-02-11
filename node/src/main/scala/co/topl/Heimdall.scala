@@ -282,7 +282,7 @@ object Heimdall {
         ConsensusVariables.actorName
       )
 
-    val consensusVariablesInterface = new ActorConsensusVariablesInterface(consensusStorageRef)(implicitly, 10.seconds)
+    val consensusVariablesInterface = new ActorConsensusVariablesHolder(consensusStorageRef)(implicitly, 10.seconds)
 
     val nodeViewHolderRef = {
       implicit val getKeyViewAskTimeout: Timeout = Timeout(10.seconds)
@@ -341,7 +341,7 @@ object Heimdall {
               .mapTo[Try[StartupKeyView]]
               .flatMap(Future.fromTry),
           new ActorNodeViewHolderInterface(state.nodeViewHolder),
-          new ActorConsensusVariablesInterface(state.consensusStorage)
+          new ActorConsensusVariablesHolder(state.consensusStorage)
         ),
         Forger.ActorName
       )

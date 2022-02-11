@@ -7,7 +7,7 @@ import akka.actor.{ActorRef => CActorRef, ActorSystem => CActorSystem}
 import akka.io.{IO, Tcp}
 import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
-import co.topl.consensus.{ActorConsensusVariablesInterface, ConsensusVariables, Forger, LocallyGeneratedBlock}
+import co.topl.consensus.{ActorConsensusVariablesHolder, ConsensusVariables, Forger, LocallyGeneratedBlock}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithms, TransferBuilder, TransferRequests}
 import co.topl.network.{NetworkControllerRef, PeerManager, PeerManagerRef}
@@ -166,7 +166,7 @@ class MemPoolAuditorSpec
       ConsensusVariables(settings, appContext.networkType, InMemoryKeyValueStore.empty()),
       ConsensusVariables.actorName
     )
-    val consensusVariablesInterface = new ActorConsensusVariablesInterface(consensusStorageRef)
+    val consensusVariablesInterface = new ActorConsensusVariablesHolder(consensusStorageRef)
     val nodeViewHolderRef = spawn(
       NodeViewHolder(testSettings, consensusVariablesInterface, () => Future.successful(testIn.nodeView))
     )
@@ -179,7 +179,7 @@ class MemPoolAuditorSpec
         fetchKeyView,
         fetchStartupKeyView,
         new ActorNodeViewHolderInterface(nodeViewHolderRef),
-        new ActorConsensusVariablesInterface(consensusStorageRef)
+        new ActorConsensusVariablesHolder(consensusStorageRef)
       )
     )
 

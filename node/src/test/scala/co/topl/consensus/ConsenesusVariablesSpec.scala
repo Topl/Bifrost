@@ -182,7 +182,7 @@ class ConsenesusVariablesSpec
     val nodeViewHolderRef = spawn(
       NodeViewHolder(
         settings,
-        new ActorConsensusVariablesInterface(consensusStorageRef),
+        new ActorConsensusVariablesHolder(consensusStorageRef),
         () => Future.successful(testIn.nodeView)
       )
     )

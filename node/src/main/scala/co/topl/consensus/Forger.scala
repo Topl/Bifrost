@@ -66,7 +66,7 @@ object Forger {
     fetchKeyView:                () => Future[KeyView],
     fetchStartupKeyView:         () => Future[StartupKeyView],
     nodeViewReader:              NodeViewReader,
-    consensusVariablesInterface: ConsensusVariablesInterface
+    consensusVariablesInterface: ConsensusVariablesHolder
   )(implicit
     networkPrefix:     NetworkPrefix,
     nxtLeaderElection: NxtLeaderElection,
@@ -115,7 +115,7 @@ object Forger {
     settings:                    AppSettings,
     networkType:                 NetworkType,
     fetchStartupKeyView:         () => Future[StartupKeyView],
-    consensusVariablesInterface: ConsensusVariablesInterface
+    consensusVariablesInterface: ConsensusVariablesHolder
   )(implicit
     system: ActorSystem[_],
     ec:     ExecutionContext
@@ -160,7 +160,7 @@ private class ForgerBehaviors(
   minTransactionFee:           Int128,
   fetchKeyView:                () => Future[KeyView],
   nodeViewReader:              NodeViewReader,
-  consensusVariablesInterface: ConsensusVariablesInterface
+  consensusVariablesInterface: ConsensusVariablesHolder
 )(implicit
   context:           ActorContext[Forger.ReceivableMessage],
   networkPrefix:     NetworkPrefix,

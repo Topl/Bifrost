@@ -8,7 +8,7 @@ import akka.pattern.StatusReply
 import akka.util.Timeout
 import cats.data.EitherT
 import co.topl.consensus.ConsensusVariables.{ConsensusParams, ConsensusParamsUpdate}
-import co.topl.consensus.ConsensusVariablesInterface.GetConsensusParamsFailure
+import co.topl.consensus.ConsensusVariablesHolder.GetConsensusParamsFailure
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.db.LDBVersionedStore
@@ -207,31 +207,31 @@ object ConsensusVariables {
     )
 }
 
-trait ConsensusVariablesInterface {
+trait ConsensusVariablesHolder {
 
-  def get: EitherT[Future, ConsensusVariablesInterface.GetConsensusParamsFailure, ConsensusParams]
+  def get: EitherT[Future, ConsensusVariablesHolder.GetConsensusParamsFailure, ConsensusParams]
 
   def update(
     blockId:               ModifierId,
     consensusParamsUpdate: ConsensusParamsUpdate
-  ): EitherT[Future, ConsensusVariablesInterface.UpdateConsensusParamsFailure, Done]
+  ): EitherT[Future, ConsensusVariablesHolder.UpdateConsensusParamsFailure, Done]
 }
 
-object ConsensusVariablesInterface {
+object ConsensusVariablesHolder {
   case class GetConsensusParamsFailure(reason: Throwable)
   case class UpdateConsensusParamsFailure(reason: Throwable)
   case class RollbackConsensusParamsFailure(reason: Throwable)
 }
 
-class ActorConsensusVariablesInterface(actorRef: ActorRef[ConsensusVariables.ReceivableMessage])(implicit
-  system:                                        ActorSystem[_],
-  timeout:                                       Timeout
-) extends ConsensusVariablesInterface {
+class ActorConsensusVariablesHolder(actorRef: ActorRef[ConsensusVariables.ReceivableMessage])(implicit
+  system:                                     ActorSystem[_],
+  timeout:                                    Timeout
+) extends ConsensusVariablesHolder {
 
   import akka.actor.typed.scaladsl.AskPattern._
   import system.executionContext
 
-  override def get: EitherT[Future, ConsensusVariablesInterface.GetConsensusParamsFailure, ConsensusParams] = {
+  override def get: EitherT[Future, ConsensusVariablesHolder.GetConsensusParamsFailure, ConsensusParams] = {
     import scala.concurrent.duration._
     implicit val timeout: Timeout = Timeout(5.seconds)
     EitherT(
@@ -245,7 +245,7 @@ class ActorConsensusVariablesInterface(actorRef: ActorRef[ConsensusVariables.Rec
   override def update(
     blockId:               ModifierId,
     consensusParamsUpdate: ConsensusParamsUpdate
-  ): EitherT[Future, ConsensusVariablesInterface.UpdateConsensusParamsFailure, Done] =
+  ): EitherT[Future, ConsensusVariablesHolder.UpdateConsensusParamsFailure, Done] =
     EitherT.liftF(
       actorRef.askWithStatus[Done](
         ConsensusVariables.ReceivableMessages.UpdateConsensusVariables(blockId, consensusParamsUpdate, _)
