@@ -1,9 +1,9 @@
-package co.topl.codecs.json
+package co.topl.codecs.json.models
 
-import co.topl.models._
 import co.topl.models.utility.StringDataTypes.Latin1Data
-import io.circe._
-import io.circe.syntax._
+import co.topl.models._
+import io.circe.syntax.EncoderOps
+import io.circe.{Encoder, Json}
 
 trait Codecs {
 

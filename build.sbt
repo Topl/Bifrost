@@ -487,7 +487,7 @@ lazy val crypto = project
     libraryDependencies ++= Dependencies.crypto
   )
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models % "compile->compile;test->test", byteCodecs)
+  .dependsOn(models % "compile->compile;test->test")
 
 lazy val tools = project
   .in(file("tools"))

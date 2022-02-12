@@ -8,7 +8,7 @@ import co.topl.models.utility.{Lengths, Sized}
  * @param signature A commitment from the staker (paySK) to the poolVK
  */
 case class TaktikosAddress(
-  paymentVKEvidence: Evidence,
-  poolVK:            VerificationKeys.Ed25519,
-  signature:         Proofs.Knowledge.Ed25519
+  paymentVKEvidence: Evidence, // todo: should be typed evidence, rename to spendingEvidence
+  poolVK:            VerificationKeys.Ed25519, // todo: rename to stakingEvidence
+  signature: Proofs.Knowledge.Ed25519 // todo: can this be a generic Proof or we can just put a fixed sized array
 )

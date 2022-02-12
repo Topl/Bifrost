@@ -14,6 +14,7 @@ import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer,
 import co.topl.utils.Int128
 import co.topl.utils.StringDataTypes.{Base16Data, Base58Data, Latin1Data}
 import co.topl.crypto.implicits._
+import co.topl.typeclasses.implicits._
 
 import scala.collection.immutable.ListMap
 

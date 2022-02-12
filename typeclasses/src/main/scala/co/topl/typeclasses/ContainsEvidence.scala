@@ -227,6 +227,7 @@ object ContainsEvidence {
 
       case t: Propositions.Compositional.And => andContainsEvidence(propositionContainsEvidence).typedEvidenceOf(t)
       case t: Propositions.Compositional.Or  => orContainsEvidence(propositionContainsEvidence).typedEvidenceOf(t)
+      case t: Propositions.Compositional.Not => notContainsEvidence(propositionContainsEvidence).typedEvidenceOf(t)
       case t: Propositions.Compositional.Threshold =>
         thresholdContainsEvidence(propositionContainsEvidence).typedEvidenceOf(t)
 

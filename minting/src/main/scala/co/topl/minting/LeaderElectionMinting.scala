@@ -35,7 +35,7 @@ object LeaderElectionMinting {
           .flatMap { case (threshold, testProof, rho) =>
             thresholdInterpreter
               .isSlotLeaderForThreshold(threshold)(rho)
-              .ifA(
+              .ifM(
                 buildHit(slot, eta, testProof, threshold).map(_.some),
                 none[VrfHit].pure[F]
               )
