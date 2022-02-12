@@ -62,14 +62,13 @@ object Proofs {
 
   object Contextual {
     case class HeightLock() extends Proof
-    //case class RequiredOutput() extends Proof
     case class RequiredBoxState() extends Proof
   }
 
-  object Example {
-    case class EnumeratedInput(value: Int) extends Proof
-
-  }
+//  object Example {
+//    case class EnumeratedInput(value: Int) extends Proof
+//
+//  }
 
   object Script {
     case class JS(serializedArgs: String) extends Proof

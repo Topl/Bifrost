@@ -1,7 +1,8 @@
-package co.topl.credential
+package co.topl.credential.playground
 
 import cats.data.NonEmptyChain
 import cats.effect.unsafe.implicits.global
+import co.topl.credential.Credential
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
 import co.topl.models._
@@ -126,7 +127,7 @@ object CredentialPlaygroundJAA extends App {
     def currentSlot: Slot = 1
   }
 
-  println(s"Does the proof satisfy the proposition? ${proposition.isSatisfiedBy(proof)}")
+  println(s"Does the proof satisfy the proposition? ${proposition.isSatisfiedBy(proof).unsafeRunSync()}")
 
 }
 
@@ -175,73 +176,75 @@ object RequiredOutput extends App {
     def currentSlot: Slot = 1
   }
 
-  println(s"Does the proof satisfy the proposition? ${proposition isSatisfiedBy proof}")
+  println(s"Does the proof satisfy the proposition? ${proposition.isSatisfiedBy(proof).unsafeRunSync()}")
 }
 
-object XorGameSetup extends App {
-  import SetupSandbox._
-
-  val aliceSaltInput = blake2b256.hash("test".getBytes)
-  val aliceValueInput: Byte = 0
-  val aliceCommit: Digest32 = Sized.strictUnsafe(Bytes(blake2b256.hash(aliceSaltInput.value :+ aliceValueInput).value))
-
-  val requiredInputBoxProposition =
-    Propositions.Contextual.RequiredBoxState(BoxLocations.Input, List((0, Box.empty.copy(data = aliceValueInput))))
-
-  val fullGameProposition = bobSk.vk.asProposition
-    .and(Propositions.Contextual.HeightLock(50))
-    .or(
-      Propositions.Knowledge
-        .HashLock(aliceCommit)
-        .and(
-          aliceSk.vk.asProposition
-            .and(requiredInputBoxProposition)
-            .or(bobSk.vk.asProposition)
-        )
-    )
-
-  val requiredOutputBoxProposition = Propositions.Contextual.RequiredBoxState(
-    BoxLocations.Output,
-    List((0, Box.empty.copy(evidence = fullGameProposition.typedEvidence)))
-  )
-
-  val halfGameProposition = Propositions.Example
-    .EnumeratedInput(List(0, 1))
-    .and(requiredOutputBoxProposition)
-
-  println(s"The address for the proposition is: ${fullGameProposition.dionAddress}")
-
-  val unprovenSetupGame: Transaction.Unproven = createUnprovenTransaction(
-    List((address0, Random.nextLong())),
-    NonEmptyChain(Transaction.PolyOutput(fullGameProposition.dionAddress, Sized.maxUnsafe(BigInt(10))))
-  )
-
-  val halfGameCredential = Credential.Compositional.And(
-    halfGameProposition,
-    List(
-      Credential.Example.EnumeratedInput(List(0, 1), 0),
-      Credential.Contextual.RequiredBoxState(
-        BoxLocations.Output,
-        List((0, Box.empty.copy(evidence = fullGameProposition.dionAddress.typedEvidence)))
-      )
-    )
-  )
-
-  val halfGameProof = halfGameCredential.proof
-  println(halfGameProof)
-
-  val transaction = transactionFromUnproven(unprovenSetupGame, ListMap(halfGameProposition -> halfGameProof))
-  println(transaction)
-
-  implicit val context: VerificationContext[F] = new VerificationContext[F] {
-    def currentTransaction: Transaction = transaction
-    def currentHeight: Long = 1
-    def inputBoxes: List[Box[Box.Value]] = List()
-    def currentSlot: Slot = 1
-  }
-
-  println(s"Does the proof satisfy the proposition? ${halfGameProposition.isSatisfiedBy(halfGameProof)}")
-}
+//object XorGameSetup extends App {
+//  import SetupSandbox._
+//
+//  val aliceSaltInput = blake2b256.hash("test".getBytes)
+//  val aliceValueInput: Byte = 0
+//  val aliceCommit: Digest32 = Sized.strictUnsafe(Bytes(blake2b256.hash(aliceSaltInput.value :+ aliceValueInput).value))
+//
+//  val requiredInputBoxProposition =
+//    Propositions.Contextual.RequiredBoxState(BoxLocations.Input, List((0, Box.empty.copy(data = aliceValueInput))))
+//
+//  val fullGameProposition = bobSk.vk.asProposition
+//    .and(Propositions.Contextual.HeightLock(50))
+//    .or(
+//      Propositions.Knowledge
+//        .HashLock(aliceCommit)
+//        .and(
+//          aliceSk.vk.asProposition
+//            .and(requiredInputBoxProposition)
+//            .or(bobSk.vk.asProposition)
+//        )
+//    )
+//
+//  val requiredOutputBoxProposition = Propositions.Contextual.RequiredBoxState(
+//    BoxLocations.Output,
+//    List((0, Box.empty.copy(evidence = fullGameProposition.typedEvidence)))
+//  )
+//
+//  val halfGameProposition = Propositions.Example
+//    .EnumeratedInput(List(0, 1))
+//    .and(requiredOutputBoxProposition)
+//
+//  println(s"The address for the proposition is: ${fullGameProposition.dionAddress}")
+//
+//  val unprovenSetupGame: Transaction.Unproven = createUnprovenTransaction(
+//    List((address0, Random.nextLong())),
+//    NonEmptyChain(Transaction.PolyOutput(fullGameProposition.dionAddress, Sized.maxUnsafe(BigInt(10))))
+//  )
+//
+//  val halfGameCredential = Credential.Compositional.And(
+//    halfGameProposition,
+//    List(
+//      Credential.Example.EnumeratedInput(List(0, 1), 0),
+//      Credential.Contextual.RequiredBoxState(
+//        BoxLocations.Output,
+//        List((0, Box.empty.copy(evidence = fullGameProposition.dionAddress.typedEvidence)))
+//      )
+//    )
+//  )
+//
+//  val halfGameProof = halfGameCredential.proof
+//  println(halfGameProof)
+//
+//  val transaction = transactionFromUnproven(unprovenSetupGame, ListMap(halfGameProposition -> halfGameProof))
+//  println(transaction)
+//
+//  implicit val context: VerificationContext[F] = new VerificationContext[F] {
+//    def currentTransaction: Transaction = transaction
+//    def currentHeight: Long = 1
+//    def inputBoxes: List[Box[Box.Value]] = List()
+//    def currentSlot: Slot = 1
+//  }
+//
+//  println(
+//    s"Does the proof satisfy the proposition? ${halfGameProposition.isSatisfiedBy(halfGameProof).unsafeRunSync()}"
+//  )
+//}
 
 object XorGameCompletion extends App {
   import SetupSandbox._
@@ -251,7 +254,10 @@ object XorGameCompletion extends App {
   val aliceCommit: Digest32 = Sized.strictUnsafe(Bytes(blake2b256.hash(aliceSaltInput.value :+ aliceValueInput).value))
 
   val requiredInputBoxProposition =
-    Propositions.Contextual.RequiredBoxState(BoxLocations.Input, List((0, Box.empty.copy(data = aliceValueInput))))
+    Propositions.Contextual.RequiredBoxState(
+      BoxLocations.Input,
+      List((0, Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10))))))
+    )
 
   val fullGameProposition = bobSk.vk.asProposition
     .and(Propositions.Contextual.HeightLock(50))
@@ -265,14 +271,10 @@ object XorGameCompletion extends App {
         )
     )
 
-  val requiredOutputBoxProposition = Propositions.Contextual.RequiredBoxState(
+  val halfGameProposition = Propositions.Contextual.RequiredBoxState(
     BoxLocations.Output,
     List((0, Box.empty.copy(evidence = fullGameProposition.dionAddress.typedEvidence)))
   )
-
-  val halfGameProposition = Propositions.Example
-    .EnumeratedInput(List(0, 1))
-    .and(requiredOutputBoxProposition)
 
   println(s"The address for the proposition is: ${fullGameProposition.dionAddress}")
 
@@ -287,7 +289,10 @@ object XorGameCompletion extends App {
       Credential.Contextual.HeightLock(50),
       Credential.Knowledge.HashLock(Sized.strictUnsafe(Bytes(aliceSaltInput.value)), aliceValueInput),
       Credential.Knowledge.Curve25519(aliceSk, unprovenTransaction),
-      Credential.Contextual.RequiredBoxState(BoxLocations.Input, List((0, Box.empty.copy(data = aliceValueInput))))
+      Credential.Contextual.RequiredBoxState(
+        BoxLocations.Input,
+        List((0, Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10))))))
+      )
     )
   )
 
@@ -312,7 +317,7 @@ object XorGameCompletion extends App {
     def currentSlot: Slot = 1
   }
 
-  println(s"Does the proof satisfy the proposition? ${fullGameProposition.isSatisfiedBy(proof)}")
+  println(s"Does the proof satisfy the proposition? ${fullGameProposition.isSatisfiedBy(proof).unsafeRunSync()}")
 }
 
 // (pk(Receiver) && sha256(H)) || (pk(Refundee) && older(10))
@@ -363,7 +368,7 @@ object RequiredBoxValue extends App {
     def currentSlot: Slot = 1
   }
 
-  println(s"Does the proof satisfy the proposition? ${proposition isSatisfiedBy proof}")
+  println(s"Does the proof satisfy the proposition? ${proposition.isSatisfiedBy(proof).unsafeRunSync()}")
 }
 
 object NotTest extends App {

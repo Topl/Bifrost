@@ -95,18 +95,10 @@ object ProofVerifier {
       context:     VerificationContext[F]
     ): F[Boolean] = (context.currentHeight >= proposition.height).pure[F]
 
-//    private def requiredOutputVerifier[F[_]: Applicative](
-//      proposition: Propositions.Contextual.RequiredDionOutput,
-//      context:     VerificationContext[F]
-//    ): F[Boolean] =
-//      (context.currentTransaction.coinOutputs
-//        .toList(proposition.index)
-//        .dionAddress(NetworkPrefix(0)) == proposition.address).pure[F]
-
-    private def enumeratedOutputVerifier[F[_]: Applicative](
-      proposition: Propositions.Example.EnumeratedInput,
-      proof:       Proofs.Example.EnumeratedInput
-    ): F[Boolean] = proposition.values.contains(proof.value).pure[F]
+//    private def enumeratedOutputVerifier[F[_]: Applicative](
+//      proposition: Propositions.Example.EnumeratedInput,
+//      proof:       Proofs.Example.EnumeratedInput
+//    ): F[Boolean] = proposition.values.contains(proof.value).pure[F]
 
     private def hashLockVerifier[F[_]: Applicative](
       proposition: Propositions.Knowledge.HashLock,
@@ -281,12 +273,12 @@ object ProofVerifier {
             notVerifier[F](prop, proof, context)
           case (prop: Propositions.Contextual.HeightLock, _: Proofs.Contextual.HeightLock) =>
             heightLockVerifier[F](prop, context)
-          case (prop: Propositions.Contextual.RequiredBoxState, proof: Proofs.Contextual.RequiredBoxState) =>
+          case (prop: Propositions.Contextual.RequiredBoxState, _: Proofs.Contextual.RequiredBoxState) =>
             requiredBoxVerifier[F](prop, context)
           case (prop: Propositions.Knowledge.HashLock, proof: Proofs.Knowledge.HashLock) =>
             hashLockVerifier[F](prop, proof)
-          case (prop: Propositions.Example.EnumeratedInput, proof: Proofs.Example.EnumeratedInput) =>
-            enumeratedOutputVerifier[F](prop, proof)
+//          case (prop: Propositions.Example.EnumeratedInput, proof: Proofs.Example.EnumeratedInput) =>
+//            enumeratedOutputVerifier[F](prop, proof)
           case (prop: Propositions.Script.JS, proof: Proofs.Script.JS) =>
             jsScriptVerifier[F](prop, proof, context, jsExecutor)
           case _ =>
@@ -297,6 +289,7 @@ object ProofVerifier {
   object Instances extends Instances
 }
 
+// todo: add additional context variables such as currentHeader, currentBody?,
 trait VerificationContext[F[_]] {
   def currentTransaction: Transaction
   def currentHeight: Long

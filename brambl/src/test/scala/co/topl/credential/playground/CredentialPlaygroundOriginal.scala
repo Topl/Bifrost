@@ -1,8 +1,8 @@
-package co.topl.credential
+package co.topl.credential.playground
 
-import cats.implicits._
 import cats.data.NonEmptyChain
 import cats.effect.unsafe.implicits.global
+import co.topl.credential.Credential
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._

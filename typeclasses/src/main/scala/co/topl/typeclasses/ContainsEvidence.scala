@@ -177,18 +177,18 @@ object ContainsEvidence {
         )
       }
 
-    implicit val enumeratedOutputContainsEvidence: ContainsEvidence[Propositions.Example.EnumeratedInput] =
-      t =>
-        TypedEvidence(
-          10: Byte,
-          Sized.strictUnsafe(
-            Bytes(
-              blake2b256
-                .hash(t.values.map(Ints.toByteArray).foldLeft(Array.empty[Byte])((acc, a) => acc ++ a))
-                .value
-            )
-          )
-        )
+//    implicit val enumeratedOutputContainsEvidence: ContainsEvidence[Propositions.Example.EnumeratedInput] =
+//      t =>
+//        TypedEvidence(
+//          10: Byte,
+//          Sized.strictUnsafe(
+//            Bytes(
+//              blake2b256
+//                .hash(t.values.map(Ints.toByteArray).foldLeft(Array.empty[Byte])((acc, a) => acc ++ a))
+//                .value
+//            )
+//          )
+//        )
 
     implicit val commitRevealContainsEvidence: ContainsEvidence[Propositions.Knowledge.HashLock] =
       t =>
@@ -234,8 +234,8 @@ object ContainsEvidence {
 
       case t: Propositions.Script.JS => jsScriptPropositionContainsEvidence.typedEvidenceOf(t)
 
-      case t: Propositions.Knowledge.HashLock          => commitRevealContainsEvidence.typedEvidenceOf(t)
-      case t: Propositions.Example.EnumeratedInput     => enumeratedOutputContainsEvidence.typedEvidenceOf(t)
+      case t: Propositions.Knowledge.HashLock => commitRevealContainsEvidence.typedEvidenceOf(t)
+//      case t: Propositions.Example.EnumeratedInput     => enumeratedOutputContainsEvidence.typedEvidenceOf(t)
       case t: Propositions.Contextual.RequiredBoxState => requiredInputBoxStateContainsEvidence.typedEvidenceOf(t)
     }
   }

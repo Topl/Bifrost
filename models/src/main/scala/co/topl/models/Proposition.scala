@@ -27,13 +27,12 @@ object Propositions {
 
   object Contextual {
     case class HeightLock(height: Long) extends Proposition
-    //case class RequiredDionOutput(index: Int, address: DionAddress) extends Proposition
     case class RequiredBoxState(location: BoxLocation, boxes: List[(Int, Box[Box.Value])]) extends Proposition
   }
 
-  object Example {
-    case class EnumeratedInput(values: List[Int]) extends Proposition
-  }
+//  object Example {
+//    case class EnumeratedInput(values: List[Int]) extends Proposition
+//  }
 
   object Script {
     case class JS(script: JS.JSScript) extends Proposition

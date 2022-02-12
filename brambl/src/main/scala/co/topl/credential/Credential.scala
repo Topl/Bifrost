@@ -193,13 +193,13 @@ object Credential {
     }
   }
 
-  object Example {
-
-    case class EnumeratedInput(inputs: List[Int], value: Int) extends Credential {
-      override def prove(currentProof: Proof): Proof = Proofs.Example.EnumeratedInput(value)
-      override def proposition: Proposition = Propositions.Example.EnumeratedInput(inputs)
-    }
-  }
+//  object Example {
+//
+//    case class EnumeratedInput(inputs: List[Int], value: Int) extends Credential {
+//      override def prove(currentProof: Proof): Proof = Proofs.Example.EnumeratedInput(value)
+//      override def proposition: Proposition = Propositions.Example.EnumeratedInput(inputs)
+//    }
+//  }
 
   object Script {
 
