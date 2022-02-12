@@ -27,7 +27,7 @@ The GRPC services and types protobuf files are located in `genus/src/main/protob
 ## GRPC-Web Support
 
 Genus can be accessed via GRPC-Web by running an Envoy proxy server pointing to a running Genus instance.
-The Envoy proxy will convert incoming GRPC-web compliant requests intto GRPC calls which are then sent to Genus.
+The Envoy proxy will convert incoming GRPC-web compliant requests into GRPC calls which are then sent to Genus.
 Outgoing responses from Genus are converted back into GRPC-Web HTTP-compliant responses.
 
 To run Envoy, first install the [Envoy executable](https://www.envoyproxy.io/docs/envoy/latest/start/install), then
