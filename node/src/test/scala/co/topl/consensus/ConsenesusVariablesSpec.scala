@@ -7,12 +7,13 @@ import akka.pattern.StatusReply
 import co.topl.attestation.Address
 import co.topl.consensus.ConsenesusVariablesSpec.TestInWithActor
 import co.topl.consensus.ConsensusVariables.ConsensusParams
-import co.topl.consensus.ConsensusVariables.ReceivableMessages.{GetConsensusVariables, RollBackTo}
+import co.topl.consensus.ConsensusVariables.ReceivableMessages.{GetConsensusVariables, RollbackConsensusVariables}
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
 import co.topl.nodeView.NodeViewTestHelpers.TestIn
+import co.topl.nodeView.history.InMemoryKeyValueStore
 import co.topl.nodeView.{NodeViewHolder, NodeViewTestHelpers}
-import co.topl.utils.{InMemoryKeyFileTestHelper, Int128, TestSettings, TimeProvider}
+import co.topl.utils._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.OptionValues
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -27,6 +28,7 @@ class ConsenesusVariablesSpec
     with TestSettings
     with InMemoryKeyFileTestHelper
     with NodeViewTestHelpers
+    with CommonGenerators
     with MockFactory
     with OptionValues {
 
@@ -52,7 +54,7 @@ class ConsenesusVariablesSpec
     }
   }
 
-  it should "load total stake from storage on start" in {
+  it should "update the consensus params when there is a new block published" in {
 
     implicit val timeProvider: TimeProvider = mock[TimeProvider]
 
@@ -77,7 +79,7 @@ class ConsenesusVariablesSpec
     }
   }
 
-  it should "update the consensus params when there is a new block published" in {
+  it should "load total stake from storage on start" in {
 
     implicit val timeProvider: TimeProvider = mock[TimeProvider]
 
@@ -87,24 +89,32 @@ class ConsenesusVariablesSpec
       .onCall(() => System.currentTimeMillis())
 
     val probe = createTestProbe[ConsensusParams]()
-    var params = ConsensusParams(Int128(0), 0, 0, 0)
+    val store = InMemoryKeyValueStore.empty()
+    val consensusStorageRef = spawn(
+      ConsensusVariables(settings, appContext.networkType, store),
+      ConsensusVariables.actorName
+    )
+    val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head)
+      .take(settings.application.consensusStoreVersionsToKeep / 2)
+      .toList
 
-    genesisActorTest { testIn =>
-      val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head)
-        .take(settings.application.consensusStoreVersionsToKeep / 2)
-        .toList
-      Thread.sleep(0.1.seconds.toMillis)
-      newBlocks.foreach { block =>
-        system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
-      }
-      Thread.sleep(0.1.seconds.toMillis)
-      testIn.consensusStorageRef ! GetConsensusVariables(probe.ref)
-      params = probe.receiveMessage(0.1.seconds)
+    Thread.sleep(0.1.seconds.toMillis)
+    newBlocks.foreach { block =>
+      system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
     }
-    val consensusStorageRef = spawn(ConsensusVariables(settings, appContext.networkType), ConsensusVariables.actorName)
+    Thread.sleep(0.1.seconds.toMillis)
     consensusStorageRef ! GetConsensusVariables(probe.ref)
-    probe.expectMessage(params)
+    val params = probe.receiveMessage(0.1.seconds)
     testKit.stop(consensusStorageRef)
+
+    // initialize a new consensus actor with the modified InMemoryKeyValueStore
+    val newConsensusStorageRef = spawn(
+      ConsensusVariables(settings, appContext.networkType, store),
+      ConsensusVariables.actorName
+    )
+    newConsensusStorageRef ! GetConsensusVariables(probe.ref)
+    probe.expectMessage(params)
+    testKit.stop(newConsensusStorageRef)
   }
 
   it should "roll back to a previous version" in {
@@ -126,7 +136,7 @@ class ConsenesusVariablesSpec
         system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
       }
       Thread.sleep(0.1.seconds.toMillis)
-      testIn.consensusStorageRef ! RollBackTo(newBlocks.head.id, probe.ref)
+      testIn.consensusStorageRef ! RollbackConsensusVariables(newBlocks.head.id, probe.ref)
       // the first of the newBlocks would be at height 2 since it's the first one after the genesis block
       probe.expectMessage(
         StatusReply.success(ConsensusParams(Int128(defaultTotalStake), newBlocks.head.difficulty, 0L, 2L))
@@ -134,7 +144,7 @@ class ConsenesusVariablesSpec
     }
   }
 
-  it should "fail to roll back to a previous version if it's not within the consensusStoreVersionsToKeep" in {
+  it should "fail to roll back to a version beyond the number of versions to keep" in {
 
     implicit val timeProvider: TimeProvider = mock[TimeProvider]
 
@@ -153,17 +163,28 @@ class ConsenesusVariablesSpec
         system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
       }
       Thread.sleep(0.1.seconds.toMillis)
-      testIn.consensusStorageRef ! RollBackTo(newBlocks.head.id, probe.ref)
-      // the first of the newBlocks would be at height 2 since it's the first one after the genesis block
+      testIn.consensusStorageRef ! RollbackConsensusVariables(newBlocks.head.id, probe.ref)
       probe.receiveMessage(1.seconds).toString() shouldEqual "Error(Failed to roll back to the given version)"
     }
   }
 
   private def genesisActorTest(test: TestInWithActor => Unit)(implicit timeProvider: TimeProvider): Unit = {
     val testIn = genesisNodeView()
-    val consensusStorageRef = spawn(ConsensusVariables(settings, appContext.networkType), ConsensusVariables.actorName)
+    val consensusStorageRef =
+      spawn(
+        ConsensusVariables(
+          settings,
+          appContext.networkType,
+          InMemoryKeyValueStore(settings.application.consensusStoreVersionsToKeep)
+        ),
+        ConsensusVariables.actorName
+      )
     val nodeViewHolderRef = spawn(
-      NodeViewHolder(settings, consensusStorageRef, () => Future.successful(testIn.nodeView))
+      NodeViewHolder(
+        settings,
+        new ActorConsensusVariablesHolder(consensusStorageRef),
+        () => Future.successful(testIn.nodeView)
+      )
     )
     val testInWithActor = TestInWithActor(testIn, nodeViewHolderRef, consensusStorageRef)
     test(testInWithActor)

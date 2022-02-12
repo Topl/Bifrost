@@ -7,14 +7,13 @@ import akka.actor.{ActorRef => CActorRef, ActorSystem => CActorSystem}
 import akka.io.{IO, Tcp}
 import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
-import co.topl.consensus.{ConsensusVariables, Forger, LocallyGeneratedBlock}
+import co.topl.consensus.{ActorConsensusVariablesHolder, ConsensusVariables, Forger, LocallyGeneratedBlock}
 import co.topl.modifier.block.Block
-import co.topl.modifier.box.SimpleValue
-import co.topl.modifier.transaction.PolyTransfer
 import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithms, TransferBuilder, TransferRequests}
 import co.topl.network.{NetworkControllerRef, PeerManager, PeerManagerRef}
 import co.topl.nodeView.MemPoolAuditorSpec.TestInWithActor
 import co.topl.nodeView.NodeViewTestHelpers.TestIn
+import co.topl.nodeView.history.InMemoryKeyValueStore
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.{InMemoryKeyFileTestHelper, Int128, TestSettings, TimeProvider}
 import org.scalamock.scalatest.MockFactory
@@ -163,10 +162,13 @@ class MemPoolAuditorSpec
       cSystem.actorOf(PeerManagerRef.props(testSettings, appContext), PeerManager.actorName)
     val networkControllerRef: CActorRef =
       cSystem.actorOf(NetworkControllerRef.props(testSettings, peerManagerRef, appContext, IO(Tcp)))
-
-    val consensusStorageRef = spawn(ConsensusVariables(settings, appContext.networkType), ConsensusVariables.actorName)
+    val consensusStorageRef = spawn(
+      ConsensusVariables(settings, appContext.networkType, InMemoryKeyValueStore.empty()),
+      ConsensusVariables.actorName
+    )
+    val consensusVariablesInterface = new ActorConsensusVariablesHolder(consensusStorageRef)
     val nodeViewHolderRef = spawn(
-      NodeViewHolder(testSettings, consensusStorageRef, () => Future.successful(testIn.nodeView))
+      NodeViewHolder(testSettings, consensusVariablesInterface, () => Future.successful(testIn.nodeView))
     )
     val memPoolAuditorRef = spawn(MemPoolAuditor(nodeViewHolderRef, networkControllerRef, testSettings))
     val forgerRef = spawn(
@@ -177,7 +179,7 @@ class MemPoolAuditorSpec
         fetchKeyView,
         fetchStartupKeyView,
         new ActorNodeViewHolderInterface(nodeViewHolderRef),
-        consensusStorageRef
+        new ActorConsensusVariablesHolder(consensusStorageRef)
       )
     )
 

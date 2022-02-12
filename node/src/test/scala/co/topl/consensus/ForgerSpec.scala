@@ -11,7 +11,7 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, ProgramId, SimpleValue}
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.message.BifrostSyncInfo
-import co.topl.nodeView.history.HistoryReader
+import co.topl.nodeView.history.{HistoryReader, InMemoryKeyValueStore}
 import co.topl.nodeView.mempool.{MemPoolReader, UnconfirmedTx}
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.{NodeViewHolderInterface, NodeViewReader, NodeViewTestHelpers, ReadableNodeView}
@@ -135,7 +135,10 @@ class ForgerSpec
       LoggingTestKit.info("Starting forging").expect {
         LoggingTestKit.debug("New local block").withOccurrences(newBlockCount + 1).expect {
           val consensusStorageRef =
-            spawn(ConsensusVariables(settings, appContext.networkType), ConsensusVariables.actorName)
+            spawn(
+              ConsensusVariables(settings, appContext.networkType, InMemoryKeyValueStore.empty()),
+              ConsensusVariables.actorName
+            )
           val forgerRef = spawn(
             Forger.behavior(
               blockGenerationDelay,
@@ -144,7 +147,7 @@ class ForgerSpec
               fetchKeyView,
               fetchStartupKeyView,
               reader,
-              consensusStorageRef
+              new ActorConsensusVariablesHolder(consensusStorageRef)
             )
           )
 
@@ -201,7 +204,11 @@ class ForgerSpec
 
     val newBlockCount = 4
 
-    val consensusStorageRef = spawn(ConsensusVariables(settings, appContext.networkType), ConsensusVariables.actorName)
+    val consensusStorageRef =
+      spawn(
+        ConsensusVariables(settings, appContext.networkType, InMemoryKeyValueStore.empty()),
+        ConsensusVariables.actorName
+      )
 
     val forgerRef = spawn(
       Forger.behavior(
@@ -211,7 +218,7 @@ class ForgerSpec
         fetchKeyView,
         fetchStartupKeyView,
         reader,
-        consensusStorageRef
+        new ActorConsensusVariablesHolder(consensusStorageRef)
       )
     )
 
@@ -243,8 +250,11 @@ class ForgerSpec
 
     LoggingTestKit.error("Forging requires a rewards address").expect {
       val consensusStorageRef =
-        spawn(ConsensusVariables(settings, appContext.networkType), ConsensusVariables.actorName)
-      val ref = spawn(
+        spawn(
+          ConsensusVariables(settings, appContext.networkType, InMemoryKeyValueStore.empty()),
+          ConsensusVariables.actorName
+        )
+      val forgerRef = spawn(
         Forger.behavior(
           blockGenerationDelay,
           minTransactionFee,
@@ -252,10 +262,10 @@ class ForgerSpec
           fetchKeyView,
           fetchStartupKeyView,
           reader,
-          consensusStorageRef
+          new ActorConsensusVariablesHolder(consensusStorageRef)
         )
       )
-      createTestProbe().expectTerminated(ref)
+      createTestProbe().expectTerminated(forgerRef)
     }
   }
 

@@ -11,6 +11,7 @@ import akka.util.Timeout
 import co.topl.akkahttprpc.{ThrowableData, ThrowableSupport}
 import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
 import co.topl.consensus._
+import co.topl.db.LDBVersionedStore
 import co.topl.http.HttpService
 import co.topl.network._
 import co.topl.network.utils.NetworkTimeProvider
@@ -22,6 +23,7 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider
 import io.circe.Encoder
 
+import java.io.File
 import java.net.InetSocketAddress
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -270,22 +272,29 @@ object Heimdall {
     import context.executionContext
     implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
+    implicit def system: ActorSystem[_] = context.system
+
     val keyManagerRef = context.actorOf(KeyManagerRef.props(settings, appContext), KeyManager.actorName)
 
     val consensusStorageRef =
-      context.spawn(ConsensusVariables(settings, appContext.networkType), ConsensusVariables.actorName)
+      context.spawn(
+        ConsensusVariables(settings, appContext.networkType, ConsensusVariables.readOrGenerateConsensusStore(settings)),
+        ConsensusVariables.actorName
+      )
+
+    val consensusVariablesInterface = new ActorConsensusVariablesHolder(consensusStorageRef)(implicitly, 10.seconds)
 
     val nodeViewHolderRef = {
       implicit val getKeyViewAskTimeout: Timeout = Timeout(10.seconds)
       context.spawn(
         NodeViewHolder(
           settings,
-          consensusStorageRef,
+          consensusVariablesInterface,
           () =>
             NodeView.persistent(
               settings,
               appContext.networkType,
-              consensusStorageRef,
+              consensusVariablesInterface,
               () =>
                 (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
                   .mapTo[Try[StartupKeyView]]
@@ -319,7 +328,6 @@ object Heimdall {
     val networkController = context.actorOf(
       NetworkControllerRef.props(settings, peerManager, appContext, IO(Tcp)(context.system.toClassic))
     )
-
     val forgerRef = {
       implicit val timeout: Timeout = Timeout(10.seconds)
       context.spawn(
@@ -333,7 +341,7 @@ object Heimdall {
               .mapTo[Try[StartupKeyView]]
               .flatMap(Future.fromTry),
           new ActorNodeViewHolderInterface(state.nodeViewHolder),
-          state.consensusStorage
+          new ActorConsensusVariablesHolder(state.consensusStorage)
         ),
         Forger.ActorName
       )
@@ -408,5 +416,4 @@ object Heimdall {
       chainReplicator
     )
   }
-
 }

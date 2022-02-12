@@ -5,26 +5,26 @@ import co.topl.attestation.keyManagement._
 import co.topl.consensus.ConsensusVariables.ConsensusParams
 import co.topl.consensus.NxtLeaderElection
 import co.topl.consensus.genesis.TestGenesis
+import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.Box.identifier
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TX
-import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithms, TransferBuilder}
 import co.topl.modifier.transaction.builder.TransferRequests.{
   ArbitTransferRequest,
   AssetTransferRequest,
   PolyTransferRequest
 }
+import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithms, TransferBuilder}
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
-import co.topl.modifier.{transaction, ModifierId}
 import co.topl.nodeView.history.{BlockProcessor, History, InMemoryKeyValueStore, Storage}
 import co.topl.nodeView.state.State
 import co.topl.settings.{AppContext, AppSettings, StartupOpts, Version}
+import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.StringDataTypes.Latin1Data
 import com.typesafe.config.Config
 import org.scalacheck.Gen
 import org.scalatest.Suite
-import co.topl.utils.IdiomaticScalaTransition.implicits._
 
 import java.nio.file.Files
 import scala.collection.immutable.ListMap

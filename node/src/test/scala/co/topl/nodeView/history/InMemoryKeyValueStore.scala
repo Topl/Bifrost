@@ -2,7 +2,7 @@ package co.topl.nodeView.history
 
 import co.topl.nodeView.KeyValueStore
 
-class InMemoryKeyValueStore extends KeyValueStore {
+class InMemoryKeyValueStore(val keepVersions: Int = 0) extends KeyValueStore {
   import InMemoryKeyValueStore._
   var state: Map[WrappedBytes, Array[Byte]] = Map.empty
   var changes: List[ChangeSet] = Nil
@@ -24,24 +24,25 @@ class InMemoryKeyValueStore extends KeyValueStore {
     state --= toRemove.map(new WrappedBytes(_))
     state ++= toAdd.map { case (k, v) => new WrappedBytes(k) -> v }
     changes :+= changeSet
+    while (keepVersions > 0 && changes.size > keepVersions) changes = changes.tail
   }
 
-  override def rollbackTo(version: Array[Byte]): Unit = {
-    require(changes.exists(_.version sameElements version))
-    def revertLatest(): Unit = {
-      val latest = changes.last
-      changes = changes.init
-      latest.changes.foreach {
-        case Insert(key, _) =>
-          state -= new WrappedBytes(key)
-        case Update(key, previous, _) =>
-          state += (new WrappedBytes(key) -> previous)
-        case Remove(key, previous) =>
-          state += (new WrappedBytes(key) -> previous)
+  override def rollbackTo(version: Array[Byte]): Unit =
+    if (changes.exists(_.version sameElements version)) {
+      def revertLatest(): Unit = {
+        val latest = changes.last
+        changes = changes.init
+        latest.changes.foreach {
+          case Insert(key, _) =>
+            state -= new WrappedBytes(key)
+          case Update(key, previous, _) =>
+            state += (new WrappedBytes(key) -> previous)
+          case Remove(key, previous) =>
+            state += (new WrappedBytes(key) -> previous)
+        }
       }
+      while (changes.nonEmpty && !java.util.Arrays.equals(changes.last.version, version)) revertLatest()
     }
-    while (changes.nonEmpty && !java.util.Arrays.equals(changes.head.version, version)) revertLatest()
-  }
 
   override def get(key: Array[Byte]): Option[Array[Byte]] =
     state.get(new WrappedBytes(key))
@@ -55,6 +56,7 @@ class InMemoryKeyValueStore extends KeyValueStore {
 object InMemoryKeyValueStore {
 
   def empty(): InMemoryKeyValueStore = new InMemoryKeyValueStore
+  def apply(keepVersions: Int): InMemoryKeyValueStore = new InMemoryKeyValueStore(keepVersions)
 
   case class ChangeSet(version: Array[Byte], changes: List[Change])
   sealed abstract class Change

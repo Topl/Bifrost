@@ -3,22 +3,26 @@ package co.topl.consensus
 import akka.Done
 import akka.actor.typed.eventstream.EventStream
 import akka.actor.typed.scaladsl.Behaviors
-import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.pattern.StatusReply
+import akka.util.Timeout
+import cats.data.EitherT
+import co.topl.consensus.ConsensusVariables.{ConsensusParams, ConsensusParamsUpdate}
+import co.topl.consensus.ConsensusVariablesHolder.GetConsensusParamsFailure
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.db.LDBVersionedStore
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.nodeView.LDBKeyValueStore
 import co.topl.nodeView.NodeViewHolder.Events.SemanticallySuccessfulModifier
+import co.topl.nodeView.{KeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType.PrivateTestnet
 import co.topl.utils.{Int128, NetworkType}
 import com.google.common.primitives.Longs
 
 import java.io.File
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 /**
  * Consensus storage that keeps totalStake, difficulty, inflation, and height both in memory and in file
@@ -38,39 +42,41 @@ object ConsensusVariables {
 
   object ReceivableMessages {
 
+    case class GetConsensusVariables(replyTo: ActorRef[ConsensusParams]) extends ReceivableMessage
+
     case class UpdateConsensusVariables(
       blockId: ModifierId,
       params:  ConsensusParamsUpdate,
       replyTo: ActorRef[StatusReply[Done]]
     ) extends ReceivableMessage
 
-    case class RollBackTo(blockId: ModifierId, replyTo: ActorRef[StatusReply[ConsensusParams]])
+    case class RollbackConsensusVariables(blockId: ModifierId, replyTo: ActorRef[StatusReply[ConsensusParams]])
         extends ReceivableMessage
-
-    case class GetConsensusVariables(replyTo: ActorRef[ConsensusParams]) extends ReceivableMessage
 
   }
 
+  /**
+   * Initializes a consensus variable actor. It is optional to pass in a KeyValueStore for persistence or in memory
+   * store for testing. If None is provided, read or generate a LDBKeyValueStore using the settings
+   * @param settings app settings
+   * @param networkType network type
+   * @param storageOpt optional KeyValueStore for manual initialization or testing
+   */
   def apply(
     settings:    AppSettings,
-    networkType: NetworkType
+    networkType: NetworkType,
+    storage:     KeyValueStore
   ): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
       implicit val ec: ExecutionContext = context.executionContext
 
       context.log.info(s"${Console.GREEN}Consensus variable actor initializing${Console.RESET}")
 
-      // Read or generate LDB key value store for persistence
-      val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
       val defaultTotalStake = networkType match {
         case PrivateTestnet =>
           settings.forging.privateTestnet.map(sfp => sfp.numTestnetAccts * sfp.testnetBalance).getOrElse(10000000L)
         case _ => 200000000000000000L // todo: JAA - this should be with other genesis consensus parameters
       }
-      val file = new File(s"$dataDir/consensus")
-      file.mkdirs()
-      val versionedStore: LDBKeyValueStore =
-        new LDBKeyValueStore(new LDBVersionedStore(file, settings.application.consensusStoreVersionsToKeep))
 
       // Subscribe to new appended blocks to update the difficulty and height
       context.system.eventStream.tell(
@@ -88,12 +94,24 @@ object ConsensusVariables {
       )
 
       active(
-        versionedStore,
-        paramsFromStorage(versionedStore, defaultTotalStake)
+        storage,
+        paramsFromStorage(storage, defaultTotalStake)
       )
     }
 
-  private def active(storage: LDBKeyValueStore, consensusParams: ConsensusParams): Behavior[ReceivableMessage] =
+  /**
+   * Read or generate LDB key value store for persistence
+   * @param settings for getting the data directory
+   * @return LDBKeyValueStore for the consensus variable actor
+   */
+  def readOrGenerateConsensusStore(settings: AppSettings): KeyValueStore = {
+    val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
+    val file = new File(s"$dataDir/consensus")
+    file.mkdirs()
+    new LDBKeyValueStore(new LDBVersionedStore(file, settings.application.consensusStoreVersionsToKeep))
+  }
+
+  private def active(storage: KeyValueStore, consensusParams: ConsensusParams): Behavior[ReceivableMessage] =
     Behaviors.receivePartial {
       case (_, ReceivableMessages.GetConsensusVariables(replyTo)) =>
         replyTo ! consensusParams
@@ -108,22 +126,25 @@ object ConsensusVariables {
           params.height.getOrElse(consensusParams.height)
         )
         val updatedParams = ConsensusParams(totalStake, difficulty, inflation, height)
-        val totalStakePair = Seq(totalStakeKey.value -> totalStake.toByteArray)
-        val difficultyPair = Seq(difficultyKey.value -> Longs.toByteArray(difficulty))
-        val inflationPair = Seq(inflationKey.value -> Longs.toByteArray(inflation))
-        val heightPair = Seq(heightKey.value -> Longs.toByteArray(height))
-        val toUpdate = totalStakePair ++ difficultyPair ++ inflationPair ++ heightPair
+        val toUpdate: Seq[(Array[Byte], Array[Byte])] = Seq(
+          totalStakeKey.value -> totalStake.toByteArray,
+          difficultyKey.value -> Longs.toByteArray(difficulty),
+          inflationKey.value  -> Longs.toByteArray(inflation),
+          heightKey.value     -> Longs.toByteArray(height)
+        )
 
         // Update the storage values
         storage.update(versionId, Seq(), toUpdate)
 
-        replyTo ! StatusReply.success(Done)
+        if (storage.latestVersionId().exists(id => id sameElements versionId)) replyTo ! StatusReply.success(Done)
+        else replyTo ! StatusReply.error(new Exception("Failed to update consensus variables in storage"))
+
         active(storage, updatedParams)
 
-      case (_, ReceivableMessages.RollBackTo(blockId, replyTo)) =>
+      case (_, ReceivableMessages.RollbackConsensusVariables(blockId, replyTo)) =>
         storage.rollbackTo(blockId.getIdBytes)
         // Check if the storage is rolled back to the given version by comparing the last version in storage
-        val rollBackResult = storage.latestVersionId().getOrElse(Array[String]()) sameElements blockId.getIdBytes
+        val rollBackResult = storage.latestVersionId().exists(id => id sameElements blockId.getIdBytes)
         (
           totalStakeFromStorage(storage),
           difficultyFromStorage(storage),
@@ -157,31 +178,77 @@ object ConsensusVariables {
     height:     Option[Long]
   )
 
-  private def totalStakeFromStorage(storage: LDBKeyValueStore): Option[Int128] =
+  private def totalStakeFromStorage(storage: KeyValueStore): Option[Int128] =
     storage
       .get(totalStakeKey.value)
       .map(Int128(_))
 
-  private def difficultyFromStorage(storage: LDBKeyValueStore): Option[Long] =
+  private def difficultyFromStorage(storage: KeyValueStore): Option[Long] =
     storage
       .get(difficultyKey.value)
       .map(Longs.fromByteArray)
 
-  private def inflationFromStorage(storage: LDBKeyValueStore): Option[Long] =
+  private def inflationFromStorage(storage: KeyValueStore): Option[Long] =
     storage
       .get(inflationKey.value)
       .map(Longs.fromByteArray)
 
-  private def heightFromStorage(storage: LDBKeyValueStore): Option[Long] =
+  private def heightFromStorage(storage: KeyValueStore): Option[Long] =
     storage
       .get(heightKey.value)
       .map(Longs.fromByteArray)
 
-  private def paramsFromStorage(storage: LDBKeyValueStore, defaultTotalStake: Int128): ConsensusParams =
+  private def paramsFromStorage(storage: KeyValueStore, defaultTotalStake: Int128): ConsensusParams =
     ConsensusParams(
       totalStakeFromStorage(storage).getOrElse(defaultTotalStake),
       difficultyFromStorage(storage).getOrElse(0L),
       inflationFromStorage(storage).getOrElse(0L),
       heightFromStorage(storage).getOrElse(0L)
+    )
+}
+
+trait ConsensusVariablesHolder {
+
+  def get: EitherT[Future, ConsensusVariablesHolder.GetConsensusParamsFailure, ConsensusParams]
+
+  def update(
+    blockId:               ModifierId,
+    consensusParamsUpdate: ConsensusParamsUpdate
+  ): EitherT[Future, ConsensusVariablesHolder.UpdateConsensusParamsFailure, Done]
+}
+
+object ConsensusVariablesHolder {
+  case class GetConsensusParamsFailure(reason: Throwable)
+  case class UpdateConsensusParamsFailure(reason: Throwable)
+  case class RollbackConsensusParamsFailure(reason: Throwable)
+}
+
+class ActorConsensusVariablesHolder(actorRef: ActorRef[ConsensusVariables.ReceivableMessage])(implicit
+  system:                                     ActorSystem[_],
+  timeout:                                    Timeout
+) extends ConsensusVariablesHolder {
+
+  import akka.actor.typed.scaladsl.AskPattern._
+  import system.executionContext
+
+  override def get: EitherT[Future, ConsensusVariablesHolder.GetConsensusParamsFailure, ConsensusParams] = {
+    import scala.concurrent.duration._
+    implicit val timeout: Timeout = Timeout(5.seconds)
+    EitherT(
+      actorRef
+        .ask[ConsensusParams](ConsensusVariables.ReceivableMessages.GetConsensusVariables)
+        .map(Right(_))
+        .recover { case e => Left(GetConsensusParamsFailure(e)) }
+    )
+  }
+
+  override def update(
+    blockId:               ModifierId,
+    consensusParamsUpdate: ConsensusParamsUpdate
+  ): EitherT[Future, ConsensusVariablesHolder.UpdateConsensusParamsFailure, Done] =
+    EitherT.liftF(
+      actorRef.askWithStatus[Done](
+        ConsensusVariables.ReceivableMessages.UpdateConsensusVariables(blockId, consensusParamsUpdate, _)
+      )
     )
 }
