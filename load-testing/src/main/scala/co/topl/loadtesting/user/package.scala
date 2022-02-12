@@ -122,7 +122,7 @@ package object user {
     actorSystem:     ActorSystem,
     requestModifier: RequestModifier,
     ec:              ExecutionContext
-  ): Future[TransactionResult] = {
+  ): Future[TransactionResult] =
     /*
     Sends transaction status requests once every second and stops when a transaction is signaled as completed.
     Runs a fold on the requests until a transaction is confirmed and returns the time.
@@ -137,7 +137,6 @@ package object user {
         case (_, (time, result)) if result.isRight => TransactionConfirmed(time)
         case _                                     => TransactionUnconfirmed()
       }
-  }
 
   implicit val txBroadcastToCsv: ToStatisticsCsvLog[(ModifierId, LocalDateTime)] = { case (modifierId, timestamp) =>
     s"Transaction Broadcast, $modifierId, $timestamp"

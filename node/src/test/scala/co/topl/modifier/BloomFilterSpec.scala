@@ -1,15 +1,15 @@
 package co.topl.modifier
 
-import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
+import co.topl.attestation.Address
 import co.topl.attestation.keyManagement.PrivateKeyCurve25519
-import co.topl.crypto.PublicKey
-import co.topl.crypto.signing.Curve25519
+import co.topl.crypto.signatures.Curve25519
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.block.{BloomFilter, TransactionsCarryingPersistentNodeViewModifier}
 import co.topl.utils.NodeGenerators
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import co.topl.codecs._
 
 class BloomFilterSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with NodeGenerators with Matchers {
 
@@ -31,7 +31,10 @@ class BloomFilterSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wi
       val addressInBloom: Int = txs.dropRight(1).foldLeft(0)(_ + _.bloomTopics.size)
       val numAddressLastTx: Int = txs.last.bloomTopics.size
 
-      val falsePositives = txs.last.bloomTopics.count(bloomfilter.contains)
+      val falsePositives = txs.last.bloomTopics.foldLeft(0) { (count, bt) =>
+        if (bloomfilter.contains(bt)) count + 1
+        else count
+      }
 
       /**
        * Sometimes there's very few addresses in the last transaction, we only test here to make sure we don't get too
@@ -57,19 +60,19 @@ class BloomFilterSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wi
 
     val randAddr: Seq[Address] =
       (0 until numAddr)
-        .map(_ =>
-          new PublicKeyPropositionCurve25519(
-            PublicKey(Array.fill(Curve25519.instance.KeyLength)((rand.nextInt(256) - 128).toByte))
-          )
-        )
+        .map(_ => Array.fill(Curve25519.KeyLength)((rand.nextInt(256) - 128).toByte))
+        .map(s => PrivateKeyCurve25519.secretGenerator.generateSecret(s)._2)
         .map(k => k.address)
 
-    val bloomTopics: Iterable[BloomTopic] = randAddr.take(numBloom).map(addr => BloomTopic(addr.bytes))
+    val bloomTopics: Set[BloomTopic] = randAddr.take(numBloom).map(addr => BloomTopic(addr.persistedBytes)).toSet
     val bloomfilter: BloomFilter = BloomFilter(bloomTopics)
-    val testTopics: Seq[BloomTopic] = randAddr.drop(numBloom).map(addr => BloomTopic(addr.bytes))
+    val testTopics: Seq[BloomTopic] = randAddr.drop(numBloom).map(addr => BloomTopic(addr.persistedBytes))
 
-    val falsePositives = testTopics.count(bloomfilter.contains)
+    val falsePositives = testTopics.foldLeft(0) { (count, bt) =>
+      if (bloomfilter.contains(bt)) count + 1
+      else count
+    }
 
-    falsePositives shouldBe 15 +- 15
+    falsePositives shouldEqual 15
   }
 }

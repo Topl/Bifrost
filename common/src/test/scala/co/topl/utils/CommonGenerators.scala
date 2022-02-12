@@ -1,9 +1,9 @@
 package co.topl.utils
 
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
-import co.topl.attestation._
+import co.topl.attestation.{Address, _}
 import co.topl.attestation.keyManagement._
-import co.topl.crypto.hash.blake2b256
+import co.topl.codecs.binary.legacy.modifier.ModifierIdSerializer
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.mnemonic.Entropy
 import co.topl.crypto.signing.{Curve25519, Ed25519, EntropyToSeed, Password}
@@ -12,13 +12,12 @@ import co.topl.models.Bytes
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.{Lengths, Sized}
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
+import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.box.Box.Nonce
 import co.topl.modifier.box._
 import co.topl.modifier.transaction._
 import co.topl.utils.StringDataTypes.Latin1Data
-import co.topl.utils.codecs.implicits._
 import io.circe.Json
 import io.circe.syntax._
 import org.scalacheck.rng.Seed
@@ -370,7 +369,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
 
   lazy val securityRootGen: Gen[SecurityRoot] = for {
     root <- specificLengthBytesGen(Digest32.size)
-  } yield SecurityRoot.fromBase58(root.encodeAsBase58)
+  } yield SecurityRoot(root)
 
   lazy val sigSeqCurve25519Gen: Gen[IndexedSeq[SignatureCurve25519]] = for {
     seqLen <- positiveTinyIntGen
@@ -568,7 +567,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   lazy val positiveLongGen: Gen[Long] = Gen.choose(1, Long.MaxValue)
 
   lazy val modifierIdGen: Gen[ModifierId] =
-    Gen.listOfN(ModifierId.size, Arbitrary.arbitrary[Byte]).map(li => ModifierId.parseBytes(li.toArray).get)
+    Gen.listOfN(ModifierId.size, Arbitrary.arbitrary[Byte]).map(li => ModifierIdSerializer.parseBytes(li.toArray).get)
 
   private val fastEntropyToSeed: EntropyToSeed[Lengths.`32`.type] =
     (entropy: Entropy, password: Option[Password]) =>
@@ -679,7 +678,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   }
 
   // TODO: Jing - add threshold signature
-  lazy val signatureGen: Gen[_ <: Proof[_]] = Gen.oneOf(signatureCurve25519Gen, signatureEd25519Gen)
+  lazy val signatureGen: Gen[_ <: Proof[_ <: Proposition]] = Gen.oneOf(signatureCurve25519Gen, signatureEd25519Gen)
 
   def genBytesList(size: Int): Gen[Array[Byte]] = genBoundedBytes(size, size)
 
@@ -698,11 +697,14 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     signature     <- signatureCurve25519Gen
     txs           <- bifrostTransactionSeqGen
   } yield {
-    val parentId = ModifierId.fromBase58(parentIdBytes.encodeAsBase58)
+    val parentId = ModifierId(parentIdBytes)
     val height: Long = 1L
     val difficulty = 1000000000000000000L
     val version: PNVMVersion = 1: Byte
 
     Block(parentId, timestamp, generatorBox, publicKey, signature, height, difficulty, txs, version)
   }
+
+  lazy val bloomFilterGen: Gen[BloomFilter] =
+    Gen.listOfN(BloomFilter.numLongs, Gen.long).map(listT => BloomFilter(listT.toArray))
 }

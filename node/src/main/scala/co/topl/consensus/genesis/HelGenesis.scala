@@ -1,11 +1,13 @@
 package co.topl.consensus.genesis
 
 import co.topl.attestation.SignatureCurve25519
+import co.topl.codecs._
 import co.topl.consensus.Forger.ChainParams
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.SimpleValue
+import co.topl.utils.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.{Int128, NetworkType}
@@ -18,7 +20,10 @@ case object HelGenesis extends GenesisProvider {
   implicit val networkPrefix: NetworkPrefix = NetworkType.HelTestnet.netPrefix
 
   override protected val blockChecksum: ModifierId =
-    ModifierId.fromBase58(Base58Data.unsafe("vKjyX77HLRUiihjWofSsacNEdDGMaJpNJTQMXkRyJkP2"))
+    Base58Data
+      .unsafe("vKjyX77HLRUiihjWofSsacNEdDGMaJpNJTQMXkRyJkP2")
+      .decodeTransmitted[ModifierId]
+      .getOrThrow()
 
   override protected val blockVersion: PNVMVersion = 1: Byte
 
