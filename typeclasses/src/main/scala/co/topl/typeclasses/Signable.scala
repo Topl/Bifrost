@@ -2,6 +2,7 @@ package co.topl.typeclasses
 
 import co.topl.codecs.bytes.implicits._
 import co.topl.models.{BlockHeaderV2, Bytes, Transaction, VerificationKeys}
+import co.topl.typeclasses.TransactionOps.instances._
 import com.google.common.primitives.{Ints, Longs}
 import simulacrum.{op, typeclass}
 
@@ -30,7 +31,7 @@ object Signable {
             Bytes(BigInt(unsignedBlock.slot).toByteArray),
             unsignedBlock.eligibilityCertificate.bytes,
             unsignedBlock.partialOperationalCertificate.bytes,
-            Bytes(unsignedBlock.metadata.fold(Array.emptyByteArray)(_.data.value)),
+            Bytes(unsignedBlock.metadata.fold(Array.emptyByteArray)(_.data.bytes)),
             unsignedBlock.address.bytes
           )
         )
@@ -64,7 +65,7 @@ object Signable {
       _.bytes.data
 
     implicit val transactionSignable: Signable[Transaction] = t =>
-      unprovenTransactionSignable.signableBytesOf(Transaction.Unproven(t))
+      unprovenTransactionSignable.signableBytesOf(t.unproven)
 
     implicit val unprovenTransactionSignable: Signable[Transaction.Unproven] = t =>
       Bytes.concat(

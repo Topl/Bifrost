@@ -1,11 +1,13 @@
 package co.topl.credential
 
 import cats.implicits._
+import cats.implicits._
 import co.topl.crypto.signing.{Curve25519, Ed25519, ExtendedEd25519}
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.typeclasses.VerificationContext
 import co.topl.typeclasses.implicits._
+import io.circe.Json
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -24,10 +26,7 @@ class CredentialSpec
     with EitherValues
     with OptionValues {
 
-  implicit private val ed25519: Ed25519 = new Ed25519()
-  implicit private val extendedEd25519: ExtendedEd25519 = new ExtendedEd25519
-
-  type F[A] = cats.Id[A]
+  import CredentialSpec._
 
   "CurveSigningCredential" should "create a proposition and proof" in {
     forAll { (sk: SecretKeys.Curve25519, unprovenTransaction: Transaction.Unproven) =>
@@ -112,7 +111,8 @@ class CredentialSpec
           .once()
           .returning(height + 1)
 
-        andProposition.isSatisifiedBy(andProof) shouldBe true
+        andProof.satisfies[F](andProposition) shouldBe true
+
       }
     }
   }
@@ -137,7 +137,7 @@ class CredentialSpec
           .once()
           .returning(height + 1)
 
-        orProposition.isSatisifiedBy(orProof) shouldBe true
+        orProof.satisfies[F](orProposition) shouldBe true
       }
     }
   }
@@ -188,7 +188,7 @@ class CredentialSpec
             .once()
             .returning(height + 1)
 
-          thresholdProposition isSatisifiedBy thresholdProof shouldBe true
+          thresholdProposition isSatisfiedBy thresholdProof shouldBe true
         }
     }
   }
@@ -249,9 +249,20 @@ class CredentialSpec
             .once()
             .returning(height + 1)
 
-          andProposition.isSatisifiedBy(andProof) shouldBe true
+          andProof.satisfies[F](andProposition)
         }
     }
   }
 
+}
+
+object CredentialSpec {
+
+  type F[A] = cats.Id[A]
+
+  implicit val ed25519: Ed25519 = new Ed25519()
+  implicit val extendedEd25519: ExtendedEd25519 = new ExtendedEd25519
+
+  implicit val jsExecutor: Propositions.Script.JS.JSScript => F[(Json, Json) => F[Boolean]] =
+    (script: Propositions.Script.JS.JSScript) => (verificationCtx: Json, args: Json) => true.pure[F]
 }

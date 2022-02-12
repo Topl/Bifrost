@@ -24,6 +24,7 @@ import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility._
+import co.topl.scripting.GraalVMScripting.instances._
 import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
