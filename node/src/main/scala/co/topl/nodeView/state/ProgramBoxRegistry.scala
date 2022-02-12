@@ -3,7 +3,8 @@ package co.topl.nodeView.state
 import cats.implicits._
 import co.topl.codecs._
 import co.topl.db.LDBVersionedStore
-import co.topl.modifier.box.{BoxId, ProgramBox, ProgramId}
+import co.topl.modifier.ProgramId
+import co.topl.modifier.box.{BoxId, ProgramBox}
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.nodeView.{KeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings

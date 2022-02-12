@@ -240,7 +240,7 @@ lazy val common = project
     publishSettings,
     libraryDependencies ++= Dependencies.common
   )
-  .dependsOn(crypto)
+  .dependsOn(crypto, typeclasses, models % "compile->compile;test->test")
   .settings(scalamacrosParadiseSettings)
 
 lazy val chainProgram = project

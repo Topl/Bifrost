@@ -7,7 +7,7 @@ import co.topl.attestation._
 import co.topl.codecs._
 import co.topl.crypto.PublicKey
 import co.topl.crypto.Signature
-import co.topl.modifier.ModifierId
+import co.topl.modifier.{ModifierId, ProgramId}
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
@@ -177,23 +177,23 @@ trait EqInstances {
 
   implicit val programIdEq: Eq[ProgramId] = (p1, p2) => p1.hashBytes === p2.hashBytes
 
-  implicit val codeBoxEq: Eq[CodeBox] = (c1, c2) =>
-    c1.evidence === c2.evidence &&
-    c1.nonce === c2.nonce &&
-    c1.value === c2.value &&
-    c1.code === c2.code &&
-    c1.interface === c2.interface
-
-  implicit val stateBoxEq: Eq[StateBox] = (s1, s2) =>
-    s1.evidence === s2.evidence &&
-    s1.nonce === s2.nonce &&
-    s1.value === s2.value &&
-    s1.state === s2.state
-
-  implicit val executionBoxEq: Eq[ExecutionBox] = (e1, e2) =>
-    e1.evidence === e2.evidence &&
-    e1.nonce === e2.nonce &&
-    e1.value === e2.value &&
-    e1.stateBoxIds === e2.stateBoxIds &&
-    e1.codeBoxIds === e2.codeBoxIds
+//  implicit val codeBoxEq: Eq[CodeBox] = (c1, c2) =>
+//    c1.evidence === c2.evidence &&
+//    c1.nonce === c2.nonce &&
+//    c1.value === c2.value &&
+//    c1.code === c2.code &&
+//    c1.interface === c2.interface
+//
+//  implicit val stateBoxEq: Eq[StateBox] = (s1, s2) =>
+//    s1.evidence === s2.evidence &&
+//    s1.nonce === s2.nonce &&
+//    s1.value === s2.value &&
+//    s1.state === s2.state
+//
+//  implicit val executionBoxEq: Eq[ExecutionBox] = (e1, e2) =>
+//    e1.evidence === e2.evidence &&
+//    e1.nonce === e2.nonce &&
+//    e1.value === e2.value &&
+//    e1.stateBoxIds === e2.stateBoxIds &&
+//    e1.codeBoxIds === e2.codeBoxIds
 }

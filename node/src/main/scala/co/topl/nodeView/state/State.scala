@@ -4,7 +4,7 @@ import cats.data.ValidatedNec
 import cats.implicits._
 import co.topl.attestation.Address
 import co.topl.db.LDBVersionedStore
-import co.topl.modifier.ModifierId
+import co.topl.modifier.{ModifierId, ProgramId}
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
 import co.topl.modifier.transaction._

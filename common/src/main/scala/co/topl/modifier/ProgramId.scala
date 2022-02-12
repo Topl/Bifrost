@@ -1,4 +1,4 @@
-package co.topl.modifier.box
+package co.topl.modifier
 
 import co.topl.codecs.binary.legacy.modifier.box.ProgramIdSerializer
 import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}

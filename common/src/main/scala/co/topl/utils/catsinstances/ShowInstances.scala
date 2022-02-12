@@ -105,13 +105,13 @@ trait ShowInstances {
 
   implicit val boxShow: Show[Box[_]] = asJsonWithSpaces
 
-  implicit val programIdShow: Show[ProgramId] = asBase58
-
-  implicit val codeBoxShow: Show[CodeBox] = asJsonWithSpaces
-
-  implicit val stateBoxShow: Show[StateBox] = asJsonWithSpaces
-
-  implicit val executionBoxShow: Show[ExecutionBox] = asJsonWithSpaces
+//  implicit val programIdShow: Show[ProgramId] = asBase58
+//
+//  implicit val codeBoxShow: Show[CodeBox] = asJsonWithSpaces
+//
+//  implicit val stateBoxShow: Show[StateBox] = asJsonWithSpaces
+//
+//  implicit val executionBoxShow: Show[ExecutionBox] = asJsonWithSpaces
 
   private def asBase58[T: BinaryShow]: Show[T] = value => Base58.encode(BinaryShow[T].encodeAsBytes(value))
 

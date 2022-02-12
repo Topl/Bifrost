@@ -3,7 +3,7 @@ package co.topl.modifier.transaction.validation
 import cats.data.{NonEmptyChain, Validated, ValidatedNec}
 import cats.implicits._
 import co.topl.attestation.{Address, Proof, Proposition}
-import co.topl.modifier.BoxReader
+import co.topl.modifier.{BoxReader, ProgramId}
 import co.topl.modifier.box._
 import co.topl.modifier.transaction._
 import co.topl.utils.Int128
