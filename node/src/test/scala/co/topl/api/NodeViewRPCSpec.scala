@@ -473,35 +473,6 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       }
     }
 
-    "Return the forging status status of the node" in {
-      val requestBody = ByteString(s"""
-        |{
-        |   "jsonrpc": "2.0",
-        |   "id": "1",
-        |   "method": "topl_status",
-        |   "params": [{}]
-        |}
-        """.stripMargin)
-
-      implicit val typedSystem: akka.actor.typed.ActorSystem[_] = system.toTyped
-      val forgerInterface = new ActorForgerInterface(forgerRef)
-
-      def nodeStatus(): String =
-        httpPOST(requestBody) ~> route ~> check {
-          val res: Json = parse(responseAs[String]).value
-          val forgingStatus = res.hcursor.downField("result").get[String]("forgingStatus").value
-          val mempoolSize = res.hcursor.downField("result").get[Int]("numberOfPendingTransactions").value
-          mempoolSize shouldEqual view().mempool.size
-          res.hcursor.downField("error").values shouldBe None
-          forgingStatus
-        }
-
-      forgerInterface.stopForging()
-      nodeStatus() shouldEqual "idle"
-      forgerInterface.startForging()
-      nodeStatus() shouldEqual "active"
-    }
-
     "Return the confirmation status of transactions that are confirmed, pending, or not found" in {
       val unconfirmedTx = bifrostTransactionSeqGen.sampleFirst()
       val unconfirmedTxId = unconfirmedTx.head.id.toString

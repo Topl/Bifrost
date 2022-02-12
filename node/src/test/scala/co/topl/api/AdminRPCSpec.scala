@@ -1,6 +1,8 @@
 package co.topl.api
 
+import akka.actor.typed.scaladsl.adapter.ClassicActorSystemOps
 import akka.util.ByteString
+import co.topl.consensus.ActorForgerInterface
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.EitherValues
@@ -47,6 +49,35 @@ class AdminRPCSpec extends AnyWordSpec with Matchers with RPCMockState with Eith
         val msg = res.hcursor.downField("result").as[Json].value.toString
         msg should include("Updated reward address")
       }
+    }
+
+    "Return the forging status status of the node" in {
+      val requestBody = ByteString(s"""
+                                      |{
+                                      |   "jsonrpc": "2.0",
+                                      |   "id": "1",
+                                      |   "method": "admin_status",
+                                      |   "params": [{}]
+                                      |}
+        """.stripMargin)
+
+      implicit val typedSystem: akka.actor.typed.ActorSystem[_] = system.toTyped
+      val forgerInterface = new ActorForgerInterface(forgerRef)
+
+      def nodeStatus(): String =
+        httpPOST(requestBody) ~> route ~> check {
+          val res: Json = parse(responseAs[String]).value
+          val forgingStatus = res.hcursor.downField("result").get[String]("forgingStatus").value
+          val mempoolSize = res.hcursor.downField("result").get[Int]("numberOfPendingTransactions").value
+          mempoolSize shouldEqual view().mempool.size
+          res.hcursor.downField("error").values shouldBe None
+          forgingStatus
+        }
+
+      forgerInterface.stopForging()
+      nodeStatus() shouldEqual "idle"
+      forgerInterface.startForging()
+      nodeStatus() shouldEqual "active"
     }
   }
 }
