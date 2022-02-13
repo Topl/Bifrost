@@ -3,6 +3,7 @@ package co.topl.codecs.binary.typeclasses
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519}
 import co.topl.attestation._
 import co.topl.crypto.hash.digest.Digest32
+import co.topl.models._
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
@@ -85,4 +86,14 @@ trait PersistableInstances {
   implicit val transactionPersistable: Persistable[Transaction.TX] = Persistable.instanceFromCodec
 
   implicit val nodeViewModifierPersistable: Persistable[NodeViewModifier] = Persistable.instanceFromCodec
+
+  implicit val byteVectorPersistable: Persistable[Bytes] = Persistable.instanceFromCodec
+
+  implicit val secretKeyCurve25519Persistable: Persistable[SecretKeys.Curve25519] = Persistable.instanceFromCodec
+
+  implicit val secretKeyEd25519Persistable: Persistable[SecretKeys.Ed25519] = Persistable.instanceFromCodec
+
+  implicit val secretKeyExtendedEd25519Persistable: Persistable[SecretKeys.ExtendedEd25519] =
+    Persistable.instanceFromCodec
+
 }

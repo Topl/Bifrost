@@ -1,10 +1,10 @@
-package co.topl.crypto.keyfile
+package co.topl.consensus
 
 import cats.data.Chain
 import cats.implicits._
 import cats.{Defer, Monad}
-import co.topl.codecs.bytes.ByteCodec
-import co.topl.codecs.bytes.implicits._
+import co.topl.codecs._
+import co.topl.codecs.binary.typeclasses.Persistable
 import co.topl.models.Bytes
 
 /**
@@ -23,19 +23,19 @@ class EphemeralSecureStore[F[_]: Monad: Defer] extends SecureStore[F] {
     Defer[F].defer(
       entries
         .get(name)
-        .foreach { bytes =>
+        .foreach { _ =>
           entries -= name
         }
         .pure[F]
     )
 
-  def write[A: ByteCodec](name: String, data: A): F[Unit] =
-    Defer[F].defer((entries += (name -> data.bytes)).pure[F])
+  def write[A: Persistable](name: String, data: A): F[Unit] =
+    Defer[F].defer((entries += (name -> data.persistedBytes)).pure[F])
 
-  def consume[A: ByteCodec](name: String): F[Option[A]] =
+  def consume[A: Persistable](name: String): F[Option[A]] =
     Defer[F].defer {
       {
-        val entry = entries.get(name).map(_.decoded[A])
+        val entry = entries.get(name).flatMap(b => Persistable[A].fromPersistedBytes(b.toArray).toOption)
         entries -= name
         entry
       }.pure[F]

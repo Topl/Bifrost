@@ -2,10 +2,8 @@ package co.topl.codecs.binary.scodecs.crypto
 
 import co.topl.codecs.binary.scodecs.valuetypes._
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.crypto.Signature
-import co.topl.crypto.{PrivateKey, PublicKey}
+import co.topl.crypto.{PrivateKey, PublicKey, Signature}
 import scodec.{Attempt, Codec, Err}
-import co.topl.codecs.binary.scodecs.valuetypes._
 
 trait CryptoCodecs {
 

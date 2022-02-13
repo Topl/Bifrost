@@ -5,7 +5,7 @@ import co.topl.models._
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 
-trait Codecs {
+trait ModelsJsonCodecs {
 
   implicit val dionAddressEncoder: Encoder[DionAddress] =
     t => t.allBytes.toBase58.asJson

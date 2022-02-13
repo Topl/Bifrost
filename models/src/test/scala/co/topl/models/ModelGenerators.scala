@@ -66,7 +66,7 @@ trait ModelGenerators {
           sk <- Gen.containerOfN[Array, Byte](32, byteGen)
           vk <- Gen.containerOfN[Array, Byte](32, byteGen)
         } yield KesBinaryTree.SigningLeaf(sk, vk)
-      case 2 => Gen.const(KesBinaryTree.Empty)
+      case 2 => Gen.const(KesBinaryTree.Empty())
     }
 
   def kesProductSKGen: Gen[SecretKeys.KesProduct] =

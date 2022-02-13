@@ -22,7 +22,7 @@ object KesTestHelper {
               args.head._2._1.toArray,
               args.head._2._2.toArray,
               args.head._2._3.toArray,
-              KesBinaryTree.Empty,
+              KesBinaryTree.Empty(),
               this.build(sk, vk, args.tail: _*)
             )
           } else {
@@ -31,7 +31,7 @@ object KesTestHelper {
               args.head._2._2.toArray,
               args.head._2._3.toArray,
               this.build(sk, vk, args.tail: _*),
-              KesBinaryTree.Empty
+              KesBinaryTree.Empty()
             )
           }
       }
@@ -86,7 +86,7 @@ object KesTestHelper {
           Bytes(witnessRight_a) == Bytes(witnessRight_b) &&
           areEqual(left_a, left_b) &&
           areEqual(right_a, right_b)
-      case (KesBinaryTree.Empty, KesBinaryTree.Empty) =>
+      case (KesBinaryTree.Empty(), KesBinaryTree.Empty()) =>
         true
       case (KesBinaryTree.SigningLeaf(sk_a, vk_a), KesBinaryTree.SigningLeaf(sk_b, vk_b)) =>
         Bytes(sk_a) == Bytes(sk_b) &&

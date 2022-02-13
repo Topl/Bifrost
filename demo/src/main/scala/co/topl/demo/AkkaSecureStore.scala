@@ -8,11 +8,10 @@ import akka.util.Timeout
 import cats.data.Chain
 import cats.effect.kernel.{Async, Sync}
 import cats.implicits._
-import co.topl.codecs.bytes.ByteCodec
-import co.topl.codecs.bytes.implicits._
-import co.topl.crypto.keyfile.SecureStore
+import co.topl.codecs._
+import co.topl.codecs.binary.typeclasses.Persistable
+import co.topl.consensus.SecureStore
 import co.topl.demo.AkkaSecureStoreActor.ReceivableMessages
-import co.topl.models.Bytes
 
 import java.nio.file.{Files, Path, Paths, StandardOpenOption}
 
@@ -21,10 +20,10 @@ class AkkaSecureStore[F[_]: Async](actorRef: ActorRef[AkkaSecureStoreActor.Recei
   timeout:                                   Timeout
 ) extends SecureStore[F] {
 
-  def write[A: ByteCodec](name: String, data: A): F[Unit] =
+  def write[A: Persistable](name: String, data: A): F[Unit] =
     ask[Done](AkkaSecureStoreActor.ReceivableMessages.Write(name, data, _)).void
 
-  def consume[A: ByteCodec](name: String): F[Option[A]] =
+  def consume[A: Persistable](name: String): F[Option[A]] =
     ask(ReceivableMessages.Consume[A](name, _))
 
   def list: F[Chain[String]] =
@@ -112,22 +111,22 @@ object AkkaSecureStoreActor {
   object ReceivableMessages {
     case class List(replyTo: ActorRef[Chain[String]]) extends ReceivableMessage
 
-    case class Write[A: ByteCodec](name: String, data: A, replyTo: ActorRef[Done]) extends ReceivableMessage {
+    case class Write[A: Persistable](name: String, data: A, replyTo: ActorRef[Done]) extends ReceivableMessage {
 
       private[AkkaSecureStoreActor] def run(baseDir: Path): Unit = {
         val path = Paths.get(baseDir.toString, name)
-        Files.write(path, data.bytes.toArray)
+        Files.write(path, data.persistedBytes)
         replyTo.tell(Done)
       }
     }
 
-    case class Consume[A: ByteCodec](name: String, replyTo: ActorRef[Option[A]]) extends ReceivableMessage {
+    case class Consume[A: Persistable](name: String, replyTo: ActorRef[Option[A]]) extends ReceivableMessage {
 
       private[AkkaSecureStoreActor] def run(baseDir: Path): Unit = {
         val path = Paths.get(baseDir.toString, name)
         if (Files.exists(path) && Files.isRegularFile(path)) {
-          val bytes = Bytes(Files.readAllBytes(path))
-          replyTo.tell(bytes.decoded[A].some)
+          val bytes = Files.readAllBytes(path)
+          replyTo.tell(Persistable[A].fromPersistedBytes(bytes).toOption)
         } else {
           replyTo.tell(None)
         }

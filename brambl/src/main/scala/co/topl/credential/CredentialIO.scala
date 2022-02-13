@@ -3,8 +3,7 @@ package co.topl.credential
 import cats.MonadError
 import cats.effect.kernel.Sync
 import cats.implicits._
-import co.topl.codecs.bytes.ByteCodec
-import co.topl.codecs.bytes.implicits._
+import co.topl.codecs.binary.typeclasses.Persistable
 import co.topl.crypto.signing.Password
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bytesLength
@@ -13,6 +12,7 @@ import co.topl.models.utility.{Lengths, Sized}
 import co.topl.typeclasses.ContainsEvidence
 import co.topl.typeclasses.implicits._
 import io.circe.syntax._
+import co.topl.codecs._
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
@@ -45,8 +45,8 @@ object CredentialIO {
 
       def save[F[_]](
         password:                  Password
-      )(implicit containsEvidence: ContainsEvidence[T], codec: ByteCodec[T], credentialIO: CredentialIO[F]): F[Unit] =
-        credentialIO.write(t.typedEvidence, t.bytes, password)
+      )(implicit containsEvidence: ContainsEvidence[T], codec: Persistable[T], credentialIO: CredentialIO[F]): F[Unit] =
+        credentialIO.write(t.typedEvidence, Bytes(t.persistedBytes), password)
     }
   }
 }

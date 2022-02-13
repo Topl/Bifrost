@@ -372,6 +372,7 @@ lazy val consensus = project
     typeclasses,
     crypto,
     byteCodecs,
+    common,
     algebras % "compile->compile;test->test"
   )
 

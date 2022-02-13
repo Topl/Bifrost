@@ -8,8 +8,8 @@ import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras.{ClockAlgebra, ConsensusState, UnsafeResource}
 import co.topl.codecs.bytes.implicits._
+import co.topl.consensus.SecureStore
 import co.topl.consensus.algebras.EtaCalculationAlgebra
-import co.topl.crypto.keyfile.SecureStore
 import co.topl.crypto.mnemonic.Entropy
 import co.topl.crypto.signing._
 import co.topl.minting.algebras._

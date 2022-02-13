@@ -7,8 +7,8 @@ import cats.implicits._
 import co.topl.algebras.testInterpreters.NoOpLogger
 import co.topl.algebras.{ClockAlgebra, ConsensusState, UnsafeResource}
 import co.topl.codecs.bytes.ByteCodec
+import co.topl.consensus.SecureStore
 import co.topl.consensus.algebras.EtaCalculationAlgebra
-import co.topl.crypto.keyfile.SecureStore
 import co.topl.crypto.signing.{Ed25519, KesProduct}
 import co.topl.minting.algebras.{OperationalKeyOut, VrfProofAlgebra}
 import co.topl.models.ModelGenerators._

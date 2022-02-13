@@ -9,6 +9,6 @@ import co.topl.models.utility.{Lengths, Sized}
  */
 case class TaktikosAddress(
   paymentVKEvidence: Evidence, // todo: should be typed evidence, rename to spendingEvidence
-  poolVK:            VerificationKeys.Ed25519, // todo: rename to stakingEvidence
-  signature: Proofs.Knowledge.Ed25519 // todo: can this be a generic Proof or we can just put a fixed sized array
+  poolVK:            VerificationKeys.Ed25519, // todo: should also be typed evidence, rename to stakingEvidence
+  signature: Proofs.Knowledge.Ed25519 // todo: can this be a generic Proof or we can just put a fixed sized array?
 )
