@@ -5,19 +5,7 @@ import cats.kernel.Semigroup
 import co.topl.akkahttprpc.RpcDirectives.{rpcRoute, rpcRoutes}
 import io.circe.{Decoder, Encoder}
 
-class RpcServer[Params, SuccessResponse](val rpc: Rpc[Params, SuccessResponse]) extends AnyVal {
-
-  /**
-   * Constructs a Route which serves a single RPC handler
-   */
-  def serve(handler:        rpc.ServerHandler)(implicit
-    paramsDecoder:          Decoder[Params],
-    successResponseEncoder: Encoder[SuccessResponse],
-    throwableEncoder:       Encoder[ThrowableData]
-  ): Route =
-    rpcRoute[Params, SuccessResponse](rpc.method, handler)
-
-}
+class RpcServer[Params, SuccessResponse](val rpc: Rpc[Params, SuccessResponse]) extends AnyVal
 
 object RpcServer {
 
@@ -29,12 +17,9 @@ object RpcServer {
       successResponseEncoder:                Encoder[SuccessResponse],
       throwableEncoder:                      Encoder[ThrowableData]
     ): Builder =
-      copy(handlers =
-        handlers.updated(
-          rpc.method,
-          Builder.BuilderHandler(handler, paramsDecoder, successResponseEncoder, throwableEncoder)
-        )
-      )
+      copy(handlers = handlers ++ (rpc.method +: rpc.aliases).map { name =>
+        name -> Builder.BuilderHandler(handler, paramsDecoder, successResponseEncoder, throwableEncoder)
+      })
   }
 
   /**

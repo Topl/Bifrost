@@ -2,14 +2,24 @@ package co.topl.rpc.handlers
 
 import akka.actor.typed.ActorSystem
 import akka.util.Timeout
+import cats.data.EitherT
 import cats.implicits._
-import co.topl.akkahttprpc.{InvalidParametersError, RpcError}
-import co.topl.consensus.{ForgerInterface, KeyManagerInterface}
+import co.topl.akkahttprpc.{InvalidParametersError, RpcError, ThrowableData}
+import co.topl.consensus.{Forger, ForgerInterface, KeyManagerInterface}
+import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView}
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
+import io.circe.Encoder
 
-class AdminRpcHandlerImpls(forgerInterface: ForgerInterface, keyManagerInterface: KeyManagerInterface)(implicit
-  system:                                   ActorSystem[_],
-  timeout:                                  Timeout
+import scala.concurrent.Future
+
+class AdminRpcHandlerImpls(
+  forgerInterface:         ForgerInterface,
+  keyManagerInterface:     KeyManagerInterface,
+  nodeViewHolderInterface: NodeViewHolderInterface
+)(implicit
+  system:           ActorSystem[_],
+  throwableEncoder: Encoder[ThrowableData],
+  timeout:          Timeout
 ) extends ToplRpcHandlers.Admin {
 
   import system.executionContext
@@ -71,7 +81,7 @@ class AdminRpcHandlerImpls(forgerInterface: ForgerInterface, keyManagerInterface
       keyManagerInterface
         .updateRewardsAddress(params.address)
         .leftMap(e => ToplRpcErrors.genericFailure(e.toString): RpcError)
-        .map(_ => ToplRpc.Admin.UpdateRewardsAddress.Response(params.address.toString))
+        .map(_ => ToplRpc.Admin.UpdateRewardsAddress.Response(s"Updated reward address to ${params.address}"))
 
   override val getRewardsAddress: ToplRpc.Admin.GetRewardsAddress.rpc.ServerHandler =
     _ =>
@@ -79,5 +89,22 @@ class AdminRpcHandlerImpls(forgerInterface: ForgerInterface, keyManagerInterface
         .getRewardsAddress()
         .leftMap(e => ToplRpcErrors.genericFailure(e.toString): RpcError)
         .map(ToplRpc.Admin.GetRewardsAddress.Response)
+
+  override val status: ToplRpc.Admin.Status.rpc.ServerHandler =
+    _ =>
+      for {
+        forgerStatus <- forgerInterface
+          .checkForgerStatus()
+          .leftMap(e => ToplRpcErrors.genericFailure(e.toString): RpcError)
+          .map {
+            case Forger.Active        => "active"
+            case Forger.Idle          => "idle"
+            case Forger.Uninitialized => "uninitialized"
+          }
+        mempoolSize <- withNodeView(_.memPool.size)
+      } yield ToplRpc.Admin.Status.Response(forgerStatus, mempoolSize)
+
+  private def withNodeView[T](f: ReadableNodeView => T): EitherT[Future, RpcError, T] =
+    readFromNodeViewHolder(nodeViewHolderInterface)(f)
 
 }
