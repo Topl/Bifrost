@@ -8,12 +8,14 @@ import akka.util.Timeout
 import cats.data.Chain
 import cats.effect.kernel.{Async, Sync}
 import cats.implicits._
-import co.topl.codecs._
-import co.topl.codecs.binary.typeclasses.Persistable
+import co.topl.codecs.bytes.typeclasses.Persistable
+import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.SecureStore
 import co.topl.demo.AkkaSecureStoreActor.ReceivableMessages
+import co.topl.models.Bytes
 
 import java.nio.file.{Files, Path, Paths, StandardOpenOption}
+import scala.util.Try
 
 class AkkaSecureStore[F[_]: Async](actorRef: ActorRef[AkkaSecureStoreActor.ReceivableMessage])(implicit
   system:                                    ActorSystem[_],
@@ -115,7 +117,7 @@ object AkkaSecureStoreActor {
 
       private[AkkaSecureStoreActor] def run(baseDir: Path): Unit = {
         val path = Paths.get(baseDir.toString, name)
-        Files.write(path, data.persistedBytes)
+        Files.write(path, data.persistedBytes.toArray)
         replyTo.tell(Done)
       }
     }
@@ -125,7 +127,7 @@ object AkkaSecureStoreActor {
       private[AkkaSecureStoreActor] def run(baseDir: Path): Unit = {
         val path = Paths.get(baseDir.toString, name)
         if (Files.exists(path) && Files.isRegularFile(path)) {
-          val bytes = Files.readAllBytes(path)
+          val bytes = Bytes(Files.readAllBytes(path))
           replyTo.tell(Persistable[A].fromPersistedBytes(bytes).toOption)
         } else {
           replyTo.tell(None)

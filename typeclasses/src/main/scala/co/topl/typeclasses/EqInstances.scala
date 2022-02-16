@@ -41,4 +41,7 @@ trait EqInstances {
   implicit val curve25519Signature: Eq[Proofs.Knowledge.Curve25519] =
     (a, b) => a.bytes === b.bytes
 
+  implicit val rhoEq: Eq[Rho] =
+    (a, b) => a.sizedBytes === b.sizedBytes
+
 }

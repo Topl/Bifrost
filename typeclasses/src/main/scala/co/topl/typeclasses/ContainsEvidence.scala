@@ -1,11 +1,11 @@
 package co.topl.typeclasses
 
-import co.topl.codecs.bytes.VLQWriter
-import co.topl.codecs.bytes.implicits._
-import co.topl.crypto.hash.blake2b256
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.crypto.hash.{blake2b256, Blake2b256}
+import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.{Ratio, Sized}
-import co.topl.models._
 import com.google.common.primitives.{Ints, Longs}
 import simulacrum.{op, typeclass}
 
@@ -20,7 +20,7 @@ object ContainsEvidence {
   trait Instances {
 
     implicit val ratioContainsEvidence: ContainsEvidence[Ratio] =
-      ratio => TypedEvidence(10: Byte, Sized.strictUnsafe(Bytes(blake2b256.hash(ratio.bytes.toArray).value)))
+      ratio => TypedEvidence(10: Byte, new Blake2b256().hash(ratio.immutableBytes))
 
     implicit val curve25519VKContainsEvidence: ContainsEvidence[VerificationKeys.Curve25519] =
       t => TypedEvidence(1: Byte, Sized.strictUnsafe(Bytes(blake2b256.hash(t.bytes.data.toArray).value)))
@@ -29,8 +29,7 @@ object ContainsEvidence {
       t => TypedEvidence(2: Byte, Sized.strictUnsafe(Bytes(blake2b256.hash(t.bytes.data.toArray).value)))
 
     implicit val extended25519VKContainsEvidence: ContainsEvidence[VerificationKeys.ExtendedEd25519] =
-      t =>
-        TypedEvidence(3: Byte, Sized.strictUnsafe(Bytes(blake2b256.hash((t.bytes ++ t.chainCode.data).toArray).value)))
+      t => TypedEvidence(3: Byte, new Blake2b256().hash(t.immutableBytes, t.chainCode.data))
 
     implicit val vkContainsEvidence: ContainsEvidence[VerificationKey] = {
       case t: VerificationKeys.Curve25519      => curve25519VKContainsEvidence.typedEvidenceOf(t)
@@ -66,21 +65,12 @@ object ContainsEvidence {
       t =>
         TypedEvidence(
           2: Byte,
-          Sized.strictUnsafe(
-            Bytes(
-              blake2b256
-                .hash(
-                  Bytes
-                    .concat(
-                      Bytes(VLQWriter.uLongSerializer(t.threshold)) ::
-                      Bytes(VLQWriter.uLongSerializer(t.propositions.size)) ::
-                      t.propositions.toList.map(p => ev.typedEvidenceOf(p).allBytes)
-                    )
-                    .toArray
-                )
-                .value
+          new Blake2b256()
+            .hash(
+              t.threshold.immutableBytes +:
+              t.threshold.immutableBytes +:
+              t.propositions.toList.map(p => ev.typedEvidenceOf(p).allBytes): _*
             )
-          )
         )
 
     implicit def andContainsEvidence(implicit
@@ -89,13 +79,11 @@ object ContainsEvidence {
       t =>
         TypedEvidence(
           6: Byte,
-          Sized.strictUnsafe(
-            Bytes(
-              blake2b256
-                .hash((ev.typedEvidenceOf(t.a).allBytes ++ ev.typedEvidenceOf(t.b).allBytes).toArray)
-                .value
+          new Blake2b256()
+            .hash(
+              ev.typedEvidenceOf(t.a).allBytes,
+              ev.typedEvidenceOf(t.b).allBytes
             )
-          )
         )
 
     implicit def orContainsEvidence(implicit

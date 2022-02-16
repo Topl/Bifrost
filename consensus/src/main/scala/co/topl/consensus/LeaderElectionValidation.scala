@@ -3,12 +3,12 @@ package co.topl.consensus
 import cats.Monad
 import cats.implicits._
 import co.topl.algebras.UnsafeResource
+import co.topl.codecs.bytes.typeclasses.Signable
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
 import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models._
 import co.topl.models.utility.Ratio
-import co.topl.typeclasses.Signable
 import co.topl.typeclasses.implicits._
 
 import scala.collection.concurrent.TrieMap

@@ -4,10 +4,10 @@ import cats._
 import cats.data._
 import cats.effect.Ref
 import cats.effect.kernel.Concurrent
+import co.topl.codecs.bytes.tetra.instances._
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras.{ClockAlgebra, ConsensusState, UnsafeResource}
-import co.topl.codecs.bytes.implicits._
 import co.topl.consensus.SecureStore
 import co.topl.consensus.algebras.EtaCalculationAlgebra
 import co.topl.crypto.mnemonic.Entropy

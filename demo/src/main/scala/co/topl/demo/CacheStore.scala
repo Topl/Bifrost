@@ -4,8 +4,9 @@ import cats.Monad
 import cats.effect.{Clock, Ref, Sync}
 import cats.implicits._
 import co.topl.algebras.Store
+import co.topl.codecs.bytes.typeclasses.Identifiable
+import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.models.TypedIdentifier
-import co.topl.typeclasses.Identifiable
 import co.topl.typeclasses.implicits._
 import scalacache.caffeine.CaffeineCache
 

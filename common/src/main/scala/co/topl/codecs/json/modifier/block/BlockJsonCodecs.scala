@@ -2,7 +2,6 @@ package co.topl.codecs.json.modifier.block
 
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.codecs.binary._
-import co.topl.codecs.json.models.implicits._
 import co.topl.codecs.json.crypto._
 import co.topl.codecs.json.modifier.box._
 import co.topl.codecs.json.modifier.transaction._
@@ -22,7 +21,6 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider
 import io.circe._
 import io.circe.syntax._
-import co.topl.models.VerificationKeys
 
 trait BlockJsonCodecs {
 
@@ -91,7 +89,7 @@ trait BlockJsonCodecs {
       parentId     <- c.downField("parentId").as[ModifierId]
       timestamp    <- c.downField("timestamp").as[TimeProvider.Time]
       generatorBox <- c.downField("generatorBox").as[ArbitBox]
-      publicKey    <- c.downField("publicKey").as[VerificationKeys.Curve25519]
+      publicKey    <- c.downField("publicKey").as[PublicKeyPropositionCurve25519]
       signature    <- c.downField("signature").as[SignatureCurve25519]
       height       <- c.downField("height").as[Long]
       difficulty   <- c.downField("difficulty").as[Long]

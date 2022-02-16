@@ -70,11 +70,14 @@ object Dependencies {
     "io.estatico" %% "newtype" % "0.4.4"
   )
 
+  val guava = Seq(
+    "com.google.guava" % "guava" % "31.0.1-jre"
+  )
+
   val misc = Seq(
-    "com.chuusai"     %% "shapeless" % "2.3.7",
-    "com.iheart"      %% "ficus"     % "1.5.1",
-    "com.google.guava" % "guava"     % "31.0.1-jre"
-  ) ++ newType
+    "com.chuusai" %% "shapeless" % "2.3.7",
+    "com.iheart"  %% "ficus"     % "1.5.1"
+  ) ++ guava ++ newType
 
   val monitoring = Seq(
     "io.kamon" %% "kamon-core"     % kamonVersion,

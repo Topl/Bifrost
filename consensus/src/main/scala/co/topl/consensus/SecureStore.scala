@@ -1,7 +1,7 @@
 package co.topl.consensus
 
 import cats.data.Chain
-import co.topl.codecs.binary.typeclasses.Persistable
+import co.topl.codecs.bytes.typeclasses.Persistable
 
 /**
  * Represents the operations of a "secure" data store.  "Secure" means that reading a value will immediately erase its

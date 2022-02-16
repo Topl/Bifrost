@@ -204,6 +204,7 @@ lazy val bifrost = project
     algebras,
     minting,
     byteCodecs,
+    tetraByteCodecs,
     consensus,
     demo,
     tools,
@@ -243,16 +244,16 @@ lazy val common = project
   .dependsOn(crypto, typeclasses, models % "compile->compile;test->test")
   .settings(scalamacrosParadiseSettings)
 
-lazy val chainProgram = project
-  .in(file("chain-program"))
-  .settings(
-    name := "chain-program",
-    commonSettings,
-    publish / skip := true,
-    libraryDependencies ++= Dependencies.chainProgram
-  )
-  .dependsOn(common)
-  .disablePlugins(sbtassembly.AssemblyPlugin)
+//lazy val chainProgram = project
+//  .in(file("chain-program"))
+//  .settings(
+//    name := "chain-program",
+//    commonSettings,
+//    publish / skip := true,
+//    libraryDependencies ++= Dependencies.chainProgram
+//  )
+//  .dependsOn(common)
+//  .disablePlugins(sbtassembly.AssemblyPlugin)
 
 lazy val brambl = project
   .in(file("brambl"))
@@ -266,7 +267,7 @@ lazy val brambl = project
     buildInfoPackage := "co.topl.buildinfo.brambl"
   )
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(toplRpc, common, typeclasses, models % "compile->compile;test->test", scripting)
+  .dependsOn(toplRpc, common, typeclasses, models % "compile->compile;test->test", scripting, tetraByteCodecs)
 
 lazy val akkaHttpRpc = project
   .in(file("akka-http-rpc"))
@@ -302,13 +303,35 @@ lazy val byteCodecs = project
   .settings(
     name := "byte-codecs",
     commonSettings,
+    crossScalaVersions := Seq(scala213),
     publishSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.codecs.bytes"
   )
-  .settings(libraryDependencies ++= Dependencies.test)
+  .settings(
+    libraryDependencies ++=
+      Dependencies.test ++
+        Dependencies.simulacrum ++
+        Dependencies.scodec ++
+        Dependencies.scodecBits ++
+        Dependencies.cats ++
+        Seq(Dependencies.akka("actor"))
+  )
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models)
+
+lazy val tetraByteCodecs = project
+  .in(file("tetra-byte-codecs"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "tetra-byte-codecs",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.codecs.bytes.tetra"
+  )
+  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.guava)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(models, byteCodecs, crypto)
 
 lazy val jsonCodecs = project
   .in(file("json-codecs"))
@@ -336,7 +359,7 @@ lazy val typeclasses: Project = project
   )
   .settings(libraryDependencies ++= Dependencies.test)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models % "compile->compile;test->test", crypto, byteCodecs, jsonCodecs)
+  .dependsOn(models % "compile->compile;test->test", crypto, tetraByteCodecs, jsonCodecs)
 
 lazy val algebras = project
   .in(file("algebras"))
@@ -350,7 +373,7 @@ lazy val algebras = project
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Seq(Dependencies.catsSlf4j % "test"))
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, crypto, byteCodecs)
+  .dependsOn(models, crypto, tetraByteCodecs)
 
 lazy val consensus = project
   .in(file("consensus"))
@@ -371,8 +394,7 @@ lazy val consensus = project
     models % "compile->compile;test->test",
     typeclasses,
     crypto,
-    byteCodecs,
-    common,
+    tetraByteCodecs,
     algebras % "compile->compile;test->test"
   )
 
@@ -392,7 +414,7 @@ lazy val minting = project
     models % "compile->compile;test->test",
     typeclasses,
     crypto,
-    byteCodecs,
+    tetraByteCodecs,
     algebras % "compile->compile;test->test",
     consensus
   )

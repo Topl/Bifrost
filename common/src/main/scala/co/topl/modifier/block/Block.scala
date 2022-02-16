@@ -1,10 +1,7 @@
 package co.topl.modifier.block
 
+import co.topl.attestation.EvidenceProducer.Syntax._
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
-import co.topl.models.utility.Sized
-import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.Lengths
-import co.topl.models.{Bytes, Proofs, VerificationKeys}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.ArbitBox
@@ -12,7 +9,6 @@ import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.TimeProvider
-import co.topl.typeclasses.implicits._
 
 import scala.util.Try
 
@@ -35,8 +31,8 @@ case class Block(
   parentId:     ModifierId,
   timestamp:    TimeProvider.Time,
   generatorBox: ArbitBox,
-  publicKey:    VerificationKeys.Curve25519,
-  signature:    Proofs.Knowledge.Curve25519,
+  publicKey:    PublicKeyPropositionCurve25519,
+  signature:    SignatureCurve25519,
   height:       Long,
   difficulty:   Long,
   transactions: Seq[Transaction.TX],
@@ -50,15 +46,7 @@ case class Block(
   def toComponents: (BlockHeader, BlockBody) = Block.toComponents(this)
 
   def messageToSign: Array[Byte] =
-    this
-      .copy(signature =
-        Proofs.Knowledge.Curve25519(
-          Sized.strictUnsafe(
-            Bytes(Array.fill(64)(0: Byte))
-          )
-        )
-      )
-      .bytes
+    this.copy(signature = SignatureCurve25519.empty).bytes
 }
 
 object Block {
@@ -128,27 +116,23 @@ object Block {
     timestamp:    TimeProvider.Time,
     txs:          Seq[Transaction.TX],
     generatorBox: ArbitBox,
-    publicKey:    VerificationKeys.Curve25519,
+    publicKey:    PublicKeyPropositionCurve25519,
     height:       Long,
     difficulty:   Long,
     version:      PNVMVersion
-  )(signFunction: Array[Byte] => Try[Proofs.Knowledge.Curve25519]): Try[Block] = {
+  )(signFunction: Array[Byte] => Try[SignatureCurve25519]): Try[Block] = {
 
     // the owner of the generator box must be the key used to sign the block
-    require(generatorBox.evidence == publicKey.typedEvidence, "Attempted invalid block generation")
+    require(generatorBox.evidence == publicKey.generateEvidence, "Attempted invalid block generation")
 
     // generate an unsigned block (block with empty signature) to be signed
-    val block: Block =
+    val block =
       Block(
         parentId,
         timestamp,
         generatorBox,
         publicKey,
-        Proofs.Knowledge.Curve25519(
-          Sized.strictUnsafe(
-            Bytes(Array.fill(64)(0: Byte))
-          )
-        ),
+        SignatureCurve25519.empty,
         height,
         difficulty,
         txs,

@@ -1,11 +1,12 @@
 package co.topl.minting
 
-import cats.{MonadError, Parallel}
 import cats.data.OptionT
 import cats.effect.Sync
 import cats.implicits._
+import cats.{MonadError, Parallel}
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras.{ClockAlgebra, UnsafeResource}
+import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.LeaderElectionValidation
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra

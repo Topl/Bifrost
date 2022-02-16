@@ -7,6 +7,8 @@ import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.typeclasses.VerificationContext
 import co.topl.typeclasses.implicits._
+import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.codecs.bytes.tetra.instances._
 import io.circe.Json
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec

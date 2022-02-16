@@ -6,6 +6,8 @@ import co.topl.crypto.signing.{Curve25519, Ed25519, ExtendedEd25519}
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.typeclasses.implicits._
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
 import io.circe.Json
 import io.circe.syntax._
 import org.scalamock.scalatest.MockFactory

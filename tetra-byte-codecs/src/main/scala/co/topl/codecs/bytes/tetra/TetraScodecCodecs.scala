@@ -1,18 +1,24 @@
-package co.topl.codecs.binary
+package co.topl.codecs.bytes.tetra
 
 import cats.implicits._
-import co.topl.codecs.bytes.{Reader, Writer}
-import co.topl.models.BlockHeaderV2.Unsigned
-import co.topl.models.Proofs.Knowledge
+import co.topl.codecs.bytes.scodecs._
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.{KesBinaryTree, Length, Ratio, Sized}
-import scodec.codecs.discriminated
+import co.topl.models.utility.StringDataTypes.Latin1Data
+import co.topl.models.utility._
+import scodec.codecs.{discriminated, lazily}
 import scodec.{Attempt, Codec, Err}
 import shapeless.{::, HList, HNil}
-import scodec.codecs.lazily
 
-trait TetraBasicCodecs {
+trait TetraScodecCodecs {
+
+  implicit def maxSizedCodec[T: Codec: HasLength, L <: Length](implicit l: L): Codec[Sized.Max[T, L]] =
+    Codec[T]
+      .exmapc(t =>
+        Attempt.fromEither(
+          Sized.max(t).leftMap(e => Err(s"Invalid length: expected ${l.value} but got ${e.length}"))
+        )
+      )(t => Attempt.successful(t.data))
 
   implicit def strictSizedBytesCodec[L <: Length](implicit l: L): Codec[Sized.Strict[Bytes, L]] =
     bytesCodec(l.value)
@@ -32,50 +38,12 @@ trait TetraBasicCodecs {
         )
       )(t => Attempt.successful(t.data.allBytes.toArray))
 
-  implicit val blockHeaderV2Codec: Codec[BlockHeaderV2] = Codec[BlockHeaderV2] {
-    def encode(t: BlockHeaderV2, writer: Writer): Unit = ???
-
-    def decode(reader: Reader): BlockHeaderV2 = ???
-  }
-
-  implicit val blockBodyV2Codec: Codec[BlockBodyV2] = Codec[BlockBodyV2] {
-    def encode(t: BlockBodyV2, writer: Writer): Unit = ???
-
-    def decode(reader: Reader): BlockBodyV2 = ???
-  }
-
-  implicit val blockV1Codec: Codec[BlockV1] = Codec[BlockV1] {
-    def encode(t: BlockV1, writer: Writer): Unit = ???
-
-    def decode(reader: Reader): BlockV1 = ???
-  }
-
-  implicit val transactionCodec: Codec[Transaction] = Codec[Transaction] {
-    def encode(t: Transaction, writer: Writer): Unit = ???
-
-    def decode(reader: Reader): Transaction = ???
-  }
-
-  implicit val boxCodec: Codec[Box[_]] = Codec[Box[_]] {
-    def encode(t: Box[_], writer: Writer): Unit = ???
-
-    def decode(reader: Reader): Box[_] = ???
-  }
-
-  implicit val taktikosAddressCodec: Codec[TaktikosAddress] = {
-    ()
-
-    new Codec[TaktikosAddress] {
-
-      override def encode(t: TaktikosAddress, writer: Writer): Unit = {
-        t.paymentVKEvidence.writeBytesTo(writer)
-        t.poolVK.writeBytesTo(writer)
-        t.signature.writeBytesTo(writer)
-      }
-
-      override def decode(reader: Reader): TaktikosAddress = ???
-    }
-  }
+  implicit val typedBytesCodec: Codec[TypedBytes] =
+    (byteCodec :: arrayCodec[Byte])
+      .xmapc { case prefix :: data :: _ =>
+        TypedBytes(prefix, Bytes(data))
+      }(t => HList(t.typePrefix, t.dataBytes.toArray))
+      .as[TypedBytes]
 
   // todo: JAA - consider implications of variable vs. fixed length (BigInt vs. Int128)
   // (I think this is never transmitted so probably safe if we used built in BigInt)
@@ -94,9 +62,23 @@ trait TetraBasicCodecs {
       }
       .as[Ratio]
 
+  implicit val latin1DataCodec: Codec[Latin1Data] =
+    byteStringCodec.exmapc(byteString =>
+      Latin1Data
+        .validated(byteString)
+        .map(data => Attempt.successful(data))
+        .valueOr(errs => Attempt.failure(Err(errs.toString)))
+    )(latin1Data => Attempt.successful(latin1Data.value))
+
+  implicit val int128Codec: Codec[Int128] =
+    bytesCodec(16).exmap(
+      bytes => Attempt.fromEither(Sized.max[BigInt, Lengths.`128`.type](BigInt(bytes)).leftMap(e => Err(e.toString))),
+      int => Attempt.successful(int.data.toByteArray)
+    )
+
   implicit val kesBinaryTreeCodec: Codec[KesBinaryTree] = {
     val kesBinaryTreeEmptyCodec: Codec[KesBinaryTree.Empty] =
-      Codec[HList].xmapc { case HNil => KesBinaryTree.Empty() }(_ => HNil).as[KesBinaryTree.Empty]
+      Codec[Unit].xmapc(_ => KesBinaryTree.Empty())(_ => ()).as[KesBinaryTree.Empty]
 
     val kesBinaryTreeLeafCodec: Codec[KesBinaryTree.SigningLeaf] =
       (arrayCodec[Byte] :: arrayCodec[Byte])
@@ -108,21 +90,21 @@ trait TetraBasicCodecs {
         .as[KesBinaryTree.SigningLeaf]
 
     val kesBinaryTreeNodeCodec: Codec[KesBinaryTree.MerkleNode] =
-      (arrayCodec[Byte] :: arrayCodec[Byte] :: arrayCodec[Byte] :: kesBinaryTreeCodec :: kesBinaryTreeCodec)
-        .xmapc { case seed :: witnessLeft :: witnessRight :: left :: right :: HNil =>
-          KesBinaryTree.MerkleNode(seed, witnessLeft, witnessRight, left, right)
-        } { t =>
-          HList(t.seed, t.witnessLeft, t.witnessRight, t.left, t.right)
-        }
-        .as[KesBinaryTree.MerkleNode]
+      lazily(
+        (arrayCodec[Byte] :: arrayCodec[Byte] :: arrayCodec[Byte] :: kesBinaryTreeCodec :: kesBinaryTreeCodec)
+          .xmapc { case seed :: witnessLeft :: witnessRight :: left :: right :: HNil =>
+            KesBinaryTree.MerkleNode(seed, witnessLeft, witnessRight, left, right)
+          } { t =>
+            HList(t.seed, t.witnessLeft, t.witnessRight, t.left, t.right)
+          }
+          .as[KesBinaryTree.MerkleNode]
+      )
 
-    lazily[KesBinaryTree] {
-      discriminated[KesBinaryTree]
-        .by(byteCodec)
-        .typecase(KesBinaryTree.emptyTypePrefix, kesBinaryTreeEmptyCodec)
-        .typecase(KesBinaryTree.leafTypePrefix, kesBinaryTreeLeafCodec)
-        .typecase(KesBinaryTree.nodeTypePrefix, kesBinaryTreeNodeCodec)
-    }
+    discriminated[KesBinaryTree]
+      .by(byteCodec)
+      .typecase(KesBinaryTree.emptyTypePrefix, kesBinaryTreeEmptyCodec)
+      .typecase(KesBinaryTree.leafTypePrefix, kesBinaryTreeLeafCodec)
+      .typecase(KesBinaryTree.nodeTypePrefix, kesBinaryTreeNodeCodec)
   }
 
   implicit val vkCurve25519Codec: Codec[VerificationKeys.Curve25519] =
@@ -237,7 +219,7 @@ trait TetraBasicCodecs {
       }
       .as[SecretKeys.KesProduct]
 
-  implicit val vrfCertificateCodec: Codec[EligibilityCertificate] =
+  implicit val eligibilityCertificateCodec: Codec[EligibilityCertificate] =
     (proofSignatureVrfCodec :: vkVrfCodec :: Codec[Evidence] :: Codec[Eta])
       .xmapc { case proofVrf :: vkVrf :: evidence :: eta :: HNil =>
         EligibilityCertificate(proofVrf, vkVrf, evidence, eta)
@@ -254,6 +236,57 @@ trait TetraBasicCodecs {
         HList(t.parentVK, t.parentSignature, t.childVK)
       }
       .as[BlockHeaderV2.Unsigned.PartialOperationalCertificate]
+
+  implicit val taktikosAddressCodec: Codec[TaktikosAddress] =
+    (strictSizedBytesCodec[Lengths.`32`.type] :: vkEd25519Codec :: proofSignatureEd25519Codec)
+      .xmapc { case evidence :: poolVK :: signature :: _ => TaktikosAddress(evidence, poolVK, signature) }(a =>
+        HList(a.paymentVKEvidence, a.poolVK, a.signature)
+      )
+
+  implicit val blockHeaderV2Codec: Codec[BlockHeaderV2] = Codec.lazily(???)
+
+  implicit val unsignedBlockHeaderV2Codec: Codec[BlockHeaderV2.Unsigned] =
+    (typedBytesCodec :: longCodec :: strictSizedBytesCodec[Lengths.`32`.type] :: strictSizedBytesCodec[
+      Lengths.`256`.type
+    ] :: longCodec :: longCodec :: longCodec :: eligibilityCertificateCodec :: partialOperationalCertificateCodec :: optionCodec(
+      maxSizedCodec[Latin1Data, Lengths.`32`.type]
+    ) :: taktikosAddressCodec)
+      .xmapc {
+        case parentHeaderId :: parentSlot :: txRoot :: bloomFilter :: timestamp :: height :: slot :: eligibilityCertificate :: partialOperationalCertificate :: metadata :: address :: _ =>
+          BlockHeaderV2.Unsigned(
+            parentHeaderId,
+            parentSlot,
+            txRoot,
+            bloomFilter,
+            timestamp,
+            height,
+            slot,
+            eligibilityCertificate,
+            partialOperationalCertificate,
+            metadata,
+            address
+          )
+      }(t =>
+        HList(
+          t.parentHeaderId,
+          t.parentSlot,
+          t.txRoot,
+          t.bloomFilter,
+          t.timestamp,
+          t.height,
+          t.slot,
+          t.eligibilityCertificate,
+          t.partialOperationalCertificate,
+          t.metadata,
+          t.address
+        )
+      )
+
+  implicit val blockBodyV2Codec: Codec[BlockBodyV2] = Codec.lazily(???)
+
+  implicit val transactionCodec: Codec[Transaction] = Codec.lazily(???)
+
+  implicit val boxCodec: Codec[Box[_]] = Codec.lazily(???)
 }
 
-object TetraBasicCodecs extends TetraBasicCodecs
+object TetraScodecCodecs extends TetraScodecCodecs

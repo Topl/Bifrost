@@ -1,7 +1,7 @@
 package co.topl.crypto.signing.kes
 
 import co.topl.models.utility.KesBinaryTree
-import co.topl.models.utility.KesBinaryTree.{Empty(), MerkleNode, SigningLeaf}
+import co.topl.models.utility.KesBinaryTree.{Empty, MerkleNode, SigningLeaf}
 import java.security.SecureRandom
 import scala.annotation.tailrec
 
@@ -42,7 +42,7 @@ class SumComposition extends KesEd25519Blake2b256 {
       case MerkleNode(_, _, _, Empty(), _: SigningLeaf)    => 1
       case MerkleNode(_, _, _, Empty(), right: MerkleNode) => getKeyTime(right) + exp(getTreeHeight(right))
       case MerkleNode(_, _, _, left, Empty())              => getKeyTime(left)
-      case _                                             => 0
+      case _                                               => 0
     }
 
   /**
@@ -55,7 +55,7 @@ class SumComposition extends KesEd25519Blake2b256 {
     val h = keyTree match {
       case node: MerkleNode  => (witness(node), getKeyTime(keyTree))
       case leaf: SigningLeaf => (witness(leaf), 0)
-      case Empty()             => (Array.fill(hashBytes)(0: Byte), 0)
+      case Empty()           => (Array.fill(hashBytes)(0: Byte), 0)
     }
 //    println(s"---------------------------start sum verification key ----------------")
 //    println(s"verification witness: ${Base58.encode(h._1)}, keyTime: ${h._2}")
@@ -84,7 +84,7 @@ class SumComposition extends KesEd25519Blake2b256 {
         MerkleNode(r._2, witness(left), witness(right), left, right)
       }
 
-    //traverse down the tree to the leftmost leaf
+    // traverse down the tree to the leftmost leaf
     def reduceTree(fullTree: KesBinaryTree): KesBinaryTree =
       fullTree match {
         case MerkleNode(seed, witL, witR, nodeL, nodeR) =>
@@ -94,7 +94,7 @@ class SumComposition extends KesEd25519Blake2b256 {
         case _                 => Empty()
       }
 
-    //executes the above functions in order
+    // executes the above functions in order
     val out = reduceTree(seedTree(seed, height))
     random.nextBytes(seed)
     out
@@ -202,16 +202,16 @@ class SumComposition extends KesEd25519Blake2b256 {
    * @return byte array signature
    */
   private[signing] def sign(keyTree: SK, m: Array[Byte]): SIG = {
-    //loop that generates the signature of m and stacks up the witness path of the key
+    // loop that generates the signature of m and stacks up the witness path of the key
     @tailrec
     def loop(
       keyTree: KesBinaryTree,
       W:       Vector[Array[Byte]] = Vector()
     ): SIG = keyTree match {
       case MerkleNode(_, witL, _, Empty(), right) => loop(right, witL.clone() +: W)
-      case MerkleNode(_, _, witR, left, _)      => loop(left, witR.clone() +: W)
-      case leaf: SigningLeaf                    => (leaf.vk.clone(), sSign(m, leaf.sk).clone(), W)
-      case _                                    => (Array.fill(pkBytes)(0: Byte), Array.fill(sigBytes)(0: Byte), Vector(Array()))
+      case MerkleNode(_, _, witR, left, _)        => loop(left, witR.clone() +: W)
+      case leaf: SigningLeaf                      => (leaf.vk.clone(), sSign(m, leaf.sk).clone(), W)
+      case _ => (Array.fill(pkBytes)(0: Byte), Array.fill(sigBytes)(0: Byte), Vector(Array()))
     }
     loop(keyTree)
   }
@@ -231,12 +231,12 @@ class SumComposition extends KesEd25519Blake2b256 {
     val leftGoing: Int => Boolean = (level: Int) => ((step / exp(level)) % 2) == 0
 
     def verifyMerkle(W: Vector[Array[Byte]]): Boolean =
-      if (W.isEmpty()) Empty()Witness
+      if (W.isEmpty) emptyWitness
       else if (W.length == 1) singleWitness(W.head)
       else if (leftGoing(0)) multiWitness(W.tail, hash(vkSign), W.head, 1)
       else multiWitness(W.tail, W.head, hash(vkSign), 1)
 
-    def Empty()Witness: Boolean = root sameElements hash(vkSign)
+    def emptyWitness: Boolean = root sameElements hash(vkSign)
 
     def singleWitness(witness: Array[Byte]): Boolean =
       if (leftGoing(0)) root sameElements hash(hash(vkSign) ++ witness)
@@ -249,7 +249,7 @@ class SumComposition extends KesEd25519Blake2b256 {
       witnessRight: Array[Byte],
       index:        Int
     ): Boolean =
-      if (witnessList.isEmpty()) root sameElements hash(witnessLeft ++ witnessRight)
+      if (witnessList.isEmpty) root sameElements hash(witnessLeft ++ witnessRight)
       else if (leftGoing(index))
         multiWitness(witnessList.tail, hash(witnessLeft ++ witnessRight), witnessList.head, index + 1)
       else multiWitness(witnessList.tail, witnessList.head, hash(witnessLeft ++ witnessRight), index + 1)

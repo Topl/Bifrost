@@ -15,7 +15,8 @@ import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
 import scalacache.CacheConfig
 import scalacache.caffeine.CaffeineCache
-
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
 import scala.language.implicitConversions
 
 /**
@@ -288,12 +289,12 @@ object BlockHeaderValidation {
             child:  BlockHeaderV2,
             parent: BlockHeaderV2
           ): F[Either[BlockHeaderValidationFailure, BlockHeaderV2]] =
-            OptionT(scalacache.get[F, TypedIdentifier](child.id))
+            OptionT(scalacache.get[F, TypedIdentifier](child.id.asTypedBytes))
               .map(_ => child.asRight[BlockHeaderValidationFailure])
               .getOrElseF(
                 validateParent(parent)
                   .flatMapF(_ => underlying.validate(child, parent))
-                  .semiflatTap(h => scalacache.put(h.id)(h.id))
+                  .semiflatTap(h => scalacache.put(h.id.asTypedBytes)(h.id.asTypedBytes))
                   .value
               )
 

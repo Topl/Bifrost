@@ -6,6 +6,8 @@ import cats.implicits._
 import cats.{Monad, MonadError, Parallel, Show}
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras.{ClockAlgebra, ConsensusState, Store, UnsafeResource}
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, EtaCalculationAlgebra, LocalChainAlgebra}
 import co.topl.consensus.{BlockHeaderValidationFailure, SlotData}
 import co.topl.crypto.signing.Ed25519VRF

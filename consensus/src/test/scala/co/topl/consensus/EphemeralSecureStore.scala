@@ -4,7 +4,8 @@ import cats.data.Chain
 import cats.implicits._
 import cats.{Defer, Monad}
 import co.topl.codecs._
-import co.topl.codecs.binary.typeclasses.Persistable
+import co.topl.codecs.bytes.typeclasses.Persistable
+import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.models.Bytes
 
 /**
@@ -35,7 +36,7 @@ class EphemeralSecureStore[F[_]: Monad: Defer] extends SecureStore[F] {
   def consume[A: Persistable](name: String): F[Option[A]] =
     Defer[F].defer {
       {
-        val entry = entries.get(name).flatMap(b => Persistable[A].fromPersistedBytes(b.toArray).toOption)
+        val entry = entries.get(name).flatMap(b => Persistable[A].fromPersistedBytes(b).toOption)
         entries -= name
         entry
       }.pure[F]

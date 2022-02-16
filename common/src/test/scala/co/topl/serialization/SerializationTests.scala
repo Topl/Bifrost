@@ -52,7 +52,7 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
   }
 
   property("Signature serialization") {
-    forAll(signatureGen) { sig =>
+    forAll(signatureGen.map(_.asInstanceOf[Proof[_ <: Proposition]])) { sig =>
       val parsed = ProofSerializer
         .parseBytes(ProofSerializer.toBytes(sig))
         .get
@@ -123,39 +123,6 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
 
   property("AssetBox serialization") {
     forAll(assetBoxGen) { b: AssetBox =>
-      val parsed = BoxSerializer
-        .parseBytes(BoxSerializer.toBytes(b))
-        .get
-
-      val serialized = BoxSerializer.toBytes(parsed)
-      serialized sameElements BoxSerializer.toBytes(b) shouldBe true
-    }
-  }
-
-  property("StateBox serialization") {
-    forAll(stateBoxGen) { b: StateBox =>
-      val parsed = BoxSerializer
-        .parseBytes(BoxSerializer.toBytes(b))
-        .get
-
-      val serialized = BoxSerializer.toBytes(parsed)
-      serialized sameElements BoxSerializer.toBytes(b) shouldBe true
-    }
-  }
-
-  property("CodeBox serialization") {
-    forAll(codeBoxGen) { b: CodeBox =>
-      val parsed = BoxSerializer
-        .parseBytes(BoxSerializer.toBytes(b))
-        .get
-
-      val serialized = BoxSerializer.toBytes(parsed)
-      serialized sameElements BoxSerializer.toBytes(b) shouldBe true
-    }
-  }
-
-  property("ExecutionBox serialization") {
-    forAll(executionBoxGen) { b: ExecutionBox =>
       val parsed = BoxSerializer
         .parseBytes(BoxSerializer.toBytes(b))
         .get

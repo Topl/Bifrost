@@ -11,7 +11,8 @@ import cats.effect.{Async, IO, IOApp}
 import cats.implicits._
 import cats.~>
 import co.topl.algebras._
-import co.topl.codecs.bytes.implicits._
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
 import co.topl.consensus.algebras.{EtaCalculationAlgebra, LeaderElectionValidationAlgebra}
@@ -24,7 +25,6 @@ import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility._
-import co.topl.scripting.GraalVMScripting.instances._
 import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
@@ -80,7 +80,7 @@ object TetraDemo extends IOApp.Simple {
       Box.Values.TaktikosRegistration(
         commitment = kesProduct.sign(
           kesKey,
-          new Blake2b256().hash(ed25519Vrf.getVerificationKey(stakerVrfKey).signableBytes, poolVK.bytes.data).data
+          new Blake2b256().hash(ed25519Vrf.getVerificationKey(stakerVrfKey).immutableBytes, poolVK.bytes.data).data
         )
       )
 

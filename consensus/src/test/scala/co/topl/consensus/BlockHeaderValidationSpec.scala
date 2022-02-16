@@ -13,6 +13,8 @@ import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.{Lengths, Ratio, Sized}
+import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.codecs.bytes.tetra.instances._
 import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs

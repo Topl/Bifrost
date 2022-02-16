@@ -3,7 +3,8 @@ package co.topl.credential
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
-import co.topl.codecs.bytes.implicits._
+import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.codecs.bytes.tetra.instances._
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.mnemonic.Entropy
 import co.topl.crypto.signing.{Ed25519, EntropyToSeed, ExtendedEd25519, Password}
@@ -45,7 +46,7 @@ class KeyCollectionSpec
         .unlock(_, _))
         .expects(evidence, password)
         .once()
-        .returning((sk.bytes -> KeyFile.Metadata(evidence)).some.pure[F])
+        .returning((sk.persistedBytes -> KeyFile.Metadata(evidence)).some.pure[F])
 
       val underTest = RefKeyCollection[F].unsafeRunSync()
 
@@ -64,7 +65,7 @@ class KeyCollectionSpec
         .unlock(_, _))
         .expects(evidence, password)
         .once()
-        .returning((sk.bytes -> KeyFile.Metadata(evidence)).some.pure[F])
+        .returning((sk.persistedBytes -> KeyFile.Metadata(evidence)).some.pure[F])
 
       val underTest = RefKeyCollection[F].unsafeRunSync()
 
@@ -84,7 +85,7 @@ class KeyCollectionSpec
         .unlock(_, _))
         .expects(evidence, password)
         .once()
-        .returning((sk.bytes -> KeyFile.Metadata(evidence)).some.pure[F])
+        .returning((sk.persistedBytes -> KeyFile.Metadata(evidence)).some.pure[F])
 
       val underTest = RefKeyCollection[F].unsafeRunSync()
 

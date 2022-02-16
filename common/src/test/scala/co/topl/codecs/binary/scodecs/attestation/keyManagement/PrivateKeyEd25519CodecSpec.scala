@@ -11,6 +11,6 @@ class PrivateKeyEd25519CodecSpec extends CodecCompatabilityBehavior with CommonG
     "private key ed 25519",
     privateKeyEd25519Codec,
     PrivateKeyEd25519Serializer,
-    keyEd25519Gen.map(_._1)
+    keyEd25519FastGen.map(_._1)
   )
 }

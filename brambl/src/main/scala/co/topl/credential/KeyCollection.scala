@@ -6,7 +6,7 @@ import cats.effect._
 import cats.implicits._
 import co.topl.crypto.signing.Password
 import co.topl.models._
-import co.topl.codecs.binary.typeclasses.Persistable
+import co.topl.codecs.bytes.typeclasses.Persistable
 
 //todo: JAA - I am doing something non-ideal here for testing. I want to store keyfile as json (we can also have byte persistable)
 // JSON is the format that wallet and things might use, we are not necessarily tied to using JSON but it would break backwards compatibility
@@ -29,7 +29,7 @@ class RefKeyCollection[F[_]: Monad](r: Ref[F, Map[TypedEvidence, SecretKey]])(im
       .map {
         _.flatMap { case (bytes, _) =>
           Persistable[SK]
-            .fromPersistedBytes(bytes.toArray)
+            .fromPersistedBytes(bytes)
             .map { sk =>
               r.update(_.updated(evidence, sk))
               sk

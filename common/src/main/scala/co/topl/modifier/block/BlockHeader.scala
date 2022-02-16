@@ -2,7 +2,6 @@ package co.topl.modifier.block
 
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.models.{Proofs, VerificationKeys}
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.ArbitBox
@@ -14,8 +13,8 @@ case class BlockHeader(
   parentId:     ModifierId,
   timestamp:    TimeProvider.Time,
   generatorBox: ArbitBox,
-  publicKey:    VerificationKeys.Curve25519,
-  signature:    Proofs.Knowledge.Curve25519,
+  publicKey:    PublicKeyPropositionCurve25519,
+  signature:    SignatureCurve25519,
   height:       Long,
   difficulty:   Long,
   txRoot:       Digest32,

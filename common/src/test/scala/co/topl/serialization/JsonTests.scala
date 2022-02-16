@@ -9,7 +9,7 @@ import co.topl.attestation.keyManagement.{
   KeyfileEd25519Companion
 }
 import co.topl.codecs._
-import co.topl.modifier.ModifierId
+import co.topl.modifier.{ModifierId, ProgramId}
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction
@@ -157,22 +157,6 @@ class JsonTests
 
   property("AssetBox json") {
     forAll(assetBoxGen)(box => box.asJson.as[AssetBox] should eqvShow(box.asRight[DecodingFailure]))
-  }
-
-  property("ProgramId json") {
-    forAll(programIdGen)(id => id.asJson.as[ProgramId] should eqvShow(id.asRight[DecodingFailure]))
-  }
-
-  property("StateBox json") {
-    forAll(stateBoxGen)(box => box.asJson.as[StateBox] should eqvShow(box.asRight[DecodingFailure]))
-  }
-
-  property("CodeBox json") {
-    forAll(codeBoxGen)(box => box.asJson.as[CodeBox] should eqvShow(box.asRight[DecodingFailure]))
-  }
-
-  property("ExecutionBox json") {
-    forAll(executionBoxGen)(box => box.asJson.as[ExecutionBox] should eqvShow(box.asRight[DecodingFailure]))
   }
 
   property("Transaction json") {

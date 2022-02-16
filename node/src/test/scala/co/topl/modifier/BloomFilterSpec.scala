@@ -2,7 +2,6 @@ package co.topl.modifier
 
 import co.topl.attestation.Address
 import co.topl.attestation.keyManagement.PrivateKeyCurve25519
-import co.topl.crypto.signatures.Curve25519
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.block.{BloomFilter, TransactionsCarryingPersistentNodeViewModifier}
 import co.topl.utils.NodeGenerators
@@ -60,7 +59,7 @@ class BloomFilterSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wi
 
     val randAddr: Seq[Address] =
       (0 until numAddr)
-        .map(_ => Array.fill(Curve25519.KeyLength)((rand.nextInt(256) - 128).toByte))
+        .map(_ => Array.fill(32)((rand.nextInt(256) - 128).toByte))
         .map(s => PrivateKeyCurve25519.secretGenerator.generateSecret(s)._2)
         .map(k => k.address)
 

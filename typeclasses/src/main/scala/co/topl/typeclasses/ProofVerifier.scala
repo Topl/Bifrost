@@ -3,11 +3,11 @@ package co.topl.typeclasses
 import cats._
 import cats.data.OptionT
 import cats.implicits._
-import co.topl.codecs.json.implicits._
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signing.{Curve25519, Ed25519, ExtendedEd25519}
 import co.topl.models._
-import co.topl.typeclasses.implicits._
 import io.circe.Json
 import io.circe.syntax._
 
@@ -235,7 +235,7 @@ object ProofVerifier {
         .semiflatMap { argsJson =>
           val contextJson =
             Json.obj(
-              "currentTransaction" -> context.currentTransaction.asJson,
+              "currentTransaction" -> Json.obj(), // TODO context.currentTransaction.asJson,
               "currentHeight"      -> context.currentHeight.asJson,
               "currentSlot"        -> context.currentSlot.asJson
             )

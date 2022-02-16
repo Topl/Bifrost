@@ -6,7 +6,7 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import co.topl.algebras.testInterpreters.NoOpLogger
 import co.topl.algebras.{ClockAlgebra, ConsensusState, UnsafeResource}
-import co.topl.codecs.bytes.ByteCodec
+import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.consensus.SecureStore
 import co.topl.consensus.algebras.EtaCalculationAlgebra
 import co.topl.crypto.signing.{Ed25519, KesProduct}
@@ -74,13 +74,13 @@ class OperationalKeysSpec
         .returning(Chain("a").pure[F])
 
       (secureStore
-        .consume[SecretKeys.KesProduct](_: String)(_: ByteCodec[SecretKeys.KesProduct]))
+        .consume[SecretKeys.KesProduct](_: String)(_: Persistable[SecretKeys.KesProduct]))
         .expects("a", *)
         .once()
         .returning(sk.some.pure[F])
 
       (secureStore
-        .write[SecretKeys.KesProduct](_: String, _: SecretKeys.KesProduct)(_: ByteCodec[SecretKeys.KesProduct]))
+        .write[SecretKeys.KesProduct](_: String, _: SecretKeys.KesProduct)(_: Persistable[SecretKeys.KesProduct]))
         .expects(*, *, *)
         .once()
         .returning(Applicative[F].unit)
@@ -194,13 +194,13 @@ class OperationalKeysSpec
         .returning(Chain("a").pure[F])
 
       (secureStore
-        .consume[SecretKeys.KesProduct](_: String)(_: ByteCodec[SecretKeys.KesProduct]))
+        .consume[SecretKeys.KesProduct](_: String)(_: Persistable[SecretKeys.KesProduct]))
         .expects("a", *)
         .once()
         .returning(sk.some.pure[F])
 
       (secureStore
-        .write[SecretKeys.KesProduct](_: String, _: SecretKeys.KesProduct)(_: ByteCodec[SecretKeys.KesProduct]))
+        .write[SecretKeys.KesProduct](_: String, _: SecretKeys.KesProduct)(_: Persistable[SecretKeys.KesProduct]))
         .expects(*, *, *)
         .once()
         .returning(Applicative[F].unit)
@@ -271,13 +271,13 @@ class OperationalKeysSpec
         .returning(Chain("b").pure[F])
 
       (secureStore
-        .consume[SecretKeys.KesProduct](_: String)(_: ByteCodec[SecretKeys.KesProduct]))
+        .consume[SecretKeys.KesProduct](_: String)(_: Persistable[SecretKeys.KesProduct]))
         .expects("b", *)
         .once()
         .returning(kesProduct.update(sk, 1).some.pure[F])
 
       (secureStore
-        .write[SecretKeys.KesProduct](_: String, _: SecretKeys.KesProduct)(_: ByteCodec[SecretKeys.KesProduct]))
+        .write[SecretKeys.KesProduct](_: String, _: SecretKeys.KesProduct)(_: Persistable[SecretKeys.KesProduct]))
         .expects(*, *, *)
         .once()
         .returning(Applicative[F].unit)
