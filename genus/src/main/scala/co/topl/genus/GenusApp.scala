@@ -1,12 +1,13 @@
 package co.topl.genus
 
+import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.grpc.scaladsl.ServerReflection
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
-import cats.Functor
+import akka.stream.scaladsl.Source
 import cats.effect.unsafe.implicits.global
 import cats.effect.{Async, IO, IOApp}
-import co.topl.genus.algebras.{HttpServerAlg, MongoOplogAlg, QueryServiceAlg, SubscriptionServiceAlg}
+import co.topl.genus.algebras._
 import co.topl.genus.filters.{BlockFilter, TransactionFilter}
 import co.topl.genus.interpreters.MongoQueryInterp.MongoQueryAlg
 import co.topl.genus.interpreters.MongoSubscriptionInterp.MongoSubscriptionAlg
@@ -44,63 +45,68 @@ object GenusApp extends IOApp.Simple {
   val serverIp = "127.0.0.1"
   val serverPort = 8080
 
-  // mongo names
+  // tx and block mongo names
   val mongoConnectionString = "mongodb://localhost:27017/?replicaset=bifrost"
   val databaseName = "chain_data"
   val txsCollectionName = "confirmed_txes"
   val blocksCollectionName = "blocks"
+
+  // oplog mongo names
+  val localDatabase = "local"
+  val oplogCollectionName = "oplog.rs"
 
   // mongo clients and database
   val mongoClient: MongoClient = MongoClient(mongoConnectionString)
   val mongoDb: MongoDatabase = mongoClient.getDatabase(databaseName)
 
   // mongo collections
-  val oplogCollectionName: MongoCollection[Document] =
-    mongoClient.getDatabase("local").getCollection("oplog.rs")
+  val oplogCollection: MongoCollection[Document] =
+    mongoClient.getDatabase(localDatabase).getCollection(oplogCollectionName)
   val txsMongoCollection: MongoCollection[Document] = mongoDb.getCollection(txsCollectionName)
   val blocksMongoCollection: MongoCollection[Document] = mongoDb.getCollection(blocksCollectionName)
 
   // mongo algebras
-  val mongoOplog: MongoOplogAlg[F] = MongoOplogInterp.Eval.make(oplogCollectionName)
+  val mongoOplog: MongoOplogAlg[F] = MongoOplogInterp.Eval.make(oplogCollection)
 
   val txsDataStoreQuery: MongoQueryAlg[F, Transaction, TransactionFilter] =
-    // TODO: call the map function directly on the algebra
-    Functor[MongoQueryAlg[F, *, TransactionFilter]]
-      .map(
-        MongoQueryInterp.Eval
-          .make[F, ConfirmedTransactionDataModel, TransactionFilter](txsMongoCollection)
-      )(_.transformTo[Transaction])
+    DataStoreQueryAlg
+      .mapQueryType[F, Source[*, NotUsed], Bson, TransactionFilter, ConfirmedTransactionDataModel, Transaction](
+        MongoQueryInterp.Eval.make[F, ConfirmedTransactionDataModel, TransactionFilter](txsMongoCollection),
+        dataModel => dataModel.transformTo[Transaction]
+      )
 
   val blocksDataStoreQuery: MongoQueryAlg[F, Block, BlockFilter] =
-    Functor[MongoQueryAlg[F, *, BlockFilter]]
-      .map(
-        MongoQueryInterp.Eval
-          .make[F, BlockDataModel, BlockFilter](blocksMongoCollection)
-      )(_.transformTo[Block])
+    DataStoreQueryAlg
+      .mapQueryType[F, Source[*, NotUsed], Bson, BlockFilter, BlockDataModel, Block](
+        MongoQueryInterp.Eval.make[F, BlockDataModel, BlockFilter](blocksMongoCollection),
+        dataModel => dataModel.transformTo[Block]
+      )
 
   val txsDataStoreSub: MongoSubscriptionAlg[F, Transaction, TransactionFilter] =
-    Functor[MongoSubscriptionAlg[F, *, TransactionFilter]]
-      .map(
+    DataStoreSubscriptionAlg
+      .mapSubscriptionType[F, Source[*, NotUsed], TransactionFilter, ConfirmedTransactionDataModel, Transaction](
         MongoSubscriptionInterp.Eval.make[F, ConfirmedTransactionDataModel, TransactionFilter](
           mongoClient,
           databaseName,
           txsCollectionName,
           "block.height",
           mongoOplog
-        )
-      )(_.transformTo[Transaction])
+        ),
+        dataModel => dataModel.transformTo[Transaction]
+      )
 
   val blocksDataStoreSub: MongoSubscriptionAlg[F, Block, BlockFilter] =
-    Functor[MongoSubscriptionAlg[F, *, BlockFilter]]
-      .map(
+    DataStoreSubscriptionAlg
+      .mapSubscriptionType[F, Source[*, NotUsed], BlockFilter, BlockDataModel, Block](
         MongoSubscriptionInterp.Eval.make[F, BlockDataModel, BlockFilter](
           mongoClient,
           databaseName,
           blocksCollectionName,
           "height",
           mongoOplog
-        )
-      )(_.transformTo[Block])
+        ),
+        dataModel => dataModel.transformTo[Block]
+      )
 
   // default filters and sorts
   val defaultTransactionFilter: TransactionFilter =
