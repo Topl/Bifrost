@@ -98,7 +98,6 @@ case class GenesisSettings(
 )
 
 case class GenesisGenerationSettings(
-  blockVersion:      Int,
   numTestnetAccts:   Int,
   testnetBalance:    Long,
   initialDifficulty: Long,
@@ -107,14 +106,12 @@ case class GenesisGenerationSettings(
 
 case class GenesisFromConfigSettings(
   blockChecksum:     String,
-  blockVersion:      Int,
   initialDifficulty: Long,
   memberAddresses:   List[String],
   memberStakes:      List[Long]
 )
 
 case class GenesisFromBlockJsonSettings(
-  blockVersion:            Int,
   providedJsonGenesisPath: String,
   blockChecksum:           String
 )

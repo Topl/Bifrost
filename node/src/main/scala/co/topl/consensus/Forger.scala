@@ -117,8 +117,9 @@ object Forger {
     fetchStartupKeyView:         () => Future[StartupKeyView],
     consensusVariablesInterface: ConsensusVariablesHolder
   )(implicit
-    system: ActorSystem[_],
-    ec:     ExecutionContext
+    nxtLeaderElection: NxtLeaderElection,
+    system:            ActorSystem[_],
+    ec:                ExecutionContext
   ): Future[Block] = {
     implicit val networkPrefix: NetworkPrefix = networkType.netPrefix
 
@@ -140,17 +141,23 @@ object Forger {
         if (networkType == PrivateTestnet) {
           val genesisSettings = settings.forging.genesis.flatMap(_.generated).head
           fetchStartupKeyView()
-            .map(view => GeneratedGenesis(view.addresses, genesisSettings).getGenesisBlock)
+            .map(view =>
+              GeneratedGenesis(view.addresses, genesisSettings, nxtLeaderElection.protocolMngr).getGenesisBlock
+            )
             .flatMap(r => initializeFromChainParamsAndGetBlock(r))
         } else {
           Future.failed(new IllegalArgumentException(s"Unsupported network type for generated genesis: $networkType"))
         }
       case "fromConfig" =>
         val genesisSettings = settings.forging.genesis.flatMap(_.providedFromConfig).head
-        initializeFromChainParamsAndGetBlock(GenesisFromConfig(genesisSettings, networkType).getGenesisBlock)
+        initializeFromChainParamsAndGetBlock(
+          GenesisFromConfig(genesisSettings, networkType, nxtLeaderElection.protocolMngr).getGenesisBlock
+        )
       case "fromBlockJson" =>
         val genesisSettings = settings.forging.genesis.flatMap(_.providedFromBlockJson).head
-        initializeFromChainParamsAndGetBlock(GenesisFromBlockJson(genesisSettings, networkType).getGenesisBlock)
+        initializeFromChainParamsAndGetBlock(
+          GenesisFromBlockJson(genesisSettings, networkType, nxtLeaderElection.protocolMngr).getGenesisBlock
+        )
       case _ =>
         Future.failed(new IllegalArgumentException(s"Undefined genesis method type $networkType"))
     }

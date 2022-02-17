@@ -1,6 +1,7 @@
 package co.topl.consensus.genesis
 
 import co.topl.consensus.Forger.ChainParams
+import co.topl.consensus.ProtocolVersioner
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
@@ -14,14 +15,17 @@ import io.circe.parser
 import scala.collection.immutable.ListMap
 import scala.util.Try
 
-case class GenesisFromBlockJson(settings: GenesisFromBlockJsonSettings, networkType: NetworkType)
-    extends GenesisProvider {
+case class GenesisFromBlockJson(
+  settings:     GenesisFromBlockJsonSettings,
+  networkType:  NetworkType,
+  protocolMngr: ProtocolVersioner
+) extends GenesisProvider {
 
   implicit override val networkPrefix: NetworkPrefix = networkType.netPrefix
 
   override protected val blockChecksum: ModifierId = ModifierId.empty
 
-  override protected val blockVersion: PNVMVersion = settings.blockVersion.toByte
+  override protected val blockVersion: PNVMVersion = protocolMngr.blockVersion(1)
 
   override protected val initialDifficulty: Long = block.difficulty
 

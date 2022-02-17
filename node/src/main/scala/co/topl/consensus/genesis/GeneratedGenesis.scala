@@ -2,6 +2,7 @@ package co.topl.consensus.genesis
 
 import co.topl.attestation.{Address, SignatureCurve25519}
 import co.topl.consensus.Forger.ChainParams
+import co.topl.consensus.ProtocolVersioner
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
@@ -13,13 +14,17 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import scala.collection.immutable.ListMap
 import scala.util.Try
 
-case class GeneratedGenesis(addresses: Set[Address], settings: GenesisGenerationSettings)(implicit
-  val networkPrefix:                   NetworkPrefix
+case class GeneratedGenesis(
+  addresses:    Set[Address],
+  settings:     GenesisGenerationSettings,
+  protocolMngr: ProtocolVersioner
+)(implicit
+  val networkPrefix: NetworkPrefix
 ) extends GenesisProvider {
 
   override protected val blockChecksum: ModifierId = ModifierId.empty
 
-  override protected val blockVersion: PNVMVersion = settings.blockVersion.toByte
+  override protected val blockVersion: PNVMVersion = protocolMngr.blockVersion(1)
 
   override def getGenesisBlock: Try[(Block, ChainParams)] = Try(formNewBlock)
 
