@@ -28,21 +28,21 @@ case class GenesisFromBlockJson(
 
   override protected val blockVersion: PNVMVersion = protocolMngr.blockVersion(1)
 
-  override protected val initialDifficulty: Long = block.difficulty
-
-  override protected[genesis] val members: ListMap[String, Int128] = ListMap.empty
-
-  override def getGenesisBlock: Try[(Block, ChainParams)] = Try(formNewBlock)
-
   val block: Block = {
     val blockFromJson = readJson(settings.providedJsonGenesisPath)(networkType.netPrefix)
     require(
       blockFromJson.id == blockChecksum,
       s"${Console.RED}MALFORMED GENESIS BLOCK! The calculated genesis block " +
-        s"with id ${blockFromJson.id} does not match the required block for the chosen network mode.${Console.RESET}"
+      s"with id ${blockFromJson.id} does not match the required block for the chosen network mode.${Console.RESET}"
     )
     blockFromJson
   }
+
+  override protected val initialDifficulty: Long = block.difficulty
+
+  override protected[genesis] val members: ListMap[String, Int128] = ListMap.empty
+
+  override def getGenesisBlock: Try[(Block, ChainParams)] = Try(formNewBlock)
 
   def formNewBlock: (Block, ChainParams) = {
     val privateTotalStake = block.transactions
