@@ -79,7 +79,8 @@ case class ForgingSettings(
   protocolVersions:     List[ProtocolSettings],
   forgeOnStartup:       Boolean,
   rewardsAddress:       Option[String], // String here since we don't know netPrefix when settings are read
-  privateTestnet:       Option[PrivateTestnetSettings]
+  privateTestnet:       Option[PrivateTestnetSettings],
+  genesis:              Option[GenesisSettings]
 )
 
 case class PrivateTestnetSettings(
@@ -87,6 +88,35 @@ case class PrivateTestnetSettings(
   testnetBalance:    Long,
   initialDifficulty: Long,
   genesisSeed:       Option[String]
+)
+
+case class GenesisSettings(
+  genesisMode:           String,
+  generated:             Option[GenesisGenerationSettings],
+  providedFromConfig:    Option[GenesisFromConfigSettings],
+  providedFromBlockJson: Option[GenesisFromBlockJsonSettings]
+)
+
+case class GenesisGenerationSettings(
+  blockVersion:      Int,
+  numTestnetAccts:   Int,
+  testnetBalance:    Long,
+  initialDifficulty: Long,
+  genesisSeed:       Option[String]
+)
+
+case class GenesisFromConfigSettings(
+  blockChecksum:     String,
+  blockVersion:      Int,
+  initialDifficulty: Long,
+  memberAddresses:   List[String],
+  memberStakes:      List[Long]
+)
+
+case class GenesisFromBlockJsonSettings(
+  blockVersion:            Int,
+  providedJsonGenesisPath: String,
+  blockChecksum:           String
 )
 
 case class GjallarhornSettings(
