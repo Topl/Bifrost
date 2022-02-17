@@ -1,4 +1,4 @@
-package co.topl.demo
+package co.topl.interpreters
 
 import akka.Done
 import akka.actor.typed.scaladsl.AskPattern._
@@ -8,14 +8,12 @@ import akka.util.Timeout
 import cats.data.Chain
 import cats.effect.kernel.{Async, Sync}
 import cats.implicits._
+import co.topl.algebras.SecureStore
 import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.consensus.SecureStore
-import co.topl.demo.AkkaSecureStoreActor.ReceivableMessages
 import co.topl.models.Bytes
 
 import java.nio.file.{Files, Path, Paths, StandardOpenOption}
-import scala.util.Try
 
 class AkkaSecureStore[F[_]: Async](actorRef: ActorRef[AkkaSecureStoreActor.ReceivableMessage])(implicit
   system:                                    ActorSystem[_],
@@ -26,7 +24,7 @@ class AkkaSecureStore[F[_]: Async](actorRef: ActorRef[AkkaSecureStoreActor.Recei
     ask[Done](AkkaSecureStoreActor.ReceivableMessages.Write(name, data, _)).void
 
   def consume[A: Persistable](name: String): F[Option[A]] =
-    ask(ReceivableMessages.Consume[A](name, _))
+    ask(AkkaSecureStoreActor.ReceivableMessages.Consume[A](name, _))
 
   def list: F[Chain[String]] =
     ask(AkkaSecureStoreActor.ReceivableMessages.List)

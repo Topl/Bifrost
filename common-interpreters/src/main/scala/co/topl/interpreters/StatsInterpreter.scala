@@ -1,7 +1,9 @@
-package co.topl.demo
+package co.topl.interpreters
 
+import cats.Applicative
 import cats.effect.kernel.Sync
 import co.topl.algebras.Stats
+import io.circe.Json
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths, StandardOpenOption}
@@ -17,5 +19,11 @@ object StatsInterpreter {
         data.asObject.fold(data.toString())(d => d.toList.map(_._2.toString).mkString(",")) + "\n"
       Sync[F].blocking(Files.write(filePath, contents.getBytes(StandardCharsets.UTF_8), openOptions: _*))
     }
+  }
+
+  object Noop {
+
+    def make[F[_]: Applicative]: Stats[F] =
+      (statName: String, data: Json) => Applicative[F].unit
   }
 }

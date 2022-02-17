@@ -7,8 +7,7 @@ import cats.effect.kernel.Concurrent
 import co.topl.codecs.bytes.tetra.instances._
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
-import co.topl.algebras.{ClockAlgebra, ConsensusState, UnsafeResource}
-import co.topl.consensus.SecureStore
+import co.topl.algebras.{ClockAlgebra, ConsensusState, SecureStore, UnsafeResource}
 import co.topl.consensus.algebras.EtaCalculationAlgebra
 import co.topl.crypto.mnemonic.Entropy
 import co.topl.crypto.signing._
@@ -46,11 +45,11 @@ object OperationalKeys {
       parentSlotId:                SlotId,
       operationalPeriodLength:     Long,
       activationOperationalPeriod: Long,
-      address:                     TaktikosAddress
+      address:                     TaktikosAddress,
+      initialSlot:                 Slot
     ): F[OperationalKeysAlgebra[F]] =
       for {
-        initialSlot <- clock.globalSlot
-        initialOperationalPeriod = initialSlot / operationalPeriodLength
+        initialOperationalPeriod <- (initialSlot / operationalPeriodLength).pure[F]
         initialKeysOpt <-
           OptionT(clock.epochOf(initialSlot).flatMap(consensusState.lookupRelativeStake(_)(address)))
             .flatMapF(relativeStake =>

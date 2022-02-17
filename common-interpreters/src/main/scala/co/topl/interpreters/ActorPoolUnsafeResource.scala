@@ -1,4 +1,4 @@
-package co.topl.demo
+package co.topl.interpreters
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior, PostStop, Scheduler}

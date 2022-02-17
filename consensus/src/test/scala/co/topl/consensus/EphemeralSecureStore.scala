@@ -3,6 +3,7 @@ package co.topl.consensus
 import cats.data.Chain
 import cats.implicits._
 import cats.{Defer, Monad}
+import co.topl.algebras.SecureStore
 import co.topl.codecs._
 import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.codecs.bytes.typeclasses.implicits._

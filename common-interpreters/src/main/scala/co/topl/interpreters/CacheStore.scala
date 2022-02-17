@@ -1,4 +1,4 @@
-package co.topl.demo
+package co.topl.interpreters
 
 import cats.Monad
 import cats.effect.{Clock, Ref, Sync}

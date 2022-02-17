@@ -5,9 +5,8 @@ import cats.data.Chain
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import co.topl.algebras.testInterpreters.NoOpLogger
-import co.topl.algebras.{ClockAlgebra, ConsensusState, UnsafeResource}
+import co.topl.algebras.{ClockAlgebra, ConsensusState, SecureStore, UnsafeResource}
 import co.topl.codecs.bytes.typeclasses.Persistable
-import co.topl.consensus.SecureStore
 import co.topl.consensus.algebras.EtaCalculationAlgebra
 import co.topl.crypto.signing.{Ed25519, KesProduct}
 import co.topl.minting.algebras.{OperationalKeyOut, VrfProofAlgebra}

@@ -1,4 +1,4 @@
-package co.topl.demo
+package co.topl.simulator.eligibility
 
 import akka.actor.typed.ActorSystem
 import akka.util.Timeout
@@ -11,7 +11,6 @@ import cats.effect.{Async, IO, IOApp}
 import cats.implicits._
 import cats.~>
 import co.topl.algebras._
-import co.topl.interpreters._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
@@ -20,6 +19,7 @@ import co.topl.consensus.algebras.{EtaCalculationAlgebra, LeaderElectionValidati
 import co.topl.crypto.hash.{blake2b256, Blake2b256, Blake2b512}
 import co.topl.crypto.mnemonic.Entropy
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
+import co.topl.interpreters._
 import co.topl.minting._
 import co.topl.minting.algebras.BlockMintAlgebra
 import co.topl.models._
@@ -36,12 +36,12 @@ import java.util.UUID
 import scala.concurrent.duration._
 import scala.util.Random
 
-object TetraDemo extends IOApp.Simple {
+object EligibilitySimulator extends IOApp.Simple {
 
   // Configuration Data
   private val vrfConfig =
     VrfConfig(lddCutoff = 10, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(1))
-//    VrfConfig(lddCutoff = 40, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(2, 5))
+  //    VrfConfig(lddCutoff = 40, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(2, 5))
 
   private val OperationalPeriodLength = 180L
   private val OperationalPeriodsPerEpoch = 4L
@@ -137,7 +137,7 @@ object TetraDemo extends IOApp.Simple {
   Files.createDirectories(statsDir)
 
   private val statsInterpreter =
-    StatsInterpreter.Eval.make[F](statsDir)
+    StatsInterpreter.Noop.make[F]
 
   private def mints(
     etaCalculation:          EtaCalculationAlgebra[F],
@@ -151,7 +151,7 @@ object TetraDemo extends IOApp.Simple {
         for {
           _            <- Logger[F].info(show"Initializing staker key idx=0 address=${staker.address}")
           stakerKeyDir <- IO.blocking(Files.createTempDirectory(show"TetraDemoStaker${staker.address}"))
-          secureStore  <- AkkaSecureStore.Eval.make[F](stakerKeyDir)
+          secureStore  <- InMemorySecureStore.Eval.make[F]
           _            <- secureStore.write(UUID.randomUUID().toString, staker.kesKey)
           vrfProofConstruction <- VrfProof.Eval.make[F](
             staker.vrfKey,
@@ -255,7 +255,7 @@ object TetraDemo extends IOApp.Simple {
         ChainSelection.orderT[F](slotDataCache, blake2b512Resource, ChainSelectionKLookback, ChainSelectionSWindow)
       )
       m <- mints(etaCalculation, leaderElectionThreshold, ed25519VRFResource, kesProductResource, ed25519Resource)
-      _ <- DemoProgram
+      _ <- EligibilitySimulatorProgram
         .run[F](
           clock,
           m,
