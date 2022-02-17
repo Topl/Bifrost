@@ -9,6 +9,7 @@ import co.topl.modifier.box.PolyBox
 import co.topl.settings.GenesisFromBlockJsonSettings
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.{Int128, NetworkType}
 import io.circe.parser
 
@@ -23,7 +24,7 @@ case class GenesisFromBlockJson(
 
   implicit override val networkPrefix: NetworkPrefix = networkType.netPrefix
 
-  override protected val blockChecksum: ModifierId = ModifierId.empty
+  override protected val blockChecksum: ModifierId = ModifierId.fromBase58(Base58Data.unsafe(settings.blockChecksum))
 
   override protected val blockVersion: PNVMVersion = protocolMngr.blockVersion(1)
 
@@ -33,7 +34,15 @@ case class GenesisFromBlockJson(
 
   override def getGenesisBlock: Try[(Block, ChainParams)] = Try(formNewBlock)
 
-  val block: Block = readJson(settings.providedJsonGenesisPath)(networkType.netPrefix)
+  val block: Block = {
+    val blockFromJson = readJson(settings.providedJsonGenesisPath)(networkType.netPrefix)
+    require(
+      blockFromJson.id == blockChecksum,
+      s"${Console.RED}MALFORMED GENESIS BLOCK! The calculated genesis block " +
+        s"with id ${blockFromJson.id} does not match the required block for the chosen network mode.${Console.RESET}"
+    )
+    blockFromJson
+  }
 
   def formNewBlock: (Block, ChainParams) = {
     val privateTotalStake = block.transactions
