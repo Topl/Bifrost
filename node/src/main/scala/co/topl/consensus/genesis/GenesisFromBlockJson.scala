@@ -26,8 +26,6 @@ case class GenesisFromBlockJson(
 
   override protected val blockChecksum: ModifierId = ModifierId.fromBase58(Base58Data.unsafe(settings.blockChecksum))
 
-  override protected val blockVersion: PNVMVersion = protocolMngr.blockVersion(1)
-
   val block: Block = {
     val blockFromJson = readJson(settings.providedJsonGenesisPath)(networkType.netPrefix)
     require(
@@ -37,6 +35,8 @@ case class GenesisFromBlockJson(
     )
     blockFromJson
   }
+
+  override protected val blockVersion: PNVMVersion = block.version
 
   override protected val initialDifficulty: Long = block.difficulty
 
