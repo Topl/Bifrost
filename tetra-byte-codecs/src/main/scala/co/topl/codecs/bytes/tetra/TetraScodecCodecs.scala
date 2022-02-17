@@ -246,8 +246,8 @@ trait TetraScodecCodecs {
   implicit val blockHeaderV2Codec: Codec[BlockHeaderV2] = Codec.lazily(???)
 
   implicit val unsignedBlockHeaderV2Codec: Codec[BlockHeaderV2.Unsigned] =
-    (typedBytesCodec :: longCodec :: strictSizedBytesCodec[Lengths.`32`.type] :: strictSizedBytesCodec[
-      Lengths.`256`.type
+    (typedBytesCodec :: longCodec :: Codec[TxRoot] :: Codec[
+      BloomFilter
     ] :: longCodec :: longCodec :: longCodec :: eligibilityCertificateCodec :: partialOperationalCertificateCodec :: optionCodec(
       maxSizedCodec[Latin1Data, Lengths.`32`.type]
     ) :: taktikosAddressCodec)

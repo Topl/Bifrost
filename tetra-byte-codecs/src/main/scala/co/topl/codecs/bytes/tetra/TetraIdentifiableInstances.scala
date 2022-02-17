@@ -2,7 +2,7 @@ package co.topl.codecs.bytes.tetra
 
 import co.topl.codecs.bytes.typeclasses.Identifiable
 import co.topl.codecs.bytes.typeclasses.implicits._
-import TetraStableCodecs._
+import TetraImmutableCodecs._
 import co.topl.crypto.hash.Blake2b256
 import co.topl.models._
 

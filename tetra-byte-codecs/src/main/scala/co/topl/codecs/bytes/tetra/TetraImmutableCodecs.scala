@@ -6,7 +6,7 @@ import co.topl.models.BlockHeaderV2.Unsigned.PartialOperationalCertificate
 import co.topl.models._
 import co.topl.models.utility.Ratio
 
-trait TetraStableCodecs {
+trait TetraImmutableCodecs {
   import TetraScodecCodecs._
 
   implicit val ratioStableCodec: ImmutableCodec[Ratio] =
@@ -44,4 +44,4 @@ trait TetraStableCodecs {
 
 }
 
-object TetraStableCodecs extends TetraStableCodecs
+object TetraImmutableCodecs extends TetraImmutableCodecs

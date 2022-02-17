@@ -6,7 +6,7 @@ import com.google.common.primitives.{Ints, Longs}
 
 trait TetraSignableCodecs {
 
-  import TetraStableCodecs._
+  import TetraImmutableCodecs._
 
   implicit val signableUnsignedBlockHeaderV2: Signable[BlockHeaderV2.Unsigned] =
     t => unsignedHeaderV2StableCodec.immutableBytes(t)

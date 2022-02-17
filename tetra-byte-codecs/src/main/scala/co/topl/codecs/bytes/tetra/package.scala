@@ -8,6 +8,6 @@ package object tetra {
       with TetraPersistableCodecs
 //      with TetraScodecCodecs
       with TetraSignableCodecs
-      with TetraStableCodecs
+      with TetraImmutableCodecs
       with TetraTransmittableCodecs
 }

@@ -50,8 +50,8 @@ object ImmutableEncoder {
 
   /**
    * Attempts to decode a value of type `T` from a given array of bytes.
-   * The given bytes should have been generated using the `persistedBytes` function.
-   * @param bytes the persisted bytes to attempt to decode into a value of `T`
+   * The given bytes should have been generated using the `immutableBytes` function.
+   * @param bytes the immutable bytes to attempt to decode into a value of `T`
    * @return if successful, a value of type `T` represented by the input bytes, otherwise a failure message
    */
   def fromImmutableBytes(bytes: ByteVector): Either[String, T]
@@ -62,4 +62,10 @@ object ImmutableDecoder {
 
   def fromScodecDecoder[T: Decoder]: ImmutableDecoder[T] =
     t => Decoder[T].decodeValue(t.toBitVector).toEither.leftMap(e => e.messageWithContext)
+
+  class BytesImmutableDecoderOps(private val bytes: ByteVector) extends AnyVal {
+
+    def decodeImmutable[T: ImmutableDecoder]: Either[String, T] =
+      ImmutableDecoder[T].fromImmutableBytes(bytes)
+  }
 }
