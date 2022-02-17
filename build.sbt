@@ -191,27 +191,36 @@ lazy val bifrost = project
   )
   .configs(IntegrationTest)
   .aggregate(
-    node,
-    common,
-    akkaHttpRpc,
-    models,
-    typeclasses,
-    toplRpc,
-    benchmarking,
-    crypto,
-    brambl,
-    models,
-    algebras,
-    minting,
-    byteCodecs,
-    tetraByteCodecs,
-    consensus,
-    demo,
-    tools,
-    scripting
+    node.jvm,
+    common.jvm,
+    akkaHttpRpc.jvm,
+    models.jvm,
+    models.js,
+    typeclasses.jvm,
+    typeclasses.js,
+    toplRpc.jvm,
+    benchmarking.jvm,
+    crypto.jvm,
+    crypto.js,
+    brambl.jvm,
+    models.jvm,
+    models.js,
+    algebras.jvm,
+    algebras.js,
+    minting.jvm,
+    minting.js,
+    byteCodecs.jvm,
+    byteCodecs.js,
+    tetraByteCodecs.jvm,
+    tetraByteCodecs.js,
+    consensus.jvm,
+    consensus.js,
+    demo.jvm,
+    tools.jvm,
+    scripting.jvm
   )
 
-lazy val node = project
+lazy val node = crossProject(JVMPlatform)
   .in(file("node"))
   .settings(
     name := "bifrost-node",
@@ -224,7 +233,7 @@ lazy val node = project
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
-    libraryDependencies ++= Dependencies.node
+    libraryDependencies ++= Dependencies.node.value
   )
   .configs(IntegrationTest)
   .settings(
@@ -233,13 +242,13 @@ lazy val node = project
   .dependsOn(common % "compile->compile;test->test", toplRpc, tools)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
-lazy val common = project
+lazy val common = crossProject(JVMPlatform)
   .in(file("common"))
   .settings(
     name := "common",
     commonSettings,
     publishSettings,
-    libraryDependencies ++= Dependencies.common
+    libraryDependencies ++= Dependencies.common.value
   )
   .dependsOn(crypto, typeclasses, models % "compile->compile;test->test")
   .settings(scalamacrosParadiseSettings)
@@ -255,33 +264,33 @@ lazy val common = project
 //  .dependsOn(common)
 //  .disablePlugins(sbtassembly.AssemblyPlugin)
 
-lazy val brambl = project
+lazy val brambl = crossProject(JVMPlatform)
   .in(file("brambl"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
     name := "brambl",
     commonSettings,
     publishSettings,
-    libraryDependencies ++= Dependencies.brambl,
+    libraryDependencies ++= Dependencies.brambl.value,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.brambl"
   )
   .settings(scalamacrosParadiseSettings)
   .dependsOn(toplRpc, common, typeclasses, models % "compile->compile;test->test", scripting, tetraByteCodecs)
 
-lazy val akkaHttpRpc = project
+lazy val akkaHttpRpc = crossProject(JVMPlatform)
   .in(file("akka-http-rpc"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
     name := "akka-http-rpc",
     commonSettings,
     publishSettings,
-    libraryDependencies ++= Dependencies.akkaHttpRpc,
+    libraryDependencies ++= Dependencies.akkaHttpRpc.value,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.akkahttprpc"
   )
 
-lazy val models = project
+lazy val models = crossProject(JVMPlatform, JSPlatform)
   .in(file("models"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
@@ -293,11 +302,11 @@ lazy val models = project
   )
   .settings(scalamacrosParadiseSettings)
   .settings(
-    libraryDependencies ++= Dependencies.models
+    libraryDependencies ++= Dependencies.models.value
   )
-  .settings(libraryDependencies ++= Dependencies.test)
+  .settings(libraryDependencies ++= Dependencies.test.value)
 
-lazy val byteCodecs = project
+lazy val byteCodecs = crossProject(JVMPlatform, JSPlatform)
   .in(file("byte-codecs"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
@@ -310,16 +319,23 @@ lazy val byteCodecs = project
   )
   .settings(
     libraryDependencies ++=
-      Dependencies.test ++
-      Dependencies.simulacrum ++
-      Dependencies.scodec ++
-      Dependencies.scodecBits ++
-      Dependencies.cats ++
-      Seq(Dependencies.akka("actor"))
+      Dependencies.test.value ++
+      Dependencies.simulacrum.value ++
+      Dependencies.scodec.value ++
+      Dependencies.scodecBits.value ++
+      Dependencies.cats.value
+  )
+  .jsSettings(
+    libraryDependencies ++=
+      Seq(Dependencies.akkaJs("actor").value)
+  )
+  .jvmSettings(
+    libraryDependencies ++=
+      Seq(Dependencies.akka("actor").value)
   )
   .settings(scalamacrosParadiseSettings)
 
-lazy val tetraByteCodecs = project
+lazy val tetraByteCodecs = crossProject(JVMPlatform, JSPlatform)
   .in(file("tetra-byte-codecs"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
@@ -329,11 +345,11 @@ lazy val tetraByteCodecs = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.codecs.bytes.tetra"
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.guava)
+  .settings(libraryDependencies ++= Dependencies.test.value ++ Dependencies.guava.value)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, byteCodecs, crypto)
 
-lazy val jsonCodecs = project
+lazy val jsonCodecs = crossProject(JVMPlatform, JSPlatform)
   .in(file("json-codecs"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
@@ -343,11 +359,11 @@ lazy val jsonCodecs = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.codecs.json"
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.circe)
+  .settings(libraryDependencies ++= Dependencies.test.value ++ Dependencies.circe.value)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models)
 
-lazy val typeclasses: Project = project
+lazy val typeclasses = crossProject(JVMPlatform, JSPlatform)
   .in(file("typeclasses"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
@@ -357,11 +373,11 @@ lazy val typeclasses: Project = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.typeclasses"
   )
-  .settings(libraryDependencies ++= Dependencies.test)
+  .settings(libraryDependencies ++= Dependencies.test.value)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test", crypto, tetraByteCodecs, jsonCodecs)
 
-lazy val algebras = project
+lazy val algebras = crossProject(JVMPlatform, JSPlatform)
   .in(file("algebras"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
@@ -371,11 +387,11 @@ lazy val algebras = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.algebras"
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Seq(Dependencies.catsSlf4j % "test"))
+  .settings(libraryDependencies ++= Dependencies.test.value ++ Seq(Dependencies.catsSlf4j.value % "test"))
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, crypto, tetraByteCodecs)
 
-lazy val commonInterpreters = project
+lazy val commonInterpreters = crossProject(JVMPlatform, JSPlatform)
   .in(file("common-interpreters"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
@@ -386,14 +402,22 @@ lazy val commonInterpreters = project
     buildInfoPackage := "co.topl.buildinfo.interpreters"
   )
   .settings(
-    libraryDependencies ++= Dependencies.test ++ Seq(Dependencies.catsSlf4j % "test") ++ Seq(
-      Dependencies.akka("actor-typed")
-    ) ++ Dependencies.cats ++ Dependencies.catsEffect ++ Dependencies.scalacache
+    libraryDependencies ++= Dependencies.test.value ++ Seq(
+      Dependencies.catsSlf4j.value % "test"
+    ) ++ Dependencies.cats.value ++ Dependencies.catsEffect.value ++ Dependencies.scalacache.value
+  )
+  .jsSettings(
+    libraryDependencies ++=
+      Seq(Dependencies.akkaJs("actortyped").value)
+  )
+  .jvmSettings(
+    libraryDependencies ++=
+      Seq(Dependencies.akka("actor-typed").value)
   )
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, crypto, tetraByteCodecs, algebras, typeclasses)
 
-lazy val consensus = project
+lazy val consensus = crossProject(JVMPlatform, JSPlatform)
   .in(file("consensus"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
@@ -403,9 +427,9 @@ lazy val consensus = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.consensus"
   )
-  .settings(libraryDependencies ++= Dependencies.test)
+  .settings(libraryDependencies ++= Dependencies.test.value)
   .settings(
-    libraryDependencies ++= Dependencies.consensus
+    libraryDependencies ++= Dependencies.consensus.value
   )
   .settings(scalamacrosParadiseSettings)
   .dependsOn(
@@ -415,8 +439,9 @@ lazy val consensus = project
     tetraByteCodecs,
     algebras % "compile->compile;test->test"
   )
+  .enablePlugins(ScalaJSPlugin)
 
-lazy val minting = project
+lazy val minting = crossProject(JVMPlatform, JSPlatform)
   .in(file("minting"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
@@ -426,7 +451,7 @@ lazy val minting = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.minting"
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsEffect)
+  .settings(libraryDependencies ++= Dependencies.test.value ++ Dependencies.catsEffect.value)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(
     models % "compile->compile;test->test",
@@ -436,8 +461,9 @@ lazy val minting = project
     algebras % "compile->compile;test->test",
     consensus
   )
+  .enablePlugins(ScalaJSPlugin)
 
-lazy val demo = project
+lazy val demo = crossProject(JVMPlatform)
   .in(file("demo"))
   .settings(
     name := "demo",
@@ -456,12 +482,21 @@ lazy val demo = project
       "bifrost.version" -> version.value
     )
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.demo ++ Dependencies.catsEffect)
+  .settings(libraryDependencies ++= Dependencies.test.value ++ Dependencies.demo.value ++ Dependencies.catsEffect.value)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test", typeclasses, consensus, minting, scripting, commonInterpreters)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
-lazy val eligibilitySimulator: Project = project
+lazy val scalajsSupport = crossProject(JSPlatform, JVMPlatform)
+  .in(file("scalajs-support"))
+  .settings(
+    name := "scalajsSupport",
+    publish / skip := true,
+    libraryDependencies ++= Dependencies.cats.value,
+    addCompilerPlugin("org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full)
+  )
+
+lazy val eligibilitySimulator = crossProject(JVMPlatform, JSPlatform)
   .in(file("eligibility-simulator"))
   .settings(
     name := "eligibilitySimulator",
@@ -472,14 +507,22 @@ lazy val eligibilitySimulator: Project = project
     Compile / run / mainClass := Some("co.topl.simulator.eligibility.EligibilitySimulator"),
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "co.topl.buildinfo.simulator.eligibility"
+    buildInfoPackage := "co.topl.buildinfo.simulator.eligibility",
+    scalaJSUseMainModuleInitializer := true
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.demo ++ Dependencies.catsEffect)
+  .settings(libraryDependencies ++= Dependencies.test.value ++ Dependencies.demo.value ++ Dependencies.catsEffect.value)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models % "compile->compile;test->test", typeclasses, consensus, minting, commonInterpreters)
+  .dependsOn(
+    models % "compile->compile;test->test",
+    typeclasses,
+    consensus,
+    minting,
+    commonInterpreters,
+    scalajsSupport
+  )
   .enablePlugins(BuildInfoPlugin)
 
-lazy val scripting: Project = project
+lazy val scripting = crossProject(JVMPlatform)
   .in(file("scripting"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
@@ -489,12 +532,12 @@ lazy val scripting: Project = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.scripting"
   )
-  .settings(libraryDependencies ++= Dependencies.graal ++ Dependencies.catsEffect)
-  .settings(libraryDependencies ++= Dependencies.test)
+  .settings(libraryDependencies ++= Dependencies.graal.value ++ Dependencies.catsEffect.value)
+  .settings(libraryDependencies ++= Dependencies.test.value)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test", typeclasses)
 
-lazy val toplRpc = project
+lazy val toplRpc = crossProject(JVMPlatform)
   .in(file("topl-rpc"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
@@ -502,7 +545,7 @@ lazy val toplRpc = project
     commonSettings,
     publishSettings,
     scalamacrosParadiseSettings,
-    libraryDependencies ++= Dependencies.toplRpc,
+    libraryDependencies ++= Dependencies.toplRpc.value,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.toplrpc"
   )
@@ -523,32 +566,36 @@ lazy val toplRpc = project
 //  .disablePlugins(sbtassembly.AssemblyPlugin)
 //  .settings(scalamacrosParadiseSettings)
 
-lazy val benchmarking = project
+lazy val benchmarking = crossProject(JVMPlatform)
   .in(file("benchmark"))
   .settings(
     name := "benchmark",
     commonSettings,
-    publish / skip := true,
-    libraryDependencies ++= Dependencies.benchmarking
+    publish / skip := true
   )
   .enablePlugins(JmhPlugin)
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
-lazy val crypto = project
+lazy val crypto = crossProject(JVMPlatform, JSPlatform)
   .in(file("crypto"))
-  .enablePlugins(BuildInfoPlugin)
+  .enablePlugins(BuildInfoPlugin, ScalaJSBundlerPlugin)
   .settings(
     name := "crypto",
     commonSettings,
     publishSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.crypto",
-    libraryDependencies ++= Dependencies.crypto
+    libraryDependencies ++= Dependencies.crypto.value
+  )
+  .jsSettings(
+    Compile / npmDependencies ++= Seq(
+      "blake2b" -> "2.1.4"
+    )
   )
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test")
 
-lazy val tools = project
+lazy val tools = crossProject(JVMPlatform)
   .in(file("tools"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
@@ -557,17 +604,17 @@ lazy val tools = project
     publishSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.tools",
-    libraryDependencies ++= Dependencies.tools
+    libraryDependencies ++= Dependencies.tools.value
   )
   .dependsOn(common)
 
-lazy val loadTesting = project
+lazy val loadTesting = crossProject(JVMPlatform)
   .in(file("load-testing"))
   .settings(
     name := "load-testing",
     commonSettings,
     scalamacrosParadiseSettings,
-    libraryDependencies ++= Dependencies.loadTesting
+    libraryDependencies ++= Dependencies.loadTesting.value
   )
   .dependsOn(common, brambl)
 

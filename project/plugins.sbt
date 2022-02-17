@@ -17,5 +17,9 @@ Seq(
   "com.github.sbt"     % "sbt-native-packager"       % "1.9.0",
   "com.eed3si9n"       % "sbt-buildinfo"             % "0.10.0",
   "com.geirsson"       % "sbt-ci-release"            % "1.5.7",
-  "net.bzzt"           % "sbt-reproducible-builds"   % "0.30"
+  "net.bzzt"           % "sbt-reproducible-builds"   % "0.30",
+  "org.scala-js"       % "sbt-scalajs"               % "1.9.0",
+  "org.portable-scala" % "sbt-scalajs-crossproject"  % "1.1.0",
+  "org.scala-js"       % "sbt-scalajs"               % "1.0.0",
+  "ch.epfl.scala"      % "sbt-scalajs-bundler"       % "0.20.0"
 ).map(addSbtPlugin)
