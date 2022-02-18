@@ -173,6 +173,12 @@ object Dependencies {
     )
   )
 
+  val scalajsDom = Def.setting(
+    Seq(
+      "org.scala-js" %%% "scalajs-dom" % "2.1.0"
+    )
+  )
+
   val node: Def.Initialize[Seq[ModuleID]] =
     Def.setting(
       Seq(

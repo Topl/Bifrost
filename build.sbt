@@ -217,7 +217,8 @@ lazy val bifrost = project
     consensus.js,
     demo.jvm,
     tools.jvm,
-    scripting.jvm
+    scripting.jvm,
+    scalajsDemo.js
   )
 
 lazy val node = crossProject(JVMPlatform)
@@ -522,6 +523,42 @@ lazy val eligibilitySimulator = crossProject(JVMPlatform, JSPlatform)
   )
   .enablePlugins(BuildInfoPlugin)
 
+lazy val scalajsDemo = crossProject(JSPlatform)
+  .in(file("scalajs-demo"))
+  .settings(
+    name := "scalajsDemo",
+    commonSettings,
+    assemblySettings("co.topl.demo.ScalaJSDemo"),
+    Defaults.itSettings,
+    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
+    Compile / run / mainClass := Some("co.topl.demo.ScalaJSDemo"),
+    publish / skip := true,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.demo",
+    scalaJSUseMainModuleInitializer := true
+  )
+  .settings(libraryDependencies ++= Dependencies.catsEffect.value ++ Dependencies.scalajsDom.value)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(
+    models,
+    crypto,
+    scalajsSupport,
+    byteCodecs,
+    tetraByteCodecs
+  )
+  .jsSettings(
+    webpackBundlingMode := BundlingMode.LibraryAndApplication(),
+    Compile / npmDependencies ++= Seq(
+      "force-graph" -> "1.42.7",
+      "blake2b" -> "2.1.4"
+    ),
+    stIgnore += "blake2b",
+    /* we use a bit of functionality which can't be found in scala-js-dom */
+    stUseScalaJsDom := false
+  )
+  .jsConfigure(project => project.enablePlugins(ScalaJSBundlerPlugin))
+  .enablePlugins(BuildInfoPlugin, ScalablyTypedConverterPlugin)
+
 lazy val scripting = crossProject(JVMPlatform)
   .in(file("scripting"))
   .enablePlugins(BuildInfoPlugin)
@@ -590,10 +627,14 @@ lazy val crypto = crossProject(JVMPlatform, JSPlatform)
   .jsSettings(
     Compile / npmDependencies ++= Seq(
       "blake2b" -> "2.1.4"
-    )
+    ),
+    stIgnore += "blake2b",
+    webpackBundlingMode := BundlingMode.LibraryOnly()
   )
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test")
+  .jsConfigure(project => project.enablePlugins(ScalaJSBundlerPlugin))
+  .enablePlugins(ScalablyTypedConverterPlugin)
 
 lazy val tools = crossProject(JVMPlatform)
   .in(file("tools"))

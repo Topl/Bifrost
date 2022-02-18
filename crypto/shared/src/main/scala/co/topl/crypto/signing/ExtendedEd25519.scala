@@ -108,7 +108,7 @@ class ExtendedEd25519
       case _: Bip32Indexes.HardenedIndex =>
         0x00.toByte +: (secretKey.leftKey.data ++ secretKey.rightKey.data ++ index.bytes.data)
     }
-    val z = ExtendedEd25519.hmac512WithKey(secretKey.chainCode.data.toArray, zHmacData.toArray)
+    val z = SHA512HMAC.hmac512WithKey(secretKey.chainCode.data.toArray, zHmacData.toArray)
 
     val zLeft =
       BigInt(1, z.slice(0, 28).reverse.toArray)
@@ -143,7 +143,7 @@ class ExtendedEd25519
 
     val nextChainCode =
       Bytes(
-        ExtendedEd25519
+        SHA512HMAC
           .hmac512WithKey(secretKey.chainCode.data.toArray, chaincodeHmacData.toArray)
           .slice(32, 64)
           .toArray
@@ -169,7 +169,7 @@ class ExtendedEd25519
     index:           Bip32Indexes.SoftIndex
   ): VerificationKeys.ExtendedEd25519 = {
 
-    val z = ExtendedEd25519.hmac512WithKey(
+    val z = SHA512HMAC.hmac512WithKey(
       verificationKey.chainCode.data.toArray,
       (((0x02: Byte) +: verificationKey.vk.bytes.data) ++ index.bytes.data).toArray
     )
@@ -199,7 +199,7 @@ class ExtendedEd25519
     val nextPk = Bytes(nextPublicKeyBytes)
 
     val nextChainCode =
-      ExtendedEd25519
+      SHA512HMAC
         .hmac512WithKey(
           verificationKey.chainCode.data.toArray,
           Array(0x03.toByte) ++ verificationKey.vk.bytes.data.toArray ++ index.bytes.data.toArray
@@ -297,15 +297,6 @@ object ExtendedEd25519 {
 
   private def rightNumber(secretKey: SecretKeys.ExtendedEd25519): BigInt =
     BigInt(1, secretKey.rightKey.data.toArray.reverse)
-
-  private def hmac512WithKey(key: Array[Byte], data: Array[Byte]): Bytes = {
-    val mac = new HMac(new SHA512Digest())
-    mac.init(new KeyParameter(key))
-    mac.update(data, 0, data.length)
-    val out = new Array[Byte](64)
-    mac.doFinal(out, 0)
-    Bytes(out)
-  }
 
   case object InvalidDerivedKey
   type InvalidDerivedKey = InvalidDerivedKey.type

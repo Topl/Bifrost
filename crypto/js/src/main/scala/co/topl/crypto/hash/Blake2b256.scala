@@ -6,6 +6,7 @@ import co.topl.models.utility.{Lengths, Sized}
 
 import scala.scalajs.js
 import scala.scalajs.js.annotation.JSImport
+import scala.scalajs.js.typedarray.Uint8Array
 
 /**
  * A thread-unsafe version of the blake2b interface defined above
@@ -13,11 +14,11 @@ import scala.scalajs.js.annotation.JSImport
 class Blake2b256 {
 
   def hash(bytes: Bytes*): Sized.Strict[Bytes, Lengths.`32`.type] = {
-    val out = new Array[Byte](32)
+    val out = new Uint8Array(32)
     val b2b = blake2b(32)
-    bytes.foreach(b => b2b.update(b.toArray))
-    b2b.out(out)
-    Sized.strictUnsafe(Bytes(out))
+    bytes.foreach(b => b2b.update(Uint8Array.of(b.toArray.map(_.toShort): _*)))
+    b2b.digest(out)
+    Sized.strictUnsafe(Bytes(out.toArray.map(_.toByte)))
   }
 }
 
@@ -27,11 +28,11 @@ class Blake2b256 {
 class Blake2b512 {
 
   def hash(bytes: Bytes*): Sized.Strict[Bytes, Lengths.`64`.type] = {
-    val out = new Array[Byte](64)
+    val out = new Uint8Array(64)
     val b2b = blake2b(64)
-    bytes.foreach(b => b2b.update(b.toArray))
-    b2b.out(out)
-    Sized.strictUnsafe(Bytes(out))
+    bytes.foreach(b => b2b.update(Uint8Array.of(b.toArray.map(_.toShort): _*)))
+    b2b.digest(out)
+    Sized.strictUnsafe(Bytes(out.toArray.map(_.toByte)))
   }
 }
 
@@ -44,6 +45,6 @@ object blake2b extends js.Function1[Int, Blake2bJS] {
 @JSImport("blake2b", JSImport.Namespace)
 @js.native
 class Blake2bJS extends js.Object {
-  def update(bytes: Array[Byte]): Unit = js.native
-  def out(bytes: Array[Byte]): Unit = js.native
+  def update(bytes: Uint8Array): Unit = js.native
+  def digest(bytes: Uint8Array): Unit = js.native
 }
