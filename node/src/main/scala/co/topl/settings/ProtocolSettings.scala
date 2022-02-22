@@ -9,7 +9,7 @@ import scala.concurrent.duration.FiniteDuration
  *
  * versionLimit and blockLimit is set to the max value since the latest protocol version should apply indefinitely
  *
- * @param version maximum applicable software version for these protocol settings
+ * @param version minimum applicable software version for these protocol settings
  * @param startBlock starting block height for the protocol settings
  * @param targetBlockTime Agreed upon block time target
  * @param numTxPerBlock number of transactions per block

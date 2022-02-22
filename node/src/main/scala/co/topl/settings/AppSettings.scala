@@ -24,12 +24,15 @@ case class ApplicationSettings(
 )
 
 case class RPCApiSettings(
-  bindAddress:       InetSocketAddress,
-  disableAuth:       Boolean,
-  apiKeyHash:        String,
-  timeout:           FiniteDuration,
-  verboseAPI:        Boolean,
-  namespaceSelector: NamespaceSelector
+  bindAddress:           InetSocketAddress,
+  disableAuth:           Boolean,
+  apiKeyHash:            String,
+  timeout:               FiniteDuration,
+  verboseAPI:            Boolean,
+  namespaceSelector:     NamespaceSelector,
+  blockRetrievalLimit:   Int,
+  blockIdRetrievalLimit: Int,
+  txRetrievalLimit:      Int
 )
 
 case class NetworkSettings(
@@ -92,13 +95,28 @@ case class GjallarhornSettings(
   clusterPort:    Option[Int]
 )
 
+case class ChainReplicatorSettings(
+  enableChainReplicator:   Boolean,
+  checkMissingBlock:       Boolean,
+  checkMissingStartHeight: Long,
+  blockCheckSize:          Int,
+  actorStashSize:          Int,
+  mempoolCheckSize:        Int,
+  uri:                     Option[String],
+  database:                Option[String],
+  blockCollection:         String,
+  confirmedTxCollection:   String,
+  unconfirmedTxCollection: String
+)
+
 case class AppSettings(
-  application: ApplicationSettings,
-  network:     NetworkSettings,
-  gjallarhorn: GjallarhornSettings,
-  forging:     ForgingSettings,
-  rpcApi:      RPCApiSettings,
-  ntp:         NetworkTimeProviderSettings
+  application:     ApplicationSettings,
+  network:         NetworkSettings,
+  gjallarhorn:     GjallarhornSettings,
+  forging:         ForgingSettings,
+  rpcApi:          RPCApiSettings,
+  ntp:             NetworkTimeProviderSettings,
+  chainReplicator: ChainReplicatorSettings
 )
 
 object AppSettings extends Logging with SettingsReaders {
