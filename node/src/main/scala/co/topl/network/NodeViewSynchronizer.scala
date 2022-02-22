@@ -77,6 +77,7 @@ class NodeViewSynchronizer(
     context.system.eventStream.subscribe(self, classOf[NodeViewHolder.OutcomeEvent])
     context.system.eventStream.subscribe(self, classOf[NodeViewHolder.Events.DownloadRequest])
     context.system.eventStream.subscribe(self, classOf[ModifiersProcessingResult[Block]])
+    context.system.eventStream.subscribe(self, classOf[NodeViewHolder.Events.BlockCacheOverflow])
 
     log.info(s"${Console.YELLOW}NodeViewSynchronizer transitioning to the operational state${Console.RESET}")
 
@@ -165,6 +166,8 @@ class NodeViewSynchronizer(
       /** applied modifiers state was already changed at `SyntacticallySuccessfulModifier` */
       cleared.foreach(m => deliveryTracker.setUnknown(m.id))
       requestMoreModifiers(applied)
+
+    case NodeViewHolder.Events.BlockCacheOverflow(block) => deliveryTracker.setUnknown(block.id)
   }
 
   protected def peerManagerEvents: Receive = {
