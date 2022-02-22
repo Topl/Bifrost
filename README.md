@@ -1,19 +1,18 @@
 Project-Bifrost:<br/>A Scala Client for the Topl Blockchain Protocol 
 ====================================================================================================================================================================================
 
-Project Bifrost is a Scala client designed over a cryptocurrency/blockchain protocol developed to achieve three specific goals:
-- Facilitate movement and investment of capital from investors in developed economies to businesses in developing economies
-- Create a commodity market that collateralizes a stable currency via storage and redemption
-- Develop a reputation system and historical reference of business behaviour
+Project Bifrost is a Scala client designed as the primary client implementation of the Topl cryptocurrency/blockchain protocol. The Topl protocol was conceived as an opinionated blockchain network focused on the development of circular and impact-aware markets and economies. Applications of the network include:
+- Supply chain tracking and verificaiton for ethically and sustainabily produced agriculture and mineral products;
+- Interoperable carbon markets both for nature-based as well as technologically driven standards;
+- Inclusive finance and trade finance projects, especially in the Global South
 
-Begin interacting with the Topl network with the Bifrost client [alpha testnet release](https://github.com/Topl/Project-Bifrost/releases/tag/v0.1.0-alpha)
+Begin interacting with the Topl protocol with the Bifrost client [current release](https://github.com/Topl/Project-Bifrost/releases/latest)
+
+Wiki
+----------
+The latest version of the Topl wiki (our take on a traditional whitepaper) can be found [here](https://wiki.topl.co).
 
 <!---
-Whitepaper
-----------
-The latest version of the Topl whitepaper can be found [here](https://topl.co/whitepaper).
-
-
 Documentation
 -------------
 [Topl protocol technical specification ("Yellow Paper")](https://github.com/Topl/documentation/blob/master/yellowpaper/Topl%20Yellow%20Paper.pdf) (in development)
