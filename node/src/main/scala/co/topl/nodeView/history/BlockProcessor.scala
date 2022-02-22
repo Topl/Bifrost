@@ -1,10 +1,12 @@
 package co.topl.nodeView.history
 
+import cats.implicits._
 import co.topl.consensus
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.history.BlockProcessor.ChainCache
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
+import co.topl.utils.implicits._
 import co.topl.utils.{Logging, TimeProvider}
 
 import scala.annotation.tailrec
@@ -131,15 +133,15 @@ object BlockProcessor extends Logging {
       }
 
     def getCacheBlock(id: ModifierId): Option[CacheBlock] =
-      cache.keys.find(k => k.block.id == id)
+      cache.keys.find(k => k.block.id === id)
 
     def getHeight(id: ModifierId): Option[Long] =
-      cache.keys.find(k => k.block.id == id).map(_.block.height)
+      cache.keys.find(k => k.block.id === id).map(_.block.height)
 
     def add(block: Block, prevTimes: Seq[TimeProvider.Time]): ChainCache = {
       val cacheBlock = CacheBlock(block, prevTimes)
 
-      log.debug(s"Added new block to chain cache: ${cacheBlock.block.id.toString}")
+      log.debug(s"Added new block to chain cache: ${cacheBlock.block.id.show}")
       ChainCache(cache.updated(cacheBlock, block.parentId))
     }
 

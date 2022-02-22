@@ -2,12 +2,13 @@ package co.topl.attestation.keyManagement
 
 import cats.implicits._
 import co.topl.attestation.{PublicKeyPropositionEd25519, SignatureEd25519}
+import co.topl.codecs.binary.legacy.BifrostSerializer
+import co.topl.codecs.binary.legacy.attestation.keyManagement.PrivateKeyEd25519Serializer
 import co.topl.crypto.implicits._
 import co.topl.crypto.signatures.Ed25519
 import co.topl.crypto.{PrivateKey, PublicKey}
-import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
-case class PrivateKeyEd25519(private val privateKey: PrivateKey, private val publicKey: PublicKey) extends Secret {
+case class PrivateKeyEd25519(privateKey: PrivateKey, publicKey: PublicKey) extends Secret {
 
   private val privateKeyLength = privateKey.value.length
   private val publicKeyLength = publicKey.value.length
@@ -21,7 +22,7 @@ case class PrivateKeyEd25519(private val privateKey: PrivateKey, private val pub
   override type PR = SignatureEd25519
   override type KF = KeyfileEd25519
 
-  override lazy val serializer: BifrostSerializer[PrivateKeyEd25519] = PrivateKeyEd25519
+  override lazy val serializer: BifrostSerializer[PrivateKeyEd25519] = PrivateKeyEd25519Serializer
 
   override lazy val publicImage: PublicKeyPropositionEd25519 = PublicKeyPropositionEd25519(publicKey)
 
@@ -35,7 +36,7 @@ case class PrivateKeyEd25519(private val privateKey: PrivateKey, private val pub
   }
 }
 
-object PrivateKeyEd25519 extends BifrostSerializer[PrivateKeyEd25519] {
+object PrivateKeyEd25519 {
 
   implicit val secretGenerator: SecretGenerator[PrivateKeyEd25519] =
     SecretGenerator.instance[PrivateKeyEd25519] { seed: Array[Byte] =>
@@ -44,16 +45,5 @@ object PrivateKeyEd25519 extends BifrostSerializer[PrivateKeyEd25519] {
       val secret: PrivateKeyEd25519 = PrivateKeyEd25519(sk, pk)
       secret -> secret.publicImage
     }
-
-  override def serialize(obj: PrivateKeyEd25519, w: Writer): Unit = {
-    /* privKeyBytes: Array[Byte] */
-    w.putBytes(obj.privateKey.value)
-
-    /* publicKeyBytes: Array[Byte] */
-    w.putBytes(obj.publicKey.value)
-  }
-
-  override def parse(r: Reader): PrivateKeyEd25519 =
-    PrivateKeyEd25519(PrivateKey(r.getBytes(Ed25519.KeyLength)), PublicKey(r.getBytes(Ed25519.KeyLength)))
 
 }

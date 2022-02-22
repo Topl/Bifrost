@@ -7,7 +7,6 @@ import akka.util.Timeout
 import cats.data.OptionT
 import cats.implicits._
 import co.topl.modifier.ModifierId
-import co.topl.modifier.ModifierId.fromBase58
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.NodeViewHolder.Events.SemanticallySuccessfulModifier
@@ -19,6 +18,8 @@ import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataMod
 import com.mongodb.client.result.InsertManyResult
 import org.bson.BsonValue
 import org.slf4j.Logger
+import co.topl.codecs._
+import co.topl.utils.implicits._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.CollectionConverters._
@@ -265,8 +266,11 @@ private class ChainReplicator(
     def blocksById(blockIds: Seq[String])(nodeView: ReadableNodeView): Option[Seq[Block]] =
       if (blockIds.nonEmpty)
         blockIds.flatMap { idString =>
-          val id = ModifierId.fromBase58(Base58Data.unsafe(idString))
-          nodeView.history.modifierById(id)
+          (for {
+            idBase58   <- Base58Data.validated(idString).toOption
+            modifierId <- idBase58.decodeTransmitted[ModifierId].toOption
+            modifier   <- nodeView.history.modifierById(modifierId)
+          } yield modifier).toSeq // ignore failures
         }.some
       else
         None
@@ -304,7 +308,11 @@ private class ChainReplicator(
     def compareMempool(unconfirmedTxDB: Seq[String])(nodeView: ReadableNodeView): (Seq[Transaction.TX], Seq[String]) = {
       val mempool = nodeView.memPool
       val toRemove = unconfirmedTxDB.filter { txString =>
-        mempool.modifierById(fromBase58(Base58Data.unsafe(txString))).isEmpty
+        (for {
+          base58Id   <- Base58Data.validated(txString).toOption
+          modifierId <- base58Id.decodeTransmitted[ModifierId].toOption
+          modifier   <- mempool.modifierById(modifierId)
+        } yield modifier).isEmpty
       }
       val toInsert = mempool
         .take(settings.mempoolCheckSize)(-_.dateAdded)
