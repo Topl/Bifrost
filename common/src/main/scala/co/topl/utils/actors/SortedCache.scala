@@ -39,15 +39,25 @@ object SortedCache {
    *                  overflows, entries at the end of the Ordering will be evicted
    * @param itemPopLimit The maximum number of times that a single item can be attempted to be popped.  If an item
    *                     is determined not to be a viable candidate after this many attempts, it is evicted
+   * @param onEvict A callback function to run on an item when it is evicted from the cache.
    */
   def apply[T: Ordering: Show](
     itemLimit:    Int = Int.MaxValue,
-    itemPopLimit: Int = Int.MaxValue
+    itemPopLimit: Int = Int.MaxValue,
+    onEvict:      T => Unit = (_: T) => ()
   ): Behavior[ReceivableMessage[T]] =
     Behaviors.setup { context =>
       stateful[T](
         Map.empty,
-        Impl(IndexedSeq.empty, itemLimit, itemPopLimit, onEvict = t => context.log.info("Evicting entry {}", t.show))
+        Impl(
+          IndexedSeq.empty,
+          itemLimit,
+          itemPopLimit,
+          onEvict = t => {
+            context.log.info("Evicting entry {}", t.show)
+            onEvict(t)
+          }
+        )
       )
     }
 
