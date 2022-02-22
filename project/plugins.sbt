@@ -15,7 +15,7 @@ Seq(
   "ch.epfl.scala"      % "sbt-scalafix"              % "0.9.34",
   "org.wartremover"    % "sbt-wartremover"           % "2.4.18",
   "com.github.sbt"     % "sbt-native-packager"       % "1.9.8",
-  "com.eed3si9n"       % "sbt-buildinfo"             % "0.10.0",
-  "com.github.sbt"       % "sbt-ci-release"            % "1.5.10",
+  "com.eed3si9n"       % "sbt-buildinfo"             % "0.11.0",
+  "com.github.sbt"     % "sbt-ci-release"            % "1.5.10",
   "net.bzzt"           % "sbt-reproducible-builds"   % "0.30"
 ).map(addSbtPlugin)
