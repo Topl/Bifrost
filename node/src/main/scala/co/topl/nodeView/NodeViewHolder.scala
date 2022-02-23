@@ -237,17 +237,16 @@ object NodeViewHolder {
           Behaviors.same
 
         case (context, ReceivableMessages.WriteBlock(block)) =>
-          context.pipeToSelf(consensusVariablesInterface.get.value) {
-            case Success(params) =>
-              params match {
-                case Right(params) =>
-                  ReceivableMessages.WriteBlockWithConsensusParams(block, params)
-                case Left(e) =>
-                  ReceivableMessages.Terminate(e.reason)
-              }
-            case Failure(e) =>
-              ReceivableMessages.Terminate(e)
-          }
+          context.pipeToSelf(consensusVariablesInterface.get.value)(
+            _.fold(
+              error => ReceivableMessages.Terminate(error),
+              _.fold(
+                error => ReceivableMessages.Terminate(error.reason),
+                params => ReceivableMessages.WriteBlockWithConsensusParams(block, params)
+              )
+            )
+          )
+
           Behaviors.same
 
         case (context, ReceivableMessages.WriteBlockWithConsensusParams(block, consensusParams)) =>
