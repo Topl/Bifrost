@@ -26,7 +26,7 @@ class BlockValidatorSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
         .get
         ._1
       val blockProcessor = BlockProcessor(1024)
-      val validator = new DifficultyBlockValidator(newHistory.storage, blockProcessor)
+      val validator = new DifficultyBlockValidator(newHistory.storage, blockProcessor, nxtLeaderElection)
       validator
         .validate(nextBlock, ConsensusParams(10000000, history.bestBlock.difficulty, 0L, history.bestBlock.height))
         .isSuccess shouldBe false

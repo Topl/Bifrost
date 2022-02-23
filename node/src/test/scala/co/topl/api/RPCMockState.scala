@@ -95,11 +95,12 @@ trait RPCMockState
             settings,
             appContext.networkType,
             consensusVariablesInterface,
+            nxtLeaderElection,
             () =>
               (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
                 .mapTo[Try[StartupKeyView]]
                 .flatMap(Future.fromTry)
-          )(system.toTyped, implicitly, implicitly)
+          )(system.toTyped, implicitly)
       ),
       NodeViewHolder.ActorName
     )
@@ -115,7 +116,8 @@ trait RPCMockState
             .mapTo[Try[StartupKeyView]]
             .flatMap(Future.fromTry),
         new ActorNodeViewHolderInterface(nodeViewHolderRef)(system.toTyped, implicitly[Timeout]),
-        new ActorConsensusVariablesHolder(consensusStorageRef)(system.toTyped, 10.seconds)
+        new ActorConsensusVariablesHolder(consensusStorageRef)(system.toTyped, 10.seconds),
+        nxtLeaderElection
       ),
       Forger.ActorName
     )
@@ -140,7 +142,7 @@ trait RPCMockState
         ToplRpcHandlers(
           new DebugRpcHandlerImpls(nodeViewHolderInterface, keyManagerInterface),
           new UtilsRpcHandlerImpls,
-          new NodeViewRpcHandlerImpls(settings.rpcApi, appContext, nodeViewHolderInterface),
+          new NodeViewRpcHandlerImpls(settings.rpcApi, appContext, nxtLeaderElection, nodeViewHolderInterface),
           new TransactionRpcHandlerImpls(nodeViewHolderInterface),
           new AdminRpcHandlerImpls(forgerInterface, keyManagerInterface, nodeViewHolderInterface)
         ),

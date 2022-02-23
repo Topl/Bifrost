@@ -27,6 +27,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
         keyRingCurve25519.addresses,
         timestamp,
         ConsensusParams(10000000, parent.difficulty, 0L, parent.height),
+        nxtLeaderElection,
         nodeView.state
       )
       .toOption
@@ -78,7 +79,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
     val stateStore = InMemoryKeyValueStore.empty()
     val tokenBoxStore = InMemoryKeyValueStore.empty()
     val nodeView = NodeView(
-      History(settings, new Storage(historyStore)),
+      History(settings, nxtLeaderElection, new Storage(historyStore)),
       State(
         settings,
         stateStore,

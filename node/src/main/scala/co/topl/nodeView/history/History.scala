@@ -29,8 +29,9 @@ import scala.util.{Failure, Success, Try}
 class History(
   val storage:            Storage, // todo: JAA - make this private[history]
   fullBlockProcessor:     BlockProcessor,
-  validators:             Seq[BlockValidator[Block]]
-)(implicit networkPrefix: NetworkPrefix, nxtLeaderElection: NxtLeaderElection)
+  validators:             Seq[BlockValidator[Block]],
+  nxtLeaderElection:      NxtLeaderElection
+)(implicit networkPrefix: NetworkPrefix)
     extends GenericHistory[Block, BifrostSyncInfo, History]
     with AutoCloseable
     with Logging {
@@ -114,7 +115,7 @@ class History(
           val progInfo = ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
 
           // construct result and return
-          (new History(storage, fullBlockProcessor, validators), progInfo)
+          (new History(storage, fullBlockProcessor, validators, nxtLeaderElection), progInfo)
 
         } else {
           val progInfo: ProgressInfo[Block] =
@@ -129,7 +130,7 @@ class History(
               // if not, we'll check for a fork
             } else {
               // we want to check for a fork
-              val forkProgInfo = fullBlockProcessor.process(this, block)
+              val forkProgInfo = fullBlockProcessor.process(this, block, nxtLeaderElection)
 
               // check if we need to update storage after checking for forks
               if (forkProgInfo.branchPoint.nonEmpty) {
@@ -142,7 +143,7 @@ class History(
             }
 
           // construct result and return
-          (new History(storage, fullBlockProcessor, validators), progInfo)
+          (new History(storage, fullBlockProcessor, validators, nxtLeaderElection), progInfo)
         }
       }
       log.info(
@@ -171,7 +172,7 @@ class History(
 
     log.debug(s"Failed to apply block. Rollback BifrostState to ${parentBlock.id} from version ${block.id}")
     storage.rollback(parentBlock.id).getOrThrow()
-    new History(storage, fullBlockProcessor, validators)
+    new History(storage, fullBlockProcessor, validators, nxtLeaderElection)
   }
 
   /**
@@ -370,7 +371,7 @@ class History(
   ): (History, ProgressInfo[Block]) = {
     drop(modifier.id)
     val progInfo: ProgressInfo[Block] = ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
-    (new History(storage, fullBlockProcessor, validators), progInfo)
+    (new History(storage, fullBlockProcessor, validators, nxtLeaderElection), progInfo)
   }
 
   /**
@@ -498,8 +499,9 @@ object History extends Logging {
   val GenesisParentId: ModifierId = ModifierId.genesisParentId
 
   def readOrGenerate(
-    settings:               AppSettings
-  )(implicit networkPrefix: NetworkPrefix, nxtLeaderElection: NxtLeaderElection): History = {
+    settings:               AppSettings,
+    nxtLeaderElection:      NxtLeaderElection
+  )(implicit networkPrefix: NetworkPrefix): History = {
     val storage = {
 
       /** Setup persistent on-disk storage */
@@ -518,24 +520,23 @@ object History extends Logging {
       )
     }
 
-    apply(settings, storage)
+    apply(settings, nxtLeaderElection, storage)
   }
 
-  def apply(settings:  AppSettings, storage: Storage)(implicit
-    networkPrefix:     NetworkPrefix,
-    nxtLeaderElection: NxtLeaderElection
+  def apply(settings: AppSettings, nxtLeaderElection: NxtLeaderElection, storage: Storage)(implicit
+    networkPrefix:    NetworkPrefix
   ): History = {
 
     /** This in-memory cache helps us to keep track of tines sprouting off the canonical chain */
     val blockProcessor = BlockProcessor(settings.network.maxChainCacheDepth)
 
     val validators = Seq(
-      new DifficultyBlockValidator(storage, blockProcessor),
+      new DifficultyBlockValidator(storage, blockProcessor, nxtLeaderElection),
       new SyntaxBlockValidator,
       new TimestampValidator(storage, blockProcessor)
     )
 
-    new History(storage, blockProcessor, validators)
+    new History(storage, blockProcessor, validators, nxtLeaderElection)
   }
 
   /** Gets the timestamps for 'count' number of blocks prior to (and including) the startBlock */

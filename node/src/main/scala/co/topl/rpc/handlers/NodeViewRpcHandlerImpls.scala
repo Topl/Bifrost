@@ -5,7 +5,7 @@ import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{InvalidParametersError, RpcError, ThrowableData}
 import co.topl.attestation.Address
-import co.topl.consensus.{Forger, ForgerInterface, NxtLeaderElection}
+import co.topl.consensus.NxtLeaderElection
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
@@ -27,12 +27,12 @@ import scala.language.existentials
 class NodeViewRpcHandlerImpls(
   rpcSettings:             RPCApiSettings,
   appContext:              AppContext,
+  nxtLeaderElection:       NxtLeaderElection,
   nodeViewHolderInterface: NodeViewHolderInterface
 )(implicit
-  system:            ActorSystem[_],
-  throwableEncoder:  Encoder[ThrowableData],
-  networkPrefix:     NetworkPrefix,
-  nxtLeaderElection: NxtLeaderElection
+  system:           ActorSystem[_],
+  throwableEncoder: Encoder[ThrowableData],
+  networkPrefix:    NetworkPrefix
 ) extends ToplRpcHandlers.NodeView {
 
   import system.executionContext

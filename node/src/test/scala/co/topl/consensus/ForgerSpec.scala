@@ -147,7 +147,8 @@ class ForgerSpec
               fetchKeyView,
               fetchStartupKeyView,
               reader,
-              new ActorConsensusVariablesHolder(consensusStorageRef)
+              new ActorConsensusVariablesHolder(consensusStorageRef),
+              nxtLeaderElection
             )
           )
 
@@ -218,7 +219,8 @@ class ForgerSpec
         fetchKeyView,
         fetchStartupKeyView,
         reader,
-        new ActorConsensusVariablesHolder(consensusStorageRef)
+        new ActorConsensusVariablesHolder(consensusStorageRef),
+        nxtLeaderElection
       )
     )
 
@@ -262,7 +264,8 @@ class ForgerSpec
           fetchKeyView,
           fetchStartupKeyView,
           reader,
-          new ActorConsensusVariablesHolder(consensusStorageRef)
+          new ActorConsensusVariablesHolder(consensusStorageRef),
+          nxtLeaderElection
         )
       )
       createTestProbe().expectTerminated(forgerRef)

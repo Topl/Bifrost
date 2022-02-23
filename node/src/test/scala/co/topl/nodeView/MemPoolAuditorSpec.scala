@@ -179,7 +179,8 @@ class MemPoolAuditorSpec
         fetchKeyView,
         fetchStartupKeyView,
         new ActorNodeViewHolderInterface(nodeViewHolderRef),
-        new ActorConsensusVariablesHolder(consensusStorageRef)
+        new ActorConsensusVariablesHolder(consensusStorageRef),
+        nxtLeaderElection
       )
     )
 

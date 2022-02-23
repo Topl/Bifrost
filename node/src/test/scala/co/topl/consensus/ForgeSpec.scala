@@ -86,9 +86,17 @@ class ForgeSpec
         )
 
       val forge =
-        Forge.fromNodeView(nodeView, ConsensusParams(Int128(10000000), 1000000000000000000L, 0L, 0L), keyView, 0).value
+        Forge
+          .fromNodeView(
+            nodeView,
+            ConsensusParams(Int128(10000000), 1000000000000000000L, 0L, 0L),
+            nxtLeaderElection,
+            keyView,
+            0
+          )
+          .value
 
-      val block = forge.make.value
+      val block = forge.make(nxtLeaderElection).value
       block.parentId shouldBe parentBlock.id
       block.timestamp shouldBe Long.MaxValue
     }
@@ -105,7 +113,13 @@ class ForgeSpec
       KeyView(keyRingCurve25519.addresses, None, keyRingCurve25519.signWithAddress, keyRingCurve25519.lookupPublicKey)
 
     Forge
-      .fromNodeView(nodeView, ConsensusParams(Int128(10000000), 1000000000000000000L, 0L, 0L), keyView, 0)
+      .fromNodeView(
+        nodeView,
+        ConsensusParams(Int128(10000000), 1000000000000000000L, 0L, 0L),
+        nxtLeaderElection,
+        keyView,
+        0
+      )
       .left
       .value shouldBe Forge.NoRewardsAddressSpecified
 
@@ -167,6 +181,7 @@ class ForgeSpec
         .fromNodeView(
           nodeView,
           ConsensusParams(10000000, parentBlock.difficulty, 0L, parentBlock.height),
+          nxtLeaderElection,
           keyView,
           0
         )

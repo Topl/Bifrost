@@ -91,18 +91,22 @@ object NodeView {
     settings:                    AppSettings,
     networkType:                 NetworkType,
     consensusVariablesInterface: ConsensusVariablesHolder,
+    nxtLeaderElection:           NxtLeaderElection,
     startupKeyView:              () => Future[StartupKeyView]
-  )(implicit system: ActorSystem[_], ec: ExecutionContext, nxtLeaderElection: NxtLeaderElection): Future[NodeView] =
-    local(settings)(networkType.netPrefix, nxtLeaderElection)
-      .fold(genesis(settings, networkType, consensusVariablesInterface, startupKeyView))(Future.successful)
+  )(implicit system:             ActorSystem[_], ec: ExecutionContext): Future[NodeView] =
+    local(settings, nxtLeaderElection)(networkType.netPrefix)
+      .fold(genesis(settings, networkType, consensusVariablesInterface, nxtLeaderElection, startupKeyView))(
+        Future.successful
+      )
 
   def local(
-    settings:               AppSettings
-  )(implicit networkPrefix: NetworkPrefix, nxtLeaderElection: NxtLeaderElection): Option[NodeView] =
+    settings:               AppSettings,
+    nxtLeaderElection:      NxtLeaderElection
+  )(implicit networkPrefix: NetworkPrefix): Option[NodeView] =
     if (State.exists(settings)) {
       Some(
         NodeView(
-          History.readOrGenerate(settings),
+          History.readOrGenerate(settings, nxtLeaderElection),
           State.readOrGenerate(settings),
           MemPool.empty()
         )
@@ -113,24 +117,23 @@ object NodeView {
     settings:                    AppSettings,
     networkType:                 NetworkType,
     consensusVariablesInterface: ConsensusVariablesHolder,
+    nxtLeaderElection:           NxtLeaderElection,
     startupKeyView:              () => Future[StartupKeyView]
   )(implicit
-    system:            ActorSystem[_],
-    ec:                ExecutionContext,
-    nxtLeaderElection: NxtLeaderElection
+    system: ActorSystem[_],
+    ec:     ExecutionContext
   ): Future[NodeView] = {
     implicit def networkPrefix: NetworkPrefix = networkType.netPrefix
     Forger
       .genesisBlock(settings, networkType, startupKeyView, consensusVariablesInterface)
-      .map(genesis(settings, networkType, _))
+      .map(genesis(settings, networkType, nxtLeaderElection, _))
   }
 
   def genesis(
-    settings:     AppSettings,
-    networkType:  NetworkType,
-    genesisBlock: Block
-  )(implicit
-    nxtLeaderElection: NxtLeaderElection
+    settings:          AppSettings,
+    networkType:       NetworkType,
+    nxtLeaderElection: NxtLeaderElection,
+    genesisBlock:      Block
   ): NodeView = {
     implicit def networkPrefix: NetworkPrefix = networkType.netPrefix
 
@@ -138,7 +141,7 @@ object NodeView {
     val genesisParams = ConsensusParams(Int128(10000000), 1000000000000000000L, 0L, 0L)
 
     NodeView(
-      History.readOrGenerate(settings).append(genesisBlock, genesisParams).get._1,
+      History.readOrGenerate(settings, nxtLeaderElection).append(genesisBlock, genesisParams).get._1,
       State.genesisState(settings, Seq(genesisBlock)),
       MemPool.empty()
     )

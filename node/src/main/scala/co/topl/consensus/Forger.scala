@@ -66,11 +66,11 @@ object Forger {
     fetchKeyView:                () => Future[KeyView],
     fetchStartupKeyView:         () => Future[StartupKeyView],
     nodeViewReader:              NodeViewReader,
-    consensusVariablesInterface: ConsensusVariablesHolder
+    consensusVariablesInterface: ConsensusVariablesHolder,
+    nxtLeaderElection:           NxtLeaderElection
   )(implicit
-    networkPrefix:     NetworkPrefix,
-    nxtLeaderElection: NxtLeaderElection,
-    timeProvider:      TimeProvider
+    networkPrefix: NetworkPrefix,
+    timeProvider:  TimeProvider
   ): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
       import context.executionContext
@@ -88,7 +88,8 @@ object Forger {
         minTransactionFee,
         fetchKeyView,
         nodeViewReader,
-        consensusVariablesInterface
+        consensusVariablesInterface,
+        nxtLeaderElection
       ).uninitialized(forgeWhenReady = forgeOnStartup)
 
     }
@@ -160,12 +161,12 @@ private class ForgerBehaviors(
   minTransactionFee:           Int128,
   fetchKeyView:                () => Future[KeyView],
   nodeViewReader:              NodeViewReader,
-  consensusVariablesInterface: ConsensusVariablesHolder
+  consensusVariablesInterface: ConsensusVariablesHolder,
+  nxtLeaderElection:           NxtLeaderElection
 )(implicit
-  context:           ActorContext[Forger.ReceivableMessage],
-  networkPrefix:     NetworkPrefix,
-  nxtLeaderElection: NxtLeaderElection,
-  timeProvider:      TimeProvider
+  context:       ActorContext[Forger.ReceivableMessage],
+  networkPrefix: NetworkPrefix,
+  timeProvider:  TimeProvider
 ) {
   import context.executionContext
   implicit private val log: Logger = context.log
@@ -268,10 +269,10 @@ private class ForgerBehaviors(
       consensusParams <- consensusVariablesInterface.get
         .leftMap(e => ForgingError(e.reason))
       forge <- nodeViewReader
-        .withNodeView(Forge.fromNodeView(_, consensusParams, keyView, minTransactionFee))
+        .withNodeView(Forge.fromNodeView(_, consensusParams, nxtLeaderElection, keyView, minTransactionFee))
         .leftMap(e => ForgingError(e.reason))
         .subflatMap(_.leftMap(ForgeFailure(_): ForgerFailure))
-      block <- EitherT.fromEither[Future](forge.make.leftMap(ForgeFailure(_): ForgerFailure))
+      block <- EitherT.fromEither[Future](forge.make(nxtLeaderElection).leftMap(ForgeFailure(_): ForgerFailure))
     } yield block
 
   /**

@@ -33,7 +33,7 @@ import scala.util.Random
 trait TestSettings {
   implicit def settings: AppSettings = TestSettings.defaultSettings
   implicit def appContext: AppContext = TestSettings.defaultAppContext
-  implicit val nxtLeaderElection: NxtLeaderElection = NxtLeaderElection(settings)
+  val nxtLeaderElection: NxtLeaderElection = NxtLeaderElection(settings)
 }
 
 object TestSettings {
@@ -79,7 +79,7 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
     // we don't care about validation here
     val validators = Seq()
 
-    var history = new History(storage, BlockProcessor(1024), validators)
+    var history = new History(storage, BlockProcessor(1024), validators, nxtLeaderElection)
 
     history = history.append(genesisBlock, ConsensusParams(Int128(10000000), 1000000000000000000L, 0L, 0L)).get._1
     assert(history.modifierById(genesisBlock.id).isDefined)
@@ -91,7 +91,7 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
     genesisBlockWithVersion: Block = genesisBlock,
     consensusParams:         ConsensusParams
   ): State = {
-    History.readOrGenerate(settings).append(genesisBlock, consensusParams)
+    History.readOrGenerate(settings, nxtLeaderElection).append(genesisBlock, consensusParams)
     State.genesisState(settings, Seq(genesisBlockWithVersion))
   }
 

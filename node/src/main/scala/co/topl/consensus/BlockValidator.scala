@@ -15,9 +15,8 @@ sealed trait BlockValidator[PM <: Block] {
   def validate(block: PM, consensusParams: ConsensusVariables.ConsensusParams): Try[Unit]
 }
 
-class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)(implicit
-  nxtLeaderElection:                    NxtLeaderElection
-) extends BlockValidator[Block] {
+class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor, nxtLeaderElection: NxtLeaderElection)
+    extends BlockValidator[Block] {
 
   def validate(block: Block, consensusParams: ConsensusVariables.ConsensusParams): Try[Unit] = Try {
     // lookup our local data about the parent

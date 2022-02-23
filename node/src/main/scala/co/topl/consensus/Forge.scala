@@ -40,9 +40,8 @@ case class Forge(
   getPublicKey:          Address => Try[PublicKeyPropositionCurve25519]
 ) {
 
-  def make(implicit
-    networkPrefix:     NetworkPrefix,
-    nxtLeaderElection: NxtLeaderElection
+  def make(nxtLeaderElection: NxtLeaderElection)(implicit
+    networkPrefix:            NetworkPrefix
   ): Either[Forge.Failure, Block] = {
 
     // generate the address the owns the generator box
@@ -96,13 +95,13 @@ object Forge {
   def fromNodeView(
     nodeView:          ReadableNodeView,
     consensusParams:   ConsensusVariables.ConsensusParams,
+    nxtLeaderElection: NxtLeaderElection,
     keyView:           KeyView,
     minTransactionFee: Int128
   )(implicit
-    timeProvider:      TimeProvider,
-    networkPrefix:     NetworkPrefix,
-    nxtLeaderElection: NxtLeaderElection,
-    logger:            Logger
+    timeProvider:  TimeProvider,
+    networkPrefix: NetworkPrefix,
+    logger:        Logger
   ): Either[Failure, Forge] =
     for {
       rewardAddress <- keyView.rewardAddr.toRight(NoRewardsAddressSpecified)
@@ -110,7 +109,8 @@ object Forge {
         minTransactionFee,
         nodeView.memPool,
         nodeView.state,
-        nodeView.history.height
+        nodeView.history.height,
+        nxtLeaderElection
       ).map(_.toApply)
       parentBlock = nodeView.history.bestBlock
       forgeTime = timeProvider.time
@@ -118,7 +118,7 @@ object Forge {
         .leftMap(ForgingError)
       prevTimes = nodeView.history.getTimestampsFrom(parentBlock, nxtLeaderElection.nxtBlockNum)
       arbitBox <- LeaderElection
-        .getEligibleBox(parentBlock, keyView.addresses, forgeTime, consensusParams, nodeView.state)
+        .getEligibleBox(parentBlock, keyView.addresses, forgeTime, consensusParams, nxtLeaderElection, nodeView.state)
         .leftMap(LeaderElectionFailure)
     } yield Forge(
       arbitBox,
@@ -142,11 +142,11 @@ object Forge {
     minTransactionFee: Int128,
     memPoolReader:     MemPoolReader[Transaction.TX],
     stateReader:       StateReader[ProgramId, Address],
-    chainHeight:       Long
+    chainHeight:       Long,
+    nxtLeaderElection: NxtLeaderElection
   )(implicit
-    networkPrefix:     NetworkPrefix,
-    nxtLeaderElection: NxtLeaderElection,
-    log:               Logger
+    networkPrefix: NetworkPrefix,
+    log:           Logger
   ): Either[Failure, PickTransactionsResult] =
     Try(
       memPoolReader
