@@ -291,19 +291,6 @@ object NodeViewHolder {
     t
   }
 
-  private[nodeView] def getConsensusParams(
-    consensusStorageRef: ActorRef[ConsensusVariables.ReceivableMessage]
-  )(implicit context:    ActorContext[NodeViewHolder.ReceivableMessage]): Future[ConsensusVariables.ConsensusParams] = {
-    import akka.actor.typed.scaladsl.AskPattern._
-
-    import scala.concurrent.duration._
-    implicit val timeout: Timeout = Timeout(10.seconds)
-    implicit val typedSystem: ActorSystem[_] = context.system
-    consensusStorageRef.ask[ConsensusVariables.ConsensusParams](
-      ConsensusVariables.ReceivableMessages.GetConsensusVariables
-    )
-  }
-
   /**
    * Ask the cache actor for the next viable block to apply.  The cache will _eventually_ reply with the block
    */
