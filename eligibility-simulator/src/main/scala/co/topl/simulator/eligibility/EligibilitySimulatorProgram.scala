@@ -5,7 +5,7 @@ import cats.effect.{Clock, Sync}
 import cats.implicits._
 import cats.{Monad, MonadError, Parallel, Show}
 import co.topl.algebras.ClockAlgebra.implicits._
-import co.topl.algebras.{ClockAlgebra, ConsensusState, Store, UnsafeResource}
+import co.topl.algebras.{ClockAlgebra, ConsensusState, Stats, Store, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, EtaCalculationAlgebra, LocalChainAlgebra}
@@ -15,6 +15,8 @@ import co.topl.minting.algebras.BlockMintAlgebra
 import co.topl.models.utility.Ratio
 import co.topl.models._
 import co.topl.typeclasses.implicits._
+import io.circe.Json
+import io.circe.syntax.EncoderOps
 import org.typelevel.log4cats.Logger
 
 object EligibilitySimulatorProgram {
@@ -31,26 +33,31 @@ object EligibilitySimulatorProgram {
     blockStore:         Store[F, BlockV2],
     etaCalculation:     EtaCalculationAlgebra[F],
     localChain:         LocalChainAlgebra[F],
-    ed25519VrfResource: UnsafeResource[F, Ed25519VRF]
+    ed25519VrfResource: UnsafeResource[F, Ed25519VRF],
+    stats:              Stats[F],
+    statsName:          String,
+    toHeight:           Long
   ): F[Unit] =
     for {
-      _ <- 0L
-        .iterateForeverM(epoch =>
-          handleEpoch(
-            epoch,
-            clock,
-            mints,
-            headerValidation,
-            state,
-            headerStore,
-            blockStore,
-            etaCalculation,
-            localChain,
-            ed25519VrfResource
-          )
-            .as(epoch + 1)
+      _ <- (0L, 0L).iterateWhileM { case (epoch, h) =>
+        handleEpoch(
+          epoch,
+          clock,
+          mints,
+          headerValidation,
+          state,
+          headerStore,
+          blockStore,
+          etaCalculation,
+          localChain,
+          ed25519VrfResource,
+          stats,
+          statsName,
+          toHeight
         )
-        .void
+          .as(epoch + 1)
+          .flatMap(e => localChain.head.map(e -> _.height))
+      } { case (_, currentHeight) => currentHeight < toHeight }.void
     } yield ()
 
   /**
@@ -66,7 +73,10 @@ object EligibilitySimulatorProgram {
     blockStore:         Store[F, BlockV2],
     etaCalculation:     EtaCalculationAlgebra[F],
     localChain:         LocalChainAlgebra[F],
-    ed25519VrfResource: UnsafeResource[F, Ed25519VRF]
+    ed25519VrfResource: UnsafeResource[F, Ed25519VRF],
+    stats:              Stats[F],
+    statsName:          String,
+    toHeight:           Long
   ): F[Unit] =
     for {
       boundary <- clock.epochRange(epoch)
@@ -79,7 +89,10 @@ object EligibilitySimulatorProgram {
         headerStore,
         blockStore,
         localChain,
-        ed25519VrfResource
+        ed25519VrfResource,
+        stats,
+        statsName,
+        toHeight
       )
       _ <- finishEpoch(epoch, state)
     } yield ()
@@ -113,15 +126,31 @@ object EligibilitySimulatorProgram {
     headerStore:        Store[F, BlockHeaderV2],
     blockStore:         Store[F, BlockV2],
     localChain:         LocalChainAlgebra[F],
-    ed25519VrfResource: UnsafeResource[F, Ed25519VRF]
+    ed25519VrfResource: UnsafeResource[F, Ed25519VRF],
+    stats:              Stats[F],
+    statsName:          String,
+    toHeight:           Long
   ): F[Unit] =
-    (boundary.start: Long)
-      .iterateUntilM(localSlot =>
-        for {
-          _ <- processSlot(localSlot, mints, headerValidation, headerStore, blockStore, localChain, ed25519VrfResource)
-        } yield localSlot + 1
-      )(_ >= boundary.end)
-      .void
+    localChain.head
+      .map(_.height)
+      .flatMap(currentHeight =>
+        (boundary.start: Long, currentHeight).iterateUntilM { case (localSlot, _) =>
+          for {
+            _ <- processSlot(
+              localSlot,
+              mints,
+              headerValidation,
+              headerStore,
+              blockStore,
+              localChain,
+              ed25519VrfResource,
+              stats,
+              statsName
+            )
+            h <- localChain.head.map(_.height)
+          } yield (localSlot + 1, h)
+        } { case (s, h) => s >= (boundary.end: Slot) || h >= toHeight }.void
+      )
 
   /**
    * For each minter, attempt to mint.  For each minted block, process it.
@@ -133,7 +162,9 @@ object EligibilitySimulatorProgram {
     headerStore:        Store[F, BlockHeaderV2],
     blockStore:         Store[F, BlockV2],
     localChain:         LocalChainAlgebra[F],
-    ed25519VrfResource: UnsafeResource[F, Ed25519VRF]
+    ed25519VrfResource: UnsafeResource[F, Ed25519VRF],
+    stats:              Stats[F],
+    statsName:          String
   ): F[Unit] =
     for {
       _ <- Logger[F].debug(show"Processing slot=$slot")
@@ -144,7 +175,16 @@ object EligibilitySimulatorProgram {
         )
       mintedBlocks <- mints.parTraverse(_.attemptMint(canonicalHead, Nil, slot)).map(_.flatten)
       _ <- mintedBlocks.traverse(
-        processMintedBlock(_, headerValidation, blockStore, localChain, ed25519VrfResource, canonicalHead)
+        processMintedBlock(
+          _,
+          headerValidation,
+          blockStore,
+          localChain,
+          ed25519VrfResource,
+          stats,
+          statsName,
+          canonicalHead
+        )
       )
     } yield ()
 
@@ -160,6 +200,8 @@ object EligibilitySimulatorProgram {
     blockStore:         Store[F, BlockV2],
     localChain:         LocalChainAlgebra[F],
     ed25519VrfResource: UnsafeResource[F, Ed25519VRF],
+    stats:              Stats[F],
+    statsName:          String,
     canonicalHead:      BlockHeaderV2
   ): F[Unit] =
     for {
@@ -172,6 +214,15 @@ object EligibilitySimulatorProgram {
           EitherT(headerValidation.validate(nextBlock.headerV2, canonicalHead))
             // TODO: Now fetch the body from the network and validate against the ledger
             .semiflatTap(_ => localChain.adopt(Validated.Valid(slotData)))
+            .semiflatTap(_ =>
+              stats.write(
+                statsName,
+                Json.obj(
+                  "h" -> nextBlock.headerV2.height.asJson,
+                  "s" -> nextBlock.headerV2.slot.asJson
+                )
+              )
+            )
             .semiflatTap(header => Logger[F].info(show"Adopted local head block id=${header.id}"))
             .void
             .valueOrF(e =>

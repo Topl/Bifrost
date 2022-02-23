@@ -40,13 +40,16 @@ object EligibilitySimulator extends IOApp.Simple {
 
   // Configuration Data
   private val vrfConfig =
-    VrfConfig(lddCutoff = 10, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(1))
-  //    VrfConfig(lddCutoff = 40, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(2, 5))
+    VrfConfig(lddCutoff = 15, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(1, 2))
 
   private val OperationalPeriodLength = 180L
   private val OperationalPeriodsPerEpoch = 4L
   private val EpochLength = OperationalPeriodLength * OperationalPeriodsPerEpoch
   private val SlotDuration = 10.milli
+  private val NumberOfStakers = 1
+  private val RelativeStake = Ratio(1, NumberOfStakers)
+  private val TargetHeight = 10_000L
+  private val TestName = "Test6"
 
   require(
     EpochLength % OperationalPeriodLength === 0L,
@@ -59,9 +62,6 @@ object EligibilitySimulator extends IOApp.Simple {
   private val KesKeyHeight = (9, 9)
 
   // Create stubbed/sample/demo data
-
-  private val NumberOfStakers = 1
-  private val RelativeStake = Ratio(1, NumberOfStakers)
 
   private val (_, poolVK) =
     new Ed25519().createKeyPair(Entropy.fromUuid(UUID.randomUUID()), None)
@@ -89,9 +89,7 @@ object EligibilitySimulator extends IOApp.Simple {
     val stakerAddress: TaktikosAddress = {
       val (paymentKey, paymentVerificationKey) = ed25519.createKeyPair(Entropy.fromUuid(UUID.randomUUID()), None)
       TaktikosAddress(
-        Sized.strictUnsafe(
-          Bytes(blake2b256.hash(paymentVerificationKey.bytes.data.toArray).value)
-        ),
+        new Blake2b256().hash(paymentVerificationKey.bytes.data),
         poolVK,
         ed25519.sign(paymentKey, poolVK.bytes.data)
       )
@@ -137,7 +135,7 @@ object EligibilitySimulator extends IOApp.Simple {
   Files.createDirectories(statsDir)
 
   private val statsInterpreter =
-    StatsInterpreter.Noop.make[F]
+    StatsInterpreter.Eval.make[F](statsDir)
 
   private def mints(
     etaCalculation:          EtaCalculationAlgebra[F],
@@ -193,7 +191,7 @@ object EligibilitySimulator extends IOApp.Simple {
                 clock
               ),
               clock,
-              statsInterpreter
+              StatsInterpreter.Noop.make[F]
             )
         } yield mint
       )
@@ -265,7 +263,10 @@ object EligibilitySimulator extends IOApp.Simple {
           blockStore,
           etaCalculation,
           localChain,
-          ed25519VRFResource
+          ed25519VRFResource,
+          statsInterpreter,
+          TestName,
+          TargetHeight
         )
     } yield ()
   }
