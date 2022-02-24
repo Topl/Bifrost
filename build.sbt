@@ -330,7 +330,7 @@ lazy val tetraByteCodecs = project
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.guava)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, byteCodecs, crypto)
+  .dependsOn(models % "compile->compile;test->test", byteCodecs % "compile->compile;test->test", crypto)
 
 lazy val jsonCodecs = project
   .in(file("json-codecs"))

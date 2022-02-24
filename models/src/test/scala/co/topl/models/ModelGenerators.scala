@@ -1,7 +1,6 @@
 package co.topl.models
 
 import cats.data.NonEmptyChain
-import co.topl.models.Proofs.Knowledge.KesSum
 import co.topl.models.Transaction.PolyOutput
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
@@ -15,13 +14,32 @@ trait ModelGenerators {
   def etaGen: Gen[Eta] =
     genSizedStrictBytes[Lengths.`32`.type]()
 
+  def bigIntGen: Gen[BigInt] = Gen.long.map(BigInt(_))
+
+  def ratioGen: Gen[Ratio] =
+    for {
+      n <- bigIntGen
+      d <- bigIntGen
+    } yield Ratio(n, d)
+
   def relativeStakeGen: Gen[Ratio] =
     Gen.chooseNum(1L, 5L).flatMap(denominator => Ratio(1L, denominator))
 
+  def latin1DataGen: Gen[Latin1Data] =
+    Gen
+      .containerOfN[Array, Byte](32, Gen.choose[Byte](0, 32))
+      .map(Latin1Data.fromData(_))
+
+  def vkVrfEd25519Gen: Gen[VerificationKeys.VrfEd25519] =
+    genSizedStrictBytes[Lengths.`32`.type]().map(VerificationKeys.VrfEd25519(_))
+
+  def proofVrfEd25519Gen: Gen[Proofs.Knowledge.VrfEd25519] =
+    genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Knowledge.VrfEd25519(_))
+
   def eligibilityCertificateGen: Gen[EligibilityCertificate] =
     for {
-      vrfProof          <- genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Knowledge.VrfEd25519(_))
-      vkVrf             <- genSizedStrictBytes[Lengths.`32`.type]().map(VerificationKeys.VrfEd25519(_))
+      vrfProof          <- proofVrfEd25519Gen
+      vkVrf             <- vkVrfEd25519Gen
       thresholdEvidence <- genSizedStrictBytes[Lengths.`32`.type]()
       eta               <- etaGen
     } yield EligibilityCertificate(vrfProof, vkVrf, thresholdEvidence, eta)
@@ -35,21 +53,36 @@ trait ModelGenerators {
       chainCode <- genSizedStrictBytes[VerificationKeys.ExtendedEd25519.ChainCodeLength]()
     } yield VerificationKeys.ExtendedEd25519(ed25519, chainCode)
 
-  def witnessGen: Gen[Vector[Sized.Strict[Bytes, KesSum.DigestLength]]] =
+  def vkKesSumGen: Gen[VerificationKeys.KesSum] =
+    for {
+      bytes <- genSizedStrictBytes[VerificationKeys.KesSum.Length]()
+      step  <- Gen.posNum[Int]
+    } yield VerificationKeys.KesSum(bytes, step)
+
+  def witnessGen: Gen[Vector[Sized.Strict[Bytes, Proofs.Knowledge.KesSum.DigestLength]]] =
     Gen.nonEmptyContainerOf[Vector, Sized.Strict[Bytes, Lengths.`32`.type]](genSizedStrictBytes[Lengths.`32`.type]())
 
   def kesSumProofGen: Gen[Proofs.Knowledge.KesSum] =
     for {
       vkK         <- ed25519VkGen
-      ecSignature <- genSizedStrictBytes[Proofs.Knowledge.Ed25519.Length]().map(Proofs.Knowledge.Ed25519(_))
+      ecSignature <- ed25519ProofGen
       witness     <- witnessGen
     } yield Proofs.Knowledge.KesSum(vkK, ecSignature, witness)
+
+  def curve25519ProofGen: Gen[Proofs.Knowledge.Curve25519] =
+    genSizedStrictBytes[Proofs.Knowledge.Curve25519.Length]().map(Proofs.Knowledge.Curve25519(_))
+
+  def ed25519ProofGen: Gen[Proofs.Knowledge.Ed25519] =
+    genSizedStrictBytes[Proofs.Knowledge.Ed25519.Length]().map(Proofs.Knowledge.Ed25519(_))
 
   def kesVKGen: Gen[VerificationKeys.KesProduct] =
     for {
       bytes <- genSizedStrictBytes[Lengths.`32`.type]()
       idx   <- Gen.posNum[Int]
     } yield VerificationKeys.KesProduct(bytes, idx)
+
+  def skVrfEd25519Gen: Gen[SecretKeys.VrfEd25519] =
+    genSizedStrictBytes[SecretKeys.VrfEd25519.Length]().map(SecretKeys.VrfEd25519(_))
 
   def kesBinaryTreeGen: Gen[KesBinaryTree] =
     Gen.chooseNum[Int](0, 2).flatMap {
@@ -69,6 +102,12 @@ trait ModelGenerators {
       case 2 => Gen.const(KesBinaryTree.Empty())
     }
 
+  def kesSumSKGen: Gen[SecretKeys.KesSum] =
+    for {
+      tree   <- kesBinaryTreeGen
+      offset <- Gen.long
+    } yield SecretKeys.KesSum(tree, offset)
+
   def kesProductSKGen: Gen[SecretKeys.KesProduct] =
     for {
       superTree   <- kesBinaryTreeGen
@@ -85,20 +124,69 @@ trait ModelGenerators {
       subRoot        <- genSizedStrictBytes[Lengths.`32`.type]()
     } yield Proofs.Knowledge.KesProduct(superSignature, subSignature, subRoot)
 
+  def partialOperationalCertificateGen: Gen[BlockHeaderV2.Unsigned.PartialOperationalCertificate] =
+    for {
+      parentVK        <- kesVKGen
+      parentSignature <- kesProductProofGen
+      childVK         <- ed25519VkGen
+    } yield BlockHeaderV2.Unsigned.PartialOperationalCertificate(parentVK, parentSignature, childVK)
+
   def operationalCertificateGen: Gen[OperationalCertificate] =
     for {
       parentVK        <- kesVKGen
       parentSignature <- kesProductProofGen
       childVK         <- ed25519VkGen
-      childSignature  <- genSizedStrictBytes[Lengths.`64`.type]().map(Proofs.Knowledge.Ed25519(_))
+      childSignature  <- ed25519ProofGen
     } yield OperationalCertificate(parentVK, parentSignature, childVK, childSignature)
 
   def taktikosAddressGen: Gen[TaktikosAddress] =
     for {
       paymentVKEvidence <- genSizedStrictBytes[Lengths.`32`.type]()
-      poolVK            <- genSizedStrictBytes[Lengths.`32`.type]().map(VerificationKeys.Ed25519(_))
-      signature         <- genSizedStrictBytes[Lengths.`64`.type]().map(Proofs.Knowledge.Ed25519(_))
+      poolVK            <- ed25519VkGen
+      signature         <- ed25519ProofGen
     } yield TaktikosAddress(paymentVKEvidence, poolVK, signature)
+
+  def unsignedHeaderGen(
+    parentHeaderIdGen: Gen[TypedIdentifier] =
+      genSizedStrictBytes[Lengths.`32`.type]().map(sized => TypedBytes(IdentifierTypes.Block.HeaderV2, sized.data)),
+    parentSlotGen:             Gen[Slot] = Gen.chooseNum(0L, 50L),
+    txRootGen:                 Gen[TxRoot] = genSizedStrictBytes[Lengths.`32`.type](),
+    bloomFilterGen:            Gen[BloomFilter] = genSizedStrictBytes[Lengths.`256`.type](),
+    timestampGen:              Gen[Timestamp] = Gen.chooseNum(0L, 50L),
+    heightGen:                 Gen[Long] = Gen.chooseNum(0L, 20L),
+    slotGen:                   Gen[Slot] = Gen.chooseNum(0L, 50L),
+    eligibilityCertificateGen: Gen[EligibilityCertificate] = eligibilityCertificateGen,
+    partialOperationalCertificateGen: Gen[BlockHeaderV2.Unsigned.PartialOperationalCertificate] =
+      partialOperationalCertificateGen,
+    metadataGen: Gen[Option[Sized.Max[Latin1Data, Lengths.`32`.type]]] =
+      Gen.option(latin1DataGen.map(Sized.maxUnsafe[Latin1Data, Lengths.`32`.type](_))),
+    addressGen: Gen[TaktikosAddress] = taktikosAddressGen
+  ): Gen[BlockHeaderV2.Unsigned] =
+    for {
+      parentHeaderID <- parentHeaderIdGen
+      parentSlot     <- parentSlotGen
+      txRoot         <- txRootGen
+      bloomFilter    <- bloomFilterGen
+      timestamp      <- timestampGen
+      height         <- heightGen
+      slot           <- slotGen
+      vrfCertificate <- eligibilityCertificateGen
+      kesCertificate <- partialOperationalCertificateGen
+      metadata       <- metadataGen
+      address        <- addressGen
+    } yield BlockHeaderV2.Unsigned(
+      parentHeaderID,
+      parentSlot,
+      txRoot,
+      bloomFilter,
+      timestamp,
+      height,
+      slot,
+      vrfCertificate,
+      kesCertificate,
+      metadata,
+      address
+    )
 
   def headerGen(
     parentHeaderIdGen: Gen[TypedIdentifier] =
@@ -111,12 +199,8 @@ trait ModelGenerators {
     slotGen:                   Gen[Slot] = Gen.chooseNum(0L, 50L),
     eligibilityCertificateGen: Gen[EligibilityCertificate] = eligibilityCertificateGen,
     operationalCertificateGen: Gen[OperationalCertificate] = operationalCertificateGen,
-    metadataGen: Gen[Option[Sized.Max[Latin1Data, Lengths.`32`.type]]] = Gen.option(
-      Gen
-        .containerOfN[Array, Byte](32, Gen.choose[Byte](0, 32))
-        .map(Latin1Data.fromData(_))
-        .map(Sized.max[Latin1Data, Lengths.`32`.type](_).toOption.get)
-    ),
+    metadataGen: Gen[Option[Sized.Max[Latin1Data, Lengths.`32`.type]]] =
+      Gen.option(latin1DataGen.map(Sized.maxUnsafe[Latin1Data, Lengths.`32`.type](_))),
     addressGen: Gen[TaktikosAddress] = taktikosAddressGen
   ): Gen[BlockHeaderV2] =
     for {
