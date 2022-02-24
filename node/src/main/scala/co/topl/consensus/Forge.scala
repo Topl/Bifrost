@@ -113,6 +113,18 @@ object Forge {
         nxtLeaderElection
       ).map(_.toApply)
       parentBlock = nodeView.history.bestBlock
+      _ <- Either.cond(
+        parentBlock.height == 1 ||
+        (parentBlock.height == consensusParams.height && parentBlock.difficulty == consensusParams.difficulty),
+        {},
+        ForgingError(
+          new Throwable(
+            s"Parent block's height and difficulty doesn't match those from the consensus params: " +
+            s"Parent block height ${parentBlock.height}, difficulty ${parentBlock.difficulty} | " +
+            s"Consensus params height ${consensusParams.height}, difficulty ${consensusParams.difficulty}"
+          )
+        )
+      )
       forgeTime = timeProvider.time
       rewards <- Rewards(transactions, rewardAddress, parentBlock.id, forgeTime, consensusParams.inflation).toEither
         .leftMap(ForgingError)
