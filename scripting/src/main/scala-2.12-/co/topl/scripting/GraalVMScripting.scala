@@ -108,18 +108,22 @@ object GraalVMScripting {
 
     def asScalaIterator(v: Value): Iterator[Value] =
       if (v.isIterator) {
-        Iterator.unfold(v)(i => Option.when(i.hasIteratorNextElement)(i.getIteratorNextElement -> i))
+//        Iterator.unfold(v)(i => Option.when(i.hasIteratorNextElement)(i.getIteratorNextElement -> i))
+        // TODO: Scala 2.12
+        ???
       } else asScalaIterator(v.getIterator)
 
     def asScalaMapIterator(v: Value): Iterator[(Value, Value)] =
       if (v.isIterator) {
-        Iterator.unfold(v)(i =>
-          Option.when(i.hasIteratorNextElement) {
-            val arr = i.getIteratorNextElement
-
-            (arr.getArrayElement(0) -> arr.getArrayElement(1)) -> i
-          }
-        )
+//        Iterator.unfold(v)(i =>
+//          Option.when(i.hasIteratorNextElement) {
+//            val arr = i.getIteratorNextElement
+//
+//            (arr.getArrayElement(0) -> arr.getArrayElement(1)) -> i
+//          }
+//        )
+        // TODO: Scala 2.12
+        ???
       } else asScalaMapIterator(v.getHashEntriesIterator)
 
     implicit def seqGraalValuable[V: GraalVMValuable]: GraalVMValuable[Seq[V]] =
@@ -144,8 +148,6 @@ object GraalVMScripting {
             def onNumber(value: JsonNumber): Value = Value.asValue(value.toDouble)
 
             def onString(value: String): Value = Value.asValue(value)
-
-            import scala.jdk.CollectionConverters.SeqHasAsJava
 
             def onArray(value: Vector[Json]): Value = {
               val arr: Array[AnyRef] = new Array(value.size)

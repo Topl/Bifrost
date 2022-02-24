@@ -303,7 +303,6 @@ lazy val byteCodecs = project
   .settings(
     name := "byte-codecs",
     commonSettings,
-    crossScalaVersions := Seq(scala213),
     publishSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.codecs.bytes"
@@ -331,7 +330,7 @@ lazy val tetraByteCodecs = project
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.guava)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, byteCodecs, crypto)
+  .dependsOn(models % "compile->compile;test->test", byteCodecs % "compile->compile;test->test", crypto)
 
 lazy val jsonCodecs = project
   .in(file("json-codecs"))
@@ -367,6 +366,7 @@ lazy val algebras = project
   .settings(
     name := "algebras",
     commonSettings,
+    crossScalaVersions := Seq(scala213),
     publishSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.algebras"
@@ -381,6 +381,7 @@ lazy val consensus = project
   .settings(
     name := "consensus",
     commonSettings,
+    crossScalaVersions := Seq(scala213),
     publishSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.consensus"
@@ -404,6 +405,7 @@ lazy val minting = project
   .settings(
     name := "minting",
     commonSettings,
+    crossScalaVersions := Seq(scala213),
     publishSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.minting"
@@ -530,6 +532,7 @@ lazy val loadTesting = project
   .settings(
     name := "load-testing",
     commonSettings,
+    crossScalaVersions := Seq(scala213),
     scalamacrosParadiseSettings,
     libraryDependencies ++= Dependencies.loadTesting
   )

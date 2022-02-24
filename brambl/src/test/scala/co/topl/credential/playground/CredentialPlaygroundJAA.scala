@@ -76,7 +76,7 @@ object SetupSandbox {
 
   def transactionFromUnproven(unprovenTransaction: Transaction.Unproven, attestation: Attestation): Transaction =
     Transaction(
-      inputs = ListMap.from(unprovenTransaction.inputs.zip(attestation)),
+      inputs = ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.zip(attestation),
       feeOutput = unprovenTransaction.feeOutput,
       coinOutputs = unprovenTransaction.coinOutputs,
       fee = unprovenTransaction.fee,

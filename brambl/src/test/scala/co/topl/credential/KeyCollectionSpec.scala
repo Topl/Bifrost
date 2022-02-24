@@ -16,7 +16,7 @@ import org.scalacheck.{Arbitrary, Gen}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, OptionValues}
+import org.scalatest.{BeforeAndAfterAll, EitherValues, OptionValues}
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 import java.nio.charset.StandardCharsets
@@ -27,6 +27,7 @@ class KeyCollectionSpec
     with MockFactory
     with Matchers
     with OptionValues
+    with EitherValues
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks {
 

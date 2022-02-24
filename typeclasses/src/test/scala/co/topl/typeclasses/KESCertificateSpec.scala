@@ -1,16 +1,11 @@
 package co.topl.typeclasses
 
-import co.topl.crypto.mnemonic.Entropy
-import co.topl.models.{Proofs, SecretKeys}
-import co.topl.typeclasses.implicits._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 import java.nio.file.{Files, Path}
-import java.security.SecureRandom
-import java.util.{Comparator, UUID}
-import scala.util.{Failure, Success, Try}
+import java.util.Comparator
 
 class KESCertificateSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
 
@@ -19,15 +14,11 @@ class KESCertificateSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
   def beforeAll(): Unit =
     keyFileDir = Files.createTempDirectory("bifrost-test-keyring")
 
-  def afterAll(): Unit = {
-    import scala.jdk.CollectionConverters._
+  def afterAll(): Unit =
     Files
       .walk(keyFileDir)
       .sorted(Comparator.reverseOrder[Path]())
-      .iterator()
-      .asScala
-      .foreach(Files.delete)
-  }
+      .forEach(p => Files.delete(p))
 
 //  property("ProductKeyFile Test") {
 //    beforeAll()

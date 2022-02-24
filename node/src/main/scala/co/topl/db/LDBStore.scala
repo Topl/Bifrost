@@ -19,7 +19,7 @@ case class LDBStore(dir: String) {
 
   val iFile = new File(dir)
   iFile.mkdirs()
-  //javaFactoryName = "org.iq80.leveldb.impl.Iq80DBFactory"
+  // javaFactoryName = "org.iq80.leveldb.impl.Iq80DBFactory"
   val op = new Options()
   op.createIfMissing(true)
   op.paranoidChecks(true)
