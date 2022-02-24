@@ -226,7 +226,7 @@ trait ModelGenerators {
         feeOutput   <- Gen.option(arbitraryPolyOutput.arbitrary)
         coinOutputs <- Gen.nonEmptyListOf(arbitraryPolyOutput.arbitrary).map(NonEmptyChain.fromSeq(_).get)
         fee         <- arbitraryInt128.arbitrary
-        timestamp   <- Gen.chooseNum[Long](0L, 100_000L)
+        timestamp   <- Gen.chooseNum[Long](0L, 100000L)
         data = None
         minting = false
       } yield Transaction.Unproven(inputs, feeOutput, coinOutputs, fee, timestamp, data, minting)

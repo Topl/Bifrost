@@ -26,9 +26,7 @@ object TransactionOps {
 
       def prove(prove: BoxReference => (Proposition, Proof)) =
         Transaction(
-          ListMap.from(
-            unproven.inputs.map(boxRef => boxRef -> prove(boxRef))
-          ),
+          ListMap.empty ++ unproven.inputs.map(boxRef => boxRef -> prove(boxRef)),
           unproven.feeOutput,
           unproven.coinOutputs,
           unproven.fee,

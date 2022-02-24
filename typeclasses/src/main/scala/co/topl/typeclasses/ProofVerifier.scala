@@ -233,9 +233,10 @@ object ProofVerifier {
       OptionT
         .fromOption[F](io.circe.parser.parse(proof.serializedArgs).toOption)
         .semiflatMap { argsJson =>
+          import co.topl.codecs.json.tetra.instances._
           val contextJson =
             Json.obj(
-              "currentTransaction" -> Json.obj(), // TODO context.currentTransaction.asJson,
+              "currentTransaction" -> context.currentTransaction.asJson,
               "currentHeight"      -> context.currentHeight.asJson,
               "currentSlot"        -> context.currentSlot.asJson
             )
@@ -260,17 +261,13 @@ object ProofVerifier {
           case (prop: Propositions.Knowledge.ExtendedEd25519, proof: Proofs.Knowledge.Ed25519) =>
             publicKeyExtendedEd25519Verifier[F](prop, proof, context)
           case (prop: Propositions.Compositional.Threshold, proof: Proofs.Compositional.Threshold) =>
-            implicit def v: ProofVerifier[F] = proofVerifier[F]
-            thresholdVerifier[F](prop, proof, context)
+            thresholdVerifier[F](prop, proof, context)(implicitly, proofVerifier[F])
           case (prop: Propositions.Compositional.And, proof: Proofs.Compositional.And) =>
-            implicit def v: ProofVerifier[F] = proofVerifier[F]
-            andVerifier[F](prop, proof, context)
+            andVerifier[F](prop, proof, context)(implicitly, proofVerifier[F])
           case (prop: Propositions.Compositional.Or, proof: Proofs.Compositional.Or) =>
-            implicit def v: ProofVerifier[F] = proofVerifier[F]
-            orVerifier[F](prop, proof, context)
+            orVerifier[F](prop, proof, context)(implicitly, proofVerifier[F])
           case (prop: Propositions.Compositional.Not, proof: Proofs.Compositional.Not) =>
-            implicit def v: ProofVerifier[F] = proofVerifier[F]
-            notVerifier[F](prop, proof, context)
+            notVerifier[F](prop, proof, context)(implicitly, proofVerifier[F])
           case (prop: Propositions.Contextual.HeightLock, _: Proofs.Contextual.HeightLock) =>
             heightLockVerifier[F](prop, context)
           case (prop: Propositions.Contextual.RequiredBoxState, _: Proofs.Contextual.RequiredBoxState) =>

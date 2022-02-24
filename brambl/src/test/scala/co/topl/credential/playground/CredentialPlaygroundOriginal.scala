@@ -75,7 +75,8 @@ object CredentialPlaygroundOriginal extends App {
   println(proof)
 
   val transaction = Transaction(
-    inputs = ListMap.from(unprovenTransaction.inputs.map(_ -> (proposition, proof))),
+    inputs =
+      ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(_ -> (proposition, proof)),
     feeOutput = unprovenTransaction.feeOutput,
     coinOutputs = unprovenTransaction.coinOutputs,
     fee = unprovenTransaction.fee,

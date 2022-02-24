@@ -1,4 +1,4 @@
-package co.topl.codecs.json.models
+package co.topl.codecs.json.tetra
 
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models._
