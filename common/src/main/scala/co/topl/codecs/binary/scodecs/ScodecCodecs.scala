@@ -5,3 +5,4 @@ trait ScodecCodecs
     with crypto.CryptoCodecs
     with modifier.ModifierCodecs
     with valuetypes.ValuetypesCodecs
+    with tetra.TetraCodecs

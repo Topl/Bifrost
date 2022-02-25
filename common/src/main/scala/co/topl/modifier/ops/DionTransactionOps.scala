@@ -38,10 +38,9 @@ class DionTransactionOps[P <: DionProposition](val transaction: DionTransaction[
   /**
    * Attempts to upgrade a Dion [[DionTransaction.TX]] to an equivalent Tetra [[Transaction]].
    *
-   * @param evidenceProducer an instance of the [[EvidenceProducer]] typeclass.
    * @return a [[Transaction]] if the upgrade is successful, otherwise a [[ToTetraTxFailure]]
    */
-  def toTetraTx(implicit evidenceProducer: EvidenceProducer[P]): Either[ToTetraTxFailure, Transaction] =
+  def toTetraTx: Either[ToTetraTxFailure, Transaction] =
     transaction match {
       case transfer: ArbitTransfer[P] =>
         for {
@@ -100,10 +99,10 @@ class DionTransactionOps[P <: DionProposition](val transaction: DionTransaction[
    * Merges a Dion [[DionTransaction.TX]] input set with an attestation map.
    * @param inputs the set of inputs to merge
    * @param attestation the attestation map to merge
-   * @tparam D a [[DionProposition]] type with an instance of [[EvidenceProducer]]
+   * @tparam D a [[DionProposition]] type
    * @return a Tetra [[Transaction]] compatible input set if successful, otherwise a [[ToTetraTxFailure]]
    */
-  private def mergeInputsWithAttestation[D <: DionProposition: EvidenceProducer](
+  private def mergeInputsWithAttestation[D <: DionProposition](
     inputs:      IndexedSeq[(Address, DionBox.Nonce)],
     attestation: ListMap[D, DionProof[D]]
   ): Either[ToTetraTxFailure, ListMap[BoxReference, (Proposition, Proof)]] =
@@ -352,7 +351,7 @@ object DionTransactionOps {
 
   trait ToDionTransactionOps {
 
-    implicit def dionTransactionOpsFromDionTransaction[P <: DionProposition: EvidenceProducer](
+    implicit def dionTransactionOpsFromDionTransaction[P <: DionProposition](
       transaction: DionTransaction[_, P]
     ): DionTransactionOps[P] =
       new DionTransactionOps(transaction)
