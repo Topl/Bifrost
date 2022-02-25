@@ -1,0 +1,70 @@
+package co.topl.modifier.ops
+
+import cats.implicits._
+import co.topl.attestation.Address
+import co.topl.attestation.ops.AddressOps.ToDionAddressFailure
+import co.topl.models.{Box, Bytes, DionAddress, Transaction}
+import co.topl.models.utility.HasLength.instances.{bigIntLength, latin1DataLength}
+import co.topl.models.utility.{Lengths, Sized}
+import co.topl.modifier.box.AssetValue
+import co.topl.utils.{Int128 => DionInt128}
+import co.topl.attestation.ops.AddressOps.implicits._
+import co.topl.models.utility.StringDataTypes.Latin1Data
+import co.topl.utils.StringDataTypes.{Latin1Data => DionLatin1Data}
+
+import scala.language.implicitConversions
+
+class AssetValueOps(val assetValue: AssetValue) extends AnyVal {
+  import AssetValueOps._
+
+  def toAssetOutput(address: DionAddress): Either[ToAssetOutputFailure, Transaction.AssetOutput] =
+    for {
+      quantity <-
+        Sized
+          .max[BigInt, Lengths.`128`.type](assetValue.quantity.toLong)
+          .leftMap(error => ToAssetOutputFailures.InvalidQuantity(assetValue.quantity, error))
+      issuer <-
+        assetValue.assetCode.issuer.toDionAddress
+          .leftMap[ToAssetOutputFailure](error =>
+            ToAssetOutputFailures.InvalidIssuerAddress(assetValue.assetCode.issuer, error)
+          )
+      shortName <-
+        Sized
+          .max[Latin1Data, Lengths.`8`.type](Latin1Data.fromData(assetValue.assetCode.shortName.value))
+          .leftMap[ToAssetOutputFailure](error =>
+            ToAssetOutputFailures.InvalidShortName(assetValue.assetCode.shortName, error)
+          )
+      assetCode = Box.Values.Asset.Code(assetValue.assetCode.version, issuer, shortName)
+      securityRoot = Bytes(assetValue.securityRoot.root)
+      metadata <-
+        assetValue.metadata
+          .fold[Either[ToAssetOutputFailure, Option[Sized.Max[Latin1Data, Lengths.`127`.type]]]](
+            None.asRight[ToAssetOutputFailure]
+          )(data =>
+            Sized
+              .max[Latin1Data, Lengths.`127`.type](Latin1Data.fromData(data.value))
+              .map(_.some)
+              .leftMap(error => ToAssetOutputFailures.InvalidMetadata(data, error))
+          )
+      asset = Box.Values.Asset(quantity, assetCode, securityRoot, metadata)
+    } yield Transaction.AssetOutput(address, asset)
+}
+
+object AssetValueOps {
+  sealed trait ToAssetOutputFailure
+
+  object ToAssetOutputFailures {
+    case class InvalidQuantity(quantity: DionInt128, inner: Sized.InvalidLength) extends ToAssetOutputFailure
+    case class InvalidIssuerAddress(isser: Address, inner: ToDionAddressFailure) extends ToAssetOutputFailure
+    case class InvalidShortName(shortName: DionLatin1Data, inner: Sized.InvalidLength) extends ToAssetOutputFailure
+    case class InvalidMetadata(metadata: DionLatin1Data, inner: Sized.InvalidLength) extends ToAssetOutputFailure
+  }
+
+  trait ToAssetValueOps {
+    implicit def assetValueOpsFromAssetValue(assetValue: AssetValue): AssetValueOps = new AssetValueOps(assetValue)
+  }
+
+  trait Implicits extends ToAssetValueOps
+
+  object implicits extends Implicits
+}
