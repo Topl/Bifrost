@@ -35,6 +35,12 @@ class DionTransactionOps[P <: DionProposition](val transaction: DionTransaction[
 
   import DionTransactionOps._
 
+  /**
+   * Attempts to upgrade a Dion [[DionTransaction.TX]] to an equivalent Tetra [[Transaction]].
+   *
+   * @param evidenceProducer an instance of the [[EvidenceProducer]] typeclass.
+   * @return a [[Transaction]] if the upgrade is successful, otherwise a [[ToTetraTxFailure]]
+   */
   def toTetraTx(implicit evidenceProducer: EvidenceProducer[P]): Either[ToTetraTxFailure, Transaction] =
     transaction match {
       case transfer: ArbitTransfer[P] =>
@@ -90,43 +96,54 @@ class DionTransactionOps[P <: DionProposition](val transaction: DionTransaction[
         )
     }
 
+  /**
+   * Merges a Dion [[DionTransaction.TX]] input set with an attestation map.
+   * @param inputs the set of inputs to merge
+   * @param attestation the attestation map to merge
+   * @tparam D a [[DionProposition]] type with an instance of [[EvidenceProducer]]
+   * @return a Tetra [[Transaction]] compatible input set if successful, otherwise a [[ToTetraTxFailure]]
+   */
   private def mergeInputsWithAttestation[D <: DionProposition: EvidenceProducer](
     inputs:      IndexedSeq[(Address, DionBox.Nonce)],
     attestation: ListMap[D, DionProof[D]]
   ): Either[ToTetraTxFailure, ListMap[BoxReference, (Proposition, Proof)]] =
     for {
       dionAddressInputs <-
-        inputs.foldLeft[Either[ToTetraTxFailure, Chain[BoxReference]]](Chain.empty.asRight) {
-          case (Right(validInputs), input) =>
+        Chain
+          .fromSeq(inputs)
+          .traverse(input =>
             input._1.toDionAddress
               .map(dionAddress => dionAddress -> input._2)
-              .map(validInputs.append)
               .leftMap(error => ToTetraTxFailures.InvalidAddress(input._1, error))
-          case (error, _) => error
-        }
+          )
+      tetraPropsAndProofs <-
+        Chain
+          .fromSeq(attestation.toSeq)
+          .traverse {
+            case (prop: PublicKeyPropositionCurve25519, proof: SignatureCurve25519) =>
+              toCurvePropAndProof(prop, proof)
+            case (prop: PublicKeyPropositionEd25519, proof: SignatureEd25519) =>
+              toEdPropAndProof(prop, proof)
+            case (prop: ThresholdPropositionCurve25519, proof: ThresholdSignatureCurve25519) =>
+              toThresholdPropAndProof(prop, proof)
+            case (x, _) => ToTetraTxFailures.InvalidPropositionFailures.InvalidProposition(x).asLeft
+          }
       merged <-
-        attestation.foldLeft(ListMap.empty[BoxReference, (Proposition, Proof)].asRight[ToTetraTxFailure]) {
-          case (Right(result), (proposition, proof)) =>
-            for {
-              propAndProof <-
-                (proposition, proof) match {
-                  case (prop: PublicKeyPropositionCurve25519, proof: SignatureCurve25519) =>
-                    toCurvePropAndProof(prop, proof)
-                  case (prop: PublicKeyPropositionEd25519, proof: SignatureEd25519) =>
-                    toEdPropAndProof(prop, proof)
-                  case (prop: ThresholdPropositionCurve25519, proof: ThresholdSignatureCurve25519) =>
-                    toThresholdPropAndProof(prop, proof)
-                  case (x, _) => ToTetraTxFailures.InvalidPropositionFailures.InvalidProposition(x).asLeft
-                }
-              mergedInputs =
-                dionAddressInputs
-                  .filter(_._1.typedEvidence == propAndProof._1.typedEvidence)
-                  .map(_ -> propAndProof)
-            } yield result ++ ListMap.from(mergedInputs.iterator)
-          case (error, _) => error
-        }
-    } yield merged
+        dionAddressInputs.traverse(input =>
+          tetraPropsAndProofs
+            .find(pair => pair._1.typedEvidence == input._1.typedEvidence)
+            .toRight(ToTetraTxFailures.MissingProof(input))
+            .map(input -> _)
+        )
+    } yield ListMap.from(merged.iterator)
 
+  /**
+   * Converts a Dion [[PublicKeyPropositionCurve25519]] and [[SignatureCurve25519]] pair to an equivalent
+   * Tetra [[Proposition]] and [[Proof]]
+   * @param dionProp the Dion proposition to convert
+   * @param dionProof the Dion proof to convert
+   * @return a [[Proposition]] and [[Proof]] pair if successful, otherwise a [[ToTetraTxFailure]]
+   */
   private def toCurvePropAndProof(
     dionProp:  PublicKeyPropositionCurve25519,
     dionProof: SignatureCurve25519
@@ -144,6 +161,13 @@ class DionTransactionOps[P <: DionProposition](val transaction: DionTransaction[
       curveProof = Proofs.Knowledge.Curve25519(proofBytes)
     } yield curveProp -> curveProof
 
+  /**
+   * Converts a Dion [[PublicKeyPropositionEd25519]] and [[SignatureEd25519]] pair to an equivalent
+   * Tetra [[Proposition]] and [[Proof]]
+   * @param dionProp the Dion proposition to convert
+   * @param dionProof the Dion proof to convert
+   * @return a [[Proposition]] and [[Proof]] pair if successful, otherwise a [[ToTetraTxFailure]]
+   */
   private def toEdPropAndProof(
     dionProp:  PublicKeyPropositionEd25519,
     dionProof: SignatureEd25519
@@ -161,48 +185,57 @@ class DionTransactionOps[P <: DionProposition](val transaction: DionTransaction[
       edProof = Proofs.Knowledge.Ed25519(proofBytes)
     } yield edProp -> edProof
 
+  /**
+   * Converts a Dion [[ThresholdPropositionCurve25519]] and [[ThresholdSignatureCurve25519]] pair to an equivalent
+   * Tetra [[Proposition]] and [[Proof]]
+   * @param dionProp the Dion proposition to convert
+   * @param dionProof the Dion proof to convert
+   * @return a [[Proposition]] and [[Proof]] pair if successful, otherwise a [[ToTetraTxFailure]]
+   */
   private def toThresholdPropAndProof(
     dionProp:  ThresholdPropositionCurve25519,
     dionProof: ThresholdSignatureCurve25519
   ): Either[ToTetraTxFailure, (Proposition, Proof)] =
     for {
       curveProps <-
-        dionProp.pubKeyProps
-          .foldLeft[Either[ToTetraTxFailure, Chain[Propositions.Knowledge.Curve25519]]](Chain.empty.asRight) {
-            case (Right(validProps), prop) =>
-              Sized
-                .strict[Bytes, VerificationKeys.Curve25519.Length](Bytes(prop.pubKeyBytes.value))
-                .map(pubKeyBytes => Propositions.Knowledge.Curve25519(VerificationKeys.Curve25519(pubKeyBytes)))
-                .map(validProps.append)
-                .leftMap(error => ToTetraTxFailures.InvalidPropositionFailures.InvalidPropositionSize(prop, error))
-            case (error, _) => error
-          }
+        Chain
+          .fromSeq(dionProp.pubKeyProps.toSeq)
+          .traverse(prop =>
+            Sized
+              .strict[Bytes, VerificationKeys.Curve25519.Length](Bytes(prop.pubKeyBytes.value))
+              .map(pubKeyBytes => Propositions.Knowledge.Curve25519(VerificationKeys.Curve25519(pubKeyBytes)))
+              .leftMap(error => ToTetraTxFailures.InvalidPropositionFailures.InvalidPropositionSize(prop, error))
+          )
       curveProofs <-
-        dionProof.signatures
-          .foldLeft[Either[ToTetraTxFailure, Chain[Proofs.Knowledge.Curve25519]]](Chain.empty.asRight) {
-            case (Right(validProofs), proof) =>
-              Sized
-                .strict[Bytes, Proofs.Knowledge.Curve25519.Length](Bytes(proof.sigBytes.value))
-                .map(proofBytes => Proofs.Knowledge.Curve25519(proofBytes))
-                .map(validProofs.append)
-                .leftMap(error => ToTetraTxFailures.InvalidProofSize(proof, error))
-            case (error, _) => error
-          }
+        Chain
+          .fromSeq(dionProof.signatures.toSeq)
+          .traverse(proof =>
+            Sized
+              .strict[Bytes, Proofs.Knowledge.Curve25519.Length](Bytes(proof.sigBytes.value))
+              .map(proofBytes => Proofs.Knowledge.Curve25519(proofBytes))
+              .leftMap(error => ToTetraTxFailures.InvalidProofSize(proof, error))
+          )
       thresholdProp = Propositions.Compositional.Threshold(dionProp.threshold, ListSet.from(curveProps.iterator))
       thresholdProof = Proofs.Compositional.Threshold(curveProofs.toList)
     } yield thresholdProp -> thresholdProof
 
   private def toData(data: Option[DionLatin1Data]): Either[ToTetraTxFailure, Option[TransactionData]] =
-    data.fold[Either[ToTetraTxFailure, Option[TransactionData]]](none.asRight)(d =>
+    data.traverse(d =>
       Sized
         .max[Latin1Data, Lengths.`127`.type](Latin1Data.fromData(d.value))
-        .map(_.some)
         .leftMap(error => ToTetraTxFailures.InvalidData(d, error))
     )
 
   private def toFeeValue(fee: DionInt128): Either[ToTetraTxFailure, Int128] =
     Sized.max[BigInt, Lengths.`128`.type](fee.toLong).leftMap(error => ToTetraTxFailures.InvalidFee(fee, error))
 
+  /**
+   * Attempts to convert a Dion fee output value into an optional [[Transaction.PolyOutput]].
+   * The resulting value will be [[None]] if the quantity of the input value is 0.
+   * @param address the address to use in the fee output
+   * @param value the value to use in the fee output
+   * @return an optional [[Transaction.PolyOutput]] if the conversion is successful, otherwise a [[ToTetraTxFailure]]
+   */
   private def toFeeOutput(
     address: Address,
     value:   TokenValueHolder
@@ -210,53 +243,41 @@ class DionTransactionOps[P <: DionProposition](val transaction: DionTransaction[
     value match {
       case simpleValue: SimpleValue =>
         if (value.quantity > 0) toPolyOutput(address, simpleValue).map(_.some) else none.asRight
-      case invalid => ToTetraTxFailures.InvalidFeeOutput(address, value).asLeft
+      case invalid => ToTetraTxFailures.InvalidFeeOutput(address, invalid).asLeft
     }
 
   private def toPolyCoinOutputs(
     from: IndexedSeq[(Address, TokenValueHolder)]
   ): Either[ToTetraTxFailure, NonEmptyChain[Transaction.CoinOutput]] =
-    from
-      .foldLeft[Either[ToTetraTxFailure, NonEmptyChain[Transaction.CoinOutput]]](
-        ToTetraTxFailures.EmptyOutputs.asLeft
-      ) {
-        case (Right(coinOutputs), (address: Address, simpleValue: SimpleValue)) =>
-          toPolyOutput(address, simpleValue).map(coinOutputs.append)
-        case (Right(_), invalid) => ToTetraTxFailures.InvalidOutput(invalid._1, invalid._2).asLeft
-        case (Left(ToTetraTxFailures.EmptyOutputs), (address, simpleValue: SimpleValue)) =>
-          toPolyOutput(address, simpleValue).map(NonEmptyChain.one)
-        case (error, _) => error
-      }
+    NonEmptyChain
+      .fromSeq(from)
+      .toRight(ToTetraTxFailures.EmptyOutputs)
+      .flatMap(_.traverse {
+        case (address: Address, simpleValue: SimpleValue) => toPolyOutput(address, simpleValue)
+        case (invalidAddress, invalidToken) => ToTetraTxFailures.InvalidOutput(invalidAddress, invalidToken).asLeft
+      })
 
   private def toArbitCoinOutputs(
     from: IndexedSeq[(Address, TokenValueHolder)]
   ): Either[ToTetraTxFailure, NonEmptyChain[Transaction.CoinOutput]] =
-    from
-      .foldLeft[Either[ToTetraTxFailure, NonEmptyChain[Transaction.CoinOutput]]](
-        ToTetraTxFailures.EmptyOutputs.asLeft
-      ) {
-        case (Right(coinOutputs), (address: Address, simpleValue: SimpleValue)) =>
-          toArbitOutput(address, simpleValue).map(coinOutputs.append)
-        case (Right(_), invalid) => ToTetraTxFailures.InvalidOutput(invalid._1, invalid._2).asLeft
-        case (Left(ToTetraTxFailures.EmptyOutputs), (address, simpleValue: SimpleValue)) =>
-          toArbitOutput(address, simpleValue).map(NonEmptyChain.one)
-        case (error, _) => error
-      }
+    NonEmptyChain
+      .fromSeq(from)
+      .toRight(ToTetraTxFailures.EmptyOutputs)
+      .flatMap(_.traverse {
+        case (address: Address, simpleValue: SimpleValue) => toArbitOutput(address, simpleValue)
+        case (invalidAddress, invalidToken) => ToTetraTxFailures.InvalidOutput(invalidAddress, invalidToken).asLeft
+      })
 
   private def toAssetCoinOutputs(
     from: IndexedSeq[(Address, TokenValueHolder)]
   ): Either[ToTetraTxFailure, NonEmptyChain[Transaction.CoinOutput]] =
-    from
-      .foldLeft[Either[ToTetraTxFailure, NonEmptyChain[Transaction.CoinOutput]]](
-        ToTetraTxFailures.EmptyOutputs.asLeft
-      ) {
-        case (Right(coinOutputs), (address: Address, assetValue: AssetValue)) =>
-          toAssetOutput(address, assetValue).map(coinOutputs.append)
-        case (Right(_), invalid) => ToTetraTxFailures.InvalidOutput(invalid._1, invalid._2).asLeft
-        case (Left(ToTetraTxFailures.EmptyOutputs), (address, assetValue: AssetValue)) =>
-          toAssetOutput(address, assetValue).map(NonEmptyChain.one)
-        case (error, _) => error
-      }
+    NonEmptyChain
+      .fromSeq(from)
+      .toRight(ToTetraTxFailures.EmptyOutputs)
+      .flatMap(_.traverse {
+        case (address: Address, assetValue: AssetValue) => toAssetOutput(address, assetValue)
+        case (invalidAddress, invalidToken) => ToTetraTxFailures.InvalidOutput(invalidAddress, invalidToken).asLeft
+      })
 
   private def toPolyOutput(
     address:     Address,
@@ -313,6 +334,7 @@ object DionTransactionOps {
     case class InvalidData(data: DionLatin1Data, inner: Sized.InvalidLength) extends ToTetraTxFailure
     case class InvalidFee(fee: DionInt128, inner: Sized.InvalidLength) extends ToTetraTxFailure
     case class InvalidFeeOutput(address: Address, value: TokenValueHolder) extends ToTetraTxFailure
+    case class MissingProof(input: (DionAddress, BoxNonce)) extends ToTetraTxFailure
 
     case class InvalidProofSize(proof: DionProof[_ <: DionProposition], inner: Sized.InvalidLength)
         extends ToTetraTxFailure

@@ -17,6 +17,12 @@ import scala.language.implicitConversions
 class AssetValueOps(val assetValue: AssetValue) extends AnyVal {
   import AssetValueOps._
 
+  /**
+   * Attempts to convert a Dion [[AssetValue]] into a Tetra [[Transaction.AssetOutput]] with a given [[DionAddress]].
+   *
+   * @param address the address to use in the asset output value
+   * @return a [[Transaction.AssetOutput]] if successful, otherwise a [[ToAssetOutputFailure]]
+   */
   def toAssetOutput(address: DionAddress): Either[ToAssetOutputFailure, Transaction.AssetOutput] =
     for {
       quantity <-
@@ -37,15 +43,11 @@ class AssetValueOps(val assetValue: AssetValue) extends AnyVal {
       assetCode = Box.Values.Asset.Code(assetValue.assetCode.version, issuer, shortName)
       securityRoot = Bytes(assetValue.securityRoot.root)
       metadata <-
-        assetValue.metadata
-          .fold[Either[ToAssetOutputFailure, Option[Sized.Max[Latin1Data, Lengths.`127`.type]]]](
-            None.asRight[ToAssetOutputFailure]
-          )(data =>
-            Sized
-              .max[Latin1Data, Lengths.`127`.type](Latin1Data.fromData(data.value))
-              .map(_.some)
-              .leftMap(error => ToAssetOutputFailures.InvalidMetadata(data, error))
-          )
+        assetValue.metadata.traverse(data =>
+          Sized
+            .max[Latin1Data, Lengths.`127`.type](Latin1Data.fromData(data.value))
+            .leftMap(error => ToAssetOutputFailures.InvalidMetadata(data, error))
+        )
       asset = Box.Values.Asset(quantity, assetCode, securityRoot, metadata)
     } yield Transaction.AssetOutput(address, asset)
 }

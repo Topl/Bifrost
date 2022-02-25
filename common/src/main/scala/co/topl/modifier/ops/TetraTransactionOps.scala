@@ -1,6 +1,6 @@
 package co.topl.modifier.ops
 
-import cats.data.Chain
+import cats.data.{Chain, NonEmptyChain}
 import cats.implicits._
 import co.topl.attestation._
 import co.topl.crypto.{PublicKey, Signature}
@@ -19,7 +19,7 @@ class TetraTransactionOps(val transaction: Transaction) extends AnyVal {
 
   def toDionTx: Either[ToDionTxFailure, DionTransaction.TX] =
     for {
-      expectedProposition <- transaction.inputs.headOption.toRight(ToDionTxFailures.NoInputs)
+      expectedProposition <- transaction.inputs.headOption.toRight(ToDionTxFailures.EmptyInputs)
       tx <-
         (expectedProposition._2._1, transaction.coinOutputs.head) match {
           case (_: Propositions.Knowledge.Curve25519, _: Transaction.PolyOutput)     => asPolyTransferCurve
@@ -31,7 +31,7 @@ class TetraTransactionOps(val transaction: Transaction) extends AnyVal {
           case (_: Propositions.Compositional.Threshold, _: Transaction.PolyOutput)  => asPolyTransferThreshold
           case (_: Propositions.Compositional.Threshold, _: Transaction.ArbitOutput) => asArbitTransferThreshold
           case (_: Propositions.Compositional.Threshold, _: Transaction.AssetOutput) => asAssetTransferThreshold
-          case (prop, output) => ToDionTxFailures.IllegalTransferType(prop, output).asLeft[DionTransaction.TX]
+          case (prop, output) => ToDionTxFailures.InvalidTransferType(prop, output).asLeft[DionTransaction.TX]
         }
     } yield tx
 
@@ -138,7 +138,10 @@ class TetraTransactionOps(val transaction: Transaction) extends AnyVal {
       tx =
         AssetTransfer(
           getFrom,
-          getFeeOutput.fold(coinOutputs)(coinOutputs.prepend).iterator.toIndexedSeq,
+          getFeeOutput
+            .fold(coinOutputs)(coinOutputs.prepend)
+            .iterator
+            .toIndexedSeq,
           attestation,
           getFee,
           transaction.timestamp,
@@ -180,105 +183,90 @@ class TetraTransactionOps(val transaction: Transaction) extends AnyVal {
     } yield tx
 
   private def curveAttestation: Either[ToDionTxFailure, ListMap[PublicKeyPropositionCurve25519, SignatureCurve25519]] =
-    transaction.inputs.values
-      .foldLeft(
-        ListMap.empty[PublicKeyPropositionCurve25519, SignatureCurve25519].asRight[ToDionTxFailure]
-      ) {
-        case (Right(attMap), (prop: Propositions.Knowledge.Curve25519, proof: Proofs.Knowledge.Curve25519)) =>
-          attMap
-            .updated(
-              PublicKeyPropositionCurve25519(PublicKey(prop.key.bytes.data.toArray)),
-              SignatureCurve25519(Signature(proof.bytes.data.toArray))
-            )
-            .asRight
-        case (Right(_), illegal) => ToDionTxFailures.IllegalProposition(illegal._1).asLeft
-        case (error, _)          => error
+    transaction.inputs.values.toList
+      .traverse {
+        case (prop: Propositions.Knowledge.Curve25519, proof: Proofs.Knowledge.Curve25519) =>
+          (
+            PublicKeyPropositionCurve25519(PublicKey(prop.key.bytes.data.toArray)),
+            SignatureCurve25519(Signature(proof.bytes.data.toArray))
+          ).asRight
+        case invalid => ToDionTxFailures.InvalidProposition(invalid._1).asLeft
       }
+      .map(ListMap(_: _*))
 
   private def edAttestation: Either[ToDionTxFailure, ListMap[PublicKeyPropositionEd25519, SignatureEd25519]] =
-    transaction.inputs.values
-      .foldLeft(
-        ListMap.empty[PublicKeyPropositionEd25519, SignatureEd25519].asRight[ToDionTxFailure]
-      ) {
-        case (Right(attMap), (prop: Propositions.Knowledge.Ed25519, proof: Proofs.Knowledge.Ed25519)) =>
-          attMap
-            .updated(
-              PublicKeyPropositionEd25519(PublicKey(prop.key.bytes.data.toArray)),
-              SignatureEd25519(Signature(proof.bytes.data.toArray))
-            )
-            .asRight
-        case (Right(_), illegal) => ToDionTxFailures.IllegalProposition(illegal._1).asLeft
-        case (error, _)          => error
+    transaction.inputs.values.toList
+      .traverse {
+        case (prop: Propositions.Knowledge.Ed25519, proof: Proofs.Knowledge.Ed25519) =>
+          (
+            PublicKeyPropositionEd25519(PublicKey(prop.key.bytes.data.toArray)),
+            SignatureEd25519(Signature(proof.bytes.data.toArray))
+          ).asRight
+        case invalid => ToDionTxFailures.InvalidProposition(invalid._1).asLeft
       }
+      .map(ListMap(_: _*))
 
   private def thresholdAttestation
     : Either[ToDionTxFailure, ListMap[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]] =
-    transaction.inputs.values
-      .foldLeft(
-        ListMap.empty[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519].asRight[ToDionTxFailure]
-      ) {
-        case (Right(attMap), (prop: Propositions.Compositional.Threshold, proof: Proofs.Compositional.Threshold)) =>
+    transaction.inputs.values.toList
+      .traverse {
+        case (prop: Propositions.Compositional.Threshold, proof: Proofs.Compositional.Threshold) =>
           for {
             props <-
-              prop.propositions.foldLeft(List.empty[PublicKeyPropositionCurve25519].asRight[ToDionTxFailure]) {
-                case (Right(props), p: Propositions.Knowledge.Curve25519) =>
-                  (props :+ PublicKeyPropositionCurve25519(PublicKey(p.key.bytes.data.toArray))).asRight
-                case (Right(_), illegal) => ToDionTxFailures.IllegalProposition(illegal).asLeft
-                case (error, _)          => error
-              }
+              prop.propositions.toList
+                .traverse {
+                  case p: Propositions.Knowledge.Curve25519 =>
+                    PublicKeyPropositionCurve25519(PublicKey(p.key.bytes.data.toArray)).asRight
+                  case invalid => ToDionTxFailures.InvalidProposition(invalid).asLeft
+                }
             proofs <-
-              proof.proofs.foldLeft(List.empty[SignatureCurve25519].asRight[ToDionTxFailure]) {
-                case (Right(proofs), p: Proofs.Knowledge.Curve25519) =>
-                  (proofs :+ SignatureCurve25519(Signature(p.bytes.data.toArray))).asRight
-                case (Right(_), illegal) => ToDionTxFailures.IllegalProof(illegal).asLeft
-                case (error, _)          => error
-              }
-          } yield attMap.updated(
-            ThresholdPropositionCurve25519(prop.threshold, SortedSet.from(props)),
-            ThresholdSignatureCurve25519(proofs.toSet)
-          )
-        case (Right(_), illegal) => ToDionTxFailures.IllegalProposition(illegal._1).asLeft
-        case (error, _)          => error
+              proof.proofs
+                .traverse {
+                  case p: Proofs.Knowledge.Curve25519 =>
+                    SignatureCurve25519(Signature(p.bytes.data.toArray)).asRight
+                  case invalid => ToDionTxFailures.InvalidProof(invalid).asLeft
+                }
+            thresholdProp = ThresholdPropositionCurve25519(prop.threshold, SortedSet.from(props))
+            thresholdProof = ThresholdSignatureCurve25519(proofs.toSet)
+          } yield thresholdProp -> thresholdProof
+        case invalid => ToDionTxFailures.InvalidProposition(invalid._1).asLeft
+      }
+      .map(ListMap(_: _*))
+
+  private def polyOutputs: Either[ToDionTxFailure, NonEmptyChain[(Address, SimpleValue)]] =
+    transaction.coinOutputs
+      .traverse {
+        case polyOutput: Transaction.PolyOutput =>
+          (toAddress(polyOutput.dionAddress), SimpleValue(Int128(polyOutput.value.data))).asRight
+        case invalidCoin => ToDionTxFailures.InvalidOutput(invalidCoin, "must be Poly token type").asLeft
       }
 
-  private def polyOutputs: Either[ToDionTxFailure, Chain[(Address, SimpleValue)]] =
+  private def arbitOutputs: Either[ToDionTxFailure, NonEmptyChain[(Address, SimpleValue)]] =
     transaction.coinOutputs
-      .foldLeft(Chain.empty[(Address, SimpleValue)].asRight[ToDionTxFailure]) {
-        case (Right(outputs), polyOutput: Transaction.PolyOutput) =>
-          outputs.append(toAddress(polyOutput.dionAddress) -> SimpleValue(Int128(polyOutput.value.data))).asRight
-        case (Right(_), coin) => ToDionTxFailures.InvalidOutput(coin, "must be Poly token type").asLeft
-        case (error, _)       => error
+      .traverse {
+        case arbitOutput: Transaction.ArbitOutput =>
+          (toAddress(arbitOutput.dionAddress), SimpleValue(Int128(arbitOutput.value.data))).asRight
+        case invalidCoin => ToDionTxFailures.InvalidOutput(invalidCoin, "must be Poly token type").asLeft
       }
 
-  private def arbitOutputs: Either[ToDionTxFailure, Chain[(Address, SimpleValue)]] =
+  private def assetOutputs: Either[ToDionTxFailure, NonEmptyChain[(Address, TokenValueHolder)]] =
     transaction.coinOutputs
-      .foldLeft(Chain.empty[(Address, SimpleValue)].asRight[ToDionTxFailure]) {
-        case (Right(outputs), arbitOutput: Transaction.ArbitOutput) =>
-          outputs.append(toAddress(arbitOutput.dionAddress) -> SimpleValue(Int128(arbitOutput.value.data))).asRight
-        case (Right(_), coin) => ToDionTxFailures.InvalidOutput(coin, "must be Arbit token type").asLeft
-        case (error, _)       => error
-      }
-
-  private def assetOutputs: Either[ToDionTxFailure, Chain[(Address, TokenValueHolder)]] =
-    transaction.coinOutputs
-      .foldLeft(Chain.empty[(Address, AssetValue)].asRight[ToDionTxFailure]) {
-        case (Right(outputs), assetOutput: Transaction.AssetOutput) =>
-          outputs
-            .append(
-              toAddress(assetOutput.dionAddress) -> AssetValue(
-                Int128(assetOutput.value.quantity.data),
-                AssetCode(
-                  assetOutput.value.assetCode.version,
-                  toAddress(assetOutput.value.assetCode.issuer),
-                  Latin1Data.fromData(assetOutput.value.assetCode.shortName.data.bytes)
-                ),
-                SecurityRoot(assetOutput.value.securityRoot.toArray),
-                assetOutput.value.metadata.map(data => Latin1Data.fromData(data.data.bytes))
-              )
-            )
-            .asRight
-        case (Right(_), coin) => ToDionTxFailures.InvalidOutput(coin, "must be Asset token type").asLeft
-        case (error, _)       => error
+      .traverse {
+        case assetOutput: Transaction.AssetOutput =>
+          (
+            toAddress(assetOutput.dionAddress),
+            AssetValue(
+              Int128(assetOutput.value.quantity.data),
+              AssetCode(
+                assetOutput.value.assetCode.version,
+                toAddress(assetOutput.value.assetCode.issuer),
+                Latin1Data.fromData(assetOutput.value.assetCode.shortName.data.bytes)
+              ),
+              SecurityRoot(assetOutput.value.securityRoot.toArray),
+              assetOutput.value.metadata.map(data => Latin1Data.fromData(data.data.bytes))
+            ): TokenValueHolder
+          ).asRight
+        case invalidCoin => ToDionTxFailures.InvalidOutput(invalidCoin, "must be Asset token type").asLeft
       }
 
   private def getFrom: IndexedSeq[(Address, Box.Nonce)] =
@@ -301,10 +289,10 @@ object TetraTransactionOps {
 
   object ToDionTxFailures {
     case class InvalidOutput(invalidOutput: Transaction.CoinOutput, reason: String) extends ToDionTxFailure
-    case class IllegalProposition(propositon: Proposition) extends ToDionTxFailure
-    case class IllegalProof(proof: Proof) extends ToDionTxFailure
-    case class IllegalTransferType(proposition: Proposition, coinType: Transaction.CoinOutput) extends ToDionTxFailure
-    case object NoInputs extends ToDionTxFailure
+    case class InvalidProposition(propositon: Proposition) extends ToDionTxFailure
+    case class InvalidProof(proof: Proof) extends ToDionTxFailure
+    case class InvalidTransferType(proposition: Proposition, coinType: Transaction.CoinOutput) extends ToDionTxFailure
+    case object EmptyInputs extends ToDionTxFailure
   }
 
   trait ToTetraTransactionOps {
