@@ -236,6 +236,17 @@ object Dependencies {
   lazy val demo: Seq[ModuleID] =
     Seq(akka("actor"), akka("actor-typed"), akka("stream"), akka("actor-testkit-typed") % Test) ++ logging
 
+  lazy val commonInterpreters =
+    Dependencies.test ++
+    Seq(
+      akka("actor-typed"),
+      akka("actor-testkit-typed") % Test,
+      Dependencies.catsSlf4j      % "test"
+    ) ++
+    Dependencies.cats ++
+    Dependencies.catsEffect ++
+    Dependencies.scalacache
+
   lazy val tools: Seq[ModuleID] =
     Seq(
       "org.mongodb.scala" %% "mongo-scala-driver" % "4.3.4"

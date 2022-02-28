@@ -385,11 +385,7 @@ lazy val commonInterpreters = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.interpreters"
   )
-  .settings(
-    libraryDependencies ++= Dependencies.test ++ Seq(Dependencies.catsSlf4j % "test") ++ Seq(
-      Dependencies.akka("actor-typed")
-    ) ++ Dependencies.cats ++ Dependencies.catsEffect ++ Dependencies.scalacache
-  )
+  .settings(libraryDependencies ++= Dependencies.commonInterpreters)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, crypto, tetraByteCodecs, algebras, typeclasses)
 

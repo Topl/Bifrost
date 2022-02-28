@@ -140,7 +140,8 @@ class OperationalKeysSpec
           parentSlotId,
           operationalPeriodLength,
           activationOperationalPeriod,
-          address
+          address,
+          0L
         )
         .unsafeRunSync()
 
@@ -260,7 +261,8 @@ class OperationalKeysSpec
           parentSlotId,
           operationalPeriodLength,
           activationOperationalPeriod,
-          address
+          address,
+          0L
         )
         .unsafeRunSync()
 

@@ -183,7 +183,9 @@ object TetraDemo extends IOApp.Simple {
                 LeaderElectionMinting.Eval.make(
                   stakerVRFVK,
                   leaderElectionThreshold,
-                  vrfProofConstruction
+                  vrfProofConstruction,
+                  StatsInterpreter.Noop.make[F],
+                  ""
                 ),
                 operationalKeys,
                 VrfRelativeStakeMintingLookup.Eval.make(state, clock),
