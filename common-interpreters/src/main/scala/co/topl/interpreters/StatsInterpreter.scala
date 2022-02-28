@@ -1,4 +1,4 @@
-package co.topl.demo
+package co.topl.interpreters
 
 import cats.effect.kernel.Sync
 import co.topl.algebras.Stats

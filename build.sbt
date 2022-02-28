@@ -184,7 +184,9 @@ lazy val bifrost = project
     crypto,
     brambl,
     models,
+    eventTree,
     algebras,
+    commonInterpreters,
     minting,
     byteCodecs,
     consensus,
@@ -283,6 +285,20 @@ lazy val models = project
   )
   .settings(libraryDependencies ++= Dependencies.test)
 
+lazy val eventTree = project
+  .in(file("event-tree"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "event-tree",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.eventtree"
+  )
+  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsEffect)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(models, typeclasses, algebras, commonInterpreters % "test->test")
+
 lazy val byteCodecs = project
   .in(file("byte-codecs"))
   .enablePlugins(BuildInfoPlugin)
@@ -324,6 +340,20 @@ lazy val algebras = project
   .settings(libraryDependencies ++= Dependencies.test ++ Seq(Dependencies.catsSlf4j % "test"))
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, crypto, byteCodecs)
+
+lazy val commonInterpreters = project
+  .in(file("common-interpreters"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "common-interpreters",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.commoninterpreters"
+  )
+  .settings(libraryDependencies ++= Dependencies.commonInterpreters)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(models, algebras, typeclasses)
 
 lazy val consensus = project
   .in(file("consensus"))
@@ -381,7 +411,7 @@ lazy val demo = project
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.demo ++ Dependencies.catsEffect)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, typeclasses, consensus, minting)
+  .dependsOn(models, typeclasses, consensus, minting, commonInterpreters)
 
 lazy val toplRpc = project
   .in(file("topl-rpc"))

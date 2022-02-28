@@ -1,4 +1,4 @@
-package co.topl.demo
+package co.topl.interpreters
 
 import akka.actor.typed.{ActorSystem, DispatcherSelector, Extension, ExtensionId}
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
