@@ -116,8 +116,10 @@ object Dependencies {
     Seq(
       "org.typelevel"          %% "simulacrum"              % simulacrumVersion,
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.6.0",
-      "org.scodec"             %% "scodec-bits"             % "1.1.30",
-      "org.mongodb.scala"      %% "mongo-scala-driver"      % "4.3.2"
+      "org.mongodb.scala"      %% "mongo-scala-driver"      % "4.3.2",
+      "io.circe"               %% "circe-generic"           % circeVersion,
+      "org.scodec"             %% "scodec-core"             % "1.11.8",
+      "org.scodec"             %% "scodec-bits"             % "1.1.30"
     ) ++
     logging ++
     circe ++
