@@ -9,9 +9,10 @@ import cats.data.EitherT
 import cats.implicits._
 import co.topl.consensus.ConsensusVariables.ConsensusParamsUpdate
 import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
-import co.topl.consensus.genesis.{GeneratedGenesis, GenesisFromBlockJson, GenesisFromConfig}
+import co.topl.consensus.genesis._
 import co.topl.modifier.block.Block
 import co.topl.nodeView.NodeViewReader
+import co.topl.settings.GenesisStrategy._
 import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType._
 import co.topl.utils.{Int128, NetworkType, TimeProvider}
@@ -136,45 +137,42 @@ object Forger {
       }
     }
 
-    settings.forging.genesis.map(_.genesisMode).head match {
-      case "generated" =>
-        if (networkType == PrivateTestnet) {
-          val genesisSettings = settings.forging.genesis.flatMap(_.generated).head
+    if (settings.forging.genesis.head.genesisStrategy.isEmpty) {
+      networkType match {
+        case Mainnet         => initializeFromChainParamsAndGetBlock(ToplnetGenesis.getGenesisBlock)
+        case ValhallaTestnet => initializeFromChainParamsAndGetBlock(ValhallaGenesis.getGenesisBlock)
+        case HelTestnet      => initializeFromChainParamsAndGetBlock(HelGenesis.getGenesisBlock)
+        case PrivateTestnet =>
           fetchStartupKeyView()
-            .map(view =>
-              GeneratedGenesis(view.addresses, genesisSettings, nxtLeaderElection.protocolMngr).getGenesisBlock
-            )
+            .map(view => PrivateGenesis(view.addresses, settings).getGenesisBlock)
             .flatMap(r => initializeFromChainParamsAndGetBlock(r))
-        } else {
-          Future.failed(new IllegalArgumentException(s"Unsupported network type for generated genesis: $networkType"))
-        }
-      case "fromConfig" =>
-        val genesisSettings = settings.forging.genesis.flatMap(_.providedFromConfig).head
-        initializeFromChainParamsAndGetBlock(
-          GenesisFromConfig(genesisSettings, networkType, nxtLeaderElection.protocolMngr).getGenesisBlock
-        )
-      case "fromBlockJson" =>
-        val genesisSettings = settings.forging.genesis.flatMap(_.providedFromBlockJson).head
-        initializeFromChainParamsAndGetBlock(
-          GenesisFromBlockJson(genesisSettings, networkType, nxtLeaderElection.protocolMngr).getGenesisBlock
-        )
-      case _ =>
-        Future.failed(new IllegalArgumentException(s"Undefined genesis method type $networkType"))
+        case _ =>
+          Future.failed(new IllegalArgumentException(s"Undefined network type $networkType"))
+      }
+    } else {
+      settings.forging.genesis.head.genesisStrategy.head match {
+        case Generated =>
+          if (networkType == PrivateTestnet) {
+            val genesisSettings = settings.forging.genesis.flatMap(_.generated).head
+            fetchStartupKeyView()
+              .map(view =>
+                GeneratedGenesis(view.addresses, genesisSettings, nxtLeaderElection.protocolMngr).getGenesisBlock
+              )
+              .flatMap(r => initializeFromChainParamsAndGetBlock(r))
+          } else {
+            Future.failed(new IllegalArgumentException(s"Unsupported network type for generated genesis: $networkType"))
+          }
+        case FromBlockJson =>
+          val genesisSettings = settings.forging.genesis.flatMap(_.providedFromBlockJson).head
+          initializeFromChainParamsAndGetBlock(
+            GenesisFromBlockJson(genesisSettings, networkType, nxtLeaderElection.protocolMngr).getGenesisBlock
+          )
+        case _ =>
+          Future.failed(
+            new IllegalArgumentException(s"Undefined genesis strategy $settings.forging.genesis.head.genesisStrategy")
+          )
+      }
     }
-
-// TODO: Jing - remove
-//    networkType match {
-//      case Mainnet         => initializeFromChainParamsAndGetBlock(ToplnetGenesis.getGenesisBlock)
-//      case ValhallaTestnet => initializeFromChainParamsAndGetBlock(ValhallaGenesis.getGenesisBlock)
-//      case HelTestnet      => initializeFromChainParamsAndGetBlock(HelGenesis.getGenesisBlock)
-//      case PrivateTestnet =>
-//        fetchStartupKeyView()
-//          .map(view => PrivateGenesis(view.addresses, settings).getGenesisBlock)
-//          .flatMap(r => initializeFromChainParamsAndGetBlock(r))
-//      case _ =>
-//        Future.failed(new IllegalArgumentException(s"Undefined network type $networkType"))
-//    }
-
   }
 
   sealed trait ForgerFailure

@@ -5,6 +5,7 @@ import co.topl.utils.Logging
 import com.typesafe.config.{Config, ConfigFactory}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
+import net.ceedubs.ficus.readers.EnumerationReader._
 
 import java.io.File
 import java.net.InetSocketAddress
@@ -91,11 +92,15 @@ case class PrivateTestnetSettings(
 )
 
 case class GenesisSettings(
-  genesisMode:           String,
+  genesisStrategy:       Option[GenesisStrategy.Value],
   generated:             Option[GenesisGenerationSettings],
-  providedFromConfig:    Option[GenesisFromConfigSettings],
   providedFromBlockJson: Option[GenesisFromBlockJsonSettings]
 )
+
+object GenesisStrategy extends Enumeration {
+  val Generated: GenesisStrategy.Value = Value("generated")
+  val FromBlockJson: GenesisStrategy.Value = Value("fromBlockJson")
+}
 
 case class GenesisGenerationSettings(
   numTestnetAccts:   Int,
