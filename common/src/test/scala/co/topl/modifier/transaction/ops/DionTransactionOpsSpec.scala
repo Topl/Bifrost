@@ -10,7 +10,7 @@ import co.topl.utils.CommonGenerators
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.encode.Base16
 import org.scalacheck.Gen
-import org.scalatest.EitherValues
+import org.scalatest.{EitherValues, OptionValues}
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
@@ -22,6 +22,7 @@ class DionTransactionOpsSpec
     with Matchers
     with EitherValues
     with CommonGenerators
+    with OptionValues
     with ScalaCheckDrivenPropertyChecks {
 
   private def inputGen(
@@ -127,6 +128,28 @@ class DionTransactionOpsSpec
           }
 
           ouputs shouldBe expectedOutputs
+        }
+      }
+
+      it("should convert a Dion TX to a Tetra TX with no fee output when first output fee is 0") {
+        forAll(txGen) { tx =>
+          val firstOutput = tx.to.head
+          val outputWith0Fee = firstOutput._1 -> firstOutput._2.copy(quantity = 0)
+
+          val tetraTx = tx.copy(to = tx.to.tail.prepended(outputWith0Fee)).toTetraTx
+
+          tetraTx.value.feeOutput shouldBe None
+        }
+      }
+
+      it("should convert a Dion TX to a Tetra TX with no fee output when first output fee is some non-zero") {
+        forAll(txGen, Gen.posNum[BigInt]) { (tx, fee) =>
+          val firstOutput = tx.to.head
+          val outputWith0Fee = firstOutput._1 -> firstOutput._2.copy(quantity = fee)
+
+          val tetraTx = tx.copy(to = tx.to.tail.prepended(outputWith0Fee)).toTetraTx
+
+          tetraTx.value.feeOutput.value.value.data shouldBe fee
         }
       }
     }

@@ -4,6 +4,7 @@ import cats.data.NonEmptyChain
 import co.topl.attestation.{PublicKeyPropositionEd25519, SignatureEd25519}
 import co.topl.models._
 import co.topl.modifier.implicits._
+import co.topl.modifier.ops.TetraTransactionOps
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer}
 import co.topl.utils.CommonGenerators
 import co.topl.utils.encode.Base16
@@ -205,6 +206,32 @@ class TetraTransactionOpsSpec
           val polyTransfer = dionTransfer.value.asInstanceOf[PolyTransfer[_]]
 
           polyTransfer.minting shouldBe tx.minting
+        }
+      }
+
+      it("should fail to convert a Tetra TX into a Dion TX if first output is Poly and contains Arbit output") {
+        forAll(polyTxGen, ModelGen.arbitraryDionAddress.arbitrary, ModelGen.arbitraryInt128.arbitrary) {
+          (tx, address, value) =>
+            val txWithArbitOutputs = tx.copy(coinOutputs = tx.coinOutputs :+ Transaction.ArbitOutput(address, value))
+
+            val result = txWithArbitOutputs.toDionTx
+
+            result.left.value shouldBe a[TetraTransactionOps.ToDionTxFailures.InvalidOutput]
+            val invalidOutput = result.left.value.asInstanceOf[TetraTransactionOps.ToDionTxFailures.InvalidOutput]
+            invalidOutput.invalidOutput shouldBe a[Transaction.ArbitOutput]
+        }
+      }
+
+      it("should fail to convert a Tetra TX into a Dion TX if first output is Arbit and contains Poly output") {
+        forAll(arbitTxGen, ModelGen.arbitraryDionAddress.arbitrary, ModelGen.arbitraryInt128.arbitrary) {
+          (tx, address, value) =>
+            val txWithArbitOutputs = tx.copy(coinOutputs = tx.coinOutputs :+ Transaction.PolyOutput(address, value))
+
+            val result = txWithArbitOutputs.toDionTx
+
+            result.left.value shouldBe a[TetraTransactionOps.ToDionTxFailures.InvalidOutput]
+            val invalidOutput = result.left.value.asInstanceOf[TetraTransactionOps.ToDionTxFailures.InvalidOutput]
+            invalidOutput.invalidOutput shouldBe a[Transaction.PolyOutput]
         }
       }
     }

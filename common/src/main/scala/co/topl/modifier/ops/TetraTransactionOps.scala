@@ -235,7 +235,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
       .traverse {
         case polyOutput: Transaction.PolyOutput =>
           (toAddress(polyOutput.dionAddress), SimpleValue(Int128(polyOutput.value.data))).asRight
-        case invalidCoin => ToDionTxFailures.InvalidOutput(invalidCoin, "must be Poly token type").asLeft
+        case invalidCoin => ToDionTxFailures.InvalidOutput(invalidCoin).asLeft
       }
 
   private def arbitOutputs: Either[ToDionTxFailure, NonEmptyChain[(Address, SimpleValue)]] =
@@ -243,7 +243,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
       .traverse {
         case arbitOutput: Transaction.ArbitOutput =>
           (toAddress(arbitOutput.dionAddress), SimpleValue(Int128(arbitOutput.value.data))).asRight
-        case invalidCoin => ToDionTxFailures.InvalidOutput(invalidCoin, "must be Poly token type").asLeft
+        case invalidCoin => ToDionTxFailures.InvalidOutput(invalidCoin).asLeft
       }
 
   private def assetOutputs: Either[ToDionTxFailure, NonEmptyChain[(Address, TokenValueHolder)]] =
@@ -263,7 +263,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
               assetOutput.value.metadata.map(data => Latin1Data.fromData(data.data.bytes))
             ): TokenValueHolder
           ).asRight
-        case invalidCoin => ToDionTxFailures.InvalidOutput(invalidCoin, "must be Asset token type").asLeft
+        case invalidCoin => ToDionTxFailures.InvalidOutput(invalidCoin).asLeft
       }
 
   private def getFrom: IndexedSeq[(Address, Box.Nonce)] =
@@ -293,7 +293,7 @@ object TetraTransactionOps {
   sealed trait ToDionTxFailure
 
   object ToDionTxFailures {
-    case class InvalidOutput(invalidOutput: Transaction.CoinOutput, reason: String) extends ToDionTxFailure
+    case class InvalidOutput(invalidOutput: Transaction.CoinOutput) extends ToDionTxFailure
     case class InvalidProposition(propositon: Proposition) extends ToDionTxFailure
     case class InvalidProof(proof: Proof) extends ToDionTxFailure
     case class InvalidTransferType(proposition: Proposition, coinType: Transaction.CoinOutput) extends ToDionTxFailure
