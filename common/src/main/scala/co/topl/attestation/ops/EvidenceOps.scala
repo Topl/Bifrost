@@ -8,7 +8,7 @@ import co.topl.models.utility.{Lengths, Sized}
 
 import scala.language.implicitConversions
 
-class EvidenceOps(val evidence: DionEvidence) extends AnyVal {
+class EvidenceOps(private val evidence: DionEvidence) extends AnyVal {
   import EvidenceOps._
 
   def toTypedEvidence: Either[ToTypedEvidenceFailure, TypedEvidence] =

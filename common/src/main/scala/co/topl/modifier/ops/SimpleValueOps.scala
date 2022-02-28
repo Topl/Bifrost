@@ -8,7 +8,7 @@ import co.topl.modifier.box.SimpleValue
 
 import scala.language.implicitConversions
 
-class SimpleValueOps(val simpleValue: SimpleValue) extends AnyVal {
+class SimpleValueOps(private val simpleValue: SimpleValue) extends AnyVal {
   import SimpleValueOps._
 
   /**
@@ -20,7 +20,8 @@ class SimpleValueOps(val simpleValue: SimpleValue) extends AnyVal {
     for {
       quantity <-
         Sized
-          .max[BigInt, Lengths.`128`.type](simpleValue.quantity.toLong)
+          .max[BigInt, Lengths.`128`.type](BigInt(simpleValue.quantity.toByteArray))
+          // this should never fail to be a valid quantity, but just in case
           .leftMap(error => ToOutputFailures.InvalidValueQuantity(simpleValue, error))
     } yield Transaction.PolyOutput(address, quantity)
 
@@ -33,7 +34,8 @@ class SimpleValueOps(val simpleValue: SimpleValue) extends AnyVal {
     for {
       quantity <-
         Sized
-          .max[BigInt, Lengths.`128`.type](simpleValue.quantity.toLong)
+          .max[BigInt, Lengths.`128`.type](BigInt(simpleValue.quantity.toByteArray))
+          // this should never fail to be a valid quantity, but just in case
           .leftMap(error => ToOutputFailures.InvalidValueQuantity(simpleValue, error))
     } yield Transaction.ArbitOutput(address, quantity)
 }

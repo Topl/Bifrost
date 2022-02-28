@@ -14,7 +14,7 @@ import co.topl.utils.StringDataTypes.{Latin1Data => DionLatin1Data}
 
 import scala.language.implicitConversions
 
-class AssetValueOps(val assetValue: AssetValue) extends AnyVal {
+class AssetValueOps(private val assetValue: AssetValue) extends AnyVal {
   import AssetValueOps._
 
   /**

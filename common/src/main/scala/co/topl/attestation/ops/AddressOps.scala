@@ -8,7 +8,7 @@ import co.topl.attestation.ops.EvidenceOps.implicits._
 
 import scala.language.implicitConversions
 
-class AddressOps(val address: Address) extends AnyVal {
+class AddressOps(private val address: Address) extends AnyVal {
   import AddressOps._
 
   def toDionAddress: Either[ToDionAddressFailure, DionAddress] =

@@ -31,7 +31,7 @@ import co.topl.utils.{Int128 => DionInt128}
 import scala.collection.immutable.{ListMap, ListSet}
 import scala.language.implicitConversions
 
-class DionTransactionOps[P <: DionProposition](val transaction: DionTransaction[_, P]) extends AnyVal {
+class DionTransactionOps[P <: DionProposition](private val transaction: DionTransaction[_, P]) extends AnyVal {
 
   import DionTransactionOps._
 

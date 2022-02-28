@@ -14,7 +14,7 @@ import scala.collection.SortedSet
 import scala.collection.immutable.ListMap
 import scala.language.implicitConversions
 
-class TetraTransactionOps(val transaction: Transaction) extends AnyVal {
+class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
   import TetraTransactionOps._
 
   def toDionTx: Either[ToDionTxFailure, DionTransaction.TX] =
@@ -42,7 +42,7 @@ class TetraTransactionOps(val transaction: Transaction) extends AnyVal {
       tx =
         PolyTransfer(
           getFrom,
-          getFeeOutput.fold(coinOutputs)(coinOutputs.prepend).iterator.toIndexedSeq,
+          coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
           transaction.timestamp,
@@ -58,7 +58,7 @@ class TetraTransactionOps(val transaction: Transaction) extends AnyVal {
       tx =
         PolyTransfer(
           getFrom,
-          getFeeOutput.fold(coinOutputs)(coinOutputs.prepend).iterator.toIndexedSeq,
+          coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
           transaction.timestamp,
@@ -74,7 +74,7 @@ class TetraTransactionOps(val transaction: Transaction) extends AnyVal {
       tx =
         PolyTransfer(
           getFrom,
-          getFeeOutput.fold(coinOutputs)(coinOutputs.prepend).iterator.toIndexedSeq,
+          coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
           transaction.timestamp,
@@ -90,7 +90,7 @@ class TetraTransactionOps(val transaction: Transaction) extends AnyVal {
       tx =
         ArbitTransfer(
           getFrom,
-          getFeeOutput.fold(coinOutputs)(coinOutputs.prepend).iterator.toIndexedSeq,
+          coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
           transaction.timestamp,
@@ -106,7 +106,7 @@ class TetraTransactionOps(val transaction: Transaction) extends AnyVal {
       tx =
         ArbitTransfer(
           getFrom,
-          getFeeOutput.fold(coinOutputs)(coinOutputs.prepend).iterator.toIndexedSeq,
+          coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
           transaction.timestamp,
@@ -122,7 +122,7 @@ class TetraTransactionOps(val transaction: Transaction) extends AnyVal {
       tx =
         ArbitTransfer(
           getFrom,
-          getFeeOutput.fold(coinOutputs)(coinOutputs.prepend).iterator.toIndexedSeq,
+          coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
           transaction.timestamp,
@@ -138,10 +138,7 @@ class TetraTransactionOps(val transaction: Transaction) extends AnyVal {
       tx =
         AssetTransfer(
           getFrom,
-          getFeeOutput
-            .fold(coinOutputs)(coinOutputs.prepend)
-            .iterator
-            .toIndexedSeq,
+          coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
           transaction.timestamp,
@@ -157,7 +154,7 @@ class TetraTransactionOps(val transaction: Transaction) extends AnyVal {
       tx =
         AssetTransfer(
           getFrom,
-          getFeeOutput.fold(coinOutputs)(coinOutputs.prepend).iterator.toIndexedSeq,
+          coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
           transaction.timestamp,
@@ -173,7 +170,7 @@ class TetraTransactionOps(val transaction: Transaction) extends AnyVal {
       tx =
         AssetTransfer(
           getFrom,
-          getFeeOutput.fold(coinOutputs)(coinOutputs.prepend).iterator.toIndexedSeq,
+          coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
           transaction.timestamp,
@@ -276,8 +273,16 @@ class TetraTransactionOps(val transaction: Transaction) extends AnyVal {
 
   private def getData: Option[Latin1Data] = transaction.data.map(d => Latin1Data.fromData(d.data.bytes))
 
-  private def getFeeOutput: Option[(Address, SimpleValue)] =
-    transaction.feeOutput.map(fee => toAddress(fee.dionAddress) -> SimpleValue(Int128(fee.value.data)))
+  private def getFeeOutput: (Address, SimpleValue) =
+    transaction.feeOutput
+      /*
+        when the fee output is None, use an invalid address and 0 output
+        this will not affect the outcome of the transaction signature or codecs
+        as this output will be discarded
+       */
+      .fold(Address(Evidence(Array.empty))(0.toByte) -> SimpleValue(0))(fee =>
+        toAddress(fee.dionAddress) -> SimpleValue(Int128(fee.value.data))
+      )
 
   private def toAddress(dionAddress: DionAddress): Address =
     Address(Evidence(dionAddress.typedEvidence.allBytes.toArray))(dionAddress.networkPrefix.value)
