@@ -1,7 +1,9 @@
 package co.topl.modifier.transaction.builder
 
+import cats.data.Chain
 import co.topl.attestation.Address
 import co.topl.modifier.box._
+import co.topl.modifier.transaction.builder.BoxCache.BoxSet
 import co.topl.utils.Int128
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, Json}
@@ -27,7 +29,7 @@ object BoxSelectionAlgorithm {
    * @param request the request for the transfer that the boxes will be used in
    * @return a set of token boxes that should be used for a transfer transaction
    */
-  def pickBoxes(algorithm: BoxSelectionAlgorithm, boxes: TokenBoxes, request: TransferRequest): TokenBoxes =
+  def pickBoxes(algorithm: BoxSelectionAlgorithm, boxes: BoxSet, request: TransferRequest): BoxSet =
     algorithm match {
       case BoxSelectionAlgorithms.All =>
         pickAllBoxes(boxes, request)
@@ -39,6 +41,23 @@ object BoxSelectionAlgorithm {
         pickBoxesWithSorting(boxes, request, -_.quantity)
       case BoxSelectionAlgorithms.Specific(ids) =>
         pickSpecificBoxes(ids, boxes, request)
+    }
+
+  def pickBoxes(
+    algorithm:    BoxSelectionAlgorithm,
+    available:    BoxSet,
+    polysNeeded:  Int128,
+    arbitsNeeded: Int128,
+    assetsNeeded: Chain[(AssetCode, Int128)]
+  ): BoxSet =
+    algorithm match {
+      case BoxSelectionAlgorithms.All => pickAllBoxes(available, assetsNeeded)
+      case BoxSelectionAlgorithms.SmallestFirst =>
+        pickBoxesWithSorting(available, polysNeeded, arbitsNeeded, assetsNeeded, _.quantity)
+      case BoxSelectionAlgorithms.LargestFirst =>
+        pickBoxesWithSorting(available, polysNeeded, arbitsNeeded, assetsNeeded, -_.quantity)
+      case BoxSelectionAlgorithms.Specific(ids) =>
+        pickSpecificBoxes(ids, available)
     }
 
   /**
@@ -69,22 +88,22 @@ object BoxSelectionAlgorithm {
    * @return a set of boxes to use as inputs to a transaction
    */
   private def pickBoxesWithSorting(
-    boxes:        TokenBoxes,
+    boxes:        BoxSet,
     request:      TransferRequest,
     sortQuantity: TokenValueHolder => Int128
-  ): TokenBoxes =
+  ): BoxSet =
     request match {
       case TransferRequests.PolyTransferRequest(_, to, _, fee, _) =>
         val polyBoxes = takeBoxesUntilQuantity[SimpleValue, PolyBox](
           fee + to.map(_._2).sum,
           boxes.polys.sortBy(box => sortQuantity(box._2.value))
         )
-        TokenBoxes(List(), polyBoxes, List())
+        BoxSet(List(), polyBoxes, List())
 
       case TransferRequests.AssetTransferRequest(_, _, _, _, fee, _, true) =>
         val polyBoxes =
           takeBoxesUntilQuantity[SimpleValue, PolyBox](fee, boxes.polys.sortBy(box => sortQuantity(box._2.value)))
-        TokenBoxes(List(), polyBoxes, List())
+        BoxSet(List(), polyBoxes, List())
 
       case TransferRequests.AssetTransferRequest(_, to, _, _, fee, _, false) =>
         val polyBoxes =
@@ -104,7 +123,7 @@ object BoxSelectionAlgorithm {
             )
             .getOrElse(List())
 
-        TokenBoxes(List(), polyBoxes, assetBoxes)
+        BoxSet(List(), polyBoxes, assetBoxes)
 
       case TransferRequests.ArbitTransferRequest(_, to, _, _, fee, _) =>
         val polyBoxes =
@@ -115,8 +134,30 @@ object BoxSelectionAlgorithm {
           boxes.arbits.sortBy(box => sortQuantity(box._2.value))
         )
 
-        TokenBoxes(arbitBoxes, polyBoxes, List())
+        BoxSet(arbitBoxes, polyBoxes, List())
     }
+
+  private def pickBoxesWithSorting(
+    available:    BoxSet,
+    polysNeeded:  Int128,
+    arbitsNeeded: Int128,
+    assetsNeeded: Chain[(AssetCode, Int128)],
+    sortBy:       TokenValueHolder => Int128
+  ): BoxSet =
+    // get boxes of each type that sum to or exceed the requested quantity
+    BoxSet(
+      takeBoxesUntilQuantity[SimpleValue, ArbitBox](arbitsNeeded, available.arbits.sortBy(box => sortBy(box._2.value))),
+      takeBoxesUntilQuantity[SimpleValue, PolyBox](polysNeeded, available.polys.sortBy(box => sortBy(box._2.value))),
+      assetsNeeded
+        .map { case (assetCode, quantity) =>
+          takeBoxesUntilQuantity[AssetValue, AssetBox](
+            quantity,
+            available.assets.filter(_._2.value.assetCode == assetCode).sortBy(box => sortBy(box._2.value))
+          )
+        }
+        .toList
+        .flatten
+    )
 
   /**
    * Picks any boxes with an ID contained in the provided list.
@@ -125,7 +166,7 @@ object BoxSelectionAlgorithm {
    * @param request the transfer request to pick boxes for
    * @return a set of boxes to use in a transfer transaction
    */
-  private def pickSpecificBoxes(ids: List[BoxId], boxes: TokenBoxes, request: TransferRequest): TokenBoxes =
+  private def pickSpecificBoxes(ids: List[BoxId], boxes: BoxSet, request: TransferRequest): BoxSet =
     request match {
       case _: TransferRequests.PolyTransferRequest =>
         boxes.copy(polys = boxes.polys.filter(box => ids.contains(box._2.id)))
@@ -141,7 +182,18 @@ object BoxSelectionAlgorithm {
         )
     }
 
-  private def pickAllBoxes(boxes: TokenBoxes, request: TransferRequest): TokenBoxes =
+  private def pickSpecificBoxes(
+    ids:   List[BoxId],
+    boxes: BoxSet
+  ): BoxSet =
+    // filter boxes of each type by matching IDs
+    BoxSet(
+      boxes.arbits.filter(box => ids.contains(box._2.id)),
+      boxes.polys.filter(box => ids.contains(box._2.id)),
+      boxes.assets.filter(box => ids.contains(box._2.id))
+    )
+
+  private def pickAllBoxes(boxes: BoxSet, request: TransferRequest): BoxSet =
     request match {
       case TransferRequests.AssetTransferRequest(_, to, _, _, _, _, _) =>
         // only pick boxes matching with matching asset codes
@@ -151,4 +203,11 @@ object BoxSelectionAlgorithm {
           .getOrElse(boxes.copy(assets = List()))
       case _ => boxes
     }
+
+  private def pickAllBoxes(
+    boxes:        BoxSet,
+    assetsNeeded: Chain[(AssetCode, Int128)]
+  ): BoxSet =
+    // only pick boxes with asset codes matching needed assets
+    boxes.copy(assets = boxes.assets.filter(box => assetsNeeded.exists(_._1 == box._2.value.assetCode)))
 }

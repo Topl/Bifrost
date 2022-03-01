@@ -3,6 +3,7 @@ package co.topl.modifier.transaction.builder
 import cats.implicits._
 import co.topl.attestation.{Address, EvidenceProducer, Proposition}
 import co.topl.modifier.box._
+import co.topl.modifier.transaction.builder.BoxCache.BoxSet
 import co.topl.modifier.transaction.builder.Validation._
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer}
 import co.topl.modifier.{BoxReader, ProgramId}
@@ -161,7 +162,7 @@ object TransferBuilder {
   private def getAvailableBoxes(
     addresses: List[Address],
     state:     BoxReader[ProgramId, Address]
-  ): TokenBoxes =
+  ): BoxSet =
     addresses
       .flatMap(addr =>
         state
@@ -169,7 +170,7 @@ object TransferBuilder {
           .getOrElse(List())
           .map(addr -> _)
       )
-      .foldLeft(TokenBoxes(List(), List(), List())) {
+      .foldLeft(BoxSet.empty) {
         case (boxes, (addr, box: PolyBox))  => boxes.copy(polys = (addr -> box) :: boxes.polys)
         case (boxes, (addr, box: ArbitBox)) => boxes.copy(arbits = (addr -> box) :: boxes.arbits)
         case (boxes, (addr, box: AssetBox)) => boxes.copy(assets = (addr -> box) :: boxes.assets)

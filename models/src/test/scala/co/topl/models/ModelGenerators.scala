@@ -1,7 +1,7 @@
 package co.topl.models
 
 import cats.data.NonEmptyChain
-import co.topl.models.Transaction.{ArbitOutput, AssetOutput, PolyOutput}
+import co.topl.models.Transaction.{ArbitOutput, AssetOutput, CoinOutput, PolyOutput}
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.StringDataTypes.Latin1Data
@@ -301,7 +301,7 @@ trait ModelGenerators {
   implicit val arbitraryAssetCode: Arbitrary[Box.Values.Asset.Code] =
     Arbitrary(
       for {
-        version   <- byteGen
+        version   <- Gen.const(1.toByte)
         issuer    <- arbitraryDionAddress.arbitrary
         shortName <- latin1DataGen.map(data => Latin1Data.unsafe(data.value.take(8)))
         code = Box.Values.Asset.Code(version, issuer, Sized.maxUnsafe(shortName))
@@ -340,6 +340,11 @@ trait ModelGenerators {
         address <- arbitraryDionAddress.arbitrary
         value   <- arbitraryAssetBox.arbitrary
       } yield AssetOutput(address, value)
+    )
+
+  implicit val arbitraryCoinOutput: Arbitrary[CoinOutput] =
+    Arbitrary(
+      Gen.oneOf(arbitraryPolyOutput.arbitrary, arbitraryArbitOutput.arbitrary, arbitraryAssetOutput.arbitrary)
     )
 
   implicit val arbitraryUnprovenTransaction: Arbitrary[Transaction.Unproven] =

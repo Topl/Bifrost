@@ -7,6 +7,7 @@ package object ops {
       with DionTransactionOps.Implicits
       with SimpleValueOps.Implicits
       with AssetValueOps.Implicits
+      with AssetOps.Implicits
 
   object implicits extends Implicits
 }

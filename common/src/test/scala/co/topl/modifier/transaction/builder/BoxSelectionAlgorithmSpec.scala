@@ -1,6 +1,6 @@
 package co.topl.modifier.transaction.builder
 
-import co.topl.modifier.box.{AssetCode, AssetValue}
+import co.topl.modifier.transaction.builder.BoxCache.BoxSet
 import co.topl.modifier.transaction.builder.TransferRequests.{
   ArbitTransferRequest,
   AssetTransferRequest,
@@ -27,7 +27,7 @@ class BoxSelectionAlgorithmSpec
   "BoxSelectionAlgorithm.pickBoxes" should "return all provided boxes when using 'All' algorithm for Poly Transfer" in {
     forAll(polyBoxGen, Gen.listOf(polyBoxGen), addressGen) { (firstBox, otherBoxes, address) =>
       val polyBoxes = (firstBox :: otherBoxes).map(address -> _)
-      val tokenBoxes = TokenBoxes(List(), polyBoxes, List())
+      val tokenBoxes = BoxSet(List(), polyBoxes, List())
 
       val request = PolyTransferRequest(List(address), List(address -> 100), address, 0, None)
 
@@ -40,7 +40,7 @@ class BoxSelectionAlgorithmSpec
   it should "return all provided boxes when using 'All' algorithm for Arbit Transfer" in {
     forAll(arbitBoxGen, Gen.listOf(arbitBoxGen), addressGen) { (firstBox, otherBoxes, address) =>
       val arbitBoxes = (firstBox :: otherBoxes).map(address -> _)
-      val tokenBoxes = TokenBoxes(arbitBoxes, List(), List())
+      val tokenBoxes = BoxSet(arbitBoxes, List(), List())
 
       val request = ArbitTransferRequest(List(address), List(address -> 100), address, address, 0, None)
 
@@ -53,7 +53,7 @@ class BoxSelectionAlgorithmSpec
   it should "return all provided boxes with matching asset code when using 'All' algorithm for Asset Transfer" in {
     forAll(assetBoxGen, Gen.listOf(assetBoxGen), addressGen) { (firstBox, otherBoxes, address) =>
       val assetBoxes = (firstBox :: otherBoxes).map(address -> _)
-      val tokenBoxes = TokenBoxes(List(), List(), assetBoxes)
+      val tokenBoxes = BoxSet(List(), List(), assetBoxes)
 
       // just need some asset transfer, does not need to be valid
       val request =
@@ -68,7 +68,7 @@ class BoxSelectionAlgorithmSpec
   it should "return specific poly box when using 'Specific' algorithm for Poly Transfer" in {
     forAll(polyBoxGen, Gen.listOf(polyBoxGen), addressGen) { (firstBox, otherBoxes, address) =>
       val polyBoxes = (firstBox :: otherBoxes).map(address -> _)
-      val tokenBoxes = TokenBoxes(List(), polyBoxes, List())
+      val tokenBoxes = BoxSet(List(), polyBoxes, List())
       val request = PolyTransferRequest(List(address), List(address -> 100), address, 0, None)
       val algorithm = BoxSelectionAlgorithms.Specific(List(firstBox.id))
 
@@ -83,7 +83,7 @@ class BoxSelectionAlgorithmSpec
       (firstPolyBox, otherPolyBoxes, firstArbitBox, otherArbitBoxes, address) =>
         val polyBoxes = (firstPolyBox :: otherPolyBoxes).map(address -> _)
         val arbitBoxes = (firstArbitBox :: otherArbitBoxes).map(address -> _)
-        val tokenBoxes = TokenBoxes(arbitBoxes, polyBoxes, List())
+        val tokenBoxes = BoxSet(arbitBoxes, polyBoxes, List())
         val request = ArbitTransferRequest(List(address), List(address -> 100), address, address, 0, None)
         val algorithm = BoxSelectionAlgorithms.Specific(List(firstPolyBox.id, firstArbitBox.id))
 
@@ -99,7 +99,7 @@ class BoxSelectionAlgorithmSpec
       (firstPolyBox, otherPolyBoxes, firstAssetBox, otherAssetBoxes, address) =>
         val polyBoxes = (firstPolyBox :: otherPolyBoxes).map(address -> _)
         val assetBoxes = (firstAssetBox :: otherAssetBoxes).map(address -> _)
-        val tokenBoxes = TokenBoxes(List(), polyBoxes, assetBoxes)
+        val tokenBoxes = BoxSet(List(), polyBoxes, assetBoxes)
         val algorithm = BoxSelectionAlgorithms.Specific(List(firstPolyBox.id, firstAssetBox.id))
 
         // just need some asset transfer, does not need to be valid
@@ -120,7 +120,7 @@ class BoxSelectionAlgorithmSpec
 
       val smallestBox = polyBoxes.minBy(_._2.value.quantity)
 
-      val tokenBoxes = TokenBoxes(List(), polyBoxes, List())
+      val tokenBoxes = BoxSet(List(), polyBoxes, List())
       val request = PolyTransferRequest(List(address), List(address -> smallestBox._2.value.quantity), address, 0, None)
       val algorithm = BoxSelectionAlgorithms.SmallestFirst
 
@@ -139,7 +139,7 @@ class BoxSelectionAlgorithmSpec
         val arbitBoxes = random.shuffle(firstArbitBox :: otherArbitBoxes).map(address -> _)
         val smallestArbitBox = arbitBoxes.minBy(_._2.value.quantity)
 
-        val tokenBoxes = TokenBoxes(arbitBoxes, polyBoxes, List())
+        val tokenBoxes = BoxSet(arbitBoxes, polyBoxes, List())
         val request =
           ArbitTransferRequest(
             List(address),
@@ -167,7 +167,7 @@ class BoxSelectionAlgorithmSpec
         val assetBoxes = random.shuffle(firstAssetBox :: otherAssetBoxes).map(address -> _)
         val smallestAssetBox = assetBoxes.minBy(_._2.value.quantity)
 
-        val tokenBoxes = TokenBoxes(List(), polyBoxes, assetBoxes)
+        val tokenBoxes = BoxSet(List(), polyBoxes, assetBoxes)
         val request =
           AssetTransferRequest(
             List(address),
@@ -193,7 +193,7 @@ class BoxSelectionAlgorithmSpec
 
       val largestBox = polyBoxes.maxBy(_._2.value.quantity)
 
-      val tokenBoxes = TokenBoxes(List(), polyBoxes, List())
+      val tokenBoxes = BoxSet(List(), polyBoxes, List())
       val request = PolyTransferRequest(List(address), List(address -> largestBox._2.value.quantity), address, 0, None)
       val algorithm = BoxSelectionAlgorithms.LargestFirst
 
@@ -212,7 +212,7 @@ class BoxSelectionAlgorithmSpec
         val arbitBoxes = random.shuffle(firstArbitBox :: otherArbitBoxes).map(address -> _)
         val largestArbitbox = arbitBoxes.maxBy(_._2.value.quantity)
 
-        val tokenBoxes = TokenBoxes(arbitBoxes, polyBoxes, List())
+        val tokenBoxes = BoxSet(arbitBoxes, polyBoxes, List())
         val request =
           ArbitTransferRequest(
             List(address),
@@ -240,7 +240,7 @@ class BoxSelectionAlgorithmSpec
         val assetBoxes = random.shuffle(firstAssetBox :: otherAssetBoxes).map(address -> _)
         val largestAssetBox = assetBoxes.maxBy(_._2.value.quantity)
 
-        val tokenBoxes = TokenBoxes(List(), polyBoxes, assetBoxes)
+        val tokenBoxes = BoxSet(List(), polyBoxes, assetBoxes)
         val request =
           AssetTransferRequest(
             List(address),
