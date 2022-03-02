@@ -96,8 +96,7 @@ object CredentialPlaygroundNE extends App {
         Box(
           proposition.typedEvidence,
           unprovenTransaction.inputs.head._2,
-          Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
-          10
+          Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))
         )
       )
 
@@ -226,8 +225,7 @@ object TruthTable extends App {
         Box(
           proposition.typedEvidence,
           unprovenTransaction.inputs.head._2,
-          Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
-          10
+          Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))
         )
       )
 

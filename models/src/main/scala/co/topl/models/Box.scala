@@ -5,7 +5,7 @@ import co.topl.models.utility.{Lengths, Sized}
 
 import scala.util.Random
 
-case class Box[V <: Box.Value](evidence: TypedEvidence, nonce: BoxNonce, value: V, data: Int)
+case class Box[V <: Box.Value](evidence: TypedEvidence, nonce: BoxNonce, value: V)
 
 object Box {
   sealed abstract class Value
@@ -34,11 +34,11 @@ object Box {
 
   def apply(coinOutput: Transaction.CoinOutput): Box[_] = coinOutput match {
     case Transaction.PolyOutput(dionAddress, value) =>
-      Box(dionAddress.typedEvidence, Random.nextLong(), Box.Values.Poly(value), 0)
+      Box(dionAddress.typedEvidence, Random.nextLong(), Box.Values.Poly(value))
     case Transaction.ArbitOutput(dionAddress, value) =>
-      Box(dionAddress.typedEvidence, Random.nextLong(), Box.Values.Arbit(value), 0)
-    case Transaction.AssetOutput(dionAddress, value) => Box(dionAddress.typedEvidence, Random.nextLong(), value, 0)
+      Box(dionAddress.typedEvidence, Random.nextLong(), Box.Values.Arbit(value))
+    case Transaction.AssetOutput(dionAddress, value) => Box(dionAddress.typedEvidence, Random.nextLong(), value)
   }
 
-  val empty: Box[Box.Values.Empty.type] = Box(TypedEvidence.empty, 0, Box.Values.Empty, 0)
+  val empty: Box[Box.Values.Empty.type] = Box(TypedEvidence.empty, 0, Box.Values.Empty)
 }

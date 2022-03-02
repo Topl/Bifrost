@@ -119,8 +119,7 @@ object CredentialPlaygroundJAA extends App {
       Box(
         proposition.typedEvidence,
         unprovenTransaction.inputs.head._2,
-        Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
-        10
+        Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))
       )
     )
 
@@ -169,8 +168,7 @@ object RequiredOutput extends App {
       Box(
         proposition.typedEvidence,
         unprovenTransaction.inputs.head._2,
-        Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
-        10
+        Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))
       )
     )
     def currentSlot: Slot = 1
@@ -310,8 +308,7 @@ object XorGameCompletion extends App {
       Box(
         halfGameProposition.typedEvidence,
         unprovenTransaction.inputs.head._2,
-        Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
-        aliceValueInput
+        Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))
       )
     )
     def currentSlot: Slot = 1
@@ -403,8 +400,7 @@ object NotTest extends App {
       Box(
         proposition.typedEvidence,
         unprovenTransaction.inputs.head._2,
-        Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
-        10
+        Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))
       )
     )
 
