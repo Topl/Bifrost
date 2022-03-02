@@ -114,14 +114,12 @@ object Forge {
       ).map(_.toApply)
       parentBlock = nodeView.history.bestBlock
       _ <- Either.cond(
-        parentBlock.height == 1 ||
-        (parentBlock.height == consensusParams.height && parentBlock.difficulty == consensusParams.difficulty),
+        parentBlock.height == 1 || parentBlock.height == consensusParams.height,
         {},
         ForgingError(
           new Throwable(
-            s"Parent block's height and difficulty doesn't match those from the consensus params: " +
-            s"Parent block height ${parentBlock.height}, difficulty ${parentBlock.difficulty} | " +
-            s"Consensus params height ${consensusParams.height}, difficulty ${consensusParams.difficulty}"
+            s"Parent block's height doesn't match the height from the consensus params: " +
+            s"Parent block height ${parentBlock.height} | Consensus params height ${consensusParams.height}"
           )
         )
       )
