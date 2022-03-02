@@ -112,38 +112,34 @@ object ProofVerifier {
       context:     VerificationContext[F]
     ): F[Boolean] = {
       def compareBoxes(propositionBox: Box[_])(sourceBox: Box[_]): Boolean = propositionBox match {
-        case Box(TypedEvidence.empty, 0, Box.Values.Empty, 0) =>
-          false
-        case Box(TypedEvidence.empty, 0, Box.Values.Empty, data) =>
-          data == sourceBox.data
-        case Box(TypedEvidence.empty, 0, value, 0) =>
+        case Box(TypedEvidence.empty, 0, value) =>
           value == sourceBox.value
-        case Box(TypedEvidence.empty, 0, value, data) =>
-          value == sourceBox.value && data == sourceBox.data
-        case Box(TypedEvidence.empty, nonce, Box.Values.Empty, 0) =>
+        case Box(TypedEvidence.empty, 0, value) =>
+          value == sourceBox.value // && data == sourceBox.data
+        case Box(TypedEvidence.empty, nonce, Box.Values.Empty) =>
           nonce == sourceBox.nonce
-        case Box(TypedEvidence.empty, nonce, Box.Values.Empty, data) =>
-          nonce == sourceBox.nonce && data == sourceBox.data
-        case Box(TypedEvidence.empty, nonce, value, 0) =>
-          nonce == sourceBox.nonce && value == sourceBox.value
-        case Box(TypedEvidence.empty, nonce, value, data) =>
-          nonce == sourceBox.nonce && value == sourceBox.value && data == sourceBox.data
-        case Box(typedEvidence, 0, Box.Values.Empty, 0) =>
+        case Box(TypedEvidence.empty, nonce, Box.Values.Empty) =>
+          nonce == sourceBox.nonce // && data == sourceBox.data
+        case Box(TypedEvidence.empty, nonce, Box.Values.Empty) =>
+          nonce == sourceBox.nonce // && value == sourceBox.value
+        case Box(TypedEvidence.empty, nonce, value) =>
+          nonce == sourceBox.nonce // && value == sourceBox.value && data == sourceBox.data
+        case Box(typedEvidence, 0, Box.Values.Empty) =>
           typedEvidence == sourceBox.evidence
-        case Box(typedEvidence, 0, Box.Values.Empty, data) =>
-          typedEvidence == sourceBox.evidence && data == sourceBox.data
-        case Box(typedEvidence, 0, value, 0) =>
+        case Box(typedEvidence, 0, Box.Values.Empty) =>
+          typedEvidence == sourceBox.evidence // && data == sourceBox.data
+        case Box(typedEvidence, 0, value) =>
           typedEvidence == sourceBox.evidence && value == sourceBox.value
-        case Box(typedEvidence, 0, value, data) =>
-          typedEvidence == sourceBox.evidence && value == sourceBox.value && data == sourceBox.data
-        case Box(typedEvidence, nonce, Box.Values.Empty, 0) =>
+        case Box(typedEvidence, 0, value) =>
+          typedEvidence == sourceBox.evidence && value == sourceBox.value // && data == sourceBox.data
+        case Box(typedEvidence, nonce, Box.Values.Empty) =>
           typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce
-        case Box(typedEvidence, nonce, Box.Values.Empty, data) =>
-          typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce && data == sourceBox.data
-        case Box(typedEvidence, nonce, value, 0) =>
+        case Box(typedEvidence, nonce, Box.Values.Empty) =>
+          typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce // && data == sourceBox.data
+        case Box(typedEvidence, nonce, value) =>
           typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce && value == sourceBox.value
-        case Box(typedEvidence, nonce, value, data) =>
-          typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce && value == sourceBox.value && data == sourceBox.data
+        case Box(typedEvidence, nonce, value) =>
+          typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce && value == sourceBox.value // && data == sourceBox.data
         case _ => false
       }
 
