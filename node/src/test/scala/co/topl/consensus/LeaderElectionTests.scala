@@ -1,7 +1,7 @@
 package co.topl.consensus
 
 import co.topl.attestation.Address
-import co.topl.attestation.AddressCodec.implicits.Base58DataOps
+import co.topl.attestation.implicits._
 import co.topl.consensus.ConsensusVariables.ConsensusParams
 import co.topl.consensus.LeaderElection.{NoAddressesAvailable, NoArbitBoxesAvailable}
 import co.topl.utils.StringDataTypes.Base58Data

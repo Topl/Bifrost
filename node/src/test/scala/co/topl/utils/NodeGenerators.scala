@@ -1,7 +1,7 @@
 package co.topl.utils
 
-import co.topl.attestation._
 import co.topl.attestation.keyManagement._
+import co.topl.attestation._
 import co.topl.consensus.ConsensusVariables.ConsensusParams
 import co.topl.consensus.NxtLeaderElection
 import co.topl.consensus.genesis.TestGenesis

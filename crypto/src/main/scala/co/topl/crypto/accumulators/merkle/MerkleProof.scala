@@ -2,6 +2,7 @@ package co.topl.crypto.accumulators.merkle
 
 import cats.implicits._
 import co.topl.crypto.accumulators.{LeafData, Side}
+import co.topl.crypto.catsinstances.implicits._
 import co.topl.crypto.hash.Hash
 import co.topl.crypto.hash.digest.Digest
 import co.topl.crypto.hash.digest.implicits._

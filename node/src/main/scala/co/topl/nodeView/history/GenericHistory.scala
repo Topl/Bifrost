@@ -1,10 +1,12 @@
 package co.topl.nodeView.history
 
+import cats.implicits._
+import co.topl.codecs._
 import co.topl.consensus.ConsensusVariables
 import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.PersistentNodeViewModifier
-import co.topl.network.message.SyncInfo
+import co.topl.network.SyncInfo
 import co.topl.nodeView.NodeViewComponent
 import co.topl.utils.StringDataTypes.Base58Data
 
@@ -56,14 +58,14 @@ trait GenericHistory[
    * @return
    */
   def applicable(modifier: PM): Boolean =
-    openSurfaceIds().exists(_.getIdBytes sameElements modifier.parentId.getIdBytes)
+    openSurfaceIds().exists(_.persistedBytes sameElements modifier.parentId.persistedBytes)
 
   def modifierById(modifierId: ModifierId): Option[PM]
 
   def modifierById(modifierId: String): Option[PM] =
     Base58Data
       .validated(modifierId)
-      .map(ModifierId.fromBase58)
+      .andThen(_.decodeTransmitted[ModifierId].toValidatedNec)
       .toOption
       .flatMap(modifierById)
 
