@@ -41,8 +41,8 @@ class QueryServiceInterpSpec
     val pageNumber = -5;
     val pageSize = -10;
 
-    val filter: Option[String] = None
-    val sort: Option[Boolean] = None
+    val filter: String = "test-filter"
+    val sort: Boolean = false
     val paging = Some(Paging(pageNumber, pageSize))
     val confirmationDepth = 0
 
@@ -54,7 +54,7 @@ class QueryServiceInterpSpec
       .never()
 
     val underTest: QueryServiceAlg[F, String, String, Boolean] =
-      QueryServiceInterp.Eval.make(dataStore, "", false, 5.seconds)
+      QueryServiceInterp.Eval.make(dataStore, 5.seconds)
 
     val result: EitherT[IO, QueryFailure, List[String]] = underTest.asList(request)
 
@@ -63,8 +63,8 @@ class QueryServiceInterpSpec
 
   it should "fail with an error when confirmation depth is negative" in {
     val confirmationDepth = -10;
-    val filter: Option[String] = None
-    val sort: Option[Boolean] = None
+    val filter: String = "test-filter"
+    val sort: Boolean = false
     val paging: Option[Paging] = None
 
     val request = QueryRequest(filter, sort, paging, confirmationDepth)
@@ -75,63 +75,31 @@ class QueryServiceInterpSpec
       .never()
 
     val underTest: QueryServiceAlg[F, String, String, Boolean] =
-      QueryServiceInterp.Eval.make(dataStore, "", false, 5.seconds)
+      QueryServiceInterp.Eval.make(dataStore, 5.seconds)
 
     val result: EitherT[IO, QueryFailure, List[String]] = underTest.asList(request)
 
     result.value.asserting(_.left.value shouldBe a[QueryFailures.InvalidQuery])
   }
 
-  it should "use default filter when no filter provided" in {
-    val defaultFilter = "test"
-
-    val filter: Option[String] = None
-    val sort: Option[Boolean] = None
-    val paging: Option[Paging] = None
-    val confirmationDepth = 0
-
-    val dataValues = List.empty[String]
-
-    val defaultSort = true
-
-    val request = QueryRequest(filter, sort, paging, confirmationDepth)
-
-    val dataStore = mock[DataStoreQueryAlg[F, Source[*, NotUsed], Boolean, String, String]]
-    (dataStore.query _)
-      .expects(defaultFilter, defaultSort, *)
-      .once()
-      .returns(IO.pure(Source(dataValues)))
-
-    val underTest: QueryServiceAlg[F, String, String, Boolean] =
-      QueryServiceInterp.Eval.make(dataStore, defaultFilter, defaultSort, 5.seconds)
-
-    val result: EitherT[F, QueryFailure, List[String]] = underTest.asList(request)
-
-    result.value.asserting(_.value shouldBe dataValues)
-  }
-
   it should "use provided filter to query data store" in {
-    val filterValue = "test-filter"
-    val filter: Option[String] = Some(filterValue)
-    val sort: Option[Boolean] = None
+    val filter = "test-filter"
+    val sort: Boolean = false
     val paging: Option[Paging] = None
     val confirmationDepth = 0
 
     val dataValues = List.empty[String]
 
-    val defaultFilter = "test"
-    val defaultSort = true
-
     val request = QueryRequest(filter, sort, paging, confirmationDepth)
 
     val dataStore = mock[DataStoreQueryAlg[F, Source[*, NotUsed], Boolean, String, String]]
     (dataStore.query _)
-      .expects(filterValue, defaultSort, *)
+      .expects(filter, sort, *)
       .once()
       .returns(IO.pure(Source(dataValues)))
 
     val underTest: QueryServiceAlg[F, String, String, Boolean] =
-      QueryServiceInterp.Eval.make(dataStore, defaultFilter, defaultSort, 5.seconds)
+      QueryServiceInterp.Eval.make(dataStore, 5.seconds)
 
     val result: EitherT[F, QueryFailure, List[String]] = underTest.asList(request)
 
@@ -143,8 +111,8 @@ class QueryServiceInterpSpec
   it should "fail with an error when paging options are negative" in {
     val pageNumber = -9;
     val pageSize = -100;
-    val filter: Option[String] = None
-    val sort: Option[Boolean] = None
+    val filter: String = "test-filter"
+    val sort: Boolean = true
     val paging = Some(Paging(pageNumber, pageSize))
     val confirmationDepth = 0
 
@@ -156,7 +124,7 @@ class QueryServiceInterpSpec
       .never()
 
     val underTest: QueryServiceAlg[F, String, String, Boolean] =
-      QueryServiceInterp.Eval.make(dataStore, "", false, 5.seconds)
+      QueryServiceInterp.Eval.make(dataStore, 5.seconds)
 
     val result: EitherT[IO, QueryFailure, Source[String, NotUsed]] = underTest.asSource(request)
 
@@ -165,8 +133,8 @@ class QueryServiceInterpSpec
 
   it should "fail with an error when confirmation depth is negative" in {
     val confirmationDepth = -100;
-    val filter: Option[String] = None
-    val sort: Option[Boolean] = None
+    val filter: String = "test-filter"
+    val sort: Boolean = true
     val paging: Option[Paging] = None
 
     val request = QueryRequest(filter, sort, paging, confirmationDepth)
@@ -177,62 +145,31 @@ class QueryServiceInterpSpec
       .never()
 
     val underTest: QueryServiceAlg[F, String, String, Boolean] =
-      QueryServiceInterp.Eval.make(dataStore, "", false, 5.seconds)
+      QueryServiceInterp.Eval.make(dataStore, 5.seconds)
 
     val result: EitherT[IO, QueryFailure, Source[String, NotUsed]] = underTest.asSource(request)
 
     result.value.asserting(_.left.value shouldBe a[QueryFailures.InvalidQuery])
   }
 
-  it should "use default filter when no filter provided" in {
-    val defaultFilter = "test-filter"
-    val filter: Option[String] = None
-    val sort: Option[Boolean] = None
-    val paging: Option[Paging] = None
-    val confirmationDepth = 0
-
-    val dataValues = List.empty[String]
-
-    val defaultSort = true
-
-    val request = QueryRequest(filter, sort, paging, confirmationDepth)
-
-    val dataStore = mock[DataStoreQueryAlg[F, Source[*, NotUsed], Boolean, String, String]]
-    (dataStore.query _)
-      .expects(defaultFilter, defaultSort, *)
-      .once()
-      .returns(IO.pure(Source(dataValues)))
-
-    val underTest: QueryServiceAlg[F, String, String, Boolean] =
-      QueryServiceInterp.Eval.make(dataStore, defaultFilter, defaultSort, 5.seconds)
-
-    val result: EitherT[F, QueryFailure, Source[String, NotUsed]] = underTest.asSource(request)
-
-    toList(result).value.asserting(_.value shouldBe dataValues)
-  }
-
   it should "use provided filter to query data store" in {
-    val filterValue = "test-filter"
-    val filter: Option[String] = Some(filterValue)
-    val sort: Option[Boolean] = None
+    val filter: String = "test-filter"
+    val sort: Boolean = true
     val paging: Option[Paging] = None
     val confirmationDepth = 0
 
     val dataValues = List.empty[String]
 
-    val defaultFilter = "test"
-    val defaultSort = true
-
     val request = QueryRequest(filter, sort, paging, confirmationDepth)
 
     val dataStore = mock[DataStoreQueryAlg[F, Source[*, NotUsed], Boolean, String, String]]
     (dataStore.query _)
-      .expects(filterValue, defaultSort, *)
+      .expects(filter, sort, *)
       .once()
       .returns(IO.pure(Source(dataValues)))
 
     val underTest: QueryServiceAlg[F, String, String, Boolean] =
-      QueryServiceInterp.Eval.make(dataStore, defaultFilter, defaultSort, 5.seconds)
+      QueryServiceInterp.Eval.make(dataStore, 5.seconds)
 
     val result: EitherT[F, QueryFailure, Source[String, NotUsed]] = underTest.asSource(request)
 

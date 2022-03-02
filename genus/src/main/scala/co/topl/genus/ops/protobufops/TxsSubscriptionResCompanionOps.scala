@@ -9,7 +9,7 @@ import co.topl.genus.types.Transaction
 
 import scala.language.implicitConversions
 
-final class TxsSubscriptionResCompanionOps(val companion: TxsSubscriptionRes.type) extends AnyVal {
+final class TxsSubscriptionResCompanionOps(private val companion: TxsSubscriptionRes.type) extends AnyVal {
 
   def fromTransaction(transaction: Transaction): TxsSubscriptionRes =
     TxsSubscriptionRes(TxsSubscriptionRes.Result.Success(transaction))

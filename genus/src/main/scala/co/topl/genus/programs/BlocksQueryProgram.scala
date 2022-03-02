@@ -20,7 +20,7 @@ object BlocksQueryProgram {
   object Eval {
 
     def make[F[_]: Async: *[_] ~> Future](
-      queryService: QueryServiceAlg[F, Block, BlockFilter, Bson]
+      queryService: QueryServiceAlg[F, Block, BlockFilter, BlockSorting]
     ): BlocksQuery =
       new BlocksQuery {
 

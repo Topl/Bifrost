@@ -9,7 +9,7 @@ import co.topl.genus.types.Transaction
 
 import scala.language.implicitConversions
 
-final class QueryTxsResCompanionOps(val companion: QueryTxsRes.type) extends AnyVal {
+final class QueryTxsResCompanionOps(private val companion: QueryTxsRes.type) extends AnyVal {
 
   def fromTransactions[F[_]: Foldable](transactions: F[Transaction]): QueryTxsRes =
     QueryTxsRes(QueryTxsRes.Result.Success(QueryTxsRes.Success(transactions.toList)))

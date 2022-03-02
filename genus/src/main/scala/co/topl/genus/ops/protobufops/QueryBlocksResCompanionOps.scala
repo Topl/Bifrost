@@ -9,7 +9,7 @@ import co.topl.genus.types.Block
 
 import scala.language.implicitConversions
 
-final class QueryBlocksResCompanionOps(val companion: QueryBlocksRes.type) extends AnyVal {
+final class QueryBlocksResCompanionOps(private val companion: QueryBlocksRes.type) extends AnyVal {
 
   def fromBlocks[F[_]: Foldable](blocks: F[Block]): QueryBlocksRes =
     QueryBlocksRes(QueryBlocksRes.Result.Success(QueryBlocksRes.Success(blocks.toList)))

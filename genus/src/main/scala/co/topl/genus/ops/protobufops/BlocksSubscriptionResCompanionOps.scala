@@ -9,7 +9,7 @@ import co.topl.genus.types.Block
 
 import scala.language.implicitConversions
 
-final class BlocksSubscriptionResCompanionOps(val companion: BlocksSubscriptionRes.type) extends AnyVal {
+final class BlocksSubscriptionResCompanionOps(private val companion: BlocksSubscriptionRes.type) extends AnyVal {
 
   def fromBlocks[F[_]: Functor](blocks: F[Block]): F[BlocksSubscriptionRes] =
     blocks.map(fromBlock)

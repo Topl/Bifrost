@@ -5,6 +5,8 @@ package object typeclasses {
   trait Implicits
       extends MongoFilterInstances
       with MongoFilter.ToMongoFilterOps
+      with MongoSort.ToMongoSortOps
+      with MongoSortInstances
       with FunctionKInstances
       with Validation.ToValidationOps
       with ValidationInstances

@@ -12,10 +12,31 @@ service TransactionsQuery {
   rpc QueryStreamed (TxsQueryStreamReq) returns (stream TxsQueryStreamRes);
 }
 
+message TransactionSorting {
+  message Height {
+    bool descending = 1;
+  }
+
+  message Fee {
+    bool descending = 1;
+  }
+
+  message Timestamp {
+    bool descending = 1;
+  }
+
+  oneof sort_by {
+    Height height = 1;
+    Fee fee = 2;
+    Timestamp timestamp = 3;
+  }
+}
+
 message QueryTxsReq {
   TransactionFilter filter = 1;
-  uint32 confirmation_depth = 2;
-  Paging paging_options = 3;
+  TransactionSorting sorting = 2;
+  uint32 confirmation_depth = 3;
+  Paging paging_options = 4;
 }
 
 message QueryTxsRes {
@@ -39,6 +60,7 @@ message QueryTxsRes {
 
 message TxsQueryStreamReq {
   TransactionFilter filter = 1;
+  TransactionSorting sorting = 4;
   uint32 confirmation_depth = 2;
 }
 

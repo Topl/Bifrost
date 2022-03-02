@@ -20,13 +20,13 @@ object TransactionsQueryProgram {
   object Eval {
 
     def make[F[_]: Async: *[_] ~> Future](
-      queryService: QueryServiceAlg[F, Transaction, TransactionFilter, Bson]
+      queryService: QueryServiceAlg[F, Transaction, TransactionFilter, TransactionSorting]
     ): TransactionsQuery =
       new TransactionsQuery {
 
         override def query(in: QueryTxsReq): Future[QueryTxsRes] =
           queryService
-            .asList(QueryRequest(in.filter, None, in.pagingOptions, in.confirmationDepth))
+            .asList(in.toQueryRequest)
             .fold(QueryTxsRes.fromQueryFailure, QueryTxsRes.fromTransactions[List])
             .mapFunctor
 
@@ -34,7 +34,7 @@ object TransactionsQueryProgram {
           Source
             .futureSource(
               queryService
-                .asSource(QueryRequest(in.filter, None, None, in.confirmationDepth))
+                .asSource(in.toQueryRequest)
                 .fold(
                   failure => Source.single(TxsQueryStreamRes.fromQueryFailure(failure)),
                   TxsQueryStreamRes.fromTransactions[Source[*, NotUsed]]
