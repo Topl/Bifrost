@@ -46,7 +46,7 @@ object GenusApp extends IOApp.Simple {
   val serverPort = 8080
 
   // tx and block mongo names
-  val mongoConnectionString = "mongodb://localhost:27017/?replicaset=bifrost"
+  val mongoConnectionString = "mongodb://localhost"
   val databaseName = "chain_data"
   val txsCollectionName = "confirmed_txes"
   val blocksCollectionName = "blocks"
