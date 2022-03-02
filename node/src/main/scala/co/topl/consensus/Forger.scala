@@ -153,12 +153,16 @@ object Forger {
       settings.forging.genesis.head.genesisStrategy.head match {
         case Generated =>
           if (networkType == PrivateTestnet) {
-            val genesisSettings = settings.forging.genesis.flatMap(_.generated).head
-            fetchStartupKeyView()
-              .map(view =>
-                GeneratedGenesis(view.addresses, genesisSettings, nxtLeaderElection.protocolMngr).getGenesisBlock
-              )
-              .flatMap(r => initializeFromChainParamsAndGetBlock(r))
+            settings.forging.genesis.flatMap(_.generated) match {
+              case Some(genesisSettings) =>
+                fetchStartupKeyView()
+                  .map(view =>
+                    GeneratedGenesis(view.addresses, genesisSettings, nxtLeaderElection.protocolMngr).getGenesisBlock
+                  )
+                  .flatMap(r => initializeFromChainParamsAndGetBlock(r))
+              case None =>
+                Future.failed(new IllegalArgumentException("Failed to read generated genesis settings"))
+            }
           } else {
             Future.failed(new IllegalArgumentException(s"Unsupported network type for generated genesis: $networkType"))
           }

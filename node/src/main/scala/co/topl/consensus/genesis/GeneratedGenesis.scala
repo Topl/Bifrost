@@ -24,7 +24,7 @@ case class GeneratedGenesis(
 
   override protected val blockChecksum: ModifierId = ModifierId.empty
 
-  override protected val blockVersion: PNVMVersion = protocolMngr.blockVersion(1)
+  override protected val blockVersion: PNVMVersion = settings.genesisApplicationVersion.blockByte
 
   override def getGenesisBlock: Try[(Block, ChainParams)] = Try(formNewBlock)
 
