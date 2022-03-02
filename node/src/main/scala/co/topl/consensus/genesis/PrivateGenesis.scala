@@ -19,7 +19,8 @@ case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implic
 
   override protected val blockChecksum: ModifierId = ModifierId.empty
 
-  override protected val blockVersion: PNVMVersion = settings.application.version.blockByte
+  override protected val blockVersion: PNVMVersion =
+    settings.forging.genesis.flatMap(_.generated).map(_.genesisApplicationVersion).map(_.blockByte).getOrElse(1.toByte)
 
   override def getGenesisBlock: Try[(Block, ChainParams)] = Try(formNewBlock)
 
@@ -29,7 +30,7 @@ case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implic
    * by making a call to the key manager holder to create a the set of forging keys. Once these keys are created,
    * we can use the public images to pre-fund the accounts from genesis.
    */
-  val (numberOfKeys, balance, initialDifficulty) = settings.forging.privateTestnet
+  val (numberOfKeys, balance, initialDifficulty) = settings.forging.genesis.head.generated
     .map { settings =>
       (settings.numTestnetAccts, settings.testnetBalance, settings.initialDifficulty)
     }

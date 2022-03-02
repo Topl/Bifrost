@@ -34,9 +34,12 @@ class ConsenesusVariablesSpec
 
   behavior of "ConsensusStorage"
 
-  private val defaultTotalStake = settings.forging.privateTestnet.map { testnetSettings =>
-    testnetSettings.numTestnetAccts * testnetSettings.testnetBalance
-  }.value
+  private val defaultTotalStake = settings.forging.genesis
+    .flatMap(_.generated)
+    .map { testnetSettings =>
+      testnetSettings.numTestnetAccts * testnetSettings.testnetBalance
+    }
+    .value
 
   it should "return default consensus params after no updates with empty storage" in {
 

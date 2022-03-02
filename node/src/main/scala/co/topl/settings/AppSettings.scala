@@ -80,21 +80,13 @@ case class ForgingSettings(
   protocolVersions:     List[ProtocolSettings],
   forgeOnStartup:       Boolean,
   rewardsAddress:       Option[String], // String here since we don't know netPrefix when settings are read
-  privateTestnet:       Option[PrivateTestnetSettings],
   genesis:              Option[GenesisSettings]
 )
 
-case class PrivateTestnetSettings(
-  numTestnetAccts:   Int,
-  testnetBalance:    Long,
-  initialDifficulty: Long,
-  genesisSeed:       Option[String]
-)
-
 case class GenesisSettings(
-  genesisStrategy:       Option[GenesisStrategy.Value],
-  generated:             Option[GenesisGenerationSettings],
-  providedFromBlockJson: Option[GenesisFromBlockJsonSettings]
+  genesisStrategy: Option[GenesisStrategy.Value],
+  generated:       Option[GenesisGenerationSettings],
+  fromBlockJson:   Option[GenesisFromBlockJsonSettings]
 )
 
 object GenesisStrategy extends Enumeration {
@@ -103,10 +95,11 @@ object GenesisStrategy extends Enumeration {
 }
 
 case class GenesisGenerationSettings(
-  numTestnetAccts:   Int,
-  testnetBalance:    Long,
-  initialDifficulty: Long,
-  genesisSeed:       Option[String]
+  numTestnetAccts:           Int,
+  genesisApplicationVersion: Version,
+  testnetBalance:            Long,
+  initialDifficulty:         Long,
+  genesisSeed:               Option[String]
 )
 
 case class GenesisFromConfigSettings(

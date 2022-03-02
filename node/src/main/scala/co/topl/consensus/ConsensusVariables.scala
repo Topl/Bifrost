@@ -74,7 +74,10 @@ object ConsensusVariables {
 
       val defaultTotalStake = networkType match {
         case PrivateTestnet =>
-          settings.forging.privateTestnet.map(sfp => sfp.numTestnetAccts * sfp.testnetBalance).getOrElse(10000000L)
+          settings.forging.genesis
+            .flatMap(_.generated)
+            .map(sfp => sfp.numTestnetAccts * sfp.testnetBalance)
+            .getOrElse(10000000L)
         case _ => 200000000000000000L // todo: JAA - this should be with other genesis consensus parameters
       }
 

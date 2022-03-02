@@ -80,7 +80,7 @@ class KeyManager(settings: AppSettings, appContext: AppContext)(implicit np: Net
     // this is for when you have started up a private network and are attempting to resume it using
     // the same seed you used previously to continue forging
     if (keyRing.addresses.isEmpty && PrivateTestnet == appContext.networkType) {
-      settings.forging.privateTestnet match {
+      settings.forging.genesis.flatMap(_.generated) match {
         case Some(sfp) =>
           val (numAccts, seed) = (sfp.numTestnetAccts, sfp.genesisSeed)
 

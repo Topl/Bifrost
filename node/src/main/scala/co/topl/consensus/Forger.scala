@@ -12,8 +12,8 @@ import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
 import co.topl.consensus.genesis._
 import co.topl.modifier.block.Block
 import co.topl.nodeView.NodeViewReader
-import co.topl.settings.GenesisStrategy._
 import co.topl.settings.AppSettings
+import co.topl.settings.GenesisStrategy._
 import co.topl.utils.NetworkType._
 import co.topl.utils.{Int128, NetworkType, TimeProvider}
 import org.slf4j.Logger
@@ -163,10 +163,15 @@ object Forger {
             Future.failed(new IllegalArgumentException(s"Unsupported network type for generated genesis: $networkType"))
           }
         case FromBlockJson =>
-          val genesisSettings = settings.forging.genesis.flatMap(_.providedFromBlockJson).head
-          initializeFromChainParamsAndGetBlock(
-            GenesisFromBlockJson(genesisSettings, networkType, nxtLeaderElection.protocolMngr).getGenesisBlock
-          )
+          settings.forging.genesis.flatMap(_.fromBlockJson) match {
+            case Some(genesisSettings) =>
+              initializeFromChainParamsAndGetBlock(
+                GenesisFromBlockJson(genesisSettings, networkType, nxtLeaderElection.protocolMngr).getGenesisBlock
+              )
+            case None =>
+              Future.failed(new IllegalArgumentException("Failed to read genesis from block Json settings"))
+          }
+
         case _ =>
           Future.failed(
             new IllegalArgumentException(s"Undefined genesis strategy $settings.forging.genesis.head.genesisStrategy")

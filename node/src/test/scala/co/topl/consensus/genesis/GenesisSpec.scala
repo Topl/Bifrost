@@ -22,7 +22,7 @@ class GenesisSpec extends AnyFreeSpec with Inspectors with NodeGenerators {
     )
 
   privateKeyRing
-    .generateNewKeyPairs(settings.forging.privateTestnet.get.numTestnetAccts, None)
+    .generateNewKeyPairs(settings.forging.genesis.flatMap(_.generated).get.numTestnetAccts, None)
     .map(keys => keys.map(_.publicImage.address))
 
   forAll(
