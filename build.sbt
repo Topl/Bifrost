@@ -399,6 +399,27 @@ lazy val minting = project
     consensus
   )
 
+lazy val networking = project
+  .in(file("networking"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "networking",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.networking"
+  )
+  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsEffect)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(
+    models % "compile->compile;test->test",
+    typeclasses,
+    crypto,
+    byteCodecs,
+    algebras % "compile->compile;test->test",
+    consensus
+  )
+
 lazy val demo = project
   .in(file("demo"))
   .enablePlugins(BuildInfoPlugin)
