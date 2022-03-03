@@ -17,6 +17,7 @@ import co.topl.network.utils.NetworkTimeProvider
 import co.topl.nodeView._
 import co.topl.rpc.ToplRpcServer
 import co.topl.settings.{AppContext, AppSettings}
+import co.topl.tools.exporter.MongoDBOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider
 import io.circe.Encoder
@@ -103,7 +104,7 @@ object Heimdall {
   )(implicit timeProvider: TimeProvider): Behavior[ReceivableMessage] = Behaviors.receivePartial {
     case (context, ReceivableMessages.NetworkControllerReady) =>
       context.log.info(
-        "Initializing PeerSynchronizer and NodeViewSynchronizer"
+        "Initializing PeerSynchronizer, NodeViewSynchronizer, and ChainReplicator"
       )
       implicit def ctx: ActorContext[ReceivableMessage] = context
 
@@ -111,6 +112,10 @@ object Heimdall {
 
       context.watch(nextState.peerSynchronizer)
       context.watch(nextState.nodeViewSynchronizer)
+      nextState.chainReplicator match {
+        case Some(chainReplicator) => context.watch(chainReplicator)
+        case None                  =>
+      }
 
       context.self.tell(ReceivableMessages.BindExternalTraffic)
 
@@ -203,7 +208,8 @@ object Heimdall {
     nodeViewHolder:       ActorRef[NodeViewHolder.ReceivableMessage],
     mempoolAuditor:       ActorRef[MemPoolAuditor.ReceivableMessage],
     peerSynchronizer:     CActorRef,
-    nodeViewSynchronizer: CActorRef
+    nodeViewSynchronizer: CActorRef,
+    chainReplicator:      Option[ActorRef[ChainReplicator.ReceivableMessage]]
   )
 
   private case class State(
@@ -241,9 +247,9 @@ object Heimdall {
         ToplRpcHandlers(
           new DebugRpcHandlerImpls(nodeViewHolderInterface, keyManagerInterface),
           new UtilsRpcHandlerImpls,
-          new NodeViewRpcHandlerImpls(appContext, nodeViewHolderInterface),
+          new NodeViewRpcHandlerImpls(settings.rpcApi, appContext, nodeViewHolderInterface),
           new TransactionRpcHandlerImpls(nodeViewHolderInterface),
-          new AdminRpcHandlerImpls(forgerInterface, keyManagerInterface)
+          new AdminRpcHandlerImpls(forgerInterface, keyManagerInterface, nodeViewHolderInterface)
         ),
         appContext
       )
@@ -356,6 +362,28 @@ object Heimdall {
       NodeViewSynchronizer.actorName
     )
 
+    val chainReplicator: Option[ActorRef[ChainReplicator.ReceivableMessage]] = {
+      val chainRepSettings = settings.chainReplicator
+      if (chainRepSettings.enableChainReplicator) {
+        val dbOps =
+          MongoDBOps(
+            chainRepSettings.uri.getOrElse("mongodb://localhost"),
+            chainRepSettings.database.getOrElse("bifrost")
+          )
+
+        Some(
+          context.spawn(
+            ChainReplicator(
+              state.nodeViewHolder,
+              dbOps,
+              chainRepSettings
+            ),
+            ChainReplicator.actorName
+          )
+        )
+      } else None
+    }
+
     ActorsInitializedState(
       state.peerManager,
       state.networkController,
@@ -364,7 +392,8 @@ object Heimdall {
       state.nodeViewHolder,
       state.mempoolAuditor,
       peerSynchronizer,
-      nodeViewSynchronizer
+      nodeViewSynchronizer,
+      chainReplicator
     )
   }
 

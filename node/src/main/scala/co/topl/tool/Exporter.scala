@@ -4,11 +4,12 @@ import co.topl.nodeView.history.History
 import co.topl.settings.{AppSettings, StartupOpts}
 import co.topl.tools.exporter.{DataType, Exportable, MongoExport}
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.mongodb.codecs._
+import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataModel}
 import co.topl.utils.{Logging, NetworkType}
-import co.topl.settings.StartupOptsImplicits._
 import io.circe.Json
-import io.circe.syntax.EncoderOps
 import mainargs.{arg, main, ParserForMethods}
+import co.topl.settings.StartupOptsImplicits._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
@@ -19,16 +20,6 @@ object Exporter extends Logging {
 
   private def initHistory(settings: AppSettings, np: NetworkPrefix): History = History.readOrGenerate(settings)(np)
 
-  def flattenFields(value: Json): Option[Iterable[(String, Json)]] = value.asObject.map(
-    _.toIterable.flatMap { case (k, v) =>
-      flattenFields(v) match {
-        case None => List(k -> v)
-        case Some(fields) =>
-          fields.map { case (k, v) => k -> v }
-      }
-    }
-  )
-
   private def export(connection: Exportable, history: History, start: Long = 1L, end: Long): Unit = {
 
     val startTime = System.currentTimeMillis()
@@ -38,15 +29,14 @@ object Exporter extends Logging {
         for {
           height <- start to end
           block  <- history.modifierByHeight(height)
-        } yield {
-          val formattedBlock: Json = flattenFields(block.asJson).fold(block.asJson)(Json.fromFields)
-          connection.insert(Seq(formattedBlock.toString))
-        }
+        } yield connection.insert(Seq(BlockDataModel(block)))
       case DataType.Transaction =>
         for {
           height <- start to end
           block  <- history.modifierByHeight(height)
-        } yield connection.insert(block.transactions.map(_.asJson.toString))
+        } yield connection.insert(
+          block.transactions.map(tx => ConfirmedTransactionDataModel(block.id.toString, block.height, tx))
+        )
       // TODO: Decide if the set of all boxes that have existed or the current set of boxes should be returned
       case DataType.Box => ???
     }

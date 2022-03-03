@@ -53,6 +53,27 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
     }
   }
 
+  def testEncodeTransfer(unprovenTransaction: Json, messageToSign: String): Unit = {
+    val requestBody = ByteString(s"""
+      |{
+      | "jsonrpc": "2.0",
+      | "id": "2",
+      | "method": "topl_encodeTransfer",
+      | "params": [{
+      |   "unprovenTransaction": $unprovenTransaction
+      | }]
+      |}
+      """.stripMargin)
+
+    httpPOST(requestBody) ~> route ~> check {
+      val res = parse(responseAs[String]).value
+      val encodedMessage = res.hcursor.downField("result").get[String]("messageToSign").value
+
+      encodedMessage shouldEqual messageToSign
+      res.hcursor.downField("error").values shouldBe None
+    }
+  }
+
   def testCreateSignPolyTransfer(sender: Address, recipient: Address, senderPropType: String, amount: Int): Json = {
     val requestBody = ByteString(s"""
       |{
@@ -93,6 +114,9 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
         val signatures: Json = Map(
           "signatures" -> sig.asJson
         ).asJson
+
+        testEncodeTransfer(rawTx, res.hcursor.downField("result").get[String]("messageToSign").value)
+
         rawTx.deepMerge(signatures)
       }
 
@@ -105,22 +129,22 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
 
   def testCreateSignArbitTransfer(sender: Address, recipient: Address, senderPropType: String, amount: Int): Json = {
     val requestBody = ByteString(s"""
-                                    |{
-                                    | "jsonrpc": "2.0",
-                                    | "id": "2",
-                                    | "method": "topl_rawArbitTransfer",
-                                    | "params": [{
-                                    |   "propositionType": "$senderPropType",
-                                    |   "recipients": [["$recipient", "$amount"]],
-                                    |   "sender": ["$sender"],
-                                    |   "changeAddress": "$sender",
-                                    |   "consolidationAddress": "$sender",
-                                    |   "minting": "false",
-                                    |   "fee": "1",
-                                    |   "data": "",
-                                    |   "boxSelectionAlgorithm": "All"
-                                    | }]
-                                    |}
+      |{
+      | "jsonrpc": "2.0",
+      | "id": "2",
+      | "method": "topl_rawArbitTransfer",
+      | "params": [{
+      |   "propositionType": "$senderPropType",
+      |   "recipients": [["$recipient", "$amount"]],
+      |   "sender": ["$sender"],
+      |   "changeAddress": "$sender",
+      |   "consolidationAddress": "$sender",
+      |   "minting": "false",
+      |   "fee": "1",
+      |   "data": "",
+      |   "boxSelectionAlgorithm": "All"
+      | }]
+      |}
       """.stripMargin)
 
     httpPOST(requestBody) ~> route ~> check {
@@ -143,6 +167,9 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
         val signatures: Json = Map(
           "signatures" -> sig.asJson
         ).asJson
+
+        testEncodeTransfer(rawTx, res.hcursor.downField("result").get[String]("messageToSign").value)
+
         rawTx.deepMerge(signatures)
       }
 
@@ -153,6 +180,42 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
     }
   }
 
+  def assetTransferRequestBody(
+    sender:         Address,
+    recipient:      Address,
+    assetCode:      String,
+    senderPropType: String,
+    amount:         Int,
+    securityRoot:   String = "11111111111111111111111111111111"
+  ): ByteString =
+    ByteString(s"""
+      |{
+      | "jsonrpc": "2.0",
+      | "id": "2",
+      | "method": "topl_rawAssetTransfer",
+      | "params": [{
+      |   "propositionType": "$senderPropType",
+      |   "recipients":
+      |   [["$recipient",
+      |    {
+      |      "quantity" : "$amount",
+      |      "assetCode" : "$assetCode",
+      |      "metadata" : "ApdGzs6uwKAhuKJQswBWoVAFjNA5B8enBKfxVbzlcQ8EnpxicpRcE9B9Bgn2LGv02kYUSA1h1181ZYeECvr",
+      |      "type" : "Asset",
+      |      "securityRoot" : "$securityRoot"
+      |    }
+      |  ]],
+      |   "sender": ["$sender"],
+      |   "changeAddress": "$sender",
+      |   "consolidationAddress": "$sender",
+      |   "fee": "1",
+      |   "minting": true,
+      |   "data": "",
+      |   "boxSelectionAlgorithm": "All"
+      | }]
+      |}
+      """.stripMargin)
+
   def testCreateSignAssetTransfer(
     sender:         Address,
     recipient:      Address,
@@ -160,33 +223,7 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
     senderPropType: String,
     amount:         Int
   ): Json = {
-    val requestBody = ByteString(s"""
-                                    |{
-                                    | "jsonrpc": "2.0",
-                                    | "id": "2",
-                                    | "method": "topl_rawAssetTransfer",
-                                    | "params": [{
-                                    |   "propositionType": "$senderPropType",
-                                    |   "recipients":
-                                    |   [["$recipient",
-                                    |    {
-                                    |      "quantity" : "$amount",
-                                    |      "assetCode" : "${assetCode.toString}",
-                                    |      "metadata" : "ApdGzs6uwKAhuKJQswBWoVAFjNA5B8enBKfxVbzlcQ8EnpxicpRcE9B9Bgn2LGv02kYUSA1h1181ZYeECvr",
-                                    |      "type" : "Asset",
-                                    |      "securityRoot" : "11111111111111111111111111111111"
-                                    |    }
-                                    |  ]],
-                                    |   "sender": ["$sender"],
-                                    |   "changeAddress": "$sender",
-                                    |   "consolidationAddress": "$sender",
-                                    |   "fee": "1",
-                                    |   "minting": true,
-                                    |   "data": "",
-                                    |   "boxSelectionAlgorithm": "All"
-                                    | }]
-                                    |}
-      """.stripMargin)
+    val requestBody = assetTransferRequestBody(sender, recipient, assetCode.toString, senderPropType, amount)
 
     httpPOST(requestBody) ~> route ~> check {
       val res = parse(responseAs[String]).value
@@ -208,6 +245,9 @@ trait TransferRPCTestMethods extends AnyWordSpec with Matchers with RPCMockState
         val signatures: Json = Map(
           "signatures" -> sig.asJson
         ).asJson
+
+        testEncodeTransfer(rawTx, res.hcursor.downField("result").get[String]("messageToSign").value)
+
         rawTx.deepMerge(signatures)
       }
 
