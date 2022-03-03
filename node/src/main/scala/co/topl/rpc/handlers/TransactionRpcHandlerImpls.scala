@@ -80,6 +80,15 @@ class TransactionRpcHandlerImpls(
         _ <- processTransaction(transaction)
       } yield transaction
 
+  override val encodeTransfer: ToplRpc.Transaction.EncodeTransfer.rpc.ServerHandler =
+    params =>
+      for {
+        rawTransaction <- params.unprovenTransaction.rawSyntacticValidation.toEither
+          .leftMap[RpcError](ToplRpcErrors.syntacticValidationFailure)
+          .toEitherT[Future]
+        messageToSign = rawTransaction.messageToSign.encodeAsBase58
+      } yield ToplRpc.Transaction.EncodeTransfer.Response(messageToSign.show)
+
   private def createAssetTransfer(
     params: ToplRpc.Transaction.RawAssetTransfer.Params,
     state:  StateReader[ProgramId, Address]
