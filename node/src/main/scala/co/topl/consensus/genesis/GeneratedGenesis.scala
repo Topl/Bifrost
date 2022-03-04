@@ -16,8 +16,7 @@ import scala.util.Try
 
 case class GeneratedGenesis(
   addresses:    Set[Address],
-  settings:     GenesisGenerationSettings,
-  protocolMngr: ProtocolVersioner
+  settings:     GenesisGenerationSettings
 )(implicit
   val networkPrefix: NetworkPrefix
 ) extends GenesisProvider {

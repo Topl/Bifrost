@@ -157,7 +157,7 @@ object Forger {
               case Some(genesisSettings) =>
                 fetchStartupKeyView()
                   .map(view =>
-                    GeneratedGenesis(view.addresses, genesisSettings, nxtLeaderElection.protocolMngr).getGenesisBlock
+                    GeneratedGenesis(view.addresses, genesisSettings).getGenesisBlock
                   )
                   .flatMap(r => initializeFromChainParamsAndGetBlock(r))
               case None =>
