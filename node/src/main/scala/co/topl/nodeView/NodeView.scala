@@ -8,6 +8,7 @@ import co.topl.consensus.ConsensusVariables.ConsensusParams
 import co.topl.consensus.Hiccups.HiccupBlock
 import co.topl.consensus.KeyManager.StartupKeyView
 import co.topl.consensus._
+import co.topl.consensus.genesis.GenesisCreator
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ProgramId
@@ -120,8 +121,8 @@ object NodeView {
     nxtLeaderElection: NxtLeaderElection
   ): Future[NodeView] = {
     implicit def networkPrefix: NetworkPrefix = networkType.netPrefix
-    Forger
-      .genesisBlock(settings, networkType, startupKeyView, consensusVariablesInterface)
+    GenesisCreator
+      .getGenesisBlock(settings, networkType, startupKeyView, consensusVariablesInterface)
       .map(genesis(settings, networkType, _))
   }
 

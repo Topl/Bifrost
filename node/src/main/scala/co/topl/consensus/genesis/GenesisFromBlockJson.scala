@@ -18,8 +18,7 @@ import scala.util.Try
 
 case class GenesisFromBlockJson(
   settings:     GenesisFromBlockJsonSettings,
-  networkType:  NetworkType,
-  protocolMngr: ProtocolVersioner
+  networkType:  NetworkType
 ) extends GenesisProvider {
 
   implicit override val networkPrefix: NetworkPrefix = networkType.netPrefix
