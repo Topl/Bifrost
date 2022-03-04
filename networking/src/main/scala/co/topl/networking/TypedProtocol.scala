@@ -3,9 +3,11 @@ package co.topl.networking
 import cats.effect.Ref
 import cats.effect.kernel.Async
 import cats.implicits._
+import org.typelevel.log4cats.Logger
 
 import scala.reflect.ClassTag
 
+// TODO: Allow type parameter T instead of Any
 trait TypedProtocol[F[_]] {
   def localParty: F[Party]
   def currentAgentParty: F[Party]
@@ -22,7 +24,7 @@ object TypedProtocol {
 
   object Eval {
 
-    def make[F[_]: Async](local: Party, initializer: TypedProtocolInitializer[F]): F[TypedProtocol[F]] =
+    def make[F[_]: Async: Logger](local: Party, initializer: TypedProtocolInitializer[F]): F[TypedProtocol[F]] =
       for {
         subProtocol <- local.if_(ifA = initializer.initialPartyASubProtocol, ifB = initializer.initialPartyBSubProtocol)
         ref: Ref[F, (Party, TypedSubProtocol[F, Any])] <- Ref.of(
@@ -40,11 +42,14 @@ object TypedProtocol {
             if (p.rClassTag.runtimeClass == t.getClass) {
               for {
                 (newSubProtocol, response, agencyChange) <- p.apply(t.asInstanceOf[p.ReceivableMessage])
+                _ <- Logger[F].info(
+                  s"$local in state $p received message $t and transitioned to $newSubProtocol with response $response"
+                )
                 _ <- ref.update { case (p, _) =>
                   val newAgent =
                     agencyChange match {
-                      case LocalIsAgent  => p
-                      case RemoteIsAgent => p.opposite
+                      case LocalIsAgent  => local
+                      case RemoteIsAgent => local.opposite
                     }
                   (newAgent, newSubProtocol.asInstanceOf[TypedSubProtocol[F, Any]])
                 }

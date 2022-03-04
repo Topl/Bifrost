@@ -8,6 +8,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, EitherValues, OptionValues}
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 class PingPongSpec
     extends AnyFlatSpec
@@ -20,6 +22,8 @@ class PingPongSpec
     with OptionValues {
 
   type F[A] = IO[A]
+
+  implicit private val logger: Logger[F] = Slf4jLogger.getLogger[F]
 
   behavior of "PingPong"
 
@@ -71,9 +75,7 @@ class PingPongSpec
     var toSend: Any = PingPong.Messages.Go
 
     for (_ <- 0 to 4) {
-      println(s"Party A sends $toSend to Party B")
       val TypedProtocol.Message(bResponse) = protocolB.receive(toSend).unsafeRunSync().value
-      println(s"Party B sends $bResponse to Party A")
       val TypedProtocol.Message(aResponse) = protocolA.receive(bResponse).unsafeRunSync().value
       toSend = aResponse
     }

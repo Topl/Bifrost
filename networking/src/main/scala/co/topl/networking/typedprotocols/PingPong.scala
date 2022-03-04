@@ -29,7 +29,7 @@ object PingPong {
     case class Idle[F[_]: Applicative]() extends TypedSubProtocol[F, Messages.Go.type] {
 
       override def apply(
-        message: ReceivableMessage
+        message: Messages.Go.type
       ): F[(TypedSubProtocol[F, _], Option[TypedProtocol.Response], AgencyChange)] =
         (
           AwaitingPong[F]().pure[F].widen[TypedSubProtocol[F, _]],
