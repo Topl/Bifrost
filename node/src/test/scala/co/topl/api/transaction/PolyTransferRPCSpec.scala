@@ -25,28 +25,29 @@ class PolyTransferRPCSpec extends TransferRPCTestMethods {
   }
 
   "PolyTransfer RPC" should {
-    "Create, sign and broadcast new poly transfer raw transaction from a Curve25519 address to itself" in {
+    "Create, encode, sign new raw poly transfer from a Curve25519 address to itself, and broadcast it" in {
       val tx = testCreateSignPolyTransfer(addressCurve25519Fst, addressCurve25519Sec, propTypeCurve25519, 3)
       testBroadcastTx(tx)
     }
 
-    "Create, sign and broadcast new poly transfer raw transaction from a Curve25519 address to an Ed25519 address" +
+    "Create, encode, sign new raw poly transfer from a Curve25519 address to an Ed25519 address, and broadcast it" +
     " address" in {
       val tx = testCreateSignPolyTransfer(addressCurve25519Fst, addressEd25519Fst, propTypeCurve25519, 3)
       testBroadcastTx(tx)
     }
 
-    "Create, sign and broadcast new poly transfer raw transaction from an Ed25519 address to itself" in {
+    "Create, encode, sign new raw poly transfer from an Ed25519 address to itself, and broadcast it" in {
       val tx = testCreateSignPolyTransfer(addressEd25519Fst, addressEd25519Sec, propTypeEd25519, 3)
       testBroadcastTx(tx)
     }
 
-    "Create, sign and broadcast new poly transfer raw transaction from an Ed25519 address to a Curve25519 address" in {
+    "Create, encode, sign new raw poly transfer from an Ed25519 address to a Curve25519 address, and broadcast it" in {
       val tx = testCreateSignPolyTransfer(addressEd25519Fst, addressCurve25519Fst, propTypeEd25519, 3)
       testBroadcastTx(tx)
     }
 
-    "Create, sign and broadcast new poly transfer from a threshold Curve25519 address to an address of same type" in {
+    "Create, encode, sign new raw poly transfer from a threshold Curve25519 address to an address of same type, and " +
+    "broadcast it" in {
       val tx =
         testCreateSignPolyTransfer(
           addressThresholdCurve25519Fst,
@@ -57,7 +58,8 @@ class PolyTransferRPCSpec extends TransferRPCTestMethods {
       testBroadcastTx(tx)
     }
 
-    "Create, sign and broadcast new poly transfer from a threshold Curve25519 address to a Ed25519 address" in {
+    "Create, encode, sign new raw poly transfer from a threshold Curve25519 address to a Ed25519 address, and " +
+    "broadcast it" in {
       val tx =
         testCreateSignPolyTransfer(
           addressThresholdCurve25519Fst,
