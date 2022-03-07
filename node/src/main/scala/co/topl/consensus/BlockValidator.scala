@@ -12,13 +12,13 @@ import scala.util.{Failure, Try}
 
 //PoS consensus rules checks, throws exception if anything wrong
 sealed trait BlockValidator[PM <: Block] {
-  def validate(block: PM, consensusParams: ConsensusVariables.ConsensusParams): Try[Unit]
+  def validate(block: PM, consensusParams: NxtConsensus.State): Try[Unit]
 }
 
 class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor, nxtLeaderElection: NxtLeaderElection)
     extends BlockValidator[Block] {
 
-  def validate(block: Block, consensusParams: ConsensusVariables.ConsensusParams): Try[Unit] = Try {
+  def validate(block: Block, consensusParams: NxtConsensus.State): Try[Unit] = Try {
     // lookup our local data about the parent
     val (parent, prevBlockTimes) = getParentDetailsOf(block)
 
@@ -57,7 +57,7 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor,
   private def ensureValidHit(
     block:           Block,
     parent:          Block,
-    consensusParams: ConsensusVariables.ConsensusParams
+    consensusParams: NxtConsensus.State
   ): Try[Unit] = Try {
     // calculate the hit value from the forger box included in the new block
     val hit = nxtLeaderElection.calcHit(parent)(block.generatorBox)
@@ -82,7 +82,7 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor,
       case None              =>
         // we have already checked if the parent exists so can get
         val parent = storage.modifierById(block.parentId).get
-        (parent, History.getTimestamps(storage, nxtLeaderElection.nxtBlockNum, parent) :+ block.timestamp)
+        (parent, History.getTimestamps(storage, NxtLeaderElection.nxtBlockNum, parent) :+ block.timestamp)
     }
 }
 
@@ -99,7 +99,7 @@ class SyntaxBlockValidator extends BlockValidator[Block] {
         "The forger entitled transactions must match the block details"
       )
 
-  def validate(block: Block, consensusParams: ConsensusVariables.ConsensusParams): Try[Unit] = Try {
+  def validate(block: Block, consensusParams: NxtConsensus.State): Try[Unit] = Try {
 
     // check block signature is valid
     require(block.signature.isValid(block.publicKey, block.messageToSign), "Failed to validate block signature")
@@ -162,7 +162,7 @@ class TimestampValidator(storage: Storage, blockProcessor: BlockProcessor) exten
   private def blockTimestamp(id: ModifierId): Option[TimeProvider.Time] =
     blockProcessor.getCacheBlock(id).map(_.block.timestamp).orElse(storage.timestampOf(id))
 
-  override def validate(block: Block, consensusParams: ConsensusVariables.ConsensusParams): Try[Unit] = Try {
+  override def validate(block: Block, consensusParams: NxtConsensus.State): Try[Unit] = Try {
     blockTimestamp(block.parentId) match {
       case Some(parentTimestamp) =>
         require(

@@ -6,8 +6,8 @@ import akka.actor.typed.eventstream.EventStream
 import akka.pattern.StatusReply
 import co.topl.attestation.Address
 import co.topl.consensus.ConsenesusVariablesSpec.TestInWithActor
-import co.topl.consensus.ConsensusVariables.ConsensusParams
-import co.topl.consensus.ConsensusVariables.ReceivableMessages.{GetConsensusVariables, RollbackConsensusVariables}
+import co.topl.consensus.NxtConsensus.State
+import co.topl.consensus.NxtConsensus.ReceivableMessages.{ReadConsensusState, RollbackConsensusState}
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
 import co.topl.nodeView.NodeViewTestHelpers.TestIn
@@ -48,9 +48,9 @@ class ConsenesusVariablesSpec
       .onCall(() => System.currentTimeMillis())
 
     genesisActorTest { testIn =>
-      val probe = createTestProbe[ConsensusParams]()
-      testIn.consensusStorageRef ! GetConsensusVariables(probe.ref)
-      probe.expectMessage(ConsensusParams(Int128(defaultTotalStake), 0L, 0L, 0L))
+      val probe = createTestProbe[State]()
+      testIn.consensusStorageRef ! ReadConsensusState(probe.ref)
+      probe.expectMessage(State(Int128(defaultTotalStake), 0L, 0L, 0L))
     }
   }
 
@@ -64,7 +64,7 @@ class ConsenesusVariablesSpec
       .onCall(() => System.currentTimeMillis())
 
     genesisActorTest { testIn =>
-      val probe = createTestProbe[ConsensusParams]()
+      val probe = createTestProbe[State]()
       val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head)
         .take(settings.application.consensusStoreVersionsToKeep / 2)
         .toList
@@ -73,9 +73,9 @@ class ConsenesusVariablesSpec
         system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
       }
       Thread.sleep(0.1.seconds.toMillis)
-      testIn.consensusStorageRef ! GetConsensusVariables(probe.ref)
+      testIn.consensusStorageRef ! ReadConsensusState(probe.ref)
       // Increasing the newBlock number by one as the height since we start out with a genesis block
-      probe.expectMessage(ConsensusParams(Int128(defaultTotalStake), newBlocks.last.difficulty, 0L, newBlocks.size + 1))
+      probe.expectMessage(State(Int128(defaultTotalStake), newBlocks.last.difficulty, 0L, newBlocks.size + 1))
     }
   }
 
@@ -88,11 +88,11 @@ class ConsenesusVariablesSpec
       .anyNumberOfTimes()
       .onCall(() => System.currentTimeMillis())
 
-    val probe = createTestProbe[ConsensusParams]()
+    val probe = createTestProbe[State]()
     val store = InMemoryKeyValueStore.empty()
     val consensusStorageRef = spawn(
-      ConsensusVariables(settings, appContext.networkType, store),
-      ConsensusVariables.actorName
+      NxtConsensus(settings, appContext.networkType, store),
+      NxtConsensus.actorName
     )
     val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head)
       .take(settings.application.consensusStoreVersionsToKeep / 2)
@@ -103,16 +103,16 @@ class ConsenesusVariablesSpec
       system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
     }
     Thread.sleep(0.1.seconds.toMillis)
-    consensusStorageRef ! GetConsensusVariables(probe.ref)
+    consensusStorageRef ! ReadConsensusState(probe.ref)
     val params = probe.receiveMessage(0.1.seconds)
     testKit.stop(consensusStorageRef)
 
     // initialize a new consensus actor with the modified InMemoryKeyValueStore
     val newConsensusStorageRef = spawn(
-      ConsensusVariables(settings, appContext.networkType, store),
-      ConsensusVariables.actorName
+      NxtConsensus(settings, appContext.networkType, store),
+      NxtConsensus.actorName
     )
-    newConsensusStorageRef ! GetConsensusVariables(probe.ref)
+    newConsensusStorageRef ! ReadConsensusState(probe.ref)
     probe.expectMessage(params)
     testKit.stop(newConsensusStorageRef)
   }
@@ -127,7 +127,7 @@ class ConsenesusVariablesSpec
       .onCall(() => System.currentTimeMillis())
 
     genesisActorTest { testIn =>
-      val probe = createTestProbe[StatusReply[ConsensusParams]]()
+      val probe = createTestProbe[StatusReply[State]]()
       val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head)
         .take(settings.application.consensusStoreVersionsToKeep / 2)
         .toList
@@ -136,10 +136,10 @@ class ConsenesusVariablesSpec
         system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
       }
       Thread.sleep(0.1.seconds.toMillis)
-      testIn.consensusStorageRef ! RollbackConsensusVariables(newBlocks.head.id, probe.ref)
+      testIn.consensusStorageRef ! RollbackConsensusState(newBlocks.head.id, probe.ref)
       // the first of the newBlocks would be at height 2 since it's the first one after the genesis block
       probe.expectMessage(
-        StatusReply.success(ConsensusParams(Int128(defaultTotalStake), newBlocks.head.difficulty, 0L, 2L))
+        StatusReply.success(State(Int128(defaultTotalStake), newBlocks.head.difficulty, 0L, 2L))
       )
     }
   }
@@ -154,7 +154,7 @@ class ConsenesusVariablesSpec
       .onCall(() => System.currentTimeMillis())
 
     genesisActorTest { testIn =>
-      val probe = createTestProbe[StatusReply[ConsensusParams]]()
+      val probe = createTestProbe[StatusReply[State]]()
       val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head)
         .take(settings.application.consensusStoreVersionsToKeep + 1)
         .toList
@@ -163,7 +163,7 @@ class ConsenesusVariablesSpec
         system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
       }
       Thread.sleep(0.1.seconds.toMillis)
-      testIn.consensusStorageRef ! RollbackConsensusVariables(newBlocks.head.id, probe.ref)
+      testIn.consensusStorageRef ! RollbackConsensusState(newBlocks.head.id, probe.ref)
       probe.receiveMessage(1.seconds).toString() shouldEqual "Error(Failed to roll back to the given version)"
     }
   }
@@ -172,17 +172,17 @@ class ConsenesusVariablesSpec
     val testIn = genesisNodeView()
     val consensusStorageRef =
       spawn(
-        ConsensusVariables(
+        NxtConsensus(
           settings,
           appContext.networkType,
           InMemoryKeyValueStore(settings.application.consensusStoreVersionsToKeep)
         ),
-        ConsensusVariables.actorName
+        NxtConsensus.actorName
       )
     val nodeViewHolderRef = spawn(
       NodeViewHolder(
         settings,
-        new ActorConsensusVariablesHolder(consensusStorageRef),
+        new ActorConsensusViewHolderInterface(consensusStorageRef),
         () => Future.successful(testIn.nodeView)
       )
     )
@@ -227,6 +227,6 @@ object ConsenesusVariablesSpec {
   case class TestInWithActor(
     testIn:              TestIn,
     nodeViewHolderRef:   ActorRef[NodeViewHolder.ReceivableMessage],
-    consensusStorageRef: ActorRef[ConsensusVariables.ReceivableMessage]
+    consensusStorageRef: ActorRef[NxtConsensus.ReceivableMessage]
   )
 }

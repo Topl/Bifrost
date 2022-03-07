@@ -465,12 +465,12 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         res.hcursor
           .get[String]("currentProtocolRuleset")
           .value
-          .shouldEqual(nxtLeaderElection.protocolMngr.getProtocolRules(view().history.height).version.toString)
+          .shouldEqual(nxtLeaderElection.supportedProtocolVersions.getProtocolRules(view().history.height).version.toString)
 
         res.hcursor
           .get[String]("currentBlockVersion")
           .value
-          .shouldEqual(nxtLeaderElection.protocolMngr.blockVersion(view().history.height).toString)
+          .shouldEqual(nxtLeaderElection.supportedProtocolVersions.blockVersion(view().history.height).toString)
 
         res.hcursor.downField("error").values shouldBe None
       }

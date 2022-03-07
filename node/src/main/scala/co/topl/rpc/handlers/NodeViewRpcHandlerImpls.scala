@@ -151,8 +151,8 @@ class NodeViewRpcHandlerImpls(
           appContext.networkType.toString,
           appContext.externalNodeAddress.fold("N/A")(_.toString),
           appContext.settings.application.version.toString,
-          nxtLeaderElection.protocolMngr.getProtocolRules(view.history.height).version.toString,
-          nxtLeaderElection.protocolMngr.blockVersion(view.history.height).toString
+          nxtLeaderElection.supportedProtocolVersions.getProtocolRules(view.history.height).version.toString,
+          nxtLeaderElection.supportedProtocolVersions.blockVersion(view.history.height).toString
         )
       }
 

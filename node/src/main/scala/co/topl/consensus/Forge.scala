@@ -82,7 +82,7 @@ case class Forge(
           publicKey,
           parent.height + 1,
           newDifficulty,
-          nxtLeaderElection.protocolMngr.blockVersion(parent.height + 1)
+          nxtLeaderElection.supportedProtocolVersions.blockVersion(parent.height + 1)
         )(signingFunction)
         .toEither
         .leftMap(Forge.ForgingError)
@@ -93,11 +93,11 @@ case class Forge(
 object Forge {
 
   def fromNodeView(
-    nodeView:          ReadableNodeView,
-    consensusParams:   ConsensusVariables.ConsensusParams,
-    nxtLeaderElection: NxtLeaderElection,
-    keyView:           KeyView,
-    minTransactionFee: Int128
+                    nodeView:          ReadableNodeView,
+                    consensusParams:   NxtConsensus.State,
+                    nxtLeaderElection: NxtLeaderElection,
+                    keyView:           KeyView,
+                    minTransactionFee: Int128
   )(implicit
     timeProvider:  TimeProvider,
     networkPrefix: NetworkPrefix,
@@ -161,7 +161,7 @@ object Forge {
     Try(
       memPoolReader
         // returns a sequence of transactions ordered by their fee
-        .take[Int128](nxtLeaderElection.protocolMngr.numTxInBlock(chainHeight))(-_.tx.fee)
+        .take[Int128](nxtLeaderElection.supportedProtocolVersions.numTxInBlock(chainHeight))(-_.tx.fee)
         .filter(
           _.tx.fee >= minTransactionFee
         ) // default strategy ignores zero fee transactions in mempool

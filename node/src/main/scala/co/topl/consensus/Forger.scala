@@ -7,7 +7,7 @@ import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
 import cats.data.EitherT
 import cats.implicits._
-import co.topl.consensus.ConsensusVariables.ConsensusParamsUpdate
+import co.topl.consensus.NxtConsensus.StateUpdate
 import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
 import co.topl.consensus.genesis.{HelGenesis, PrivateGenesis, ToplnetGenesis, ValhallaGenesis}
 import co.topl.modifier.block.Block
@@ -60,14 +60,14 @@ object Forger {
   case class ChainParams(totalStake: Int128, difficulty: Long)
 
   def behavior(
-    blockGenerationDelay:        FiniteDuration,
-    minTransactionFee:           Int128,
-    forgeOnStartup:              Boolean,
-    fetchKeyView:                () => Future[KeyView],
-    fetchStartupKeyView:         () => Future[StartupKeyView],
-    nodeViewReader:              NodeViewReader,
-    consensusVariablesInterface: ConsensusVariablesHolder,
-    nxtLeaderElection:           NxtLeaderElection
+                blockGenerationDelay:        FiniteDuration,
+                minTransactionFee:           Int128,
+                forgeOnStartup:              Boolean,
+                fetchKeyView:                () => Future[KeyView],
+                fetchStartupKeyView:         () => Future[StartupKeyView],
+                nodeViewReader:              NodeViewReader,
+                consensusVariablesInterface: ConsensusViewHolderInterface,
+                nxtLeaderElection:           NxtLeaderElection
   )(implicit
     networkPrefix: NetworkPrefix,
     timeProvider:  TimeProvider
@@ -116,7 +116,7 @@ object Forger {
     settings:                    AppSettings,
     networkType:                 NetworkType,
     fetchStartupKeyView:         () => Future[StartupKeyView],
-    consensusVariablesInterface: ConsensusVariablesHolder
+    consensusVariablesInterface: ConsensusViewHolderInterface
   )(implicit
     system: ActorSystem[_],
     ec:     ExecutionContext
@@ -130,7 +130,7 @@ object Forger {
 
       Future.fromTry(block).flatMap { case (block: Block, ChainParams(totalStake, initDifficulty)) =>
         consensusVariablesInterface
-          .update(block.id, ConsensusParamsUpdate(Some(totalStake), Some(initDifficulty), Some(0L), Some(0L)))
+          .update(block.id, StateUpdate(Some(totalStake), Some(initDifficulty), Some(0L), Some(0L)))
           .valueOrF(e => Future.failed(e.reason))
           .map(_ => block)
       }
@@ -157,12 +157,12 @@ object Forger {
 }
 
 private class ForgerBehaviors(
-  blockGenerationDelay:        FiniteDuration,
-  minTransactionFee:           Int128,
-  fetchKeyView:                () => Future[KeyView],
-  nodeViewReader:              NodeViewReader,
-  consensusVariablesInterface: ConsensusVariablesHolder,
-  nxtLeaderElection:           NxtLeaderElection
+                               blockGenerationDelay:        FiniteDuration,
+                               minTransactionFee:           Int128,
+                               fetchKeyView:                () => Future[KeyView],
+                               nodeViewReader:              NodeViewReader,
+                               consensusVariablesInterface: ConsensusViewHolderInterface,
+                               nxtLeaderElection:           NxtLeaderElection
 )(implicit
   context:       ActorContext[Forger.ReceivableMessage],
   networkPrefix: NetworkPrefix,
@@ -266,7 +266,7 @@ private class ForgerBehaviors(
       keyView <- EitherT[Future, ForgerFailure, KeyView](
         fetchKeyView().map(Right(_)).recover { case e => Left(ForgingError(e)) }
       )
-      consensusParams <- consensusVariablesInterface.get
+      consensusParams <- consensusVariablesInterface.read
         .leftMap(e => ForgingError(e.reason))
       forge <- nodeViewReader
         .withNodeView(Forge.fromNodeView(_, consensusParams, nxtLeaderElection, keyView, minTransactionFee))

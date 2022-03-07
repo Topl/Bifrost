@@ -9,7 +9,7 @@ import akka.pattern.StatusReply
 import akka.util.Timeout
 import cats.Show
 import cats.data.{EitherT, Writer}
-import co.topl.consensus.{ConsensusVariables, ConsensusVariablesHolder, LocallyGeneratedBlock}
+import co.topl.consensus.{NxtConsensus, ConsensusViewHolderInterface, LocallyGeneratedBlock}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
@@ -91,7 +91,7 @@ object NodeViewHolder {
      */
     private[NodeViewHolder] case class WriteBlockWithConsensusParams(
       block:           Block,
-      consensusParams: ConsensusVariables.ConsensusParams
+      consensusParams: NxtConsensus.State
     ) extends ReceivableMessage
 
     private[NodeViewHolder] case class Terminate(reason: Throwable) extends ReceivableMessage
@@ -157,15 +157,15 @@ object NodeViewHolder {
   }
 
   def apply(
-    appSettings:                 AppSettings,
-    consensusVariablesInterface: ConsensusVariablesHolder,
-    initialState:                () => Future[NodeView]
+             appSettings:                 AppSettings,
+             consensusViewHolder: ConsensusViewHolderInterface,
+             initialState:                () => Future[NodeView]
   )(implicit networkPrefix:      NetworkPrefix, timeProvider: TimeProvider): Behavior[ReceivableMessage] =
     Behaviors.setup { context =>
       context.pipeToSelf(initialState())(
         _.fold(ReceivableMessages.InitializationFailed, ReceivableMessages.Initialized)
       )
-      uninitialized(appSettings.network.maxModifiersCacheSize, consensusVariablesInterface)
+      uninitialized(appSettings.network.maxModifiersCacheSize, consensusViewHolder)
     }
 
   final private val UninitializedStashSize = 150
@@ -179,9 +179,9 @@ object NodeViewHolder {
    * be fetching a NodeView and forwarding it to this uninitialized state.
    * @return A Behavior that is uninitialized
    */
-  private def uninitialized(cacheSize: Int, consensusVariablesInterface: ConsensusVariablesHolder)(implicit
-    networkPrefix:                     NetworkPrefix,
-    timeProvider:                      TimeProvider
+  private def uninitialized(cacheSize: Int, consensusViewHolder: ConsensusViewHolderInterface)(implicit
+                                                                                               networkPrefix:                     NetworkPrefix,
+                                                                                               timeProvider:                      TimeProvider
   ): Behavior[ReceivableMessage] =
     Behaviors.withStash(UninitializedStashSize)(stash =>
       Behaviors.receivePartial {
@@ -209,7 +209,7 @@ object NodeViewHolder {
 
           popBlock(cache, nodeView)(context)
           context.log.info("Initialization complete")
-          stash.unstashAll(initialized(nodeView, cache, consensusVariablesInterface))
+          stash.unstashAll(initialized(nodeView, cache, consensusViewHolder))
         case (_, ReceivableMessages.InitializationFailed(reason)) =>
           throw reason
         case (_, message) =>
@@ -222,9 +222,9 @@ object NodeViewHolder {
    * The state where the NodeView is ready for use
    */
   private def initialized(
-    nodeView:                    NodeView,
-    cache:                       ActorRef[SortedCache.ReceivableMessage[Block]],
-    consensusVariablesInterface: ConsensusVariablesHolder
+                           nodeView:                    NodeView,
+                           cache:                       ActorRef[SortedCache.ReceivableMessage[Block]],
+                           consensusViewHolder: ConsensusViewHolderInterface
   )(implicit networkPrefix:      NetworkPrefix, timeProvider: TimeProvider): Behavior[ReceivableMessage] =
     Behaviors
       .receivePartial[ReceivableMessage] {
@@ -237,7 +237,7 @@ object NodeViewHolder {
           Behaviors.same
 
         case (context, ReceivableMessages.WriteBlock(block)) =>
-          context.pipeToSelf(consensusVariablesInterface.get.value)(
+          context.pipeToSelf(consensusViewHolder.read.value)(
             _.fold(
               error => ReceivableMessages.Terminate(error),
               _.fold(
@@ -256,17 +256,17 @@ object NodeViewHolder {
           // TODO: Ban-list bad blocks?
           val newNodeView = eventStreamWriterHandler(nodeView.withBlock(block, consensusParams))
           popBlock(cache, newNodeView)(context)
-          initialized(newNodeView, cache, consensusVariablesInterface)
+          initialized(newNodeView, cache, consensusViewHolder)
 
         case (context, ReceivableMessages.WriteTransactions(transactions)) =>
           implicit def system: ActorSystem[_] = context.system
           val newNodeView = eventStreamWriterHandler(nodeView.withTransactions(transactions))
-          initialized(newNodeView, cache, consensusVariablesInterface)
+          initialized(newNodeView, cache, consensusViewHolder)
 
         case (context, ReceivableMessages.EliminateTransactions(transactionIds)) =>
           implicit def system: ActorSystem[_] = context.system
           val newNodeView = eventStreamWriterHandler(nodeView.withoutTransactions(transactionIds.toSeq))
-          initialized(newNodeView, cache, consensusVariablesInterface)
+          initialized(newNodeView, cache, consensusViewHolder)
 
         case (_, ReceivableMessages.GetWritableNodeView(replyTo)) =>
           replyTo.tell(nodeView)
@@ -274,7 +274,7 @@ object NodeViewHolder {
 
         case (_, ReceivableMessages.ModifyNodeView(f, replyTo)) =>
           replyTo.tell(Done)
-          initialized(f(nodeView), cache, consensusVariablesInterface)
+          initialized(f(nodeView), cache, consensusViewHolder)
 
         case (_, ReceivableMessages.Terminate(reason)) =>
           throw reason

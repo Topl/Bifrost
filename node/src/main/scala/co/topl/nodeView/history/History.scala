@@ -84,7 +84,7 @@ class History(
    */
   override def append(
     block:           Block,
-    consensusParams: ConsensusVariables.ConsensusParams
+    consensusParams: NxtConsensus.State
   ): Try[(History, ProgressInfo[Block])] = Try {
 
     log.debug(s"Trying to append block ${block.id} to history")

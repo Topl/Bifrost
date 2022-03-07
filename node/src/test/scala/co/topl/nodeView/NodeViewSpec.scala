@@ -1,7 +1,7 @@
 package co.topl.nodeView
 
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import co.topl.consensus.ConsensusVariables.ConsensusParams
+import co.topl.consensus.NxtConsensus.State
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.NodeViewTestHelpers.TestIn
@@ -121,7 +121,7 @@ class NodeViewSpec
     withGenesisNodeView { testIn =>
       val initialHistoryStoreState = testIn.historyStore.state
       val (events, _) =
-        testIn.nodeView.withBlock(genesisBlock, ConsensusParams(Int128(10000000), 1000000000000000000L, 0L, 0L)).run
+        testIn.nodeView.withBlock(genesisBlock, State(Int128(10000000), 1000000000000000000L, 0L, 0L)).run
 
       testIn.historyStore.state shouldBe initialHistoryStoreState
       events shouldBe Nil
@@ -141,7 +141,7 @@ class NodeViewSpec
 
       val (events, updatedNodeView) =
         testIn.nodeView
-          .withBlock(block, ConsensusParams(10000000, genesisBlock.difficulty, 0L, genesisBlock.height))
+          .withBlock(block, State(10000000, genesisBlock.difficulty, 0L, genesisBlock.height))
           .run
 
       events shouldBe List(
@@ -169,7 +169,7 @@ class NodeViewSpec
 
       val (events, updatedNodeView) =
         testIn.nodeView
-          .withBlock(block, ConsensusParams(10000000, genesisBlock.difficulty, 0L, genesisBlock.height))
+          .withBlock(block, State(10000000, genesisBlock.difficulty, 0L, genesisBlock.height))
           .run
 
       events should have size 2
