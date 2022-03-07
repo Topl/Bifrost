@@ -1,65 +1,38 @@
 package co.topl.networking.typedprotocols
 
 import cats.Applicative
-import cats.effect.kernel.Sync
 import cats.implicits._
-import co.topl.networking._
+import co.topl.networking.{Parties, StateTransition, TypedProtocolState}
 
 object PingPong {
 
-  def make[F[_]: Sync]: F[TypedProtocolInitializer[F]] =
-    Sync[F].delay {
-      new TypedProtocolInitializer[F] {
-        def initialPartyASubProtocol: F[TypedSubProtocol[F, _]] =
-          SubProtocols.AwaitingPing[F]().pure[F].widen[TypedSubProtocol[F, _]]
-
-        def initialPartyBSubProtocol: F[TypedSubProtocol[F, _]] =
-          SubProtocols.Idle[F]().pure[F].widen[TypedSubProtocol[F, _]]
-      }
-    }
+  object States {
+    case class None()
+    case class Idle()
+    case class Busy()
+    case class Done()
+  }
 
   object Messages {
-    case object Go
-    case object Ping
-    case object Pong
+    case class Start()
+    case class Ping()
+    case class Pong()
+    case class Done()
   }
 
-  object SubProtocols {
+  object StateTransitions {
 
-    case class Idle[F[_]: Applicative]() extends TypedSubProtocol[F, Messages.Go.type] {
+    implicit def startNoneIdle[F[_]: Applicative]: StateTransition[F, Messages.Start, States.None, States.Idle] =
+      (_, _, _) => TypedProtocolState(Parties.B.some, States.Idle()).pure[F]
 
-      override def apply(
-        message: Messages.Go.type
-      ): F[(TypedSubProtocol[F, _], Option[TypedProtocol.Response], AgencyChange)] =
-        (
-          AwaitingPong[F]().pure[F].widen[TypedSubProtocol[F, _]],
-          TypedProtocol.Message(Messages.Ping).some.widen[TypedProtocol.Response].pure[F],
-          LocalIsAgent.pure[F].widen[AgencyChange]
-        ).tupled
-    }
+    implicit def pingIdleBusy[F[_]: Applicative]: StateTransition[F, Messages.Ping, States.Idle, States.Busy] =
+      (_, _, _) => TypedProtocolState(Parties.A.some, States.Busy()).pure[F]
 
-    case class AwaitingPing[F[_]: Applicative]() extends TypedSubProtocol[F, Messages.Ping.type] {
+    implicit def pongBusyIdle[F[_]: Applicative]: StateTransition[F, Messages.Pong, States.Busy, States.Idle] =
+      (_, _, _) => TypedProtocolState(Parties.B.some, States.Idle()).pure[F]
 
-      override def apply(
-        message: ReceivableMessage
-      ): F[(TypedSubProtocol[F, _], Option[TypedProtocol.Response], AgencyChange)] =
-        (
-          Idle[F]().pure[F].widen[TypedSubProtocol[F, _]],
-          TypedProtocol.Message(Messages.Pong).some.widen[TypedProtocol.Response].pure[F],
-          LocalIsAgent.pure[F].widen[AgencyChange]
-        ).tupled
-    }
-
-    case class AwaitingPong[F[_]: Applicative]() extends TypedSubProtocol[F, Messages.Pong.type] {
-
-      override def apply(
-        message: ReceivableMessage
-      ): F[(TypedSubProtocol[F, _], Option[TypedProtocol.Response], AgencyChange)] =
-        (
-          AwaitingPing[F]().pure[F].widen[TypedSubProtocol[F, _]],
-          TypedProtocol.Message(Messages.Go).some.widen[TypedProtocol.Response].pure[F],
-          LocalIsAgent.pure[F].widen[AgencyChange]
-        ).tupled
-    }
+    implicit def doneIdleDone[F[_]: Applicative]: StateTransition[F, Messages.Done, States.Idle, States.Done] =
+      (_, _, _) => TypedProtocolState(none, States.Done()).pure[F]
   }
+
 }

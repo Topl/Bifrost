@@ -1,86 +1,51 @@
 package co.topl.networking
 
-import cats.effect.Ref
-import cats.effect.kernel.Async
-import cats.implicits._
-import org.typelevel.log4cats.Logger
-
-import scala.reflect.ClassTag
-
-// TODO: Allow type parameter T instead of Any
-trait TypedProtocol[F[_]] {
-  def localParty: F[Party]
-  def currentAgentParty: F[Party]
-  def currentSubProtocol: F[TypedSubProtocol[F, _]]
-  def receive[T: ClassTag](t: T): F[Option[TypedProtocol.Response]]
-}
-
 object TypedProtocol {
+  def apply[F[_]]: TransitionStep1[F] = new TransitionStep1[F]
 
-  sealed abstract class Response
-  case class Message[T](data: T) extends Response
-  case class Fail(reason: Throwable) extends Response
-  case object Close extends Response
+  class TransitionStep1[F[_]] private[TypedProtocol] {
+    def apply(localParty: Party): TransitionStep2 = new TransitionStep2(localParty)
 
-  object Eval {
+    class TransitionStep2 private[TypedProtocol] (localParty: Party) {
 
-    def make[F[_]: Async: Logger](local: Party, initializer: TypedProtocolInitializer[F]): F[TypedProtocol[F]] =
-      for {
-        subProtocol <- local.if_(ifA = initializer.initialPartyASubProtocol, ifB = initializer.initialPartyBSubProtocol)
-        ref: Ref[F, (Party, TypedSubProtocol[F, Any])] <- Ref.of(
-          (Parties.A: Party, subProtocol.asInstanceOf[TypedSubProtocol[F, Any]])
-        )
-      } yield new TypedProtocol[F] {
-        def localParty: F[Party] = local.pure[F]
+      def apply[Message](message: Message): TransitionStep3[Message] =
+        new TransitionStep3[Message](message)
 
-        def currentAgentParty: F[Party] = ref.get.map(_._1)
+      class TransitionStep3[Message] private[TypedProtocol] (message: Message) {
 
-        def currentSubProtocol: F[TypedSubProtocol[F, _]] = ref.get.map(_._2)
+        def apply[InState](protocolInState: TypedProtocolState[InState]): TransitionStep4[InState] =
+          new TransitionStep4[InState](protocolInState)
 
-        def receive[T: ClassTag](t: T): F[Option[TypedProtocol.Response]] =
-          currentSubProtocol.flatMap(p =>
-            if (p.rClassTag.runtimeClass == t.getClass) {
-              for {
-                (newSubProtocol, response, agencyChange) <- p.apply(t.asInstanceOf[p.ReceivableMessage])
-                _ <- Logger[F].info(
-                  s"$local in state $p received message $t and transitioned to $newSubProtocol with response $response"
-                )
-                _ <- ref.update { case (p, _) =>
-                  val newAgent =
-                    agencyChange match {
-                      case LocalIsAgent  => local
-                      case RemoteIsAgent => local.opposite
-                    }
-                  (newAgent, newSubProtocol.asInstanceOf[TypedSubProtocol[F, Any]])
-                }
-              } yield response
-            } else
-              TypedProtocol
-                .Fail(new IllegalArgumentException(s"Invalid argument exception $t"))
-                .some
-                .widen[TypedProtocol.Response]
-                .pure[F]
-          )
+        class TransitionStep4[InState] private[TypedProtocol] (protocolInState: TypedProtocolState[InState]) {
+
+          def nextState[OutState](implicit
+            handler: StateTransition[F, Message, InState, OutState]
+          ): F[TypedProtocolState[OutState]] =
+            handler.apply(message, protocolInState, localParty)
+        }
       }
+    }
   }
 }
 
-trait TypedProtocolInitializer[F[_]] {
+/**
+ * Represents the current state of a Typed Protocol
+ * @param currentAgent The party that currently has "agency" (the party expected to send the next message).
+ *                     If None, assume the protocol has terminated.
+ * @param currentState The current protocol-specific state
+ * @tparam State The type of State
+ */
+case class TypedProtocolState[State](currentAgent: Option[Party], currentState: State)
 
-  def initialPartyASubProtocol: F[TypedSubProtocol[F, _]]
+/**
+ * Represents a function that transforms some specific state type using some specific message
+ * and outputting some specific new state.
+ */
+trait StateTransition[F[_], Message, InState, OutState] {
 
-  def initialPartyBSubProtocol: F[TypedSubProtocol[F, _]]
-
+  def apply(
+    message:         Message,
+    protocolInState: TypedProtocolState[InState],
+    localParty:      Party
+  ): F[TypedProtocolState[OutState]]
 }
-
-abstract class TypedSubProtocol[F[_], R](implicit val rClassTag: ClassTag[R]) {
-
-  type ReceivableMessage = R
-
-  def apply(message: ReceivableMessage): F[(TypedSubProtocol[F, _], Option[TypedProtocol.Response], AgencyChange)]
-
-}
-
-sealed abstract class AgencyChange
-case object LocalIsAgent extends AgencyChange
-case object RemoteIsAgent extends AgencyChange
