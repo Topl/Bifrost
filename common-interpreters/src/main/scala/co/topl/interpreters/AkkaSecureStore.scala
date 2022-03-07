@@ -1,4 +1,4 @@
-package co.topl.demo
+package co.topl.interpreters
 
 import akka.Done
 import akka.actor.typed.scaladsl.AskPattern._
@@ -11,7 +11,7 @@ import cats.implicits._
 import co.topl.codecs.bytes.ByteCodec
 import co.topl.codecs.bytes.implicits._
 import co.topl.crypto.keyfile.SecureStore
-import co.topl.demo.AkkaSecureStoreActor.ReceivableMessages
+import co.topl.interpreters.AkkaSecureStoreActor.ReceivableMessages
 import co.topl.models.Bytes
 
 import java.nio.file.{Files, Path, Paths, StandardOpenOption}

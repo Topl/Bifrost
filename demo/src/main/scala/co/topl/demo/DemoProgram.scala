@@ -170,7 +170,7 @@ object DemoProgram {
   ): F[Unit] =
     for {
       _                     <- Logger[F].info(show"Minted block ${nextBlock.headerV2}")
-      _                     <- blockStore.put(nextBlock)
+      _                     <- blockStore.put(nextBlock.headerV2.id, nextBlock)
       slotData              <- ed25519VrfResource.use(implicit ed25519Vrf => SlotData(nextBlock.headerV2).pure[F])
       localChainIsWorseThan <- localChain.isWorseThan(slotData)
       _ <-
