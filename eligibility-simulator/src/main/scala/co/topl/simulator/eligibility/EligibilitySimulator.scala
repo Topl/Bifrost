@@ -38,7 +38,7 @@ object EligibilitySimulator extends IOApp.Simple {
 
   // Configuration Data
   private val vrfConfig =
-    VrfConfig(lddCutoff = 10, precision = 64, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(1))
+    VrfConfig(lddCutoff = 10, precision = 38, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(1))
 
   private val OperationalPeriodLength = 180L
   private val OperationalPeriodsPerEpoch = 4L
@@ -47,7 +47,7 @@ object EligibilitySimulator extends IOApp.Simple {
   private val NumberOfStakers = 1
   private val RelativeStake = Ratio(1, 2)
   private val TargetHeight = 10_000L
-  private val TestName = "Test11"
+  private val TestName = "test_threshold"
 
   require(
     EpochLength % OperationalPeriodLength === 0L,
@@ -276,9 +276,9 @@ object EligibilitySimulator extends IOApp.Simple {
 }
 
 private case class Staker(
-  relativeStake: Ratio,
-  vrfKey:        SecretKeys.VrfEd25519,
-  kesKey:        SecretKeys.KesProduct,
-  registration:  Box.Values.TaktikosRegistration,
-  address:       TaktikosAddress
+                           relativeStake: Ratio,
+                           vrfKey:        SecretKeys.VrfEd25519,
+                           kesKey:        SecretKeys.KesProduct,
+                           registration:  Box.Values.TaktikosRegistration,
+                           address:       TaktikosAddress
 )

@@ -11,6 +11,18 @@ object RatioOps {
 
     implicit class Ops(ratio: Ratio) {
 
+      def abs:Ratio =
+        Ratio(
+          ratio.numerator match {
+            case num if num < 0 => -num
+            case num => num
+          },
+          ratio.denominator match {
+            case den if den < 0 => -den
+            case den => den
+          }
+        )
+
       def pow(n: Int) =
         Ratio(
           ratio.numerator.pow(n),
@@ -79,6 +91,8 @@ object RatioOps {
 
       def toBigDecimal: BigDecimal =
         BigDecimal(ratio.numerator) / BigDecimal(ratio.denominator)
+
+      def toDouble: Double = this.toBigDecimal.toDouble
 
       def round: BigInt =
         if (ratio.numerator.abs > ratio.denominator.abs) {

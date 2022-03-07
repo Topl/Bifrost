@@ -10,10 +10,10 @@ import co.topl.models.{EligibilityCertificate, Eta, Slot}
 trait LeaderElectionMintingAlgebra[F[_]] {
 
   def getHit(
-    relativeStake: Ratio,
-    slot:          Slot,
-    slotDiff:      Long,
-    eta:           Eta
+              relativeStake: Ratio,
+              slot:          Slot,
+              slotDiff:      Long,
+              eta:           Eta
   ): F[Option[LeaderElectionMintingAlgebra.VrfHit]]
 }
 
