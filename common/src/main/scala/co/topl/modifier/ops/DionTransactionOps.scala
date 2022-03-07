@@ -96,6 +96,81 @@ class DionTransactionOps[P <: DionProposition](private val transaction: DionTran
     }
 
   /**
+   * Attempts to upgrade a Dion [[DionTransaction.TX]] to an equivalent Tetra [[Transaction.Unproven]].
+   *
+   * @return a [[Transaction.Unproven]] if the upgrade is successful, otherwise a [[ToTetraTxFailure]]
+   */
+  def toUnprovenTetraTx: Either[ToTetraTxFailure, Transaction.Unproven] =
+    transaction match {
+      case transfer: ArbitTransfer[P] =>
+        for {
+          data          <- toData(transfer.data)
+          dionFeeOutput <- transfer.to.headOption.toRight(ToTetraTxFailures.EmptyOutputs)
+          feeOutput     <- toFeeOutput(dionFeeOutput._1, dionFeeOutput._2)
+          feeValue      <- toFeeValue(transfer.fee)
+          arbitOutputs  <- toArbitCoinOutputs(transfer.to.tail)
+          inputs <-
+            transfer.from.toList.traverse(pair =>
+              pair._1.toDionAddress
+                .leftMap(failure => ToTetraTxFailures.InvalidAddress(pair._1, failure))
+                .map(_ -> pair._2)
+            )
+        } yield Transaction.Unproven(
+          inputs,
+          feeOutput,
+          arbitOutputs,
+          feeValue,
+          transfer.timestamp,
+          data,
+          transfer.minting
+        )
+      case transfer: AssetTransfer[P] =>
+        for {
+          data          <- toData(transfer.data)
+          dionFeeOutput <- transfer.to.headOption.toRight(ToTetraTxFailures.EmptyOutputs)
+          feeOutput     <- toFeeOutput(dionFeeOutput._1, dionFeeOutput._2)
+          feeValue      <- toFeeValue(transfer.fee)
+          assetOutputs  <- toAssetCoinOutputs(transfer.to.tail)
+          inputs <-
+            transfer.from.toList.traverse(pair =>
+              pair._1.toDionAddress
+                .leftMap(failure => ToTetraTxFailures.InvalidAddress(pair._1, failure))
+                .map(_ -> pair._2)
+            )
+        } yield Transaction.Unproven(
+          inputs,
+          feeOutput,
+          assetOutputs,
+          feeValue,
+          transfer.timestamp,
+          data,
+          transfer.minting
+        )
+      case transfer: PolyTransfer[P] =>
+        for {
+          data          <- toData(transfer.data)
+          dionFeeOutput <- transfer.to.headOption.toRight(ToTetraTxFailures.EmptyOutputs)
+          feeOutput     <- toFeeOutput(dionFeeOutput._1, dionFeeOutput._2)
+          feeValue      <- toFeeValue(transfer.fee)
+          polyOutputs   <- toPolyCoinOutputs(transfer.to.tail)
+          inputs <-
+            transfer.from.toList.traverse(pair =>
+              pair._1.toDionAddress
+                .leftMap(failure => ToTetraTxFailures.InvalidAddress(pair._1, failure))
+                .map(_ -> pair._2)
+            )
+        } yield Transaction.Unproven(
+          inputs,
+          feeOutput,
+          polyOutputs,
+          feeValue,
+          transfer.timestamp,
+          data,
+          transfer.minting
+        )
+    }
+
+  /**
    * Merges a Dion [[DionTransaction.TX]] input set with an attestation map.
    * @param inputs the set of inputs to merge
    * @param attestation the attestation map to merge
