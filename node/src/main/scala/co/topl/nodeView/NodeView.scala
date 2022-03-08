@@ -94,10 +94,10 @@ object NodeView {
     consensusVariablesInterface: ConsensusVariablesHolder,
     startupKeyView:              () => Future[StartupKeyView]
   )(implicit system: ActorSystem[_], ec: ExecutionContext, nxtLeaderElection: NxtLeaderElection): Future[NodeView] =
-    local(settings)(networkType.netPrefix, nxtLeaderElection)
+    readOrGenerateLocalView(settings)(networkType.netPrefix, nxtLeaderElection)
       .fold(genesis(settings, networkType, consensusVariablesInterface, startupKeyView))(Future.successful)
 
-  def local(
+  private def readOrGenerateLocalView(
     settings:               AppSettings
   )(implicit networkPrefix: NetworkPrefix, nxtLeaderElection: NxtLeaderElection): Option[NodeView] =
     if (State.exists(settings)) {
@@ -110,7 +110,7 @@ object NodeView {
       )
     } else None
 
-  def genesis(
+  private def genesis(
     settings:                    AppSettings,
     networkType:                 NetworkType,
     consensusVariablesInterface: ConsensusVariablesHolder,
@@ -126,7 +126,7 @@ object NodeView {
       .map(genesis(settings, networkType, _))
   }
 
-  def genesis(
+  private def genesis(
     settings:     AppSettings,
     networkType:  NetworkType,
     genesisBlock: Block
