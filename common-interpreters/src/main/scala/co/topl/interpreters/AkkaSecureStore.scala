@@ -1,4 +1,4 @@
-package co.topl.demo
+package co.topl.interpreters
 
 import akka.Done
 import akka.actor.typed.scaladsl.AskPattern._
@@ -10,12 +10,11 @@ import cats.effect.kernel.{Async, Sync}
 import cats.implicits._
 import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.consensus.SecureStore
-import co.topl.demo.AkkaSecureStoreActor.ReceivableMessages
+import co.topl.algebras.SecureStore
+import co.topl.interpreters.AkkaSecureStoreActor.ReceivableMessages
 import co.topl.models.Bytes
 
 import java.nio.file.{Files, Path, Paths, StandardOpenOption}
-import scala.util.Try
 
 class AkkaSecureStore[F[_]: Async](actorRef: ActorRef[AkkaSecureStoreActor.ReceivableMessage])(implicit
   system:                                    ActorSystem[_],
@@ -128,7 +127,7 @@ object AkkaSecureStoreActor {
         val path = Paths.get(baseDir.toString, name)
         if (Files.exists(path) && Files.isRegularFile(path)) {
           val bytes = Bytes(Files.readAllBytes(path))
-          replyTo.tell(Persistable[A].fromPersistedBytes(bytes).toOption)
+          replyTo.tell(bytes.decodePersisted[A].toOption)
         } else {
           replyTo.tell(None)
         }
