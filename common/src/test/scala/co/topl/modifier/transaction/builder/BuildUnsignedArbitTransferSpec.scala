@@ -241,7 +241,7 @@ class BuildUnsignedArbitTransferSpec
           .buildUnsignedArbitTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
 
         result shouldBe Symbol("left")
-        result.left.value shouldBe BuildTransferFailures.EmptyRecipients
+        result.left.value shouldBe BuildTransferFailures.EmptyOutputs
     }
   }
 
@@ -274,7 +274,7 @@ class BuildUnsignedArbitTransferSpec
           .buildUnsignedArbitTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
 
         result shouldBe Symbol("left")
-        result.left.value shouldBe BuildTransferFailures.DuplicateRecipients
+        result.left.value shouldBe BuildTransferFailures.DuplicateOutputs
     }
   }
 

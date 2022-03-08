@@ -295,7 +295,7 @@ class BuildUnsignedAssetTransferSpec
 
         result shouldBe Symbol("left")
         // input assets will be filtered out because there are no matching asset codes to send to
-        result.left.value shouldBe BuildTransferFailures.EmptyRecipients
+        result.left.value shouldBe BuildTransferFailures.EmptyOutputs
     }
   }
 
@@ -329,7 +329,7 @@ class BuildUnsignedAssetTransferSpec
           .buildUnsignedAssetTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
 
         result shouldBe Symbol("left")
-        result.left.value shouldBe BuildTransferFailures.DuplicateRecipients
+        result.left.value shouldBe BuildTransferFailures.DuplicateOutputs
     }
   }
 

@@ -122,9 +122,10 @@ class DionTransactionOpsSpec
 
           val tetraTx = tx.toTetraTx
 
-          val ouputs = tetraTx.value.coinOutputs.iterator.toList.map {
+          val ouputs = tetraTx.value.coinOutputs.iterator.toList.flatMap {
             case Transaction.PolyOutput(dionAddress, value) =>
-              (dionAddress.allBytes.toBase16, value.data)
+              List(dionAddress.allBytes.toBase16 -> value.data)
+            case _ => List.empty
           }
 
           ouputs shouldBe expectedOutputs

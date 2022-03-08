@@ -135,7 +135,7 @@ class BuildUnsignedPolyTransferSpec
             .buildUnsignedPolyTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
 
         result shouldBe Symbol("left")
-        result.left.value shouldBe BuildTransferFailures.EmptyRecipients
+        result.left.value shouldBe BuildTransferFailures.EmptyOutputs
     }
   }
 
@@ -160,7 +160,7 @@ class BuildUnsignedPolyTransferSpec
             .buildUnsignedPolyTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
 
         result shouldBe Symbol("left")
-        result.left.value shouldBe BuildTransferFailures.DuplicateRecipients
+        result.left.value shouldBe BuildTransferFailures.DuplicateOutputs
     }
   }
 

@@ -14,6 +14,8 @@ import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
+import scala.collection.immutable.ListMap
+
 class TetraTransactionOpsSpec
     extends AnyFunSpec
     with Matchers
@@ -157,9 +159,10 @@ class TetraTransactionOpsSpec
 
       it("should convert a Tetra TX into a Dion TX with the same attestation ordering") {
         forAll(polyTxGen) { tx =>
-          val expectedAttestation = tx.inputs.values.map {
+          val expectedAttestation = tx.inputs.values.flatMap {
             case (prop: Propositions.Knowledge.Ed25519, proof: Proofs.Knowledge.Ed25519) =>
-              prop.key.bytes.data.toBase16 -> proof.bytes.data.toBase16
+              ListMap(prop.key.bytes.data.toBase16 -> proof.bytes.data.toBase16)
+            case _ => ListMap.empty
           }.toList
 
           val dionTransfer = tx.toDionTx
