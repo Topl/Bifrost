@@ -139,8 +139,8 @@ class BuildUnsignedAssetTransferSpec
     }
   }
 
-  it should "return invalid if duplicate poly inputs are used" in {
-    forAll(polyBoxGen, addressGen, boolGen) { (polyBox, sender, minting) =>
+  it should "return invalid if duplicate poly inputs are used and is minting" in {
+    forAll(polyBoxGen, addressGen) { (polyBox, sender) =>
       val polyInputs = List(polyBox)
       val assetCode = AssetCode(1.toByte, sender, Latin1Data.unsafe("test"))
       val senders = List(sender)
@@ -149,15 +149,16 @@ class BuildUnsignedAssetTransferSpec
       val boxReader = mock[BoxReader[ProgramId, Address]]
       (boxReader.getTokenBoxes _).expects(sender).returns(Some(polyInputs ++ polyInputs))
 
-      val request = TransferRequests.AssetTransferRequest(
-        senders,
-        recipients,
-        sender,
-        sender,
-        0,
-        None,
-        minting
-      )
+      val request =
+        TransferRequests.AssetTransferRequest(
+          senders,
+          recipients,
+          sender,
+          sender,
+          0,
+          None,
+          minting = true
+        )
 
       val result =
         TransferBuilder
@@ -349,7 +350,7 @@ class BuildUnsignedAssetTransferSpec
         sender,
         0,
         None,
-        true
+        minting = true
       )
 
       val result = TransferBuilder

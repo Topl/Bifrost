@@ -102,15 +102,15 @@ object TransferBuilder {
     val filteredBoxes =
       BoxSelectionAlgorithm.pickBoxes(boxSelection, availableBoxes, request.fee, 0, assetsNeeded)
     val inputPolys = filteredBoxes.polys
-    val inputAssets = filteredBoxes.assets
+    val inputAssets = Option.when(!request.minting)(filteredBoxes.assets)
 
     val outputAddresses = getOutputAddresses(request.to)
 
     val polyInputNonces = inputPolys.map(_._2.nonce)
-    val assetInputNonces = inputAssets.map(_._2.nonce)
+    val assetInputNonces = inputAssets.map(_.map(_._2.nonce))
 
     val polyFunds = boxFunds(inputPolys)
-    val assetFunds = boxFunds(inputAssets)
+    val assetFunds = inputAssets.map(boxFunds)
 
     val assetCodeOpt = request.to.headOption.map(_._2.assetCode)
 
@@ -118,14 +118,15 @@ object TransferBuilder {
 
     val assetsOwed = assetsNeeded.values.sum
 
-    val assetChange =
-      // no input assets required when minting
-      if (!request.minting) assetFunds - assetsOwed
-      else Int128(0)
+    val assetChange = assetFunds.fold(Int128(0))(_ - assetsOwed)
 
     val polyChangeOutput = request.changeAddress -> SimpleValue(polyChange)
 
-    val inputs = (inputPolys ++ inputAssets).map(input => input._1 -> input._2.nonce).toIndexedSeq
+    val inputs =
+      inputAssets
+        .fold[List[(Address, TokenBox[_])]](inputPolys)(inputPolys ++ _)
+        .map(input => input._1 -> input._2.nonce)
+        .toIndexedSeq
 
     val outputs: AssetCode => IndexedSeq[(Address, TokenValueHolder)] = { assetCode =>
       val assetChangeOutput = request.consolidationAddress -> AssetValue(assetChange, assetCode)
@@ -146,20 +147,19 @@ object TransferBuilder {
 
     for {
       _ <- validateNonEmptyInputNonces(polyInputNonces)
-      _ <- validateNonEmptyInputNonces(assetInputNonces)
+      _ <- assetInputNonces.fold(List.empty[Box.Nonce].asRight[BuildTransferFailure])(validateNonEmptyInputNonces)
       _ <- validateUniqueInputNonces(polyInputNonces)
-      _ <- validateUniqueInputNonces(assetInputNonces)
+      _ <- assetInputNonces.fold(List.empty[Box.Nonce].asRight[BuildTransferFailure])(validateUniqueInputNonces)
       _ <- validateNonEmptyOutputAddresses(outputAddresses)
       _ <- validateUniqueOutputAddresses(outputAddresses)
       // safe because we have checked that the outputs are not empty
       assetCode = assetCodeOpt.get
       _ <-
-        Option
-          .when(!request.minting)(validateSameAssetCode(assetCode, inputAssets.map(_._2)))
-          .getOrElse(Right(assetCode))
+        inputAssets.fold(assetCode.asRight[BuildTransferFailure])(inputs =>
+          validateSameAssetCode(assetCode, inputs.map(_._2))
+        )
       _ <- validateFeeFunds(polyFunds, request.fee)
-      _ <-
-        Option.when(!request.minting)(validatePaymentFunds(assetFunds, assetsOwed)).getOrElse(Right(assetFunds))
+      _ <- assetFunds.map(validatePaymentFunds(_, assetsOwed)).getOrElse(Right(Int128(0)))
     } yield assetTransfer(assetCode)
   }
 
