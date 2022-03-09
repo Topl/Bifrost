@@ -1,32 +1,39 @@
-Project-Bifrost:<br/>A Scala Client for the Topl Blockchain Protocol 
+Project Bifrost:<br/>A Scala Client for the Topl Blockchain Protocol 
 ====================================================================================================================================================================================
-
-Project Bifrost is a Scala client designed as the primary client implementation of the Topl cryptocurrency/blockchain protocol. The Topl protocol was conceived as an opinionated blockchain network focused on the development of circular and impact-aware markets and economies. Applications of the network include:
-- Supply chain tracking and verificaiton for ethically and sustainabily produced agriculture and mineral products;
-- Interoperable carbon markets both for nature-based as well as technologically driven standards;
+Project Bifrost is a Scala based reference implementation of the Topl blockchain tokenization protocol. 
+The Topl protocol is conceived as an opinionated blockchain framework developed to support tokenization and promote circular and impact-aware markets and economies. 
+Applications of the network include:
+- Supply chain tracking and verification for ethically and sustainably produced agriculture and mineral products;
+- Interoperable carbon markets for nature-based and technology driven standards;
 - Inclusive finance and trade finance projects, especially in the Global South
-
-Begin interacting with the Topl protocol with the Bifrost client [current release](https://github.com/Topl/Project-Bifrost/releases/latest)
-
-Wiki
+ 
+Releases
 ----------
-The latest version of the Topl wiki (our take on a traditional whitepaper) can be found [here](https://wiki.topl.co).
+Begin interacting with Topl protocol using the latest `bifrost-node` client available under [Releases](https://github.com/Topl/Project-Bifrost/releases/latest). 
+This repository is a monorepo for Scala projects related to the Topl Protocol.
+Therefore, the source code for several published libraries of independent utility outside `bifrost-node` are maintained in this repository and build artifacts are published to [Maven](https://mvnrepository.com/artifact/co.topl)
 
-<!---
-Documentation
--------------
-[Topl protocol technical specification ("Yellow Paper")](https://github.com/Topl/documentation/blob/master/yellowpaper/Topl%20Yellow%20Paper.pdf) (in development)
+Build artifacts are also available for each tagged version at [repo.topl.network](https://repo.topl.network). 
+An alternative host for each released JAR is accessible at `https://repo.topl.network/jars/<X.X.X>/bifrost-node-X.X.X.jar` where `X.X.X` is a tagged software version. 
+An MD5 checksum is also available for the JAR artifact at this location under `bifrost-node-X.X.X.jar.md5`.
 
-[Alpha testnet documentation](https://github.com/Topl/Project-Bifrost/wiki/Alpha-Testnet-Guide)
--->
+Docker containers for each release are available via [Github Container Repository](https://github.com/Topl/Bifrost/pkgs/container/bifrost-node) and [Docker Hub](https://hub.docker.com/r/toplprotocol/bifrost-node/tags)
 
 Installation
 -------------------
-Check out our [Installation Instructions](https://github.com/Topl/Bifrost/wiki/Install-and-Build)
+Check out our [Installation instructions](https://github.com/Topl/Bifrost/wiki/Install-and-Build) for step-by-step instructions for installation using a JAR, a Docker container, or from source.
 
+Docs
+----------
+Additional documentation, including tutorials and code recipes, can be found at [docs.topl.co](http://docs.topl.co) 
+
+Wiki
+----------
+The latest version of the Topl wiki (our in-depth alternative to a traditional whitepaper) can be found at [wiki.topl.co](https://wiki.topl.co).
 
 Testing
 -------
+**NOTE:** These instructions assume the source code, sbt, JDK 11, and Docker have been previously installed.
 1. Go to the project directory: `cd Bifrost`
 1. Type: `sbt test`
    - NOTE: Using sbt to run tests using the Windows command line may error. Either use Intellij IDEA's test runner or run sbt in a Unix environment. Alternatively, if you have the Linux Subsystem for Windows enabled, you can just use bash.
