@@ -7,7 +7,7 @@ import akka.pattern.StatusReply
 import co.topl.attestation.Address
 import co.topl.consensus.ConsenesusVariablesSpec.TestInWithActor
 import co.topl.consensus.NxtConsensus.State
-import co.topl.consensus.NxtConsensus.ReceivableMessages.{ReadConsensusState, RollbackConsensusState}
+import co.topl.consensus.NxtConsensus.ReceivableMessages.{ReadState, RollbackState}
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
 import co.topl.nodeView.NodeViewTestHelpers.TestIn
@@ -49,7 +49,7 @@ class ConsenesusVariablesSpec
 
     genesisActorTest { testIn =>
       val probe = createTestProbe[State]()
-      testIn.consensusStorageRef ! ReadConsensusState(probe.ref)
+      testIn.consensusStorageRef ! ReadState(probe.ref)
       probe.expectMessage(State(Int128(defaultTotalStake), 0L, 0L, 0L))
     }
   }
@@ -73,7 +73,7 @@ class ConsenesusVariablesSpec
         system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
       }
       Thread.sleep(0.1.seconds.toMillis)
-      testIn.consensusStorageRef ! ReadConsensusState(probe.ref)
+      testIn.consensusStorageRef ! ReadState(probe.ref)
       // Increasing the newBlock number by one as the height since we start out with a genesis block
       probe.expectMessage(State(Int128(defaultTotalStake), newBlocks.last.difficulty, 0L, newBlocks.size + 1))
     }
@@ -103,7 +103,7 @@ class ConsenesusVariablesSpec
       system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
     }
     Thread.sleep(0.1.seconds.toMillis)
-    consensusStorageRef ! ReadConsensusState(probe.ref)
+    consensusStorageRef ! ReadState(probe.ref)
     val params = probe.receiveMessage(0.1.seconds)
     testKit.stop(consensusStorageRef)
 
@@ -112,7 +112,7 @@ class ConsenesusVariablesSpec
       NxtConsensus(settings, appContext.networkType, store),
       NxtConsensus.actorName
     )
-    newConsensusStorageRef ! ReadConsensusState(probe.ref)
+    newConsensusStorageRef ! ReadState(probe.ref)
     probe.expectMessage(params)
     testKit.stop(newConsensusStorageRef)
   }
@@ -136,7 +136,7 @@ class ConsenesusVariablesSpec
         system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
       }
       Thread.sleep(0.1.seconds.toMillis)
-      testIn.consensusStorageRef ! RollbackConsensusState(newBlocks.head.id, probe.ref)
+      testIn.consensusStorageRef ! RollbackState(newBlocks.head.id, probe.ref)
       // the first of the newBlocks would be at height 2 since it's the first one after the genesis block
       probe.expectMessage(
         StatusReply.success(State(Int128(defaultTotalStake), newBlocks.head.difficulty, 0L, 2L))
@@ -163,7 +163,7 @@ class ConsenesusVariablesSpec
         system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
       }
       Thread.sleep(0.1.seconds.toMillis)
-      testIn.consensusStorageRef ! RollbackConsensusState(newBlocks.head.id, probe.ref)
+      testIn.consensusStorageRef ! RollbackState(newBlocks.head.id, probe.ref)
       probe.receiveMessage(1.seconds).toString() shouldEqual "Error(Failed to roll back to the given version)"
     }
   }
@@ -182,7 +182,7 @@ class ConsenesusVariablesSpec
     val nodeViewHolderRef = spawn(
       NodeViewHolder(
         settings,
-        new ActorConsensusViewHolderInterface(consensusStorageRef),
+        new ActorConsensusInterface(consensusStorageRef),
         () => Future.successful(testIn.nodeView)
       )
     )

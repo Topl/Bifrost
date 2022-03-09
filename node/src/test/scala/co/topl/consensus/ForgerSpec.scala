@@ -147,7 +147,7 @@ class ForgerSpec
               fetchKeyView,
               fetchStartupKeyView,
               reader,
-              new ActorConsensusViewHolderInterface(consensusStorageRef),
+              new ActorConsensusInterface(consensusStorageRef),
               nxtLeaderElection
             )
           )
@@ -219,7 +219,7 @@ class ForgerSpec
         fetchKeyView,
         fetchStartupKeyView,
         reader,
-        new ActorConsensusViewHolderInterface(consensusStorageRef),
+        new ActorConsensusInterface(consensusStorageRef),
         nxtLeaderElection
       )
     )
@@ -264,7 +264,7 @@ class ForgerSpec
           fetchKeyView,
           fetchStartupKeyView,
           reader,
-          new ActorConsensusViewHolderInterface(consensusStorageRef),
+          new ActorConsensusInterface(consensusStorageRef),
           nxtLeaderElection
         )
       )

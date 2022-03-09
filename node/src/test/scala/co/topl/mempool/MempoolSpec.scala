@@ -5,7 +5,7 @@ import akka.actor.typed.eventstream.EventStream
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.Behaviors
 import akka.util.Timeout
-import co.topl.consensus.{ActorConsensusViewHolderInterface, NxtConsensus}
+import co.topl.consensus.{ActorConsensusInterface, NxtConsensus}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.BifrostSyncInfo
@@ -38,7 +38,7 @@ class MempoolSpec extends AnyPropSpec with Matchers with NodeGenerators with Bef
     actorSystem.systemActorOf(
       NodeViewHolder(
         settings,
-        new ActorConsensusViewHolderInterface(consensusStorageRef)(implicitly, 10.seconds),
+        new ActorConsensusInterface(consensusStorageRef)(implicitly, 10.seconds),
         () => ???
       ),
       NodeViewHolder.ActorName

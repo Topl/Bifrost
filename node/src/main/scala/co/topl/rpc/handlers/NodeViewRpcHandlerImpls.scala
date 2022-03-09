@@ -3,9 +3,9 @@ package co.topl.rpc.handlers
 import akka.actor.typed.ActorSystem
 import cats.data.EitherT
 import cats.implicits._
-import co.topl.akkahttprpc.{InvalidParametersError, RpcError, ThrowableData}
+import co.topl.akkahttprpc.{CustomError, InvalidParametersError, RpcError, ThrowableData}
 import co.topl.attestation.Address
-import co.topl.consensus.NxtLeaderElection
+import co.topl.consensus.{ConsensusInterface, ConsensusReader}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
@@ -25,15 +25,15 @@ import scala.concurrent.Future
 import scala.language.existentials
 
 class NodeViewRpcHandlerImpls(
-  rpcSettings:             RPCApiSettings,
-  appContext:              AppContext,
-  nxtLeaderElection:       NxtLeaderElection,
-  nodeViewHolderInterface: NodeViewHolderInterface
-)(implicit
-  system:           ActorSystem[_],
-  throwableEncoder: Encoder[ThrowableData],
-  networkPrefix:    NetworkPrefix
-) extends ToplRpcHandlers.NodeView {
+                               rpcSettings: RPCApiSettings,
+                               appContext: AppContext,
+                               consensusReader: ConsensusReader,
+                               nodeViewHolderInterface: NodeViewHolderInterface
+                             )(implicit
+                               system: ActorSystem[_],
+                               throwableEncoder: Encoder[ThrowableData],
+                               networkPrefix: NetworkPrefix
+                             ) extends ToplRpcHandlers.NodeView {
 
   import system.executionContext
 
@@ -131,9 +131,9 @@ class NodeViewRpcHandlerImpls(
   override val transactionFromMempool: ToplRpc.NodeView.TransactionFromMempool.rpc.ServerHandler =
     params =>
       for {
-        txIds     <- checkModifierIdType(Transaction.modifierTypeId, List(params.transactionId)).toEitherT[Future]
+        txIds <- checkModifierIdType(Transaction.modifierTypeId, List(params.transactionId)).toEitherT[Future]
         txOptions <- withNodeView(view => txIds.map(view.memPool.modifierById))
-        txs       <- txOptions.sequence.toRight(ToplRpcErrors.NoTransactionWithId: RpcError).toEitherT[Future]
+        txs <- txOptions.sequence.toRight(ToplRpcErrors.NoTransactionWithId: RpcError).toEitherT[Future]
       } yield txs.head
 
   override val confirmationStatus: ToplRpc.NodeView.ConfirmationStatus.rpc.ServerHandler =
@@ -141,30 +141,31 @@ class NodeViewRpcHandlerImpls(
       for {
         txIds <- EitherT.fromEither[Future](checkModifierIdType(Transaction.modifierTypeId, params.transactionIds))
         txStatusOption <- withNodeView(view => getConfirmationStatus(txIds, view.history.height, view))
-        txStatus       <- txStatusOption.sequence.toRight(ToplRpcErrors.NoTransactionWithId: RpcError).toEitherT[Future]
+        txStatus <- txStatusOption.sequence.toRight(ToplRpcErrors.NoTransactionWithId: RpcError).toEitherT[Future]
       } yield txStatus.toMap
 
-  override val info: ToplRpc.NodeView.Info.rpc.ServerHandler =
-    _ =>
-      withNodeView { view =>
-        ToplRpc.NodeView.Info.Response(
-          appContext.networkType.toString,
-          appContext.externalNodeAddress.fold("N/A")(_.toString),
-          appContext.settings.application.version.toString,
-          nxtLeaderElection.supportedProtocolVersions.getProtocolRules(view.history.height).version.toString,
-          nxtLeaderElection.supportedProtocolVersions.blockVersion(view.history.height).toString
-        )
-      }
+  override val info: ToplRpc.NodeView.Info.rpc.ServerHandler = _ => for {
+    supportedProtocolVersions <- consensusReader.withView(_.protocolVersions).leftMap { case ConsensusInterface.Failures.Read(throwable) =>
+      CustomError.fromThrowable(throwable): RpcError
+    }
+    currentHeight <- withNodeView(_.history.height)
+  } yield ToplRpc.NodeView.Info.Response(
+    appContext.networkType.toString,
+    appContext.externalNodeAddress.fold("N/A")(_.toString),
+    appContext.settings.application.version.toString,
+    supportedProtocolVersions.getProtocolRules(currentHeight).version.toString,
+    supportedProtocolVersions.blockVersion(currentHeight).toString
+  )
 
   private def balancesResponse(
-    state:     StateReader[_, Address],
-    addresses: List[Address]
-  ): ToplRpc.NodeView.Balances.Response = {
+                                state: StateReader[_, Address],
+                                addresses: List[Address]
+                              ): ToplRpc.NodeView.Balances.Response = {
     val boxes =
       addresses.map { k =>
         val orderedBoxes = state.getTokenBoxes(k) match {
           case Some(boxes) => boxes.groupBy[String](Box.identifier(_).typeString).map { case (k, v) => k -> v.toList }
-          case _           => Map[String, List[TokenBox[TokenValueHolder]]]()
+          case _ => Map[String, List[TokenBox[TokenValueHolder]]]()
         }
         k -> orderedBoxes
       }.toMap
@@ -193,49 +194,49 @@ class NodeViewRpcHandlerImpls(
 
   private def getBlocksByIds(ids: List[ModifierId]): EitherT[Future, RpcError, List[Block]] =
     for {
-      _            <- checkModifierRetrievalLimit(ids, rpcSettings.blockRetrievalLimit).toEitherT[Future]
-      _            <- checkModifierIdType(Block.modifierTypeId, ids).toEitherT[Future]
+      _ <- checkModifierRetrievalLimit(ids, rpcSettings.blockRetrievalLimit).toEitherT[Future]
+      _ <- checkModifierIdType(Block.modifierTypeId, ids).toEitherT[Future]
       blockOptions <- withNodeView(view => ids.map(view.history.modifierById))
-      blocks       <- blockOptions.sequence.toRight(ToplRpcErrors.NoBlockWithId: RpcError).toEitherT[Future]
+      blocks <- blockOptions.sequence.toRight(ToplRpcErrors.NoBlockWithId: RpcError).toEitherT[Future]
     } yield blocks
 
   private def getTxsByIds(ids: List[ModifierId]): EitherT[Future, RpcError, List[(Transaction.TX, ModifierId, Long)]] =
     for {
-      _         <- checkModifierRetrievalLimit(ids, rpcSettings.txRetrievalLimit).toEitherT[Future]
-      _         <- checkModifierIdType(Transaction.modifierTypeId, ids).toEitherT[Future]
+      _ <- checkModifierRetrievalLimit(ids, rpcSettings.txRetrievalLimit).toEitherT[Future]
+      _ <- checkModifierIdType(Transaction.modifierTypeId, ids).toEitherT[Future]
       txOptions <- withNodeView(view => ids.map(view.history.transactionById))
-      txs       <- txOptions.sequence.toRight(ToplRpcErrors.NoTransactionWithId: RpcError).toEitherT[Future]
+      txs <- txOptions.sequence.toRight(ToplRpcErrors.NoTransactionWithId: RpcError).toEitherT[Future]
     } yield txs
 
   /** this function should be faster than getting the entire block out of storage and grabbing the id since the block id is stored separately */
   private def getBlockIdsInRange(
-    view:        HistoryReader[Block, BifrostSyncInfo],
-    startHeight: Long,
-    endHeight:   Long
-  ): ToplRpc.NodeView.BlockIdsInRange.Response =
+                                  view: HistoryReader[Block, BifrostSyncInfo],
+                                  startHeight: Long,
+                                  endHeight: Long
+                                ): ToplRpc.NodeView.BlockIdsInRange.Response =
     (startHeight to endHeight)
       .flatMap(view.idAtHeightOf)
       .toList
 
   private def getBlocksInRange(
-    view:        HistoryReader[Block, BifrostSyncInfo],
-    startHeight: Long,
-    endHeight:   Long
-  ): ToplRpc.NodeView.BlocksInRange.Response =
+                                view: HistoryReader[Block, BifrostSyncInfo],
+                                startHeight: Long,
+                                endHeight: Long
+                              ): ToplRpc.NodeView.BlocksInRange.Response =
     (startHeight to endHeight)
       .flatMap(view.modifierByHeight)
       .toList
 
   private def getConfirmationStatus(
-    txIds:      List[ModifierId],
-    headHeight: Long,
-    view:       ReadableNodeView
-  ): List[Option[(ModifierId, TxStatus)]] =
+                                     txIds: List[ModifierId],
+                                     headHeight: Long,
+                                     view: ReadableNodeView
+                                   ): List[Option[(ModifierId, TxStatus)]] =
     txIds.map { id =>
       (view.memPool.modifierById(id), view.history.transactionById(id)) match {
         case (_, Some((tx, _, height))) => Some(tx.id -> TxStatus("Confirmed", headHeight - height))
-        case (Some(tx), None)           => Some(tx.id -> TxStatus("Unconfirmed", -1))
-        case (None, None)               => Some(id -> TxStatus("Not Found", -1))
+        case (Some(tx), None) => Some(tx.id -> TxStatus("Unconfirmed", -1))
+        case (None, None) => Some(id -> TxStatus("Not Found", -1))
       }
     }
 

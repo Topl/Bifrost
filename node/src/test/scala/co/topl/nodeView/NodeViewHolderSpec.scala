@@ -3,7 +3,7 @@ package co.topl.nodeView
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.actor.typed.ActorRef
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
-import co.topl.consensus.{ActorConsensusViewHolderInterface, NxtConsensus}
+import co.topl.consensus.{ActorConsensusInterface, NxtConsensus}
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.transaction.builder.TransferRequests.PolyTransferRequest
@@ -153,7 +153,7 @@ class NodeViewHolderSpec
     val nodeViewHolderRef = spawn(
       NodeViewHolder(
         settings,
-        new ActorConsensusViewHolderInterface(consensusStorageRef),
+        new ActorConsensusInterface(consensusStorageRef),
         () => Future.successful(testIn.nodeView)
       )
     )

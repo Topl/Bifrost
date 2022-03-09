@@ -20,28 +20,29 @@ import scala.util.Try
 /**
  * A Forge contains all of the data necessary to create a new block
  *
- * @param box an eligible arbit box
- * @param parent the parent block
- * @param previousBlockTimes the previous block times to determine next difficulty
- * @param rawRewards the raw forging rewards
+ * @param box                   an eligible arbit box
+ * @param parent                the parent block
+ * @param previousBlockTimes    the previous block times to determine next difficulty
+ * @param rawRewards            the raw forging rewards
  * @param transactionsToInclude the set of transactions to be entered into the block
- * @param forgeTime the current timestamp
- * @param sign a function for signing messages
- * @param getPublicKey a function for getting the public key associated with an address
+ * @param forgeTime             the current timestamp
+ * @param sign                  a function for signing messages
+ * @param getPublicKey          a function for getting the public key associated with an address
  */
 case class Forge(
-  box:                   ArbitBox,
-  parent:                Block,
-  previousBlockTimes:    Vector[TimeProvider.Time],
-  rawRewards:            Seq[Transaction.TX],
-  transactionsToInclude: Seq[Transaction.TX],
-  forgeTime:             TimeProvider.Time,
-  sign:                  Address => Array[Byte] => Try[SignatureCurve25519],
-  getPublicKey:          Address => Try[PublicKeyPropositionCurve25519]
-) {
+                  box: ArbitBox,
+                  parent: Block,
+                  previousBlockTimes: Vector[TimeProvider.Time],
+                  rawRewards: Seq[Transaction.TX],
+                  transactionsToInclude: Seq[Transaction.TX],
+                  forgeTime: TimeProvider.Time,
+                  sign: Address => Array[Byte] => Try[SignatureCurve25519],
+                  getPublicKey: Address => Try[PublicKeyPropositionCurve25519],
+                  consensusView: NxtConsensus.View
+                ) {
 
-  def make(nxtLeaderElection: NxtLeaderElection)(implicit
-    networkPrefix:            NetworkPrefix
+  def make(implicit
+                                                 networkPrefix: NetworkPrefix
   ): Either[Forge.Failure, Block] = {
 
     // generate the address the owns the generator box
@@ -64,11 +65,11 @@ case class Forge(
 
       signedRewards <- rawRewards.traverse {
         case tx: ArbitTransfer[_] => getAttMap(tx).map(attestation => tx.copy(attestation = attestation))
-        case tx: PolyTransfer[_]  => getAttMap(tx).map(attestation => tx.copy(attestation = attestation))
+        case tx: PolyTransfer[_] => getAttMap(tx).map(attestation => tx.copy(attestation = attestation))
       }
 
       // calculate the newly forged blocks updated difficulty
-      newDifficulty = nxtLeaderElection.calcNewBaseDifficulty(
+      newDifficulty = consensusView.leaderElection.calcNewBaseDifficulty(
         parent.height + 1,
         parent.difficulty,
         previousBlockTimes :+ forgeTime
@@ -82,7 +83,7 @@ case class Forge(
           publicKey,
           parent.height + 1,
           newDifficulty,
-          nxtLeaderElection.supportedProtocolVersions.blockVersion(parent.height + 1)
+          consensusView.protocolVersions.blockVersion(parent.height + 1)
         )(signingFunction)
         .toEither
         .leftMap(Forge.ForgingError)
@@ -92,17 +93,15 @@ case class Forge(
 
 object Forge {
 
-  def fromNodeView(
-                    nodeView:          ReadableNodeView,
-                    consensusParams:   NxtConsensus.State,
-                    nxtLeaderElection: NxtLeaderElection,
-                    keyView:           KeyView,
-                    minTransactionFee: Int128
-  )(implicit
-    timeProvider:  TimeProvider,
-    networkPrefix: NetworkPrefix,
-    logger:        Logger
-  ): Either[Failure, Forge] =
+  def prepareForge(nodeView: ReadableNodeView,
+                   consensusView: NxtConsensus.View,
+                   keyView: KeyView,
+                   minTransactionFee: Int128
+                  )(implicit
+                    timeProvider: TimeProvider,
+                    networkPrefix: NetworkPrefix,
+                    logger: Logger
+                  ): Either[Failure, Forge] =
     for {
       rewardAddress <- keyView.rewardAddr.toRight(NoRewardsAddressSpecified)
       transactions <- pickTransactions(
@@ -110,25 +109,25 @@ object Forge {
         nodeView.memPool,
         nodeView.state,
         nodeView.history.height,
-        nxtLeaderElection
+        consensusView.protocolVersions,
       ).map(_.toApply)
       parentBlock = nodeView.history.bestBlock
       _ <- Either.cond(
-        parentBlock.height == 1 || parentBlock.height == consensusParams.height,
+        parentBlock.height == 1 || parentBlock.height == consensusView.state.height,
         {},
         ForgingError(
           new Throwable(
             s"Parent block's height doesn't match the height from the consensus params: " +
-            s"Parent block height ${parentBlock.height} | Consensus params height ${consensusParams.height}"
+              s"Parent block height ${parentBlock.height} | Consensus params height ${consensusView.state.height}"
           )
         )
       )
       forgeTime = timeProvider.time
-      rewards <- Rewards(transactions, rewardAddress, parentBlock.id, forgeTime, consensusParams.inflation).toEither
+      rewards <- Rewards(transactions, rewardAddress, parentBlock.id, forgeTime, consensusView.state.inflation).toEither
         .leftMap(ForgingError)
-      prevTimes = nodeView.history.getTimestampsFrom(parentBlock, nxtLeaderElection.nxtBlockNum)
+      prevTimes = nodeView.history.getTimestampsFrom(parentBlock, NxtLeaderElection.nxtBlockNum)
       arbitBox <- LeaderElection
-        .getEligibleBox(parentBlock, keyView.addresses, forgeTime, consensusParams, nxtLeaderElection, nodeView.state)
+        .getEligibleBox(parentBlock, keyView.addresses, forgeTime, consensusView.state, consensusView.leaderElection, nodeView.state)
         .leftMap(LeaderElectionFailure)
     } yield Forge(
       arbitBox,
@@ -138,30 +137,31 @@ object Forge {
       transactions,
       forgeTime,
       keyView.sign,
-      keyView.getPublicKey
+      keyView.getPublicKey,
+      consensusView
     )
 
   /**
    * Pick a set of transactions from the mempool that result in a valid state when applied to the current state
    *
    * @param memPoolReader the set of pending transactions
-   * @param stateReader state to use for semantic validity checking
+   * @param stateReader   state to use for semantic validity checking
    * @return a sequence of valid transactions
    */
   private[consensus] def pickTransactions(
-    minTransactionFee: Int128,
-    memPoolReader:     MemPoolReader[Transaction.TX],
-    stateReader:       StateReader[ProgramId, Address],
-    chainHeight:       Long,
-    nxtLeaderElection: NxtLeaderElection
-  )(implicit
-    networkPrefix: NetworkPrefix,
-    log:           Logger
-  ): Either[Failure, PickTransactionsResult] =
+                                           minTransactionFee: Int128,
+                                           memPoolReader: MemPoolReader[Transaction.TX],
+                                           stateReader: StateReader[ProgramId, Address],
+                                           chainHeight: Long,
+                                           currentProtocolSettings: ProtocolVersioner,
+                                         )(implicit
+                                           networkPrefix: NetworkPrefix,
+                                           log: Logger
+                                         ): Either[Failure, PickTransactionsResult] =
     Try(
       memPoolReader
         // returns a sequence of transactions ordered by their fee
-        .take[Int128](nxtLeaderElection.supportedProtocolVersions.numTxInBlock(chainHeight))(-_.tx.fee)
+        .take[Int128](currentProtocolSettings.numTxInBlock(chainHeight))(-_.tx.fee)
         .filter(
           _.tx.fee >= minTransactionFee
         ) // default strategy ignores zero fee transactions in mempool
@@ -181,7 +181,7 @@ object Forge {
                 case Validated.Invalid(ex) =>
                   log.debug(
                     s"${Console.RED}Transaction ${utx.tx.id} failed semantic validation. " +
-                    s"Transaction will be removed.${Console.RESET} Failure: $ex"
+                      s"Transaction will be removed.${Console.RESET} Failure: $ex"
                   )
                   PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ utx.tx)
               }
@@ -189,14 +189,14 @@ object Forge {
             case (_, true) =>
               log.debug(
                 s"${Console.RED}Transaction ${utx.tx.id} was rejected from the forger transaction queue" +
-                s" because a newly created box already exists in state. The transaction will be removed."
+                  s" because a newly created box already exists in state. The transaction will be removed."
               )
               PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ utx.tx)
 
             case (true, _) =>
               log.debug(
                 s"${Console.RED}Transaction ${utx.tx.id} was rejected from forger transaction queue" +
-                s" because a box was used already in a previous transaction. The transaction will be removed."
+                  s" because a box was used already in a previous transaction. The transaction will be removed."
               )
               PickTransactionsResult(txAcc.toApply, txAcc.toEliminate :+ utx.tx)
           }
@@ -206,9 +206,13 @@ object Forge {
   private[consensus] case class PickTransactionsResult(toApply: Seq[Transaction.TX], toEliminate: Seq[Transaction.TX])
 
   sealed abstract class Failure
+
   case class LeaderElectionFailure(reason: LeaderElection.IneligibilityReason) extends Failure
+
   case class ForgingError(error: Throwable) extends Failure
+
   case object NoRewardsAddressSpecified extends Failure
+
   case object ArbitBoxKeyNotFound extends Failure
 
 }

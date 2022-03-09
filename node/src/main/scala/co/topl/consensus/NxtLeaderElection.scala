@@ -13,7 +13,7 @@ import com.google.common.primitives.Longs
 import scala.concurrent.duration.MILLISECONDS
 import scala.math.{max, min}
 
-class NxtLeaderElection(val supportedProtocolVersions: ProtocolVersioner) {
+class NxtLeaderElection(private val supportedProtocolVersions: ProtocolVersioner) {
   /**
    * Defines how we calculate the test value for determining eligibility to forge
    *

@@ -71,7 +71,7 @@ trait GenericHistory[
 
   def modifierByHeight(height: Long): Option[PM]
 
-  def append(modifier: PM, consensusParams: NxtConsensus.State): Try[(HT, ProgressInfo[PM])]
+  def append(modifier: PM, consensusView: NxtConsensus.View): Try[(HT, ProgressInfo[PM])]
 
   def drop(modifierId: ModifierId): HT
 

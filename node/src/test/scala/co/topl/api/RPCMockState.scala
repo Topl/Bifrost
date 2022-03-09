@@ -59,7 +59,7 @@ trait RPCMockState
   protected var forgerRef: akka.actor.typed.ActorRef[Forger.ReceivableMessage] = _
 
   protected var consensusStorageRef: akka.actor.typed.ActorRef[NxtConsensus.ReceivableMessage] = _
-  protected var consensusVariablesInterface: ConsensusViewHolderInterface = _
+  protected var consensusVariablesInterface: ConsensusInterface = _
   protected var nodeViewHolderRef: akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage] = _
 
   protected var km: KeyManager = _
@@ -84,7 +84,7 @@ trait RPCMockState
       NxtConsensus.actorName
     )
 
-    consensusVariablesInterface = new ActorConsensusViewHolderInterface(consensusStorageRef)(system.toTyped, 10.seconds)
+    consensusVariablesInterface = new ActorConsensusInterface(consensusStorageRef)(system.toTyped, 10.seconds)
 
     nodeViewHolderRef = system.toTyped.systemActorOf(
       NodeViewHolder(
@@ -116,7 +116,7 @@ trait RPCMockState
             .mapTo[Try[StartupKeyView]]
             .flatMap(Future.fromTry),
         new ActorNodeViewHolderInterface(nodeViewHolderRef)(system.toTyped, implicitly[Timeout]),
-        new ActorConsensusViewHolderInterface(consensusStorageRef)(system.toTyped, 10.seconds),
+        new ActorConsensusInterface(consensusStorageRef)(system.toTyped, 10.seconds),
         nxtLeaderElection
       ),
       Forger.ActorName

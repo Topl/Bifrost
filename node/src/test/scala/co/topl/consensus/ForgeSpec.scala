@@ -87,7 +87,7 @@ class ForgeSpec
 
       val forge =
         Forge
-          .fromNodeView(
+          .prepareForge(
             nodeView,
             State(Int128(10000000), 1000000000000000000L, 0L, 0L),
             nxtLeaderElection,
@@ -113,7 +113,7 @@ class ForgeSpec
       KeyView(keyRingCurve25519.addresses, None, keyRingCurve25519.signWithAddress, keyRingCurve25519.lookupPublicKey)
 
     Forge
-      .fromNodeView(
+      .prepareForge(
         nodeView,
         State(Int128(10000000), 1000000000000000000L, 0L, 0L),
         nxtLeaderElection,
@@ -178,7 +178,7 @@ class ForgeSpec
         )
 
       Forge
-        .fromNodeView(
+        .prepareForge(
           nodeView,
           State(10000000, parentBlock.difficulty, 0L, parentBlock.height),
           nxtLeaderElection,
