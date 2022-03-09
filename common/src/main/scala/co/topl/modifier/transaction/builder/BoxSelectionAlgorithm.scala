@@ -34,7 +34,7 @@ object BoxSelectionAlgorithm {
   ): BoxSet =
     algorithm match {
       case BoxSelectionAlgorithms.All =>
-        all(boxes, assetsNeeded)
+        all(boxes, arbitsNeeded, assetsNeeded)
       case BoxSelectionAlgorithms.SmallestFirst =>
         orderedByValue(boxes, polysNeeded, arbitsNeeded, assetsNeeded, _.quantity)
       case BoxSelectionAlgorithms.LargestFirst =>
@@ -43,8 +43,11 @@ object BoxSelectionAlgorithm {
         specific(boxes, ids)
     }
 
-  private def all(from: BoxSet, assetsNeeded: Map[AssetCode, Int128]): BoxSet =
-    from.copy(assets = from.assets.filter(box => assetsNeeded.contains(box._2.value.assetCode)))
+  private def all(from: BoxSet, arbitsNeeded: Int128, assetsNeeded: Map[AssetCode, Int128]): BoxSet =
+    from.copy(
+      assets = from.assets.filter(box => assetsNeeded.contains(box._2.value.assetCode)),
+      arbits = Option.when(arbitsNeeded > 0)(from.arbits).toList.flatten
+    )
 
   private def orderedByValue(
     from:         BoxSet,

@@ -4,7 +4,6 @@ import akka.actor.typed.ActorSystem
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
 import co.topl.attestation._
-import co.topl.modifier.transaction.builder.BuildTransferFailure.implicits._
 import co.topl.modifier.transaction.builder.{BuildTransferFailure, TransferBuilder, TransferRequests}
 import co.topl.modifier.transaction.validation.implicits._
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}

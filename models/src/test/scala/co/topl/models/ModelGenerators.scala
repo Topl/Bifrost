@@ -298,6 +298,9 @@ trait ModelGenerators {
   implicit val arbitraryInt128: Arbitrary[Int128] =
     Arbitrary(Gen.long.map(BigInt(_)).map(Sized.maxUnsafe[BigInt, Lengths.`128`.type](_)))
 
+  implicit val arbitraryPositiveInt128: Arbitrary[Int128] =
+    Arbitrary(Gen.posNum[Long].map(Sized.maxUnsafe[BigInt, Lengths.`128`.type](_)))
+
   implicit val arbitraryAssetCode: Arbitrary[Box.Values.Asset.Code] =
     Arbitrary(
       for {

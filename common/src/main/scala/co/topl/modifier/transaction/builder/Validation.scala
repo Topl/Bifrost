@@ -3,13 +3,9 @@ package co.topl.modifier.transaction.builder
 import co.topl.attestation.Address
 import co.topl.modifier.box.{AssetBox, AssetCode, Box}
 import co.topl.utils.Int128
+import cats.implicits._
 
 object Validation {
-
-  def validateNonEmptyInputNonces(
-    inputs: List[Box.Nonce]
-  ): Either[BuildTransferFailure, List[Box.Nonce]] =
-    Either.cond(inputs.nonEmpty, inputs, BuildTransferFailures.EmptyInputs)
 
   def validateUniqueInputNonces(
     inputs: List[Box.Nonce]
@@ -30,31 +26,44 @@ object Validation {
   ): Either[BuildTransferFailure, List[Address]] =
     Either.cond(outputs.distinct.length == outputs.length, outputs, BuildTransferFailures.DuplicateOutputs)
 
-  /**
-   * Validates that the given funds can pay the given fee.
-   * @param funds the funds to validate
-   * @param feeAmount the fee amount to pay
-   * @return the valid funds, otherwise a `BuildTransferFailures.InsufficientFeeFunds` failure
-   */
-  def validateFeeFunds(funds: Int128, feeAmount: Int128): Either[BuildTransferFailure, Int128] =
+  def validatePositiveOutputValues(
+    values: List[Int128]
+  ): Either[BuildTransferFailure, List[Int128]] = {
+    val nonPositiveValues = values.filter(_ <= 0)
+    Either.cond(nonPositiveValues.isEmpty, values, BuildTransferFailures.InvalidOutputValues(nonPositiveValues))
+  }
+
+  def validatePolyFunds(funds: Int128, feeAmount: Int128, paymentAmount: Int128): Either[BuildTransferFailure, Int128] =
     Either.cond(
-      funds >= feeAmount,
+      funds >= feeAmount + paymentAmount,
       funds,
-      BuildTransferFailures.InsufficientFeeFunds
+      BuildTransferFailures.InsufficientPolyFunds(funds, feeAmount + paymentAmount)
     )
 
-  /**
-   * Validates that the given funds can pay the given amount.
-   * @param funds the funds to validate
-   * @param paymentAmount the amount required to pay
-   * @return the valid funds, otherwise a `BuildTransferFailures.InsufficientPaymentFunds`
-   */
-  def validatePaymentFunds(funds: Int128, paymentAmount: Int128): Either[BuildTransferFailure, Int128] =
+  def validateArbitFunds(
+    funds:         Int128,
+    paymentAmount: Int128
+  ): Either[BuildTransferFailure, Int128] =
     Either.cond(
       funds >= paymentAmount,
       funds,
-      BuildTransferFailures.InsufficientPaymentFunds
+      BuildTransferFailures.InsufficientArbitFunds(funds, paymentAmount)
     )
+
+  def validateAssetFunds(
+    funds:          Map[AssetCode, Int128],
+    paymentAmounts: Map[AssetCode, Int128]
+  ): Either[BuildTransferFailure, Map[AssetCode, Int128]] =
+    paymentAmounts.toList
+      .traverse { asset =>
+        val assetFunds = funds.getOrElse(asset._1, Int128(0))
+        Either.cond(
+          assetFunds >= asset._2,
+          asset,
+          BuildTransferFailures.InsufficientAssetFunds(asset._1, assetFunds, asset._2)
+        )
+      }
+      .map(_.toMap)
 
   /**
    * Validates that the asset codes of the given boxes match the given asset code.
@@ -66,10 +75,13 @@ object Validation {
   def validateSameAssetCode(
     expectedAssetCode: AssetCode,
     assetBoxes:        List[AssetBox]
-  ): Either[BuildTransferFailure, AssetCode] =
+  ): Either[BuildTransferFailure, AssetCode] = {
+    val nonMatchingAssetCodes = assetBoxes.map(_.value.assetCode).filter(_ != expectedAssetCode)
+
     Either.cond(
-      assetBoxes.forall(box => box.value.assetCode == expectedAssetCode),
+      nonMatchingAssetCodes.isEmpty,
       expectedAssetCode,
-      BuildTransferFailures.DifferentInputOutputCodes
+      BuildTransferFailures.MultipleAssetCodes(expectedAssetCode, nonMatchingAssetCodes)
     )
+  }
 }

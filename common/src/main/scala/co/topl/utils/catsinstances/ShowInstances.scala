@@ -9,6 +9,7 @@ import co.topl.crypto.hash.digest.Digest
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
 import co.topl.modifier.box._
+import co.topl.modifier.transaction.builder.BuildTransferFailure
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
 import co.topl.utils.StringDataTypes.{
   Base16Data,
@@ -118,4 +119,6 @@ trait ShowInstances {
   private def asBase16[T: BinaryShow]: Show[T] = value => Base16.encode(BinaryShow[T].encodeAsBytes(value))
 
   private def asJsonWithSpaces[T: Encoder]: Show[T] = value => Encoder[T].apply(value).spaces2
+
+  implicit val buildTransferFailureShow: Show[BuildTransferFailure] = Show.fromToString
 }

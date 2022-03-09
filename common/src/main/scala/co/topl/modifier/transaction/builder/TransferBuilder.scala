@@ -72,12 +72,11 @@ object TransferBuilder {
       )
 
     for {
-      _ <- validateNonEmptyInputNonces(inputNonces)
       _ <- validateUniqueInputNonces(inputNonces)
       _ <- validateNonEmptyOutputAddresses(outputAddresses)
       _ <- validateUniqueOutputAddresses(outputAddresses)
-      _ <- validateFeeFunds(polyFunds, request.fee)
-      _ <- validatePaymentFunds(polysAvailableAfterFee, polysOwed)
+      _ <- validatePositiveOutputValues(request.to.map(_._2))
+      _ <- validatePolyFunds(polyFunds, request.fee, polysOwed)
     } yield polyTransfer
   }
 
@@ -146,20 +145,22 @@ object TransferBuilder {
       )
 
     for {
-      _ <- validateNonEmptyInputNonces(polyInputNonces)
-      _ <- assetInputNonces.fold(List.empty[Box.Nonce].asRight[BuildTransferFailure])(validateNonEmptyInputNonces)
       _ <- validateUniqueInputNonces(polyInputNonces)
       _ <- assetInputNonces.fold(List.empty[Box.Nonce].asRight[BuildTransferFailure])(validateUniqueInputNonces)
       _ <- validateNonEmptyOutputAddresses(outputAddresses)
       _ <- validateUniqueOutputAddresses(outputAddresses)
+      _ <- validatePositiveOutputValues(request.to.map(_._2.quantity))
       // safe because we have checked that the outputs are not empty
       assetCode = assetCodeOpt.get
       _ <-
         inputAssets.fold(assetCode.asRight[BuildTransferFailure])(inputs =>
           validateSameAssetCode(assetCode, inputs.map(_._2))
         )
-      _ <- validateFeeFunds(polyFunds, request.fee)
-      _ <- assetFunds.map(validatePaymentFunds(_, assetsOwed)).getOrElse(Right(Int128(0)))
+      _ <- validatePolyFunds(polyFunds, request.fee, 0)
+      _ <-
+        assetFunds.fold(Map.empty[AssetCode, Int128].asRight[BuildTransferFailure])(funds =>
+          validateAssetFunds(Map(assetCode -> funds), Map(assetCode -> assetsOwed))
+        )
     } yield assetTransfer(assetCode)
   }
 
@@ -216,14 +217,13 @@ object TransferBuilder {
       )
 
     for {
-      _ <- validateNonEmptyInputNonces(inputPolyNonces)
       _ <- validateUniqueInputNonces(inputPolyNonces)
-      _ <- validateNonEmptyInputNonces(inputArbitNonces)
       _ <- validateUniqueInputNonces(inputArbitNonces)
       _ <- validateNonEmptyOutputAddresses(outputAddresses)
       _ <- validateUniqueOutputAddresses(outputAddresses)
-      _ <- validateFeeFunds(polyFunds, request.fee)
-      _ <- validatePaymentFunds(arbitFunds, arbitsOwed)
+      _ <- validatePositiveOutputValues(request.to.map(_._2))
+      _ <- validatePolyFunds(polyFunds, request.fee, 0)
+      _ <- validateArbitFunds(arbitFunds, arbitsOwed)
     } yield arbitTransfer
   }
 
@@ -236,26 +236,34 @@ object TransferBuilder {
 
     val (polyOutputs, arbitOutputs, assetOutputs) = request.to.splitByCoinType
 
-    val polysOwed = polyOutputs.map(_.value.data).sum
-    val arbitsOwed = arbitOutputs.map(_.value.data).sum
+    val polyOutputValues = polyOutputs.map(x => Int128(x.value.data))
+    val polysOwed = polyOutputValues.sum
+
+    val arbitOutputValues = arbitOutputs.map(x => Int128(x.value.data))
+    val arbitsOwed = arbitOutputValues.sum
+
+    val assetOutputValues = assetOutputs.map(x => Int128(x.value.quantity.data))
     val assetsOwed =
       assetOutputs.groupMapReduce(_.value.toAssetValue.assetCode)(value => Int128(value.value.quantity.data))(_ + _)
 
     val filteredBoxes =
       BoxSelectionAlgorithm.pickBoxes(boxSelection, availableBoxes, polysOwed, arbitsOwed, assetsOwed)
 
-    val polyInputNonces = filteredBoxes.polys.map(_._2.nonce)
+    val polyFunds = filteredBoxes.polySum
+    val arbitFunds = Option.when(arbitsOwed > 0)(filteredBoxes.arbitSum)
+    val assetFunds = filteredBoxes.assetSum.filter(_._2 > 0)
 
-    val polyChange = filteredBoxes.polySum - Int128(request.fee.data) - polysOwed
-    val arbitChange = filteredBoxes.arbitSum - arbitsOwed
+    val polyChange = polyFunds - Int128(request.fee.data) - polysOwed
+    val arbitChange = arbitFunds.map(_ - arbitsOwed)
 
     val assetChange: Map[AssetCode, Int128] =
-      filteredBoxes.assetSum
-        .map(asset => asset._1 -> (asset._2 - assetsOwed.getOrElse(asset._1, 0)))
+      assetFunds.map(asset => asset._1 -> (asset._2 - assetsOwed.getOrElse(asset._1, 0)))
 
     val polyChangeOutput =
       Option.when(polyChange > 0)(Transaction.PolyOutput(request.feeChangeAddress, polyChange.toSized))
-    val arbitChangeOutput = Transaction.ArbitOutput(request.consolidationAddress, arbitChange.toSized)
+
+    val arbitChangeOutput =
+      arbitChange.map(change => Transaction.ArbitOutput(request.consolidationAddress, change.toSized))
 
     val assetChangeOutputsResult =
       assetChange.toList
@@ -288,30 +296,43 @@ object TransferBuilder {
             )
         )
 
-    val transfer: (List[BoxReference], List[Transaction.AssetOutput]) => Transaction.Unproven =
+    val boxReferencesResult =
+      filteredBoxes.toBoxReferences.leftMap { case ToBoxReferencesFailures.InvalidAddress(address) =>
+        BuildTransferFailures.InvalidAddress(address)
+      }
+
+    val transfer
+      : (List[BoxReference], List[Transaction.AssetOutput]) => Either[BuildTransferFailure, Transaction.Unproven] =
       (boxReferences, assetChangeOutputs) =>
-        Transaction.Unproven(
-          boxReferences,
-          polyChangeOutput,
-          NonEmptyChain
-            .one(arbitChangeOutput)
-            .appendChain(Chain.fromSeq(assetChangeOutputs))
-            .appendChain(Chain.fromSeq(request.to)),
-          request.fee,
-          Instant.now.toEpochMilli,
-          request.data,
-          request.minting
-        )
+        NonEmptyChain
+          .fromSeq(request.to)
+          .toRight(BuildTransferFailures.EmptyOutputs)
+          .map(outputs => outputs.prependChain(Chain.fromSeq(assetChangeOutputs)))
+          .map(outputs => outputs.prependChain(Chain.fromOption(arbitChangeOutput)))
+          .map(outputs =>
+            Transaction.Unproven(
+              boxReferences,
+              polyChangeOutput,
+              outputs,
+              request.fee,
+              Instant.now.toEpochMilli,
+              request.data,
+              request.minting
+            )
+          )
 
     for {
-      _                  <- validateNonEmptyInputNonces(polyInputNonces)
       assetChangeOutputs <- assetChangeOutputsResult
-      boxReferences <-
-        filteredBoxes.toBoxReferences.leftMap { case ToBoxReferencesFailures.InvalidAddress(address) =>
-          BuildTransferFailures.InvalidAddress(address)
-        }
-      _ <- validateNonEmptyOutputAddresses(boxReferences.map(_._1.toAddress))
-    } yield transfer(boxReferences, assetChangeOutputs)
+      boxReferences      <- boxReferencesResult
+      _                  <- validateNonEmptyOutputAddresses(boxReferences.map(_._1.toAddress))
+      _      <- if (polyOutputs.nonEmpty) validatePositiveOutputValues(polyOutputValues) else List.empty.asRight
+      _      <- if (arbitOutputs.nonEmpty) validatePositiveOutputValues(arbitOutputValues) else List.empty.asRight
+      _      <- if (assetOutputs.nonEmpty) validatePositiveOutputValues(assetOutputValues) else List.empty.asRight
+      _      <- validatePolyFunds(polyFunds, request.fee.data, polysOwed)
+      _      <- arbitFunds.fold(Int128(0).asRight[BuildTransferFailure])(funds => validateArbitFunds(funds, arbitsOwed))
+      _      <- validateAssetFunds(assetFunds, assetsOwed)
+      result <- transfer(boxReferences, assetChangeOutputs)
+    } yield result
   }
 
   /**
