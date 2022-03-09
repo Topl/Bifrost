@@ -383,9 +383,7 @@ class ChainReplicatorSpec
       NxtConsensus(
         settings,
         appContext.networkType,
-        InMemoryKeyValueStore.empty(),
-        nxtLeaderElection,
-        protocolVersioner
+        InMemoryKeyValueStore.empty()
       ),
       NxtConsensus.actorName
     )

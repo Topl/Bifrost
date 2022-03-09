@@ -83,9 +83,7 @@ trait RPCMockState
       NxtConsensus(
         settings,
         appContext.networkType,
-        InMemoryKeyValueStore.empty(),
-        nxtLeaderElection,
-        protocolVersioner
+        InMemoryKeyValueStore.empty()
       ),
       NxtConsensus.actorName
     )

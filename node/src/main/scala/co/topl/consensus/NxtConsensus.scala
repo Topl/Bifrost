@@ -2,6 +2,7 @@ package co.topl.consensus
 
 import akka.Done
 import akka.actor.typed.eventstream.EventStream
+import akka.actor.typed.receptionist.ServiceKey
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.pattern.StatusReply
@@ -31,7 +32,8 @@ import scala.util.Try
 // seems like we could generalize this further by abstracting the type of state that the ConsansusStateHolder manages
 object NxtConsensus {
 
-  val actorName = "consensus-state-holder"
+  final val actorName = "consensus-view-holder"
+  final val serviceKey: ServiceKey[ReceivableMessage] = ServiceKey(actorName)
 
   sealed abstract class ReceivableMessage
 
@@ -72,11 +74,9 @@ object NxtConsensus {
    * @param storageOpt  optional KeyValueStore for manual initialization or testing
    */
   def apply(
-    settings:          AppSettings,
-    networkType:       NetworkType,
-    storage:           KeyValueStore,
-    leaderElection:    NxtLeaderElection,
-    protocolVersioner: ProtocolVersioner
+    settings:    AppSettings,
+    networkType: NetworkType,
+    storage:     KeyValueStore
   ): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
       implicit val ec: ExecutionContext = context.executionContext
@@ -103,6 +103,10 @@ object NxtConsensus {
         s"${Console.YELLOW}Consensus Storage actor transitioning to the operational state" +
         s"${Console.RESET}"
       )
+
+      val protocolVersioner = ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
+
+      val leaderElection = new NxtLeaderElection(protocolVersioner)
 
       active(storage, View(stateFromStorage(storage, defaultTotalStake), leaderElection, protocolVersioner))
     }

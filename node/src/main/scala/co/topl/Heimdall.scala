@@ -202,8 +202,7 @@ object Heimdall {
       }
 
   private case class ConsensusViewInitialiazingState(
-    consensusViewHolder: ActorRef[NxtConsensus.ReceivableMessage],
-    nxtLeaderElection:   NxtLeaderElection
+    consensusViewHolder: ActorRef[NxtConsensus.ReceivableMessage]
   )
 
   private case class NodeViewInitializingState(
@@ -290,24 +289,16 @@ object Heimdall {
   ): ConsensusViewInitialiazingState = {
     implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
     implicit def system: ActorSystem[_] = context.system
-
-    val protocolVersioner = ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
-
-    val leaderElection = new NxtLeaderElection(protocolVersioner)
-
-    val consensusViewerRef =
+    ConsensusViewInitialiazingState(
       context.spawn(
         NxtConsensus(
           settings,
           appContext.networkType,
-          NxtConsensus.readOrGenerateConsensusStore(settings),
-          leaderElection,
-          protocolVersioner
+          NxtConsensus.readOrGenerateConsensusStore(settings)
         ),
         NxtConsensus.actorName
       )
-
-    ConsensusViewInitialiazingState(consensusViewerRef, leaderElection)
+    )
   }
 
   private def prepareNodeViewRef(

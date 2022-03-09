@@ -165,14 +165,14 @@ object NodeViewHolder {
 
   def apply(
     appSettings:            AppSettings,
-    consensusState:         ConsensusReader,
+    consensusViewer:        ConsensusReader,
     initialNodeView:        () => Future[NodeView]
   )(implicit networkPrefix: NetworkPrefix, timeProvider: TimeProvider): Behavior[ReceivableMessage] =
     Behaviors.setup { context =>
       context.pipeToSelf(initialNodeView())(
         _.fold(ReceivableMessages.InitializationFailed, ReceivableMessages.Initialized)
       )
-      uninitialized(appSettings.network.maxModifiersCacheSize, consensusState)
+      uninitialized(appSettings.network.maxModifiersCacheSize, consensusViewer)
     }
 
   final private val UninitializedStashSize = 150
@@ -187,7 +187,7 @@ object NodeViewHolder {
    *
    * @return A Behavior that is uninitialized
    */
-  private def uninitialized(cacheSize: Int, consensusState: ConsensusReader)(implicit
+  private def uninitialized(cacheSize: Int, consensusViewer: ConsensusReader)(implicit
     networkPrefix:                     NetworkPrefix,
     timeProvider:                      TimeProvider
   ): Behavior[ReceivableMessage] =
@@ -217,7 +217,7 @@ object NodeViewHolder {
 
           popBlock(cache, nodeView)(context)
           context.log.info("Initialization complete")
-          stash.unstashAll(initialized(nodeView, cache, consensusState))
+          stash.unstashAll(initialized(nodeView, cache, consensusViewer))
         case (_, ReceivableMessages.InitializationFailed(reason)) =>
           throw reason
         case (_, message) =>
@@ -232,7 +232,7 @@ object NodeViewHolder {
   private def initialized(
     nodeView:               NodeView,
     cache:                  ActorRef[SortedCache.ReceivableMessage[Block]],
-    consensusState:         ConsensusReader
+    consensusViewer:        ConsensusReader
   )(implicit networkPrefix: NetworkPrefix, timeProvider: TimeProvider): Behavior[ReceivableMessage] =
     Behaviors
       .receivePartial[ReceivableMessage] {
@@ -245,7 +245,7 @@ object NodeViewHolder {
           Behaviors.same
 
         case (context, ReceivableMessages.WriteBlock(block)) =>
-          context.pipeToSelf(consensusState.withView[NxtConsensus.View](identity).value) {
+          context.pipeToSelf(consensusViewer.withView[NxtConsensus.View](identity).value) {
             _.fold(
               error => ReceivableMessages.Terminate(error),
               _.fold(
@@ -264,19 +264,19 @@ object NodeViewHolder {
           // TODO: Ban-list bad blocks?
           val newNodeView = eventStreamWriterHandler(nodeView.withBlock(block, consensusView))
           popBlock(cache, newNodeView)(context)
-          initialized(newNodeView, cache, consensusState)
+          initialized(newNodeView, cache, consensusViewer)
 
         case (context, ReceivableMessages.WriteTransactions(transactions)) =>
           implicit def system: ActorSystem[_] = context.system
 
           val newNodeView = eventStreamWriterHandler(nodeView.withTransactions(transactions))
-          initialized(newNodeView, cache, consensusState)
+          initialized(newNodeView, cache, consensusViewer)
 
         case (context, ReceivableMessages.EliminateTransactions(transactionIds)) =>
           implicit def system: ActorSystem[_] = context.system
 
           val newNodeView = eventStreamWriterHandler(nodeView.withoutTransactions(transactionIds.toSeq))
-          initialized(newNodeView, cache, consensusState)
+          initialized(newNodeView, cache, consensusViewer)
 
         case (_, ReceivableMessages.GetWritableNodeView(replyTo)) =>
           replyTo.tell(nodeView)
@@ -284,7 +284,7 @@ object NodeViewHolder {
 
         case (_, ReceivableMessages.ModifyNodeView(f, replyTo)) =>
           replyTo.tell(Done)
-          initialized(f(nodeView), cache, consensusState)
+          initialized(f(nodeView), cache, consensusViewer)
 
         case (_, ReceivableMessages.Terminate(reason)) =>
           throw reason
