@@ -6,14 +6,14 @@ import co.topl.networking.{Parties, StateTransition, TypedProtocolState}
 
 object PingPong {
 
-  object States {
+  object ProtocolStates {
     case class None()
     case class Idle()
     case class Busy()
     case class Done()
   }
 
-  object Messages {
+  object ProtocolMessages {
     case class Start()
     case class Ping()
     case class Pong()
@@ -22,17 +22,21 @@ object PingPong {
 
   object StateTransitions {
 
-    implicit def startNoneIdle[F[_]: Applicative]: StateTransition[F, Messages.Start, States.None, States.Idle] =
-      (_, _, _) => TypedProtocolState(Parties.B.some, States.Idle()).pure[F]
+    implicit def startNoneIdle[F[_]: Applicative]
+      : StateTransition[F, ProtocolMessages.Start, ProtocolStates.None, ProtocolStates.Idle] =
+      (_, _, _) => TypedProtocolState(Parties.B.some, ProtocolStates.Idle()).pure[F]
 
-    implicit def pingIdleBusy[F[_]: Applicative]: StateTransition[F, Messages.Ping, States.Idle, States.Busy] =
-      (_, _, _) => TypedProtocolState(Parties.A.some, States.Busy()).pure[F]
+    implicit def pingIdleBusy[F[_]: Applicative]
+      : StateTransition[F, ProtocolMessages.Ping, ProtocolStates.Idle, ProtocolStates.Busy] =
+      (_, _, _) => TypedProtocolState(Parties.A.some, ProtocolStates.Busy()).pure[F]
 
-    implicit def pongBusyIdle[F[_]: Applicative]: StateTransition[F, Messages.Pong, States.Busy, States.Idle] =
-      (_, _, _) => TypedProtocolState(Parties.B.some, States.Idle()).pure[F]
+    implicit def pongBusyIdle[F[_]: Applicative]
+      : StateTransition[F, ProtocolMessages.Pong, ProtocolStates.Busy, ProtocolStates.Idle] =
+      (_, _, _) => TypedProtocolState(Parties.B.some, ProtocolStates.Idle()).pure[F]
 
-    implicit def doneIdleDone[F[_]: Applicative]: StateTransition[F, Messages.Done, States.Idle, States.Done] =
-      (_, _, _) => TypedProtocolState(none, States.Done()).pure[F]
+    implicit def doneIdleDone[F[_]: Applicative]
+      : StateTransition[F, ProtocolMessages.Done, ProtocolStates.Idle, ProtocolStates.Done] =
+      (_, _, _) => TypedProtocolState(none, ProtocolStates.Done()).pure[F]
   }
 
 }

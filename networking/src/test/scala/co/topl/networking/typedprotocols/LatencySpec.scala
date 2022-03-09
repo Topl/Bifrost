@@ -39,34 +39,38 @@ class LatencySpec
     val executorB = TypedProtocol[F](Parties.B)
 
     val localStateRefA =
-      Ref.of[F, Latency.LocalPingState](Latency.LocalPingState(Instant.now(), Chain.empty)).unsafeRunSync()
+      Ref
+        .of[F, Latency.LocalStates.Measurements](Latency.LocalStates.Measurements(Instant.now(), Chain.empty))
+        .unsafeRunSync()
 
     val localStateRefB =
-      Ref.of[F, Latency.LocalPingState](Latency.LocalPingState(Instant.now(), Chain.empty)).unsafeRunSync()
+      Ref
+        .of[F, Latency.LocalStates.Measurements](Latency.LocalStates.Measurements(Instant.now(), Chain.empty))
+        .unsafeRunSync()
 
     val stateTransitionsA = new StateTransitions[F](localStateRefA)
     val stateTransitionsB = new StateTransitions[F](localStateRefB)
 
     val computation =
       for {
-        none <- TypedProtocolState(Parties.B.some, States.None()).pure[F]
+        none <- TypedProtocolState(Parties.B.some, ProtocolStates.None()).pure[F]
         idleA <- {
           import stateTransitionsA._
-          executorA(Messages.Start())(none).nextState
+          executorA(ProtocolMessages.Start())(none).nextState
         }
         idleB <- {
           import stateTransitionsB._
-          executorB(Messages.Start())(none).nextState
+          executorB(ProtocolMessages.Start())(none).nextState
         }
         (idleA1, idleB1, _) <- (idleA, idleB, 20)
           .iterateUntilM { case (idleA, idleB, iterationNumber) =>
             (
               {
                 import stateTransitionsA._
-                executorA(Messages.Ping())(idleA).nextState
+                executorA(ProtocolMessages.Ping())(idleA).nextState
               }, {
                 import stateTransitionsB._
-                executorB(Messages.Ping())(idleB).nextState
+                executorB(ProtocolMessages.Ping())(idleB).nextState
               }
             ).tupled
               .flatTap { case (nextA, nextB) =>
@@ -77,10 +81,10 @@ class LatencySpec
                   (
                     {
                       import stateTransitionsA._
-                      executorA(Messages.Pong())(nextA).nextState
+                      executorA(ProtocolMessages.Pong())(nextA).nextState
                     }, {
                       import stateTransitionsB._
-                      executorB(Messages.Pong())(nextB).nextState
+                      executorB(ProtocolMessages.Pong())(nextB).nextState
                     }
                   ).tupled,
                   Random.nextInt(200).milli
@@ -95,14 +99,14 @@ class LatencySpec
           }(_._3 <= 0)
         done <- {
           import stateTransitionsA._
-          executorA(Messages.Done())(idleA1).nextState
+          executorA(ProtocolMessages.Done())(idleA1).nextState
         }
       } yield done
 
     val protocol5 = computation.unsafeRunSync()
 
     protocol5.currentAgent shouldBe None
-    protocol5.currentState shouldBe a[States.Done]
+    protocol5.currentState shouldBe a[ProtocolStates.Done]
 
   }
 }

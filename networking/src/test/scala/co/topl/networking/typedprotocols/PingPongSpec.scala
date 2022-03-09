@@ -32,17 +32,17 @@ class PingPongSpec
 
     val computation =
       for {
-        none                                   <- TypedProtocolState(Parties.B.some, States.None()).pure[F]
-        idle: TypedProtocolState[States.Idle]  <- executor(Messages.Start())(none).nextState
-        busy: TypedProtocolState[States.Busy]  <- executor(Messages.Ping())(idle).nextState
-        idle1: TypedProtocolState[States.Idle] <- executor(Messages.Pong())(busy).nextState
-        done: TypedProtocolState[States.Done]  <- executor(Messages.Done())(idle1).nextState
+        none  <- TypedProtocolState(Parties.B.some, ProtocolStates.None()).pure[F]
+        idle  <- executor(ProtocolMessages.Start())(none).nextState
+        busy  <- executor(ProtocolMessages.Ping())(idle).nextState
+        idle1 <- executor(ProtocolMessages.Pong())(busy).nextState
+        done  <- executor(ProtocolMessages.Done())(idle1).nextState
       } yield done
 
     val protocol5 = computation.unsafeRunSync()
 
     protocol5.currentAgent shouldBe None
-    protocol5.currentState shouldBe a[States.Done]
+    protocol5.currentState shouldBe a[ProtocolStates.Done]
 
   }
 }

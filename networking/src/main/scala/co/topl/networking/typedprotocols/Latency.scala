@@ -17,40 +17,42 @@ import java.time.Instant
  */
 object Latency {
 
-  object States {
+  object ProtocolStates {
     case class None()
     case class Idle()
     case class Busy()
     case class Done()
   }
 
-  object Messages {
+  object ProtocolMessages {
     case class Start()
     case class Ping()
     case class Pong()
     case class Done()
   }
 
-  case class LocalPingState(pingSendTime: Instant, latencyReadings: Chain[Long])
+  object LocalStates {
+    case class Measurements(pingSendTime: Instant, latencyReadings: Chain[Long])
+  }
 
-  class StateTransitions[F[_]: Sync: Logger](localPingStateRef: Ref[F, LocalPingState]) {
+  class StateTransitions[F[_]: Sync: Logger](localPingStateRef: Ref[F, LocalStates.Measurements]) {
 
-    implicit val startNoneIdle: StateTransition[F, Messages.Start, States.None, States.Idle] =
-      (_, _, _) => TypedProtocolState(Parties.B.some, States.Idle()).pure[F]
+    implicit val startNoneIdle: StateTransition[F, ProtocolMessages.Start, ProtocolStates.None, ProtocolStates.Idle] =
+      (_, _, _) => TypedProtocolState(Parties.B.some, ProtocolStates.Idle()).pure[F]
 
-    implicit val pingIdleBusy: StateTransition[F, Messages.Ping, States.Idle, States.Busy] =
+    implicit val pingIdleBusy: StateTransition[F, ProtocolMessages.Ping, ProtocolStates.Idle, ProtocolStates.Busy] =
       (_, protocolInState, local) =>
         (
-          TypedProtocolState(protocolInState.currentAgent.map(_.opposite), States.Busy()).pure[F],
+          TypedProtocolState(protocolInState.currentAgent.map(_.opposite), ProtocolStates.Busy()).pure[F],
           Monad[F].whenA(protocolInState.currentAgent.contains(local))(
             localPingStateRef.update(state => state.copy(pingSendTime = Instant.now()))
           )
         ).mapN((next, _) => next)
 
-    implicit val pongBusyIdle: StateTransition[F, Messages.Pong, States.Busy, States.Idle] =
+    implicit val pongBusyIdle: StateTransition[F, ProtocolMessages.Pong, ProtocolStates.Busy, ProtocolStates.Idle] =
       (_, protocolInState, local) =>
         (
-          TypedProtocolState(protocolInState.currentAgent, States.Idle()).pure[F],
+          TypedProtocolState(protocolInState.currentAgent, ProtocolStates.Idle()).pure[F],
           Monad[F].whenA(!protocolInState.currentAgent.contains(local))(
             localPingStateRef
               .updateAndGet(state =>
@@ -67,8 +69,8 @@ object Latency {
           )
         ).mapN((next, _) => next)
 
-    implicit val doneIdleDone: StateTransition[F, Messages.Done, States.Idle, States.Done] =
-      (_, _, _) => TypedProtocolState(none, States.Done()).pure[F]
+    implicit val doneIdleDone: StateTransition[F, ProtocolMessages.Done, ProtocolStates.Idle, ProtocolStates.Done] =
+      (_, _, _) => TypedProtocolState(none, ProtocolStates.Done()).pure[F]
   }
 
 }
