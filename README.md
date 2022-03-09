@@ -15,9 +15,15 @@ Therefore, the source code for several published libraries of independent utilit
 
 Build artifacts are also available for each tagged version at [repo.topl.network](https://repo.topl.network). 
 An alternative host for each released JAR is accessible at `https://repo.topl.network/jars/<X.X.X>/bifrost-node-X.X.X.jar` where `X.X.X` is a tagged software version. 
-An MD5 checksum is also available for the JAR artifact at this location under `bifrost-node-X.X.X.jar.md5`.
+An MD5 checksum is also available for the JAR artifact at this location under `bifrost-node-X.X.X.jar.md5`
 
 Docker containers for each release are available via [Github Container Repository](https://github.com/Topl/Bifrost/pkgs/container/bifrost-node) and [Docker Hub](https://hub.docker.com/r/toplprotocol/bifrost-node/tags)
+
+#### Application Versioning
+Bifrost loosely follows semantic versioning. Deviating slightly since blockchains should always retain binary compatibility, we instead apply the following rules:
+- `MAJOR` index is conditioned on hard-forks (most notably with regards to the consensus mechanism) and substantial network upgrades
+- `MINOR` index is incremented when there are breaking API changes (to any module within the Bifrost monorepo) or significant feature improvements being newly introduced
+- `PATCH` index is used for non-breaking changes to functionality and bug fixes
 
 Installation
 -------------------
