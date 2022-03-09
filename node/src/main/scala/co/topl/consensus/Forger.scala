@@ -59,17 +59,17 @@ object Forger {
   case class ChainParams(totalStake: Int128, difficulty: Long)
 
   def behavior(
-                blockGenerationDelay: FiniteDuration,
-                minTransactionFee: Int128,
-                forgeOnStartup: Boolean,
-                fetchKeyView: () => Future[KeyView],
-                fetchStartupKeyView: () => Future[StartupKeyView],
-                nodeViewReader: NodeViewReader,
-                consensusInterface: ConsensusInterface
-              )(implicit
-                networkPrefix: NetworkPrefix,
-                timeProvider: TimeProvider
-              ): Behavior[ReceivableMessage] =
+    blockGenerationDelay: FiniteDuration,
+    minTransactionFee:    Int128,
+    forgeOnStartup:       Boolean,
+    fetchKeyView:         () => Future[KeyView],
+    fetchStartupKeyView:  () => Future[StartupKeyView],
+    nodeViewReader:       NodeViewReader,
+    consensusInterface:   ConsensusInterface
+  )(implicit
+    networkPrefix: NetworkPrefix,
+    timeProvider:  TimeProvider
+  ): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
       import context.executionContext
 
@@ -86,7 +86,7 @@ object Forger {
         minTransactionFee,
         fetchKeyView,
         nodeViewReader,
-        consensusInterface,
+        consensusInterface
       ).uninitialized(forgeWhenReady = forgeOnStartup)
 
     }
@@ -95,8 +95,8 @@ object Forger {
    * If this node is running a private or local network, verify that a rewards address is set
    */
   private def checkPrivateForging(fetchStartupKeyView: () => Future[StartupKeyView])(implicit
-                                                                                     ec: ExecutionContext,
-                                                                                     networkPrefix: NetworkPrefix
+    ec:                                                ExecutionContext,
+    networkPrefix:                                     NetworkPrefix
   ): Future[Done] =
     if (PrivateTestnet.netPrefix == networkPrefix) {
       fetchStartupKeyView().flatMap {
@@ -110,14 +110,14 @@ object Forger {
     }
 
   def genesisBlock(
-                    settings: AppSettings,
-                    networkType: NetworkType,
-                    fetchStartupKeyView: () => Future[StartupKeyView],
-                    consensusInterface: ConsensusInterface
-                  )(implicit
-                    system: ActorSystem[_],
-                    ec: ExecutionContext
-                  ): Future[Block] = {
+    settings:            AppSettings,
+    networkType:         NetworkType,
+    fetchStartupKeyView: () => Future[StartupKeyView],
+    consensusInterface:  ConsensusInterface
+  )(implicit
+    system: ActorSystem[_],
+    ec:     ExecutionContext
+  ): Future[Block] = {
     implicit val networkPrefix: NetworkPrefix = networkType.netPrefix
 
     def initializeFromChainParamsAndGetBlock(block: Try[(Block, ChainParams)]): Future[Block] = {
@@ -134,9 +134,9 @@ object Forger {
     }
 
     networkType match {
-      case Mainnet => initializeFromChainParamsAndGetBlock(ToplnetGenesis.getGenesisBlock)
+      case Mainnet         => initializeFromChainParamsAndGetBlock(ToplnetGenesis.getGenesisBlock)
       case ValhallaTestnet => initializeFromChainParamsAndGetBlock(ValhallaGenesis.getGenesisBlock)
-      case HelTestnet => initializeFromChainParamsAndGetBlock(HelGenesis.getGenesisBlock)
+      case HelTestnet      => initializeFromChainParamsAndGetBlock(HelGenesis.getGenesisBlock)
       case PrivateTestnet =>
         fetchStartupKeyView()
           .map(view => PrivateGenesis(view.addresses, settings).getGenesisBlock)
@@ -156,16 +156,16 @@ object Forger {
 }
 
 private class ForgerBehaviors(
-                               blockGenerationDelay: FiniteDuration,
-                               minTransactionFee: Int128,
-                               fetchKeyView: () => Future[KeyView],
-                               nodeViewReader: NodeViewReader,
-                               consensusViewReader: ConsensusReader
-                             )(implicit
-                               context: ActorContext[Forger.ReceivableMessage],
-                               networkPrefix: NetworkPrefix,
-                               timeProvider: TimeProvider
-                             ) {
+  blockGenerationDelay: FiniteDuration,
+  minTransactionFee:    Int128,
+  fetchKeyView:         () => Future[KeyView],
+  nodeViewReader:       NodeViewReader,
+  consensusViewReader:  ConsensusReader
+)(implicit
+  context:       ActorContext[Forger.ReceivableMessage],
+  networkPrefix: NetworkPrefix,
+  timeProvider:  TimeProvider
+) {
 
   import context.executionContext
 
@@ -244,7 +244,7 @@ private class ForgerBehaviors(
           result.foreach(block => context.system.eventStream.tell(EventStream.Publish(LocallyGeneratedBlock(block))))
           result match {
             case Left(ForgeFailure(Forge.NoRewardsAddressSpecified)) |
-                 Left(ForgeFailure(Forge.LeaderElectionFailure(LeaderElection.NoAddressesAvailable))) =>
+                Left(ForgeFailure(Forge.LeaderElectionFailure(LeaderElection.NoAddressesAvailable))) =>
               // In these specific cases, it would not help to try again
               scheduler.cancelAll()
               log.info("Forger transitioning to idle state")
@@ -335,7 +335,7 @@ object ForgerInterface {
 }
 
 class ActorForgerInterface(actorRef: ActorRef[Forger.ReceivableMessage])(implicit system: ActorSystem[_])
-  extends ForgerInterface {
+    extends ForgerInterface {
 
   import system.executionContext
 

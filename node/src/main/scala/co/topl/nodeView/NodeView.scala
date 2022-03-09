@@ -87,20 +87,19 @@ case class NodeView(
 object NodeView {
 
   def persistent(
-                  settings: AppSettings,
-                  networkType: NetworkType,
-                  consensusInterface: ConsensusInterface,
-                  startupKeyView: () => Future[StartupKeyView]
-                )(implicit system: ActorSystem[_], ec: ExecutionContext): Future[NodeView] =
+    settings:           AppSettings,
+    networkType:        NetworkType,
+    consensusInterface: ConsensusInterface,
+    startupKeyView:     () => Future[StartupKeyView]
+  )(implicit system:    ActorSystem[_], ec: ExecutionContext): Future[NodeView] =
     local(settings)(networkType.netPrefix)
-      .fold(
-        genesis(settings, networkType, consensusInterface, startupKeyView))(
+      .fold(genesis(settings, networkType, consensusInterface, startupKeyView))(
         Future.successful
       )
 
   def local(
-             settings: AppSettings
-           )(implicit networkPrefix: NetworkPrefix): Option[NodeView] =
+    settings:               AppSettings
+  )(implicit networkPrefix: NetworkPrefix): Option[NodeView] =
     if (State.exists(settings)) {
       Some(
         NodeView(
@@ -112,14 +111,14 @@ object NodeView {
     } else None
 
   def genesis(
-               settings: AppSettings,
-               networkType: NetworkType,
-               consensusInterface: ConsensusInterface,
-               startupKeyView: () => Future[StartupKeyView]
-             )(implicit
-               system: ActorSystem[_],
-               ec: ExecutionContext
-             ): Future[NodeView] = {
+    settings:           AppSettings,
+    networkType:        NetworkType,
+    consensusInterface: ConsensusInterface,
+    startupKeyView:     () => Future[StartupKeyView]
+  )(implicit
+    system: ActorSystem[_],
+    ec:     ExecutionContext
+  ): Future[NodeView] = {
     implicit def networkPrefix: NetworkPrefix = networkType.netPrefix
 
     Forger
@@ -132,7 +131,8 @@ object NodeView {
             MemPool.empty()
           )
         }.value
-      }.flatMap(_.fold(e => Future.failed(e.reason), Future(_)))
+      }
+      .flatMap(_.fold(e => Future.failed(e.reason), Future(_)))
   }
 }
 
@@ -142,8 +142,8 @@ trait NodeViewBlockOps {
   import NodeViewHolder.UpdateInformation
 
   def withBlock(block: Block, consensusView: NxtConsensus.View)(implicit
-                                                                networkPrefix:     NetworkPrefix,
-                                                                timeProvider:      TimeProvider
+    networkPrefix:     NetworkPrefix,
+    timeProvider:      TimeProvider
   ): Writer[List[Any], NodeView] = {
     import cats.implicits._
     if (!history.contains(block.id)) {

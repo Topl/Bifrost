@@ -1,6 +1,6 @@
 package co.topl.consensus
 
-import co.topl.consensus.NxtConsensus.State
+import co.topl.consensus.NxtConsensus
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.history.History
@@ -18,7 +18,7 @@ class BlockVersionTests extends MockState with NodeGenerators with DiskKeyFileTe
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    fstVersion = nxtLeaderElection.supportedProtocolVersions.applicable.map(_.blockVersion).min.get
+    fstVersion = protocolVersioner.applicable.map(_.blockVersion).min.get
     genesisBlockOldestVersion = genesisBlockGen(keyRingCurve25519).sampleFirst().copy(version = fstVersion)
     history = generateHistory(genesisBlockOldestVersion)
     state = createState(genesisBlockOldestVersion)
@@ -33,7 +33,7 @@ class BlockVersionTests extends MockState with NodeGenerators with DiskKeyFileTe
      * Apply enough blocks to history and state so there will be blocks of all possible versions
      * Don't make a test.conf that has a version with a really large startBlock
      */
-    val blocksToAppend: Int = nxtLeaderElection.supportedProtocolVersions.applicable.maxBy(_.startBlock).startBlock.toInt
+    val blocksToAppend: Int = protocolVersioner.applicable.maxBy(_.startBlock).startBlock.toInt
     val blocksCount: Int = blocksToAppend + 1 // with genesis block
 
     for (_ <- 1 to blocksToAppend) {
@@ -42,10 +42,17 @@ class BlockVersionTests extends MockState with NodeGenerators with DiskKeyFileTe
         .copy(
           parentId = history.bestBlockId,
           transactions = Seq(),
-          version = nxtLeaderElection.supportedProtocolVersions.blockVersion(history.height + 1)
+          version = protocolVersioner.blockVersion(history.height + 1)
         )
       history = history
-        .append(oneBlock, State(10000000, history.bestBlock.difficulty, 0L, history.bestBlock.height))
+        .append(
+          oneBlock,
+          NxtConsensus.View(
+            NxtConsensus.State(10000000, history.bestBlock.difficulty, 0L, history.bestBlock.height),
+            nxtLeaderElection,
+            protocolVersioner
+          )
+        )
         .get
         ._1
       state = state.applyModifier(oneBlock).get
@@ -56,7 +63,7 @@ class BlockVersionTests extends MockState with NodeGenerators with DiskKeyFileTe
       val currentBlock: Block = history.storage.modifierById(currentId).get
       currentId = currentBlock.parentId
       log.debug(s"${Console.MAGENTA}$currentBlock${Console.RESET}")
-      val versionConf = nxtLeaderElection.supportedProtocolVersions
+      val versionConf = protocolVersioner
         .current(height)
         .getOrElse(throw new Error("Unable to find applicable protocol rules"))
         .blockVersion
@@ -66,7 +73,7 @@ class BlockVersionTests extends MockState with NodeGenerators with DiskKeyFileTe
   }
 
   property("Applying genesis block to history/state with different available versions should be successful") {
-    for (version <- nxtLeaderElection.supportedProtocolVersions.applicable.map(_.blockVersion.get)) {
+    for (version <- protocolVersioner.applicable.map(_.blockVersion.get)) {
       val genesisBlockWithVersion: Block = genesisBlockGen(keyRingCurve25519).sampleFirst().copy(version = version)
       history = generateHistory(genesisBlockWithVersion)
       history.modifierById(genesisBlockWithVersion.id).isDefined shouldBe true

@@ -22,13 +22,27 @@ class BlockValidatorSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
       val block = blockTemp.copy(parentId = history.bestBlockId)
       val nextBlock = block.copy(timestamp = block.timestamp - 1, parentId = block.id)
       val newHistory = history
-        .append(block, State(10000000, history.bestBlock.difficulty, 0L, history.bestBlock.height))
+        .append(
+          block,
+          NxtConsensus.View(
+            NxtConsensus.State(10000000, history.bestBlock.difficulty, 0L, history.bestBlock.height),
+            nxtLeaderElection,
+            protocolVersioner
+          )
+        )
         .get
         ._1
       val blockProcessor = BlockProcessor(1024)
-      val validator = new DifficultyBlockValidator(newHistory.storage, blockProcessor, nxtLeaderElection)
+      val validator = new DifficultyBlockValidator(newHistory.storage, blockProcessor)
       validator
-        .validate(nextBlock, State(10000000, history.bestBlock.difficulty, 0L, history.bestBlock.height))
+        .validate(
+          nextBlock,
+          NxtConsensus.View(
+            NxtConsensus.State(10000000, history.bestBlock.difficulty, 0L, history.bestBlock.height),
+            nxtLeaderElection,
+            protocolVersioner
+          )
+        )
         .isSuccess shouldBe false
     }
   }

@@ -14,6 +14,7 @@ import scala.concurrent.duration.MILLISECONDS
 import scala.math.{max, min}
 
 class NxtLeaderElection(private val supportedProtocolVersions: ProtocolVersioner) {
+
   /**
    * Defines how we calculate the test value for determining eligibility to forge
    *
@@ -25,7 +26,7 @@ class NxtLeaderElection(private val supportedProtocolVersions: ProtocolVersioner
     val h = blake2b256.hash(
       // need to use Persistable instances of parent types
       Persistable[NodeViewModifier].persistedBytes(lastBlock) ++
-        Persistable[Box[_]].persistedBytes(box)
+      Persistable[Box[_]].persistedBytes(box)
     )
 
     Longs.fromByteArray((0: Byte) +: h.value.take(7))
@@ -43,16 +44,16 @@ class NxtLeaderElection(private val supportedProtocolVersions: ProtocolVersioner
    * @return the target value
    */
   private[consensus] def calcTarget(
-                                     stakeAmount: Int128,
-                                     totalStake: Int128,
-                                     timeDelta: Long,
-                                     difficulty: Long,
-                                     parentHeight: Long
-                                   ): BigInt =
+    stakeAmount:  Int128,
+    totalStake:   Int128,
+    timeDelta:    Long,
+    difficulty:   Long,
+    parentHeight: Long
+  ): BigInt =
     (BigInt(stakeAmount.toByteArray) * BigInt(difficulty) * BigInt(timeDelta)) /
-      (BigInt(totalStake.toByteArray) * BigInt(
-        supportedProtocolVersions.targetBlockTime(parentHeight).toUnit(MILLISECONDS).toLong
-      ))
+    (BigInt(totalStake.toByteArray) * BigInt(
+      supportedProtocolVersions.targetBlockTime(parentHeight).toUnit(MILLISECONDS).toLong
+    ))
 
   /**
    * Calculate the block difficulty according to
@@ -62,9 +63,9 @@ class NxtLeaderElection(private val supportedProtocolVersions: ProtocolVersioner
    * @param prevTimes      sequence of block times to calculate the average and compare to target
    * @return the modified difficulty
    */
-  private[consensus] def calcNewBaseDifficulty(newHeight: Long,
-                                               prevDifficulty: Long,
-                                               prevTimes: Seq[TimeProvider.Time]): Long = {
+
+  // used in a node view test, so made public for now
+  def calcNewBaseDifficulty(newHeight: Long, prevDifficulty: Long, prevTimes: Seq[TimeProvider.Time]): Long = {
 
     val averageDelay = prevTimes.drop(1).lazyZip(prevTimes).map(_ - _).sum / (prevTimes.length - 1)
     val targetTimeMilli = supportedProtocolVersions.targetBlockTime(newHeight).toUnit(MILLISECONDS)

@@ -7,7 +7,7 @@ import akka.actor.{ActorRef => CActorRef, ActorSystem => CActorSystem}
 import akka.io.{IO, Tcp}
 import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
-import co.topl.consensus.{ActorConsensusInterface, NxtConsensus, Forger, LocallyGeneratedBlock}
+import co.topl.consensus.{ActorConsensusInterface, Forger, LocallyGeneratedBlock, NxtConsensus}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithms, TransferBuilder, TransferRequests}
 import co.topl.network.{NetworkControllerRef, PeerManager, PeerManagerRef}
@@ -163,7 +163,13 @@ class MemPoolAuditorSpec
     val networkControllerRef: CActorRef =
       cSystem.actorOf(NetworkControllerRef.props(testSettings, peerManagerRef, appContext, IO(Tcp)))
     val consensusStorageRef = spawn(
-      NxtConsensus(settings, appContext.networkType, InMemoryKeyValueStore.empty()),
+      NxtConsensus(
+        settings,
+        appContext.networkType,
+        InMemoryKeyValueStore.empty(),
+        nxtLeaderElection,
+        protocolVersioner
+      ),
       NxtConsensus.actorName
     )
     val consensusVariablesInterface = new ActorConsensusInterface(consensusStorageRef)
@@ -179,8 +185,7 @@ class MemPoolAuditorSpec
         fetchKeyView,
         fetchStartupKeyView,
         new ActorNodeViewHolderInterface(nodeViewHolderRef),
-        new ActorConsensusInterface(consensusStorageRef),
-        nxtLeaderElection
+        new ActorConsensusInterface(consensusStorageRef)
       )
     )
 
@@ -196,10 +201,10 @@ class MemPoolAuditorSpec
 object MemPoolAuditorSpec {
 
   case class TestInWithActor(
-                              testIn:              TestIn,
-                              nodeViewHolderRef:   ActorRef[NodeViewHolder.ReceivableMessage],
-                              consensusStorageRef: ActorRef[NxtConsensus.ReceivableMessage],
-                              memPoolAuditorRef:   ActorRef[MemPoolAuditor.ReceivableMessage],
-                              forgerRef:           ActorRef[Forger.ReceivableMessage]
+    testIn:              TestIn,
+    nodeViewHolderRef:   ActorRef[NodeViewHolder.ReceivableMessage],
+    consensusStorageRef: ActorRef[NxtConsensus.ReceivableMessage],
+    memPoolAuditorRef:   ActorRef[MemPoolAuditor.ReceivableMessage],
+    forgerRef:           ActorRef[Forger.ReceivableMessage]
   )
 }

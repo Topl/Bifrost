@@ -36,12 +36,12 @@ object NodeViewHolder {
   final val serviceKey: ServiceKey[ReceivableMessage] = ServiceKey(ActorName)
 
   case class UpdateInformation(
-                                history: GenericHistory[Block, BifrostSyncInfo, History],
-                                state: MinimalState[Block, State],
-                                failedMod: Option[Block],
-                                alternativeProgressInfo: Option[ProgressInfo[Block]],
-                                suffix: IndexedSeq[Block]
-                              )
+    history:                 GenericHistory[Block, BifrostSyncInfo, History],
+    state:                   MinimalState[Block, State],
+    failedMod:               Option[Block],
+    alternativeProgressInfo: Option[ProgressInfo[Block]],
+    suffix:                  IndexedSeq[Block]
+  )
 
   sealed abstract class ReceivableMessage
 
@@ -94,9 +94,9 @@ object NodeViewHolder {
      * @param consensusState The consensus parameters for the current node view
      */
     private[NodeViewHolder] case class WriteBlockWithConsensusView(
-                                                                    block: Block,
-                                                                    consensusState: NxtConsensus.View
-                                                                  ) extends ReceivableMessage
+      block:          Block,
+      consensusState: NxtConsensus.View
+    ) extends ReceivableMessage
 
     private[NodeViewHolder] case class Terminate(reason: Throwable) extends ReceivableMessage
 
@@ -119,7 +119,7 @@ object NodeViewHolder {
      * A message specifically used by unit tests to mutate the internal actor state
      */
     private[nodeView] case class ModifyNodeView(f: NodeView => NodeView, replyTo: ActorRef[Done])
-      extends ReceivableMessage
+        extends ReceivableMessage
   }
 
   sealed abstract class Event
@@ -140,17 +140,17 @@ object NodeViewHolder {
 
     /** @param immediateFailure a flag indicating whether a transaction was invalid by the moment it was received. */
     case class FailedTransaction(transactionId: ModifierId, error: Throwable, immediateFailure: Boolean)
-      extends OutcomeEvent
+        extends OutcomeEvent
 
     case class SuccessfulTransaction[TX <: Transaction.TX](transaction: TX) extends OutcomeEvent
 
     case class StartingPersistentModifierApplication[PMOD <: PersistentNodeViewModifier](modifier: PMOD) extends Event
 
     case class SyntacticallyFailedModification[PMOD <: PersistentNodeViewModifier](modifier: PMOD, error: Throwable)
-      extends OutcomeEvent
+        extends OutcomeEvent
 
     case class SemanticallyFailedModification[PMOD <: PersistentNodeViewModifier](modifier: PMOD, error: Throwable)
-      extends OutcomeEvent
+        extends OutcomeEvent
 
     case class SyntacticallySuccessfulModifier[PMOD <: PersistentNodeViewModifier](modifier: PMOD) extends OutcomeEvent
 
@@ -164,10 +164,10 @@ object NodeViewHolder {
   }
 
   def apply(
-             appSettings: AppSettings,
-             consensusState: ConsensusReader,
-             initialNodeView: () => Future[NodeView]
-           )(implicit networkPrefix: NetworkPrefix, timeProvider: TimeProvider): Behavior[ReceivableMessage] =
+    appSettings:            AppSettings,
+    consensusState:         ConsensusReader,
+    initialNodeView:        () => Future[NodeView]
+  )(implicit networkPrefix: NetworkPrefix, timeProvider: TimeProvider): Behavior[ReceivableMessage] =
     Behaviors.setup { context =>
       context.pipeToSelf(initialNodeView())(
         _.fold(ReceivableMessages.InitializationFailed, ReceivableMessages.Initialized)
@@ -188,8 +188,8 @@ object NodeViewHolder {
    * @return A Behavior that is uninitialized
    */
   private def uninitialized(cacheSize: Int, consensusState: ConsensusReader)(implicit
-                                                                             networkPrefix: NetworkPrefix,
-                                                                             timeProvider: TimeProvider
+    networkPrefix:                     NetworkPrefix,
+    timeProvider:                      TimeProvider
   ): Behavior[ReceivableMessage] =
     Behaviors.withStash(UninitializedStashSize)(stash =>
       Behaviors.receivePartial {
@@ -230,10 +230,10 @@ object NodeViewHolder {
    * The state where the NodeView is ready for use
    */
   private def initialized(
-                           nodeView: NodeView,
-                           cache: ActorRef[SortedCache.ReceivableMessage[Block]],
-                           consensusState: ConsensusReader,
-                         )(implicit networkPrefix: NetworkPrefix, timeProvider: TimeProvider): Behavior[ReceivableMessage] =
+    nodeView:               NodeView,
+    cache:                  ActorRef[SortedCache.ReceivableMessage[Block]],
+    consensusState:         ConsensusReader
+  )(implicit networkPrefix: NetworkPrefix, timeProvider: TimeProvider): Behavior[ReceivableMessage] =
     Behaviors
       .receivePartial[ReceivableMessage] {
         case (_, r: ReceivableMessages.Read[_]) =>
@@ -254,7 +254,7 @@ object NodeViewHolder {
               )
             )
           }
-         Behaviors.same
+          Behaviors.same
 
         case (context, ReceivableMessages.WriteBlockWithConsensusView(block, consensusView)) =>
           implicit def system: ActorSystem[_] = context.system
@@ -304,7 +304,7 @@ object NodeViewHolder {
    * Ask the cache actor for the next viable block to apply.  The cache will _eventually_ reply with the block
    */
   private def popBlock(cache: ActorRef[SortedCache.ReceivableMessage[Block]], nodeView: NodeView)(implicit
-                                                                                                  context: ActorContext[ReceivableMessage]
+    context:                  ActorContext[ReceivableMessage]
   ): Unit =
     cache.tell(
       SortedCache.ReceivableMessages.Pop(
@@ -327,8 +327,8 @@ trait NodeViewHolderInterface extends NodeViewReader {
   def applyTransactions(tx: Transaction.TX): EitherT[Future, NodeViewHolderInterface.ApplyFailure, Done]
 
   def unapplyTransactions(
-                           transactionIds: Iterable[ModifierId]
-                         ): EitherT[Future, NodeViewHolderInterface.UnapplyFailure, Done]
+    transactionIds: Iterable[ModifierId]
+  ): EitherT[Future, NodeViewHolderInterface.UnapplyFailure, Done]
 
   def onReady(): Future[Done]
 }
@@ -345,8 +345,8 @@ object NodeViewHolderInterface {
  * A NodeViewHolderInterface that communicates with a NodeViewHolder actor
  */
 class ActorNodeViewHolderInterface(actorRef: ActorRef[NodeViewHolder.ReceivableMessage])(implicit
-                                                                                         system: ActorSystem[_],
-                                                                                         timeout: Timeout
+  system:                                    ActorSystem[_],
+  timeout:                                   Timeout
 ) extends NodeViewHolderInterface {
 
   import akka.actor.typed.scaladsl.AskPattern._
@@ -376,8 +376,8 @@ class ActorNodeViewHolderInterface(actorRef: ActorRef[NodeViewHolder.ReceivableM
     }
 
   override def unapplyTransactions(
-                                    transactionIds: Iterable[ModifierId]
-                                  ): EitherT[Future, NodeViewHolderInterface.UnapplyFailure, Done] =
+    transactionIds: Iterable[ModifierId]
+  ): EitherT[Future, NodeViewHolderInterface.UnapplyFailure, Done] =
     EitherT.pure[Future, NodeViewHolderInterface.UnapplyFailure] {
       actorRef
         .tell(NodeViewHolder.ReceivableMessages.EliminateTransactions(transactionIds))

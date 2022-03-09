@@ -1,7 +1,7 @@
 package co.topl.nodeView
 
 import co.topl.attestation.Address
-import co.topl.consensus.NxtConsensus.State
+import co.topl.consensus.NxtConsensus
 import co.topl.consensus._
 import co.topl.consensus.genesis.PrivateGenesis
 import co.topl.modifier.block.Block
@@ -26,7 +26,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
         parent,
         keyRingCurve25519.addresses,
         timestamp,
-        State(10000000, parent.difficulty, 0L, parent.height),
+        NxtConsensus.State(10000000, parent.difficulty, 0L, parent.height),
         nxtLeaderElection,
         nodeView.state
       )
@@ -79,7 +79,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
     val stateStore = InMemoryKeyValueStore.empty()
     val tokenBoxStore = InMemoryKeyValueStore.empty()
     val nodeView = NodeView(
-      History(settings, nxtLeaderElection, new Storage(historyStore)),
+      History(settings, new Storage(historyStore)),
       State(
         settings,
         stateStore,
@@ -89,7 +89,14 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
       MemPool.empty()
     )
 
-    nodeView.history.append(genesisBlock, State(Int128(10000000), 1000000000000000000L, 0L, 0L))
+    nodeView.history.append(
+      genesisBlock,
+      NxtConsensus.View(
+        NxtConsensus.State(Int128(10000000), 1000000000000000000L, 0L, 0L),
+        nxtLeaderElection,
+        protocolVersioner
+      )
+    )
     nodeView.state.applyModifier(genesisBlock)
     TestIn(nodeView, historyStore, stateStore, tokenBoxStore)
   }

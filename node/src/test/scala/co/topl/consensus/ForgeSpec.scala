@@ -89,14 +89,14 @@ class ForgeSpec
         Forge
           .prepareForge(
             nodeView,
-            State(Int128(10000000), 1000000000000000000L, 0L, 0L),
-            nxtLeaderElection,
+            NxtConsensus
+              .View(NxtConsensus.State(10000000, 1000000000000000000L, 0L, 0L), nxtLeaderElection, protocolVersioner),
             keyView,
             0
           )
           .value
 
-      val block = forge.make(nxtLeaderElection).value
+      val block = forge.make.value
       block.parentId shouldBe parentBlock.id
       block.timestamp shouldBe Long.MaxValue
     }
@@ -115,8 +115,8 @@ class ForgeSpec
     Forge
       .prepareForge(
         nodeView,
-        State(Int128(10000000), 1000000000000000000L, 0L, 0L),
-        nxtLeaderElection,
+        NxtConsensus
+          .View(NxtConsensus.State(10000000, 1000000000000000000L, 0L, 0L), nxtLeaderElection, protocolVersioner),
         keyView,
         0
       )
@@ -180,8 +180,11 @@ class ForgeSpec
       Forge
         .prepareForge(
           nodeView,
-          State(10000000, parentBlock.difficulty, 0L, parentBlock.height),
-          nxtLeaderElection,
+          NxtConsensus.View(
+            NxtConsensus.State(10000000, parentBlock.difficulty, 0L, parentBlock.height),
+            nxtLeaderElection,
+            protocolVersioner
+          ),
           keyView,
           0
         )

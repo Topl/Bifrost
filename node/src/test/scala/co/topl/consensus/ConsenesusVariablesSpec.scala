@@ -91,7 +91,7 @@ class ConsenesusVariablesSpec
     val probe = createTestProbe[State]()
     val store = InMemoryKeyValueStore.empty()
     val consensusStorageRef = spawn(
-      NxtConsensus(settings, appContext.networkType, store),
+      NxtConsensus(settings, appContext.networkType, store, nxtLeaderElection, protocolVersioner),
       NxtConsensus.actorName
     )
     val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head)
@@ -109,7 +109,7 @@ class ConsenesusVariablesSpec
 
     // initialize a new consensus actor with the modified InMemoryKeyValueStore
     val newConsensusStorageRef = spawn(
-      NxtConsensus(settings, appContext.networkType, store),
+      NxtConsensus(settings, appContext.networkType, store, nxtLeaderElection, protocolVersioner),
       NxtConsensus.actorName
     )
     newConsensusStorageRef ! ReadState(probe.ref)
@@ -175,7 +175,9 @@ class ConsenesusVariablesSpec
         NxtConsensus(
           settings,
           appContext.networkType,
-          InMemoryKeyValueStore(settings.application.consensusStoreVersionsToKeep)
+          InMemoryKeyValueStore(settings.application.consensusStoreVersionsToKeep),
+          nxtLeaderElection,
+          protocolVersioner
         ),
         NxtConsensus.actorName
       )

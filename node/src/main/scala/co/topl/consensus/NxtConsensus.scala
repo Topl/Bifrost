@@ -39,24 +39,27 @@ object NxtConsensus {
     case class ReadState(replyTo: ActorRef[State]) extends ReceivableMessage
 
     case class WithView[T](f: NxtConsensus.View => T, replyTo: ActorRef[StatusReply[T]]) extends ReceivableMessage {
+
       private[consensus] def run(consensusView: NxtConsensus.View): Unit =
         replyTo.tell(
           Try(f(consensusView)).fold[StatusReply[T]](e => StatusReply.error(e), StatusReply.success)
         )
     }
 
-    case class UpdateState(blockId: ModifierId,
-                           stateUpdate: StateUpdate,
-                           replyTo: ActorRef[StatusReply[Done]]
-                          ) extends ReceivableMessage
+    case class UpdateState(blockId: ModifierId, stateUpdate: StateUpdate, replyTo: ActorRef[StatusReply[Done]])
+        extends ReceivableMessage
 
-    case class RollbackState(blockId: ModifierId, replyTo: ActorRef[StatusReply[State]])
-      extends ReceivableMessage
+    case class RollbackState(blockId: ModifierId, replyTo: ActorRef[StatusReply[State]]) extends ReceivableMessage
   }
 
   case class State(totalStake: Int128, difficulty: Long, inflation: Long, height: Long)
 
-  case class StateUpdate(totalStake: Option[Int128], difficulty: Option[Long], inflation: Option[Long], height: Option[Long])
+  case class StateUpdate(
+    totalStake: Option[Int128],
+    difficulty: Option[Long],
+    inflation:  Option[Long],
+    height:     Option[Long]
+  )
 
   case class View(state: State, leaderElection: NxtLeaderElection, protocolVersions: ProtocolVersioner)
 
@@ -68,10 +71,13 @@ object NxtConsensus {
    * @param networkType network type
    * @param storageOpt  optional KeyValueStore for manual initialization or testing
    */
-  def apply(settings: AppSettings,
-            networkType: NetworkType,
-            storage: KeyValueStore, leaderElection: NxtLeaderElection, protocolVersioner: ProtocolVersioner
-           ): Behavior[ReceivableMessage] =
+  def apply(
+    settings:          AppSettings,
+    networkType:       NetworkType,
+    storage:           KeyValueStore,
+    leaderElection:    NxtLeaderElection,
+    protocolVersioner: ProtocolVersioner
+  ): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
       implicit val ec: ExecutionContext = context.executionContext
 
@@ -95,9 +101,8 @@ object NxtConsensus {
 
       context.log.info(
         s"${Console.YELLOW}Consensus Storage actor transitioning to the operational state" +
-          s"${Console.RESET}"
+        s"${Console.RESET}"
       )
-
 
       active(storage, View(stateFromStorage(storage, defaultTotalStake), leaderElection, protocolVersioner))
     }
@@ -137,8 +142,8 @@ object NxtConsensus {
         val toUpdate: Seq[(Array[Byte], Array[Byte])] = Seq(
           encodedKeys.totalStake -> totalStake.toByteArray,
           encodedKeys.difficulty -> Longs.toByteArray(difficulty),
-          encodedKeys.inflation -> Longs.toByteArray(inflation),
-          encodedKeys.height -> Longs.toByteArray(height)
+          encodedKeys.inflation  -> Longs.toByteArray(inflation),
+          encodedKeys.height     -> Longs.toByteArray(height)
         )
 
         // Update the storage values
@@ -213,11 +218,11 @@ trait ConsensusReader {
 }
 
 trait ConsensusInterface extends ConsensusReader {
-  def update(blockId: ModifierId, stateUpdate: StateUpdate
-            ): EitherT[Future, ConsensusInterface.Failures.Update, Done]
+  def update(blockId: ModifierId, stateUpdate: StateUpdate): EitherT[Future, ConsensusInterface.Failures.Update, Done]
 }
 
 object ConsensusInterface {
+
   object Failures {
     case class Read(reason: Throwable)
 
@@ -227,11 +232,10 @@ object ConsensusInterface {
   }
 }
 
-class ActorConsensusInterface(actorRef: ActorRef[NxtConsensus.ReceivableMessage]
-                             )(implicit
-                               system: ActorSystem[_],
-                               timeout: Timeout
-                             ) extends ConsensusInterface {
+class ActorConsensusInterface(actorRef: ActorRef[NxtConsensus.ReceivableMessage])(implicit
+  system:                               ActorSystem[_],
+  timeout:                              Timeout
+) extends ConsensusInterface {
 
   import akka.actor.typed.scaladsl.AskPattern._
   import system.executionContext
@@ -247,9 +251,10 @@ class ActorConsensusInterface(actorRef: ActorRef[NxtConsensus.ReceivableMessage]
     )
   }
 
-  override def update(blockId: ModifierId,
-                      stateUpdate: StateUpdate
-                     ): EitherT[Future, ConsensusInterface.Failures.Update, Done] =
+  override def update(
+    blockId:     ModifierId,
+    stateUpdate: StateUpdate
+  ): EitherT[Future, ConsensusInterface.Failures.Update, Done] =
     EitherT.liftF(
       actorRef.askWithStatus[Done](
         NxtConsensus.ReceivableMessages.UpdateState(blockId, stateUpdate, _)

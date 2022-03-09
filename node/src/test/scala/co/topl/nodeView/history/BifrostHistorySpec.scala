@@ -1,9 +1,10 @@
 package co.topl.nodeView.history
 
+import co.topl.consensus.NxtConsensus
 import co.topl.consensus.NxtConsensus.State
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.utils.NodeGenerators
+import co.topl.utils.{Int128, NodeGenerators}
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
@@ -27,7 +28,14 @@ class BifrostHistorySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
       val block = blockTemp.copy(parentId = history.bestBlockId)
 
       history = history
-        .append(block, State(10000000, history.bestBlock.difficulty, 0L, history.bestBlock.height))
+        .append(
+          block,
+          NxtConsensus.View(
+            NxtConsensus.State(Int128(10000000), history.bestBlock.difficulty, 0L, history.bestBlock.height),
+            nxtLeaderElection,
+            protocolVersioner
+          )
+        )
         .get
         ._1
 

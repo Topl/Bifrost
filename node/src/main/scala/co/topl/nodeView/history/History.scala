@@ -82,8 +82,8 @@ class History(
    * @return the update history including `block` as the most recent block
    */
   override def append(
-                       block:           Block,
-                       consensusView: NxtConsensus.View
+    block:         Block,
+    consensusView: NxtConsensus.View
   ): Try[(History, ProgressInfo[Block])] = Try {
 
     log.debug(s"Trying to append block ${block.id} to history")
