@@ -12,7 +12,7 @@ import io.circe.{Decoder, Encoder}
 
 class SecurityRoot private (private val root: Array[Byte]) extends BytesSerializable {
 
-  require(root.length == SecurityRoot.size, "Invalid securityRoot")
+  require(root.length == SecurityRoot.size, "Invalid securityRoot length")
 
   type M = SecurityRoot
   lazy val serializer: BifrostSerializer[SecurityRoot] = SecurityRoot
