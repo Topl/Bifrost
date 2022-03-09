@@ -1,5 +1,7 @@
 package co.topl.api.program
 
+import cats.implicits._
+import co.topl.utils.implicits._
 import co.topl.api.RPCMockState
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.modifier.ModifierId
@@ -20,7 +22,7 @@ trait ProgramRPCMockState extends RPCMockState with should.Matchers {
   val publicKey: PublicKeyPropositionCurve25519 = propositionCurve25519Gen.sampleFirst()
   val address: Address = publicKey.address
 
-  val fees: Map[String, Int] = Map(publicKey.toString -> 500)
+  val fees: Map[String, Int] = Map(publicKey.show -> 500)
 
   val program: String =
     s"""

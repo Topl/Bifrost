@@ -1,5 +1,6 @@
 package co.topl.consensus
 
+import cats.implicits._
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.box.SimpleValue
@@ -7,6 +8,7 @@ import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.utils.Int128
 import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.TimeProvider.Time
+import co.topl.utils.implicits._
 
 import scala.collection.immutable.ListMap
 import scala.util.Try
@@ -29,7 +31,7 @@ object ArbitReward {
       fee,
       forgeTime,
       // the underscore is for letting miners add their own message in the future
-      Some(Latin1Data.unsafe(parentId.toString + "_")),
+      Some(Latin1Data.unsafe(parentId.show + "_")),
       minting = true
     )
 }
@@ -50,7 +52,7 @@ object PolyReward {
       fee,
       forgeTime,
       // the underscore is for letting miners add their own message in the future
-      Some(Latin1Data.unsafe(parentId.toString + "_")),
+      Some(Latin1Data.unsafe(parentId.show + "_")),
       minting = true
     )
 }

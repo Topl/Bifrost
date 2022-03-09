@@ -238,5 +238,7 @@ object SizedBytes {
     implicit val byteVector4: SizedBytes[ByteVector4] = ByteVector4.sizedBytes
   }
 
-  object implicits extends Instances with SizedBytes.ToSizedBytesOps
+  trait Implicits extends Instances with SizedBytes.ToSizedBytesOps
+
+  object implicits extends Implicits
 }

@@ -1,5 +1,7 @@
 package co.topl.network.peer
 
+import co.topl.network.codecs.legacy.peer.LocalAddressPeerFeatureSerializer
+
 import java.net.InetSocketAddress
 
 case class LocalAddressPeerFeature(address: InetSocketAddress) extends PeerFeature {
@@ -11,4 +13,6 @@ case class LocalAddressPeerFeature(address: InetSocketAddress) extends PeerFeatu
 
 object LocalAddressPeerFeature {
   val featureId: PeerFeature.Id = 2: Byte
+
+  val addressLength: Int = 4
 }
