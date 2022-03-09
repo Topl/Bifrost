@@ -2,28 +2,28 @@ import sbt._
 
 object Dependencies {
 
-  val akkaVersion = "2.6.17"
-  val akkaHttpVersion = "10.2.7"
+  val akkaVersion = "2.6.18"
+  val akkaHttpVersion = "10.2.9"
   val circeVersion = "0.14.1"
-  val kamonVersion = "2.4.2"
+  val kamonVersion = "2.5.0"
   val graalVersion = "21.1.0"
   val simulacrumVersion = "1.0.1"
 
   val logging = Seq(
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.4",
-    "ch.qos.logback"              % "logback-classic" % "1.2.7",
-    "ch.qos.logback"              % "logback-core"    % "1.2.7",
-    "org.slf4j"                   % "slf4j-api"       % "1.7.32"
+    "ch.qos.logback"              % "logback-classic" % "1.2.11",
+    "ch.qos.logback"              % "logback-core"    % "1.2.11",
+    "org.slf4j"                   % "slf4j-api"       % "1.7.36"
   )
 
   val test = Seq(
-    "org.scalatest"      %% "scalatest"         % "3.2.10"  % "test",
-    "org.scalactic"      %% "scalactic"         % "3.2.10"  % "test",
+    "org.scalatest"      %% "scalatest"         % "3.2.11"  % "test",
+    "org.scalactic"      %% "scalactic"         % "3.2.11"  % "test",
     "org.scalacheck"     %% "scalacheck"        % "1.15.4"  % "test",
     "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
     "com.spotify"         % "docker-client"     % "8.16.0"  % "test",
     "org.asynchttpclient" % "async-http-client" % "2.12.3"  % "test",
-    "org.scalamock"      %% "scalamock"         % "5.1.0"   % "test",
+    "org.scalamock"      %% "scalamock"         % "5.2.0"   % "test",
     "com.ironcorelabs"   %% "cats-scalatest"    % "3.1.1"   % "test"
   )
 
@@ -59,9 +59,9 @@ object Dependencies {
   )
 
   val misc = Seq(
-    "com.chuusai"     %% "shapeless" % "2.3.7",
+    "com.chuusai"     %% "shapeless" % "2.3.8",
     "com.iheart"      %% "ficus"     % "1.5.2",
-    "com.google.guava" % "guava"     % "31.0.1-jre",
+    "com.google.guava" % "guava"     % "31.1-jre",
     "io.estatico"     %% "newtype"   % "0.4.4"
   )
 
@@ -82,8 +82,8 @@ object Dependencies {
     Seq(
       "com.typesafe.akka"          %% "akka-cluster"       % akkaVersion,
       "com.typesafe.akka"          %% "akka-remote"        % akkaVersion,
-      "com.typesafe"                % "config"             % "1.4.1",
-      "com.lihaoyi"                %% "mainargs"           % "0.2.1",
+      "com.typesafe"                % "config"             % "1.4.2",
+      "com.lihaoyi"                %% "mainargs"           % "0.2.2",
       "net.jpountz.lz4"             % "lz4"                % "1.3.0",
       "com.github.julien-truffaut" %% "monocle-core"       % "3.0.0-M6",
       "com.github.julien-truffaut" %% "monocle-macro"      % "3.0.0-M6",
@@ -129,7 +129,7 @@ object Dependencies {
 
   lazy val akkaHttpRpc: Seq[ModuleID] =
     Seq(
-      "de.heikoseeberger"      %% "akka-http-circe"         % "1.38.2",
+      "de.heikoseeberger"      %% "akka-http-circe"         % "1.39.2",
       "io.circe"               %% "circe-optics"            % circeVersion,
       "io.circe"               %% "circe-generic"           % circeVersion,
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.6.0"
@@ -178,7 +178,7 @@ object Dependencies {
 
   lazy val loadTesting: Seq[ModuleID] = {
     Seq(
-      "com.lihaoyi"    %% "mainargs" % "0.2.1",
+      "com.lihaoyi"    %% "mainargs" % "0.2.2",
       "com.nike.fleam" %% "fleam"    % "7.0.0"
     ) ++
     akka ++
