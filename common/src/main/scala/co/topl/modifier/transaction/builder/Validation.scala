@@ -4,8 +4,14 @@ import co.topl.attestation.Address
 import co.topl.modifier.box.{AssetBox, AssetCode, Box}
 import co.topl.utils.Int128
 import cats.implicits._
+import co.topl.models.Transaction
 
 object Validation {
+
+  def validateNonEmptyPolyInputNonces(
+    polyInputs: List[Box.Nonce]
+  ): Either[BuildTransferFailure, List[Box.Nonce]] =
+    Either.cond(polyInputs.nonEmpty, polyInputs, BuildTransferFailures.EmptyPolyInputs)
 
   def validateUniqueInputNonces(
     inputs: List[Box.Nonce]

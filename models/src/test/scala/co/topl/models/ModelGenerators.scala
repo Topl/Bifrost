@@ -1,6 +1,6 @@
 package co.topl.models
 
-import cats.data.NonEmptyChain
+import cats.data.{Chain, NonEmptyChain}
 import co.topl.models.Transaction.{ArbitOutput, AssetOutput, CoinOutput, PolyOutput}
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
@@ -329,7 +329,16 @@ trait ModelGenerators {
 
   implicit val arbitraryPolyOutput: Arbitrary[PolyOutput] =
     Arbitrary(
-      arbitraryDionAddress.arbitrary.flatMap(a => arbitraryInt128.arbitrary.map(v => Transaction.PolyOutput(a, v)))
+      arbitraryDionAddress.arbitrary.flatMap(a =>
+        arbitraryPositiveInt128.arbitrary.map(v => Transaction.PolyOutput(a, v))
+      )
+    )
+
+  implicit val arbitraryPolysOutput: Arbitrary[NonEmptyChain[PolyOutput]] =
+    Arbitrary(
+      Gen
+        .zip(arbitraryPolyOutput.arbitrary, Gen.listOf(arbitraryPolyOutput.arbitrary))
+        .map(polys => NonEmptyChain.one(polys._1).appendChain(Chain.fromSeq(polys._2)))
     )
 
   implicit val arbitraryArbitOutput: Arbitrary[ArbitOutput] =

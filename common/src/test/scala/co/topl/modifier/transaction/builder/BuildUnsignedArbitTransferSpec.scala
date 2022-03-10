@@ -68,8 +68,8 @@ class BuildUnsignedArbitTransferSpec
   }
 
   it should "return invalid if no input arbit boxes" in {
-    forAll(addressGen, addressGen) { (sender, recipient) =>
-      val boxReader = MockBoxReader.empty
+    forAll(polyBoxesGen, addressGen, addressGen) { (polyBoxes, sender, recipient) =>
+      val boxReader = MockBoxReader.fromNec(sender -> polyBoxes)
 
       val arbitsToSend = 1
 

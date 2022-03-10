@@ -4,7 +4,7 @@ import cats.implicits._
 import co.topl.attestation.Address
 import co.topl.attestation.implicits._
 import co.topl.models.BoxReference
-import co.topl.modifier.box.AssetCode
+import co.topl.modifier.box.{AssetCode, Box}
 import co.topl.modifier.transaction.builder.BoxSet
 import co.topl.utils.Int128
 
@@ -40,8 +40,14 @@ class BoxSetOps(private val value: BoxSet) extends AnyVal {
 
   def arbitSum: Int128 = value.arbits.map(_._2.value.quantity).sum
 
-  def assetSum: Map[AssetCode, Int128] =
+  def assetSums: Map[AssetCode, Int128] =
     value.assets.groupMapReduce(_._2.value.assetCode)(_._2.value.quantity)(_ + _)
+
+  def polyNonces: List[Box.Nonce] = value.polys.map(_._2.nonce)
+
+  def arbitNonces: List[Box.Nonce] = value.arbits.map(_._2.nonce)
+
+  def assetNonces: List[Box.Nonce] = value.assets.map(_._2.nonce)
 }
 
 object BoxSetOps {

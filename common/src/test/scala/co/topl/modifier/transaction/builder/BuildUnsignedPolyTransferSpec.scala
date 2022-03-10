@@ -96,7 +96,7 @@ class BuildUnsignedPolyTransferSpec
         TransferBuilder
           .buildUnsignedPolyTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
 
-      result.left.value shouldBe BuildTransferFailures.InsufficientPolyFunds(0, polysToSend)
+      result.left.value shouldBe BuildTransferFailures.EmptyPolyInputs
     }
   }
 

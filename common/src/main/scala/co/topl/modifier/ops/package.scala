@@ -8,6 +8,7 @@ package object ops {
       with SimpleValueOps.Implicits
       with AssetValueOps.Implicits
       with AssetOps.Implicits
+      with AssetCodeOps.Implicits
 
   object implicits extends Implicits
 }
