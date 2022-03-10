@@ -1,4 +1,4 @@
-package co.topl.consensus
+package co.topl.algebras
 
 import cats.data.Chain
 import co.topl.codecs.bytes.typeclasses.Persistable

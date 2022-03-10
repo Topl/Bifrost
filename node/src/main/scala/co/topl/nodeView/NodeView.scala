@@ -61,8 +61,6 @@ case class NodeView(
 
   protected val log: Logger = LoggerFactory.getLogger(this.getClass)
 
-  // todo: this method causes delays in a block processing as it removes transactions from mempool and checks
-  // todo: validity of remaining transactions in a synchronous way. Do this job async!
   protected[nodeView] def updateMemPool(
     blocksRemoved:          Seq[Block],
     blocksApplied:          Seq[Block],

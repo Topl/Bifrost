@@ -8,7 +8,7 @@ import co.topl.codecs.bytes.tetra.instances._
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras.{ClockAlgebra, ConsensusState, UnsafeResource}
-import co.topl.consensus.SecureStore
+import co.topl.algebras.SecureStore
 import co.topl.consensus.algebras.EtaCalculationAlgebra
 import co.topl.crypto.mnemonic.Entropy
 import co.topl.crypto.signing._

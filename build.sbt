@@ -201,7 +201,9 @@ lazy val bifrost = project
     crypto,
     brambl,
     models,
+    eventTree,
     algebras,
+    commonInterpreters,
     minting,
     byteCodecs,
     tetraByteCodecs,
@@ -297,6 +299,21 @@ lazy val models = project
   )
   .settings(libraryDependencies ++= Dependencies.test)
 
+lazy val eventTree = project
+  .in(file("event-tree"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "event-tree",
+    commonSettings,
+    crossScalaVersions := Seq(scala213),
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.eventtree"
+  )
+  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsEffect)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(models, typeclasses, algebras, commonInterpreters % "test->test")
+
 lazy val byteCodecs = project
   .in(file("byte-codecs"))
   .enablePlugins(BuildInfoPlugin)
@@ -366,7 +383,6 @@ lazy val algebras = project
   .settings(
     name := "algebras",
     commonSettings,
-    crossScalaVersions := Seq(scala213),
     publishSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.algebras"
@@ -374,6 +390,21 @@ lazy val algebras = project
   .settings(libraryDependencies ++= Dependencies.test ++ Seq(Dependencies.catsSlf4j % "test"))
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, crypto, tetraByteCodecs)
+
+lazy val commonInterpreters = project
+  .in(file("common-interpreters"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "common-interpreters",
+    commonSettings,
+    crossScalaVersions := Seq(scala213),
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.commoninterpreters"
+  )
+  .settings(libraryDependencies ++= Dependencies.commonInterpreters)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(models, algebras, typeclasses, byteCodecs, tetraByteCodecs)
 
 lazy val consensus = project
   .in(file("consensus"))
@@ -442,7 +473,7 @@ lazy val demo = project
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.demo ++ Dependencies.catsEffect)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models % "compile->compile;test->test", typeclasses, consensus, minting, scripting)
+  .dependsOn(models % "compile->compile;test->test", typeclasses, consensus, minting, scripting, commonInterpreters)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
 lazy val scripting: Project = project
@@ -455,10 +486,9 @@ lazy val scripting: Project = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.scripting"
   )
-  .settings(libraryDependencies ++= Dependencies.graal ++ Dependencies.catsEffect)
+  .settings(libraryDependencies ++= Dependencies.graal ++ Dependencies.catsEffect ++ Dependencies.circe ++ Dependencies.simulacrum)
   .settings(libraryDependencies ++= Dependencies.test)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models % "compile->compile;test->test", typeclasses)
 
 lazy val toplRpc = project
   .in(file("topl-rpc"))
