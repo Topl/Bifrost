@@ -2,15 +2,14 @@ package co.topl.consensus.genesis
 
 import akka.actor.typed.ActorSystem
 import akka.util.Timeout
-import co.topl.consensus.ConsensusVariables.ConsensusParamsUpdate
 import co.topl.consensus.Forger.ChainParams
 import co.topl.consensus.KeyManager.StartupKeyView
-import co.topl.consensus.{ConsensusVariablesHolder, NxtLeaderElection}
+import co.topl.consensus.{ConsensusInterface, NxtConsensus, NxtLeaderElection}
 import co.topl.modifier.block.Block
 import co.topl.settings.AppSettings
 import co.topl.settings.GenesisStrategy.{FromBlockJson, Generated}
 import co.topl.utils.NetworkType
-import co.topl.utils.NetworkType.{HelTestnet, Mainnet, NetworkPrefix, PrivateTestnet, ValhallaTestnet}
+import co.topl.utils.NetworkType._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
@@ -21,9 +20,8 @@ object GenesisCreator {
     settings:                    AppSettings,
     networkType:                 NetworkType,
     fetchStartupKeyView:         () => Future[StartupKeyView],
-    consensusVariablesInterface: ConsensusVariablesHolder
+    consensusVariablesInterface: ConsensusInterface
   )(implicit
-    nxtLeaderElection: NxtLeaderElection,
     system:            ActorSystem[_],
     ec:                ExecutionContext
   ): Future[Block] = {
@@ -36,7 +34,7 @@ object GenesisCreator {
 
       Future.fromTry(block).flatMap { case (block: Block, ChainParams(totalStake, initDifficulty)) =>
         consensusVariablesInterface
-          .update(block.id, ConsensusParamsUpdate(Some(totalStake), Some(initDifficulty), Some(0L), Some(0L)))
+          .update(block.id, NxtConsensus.StateUpdate(Some(totalStake), Some(initDifficulty), Some(0L), Some(0L)))
           .valueOrF(e => Future.failed(e.reason))
           .map(_ => block)
       }
