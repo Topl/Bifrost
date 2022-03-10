@@ -30,10 +30,6 @@ object Propositions {
     case class RequiredBoxState(location: BoxLocation, boxes: List[(Int, Box[Box.Value])]) extends Proposition
   }
 
-//  object Example {
-//    case class EnumeratedInput(values: List[Int]) extends Proposition
-//  }
-
   object Script {
     case class JS(script: JS.JSScript) extends Proposition
 

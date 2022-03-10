@@ -1,4 +1,4 @@
-package co.topl.demo
+package co.topl.interpreters
 
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import cats.arrow.FunctionK
