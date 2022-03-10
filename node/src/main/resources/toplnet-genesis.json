@@ -1,9 +1,9 @@
 {
   "header":{
     "txRoot":"4CjVHStjXyMG9n7eBhW2AokBE1GdC8umJTC7Z15eAk1R",
-    "bloomFilter":"12Ljx5dsin6mWGgoFzrWpjM5t4uNZUMeb7rMWdQ7VaVLii82duoj7C2TujZxCuF5qVzMxnAkKqrCxsPYExX2SaqnAswc3scSXTsXxedrxop8sEypqnTjPNpxxr7FSQCeLCkYCje2cBEdEBx8mf6eeY2LDkJ73BFKmKXbQfWeZtdroGQ2km18Gqs53CGJBE9QVDJwKox5gWyxVLYwUyeSbnmJpYvRM7EbjexTy56nd3cpuBf5KFzPyngZHWQRZSpKKRFdvWGa6xvd1fo2mwaA8D4hCzcZ6cy79f8mj5p5bGrgyFcf692XUwMNrzbsd3M1YqThm3V3JCFgebK3oZZsUgopbsYVEf",
+    "bloomFilter":"5CQb1uWuXUU3qE3y6nLWjhnj77dMiQk9gTtSptqr5pHCUqvZsPtbdWUNwYT6ZQm4VJNBDqgeAT2Exiev4c7WX8LeCvWVEz1FDd4usghkQXGA8AHzaKqq7vd7faiqRwC9VbYWX8XEeXAAQBekRZDzDNxbppS5gqWyVcpF7uC5SMScjFqijJdMvpR7qwVqz5NpWWn7NxNNCJkKYf7s1tmwFV4dG7M2MaYeFFog1rgU67FoycdooqHEQP6w7FZdvMF8EjWgjuyfkfog7wNymgA53jcK1GJXBVkWW89HJmEA1XHAh",
     "generatorBox":{
-      "nonce":"0",
+      "nonce":0,
       "id":"8qrSrPKzKbwiLDWCLfLux1giJiatcZVrFgPpFvPCH8Wq",
       "evidence":"YsNNetNtva9oWNfs9DQ414p63nNwnoKwKa4ETh5Xu2TE",
       "type":"ArbitBox",
@@ -14,12 +14,12 @@
     },
     "version":1,
     "id":"228AWnLyoHdV3hzNaJmABsmB4VoS9rxPREA3AofbZnJob",
-    "publicKey":"JN9xnPgcyeLDrGHS6mq8myM3jp4j6LSjbsHdygWy1cth",
+    "publicKey":"8qbHbw2BbbTHBW1sbeqakYXVKRQM8Ne7pLK7m6CVfeR",
     "parentId":"tksQdfioySWXrLbm7prosYBKze9Augu71ZXde9KuJC4Y",
     "difficulty":1000000000000000000,
     "timestamp":0,
     "height":1,
-    "signature":"692M9bkLf8sJ37SAUsgsTh37T1PTTmKyixMrtN48rUFEYH9E9Cff6MAQbp519jfDYuFsH7Pp3eX6zNRdJv7bjvBS"
+    "signature":"2AXDGYSE4f2sz7tvMMzyHvUfcoJmxudvdhBcmiUSo6ijwfYmfZYsKRxboQMPh3R4kUhXRVdtSXFXMheka4Rc4P2"
   },
   "body":{
     "id":"228AWnLyoHdV3hzNaJmABsmB4VoS9rxPREA3AofbZnJob",
@@ -33,7 +33,7 @@
         },
         "newBoxes":[
           {
-            "nonce":"-2082354150813152515",
+            "nonce":-2082354150813152515,
             "id":"ELuEu3TBMEGzu7QqDFVAF6mjDL2eu8gj91xFrJp59sTd",
             "evidence":"JG35Qpa66asbKnvmDUC6vgTZjcYF5iYB7QXbGxN4gFN2",
             "type":"ArbitBox",
@@ -43,7 +43,7 @@
             }
           },
           {
-            "nonce":"-1022347197045362381",
+            "nonce":-1022347197045362381,
             "id":"EJoXbCx2v6ietGJru6nqpJjB8x4t3ABMuKUoBBL8pd7s",
             "evidence":"QNbR8nLcAWaVWWBJVwKez4F5iU9gpmv3urjBUM4ULemW",
             "type":"ArbitBox",
@@ -53,7 +53,7 @@
             }
           },
           {
-            "nonce":"-9159076465667901239",
+            "nonce":-9159076465667901239,
             "id":"6RvB8JStdTvaRr6dLzyBoSNZAJixbF6gcDDL5Er5i8U4",
             "evidence":"NTt4UT8EvGuL7ma4HCfSGVmWcmNKxx5cBHvDjDmgtk4t",
             "type":"ArbitBox",
@@ -63,7 +63,7 @@
             }
           },
           {
-            "nonce":"-3442597734742762895",
+            "nonce":-3442597734742762895,
             "id":"HEcp7wPm65aSgXAE795nxhLtRiTAwWS7kEKJHeoRjf5j",
             "evidence":"M9WM8d9RSGQHzx5Y539NxJGg7mtFwiGNSr3j5Jb18BLz",
             "type":"ArbitBox",
@@ -73,7 +73,7 @@
             }
           },
           {
-            "nonce":"5211780637118315406",
+            "nonce":5211780637118315406,
             "id":"EnVsnFkPYyeQqY8Msj9fk2xSGM9uURz262DmidxJg4PR",
             "evidence":"KrM5fuQruHzXbXmgwUB1aXFaUnncQ8A1uH3PW7v8PmbT",
             "type":"ArbitBox",
@@ -83,7 +83,7 @@
             }
           },
           {
-            "nonce":"6192622283292330446",
+            "nonce":6192622283292330446,
             "id":"6yTScNNVbRGPuFhr4Ds9Y4BRd6DpEcVyT28vRCdo5Q3E",
             "evidence":"TRqhifXnNjhw15ELVihsovDp9nZ8Qo9LJVs2K7mPnF5D",
             "type":"ArbitBox",
@@ -93,7 +93,7 @@
             }
           },
           {
-            "nonce":"-2738345987285926199",
+            "nonce":-2738345987285926199,
             "id":"GcdvntfWqP4vE6JBmPmKxidWupVVjwKbbmA63Az3FR6d",
             "evidence":"XagAcMP8E7ag6aJYjHRpqcPdxTxaRZqmanPZpCi36k3A",
             "type":"ArbitBox",
@@ -103,7 +103,7 @@
             }
           },
           {
-            "nonce":"-7028078984054333839",
+            "nonce":-7028078984054333839,
             "id":"kMSqND3876jTzVCRnKQMNXVbfuUuRBG9uTZ8wgJpeX5",
             "evidence":"KLmGvDJZALRVnSQKgaAijRJoFomtQha7Md2Rgx4Dcp46",
             "type":"ArbitBox",
@@ -113,7 +113,7 @@
             }
           },
           {
-            "nonce":"-1063807144321497201",
+            "nonce":-1063807144321497201,
             "id":"59EnBcMzP2m1xXkCdkUF3DWXHuZTVFaNxUT89c4S3MRx",
             "evidence":"JsBNkzuE3ZEiZwz9w9oTyDxbx2z9D82QJgySTAVNASgA",
             "type":"ArbitBox",
@@ -123,7 +123,7 @@
             }
           },
           {
-            "nonce":"632651921866009156",
+            "nonce":632651921866009156,
             "id":"gs57HikEpiYk3KH4o8Wtzh5fdy1JAt6C1QvEm5VjySp",
             "evidence":"N8qsC2LiS7CdGufbQAqhFurRU3YGQvgDwS1KBN2Hb3Lm",
             "type":"ArbitBox",
@@ -133,7 +133,7 @@
             }
           },
           {
-            "nonce":"-4712188402757529812",
+            "nonce":-4712188402757529812,
             "id":"FAPDKBNGrgxP1EaNCSCXDGWZbCzhTjNRMDc5ZdjQqZHf",
             "evidence":"Pox66faxXPFti3xLQWwAsz3FTDUptKoNEHdBdiB8TqfW",
             "type":"ArbitBox",
@@ -143,7 +143,7 @@
             }
           },
           {
-            "nonce":"3105102118954928728",
+            "nonce":3105102118954928728,
             "id":"Bp5eTKxaE4oeMYbxY1t9r9zi5ZvxPcf1rXXYto8JbUbf",
             "evidence":"LLzxeVkAnpM29ipXxVpNna3b6NsrJJyHLQaXFRmnaHex",
             "type":"ArbitBox",
@@ -153,7 +153,7 @@
             }
           },
           {
-            "nonce":"7461135863125723651",
+            "nonce":7461135863125723651,
             "id":"8fjgc9uWJUWkwf27jJixznGSVGv4i1atz1GgEoNtjT6o",
             "evidence":"bRqeHXnS47cruAn1qWDUzNPNQiDopG88fgUf5Zd9fbGU",
             "type":"ArbitBox",
@@ -163,7 +163,7 @@
             }
           },
           {
-            "nonce":"-2147025221310441128",
+            "nonce":-2147025221310441128,
             "id":"XnqFvshhUg5UfEAQyoduT92CZi2dnRSVwxqEXkWTRt8",
             "evidence":"QK9PFE67xEwrCJ5hwqsUnZx8kyWaCCrbGq45k3fuQWKD",
             "type":"ArbitBox",
@@ -173,7 +173,7 @@
             }
           },
           {
-            "nonce":"1676351388772641752",
+            "nonce":1676351388772641752,
             "id":"7aBxMm8iSWyRbAzrieqvgDc1RNebbCE46xFReQaJXC9e",
             "evidence":"QyhV3NbzKCsQxAadFFeCV3rLEYAbrkT1hwJFtdQcfoyQ",
             "type":"ArbitBox",
@@ -183,7 +183,7 @@
             }
           },
           {
-            "nonce":"-4671923191514706330",
+            "nonce":-4671923191514706330,
             "id":"6VpHZsS8QPNfN43sbKveChBTPcuia5aKK3HVS6HDSiqg",
             "evidence":"ZSf3dQ3qAPwLX3zHFhyBkHhjBi3jXR2e2uxTDDQUMbQc",
             "type":"ArbitBox",
@@ -193,7 +193,7 @@
             }
           },
           {
-            "nonce":"-4235321091125547395",
+            "nonce":-4235321091125547395,
             "id":"68ddrRexxYDnfm53RiwRn5qWxAe1BYRs6Zsjt3Hm4QyV",
             "evidence":"X6jGMcmRyJeNhYiE99NtMDw8trg2VWiMt6FxbALjYkSi",
             "type":"ArbitBox",
@@ -203,7 +203,7 @@
             }
           },
           {
-            "nonce":"3050339547103954135",
+            "nonce":3050339547103954135,
             "id":"4vTj3gvV3JX4fegAW4FK4zCEDvXoUFWa2k48aUN4cZ5f",
             "evidence":"XdeL8x5MceWPxVdVeMwEyrvXDMkYU8wGtNQCiPvnEUc3",
             "type":"ArbitBox",
@@ -213,7 +213,7 @@
             }
           },
           {
-            "nonce":"1906228221748792223",
+            "nonce":1906228221748792223,
             "id":"EMF7iec5AngArtueoERGFkKyxc3LYzE6gEVKmTfNRhmS",
             "evidence":"UFE3uNrcYASeAWtZg5dcxjwSYCkefYaBRpzWULwwyQVa",
             "type":"ArbitBox",
@@ -223,7 +223,7 @@
             }
           },
           {
-            "nonce":"-4987242160361933507",
+            "nonce":-4987242160361933507,
             "id":"34Ri5FDkv5Y47Znbdu3XT4bq4M37bJ2Q2m3zhFoGbJCn",
             "evidence":"SYPCKKh5dzqKjYGQnNf8A7FfbAcPCAocZZNSN2ahnCCU",
             "type":"ArbitBox",
@@ -402,7 +402,7 @@
         },
         "newBoxes":[
           {
-            "nonce":"-7583390386236392593",
+            "nonce":-7583390386236392593,
             "id":"78o76x179jyGEBAB2g9FHaKPpYijY7F45fEUE3PKBrus",
             "evidence":"JG35Qpa66asbKnvmDUC6vgTZjcYF5iYB7QXbGxN4gFN2",
             "type":"PolyBox",
@@ -412,7 +412,7 @@
             }
           },
           {
-            "nonce":"7969292424973020400",
+            "nonce":7969292424973020400,
             "id":"7GeWZbpw5arygo1TRiopvjMfURxWSVo1mukW821B1BMH",
             "evidence":"QNbR8nLcAWaVWWBJVwKez4F5iU9gpmv3urjBUM4ULemW",
             "type":"PolyBox",
@@ -422,7 +422,7 @@
             }
           },
           {
-            "nonce":"7750101586306631723",
+            "nonce":7750101586306631723,
             "id":"4sy9jqHRa9yKhzXvvY6d3S2XNMTaPhL7fy3Au2VQLw1t",
             "evidence":"NTt4UT8EvGuL7ma4HCfSGVmWcmNKxx5cBHvDjDmgtk4t",
             "type":"PolyBox",
@@ -432,7 +432,7 @@
             }
           },
           {
-            "nonce":"4767595726154610060",
+            "nonce":4767595726154610060,
             "id":"M1NQHeotECm3evLoQ4hLv5nEbLs6qZTmXDnTUvm3jdA",
             "evidence":"M9WM8d9RSGQHzx5Y539NxJGg7mtFwiGNSr3j5Jb18BLz",
             "type":"PolyBox",
@@ -442,7 +442,7 @@
             }
           },
           {
-            "nonce":"2630159458189048846",
+            "nonce":2630159458189048846,
             "id":"CrVvPCxdGE6qM9LkNxVKkyoMsF3gFfLzhTFSxBHnrzTD",
             "evidence":"KrM5fuQruHzXbXmgwUB1aXFaUnncQ8A1uH3PW7v8PmbT",
             "type":"PolyBox",
@@ -452,7 +452,7 @@
             }
           },
           {
-            "nonce":"2554848147682096396",
+            "nonce":2554848147682096396,
             "id":"4LBAhJmc7fjKCz7D9N16xJK1P69JmpNrMJSLHjtH2BqF",
             "evidence":"TRqhifXnNjhw15ELVihsovDp9nZ8Qo9LJVs2K7mPnF5D",
             "type":"PolyBox",
@@ -462,7 +462,7 @@
             }
           },
           {
-            "nonce":"-7183361756457193850",
+            "nonce":-7183361756457193850,
             "id":"DcHdUXDq4te4HvkrsF5kR1K1KhV1aAjePR7o3v3ahvxp",
             "evidence":"XagAcMP8E7ag6aJYjHRpqcPdxTxaRZqmanPZpCi36k3A",
             "type":"PolyBox",
@@ -472,7 +472,7 @@
             }
           },
           {
-            "nonce":"640575933084298873",
+            "nonce":640575933084298873,
             "id":"FzPTm3KnJ9W1pkRHvHQduPnMV5yXBEnsEK7f1Uj7V1we",
             "evidence":"KLmGvDJZALRVnSQKgaAijRJoFomtQha7Md2Rgx4Dcp46",
             "type":"PolyBox",
@@ -482,7 +482,7 @@
             }
           },
           {
-            "nonce":"4537410223110818381",
+            "nonce":4537410223110818381,
             "id":"C2PjjxXvUYHX1rCP2mrrQuR5YeaUVpT7YR5EA2iY1831",
             "evidence":"JsBNkzuE3ZEiZwz9w9oTyDxbx2z9D82QJgySTAVNASgA",
             "type":"PolyBox",
@@ -492,7 +492,7 @@
             }
           },
           {
-            "nonce":"6247990739483366931",
+            "nonce":6247990739483366931,
             "id":"9AxpvaBT6AGTkhFShiMrv4vHaV22e5ACa66kZCfiAYzw",
             "evidence":"N8qsC2LiS7CdGufbQAqhFurRU3YGQvgDwS1KBN2Hb3Lm",
             "type":"PolyBox",
@@ -502,7 +502,7 @@
             }
           },
           {
-            "nonce":"-276484983974921900",
+            "nonce":-276484983974921900,
             "id":"74WSxe5yZNHPPow99NFzmK2Xs6z5pBnAkcTJMtW3Yein",
             "evidence":"Pox66faxXPFti3xLQWwAsz3FTDUptKoNEHdBdiB8TqfW",
             "type":"PolyBox",
@@ -512,7 +512,7 @@
             }
           },
           {
-            "nonce":"7373732075526133565",
+            "nonce":7373732075526133565,
             "id":"9JHiHHqrP6X8Q1WB1kkfNqjTeaATTY2YLPQr7cxWnz8x",
             "evidence":"LLzxeVkAnpM29ipXxVpNna3b6NsrJJyHLQaXFRmnaHex",
             "type":"PolyBox",
@@ -522,7 +522,7 @@
             }
           },
           {
-            "nonce":"-5348360361083376251",
+            "nonce":-5348360361083376251,
             "id":"56qzEaaKu24UFuWAN4xisGDqMs4HLHsn4yXR9smsY3tL",
             "evidence":"bRqeHXnS47cruAn1qWDUzNPNQiDopG88fgUf5Zd9fbGU",
             "type":"PolyBox",
@@ -532,7 +532,7 @@
             }
           },
           {
-            "nonce":"-2800002045728649352",
+            "nonce":-2800002045728649352,
             "id":"DMmqCjMmQcVnerCVEDkyDq1c1qJuYpesXY6VNFKoWWzk",
             "evidence":"QK9PFE67xEwrCJ5hwqsUnZx8kyWaCCrbGq45k3fuQWKD",
             "type":"PolyBox",
@@ -542,7 +542,7 @@
             }
           },
           {
-            "nonce":"-5764540936805341731",
+            "nonce":-5764540936805341731,
             "id":"93qx3Gqa32FwFBGATbwmk7p5eb276YYh392USeAXBLeW",
             "evidence":"QyhV3NbzKCsQxAadFFeCV3rLEYAbrkT1hwJFtdQcfoyQ",
             "type":"PolyBox",
@@ -552,7 +552,7 @@
             }
           },
           {
-            "nonce":"-6325765562305788753",
+            "nonce":-6325765562305788753,
             "id":"59jqfGMVaYRsoPLYLmSvvMbzDkVkYmwak1QNgqAgzFQH",
             "evidence":"ZSf3dQ3qAPwLX3zHFhyBkHhjBi3jXR2e2uxTDDQUMbQc",
             "type":"PolyBox",
@@ -562,7 +562,7 @@
             }
           },
           {
-            "nonce":"1340892870209227015",
+            "nonce":1340892870209227015,
             "id":"8Xddu9qseWo6yyRLZPYohAUQdVwrkNcifz248mS3tCem",
             "evidence":"X6jGMcmRyJeNhYiE99NtMDw8trg2VWiMt6FxbALjYkSi",
             "type":"PolyBox",
@@ -572,7 +572,7 @@
             }
           },
           {
-            "nonce":"-4919094449994629216",
+            "nonce":-4919094449994629216,
             "id":"Ewcv5rCkn9i7d45cb9yLn8utj76oyUmMwro9up3m7znP",
             "evidence":"XdeL8x5MceWPxVdVeMwEyrvXDMkYU8wGtNQCiPvnEUc3",
             "type":"PolyBox",
@@ -582,7 +582,7 @@
             }
           },
           {
-            "nonce":"-7069638501335492666",
+            "nonce":-7069638501335492666,
             "id":"3YsF2MsM7Gb8xFPpiexMD2ugb1DZgEMHgkmEXr3rdr6t",
             "evidence":"UFE3uNrcYASeAWtZg5dcxjwSYCkefYaBRpzWULwwyQVa",
             "type":"PolyBox",
@@ -592,7 +592,7 @@
             }
           },
           {
-            "nonce":"-1667974758967946467",
+            "nonce":-1667974758967946467,
             "id":"6HzLxaVDogzZrMnx8JkCmssCbLyvrsr435NtXoHrTcQU",
             "evidence":"SYPCKKh5dzqKjYGQnNf8A7FfbAcPCAocZZNSN2ahnCCU",
             "type":"PolyBox",
@@ -759,5 +759,5 @@
     ],
     "version":1
   },
-  "blockSize":2528
+  "blockSize":2527
 }
