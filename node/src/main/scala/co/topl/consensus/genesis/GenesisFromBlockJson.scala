@@ -1,7 +1,7 @@
 package co.topl.consensus.genesis
 
+import co.topl.codecs._
 import co.topl.consensus.Forger.ChainParams
-import co.topl.consensus.ProtocolVersioner
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
@@ -12,18 +12,20 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.{Int128, NetworkType}
 import io.circe.parser
+import io.circe.syntax.EncoderOps
 
 import scala.collection.immutable.ListMap
 import scala.util.Try
 
 case class GenesisFromBlockJson(
-  settings:     GenesisFromBlockJsonSettings,
-  networkType:  NetworkType
+  settings:    GenesisFromBlockJsonSettings,
+  networkType: NetworkType
 ) extends GenesisProvider {
 
   implicit override val networkPrefix: NetworkPrefix = networkType.netPrefix
 
-  override protected val blockChecksum: ModifierId = ModifierId.fromBase58(Base58Data.unsafe(settings.blockChecksum))
+  override protected val blockChecksum: ModifierId =
+    Base58Data.unsafe(settings.blockChecksum).encodeAsBytes.decodeTransmitted[ModifierId].getOrThrow()
 
   val block: Block = {
     val blockFromJson = readJson(settings.providedJsonGenesisPath)(networkType.netPrefix)
