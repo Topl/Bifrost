@@ -122,7 +122,7 @@ object NodeView {
   ): Future[NodeView] = {
     implicit def networkPrefix: NetworkPrefix = networkType.netPrefix
     GenesisCreator
-      .getGenesisBlock(settings, networkType, startupKeyView, consensusVariablesInterface)
+      .genesisBlock(settings, networkType, startupKeyView, consensusVariablesInterface)
       .map(genesis(settings, networkType, _))
   }
 

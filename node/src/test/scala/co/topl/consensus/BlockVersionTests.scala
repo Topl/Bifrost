@@ -56,7 +56,7 @@ class BlockVersionTests extends MockState with NodeGenerators with DiskKeyFileTe
       val currentBlock: Block = history.storage.modifierById(currentId).get
       currentId = currentBlock.parentId
       log.debug(s"${Console.MAGENTA}$currentBlock${Console.RESET}")
-      val versionConf = protocolMngr
+      val versionConf = nxtLeaderElection.protocolMngr
         .current(height)
         .getOrElse(throw new Error("Unable to find applicable protocol rules"))
         .blockVersion
