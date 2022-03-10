@@ -11,7 +11,6 @@ import akka.util.Timeout
 import co.topl.akkahttprpc.{ThrowableData, ThrowableSupport}
 import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
 import co.topl.consensus._
-import co.topl.db.LDBVersionedStore
 import co.topl.http.HttpService
 import co.topl.network._
 import co.topl.network.utils.NetworkTimeProvider
@@ -23,7 +22,6 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider
 import io.circe.Encoder
 
-import java.io.File
 import java.net.InetSocketAddress
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -39,13 +37,16 @@ object Heimdall {
 
   object ReceivableMessages {
     private[Heimdall] case object NodeViewHolderReady extends ReceivableMessage
+
     private[Heimdall] case object NetworkControllerReady extends ReceivableMessage
 
     private[Heimdall] case object BindExternalTraffic extends ReceivableMessage
+
     private[Heimdall] case class P2PTrafficBound(address: InetSocketAddress) extends ReceivableMessage
 
     private[Heimdall] case class RPCTrafficBound(httpService: HttpService, binding: Http.ServerBinding)
         extends ReceivableMessage
+
     case class Fail(throwable: Throwable) extends ReceivableMessage
   }
 
@@ -55,24 +56,25 @@ object Heimdall {
   def apply(settings: AppSettings, appContext: AppContext): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
       implicit def system: ActorSystem[_] = context.system
+
       implicit val timeout: Timeout = Timeout(10.minutes)
-
-      context.log.info("Initializing ProtocolVersioner and ConsensusStorage")
-
-      implicit val nxtLeaderElection: NxtLeaderElection = NxtLeaderElection(settings)
       implicit val timeProvider: NetworkTimeProvider = new NetworkTimeProvider(settings.ntp)(context.system)
 
-      context.log.info("Initializing KeyManager and NodeViewHolder")
+      context.log.info("Initializing ProtocolVersioner, ConsensusStorage, KeyManager, and NodeViewHolder")
 
-      val state = prepareKeyManagerAndNodeViewActors(settings, appContext)
+      val consensusViewState = prepareConsensusViewRef(settings, appContext)
+      val state = prepareNodeViewRef(settings, appContext, consensusViewState)
+
       context.watch(state.keyManager)
       context.watch(state.nodeViewHolder)
-      context.watch(state.consensusStorage)
+      context.watch(state.consensusViewHolder)
+
       context.pipeToSelf(new ActorNodeViewHolderInterface(state.nodeViewHolder).onReady()) {
         case Failure(exception) => ReceivableMessages.Fail(exception)
         case Success(_)         => ReceivableMessages.NodeViewHolderReady
       }
-      awaitingNodeViewReady(settings, appContext, state)(timeProvider, nxtLeaderElection)
+
+      awaitingNodeViewReady(settings, appContext, state)(timeProvider)
     }
 
   /**
@@ -82,11 +84,12 @@ object Heimdall {
   private def awaitingNodeViewReady(
     settings:              AppSettings,
     appContext:            AppContext,
-    state:                 NodeViewHolderInitializingState
-  )(implicit timeProvider: TimeProvider, nxtLeaderElection: NxtLeaderElection): Behavior[ReceivableMessage] =
+    state:                 NodeViewInitializingState
+  )(implicit timeProvider: TimeProvider): Behavior[ReceivableMessage] =
     Behaviors.receivePartial {
       case (context, ReceivableMessages.NodeViewHolderReady) =>
         implicit def ctx: ActorContext[ReceivableMessage] = context
+
         context.log.info("Initializing PeerManager, NetworkController, Forger, and MemPoolAuditor")
         val nextState = prepareNetworkControllerState(settings, appContext, state)
         context.watch(nextState.forger)
@@ -103,11 +106,12 @@ object Heimdall {
     settings:              AppSettings,
     appContext:            AppContext,
     state:                 NetworkControllerInitializingState
-  )(implicit timeProvider: TimeProvider, nxtLeaderElection: NxtLeaderElection): Behavior[ReceivableMessage] =
+  )(implicit timeProvider: TimeProvider): Behavior[ReceivableMessage] =
     Behaviors.receivePartial { case (context, ReceivableMessages.NetworkControllerReady) =>
       context.log.info(
         "Initializing PeerSynchronizer, NodeViewSynchronizer, and ChainReplicator"
       )
+
       implicit def ctx: ActorContext[ReceivableMessage] = context
 
       val nextState = prepareRemainingActors(settings, appContext, state)
@@ -128,10 +132,10 @@ object Heimdall {
    * The Heimdall state in which the child actors have been created but more initialization is needed.
    */
   private def awaitingBindExternalTraffic(
-    settings:                   AppSettings,
-    appContext:                 AppContext,
-    state:                      ActorsInitializedState
-  )(implicit nxtLeaderElection: NxtLeaderElection): Behavior[ReceivableMessage] =
+    settings:   AppSettings,
+    appContext: AppContext,
+    state:      ActorsInitializedState
+  ): Behavior[ReceivableMessage] =
     Behaviors.receivePartial {
       case (context, ReceivableMessages.BindExternalTraffic) =>
         implicit val bindTimeout: Timeout = Timeout(10.seconds)
@@ -152,9 +156,15 @@ object Heimdall {
       case (context, ReceivableMessages.P2PTrafficBound(p2pAddress)) =>
         context.log.info(s"${Console.YELLOW}P2P protocol bound to $p2pAddress${Console.RESET}")
         val service =
-          httpService(settings, appContext, state.keyManager, state.forger, state.nodeViewHolder)(
-            context.system,
-            nxtLeaderElection
+          httpService(
+            settings,
+            appContext,
+            state.keyManager,
+            state.forger,
+            state.nodeViewHolder,
+            state.consensusViewHolder
+          )(
+            context.system
           )
         val httpHost = settings.rpcApi.bindAddress.getHostName
         val httpPort = settings.rpcApi.bindAddress.getPort
@@ -191,19 +201,24 @@ object Heimdall {
         Behaviors.same
       }
 
-  private case class NodeViewHolderInitializingState(
-    keyManager:       CActorRef,
-    nodeViewHolder:   ActorRef[NodeViewHolder.ReceivableMessage],
-    consensusStorage: ActorRef[ConsensusVariables.ReceivableMessage]
+  private case class ConsensusViewInitialiazingState(
+    consensusViewHolder: ActorRef[NxtConsensus.ReceivableMessage]
+  )
+
+  private case class NodeViewInitializingState(
+    keyManager:          CActorRef,
+    nodeViewHolder:      ActorRef[NodeViewHolder.ReceivableMessage],
+    consensusViewHolder: ActorRef[NxtConsensus.ReceivableMessage]
   )
 
   private case class NetworkControllerInitializingState(
-    keyManager:        CActorRef,
-    nodeViewHolder:    ActorRef[NodeViewHolder.ReceivableMessage],
-    peerManager:       CActorRef,
-    networkController: CActorRef,
-    forger:            ActorRef[Forger.ReceivableMessage],
-    mempoolAuditor:    ActorRef[MemPoolAuditor.ReceivableMessage]
+    keyManager:          CActorRef,
+    nodeViewHolder:      ActorRef[NodeViewHolder.ReceivableMessage],
+    consensusViewHolder: ActorRef[NxtConsensus.ReceivableMessage],
+    peerManager:         CActorRef,
+    networkController:   CActorRef,
+    forger:              ActorRef[Forger.ReceivableMessage],
+    mempoolAuditor:      ActorRef[MemPoolAuditor.ReceivableMessage]
   )
 
   private case class ActorsInitializedState(
@@ -212,24 +227,23 @@ object Heimdall {
     keyManager:           CActorRef,
     forger:               ActorRef[Forger.ReceivableMessage],
     nodeViewHolder:       ActorRef[NodeViewHolder.ReceivableMessage],
+    consensusViewHolder:  ActorRef[NxtConsensus.ReceivableMessage],
     mempoolAuditor:       ActorRef[MemPoolAuditor.ReceivableMessage],
     peerSynchronizer:     CActorRef,
     nodeViewSynchronizer: CActorRef,
     chainReplicator:      Option[ActorRef[ChainReplicator.ReceivableMessage]]
   )
 
-  private case class State(
-    childActorState: ActorsInitializedState,
-    httpBinding:     Http.ServerBinding
-  )
+  private case class State(childActorState: ActorsInitializedState, httpBinding: Http.ServerBinding)
 
   private def httpService(
-    settings:          AppSettings,
-    appContext:        AppContext,
-    keyManagerRef:     CActorRef,
-    forgerRef:         ActorRef[Forger.ReceivableMessage],
-    nodeViewHolderRef: ActorRef[NodeViewHolder.ReceivableMessage]
-  )(implicit system:   ActorSystem[_], nxtLeaderElection: NxtLeaderElection): HttpService = {
+    settings:           AppSettings,
+    appContext:         AppContext,
+    keyManagerRef:      CActorRef,
+    forgerRef:          ActorRef[Forger.ReceivableMessage],
+    nodeViewHolderRef:  ActorRef[NodeViewHolder.ReceivableMessage],
+    consensusHolderRef: ActorRef[NxtConsensus.ReceivableMessage]
+  )(implicit system:    ActorSystem[_]): HttpService = {
     import system.executionContext
 
     implicit val networkPrefix: NetworkPrefix =
@@ -247,13 +261,15 @@ object Heimdall {
     val nodeViewHolderInterface =
       new ActorNodeViewHolderInterface(nodeViewHolderRef)
 
+    val consensusInterface = new ActorConsensusInterface(consensusHolderRef)
+
     val bifrostRpcServer: ToplRpcServer = {
       import co.topl.rpc.handlers._
       new ToplRpcServer(
         ToplRpcHandlers(
           new DebugRpcHandlerImpls(nodeViewHolderInterface, keyManagerInterface),
           new UtilsRpcHandlerImpls,
-          new NodeViewRpcHandlerImpls(settings.rpcApi, appContext, nodeViewHolderInterface),
+          new NodeViewRpcHandlerImpls(settings.rpcApi, appContext, consensusInterface, nodeViewHolderInterface),
           new TransactionRpcHandlerImpls(nodeViewHolderInterface),
           new AdminRpcHandlerImpls(forgerInterface, keyManagerInterface, nodeViewHolderInterface)
         ),
@@ -264,64 +280,82 @@ object Heimdall {
     HttpService(settings.rpcApi, bifrostRpcServer)
   }
 
-  private def prepareKeyManagerAndNodeViewActors(settings: AppSettings, appContext: AppContext)(implicit
-    context:                                               ActorContext[ReceivableMessage],
-    timeProvider:                                          TimeProvider,
-    nxtLeaderElection:                                     NxtLeaderElection
-  ): NodeViewHolderInitializingState = {
-    import context.executionContext
+  private def prepareConsensusViewRef(
+    settings:   AppSettings,
+    appContext: AppContext
+  )(implicit
+    context:      ActorContext[ReceivableMessage],
+    timeProvider: TimeProvider
+  ): ConsensusViewInitialiazingState = {
     implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
+    implicit def system: ActorSystem[_] = context.system
+    ConsensusViewInitialiazingState(
+      context.spawn(
+        NxtConsensus(
+          settings,
+          appContext.networkType,
+          NxtConsensus.readOrGenerateConsensusStore(settings)
+        ),
+        NxtConsensus.actorName
+      )
+    )
+  }
+
+  private def prepareNodeViewRef(
+    settings:   AppSettings,
+    appContext: AppContext,
+    state:      ConsensusViewInitialiazingState
+  )(implicit
+    context:      ActorContext[ReceivableMessage],
+    timeProvider: TimeProvider
+  ): NodeViewInitializingState = {
+
+    import context.executionContext
 
     implicit def system: ActorSystem[_] = context.system
 
+    implicit def networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
+
     val keyManagerRef = context.actorOf(KeyManagerRef.props(settings, appContext), KeyManager.actorName)
-
-    val consensusStorageRef =
-      context.spawn(
-        ConsensusVariables(settings, appContext.networkType, ConsensusVariables.readOrGenerateConsensusStore(settings)),
-        ConsensusVariables.actorName
-      )
-
-    val consensusVariablesInterface = new ActorConsensusVariablesHolder(consensusStorageRef)(implicitly, 10.seconds)
 
     val nodeViewHolderRef = {
       implicit val getKeyViewAskTimeout: Timeout = Timeout(10.seconds)
       context.spawn(
         NodeViewHolder(
           settings,
-          consensusVariablesInterface,
+          new ActorConsensusInterface(state.consensusViewHolder)(system, Timeout(10.seconds)),
           () =>
             NodeView.persistent(
               settings,
               appContext.networkType,
-              consensusVariablesInterface,
+              new ActorConsensusInterface(state.consensusViewHolder)(system, Timeout(10.seconds)),
               () =>
                 (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
                   .mapTo[Try[StartupKeyView]]
                   .flatMap(Future.fromTry)
-            )(context.system, implicitly, implicitly)
+            )(context.system, implicitly)
         ),
         NodeViewHolder.ActorName,
         DispatcherSelector.fromConfig("bifrost.application.node-view.dispatcher")
       )
     }
 
-    NodeViewHolderInitializingState(keyManagerRef, nodeViewHolderRef, consensusStorageRef)
+    NodeViewInitializingState(keyManagerRef, nodeViewHolderRef, state.consensusViewHolder)
   }
 
   private def prepareNetworkControllerState(
     settings:   AppSettings,
     appContext: AppContext,
-    state:      NodeViewHolderInitializingState
+    state:      NodeViewInitializingState
   )(implicit
-    context:           ActorContext[ReceivableMessage],
-    nxtLeaderElection: NxtLeaderElection,
-    timeProvider:      TimeProvider
+    context:      ActorContext[ReceivableMessage],
+    timeProvider: TimeProvider
   ): NetworkControllerInitializingState = {
 
     import context.executionContext
 
     implicit def system: ActorSystem[_] = context.system
+
     implicit def networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
     val peerManager = context.actorOf(PeerManagerRef.props(settings, appContext), PeerManager.actorName)
@@ -341,7 +375,7 @@ object Heimdall {
               .mapTo[Try[StartupKeyView]]
               .flatMap(Future.fromTry),
           new ActorNodeViewHolderInterface(state.nodeViewHolder),
-          new ActorConsensusVariablesHolder(state.consensusStorage)
+          new ActorConsensusInterface(state.consensusViewHolder)
         ),
         Forger.ActorName
       )
@@ -356,6 +390,7 @@ object Heimdall {
     NetworkControllerInitializingState(
       state.keyManager,
       state.nodeViewHolder,
+      state.consensusViewHolder,
       peerManager,
       networkController,
       forgerRef,
@@ -410,6 +445,7 @@ object Heimdall {
       state.keyManager,
       state.forger,
       state.nodeViewHolder,
+      state.consensusViewHolder,
       state.mempoolAuditor,
       peerSynchronizer,
       nodeViewSynchronizer,

@@ -32,7 +32,7 @@ class History(
   val storage:            Storage, // todo: JAA - make this private[history]
   fullBlockProcessor:     BlockProcessor,
   validators:             Seq[BlockValidator[Block]]
-)(implicit networkPrefix: NetworkPrefix, nxtLeaderElection: NxtLeaderElection)
+)(implicit networkPrefix: NetworkPrefix)
     extends GenericHistory[Block, BifrostSyncInfo, History]
     with AutoCloseable
     with Logging {
@@ -82,8 +82,8 @@ class History(
    * @return the update history including `block` as the most recent block
    */
   override def append(
-    block:           Block,
-    consensusParams: ConsensusVariables.ConsensusParams
+    block:         Block,
+    consensusView: NxtConsensus.View
   ): Try[(History, ProgressInfo[Block])] = Try {
 
     log.debug(s"Trying to append block ${block.id} to history")
@@ -99,7 +99,7 @@ class History(
     // test new block against all validators
     val validationResults =
       if (!isGenesis(block) && !isHiccupBlock) {
-        validators.map(_.validate(block, consensusParams)).map {
+        validators.map(_.validate(block, consensusView)).map {
           case Failure(e) =>
             log.warn(s"Block validation failed", e)
             false
@@ -501,7 +501,7 @@ object History extends Logging {
 
   def readOrGenerate(
     settings:               AppSettings
-  )(implicit networkPrefix: NetworkPrefix, nxtLeaderElection: NxtLeaderElection): History = {
+  )(implicit networkPrefix: NetworkPrefix): History = {
     val storage = {
 
       /** Setup persistent on-disk storage */
@@ -523,9 +523,8 @@ object History extends Logging {
     apply(settings, storage)
   }
 
-  def apply(settings:  AppSettings, storage: Storage)(implicit
-    networkPrefix:     NetworkPrefix,
-    nxtLeaderElection: NxtLeaderElection
+  def apply(settings: AppSettings, storage: Storage)(implicit
+    networkPrefix:    NetworkPrefix
   ): History = {
 
     /** This in-memory cache helps us to keep track of tines sprouting off the canonical chain */

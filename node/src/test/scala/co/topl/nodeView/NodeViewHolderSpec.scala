@@ -3,7 +3,7 @@ package co.topl.nodeView
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.actor.typed.ActorRef
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
-import co.topl.consensus.{ActorConsensusVariablesHolder, ConsensusVariables}
+import co.topl.consensus.{ActorConsensusInterface, NxtConsensus}
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.transaction.builder.TransferRequests.PolyTransferRequest
@@ -147,13 +147,17 @@ class NodeViewHolderSpec
     val testIn = genesisNodeView()
     val consensusStorageRef =
       spawn(
-        ConsensusVariables(settings, appContext.networkType, InMemoryKeyValueStore.empty()),
-        ConsensusVariables.actorName
+        NxtConsensus(
+          settings,
+          appContext.networkType,
+          InMemoryKeyValueStore.empty()
+        ),
+        NxtConsensus.actorName
       )
     val nodeViewHolderRef = spawn(
       NodeViewHolder(
         settings,
-        new ActorConsensusVariablesHolder(consensusStorageRef),
+        new ActorConsensusInterface(consensusStorageRef),
         () => Future.successful(testIn.nodeView)
       )
     )
@@ -198,6 +202,6 @@ object NodeViewHolderSpec {
   case class TestInWithActor(
     testIn:              TestIn,
     nodeViewHolderRef:   ActorRef[NodeViewHolder.ReceivableMessage],
-    consensusStorageRef: ActorRef[ConsensusVariables.ReceivableMessage]
+    consensusStorageRef: ActorRef[NxtConsensus.ReceivableMessage]
   )
 }

@@ -2,7 +2,6 @@ package co.topl.consensus
 
 import co.topl.attestation.Address
 import co.topl.attestation.implicits._
-import co.topl.consensus.ConsensusVariables.ConsensusParams
 import co.topl.consensus.LeaderElection.{NoAddressesAvailable, NoArbitBoxesAvailable}
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.{CommonGenerators, TestSettings}
@@ -14,7 +13,7 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks.forAll
 
 class LeaderElectionTests extends AnyFlatSpec with MockFactory with CommonGenerators with EitherValues {
 
-  implicit val nxtLeaderElection: NxtLeaderElection = NxtLeaderElection(TestSettings.defaultSettings)
+  val nxtLeaderElection: NxtLeaderElection = NxtLeaderElection(TestSettings.defaultSettings)
 
   val address: Address =
     Base58Data.unsafe("AUAvJqLKc8Un3C6bC4aj8WgHZo74vamvX8Kdm6MhtdXgw51cGfix").decodeAddress.toEither.value
@@ -29,7 +28,8 @@ class LeaderElectionTests extends AnyFlatSpec with MockFactory with CommonGenera
         parent,
         addresses,
         parent.timestamp + 100,
-        ConsensusParams(10000000, parent.difficulty, 0L, parent.height),
+        NxtConsensus.State(10000000, parent.difficulty, 0L, parent.height),
+        nxtLeaderElection,
         stateReader
       )
 
@@ -50,7 +50,8 @@ class LeaderElectionTests extends AnyFlatSpec with MockFactory with CommonGenera
         parent,
         addresses,
         parent.timestamp + 100,
-        ConsensusParams(10000000, parent.difficulty, 0L, parent.height),
+        NxtConsensus.State(10000000, parent.difficulty, 0L, parent.height),
+        nxtLeaderElection,
         stateReader
       )
 

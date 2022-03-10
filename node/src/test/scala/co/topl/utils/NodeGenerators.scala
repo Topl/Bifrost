@@ -1,9 +1,8 @@
 package co.topl.utils
 
-import co.topl.attestation.{Address, _}
 import co.topl.attestation.keyManagement._
-import co.topl.consensus.ConsensusVariables.ConsensusParams
-import co.topl.consensus.NxtLeaderElection
+import co.topl.attestation._
+import co.topl.consensus.{NxtConsensus, NxtLeaderElection, ProtocolVersioner}
 import co.topl.consensus.genesis.TestGenesis
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -33,7 +32,10 @@ import scala.util.Random
 trait TestSettings {
   implicit def settings: AppSettings = TestSettings.defaultSettings
   implicit def appContext: AppContext = TestSettings.defaultAppContext
-  implicit val nxtLeaderElection: NxtLeaderElection = NxtLeaderElection(settings)
+
+  val protocolVersioner: ProtocolVersioner =
+    ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
+  val nxtLeaderElection: NxtLeaderElection = new NxtLeaderElection(protocolVersioner)
 }
 
 object TestSettings {
@@ -80,8 +82,10 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
     val validators = Seq()
 
     var history = new History(storage, BlockProcessor(1024), validators)
+    val consensusState = NxtConsensus.State(Int128(10000000), 1000000000000000000L, 0L, 0L)
+    val consensusView = NxtConsensus.View(consensusState, nxtLeaderElection, protocolVersioner)
 
-    history = history.append(genesisBlock, ConsensusParams(Int128(10000000), 1000000000000000000L, 0L, 0L)).get._1
+    history = history.append(genesisBlock, consensusView).get._1
     assert(history.modifierById(genesisBlock.id).isDefined)
     history
   }
@@ -89,14 +93,22 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
   def genesisState(
     settings:                AppSettings,
     genesisBlockWithVersion: Block = genesisBlock,
-    consensusParams:         ConsensusParams
+    consensusView:           NxtConsensus.View
   ): State = {
-    History.readOrGenerate(settings).append(genesisBlock, consensusParams)
+    History.readOrGenerate(settings).append(genesisBlock, consensusView)
     State.genesisState(settings, Seq(genesisBlockWithVersion))
   }
 
   lazy val genesisState: State =
-    genesisState(settings, genesisBlock, ConsensusParams(Int128(10000000), 1000000000000000000L, 0L, 0L))
+    genesisState(
+      settings,
+      genesisBlock,
+      NxtConsensus.View(
+        NxtConsensus.State(Int128(10000000), 1000000000000000000L, 0L, 0L),
+        nxtLeaderElection,
+        protocolVersioner
+      )
+    )
 
   lazy val validBifrostTransactionSeqGen: Gen[Seq[TX]] = for {
     seqLen <- positiveMediumIntGen

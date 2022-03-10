@@ -7,7 +7,6 @@ import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
 import cats.data.EitherT
 import cats.implicits._
-import co.topl.consensus.ConsensusVariables.ConsensusParamsUpdate
 import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
 import co.topl.consensus.genesis._
 import co.topl.modifier.block.Block
@@ -61,17 +60,16 @@ object Forger {
   case class ChainParams(totalStake: Int128, difficulty: Long)
 
   def behavior(
-    blockGenerationDelay:        FiniteDuration,
-    minTransactionFee:           Int128,
-    forgeOnStartup:              Boolean,
-    fetchKeyView:                () => Future[KeyView],
-    fetchStartupKeyView:         () => Future[StartupKeyView],
-    nodeViewReader:              NodeViewReader,
-    consensusVariablesInterface: ConsensusVariablesHolder
+    blockGenerationDelay: FiniteDuration,
+    minTransactionFee:    Int128,
+    forgeOnStartup:       Boolean,
+    fetchKeyView:         () => Future[KeyView],
+    fetchStartupKeyView:  () => Future[StartupKeyView],
+    nodeViewReader:       NodeViewReader,
+    consensusInterface:   ConsensusInterface
   )(implicit
-    networkPrefix:     NetworkPrefix,
-    nxtLeaderElection: NxtLeaderElection,
-    timeProvider:      TimeProvider
+    networkPrefix: NetworkPrefix,
+    timeProvider:  TimeProvider
   ): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
       import context.executionContext
@@ -89,7 +87,7 @@ object Forger {
         minTransactionFee,
         fetchKeyView,
         nodeViewReader,
-        consensusVariablesInterface
+        consensusInterface
       ).uninitialized(forgeWhenReady = forgeOnStartup)
 
     }
@@ -113,24 +111,27 @@ object Forger {
     }
 
   sealed trait ForgerFailure
+
   case class ForgeFailure(forgeFailure: Forge.Failure) extends ForgerFailure
+
   case class ForgingError(error: Throwable) extends ForgerFailure
 
 }
 
 private class ForgerBehaviors(
-  blockGenerationDelay:        FiniteDuration,
-  minTransactionFee:           Int128,
-  fetchKeyView:                () => Future[KeyView],
-  nodeViewReader:              NodeViewReader,
-  consensusVariablesInterface: ConsensusVariablesHolder
+  blockGenerationDelay: FiniteDuration,
+  minTransactionFee:    Int128,
+  fetchKeyView:         () => Future[KeyView],
+  nodeViewReader:       NodeViewReader,
+  consensusViewReader:  ConsensusReader
 )(implicit
-  context:           ActorContext[Forger.ReceivableMessage],
-  networkPrefix:     NetworkPrefix,
-  nxtLeaderElection: NxtLeaderElection,
-  timeProvider:      TimeProvider
+  context:       ActorContext[Forger.ReceivableMessage],
+  networkPrefix: NetworkPrefix,
+  timeProvider:  TimeProvider
 ) {
+
   import context.executionContext
+
   implicit private val log: Logger = context.log
 
   import Forger._
@@ -157,6 +158,7 @@ private class ForgerBehaviors(
 
   /**
    * The actor is not yet initialized and is awaiting an asynchronous ready signal
+   *
    * @param forgeWhenReady a flag indicating if forging should begin immediately after initialization
    */
   def uninitialized(forgeWhenReady: Boolean): Behavior[ReceivableMessage] =
@@ -228,13 +230,12 @@ private class ForgerBehaviors(
       keyView <- EitherT[Future, ForgerFailure, KeyView](
         fetchKeyView().map(Right(_)).recover { case e => Left(ForgingError(e)) }
       )
-      consensusParams <- consensusVariablesInterface.get
-        .leftMap(e => ForgingError(e.reason))
+      consensusView <- consensusViewReader.withView[NxtConsensus.View](identity).leftMap(e => ForgingError(e.reason))
       forge <- nodeViewReader
-        .withNodeView(Forge.fromNodeView(_, consensusParams, keyView, minTransactionFee))
+        .withNodeView(Forge.prepareForge(_, consensusView, keyView, minTransactionFee))
         .leftMap(e => ForgingError(e.reason))
         .subflatMap(_.leftMap(ForgeFailure(_): ForgerFailure))
-      block <- EitherT.fromEither[Future](forge.make.leftMap(ForgeFailure(_): ForgerFailure))
+      block <- EitherT.fromEither[Future](forge.make).leftMap(ForgeFailure(_): ForgerFailure)
     } yield block
 
   /**
@@ -290,12 +291,15 @@ trait ForgerInterface {
 object ForgerInterface {
 
   sealed trait StartForgingFailure
+
   sealed trait StopForgingFailure
+
   sealed trait CheckStatusFailure
 }
 
 class ActorForgerInterface(actorRef: ActorRef[Forger.ReceivableMessage])(implicit system: ActorSystem[_])
     extends ForgerInterface {
+
   import system.executionContext
 
   implicit private val timeout: Timeout = Timeout(10.minutes)
@@ -314,6 +318,7 @@ class ActorForgerInterface(actorRef: ActorRef[Forger.ReceivableMessage])(implici
 
 /**
  * A broadcastable signal indicating that a new block was forged locally
+ *
  * @param block The new block that was forged
  */
 case class LocallyGeneratedBlock(block: Block)

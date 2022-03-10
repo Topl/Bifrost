@@ -4,7 +4,6 @@ import akka.actor.typed.ActorSystem
 import cats.data.{Validated, Writer}
 import cats.implicits._
 import co.topl.attestation.Address
-import co.topl.consensus.ConsensusVariables.ConsensusParams
 import co.topl.consensus.Hiccups.HiccupBlock
 import co.topl.consensus.KeyManager.StartupKeyView
 import co.topl.consensus._
@@ -21,7 +20,7 @@ import co.topl.nodeView.mempool.{MemPool, MemPoolReader, MemoryPool}
 import co.topl.nodeView.state.{MinimalState, State, StateReader}
 import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.{Int128, NetworkType, TimeProvider}
+import co.topl.utils.{NetworkType, TimeProvider}
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -89,17 +88,19 @@ case class NodeView(
 object NodeView {
 
   def persistent(
-    settings:                    AppSettings,
-    networkType:                 NetworkType,
-    consensusVariablesInterface: ConsensusVariablesHolder,
-    startupKeyView:              () => Future[StartupKeyView]
-  )(implicit system: ActorSystem[_], ec: ExecutionContext, nxtLeaderElection: NxtLeaderElection): Future[NodeView] =
-    readOrGenerateLocalView(settings)(networkType.netPrefix, nxtLeaderElection)
-      .fold(genesis(settings, networkType, consensusVariablesInterface, startupKeyView))(Future.successful)
+    settings:           AppSettings,
+    networkType:        NetworkType,
+    consensusInterface: ConsensusInterface,
+    startupKeyView:     () => Future[StartupKeyView]
+  )(implicit system:    ActorSystem[_], ec: ExecutionContext): Future[NodeView] =
+    readOrGenerateLocalView(settings)(networkType.netPrefix)
+      .fold(genesis(settings, networkType, consensusInterface, startupKeyView))(
+        Future.successful
+      )
 
   private def readOrGenerateLocalView(
     settings:               AppSettings
-  )(implicit networkPrefix: NetworkPrefix, nxtLeaderElection: NxtLeaderElection): Option[NodeView] =
+  )(implicit networkPrefix: NetworkPrefix): Option[NodeView] =
     if (State.exists(settings)) {
       Some(
         NodeView(
@@ -111,38 +112,28 @@ object NodeView {
     } else None
 
   private def genesis(
-    settings:                    AppSettings,
-    networkType:                 NetworkType,
-    consensusVariablesInterface: ConsensusVariablesHolder,
-    startupKeyView:              () => Future[StartupKeyView]
+    settings:           AppSettings,
+    networkType:        NetworkType,
+    consensusInterface: ConsensusInterface,
+    startupKeyView:     () => Future[StartupKeyView]
   )(implicit
-    system:            ActorSystem[_],
-    ec:                ExecutionContext,
-    nxtLeaderElection: NxtLeaderElection
+    system: ActorSystem[_],
+    ec:     ExecutionContext
   ): Future[NodeView] = {
     implicit def networkPrefix: NetworkPrefix = networkType.netPrefix
+
     GenesisCreator
-      .genesisBlock(settings, networkType, startupKeyView, consensusVariablesInterface)
-      .map(genesis(settings, networkType, _))
-  }
-
-  private def genesis(
-    settings:     AppSettings,
-    networkType:  NetworkType,
-    genesisBlock: Block
-  )(implicit
-    nxtLeaderElection: NxtLeaderElection
-  ): NodeView = {
-    implicit def networkPrefix: NetworkPrefix = networkType.netPrefix
-
-    // Using invalid consensus params since validation is skipped for appending genesis block
-    val genesisParams = ConsensusParams(Int128(10000000), 1000000000000000000L, 0L, 0L)
-
-    NodeView(
-      History.readOrGenerate(settings).append(genesisBlock, genesisParams).get._1,
-      State.genesisState(settings, Seq(genesisBlock)),
-      MemPool.empty()
-    )
+      .genesisBlock(settings, networkType, startupKeyView, consensusInterface)
+      .flatMap { block =>
+        consensusInterface.withView { view =>
+          NodeView(
+            History.readOrGenerate(settings).append(block, view).get._1,
+            State.genesisState(settings, Seq(block)),
+            MemPool.empty()
+          )
+        }.value
+      }
+      .flatMap(_.fold(e => Future.failed(e.reason), Future(_)))
   }
 }
 
@@ -151,7 +142,7 @@ trait NodeViewBlockOps {
 
   import NodeViewHolder.UpdateInformation
 
-  def withBlock(block: Block, consensusParams: ConsensusVariables.ConsensusParams)(implicit
+  def withBlock(block: Block, consensusView: NxtConsensus.View)(implicit
     networkPrefix:     NetworkPrefix,
     timeProvider:      TimeProvider
   ): Writer[List[Any], NodeView] = {
@@ -170,7 +161,7 @@ trait NodeViewBlockOps {
               log.info("Applying valid blockId={} to history", block.id)
               val openSurfaceIdsBeforeUpdate = history.openSurfaceIds()
 
-              history.append(block, consensusParams) match {
+              history.append(block, consensusView) match {
                 case Success((historyBeforeStUpdate, progressInfo)) =>
                   log.info("Block blockId={} applied to history successfully", block.id)
                   log.debug("Applying valid blockId={} to state with progressInfo={}", block.id, progressInfo)

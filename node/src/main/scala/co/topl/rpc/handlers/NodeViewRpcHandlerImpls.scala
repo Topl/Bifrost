@@ -3,9 +3,9 @@ package co.topl.rpc.handlers
 import akka.actor.typed.ActorSystem
 import cats.data.EitherT
 import cats.implicits._
-import co.topl.akkahttprpc.{InvalidParametersError, RpcError, ThrowableData}
+import co.topl.akkahttprpc.{CustomError, InvalidParametersError, RpcError, ThrowableData}
 import co.topl.attestation.Address
-import co.topl.consensus.{Forger, ForgerInterface, NxtLeaderElection}
+import co.topl.consensus.{ConsensusInterface, ConsensusReader}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
@@ -27,12 +27,12 @@ import scala.language.existentials
 class NodeViewRpcHandlerImpls(
   rpcSettings:             RPCApiSettings,
   appContext:              AppContext,
+  consensusReader:         ConsensusReader,
   nodeViewHolderInterface: NodeViewHolderInterface
 )(implicit
-  system:            ActorSystem[_],
-  throwableEncoder:  Encoder[ThrowableData],
-  networkPrefix:     NetworkPrefix,
-  nxtLeaderElection: NxtLeaderElection
+  system:           ActorSystem[_],
+  throwableEncoder: Encoder[ThrowableData],
+  networkPrefix:    NetworkPrefix
 ) extends ToplRpcHandlers.NodeView {
 
   import system.executionContext
@@ -144,17 +144,20 @@ class NodeViewRpcHandlerImpls(
         txStatus       <- txStatusOption.sequence.toRight(ToplRpcErrors.NoTransactionWithId: RpcError).toEitherT[Future]
       } yield txStatus.toMap
 
-  override val info: ToplRpc.NodeView.Info.rpc.ServerHandler =
-    _ =>
-      withNodeView { view =>
-        ToplRpc.NodeView.Info.Response(
-          appContext.networkType.toString,
-          appContext.externalNodeAddress.fold("N/A")(_.toString),
-          appContext.settings.application.version.toString,
-          nxtLeaderElection.protocolMngr.getProtocolRules(view.history.height).version.toString,
-          nxtLeaderElection.protocolMngr.blockVersion(view.history.height).toString
-        )
+  override val info: ToplRpc.NodeView.Info.rpc.ServerHandler = _ =>
+    for {
+      supportedProtocolVersions <- consensusReader.withView(_.protocolVersions).leftMap {
+        case ConsensusInterface.Failures.Read(throwable) =>
+          CustomError.fromThrowable(throwable): RpcError
       }
+      currentHeight <- withNodeView(_.history.height)
+    } yield ToplRpc.NodeView.Info.Response(
+      appContext.networkType.toString,
+      appContext.externalNodeAddress.fold("N/A")(_.toString),
+      appContext.settings.application.version.toString,
+      supportedProtocolVersions.getProtocolRules(currentHeight).version.toString,
+      supportedProtocolVersions.blockVersion(currentHeight).toString
+    )
 
   private def balancesResponse(
     state:     StateReader[_, Address],
