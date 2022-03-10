@@ -1,8 +1,11 @@
 package co.topl.consensus
 
+import co.topl.codecs._
+import co.topl.codecs.binary.typeclasses.Persistable
 import co.topl.crypto.hash.blake2b256
+import co.topl.modifier.NodeViewModifier
 import co.topl.modifier.block.Block
-import co.topl.modifier.box.ArbitBox
+import co.topl.modifier.box.{ArbitBox, Box}
 import co.topl.settings.AppSettings
 import co.topl.utils.{Int128, TimeProvider}
 import com.google.common.primitives.Longs
@@ -22,7 +25,11 @@ class NxtLeaderElection(val protocolMngr: ProtocolVersioner) {
    * @return the test value to be compared to the adjusted difficulty
    */
   def calcHit(lastBlock: Block)(box: ArbitBox): Long = {
-    val h = blake2b256.hash(lastBlock.bytes ++ box.bytes)
+    val h = blake2b256.hash(
+      // need to use Persistable instances of parent types
+      Persistable[NodeViewModifier].persistedBytes(lastBlock) ++
+      Persistable[Box[_]].persistedBytes(box)
+    )
 
     Longs.fromByteArray((0: Byte) +: h.value.take(7))
   }

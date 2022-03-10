@@ -27,6 +27,7 @@ class ArbitTransferRPCSpec extends TransferRPCTestMethods {
   "ArbitTransfer RPC" should {
     "Create, encode, sign new raw arbit transfer from a Curve25519 address to itself, and broadcast it" in {
       val tx = testCreateSignArbitTransfer(addressCurve25519Fst, addressCurve25519Sec, propTypeCurve25519, 3)
+      println(tx.noSpaces)
       testBroadcastTx(tx)
     }
 

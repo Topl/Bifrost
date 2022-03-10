@@ -1,5 +1,6 @@
 package co.topl.consensus.genesis
 
+import cats.implicits._
 import co.topl.attestation.{Address, SignatureCurve25519}
 import co.topl.consensus.Forger.ChainParams
 import co.topl.consensus.ProtocolVersioner
@@ -10,6 +11,7 @@ import co.topl.modifier.box.SimpleValue
 import co.topl.settings.GenesisGenerationSettings
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.implicits._
 
 import scala.collection.immutable.ListMap
 import scala.util.Try
@@ -38,7 +40,7 @@ case class GeneratedGenesis(
 
   override protected[genesis] val members: ListMap[String, Int128] = ListMap.from(
     addresses
-      .map(_.toString -> balance)
+      .map(_.show -> balance)
   )
 
   def formNewBlock: (Block, ChainParams) = {

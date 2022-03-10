@@ -1,11 +1,13 @@
 package co.topl.api
 
 import akka.util.ByteString
+import cats.implicits._
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.nodeView.TestableNodeViewHolder
 import co.topl.nodeView.history.History
 import co.topl.utils.GeneratorOps.GeneratorOps
+import co.topl.utils.implicits._
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
@@ -23,7 +25,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
     super.beforeAll()
 
     txs = bifrostTransactionSeqGen.sampleFirst()
-    txId = txs.head.id.toString
+    txId = txs.head.id.show
     block = blockCurve25519Gen.sampleFirst().copy(transactions = txs)
 
     import akka.actor.typed.scaladsl.adapter._
@@ -188,26 +190,29 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
     }
 
     "Return correct error response when an id with non-base58 character is used for topl_transactionById" in {
-      val invalidCharId: String = "=" ++ txId.tail
+      val invalidChar = "="
+      val invalidCharId: String = invalidChar ++ txId.tail
       httpPOST(modifierRequestBody("transactionId", "topl_transactionById", invalidCharId)) ~> route ~> check {
         val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
-        res should include("Value is not Base 58")
+        res should include("failed to decode base-58 string").and(include(invalidChar))
       }
     }
 
     "Return correct error response when an id with non-base58 character is used for topl_transactionFromMempool" in {
-      val invalidCharId: String = "=" ++ txId.tail
+      val invalidChar = "="
+      val invalidCharId: String = invalidChar ++ txId.tail
       httpPOST(modifierRequestBody("transactionId", "topl_transactionFromMempool", invalidCharId)) ~> route ~> check {
         val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
-        res should include("Value is not Base 58")
+        res should include("failed to decode base-58 string").and(include(invalidChar))
       }
     }
 
     "Return correct error response when an id with non-base58 character is used for topl_blockById" in {
+      val invalidChar = "="
       val invalidCharId: String = "=" ++ txId.tail
       httpPOST(modifierRequestBody("blockId", "topl_blockById", invalidCharId)) ~> route ~> check {
         val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
-        res should include("Value is not Base 58")
+        res should include("failed to decode base-58 string").and(include(invalidChar))
       }
     }
 
@@ -215,7 +220,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       val invalidLengthId: String = txId.tail
       httpPOST(modifierRequestBody("transactionId", "topl_transactionById", invalidLengthId)) ~> route ~> check {
         val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
-        res should include("Invalid size for ModifierId")
+        res should include("Modifier ID must be 33 bytes long")
       }
     }
 
@@ -223,7 +228,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       val invalidLengthId: String = txId.tail
       httpPOST(modifierRequestBody("transactionId", "topl_transactionFromMempool", invalidLengthId)) ~> route ~> check {
         val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
-        res should include("Invalid size for ModifierId")
+        res should include("Modifier ID must be 33 bytes long")
       }
     }
 
@@ -231,7 +236,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       val invalidLengthId: String = txId.tail
       httpPOST(modifierRequestBody("blockId", "topl_blockById", invalidLengthId)) ~> route ~> check {
         val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
-        res should include("Invalid size for ModifierId")
+        res should include("Modifier ID must be 33 bytes long")
       }
     }
 
@@ -264,7 +269,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |   "id": "1",
         |   "method": "topl_blockById",
         |   "params": [{
-        |      "blockId": "${block.id}"
+        |      "blockId": "${block.id.show}"
         |   }]
         |}
         |

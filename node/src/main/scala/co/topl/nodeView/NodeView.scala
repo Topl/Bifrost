@@ -14,7 +14,7 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.box.ProgramId
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.validation.implicits._
-import co.topl.network.message.BifrostSyncInfo
+import co.topl.network.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.history.{GenericHistory, History, HistoryReader}
 import co.topl.nodeView.mempool.{MemPool, MemPoolReader, MemoryPool}

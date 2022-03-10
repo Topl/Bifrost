@@ -13,9 +13,9 @@ import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView}
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.StringDataTypes.implicits._
-import co.topl.utils.codecs.implicits._
+import co.topl.codecs._
 import io.circe.Encoder
+import co.topl.utils.implicits._
 
 import scala.concurrent.Future
 

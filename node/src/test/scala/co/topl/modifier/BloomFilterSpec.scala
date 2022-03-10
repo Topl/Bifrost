@@ -9,6 +9,7 @@ import co.topl.utils.NodeGenerators
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import co.topl.codecs._
 
 class BloomFilterSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with NodeGenerators with Matchers {
 
@@ -63,9 +64,9 @@ class BloomFilterSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wi
         .map(s => PrivateKeyCurve25519.secretGenerator.generateSecret(s)._2)
         .map(k => k.address)
 
-    val bloomTopics: Set[BloomTopic] = randAddr.take(numBloom).map(addr => BloomTopic(addr.bytes)).toSet
+    val bloomTopics: Set[BloomTopic] = randAddr.take(numBloom).map(addr => BloomTopic(addr.persistedBytes)).toSet
     val bloomfilter: BloomFilter = BloomFilter(bloomTopics)
-    val testTopics: Seq[BloomTopic] = randAddr.drop(numBloom).map(addr => BloomTopic(addr.bytes))
+    val testTopics: Seq[BloomTopic] = randAddr.drop(numBloom).map(addr => BloomTopic(addr.persistedBytes))
 
     val falsePositives = testTopics.foldLeft(0) { (count, bt) =>
       if (bloomfilter.contains(bt)) count + 1

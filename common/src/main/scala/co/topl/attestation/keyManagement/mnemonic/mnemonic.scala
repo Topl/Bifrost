@@ -8,8 +8,8 @@ import io.estatico.newtype.ops._
 import simulacrum.typeclass
 
 import java.util.UUID
-import scala.math.BigInt
 import scala.language.implicitConversions
+import scala.math.BigInt
 
 /**
  * A mnemonic represents a set of random entropy that can be used to derive a private key or other type of value.

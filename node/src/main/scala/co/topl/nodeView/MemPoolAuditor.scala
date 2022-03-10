@@ -8,7 +8,8 @@ import akka.util.Timeout
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.Broadcast
 import co.topl.network.NetworkController.ReceivableMessages.SendToNetwork
-import co.topl.network.message.{InvData, InvSpec, Message}
+import co.topl.network.message.Messages.MessagesV1
+import co.topl.network.message.Transmission
 import co.topl.nodeView.NodeViewHolder.Events.SemanticallySuccessfulModifier
 import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType.NetworkPrefix
@@ -160,12 +161,7 @@ private class MemPoolAuditorBehaviors(
   private def rebroadcastTransactions(transactions: Seq[Transaction.TX]): Unit = {
     log.debug("Rebroadcasting transactions")
 
-    val msg = Message(
-      new InvSpec(settings.network.maxInvObjects),
-      Right(InvData(Transaction.modifierTypeId, transactions.map(_.id))),
-      None
-    )
-
-    networkControllerRef ! SendToNetwork(msg, Broadcast)
+    val msg = MessagesV1.InventoryResponse(Transaction.modifierTypeId, transactions.map(_.id))
+    networkControllerRef ! SendToNetwork(Transmission.encodeMessage(msg), msg.version, Broadcast)
   }
 }

@@ -1,5 +1,6 @@
 package co.topl.nodeView.history
 
+import cats.implicits._
 import co.topl.consensus.Hiccups.HiccupBlock
 import co.topl.consensus._
 import co.topl.db.LDBVersionedStore
@@ -7,13 +8,14 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
-import co.topl.network.message.BifrostSyncInfo
+import co.topl.network.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory._
 import co.topl.nodeView.history.History.GenesisParentId
 import co.topl.nodeView.{CacheLayerKeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
-import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
+import co.topl.utils.IdiomaticScalaTransition.implicits.toTryOps
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.implicits._
 import co.topl.utils.{Logging, TimeProvider}
 
 import java.io.File
@@ -119,8 +121,8 @@ class History(
         } else {
           val progInfo: ProgressInfo[Block] =
             // Check if the new block extends the last best block
-            if (block.parentId.equals(storage.bestBlockId)) {
-              log.debug(s"New best block ${block.id.toString}")
+            if (block.parentId === storage.bestBlockId) {
+              log.debug(s"New best block ${block.id.show}")
 
               // update storage
               storage.update(block, isBest = true)
@@ -482,7 +484,7 @@ class History(
     if (isEmpty)
       BifrostSyncInfo(Seq.empty)
     else {
-      val startingPoints = lastHeaders(BifrostSyncInfo.MaxLastBlocks)
+      val startingPoints = lastHeaders(BifrostSyncInfo.maxLastBlocks)
 
       if (startingPoints.headOption.contains(GenesisParentId))
         BifrostSyncInfo(GenesisParentId +: startingPoints)

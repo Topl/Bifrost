@@ -8,7 +8,7 @@ import akka.util.Timeout
 import co.topl.consensus.{ActorConsensusVariablesHolder, ConsensusVariables}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
-import co.topl.network.message.BifrostSyncInfo
+import co.topl.network.BifrostSyncInfo
 import co.topl.network.utils.NetworkTimeProvider
 import co.topl.nodeView.NodeViewHolder
 import co.topl.nodeView.history.{HistoryReader, InMemoryKeyValueStore}
