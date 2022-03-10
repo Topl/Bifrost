@@ -314,7 +314,7 @@ trait ModelGenerators {
   implicit val arbitraryAssetBox: Arbitrary[Box.Values.Asset] =
     Arbitrary(
       for {
-        quantity <- arbitraryInt128.arbitrary
+        quantity <- arbitraryPositiveInt128.arbitrary
         code     <- arbitraryAssetCode.arbitrary
         root     <- genSizedStrictBytes[Lengths.`32`.type]().map(_.data)
         metadata <-
@@ -334,7 +334,7 @@ trait ModelGenerators {
       )
     )
 
-  implicit val arbitraryPolysOutput: Arbitrary[NonEmptyChain[PolyOutput]] =
+  implicit val arbitraryPolyOutputs: Arbitrary[NonEmptyChain[PolyOutput]] =
     Arbitrary(
       Gen
         .zip(arbitraryPolyOutput.arbitrary, Gen.listOf(arbitraryPolyOutput.arbitrary))
@@ -343,7 +343,16 @@ trait ModelGenerators {
 
   implicit val arbitraryArbitOutput: Arbitrary[ArbitOutput] =
     Arbitrary(
-      arbitraryDionAddress.arbitrary.flatMap(a => arbitraryInt128.arbitrary.map(v => Transaction.ArbitOutput(a, v)))
+      arbitraryDionAddress.arbitrary.flatMap(a =>
+        arbitraryPositiveInt128.arbitrary.map(v => Transaction.ArbitOutput(a, v))
+      )
+    )
+
+  implicit val arbitraryArbitOutputs: Arbitrary[NonEmptyChain[ArbitOutput]] =
+    Arbitrary(
+      Gen
+        .zip(arbitraryArbitOutput.arbitrary, Gen.listOf(arbitraryArbitOutput.arbitrary))
+        .map(arbits => NonEmptyChain.one(arbits._1).appendChain(Chain.fromSeq(arbits._2)))
     )
 
   implicit val arbitraryAssetOutput: Arbitrary[AssetOutput] =

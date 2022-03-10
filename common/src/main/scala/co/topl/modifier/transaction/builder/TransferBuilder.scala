@@ -232,6 +232,8 @@ object TransferBuilder {
       else
         pickPolyAndArbitBoxesFromState(inputAddresses, polysOwed, arbitsOwed, boxSelection, boxReader)
 
+    val inputPolyNonces = inputBoxes.polyNonces
+
     val polyFunds = inputBoxes.polySum
     val polyChange = polyFunds - Int128(request.fee.data) - polysOwed
     val polyChangeOutput =
@@ -240,11 +242,15 @@ object TransferBuilder {
     val arbitFunds = Option.when(arbitsOwed > 0)(inputBoxes.arbitSum)
     val arbitChange = arbitFunds.map(_ - arbitsOwed)
     val arbitChangeOutput =
-      arbitChange.map(change => Transaction.ArbitOutput(request.consolidationAddress, change.toSized))
+      arbitChange.flatMap(change =>
+        Option.when(change > 0)(Transaction.ArbitOutput(request.consolidationAddress, change.toSized))
+      )
 
     val assetFunds = inputBoxes.assetSums.filter(_._2 > 0)
     val assetChange: Map[AssetCode, Int128] =
-      assetFunds.map(asset => asset._1 -> (asset._2 - assetsOwed.getOrElse(asset._1, 0)))
+      assetFunds
+        .map(asset => asset._1 -> (asset._2 - assetsOwed.getOrElse(asset._1, 0)))
+        .filter(_._2 > 0)
 
     val transfer
       : (List[BoxReference], List[Transaction.AssetOutput]) => Either[BuildTransferFailure, Transaction.Unproven] =
@@ -272,13 +278,16 @@ object TransferBuilder {
         // do not use arbit boxes if no arbit outputs
         if (arbitsOwed > 0) toBoxReferencesResult(inputBoxes)
         else toBoxReferencesResult(inputBoxes.copy(arbits = List.empty))
-      _      <- validateNonEmptyPolyInputNonces(inputBoxes.polyNonces)
-      _      <- validatePositiveOutputValues(polyOutputValues)
-      _      <- validatePositiveOutputValues(arbitOutputValues)
-      _      <- validatePositiveOutputValues(assetOutputValues)
-      _      <- validatePolyFunds(polyFunds, request.fee.data, polysOwed)
-      _      <- arbitFunds.fold(Int128(0).asRight[BuildTransferFailure])(funds => validateArbitFunds(funds, arbitsOwed))
-      _      <- validateAssetFunds(assetFunds, assetsOwed)
+      _ <- validateNonEmptyPolyInputNonces(inputPolyNonces)
+      _ <- validateUniqueInputNonces(inputPolyNonces)
+      _ <- validatePositiveOutputValues(polyOutputValues)
+      _ <- validatePositiveOutputValues(arbitOutputValues)
+      _ <- validatePositiveOutputValues(assetOutputValues)
+      _ <- validatePolyFunds(polyFunds, request.fee.data, polysOwed)
+      _ <- arbitFunds.fold(Int128(0).asRight[BuildTransferFailure])(funds => validateArbitFunds(funds, arbitsOwed))
+      _ <-
+        if (!request.minting) validateAssetFunds(assetFunds, assetsOwed)
+        else Map.empty.asRight
       result <- transfer(boxReferences, assetChangeOutputs)
     } yield result
   }
