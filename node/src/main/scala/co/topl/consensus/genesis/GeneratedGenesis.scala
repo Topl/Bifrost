@@ -3,7 +3,6 @@ package co.topl.consensus.genesis
 import cats.implicits._
 import co.topl.attestation.{Address, SignatureCurve25519}
 import co.topl.consensus.Forger.ChainParams
-import co.topl.consensus.ProtocolVersioner
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
@@ -17,8 +16,8 @@ import scala.collection.immutable.ListMap
 import scala.util.Try
 
 case class GeneratedGenesis(
-  addresses:    Set[Address],
-  settings:     GenesisGenerationSettings
+  addresses: Set[Address],
+  settings:  GenesisGenerationSettings
 )(implicit
   val networkPrefix: NetworkPrefix
 ) extends GenesisProvider {

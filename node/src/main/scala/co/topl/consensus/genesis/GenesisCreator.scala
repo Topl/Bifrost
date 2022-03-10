@@ -4,7 +4,7 @@ import akka.actor.typed.ActorSystem
 import akka.util.Timeout
 import co.topl.consensus.Forger.ChainParams
 import co.topl.consensus.KeyManager.StartupKeyView
-import co.topl.consensus.{ConsensusInterface, NxtConsensus, NxtLeaderElection}
+import co.topl.consensus.{ConsensusInterface, NxtConsensus}
 import co.topl.modifier.block.Block
 import co.topl.settings.AppSettings
 import co.topl.settings.GenesisStrategy.{FromBlockJson, Generated}
@@ -22,8 +22,8 @@ object GenesisCreator {
     fetchStartupKeyView:         () => Future[StartupKeyView],
     consensusVariablesInterface: ConsensusInterface
   )(implicit
-    system:            ActorSystem[_],
-    ec:                ExecutionContext
+    system: ActorSystem[_],
+    ec:     ExecutionContext
   ): Future[Block] = {
     implicit val networkPrefix: NetworkPrefix = networkType.netPrefix
 

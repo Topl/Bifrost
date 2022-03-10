@@ -36,7 +36,7 @@ class GenesisSpec extends AnyFreeSpec with Inspectors with NodeGenerators {
       GeneratedGenesis(privateKeyRing.addresses, genesisGenSettings)(PrivateTestnet.netPrefix),
       GeneratedGenesis(privateKeyRing.addresses, genesisGenSettings)(Mainnet.netPrefix),
       GeneratedGenesis(privateKeyRing.addresses, genesisGenSettings)(ValhallaTestnet.netPrefix),
-      GeneratedGenesis(privateKeyRing.addresses, genesisGenSettings)(HelTestnet.netPrefix),
+      GeneratedGenesis(privateKeyRing.addresses, genesisGenSettings)(HelTestnet.netPrefix)
     )
   ) { genesisProvider: GenesisProvider =>
     genesisProvider match {
