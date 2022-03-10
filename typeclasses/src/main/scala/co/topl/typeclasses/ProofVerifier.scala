@@ -95,11 +95,6 @@ object ProofVerifier {
       context:     VerificationContext[F]
     ): F[Boolean] = (context.currentHeight >= proposition.height).pure[F]
 
-//    private def enumeratedOutputVerifier[F[_]: Applicative](
-//      proposition: Propositions.Example.EnumeratedInput,
-//      proof:       Proofs.Example.EnumeratedInput
-//    ): F[Boolean] = proposition.values.contains(proof.value).pure[F]
-
     private def hashLockVerifier[F[_]: Applicative](
       proposition: Propositions.Knowledge.HashLock,
       proof:       Proofs.Knowledge.HashLock
@@ -115,31 +110,31 @@ object ProofVerifier {
         case Box(TypedEvidence.empty, 0, value) =>
           value == sourceBox.value
         case Box(TypedEvidence.empty, 0, value) =>
-          value == sourceBox.value // && data == sourceBox.data
+          value == sourceBox.value
         case Box(TypedEvidence.empty, nonce, Box.Values.Empty) =>
           nonce == sourceBox.nonce
         case Box(TypedEvidence.empty, nonce, Box.Values.Empty) =>
-          nonce == sourceBox.nonce // && data == sourceBox.data
+          nonce == sourceBox.nonce
         case Box(TypedEvidence.empty, nonce, Box.Values.Empty) =>
-          nonce == sourceBox.nonce // && value == sourceBox.value
+          nonce == sourceBox.nonce
         case Box(TypedEvidence.empty, nonce, value) =>
-          nonce == sourceBox.nonce // && value == sourceBox.value && data == sourceBox.data
+          nonce == sourceBox.nonce
         case Box(typedEvidence, 0, Box.Values.Empty) =>
           typedEvidence == sourceBox.evidence
         case Box(typedEvidence, 0, Box.Values.Empty) =>
-          typedEvidence == sourceBox.evidence // && data == sourceBox.data
+          typedEvidence == sourceBox.evidence
         case Box(typedEvidence, 0, value) =>
           typedEvidence == sourceBox.evidence && value == sourceBox.value
         case Box(typedEvidence, 0, value) =>
-          typedEvidence == sourceBox.evidence && value == sourceBox.value // && data == sourceBox.data
+          typedEvidence == sourceBox.evidence && value == sourceBox.value
         case Box(typedEvidence, nonce, Box.Values.Empty) =>
           typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce
         case Box(typedEvidence, nonce, Box.Values.Empty) =>
-          typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce // && data == sourceBox.data
+          typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce
         case Box(typedEvidence, nonce, value) =>
           typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce && value == sourceBox.value
         case Box(typedEvidence, nonce, value) =>
-          typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce && value == sourceBox.value // && data == sourceBox.data
+          typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce && value == sourceBox.value
         case _ => false
       }
 
@@ -270,8 +265,6 @@ object ProofVerifier {
             requiredBoxVerifier[F](prop, context)
           case (prop: Propositions.Knowledge.HashLock, proof: Proofs.Knowledge.HashLock) =>
             hashLockVerifier[F](prop, proof)
-//          case (prop: Propositions.Example.EnumeratedInput, proof: Proofs.Example.EnumeratedInput) =>
-//            enumeratedOutputVerifier[F](prop, proof)
           case (prop: Propositions.Script.JS, proof: Proofs.Script.JS) =>
             jsScriptVerifier[F](prop, proof, context, jsExecutor)
           case _ =>
