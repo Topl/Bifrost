@@ -17,7 +17,7 @@ import scala.util.Try
 
 object GenesisCreator {
 
-  def getGenesisBlock(
+  def genesisBlock(
     settings:                    AppSettings,
     networkType:                 NetworkType,
     fetchStartupKeyView:         () => Future[StartupKeyView],
@@ -58,7 +58,6 @@ object GenesisCreator {
         case ValhallaTestnet => initializeFromChainParamsAndGetBlock(ValhallaGenesis.getGenesisBlock)
         case HelTestnet      => initializeFromChainParamsAndGetBlock(HelGenesis.getGenesisBlock)
         case PrivateTestnet  => generateGenesisBlock
-        case _               => Future.failed(new IllegalArgumentException(s"Undefined network type $networkType"))
       }
     } else {
       settings.forging.genesis.flatMap(_.genesisStrategy) match {
