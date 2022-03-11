@@ -73,7 +73,12 @@ trait TetraScodecCodecs {
   implicit val int128Codec: Codec[Int128] =
     bytesCodec(16).exmap(
       bytes => Attempt.fromEither(Sized.max[BigInt, Lengths.`128`.type](BigInt(bytes)).leftMap(e => Err(e.toString))),
-      int => Attempt.successful(int.data.toByteArray)
+      int => {
+        val dBytes = int.data.toByteArray
+        val padValue: Byte = if (dBytes.head < 0) -1 else 0
+        Bytes.fill(16 - dBytes.length)(padValue) ++ Bytes(dBytes)
+        Attempt.successful(Array.fill(16 - dBytes.length)(padValue) ++ dBytes)
+      }
     )
 
   implicit val kesBinaryTreeCodec: Codec[KesBinaryTree] = {

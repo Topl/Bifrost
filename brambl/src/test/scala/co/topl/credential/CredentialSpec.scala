@@ -92,7 +92,9 @@ class CredentialSpec
 
         val transaction =
           Transaction(
-            ListMap.from(unprovenTransaction.inputs.map(boxRef => boxRef -> (andProposition -> andProof))),
+            ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(boxRef =>
+              boxRef -> (andProposition -> andProof)
+            ),
             unprovenTransaction.feeOutput,
             unprovenTransaction.coinOutputs,
             unprovenTransaction.fee,
@@ -167,9 +169,8 @@ class CredentialSpec
 
           val transaction =
             Transaction(
-              ListMap.from(
-                unprovenTransaction.inputs.map(boxRef => boxRef -> (thresholdProposition -> thresholdProof))
-              ),
+              ListMap.empty[BoxReference, (Proposition, Proof)] ++
+              unprovenTransaction.inputs.map(boxRef => boxRef -> (thresholdProposition -> thresholdProof)),
               unprovenTransaction.feeOutput,
               unprovenTransaction.coinOutputs,
               unprovenTransaction.fee,
@@ -228,9 +229,8 @@ class CredentialSpec
 
           val transaction =
             Transaction(
-              ListMap.from(
-                unprovenTransaction.inputs.map(boxRef => boxRef -> (andProposition -> andProof))
-              ),
+              ListMap.empty[BoxReference, (Proposition, Proof)] ++
+              unprovenTransaction.inputs.map(boxRef => boxRef -> (andProposition -> andProof)),
               unprovenTransaction.feeOutput,
               unprovenTransaction.coinOutputs,
               unprovenTransaction.fee,

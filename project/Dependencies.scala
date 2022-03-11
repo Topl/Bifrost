@@ -234,7 +234,7 @@ object Dependencies {
     bouncyCastle ++ Seq(akka("actor-typed")) ++ catsEffect ++ logging ++ scalacache
 
   lazy val demo: Seq[ModuleID] =
-    Seq(akka("actor"), akka("actor-typed"), akka("stream"), akka("actor-testkit-typed") % Test) ++ logging
+    Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++ logging
 
   lazy val commonInterpreters =
     Dependencies.test ++

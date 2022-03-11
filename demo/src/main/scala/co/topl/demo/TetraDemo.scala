@@ -20,6 +20,7 @@ import co.topl.consensus.algebras.{EtaCalculationAlgebra, LeaderElectionValidati
 import co.topl.crypto.hash.{blake2b256, Blake2b256, Blake2b512}
 import co.topl.crypto.mnemonic.Entropy
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
+import co.topl.interpreters._
 import co.topl.minting._
 import co.topl.minting.algebras.BlockMintAlgebra
 import co.topl.models._
@@ -209,8 +210,8 @@ object TetraDemo extends IOApp.Simple {
       def get(id: TypedIdentifier): F[Option[BlockV2]] =
         (OptionT(headerStore.get(id)), OptionT(bodyStore.get(id))).tupled.map((BlockV2.apply _).tupled).value
 
-      def put(t: BlockV2): F[Unit] =
-        (headerStore.put(t.headerV2), bodyStore.put(t.blockBodyV2)).tupled.void
+      def put(id: TypedIdentifier, t: BlockV2): F[Unit] =
+        (headerStore.put(t.headerV2.id, t.headerV2), bodyStore.put(t.headerV2.id, t.blockBodyV2)).tupled.void
 
       def remove(id: TypedIdentifier): F[Unit] =
         (headerStore.remove(id), bodyStore.remove(id)).tupled.void
@@ -231,7 +232,7 @@ object TetraDemo extends IOApp.Simple {
       blockHeaderStore   <- RefStore.Eval.make[F, BlockHeaderV2]()
       blockBodyStore     <- RefStore.Eval.make[F, BlockBodyV2]()
       blockStore = createBlockStore(blockHeaderStore, blockBodyStore)
-      _             <- blockStore.put(genesis)
+      _             <- blockStore.put(genesis.headerV2.id, genesis)
       slotDataCache <- SlotDataCache.Eval.make(blockHeaderStore, ed25519VRFResource)
       etaCalculation <- EtaCalculation.Eval.make(
         slotDataCache,

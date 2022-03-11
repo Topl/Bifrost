@@ -56,6 +56,7 @@ class MnemonicToExtendedEd25519
       firstAttempt.chainCode shouldBe secondAttempt.chainCode
     }
   }
+
   it should "output a different key with a different password" in {
     val createKey: String => SecretKeys.ExtendedEd25519 =
       derive[String => SecretKeys.ExtendedEd25519](
@@ -75,6 +76,7 @@ class MnemonicToExtendedEd25519
       }
     }
   }
+
   it should "satisfy test vector 1" in {
     val tv = TestVector(
       "Test Vector #1",
@@ -97,6 +99,7 @@ class MnemonicToExtendedEd25519
 
     sk shouldBe tv.specOut.sk
   }
+
   it should "satisfy test vector 2" in {
     val tv = TestVector(
       "Test Vector #2",
@@ -119,6 +122,7 @@ class MnemonicToExtendedEd25519
 
     sk shouldBe tv.specOut.sk
   }
+
   it should "satisfy test vector 3" in {
     val tv = TestVector(
       "Test Vector #3",
@@ -142,6 +146,7 @@ class MnemonicToExtendedEd25519
 
     sk shouldBe tv.specOut.sk
   }
+
   it should "satisfy test vector 4" in {
     val tv = TestVector(
       "Test Vector #4",
@@ -165,6 +170,7 @@ class MnemonicToExtendedEd25519
 
     sk shouldBe tv.specOut.sk
   }
+
   it should "satisfy test vector 5" in {
     val tv = TestVector(
       "Test Vector #5",
@@ -188,6 +194,7 @@ class MnemonicToExtendedEd25519
 
     sk shouldBe tv.specOut.sk
   }
+
   it should "satisfy test vector 6" in {
     val tv = TestVector(
       "Test Vector #6",
@@ -211,6 +218,7 @@ class MnemonicToExtendedEd25519
 
     sk shouldBe tv.specOut.sk
   }
+
   // https://github.com/cardano-foundation/CIPs/blob/master/CIP-0003/Icarus.md#test-vectors
   it should "satisfy test vector 1 from icarus" in {
     val tv = TestVector(
@@ -234,6 +242,7 @@ class MnemonicToExtendedEd25519
 
     sk shouldBe tv.specOut.sk
   }
+
   // https://github.com/cardano-foundation/CIPs/blob/master/CIP-0003/Icarus.md#test-vectors
   it should "satisfy test vector 2 from icarus" in {
     val tv = TestVector(

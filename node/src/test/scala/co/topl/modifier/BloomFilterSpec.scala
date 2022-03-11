@@ -30,10 +30,7 @@ class BloomFilterSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wi
       val addressInBloom: Int = txs.dropRight(1).foldLeft(0)(_ + _.bloomTopics.size)
       val numAddressLastTx: Int = txs.last.bloomTopics.size
 
-      val falsePositives = txs.last.bloomTopics.foldLeft(0) { (count, bt) =>
-        if (bloomfilter.contains(bt)) count + 1
-        else count
-      }
+      val falsePositives = txs.last.bloomTopics.count(bloomfilter.contains)
 
       /**
        * Sometimes there's very few addresses in the last transaction, we only test here to make sure we don't get too
@@ -67,11 +64,8 @@ class BloomFilterSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wi
     val bloomfilter: BloomFilter = BloomFilter(bloomTopics)
     val testTopics: Seq[BloomTopic] = randAddr.drop(numBloom).map(addr => BloomTopic(addr.persistedBytes))
 
-    val falsePositives = testTopics.foldLeft(0) { (count, bt) =>
-      if (bloomfilter.contains(bt)) count + 1
-      else count
-    }
+    val falsePositives = testTopics.count(bloomfilter.contains)
 
-    falsePositives shouldEqual 15
+    falsePositives shouldBe 15 +- 3
   }
 }

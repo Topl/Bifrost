@@ -24,31 +24,14 @@ class RefKeyCollection[F[_]: Monad](r: Ref[F, Map[TypedEvidence, SecretKey]])(im
     r.get.map(_.keySet)
 
   def unlock[SK <: SecretKey: Persistable](evidence: TypedEvidence, password: Password): F[Option[SK]] =
-    credentialIO
-      .unlock(evidence, password)
-      .map {
-        _.flatMap { case (bytes, _) =>
-          Persistable[SK]
-            .fromPersistedBytes(bytes)
-            .map { sk =>
-              r.update(_.updated(evidence, sk))
-              sk
-            }
-            .toOption
-        }
-      }
-
-//    OptionT(credentialIO.unlock(evidence, password))
-//      .map { case (bytes, _) =>
-//        Persistable[SK].fromPersistedBytes(bytes.toArray).toOption
-//      }
-//      // .collect { case s: SK => s.asInstanceOf[SK] } // TODO: JAA - is this needed?
-//      .semiflatTap(sk => r.update(_.updated(evidence, sk)))
-//      .value
+    OptionT(credentialIO.unlock(evidence, password))
+      .subflatMap { case (bytes, _) => Persistable[SK].fromPersistedBytes(bytes).toOption }
+      .semiflatTap(sk => r.update(_.updated(evidence, sk)))
+      .value
 
   // todo: JAA - this should be lifting but it looks like it is retrieving?
   def lift[SK <: SecretKey](evidence: TypedEvidence): F[Option[SK]] =
-    OptionT(r.get.map(_.get(evidence))).collect { case s: SK => s }.value
+    OptionT(r.get.map(_.get(evidence))).collect { case s: SK @unchecked => s }.value
 
 }
 

@@ -75,7 +75,8 @@ object CredentialPlaygroundNE extends App {
   println(proof)
 
   val transaction = Transaction(
-    inputs = ListMap.from(unprovenTransaction.inputs.map(_ -> (proposition, proof))),
+    inputs =
+      ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(_ -> (proposition, proof)),
     feeOutput = unprovenTransaction.feeOutput,
     coinOutputs = unprovenTransaction.coinOutputs,
     fee = unprovenTransaction.fee,
@@ -95,8 +96,7 @@ object CredentialPlaygroundNE extends App {
         Box(
           proposition.typedEvidence,
           unprovenTransaction.inputs.head._2,
-          Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
-          10
+          Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))
         )
       )
 
@@ -161,7 +161,7 @@ object TruthTable extends App {
   val party1SK: SecretKeys.Ed25519 = KeyInitializer[SecretKeys.Ed25519].random()
   val party2SK: SecretKeys.Curve25519 = KeyInitializer[SecretKeys.Curve25519].random()
 
-  val parties: Seq[SecretKeys.Curve25519] = for (i <- 1 to Random.between(2, 50)) yield i match {
+  val parties: Seq[SecretKeys.Curve25519] = for (i <- 1 to (Random.nextInt(49) + 1)) yield i match {
     case _ => KeyInitializer[SecretKeys.Curve25519].random()
   }
 
@@ -204,7 +204,8 @@ object TruthTable extends App {
   println(proof)
 
   val transaction = Transaction(
-    inputs = ListMap.from(unprovenTransaction.inputs.map(_ -> (proposition, proof))),
+    inputs =
+      ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(_ -> (proposition, proof)),
     feeOutput = unprovenTransaction.feeOutput,
     coinOutputs = unprovenTransaction.coinOutputs,
     fee = unprovenTransaction.fee,
@@ -224,8 +225,7 @@ object TruthTable extends App {
         Box(
           proposition.typedEvidence,
           unprovenTransaction.inputs.head._2,
-          Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
-          10
+          Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))
         )
       )
 

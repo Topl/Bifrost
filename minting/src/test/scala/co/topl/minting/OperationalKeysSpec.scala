@@ -57,11 +57,6 @@ class OperationalKeysSpec
 
       val ineligibilities = Range.Long(0L, operationalPeriodLength, 2L).toVector
 
-      (() => clock.globalSlot)
-        .expects()
-        .once()
-        .returning(0L.pure[F])
-
       (() => clock.slotsPerEpoch)
         .expects()
         .twice()
@@ -177,11 +172,6 @@ class OperationalKeysSpec
       val operationalPeriodLength = 30L
       val activationOperationalPeriod = 0L
       val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L)
-
-      (() => clock.globalSlot)
-        .expects()
-        .once()
-        .returning(0L.pure[F])
 
       (() => clock.slotsPerEpoch)
         .expects()

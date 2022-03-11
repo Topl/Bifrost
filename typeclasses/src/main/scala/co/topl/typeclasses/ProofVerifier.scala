@@ -95,11 +95,6 @@ object ProofVerifier {
       context:     VerificationContext[F]
     ): F[Boolean] = (context.currentHeight >= proposition.height).pure[F]
 
-//    private def enumeratedOutputVerifier[F[_]: Applicative](
-//      proposition: Propositions.Example.EnumeratedInput,
-//      proof:       Proofs.Example.EnumeratedInput
-//    ): F[Boolean] = proposition.values.contains(proof.value).pure[F]
-
     private def hashLockVerifier[F[_]: Applicative](
       proposition: Propositions.Knowledge.HashLock,
       proof:       Proofs.Knowledge.HashLock
@@ -112,38 +107,34 @@ object ProofVerifier {
       context:     VerificationContext[F]
     ): F[Boolean] = {
       def compareBoxes(propositionBox: Box[_])(sourceBox: Box[_]): Boolean = propositionBox match {
-        case Box(TypedEvidence.empty, 0, Box.Values.Empty, 0) =>
-          false
-        case Box(TypedEvidence.empty, 0, Box.Values.Empty, data) =>
-          data == sourceBox.data
-        case Box(TypedEvidence.empty, 0, value, 0) =>
+        case Box(TypedEvidence.empty, 0, value) =>
           value == sourceBox.value
-        case Box(TypedEvidence.empty, 0, value, data) =>
-          value == sourceBox.value && data == sourceBox.data
-        case Box(TypedEvidence.empty, nonce, Box.Values.Empty, 0) =>
+        case Box(TypedEvidence.empty, 0, value) =>
+          value == sourceBox.value
+        case Box(TypedEvidence.empty, nonce, Box.Values.Empty) =>
           nonce == sourceBox.nonce
-        case Box(TypedEvidence.empty, nonce, Box.Values.Empty, data) =>
-          nonce == sourceBox.nonce && data == sourceBox.data
-        case Box(TypedEvidence.empty, nonce, value, 0) =>
-          nonce == sourceBox.nonce && value == sourceBox.value
-        case Box(TypedEvidence.empty, nonce, value, data) =>
-          nonce == sourceBox.nonce && value == sourceBox.value && data == sourceBox.data
-        case Box(typedEvidence, 0, Box.Values.Empty, 0) =>
+        case Box(TypedEvidence.empty, nonce, Box.Values.Empty) =>
+          nonce == sourceBox.nonce
+        case Box(TypedEvidence.empty, nonce, Box.Values.Empty) =>
+          nonce == sourceBox.nonce
+        case Box(TypedEvidence.empty, nonce, value) =>
+          nonce == sourceBox.nonce
+        case Box(typedEvidence, 0, Box.Values.Empty) =>
           typedEvidence == sourceBox.evidence
-        case Box(typedEvidence, 0, Box.Values.Empty, data) =>
-          typedEvidence == sourceBox.evidence && data == sourceBox.data
-        case Box(typedEvidence, 0, value, 0) =>
+        case Box(typedEvidence, 0, Box.Values.Empty) =>
+          typedEvidence == sourceBox.evidence
+        case Box(typedEvidence, 0, value) =>
           typedEvidence == sourceBox.evidence && value == sourceBox.value
-        case Box(typedEvidence, 0, value, data) =>
-          typedEvidence == sourceBox.evidence && value == sourceBox.value && data == sourceBox.data
-        case Box(typedEvidence, nonce, Box.Values.Empty, 0) =>
+        case Box(typedEvidence, 0, value) =>
+          typedEvidence == sourceBox.evidence && value == sourceBox.value
+        case Box(typedEvidence, nonce, Box.Values.Empty) =>
           typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce
-        case Box(typedEvidence, nonce, Box.Values.Empty, data) =>
-          typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce && data == sourceBox.data
-        case Box(typedEvidence, nonce, value, 0) =>
+        case Box(typedEvidence, nonce, Box.Values.Empty) =>
+          typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce
+        case Box(typedEvidence, nonce, value) =>
           typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce && value == sourceBox.value
-        case Box(typedEvidence, nonce, value, data) =>
-          typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce && value == sourceBox.value && data == sourceBox.data
+        case Box(typedEvidence, nonce, value) =>
+          typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce && value == sourceBox.value
         case _ => false
       }
 
@@ -233,9 +224,10 @@ object ProofVerifier {
       OptionT
         .fromOption[F](io.circe.parser.parse(proof.serializedArgs).toOption)
         .semiflatMap { argsJson =>
+          import co.topl.codecs.json.tetra.instances._
           val contextJson =
             Json.obj(
-              "currentTransaction" -> Json.obj(), // TODO context.currentTransaction.asJson,
+              "currentTransaction" -> context.currentTransaction.asJson,
               "currentHeight"      -> context.currentHeight.asJson,
               "currentSlot"        -> context.currentSlot.asJson
             )
@@ -260,25 +252,19 @@ object ProofVerifier {
           case (prop: Propositions.Knowledge.ExtendedEd25519, proof: Proofs.Knowledge.Ed25519) =>
             publicKeyExtendedEd25519Verifier[F](prop, proof, context)
           case (prop: Propositions.Compositional.Threshold, proof: Proofs.Compositional.Threshold) =>
-            implicit def v: ProofVerifier[F] = proofVerifier[F]
-            thresholdVerifier[F](prop, proof, context)
+            thresholdVerifier[F](prop, proof, context)(implicitly, proofVerifier[F])
           case (prop: Propositions.Compositional.And, proof: Proofs.Compositional.And) =>
-            implicit def v: ProofVerifier[F] = proofVerifier[F]
-            andVerifier[F](prop, proof, context)
+            andVerifier[F](prop, proof, context)(implicitly, proofVerifier[F])
           case (prop: Propositions.Compositional.Or, proof: Proofs.Compositional.Or) =>
-            implicit def v: ProofVerifier[F] = proofVerifier[F]
-            orVerifier[F](prop, proof, context)
+            orVerifier[F](prop, proof, context)(implicitly, proofVerifier[F])
           case (prop: Propositions.Compositional.Not, proof: Proofs.Compositional.Not) =>
-            implicit def v: ProofVerifier[F] = proofVerifier[F]
-            notVerifier[F](prop, proof, context)
+            notVerifier[F](prop, proof, context)(implicitly, proofVerifier[F])
           case (prop: Propositions.Contextual.HeightLock, _: Proofs.Contextual.HeightLock) =>
             heightLockVerifier[F](prop, context)
           case (prop: Propositions.Contextual.RequiredBoxState, _: Proofs.Contextual.RequiredBoxState) =>
             requiredBoxVerifier[F](prop, context)
           case (prop: Propositions.Knowledge.HashLock, proof: Proofs.Knowledge.HashLock) =>
             hashLockVerifier[F](prop, proof)
-//          case (prop: Propositions.Example.EnumeratedInput, proof: Proofs.Example.EnumeratedInput) =>
-//            enumeratedOutputVerifier[F](prop, proof)
           case (prop: Propositions.Script.JS, proof: Proofs.Script.JS) =>
             jsScriptVerifier[F](prop, proof, context, jsExecutor)
           case _ =>

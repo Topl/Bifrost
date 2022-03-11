@@ -1,7 +1,7 @@
 package co.topl.interpreters
 
-import cats._
-import cats.effect._
+import cats.Applicative
+import cats.effect.{Async, Sync, Temporal}
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.models.{Epoch, Slot, Timestamp}
