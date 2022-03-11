@@ -8,10 +8,11 @@ import akka.util.Timeout
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
-import co.topl.consensus.genesis.{HelGenesis, PrivateGenesis, ToplnetGenesis, ValhallaGenesis}
+import co.topl.consensus.genesis._
 import co.topl.modifier.block.Block
 import co.topl.nodeView.NodeViewReader
 import co.topl.settings.AppSettings
+import co.topl.settings.GenesisStrategy._
 import co.topl.utils.NetworkType._
 import co.topl.utils.{Int128, NetworkType, TimeProvider}
 import org.slf4j.Logger
@@ -108,44 +109,6 @@ object Forger {
     } else {
       Future.successful(Done)
     }
-
-  def genesisBlock(
-    settings:            AppSettings,
-    networkType:         NetworkType,
-    fetchStartupKeyView: () => Future[StartupKeyView],
-    consensusInterface:  ConsensusInterface
-  )(implicit
-    system: ActorSystem[_],
-    ec:     ExecutionContext
-  ): Future[Block] = {
-    implicit val networkPrefix: NetworkPrefix = networkType.netPrefix
-
-    def initializeFromChainParamsAndGetBlock(block: Try[(Block, ChainParams)]): Future[Block] = {
-
-      import scala.concurrent.duration._
-      implicit val timeout: Timeout = Timeout(10.seconds)
-
-      Future.fromTry(block).flatMap { case (block: Block, ChainParams(totalStake, initDifficulty)) =>
-        consensusInterface
-          .update(block.id, NxtConsensus.StateUpdate(Some(totalStake), Some(initDifficulty), Some(0L), Some(0L)))
-          .valueOrF(e => Future.failed(e.reason))
-          .map(_ => block)
-      }
-    }
-
-    networkType match {
-      case Mainnet         => initializeFromChainParamsAndGetBlock(ToplnetGenesis.getGenesisBlock)
-      case ValhallaTestnet => initializeFromChainParamsAndGetBlock(ValhallaGenesis.getGenesisBlock)
-      case HelTestnet      => initializeFromChainParamsAndGetBlock(HelGenesis.getGenesisBlock)
-      case PrivateTestnet =>
-        fetchStartupKeyView()
-          .map(view => PrivateGenesis(view.addresses, settings).getGenesisBlock)
-          .flatMap(r => initializeFromChainParamsAndGetBlock(r))
-      case _ =>
-        Future.failed(new IllegalArgumentException(s"Undefined network type $networkType"))
-    }
-
-  }
 
   sealed trait ForgerFailure
 

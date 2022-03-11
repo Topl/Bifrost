@@ -1,8 +1,8 @@
 package co.topl.consensus.genesis
 
 import co.topl.attestation.EvidenceProducer.Syntax.ProducerOps
-import co.topl.attestation.keyManagement._
 import co.topl.attestation._
+import co.topl.attestation.keyManagement._
 import co.topl.consensus.Forger.ChainParams
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -40,7 +40,8 @@ case class TestGenesis(
    * by making a call to the key manager holder to create a the set of forging keys. Once these keys are created,
    * we can use the public images to pre-fund the accounts from genesis.
    */
-  val (_, balance, initialDifficulty) = settings.forging.privateTestnet
+  val (_, balance, initialDifficulty) = settings.forging.genesis
+    .flatMap(_.generated)
     .map { settings =>
       (settings.numTestnetAccts, settings.testnetBalance, settings.initialDifficulty)
     }

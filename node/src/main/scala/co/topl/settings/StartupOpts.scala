@@ -56,8 +56,8 @@ final case class RuntimeOpts(
   def overrideWithCmdArgs(appSettings: AppSettings): AppSettings =
     appSettings
       // seed
-      .focus(_.forging.privateTestnet)
-      .modify(_.map(_.focus(_.genesisSeed).modify(_.orElse(seed))))
+      .focus(_.forging.genesis)
+      .modify(_.map(_.focus(_.generated).modify(_.map(_.focus(_.genesisSeed).modify(_.orElse(seed))))))
       // forge
       .focus(_.forging.forgeOnStartup)
       .replace(appSettings.forging.forgeOnStartup || forgeOnStartup.value)

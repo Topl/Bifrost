@@ -9,7 +9,7 @@ import co.topl.attestation.implicits._
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.catsakka.AskException
-import co.topl.codecs._
+import co.topl.settings.GenesisStrategy.Generated
 import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType._
@@ -22,8 +22,8 @@ import scala.util.{Success, Try}
 /** Actor that manages the keyRing and reward address */
 class KeyManager(settings: AppSettings, appContext: AppContext)(implicit np: NetworkPrefix) extends Actor with Logging {
 
-  import KeyManager._
   import KeyManager.ReceivableMessages._
+  import KeyManager._
 
   // //////////////////////////////////////////////////////////////////////////////////
   // //////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
@@ -77,12 +77,13 @@ class KeyManager(settings: AppSettings, appContext: AppContext)(implicit np: Net
   private def generateInitialAddresses(
     keyRing:       KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
     rewardAddress: Option[Address]
-  ): Try[StartupKeyView] =
+  ): Try[StartupKeyView] = {
     // If the keyring is not already populated and this is a private/local testnet, generate the keys
     // this is for when you have started up a private network and are attempting to resume it using
     // the same seed you used previously to continue forging
-    if (keyRing.addresses.isEmpty && PrivateTestnet == appContext.networkType) {
-      settings.forging.privateTestnet match {
+    val genesisStrat = settings.forging.genesis.flatMap(_.genesisStrategy)
+    if (keyRing.addresses.isEmpty && (appContext.networkType == PrivateTestnet || genesisStrat.contains(Generated))) {
+      settings.forging.genesis.flatMap(_.generated) match {
         case Some(sfp) =>
           val (numAccts, seed) = (sfp.numTestnetAccts, sfp.genesisSeed)
 
@@ -103,6 +104,7 @@ class KeyManager(settings: AppSettings, appContext: AppContext)(implicit np: Net
     } else {
       Success(StartupKeyView(keyRing.addresses, rewardAddress))
     }
+  }
 
   /** Gets a read-only view of the key ring to use for forging. */
   private def getKeyView(

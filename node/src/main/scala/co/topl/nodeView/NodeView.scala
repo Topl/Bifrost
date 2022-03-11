@@ -7,6 +7,7 @@ import co.topl.attestation.Address
 import co.topl.consensus.Hiccups.HiccupBlock
 import co.topl.consensus.KeyManager.StartupKeyView
 import co.topl.consensus._
+import co.topl.consensus.genesis.GenesisCreator
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ProgramId
@@ -92,12 +93,12 @@ object NodeView {
     consensusInterface: ConsensusInterface,
     startupKeyView:     () => Future[StartupKeyView]
   )(implicit system:    ActorSystem[_], ec: ExecutionContext): Future[NodeView] =
-    local(settings)(networkType.netPrefix)
+    readOrGenerateLocalView(settings)(networkType.netPrefix)
       .fold(genesis(settings, networkType, consensusInterface, startupKeyView))(
         Future.successful
       )
 
-  def local(
+  private def readOrGenerateLocalView(
     settings:               AppSettings
   )(implicit networkPrefix: NetworkPrefix): Option[NodeView] =
     if (State.exists(settings)) {
@@ -110,7 +111,7 @@ object NodeView {
       )
     } else None
 
-  def genesis(
+  private def genesis(
     settings:           AppSettings,
     networkType:        NetworkType,
     consensusInterface: ConsensusInterface,
@@ -121,7 +122,7 @@ object NodeView {
   ): Future[NodeView] = {
     implicit def networkPrefix: NetworkPrefix = networkType.netPrefix
 
-    Forger
+    GenesisCreator
       .genesisBlock(settings, networkType, startupKeyView, consensusInterface)
       .flatMap { block =>
         consensusInterface.withView { view =>
