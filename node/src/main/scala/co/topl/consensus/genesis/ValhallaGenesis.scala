@@ -5,7 +5,7 @@ import co.topl.consensus.Forger.ChainParams
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
-import co.topl.modifier.box.SimpleValue
+import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, TransferTransaction}
 import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
@@ -103,6 +103,8 @@ case object ValhallaGenesis extends GenesisProvider {
         generateGenesisTransaction(txInput),
         blockVersion
       )
+
+    val totalStake = calcTotalStake(block)
 
     require(
       block.id == blockChecksum,

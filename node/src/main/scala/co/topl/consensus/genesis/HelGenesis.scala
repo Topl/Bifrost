@@ -6,7 +6,7 @@ import co.topl.consensus.Forger.ChainParams
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
-import co.topl.modifier.box.SimpleValue
+import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.utils.implicits._
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
@@ -76,6 +76,8 @@ case object HelGenesis extends GenesisProvider {
         generateGenesisTransaction(txInput),
         blockVersion
       )
+
+    val totalStake = calcTotalStake(block)
 
     require(
       block.id == blockChecksum,

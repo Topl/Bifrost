@@ -5,14 +5,13 @@ import co.topl.consensus.Forger.ChainParams
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
-import co.topl.modifier.box.PolyBox
+import co.topl.modifier.box.ArbitBox
 import co.topl.settings.GenesisFromBlockJsonSettings
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.{Int128, NetworkType}
 import io.circe.parser
-import io.circe.syntax.EncoderOps
 
 import scala.collection.immutable.ListMap
 import scala.util.Try
@@ -46,21 +45,11 @@ case class GenesisFromBlockJson(
   override def getGenesisBlock: Try[(Block, ChainParams)] = Try(formNewBlock)
 
   def formNewBlock: (Block, ChainParams) = {
-    val privateTotalStake = block.transactions
-      .flatMap(_.newBoxes.map { box =>
-        val stake: Int128 = box match {
-          case box: PolyBox => box.value.quantity
-          case _            => 0
-        }
-        box.id.toString -> stake
-      })
-      .toMap
-      .values
-      .sum
+    val totalStake = calcTotalStake(block)
 
     log.debug(s"Initialize state with block $block")
 
-    (block, ChainParams(privateTotalStake, block.difficulty))
+    (block, ChainParams(totalStake, block.difficulty))
   }
 
   protected def readJson(filename: String)(implicit networkPrefix: NetworkPrefix): Block = {

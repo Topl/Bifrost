@@ -6,7 +6,7 @@ import co.topl.consensus.Forger.ChainParams
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
-import co.topl.modifier.box.SimpleValue
+import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.settings.GenesisGenerationSettings
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
@@ -43,8 +43,6 @@ case class GeneratedGenesis(
   )
 
   def formNewBlock: (Block, ChainParams) = {
-    // map the members to their balances then continue as normal
-    val privateTotalStake = numberOfKeys * balance
 
     val txInput: GenesisTransactionParams = GenesisTransactionParams(
       IndexedSeq(),
@@ -71,8 +69,10 @@ case class GeneratedGenesis(
         blockVersion
       )
 
+    val totalStake = calcTotalStake(block)
+
     log.debug(s"Initialize state with block $block")
 
-    (block, ChainParams(privateTotalStake, initialDifficulty))
+    (block, ChainParams(totalStake, initialDifficulty))
   }
 }

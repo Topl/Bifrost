@@ -30,10 +30,8 @@ trait GenesisProvider extends Logging {
   protected lazy val genesisAcctEd25519: PrivateKeyEd25519 =
     new PrivateKeyEd25519(PrivateKey(Array.fill(32)(2: Byte)), PublicKey(Array.fill(32)(2: Byte)))
 
-  protected lazy val totalStake: Int128 = members.values.sum
-
   protected lazy val generatorBox: ArbitBox =
-    ArbitBox(genesisAcctCurve25519.publicImage.generateEvidence, 0, SimpleValue(totalStake))
+    ArbitBox(genesisAcctCurve25519.publicImage.generateEvidence, 0, SimpleValue(members.values.sum))
 
   protected val signature: SignatureCurve25519 = SignatureCurve25519.genesis
 
@@ -58,6 +56,19 @@ trait GenesisProvider extends Logging {
     data:       Option[Latin1Data],
     minting:    Boolean
   )
+
+  protected def calcTotalStake(block: Block): Int128 =
+    block.transactions
+      .flatMap(_.newBoxes.map { box =>
+        val stake: Int128 = box match {
+          case box: ArbitBox => box.value.quantity
+          case _             => 0
+        }
+        box.id.toString -> stake
+      })
+      .toMap
+      .values
+      .sum
 
   protected def generateGenesisTransaction(
     params: GenesisTransactionParams
