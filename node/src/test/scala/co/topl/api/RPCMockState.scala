@@ -58,8 +58,8 @@ trait RPCMockState
   protected var keyManagerRef: TestActorRef[KeyManager] = _
   protected var forgerRef: akka.actor.typed.ActorRef[Forger.ReceivableMessage] = _
 
-  protected var consensusStorageRef: akka.actor.typed.ActorRef[ConsensusVariables.ReceivableMessage] = _
-  protected var consensusVariablesInterface: ConsensusVariablesHolder = _
+  protected var consensusHolderRef: akka.actor.typed.ActorRef[NxtConsensus.ReceivableMessage] = _
+  protected var consensusInterface: ConsensusInterface = _
   protected var nodeViewHolderRef: akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage] = _
 
   protected var km: KeyManager = _
@@ -79,23 +79,26 @@ trait RPCMockState
       new KeyManager(settings, appContext)(appContext.networkType.netPrefix)
     )
 
-    consensusStorageRef = system.toTyped.systemActorOf(
-      ConsensusVariables(settings, appContext.networkType, InMemoryKeyValueStore.empty()),
-      ConsensusVariables.actorName
+    consensusHolderRef = system.toTyped.systemActorOf(
+      NxtConsensus(
+        settings,
+        appContext.networkType,
+        InMemoryKeyValueStore.empty()
+      ),
+      NxtConsensus.actorName
     )
 
-    consensusVariablesInterface = new ActorConsensusVariablesHolder(consensusStorageRef)(system.toTyped, 10.seconds)
+    consensusInterface = new ActorConsensusInterface(consensusHolderRef)(system.toTyped, 10.seconds)
 
     nodeViewHolderRef = system.toTyped.systemActorOf(
       NodeViewHolder(
         settings,
-        consensusVariablesInterface,
+        consensusInterface,
         () =>
           NodeView.persistent(
             settings,
             appContext.networkType,
-            consensusVariablesInterface,
-            nxtLeaderElection,
+            consensusInterface,
             () =>
               (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
                 .mapTo[Try[StartupKeyView]]
@@ -116,8 +119,7 @@ trait RPCMockState
             .mapTo[Try[StartupKeyView]]
             .flatMap(Future.fromTry),
         new ActorNodeViewHolderInterface(nodeViewHolderRef)(system.toTyped, implicitly[Timeout]),
-        new ActorConsensusVariablesHolder(consensusStorageRef)(system.toTyped, 10.seconds),
-        nxtLeaderElection
+        new ActorConsensusInterface(consensusHolderRef)(system.toTyped, 10.seconds)
       ),
       Forger.ActorName
     )
@@ -137,12 +139,14 @@ trait RPCMockState
       val keyManagerInterface = new ActorKeyManagerInterface(keyManagerRef)
       val nodeViewHolderInterface =
         new ActorNodeViewHolderInterface(nodeViewHolderRef)
+      val consensusInterface = new ActorConsensusInterface(consensusHolderRef)
+
       import co.topl.rpc.handlers._
       new ToplRpcServer(
         ToplRpcHandlers(
           new DebugRpcHandlerImpls(nodeViewHolderInterface, keyManagerInterface),
           new UtilsRpcHandlerImpls,
-          new NodeViewRpcHandlerImpls(settings.rpcApi, appContext, nxtLeaderElection, nodeViewHolderInterface),
+          new NodeViewRpcHandlerImpls(settings.rpcApi, appContext, consensusInterface, nodeViewHolderInterface),
           new TransactionRpcHandlerImpls(nodeViewHolderInterface),
           new AdminRpcHandlerImpls(forgerInterface, keyManagerInterface, nodeViewHolderInterface)
         ),

@@ -5,6 +5,7 @@ import co.topl.utils.Logging
 import com.typesafe.config.{Config, ConfigFactory}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
+import net.ceedubs.ficus.readers.EnumerationReader._
 
 import java.io.File
 import java.net.InetSocketAddress
@@ -79,14 +80,38 @@ case class ForgingSettings(
   protocolVersions:     List[ProtocolSettings],
   forgeOnStartup:       Boolean,
   rewardsAddress:       Option[String], // String here since we don't know netPrefix when settings are read
-  privateTestnet:       Option[PrivateTestnetSettings]
+  genesis:              Option[GenesisSettings]
 )
 
-case class PrivateTestnetSettings(
-  numTestnetAccts:   Int,
-  testnetBalance:    Long,
+case class GenesisSettings(
+  genesisStrategy: Option[GenesisStrategy.Value],
+  generated:       Option[GenesisGenerationSettings],
+  fromBlockJson:   Option[GenesisFromBlockJsonSettings]
+)
+
+object GenesisStrategy extends Enumeration {
+  val Generated: GenesisStrategy.Value = Value("generated")
+  val FromBlockJson: GenesisStrategy.Value = Value("fromBlockJson")
+}
+
+case class GenesisGenerationSettings(
+  numTestnetAccts:           Int,
+  genesisApplicationVersion: Version,
+  testnetBalance:            Long,
+  initialDifficulty:         Long,
+  genesisSeed:               Option[String]
+)
+
+case class GenesisFromConfigSettings(
+  blockChecksum:     String,
   initialDifficulty: Long,
-  genesisSeed:       Option[String]
+  memberAddresses:   List[String],
+  memberStakes:      List[Long]
+)
+
+case class GenesisFromBlockJsonSettings(
+  providedJsonGenesisPath: String,
+  blockChecksum:           String
 )
 
 case class GjallarhornSettings(

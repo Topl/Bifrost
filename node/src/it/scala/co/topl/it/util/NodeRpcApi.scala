@@ -81,7 +81,7 @@ case class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem, 
 object NodeRpcApi {
 
   val ApiKey = "integration-test-key"
-  val ApiKeyHash: Digest32 = blake2b256.hash(ApiKey.getBytes)
+  val ApiKeyHash: Digest32 = blake2b256.hash(ApiKey.getBytes("UTF-8"))
   val ApiKeyHashBase58: String = Base58.encode(ApiKeyHash.value)
 
   def apply(node: BifrostDockerNode)(implicit system: ActorSystem, dockerClient: DockerClient): NodeRpcApi = {

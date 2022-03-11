@@ -136,8 +136,12 @@ class ForgerSpec
         LoggingTestKit.debug("New local block").withOccurrences(newBlockCount + 1).expect {
           val consensusStorageRef =
             spawn(
-              ConsensusVariables(settings, appContext.networkType, InMemoryKeyValueStore.empty()),
-              ConsensusVariables.actorName
+              NxtConsensus(
+                settings,
+                appContext.networkType,
+                InMemoryKeyValueStore.empty()
+              ),
+              NxtConsensus.actorName
             )
           val forgerRef = spawn(
             Forger.behavior(
@@ -147,8 +151,7 @@ class ForgerSpec
               fetchKeyView,
               fetchStartupKeyView,
               reader,
-              new ActorConsensusVariablesHolder(consensusStorageRef),
-              nxtLeaderElection
+              new ActorConsensusInterface(consensusStorageRef)
             )
           )
 
@@ -207,8 +210,12 @@ class ForgerSpec
 
     val consensusStorageRef =
       spawn(
-        ConsensusVariables(settings, appContext.networkType, InMemoryKeyValueStore.empty()),
-        ConsensusVariables.actorName
+        NxtConsensus(
+          settings,
+          appContext.networkType,
+          InMemoryKeyValueStore.empty()
+        ),
+        NxtConsensus.actorName
       )
 
     val forgerRef = spawn(
@@ -219,8 +226,7 @@ class ForgerSpec
         fetchKeyView,
         fetchStartupKeyView,
         reader,
-        new ActorConsensusVariablesHolder(consensusStorageRef),
-        nxtLeaderElection
+        new ActorConsensusInterface(consensusStorageRef)
       )
     )
 
@@ -253,8 +259,12 @@ class ForgerSpec
     LoggingTestKit.error("Forging requires a rewards address").expect {
       val consensusStorageRef =
         spawn(
-          ConsensusVariables(settings, appContext.networkType, InMemoryKeyValueStore.empty()),
-          ConsensusVariables.actorName
+          NxtConsensus(
+            settings,
+            appContext.networkType,
+            InMemoryKeyValueStore.empty()
+          ),
+          NxtConsensus.actorName
         )
       val forgerRef = spawn(
         Forger.behavior(
@@ -264,8 +274,7 @@ class ForgerSpec
           fetchKeyView,
           fetchStartupKeyView,
           reader,
-          new ActorConsensusVariablesHolder(consensusStorageRef),
-          nxtLeaderElection
+          new ActorConsensusInterface(consensusStorageRef)
         )
       )
       createTestProbe().expectTerminated(forgerRef)

@@ -7,7 +7,7 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.SimpleValue
-import co.topl.settings.AppSettings
+import co.topl.settings.GenesisGenerationSettings
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.implicits._
@@ -15,13 +15,16 @@ import co.topl.utils.implicits._
 import scala.collection.immutable.ListMap
 import scala.util.Try
 
-case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implicit
-  val networkPrefix:                 NetworkPrefix
+case class GeneratedGenesis(
+  addresses: Set[Address],
+  settings:  GenesisGenerationSettings
+)(implicit
+  val networkPrefix: NetworkPrefix
 ) extends GenesisProvider {
 
   override protected val blockChecksum: ModifierId = ModifierId.empty
 
-  override protected val blockVersion: PNVMVersion = settings.application.version.blockByte
+  override protected val blockVersion: PNVMVersion = settings.genesisApplicationVersion.blockByte
 
   override def getGenesisBlock: Try[(Block, ChainParams)] = Try(formNewBlock)
 
@@ -31,11 +34,8 @@ case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implic
    * by making a call to the key manager holder to create a the set of forging keys. Once these keys are created,
    * we can use the public images to pre-fund the accounts from genesis.
    */
-  val (numberOfKeys, balance, initialDifficulty) = settings.forging.privateTestnet
-    .map { settings =>
-      (settings.numTestnetAccts, settings.testnetBalance, settings.initialDifficulty)
-    }
-    .getOrElse(10, 1000000L, 1000000000000000000L)
+  val (numberOfKeys, balance, initialDifficulty) =
+    (settings.numTestnetAccts, settings.testnetBalance, settings.initialDifficulty)
 
   override protected[genesis] val members: ListMap[String, Int128] = ListMap.from(
     addresses

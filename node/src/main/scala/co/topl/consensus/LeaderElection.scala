@@ -26,7 +26,7 @@ object LeaderElection extends Logging {
     parent:            Block,
     addresses:         Set[Address],
     timestamp:         TimeProvider.Time,
-    consensusParams:   ConsensusVariables.ConsensusParams,
+    consensusParams:   NxtConsensus.State,
     nxtLeaderElection: NxtLeaderElection,
     stateReader:       SR
   ): Either[IneligibilityReason, ArbitBox] =

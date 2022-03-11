@@ -2,7 +2,6 @@ package co.topl.consensus
 
 import co.topl.attestation.Address
 import co.topl.attestation.implicits._
-import co.topl.consensus.ConsensusVariables.ConsensusParams
 import co.topl.consensus.LeaderElection.{NoAddressesAvailable, NoArbitBoxesAvailable}
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.{CommonGenerators, TestSettings}
@@ -29,7 +28,7 @@ class LeaderElectionTests extends AnyFlatSpec with MockFactory with CommonGenera
         parent,
         addresses,
         parent.timestamp + 100,
-        ConsensusParams(10000000, parent.difficulty, 0L, parent.height),
+        NxtConsensus.State(10000000, parent.difficulty, 0L, parent.height),
         nxtLeaderElection,
         stateReader
       )
@@ -51,7 +50,7 @@ class LeaderElectionTests extends AnyFlatSpec with MockFactory with CommonGenera
         parent,
         addresses,
         parent.timestamp + 100,
-        ConsensusParams(10000000, parent.difficulty, 0L, parent.height),
+        NxtConsensus.State(10000000, parent.difficulty, 0L, parent.height),
         nxtLeaderElection,
         stateReader
       )

@@ -1,7 +1,7 @@
 package co.topl.consensus
 
 import co.topl.attestation.Address
-import co.topl.consensus.ConsensusVariables.ConsensusParams
+import co.topl.consensus.NxtConsensus.State
 import co.topl.consensus.KeyManager.KeyView
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, ProgramId, SimpleValue}
@@ -87,16 +87,16 @@ class ForgeSpec
 
       val forge =
         Forge
-          .fromNodeView(
+          .prepareForge(
             nodeView,
-            ConsensusParams(Int128(10000000), 1000000000000000000L, 0L, 0L),
-            nxtLeaderElection,
+            NxtConsensus
+              .View(NxtConsensus.State(10000000, 1000000000000000000L, 0L, 0L), nxtLeaderElection, protocolVersioner),
             keyView,
             0
           )
           .value
 
-      val block = forge.make(nxtLeaderElection).value
+      val block = forge.make.value
       block.parentId shouldBe parentBlock.id
       block.timestamp shouldBe Long.MaxValue
     }
@@ -113,10 +113,10 @@ class ForgeSpec
       KeyView(keyRingCurve25519.addresses, None, keyRingCurve25519.signWithAddress, keyRingCurve25519.lookupPublicKey)
 
     Forge
-      .fromNodeView(
+      .prepareForge(
         nodeView,
-        ConsensusParams(Int128(10000000), 1000000000000000000L, 0L, 0L),
-        nxtLeaderElection,
+        NxtConsensus
+          .View(NxtConsensus.State(10000000, 1000000000000000000L, 0L, 0L), nxtLeaderElection, protocolVersioner),
         keyView,
         0
       )
@@ -178,10 +178,13 @@ class ForgeSpec
         )
 
       Forge
-        .fromNodeView(
+        .prepareForge(
           nodeView,
-          ConsensusParams(10000000, parentBlock.difficulty, 0L, parentBlock.height),
-          nxtLeaderElection,
+          NxtConsensus.View(
+            NxtConsensus.State(10000000, parentBlock.difficulty, 0L, parentBlock.height),
+            nxtLeaderElection,
+            protocolVersioner
+          ),
           keyView,
           0
         )
