@@ -3,7 +3,7 @@ package co.topl.nodeView.history
 import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.network.message.SyncInfo
+import co.topl.network.SyncInfo
 
 import scala.annotation.tailrec
 import scala.util.Try

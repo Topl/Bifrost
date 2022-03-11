@@ -1,40 +1,56 @@
 package co.topl.utils
 
-import co.topl.attestation._
+import co.topl.attestation.{Address, _}
 import co.topl.attestation.keyManagement._
-import co.topl.consensus.TestGenesis
-import co.topl.modifier.ModifierId
+import co.topl.consensus.genesis.TestGenesis
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.Box.identifier
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TX
+import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithms, TransferBuilder}
+import co.topl.modifier.transaction.builder.TransferRequests.{
+  ArbitTransferRequest,
+  AssetTransferRequest,
+  PolyTransferRequest
+}
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
-import co.topl.db.LDBVersionedStore
-import co.topl.nodeView.history.{BlockProcessor, History, Storage}
+import co.topl.modifier.{transaction, ModifierId}
+import co.topl.nodeView.history.{BlockProcessor, History, InMemoryKeyValueStore, Storage}
 import co.topl.nodeView.state.State
-import co.topl.settings.{AppSettings, StartupOpts, Version}
+import co.topl.settings.{AppContext, AppSettings, StartupOpts, Version}
 import co.topl.utils.StringDataTypes.Latin1Data
+import com.typesafe.config.Config
 import org.scalacheck.Gen
 import org.scalatest.Suite
+import co.topl.utils.IdiomaticScalaTransition.implicits._
 
-import java.io.File
 import java.nio.file.Files
 import scala.collection.immutable.ListMap
 import scala.util.Random
 
-trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
-  self: Suite =>
+trait TestSettings {
+  implicit def settings: AppSettings = TestSettings.defaultSettings
+  implicit def appContext: AppContext = TestSettings.defaultAppContext
+}
 
-  private val settingsFilename = "node/src/test/resources/test.conf"
+object TestSettings {
+  private val settingsFilename = "node/src/test/resources/application-test.conf"
 
-  lazy val settings: AppSettings = {
-    val s = AppSettings.read(StartupOpts(Some(settingsFilename)))._1
+  val (defaultSettings: AppSettings, defaultConfig: Config) = {
+    val (s, c) = AppSettings.read(StartupOpts(Some(settingsFilename)))
     s.copy(
       application = s.application.copy(
         dataDir = Some(Files.createTempDirectory("bifrost-test-data").toString)
       )
-    )
+    ) -> c
   }
+
+  val defaultAppContext: AppContext =
+    new AppContext(defaultSettings, StartupOpts(), None)
+}
+
+trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with TestSettings {
+  self: Suite =>
 
   lazy val versionGen: Gen[Version] = for {
     first  <- Gen.choose(0: Byte, Byte.MaxValue)
@@ -48,20 +64,28 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
   def genesisBlockId: ModifierId = genesisBlock.id
 
   def generateHistory(genesisBlock: Block = genesisBlock): History = {
-    val dataDir = s"/tmp/bifrost/test-data/test-${Random.nextInt(10000000)}"
+//    val dataDir = s"/tmp/bifrost/test-data/test-${Random.nextInt(10000000)}"
+//
+//    val iFile = new File(s"$dataDir/blocks")
+//    iFile.mkdirs()
+//    val blockStorage = new LDBVersionedStore(iFile, 100)
 
-    val iFile = new File(s"$dataDir/blocks")
-    iFile.mkdirs()
-    val blockStorage = new LDBVersionedStore(iFile, 100)
-
-    val storage = new Storage(blockStorage, settings.application.cacheExpire, settings.application.cacheSize)
-    //we don't care about validation here
+    val storage =
+      new Storage(new InMemoryKeyValueStore)
+    // we don't care about validation here
     val validators = Seq()
 
     var history = new History(storage, BlockProcessor(1024), validators)
 
     history = history.append(genesisBlock).get._1
-    assert(history.modifierById(genesisBlock.id).isDefined)
+
+    val genesisBlockId = genesisBlock.id
+
+    val historyModifierId = history.modifierById(genesisBlockId)
+
+    val isDefined = historyModifierId.isDefined
+
+    assert(isDefined)
     history
   }
 
@@ -93,22 +117,21 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
 
     val availablePolys = sumBoxes(collectBoxes(keyRing.addresses, state), "PolyBox")
     val (sender, poly) = availablePolys(Random.nextInt(availablePolys.length))
-    val polyAmount = SimpleValue(Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, poly.longValue() - 1))) - fee)
+    val polyAmount = Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, poly.longValue() - 1))) - fee
 
     val recipients = {
       val address: Address = keyRing.addresses.filterNot(_ == sender).toSeq(Random.nextInt(keyRing.addresses.size - 1))
-      IndexedSeq((address, polyAmount))
+      List((address, polyAmount))
     }
-    val rawTx = PolyTransfer
-      .createRaw[PublicKeyPropositionCurve25519](
-        state,
-        recipients,
-        IndexedSeq(sender),
-        changeAddress = sender,
-        fee,
-        data = None
-      )
-      .get
+
+    val rawTx =
+      TransferBuilder
+        .buildUnsignedPolyTransfer[PublicKeyPropositionCurve25519](
+          state,
+          PolyTransferRequest(List(sender), recipients, sender, fee, None),
+          BoxSelectionAlgorithms.All
+        )
+        .getOrThrow()
 
     rawTx.copy(attestation = Transaction.updateAttestation(rawTx)(keyRing.generateAttestation(sender)))
   }
@@ -125,23 +148,22 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
 
     val availablePolys: Seq[(Address, Int128)] = sumBoxes(collectBoxes(addresses, state), "PolyBox")
     val (sender, poly): (Address, Int128) = availablePolys(Random.nextInt(availablePolys.length))
-    val polyAmount = SimpleValue(Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, poly.longValue() - 1))) - fee)
+    val polyAmount = Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, poly.longValue() - 1))) - fee
 
     val recipients = {
       val address: Address =
         addresses.filterNot(_ == sender).toSeq(Random.nextInt(addresses.size - 1))
-      IndexedSeq((address, polyAmount))
+      List((address, polyAmount))
     }
-    val rawTx = PolyTransfer
-      .createRaw[ThresholdPropositionCurve25519](
-        state,
-        recipients,
-        IndexedSeq(sender),
-        changeAddress = sender,
-        fee,
-        data = None
-      )
-      .get
+
+    val rawTx =
+      TransferBuilder
+        .buildUnsignedPolyTransfer[PublicKeyPropositionCurve25519](
+          state,
+          PolyTransferRequest(List(sender), recipients, sender, fee, None),
+          BoxSelectionAlgorithms.All
+        )
+        .getOrThrow()
 
     val signatures = keyRing.generateAttestation(keyRing.addresses)(rawTx.messageToSign).values.toSet
     val thresholdSignature = ThresholdSignatureCurve25519(signatures)
@@ -158,22 +180,21 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
 
     val availablePolys = sumBoxes(collectBoxes(keyRing.addresses, state), "PolyBox")
     val (sender, poly) = availablePolys(Random.nextInt(availablePolys.length))
-    val polyAmount = SimpleValue(Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, poly.longValue() - 1))) - fee)
+    val polyAmount = Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, poly.longValue() - 1))) - fee
 
     val recipients = {
       val address: Address = keyRing.addresses.filterNot(_ == sender).toSeq(Random.nextInt(keyRing.addresses.size - 1))
-      IndexedSeq((address, polyAmount))
+      List((address, polyAmount))
     }
-    val rawTx = PolyTransfer
-      .createRaw[PublicKeyPropositionEd25519](
-        state,
-        recipients,
-        IndexedSeq(sender),
-        changeAddress = sender,
-        fee,
-        data = None
-      )
-      .get
+
+    val rawTx =
+      TransferBuilder
+        .buildUnsignedPolyTransfer[PublicKeyPropositionEd25519](
+          state,
+          PolyTransferRequest(List(sender), recipients, sender, fee, None),
+          BoxSelectionAlgorithms.All
+        )
+        .getOrThrow()
 
     rawTx.copy(attestation = Transaction.updateAttestation(rawTx)(keyRing.generateAttestation(sender)))
   }
@@ -199,23 +220,21 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
 
     val availableArbits = sumBoxes(collectBoxes(keyRing.addresses, state), "ArbitBox")
     val (sender, arbit) = availableArbits(Random.nextInt(availableArbits.length))
-    val arbitAmount = SimpleValue(Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, arbit.longValue() - 1))) - fee)
+    val arbitAmount = Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, arbit.longValue() - 1))) - fee
 
     val recipients = {
       val address = keyRing.addresses.filterNot(_ == sender).toSeq(Random.nextInt(keyRing.addresses.size - 1))
-      IndexedSeq((address, arbitAmount))
+      List((address, arbitAmount))
     }
-    val rawTx = ArbitTransfer
-      .createRaw[PublicKeyPropositionCurve25519](
-        state,
-        recipients,
-        IndexedSeq(sender),
-        changeAddress = sender,
-        consolidationAddress = sender,
-        fee,
-        data = None
-      )
-      .get
+
+    val rawTx =
+      TransferBuilder
+        .buildUnsignedArbitTransfer[PublicKeyPropositionCurve25519](
+          state,
+          ArbitTransferRequest(List(sender), recipients, sender, sender, fee, None),
+          BoxSelectionAlgorithms.All
+        )
+        .getOrThrow()
 
     rawTx.copy(attestation = Transaction.updateAttestation(rawTx)(keyRing.generateAttestation(sender)))
   }
@@ -232,24 +251,22 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
 
     val availableArbits = sumBoxes(collectBoxes(addresses, state), "ArbitBox")
     val (sender, arbit) = availableArbits(Random.nextInt(availableArbits.length))
-    val arbitAmount = SimpleValue(Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, arbit.longValue() - 1))) - fee)
+    val arbitAmount = Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, arbit.longValue() - 1))) - fee
 
     val recipients = {
       val address: Address =
         addresses.filterNot(_ == sender).toSeq(Random.nextInt(addresses.size - 1))
-      IndexedSeq((address, arbitAmount))
+      List((address, arbitAmount))
     }
-    val rawTx = ArbitTransfer
-      .createRaw[PublicKeyPropositionCurve25519](
-        state,
-        recipients,
-        IndexedSeq(sender),
-        changeAddress = sender,
-        consolidationAddress = sender,
-        fee,
-        data = None
-      )
-      .get
+
+    val rawTx =
+      TransferBuilder
+        .buildUnsignedArbitTransfer[ThresholdPropositionCurve25519](
+          state,
+          ArbitTransferRequest(List(sender), recipients, sender, sender, fee, None),
+          BoxSelectionAlgorithms.All
+        )
+        .getOrThrow()
 
     val signatures = keyRing.generateAttestation(keyRing.addresses)(rawTx.messageToSign).values.toSet
     val thresholdSignature = ThresholdSignatureCurve25519(signatures)
@@ -266,23 +283,21 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
 
     val availableArbits = sumBoxes(collectBoxes(keyRing.addresses, state), "ArbitBox")
     val (sender, arbit) = availableArbits(Random.nextInt(availableArbits.length))
-    val arbitAmount = SimpleValue(Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, arbit.longValue() - 1))) - fee)
+    val arbitAmount = Int128(sampleUntilNonEmpty(Gen.chooseNum(1L + fee, arbit.longValue() - 1))) - fee
 
     val recipients = {
       val address = keyRing.addresses.filterNot(_ == sender).toSeq(Random.nextInt(keyRing.addresses.size - 1))
-      IndexedSeq((address, arbitAmount))
+      List((address, arbitAmount))
     }
-    val rawTx = ArbitTransfer
-      .createRaw[PublicKeyPropositionEd25519](
-        state,
-        recipients,
-        IndexedSeq(sender),
-        changeAddress = sender,
-        consolidationAddress = sender,
-        fee,
-        data = None
-      )
-      .get
+
+    val rawTx =
+      TransferBuilder
+        .buildUnsignedArbitTransfer[PublicKeyPropositionEd25519](
+          state,
+          ArbitTransferRequest(List(sender), recipients, sender, sender, fee, None),
+          BoxSelectionAlgorithms.All
+        )
+        .getOrThrow()
 
     rawTx.copy(attestation = Transaction.updateAttestation(rawTx)(keyRing.generateAttestation(sender)))
   }
@@ -308,21 +323,16 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
   ): Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = {
     val sender = keyRing.addresses.head
     val asset = AssetValue(1, AssetCode(1: Byte, sender, Latin1Data.unsafe("test")), SecurityRoot.empty)
-    val recipients = IndexedSeq((sender, asset))
+    val recipients = List((sender, asset))
 
-    // todo: This should not be using the create raw function because we are testing too many things then!
-    val rawTx = AssetTransfer
-      .createRaw[PublicKeyPropositionCurve25519](
-        state,
-        recipients,
-        IndexedSeq(sender),
-        changeAddress = sender,
-        consolidationAddress = sender,
-        fee,
-        data = None,
-        minting
-      )
-      .get
+    val rawTx =
+      TransferBuilder
+        .buildUnsignedAssetTransfer[PublicKeyPropositionCurve25519](
+          state,
+          AssetTransferRequest(List(sender), recipients, sender, sender, fee, None, minting),
+          BoxSelectionAlgorithms.All
+        )
+        .getOrThrow()
 
     rawTx.copy(attestation = Transaction.updateAttestation(rawTx)(keyRing.generateAttestation(sender)))
   }
@@ -340,21 +350,16 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
 
     val sender = addresses.head
     val asset = AssetValue(1, AssetCode(1: Byte, sender, Latin1Data.unsafe("test")), SecurityRoot.empty)
-    val recipients = IndexedSeq((sender, asset))
+    val recipients = List((sender, asset))
 
-    // todo: This should not be using the create raw function because we are testing too many things then!
-    val rawTx = AssetTransfer
-      .createRaw[PublicKeyPropositionCurve25519](
-        state,
-        recipients,
-        IndexedSeq(sender),
-        changeAddress = sender,
-        consolidationAddress = sender,
-        fee,
-        data = None,
-        minting
-      )
-      .get
+    val rawTx =
+      TransferBuilder
+        .buildUnsignedAssetTransfer[ThresholdPropositionCurve25519](
+          state,
+          AssetTransferRequest(List(sender), recipients, sender, sender, fee, None, minting),
+          BoxSelectionAlgorithms.All
+        )
+        .getOrThrow()
 
     val signatures = keyRing.generateAttestation(keyRing.addresses)(rawTx.messageToSign).values.toSet
     val thresholdSignature = ThresholdSignatureCurve25519(signatures)
@@ -371,21 +376,16 @@ trait NodeGenerators extends CommonGenerators with KeyFileTestHelper {
   ): Gen[AssetTransfer[PublicKeyPropositionEd25519]] = {
     val sender = keyRing.addresses.head
     val asset = AssetValue(1, AssetCode(1: Byte, sender, Latin1Data.unsafe("test")), SecurityRoot.empty)
-    val recipients = IndexedSeq((sender, asset))
+    val recipients = List((sender, asset))
 
-    // todo: This should not be using the create raw function because we are testing too many things then!
-    val rawTx = AssetTransfer
-      .createRaw[PublicKeyPropositionEd25519](
-        state,
-        recipients,
-        IndexedSeq(sender),
-        changeAddress = sender,
-        consolidationAddress = sender,
-        fee,
-        data = None,
-        minting
-      )
-      .get
+    val rawTx =
+      TransferBuilder
+        .buildUnsignedAssetTransfer[PublicKeyPropositionEd25519](
+          state,
+          AssetTransferRequest(List(sender), recipients, sender, sender, fee, None, minting),
+          BoxSelectionAlgorithms.All
+        )
+        .getOrThrow()
 
     rawTx.copy(attestation = Transaction.updateAttestation(rawTx)(keyRing.generateAttestation(sender)))
   }

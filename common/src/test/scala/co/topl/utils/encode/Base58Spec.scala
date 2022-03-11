@@ -1,8 +1,8 @@
 package co.topl.utils.encode
 
+import co.topl.utils.IdiomaticScalaTransition.implicits._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
-import co.topl.utils.IdiomaticScalaTransition.implicits._
 
 class Base58Spec extends AnyFlatSpec {
 

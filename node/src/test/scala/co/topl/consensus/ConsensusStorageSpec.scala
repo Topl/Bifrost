@@ -1,9 +1,9 @@
 package co.topl.consensus
 
-import co.topl.db.{LDBVersionedStore, VersionedKVStore}
-import co.topl.utils.CommonGenerators
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.implicits._
+import co.topl.nodeView.KeyValueStore
+import co.topl.utils.CommonGenerators
 import com.google.common.primitives.Longs
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -28,7 +28,7 @@ class ConsensusStorageSpec
 
   "totalStake" should "load total stake from storage on start" in {
     forAll(positiveInt128Gen) { storageTotalStake =>
-      val store = mock[VersionedKVStore]
+      val store = mock[KeyValueStore]
       (store
         .get(_: Array[Byte]))
         .expects(*)
@@ -47,7 +47,7 @@ class ConsensusStorageSpec
 
   "totalStake" should "return default total stake when storage does not contain value" in {
     forAll(positiveMediumIntGen) { defaultTotalStake =>
-      val store = mock[VersionedKVStore]
+      val store = mock[KeyValueStore]
       (store
         .get(_: Array[Byte]))
         .expects(*)

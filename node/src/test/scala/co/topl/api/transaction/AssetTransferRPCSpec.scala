@@ -2,9 +2,9 @@ package co.topl.api.transaction
 
 import co.topl.attestation.Address
 import co.topl.modifier.box.AssetCode
-import co.topl.utils.GeneratorOps.GeneratorOps
 import co.topl.utils.StringDataTypes.Latin1Data
 import io.circe.Json
+import io.circe.parser.parse
 import io.circe.syntax._
 
 class AssetTransferRPCSpec extends TransferRPCTestMethods {
@@ -36,7 +36,7 @@ class AssetTransferRPCSpec extends TransferRPCTestMethods {
   }
 
   "AssetTransfer RPC" should {
-    "Create, sign and broadcast new asset transfer raw transaction from a Curve25519 address to itself" in {
+    "Create, encode, sign new raw asset transfer from a Curve25519 address to itself, and broadcast it" in {
       val tx =
         testCreateSignAssetTransfer(
           addressCurve25519Fst,
@@ -48,8 +48,7 @@ class AssetTransferRPCSpec extends TransferRPCTestMethods {
       testBroadcastTx(tx)
     }
 
-    "Create, sign and broadcast new asset transfer from a Curve25519 address to an Ed25519 address" +
-    " address" in {
+    "Create, encode, sign new raw asset transfer from a Curve25519 address to an Ed25519 address, and broadcast it" in {
       val tx =
         testCreateSignAssetTransfer(
           addressCurve25519Fst,
@@ -61,19 +60,20 @@ class AssetTransferRPCSpec extends TransferRPCTestMethods {
       testBroadcastTx(tx)
     }
 
-    "Create, sign and broadcast new asset transfer from an Ed25519 address to itself" in {
+    "Create, encode, sign new raw asset transfer from an Ed25519 address to itself, and broadcast it" in {
       val tx =
         testCreateSignAssetTransfer(addressEd25519Fst, addressEd25519Sec, assetCodeEd25519Fst, propTypeEd25519, 3)
       testBroadcastTx(tx)
     }
 
-    "Create, sign and broadcast new asset transfer from an Ed25519 address to a Curve25519 address" in {
+    "Create, encode, sign new raw asset transfer from an Ed25519 address to a Curve25519 address, and broadcast it" in {
       val tx =
         testCreateSignAssetTransfer(addressEd25519Fst, addressCurve25519Fst, assetCodeEd25519Fst, propTypeEd25519, 3)
       testBroadcastTx(tx)
     }
 
-    "Create, sign and broadcast new asset transfer from a threshold Curve25519 address to an address of same type" in {
+    "Create, encode, sign new raw asset transfer from a threshold Curve25519 address to an address of same type, and " +
+    "broadcast it" in {
       val tx =
         testCreateSignAssetTransfer(
           addressThresholdCurve25519Fst,
@@ -85,7 +85,8 @@ class AssetTransferRPCSpec extends TransferRPCTestMethods {
       testBroadcastTx(tx)
     }
 
-    "Create, sign and broadcast new asset transfer from a threshold Curve25519 address to a Ed25519 address" in {
+    "Create, encode, sign new raw asset transfer from a threshold Curve25519 address to a Ed25519 address, and " +
+    "broadcast it" in {
       val tx =
         testCreateSignAssetTransfer(
           addressThresholdCurve25519Fst,
@@ -97,7 +98,7 @@ class AssetTransferRPCSpec extends TransferRPCTestMethods {
       testBroadcastTx(tx)
     }
 
-    "Threshold transaction with invalid attestation type should error" in {
+    "Return correct error response given a threshold transaction with invalid attestation type" in {
       val tx = testCreateSignAssetTransfer(
         addressThresholdCurve25519Fst,
         addressCurve25519Sec,
@@ -107,6 +108,53 @@ class AssetTransferRPCSpec extends TransferRPCTestMethods {
       )
       val attestation: Json = Map("signatures" -> attestationCurve25519Gen.sample.get.asJson).asJson
       testBroadcastTxInvalidProp(tx.hcursor.downField("signatures").delete.top.get.deepMerge(attestation))
+    }
+
+    "Return correct error responses if securityRoot is invalid" in {
+      val requestBody = assetTransferRequestBody(
+        addressCurve25519Fst,
+        addressCurve25519Sec,
+        assetCodeCurve25519Fst.toString,
+        propTypeCurve25519,
+        3,
+        "111111111111111111111111111111=1"
+      )
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).value
+        val error = res.hcursor.downField("error").as[Json].toString
+        error should (include("securityRoot") and include("failed to decode base-58 string") and include("="))
+      }
+    }
+
+    "Return correct error responses if decoded securityRoot bytes length is incorrect" in {
+      val requestBody = assetTransferRequestBody(
+        addressCurve25519Fst,
+        addressCurve25519Sec,
+        assetCodeCurve25519Fst.toString,
+        propTypeCurve25519,
+        3,
+        "11111111111111111111111111111121"
+      )
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).value
+        val error = res.hcursor.downField("error").as[Json].toString
+        error should include("security root must be 32 bytes long")
+      }
+    }
+
+    "Return correct error responses if assetCode is invalid" in {
+      val requestBody = assetTransferRequestBody(
+        addressCurve25519Fst,
+        addressCurve25519Sec,
+        "65GtfBmwC9NHBayMzZfzCC69L2f2ZaxEe4BwQXRAABPynuNo4k2a8hqCsl",
+        propTypeCurve25519,
+        3
+      )
+      httpPOST(requestBody) ~> route ~> check {
+        val res = parse(responseAs[String]).value
+        val error = res.hcursor.downField("error").as[Json].toString
+        error should (include("assetCode") and include("failed to decode base-58 string") and include("l"))
+      }
     }
   }
 }

@@ -24,12 +24,15 @@ case class ApplicationSettings(
 )
 
 case class RPCApiSettings(
-  bindAddress:       InetSocketAddress,
-  disableAuth:       Boolean,
-  apiKeyHash:        String,
-  timeout:           FiniteDuration,
-  verboseAPI:        Boolean,
-  namespaceSelector: NamespaceSelector
+  bindAddress:           InetSocketAddress,
+  disableAuth:           Boolean,
+  apiKeyHash:            String,
+  timeout:               FiniteDuration,
+  verboseAPI:            Boolean,
+  namespaceSelector:     NamespaceSelector,
+  blockRetrievalLimit:   Int,
+  blockIdRetrievalLimit: Int,
+  txRetrievalLimit:      Int
 )
 
 case class NetworkSettings(
@@ -74,7 +77,7 @@ case class ForgingSettings(
   minTransactionFee:    Long,
   protocolVersions:     List[ProtocolSettings],
   forgeOnStartup:       Boolean,
-  rewardsAddress:       Option[String], //String here since we don't know netPrefix when settings are read
+  rewardsAddress:       Option[String], // String here since we don't know netPrefix when settings are read
   privateTestnet:       Option[PrivateTestnetSettings]
 )
 
@@ -92,13 +95,28 @@ case class GjallarhornSettings(
   clusterPort:    Option[Int]
 )
 
+case class ChainReplicatorSettings(
+  enableChainReplicator:   Boolean,
+  checkMissingBlock:       Boolean,
+  checkMissingStartHeight: Long,
+  blockCheckSize:          Int,
+  actorStashSize:          Int,
+  mempoolCheckSize:        Int,
+  uri:                     Option[String],
+  database:                Option[String],
+  blockCollection:         String,
+  confirmedTxCollection:   String,
+  unconfirmedTxCollection: String
+)
+
 case class AppSettings(
-  application: ApplicationSettings,
-  network:     NetworkSettings,
-  gjallarhorn: GjallarhornSettings,
-  forging:     ForgingSettings,
-  rpcApi:      RPCApiSettings,
-  ntp:         NetworkTimeProviderSettings
+  application:     ApplicationSettings,
+  network:         NetworkSettings,
+  gjallarhorn:     GjallarhornSettings,
+  forging:         ForgingSettings,
+  rpcApi:          RPCApiSettings,
+  ntp:             NetworkTimeProviderSettings,
+  chainReplicator: ChainReplicatorSettings
 )
 
 object AppSettings extends Logging with SettingsReaders {
@@ -144,11 +162,13 @@ object AppSettings extends Logging with SettingsReaders {
       ConfigFactory.parseFile(userFile)
     }
 
-    val networkConfigFile = args.networkTypeOpt.map(n => s"${n.verboseName}.conf").getOrElse("")
-    val networkConfig = ConfigFactory.load(this.getClass.getClassLoader, networkConfigFile)
-    networkConfigFile match {
-      case "" => log.info(s"${Console.YELLOW}No network specified, running as private testnet.${Console.RESET}")
-      case _  => log.info(s"${Console.YELLOW}Loading ${args.networkTypeOpt.get.verboseName} settings${Console.RESET}")
+    val networkConfig = args.networkTypeOpt match {
+      case Some(value) =>
+        log.info(s"${Console.YELLOW}Loading ${args.networkTypeOpt.get.verboseName} settings${Console.RESET}")
+        ConfigFactory.load(this.getClass.getClassLoader, value.verboseName + ".conf")
+      case None =>
+        log.info(s"${Console.YELLOW}No network specified, running as private testnet.${Console.RESET}")
+        ConfigFactory.empty()
     }
 
     // load config files from disk, if the above strings are empty then ConFigFactory will skip loading them

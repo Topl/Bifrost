@@ -11,6 +11,9 @@ import co.topl.minting.algebras._
 import co.topl.models._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
 
 object Staking {
 

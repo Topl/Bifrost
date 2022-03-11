@@ -1,16 +1,5 @@
 package attestation
 
-import cats.implicits._
-import attestation.serialization.ProofSerializer
-import co.topl.crypto.signatures.{Curve25519, Signature}
-import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.StringDataTypes.implicits._
-import co.topl.utils.codecs.implicits._
-import com.google.common.primitives.Ints
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import utils.serialization.{BytesSerializable, GjalSerializer}
-
 import scala.reflect.ClassTag
 import scala.util.Try
 

@@ -11,14 +11,13 @@ import co.topl.crypto.{PrivateKey, PublicKey, Signature}
 import co.topl.models.Bytes
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.{Lengths, Sized}
-import co.topl.modifier.ModifierId
-import co.topl.modifier.block.Block
+import co.topl.modifier.{ModifierId, ProgramId}
+import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.Box.Nonce
 import co.topl.modifier.box._
 import co.topl.modifier.transaction._
 import co.topl.utils.StringDataTypes.Latin1Data
-import co.topl.utils.codecs.implicits._
 import io.circe.Json
 import io.circe.syntax._
 import org.scalacheck.rng.Seed
@@ -92,7 +91,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   private lazy val tinyIntMax = 10
   private lazy val medIntMax = 100
 
-  private lazy val int128Min: Int128 = Int128.MaxValue
+  private lazy val int128Min: Int128 = Int128.MinValue
   private lazy val int128Max: Int128 = Int128.MaxValue
 
   implicit lazy val int128Chooser: Gen.Choose[Int128] =
@@ -147,7 +146,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     nonce    <- positiveLongGen
     quantity <- positiveLongGen
     // TODO: Hard coded as 1, but change this to arbitrary in the future
-    //assetVersion <- Arbitrary.arbitrary[Byte]
+    // assetVersion <- Arbitrary.arbitrary[Byte]
     shortName <- shortNameGen
     issuer    <- addressGen
     data      <- latin1DataGen
@@ -164,7 +163,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     nonce    <- positiveLongGen
     quantity <- positiveLongGen
     // TODO: Hard coded as 1, but change this to arbitrary in the future
-    //assetVersion <- Arbitrary.arbitrary[Byte]
+    // assetVersion <- Arbitrary.arbitrary[Byte]
     shortName <- shortNameGen
     issuer    <- addressGen
     data      <- latin1DataGen
@@ -177,88 +176,6 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   }
 
   lazy val assetBoxGen: Gen[AssetBox] = Gen.oneOf(assetBoxCurve25519Gen, assetBoxEd25519Gen)
-
-  lazy val stateBoxCurve25519Gen: Gen[StateBox] = for {
-    evidence  <- evidenceCurve25519Gen
-    state     <- stringGen
-    nonce     <- positiveLongGen
-    programId <- programIdGen
-  } yield StateBox(evidence, nonce, programId, state.asJson)
-
-  lazy val stateBoxEd25519Gen: Gen[StateBox] = for {
-    evidence  <- evidenceEd25519Gen
-    state     <- stringGen
-    nonce     <- positiveLongGen
-    programId <- programIdGen
-  } yield StateBox(evidence, nonce, programId, state.asJson)
-
-  lazy val stateBoxGen: Gen[StateBox] = Gen.oneOf(stateBoxCurve25519Gen, stateBoxEd25519Gen)
-
-  lazy val codeBoxCurve25519Gen: Gen[CodeBox] = for {
-    evidence  <- evidenceCurve25519Gen
-    nonce     <- positiveLongGen
-    methodLen <- positiveTinyIntGen
-    methods   <- Gen.containerOfN[Seq, String](methodLen, stringGen)
-    paramLen  <- positiveTinyIntGen
-    programId <- programIdGen
-  } yield {
-    val interface: Map[String, Seq[String]] = methods.map {
-      _ -> sampleUntilNonEmpty(Gen.containerOfN[Seq, String](paramLen, Gen.oneOf(jsonTypes)))
-    }.toMap
-
-    CodeBox(evidence, nonce, programId, methods, interface)
-  }
-
-  lazy val codeBoxEd25519Gen: Gen[CodeBox] = for {
-    evidence  <- evidenceEd25519Gen
-    nonce     <- positiveLongGen
-    methodLen <- positiveTinyIntGen
-    methods   <- Gen.containerOfN[Seq, String](methodLen, stringGen)
-    paramLen  <- positiveTinyIntGen
-    programId <- programIdGen
-  } yield {
-    val interface: Map[String, Seq[String]] = methods.map {
-      _ -> sampleUntilNonEmpty(Gen.containerOfN[Seq, String](paramLen, Gen.oneOf(jsonTypes)))
-    }.toMap
-
-    CodeBox(evidence, nonce, programId, methods, interface)
-  }
-
-  lazy val codeBoxGen: Gen[CodeBox] = Gen.oneOf(codeBoxCurve25519Gen, codeBoxEd25519Gen)
-
-  lazy val executionBoxCurve25519Gen: Gen[ExecutionBox] = for {
-    evidence   <- evidenceCurve25519Gen
-    codeBox_1  <- codeBoxCurve25519Gen
-    codeBox_2  <- codeBoxCurve25519Gen
-    nonce      <- positiveLongGen
-    stateBox_1 <- stateBoxCurve25519Gen
-    stateBox_2 <- stateBoxCurve25519Gen
-    programId  <- programIdGen
-  } yield ExecutionBox(
-    evidence,
-    nonce,
-    programId,
-    Seq(stateBox_1.value, stateBox_2.value),
-    Seq(codeBox_1.value, codeBox_2.value)
-  )
-
-  lazy val executionBoxEd25519Gen: Gen[ExecutionBox] = for {
-    evidence   <- evidenceEd25519Gen
-    codeBox_1  <- codeBoxEd25519Gen
-    codeBox_2  <- codeBoxEd25519Gen
-    nonce      <- positiveLongGen
-    stateBox_1 <- stateBoxEd25519Gen
-    stateBox_2 <- stateBoxEd25519Gen
-    programId  <- programIdGen
-  } yield ExecutionBox(
-    evidence,
-    nonce,
-    programId,
-    Seq(stateBox_1.value, stateBox_2.value),
-    Seq(codeBox_1.value, codeBox_2.value)
-  )
-
-  lazy val executionBoxGen: Gen[ExecutionBox] = Gen.oneOf(executionBoxCurve25519Gen, executionBoxEd25519Gen)
 
   lazy val programIdGen: Gen[ProgramId] = for {
     seed <- specificLengthBytesGen(ProgramId.size)
@@ -370,7 +287,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
 
   lazy val securityRootGen: Gen[SecurityRoot] = for {
     root <- specificLengthBytesGen(Digest32.size)
-  } yield SecurityRoot.fromBase58(root.encodeAsBase58)
+  } yield SecurityRoot(root)
 
   lazy val sigSeqCurve25519Gen: Gen[IndexedSeq[SignatureCurve25519]] = for {
     seqLen <- positiveTinyIntGen
@@ -399,6 +316,22 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     timestamp   <- positiveLongGen
     data        <- latin1DataGen
   } yield PolyTransfer(from, to, attestation, fee, timestamp, Some(data), minting = false)
+
+  def signedPolyTransferGen(
+    from:    Gen[IndexedSeq[(Address, Nonce)]],
+    keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519]
+  ): Gen[PolyTransfer[keyRing.PK]] = for {
+    from      <- from
+    to        <- toSeqGen
+    fee       <- positiveLongGen
+    timestamp <- positiveLongGen
+    data      <- latin1DataGen
+  } yield {
+    val base =
+      PolyTransfer[PublicKeyPropositionCurve25519](from, to, ListMap.empty, fee, timestamp, Some(data), minting = false)
+
+    base.copy(attestation = keyRing.generateAttestation(from.map(_._1).toSet)(base.messageToSign))
+  }
 
   lazy val polyTransferEd25519Gen: Gen[PolyTransfer[PublicKeyPropositionEd25519]] = for {
     from        <- fromSeqEd25519Gen
@@ -453,7 +386,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
 
   lazy val assetTransferThresholdCurve25519Gen: Gen[AssetTransfer[ThresholdPropositionCurve25519]] = for {
     from        <- fromSeqCurve25519Gen
-    to          <- assetToSeqGen //TODO: Jing - Does this need to use specific signature scheme?
+    to          <- assetToSeqGen // TODO: Jing - Does this need to use specific signature scheme?
     attestation <- attestationThresholdCurve25519Gen
     fee         <- positiveLongGen
     timestamp   <- positiveLongGen
@@ -472,8 +405,12 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   lazy val assetTransferGen: Gen[AssetTransfer[_ <: Proposition]] =
     Gen.oneOf(assetTransferCurve25519Gen, assetTransferThresholdCurve25519Gen, assetTransferEd25519Gen)
 
-  lazy val transferGen: Gen[TransferTransaction[_ <: TokenValueHolder, _ <: Proposition]] =
-    Gen.oneOf(polyTransferGen, arbitTransferGen, assetTransferGen)
+  lazy val transferGen: Gen[Transaction.TX] =
+    Gen.oneOf(
+      polyTransferGen.map { t: Transaction.TX => t },
+      arbitTransferGen.map { t: Transaction.TX => t },
+      assetTransferGen.map { t: Transaction.TX => t }
+    )
 
   lazy val propTypes: Gen[String] = sampleUntilNonEmpty(
     Gen.oneOf(
@@ -522,10 +459,14 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   lazy val attestationGen: Gen[Map[_ <: Proposition, Proof[_ <: Proposition]]] =
     Gen.oneOf(attestationCurve25519Gen, attestationThresholdCurve25519Gen, attestationEd25519Gen)
 
-  val transactionTypes: Seq[Gen[Transaction.TX]] =
-    Seq(polyTransferGen, arbitTransferGen, assetTransferGen)
+  lazy val transactionTypes: Seq[Gen[TransferTransaction[_ <: TokenValueHolder, _ <: Proposition]]] =
+    Seq(
+      polyTransferGen.map { t: TransferTransaction[_ <: TokenValueHolder, _ <: Proposition] => t },
+      arbitTransferGen.map { t: TransferTransaction[_ <: TokenValueHolder, _ <: Proposition] => t },
+      assetTransferGen.map { t: TransferTransaction[_ <: TokenValueHolder, _ <: Proposition] => t }
+    )
 
-  lazy val bifrostTransactionSeqGen: Gen[Seq[Transaction.TX]] = for {
+  lazy val bifrostTransactionSeqGen: Gen[Seq[Transaction[_ <: TokenValueHolder, _ <: Proposition]]] = for {
     seqLen <- positiveMediumIntGen
   } yield 0 until seqLen map { _ =>
     sampleUntilNonEmpty(sampleUntilNonEmpty(Gen.oneOf(transactionTypes)))
@@ -544,7 +485,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   lazy val positiveLongGen: Gen[Long] = Gen.choose(1, Long.MaxValue)
 
   lazy val modifierIdGen: Gen[ModifierId] =
-    Gen.listOfN(ModifierId.size, Arbitrary.arbitrary[Byte]).map(li => ModifierId.parseBytes(li.toArray).get)
+    Gen.listOfN(ModifierId.size, Arbitrary.arbitrary[Byte]).map(li => ModifierId(li.toArray))
 
   private val fastEntropyToSeed: EntropyToSeed[Lengths.`32`.type] =
     (entropy: Entropy, password: Option[Password]) =>
@@ -621,7 +562,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     (setOfKeys._1, thresholdProp)
   }
 
-  //TODO: Jing - add threshold proposition
+  // TODO: Jing - add threshold proposition
   lazy val publicKeyPropositionGen: Gen[(_ <: Secret, _ <: Proposition)] =
     Gen.oneOf(publicKeyPropositionCurve25519Gen, publicKeyPropositionEd25519Gen)
 
@@ -654,7 +595,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     ThresholdSignatureCurve25519(sigs)
   }
 
-  //TODO: Jing - add threshold signature
+  // TODO: Jing - add threshold signature
   lazy val signatureGen: Gen[_ <: Proof[_]] = Gen.oneOf(signatureCurve25519Gen, signatureEd25519Gen)
 
   def genBytesList(size: Int): Gen[Array[Byte]] = genBoundedBytes(size, size)
@@ -674,11 +615,15 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     signature     <- signatureCurve25519Gen
     txs           <- bifrostTransactionSeqGen
   } yield {
-    val parentId = ModifierId.fromBase58(parentIdBytes.encodeAsBase58)
+    val parentId = ModifierId(parentIdBytes)
     val height: Long = 1L
     val difficulty = 1000000000000000000L
     val version: PNVMVersion = 1: Byte
 
     Block(parentId, timestamp, generatorBox, publicKey, signature, height, difficulty, txs, version)
   }
+
+  lazy val bloomFilterGen: Gen[BloomFilter] =
+    Gen.listOfN(BloomFilter.numLongs, Gen.long).map(listT => BloomFilter(listT.toArray))
+
 }

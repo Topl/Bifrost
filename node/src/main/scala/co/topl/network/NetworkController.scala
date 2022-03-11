@@ -2,20 +2,20 @@ package co.topl.network
 
 import akka.actor.SupervisorStrategy._
 import akka.actor._
-import akka.io.{IO, Tcp}
+import akka.io.Tcp
 import akka.pattern.ask
 import akka.util.Timeout
+import cats.implicits._
 import co.topl.network.NodeViewSynchronizer.ReceivableMessages.{DisconnectedPeer, HandshakedPeer}
 import co.topl.network.PeerConnectionHandler.ReceivableMessages.CloseConnection
 import co.topl.network.PeerManager.ReceivableMessages._
-import co.topl.network.message.Message
-import co.topl.network.peer.{ConnectedPeer, PeerInfo, PenaltyType, _}
-import co.topl.settings.{AppContext, AppSettings, NodeViewReady, Version}
+import co.topl.network.message.{MessageCode, Transmission}
+import co.topl.network.peer._
+import co.topl.settings.{AppContext, AppSettings, Version}
 import co.topl.utils.TimeProvider.Time
 import co.topl.utils.{Logging, NetworkUtils, TimeProvider}
 
 import java.net._
-import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
@@ -27,13 +27,15 @@ import scala.util.{Failure, Success, Try}
  * @param tcpManager a reference to the manager actor for the Tcp IO extension
  */
 class NetworkController(
-  settings:       AppSettings,
-  peerManagerRef: ActorRef,
-  appContext:     AppContext,
-  tcpManager:     ActorRef
-)(implicit ec:    ExecutionContext)
+  settings:              AppSettings,
+  peerManagerRef:        ActorRef,
+  appContext:            AppContext,
+  tcpManager:            ActorRef
+)(implicit timeProvider: TimeProvider)
     extends Actor
     with Logging {
+
+  import context.dispatcher
 
   /** Import the types of messages this actor can RECEIVE */
   import NetworkController.ReceivableMessages._
@@ -58,39 +60,37 @@ class NetworkController(
         Restart
     }
 
-  private var messageHandlers = Map.empty[message.Message.MessageCode, ActorRef]
+  private var messageHandlers = Map.empty[MessageCode, ActorRef]
   private var connections = Map.empty[InetSocketAddress, ConnectedPeer]
   private var unconfirmedConnections = Set.empty[InetSocketAddress]
 
   /** records the time of the most recent incoming message (for checking connectivity) */
   private var lastIncomingMessageTime: TimeProvider.Time = _
 
-  override def preStart(): Unit = {
+  override def preStart(): Unit =
     log.info(s"Declared address: ${appContext.externalNodeAddress}")
 
-    /** register for application initialization message */
-    context.system.eventStream.subscribe(self, classOf[NodeViewReady])
-  }
-
-  ////////////////////////////////////////////////////////////////////////////////////
-  ////////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
+  // //////////////////////////////////////////////////////////////////////////////////
+  // //////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
 
   // ----------- CONTEXT ----------- //
   override def receive: Receive =
-    initialization(p2pBound = false, nodeViewReady = false) orElse
-    nonsense
+    initialization
 
   private def operational: Receive =
     businessLogic orElse
     peerCommands orElse
     connectionEvents orElse
+    registerMessages orElse
     nonsense
 
   // ----------- MESSAGE PROCESSING FUNCTIONS ----------- //
-  private def initialization(p2pBound: Boolean, nodeViewReady: Boolean): Receive = {
-    case BindP2P =>
-      /** check own declared address for validity */
-      val addrValidationResult = if (validateDeclaredAddress()) {
+  private def initialization: Receive = bindP2P orElse registerMessages orElse nonsense
+
+  private def bindP2P: Receive = { case BindP2P =>
+    /** check own declared address for validity */
+    val addrValidationResult =
+      if (validateDeclaredAddress()) {
 
         /**
          * send a bind signal to the TCP manager to designate this actor as the
@@ -101,23 +101,19 @@ class NetworkController(
         throw new Error("Address validation failed. Aborting application startup.")
       }
 
-      sender() ! addrValidationResult
-      if (nodeViewReady) becomeOperational()
-      else context.become(initialization(p2pBound = true, nodeViewReady))
+    sender() ! addrValidationResult
+    becomeOperational()
+  }
 
-    case RegisterMessageSpecs(specs, handler) =>
-      log.info(
-        s"${Console.YELLOW}Registered ${sender()} as the handler for " +
-        s"${specs.map(s => s.messageCode -> s.messageName)}${Console.RESET}"
-      )
+  private def registerMessages: Receive = { case RegisterMessages(messageCodes, handler) =>
+    log.info(
+      s"${Console.YELLOW}Registered ${sender()} as the handler for " +
+      s"message codes [${messageCodes.sorted.mkString(",")}]${Console.RESET}"
+    )
 
-      /** add the message code and its corresponding handler actorRef to the map */
-      messageHandlers ++= specs.map(_.messageCode -> handler)
+    /** add the message code and its corresponding handler actorRef to the map */
+    messageHandlers ++= messageCodes.map(_ -> handler)
 
-    /** start attempting to connect to peers when NodeViewHolder is ready */
-    case NodeViewReady(_) =>
-      if (p2pBound) becomeOperational()
-      else context.become(initialization(p2pBound, nodeViewReady = true))
   }
 
   private def becomeOperational(): Unit = {
@@ -129,19 +125,23 @@ class NetworkController(
 
   private def businessLogic: Receive = {
     /** a message was RECEIVED from a remote peer */
-    case msg @ Message(spec, _, Some(remote)) =>
+    case TransmissionReceived(transmission, Some(peer)) =>
       /** update last seen time for the peer sending us this message */
-      updatePeerStatus(remote)
-      messageHandlers.get(spec.messageCode) match {
-        /** forward the message to the appropriate handler for processing */
-        case Some(handler) => handler ! msg
-        case None          => log.error(s"No handlers found for message $remote: " + spec.messageCode)
+      updatePeerStatus(peer)
+
+      Either
+        .fromOption(
+          messageHandlers.get(transmission.header.code),
+          s"No handlers found for message $peer: ${transmission.header.code}"
+        ) match {
+        case Right(handler) => handler ! Synchronizer.TransmissionReceived(transmission, peer)
+        case Left(error)    => log.error(error)
       }
 
     /** a message to be SENT to a remote peer */
-    case SendToNetwork(msg: Message[_], sendingStrategy) =>
-      filterConnections(sendingStrategy, msg.spec.version).foreach { connectedPeer =>
-        connectedPeer.handlerRef ! msg
+    case SendToNetwork(transmission, messageVersion, sendingStrategy) =>
+      filterConnections(sendingStrategy, messageVersion).foreach { connectedPeer =>
+        connectedPeer.handlerRef ! transmission
       }
   }
 
@@ -237,10 +237,10 @@ class NetworkController(
       log.warn(s"Got unexpected input $nonsense from ${sender()}")
   }
 
-  ////////////////////////////////////////////////////////////////////////////////////
-  //////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
+  // //////////////////////////////////////////////////////////////////////////////////
+  // ////////////////////////////// METHOD DEFINITIONS ////////////////////////////////
 
-  def networkTime(): Time = appContext.timeProvider.time
+  def networkTime(): Time = timeProvider.time
 
   /** Schedule a periodic connection to a random known peer */
   private def scheduleConnectionToPeer(): Unit =
@@ -338,7 +338,8 @@ class NetworkController(
 
     val connectionDescription = ConnectionDescription(connection, connectionId, selfAddressOpt, peerFeatures)
 
-    val handler: ActorRef = PeerConnectionHandlerRef(self, settings, appContext, connectionDescription)
+    val handler: ActorRef =
+      context.actorOf(PeerConnectionHandlerRef.props(self, settings, appContext, connectionDescription))
 
     context.watch(handler)
 
@@ -380,7 +381,7 @@ class NetworkController(
   private def handleHandshake(peerInfo: PeerInfo, peerHandlerRef: ActorRef): Unit =
     connectionForHandler(peerHandlerRef).foreach { connectedPeer =>
       val remoteAddress = connectedPeer.connectionId.remoteAddress
-      val peerAddress = peerInfo.peerSpec.address.getOrElse(remoteAddress)
+      val peerAddress = peerInfo.metadata.address.getOrElse(remoteAddress)
 
       /** drop connection to self if occurred or peer already connected */
       val shouldDrop = isSelf(remoteAddress) ||
@@ -396,8 +397,8 @@ class NetworkController(
 
         /** Use remoteAddress as peer's address, if there is no address info in it's PeerInfo */
         val updatedPeerSpec =
-          peerInfo.peerSpec.copy(declaredAddress = Some(peerInfo.peerSpec.address.getOrElse(remoteAddress)))
-        val updatedPeerInfo = peerInfo.copy(peerSpec = updatedPeerSpec)
+          peerInfo.metadata.copy(declaredAddress = Some(peerInfo.metadata.address.getOrElse(remoteAddress)))
+        val updatedPeerInfo = peerInfo.copy(metadata = updatedPeerSpec)
         val updatedConnectedPeer =
           connectedPeer.copy(peerInfo = Some(updatedPeerInfo))
 
@@ -420,7 +421,7 @@ class NetworkController(
   private def filterConnections(sendingStrategy: SendingStrategy, version: Version): Seq[ConnectedPeer] =
     sendingStrategy.choose(
       connections.values.toSeq
-        .filter(_.peerInfo.exists(_.peerSpec.version >= version))
+        .filter(_.peerInfo.exists(_.metadata.version >= version))
     )
 
   /**
@@ -464,7 +465,7 @@ class NetworkController(
    * @return socket address of the peer
    */
   private def getPeerAddress(peer: PeerInfo): Option[InetSocketAddress] =
-    (peer.peerSpec.localAddressOpt, peer.peerSpec.declaredAddress) match {
+    (peer.metadata.localAddressOpt, peer.metadata.declaredAddress) match {
       case (Some(localAddr), _) =>
         Some(localAddr)
 
@@ -472,7 +473,7 @@ class NetworkController(
           if appContext.externalNodeAddress.exists(_.getAddress == declaredAddress.getAddress) =>
         appContext.upnpGateway.flatMap(_.getLocalAddressForExternalPort(declaredAddress.getPort))
 
-      case _ => peer.peerSpec.declaredAddress
+      case _ => peer.metadata.declaredAddress
     }
 
   /**
@@ -576,9 +577,9 @@ object NetworkController {
 
     case class Handshaked(peer: PeerInfo)
 
-    case class RegisterMessageSpecs(specs: Seq[message.MessageSpec[_]], handler: ActorRef)
+    case class RegisterMessages(specs: Seq[MessageCode], handler: ActorRef)
 
-    case class SendToNetwork(message: Message[_], sendingStrategy: SendingStrategy)
+    case class SendToNetwork(transmission: Transmission, messageVersion: Version, sendingStrategy: SendingStrategy)
 
     case class ConnectTo(peer: PeerInfo)
 
@@ -595,6 +596,8 @@ object NetworkController {
     case object GetConnectedPeers
 
     case object BindP2P
+
+    case class TransmissionReceived(transmission: Transmission, connectedPeer: Option[ConnectedPeer])
   }
 }
 
@@ -604,18 +607,10 @@ object NetworkController {
 object NetworkControllerRef {
 
   def props(
-    settings:       AppSettings,
-    peerManagerRef: ActorRef,
-    appContext:     AppContext,
-    tcpManager:     ActorRef
-  )(implicit ec:    ExecutionContext): Props =
+    settings:              AppSettings,
+    peerManagerRef:        ActorRef,
+    appContext:            AppContext,
+    tcpManager:            ActorRef
+  )(implicit timeProvider: TimeProvider): Props =
     Props(new NetworkController(settings, peerManagerRef, appContext, tcpManager))
-
-  def apply(
-    name:            String,
-    settings:        AppSettings,
-    peerManagerRef:  ActorRef,
-    appContext:      AppContext
-  )(implicit system: ActorSystem, ec: ExecutionContext): ActorRef =
-    system.actorOf(props(settings, peerManagerRef, appContext, IO(Tcp)), name)
 }

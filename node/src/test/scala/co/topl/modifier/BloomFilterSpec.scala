@@ -1,15 +1,14 @@
 package co.topl.modifier
 
-import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
+import co.topl.attestation.Address
 import co.topl.attestation.keyManagement.PrivateKeyCurve25519
-import co.topl.crypto.PublicKey
-import co.topl.crypto.signing.Curve25519
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.block.{BloomFilter, TransactionsCarryingPersistentNodeViewModifier}
 import co.topl.utils.NodeGenerators
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import co.topl.codecs._
 
 class BloomFilterSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with NodeGenerators with Matchers {
 
@@ -57,19 +56,16 @@ class BloomFilterSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wi
 
     val randAddr: Seq[Address] =
       (0 until numAddr)
-        .map(_ =>
-          new PublicKeyPropositionCurve25519(
-            PublicKey(Array.fill(Curve25519.instance.KeyLength)((rand.nextInt(256) - 128).toByte))
-          )
-        )
+        .map(_ => Array.fill(32)((rand.nextInt(256) - 128).toByte))
+        .map(s => PrivateKeyCurve25519.secretGenerator.generateSecret(s)._2)
         .map(k => k.address)
 
-    val bloomTopics: Iterable[BloomTopic] = randAddr.take(numBloom).map(addr => BloomTopic(addr.bytes))
+    val bloomTopics: Set[BloomTopic] = randAddr.take(numBloom).map(addr => BloomTopic(addr.persistedBytes)).toSet
     val bloomfilter: BloomFilter = BloomFilter(bloomTopics)
-    val testTopics: Seq[BloomTopic] = randAddr.drop(numBloom).map(addr => BloomTopic(addr.bytes))
+    val testTopics: Seq[BloomTopic] = randAddr.drop(numBloom).map(addr => BloomTopic(addr.persistedBytes))
 
     val falsePositives = testTopics.count(bloomfilter.contains)
 
-    falsePositives shouldBe 15 +- 15
+    falsePositives shouldBe 15 +- 3
   }
 }

@@ -1,10 +1,5 @@
 package settings
 
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, HCursor}
-import pureconfig._
-import pureconfig.generic.semiauto._
-
 /**
  * Abstract class for [[HttpChainProvider]] and [[AkkaChainProvider]].
  * Represents information for a chain provider, which is the information needed to connect/communicate with Bifrost.

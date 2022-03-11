@@ -9,6 +9,8 @@ import co.topl.models._
 import co.topl.typeclasses.implicits._
 import io.circe._
 import io.circe.syntax._
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
 
 /**
  * A `Mint` which produces "Unsigned" Blocks.  An UnsignedBlock has all of the components needed to form a BlockV2

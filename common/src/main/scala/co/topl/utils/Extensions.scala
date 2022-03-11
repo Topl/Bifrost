@@ -1,9 +1,11 @@
 package co.topl.utils
 
+import co.topl.utils.StringDataTypes.{Base16Data, Base58Data}
+
 import java.nio.charset.{Charset, StandardCharsets}
-import scala.reflect.ClassTag
 import scala.collection.compat.BuildFrom
-import scala.collection.immutable.{Iterable, ListMap}
+import scala.collection.immutable.Iterable
+import scala.reflect.ClassTag
 
 object Extensions {
 

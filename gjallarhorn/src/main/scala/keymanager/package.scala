@@ -1,4 +1,4 @@
-import attestation.AddressEncoder.NetworkPrefix
+
 
 package object keymanager {
 

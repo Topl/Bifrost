@@ -2,12 +2,14 @@ package co.topl.attestation.keyManagement
 
 import cats.data.Validated.{Invalid, Valid}
 import co.topl.attestation.Address
-import co.topl.attestation.AddressCodec.implicits._
+import co.topl.attestation.implicits._
+import co.topl.codecs._
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.SecureRandom.randomBytes
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import com.google.common.primitives.Ints
+import io.circe.Encoder
 
 import java.io.File
 import scala.collection.immutable.ListMap
@@ -182,10 +184,13 @@ class KeyRing[
      * @param address  Base58 encoded address of the key to unlock
      * @param password - password for the given public key.
      */
-    def unlockKeyFile(address: Base58Data, password: Latin1Data): Try[Address] = {
-      val keyfile = checkValid(address, password)
-      importKeyPairSafe(keyfile, password)
-    }
+    def unlockKeyFile(address: Base58Data, password: Latin1Data): Try[Address] =
+      checkValid(address, password) match {
+        case Success(keyfile) =>
+          importKeyPairSafe(keyfile, password)
+        case Failure(e) =>
+          Failure(e)
+      }
 
     /**
      * @param address
@@ -215,18 +220,22 @@ class KeyRing[
      * @param password        password used to decrypt the keyfile
      * @return the relevant PrivateKey25519 to be processed
      */
-    private def checkValid(address: Base58Data, password: Latin1Data): KF =
-      listKeyFiles()
-        .map {
-          _.filter {
-            _.address == address.decodeAddress.getOrThrow()
+    private def checkValid(address: Base58Data, password: Latin1Data): Try[KF] =
+      Try {
+        val filteredKeys = listKeyFiles()
+          .map {
+            _.filter {
+              _.address == address.decodeAddress.getOrThrow()
+            }
           }
-        } match {
-        case Some(listOfKeyfiles) =>
-          require(listOfKeyfiles.size == 1, s"Cannot find a unique matching keyfile in $keyDirectory")
-          listOfKeyfiles.head
 
-        case None => throw new Exception("Unable to find valid keyfile matching the given address")
+        filteredKeys match {
+          case Some(listOfKeyfiles) =>
+            require(listOfKeyfiles.size == 1, s"Cannot find a unique matching keyfile in $keyDirectory")
+            listOfKeyfiles.head
+
+          case None => throw new Exception("Unable to find valid keyfile matching the given address")
+        }
       }
   }
 }

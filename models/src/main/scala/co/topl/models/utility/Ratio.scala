@@ -17,6 +17,7 @@ case class Ratio(numerator: BigInt, denominator: BigInt, greatestCommonDenominat
     41 * numerator.hashCode() + denominator.hashCode()
 }
 
+// todo: JAA - I think we need to look into simplifying and/or cleaning this up
 object Ratio {
   def apply(n: BigInt): Ratio = apply(n, 1: BigInt)
 

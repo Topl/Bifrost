@@ -5,6 +5,7 @@ import cats.implicits._
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models.{BlockHeaderV2, Eta, Rho, SlotId}
 import co.topl.typeclasses.implicits._
+import co.topl.codecs.bytes.tetra.instances._
 
 /**
  * Represents _some_ of the data of a Block Header.  The subset of represented data is primarily used for chain

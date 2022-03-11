@@ -1,5 +1,4 @@
-import com.typesafe.config.Config
-import settings.{AppSettings, StartupOpts}
+
 
 trait GjallarhornGenerators {
   private val settingsFilename = "gjallarhorn/src/test/resources/test.conf"

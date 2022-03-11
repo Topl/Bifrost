@@ -165,6 +165,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
     entropy shouldBe specOut.entropy
   }
+
   property("mnemonic should generating entropy from test vector 2") {
     val specIn = SpecIn(
       "legal winner thank year wave sausage worth useful legal winner thank yellow",
@@ -180,6 +181,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
     entropy shouldBe specOut.entropy
   }
+
   property("mnemonic should generating entropy from test vector 3") {
     val specIn = SpecIn(
       "letter advice cage absurd amount doctor acoustic avoid letter advice cage above",
@@ -195,6 +197,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
     entropy shouldBe specOut.entropy
   }
+
   property("mnemonic should generating entropy from test vector 4") {
     val specIn = SpecIn(
       "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong",
@@ -210,6 +213,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
     entropy shouldBe specOut.entropy
   }
+
   property("mnemonic should generating entropy from test vector 5") {
     val specIn = SpecIn(
       "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon agent",
@@ -225,6 +229,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
     entropy shouldBe specOut.entropy
   }
+
   property("mnemonic should generating entropy from test vector 6") {
     val specIn = SpecIn(
       "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal will",
@@ -240,6 +245,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
     entropy shouldBe specOut.entropy
   }
+
   property("mnemonic should generating entropy from test vector 7") {
     val specIn = SpecIn(
       "letter advice cage absurd amount doctor acoustic avoid letter advice cage absurd amount doctor acoustic avoid letter always",
@@ -255,6 +261,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
     entropy shouldBe specOut.entropy
   }
+
   property("mnemonic should generating entropy from test vector 8") {
     val specIn = SpecIn(
       "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo when",
@@ -270,6 +277,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
     entropy shouldBe specOut.entropy
   }
+
   property("mnemonic should generating entropy from test vector 9") {
     val specIn = SpecIn(
       "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art",
@@ -285,6 +293,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
     entropy shouldBe specOut.entropy
   }
+
   property("mnemonic should generating entropy from test vector 10") {
     val specIn = SpecIn(
       "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth title",
@@ -300,6 +309,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
     entropy shouldBe specOut.entropy
   }
+
   property("mnemonic should generating entropy from test vector 11") {
     val specIn = SpecIn(
       "letter advice cage absurd amount doctor acoustic avoid letter advice cage absurd amount doctor acoustic avoid letter advice cage absurd amount doctor acoustic bless",
@@ -315,6 +325,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
     entropy shouldBe specOut.entropy
   }
+
   property("mnemonic should generating entropy from test vector 12") {
     val specIn = SpecIn(
       "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo vote",
@@ -330,6 +341,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
     entropy shouldBe specOut.entropy
   }
+
   property("mnemonic should generating entropy from test vector 13") {
     val specIn = SpecIn(
       "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic",
@@ -345,6 +357,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
     entropy shouldBe specOut.entropy
   }
+
   property("mnemonic should generating entropy from test vector 14") {
     val specIn = SpecIn(
       "gravity machine north sort system female filter attitude volume fold club stay feature office ecology stable narrow fog",
@@ -360,6 +373,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
     entropy shouldBe specOut.entropy
   }
+
   property("mnemonic should generating entropy from test vector 15") {
     val specIn = SpecIn(
       "hamster diagram private dutch cause delay private meat slide toddler razor book happy fancy gospel tennis maple dilemma loan word shrug inflict delay length",
@@ -375,6 +389,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
     entropy shouldBe specOut.entropy
   }
+
   property("mnemonic should generating entropy from test vector 16") {
     val specIn = SpecIn(
       "scheme spot photo card baby mountain device kick cradle pact join borrow",
@@ -390,6 +405,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
     entropy shouldBe specOut.entropy
   }
+
   property("mnemonic should generating entropy from test vector 17") {
     val specIn = SpecIn(
       "horn tenant knee talent sponsor spell gate clip pulse soap slush warm silver nephew swap uncle crack brave",
@@ -405,6 +421,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
     entropy shouldBe specOut.entropy
   }
+
   property("mnemonic should generating entropy from test vector 18") {
     val specIn = SpecIn(
       "panda eyebrow bullet gorilla call smoke muffin taste mesh discover soft ostrich alcohol speed nation flash devote level hobby quick inner drive ghost inside",
@@ -420,6 +437,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
     entropy shouldBe specOut.entropy
   }
+
   property("mnemonic should generating entropy from test vector 19") {
     val specIn = SpecIn(
       "cat swing flag economy stadium alone churn speed unique patch report train",
@@ -435,6 +453,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
     entropy shouldBe specOut.entropy
   }
+
   property("mnemonic should generating entropy from test vector 20") {
     val specIn = SpecIn(
       "light rule cinnamon wrap drastic word pride squirrel upgrade then income fatal apart sustain crack supply proud access",
@@ -450,6 +469,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
     entropy shouldBe specOut.entropy
   }
+
   property("mnemonic should generating entropy from test vector 21") {
     val specIn = SpecIn(
       "all hour make first leader extend hole alien behind guard gospel lava path output census museum junior mass reopen famous sing advance salt reform",
@@ -465,6 +485,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
     entropy shouldBe specOut.entropy
   }
+
   property("mnemonic should generating entropy from test vector 22") {
     val specIn = SpecIn(
       "vessel ladder alter error federal sibling chat ability sun glass valve picture",
@@ -480,6 +501,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
     entropy shouldBe specOut.entropy
   }
+
   property("mnemonic should generating entropy from test vector 23") {
     val specIn = SpecIn(
       "scissors invite lock maple supreme raw rapid void congress muscle digital elegant little brisk hair mango congress clump",
@@ -495,6 +517,7 @@ class MnemonicSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
 
     entropy shouldBe specOut.entropy
   }
+
   property("mnemonic should generating entropy from test vector 24") {
     val specIn = SpecIn(
       "void come effort suffer camp survey warrior heavy shoot primary clutch crush open amazing screen patrol group space point ten exist slush involve unfold",

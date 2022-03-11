@@ -1,8 +1,8 @@
 package co.topl.serialization
 
+import co.topl.codecs.binary.legacy.{VLQWriter, Writer}
+import co.topl.codecs.binary.scodecs.valuetypes.Constants.stringCharacterSet
 import co.topl.utils.CommonGenerators
-import co.topl.utils.serialization.Writer.Aux
-import co.topl.utils.serialization.{stringCharacterSet, VLQByteStringWriter, VLQWriter}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -21,11 +21,11 @@ class VLQWriterSpec
     override def toBytes: Array[Byte] = ???
     override type CH = this.type
     override def length(): Int = ???
-    override def newWriter(): Aux[this.type] = ???
+    override def newWriter(): Writer.Aux[this.type] = ???
     override def putChunk(chunk: this.type): this.type = this
-    override def put(x:          Byte): this.type = this
-    override def putBoolean(x:   Boolean): this.type = this
-    override def putBytes(xs:    Array[Byte]): this.type = this
+    override def put(x: Byte): this.type = this
+    override def putBoolean(x: Boolean): this.type = this
+    override def putBytes(xs: Array[Byte]): this.type = this
     override def result(): this.type = this
   }
 
@@ -49,10 +49,10 @@ class VLQWriterSpec
       override def toBytes: Array[Byte] = ???
       override type CH = this.type
       override def length(): Int = ???
-      override def newWriter(): Aux[this.type] = ???
+      override def newWriter(): Writer.Aux[this.type] = ???
       override def putChunk(chunk: this.type): this.type = this
-      override def put(x:          Byte): this.type = this
-      override def putBoolean(x:   Boolean): this.type = this
+      override def put(x: Byte): this.type = this
+      override def putBoolean(x: Boolean): this.type = this
       override def putBytes(xs: Array[Byte]): this.type = {
         new String(xs, StandardCharsets.UTF_8) shouldBe inputString
         this
@@ -79,10 +79,10 @@ class VLQWriterSpec
       override def toBytes: Array[Byte] = ???
       override type CH = this.type
       override def length(): Int = ???
-      override def newWriter(): Aux[this.type] = ???
+      override def newWriter(): Writer.Aux[this.type] = ???
       override def putChunk(chunk: this.type): this.type = this
-      override def put(x:          Byte): this.type = this
-      override def putBoolean(x:   Boolean): this.type = this
+      override def put(x: Byte): this.type = this
+      override def putBoolean(x: Boolean): this.type = this
       override def putBytes(xs: Array[Byte]): this.type = {
         new String(xs, StandardCharsets.UTF_8) shouldBe inputString
         this

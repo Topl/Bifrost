@@ -1,11 +1,12 @@
 package co.topl.minting
 
-import cats.{MonadError, Parallel}
 import cats.data.OptionT
 import cats.effect.Sync
 import cats.implicits._
+import cats.{MonadError, Parallel}
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras.{ClockAlgebra, UnsafeResource}
+import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.LeaderElectionValidation
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
@@ -42,7 +43,7 @@ object VrfProof {
       ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
       vrfConfig:                VrfConfig
     ): F[VrfProofAlgebra[F]] =
-      (CaffeineCache[F, LongMap[Proofs.Knowledge.VrfEd25519]], CaffeineCache[F, LongMap[Rho]]).mapN(
+      (CaffeineCache[F, Map[Long, Proofs.Knowledge.VrfEd25519]], CaffeineCache[F, Map[Long, Rho]]).mapN(
         (vrfProofsCache, rhosCache) =>
           new Impl[F](
             skVrf,
@@ -61,8 +62,8 @@ object VrfProof {
       leaderElectionValidation: LeaderElectionValidationAlgebra[F],
       ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
       vrfConfig:                VrfConfig,
-      vrfProofsCache:           CaffeineCache[F, LongMap[Proofs.Knowledge.VrfEd25519]],
-      rhosCache:                CaffeineCache[F, LongMap[Rho]]
+      vrfProofsCache:           CaffeineCache[F, Map[Long, Proofs.Knowledge.VrfEd25519]],
+      rhosCache:                CaffeineCache[F, Map[Long, Rho]]
     ) extends VrfProofAlgebra[F] {
 
       def precomputeForEpoch(epoch: Epoch, eta: Eta): F[Unit] =
@@ -70,15 +71,15 @@ object VrfProof {
           _        <- Logger[F].info(show"Precomputing VRF Proofs and Rho values for epoch=$epoch eta=$eta")
           boundary <- clock.epochRange(epoch)
           (vrfProofs, rhoValues) <- ed25519VRFResource.use { implicit ed =>
-            val vrfProofs = LongMap.from(
+            val vrfProofs =
               boundary.map { slot =>
                 slot -> compute(
                   LeaderElectionValidation.VrfArgument(eta, slot),
                   ed
                 )
-              }
-            )
-            val rhoValues = LongMap.from(vrfProofs.view.mapValues(ed.proofToHash))
+              }.toMap
+
+            val rhoValues = vrfProofs.map { case (slot, proof) => slot -> ed.proofToHash(proof) }
             (vrfProofs -> rhoValues).pure[F]
           }
           _ <- (vrfProofsCache.put(eta)(vrfProofs), rhosCache.put(eta)(rhoValues)).tupled
@@ -120,7 +121,7 @@ object VrfProof {
             OptionT(rhosCache.get(eta))
               .getOrElseF(
                 new IllegalStateException(show"rhos were not precomputed for epoch=$epoch eta=$eta")
-                  .raiseError[F, LongMap[Rho]]
+                  .raiseError[F, Map[Long, Rho]]
               )
           rhosList = rhosMap.toList
           rhos = inRange.fold(rhosList)(r => rhosList.filter(l1 => r.contains(l1._1)))

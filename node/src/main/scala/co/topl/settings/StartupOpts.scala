@@ -1,7 +1,7 @@
 package co.topl.settings
 
 import co.topl.utils.NetworkType
-import mainargs.{arg, main, Flag, ParserForClass, TokensReader}
+import mainargs._
 import monocle.syntax.all._
 
 /**

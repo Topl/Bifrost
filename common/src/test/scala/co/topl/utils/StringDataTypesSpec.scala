@@ -1,8 +1,8 @@
 package co.topl.utils
 
 import cats.Eq
-import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.StringDataTypes.{Base16Data, Base58Data, Latin1Data}
+import co.topl.utils.implicits._
 import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers.be
@@ -10,6 +10,7 @@ import org.scalatest.matchers.should.Matchers.{an, convertToAnyShouldWrapper}
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 class StringDataTypesSpec extends AnyFlatSpec with ScalaCheckDrivenPropertyChecks with ScalaCheckPropertyChecks {
+
   "Latin-1 Encoded String" should "be valid if only contains letters and numbers" in {
     forAll(Gen.alphaNumStr) { alphaNum =>
       Latin1Data.validated(alphaNum).isValid shouldBe true
@@ -66,6 +67,7 @@ class StringDataTypesSpec extends AnyFlatSpec with ScalaCheckDrivenPropertyCheck
 
     areEqual shouldBe true
   }
+
   "Base-58 Encoded String" should "be valid when any alpha-numeric string except containing 0, O, I, and l" in {
     forAll(Gen.asciiStr) { asciiStr =>
       if (isValidBase58(asciiStr))
@@ -90,7 +92,7 @@ class StringDataTypesSpec extends AnyFlatSpec with ScalaCheckDrivenPropertyCheck
 
   // https://www.ascii-code.com/
   private def isValidLatin1Char(c: Char): Boolean = (c >= 0 && c <= 127) || (c >= 159 && c <= 255)
-  private def isValidLatin1(str:   String): Boolean = str.forall(isValidLatin1Char)
+  private def isValidLatin1(str: String): Boolean = str.forall(isValidLatin1Char)
 
   private def isValidBase16(str: String): Boolean =
     str.forall(x => (x >= '0' && x <= '9') || (x >= 'a' && x <= 'f') || (x >= 'A' && x <= 'F')) && str.length % 2 == 0

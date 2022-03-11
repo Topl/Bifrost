@@ -8,6 +8,7 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.box.AssetCode.AssetCodeVersion
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TX
+import co.topl.modifier.transaction.builder.BoxSelectionAlgorithm
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer}
 import co.topl.utils.Int128
 import co.topl.utils.StringDataTypes.Latin1Data
@@ -154,6 +155,19 @@ object ToplRpc {
       case class Response(height: Int128, score: Long, bestBlockId: ModifierId, bestBlock: Block)
     }
 
+    object HeadInfo {
+
+      /**
+       * Retrieve the best block's id and other info
+       *
+       * Find information about the current state of the chain including height and bestBlockId
+       */
+      val rpc: Rpc[Params, Response] = Rpc("topl_headInfo")
+
+      case class Params()
+      case class Response(bestBlockId: ModifierId, height: Int128)
+    }
+
     object Balances {
 
       /**
@@ -208,6 +222,78 @@ object ToplRpc {
       type Response = Block
     }
 
+    object BlocksByIds {
+
+      /**
+       * Lookup a block by its id
+       */
+      val rpc: Rpc[Params, Response] = Rpc("topl_blocksByIds")
+
+      /**
+       * @param blockIds Base58 encoded transaction hash
+       */
+      case class Params(blockIds: List[ModifierId])
+      type Response = List[Block]
+    }
+
+    object BlocksInRange {
+
+      /**
+       * Retrieve a segment of the chain in a height range
+       */
+      val rpc: Rpc[Params, Response] = Rpc("topl_blocksInRange")
+
+      /**
+       * @param startHeight starting height for the segment of chain
+       * @param endHeight end heigh for the segment of chain
+       */
+      case class Params(startHeight: Long, endHeight: Long)
+      type Response = List[Block]
+    }
+
+    object BlockIdsInRange {
+
+      /**
+       * Retrieve the ids of a segment of the chain in a height range
+       */
+      val rpc: Rpc[Params, Response] = Rpc("topl_blockIdsInRange")
+
+      /**
+       * @param startHeight starting height for the segment of chain
+       * @param endHeight end heigh for the segment of chain
+       */
+      case class Params(startHeight: Long, endHeight: Long)
+      type Response = List[ModifierId]
+    }
+
+    object LatestBlocks {
+
+      /**
+       * Retrieve a number of latest blocks, including the current best block
+       */
+      val rpc: Rpc[Params, Response] = Rpc("topl_latestBlocks")
+
+      /**
+       * @param numberOfBlocks number of latest blocks to retrieve
+       */
+      case class Params(numberOfBlocks: Int)
+      type Response = List[Block]
+    }
+
+    object LatestBlockIds {
+
+      /**
+       * Retrieve a number of latest blocks' ids, including the current best block id
+       */
+      val rpc: Rpc[Params, Response] = Rpc("topl_latestBlockIds")
+
+      /**
+       * @param numberOfBlockIds number of latest blocks to retrieve
+       */
+      case class Params(numberOfBlockIds: Int)
+      type Response = List[ModifierId]
+    }
+
     object BlockByHeight {
 
       /**
@@ -227,7 +313,7 @@ object ToplRpc {
       /**
        * Get the first 100 transactions in the mempool (sorted by fee amount)
        */
-      val rpc: Rpc[Params, Response] = Rpc("topl_mempool")
+      val rpc: Rpc[Params, Response] = Rpc("topl_mempool", aliases = List("topl_getPendingTransactions"))
 
       case class Params()
       type Response = List[TX]
@@ -238,7 +324,8 @@ object ToplRpc {
       /**
        * Lookup a transaction in the mempool by its id
        */
-      val rpc: Rpc[Params, Response] = Rpc("topl_transactionFromMempool")
+      val rpc: Rpc[Params, Response] =
+        Rpc("topl_transactionFromMempool", aliases = List("topl_getPendingTransactionById"))
 
       /**
        * @param transactionId Base58 encoded transaction hash
@@ -246,6 +333,21 @@ object ToplRpc {
       case class Params(transactionId: ModifierId)
 
       type Response = TX
+    }
+
+    object ConfirmationStatus {
+
+      /**
+       * Lookup the confirmation status of transactions
+       */
+      val rpc: Rpc[Params, Response] = Rpc("topl_confirmationStatus")
+
+      /**
+       * @param transactionIds Base58 encoded transaction hash
+       */
+      case class Params(transactionIds: List[ModifierId])
+      type Response = Map[ModifierId, TxStatus]
+      case class TxStatus(status: String, depthFromHead: Long)
     }
 
     object Info {
@@ -256,7 +358,14 @@ object ToplRpc {
       val rpc: Rpc[Params, Response] = Rpc("topl_info")
 
       case class Params()
-      case class Response(network: String, nodeAddress: String, version: String)
+
+      case class Response(
+        network:                String,
+        nodeAddress:            String,
+        appVersion:             String,
+        currentProtocolRuleset: String,
+        currentBlockVersion:    String
+      )
     }
   }
 
@@ -277,8 +386,8 @@ object ToplRpc {
        *
        * #### Notes
        * - `AssetCode` in `AssetValue` can be generated using `util_generateAssetCode`
-       * - `fee` and `quantity` in `AssetValue` need to be strings, they will be converted into Int128 which can go up to
-       * 178 undecillion(2^127-1)
+       * - `fee` and `quantity` in `AssetValue` need to be strings, they will be converted into Int128 which can go up
+       * to 178 undecillion(2^127-1)
        */
       val rpc: Rpc[Params, Response] = Rpc("topl_rawAssetTransfer")
 
@@ -291,16 +400,19 @@ object ToplRpc {
        * @param consolidationAddress Address for recipient of unspent Assets
        * @param minting If this is a minting AssetTransfer or not
        * @param data Data string which can be associated with this transaction(may be empty)
+       * @param boxSelectionAlgorithm Algorithm for selecting which boxes should be included in the Asset Transfer.
+       *                              The default value is `All`.
        */
       case class Params(
-        propositionType:      String,
-        sender:               NonEmptyChain[Address],
-        recipients:           NonEmptyChain[(Address, AssetValue)],
-        fee:                  Int128,
-        changeAddress:        Address,
-        consolidationAddress: Address,
-        minting:              Boolean,
-        data:                 Option[Latin1Data]
+        propositionType:       String,
+        sender:                NonEmptyChain[Address],
+        recipients:            NonEmptyChain[(Address, AssetValue)],
+        fee:                   Int128,
+        changeAddress:         Address,
+        consolidationAddress:  Address,
+        minting:               Boolean,
+        data:                  Option[Latin1Data],
+        boxSelectionAlgorithm: BoxSelectionAlgorithm
       )
 
       case class Response(rawTx: AssetTransfer[Proposition], messageToSign: String)
@@ -320,8 +432,8 @@ object ToplRpc {
        * The protocols default behavior is to combine multiple UTXOs of the same type into a single UTXO when it can.
        *
        * #### Notes
-       * - `fee` and Arbit amounts in `recipients` need to be strings, they will be converted into Int128 which can go up
-       * to 178 undecillion(2^127-1)
+       * - `fee` and Arbit amounts in `recipients` need to be strings, they will be converted into Int128 which can go
+       * up to 178 undecillion(2^127-1)
        */
       val rpc: Rpc[Params, Response] = Rpc("topl_rawArbitTransfer")
 
@@ -333,15 +445,18 @@ object ToplRpc {
        * @param changeAddress Address for recipient of unspent Arbits
        * @param consolidationAddress Address for recipient of unspent Arbits
        * @param data Data string which can be associated with this transaction(may be empty)
+       * @param boxSelectionAlgorithm Algorithm for selecting which boxes should be included in the Arbit Transfer.
+       *                              The default value is `All`.
        */
       case class Params(
-        propositionType:      String,
-        sender:               NonEmptyChain[Address],
-        recipients:           NonEmptyChain[(Address, Int128)],
-        fee:                  Int128,
-        changeAddress:        Address,
-        consolidationAddress: Address,
-        data:                 Option[Latin1Data]
+        propositionType:       String,
+        sender:                NonEmptyChain[Address],
+        recipients:            NonEmptyChain[(Address, Int128)],
+        fee:                   Int128,
+        changeAddress:         Address,
+        consolidationAddress:  Address,
+        data:                  Option[Latin1Data],
+        boxSelectionAlgorithm: BoxSelectionAlgorithm
       )
 
       case class Response(rawTx: ArbitTransfer[Proposition], messageToSign: String)
@@ -373,14 +488,17 @@ object ToplRpc {
        * @param fee Fee for the transfer. Minting AssetTransfer requires fee to be greater than 0
        * @param changeAddress Address for recipient of unspent Polys
        * @param data Data string which can be associated with this transaction(may be empty)
+       * @param boxSelectionAlgorithm Algorithm for selecting which boxes should be included in the Poly Transfer.
+       *                              The default value is `All`.
        */
       case class Params(
-        propositionType: String,
-        sender:          NonEmptyChain[Address],
-        recipients:      NonEmptyChain[(Address, Int128)],
-        fee:             Int128,
-        changeAddress:   Address,
-        data:            Option[Latin1Data]
+        propositionType:       String,
+        sender:                NonEmptyChain[Address],
+        recipients:            NonEmptyChain[(Address, Int128)],
+        fee:                   Int128,
+        changeAddress:         Address,
+        data:                  Option[Latin1Data],
+        boxSelectionAlgorithm: BoxSelectionAlgorithm
       )
 
       case class Response(rawTx: PolyTransfer[Proposition], messageToSign: String)
@@ -409,6 +527,28 @@ object ToplRpc {
       case class Params(tx: TX)
 
       type Response = TX
+    }
+
+    object EncodeTransfer {
+
+      /**
+       * #### Summary
+       * Encode unsigned transfer
+       *
+       * #### Type
+       * Remote -- Route must be used in conjunction with an external key manager service.
+       *
+       * #### Description
+       * Encode an unsigned transfer into the messageToSign data
+       */
+      val rpc: Rpc[Params, Response] = Rpc("topl_encodeTransfer")
+
+      /**
+       * @param unprovenTransaction An unsigned transaction JSON
+       */
+      case class Params(unprovenTransaction: TX)
+
+      case class Response(messageToSign: String)
     }
   }
 
@@ -572,7 +712,7 @@ object ToplRpc {
        * @param address New address to receive block rewards
        */
       case class Params(address: Address)
-      case class Response(rewardsAddress: String)
+      case class Response(msg: String)
     }
 
     object GetRewardsAddress {
@@ -591,6 +731,17 @@ object ToplRpc {
 
       case class Params()
       case class Response(rewardsAddress: String)
+    }
+
+    object Status {
+
+      /**
+       * Retrieve information about this running node
+       */
+      val rpc: Rpc[Params, Response] = Rpc("admin_status")
+
+      case class Params()
+      case class Response(forgingStatus: String, numberOfPendingTransactions: Int)
     }
   }
 

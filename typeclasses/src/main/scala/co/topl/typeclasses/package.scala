@@ -1,5 +1,7 @@
 package co.topl
 
+import co.topl.models.{Bytes, TypedBytes}
+
 package object typeclasses {
 
   object implicits
@@ -17,8 +19,6 @@ package object typeclasses {
       with ContainsTimestamp.ToContainsTimestampOps
       with ContainsTransactions.Instances
       with ContainsTransactions.ToContainsTransactionsOps
-      with Identifiable.Instances
-      with Identifiable.ToIdentifiableOps
       with RatioOps.Implicits
       with ContainsVerificationKey.Instances
       with ContainsVerificationKey.ToContainsVerificationKeyOps
@@ -33,8 +33,6 @@ package object typeclasses {
       with Proposer.ToProposerOps
       with Prover.Instances
       with Prover.ToProverOps
-      with Signable.Instances
-      with Signable.ToSignableOps
       with ShowInstances
       with EqInstances
       with DionAddressable.Instances
@@ -43,4 +41,6 @@ package object typeclasses {
       with Prepend.ToPrependOps
       with NonEmpty.Instances
       with NonEmpty.ToNonEmptyOps
+      with TransactionOps.Instances
+      with IdentityOps
 }

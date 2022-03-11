@@ -1,6 +1,6 @@
 package co.topl.modifier
 
-import co.topl.modifier.box.{Box, BoxId, ProgramBox, TokenBox, TokenValueHolder}
+import co.topl.modifier.box._
 
 import scala.reflect.ClassTag
 

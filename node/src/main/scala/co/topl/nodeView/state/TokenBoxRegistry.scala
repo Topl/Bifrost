@@ -1,12 +1,16 @@
 package co.topl.nodeView.state
 
+import cats.implicits.toShow
 import co.topl.attestation.Address
-import co.topl.db.{LDBVersionedStore, VersionedKVStore}
+import co.topl.db.LDBVersionedStore
 import co.topl.modifier.box.{Box, BoxId, TokenBox, TokenValueHolder}
 import co.topl.nodeView.state.MinimalState.VersionTag
+import co.topl.nodeView.{KeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
 import com.google.common.primitives.Longs
+import co.topl.codecs._
+import co.topl.utils.implicits._
 
 import java.io.File
 import scala.util.Try
@@ -17,13 +21,13 @@ import scala.util.Try
  * @param storage Persistent storage object for saving the TokenBoxRegistry to disk
  * @param nodeKeys set of node keys that denote the state this node will maintain (useful for personal wallet nodes)
  */
-class TokenBoxRegistry(protected val storage: VersionedKVStore, nodeKeys: Option[Set[Address]])
+class TokenBoxRegistry(protected val storage: KeyValueStore, nodeKeys: Option[Set[Address]])
     extends Registry[TokenBoxRegistry.K, TokenBoxRegistry.V] {
 
   import TokenBoxRegistry.{K, V}
 
-  //----- input and output transformation functions
-  override protected val registryInput: K => Array[Byte] = (key: K) => key.bytes
+  // ----- input and output transformation functions
+  override protected val registryInput: K => Array[Byte] = (key: K) => key.persistedBytes
 
   override protected val registryOutput: Array[Byte] => Seq[V] =
     (value: Array[Byte]) => value.grouped(Longs.BYTES).toSeq.map(Longs.fromByteArray)
@@ -62,7 +66,7 @@ class TokenBoxRegistry(protected val storage: VersionedKVStore, nodeKeys: Option
     val (deleted: Seq[K], updated: Seq[(K, Seq[V])]) = formatUpdates(filteredRemove, filteredAppend)
 
     saveToStore(newVersion, deleted, updated).map { _ =>
-      log.debug(s"${Console.GREEN} Update TokenBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
+      log.debug(s"${Console.GREEN} Update TokenBoxRegistry to version: ${newVersion.show}${Console.RESET}")
       new TokenBoxRegistry(storage, nodeKeys)
     }
   }
@@ -105,7 +109,7 @@ class TokenBoxRegistry(protected val storage: VersionedKVStore, nodeKeys: Option
 
   private def saveToStore(newVersion: VersionTag, toDelete: Seq[K], toUpdate: Seq[(K, Seq[V])]): Try[Unit] = Try {
     storage.update(
-      newVersion.bytes,
+      newVersion.persistedBytes,
       toDelete.map(k => registryInput(k)),
       toUpdate.map { case (key, value) =>
         registryInput(key) -> value.flatMap(Longs.toByteArray).toArray
@@ -114,11 +118,11 @@ class TokenBoxRegistry(protected val storage: VersionedKVStore, nodeKeys: Option
   }
 
   override def rollbackTo(version: VersionTag): Try[TokenBoxRegistry] = Try {
-    if (storage.lastVersionID().exists(_ sameElements version.bytes)) {
+    if (storage.latestVersionId().exists(_ sameElements version.persistedBytes)) {
       this
     } else {
-      log.debug(s"Rolling back TokenBoxRegistry to: ${version.toString}")
-      storage.rollbackTo(version.bytes)
+      log.debug(s"Rolling back TokenBoxRegistry to: ${version.show}")
+      storage.rollbackTo(version.persistedBytes)
       new TokenBoxRegistry(storage, nodeKeys)
     }
   }
@@ -137,7 +141,7 @@ object TokenBoxRegistry extends Logging {
 
       val file = new File(s"$dataDir/tokenBoxRegistry")
       file.mkdirs()
-      val storage = new LDBVersionedStore(file, 1000)
+      val storage = new LDBKeyValueStore(new LDBVersionedStore(file, keepVersions = 100))
 
       Some(new TokenBoxRegistry(storage, nodeKeys))
 

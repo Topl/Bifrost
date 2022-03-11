@@ -20,7 +20,7 @@ class KesSum
     Proofs.Knowledge.KesSum(
       VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(sumSig._1))),
       Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(sumSig._2))),
-      sumSig._3.map(w => Sized.strictUnsafe(Bytes(w)))
+      sumSig._3.map(w => Sized.strictUnsafe[Bytes, Proofs.Knowledge.KesSum.DigestLength](Bytes(w)))
     )
   }
 

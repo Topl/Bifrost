@@ -1,8 +1,9 @@
 package co.topl.typeclasses
 
 import cats.Eval
-import co.topl.codecs.bytes.implicits._
-import co.topl.crypto.hash.blake2b256
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.crypto.hash.Blake2b256
 import co.topl.models.VerificationKeys.VrfEd25519
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
@@ -54,20 +55,11 @@ object BlockGenesis {
     )
 
     // TODO: Read "genesis-eta-plaintext" from application.conf, and then hash that value and/or Magic Bytes
-    val eta: Eta = {
-      import co.topl.codecs.bytes.BasicCodecs._
-      Sized.strictUnsafe(
-        Bytes(
-          blake2b256
-            .hash(
-              prefix = None,
-              "genesis"
-                .getBytes(StandardCharsets.UTF_8) +: transactions.map((t: Transaction) => t.bytes.toArray).toList: _*
-            )
-            .value
-        )
+    val eta: Eta =
+      new Blake2b256().hash(
+        Bytes("genesis".getBytes(StandardCharsets.UTF_8)) +:
+        transactions.map(_.immutableBytes): _*
       )
-    }
 
     val header =
       BlockHeaderV2(

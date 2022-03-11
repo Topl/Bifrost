@@ -35,6 +35,12 @@ trait EqInstances {
   implicit val entropyEq: Eq[Entropy] =
     (a, b) => a.value === b.value
 
+  implicit val curve25519VerificationKey: Eq[VerificationKeys.Curve25519] =
+    (a, b) => a.bytes === b.bytes
+
+  implicit val curve25519Signature: Eq[Proofs.Knowledge.Curve25519] =
+    (a, b) => a.bytes === b.bytes
+
   implicit val rhoEq: Eq[Rho] =
     (a, b) => a.sizedBytes === b.sizedBytes
 

@@ -1,12 +1,5 @@
 package requests
 
-import akka.actor.ActorRefFactory
-import akka.http.scaladsl.server.Directives
-import akka.util.Timeout
-import http.Namespace
-import io.circe.{Decoder, Json}
-import settings.RPCApiSettings
-
 import scala.concurrent.Future
 
 trait ApiRoute extends Directives {

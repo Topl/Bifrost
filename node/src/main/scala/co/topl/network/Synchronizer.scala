@@ -1,20 +1,19 @@
 package co.topl.network
 
 import akka.actor.Actor
-import co.topl.network.message.{Message, MessageSpec}
+import co.topl.network.message.{Message, MessageCode, Transmission}
 import co.topl.network.peer.ConnectedPeer
+import co.topl.settings.Version
 import co.topl.utils.Logging
-
-import scala.util.{Failure, Success}
 
 trait Synchronizer extends Actor with Logging {
 
   /** These are the case statements for identifying the message handlers */
-  protected val msgHandlers: PartialFunction[(MessageSpec[_], _, ConnectedPeer), Unit]
+  protected val msgHandlers: PartialFunction[(Message, ConnectedPeer), Unit]
 
   /** Receive data from peer and start parsing and handling the message depending on the message spec */
-  protected def processDataFromPeer: Receive = { case Message(spec, Left(msgBytes), Some(source)) =>
-    parseAndHandle(spec, msgBytes, source)
+  protected def processDataFromPeer: Receive = { case Synchronizer.TransmissionReceived(transmission, source) =>
+    parseAndHandle(transmission, source)
   }
 
   /**
@@ -25,19 +24,22 @@ trait Synchronizer extends Actor with Logging {
    * @param msgBytes a ByteString of the message data that must be parsed
    * @param source the remote peer that sent the message
    */
-  protected def parseAndHandle(spec: MessageSpec[Any], msgBytes: Array[Byte], source: ConnectedPeer): Unit =
-    /** Attempt to parse the message */
-    spec.parseBytes(msgBytes) match {
-      /** If a message could be parsed, match the type of content found and ensure a handler is defined */
-      case Success(content) =>
-        val parsedMsg = (spec, content, source)
-        if (msgHandlers.isDefinedAt(parsedMsg)) msgHandlers.apply(parsedMsg)
-        else log.error(s"Function handler not found for the parsed message: $parsedMsg")
+  protected def parseAndHandle(
+    transmission: Transmission,
+    source:       ConnectedPeer
+  ): Unit =
+    transmission.decodeMessage match {
 
-      /** If a message could not be parsed, penalize the remote peer */
-      case Failure(e) =>
-        log.error(s"Failed to deserialize data from ${source}: ", e)
+      case Right(message) if msgHandlers.isDefinedAt((message, source)) =>
+        msgHandlers.apply((message, source))
+
+      case Right(message) =>
+        log.error(s"Function handler not found for the provided message: $message")
+
+      case Left(decodingError) =>
+        log.error(s"Failed to deserialize data from $source: $decodingError")
         penalizeMaliciousPeer(source)
+
     }
 
   /**
@@ -46,4 +48,12 @@ trait Synchronizer extends Actor with Logging {
    * @param peer peer that sent the offending message
    */
   protected def penalizeMaliciousPeer(peer: ConnectedPeer): Unit
+}
+
+object Synchronizer {
+
+  final case class TransmissionReceived(
+    transmission: Transmission,
+    peer:         ConnectedPeer
+  )
 }

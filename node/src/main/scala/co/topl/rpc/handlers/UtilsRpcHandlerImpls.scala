@@ -3,7 +3,8 @@ package co.topl.rpc.handlers
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{InvalidParametersError, RpcError, ThrowableData}
-import co.topl.attestation.AddressCodec.implicits._
+import co.topl.attestation.implicits._
+import co.topl.codecs._
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.implicits._
 import co.topl.modifier.box.AssetCode
@@ -11,9 +12,8 @@ import co.topl.rpc.{ToplRpc, ToplRpcErrors}
 import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
-import co.topl.utils.StringDataTypes.implicits._
+import co.topl.utils.implicits._
 import co.topl.utils.encode.Base58
-import co.topl.utils.codecs.implicits._
 import io.circe.Encoder
 
 import java.security.SecureRandom
@@ -73,7 +73,7 @@ object UtilsRpcHandlerImpls {
 
   private def generateSeed(length: Int): String = {
     val seed = new Array[Byte](length)
-    new SecureRandom().nextBytes(seed) //seed mutated here!
+    new SecureRandom().nextBytes(seed) // seed mutated here!
     seed.encodeAsBase58.show
   }
 }
