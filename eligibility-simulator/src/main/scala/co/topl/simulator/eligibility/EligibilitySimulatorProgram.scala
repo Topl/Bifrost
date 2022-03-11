@@ -22,7 +22,8 @@ import org.typelevel.log4cats.Logger
 object EligibilitySimulatorProgram {
 
   /**
-   * A forever-running program which traverses epochs and the slots within the epochs
+   * A program which mints blocks up to a certain height.  This program is not beholden to a real-world clock; there is
+   * no delay between the processing of slots.
    */
   def run[F[_]: MonadError[*[_], Throwable]: Logger: Parallel: Clock: Sync](
     clock:              ClockAlgebra[F],

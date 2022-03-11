@@ -41,13 +41,12 @@ object TetraDemo extends IOApp.Simple {
 
   // Configuration Data
   private val vrfConfig =
-    VrfConfig(lddCutoff = 10, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(1))
-//    VrfConfig(lddCutoff = 40, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(2, 5))
+    VrfConfig(lddCutoff = 40, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(2, 5))
 
   private val OperationalPeriodLength = 180L
   private val OperationalPeriodsPerEpoch = 4L
   private val EpochLength = OperationalPeriodLength * OperationalPeriodsPerEpoch
-  private val SlotDuration = 10.milli
+  private val SlotDuration = 100.milli
 
   require(
     EpochLength % OperationalPeriodLength === 0L,
@@ -185,8 +184,8 @@ object TetraDemo extends IOApp.Simple {
                   stakerVRFVK,
                   leaderElectionThreshold,
                   vrfProofConstruction,
-                  StatsInterpreter.Noop.make[F],
-                  ""
+                  statsInterpreter = StatsInterpreter.Noop.make[F],
+                  statsName = ""
                 ),
                 operationalKeys,
                 VrfRelativeStakeMintingLookup.Eval.make(state, clock),
