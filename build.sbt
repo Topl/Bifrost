@@ -1,4 +1,3 @@
-import com.typesafe.sbt.packager.docker.ExecCmd
 import sbt.Keys.{homepage, organization, test}
 import sbtassembly.MergeStrategy
 
@@ -86,10 +85,11 @@ lazy val dockerSettings = Seq(
   dockerLabels ++= Map(
     "bifrost.version" -> version.value
   ),
-  dockerAliases := dockerAliases.value.flatMap { alias => Seq(
-    alias.withRegistryHost(Some("docker.io/toplprotocol")),
-    alias.withRegistryHost(Some("ghcr.io/topl"))
-  )
+  dockerAliases := dockerAliases.value.flatMap { alias =>
+    Seq(
+      alias.withRegistryHost(Some("docker.io/toplprotocol")),
+      alias.withRegistryHost(Some("ghcr.io/topl"))
+    )
   }
 )
 
@@ -226,7 +226,7 @@ lazy val node = project
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
-    libraryDependencies ++= Dependencies.node,
+    libraryDependencies ++= Dependencies.node
   )
   .configs(IntegrationTest)
   .settings(
@@ -327,11 +327,11 @@ lazy val byteCodecs = project
   .settings(
     libraryDependencies ++=
       Dependencies.test ++
-        Dependencies.simulacrum ++
-        Dependencies.scodec ++
-        Dependencies.scodecBits ++
-        Dependencies.cats ++
-        Seq(Dependencies.akka("actor"))
+      Dependencies.simulacrum ++
+      Dependencies.scodec ++
+      Dependencies.scodecBits ++
+      Dependencies.cats ++
+      Seq(Dependencies.akka("actor"))
   )
   .settings(scalamacrosParadiseSettings)
 
@@ -475,6 +475,24 @@ lazy val demo = project
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test", typeclasses, consensus, minting, scripting, commonInterpreters)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
+
+lazy val eligibilitySimulator: Project = project
+  .in(file("eligibility-simulator"))
+  .settings(
+    name := "eligibilitySimulator",
+    commonSettings,
+    assemblySettings("co.topl.simulator.eligibility.EligibilitySimulator"),
+    Defaults.itSettings,
+    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
+    Compile / run / mainClass := Some("co.topl.simulator.eligibility.EligibilitySimulator"),
+    publish / skip := true,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.simulator.eligibility"
+  )
+  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.demo ++ Dependencies.catsEffect)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(models % "compile->compile;test->test", typeclasses, consensus, minting, commonInterpreters)
+  .enablePlugins(BuildInfoPlugin)
 
 lazy val scripting: Project = project
   .in(file("scripting"))

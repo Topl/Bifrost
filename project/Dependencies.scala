@@ -236,14 +236,16 @@ object Dependencies {
   lazy val demo: Seq[ModuleID] =
     Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++ logging
 
-  lazy val commonInterpreters: Seq[ModuleID] =
+  lazy val commonInterpreters =
     Dependencies.test ++
-    Dependencies.catsEffect ++
-    Dependencies.levelDb ++
     Seq(
-      Dependencies.akka("actor-typed"),
-      Dependencies.akka("actor-testkit-typed") % Test
-    )
+      akka("actor-typed"),
+      akka("actor-testkit-typed") % Test,
+      Dependencies.catsSlf4j      % "test"
+    ) ++
+    Dependencies.cats ++
+    Dependencies.catsEffect ++
+    Dependencies.scalacache
 
   lazy val tools: Seq[ModuleID] =
     Seq(
