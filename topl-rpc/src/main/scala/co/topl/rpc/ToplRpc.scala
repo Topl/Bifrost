@@ -3,6 +3,7 @@ package co.topl.rpc
 import cats.data.NonEmptyChain
 import co.topl.akkahttprpc.Rpc
 import co.topl.attestation.{Address, Proposition}
+import co.topl.models.{DionAddress, Int128 => TetraInt128, Transaction => TetraTransaction, TransactionData}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.AssetCode.AssetCodeVersion
@@ -504,6 +505,22 @@ object ToplRpc {
       case class Response(rawTx: PolyTransfer[Proposition], messageToSign: String)
     }
 
+    object UnprovenPolyTransfer {
+
+      val rpc: Rpc[Params, Response] = Rpc("topl_unprovenPolyTransfer")
+
+      case class Params(
+        sender:                NonEmptyChain[DionAddress],
+        recipients:            NonEmptyChain[TetraTransaction.PolyOutput],
+        fee:                   TetraInt128,
+        changeAddress:         DionAddress,
+        data:                  Option[TransactionData],
+        boxSelectionAlgorithm: BoxSelectionAlgorithm
+      )
+
+      case class Response(unprovenTransfer: TetraTransaction.Unproven)
+    }
+
     object BroadcastTx {
 
       /**
@@ -525,6 +542,15 @@ object ToplRpc {
        * @param tx A full formatted transaction JSON object (prototype transaction + signatures)
        */
       case class Params(tx: TX)
+
+      type Response = TX
+    }
+
+    object BroadcastTetraTransfer {
+
+      val rpc: Rpc[Params, Response] = Rpc("topl_broadcastTetraTransfer")
+
+      case class Params(transfer: TetraTransaction)
 
       type Response = TX
     }
