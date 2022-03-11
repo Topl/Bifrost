@@ -3,7 +3,7 @@ package co.topl.nodeView.history
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ContainsModifiers, ModifierId}
-import co.topl.network.message.SyncInfo
+import co.topl.network.SyncInfo
 import co.topl.nodeView.NodeViewComponent
 import co.topl.nodeView.history.GenericHistory.{HistoryComparisonResult, ModifierIds}
 import co.topl.utils.TimeProvider
@@ -14,11 +14,11 @@ trait HistoryReader[PM <: PersistentNodeViewModifier, SI <: SyncInfo]
     extends NodeViewComponent
     with ContainsModifiers[PM] {
 
-  val height: Long
-  val bestBlock: PM
-  val difficulty: Long
-  val bestBlockId: ModifierId
-  val score: Long
+  def height: Long
+  def bestBlock: PM
+  def difficulty: Long
+  def bestBlockId: ModifierId
+  def score: Long
 
   /**
    * Is there's no history, even genesis block
@@ -28,7 +28,7 @@ trait HistoryReader[PM <: PersistentNodeViewModifier, SI <: SyncInfo]
   /** Retrieve a series of PersistentNodeViewModifiers until the filter is satisfied */
   def filter(f: PM => Boolean): Seq[PM]
 
-  /** get block id at a certain height */
+  /** get block at a certain height */
   def modifierByHeight(height: Long): Option[PM]
 
   /** get parent block of a given block */
@@ -53,7 +53,7 @@ trait HistoryReader[PM <: PersistentNodeViewModifier, SI <: SyncInfo]
    */
   def applicableTry(modifier: PM): Try[Unit]
 
-  //todo: output should be ID | Seq[ID]
+  // todo: output should be ID | Seq[ID]
   def openSurfaceIds(): Seq[ModifierId]
 
   /**

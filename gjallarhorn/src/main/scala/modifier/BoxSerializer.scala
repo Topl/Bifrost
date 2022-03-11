@@ -1,8 +1,5 @@
 package modifier
 
-import attestation.Evidence
-import utils.serialization.{GjalSerializer, Reader, Writer}
-
 object BoxSerializer extends GjalSerializer[Box] {
 
   override def serialize(obj: Box, w: Writer): Unit = {

@@ -1,18 +1,15 @@
 package co.topl.modifier.transaction
 
-import co.topl.attestation.{Evidence, _}
+import co.topl.attestation._
 import co.topl.crypto.hash.blake2b256
-import co.topl.modifier.BoxReader
 import co.topl.modifier.block.BloomFilter.BloomTopic
-import co.topl.modifier.box.{Box, _}
+import co.topl.modifier.box._
 import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.{Identifiable, Int128}
 import com.google.common.primitives.{Ints, Longs}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
-import scala.util.Try
-import scala.Iterable
 import scala.collection.immutable.ListMap
 
 abstract class TransferTransaction[
@@ -42,22 +39,16 @@ abstract class TransferTransaction[
 
   val coinOutput: Iterable[TokenBox[T]]
 
-  override val newBoxes: Iterable[TokenBox[TokenValueHolder]]
-
   override def messageToSign: Array[Byte] =
-    super.messageToSign ++
-    data.fold(Array(0: Byte))(_.value) :+ (if (minting) 1: Byte else 0: Byte)
+    super.messageToSign ++ data.fold(Array(0: Byte))(_.value) :+ (if (minting) 1: Byte else 0: Byte)
+
+  override val newBoxes: Iterable[TokenBox[TokenValueHolder]]
 
 }
 
 object TransferTransaction {
 
   case class BoxParams[+T <: TokenValueHolder](evidence: Evidence, nonce: Box.Nonce, value: T)
-
-  case class TransferCreationState(
-    senderBoxes: Map[String, IndexedSeq[(String, Address, TokenBox[TokenValueHolder])]],
-    polyBalance: Int128
-  )
 
   def encodeFrom(from: IndexedSeq[(Address, Box.Nonce)]): Json =
     from.map(x => (x._1.asJson, x._2.toString.asJson)).asJson
@@ -95,66 +86,4 @@ object TransferTransaction {
     (feeChangeParams, coinOutputParams)
   }
 
-  /** Retrieves the boxes from state for the specified sequence of senders and filters them based on the type of transaction */
-  private def getSenderBoxesForTx(
-    boxReader:   BoxReader[ProgramId, Address],
-    sender:      IndexedSeq[Address],
-    returnBoxes: String,
-    assetCode:   Option[AssetCode] = None
-  ): Map[String, IndexedSeq[(String, Address, TokenBox[TokenValueHolder])]] =
-    sender
-      .flatMap { s =>
-        boxReader
-          .getTokenBoxes(s)
-          .getOrElse(
-            throw new Exception("No boxes found to fund transaction")
-          ) // isn't this just an empty sequence instead of None?
-          .collect {
-            // always get polys because this is how fees are paid
-            case bx: PolyBox =>
-              ("Poly", s, bx)
-
-            case bx: ArbitBox if returnBoxes == "Arbits" =>
-              ("Arbit", s, bx)
-
-            case bx: AssetBox if returnBoxes == "Assets" && assetCode.forall(_ == bx.value.assetCode) =>
-              ("Asset", s, bx)
-          }
-      }
-      .groupBy(_._1)
-
-  /**
-   * Determines the input boxes needed to create a transfer transaction
-   *
-   * @param boxReader a read-only version of the nodes current state
-   * @param sender the set of addresses that will contribute boxes to this transaction
-   * @param fee the fee to be paid for the transaction
-   * @param txType the type of transfer
-   * @param assetCode an asset specific detail for finding the right asset boxes to be sent in a transfer
-   * @return the input box information and output data needed to create the transaction case class
-   */
-  def getSenderBoxesAndCheckPolyBalance(
-    boxReader: BoxReader[ProgramId, Address],
-    sender:    IndexedSeq[Address],
-    fee:       Int128,
-    txType:    String,
-    assetCode: Option[AssetCode] = None // (assetCode)
-  ): Try[TransferCreationState] = Try {
-
-    // Lookup boxes for the given senders
-    val senderBoxes: Map[String, IndexedSeq[(String, Address, TokenBox[TokenValueHolder])]] =
-      getSenderBoxesForTx(boxReader, sender, txType, assetCode)
-
-    // compute the Poly balance since it is used often
-    val polyBalance =
-      senderBoxes
-        .getOrElse("Poly", throw new Exception(s"No Poly funds available for the transaction fee payment"))
-        .map(_._3.value.quantity)
-        .sum
-
-    // ensure there are enough polys to pay the fee
-    require(polyBalance >= fee, s"Insufficient funds available to pay transaction fee.")
-
-    TransferCreationState(senderBoxes, polyBalance)
-  }
 }

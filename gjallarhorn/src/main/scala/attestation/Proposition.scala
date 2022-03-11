@@ -1,22 +1,5 @@
 package attestation
 
-import cats.implicits._
-import attestation.AddressEncoder.NetworkPrefix
-import attestation.Evidence.{EvidenceContent, EvidenceTypePrefix}
-import attestation.serialization.PropositionSerializer
-import co.topl.crypto.PublicKey
-import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.hash.implicits._
-import co.topl.crypto.signatures.Curve25519
-import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.StringDataTypes.implicits._
-import co.topl.utils.codecs.implicits._
-import com.google.common.primitives.Ints
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, KeyDecoder, KeyEncoder}
-import utils.serialization.{BytesSerializable, GjalSerializer}
-import utils.{Identifiable, Identifier}
-
 import scala.util.{Failure, Success, Try}
 
 /**

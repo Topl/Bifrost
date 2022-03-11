@@ -1,16 +1,16 @@
 package co.topl.consensus.genesis
 
-import co.topl.attestation.EvidenceProducer.Syntax._
-import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
+import cats.implicits._
+import co.topl.attestation.{Address, SignatureCurve25519}
 import co.topl.consensus.Forger.ChainParams
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
-import co.topl.modifier.box.{ArbitBox, SimpleValue}
-import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
+import co.topl.modifier.box.SimpleValue
 import co.topl.settings.AppSettings
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.implicits._
 
 import scala.collection.immutable.ListMap
 import scala.util.Try
@@ -22,8 +22,6 @@ case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implic
   override protected val blockChecksum: ModifierId = ModifierId.empty
 
   override protected val blockVersion: PNVMVersion = settings.application.version.blockByte
-
-  override protected val members: ListMap[String, Int128] = ListMap("Not implemented here" -> 0L)
 
   override def getGenesisBlock: Try[(Block, ChainParams)] = Try(formNewBlock)
 
@@ -39,11 +37,16 @@ case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implic
     }
     .getOrElse(10, 1000000L, 1000000000000000000L)
 
+  override protected[genesis] val members: ListMap[String, Int128] = ListMap.from(
+    addresses
+      .map(_.show -> balance)
+  )
+
   def formNewBlock: (Block, ChainParams) = {
     // map the members to their balances then continue as normal
     val privateTotalStake = numberOfKeys * balance
 
-    val txInput = (
+    val txInput: GenesisTransactionParams = GenesisTransactionParams(
       IndexedSeq(),
       (genesisAcctCurve25519.publicImage.address -> SimpleValue(0L)) +: addresses
         .map(_ -> SimpleValue(balance))
@@ -52,33 +55,8 @@ case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implic
       Int128(0),
       0L,
       None,
-      true
+      minting = true
     )
-
-    val txs = Seq(
-      ArbitTransfer[PublicKeyPropositionCurve25519](
-        txInput._1,
-        txInput._2,
-        txInput._3,
-        txInput._4,
-        txInput._5,
-        txInput._6,
-        txInput._7
-      ),
-      PolyTransfer[PublicKeyPropositionCurve25519](
-        txInput._1,
-        txInput._2,
-        txInput._3,
-        txInput._4,
-        txInput._5,
-        txInput._6,
-        txInput._7
-      )
-    )
-
-    val generatorBox = ArbitBox(genesisAcctCurve25519.publicImage.generateEvidence, 0, SimpleValue(privateTotalStake))
-
-    val signature = SignatureCurve25519.genesis
 
     val block =
       Block(
@@ -89,7 +67,7 @@ case class PrivateGenesis(addresses: Set[Address], settings: AppSettings)(implic
         signature,
         1L,
         initialDifficulty,
-        txs,
+        generateGenesisTransaction(txInput),
         blockVersion
       )
 

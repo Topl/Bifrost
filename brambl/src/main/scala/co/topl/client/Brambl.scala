@@ -3,6 +3,7 @@ package co.topl.client
 import co.topl.akkahttprpc.{CustomError, RpcClientFailure, RpcErrorFailure}
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, EvidenceProducer, Proof, Proposition}
+import co.topl.codecs._
 import co.topl.modifier.transaction._
 import co.topl.utils.Identifiable
 import co.topl.utils.NetworkType.NetworkPrefix
@@ -23,7 +24,7 @@ object Brambl {
   def importCurve25519JsonToKeyRing(keyfile: Json, password: String, keyRing: KeyRing_PK25519)(implicit
     networkPrefix:                           NetworkPrefix
   ): Either[RpcClientFailure, Address] =
-    KeyfileCurve25519.jsonDecoder(networkPrefix)(keyfile.hcursor) match {
+    keyfile.as[KeyfileCurve25519] match {
       case Left(_) => Left(RpcErrorFailure(CustomError(7091, "Failed to decode JSON key")))
       case Right(kf) =>
         keyRing.importKeyPair(kf, password) match {
@@ -31,6 +32,19 @@ object Brambl {
             Left(RpcErrorFailure(CustomError(7091, s"Failed to import JSON key to key ring. Reason: ${ex.getMessage}")))
           case Success(value) => Right(value)
         }
+    }
+
+  /**
+   * Helper function to import multiple keyfiles from JSON format into the keyring
+   * @param keyfilePasswordPairs tuples of json keyfiles and passwords to be imported
+   * @param password the passwords used to decrypt the private keys from the keyfiles
+   * @return if successful, the addresses will be returned and the key is now available in the keyring
+   */
+  def importMultipleCurve25519JsonToKeyRing(keyfilePasswordPairs: Seq[(Json, String)], keyRing: KeyRing_PK25519)(
+    implicit networkPrefix:                                       NetworkPrefix
+  ): Seq[Either[RpcClientFailure, Address]] =
+    keyfilePasswordPairs.map { case (keyfile, password) =>
+      importCurve25519JsonToKeyRing(keyfile, password, keyRing)
     }
 
   /**
@@ -49,6 +63,18 @@ object Brambl {
           case _ =>
             Left(RpcErrorFailure(CustomError(7091, "More than one key was generated when only was was asked for")))
         }
+    }
+
+  /**
+   * Generatees multiple new keyfiles and addresses in the keyring
+   * @param passwords strings used to encrypt the returned keyfiles
+   * @return
+   */
+  def generateMultipleNewCurve25519Keyfile(passwords: Seq[String], keyRing: KeyRing_PK25519)(implicit
+    networkPrefix:                                    NetworkPrefix
+  ): Seq[Either[RpcClientFailure, KeyfileCurve25519]] =
+    passwords.map { password =>
+      generateNewCurve25519Keyfile(password, keyRing)
     }
 
   /**

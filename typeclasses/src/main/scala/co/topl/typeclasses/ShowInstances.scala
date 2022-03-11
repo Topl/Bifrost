@@ -2,19 +2,24 @@ package co.topl.typeclasses
 
 import cats.Show
 import cats.implicits._
-import co.topl.codecs.bytes.implicits._
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.Identifiable
+import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.models._
-import co.topl.models.utility.{Base58, Length, Sized}
-import co.topl.typeclasses.Identifiable.Instances._
-import co.topl.typeclasses.Identifiable.ops._
+import co.topl.models.utility.{Length, Sized}
 
 import java.time.Instant
 
 trait ShowInstances {
 
-  // todo: this should use Base58 in Utils?
+  implicit def showInstanceFromIdentifiable[T: Identifiable]: Show[T] =
+    t => {
+      val (prefix, bytes) = t.id
+      show"($prefix)$bytes"
+    }
+
   implicit val showBytes: Show[Bytes] =
-    bytes => Base58.encode(bytes.toArray)
+    bytes => bytes.toBase58
 
   implicit def showSizedBytes[Data: Show, L <: Length](implicit l: L): Show[Sized.Strict[Data, L]] =
     sized => show"[${l.value}](${sized.data})"
@@ -29,7 +34,7 @@ trait ShowInstances {
     _.sizedBytes.show
 
   implicit val showTaktikosAddress: Show[TaktikosAddress] =
-    showBytes.contramap[TaktikosAddress](_.bytes)
+    showBytes.contramap[TaktikosAddress](_.immutableBytes)
 
   implicit val showBlockHeaderV2: Show[BlockHeaderV2] =
     header =>
@@ -38,7 +43,7 @@ trait ShowInstances {
       show" height=${header.height}" +
       show" slot=${header.slot}" +
       show" timestamp=${Instant.ofEpochMilli(header.timestamp).toString})" +
-      show" address=${header.address.bytes}"
+      show" address=${header.address}"
 }
 
 object ShowInstances extends ShowInstances

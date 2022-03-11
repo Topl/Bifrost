@@ -81,7 +81,7 @@ trait KesEd25519Blake2b256 {
     def loop(t: KesBinaryTree): Int = t match {
       case n: MerkleNode  => Seq(loop(n.left), loop(n.right)).max + 1
       case _: SigningLeaf => 1
-      case Empty          => 0
+      case Empty()        => 0
     }
 
     loop(tree) - 1
@@ -90,6 +90,6 @@ trait KesEd25519Blake2b256 {
   def witness(tree: KesBinaryTree): Array[Byte] = tree match {
     case MerkleNode(_, witnessLeft, witnessRight, _, _) => hash(witnessLeft ++ witnessRight)
     case SigningLeaf(_, vk)                             => hash(vk)
-    case Empty                                          => Array.fill(hashBytes)(0: Byte)
+    case Empty()                                        => Array.fill(hashBytes)(0: Byte)
   }
 }

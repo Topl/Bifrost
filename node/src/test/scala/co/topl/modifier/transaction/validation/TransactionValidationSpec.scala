@@ -6,6 +6,7 @@ import co.topl.attestation.{Address, Proposition, PublicKeyPropositionCurve25519
 import co.topl.modifier.box._
 import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.validation.implicits._
+import co.topl.utils.GeneratorOps.GeneratorOps
 import co.topl.utils.NetworkType.PrivateTestnet
 import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.{NetworkType, NodeGenerators}
@@ -15,7 +16,6 @@ import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 import scala.util.Random
-import co.topl.utils.GeneratorOps.GeneratorOps
 
 class TransactionValidationSpec
     extends AnyPropSpec

@@ -39,10 +39,10 @@ class SumComposition extends KesEd25519Blake2b256 {
    */
   private[signing] def getKeyTime(keyTree: SK): Int =
     keyTree match {
-      case MerkleNode(_, _, _, Empty, _: SigningLeaf)    => 1
-      case MerkleNode(_, _, _, Empty, right: MerkleNode) => getKeyTime(right) + exp(getTreeHeight(right))
-      case MerkleNode(_, _, _, left, Empty)              => getKeyTime(left)
-      case _                                             => 0
+      case MerkleNode(_, _, _, Empty(), _: SigningLeaf)    => 1
+      case MerkleNode(_, _, _, Empty(), right: MerkleNode) => getKeyTime(right) + exp(getTreeHeight(right))
+      case MerkleNode(_, _, _, left, Empty())              => getKeyTime(left)
+      case _                                               => 0
     }
 
   /**
@@ -55,7 +55,7 @@ class SumComposition extends KesEd25519Blake2b256 {
     val h = keyTree match {
       case node: MerkleNode  => (witness(node), getKeyTime(keyTree))
       case leaf: SigningLeaf => (witness(leaf), 0)
-      case Empty             => (Array.fill(hashBytes)(0: Byte), 0)
+      case Empty()           => (Array.fill(hashBytes)(0: Byte), 0)
     }
 //    println(s"---------------------------start sum verification key ----------------")
 //    println(s"verification witness: ${Base58.encode(h._1)}, keyTime: ${h._2}")
@@ -84,17 +84,17 @@ class SumComposition extends KesEd25519Blake2b256 {
         MerkleNode(r._2, witness(left), witness(right), left, right)
       }
 
-    //traverse down the tree to the leftmost leaf
+    // traverse down the tree to the leftmost leaf
     def reduceTree(fullTree: KesBinaryTree): KesBinaryTree =
       fullTree match {
         case MerkleNode(seed, witL, witR, nodeL, nodeR) =>
           eraseOldNode(nodeR)
-          MerkleNode(seed, witL, witR, reduceTree(nodeL), Empty)
+          MerkleNode(seed, witL, witR, reduceTree(nodeL), Empty())
         case leaf: SigningLeaf => leaf
-        case _                 => Empty
+        case _                 => Empty()
       }
 
-    //executes the above functions in order
+    // executes the above functions in order
     val out = reduceTree(seedTree(seed, height))
     random.nextBytes(seed)
     out
@@ -157,39 +157,39 @@ class SumComposition extends KesEd25519Blake2b256 {
 
     if (step >= halfTotalSteps) {
       input match {
-        case MerkleNode(seed, witL, witR, oldLeaf: SigningLeaf, Empty) =>
+        case MerkleNode(seed, witL, witR, oldLeaf: SigningLeaf, Empty()) =>
           val newNode =
-            MerkleNode(Array.fill(seed.length)(0: Byte), witL, witR, Empty, SigningLeaf.tupled(sGenKeypair(seed)))
+            MerkleNode(Array.fill(seed.length)(0: Byte), witL, witR, Empty(), SigningLeaf.tupled(sGenKeypair(seed)))
           eraseOldNode(oldLeaf)
           random.nextBytes(seed)
           newNode
-        case MerkleNode(seed, witL, witR, oldNode: MerkleNode, Empty) =>
+        case MerkleNode(seed, witL, witR, oldNode: MerkleNode, Empty()) =>
           val newNode = MerkleNode(
             Array.fill(seed.length)(0: Byte),
             witL,
             witR,
-            Empty,
+            Empty(),
             evolveKey(generateSecretKey(seed, getTreeHeight(input) - 1), shiftStep(step))
           )
           eraseOldNode(oldNode)
           random.nextBytes(seed)
           newNode
-        case MerkleNode(seed, witL, witR, Empty, right) =>
-          MerkleNode(seed, witL, witR, Empty, evolveKey(right, shiftStep(step)))
+        case MerkleNode(seed, witL, witR, Empty(), right) =>
+          MerkleNode(seed, witL, witR, Empty(), evolveKey(right, shiftStep(step)))
 
         case leaf: SigningLeaf => leaf
-        case _                 => Empty
+        case _                 => Empty()
       }
     } else {
       input match {
-        case MerkleNode(seed, witL, witR, left, Empty) =>
-          MerkleNode(seed, witL, witR, evolveKey(left, shiftStep(step)), Empty)
+        case MerkleNode(seed, witL, witR, left, Empty()) =>
+          MerkleNode(seed, witL, witR, evolveKey(left, shiftStep(step)), Empty())
 
-        case MerkleNode(seed, witL, witR, Empty, right) =>
-          MerkleNode(seed, witL, witR, Empty, evolveKey(right, shiftStep(step)))
+        case MerkleNode(seed, witL, witR, Empty(), right) =>
+          MerkleNode(seed, witL, witR, Empty(), evolveKey(right, shiftStep(step)))
 
         case leaf: SigningLeaf => leaf
-        case _                 => Empty
+        case _                 => Empty()
       }
     }
   }
@@ -202,16 +202,16 @@ class SumComposition extends KesEd25519Blake2b256 {
    * @return byte array signature
    */
   private[signing] def sign(keyTree: SK, m: Array[Byte]): SIG = {
-    //loop that generates the signature of m and stacks up the witness path of the key
+    // loop that generates the signature of m and stacks up the witness path of the key
     @tailrec
     def loop(
       keyTree: KesBinaryTree,
       W:       Vector[Array[Byte]] = Vector()
     ): SIG = keyTree match {
-      case MerkleNode(_, witL, _, Empty, right) => loop(right, witL.clone() +: W)
-      case MerkleNode(_, _, witR, left, _)      => loop(left, witR.clone() +: W)
-      case leaf: SigningLeaf                    => (leaf.vk.clone(), sSign(m, leaf.sk).clone(), W)
-      case _                                    => (Array.fill(pkBytes)(0: Byte), Array.fill(sigBytes)(0: Byte), Vector(Array()))
+      case MerkleNode(_, witL, _, Empty(), right) => loop(right, witL.clone() +: W)
+      case MerkleNode(_, _, witR, left, _)        => loop(left, witR.clone() +: W)
+      case leaf: SigningLeaf                      => (leaf.vk.clone(), sSign(m, leaf.sk).clone(), W)
+      case _ => (Array.fill(pkBytes)(0: Byte), Array.fill(sigBytes)(0: Byte), Vector(Array()))
     }
     loop(keyTree)
   }

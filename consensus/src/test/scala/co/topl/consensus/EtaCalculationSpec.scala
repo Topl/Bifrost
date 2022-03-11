@@ -19,6 +19,8 @@ import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
 
 class EtaCalculationSpec
     extends AnyFlatSpec
@@ -91,7 +93,9 @@ class EtaCalculationSpec
     (state
       .get(_: TypedIdentifier))
       .expects(*)
-      .onCall((id: TypedIdentifier) => SlotData(blocks.find(_.id eqv id).get).pure[F])
+      .onCall((id: TypedIdentifier) =>
+        SlotData(blocks.find(b => byteByteVectorTupleAsTypedBytes(b.id) eqv id).get).pure[F]
+      )
       .anyNumberOfTimes()
 
     (blake2b256Resource
@@ -139,7 +143,7 @@ class EtaCalculationSpec
 
     (state
       .get(_: TypedIdentifier))
-      .expects(genesis.headerV2.id)
+      .expects(byteByteVectorTupleAsTypedBytes(genesis.headerV2.id))
       .once()
       .returning(SlotData(genesis.headerV2).pure[F])
 

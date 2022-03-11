@@ -36,6 +36,7 @@ class Curve25519AxolotlSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChe
       }
     }
   }
+
   property("with Curve25519, keyPairs generated with the same seed should be the same") {
     forAll { entropy: Entropy =>
       whenever(entropy.value.nonEmpty) {
@@ -49,6 +50,7 @@ class Curve25519AxolotlSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChe
       }
     }
   }
+
   property("test vector - 1") {
     val curve25519 = new Curve25519
     val specInSk = SecretKeys.Curve25519(
@@ -78,6 +80,7 @@ class Curve25519AxolotlSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChe
     curve25519.verify(specOutSig, specInMsg, vk) shouldBe true
     curve25519.verify(specOutSig, specInMsg, specOutVk) shouldBe true
   }
+
   property("test vector - 2, one byte message length") {
     val curve25519 = new Curve25519
     val specInSk = SecretKeys.Curve25519(
@@ -100,6 +103,7 @@ class Curve25519AxolotlSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChe
     curve25519.verify(specOutSig, specInMsg, vk) shouldBe true
     curve25519.verify(specOutSig, specInMsg, specOutVk) shouldBe true
   }
+
   property("test vector - 3, two bytes message length") {
     val curve25519 = new Curve25519
     val specInSk = SecretKeys.Curve25519(
@@ -122,6 +126,7 @@ class Curve25519AxolotlSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChe
     curve25519.verify(specOutSig, specInMsg, vk) shouldBe true
     curve25519.verify(specOutSig, specInMsg, specOutVk) shouldBe true
   }
+
   property("test vector - 4, 1023 bytes message length") {
     val curve25519 = new Curve25519
     val specInSk = SecretKeys.Curve25519(
@@ -166,6 +171,7 @@ class Curve25519AxolotlSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChe
     curve25519.verify(specOutSig, specInMsg, vk) shouldBe true
     curve25519.verify(specOutSig, specInMsg, specOutVk) shouldBe true
   }
+
   property("test vector - 5, abc hashed by SHA512 as message") {
     val curve25519 = new Curve25519
     val specInSk = SecretKeys.Curve25519(

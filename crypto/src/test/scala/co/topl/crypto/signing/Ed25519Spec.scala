@@ -29,6 +29,7 @@ class Ed25519Spec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with M
       }
     }
   }
+
   property("with Ed25519, keyPairs generated with the same seed should be the same") {
     forAll { entropy: Entropy =>
       whenever(entropy.value.length != 0) {
@@ -41,6 +42,7 @@ class Ed25519Spec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with M
       }
     }
   }
+
   property("test vectors from https://tools.ietf.org/html/rfc8032#page-24 - test 1") {
     val ed25519 = new Ed25519
     val specInSk = SecretKeys.Ed25519(
@@ -63,6 +65,7 @@ class Ed25519Spec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with M
     ed25519.verify(specOutSig, specInMsg, vk) shouldBe true
     ed25519.verify(specOutSig, specInMsg, specOutVk) shouldBe true
   }
+
   property("test vectors from https://tools.ietf.org/html/rfc8032#page-24 - test 2") {
     val ed25519 = new Ed25519
     val specInSk = SecretKeys.Ed25519(
@@ -85,6 +88,7 @@ class Ed25519Spec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with M
     ed25519.verify(specOutSig, specInMsg, vk) shouldBe true
     ed25519.verify(specOutSig, specInMsg, specOutVk) shouldBe true
   }
+
   property("test vectors from https://tools.ietf.org/html/rfc8032#page-24 - test 3") {
     val ed25519 = new Ed25519
     val specInSk = SecretKeys.Ed25519(
@@ -107,6 +111,7 @@ class Ed25519Spec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with M
     ed25519.verify(specOutSig, specInMsg, vk) shouldBe true
     ed25519.verify(specOutSig, specInMsg, specOutVk) shouldBe true
   }
+
   property("test vectors from https://tools.ietf.org/html/rfc8032#page-24 - test 1024") {
     val ed25519 = new Ed25519
     val specInSk = SecretKeys.Ed25519(
@@ -151,6 +156,7 @@ class Ed25519Spec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with M
     ed25519.verify(specOutSig, specInMsg, vk) shouldBe true
     ed25519.verify(specOutSig, specInMsg, specOutVk) shouldBe true
   }
+
   property("test vectors from https://tools.ietf.org/html/rfc8032#page-24 - test SHA(abc)") {
     val ed25519 = new Ed25519
     val specInSk = SecretKeys.Ed25519(

@@ -62,7 +62,7 @@ object EtaCalculation {
               // TODO: If childEpoch - parentEpoch > 1, destroy the node
               // OR: childSlot - parentSlot > slotsPerEpoch
               case (_, _, parentSlotData) =>
-                cachingF(parentSlotId.blockId)(ttl = Some(1.day))(
+                cache.cachingF(parentSlotId.blockId)(ttl = None)(
                   locateTwoThirdsBest(parentSlotData)
                     .flatMap(calculate)
                     .flatTap(nextEta =>
@@ -93,7 +93,7 @@ object EtaCalculation {
        * @param twoThirdsBest The latest block header in some tine, but within the first 2/3 of the epoch
        */
       private def calculate(twoThirdsBest: SlotData): F[Eta] =
-        cachingF(twoThirdsBest.slotId.blockId)(ttl = Some(1.day))(
+        cache.cachingF(twoThirdsBest.slotId.blockId)(ttl = None)(
           for {
             epoch      <- clock.epochOf(twoThirdsBest.slotId.slot)
             epochRange <- clock.epochRange(epoch)

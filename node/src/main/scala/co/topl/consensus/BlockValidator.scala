@@ -6,8 +6,8 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.history.{BlockProcessor, History, Storage}
-import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.TimeProvider
+import co.topl.utils.implicits._
 
 import scala.util.{Failure, Try}
 
@@ -75,7 +75,7 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
     blockProcessor.getCacheBlock(block.parentId) match {
       case Some(cacheParent) => (cacheParent.block, cacheParent.prevBlockTimes :+ block.timestamp)
       case None              =>
-        //we have already checked if the parent exists so can get
+        // we have already checked if the parent exists so can get
         val parent = storage.modifierById(block.parentId).get
         (parent, History.getTimestamps(storage, consensus.nxtBlockNum, parent) :+ block.timestamp)
     }
@@ -84,7 +84,7 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
 class SyntaxBlockValidator extends BlockValidator[Block] {
-  //todo: decide on a maximum size for blocks and enforce here
+  // todo: decide on a maximum size for blocks and enforce here
 
   // the signature on the block should match the signature used in the Arbit and Poly minting transactions
   val forgerEntitlementCheck: (Transaction.TX, Block) => Unit =
@@ -120,11 +120,11 @@ class SyntaxBlockValidator extends BlockValidator[Block] {
           case tx: ArbitTransfer[_] if tx.minting =>
             forgerEntitlementCheck(tx, block)
             require(
-              tx.to.map(_._2.quantity).sum == consensusStorage.inflation, //JAA -this needs to be done more carefully
+              tx.to.map(_._2.quantity).sum == consensusStorage.inflation, // JAA -this needs to be done more carefully
               "The inflation amount in the block must match the output of the Arbit rewards transaction"
             )
             require(
-              tx.data.fold(false)(_.show.split("_").head == block.parentId.toString),
+              tx.data.fold(false)(_.show.split("_").head == block.parentId.show),
               "Arbit reward transactions must contain the parent id of their minting block"
             )
 
@@ -140,7 +140,7 @@ class SyntaxBlockValidator extends BlockValidator[Block] {
               "The sum of the fees in the block must match the output of the Poly rewards transaction"
             )
             require(
-              tx.data.fold(false)(_.show.split("_").head == block.parentId.toString),
+              tx.data.fold(false)(_.show.split("_").head == block.parentId.show),
               "Poly reward transactions must contain the parent id of their minting block"
             )
 

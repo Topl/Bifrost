@@ -4,12 +4,12 @@ import cats._
 import cats.data._
 import cats.effect.Ref
 import cats.effect.kernel.Concurrent
+import co.topl.codecs.bytes.tetra.instances._
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras.{ClockAlgebra, ConsensusState, UnsafeResource}
-import co.topl.codecs.bytes.implicits._
+import co.topl.algebras.SecureStore
 import co.topl.consensus.algebras.EtaCalculationAlgebra
-import co.topl.crypto.keyfile.SecureStore
 import co.topl.crypto.mnemonic.Entropy
 import co.topl.crypto.signing._
 import co.topl.minting.algebras._
@@ -99,7 +99,7 @@ object OperationalKeys {
       operationalPeriodLength:     Long,
       activationOperationalPeriod: Long,
       address:                     TaktikosAddress,
-      ref:                         Ref[F, (Long, Option[LongMap[OperationalKeyOut]])]
+      ref:                         Ref[F, (Long, Option[Map[Long, OperationalKeyOut]])]
     ): OperationalKeysAlgebra[F] = { (slot: Slot, parentSlotId: SlotId) =>
       val operationalPeriod = slot / operationalPeriodLength
       ref.get.flatMap {
@@ -188,7 +188,7 @@ object OperationalKeys {
       etaCalculation:          EtaCalculationAlgebra[F],
       kesProductResource:      UnsafeResource[F, KesProduct],
       ed25519Resource:         UnsafeResource[F, Ed25519]
-    ): F[LongMap[OperationalKeyOut]] =
+    ): F[Map[Long, OperationalKeyOut]] =
       for {
         epoch <- clock.epochOf(fromSlot)
         eta   <- etaCalculation.etaToBe(parentSlotId, fromSlot)
@@ -210,7 +210,7 @@ object OperationalKeys {
           .filterNot(ineligibleSlots)
         _    <- Logger[F].info(s"Preparing linear keys.  count=${slots.size}")
         outs <- prepareOperationalPeriodKeys(kesParent, slots, kesProductResource, ed25519Resource)
-        mappedKeys = LongMap.from(outs.map(o => o.slot -> o))
+        mappedKeys = outs.map(o => o.slot -> o).toMap
       } yield mappedKeys
 
     /**

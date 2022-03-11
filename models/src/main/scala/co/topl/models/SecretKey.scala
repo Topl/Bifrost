@@ -33,7 +33,7 @@ object SecretKeys {
   case class VrfEd25519(bytes: Sized.Strict[Bytes, VrfEd25519.Length]) extends SecretKey
 
   object VrfEd25519 {
-    type Length = Lengths.`32`.type //todo: check this value
+    type Length = Lengths.`32`.type // todo: check this value
   }
 
   case class KesSum(tree: KesBinaryTree, offset: Long) extends SecretKey

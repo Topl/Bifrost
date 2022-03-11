@@ -3,7 +3,8 @@ package co.topl.credential
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
-import co.topl.codecs.bytes.implicits._
+import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.codecs.bytes.tetra.instances._
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.mnemonic.Entropy
 import co.topl.crypto.signing.{Ed25519, EntropyToSeed, ExtendedEd25519, Password}
@@ -15,7 +16,7 @@ import org.scalacheck.{Arbitrary, Gen}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, OptionValues}
+import org.scalatest.{BeforeAndAfterAll, EitherValues, OptionValues}
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
 import java.nio.charset.StandardCharsets
@@ -26,6 +27,7 @@ class KeyCollectionSpec
     with MockFactory
     with Matchers
     with OptionValues
+    with EitherValues
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks {
 
@@ -45,7 +47,7 @@ class KeyCollectionSpec
         .unlock(_, _))
         .expects(evidence, password)
         .once()
-        .returning((sk.bytes -> KeyFile.Metadata(evidence)).some.pure[F])
+        .returning((sk.persistedBytes -> KeyFile.Metadata(evidence)).some.pure[F])
 
       val underTest = RefKeyCollection[F].unsafeRunSync()
 
@@ -64,7 +66,7 @@ class KeyCollectionSpec
         .unlock(_, _))
         .expects(evidence, password)
         .once()
-        .returning((sk.bytes -> KeyFile.Metadata(evidence)).some.pure[F])
+        .returning((sk.persistedBytes -> KeyFile.Metadata(evidence)).some.pure[F])
 
       val underTest = RefKeyCollection[F].unsafeRunSync()
 
@@ -84,7 +86,7 @@ class KeyCollectionSpec
         .unlock(_, _))
         .expects(evidence, password)
         .once()
-        .returning((sk.bytes -> KeyFile.Metadata(evidence)).some.pure[F])
+        .returning((sk.persistedBytes -> KeyFile.Metadata(evidence)).some.pure[F])
 
       val underTest = RefKeyCollection[F].unsafeRunSync()
 

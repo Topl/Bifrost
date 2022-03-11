@@ -6,7 +6,7 @@ import co.topl.utils.Logging
 import com.spotify.docker.client.DockerClient
 import com.spotify.docker.client.messages.{ContainerConfig, HostConfig, NetworkConfig, NetworkCreation}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class DockerSupport(dockerClient: DockerClient)(implicit system: ActorSystem) extends Logging {
 
@@ -84,6 +84,6 @@ class DockerSupport(dockerClient: DockerClient)(implicit system: ActorSystem) ex
 
 object DockerSupport {
 
-  val bifrostImage: String = s"bifrost-node:${BuildInfo.version}"
+  val bifrostImage: String = s"toplprotocol/bifrost-node:${BuildInfo.version}"
   val networkNamePrefix: String = "bifrost-it"
 }

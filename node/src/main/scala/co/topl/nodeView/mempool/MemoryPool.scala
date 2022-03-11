@@ -14,10 +14,10 @@ import scala.util.Try
  */
 trait MemoryPool[TX <: Transaction.TX, M <: MemoryPool[TX, M]] extends NodeViewComponent with MemPoolReader[TX] {
 
-  //get ids from Seq, not presenting in mempool
+  // get ids from Seq, not presenting in mempool
   override def notIn(ids: Seq[ModifierId]): Seq[ModifierId] = ids.filter(id => !contains(id))
 
-  //modifiers
+  // modifiers
   def put(tx: TX, time: TimeProvider.Time): Try[M]
 
   def put(txs: Iterable[TX], time: TimeProvider.Time): Try[M]

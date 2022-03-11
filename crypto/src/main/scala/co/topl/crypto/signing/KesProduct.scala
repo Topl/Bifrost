@@ -30,7 +30,7 @@ class KesProduct
         Proofs.Knowledge.KesSum(
           VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(sk._4._1))),
           Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(sk._4._2))),
-          sk._4._3.map(w => Sized.strictUnsafe(Bytes(w)))
+          sk._4._3.map(w => Sized.strictUnsafe[Bytes, Proofs.Knowledge.KesSum.DigestLength](Bytes(w)))
         ),
         offset
       ),
@@ -45,12 +45,12 @@ class KesProduct
       Proofs.Knowledge.KesSum(
         VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(prodSig._1._1))),
         Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(prodSig._1._2))),
-        prodSig._1._3.map(w => Sized.strictUnsafe(Bytes(w)))
+        prodSig._1._3.map(w => Sized.strictUnsafe[Bytes, Proofs.Knowledge.KesSum.DigestLength](Bytes(w)))
       ),
       Proofs.Knowledge.KesSum(
         VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(prodSig._2._1))),
         Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(prodSig._2._2))),
-        prodSig._2._3.map(w => Sized.strictUnsafe(Bytes(w)))
+        prodSig._2._3.map(w => Sized.strictUnsafe[Bytes, Proofs.Knowledge.KesSum.DigestLength](Bytes(w)))
       ),
       Sized.strictUnsafe(Bytes(prodSig._3))
     )
@@ -89,7 +89,7 @@ class KesProduct
       Proofs.Knowledge.KesSum(
         VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(sk._4._1))),
         Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(sk._4._2))),
-        sk._4._3.map(w => Sized.strictUnsafe(Bytes(w)))
+        sk._4._3.map(w => Sized.strictUnsafe[Bytes, Proofs.Knowledge.KesSum.DigestLength](Bytes(w)))
       ),
       privateKey.offset
     )

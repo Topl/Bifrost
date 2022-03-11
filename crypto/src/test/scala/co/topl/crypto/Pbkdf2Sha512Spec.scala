@@ -5,6 +5,7 @@ import co.topl.crypto.utils.Hex
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 class Pbkdf2Sha512Spec extends AnyPropSpec {
+
   property("should pass all test vectors") {
     case class Pbkdf2Sha512TestVector(password: String, salt: String, keySize: Int, iterations: Int, result: String)
 

@@ -1,10 +1,12 @@
 package co.topl.akkahttprpc
 
+import akka.actor.ActorSystem
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import cats.data.EitherT
 import cats.implicits._
+import co.topl.akkahttprpc.RpcEncoders._
 import co.topl.akkahttprpc.ThrowableSupport.Verbose.verboseThrowableCodec
 import co.topl.akkahttprpc.implicits.server._
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
@@ -16,11 +18,9 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{EitherValues, Inside, OptionValues}
-import RpcEncoders._
-import akka.actor.ActorSystem
 
-import scala.concurrent.duration._
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 class RpcSpec
     extends AnyFlatSpecLike
@@ -121,12 +121,15 @@ class RpcSpec
     }
   }
 
-  it should "choose the correct handler" in {
+  it should "choose the correct handler from the Builder pattern" in {
 
     val underTest =
-      Rpc[TestMethodParams, TestMethodSuccess]("test_method2").serve(params =>
-        TestMethodSuccess(params.userId.length).asRight[RpcError].toEitherT[Future]
-      ) ~ normalRoute
+      RpcServer.Builder.empty
+        .append(Rpc[TestMethodParams, TestMethodSuccess]("test_method2"))(params =>
+          TestMethodSuccess(params.userId.length).asRight[RpcError].toEitherT[Future]
+        )
+        .append(normalRpc)(normalRpcHandler)
+        .route
 
     Post(
       "/",
@@ -144,7 +147,34 @@ class RpcSpec
     }
   }
 
-  it should "return a InvalidParametersError when valid RPC format is provided but the parameters do not match the method" in {
+  it should "return a MethodNotFoundError when valid RPC format is provided but the method is not known in the " +
+  "builder pattern" in {
+
+    val underTest =
+      RpcServer.Builder.empty
+        .append(Rpc[TestMethodParams, TestMethodSuccess]("test_method2"))(params =>
+          TestMethodSuccess(params.userId.length).asRight[RpcError].toEitherT[Future]
+        )
+        .append(normalRpc)(normalRpcHandler)
+        .route
+
+    Post(
+      "/",
+      Map(
+        "id"      -> "1".asJson,
+        "jsonrpc" -> "2.0".asJson,
+        "method"  -> "unknown_method".asJson,
+        "params"  -> Json.obj()
+      ).asJson
+    ) ~> underTest ~> check {
+      inside(rejection) { case RpcErrorRejection(e) =>
+        e shouldBe MethodNotFoundError("unknown_method")
+      }
+    }
+  }
+
+  it should "return a InvalidParametersError when valid RPC format is provided but the parameters do not match " +
+  "the method" in {
     val underTest = normalRoute
 
     Post(
@@ -164,9 +194,11 @@ class RpcSpec
 
   it should "return a custom error when an RPC results in an unhandled exception" in {
     val underTest =
-      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(_ =>
-        EitherT[Future, RpcError, TestMethodSuccess](Future.failed(new Exception("Heck")))
-      )
+      RpcServer.Builder.empty
+        .append(Rpc[TestMethodParams, TestMethodSuccess]("test_method1"))(_ =>
+          EitherT[Future, RpcError, TestMethodSuccess](Future.failed(new Exception("Heck")))
+        )
+        .route
 
     Post(
       "/",
@@ -188,9 +220,11 @@ class RpcSpec
   it should "return a custom error when an RPC results in a known error" in {
 
     val underTest =
-      Rpc[TestMethodParams, TestMethodSuccess]("test_method1").serve(_ =>
-        EitherT.leftT[Future, TestMethodSuccess](CustomError(-32005, "Heck"))
-      )
+      RpcServer.Builder.empty
+        .append(Rpc[TestMethodParams, TestMethodSuccess]("test_method1"))(_ =>
+          EitherT.leftT[Future, TestMethodSuccess](CustomError(-32005, "Heck"))
+        )
+        .route
 
     Post(
       "/",
@@ -208,11 +242,16 @@ class RpcSpec
     }
   }
 
-  private def normalRoute: Route = {
-    val rpc = Rpc[TestMethodParams, TestMethodSuccess]("test_method1")
-    rpc.serve(params => TestMethodSuccess(params.userId.length).asRight[RpcError].toEitherT[Future])
+  private def normalRoute: Route =
+    RpcServer.Builder.empty
+      .append(normalRpc)(normalRpcHandler)
+      .route
 
-  }
+  private def normalRpc: Rpc[TestMethodParams, TestMethodSuccess] =
+    Rpc[TestMethodParams, TestMethodSuccess]("test_method1")
+
+  private def normalRpcHandler: TestMethodParams => EitherT[Future, RpcError, TestMethodSuccess] =
+    (params: TestMethodParams) => TestMethodSuccess(params.userId.length).asRight[RpcError].toEitherT[Future]
 
 }
 

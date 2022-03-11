@@ -34,7 +34,7 @@ class ProductComposition extends KesEd25519Blake2b256 {
   private[signing] def generateVerificationKey(key: SK): VK = key._1 match {
     case node: MerkleNode  => (witness(node), getKeyTime(key))
     case leaf: SigningLeaf => (witness(leaf), 0)
-    case Empty             => (Array.fill(hashBytes)(0: Byte), 0)
+    case Empty()           => (Array.fill(hashBytes)(0: Byte), 0)
   }
 
   /**
@@ -66,10 +66,10 @@ class ProductComposition extends KesEd25519Blake2b256 {
     input match {
       case n: MerkleNode =>
         (n.left, n.right) match {
-          case (Empty, _) =>
-            MerkleNode(n.seed, n.witnessLeft, n.witnessRight, Empty, eraseLeafSecretKey(n.right))
-          case (_, Empty) =>
-            MerkleNode(n.seed, n.witnessLeft, n.witnessRight, eraseLeafSecretKey(n.left), Empty)
+          case (Empty(), _) =>
+            MerkleNode(n.seed, n.witnessLeft, n.witnessRight, Empty(), eraseLeafSecretKey(n.right))
+          case (_, Empty()) =>
+            MerkleNode(n.seed, n.witnessLeft, n.witnessRight, eraseLeafSecretKey(n.left), Empty())
           case (_, _) => throw new Exception("Evolving Key Configuration Error")
         }
       case l: SigningLeaf =>

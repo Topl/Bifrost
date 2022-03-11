@@ -1,9 +1,9 @@
 package co.topl.typeclasses
 
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.crypto.signing.{Curve25519, Ed25519, ExtendedEd25519}
 import co.topl.models._
-import co.topl.typeclasses.Signable.instances._
-import co.topl.typeclasses.Signable.ops._
 
 import scala.language.implicitConversions
 

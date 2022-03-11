@@ -1,12 +1,14 @@
 package co.topl.consensus
 
+import co.topl.codecs._
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.hash.digest.implicits._
-import co.topl.db.{LDBVersionedStore, VersionedKVStore}
+import co.topl.db.LDBVersionedStore
 import co.topl.modifier.ModifierId
+import co.topl.nodeView.{KeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
-import co.topl.utils.NetworkType.{LocalTestnet, PrivateTestnet}
+import co.topl.utils.NetworkType.PrivateTestnet
 import co.topl.utils.{Int128, Logging, NetworkType}
 import com.google.common.primitives.Longs
 
@@ -17,7 +19,7 @@ import java.io.File
  * @param storage the LSM store to persist values in
  * @param defaultTotalStake should be 10000000 for private and local testnet, and 200000000000000000L otherwise
  */
-class ConsensusStorage(storage: Option[VersionedKVStore], private val defaultTotalStake: Int128) extends Logging {
+class ConsensusStorage(storage: Option[KeyValueStore], private val defaultTotalStake: Int128) extends Logging {
 
   private def byteArrayWrappedKey(name: String): Digest32 = blake2b256.hash(name.getBytes)
 
@@ -73,7 +75,7 @@ class ConsensusStorage(storage: Option[VersionedKVStore], private val defaultTot
     _inflation = params.inflation
     _height = params.height
 
-    val versionId = blockId.getIdBytes
+    val versionId = blockId.persistedBytes
 
     val totalStakePair = Seq(totalStakeKey.bytes -> params.totalStake.toByteArray)
     val difficultyPair = Seq(difficultyKey.bytes -> Longs.toByteArray(params.difficulty))
@@ -97,7 +99,7 @@ class ConsensusStorage(storage: Option[VersionedKVStore], private val defaultTot
   def rollbackTo(blockId: ModifierId): Either[NoStorageError, Unit] =
     storage match {
       case Some(store) =>
-        store.rollbackTo(blockId.getIdBytes)
+        store.rollbackTo(blockId.persistedBytes)
 
         // reset cached values to stored values or defaults
         _difficulty = difficultyFromStorageOrDefault
@@ -116,14 +118,14 @@ object ConsensusStorage {
   def apply(settings: AppSettings, networkType: NetworkType): ConsensusStorage = {
     val dataDir = settings.application.dataDir.ensuring(_.isDefined, "A data directory must be specified").get
     val defaultTotalStake = networkType match {
-      case PrivateTestnet | LocalTestnet =>
+      case PrivateTestnet =>
         settings.forging.privateTestnet.map(sfp => sfp.numTestnetAccts * sfp.testnetBalance).getOrElse(10000000L)
       case _ => 200000000000000000L // todo: JAA - this should be with other genesis consensus parameters
     }
     val file = new File(s"$dataDir/consensus")
     file.mkdirs()
 
-    val versionedStore = new LDBVersionedStore(file, 100)
+    val versionedStore = new LDBKeyValueStore(new LDBVersionedStore(file, 100))
 
     // todo: JAA - we need to find a better pattern than this. I see why it is the most straightforward for now,
     //       but maybe we elevate the ConsensusStorage interface up to a sealed abstract class and have two instances?

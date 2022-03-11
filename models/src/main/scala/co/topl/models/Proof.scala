@@ -49,15 +49,28 @@ object Proofs {
     object KesProduct {
       type DigestLength = Lengths.`32`.type
     }
+
+    case class HashLock(salt: Digest32, value: Byte) extends Proof
   }
 
   object Compositional {
     case class Threshold(proofs: List[Proof]) extends Proof
     case class And(a: Proof, b: Proof) extends Proof
     case class Or(a: Proof, b: Proof) extends Proof
+    case class Not(a: Proof) extends Proof
   }
 
   object Contextual {
     case class HeightLock() extends Proof
+    case class RequiredBoxState() extends Proof
+  }
+
+//  object Example {
+//    case class EnumeratedInput(value: Int) extends Proof
+//
+//  }
+
+  object Script {
+    case class JS(serializedArgs: String) extends Proof
   }
 }

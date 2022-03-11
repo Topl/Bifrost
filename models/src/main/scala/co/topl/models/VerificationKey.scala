@@ -44,5 +44,4 @@ object VerificationKeys {
   object KesProduct {
     type Length = Lengths.`32`.type
   }
-
 }

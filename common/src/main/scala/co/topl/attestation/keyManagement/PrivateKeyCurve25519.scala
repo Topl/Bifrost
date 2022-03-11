@@ -2,6 +2,8 @@ package co.topl.attestation.keyManagement
 
 import cats.implicits._
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.codecs.binary.legacy.BifrostSerializer
+import co.topl.codecs.binary.legacy.attestation.keyManagement.PrivateKeyCurve25519Serializer
 import co.topl.crypto.implicits._
 import co.topl.crypto.mnemonic.Entropy
 import co.topl.crypto.signing.Curve25519
@@ -9,10 +11,8 @@ import co.topl.crypto.{PrivateKey, PublicKey, Signature}
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
 import co.topl.models.{Bytes, SecretKeys}
-import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
 
-//noinspection ScalaStyle
-class PrivateKeyCurve25519(private val privateKey: PrivateKey, private val publicKey: PublicKey) extends Secret {
+case class PrivateKeyCurve25519(privateKey: PrivateKey, publicKey: PublicKey) extends Secret {
 
   private val curve25519 = new Curve25519()
   private val privateKeyLength = privateKey.value.length
@@ -26,7 +26,7 @@ class PrivateKeyCurve25519(private val privateKey: PrivateKey, private val publi
   override type PR = SignatureCurve25519
   override type KF = KeyfileCurve25519
 
-  override lazy val serializer: BifrostSerializer[PrivateKeyCurve25519] = PrivateKeyCurve25519
+  override lazy val serializer: BifrostSerializer[PrivateKeyCurve25519] = PrivateKeyCurve25519Serializer
 
   override lazy val publicImage: PublicKeyPropositionCurve25519 = PublicKeyPropositionCurve25519(publicKey)
 
@@ -46,7 +46,7 @@ class PrivateKeyCurve25519(private val privateKey: PrivateKey, private val publi
   }
 }
 
-object PrivateKeyCurve25519 extends BifrostSerializer[PrivateKeyCurve25519] {
+object PrivateKeyCurve25519 {
 
   implicit val secretGenerator: SecretGenerator[PrivateKeyCurve25519] =
     SecretGenerator.instance[PrivateKeyCurve25519] { seed: Array[Byte] =>
@@ -55,19 +55,4 @@ object PrivateKeyCurve25519 extends BifrostSerializer[PrivateKeyCurve25519] {
         new PrivateKeyCurve25519(PrivateKey(sk.bytes.data.toArray), PublicKey(pk.bytes.data.toArray))
       secret -> secret.publicImage
     }
-
-  override def serialize(obj: PrivateKeyCurve25519, w: Writer): Unit = {
-    /* : Array[Byte] */
-    w.putBytes(obj.privateKey.value)
-
-    /* publicKeyBytes: Array[Byte] */
-    w.putBytes(obj.publicKey.value)
-  }
-
-  override def parse(r: Reader): PrivateKeyCurve25519 =
-    new PrivateKeyCurve25519(
-      PrivateKey(r.getBytes(Curve25519.instance.KeyLength)),
-      PublicKey(r.getBytes(Curve25519.instance.KeyLength))
-    )
-
 }

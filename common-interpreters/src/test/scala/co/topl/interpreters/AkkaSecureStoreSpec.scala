@@ -3,11 +3,13 @@ package co.topl.interpreters
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import co.topl.codecs.bytes.{ByteCodec, Reader, Writer}
+import co.topl.codecs.bytes.typeclasses.Persistable
+import co.topl.models.Bytes
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, EitherValues, Inspectors, OptionValues}
+import scodec.bits.ByteVector
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
@@ -112,13 +114,10 @@ class AkkaSecureStoreSpec
 object AkkaSecureStoreSpec {
   case class TestData(value: Array[Byte])
 
-  implicit val testDataCodec: ByteCodec[TestData] =
-    new ByteCodec[TestData] {
+  implicit val persistableTestData: Persistable[TestData] =
+    new Persistable[TestData] {
+      def persistedBytes(value: TestData): ByteVector = Bytes(value.value)
 
-      def encode(t: TestData, writer: Writer): Unit =
-        writer.putBytes(t.value)
-
-      def decode(reader: Reader): TestData =
-        TestData(reader.getBytes(32))
+      def fromPersistedBytes(bytes: ByteVector): Either[String, TestData] = Right(TestData(bytes.toArray))
     }
 }
