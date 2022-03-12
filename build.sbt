@@ -191,7 +191,8 @@ lazy val bifrost = project
     benchmarking,
     crypto,
     brambl,
-    tools
+    tools,
+    genus
   )
 
 lazy val node = project
@@ -337,6 +338,17 @@ lazy val loadTesting = project
     libraryDependencies ++= Dependencies.loadTesting
   )
   .dependsOn(common, brambl)
+
+lazy val genus = project
+  .in(file("genus"))
+  .settings(
+    name := "genus",
+    commonSettings,
+    scalamacrosParadiseSettings,
+    libraryDependencies ++= Dependencies.genus,
+  )
+  .enablePlugins(AkkaGrpcPlugin)
+  .dependsOn(common)
 
 addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; + test")
 addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; + test")
