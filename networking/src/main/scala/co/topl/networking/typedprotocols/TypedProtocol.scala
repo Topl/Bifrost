@@ -12,20 +12,23 @@ import co.topl.networking.Party
 object TypedProtocol {
   def apply[F[_]]: TransitionStep1[F] = new TransitionStep1[F]
 
-  class TransitionStep1[F[_]] private[TypedProtocol] {
+  /**
+   * A builder/helper for constructing a typesafe state-transition for a message handler.
+   */
+  final class TransitionStep1[F[_]] private[TypedProtocol] {
     def apply(localParty: Party): TransitionStep2 = new TransitionStep2(localParty)
 
-    class TransitionStep2 private[TypedProtocol] (localParty: Party) {
+    final class TransitionStep2 private[TypedProtocol] (localParty: Party) {
 
       def apply[Message](message: Message): TransitionStep3[Message] =
         new TransitionStep3[Message](message)
 
-      class TransitionStep3[Message] private[TypedProtocol] (message: Message) {
+      final class TransitionStep3[Message] private[TypedProtocol] (message: Message) {
 
         def apply[InState](protocolInState: TypedProtocolState[InState]): TransitionStep4[InState] =
           new TransitionStep4[InState](protocolInState)
 
-        class TransitionStep4[InState] private[TypedProtocol] (protocolInState: TypedProtocolState[InState]) {
+        final class TransitionStep4[InState] private[TypedProtocol] (protocolInState: TypedProtocolState[InState]) {
 
           def nextState[OutState](implicit
             handler: StateTransition[F, Message, InState, OutState]

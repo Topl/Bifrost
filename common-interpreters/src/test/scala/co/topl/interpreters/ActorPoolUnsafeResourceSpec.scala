@@ -29,7 +29,8 @@ class ActorPoolUnsafeResourceSpec
   implicit val ec: ExecutionContextExecutor = testKit.system.executionContext
 
   // This test is just to demonstrate the thread safety issue
-  "Mutable data that is thread-unsafe" should "result in inconsistent result data" in {
+  // "Mutable data that is thread-unsafe" should "result in inconsistent result data" in {
+  ignore should "result in inconsistent result data" in {
     val badMutableData = new MutableResource(16)
     val a1 = Array.fill(16)(0: Byte)
     val a2 = Array.fill(16)(1: Byte)
