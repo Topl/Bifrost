@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+import "filters.proto";
+import "types.proto";
+import "services_types.proto";
+
+package co.topl.genus.services;
+
+service BlocksQuery {
+  rpc Query (QueryBlocksReq) returns (QueryBlocksRes);
+
+  rpc QueryStream (BlocksQueryStreamReq) returns (stream BlocksQueryStreamRes);
+}
+
+message QueryBlocksReq {
+  BlockFilter filter = 1;
+  uint32 confirmation_depth = 2;
+  Paging paging_options = 3;
+}
+
+message QueryBlocksRes {
+  message Success {
+    repeated Block blocks = 1;
+  }
+
+  message Failure {
+    oneof reason {
+      string data_store_connection_error = 1;
+      string query_timeout = 2;
+      string invalid_query = 3;
+    }
+  }
+
+  oneof result {
+    Success success = 1;
+    Failure failure = 2;
+  }
+}
+
+message BlocksQueryStreamReq {
+  BlockFilter filter = 1;
+  uint32 confirmation_depth = 2;
+}
+
+message BlocksQueryStreamRes {
+  message Failure {
+    oneof reason {
+      string data_store_connection_error = 1;
+      string invalid_query = 2;
+    }
+  }
+
+  oneof result {
+    Block block = 1;
+    Failure failure = 2;
+  }
+}

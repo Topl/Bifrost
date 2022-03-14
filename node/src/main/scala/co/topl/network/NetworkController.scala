@@ -311,10 +311,10 @@ class NetworkController(
       connectionId.direction match {
         case Incoming =>
           s"New incoming connection from ${connectionId.remoteAddress} " +
-            s"established (bound to local ${connectionId.localAddress})"
+          s"established (bound to local ${connectionId.localAddress})"
         case Outgoing =>
           s"New outgoing connection to ${connectionId.remoteAddress} " +
-            s"established (bound to local ${connectionId.localAddress})"
+          s"established (bound to local ${connectionId.localAddress})"
       }
     }
 
