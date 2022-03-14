@@ -1,51 +1,34 @@
 package co.topl.consensus.genesis
 
-import co.topl.attestation.EvidenceProducer.Syntax.ProducerOps
-import co.topl.attestation.implicits._
-import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519}
-import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
+import akka.actor.typed.ActorSystem
+import cats.data.EitherT
+import cats.implicits._
+import co.topl.attestation.keyManagement.PrivateKeyCurve25519
+import co.topl.attestation.{Address, EvidenceProducer, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.codecs._
-import co.topl.consensus.Forger.ChainParams
+import co.topl.consensus.KeyManager.StartupKeyView
+import co.topl.consensus.{ConsensusInterface, NxtConsensus}
 import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.{ArbitBox, Box, SimpleValue}
-import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, TransferTransaction}
-import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
+import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
+import co.topl.settings.GenesisStrategy.{FromBlockJson, Generated}
+import co.topl.settings.{AppSettings, GenesisFromBlockJsonSettings, GenesisGenerationSettings}
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
+import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
-import co.topl.utils.{Int128, Logging}
+import io.circe.parser
 
 import scala.collection.immutable.ListMap
-import scala.util.Try
+import scala.concurrent.{ExecutionContext, Future}
 
-trait GenesisProvider extends Logging {
+trait GenesisProvider[S] {
+  def get(strategy: S): NxtConsensus.Genesis
+}
 
-  implicit val networkPrefix: NetworkPrefix
-
-  protected lazy val genesisAcctCurve25519: PrivateKeyCurve25519 =
-    new PrivateKeyCurve25519(PrivateKey(Array.fill(32)(2: Byte)), PublicKey(Array.fill(32)(2: Byte)))
-
-  protected lazy val genesisAcctEd25519: PrivateKeyEd25519 =
-    new PrivateKeyEd25519(PrivateKey(Array.fill(32)(2: Byte)), PublicKey(Array.fill(32)(2: Byte)))
-
-  protected lazy val generatorBox: ArbitBox =
-    ArbitBox(genesisAcctCurve25519.publicImage.generateEvidence, 0, SimpleValue(members.values.sum))
-
-  protected val signature: SignatureCurve25519 = SignatureCurve25519.genesis
-
-  protected val blockChecksum: ModifierId
-
-  protected val blockVersion: PNVMVersion
-
-  protected val initialDifficulty: Long
-
-  protected[genesis] val members: ListMap[String, Int128]
-
-  def getGenesisBlock: Try[(Block, ChainParams)]
-
-  protected def memberKeys: Iterable[Address] = members.keys.map(Base58Data.unsafe(_).decodeAddress.getOrThrow())
+object GenesisProvider {
 
   final case class GenesisTransactionParams(
     from:       IndexedSeq[(Address, Box.Nonce)],
@@ -57,40 +40,140 @@ trait GenesisProvider extends Logging {
     minting:    Boolean
   )
 
-  protected def calcTotalStake(block: Block): Int128 =
-    block.transactions
-      .flatMap(_.newBoxes.map { box =>
-        val stake: Int128 = box match {
-          case box: ArbitBox => box.value.quantity
-          case _             => 0
-        }
-        box.id.toString -> stake
-      })
-      .toMap
-      .values
-      .sum
+  def fetchAndUpdateConsensusView(
+    settings:            AppSettings,
+    consensusInterface:  ConsensusInterface,
+    fetchStartupKeyView: () => Future[StartupKeyView]
+  )(implicit
+    system:        ActorSystem[_],
+    ec:            ExecutionContext,
+    networkPrefix: NetworkPrefix
+  ): EitherT[Future, String, Block] = for {
 
-  protected def generateGenesisTransaction(
-    params: GenesisTransactionParams
-  ): Seq[TransferTransaction[SimpleValue, PublicKeyPropositionCurve25519]] =
-    Seq(
-      ArbitTransfer[PublicKeyPropositionCurve25519](
-        params.from,
-        (params.to.head._1, SimpleValue(0)) +: params.to, // first 'to'' is feeChangeOutput
-        params.signatures,
-        params.fee,
-        params.timestamp,
-        params.data,
-        params.minting
-      ),
-      PolyTransfer[PublicKeyPropositionCurve25519](
-        params.from,
-        params.to,
-        params.signatures,
-        params.fee,
-        params.timestamp,
-        params.data,
-        params.minting
-      )
+    startupKeys       <- EitherT.liftF(fetchStartupKeyView())
+    generatedSettings <- EitherT.fromOption[Future](settings.forging.genesis.map(_.generated), "No Generated settings")
+    jsonSettings <- EitherT.fromOption[Future](settings.forging.genesis.map(_.fromBlockJson), "No block json settings")
+    genesis <- consensusInterface
+      .withView[NxtConsensus.Genesis] { view =>
+        settings.forging.genesis match {
+          case Some(Generated) =>
+            generatedGenesisProvider(startupKeys.addresses, view.protocolVersions.blockVersion(0L)).get(generatedSettings)
+          case Some(FromBlockJson) => fromJsonGenesisProvider.get(jsonSettings)
+        }
+      }
+      .leftMap(_ => "Error")
+    stateUpdate = NxtConsensus.StateUpdate(
+      Some(genesis.state.totalStake),
+      Some(genesis.state.difficulty),
+      Some(genesis.state.inflation),
+      Some(genesis.state.height)
     )
+    _ <- consensusInterface.update(genesis.block.id, stateUpdate).leftMap(_ => "Error")
+  } yield genesis.block
+
+  private[genesis] def generatedGenesisProvider(addresses: Set[Address], blockVersion: Byte)(
+    implicit networkPrefix:                                NetworkPrefix
+  ): GenesisProvider[GenesisGenerationSettings] = strategy => {
+
+    val genesisAcctCurve25519 =
+      new PrivateKeyCurve25519(PrivateKey(Array.fill(32)(2: Byte)), PublicKey(Array.fill(32)(2: Byte)))
+
+    val totalStake = addresses.size * strategy.balanceForEachParticipant
+
+    val txInput: GenesisTransactionParams = GenesisTransactionParams(
+      IndexedSeq(),
+      (genesisAcctCurve25519.publicImage.address -> SimpleValue(0L)) +: addresses
+        .map(_ -> SimpleValue(strategy.balanceForEachParticipant))
+        .toIndexedSeq,
+      ListMap(genesisAcctCurve25519.publicImage -> SignatureCurve25519.genesis),
+      Int128(0),
+      0L,
+      None,
+      minting = true
+    )
+
+    val block = Block(
+      ModifierId.genesisParentId,
+      0L,
+      ArbitBox(
+        EvidenceProducer[PublicKeyPropositionCurve25519].generateEvidence(genesisAcctCurve25519.publicImage),
+        0,
+        SimpleValue(totalStake)
+      ),
+      genesisAcctCurve25519.publicImage,
+      SignatureCurve25519.genesis,
+      1L,
+      strategy.initialDifficulty,
+      Seq(
+        ArbitTransfer[PublicKeyPropositionCurve25519](
+          txInput.from,
+          (txInput.to.head._1, SimpleValue(0)) +: txInput.to, // first 'to'' is feeChangeOutput
+          txInput.signatures,
+          txInput.fee,
+          txInput.timestamp,
+          txInput.data,
+          txInput.minting
+        ),
+        PolyTransfer[PublicKeyPropositionCurve25519](
+          txInput.from,
+          txInput.to,
+          txInput.signatures,
+          txInput.fee,
+          txInput.timestamp,
+          txInput.data,
+          txInput.minting
+        )
+      ),
+      blockVersion
+    )
+
+    val state = NxtConsensus.State(Int128(totalStake), strategy.initialDifficulty, 0L, 0L)
+
+    NxtConsensus.Genesis(block, state)
+  }
+
+  private def fromJsonGenesisProvider(implicit
+    networkPrefix: NetworkPrefix
+  ): GenesisProvider[GenesisFromBlockJsonSettings] =
+    strategy => {
+      def readJson(filename: String)(implicit networkPrefix: NetworkPrefix): Block = {
+        val src = scala.io.Source.fromFile(filename)
+
+        // attempt to retrieve the required keyfile type from the data that was just read
+        val block: Block = parser.parse(src.mkString) match {
+          case Left(ex) => throw ex
+          case Right(json) =>
+            json.as[Block].getOrThrow(ex => new Exception(s"Could not parse blcok Json: $ex"))
+        }
+
+        // close the stream and return the keyfile
+        src.close()
+        block
+      }
+
+      // should checksum be a byte category?
+      val checksum: ModifierId =
+        Base58Data
+          .unsafe(strategy.blockChecksum)
+          .encodeAsBytes
+          .decodeTransmitted[ModifierId]
+          .getOrThrow()
+
+      val block = readJson(strategy.providedJsonGenesisPath)
+
+      require(
+        block.id == checksum,
+        s"${Console.RED}MALFORMED GENESIS BLOCK! The calculated genesis block " +
+        s"with id ${block.id} does not match the required block for the chosen network mode.${Console.RESET}"
+      )
+
+      val totalStake = block.transactions
+        .flatMap(_.newBoxes.map {
+          case box: ArbitBox => box.value.quantity
+          case _             => Int128(0)
+        })
+        .sum
+
+      NxtConsensus.Genesis(block, NxtConsensus.State(totalStake, block.difficulty, 0L, 0L))
+    }
 }

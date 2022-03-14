@@ -7,7 +7,7 @@ import co.topl.attestation.Address
 import co.topl.consensus.Hiccups.HiccupBlock
 import co.topl.consensus.KeyManager.StartupKeyView
 import co.topl.consensus._
-import co.topl.consensus.genesis.GenesisCreator
+import co.topl.consensus.genesis.GenesisProvider
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ProgramId
@@ -20,7 +20,7 @@ import co.topl.nodeView.mempool.{MemPool, MemPoolReader, MemoryPool}
 import co.topl.nodeView.state.{MinimalState, State, StateReader}
 import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.{NetworkType, TimeProvider}
+import co.topl.utils.TimeProvider
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -89,52 +89,51 @@ object NodeView {
 
   def persistent(
     settings:           AppSettings,
-    networkType:        NetworkType,
     consensusInterface: ConsensusInterface,
     startupKeyView:     () => Future[StartupKeyView]
-  )(implicit system:    ActorSystem[_], ec: ExecutionContext): Future[NodeView] =
-    readOrGenerateLocalView(settings)(networkType.netPrefix)
-      .fold(genesis(settings, networkType, consensusInterface, startupKeyView))(
-        Future.successful
-      )
-
-  private def readOrGenerateLocalView(
-    settings:               AppSettings
-  )(implicit networkPrefix: NetworkPrefix): Option[NodeView] =
+  )(implicit system:    ActorSystem[_], ec: ExecutionContext, networkPrefix: NetworkPrefix): Future[NodeView] =
     if (State.exists(settings)) {
-      Some(
+      Future.successful(
         NodeView(
           History.readOrGenerate(settings),
           State.readOrGenerate(settings),
           MemPool.empty()
         )
       )
-    } else None
+    } else {
+      GenesisProvider
+        .fetchAndUpdateConsensusView(settings, consensusInterface, startupKeyView)
+        .flatMap { block =>
+          consensusInterface
+            .withView { view =>
+              NodeView(
+                History.readOrGenerate(settings).append(block, view).get._1,
+                State.genesisState(settings, Seq(block)),
+                MemPool.empty()
+              )
+            }
+            .leftMap(_ => "Error")
+        }
+        .value
+        .flatMap(_.fold(e => Future.failed(new Exception(e)), Future(_)))
+    }
 
-  private def genesis(
-    settings:           AppSettings,
-    networkType:        NetworkType,
-    consensusInterface: ConsensusInterface,
-    startupKeyView:     () => Future[StartupKeyView]
-  )(implicit
-    system: ActorSystem[_],
-    ec:     ExecutionContext
-  ): Future[NodeView] = {
-    implicit def networkPrefix: NetworkPrefix = networkType.netPrefix
-
-    GenesisCreator
-      .genesisBlock(settings, networkType, startupKeyView, consensusInterface)
-      .flatMap { block =>
-        consensusInterface.withView { view =>
-          NodeView(
-            History.readOrGenerate(settings).append(block, view).get._1,
-            State.genesisState(settings, Seq(block)),
-            MemPool.empty()
-          )
-        }.value
-      }
-      .flatMap(_.fold(e => Future.failed(e.reason), Future(_)))
-  }
+//  private def genesis(
+//    settings:           AppSettings,
+//    consensusInterface: ConsensusInterface,
+//    fetchStartupKeyView:     () => Future[StartupKeyView]
+//  )(implicit
+//    system: ActorSystem[_],
+//    ec:     ExecutionContext,
+//    networkPrefix: NetworkPrefix
+//  ): Future[NodeView] = {
+//
+//
+//
+//    GenesisBlockGenerator
+//      .genesisBlock(settings, networkType, startupKeyView, consensusInterface)
+//      .flatMap
+//  }
 }
 
 trait NodeViewBlockOps {

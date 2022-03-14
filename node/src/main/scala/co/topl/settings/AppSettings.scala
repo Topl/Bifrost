@@ -5,7 +5,6 @@ import co.topl.utils.Logging
 import com.typesafe.config.{Config, ConfigFactory}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
-import net.ceedubs.ficus.readers.EnumerationReader._
 
 import java.io.File
 import java.net.InetSocketAddress
@@ -84,9 +83,9 @@ case class ForgingSettings(
 )
 
 case class GenesisSettings(
-  genesisStrategy: Option[GenesisStrategy.Value],
-  generated:       Option[GenesisGenerationSettings],
-  fromBlockJson:   Option[GenesisFromBlockJsonSettings]
+  genesisStrategy: GenesisStrategy.Value,
+  generated:       GenesisGenerationSettings,
+  fromBlockJson:   GenesisFromBlockJsonSettings
 )
 
 object GenesisStrategy extends Enumeration {
@@ -95,18 +94,11 @@ object GenesisStrategy extends Enumeration {
 }
 
 case class GenesisGenerationSettings(
-  numTestnetAccts:           Int,
   genesisApplicationVersion: Version,
-  testnetBalance:            Long,
+  numberOfParticipants:      Int,
+  balanceForEachParticipant: Long,
   initialDifficulty:         Long,
-  genesisSeed:               Option[String]
-)
-
-case class GenesisFromConfigSettings(
-  blockChecksum:     String,
-  initialDifficulty: Long,
-  memberAddresses:   List[String],
-  memberStakes:      List[Long]
+  genesisParticipantsSeed:   Option[String]
 )
 
 case class GenesisFromBlockJsonSettings(

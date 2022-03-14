@@ -20,7 +20,9 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Success, Try}
 
 /** Actor that manages the keyRing and reward address */
-class KeyManager(settings: AppSettings, appContext: AppContext)(implicit np: NetworkPrefix) extends Actor with Logging {
+class KeyManager(settings: AppSettings)(implicit networkPrefix: NetworkPrefix)
+    extends Actor
+    with Logging {
 
   import KeyManager.ReceivableMessages._
   import KeyManager._
@@ -75,17 +77,17 @@ class KeyManager(settings: AppSettings, appContext: AppContext)(implicit np: Net
    * @return a try which results in a ForgerView of the current addresses and rewards address
    */
   private def generateInitialAddresses(
-    keyRing:       KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-    rewardAddress: Option[Address]
-  ): Try[StartupKeyView] = {
+    keyRing:                KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+    rewardAddress:          Option[Address]
+  )(implicit networkPrefix: NetworkPrefix): Try[StartupKeyView] = {
     // If the keyring is not already populated and this is a private/local testnet, generate the keys
     // this is for when you have started up a private network and are attempting to resume it using
     // the same seed you used previously to continue forging
-    val genesisStrat = settings.forging.genesis.flatMap(_.genesisStrategy)
-    if (keyRing.addresses.isEmpty && (appContext.networkType == PrivateTestnet || genesisStrat.contains(Generated))) {
-      settings.forging.genesis.flatMap(_.generated) match {
+    val genesisStrat = settings.forging.genesis.map(_.genesisStrategy)
+    if (keyRing.addresses.isEmpty && genesisStrat.contains(Generated)) {
+      settings.forging.genesis.map(_.generated) match {
         case Some(sfp) =>
-          val (numAccts, seed) = (sfp.numTestnetAccts, sfp.genesisSeed)
+          val (numAccts, seed) = (sfp.numberOfParticipants, sfp.genesisParticipantsSeed)
 
           keyRing
             .generateNewKeyPairs(numAccts, seed)
@@ -184,9 +186,9 @@ object KeyManager {
 
 object KeyManagerRef {
 
-  def props(settings: AppSettings, appContext: AppContext)(implicit np: NetworkPrefix): Props =
+  def props(settings: AppSettings)(implicit networkPrefix: NetworkPrefix): Props =
     Props(
-      new KeyManager(settings, appContext)
+      new KeyManager(settings)
     ).withDispatcher("bifrost.application.key-manager.dispatcher")
 
 }

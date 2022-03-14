@@ -24,7 +24,7 @@ case class TestGenesis(
   settings:                        AppSettings
 )(implicit
   val networkPrefix: NetworkPrefix
-) extends GenesisProvider {
+) extends GenesisLegacyProvider {
 
   override protected val blockChecksum: ModifierId = ModifierId.empty
 

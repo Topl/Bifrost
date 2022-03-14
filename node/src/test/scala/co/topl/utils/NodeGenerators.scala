@@ -1,9 +1,9 @@
 package co.topl.utils
 
-import co.topl.attestation.keyManagement._
 import co.topl.attestation._
-import co.topl.consensus.{NxtConsensus, NxtLeaderElection, ProtocolVersioner}
+import co.topl.attestation.keyManagement._
 import co.topl.consensus.genesis.TestGenesis
+import co.topl.consensus.{NxtConsensus, NxtLeaderElection, ProtocolVersioner}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.Box.identifier
@@ -18,7 +18,7 @@ import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithms, TransferBui
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.history.{BlockProcessor, History, InMemoryKeyValueStore, Storage}
 import co.topl.nodeView.state.State
-import co.topl.settings.{AppContext, AppSettings, StartupOpts, Version}
+import co.topl.settings._
 import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.StringDataTypes.Latin1Data
 import com.typesafe.config.Config
@@ -67,57 +67,40 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
   lazy val genesisBlock: Block =
     TestGenesis(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, settings).getGenesisBlock.get._1
 
+  val genesisGenerationSettingsGen: Gen[GenesisGenerationSettings] = for {
+    version              <- versionGen
+    numberOfParticipants <- positiveMediumIntGen
+    balance              <- Gen.long
+    initialDifficulty    <- Gen.long
+    genesisSeed          <- stringGen
+  } yield GenesisGenerationSettings(version, numberOfParticipants, balance, initialDifficulty, Some(genesisSeed))
+
   def genesisBlockId: ModifierId = genesisBlock.id
 
   def generateHistory(genesisBlock: Block = genesisBlock): History = {
-//    val dataDir = s"/tmp/bifrost/test-data/test-${Random.nextInt(10000000)}"
-//
-//    val iFile = new File(s"$dataDir/blocks")
-//    iFile.mkdirs()
-//    val blockStorage = new LDBVersionedStore(iFile, 100)
+    val storage = new Storage(new InMemoryKeyValueStore)
 
-    val storage =
-      new Storage(new InMemoryKeyValueStore)
-    // we don't care about validation here
     val validators = Seq()
 
     var history = new History(storage, BlockProcessor(1024), validators)
-    val consensusState = NxtConsensus.State(Int128(10000000), 1000000000000000000L, 0L, 0L)
-    val consensusView = NxtConsensus.View(consensusState, nxtLeaderElection, protocolVersioner)
+    val staticConsensusState = NxtConsensus.State(Int128(10000000), 1000000000000000000L, 0L, 0L)
+    val staticConsensusView = NxtConsensus.View(staticConsensusState, nxtLeaderElection, protocolVersioner)
 
-    history = history.append(genesisBlock, consensusView).get._1
+    history = history.append(genesisBlock, staticConsensusView).get._1
     assert(history.modifierById(genesisBlock.id).isDefined)
     history
   }
 
-  def genesisState(
-    settings:                AppSettings,
-    genesisBlockWithVersion: Block = genesisBlock,
-    consensusView:           NxtConsensus.View
-  ): State = {
-    History.readOrGenerate(settings).append(genesisBlock, consensusView)
-    State.genesisState(settings, Seq(genesisBlockWithVersion))
-  }
-
-  lazy val genesisState: State =
-    genesisState(
-      settings,
-      genesisBlock,
-      NxtConsensus.View(
-        NxtConsensus.State(Int128(10000000), 1000000000000000000L, 0L, 0L),
-        nxtLeaderElection,
-        protocolVersioner
-      )
-    )
+  lazy val staticGenesisState: State = State.genesisState(settings, Seq(genesisBlock))
 
   lazy val validBifrostTransactionSeqGen: Gen[Seq[TX]] = for {
     seqLen <- positiveMediumIntGen
   } yield 0 until seqLen map { _ =>
     val g: Gen[TX] = sampleUntilNonEmpty(
       Gen.oneOf(
-        validPolyTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, genesisState),
-        validArbitTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, genesisState),
-        validAssetTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, genesisState, minting = true)
+        validPolyTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, staticGenesisState),
+        validArbitTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, staticGenesisState),
+        validAssetTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, staticGenesisState, minting = true)
       )
     )
     sampleUntilNonEmpty(g)

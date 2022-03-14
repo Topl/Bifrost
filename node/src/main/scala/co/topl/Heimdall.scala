@@ -56,14 +56,15 @@ object Heimdall {
   def apply(settings: AppSettings, appContext: AppContext): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
       implicit def system: ActorSystem[_] = context.system
+      implicit def networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
       implicit val timeout: Timeout = Timeout(10.minutes)
       implicit val timeProvider: NetworkTimeProvider = new NetworkTimeProvider(settings.ntp)(context.system)
 
       context.log.info("Initializing ProtocolVersioner, ConsensusStorage, KeyManager, and NodeViewHolder")
 
-      val consensusViewState = prepareConsensusViewRef(settings, appContext)
-      val state = prepareNodeViewRef(settings, appContext, consensusViewState)
+      val consensusViewState = prepareConsensusViewRef(settings)
+      val state = prepareNodeViewRef(settings, consensusViewState)
 
       context.watch(state.keyManager)
       context.watch(state.nodeViewHolder)
@@ -89,6 +90,7 @@ object Heimdall {
     Behaviors.receivePartial {
       case (context, ReceivableMessages.NodeViewHolderReady) =>
         implicit def ctx: ActorContext[ReceivableMessage] = context
+        implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
         context.log.info("Initializing PeerManager, NetworkController, Forger, and MemPoolAuditor")
         val nextState = prepareNetworkControllerState(settings, appContext, state)
@@ -114,7 +116,7 @@ object Heimdall {
 
       implicit def ctx: ActorContext[ReceivableMessage] = context
 
-      val nextState = prepareRemainingActors(settings, appContext, state)
+      val nextState = prepareRemainingActors(settings, state)
 
       context.watch(nextState.peerSynchronizer)
       context.watch(nextState.nodeViewSynchronizer)
@@ -281,19 +283,16 @@ object Heimdall {
   }
 
   private def prepareConsensusViewRef(
-    settings:   AppSettings,
-    appContext: AppContext
+    settings:   AppSettings
   )(implicit
     context:      ActorContext[ReceivableMessage],
     timeProvider: TimeProvider
   ): ConsensusViewInitialiazingState = {
-    implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
     implicit def system: ActorSystem[_] = context.system
     ConsensusViewInitialiazingState(
       context.spawn(
         NxtConsensus(
           settings,
-          appContext.networkType,
           NxtConsensus.readOrGenerateConsensusStore(settings)
         ),
         NxtConsensus.actorName
@@ -303,9 +302,9 @@ object Heimdall {
 
   private def prepareNodeViewRef(
     settings:   AppSettings,
-    appContext: AppContext,
     state:      ConsensusViewInitialiazingState
   )(implicit
+      networkPrefix: NetworkPrefix,
     context:      ActorContext[ReceivableMessage],
     timeProvider: TimeProvider
   ): NodeViewInitializingState = {
@@ -314,9 +313,7 @@ object Heimdall {
 
     implicit def system: ActorSystem[_] = context.system
 
-    implicit def networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
-
-    val keyManagerRef = context.actorOf(KeyManagerRef.props(settings, appContext), KeyManager.actorName)
+    val keyManagerRef = context.actorOf(KeyManagerRef.props(settings), KeyManager.actorName)
 
     val nodeViewHolderRef = {
       implicit val getKeyViewAskTimeout: Timeout = Timeout(10.seconds)
@@ -327,13 +324,12 @@ object Heimdall {
           () =>
             NodeView.persistent(
               settings,
-              appContext.networkType,
               new ActorConsensusInterface(state.consensusViewHolder)(system, Timeout(10.seconds)),
               () =>
                 (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
                   .mapTo[Try[StartupKeyView]]
                   .flatMap(Future.fromTry)
-            )(context.system, implicitly)
+            )(context.system, implicitly, networkPrefix)
         ),
         NodeViewHolder.ActorName,
         DispatcherSelector.fromConfig("bifrost.application.node-view.dispatcher")
@@ -348,6 +344,7 @@ object Heimdall {
     appContext: AppContext,
     state:      NodeViewInitializingState
   )(implicit
+      networkPrefix: NetworkPrefix,
     context:      ActorContext[ReceivableMessage],
     timeProvider: TimeProvider
   ): NetworkControllerInitializingState = {
@@ -356,9 +353,10 @@ object Heimdall {
 
     implicit def system: ActorSystem[_] = context.system
 
-    implicit def networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
-    val peerManager = context.actorOf(PeerManagerRef.props(settings, appContext), PeerManager.actorName)
+
+    val peerManager =
+      context.actorOf(PeerManagerRef.props(settings, appContext.externalNodeAddress), PeerManager.actorName)
     val networkController = context.actorOf(
       NetworkControllerRef.props(settings, peerManager, appContext, IO(Tcp)(context.system.toClassic))
     )
@@ -400,7 +398,6 @@ object Heimdall {
 
   private def prepareRemainingActors(
     settings:   AppSettings,
-    appContext: AppContext,
     state:      NetworkControllerInitializingState
   )(implicit
     context:      ActorContext[ReceivableMessage],
@@ -408,12 +405,12 @@ object Heimdall {
   ): ActorsInitializedState = {
 
     val peerSynchronizer = context.actorOf(
-      PeerSynchronizerRef.props(state.networkController, state.peerManager, settings, appContext),
+      PeerSynchronizerRef.props(state.networkController, state.peerManager, settings),
       PeerSynchronizer.actorName
     )
 
     val nodeViewSynchronizer = context.actorOf(
-      NodeViewSynchronizerRef.props(state.networkController, state.nodeViewHolder, settings, appContext),
+      NodeViewSynchronizerRef.props(state.networkController, state.nodeViewHolder, settings),
       NodeViewSynchronizer.actorName
     )
 

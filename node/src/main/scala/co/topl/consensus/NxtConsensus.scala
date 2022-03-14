@@ -65,6 +65,8 @@ object NxtConsensus {
 
   case class View(state: State, leaderElection: NxtLeaderElection, protocolVersions: ProtocolVersioner)
 
+  case class Genesis(block: Block, state: State)
+
   /**
    * Initializes a consensus variable actor. It is optional to pass in a KeyValueStore for persistence or in memory
    * store for testing. If None is provided, read or generate a LDBKeyValueStore using the settings
@@ -75,22 +77,12 @@ object NxtConsensus {
    */
   def apply(
     settings:    AppSettings,
-    networkType: NetworkType,
     storage:     KeyValueStore
   ): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
       implicit val ec: ExecutionContext = context.executionContext
 
       context.log.info(s"${Console.GREEN}Consensus store actor initializing${Console.RESET}")
-
-      val defaultTotalStake = networkType match {
-        case PrivateTestnet =>
-          settings.forging.genesis
-            .flatMap(_.generated)
-            .map(sfp => sfp.numTestnetAccts * sfp.testnetBalance)
-            .getOrElse(10000000L)
-        case _ => 200000000000000000L // todo: JAA - this should be with other genesis consensus parameters
-      }
 
       // Subscribe to new appended blocks to update the difficulty and height
       context.system.eventStream.tell(
@@ -111,7 +103,7 @@ object NxtConsensus {
 
       val leaderElection = new NxtLeaderElection(protocolVersioner)
 
-      active(storage, View(stateFromStorage(storage, defaultTotalStake), leaderElection, protocolVersioner))
+      active(storage, View(stateFromStorage(storage), leaderElection, protocolVersioner))
     }
 
   /**
@@ -211,9 +203,9 @@ object NxtConsensus {
       .get(encodedKeys.height)
       .map(Longs.fromByteArray)
 
-  private def stateFromStorage(storage: KeyValueStore, defaultTotalStake: Int128): State =
+  private def stateFromStorage(storage: KeyValueStore): State =
     State(
-      totalStakeFromStorage(storage).getOrElse(defaultTotalStake),
+      totalStakeFromStorage(storage).getOrElse(0L),
       difficultyFromStorage(storage).getOrElse(0L),
       inflationFromStorage(storage).getOrElse(0L),
       heightFromStorage(storage).getOrElse(0L)

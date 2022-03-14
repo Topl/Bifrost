@@ -22,7 +22,7 @@ object Exporter extends Logging {
   private def initHistory(settings: AppSettings, np: NetworkPrefix): History =
     History.readOrGenerate(settings)(np)
 
-  private def export(connection: Exportable, history: History, start: Long = 1L, end: Long): Unit = {
+  private def `export`(connection: Exportable, history: History, start: Long = 1L, end: Long): Unit = {
 
     val startTime = System.currentTimeMillis()
 
