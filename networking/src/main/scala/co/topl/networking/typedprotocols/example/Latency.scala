@@ -1,10 +1,11 @@
-package co.topl.networking.typedprotocols
+package co.topl.networking.typedprotocols.example
 
-import cats.{Applicative, Monad}
 import cats.data.Chain
 import cats.effect.Ref
 import cats.implicits._
-import co.topl.networking.{Parties, StateTransition, TypedProtocolState}
+import cats.{Applicative, Monad}
+import co.topl.networking.Parties
+import co.topl.networking.typedprotocols.{StateTransition, TypedProtocolState}
 import org.typelevel.log4cats.Logger
 
 import java.time.Instant

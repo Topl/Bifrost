@@ -249,7 +249,7 @@ object TetraDemo extends IOApp.Simple {
       )
       cachedHeaderValidation <- BlockHeaderValidation.WithCache.make[F](underlyingHeaderValidation, blockHeaderStore)
       localChain <- LocalChain.Eval.make(
-        SlotData(genesis.headerV2)(Ed25519VRF.precomputed()),
+        genesis.headerV2.slotData(Ed25519VRF.precomputed()),
         ChainSelection.orderT[F](slotDataCache, blake2b512Resource, ChainSelectionKLookback, ChainSelectionSWindow)
       )
       m <- mints(etaCalculation, leaderElectionThreshold, ed25519VRFResource, kesProductResource, ed25519Resource)

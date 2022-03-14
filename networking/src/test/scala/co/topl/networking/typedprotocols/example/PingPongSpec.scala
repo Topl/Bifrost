@@ -1,10 +1,11 @@
-package co.topl.networking.typedprotocols
+package co.topl.networking.typedprotocols.example
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
-import co.topl.networking.typedprotocols.PingPong.StateTransitions._
-import co.topl.networking.{Parties, TypedProtocol, TypedProtocolState}
+import co.topl.networking.Parties
+import co.topl.networking.typedprotocols.example.PingPong.StateTransitions._
+import co.topl.networking.typedprotocols.{TypedProtocol, TypedProtocolState}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -24,7 +25,7 @@ class PingPongSpec
   type F[A] = IO[A]
 
   behavior of "PingPong1"
-  import PingPong._
+  import co.topl.networking.typedprotocols.example.PingPong._
 
   it should "play ping pong" in {
 

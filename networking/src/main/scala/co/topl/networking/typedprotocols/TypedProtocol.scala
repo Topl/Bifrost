@@ -1,4 +1,6 @@
-package co.topl.networking
+package co.topl.networking.typedprotocols
+
+import co.topl.networking.Party
 
 object TypedProtocol {
   def apply[F[_]]: TransitionStep1[F] = new TransitionStep1[F]
@@ -25,6 +27,21 @@ object TypedProtocol {
         }
       }
     }
+  }
+
+  object CommonStates {
+    case object None
+    case object Idle
+    case object Busy
+    case object Done
+  }
+
+  object CommonMessages {
+    case object Start
+    case class Get[Query](query: Query)
+    case class Response[T](dataOpt: Option[T])
+    case class Push[T](data: T)
+    case object Done
   }
 }
 

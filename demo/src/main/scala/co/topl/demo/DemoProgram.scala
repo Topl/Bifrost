@@ -9,7 +9,7 @@ import co.topl.algebras.{ClockAlgebra, ConsensusState, Store, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, EtaCalculationAlgebra, LocalChainAlgebra}
-import co.topl.consensus.{BlockHeaderValidationFailure, SlotData}
+import co.topl.consensus.{BlockHeaderV2Ops, BlockHeaderValidationFailure}
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.algebras.BlockMintAlgebra
 import co.topl.models._
@@ -173,7 +173,7 @@ object DemoProgram {
     for {
       _                     <- Logger[F].info(show"Minted block ${nextBlock.headerV2}")
       _                     <- blockStore.put(nextBlock.headerV2.id, nextBlock)
-      slotData              <- ed25519VrfResource.use(implicit ed25519Vrf => SlotData(nextBlock.headerV2).pure[F])
+      slotData              <- ed25519VrfResource.use(implicit ed25519Vrf => nextBlock.headerV2.slotData.pure[F])
       localChainIsWorseThan <- localChain.isWorseThan(slotData)
       _ <-
         if (localChainIsWorseThan)

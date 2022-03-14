@@ -1,8 +1,9 @@
-package co.topl.networking.typedprotocols
+package co.topl.networking.typedprotocols.example
 
 import cats.Applicative
 import cats.implicits._
-import co.topl.networking.{Parties, StateTransition, TypedProtocolState}
+import co.topl.networking.Parties
+import co.topl.networking.typedprotocols.{StateTransition, TypedProtocolState}
 
 object PingPong {
 

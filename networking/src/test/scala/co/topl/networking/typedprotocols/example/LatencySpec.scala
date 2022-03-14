@@ -1,10 +1,11 @@
-package co.topl.networking.typedprotocols
+package co.topl.networking.typedprotocols.example
 
 import cats.data.Chain
 import cats.effect.unsafe.implicits.global
 import cats.effect.{Async, IO, Ref}
 import cats.implicits._
-import co.topl.networking.{Parties, TypedProtocol, TypedProtocolState}
+import co.topl.networking.Parties
+import co.topl.networking.typedprotocols.{TypedProtocol, TypedProtocolState}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -30,7 +31,7 @@ class LatencySpec
   type F[A] = IO[A]
 
   behavior of "Latency"
-  import Latency._
+  import co.topl.networking.typedprotocols.example.Latency._
   implicit private val logger: Logger[F] = Slf4jLogger.getLogger[F]
 
   it should "play ping pong" in {

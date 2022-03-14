@@ -205,6 +205,7 @@ lazy val bifrost = project
     algebras,
     commonInterpreters,
     minting,
+    networking,
     byteCodecs,
     tetraByteCodecs,
     consensus,
@@ -458,6 +459,7 @@ lazy val networking = project
   .settings(
     name := "networking",
     commonSettings,
+    crossScalaVersions := Seq(scala213),
     publishSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.networking"
