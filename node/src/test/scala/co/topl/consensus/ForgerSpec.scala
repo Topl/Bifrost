@@ -138,7 +138,6 @@ class ForgerSpec
             spawn(
               NxtConsensus(
                 settings,
-                appContext.networkType,
                 InMemoryKeyValueStore.empty()
               ),
               NxtConsensus.actorName
@@ -212,7 +211,6 @@ class ForgerSpec
       spawn(
         NxtConsensus(
           settings,
-          appContext.networkType,
           InMemoryKeyValueStore.empty()
         ),
         NxtConsensus.actorName
@@ -261,7 +259,6 @@ class ForgerSpec
         spawn(
           NxtConsensus(
             settings,
-            appContext.networkType,
             InMemoryKeyValueStore.empty()
           ),
           NxtConsensus.actorName

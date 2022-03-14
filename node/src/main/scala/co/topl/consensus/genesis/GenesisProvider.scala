@@ -57,7 +57,8 @@ object GenesisProvider {
       .withView[NxtConsensus.Genesis] { view =>
         settings.forging.genesis match {
           case Some(Generated) =>
-            generatedGenesisProvider(startupKeys.addresses, view.protocolVersions.blockVersion(0L)).get(generatedSettings)
+            generatedGenesisProvider(startupKeys.addresses, view.protocolVersions.blockVersion(1L))
+              .get(generatedSettings)
           case Some(FromBlockJson) => fromJsonGenesisProvider.get(jsonSettings)
         }
       }
@@ -71,8 +72,8 @@ object GenesisProvider {
     _ <- consensusInterface.update(genesis.block.id, stateUpdate).leftMap(_ => "Error")
   } yield genesis.block
 
-  private[genesis] def generatedGenesisProvider(addresses: Set[Address], blockVersion: Byte)(
-    implicit networkPrefix:                                NetworkPrefix
+  private[genesis] def generatedGenesisProvider(addresses: Set[Address], blockVersion: Byte)(implicit
+    networkPrefix:                        NetworkPrefix
   ): GenesisProvider[GenesisGenerationSettings] = strategy => {
 
     val genesisAcctCurve25519 =
@@ -132,7 +133,7 @@ object GenesisProvider {
     NxtConsensus.Genesis(block, state)
   }
 
-  private def fromJsonGenesisProvider(implicit
+  private[genesis] def fromJsonGenesisProvider(implicit
     networkPrefix: NetworkPrefix
   ): GenesisProvider[GenesisFromBlockJsonSettings] =
     strategy => {
