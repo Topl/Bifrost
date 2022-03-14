@@ -8,9 +8,18 @@ import co.topl.attestation.ops.EvidenceOps.implicits._
 
 import scala.language.implicitConversions
 
+/**
+ * Extension operations for [[Address]] values.
+ * @param address the value to have extension methods operate on
+ */
 class AddressOps(private val address: Address) extends AnyVal {
   import AddressOps._
 
+  /**
+   * Attempts to convert the address to an equivalent [[DionAddress]] value.
+   * @return if successful, a [[DionAddress]], otherwise a [[ToDionAddressFailure]] represnting an error with the
+   *         conversion
+   */
   def toDionAddress: Either[ToDionAddressFailure, DionAddress] =
     address.evidence.toTypedEvidence
       .map(evidence => DionAddress(NetworkPrefix(address.networkPrefix), evidence))

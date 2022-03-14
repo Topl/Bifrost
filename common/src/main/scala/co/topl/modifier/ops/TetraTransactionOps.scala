@@ -17,11 +17,19 @@ import scala.language.implicitConversions
 class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
   import TetraTransactionOps._
 
+  /**
+   * Attempts to convert a Tetra [[Transaction]] into an equivalent [[DionTransaction.TX]] value.
+   * @return if successful, a [[DionTransaction.TX]], otherwise a [[ToDionTxFailure]] representing an error with the
+   *         conversion
+   */
   def toDionTx: Either[ToDionTxFailure, DionTransaction.TX] =
     for {
-      expectedProposition <- transaction.inputs.headOption.toRight(ToDionTxFailures.EmptyInputs)
+      // all propositions in the Dion transfer must be the same as the first one
+      expectedProposition <-
+        transaction.inputs.headOption.map(_._2._1).toRight(ToDionTxFailures.EmptyInputs)
       tx <-
-        (expectedProposition._2._1, transaction.coinOutputs.head) match {
+        // use the first proposition type and first coin output type to derive what the Dion transfer type will be
+        (expectedProposition, transaction.coinOutputs.head) match {
           case (_: Propositions.Knowledge.Curve25519, _: Transaction.PolyOutput)     => asPolyTransferCurve
           case (_: Propositions.Knowledge.Curve25519, _: Transaction.ArbitOutput)    => asArbitTransferCurve
           case (_: Propositions.Knowledge.Curve25519, _: Transaction.AssetOutput)    => asAssetTransferCurve
@@ -35,6 +43,12 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
         }
     } yield tx
 
+  /**
+   * Attempt to convert the Tetra transaction into a [[PolyTransfer]] with proposition type
+   * [[PublicKeyPropositionCurve25519]].
+   * @return if successful, a [[PolyTransfer]], otherwise a [[ToDionTxFailure]] representing an error with the
+   *         conversion
+   */
   private def asPolyTransferCurve: Either[ToDionTxFailure, PolyTransfer[PublicKeyPropositionCurve25519]] =
     for {
       attestation <- curveAttestation
@@ -51,6 +65,12 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
         )
     } yield tx
 
+  /**
+   * Attempt to convert the Tetra transaction into a [[PolyTransfer]] with proposition type
+   * [[PublicKeyPropositionEd25519]].
+   * @return if successful, a [[PolyTransfer]], otherwise a [[ToDionTxFailure]] representing an error with the
+   *         conversion
+   */
   private def asPolyTransferEd: Either[ToDionTxFailure, PolyTransfer[PublicKeyPropositionEd25519]] =
     for {
       attestation <- edAttestation
@@ -67,6 +87,12 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
         )
     } yield tx
 
+  /**
+   * Attempt to convert the Tetra transaction into a [[PolyTransfer]] with proposition type
+   * [[ThresholdPropositionCurve25519]].
+   * @return if successful, a [[PolyTransfer]], otherwise a [[ToDionTxFailure]] representing an error with the
+   *         conversion
+   */
   private def asPolyTransferThreshold: Either[ToDionTxFailure, PolyTransfer[ThresholdPropositionCurve25519]] =
     for {
       attestation <- thresholdAttestation
@@ -83,6 +109,12 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
         )
     } yield tx
 
+  /**
+   * Attempt to convert the Tetra transaction into an [[ArbitTransfer]] with proposition type
+   * [[PublicKeyPropositionCurve25519]].
+   * @return if successful, an [[ArbitTransfer]], otherwise a [[ToDionTxFailure]] representing an error with the
+   *         conversion
+   */
   private def asArbitTransferCurve: Either[ToDionTxFailure, ArbitTransfer[PublicKeyPropositionCurve25519]] =
     for {
       attestation <- curveAttestation
@@ -99,6 +131,12 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
         )
     } yield tx
 
+  /**
+   * Attempt to convert the Tetra transaction into an [[ArbitTransfer]] with proposition type
+   * [[PublicKeyPropositionEd25519]].
+   * @return if successful, an [[ArbitTransfer]], otherwise a [[ToDionTxFailure]] representing an error with the
+   *         conversion
+   */
   private def asArbitTransferEd: Either[ToDionTxFailure, ArbitTransfer[PublicKeyPropositionEd25519]] =
     for {
       attestation <- edAttestation
@@ -115,6 +153,12 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
         )
     } yield tx
 
+  /**
+   * Attempt to convert the Tetra transaction into an [[ArbitTransfer]] with proposition type
+   * [[ThresholdPropositionCurve25519]].
+   * @return if successful, an [[ArbitTransfer]], otherwise a [[ToDionTxFailure]] representing an error with the
+   *         conversion
+   */
   private def asArbitTransferThreshold: Either[ToDionTxFailure, ArbitTransfer[ThresholdPropositionCurve25519]] =
     for {
       attestation <- thresholdAttestation
@@ -131,6 +175,12 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
         )
     } yield tx
 
+  /**
+   * Attempt to convert the Tetra transaction into an [[AssetTransfer]] with proposition type
+   * [[PublicKeyPropositionCurve25519]].
+   * @return if successful, an [[AssetTransfer]], otherwise a [[ToDionTxFailure]] representing an error with the
+   *         conversion
+   */
   private def asAssetTransferCurve: Either[ToDionTxFailure, AssetTransfer[PublicKeyPropositionCurve25519]] =
     for {
       attestation <- curveAttestation
@@ -147,6 +197,12 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
         )
     } yield tx
 
+  /**
+   * Attempt to convert the Tetra transaction into an [[AssetTransfer]] with proposition type
+   * [[PublicKeyPropositionEd25519]].
+   * @return if successful, an [[AssetTransfer]], otherwise a [[ToDionTxFailure]] representing an error with the
+   *         conversion
+   */
   private def asAssetTransferEd: Either[ToDionTxFailure, AssetTransfer[PublicKeyPropositionEd25519]] =
     for {
       attestation <- edAttestation
@@ -163,6 +219,12 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
         )
     } yield tx
 
+  /**
+   * Attempt to convert the Tetra transaction into an [[AssetTransfer]] with proposition type
+   * [[ThresholdPropositionCurve25519]].
+   * @return if successful, an [[AssetTransfer]], otherwise a [[ToDionTxFailure]] representing an error with the
+   *         conversion
+   */
   private def asAssetTransferThreshold: Either[ToDionTxFailure, AssetTransfer[ThresholdPropositionCurve25519]] =
     for {
       attestation <- thresholdAttestation
@@ -179,6 +241,11 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
         )
     } yield tx
 
+  /**
+   * Attempts to extract a Dion-compatible attestation map from the Tetra transaction.
+   * @return if successful, an attestation of type [[PublicKeyPropositionCurve25519]], otherwise a [[ToDionTxFailure]]
+   *         representing an error with the extraction
+   */
   private def curveAttestation: Either[ToDionTxFailure, ListMap[PublicKeyPropositionCurve25519, SignatureCurve25519]] =
     transaction.inputs.values.toList
       .traverse {
@@ -191,6 +258,11 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
       }
       .map(ListMap(_: _*))
 
+  /**
+   * Attempts to extract a Dion-compatible attestation map from the Tetra transaction.
+   * @return if successful, an attestation of type [[PublicKeyPropositionEd25519]], otherwise a [[ToDionTxFailure]]
+   *         representing an error with the extraction
+   */
   private def edAttestation: Either[ToDionTxFailure, ListMap[PublicKeyPropositionEd25519, SignatureEd25519]] =
     transaction.inputs.values.toList
       .traverse {
@@ -203,6 +275,11 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
       }
       .map(ListMap(_: _*))
 
+  /**
+   * Attempts to extract a Dion-compatible attestation map from the Tetra transaction.
+   * @return if successful, an attestation of type [[ThresholdPropositionCurve25519]], otherwise a [[ToDionTxFailure]]
+   *         representing an error with the extraction
+   */
   private def thresholdAttestation
     : Either[ToDionTxFailure, ListMap[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]] =
     transaction.inputs.values.toList
