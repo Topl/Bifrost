@@ -9,11 +9,20 @@ import co.topl.networking.Party
 
 import scala.reflect.ClassTag
 
+/**
+ * Captures the domain of state transitions for some typed protocol.  The domain is used by an "applier" to handle
+ * the state transition for "Any" arbitrary input message.
+ * @param localParty The party designation to the local node
+ * @param transitions The state transitions available to this typed protocol.
+ */
 case class TypedProtocolInstance[F[_]] private (
   localParty:              Party,
   private val transitions: Chain[(StateTransition[F, _, _, _], ClassTag[_], ClassTag[_], ClassTag[_])]
 ) {
 
+  /**
+   * Append the given state transition to this instance
+   */
   def withTransition[Message: ClassTag, InState: ClassTag, OutState: ClassTag](
     transition: StateTransition[F, Message, InState, OutState]
   ): TypedProtocolInstance[F] =
@@ -50,6 +59,11 @@ case class TypedProtocolInstance[F[_]] private (
       }
       .value
 
+  /**
+   * Produces an "Applier" which is an object which receives messages of "Any" type and attempts to apply them to the
+   * current protocol state.
+   * @param initialState The initial state of the protocol
+   */
   def applier[S: ClassTag](
     initialState:    TypedProtocolState[S]
   )(implicit monadF: Monad[F], syncF: Sync[F]): F[MessageApplier] =
@@ -71,6 +85,9 @@ case class TypedProtocolInstance[F[_]] private (
         }
       )
 
+  /**
+   * Encapsulates an internal mutable protocol state and applies inbound messages to it, if possible.
+   */
   trait MessageApplier {
 
     def apply[Message: ClassTag](

@@ -2,6 +2,13 @@ package co.topl.networking.typedprotocols
 
 import co.topl.networking.Party
 
+/**
+ * A “Typed Protocol” is a specialized state machine with a few extra restrictions.  A typed protocol is a 2-party
+ * exchange in which both parties share the exact same protocol state, but only one party has
+ * agency/permission to send the next message.
+ *
+ * https://docs.cardano.org/explore-cardano/cardano-network/about-the-cardano-network/#utilizingmini-protocols
+ */
 object TypedProtocol {
   def apply[F[_]]: TransitionStep1[F] = new TransitionStep1[F]
 

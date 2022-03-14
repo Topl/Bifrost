@@ -4,7 +4,6 @@ import cats.Applicative
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
-import co.topl.models._
 import co.topl.networking.Parties
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -27,13 +26,17 @@ class NotificationProtocolSpec
   behavior of "NotificationProtocol"
 
   it should "run messages" in {
-    val handlerF = mockFunction[TypedIdentifier, F[Unit]]
-    val transitions = new NotificationProtocols.Transaction.StateTransitionsClient[F](handlerF)
-    val instance =
+    val handlerF = mockFunction[String, F[Unit]]
+    val instance = {
+      val transitions = {
+        val protocol = new NotificationProtocol[String] {}
+        new protocol.StateTransitionsClient[F](handlerF)
+      }
       TypedProtocolInstance(Parties.A)
         .withTransition(transitions.startNoneBusy)
         .withTransition(transitions.pushBusyBusy)
         .withTransition(transitions.doneBusyDone)
+    }
 
     val applier = instance.applier(TypedProtocolState(Parties.B.some, TypedProtocol.CommonStates.None)).unsafeRunSync()
 
@@ -41,11 +44,11 @@ class NotificationProtocolSpec
       for {
         _ <- applier(TypedProtocol.CommonMessages.Start, Parties.B).map(_.value)
         _ = handlerF.expects(*).once().returning(Applicative[F].unit)
-        _ <- applier(TypedProtocol.CommonMessages.Push(typedIdentifier), Parties.A).map(_.value)
+        _ <- applier(TypedProtocol.CommonMessages.Push("foo"), Parties.A).map(_.value)
         _ = handlerF.expects(*).once().returning(Applicative[F].unit)
-        _ <- applier(TypedProtocol.CommonMessages.Push(typedIdentifier), Parties.A).map(_.value)
+        _ <- applier(TypedProtocol.CommonMessages.Push("foo"), Parties.A).map(_.value)
         _ = handlerF.expects(*).once().returning(Applicative[F].unit)
-        _          <- applier(TypedProtocol.CommonMessages.Push(typedIdentifier), Parties.A).map(_.value)
+        _          <- applier(TypedProtocol.CommonMessages.Push("foo"), Parties.A).map(_.value)
         finalState <- applier(TypedProtocol.CommonMessages.Done, Parties.A).map(_.value)
       } yield finalState
 
@@ -56,5 +59,4 @@ class NotificationProtocolSpec
 
   }
 
-  def typedIdentifier = TypedBytes(1: Byte, Bytes.fill(32)(0: Byte))
 }

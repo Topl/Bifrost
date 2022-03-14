@@ -2,11 +2,19 @@ package co.topl.networking.typedprotocols
 
 import cats.Applicative
 import cats.implicits._
-import co.topl.models.TypedIdentifier
 import co.topl.networking.Parties
 
-trait RequestResponseProtocol[T, Query] {
+/**
+ * A classification of Typed Protocol in which the client makes a request and the server produces a response
+ * @tparam Query The information specified by the client in the request (i.e. an ID)
+ * @tparam T The data returned by the server
+ */
+trait RequestResponseProtocol[Query, T] {
 
+  /**
+   * The state transitions for a server-side instance of this protocol
+   * @param fetch Function to locally retrieve the data requested by the client
+   */
   class ServerStateTransitions[F[_]: Applicative](fetch: Query => F[Option[T]]) {
 
     implicit val startNoneIdle: StateTransition[
@@ -39,6 +47,10 @@ trait RequestResponseProtocol[T, Query] {
       (_, _, _) => TypedProtocolState(none, TypedProtocol.CommonStates.Done).pure[F]
   }
 
+  /**
+   * The state transitions for a client-side instance of this protocol
+   * @param responseReceived Function to handle data returned by the server
+   */
   class ClientStateTransitions[F[_]: Applicative](responseReceived: Option[T] => F[Unit]) {
 
     implicit val startNoneIdle: StateTransition[
@@ -72,17 +84,4 @@ trait RequestResponseProtocol[T, Query] {
       (_, _, _) => TypedProtocolState(none, TypedProtocol.CommonStates.Done).pure[F]
   }
 
-}
-
-object RequestResponseProtocols {
-  object PingPong extends RequestResponseProtocol[Unit, Unit]
-  object KeepAlive extends RequestResponseProtocol[Long, Long] // Long = Cookie = Random number
-  object SlotData extends RequestResponseProtocol[co.topl.models.SlotData, TypedIdentifier]
-  object Header extends RequestResponseProtocol[co.topl.models.BlockHeaderV2, TypedIdentifier]
-  object Body extends RequestResponseProtocol[co.topl.models.BlockBodyV2, TypedIdentifier]
-  object Transaction extends RequestResponseProtocol[co.topl.models.Transaction, TypedIdentifier]
-
-  // DownloadProtocol#Query is of the form (height, optionalLocalId)
-  object BlockIdAtHeight
-      extends RequestResponseProtocol[co.topl.models.TypedIdentifier, (Long, Option[TypedIdentifier])]
 }

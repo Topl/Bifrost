@@ -3,7 +3,6 @@ package co.topl.networking.typedprotocols
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
-import co.topl.models._
 import co.topl.networking.Parties
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -26,26 +25,30 @@ class RequestResponseProtocolSpec
   behavior of "RequestResponseProtocol"
 
   it should "run messages" in {
-    val handlerF = mockFunction[TypedIdentifier, F[Option[Transaction]]]
-    val transitions = new RequestResponseProtocols.Transaction.ServerStateTransitions[F](handlerF)
-    val instance =
+    val handlerF = mockFunction[String, F[Option[Int]]]
+    val instance = {
+      val transitions = {
+        val protocol = new RequestResponseProtocol[String, Int] {}
+        new protocol.ServerStateTransitions[F](handlerF)
+      }
       TypedProtocolInstance(Parties.A)
         .withTransition(transitions.startNoneIdle)
         .withTransition(transitions.getIdleBusy)
         .withTransition(transitions.responseBusyIdle)
         .withTransition(transitions.doneIdleDone)
+    }
 
     val applier = instance.applier(TypedProtocolState(Parties.B.some, TypedProtocol.CommonStates.None)).unsafeRunSync()
 
     val computation =
       for {
         _ <- applier(TypedProtocol.CommonMessages.Start, Parties.B).map(_.value)
-        _ = handlerF.expects(*).once().returning(none[Transaction].pure[F])
-        _ <- applier(TypedProtocol.CommonMessages.Get(typedIdentifier), Parties.B).map(_.value)
+        _ = handlerF.expects(*).once().returning(none[Int].pure[F])
+        _ <- applier(TypedProtocol.CommonMessages.Get("foo"), Parties.B).map(_.value)
         _ = handlerF.expects(*).never()
         _ <- applier(TypedProtocol.CommonMessages.Response(none), Parties.A).map(_.value)
-        _ = handlerF.expects(*).once().returning(none[Transaction].pure[F])
-        _ <- applier(TypedProtocol.CommonMessages.Get(typedIdentifier), Parties.B).map(_.value)
+        _ = handlerF.expects(*).once().returning(none[Int].pure[F])
+        _ <- applier(TypedProtocol.CommonMessages.Get("foo"), Parties.B).map(_.value)
         _ = handlerF.expects(*).never()
         _          <- applier(TypedProtocol.CommonMessages.Response(none), Parties.A).map(_.value)
         finalState <- applier(TypedProtocol.CommonMessages.Done, Parties.B).map(_.value)
@@ -58,5 +61,4 @@ class RequestResponseProtocolSpec
 
   }
 
-  def typedIdentifier = TypedBytes(1: Byte, Bytes.fill(32)(0: Byte))
 }

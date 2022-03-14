@@ -2,16 +2,18 @@ package co.topl.networking.typedprotocols
 
 import cats.Applicative
 import cats.implicits._
-import co.topl.models.TypedIdentifier
 import co.topl.networking.Parties
 
+/**
+ * A classification of TypedProtocol in which the server perpetually maintains agency to push information to the client.
+ * @tparam T The type of data pushed to the client
+ */
 trait NotificationProtocol[T] {
 
   /**
    * Provides state transitions from the perspective of the "server"
-   * @param updatesRequested Signals that the client requested a stream of updates
    */
-  class StateTransitionsServer[F[_]: Applicative](updatesRequested: () => F[Unit]) {
+  class StateTransitionsServer[F[_]: Applicative] {
 
     implicit val startNoneBusy: StateTransition[
       F,
@@ -68,10 +70,4 @@ trait NotificationProtocol[T] {
     ] =
       (_, _, _) => TypedProtocolState(none, TypedProtocol.CommonStates.Done).pure[F]
   }
-}
-
-object NotificationProtocols {
-  object Id extends NotificationProtocol[TypedIdentifier]
-  val BlockAdoption = Id
-  val Transaction = Id
 }
