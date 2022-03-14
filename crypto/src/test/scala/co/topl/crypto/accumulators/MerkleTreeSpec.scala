@@ -6,6 +6,7 @@ import co.topl.crypto.hash.implicits._
 import co.topl.crypto.hash.{Blake2b, Hash}
 import co.topl.crypto.utils.Generators._
 import co.topl.crypto.utils.randomBytes
+import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
@@ -20,40 +21,36 @@ class MerkleTreeSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
   private val leafSize = 32
 
   property("Proof generation by element") {
-    forAll(smallInt) { N: Int =>
-      whenever(N > 0) {
-        val d = (0 until N).map(_ => LeafData(randomBytes(leafSize)))
-        val leafs = d.map(data => Leaf[HashScheme, HashDigest](data))
-        val tree = MerkleTree[HashScheme, HashDigest](d)
-        val treeRootHash = tree.rootHash
-        leafs.foreach { l =>
-          val proof = tree.proofByElement(l).get
-          proof.leafData.value.sameElements(l.data.value) shouldBe true
-          proof.valid(treeRootHash) shouldBe true
-        }
+    forAll(Gen.choose(1, 15)) { N: Int =>
+      val d = (0 until N).map(_ => LeafData(randomBytes(leafSize)))
+      val leafs = d.map(data => Leaf[HashScheme, HashDigest](data))
+      val tree = MerkleTree[HashScheme, HashDigest](d)
+      val treeRootHash = tree.rootHash
+      leafs.foreach { l =>
+        val proof = tree.proofByElement(l).get
+        proof.leafData.value.sameElements(l.data.value) shouldBe true
+        proof.valid(treeRootHash) shouldBe true
       }
     }
   }
 
   property("Proof generation by index") {
-    forAll(smallInt) { N: Int =>
-      whenever(N > 0) {
-        val d = (0 until N).map(_ => LeafData(randomBytes(leafSize)))
-        val tree = MerkleTree[HashScheme, HashDigest](d)
+    forAll(Gen.choose(1, 15)) { N: Int =>
+      val d = (0 until N).map(_ => LeafData(randomBytes(leafSize)))
+      val tree = MerkleTree[HashScheme, HashDigest](d)
 
-        (0 until N).foreach { i =>
-          tree.proofByIndex(i).get.leafData.value shouldEqual d(i).value
-          tree
-            .proofByIndex(i)
-            .get
-            .valid(tree.rootHash) shouldBe true
-        }
-        (N until N + 100).foreach { i =>
-          tree.proofByIndex(i).isEmpty shouldBe true
-        }
-        (-(N + 100) until 0).foreach { i =>
-          tree.proofByIndex(i).isEmpty shouldBe true
-        }
+      (0 until N).foreach { i =>
+        tree.proofByIndex(i).get.leafData.value shouldEqual d(i).value
+        tree
+          .proofByIndex(i)
+          .get
+          .valid(tree.rootHash) shouldBe true
+      }
+      (N until N + 100).foreach { i =>
+        tree.proofByIndex(i).isEmpty shouldBe true
+      }
+      (-(N + 100) until 0).foreach { i =>
+        tree.proofByIndex(i).isEmpty shouldBe true
       }
     }
   }

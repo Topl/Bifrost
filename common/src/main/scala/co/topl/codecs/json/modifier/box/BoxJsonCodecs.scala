@@ -1,6 +1,5 @@
 package co.topl.codecs.json.modifier.box
 
-import cats.implicits._
 import co.topl.attestation.Evidence
 import co.topl.codecs.binary._
 import co.topl.codecs.json.valuetypes._
@@ -14,7 +13,7 @@ import co.topl.modifier.box.Box.Nonce
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithm, BoxSelectionAlgorithms}
 import co.topl.utils.Identifiable.Syntax._
-import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
+import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.{Identifiable, Int128}
 import io.circe._
 import io.circe.syntax._
@@ -49,39 +48,39 @@ trait BoxJsonCodecs {
 
   implicit val assetCodeJsonKeyDecoder: KeyDecoder[AssetCode] = deriveKeyDecoderFromScodec(assetCodeTypeName)
 
-  implicit val codeBoxJsonEncoder: Encoder[CodeBox] = { box: CodeBox =>
-    (jsonEncodeBox[ProgramId, CodeBox](box) ++ Map(
-      "code"      -> box.code.asJson,
-      "interface" -> box.interface.map(ci => ci._1 -> ci._2.asJson).asJson
-    )).asJson
-  }
-
-  implicit val codeBoxJsonDecoder: Decoder[CodeBox] = (c: HCursor) =>
-    for {
-      b         <- jsonDecodeBox[ProgramId](c)
-      code      <- c.downField("code").as[Seq[String]]
-      interface <- c.downField("interface").as[Map[String, Seq[String]]]
-    } yield {
-      val (evidence, nonce, programId) = b
-      CodeBox(evidence, nonce, programId, code, interface)
-    }
-
-  implicit val executionBoxJsonEncoder: Encoder[ExecutionBox] = { box: ExecutionBox =>
-    (jsonEncodeBox[ProgramId, ExecutionBox](box) ++ Map(
-      "stateBoxIds" -> box.stateBoxIds.asJson,
-      "codeBoxIds"  -> box.codeBoxIds.asJson
-    )).asJson
-  }
-
-  implicit val executionBoxJsonDecoder: Decoder[ExecutionBox] = (c: HCursor) =>
-    for {
-      b           <- jsonDecodeBox[ProgramId](c)
-      stateBoxIds <- c.downField("stateBoxIds").as[Seq[ProgramId]]
-      codeBoxIds  <- c.downField("codeBoxIds").as[Seq[ProgramId]]
-    } yield {
-      val (evidence, nonce, programId) = b
-      ExecutionBox(evidence, nonce, programId, stateBoxIds, codeBoxIds)
-    }
+//  implicit val codeBoxJsonEncoder: Encoder[CodeBox] = { box: CodeBox =>
+//    (jsonEncodeBox[ProgramId, CodeBox](box) ++ Map(
+//      "code"      -> box.code.asJson,
+//      "interface" -> box.interface.map(ci => ci._1 -> ci._2.asJson).asJson
+//    )).asJson
+//  }
+//
+//  implicit val codeBoxJsonDecoder: Decoder[CodeBox] = (c: HCursor) =>
+//    for {
+//      b         <- jsonDecodeBox[ProgramId](c)
+//      code      <- c.downField("code").as[Seq[String]]
+//      interface <- c.downField("interface").as[Map[String, Seq[String]]]
+//    } yield {
+//      val (evidence, nonce, programId) = b
+//      CodeBox(evidence, nonce, programId, code, interface)
+//    }
+//
+//  implicit val executionBoxJsonEncoder: Encoder[ExecutionBox] = { box: ExecutionBox =>
+//    (jsonEncodeBox[ProgramId, ExecutionBox](box) ++ Map(
+//      "stateBoxIds" -> box.stateBoxIds.asJson,
+//      "codeBoxIds"  -> box.codeBoxIds.asJson
+//    )).asJson
+//  }
+//
+//  implicit val executionBoxJsonDecoder: Decoder[ExecutionBox] = (c: HCursor) =>
+//    for {
+//      b           <- jsonDecodeBox[ProgramId](c)
+//      stateBoxIds <- c.downField("stateBoxIds").as[Seq[ProgramId]]
+//      codeBoxIds  <- c.downField("codeBoxIds").as[Seq[ProgramId]]
+//    } yield {
+//      val (evidence, nonce, programId) = b
+//      ExecutionBox(evidence, nonce, programId, stateBoxIds, codeBoxIds)
+//    }
 
   implicit val polyBoxJsonEncoder: Encoder[PolyBox] = (box: PolyBox) => jsonEncodeBox[SimpleValue, PolyBox](box).asJson
 
@@ -90,32 +89,32 @@ trait BoxJsonCodecs {
       PolyBox(evidence, nonce, value)
     }
 
-  implicit val programIdJsonEncoder: Encoder[ProgramId] = (id: ProgramId) => id.toString.asJson
-
-  implicit val programIdJsonKeyEncoder: KeyEncoder[ProgramId] = (id: ProgramId) => id.toString
-
-  implicit val programIdJsonDecoder: Decoder[ProgramId] =
-    Decoder.decodeString
-      .emap(Base58Data.validated(_).leftMap(_ => "Value is not Base 58").toEither)
-      .map(ProgramId.apply)
-
-  implicit val programIdJsonKeyDecoder: KeyDecoder[ProgramId] = (id: String) =>
-    Base58Data.validated(id).map(ProgramId.apply).toOption
-
-  implicit val stateBoxJsonEncoder: Encoder[StateBox] = { box: StateBox =>
-    (jsonEncodeBox[ProgramId, StateBox](box) ++ Map(
-      "state" -> box.state.asJson
-    )).asJson
-  }
-
-  implicit val stateBoxJsonDecoder: Decoder[StateBox] = (c: HCursor) =>
-    for {
-      b     <- jsonDecodeBox[ProgramId](c)
-      state <- c.downField("state").as[Json]
-    } yield {
-      val (evidence, nonce, programId) = b
-      StateBox(evidence, nonce, programId, state)
-    }
+//  implicit val programIdJsonEncoder: Encoder[ProgramId] = (id: ProgramId) => id.toString.asJson
+//
+//  implicit val programIdJsonKeyEncoder: KeyEncoder[ProgramId] = (id: ProgramId) => id.toString
+//
+//  implicit val programIdJsonDecoder: Decoder[ProgramId] =
+//    Decoder.decodeString
+//      .emap(Base58Data.validated(_).leftMap(_ => "Value is not Base 58").toEither)
+//      .map(ProgramId.apply)
+//
+//  implicit val programIdJsonKeyDecoder: KeyDecoder[ProgramId] = (id: String) =>
+//    Base58Data.validated(id).map(ProgramId.apply).toOption
+//
+//  implicit val stateBoxJsonEncoder: Encoder[StateBox] = { box: StateBox =>
+//    (jsonEncodeBox[ProgramId, StateBox](box) ++ Map(
+//      "state" -> box.state.asJson
+//    )).asJson
+//  }
+//
+//  implicit val stateBoxJsonDecoder: Decoder[StateBox] = (c: HCursor) =>
+//    for {
+//      b     <- jsonDecodeBox[ProgramId](c)
+//      state <- c.downField("state").as[Json]
+//    } yield {
+//      val (evidence, nonce, programId) = b
+//      StateBox(evidence, nonce, programId, state)
+//    }
 
   implicit val tokenValueHolderJsonEncoder: Encoder[TokenValueHolder] = {
     case v: SimpleValue => simpleValueJsonEncoder(v)
@@ -164,23 +163,23 @@ trait BoxJsonCodecs {
     } yield AssetValue(quantity, assetCode, securityRoot.getOrElse(SecurityRoot.empty), metadata)
 
   implicit val boxJsonEncoder: Encoder[Box[_]] = {
-    case box: ArbitBox     => arbitBoxJsonEncoder(box)
-    case box: PolyBox      => polyBoxJsonEncoder(box)
-    case box: AssetBox     => assetBoxJsonEncoder(box)
-    case box: ExecutionBox => executionBoxJsonEncoder(box)
-    case box: StateBox     => stateBoxJsonEncoder(box)
-    case box: CodeBox      => codeBoxJsonEncoder(box)
-    case _                 => throw new Exception("No matching encoder found")
+    case box: ArbitBox => arbitBoxJsonEncoder(box)
+    case box: PolyBox  => polyBoxJsonEncoder(box)
+    case box: AssetBox => assetBoxJsonEncoder(box)
+//    case box: ExecutionBox => executionBoxJsonEncoder(box)
+//    case box: StateBox     => stateBoxJsonEncoder(box)
+//    case box: CodeBox      => codeBoxJsonEncoder(box)
+    case _ => throw new Exception("No matching encoder found")
   }
 
   implicit val boxJsonDecoder: Decoder[Box[_]] = { c: HCursor =>
     c.downField("type").as[String].map {
-      case ArbitBox.typeString     => arbitBoxJsonDecoder(c)
-      case PolyBox.typeString      => polyBoxJsonDecoder(c)
-      case AssetBox.typeString     => assetBoxJsonDecoder(c)
-      case ExecutionBox.typeString => executionBoxJsonDecoder(c)
-      case StateBox.typeString     => stateBoxJsonDecoder(c)
-      case CodeBox.typeString      => codeBoxJsonDecoder(c)
+      case ArbitBox.typeString => arbitBoxJsonDecoder(c)
+      case PolyBox.typeString  => polyBoxJsonDecoder(c)
+      case AssetBox.typeString => assetBoxJsonDecoder(c)
+//      case ExecutionBox.typeString => executionBoxJsonDecoder(c)
+//      case StateBox.typeString     => stateBoxJsonDecoder(c)
+//      case CodeBox.typeString      => codeBoxJsonDecoder(c)
     } match {
       case Right(box) => box
       case Left(ex)   => throw ex
@@ -195,10 +194,10 @@ trait BoxJsonCodecs {
   }
 
   implicit val programBoxJsonEncoder: Encoder[ProgramBox] = {
-    case stateBox: StateBox         => stateBoxJsonEncoder(stateBox)
-    case executionBox: ExecutionBox => executionBoxJsonEncoder(executionBox)
-    case codeBox: CodeBox           => codeBoxJsonEncoder(codeBox)
-    case _                          => throw new Exception("no encoder found for program box type")
+//    case stateBox: StateBox         => stateBoxJsonEncoder(stateBox)
+//    case executionBox: ExecutionBox => executionBoxJsonEncoder(executionBox)
+//    case codeBox: CodeBox           => codeBoxJsonEncoder(codeBox)
+    case _ => throw new Exception("no encoder found for program box type")
   }
 
   implicit val boxIdJsonEncoder: Encoder[BoxId] = deriveEncoderFromScodec(boxIdTypeName)

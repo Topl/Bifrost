@@ -2,7 +2,7 @@ package co.topl.codecs.binary.legacy.attestation.keyManagement
 
 import co.topl.attestation.keyManagement.PrivateKeyEd25519
 import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
-import co.topl.crypto.signatures.Ed25519
+import co.topl.crypto.signing.Ed25519
 import co.topl.crypto.{PrivateKey, PublicKey}
 
 object PrivateKeyEd25519Serializer extends BifrostSerializer[PrivateKeyEd25519] {
@@ -16,5 +16,8 @@ object PrivateKeyEd25519Serializer extends BifrostSerializer[PrivateKeyEd25519] 
   }
 
   override def parse(r: Reader): PrivateKeyEd25519 =
-    PrivateKeyEd25519(PrivateKey(r.getBytes(Ed25519.KeyLength)), PublicKey(r.getBytes(Ed25519.KeyLength)))
+    PrivateKeyEd25519(
+      PrivateKey(r.getBytes(Ed25519.instance.KeyLength)),
+      PublicKey(r.getBytes(Ed25519.instance.KeyLength))
+    )
 }

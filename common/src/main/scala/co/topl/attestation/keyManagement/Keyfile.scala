@@ -88,5 +88,3 @@ trait KeyfileCompanion[S <: Secret, KF <: Keyfile[S]] {
    */
   def readFile(filename: String)(implicit networkPrefix: NetworkPrefix): KF
 }
-
-object Keyfile {}

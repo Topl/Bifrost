@@ -6,7 +6,7 @@ import co.topl.codecs.binary.scodecs._
 import co.topl.crypto.PublicKey
 import co.topl.crypto.hash.digest.{Digest, Digest32}
 import co.topl.crypto.hash.implicits._
-import co.topl.modifier.ModifierId
+import co.topl.modifier.{ModifierId, ProgramId}
 import co.topl.modifier.block.BloomFilter
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction

@@ -3,7 +3,11 @@ package co.topl.attestation
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519, Secret}
 import co.topl.codecs.binary.legacy.attestation.ProofSerializer
 import co.topl.codecs.binary.legacy.{BifrostSerializer, BytesSerializable}
-import co.topl.crypto.signatures.{Curve25519, Ed25519, Signature}
+import co.topl.crypto.Signature
+import co.topl.crypto.signing.{Curve25519, Ed25519}
+import co.topl.models.utility.HasLength.instances._
+import co.topl.models.utility.Sized
+import co.topl.models.{Bytes, Proofs, VerificationKeys}
 import co.topl.utils.encode.Base58
 import com.google.common.primitives.Ints
 
@@ -62,19 +66,26 @@ sealed trait ProofOfKnowledge[S <: Secret, P <: KnowledgeProposition[S]] extends
 case class SignatureCurve25519(sigBytes: Signature)
     extends ProofOfKnowledge[PrivateKeyCurve25519, PublicKeyPropositionCurve25519] {
 
+  private val curve25519 = new Curve25519()
   private val signatureLength = sigBytes.value.length
 
   require(
-    signatureLength == 0 || signatureLength == Curve25519.SignatureLength,
-    s"$signatureLength != ${Curve25519.SignatureLength}"
+    signatureLength == 0 || signatureLength == Curve25519.instance.SignatureLength,
+    s"$signatureLength != ${Curve25519.instance.SignatureLength}"
   )
 
   def isValid(proposition: PublicKeyPropositionCurve25519, message: Array[Byte]): Boolean =
-    Curve25519.verify(sigBytes, message, proposition.pubKeyBytes)
+    curve25519.verify(
+      Proofs.Knowledge.Curve25519(Sized.strictUnsafe[Bytes, Proofs.Knowledge.Curve25519.Length](Bytes(sigBytes.value))),
+      Bytes(message),
+      VerificationKeys.Curve25519(
+        Sized.strictUnsafe[Bytes, VerificationKeys.Curve25519.Length](Bytes(proposition.pubKeyBytes.value))
+      )
+    )
 }
 
 object SignatureCurve25519 {
-  lazy val signatureSize: Int = Curve25519.SignatureLength
+  lazy val signatureSize: Int = Curve25519.instance.SignatureLength
 
   /** Helper function to create empty signatures */
   lazy val empty: SignatureCurve25519 = SignatureCurve25519(Signature(Array.emptyByteArray))
@@ -90,6 +101,8 @@ object SignatureCurve25519 {
 case class ThresholdSignatureCurve25519(signatures: Set[SignatureCurve25519])
     extends ProofOfKnowledge[PrivateKeyCurve25519, ThresholdPropositionCurve25519] {
 
+  val curve25519 = new Curve25519()
+
   signatures.foreach { sig =>
     require(sig.sigBytes.value.length == SignatureCurve25519.signatureSize)
   }
@@ -104,7 +117,13 @@ case class ThresholdSignatureCurve25519(signatures: Set[SignatureCurve25519])
     val numValidSigs = signatures.foldLeft((0, proposition.pubKeyProps)) { case ((acc, unusedProps), sig) =>
       if (acc < proposition.threshold) {
         unusedProps
-          .find(prop => unusedProps(prop) && Curve25519.verify(sig.sigBytes, message, prop.pubKeyBytes)) match {
+          .find(prop =>
+            unusedProps(prop) && curve25519.verify(
+              Proofs.Knowledge.Curve25519(Sized.strictUnsafe(Bytes(sig.sigBytes.value))),
+              Bytes(message),
+              VerificationKeys.Curve25519(Sized.strictUnsafe(Bytes(prop.pubKeyBytes.value)))
+            )
+          ) match {
           case Some(prop) =>
             (acc + 1, unusedProps.diff(Set(prop)))
           case None =>
@@ -134,26 +153,30 @@ object ThresholdSignatureCurve25519 {
 case class SignatureEd25519(sigBytes: Signature)
     extends ProofOfKnowledge[PrivateKeyEd25519, PublicKeyPropositionEd25519] {
 
+  private val ed25519 = new Ed25519()
   private val signatureLength = sigBytes.value.length
-  private val ec = new Ed25519
 
   require(
-    signatureLength == 0 || signatureLength == Ed25519.SignatureLength,
-    s"$signatureLength != ${Ed25519.SignatureLength}"
+    signatureLength == 0 || signatureLength == ed25519.SignatureLength,
+    s"$signatureLength != ${ed25519.SignatureLength}"
   )
 
   def isValid(proposition: PublicKeyPropositionEd25519, message: Array[Byte]): Boolean =
-    ec.verify(sigBytes, message, proposition.pubKeyBytes)
+    ed25519.verify(
+      Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(sigBytes.value))),
+      Bytes(message),
+      VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(proposition.pubKeyBytes.value)))
+    )
 }
 
 object SignatureEd25519 {
-  lazy val signatureSize: Int = Ed25519.SignatureLength
+  lazy val signatureSize: Int = Ed25519.instance.SignatureLength
 
   /** Helper function to create empty signatures */
   lazy val empty: SignatureEd25519 = SignatureEd25519(Signature(Array.emptyByteArray))
 
   /** Returns a signature filled with 1's for use in genesis signatures */
   lazy val genesis: SignatureEd25519 =
-    SignatureEd25519(Signature(Array.fill(SignatureEd25519.signatureSize)(1: Byte)))
+    SignatureEd25519(Signature(Array.fill(Ed25519.instance.SignatureLength)(1: Byte)))
 
 }

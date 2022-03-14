@@ -2,7 +2,7 @@ package co.topl.codecs.binary.legacy.attestation
 
 import co.topl.attestation.SignatureCurve25519
 import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
-import co.topl.crypto.signatures.Signature
+import co.topl.crypto.Signature
 
 object SignatureCurve25519Serializer extends BifrostSerializer[SignatureCurve25519] {
 

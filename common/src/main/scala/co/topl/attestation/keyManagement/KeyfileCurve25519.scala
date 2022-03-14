@@ -2,7 +2,7 @@ package co.topl.attestation.keyManagement
 
 import co.topl.attestation.Address
 import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.signatures.Curve25519
+import co.topl.crypto.signing.Curve25519
 import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.NetworkType.NetworkPrefix
@@ -73,7 +73,7 @@ object KeyfileCurve25519Companion extends KeyfileCompanion[PrivateKeyCurve25519,
       encrypt = false
     ) match {
       case (cipherBytes, _) =>
-        cipherBytes.grouped(Curve25519.KeyLength).toSeq match {
+        cipherBytes.grouped(Curve25519.instance.KeyLength).toSeq match {
           case Seq(skBytes, pkBytes) =>
             // recreate the private key
             val privateKey = new PrivateKeyCurve25519(PrivateKey(skBytes), PublicKey(pkBytes))
@@ -133,7 +133,7 @@ object KeyfileCurve25519Companion extends KeyfileCompanion[PrivateKeyCurve25519,
    * @param encrypt
    * @return
    */
-  private def getAESResult(
+  def getAESResult(
     derivedKey: Array[Byte],
     ivData:     Array[Byte],
     inputText:  Array[Byte],

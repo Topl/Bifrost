@@ -5,7 +5,6 @@ import co.topl.crypto.PublicKey
 import co.topl.modifier.box.{CodeBox, StateBox}
 import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.exceptions.{ChainProgramException, JsonParsingException}
 import io.circe._
 import io.circe.syntax._
 import org.graalvm.polyglot.{Context, Value}
@@ -30,7 +29,7 @@ case class Program(
   val MAX_PARTIES: Int = 1024
 
   if (parties.size < MIN_PARTIES || parties.size > MAX_PARTIES) {
-    throw new ChainProgramException(
+    throw new Exception(
       "An invalid number of parties was specified for the program " +
       "(must be between 2 and 1024)."
     )
@@ -40,12 +39,12 @@ case class Program(
 
   val executionBuilderObj: ExecutionBuilder = executionBuilder.as[ExecutionBuilder] match {
     case Right(a) => a
-    case Left(_)  => throw new JsonParsingException("Was unable to parse a valid executionBuilder from provided JSON")
+    case Left(_)  => throw new Exception("Was unable to parse a valid executionBuilder from provided JSON")
   }
 
   jsre.eval("js", ProgramPreprocessor.objectAssignPolyfill)
 
-  //noinspection ScalaStyle
+  // noinspection ScalaStyle
   def applyFunction(methodName: String)(args: JsonObject)(params: Array[String]) /*: Try[(Program, Option[Json])]*/ =
     Try {}
 
@@ -78,11 +77,11 @@ object Program {
             val role = party._2.asString.get
             new PublicKeyPropositionCurve25519(publicKey) -> role
           }
-      case None => throw new JsonParsingException(s"Error: ${jsonMap("parties")}")
+      case None => throw new Exception(s"Error: ${jsonMap("parties")}")
     }
 
     new Program(
-      parties, //TODO #22 new PublicKey25519Proposition(Base58.decode(jsonMap("producer").asString.get).get),
+      parties, // TODO #22 new PublicKey25519Proposition(Base58.decode(jsonMap("producer").asString.get).get),
       jsonMap("lastUpdated").asNumber.get.toLong.getOrElse(0L),
       id,
       jsonMap("executionBuilder")
@@ -97,7 +96,7 @@ object Program {
    * @param args       parameters for the method
    * @return State members to update the mutable StateBox
    */
-  //noinspection ScalaStyle
+  // noinspection ScalaStyle
   def execute(stateBoxes: Seq[StateBox], codeBoxes: Seq[CodeBox], methodName: String)(
     party:                PublicKeyPropositionCurve25519
   )(args:                 JsonObject): Try[Json] =
@@ -118,13 +117,13 @@ object Program {
 
       val programCode: String = codeBoxes.foldLeft("")((a, b) => a ++ b.code.foldLeft("")((a, b) => a ++ (b + "\n")))
 
-      //Pass in JSON objects for each read-only StateBox
+      // Pass in JSON objects for each read-only StateBox
       stateBoxes.drop(1).foreach { sb =>
         val stateBoxId: String = "_" + sb.value.toString.replace("-", "_")
         jsre.eval("js", s"""var $stateBoxId = JSON.parse(${sb.state})""")
       }
 
-      //Inject function to read from read only StateBoxes
+      // Inject function to read from read only StateBoxes
       val getFromState =
         s"""
            |function getFromState(id, value) {
@@ -134,7 +133,7 @@ object Program {
 
       jsre.eval("js", getFromState)
 
-      //Pass in writable state and functions
+      // Pass in writable state and functions
       jsre.eval("js", preparedState)
       jsre.eval("js", programCode)
 
@@ -143,7 +142,7 @@ object Program {
         params.tail.foldLeft(params.headOption.getOrElse(""))((a, b) => s"""$a, $b""")
       } else ""
 
-      //Evaluate the method on the built script context
+      // Evaluate the method on the built script context
       jsre.eval("js", s"""$methodName($paramString)""")
 
       val returnState: Map[String, Json] = mutableState.map { s =>
@@ -172,7 +171,7 @@ object Program {
   private def stateTypeCheck(variable: (String, Json), member: Value, memberType: String): Json =
     if (variable._2.name == memberType.capitalize)
       variable._2.name match {
-        //TODO Check for all valid JS types
+        // TODO Check for all valid JS types
         case "Number" => JsonNumber.fromString(member.toString).get.asJson
         case "String" => member.as(classOf[String]).asJson
         case _ => throw new NoSuchElementException(s"""Element "${variable._1}" does not exist in program state """)
