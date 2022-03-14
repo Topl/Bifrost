@@ -2,18 +2,20 @@ package co.topl.codecs.json.tetra
 
 import cats.data.{NonEmptyChain, NonEmptyList}
 import cats.implicits._
-import co.topl.models.VerificationKeys.Curve25519
+import co.topl.models.Propositions.Contextual.HeightLock
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{HasLength, Length, Lengths, Sized}
-import io.circe.syntax.EncoderOps
 import io.circe._
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
+import io.circe.syntax.EncoderOps
 
-import scala.collection.immutable.ListMap
+import scala.collection.immutable.{ListMap, ListSet}
 
 trait ModelsJsonCodecs {
+
+  implicit val bytesEncoder: Encoder[Bytes] = Encoder[String].contramap(_.toBase58)
 
   implicit val bytesDecoder: Decoder[Bytes] =
     Decoder[String].flatMap(string =>
@@ -22,11 +24,17 @@ trait ModelsJsonCodecs {
         .fold(Decoder.failedWithMessage[Bytes]("invalid base-58"))(bytes => Decoder.const(bytes))
     )
 
+  implicit def listSetEncoder[T: Encoder]: Encoder[ListSet[T]] = Encoder[List[T]].contramap(_.toList)
+
+  implicit def listSetDecoder[T: Decoder]: Decoder[ListSet[T]] = Decoder[List[T]].map(list => ListSet(list: _*))
+
   implicit def nonEmptyChainEncoder[T: Encoder]: Encoder[NonEmptyChain[T]] =
     Encoder[NonEmptyList[T]].contramap(_.toNonEmptyList)
 
   implicit def nonEmptyChainDecoder[T: Decoder]: Decoder[NonEmptyChain[T]] =
     Decoder[NonEmptyList[T]].map(NonEmptyChain.fromNonEmptyList)
+
+  implicit def sizedMaxEncoder[T: Encoder, L]: Encoder[Sized.Max[T, L]] = Encoder[T].contramap(_.data)
 
   implicit def sizedMaxDecoder[T: Decoder: HasLength, L <: Length](implicit
     length: L
@@ -39,6 +47,8 @@ trait ModelsJsonCodecs {
           sizedValue => Decoder.const(sizedValue)
         )
     )
+
+  implicit def sizedStrictEncoder[T: Encoder, L]: Encoder[Sized.Strict[T, L]] = Encoder[T].contramap(_.data)
 
   implicit def sizedStrictDecoder[T: Decoder: HasLength, L <: Length](implicit length: L): Decoder[Sized.Strict[T, L]] =
     Decoder[T].flatMap(value =>
@@ -89,6 +99,22 @@ trait ModelsJsonCodecs {
   implicit val verificationKeysEd25519Decoder: Decoder[VerificationKeys.Ed25519] =
     Decoder[Sized.Strict[Bytes, VerificationKeys.Ed25519.Length]].map(VerificationKeys.Ed25519.apply)
 
+  implicit val verificationKeysExtendedEd25519Encoder: Encoder[VerificationKeys.ExtendedEd25519] =
+    t =>
+      Json.obj(
+        "vk"        -> t.vk.bytes.data.toBase58.asJson,
+        "chainCode" -> t.chainCode.data.toBase58.asJson
+      )
+
+  implicit val verificationKeysExtendedEd25519Decoder: Decoder[VerificationKeys.ExtendedEd25519] =
+    hcursor =>
+      for {
+        vk <- hcursor.downField("vk").as[VerificationKeys.Ed25519]
+        chainCode <- hcursor
+          .downField("chainCode")
+          .as[Sized.Strict[Bytes, VerificationKeys.ExtendedEd25519.ChainCodeLength]]
+      } yield VerificationKeys.ExtendedEd25519(vk, chainCode)
+
   implicit val propositionsKnowledgeCurve25519Encoder: Encoder[Propositions.Knowledge.Curve25519] =
     deriveEncoder
 
@@ -101,26 +127,29 @@ trait ModelsJsonCodecs {
   implicit val propositionsKnowledgeEd25519Decoder: Decoder[Propositions.Knowledge.Ed25519] =
     deriveDecoder
 
+  implicit val propositionsKnowledgeExtendedEd25519Encoder: Encoder[Propositions.Knowledge.ExtendedEd25519] =
+    deriveEncoder
+
+  implicit val propositionsKnowledgeExtendedEd25519Decoder: Decoder[Propositions.Knowledge.ExtendedEd25519] =
+    deriveDecoder
+
   implicit def propositionEncoder: Encoder[Proposition] = {
     case Propositions.PermanentlyLocked =>
       Json.obj("propositionType" -> "PermanentlyLocked".asJson)
     case Propositions.Knowledge.Curve25519(k) =>
       Json.obj("propositionType" -> "Knowledge.Curve25519".asJson, "key" -> k.asJson)
     case Propositions.Knowledge.Ed25519(k) =>
-      Json.obj("propositionType" -> "Knowledge.Ed25519".asJson, "key" -> k.bytes.data.toBase58.asJson)
+      Json.obj("propositionType" -> "Knowledge.Ed25519".asJson, "key" -> k.asJson)
     case Propositions.Knowledge.ExtendedEd25519(k) =>
       Json.obj(
         "propositionType" -> "Knowledge.ExtendedEd25519".asJson,
-        "key" -> Json.obj(
-          "vk"        -> k.vk.bytes.data.toBase58.asJson,
-          "chainCode" -> k.chainCode.data.toBase58.asJson
-        )
+        "key"             -> k.asJson
       )
     case Propositions.Compositional.Threshold(threshold, propositions) =>
       Json.obj(
         "propositionType" -> "Compositional.Threshold".asJson,
         "threshold"       -> threshold.asJson,
-        "propositions"    -> propositions.toList.map(_.asJson(propositionEncoder)).asJson
+        "propositions"    -> propositions.asJson(listSetEncoder(propositionEncoder))
       )
     case Propositions.Compositional.And(a, b) =>
       Json.obj(
@@ -147,7 +176,38 @@ trait ModelsJsonCodecs {
   }
 
   implicit val propositionDecoder: Decoder[Proposition] =
-    hcursor => ???
+    hcursor =>
+      hcursor.downField("propositionType").as[String].flatMap {
+        case "PermanentlyLocked"         => Propositions.PermanentlyLocked.asRight
+        case "Knowledge.Curve25519"      => hcursor.downField("key").as[Propositions.Knowledge.Curve25519]
+        case "Knowledge.Ed25519"         => hcursor.downField("key").as[Propositions.Knowledge.Ed25519]
+        case "Knowledge.ExtendedEd25519" => hcursor.downField("key").as[Propositions.Knowledge.ExtendedEd25519]
+        case "Compositional.Threshold" =>
+          (
+            hcursor.downField("threshold").as[Int],
+            hcursor
+              .downField("propositions")
+              .as[ListSet[Proposition]](listSetDecoder(propositionDecoder))
+          ).mapN((threshold, propositions) => Propositions.Compositional.Threshold(threshold, propositions))
+        case "Compositional.And" =>
+          (
+            hcursor.downField("a").as[Proposition](propositionDecoder),
+            hcursor.downField("b").as[Proposition](propositionDecoder)
+          ).mapN((a, b) => Propositions.Compositional.And(a, b))
+        case "Compositional.Or" =>
+          (
+            hcursor.downField("a").as[Proposition](propositionDecoder),
+            hcursor.downField("b").as[Proposition](propositionDecoder)
+          ).mapN((a, b) => Propositions.Compositional.Or(a, b))
+        case "Contextual.HeightLock" =>
+          hcursor.downField("height").as[Long].map(Propositions.Contextual.HeightLock.apply)
+        case "Script.JS" =>
+          hcursor
+            .downField("script")
+            .as[String]
+            .map(Propositions.Script.JS.JSScript.apply)
+            .map(Propositions.Script.JS.apply)
+      }
 
   implicit def proofEncoder: Encoder[Proof] = {
     case Proofs.False =>
@@ -157,12 +217,12 @@ trait ModelsJsonCodecs {
     case Proofs.Knowledge.Curve25519(bytes) =>
       Json.obj(
         "proofType" -> "Knowledge.Curve25519".asJson,
-        "signature" -> bytes.data.toBase58.asJson
+        "signature" -> bytes.asJson
       )
     case Proofs.Knowledge.Ed25519(bytes) =>
       Json.obj(
         "proofType" -> "Knowledge.Ed25519".asJson,
-        "signature" -> bytes.data.toBase58.asJson
+        "signature" -> bytes.asJson
       )
     case Proofs.Compositional.Threshold(proofs) =>
       Json.obj(
@@ -191,6 +251,31 @@ trait ModelsJsonCodecs {
         "args"      -> io.circe.parser.parse(serializedArgs).getOrElse(serializedArgs.asJson)
       )
   }
+
+  implicit val proofsKnowledgeCurve25519Decoder: Decoder[Proofs.Knowledge.Curve25519] = deriveDecoder
+
+  implicit val proofsKnowledgeCurveEd25519Decoder: Decoder[Proofs.Knowledge.Ed25519] = deriveDecoder
+
+  implicit def proofDecoder: Decoder[Proof] =
+    hcursor =>
+      hcursor.downField("proofType").as[String].flatMap {
+        case "False"                => Proofs.False.asRight[DecodingFailure]
+        case "Knowledge.Curve25519" => hcursor.downField("signature").as[Proofs.Knowledge.Curve25519]
+        case "Knowledge.Ed25519"    => hcursor.downField("signature").as[Proofs.Knowledge.Ed25519]
+        case "Compositional.Threshold" =>
+          hcursor
+            .downField("proofs")
+            .as(Decoder.decodeList(proofDecoder))
+            .map(Proofs.Compositional.Threshold.apply)
+        case "Compositional.And" =>
+          (hcursor.downField("a").as(proofDecoder), hcursor.downField("b").as(proofDecoder))
+            .mapN((a, b) => Proofs.Compositional.And(a, b))
+        case "Compositional.Or" =>
+          (hcursor.downField("a").as(proofDecoder), hcursor.downField("b").as(proofDecoder))
+            .mapN((a, b) => Proofs.Compositional.Or(a, b))
+        case "Contextual.HeightLock" => Proofs.Contextual.HeightLock().asRight
+        case "Script.JS"             => hcursor.downField("args").as[String].map(Proofs.Script.JS.apply)
+      }
 
   implicit val int128Codec: Encoder[Int128] =
     t => t.data.toString.asJson
@@ -341,7 +426,7 @@ trait ModelsJsonCodecs {
       for {
         inputs <- hcursor
           .downField("inputs")
-          .as[List[(BoxReference, (Proposition, Proof))]](???)
+          .as[List[(BoxReference, (Proposition, Proof))]]
           .map(list => ListMap(list: _*))
         feeOutput   <- hcursor.downField("feeOutput").as[Option[Transaction.PolyOutput]]
         coinOutputs <- hcursor.downField("coinOutputs").as[NonEmptyChain[Transaction.CoinOutput]]
