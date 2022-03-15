@@ -3,9 +3,10 @@ package co.topl.demo
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
+import cats.Applicative
 import cats.effect.kernel.Async
 import cats.implicits._
-import co.topl.algebras.ConsensusState
+import co.topl.algebras.{ConsensusState, ConsensusStateReader}
 import co.topl.models.Box.Values
 import co.topl.models._
 import co.topl.models.utility.Ratio
@@ -24,6 +25,23 @@ object NodeViewHolder {
 
   def apply(nodeView: NodeView): Behavior[ReceivableMessage] =
     Behaviors.receiveMessage { case run: Run[_] => apply(run.runAndTell(nodeView)) }
+
+  object StaticData {
+
+    def make[F[_]: Applicative](
+      relativeStakes: Map[TaktikosAddress, Ratio],
+      registrations:  Map[TaktikosAddress, Box.Values.TaktikosRegistration]
+    ): F[ConsensusStateReader[F]] =
+      (new ConsensusStateReader[F] {
+
+        def lookupRelativeStake(epoch: Epoch)(address: TaktikosAddress): F[Option[Ratio]] =
+          relativeStakes.get(address).pure[F]
+
+        def lookupRegistration(epoch: Epoch)(address: TaktikosAddress): F[Option[Box.Values.TaktikosRegistration]] =
+          registrations.get(address).pure[F]
+      }).pure[F]
+
+  }
 
   object StateEval {
 

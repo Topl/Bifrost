@@ -4,11 +4,10 @@ import cats._
 import cats.data._
 import cats.effect.Ref
 import cats.effect.kernel.Concurrent
-import co.topl.codecs.bytes.tetra.instances._
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
-import co.topl.algebras.{ClockAlgebra, ConsensusState, UnsafeResource}
-import co.topl.algebras.SecureStore
+import co.topl.algebras._
+import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.algebras.EtaCalculationAlgebra
 import co.topl.crypto.mnemonic.Entropy
 import co.topl.crypto.signing._
@@ -20,7 +19,6 @@ import com.google.common.primitives.Longs
 import org.typelevel.log4cats.Logger
 
 import java.util.UUID
-import scala.collection.immutable.LongMap
 
 object OperationalKeys {
 
@@ -40,7 +38,7 @@ object OperationalKeys {
       clock:                       ClockAlgebra[F],
       vrfProof:                    VrfProofAlgebra[F],
       etaCalculation:              EtaCalculationAlgebra[F],
-      consensusState:              ConsensusState[F],
+      consensusState:              ConsensusStateReader[F],
       kesProductResource:          UnsafeResource[F, KesProduct],
       ed25519Resource:             UnsafeResource[F, Ed25519],
       parentSlotId:                SlotId,
@@ -93,7 +91,7 @@ object OperationalKeys {
       clock:                       ClockAlgebra[F],
       vrfProof:                    VrfProofAlgebra[F],
       etaCalculation:              EtaCalculationAlgebra[F],
-      consensusState:              ConsensusState[F],
+      consensusState:              ConsensusStateReader[F],
       kesProductResource:          UnsafeResource[F, KesProduct],
       ed25519Resource:             UnsafeResource[F, Ed25519],
       operationalPeriodLength:     Long,
