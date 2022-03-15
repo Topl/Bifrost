@@ -5,9 +5,8 @@ import cats.data.Chain
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import co.topl.algebras.testInterpreters.NoOpLogger
-import co.topl.algebras.{ClockAlgebra, ConsensusState, UnsafeResource}
+import co.topl.algebras.{ClockAlgebra, ConsensusState, SecureStore, UnsafeResource}
 import co.topl.codecs.bytes.typeclasses.Persistable
-import co.topl.algebras.SecureStore
 import co.topl.consensus.algebras.EtaCalculationAlgebra
 import co.topl.crypto.signing.{Ed25519, KesProduct}
 import co.topl.minting.algebras.{OperationalKeyOut, VrfProofAlgebra}
@@ -57,11 +56,6 @@ class OperationalKeysSpec
       val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L)
 
       val ineligibilities = Range.Long(0L, operationalPeriodLength, 2L).toVector
-
-      (() => clock.globalSlot)
-        .expects()
-        .once()
-        .returning(0L.pure[F])
 
       (() => clock.slotsPerEpoch)
         .expects()
@@ -141,7 +135,8 @@ class OperationalKeysSpec
           parentSlotId,
           operationalPeriodLength,
           activationOperationalPeriod,
-          address
+          address,
+          0L
         )
         .unsafeRunSync()
 
@@ -177,11 +172,6 @@ class OperationalKeysSpec
       val operationalPeriodLength = 30L
       val activationOperationalPeriod = 0L
       val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L)
-
-      (() => clock.globalSlot)
-        .expects()
-        .once()
-        .returning(0L.pure[F])
 
       (() => clock.slotsPerEpoch)
         .expects()
@@ -261,7 +251,8 @@ class OperationalKeysSpec
           parentSlotId,
           operationalPeriodLength,
           activationOperationalPeriod,
-          address
+          address,
+          0L
         )
         .unsafeRunSync()
 

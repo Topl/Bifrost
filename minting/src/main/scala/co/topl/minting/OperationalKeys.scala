@@ -13,8 +13,8 @@ import co.topl.crypto.mnemonic.Entropy
 import co.topl.crypto.signing._
 import co.topl.minting.algebras._
 import co.topl.models._
-import co.topl.typeclasses.implicits._
 import co.topl.models.utility.Ratio
+import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
 import org.typelevel.log4cats.Logger
 
@@ -44,11 +44,11 @@ object OperationalKeys {
       parentSlotId:                SlotId,
       operationalPeriodLength:     Long,
       activationOperationalPeriod: Long,
-      address:                     TaktikosAddress
+      address:                     TaktikosAddress,
+      initialSlot:                 Slot
     ): F[OperationalKeysAlgebra[F]] =
       for {
-        initialSlot <- clock.globalSlot
-        initialOperationalPeriod = initialSlot / operationalPeriodLength
+        initialOperationalPeriod <- (initialSlot / operationalPeriodLength).pure[F]
         initialKeysOpt <-
           OptionT(clock.epochOf(initialSlot).flatMap(consensusState.lookupRelativeStake(_)(address)))
             .flatMapF(relativeStake =>

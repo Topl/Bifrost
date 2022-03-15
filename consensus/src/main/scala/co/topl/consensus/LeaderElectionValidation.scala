@@ -36,10 +36,14 @@ object LeaderElectionValidation {
           val mFValue = mFunction(slotDiff, config)
           val base = mFValue * relativeStake
 
-          // TODO: Where does this come from?
-          (1 to config.precision)
-            .foldLeft(Ratio(0))((total, i) => total - (base.pow(i) * Ratio(BigInt(1), MathUtils.factorial(i))))
-            .pure[F]
+          // This is the Taylor-Series Expansion of the number
+          var total = Ratio(0)
+          var i = 1
+          while (i <= config.precision) {
+            total = total - (base.pow(i) * Ratio(BigInt(1), MathUtils.factorial(i)))
+            i += 1
+          }
+          total.pure[F]
         }
 
         /**
