@@ -205,6 +205,7 @@ lazy val bifrost = project
     algebras,
     commonInterpreters,
     minting,
+    networking,
     byteCodecs,
     tetraByteCodecs,
     consensus,
@@ -448,6 +449,28 @@ lazy val minting = project
     typeclasses,
     crypto,
     tetraByteCodecs,
+    algebras % "compile->compile;test->test",
+    consensus
+  )
+
+lazy val networking = project
+  .in(file("networking"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "networking",
+    commonSettings,
+    crossScalaVersions := Seq(scala213),
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.networking"
+  )
+  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsEffect)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(
+    models % "compile->compile;test->test",
+    typeclasses,
+    crypto,
+    byteCodecs,
     algebras % "compile->compile;test->test",
     consensus
   )

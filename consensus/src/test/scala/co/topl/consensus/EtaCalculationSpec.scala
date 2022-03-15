@@ -94,7 +94,7 @@ class EtaCalculationSpec
       .get(_: TypedIdentifier))
       .expects(*)
       .onCall((id: TypedIdentifier) =>
-        SlotData(blocks.find(b => byteByteVectorTupleAsTypedBytes(b.id) eqv id).get).pure[F]
+        blocks.find(b => byteByteVectorTupleAsTypedBytes(b.id) eqv id).get.slotData.pure[F]
       )
       .anyNumberOfTimes()
 
@@ -145,7 +145,7 @@ class EtaCalculationSpec
       .get(_: TypedIdentifier))
       .expects(byteByteVectorTupleAsTypedBytes(genesis.headerV2.id))
       .once()
-      .returning(SlotData(genesis.headerV2).pure[F])
+      .returning(genesis.headerV2.slotData.pure[F])
 
     (blake2b256Resource
       .use[NonEmptyChain[RhoNonceHash]](_: Function1[Blake2b256, F[NonEmptyChain[RhoNonceHash]]]))
