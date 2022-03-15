@@ -140,6 +140,8 @@ object NodeViewHolder {
     case class DownloadRequest(modifierTypeId: ModifierTypeId, modifierId: ModifierId) extends Event
 
     case object RollbackFailed extends Event
+
+    case class BlockCacheOverflow(overflowBlock: Block) extends Event
   }
 
   def apply(
@@ -173,7 +175,15 @@ object NodeViewHolder {
         case (context, ReceivableMessages.Initialized(nodeView)) =>
           implicit val system: ActorSystem[_] = context.system
           val cache =
-            context.spawn(SortedCache(cacheSize, itemPopLimit = cacheSize), "NodeViewModifiersCache")
+            context.spawn(
+              SortedCache(
+                cacheSize,
+                itemPopLimit = cacheSize,
+                onEvict =
+                  (block: Block) => system.eventStream.tell(EventStream.Publish(Events.BlockCacheOverflow(block)))
+              ),
+              "NodeViewModifiersCache"
+            )
 
           Receptionist(system).ref.tell(Receptionist.Register(serviceKey, context.self))
           system.eventStream.tell(

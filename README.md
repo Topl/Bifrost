@@ -1,33 +1,45 @@
-Project-Bifrost:<br/>A Scala Client for the Topl Blockchain Protocol 
+Project Bifrost:<br/>A Scala Client for the Topl Blockchain Protocol 
 ====================================================================================================================================================================================
-
-Project Bifrost is a Scala client designed over a cryptocurrency/blockchain protocol developed to achieve three specific goals:
-- Facilitate movement and investment of capital from investors in developed economies to businesses in developing economies
-- Create a commodity market that collateralizes a stable currency via storage and redemption
-- Develop a reputation system and historical reference of business behaviour
-
-Begin interacting with the Topl network with the Bifrost client [alpha testnet release](https://github.com/Topl/Project-Bifrost/releases/tag/v0.1.0-alpha)
-
-<!---
-Whitepaper
+Project Bifrost is a Scala based reference implementation of the Topl blockchain tokenization protocol. 
+The Topl protocol is conceived as an opinionated blockchain framework developed to support tokenization and promote circular and impact-aware markets and economies. 
+Applications of the network include:
+- Supply chain tracking and verification for ethically and sustainably produced agriculture and mineral products;
+- Interoperable carbon markets for nature-based and technology driven standards;
+- Inclusive finance and trade finance projects, especially in the Global South
+ 
+Releases
 ----------
-The latest version of the Topl whitepaper can be found [here](https://topl.co/whitepaper).
+Begin interacting with Topl protocol using the latest `bifrost-node` client available under [Releases](https://github.com/Topl/Project-Bifrost/releases/latest). 
+This repository is a monorepo for Scala projects related to the Topl Protocol.
+Therefore, the source code for several published libraries of independent utility outside `bifrost-node` are maintained in this repository and build artifacts are published to [Maven](https://mvnrepository.com/artifact/co.topl)
 
+Build artifacts are also available for each tagged version at [repo.topl.network](https://repo.topl.network). 
+An alternative host for each released JAR is accessible at `https://repo.topl.network/jars/<X.X.X>/bifrost-node-X.X.X.jar` where `X.X.X` is a tagged software version. 
+An MD5 checksum is also available for the JAR artifact at this location under `bifrost-node-X.X.X.jar.md5`
 
-Documentation
--------------
-[Topl protocol technical specification ("Yellow Paper")](https://github.com/Topl/documentation/blob/master/yellowpaper/Topl%20Yellow%20Paper.pdf) (in development)
+Docker containers for each release are available via [Github Container Repository](https://github.com/Topl/Bifrost/pkgs/container/bifrost-node) and [Docker Hub](https://hub.docker.com/r/toplprotocol/bifrost-node/tags)
 
-[Alpha testnet documentation](https://github.com/Topl/Project-Bifrost/wiki/Alpha-Testnet-Guide)
--->
+#### Application Versioning
+Bifrost loosely follows semantic versioning. Deviating slightly since blockchains should always retain binary compatibility, we instead apply the following rules:
+- `MAJOR` index is conditioned on hard-forks (most notably with regards to the consensus mechanism) and substantial network upgrades
+- `MINOR` index is incremented when there are breaking API changes (to any module within the Bifrost monorepo) or significant feature improvements being newly introduced
+- `PATCH` index is used for non-breaking changes to functionality and bug fixes
 
 Installation
 -------------------
-Check out our [Installation Instructions](https://github.com/Topl/Bifrost/wiki/Install-and-Build)
+Check out our [Installation instructions](https://github.com/Topl/Bifrost/wiki/Install-and-Build) for step-by-step instructions for installation using a JAR, a Docker container, or from source.
 
+Docs
+----------
+Additional documentation, including tutorials and code recipes, can be found at [docs.topl.co](http://docs.topl.co) 
+
+Wiki
+----------
+The latest version of the Topl wiki (our in-depth alternative to a traditional whitepaper) can be found at [wiki.topl.co](https://wiki.topl.co).
 
 Testing
 -------
+**NOTE:** These instructions assume the source code, sbt, JDK 11, and Docker have been previously installed.
 1. Go to the project directory: `cd Bifrost`
 1. Type: `sbt test`
    - NOTE: Using sbt to run tests using the Windows command line may error. Either use Intellij IDEA's test runner or run sbt in a Unix environment. Alternatively, if you have the Linux Subsystem for Windows enabled, you can just use bash.

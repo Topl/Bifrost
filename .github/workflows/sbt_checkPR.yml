@@ -1,4 +1,4 @@
-name: Continuous Integration
+name: SBT checkPR
 
 on:
   pull_request:
