@@ -115,7 +115,7 @@ class TetraTransactionOpsSpec
 
       it("should convert a Tetra TX into a Dion TX with the same ordering of inputs") {
         forAll(polyTxGen) { tx =>
-          val expectedInputs = tx.inputs.keys.map { case (address, nonce) =>
+          val expectedInputs = tx.inputs.toIndexedSeq.map { case ((address, nonce), _) =>
             // encode array as Base-16 string to ensure a valid equality check
             Base16.encode(address.allBytes.toArray) -> nonce
           }
@@ -160,6 +160,7 @@ class TetraTransactionOpsSpec
           val expectedAttestation = tx.inputs.values.map {
             case (prop: Propositions.Knowledge.Ed25519, proof: Proofs.Knowledge.Ed25519) =>
               prop.key.bytes.data.toBase16 -> proof.bytes.data.toBase16
+            case _ => throw new IllegalStateException("Unexpected attestation type")
           }.toList
 
           val dionTransfer = tx.toDionTx

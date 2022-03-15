@@ -1,11 +1,11 @@
 package co.topl.modifier.ops
 
-import cats.data.{Chain, NonEmptyChain}
+import cats.data.NonEmptyChain
 import cats.implicits._
 import co.topl.attestation._
 import co.topl.crypto.{PublicKey, Signature}
 import co.topl.models.{DionAddress, Proof, Proofs, Proposition, Propositions, Transaction}
-import co.topl.modifier.box._
+import co.topl.modifier.box.{AssetCode, AssetValue, Box, SecurityRoot, SimpleValue, TokenValueHolder}
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction => DionTransaction}
 import co.topl.utils.Int128
 import co.topl.utils.StringDataTypes.Latin1Data
@@ -22,7 +22,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
    * @return if successful, a [[DionTransaction.TX]], otherwise a [[ToDionTxFailure]] representing an error with the
    *         conversion
    */
-  def toDionTx: Either[ToDionTxFailure, DionTransaction.TX] =
+  def toDionTx: ToDionTxResult[DionTransaction.TX] =
     for {
       // all propositions in the Dion transfer must be the same as the first one
       expectedProposition <-
@@ -49,7 +49,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
    * @return if successful, a [[PolyTransfer]], otherwise a [[ToDionTxFailure]] representing an error with the
    *         conversion
    */
-  private def asPolyTransferCurve: Either[ToDionTxFailure, PolyTransfer[PublicKeyPropositionCurve25519]] =
+  private def asPolyTransferCurve: ToDionTxResult[PolyTransfer[PublicKeyPropositionCurve25519]] =
     for {
       attestation <- curveAttestation
       coinOutputs <- polyOutputs
@@ -71,7 +71,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
    * @return if successful, a [[PolyTransfer]], otherwise a [[ToDionTxFailure]] representing an error with the
    *         conversion
    */
-  private def asPolyTransferEd: Either[ToDionTxFailure, PolyTransfer[PublicKeyPropositionEd25519]] =
+  private def asPolyTransferEd: ToDionTxResult[PolyTransfer[PublicKeyPropositionEd25519]] =
     for {
       attestation <- edAttestation
       coinOutputs <- polyOutputs
@@ -93,7 +93,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
    * @return if successful, a [[PolyTransfer]], otherwise a [[ToDionTxFailure]] representing an error with the
    *         conversion
    */
-  private def asPolyTransferThreshold: Either[ToDionTxFailure, PolyTransfer[ThresholdPropositionCurve25519]] =
+  private def asPolyTransferThreshold: ToDionTxResult[PolyTransfer[ThresholdPropositionCurve25519]] =
     for {
       attestation <- thresholdAttestation
       coinOutputs <- polyOutputs
@@ -115,7 +115,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
    * @return if successful, an [[ArbitTransfer]], otherwise a [[ToDionTxFailure]] representing an error with the
    *         conversion
    */
-  private def asArbitTransferCurve: Either[ToDionTxFailure, ArbitTransfer[PublicKeyPropositionCurve25519]] =
+  private def asArbitTransferCurve: ToDionTxResult[ArbitTransfer[PublicKeyPropositionCurve25519]] =
     for {
       attestation <- curveAttestation
       coinOutputs <- arbitOutputs
@@ -137,7 +137,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
    * @return if successful, an [[ArbitTransfer]], otherwise a [[ToDionTxFailure]] representing an error with the
    *         conversion
    */
-  private def asArbitTransferEd: Either[ToDionTxFailure, ArbitTransfer[PublicKeyPropositionEd25519]] =
+  private def asArbitTransferEd: ToDionTxResult[ArbitTransfer[PublicKeyPropositionEd25519]] =
     for {
       attestation <- edAttestation
       coinOutputs <- arbitOutputs
@@ -159,7 +159,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
    * @return if successful, an [[ArbitTransfer]], otherwise a [[ToDionTxFailure]] representing an error with the
    *         conversion
    */
-  private def asArbitTransferThreshold: Either[ToDionTxFailure, ArbitTransfer[ThresholdPropositionCurve25519]] =
+  private def asArbitTransferThreshold: ToDionTxResult[ArbitTransfer[ThresholdPropositionCurve25519]] =
     for {
       attestation <- thresholdAttestation
       coinOutputs <- arbitOutputs
@@ -181,7 +181,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
    * @return if successful, an [[AssetTransfer]], otherwise a [[ToDionTxFailure]] representing an error with the
    *         conversion
    */
-  private def asAssetTransferCurve: Either[ToDionTxFailure, AssetTransfer[PublicKeyPropositionCurve25519]] =
+  private def asAssetTransferCurve: ToDionTxResult[AssetTransfer[PublicKeyPropositionCurve25519]] =
     for {
       attestation <- curveAttestation
       coinOutputs <- assetOutputs
@@ -203,7 +203,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
    * @return if successful, an [[AssetTransfer]], otherwise a [[ToDionTxFailure]] representing an error with the
    *         conversion
    */
-  private def asAssetTransferEd: Either[ToDionTxFailure, AssetTransfer[PublicKeyPropositionEd25519]] =
+  private def asAssetTransferEd: ToDionTxResult[AssetTransfer[PublicKeyPropositionEd25519]] =
     for {
       attestation <- edAttestation
       coinOutputs <- assetOutputs
@@ -225,7 +225,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
    * @return if successful, an [[AssetTransfer]], otherwise a [[ToDionTxFailure]] representing an error with the
    *         conversion
    */
-  private def asAssetTransferThreshold: Either[ToDionTxFailure, AssetTransfer[ThresholdPropositionCurve25519]] =
+  private def asAssetTransferThreshold: ToDionTxResult[AssetTransfer[ThresholdPropositionCurve25519]] =
     for {
       attestation <- thresholdAttestation
       coinOutputs <- assetOutputs
@@ -246,9 +246,9 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
    * @return if successful, an attestation of type [[PublicKeyPropositionCurve25519]], otherwise a [[ToDionTxFailure]]
    *         representing an error with the extraction
    */
-  private def curveAttestation: Either[ToDionTxFailure, ListMap[PublicKeyPropositionCurve25519, SignatureCurve25519]] =
+  private def curveAttestation: ToDionTxResult[ListMap[PublicKeyPropositionCurve25519, SignatureCurve25519]] =
     transaction.inputs.values.toList
-      .traverse {
+      .traverse[ToDionTxResult, (PublicKeyPropositionCurve25519, SignatureCurve25519)] {
         case (prop: Propositions.Knowledge.Curve25519, proof: Proofs.Knowledge.Curve25519) =>
           (
             PublicKeyPropositionCurve25519(PublicKey(prop.key.bytes.data.toArray)),
@@ -265,7 +265,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
    */
   private def edAttestation: Either[ToDionTxFailure, ListMap[PublicKeyPropositionEd25519, SignatureEd25519]] =
     transaction.inputs.values.toList
-      .traverse {
+      .traverse[ToDionTxResult, (PublicKeyPropositionEd25519, SignatureEd25519)] {
         case (prop: Propositions.Knowledge.Ed25519, proof: Proofs.Knowledge.Ed25519) =>
           (
             PublicKeyPropositionEd25519(PublicKey(prop.key.bytes.data.toArray)),
@@ -283,41 +283,41 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
   private def thresholdAttestation
     : Either[ToDionTxFailure, ListMap[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]] =
     transaction.inputs.values.toList
-      .traverse {
+      .traverse[ToDionTxResult, (ThresholdPropositionCurve25519, ThresholdSignatureCurve25519)] {
         case (prop: Propositions.Compositional.Threshold, proof: Proofs.Compositional.Threshold) =>
           for {
             props <-
               prop.propositions.toList
-                .traverse {
+                .traverse[ToDionTxResult, PublicKeyPropositionCurve25519] {
                   case p: Propositions.Knowledge.Curve25519 =>
                     PublicKeyPropositionCurve25519(PublicKey(p.key.bytes.data.toArray)).asRight
                   case invalid => ToDionTxFailures.InvalidProposition(invalid).asLeft
                 }
             proofs <-
               proof.proofs
-                .traverse {
+                .traverse[ToDionTxResult, SignatureCurve25519] {
                   case p: Proofs.Knowledge.Curve25519 =>
                     SignatureCurve25519(Signature(p.bytes.data.toArray)).asRight
                   case invalid => ToDionTxFailures.InvalidProof(invalid).asLeft
                 }
-            thresholdProp = ThresholdPropositionCurve25519(prop.threshold, SortedSet.from(props))
+            thresholdProp = ThresholdPropositionCurve25519(prop.threshold, SortedSet(props: _*))
             thresholdProof = ThresholdSignatureCurve25519(proofs.toSet)
           } yield thresholdProp -> thresholdProof
         case invalid => ToDionTxFailures.InvalidProposition(invalid._1).asLeft
       }
       .map(ListMap(_: _*))
 
-  private def polyOutputs: Either[ToDionTxFailure, NonEmptyChain[(Address, SimpleValue)]] =
+  private def polyOutputs: ToDionTxResult[NonEmptyChain[(Address, SimpleValue)]] =
     transaction.coinOutputs
-      .traverse {
+      .traverse[ToDionTxResult, (Address, SimpleValue)] {
         case polyOutput: Transaction.PolyOutput =>
           (toAddress(polyOutput.dionAddress), SimpleValue(Int128(polyOutput.value.data))).asRight
         case invalidCoin => ToDionTxFailures.InvalidOutput(invalidCoin).asLeft
       }
 
-  private def arbitOutputs: Either[ToDionTxFailure, NonEmptyChain[(Address, SimpleValue)]] =
+  private def arbitOutputs: ToDionTxResult[NonEmptyChain[(Address, SimpleValue)]] =
     transaction.coinOutputs
-      .traverse {
+      .traverse[ToDionTxResult, (Address, SimpleValue)] {
         case arbitOutput: Transaction.ArbitOutput =>
           (toAddress(arbitOutput.dionAddress), SimpleValue(Int128(arbitOutput.value.data))).asRight
         case invalidCoin => ToDionTxFailures.InvalidOutput(invalidCoin).asLeft
@@ -325,7 +325,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
 
   private def assetOutputs: Either[ToDionTxFailure, NonEmptyChain[(Address, TokenValueHolder)]] =
     transaction.coinOutputs
-      .traverse {
+      .traverse[ToDionTxResult, (Address, TokenValueHolder)] {
         case assetOutput: Transaction.AssetOutput =>
           (
             toAddress(assetOutput.dionAddress),
@@ -344,7 +344,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
       }
 
   private def getFrom: IndexedSeq[(Address, Box.Nonce)] =
-    transaction.inputs.keys.map(_.bimap(toAddress, x => x)).toIndexedSeq
+    transaction.inputs.toIndexedSeq.map(input => toAddress(input._1._1) -> input._1._2)
 
   private def getFee: Int128 = Int128(transaction.fee.data)
 
@@ -376,6 +376,8 @@ object TetraTransactionOps {
     case class InvalidTransferType(proposition: Proposition, coinType: Transaction.CoinOutput) extends ToDionTxFailure
     case object EmptyInputs extends ToDionTxFailure
   }
+
+  type ToDionTxResult[T] = Either[ToDionTxFailure, T]
 
   trait ToTetraTransactionOps {
 
