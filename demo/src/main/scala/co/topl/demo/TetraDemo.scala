@@ -2,6 +2,7 @@ package co.topl.demo
 
 import akka.NotUsed
 import akka.actor.typed.ActorSystem
+import akka.actor.typed.scaladsl.Behaviors
 import akka.stream.scaladsl.Source
 import akka.util.Timeout
 import cats.arrow.FunctionK
@@ -13,7 +14,6 @@ import cats.effect.{Async, IO, IOApp}
 import cats.implicits._
 import cats.~>
 import co.topl.algebras._
-import co.topl.interpreters._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
@@ -105,19 +105,9 @@ object TetraDemo extends IOApp.Simple {
   private val genesis =
     BlockGenesis(Nil).value
 
-  private val initialNodeView =
-    NodeView(
-      Map(0L -> stakers.map(staker => staker.address -> staker.relativeStake).toMap),
-      Map(0L -> stakers.map(staker => staker.address -> staker.registration).toMap)
-    )
-
   // Actor system initialization
 
-  implicit private val system: ActorSystem[NodeViewHolder.ReceivableMessage] =
-    ActorSystem(
-      NodeViewHolder(initialNodeView),
-      "TetraDemo"
-    )
+  implicit private val system: ActorSystem[_] = ActorSystem(Behaviors.empty, "TetraDemo")
 
   override val runtime: IORuntime = AkkaCatsRuntime(system).runtime
   override val runtimeConfig: IORuntimeConfig = AkkaCatsRuntime(system).ioRuntimeConfig
