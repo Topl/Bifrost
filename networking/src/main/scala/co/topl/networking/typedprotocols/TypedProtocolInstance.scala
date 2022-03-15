@@ -13,46 +13,53 @@ import scala.reflect.ClassTag
  * Captures the domain of state transitions for some typed protocol.  The domain is used by an "applier" to handle
  * the state transition for "Any" arbitrary input message.
  * @param localParty The party designation to the local node
- * @param transitions The state transitions available to this typed protocol.
+ * @param transitions The state transitions available to this typed protocol.  The appropriate implicits are also
+ *                    captured and stored for later comparison
  */
 case class TypedProtocolInstance[F[_]] private (
   localParty:              Party,
-  private val transitions: Chain[(StateTransition[F, _, _, _], ClassTag[_], ClassTag[_], ClassTag[_])]
+  private val transitions: Chain[(StateTransition[F, _, _, _], ClassTag[_], ClassTag[_], ClassTag[_], StateAgency[_])]
 ) {
 
   /**
    * Append the given state transition to this instance
    */
-  def withTransition[Message: ClassTag, InState: ClassTag, OutState: ClassTag](
+  def withTransition[Message: ClassTag, InState: ClassTag: StateAgency, OutState: ClassTag](
     transition: StateTransition[F, Message, InState, OutState]
   ): TypedProtocolInstance[F] =
     copy(transitions =
       transitions.append(
-        (transition, implicitly[ClassTag[Message]], implicitly[ClassTag[InState]], implicitly[ClassTag[OutState]])
+        (
+          transition,
+          implicitly[ClassTag[Message]],
+          implicitly[ClassTag[InState]],
+          implicitly[ClassTag[OutState]],
+          implicitly[StateAgency[InState]]
+        )
       )
     )
 
   private def applyMessage[Message: ClassTag](
     message:              Message,
     sender:               Party,
-    currentState:         TypedProtocolState[_],
+    currentState:         Any,
     currentStateClassTag: ClassTag[_]
-  )(implicit monadF: Monad[F]): F[Either[TypedProtocolTransitionFailure, (TypedProtocolState[Any], ClassTag[Any])]] =
+  )(implicit monadF:      Monad[F]): F[Either[TypedProtocolTransitionFailure, (Any, ClassTag[Any])]] =
     EitherT
       .fromOption[F](
-        transitions.find { case (_, messageClassTag, inStateClassTag, _) =>
+        transitions.find { case (_, messageClassTag, inStateClassTag, _, _) =>
           implicitly[ClassTag[Message]] == messageClassTag && inStateClassTag == currentStateClassTag
         },
         IllegalMessageState(message, currentState)
       )
-      .ensure(MessageSenderNotAgent(sender): TypedProtocolTransitionFailure)(_ =>
-        currentState.currentAgent.contains(sender)
-      )
-      .semiflatMap { case (transition, _, _, outStateClassTag) =>
+      .ensure(MessageSenderNotAgent(sender): TypedProtocolTransitionFailure) { handler =>
+        handler._5.asInstanceOf[StateAgency[Any]].agent.contains(sender)
+      }
+      .semiflatMap { case (transition, _, _, outStateClassTag, _) =>
         transition
           .asInstanceOf[StateTransition[F, Message, Any, Any]](
             message,
-            currentState.asInstanceOf[TypedProtocolState[Any]],
+            currentState,
             localParty
           )
           .tupleRight(outStateClassTag.asInstanceOf[ClassTag[Any]])
@@ -65,17 +72,17 @@ case class TypedProtocolInstance[F[_]] private (
    * @param initialState The initial state of the protocol
    */
   def applier[S: ClassTag](
-    initialState:    TypedProtocolState[S]
+    initialState:    S
   )(implicit monadF: Monad[F], syncF: Sync[F]): F[MessageApplier] =
     Ref
-      .of[F, (TypedProtocolState[_], ClassTag[_])]((initialState, implicitly[ClassTag[S]]))
+      .of[F, (Any, ClassTag[_])]((initialState, implicitly[ClassTag[S]]))
       .map(ref =>
         new MessageApplier {
 
           def apply[Message: ClassTag](
             message: Message,
             sender:  Party
-          ): F[Either[TypedProtocolTransitionFailure, TypedProtocolState[Any]]] =
+          ): F[Either[TypedProtocolTransitionFailure, Any]] =
             EitherT(ref.get.flatMap { case (s, sClassTag) =>
               applyMessage[Message](message, sender, s, sClassTag)
             })
@@ -93,7 +100,7 @@ case class TypedProtocolInstance[F[_]] private (
     def apply[Message: ClassTag](
       message: Message,
       sender:  Party
-    ): F[Either[TypedProtocolTransitionFailure, TypedProtocolState[Any]]]
+    ): F[Either[TypedProtocolTransitionFailure, Any]]
   }
 
 }
@@ -104,6 +111,5 @@ object TypedProtocolInstance {
 
 sealed trait TypedProtocolTransitionFailure
 
-case class IllegalMessageState[Message](message: Message, currentState: TypedProtocolState[_])
-    extends TypedProtocolTransitionFailure
+case class IllegalMessageState[Message](message: Message, currentState: Any) extends TypedProtocolTransitionFailure
 case class MessageSenderNotAgent(sender: Party) extends TypedProtocolTransitionFailure

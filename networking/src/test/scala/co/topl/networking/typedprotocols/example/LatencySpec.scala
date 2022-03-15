@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.effect.{Async, IO, Ref}
 import cats.implicits._
 import co.topl.networking.Parties
-import co.topl.networking.typedprotocols.{TypedProtocol, TypedProtocolState}
+import co.topl.networking.typedprotocols.TypedProtocol
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -54,24 +54,24 @@ class LatencySpec
 
     val computation =
       for {
-        none <- TypedProtocolState(Parties.B.some, ProtocolStates.None()).pure[F]
+        none <- ProtocolStates.None.pure[F]
         idleA <- {
           import stateTransitionsA._
-          executorA(ProtocolMessages.Start())(none).nextState
+          executorA(ProtocolMessages.Start)(none).nextState
         }
         idleB <- {
           import stateTransitionsB._
-          executorB(ProtocolMessages.Start())(none).nextState
+          executorB(ProtocolMessages.Start)(none).nextState
         }
         (idleA1, idleB1, _) <- (idleA, idleB, 20)
           .iterateUntilM { case (idleA, idleB, iterationNumber) =>
             (
               {
                 import stateTransitionsA._
-                executorA(ProtocolMessages.Ping())(idleA).nextState
+                executorA(ProtocolMessages.Ping)(idleA).nextState
               }, {
                 import stateTransitionsB._
-                executorB(ProtocolMessages.Ping())(idleB).nextState
+                executorB(ProtocolMessages.Ping)(idleB).nextState
               }
             ).tupled
               .flatTap { case (nextA, nextB) =>
@@ -82,10 +82,44 @@ class LatencySpec
                   (
                     {
                       import stateTransitionsA._
-                      executorA(ProtocolMessages.Pong())(nextA).nextState
+                      executorA(ProtocolMessages.Pong)(nextA).nextState
                     }, {
                       import stateTransitionsB._
-                      executorB(ProtocolMessages.Pong())(nextB).nextState
+                      executorB(ProtocolMessages.Pong)(nextB).nextState
+                    }
+                  ).tupled,
+                  Random.nextInt(200).milli
+                )
+              }
+              .flatTap { case (nextA, nextB) =>
+                (nextA shouldBe nextB).pure[F]
+              }
+              .flatMap { case (nextA, nextB) =>
+                Async[F].delayBy(
+                  (
+                    {
+                      import stateTransitionsA._
+                      executorA(ProtocolMessages.Ping)(nextA).nextState
+                    }, {
+                      import stateTransitionsB._
+                      executorB(ProtocolMessages.Ping)(nextB).nextState
+                    }
+                  ).tupled,
+                  Random.nextInt(200).milli
+                )
+              }
+              .flatTap { case (nextA, nextB) =>
+                (nextA shouldBe nextB).pure[F]
+              }
+              .flatMap { case (nextA, nextB) =>
+                Async[F].delayBy(
+                  (
+                    {
+                      import stateTransitionsA._
+                      executorA(ProtocolMessages.Pong)(nextA).nextState
+                    }, {
+                      import stateTransitionsB._
+                      executorB(ProtocolMessages.Pong)(nextB).nextState
                     }
                   ).tupled,
                   Random.nextInt(200).milli
@@ -100,14 +134,13 @@ class LatencySpec
           }(_._3 <= 0)
         done <- {
           import stateTransitionsA._
-          executorA(ProtocolMessages.Done())(idleA1).nextState
+          executorA(ProtocolMessages.Done)(idleA1).nextState
         }
       } yield done
 
     val protocol5 = computation.unsafeRunSync()
 
-    protocol5.currentAgent shouldBe None
-    protocol5.currentState shouldBe a[ProtocolStates.Done]
+    protocol5 shouldBe ProtocolStates.Done
 
   }
 }

@@ -2,7 +2,6 @@ package co.topl.networking.typedprotocols
 
 import cats.Applicative
 import cats.implicits._
-import co.topl.networking.Parties
 
 /**
  * A classification of Typed Protocol in which the client makes a request and the server produces a response
@@ -15,7 +14,7 @@ trait RequestResponseProtocol[Query, T] {
    * The state transitions for a server-side instance of this protocol
    * @param fetch Function to locally retrieve the data requested by the client
    */
-  class ServerStateTransitions[F[_]: Applicative](fetch: Query => F[Option[T]]) {
+  class ServerStateTransitions[F[_]: Applicative](fetch: Query => F[Unit]) extends StateAgency.CommonStateAgency {
 
     implicit val startNoneIdle: StateTransition[
       F,
@@ -23,7 +22,7 @@ trait RequestResponseProtocol[Query, T] {
       TypedProtocol.CommonStates.None.type,
       TypedProtocol.CommonStates.Idle.type
     ] =
-      (_, _, _) => TypedProtocolState(Parties.B.some, TypedProtocol.CommonStates.Idle).pure[F]
+      (_, _, _) => TypedProtocol.CommonStates.Idle.pure[F]
 
     implicit val getIdleBusy: StateTransition[
       F,
@@ -31,12 +30,12 @@ trait RequestResponseProtocol[Query, T] {
       TypedProtocol.CommonStates.Idle.type,
       TypedProtocol.CommonStates.Busy.type
     ] =
-      (message, _, _) => fetch(message.query).as(TypedProtocolState(Parties.A.some, TypedProtocol.CommonStates.Busy))
+      (message, _, _) => fetch(message.query).as(TypedProtocol.CommonStates.Busy)
 
     implicit val responseBusyIdle: StateTransition[F, TypedProtocol.CommonMessages.Response[
       T
     ], TypedProtocol.CommonStates.Busy.type, TypedProtocol.CommonStates.Idle.type] =
-      (_, _, _) => TypedProtocolState(Parties.B.some, TypedProtocol.CommonStates.Idle).pure[F]
+      (_, _, _) => TypedProtocol.CommonStates.Idle.pure[F]
 
     implicit val doneIdleDone: StateTransition[
       F,
@@ -44,14 +43,15 @@ trait RequestResponseProtocol[Query, T] {
       TypedProtocol.CommonStates.Idle.type,
       TypedProtocol.CommonStates.Done.type
     ] =
-      (_, _, _) => TypedProtocolState(none, TypedProtocol.CommonStates.Done).pure[F]
+      (_, _, _) => TypedProtocol.CommonStates.Done.pure[F]
   }
 
   /**
    * The state transitions for a client-side instance of this protocol
    * @param responseReceived Function to handle data returned by the server
    */
-  class ClientStateTransitions[F[_]: Applicative](responseReceived: Option[T] => F[Unit]) {
+  class ClientStateTransitions[F[_]: Applicative](responseReceived: Option[T] => F[Unit])
+      extends StateAgency.CommonStateAgency {
 
     implicit val startNoneIdle: StateTransition[
       F,
@@ -59,7 +59,7 @@ trait RequestResponseProtocol[Query, T] {
       TypedProtocol.CommonStates.None.type,
       TypedProtocol.CommonStates.Idle.type
     ] =
-      (_, _, _) => TypedProtocolState(Parties.B.some, TypedProtocol.CommonStates.Idle).pure[F]
+      (_, _, _) => TypedProtocol.CommonStates.Idle.pure[F]
 
     implicit val getIdleBusy: StateTransition[
       F,
@@ -67,13 +67,12 @@ trait RequestResponseProtocol[Query, T] {
       TypedProtocol.CommonStates.Idle.type,
       TypedProtocol.CommonStates.Busy.type
     ] =
-      (_, _, _) => TypedProtocolState(Parties.A.some, TypedProtocol.CommonStates.Busy).pure[F]
+      (_, _, _) => TypedProtocol.CommonStates.Busy.pure[F]
 
     implicit val responseBusyIdle: StateTransition[F, TypedProtocol.CommonMessages.Response[
       T
     ], TypedProtocol.CommonStates.Busy.type, TypedProtocol.CommonStates.Idle.type] =
-      (message, _, _) =>
-        responseReceived(message.dataOpt).as(TypedProtocolState(Parties.B.some, TypedProtocol.CommonStates.Idle))
+      (message, _, _) => responseReceived(message.dataOpt).as(TypedProtocol.CommonStates.Idle)
 
     implicit val doneIdleDone: StateTransition[
       F,
@@ -81,7 +80,7 @@ trait RequestResponseProtocol[Query, T] {
       TypedProtocol.CommonStates.Idle.type,
       TypedProtocol.CommonStates.Done.type
     ] =
-      (_, _, _) => TypedProtocolState(none, TypedProtocol.CommonStates.Done).pure[F]
+      (_, _, _) => TypedProtocol.CommonStates.Done.pure[F]
   }
 
 }

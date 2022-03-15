@@ -4,8 +4,8 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import co.topl.networking.Parties
+import co.topl.networking.typedprotocols.TypedProtocol
 import co.topl.networking.typedprotocols.example.PingPong.StateTransitions._
-import co.topl.networking.typedprotocols.{TypedProtocol, TypedProtocolState}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -33,17 +33,16 @@ class PingPongSpec
 
     val computation =
       for {
-        none  <- TypedProtocolState(Parties.B.some, ProtocolStates.None()).pure[F]
-        idle  <- executor(ProtocolMessages.Start())(none).nextState
-        busy  <- executor(ProtocolMessages.Ping())(idle).nextState
-        idle1 <- executor(ProtocolMessages.Pong())(busy).nextState
-        done  <- executor(ProtocolMessages.Done())(idle1).nextState
+        none  <- ProtocolStates.None.pure[F]
+        idle  <- executor(ProtocolMessages.Start)(none).nextState
+        busy  <- executor(ProtocolMessages.Ping)(idle).nextState
+        idle1 <- executor(ProtocolMessages.Pong)(busy).nextState
+        done  <- executor(ProtocolMessages.Done)(idle1).nextState
       } yield done
 
     val protocol5 = computation.unsafeRunSync()
 
-    protocol5.currentAgent shouldBe None
-    protocol5.currentState shouldBe a[ProtocolStates.Done]
+    protocol5 shouldBe ProtocolStates.Done
 
   }
 }

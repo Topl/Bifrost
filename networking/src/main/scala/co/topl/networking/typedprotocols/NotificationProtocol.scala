@@ -2,7 +2,6 @@ package co.topl.networking.typedprotocols
 
 import cats.Applicative
 import cats.implicits._
-import co.topl.networking.Parties
 
 /**
  * A classification of TypedProtocol in which the server perpetually maintains agency to push information to the client.
@@ -13,7 +12,7 @@ trait NotificationProtocol[T] {
   /**
    * Provides state transitions from the perspective of the "server"
    */
-  class StateTransitionsServer[F[_]: Applicative] {
+  class StateTransitionsServer[F[_]: Applicative] extends StateAgency.CommonStateAgency {
 
     implicit val startNoneBusy: StateTransition[
       F,
@@ -21,7 +20,7 @@ trait NotificationProtocol[T] {
       TypedProtocol.CommonStates.None.type,
       TypedProtocol.CommonStates.Busy.type
     ] =
-      (_, _, _) => TypedProtocolState(Parties.A.some, TypedProtocol.CommonStates.Busy).pure[F]
+      (_, _, _) => TypedProtocol.CommonStates.Busy.pure[F]
 
     implicit val pushBusyBusy: StateTransition[
       F,
@@ -29,7 +28,7 @@ trait NotificationProtocol[T] {
       TypedProtocol.CommonStates.Busy.type,
       TypedProtocol.CommonStates.Busy.type
     ] =
-      (_, protocolInState, _) => protocolInState.pure[F]
+      (_, _, _) => TypedProtocol.CommonStates.Busy.pure[F]
 
     implicit val doneBusyDone: StateTransition[
       F,
@@ -37,14 +36,14 @@ trait NotificationProtocol[T] {
       TypedProtocol.CommonStates.Busy.type,
       TypedProtocol.CommonStates.Done.type
     ] =
-      (_, _, _) => TypedProtocolState(none, TypedProtocol.CommonStates.Done).pure[F]
+      (_, _, _) => TypedProtocol.CommonStates.Done.pure[F]
   }
 
   /**
    * Provides state transitions from the perspective of the "client"
    * @param updateReceived Signals that the server has gossiped a new ID
    */
-  class StateTransitionsClient[F[_]: Applicative](updateReceived: T => F[Unit]) {
+  class StateTransitionsClient[F[_]: Applicative](updateReceived: T => F[Unit]) extends StateAgency.CommonStateAgency {
 
     implicit val startNoneBusy: StateTransition[
       F,
@@ -52,7 +51,7 @@ trait NotificationProtocol[T] {
       TypedProtocol.CommonStates.None.type,
       TypedProtocol.CommonStates.Busy.type
     ] =
-      (_, _, _) => TypedProtocolState(Parties.A.some, TypedProtocol.CommonStates.Busy).pure[F]
+      (_, _, _) => TypedProtocol.CommonStates.Busy.pure[F]
 
     implicit val pushBusyBusy: StateTransition[
       F,
@@ -60,7 +59,7 @@ trait NotificationProtocol[T] {
       TypedProtocol.CommonStates.Busy.type,
       TypedProtocol.CommonStates.Busy.type
     ] =
-      (message, protocolInState, _) => updateReceived(message.data).productR(protocolInState.pure[F])
+      (message, _, _) => updateReceived(message.data).as(TypedProtocol.CommonStates.Busy)
 
     implicit val doneBusyDone: StateTransition[
       F,
@@ -68,6 +67,6 @@ trait NotificationProtocol[T] {
       TypedProtocol.CommonStates.Busy.type,
       TypedProtocol.CommonStates.Done.type
     ] =
-      (_, _, _) => TypedProtocolState(none, TypedProtocol.CommonStates.Done).pure[F]
+      (_, _, _) => TypedProtocol.CommonStates.Done.pure[F]
   }
 }

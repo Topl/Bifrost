@@ -3,7 +3,6 @@ package co.topl.networking.typedprotocols
 import cats.Applicative
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.implicits._
 import co.topl.networking.Parties
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -32,13 +31,14 @@ class NotificationProtocolSpec
         val protocol = new NotificationProtocol[String] {}
         new protocol.StateTransitionsClient[F](handlerF)
       }
-      TypedProtocolInstance(Parties.A)
-        .withTransition(transitions.startNoneBusy)
-        .withTransition(transitions.pushBusyBusy)
-        .withTransition(transitions.doneBusyDone)
+      import transitions._
+      TypedProtocolInstance(Parties.B)
+        .withTransition(startNoneBusy)
+        .withTransition(pushBusyBusy)
+        .withTransition(doneBusyDone)
     }
 
-    val applier = instance.applier(TypedProtocolState(Parties.B.some, TypedProtocol.CommonStates.None)).unsafeRunSync()
+    val applier = instance.applier(TypedProtocol.CommonStates.None).unsafeRunSync()
 
     val computation =
       for {
@@ -55,7 +55,7 @@ class NotificationProtocolSpec
     val finalState =
       computation.unsafeRunSync()
 
-    finalState.currentState shouldBe TypedProtocol.CommonStates.Done
+    finalState shouldBe TypedProtocol.CommonStates.Done
 
   }
 

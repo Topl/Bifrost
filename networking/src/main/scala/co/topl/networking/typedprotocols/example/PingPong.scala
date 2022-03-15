@@ -2,42 +2,45 @@ package co.topl.networking.typedprotocols.example
 
 import cats.Applicative
 import cats.implicits._
-import co.topl.networking.Parties
-import co.topl.networking.typedprotocols.{StateTransition, TypedProtocolState}
+import co.topl.networking.typedprotocols.{StateAgency, StateTransition}
 
 object PingPong {
 
   object ProtocolStates {
-    case class None()
-    case class Idle()
-    case class Busy()
-    case class Done()
+    case object None
+    case object Idle
+    case object Busy
+    case object Done
   }
 
   object ProtocolMessages {
-    case class Start()
-    case class Ping()
-    case class Pong()
-    case class Done()
+    case object Start
+    case object Ping
+    case object Pong
+    case object Done
   }
 
   object StateTransitions {
+    implicit val stateAgentStart: StateAgency[ProtocolStates.None.type] = StateAgency.alwaysA
+    implicit val stateAgentIdle: StateAgency[ProtocolStates.Idle.type] = StateAgency.alwaysB
+    implicit val stateAgentBusy: StateAgency[ProtocolStates.Busy.type] = StateAgency.alwaysB
+    implicit val stateAgentDone: StateAgency[ProtocolStates.Done.type] = StateAgency.noAgent
 
     implicit def startNoneIdle[F[_]: Applicative]
-      : StateTransition[F, ProtocolMessages.Start, ProtocolStates.None, ProtocolStates.Idle] =
-      (_, _, _) => TypedProtocolState(Parties.B.some, ProtocolStates.Idle()).pure[F]
+      : StateTransition[F, ProtocolMessages.Start.type, ProtocolStates.None.type, ProtocolStates.Idle.type] =
+      (_, _, _) => ProtocolStates.Idle.pure[F]
 
     implicit def pingIdleBusy[F[_]: Applicative]
-      : StateTransition[F, ProtocolMessages.Ping, ProtocolStates.Idle, ProtocolStates.Busy] =
-      (_, _, _) => TypedProtocolState(Parties.A.some, ProtocolStates.Busy()).pure[F]
+      : StateTransition[F, ProtocolMessages.Ping.type, ProtocolStates.Idle.type, ProtocolStates.Busy.type] =
+      (_, _, _) => ProtocolStates.Busy.pure[F]
 
     implicit def pongBusyIdle[F[_]: Applicative]
-      : StateTransition[F, ProtocolMessages.Pong, ProtocolStates.Busy, ProtocolStates.Idle] =
-      (_, _, _) => TypedProtocolState(Parties.B.some, ProtocolStates.Idle()).pure[F]
+      : StateTransition[F, ProtocolMessages.Pong.type, ProtocolStates.Busy.type, ProtocolStates.Idle.type] =
+      (_, _, _) => ProtocolStates.Idle.pure[F]
 
     implicit def doneIdleDone[F[_]: Applicative]
-      : StateTransition[F, ProtocolMessages.Done, ProtocolStates.Idle, ProtocolStates.Done] =
-      (_, _, _) => TypedProtocolState(none, ProtocolStates.Done()).pure[F]
+      : StateTransition[F, ProtocolMessages.Done.type, ProtocolStates.Idle.type, ProtocolStates.Done.type] =
+      (_, _, _) => ProtocolStates.Done.pure[F]
   }
 
 }

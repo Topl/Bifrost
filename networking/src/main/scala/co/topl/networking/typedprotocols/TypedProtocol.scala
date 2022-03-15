@@ -1,6 +1,7 @@
 package co.topl.networking.typedprotocols
 
-import co.topl.networking.Party
+import cats.implicits._
+import co.topl.networking.{Parties, Party}
 
 /**
  * A “Typed Protocol” is a specialized state machine with a few extra restrictions.  A typed protocol is a 2-party
@@ -25,14 +26,14 @@ object TypedProtocol {
 
       final class TransitionStep3[Message] private[TypedProtocol] (message: Message) {
 
-        def apply[InState](protocolInState: TypedProtocolState[InState]): TransitionStep4[InState] =
+        def apply[InState](protocolInState: InState): TransitionStep4[InState] =
           new TransitionStep4[InState](protocolInState)
 
-        final class TransitionStep4[InState] private[TypedProtocol] (protocolInState: TypedProtocolState[InState]) {
+        final class TransitionStep4[InState] private[TypedProtocol] (protocolInState: InState) {
 
           def nextState[OutState](implicit
             handler: StateTransition[F, Message, InState, OutState]
-          ): F[TypedProtocolState[OutState]] =
+          ): F[OutState] =
             handler.apply(message, protocolInState, localParty)
         }
       }
@@ -56,15 +57,6 @@ object TypedProtocol {
 }
 
 /**
- * Represents the current state of a Typed Protocol
- * @param currentAgent The party that currently has "agency" (the party expected to send the next message).
- *                     If None, assume the protocol has terminated.
- * @param currentState The current protocol-specific state
- * @tparam State The type of State
- */
-case class TypedProtocolState[State](currentAgent: Option[Party], currentState: State)
-
-/**
  * Represents a function that transforms some specific state type using some specific message
  * and outputting some specific new state.
  */
@@ -72,7 +64,33 @@ trait StateTransition[F[_], Message, InState, OutState] {
 
   def apply(
     message:         Message,
-    protocolInState: TypedProtocolState[InState],
+    protocolInState: InState,
     localParty:      Party
-  ): F[TypedProtocolState[OutState]]
+  ): F[OutState]
+}
+
+/**
+ * Represents a pairing of ProtocolState to Active Agent of that state
+ */
+trait StateAgency[ProtocolState] {
+  def agent: Option[Party]
+}
+
+object StateAgency {
+
+  def apply[ProtocolState](a: Option[Party]): StateAgency[ProtocolState] =
+    new StateAgency[ProtocolState] {
+      def agent: Option[Party] = a
+    }
+
+  def alwaysA[ProtocolState]: StateAgency[ProtocolState] = StateAgency[ProtocolState](Parties.A.some)
+  def alwaysB[ProtocolState]: StateAgency[ProtocolState] = StateAgency[ProtocolState](Parties.B.some)
+  def noAgent[ProtocolState]: StateAgency[ProtocolState] = StateAgency[ProtocolState](none)
+
+  trait CommonStateAgency {
+    implicit val stateAgentStart: StateAgency[TypedProtocol.CommonStates.None.type] = StateAgency.alwaysB
+    implicit val stateAgentIdle: StateAgency[TypedProtocol.CommonStates.Idle.type] = StateAgency.alwaysB
+    implicit val stateAgentBusy: StateAgency[TypedProtocol.CommonStates.Busy.type] = StateAgency.alwaysA
+    implicit val stateAgentDone: StateAgency[TypedProtocol.CommonStates.Done.type] = StateAgency.noAgent
+  }
 }
