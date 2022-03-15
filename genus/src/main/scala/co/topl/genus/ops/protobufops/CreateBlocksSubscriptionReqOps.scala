@@ -8,7 +8,7 @@ import co.topl.genus.types.BlockHeight
 
 import scala.language.implicitConversions
 
-final class CreateBlocksSubscriptionReqOps(val value: CreateBlocksSubscriptionReq) extends AnyVal {
+final class CreateBlocksSubscriptionReqOps(private val value: CreateBlocksSubscriptionReq) extends AnyVal {
 
   def toRequest: SubscriptionServiceAlg.CreateRequest[BlockFilter] =
     SubscriptionServiceAlg.CreateRequest(

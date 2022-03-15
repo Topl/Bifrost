@@ -9,7 +9,7 @@ import co.topl.genus.types.Block
 
 import scala.language.implicitConversions
 
-final class BlocksQueryStreamResCompanionOps(val companion: BlocksQueryStreamRes.type) extends AnyVal {
+final class BlocksQueryStreamResCompanionOps(private val companion: BlocksQueryStreamRes.type) extends AnyVal {
 
   def fromBlock(block: Block): BlocksQueryStreamRes =
     BlocksQueryStreamRes(BlocksQueryStreamRes.Result.Block(block))

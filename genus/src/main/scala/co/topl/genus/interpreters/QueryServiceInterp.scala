@@ -20,8 +20,6 @@ object QueryServiceInterp {
 
     def make[F[_]: MonadThrow: Async, T, Filter, Sort](
       dataStore:             DataStoreQueryAlg[F, Source[*, NotUsed], Sort, Filter, T],
-      defaultFilter:         Filter,
-      defaultSort:           Sort,
       timeout:               FiniteDuration
     )(implicit materializer: Materializer): QueryServiceAlg[F, T, Filter, Sort] =
       new QueryServiceAlg[F, T, Filter, Sort] {
@@ -52,8 +50,8 @@ object QueryServiceInterp {
                 dataStore
                   .query(
                     // use provided filter or default to a filter which gets all values
-                    req.filter.getOrElse(defaultFilter),
-                    req.sort.getOrElse(defaultSort),
+                    req.filter,
+                    req.sort,
                     req.paging
                   )
                   .map(_.asRight[QueryFailure])

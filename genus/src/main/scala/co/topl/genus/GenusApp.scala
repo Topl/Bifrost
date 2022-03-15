@@ -13,9 +13,9 @@ import co.topl.genus.interpreters.MongoQueryInterp.MongoQueryAlg
 import co.topl.genus.interpreters.MongoSubscriptionInterp.MongoSubscriptionAlg
 import co.topl.genus.interpreters._
 import co.topl.genus.programs._
-import co.topl.genus.services.blocks_query.{BlocksQuery, BlocksQueryHandler}
+import co.topl.genus.services.blocks_query.{BlockSorting, BlocksQuery, BlocksQueryHandler}
 import co.topl.genus.services.blocks_subscription.{BlocksSubscription, BlocksSubscriptionHandler}
-import co.topl.genus.services.transactions_query.{TransactionsQuery, TransactionsQueryHandler}
+import co.topl.genus.services.transactions_query.{TransactionSorting, TransactionsQuery, TransactionsQueryHandler}
 import co.topl.genus.services.transactions_subscription.{TransactionsSubscription, TransactionsSubscriptionHandler}
 import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.types._
@@ -68,17 +68,22 @@ object GenusApp extends IOApp.Simple {
   // mongo algebras
   val mongoOplog: MongoOplogAlg[F] = MongoOplogInterp.Eval.make(oplogCollection)
 
-  val txsDataStoreQuery: MongoQueryAlg[F, Transaction, TransactionFilter] =
+  val txsDataStoreQuery: MongoQueryAlg[F, Transaction, TransactionFilter, TransactionSorting] =
     DataStoreQueryAlg
-      .mapQueryType[F, Source[*, NotUsed], Bson, TransactionFilter, ConfirmedTransactionDataModel, Transaction](
-        MongoQueryInterp.Eval.make[F, ConfirmedTransactionDataModel, TransactionFilter](txsMongoCollection),
+      .mapQueryType[F, Source[
+        *,
+        NotUsed
+      ], TransactionSorting, TransactionFilter, ConfirmedTransactionDataModel, Transaction](
+        MongoQueryInterp.Eval.make[F, ConfirmedTransactionDataModel, TransactionFilter, TransactionSorting](
+          txsMongoCollection
+        ),
         dataModel => dataModel.transformTo[Transaction]
       )
 
-  val blocksDataStoreQuery: MongoQueryAlg[F, Block, BlockFilter] =
+  val blocksDataStoreQuery: MongoQueryAlg[F, Block, BlockFilter, BlockSorting] =
     DataStoreQueryAlg
-      .mapQueryType[F, Source[*, NotUsed], Bson, BlockFilter, BlockDataModel, Block](
-        MongoQueryInterp.Eval.make[F, BlockDataModel, BlockFilter](blocksMongoCollection),
+      .mapQueryType[F, Source[*, NotUsed], BlockSorting, BlockFilter, BlockDataModel, Block](
+        MongoQueryInterp.Eval.make[F, BlockDataModel, BlockFilter, BlockSorting](blocksMongoCollection),
         dataModel => dataModel.transformTo[Block]
       )
 
@@ -116,21 +121,11 @@ object GenusApp extends IOApp.Simple {
   val defaultBlockSort: Bson = Sorts.ascending("height")
 
   // service implementations
-  val transactionsQueryService: QueryServiceAlg[F, Transaction, TransactionFilter, Bson] =
-    QueryServiceInterp.Eval.make[F, Transaction, TransactionFilter, Bson](
-      txsDataStoreQuery,
-      defaultTransactionFilter,
-      defaultTransactionSort,
-      5.seconds
-    )
+  val transactionsQueryService: QueryServiceAlg[F, Transaction, TransactionFilter, TransactionSorting] =
+    QueryServiceInterp.Eval.make(txsDataStoreQuery, 5.seconds)
 
-  val blocksQueryService: QueryServiceAlg[F, Block, BlockFilter, Bson] =
-    QueryServiceInterp.Eval.make[F, Block, BlockFilter, Bson](
-      blocksDataStoreQuery,
-      defaultBlockFilter,
-      defaultBlockSort,
-      5.seconds
-    )
+  val blocksQueryService: QueryServiceAlg[F, Block, BlockFilter, BlockSorting] =
+    QueryServiceInterp.Eval.make(blocksDataStoreQuery, 5.seconds)
 
   val txsSubService: SubscriptionServiceAlg[F, Transaction, TransactionFilter] =
     SubscriptionServiceInterp.Eval.make(defaultTransactionFilter, txsDataStoreSub)

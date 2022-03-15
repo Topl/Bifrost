@@ -8,7 +8,13 @@ import cats.effect.unsafe.implicits.global
 import co.topl.genus.algebras.QueryServiceAlg
 import co.topl.genus.algebras.QueryServiceAlg.QueryFailures
 import co.topl.genus.filters.BlockFilter
-import co.topl.genus.services.blocks_query.{BlocksQuery, BlocksQueryStreamReq, QueryBlocksReq, QueryBlocksRes}
+import co.topl.genus.services.blocks_query.{
+  BlockSorting,
+  BlocksQuery,
+  BlocksQueryStreamReq,
+  QueryBlocksReq,
+  QueryBlocksRes
+}
 import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.types._
 import org.mongodb.scala.bson.conversions.Bson
@@ -40,7 +46,7 @@ class BlockQueryProgramSpec
   it should "return a data connection error when the data store call fails" in {
     val query = QueryBlocksReq()
 
-    val queryService = mock[QueryServiceAlg[F, Block, BlockFilter, Bson]]
+    val queryService = mock[QueryServiceAlg[F, Block, BlockFilter, BlockSorting]]
     (queryService.asList _)
       .expects(*)
       .returns(EitherT.left(IO.pure(QueryFailures.DataStoreConnectionError("error"))))
@@ -59,7 +65,7 @@ class BlockQueryProgramSpec
 
     val existingData: List[Block] = List(Block(id = "test-1"), Block(id = "test-2"))
 
-    val queryService = mock[QueryServiceAlg[F, Block, BlockFilter, Bson]]
+    val queryService = mock[QueryServiceAlg[F, Block, BlockFilter, BlockSorting]]
     (queryService.asSource _)
       .expects(*)
       .returns(EitherT.right(IO.pure(Source(existingData))))

@@ -12,10 +12,36 @@ service BlocksQuery {
   rpc QueryStream (BlocksQueryStreamReq) returns (stream BlocksQueryStreamRes);
 }
 
+message BlockSorting {
+  message Height {
+    bool descending = 1;
+  }
+
+  message Timestamp {
+    bool descending = 1;
+  }
+
+  message Difficulty {
+    bool descending = 1;
+  }
+
+  message NumberOfTransactions {
+    bool descending = 1;
+  }
+
+  oneof sort_by {
+    Height height = 1;
+    Timestamp timestamp = 2;
+    Difficulty difficulty = 3;
+    NumberOfTransactions number_of_transactions = 4;
+  }
+}
+
 message QueryBlocksReq {
   BlockFilter filter = 1;
-  uint32 confirmation_depth = 2;
-  Paging paging_options = 3;
+  BlockSorting sorting = 2;
+  uint32 confirmation_depth = 3;
+  Paging paging_options = 4;
 }
 
 message QueryBlocksRes {
@@ -39,7 +65,8 @@ message QueryBlocksRes {
 
 message BlocksQueryStreamReq {
   BlockFilter filter = 1;
-  uint32 confirmation_depth = 2;
+  BlockSorting sorting = 2;
+  uint32 confirmation_depth = 3;
 }
 
 message BlocksQueryStreamRes {

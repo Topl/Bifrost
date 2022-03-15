@@ -9,7 +9,7 @@ import co.topl.genus.types.Transaction
 
 import scala.language.implicitConversions
 
-final class TxsQueryStreamResCompanionOps(val companion: TxsQueryStreamRes.type) extends AnyVal {
+final class TxsQueryStreamResCompanionOps(private val companion: TxsQueryStreamRes.type) extends AnyVal {
 
   def fromTransactions[F[_]: Functor](transactions: F[Transaction]): F[TxsQueryStreamRes] =
     transactions.map(fromTransaction)

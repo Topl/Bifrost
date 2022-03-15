@@ -46,8 +46,8 @@ object QueryServiceAlg {
    * @tparam Sort the type of sorting value
    */
   case class QueryRequest[Filter, Sort](
-    filter:            Option[Filter],
-    sort:              Option[Sort],
+    filter:            Filter,
+    sort:              Sort,
     paging:            Option[Paging],
     confirmationDepth: Int
   )
