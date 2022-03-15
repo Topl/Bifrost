@@ -159,13 +159,12 @@ class MemPoolAuditorSpec
     val testIn = genesisNodeView()
 
     val peerManagerRef: CActorRef =
-      cSystem.actorOf(PeerManagerRef.props(testSettings, appContext), PeerManager.actorName)
+      cSystem.actorOf(PeerManagerRef.props(testSettings, None), PeerManager.actorName)
     val networkControllerRef: CActorRef =
       cSystem.actorOf(NetworkControllerRef.props(testSettings, peerManagerRef, appContext, IO(Tcp)))
     val consensusStorageRef = spawn(
       NxtConsensus(
         settings,
-        appContext.networkType,
         InMemoryKeyValueStore.empty()
       ),
       NxtConsensus.actorName

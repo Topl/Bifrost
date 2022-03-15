@@ -27,7 +27,7 @@ class PeerConnectionHandlerSpec
 
   property("A new PeerConnectionHandler should be created") {
 
-    val peerManagerRef: ActorRef = system.actorOf(PeerManagerRef.props(settings, appContext))
+    val peerManagerRef: ActorRef = system.actorOf(PeerManagerRef.props(settings, None))
     val networkControllerRef: ActorRef =
       system.actorOf(NetworkControllerRef.props(settings, peerManagerRef, appContext, IO(Tcp)))
 

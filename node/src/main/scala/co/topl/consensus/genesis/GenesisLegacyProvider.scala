@@ -1,25 +1,25 @@
-package co.topl.consensus.genesis
+//package co.topl.consensus.genesis
 
-import co.topl.attestation.EvidenceProducer.Syntax.ProducerOps
-import co.topl.attestation.implicits._
-import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519}
-import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
-import co.topl.consensus.Forger.ChainParams
-import co.topl.crypto.{PrivateKey, PublicKey}
-import co.topl.modifier.ModifierId
-import co.topl.modifier.block.Block
-import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
-import co.topl.modifier.box.{ArbitBox, Box, SimpleValue}
-import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, TransferTransaction}
-import co.topl.settings.{GenesisGenerationSettings}
-import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
-import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
-import co.topl.utils.{Int128, Logging}
-import simulacrum.{op, typeclass}
-
-import scala.collection.immutable.ListMap
-import scala.util.Try
+//import co.topl.attestation.EvidenceProducer.Syntax.ProducerOps
+//import co.topl.attestation.implicits._
+//import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519}
+//import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
+//import co.topl.consensus.Forger.ChainParams
+//import co.topl.crypto.{PrivateKey, PublicKey}
+//import co.topl.modifier.ModifierId
+//import co.topl.modifier.block.Block
+//import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
+//import co.topl.modifier.box.{ArbitBox, Box, SimpleValue}
+//import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, TransferTransaction}
+//import co.topl.settings.{GenesisGenerationSettings}
+//import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
+//import co.topl.utils.NetworkType.NetworkPrefix
+//import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
+//import co.topl.utils.{Int128, Logging}
+//import simulacrum.{op, typeclass}
+//
+//import scala.collection.immutable.ListMap
+//import scala.util.Try
 
 
 

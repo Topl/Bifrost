@@ -30,19 +30,25 @@ class TransactionValidationSpec
 
   property("Randomly generated AssetTransfer Tx should be valid") {
     forAll(
-      validAssetTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, genesisState, minting = true)
+      validAssetTransferGen(
+        keyRingCurve25519,
+        keyRingEd25519,
+        propsThresholdCurve25519,
+        staticGenesisState,
+        minting = true
+      )
     ) { tx =>
       tx.syntacticValidation should beValid[TransferTx](tx)
     }
   }
 
   property("AssetTransfer with minting = true should fail if no PolyBoxes are provided") {
-    val genCurve25519 = validAssetTransferCurve25519Gen(keyRingCurve25519, genesisState, fee = 0, minting = true).map {
-      tx =>
+    val genCurve25519 =
+      validAssetTransferCurve25519Gen(keyRingCurve25519, staticGenesisState, fee = 0, minting = true).map { tx =>
         val fromWithoutPolys: IndexedSeq[(Address, Box.Nonce)] = tx.from
           .map { case (address, nonce) =>
             val boxId = BoxId.idFromEviNonce(address.evidence, nonce)
-            val box = genesisState.getBox(boxId).get
+            val box = staticGenesisState.getBox(boxId).get
             (address, nonce, box)
           }
           .collect { case (address, nonce, _: AssetBox) =>
@@ -54,34 +60,35 @@ class TransactionValidationSpec
         noPolyRawTx.copy(attestation =
           Transaction.updateAttestation(noPolyRawTx)(keyRingCurve25519.generateAttestation(sender))
         )
-    }
+      }
     forAll(genCurve25519)(tx =>
-      tx.semanticValidation(genesisState) should haveInvalidC[SemanticValidationFailure](
+      tx.semanticValidation(staticGenesisState) should haveInvalidC[SemanticValidationFailure](
         SyntacticSemanticValidationFailure(
           NonEmptyChain(NoInputBoxesSpecified)
         )
       )
     )
 
-    val genEd25519 = validAssetTransferEd25519Gen(keyRingEd25519, genesisState, fee = 0, minting = true).map { tx =>
-      val fromWithoutPolys: IndexedSeq[(Address, Box.Nonce)] = tx.from
-        .map { case (address, nonce) =>
-          val boxId = BoxId.idFromEviNonce(address.evidence, nonce)
-          val box = genesisState.getBox(boxId).get
-          (address, nonce, box)
-        }
-        .collect { case (address, nonce, _: AssetBox) =>
-          (address, nonce)
-        }
+    val genEd25519 = validAssetTransferEd25519Gen(keyRingEd25519, staticGenesisState, fee = 0, minting = true).map {
+      tx =>
+        val fromWithoutPolys: IndexedSeq[(Address, Box.Nonce)] = tx.from
+          .map { case (address, nonce) =>
+            val boxId = BoxId.idFromEviNonce(address.evidence, nonce)
+            val box = staticGenesisState.getBox(boxId).get
+            (address, nonce, box)
+          }
+          .collect { case (address, nonce, _: AssetBox) =>
+            (address, nonce)
+          }
 
-      val noPolyRawTx = tx.copy(from = fromWithoutPolys)
-      val sender = keyRingEd25519.addresses.head
-      noPolyRawTx.copy(attestation =
-        Transaction.updateAttestation(noPolyRawTx)(keyRingEd25519.generateAttestation(sender))
-      )
+        val noPolyRawTx = tx.copy(from = fromWithoutPolys)
+        val sender = keyRingEd25519.addresses.head
+        noPolyRawTx.copy(attestation =
+          Transaction.updateAttestation(noPolyRawTx)(keyRingEd25519.generateAttestation(sender))
+        )
     }
     forAll(genEd25519)(tx =>
-      tx.semanticValidation(genesisState) should haveInvalidC[SemanticValidationFailure](
+      tx.semanticValidation(staticGenesisState) should haveInvalidC[SemanticValidationFailure](
         SyntacticSemanticValidationFailure(
           NonEmptyChain(NoInputBoxesSpecified)
         )
@@ -122,8 +129,9 @@ class TransactionValidationSpec
   }
 
   property("Randomly generated ArbitTransfer Tx should be valid") {
-    forAll(validArbitTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, genesisState)) { tx =>
-      tx.syntacticValidation should beValid[TransferTx](tx)
+    forAll(validArbitTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, staticGenesisState)) {
+      tx =>
+        tx.syntacticValidation should beValid[TransferTx](tx)
     }
   }
 
@@ -138,12 +146,12 @@ class TransactionValidationSpec
 
   property("ArbitTransfer should fail if no PolyBoxes are provided") {
     val genCurve25519 =
-      validArbitTransferCurve25519Gen(keyRingCurve25519, genesisState, fee = 0)
+      validArbitTransferCurve25519Gen(keyRingCurve25519, staticGenesisState, fee = 0)
         .map { tx =>
           val fromWithoutPolys: IndexedSeq[(Address, Box.Nonce)] = tx.from
             .map { case (address, nonce) =>
               val boxId = BoxId.idFromEviNonce(address.evidence, nonce)
-              val box = genesisState.getBox(boxId).get
+              val box = staticGenesisState.getBox(boxId).get
               (address, nonce, box)
             }
             .collect { case (address, nonce, _: ArbitBox) =>
@@ -154,7 +162,7 @@ class TransactionValidationSpec
 
         }
     forAll(genCurve25519) { tx =>
-      tx.semanticValidation(genesisState) should haveInvalidC[SemanticValidationFailure](
+      tx.semanticValidation(staticGenesisState) should haveInvalidC[SemanticValidationFailure](
         InputFeeChangeOutputUnequalNonMinting(
           1000000,
           0,
@@ -164,12 +172,12 @@ class TransactionValidationSpec
     }
 
     val genEd25519 =
-      validArbitTransferEd25519Gen(keyRingEd25519, genesisState, fee = 0)
+      validArbitTransferEd25519Gen(keyRingEd25519, staticGenesisState, fee = 0)
         .map { tx =>
           val fromWithoutPolys: IndexedSeq[(Address, Box.Nonce)] = tx.from
             .map { case (address, nonce) =>
               val boxId = BoxId.idFromEviNonce(address.evidence, nonce)
-              val box = genesisState.getBox(boxId).get
+              val box = staticGenesisState.getBox(boxId).get
               (address, nonce, box)
             }
             .collect { case (address, nonce, _: ArbitBox) =>
@@ -180,7 +188,7 @@ class TransactionValidationSpec
 
         }
     forAll(genEd25519) { tx =>
-      tx.semanticValidation(genesisState) should haveInvalidC[SemanticValidationFailure](
+      tx.semanticValidation(staticGenesisState) should haveInvalidC[SemanticValidationFailure](
         InputFeeChangeOutputUnequalNonMinting(
           1000000,
           0,
@@ -193,7 +201,13 @@ class TransactionValidationSpec
   property("Transactions created on a specific network should not be accepted on any other network") {
     val otherNetworks = NetworkType.all.filterNot(_ == PrivateTestnet)
     forAll(
-      validAssetTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, genesisState, minting = true)
+      validAssetTransferGen(
+        keyRingCurve25519,
+        keyRingEd25519,
+        propsThresholdCurve25519,
+        staticGenesisState,
+        minting = true
+      )
     ) { tx =>
       otherNetworks.foreach { netType =>
         tx.syntacticValidation(netType.netPrefix) should haveInvalidC[SyntacticValidationFailure](
@@ -205,8 +219,9 @@ class TransactionValidationSpec
   }
 
   property("Randomly generated PolyTransfer Tx should be valid") {
-    forAll(validPolyTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, genesisState)) { tx =>
-      tx.syntacticValidation should beValid[TransferTx](tx)
+    forAll(validPolyTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, staticGenesisState)) {
+      tx =>
+        tx.syntacticValidation should beValid[TransferTx](tx)
     }
   }
 
@@ -219,24 +234,26 @@ class TransactionValidationSpec
   }
 
   property("Transaction with negative fee should be invalid") {
-    forAll(validPolyTransferCurve25519Gen(keyRingCurve25519, genesisState).map(tx => signTx(tx.copy(fee = -1)))) { tx =>
-      tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](NegativeFeeFailure)
+    forAll(validPolyTransferCurve25519Gen(keyRingCurve25519, staticGenesisState).map(tx => signTx(tx.copy(fee = -1)))) {
+      tx =>
+        tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](NegativeFeeFailure)
     }
 
-    forAll(validPolyTransferEd25519Gen(keyRingEd25519, genesisState).map(tx => signTx(tx.copy(fee = -1)))) { tx =>
+    forAll(validPolyTransferEd25519Gen(keyRingEd25519, staticGenesisState).map(tx => signTx(tx.copy(fee = -1)))) { tx =>
       tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](NegativeFeeFailure)
     }
   }
 
   property("Transaction with negative timestamp should be invalid") {
     forAll(
-      validPolyTransferCurve25519Gen(keyRingCurve25519, genesisState).map(tx => signTx(tx.copy(timestamp = -1)))
+      validPolyTransferCurve25519Gen(keyRingCurve25519, staticGenesisState).map(tx => signTx(tx.copy(timestamp = -1)))
     ) { tx =>
       tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](InvalidTimestamp)
     }
 
-    forAll(validPolyTransferEd25519Gen(keyRingEd25519, genesisState).map(tx => signTx(tx.copy(timestamp = -1)))) { tx =>
-      tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](InvalidTimestamp)
+    forAll(validPolyTransferEd25519Gen(keyRingEd25519, staticGenesisState).map(tx => signTx(tx.copy(timestamp = -1)))) {
+      tx =>
+        tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](InvalidTimestamp)
     }
   }
 
@@ -244,7 +261,7 @@ class TransactionValidationSpec
     val data = Random.alphanumeric.take(512).mkString
 
     forAll(
-      validPolyTransferCurve25519Gen(keyRingCurve25519, genesisState).map(tx =>
+      validPolyTransferCurve25519Gen(keyRingCurve25519, staticGenesisState).map(tx =>
         signTx(tx.copy(data = Some(Latin1Data.unsafe(data))))
       )
     ) { tx =>
@@ -252,7 +269,7 @@ class TransactionValidationSpec
     }
 
     forAll(
-      validPolyTransferEd25519Gen(keyRingEd25519, genesisState).map(tx =>
+      validPolyTransferEd25519Gen(keyRingEd25519, staticGenesisState).map(tx =>
         signTx(tx.copy(data = Some(Latin1Data.unsafe(data))))
       )
     ) { tx =>

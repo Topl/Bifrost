@@ -76,13 +76,12 @@ trait RPCMockState
     timeProvider = new NetworkTimeProvider(settings.ntp)(system.toTyped)
 
     keyManagerRef = TestActorRef(
-      new KeyManager(settings, appContext)(appContext.networkType.netPrefix)
+      new KeyManager(settings)(appContext.networkType.netPrefix)
     )
 
     consensusHolderRef = system.toTyped.systemActorOf(
       NxtConsensus(
         settings,
-        appContext.networkType,
         InMemoryKeyValueStore.empty()
       ),
       NxtConsensus.actorName
@@ -97,13 +96,12 @@ trait RPCMockState
         () =>
           NodeView.persistent(
             settings,
-            appContext.networkType,
             consensusInterface,
             () =>
               (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
                 .mapTo[Try[StartupKeyView]]
                 .flatMap(Future.fromTry)
-          )(system.toTyped, implicitly)
+          )(system.toTyped, implicitly, networkPrefix)
       ),
       NodeViewHolder.ActorName
     )
@@ -129,7 +127,7 @@ trait RPCMockState
     // manipulate the underlying actor state
     TestableNodeViewHolder.setNodeView(
       nodeViewHolderRef,
-      _.copy(state = genesisState)
+      _.copy(state = staticGenesisState)
     )(system.toTyped)
     km.context.become(km.receive(keyRingCurve25519, Some(keyRingCurve25519.addresses.head)))
 

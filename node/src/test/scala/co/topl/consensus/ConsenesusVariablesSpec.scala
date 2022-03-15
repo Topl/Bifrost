@@ -35,9 +35,9 @@ class ConsenesusVariablesSpec
   behavior of "ConsensusStorage"
 
   private val defaultTotalStake = settings.forging.genesis
-    .flatMap(_.generated)
+    .map(_.generated)
     .map { testnetSettings =>
-      testnetSettings.numTestnetAccts * testnetSettings.testnetBalance
+      testnetSettings.numberOfParticipants * testnetSettings.balanceForEachParticipant
     }
     .value
 
@@ -94,7 +94,7 @@ class ConsenesusVariablesSpec
     val probe = createTestProbe[State]()
     val store = InMemoryKeyValueStore.empty()
     val consensusStorageRef = spawn(
-      NxtConsensus(settings, appContext.networkType, store),
+      NxtConsensus(settings, store),
       NxtConsensus.actorName
     )
     val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head)
@@ -112,7 +112,7 @@ class ConsenesusVariablesSpec
 
     // initialize a new consensus actor with the modified InMemoryKeyValueStore
     val newConsensusStorageRef = spawn(
-      NxtConsensus(settings, appContext.networkType, store),
+      NxtConsensus(settings, store),
       NxtConsensus.actorName
     )
     newConsensusStorageRef ! ReadState(probe.ref)
@@ -177,7 +177,6 @@ class ConsenesusVariablesSpec
       spawn(
         NxtConsensus(
           settings,
-          appContext.networkType,
           InMemoryKeyValueStore(settings.application.consensusStoreVersionsToKeep)
         ),
         NxtConsensus.actorName

@@ -98,7 +98,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         }
         keyRingCurve25519.addresses.map { addr =>
           balances.hcursor.downField(addr.toString).get[Json]("Balances").map { balance =>
-            val testnetBalance = settings.forging.genesis.flatMap(_.generated).map(_.testnetBalance).get.toString
+            val testnetBalance = settings.forging.genesis.map(_.generated).map(_.balanceForEachParticipant).toString
             balance.hcursor.downField("Polys").as[String].value shouldEqual testnetBalance
             balance.hcursor.downField("Arbits").as[String].value shouldEqual testnetBalance
           }

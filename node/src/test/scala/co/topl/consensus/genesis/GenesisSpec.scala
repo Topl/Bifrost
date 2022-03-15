@@ -4,11 +4,11 @@ import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCur
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
 import co.topl.settings.{GenesisFromBlockJsonSettings, GenesisGenerationSettings}
 import co.topl.utils.NetworkType._
-import co.topl.utils.{InMemoryKeyFileTestHelper, Int128, NodeGenerators, TestSettings}
+import co.topl.utils.{InMemoryKeyFileTestHelper, Int128, NodeGenerators}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpecLike
-import org.scalatest.{BeforeAndAfterAll, EitherValues, Inspectors}
+import org.scalatest.{BeforeAndAfterAll, EitherValues}
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import org.slf4j.Logger
 
@@ -19,7 +19,6 @@ class GenesisSpec
     with EitherValues
     with MockFactory
     with InMemoryKeyFileTestHelper
-    with Inspectors
     with BeforeAndAfterAll
     with NodeGenerators
     with Matchers {

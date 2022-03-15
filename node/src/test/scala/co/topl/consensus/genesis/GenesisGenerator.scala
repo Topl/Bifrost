@@ -3,55 +3,37 @@ package co.topl.consensus.genesis
 import co.topl.attestation.EvidenceProducer.Syntax.ProducerOps
 import co.topl.attestation._
 import co.topl.attestation.keyManagement._
-import co.topl.consensus.Forger.ChainParams
+import co.topl.consensus.NxtConsensus
+import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
-import co.topl.settings.AppSettings
+import co.topl.settings.GenesisGenerationSettings
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
 
 import scala.collection.SortedSet
 import scala.collection.immutable.ListMap
-import scala.util.Try
 
-case class TestGenesis(
+case class GenesisGenerator(
   keyRingCurve25519:               KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
   keyRingEd25519:                  KeyRing[PrivateKeyEd25519, KeyfileEd25519],
-  propositionsThresholdCurve25519: Set[ThresholdPropositionCurve25519],
-  settings:                        AppSettings
-)(implicit
-  val networkPrefix: NetworkPrefix
-) extends GenesisLegacyProvider {
+  propositionsThresholdCurve25519: Set[ThresholdPropositionCurve25519]
+)(implicit networkPrefix:          NetworkPrefix) {
 
-  override protected val blockChecksum: ModifierId = ModifierId.empty
+  def GenesisGen: GenesisProvider[GenesisGenerationSettings] = strategy => {
+    val (_, balance, initialDifficulty) =
+      (strategy.numberOfParticipants, strategy.balanceForEachParticipant, strategy.initialDifficulty)
 
-  override protected val blockVersion: PNVMVersion = settings.application.version.blockByte
+    val (addressesCurve25519, addressesEd25519, addressesThresholdCurve25519) =
+      (keyRingCurve25519.addresses, keyRingEd25519.addresses, propositionsThresholdCurve25519.map(_.address))
 
-  override protected[genesis] val members: ListMap[String, Int128] = ListMap("Not implemented here" -> 0L)
+    val genesisAcctCurve25519: PrivateKeyCurve25519 =
+      new PrivateKeyCurve25519(PrivateKey(Array.fill(32)(2: Byte)), PublicKey(Array.fill(32)(2: Byte)))
 
-  override def getGenesisBlock: Try[(Block, ChainParams)] = Try(formNewBlock)
-
-  /**
-   * We want a private network to have a brand new genesis block that is created at runtime. This is
-   * done to allow the user to forge on their private network. Therefore, we need to generate a new set of keys
-   * by making a call to the key manager holder to create a the set of forging keys. Once these keys are created,
-   * we can use the public images to pre-fund the accounts from genesis.
-   */
-  val (_, balance, initialDifficulty) = settings.forging.genesis
-    .flatMap(_.generated)
-    .map { settings =>
-      (settings.numTestnetAccts, settings.testnetBalance, settings.initialDifficulty)
-    }
-    .getOrElse(10, 1000000L, 1000000000000000000L)
-
-  def formNewBlock: (Block, ChainParams) = {
-    val addressesCurve25519 = keyRingCurve25519.addresses
-    val addressesEd25519 = keyRingEd25519.addresses
-
-    val addressesThresholdCurve25519 = propositionsThresholdCurve25519.map(_.address)
+    val genesisAcctEd25519: PrivateKeyEd25519 =
+      new PrivateKeyEd25519(PrivateKey(Array.fill(32)(2: Byte)), PublicKey(Array.fill(32)(2: Byte)))
 
     val genesisThresholdPublicKey = ThresholdPropositionCurve25519(
       0,
@@ -59,7 +41,7 @@ case class TestGenesis(
     )
 
     // map the members to their balances then continue as normal
-    val privateTotalStake =
+    val totalStake =
       (addressesCurve25519.size + addressesEd25519.size + addressesThresholdCurve25519.size) * balance
 
     val txInputCurve25519 = (
@@ -107,8 +89,9 @@ case class TestGenesis(
       (PolyTransfer[PublicKeyPropositionEd25519] _).tupled(txInputEd25519)
     )
 
-    val generatorBox = ArbitBox(genesisAcctCurve25519.publicImage.generateEvidence, 0, SimpleValue(privateTotalStake))
+    val generatorBox = ArbitBox(genesisAcctCurve25519.publicImage.generateEvidence, 0, SimpleValue(totalStake))
     val signature = SignatureCurve25519.genesis
+    val blockVersion = strategy.genesisApplicationVersion.blockByte
 
     val block =
       Block(
@@ -123,8 +106,7 @@ case class TestGenesis(
         blockVersion
       )
 
-    log.debug(s"Initialize state with block $block")
-
-    (block, ChainParams(privateTotalStake, initialDifficulty))
+    val state = NxtConsensus.State(Int128(totalStake), strategy.initialDifficulty, 0L, 0L)
+    NxtConsensus.Genesis(block, state)
   }
 }

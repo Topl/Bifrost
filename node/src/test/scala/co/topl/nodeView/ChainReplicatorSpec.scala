@@ -382,7 +382,6 @@ class ChainReplicatorSpec
     val consensusStorageRef = spawn(
       NxtConsensus(
         settings,
-        appContext.networkType,
         InMemoryKeyValueStore.empty()
       ),
       NxtConsensus.actorName

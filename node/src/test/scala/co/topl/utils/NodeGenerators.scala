@@ -2,7 +2,7 @@ package co.topl.utils
 
 import co.topl.attestation._
 import co.topl.attestation.keyManagement._
-import co.topl.consensus.genesis.TestGenesis
+import co.topl.consensus.genesis.GenesisGenerator
 import co.topl.consensus.{NxtConsensus, NxtLeaderElection, ProtocolVersioner}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -65,7 +65,9 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
   } yield new Version(first, second, third)
 
   lazy val genesisBlock: Block =
-    TestGenesis(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, settings).getGenesisBlock.get._1
+    GenesisGenerator(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519).GenesisGen
+      .get(settings.forging.genesis.map(_.generated).get)
+      .block
 
   val genesisGenerationSettingsGen: Gen[GenesisGenerationSettings] = for {
     version              <- versionGen
@@ -100,7 +102,13 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
       Gen.oneOf(
         validPolyTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, staticGenesisState),
         validArbitTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, staticGenesisState),
-        validAssetTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, staticGenesisState, minting = true)
+        validAssetTransferGen(
+          keyRingCurve25519,
+          keyRingEd25519,
+          propsThresholdCurve25519,
+          staticGenesisState,
+          minting = true
+        )
       )
     )
     sampleUntilNonEmpty(g)

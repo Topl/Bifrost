@@ -13,6 +13,8 @@ trait KeyFileTestHelper {
   protected var keyRingCurve25519: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] = _
 
   protected var keyRingEd25519: KeyRing[PrivateKeyEd25519, KeyfileEd25519] = _
+
+  protected var propsThresholdCurve25519: Set[ThresholdPropositionCurve25519] = _
 }
 
 trait DiskKeyFileTestHelper extends BeforeAndAfterAll with NetworkPrefixTestHelper with KeyFileTestHelper {
@@ -20,8 +22,6 @@ trait DiskKeyFileTestHelper extends BeforeAndAfterAll with NetworkPrefixTestHelp
   self: Suite =>
 
   protected var keyFileDir: Path = _
-
-  protected var propsThresholdCurve25519: Set[ThresholdPropositionCurve25519] = _
 
   protected val propTypeCurve25519: String = PublicKeyPropositionCurve25519.typeString
 

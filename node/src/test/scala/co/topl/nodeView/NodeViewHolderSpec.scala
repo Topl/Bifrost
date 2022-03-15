@@ -149,7 +149,6 @@ class NodeViewHolderSpec
       spawn(
         NxtConsensus(
           settings,
-          appContext.networkType,
           InMemoryKeyValueStore.empty()
         ),
         NxtConsensus.actorName
