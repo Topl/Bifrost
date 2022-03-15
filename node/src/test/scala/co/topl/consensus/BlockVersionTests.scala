@@ -1,6 +1,5 @@
 package co.topl.consensus
 
-import co.topl.consensus.NxtConsensus
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.history.History
