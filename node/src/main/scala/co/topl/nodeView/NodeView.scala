@@ -103,7 +103,7 @@ object NodeView {
     } else {
       GenesisProvider
         .fetchAndUpdateConsensusView(settings, consensusInterface, startupKeyView)
-        .flatMap { block =>
+        .semiflatMap { block =>
           consensusInterface
             .withView { view =>
               NodeView(
@@ -112,28 +112,13 @@ object NodeView {
                 MemPool.empty()
               )
             }
-            .leftMap(_ => "Error")
+            .valueOrF(e => Future.failed(e.reason))
         }
-        .value
-        .flatMap(_.fold(e => Future.failed(new Exception(e)), Future(_)))
+        .valueOrF {
+          case GenesisProvider.Failures.ConsensusInterfaceFailure(e) => Future.failed(e)
+          case e => Future.failed(new IllegalArgumentException(e.toString))
+        }
     }
-
-//  private def genesis(
-//    settings:           AppSettings,
-//    consensusInterface: ConsensusInterface,
-//    fetchStartupKeyView:     () => Future[StartupKeyView]
-//  )(implicit
-//    system: ActorSystem[_],
-//    ec:     ExecutionContext,
-//    networkPrefix: NetworkPrefix
-//  ): Future[NodeView] = {
-//
-//
-//
-//    GenesisBlockGenerator
-//      .genesisBlock(settings, networkType, startupKeyView, consensusInterface)
-//      .flatMap
-//  }
 }
 
 trait NodeViewBlockOps {

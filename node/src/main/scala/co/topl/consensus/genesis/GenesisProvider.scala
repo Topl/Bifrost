@@ -48,32 +48,40 @@ object GenesisProvider {
     system:        ActorSystem[_],
     ec:            ExecutionContext,
     networkPrefix: NetworkPrefix
-  ): EitherT[Future, String, Block] = for {
+  ): EitherT[Future, Failure, Block] = for {
 
-    startupKeys       <- EitherT.liftF(fetchStartupKeyView())
-    generatedSettings <- EitherT.fromOption[Future](settings.forging.genesis.map(_.generated), "No Generated settings")
-    jsonSettings <- EitherT.fromOption[Future](settings.forging.genesis.map(_.fromBlockJson), "No block json settings")
+    startupKeys <- EitherT.liftF[Future, Failure, StartupKeyView](fetchStartupKeyView())
+    generatedSettings <- EitherT
+      .fromOption[Future](settings.forging.genesis.map(_.generated), Failures.GenesisGeneratedSettingsNotFound)
+    jsonSettings <- EitherT
+      .fromOption[Future](settings.forging.genesis.map(_.fromBlockJson), Failures.GenesisBlockJsonSettingsNotFound)
     genesis <- consensusInterface
-      .withView[NxtConsensus.Genesis] { view =>
-        settings.forging.genesis match {
-          case Some(Generated) =>
-            generatedGenesisProvider(startupKeys.addresses, view.protocolVersions.blockVersion(1L))
-              .get(generatedSettings)
-          case Some(FromBlockJson) => fromJsonGenesisProvider.get(jsonSettings)
-        }
+      .withView[Either[Failure, NxtConsensus.Genesis]] { view =>
+        settings.forging.genesis
+          .map(_.genesisStrategy)
+          .map {
+            case Generated =>
+              generatedGenesisProvider(startupKeys.addresses, view.protocolVersions.blockVersion(1L))
+                .get(generatedSettings)
+            case FromBlockJson => fromJsonGenesisProvider.get(jsonSettings)
+          }
+          .toRight(Failures.GenesisStrategyNotFound)
       }
-      .leftMap(_ => "Error")
+      .leftMap(e => Failures.ConsensusInterfaceFailure(e.reason))
+      .subflatMap(identity)
     stateUpdate = NxtConsensus.StateUpdate(
       Some(genesis.state.totalStake),
       Some(genesis.state.difficulty),
       Some(genesis.state.inflation),
       Some(genesis.state.height)
     )
-    _ <- consensusInterface.update(genesis.block.id, stateUpdate).leftMap(_ => "Error")
+    _ <- consensusInterface
+      .update(genesis.block.id, stateUpdate)
+      .leftMap(e => Failures.ConsensusInterfaceFailure(e.reason): Failure)
   } yield genesis.block
 
   private[genesis] def generatedGenesisProvider(addresses: Set[Address], blockVersion: Byte)(implicit
-    networkPrefix:                        NetworkPrefix
+    networkPrefix:                                         NetworkPrefix
   ): GenesisProvider[GenesisGenerationSettings] = strategy => {
 
     val genesisAcctCurve25519 =
@@ -177,4 +185,15 @@ object GenesisProvider {
 
       NxtConsensus.Genesis(block, NxtConsensus.State(totalStake, block.difficulty, 0L, 0L))
     }
+
+  sealed abstract class Failure
+
+  object Failures {
+    case class ConsensusInterfaceFailure(reason: Throwable) extends Failure
+    case object GenesisSettingsNotFound extends Failure
+    case object GenesisGeneratedSettingsNotFound extends Failure
+    case object GenesisBlockJsonSettingsNotFound extends Failure
+    case object GenesisBlockJsonNotFound extends Failure
+    case object GenesisStrategyNotFound extends Failure
+  }
 }
