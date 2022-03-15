@@ -211,7 +211,8 @@ lazy val bifrost = project
     consensus,
     demo,
     tools,
-    scripting
+    scripting,
+    eligibilitySimulator
   )
 
 lazy val node = project
