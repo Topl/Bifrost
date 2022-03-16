@@ -14,7 +14,7 @@ class BlockValidatorSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    history = generateHistory()
+    history = generateHistory(genesisBlock)
   }
 
   property("A block with a timestamp older than its parent should never result in a hit") {

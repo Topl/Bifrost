@@ -2,7 +2,7 @@ package co.topl.nodeView
 
 import co.topl.attestation.Address
 import co.topl.consensus._
-import co.topl.consensus.genesis.GenesisGenerator
+import co.topl.consensus.genesis.TestGenesisGenerator
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
@@ -11,6 +11,7 @@ import co.topl.nodeView.history.{History, InMemoryKeyValueStore, Storage}
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.{State, TokenBoxRegistry}
 import co.topl.utils.{InMemoryKeyFileTestHelper, Int128, TestSettings, TimeProvider}
+import org.scalacheck.Gen
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
 trait NodeViewTestHelpers extends BeforeAndAfterAll {
@@ -73,7 +74,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
       .get
   }
 
-  def genesisNodeView(): TestIn = {
+  def genesisNodeView(genesisConsensusView: NxtConsensus.Genesis): TestIn = {
     val historyStore = InMemoryKeyValueStore.empty()
     val stateStore = InMemoryKeyValueStore.empty()
     val tokenBoxStore = InMemoryKeyValueStore.empty()
@@ -89,9 +90,9 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
     )
 
     nodeView.history.append(
-      genesisBlock,
+      genesisConsensusView.block,
       NxtConsensus.View(
-        NxtConsensus.State(Int128(10000000), 1000000000000000000L, 0L, 0L),
+        genesisConsensusView.state,
         nxtLeaderElection,
         protocolVersioner
       )
@@ -104,9 +105,8 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll {
     super.beforeAll()
     // A beforeAll step generates 3 keys.  We need 7 more to hit 10.
     keyRingCurve25519.generateNewKeyPairs(7)
-    genesisBlock = GenesisGenerator(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519).GenesisGen
-      .get(settings.forging.genesis.map(_.generated).get)
-      .block
+    val strat = settings.forging.genesis.map(_.generated).get
+    genesisBlock = TestGenesisGenerator.get2(keyRingCurve25519.addresses, strat)
   }
 }
 

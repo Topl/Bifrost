@@ -60,6 +60,10 @@ class GenesisSpec
       .map(keys => keys.map(_.publicImage.address))
   }
 
+  property("read in json files and verify checksum; block->checksum->Json->read Json->check checksum") {
+    // test
+  }
+
   property("successfully generate a genesis block and consensus view") {
     forAll(genesisGenerationSettingsGen) { genesisSettings =>
       val expectedCoinAmount = Int128(genesisSettings.numberOfParticipants * genesisSettings.balanceForEachParticipant)

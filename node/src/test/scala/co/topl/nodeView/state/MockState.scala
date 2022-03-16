@@ -13,7 +13,7 @@ trait MockState
     with NodeGenerators
     with FileUtils {
 
-  def createState(genesisBlockWithVersion: Block = genesisBlock, inTempFile: Boolean = true): State = {
+  def createState(genesisBlockWithVersion: Block, inTempFile: Boolean = true): State = {
     val finalSettings = if (inTempFile) {
       val file = createTempFile
       settings.copy(

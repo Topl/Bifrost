@@ -46,6 +46,11 @@ class MemPoolAuditorSpec
       .anyNumberOfTimes()
       .onCall(() => System.currentTimeMillis())
 
+    (() => timeProvider.time)
+      .expects()
+      .anyNumberOfTimes()
+      .onCall(() => System.currentTimeMillis())
+
     genesisActorTest { testIn =>
       val addressA :: addressB :: _ = keyRingCurve25519.addresses.toList
       val polyTransfer = {

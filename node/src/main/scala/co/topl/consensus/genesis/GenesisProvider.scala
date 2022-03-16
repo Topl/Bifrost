@@ -82,17 +82,27 @@ object GenesisProvider {
 
   private[genesis] def generatedGenesisProvider(addresses: Set[Address], blockVersion: Byte)(implicit
     networkPrefix:                                         NetworkPrefix
-  ): GenesisProvider[GenesisGenerationSettings] = strategy => {
+  ): GenesisProvider[GenesisGenerationSettings] = strategy =>
+    get2(addresses, strategy.balanceForEachParticipant, strategy.initialDifficulty, blockVersion)
+
+  private[genesis] def get2(
+    addresses:                 Set[Address],
+    balanceForEachParticipant: Long,
+    initialDifficulty:         Long,
+    blockVersion:              Byte
+  )(implicit
+    networkPrefix: NetworkPrefix
+  ): NxtConsensus.Genesis = {
 
     val genesisAcctCurve25519 =
       new PrivateKeyCurve25519(PrivateKey(Array.fill(32)(2: Byte)), PublicKey(Array.fill(32)(2: Byte)))
 
-    val totalStake = addresses.size * strategy.balanceForEachParticipant
+    val totalStake = addresses.size * balanceForEachParticipant
 
     val txInput: GenesisTransactionParams = GenesisTransactionParams(
       IndexedSeq(),
       (genesisAcctCurve25519.publicImage.address -> SimpleValue(0L)) +: addresses
-        .map(_ -> SimpleValue(strategy.balanceForEachParticipant))
+        .map(_ -> SimpleValue(balanceForEachParticipant))
         .toIndexedSeq,
       ListMap(genesisAcctCurve25519.publicImage -> SignatureCurve25519.genesis),
       Int128(0),
@@ -112,7 +122,7 @@ object GenesisProvider {
       genesisAcctCurve25519.publicImage,
       SignatureCurve25519.genesis,
       1L,
-      strategy.initialDifficulty,
+      initialDifficulty,
       Seq(
         ArbitTransfer[PublicKeyPropositionCurve25519](
           txInput.from,
@@ -136,7 +146,7 @@ object GenesisProvider {
       blockVersion
     )
 
-    val state = NxtConsensus.State(Int128(totalStake), strategy.initialDifficulty, 0L, 0L)
+    val state = NxtConsensus.State(Int128(totalStake), initialDifficulty, 0L, 0L)
 
     NxtConsensus.Genesis(block, state)
   }

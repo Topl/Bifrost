@@ -17,7 +17,7 @@ class BifrostHistorySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    history = generateHistory()
+    history = generateHistory(genesisBlock)
   }
 
   property("Block application should result in storage and BifrostHistory.continuationIds") {

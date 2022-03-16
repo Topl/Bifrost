@@ -49,11 +49,17 @@ class NxtLeaderElection(private val supportedProtocolVersions: ProtocolVersioner
     timeDelta:    Long,
     difficulty:   Long,
     parentHeight: Long
-  ): BigInt =
+  ): BigInt = {
+    println(stakeAmount:  Int128,
+      totalStake:   Int128,
+      timeDelta:    Long,
+      difficulty:   Long,
+      parentHeight: Long)
     (BigInt(stakeAmount.toByteArray) * BigInt(difficulty) * BigInt(timeDelta)) /
     (BigInt(totalStake.toByteArray) * BigInt(
       supportedProtocolVersions.targetBlockTime(parentHeight).toUnit(MILLISECONDS).toLong
     ))
+  }
 
   /**
    * Calculate the block difficulty according to

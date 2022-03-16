@@ -2,9 +2,8 @@ package co.topl.utils
 
 import co.topl.attestation._
 import co.topl.attestation.keyManagement._
-import co.topl.consensus.genesis.GenesisGenerator
+import co.topl.consensus.genesis.TestGenesisGenerator
 import co.topl.consensus.{NxtConsensus, NxtLeaderElection, ProtocolVersioner}
-import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.Box.identifier
 import co.topl.modifier.box._
@@ -64,10 +63,15 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
     third  <- Gen.choose(0: Byte, Byte.MaxValue)
   } yield new Version(first, second, third)
 
+  lazy val genesisBlockGen: Gen[Block] = for {
+    strat <- genesisGenerationSettingsGen
+    block = TestGenesisGenerator.get(strat)(networkPrefix, addressGen).block
+  } yield block
+
   lazy val genesisBlock: Block =
-    GenesisGenerator(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519).GenesisGen
-      .get(settings.forging.genesis.map(_.generated).get)
-      .block
+    TestGenesisGenerator.get2(
+      Gen.listOfN(settings.forging.genesis.map(_.generated.numberOfParticipants).get, addressGen).sample.get.toSet,
+      settings.forging.genesis.map(_.generated).get)
 
   val genesisGenerationSettingsGen: Gen[GenesisGenerationSettings] = for {
     version              <- versionGen
@@ -77,9 +81,7 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
     genesisSeed          <- stringGen
   } yield GenesisGenerationSettings(version, numberOfParticipants, balance, initialDifficulty, Some(genesisSeed))
 
-  def genesisBlockId: ModifierId = genesisBlock.id
-
-  def generateHistory(genesisBlock: Block = genesisBlock): History = {
+  def generateHistory(genesisBlock: Block): History = {
     val storage = new Storage(new InMemoryKeyValueStore)
 
     val validators = Seq()

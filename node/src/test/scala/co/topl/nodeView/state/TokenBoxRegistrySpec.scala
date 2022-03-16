@@ -14,7 +14,7 @@ class TokenBoxRegistrySpec extends MockState with ScalaCheckDrivenPropertyChecks
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    state = createState()
+    state = createState(genesisBlock)
   }
 
   property("Token boxes should be inserted into the registry") {

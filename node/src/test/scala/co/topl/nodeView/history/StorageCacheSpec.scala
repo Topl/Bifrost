@@ -17,7 +17,7 @@ class StorageCacheSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks w
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    history = generateHistory()
+    history = generateHistory(genesisBlock)
   }
 
   property("The genesis block is stored in cache") {
