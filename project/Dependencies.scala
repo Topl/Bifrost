@@ -236,6 +236,12 @@ object Dependencies {
   lazy val minting: Seq[ModuleID] =
     Dependencies.test ++ Dependencies.catsEffect ++ Seq(Dependencies.akka("stream"))
 
+  lazy val networking: Seq[ModuleID] =
+    Dependencies.test ++ Dependencies.catsEffect ++ Seq(
+      Dependencies.akka("stream"),
+      Dependencies.akka("stream-testkit") % Test
+    )
+
   lazy val demo: Seq[ModuleID] =
     Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++ logging
 
