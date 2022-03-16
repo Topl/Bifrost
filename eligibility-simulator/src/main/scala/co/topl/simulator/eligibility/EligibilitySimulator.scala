@@ -24,6 +24,7 @@ import co.topl.minting._
 import co.topl.minting.algebras.BlockMintAlgebra
 import co.topl.models._
 import co.topl.models.utility._
+import co.topl.numerics.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
@@ -236,7 +237,9 @@ object EligibilitySimulator extends IOApp.Simple {
         blake2b256Resource,
         blake2b512Resource
       )
-      leaderElectionThreshold = LeaderElectionValidation.Eval.make[F](vrfConfig, blake2b512Resource)
+      exp <- ExpInterpreter.make[F](10000,vrfConfig.precision)
+      log1p <- Log1pInterpreter.make[F](10000,5)
+      leaderElectionThreshold = LeaderElectionValidation.Eval.make[F](vrfConfig, blake2b512Resource,exp,log1p)
       underlyingHeaderValidation <- BlockHeaderValidation.Eval.make[F](
         etaCalculation,
         VrfRelativeStakeValidationLookup.Eval.make(state, clock),

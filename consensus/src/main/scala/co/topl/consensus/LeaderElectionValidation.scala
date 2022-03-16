@@ -2,7 +2,7 @@ package co.topl.consensus
 
 import cats.Monad
 import cats.implicits._
-import co.topl.algebras.UnsafeResource
+import co.topl.algebras.{Exp, Log1p, UnsafeResource}
 import co.topl.codecs.bytes.typeclasses.Signable
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
@@ -13,6 +13,7 @@ import co.topl.models.utility.Ratio
 import co.topl.typeclasses.implicits._
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import scalacache.caffeine.CaffeineCache
+
 import scala.collection.concurrent.TrieMap
 
 object LeaderElectionValidation {
@@ -28,24 +29,19 @@ object LeaderElectionValidation {
 
     def make[F[_]: Monad](
       config:             VrfConfig,
-      blake2b512Resource: UnsafeResource[F, Blake2b512]
+      blake2b512Resource: UnsafeResource[F, Blake2b512],
+      exp:Exp[F],
+      log1p:Log1p[F]
     ): LeaderElectionValidationAlgebra[F] =
       new LeaderElectionValidationAlgebra[F] {
         def getThreshold(relativeStake: Ratio, slotDiff: Long): F[Ratio] = {
-          val maxIter = 10000
-          val prec = 10
           val difficultyCurve = MathUtils.difficultyCurve(slotDiff,config)
           if (difficultyCurve == Ratio(1)) {
             Ratio(1).pure[F]
-          } else {
-            val coefficient = MathUtils.coefficientCache.get(
-              MathUtils.CoefficientJob(math.min(slotDiff,config.lddCutoff+1),maxIter,prec,config)
-            )
-            val result = MathUtils.thresholdCache.get(
-              MathUtils.ThresholdJob(coefficient*relativeStake,maxIter,prec)
-            )
-            result.pure[F]
-          }
+          } else for {
+            coefficient <- log1p.evaluate(Ratio(-1)*difficultyCurve)
+            result <- exp.evaluate(coefficient*relativeStake)
+          } yield Ratio(1) - result
         }
 
         /**
@@ -155,7 +151,8 @@ private object ThresholdLentzMethod {
     var c = BigInt(1)
     var d = BigInt(1)
     var j = 0
-    while (b<=maxDenominator && d <= maxDenominator && j<=maxIter) {
+    var not_done = true
+    while (b<=maxDenominator && d <= maxDenominator && j<=maxIter && not_done) {
       val med = Ratio(a+c,b+d)
       if (absx == med) {
         if (b+d <=maxDenominator) {
@@ -165,6 +162,7 @@ private object ThresholdLentzMethod {
         } else {
           output = Ratio(sign*a,b)
         }
+        not_done = false
       } else if (absx > med) {
         a = a+c
         b = b+d
@@ -174,12 +172,15 @@ private object ThresholdLentzMethod {
       }
       j = j+1
     }
-    if (b>maxDenominator) {
-      output = Ratio(sign*c,d)
-    } else {
-      output = Ratio(sign*a,b)
+    if (not_done) {
+      if (b>maxDenominator) {
+        output = Ratio(sign*c,d)
+      } else {
+        output = Ratio(sign*a,b)
+      }
     }
-    output + Ratio(q)
+
+    Ratio(q*output.denominator+output.numerator,output.denominator)
   }
 
   /**
@@ -240,8 +241,8 @@ private object ThresholdLentzMethod {
           || dj.numerator.toByteArray.length + dj.denominator.toByteArray.length > limitBytes
         ) {
           fj = ratioinal_approximation(fj,bigFactor,1000)
-          dj = ratioinal_approximation(dj,bigFactor,1000)
           cj = ratioinal_approximation(cj,bigFactor,1000)
+          dj = ratioinal_approximation(dj,bigFactor,1000)
         }
       }
     }

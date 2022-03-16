@@ -38,17 +38,24 @@ class LentzSpec extends AnyFlatSpec
     }
 
     val precision = 38
-    val f = Ratio(999,1000)
+    val f = Ratio(500,1000)
     val relativeStake = Ratio(BigInt(10).pow(precision)/2,BigInt(10).pow(precision))
     val coefficient = Ratio(math.log(1.0-f.toDouble),precision)
     val ref = 1 - math.pow(1.0 - f.toDouble, relativeStake.toDouble)
     val res = 1 - exp(coefficient * relativeStake, maxIter, precision)._1.toBigDecimal
+    println("e: "+exp(Ratio(1),10000,38))
+    println("approx e: "+ratioinal_approximation(exp(Ratio(1),10000,38)._1,100000,10000))
+    println("log(1/2): "+log1p(Ratio(-1,2),10000,38))
     println("Res:" + res)
     println("Ref:" + ref)
     val absError = (res - ref).abs
     val relError = (res/ref - 1.0).abs
     println("Absolute Error:" + absError)
     println("Relative Error:" + relError)
+    println(res)
+    val res2 = log1p(Ratio(-9,10), maxIter, precision)._1
+    println(ratioinal_approximation(res2,BigInt(10).pow(precision),1000).toBigDecimal)
+    println(res2.toBigDecimal)
     val data1 = time(for {
       n <- Range(0,100)
     } yield {
@@ -57,7 +64,7 @@ class LentzSpec extends AnyFlatSpec
     val data2 = time(for {
       n <- Range(0,100)
     } yield {
-      regression(precision,BigInt(10).pow(precision)/100-100+BigInt(n),BigInt(10).pow(precision),f)
+      regression(precision,BigInt(10).pow(precision)/2-100+BigInt(n),BigInt(10).pow(precision),f)
     })
     println("Relative Stake: Threshold Bytes, Threshold, Threshold Value, Reference Value")
     data1.foreach(p => println(p._1+"/10^"+math.log10(p._2.toDouble).toInt+ ": " +(p._3.numerator.toByteArray.length+p._3.denominator.toByteArray.length)+", "+p._3+", "+p._4+", "+p._5))
@@ -78,8 +85,6 @@ class LentzSpec extends AnyFlatSpec
     isSorted(data1.map(p => p._3)) shouldBe true
     isSorted(data2.map(p => p._3)) shouldBe true
     absError < BigDecimal(10).pow(-math.min(precision,15)) shouldBe true
-
-    "String".unapply(4)
 
   }
 }
