@@ -12,7 +12,7 @@ import co.topl.consensus.genesis._
 import co.topl.modifier.block.Block
 import co.topl.nodeView.NodeViewReader
 import co.topl.settings.AppSettings
-import co.topl.settings.GenesisStrategy._
+import co.topl.settings.GenesisStrategies._
 import co.topl.utils.NetworkType._
 import co.topl.utils.{Int128, NetworkType, TimeProvider}
 import org.slf4j.Logger

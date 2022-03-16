@@ -74,7 +74,7 @@ class GenesisSpec
             GenesisSpecSetup.privateKeyRing.addresses,
             genesisSettings.genesisApplicationVersion.blockByte
           )
-          .get(genesisSettings)
+          .executeStrategy(genesisSettings)
 
       val actualCoinTotals = genesis.block.transactions match {
         case Seq(arbitTx: ArbitTransfer[_], polyTx: PolyTransfer[_]) =>

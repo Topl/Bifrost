@@ -1,13 +1,13 @@
 package co.topl.nodeView
 
 import akka.actor.typed.ActorSystem
-import cats.data.{Validated, Writer}
+import cats.data.{EitherT, Validated, Writer}
 import cats.implicits._
 import co.topl.attestation.Address
 import co.topl.consensus.Hiccups.HiccupBlock
 import co.topl.consensus.KeyManager.StartupKeyView
 import co.topl.consensus._
-import co.topl.consensus.genesis.GenesisProvider
+import co.topl.consensus.genesis.GenesisProvider.Failure
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ProgramId
@@ -101,22 +101,36 @@ object NodeView {
         )
       )
     } else {
-      GenesisProvider
-        .fetchAndUpdateConsensusView(settings, consensusInterface, startupKeyView)
-        .semiflatMap { block =>
-          consensusInterface
-            .withView { view =>
-              NodeView(
-                History.readOrGenerate(settings).append(block, view).get._1,
-                State.genesisState(settings, Seq(block)),
-                MemPool.empty()
-              )
-            }
-            .valueOrF(e => Future.failed(e.reason))
-        }
-        .valueOrF {
-          case GenesisProvider.Failures.ConsensusInterfaceFailure(e) => Future.failed(e)
-          case e => Future.failed(new IllegalArgumentException(e.toString))
+      consensusInterface
+        .withView { view =>
+        for {
+          startupKeys <- EitherT.liftF[Future, Failure, StartupKeyView](startupKeyView())
+
+          } yield g
+//                .map {
+//                  case Generated =>
+//                    generatedGenesisProvider(startupKeys.addresses, view.protocolVersions.blockVersion(1L))
+//                      .get(generatedSettings)
+//                  case FromBlockJson => fromJsonGenesisProvider.get(jsonSettings)
+//                }
+//
+//
+//              GenesisProvider
+//                .fetchAndUpdateConsensusView(settings, consensusInterface, startupKeyView)
+//                .semiflatMap { block =>
+//
+//              NodeView(
+//                History.readOrGenerate(settings).append(block, view).get._1,
+//                State.genesisState(settings, Seq(block)),
+//                MemPool.empty()
+//              )
+//            }
+//            .valueOrF(e => Future.failed(e.reason))
+//        }
+//        .valueOrF {
+//          case GenesisProvider.Failures.ConsensusInterfaceFailure(e) => Future.failed(e)
+//          case e => Future.failed(new IllegalArgumentException(e.toString))
+//        }
         }
     }
 }

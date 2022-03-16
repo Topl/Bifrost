@@ -5,7 +5,6 @@ import co.topl.utils.Logging
 import com.typesafe.config.{Config, ConfigFactory}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
-import net.ceedubs.ficus.readers.EnumerationReader._
 
 import java.io.File
 import java.net.InetSocketAddress
@@ -80,32 +79,34 @@ case class ForgingSettings(
   protocolVersions:     List[ProtocolSettings],
   forgeOnStartup:       Boolean,
   rewardsAddress:       Option[String], // String here since we don't know netPrefix when settings are read
-  genesis:              Option[GenesisSettings]
+  genesis:              GenesisSettings
 )
 
 case class GenesisSettings(
-  genesisStrategy: GenesisStrategy.Value,
-  generated:       GenesisGenerationSettings,
-  fromBlockJson:   GenesisFromBlockJsonSettings
+  genesisStrategy: GenesisStrategies.Value,
+  generated:       Option[GenesisStrategies.GenerationSettings],
+  fromBlockJson:   Option[GenesisStrategies.FromBlockJsonSettings]
 )
 
-object GenesisStrategy extends Enumeration {
-  val Generated: GenesisStrategy.Value = Value("generated")
-  val FromBlockJson: GenesisStrategy.Value = Value("fromBlockJson")
+object GenesisStrategies extends Enumeration {
+  val Generated: GenesisStrategies.Value = Value("generated")
+  val FromBlockJson: GenesisStrategies.Value = Value("fromBlockJson")
+
+  sealed abstract class StrategySetting
+
+  case class GenerationSettings(
+    genesisApplicationVersion: Version,
+    numberOfParticipants:      Int,
+    balanceForEachParticipant: Long,
+    initialDifficulty:         Long,
+    genesisParticipantsSeed:   Option[String]
+  ) extends StrategySetting
+
+  case class FromBlockJsonSettings(
+    providedJsonGenesisPath: String,
+    blockChecksum:           String
+  ) extends StrategySetting
 }
-
-case class GenesisGenerationSettings(
-  genesisApplicationVersion: Version,
-  numberOfParticipants:      Int,
-  balanceForEachParticipant: Long,
-  initialDifficulty:         Long,
-  genesisParticipantsSeed:   Option[String]
-)
-
-case class GenesisFromBlockJsonSettings(
-  providedJsonGenesisPath: String,
-  blockChecksum:           String
-)
 
 case class GjallarhornSettings(
   enableWallet:   Boolean,
@@ -149,9 +150,9 @@ object AppSettings extends Logging with SettingsReaders {
    * @return application settings
    */
   def read(startupOpts: StartupOpts = StartupOpts()): (AppSettings, Config) = {
-    val config = readConfig(startupOpts)
-    val settingFromConfig = fromConfig(config)
-    val completeConfig = clusterConfig(settingFromConfig, config)
+    val config: Config = readConfig(startupOpts)
+    val settingFromConfig: AppSettings = fromConfig(config)
+    val completeConfig: Config = clusterConfig(settingFromConfig, config)
     (startupOpts.runtimeParams.overrideWithCmdArgs(settingFromConfig), completeConfig)
   }
 
@@ -161,7 +162,7 @@ object AppSettings extends Logging with SettingsReaders {
    * @param config config factory compatible configuration
    * @return application settings
    */
-  def fromConfig(config: Config): AppSettings = config.as[AppSettings](configPath)
+  private def fromConfig(config: Config): AppSettings = config.as[AppSettings](configPath)
 
   /**
    * Based on the startup arguments given by the user, modify and return the default application config
@@ -169,7 +170,7 @@ object AppSettings extends Logging with SettingsReaders {
    * @param args startup options such as the path of the user defined config and network type
    * @return config factory compatible configuration
    */
-  def readConfig(args: StartupOpts): Config = {
+  private def readConfig(args: StartupOpts): Config = {
 
     val userConfig = args.userConfigPathOpt.fold(ConfigFactory.empty()) { uc =>
       val userFile = new File(uc)
@@ -200,7 +201,7 @@ object AppSettings extends Logging with SettingsReaders {
 
   }
 
-  def clusterConfig(settings: AppSettings, config: Config): Config =
+  private def clusterConfig(settings: AppSettings, config: Config): Config =
     if (settings.gjallarhorn.clusterEnabled) {
       ConfigFactory
         .parseString(s"""

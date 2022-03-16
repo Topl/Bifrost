@@ -15,14 +15,14 @@ object TestGenesisGenerator {
   ): NxtConsensus.Genesis = {
     val addresses: List[Address] = Gen.listOfN(strategy.numberOfParticipants, addressGen).sample.get
     val blockVersion: NetworkPrefix = Gen.choose(0: Byte, Byte.MaxValue).sample.get
-    GenesisProvider.generatedGenesisProvider(addresses.toSet, blockVersion).get(strategy)
+    GenesisProvider.generatedGenesisProvider(addresses.toSet, blockVersion).executeStrategy(strategy)
   }
 
   def get2(addresses: Set[Address], settings: GenesisGenerationSettings)(implicit
     networkPrefix:    NetworkPrefix
   ): Block =
     GenesisProvider
-      .get2(
+      .construct(
         addresses,
         settings.balanceForEachParticipant,
         settings.initialDifficulty,
