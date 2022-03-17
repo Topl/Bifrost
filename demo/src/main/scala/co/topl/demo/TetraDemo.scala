@@ -1,9 +1,7 @@
 package co.topl.demo
 
-import akka.NotUsed
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
-import akka.stream.scaladsl.Source
 import akka.util.Timeout
 import cats.arrow.FunctionK
 import cats.data.OptionT
@@ -145,7 +143,7 @@ object TetraDemo extends IOApp.Simple {
     ed25519VRFResource:      UnsafeResource[F, Ed25519VRF],
     kesProductResource:      UnsafeResource[F, KesProduct],
     ed25519Resource:         UnsafeResource[F, Ed25519]
-  ): F[List[PerpetualBlockMintAlgebra[F, Source[*, NotUsed]]]] =
+  ): F[List[PerpetualBlockMintAlgebra[F]]] =
     stakers
       .parTraverse(staker =>
         for {
