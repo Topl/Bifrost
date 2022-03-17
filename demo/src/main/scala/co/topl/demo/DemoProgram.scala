@@ -6,7 +6,7 @@ import akka.stream.scaladsl.{Keep, RunnableGraph, Sink, Source}
 import cats.data.{EitherT, OptionT, Validated}
 import cats.effect._
 import cats.implicits._
-import cats.{~>, Monad, MonadError, MonadThrow, Parallel, Show}
+import cats.{~>, Foldable, Monad, MonadError, MonadThrow, Parallel, Show}
 import co.topl.algebras.{Store, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
@@ -25,8 +25,8 @@ object DemoProgram {
   /**
    * A forever-running program which traverses epochs and the slots within the epochs
    */
-  def run[F[_]: MonadError[*[_], Throwable]: Logger: Parallel: Clock: Async: *[_] ~> Future](
-    mints:              List[PerpetualBlockMintAlgebra[F, Source[*, NotUsed]]],
+  def run[F[_]: MonadThrow: Logger: Parallel: Clock: Async: *[_] ~> Future](
+    mints:              List[PerpetualBlockMintAlgebra[F]],
     headerValidation:   BlockHeaderValidationAlgebra[F],
     blockStore:         Store[F, BlockV2],
     localChain:         LocalChainAlgebra[F],

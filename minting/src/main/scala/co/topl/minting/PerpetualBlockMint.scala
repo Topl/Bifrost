@@ -2,6 +2,7 @@ package co.topl.minting
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
+import cats.arrow.FunctionK
 import cats.data.OptionT
 import cats.effect.kernel.Sync
 import cats.implicits._
@@ -25,19 +26,19 @@ object PerpetualBlockMint {
       localChain:  LocalChainAlgebra[F],
       mempool:     MemPoolAlgebra[F],
       headerStore: Store[F, BlockHeaderV2]
-    ): F[PerpetualBlockMintAlgebra[F, Source[*, NotUsed]]] =
+    ): F[PerpetualBlockMintAlgebra[F]] =
       Sync[F].delay(
-        new PerpetualBlockMintAlgebra[F, Source[*, NotUsed]] {
+        new PerpetualBlockMintAlgebra[F] {
 
           def blocks: F[Source[BlockV2, NotUsed]] =
             Sync[F].delay(
               Source
                 .fromIterator(() => Iterator.iterate(initialSlot)(_ + 1))
-                .mapAsync(1)(forSlot(_).unsafeToFuture())
+                .mapAsync(1)(slot => implicitly[F ~> Future].apply(forSlot(slot)))
                 .collect { case Some(newBlock) => newBlock }
             )
 
-          private def forSlot(slot: Slot) =
+          private def forSlot(slot: Slot): F[Option[BlockV2]] =
             for {
               _                     <- clock.delayedUntilSlot(slot)
               canonicalHeadSlotData <- localChain.head
@@ -51,11 +52,5 @@ object PerpetualBlockMint {
             } yield newBlockOpt
         }
       )
-
-    implicit private class FToFutureSupport[F[_], T](f: F[T]) {
-
-      def unsafeToFuture()(implicit fToFuture: F ~> Future): Future[T] =
-        fToFuture(f)
-    }
   }
 }
