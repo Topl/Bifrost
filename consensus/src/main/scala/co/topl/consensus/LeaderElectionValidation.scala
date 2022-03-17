@@ -2,6 +2,7 @@ package co.topl.consensus
 
 import cats.Monad
 import cats.implicits._
+import cats.effect.kernel.{Clock, Sync}
 import co.topl.algebras.{Exp, Log1p, UnsafeResource}
 import co.topl.codecs.bytes.typeclasses.Signable
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
@@ -63,6 +64,20 @@ object LeaderElectionValidation {
               .pure[F]
         }
       }
+
+    def makeCached[F[_]: Sync: Clock](alg: LeaderElectionValidationAlgebra[F]): F[LeaderElectionValidationAlgebra[F]] =
+      CaffeineCache[F,Ratio].map(
+        cache => new LeaderElectionValidationAlgebra[F] {
+          override def getThreshold(relativeStake: Ratio, slotDiff: Slot): F[Ratio] =
+            cache.cachingF((relativeStake,slotDiff))(ttl = None)(Sync[F].defer(
+              alg.getThreshold(relativeStake,slotDiff)
+            ))
+
+          override def isSlotLeaderForThreshold(threshold: Ratio)(rho: Rho): F[Boolean] =
+            alg.isSlotLeaderForThreshold(threshold)(rho)
+        }
+      )
+
   }
 }
 

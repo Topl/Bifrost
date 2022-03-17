@@ -15,7 +15,7 @@ object Log1pInterpreter extends LentzMethod {
   }.pure[F]
 
   def makeCached[F[_]: Sync: Clock](log1p: Log1p[F]): F[Log1p[F]] = CaffeineCache[F,Ratio].map(
-    cache => (x: Ratio) => cache.cachingF(x)(ttl = None)(Sync[F].delay(log1p.evaluate(x))))
+    cache => (x: Ratio) => cache.cachingF(x)(ttl = None)(Sync[F].defer(log1p.evaluate(x))))
 
   /**
    * Returns the natural logarithm of the argument plus one

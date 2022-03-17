@@ -46,9 +46,9 @@ object EligibilitySimulator extends IOApp.Simple {
   private val EpochLength = OperationalPeriodLength * OperationalPeriodsPerEpoch
   private val SlotDuration = 10.milli
   private val NumberOfStakers = 1
-  private val RelativeStake = Ratio(1, 2)
+  private val RelativeStake = Ratio(1)
   private val TargetHeight = 10_000L
-  private val TestName = "test_threshold"
+  private val TestName = "test_threshold2"
 
   require(
     EpochLength % OperationalPeriodLength === 0L,
@@ -239,11 +239,13 @@ object EligibilitySimulator extends IOApp.Simple {
       )
       exp <- ExpInterpreter.make[F](10000,vrfConfig.precision)
       log1p <- Log1pInterpreter.make[F](10000,5)
-      leaderElectionThreshold = LeaderElectionValidation.Eval.make[F](vrfConfig, blake2b512Resource,exp,log1p)
+      log1pCached <- Log1pInterpreter.makeCached[F](log1p)
+      leaderElectionThreshold = LeaderElectionValidation.Eval.make[F](vrfConfig, blake2b512Resource,exp,log1pCached)
+      leaderElectionThresholdCached <- LeaderElectionValidation.Eval.makeCached[F](leaderElectionThreshold)
       underlyingHeaderValidation <- BlockHeaderValidation.Eval.make[F](
         etaCalculation,
         VrfRelativeStakeValidationLookup.Eval.make(state, clock),
-        leaderElectionThreshold,
+        leaderElectionThresholdCached,
         RegistrationLookup.Eval.make(state, clock),
         ed25519VRFResource,
         kesProductResource,
@@ -255,7 +257,7 @@ object EligibilitySimulator extends IOApp.Simple {
         SlotData(genesis.headerV2)(Ed25519VRF.precomputed()),
         ChainSelection.orderT[F](slotDataCache, blake2b512Resource, ChainSelectionKLookback, ChainSelectionSWindow)
       )
-      m <- mints(etaCalculation, leaderElectionThreshold, ed25519VRFResource, kesProductResource, ed25519Resource)
+      m <- mints(etaCalculation, leaderElectionThresholdCached, ed25519VRFResource, kesProductResource, ed25519Resource)
       _ <- EligibilitySimulatorProgram
         .run[F](
           clock,

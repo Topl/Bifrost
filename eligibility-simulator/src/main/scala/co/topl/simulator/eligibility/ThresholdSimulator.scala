@@ -75,7 +75,8 @@ object ThresholdSimulator extends IOApp.Simple {
           log1p <- Log1pInterpreter.make[F](10000,5)
           log1pCached <- Log1pInterpreter.makeCached[F](log1p)
           leaderElectionThreshold <- LeaderElectionValidation.Eval.make[F](vrfConfig, blake2b512Resource, exp, log1pCached).pure[F]
-          threshold               <- leaderElectionThreshold.getThreshold(relativeStake, vrfConfig.lddCutoff)
+          leaderElectionThresholdCached <- LeaderElectionValidation.Eval.makeCached[F](leaderElectionThreshold)
+          threshold               <- leaderElectionThresholdCached.getThreshold(relativeStake, vrfConfig.lddCutoff)
           _ <- statsInterpreter.write(
             TestName,
             Json.obj(
