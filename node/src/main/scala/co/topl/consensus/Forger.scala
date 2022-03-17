@@ -8,19 +8,15 @@ import akka.util.Timeout
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
-import co.topl.consensus.genesis._
 import co.topl.modifier.block.Block
 import co.topl.nodeView.NodeViewReader
-import co.topl.settings.AppSettings
-import co.topl.settings.GenesisStrategies._
 import co.topl.utils.NetworkType._
-import co.topl.utils.{Int128, NetworkType, TimeProvider}
+import co.topl.utils.{Int128, TimeProvider}
 import org.slf4j.Logger
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
-import scala.util.Try
 
 /**
  * The "Forger" is an Actor which manages and executes a periodic "forge" process.
@@ -64,7 +60,6 @@ object Forger {
     minTransactionFee:    Int128,
     forgeOnStartup:       Boolean,
     fetchKeyView:         () => Future[KeyView],
-    fetchStartupKeyView:  () => Future[StartupKeyView],
     nodeViewReader:       NodeViewReader,
     consensusInterface:   ConsensusInterface
   )(implicit
@@ -78,7 +73,7 @@ object Forger {
         context.log.info(s"${Console.YELLOW}Forging will start after initialization${Console.RESET}")
       }
 
-      context.pipeToSelf(checkPrivateForging(fetchStartupKeyView))(
+      context.pipeToSelf(checkPrivateForging(fetchKeyView))(
         _.fold(ReceivableMessages.Terminate, _ => ReceivableMessages.InitializationComplete)
       )
 
@@ -95,16 +90,14 @@ object Forger {
   /**
    * If this node is running a private or local network, verify that a rewards address is set
    */
-  private def checkPrivateForging(fetchStartupKeyView: () => Future[StartupKeyView])(implicit
-    ec:                                                ExecutionContext,
-    networkPrefix:                                     NetworkPrefix
+  private def checkPrivateForging(fetchKeyView: () => Future[KeyView])(implicit
+    ec:                                         ExecutionContext,
+    networkPrefix:                              NetworkPrefix
   ): Future[Done] =
     if (PrivateTestnet.netPrefix == networkPrefix) {
-      fetchStartupKeyView().flatMap {
-        case keyView if keyView.rewardAddr.nonEmpty =>
-          Future.successful(Done)
-        case _ =>
-          Future.failed(new IllegalStateException("Forging requires a rewards address"))
+      fetchKeyView().flatMap {
+        case keyView if keyView.rewardAddr.nonEmpty => Future.successful(Done)
+        case _ => Future.failed(new IllegalStateException("Forging requires a rewards address"))
       }
     } else {
       Future.successful(Done)

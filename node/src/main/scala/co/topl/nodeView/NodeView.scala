@@ -1,13 +1,13 @@
 package co.topl.nodeView
 
 import akka.actor.typed.ActorSystem
-import cats.data.{EitherT, Validated, Writer}
+import cats.data.{Validated, Writer}
 import cats.implicits._
 import co.topl.attestation.Address
 import co.topl.consensus.Hiccups.HiccupBlock
 import co.topl.consensus.KeyManager.StartupKeyView
 import co.topl.consensus._
-import co.topl.consensus.genesis.GenesisProvider.Failure
+import co.topl.consensus.genesis.GenesisProvider
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ProgramId
@@ -90,7 +90,7 @@ object NodeView {
   def persistent(
     settings:           AppSettings,
     consensusInterface: ConsensusInterface,
-    startupKeyView:     () => Future[StartupKeyView]
+    startupKeyView:     StartupKeyView
   )(implicit system:    ActorSystem[_], ec: ExecutionContext, networkPrefix: NetworkPrefix): Future[NodeView] =
     if (State.exists(settings)) {
       Future.successful(
@@ -101,39 +101,85 @@ object NodeView {
         )
       )
     } else {
-      consensusInterface
-        .withView { view =>
-        for {
-          startupKeys <- EitherT.liftF[Future, Failure, StartupKeyView](startupKeyView())
-
-          } yield g
-//                .map {
-//                  case Generated =>
-//                    generatedGenesisProvider(startupKeys.addresses, view.protocolVersions.blockVersion(1L))
-//                      .get(generatedSettings)
-//                  case FromBlockJson => fromJsonGenesisProvider.get(jsonSettings)
-//                }
-//
-//
-//              GenesisProvider
-//                .fetchAndUpdateConsensusView(settings, consensusInterface, startupKeyView)
-//                .semiflatMap { block =>
-//
-//              NodeView(
-//                History.readOrGenerate(settings).append(block, view).get._1,
-//                State.genesisState(settings, Seq(block)),
-//                MemPool.empty()
-//              )
-//            }
-//            .valueOrF(e => Future.failed(e.reason))
-//        }
-//        .valueOrF {
-//          case GenesisProvider.Failures.ConsensusInterfaceFailure(e) => Future.failed(e)
-//          case e => Future.failed(new IllegalArgumentException(e.toString))
-//        }
-        }
+      for {
+        genesis <- consensusInterface
+          .withView[NodeView] { view =>
+            new GenesisProvider(view, startupKeyView)
+              .fetchGenesis(settings)
+              .semiflatMap { genesis =>
+                Future.successful(
+                  NodeView(
+                    History.readOrGenerate(settings).append(genesis.block, view).get._1,
+                    State.genesisState(settings, Seq(genesis.block)),
+                    MemPool.empty()
+                  )
+                )
+              }
+          }
+        stateUpdate = NxtConsensus.StateUpdate(
+          Some(genesis.state.totalStake),
+          Some(genesis.state.difficulty),
+          Some(genesis.state.inflation),
+          Some(genesis.state.height)
+        )
+        _ <- consensusInterface
+          .update(genesis.block.id, stateUpdate)
+          .leftMap(e => GenesisProvider.Failures.ConsensusInterfaceFailure(e.reason): GenesisProvider.Failure)
+      } yield genesis.block
     }
+
 }
+
+//.withView[Either[GenesisProvider.Failure, NxtConsensus.Genesis]] { view =>
+//settings.application.genesis
+//.map(_.genesisStrategy)
+//.map {
+//case Generated =>
+//generatedGenesisProvider(startupKeys.addresses, view.protocolVersions.blockVersion(1L))
+//.get(generatedSettings)
+//case FromBlockJson => fromJsonGenesisProvider.get(jsonSettings)
+//}
+//.toRight(Failures.GenesisStrategyNotFound)
+//}
+//.leftMap(e => Failures.ConsensusInterfaceFailure(e.reason))
+//.subflatMap(identity)
+
+//    }
+//      consensusInterface
+//        .withView[NodeView] { view =>
+//          new GenesisProvider(view, startupKeyView)
+//            .fetchGenesis(settings)
+//            .semiflatMap { genesis =>
+//                Future.successful(NodeView(
+//                  History.readOrGenerate(settings).append(genesis.block, view).get._1,
+//                  State.genesisState(settings, Seq(genesis.block)),
+//                  MemPool.empty()
+//                ))
+//            }
+//        }.valueOr(e => new IllegalArgumentException(e.toString))
+
+//      {
+//        case GenesisProvider.Failures.ConsensusInterfaceFailure(e) => Future.failed(e)
+//        case e => Future.failed(new IllegalArgumentException(e.toString))
+//      }
+
+//  GenesisProvider
+//    .fetchAndUpdateConsensusView(settings, consensusInterface, startupKeyView)
+//    .semiflatMap { block =>
+//      consensusInterface
+//        .withView { view =>
+//          NodeView(
+//            History.readOrGenerate(settings).append(block, view).get._1,
+//            State.genesisState(settings, Seq(block)),
+//            MemPool.empty()
+//          )
+//        }
+//        .valueOrF(e => Future.failed(e.reason))
+//    }
+//    .valueOrF {
+//      case GenesisProvider.Failures.ConsensusInterfaceFailure(e) => Future.failed(e)
+//      case e => Future.failed(new IllegalArgumentException(e.toString))
+//    }
 
 trait NodeViewBlockOps {
   self: NodeView =>

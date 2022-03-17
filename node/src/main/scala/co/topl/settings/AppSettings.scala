@@ -1,5 +1,7 @@
 package co.topl.settings
 
+import co.topl.consensus.KeyManager.AddressGenerationSettings
+import co.topl.consensus.genesis.GenesisProvider
 import co.topl.network.utils.NetworkTimeProviderSettings
 import co.topl.utils.Logging
 import com.typesafe.config.{Config, ConfigFactory}
@@ -21,7 +23,8 @@ case class ApplicationSettings(
   nodeKeys:                     Option[Set[String]],
   rebroadcastCount:             Int,
   consensusStoreVersionsToKeep: Int,
-  version:                      Version
+  version:                      Version,
+  genesis:                      GenesisSettings
 )
 
 case class RPCApiSettings(
@@ -78,34 +81,19 @@ case class ForgingSettings(
   minTransactionFee:    Long,
   protocolVersions:     List[ProtocolSettings],
   forgeOnStartup:       Boolean,
-  rewardsAddress:       Option[String], // String here since we don't know netPrefix when settings are read
-  genesis:              GenesisSettings
+  rewardsAddress:       Option[String] // String here since we don't know netPrefix when settings are read
 )
 
 case class GenesisSettings(
-  genesisStrategy: GenesisStrategies.Value,
-  generated:       Option[GenesisStrategies.GenerationSettings],
-  fromBlockJson:   Option[GenesisStrategies.FromBlockJsonSettings]
+  genesisStrategy:           GenesisStrategies.Value,
+  generated:                 Option[GenesisProvider.StrategySettings.GenerationSettings],
+  fromBlockJson:             Option[GenesisProvider.StrategySettings.FromBlockJsonSettings],
+  addressGenerationSettings: Option[AddressGenerationSettings]
 )
 
 object GenesisStrategies extends Enumeration {
   val Generated: GenesisStrategies.Value = Value("generated")
   val FromBlockJson: GenesisStrategies.Value = Value("fromBlockJson")
-
-  sealed abstract class StrategySetting
-
-  case class GenerationSettings(
-    genesisApplicationVersion: Version,
-    numberOfParticipants:      Int,
-    balanceForEachParticipant: Long,
-    initialDifficulty:         Long,
-    genesisParticipantsSeed:   Option[String]
-  ) extends StrategySetting
-
-  case class FromBlockJsonSettings(
-    providedJsonGenesisPath: String,
-    blockChecksum:           String
-  ) extends StrategySetting
 }
 
 case class GjallarhornSettings(
