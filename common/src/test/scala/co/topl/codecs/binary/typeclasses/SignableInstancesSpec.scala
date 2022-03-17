@@ -3,94 +3,134 @@ package co.topl.codecs.binary.typeclasses
 import cats.data.{Chain, NonEmptyChain}
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.Curve25519
-import co.topl.models.{Bytes, ModelGenerators, Transaction}
+import co.topl.models.utility.HasLength.instances.bigIntLength
+import co.topl.models.utility.Sized
+import co.topl.models.{Bytes, ModelGenerators, SecretKeys, Transaction}
+import co.topl.modifier.ops.TetraTransactionOps
 import co.topl.modifier.ops.implicits._
 import co.topl.typeclasses.implicits._
 import org.scalacheck.{Arbitrary, Gen}
-import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.{EitherValues, OptionValues}
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class SignableInstancesSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenPropertyChecks with EitherValues {
+class SignableInstancesSpec
+    extends AnyFlatSpec
+    with Matchers
+    with ScalaCheckDrivenPropertyChecks
+    with EitherValues
+    with OptionValues {
 
   import SignableInstancesSpec._
 
   behavior of "SignableInstances.Instances.unprovenTransactionSignable"
 
-  it should "generate signable bits from a poly transfer that matches a dion transfer message to sign" in {
+  it should "generate the expected signable bits from a poly transfer" in {
     forAll(arbitraryUnprovenPolyTransfer.arbitrary, ModelGenerators.arbitraryCurve25519SK.arbitrary) { (transfer, sk) =>
-      println(transfer)
-
       implicit val blake2b256: Blake2b256 = new Blake2b256
 
       val underTest = SignableInstances.implicits.unprovenTransactionSignable
 
       val messageToSign = underTest.signableBytes(transfer)
 
-      // need to prove transfer in order to safely convert it to a Dion TX
-      val proposition = sk.vk.asProposition
-      val proof = Curve25519.instance.sign(sk, messageToSign)
-
-      val signedTransfer = transfer.prove(_ => proposition -> proof)
-      val dionTransfer = signedTransfer.toDionTx.value
-      println(dionTransfer)
-      val expectedMessageToSign = Bytes(signedTransfer.toDionTx.value.messageToSign)
-
-      messageToSign shouldBe expectedMessageToSign
+      messageToSign shouldBe expectedMessageToSign(sk, transfer).value
     }
   }
 
-  it should "generate signable bits from an arbit transfer that matches a dion transfer message to sign" in {
+  it should "generate the expected signable bits from an arbit transfer" in {
     forAll(arbitraryUnprovenArbitTransfer.arbitrary, ModelGenerators.arbitraryCurve25519SK.arbitrary) {
       (transfer, sk) =>
-        println(transfer)
-
         implicit val blake2b256: Blake2b256 = new Blake2b256
 
         val underTest = SignableInstances.implicits.unprovenTransactionSignable
 
         val messageToSign = underTest.signableBytes(transfer)
 
-        // need to prove transfer in order to safely convert it to a Dion TX
-        val proposition = sk.vk.asProposition
-        val proof = Curve25519.instance.sign(sk, messageToSign)
-
-        val signedTransfer = transfer.prove(_ => proposition -> proof)
-        val dionTransfer = signedTransfer.toDionTx.value
-        println(dionTransfer)
-        val expectedMessageToSign = Bytes(signedTransfer.toDionTx.value.messageToSign)
-
-        messageToSign shouldBe expectedMessageToSign
+        messageToSign shouldBe expectedMessageToSign(sk, transfer).value
     }
   }
 
-  it should "generate signable bits from an asset transfer that matches a dion transfer message to sign" in {
+  it should "generate the expected bits from an asset transfer" in {
     forAll(arbitraryUnprovenAssetTransfer.arbitrary, ModelGenerators.arbitraryCurve25519SK.arbitrary) {
       (transfer, sk) =>
-        println(transfer)
-
         implicit val blake2b256: Blake2b256 = new Blake2b256
 
         val underTest = SignableInstances.implicits.unprovenTransactionSignable
 
         val messageToSign = underTest.signableBytes(transfer)
 
-        // need to prove transfer in order to safely convert it to a Dion TX
-        val proposition = sk.vk.asProposition
-        val proof = Curve25519.instance.sign(sk, messageToSign)
+        messageToSign shouldBe expectedMessageToSign(sk, transfer).value
+    }
+  }
 
-        val signedTransfer = transfer.prove(_ => proposition -> proof)
-        val dionTransfer = signedTransfer.toDionTx.value
-        println(dionTransfer)
-        val expectedMessageToSign = Bytes(signedTransfer.toDionTx.value.messageToSign)
+  it should "generate the expected bits from an arbit transfer containing no non-zero outputs" in {
+    forAll(
+      arbitraryUnprovenArbitTransfer.arbitrary,
+      ModelGenerators.arbitraryArbitOutput.arbitrary,
+      ModelGenerators.arbitraryCurve25519SK.arbitrary,
+      Gen.negNum[Long]
+    ) { (arbitTransfer, arbitOutput, sk, arbitOutputValue) =>
+      implicit val blake2b256: Blake2b256 = new Blake2b256
 
-        messageToSign shouldBe expectedMessageToSign
+      val transfer =
+        arbitTransfer.copy(coinOutputs =
+          NonEmptyChain.one[Transaction.CoinOutput](arbitOutput.copy(value = Sized.maxUnsafe(arbitOutputValue)))
+        )
+
+      val underTest = SignableInstances.implicits.unprovenTransactionSignable
+
+      val messageToSign = underTest.signableBytes(transfer)
+
+      messageToSign shouldBe expectedMessageToSign(sk, transfer).value
+    }
+  }
+
+  it should "generate the expected bits from an asset transfer containing no non-zero outputs" in {
+    forAll(
+      arbitraryUnprovenAssetTransfer.arbitrary,
+      ModelGenerators.arbitraryAssetOutput.arbitrary,
+      ModelGenerators.arbitraryCurve25519SK.arbitrary,
+      Gen.negNum[Long]
+    ) { (assetTransfer, assetOutput, sk, assetOutputValue) =>
+      implicit val blake2b256: Blake2b256 = new Blake2b256
+
+      val transfer =
+        assetTransfer.copy(coinOutputs =
+          NonEmptyChain.one[Transaction.CoinOutput](
+            assetOutput.copy(value =
+              assetOutput.value.copy(
+                quantity = Sized.maxUnsafe(assetOutputValue),
+                assetCode = assetOutput.value.assetCode.copy(version = 1)
+              )
+            )
+          )
+        )
+
+      val underTest = SignableInstances.implicits.unprovenTransactionSignable
+
+      val messageToSign = underTest.signableBytes(transfer)
+
+      messageToSign shouldBe expectedMessageToSign(sk, transfer).value
     }
   }
 }
 
 object SignableInstancesSpec {
+
+  def expectedMessageToSign(
+    sk:       SecretKeys.Curve25519,
+    transfer: Transaction.Unproven
+  ): Either[TetraTransactionOps.ToDionTxFailure, Bytes] = {
+    // need to mock attestation in order to convert from a transfer to a Dion TX
+    val proposition = sk.vk.asProposition
+    val proof = Curve25519.instance.sign(sk, Bytes("test".getBytes))
+
+    val signedTransfer = transfer.prove(_ => proposition -> proof)
+    val dionTransfer = signedTransfer.toDionTx
+
+    dionTransfer.map(_.messageToSign).map(Bytes.apply)
+  }
 
   def arbitraryNonEmptyChain[T](arbitraryT: Arbitrary[T]): Arbitrary[NonEmptyChain[T]] =
     Arbitrary(
