@@ -6,11 +6,11 @@ import co.topl.codecs.binary.scodecs._
 import co.topl.codecs.bytes.typeclasses.Signable
 import co.topl.crypto.hash.Blake2b256
 import co.topl.models.Transaction.{ArbitOutput, AssetOutput, PolyOutput}
-import co.topl.models._
+import co.topl.models.{Box => TetraBox, _}
 import co.topl.models.utility.HasLength.instances.{bigIntLength, bytesLength, latin1DataLength}
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{Lengths, Sized}
-import co.topl.modifier.box.{ArbitBox, AssetBox, AssetCode, PolyBox}
+import co.topl.modifier.box._
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer}
 import co.topl.utils.StringDataTypes.{Latin1Data => DionLatin1Data}
 import co.topl.utils.{Int128 => DionInt128}
@@ -20,175 +20,256 @@ import scodec.interop.cats._
 import scodec.{Attempt, Codec, Encoder, Err}
 import shapeless.HNil
 
-trait SignableInstances {
+/**
+ * Defines instances of the [[Signable]] typeclass.
+ */
+object SignableInstances {
 
   /**
-   * Encodes the transfer-type of a Tetra-Transfer
+   * Instances of [[Codec]] and [[Encoder]] typeclasses which encode values into their "signable" bits.
+   *
+   * Intended for usage in defining [[Signable]] instances.
    */
-  private val tetraTransferTypeEncoder: Encoder[Transaction.Unproven] =
-    Encoder(transaction =>
-      transaction.coinOutputs.head match {
-        case _: PolyOutput =>
-          Attempt.successful(BitVector(PolyTransfer.typePrefix))
-        case _: ArbitOutput =>
-          Attempt.successful(BitVector(ArbitTransfer.typePrefix))
-        case _: AssetOutput =>
-          Attempt.successful(BitVector(AssetTransfer.typePrefix))
+  object SignableCodecs {
+
+    /**
+     * Encodes the transfer-type of a [[Transaction.Unproven]].
+     */
+    val tetraTransferTypeEncoder: Encoder[Transaction.Unproven] =
+      Encoder(transaction =>
+        transaction.coinOutputs.head match {
+          case _: PolyOutput =>
+            Attempt.successful(BitVector(PolyTransfer.typePrefix))
+          case _: ArbitOutput =>
+            Attempt.successful(BitVector(ArbitTransfer.typePrefix))
+          case _: AssetOutput =>
+            Attempt.successful(BitVector(AssetTransfer.typePrefix))
+        }
+      )
+
+    /**
+     * Encoder/decoder for the [[TypedEvidence]] of a [[DionAddress]] in a [[Transaction.Unproven]].
+     */
+    val typedEvidenceCodec: Codec[TypedEvidence] =
+      (byteCodec :: bytesCodec(32))
+        .exmap[TypedEvidence](
+          bytes =>
+            Sized
+              .strict[Bytes, Lengths.`32`.type](Bytes(bytes.tail.head))
+              .fold(
+                error => Attempt.failure(Err(s"Failed to create evidence: $error")),
+                evidence => Attempt.successful(TypedEvidence(bytes.head, evidence))
+              ),
+          typedEvidence => Attempt.successful(typedEvidence.typePrefix :: typedEvidence.evidence.data.toArray :: HNil)
+        )
+
+    /**
+     * Encoder/decoder for a [[DionAddress]] in a [[Transaction.Unproven]].
+     */
+    val dionAddressCodec: Codec[DionAddress] =
+      (byteCodec.xmap[NetworkPrefix](NetworkPrefix.apply, _.value) :: typedEvidenceCodec).as[DionAddress]
+
+    /**
+     * Encoder/decoder for the `shortName` field in a [[TetraBox.Values.Asset.Code]].
+     */
+    val shortNameCodec: Codec[Sized.Max[Latin1Data, Lengths.`8`.type]] =
+      bytesCodec(AssetCode.shortNameLimit)
+        .exmap(
+          bytes =>
+            Sized
+              .max[Latin1Data, Lengths.`8`.type](Latin1Data.fromData(bytes))
+              .fold(
+                failure => Attempt.failure(Err(s"Invalid Latin-1 Data: $failure")),
+                Attempt.successful
+              ),
+          data => Attempt.successful(data.data.bytes.padTo(Lengths.`8`.value, 0: Byte))
+        )
+
+    /**
+     * Encoder/decoder for a [[TetraBox.Values.Asset.Code]] value in a [[TetraBox.Values.Asset]] within a [[Transaction.Unproven]].
+     */
+    val assetCodeCodec: Codec[TetraBox.Values.Asset.Code] =
+      (byteCodec :: dionAddressCodec :: shortNameCodec).as[TetraBox.Values.Asset.Code]
+
+    /**
+     * Encoder/decoder for an [[Int128]] value within a [[Transaction.Unproven]].
+     */
+    val tetraInt128Codec: Codec[Int128] =
+      int128Codec
+        .exmap(
+          int128 =>
+            Sized
+              .max[BigInt, Lengths.`128`.type](BigInt(int128.toByteArray))
+              .fold(failure => Attempt.failure(Err(s"Invalid Int-128 value: $failure")), Attempt.successful),
+          int128 => Attempt.successful(DionInt128(int128.data))
+        )
+
+    /**
+     * Encoder/decoder for the `metadata` field in a [[TetraBox.Values.Asset]] within a [[Transaction.Unproven]].
+     */
+    val metadataCodec: Codec[Option[Sized.Max[Latin1Data, Lengths.`127`.type]]] =
+      optionCodec(
+        byteStringCodec.exmap(
+          string =>
+            Latin1Data
+              .validated(string)
+              .leftMap(failure => Err(s"Invalid Latin-1 String: $failure"))
+              .toEither
+              .flatMap(
+                Sized
+                  .max[Latin1Data, Lengths.`127`.type](_)
+                  .leftMap(failure => Err(s"Invalid Latin-1 String: $failure"))
+              )
+              .fold(Attempt.failure, Attempt.successful),
+          latin1Data => Attempt.successful(latin1Data.data.value)
+        )
+      )
+
+    /**
+     * Encoder/decoder for a [[TetraBox.Values.Asset]] within a [[Transaction.Unproven]].
+     */
+    val assetValueCodec: Codec[TetraBox.Values.Asset] =
+      (tetraInt128Codec :: assetCodeCodec :: bytesCodec(SecurityRoot.size).xmap[Bytes](
+        bytes => Bytes(bytes),
+        bytes => bytes.toArray
+      ) :: metadataCodec)
+        .as[TetraBox.Values.Asset]
+
+    private def deriveBoxNonce(inputData: BitVector, index: Int)(implicit blake2b256: Blake2b256): BoxNonce =
+      Longs.fromByteArray(
+        blake2b256
+          .hash(
+            inputData.toByteVector ++ Bytes(Ints.toByteArray(index))
+          )
+          .data
+          .toArray
+          .take(Longs.BYTES)
+      )
+
+    private def filterByPositiveOutputValue(coinOutputs: Chain[Transaction.CoinOutput]): Chain[Transaction.CoinOutput] =
+      coinOutputs.filter {
+        case Transaction.PolyOutput(_, amount)  => amount.data > 0
+        case Transaction.ArbitOutput(_, amount) => amount.data > 0
+        case Transaction.AssetOutput(_, asset)  => asset.quantity.data > 0
       }
-    )
 
-  private val typedEvidenceEncoder: Codec[TypedEvidence] =
-    (byteCodec :: bytesCodec(32))
-      .exmap[TypedEvidence](
-        bytes =>
-          Sized
-            .strict[Bytes, Lengths.`32`.type](Bytes(bytes.tail.head))
-            .map(evidence => Attempt.successful(TypedEvidence(bytes.head, evidence)))
-            .valueOr(error => Attempt.failure(Err(s"Failed to create evidence: $error"))),
-        typedEvidence => Attempt.successful(typedEvidence.typePrefix :: typedEvidence.evidence.data.toArray :: HNil)
+    /**
+     * Encoder for a set of fee-change and transfer outputs in a [[Transaction.Unproven]].
+     * @param inputData the collection of unique input bits for the transfer
+     * @param blake2b256 an instance of [[Blake2b256]]
+     * @return an encoder instance for a set of outputs to their signable data
+     */
+    def outputsEncoder(
+      inputData:           BitVector
+    )(implicit blake2b256: Blake2b256): Encoder[(Option[Transaction.PolyOutput], Chain[Transaction.CoinOutput])] =
+      Encoder(outputs =>
+        (
+          outputs._1.fold[Chain[(Transaction.CoinOutput, Int)]](Chain.empty)(value => Chain(value -> 0)) ++
+          outputs._2.mapWithIndex((output, index) => output -> (index + 1))
+        ).filter {
+          case (Transaction.PolyOutput(_, amount), _)  => amount.data > 0
+          case (Transaction.ArbitOutput(_, amount), _) => amount.data > 0
+          case (Transaction.AssetOutput(_, asset), _)  => asset.quantity.data > 0
+        }.foldMapM {
+          case (Transaction.PolyOutput(address, amount), index) =>
+            for {
+              typeBits     <- BitVector(PolyBox.typePrefix).pure[Attempt]
+              evidenceBits <- typedEvidenceCodec.encode(address.typedEvidence)
+              nonceBits    <- longCodec.encode(deriveBoxNonce(inputData, index))
+              valueBits    <- tetraInt128Codec.encode(amount)
+            } yield typeBits ++ evidenceBits ++ nonceBits ++ valueBits
+          case (Transaction.ArbitOutput(address, amount), index) =>
+            for {
+              typeBits     <- BitVector(ArbitBox.typePrefix).pure[Attempt]
+              evidenceBits <- typedEvidenceCodec.encode(address.typedEvidence)
+              nonceBits    <- longCodec.encode(deriveBoxNonce(inputData, index))
+              valueBits    <- tetraInt128Codec.encode(amount)
+            } yield typeBits ++ evidenceBits ++ nonceBits ++ valueBits
+          case (Transaction.AssetOutput(address, asset), index) =>
+            for {
+              typeBits     <- BitVector(AssetBox.typePrefix).pure[Attempt]
+              evidenceBits <- typedEvidenceCodec.encode(address.typedEvidence)
+              nonceBits    <- longCodec.encode(deriveBoxNonce(inputData, index))
+              valueBits    <- assetValueCodec.encode(asset)
+            } yield typeBits ++ evidenceBits ++ nonceBits ++ valueBits
+        }
       )
 
-  private val dionAddressCodec: Codec[DionAddress] =
-    (byteCodec.xmap[NetworkPrefix](NetworkPrefix.apply, _.value) :: typedEvidenceEncoder).as[DionAddress]
-
-  private val shortNameCodec: Codec[Sized.Max[Latin1Data, Lengths.`8`.type]] =
-    bytesCodec(AssetCode.shortNameLimit)
-      .exmap(
-        bytes =>
-          Sized
-            .max[Latin1Data, Lengths.`8`.type](Latin1Data.fromData(bytes))
-            .fold(
-              failure => Attempt.failure(Err(s"Invalid Latin-1 Data: $failure")),
-              Attempt.successful
-            ),
-        data => Attempt.successful(data.data.bytes.padTo(Lengths.`8`.value, 0: Byte))
-      )
-
-  private val assetCodeCodec: Codec[Box.Values.Asset.Code] =
-    (byteCodec :: dionAddressCodec :: shortNameCodec).as[Box.Values.Asset.Code]
-
-  private val tetraInt128Codec: Codec[Int128] =
-    int128Codec
-      .exmap(
-        int128 =>
-          Sized
-            .max[BigInt, Lengths.`128`.type](BigInt(int128.toByteArray))
-            .fold(failure => Attempt.failure(Err(s"Invalid Int-128 value: $failure")), Attempt.successful),
-        int128 => Attempt.successful(DionInt128(int128.data))
-      )
-
-  private val metadataCodec: Codec[Option[Sized.Max[Latin1Data, Lengths.`127`.type]]] =
-    optionCodec(
-      byteStringCodec.exmap(
-        string =>
-          Latin1Data
-            .validated(string)
-            .leftMap(failure => Err(s"Invalid Latin-1 String: $failure"))
-            .toEither
-            .flatMap(
-              Sized.max[Latin1Data, Lengths.`127`.type](_).leftMap(failure => Err(s"Invalid Latin-1 String: $failure"))
-            )
-            .fold(Attempt.failure, Attempt.successful),
-        latin1Data => Attempt.successful(latin1Data.data.value)
-      )
-    )
-
-  private val assetValueCodec: Codec[Box.Values.Asset] =
-    (tetraInt128Codec :: assetCodeCodec :: arrayCodec[Byte].xmap[Bytes](Bytes.apply, _.toArray) :: metadataCodec)
-      .as[Box.Values.Asset]
-
-  private def nonceEncoder(inputData: BitVector)(implicit blake2b256: Blake2b256): Encoder[Int] =
-    Encoder(index =>
-      longCodec.encode(
-        Longs.fromByteArray(
-          blake2b256
-            .hash(inputData.toByteVector ++ Bytes(Ints.toByteArray(index)))
-            .data
-            .toArray
-            .take(Longs.BYTES)
-        )
-      )
-    )
-
-  private def outputsEncoder(
-    inputData:           BitVector
-  )(implicit blake2b256: Blake2b256): Encoder[(Option[Transaction.PolyOutput], Chain[Transaction.CoinOutput])] =
-    Encoder(outputs =>
-      (
-        outputs._1.fold(Chain.empty[(Transaction.CoinOutput, Int)])(value => Chain(value -> 0)) ++
-        outputs._2.mapWithIndex((output, index) => output -> (index + 1))
-      ).map {
-        case (Transaction.PolyOutput(address, amount), index) =>
-          tetraInt128Codec.encode(amount).map((BitVector(PolyBox.typePrefix), _, address.typedEvidence, index))
-        case (Transaction.ArbitOutput(address, amount), index) =>
-          tetraInt128Codec.encode(amount).map((BitVector(ArbitBox.typePrefix), _, address.typedEvidence, index))
-        case (Transaction.AssetOutput(address, asset), index) =>
-          assetValueCodec.encode(asset).map((BitVector(AssetBox.typePrefix), _, address.typedEvidence, index))
-      }.sequence
-        .flatMap(
-          _.traverse { case (typeBits, valueBits, evidence, index) =>
-            (
-              typedEvidenceEncoder.encode(evidence),
-              nonceEncoder(inputData).encode(index)
-            ).mapN((evidenceBits, nonceBits) => typeBits ++ evidenceBits ++ nonceBits ++ valueBits)
-          }
-        )
-        .map(_.fold)
-    )
-
-  private def inputsEncoder(implicit blake2b256: Blake2b256): Encoder[Chain[BoxReference]] =
-    Encoder(inputs =>
-      inputs
-        .map(input =>
-          typedEvidenceEncoder
+    /**
+     * Encoder for a set of [[BoxReference]] values provided as inputs to a [[Transaction.Unproven]].
+     * @param blake2b256 an instance of [[Blake2b256]]
+     * @return an encoder for a set of [[BoxReference]] inputs to a [[Transaction.Unproven]]
+     */
+    def inputsEncoder(implicit blake2b256: Blake2b256): Encoder[Chain[BoxReference]] =
+      Encoder(inputs =>
+        inputs.foldMapM(input =>
+          typedEvidenceCodec
             .encode(input._1.typedEvidence)
             .map(_.toByteVector)
             .map(evidenceBytes => blake2b256.hash(evidenceBytes ++ Bytes(Longs.toByteArray(input._2))))
-            .map(_.data)
+            .map(_.data.toBitVector)
         )
-        .sequence
-        .map(_.fold.toBitVector)
-    )
+      )
 
-  private val timestampEncoder: Encoder[Timestamp] =
-    Encoder(timestamp => Attempt.successful(BitVector(Longs.toByteArray(timestamp))))
+    /**
+     * Encoder/decoder for [[TransactionData]] within a [[Transaction.Unproven]].
+     */
+    val dataCodec: Codec[TransactionData] =
+      latin1DataCodec.exmap(
+        latin1Data =>
+          Sized
+            .max[Latin1Data, Lengths.`127`.type](Latin1Data.fromData(latin1Data.value))
+            .fold(failure => Attempt.failure(Err(s"Invalid 127-byte Latin-1 data: $failure")), Attempt.successful),
+        latin1Data => Attempt.successful(DionLatin1Data.fromData(latin1Data.data.bytes))
+      )
 
-  private val feeEncoder: Encoder[Int128] =
-    Encoder(int128 => Attempt.successful(BitVector(DionInt128(int128.data).toByteArray)))
+    /**
+     * Encoder for generating a signable-message from a [[Transaction.Unproven]].
+     * @param blake2b256 instance of [[Blake2b256]]
+     * @return an encoder to generate the signable-message of a [[Transaction.Unproven]]
+     */
+    def tetraTransactionEncoder(implicit blake2b256: Blake2b256): Encoder[Transaction.Unproven] =
+      Encoder(transaction =>
+        (
+          tetraTransferTypeEncoder.encode(transaction),
+          inputsEncoder.encode(Chain.fromSeq(transaction.inputs)),
+          tetraInt128Codec.encode(transaction.fee),
+          optionCodec(dataCodec).encode(transaction.data),
+          boolCodec.encode(transaction.minting)
+        ).mapN { (txTypeBits, inputsBits, feeBits, dataBits, mintingBits) =>
+          val timestampBits = BitVector(Longs.toByteArray(transaction.timestamp))
 
-  private val mintingEncoder: Encoder[Boolean] =
-    Encoder(minting =>
-      if (minting) Attempt.successful(BitVector(1: Byte))
-      else Attempt.successful(BitVector(0: Byte))
-    )
+          // use the TX-Type, Input Boxes, Timestamp, and Fee bits to define the output bits
+          outputsEncoder(txTypeBits ++ inputsBits ++ timestampBits ++ feeBits)
+            .encode(
+              transaction.feeOutput -> transaction.coinOutputs.toChain
+            )
+            // create the signable-message
+            .map { bits =>
+              txTypeBits ++ bits ++ inputsBits ++ timestampBits ++ feeBits ++ dataBits ++ mintingBits
+            }
+        }.flatten
+      )
+  }
 
-  private val dataCodec: Codec[TransactionData] =
-    latin1DataCodec.exmap(
-      latin1Data =>
-        Sized
-          .max[Latin1Data, Lengths.`127`.type](Latin1Data.fromData(latin1Data.value))
-          .fold(failure => Attempt.failure(Err(s"Invalid 127-byte Latin-1 data: $failure")), Attempt.successful),
-      latin1Data => Attempt.successful(DionLatin1Data.fromData(latin1Data.data.bytes))
-    )
+  /**
+   * Instances of the [[Signable]] typeclass for generating messages that can be used to create proofs for transactions
+   * and blocks.
+   */
+  trait Instances {
 
-  private def tetraTransactionSignableMessageEncoder(implicit blake2b256: Blake2b256): Encoder[Transaction.Unproven] =
-    Encoder(transaction =>
-      (
-        tetraTransferTypeEncoder.encode(transaction),
-        inputsEncoder.encode(Chain.fromSeq(transaction.inputs)),
-        timestampEncoder.encode(transaction.timestamp),
-        feeEncoder.encode(transaction.fee),
-        optionCodec(dataCodec).encode(transaction.data),
-        mintingEncoder.encode(transaction.minting)
-      ).mapN((txTypeBits, inputsBits, timestampBits, feeBits, dataBits, mintingBits) =>
-        outputsEncoder(txTypeBits ++ inputsBits ++ timestampBits ++ feeBits)
-          .encode(
-            transaction.feeOutput -> transaction.coinOutputs.toChain
-          )
-          .map(bits => txTypeBits ++ bits ++ inputsBits ++ timestampBits ++ feeBits ++ dataBits ++ mintingBits)
-      ).flatten
-    )
+    /**
+     * [[Signable]] instance for a [[Transaction.Unproven]].
+     *
+     * @param blake2b256 an instance of [[Blake2b256]]
+     * @return a [[Signable]] instance for generating signable-messages from a [[Transaction.Unproven]] value
+     */
+    implicit def unprovenTransactionSignable(implicit blake2b256: Blake2b256): Signable[Transaction.Unproven] =
+      Signable.fromScodecEncoder(SignableCodecs.tetraTransactionEncoder)
+  }
 
-  implicit def tetraTransactionSignable(implicit blake2b256: Blake2b256): Signable[Transaction.Unproven] =
-    Signable.fromScodecEncoder(tetraTransactionSignableMessageEncoder)
+  trait Implicits extends Instances
+
+  object implicits extends Implicits
+
 }

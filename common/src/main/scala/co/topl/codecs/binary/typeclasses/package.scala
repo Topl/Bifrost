@@ -8,7 +8,7 @@ package object typeclasses {
       with Persistable.ToPersistableOps
       with Persistable.ToExtensionOps
       with PersistableInstances
-      with SignableInstances
+      with SignableInstances.Implicits
       with Transmittable.ToTransmittableOps
       with Transmittable.ToExtensionOps
       with TransmittableInstances
