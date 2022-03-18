@@ -48,7 +48,7 @@ object EligibilitySimulator extends IOApp.Simple {
   private val NumberOfStakers = 1
   private val RelativeStake = Ratio(1)
   private val TargetHeight = 10_000L
-  private val TestName = "test_threshold2"
+  private val TestName = "test_threshold"
 
   require(
     EpochLength % OperationalPeriodLength === 0L,
