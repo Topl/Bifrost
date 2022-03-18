@@ -4,6 +4,7 @@ import akka.actor.typed.ActorSystem
 import cats.data.{Validated, Writer}
 import cats.implicits._
 import co.topl.attestation.Address
+import co.topl.consensus.ConsensusInterface.WithViewFailures.InternalException
 import co.topl.consensus.Hiccups.HiccupBlock
 import co.topl.consensus.KeyManager.StartupKeyView
 import co.topl.consensus._
@@ -101,33 +102,39 @@ object NodeView {
         )
       )
     } else {
-      for {
-        genesis <- consensusInterface
-          .withView[NodeView] { view =>
+      (for {
+        genesisAndNodeView: (NxtConsensus.Genesis, NodeView) <- consensusInterface
+          .withView { view =>
             new GenesisProvider(view, startupKeyView)
               .fetchGenesis(settings)
-              .semiflatMap { genesis =>
-                Future.successful(
+              .map[(NxtConsensus.Genesis, NodeView)] { genesis =>
+                (
+                  genesis,
                   NodeView(
                     History.readOrGenerate(settings).append(genesis.block, view).get._1,
                     State.genesisState(settings, Seq(genesis.block)),
                     MemPool.empty()
                   )
                 )
-              }
+              }.leftMap[ConsensusInterface.WithViewFailure] {
+              case GenesisProvider.Failures.ConsensusInterfaceFailure(e) => InternalException(e)
+              case e => InternalException(new IllegalArgumentException(e.toString))
+            }.valueOr(identity)
           }
-        stateUpdate = NxtConsensus.StateUpdate(
-          Some(genesis.state.totalStake),
-          Some(genesis.state.difficulty),
-          Some(genesis.state.inflation),
-          Some(genesis.state.height)
-        )
-        _ <- consensusInterface
-          .update(genesis.block.id, stateUpdate)
-          .leftMap(e => GenesisProvider.Failures.ConsensusInterfaceFailure(e.reason): GenesisProvider.Failure)
-      } yield genesis.block
+//        stateUpdate = NxtConsensus.StateUpdate(
+//          Some(genesisAndNodeView._1.state.totalStake),
+//          Some(genesisAndNodeView._1.state.difficulty),
+//          Some(genesisAndNodeView._1.state.inflation),
+//          Some(genesisAndNodeView._1.state.height)
+//        )
+//        _ <- consensusInterface
+//          .update(genesisAndNodeView._1.block.id, stateUpdate)
+//          .leftMap(e => GenesisProvider.Failures.ConsensusInterfaceFailure(e.reason): GenesisProvider.Failure)
+      } yield genesisAndNodeView._2).valueOrF {
+        case ConsensusInterface.WithViewFailures.InternalException(e) => Future.failed(e)
+        case e => Future.failed(new IllegalArgumentException(e.toString))
+      }
     }
-
 }
 
 //.withView[Either[GenesisProvider.Failure, NxtConsensus.Genesis]] { view =>

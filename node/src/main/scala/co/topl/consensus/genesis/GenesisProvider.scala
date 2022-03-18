@@ -33,30 +33,29 @@ class GenesisProvider(consensusView: NxtConsensus.View, startupKeyView: StartupK
     system:        ActorSystem[_],
     ec:            ExecutionContext,
     networkPrefix: NetworkPrefix
-  ): EitherT[Future, GenesisProvider.Failure, NxtConsensus.Genesis] =
+  ): Either[GenesisProvider.Failure, NxtConsensus.Genesis] = ???
 
-    settings.application.genesis.genesisStrategy.outerEnum match {
-      case GenesisStrategies.FromBlockJson =>
-        EitherT.fromOption[Future](
-          settings.application.genesis.fromBlockJson.map(GenesisProvider.fromJsonGenesisProvider),
-          Failures.GenesisBlockJsonSettingsNotFound
-        )
-
-      case GenesisStrategies.Generated if startupKeyView.addresses.nonEmpty =>
-        EitherT.fromOption[Future](
-          settings.application.genesis.generated.map { sg =>
-            GenesisProvider.construct(
-              startupKeyView.addresses,
-              sg.balanceForEachParticipant,
-              sg.initialDifficulty,
-              consensusView.protocolVersions.blockVersion(1)
-            )
-          },
-          Failures.GenesisSettingsNotFound
-        )
-
-      case GenesisStrategies.Generated => EitherT.leftT(Failures.AttemptedGenerationButNoAddressAvailable)
-    }
+//    settings.application.genesis.genesisStrategy.outerEnum match {
+//      case GenesisStrategies.FromBlockJson =>
+//          settings.application.genesis.fromBlockJson.map(GenesisProvider.fromJsonGenesisProvider),
+////          Failures.GenesisBlockJsonSettingsNotFound
+////        )
+//
+//      case GenesisStrategies.Generated if startupKeyView.addresses.nonEmpty =>
+//        EitherT.fromOption[Future](
+//          settings.application.genesis.generated.map { sg =>
+//            GenesisProvider.construct(
+//              startupKeyView.addresses,
+//              sg.balanceForEachParticipant,
+//              sg.initialDifficulty,
+//              consensusView.protocolVersions.blockVersion(1)
+//            )
+//          },
+//          Failures.GenesisSettingsNotFound
+//        )
+//
+//      case GenesisStrategies.Generated => EitherT.leftT(Failures.AttemptedGenerationButNoAddressAvailable)
+//    }
 }
 
 object GenesisProvider {

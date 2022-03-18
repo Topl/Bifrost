@@ -17,8 +17,7 @@ import co.topl.modifier.block.Block
 import co.topl.nodeView.NodeViewHolder.Events.SemanticallySuccessfulModifier
 import co.topl.nodeView.{KeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
-import co.topl.utils.NetworkType.PrivateTestnet
-import co.topl.utils.{Int128, NetworkType}
+import co.topl.utils.Int128
 import com.google.common.primitives.Longs
 
 import java.io.File
@@ -76,8 +75,8 @@ object NxtConsensus {
    * @param storageOpt  optional KeyValueStore for manual initialization or testing
    */
   def apply(
-    settings:    AppSettings,
-    storage:     KeyValueStore
+    settings: AppSettings,
+    storage:  KeyValueStore
   ): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
       implicit val ec: ExecutionContext = context.executionContext
@@ -213,7 +212,7 @@ object NxtConsensus {
 }
 
 trait ConsensusReader {
-  def withView[T](f: NxtConsensus.View => T): EitherT[Future, ConsensusInterface.Failures.Read, T]
+  def withView[T](f: NxtConsensus.View => T): EitherT[Future, ConsensusInterface.WithViewFailure, T]
 }
 
 trait ConsensusInterface extends ConsensusReader {
@@ -222,13 +221,15 @@ trait ConsensusInterface extends ConsensusReader {
 
 object ConsensusInterface {
 
-  object Failures {
-    case class Read(reason: Throwable)
+  sealed trait WithViewFailure
 
-    case class Update(reason: Throwable)
-
-    case class Rollback(reason: Throwable)
+  object WithViewFailures {
+    case object ConsensusFailedToRead extends WithViewFailure
+    case class InternalException(reason: Throwable) extends WithViewFailure
   }
+
+  sealed trait UpdateFailure
+  sealed trait RollbackFailure
 }
 
 class ActorConsensusInterface(actorRef: ActorRef[NxtConsensus.ReceivableMessage])(implicit
