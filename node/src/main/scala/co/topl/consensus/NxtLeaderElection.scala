@@ -89,6 +89,4 @@ object NxtLeaderElection {
   // number of blocks to use for determining the avg block delay
   def nxtBlockNum: Int = 3
 
-  def apply(settings: AppSettings): NxtLeaderElection =
-    new NxtLeaderElection(ProtocolVersioner(settings.application.version, settings.forging.protocolVersions))
 }

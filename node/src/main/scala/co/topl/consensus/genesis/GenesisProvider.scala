@@ -1,29 +1,26 @@
 package co.topl.consensus.genesis
 
 import akka.actor.typed.ActorSystem
-import cats.data.EitherT
 import cats.implicits._
 import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 import co.topl.attestation.{Address, EvidenceProducer, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.codecs._
 import co.topl.consensus.KeyManager.StartupKeyView
 import co.topl.consensus.NxtConsensus
-import co.topl.consensus.genesis.GenesisProvider.Failures
-import co.topl.consensus.genesis.GenesisProvider.StrategySettings.FromBlockJsonSettings
+import co.topl.consensus.genesis.GenesisProvider.StrategySettings.{FromBlockJsonSettings, GenerationSettings}
 import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, Box, SimpleValue}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
 import co.topl.settings.{AppSettings, GenesisStrategies, Version}
-import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import io.circe.parser
 
 import scala.collection.immutable.ListMap
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
 class GenesisProvider(consensusView: NxtConsensus.View, startupKeyView: StartupKeyView) {
 
@@ -33,29 +30,57 @@ class GenesisProvider(consensusView: NxtConsensus.View, startupKeyView: StartupK
     system:        ActorSystem[_],
     ec:            ExecutionContext,
     networkPrefix: NetworkPrefix
-  ): Either[GenesisProvider.Failure, NxtConsensus.Genesis] = ???
+  ): Either[GenesisProvider.Failure, NxtConsensus.Genesis] = settings.application.genesis.strategy match {
+    case GenesisStrategies.FromBlockJson =>
+      for {
+        strategy <- Either.fromOption(
+          settings.application.genesis.fromBlockJson,
+          GenesisProvider.Failures.GenesisBlockJsonSettingsNotFound: GenesisProvider.Failure
+        )
+        genesis <- fromJsonGenesisProvider(strategy)
+      } yield genesis
 
-//    settings.application.genesis.genesisStrategy.outerEnum match {
-//      case GenesisStrategies.FromBlockJson =>
-//          settings.application.genesis.fromBlockJson.map(GenesisProvider.fromJsonGenesisProvider),
-////          Failures.GenesisBlockJsonSettingsNotFound
-////        )
-//
-//      case GenesisStrategies.Generated if startupKeyView.addresses.nonEmpty =>
-//        EitherT.fromOption[Future](
-//          settings.application.genesis.generated.map { sg =>
-//            GenesisProvider.construct(
-//              startupKeyView.addresses,
-//              sg.balanceForEachParticipant,
-//              sg.initialDifficulty,
-//              consensusView.protocolVersions.blockVersion(1)
-//            )
-//          },
-//          Failures.GenesisSettingsNotFound
-//        )
-//
-//      case GenesisStrategies.Generated => EitherT.leftT(Failures.AttemptedGenerationButNoAddressAvailable)
-//    }
+    case GenesisStrategies.Generated =>
+      settings.application.genesis.generated
+        .map(fromGeneratedProvider)
+        .toRight(GenesisProvider.Failures.GenesisBlockJsonSettingsNotFound)
+  }
+
+  private def fromJsonGenesisProvider(strategy: FromBlockJsonSettings)(implicit
+    networkPrefix:                                       NetworkPrefix
+  ): Either[GenesisProvider.Failure, NxtConsensus.Genesis] = for {
+    src   <- scala.io.Source.fromFile(strategy.providedJsonGenesisPath).asRight[GenesisProvider.Failure]
+    json  <- parser.parse(src.mkString).leftMap(GenesisProvider.Failures.FailedToReadBlockJson)
+    block <- json.as[Block].leftMap(e => GenesisProvider.Failures.FailedToeDecodeBlockJson(e.message))
+    expectedBlockId <- Base58Data
+      .unsafe(strategy.blockChecksum)
+      .encodeAsBytes
+      .decodeTransmitted[ModifierId]
+      .leftMap(_ => GenesisProvider.Failures.InvalidBlockChecksum)
+    validBlock <- Either.cond(
+      block.id == expectedBlockId,
+      block,
+      GenesisProvider.Failures.BlockChecksumMismatch(
+        new IllegalArgumentException(
+          s"Expected block with id $expectedBlockId, but found block with id ${block.id}"
+        )
+      )
+    )
+    stakeAmounts = validBlock.transactions.flatMap(_.newBoxes.map {
+      case box: ArbitBox => box.value.quantity
+      case _             => Int128(0)
+    })
+  } yield NxtConsensus.Genesis(validBlock, NxtConsensus.State(stakeAmounts.sum, validBlock.difficulty, 0L, 0L))
+
+  private def fromGeneratedProvider(
+    strategy:               GenerationSettings
+  )(implicit networkPrefix: NetworkPrefix): NxtConsensus.Genesis =
+    GenesisProvider.construct(
+      startupKeyView.addresses,
+      strategy.balanceForEachParticipant,
+      strategy.initialDifficulty,
+      consensusView.protocolVersions.blockVersion(1L)
+    )
 }
 
 object GenesisProvider {
@@ -69,50 +94,6 @@ object GenesisProvider {
     data:       Option[Latin1Data],
     minting:    Boolean
   )
-
-  private[genesis] def fromJsonGenesisProvider(strategy: FromBlockJsonSettings)(implicit
-    networkPrefix:                                       NetworkPrefix
-  ): NxtConsensus.Genesis = {
-    def readJson(filename: String)(implicit networkPrefix: NetworkPrefix): Block = {
-      val src = scala.io.Source.fromFile(filename)
-
-      // attempt to retrieve the required keyfile type from the data that was just read
-      val block: Block = parser.parse(src.mkString) match {
-        case Left(ex) => throw ex
-        case Right(json) =>
-          json.as[Block].getOrThrow(ex => new Exception(s"Could not parse blcok Json: $ex"))
-      }
-
-      // close the stream and return the keyfile
-      src.close()
-      block
-    }
-
-    // should checksum be a byte category?
-    val checksum: ModifierId =
-      Base58Data
-        .unsafe(strategy.blockChecksum)
-        .encodeAsBytes
-        .decodeTransmitted[ModifierId]
-        .getOrThrow()
-
-    val block = readJson(strategy.providedJsonGenesisPath)
-
-    require(
-      block.id == checksum,
-      s"${Console.RED}MALFORMED GENESIS BLOCK! The calculated genesis block " +
-      s"with id ${block.id} does not match the required block for the chosen network mode.${Console.RESET}"
-    )
-
-    val totalStake = block.transactions
-      .flatMap(_.newBoxes.map {
-        case box: ArbitBox => box.value.quantity
-        case _             => Int128(0)
-      })
-      .sum
-
-    NxtConsensus.Genesis(block, NxtConsensus.State(totalStake, block.difficulty, 0L, 0L))
-  }
 
   private[genesis] def construct(
     addresses:                 Set[Address],
@@ -183,13 +164,12 @@ object GenesisProvider {
   sealed abstract class Failure
 
   object Failures {
-    case class ConsensusInterfaceFailure(reason: Throwable) extends Failure
-    case object GenesisSettingsNotFound extends Failure
     case object GenesisGeneratedSettingsNotFound extends Failure
     case object GenesisBlockJsonSettingsNotFound extends Failure
-    case object GenesisBlockJsonNotFound extends Failure
-    case object GenesisStrategyNotFound extends Failure
-    case object AttemptedGenerationButNoAddressAvailable extends Failure
+    case class FailedToReadBlockJson(reason: Throwable) extends Failure
+    case class FailedToeDecodeBlockJson(message: String) extends Failure
+    case class BlockChecksumMismatch(reason: Throwable) extends Failure
+    case object InvalidBlockChecksum extends Failure
   }
 
   sealed abstract class StrategySetting

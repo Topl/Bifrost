@@ -8,6 +8,7 @@ import akka.util.Timeout
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
+import co.topl.consensus.genesis.GenesisProvider
 import co.topl.modifier.block.Block
 import co.topl.nodeView.NodeViewReader
 import co.topl.utils.NetworkType._
@@ -223,7 +224,12 @@ private class ForgerBehaviors(
       keyView <- EitherT[Future, ForgerFailure, KeyView](
         fetchKeyView().map(Right(_)).recover { case e => Left(ForgingError(e)) }
       )
-      consensusView <- consensusViewReader.withView[NxtConsensus.View](identity).leftMap(e => ForgingError(e.reason))
+      consensusView <- consensusViewReader
+        .withView[NxtConsensus.View](identity)
+        .leftMap {
+          case ConsensusInterface.WithViewFailures.InternalException(e) => ForgingError(e)
+          case e => ForgingError(new IllegalArgumentException(e.toString))
+        }
       forge <- nodeViewReader
         .withNodeView(Forge.prepareForge(_, consensusView, keyView, minTransactionFee))
         .leftMap(e => ForgingError(e.reason))

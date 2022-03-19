@@ -249,7 +249,7 @@ object NodeViewHolder {
             _.fold(
               error => ReceivableMessages.Terminate(error),
               _.fold(
-                error => ReceivableMessages.Terminate(error.reason),
+                error => ReceivableMessages.Terminate(new IllegalArgumentException(error.toString)),
                 view => ReceivableMessages.WriteBlockWithConsensusView(block, view)
               )
             )

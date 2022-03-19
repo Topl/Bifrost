@@ -147,8 +147,8 @@ class NodeViewRpcHandlerImpls(
   override val info: ToplRpc.NodeView.Info.rpc.ServerHandler = _ =>
     for {
       supportedProtocolVersions <- consensusReader.withView(_.protocolVersions).leftMap {
-        case ConsensusInterface.Failures.Read(throwable) =>
-          CustomError.fromThrowable(throwable): RpcError
+        case ConsensusInterface.WithViewFailures.InternalException(e) => CustomError.fromThrowable(e)
+        case e => CustomError.fromThrowable(new IllegalArgumentException(e.toString))
       }
       currentHeight <- withNodeView(_.history.height)
     } yield ToplRpc.NodeView.Info.Response(

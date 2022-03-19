@@ -11,7 +11,7 @@ import scala.concurrent.duration.FiniteDuration
  * protocol definitions
  * @param protocolVersions all previous rule sets (that must be available in the configuration file)
  */
-class ProtocolVersioner(appVersion: Version, protocolVersions: SortedSet[ProtocolSettings]) {
+class ProtocolVersioner private (appVersion: Version, protocolVersions: SortedSet[ProtocolSettings]) {
 
   /** this is the set of protocol settings a particular version of the software can utilize */
   lazy val applicable: SortedSet[ProtocolSettings] = protocolVersions.filter(appVersion >= _.version)

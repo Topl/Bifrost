@@ -1,5 +1,6 @@
 package co.topl.settings
 
+import co.topl.consensus.KeyManager
 import co.topl.consensus.KeyManager.AddressGenerationSettings
 import co.topl.consensus.genesis.GenesisProvider
 import co.topl.network.utils.NetworkTimeProviderSettings
@@ -7,6 +8,7 @@ import co.topl.utils.Logging
 import com.typesafe.config.{Config, ConfigFactory}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
+import net.ceedubs.ficus.readers.EnumerationReader._
 
 import java.io.File
 import java.net.InetSocketAddress
@@ -81,14 +83,14 @@ case class ForgingSettings(
   minTransactionFee:    Long,
   protocolVersions:     List[ProtocolSettings],
   forgeOnStartup:       Boolean,
-  rewardsAddress:       Option[String] // String here since we don't know netPrefix when settings are read
+  rewardsAddress:       Option[String], // String here since we don't know netPrefix when settings are read
+    addressGenerationSettings: Option[KeyManager.AddressGenerationSettings]
 )
 
 case class GenesisSettings(
-  genesisStrategy:           GenesisStrategies.Value,
+  strategy:                  GenesisStrategies.Value,
   generated:                 Option[GenesisProvider.StrategySettings.GenerationSettings],
-  fromBlockJson:             Option[GenesisProvider.StrategySettings.FromBlockJsonSettings],
-  addressGenerationSettings: Option[AddressGenerationSettings]
+  fromBlockJson:             Option[GenesisProvider.StrategySettings.FromBlockJsonSettings]
 )
 
 object GenesisStrategies extends Enumeration {

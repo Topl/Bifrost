@@ -9,15 +9,14 @@ import co.topl.attestation.implicits._
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.catsakka.AskException
-import co.topl.consensus.genesis.GenesisProvider.AddressGenerationSettings
 import co.topl.settings.AppSettings
-import co.topl.utils.{Logging, SecureRandom}
 import co.topl.utils.NetworkType._
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import co.topl.utils.catsinstances.implicits._
+import co.topl.utils.{Logging, SecureRandom}
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Try
+import scala.util.{Success, Try}
 
 /** Actor that manages the keyRing and reward address */
 class KeyManager(settings: AppSettings)(implicit networkPrefix: NetworkPrefix) extends Actor with Logging {
@@ -80,41 +79,25 @@ class KeyManager(settings: AppSettings)(implicit networkPrefix: NetworkPrefix) e
     rewardAddress:             Option[Address]
   )(addressGenerationSettings: Option[AddressGenerationSettings])(implicit
     networkPrefix:             NetworkPrefix
-  ): Try[StartupKeyView] = ???
+  ): Try[StartupKeyView] = {
+    def addKeys(settings: AddressGenerationSettings): Try[StartupKeyView] =
+      keyRing
+        .generateNewKeyPairs(settings.numberOfAddresses, settings.addressSeedOpt)
+        .map { keys =>
+          keys.map(_.publicImage.address)
+        }
+        .map { addresses =>
+          val newRewardAddress = if (rewardAddress.isEmpty) Some(addresses.head) else rewardAddress
+          context.become(receive(keyRing, newRewardAddress))
+          StartupKeyView(addresses, newRewardAddress)
+        }
 
-  /**
-   * 1.
-   */
-
-
-//  {
-//    // If the keyring is not already populated and this is a private/local testnet, generate the keys
-//    // this is for when you have started up a private network and are attempting to resume it using
-//    // the same seed you used previously to continue forging
-//    val genesisStrat = settings.forging.genesis.genesisStrategy
-//    if (keyRing.addresses.isEmpty && genesisStrat.contains(Generated)) {
-//      settings.forging.genesis.map(_.generated) match {
-//        case Some(sfp) =>
-//          val (numAccts, seed) = (sfp.numberOfParticipants, sfp.genesisParticipantsSeed)
-//
-//          keyRing
-//            .generateNewKeyPairs(numAccts, seed)
-//            .map(keys => keys.map(_.publicImage.address))
-//            .map { addresses =>
-//              val newRewardAddress = if (rewardAddress.isEmpty) Some(addresses.head) else rewardAddress
-//
-//              context.become(receive(keyRing, newRewardAddress))
-//
-//              StartupKeyView(addresses, newRewardAddress)
-//            }
-//        case _ =>
-//          log.warn("No private testnet settings found!")
-//          Success(StartupKeyView(keyRing.addresses, rewardAddress))
-//      }
-//    } else {
-//      Success(StartupKeyView(keyRing.addresses, rewardAddress))
-//    }
-//  }
+    addressGenerationSettings match {
+      case Some(settings)                                    => addKeys(settings)
+      case None if networkPrefix == PrivateTestnet.netPrefix => addKeys(KeyManager.AddressGenerationSettings.default)
+      case None => Success(StartupKeyView(keyRing.addresses, rewardAddress))
+    }
+  }
 
   /** Gets a read-only view of the key ring to use for forging. */
   private def getKeyView(
@@ -158,7 +141,7 @@ object KeyManager {
 
   val actorName = "keyManager"
 
-  case class AddressGenerationSettings(numberOfParticipants: Int, genesisParticipantsSeed: Option[String])
+  case class AddressGenerationSettings(numberOfAddresses: Int, addressSeedOpt: Option[String])
 
   object AddressGenerationSettings {
     val default: AddressGenerationSettings = AddressGenerationSettings(10, Some(SecureRandom.randomBytes().mkString))

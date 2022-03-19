@@ -13,7 +13,12 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks.forAll
 
 class LeaderElectionTests extends AnyFlatSpec with MockFactory with CommonGenerators with EitherValues {
 
-  val nxtLeaderElection: NxtLeaderElection = NxtLeaderElection(TestSettings.defaultSettings)
+  val nxtLeaderElection: NxtLeaderElection = new NxtLeaderElection(
+    ProtocolVersioner(
+      TestSettings.defaultSettings.application.version,
+      TestSettings.defaultSettings.forging.protocolVersions
+    )
+  )
 
   val address: Address =
     Base58Data.unsafe("AUAvJqLKc8Un3C6bC4aj8WgHZo74vamvX8Kdm6MhtdXgw51cGfix").decodeAddress.toEither.value

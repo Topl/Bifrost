@@ -11,7 +11,6 @@ import akka.util.Timeout
 import co.topl.akkahttprpc.{ThrowableData, ThrowableSupport}
 import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
 import co.topl.consensus._
-import co.topl.consensus.genesis.GenesisProvider
 import co.topl.http.HttpService
 import co.topl.network._
 import co.topl.network.utils.NetworkTimeProvider
@@ -64,16 +63,8 @@ object Heimdall {
 
       context.log.info("Initializing ProtocolVersioner, ConsensusStorage, KeyManager, and NodeViewHolder")
 
-      val consensusHolder = context.spawn(
-        NxtConsensus(
-          settings,
-          NxtConsensus.readOrGenerateConsensusStore(settings)
-        ),
-        NxtConsensus.actorName
-      )
-
+      val consensusHolder = prepareConsensusViewRef(settings)
       val keyManager = prepareKeyManagerRef(settings)
-
       val state = prepareNodeViewRef(settings, consensusHolder, keyManager)
 
       context.watch(state.keyManager)
@@ -213,6 +204,11 @@ object Heimdall {
         Behaviors.same
       }
 
+  private case class KeyManagerInitializingState(
+    keyManagerRef: CActorRef,
+    futureKeyView: Future[StartupKeyView]
+  )
+
   private case class NodeViewInitializingState(
     keyManager:          CActorRef,
     nodeViewHolder:      ActorRef[NodeViewHolder.ReceivableMessage],
@@ -288,31 +284,42 @@ object Heimdall {
     HttpService(settings.rpcApi, bifrostRpcServer)
   }
 
+  private def prepareConsensusViewRef(settings: AppSettings)(implicit
+    context:                                    ActorContext[ReceivableMessage]
+  ): ActorRef[NxtConsensus.ReceivableMessage] =
+    context.spawn(
+      NxtConsensus(
+        settings,
+        NxtConsensus.readOrGenerateConsensusStore(settings)
+      ),
+      NxtConsensus.actorName
+    )
+
   private def prepareKeyManagerRef(settings: AppSettings)(implicit
-                                                          networkPrefix: NetworkPrefix,
-                                                          context:       ActorContext[ReceivableMessage],
-                                                          timeProvider:  TimeProvider
-  ): CActorRef = {
+    networkPrefix:                           NetworkPrefix,
+    context:                                 ActorContext[ReceivableMessage],
+    timeProvider:                            TimeProvider
+  ): KeyManagerInitializingState = {
     import context.executionContext
     implicit def system: ActorSystem[_] = context.system
     implicit val getKeyViewAskTimeout: Timeout = Timeout(10.seconds)
 
     val keyManagerRef = context.actorOf(KeyManagerRef.props(settings), KeyManager.actorName)
 
-    val addressGenSettings = settings.application.genesis.addressGenerationSettings
+    val addressGenSettings = settings.forging.addressGenerationSettings
 
-    // any better way to do this?
-    (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses(addressGenSettings))
+    val futureKeyView =
+      (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses(addressGenSettings))
       .mapTo[Try[StartupKeyView]]
       .flatMap(Future.fromTry)
 
-    keyManagerRef
+    KeyManagerInitializingState(keyManagerRef, futureKeyView)
   }
 
   private def prepareNodeViewRef(
-    settings: AppSettings,
-    consensusViewHolder: ActorRef[NxtConsensus.ReceivableMessage],
-    keyManagerRef: CActorRef
+                                  settings:            AppSettings,
+                                  consensusViewHolder: ActorRef[NxtConsensus.ReceivableMessage],
+                                  keyManagerInitState:       KeyManagerInitializingState
   )(implicit
     networkPrefix: NetworkPrefix,
     context:       ActorContext[ReceivableMessage],
@@ -321,8 +328,7 @@ object Heimdall {
     import context.executionContext
     implicit def system: ActorSystem[_] = context.system
 
-    val nodeViewHolderRef = {
-
+    val nodeViewHolderRef =
       context.spawn(
         NodeViewHolder(
           settings,
@@ -330,15 +336,15 @@ object Heimdall {
           () =>
             NodeView.persistent(
               settings,
-              new ActorConsensusInterface(consensusViewHolder)(system, Timeout(10.seconds))
+              new ActorConsensusInterface(consensusViewHolder)(system, Timeout(10.seconds)),
+              keyManagerInitState.futureKeyView
             )(context.system, implicitly, networkPrefix)
         ),
         NodeViewHolder.ActorName,
         DispatcherSelector.fromConfig("bifrost.application.node-view.dispatcher")
       )
-    }
 
-    NodeViewInitializingState(keyManagerRef, nodeViewHolderRef, consensusViewHolder)
+    NodeViewInitializingState(keyManagerInitState.keyManagerRef, nodeViewHolderRef, consensusViewHolder)
   }
 
   private def prepareNetworkControllerState(

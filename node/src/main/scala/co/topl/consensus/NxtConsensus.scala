@@ -216,7 +216,7 @@ trait ConsensusReader {
 }
 
 trait ConsensusInterface extends ConsensusReader {
-  def update(blockId: ModifierId, stateUpdate: StateUpdate): EitherT[Future, ConsensusInterface.Failures.Update, Done]
+  def update(blockId: ModifierId, stateUpdate: StateUpdate): EitherT[Future, ConsensusInterface.UpdateFailure, Done]
 }
 
 object ConsensusInterface {
@@ -240,21 +240,21 @@ class ActorConsensusInterface(actorRef: ActorRef[NxtConsensus.ReceivableMessage]
   import akka.actor.typed.scaladsl.AskPattern._
   import system.executionContext
 
-  override def withView[T](f: NxtConsensus.View => T): EitherT[Future, ConsensusInterface.Failures.Read, T] = {
+  override def withView[T](f: NxtConsensus.View => T): EitherT[Future, ConsensusInterface.WithViewFailure, T] = {
     import scala.concurrent.duration._
     implicit val timeout: Timeout = Timeout(5.seconds)
     EitherT(
       actorRef
         .askWithStatus[T](NxtConsensus.ReceivableMessages.WithView(f, _))
         .map(Right(_))
-        .recover { case e => Left(ConsensusInterface.Failures.Read(e)) }
+        .recover { case e => Left(ConsensusInterface.WithViewFailures.InternalException(e)) }
     )
   }
 
   override def update(
     blockId:     ModifierId,
     stateUpdate: StateUpdate
-  ): EitherT[Future, ConsensusInterface.Failures.Update, Done] =
+  ): EitherT[Future, ConsensusInterface.UpdateFailure, Done] =
     EitherT.liftF(
       actorRef.askWithStatus[Done](
         NxtConsensus.ReceivableMessages.UpdateState(blockId, stateUpdate, _)
