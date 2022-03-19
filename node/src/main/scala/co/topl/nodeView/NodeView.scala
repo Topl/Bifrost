@@ -93,13 +93,13 @@ object NodeView {
     startupKeyView:     Future[StartupKeyView]
   )(implicit system:    ActorSystem[_], ec: ExecutionContext, networkPrefix: NetworkPrefix): Future[NodeView] =
     if (State.exists(settings)) {
-      resumeNodeView(settings)
+      resume(settings)
     } else {
-      genesisNodeView(settings, consensusInterface, startupKeyView)
+      fetchAndApplyGenesis(settings, consensusInterface, startupKeyView)
         .valueOrF(e => Future.failed(new IllegalArgumentException(e.toString)))
     }
 
-  private def resumeNodeView(
+  private def resume(
     settings:        AppSettings
   )(implicit system: ActorSystem[_], ec: ExecutionContext, networkPrefix: NetworkPrefix): Future[NodeView] =
     Future.successful(
@@ -110,7 +110,7 @@ object NodeView {
       )
     )
 
-  private def genesisNodeView(
+  private def fetchAndApplyGenesis(
     settings:           AppSettings,
     consensusInterface: ConsensusInterface,
     startupKeyView:     Future[StartupKeyView]
