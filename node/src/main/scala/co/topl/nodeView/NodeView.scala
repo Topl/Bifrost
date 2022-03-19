@@ -4,7 +4,6 @@ import akka.actor.typed.ActorSystem
 import cats.data.{EitherT, Validated, Writer}
 import cats.implicits._
 import co.topl.attestation.Address
-import co.topl.consensus.ConsensusInterface.WithViewFailures.InternalException
 import co.topl.consensus.Hiccups.HiccupBlock
 import co.topl.consensus.KeyManager.StartupKeyView
 import co.topl.consensus._
@@ -121,17 +120,26 @@ object NodeView {
     networkPrefix: NetworkPrefix
   ): EitherT[Future, NodeViewHolderInterface.ApplyFailure, NodeView] = for {
     keyView <- EitherT.liftF(startupKeyView)
-    consensusView <- consensusInterface.withView[NxtConsensus.View](identity)
+    consensusView <- consensusInterface
+      .withView[NxtConsensus.View](identity)
       .leftMap(e => NodeViewHolderInterface.ApplyFailure(new IllegalArgumentException(e.toString)))
-    genesis <- new GenesisProvider(consensusView, keyView)
+    genesisBlockVersion = consensusView.protocolVersions.blockVersion(1)
+    genesis <- new GenesisProvider(genesisBlockVersion, keyView)
       .fetchGenesis(settings)
       .toEitherT[Future]
       .leftMap(e => NodeViewHolderInterface.ApplyFailure(new IllegalArgumentException(e.toString)))
+    _ <- consensusInterface
+      .update(
+        genesis.block.id,
+        NxtConsensus
+          .StateUpdate(Some(genesis.state.totalStake), Some(genesis.block.difficulty), None, Some(genesis.block.height))
+      )
+      .leftMap(e => NodeViewHolderInterface.ApplyFailure(new IllegalArgumentException(e.toString)))
     nodeView = NodeView(
-              History.readOrGenerate(settings).append(genesis.block, consensusView).get._1,
-              State.genesisState(settings, Seq(genesis.block)),
-              MemPool.empty()
-            )
+      History.readOrGenerate(settings).append(genesis.block, consensusView).get._1,
+      State.genesisState(settings, Seq(genesis.block)),
+      MemPool.empty()
+    )
   } yield nodeView
 }
 

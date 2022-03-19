@@ -22,7 +22,7 @@ import io.circe.parser
 import scala.collection.immutable.ListMap
 import scala.concurrent.ExecutionContext
 
-class GenesisProvider(consensusView: NxtConsensus.View, startupKeyView: StartupKeyView) {
+class GenesisProvider(genesisBlockVersion: Byte, startupKeyView: StartupKeyView) {
 
   def fetchGenesis(
     settings: AppSettings
@@ -79,7 +79,7 @@ class GenesisProvider(consensusView: NxtConsensus.View, startupKeyView: StartupK
       startupKeyView.addresses,
       strategy.balanceForEachParticipant,
       strategy.initialDifficulty,
-      consensusView.protocolVersions.blockVersion(1L)
+      genesisBlockVersion
     )
 }
 
