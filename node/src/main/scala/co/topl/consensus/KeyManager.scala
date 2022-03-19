@@ -70,6 +70,7 @@ class KeyManager(settings: AppSettings)(implicit networkPrefix: NetworkPrefix) e
 
   /**
    * Generates the initial addresses in the node for a private or local test network.
+   * NOTE: The keyManager will apply the default settings to a Private testnet to ease launching a development node
    * @param keyRing the key ring to generate addresses in
    * @param rewardAddress the current reward address
    * @return a try which results in a ForgerView of the current addresses and rewards address

@@ -6,8 +6,7 @@ import cats.implicits._
 import co.topl.attestation.Address
 import co.topl.consensus.Hiccups.HiccupBlock
 import co.topl.consensus.KeyManager.StartupKeyView
-import co.topl.consensus._
-import co.topl.consensus.genesis.GenesisProvider
+import co.topl.consensus.{GenesisProvider, _}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ProgramId

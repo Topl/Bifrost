@@ -8,7 +8,6 @@ import akka.util.Timeout
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
-import co.topl.consensus.genesis.GenesisProvider
 import co.topl.modifier.block.Block
 import co.topl.nodeView.NodeViewReader
 import co.topl.utils.NetworkType._

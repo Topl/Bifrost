@@ -1,15 +1,12 @@
-package co.topl.consensus.genesis
+package co.topl.consensus
 
-import co.topl.attestation.EvidenceProducer.Syntax.ProducerOps
-import co.topl.attestation._
 import co.topl.attestation.keyManagement._
-import co.topl.consensus.NxtConsensus
+import co.topl.attestation._
+import co.topl.consensus.GenesisProvider.Strategies.Generation
 import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
-import co.topl.settings.GenesisGenerationSettings
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
 
@@ -22,7 +19,7 @@ case class GenesisGenerator(
   propositionsThresholdCurve25519: Set[ThresholdPropositionCurve25519]
 )(implicit networkPrefix:          NetworkPrefix) {
 
-  def GenesisGen: GenesisProvider[GenesisGenerationSettings] = strategy => {
+  def GenesisGen: GenesisProvider[Generation] = strategy => {
     val (_, balance, initialDifficulty) =
       (strategy.numberOfParticipants, strategy.balanceForEachParticipant, strategy.initialDifficulty)
 

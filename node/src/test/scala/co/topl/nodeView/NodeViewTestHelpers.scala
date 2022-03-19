@@ -1,8 +1,7 @@
 package co.topl.nodeView
 
 import co.topl.attestation.Address
-import co.topl.consensus._
-import co.topl.consensus.genesis.TestGenesisGenerator
+import co.topl.consensus.{TestGenesisGenerator, _}
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}

@@ -1,13 +1,12 @@
-package co.topl.consensus.genesis
+package co.topl.consensus
 
 import akka.actor.typed.ActorSystem
 import cats.implicits._
 import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 import co.topl.attestation.{Address, EvidenceProducer, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.codecs._
+import co.topl.consensus.GenesisProvider.Strategies.{FromBlockJson, Generation}
 import co.topl.consensus.KeyManager.StartupKeyView
-import co.topl.consensus.NxtConsensus
-import co.topl.consensus.genesis.GenesisProvider.StrategySettings.{FromBlockJsonSettings, GenerationSettings}
 import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -46,17 +45,17 @@ class GenesisProvider(genesisBlockVersion: Byte, startupKeyView: StartupKeyView)
         .toRight(GenesisProvider.Failures.GenesisBlockJsonSettingsNotFound)
   }
 
-  private def fromJsonGenesisProvider(strategy: FromBlockJsonSettings)(implicit
-    networkPrefix:                                       NetworkPrefix
+  private def fromJsonGenesisProvider(strategy: FromBlockJson)(implicit
+    networkPrefix:                              NetworkPrefix
   ): Either[GenesisProvider.Failure, NxtConsensus.Genesis] = for {
     src   <- scala.io.Source.fromFile(strategy.providedJsonGenesisPath).asRight[GenesisProvider.Failure]
     json  <- parser.parse(src.mkString).leftMap(GenesisProvider.Failures.FailedToReadBlockJson)
-    block <- json.as[Block].leftMap(e => GenesisProvider.Failures.FailedToeDecodeBlockJson(e.message))
+    block <- json.as[Block].leftMap(e => GenesisProvider.Failures.FailedToDecodeBlockJson(e.message))
     expectedBlockId <- Base58Data
-      .unsafe(strategy.blockChecksum)
-      .encodeAsBytes
-      .decodeTransmitted[ModifierId]
+      .validated(strategy.blockChecksum)
+      .map(_.value.decodeTransmitted[ModifierId])
       .leftMap(_ => GenesisProvider.Failures.InvalidBlockChecksum)
+      .toEither
     validBlock <- Either.cond(
       block.id == expectedBlockId,
       block,
@@ -70,10 +69,10 @@ class GenesisProvider(genesisBlockVersion: Byte, startupKeyView: StartupKeyView)
       case box: ArbitBox => box.value.quantity
       case _             => Int128(0)
     })
-  } yield NxtConsensus.Genesis(validBlock, NxtConsensus.State(stakeAmounts.sum, validBlock.difficulty, 0L, 0L))
+  } yield NxtConsensus.Genesis(validBlock, NxtConsensus.State(stakeAmounts.sum, validBlock.difficulty, 0L, 1L))
 
   private def fromGeneratedProvider(
-    strategy:               GenerationSettings
+    strategy:               Generation
   )(implicit networkPrefix: NetworkPrefix): NxtConsensus.Genesis =
     GenesisProvider.construct(
       startupKeyView.addresses,
@@ -95,7 +94,7 @@ object GenesisProvider {
     minting:    Boolean
   )
 
-  private[genesis] def construct(
+  private[consensus] def construct(
     addresses:                 Set[Address],
     balanceForEachParticipant: Long,
     initialDifficulty:         Long,
@@ -156,7 +155,7 @@ object GenesisProvider {
       blockVersion
     )
 
-    val state = NxtConsensus.State(Int128(totalStake), initialDifficulty, 0L, 0L)
+    val state = NxtConsensus.State(Int128(totalStake), initialDifficulty, 0L, 1L)
 
     NxtConsensus.Genesis(block, state)
   }
@@ -167,22 +166,22 @@ object GenesisProvider {
     case object GenesisGeneratedSettingsNotFound extends Failure
     case object GenesisBlockJsonSettingsNotFound extends Failure
     case class FailedToReadBlockJson(reason: Throwable) extends Failure
-    case class FailedToeDecodeBlockJson(message: String) extends Failure
+    case class FailedToDecodeBlockJson(message: String) extends Failure
     case class BlockChecksumMismatch(reason: Throwable) extends Failure
     case object InvalidBlockChecksum extends Failure
   }
 
-  sealed abstract class StrategySetting
+  sealed abstract class Strategy
 
-  object StrategySettings {
+  object Strategies {
 
-    case class GenerationSettings(
+    case class Generation(
       genesisApplicationVersion: Version,
       balanceForEachParticipant: Long,
       initialDifficulty:         Long
-    ) extends StrategySetting
+    ) extends Strategy
 
-    case class FromBlockJsonSettings(providedJsonGenesisPath: String, blockChecksum: String) extends StrategySetting
+    case class FromBlockJson(providedJsonGenesisPath: String, blockChecksum: String) extends Strategy
   }
 
 }

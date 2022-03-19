@@ -2,8 +2,8 @@ package co.topl.utils
 
 import co.topl.attestation._
 import co.topl.attestation.keyManagement._
-import co.topl.consensus.genesis.TestGenesisGenerator
-import co.topl.consensus.{NxtConsensus, NxtLeaderElection, ProtocolVersioner}
+import co.topl.consensus.KeyManager.AddressGenerationSettings
+import co.topl.consensus._
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.Box.identifier
 import co.topl.modifier.box._
@@ -19,6 +19,7 @@ import co.topl.nodeView.history.{BlockProcessor, History, InMemoryKeyValueStore,
 import co.topl.nodeView.state.State
 import co.topl.settings._
 import co.topl.utils.IdiomaticScalaTransition.implicits._
+import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Latin1Data
 import com.typesafe.config.Config
 import org.scalacheck.Gen
@@ -34,7 +35,30 @@ trait TestSettings {
 
   val protocolVersioner: ProtocolVersioner =
     ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
+
   val nxtLeaderElection: NxtLeaderElection = new NxtLeaderElection(protocolVersioner)
+
+  val genesisBlock: Block = ???
+  //    TestGenesisGenerator.get2(
+  //      Gen.listOfN(settings.forging.genesis.map(_.generated.numberOfParticipants).get, addressGen).sample.get.toSet,
+  //      settings.forging.genesis.map(_.generated).get)
+
+  def generateState(genesisBlock: Block)(implicit networkPrefix: NetworkPrefix): State =
+    State.genesisState(settings, Seq(genesisBlock))
+
+  def generateHistory(genesisBlock: Block)(implicit networkPrefix: NetworkPrefix): History = {
+    val storage = new Storage(new InMemoryKeyValueStore)
+
+    val validators = Seq()
+
+    var history = new History(storage, BlockProcessor(1024), validators)
+    val consensusState = NxtConsensus.State(Int128(10000000), 1000000000000000000L, 0L, 1L)
+    val consensusView = NxtConsensus.View(consensusState, nxtLeaderElection, protocolVersioner)
+
+    history = history.append(genesisBlock, consensusView).get._1
+    assert(history.modifierById(genesisBlock.id).isDefined)
+    history
+  }
 }
 
 object TestSettings {
@@ -68,47 +92,29 @@ trait NodeGenerators extends CommonGenerators with DiskKeyFileTestHelper with Te
     block = TestGenesisGenerator.get(strat)(networkPrefix, addressGen).block
   } yield block
 
-  lazy val genesisBlock: Block =
-    TestGenesisGenerator.get2(
-      Gen.listOfN(settings.forging.genesis.map(_.generated.numberOfParticipants).get, addressGen).sample.get.toSet,
-      settings.forging.genesis.map(_.generated).get)
+  val genesisGenerationSettingsGen: Gen[GenesisProvider.Strategies.Generation] = for {
+    version           <- versionGen
+    balance           <- Gen.long
+    initialDifficulty <- Gen.long
+  } yield GenesisProvider.Strategies.Generation(version, balance, initialDifficulty)
 
-  val genesisGenerationSettingsGen: Gen[GenesisGenerationSettings] = for {
-    version              <- versionGen
+  val addressGenerationSettingsGen: Gen[AddressGenerationSettings] = for {
     numberOfParticipants <- positiveMediumIntGen
-    balance              <- Gen.long
-    initialDifficulty    <- Gen.long
     genesisSeed          <- stringGen
-  } yield GenesisGenerationSettings(version, numberOfParticipants, balance, initialDifficulty, Some(genesisSeed))
-
-  def generateHistory(genesisBlock: Block): History = {
-    val storage = new Storage(new InMemoryKeyValueStore)
-
-    val validators = Seq()
-
-    var history = new History(storage, BlockProcessor(1024), validators)
-    val staticConsensusState = NxtConsensus.State(Int128(10000000), 1000000000000000000L, 0L, 0L)
-    val staticConsensusView = NxtConsensus.View(staticConsensusState, nxtLeaderElection, protocolVersioner)
-
-    history = history.append(genesisBlock, staticConsensusView).get._1
-    assert(history.modifierById(genesisBlock.id).isDefined)
-    history
-  }
-
-  lazy val staticGenesisState: State = State.genesisState(settings, Seq(genesisBlock))
+  } yield AddressGenerationSettings(numberOfParticipants, Some(genesisSeed))
 
   lazy val validBifrostTransactionSeqGen: Gen[Seq[TX]] = for {
     seqLen <- positiveMediumIntGen
   } yield 0 until seqLen map { _ =>
     val g: Gen[TX] = sampleUntilNonEmpty(
       Gen.oneOf(
-        validPolyTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, staticGenesisState),
-        validArbitTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, staticGenesisState),
+        validPolyTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, generateState),
+        validArbitTransferGen(keyRingCurve25519, keyRingEd25519, propsThresholdCurve25519, generateState),
         validAssetTransferGen(
           keyRingCurve25519,
           keyRingEd25519,
           propsThresholdCurve25519,
-          staticGenesisState,
+          generateState,
           minting = true
         )
       )

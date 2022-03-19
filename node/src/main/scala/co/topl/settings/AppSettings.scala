@@ -1,8 +1,7 @@
 package co.topl.settings
 
-import co.topl.consensus.KeyManager
+import co.topl.consensus.{GenesisProvider, KeyManager}
 import co.topl.consensus.KeyManager.AddressGenerationSettings
-import co.topl.consensus.genesis.GenesisProvider
 import co.topl.network.utils.NetworkTimeProviderSettings
 import co.topl.utils.Logging
 import com.typesafe.config.{Config, ConfigFactory}
@@ -88,9 +87,9 @@ case class ForgingSettings(
 )
 
 case class GenesisSettings(
-  strategy:                  GenesisStrategies.Value,
-  generated:                 Option[GenesisProvider.StrategySettings.GenerationSettings],
-  fromBlockJson:             Option[GenesisProvider.StrategySettings.FromBlockJsonSettings]
+                            strategy:                  GenesisStrategies.Value,
+                            generated:                 Option[GenesisProvider.Strategies.Generation],
+                            fromBlockJson:             Option[GenesisProvider.Strategies.FromBlockJson]
 )
 
 object GenesisStrategies extends Enumeration {

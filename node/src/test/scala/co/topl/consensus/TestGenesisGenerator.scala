@@ -1,15 +1,13 @@
-package co.topl.consensus.genesis
+package co.topl.consensus
 
 import co.topl.attestation.Address
-import co.topl.consensus.NxtConsensus
 import co.topl.modifier.block.Block
-import co.topl.settings.{AppSettings, GenesisGenerationSettings}
 import co.topl.utils.NetworkType.NetworkPrefix
 import org.scalacheck.Gen
 
 object TestGenesisGenerator {
 
-  def get(strategy: GenesisGenerationSettings)(implicit
+  def get(strategy: GenesisProvider.Strategies.Generation)(implicit
     networkPrefix:  NetworkPrefix,
     addressGen:     Gen[Address]
   ): NxtConsensus.Genesis = {

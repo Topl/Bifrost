@@ -127,7 +127,7 @@ trait RPCMockState
     // manipulate the underlying actor state
     TestableNodeViewHolder.setNodeView(
       nodeViewHolderRef,
-      _.copy(state = staticGenesisState)
+      _.copy(state = generateState)
     )(system.toTyped)
     km.context.become(km.receive(keyRingCurve25519, Some(keyRingCurve25519.addresses.head)))
 
