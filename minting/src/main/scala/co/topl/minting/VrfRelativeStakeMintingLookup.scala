@@ -1,19 +1,18 @@
 package co.topl.minting
 
-import cats.implicits._
-import co.topl.algebras.{ClockAlgebra, ConsensusState}
-import co.topl.minting.algebras.VrfRelativeStakeMintingLookupAlgebra
-import co.topl.models.utility.Ratio
-import co.topl.models.{Slot, TaktikosAddress}
-import ClockAlgebra.implicits._
 import cats.FlatMap
+import cats.implicits._
+import co.topl.algebras.ClockAlgebra.implicits._
+import co.topl.algebras.{ClockAlgebra, ConsensusStateReader}
+import co.topl.minting.algebras.VrfRelativeStakeMintingLookupAlgebra
+import co.topl.models.{Slot, TaktikosAddress}
 
 object VrfRelativeStakeMintingLookup {
 
   object Eval {
 
     def make[F[_]: FlatMap](
-      state: ConsensusState[F],
+      state: ConsensusStateReader[F],
       clock: ClockAlgebra[F]
     ): VrfRelativeStakeMintingLookupAlgebra[F] =
       (globalSlot: Slot, address: TaktikosAddress) =>

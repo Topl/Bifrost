@@ -47,7 +47,7 @@ object ThresholdSimulator extends IOApp.Simple {
   private val statsDir = Paths.get(".bifrost", "stats")
   Files.createDirectories(statsDir)
 
-  implicit private val system: ActorSystem[NodeViewHolder.ReceivableMessage] =
+  implicit private val system: ActorSystem[_] =
     ActorSystem(
       Behaviors.empty,
       "ThresholdSimulator"

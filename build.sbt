@@ -211,7 +211,8 @@ lazy val bifrost = project
     consensus,
     demo,
     tools,
-    scripting
+    scripting,
+    eligibilitySimulator
   )
 
 lazy val node = project
@@ -442,7 +443,7 @@ lazy val minting = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.minting"
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsEffect)
+  .settings(libraryDependencies ++= Dependencies.minting)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(
     models % "compile->compile;test->test",
