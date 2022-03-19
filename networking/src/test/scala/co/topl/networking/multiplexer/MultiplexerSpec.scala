@@ -1,7 +1,7 @@
 package co.topl.networking.multiplexer
 
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.{Flow, Keep}
+import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import akka.stream.testkit.scaladsl.{TestSink, TestSource}
 import akka.testkit.TestKitBase
 import akka.util.ByteString
@@ -29,7 +29,10 @@ class MultiplexerSpec
   it should "accept dynamic subProtocol sets" in {
     val subProtocolSet1 =
       List(
-        SubHandler(1, Flow[ByteString].map(t => ByteString("echo") ++ t))
+        {
+          val (source, sink) = echo1
+          SubHandler(1, sink, source)
+        }
       )
 
     val (subHandlersProbe, subHandlersSource) = TestSource.probe[List[SubHandler]].preMaterialize()
@@ -47,20 +50,23 @@ class MultiplexerSpec
     forAll(Gen.asciiStr) { s: String =>
       sub.request(1)
       pub.sendNext((1: Byte) -> ByteString(s))
-      sub.expectNext((1: Byte, ByteString("echo") ++ ByteString(s)))
+      sub.expectNext((1: Byte, ByteString("echo1") ++ ByteString(s)))
     }
 
     val subProtocolSet2 =
       subProtocolSet1 ++
       List(
-        SubHandler(2, Flow[ByteString].map(t => ByteString("echo2") ++ t))
+        {
+          val (source, sink) = echo2
+          SubHandler(2, sink, source)
+        }
       )
     subHandlersProbe.sendNext(subProtocolSet2)
 
     forAll(Gen.asciiStr, Gen.asciiStr) { (s1: String, s2: String) =>
       sub.request(1)
       pub.sendNext((1: Byte) -> ByteString(s1))
-      sub.expectNext((1: Byte, ByteString("echo") ++ ByteString(s1)))
+      sub.expectNext((1: Byte, ByteString("echo1") ++ ByteString(s1)))
       sub.request(1)
       pub.sendNext((2: Byte) -> ByteString(s2))
       sub.expectNext((2: Byte, ByteString("echo2") ++ ByteString(s2)))
@@ -91,7 +97,10 @@ class MultiplexerSpec
   it should "discard messages belonging to a discarded subProtocol" in {
     val subProtocolSet1 =
       List(
-        SubHandler(1, Flow[ByteString].map(t => ByteString("echo") ++ t))
+        {
+          val (source, sink) = echo1
+          SubHandler(1, sink, source)
+        }
       )
 
     val (subHandlersProbe, subHandlersSource) = TestSource.probe[List[SubHandler]].preMaterialize()
@@ -109,7 +118,7 @@ class MultiplexerSpec
     forAll(Gen.asciiStr) { s: String =>
       sub.request(1)
       pub.sendNext((1: Byte) -> ByteString(s))
-      sub.expectNext((1: Byte, ByteString("echo") ++ ByteString(s)))
+      sub.expectNext((1: Byte, ByteString("echo1") ++ ByteString(s)))
     }
 
     subHandlersProbe.sendNext(Nil)
@@ -119,5 +128,19 @@ class MultiplexerSpec
       pub.sendNext((1: Byte) -> ByteString(s))
       sub.expectNoMessage()
     }
+  }
+
+  private def echo1 = {
+    val (queue, source) = Source.queue[ByteString](128).map(ByteString("echo1") ++ _).preMaterialize()
+    val sink = Sink.foreach[ByteString](queue.offer)
+
+    source -> sink
+  }
+
+  private def echo2 = {
+    val (queue, source) = Source.queue[ByteString](128).map(ByteString("echo2") ++ _).preMaterialize()
+    val sink = Sink.foreach[ByteString](queue.offer)
+
+    source -> sink
   }
 }

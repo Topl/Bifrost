@@ -3,7 +3,7 @@ package co.topl.networking.multiplexer
 import akka.NotUsed
 import akka.stream._
 import akka.stream.scaladsl.GraphDSL.Implicits._
-import akka.stream.scaladsl.{Flow, GraphDSL, Source}
+import akka.stream.scaladsl.{Flow, GraphDSL, Sink, Source}
 import akka.stream.stage._
 import akka.util.ByteString
 
@@ -186,6 +186,8 @@ class MultiplexerImpl extends GraphStage[MultiplexerStageShape] {
               if (isAvailable(shape.dataOut)) push(shape.dataOut, (subHandler.sessionId, data))
               else buffer.enqueue(data)
             }
+
+            override def onUpstreamFinish(): Unit = {}
           }
         )
 
@@ -195,8 +197,16 @@ class MultiplexerImpl extends GraphStage[MultiplexerStageShape] {
               if (buffer.nonEmpty) sourceOut.push(buffer.dequeue())
           }
         )
-        val graph = Source.fromGraph(sourceOut.source).via(subHandler.handler).to(sinkIn.sink)
-        subFusingMaterializer.materialize(graph)
+
+        subFusingMaterializer.materialize(
+          Source
+            .fromGraph(sourceOut.source)
+            .to(subHandler.subscriber)
+        )
+
+        subFusingMaterializer.materialize(
+          subHandler.producer.to(sinkIn.sink)
+        )
 
       }
 

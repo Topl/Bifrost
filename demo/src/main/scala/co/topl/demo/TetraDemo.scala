@@ -2,13 +2,14 @@ package co.topl.demo
 
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
+import akka.stream.scaladsl.Source
 import akka.util.Timeout
 import cats.arrow.FunctionK
 import cats.data.OptionT
 import cats.effect.implicits._
 import cats.effect.kernel.Sync
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig}
-import cats.effect.{Async, IO, IOApp}
+import cats.effect.{Async, ExitCode, IO, IOApp}
 import cats.implicits._
 import cats.~>
 import co.topl.algebras._
@@ -32,13 +33,14 @@ import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
+import java.net.InetSocketAddress
 import java.nio.file.{Files, Paths}
 import java.util.UUID
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Random
 
-object TetraDemo extends IOApp.Simple {
+object TetraDemo extends IOApp {
 
   // Configuration Data
   private val vrfConfig =
@@ -47,7 +49,7 @@ object TetraDemo extends IOApp.Simple {
   private val OperationalPeriodLength = 180L
   private val OperationalPeriodsPerEpoch = 4L
   private val EpochLength = OperationalPeriodLength * OperationalPeriodsPerEpoch
-  private val SlotDuration = 100.milli
+  private val SlotDuration = 200.milli
 
   require(
     EpochLength % OperationalPeriodLength === 0L,
@@ -223,7 +225,7 @@ object TetraDemo extends IOApp.Simple {
 
   implicit val fToFuture: F ~> Future = FunctionK.liftFunction(_.unsafeToFuture()(runtime))
 
-  val run: IO[Unit] = {
+  def run(args: List[String]): IO[ExitCode] = {
     for {
       blake2b256Resource <- ActorPoolUnsafeResource.Eval.make[F, Blake2b256](new Blake2b256, _ => ())
       blake2b512Resource <- ActorPoolUnsafeResource.Eval.make[F, Blake2b512](new Blake2b512, _ => ())
@@ -277,13 +279,25 @@ object TetraDemo extends IOApp.Simple {
           cachedHeaderValidation,
           blockStore,
           localChain,
-          ed25519VRFResource
+          ed25519VRFResource,
+          args(0).toInt,
+          Source(
+            args
+              .lift(1)
+              .fold(Nil: List[InetSocketAddress])(
+                _.split(',').toList
+                  .map(_.split(':'))
+                  .map(arr => InetSocketAddress.createUnresolved(arr(0), arr(1).toInt))
+              )
+          )
+            .concat(Source.never)
         )
     } yield ()
   }
     .guarantee(
       Sync[F].delay(system.terminate()).flatMap(_ => Async[F].fromFuture(system.whenTerminated.pure[F])).void
     )
+    .as(ExitCode.Success)
 }
 
 private case class Staker(

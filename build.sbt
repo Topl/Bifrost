@@ -472,8 +472,10 @@ lazy val networking = project
     typeclasses,
     crypto,
     byteCodecs,
+    tetraByteCodecs,
     algebras % "compile->compile;test->test",
-    consensus
+    consensus,
+    commonInterpreters
   )
 
 lazy val demo = project
@@ -497,7 +499,7 @@ lazy val demo = project
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.demo ++ Dependencies.catsEffect)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models % "compile->compile;test->test", typeclasses, consensus, minting, scripting, commonInterpreters)
+  .dependsOn(models % "compile->compile;test->test", typeclasses, consensus, minting, scripting, commonInterpreters, networking)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
 lazy val eligibilitySimulator: Project = project
