@@ -291,6 +291,9 @@ trait TetraScodecCodecs {
 
   implicit val transactionCodec: Codec[Transaction] = Codec.lazily(???)
 
+  implicit val taktikosRegistrationBoxCodec: Codec[Box.Values.TaktikosRegistration] =
+    Codec[Proofs.Knowledge.KesProduct].xmap(Box.Values.TaktikosRegistration(_), _.commitment)
+
   implicit val boxCodec: Codec[Box[_]] = Codec.lazily(???)
 }
 

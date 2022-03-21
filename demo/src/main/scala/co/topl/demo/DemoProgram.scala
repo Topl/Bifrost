@@ -31,7 +31,7 @@ object DemoProgram {
    * A forever-running program which traverses epochs and the slots within the epochs
    */
   def run[F[_]: MonadThrow: Logger: Async: *[_] ~> Future](
-    mints:              List[PerpetualBlockMintAlgebra[F]],
+    mint:               PerpetualBlockMintAlgebra[F],
     headerValidation:   BlockHeaderValidationAlgebra[F],
     blockStore:         Store[F, BlockV2],
     localChain:         LocalChainAlgebra[F],
@@ -42,7 +42,7 @@ object DemoProgram {
     for {
       (p2pServer, onAdoptCallback) <- networking(bindPort, remotePeers)
 //      onAdoptCallback   <- ((_: TypedIdentifier) => Applicative[F].unit).pure[F]
-      mintedBlockStream <- mints.foldMapM(_.blocks)
+      mintedBlockStream <- mint.blocks
       streamCompletionFuture = implicitly[RunnableGraph ~> F].apply(
         mintedBlockStream
           .mapAsyncF(1)(
