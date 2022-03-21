@@ -3,10 +3,9 @@ package co.topl.nodeView
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.actor.typed.ActorRef
 import akka.actor.typed.eventstream.EventStream
-import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
-import co.topl.consensus.{ActorConsensusInterface, NxtConsensus}
+import co.topl.attestation.PublicKeyPropositionCurve25519
+import co.topl.consensus.{ActorConsensusInterface, NxtConsensus, NxtLeaderElection}
 import co.topl.modifier.block.Block
-import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithms, TransferBuilder, TransferRequests}
 import co.topl.nodeView.ChainReplicatorSpec.TestInWithActor
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages
@@ -18,14 +17,14 @@ import co.topl.tools.exporter.DatabaseOperations
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.mongodb.DocumentEncoder
 import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataModel, UnconfirmedTransactionDataModel}
-import co.topl.utils.{InMemoryKeyFileTestHelper, TestSettings, TimeProvider}
+import co.topl.utils.{InMemoryKeyRingTestHelper, NodeGenerators, TestSettings, TimeProvider}
 import com.mongodb.client.result.{DeleteResult, InsertManyResult}
 import org.bson.BsonValue
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.OptionValues
 import org.scalatest.flatspec.AnyFlatSpecLike
 
-import scala.collection.{mutable, AbstractIterator}
+import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
@@ -34,7 +33,8 @@ class ChainReplicatorSpec
     extends ScalaTestWithActorTestKit
     with AnyFlatSpecLike
     with TestSettings
-    with InMemoryKeyFileTestHelper
+    with NodeGenerators
+    with InMemoryKeyRingTestHelper
     with NodeViewTestHelpers
     with MockFactory
     with OptionValues {
@@ -68,9 +68,16 @@ class ChainReplicatorSpec
       .anyNumberOfTimes()
       .onCall(() => System.currentTimeMillis())
 
-    genesisActorTest { testIn =>
-      val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head).take(blockNum).toList
-      testIn.nodeViewHolderRef.tell(ReceivableMessages.WriteBlocks(newBlocks))
+    genesisActorTest { testInWithActors =>
+      val genesisBlock = testInWithActors.testIn.genesisView.block
+      val leaderElection = new NxtLeaderElection(protocolVersioner)
+      val newBlocks = generateBlockExtensions(
+        genesisBlock,
+        List(genesisBlock),
+        keyRingCurve25519.addresses.head,
+        leaderElection
+      ).take(blockNum).toList
+      testInWithActors.nodeViewHolderRef.tell(ReceivableMessages.WriteBlocks(newBlocks))
       val newTxs = newBlocks.flatMap(_.transactions)
 
       Thread.sleep(0.5.seconds.toMillis)
@@ -116,7 +123,7 @@ class ChainReplicatorSpec
 
       val chainRepRef = spawn(
         ChainReplicator(
-          testIn.nodeViewHolderRef,
+          testInWithActors.nodeViewHolderRef,
           dbOps,
           chainRepSettings
         ),
@@ -143,8 +150,15 @@ class ChainReplicatorSpec
       .anyNumberOfTimes()
       .onCall(() => System.currentTimeMillis())
 
-    genesisActorTest { testIn =>
-      val newBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head).take(blockNum).toList
+    genesisActorTest { testInWithActors =>
+      val genesisBlock = testInWithActors.testIn.genesisView.block
+      val leaderElection = new NxtLeaderElection(protocolVersioner)
+      val newBlocks = generateBlockExtensions(
+        genesisBlock,
+        List(genesisBlock),
+        keyRingCurve25519.addresses.head,
+        leaderElection
+      ).take(blockNum).toList
       val newTxs = newBlocks.flatMap(_.transactions)
 
       val dbOps = mock[DatabaseOperations]
@@ -193,7 +207,7 @@ class ChainReplicatorSpec
 
       val chainRepRef = spawn(
         ChainReplicator(
-          testIn.nodeViewHolderRef,
+          testInWithActors.nodeViewHolderRef,
           dbOps,
           chainRepSettings
         ),
@@ -225,13 +239,14 @@ class ChainReplicatorSpec
       .anyNumberOfTimes()
       .onCall(() => System.currentTimeMillis())
 
-    genesisActorTest { testIn =>
+    genesisActorTest { testInWithActors =>
+      val genesisBlock = testInWithActors.testIn.genesisView.block
       val addressA :: addressB :: _ = keyRingCurve25519.addresses.toList
       val rand = scala.util.Random
       def polyTransferParams(
         transferAmount: Int
       ): (MinimalState[Block, State], TransferRequests.PolyTransferRequest, BoxSelectionAlgorithms.All.type) = (
-        testIn.testIn.nodeView.state,
+        testInWithActors.testIn.nodeView.state,
         TransferRequests.PolyTransferRequest(
           List(addressB),
           List(addressA -> transferAmount),
@@ -306,21 +321,25 @@ class ChainReplicatorSpec
 
       val chainRepRef = spawn(
         ChainReplicator(
-          testIn.nodeViewHolderRef,
+          testInWithActors.nodeViewHolderRef,
           dbOps,
           chainRepSettings
         ),
         ChainReplicator.actorName
       )
-      testIn.nodeViewHolderRef.tell(
+      testInWithActors.nodeViewHolderRef.tell(
         NodeViewHolder.ReceivableMessages.WriteTransactions(List(polyTransferFst, polyTransferSec))
       )
       Thread.sleep(0.5.seconds.toMillis)
       system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(genesisBlock)))
       Thread.sleep(0.5.seconds.toMillis)
       unconfirmedTxStore.keys.toSet == Set(polyTransferFst.id.toString, polyTransferSec.id.toString) shouldBe true
-      testIn.nodeViewHolderRef ! NodeViewHolder.ReceivableMessages.EliminateTransactions(Seq(polyTransferFst.id))
-      testIn.nodeViewHolderRef.tell(NodeViewHolder.ReceivableMessages.WriteTransactions(List(polyTransferTrd)))
+      testInWithActors.nodeViewHolderRef ! NodeViewHolder.ReceivableMessages.EliminateTransactions(
+        Seq(polyTransferFst.id)
+      )
+      testInWithActors.nodeViewHolderRef.tell(
+        NodeViewHolder.ReceivableMessages.WriteTransactions(List(polyTransferTrd))
+      )
       system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(genesisBlock)))
       Thread.sleep(0.5.seconds.toMillis)
       unconfirmedTxStore.keys.toSet == Set(polyTransferSec.id.toString, polyTransferTrd.id.toString) shouldBe true
@@ -378,13 +397,12 @@ class ChainReplicatorSpec
     Future.successful(idsToCheck.filter(blockStore.contains))
 
   private def genesisActorTest(test: TestInWithActor => Unit)(implicit timeProvider: TimeProvider): Unit = {
-    val testIn = genesisNodeView()
+    val testIn = genesisNodeViewTestInputs(nxtConsensusGenesisGen.sample.get)
     val consensusStorageRef = spawn(
       NxtConsensus(
         settings,
         InMemoryKeyValueStore.empty()
-      ),
-      NxtConsensus.actorName
+      )
     )
     val nodeViewHolderRef = spawn(
       NodeViewHolder(
@@ -398,35 +416,6 @@ class ChainReplicatorSpec
     testKit.stop(nodeViewHolderRef)
     testKit.stop(consensusStorageRef)
   }
-
-  private def generateBlocks(previousBlocks: List[Block], forgerAddress: Address): Iterator[Block] =
-    new AbstractIterator[Block] {
-
-      // Because the reward fee is 0, the genesis arbit box is never destroyed during forging, so we can re-use it
-      private val arbitBox =
-        previousBlocks.last.transactions
-          .flatMap(_.newBoxes)
-          .collectFirst { case a: ArbitBox if a.evidence == forgerAddress.evidence => a }
-          .value
-      private var previous3Blocks: List[Block] = previousBlocks.takeRight(3)
-
-      override def hasNext: Boolean = true
-
-      override def next(): Block =
-        if (previous3Blocks.isEmpty) {
-          previous3Blocks = List(genesisBlock)
-          genesisBlock
-        } else {
-          val newBlock = nextBlock(
-            previous3Blocks.last,
-            arbitBox,
-            previous3Blocks.map(_.timestamp),
-            forgerAddress
-          )
-          previous3Blocks = (previous3Blocks :+ newBlock).takeRight(3)
-          newBlock
-        }
-    }
 }
 
 object ChainReplicatorSpec {

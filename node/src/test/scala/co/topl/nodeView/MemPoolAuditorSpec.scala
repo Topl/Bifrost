@@ -7,7 +7,7 @@ import akka.actor.{ActorRef => CActorRef, ActorSystem => CActorSystem}
 import akka.io.{IO, Tcp}
 import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
-import co.topl.consensus.{ActorConsensusInterface, Forger, LocallyGeneratedBlock, NxtConsensus}
+import co.topl.consensus.{ActorConsensusInterface, Forger, GenesisProvider, LocallyGeneratedBlock, NxtConsensus}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithms, TransferBuilder, TransferRequests}
 import co.topl.network.{NetworkControllerRef, PeerManager, PeerManagerRef}
@@ -15,7 +15,7 @@ import co.topl.nodeView.MemPoolAuditorSpec.TestInWithActor
 import co.topl.nodeView.NodeViewTestHelpers.TestIn
 import co.topl.nodeView.history.InMemoryKeyValueStore
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
-import co.topl.utils.{InMemoryKeyFileTestHelper, Int128, TestSettings, TimeProvider}
+import co.topl.utils.{InMemoryKeyRingTestHelper, Int128, TestSettings, TimeProvider}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.OptionValues
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -27,7 +27,7 @@ class MemPoolAuditorSpec
     extends ScalaTestWithActorTestKit
     with AnyFlatSpecLike
     with TestSettings
-    with InMemoryKeyFileTestHelper
+    with InMemoryKeyRingTestHelper
     with NodeViewTestHelpers
     with MockFactory
     with OptionValues {
@@ -76,7 +76,7 @@ class MemPoolAuditorSpec
       testIn.testIn.nodeView.mempool.modifierById(transactions.head.id).value shouldBe transactions.head
       Thread.sleep(1.seconds.toMillis)
       // Using genesisBlock since the memPoolAuditor doesn't care which specific block passed the checks
-      system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(genesisBlock)))
+      system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(testIn.testIn.genesisView.block)))
       Thread.sleep(0.5.seconds.toMillis)
       testIn.testIn.nodeView.mempool.modifierById(transactions.head.id) shouldBe None
     }
@@ -140,28 +140,22 @@ class MemPoolAuditorSpec
       settings.application.copy(mempoolTimeout = 1.seconds)
     )
 
-    val rewardsAddress = keyRingCurve25519.addresses.head
     val keyView =
       KeyView(
         keyRingCurve25519.addresses,
-        Some(rewardsAddress),
+        Some(keyRingCurve25519.addresses.head),
         keyRingCurve25519.signWithAddress,
         keyRingCurve25519.lookupPublicKey
       )
 
-    val fetchKeyView = mockFunction[Future[KeyView]]
-    fetchKeyView
-      .expects()
-      .anyNumberOfTimes()
-      .returning(Future.successful(keyView))
-
-    val fetchStartupKeyView = mockFunction[Future[StartupKeyView]]
-    fetchStartupKeyView
-      .expects()
-      .once()
-      .returning(Future.successful(StartupKeyView(keyView.addresses, keyView.rewardAddr)))
-
-    val testIn = genesisNodeView()
+    val testIn = genesisNodeViewTestInputs(
+      GenesisProvider.construct(
+        keyView.addresses,
+        Int.MaxValue,
+        0L,
+        0
+      )
+    )
 
     val peerManagerRef: CActorRef =
       cSystem.actorOf(PeerManagerRef.props(testSettings, None), PeerManager.actorName)
@@ -184,8 +178,7 @@ class MemPoolAuditorSpec
         blockGenerationDelay,
         minTransactionFee,
         forgeOnStartup = false,
-        fetchKeyView,
-        fetchStartupKeyView,
+        () => Future.successful(keyView),
         new ActorNodeViewHolderInterface(nodeViewHolderRef),
         new ActorConsensusInterface(consensusStorageRef)
       )

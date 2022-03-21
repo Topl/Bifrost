@@ -2,10 +2,8 @@ package co.topl.nodeView
 
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.actor.typed.ActorRef
-import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
-import co.topl.consensus.{ActorConsensusInterface, NxtConsensus}
-import co.topl.modifier.block.Block
-import co.topl.modifier.box.ArbitBox
+import co.topl.attestation.PublicKeyPropositionCurve25519
+import co.topl.consensus.{ActorConsensusInterface, NxtConsensus, NxtLeaderElection}
 import co.topl.modifier.transaction.builder.TransferRequests.PolyTransferRequest
 import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithms, TransferBuilder}
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages
@@ -13,12 +11,11 @@ import co.topl.nodeView.NodeViewHolderSpec.TestInWithActor
 import co.topl.nodeView.NodeViewTestHelpers.TestIn
 import co.topl.nodeView.history.InMemoryKeyValueStore
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
-import co.topl.utils.{InMemoryKeyFileTestHelper, TestSettings, TimeProvider}
+import co.topl.utils.{InMemoryKeyRingTestHelper, NodeGenerators, TestSettings, TimeProvider}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{Inspectors, OptionValues}
 
-import scala.collection.AbstractIterator
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
@@ -26,7 +23,8 @@ class NodeViewHolderSpec
     extends ScalaTestWithActorTestKit
     with AnyFlatSpecLike
     with TestSettings
-    with InMemoryKeyFileTestHelper
+    with InMemoryKeyRingTestHelper
+    with NodeGenerators
     with NodeViewTestHelpers
     with MockFactory
     with OptionValues
@@ -105,12 +103,17 @@ class NodeViewHolderSpec
       .anyNumberOfTimes()
       .onCall(() => System.currentTimeMillis())
 
-    genesisActorTest { testIn =>
-      val nextBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head).take(3).toList
-      testIn.nodeViewHolderRef.tell(ReceivableMessages.WriteBlocks(nextBlocks))
+    genesisActorTest { testInWithActors =>
+      val genesisBlock = testInWithActors.testIn.genesisView.block
+      val leaderElection = new NxtLeaderElection(protocolVersioner)
+      val nextBlocks =
+        generateBlockExtensions(genesisBlock, List(genesisBlock), keyRingCurve25519.addresses.head, leaderElection)
+          .take(3)
+          .toList
+      testInWithActors.nodeViewHolderRef.tell(ReceivableMessages.WriteBlocks(nextBlocks))
       Thread.sleep(2.seconds.toMillis)
       forAll(nextBlocks) { block =>
-        testIn.testIn.nodeView.history.modifierById(block.id).value
+        testInWithActors.testIn.nodeView.history.modifierById(block.id).value
       }
     }
   }
@@ -124,35 +127,40 @@ class NodeViewHolderSpec
       .anyNumberOfTimes()
       .onCall(() => System.currentTimeMillis())
 
-    genesisActorTest { testIn =>
-      val nextBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head).take(3).toList
+    genesisActorTest { testInWithActors =>
+      val genesisBlock = testInWithActors.testIn.genesisView.block
+      val leaderElection = new NxtLeaderElection(protocolVersioner)
+      val nextBlocks = generateBlockExtensions(
+        genesisBlock,
+        List(genesisBlock),
+        keyRingCurve25519.addresses.head,
+        leaderElection
+      ).take(3).toList
       // Insert blocks 2 and 3, but not block 1
-      testIn.nodeViewHolderRef.tell(ReceivableMessages.WriteBlocks(nextBlocks.takeRight(2)))
+      testInWithActors.nodeViewHolderRef.tell(ReceivableMessages.WriteBlocks(nextBlocks.takeRight(2)))
       Thread.sleep(2.seconds.toMillis)
       // Because block 1 is not available yet, blocks 2 and 3 should not be in history yet either
       forAll(nextBlocks) { block =>
-        testIn.testIn.nodeView.history.modifierById(block.id) shouldBe None
+        testInWithActors.testIn.nodeView.history.modifierById(block.id) shouldBe None
       }
       // Now write block 1
-      testIn.nodeViewHolderRef.tell(ReceivableMessages.WriteBlocks(nextBlocks.take(1)))
+      testInWithActors.nodeViewHolderRef.tell(ReceivableMessages.WriteBlocks(nextBlocks.take(1)))
       Thread.sleep(2.seconds.toMillis)
       // And verify that block 1 was written, as well as blocks 2 and 3 from the previous attempt
       forAll(nextBlocks) { block =>
-        testIn.testIn.nodeView.history.modifierById(block.id).value
+        testInWithActors.testIn.nodeView.history.modifierById(block.id).value
       }
     }
   }
 
   private def genesisActorTest(test: TestInWithActor => Unit)(implicit timeProvider: TimeProvider): Unit = {
-    val testIn = genesisNodeView()
-    val consensusStorageRef =
-      spawn(
-        NxtConsensus(
-          settings,
-          InMemoryKeyValueStore.empty()
-        ),
-        NxtConsensus.actorName
+    val testIn = genesisNodeViewTestInputs(nxtConsensusGenesisGen.sample.get)
+    val consensusStorageRef = spawn(
+      NxtConsensus(
+        settings,
+        InMemoryKeyValueStore.empty()
       )
+    )
     val nodeViewHolderRef = spawn(
       NodeViewHolder(
         settings,
@@ -165,35 +173,6 @@ class NodeViewHolderSpec
     testKit.stop(nodeViewHolderRef)
     testKit.stop(consensusStorageRef)
   }
-
-  private def generateBlocks(previousBlocks: List[Block], forgerAddress: Address): Iterator[Block] =
-    new AbstractIterator[Block] {
-
-      // Because the reward fee is 0, the genesis arbit box is never destroyed during forging, so we can re-use it
-      private val arbitBox =
-        previousBlocks.last.transactions
-          .flatMap(_.newBoxes)
-          .collectFirst { case a: ArbitBox if a.evidence == forgerAddress.evidence => a }
-          .value
-      private var previous3Blocks: List[Block] = previousBlocks.takeRight(3)
-
-      override def hasNext: Boolean = true
-
-      override def next(): Block =
-        if (previous3Blocks.isEmpty) {
-          previous3Blocks = List(genesisBlock)
-          genesisBlock
-        } else {
-          val newBlock = nextBlock(
-            previous3Blocks.last,
-            arbitBox,
-            previous3Blocks.map(_.timestamp),
-            forgerAddress
-          )
-          previous3Blocks = (previous3Blocks :+ newBlock).takeRight(3)
-          newBlock
-        }
-    }
 }
 
 object NodeViewHolderSpec {

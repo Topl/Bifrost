@@ -8,7 +8,7 @@ import java.nio.file.{Files, Path}
 import java.util.Comparator
 import scala.collection.SortedSet
 
-trait KeyFileTestHelper {
+trait KeyRingTestHelper {
 
   protected var keyRingCurve25519: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] = _
 
@@ -17,7 +17,7 @@ trait KeyFileTestHelper {
   protected var propsThresholdCurve25519: Set[ThresholdPropositionCurve25519] = _
 }
 
-trait DiskKeyFileTestHelper extends BeforeAndAfterAll with NetworkPrefixTestHelper with KeyFileTestHelper {
+trait DiskKeyRingTestHelper extends BeforeAndAfterAll with NetworkPrefixTestHelper with KeyRingTestHelper {
 
   self: Suite =>
 
@@ -67,7 +67,7 @@ trait DiskKeyFileTestHelper extends BeforeAndAfterAll with NetworkPrefixTestHelp
   }
 }
 
-trait InMemoryKeyFileTestHelper extends NetworkPrefixTestHelper with BeforeAndAfterAll with KeyFileTestHelper {
+trait InMemoryKeyRingTestHelper extends NetworkPrefixTestHelper with BeforeAndAfterAll with KeyRingTestHelper {
   self: Suite =>
 
   keyRingCurve25519 = {

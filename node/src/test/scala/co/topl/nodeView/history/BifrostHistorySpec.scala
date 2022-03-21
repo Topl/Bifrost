@@ -1,43 +1,34 @@
 package co.topl.nodeView.history
 
-import co.topl.consensus.NxtConsensus
-import co.topl.consensus.NxtConsensus.State
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.utils.{Int128, NodeGenerators}
+import co.topl.nodeView.ValidTransactionGenerators
+import co.topl.utils.{NodeGenerators, ProtocolVersionHelper}
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class BifrostHistorySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers with NodeGenerators {
-
-  var history: History = _
-
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-
-    history = generateHistory(genesisBlock)
-  }
+class BifrostHistorySpec
+    extends AnyPropSpec
+    with ScalaCheckDrivenPropertyChecks
+    with Matchers
+    with NodeGenerators
+    with ProtocolVersionHelper
+    with ValidTransactionGenerators {
 
   property("Block application should result in storage and BifrostHistory.continuationIds") {
     var ids: Seq[ModifierId] = Seq()
+
+    val storage = new Storage(new InMemoryKeyValueStore)
+    var history = new History(storage, TineProcessor(1024))
+    history.append(genesisBlockGen.sample.get, Seq()).get._1
 
     /* Apply blocks and ensure that they are stored */
     forAll(blockCurve25519Gen) { blockTemp =>
       val block = blockTemp.copy(parentId = history.bestBlockId)
 
-      history = history
-        .append(
-          block,
-          NxtConsensus.View(
-            NxtConsensus.State(Int128(10000000), history.bestBlock.difficulty, 0L, history.bestBlock.height),
-            nxtLeaderElection,
-            protocolVersioner
-          )
-        )
-        .get
-        ._1
+      history = history.append(block, Seq()).get._1
 
       history.modifierById(block.id).isDefined shouldBe true
       ids = ids :+ block.id

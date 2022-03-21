@@ -60,6 +60,8 @@ object Heimdall {
 
       implicit val timeout: Timeout = Timeout(10.minutes)
       implicit val timeProvider: NetworkTimeProvider = new NetworkTimeProvider(settings.ntp)(context.system)
+      implicit val protocolVersioner: ProtocolVersioner =
+        ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
 
       context.log.info("Initializing KeyManager, ConsensusHolder, and NodeViewHolder")
 
@@ -74,7 +76,7 @@ object Heimdall {
         case Success(_)         => ReceivableMessages.NodeViewHolderReady
       }
 
-      awaitingNodeViewReady(settings, appContext, state)(timeProvider)
+      awaitingNodeViewReady(settings, appContext, state)(timeProvider, protocolVersioner)
     }
 
   /**
@@ -85,7 +87,7 @@ object Heimdall {
     settings:              AppSettings,
     appContext:            AppContext,
     state:                 NodeViewInitializingState
-  )(implicit timeProvider: TimeProvider): Behavior[ReceivableMessage] =
+  )(implicit timeProvider: TimeProvider, protocolVersioner: ProtocolVersioner): Behavior[ReceivableMessage] =
     Behaviors.receivePartial {
       case (context, ReceivableMessages.NodeViewHolderReady) =>
         implicit def ctx: ActorContext[ReceivableMessage] = context
@@ -241,9 +243,10 @@ object Heimdall {
   private def prepareNodeViewState(
     settings: AppSettings
   )(implicit
-    networkPrefix: NetworkPrefix,
-    context:       ActorContext[ReceivableMessage],
-    timeProvider:  TimeProvider
+    networkPrefix:     NetworkPrefix,
+    protocolVersioner: ProtocolVersioner,
+    context:           ActorContext[ReceivableMessage],
+    timeProvider:      TimeProvider
   ): NodeViewInitializingState = {
     import context.executionContext
     implicit def system: ActorSystem[_] = context.system
@@ -276,7 +279,7 @@ object Heimdall {
               settings,
               new ActorConsensusInterface(consensusViewHolder)(system, Timeout(10.seconds)),
               futureKeyView
-            )(context.system, implicitly, networkPrefix)
+            )(context.system, implicitly, networkPrefix, protocolVersioner)
         ),
         NodeViewHolder.ActorName,
         DispatcherSelector.fromConfig("bifrost.application.node-view.dispatcher")
@@ -290,9 +293,10 @@ object Heimdall {
     appContext: AppContext,
     state:      NodeViewInitializingState
   )(implicit
-    networkPrefix: NetworkPrefix,
-    context:       ActorContext[ReceivableMessage],
-    timeProvider:  TimeProvider
+    networkPrefix:     NetworkPrefix,
+    protocolVersioner: ProtocolVersioner,
+    context:           ActorContext[ReceivableMessage],
+    timeProvider:      TimeProvider
   ): NetworkControllerInitializingState = {
 
     implicit def system: ActorSystem[_] = context.system
@@ -400,6 +404,9 @@ object Heimdall {
 
     implicit val networkPrefix: NetworkPrefix =
       appContext.networkType.netPrefix
+
+    implicit val protocolVersioner: ProtocolVersioner =
+      ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
 
     implicit val throwableEncoder: Encoder[ThrowableData] =
       ThrowableSupport.verbose(settings.rpcApi.verboseAPI)

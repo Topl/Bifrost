@@ -2,7 +2,7 @@ package co.topl
 
 import akka.actor.testkit.typed.scaladsl.{ManualTime, ScalaTestWithActorTestKit}
 import co.topl.nodeView.NodeViewTestHelpers
-import co.topl.utils.{CommonGenerators, InMemoryKeyFileTestHelper, TestSettings}
+import co.topl.utils.{CommonGenerators, InMemoryKeyRingTestHelper, TestSettings}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{Inspectors, OptionValues}
@@ -13,7 +13,7 @@ class HeimdallSpec
     extends ScalaTestWithActorTestKit(ManualTime.config.withFallback(TestSettings.defaultConfig))
     with AnyFlatSpecLike
     with TestSettings
-    with InMemoryKeyFileTestHelper
+    with InMemoryKeyRingTestHelper
     with NodeViewTestHelpers
     with MockFactory
     with OptionValues

@@ -29,7 +29,7 @@ class ForgerSpec
     extends ScalaTestWithActorTestKit(ManualTime.config.withFallback(TestSettings.defaultConfig))
     with AnyFlatSpecLike
     with TestSettings
-    with InMemoryKeyFileTestHelper
+    with InMemoryKeyRingTestHelper
     with NodeViewTestHelpers
     with MockFactory
     with OptionValues
@@ -148,7 +148,6 @@ class ForgerSpec
               minTransactionFee,
               forgeOnStartup = false,
               fetchKeyView,
-              fetchStartupKeyView,
               reader,
               new ActorConsensusInterface(consensusStorageRef)
             )
@@ -222,7 +221,6 @@ class ForgerSpec
         minTransactionFee,
         forgeOnStartup = false,
         fetchKeyView,
-        fetchStartupKeyView,
         reader,
         new ActorConsensusInterface(consensusStorageRef)
       )
@@ -269,7 +267,6 @@ class ForgerSpec
           minTransactionFee,
           forgeOnStartup = true,
           fetchKeyView,
-          fetchStartupKeyView,
           reader,
           new ActorConsensusInterface(consensusStorageRef)
         )

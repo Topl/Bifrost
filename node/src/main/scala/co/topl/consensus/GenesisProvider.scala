@@ -1,12 +1,10 @@
 package co.topl.consensus
 
-import akka.actor.typed.ActorSystem
 import cats.implicits._
 import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 import co.topl.attestation.{Address, EvidenceProducer, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.codecs._
 import co.topl.consensus.GenesisProvider.Strategies.{FromBlockJson, Generation}
-import co.topl.consensus.KeyManager.StartupKeyView
 import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -19,15 +17,12 @@ import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import io.circe.parser
 
 import scala.collection.immutable.ListMap
-import scala.concurrent.ExecutionContext
 
-class GenesisProvider(genesisBlockVersion: Byte, startupKeyView: StartupKeyView) {
+class GenesisProvider(genesisBlockVersion: Byte, nodeAddresses: Set[Address]) {
 
   def fetchGenesis(
     settings: AppSettings
   )(implicit
-    system:        ActorSystem[_],
-    ec:            ExecutionContext,
     networkPrefix: NetworkPrefix
   ): Either[GenesisProvider.Failure, NxtConsensus.Genesis] = settings.application.genesis.strategy match {
     case GenesisStrategies.FromBlockJson =>
@@ -75,7 +70,7 @@ class GenesisProvider(genesisBlockVersion: Byte, startupKeyView: StartupKeyView)
     strategy:               Generation
   )(implicit networkPrefix: NetworkPrefix): NxtConsensus.Genesis =
     GenesisProvider.construct(
-      startupKeyView.addresses,
+      nodeAddresses,
       strategy.balanceForEachParticipant,
       strategy.initialDifficulty,
       genesisBlockVersion
@@ -94,7 +89,7 @@ object GenesisProvider {
     minting:    Boolean
   )
 
-  private[consensus] def construct(
+  def construct(
     addresses:                 Set[Address],
     balanceForEachParticipant: Long,
     initialDifficulty:         Long,

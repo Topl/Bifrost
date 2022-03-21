@@ -1,7 +1,7 @@
 package co.topl.nodeView
 
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import co.topl.consensus.{NxtConsensus, NxtLeaderElection, ProtocolVersioner}
+import co.topl.consensus.{BlockValidator, NxtConsensus, NxtLeaderElection, ProtocolVersioner}
 import co.topl.consensus.NxtConsensus.State
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
@@ -17,15 +17,14 @@ import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckP
 class NodeViewSpec
     extends ScalaTestWithActorTestKit
     with AnyPropSpecLike
-    with CommonGenerators
+    with NodeGenerators
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers
     with TestSettings
     with BeforeAndAfterAll
     with NodeViewTestHelpers
-    with InMemoryKeyFileTestHelper
-    with GenesisBlockGenerators
+    with InMemoryKeyRingTestHelper
     with OptionValues
     with EitherValues
     with MockFactory {
@@ -40,7 +39,7 @@ class NodeViewSpec
           .returning(10)
         val polyReward = sampleUntilNonEmpty(polyTransferGen)
         val arbitReward = sampleUntilNonEmpty(arbitTransferGen)
-        val rewardBlock = block.copy(transactions = Seq(arbitReward, polyReward), parentId = genesisBlock.id)
+        val rewardBlock = block.copy(transactions = Seq(arbitReward, polyReward), parentId = testIn.genesisView.block.id)
 
         val memPool =
           testIn.nodeView.updateMemPool(List(rewardBlock), Nil, MemPool.empty())
@@ -124,12 +123,8 @@ class NodeViewSpec
       val (events, _) =
         testIn.nodeView
           .withBlock(
-            genesisBlock,
-            NxtConsensus.View(
-              NxtConsensus.State(10000000, genesisBlock.difficulty, 0L, genesisBlock.height),
-              nxtLeaderElection,
-              protocolVersioner
-            )
+            testIn.genesisView.block,
+            Seq()
           )
           .run
 
@@ -147,24 +142,17 @@ class NodeViewSpec
       .returning(Long.MaxValue)
 
     withGenesisNodeView { testIn =>
-      val block = nextBlock(genesisBlock, testIn.nodeView, keyRingCurve25519.addresses.head)
+      val block = nextBlock(testIn.genesisView.block, testIn.nodeView)
 
       val (events, updatedNodeView) =
         testIn.nodeView
-          .withBlock(
-            block,
-            NxtConsensus.View(
-              NxtConsensus.State(10000000, genesisBlock.difficulty, 0L, genesisBlock.height),
-              nxtLeaderElection,
-              protocolVersioner
-            )
-          )
+          .withBlock(block, Seq())
           .run
 
       events shouldBe List(
         NodeViewHolder.Events.StartingPersistentModifierApplication(block),
         NodeViewHolder.Events.SyntacticallySuccessfulModifier(block),
-        NodeViewHolder.Events.NewOpenSurface(List(genesisBlock.id)),
+        NodeViewHolder.Events.NewOpenSurface(List(testIn.genesisView.block.id)),
         NodeViewHolder.Events.ChangedHistory,
         NodeViewHolder.Events.SemanticallySuccessfulModifier(block),
         NodeViewHolder.Events.ChangedState,
@@ -177,23 +165,17 @@ class NodeViewSpec
   property("NodeView should refuse an invalid Block") {
     implicit val timeProvider: TimeProvider = mock[TimeProvider]
 
+
     (() => timeProvider.time)
       .expects()
       .never()
 
     withGenesisNodeView { testIn =>
-      val block = nextBlock(genesisBlock, testIn.nodeView, keyRingCurve25519.addresses.head).copy(difficulty = -1)
+      val block = nextBlock(testIn.genesisView.block, testIn.nodeView).copy(difficulty = -1)
 
       val (events, updatedNodeView) =
         testIn.nodeView
-          .withBlock(
-            block,
-            NxtConsensus.View(
-              NxtConsensus.State(10000000, genesisBlock.difficulty, 0L, genesisBlock.height),
-              nxtLeaderElection,
-              protocolVersioner
-            )
-          )
+          .withBlock(block, ???)
           .run
 
       events should have size 2
@@ -205,6 +187,6 @@ class NodeViewSpec
   }
 
   private def withGenesisNodeView(test: TestIn => Unit): Unit =
-    test(genesisNodeView())
+    test(genesisNodeViewTestInputs(nxtConsensusGenesisGen.sample.get))
 
 }

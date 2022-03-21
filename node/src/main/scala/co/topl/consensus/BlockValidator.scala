@@ -1,47 +1,46 @@
 package co.topl.consensus
 
 import cats.implicits._
-import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
-import co.topl.nodeView.history.{BlockProcessor, History, Storage}
 import co.topl.utils.TimeProvider
 import co.topl.utils.implicits._
 
 import scala.util.{Failure, Try}
 
 //PoS consensus rules checks, throws exception if anything wrong
-sealed trait BlockValidator[PM <: Block] {
-  def validate(block: PM, consensusView: NxtConsensus.View): Try[Unit]
+sealed trait BlockValidator[T] {
+  def validate(f: Block => T)(block: Block): Try[Unit]
 }
 
-class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor) extends BlockValidator[Block] {
+class DifficultyBlockValidator(leaderElection: NxtLeaderElection, consensusState: NxtConsensus.State)
+    extends BlockValidator[(Block, Seq[TimeProvider.Time])] {
 
-  def validate(block: Block, consensusView: NxtConsensus.View): Try[Unit] = Try {
+  def validate(f: Block => (Block, Seq[TimeProvider.Time]))(block: Block): Try[Unit] = Try {
     // lookup our local data about the parent
-    val (parent, prevBlockTimes) = getParentDetailsOf(block)
+    val (parent, prevBlockTimes) = f(block)
 
     // first ensure that we can calculate the same block data as is stamped on the block
-    ensureHeightAndDifficulty(consensusView)(block, parent, prevBlockTimes) match {
+    ensureHeightAndDifficulty(leaderElection)(block, parent, prevBlockTimes) match {
       case Failure(ex) => throw ex
       case _           => // continue on
     }
 
     // next, ensure the hit was valid
-    ensureValidHit(consensusView)(block, parent) match {
+    ensureValidHit(leaderElection, consensusState)(block, parent) match {
       case Failure(ex) => throw ex
       case _           => // continue on
     }
   }
 
   private def ensureHeightAndDifficulty(
-    consensusView: NxtConsensus.View
-  )(block:         Block, parent: Block, prevTimes: Seq[TimeProvider.Time]): Try[Unit] =
+    leaderElection: NxtLeaderElection
+  )(block:          Block, parent: Block, prevTimes: Seq[TimeProvider.Time]): Try[Unit] =
     Try {
       // calculate the new base difficulty
       val newHeight = parent.height + 1
       val newBaseDifficulty =
-        consensusView.leaderElection.calcNewBaseDifficulty(newHeight, parent.difficulty, prevTimes)
+        leaderElection.calcNewBaseDifficulty(newHeight, parent.difficulty, prevTimes)
 
       // does the difficulty stamped on the block match what we would calculate locally?
       require(
@@ -56,17 +55,17 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
       )
     }
 
-  private def ensureValidHit(consensusView: NxtConsensus.View)(
-    block:                                  Block,
-    parent:                                 Block
+  private def ensureValidHit(leaderElection: NxtLeaderElection, consensusState: NxtConsensus.State)(
+    block:                                   Block,
+    parent:                                  Block
   ): Try[Unit] = Try {
     // calculate the hit value from the forger box included in the new block
-    val hit = consensusView.leaderElection.calcHit(parent)(block.generatorBox)
+    val hit = leaderElection.calcHit(parent)(block.generatorBox)
 
     // calculate the difficulty the forger would have used to determine eligibility
-    val target = consensusView.leaderElection.calcTarget(
+    val target = leaderElection.calcTarget(
       block.generatorBox.value.quantity,
-      consensusView.state.totalStake,
+      consensusState.totalStake,
       block.timestamp - parent.timestamp,
       parent.difficulty,
       parent.height
@@ -75,26 +74,9 @@ class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor)
     // did the forger create a block with a valid forger box and adjusted difficulty?
     require(BigInt(hit) < target, s"Block difficulty failed since $hit >= $target")
   }
-
-  /** Helper function to find the source of the parent block (either storage or chain cache) */
-  private def getParentDetailsOf(block: Block): (Block, Seq[TimeProvider.Time]) =
-    blockProcessor.getCacheBlock(block.parentId) match {
-      case Some(cacheParent) => (cacheParent.block, cacheParent.prevBlockTimes :+ block.timestamp)
-      case None              =>
-        // we have already checked if the parent exists so can get
-        val parent = storage.modifierById(block.parentId).get
-        (parent, History.getTimestamps(storage, NxtLeaderElection.nxtBlockNum, parent) :+ block.timestamp)
-    }
 }
 
-/* ----------------- */
-/* ----------------- */
-/* ----------------- */
-/* ----------------- */
-/* ----------------- */
-/* ----------------- */
-
-class SyntaxBlockValidator extends BlockValidator[Block] {
+class SyntaxBlockValidator(consensusState: NxtConsensus.State) extends BlockValidator[Block] {
   // todo: decide on a maximum size for blocks and enforce here
 
   // the signature on the block should match the signature used in the Arbit and Poly minting transactions
@@ -105,7 +87,7 @@ class SyntaxBlockValidator extends BlockValidator[Block] {
         "The forger entitled transactions must match the block details"
       )
 
-  def validate(block: Block, consensusView: NxtConsensus.View): Try[Unit] = Try {
+  def validate(f: Block => Block)(block: Block): Try[Unit] = Try {
 
     // check block signature is valid
     require(block.signature.isValid(block.publicKey, block.messageToSign), "Failed to validate block signature")
@@ -133,7 +115,7 @@ class SyntaxBlockValidator extends BlockValidator[Block] {
             require(
               tx.to
                 .map(_._2.quantity)
-                .sum == consensusView.state.inflation, // JAA -this needs to be done more carefully
+                .sum == consensusState.inflation, // JAA -this needs to be done more carefully
               "The inflation amount in the block must match the output of the Arbit rewards transaction"
             )
             require(
@@ -165,13 +147,10 @@ class SyntaxBlockValidator extends BlockValidator[Block] {
   }
 }
 
-class TimestampValidator(storage: Storage, blockProcessor: BlockProcessor) extends BlockValidator[Block] {
+class TimestampValidator extends BlockValidator[Option[TimeProvider.Time]] {
 
-  private def blockTimestamp(id: ModifierId): Option[TimeProvider.Time] =
-    blockProcessor.getCacheBlock(id).map(_.block.timestamp).orElse(storage.timestampOf(id))
-
-  override def validate(block: Block, consensusView: NxtConsensus.View): Try[Unit] = Try {
-    blockTimestamp(block.parentId) match {
+  override def validate(f: Block => Option[TimeProvider.Time])(block: Block): Try[Unit] = Try {
+    f(block) match {
       case Some(parentTimestamp) =>
         require(
           block.timestamp > parentTimestamp,

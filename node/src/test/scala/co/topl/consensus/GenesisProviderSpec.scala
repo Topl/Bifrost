@@ -1,9 +1,9 @@
 package co.topl.consensus
 
-import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
-import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
-import co.topl.utils.NetworkType._
-import co.topl.utils.{InMemoryKeyFileTestHelper, Int128, NodeGenerators}
+import co.topl.modifier.transaction.ArbitTransfer
+import co.topl.nodeView.ValidTransactionGenerators
+import co.topl.utils.{InMemoryKeyRingTestHelper, Int128}
+import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpecLike
@@ -17,9 +17,9 @@ class GenesisProviderSpec
     with ScalaCheckDrivenPropertyChecks
     with EitherValues
     with MockFactory
-    with InMemoryKeyFileTestHelper
+    with InMemoryKeyRingTestHelper
     with BeforeAndAfterAll
-    with NodeGenerators
+    with ValidTransactionGenerators
     with Matchers {
 
   implicit private def implicitLogger: Logger = logger.underlying
@@ -59,35 +59,55 @@ class GenesisProviderSpec
 //      .map(keys => keys.map(_.publicImage.address))
 //  }
 
+  property("is able to construct a genesis block from generated inputs") {
+    forAll(nonEmptySetAddressGen, positiveLongGen, positiveLongGen, Gen.choose[Byte](1, Byte.MaxValue)) {
+      (addresses, balances, initalDifficulty, blockVersion) =>
+        val genesis = GenesisProvider.construct(addresses, balances, initalDifficulty, blockVersion)
+
+        val blockTotalStake = genesis.block.transactions.foldLeft(Int128(0)) { (txAcc, tx) =>
+          tx match {
+            case arbitTx: ArbitTransfer[_] =>
+              txAcc + arbitTx.coinOutput.foldLeft(Int128(0))((acc, out) => acc + out.value.quantity)
+            case _ => txAcc
+          }
+        }
+
+        genesis.block.height shouldBe 1L
+        genesis.state.height shouldBe 1L
+        genesis.state.totalStake shouldBe addresses.size * balances
+        genesis.state.totalStake shouldBe blockTotalStake
+        genesis.state.difficulty shouldBe genesis.block.difficulty
+    }
+  }
+
   property("read in json files and verify checksum; block->checksum->Json->read Json->check checksum") {
     // test
   }
 
   property("successfully generate a genesis block and consensus view") {
-    forAll(genesisGenerationSettingsGen) { genesisSettings =>
-      val expectedCoinAmount = Int128(genesisSettings * genesisSettings.balanceForEachParticipant)
-
-      val genesis =
-        GenesisProvider
-          .generatedGenesisProvider(
-            GenesisSpecSetup.privateKeyRing.addresses,
-            genesisSettings.genesisApplicationVersion.blockByte
-          )
-          .executeStrategy(genesisSettings)
-
-      val actualCoinTotals = genesis.block.transactions match {
-        case Seq(arbitTx: ArbitTransfer[_], polyTx: PolyTransfer[_]) =>
-          val arbitCoinTotal = arbitTx.coinOutput.map(_.value.quantity).sum
-          val polyCoinTotal =
-            arbitTx.feeChangeOutput.value.quantity +
-            polyTx.feeChangeOutput.value.quantity +
-            polyTx.coinOutput.map(_.value.quantity).sum
-
-          (arbitCoinTotal, polyCoinTotal)
-      }
-
-      actualCoinTotals._1 shouldBe expectedCoinAmount
-      actualCoinTotals._2 shouldBe expectedCoinAmount
-    }
+//      forAll() { genesisSettings =>
+//        val expectedCoinAmount = Int128(genesisSettings * genesisSettings.balanceForEachParticipant)
+//
+//        val genesis =
+//          GenesisProvider
+//            .generatedGenesisProvider(
+//              GenesisSpecSetup.privateKeyRing.addresses,
+//              genesisSettings.genesisApplicationVersion.blockByte
+//            )
+//            .executeStrategy(genesisSettings)
+//
+//        val actualCoinTotals = genesis.block.transactions match {
+//          case Seq(arbitTx: ArbitTransfer[_], polyTx: PolyTransfer[_]) =>
+//            val arbitCoinTotal = arbitTx.coinOutput.map(_.value.quantity).sum
+//            val polyCoinTotal =
+//              arbitTx.feeChangeOutput.value.quantity +
+//                polyTx.feeChangeOutput.value.quantity +
+//                polyTx.coinOutput.map(_.value.quantity).sum
+//
+//            (arbitCoinTotal, polyCoinTotal)
+//        }
+//
+//        actualCoinTotals._1 shouldBe expectedCoinAmount
+//        actualCoinTotals._2 shouldBe expectedCoinAmount
   }
 }

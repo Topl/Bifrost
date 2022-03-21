@@ -25,7 +25,7 @@ class ForgeSpec
     with ScalaCheckDrivenPropertyChecks
     with EitherValues
     with MockFactory
-    with InMemoryKeyFileTestHelper
+    with InMemoryKeyRingTestHelper
     with TestSettings
     with BeforeAndAfterAll
     with CommonGenerators
@@ -85,12 +85,14 @@ class ForgeSpec
           keyRingCurve25519.lookupPublicKey
         )
 
+      val leaderElection = new NxtLeaderElection(protocolVersioner)
+
       val forge =
         Forge
           .prepareForge(
             nodeView,
             NxtConsensus
-              .View(NxtConsensus.State(10000000, 1000000000000000000L, 0L, 0L), nxtLeaderElection, protocolVersioner),
+              .View(NxtConsensus.State(10000000, 1000000000000000000L, 0L, 0L), leaderElection, Seq()),
             keyView,
             0
           )
@@ -112,11 +114,13 @@ class ForgeSpec
     val keyView =
       KeyView(keyRingCurve25519.addresses, None, keyRingCurve25519.signWithAddress, keyRingCurve25519.lookupPublicKey)
 
+    val leaderElection = new NxtLeaderElection(protocolVersioner)
+
     Forge
       .prepareForge(
         nodeView,
         NxtConsensus
-          .View(NxtConsensus.State(10000000, 1000000000000000000L, 0L, 0L), nxtLeaderElection, protocolVersioner),
+          .View(NxtConsensus.State(10000000, 1000000000000000000L, 0L, 0L), leaderElection, Seq()),
         keyView,
         0
       )
@@ -177,21 +181,21 @@ class ForgeSpec
           keyRingCurve25519.lookupPublicKey
         )
 
+      val leaderElection = new NxtLeaderElection(protocolVersioner)
+
       Forge
         .prepareForge(
           nodeView,
           NxtConsensus.View(
             NxtConsensus.State(10000000, parentBlock.difficulty, 0L, parentBlock.height),
-            nxtLeaderElection,
-            protocolVersioner
+            leaderElection,
+            Seq()
           ),
           keyView,
           0
         )
         .left
-        .value shouldBe Forge.LeaderElectionFailure(
-        LeaderElection.NoBoxesEligible
-      )
+        .value shouldBe Forge.LeaderElectionFailure(NxtLeaderElection.NoBoxesEligible)
     }
   }
 

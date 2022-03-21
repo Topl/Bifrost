@@ -15,6 +15,7 @@ import co.topl.nodeView.{CacheLayerKeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
 import co.topl.utils.IdiomaticScalaTransition.implicits.toTryOps
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.TimeProvider.Time
 import co.topl.utils.implicits._
 import co.topl.utils.{Logging, TimeProvider}
 
@@ -29,10 +30,9 @@ import scala.util.{Failure, Success, Try}
  * @param validators rule sets that dictate validity of blocks in the history
  */
 class History(
-  val storage:            Storage, // todo: JAA - make this private[history]
-  fullBlockProcessor:     BlockProcessor,
-  validators:             Seq[BlockValidator[Block]]
-)(implicit networkPrefix: NetworkPrefix)
+               val storage:            Storage,
+               tineProcessor:     TineProcessor
+)(implicit networkPrefix: NetworkPrefix,                protocolVersioner: ProtocolVersioner)
     extends GenericHistory[Block, BifrostSyncInfo, History]
     with AutoCloseable
     with Logging {
@@ -65,7 +65,7 @@ class History(
     storage.lookupConfirmedTransaction(id)
 
   override def contains(id: ModifierId): Boolean =
-    (id == History.GenesisParentId) || storage.containsModifier(id) || fullBlockProcessor.contains(id)
+    (id == History.GenesisParentId) || storage.containsModifier(id) || tineProcessor.contains(id)
 
   private def isGenesis(b: Block): Boolean = b.parentId == History.GenesisParentId
 
@@ -82,11 +82,31 @@ class History(
    * @return the update history including `block` as the most recent block
    */
   override def append(
-    block:         Block,
-    consensusView: NxtConsensus.View
+    block:      Block,
+    validators: Seq[BlockValidator[_]]
   ): Try[(History, ProgressInfo[Block])] = Try {
 
     log.debug(s"Trying to append block ${block.id} to history")
+
+    // consensus parameter that effects block validity
+    val lookBackDepth = protocolVersioner.applicable(block.height).value.lookBackDepth
+
+    /** Helper function to find the source of the parent block (either storage or chain cache) */
+    def getParentDetailsOf(block: Block): (Block, Seq[TimeProvider.Time]) = {
+      tineProcessor.getCacheBlock(block.parentId) match {
+        case Some(cacheParent) => (cacheParent.block, cacheParent.prevBlockTimes :+ block.timestamp)
+        case None =>
+          val parent =
+            storage.modifierById(block.parentId).get // we have already checked if the parent exists so safe to get
+          (parent, History.getTimestamps(storage, lookBackDepth, parent) :+ block.timestamp)
+      }
+    }
+
+    def getTimestampFromTineProcessorOrStorage(block: Block): Option[TimeProvider.Time] =
+      tineProcessor
+      .getCacheBlock(block.parentId)
+      .map(_.block.timestamp)
+      .orElse(storage.timestampOf(block.parentId))
 
     val isHiccupBlock =
       if (Hiccups.blockValidation.contains(HiccupBlock(block))) {
@@ -98,14 +118,20 @@ class History(
 
     // test new block against all validators
     val validationResults =
-      if (!isGenesis(block) && !isHiccupBlock) {
-        validators.map(_.validate(block, consensusView)).map {
-          case Failure(e) =>
-            log.warn(s"Block validation failed", e)
-            false
-          case _ => true
-        }
-      } else Seq(true) // skipping validation for genesis block
+      if (!isHiccupBlock) {
+        (validators
+          .map {
+            case validator: DifficultyBlockValidator => validator.validate(getParentDetailsOf)(block)
+            case validator: SyntaxBlockValidator     => validator.validate(identity)(block)
+            case validator: TimestampValidator       => validator.validate(getTimestampFromTineProcessorOrStorage)(block)
+          })
+          .map {
+            case Failure(e) =>
+              log.warn(s"Block validation failed", e)
+              false
+            case _ => true
+          }
+      } else Seq(true) // skipping validation for genesis block and hiccup blocks
 
     // check if all block validation passed
     if (validationResults.forall(_ == true)) {
@@ -116,7 +142,7 @@ class History(
           val progInfo = ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
 
           // construct result and return
-          (new History(storage, fullBlockProcessor, validators), progInfo)
+          (new History(storage, tineProcessor), progInfo)
 
         } else {
           val progInfo: ProgressInfo[Block] =
@@ -131,7 +157,7 @@ class History(
               // if not, we'll check for a fork
             } else {
               // we want to check for a fork
-              val forkProgInfo = fullBlockProcessor.process(this, block)
+              val forkProgInfo = tineProcessor.process(this, block, lookBackDepth)
 
               // check if we need to update storage after checking for forks
               if (forkProgInfo.branchPoint.nonEmpty) {
@@ -144,7 +170,7 @@ class History(
             }
 
           // construct result and return
-          (new History(storage, fullBlockProcessor, validators), progInfo)
+          (new History(storage, tineProcessor), progInfo)
         }
       }
       log.info(
@@ -173,7 +199,7 @@ class History(
 
     log.debug(s"Failed to apply block. Rollback BifrostState to ${parentBlock.id} from version ${block.id}")
     storage.rollback(parentBlock.id).getOrThrow()
-    new History(storage, fullBlockProcessor, validators)
+    new History(storage, tineProcessor)
   }
 
   /**
@@ -372,7 +398,7 @@ class History(
   ): (History, ProgressInfo[Block]) = {
     drop(modifier.id)
     val progInfo: ProgressInfo[Block] = ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
-    (new History(storage, fullBlockProcessor, validators), progInfo)
+    (new History(storage, tineProcessor), progInfo)
   }
 
   /**
@@ -394,7 +420,7 @@ class History(
    * @return 'true' if the block extends a known block, false otherwise
    */
   override def extendsKnownTine(modifier: Block): Boolean =
-    applicable(modifier) || fullBlockProcessor.applicableInCache(modifier)
+    applicable(modifier) || tineProcessor.applicableInCache(modifier)
 
   // TODO used in tests, but should replace with HistoryReader.continuationIds
   /**
@@ -501,7 +527,7 @@ object History extends Logging {
 
   def readOrGenerate(
     settings:               AppSettings
-  )(implicit networkPrefix: NetworkPrefix): History = {
+  )(implicit networkPrefix: NetworkPrefix, protocolVersioner: ProtocolVersioner): History = {
     val storage = {
 
       /** Setup persistent on-disk storage */
@@ -524,19 +550,14 @@ object History extends Logging {
   }
 
   def apply(settings: AppSettings, storage: Storage)(implicit
-    networkPrefix:    NetworkPrefix
+    networkPrefix:    NetworkPrefix,
+                                                     protocolVersioner: ProtocolVersioner
   ): History = {
 
     /** This in-memory cache helps us to keep track of tines sprouting off the canonical chain */
-    val blockProcessor = BlockProcessor(settings.network.maxChainCacheDepth)
+    val blockProcessor = TineProcessor(settings.network.maxChainCacheDepth)
 
-    val validators = Seq(
-      new DifficultyBlockValidator(storage, blockProcessor),
-      new SyntaxBlockValidator,
-      new TimestampValidator(storage, blockProcessor)
-    )
-
-    new History(storage, blockProcessor, validators)
+    new History(storage, blockProcessor)
   }
 
   /** Gets the timestamps for 'count' number of blocks prior to (and including) the startBlock */

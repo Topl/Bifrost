@@ -1,7 +1,6 @@
 package co.topl.settings
 
 import co.topl.consensus.{GenesisProvider, KeyManager}
-import co.topl.consensus.KeyManager.AddressGenerationSettings
 import co.topl.network.utils.NetworkTimeProviderSettings
 import co.topl.utils.Logging
 import com.typesafe.config.{Config, ConfigFactory}
@@ -78,18 +77,18 @@ case class NetworkSettings(
 )
 
 case class ForgingSettings(
-  blockGenerationDelay: FiniteDuration,
-  minTransactionFee:    Long,
-  protocolVersions:     List[ProtocolSettings],
-  forgeOnStartup:       Boolean,
-  rewardsAddress:       Option[String], // String here since we don't know netPrefix when settings are read
-    addressGenerationSettings: Option[KeyManager.AddressGenerationSettings]
+  blockGenerationDelay:      FiniteDuration,
+  minTransactionFee:         Long,
+  protocolVersions:          List[ProtocolSettings],
+  forgeOnStartup:            Boolean,
+  rewardsAddress:            Option[String], // String here since we don't know netPrefix when settings are read
+  addressGenerationSettings: Option[KeyManager.AddressGenerationSettings]
 )
 
 case class GenesisSettings(
-                            strategy:                  GenesisStrategies.Value,
-                            generated:                 Option[GenesisProvider.Strategies.Generation],
-                            fromBlockJson:             Option[GenesisProvider.Strategies.FromBlockJson]
+  strategy:      GenesisStrategies.Value,
+  generated:     Option[GenesisProvider.Strategies.Generation],
+  fromBlockJson: Option[GenesisProvider.Strategies.FromBlockJson]
 )
 
 object GenesisStrategies extends Enumeration {

@@ -1,191 +1,153 @@
 package co.topl.nodeView.history
 
-import co.topl.consensus.NxtConsensus
-import co.topl.db.LDBVersionedStore
 import co.topl.modifier.block.Block
-import co.topl.nodeView.{CacheLayerKeyValueStore, LDBKeyValueStore}
-import co.topl.utils.GeneratorOps.GeneratorOps
-import co.topl.utils.{Int128, NodeGenerators}
+import co.topl.nodeView.{CacheLayerKeyValueStore, ValidTransactionGenerators}
+import co.topl.utils.{NodeGenerators, ProtocolVersionHelper, TestSettings}
+import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class StorageCacheSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers with NodeGenerators {
+import scala.concurrent.duration.DurationInt
 
-  var history: History = _
-
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-
-    history = generateHistory(genesisBlock)
-  }
+class StorageCacheSpec
+    extends AnyPropSpec
+    with ScalaCheckDrivenPropertyChecks
+    with TestSettings
+    with NodeGenerators
+    with ProtocolVersionHelper
+    with Matchers
+    with ValidTransactionGenerators {
 
   property("The genesis block is stored in cache") {
-    val genesisBlockId = Array.fill(33)(-1: Byte)
+    withTestHistory { history =>
+      val genesisBlockId = Array.fill(33)(-1: Byte)
 
-    history.storage.keyValueStore
-      .asInstanceOf[CacheLayerKeyValueStore]
-      .cache
-      .getIfPresent(new CacheLayerKeyValueStore.WrappedBytes(genesisBlockId)) shouldEqual history.storage.keyValueStore
-      .get(genesisBlockId)
-  }
-
-  property("Cache should invalidate all entry when it's rolled back in storage") {
-    val bestBlockIdKey = Array.fill(33)(-1: Byte)
-
-    /* Append a new block, make sure it is updated in cache, then drop it */
-    val fstBlock: Block = blockCurve25519Gen.sampleFirst().copy(parentId = history.bestBlockId)
-    history = history
-      .append(
-        fstBlock,
-        NxtConsensus.View(
-          NxtConsensus.State(Int128(10000000), history.bestBlock.difficulty, 0L, history.bestBlock.height),
-          nxtLeaderElection,
-          protocolVersioner
-        )
-      )
-      .get
-      ._1
-
-    history.storage.keyValueStore
-      .asInstanceOf[CacheLayerKeyValueStore]
-      .cache
-      .getIfPresent(new CacheLayerKeyValueStore.WrappedBytes(bestBlockIdKey)) should not be null
-
-    history = history.drop(fstBlock.id)
-
-    /* After dropping the new block, the best block should be its parent block, the genesis block */
-    /* The block Id for best block in cache should be invalidated */
-    history.storage.keyValueStore.asInstanceOf[CacheLayerKeyValueStore].cache.asMap().size() shouldBe 0
-
-    /* Append multiple times */
-    forAll(blockCurve25519Gen) { blockTemp =>
-      val block: Block = blockTemp.copy(parentId = history.bestBlockId)
-
-      history = history
-        .append(
-          block,
-          NxtConsensus.View(
-            NxtConsensus.State(Int128(10000000), history.bestBlock.difficulty, 0L, history.bestBlock.height),
-            nxtLeaderElection,
-            protocolVersioner
-          )
-        )
-        .get
-        ._1
-    }
-
-    /* Drop all new blocks */
-    var continue = true
-    while (continue) {
-      val height = history.height
-      if (height <= 2) continue = false
-      history = history.drop(history.bestBlockId)
-    }
-    /* Same checks as above */
-    val cache =
-      history.storage.keyValueStore.asInstanceOf[CacheLayerKeyValueStore].cache
-
-    cache.asMap().size() shouldBe 0
-
-    /* Maybe also check other entries like blockScore */
-  }
-
-  property("The new block updated is stored in cache") {
-
-    forAll(blockCurve25519Gen) { blockTemp =>
-      val block: Block = blockTemp.copy(parentId = history.bestBlockId)
-
-      history = history
-        .append(
-          block,
-          NxtConsensus.View(
-            NxtConsensus.State(Int128(10000000), history.bestBlock.difficulty, 0L, history.bestBlock.height),
-            nxtLeaderElection,
-            protocolVersioner
-          )
-        )
-        .get
-        ._1
       history.storage.keyValueStore
         .asInstanceOf[CacheLayerKeyValueStore]
         .cache
-        .getIfPresent(new CacheLayerKeyValueStore.WrappedBytes(block.id.getIdBytes)) shouldEqual
-      history.storage.keyValueStore.get(block.id.getIdBytes)
+        .getIfPresent(
+          new CacheLayerKeyValueStore.WrappedBytes(genesisBlockId)
+        ) shouldEqual history.storage.keyValueStore
+        .get(genesisBlockId)
     }
   }
 
-  /* -----This test need to be done with smaller cacheSize or it will take very long to append enough entries----- */
-  /* --------This test is commented out, change cacheSize in test.conf if we need to test this again------- */
-  /*
-  private val cacheSize: Int = settings.cacheSize
+  property("Cache should invalidate a single entry when it's rolled back in storage") {
+    withTestHistory { history =>
+      forAll(blockCurve25519Gen) { block =>
+        val bestBlockIdKey = Array.fill(33)(-1: Byte)
+
+        val historyAddBlock = history.append(block, Seq()).get._1
+
+        historyAddBlock.storage.keyValueStore
+          .asInstanceOf[CacheLayerKeyValueStore]
+          .cache
+          .getIfPresent(new CacheLayerKeyValueStore.WrappedBytes(bestBlockIdKey)) should not be null
+
+        val historyDropBlock = historyAddBlock.drop(block.id)
+
+        /* After dropping the new block, the best block should be its parent block, the genesis block */
+        /* The block Id for best block in cache should be invalidated */
+        historyDropBlock.storage.keyValueStore.asInstanceOf[CacheLayerKeyValueStore].cache.asMap().size() shouldBe 0
+      }
+    }
+  }
+
+  property("Cache should invalidate multiple entries when it's rolled back in storage") {
+    withTestHistory { history =>
+      forAll(Gen.nonEmptyListOf(blockCurve25519Gen)) { blocks =>
+        val bestBlockIdKey = Array.fill(33)(-1: Byte)
+
+        val historyAddBlock = blocks.foldLeft(history) { (accHistory, newBlock) =>
+          accHistory.append(newBlock, Seq()).get._1
+        }
+
+        historyAddBlock.storage.keyValueStore
+          .asInstanceOf[CacheLayerKeyValueStore]
+          .cache
+          .getIfPresent(new CacheLayerKeyValueStore.WrappedBytes(bestBlockIdKey)) should not be null
+
+        val historyDropBlock = blocks.foldLeft(history) { (accHistory, block) =>
+          accHistory.drop(block.id)
+        }
+
+        historyDropBlock.storage.keyValueStore.asInstanceOf[CacheLayerKeyValueStore].cache.asMap().size() shouldBe 0
+      }
+    }
+  }
+
+  property("The new block updated is stored in cache") {
+    withTestHistory { history =>
+      forAll(blockCurve25519Gen) { blockTemp =>
+        val block: Block = blockTemp.copy(parentId = history.bestBlockId)
+
+        val updatedHistory = history.append(block, Seq()).get._1
+
+        val blockInCache =
+          updatedHistory.storage.keyValueStore
+            .asInstanceOf[CacheLayerKeyValueStore]
+            .cache
+            .getIfPresent(new CacheLayerKeyValueStore.WrappedBytes(block.id.getIdBytes))
+
+        blockInCache shouldEqual updatedHistory.storage.keyValueStore.get(block.id.getIdBytes)
+      }
+    }
+  }
 
   property("Appending more entries than the maximum cache size will drop a portion of existing cache") {
+    forAll(genesisBlockGen, Gen.listOfN(10, blockCurve25519Gen)){ (genesisBlock, blocks) =>
+      def customCacheHistory(cacheSize: Int): History = {
+        val cacheStore = new CacheLayerKeyValueStore(
+          new InMemoryKeyValueStore,
+          settings.application.cacheExpire.millis,
+          cacheSize
+        )
+        val storage = new Storage(cacheStore)
+        val history = new History(storage, TineProcessor(1024))
+        history.append(genesisBlock, Seq()).get._1
+      }
 
-    /* Append one block */
-    val fstBlock: Block = BlockGen.sample.get.copy(parentId = history.bestBlockId)
-    history = history.append(fstBlock).get._1
+      val history = customCacheHistory(5)
+      val historyWithOneBlock = history.append(blocks.head, Seq()).get._1
+      val historyWithTooManyBlocks = blocks.foldLeft(history) { (accHistory, newBlock) =>
+        accHistory.append(newBlock, Seq()).get._1
+      }
 
-    history.storage.blockCache.getIfPresent(ByteArrayWrapper(fstBlock.id.hashBytes)) should not be null
+      historyWithOneBlock.storage.keyValueStore
+        .asInstanceOf[CacheLayerKeyValueStore]
+        .cache
+        .getIfPresent(new CacheLayerKeyValueStore.WrappedBytes(blocks.head.id.getIdBytes)) should not be null
 
-    /* Append a number of new blocks, so that we store more entries than the cache size limit */
-    /* Assuming an average new block creates more than 50 entries */
-    val numOfBlocks:Int = cacheSize / 50
-    (1 to numOfBlocks) foreach { _ =>
-      val oneBlock:Block = BlockGen.sample.get.copy(parentId = history.bestBlockId)
-      history = history.append(oneBlock).get._1
+      historyWithTooManyBlocks.storage.keyValueStore
+        .asInstanceOf[CacheLayerKeyValueStore]
+        .cache
+        .getIfPresent(new CacheLayerKeyValueStore.WrappedBytes(blocks.head.id.getIdBytes)) shouldBe null
     }
-
-    history.storage.blockCache.getIfPresent(ByteArrayWrapper(fstBlock.id.hashBytes)) shouldBe null
   }
-   */
 
   property("blockLoader should correctly return a block from storage not found in cache") {
-    val block: Block = blockCurve25519Gen.sampleFirst().copy(parentId = history.bestBlockId)
-    history = history
-      .append(
-        block,
-        NxtConsensus.View(
-          NxtConsensus.State(Int128(10000000), history.bestBlock.difficulty, 0L, history.bestBlock.height),
-          nxtLeaderElection,
-          protocolVersioner
-        )
-      )
-      .get
-      ._1
-
-    history.storage.keyValueStore.asInstanceOf[CacheLayerKeyValueStore].cache.invalidateAll()
-    history.modifierById(block.id).get should not be None
+    withTestHistory { history =>
+      forAll(blockCurve25519Gen){ block =>
+        val updatedHistory = history.append(block, Seq()).get._1
+        updatedHistory.storage.keyValueStore.asInstanceOf[CacheLayerKeyValueStore].cache.invalidateAll()
+        updatedHistory.modifierById(block.id).get should not be None
+      }
+    }
   }
 
-  override def generateHistory(genesisBlock: Block): History = {
-    import java.io.File
-    import scala.concurrent.duration._
-    import scala.util.Random
-    val dataDir = s"/tmp/bifrost/test-data/test-${Random.nextInt(10000000)}"
+  private def withTestHistory(test: History => Unit): Unit =
+    test {
+      val genesisBlock = genesisBlockGen.sample.get
 
-    val iFile = new File(s"$dataDir/blocks")
-    iFile.mkdirs()
-    val blockStorage = new LDBVersionedStore(iFile, 100)
-    val storage =
-      new Storage(new CacheLayerKeyValueStore(new LDBKeyValueStore(blockStorage), 10.minutes, 20000))
-    // we don't care about validation here
-    val validators = Seq()
-
-    var history = new History(storage, BlockProcessor(1024), validators)
-
-    history = history
-      .append(
-        genesisBlock,
-        NxtConsensus.View(
-          NxtConsensus.State(Int128(10000000), 1000000000000000000L, 0L, 0L),
-          nxtLeaderElection,
-          protocolVersioner
-        )
+      val underlyingStore = new InMemoryKeyValueStore
+      val cacheStore = new CacheLayerKeyValueStore(
+        underlyingStore,
+        settings.application.cacheExpire.millis,
+        settings.application.cacheSize
       )
-      .get
-      ._1
-    assert(history.modifierById(genesisBlock.id).isDefined)
-    history
-  }
+      val storage = new Storage(cacheStore)
+      val history = new History(storage, TineProcessor(1024))
+      history.append(genesisBlock, Seq()).get._1
+    }
 }

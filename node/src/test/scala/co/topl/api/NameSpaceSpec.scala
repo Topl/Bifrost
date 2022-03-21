@@ -9,12 +9,13 @@ import co.topl.consensus.{ActorConsensusInterface, ActorForgerInterface, ActorKe
 import co.topl.http.HttpService
 import co.topl.nodeView.ActorNodeViewHolderInterface
 import co.topl.rpc.ToplRpcServer
+import co.topl.utils.TestSettings
 import co.topl.settings.{AppContext, AppSettings, StartupOpts}
 import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class NameSpaceSpec extends AnyWordSpec with Matchers with RPCMockState {
+class NameSpaceSpec extends AnyWordSpec with Matchers with TestSettings with RPCMockState {
 
   def createRoute(args: Boolean*): Route = {
     val newRpcSettings: AppSettings = settings.copy(

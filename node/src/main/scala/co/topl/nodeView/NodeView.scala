@@ -6,7 +6,7 @@ import cats.implicits._
 import co.topl.attestation.Address
 import co.topl.consensus.Hiccups.HiccupBlock
 import co.topl.consensus.KeyManager.StartupKeyView
-import co.topl.consensus.{GenesisProvider, _}
+import co.topl.consensus._
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ProgramId
@@ -90,7 +90,7 @@ object NodeView {
     settings:           AppSettings,
     consensusInterface: ConsensusInterface,
     startupKeyView:     Future[StartupKeyView]
-  )(implicit system:    ActorSystem[_], ec: ExecutionContext, networkPrefix: NetworkPrefix): Future[NodeView] =
+  )(implicit system:    ActorSystem[_], ec: ExecutionContext, networkPrefix: NetworkPrefix, protocolVersioner: ProtocolVersioner): Future[NodeView] =
     if (State.exists(settings)) {
       resume(settings)
     } else {
@@ -100,7 +100,7 @@ object NodeView {
 
   private def resume(
     settings:        AppSettings
-  )(implicit system: ActorSystem[_], ec: ExecutionContext, networkPrefix: NetworkPrefix): Future[NodeView] =
+  )(implicit system: ActorSystem[_], ec: ExecutionContext, networkPrefix: NetworkPrefix, protocolVersioner: ProtocolVersioner): Future[NodeView] =
     Future.successful(
       NodeView(
         History.readOrGenerate(settings),
@@ -116,14 +116,13 @@ object NodeView {
   )(implicit
     system:        ActorSystem[_],
     ec:            ExecutionContext,
-    networkPrefix: NetworkPrefix
+    networkPrefix: NetworkPrefix, protocolVersioner: ProtocolVersioner
   ): EitherT[Future, NodeViewHolderInterface.ApplyFailure, NodeView] = for {
-    keyView <- EitherT.liftF(startupKeyView)
+    nodeAddresses <- EitherT.liftF(startupKeyView.map(_.addresses))
     consensusView <- consensusInterface
       .withView[NxtConsensus.View](identity)
       .leftMap(e => NodeViewHolderInterface.ApplyFailure(new IllegalArgumentException(e.toString)))
-    genesisBlockVersion = consensusView.protocolVersions.blockVersion(1)
-    genesis <- new GenesisProvider(genesisBlockVersion, keyView)
+    genesis <- new GenesisProvider(protocolVersioner.applicable(1).blockVersion, nodeAddresses)
       .fetchGenesis(settings)
       .toEitherT[Future]
       .leftMap(e => NodeViewHolderInterface.ApplyFailure(new IllegalArgumentException(e.toString)))
@@ -135,7 +134,7 @@ object NodeView {
       )
       .leftMap(e => NodeViewHolderInterface.ApplyFailure(new IllegalArgumentException(e.toString)))
     nodeView = NodeView(
-      History.readOrGenerate(settings).append(genesis.block, consensusView).get._1,
+      History.readOrGenerate(settings).append(genesis.block, Seq()).get._1, // no validators because genesis
       State.genesisState(settings, Seq(genesis.block)),
       MemPool.empty()
     )
@@ -147,7 +146,7 @@ trait NodeViewBlockOps {
 
   import NodeViewHolder.UpdateInformation
 
-  def withBlock(block: Block, consensusView: NxtConsensus.View)(implicit
+  def withBlock(block: Block, validators: Seq[BlockValidator[_]])(implicit
     networkPrefix:     NetworkPrefix,
     timeProvider:      TimeProvider
   ): Writer[List[Any], NodeView] = {
@@ -159,14 +158,16 @@ trait NodeViewBlockOps {
             if (Hiccups.semanticValidation.contains(HiccupBlock(block))) {
               log.info("Skipping semantic validation for HiccupBlock.  blockId={}", block.id)
               block.transactions.validNec
-            } else
+            } else {
               block.transactions.traverse(_.semanticValidation(nodeView.state))
+            }
+
           semanticallyValidated match {
             case Validated.Valid(a) =>
               log.info("Applying valid blockId={} to history", block.id)
               val openSurfaceIdsBeforeUpdate = history.openSurfaceIds()
 
-              history.append(block, consensusView) match {
+              history.append(block, validators) match {
                 case Success((historyBeforeStUpdate, progressInfo)) =>
                   log.info("Block blockId={} applied to history successfully", block.id)
                   log.debug("Applying valid blockId={} to state with progressInfo={}", block.id, progressInfo)
@@ -225,7 +226,7 @@ trait NodeViewBlockOps {
           }
         }
     } else {
-      log.warn("Block with blockId={} already exists in history.  Skipping.", block.id)
+      log.warn(s"Block with id=${block.id} already exists in history.  Skipping.", block.id)
       Writer.value[List[Any], NodeView](this)
     }
   }

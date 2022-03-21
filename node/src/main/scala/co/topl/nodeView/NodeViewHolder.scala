@@ -262,7 +262,8 @@ object NodeViewHolder {
           // TODO: Exception handling
           // TODO: Should we hold onto the block in the cache?
           // TODO: Ban-list bad blocks?
-          val newNodeView = eventStreamWriterHandler(nodeView.withBlock(block, consensusView))
+          // TODO: JAA - 2022.03.20 - Best way to update ConsensusView?
+          val newNodeView = eventStreamWriterHandler(nodeView.withBlock(block, consensusView.validators))
           popBlock(cache, newNodeView)(context)
           initialized(newNodeView, cache, consensusViewer)
 

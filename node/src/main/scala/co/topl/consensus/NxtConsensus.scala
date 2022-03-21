@@ -55,6 +55,10 @@ object NxtConsensus {
 
   case class State(totalStake: Int128, difficulty: Long, inflation: Long, height: Long)
 
+  object State {
+    val empty: NxtConsensus.State = State(Int128(0L), 0L, 0L, 0L)
+  }
+
   case class StateUpdate(
     totalStake: Option[Int128],
     difficulty: Option[Long],
@@ -62,7 +66,11 @@ object NxtConsensus {
     height:     Option[Long]
   )
 
-  case class View(state: State, leaderElection: NxtLeaderElection, protocolVersions: ProtocolVersioner)
+  case class View(
+    state:            State,
+    leaderElection:   NxtLeaderElection,
+    validators:       Seq[BlockValidator[_]]
+  )
 
   case class Genesis(block: Block, state: State)
 
@@ -77,7 +85,7 @@ object NxtConsensus {
   def apply(
     settings: AppSettings,
     storage:  KeyValueStore
-  ): Behavior[ReceivableMessage] =
+  )(implicit protocolVersioner: ProtocolVersioner): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
       implicit val ec: ExecutionContext = context.executionContext
 
@@ -98,11 +106,15 @@ object NxtConsensus {
         s"${Console.RESET}"
       )
 
-      val protocolVersioner = ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
-
       val leaderElection = new NxtLeaderElection(protocolVersioner)
 
-      active(storage, View(stateFromStorage(storage), leaderElection, protocolVersioner))
+      val validators = Seq(
+        new DifficultyBlockValidator(leaderElection, NxtConsensus.State.empty),
+        new SyntaxBlockValidator(NxtConsensus.State.empty),
+        new TimestampValidator
+      )
+
+      active(storage, View(stateFromStorage(storage), leaderElection, validators))
     }
 
   /**
