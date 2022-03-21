@@ -1,7 +1,6 @@
 package co.topl.consensus
 
 import co.topl.attestation.Address
-import co.topl.consensus.NxtConsensus.State
 import co.topl.consensus.KeyManager.KeyView
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, ProgramId, SimpleValue}

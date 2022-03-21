@@ -85,8 +85,12 @@ class NodeViewHolderSpec
       .onCall(() => System.currentTimeMillis())
 
     genesisActorTest { testIn =>
+      val genesisBlock = testIn.testIn.genesisView.block
+      val leaderElection = new NxtLeaderElection(protocolVersioner)
       val next =
-        nextBlock(testIn.testIn.nodeView.history.bestBlock, testIn.testIn.nodeView, keyRingCurve25519.addresses.head)
+        generateBlockExtensions(genesisBlock, List(genesisBlock), keyRingCurve25519.addresses.head, leaderElection)
+          .next()
+
       testIn.nodeViewHolderRef.tell(ReceivableMessages.WriteBlocks(List(next)))
 
       Thread.sleep(1.seconds.toMillis)

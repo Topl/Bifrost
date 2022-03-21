@@ -1,6 +1,5 @@
 package co.topl.utils
 
-import co.topl.attestation.Address
 import co.topl.consensus.KeyManager.AddressGenerationSettings
 import co.topl.consensus.{GenesisProvider, NxtConsensus, ProtocolVersioner}
 import co.topl.modifier.block.Block
