@@ -36,9 +36,11 @@ trait ShowInstances {
   implicit val showTaktikosAddress: Show[TaktikosAddress] =
     showBytes.contramap[TaktikosAddress](_.immutableBytes)
 
+  import IdentityOps._
+
   implicit val showBlockHeaderV2: Show[BlockHeaderV2] =
     header =>
-      show"BlockHeader(id=${header.id}" +
+      show"BlockHeader(id=${header.id.asTypedBytes}" +
       show" parentId=${header.parentHeaderId}" +
       show" height=${header.height}" +
       show" slot=${header.slot}" +

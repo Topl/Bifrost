@@ -12,6 +12,16 @@ import scala.collection.immutable.ListMap
 import scala.reflect.ClassTag
 
 trait ValuetypesCodecs {
+
+  def emptyCodec[T](instance: T): Codec[T] =
+    new Codec[T] {
+      def decode(bits: BitVector): Attempt[DecodeResult[T]] = Attempt.successful(DecodeResult(instance, bits))
+
+      def encode(value: T): Attempt[BitVector] = Attempt.successful(BitVector.empty)
+
+      def sizeBound: SizeBound = SizeBound.exact(0)
+    }
+
   implicit val byteCodec: Codec[Byte] = ByteCodec
 
   def bytesCodec(size: Int): Codec[Array[Byte]] = new BytesCodec(size)

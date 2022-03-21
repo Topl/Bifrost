@@ -3,12 +3,11 @@ package co.topl.demo
 import akka.NotUsed
 import akka.actor.typed.ActorSystem
 import akka.stream.Materializer
-import akka.stream.scaladsl.{BroadcastHub, Flow, Keep, RunnableGraph, Sink, Source}
-import akka.util.ByteString
+import akka.stream.scaladsl.{BroadcastHub, Keep, RunnableGraph, Sink, Source}
 import cats.data.{EitherT, OptionT, Validated}
 import cats.effect._
 import cats.implicits._
-import cats.{~>, Applicative, Monad, MonadThrow, Show}
+import cats.{~>, Monad, MonadThrow, Show}
 import co.topl.algebras.{Store, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
@@ -17,7 +16,7 @@ import co.topl.consensus.{BlockHeaderV2Ops, BlockHeaderValidationFailure}
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.algebras.PerpetualBlockMintAlgebra
 import co.topl.models._
-import co.topl.networking.p2p.{AkkaP2PServer, ConnectedPeer, LocalPeer}
+import co.topl.networking.p2p.{AkkaP2PServer, ConnectedPeer, ConnectionLeader, LocalPeer}
 import co.topl.networking.{BlockchainProtocolHandlers, MultiplexedTypedPeerHandler}
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
@@ -106,9 +105,12 @@ object DemoProgram {
     for {
       (handlers: BlockchainProtocolHandlers[F], onAdoptCallback: (TypedIdentifier => F[Unit])) <- protocolHandlers[F]()
       localAddress = InetSocketAddress.createUnresolved("localhost", bindPort)
-      multiplexedPeerHandler: MultiplexedTypedPeerHandler[F] = (connectedPeer: ConnectedPeer) =>
+      multiplexedPeerHandler: MultiplexedTypedPeerHandler[F] = (
+        connectedPeer: ConnectedPeer,
+        leader:        ConnectionLeader
+      ) =>
         BlockchainProtocolHandlers
-          .standardProtocolSet[F](handlers, connectedPeer, LocalPeer(localAddress))
+          .standardProtocolSet[F](handlers, connectedPeer, leader, LocalPeer(localAddress))
           .map(Source.single(_).concat(Source.never))
       p2pServer <- {
         implicit val classicSystem = system.classicSystem
@@ -118,15 +120,15 @@ object DemoProgram {
           bindPort,
           localAddress,
           Source
-            .future(akka.pattern.after(5.seconds, classicSystem.scheduler)(Future.unit))
+            .future(akka.pattern.after(1.seconds, classicSystem.scheduler)(Future.unit))
             .flatMapConcat(_ => remotePeers),
-          connectedPeer => multiplexedPeerHandler.multiplexed(connectedPeer)
+          (connectedPeer, leader) => multiplexedPeerHandler.multiplexed(connectedPeer, leader)
         )
       }
       _ <- Logger[F].info(s"Bound P2P at host=localhost port=$bindPort")
     } yield (p2pServer, onAdoptCallback)
 
-  private def protocolHandlers[F[_]: Sync]()(implicit
+  private def protocolHandlers[F[_]: Sync: Logger: *[_] ~> Future]()(implicit
     mat: Materializer
   ): F[(BlockchainProtocolHandlers[F], TypedIdentifier => F[Unit])] =
     Sync[F].delay {
@@ -137,12 +139,21 @@ object DemoProgram {
         new BlockchainProtocolHandlers[F] {
           def blockAdoptionNotificationClientSink(connectedPeer: ConnectedPeer): F[Sink[TypedIdentifier, NotUsed]] =
             Sink
-              .foreach[TypedIdentifier](id => println(show"Received remote blockId=$id"))
-              .mapMaterializedValue { f => f.onComplete(println)(mat.executionContext); NotUsed: NotUsed }
+              .foreachAsync[TypedIdentifier](1)(id =>
+                implicitly[F ~> Future].apply(Logger[F].info(show"Received remote blockId=$id"))
+              )
+              .mapMaterializedValue(_ => NotUsed: NotUsed)
               .pure[F]
 
           def blockAdoptionNotificationServerSource(connectedPeer: ConnectedPeer): F[Source[TypedIdentifier, NotUsed]] =
-            source.wireTap(id => println(show"Sending blockId=$id")).pure[F]
+            source
+              .alsoTo(
+                Sink.foreachAsync(1)(id =>
+                  implicitly[F ~> Future].apply(Logger[F].info(show"Sending local blockId=$id"))
+                )
+              )
+              .pure[F]
+
         }
 
       handlers -> (id => (queue.offer(id)).pure[F].void)

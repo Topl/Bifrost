@@ -10,7 +10,7 @@ import cats.~>
 
 import java.net.InetSocketAddress
 import scala.concurrent.Future
-import scala.util.Failure
+import scala.util.{Failure, Try}
 
 object AkkaP2PServer {
 
@@ -19,7 +19,7 @@ object AkkaP2PServer {
     port:            Int,
     localAddress:    InetSocketAddress,
     remotePeers:     Source[InetSocketAddress, _],
-    peerHandler:     ConnectedPeer => F[Flow[ByteString, ByteString, NotUsed]]
+    peerHandler:     (ConnectedPeer, ConnectionLeader) => F[Flow[ByteString, ByteString, NotUsed]]
   )(implicit system: ActorSystem): F[P2PServer[F]] = {
     def localAddress_ = localAddress
     import system.dispatcher
@@ -35,17 +35,30 @@ object AkkaP2PServer {
         )
       incomingConnections = Tcp().bind(host, port)
       peerHandlerFlowWithRemovalF = (connectedPeer: ConnectedPeer) =>
-        peerHandler(connectedPeer).map(_.alsoTo(remotePeersSinkF(connectedPeer)))
+        ConnectionLeaderFlow(leader =>
+          Flow.futureFlow(
+            implicitly[F ~> Future].apply(
+              peerHandler(connectedPeer, leader).map(_.alsoTo(remotePeersSinkF(connectedPeer)))
+            )
+          )
+        )
+          .pure[F]
       serverBindingRunnableGraph = incomingConnections
-        .wireTap(p =>
-          //
-          println(s"Inbound peer connection ${p.remoteAddress}")
-        )
+        .log("Inbound peer connection", _.remoteAddress)
         .alsoTo(Flow[Tcp.IncomingConnection].map(c => ConnectedPeer(c.remoteAddress)).to(addPeersSink))
-        .mapAsync(1)(conn =>
+        .mapAsync(1) { conn =>
+          val connectedPeer = ConnectedPeer(conn.remoteAddress)
           implicitly[F ~> Future]
-            .apply(peerHandlerFlowWithRemovalF(ConnectedPeer(conn.remoteAddress)).map(conn.handleWith))
-        )
+            .apply(
+              peerHandlerFlowWithRemovalF(connectedPeer)
+                .map(
+                  _.alsoTo(
+                    Sink.onComplete(printCompletion(connectedPeer, _))
+                  )
+                )
+                .map(conn.handleWith)
+            )
+        }
         .alsoTo(
           Sink.onComplete(d =>
             d match {
@@ -61,20 +74,12 @@ object AkkaP2PServer {
         remotePeers
           .map(ConnectedPeer)
           .alsoTo(addPeersSink)
-          .wireTap(connectedPeer => println(s"connectedPeer=$connectedPeer Initializing Connection"))
+          .log("Initializing connection", identity)
           .map(connectedPeer =>
             implicitly[F ~> Future]
               .apply(peerHandlerFlowWithRemovalF(connectedPeer))
               .map(
-                _.alsoTo(
-                  Sink.onComplete {
-                    case Failure(exception) =>
-                      println(s"connectedPeer=$connectedPeer error=$exception")
-                      exception.printStackTrace()
-                    case _ =>
-                      println(s"connectedPeer=$connectedPeer Done outgoing single")
-                  }
-                )
+                _.alsoTo(Sink.onComplete(printCompletion(connectedPeer, _)))
               )
               .flatMap(flow => Tcp().outgoingConnection(connectedPeer.remoteAddress).join(flow).run())
           )
@@ -108,4 +113,13 @@ object AkkaP2PServer {
         localAddress_.pure[F]
     }
   }
+
+  private def printCompletion[T](connectedPeer: ConnectedPeer, result: Try[T]): Unit =
+    result match {
+      case Failure(exception) =>
+        println(s"connectedPeer=$connectedPeer error=$exception")
+        exception.printStackTrace()
+      case _ =>
+        println(s"connectedPeer=$connectedPeer Done outgoing single")
+    }
 }
