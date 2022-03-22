@@ -34,6 +34,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.net.InetSocketAddress
 import java.nio.file.{Files, Paths}
+import java.time.Instant
 import java.util.UUID
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -108,7 +109,8 @@ object TetraDemo extends IOApp {
 
   // Actor system initialization
 
-  implicit private val system: ActorSystem[_] = ActorSystem(Behaviors.empty, "TetraDemo")
+  implicit private val system: ActorSystem[_] =
+    ActorSystem(Behaviors.empty, "TetraDemo")
 
   override val runtime: IORuntime = AkkaCatsRuntime(system).runtime
   override val runtimeConfig: IORuntimeConfig = AkkaCatsRuntime(system).ioRuntimeConfig
@@ -119,8 +121,8 @@ object TetraDemo extends IOApp {
 
   implicit private val logger: Logger[F] = Slf4jLogger.getLogger[F]
 
-  private val clock: ClockAlgebra[F] =
-    AkkaSchedulerClock.Eval.make(SlotDuration, EpochLength)
+  private def makeClock(args: DemoArgs): ClockAlgebra[F] =
+    AkkaSchedulerClock.Eval.make(SlotDuration, EpochLength, args.genesisTimestamp)
 
   implicit private val timeout: Timeout = Timeout(20.seconds)
 
@@ -138,6 +140,7 @@ object TetraDemo extends IOApp {
 
   private def mint(
     staker:                  Staker,
+    clock:                   ClockAlgebra[F],
     etaCalculation:          EtaCalculationAlgebra[F],
     leaderElectionThreshold: LeaderElectionValidationAlgebra[F],
     localChain:              LocalChainAlgebra[F],
@@ -160,7 +163,8 @@ object TetraDemo extends IOApp {
         ed25519VRFResource,
         vrfConfig
       )
-      _ <- vrfProofConstruction.precomputeForEpoch(0, genesis.headerV2.eligibilityCertificate.eta)
+      _           <- vrfProofConstruction.precomputeForEpoch(0, genesis.headerV2.eligibilityCertificate.eta)
+      initialSlot <- clock.globalSlot
       operationalKeys <- OperationalKeys.FromSecureStore.make[F](
         secureStore = secureStore,
         clock = clock,
@@ -173,7 +177,7 @@ object TetraDemo extends IOApp {
         operationalPeriodLength = OperationalPeriodLength,
         activationOperationalPeriod = 0L,
         staker.address,
-        initialSlot = 0L
+        initialSlot = initialSlot
       )
       stakerVRFVK <- ed25519VRFResource.use(_.getVerificationKey(staker.vrfKey).pure[F])
       mint =
@@ -239,6 +243,7 @@ object TetraDemo extends IOApp {
       blockStore = createBlockStore(blockHeaderStore, blockBodyStore)
       _             <- blockStore.put(genesis.headerV2.id, genesis)
       slotDataCache <- SlotDataCache.Eval.make(blockHeaderStore, ed25519VRFResource)
+      clock = makeClock(demoArgs)
       etaCalculation <- EtaCalculation.Eval.make(
         slotDataCache,
         clock,
@@ -266,6 +271,7 @@ object TetraDemo extends IOApp {
       mempool <- EmptyMemPool.make[F]
       m <- mint(
         stakers(demoArgs.stakerIndex),
+        clock,
         etaCalculation,
         leaderElectionThreshold,
         localChain,
@@ -303,7 +309,14 @@ private case class Staker(
   address:       TaktikosAddress
 )
 
-case class DemoArgs(port: Int, remotes: List[InetSocketAddress], seed: Long, stakerCount: Int, stakerIndex: Int)
+case class DemoArgs(
+  port:             Int,
+  remotes:          List[InetSocketAddress],
+  seed:             Long,
+  stakerCount:      Int,
+  stakerIndex:      Int,
+  genesisTimestamp: Instant
+)
 
 object DemoArgs {
 
@@ -320,6 +333,7 @@ object DemoArgs {
         .map(arr => InetSocketAddress.createUnresolved(arr(0), arr(1).toInt)),
       args(2).toLong,
       args(3).toInt,
-      args(4).toInt
+      args(4).toInt,
+      args.lift(5).fold(Instant.now().plusSeconds(1))(a => Instant.ofEpochMilli(a.toLong))
     )
 }

@@ -75,11 +75,6 @@ object BlockGenesis {
         metadata = None,
         address = address
       )
-    val body =
-      BlockBodyV2(
-        transactions = transactions,
-        headerId = header.id
-      )
-    BlockV2(header, body)
+    BlockV2(header, transactions.toList.map(_.id))
   }
 }

@@ -2,6 +2,8 @@ package co.topl.networking.p2p
 
 import akka.NotUsed
 import akka.actor.ActorSystem
+import akka.event.Logging
+import akka.stream.Attributes
 import akka.stream.scaladsl._
 import akka.util.ByteString
 import cats.effect._
@@ -29,10 +31,7 @@ object AkkaP2PServer {
         implicitly[F ~> Future].apply(connectedPeersRef.update(_ + connection))
       )
       remotePeersSinkF = (connectedPeer: ConnectedPeer) =>
-        Sink.onComplete[ByteString](_ =>
-          //
-          implicitly[F ~> Future].apply(connectedPeersRef.update(_ - connectedPeer))
-        )
+        Sink.onComplete[ByteString](_ => implicitly[F ~> Future].apply(connectedPeersRef.update(_ - connectedPeer)))
       incomingConnections = Tcp().bind(host, port)
       peerHandlerFlowWithRemovalF = (connectedPeer: ConnectedPeer) =>
         ConnectionLeaderFlow(leader =>
@@ -68,10 +67,12 @@ object AkkaP2PServer {
           )
         )
         .toMat(Sink.ignore)(Keep.both)
+        .withAttributes(Attributes.logLevels(onElement = Logging.InfoLevel))
       (serverBindingFuture, serverBindingCompletionFuture) = serverBindingRunnableGraph.run()
       serverBinding <- Async[F].fromFuture(serverBindingFuture.pure[F])
       outboundConnectionsRunnableGraph: RunnableGraph[Future[Unit]] =
         remotePeers
+          .filterNot(_ == localAddress)
           .map(ConnectedPeer)
           .alsoTo(addPeersSink)
           .log("Initializing connection", identity)
@@ -92,6 +93,7 @@ object AkkaP2PServer {
             }
           )
           .toMat(Sink.seq)(Keep.right)
+          .withAttributes(Attributes.logLevels(onElement = Logging.InfoLevel))
           .mapMaterializedValue(_.flatMap(_.sequence.void))
       remoteConnectionsCompletionFuture = outboundConnectionsRunnableGraph.run()
       _ = println("P2P Server Running")

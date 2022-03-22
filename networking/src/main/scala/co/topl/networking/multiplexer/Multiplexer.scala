@@ -24,7 +24,9 @@ import scala.collection.mutable
  */
 object Multiplexer {
 
-  def apply(subProtocols: Source[List[SubHandler], _]): Flow[ByteString, ByteString, NotUsed] =
+  type Mode = List[SubHandler]
+
+  def apply(subProtocols: Source[Mode, _]): Flow[ByteString, ByteString, NotUsed] =
     Flow[ByteString]
       .via(MessageParserFramer())
       .via(
@@ -108,10 +110,9 @@ class MultiplexerImpl extends GraphStage[MultiplexerStageShape] {
             val (sesssionId, data) = grab(shape.dataIn)
             subSourceOutlets.get(sesssionId) match {
               case Some(subSourceOutlet) =>
+                localBuffers(sesssionId).enqueue(data)
                 if (subSourceOutlet.isAvailable)
-                  subSourceOutlet.push(data)
-                else
-                  localBuffers(sesssionId).enqueue(data)
+                  subSourceOutlet.push(localBuffers(sesssionId).dequeue())
               case _ =>
                 log.warning(s"Discarding message for inactive sessionId={}", sesssionId)
             }

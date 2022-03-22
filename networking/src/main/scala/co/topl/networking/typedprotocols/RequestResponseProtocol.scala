@@ -69,7 +69,7 @@ trait RequestResponseProtocol[Query, T] {
       TypedProtocol.CommonStates.None.type,
       TypedProtocol.CommonStates.Idle.type
     ] =
-      (_, _, _) => TypedProtocol.CommonStates.Idle.pure[F]
+      (_, _, _) => serverSentStart().as(TypedProtocol.CommonStates.Idle)
 
     implicit val getIdleBusy: StateTransition[
       F,

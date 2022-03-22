@@ -2,12 +2,13 @@ package co.topl.demo
 
 import akka.NotUsed
 import akka.actor.typed.ActorSystem
-import akka.stream.{Materializer, QueueOfferResult}
+import akka.stream.Materializer
 import akka.stream.scaladsl.{BroadcastHub, Keep, RunnableGraph, Sink, Source}
 import cats.data.{EitherT, OptionT, Validated}
 import cats.effect._
+import cats.effect.std.Supervisor
 import cats.implicits._
-import cats.{~>, Applicative, Monad, MonadThrow, Show}
+import cats.{~>, Monad, MonadThrow, Show}
 import co.topl.algebras.{Store, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
@@ -16,15 +17,13 @@ import co.topl.consensus.{BlockHeaderV2Ops, BlockHeaderValidationFailure}
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.algebras.PerpetualBlockMintAlgebra
 import co.topl.models._
-import co.topl.networking.p2p.{AkkaP2PServer, ConnectedPeer, ConnectionLeader, LocalPeer}
-import co.topl.networking.{BlockchainProtocolHandlers, MultiplexedTypedPeerHandler}
+import co.topl.networking.blockchain.{BlockchainPeerConnection, BlockchainProtocolClient, BlockchainProtocolServer}
+import co.topl.networking.p2p._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 
 import java.net.InetSocketAddress
 import scala.concurrent.Future
-import scala.concurrent.duration._
-import scala.util.Failure
 
 object DemoProgram {
 
@@ -42,7 +41,9 @@ object DemoProgram {
     remotePeers:        Source[InetSocketAddress, _]
   )(implicit system:    ActorSystem[_]): F[Unit] =
     for {
-      (p2pServer, onAdoptCallback) <- networking(bindPort, remotePeers, headerStore)
+      (blockchainServer, onAdoptCallback) <- blockchainProtocolServer(headerStore)
+      p2pServer                           <- networking(bindPort, remotePeers, headerStore, blockchainServer)
+//      (p2pServer, onAdoptCallback) <- networking(bindPort, remotePeers, headerStore)
 //      onAdoptCallback   <- ((_: TypedIdentifier) => Applicative[F].unit).pure[F]
       mintedBlockStream <- mint.blocks
       streamCompletionFuture = implicitly[RunnableGraph ~> F].apply(
@@ -101,128 +102,73 @@ object DemoProgram {
       )
     } yield ()
 
+  /**
+   * @return (P2PServer, Callback to invoke when locally adopting a block)
+   */
   private def networking[F[_]: Async: Logger: *[_] ~> Future](
     bindPort:    Int,
     remotePeers: Source[InetSocketAddress, _],
-    headerStore: Store[F, BlockHeaderV2]
+    headerStore: Store[F, BlockHeaderV2],
+    server:      BlockchainProtocolServer[F]
   )(implicit
     system: ActorSystem[_]
-  ) =
+  ): F[P2PServer[F]] =
     for {
-      (handlers: BlockchainProtocolHandlers[F], onAdoptCallback: (TypedIdentifier => F[Unit])) <- protocolHandlers[F](
-        headerStore
-      )
-      localAddress = InetSocketAddress.createUnresolved("localhost", bindPort)
-      multiplexedPeerHandler: MultiplexedTypedPeerHandler[F] = (
-        connectedPeer: ConnectedPeer,
-        leader:        ConnectionLeader
-      ) =>
-        BlockchainProtocolHandlers
-          .standardProtocolSet[F](handlers, connectedPeer, leader, LocalPeer(localAddress))
-          .map(Source.single(_).concat(Source.never))
+      localAddress <- InetSocketAddress.createUnresolved("localhost", bindPort).pure[F]
+      localPeer = LocalPeer(localAddress)
+      peerHandlerFlow =
+        (connectedPeer: ConnectedPeer, leader: ConnectionLeader) =>
+          BlockchainPeerConnection
+            .make[F](connectedPeer, leader, localPeer)(server)
+            .flatTap(peerConnection => handleNetworkClient(peerConnection.client, headerStore))
+            .map(peerConnection => peerConnection.multiplexer)
       p2pServer <- {
         implicit val classicSystem = system.classicSystem
-        import classicSystem.dispatcher
         AkkaP2PServer.make(
           "localhost",
           bindPort,
           localAddress,
-          Source
-            .future(akka.pattern.after(1.seconds, classicSystem.scheduler)(Future.unit))
-            .flatMapConcat(_ => remotePeers),
-          (connectedPeer, leader) => multiplexedPeerHandler.multiplexed(connectedPeer, leader)
+          remotePeers = remotePeers,
+          peerHandlerFlow
         )
       }
       _ <- Logger[F].info(s"Bound P2P at host=localhost port=$bindPort")
-    } yield (p2pServer, onAdoptCallback)
+    } yield p2pServer
 
-  private def protocolHandlers[F[_]: Sync: Logger: *[_] ~> Future](headerStore: Store[F, BlockHeaderV2])(implicit
-    mat:                                                                        Materializer
-  ): F[(BlockchainProtocolHandlers[F], TypedIdentifier => F[Unit])] =
-    Sync[F].delay {
+  private def blockchainProtocolServer[F[_]: Sync](headerStore: Store[F, BlockHeaderV2])(implicit
+    materializer:                                               Materializer
+  ): F[(BlockchainProtocolServer[F], TypedIdentifier => F[Unit])] =
+    for {
+      (locallyMintedBlockIdsQueue, locallyMintedBlockIdsSource) <-
+        Sync[F].delay(Source.queue[TypedIdentifier](128).toMat(BroadcastHub.sink)(Keep.both).run())
+      server = new BlockchainProtocolServer[F] {
+        def localBlockAdoptions: F[Source[TypedIdentifier, NotUsed]] = Sync[F].delay(locallyMintedBlockIdsSource)
 
-      val (locallyMintedBlockIdsQueue, locallyMintedBlockIdsSource) =
-        Source.queue[TypedIdentifier](128).toMat(BroadcastHub.sink)(Keep.both).run()
+        def getLocalHeader(id: TypedIdentifier): F[Option[BlockHeaderV2]] = headerStore.get(id)
+      }
+    } yield (server, (id: TypedIdentifier) => Sync[F].delay(locallyMintedBlockIdsQueue.offer(id)))
 
-      val (remoteBlockIdsQueue, remoteBlockIdsSource) =
-        Source.queue[TypedIdentifier](128).toMat(BroadcastHub.sink)(Keep.both).run()
-
-      val handlers =
-        new BlockchainProtocolHandlers[F] {
-          def blockAdoptionNotificationClientSink(connectedPeer: ConnectedPeer): F[Sink[TypedIdentifier, NotUsed]] =
-            Sink
-              .foreachAsync[TypedIdentifier](1)(id =>
-                implicitly[F ~> Future].apply(
-                  Logger[F].info(show"Received notification of remote blockId=$id") >>
-                  Sync[F]
-                    .defer(
-                      (remoteBlockIdsQueue.offer(id) match {
-                        case QueueOfferResult.Enqueued =>
-                          Applicative[F].unit
-                        case QueueOfferResult.Dropped =>
-                          MonadThrow[F].raiseError(new IllegalStateException("Downstream too slow"))
-                        case QueueOfferResult.QueueClosed =>
-                          MonadThrow[F].raiseError(new IllegalStateException("Queue closed"))
-                        case QueueOfferResult.Failure(e) =>
-                          MonadThrow[F].raiseError(e)
-                      }).void
-                    )
-                    .void
-                )
-              )
-              .mapMaterializedValue(_ => NotUsed: NotUsed)
-              .pure[F]
-
-          def blockAdoptionNotificationServerSource(connectedPeer: ConnectedPeer): F[Source[TypedIdentifier, NotUsed]] =
-            locallyMintedBlockIdsSource
-              .alsoTo(
-                Sink.foreachAsync(1)(id =>
-                  implicitly[F ~> Future].apply(Logger[F].info(show"Sending local blockId=$id"))
-                )
-              )
-              .pure[F]
-
-          def getLocalBlockHeader(connectedPeer: ConnectedPeer)(id: TypedIdentifier): F[Option[BlockHeaderV2]] =
-            headerStore.get(id)
-
-          def blockHeaderRequestResponses(
-            connectedPeer: ConnectedPeer
-          ): F[(Source[TypedIdentifier, NotUsed], Sink[Option[BlockHeaderV2], NotUsed])] =
-            Sync[F].delay {
-              val (requestPermitQueue, requestPermitSource) =
-                Source.queue[Unit](128).toMat(BroadcastHub.sink)(Keep.both).run()
-              requestPermitQueue.offer(())
-              (
-                remoteBlockIdsSource
-                  .zip(requestPermitSource)
-                  .map(_._1)
-                  .alsoTo(
-                    Sink.foreachAsync[TypedIdentifier](1)(data =>
-                      implicitly[F ~> Future].apply(
-                        Logger[F].info(show"Requesting remote header blockId=$data")
-                      )
-                    )
-                  ),
-                Sink
-                  .foreachAsync[Option[BlockHeaderV2]](1) {
-                    case Some(data) =>
-                      implicitly[F ~> Future].apply(
-                        Sync[F].delay(requestPermitQueue.offer(())) >>
-                        Logger[F].info(show"Inserting remote header blockId=${data.id.asTypedBytes}") >>
-                        headerStore.put(data.id, data)
-                      )
-                    case _ =>
-                      implicitly[F ~> Future].apply(
-                        Sync[F].delay(requestPermitQueue.offer(())) >>
-                        Logger[F].info("Remote did not possess a header")
-                      )
-                  }
-                  .mapMaterializedValue(_ => NotUsed)
-              )
-            }
-        }
-
-      handlers -> (id => (locallyMintedBlockIdsQueue.offer(id)).pure[F].void)
-    }
+  private def handleNetworkClient[F[_]: Async: Concurrent: Logger: *[_] ~> Future](
+    client:          BlockchainProtocolClient[F],
+    headerStore:     Store[F, BlockHeaderV2]
+  )(implicit system: ActorSystem[_]): F[Unit] =
+    for {
+      _ <- Supervisor[F].use(
+        _.supervise(
+          for {
+            remoteAdoptionsSource <- client.remotePeerAdoptions
+            processor = remoteAdoptionsSource.mapAsyncF(1)(id =>
+              Logger[F].info(show"Requesting header id=$id") >>
+              OptionT(client.getRemoteHeader(id))
+                .semiflatTap(header => Logger[F].info(show"Inserting remote header id=$id"))
+                .flatTapNone(Logger[F].info(show"Remote did not possess header id=$id"))
+                .semiflatTap(header => headerStore.put(header.id, header))
+                .value
+            )
+            completion <- Async[F].fromFuture(Async[F].delay(processor.runWith(Sink.ignore)))
+          } yield ()
+        )
+      )
+    } yield ()
 
 }

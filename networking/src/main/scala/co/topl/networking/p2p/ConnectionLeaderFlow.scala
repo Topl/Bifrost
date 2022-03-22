@@ -20,6 +20,8 @@ import cats.implicits._
  * - BigInt(hash(localNumber.bytes ++ remoteNumber.bytes)) vs. BigInt(hash(remoteNumber.bytes ++ localNumber.bytes))
  *
  * If the hash where the localNumber's bytes came first "wins", then the local party is the "Connection Leader"
+ *
+ * TODO: Consider a key exchange mechanism
  */
 object ConnectionLeaderFlow {
 
