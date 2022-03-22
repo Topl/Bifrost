@@ -17,7 +17,7 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
 import co.topl.consensus.algebras.{EtaCalculationAlgebra, LeaderElectionValidationAlgebra}
-import co.topl.crypto.hash.{blake2b256, Blake2b256, Blake2b512}
+import co.topl.crypto.hash.{Blake2b256, Blake2b512, blake2b256}
 import co.topl.crypto.mnemonic.Entropy
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.minting._
@@ -26,6 +26,7 @@ import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility._
+import co.topl.numerics.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
@@ -183,7 +184,9 @@ object TetraDemo extends IOApp.Simple {
                 LeaderElectionMinting.Eval.make(
                   stakerVRFVK,
                   leaderElectionThreshold,
-                  vrfProofConstruction
+                  vrfProofConstruction,
+                  statsInterpreter,
+                  "TetraDemo"
                 ),
                 operationalKeys,
                 VrfRelativeStakeMintingLookup.Eval.make(state, clock),
@@ -238,7 +241,10 @@ object TetraDemo extends IOApp.Simple {
         blake2b256Resource,
         blake2b512Resource
       )
-      leaderElectionThreshold = LeaderElectionValidation.Eval.make[F](vrfConfig, blake2b512Resource)
+      exp <- ExpInterpreter.make[F](10000,38)
+      log1p <- Log1pInterpreter.make[F](10000,8)
+      log1pCached <- Log1pInterpreter.makeCached[F](log1p)
+      leaderElectionThreshold = LeaderElectionValidation.Eval.make[F](vrfConfig, blake2b512Resource,exp,log1pCached)
       underlyingHeaderValidation <- BlockHeaderValidation.Eval.make[F](
         etaCalculation,
         VrfRelativeStakeValidationLookup.Eval.make(state, clock),
