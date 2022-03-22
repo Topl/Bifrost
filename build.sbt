@@ -427,7 +427,8 @@ lazy val consensus = project
     typeclasses,
     crypto,
     tetraByteCodecs,
-    algebras % "compile->compile;test->test"
+    algebras % "compile->compile;test->test",
+    numerics
   )
 
 lazy val minting = project
