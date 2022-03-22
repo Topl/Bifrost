@@ -69,7 +69,7 @@ object NxtConsensus {
   case class View(
     state:            State,
     leaderElection:   NxtLeaderElection,
-    validators:       Seq[BlockValidator[_]]
+    validators:       (NxtConsensus.State) => Seq[BlockValidator[_]]
   )
 
   case class Genesis(block: Block, state: State)
@@ -108,10 +108,12 @@ object NxtConsensus {
 
       val leaderElection = new NxtLeaderElection(protocolVersioner)
 
-      val validators = Seq(
-        new DifficultyBlockValidator(leaderElection, NxtConsensus.State.empty),
-        new SyntaxBlockValidator(NxtConsensus.State.empty),
-        new TimestampValidator
+      val validators = (consensusState: NxtConsensus.State) => Seq(
+        new BlockValidators.DifficultyValidator(leaderElection),
+        new BlockValidators.HeightValidator,
+        new BlockValidators.EligibilityValidator(leaderElection, consensusState),
+        new BlockValidators.SyntaxValidator(consensusState),
+        new BlockValidators.TimestampValidator
       )
 
       active(storage, View(stateFromStorage(storage), leaderElection, validators))

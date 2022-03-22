@@ -109,7 +109,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll with InMemoryKeyRingTestHelp
         generatorBox = arbitBox,
         publicKey = keyRingCurve25519.lookupPublicKey(rewardsAddress).get,
         height = parent.height + 1,
-        difficulty = leaderElection.calcNewBaseDifficulty(
+        difficulty = leaderElection.calculateNewDifficulty(
           parent.height + 1,
           parent.difficulty,
           previousTimestamps :+ timestamp

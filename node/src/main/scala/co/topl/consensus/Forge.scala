@@ -70,7 +70,7 @@ case class Forge(
       }
 
       // calculate the newly forged blocks updated difficulty
-      newDifficulty = nxtLeaderElection.calcNewBaseDifficulty(
+      newDifficulty = nxtLeaderElection.calculateNewDifficulty(
         parent.height + 1,
         parent.difficulty,
         previousBlockTimes :+ forgeTime

@@ -13,7 +13,6 @@ import co.topl.utils.{Int128, TimeProvider}
 import com.google.common.primitives.Longs
 
 import scala.collection.Set
-import scala.concurrent.duration.MILLISECONDS
 import scala.math.{max, min}
 
 class NxtLeaderElection(protocolVersioner: ProtocolVersioner) {
@@ -51,17 +50,19 @@ class NxtLeaderElection(protocolVersioner: ProtocolVersioner) {
    * @param parentHeight parent block height
    * @return the target value
    */
-  private[consensus] def calculateThresholdValue(
-    stakeAmount:  Int128,
-    totalStake:   Int128,
-    timeDelta:    Long,
-    difficulty:   Long,
-    parentHeight: Long
+  private[consensus] def calculateThresholdValue(stakeAmount: Int128, timeDelta: Long)(
+    consensusState:                                           NxtConsensus.State
   ): BigInt = {
-    val targetBlockTime = protocolVersioner.applicable(parentHeight + 1).value.targetBlockTime
+    val targetBlockTime = protocolVersioner.applicable(consensusState.height + 1).value.targetBlockTime
 
-    (BigInt(stakeAmount.toByteArray) * BigInt(timeDelta) * BigInt(difficulty)) /
-    (BigInt(totalStake.toByteArray) * BigInt(targetBlockTime.toMillis))
+    println(
+      s"calculateThresholdValue\n" +
+      s"stake: $stakeAmount, consensusState: $consensusState, timeDelta: $timeDelta" +
+      s"\n"
+    )
+
+    (BigInt(stakeAmount.toByteArray) * BigInt(timeDelta) * BigInt(consensusState.difficulty)) /
+    (BigInt(consensusState.totalStake.toByteArray) * BigInt(targetBlockTime.toMillis))
   }
 
   /**
@@ -74,7 +75,7 @@ class NxtLeaderElection(protocolVersioner: ProtocolVersioner) {
    */
 
   // used in a node view test, so made public for now
-  def calcNewBaseDifficulty(newHeight: Long, prevDifficulty: Long, prevTimes: Seq[TimeProvider.Time]): Long = {
+  def calculateNewDifficulty(newHeight: Long, prevDifficulty: Long, prevTimes: Seq[TimeProvider.Time]): Long = {
 
     val averageDelay = prevTimes.drop(1).lazyZip(prevTimes).map(_ - _).sum / (prevTimes.length - 1)
     val targetTimeMilli = protocolVersioner
@@ -129,8 +130,8 @@ object NxtLeaderElection {
     parent:             Block,
     arbitBoxesIterator: Iterator[ArbitBox],
     timestamp:          TimeProvider.Time,
-    totalStake: Int128,
-    nxtLeaderElection:  NxtLeaderElection,
+    totalStake:         Int128,
+    nxtLeaderElection:  NxtLeaderElection
   ): Either[IneligibilityReason, ArbitBox] =
     // This is ugly iterable/procedural code, but the goal is lazy traversal to avoid fetching all boxes for
     // all addresses when we're only looking for the _first_ valid candidate

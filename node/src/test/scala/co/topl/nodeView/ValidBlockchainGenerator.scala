@@ -19,13 +19,12 @@ trait ValidBlockchainGenerator extends NetworkPrefixTestHelper {
     lengthOfChain:     Byte
   ): Gen[NonEmptyChain[Block]] = {
     val leaderElection = new NxtLeaderElection(protocolVersioner)
-
-    val validBlockScaleConstant = 1000 // this factor scales the total stake and time delta to keep threshold near 1
-    val totalStake = Int.MaxValue / validBlockScaleConstant
+    val totalStake = Int.MaxValue
     val initalDifficulty = Long.MaxValue // ensure that the threshold calculation is maximized
 
     // manipulate the time between subsequent blocks to manage the adjustment of difficulty
-    val timeBetweenBlocksAt = (height: Long) => validBlockScaleConstant * protocolVersioner.applicable(height).value.targetBlockTime
+    def timeBetweenBlocksAt(height: Long): Long =
+      protocolVersioner.applicable(height).value.targetBlockTime.toMillis + 2
 
     val genesis = GenesisProvider.construct(
       Set(keyRing.addresses.head), // use a single address so that the generator box is constant
@@ -45,27 +44,28 @@ trait ValidBlockchainGenerator extends NetworkPrefixTestHelper {
       .getEligibleBox(
         genesis.block,
         allArbitBoxesIterator,
-        genesis.block.timestamp + timeBetweenBlocksAt(genesis.block.height + 1).toMillis,
+        genesis.block.timestamp +
+          timeBetweenBlocksAt(height = 2), // reuse the generator box by keeping the threshold near upper limit
         totalStake,
         leaderElection
       )
       .getOrThrow(e => new Exception(e.toString))
 
-    (2 to lengthOfChain).foldLeft(NonEmptyChain(genesis.block)) { case (chain, _) =>
-      val newTimestamp = chain.last.timestamp + timeBetweenBlocksAt(chain.last.height + 1).toMillis
+    (2 to lengthOfChain).foldLeft(NonEmptyChain(genesis.block)) { case (chain, height) =>
+      val newTimestamp = chain.last.timestamp + timeBetweenBlocksAt(height)
       appendBlock(
         chain,
         keyRing,
         Address(eligibleBox.evidence),
         eligibleBox,
         chain.last,
-        leaderElection.calcNewBaseDifficulty(
-          chain.last.height + 1,
+        leaderElection.calculateNewDifficulty(
+          height,
           chain.last.difficulty,
           chain.toChain.toList.takeRight(3).map(_.timestamp).reverse :+ newTimestamp
         ),
         newTimestamp,
-        protocolVersioner.applicable(chain.last.height + 1).blockVersion
+        protocolVersioner.applicable(height).blockVersion
       )
     }
   }
@@ -124,7 +124,7 @@ object ChainTest extends ValidBlockchainGenerator {
     val leaderElection = new NxtLeaderElection(ProtocolVersioner.default)
     val consensusState = NxtConsensus.State(Int.MaxValue, g.last.difficulty, 0L, g.last.height)
 
-    def getDetailsForLast(block: Block) = g.last -> g.toChain.toList.takeRight(4).map(_.timestamp).reverse
+    def getDetailsForLast(block: Block) = g.last -> g.toChain.toList.takeRight(4).map(_.timestamp)
     def getParentTimestamp(block: Block) = g.reverse.tail.headOption.map(_.timestamp)
 
     val diffRes =
@@ -132,8 +132,9 @@ object ChainTest extends ValidBlockchainGenerator {
     val synRes = new SyntaxBlockValidator(consensusState).validate(identity)(g.last).isSuccess
     val tsRes = new TimestampValidator().validate(getParentTimestamp)(g.last).isSuccess
 
-    println(s"difficulty: $diffRes, syntax: $synRes, timestamp: $tsRes")
-    println(s"ids: ${g.map(_.id)}" +
+    println(s"${Console.YELLOW}difficulty: $diffRes, syntax: $synRes, timestamp: $tsRes${Console.RESET}")
+    println(
+      s"ids: ${g.map(_.id)}" +
       s"\ntimestamps: ${g.map(_.timestamp)}" +
       s"\ndifficulty: ${g.map(_.difficulty)}" +
       s"\nheight: ${g.map(_.height)}"
