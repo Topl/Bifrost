@@ -7,7 +7,7 @@ import cats.effect.kernel.Ref
 import cats.implicits._
 import co.topl.networking.Party
 
-import scala.reflect.ClassTag
+import scala.reflect.runtime.universe._
 
 /**
  * Captures the domain of state transitions for some typed protocol.  The domain is used by an "applier" to handle
@@ -17,52 +17,54 @@ import scala.reflect.ClassTag
  *                    captured and stored for later comparison
  */
 case class TypedProtocolInstance[F[_]] private (
-  localParty:              Party,
-  private val transitions: Chain[(StateTransition[F, _, _, _], ClassTag[_], ClassTag[_], ClassTag[_], StateAgency[_])]
+  localParty: Party,
+  private val transitions: Chain[
+    (StateTransition[F, _, _, _], WeakTypeTag[_], WeakTypeTag[_], WeakTypeTag[_], StateAgency[_])
+  ]
 ) {
 
   /**
    * Append the given state transition to this instance
    */
-  def withTransition[Message: ClassTag, InState: ClassTag: StateAgency, OutState: ClassTag](
+  def withTransition[Message: WeakTypeTag, InState: WeakTypeTag: StateAgency, OutState: WeakTypeTag](
     transition: StateTransition[F, Message, InState, OutState]
   ): TypedProtocolInstance[F] =
     copy(transitions =
       transitions.append(
         (
           transition,
-          implicitly[ClassTag[Message]],
-          implicitly[ClassTag[InState]],
-          implicitly[ClassTag[OutState]],
+          implicitly[WeakTypeTag[Message]],
+          implicitly[WeakTypeTag[InState]],
+          implicitly[WeakTypeTag[OutState]],
           implicitly[StateAgency[InState]]
         )
       )
     )
 
-  private def applyMessage[Message: ClassTag](
-    message:              Message,
-    sender:               Party,
-    currentState:         Any,
-    currentStateClassTag: ClassTag[_]
-  )(implicit monadF:      Monad[F]): F[Either[TypedProtocolTransitionFailure, (Any, ClassTag[Any])]] =
+  private def applyMessage[Message: WeakTypeTag](
+    message:                 Message,
+    sender:                  Party,
+    currentState:            Any,
+    currentStateWeakTypeTag: WeakTypeTag[_]
+  )(implicit monadF:         Monad[F]): F[Either[TypedProtocolTransitionFailure, (Any, WeakTypeTag[Any])]] =
     EitherT
       .fromOption[F](
-        transitions.find { case (_, messageClassTag, inStateClassTag, _, _) =>
-          implicitly[ClassTag[Message]] == messageClassTag && inStateClassTag == currentStateClassTag
+        transitions.find { case (_, messageWeakTypeTag, inStateWeakTypeTag, _, _) =>
+          implicitly[WeakTypeTag[Message]] == messageWeakTypeTag && inStateWeakTypeTag == currentStateWeakTypeTag
         },
         IllegalMessageState(message, currentState)
       )
       .ensure(MessageSenderNotAgent(sender): TypedProtocolTransitionFailure) { handler =>
         handler._5.asInstanceOf[StateAgency[Any]].agent.contains(sender)
       }
-      .semiflatMap { case (transition, _, _, outStateClassTag, _) =>
+      .semiflatMap { case (transition, _, _, outStateWeakTypeTag, _) =>
         transition
           .asInstanceOf[StateTransition[F, Message, Any, Any]](
             message,
             currentState,
             localParty
           )
-          .tupleRight(outStateClassTag.asInstanceOf[ClassTag[Any]])
+          .tupleRight(outStateWeakTypeTag.asInstanceOf[WeakTypeTag[Any]])
       }
       .value
 
@@ -71,20 +73,20 @@ case class TypedProtocolInstance[F[_]] private (
    * current protocol state.
    * @param initialState The initial state of the protocol
    */
-  def applier[S: ClassTag](
+  def applier[S: WeakTypeTag](
     initialState:    S
   )(implicit monadF: Monad[F], syncF: Sync[F]): F[MessageApplier] =
     Ref
-      .of[F, (Any, ClassTag[_])]((initialState, implicitly[ClassTag[S]]))
+      .of[F, (Any, WeakTypeTag[_])]((initialState, implicitly[WeakTypeTag[S]]))
       .map(ref =>
         new MessageApplier {
 
-          def apply[Message: ClassTag](
+          def apply[Message: WeakTypeTag](
             message: Message,
             sender:  Party
           ): F[Either[TypedProtocolTransitionFailure, Any]] =
-            EitherT(ref.get.flatMap { case (s, sClassTag) =>
-              applyMessage[Message](message, sender, s, sClassTag)
+            EitherT(ref.get.flatMap { case (s, sWeakTypeTag) =>
+              applyMessage[Message](message, sender, s, sWeakTypeTag)
             })
               .semiflatTap(ref.set)
               .map(_._1)
@@ -97,7 +99,7 @@ case class TypedProtocolInstance[F[_]] private (
    */
   trait MessageApplier {
 
-    def apply[Message: ClassTag](
+    def apply[Message: WeakTypeTag](
       message: Message,
       sender:  Party
     ): F[Either[TypedProtocolTransitionFailure, Any]]

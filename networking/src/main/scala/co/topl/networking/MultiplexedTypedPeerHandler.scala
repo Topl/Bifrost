@@ -14,7 +14,7 @@ import co.topl.networking.typedprotocols.TypedProtocolInstance
 import scodec.bits.ByteVector
 
 import scala.concurrent.Future
-import scala.reflect.ClassTag
+import scala.reflect.runtime.universe._
 import scala.util.Try
 
 trait MultiplexedTypedPeerHandler[F[_]] {
@@ -41,7 +41,7 @@ trait MultiplexedTypedPeerHandler[F[_]] {
             typedProtocolSet.traverse { multiplexedSubHandler =>
               val sh = multiplexedSubHandler.asInstanceOf[MultiplexedTypedSubHandler[F, multiplexedSubHandler.InState]]
               val s = sh.initialState.asInstanceOf[Any]
-              implicit val ct: ClassTag[Any] = sh.initialStateClassTag.asInstanceOf[ClassTag[Any]]
+              implicit val ct: WeakTypeTag[Any] = sh.initialStateWeakTypeTag.asInstanceOf[WeakTypeTag[Any]]
               sh.instance
                 .applier(s)
                 .map(applier =>
@@ -68,9 +68,9 @@ trait MultiplexedTypedPeerHandler[F[_]] {
           EitherT(
             MonadThrow[F]
               .fromTry(Try(multiplexedSubHandler.codec.decode(prefix)(ByteVector(data.toArray))))
-              .flatMap { case (decodedData, classTag) =>
+              .flatMap { case (decodedData, weakTypeTag) =>
                 applier.apply(decodedData, multiplexedSubHandler.instance.localParty.opposite)(
-                  classTag.asInstanceOf[ClassTag[Any]]
+                  weakTypeTag.asInstanceOf[WeakTypeTag[Any]]
                 )
               }
           ).void.value
@@ -89,13 +89,13 @@ trait MultiplexedTypedPeerHandler[F[_]] {
           EitherT(
             applier
               .apply(o.data, multiplexedSubHandler.instance.localParty)(
-                o.classTag.asInstanceOf[ClassTag[Any]]
+                o.weakTypeTag.asInstanceOf[WeakTypeTag[Any]]
               )
           )
             .leftMap(error => new IllegalStateException(error.toString))
             .rethrowT >>
           MonadThrow[F]
-            .fromTry(Try(multiplexedSubHandler.codec.encode(o.data)(o.classTag.asInstanceOf[ClassTag[Any]])))
+            .fromTry(Try(multiplexedSubHandler.codec.encode(o.data)(o.weakTypeTag.asInstanceOf[WeakTypeTag[Any]])))
             .map { case (prefix, byteVector) => prefix -> ByteString(byteVector.toArray) }
         )
       }
@@ -104,23 +104,23 @@ trait MultiplexedTypedPeerHandler[F[_]] {
 }
 
 trait MultiplexerCodec {
-  def decode(prefix:            Byte)(data: ByteVector): (Any, ClassTag[_])
-  def encode[T: ClassTag](data: T): (Byte, ByteVector)
+  def decode(prefix:               Byte)(data: ByteVector): (Any, WeakTypeTag[_])
+  def encode[T: WeakTypeTag](data: T): (Byte, ByteVector)
 }
 
 case class MultiplexerCodecBuilder(
-  private val decoders: Map[Byte, ByteVector => (Any, ClassTag[_])],
-  private val encoders: Map[ClassTag[_], Any => (Byte, ByteVector)]
+  private val decoders: Map[Byte, ByteVector => (Any, WeakTypeTag[_])],
+  private val encoders: Map[WeakTypeTag[_], Any => (Byte, ByteVector)]
 ) {
 
-  def withCodec[T: ClassTag: Transmittable](prefix: Byte): MultiplexerCodecBuilder =
+  def withCodec[T: WeakTypeTag: Transmittable](prefix: Byte): MultiplexerCodecBuilder =
     copy(
       decoders = decoders.updated(
         prefix,
-        data => Transmittable[T].fromTransmittableBytes(data).getOrElse(???) -> implicitly[ClassTag[T]]
+        data => Transmittable[T].fromTransmittableBytes(data).getOrElse(???) -> implicitly[WeakTypeTag[T]]
       ),
       encoders = encoders.updated(
-        implicitly[ClassTag[T]],
+        implicitly[WeakTypeTag[T]],
         value => (prefix, Transmittable[T].transmittableBytes(value.asInstanceOf[T]))
       )
     )
@@ -128,21 +128,21 @@ case class MultiplexerCodecBuilder(
   def multiplexerCodec: MultiplexerCodec =
     new MultiplexerCodec {
 
-      def decode(prefix: Byte)(data: ByteVector): (Any, ClassTag[_]) =
+      def decode(prefix: Byte)(data: ByteVector): (Any, WeakTypeTag[_]) =
         decoders(prefix)(data)
 
-      def encode[T: ClassTag](data: T): (Byte, ByteVector) =
-        encoders(implicitly[ClassTag[T]])(data)
+      def encode[T: WeakTypeTag](data: T): (Byte, ByteVector) =
+        encoders(implicitly[WeakTypeTag[T]])(data)
     }
 }
 
-class OutboundMessage private (val data: Any, val classTag: ClassTag[_])
+class OutboundMessage private (val data: Any, val weakTypeTag: WeakTypeTag[_])
 
 object OutboundMessage {
-  def apply[T: ClassTag](t: T): OutboundMessage = new OutboundMessage(t, implicitly[ClassTag[T]])
+  def apply[T: WeakTypeTag](t: T): OutboundMessage = new OutboundMessage(t, implicitly[WeakTypeTag[T]])
 }
 
-case class MultiplexedTypedSubHandler[F[_], InitialState: ClassTag](
+case class MultiplexedTypedSubHandler[F[_], InitialState: WeakTypeTag](
   id:               Byte,
   instance:         TypedProtocolInstance[F],
   initialState:     InitialState,
@@ -150,5 +150,5 @@ case class MultiplexedTypedSubHandler[F[_], InitialState: ClassTag](
   codec:            MultiplexerCodec
 ) {
   type InState = InitialState
-  def initialStateClassTag: ClassTag[InitialState] = implicitly
+  def initialStateWeakTypeTag: WeakTypeTag[InitialState] = implicitly
 }

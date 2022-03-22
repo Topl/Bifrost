@@ -109,8 +109,6 @@ object ProofVerifier {
       def compareBoxes(propositionBox: Box[_])(sourceBox: Box[_]): Boolean = propositionBox match {
         case Box(TypedEvidence.empty, 0, value) =>
           value == sourceBox.value
-        case Box(TypedEvidence.empty, 0, value) =>
-          value == sourceBox.value
         case Box(TypedEvidence.empty, nonce, Box.Values.Empty) =>
           nonce == sourceBox.nonce
         case Box(TypedEvidence.empty, nonce, Box.Values.Empty) =>

@@ -14,7 +14,11 @@ trait RequestResponseProtocol[Query, T] {
    * The state transitions for a server-side instance of this protocol
    * @param fetch Function to locally retrieve the data requested by the client
    */
-  class ServerStateTransitions[F[_]: Applicative](fetch: Query => F[Unit]) extends StateAgency.CommonStateAgency {
+  class ServerStateTransitions[F[_]: Applicative](fetch: Query => F[Unit]) {
+    implicit val stateAgentStart: StateAgency[TypedProtocol.CommonStates.None.type] = StateAgency.alwaysA
+    implicit val stateAgentIdle: StateAgency[TypedProtocol.CommonStates.Idle.type] = StateAgency.alwaysB
+    implicit val stateAgentBusy: StateAgency[TypedProtocol.CommonStates.Busy.type] = StateAgency.alwaysA
+    implicit val stateAgentDone: StateAgency[TypedProtocol.CommonStates.Done.type] = StateAgency.noAgent
 
     implicit val startNoneIdle: StateTransition[
       F,
@@ -50,8 +54,14 @@ trait RequestResponseProtocol[Query, T] {
    * The state transitions for a client-side instance of this protocol
    * @param responseReceived Function to handle data returned by the server
    */
-  class ClientStateTransitions[F[_]: Applicative](responseReceived: Option[T] => F[Unit])
-      extends StateAgency.CommonStateAgency {
+  class ClientStateTransitions[F[_]: Applicative](
+    responseReceived: Option[T] => F[Unit],
+    serverSentStart:  () => F[Unit]
+  ) {
+    implicit val stateAgentStart: StateAgency[TypedProtocol.CommonStates.None.type] = StateAgency.alwaysA
+    implicit val stateAgentIdle: StateAgency[TypedProtocol.CommonStates.Idle.type] = StateAgency.alwaysB
+    implicit val stateAgentBusy: StateAgency[TypedProtocol.CommonStates.Busy.type] = StateAgency.alwaysA
+    implicit val stateAgentDone: StateAgency[TypedProtocol.CommonStates.Done.type] = StateAgency.noAgent
 
     implicit val startNoneIdle: StateTransition[
       F,

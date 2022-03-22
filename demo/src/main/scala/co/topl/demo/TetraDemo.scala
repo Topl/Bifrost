@@ -280,6 +280,7 @@ object TetraDemo extends IOApp {
         .run[F](
           m,
           cachedHeaderValidation,
+          blockHeaderStore,
           blockStore,
           localChain,
           ed25519VRFResource,
