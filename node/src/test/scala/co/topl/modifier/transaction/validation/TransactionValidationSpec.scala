@@ -26,7 +26,6 @@ class TransactionValidationSpec
     with Matchers
     with NodeViewTestHelpers
     with InMemoryKeyRingTestHelper
-    with TestSettings
     with ValidTransactionGenerators
     with EitherValues
     with ValidatedMatchers
@@ -342,7 +341,7 @@ class TransactionValidationSpec
         GenesisProvider.construct(
           keyRingCurve25519.addresses ++ keyRingEd25519.addresses,
           Int.MaxValue,
-          0L,
+          Long.MaxValue,
           0
         ).block
       )

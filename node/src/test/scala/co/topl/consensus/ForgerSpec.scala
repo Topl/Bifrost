@@ -28,9 +28,8 @@ import scala.concurrent.{ExecutionContext, Future}
 class ForgerSpec
     extends ScalaTestWithActorTestKit(ManualTime.config.withFallback(TestSettings.defaultConfig))
     with AnyFlatSpecLike
-    with TestSettings
     with InMemoryKeyRingTestHelper
-    with NodeViewTestHelpers
+    with TestSettings
     with MockFactory
     with OptionValues
     with Inspectors

@@ -14,7 +14,6 @@ class HeimdallSpec
     with AnyFlatSpecLike
     with TestSettings
     with InMemoryKeyRingTestHelper
-    with NodeViewTestHelpers
     with MockFactory
     with OptionValues
     with Inspectors

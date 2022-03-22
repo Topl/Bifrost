@@ -19,9 +19,9 @@ import co.topl.network.utils.NetworkTimeProvider
 import co.topl.nodeView.history.{History, InMemoryKeyValueStore}
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.{ActorNodeViewHolderInterface, ValidTransactionGenerators, NodeView, NodeViewHolder, TestableNodeViewHolder}
+import co.topl.nodeView.{ActorNodeViewHolderInterface, NodeView, NodeViewHolder, TestableNodeViewHolder, ValidTransactionGenerators}
 import co.topl.rpc.ToplRpcServer
-import co.topl.utils.{DiskKeyRingTestHelper, TimeProvider}
+import co.topl.utils.{DiskKeyRingTestHelper, TestSettings, TimeProvider}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.wordspec.AnyWordSpec
@@ -32,6 +32,7 @@ import scala.util.Try
 
 trait RPCMockState
     extends AnyWordSpec
+    with TestSettings
     with ValidTransactionGenerators
     with ScalatestRouteTest
     with BeforeAndAfterAll
@@ -100,7 +101,7 @@ trait RPCMockState
             (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
               .mapTo[Try[StartupKeyView]]
               .flatMap(Future.fromTry)
-          )(system.toTyped, implicitly, networkPrefix)
+          )(system.toTyped, implicitly, networkPrefix, protocolVersioner)
       ),
       NodeViewHolder.ActorName
     )
@@ -119,11 +120,11 @@ trait RPCMockState
 
     km = keyManagerRef.underlyingActor
 
-    // manipulate the underlying actor state
-    TestableNodeViewHolder.setNodeView(
-      nodeViewHolderRef,
-      _.copy(state = generateState)
-    )(system.toTyped)
+//    // manipulate the underlying actor state
+//    TestableNodeViewHolder.setNodeView(
+//      nodeViewHolderRef,
+//      _.copy(state = generateState)
+//    )(system.toTyped)
 
     km.context.become(km.receive(keyRingCurve25519, Some(keyRingCurve25519.addresses.head)))
 

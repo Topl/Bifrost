@@ -27,7 +27,7 @@ class ConsensusInterfaceSpec
     with AnyFlatSpecLike
     with TestSettings
     with InMemoryKeyRingTestHelper
-    with NodeViewTestHelpers
+   // with NodeViewTestHelpers
     with NodeGenerators
     with MockFactory
     with OptionValues {
@@ -183,7 +183,7 @@ class ConsensusInterfaceSpec
     genesisBlock: Block
   )(test:         TestInWithActor => Unit)(implicit timeProvider: TimeProvider): Unit = {
     val genesis = NxtConsensus.Genesis(genesisBlock, NxtConsensus.State.empty)
-    val testIn = genesisNodeViewTestInputs(genesis)
+    val testIn = ???//genesisNodeViewTestInputs(genesis)
     val consensusStorageRef =
       spawn(
         NxtConsensus(
@@ -196,7 +196,7 @@ class ConsensusInterfaceSpec
       NodeViewHolder(
         settings,
         new ActorConsensusInterface(consensusStorageRef),
-        () => Future.successful(testIn.nodeView)
+        () => Future.successful(???)//testIn.nodeView)
       )
     )
     val testInWithActor = TestInWithActor(testIn, nodeViewHolderRef, consensusStorageRef)
@@ -225,13 +225,14 @@ class ConsensusInterfaceSpec
           previous3Blocks = List(genesisBlock)
           genesisBlock
         } else {
-          val newBlock = nextBlock(
-            previous3Blocks.last,
-            arbitBox,
-            previous3Blocks.map(_.timestamp),
-            forgerAddress,
-            new NxtLeaderElection(protocolVersioner)
-          )
+          val newBlock = ???
+//            nextBlock(
+//            previous3Blocks.last,
+//            arbitBox,
+//            previous3Blocks.map(_.timestamp),
+//            forgerAddress,
+//            new NxtLeaderElection(protocolVersioner)
+//          )
           previous3Blocks = (previous3Blocks :+ newBlock).takeRight(3)
           newBlock
         }

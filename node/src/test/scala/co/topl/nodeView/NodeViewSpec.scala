@@ -21,8 +21,8 @@ class NodeViewSpec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers
-    with TestSettings
     with BeforeAndAfterAll
+    with TestSettings
     with NodeViewTestHelpers
     with InMemoryKeyRingTestHelper
     with OptionValues
@@ -142,7 +142,7 @@ class NodeViewSpec
       .returning(Long.MaxValue)
 
     withGenesisNodeView { testIn =>
-      val block = nextBlock(testIn.genesisView.block, testIn.nodeView)
+      val block: Block = ???//nextBlock(testIn.genesisView.block, testIn.nodeView)
 
       val (events, updatedNodeView) =
         testIn.nodeView
@@ -171,7 +171,7 @@ class NodeViewSpec
       .never()
 
     withGenesisNodeView { testIn =>
-      val block = nextBlock(testIn.genesisView.block, testIn.nodeView).copy(difficulty = -1)
+      val block: Block = ???//nextBlock(testIn.genesisView.block, testIn.nodeView).copy(difficulty = -1)
 
       val (events, updatedNodeView) =
         testIn.nodeView

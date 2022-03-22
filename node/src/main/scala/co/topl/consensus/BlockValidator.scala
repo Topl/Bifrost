@@ -42,6 +42,9 @@ class DifficultyBlockValidator(leaderElection: NxtLeaderElection, consensusState
       val newBaseDifficulty =
         leaderElection.calcNewBaseDifficulty(newHeight, parent.difficulty, prevTimes)
 
+      println(s"Local calculation difficulty, block: ${block.difficulty} expected: $newBaseDifficulty")
+      println(s"Local calculation height, block: ${block.height} expected: $newHeight")
+
       // does the difficulty stamped on the block match what we would calculate locally?
       require(
         block.difficulty == newBaseDifficulty,
@@ -60,10 +63,10 @@ class DifficultyBlockValidator(leaderElection: NxtLeaderElection, consensusState
     parent:                                  Block
   ): Try[Unit] = Try {
     // calculate the hit value from the forger box included in the new block
-    val hit = leaderElection.calcHit(parent)(block.generatorBox)
+    val hit = leaderElection.calculateHitValue(parent)(block.generatorBox)
 
     // calculate the difficulty the forger would have used to determine eligibility
-    val target = leaderElection.calcTarget(
+    val target = leaderElection.calculateThresholdValue(
       block.generatorBox.value.quantity,
       consensusState.totalStake,
       block.timestamp - parent.timestamp,

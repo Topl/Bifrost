@@ -27,8 +27,8 @@ class MemPoolAuditorSpec
     extends ScalaTestWithActorTestKit
     with AnyFlatSpecLike
     with TestSettings
-    with InMemoryKeyRingTestHelper
     with NodeViewTestHelpers
+    with InMemoryKeyRingTestHelper
     with MockFactory
     with OptionValues {
 

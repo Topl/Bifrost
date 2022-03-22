@@ -10,7 +10,6 @@ import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.ReadableNodeView
 import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.nodeView.state.StateReader
-import co.topl.settings.ProtocolSettings
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Int128, TimeProvider}
 import org.slf4j.Logger
@@ -114,7 +113,7 @@ object Forge {
         minTransactionFee,
         protocolVersioner.applicable(currentHeight).value.numTxPerBlock,
         nodeView.memPool,
-        nodeView.state,
+        nodeView.state
       ).map(_.toApply)
       _ <- Either.cond(
         parentBlock.height == 1 || parentBlock.height == consensusView.state.height,
@@ -133,14 +132,16 @@ object Forge {
         parentBlock,
         protocolVersioner.applicable(currentHeight).value.lookBackDepth
       )
+      arbitBoxIterator <- NxtLeaderElection
+        .collectArbitBoxes(keyView.addresses, nodeView.state)
+        .leftMap(LeaderElectionFailure)
       arbitBox <- NxtLeaderElection
         .getEligibleBox(
           parentBlock,
-          keyView.addresses,
+          arbitBoxIterator,
           forgeTime,
-          consensusView.state,
-          consensusView.leaderElection,
-          nodeView.state
+          consensusView.state.totalStake,
+          consensusView.leaderElection
         )
         .leftMap(LeaderElectionFailure)
     } yield Forge(
@@ -164,10 +165,10 @@ object Forge {
    * @return a sequence of valid transactions
    */
   private[consensus] def pickTransactions(
-    minTransactionFee:       Int128,
-    numTxToPick: Int,
-    memPoolReader:           MemPoolReader[Transaction.TX],
-    stateReader:             StateReader[ProgramId, Address],
+    minTransactionFee: Int128,
+    numTxToPick:       Int,
+    memPoolReader:     MemPoolReader[Transaction.TX],
+    stateReader:       StateReader[ProgramId, Address]
   )(implicit
     networkPrefix: NetworkPrefix,
     log:           Logger

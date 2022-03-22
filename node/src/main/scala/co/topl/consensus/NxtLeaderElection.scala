@@ -9,7 +9,6 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, Box, ProgramId}
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.StateReader
-import co.topl.settings.ProtocolConfigurations
 import co.topl.utils.{Int128, TimeProvider}
 import com.google.common.primitives.Longs
 
@@ -26,7 +25,7 @@ class NxtLeaderElection(protocolVersioner: ProtocolVersioner) {
    * @param box       box to be used for the test value
    * @return the test value to be compared to the adjusted difficulty
    */
-  private[consensus] def calcHit(lastBlock: Block)(box: ArbitBox): Long = {
+  private[consensus] def calculateHitValue(lastBlock: Block)(box: ArbitBox): Long = {
     val h = blake2b256.hash(
       // need to use Persistable instances of parent types
       Persistable[NodeViewModifier].persistedBytes(lastBlock) ++
@@ -40,24 +39,29 @@ class NxtLeaderElection(protocolVersioner: ProtocolVersioner) {
    * Gets the target threshold.
    * threshold = ( (address stake) * (time delta) * (difficulty) ) / ( (total stake) * (target block time) )
    *
+   * Another way to view this equation is to multiply two numbers between 0 and 1 and scale that product by the difficulty
+   *              (box stake)      (time delta)
+   * threshold = -------------  x  -------------  x  (difficulty)
+   *             (total stake)     (target time)
+   *
    * @param stakeAmount  amount of stake held in address
    * @param totalStake   amount of
    * @param timeDelta    delta from previous block time to the current time
-   * @param difficulty   forging difficulty
+   * @param difficulty   forging difficulty, this is a scale factor for determining the threshold. Unfortunately named as difficulty going makes it is easier to produce a block
    * @param parentHeight parent block height
    * @return the target value
    */
-  private[consensus] def calcTarget(
+  private[consensus] def calculateThresholdValue(
     stakeAmount:  Int128,
     totalStake:   Int128,
     timeDelta:    Long,
     difficulty:   Long,
     parentHeight: Long
   ): BigInt = {
-    val targetBlockTime = NxtLeaderElection.getNxtProtocolConfigs(protocolVersioner, parentHeight).targetBlockTime
+    val targetBlockTime = protocolVersioner.applicable(parentHeight + 1).value.targetBlockTime
 
     (BigInt(stakeAmount.toByteArray) * BigInt(timeDelta) * BigInt(difficulty)) /
-    (BigInt(totalStake.toByteArray) * BigInt(targetBlockTime.toUnit(MILLISECONDS).toLong))
+    (BigInt(totalStake.toByteArray) * BigInt(targetBlockTime.toMillis))
   }
 
   /**
@@ -73,10 +77,11 @@ class NxtLeaderElection(protocolVersioner: ProtocolVersioner) {
   def calcNewBaseDifficulty(newHeight: Long, prevDifficulty: Long, prevTimes: Seq[TimeProvider.Time]): Long = {
 
     val averageDelay = prevTimes.drop(1).lazyZip(prevTimes).map(_ - _).sum / (prevTimes.length - 1)
-    val targetTimeMilli = NxtLeaderElection
-      .getNxtProtocolConfigs(protocolVersioner, newHeight)
+    val targetTimeMilli = protocolVersioner
+      .applicable(newHeight)
+      .value
       .targetBlockTime
-      .toUnit(MILLISECONDS)
+      .toMillis
 
     // magic numbers here (1.1, 0.9, and 0.64) are straight from NXT
     if (averageDelay > targetTimeMilli) {
@@ -91,31 +96,10 @@ object NxtLeaderElection {
   type TX = Transaction.TX
   type SR = StateReader[ProgramId, Address]
 
-  /**
-   * Returns Dion specific protocol configs that can be handled by the current (1.10.2) application version
-   * @param protocolVersioner class responsible for abstractly managing the protocol versions
-   * @param height height of the chain,
-   * @return
-   */
-  def getNxtProtocolConfigs(protocolVersioner: ProtocolVersioner, height: Long): ProtocolConfigurations.Dion =
-    protocolVersioner.applicable(height).value
-
-  /**
-   * Gets an arbit box that is eligible for forging the next block if there are any.
-   * @param parent the parent block
-   * @param addresses the addresses to stake with
-   * @param timestamp the current time
-   * @param stateReader a read-only version of state
-   * @return an eligible box if one is found
-   */
-  def getEligibleBox(
-    parent:            Block,
-    addresses:         Set[Address],
-    timestamp:         TimeProvider.Time,
-    consensusState:    NxtConsensus.State,
-    nxtLeaderElection: NxtLeaderElection,
-    stateReader:       SR
-  ): Either[IneligibilityReason, ArbitBox] =
+  def collectArbitBoxes(
+    addresses:   Set[Address],
+    stateReader: SR
+  ): Either[IneligibilityReason, Iterator[ArbitBox]] =
     if (addresses.isEmpty) {
       Left(NoAddressesAvailable)
     } else {
@@ -130,24 +114,43 @@ object NxtLeaderElection {
           }
           .collect { case box: ArbitBox => box }
 
-      if (arbitBoxesIterator.hasNext) {
-        while (arbitBoxesIterator.hasNext) {
-          val box = arbitBoxesIterator.next()
-          val hit = nxtLeaderElection.calcHit(parent)(box)
-          val calculatedTarget =
-            nxtLeaderElection.calcTarget(
-              box.value.quantity,
-              consensusState.totalStake,
-              timestamp - parent.timestamp,
-              parent.difficulty,
-              parent.height
-            )
-          if (BigInt(hit) < calculatedTarget) return Right(box)
-        }
-        Left(NoBoxesEligible)
-      } else {
-        Left(NoArbitBoxesAvailable)
+      Right(arbitBoxesIterator)
+    }
+
+  /**
+   * Gets an arbit box that is eligible for forging the next block if there are any.
+   * @param parent the parent block
+   * @param addresses the addresses to stake with
+   * @param timestamp the current time
+   * @param stateReader a read-only version of state
+   * @return an eligible box if one is found
+   */
+  def getEligibleBox(
+    parent:             Block,
+    arbitBoxesIterator: Iterator[ArbitBox],
+    timestamp:          TimeProvider.Time,
+    totalStake: Int128,
+    nxtLeaderElection:  NxtLeaderElection,
+  ): Either[IneligibilityReason, ArbitBox] =
+    // This is ugly iterable/procedural code, but the goal is lazy traversal to avoid fetching all boxes for
+    // all addresses when we're only looking for the _first_ valid candidate
+    if (arbitBoxesIterator.hasNext) {
+      while (arbitBoxesIterator.hasNext) {
+        val box = arbitBoxesIterator.next()
+        val hit = BigInt(nxtLeaderElection.calculateHitValue(parent)(box))
+        val threshold =
+          nxtLeaderElection.calculateThresholdValue(
+            box.value.quantity,
+            totalStake,
+            timestamp - parent.timestamp,
+            parent.difficulty,
+            parent.height
+          )
+        if (hit < threshold) return Right(box)
       }
+      Left(NoBoxesEligible)
+    } else {
+      Left(NoArbitBoxesAvailable)
     }
 
   sealed trait IneligibilityReason

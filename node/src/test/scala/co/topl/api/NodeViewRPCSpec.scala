@@ -98,7 +98,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         }
         keyRingCurve25519.addresses.map { addr =>
           balances.hcursor.downField(addr.toString).get[Json]("Balances").map { balance =>
-            val testnetBalance = settings.forging.genesis.map(_.generated).map(_.balanceForEachParticipant).toString
+            val testnetBalance = settings.application.genesis.generated.map(_.balanceForEachParticipant).toString
             balance.hcursor.downField("Polys").as[String].value shouldEqual testnetBalance
             balance.hcursor.downField("Arbits").as[String].value shouldEqual testnetBalance
           }
@@ -465,12 +465,12 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         res.hcursor
           .get[String]("currentProtocolRuleset")
           .value
-          .shouldEqual(testProtocolVersioner.getProtocolRules(view().history.height).version.toString)
+          .shouldEqual(protocolVersioner.applicable(view().history.height).toString)
 
         res.hcursor
           .get[String]("currentBlockVersion")
           .value
-          .shouldEqual(testProtocolVersioner.blockVersion(view().history.height).toString)
+          .shouldEqual(protocolVersioner.applicable(view().history.height).blockVersion.toString)
 
         res.hcursor.downField("error").values shouldBe None
       }

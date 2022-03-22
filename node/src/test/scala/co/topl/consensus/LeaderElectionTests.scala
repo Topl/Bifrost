@@ -3,56 +3,48 @@ package co.topl.consensus
 import co.topl.attestation.Address
 import co.topl.attestation.implicits._
 import co.topl.consensus.NxtLeaderElection.{NoAddressesAvailable, NoArbitBoxesAvailable}
+import co.topl.utils.NodeGenerators
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.{NodeGenerators, TestSettings}
+import co.topl.utils.implicits.toEitherOps
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks.forAll
 
-class LeaderElectionTests extends AnyFlatSpec with MockFactory with TestSettings with NodeGenerators with EitherValues {
+class LeaderElectionTests extends AnyFlatSpec with MockFactory with NodeGenerators with EitherValues {
 
   val address: Address =
     Base58Data.unsafe("AUAvJqLKc8Un3C6bC4aj8WgHZo74vamvX8Kdm6MhtdXgw51cGfix").decodeAddress.toEither.value
 
-  "getEligibleBox" should "return NoAddressesAvailable when no addresses provided" in {
-    forAll(blockCurve25519Gen, protocolVersionerGen) { (parent, protocolVersioner) =>
+  "collectArbitBoxes" should "return NoAddressesAvailable when no addresses provided" in {
       val stateReader = mock[NxtLeaderElection.SR]
       val addresses = Set[Address]()
-      val leaderElection = new NxtLeaderElection(protocolVersioner)
+
       val expectedResult = Left(NoAddressesAvailable)
 
-      val result = NxtLeaderElection.getEligibleBox(
-        parent,
-        addresses,
-        parent.timestamp + 100,
-        NxtConsensus.State(10000000, parent.difficulty, 0L, parent.height),
-        leaderElection,
-        stateReader
-      )
+      val result = NxtLeaderElection.collectArbitBoxes(addresses, stateReader)
 
       result shouldBe expectedResult
-    }
   }
 
   "getEligibleBox" should "return NoArbitBoxesAvailable when no addresses contain arbit boxes" in {
-    forAll(blockCurve25519Gen, protocolVersionerGen) { (parent, protocolVersioner) =>
+    forAll(blockCurve25519Gen, nonEmptySetAddressGen) { (parent, addresses) =>
       val stateReader = mock[NxtLeaderElection.SR]
       (stateReader.getTokenBoxes _)
         .expects(address)
         .returns(None)
-      val addresses = Set[Address](address)
-      val leaderElection = new NxtLeaderElection(protocolVersioner)
+      val leaderElection = new NxtLeaderElection(ProtocolVersioner.default)
+      val arbitBoxIterator = NxtLeaderElection.collectArbitBoxes(addresses, stateReader).getOrThrow()
+
       val expectedResult = Left(NoArbitBoxesAvailable)
 
       val result = NxtLeaderElection.getEligibleBox(
         parent,
-        addresses,
-        parent.timestamp + 100,
-        NxtConsensus.State(10000000, parent.difficulty, 0L, parent.height),
+        arbitBoxIterator,
+        0L,
+        0L,
         leaderElection,
-        stateReader
       )
 
       result shouldBe expectedResult

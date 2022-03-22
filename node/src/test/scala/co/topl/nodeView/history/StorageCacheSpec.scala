@@ -13,7 +13,6 @@ import scala.concurrent.duration.DurationInt
 class StorageCacheSpec
     extends AnyPropSpec
     with ScalaCheckDrivenPropertyChecks
-    with TestSettings
     with NodeGenerators
     with ProtocolVersionHelper
     with Matchers
@@ -98,11 +97,7 @@ class StorageCacheSpec
   property("Appending more entries than the maximum cache size will drop a portion of existing cache") {
     forAll(genesisBlockGen, Gen.listOfN(10, blockCurve25519Gen)){ (genesisBlock, blocks) =>
       def customCacheHistory(cacheSize: Int): History = {
-        val cacheStore = new CacheLayerKeyValueStore(
-          new InMemoryKeyValueStore,
-          settings.application.cacheExpire.millis,
-          cacheSize
-        )
+        val cacheStore = new CacheLayerKeyValueStore(new InMemoryKeyValueStore, 30.seconds, cacheSize)
         val storage = new Storage(cacheStore)
         val history = new History(storage, TineProcessor(1024))
         history.append(genesisBlock, Seq()).get._1
@@ -141,11 +136,7 @@ class StorageCacheSpec
       val genesisBlock = genesisBlockGen.sample.get
 
       val underlyingStore = new InMemoryKeyValueStore
-      val cacheStore = new CacheLayerKeyValueStore(
-        underlyingStore,
-        settings.application.cacheExpire.millis,
-        settings.application.cacheSize
-      )
+      val cacheStore = new CacheLayerKeyValueStore(underlyingStore, 10.seconds, 512)
       val storage = new Storage(cacheStore)
       val history = new History(storage, TineProcessor(1024))
       history.append(genesisBlock, Seq()).get._1

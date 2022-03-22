@@ -10,20 +10,23 @@ import co.topl.nodeView.history.{History, InMemoryKeyValueStore, Storage, TinePr
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.{ProgramBoxRegistry, State, TokenBoxRegistry}
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.{InMemoryKeyRingTestHelper, ProtocolVersionHelper, TestSettings, TimeProvider}
+import co.topl.utils.{InMemoryKeyRingTestHelper, TimeProvider}
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
 import scala.collection.AbstractIterator
 
-trait NodeViewTestHelpers extends BeforeAndAfterAll with InMemoryKeyRingTestHelper with ProtocolVersionHelper {
+trait NodeViewTestHelpers extends BeforeAndAfterAll with InMemoryKeyRingTestHelper {
   self: Suite =>
 
-  def genesisNodeViewTestInputs(genesisConsensusView: NxtConsensus.Genesis): TestIn = {
+  def genesisNodeViewTestInputs(
+    genesisConsensusView:       NxtConsensus.Genesis
+  )(implicit protocolVersioner: ProtocolVersioner): TestIn = {
     val historyStore = InMemoryKeyValueStore.empty()
     val stateStore = InMemoryKeyValueStore.empty()
     val tokenBoxStore = InMemoryKeyValueStore.empty()
 
-    val state = State(genesisConsensusView.block.id, stateStore, Some(new TokenBoxRegistry(tokenBoxStore, None)), None, None)
+    val state =
+      State(genesisConsensusView.block.id, stateStore, Some(new TokenBoxRegistry(tokenBoxStore, None)), None, None)
     val history = new History(new Storage(historyStore), TineProcessor(1024))
 
     val nodeView = NodeView(
@@ -46,7 +49,9 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll with InMemoryKeyRingTestHelp
     state.applyModifier(genesisBlock).get
   }
 
-  def generateHistory(genesisBlock: Block)(implicit networkPrefix: NetworkPrefix): History = {
+  def generateHistory(
+    genesisBlock:           Block
+  )(implicit networkPrefix: NetworkPrefix, protocolVersioner: ProtocolVersioner): History = {
     val storage = new Storage(new InMemoryKeyValueStore)
     val validators = Seq()
     var history = new History(storage, TineProcessor(1024))
@@ -55,37 +60,36 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll with InMemoryKeyRingTestHelp
     history
   }
 
-  protected def nextBlock(parent: Block, nodeView: NodeView): Block = {
-    val timestamp = parent.timestamp + 50000
-    val leaderElection = new NxtLeaderElection(protocolVersioner)
-
-    val arbitBox = NxtLeaderElection
-      .getEligibleBox(
-        parent,
-        keyRingCurve25519.addresses,
-        timestamp,
-        NxtConsensus.State(10000000, parent.difficulty, 0L, parent.height),
-        leaderElection,
-        nodeView.state
-      )
-      .toOption
-      .get
-
-    nextBlock(
-      parent,
-      arbitBox,
-      nodeView.history.getTimestampsFrom(parent, 3),
-      keyRingCurve25519.addresses.find(_.evidence == arbitBox.evidence).get,
-      leaderElection
-    )
-  }
+//  protected def nextBlock(parent: Block, nodeView: NodeView): Block = {
+//    val timestamp = parent.timestamp + 50000
+//    val leaderElection = new NxtLeaderElection(protocolVersioner)
+//
+//    val arbitBox = NxtLeaderElection
+//      .getEligibleBox(
+//        parent,
+//        keyRingCurve25519.addresses,
+//        timestamp,
+//        NxtConsensus.State(10000000, parent.difficulty, 0L, parent.height),
+//        leaderElection
+//      )
+//      .toOption
+//      .get
+//
+//    nextBlock(
+//      parent,
+//      arbitBox,
+//      nodeView.history.getTimestampsFrom(parent, 3),
+//      keyRingCurve25519.addresses.find(_.evidence == arbitBox.evidence).get,
+//      leaderElection
+//    )
+//  }
 
   protected def nextBlock(
     parent:             Block,
     arbitBox:           ArbitBox,
     previousTimestamps: Seq[TimeProvider.Time],
     rewardsAddress:     Address,
-    leaderElection: NxtLeaderElection
+    leaderElection:     NxtLeaderElection
   ): Block = {
     val timestamp = parent.timestamp + 50000
     val rewards = {

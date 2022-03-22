@@ -15,7 +15,6 @@ class TokenBoxRegistrySpec
     extends AnyPropSpecLike
     with NodeViewTestHelpers
     with InMemoryKeyRingTestHelper
-    with TestSettings
     with NodeGenerators
     with NetworkPrefixTestHelper
     with ScalaCheckDrivenPropertyChecks
