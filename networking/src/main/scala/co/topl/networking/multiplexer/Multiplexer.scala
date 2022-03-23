@@ -1,13 +1,9 @@
 package co.topl.networking.multiplexer
 
-import akka.NotUsed
 import akka.stream._
 import akka.stream.scaladsl.GraphDSL.Implicits._
-import akka.stream.scaladsl.{Flow, GraphDSL, Sink, Source}
-import akka.stream.stage._
+import akka.stream.scaladsl.{Flow, GraphDSL, Merge, Partition, Sink, Source}
 import akka.util.ByteString
-
-import scala.collection.mutable
 
 /**
  * Multiplexes outbound sub-protocol "packets" into a single stream.  Demultiplexes inbound "packets" into multiple
@@ -24,192 +20,47 @@ import scala.collection.mutable
  */
 object Multiplexer {
 
-  type Mode = List[SubHandler]
-
-  def apply(subProtocols: Source[Mode, _]): Flow[ByteString, ByteString, NotUsed] =
+  def apply[Client](subProtocols: List[SubHandler], client: => Client): Flow[ByteString, ByteString, Client] =
     Flow[ByteString]
       .via(MessageParserFramer())
       .via(
         Flow.fromGraph(GraphDSL.create() { implicit builder =>
-          val multiplexer = builder.add(new MultiplexerImpl)
-          val subProtocolsB = builder.add(subProtocols)
-          subProtocolsB.out ~> multiplexer.subHandlersIn
+          val subs: List[(Byte, Sink[ByteString, _], Source[ByteString, _])] =
+            subProtocols
+              .map(sp =>
+                (
+                  sp.sessionId,
+                  Flow[ByteString]
+                    .map((sp.sessionId, _))
+                    .via(MessageSerializerFramer())
+                    .to(sp.subscriber),
+                  sp.producer
+                )
+              )
+          val subPortMapping: Map[Byte, Int] = subs.map(_._1).zipWithIndex.toMap
+          val partition = builder.add(
+            new Partition[(Byte, ByteString)](
+              subs.size,
+              { case (typeByte, _) =>
+                subPortMapping(typeByte)
+              },
+              eagerCancel = true
+            )
+          )
 
-          FlowShape(multiplexer.dataIn, multiplexer.dataOut)
+          val merge =
+            builder.add(Merge[ByteString](subs.size, eagerComplete = true))
+          subs.foreach { case (typeByte, sink, source) =>
+            val port = subPortMapping(typeByte)
+            val hSink = builder.add(sink)
+            val hSource = builder.add(source)
+            val strip = builder.add(Flow[(Byte, ByteString)].map(_._2))
+            partition.out(port) ~> strip ~> hSink
+            hSource ~> merge.in(port)
+          }
+          FlowShape(partition.in, merge.out)
         })
       )
-      .via(MessageSerializerFramer())
+      .mapMaterializedValue(_ => client)
 
-}
-
-case class MultiplexerStageShape(
-  dataIn:        Inlet[(Byte, ByteString)],
-  dataOut:       Outlet[(Byte, ByteString)],
-  subHandlersIn: Inlet[List[SubHandler]]
-) extends Shape {
-  def inlets: Seq[Inlet[_]] = List(dataIn, subHandlersIn)
-
-  def outlets: Seq[Outlet[_]] = List(dataOut)
-
-  def deepCopy(): Shape = this.copy()
-}
-
-class MultiplexerImpl extends GraphStage[MultiplexerStageShape] {
-
-  val shape: MultiplexerStageShape =
-    MultiplexerStageShape(
-      Inlet("MultiplexerData.In"),
-      Outlet("MultiplexerData.Out"),
-      Inlet("MultiplexerSubHandlers.In")
-    )
-
-  def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
-    new GraphStageLogic(shape) with StageLogging {
-      private var subSinkInlets: Map[Byte, SubSinkInlet[ByteString]] = _
-      private var subSourceOutlets: Map[Byte, SubSourceOutlet[ByteString]] = _
-      private var localBuffers: Map[Byte, mutable.Queue[ByteString]] = _
-
-      override def preStart(): Unit = {
-        super.preStart()
-        pull(shape.subHandlersIn)
-      }
-
-      private val initializedSubHandlersInHandler =
-        new InHandler {
-
-          def onPush(): Unit = {
-            updateHandlers(grab(shape.subHandlersIn))
-            pull(shape.subHandlersIn)
-          }
-        }
-
-      private val uninitializedSubHandlersInHandler =
-        new InHandler {
-
-          def onPush(): Unit = {
-            updateHandlers(grab(shape.subHandlersIn))
-            setHandler(shape.dataIn, initializedDataInHandler)
-            setHandler(shape.dataOut, initializedOutHandler)
-            setHandler(shape.subHandlersIn, initializedSubHandlersInHandler)
-            pull(shape.subHandlersIn)
-            pull(shape.dataIn)
-          }
-        }
-
-      private val uninitializedDataInHandler =
-        new InHandler {
-
-          def onPush(): Unit =
-            failStage(new IllegalStateException("Uninitialized"))
-        }
-
-      private val initializedDataInHandler =
-        new InHandler {
-
-          def onPush(): Unit = {
-            val (sesssionId, data) = grab(shape.dataIn)
-            subSourceOutlets.get(sesssionId) match {
-              case Some(subSourceOutlet) =>
-                localBuffers(sesssionId).enqueue(data)
-                if (subSourceOutlet.isAvailable)
-                  subSourceOutlet.push(localBuffers(sesssionId).dequeue())
-              case _ =>
-                log.warning(s"Discarding message for inactive sessionId={}", sesssionId)
-            }
-            pull(shape.dataIn)
-          }
-        }
-
-      private val uninitializedOutHandler =
-        new OutHandler {
-          def onPull(): Unit = {}
-        }
-
-      private val initializedOutHandler =
-        new OutHandler {
-
-          def onPull(): Unit =
-            localBuffers.find(_._2.nonEmpty) match {
-              case Some((id, buffer)) =>
-                push(shape.dataOut, id -> buffer.dequeue())
-              case _ =>
-                pullAllSubHandlers()
-            }
-        }
-
-      setHandler(shape.dataIn, uninitializedDataInHandler)
-      setHandler(shape.dataOut, uninitializedOutHandler)
-      setHandler(shape.subHandlersIn, uninitializedSubHandlersInHandler)
-
-      private def pullAllSubHandlers(): Unit =
-        subSinkInlets.values.filterNot(_.hasBeenPulled).foreach(_.pull())
-
-      private def updateHandlers(t: List[SubHandler]): Unit = {
-        val previousSubSinkInlets = subSinkInlets
-        val previousSubSourceOutlets = subSourceOutlets
-        val previousLocalBuffers = localBuffers
-        if (subSinkInlets == null) subSinkInlets = Map.empty
-        if (subSourceOutlets == null) subSourceOutlets = Map.empty
-        if (localBuffers == null) localBuffers = Map.empty
-        val newIds =
-          if (previousLocalBuffers == null) t.map(_.sessionId)
-          else t.map(_.sessionId).filterNot(previousLocalBuffers.contains)
-        val retainedIds =
-          if (previousLocalBuffers == null) Nil else t.map(_.sessionId).filter(previousLocalBuffers.contains)
-        val discardedKeys =
-          if (previousLocalBuffers == null) Nil else previousLocalBuffers.keys.filterNot(retainedIds.contains).toList
-        log.info(
-          "Updating handlers from={} to={}",
-          Option(previousLocalBuffers).fold(Nil: List[Byte])(_.keys.toList),
-          t.map(_.sessionId)
-        )
-        if (previousSubSinkInlets != null) discardedKeys.foreach(previousSubSinkInlets(_).cancel())
-        if (previousSubSourceOutlets != null) discardedKeys.foreach(previousSubSourceOutlets(_).complete())
-        // TODO: Drain buffers
-        subSinkInlets --= discardedKeys
-        subSourceOutlets --= discardedKeys
-        localBuffers --= discardedKeys
-        t.filter(sh => newIds.contains(sh.sessionId)).foreach(initializeHandler)
-        pullAllSubHandlers()
-      }
-
-      private def initializeHandler(subHandler: SubHandler): Unit = {
-        val sourceOut = new SubSourceOutlet[ByteString]("MultiplexerSubSource")
-        val sinkIn = new SubSinkInlet[ByteString]("MultiplexerSubSink")
-        val buffer = mutable.Queue.empty[ByteString]
-        subSinkInlets += (subHandler.sessionId    -> sinkIn)
-        subSourceOutlets += (subHandler.sessionId -> sourceOut)
-        localBuffers += (subHandler.sessionId     -> buffer)
-        sinkIn.setHandler(
-          new InHandler {
-            def onPush(): Unit = {
-              val data = sinkIn.grab()
-              if (isAvailable(shape.dataOut)) push(shape.dataOut, (subHandler.sessionId, data))
-              else buffer.enqueue(data)
-            }
-
-            override def onUpstreamFinish(): Unit = {}
-          }
-        )
-
-        sourceOut.setHandler(
-          new OutHandler {
-            def onPull(): Unit =
-              if (buffer.nonEmpty) sourceOut.push(buffer.dequeue())
-          }
-        )
-
-        subFusingMaterializer.materialize(
-          Source
-            .fromGraph(sourceOut.source)
-            .to(subHandler.subscriber)
-        )
-
-        subFusingMaterializer.materialize(
-          subHandler.producer.to(sinkIn.sink)
-        )
-
-      }
-
-    }
 }

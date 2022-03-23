@@ -333,7 +333,7 @@ trait TetraScodecCodecs {
         )
       )
 
-  implicit val blockBodyV2Codec: Codec[BlockBodyV2] = Codec.lazily(???)
+  implicit val blockBodyV2Codec: Codec[BlockBodyV2] = listCodec
 
   implicit val transactionCodec: Codec[Transaction] = Codec.lazily(???)
 

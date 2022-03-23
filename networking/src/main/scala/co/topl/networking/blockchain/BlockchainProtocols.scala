@@ -1,6 +1,5 @@
 package co.topl.networking.blockchain
 
-import cats.data.Chain
 import co.topl.models._
 import co.topl.networking.typedprotocols.{NotificationProtocol, RequestResponseProtocol}
 
@@ -33,7 +32,7 @@ object BlockchainProtocols {
    *
    * This protocol runs a server and client in parallel for each connection.
    */
-  object Body extends RequestResponseProtocol[TypedBytes, Chain[TypedBytes]]
+  object Body extends RequestResponseProtocol[TypedBytes, List[TypedBytes]]
 
   /**
    * Request a Transaction by Transaction ID

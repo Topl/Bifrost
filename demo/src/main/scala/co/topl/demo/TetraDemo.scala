@@ -5,7 +5,6 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.stream.scaladsl.Source
 import akka.util.Timeout
 import cats.arrow.FunctionK
-import cats.data.OptionT
 import cats.effect.implicits._
 import cats.effect.kernel.Sync
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig}
@@ -43,8 +42,8 @@ import scala.util.Random
 /**
  * Command-line args:
  *
- * port [remotes] seed stakerCount stakerIndex
- * i.e.: 9094 [localhost:9095] 2348921 10 3
+ * port [remotes] seed stakerCount stakerIndex ?genesisTimestampMs
+ * i.e.: 9094 [localhost:9095] 2348921 10 3 1648049271191
  */
 object TetraDemo extends IOApp {
 
@@ -205,23 +204,6 @@ object TetraDemo extends IOApp {
         .make(initialSlot = 0L, clock, mint, localChain, mempool, headerStore)
     } yield perpetual
 
-  private def createBlockStore(
-    headerStore: Store[F, BlockHeaderV2],
-    bodyStore:   Store[F, BlockBodyV2]
-  ): Store[F, BlockV2] =
-    new Store[F, BlockV2] {
-
-      def get(id: TypedIdentifier): F[Option[BlockV2]] =
-        (OptionT(headerStore.get(id)), OptionT(bodyStore.get(id))).tupled.map((BlockV2.apply _).tupled).value
-
-      def put(id: TypedIdentifier, t: BlockV2): F[Unit] =
-        (headerStore.put(t.headerV2.id, t.headerV2), bodyStore.put(t.headerV2.id, t.blockBodyV2)).tupled.void
-
-      def remove(id: TypedIdentifier): F[Unit] =
-        (headerStore.remove(id), bodyStore.remove(id)).tupled.void
-
-    }
-
   // Program definition
 
   implicit val fToIo: F ~> IO = FunctionK.id
@@ -240,9 +222,9 @@ object TetraDemo extends IOApp {
       ed25519Resource    <- ActorPoolUnsafeResource.Eval.make[F, Ed25519](new Ed25519, _ => ())
       blockHeaderStore   <- RefStore.Eval.make[F, BlockHeaderV2]()
       blockBodyStore     <- RefStore.Eval.make[F, BlockBodyV2]()
-      blockStore = createBlockStore(blockHeaderStore, blockBodyStore)
-      _             <- blockStore.put(genesis.headerV2.id, genesis)
-      slotDataCache <- SlotDataCache.Eval.make(blockHeaderStore, ed25519VRFResource)
+      _                  <- blockHeaderStore.put(genesis.headerV2.id, genesis.headerV2)
+      _                  <- blockBodyStore.put(genesis.headerV2.id, genesis.blockBodyV2)
+      slotDataCache      <- SlotDataCache.Eval.make(blockHeaderStore, ed25519VRFResource)
       clock = makeClock(demoArgs)
       etaCalculation <- EtaCalculation.Eval.make(
         slotDataCache,
@@ -287,7 +269,7 @@ object TetraDemo extends IOApp {
           m,
           cachedHeaderValidation,
           blockHeaderStore,
-          blockStore,
+          blockBodyStore,
           localChain,
           ed25519VRFResource,
           demoArgs.port,

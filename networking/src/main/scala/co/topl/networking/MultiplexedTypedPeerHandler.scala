@@ -8,13 +8,12 @@ import cats.effect.GenConcurrent
 import cats.implicits._
 import cats.{~>, MonadThrow}
 import co.topl.codecs.bytes.typeclasses.Transmittable
-import co.topl.networking.multiplexer.{MessageParserFramer, MessageSerializerFramer, Multiplexer, SubHandler}
+import co.topl.networking.multiplexer.{DynamicMultiplexer, MessageParserFramer, MessageSerializerFramer, SubHandler}
 import co.topl.networking.p2p.{ConnectedPeer, ConnectionLeader}
 import co.topl.networking.typedprotocols.{TypedProtocolInstance, TypedProtocolTransitionFailure}
 import scodec.bits.ByteVector
 
 import scala.concurrent.Future
-import scala.reflect.runtime.universe._
 
 trait MultiplexedTypedPeerHandler[F[_], Client] {
 
@@ -31,7 +30,7 @@ trait MultiplexedTypedPeerHandler[F[_], Client] {
     fToFuture:      F ~> Future
   ): F[(Flow[ByteString, ByteString, NotUsed], Client)] =
     multiplexerHandlersIn(connectedPeer, connectionLeader).map { case (source, client) =>
-      Multiplexer(source) -> client
+      DynamicMultiplexer(source) -> client
     }
 
   private def multiplexerHandlersIn(
