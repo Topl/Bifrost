@@ -89,7 +89,7 @@ object NodeView {
   def persistent(
     settings:           AppSettings,
     consensusInterface: ConsensusInterface,
-    startupKeyView:     Future[StartupKeyView]
+    startupKeyView:     () => Future[StartupKeyView]
   )(implicit system:    ActorSystem[_], ec: ExecutionContext, networkPrefix: NetworkPrefix, protocolVersioner: ProtocolVersioner): Future[NodeView] =
     if (State.exists(settings)) {
       resume(settings)
@@ -112,13 +112,13 @@ object NodeView {
   private def fetchAndApplyGenesis(
     settings:           AppSettings,
     consensusInterface: ConsensusInterface,
-    startupKeyView:     Future[StartupKeyView]
+    startupKeyView:     () => Future[StartupKeyView]
   )(implicit
     system:        ActorSystem[_],
     ec:            ExecutionContext,
     networkPrefix: NetworkPrefix, protocolVersioner: ProtocolVersioner
   ): EitherT[Future, NodeViewHolderInterface.ApplyFailure, NodeView] = for {
-    nodeAddresses <- EitherT.liftF(startupKeyView.map(_.addresses))
+    nodeAddresses <- EitherT.liftF(startupKeyView().map(_.addresses))
     consensusView <- consensusInterface
       .withView[NxtConsensus.View](identity)
       .leftMap(e => NodeViewHolderInterface.ApplyFailure(new IllegalArgumentException(e.toString)))

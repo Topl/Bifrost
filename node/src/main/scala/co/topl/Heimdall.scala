@@ -263,12 +263,6 @@ object Heimdall {
 
     val keyManagerRef = context.actorOf(KeyManagerRef.props(settings), KeyManager.actorName)
 
-    val futureKeyView = (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses(
-      settings.forging.addressGenerationSettings
-    ))
-      .mapTo[Try[StartupKeyView]]
-      .flatMap(Future.fromTry)
-
     val nodeViewHolderRef =
       context.spawn(
         NodeViewHolder(
@@ -278,7 +272,11 @@ object Heimdall {
             NodeView.persistent(
               settings,
               new ActorConsensusInterface(consensusViewHolder)(system, Timeout(10.seconds)),
-              futureKeyView
+              () => (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses(
+                settings.forging.addressGenerationSettings
+              ))
+                .mapTo[Try[StartupKeyView]]
+                .flatMap(Future.fromTry)
             )(context.system, implicitly, networkPrefix, protocolVersioner)
         ),
         NodeViewHolder.ActorName,

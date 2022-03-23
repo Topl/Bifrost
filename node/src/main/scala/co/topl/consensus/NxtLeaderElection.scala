@@ -9,8 +9,7 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, Box, ProgramId}
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.StateReader
-import co.topl.utils.{Int128, TimeProvider}
-import com.google.common.primitives.Longs
+import co.topl.utils.TimeProvider
 
 import scala.collection.Set
 import scala.math.{max, min}
@@ -24,14 +23,14 @@ class NxtLeaderElection(protocolVersioner: ProtocolVersioner) {
    * @param box       box to be used for the test value
    * @return the test value to be compared to the adjusted difficulty
    */
-  private[consensus] def calculateHitValue(lastBlock: Block)(box: ArbitBox): Long = {
+  private[consensus] def calculateHitValue(lastBlock: Block)(box: ArbitBox): BigInt = {
     val h = blake2b256.hash(
       // need to use Persistable instances of parent types
       Persistable[NodeViewModifier].persistedBytes(lastBlock) ++
       Persistable[Box[_]].persistedBytes(box)
     )
 
-    Longs.fromByteArray((0: Byte) +: h.value.take(7))
+    BigInt((0: Byte) +: h.value.take(7))
   }
 
   /**
@@ -50,18 +49,12 @@ class NxtLeaderElection(protocolVersioner: ProtocolVersioner) {
    * @param parentHeight parent block height
    * @return the target value
    */
-  private[consensus] def calculateThresholdValue(stakeAmount: Int128, timeDelta: Long)(
-    consensusState:                                           NxtConsensus.State
+  private[consensus] def calculateThresholdValue(timeDelta: Long, consensusState: NxtConsensus.State)(
+    box:                                                    ArbitBox
   ): BigInt = {
     val targetBlockTime = protocolVersioner.applicable(consensusState.height + 1).value.targetBlockTime
 
-    println(
-      s"calculateThresholdValue\n" +
-      s"stake: $stakeAmount, consensusState: $consensusState, timeDelta: $timeDelta" +
-      s"\n"
-    )
-
-    (BigInt(stakeAmount.toByteArray) * BigInt(timeDelta) * BigInt(consensusState.difficulty)) /
+    (BigInt(box.value.quantity.toByteArray) * BigInt(timeDelta) * BigInt(consensusState.difficulty)) /
     (BigInt(consensusState.totalStake.toByteArray) * BigInt(targetBlockTime.toMillis))
   }
 
@@ -76,7 +69,6 @@ class NxtLeaderElection(protocolVersioner: ProtocolVersioner) {
 
   // used in a node view test, so made public for now
   def calculateNewDifficulty(newHeight: Long, prevDifficulty: Long, prevTimes: Seq[TimeProvider.Time]): Long = {
-
     val averageDelay = prevTimes.drop(1).lazyZip(prevTimes).map(_ - _).sum / (prevTimes.length - 1)
     val targetTimeMilli = protocolVersioner
       .applicable(newHeight)
@@ -127,27 +119,15 @@ object NxtLeaderElection {
    * @return an eligible box if one is found
    */
   def getEligibleBox(
-    parent:             Block,
-    arbitBoxesIterator: Iterator[ArbitBox],
-    timestamp:          TimeProvider.Time,
-    totalStake:         Int128,
-    nxtLeaderElection:  NxtLeaderElection
-  ): Either[IneligibilityReason, ArbitBox] =
+    hitForBox:          ArbitBox => BigInt,
+    thresholdForBox:    ArbitBox => BigInt
+  )(arbitBoxesIterator: Iterator[ArbitBox]): Either[IneligibilityReason, ArbitBox] =
     // This is ugly iterable/procedural code, but the goal is lazy traversal to avoid fetching all boxes for
     // all addresses when we're only looking for the _first_ valid candidate
     if (arbitBoxesIterator.hasNext) {
       while (arbitBoxesIterator.hasNext) {
         val box = arbitBoxesIterator.next()
-        val hit = BigInt(nxtLeaderElection.calculateHitValue(parent)(box))
-        val threshold =
-          nxtLeaderElection.calculateThresholdValue(
-            box.value.quantity,
-            totalStake,
-            timestamp - parent.timestamp,
-            parent.difficulty,
-            parent.height
-          )
-        if (hit < threshold) return Right(box)
+        if (hitForBox(box) < thresholdForBox(box)) return Right(box)
       }
       Left(NoBoxesEligible)
     } else {

@@ -69,7 +69,7 @@ object NxtConsensus {
   case class View(
     state:            State,
     leaderElection:   NxtLeaderElection,
-    validators:       (NxtConsensus.State) => Seq[BlockValidator[_]]
+    validators:       NxtConsensus.State => Seq[BlockValidator[_]]
   )
 
   case class Genesis(block: Block, state: State)
@@ -102,8 +102,7 @@ object NxtConsensus {
       )
 
       context.log.info(
-        s"${Console.YELLOW}Consensus Storage actor transitioning to the operational state" +
-        s"${Console.RESET}"
+        s"${Console.YELLOW}Consensus Storage actor transitioning to the operational state${Console.RESET}"
       )
 
       val leaderElection = new NxtLeaderElection(protocolVersioner)

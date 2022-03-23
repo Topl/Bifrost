@@ -34,7 +34,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       current =>
         current.copy(history = current.history match {
           case h: History =>
-            h.storage.update(block, isBest = true)
+            h.append(block, Seq())
             h
         })
     )(system.toTyped)

@@ -1,6 +1,7 @@
 package co.topl.nodeView.history
 
 import cats.implicits._
+import co.topl.consensus.BlockValidators._
 import co.topl.consensus.Hiccups.HiccupBlock
 import co.topl.consensus._
 import co.topl.db.LDBVersionedStore
@@ -15,13 +16,12 @@ import co.topl.nodeView.{CacheLayerKeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
 import co.topl.utils.IdiomaticScalaTransition.implicits.toTryOps
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.TimeProvider.Time
 import co.topl.utils.implicits._
 import co.topl.utils.{Logging, TimeProvider}
 
 import java.io.File
 import scala.annotation.tailrec
-import scala.util.{Failure, Success, Try}
+import scala.util.{Success, Try}
 
 /**
  * A representation of the entire blockchain (whether it's a blocktree, blockchain, etc.)
@@ -30,9 +30,9 @@ import scala.util.{Failure, Success, Try}
  * @param validators rule sets that dictate validity of blocks in the history
  */
 class History(
-               val storage:            Storage,
-               tineProcessor:     TineProcessor
-)(implicit networkPrefix: NetworkPrefix,                protocolVersioner: ProtocolVersioner)
+  private[history] val storage: Storage,
+  tineProcessor:                TineProcessor
+)(implicit networkPrefix:       NetworkPrefix, protocolVersioner: ProtocolVersioner)
     extends GenericHistory[Block, BifrostSyncInfo, History]
     with AutoCloseable
     with Logging {
@@ -75,6 +75,41 @@ class History(
   def lastHeaders(count: Int, offset: Int = 0): IndexedSeq[ModifierId] =
     getBlocksFrom(bestBlock, count).map(block => block.id).toIndexedSeq
 
+  /** Helper functions to find the source of the parent block (either storage or chain cache) */
+  private object BlockValidation {
+
+    def handlers(block: Block): PartialFunction[BlockValidator[_], Try[Unit]] = {
+      case v: SyntaxValidator      => v.validate(identity)(block)
+      case v: EligibilityValidator => v.validate(parentBlock)(block)
+      case v: HeightValidator      => v.validate(BlockValidation.getParentHeightOf)(block)
+      case v: DifficultyValidator  => v.validate(BlockValidation.getParentDetailsOf)(block)
+      case v: TimestampValidator   => v.validate(BlockValidation.getParentTimestampsOf)(block)
+    }
+
+    private val getParentDetailsOf: Block => Option[(Block, Seq[TimeProvider.Time])] = (block: Block) => {
+      val lookBackDepth = protocolVersioner.applicable(block.height).value.lookBackDepth
+      tineProcessor.getCacheBlock(block.parentId) match {
+        case Some(cacheParent) => Some((cacheParent.block, cacheParent.prevBlockTimes :+ block.timestamp))
+        case None =>
+          modifierById(block.parentId).map { parent =>
+            (parent, History.getTimestamps(storage, lookBackDepth, parent) :+ block.timestamp)
+          }
+      }
+    }
+
+    private val getParentTimestampsOf: Block => Option[TimeProvider.Time] = (block: Block) =>
+      tineProcessor
+        .getCacheBlock(block.parentId)
+        .map(_.block.timestamp)
+        .orElse(parentBlock(block).map(_.timestamp))
+
+    private val getParentHeightOf: Block => Option[TimeProvider.Time] = (block: Block) =>
+      tineProcessor
+        .getCacheBlock(block.parentId)
+        .map(_.block.height)
+        .orElse(parentBlock(block).map(_.height))
+  }
+
   /**
    * Adds block to chain and updates storage (difficulty, score, etc.) relating to that
    *
@@ -88,29 +123,9 @@ class History(
 
     log.debug(s"Trying to append block ${block.id} to history")
 
-    // consensus parameter that effects block validity
-    val lookBackDepth = protocolVersioner.applicable(block.height).value.lookBackDepth
-
-    /** Helper function to find the source of the parent block (either storage or chain cache) */
-    def getParentDetailsOf(block: Block): (Block, Seq[TimeProvider.Time]) = {
-      tineProcessor.getCacheBlock(block.parentId) match {
-        case Some(cacheParent) => (cacheParent.block, cacheParent.prevBlockTimes :+ block.timestamp)
-        case None =>
-          val parent =
-            storage.modifierById(block.parentId).get // we have already checked if the parent exists so safe to get
-          (parent, History.getTimestamps(storage, lookBackDepth, parent) :+ block.timestamp)
-      }
-    }
-
-    def getTimestampFromTineProcessorOrStorage(block: Block): Option[TimeProvider.Time] =
-      tineProcessor
-      .getCacheBlock(block.parentId)
-      .map(_.block.timestamp)
-      .orElse(storage.timestampOf(block.parentId))
-
     val isHiccupBlock =
       if (Hiccups.blockValidation.contains(HiccupBlock(block))) {
-        log.debug(s"Skipping block validation for HiccupBlock.  blockId=${block.id}")
+        log.debug(s"Skipping block validation for HiccupBlock, blockId=${block.id}")
         true
       } else {
         false
@@ -119,18 +134,9 @@ class History(
     // test new block against all validators
     val validationResults =
       if (!isHiccupBlock) {
-        (validators
-          .map {
-            case validator: DifficultyBlockValidator => validator.validate(getParentDetailsOf)(block)
-            case validator: SyntaxBlockValidator     => validator.validate(identity)(block)
-            case validator: TimestampValidator       => validator.validate(getTimestampFromTineProcessorOrStorage)(block)
-          })
-          .map {
-            case Failure(e) =>
-              log.warn(s"Block validation failed", e)
-              false
-            case _ => true
-          }
+        validators
+          .map(BlockValidation.handlers(block))
+          .map(_.isSuccess)
       } else Seq(true) // skipping validation for genesis block and hiccup blocks
 
     // check if all block validation passed
@@ -157,7 +163,8 @@ class History(
               // if not, we'll check for a fork
             } else {
               // we want to check for a fork
-              val forkProgInfo = tineProcessor.process(this, block, lookBackDepth)
+              val forkProgInfo =
+                tineProcessor.process(this, block, protocolVersioner.applicable(block.height).value.lookBackDepth)
 
               // check if we need to update storage after checking for forks
               if (forkProgInfo.branchPoint.nonEmpty) {
@@ -549,9 +556,9 @@ object History extends Logging {
     apply(settings, storage)
   }
 
-  def apply(settings: AppSettings, storage: Storage)(implicit
-    networkPrefix:    NetworkPrefix,
-                                                     protocolVersioner: ProtocolVersioner
+  def apply(settings:  AppSettings, storage: Storage)(implicit
+    networkPrefix:     NetworkPrefix,
+    protocolVersioner: ProtocolVersioner
   ): History = {
 
     /** This in-memory cache helps us to keep track of tines sprouting off the canonical chain */

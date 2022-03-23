@@ -17,6 +17,7 @@ import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import io.circe.parser
 
 import scala.collection.immutable.ListMap
+import scala.util.Try
 
 class GenesisProvider(genesisBlockVersion: Byte, nodeAddresses: Set[Address]) {
 
@@ -43,9 +44,11 @@ class GenesisProvider(genesisBlockVersion: Byte, nodeAddresses: Set[Address]) {
   private def fromJsonGenesisProvider(strategy: FromBlockJson)(implicit
     networkPrefix:                              NetworkPrefix
   ): Either[GenesisProvider.Failure, NxtConsensus.Genesis] = for {
-    src   <- scala.io.Source.fromFile(strategy.providedJsonGenesisPath).asRight[GenesisProvider.Failure]
-    json  <- parser.parse(src.mkString).leftMap(GenesisProvider.Failures.FailedToReadBlockJson)
-    block <- json.as[Block].leftMap(e => GenesisProvider.Failures.FailedToDecodeBlockJson(e.message))
+    src <- Either
+      .fromTry(Try(scala.io.Source.fromFile(strategy.providedJsonGenesisPath)))
+      .leftMap(GenesisProvider.Failures.FailedToReadBlockJsonFileFromDisk)
+    json  <- parser.parse(src.mkString).leftMap(GenesisProvider.Failures.FailedToParseJson)
+    block <- json.as[Block].leftMap(e => GenesisProvider.Failures.FailedToDecodeJsonToBlock(e.message))
     expectedBlockId <- Base58Data
       .validated(strategy.blockChecksum)
       .map(_.value.decodeTransmitted[ModifierId])
@@ -160,8 +163,9 @@ object GenesisProvider {
   object Failures {
     case object GenesisGeneratedSettingsNotFound extends Failure
     case object GenesisBlockJsonSettingsNotFound extends Failure
-    case class FailedToReadBlockJson(reason: Throwable) extends Failure
-    case class FailedToDecodeBlockJson(message: String) extends Failure
+    case class FailedToReadBlockJsonFileFromDisk(reason: Throwable) extends Failure
+    case class FailedToParseJson(reason: Throwable) extends Failure
+    case class FailedToDecodeJsonToBlock(message: String) extends Failure
     case class BlockChecksumMismatch(reason: Throwable) extends Failure
     case object InvalidBlockChecksum extends Failure
   }

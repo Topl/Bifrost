@@ -29,17 +29,20 @@ object BlockValidators {
     }
   }
 
-  class DifficultyValidator(leaderElection: NxtLeaderElection) extends BlockValidator[(Block, Seq[TimeProvider.Time])] {
+  class DifficultyValidator(leaderElection: NxtLeaderElection)
+      extends BlockValidator[Option[(Block, Seq[TimeProvider.Time])]] {
 
-    override def validate(f: Block => (Block, Seq[TimeProvider.Time]))(block: Block): Try[Unit] = Try {
+    override def validate(f: Block => Option[(Block, Seq[TimeProvider.Time])])(block: Block): Try[Unit] = Try {
       f(block) match {
-        case (parent, prevTimes) =>
+        case Some((parent, prevTimes)) =>
           val childBaseDifficulty =
             leaderElection.calculateNewDifficulty(parent.height + 1, parent.difficulty, prevTimes)
           require(
             block.difficulty == childBaseDifficulty,
             s"Local calculation of block difficulty failed since ${block.difficulty} != $childBaseDifficulty"
           )
+
+        case None => throw new Error(s"Could not find parent with blockId=${block.parentId}")
       }
     }
   }
@@ -50,23 +53,16 @@ object BlockValidators {
     override def validate(f: Block => Option[Block])(block: Block): Try[Unit] = Try {
       f(block) match {
         case Some(parent) =>
-          val hit = leaderElection.calculateHitValue(parent)(block.generatorBox)
-
-          // calculate the difficulty the forger would have used to determine eligibility
-          val target = leaderElection.calculateThresholdValue(
-            block.generatorBox.value.quantity,
-            block.timestamp - parent.timestamp
-          )(
-            NxtConsensus.State(
-              consensusState.totalStake,
-              parent.difficulty,
-              0L,
-              parent.height
-            )
-          )
+          val timeSinceLastBlack = block.timestamp - parent.timestamp
+          val hit = leaderElection.calculateHitValue(parent)(_)
+          val threshold = leaderElection.calculateThresholdValue(timeSinceLastBlack, consensusState)(_)
 
           // did the forger create a block with a valid forger box and adjusted difficulty?
-          require(BigInt(hit) < target, s"Block difficulty failed since $hit >= $target")
+          require(
+            NxtLeaderElection.getEligibleBox(hit, threshold)(Iterator(block.generatorBox)).isRight,
+            s"Failed to verify eligibility for blockId=${block.id}" +
+              s"since ${hit(block.generatorBox)} >= ${threshold(block.generatorBox)}"
+          )
 
         case None => throw new Error(s"Could not find parent with blockId=${block.parentId}")
       }

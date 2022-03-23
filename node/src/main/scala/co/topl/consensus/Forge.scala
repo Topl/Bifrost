@@ -126,6 +126,7 @@ object Forge {
         )
       )
       forgeTime = timeProvider.time
+      timeSinceLastBlack = forgeTime - parentBlock.timestamp
       rewards <- Rewards(transactions, rewardAddress, parentBlock.id, forgeTime, consensusView.state.inflation).toEither
         .leftMap(ForgingError)
       prevTimes = nodeView.history.getTimestampsFrom(
@@ -135,17 +136,12 @@ object Forge {
       arbitBoxIterator <- NxtLeaderElection
         .collectArbitBoxes(keyView.addresses, nodeView.state)
         .leftMap(LeaderElectionFailure)
-      arbitBox <- NxtLeaderElection
-        .getEligibleBox(
-          parentBlock,
-          arbitBoxIterator,
-          forgeTime,
-          consensusView.state.totalStake,
-          consensusView.leaderElection
-        )
-        .leftMap(LeaderElectionFailure)
+      eligibleArbitBox <- NxtLeaderElection.getEligibleBox(
+        consensusView.leaderElection.calculateHitValue(parentBlock)(_),
+        consensusView.leaderElection.calculateThresholdValue(timeSinceLastBlack, consensusView.state)(_)
+      )(arbitBoxIterator).leftMap(LeaderElectionFailure)
     } yield Forge(
-      arbitBox,
+      eligibleArbitBox,
       parentBlock,
       prevTimes,
       rewards,

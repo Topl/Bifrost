@@ -42,9 +42,9 @@ class BlockVersionTests extends AnyPropSpec with Matchers with TestSettings with
         accHistory.append(block, Seq()).get._1
     }
 
-    var currentId: ModifierId = updatedHistory.storage.bestBlockId
+    var currentId: ModifierId = updatedHistory.bestBlockId
     for (height <- blocksCount to 1 by -1) {
-      val currentBlock: Block = updatedHistory.storage.modifierById(currentId).get
+      val currentBlock: Block = updatedHistory.modifierById(currentId).get
       currentId = currentBlock.parentId
       log.debug(s"${Console.MAGENTA}$currentBlock${Console.RESET}")
       val versionConf = protocolVersioner.applicable(height).blockVersion

@@ -98,7 +98,7 @@ trait RPCMockState
           NodeView.persistent(
             settings,
             consensusInterface,
-            (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
+            () => (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
               .mapTo[Try[StartupKeyView]]
               .flatMap(Future.fromTry)
           )(system.toTyped, implicitly, networkPrefix, protocolVersioner)

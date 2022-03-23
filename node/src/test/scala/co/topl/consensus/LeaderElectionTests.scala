@@ -40,12 +40,9 @@ class LeaderElectionTests extends AnyFlatSpec with MockFactory with NodeGenerato
       val expectedResult = Left(NoArbitBoxesAvailable)
 
       val result = NxtLeaderElection.getEligibleBox(
-        parent,
-        arbitBoxIterator,
-        0L,
-        0L,
-        leaderElection,
-      )
+        leaderElection.calculateHitValue(parent)(_),
+        leaderElection.calculateThresholdValue(0, NxtConsensus.State.empty)(_)
+      )(arbitBoxIterator)
 
       result shouldBe expectedResult
     }
