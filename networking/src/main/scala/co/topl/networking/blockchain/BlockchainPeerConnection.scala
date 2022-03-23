@@ -1,7 +1,7 @@
 package co.topl.networking.blockchain
 
 import akka.NotUsed
-import akka.stream.scaladsl.{Flow, Source}
+import akka.stream.scaladsl.{BroadcastHub, Flow, Keep, Source}
 import akka.stream.{BoundedSourceQueue, Materializer, QueueOfferResult}
 import akka.util.ByteString
 import cats.effect.kernel.Sync
@@ -17,11 +17,6 @@ import co.topl.networking.{MultiplexedTypedPeerHandler, MultiplexedTypedSubHandl
 
 import scala.concurrent.{Future, Promise}
 
-trait BlockchainPeerConnection[F[_]] {
-  def multiplexer: Flow[ByteString, ByteString, NotUsed]
-  def client: BlockchainProtocolClient[F]
-}
-
 object BlockchainPeerConnection {
 
   def make[F[_]: Async: *[_] ~> Future](
@@ -30,7 +25,7 @@ object BlockchainPeerConnection {
     localPeer:        LocalPeer
   )(
     protocolServer:        BlockchainProtocolServer[F]
-  )(implicit materializer: Materializer): F[BlockchainPeerConnection[F]] =
+  )(implicit materializer: Materializer): F[Flow[ByteString, ByteString, BlockchainProtocolClient[F]]] =
     for {
       isConnectionLeader            <- (connectionLeader == ConnectionLeaders.Local).pure[F]
       adoptionTypedServerSubHandler <- blockAdoptionNotificationServer(protocolServer, isConnectionLeader)
@@ -40,7 +35,7 @@ object BlockchainPeerConnection {
       (headerTypedClientSubHandler, headerReceivedCallback) <- blockHeaderRequestResponseClient(isConnectionLeader)
       (bodyTypedClientSubHandler, bodyReceivedCallback)     <- blockBodyRequestResponseClient(isConnectionLeader)
       blockchainProtocolClient = new BlockchainProtocolClient[F] {
-        def remotePeerAdoptions: F[Source[TypedIdentifier, NotUsed]] = remoteBlockIdsSource.pure[F]
+        def remotePeerAdoptions: F[Source[TypedIdentifier, NotUsed]] = Sync[F].delay(remoteBlockIdsSource)
         def getRemoteHeader(id: TypedIdentifier): F[Option[BlockHeaderV2]] = headerReceivedCallback(id)
         def getRemoteBody(id: TypedIdentifier): F[Option[BlockBodyV2]] = bodyReceivedCallback(id)
       }
@@ -49,28 +44,20 @@ object BlockchainPeerConnection {
         def protocolsForPeer(
           connectedPeer:    ConnectedPeer,
           connectionLeader: ConnectionLeader
-        ): F[(Source[List[MultiplexedTypedSubHandler[F, _]], NotUsed], BlockchainProtocolClient[F])] =
-          Source
-            .single(
-              List[MultiplexedTypedSubHandler[F, _]](
-                adoptionTypedServerSubHandler,
-                headerTypedServerSubHandler,
-                bodyTypedServerSubHandler,
-                adoptionTypedClientSubHandler,
-                headerTypedClientSubHandler,
-                bodyTypedClientSubHandler
-              )
-            )
-            .concat(Source.never)
-            .pure[F]
-            .tupleRight(blockchainProtocolClient)
+        ): F[(List[MultiplexedTypedSubHandler[F, _]], BlockchainProtocolClient[F])] =
+          Sync[F].delay(
+            List[MultiplexedTypedSubHandler[F, _]](
+              adoptionTypedServerSubHandler,
+              headerTypedServerSubHandler,
+              bodyTypedServerSubHandler,
+              adoptionTypedClientSubHandler,
+              headerTypedClientSubHandler,
+              bodyTypedClientSubHandler
+            ) -> blockchainProtocolClient
+          )
       }
-      (flow, _) <- multiplexedTypedPeerHandler.multiplexed(connectedPeer, connectionLeader)
-    } yield new BlockchainPeerConnection[F] {
-      val multiplexer: Flow[ByteString, ByteString, NotUsed] = flow
-
-      val client: BlockchainProtocolClient[F] = blockchainProtocolClient
-    }
+      flow <- multiplexedTypedPeerHandler.multiplexed(connectedPeer, connectionLeader)
+    } yield flow
 
   private def blockAdoptionNotificationServer[F[_]: Async](
     server:                BlockchainProtocolServer[F],
@@ -170,12 +157,13 @@ object BlockchainPeerConnection {
     )
 
   private def blockAdoptionNotificationClient[F[_]: Async](
-    isConnectionLeader: Boolean
-  )(implicit
-    materializer: Materializer
-  ) =
+    isConnectionLeader:    Boolean
+  )(implicit materializer: Materializer) =
     Sync[F].delay {
-      val (queue, source) = Source.queue[TypedIdentifier](128).preMaterialize()
+      val (queue, source) = Source
+        .queue[TypedIdentifier](128)
+        .toMat(BroadcastHub.sink)(Keep.both)
+        .run()
       val transitions =
         new BlockchainProtocols.BlockAdoption.StateTransitionsClient[F](offerToQueue[F, TypedIdentifier](queue, _))
       import transitions._
@@ -216,18 +204,14 @@ object BlockchainPeerConnection {
         import transitions._
         TypedProtocolInstance(Parties.B)
           .withTransition(startNoneIdle)
-          .withTransition(
-            getIdleBusy: StateTransition[
-              F,
-              TypedProtocol.CommonMessages.Get[TypedBytes],
-              TypedProtocol.CommonStates.Idle.type,
-              TypedProtocol.CommonStates.Busy.type
-            ]
-          )
+          .withTransition(getIdleBusy)
           .withTransition(responseBusyIdle)
           .withTransition(doneIdleDone)
       }
-      (outboundMessagesQueue, outboundMessagesSource) = Source.queue[OutboundMessage](128).preMaterialize()
+      (outboundMessagesQueue, outboundMessagesSource) = Source
+        .queue[OutboundMessage](128)
+        .toMat(BroadcastHub.sink)(Keep.both)
+        .run()
       clientCallback = (id: TypedIdentifier) =>
         offerToQueue(outboundMessagesQueue, OutboundMessage(TypedProtocol.CommonMessages.Get(id))) >>
         Sync[F]
@@ -263,18 +247,14 @@ object BlockchainPeerConnection {
         import transitions._
         TypedProtocolInstance(Parties.B)
           .withTransition(startNoneIdle)
-          .withTransition(
-            getIdleBusy: StateTransition[
-              F,
-              TypedProtocol.CommonMessages.Get[TypedBytes],
-              TypedProtocol.CommonStates.Idle.type,
-              TypedProtocol.CommonStates.Busy.type
-            ]
-          )
+          .withTransition(getIdleBusy)
           .withTransition(responseBusyIdle)
           .withTransition(doneIdleDone)
       }
-      (outboundMessagesQueue, outboundMessagesSource) = Source.queue[OutboundMessage](128).preMaterialize()
+      (outboundMessagesQueue, outboundMessagesSource) = Source
+        .queue[OutboundMessage](128)
+        .toMat(BroadcastHub.sink)(Keep.both)
+        .run()
       clientCallback = (id: TypedIdentifier) =>
         offerToQueue(outboundMessagesQueue, OutboundMessage(TypedProtocol.CommonMessages.Get(id))) >>
         Sync[F]

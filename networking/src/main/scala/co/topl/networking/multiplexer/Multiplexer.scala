@@ -2,7 +2,7 @@ package co.topl.networking.multiplexer
 
 import akka.stream._
 import akka.stream.scaladsl.GraphDSL.Implicits._
-import akka.stream.scaladsl.{Flow, GraphDSL, Merge, Partition, Sink, Source}
+import akka.stream.scaladsl.{Flow, GraphDSL, Merge, Partition}
 import akka.util.ByteString
 
 /**
@@ -25,42 +25,32 @@ object Multiplexer {
       .via(MessageParserFramer())
       .via(
         Flow.fromGraph(GraphDSL.create() { implicit builder =>
-          val subs: List[(Byte, Sink[ByteString, _], Source[ByteString, _])] =
-            subProtocols
-              .map(sp =>
-                (
-                  sp.sessionId,
-                  Flow[ByteString]
-                    .map((sp.sessionId, _))
-                    .via(MessageSerializerFramer())
-                    .to(sp.subscriber),
-                  sp.producer
-                )
-              )
-          val subPortMapping: Map[Byte, Int] = subs.map(_._1).zipWithIndex.toMap
+          val subPortMapping: Map[Byte, Int] = subProtocols.map(_.sessionId).zipWithIndex.toMap
           val partition = builder.add(
             new Partition[(Byte, ByteString)](
-              subs.size,
-              { case (typeByte, _) =>
-                subPortMapping(typeByte)
-              },
+              subProtocols.size,
+              { case (typeByte, _) => subPortMapping(typeByte) },
               eagerCancel = true
             )
           )
 
           val merge =
-            builder.add(Merge[ByteString](subs.size, eagerComplete = true))
-          subs.foreach { case (typeByte, sink, source) =>
-            val port = subPortMapping(typeByte)
-            val hSink = builder.add(sink)
-            val hSource = builder.add(source)
-            val strip = builder.add(Flow[(Byte, ByteString)].map(_._2))
-            partition.out(port) ~> strip ~> hSink
-            hSource ~> merge.in(port)
+            builder.add(
+              Merge[(Byte, ByteString)](subProtocols.size, eagerComplete = true)
+            )
+          subProtocols.foreach { case SubHandler(sessionId, sink, source) =>
+            val port = subPortMapping(sessionId)
+            val hFlow = builder.add(
+              Flow.fromSinkAndSource(Flow[ByteString].buffer(1, OverflowStrategy.backpressure).to(sink), source)
+            )
+            val stripSessionByte = builder.add(Flow[(Byte, ByteString)].map(_._2))
+            val appendSessionByte = builder.add(Flow[ByteString].map((sessionId, _)))
+            partition.out(port) ~> stripSessionByte ~> hFlow ~> appendSessionByte ~> merge.in(port)
           }
           FlowShape(partition.in, merge.out)
         })
       )
+      .via(MessageSerializerFramer())
       .mapMaterializedValue(_ => client)
 
 }

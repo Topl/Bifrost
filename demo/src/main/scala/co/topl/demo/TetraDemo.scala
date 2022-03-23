@@ -11,6 +11,7 @@ import cats.effect.unsafe.{IORuntime, IORuntimeConfig}
 import cats.effect.{Async, ExitCode, IO, IOApp}
 import cats.implicits._
 import cats.~>
+import co.topl.algebras.ClockAlgebra.implicits.ClockOps
 import co.topl.algebras._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
@@ -34,7 +35,8 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import java.net.InetSocketAddress
 import java.nio.file.{Files, Paths}
 import java.time.Instant
-import java.util.UUID
+import java.time.temporal.TemporalUnit
+import java.util.{Calendar, UUID}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Random
@@ -49,19 +51,17 @@ object TetraDemo extends IOApp {
 
   // Configuration Data
   private val vrfConfig =
-    VrfConfig(lddCutoff = 40, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(2, 5))
+    VrfConfig(lddCutoff = 40, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(4, 5))
 
   private val OperationalPeriodLength = 180L
   private val OperationalPeriodsPerEpoch = 4L
   private val EpochLength = OperationalPeriodLength * OperationalPeriodsPerEpoch
-  private val SlotDuration = 200.milli
+  private val SlotDuration = 100.milli
 
   require(
     EpochLength % OperationalPeriodLength === 0L,
     "EpochLength must be evenly divisible by OperationalPeriodLength"
   )
-
-  private val TotalStake = BigInt(100_000L)
 
   private val ChainSelectionKLookback = 5_000L
   private val ChainSelectionSWindow = 200_000L
@@ -100,7 +100,7 @@ object TetraDemo extends IOApp {
         ed25519.sign(paymentKey, poolVK.bytes.data)
       )
     }
-    Staker(Ratio(TotalStake / count, TotalStake), stakerVrfKey, kesKey, stakerRegistration, stakerAddress)
+    Staker(Ratio(1, count), stakerVrfKey, kesKey, stakerRegistration, stakerAddress)
   }
 
   private val genesis =
@@ -137,7 +137,7 @@ object TetraDemo extends IOApp {
   private val statsInterpreter =
     StatsInterpreter.Eval.make[F](statsDir)
 
-  private def mint(
+  private def createMint(
     staker:                  Staker,
     clock:                   ClockAlgebra[F],
     etaCalculation:          EtaCalculationAlgebra[F],
@@ -162,8 +162,9 @@ object TetraDemo extends IOApp {
         ed25519VRFResource,
         vrfConfig
       )
-      _           <- vrfProofConstruction.precomputeForEpoch(0, genesis.headerV2.eligibilityCertificate.eta)
-      initialSlot <- clock.globalSlot
+      initialSlot  <- clock.globalSlot.map(_.max(0L))
+      initialEpoch <- clock.epochOf(initialSlot)
+      _            <- vrfProofConstruction.precomputeForEpoch(initialEpoch, genesis.headerV2.eligibilityCertificate.eta)
       operationalKeys <- OperationalKeys.FromSecureStore.make[F](
         secureStore = secureStore,
         clock = clock,
@@ -201,7 +202,7 @@ object TetraDemo extends IOApp {
           statsInterpreter
         )
       perpetual <- PerpetualBlockMint.InAkkaStream
-        .make(initialSlot = 0L, clock, mint, localChain, mempool, headerStore)
+        .make(clock, mint, localChain, mempool, headerStore)
     } yield perpetual
 
   // Program definition
@@ -251,7 +252,7 @@ object TetraDemo extends IOApp {
         ChainSelection.orderT[F](slotDataCache, blake2b512Resource, ChainSelectionKLookback, ChainSelectionSWindow)
       )
       mempool <- EmptyMemPool.make[F]
-      m <- mint(
+      m <- createMint(
         stakers(demoArgs.stakerIndex),
         clock,
         etaCalculation,
@@ -316,6 +317,14 @@ object DemoArgs {
       args(2).toLong,
       args(3).toInt,
       args(4).toInt,
-      args.lift(5).fold(Instant.now().plusSeconds(1))(a => Instant.ofEpochMilli(a.toLong))
+      Instant.ofEpochMilli(args.lift(5).fold(defaultGenesisTimestamp())(a => a.toLong))
     )
+
+  private def defaultGenesisTimestamp() = {
+    val i = Instant.now()
+    val t = i.toEpochMilli
+    val result = t - (t % 10_000L) + 20_000L
+    println(s"Initializing default genesisTimestamp=$result.  current=$t")
+    result
+  }
 }

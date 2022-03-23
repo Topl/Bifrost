@@ -2,7 +2,6 @@ package co.topl.minting
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
-import cats.arrow.FunctionK
 import cats.data.OptionT
 import cats.effect.kernel.Sync
 import cats.implicits._
@@ -20,7 +19,6 @@ object PerpetualBlockMint {
   object InAkkaStream {
 
     def make[F[_]: Sync: *[_] ~> Future: MonadThrow](
-      initialSlot: Slot,
       clock:       ClockAlgebra[F],
       blockMint:   BlockMintAlgebra[F],
       localChain:  LocalChainAlgebra[F],
@@ -33,9 +31,16 @@ object PerpetualBlockMint {
           def blocks: F[Source[BlockV2, NotUsed]] =
             Sync[F].delay(
               Source
-                .fromIterator(() => Iterator.iterate(initialSlot)(_ + 1))
-                .mapAsync(1)(slot => implicitly[F ~> Future].apply(forSlot(slot)))
-                .collect { case Some(newBlock) => newBlock }
+                .future(
+                  implicitly[F ~> Future]
+                    .apply(clock.globalSlot.map(_.max(0L)).flatMap(s => clock.delayedUntilSlot(s).as(s)))
+                )
+                .flatMapConcat(initialSlot =>
+                  Source
+                    .fromIterator(() => Iterator.iterate(initialSlot)(_ + 1))
+                    .mapAsync(1)(slot => implicitly[F ~> Future].apply(forSlot(slot)))
+                    .collect { case Some(newBlock) => newBlock }
+                )
             )
 
           private def forSlot(slot: Slot): F[Option[BlockV2]] =

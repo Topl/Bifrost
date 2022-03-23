@@ -1,6 +1,8 @@
 package co.topl.networking
 
 import akka.NotUsed
+import akka.event.Logging
+import akka.stream.Attributes
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.util.ByteString
 import cats.data.EitherT
@@ -8,7 +10,7 @@ import cats.effect.GenConcurrent
 import cats.implicits._
 import cats.{~>, MonadThrow}
 import co.topl.codecs.bytes.typeclasses.Transmittable
-import co.topl.networking.multiplexer.{DynamicMultiplexer, MessageParserFramer, MessageSerializerFramer, SubHandler}
+import co.topl.networking.multiplexer.{MessageParserFramer, MessageSerializerFramer, Multiplexer, SubHandler}
 import co.topl.networking.p2p.{ConnectedPeer, ConnectionLeader}
 import co.topl.networking.typedprotocols.{TypedProtocolInstance, TypedProtocolTransitionFailure}
 import scodec.bits.ByteVector
@@ -20,7 +22,7 @@ trait MultiplexedTypedPeerHandler[F[_], Client] {
   def protocolsForPeer(
     connectedPeer:    ConnectedPeer,
     connectionLeader: ConnectionLeader
-  ): F[(Source[List[MultiplexedTypedSubHandler[F, _]], NotUsed], Client)]
+  ): F[(List[MultiplexedTypedSubHandler[F, _]], Client)]
 
   def multiplexed(
     connectedPeer:    ConnectedPeer,
@@ -28,9 +30,9 @@ trait MultiplexedTypedPeerHandler[F[_], Client] {
   )(implicit
     genConcurrentF: GenConcurrent[F, Throwable],
     fToFuture:      F ~> Future
-  ): F[(Flow[ByteString, ByteString, NotUsed], Client)] =
-    multiplexerHandlersIn(connectedPeer, connectionLeader).map { case (source, client) =>
-      DynamicMultiplexer(source) -> client
+  ): F[Flow[ByteString, ByteString, Client]] =
+    multiplexerHandlersIn(connectedPeer, connectionLeader).map { case (handlers, client) =>
+      Multiplexer(handlers, client)
     }
 
   private def multiplexerHandlersIn(
@@ -39,31 +41,26 @@ trait MultiplexedTypedPeerHandler[F[_], Client] {
   )(implicit
     genConcurrentF: GenConcurrent[F, Throwable],
     fToFuture:      F ~> Future
-  ): F[(Source[List[SubHandler], NotUsed], Client)] =
+  ): F[(List[SubHandler], Client)] =
     protocolsForPeer(connectedPeer, connectionLeader)
-      .map { case (source, client) =>
-        source
-          .mapAsync(1)(typedProtocolSet =>
-            implicitly[F ~> Future].apply(
-              typedProtocolSet
-                .traverse { multiplexedSubHandler =>
-                  val sh =
-                    multiplexedSubHandler.asInstanceOf[MultiplexedTypedSubHandler[F, multiplexedSubHandler.InState]]
-                  val s = sh.initialState.asInstanceOf[Any]
-                  implicit val ct: NetworkTypeTag[Any] = sh.initialStateNetworkTypeTag.asInstanceOf[NetworkTypeTag[Any]]
-                  sh.instance
-                    .applier(s)
-                    .map(applier =>
-                      SubHandler(
-                        multiplexedSubHandler.id,
-                        handlerSink(multiplexedSubHandler, applier, multiplexedSubHandler.id),
-                        handlerSource(multiplexedSubHandler, applier, multiplexedSubHandler.id)
-                      )
-                    )
-                }
-            )
-          )
-          .concat(Source.never) -> client
+      .flatMap { case (typedProtocolSet, client) =>
+        typedProtocolSet
+          .traverse { multiplexedSubHandler =>
+            val sh =
+              multiplexedSubHandler.asInstanceOf[MultiplexedTypedSubHandler[F, multiplexedSubHandler.InState]]
+            val s = sh.initialState.asInstanceOf[Any]
+            implicit val ct: NetworkTypeTag[Any] = sh.initialStateNetworkTypeTag.asInstanceOf[NetworkTypeTag[Any]]
+            sh.instance
+              .applier(s)
+              .map(applier =>
+                SubHandler(
+                  multiplexedSubHandler.id,
+                  handlerSink(multiplexedSubHandler, applier, multiplexedSubHandler.id),
+                  handlerSource(multiplexedSubHandler, applier, multiplexedSubHandler.id)
+                )
+              )
+          }
+          .tupleRight(client)
       }
 
   private def handlerSink(

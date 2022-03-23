@@ -3,10 +3,11 @@ package co.topl.networking.p2p
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.event.Logging
-import akka.stream.Attributes
+import akka.stream.{Attributes, QueueCompletionResult, QueueOfferResult}
 import akka.stream.scaladsl._
 import akka.util.ByteString
 import cats.effect._
+import cats.effect.kernel.Sync
 import cats.implicits._
 import cats.~>
 
@@ -16,20 +17,32 @@ import scala.util.{Failure, Try}
 
 object AkkaP2PServer {
 
-  def make[F[_]: Async: *[_] ~> Future](
+  def make[F[_]: Async: *[_] ~> Future, Client](
     host:            String,
     port:            Int,
     localAddress:    InetSocketAddress,
     remotePeers:     Source[InetSocketAddress, _],
-    peerHandler:     (ConnectedPeer, ConnectionLeader) => F[Flow[ByteString, ByteString, NotUsed]]
-  )(implicit system: ActorSystem): F[P2PServer[F]] = {
+    peerHandler:     (ConnectedPeer, ConnectionLeader) => F[Flow[ByteString, ByteString, Client]]
+  )(implicit system: ActorSystem): F[P2PServer[F, Client]] = {
     def localAddress_ = localAddress
     import system.dispatcher
     for {
-      connectedPeersRef <- Ref.of[F, Set[ConnectedPeer]](Set.empty)
-      addPeersSink = Sink.foreachAsync[ConnectedPeer](1)(connection =>
-        implicitly[F ~> Future].apply(connectedPeersRef.update(_ + connection))
-      )
+      connectedPeersRef <- Ref.of[F, Map[ConnectedPeer, Client]](Map.empty)
+      (newConnectionsQueue, newConnectionsSource) = Source
+        .queue[(ConnectedPeer, Client)](128)
+        .toMat(BroadcastHub.sink)(Keep.both)
+        .run()
+      addPeersSink = Flow[(ConnectedPeer, Client)]
+        .alsoTo(Sink.foreach(newConnectionsQueue.offer(_) match {
+          case QueueOfferResult.Failure(e)                             => throw e
+          case QueueOfferResult.Dropped | QueueOfferResult.QueueClosed => throw new IllegalStateException
+          case QueueOfferResult.Enqueued                               =>
+        }))
+        .to(
+          Sink.foreachAsync[(ConnectedPeer, Client)](1)(connection =>
+            implicitly[F ~> Future].apply(connectedPeersRef.update(_ + connection))
+          )
+        )
       remotePeersSinkF = (connectedPeer: ConnectedPeer) =>
         Sink.onComplete[ByteString](_ => implicitly[F ~> Future].apply(connectedPeersRef.update(_ - connectedPeer)))
       incomingConnections = Tcp().bind(host, port)
@@ -41,10 +54,10 @@ object AkkaP2PServer {
             )
           )
         )
+          .mapMaterializedValue(_.flatten)
           .pure[F]
       serverBindingRunnableGraph = incomingConnections
         .log("Inbound peer connection", _.remoteAddress)
-        .alsoTo(Flow[Tcp.IncomingConnection].map(c => ConnectedPeer(c.remoteAddress)).to(addPeersSink))
         .mapAsync(1) { conn =>
           val connectedPeer = ConnectedPeer(conn.remoteAddress)
           implicitly[F ~> Future]
@@ -55,35 +68,40 @@ object AkkaP2PServer {
                     Sink.onComplete(printCompletion(connectedPeer, _))
                   )
                 )
-                .map(conn.handleWith)
             )
+            .flatMap(conn.handleWith(_))
+            .map(connectedPeer -> _)
         }
+        .alsoTo(addPeersSink)
         .alsoTo(
-          Sink.onComplete(d =>
-            d match {
-              case Failure(exception) => println(s"Error + $exception")
-              case _                  => println("Done")
-            }
-          )
+          Sink.onComplete {
+            case Failure(exception) => println(s"Error + $exception")
+            case _                  => println("Done")
+          }
         )
         .toMat(Sink.ignore)(Keep.both)
-        .withAttributes(Attributes.logLevels(onElement = Logging.InfoLevel))
+        .withAttributes(Attributes.logLevels(onElement = Logging.InfoLevel, onFinish = Logging.InfoLevel))
       (serverBindingFuture, serverBindingCompletionFuture) = serverBindingRunnableGraph.run()
       serverBinding <- Async[F].fromFuture(serverBindingFuture.pure[F])
       outboundConnectionsRunnableGraph: RunnableGraph[Future[Unit]] =
         remotePeers
           .filterNot(_ == localAddress)
           .map(ConnectedPeer)
-          .alsoTo(addPeersSink)
           .log("Initializing connection", identity)
-          .map(connectedPeer =>
+          .mapAsync(1)(connectedPeer =>
             implicitly[F ~> Future]
               .apply(peerHandlerFlowWithRemovalF(connectedPeer))
               .map(
                 _.alsoTo(Sink.onComplete(printCompletion(connectedPeer, _)))
               )
-              .flatMap(flow => Tcp().outgoingConnection(connectedPeer.remoteAddress).join(flow).run())
+              .flatMap(flow =>
+                Tcp()
+                  .outgoingConnection(connectedPeer.remoteAddress)
+                  .joinMat(flow)((_, r) => r.tupleLeft(connectedPeer))
+                  .run()
+              )
           )
+          .alsoTo(addPeersSink)
           .alsoTo(
             Sink.onComplete {
               case Failure(exception) =>
@@ -93,11 +111,11 @@ object AkkaP2PServer {
             }
           )
           .toMat(Sink.seq)(Keep.right)
-          .withAttributes(Attributes.logLevels(onElement = Logging.InfoLevel))
-          .mapMaterializedValue(_.flatMap(_.sequence.void))
+          .withAttributes(Attributes.logLevels(onElement = Logging.InfoLevel, onFinish = Logging.InfoLevel))
+          .mapMaterializedValue(_.void)
       remoteConnectionsCompletionFuture = outboundConnectionsRunnableGraph.run()
       _ = println("P2P Server Running")
-    } yield new P2PServer[F] {
+    } yield new P2PServer[F, Client] {
       def stop(): F[Unit] =
         Async[F]
           .fromFuture(
@@ -108,8 +126,11 @@ object AkkaP2PServer {
           )
           .void
 
-      def connectedPeers(): F[Set[ConnectedPeer]] =
+      def connectedPeers(): F[Map[ConnectedPeer, Client]] =
         connectedPeersRef.get
+
+      override def newConnectedPeers: F[Source[(ConnectedPeer, Client), NotUsed]] =
+        newConnectionsSource.pure[F]
 
       val localAddress: F[InetSocketAddress] =
         localAddress_.pure[F]
