@@ -9,6 +9,7 @@ import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.pattern.ask
 import akka.testkit.TestActorRef
 import akka.util.{ByteString, Timeout}
+import cats.data.NonEmptyChain
 import co.topl.akkahttprpc.ThrowableSupport.Standard._
 import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
 import co.topl.consensus._
@@ -16,27 +17,28 @@ import co.topl.http.HttpService
 import co.topl.modifier.block.Block
 import co.topl.network.BifrostSyncInfo
 import co.topl.network.utils.NetworkTimeProvider
+import co.topl.nodeView._
 import co.topl.nodeView.history.{History, InMemoryKeyValueStore}
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.{ActorNodeViewHolderInterface, NodeView, NodeViewHolder, TestableNodeViewHolder, ValidTransactionGenerators}
 import co.topl.rpc.ToplRpcServer
 import co.topl.utils.{DiskKeyRingTestHelper, TestSettings, TimeProvider}
+import org.scalacheck.Gen
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
-import scala.util.Try
 
 trait RPCMockState
     extends AnyWordSpec
     with TestSettings
+    with DiskKeyRingTestHelper
     with ValidTransactionGenerators
+    with ValidBlockchainGenerator
     with ScalatestRouteTest
     with BeforeAndAfterAll
-    with DiskKeyRingTestHelper
     with ScalaFutures {
 
   type BSI = BifrostSyncInfo
@@ -48,6 +50,9 @@ trait RPCMockState
   implicit val timeout: Timeout = Timeout(10.seconds)
 
   implicit protected val routeTestTimeout: RouteTestTimeout = RouteTestTimeout(5.seconds)
+
+  protected def blockchainGen: Byte => Gen[NonEmptyChain[Block]] =
+    (length: Byte) => validChainFromGenesis(keyRingCurve25519, protocolVersioner)(length)
 
   // TODO Fails when using rpcSettings
   override def createActorSystem(): ActorSystem = ActorSystem(settings.network.agentName)
@@ -63,8 +68,6 @@ trait RPCMockState
   protected var consensusInterface: ConsensusInterface = _
   protected var nodeViewHolderRef: akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage] = _
 
-  protected var km: KeyManager = _
-
   implicit protected var timeProvider: TimeProvider = _
 
   var rpcServer: ToplRpcServer = _
@@ -78,6 +81,10 @@ trait RPCMockState
 
     keyManagerRef = TestActorRef(
       new KeyManager(settings)(appContext.networkType.netPrefix)
+    )
+
+    keyManagerRef.underlyingActor.context.become(
+      keyManagerRef.underlyingActor.receive(keyRingCurve25519, Some(keyRingCurve25519.addresses.head))
     )
 
     consensusHolderRef = system.toTyped.systemActorOf(
@@ -98,9 +105,7 @@ trait RPCMockState
           NodeView.persistent(
             settings,
             consensusInterface,
-            () => (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
-              .mapTo[Try[StartupKeyView]]
-              .flatMap(Future.fromTry)
+            () => Future.successful(StartupKeyView(keyRingCurve25519.addresses, Some(keyRingCurve25519.addresses.head)))
           )(system.toTyped, implicitly, networkPrefix, protocolVersioner)
       ),
       NodeViewHolder.ActorName
@@ -117,16 +122,6 @@ trait RPCMockState
       ),
       Forger.ActorName
     )
-
-    km = keyManagerRef.underlyingActor
-
-//    // manipulate the underlying actor state
-//    TestableNodeViewHolder.setNodeView(
-//      nodeViewHolderRef,
-//      _.copy(state = generateState)
-//    )(system.toTyped)
-
-    km.context.become(km.receive(keyRingCurve25519, Some(keyRingCurve25519.addresses.head)))
 
     rpcServer = {
       implicit val typedSystem: akka.actor.typed.ActorSystem[_] = system.toTyped

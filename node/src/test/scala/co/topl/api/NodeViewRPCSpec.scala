@@ -1,45 +1,63 @@
 package co.topl.api
 
 import akka.util.ByteString
+import cats.data.NonEmptyChain
 import cats.implicits._
+import co.topl.codecs._
+import co.topl.consensus.{TestableConsensusViewHolder}
+import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.nodeView.TestableNodeViewHolder
 import co.topl.nodeView.history.History
+import co.topl.nodeView.state.State
 import co.topl.utils.GeneratorOps.GeneratorOps
+import co.topl.utils.Int128
 import co.topl.utils.implicits._
 import io.circe.Json
 import io.circe.parser.parse
 import io.circe.syntax._
-import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.{EitherValues, OptionValues}
 
-class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with EitherValues {
+class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with EitherValues with OptionValues {
 
-  var txs: Seq[TX] = _
+  var blocksAndTx: NonEmptyChain[(Block, Seq[TX])] = _
   var txId: String = _
-  var block: Block = _
+  var blocks: NonEmptyChain[Block] = _
 
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    txs = bifrostTransactionSeqGen.sampleFirst()
-    txId = txs.head.id.show
-    block = blockCurve25519Gen.sampleFirst().copy(transactions = txs)
+    blocks = blockchainGen(10).sampleFirst()
+    blocksAndTx = blocks.map(b => b -> b.transactions)
+    txId = blocksAndTx.last._2.head.id.show
 
     import akka.actor.typed.scaladsl.adapter._
+
     TestableNodeViewHolder.setNodeView(
       nodeViewHolderRef,
-      current =>
-        current.copy(history = current.history match {
-          case h: History =>
-            h.append(block, Seq())
-            h
-        })
+      current => {
+        current.copy(
+          history = current.history match {
+            case h: History => blocks.foldLeft(h)((accHistory, block) => accHistory.append(block, Seq()).get._1)
+          },
+          state = current.state match {
+            case s: State => blocks.foldLeft(s)((accState, block) => accState.applyModifier(block).get)
+          }
+        )
+      }
     )(system.toTyped)
 
-    view().mempool.putWithoutCheck(txs, block.timestamp)
+    TestableConsensusViewHolder.updateConsensusView(
+      consensusHolderRef,
+      blocks.last
+    )(system.toTyped)
+
+    blocksAndTx.map {
+      case (block, txs) => view().mempool.putWithoutCheck(txs, block.timestamp)
+    }
   }
 
   "NodeView RPC" should {
@@ -98,9 +116,9 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         }
         keyRingCurve25519.addresses.map { addr =>
           balances.hcursor.downField(addr.toString).get[Json]("Balances").map { balance =>
-            val testnetBalance = settings.application.genesis.generated.map(_.balanceForEachParticipant).toString
-            balance.hcursor.downField("Polys").as[String].value shouldEqual testnetBalance
-            balance.hcursor.downField("Arbits").as[String].value shouldEqual testnetBalance
+            val testnetBalance = settings.application.genesis.generated.map(_.balanceForEachParticipant).get
+            balance.hcursor.downField("Polys").as[Int128].value shouldEqual testnetBalance
+            balance.hcursor.downField("Arbits").as[Int128].value shouldEqual testnetBalance
           }
         }
         res.hcursor.downField("error").values shouldBe None
@@ -122,8 +140,11 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         httpPOST(requestBody(alias)) ~> route ~> check {
           val res: Json = parse(responseAs[String]).value
           val txIds =
-            res.hcursor.downField("result").as[Seq[Json]].value.map(_.hcursor.downField("txId").as[String].value)
-          txs.foreach(tx => txIds.contains(tx.id.toString) shouldBe true)
+            res.hcursor.downField("result").as[Seq[Json]].value.map(_.hcursor.downField("txId").as[ModifierId].value)
+
+          blocksAndTx.toChain.toList.foreach {
+            case (_, txs) => txIds.contains(txs.map(_.id)) shouldBe true
+          }
           res.hcursor.downField("error").values shouldBe None
         }
       }
@@ -143,8 +164,6 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |
         """.stripMargin)
 
-      view().mempool.putWithoutCheck(Seq(txs.head), block.timestamp)
-
       aliases.map { alias =>
         httpPOST(requestBody(alias)) ~> route ~> check {
           val res: Json = parse(responseAs[String]).value
@@ -152,8 +171,6 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
           res.hcursor.downField("error").values shouldBe None
         }
       }
-
-      view().mempool.remove(txs.head)
     }
 
     def modifierRequestBody(idType: String, rpcMethod: String, id: String): ByteString = ByteString(s"""
@@ -169,14 +186,14 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         """.stripMargin)
 
     "Return correct error response when a block id is provided for transactionById" in {
-      httpPOST(modifierRequestBody("transactionId", "topl_transactionById", block.id.toString)) ~> route ~> check {
+      httpPOST(modifierRequestBody("transactionId", "topl_transactionById", blocks.last.id.toString)) ~> route ~> check {
         val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
         res should include("The requested id's type is not an id type for Transaction")
       }
     }
 
     "Return correct error response when a block id is provided for topl_transactionFromMempool" in {
-      httpPOST(modifierRequestBody("transactionId", "topl_transactionById", block.id.toString)) ~> route ~> check {
+      httpPOST(modifierRequestBody("transactionId", "topl_transactionById", blocks.last.id.toString)) ~> route ~> check {
         val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
         res should include("The requested id's type is not an id type for Transaction")
       }
@@ -269,7 +286,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |   "id": "1",
         |   "method": "topl_blockById",
         |   "params": [{
-        |      "blockId": "${block.id.show}"
+        |      "blockId": "${blocks.last.id.show}"
         |   }]
         |}
         |
@@ -277,7 +294,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
-        res.hcursor.downField("result").as[Json].toString should include(block.id.toString)
+        res.hcursor.downField("result").as[Json].toString should include(blocks.last.id.toString)
         res.hcursor.downField("error").values shouldBe None
       }
     }
@@ -290,7 +307,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |   "id": "1",
         |   "method": "topl_blocksByIds",
         |   "params": [{
-        |      "blockIds": ["${block.id}"]
+        |      "blockIds": ["${blocks.map(_.id)}"]
         |   }]
         |}
         |
@@ -298,7 +315,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
-        res.hcursor.downField("result").as[Json].toString should include(block.id.toString)
+        res.hcursor.downField("result").as[Json].toString should include(blocks.map(_.id).toString)
         res.hcursor.downField("error").values shouldBe None
       }
     }
@@ -311,7 +328,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |   "id": "1",
         |   "method": "topl_blocksByIds",
         |   "params": [{
-        |      "blockIds": ["${block.id}", "${blockCurve25519Gen.sampleFirst().id}"]
+        |      "blockIds": ["${blocks.last.id}", "${blockCurve25519Gen.sampleFirst().id}"]
         |   }]
         |}
         |
@@ -338,7 +355,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
         val blockId = res.hcursor.downField("result").downField("header").get[String]("id").value
-        blockId shouldEqual block.id.toString
+        blockId shouldEqual blocks.head.id.toString
         res.hcursor.downField("error").values shouldBe None
       }
     }
@@ -402,7 +419,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
         val blockIds = res.hcursor.downField("result").as[Seq[String]].value
-        blockIds.head shouldEqual block.id.toString
+        blockIds.head shouldEqual blocks.head.id.toString
         res.hcursor.downField("error").values shouldBe None
       }
     }
@@ -421,8 +438,8 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
-        val blocks = res.hcursor.downField("result").as[Json].value.toString
-        blocks should include(block.id.toString)
+        val blocksRes = res.hcursor.downField("result").as[Json].value.toString
+        blocksRes should include(blocks.last.id.toString)
         res.hcursor.downField("error").values shouldBe None
       }
     }
@@ -442,7 +459,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
         val blockIds = res.hcursor.downField("result").as[Seq[String]].value
-        blockIds.head shouldEqual block.id.toString
+        blockIds.head shouldEqual blocks.last.id.toString
         res.hcursor.downField("error").values shouldBe None
       }
     }
@@ -494,7 +511,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |
         """.stripMargin)
 
-      view().mempool.putWithoutCheck(Seq(unconfirmedTx.head), block.timestamp)
+      view().mempool.putWithoutCheck(Seq(unconfirmedTx.head), blocks.last.timestamp)
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value

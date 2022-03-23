@@ -18,7 +18,7 @@ trait ValidBlockchainGenerator extends NetworkPrefixTestHelper {
 
   def validChainFromGenesis(
     keyRing:           KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-    protocolVersioner: ProtocolVersioner,
+    protocolVersioner: ProtocolVersioner)(
     lengthOfChain:     Byte
   ): Gen[NonEmptyChain[Block]] = {
     val leaderElection = new NxtLeaderElection(protocolVersioner)
@@ -119,7 +119,7 @@ object ChainTest extends ValidBlockchainGenerator {
 
   keyRingCurve25519.generateNewKeyPairs(3)
 
-  val exampleChain: NonEmptyChain[Block] = validChainFromGenesis(keyRingCurve25519, ProtocolVersioner.default, 15).sample.get
+  val exampleChain: NonEmptyChain[Block] = validChainFromGenesis(keyRingCurve25519, ProtocolVersioner.default)(15).sample.get
   val blockByHeight: Time => Option[Block] = (height: Long) => exampleChain.find(_.height == height)
 
   val leaderElection = new NxtLeaderElection(ProtocolVersioner.default)

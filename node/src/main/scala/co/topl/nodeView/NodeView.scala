@@ -90,17 +90,26 @@ object NodeView {
     settings:           AppSettings,
     consensusInterface: ConsensusInterface,
     startupKeyView:     () => Future[StartupKeyView]
-  )(implicit system:    ActorSystem[_], ec: ExecutionContext, networkPrefix: NetworkPrefix, protocolVersioner: ProtocolVersioner): Future[NodeView] =
+  )(implicit
+    system:            ActorSystem[_],
+    ec:                ExecutionContext,
+    networkPrefix:     NetworkPrefix,
+    protocolVersioner: ProtocolVersioner
+  ): Future[NodeView] =
     if (State.exists(settings)) {
       resume(settings)
-    } else {
+    } else
       fetchAndApplyGenesis(settings, consensusInterface, startupKeyView)
         .valueOrF(e => Future.failed(new IllegalArgumentException(e.toString)))
-    }
 
   private def resume(
-    settings:        AppSettings
-  )(implicit system: ActorSystem[_], ec: ExecutionContext, networkPrefix: NetworkPrefix, protocolVersioner: ProtocolVersioner): Future[NodeView] =
+    settings: AppSettings
+  )(implicit
+    system:            ActorSystem[_],
+    ec:                ExecutionContext,
+    networkPrefix:     NetworkPrefix,
+    protocolVersioner: ProtocolVersioner
+  ): Future[NodeView] =
     Future.successful(
       NodeView(
         History.readOrGenerate(settings),
@@ -114,14 +123,12 @@ object NodeView {
     consensusInterface: ConsensusInterface,
     startupKeyView:     () => Future[StartupKeyView]
   )(implicit
-    system:        ActorSystem[_],
-    ec:            ExecutionContext,
-    networkPrefix: NetworkPrefix, protocolVersioner: ProtocolVersioner
+    system:            ActorSystem[_],
+    ec:                ExecutionContext,
+    networkPrefix:     NetworkPrefix,
+    protocolVersioner: ProtocolVersioner
   ): EitherT[Future, NodeViewHolderInterface.ApplyFailure, NodeView] = for {
-    nodeAddresses <- EitherT.liftF(startupKeyView().map(_.addresses))
-    consensusView <- consensusInterface
-      .withView[NxtConsensus.View](identity)
-      .leftMap(e => NodeViewHolderInterface.ApplyFailure(new IllegalArgumentException(e.toString)))
+    nodeAddresses <- EitherT.liftF(startupKeyView()).map(_.addresses)
     genesis <- new GenesisProvider(protocolVersioner.applicable(1).blockVersion, nodeAddresses)
       .fetchGenesis(settings)
       .toEitherT[Future]

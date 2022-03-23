@@ -53,7 +53,6 @@ class NxtLeaderElection(protocolVersioner: ProtocolVersioner) {
     box:                                                    ArbitBox
   ): BigInt = {
     val targetBlockTime = protocolVersioner.applicable(consensusState.height + 1).value.targetBlockTime
-
     (BigInt(box.value.quantity.toByteArray) * BigInt(timeDelta) * BigInt(consensusState.difficulty)) /
     (BigInt(consensusState.totalStake.toByteArray) * BigInt(targetBlockTime.toMillis))
   }

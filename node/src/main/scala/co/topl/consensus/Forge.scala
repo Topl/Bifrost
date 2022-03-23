@@ -120,8 +120,8 @@ object Forge {
         {},
         ForgingError(
           new Throwable(
-            s"Parent block's height doesn't match the height from the consensus params: " +
-            s"Parent block height ${parentBlock.height} | Consensus params height ${consensusView.state.height}"
+            s"Parent block's height doesn't match the height held by consensus state: " +
+            s"Parent block height ${parentBlock.height} | Consensus height ${consensusView.state.height}"
           )
         )
       )
