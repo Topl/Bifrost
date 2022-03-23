@@ -19,7 +19,7 @@ import co.topl.network.utils.NetworkTimeProvider
 import co.topl.nodeView.history.{History, InMemoryKeyValueStore}
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.{ActorNodeViewHolderInterface, NodeView, NodeViewHolder, TestableNodeViewHolder, ValidTransactionGenerators}
+import co.topl.nodeView._
 import co.topl.rpc.ToplRpcServer
 import co.topl.utils.{DiskKeyRingTestHelper, TestSettings, TimeProvider}
 import org.scalatest.BeforeAndAfterAll
@@ -28,11 +28,12 @@ import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 trait RPCMockState
     extends AnyWordSpec
     with TestSettings
+    with NodeViewTestHelpers
     with ValidTransactionGenerators
     with ScalatestRouteTest
     with BeforeAndAfterAll
@@ -58,10 +59,10 @@ trait RPCMockState
   //       the state of the underlying instance while testing. Use with caution
   protected var keyManagerRef: TestActorRef[KeyManager] = _
   protected var forgerRef: akka.actor.typed.ActorRef[Forger.ReceivableMessage] = _
-
   protected var consensusHolderRef: akka.actor.typed.ActorRef[NxtConsensus.ReceivableMessage] = _
   protected var consensusInterface: ConsensusInterface = _
   protected var nodeViewHolderRef: akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage] = _
+  protected var nodeViewHolderInterface: ActorNodeViewHolderInterface = _
 
   protected var km: KeyManager = _
 
@@ -87,7 +88,6 @@ trait RPCMockState
       ),
       NxtConsensus.actorName
     )
-
     consensusInterface = new ActorConsensusInterface(consensusHolderRef)(system.toTyped, 10.seconds)
 
     nodeViewHolderRef = system.toTyped.systemActorOf(
@@ -98,25 +98,31 @@ trait RPCMockState
           NodeView.persistent(
             settings,
             consensusInterface,
-            () => (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
-              .mapTo[Try[StartupKeyView]]
-              .flatMap(Future.fromTry)
+            () =>
+              (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
+                .mapTo[Try[StartupKeyView]]
+                .flatMap(Future.fromTry)
           )(system.toTyped, implicitly, networkPrefix, protocolVersioner)
       ),
       NodeViewHolder.ActorName
     )
+    nodeViewHolderInterface = new ActorNodeViewHolderInterface(nodeViewHolderRef)(system.toTyped, 10.seconds)
 
-    forgerRef = system.toTyped.systemActorOf(
-      Forger.behavior(
-        settings.forging.blockGenerationDelay,
-        settings.forging.minTransactionFee,
-        settings.forging.forgeOnStartup,
-        () => (keyManagerRef ? KeyManager.ReceivableMessages.GetKeyView).mapTo[KeyView],
-        new ActorNodeViewHolderInterface(nodeViewHolderRef)(system.toTyped, implicitly[Timeout]),
-        new ActorConsensusInterface(consensusHolderRef)(system.toTyped, 10.seconds)
-      ),
-      Forger.ActorName
-    )
+    nodeViewHolderInterface.onReady().onComplete {
+      case Success(_) =>
+        forgerRef = system.toTyped.systemActorOf(
+          Forger.behavior(
+            settings.forging.blockGenerationDelay,
+            settings.forging.minTransactionFee,
+            settings.forging.forgeOnStartup,
+            () => (keyManagerRef ? KeyManager.ReceivableMessages.GetKeyView).mapTo[KeyView],
+            new ActorNodeViewHolderInterface(nodeViewHolderRef)(system.toTyped, implicitly[Timeout]),
+            new ActorConsensusInterface(consensusHolderRef)(system.toTyped, 10.seconds)
+          ),
+          Forger.ActorName
+        )
+      case Failure(exception) => new Exception(s"NodeViewHolder did not complete: $exception")
+    }
 
     km = keyManagerRef.underlyingActor
 
@@ -132,8 +138,6 @@ trait RPCMockState
       implicit val typedSystem: akka.actor.typed.ActorSystem[_] = system.toTyped
       val forgerInterface = new ActorForgerInterface(forgerRef)
       val keyManagerInterface = new ActorKeyManagerInterface(keyManagerRef)
-      val nodeViewHolderInterface =
-        new ActorNodeViewHolderInterface(nodeViewHolderRef)
       val consensusInterface = new ActorConsensusInterface(consensusHolderRef)
 
       import co.topl.rpc.handlers._
