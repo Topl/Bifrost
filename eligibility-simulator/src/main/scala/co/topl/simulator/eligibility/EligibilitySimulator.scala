@@ -31,6 +31,7 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.nio.file.{Files, Paths}
+import java.time.Instant
 import java.util.UUID
 import scala.concurrent.duration._
 import scala.util.Random
@@ -113,7 +114,7 @@ object EligibilitySimulator extends IOApp.Simple {
   implicit private val logger: Logger[F] = Slf4jLogger.getLogger[F]
 
   private val clock: ClockAlgebra[F] =
-    AkkaSchedulerClock.Eval.make(SlotDuration, EpochLength)
+    AkkaSchedulerClock.Eval.make(SlotDuration, EpochLength, Instant.now())
 
   implicit private val timeout: Timeout = Timeout(20.seconds)
 

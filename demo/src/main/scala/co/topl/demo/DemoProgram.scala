@@ -1,9 +1,8 @@
 package co.topl.demo
 
 import akka.actor.typed.ActorSystem
-import akka.event.Logging
-import akka.stream.{Attributes, Materializer}
-import akka.stream.scaladsl.{BroadcastHub, Keep, RunnableGraph, Sink, Source}
+import akka.stream.Materializer
+import akka.stream.scaladsl.{BroadcastHub, Flow, Keep, RunnableGraph, Sink, Source}
 import akka.{Done, NotUsed}
 import cats.data.{EitherT, OptionT, Validated}
 import cats.effect._
@@ -18,7 +17,7 @@ import co.topl.consensus.{BlockHeaderV2Ops, BlockHeaderValidationFailure}
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.algebras.PerpetualBlockMintAlgebra
 import co.topl.models._
-import co.topl.networking.blockchain.{BlockchainPeerConnection, BlockchainProtocolClient, BlockchainProtocolServer}
+import co.topl.networking.blockchain.{BlockchainPeerClient, BlockchainPeerConnectionFlowFactory, BlockchainPeerServer}
 import co.topl.networking.p2p._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
@@ -127,21 +126,27 @@ object DemoProgram {
     remotePeers:     Source[InetSocketAddress, _],
     headerStore:     Store[F, BlockHeaderV2],
     bodyStore:       Store[F, BlockBodyV2],
-    server:          BlockchainProtocolServer[F],
+    server:          BlockchainPeerServer[F],
     onBlockReceived: BlockV2 => F[Unit]
   )(implicit
     system: ActorSystem[_]
-  ): F[P2PServer[F, BlockchainProtocolClient[F]]] =
+  ): F[P2PServer[F, BlockchainPeerClient[F]]] =
     for {
       localAddress <- InetSocketAddress.createUnresolved("localhost", bindPort).pure[F]
       localPeer = LocalPeer(localAddress)
+      connectionFlowFactory = BlockchainPeerConnectionFlowFactory.make[F](server)
       peerHandlerFlow =
-        (connectedPeer: ConnectedPeer, leader: ConnectionLeader) =>
-          BlockchainPeerConnection
-            .make[F](connectedPeer, leader, localPeer)(server)
+        (connectedPeer: ConnectedPeer) =>
+          ConnectionLeaderFlow(leader =>
+            Flow.futureFlow(
+              implicitly[F ~> Future].apply(connectionFlowFactory(connectedPeer, leader))
+            )
+          )
+            .mapMaterializedValue(f => Async[F].fromFuture(f.flatten.pure[F]))
+            .pure[F]
       p2pServer <- {
         implicit val classicSystem = system.classicSystem
-        AkkaP2PServer.make(
+        AkkaP2PServer.make[F, BlockchainPeerClient[F]](
           "localhost",
           bindPort,
           localAddress,
@@ -160,7 +165,7 @@ object DemoProgram {
     bodyStore:   Store[F, BlockBodyV2]
   )(implicit
     materializer: Materializer
-  ): F[(BlockchainProtocolServer[F], TypedIdentifier => F[Unit])] =
+  ): F[(BlockchainPeerServer[F], TypedIdentifier => F[Unit])] =
     for {
       (locallyMintedBlockIdsQueue, locallyMintedBlockIdsSource) <-
         Sync[F].delay(
@@ -169,7 +174,7 @@ object DemoProgram {
             .toMat(BroadcastHub.sink)(Keep.both)
             .run()
         )
-      server = new BlockchainProtocolServer[F] {
+      server = new BlockchainPeerServer[F] {
 
         def localBlockAdoptions: F[Source[TypedIdentifier, NotUsed]] =
           Sync[F].delay(locallyMintedBlockIdsSource)
@@ -180,13 +185,11 @@ object DemoProgram {
       }
     } yield (
       server,
-      (id: TypedIdentifier) =>
-        //
-        Sync[F].delay(locallyMintedBlockIdsQueue.offer(id))
+      (id: TypedIdentifier) => Sync[F].delay(locallyMintedBlockIdsQueue.offer(id))
     )
 
   private def handleNetworkClients[F[_]: Async: Concurrent: Logger: *[_] ~> Future](
-    clients:         Source[BlockchainProtocolClient[F], _],
+    clients:         Source[BlockchainPeerClient[F], _],
     headerStore:     Store[F, BlockHeaderV2],
     bodyStore:       Store[F, BlockBodyV2],
     onBlockReceived: BlockV2 => F[Unit]
@@ -196,7 +199,7 @@ object DemoProgram {
         Async[F].fromFuture(
           Sync[F].delay(
             clients
-              .mapAsyncF(1)(client => handleNetworkClient(client, headerStore, bodyStore, onBlockReceived))
+              .mapAsyncF(1)(handleNetworkClient(_, headerStore, bodyStore, onBlockReceived))
               .runWith(Sink.ignore)
           )
         )
@@ -204,7 +207,7 @@ object DemoProgram {
     )
 
   private def handleNetworkClient[F[_]: Async: Concurrent: Logger: *[_] ~> Future](
-    client:          BlockchainProtocolClient[F],
+    client:          BlockchainPeerClient[F],
     headerStore:     Store[F, BlockHeaderV2],
     bodyStore:       Store[F, BlockBodyV2],
     onBlockReceived: BlockV2 => F[Unit]
@@ -222,15 +225,13 @@ object DemoProgram {
           runnableGraph = remoteAdoptionsSource
             .mapAsyncF(1)(blockNotificationProcessor)
             .to(Sink.ignore)
-          _ = runnableGraph
-            .withAttributes(Attributes.logLevels(onElement = Logging.InfoLevel, onFinish = Logging.InfoLevel))
-            .run()
+          _ = runnableGraph.run()
         } yield ()
       )
     )
 
   private def processRemoteBlockNotification[F[_]: Async: Concurrent: Logger: *[_] ~> Future](
-    client:          BlockchainProtocolClient[F],
+    client:          BlockchainPeerClient[F],
     headerStore:     Store[F, BlockHeaderV2],
     bodyStore:       Store[F, BlockBodyV2],
     onBlockReceived: BlockV2 => F[Unit]

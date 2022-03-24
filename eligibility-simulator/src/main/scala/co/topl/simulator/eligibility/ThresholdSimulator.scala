@@ -22,6 +22,7 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.nio.file.{Files, Paths}
+import java.time.Instant
 import java.util.UUID
 import scala.concurrent.duration._
 import scala.math.BigDecimal.RoundingMode
@@ -64,7 +65,7 @@ object ThresholdSimulator extends IOApp.Simple {
       (stakerVRFSK, stakerVRFVK) <- ed25519VRFResource.use(
         _.createKeyPair(Entropy.fromUuid(UUID.randomUUID()), None).pure[F]
       )
-      clock = AkkaSchedulerClock.Eval.make[F](SlotDuration, EpochLength)
+      clock = AkkaSchedulerClock.Eval.make[F](SlotDuration, EpochLength, Instant.now())
       statsInterpreter = StatsInterpreter.Eval.make[F](statsDir)
       _ <- testConfigs.traverse { case (precision, amplitude, relativeStake) =>
         val vrfConfig =

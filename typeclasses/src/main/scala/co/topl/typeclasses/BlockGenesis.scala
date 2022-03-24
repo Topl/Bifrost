@@ -75,6 +75,6 @@ object BlockGenesis {
         metadata = None,
         address = address
       )
-    BlockV2(header, transactions.toList.map(_.id))
+    BlockV2(header, transactions.toList.map(_.id.asTypedBytes))
   }
 }

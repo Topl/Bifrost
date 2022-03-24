@@ -4,7 +4,7 @@ import cats.Applicative
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
-import co.topl.networking.Parties
+import co.topl.networking.{NetworkTypeTag, Parties}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -20,6 +20,7 @@ class RequestResponseProtocolSpec
     with ScalaCheckDrivenPropertyChecks
     with EitherValues
     with OptionValues {
+  import RequestResponseProtocolSpec._
 
   type F[A] = IO[A]
 
@@ -44,15 +45,15 @@ class RequestResponseProtocolSpec
 
     val computation =
       for {
-        _ <- applier(TypedProtocol.CommonMessages.Start, Parties.B).map(_.value)
+        _ <- applier(TypedProtocol.CommonMessages.Start, Parties.A).map(_.value)
         _ = handlerF.expects(*).once().returning(Applicative[F].unit)
         _ <- applier(TypedProtocol.CommonMessages.Get("foo"), Parties.B).map(_.value)
         _ = handlerF.expects(*).never()
-        _ <- applier(TypedProtocol.CommonMessages.Response(none), Parties.A).map(_.value)
+        _ <- applier(TypedProtocol.CommonMessages.Response(none[Int]), Parties.A).map(_.value)
         _ = handlerF.expects(*).once().returning(Applicative[F].unit)
         _ <- applier(TypedProtocol.CommonMessages.Get("foo"), Parties.B).map(_.value)
         _ = handlerF.expects(*).never()
-        _          <- applier(TypedProtocol.CommonMessages.Response(none), Parties.A).map(_.value)
+        _          <- applier(TypedProtocol.CommonMessages.Response(none[Int]), Parties.A).map(_.value)
         finalState <- applier(TypedProtocol.CommonMessages.Done, Parties.B).map(_.value)
       } yield finalState
 
@@ -62,4 +63,31 @@ class RequestResponseProtocolSpec
 
   }
 
+}
+
+object RequestResponseProtocolSpec {
+
+  implicit val commonMessagesStartNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Start.type] =
+    NetworkTypeTag.create
+
+  implicit val commonStatesNoneNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonStates.None.type] =
+    NetworkTypeTag.create
+
+  implicit val commonStatesIdleNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonStates.Idle.type] =
+    NetworkTypeTag.create
+
+  implicit val commonStatesBusyNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonStates.Busy.type] =
+    NetworkTypeTag.create
+
+  implicit val commonMessagesGetStringNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Get[String]] =
+    NetworkTypeTag.create
+
+  implicit val commonMessagesResoibseIntNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Response[Int]] =
+    NetworkTypeTag.create
+
+  implicit val commonStatesDoneNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonStates.Done.type] =
+    NetworkTypeTag.create
+
+  implicit val commonMessagesDoneNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Done.type] =
+    NetworkTypeTag.create
 }

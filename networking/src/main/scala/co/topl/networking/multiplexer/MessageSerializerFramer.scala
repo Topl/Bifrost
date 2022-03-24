@@ -4,8 +4,6 @@ import akka.NotUsed
 import akka.stream.scaladsl.Flow
 import akka.util.ByteString
 
-trait MessageSerializer[T] extends (T => (Byte, ByteString))
-
 object MessageSerializerFramer {
 
   def apply(): Flow[(Byte, ByteString), ByteString, NotUsed] =

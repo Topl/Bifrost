@@ -14,9 +14,13 @@ import akka.util.ByteString
 
 import scala.annotation.tailrec
 
-trait MessageParser[T] extends ((Byte, ByteString) => T)
+object MessageParserFramer {
 
-private class MessageParserFramer extends GraphStage[FlowShape[ByteString, List[(Byte, ByteString)]]] {
+  def apply(): Flow[ByteString, (Byte, ByteString), NotUsed] =
+    Flow.fromGraph(new MessageParserFramerImpl).mapConcat(identity)
+}
+
+private class MessageParserFramerImpl extends GraphStage[FlowShape[ByteString, List[(Byte, ByteString)]]] {
 
   private val inlet = Inlet[ByteString]("MessageParserFramer.In")
 
@@ -70,10 +74,4 @@ private class MessageParserFramer extends GraphStage[FlowShape[ByteString, List[
 
       setHandlers(inlet, outlet, processing(ByteString.empty))
     }
-}
-
-object MessageParserFramer {
-
-  def apply(): Flow[ByteString, (Byte, ByteString), NotUsed] =
-    Flow.fromGraph(new MessageParserFramer).mapConcat(identity)
 }

@@ -4,6 +4,7 @@ import akka.stream._
 import akka.stream.scaladsl.GraphDSL.Implicits._
 import akka.stream.scaladsl.{Flow, GraphDSL, Merge, Partition}
 import akka.util.ByteString
+import cats.data.NonEmptyChain
 
 /**
  * Multiplexes outbound sub-protocol "packets" into a single stream.  Demultiplexes inbound "packets" into multiple
@@ -20,15 +21,16 @@ import akka.util.ByteString
  */
 object Multiplexer {
 
-  def apply[Client](subProtocols: List[SubHandler], client: => Client): Flow[ByteString, ByteString, Client] =
+  def apply[Client](subProtocols: NonEmptyChain[SubHandler], client: => Client): Flow[ByteString, ByteString, Client] =
     Flow[ByteString]
       .via(MessageParserFramer())
       .via(
         Flow.fromGraph(GraphDSL.create() { implicit builder =>
-          val subPortMapping: Map[Byte, Int] = subProtocols.map(_.sessionId).zipWithIndex.toMap
+          val subProtocolsList = subProtocols.toChain.toList
+          val subPortMapping: Map[Byte, Int] = subProtocolsList.map(_.sessionId).zipWithIndex.toMap
           val partition = builder.add(
             new Partition[(Byte, ByteString)](
-              subProtocols.size,
+              subProtocolsList.size,
               { case (typeByte, _) => subPortMapping(typeByte) },
               eagerCancel = true
             )
@@ -36,9 +38,9 @@ object Multiplexer {
 
           val merge =
             builder.add(
-              Merge[(Byte, ByteString)](subProtocols.size, eagerComplete = true)
+              Merge[(Byte, ByteString)](subProtocolsList.size, eagerComplete = true)
             )
-          subProtocols.foreach { case SubHandler(sessionId, sink, source) =>
+          subProtocolsList.foreach { case SubHandler(sessionId, sink, source) =>
             val port = subPortMapping(sessionId)
             val hFlow = builder.add(
               Flow.fromSinkAndSource(Flow[ByteString].buffer(1, OverflowStrategy.backpressure).to(sink), source)

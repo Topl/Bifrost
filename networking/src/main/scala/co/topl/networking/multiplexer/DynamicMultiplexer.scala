@@ -3,7 +3,7 @@ package co.topl.networking.multiplexer
 import akka.NotUsed
 import akka.stream._
 import akka.stream.scaladsl.GraphDSL.Implicits._
-import akka.stream.scaladsl.{Flow, GraphDSL, Sink, Source}
+import akka.stream.scaladsl.{Flow, GraphDSL, Source}
 import akka.stream.stage._
 import akka.util.ByteString
 
@@ -21,6 +21,8 @@ import scala.collection.mutable
  *
  * Each outbound "packet" is placed into the form of (byte prefix, int length, data).  When a sub-protocol produces data,
  * the multiplexer prepends the sub-protocol's byte prefix and the length of the data.
+ *
+ * In the Dynamic Multiplexer, the sub-handlers can be updated as needed throughout the lifecycle of the multiplexer.
  */
 object DynamicMultiplexer {
 
@@ -31,7 +33,7 @@ object DynamicMultiplexer {
       .via(MessageParserFramer())
       .via(
         Flow.fromGraph(GraphDSL.create() { implicit builder =>
-          val multiplexer = builder.add(new MultiplexerImpl)
+          val multiplexer = builder.add(new DynamicMultiplexerImpl)
           val subProtocolsB = builder.add(subProtocols)
           subProtocolsB.out ~> multiplexer.subHandlersIn
 
@@ -42,7 +44,7 @@ object DynamicMultiplexer {
 
 }
 
-case class MultiplexerStageShape(
+case class DynamicMultiplexerStageShape(
   dataIn:        Inlet[(Byte, ByteString)],
   dataOut:       Outlet[(Byte, ByteString)],
   subHandlersIn: Inlet[List[SubHandler]]
@@ -54,10 +56,10 @@ case class MultiplexerStageShape(
   def deepCopy(): Shape = this.copy()
 }
 
-class MultiplexerImpl extends GraphStage[MultiplexerStageShape] {
+private class DynamicMultiplexerImpl extends GraphStage[DynamicMultiplexerStageShape] {
 
-  val shape: MultiplexerStageShape =
-    MultiplexerStageShape(
+  val shape: DynamicMultiplexerStageShape =
+    DynamicMultiplexerStageShape(
       Inlet("MultiplexerData.In"),
       Outlet("MultiplexerData.Out"),
       Inlet("MultiplexerSubHandlers.In")

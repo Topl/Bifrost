@@ -6,7 +6,7 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.Transmittable
 import co.topl.models.{BlockBodyV2, BlockHeaderV2, Transaction, TypedIdentifier}
-import co.topl.networking.MultiplexerCodecBuilder
+import co.topl.networking.multiplexer.MultiplexerCodecBuilder
 import co.topl.networking.blockchain.NetworkTypeTags._
 import co.topl.networking.typedprotocols.TypedProtocol
 import scodec.{Attempt, Codec, DecodeResult, Decoder, Encoder, Err}

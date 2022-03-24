@@ -111,10 +111,6 @@ object ProofVerifier {
           value == sourceBox.value
         case Box(TypedEvidence.empty, nonce, Box.Values.Empty) =>
           nonce == sourceBox.nonce
-        case Box(TypedEvidence.empty, nonce, Box.Values.Empty) =>
-          nonce == sourceBox.nonce
-        case Box(TypedEvidence.empty, nonce, Box.Values.Empty) =>
-          nonce == sourceBox.nonce
         case Box(TypedEvidence.empty, nonce, value) =>
           nonce == sourceBox.nonce
         case Box(typedEvidence, 0, Box.Values.Empty) =>

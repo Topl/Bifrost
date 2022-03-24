@@ -2,7 +2,7 @@ package co.topl.networking.typedprotocols
 
 import cats.Monad
 import cats.data.{Chain, EitherT}
-import cats.effect.kernel.GenConcurrent
+import cats.effect.Concurrent
 import cats.effect.std.Semaphore
 import cats.implicits._
 import co.topl.networking.{NetworkTypeTag, Party}
@@ -75,8 +75,8 @@ case class TypedProtocolInstance[F[_]] private (
    * @param initialState The initial state of the protocol
    */
   def applier[S: NetworkTypeTag](
-    initialState:            S
-  )(implicit genConcurrentF: GenConcurrent[F, _]): F[MessageApplier] =
+    initialState:         S
+  )(implicit concurrentF: Concurrent[F]): F[MessageApplier] =
     Semaphore[F](1)
       .map(semaphore =>
         new MessageApplier {
