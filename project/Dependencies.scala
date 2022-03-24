@@ -154,7 +154,7 @@ object Dependencies {
   lazy val common: Seq[ModuleID] =
     Seq(
       "org.typelevel"          %% "simulacrum"              % simulacrumVersion,
-      "org.scala-lang.modules" %% "scala-collection-compat" % "2.6.0",
+      "org.scala-lang.modules" %% "scala-collection-compat" % "2.7.0",
       "org.mongodb.scala"      %% "mongo-scala-driver"      % "4.3.2",
       "io.circe"               %% "circe-generic"           % circeVersion,
       "org.scodec"             %% "scodec-core"             % "1.11.8",
@@ -172,7 +172,7 @@ object Dependencies {
     Seq(
       "io.circe"               %% "circe-core"              % circeVersion,
       "io.circe"               %% "circe-parser"            % circeVersion,
-      "org.scala-lang.modules" %% "scala-collection-compat" % "2.6.0"
+      "org.scala-lang.modules" %% "scala-collection-compat" % "2.7.0"
     ) ++
     test ++
     graal
@@ -185,7 +185,7 @@ object Dependencies {
       "de.heikoseeberger"      %% "akka-http-circe"         % "1.39.2",
       "io.circe"               %% "circe-optics"            % circeVersion,
       "io.circe"               %% "circe-generic"           % circeVersion,
-      "org.scala-lang.modules" %% "scala-collection-compat" % "2.6.0"
+      "org.scala-lang.modules" %% "scala-collection-compat" % "2.7.0"
     ) ++
     circe ++
     allAkka ++
@@ -194,7 +194,7 @@ object Dependencies {
   lazy val toplRpc: Seq[ModuleID] =
     Seq(
       "io.circe"               %% "circe-generic"           % circeVersion,
-      "org.scala-lang.modules" %% "scala-collection-compat" % "2.6.0"
+      "org.scala-lang.modules" %% "scala-collection-compat" % "2.7.0"
     ) ++
     circe ++
     test
