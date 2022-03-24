@@ -2,17 +2,13 @@ package co.topl.consensus
 
 import cats.data.NonEmptyChain
 import co.topl.attestation.Address
-import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
-import co.topl.consensus.BlockValidators._
+import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, PrivateKeyCurve25519}
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, TransferTransaction}
-import co.topl.utils.NetworkPrefixTestHelper
-import co.topl.utils.TimeProvider.Time
+import co.topl.utils.{InMemoryKeyRingTestHelper, NetworkPrefixTestHelper}
 import co.topl.utils.implicits.toEitherOps
 import org.scalacheck.Gen
-
-import scala.util.Try
 
 trait ValidBlockchainGenerator extends NetworkPrefixTestHelper {
 
@@ -106,44 +102,4 @@ trait ValidBlockchainGenerator extends NetworkPrefixTestHelper {
     )
   }
 
-}
-
-/** This is an example usage of the ValidBlockchainGenerator and a set of validator extractors for using the BlockValidators
- * to verify the chain of blocks */
-object ChainTest extends ValidBlockchainGenerator {
-
-  val keyRingCurve25519: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] = {
-    implicit def keyfileCurve25519Companion: KeyfileCurve25519Companion.type = KeyfileCurve25519Companion
-    KeyRing.empty[PrivateKeyCurve25519, KeyfileCurve25519]()
-  }
-
-  keyRingCurve25519.generateNewKeyPairs(3)
-
-  val exampleChain: NonEmptyChain[Block] = validChainFromGenesis(keyRingCurve25519, ProtocolVersioner.default, 15).sample.get
-  val blockByHeight: Time => Option[Block] = (height: Long) => exampleChain.find(_.height == height)
-
-  val leaderElection = new NxtLeaderElection(ProtocolVersioner.default)
-
-  val getParent: Block => Option[Block] = (block: Block) => blockByHeight(block.height - 1)
-  val getParentHeight: Block => Option[Long] = (block: Block) => getParent(block).map(_.height)
-  val getDetails: Block => Some[(Block, IndexedSeq[Time])] = (block: Block) =>
-    Some(getParent(block).get -> (Math.max(1, block.height - 3) to block.height).map(blockByHeight(_).get).map(_.timestamp))
-  val getParentTimestamp: Block => Option[Time] = (block: Block) => getParent(block).map(_.timestamp)
-
-  val consensusState: Block => NxtConsensus.State = (block: Block) => NxtConsensus.State(Int.MaxValue, getParent(block).get.difficulty, 0L, getParent(block).get.height)
-
-  val validators: Block => Seq[Try[Unit]] = (block: Block) =>
-    Seq(
-      new DifficultyValidator(leaderElection).validate(getDetails)(block),
-      new HeightValidator().validate(getParentHeight)(block),
-      new EligibilityValidator(leaderElection, consensusState(block)).validate(getParent)(block),
-      new SyntaxValidator(consensusState(block)).validate(identity)(block),
-      new TimestampValidator().validate(getParentTimestamp)(block)
-    )
-
-  def main(args: Array[String]): Unit = {
-    exampleChain.tail.map { block =>
-      println(s"height: ${block.height}, validation -> ${validators(block).map(_.isSuccess)}")
-    }
-  }
 }
