@@ -97,16 +97,6 @@ package object digest {
 
       override def bytes(d: Digest64): Array[Byte] = d.value
     }
-
-    implicit val showInvalidDigestFailure: Show[InvalidDigestFailure] = { case IncorrectSize =>
-      s"Digest is the incorrect size"
-    }
-
-    implicit def eqDigest[D: Digest]: Eq[D] = Digest[D].bytes(_) sameElements Digest[D].bytes(_)
-
-    implicit val eqDigest32: Eq[Digest32] = eqDigest[Digest32]
-
-    implicit val eqDigest64: Eq[Digest64] = eqDigest[Digest64]
   }
 
   trait DigestImplicits extends Instances with Digest.ToDigestOps

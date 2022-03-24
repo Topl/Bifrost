@@ -5,15 +5,16 @@ import akka.actor._
 import akka.util.Timeout
 import cats.data.EitherT
 import cats.implicits._
-import co.topl.attestation.AddressCodec.implicits.Base58DataOps
+import co.topl.attestation.implicits._
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.catsakka.AskException
-import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
+import co.topl.codecs._
 import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType._
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
+import co.topl.utils.catsinstances.implicits._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Success, Try}
@@ -21,6 +22,7 @@ import scala.util.{Success, Try}
 /** Actor that manages the keyRing and reward address */
 class KeyManager(settings: AppSettings, appContext: AppContext)(implicit np: NetworkPrefix) extends Actor with Logging {
 
+  import KeyManager._
   import KeyManager.ReceivableMessages._
 
   // //////////////////////////////////////////////////////////////////////////////////
@@ -47,7 +49,7 @@ class KeyManager(settings: AppSettings, appContext: AppContext)(implicit np: Net
     case ImportKey(password, mnemonic, lang) => sender() ! keyRing.importPhrase(password, mnemonic, lang)
     case ListKeys                            => sender() ! keyRing.addresses
     case UpdateRewardsAddress(address)       => sender() ! updateRewardsAddress(keyRing, address)
-    case GetRewardsAddress                   => sender() ! rewardAddress.fold("none")(_.toString)
+    case GetRewardsAddress                   => sender() ! rewardAddress.fold("none")(_.show)
     case GetKeyView                          => sender() ! getKeyView(keyRing, rewardAddress)
     case GenerateInitialAddresses            => sender() ! generateInitialAddresses(keyRing, rewardAddress)
   }
@@ -133,7 +135,7 @@ class KeyManager(settings: AppSettings, appContext: AppContext)(implicit np: Net
   ): String = {
     val newRewardAddress = Some(address)
     context.become(receive(keyRing, newRewardAddress))
-    newRewardAddress.fold("none")(_.toString)
+    newRewardAddress.fold("none")(_.show)
   }
 }
 

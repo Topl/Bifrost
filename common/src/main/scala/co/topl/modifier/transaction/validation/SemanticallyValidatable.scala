@@ -3,7 +3,7 @@ package co.topl.modifier.transaction.validation
 import cats.data.{NonEmptyChain, Validated, ValidatedNec}
 import cats.implicits._
 import co.topl.attestation.{Address, Proof, Proposition}
-import co.topl.modifier.BoxReader
+import co.topl.modifier.{BoxReader, ProgramId}
 import co.topl.modifier.box._
 import co.topl.modifier.transaction._
 import co.topl.utils.Int128
@@ -141,7 +141,7 @@ class TransferTransactionSemanticallyValidatable[T <: TokenValueHolder, P <: Pro
   ): ValidatedNec[SemanticValidationFailure, TransferTransaction[T, P]] =
     tx match {
       case _: PolyTransfer[_] if tx.minting =>
-        // Poly block rewards (skip enfocring)
+        // Poly block rewards (skip enforcing)
         tx.validNec[SemanticValidationFailure]
       case _: ArbitTransfer[_] if tx.minting =>
         // Arbit block rewards (skip enforcing)
