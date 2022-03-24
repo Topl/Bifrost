@@ -1,7 +1,7 @@
 package co.topl.attestation.keyManagement
 
 import co.topl.attestation.{KnowledgeProposition, ProofOfKnowledge}
-import co.topl.utils.serialization.BytesSerializable
+import co.topl.codecs.binary.legacy.BytesSerializable
 
 trait Secret extends BytesSerializable {
   self =>

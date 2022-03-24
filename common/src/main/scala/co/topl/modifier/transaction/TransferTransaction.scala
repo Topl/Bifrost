@@ -2,7 +2,6 @@ package co.topl.modifier.transaction
 
 import co.topl.attestation._
 import co.topl.crypto.hash.blake2b256
-import co.topl.modifier.BoxReader
 import co.topl.modifier.block.BloomFilter.BloomTopic
 import co.topl.modifier.box._
 import co.topl.utils.StringDataTypes.Latin1Data
@@ -12,7 +11,6 @@ import io.circe.Json
 import io.circe.syntax.EncoderOps
 
 import scala.collection.immutable.ListMap
-import scala.util.Try
 
 abstract class TransferTransaction[
   +T <: TokenValueHolder,
@@ -41,11 +39,10 @@ abstract class TransferTransaction[
 
   val coinOutput: Iterable[TokenBox[T]]
 
-  override val newBoxes: Iterable[TokenBox[TokenValueHolder]]
-
   override def messageToSign: Array[Byte] =
-    super.messageToSign ++
-    data.fold(Array(0: Byte))(_.value) :+ (if (minting) 1: Byte else 0: Byte)
+    super.messageToSign ++ data.fold(Array(0: Byte))(_.value) :+ (if (minting) 1: Byte else 0: Byte)
+
+  override val newBoxes: Iterable[TokenBox[TokenValueHolder]]
 
 }
 

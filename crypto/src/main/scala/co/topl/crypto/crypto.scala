@@ -8,6 +8,10 @@ import scala.language.implicitConversions
 
 package object crypto {
 
+  // todo: deprecatee
+  @newtype
+  case class Signature(value: Array[Byte])
+
   @newtype
   case class PrivateKey(value: Array[Byte])
 
@@ -21,6 +25,12 @@ package object crypto {
   @newtype
   case class PublicKey(value: Array[Byte])
 
-  object implicits extends digest.Instances with digest.Digest.ToDigestOps with hash.Instances with PrivateKey.Instances
+  trait Implicits
+      extends digest.Instances
+      with digest.Digest.ToDigestOps
+      with hash.Instances
+      with PrivateKey.Instances
+      with catsinstances.Implicits
 
+  object implicits extends Implicits
 }
