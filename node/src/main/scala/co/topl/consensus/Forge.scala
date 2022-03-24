@@ -4,8 +4,9 @@ import cats.data.Validated
 import cats.implicits._
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus.KeyManager.KeyView
+import co.topl.modifier.ProgramId
 import co.topl.modifier.block.Block
-import co.topl.modifier.box.{ArbitBox, ProgramId}
+import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
 import co.topl.nodeView.ReadableNodeView
 import co.topl.nodeView.mempool.MemPoolReader
