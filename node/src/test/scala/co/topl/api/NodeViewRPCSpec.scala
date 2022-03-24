@@ -4,7 +4,7 @@ import akka.util.ByteString
 import cats.data.NonEmptyChain
 import cats.implicits._
 import co.topl.codecs._
-import co.topl.consensus.{TestableConsensusViewHolder}
+import co.topl.consensus.TestableConsensusViewHolder
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.TX
@@ -38,7 +38,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
 
     TestableNodeViewHolder.setNodeView(
       nodeViewHolderRef,
-      current => {
+      current =>
         current.copy(
           history = current.history match {
             case h: History => blocks.foldLeft(h)((accHistory, block) => accHistory.append(block, Seq()).get._1)
@@ -47,7 +47,6 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
             case s: State => blocks.foldLeft(s)((accState, block) => accState.applyModifier(block).get)
           }
         )
-      }
     )(system.toTyped)
 
     TestableConsensusViewHolder.updateConsensusView(
@@ -55,8 +54,8 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       blocks.last
     )(system.toTyped)
 
-    blocksAndTx.map {
-      case (block, txs) => view().mempool.putWithoutCheck(txs, block.timestamp)
+    blocksAndTx.map { case (block, txs) =>
+      view().mempool.putWithoutCheck(txs, block.timestamp)
     }
   }
 
@@ -139,12 +138,11 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       aliases.map { alias =>
         httpPOST(requestBody(alias)) ~> route ~> check {
           val res: Json = parse(responseAs[String]).value
-          val txIds =
+          val txIdsRes =
             res.hcursor.downField("result").as[Seq[Json]].value.map(_.hcursor.downField("txId").as[ModifierId].value)
 
-          blocksAndTx.toChain.toList.foreach {
-            case (_, txs) => txIds.contains(txs.map(_.id)) shouldBe true
-          }
+          // All the transactions from the generated chain should exist in the response
+          blocksAndTx.map { case (_, txs) => txs.foreach(tx => txIdsRes.contains(tx.id) shouldBe true) }
           res.hcursor.downField("error").values shouldBe None
         }
       }
@@ -186,14 +184,18 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         """.stripMargin)
 
     "Return correct error response when a block id is provided for transactionById" in {
-      httpPOST(modifierRequestBody("transactionId", "topl_transactionById", blocks.last.id.toString)) ~> route ~> check {
+      httpPOST(
+        modifierRequestBody("transactionId", "topl_transactionById", blocks.last.id.toString)
+      ) ~> route ~> check {
         val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
         res should include("The requested id's type is not an id type for Transaction")
       }
     }
 
     "Return correct error response when a block id is provided for topl_transactionFromMempool" in {
-      httpPOST(modifierRequestBody("transactionId", "topl_transactionById", blocks.last.id.toString)) ~> route ~> check {
+      httpPOST(
+        modifierRequestBody("transactionId", "topl_transactionById", blocks.last.id.toString)
+      ) ~> route ~> check {
         val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
         res should include("The requested id's type is not an id type for Transaction")
       }
@@ -307,7 +309,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |   "id": "1",
         |   "method": "topl_blocksByIds",
         |   "params": [{
-        |      "blockIds": ["${blocks.map(_.id)}"]
+        |      "blockIds": ${blocks.map(_.id).toList.asJson}
         |   }]
         |}
         |
@@ -315,7 +317,9 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
-        res.hcursor.downField("result").as[Json].toString should include(blocks.map(_.id).toString)
+        blocks.map(_.id).map { blockId =>
+          res.hcursor.downField("result").as[Json].toString should include(blockId.toString)
+        }
         res.hcursor.downField("error").values shouldBe None
       }
     }
@@ -382,7 +386,8 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
     }
 
     "Fail if an invalid height range is provided for blocksInRange" in {
-      val ranges = Seq((0, 1), (2, 1), (2, 2))
+      val chainLength: Long = blocks.size
+      val ranges: Seq[(Long, Long)] = Seq((0, 1), (2, 1), (chainLength + 1, chainLength + 1))
       def requestBody(startHeight: Long, endHeight: Long): ByteString = ByteString(s"""
         |{
         |   "jsonrpc": "2.0",
@@ -483,11 +488,6 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
           .get[String]("currentProtocolRuleset")
           .value
           .shouldEqual(protocolVersioner.applicable(view().history.height).toString)
-
-        res.hcursor
-          .get[String]("currentBlockVersion")
-          .value
-          .shouldEqual(protocolVersioner.applicable(view().history.height).blockVersion.toString)
 
         res.hcursor.downField("error").values shouldBe None
       }
