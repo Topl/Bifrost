@@ -18,7 +18,7 @@ trait ValidBlockchainGenerator extends NetworkPrefixTestHelper {
     lengthOfChain:     Byte
   ): Gen[NonEmptyChain[Block]] = {
     val leaderElection = new NxtLeaderElection(protocolVersioner)
-    val totalStake = Int.MaxValue
+    val balanceForEachParticipant = Int.MaxValue
     val initialDifficulty = Long.MaxValue // ensure that the threshold calculation is maximized
 
     // manipulate the time between subsequent blocks to manage the adjustment of difficulty
@@ -27,7 +27,7 @@ trait ValidBlockchainGenerator extends NetworkPrefixTestHelper {
 
     val genesis = GenesisProvider.construct(
       Set(keyRing.addresses.head), // use a single address so that the generator box is constant
-      totalStake,
+      balanceForEachParticipant,
       initialDifficulty,
       protocolVersioner.applicable(1).blockVersion
     )

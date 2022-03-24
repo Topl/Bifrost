@@ -39,7 +39,7 @@ class ValidBlockchainGeneratorSpec extends AnyPropSpec with ValidBlockchainGener
       val leaderElection = new NxtLeaderElection(ProtocolVersioner.default)
 
       val nonEmptyBlockchain: NonEmptyChain[Block] =
-        validChainFromGenesis(keyRingCurve25519, ProtocolVersioner.default, length.toByte).sample.get
+        validChainFromGenesis(keyRingCurve25519, ProtocolVersioner.default)(length.toByte).sample.get
 
       val extractors = new BlockDataExtractors(nonEmptyBlockchain)
       import extractors._
