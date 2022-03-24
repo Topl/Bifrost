@@ -31,26 +31,23 @@ trait LentzMethod {
     val tinyFactor = Ratio(1,bigFactor)
     val truncationError:Ratio = Ratio(1,BigInt(10).pow(prec+1))
     var fj:Ratio = {
-      if (b(0)==Ratio(0)) tinyFactor
+      if (b(0)==Ratio.Zero) tinyFactor
       else b(0)
     }
     var cj:Ratio = fj
-    var dj:Ratio = Ratio(0)
-    var deltaj = Ratio(1)
-    var diff = Ratio(1)
+    var dj:Ratio = Ratio.Zero
+    var deltaj = Ratio.One
     var error:Boolean = true
     def loop(j:Int):Unit = {
       dj = b(j) + a(j) * dj
-      if (dj == Ratio(0)) dj = tinyFactor
+      if (dj == Ratio.Zero) dj = tinyFactor
       cj = b(j) + a(j)/cj
-      if (cj == Ratio(0)) cj = tinyFactor
+      if (cj == Ratio.Zero) cj = tinyFactor
       dj = Ratio(dj.denominator,dj.numerator)
       deltaj = cj*dj
-      val fjm1 = fj
       fj = fj*deltaj
-      diff = fj - fjm1
       error = j match {
-        case _ if j > 1 => (deltaj-Ratio(1)).abs > truncationError
+        case _ if j > 1 => (deltaj-Ratio.One).abs > truncationError
         case _ => true
       }
     }

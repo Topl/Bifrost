@@ -25,7 +25,7 @@ class LentzSpec extends AnyFlatSpec
 
   it should "calculate to desired precision" in {
     val maxIter = 10000
-    val precision = 38
+    val precision = 40
     val exp = ExpInterpreter.make[F](maxIter,precision).unsafeRunSync()
     val rationalApprox = RationalApproximationInterpreter.make[F](100000,maxIter).unsafeRunSync()
     val log1p = Log1pInterpreter.make[F](maxIter,precision).unsafeRunSync()
@@ -48,7 +48,7 @@ class LentzSpec extends AnyFlatSpec
       val relativeStake = Ratio(stake,netStake)
       val coefficient = Ratio(math.log(1.0-f.toDouble),5)
       val ref = BigDecimal(1 - math.pow(1.0 - f.toDouble, relativeStake.toDouble))
-      val res = Ratio(1) - exp.evaluate(coefficient * relativeStake).unsafeRunSync()
+      val res = Ratio.One - exp.evaluate(coefficient * relativeStake).unsafeRunSync()
       val absError = (res.toBigDecimal - ref).abs
       (stake,netStake,res,res.toBigDecimal,ref,absError < math.pow(10,-precision))
     }
@@ -58,8 +58,8 @@ class LentzSpec extends AnyFlatSpec
     val coefficient = Ratio(math.log(1.0-f.toDouble),precision)
     val ref = 1 - math.pow(1.0 - f.toDouble, relativeStake.toDouble)
     val res = 1 - exp.evaluate(coefficient * relativeStake).unsafeRunSync().toBigDecimal
-    printUnsafe("e: "+exp.evaluate(Ratio(1)).unsafeRunSync())
-    printUnsafe("approx e: "+rationalApprox.rationalApproximation(exp.evaluate(Ratio(1)).unsafeRunSync()).unsafeRunSync())
+    printUnsafe("e: "+exp.evaluate(Ratio.One).unsafeRunSync())
+    printUnsafe("approx e: "+rationalApprox.rationalApproximation(exp.evaluate(Ratio.One).unsafeRunSync()).unsafeRunSync())
     printUnsafe("log(1/2): "+log1p.evaluate(Ratio(-1,2)).unsafeRunSync())
     printUnsafe("Res:" + res)
     printUnsafe("Ref:" + ref)

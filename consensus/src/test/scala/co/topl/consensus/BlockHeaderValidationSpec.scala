@@ -407,7 +407,7 @@ class BlockHeaderValidationSpec
         .lookupAt(_: SlotId, _: TaktikosAddress))
         .expects(child.slotId, *)
         .once()
-        .returning(Ratio(0).some.pure[F])
+        .returning(Ratio.Zero.some.pure[F])
 
       (ed25519VRFResource
         .use[Boolean](_: Function1[Ed25519VRF, F[Boolean]]))

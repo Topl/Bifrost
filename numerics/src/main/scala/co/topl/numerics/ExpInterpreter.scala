@@ -22,17 +22,17 @@ object ExpInterpreter extends LentzMethod {
 
   private[numerics] def exp(x:Ratio, maxIter:Int, prec:Int):(Ratio,Boolean,Int) = {
     def a(j:Int):Ratio = j match {
-      case 0 => Ratio(0)
-      case 1 => Ratio(1)
-      case 2 => Ratio(-1)*x
+      case 0 => Ratio.Zero
+      case 1 => Ratio.One
+      case 2 => Ratio.NegativeOne*x
       case _ => Ratio(-j+2)*x
     }
     def b(j:Int):Ratio = j match {
-      case 0 => Ratio(0)
-      case 1 => Ratio(1)
+      case 0 => Ratio.Zero
+      case 1 => Ratio.One
       case _ => Ratio(j-1)+x
     }
-    if (x == Ratio(0)) (Ratio(1),true,0)
+    if (x == Ratio.Zero) (Ratio.One,true,0)
     else modified_lentz_method(maxIter,prec,a,b)
   }
 

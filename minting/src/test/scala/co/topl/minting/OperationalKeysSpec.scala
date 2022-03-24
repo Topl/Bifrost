@@ -100,7 +100,7 @@ class OperationalKeysSpec
         .lookupRelativeStake(_: Epoch)(_: TaktikosAddress))
         .expects(*, *)
         .once()
-        .returning(Ratio(1).some.pure[F])
+        .returning(Ratio.One.some.pure[F])
 
       (kesProductResource
         .use[Int](_: Function1[KesProduct, F[Int]]))
@@ -220,7 +220,7 @@ class OperationalKeysSpec
         .lookupRelativeStake(_: Epoch)(_: TaktikosAddress))
         .expects(*, *)
         .twice()
-        .returning(Ratio(1).some.pure[F])
+        .returning(Ratio.One.some.pure[F])
 
       (kesProductResource
         .use[Int](_: Function1[KesProduct, F[Int]]))

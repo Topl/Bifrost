@@ -46,7 +46,7 @@ object EligibilitySimulator extends IOApp.Simple {
   private val EpochLength = OperationalPeriodLength * OperationalPeriodsPerEpoch
   private val SlotDuration = 10.milli
   private val NumberOfStakers = 1
-  private val RelativeStake = Ratio(1)
+  private val RelativeStake = Ratio(1,1)
   private val TargetHeight = 10_000L
   private val TestName = "test_threshold"
 

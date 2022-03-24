@@ -41,7 +41,7 @@ object TetraDemo extends IOApp.Simple {
 
   // Configuration Data
   private val vrfConfig =
-    VrfConfig(lddCutoff = 10, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(1))
+    VrfConfig(lddCutoff = 10, precision = 40, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(1))
 //    VrfConfig(lddCutoff = 40, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(2, 5))
 
   private val OperationalPeriodLength = 180L

@@ -26,13 +26,13 @@ object Log1pInterpreter extends LentzMethod {
    */
   private[numerics] def log1p(x:Ratio, maxIter:Int, prec:Int):(Ratio,Boolean,Int) = {
     def a(j:Int):Ratio = j match {
-      case 0 => Ratio(0)
+      case 0 => Ratio.Zero
       case 1 => x
       case _ => Ratio(j-1)*Ratio(j-1)*x
     }
     def b(j:Int):Ratio = j match {
-      case 0 => Ratio(0)
-      case 1 => Ratio(1)
+      case 0 => Ratio.Zero
+      case 1 => Ratio.One
       case _ => Ratio(j) - Ratio(j-1)*x
     }
     modified_lentz_method(maxIter,prec,a,b)
