@@ -3,7 +3,8 @@ package co.topl.genus.algebras
 import akka.NotUsed
 import akka.stream.scaladsl.Source
 import cats.data.{EitherT, NonEmptyChain}
-import co.topl.genus.algebras.SubscriptionServiceAlg.{CreateRequest, CreateSubscriptionFailure}
+import co.topl.genus.algebras.SubscriptionService.{CreateRequest, CreateSubscriptionFailure}
+import co.topl.genus.typeclasses.MongoFilter
 import co.topl.genus.types.BlockHeight
 
 /**
@@ -12,17 +13,19 @@ import co.topl.genus.types.BlockHeight
  * @tparam T the type of data returned
  * @tparam Filter the type of values that can be provided to filter the results
  */
-trait SubscriptionServiceAlg[F[_], T, Filter] {
+trait SubscriptionService[F[_], T] {
 
   /**
    * Creates a new subscription for data values of type [[T]].
    * @param request request parameters for creating a subscription
    * @return either a subscription as a value of [[Source]] or a [[CreateSubscriptionFailure]]
    */
-  def create(request: CreateRequest[Filter]): EitherT[F, CreateSubscriptionFailure, Source[T, NotUsed]]
+  def create[Filter: MongoFilter](
+    request: CreateRequest[Filter]
+  ): EitherT[F, CreateSubscriptionFailure, Source[T, NotUsed]]
 }
 
-object SubscriptionServiceAlg {
+object SubscriptionService {
 
   /**
    * A request to create a subscription with some additional options.
@@ -32,7 +35,7 @@ object SubscriptionServiceAlg {
    *                          of the chain
    * @tparam Filter the type of values that can be provided for filtering
    */
-  case class CreateRequest[Filter](filter: Option[Filter], startFromHeight: Option[BlockHeight], confirmationDepth: Int)
+  case class CreateRequest[Filter](filter: Filter, startFromHeight: Option[BlockHeight], confirmationDepth: Int)
 
   /**
    * A failure that occurred while creating or maintaining the subscription.

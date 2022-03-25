@@ -232,7 +232,7 @@ lazy val node = project
   .settings(
     IntegrationTest / parallelExecution := false
   )
-  .dependsOn(common % "compile->compile;test->test", toplRpc, tools)
+  .dependsOn(common % "compile->compile;test->test", toplRpc, tools, genus)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
 lazy val common = project

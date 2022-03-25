@@ -1,7 +1,10 @@
 package co.topl.genus.algebras
 
+import akka.NotUsed
+import akka.stream.scaladsl.Source
 import cats.implicits._
 import cats.Functor
+import co.topl.genus.typeclasses.MongoFilter
 import co.topl.genus.types.BlockHeight
 
 /**
@@ -11,12 +14,12 @@ import co.topl.genus.types.BlockHeight
  * @tparam Filter the type of filtering that can be used
  * @tparam T the type of data returned
  */
-trait DataStoreSubscriptionAlg[F[_], G[_], Filter, T] {
-  def fromStart(filter:      Filter): F[G[T]]
-  def fromCheckpoint(filter: Filter, checkpoint: BlockHeight): F[G[T]]
+trait MongoSubscription[F[_], T] {
+  def fromStart[Filter: MongoFilter](filter:       Filter): F[Source[T, NotUsed]]
+  def fromBlockHeight[Filter: MongoFilter](filter: Filter, blockHeight: BlockHeight): F[Source[T, NotUsed]]
 }
 
-object DataStoreSubscriptionAlg {
+object MongoSubscription {
 
   /**
    * Maps the resulting value type of the subscription algebra to another type using a provided function.
@@ -29,14 +32,19 @@ object DataStoreSubscriptionAlg {
    * @tparam B the underlying type of the new algebra to be created
    * @return a new algebra instance which returns values of type B
    */
-  def mapSubscriptionType[F[_]: Functor, G[_]: Functor, Filter, A, B](
-    algebra: DataStoreSubscriptionAlg[F, G, Filter, A],
+  def map[F[_]: Functor, A, B](
+    algebra: MongoSubscription[F, A],
     fA:      A => B
-  ): DataStoreSubscriptionAlg[F, G, Filter, B] =
-    new DataStoreSubscriptionAlg[F, G, Filter, B] {
-      override def fromStart(filter: Filter): F[G[B]] = algebra.fromStart(filter).map(_.map(fA))
+  ): MongoSubscription[F, B] =
+    new MongoSubscription[F, B] {
 
-      override def fromCheckpoint(filter: Filter, checkpoint: BlockHeight): F[G[B]] =
-        algebra.fromCheckpoint(filter, checkpoint).map(_.map(fA))
+      override def fromStart[Filter: MongoFilter](filter: Filter): F[Source[B, NotUsed]] =
+        algebra.fromStart(filter).map(_.map(fA))
+
+      override def fromBlockHeight[Filter: MongoFilter](
+        filter:     Filter,
+        checkpoint: BlockHeight
+      ): F[Source[B, NotUsed]] =
+        algebra.fromBlockHeight(filter, checkpoint).map(_.map(fA))
     }
 }

@@ -7,7 +7,7 @@ import org.mongodb.scala.bson.conversions.Bson
  * A set of utilities for operating on the Mongo Oplog collection.
  * @tparam F the effect-ful type of the final value
  */
-trait MongoOplogAlg[F[_]] {
+trait MongoOplog[F[_]] {
 
   /**
    * Gets the timestamp of the first document entered into the collection.

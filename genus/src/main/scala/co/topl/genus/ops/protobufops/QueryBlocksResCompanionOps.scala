@@ -2,7 +2,7 @@ package co.topl.genus.ops.protobufops
 
 import cats.Foldable
 import cats.implicits._
-import co.topl.genus.algebras.QueryServiceAlg.{QueryFailure, QueryFailures}
+import co.topl.genus.algebras.QueryService.{QueryFailure, QueryFailures}
 import co.topl.genus.services.blocks_query.QueryBlocksRes
 import co.topl.genus.services.blocks_query.QueryBlocksRes.Failure.Reason
 import co.topl.genus.types.Block

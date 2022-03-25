@@ -1,8 +1,11 @@
 package co.topl.genus.algebras
 
-import cats.implicits._
+import akka.NotUsed
+import akka.stream.scaladsl.Source
 import cats.Functor
+import cats.implicits._
 import co.topl.genus.services.services_types.Paging
+import co.topl.genus.typeclasses.{MongoFilter, MongoSort}
 
 /**
  * Represents a data store that can be queried with some additional options.
@@ -12,11 +15,16 @@ import co.topl.genus.services.services_types.Paging
  * @tparam Filter a type which can be used to filter results
  * @tparam T the type of values stored in this data set
  */
-trait DataStoreQueryAlg[F[_], G[_], Sort, Filter, T] {
-  def query(filter: Filter, sort: Sort, paging: Option[Paging]): F[G[T]]
+trait MongoQuery[F[_], T] {
+
+  def query[Filter: MongoFilter, Sort: MongoSort](
+    filter: Filter,
+    sort:   Sort,
+    paging: Option[Paging]
+  ): F[Source[T, NotUsed]]
 }
 
-object DataStoreQueryAlg {
+object MongoQuery {
 
   /**
    * Maps the resulting value type of the query algebra to another type using a provided function.
@@ -30,9 +38,16 @@ object DataStoreQueryAlg {
    * @tparam B the underlying type of the new algebra to be created
    * @return a new algebra instance which returns values of type B
    */
-  def mapQueryType[F[_]: Functor, G[_]: Functor, Sort, Filter, A, B](
-    dataStoreQuery: DataStoreQueryAlg[F, G, Sort, Filter, A],
+  def map[F[_]: Functor, A, B](
+    dataStoreQuery: MongoQuery[F, A],
     fA:             A => B
-  ): DataStoreQueryAlg[F, G, Sort, Filter, B] =
-    (filter: Filter, sort: Sort, paging: Option[Paging]) => dataStoreQuery.query(filter, sort, paging).map(_.map(fA))
+  ): MongoQuery[F, B] =
+    new MongoQuery[F, B] {
+
+      override def query[Filter: MongoFilter, Sort: MongoSort](
+        filter: Filter,
+        sort:   Sort,
+        paging: Option[Paging]
+      ): F[Source[B, NotUsed]] = dataStoreQuery.query(filter, sort, paging).map(_.map(fA))
+    }
 }
