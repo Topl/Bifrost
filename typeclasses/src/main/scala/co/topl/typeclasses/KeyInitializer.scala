@@ -25,7 +25,7 @@ object KeyInitializer {
 
   trait Instances {
 
-    //todo: should these use there own instances or the global instance?
+    // todo: should these use there own instances or the global instance?
     implicit val curve25519Initializer: KeyInitializer[SecretKeys.Curve25519] =
       new KeyInitializer[SecretKeys.Curve25519] {
 

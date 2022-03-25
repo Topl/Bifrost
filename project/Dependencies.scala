@@ -233,8 +233,22 @@ object Dependencies {
   lazy val consensus: Seq[ModuleID] =
     bouncyCastle ++ Seq(akka("actor-typed")) ++ catsEffect ++ logging ++ scalacache
 
+  lazy val minting: Seq[ModuleID] =
+    Dependencies.test ++ Dependencies.catsEffect ++ Seq(Dependencies.akka("stream"))
+
   lazy val demo: Seq[ModuleID] =
-    Seq(akka("actor"), akka("actor-typed"), akka("stream"), akka("actor-testkit-typed") % Test) ++ logging
+    Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++ logging
+
+  lazy val commonInterpreters =
+    Dependencies.test ++
+    Seq(
+      akka("actor-typed"),
+      akka("actor-testkit-typed") % Test,
+      Dependencies.catsSlf4j      % "test"
+    ) ++
+    Dependencies.cats ++
+    Dependencies.catsEffect ++
+    Dependencies.scalacache
 
   lazy val tools: Seq[ModuleID] =
     Seq(

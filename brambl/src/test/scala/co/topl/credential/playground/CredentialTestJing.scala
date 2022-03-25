@@ -85,7 +85,9 @@ object CredentialTestJing extends App {
   ).toCredential
 
   val transactionAll = Transaction(
-    inputs = ListMap.from(unprovenTransaction.inputs.map(_ -> (combinedProp, credential.proof))),
+    inputs = ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(
+      _ -> (combinedProp, credential.proof)
+    ),
     feeOutput = unprovenTransaction.feeOutput,
     coinOutputs = unprovenTransaction.coinOutputs,
     fee = unprovenTransaction.fee,
@@ -118,7 +120,9 @@ object CredentialTestJing extends App {
 //    println(voter1and2ThresholdProof)
 
   val transactionAdmins = Transaction(
-    inputs = ListMap.from(unprovenTransaction.inputs.map(_ -> (adminsProp, adminsProof))),
+    inputs = ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(
+      _ -> (adminsProp, adminsProof)
+    ),
     feeOutput = unprovenTransaction.feeOutput,
     coinOutputs = unprovenTransaction.coinOutputs,
     fee = unprovenTransaction.fee,
@@ -130,7 +134,9 @@ object CredentialTestJing extends App {
   println(verify(transactionAdmins, adminsProp, adminsProof, 2L))
 
   val transactionVoter1and2 = Transaction(
-    inputs = ListMap.from(unprovenTransaction.inputs.map(_ -> (votersThresholdProp, voter1and2ThresholdProof))),
+    inputs = ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(
+      _ -> (votersThresholdProp, voter1and2ThresholdProof)
+    ),
     feeOutput = unprovenTransaction.feeOutput,
     coinOutputs = unprovenTransaction.coinOutputs,
     fee = unprovenTransaction.fee,

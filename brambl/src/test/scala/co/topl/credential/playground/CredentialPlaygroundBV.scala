@@ -120,7 +120,8 @@ object CredentialPlaygroundBV extends App {
 
     override def currentTransaction: Transaction =
       Transaction(
-        inputs = ListMap.from(randomTx.inputs.map(_ -> (boardProp, boardCred.proof))),
+        inputs =
+          ListMap.empty[BoxReference, (Proposition, Proof)] ++ randomTx.inputs.map(_ -> (boardProp, boardCred.proof)),
         feeOutput = randomTx.feeOutput,
         coinOutputs = randomTx.coinOutputs,
         fee = randomTx.fee,

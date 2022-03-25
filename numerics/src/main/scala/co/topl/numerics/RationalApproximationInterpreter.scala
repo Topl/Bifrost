@@ -8,10 +8,12 @@ import co.topl.typeclasses.implicits._
 
 object RationalApproximationInterpreter {
 
-  def make[F[_]: Monad](maxDenominator:BigInt, maxIter:Int):F[RationalApproximation[F]] = new RationalApproximation[F] {
-    override def rationalApproximation(x: Ratio): F[Ratio] =
-      RationalApproximationInterpreter.rationalApproximation(x,maxDenominator,maxIter).pure[F]
-  }.pure[F]
+  def make[F[_]: Monad](maxDenominator: BigInt, maxIter: Int): F[RationalApproximation[F]] =
+    new RationalApproximation[F] {
+
+      override def rationalApproximation(x: Ratio): F[Ratio] =
+        RationalApproximationInterpreter.rationalApproximation(x, maxDenominator, maxIter).pure[F]
+    }.pure[F]
 
   /**
    * Implmentation of Farey approximation technique following this blog post
@@ -26,55 +28,54 @@ object RationalApproximationInterpreter {
    * @param maxIter maximum number of iterations
    * @return a new ratio with smaller integer values that approximates the input
    */
-  private[numerics] def rationalApproximation(input:Ratio, maxDenominator:BigInt, maxIter:Int):Ratio = {
-    val x = if (input.denominator<0) Ratio(-input.numerator,-input.denominator)
-    else input
+  private[numerics] def rationalApproximation(input: Ratio, maxDenominator: BigInt, maxIter: Int): Ratio = {
+    val x =
+      if (input.denominator < 0) Ratio(-input.numerator, -input.denominator)
+      else input
     var output = input
-    val q:BigInt = x.numerator/x.denominator
-    val r:BigInt = x.numerator%x.denominator
+    val q: BigInt = x.numerator / x.denominator
+    val r: BigInt = x.numerator % x.denominator
     val sign = if (x.numerator > 0 && x.denominator > 0) {
       1
     } else {
       -1
     }
-    val absx = Ratio(r,x.denominator).abs
+    val absx = Ratio(r, x.denominator).abs
     var a = BigInt(0)
     var b = BigInt(1)
     var c = BigInt(1)
     var d = BigInt(1)
     var j = 0
     var not_done = true
-    while (b<=maxDenominator && d <= maxDenominator && j<=maxIter && not_done) {
-      val med = Ratio(a+c,b+d)
+    while (b <= maxDenominator && d <= maxDenominator && j <= maxIter && not_done) {
+      val med = Ratio(a + c, b + d)
       if (absx == med) {
-        if (b+d <=maxDenominator) {
-          output = Ratio(sign*(a+c),b+d)
-        } else if (d>b) {
-          output = Ratio(sign*c,d)
+        if (b + d <= maxDenominator) {
+          output = Ratio(sign * (a + c), b + d)
+        } else if (d > b) {
+          output = Ratio(sign * c, d)
         } else {
-          output = Ratio(sign*a,b)
+          output = Ratio(sign * a, b)
         }
         not_done = false
       } else if (absx > med) {
-        a = a+c
-        b = b+d
+        a = a + c
+        b = b + d
       } else {
-        c = a+c
-        d = b+d
+        c = a + c
+        d = b + d
       }
-      j = j+1
+      j = j + 1
     }
     if (not_done) {
-      if (b>maxDenominator) {
-        output = Ratio(sign*c,d)
+      if (b > maxDenominator) {
+        output = Ratio(sign * c, d)
       } else {
-        output = Ratio(sign*a,b)
+        output = Ratio(sign * a, b)
       }
     }
 
-    Ratio(q*output.denominator+output.numerator,output.denominator)
+    Ratio(q * output.denominator + output.numerator, output.denominator)
   }
-
-
 
 }

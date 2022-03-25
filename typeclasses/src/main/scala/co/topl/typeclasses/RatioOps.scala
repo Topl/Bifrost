@@ -11,15 +11,15 @@ object RatioOps {
 
     implicit class Ops(ratio: Ratio) {
 
-      def abs:Ratio =
+      def abs: Ratio =
         Ratio(
           ratio.numerator match {
             case num if num < 0 => -num
-            case num => num
+            case num            => num
           },
           ratio.denominator match {
             case den if den < 0 => -den
-            case den => den
+            case den            => den
           }
         )
 

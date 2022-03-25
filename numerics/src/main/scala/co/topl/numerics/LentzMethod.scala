@@ -22,42 +22,42 @@ trait LentzMethod {
    *         number of iterations
    */
   private[numerics] def modified_lentz_method(
-                                               maxIter:Int,
-                                               prec:Int,
-                                               a: Int => Ratio,
-                                               b:Int => Ratio
-                                             ): (Ratio,Boolean,Int) = {
-    val bigFactor = BigInt(10).pow(prec+10)
-    val tinyFactor = Ratio(1,bigFactor)
-    val truncationError:Ratio = Ratio(1,BigInt(10).pow(prec+1))
-    var fj:Ratio = {
-      if (b(0)==Ratio.Zero) tinyFactor
+    maxIter: Int,
+    prec:    Int,
+    a:       Int => Ratio,
+    b:       Int => Ratio
+  ): (Ratio, Boolean, Int) = {
+    val bigFactor = BigInt(10).pow(prec + 10)
+    val tinyFactor = Ratio(1, bigFactor)
+    val truncationError: Ratio = Ratio(1, BigInt(10).pow(prec + 1))
+    var fj: Ratio = {
+      if (b(0) == Ratio.Zero) tinyFactor
       else b(0)
     }
-    var cj:Ratio = fj
-    var dj:Ratio = Ratio.Zero
+    var cj: Ratio = fj
+    var dj: Ratio = Ratio.Zero
     var deltaj = Ratio.One
-    var error:Boolean = true
-    def loop(j:Int):Unit = {
+    var error: Boolean = true
+    def loop(j: Int): Unit = {
       dj = b(j) + a(j) * dj
       if (dj == Ratio.Zero) dj = tinyFactor
-      cj = b(j) + a(j)/cj
+      cj = b(j) + a(j) / cj
       if (cj == Ratio.Zero) cj = tinyFactor
-      dj = Ratio(dj.denominator,dj.numerator)
-      deltaj = cj*dj
-      fj = fj*deltaj
+      dj = Ratio(dj.denominator, dj.numerator)
+      deltaj = cj * dj
+      fj = fj * deltaj
       error = j match {
-        case _ if j > 1 => (deltaj-Ratio.One).abs > truncationError
-        case _ => true
+        case _ if j > 1 => (deltaj - Ratio.One).abs > truncationError
+        case _          => true
       }
     }
     var j = 1
-    while (j < maxIter+1 && error) {
+    while (j < maxIter + 1 && error) {
       loop(j)
-      j = j+1
+      j = j + 1
     }
-    if (fj.denominator<0) fj = Ratio(-fj.numerator,-fj.denominator)
-    (fj,error,j)
+    if (fj.denominator < 0) fj = Ratio(-fj.numerator, -fj.denominator)
+    (fj, error, j)
   }
 
 }

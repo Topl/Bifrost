@@ -1,7 +1,7 @@
 package co.topl.interpreters
 
+import akka.actor.typed._
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, ActorSystem, Behavior, PostStop, Scheduler}
 import akka.pattern.StatusReply
 import akka.util.Timeout
 import cats.data.Chain

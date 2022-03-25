@@ -5,7 +5,7 @@ import cats.data.Chain
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import co.topl.algebras.testInterpreters.NoOpLogger
-import co.topl.algebras.{ClockAlgebra, ConsensusState, SecureStore, UnsafeResource}
+import co.topl.algebras.{ClockAlgebra, ConsensusStateReader, SecureStore, UnsafeResource}
 import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.consensus.algebras.EtaCalculationAlgebra
 import co.topl.crypto.signing.{Ed25519, KesProduct}
@@ -47,7 +47,7 @@ class OperationalKeysSpec
       val clock = mock[ClockAlgebra[F]]
       val vrfProof = mock[VrfProofAlgebra[F]]
       val etaCalculation = mock[EtaCalculationAlgebra[F]]
-      val consensusState = mock[ConsensusState[F]]
+      val consensusState = mock[ConsensusStateReader[F]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
       val parentSlotId = SlotId(10L, TypedBytes(1: Byte, Bytes.fill(32)(0: Byte)))
@@ -56,11 +56,6 @@ class OperationalKeysSpec
       val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L)
 
       val ineligibilities = Range.Long(0L, operationalPeriodLength, 2L).toVector
-
-      (() => clock.globalSlot)
-        .expects()
-        .once()
-        .returning(0L.pure[F])
 
       (() => clock.slotsPerEpoch)
         .expects()
@@ -140,7 +135,8 @@ class OperationalKeysSpec
           parentSlotId,
           operationalPeriodLength,
           activationOperationalPeriod,
-          address
+          address,
+          0L
         )
         .unsafeRunSync()
 
@@ -169,18 +165,13 @@ class OperationalKeysSpec
       val clock = mock[ClockAlgebra[F]]
       val vrfProof = mock[VrfProofAlgebra[F]]
       val etaCalculation = mock[EtaCalculationAlgebra[F]]
-      val consensusState = mock[ConsensusState[F]]
+      val consensusState = mock[ConsensusStateReader[F]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
       val parentSlotId = SlotId(10L, TypedBytes(1: Byte, Bytes.fill(32)(0: Byte)))
       val operationalPeriodLength = 30L
       val activationOperationalPeriod = 0L
       val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L)
-
-      (() => clock.globalSlot)
-        .expects()
-        .once()
-        .returning(0L.pure[F])
 
       (() => clock.slotsPerEpoch)
         .expects()
@@ -260,7 +251,8 @@ class OperationalKeysSpec
           parentSlotId,
           operationalPeriodLength,
           activationOperationalPeriod,
-          address
+          address,
+          0L
         )
         .unsafeRunSync()
 

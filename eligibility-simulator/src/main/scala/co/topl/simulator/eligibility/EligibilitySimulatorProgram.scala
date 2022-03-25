@@ -5,14 +5,13 @@ import cats.effect.{Clock, Sync}
 import cats.implicits._
 import cats.{Monad, MonadError, Parallel, Show}
 import co.topl.algebras.ClockAlgebra.implicits._
-import co.topl.algebras.{ClockAlgebra, ConsensusState, Stats, Store, UnsafeResource}
+import co.topl.algebras.{ClockAlgebra, Stats, Store, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, EtaCalculationAlgebra, LocalChainAlgebra}
-import co.topl.consensus.{BlockHeaderValidationFailure, SlotData}
+import co.topl.consensus.{BlockHeaderV2Ops, BlockHeaderValidationFailure}
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.algebras.BlockMintAlgebra
-import co.topl.models.utility.Ratio
 import co.topl.models._
 import co.topl.typeclasses.implicits._
 import io.circe.Json
@@ -22,13 +21,13 @@ import org.typelevel.log4cats.Logger
 object EligibilitySimulatorProgram {
 
   /**
-   * A forever-running program which traverses epochs and the slots within the epochs
+   * A program which mints blocks up to a certain height.  This program is not beholden to a real-world clock; there is
+   * no delay between the processing of slots.
    */
   def run[F[_]: MonadError[*[_], Throwable]: Logger: Parallel: Clock: Sync](
     clock:              ClockAlgebra[F],
     mints:              List[BlockMintAlgebra[F]],
     headerValidation:   BlockHeaderValidationAlgebra[F],
-    state:              ConsensusState[F],
     headerStore:        Store[F, BlockHeaderV2],
     blockStore:         Store[F, BlockV2],
     etaCalculation:     EtaCalculationAlgebra[F],
@@ -45,7 +44,6 @@ object EligibilitySimulatorProgram {
           clock,
           mints,
           headerValidation,
-          state,
           headerStore,
           blockStore,
           etaCalculation,
@@ -68,7 +66,6 @@ object EligibilitySimulatorProgram {
     clock:              ClockAlgebra[F],
     mints:              List[BlockMintAlgebra[F]],
     headerValidation:   BlockHeaderValidationAlgebra[F],
-    state:              ConsensusState[F],
     headerStore:        Store[F, BlockHeaderV2],
     blockStore:         Store[F, BlockV2],
     etaCalculation:     EtaCalculationAlgebra[F],
@@ -94,7 +91,7 @@ object EligibilitySimulatorProgram {
         statsName,
         toHeight
       )
-      _ <- finishEpoch(epoch, state)
+      _ <- finishEpoch[F](epoch)
     } yield ()
 
   /**
@@ -206,8 +203,8 @@ object EligibilitySimulatorProgram {
   ): F[Unit] =
     for {
       _                     <- Logger[F].info(show"Minted block ${nextBlock.headerV2}")
-      _                     <- blockStore.put(nextBlock)
-      slotData              <- ed25519VrfResource.use(implicit ed25519Vrf => SlotData(nextBlock.headerV2).pure[F])
+      _                     <- blockStore.put(nextBlock.headerV2.id, nextBlock)
+      slotData              <- ed25519VrfResource.use(implicit ed25519Vrf => nextBlock.headerV2.slotData.pure[F])
       localChainIsWorseThan <- localChain.isWorseThan(slotData)
       _ <-
         if (localChainIsWorseThan)
@@ -238,21 +235,9 @@ object EligibilitySimulatorProgram {
   /**
    * Perform operations at the completion of an epoch
    */
-  private def finishEpoch[F[_]: Monad: Logger](epoch: Epoch, state: ConsensusState[F]): F[Unit] =
+  private def finishEpoch[F[_]: Monad: Logger](epoch: Epoch): F[Unit] =
     for {
       _ <- Logger[F].info(show"Finishing epoch=$epoch")
-      _ <- Logger[F].info("Populating registrations for next epoch")
-      newRegistrations <- state
-        .foldRegistrations(epoch)(Map.empty[TaktikosAddress, Box.Values.TaktikosRegistration]) {
-          case (acc, (address, registration)) => acc.updated(address, registration).pure[F]
-        }
-      _ <- state.writeRegistrations(epoch + 1, newRegistrations)
-      _ <- Logger[F].info("Populating relative stake distributions for next epoch")
-      newRelativeStakes <- state
-        .foldRelativeStakes(epoch)(Map.empty[TaktikosAddress, Ratio]) { case (acc, (address, stake)) =>
-          acc.updated(address, stake).pure[F]
-        }
-      _ <- state.writeRelativeStakes(epoch + 1, newRelativeStakes)
     } yield ()
 
 }

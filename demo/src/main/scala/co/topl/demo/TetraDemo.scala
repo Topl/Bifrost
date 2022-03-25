@@ -1,6 +1,9 @@
 package co.topl.demo
 
+import akka.NotUsed
 import akka.actor.typed.ActorSystem
+import akka.actor.typed.scaladsl.Behaviors
+import akka.stream.scaladsl.Source
 import akka.util.Timeout
 import cats.arrow.FunctionK
 import cats.data.OptionT
@@ -11,17 +14,17 @@ import cats.effect.{Async, IO, IOApp}
 import cats.implicits._
 import cats.~>
 import co.topl.algebras._
-import co.topl.interpreters._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
-import co.topl.consensus.algebras.{EtaCalculationAlgebra, LeaderElectionValidationAlgebra}
-import co.topl.crypto.hash.{Blake2b256, Blake2b512, blake2b256}
+import co.topl.consensus.algebras.{EtaCalculationAlgebra, LeaderElectionValidationAlgebra, LocalChainAlgebra}
+import co.topl.crypto.hash.{blake2b256, Blake2b256, Blake2b512}
 import co.topl.crypto.mnemonic.Entropy
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
+import co.topl.interpreters._
 import co.topl.minting._
-import co.topl.minting.algebras.BlockMintAlgebra
+import co.topl.minting.algebras.PerpetualBlockMintAlgebra
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
@@ -34,6 +37,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.nio.file.{Files, Paths}
 import java.util.UUID
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Random
 
@@ -41,13 +45,12 @@ object TetraDemo extends IOApp.Simple {
 
   // Configuration Data
   private val vrfConfig =
-    VrfConfig(lddCutoff = 10, precision = 40, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(1))
-//    VrfConfig(lddCutoff = 40, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(2, 5))
+    VrfConfig(lddCutoff = 40, precision = 40, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(2, 5))
 
   private val OperationalPeriodLength = 180L
   private val OperationalPeriodsPerEpoch = 4L
   private val EpochLength = OperationalPeriodLength * OperationalPeriodsPerEpoch
-  private val SlotDuration = 10.milli
+  private val SlotDuration = 100.milli
 
   require(
     EpochLength % OperationalPeriodLength === 0L,
@@ -103,19 +106,9 @@ object TetraDemo extends IOApp.Simple {
   private val genesis =
     BlockGenesis(Nil).value
 
-  private val initialNodeView =
-    NodeView(
-      Map(0L -> stakers.map(staker => staker.address -> staker.relativeStake).toMap),
-      Map(0L -> stakers.map(staker => staker.address -> staker.registration).toMap)
-    )
-
   // Actor system initialization
 
-  implicit private val system: ActorSystem[NodeViewHolder.ReceivableMessage] =
-    ActorSystem(
-      NodeViewHolder(initialNodeView),
-      "TetraDemo"
-    )
+  implicit private val system: ActorSystem[_] = ActorSystem(Behaviors.empty, "TetraDemo")
 
   override val runtime: IORuntime = AkkaCatsRuntime(system).runtime
   override val runtimeConfig: IORuntimeConfig = AkkaCatsRuntime(system).ioRuntimeConfig
@@ -131,8 +124,11 @@ object TetraDemo extends IOApp.Simple {
 
   implicit private val timeout: Timeout = Timeout(20.seconds)
 
-  private val state: ConsensusState[F] =
-    NodeViewHolder.StateEval.make[F](system)
+  private def state: F[ConsensusStateReader[F]] =
+    NodeViewHolder.StaticData.make[F](
+      stakers.map(staker => staker.address -> staker.relativeStake).toMap,
+      stakers.map(staker => staker.address -> staker.registration).toMap
+    )
 
   private val statsDir = Paths.get(".bifrost", "stats")
   Files.createDirectories(statsDir)
@@ -143,10 +139,14 @@ object TetraDemo extends IOApp.Simple {
   private def mints(
     etaCalculation:          EtaCalculationAlgebra[F],
     leaderElectionThreshold: LeaderElectionValidationAlgebra[F],
+    localChain:              LocalChainAlgebra[F],
+    mempool:                 MemPoolAlgebra[F],
+    headerStore:             Store[F, BlockHeaderV2],
+    state:                   ConsensusStateReader[F],
     ed25519VRFResource:      UnsafeResource[F, Ed25519VRF],
     kesProductResource:      UnsafeResource[F, KesProduct],
     ed25519Resource:         UnsafeResource[F, Ed25519]
-  ): F[List[BlockMintAlgebra[F]]] =
+  ): F[List[PerpetualBlockMintAlgebra[F, Source[*, NotUsed]]]] =
     stakers
       .parTraverse(staker =>
         for {
@@ -185,8 +185,8 @@ object TetraDemo extends IOApp.Simple {
                   stakerVRFVK,
                   leaderElectionThreshold,
                   vrfProofConstruction,
-                  statsInterpreter,
-                  "TetraDemo"
+                  statsInterpreter = StatsInterpreter.Noop.make[F],
+                  statsName = ""
                 ),
                 operationalKeys,
                 VrfRelativeStakeMintingLookup.Eval.make(state, clock),
@@ -198,7 +198,9 @@ object TetraDemo extends IOApp.Simple {
               clock,
               statsInterpreter
             )
-        } yield mint
+          perpetual <- PerpetualBlockMint.InAkkaStream
+            .make(initialSlot = 0L, clock, mint, localChain, mempool, headerStore)
+        } yield perpetual
       )
 
   private def createBlockStore(
@@ -210,8 +212,8 @@ object TetraDemo extends IOApp.Simple {
       def get(id: TypedIdentifier): F[Option[BlockV2]] =
         (OptionT(headerStore.get(id)), OptionT(bodyStore.get(id))).tupled.map((BlockV2.apply _).tupled).value
 
-      def put(t: BlockV2): F[Unit] =
-        (headerStore.put(t.headerV2), bodyStore.put(t.blockBodyV2)).tupled.void
+      def put(id: TypedIdentifier, t: BlockV2): F[Unit] =
+        (headerStore.put(t.headerV2.id, t.headerV2), bodyStore.put(t.headerV2.id, t.blockBodyV2)).tupled.void
 
       def remove(id: TypedIdentifier): F[Unit] =
         (headerStore.remove(id), bodyStore.remove(id)).tupled.void
@@ -220,7 +222,9 @@ object TetraDemo extends IOApp.Simple {
 
   // Program definition
 
-  implicit val fToIo: ~>[F, IO] = FunctionK.id
+  implicit val fToIo: F ~> IO = FunctionK.id
+
+  implicit val fToFuture: F ~> Future = FunctionK.liftFunction(_.unsafeToFuture()(runtime))
 
   val run: IO[Unit] = {
     for {
@@ -232,7 +236,7 @@ object TetraDemo extends IOApp.Simple {
       blockHeaderStore   <- RefStore.Eval.make[F, BlockHeaderV2]()
       blockBodyStore     <- RefStore.Eval.make[F, BlockBodyV2]()
       blockStore = createBlockStore(blockHeaderStore, blockBodyStore)
-      _             <- blockStore.put(genesis)
+      _             <- blockStore.put(genesis.headerV2.id, genesis)
       slotDataCache <- SlotDataCache.Eval.make(blockHeaderStore, ed25519VRFResource)
       etaCalculation <- EtaCalculation.Eval.make(
         slotDataCache,
@@ -241,15 +245,16 @@ object TetraDemo extends IOApp.Simple {
         blake2b256Resource,
         blake2b512Resource
       )
-      exp <- ExpInterpreter.make[F](10000,38)
-      log1p <- Log1pInterpreter.make[F](10000,8)
+      exp         <- ExpInterpreter.make[F](10000, 38)
+      log1p       <- Log1pInterpreter.make[F](10000, 8)
       log1pCached <- Log1pInterpreter.makeCached[F](log1p)
-      leaderElectionThreshold = LeaderElectionValidation.Eval.make[F](vrfConfig, blake2b512Resource,exp,log1pCached)
+      leaderElectionThreshold = LeaderElectionValidation.Eval.make[F](vrfConfig, blake2b512Resource, exp, log1pCached)
+      consensusState <- state
       underlyingHeaderValidation <- BlockHeaderValidation.Eval.make[F](
         etaCalculation,
-        VrfRelativeStakeValidationLookup.Eval.make(state, clock),
+        VrfRelativeStakeValidationLookup.Eval.make(consensusState, clock),
         leaderElectionThreshold,
-        RegistrationLookup.Eval.make(state, clock),
+        RegistrationLookup.Eval.make(consensusState, clock),
         ed25519VRFResource,
         kesProductResource,
         ed25519Resource,
@@ -257,19 +262,26 @@ object TetraDemo extends IOApp.Simple {
       )
       cachedHeaderValidation <- BlockHeaderValidation.WithCache.make[F](underlyingHeaderValidation, blockHeaderStore)
       localChain <- LocalChain.Eval.make(
-        SlotData(genesis.headerV2)(Ed25519VRF.precomputed()),
+        genesis.headerV2.slotData(Ed25519VRF.precomputed()),
         ChainSelection.orderT[F](slotDataCache, blake2b512Resource, ChainSelectionKLookback, ChainSelectionSWindow)
       )
-      m <- mints(etaCalculation, leaderElectionThreshold, ed25519VRFResource, kesProductResource, ed25519Resource)
+      mempool <- EmptyMemPool.make[F]
+      m <- mints(
+        etaCalculation,
+        leaderElectionThreshold,
+        localChain,
+        mempool,
+        blockHeaderStore,
+        consensusState,
+        ed25519VRFResource,
+        kesProductResource,
+        ed25519Resource
+      )
       _ <- DemoProgram
         .run[F](
-          clock,
           m,
           cachedHeaderValidation,
-          state,
-          blockHeaderStore,
           blockStore,
-          etaCalculation,
           localChain,
           ed25519VRFResource
         )

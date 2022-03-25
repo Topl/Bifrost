@@ -172,7 +172,7 @@ class ProofVerifierSpec
     }
   }
 
-  "jsScriptVerifier" should "verify a proof" in {
+  ignore should "verify a JS proof" in {
     val proposition = Propositions.Script.JS(
       Propositions.Script.JS.JSScript(
         """(ctx, args) =>
@@ -324,7 +324,9 @@ class ProofVerifierSpec
 
       val transaction =
         Transaction(
-          ListMap.from(unprovenTransaction.inputs.map(boxRef => boxRef -> (proposition -> proof))),
+          ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(boxRef =>
+            boxRef -> (proposition -> proof)
+          ),
           unprovenTransaction.feeOutput,
           unprovenTransaction.coinOutputs,
           unprovenTransaction.fee,
@@ -400,7 +402,9 @@ class ProofVerifierSpec
 
       val transaction =
         Transaction(
-          ListMap.from(unprovenTransaction.inputs.map(boxRef => boxRef -> (proposition -> proof))),
+          ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(boxRef =>
+            boxRef -> (proposition -> proof)
+          ),
           unprovenTransaction.feeOutput,
           unprovenTransaction.coinOutputs,
           unprovenTransaction.fee,
@@ -448,7 +452,9 @@ class ProofVerifierSpec
 
       val transaction =
         Transaction(
-          ListMap.from(unprovenTransaction.inputs.map(boxRef => boxRef -> (proposition -> proof))),
+          ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(boxRef =>
+            boxRef -> (proposition -> proof)
+          ),
           unprovenTransaction.feeOutput,
           unprovenTransaction.coinOutputs,
           unprovenTransaction.fee,

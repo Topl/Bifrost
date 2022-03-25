@@ -48,7 +48,7 @@ object ThresholdSimulator extends IOApp.Simple {
   private val statsDir = Paths.get(".bifrost", "stats")
   Files.createDirectories(statsDir)
 
-  implicit private val system: ActorSystem[NodeViewHolder.ReceivableMessage] =
+  implicit private val system: ActorSystem[_] =
     ActorSystem(
       Behaviors.empty,
       "ThresholdSimulator"
@@ -71,12 +71,14 @@ object ThresholdSimulator extends IOApp.Simple {
         val vrfConfig =
           VrfConfig(lddCutoff = 10, precision = precision, baselineDifficulty = Ratio(1, 20), amplitude = amplitude)
         for {
-          exp <- ExpInterpreter.make[F](10000,precision)
-          log1p <- Log1pInterpreter.make[F](10000,5)
+          exp         <- ExpInterpreter.make[F](10000, precision)
+          log1p       <- Log1pInterpreter.make[F](10000, 5)
           log1pCached <- Log1pInterpreter.makeCached[F](log1p)
-          leaderElectionThreshold <- LeaderElectionValidation.Eval.make[F](vrfConfig, blake2b512Resource, exp, log1pCached).pure[F]
+          leaderElectionThreshold <- LeaderElectionValidation.Eval
+            .make[F](vrfConfig, blake2b512Resource, exp, log1pCached)
+            .pure[F]
           leaderElectionThresholdCached <- LeaderElectionValidation.Eval.makeCached[F](leaderElectionThreshold)
-          threshold               <- leaderElectionThresholdCached.getThreshold(relativeStake, vrfConfig.lddCutoff)
+          threshold <- leaderElectionThresholdCached.getThreshold(relativeStake, vrfConfig.lddCutoff)
           _ <- statsInterpreter.write(
             TestName,
             Json.obj(

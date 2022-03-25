@@ -8,13 +8,13 @@ import co.topl.typeclasses.RatioOps.implicits._
 object TetraParameters {
 
   lazy val config: Config = ConfigFactory.load
-  //duration of slot in milliseconds
+  // duration of slot in milliseconds
   val slotT: Long = (config.getInt("params.slotT")).toLong
-  //interval between return blocks in tine provider
+  // interval between return blocks in tine provider
   val requestTineInterval: Int = config.getInt("params.requestTineInterval")
-  //active slot coefficient
+  // active slot coefficient
   val f_s: Double = config.getDouble("params.f_s")
-  //order of accuracy for convergent series
+  // order of accuracy for convergent series
   val o_n: Int = config.getInt("params.o_n")
   val f_dynamic: Boolean = config.getBoolean("params.f_dynamic")
   val testStrategy: String = config.getString("params.testStrategy")
@@ -34,25 +34,25 @@ object TetraParameters {
   val one_ninth_epoch: Int = epochLength / 9
   // slot window for chain selection, s = k/4f
   val slotWindow: Int = config.getInt("params.slotWindow")
-  //number of holders on gossip list for sending new blocks and transactions
+  // number of holders on gossip list for sending new blocks and transactions
   val numGossipers: Int = config.getInt("params.numGossipers")
-  //number of holders to gossip to upon forging
+  // number of holders to gossip to upon forging
   val numGossipersForge: Int = config.getInt("params.numGossipersForge")
-  //max number of tries for a tine to ask for parent blocks
+  // max number of tries for a tine to ask for parent blocks
   val tineMaxTries: Int = config.getInt("params.tineMaxTries")
-  //max depth in multiples of confirmation depth that can be returned from an actor
+  // max depth in multiples of confirmation depth that can be returned from an actor
   val tineMaxDepth: Int = config.getInt("params.tineMaxDepth")
-  //max depth to trigger bootstrapping
+  // max depth to trigger bootstrapping
   val tineBootstrappingDepth: Int = config.getInt("params.tineBootstrappingDepth")
-  //time out for dropped messages from coordinator
+  // time out for dropped messages from coordinator
   val waitTime: FiniteDuration = config.getInt("params.waitTime").seconds
-  //duration between update tics that stakeholder actors send to themselves
+  // duration between update tics that stakeholder actors send to themselves
   val updateTime: FiniteDuration = config.getInt("params.updateTime").millis
-  //interval in slots between localChain save to disk
+  // interval in slots between localChain save to disk
   val chainStoreInterval: Int = config.getInt("params.chainStoreInterval")
-  //number of message processors
+  // number of message processors
   val numMessageProcessors: Int = config.getInt("params.numMessageProcessors")
-  //node secret for HMAC used in each router actor
+  // node secret for HMAC used in each router actor
 
   val stakeholderEC: String = config.getString("params.stakeholderEC")
   val routerEC: String = config.getString("params.routerEC")
@@ -62,7 +62,7 @@ object TetraParameters {
   val useRouterSystem: Boolean = config.getBoolean("params.useRouterSystem")
   val kesStoreInterval: Int = config.getInt("params.kesStoreInterval")
 
-  //path for data output files
+  // path for data output files
   val dataFileDir: String = config.getString("params.dataFileDir")
   val cacheSize: Int = config.getInt("params.cacheSize")
   val refreshInterval: Int = config.getInt("params.refreshInterval")
