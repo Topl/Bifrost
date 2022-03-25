@@ -5,6 +5,7 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.stream.scaladsl.Source
 import akka.util.Timeout
 import cats.arrow.FunctionK
+import cats.data.OptionT
 import cats.effect.implicits._
 import cats.effect.kernel.Sync
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig}
@@ -51,7 +52,7 @@ object TetraDemo extends IOApp {
 
   // Configuration Data
   private val vrfConfig =
-    VrfConfig(lddCutoff = 40, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(4, 5))
+    VrfConfig(lddCutoff = 40, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(2, 5))
 
   private val OperationalPeriodLength = 180L
   private val OperationalPeriodsPerEpoch = 4L
@@ -252,22 +253,27 @@ object TetraDemo extends IOApp {
         ChainSelection.orderT[F](slotDataCache, blake2b512Resource, ChainSelectionKLookback, ChainSelectionSWindow)
       )
       mempool <- EmptyMemPool.make[F]
-      m <- createMint(
-        stakers(demoArgs.stakerIndex),
-        clock,
-        etaCalculation,
-        leaderElectionThreshold,
-        localChain,
-        mempool,
-        blockHeaderStore,
-        consensusState,
-        ed25519VRFResource,
-        kesProductResource,
-        ed25519Resource
-      )
+      mintOpt <- OptionT
+        .fromOption[F](demoArgs.stakerIndex)
+        .semiflatMap(idx =>
+          createMint(
+            stakers(idx),
+            clock,
+            etaCalculation,
+            leaderElectionThreshold,
+            localChain,
+            mempool,
+            blockHeaderStore,
+            consensusState,
+            ed25519VRFResource,
+            kesProductResource,
+            ed25519Resource
+          )
+        )
+        .value
       _ <- DemoProgram
         .run[F](
-          m,
+          mintOpt,
           cachedHeaderValidation,
           blockHeaderStore,
           blockBodyStore,
@@ -297,7 +303,7 @@ case class DemoArgs(
   remotes:          List[InetSocketAddress],
   seed:             Long,
   stakerCount:      Int,
-  stakerIndex:      Int,
+  stakerIndex:      Option[Int],
   genesisTimestamp: Instant
 )
 
@@ -316,7 +322,7 @@ object DemoArgs {
         .map(arr => InetSocketAddress.createUnresolved(arr(0), arr(1).toInt)),
       args(2).toLong,
       args(3).toInt,
-      args(4).toInt,
+      Option(args(4).toInt).filterNot(_ < 0),
       Instant.ofEpochMilli(args.lift(5).fold(defaultGenesisTimestamp())(a => a.toLong))
     )
 

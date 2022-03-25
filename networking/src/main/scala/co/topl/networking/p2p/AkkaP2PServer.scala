@@ -4,16 +4,18 @@ import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.event.Logging
 import akka.stream.scaladsl._
-import akka.stream.{Attributes, BoundedSourceQueue, QueueOfferResult}
+import akka.stream.{Attributes, BoundedSourceQueue, QueueOfferResult, RestartSettings}
 import akka.util.ByteString
 import cats.effect._
 import cats.effect.kernel.Sync
 import cats.implicits._
 import cats.{~>, Applicative, MonadThrow}
 import org.typelevel.log4cats.Logger
+import co.topl.catsakka._
 
 import java.net.InetSocketAddress
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 object AkkaP2PServer {
 
@@ -69,21 +71,23 @@ object AkkaP2PServer {
         }
         .alsoTo(addPeersSink)
         .toMat(Sink.ignore)(Keep.both)
-        .withAttributes(Attributes.logLevels(onElement = Logging.InfoLevel, onFinish = Logging.InfoLevel))
+        .withLogAttributes
       outboundConnectionsRunnableGraph: RunnableGraph[Future[Unit]] =
         remotePeers
           .filterNot(_ == localAddress)
           .map(ConnectedPeer)
-          .log("Initializing connection", identity)
+          .log("Initializing connection")
           .mapAsync(1)(connectedPeer =>
-            Tcp()
-              .outgoingConnection(connectedPeer.remoteAddress)
+            RestartFlow
+              .onFailuresWithBackoff(
+                RestartSettings(1.seconds, 3.seconds, 0.2).withMaxRestarts(5, 60.seconds)
+              )(() => Tcp().outgoingConnection(connectedPeer.remoteAddress))
               .joinMat(peerHandlerFlowWithRemovalF(connectedPeer))((_, r) => r.tupleLeft(connectedPeer))
               .run()
           )
           .alsoTo(addPeersSink)
-          .toMat(Sink.seq)(Keep.right)
-          .withAttributes(Attributes.logLevels(onElement = Logging.InfoLevel, onFinish = Logging.InfoLevel))
+          .toMat(Sink.ignore)(Keep.right)
+          .withLogAttributes
           .mapMaterializedValue(_.void)
       (serverBindingFuture, serverBindingCompletionFuture) = serverBindingRunnableGraph.run()
       serverBinding <- Async[F].fromFuture(serverBindingFuture.pure[F])

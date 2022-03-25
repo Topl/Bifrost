@@ -7,6 +7,7 @@ import cats.data.{EitherT, NonEmptyChain}
 import cats.effect.Async
 import cats.implicits._
 import cats.~>
+import co.topl.catsakka._
 import co.topl.networking.multiplexer._
 import co.topl.networking.p2p.{ConnectedPeer, ConnectionLeader, ConnectionLeaders}
 import co.topl.networking.typedprotocols.{TypedProtocolInstance, TypedProtocolTransitionFailure}
@@ -43,8 +44,8 @@ object TypedProtocolSetFactory {
         connectedPeer:    ConnectedPeer,
         connectionLeader: ConnectionLeader
       ): F[Flow[ByteString, ByteString, Client]] =
-        multiplexerHandlersIn(connectedPeer, connectionLeader).map { case (handlers, client) =>
-          Multiplexer(handlers, client)
+        multiplexerHandlersIn(connectedPeer, connectionLeader).map { case (subHandlers, client) =>
+          Multiplexer(subHandlers, client)
         }
 
       private def multiplexerHandlersIn(
@@ -86,16 +87,14 @@ object TypedProtocolSetFactory {
             }
           }
           .log(s"Received inbound message in protocolInstanceId=$protocolInstanceId", _._1)
-          .mapAsync(1) { case (decodedData, networkTypeTag) =>
-            implicitly[F ~> Future].apply(
-              EitherT(
-                applier.apply(decodedData, multiplexedSubHandler.instance.localParty.opposite)(
-                  networkTypeTag.asInstanceOf[NetworkTypeTag[Any]]
-                )
+          .mapAsyncF(1) { case (decodedData, networkTypeTag) =>
+            EitherT(
+              applier.apply(decodedData, multiplexedSubHandler.instance.localParty.opposite)(
+                networkTypeTag.asInstanceOf[NetworkTypeTag[Any]]
               )
-                .leftMap(error => TypedProtocolTransitionFailureException(decodedData, error))
-                .rethrowT
             )
+              .leftMap(error => TypedProtocolTransitionFailureException(decodedData, error))
+              .rethrowT
           }
           .to(Sink.ignore)
 
@@ -105,18 +104,16 @@ object TypedProtocolSetFactory {
         protocolInstanceId:    Byte
       ): Source[ByteString, _] =
         multiplexedSubHandler.outboundMessages
-          .mapAsync(1)(outboundMessage =>
-            implicitly[F ~> Future].apply(
-              EitherT(
-                applier
-                  .apply(outboundMessage.data, multiplexedSubHandler.instance.localParty)(
-                    outboundMessage.networkTypeTag.asInstanceOf[NetworkTypeTag[Any]]
-                  )
-              )
-                .leftMap(error => TypedProtocolTransitionFailureException(outboundMessage.data, error))
-                .rethrowT
-                .as(outboundMessage)
+          .mapAsyncF(1)(outboundMessage =>
+            EitherT(
+              applier
+                .apply(outboundMessage.data, multiplexedSubHandler.instance.localParty)(
+                  outboundMessage.networkTypeTag.asInstanceOf[NetworkTypeTag[Any]]
+                )
             )
+              .leftMap(error => TypedProtocolTransitionFailureException(outboundMessage.data, error))
+              .rethrowT
+              .as(outboundMessage)
           )
           .log(s"Sending outbound message in protocolInstanceId=$protocolInstanceId", o => o.data)
           .map { o =>

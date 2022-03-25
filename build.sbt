@@ -199,6 +199,7 @@ lazy val bifrost = project
     toplRpc,
     benchmarking,
     crypto,
+    catsAkka,
     brambl,
     models,
     eventTree,
@@ -451,7 +452,8 @@ lazy val minting = project
     crypto,
     tetraByteCodecs,
     algebras % "compile->compile;test->test",
-    consensus
+    consensus,
+    catsAkka
   )
 
 lazy val networking = project
@@ -475,7 +477,8 @@ lazy val networking = project
     tetraByteCodecs,
     algebras % "compile->compile;test->test",
     consensus,
-    commonInterpreters
+    commonInterpreters,
+    catsAkka
   )
 
 lazy val demo = project
@@ -499,7 +502,7 @@ lazy val demo = project
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.demo ++ Dependencies.catsEffect)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models % "compile->compile;test->test", typeclasses, consensus, minting, scripting, commonInterpreters, networking)
+  .dependsOn(models % "compile->compile;test->test", typeclasses, consensus, minting, scripting, commonInterpreters, networking, catsAkka)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
 lazy val eligibilitySimulator: Project = project
@@ -587,6 +590,19 @@ lazy val crypto = project
   )
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test")
+
+lazy val catsAkka = project
+  .in(file("cats-akka"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "cats-akka",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.catsakka",
+    libraryDependencies ++= Dependencies.catsAkka
+  )
+  .settings(scalamacrosParadiseSettings)
 
 lazy val tools = project
   .in(file("tools"))

@@ -227,6 +227,9 @@ object Dependencies {
     simulacrum ++
     test
 
+  lazy val catsAkka: Seq[ModuleID] =
+    cats ++ catsEffect ++ logging ++ Seq(akka("actor"), akka("actor-typed"), akka("stream"))
+
   lazy val models: Seq[ModuleID] =
     cats ++ simulacrum ++ newType ++ scodecBits
 

@@ -7,6 +7,7 @@ import cats.effect.kernel.Sync
 import cats.implicits._
 import cats.{~>, MonadThrow}
 import co.topl.algebras.{ClockAlgebra, MemPoolAlgebra, Store}
+import co.topl.catsakka._
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.minting.algebras.{BlockMintAlgebra, PerpetualBlockMintAlgebra}
 import co.topl.models.{BlockHeaderV2, BlockV2, Slot}
@@ -38,7 +39,7 @@ object PerpetualBlockMint {
                 .flatMapConcat(initialSlot =>
                   Source
                     .fromIterator(() => Iterator.iterate(initialSlot)(_ + 1))
-                    .mapAsync(1)(slot => implicitly[F ~> Future].apply(forSlot(slot)))
+                    .mapAsyncF(1)(forSlot)
                     .collect { case Some(newBlock) => newBlock }
                 )
             )

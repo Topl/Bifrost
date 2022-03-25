@@ -14,6 +14,11 @@ import akka.util.ByteString
 
 import scala.annotation.tailrec
 
+/**
+ * An Akka Flow which deserializes "typed data" (meaning, data bytes which with a byte prefix indicating the data's type).
+ *
+ * The expected data is formatted is: prefix + data length + data
+ */
 object MessageParserFramer {
 
   def apply(): Flow[ByteString, (Byte, ByteString), NotUsed] =

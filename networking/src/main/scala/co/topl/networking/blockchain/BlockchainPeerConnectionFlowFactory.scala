@@ -1,13 +1,14 @@
 package co.topl.networking.blockchain
 
 import akka.NotUsed
+import akka.stream.Materializer
 import akka.stream.scaladsl.{BroadcastHub, Flow, Keep, Source}
-import akka.stream.{BoundedSourceQueue, Materializer, QueueOfferResult}
 import akka.util.ByteString
 import cats.effect.kernel.Sync
 import cats.effect.{Async, Ref}
 import cats.implicits._
-import cats.{~>, Applicative, MonadThrow}
+import cats.~>
+import co.topl.catsakka._
 import co.topl.models.{BlockBodyV2, BlockHeaderV2, TypedIdentifier}
 import co.topl.networking.TypedProtocolSetFactory.implicits._
 import co.topl.networking._
@@ -15,6 +16,8 @@ import co.topl.networking.blockchain.BlockchainMultiplexerCodecs.multiplexerCode
 import co.topl.networking.blockchain.NetworkTypeTags._
 import co.topl.networking.p2p.{ConnectedPeer, ConnectionLeader}
 import co.topl.networking.typedprotocols.{TypedProtocol, TypedProtocolInstance}
+import co.topl.typeclasses.implicits._
+import org.typelevel.log4cats.Logger
 
 import scala.concurrent.{Future, Promise}
 
@@ -27,13 +30,13 @@ import scala.concurrent.{Future, Promise}
  */
 object BlockchainPeerConnectionFlowFactory {
 
-  def make[F[_]: Async: *[_] ~> Future](peerServer: BlockchainPeerServer[F])(implicit
-    materializer:                                   Materializer
+  def make[F[_]: Async: Logger: *[_] ~> Future](peerServer: BlockchainPeerServer[F])(implicit
+    materializer:                                           Materializer
   ): (ConnectedPeer, ConnectionLeader) => F[Flow[ByteString, ByteString, BlockchainPeerClient[F]]] =
     createFactory(peerServer).multiplexed
 
-  private def createFactory[F[_]: Async: *[_] ~> Future](protocolServer: BlockchainPeerServer[F])(implicit
-    materializer:                                                        Materializer
+  private def createFactory[F[_]: Async: Logger: *[_] ~> Future](protocolServer: BlockchainPeerServer[F])(implicit
+    materializer:                                                                Materializer
   ): TypedProtocolSetFactory[F, BlockchainPeerClient[F]] =
     (
       connectedPeer:    ConnectedPeer,
@@ -65,14 +68,16 @@ object BlockchainPeerConnectionFlowFactory {
         }
       } yield (adoptionTypedSubHandlers ++ headerTypedSubHandlers ++ bodyTypedSubHandlers) -> blockchainProtocolClient
 
-  private def blockAdoptionNotificationServer[F[_]: Async](
+  private def blockAdoptionNotificationServer[F[_]: Async: Logger: *[_] ~> Future](
     server:                BlockchainPeerServer[F]
   )(implicit materializer: Materializer) =
     Sync[F]
       .delay {
         val promise = Promise[Unit]()
         val transitions =
-          new BlockchainProtocols.BlockAdoption.StateTransitionsServer[F](() => Sync[F].delay(promise.success(())).void)
+          new BlockchainProtocols.BlockAdoption.StateTransitionsServer[F](() =>
+            Logger[F].info("Client sent block adoption go signal") >> Sync[F].delay(promise.success(())).void
+          )
         transitions -> promise
       }
       .flatMap { case (transitions, clientSignalPromise) =>
@@ -92,7 +97,12 @@ object BlockchainPeerConnectionFlowFactory {
                 initialState = TypedProtocol.CommonStates.None,
                 outboundMessages = Source
                   .future(clientSignalPromise.future)
-                  .flatMapConcat(_ => source.map(TypedProtocol.CommonMessages.Push(_)).map(OutboundMessage(_))),
+                  .flatMapConcat(_ =>
+                    source
+                      .mapAsyncF(1)(id => Logger[F].debug(show"Pushing $id").as(id))
+                      .map(TypedProtocol.CommonMessages.Push(_))
+                      .map(OutboundMessage(_))
+                  ),
                 codec = multiplexerCodec
               )
           }
@@ -106,7 +116,7 @@ object BlockchainPeerConnectionFlowFactory {
       transitions = new BlockchainProtocols.Header.ServerStateTransitions[F](id =>
         server
           .getLocalHeader(id)
-          .flatMap(offerToQueue(responsesQueue, _))
+          .flatMap(responsesQueue.offerF[F])
       )
       instance = {
         import transitions._
@@ -135,7 +145,7 @@ object BlockchainPeerConnectionFlowFactory {
       transitions = new BlockchainProtocols.Body.ServerStateTransitions[F](id =>
         server
           .getLocalBody(id)
-          .flatMap(offerToQueue[F, Option[BlockBodyV2]](responsesQueue, _))
+          .flatMap(responsesQueue.offerF[F])
       )
       instance = {
         import transitions._
@@ -163,7 +173,7 @@ object BlockchainPeerConnectionFlowFactory {
         .toMat(BroadcastHub.sink)(Keep.both)
         .run()
       val transitions =
-        new BlockchainProtocols.BlockAdoption.StateTransitionsClient[F](offerToQueue[F, TypedIdentifier](queue, _))
+        new BlockchainProtocols.BlockAdoption.StateTransitionsClient[F](queue.offerF[F])
       import transitions._
       val instance = TypedProtocolInstance(Parties.B)
         .withTransition(startNoneBusy)
@@ -210,7 +220,7 @@ object BlockchainPeerConnectionFlowFactory {
         .toMat(BroadcastHub.sink)(Keep.both)
         .run()
       clientCallback = (id: TypedIdentifier) =>
-        offerToQueue(outboundMessagesQueue, OutboundMessage(TypedProtocol.CommonMessages.Get(id))) >>
+        outboundMessagesQueue.offerF[F](OutboundMessage(TypedProtocol.CommonMessages.Get(id))) >>
         Sync[F]
           .delay(Promise[Option[BlockHeaderV2]]())
           .flatMap(promise => currentPromiseRef.set(promise.some) >> Async[F].fromFuture(promise.future.pure[F]))
@@ -252,7 +262,7 @@ object BlockchainPeerConnectionFlowFactory {
         .toMat(BroadcastHub.sink)(Keep.both)
         .run()
       clientCallback = (id: TypedIdentifier) =>
-        offerToQueue(outboundMessagesQueue, OutboundMessage(TypedProtocol.CommonMessages.Get(id))) >>
+        outboundMessagesQueue.offerF[F](OutboundMessage(TypedProtocol.CommonMessages.Get(id))) >>
         Sync[F]
           .delay(Promise[Option[BlockBodyV2]]())
           .flatMap(promise => currentPromiseRef.set(promise.some) >> Async[F].fromFuture(promise.future.pure[F]))
@@ -265,17 +275,5 @@ object BlockchainPeerConnectionFlowFactory {
           multiplexerCodec
         )
     } yield (subHandler, clientCallback)
-
-  private def offerToQueue[F[_]: Async, T](queue: BoundedSourceQueue[T], data: T) =
-    (queue.offer(data) match {
-      case QueueOfferResult.Enqueued =>
-        Applicative[F].unit
-      case QueueOfferResult.Dropped =>
-        MonadThrow[F].raiseError(new IllegalStateException("Downstream too slow"))
-      case QueueOfferResult.QueueClosed =>
-        MonadThrow[F].raiseError(new IllegalStateException("Queue closed"))
-      case QueueOfferResult.Failure(e) =>
-        MonadThrow[F].raiseError(e)
-    }).void
 
 }
