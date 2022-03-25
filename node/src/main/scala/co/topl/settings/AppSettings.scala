@@ -17,8 +17,6 @@ case class ApplicationSettings(
   cacheSize:                    Int,
   dataDir:                      Option[String],
   keyFileDir:                   Option[String],
-  enablePBR:                    Boolean,
-  enableTBR:                    Boolean,
   mempoolTimeout:               FiniteDuration,
   nodeKeys:                     Option[Set[String]],
   rebroadcastCount:             Int,

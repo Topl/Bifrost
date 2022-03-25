@@ -9,7 +9,12 @@ import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 
-class BlockVersionTests extends AnyPropSpec with Matchers with TestSettings with NodeViewTestHelpers with CommonGenerators {
+class BlockVersionTests
+    extends AnyPropSpec
+    with Matchers
+    with TestSettings
+    with NodeViewTestHelpers
+    with CommonGenerators {
 
   property(
     "Applying different blocks in different versions according to the test.conf should yield blocks " +
@@ -20,7 +25,7 @@ class BlockVersionTests extends AnyPropSpec with Matchers with TestSettings with
       keyRingCurve25519.addresses ++ keyRingEd25519.addresses
     )
     val genesisBlock = genesis.fetchGenesis(settings).getOrThrow().block
-    val history = generateHistory(genesisBlock)
+    val history = generateHistory(genesisBlock)._1
 
     /**
      * Apply enough blocks to history and state so there will be blocks of all possible versions
@@ -38,8 +43,8 @@ class BlockVersionTests extends AnyPropSpec with Matchers with TestSettings with
       )
     }
 
-    val updatedHistory = listBlocks.foldLeft(history ) { case (accHistory, block) =>
-        accHistory.append(block, Seq()).get._1
+    val updatedHistory = listBlocks.foldLeft(history) { case (accHistory, block) =>
+      accHistory.append(block, Seq()).get._1
     }
 
     var currentId: ModifierId = updatedHistory.bestBlockId
@@ -57,8 +62,8 @@ class BlockVersionTests extends AnyPropSpec with Matchers with TestSettings with
       val genesis = new GenesisProvider(version, keyRingCurve25519.addresses ++ keyRingEd25519.addresses)
       val genesisBlock = genesis.fetchGenesis(settings).getOrThrow().block
 
-      val history = generateHistory(genesisBlock)
-      val state = generateState(genesisBlock)
+      val history = generateHistory(genesisBlock)._1
+      val state = generateState(genesisBlock)._1
 
       history.modifierById(genesisBlock.id).isDefined shouldBe true
       state.version == genesisBlock.id shouldBe true

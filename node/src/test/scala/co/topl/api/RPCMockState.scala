@@ -22,6 +22,7 @@ import co.topl.nodeView.history.{History, InMemoryKeyValueStore}
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.rpc.ToplRpcServer
+import co.topl.settings.Version
 import co.topl.utils.{DiskKeyRingTestHelper, TestSettings, TimeProvider}
 import org.scalacheck.Gen
 import org.scalatest.BeforeAndAfterAll
@@ -34,7 +35,7 @@ import scala.concurrent.duration.DurationInt
 trait RPCMockState
     extends AnyWordSpec
     with TestSettings
-    with DiskKeyRingTestHelper
+    with NodeViewTestHelpers
     with ValidTransactionGenerators
     with ValidBlockchainGenerator
     with ScalatestRouteTest
@@ -52,7 +53,12 @@ trait RPCMockState
   implicit protected val routeTestTimeout: RouteTestTimeout = RouteTestTimeout(5.seconds)
 
   protected def blockchainGen: Byte => Gen[NonEmptyChain[Block]] =
-    (length: Byte) => validChainFromGenesis(keyRingCurve25519, protocolVersioner)(length)
+    (length: Byte) =>
+      validChainFromGenesis(
+        keyRingCurve25519,
+        settings.application.genesis.generated.get,
+        protocolVersioner
+      )(length)
 
   // TODO Fails when using rpcSettings
   override def createActorSystem(): ActorSystem = ActorSystem(settings.network.agentName)
@@ -97,19 +103,32 @@ trait RPCMockState
 
     consensusInterface = new ActorConsensusInterface(consensusHolderRef)(system.toTyped, 10.seconds)
 
-    nodeViewHolderRef = system.toTyped.systemActorOf(
-      NodeViewHolder(
-        settings,
-        consensusInterface,
-        () =>
-          NodeView.persistent(
-            settings,
-            consensusInterface,
-            () => Future.successful(StartupKeyView(keyRingCurve25519.addresses, Some(keyRingCurve25519.addresses.head)))
-          )(system.toTyped, implicitly, networkPrefix, protocolVersioner)
-      ),
-      NodeViewHolder.ActorName
-    )
+    nodeViewHolderRef = {
+      val testSettingsGenesis = constructGenesis(
+        keyRingCurve25519,
+        settings.application.genesis.generated.get,
+        protocolVersioner
+      )
+      val a = generateHistory(testSettingsGenesis.block)
+      val b = generateState(testSettingsGenesis.block)
+      val g = system.toTyped.systemActorOf(
+        NodeViewHolder(
+          settings,
+          consensusInterface,
+          () =>
+            Future.successful(
+              NodeView(
+                a._1,
+                b._1,
+                MemPool.empty()
+              )
+            )
+        ),
+        NodeViewHolder.ActorName
+      )
+
+      g
+    }
 
     forgerRef = system.toTyped.systemActorOf(
       Forger.behavior(

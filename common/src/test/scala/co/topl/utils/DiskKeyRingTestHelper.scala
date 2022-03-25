@@ -10,6 +10,12 @@ import scala.collection.SortedSet
 
 trait KeyRingTestHelper {
 
+  protected val propTypeCurve25519: String = PublicKeyPropositionCurve25519.typeString
+
+  protected val propTypeEd25519: String = PublicKeyPropositionEd25519.typeString
+
+  protected val propTypeThresholdCurve25519: String = ThresholdPropositionCurve25519.typeString
+
   protected var keyRingCurve25519: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] = _
 
   protected var keyRingEd25519: KeyRing[PrivateKeyEd25519, KeyfileEd25519] = _
@@ -23,29 +29,24 @@ trait DiskKeyRingTestHelper extends BeforeAndAfterAll with NetworkPrefixTestHelp
 
   protected var keyFileDir: Path = _
 
-  protected val propTypeCurve25519: String = PublicKeyPropositionCurve25519.typeString
+  keyFileDir = Files.createTempDirectory("bifrost-test-keyring")
 
-  protected val propTypeEd25519: String = PublicKeyPropositionEd25519.typeString
+  keyRingCurve25519 = KeyRing.empty[PrivateKeyCurve25519, KeyfileCurve25519](Some(keyFileDir.toString))(
+    networkPrefix,
+    PrivateKeyCurve25519.secretGenerator,
+    KeyfileCurve25519Companion
+  )
 
-  protected val propTypeThresholdCurve25519: String = ThresholdPropositionCurve25519.typeString
+  keyRingEd25519 = KeyRing.empty[PrivateKeyEd25519, KeyfileEd25519](Some(keyFileDir.toString))(
+    networkPrefix,
+    PrivateKeyEd25519.secretGenerator,
+    KeyfileEd25519Companion
+  )
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    keyFileDir = Files.createTempDirectory("bifrost-test-keyring")
-    keyRingCurve25519 = KeyRing.empty[PrivateKeyCurve25519, KeyfileCurve25519](Some(keyFileDir.toString))(
-      networkPrefix,
-      PrivateKeyCurve25519.secretGenerator,
-      KeyfileCurve25519Companion
-    )
-    keyRingEd25519 = KeyRing.empty[PrivateKeyEd25519, KeyfileEd25519](Some(keyFileDir.toString))(
-      networkPrefix,
-      PrivateKeyEd25519.secretGenerator,
-      KeyfileEd25519Companion
-    )
-    import org.scalatest.TryValues._
-    keyRingCurve25519.generateNewKeyPairs(num = 3).success.value
-    keyRingEd25519.generateNewKeyPairs(num = 3).success.value
-
+    keyRingCurve25519.generateNewKeyPairs(num = 3)
+    keyRingEd25519.generateNewKeyPairs(num = 3)
     propsThresholdCurve25519 = (for (threshold <- 2 to keyRingCurve25519.addresses.size)
       yield ThresholdPropositionCurve25519(
         threshold,
@@ -84,5 +85,12 @@ trait InMemoryKeyRingTestHelper extends NetworkPrefixTestHelper with BeforeAndAf
     super.beforeAll()
     keyRingCurve25519.generateNewKeyPairs(3)
     keyRingEd25519.generateNewKeyPairs(3)
+    propsThresholdCurve25519 = (for (threshold <- 2 to keyRingCurve25519.addresses.size)
+      yield ThresholdPropositionCurve25519(
+        threshold,
+        SortedSet[PublicKeyPropositionCurve25519]() ++ keyRingCurve25519.addresses.flatMap(
+          keyRingCurve25519.lookupPublicKey(_).toOption
+        )
+      )).toSet
   }
 }

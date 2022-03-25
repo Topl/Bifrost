@@ -1,11 +1,12 @@
 package co.topl.consensus
 
 import cats.data.NonEmptyChain
-import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.consensus.BlockValidators._
 import co.topl.modifier.block.Block
+import co.topl.settings.Version
 import co.topl.utils.InMemoryKeyRingTestHelper
 import co.topl.utils.TimeProvider.Time
+import io.circe.Encoder
 import org.scalacheck.Gen
 import org.scalatest.Suite
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
@@ -35,11 +36,15 @@ class ValidBlockchainGeneratorSpec extends AnyPropSpec with ValidBlockchainGener
   }
 
   property("Generates a valid blockchain from genesis with up to 127 blocks in length") {
-    forAll(Gen.choose(2, 127)) { length =>
+    forAll(Gen.choose[Byte](2,Byte.MaxValue)) { length =>
       val leaderElection = new NxtLeaderElection(ProtocolVersioner.default)
 
       val nonEmptyBlockchain: NonEmptyChain[Block] =
-        validChainFromGenesis(keyRingCurve25519, ProtocolVersioner.default)(length.toByte).sample.get
+        validChainFromGenesis(
+          keyRingCurve25519,
+          GenesisProvider.Strategies.Generation(Version.initial, Int.MaxValue, Long.MaxValue),
+          ProtocolVersioner.default
+        )(length).sample.get
 
       val extractors = new BlockDataExtractors(nonEmptyBlockchain)
       import extractors._
@@ -57,5 +62,4 @@ class ValidBlockchainGeneratorSpec extends AnyPropSpec with ValidBlockchainGener
       nonEmptyBlockchain.tail.forall(validators(_).forall(_.isSuccess)) shouldBe true
     }
   }
-
 }

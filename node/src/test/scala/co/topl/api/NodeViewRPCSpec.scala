@@ -108,7 +108,8 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res: Json = parse(responseAs[String]).value
+        val res1: String = responseAs[String]
+        val res: Json = parse(res1).value
         val balances = res.hcursor.downField("result").as[Json].value
         keyRingCurve25519.addresses.map { addr =>
           balances.toString() should include(addr.toString)

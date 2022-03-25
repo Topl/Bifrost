@@ -338,12 +338,14 @@ class TransactionValidationSpec
   private def withValidState(test: State => Unit): Unit =
     test(
       generateState(
-        GenesisProvider.construct(
-          keyRingCurve25519.addresses ++ keyRingEd25519.addresses,
-          Int.MaxValue,
-          Long.MaxValue,
-          0
-        ).block
-      )
+        GenesisProvider
+          .construct(
+            keyRingCurve25519.addresses ++ keyRingEd25519.addresses,
+            Int.MaxValue,
+            Long.MaxValue,
+            0
+          )
+          .block
+      )._1
     )
 }

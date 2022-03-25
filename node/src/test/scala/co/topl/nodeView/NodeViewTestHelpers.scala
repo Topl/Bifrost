@@ -21,68 +21,40 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll with InMemoryKeyRingTestHelp
   def genesisNodeViewTestInputs(
     genesisConsensusView:       NxtConsensus.Genesis
   )(implicit protocolVersioner: ProtocolVersioner): TestIn = {
-    val historyStore = InMemoryKeyValueStore.empty()
-    val stateStore = InMemoryKeyValueStore.empty()
-    val tokenBoxStore = InMemoryKeyValueStore.empty()
-
-    val state =
-      State(genesisConsensusView.block.id, stateStore, Some(new TokenBoxRegistry(tokenBoxStore, None)), None, None)
-    val history = new History(new Storage(historyStore), TineProcessor(1024))
-
+    val historyComponents = generateHistory(genesisConsensusView.block)
+    val stateComponents = generateState(genesisConsensusView.block)
     val nodeView = NodeView(
-      history,
-      state,
+      historyComponents._1,
+      stateComponents._1,
       MemPool.empty()
     )
 
-    nodeView.state.applyModifier(genesisConsensusView.block)
-    nodeView.history.append(genesisConsensusView.block, Seq())
-
-    TestIn(nodeView, historyStore, stateStore, tokenBoxStore, genesisConsensusView)
+    TestIn(nodeView, historyComponents._2, stateComponents._2, stateComponents._3, genesisConsensusView)
   }
 
-  def generateState(genesisBlock: Block)(implicit networkPrefix: NetworkPrefix): State = {
-    val tokenBoxRegistry = new TokenBoxRegistry(InMemoryKeyValueStore.empty(), None)
-    val programBoxRegistry = new ProgramBoxRegistry(InMemoryKeyValueStore.empty())
-    val state =
-      State(genesisBlock.id, InMemoryKeyValueStore.empty(), Some(tokenBoxRegistry), Some(programBoxRegistry), None)
+  def generateState(genesisBlock: Block)(implicit
+    networkPrefix:                NetworkPrefix
+  ): (State, InMemoryKeyValueStore, InMemoryKeyValueStore, InMemoryKeyValueStore) = {
+    val tbrStore = InMemoryKeyValueStore.empty()
+    val pbrStore = InMemoryKeyValueStore.empty()
+    val stateStore = InMemoryKeyValueStore.empty()
+    val tokenBoxRegistry = new TokenBoxRegistry(tbrStore)
+    val programBoxRegistry = new ProgramBoxRegistry(pbrStore)
+    val state = State(genesisBlock.id, stateStore, tokenBoxRegistry, programBoxRegistry)
     state.applyModifier(genesisBlock).get
+    (state, stateStore, tbrStore, pbrStore)
   }
 
   def generateHistory(
     genesisBlock:           Block
-  )(implicit networkPrefix: NetworkPrefix, protocolVersioner: ProtocolVersioner): History = {
-    val storage = new Storage(new InMemoryKeyValueStore)
-    val validators = Seq()
-    var history = new History(storage, TineProcessor(1024))
-    history = history.append(genesisBlock, validators).get._1
-    assert(history.modifierById(genesisBlock.id).isDefined)
-    history
+  )(implicit networkPrefix: NetworkPrefix, protocolVersioner: ProtocolVersioner): (History, InMemoryKeyValueStore) = {
+    val tineProcessor = TineProcessor(1024)
+    val store = new InMemoryKeyValueStore()
+    val storage = new Storage(store)
+    val history = new History(storage, tineProcessor)
+    history.append(genesisBlock, Seq()).get._1
+    (history, store)
   }
-
-//  protected def nextBlock(parent: Block, nodeView: NodeView): Block = {
-//    val timestamp = parent.timestamp + 50000
-//    val leaderElection = new NxtLeaderElection(protocolVersioner)
-//
-//    val arbitBox = NxtLeaderElection
-//      .getEligibleBox(
-//        parent,
-//        keyRingCurve25519.addresses,
-//        timestamp,
-//        NxtConsensus.State(10000000, parent.difficulty, 0L, parent.height),
-//        leaderElection
-//      )
-//      .toOption
-//      .get
-//
-//    nextBlock(
-//      parent,
-//      arbitBox,
-//      nodeView.history.getTimestampsFrom(parent, 3),
-//      keyRingCurve25519.addresses.find(_.evidence == arbitBox.evidence).get,
-//      leaderElection
-//    )
-//  }
 
   protected def nextBlock(
     parent:             Block,
@@ -154,11 +126,6 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll with InMemoryKeyRingTestHelp
         }
     }
 
-  override protected def beforeAll(): Unit = {
-    super.beforeAll()
-    // A beforeAll step generates 3 keys.  We need 7 more to hit 10.
-    keyRingCurve25519.generateNewKeyPairs(7)
-  }
 }
 
 object NodeViewTestHelpers {

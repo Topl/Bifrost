@@ -23,7 +23,7 @@ class TokenBoxRegistrySpec
 
   property("Token boxes should be inserted into the registry") {
     forAll(genesisBlockGen, tokenBoxesGen) { (genesisBlock, tokens) =>
-      val state = generateState(genesisBlock)
+      val state = generateState(genesisBlock)._1
       val keys = tokens.groupBy(_.evidence)
       directlyAddTBRStorage(modifierIdGen.sampleFirst(), tokens, state)
       keys.foreach { key =>
@@ -35,8 +35,8 @@ class TokenBoxRegistrySpec
 
   property("Rolling back should remove tokens from registry") {
     forAll(genesisBlockGen, tokenBoxesGen) { (genesisBlock, tokens) =>
-      val state = generateState(genesisBlock)
-      val tbr = state.tbrOpt.get
+      val state = generateState(genesisBlock)._1
+      val tbr = state.tokenBoxRegistry
       val version = modifierIdGen.sampleFirst()
       val keys = tokens.groupBy(_.evidence).map(k => Address(k._1) -> k._2)
       val update = keys.map(k => k._1 -> k._2.map(_.nonce))

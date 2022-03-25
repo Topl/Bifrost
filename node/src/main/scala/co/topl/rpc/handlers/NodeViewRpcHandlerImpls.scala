@@ -30,9 +30,9 @@ class NodeViewRpcHandlerImpls(
   consensusReader:         ConsensusReader,
   nodeViewHolderInterface: NodeViewHolderInterface
 )(implicit
-  system:           ActorSystem[_],
-  throwableEncoder: Encoder[ThrowableData],
-  networkPrefix:    NetworkPrefix,
+  system:            ActorSystem[_],
+  throwableEncoder:  Encoder[ThrowableData],
+  networkPrefix:     NetworkPrefix,
   protocolVersioner: ProtocolVersioner
 ) extends ToplRpcHandlers.NodeView {
 
@@ -59,11 +59,7 @@ class NodeViewRpcHandlerImpls(
       )
 
   override val balances: ToplRpc.NodeView.Balances.rpc.ServerHandler =
-    params =>
-      withNodeView(view =>
-        checkAddresses(params.addresses, view.state)
-          .map(balancesResponse(view.state, _))
-      ).subflatMap(identity)
+    params => withNodeView(view => balancesResponse(view.state, params.addresses))
 
   override val transactionById: ToplRpc.NodeView.TransactionById.rpc.ServerHandler =
     params =>
@@ -162,8 +158,10 @@ class NodeViewRpcHandlerImpls(
     val boxes =
       addresses.map { k =>
         val orderedBoxes = state.getTokenBoxes(k) match {
-          case Some(boxes) => boxes.groupBy[String](Box.identifier(_).typeString).map { case (k, v) => k -> v.toList }
-          case _           => Map[String, List[TokenBox[TokenValueHolder]]]()
+          case Some(boxes) =>
+            println(boxes)
+            boxes.groupBy[String](Box.identifier(_).typeString).map { case (k, v) => k -> v.toList }
+          case _ => Map[String, List[TokenBox[TokenValueHolder]]]()
         }
         k -> orderedBoxes
       }.toMap
