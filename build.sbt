@@ -3,20 +3,24 @@ import sbt.Keys.{homepage, organization, test}
 import sbtassembly.MergeStrategy
 
 val scala212 = "2.12.15"
-val scala213 = "2.13.7"
+val scala213 = "2.13.6"
 
-inThisBuild(List(
-  organization := "co.topl",
-  scalaVersion := scala213,
-  versionScheme := Some("early-semver"),
-  dynverSeparator := "-",
-  version := dynverGitDescribeOutput.value.mkVersion(versionFmt, fallbackVersion(dynverCurrentDate.value)),
-  dynver := {
-    val d = new java.util.Date
-    sbtdynver.DynVer.getGitDescribeOutput(d).mkVersion(versionFmt, fallbackVersion(d))
-  },
-  parallelExecution := false
-))
+inThisBuild(
+  List(
+    organization := "co.topl",
+    scalaVersion := scala213,
+    versionScheme := Some("early-semver"),
+    dynverSeparator := "-",
+    version := dynverGitDescribeOutput.value.mkVersion(versionFmt, fallbackVersion(dynverCurrentDate.value)),
+    dynver := {
+      val d = new java.util.Date
+      sbtdynver.DynVer.getGitDescribeOutput(d).mkVersion(versionFmt, fallbackVersion(d))
+    },
+    parallelExecution := false
+  )
+)
+
+Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
 enablePlugins(ReproducibleBuildsPlugin, ReproducibleBuildsAssemblyPlugin)
 
@@ -49,7 +53,9 @@ lazy val commonSettings = Seq(
     "Sonatype Staging" at "https://s01.oss.sonatype.org/content/repositories/staging",
     "Sonatype Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots/",
     "Bintray" at "https://jcenter.bintray.com/"
-  )
+  ),
+  addCompilerPlugin("org.typelevel" % "kind-projector"     % "0.13.2" cross CrossVersion.full),
+  addCompilerPlugin("com.olegpy"   %% "better-monadic-for" % "0.3.1")
 )
 
 lazy val publishSettings = Seq(
@@ -87,25 +93,26 @@ lazy val dockerSettings = Seq(
   }
 )
 
-lazy val assemblySettings = Seq(
-  assembly / mainClass := Some("co.topl.BifrostApp"),
+def assemblySettings(main: String) = Seq(
+  assembly / mainClass := Some(main),
   assembly / test := {},
   assemblyJarName := s"bifrost-node-${version.value}.jar",
-  assembly / assemblyMergeStrategy ~= { old: ((String) => MergeStrategy) => {
-    case ps if ps.endsWith(".SF")  => MergeStrategy.discard
-    case ps if ps.endsWith(".DSA") => MergeStrategy.discard
-    case ps if ps.endsWith(".RSA") => MergeStrategy.discard
-    case ps if ps.endsWith(".xml") => MergeStrategy.first
-    case PathList(ps @ _*) if ps.last endsWith "module-info.class" =>
-      MergeStrategy.discard // https://github.com/sbt/sbt-assembly/issues/370
-    case x if x.contains("simulacrum") => MergeStrategy.last
-    case PathList("org", "iq80", "leveldb", xs @ _*) => MergeStrategy.first
-    case PathList("module-info.java")  => MergeStrategy.discard
-    case PathList("local.conf")        => MergeStrategy.discard
-    case "META-INF/truffle/instrument" => MergeStrategy.concat
-    case "META-INF/truffle/language"   => MergeStrategy.rename
-    case x                             => old(x)
-  }
+  assembly / assemblyMergeStrategy ~= { old: ((String) => MergeStrategy) =>
+    {
+      case ps if ps.endsWith(".SF")  => MergeStrategy.discard
+      case ps if ps.endsWith(".DSA") => MergeStrategy.discard
+      case ps if ps.endsWith(".RSA") => MergeStrategy.discard
+      case ps if ps.endsWith(".xml") => MergeStrategy.first
+      case PathList(ps @ _*) if ps.last endsWith "module-info.class" =>
+        MergeStrategy.discard // https://github.com/sbt/sbt-assembly/issues/370
+      case x if x.contains("simulacrum")               => MergeStrategy.last
+      case PathList("org", "iq80", "leveldb", xs @ _*) => MergeStrategy.first
+      case PathList("module-info.java")                => MergeStrategy.discard
+      case PathList("local.conf")                      => MergeStrategy.discard
+      case "META-INF/truffle/instrument"               => MergeStrategy.concat
+      case "META-INF/truffle/language"                 => MergeStrategy.rename
+      case x                                           => old(x)
+    }
   },
   assembly / assemblyExcludedJars := {
     val cp = (assembly / fullClasspath).value
@@ -187,11 +194,23 @@ lazy val bifrost = project
     node,
     common,
     akkaHttpRpc,
+    typeclasses,
     toplRpc,
     benchmarking,
     crypto,
     brambl,
-    tools
+    models,
+    eventTree,
+    algebras,
+    commonInterpreters,
+    minting,
+    byteCodecs,
+    tetraByteCodecs,
+    consensus,
+    demo,
+    tools,
+    scripting,
+    genus
   )
 
 lazy val node = project
@@ -199,7 +218,7 @@ lazy val node = project
   .settings(
     name := "bifrost-node",
     commonSettings,
-    assemblySettings,
+    assemblySettings("co.topl.BifrostApp"),
     dockerSettings,
     Defaults.itSettings,
     crossScalaVersions := Seq(scala213), // The `monocle` library does not support Scala 2.12
@@ -224,19 +243,19 @@ lazy val common = project
     publishSettings,
     libraryDependencies ++= Dependencies.common
   )
-  .dependsOn(crypto)
+  .dependsOn(crypto, typeclasses, models % "compile->compile;test->test")
   .settings(scalamacrosParadiseSettings)
 
-lazy val chainProgram = project
-  .in(file("chain-program"))
-  .settings(
-    name := "chain-program",
-    commonSettings,
-    publish / skip := true,
-    libraryDependencies ++= Dependencies.chainProgram
-  )
-  .dependsOn(common)
-  .disablePlugins(sbtassembly.AssemblyPlugin)
+//lazy val chainProgram = project
+//  .in(file("chain-program"))
+//  .settings(
+//    name := "chain-program",
+//    commonSettings,
+//    publish / skip := true,
+//    libraryDependencies ++= Dependencies.chainProgram
+//  )
+//  .dependsOn(common)
+//  .disablePlugins(sbtassembly.AssemblyPlugin)
 
 lazy val brambl = project
   .in(file("brambl"))
@@ -249,7 +268,8 @@ lazy val brambl = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.brambl"
   )
-  .dependsOn(toplRpc, common)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(toplRpc, common, typeclasses, models % "compile->compile;test->test", scripting, tetraByteCodecs)
 
 lazy val akkaHttpRpc = project
   .in(file("akka-http-rpc"))
@@ -263,6 +283,213 @@ lazy val akkaHttpRpc = project
     buildInfoPackage := "co.topl.buildinfo.akkahttprpc"
   )
 
+lazy val models = project
+  .in(file("models"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "models",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.models"
+  )
+  .settings(scalamacrosParadiseSettings)
+  .settings(
+    libraryDependencies ++= Dependencies.models
+  )
+  .settings(libraryDependencies ++= Dependencies.test)
+
+lazy val eventTree = project
+  .in(file("event-tree"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "event-tree",
+    commonSettings,
+    crossScalaVersions := Seq(scala213),
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.eventtree"
+  )
+  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsEffect)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(models, typeclasses, algebras, commonInterpreters % "test->test")
+
+lazy val byteCodecs = project
+  .in(file("byte-codecs"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "byte-codecs",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.codecs.bytes"
+  )
+  .settings(
+    libraryDependencies ++=
+      Dependencies.test ++
+        Dependencies.simulacrum ++
+        Dependencies.scodec ++
+        Dependencies.scodecBits ++
+        Dependencies.cats ++
+        Seq(Dependencies.akka("actor"))
+  )
+  .settings(scalamacrosParadiseSettings)
+
+lazy val tetraByteCodecs = project
+  .in(file("tetra-byte-codecs"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "tetra-byte-codecs",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.codecs.bytes.tetra"
+  )
+  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.guava)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(models % "compile->compile;test->test", byteCodecs % "compile->compile;test->test", crypto)
+
+lazy val jsonCodecs = project
+  .in(file("json-codecs"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "json-codecs",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.codecs.json"
+  )
+  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.circe)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(models)
+
+lazy val typeclasses: Project = project
+  .in(file("typeclasses"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "typeclasses",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.typeclasses"
+  )
+  .settings(libraryDependencies ++= Dependencies.test)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(models % "compile->compile;test->test", crypto, tetraByteCodecs, jsonCodecs)
+
+lazy val algebras = project
+  .in(file("algebras"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "algebras",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.algebras"
+  )
+  .settings(libraryDependencies ++= Dependencies.test ++ Seq(Dependencies.catsSlf4j % "test"))
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(models, crypto, tetraByteCodecs)
+
+lazy val commonInterpreters = project
+  .in(file("common-interpreters"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "common-interpreters",
+    commonSettings,
+    crossScalaVersions := Seq(scala213),
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.commoninterpreters"
+  )
+  .settings(libraryDependencies ++= Dependencies.commonInterpreters)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(models, algebras, typeclasses, byteCodecs, tetraByteCodecs)
+
+lazy val consensus = project
+  .in(file("consensus"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "consensus",
+    commonSettings,
+    crossScalaVersions := Seq(scala213),
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.consensus"
+  )
+  .settings(libraryDependencies ++= Dependencies.test)
+  .settings(
+    libraryDependencies ++= Dependencies.consensus
+  )
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(
+    models % "compile->compile;test->test",
+    typeclasses,
+    crypto,
+    tetraByteCodecs,
+    algebras % "compile->compile;test->test"
+  )
+
+lazy val minting = project
+  .in(file("minting"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "minting",
+    commonSettings,
+    crossScalaVersions := Seq(scala213),
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.minting"
+  )
+  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsEffect)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(
+    models % "compile->compile;test->test",
+    typeclasses,
+    crypto,
+    tetraByteCodecs,
+    algebras % "compile->compile;test->test",
+    consensus
+  )
+
+lazy val demo = project
+  .in(file("demo"))
+  .settings(
+    name := "demo",
+    commonSettings,
+    assemblySettings("co.topl.demo.TetraDemo"),
+    Defaults.itSettings,
+    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
+    Compile / run / mainClass := Some("co.topl.demo.TetraDemo"),
+    publish / skip := true,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.demo",
+    Docker / packageName := "bifrost-node",
+    dockerExposedPorts := Seq(9084, 9085),
+    dockerExposedVolumes += "/opt/docker/.bifrost",
+    dockerLabels ++= Map(
+      "bifrost.version" -> version.value
+    )
+  )
+  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.demo ++ Dependencies.catsEffect)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(models % "compile->compile;test->test", typeclasses, consensus, minting, scripting, commonInterpreters)
+  .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
+
+lazy val scripting: Project = project
+  .in(file("scripting"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "scripting",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.scripting"
+  )
+  .settings(libraryDependencies ++= Dependencies.graal ++ Dependencies.catsEffect ++ Dependencies.circe ++ Dependencies.simulacrum)
+  .settings(libraryDependencies ++= Dependencies.test)
+  .settings(scalamacrosParadiseSettings)
+
 lazy val toplRpc = project
   .in(file("topl-rpc"))
   .enablePlugins(BuildInfoPlugin)
@@ -270,6 +497,7 @@ lazy val toplRpc = project
     name := "topl-rpc",
     commonSettings,
     publishSettings,
+    scalamacrosParadiseSettings,
     libraryDependencies ++= Dependencies.toplRpc,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.toplrpc"
@@ -312,8 +540,9 @@ lazy val crypto = project
     scalamacrosParadiseSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.crypto",
-    libraryDependencies ++= Dependencies.crypto,
+    libraryDependencies ++= Dependencies.crypto
   )
+  .dependsOn(models % "compile->compile;test->test")
 
 lazy val tools = project
   .in(file("tools"))
@@ -333,10 +562,22 @@ lazy val loadTesting = project
   .settings(
     name := "load-testing",
     commonSettings,
+    crossScalaVersions := Seq(scala213),
     scalamacrosParadiseSettings,
     libraryDependencies ++= Dependencies.loadTesting
   )
   .dependsOn(common, brambl)
+
+lazy val genus = project
+  .in(file("genus"))
+  .settings(
+    name := "genus",
+    commonSettings,
+    scalamacrosParadiseSettings,
+    libraryDependencies ++= Dependencies.genus,
+  )
+  .enablePlugins(AkkaGrpcPlugin)
+  .dependsOn(common)
 
 addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; + test")
 addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; + test")
