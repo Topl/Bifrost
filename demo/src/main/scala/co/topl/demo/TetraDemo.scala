@@ -224,6 +224,7 @@ object TetraDemo extends IOApp {
       ed25519Resource    <- ActorPoolUnsafeResource.Eval.make[F, Ed25519](new Ed25519, _ => ())
       blockHeaderStore   <- RefStore.Eval.make[F, BlockHeaderV2]()
       blockBodyStore     <- RefStore.Eval.make[F, BlockBodyV2]()
+      transactionStore   <- RefStore.Eval.make[F, Transaction]()
       _                  <- blockHeaderStore.put(genesis.headerV2.id, genesis.headerV2)
       _                  <- blockBodyStore.put(genesis.headerV2.id, genesis.blockBodyV2)
       slotDataCache      <- SlotDataCache.Eval.make(blockHeaderStore, ed25519VRFResource)
@@ -277,6 +278,7 @@ object TetraDemo extends IOApp {
           cachedHeaderValidation,
           blockHeaderStore,
           blockBodyStore,
+          transactionStore,
           localChain,
           ed25519VRFResource,
           demoArgs.port,

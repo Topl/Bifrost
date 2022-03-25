@@ -8,12 +8,12 @@ import cats.data.OptionT
 import cats.effect.std.Supervisor
 import cats.effect.{Async, Concurrent, Fiber, Sync}
 import cats.implicits._
-import cats.{~>, Applicative}
+import cats.{~>, Applicative, MonadThrow}
 import co.topl.algebras.Store
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.models.{BlockBodyV2, BlockHeaderV2, BlockV2, TypedIdentifier}
+import co.topl.models._
 import co.topl.networking.p2p._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
@@ -28,6 +28,7 @@ object BlockchainNetwork {
     remotePeers:            Source[InetSocketAddress, _],
     headerStore:            Store[F, BlockHeaderV2],
     bodyStore:              Store[F, BlockBodyV2],
+    transactionStore:       Store[F, Transaction],
     locallyAdoptedBlockIds: Source[TypedIdentifier, NotUsed],
     onBlockReceived:        BlockV2 => F[Unit]
   )(implicit
@@ -36,7 +37,7 @@ object BlockchainNetwork {
     for {
       localAddress <- InetSocketAddress.createUnresolved("localhost", bindPort).pure[F]
       localPeer = LocalPeer(localAddress)
-      blockchainServer <- blockchainProtocolServer(headerStore, bodyStore, locallyAdoptedBlockIds)
+      blockchainServer <- blockchainProtocolServer(headerStore, bodyStore, transactionStore, locallyAdoptedBlockIds)
       connectionFlowFactory = BlockchainPeerConnectionFlowFactory.make[F](blockchainServer)
       peerHandlerFlow =
         (connectedPeer: ConnectedPeer) =>
@@ -58,7 +59,7 @@ object BlockchainNetwork {
         )
       }
       _ <- p2pServer.newConnectedPeers.flatMap(peers =>
-        handleNetworkClients(peers.map(_._2), headerStore, bodyStore, onBlockReceived)
+        handleNetworkClients(peers.map(_._2), headerStore, bodyStore, transactionStore, onBlockReceived)
       )
       _ <- Logger[F].info(s"Bound P2P at host=localhost port=$bindPort")
     } yield p2pServer
@@ -66,6 +67,7 @@ object BlockchainNetwork {
   private def blockchainProtocolServer[F[_]: Sync](
     headerStore:            Store[F, BlockHeaderV2],
     bodyStore:              Store[F, BlockBodyV2],
+    transactionStore:       Store[F, Transaction],
     locallyAdoptedBlockIds: Source[TypedIdentifier, NotUsed]
   )(implicit
     materializer: Materializer
@@ -79,38 +81,43 @@ object BlockchainNetwork {
         def getLocalHeader(id: TypedIdentifier): F[Option[BlockHeaderV2]] = headerStore.get(id)
 
         def getLocalBody(id: TypedIdentifier): F[Option[BlockBodyV2]] = bodyStore.get(id)
+
+        def getLocalTransaction(id: TypedIdentifier): F[Option[Transaction]] = transactionStore.get(id)
       }
     )
 
   private def handleNetworkClients[F[_]: Async: Concurrent: Logger: *[_] ~> Future](
-    clients:         Source[BlockchainPeerClient[F], _],
-    headerStore:     Store[F, BlockHeaderV2],
-    bodyStore:       Store[F, BlockBodyV2],
-    onBlockReceived: BlockV2 => F[Unit]
-  )(implicit system: ActorSystem[_]): F[Fiber[F, Throwable, Done]] =
+    clients:          Source[BlockchainPeerClient[F], _],
+    headerStore:      Store[F, BlockHeaderV2],
+    bodyStore:        Store[F, BlockBodyV2],
+    transactionStore: Store[F, Transaction],
+    onBlockReceived:  BlockV2 => F[Unit]
+  )(implicit system:  ActorSystem[_]): F[Fiber[F, Throwable, Done]] =
     Supervisor[F].use(
       _.supervise(
         Async[F].fromFuture(
           clients
-            .mapAsyncF(1)(handleNetworkClient(_, headerStore, bodyStore, onBlockReceived))
+            .mapAsyncF(1)(handleNetworkClient(_, headerStore, bodyStore, transactionStore, onBlockReceived))
             .toMat(Sink.ignore)(Keep.right)
-            .mapK[F]
+            .liftTo[F]
         )
       )
     )
 
   private def handleNetworkClient[F[_]: Async: Concurrent: Logger: *[_] ~> Future](
-    client:          BlockchainPeerClient[F],
-    headerStore:     Store[F, BlockHeaderV2],
-    bodyStore:       Store[F, BlockBodyV2],
-    onBlockReceived: BlockV2 => F[Unit]
-  )(implicit system: ActorSystem[_]): F[Fiber[F, Throwable, Unit]] =
+    client:           BlockchainPeerClient[F],
+    headerStore:      Store[F, BlockHeaderV2],
+    bodyStore:        Store[F, BlockBodyV2],
+    transactionStore: Store[F, Transaction],
+    onBlockReceived:  BlockV2 => F[Unit]
+  )(implicit system:  ActorSystem[_]): F[Fiber[F, Throwable, Unit]] =
     for {
       remoteAdoptionsSource <- client.remotePeerAdoptions
       blockNotificationProcessor = processRemoteBlockNotification[F](
         client,
         headerStore,
         bodyStore,
+        transactionStore,
         onBlockReceived
       ) _
       s <- Supervisor[F].use(
@@ -120,7 +127,7 @@ object BlockchainNetwork {
               remoteAdoptionsSource
                 .mapAsyncF(1)(blockNotificationProcessor)
                 .toMat(Sink.ignore)(Keep.right)
-                .mapK[F]
+                .liftTo[F]
             )
             .void
         )
@@ -128,61 +135,96 @@ object BlockchainNetwork {
     } yield s
 
   private def processRemoteBlockNotification[F[_]: Async: Concurrent: Logger: *[_] ~> Future](
-    client:          BlockchainPeerClient[F],
-    headerStore:     Store[F, BlockHeaderV2],
-    bodyStore:       Store[F, BlockBodyV2],
-    onBlockReceived: BlockV2 => F[Unit]
-  )(id:              TypedIdentifier) =
-    Logger[F].info(show"Remote peer adopted block id=$id") >>
-    headerStore
-      .get(id)
-      .flatMap(maybeCurrentHeader =>
-        (id, maybeCurrentHeader.isEmpty)
-          .iterateWhileM { case (id, _) =>
-            OptionT(headerStore.get(id))
-              .flatTapNone(
-                OptionT
-                  .pure[F](Logger[F].info(show"Requesting header id=$id"))
-                  .flatMap(_ =>
-                    OptionT(client.getRemoteHeader(id))
-                      .semiflatTap(header => Logger[F].info(show"Inserting remote header id=$id"))
-                      .flatTapNone(Logger[F].info(show"Remote did not possess header id=$id"))
-                      .semiflatTap(header => headerStore.put(header.id, header))
-                  )
-                  .value
-              )
-              .value
-              .flatMap(_ =>
-                OptionT(bodyStore.get(id))
-                  .flatTapNone(
-                    OptionT
-                      .pure[F](Logger[F].info(show"Requesting body id=$id"))
-                      .flatMap(_ => OptionT(client.getRemoteBody(id)))
-                      .semiflatTap(body => Logger[F].info(show"Inserting remote body id=$id"))
-                      .flatTapNone(Logger[F].info(show"Remote did not possess body id=$id"))
-                      .semiflatTap(body => bodyStore.put(id, body))
-                      .value
-                  )
-                  .value
-              )
-              .flatMap(_ =>
-                OptionT(headerStore.get(id))
-                  .map(_.parentHeaderId)
-                  .getOrElse(???)
-                  .flatMap(parentId => OptionT(headerStore.get(parentId)).isEmpty.tupleLeft(parentId))
-              )
-          }(_._2)
+    client:           BlockchainPeerClient[F],
+    headerStore:      Store[F, BlockHeaderV2],
+    bodyStore:        Store[F, BlockBodyV2],
+    transactionStore: Store[F, Transaction],
+    onBlockReceived:  BlockV2 => F[Unit]
+  )(id:               TypedIdentifier) =
+    for {
+      _                  <- Logger[F].info(show"Remote peer adopted block id=$id")
+      maybeCurrentHeader <- headerStore.get(id)
+      _ <- (id, maybeCurrentHeader)
+        .iterateWhileM[F] { case (id, _) =>
+          fetchHeader(client, headerStore)(id)
+            .productL(fetchBody(client, bodyStore)(id).flatMap(fetchTransactions(client, transactionStore)).void)
+            .flatMap(header => headerStore.get(header.parentHeaderId).tupleLeft(header.parentHeaderId))
+        }(_._2.isEmpty)
+      _ <- OptionT
+        .fromOption[F](maybeCurrentHeader)
+        .flatTapNone(
+          (OptionT(headerStore.get(id)), OptionT(bodyStore.get(id)))
+            .mapN((header, body) => BlockV2(header, body))
+            .semiflatTap(_ => Logger[F].info(show"Processing remote block id=$id"))
+            .semiflatTap(onBlockReceived)
+            .value
+        )
+        .value
+    } yield ()
+
+  private def fetchHeader[F[_]: Async: Concurrent: Logger: *[_] ~> Future](
+    client:      BlockchainPeerClient[F],
+    headerStore: Store[F, BlockHeaderV2]
+  )(id:          TypedIdentifier) =
+    OptionT(headerStore.get(id))
+      .orElse(
+        OptionT
+          .pure[F](Logger[F].info(show"Requesting header id=$id"))
           .flatMap(_ =>
-            Applicative[F].whenA(maybeCurrentHeader.isEmpty)(
-              Sync[F].defer(
-                (OptionT(headerStore.get(id)), OptionT(bodyStore.get(id)))
-                  .mapN((header, body) => BlockV2(header, body))
-                  .semiflatTap(_ => Logger[F].info(show"Processing remote block id=$id"))
-                  .semiflatTap(onBlockReceived)
-                  .value
-              )
-            )
+            OptionT(client.getRemoteHeader(id))
+              // TODO:  Verify the locally computed header ID against `id`
+              .semiflatTap(header => Logger[F].info(show"Inserting remote header id=$id"))
+              .flatTapNone(Logger[F].info(show"Remote did not possess header id=$id"))
+              .semiflatTap(header => headerStore.put(header.id, header))
           )
       )
+      .getOrNoSuchElement(id.show)
+
+  private def fetchBody[F[_]: Async: Concurrent: Logger: *[_] ~> Future](
+    client:    BlockchainPeerClient[F],
+    bodyStore: Store[F, BlockBodyV2]
+  )(id:        TypedIdentifier) =
+    OptionT(bodyStore.get(id))
+      .orElse(
+        OptionT
+          .pure[F](Logger[F].info(show"Requesting body id=$id"))
+          .flatMap(_ =>
+            OptionT(client.getRemoteBody(id))
+              // TODO: Verify the transaction IDs associated with this body match the txRoot of the header
+              .semiflatTap(_ => Logger[F].info(show"Inserting remote body id=$id"))
+              .flatTapNone(Logger[F].info(show"Remote did not possess body id=$id"))
+              .semiflatTap(bodyStore.put(id, _))
+          )
+      )
+      .getOrNoSuchElement(id.show)
+
+  private def fetchTransactions[F[_]: Async: Concurrent: Logger: *[_] ~> Future](
+    client:           BlockchainPeerClient[F],
+    transactionStore: Store[F, Transaction]
+  ) =
+    (body: BlockBodyV2) => body.traverse(fetchTransaction[F](client, transactionStore))
+
+  private def fetchTransaction[F[_]: Async: Concurrent: Logger: *[_] ~> Future](
+    client:           BlockchainPeerClient[F],
+    transactionStore: Store[F, Transaction]
+  ) = { (id: TypedIdentifier) =>
+    OptionT(transactionStore.get(id))
+      .orElse(
+        OptionT
+          .pure[F](Logger[F].info(show"Requesting transaction id=$id")) >>
+        OptionT(client.getRemoteTransaction(id))
+          // TODO:  Verify the locally computed transaction ID against `id`
+          .semiflatTap(_ => Logger[F].info(show"Inserting remote transaction id=$id"))
+          .flatTapNone(Logger[F].info(show"Remote did not possess transaction id=$id"))
+          .semiflatTap(transactionStore.put(id, _))
+      )
+      .getOrNoSuchElement(id.show)
+  }
+
+  implicit class OptionTOps[F[_], T](optionT: OptionT[F, T]) {
+
+    def getOrNoSuchElement(id: Any)(implicit M: MonadThrow[F]): F[T] =
+      optionT.getOrElseF(M.raiseError(new NoSuchElementException(id.toString)))
+  }
 
 }

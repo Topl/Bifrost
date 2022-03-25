@@ -14,8 +14,8 @@ trait RunnableGraphOps {
 
   implicit class RunnableGraphSupport[Mat](runnableGraph: RunnableGraph[Mat]) {
 
-    def mapK[G[_]: RunnableGraph ~> *[_]]: G[Mat] =
-      implicitly[RunnableGraph ~> G].apply(runnableGraph)
+    def liftTo[F[_]: RunnableGraph ~> *[_]]: F[Mat] =
+      implicitly[RunnableGraph ~> F].apply(runnableGraph)
 
     def withLogAttributes: RunnableGraph[Mat] =
       runnableGraph.withAttributes(Attributes.logLevels(onElement = Logging.InfoLevel, onFinish = Logging.InfoLevel))

@@ -32,6 +32,7 @@ object DemoProgram {
     headerValidation:   BlockHeaderValidationAlgebra[F],
     headerStore:        Store[F, BlockHeaderV2],
     bodyStore:          Store[F, BlockBodyV2],
+    transactionStore:   Store[F, Transaction],
     localChain:         LocalChainAlgebra[F],
     ed25519VrfResource: UnsafeResource[F, Ed25519VRF],
     bindPort:           Int,
@@ -39,7 +40,7 @@ object DemoProgram {
   )(implicit system:    ActorSystem[_]): F[Unit] =
     for {
       (locallyAdoptedBlocksQueue, locallyAdoptedBlocksSource) <-
-        Source.queue[TypedIdentifier](128).toMat(BroadcastHub.sink[TypedIdentifier])(Keep.both).mapK[F]
+        Source.queue[TypedIdentifier](128).toMat(BroadcastHub.sink[TypedIdentifier])(Keep.both).liftTo[F]
       blockProcessor =
         (blockV2: BlockV2) =>
           processBlock[F](
@@ -56,6 +57,7 @@ object DemoProgram {
           remotePeers,
           headerStore,
           bodyStore,
+          transactionStore,
           locallyAdoptedBlocksSource,
           block =>
             blockProcessor(block).flatMap(
@@ -70,7 +72,7 @@ object DemoProgram {
           .collect { case (id, true) => id }
           .tapAsyncF(1)(locallyAdoptedBlocksQueue.offerF[F])
           .toMat(Sink.ignore)(Keep.right)
-          .mapK[F]
+          .liftTo[F]
       _ <- Async[F]
         .fromFuture(streamCompletionFuture)
         .void

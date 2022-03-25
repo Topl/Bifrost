@@ -4,15 +4,14 @@ import akka.NotUsed
 import akka.stream.{BoundedSourceQueue, QueueOfferResult}
 import akka.stream.scaladsl.Source
 import cats.kernel.Monoid
-import cats.{~>, Applicative, Functor, MonadThrow}
+import cats.{~>, Applicative, Eval, Foldable, Functor, MonadThrow, Semigroup}
 import cats.implicits._
 
 import scala.concurrent.Future
 
 trait SourceOps {
 
-  implicit def akkaSourceMonoid[T]: Monoid[Source[T, NotUsed]] =
-    Monoid.instance[Source[T, NotUsed]](Source.empty, (s1, s2) => s1.merge(s2))
+  type SourceMatNotUsed[T] = Source[T, NotUsed]
 
   implicit class SourceCatsOps[T, Mat](source: Source[T, Mat]) {
 
@@ -36,5 +35,21 @@ trait SourceOps {
         MonadThrow[F].raiseError(e).void
     }
   }
+
+  implicit def sourceMonoid[T]: Monoid[Source[T, NotUsed]] =
+    Monoid.instance[Source[T, NotUsed]](Source.empty, (s1, s2) => s1.merge(s2))
+
+  implicit val sourceFunctor: Functor[SourceMatNotUsed] =
+    new Functor[SourceMatNotUsed] {
+      def map[A, B](fa: SourceMatNotUsed[A])(f: A => B): SourceMatNotUsed[B] = fa.map(f)
+    }
+
+  implicit val sourceApplicative: Applicative[SourceMatNotUsed] =
+    new Applicative[SourceMatNotUsed] {
+      def pure[A](x: A): SourceMatNotUsed[A] = Source.single(x)
+
+      def ap[A, B](ff: SourceMatNotUsed[A => B])(fa: SourceMatNotUsed[A]): SourceMatNotUsed[B] =
+        fa.flatMapConcat(a => ff.map(_.apply(a)))
+    }
 
 }
