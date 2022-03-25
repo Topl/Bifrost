@@ -194,13 +194,13 @@ lazy val bifrost = project
     node,
     common,
     akkaHttpRpc,
-    models,
     typeclasses,
     toplRpc,
     benchmarking,
     crypto,
     brambl,
     models,
+    numerics,
     eventTree,
     algebras,
     commonInterpreters,
@@ -300,6 +300,20 @@ lazy val models = project
     libraryDependencies ++= Dependencies.models
   )
   .settings(libraryDependencies ++= Dependencies.test)
+
+lazy val numerics = project
+  .in(file("numerics"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "numerics",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.numerics"
+  )
+  .settings(scalamacrosParadiseSettings)
+  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.scalacache)
+  .dependsOn(algebras,typeclasses,models)
 
 lazy val eventTree = project
   .in(file("event-tree"))
@@ -429,7 +443,8 @@ lazy val consensus = project
     typeclasses,
     crypto,
     tetraByteCodecs,
-    algebras % "compile->compile;test->test"
+    algebras % "compile->compile;test->test",
+    numerics
   )
 
 lazy val minting = project
@@ -515,7 +530,7 @@ lazy val eligibilitySimulator: Project = project
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.demo ++ Dependencies.catsEffect)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models % "compile->compile;test->test", typeclasses, consensus, minting, commonInterpreters)
+  .dependsOn(models % "compile->compile;test->test", typeclasses, consensus, minting, commonInterpreters, numerics)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val scripting: Project = project

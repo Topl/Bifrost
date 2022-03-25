@@ -197,7 +197,7 @@ object BlockHeaderValidation {
           .lookupAt(SlotId(child.slot, child.id), child.address)
           .flatMap(relativeStake =>
             leaderElection.getThreshold(
-              relativeStake.getOrElse(Ratio(0)),
+              relativeStake.getOrElse(Ratio.Zero),
               child.slot - parent.slot
             )
           )
