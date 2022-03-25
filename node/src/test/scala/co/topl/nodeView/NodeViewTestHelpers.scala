@@ -18,23 +18,38 @@ import scala.collection.AbstractIterator
 trait NodeViewTestHelpers extends BeforeAndAfterAll with InMemoryKeyRingTestHelper {
   self: Suite =>
 
+  protected case class AccessibleHistory(history: History, storage: InMemoryKeyValueStore)
+
+  protected case class AccessibleState(
+    state:      State,
+    stateStore: InMemoryKeyValueStore,
+    tbrStore:   InMemoryKeyValueStore,
+    pbrStore:   InMemoryKeyValueStore
+  )
+
   def genesisNodeViewTestInputs(
     genesisConsensusView:       NxtConsensus.Genesis
   )(implicit protocolVersioner: ProtocolVersioner): TestIn = {
     val historyComponents = generateHistory(genesisConsensusView.block)
     val stateComponents = generateState(genesisConsensusView.block)
     val nodeView = NodeView(
-      historyComponents._1,
-      stateComponents._1,
+      historyComponents.history,
+      stateComponents.state,
       MemPool.empty()
     )
 
-    TestIn(nodeView, historyComponents._2, stateComponents._2, stateComponents._3, genesisConsensusView)
+    TestIn(
+      nodeView,
+      historyComponents.storage,
+      stateComponents.tbrStore,
+      stateComponents.pbrStore,
+      genesisConsensusView
+    )
   }
 
   def generateState(genesisBlock: Block)(implicit
     networkPrefix:                NetworkPrefix
-  ): (State, InMemoryKeyValueStore, InMemoryKeyValueStore, InMemoryKeyValueStore) = {
+  ): AccessibleState = {
     val tbrStore = InMemoryKeyValueStore.empty()
     val pbrStore = InMemoryKeyValueStore.empty()
     val stateStore = InMemoryKeyValueStore.empty()
@@ -42,18 +57,18 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll with InMemoryKeyRingTestHelp
     val programBoxRegistry = new ProgramBoxRegistry(pbrStore)
     val state = State(genesisBlock.id, stateStore, tokenBoxRegistry, programBoxRegistry)
     state.applyModifier(genesisBlock).get
-    (state, stateStore, tbrStore, pbrStore)
+    AccessibleState(state, stateStore, tbrStore, pbrStore)
   }
 
   def generateHistory(
     genesisBlock:           Block
-  )(implicit networkPrefix: NetworkPrefix, protocolVersioner: ProtocolVersioner): (History, InMemoryKeyValueStore) = {
+  )(implicit networkPrefix: NetworkPrefix, protocolVersioner: ProtocolVersioner): AccessibleHistory = {
     val tineProcessor = TineProcessor(1024)
     val store = new InMemoryKeyValueStore()
     val storage = new Storage(store)
     val history = new History(storage, tineProcessor)
     history.append(genesisBlock, Seq()).get._1
-    (history, store)
+    AccessibleHistory(history, store)
   }
 
   protected def nextBlock(

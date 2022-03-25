@@ -346,6 +346,6 @@ class TransactionValidationSpec
             0
           )
           .block
-      )._1
+      ).state
     )
 }

@@ -25,7 +25,7 @@ class BlockVersionTests
       keyRingCurve25519.addresses ++ keyRingEd25519.addresses
     )
     val genesisBlock = genesis.fetchGenesis(settings).getOrThrow().block
-    val history = generateHistory(genesisBlock)._1
+    val history = generateHistory(genesisBlock).history
 
     /**
      * Apply enough blocks to history and state so there will be blocks of all possible versions
@@ -62,8 +62,8 @@ class BlockVersionTests
       val genesis = new GenesisProvider(version, keyRingCurve25519.addresses ++ keyRingEd25519.addresses)
       val genesisBlock = genesis.fetchGenesis(settings).getOrThrow().block
 
-      val history = generateHistory(genesisBlock)._1
-      val state = generateState(genesisBlock)._1
+      val history = generateHistory(genesisBlock).history
+      val state = generateState(genesisBlock).state
 
       history.modifierById(genesisBlock.id).isDefined shouldBe true
       state.version == genesisBlock.id shouldBe true

@@ -73,6 +73,8 @@ trait RPCMockState
   protected var consensusHolderRef: akka.actor.typed.ActorRef[NxtConsensus.ReceivableMessage] = _
   protected var consensusInterface: ConsensusInterface = _
   protected var nodeViewHolderRef: akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage] = _
+  protected var accessibleHistory: AccessibleHistory = _
+  protected var accessibleState: AccessibleState = _
 
   implicit protected var timeProvider: TimeProvider = _
 
@@ -109,25 +111,23 @@ trait RPCMockState
         settings.application.genesis.generated.get,
         protocolVersioner
       )
-      val a = generateHistory(testSettingsGenesis.block)
-      val b = generateState(testSettingsGenesis.block)
-      val g = system.toTyped.systemActorOf(
+      accessibleHistory = generateHistory(testSettingsGenesis.block)
+      accessibleState = generateState(testSettingsGenesis.block)
+      system.toTyped.systemActorOf(
         NodeViewHolder(
           settings,
           consensusInterface,
           () =>
             Future.successful(
               NodeView(
-                a._1,
-                b._1,
+                accessibleHistory.history,
+                accessibleState.state,
                 MemPool.empty()
               )
             )
         ),
         NodeViewHolder.ActorName
       )
-
-      g
     }
 
     forgerRef = system.toTyped.systemActorOf(
