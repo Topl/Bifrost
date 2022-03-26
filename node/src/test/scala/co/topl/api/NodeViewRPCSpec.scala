@@ -23,16 +23,18 @@ import org.scalatest.{EitherValues, OptionValues}
 
 class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with EitherValues with OptionValues {
 
-  var blocksAndTx: NonEmptyChain[(Block, Seq[TX])] = _
-  var txId: String = _
   var blocks: NonEmptyChain[Block] = _
+  var blocksAndTx: NonEmptyChain[(Block, Seq[TX])] = _
+  var tx: TX = _
+  var txIdString: String = _
 
   override def beforeAll(): Unit = {
     super.beforeAll()
 
     blocks = blockchainGen(10).sampleFirst()
     blocksAndTx = blocks.map(b => b -> b.transactions)
-    txId = blocksAndTx.last._2.head.id.show
+    tx = blocksAndTx.last._2.head
+    txIdString = tx.id.show
 
     import akka.actor.typed.scaladsl.adapter._
 
@@ -72,8 +74,8 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
-        val head = res.hcursor.downField("result").as[Json].toString
-        head should include("bestBlock")
+        val head: Block = res.hcursor.downField("result").get[Block]("bestBlock").value
+        head == blocks.last shouldBe true
         res.hcursor.downField("error").values shouldBe None
       }
     }
@@ -90,8 +92,8 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
-        val headInfo = res.hcursor.downField("result").as[Json].toString
-        headInfo should include("bestBlockId")
+        val headId = res.hcursor.downField("result").get[ModifierId]("bestBlockId").value
+        headId == blocks.last.id shouldBe true
         res.hcursor.downField("error").values shouldBe None
       }
     }
@@ -108,15 +110,14 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
-        val res1: String = responseAs[String]
-        val res: Json = parse(res1).value
+        val res: Json = parse(responseAs[String]).value
         val balances = res.hcursor.downField("result").as[Json].value
         keyRingCurve25519.addresses.map { addr =>
           balances.toString() should include(addr.toString)
         }
         keyRingCurve25519.addresses.map { addr =>
           balances.hcursor.downField(addr.toString).get[Json]("Balances").map { balance =>
-            val testnetBalance = settings.application.genesis.generated.map(_.balanceForEachParticipant).get
+            val testnetBalance = settings.application.genesis.generated.get.balanceForEachParticipant
             balance.hcursor.downField("Polys").as[Int128].value shouldEqual testnetBalance
             balance.hcursor.downField("Arbits").as[Int128].value shouldEqual testnetBalance
           }
@@ -157,7 +158,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |   "id": "1",
         |   "method": "$methodName",
         |   "params": [{
-        |      "transactionId": "$txId"
+        |      "transactionId": "$txIdString"
         |   }]
         |}
         |
@@ -166,7 +167,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       aliases.map { alias =>
         httpPOST(requestBody(alias)) ~> route ~> check {
           val res: Json = parse(responseAs[String]).value
-          res.hcursor.downField("result").get[String]("txId").value shouldEqual txId
+          res.hcursor.downField("result").as[TX].value shouldEqual tx
           res.hcursor.downField("error").values shouldBe None
         }
       }
@@ -203,7 +204,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
     }
 
     "Return correct error response when a transaction id is provided for topl_blockById" in {
-      httpPOST(modifierRequestBody("blockId", "topl_blockById", txId)) ~> route ~> check {
+      httpPOST(modifierRequestBody("blockId", "topl_blockById", txIdString)) ~> route ~> check {
         val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
         res should include("The requested id's type is not an id type for Block")
       }
@@ -211,8 +212,10 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
 
     "Return correct error response when an id with non-base58 character is used for topl_transactionById" in {
       val invalidChar = "="
-      val invalidCharId: String = invalidChar ++ txId.tail
-      httpPOST(modifierRequestBody("transactionId", "topl_transactionById", invalidCharId)) ~> route ~> check {
+      val invalidCharId: String = invalidChar ++ txIdString.tail
+      httpPOST(
+        modifierRequestBody("transactionId", "topl_transactionById", invalidCharId)
+      ) ~> route ~> check {
         val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
         res should include("failed to decode base-58 string").and(include(invalidChar))
       }
@@ -220,8 +223,10 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
 
     "Return correct error response when an id with non-base58 character is used for topl_transactionFromMempool" in {
       val invalidChar = "="
-      val invalidCharId: String = invalidChar ++ txId.tail
-      httpPOST(modifierRequestBody("transactionId", "topl_transactionFromMempool", invalidCharId)) ~> route ~> check {
+      val invalidCharId: String = invalidChar ++ txIdString.tail
+      httpPOST(
+        modifierRequestBody("transactionId", "topl_transactionFromMempool", invalidCharId)
+      ) ~> route ~> check {
         val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
         res should include("failed to decode base-58 string").and(include(invalidChar))
       }
@@ -229,7 +234,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
 
     "Return correct error response when an id with non-base58 character is used for topl_blockById" in {
       val invalidChar = "="
-      val invalidCharId: String = "=" ++ txId.tail
+      val invalidCharId: String = "=" ++ txIdString.tail
       httpPOST(modifierRequestBody("blockId", "topl_blockById", invalidCharId)) ~> route ~> check {
         val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
         res should include("failed to decode base-58 string").and(include(invalidChar))
@@ -237,24 +242,30 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
     }
 
     "Return correct error response when an id with incorrect size is used for topl_transactionById" in {
-      val invalidLengthId: String = txId.tail
-      httpPOST(modifierRequestBody("transactionId", "topl_transactionById", invalidLengthId)) ~> route ~> check {
+      val invalidLengthId: String = txIdString.tail
+      httpPOST(
+        modifierRequestBody("transactionId", "topl_transactionById", invalidLengthId)
+      ) ~> route ~> check {
         val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
         res should include("Modifier ID must be 33 bytes long")
       }
     }
 
     "Return correct error response when an id with incorrect size is used for topl_transactionFromMempool" in {
-      val invalidLengthId: String = txId.tail
-      httpPOST(modifierRequestBody("transactionId", "topl_transactionFromMempool", invalidLengthId)) ~> route ~> check {
+      val invalidLengthId: String = txIdString.tail
+      httpPOST(
+        modifierRequestBody("transactionId", "topl_transactionFromMempool", invalidLengthId)
+      ) ~> route ~> check {
         val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
         res should include("Modifier ID must be 33 bytes long")
       }
     }
 
     "Return correct error response when an id with incorrect size is used for topl_blockById" in {
-      val invalidLengthId: String = txId.tail
-      httpPOST(modifierRequestBody("blockId", "topl_blockById", invalidLengthId)) ~> route ~> check {
+      val invalidLengthId: String = txIdString.tail
+      httpPOST(
+        modifierRequestBody("blockId", "topl_blockById", invalidLengthId)
+      ) ~> route ~> check {
         val res: String = parse(responseAs[String]).value.hcursor.downField("error").as[Json].toString
         res should include("Modifier ID must be 33 bytes long")
       }
@@ -268,7 +279,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |   "id": "1",
         |   "method": "topl_transactionById",
         |   "params": [{
-        |      "transactionId": "$txId"
+        |      "transactionId": "$txIdString"
         |   }]
         |}
         |
@@ -276,7 +287,8 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
-        res.hcursor.downField("result").as[Json].toString should include(txId)
+        val txIdRes: TX = res.hcursor.downField("result").as[TX].value
+        tx == txIdRes shouldBe true
         res.hcursor.downField("error").values shouldBe None
       }
     }
@@ -297,7 +309,8 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
-        res.hcursor.downField("result").as[Json].toString should include(blocks.last.id.toString)
+        val blockRes: Block = res.hcursor.downField("result").as[Block].value
+        blocks.last == blockRes shouldBe true
         res.hcursor.downField("error").values shouldBe None
       }
     }
@@ -318,9 +331,8 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
-        blocks.map(_.id).map { blockId =>
-          res.hcursor.downField("result").as[Json].toString should include(blockId.toString)
-        }
+        val blocksRes: Seq[Block] = res.hcursor.downField("result").as[Seq[Block]].value
+        blocks.toList.toSet == blocksRes.toSet shouldBe true
         res.hcursor.downField("error").values shouldBe None
       }
     }
@@ -352,15 +364,15 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |   "id": "1",
         |   "method": "topl_blockByHeight",
         |   "params": [{
-        |      "height": 1
+        |      "height": ${blocks.size}
         |    }]
         |}
         """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
-        val blockId = res.hcursor.downField("result").downField("header").get[String]("id").value
-        blockId shouldEqual blocks.head.id.toString
+        val blockRes: Block = res.hcursor.downField("result").as[Block].value
+        blocks.last == blockRes shouldBe true
         res.hcursor.downField("error").values shouldBe None
       }
     }
@@ -373,15 +385,15 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |   "method": "topl_blocksInRange",
         |   "params": [{
         |      "startHeight": 1,
-        |      "endHeight": 1
+        |      "endHeight": ${blocks.size}
         |    }]
         |}
         """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
-        val blocks = res.hcursor.downField("result").as[Json].value.toString
-        blocks should include("\"height\" : 1")
+        val blocksRes: Seq[Block] = res.hcursor.downField("result").as[Seq[Block]].value
+        blocks.toList.toSet == blocksRes.toSet shouldBe true
         res.hcursor.downField("error").values shouldBe None
       }
     }
@@ -417,15 +429,15 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |   "method": "topl_blockIdsInRange",
         |   "params": [{
         |      "startHeight": 1,
-        |      "endHeight": 1
+        |      "endHeight": ${blocks.size}
         |    }]
         |}
         """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
-        val blockIds = res.hcursor.downField("result").as[Seq[String]].value
-        blockIds.head shouldEqual blocks.head.id.toString
+        val blockIdsRes = res.hcursor.downField("result").as[Seq[ModifierId]].value
+        blockIdsRes.toSet == blocks.map(_.id).toList.toSet shouldBe true
         res.hcursor.downField("error").values shouldBe None
       }
     }
@@ -437,15 +449,15 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |   "id": "1",
         |   "method": "topl_latestBlocks",
         |   "params": [{
-        |      "numberOfBlocks": 1
+        |      "numberOfBlocks": ${blocks.size}
         |    }]
         |}
         """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
-        val blocksRes = res.hcursor.downField("result").as[Json].value.toString
-        blocksRes should include(blocks.last.id.toString)
+        val blocksRes: Seq[Block] = res.hcursor.downField("result").as[Seq[Block]].value
+        blocks.toList.toSet == blocksRes.toSet shouldBe true
         res.hcursor.downField("error").values shouldBe None
       }
     }
@@ -457,15 +469,15 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |   "id": "1",
         |   "method": "topl_latestBlockIds",
         |   "params": [{
-        |      "numberOfBlockIds": 1
+        |      "numberOfBlockIds": ${blocks.size}
         |    }]
         |}
         """.stripMargin)
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
-        val blockIds = res.hcursor.downField("result").as[Seq[String]].value
-        blockIds.head shouldEqual blocks.last.id.toString
+        val blockIdsRes = res.hcursor.downField("result").as[Seq[ModifierId]].value
+        blocks.map(_.id).toList.toSet == blockIdsRes.toSet shouldBe true
         res.hcursor.downField("error").values shouldBe None
       }
     }
@@ -506,7 +518,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
         |   "id": "1",
         |   "method": "topl_confirmationStatus",
         |   "params": [{
-        |      "transactionIds": ["$txId", "$unconfirmedTxId", "$randomTxId"]
+        |      "transactionIds": ["$txIdString", "$unconfirmedTxId", "$randomTxId"]
         |   }]
         |}
         |
@@ -516,7 +528,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
 
       httpPOST(requestBody) ~> route ~> check {
         val res: Json = parse(responseAs[String]).value
-        val confirmedStatus = res.hcursor.downField("result").get[Json](txId).value
+        val confirmedStatus = res.hcursor.downField("result").get[Json](txIdString).value
         val unconfirmedStatus = res.hcursor.downField("result").get[Json](unconfirmedTxId).value
         val randomTxStatus = res.hcursor.downField("result").get[Json](randomTxId).value
         confirmedStatus.hcursor.downField("status").as[String].value shouldEqual "Confirmed"

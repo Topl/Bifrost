@@ -11,7 +11,7 @@ import akka.testkit.TestActorRef
 import akka.util.{ByteString, Timeout}
 import cats.data.NonEmptyChain
 import co.topl.akkahttprpc.ThrowableSupport.Standard._
-import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
+import co.topl.consensus.KeyManager.KeyView
 import co.topl.consensus._
 import co.topl.http.HttpService
 import co.topl.modifier.block.Block
@@ -22,8 +22,7 @@ import co.topl.nodeView.history.{History, InMemoryKeyValueStore}
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.rpc.ToplRpcServer
-import co.topl.settings.Version
-import co.topl.utils.{DiskKeyRingTestHelper, TestSettings, TimeProvider}
+import co.topl.utils.{TestSettings, TimeProvider}
 import org.scalacheck.Gen
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
@@ -87,19 +86,14 @@ trait RPCMockState
 
     timeProvider = new NetworkTimeProvider(settings.ntp)(system.toTyped)
 
-    keyManagerRef = TestActorRef(
-      new KeyManager(settings)(appContext.networkType.netPrefix)
-    )
+    keyManagerRef = TestActorRef(new KeyManager(settings)(appContext.networkType.netPrefix))
 
     keyManagerRef.underlyingActor.context.become(
       keyManagerRef.underlyingActor.receive(keyRingCurve25519, Some(keyRingCurve25519.addresses.head))
     )
 
     consensusHolderRef = system.toTyped.systemActorOf(
-      NxtConsensus(
-        settings,
-        InMemoryKeyValueStore.empty()
-      ),
+      NxtConsensus(settings, InMemoryKeyValueStore.empty()),
       NxtConsensus.actorName
     )
 
@@ -117,14 +111,7 @@ trait RPCMockState
         NodeViewHolder(
           settings,
           consensusInterface,
-          () =>
-            Future.successful(
-              NodeView(
-                accessibleHistory.history,
-                accessibleState.state,
-                MemPool.empty()
-              )
-            )
+          () => Future.successful(NodeView(accessibleHistory.history, accessibleState.state, MemPool.empty()))
         ),
         NodeViewHolder.ActorName
       )
@@ -146,8 +133,7 @@ trait RPCMockState
       implicit val typedSystem: akka.actor.typed.ActorSystem[_] = system.toTyped
       val forgerInterface = new ActorForgerInterface(forgerRef)
       val keyManagerInterface = new ActorKeyManagerInterface(keyManagerRef)
-      val nodeViewHolderInterface =
-        new ActorNodeViewHolderInterface(nodeViewHolderRef)
+      val nodeViewHolderInterface = new ActorNodeViewHolderInterface(nodeViewHolderRef)
       val consensusInterface = new ActorConsensusInterface(consensusHolderRef)
 
       import co.topl.rpc.handlers._
