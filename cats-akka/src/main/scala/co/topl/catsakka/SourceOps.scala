@@ -1,14 +1,12 @@
 package co.topl.catsakka
 
 import akka.NotUsed
-import akka.stream.{BoundedSourceQueue, OverflowStrategy, QueueOfferResult}
 import akka.stream.scaladsl.Source
+import akka.stream.{BoundedSourceQueue, OverflowStrategy, QueueOfferResult}
 import cats.effect.Async
-import cats.kernel.Monoid
-import cats.{~>, Applicative, Eval, Foldable, Functor, MonadThrow, Semigroup}
 import cats.implicits._
-
-import scala.concurrent.Future
+import cats.kernel.Monoid
+import cats.{Applicative, Functor, MonadThrow}
 
 trait SourceOps {
 
@@ -16,11 +14,11 @@ trait SourceOps {
 
   implicit class SourceCatsOps[T, Mat](source: Source[T, Mat]) {
 
-    def mapAsyncF[F[_]: *[_] ~> Future, U](parallelism: Int)(f: T => F[U]): Source[U, Mat] =
-      source.map(f).mapAsync(parallelism)(implicitly[F ~> Future].apply)
+    def mapAsyncF[F[_]: FToFuture, U](parallelism: Int)(f: T => F[U]): Source[U, Mat] =
+      source.map(f).mapAsync(parallelism)(implicitly[FToFuture[F]].apply)
 
-    def tapAsyncF[F[_]: Functor: *[_] ~> Future](parallelism: Int)(f: T => F[Unit]): Source[T, Mat] =
-      source.map(a => f(a).as(a)).mapAsync(parallelism)(implicitly[F ~> Future].apply)
+    def tapAsyncF[F[_]: Functor: FToFuture](parallelism: Int)(f: T => F[Unit]): Source[T, Mat] =
+      source.map(a => f(a).as(a)).mapAsync(parallelism)(implicitly[FToFuture[F]].apply)
   }
 
   implicit class BoundedSourceQueueOps[T](queue: BoundedSourceQueue[T]) {

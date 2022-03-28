@@ -39,8 +39,7 @@ object AkkaP2PServer {
       ((offerConnectionChange, completeConnectionChanges), connectionChangesSource) <- Source
         .backpressuredQueue[F, PeerConnectionChange[Client]](128)
         .toMat(BroadcastHub.sink)(Keep.both)
-        .run()
-        .pure[F]
+        .liftTo[F]
       addPeersSink = makeAddPeersSink(offerConnectionChange)
       peerHandlerFlowWithRemovalF = makePeerHandlerFlowWithRemovalF(peerHandler, offerConnectionChange)
       serverBindingRunnableGraph = makeServerBindingRunnableGraph(
@@ -58,10 +57,10 @@ object AkkaP2PServer {
           peerHandlerFlowWithRemovalF,
           addPeersSink
         )
-      (serverBindingFuture, serverBindingCompletionFuture) = serverBindingRunnableGraph.run()
-      serverBinding <- Async[F].fromFuture(serverBindingFuture.pure[F])
-      remoteConnectionsCompletionFuture = outboundConnectionsRunnableGraph.run()
-      _ <- Logger[F].info("P2P Server Running")
+      (serverBindingFuture, serverBindingCompletionFuture) <- serverBindingRunnableGraph.liftTo[F]
+      serverBinding                                        <- Async[F].fromFuture(serverBindingFuture.pure[F])
+      remoteConnectionsCompletionFuture                    <- outboundConnectionsRunnableGraph.liftTo[F]
+      _                                                    <- Logger[F].info("P2P Server Running")
     } yield new P2PServer[F, Client] {
       def stop(): F[Unit] =
         Async[F]
@@ -128,7 +127,7 @@ object AkkaP2PServer {
       .toMat(Sink.ignore)(Keep.both)
       .withLogAttributes
 
-  private def makeOutboundConnectionsRunnableGraph[F[_]: Monad: FToFuture, Client](
+  private def makeOutboundConnectionsRunnableGraph[F[_]: Async: FToFuture, Client](
     localAddress:                InetSocketAddress,
     remotePeers:                 Source[InetSocketAddress, _],
     offerConnectionChange:       PeerConnectionChange[Client] => F[Unit],
@@ -140,13 +139,14 @@ object AkkaP2PServer {
       .tapAsyncF(1)(address => offerConnectionChange(PeerConnectionChanges.OutboundConnectionInitializing(address)))
       .map(ConnectedPeer)
       .log("Initializing connection")
-      .mapAsync(1)(connectedPeer =>
+      .mapAsyncF(1)(connectedPeer =>
         RestartFlow
           .onFailuresWithBackoff(outboundConnectionsRestartSettings)(() =>
             Tcp().outgoingConnection(connectedPeer.remoteAddress)
           )
           .joinMat(peerHandlerFlowWithRemovalF(connectedPeer))((_, r) => r.tupleLeft(connectedPeer))
-          .run()
+          .liftTo[F]
+          .flatMap(future => Async[F].fromFuture(future.pure[F]))
       )
       .alsoTo(addPeersSink)
       .toMat(Sink.ignore)(Keep.right)

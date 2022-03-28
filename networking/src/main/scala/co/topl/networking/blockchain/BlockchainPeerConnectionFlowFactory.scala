@@ -2,7 +2,7 @@ package co.topl.networking.blockchain
 
 import akka.NotUsed
 import akka.stream.Materializer
-import akka.stream.scaladsl.{BroadcastHub, Flow, Keep, Source}
+import akka.stream.scaladsl.{BroadcastHub, Flow, Keep, Sink, Source}
 import akka.util.ByteString
 import cats.effect.kernel.Sync
 import cats.effect.{Async, Ref}
@@ -130,38 +130,36 @@ object BlockchainPeerConnectionFlowFactory {
   private def notificationClient[F[_]: Async, T](
     protocol:              NotificationProtocol[T]
   )(implicit materializer: Materializer, tPushTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Push[T]]) =
-    Sync[F].delay {
-      val (((offerF, completeF), demandSignaled), source) =
-        Source
-          .backpressuredQueue[F, T](16)
-          // A Notification Client must send a `Start` message to the server before it will start
-          // pushing notifications. We can signal this message to the server once the returned Source here requests
-          // data for the first time
-          .viaMat(OnFirstDemandFlow.apply)(Keep.both)
-          .toMat(BroadcastHub.sink)(Keep.both)
-          .run()
-      val transitions =
-        new protocol.StateTransitionsClient[F](offerF)
-      import transitions._
-      val instance = TypedProtocolInstance(Parties.B)
-        .withTransition(startNoneBusy)
-        .withTransition(pushBusyBusy)
-        .withTransition(doneBusyDone)
-
-      val subHandler =
-        (sessionId: Byte) =>
-          TypedSubHandler(
-            sessionId,
-            instance,
-            TypedProtocol.CommonStates.None,
-            Source
-              .future(demandSignaled)
-              .map(_ => OutboundMessage(TypedProtocol.CommonMessages.Start))
-              .concat(Source.never),
-            multiplexerCodec
-          )
-      subHandler -> source
-    }
+    for {
+      (((offerF, completeF), demandSignaled), source) <- Source
+        .backpressuredQueue[F, T](16)
+        // A Notification Client must send a `Start` message to the server before it will start
+        // pushing notifications. We can signal this message to the server once the returned Source here requests
+        // data for the first time
+        .viaMat(OnFirstDemandFlow.apply)(Keep.both)
+        .toMat(BroadcastHub.sink)(Keep.both)
+        .liftTo[F]
+      instance <- Sync[F].delay {
+        val transitions =
+          new protocol.StateTransitionsClient[F](offerF)
+        import transitions._
+        TypedProtocolInstance(Parties.B)
+          .withTransition(startNoneBusy)
+          .withTransition(pushBusyBusy)
+          .withTransition(doneBusyDone)
+      }
+      subHandler = (sessionId: Byte) =>
+        TypedSubHandler(
+          sessionId,
+          instance,
+          TypedProtocol.CommonStates.None,
+          Source
+            .future(demandSignaled)
+            .map(_ => OutboundMessage(TypedProtocol.CommonMessages.Start))
+            .concat(Source.never),
+          multiplexerCodec
+        )
+    } yield (subHandler, source)
 
   private def requestResponseServer[F[_]: Async, T](
     protocol:              RequestResponseProtocol[TypedIdentifier, T],
@@ -187,7 +185,8 @@ object BlockchainPeerConnectionFlowFactory {
         TypedProtocol.CommonStates.None,
         Source
           .single(OutboundMessage(TypedProtocol.CommonMessages.Start))
-          .concat(responsesSource.map(TypedProtocol.CommonMessages.Response(_)).map(OutboundMessage(_))),
+          .concat(responsesSource.map(TypedProtocol.CommonMessages.Response(_)).map(OutboundMessage(_)))
+          .alsoTo(Sink.onComplete(result => completeResponsesF(result.failed.toOption))),
         multiplexerCodec
       )
 
@@ -216,10 +215,10 @@ object BlockchainPeerConnectionFlowFactory {
           .withTransition(responseBusyIdle)
           .withTransition(doneIdleDone)
       }
-      ((offerOutboundMessage, completeOutboundMessages), outboundMessagesSource) = Source
+      ((offerOutboundMessage, completeOutboundMessages), outboundMessagesSource) <- Source
         .backpressuredQueue[F, OutboundMessage](8)
         .toMat(BroadcastHub.sink)(Keep.both)
-        .run()
+        .liftTo[F]
       clientCallback = (id: TypedIdentifier) =>
         offerOutboundMessage(OutboundMessage(TypedProtocol.CommonMessages.Get(id))) >>
         Sync[F]
@@ -234,7 +233,8 @@ object BlockchainPeerConnectionFlowFactory {
           sessionId,
           instance,
           TypedProtocol.CommonStates.None,
-          outboundMessagesSource,
+          outboundMessagesSource
+            .alsoTo(Sink.onComplete(result => completeOutboundMessages(result.failed.toOption))),
           multiplexerCodec
         )
     } yield (subHandler, clientCallback)

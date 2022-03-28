@@ -212,7 +212,7 @@ object TetraSuperDemo extends IOApp {
     for {
       random <- new Random(0L).pure[F]
       genesisTimestamp = Instant.now().plusSeconds(5)
-      stakerCount = 3
+      stakerCount = 2
       stakers = computeStakers(stakerCount, random)
       configurations = List.tabulate(stakerCount)(idx =>
         (
@@ -232,6 +232,15 @@ object TetraSuperDemo extends IOApp {
     )
     .as(ExitCode.Success)
 
+  private val loggerColors = List(
+    Console.MAGENTA,
+    Console.BLUE,
+    Console.YELLOW,
+    Console.GREEN,
+    Console.CYAN,
+    Console.RED
+  )
+
   private def runInstance(
     port:             Int,
     remotes:          List[InetSocketAddress],
@@ -247,7 +256,10 @@ object TetraSuperDemo extends IOApp {
         ed25519VRFResource <- ActorPoolUnsafeResource.Eval.make[F, Ed25519VRF](Ed25519VRF.precomputed(), _ => ())
         kesProductResource <- ActorPoolUnsafeResource.Eval.make[F, KesProduct](new KesProduct, _ => ())
         ed25519Resource    <- ActorPoolUnsafeResource.Eval.make[F, Ed25519](new Ed25519, _ => ())
-        implicit0(logger: Logger[F]) = Slf4jLogger.getLoggerFromName[F](s"TetraSuperDemo$stakerIndex")
+        loggerColor = loggerColors(stakerIndex).toString
+        implicit0(logger: Logger[F]) = Slf4jLogger
+          .getLoggerFromName[F](s"${loggerColor}TetraSuperDemo$stakerIndex${Console.RESET}")
+          .withModifiedString(str => s"$loggerColor$str$stakerIndex${Console.RESET}")
         blockHeaderStore <- RefStore.Eval.make[F, BlockHeaderV2]()
         blockBodyStore   <- RefStore.Eval.make[F, BlockBodyV2]()
         transactionStore <- RefStore.Eval.make[F, Transaction]()
