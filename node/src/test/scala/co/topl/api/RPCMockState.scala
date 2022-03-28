@@ -23,6 +23,7 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.rpc.ToplRpcServer
 import co.topl.utils.{TestSettings, TimeProvider}
+import io.circe.syntax.EncoderOps
 import org.scalacheck.Gen
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
@@ -100,13 +101,21 @@ trait RPCMockState
     consensusInterface = new ActorConsensusInterface(consensusHolderRef)(system.toTyped, 10.seconds)
 
     nodeViewHolderRef = {
+      // only initializing the state using a genesis with funds for all types of keys, because appending blocks to
+      // history right now only take Curve25519 signatures so the box that is eligible needs to be owned by a curve key
       val testSettingsGenesis = constructGenesis(
         keyRingCurve25519,
         settings.application.genesis.generated.get,
         protocolVersioner
       )
+      val testGenesisForState = GenesisProvider.construct(
+        keyRingCurve25519.addresses ++ keyRingEd25519.addresses ++ propsThresholdCurve25519.map(_.address),
+        settings.application.genesis.generated.get.balanceForEachParticipant,
+        settings.application.genesis.generated.get.initialDifficulty,
+        protocolVersioner.applicable(1).blockVersion
+      )
       accessibleHistory = generateHistory(testSettingsGenesis.block)
-      accessibleState = generateState(testSettingsGenesis.block)
+      accessibleState = generateState(testGenesisForState.block)
       system.toTyped.systemActorOf(
         NodeViewHolder(
           settings,
