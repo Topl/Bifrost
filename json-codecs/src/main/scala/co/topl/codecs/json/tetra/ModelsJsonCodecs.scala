@@ -145,6 +145,11 @@ trait ModelsJsonCodecs {
         "propositionType" -> "Knowledge.ExtendedEd25519".asJson,
         "key"             -> k.asJson
       )
+    case Propositions.Knowledge.HashLock(d) =>
+      Json.obj(
+        "propositionType" -> "Knowledge.HashLock".asJson,
+        "digest"          -> d.asJson
+      )
     case Propositions.Compositional.Threshold(threshold, propositions) =>
       Json.obj(
         "propositionType" -> "Compositional.Threshold".asJson,
@@ -163,10 +168,19 @@ trait ModelsJsonCodecs {
         "a"               -> a.asJson(propositionEncoder),
         "b"               -> b.asJson(propositionEncoder)
       )
+    case Propositions.Compositional.Not(a) =>
+      Json.obj(
+        "propositionType" -> "Compositional.Not".asJson,
+        "a"               -> a.asJson(propositionEncoder)
+      )
     case Propositions.Contextual.HeightLock(height) =>
       Json.obj(
         "propositionType" -> "Contextual.HeightLock".asJson,
         "height"          -> height.asJson
+      )
+    case Propositions.Contextual.RequiredBoxState(location, boxes) =>
+      Json.obj(
+        "propositionType" -> "Contextual.RequiredBoxState".asJson
       )
     case Propositions.Script.JS(script) =>
       Json.obj(

@@ -116,6 +116,60 @@ class TransactionRpcHandlerImpls(
             .toEitherT[Future]
       } yield ToplRpc.Transaction.UnprovenPolyTransfer.Response(transfer)
 
+  override val unprovenArbitTransfer: ToplRpc.Transaction.UnprovenArbitTransfer.rpc.ServerHandler =
+    params =>
+      for {
+        unprovenTransferResult <-
+          withNodeView(view =>
+            TransferBuilder
+              .buildUnprovenTransfer(
+                view.state,
+                TransferRequests.UnprovenTransferRequest(
+                  params.sender.toList,
+                  params.recipients.toList,
+                  params.changeAddress,
+                  params.changeAddress,
+                  params.fee,
+                  params.data,
+                  minting = false
+                ),
+                params.boxSelectionAlgorithm
+              )
+          )
+        transfer <-
+          unprovenTransferResult
+            .leftMap(failure => new Error(failure.show))
+            .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
+            .toEitherT[Future]
+      } yield ToplRpc.Transaction.UnprovenArbitTransfer.Response(transfer)
+
+  override val unprovenAssetTransfer: ToplRpc.Transaction.UnprovenAssetTransfer.rpc.ServerHandler =
+    params =>
+      for {
+        unprovenTransferResult <-
+          withNodeView(view =>
+            TransferBuilder
+              .buildUnprovenTransfer(
+                view.state,
+                TransferRequests.UnprovenTransferRequest(
+                  params.sender.toList,
+                  params.recipients.toList,
+                  params.changeAddress,
+                  params.changeAddress,
+                  params.fee,
+                  params.data,
+                  params.minting
+                ),
+                params.boxSelectionAlgorithm
+              )
+          )
+        transfer <-
+          unprovenTransferResult
+            .leftMap(failure => new Error(failure.show))
+            .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
+            .toEitherT[Future]
+      } yield ToplRpc.Transaction.UnprovenAssetTransfer.Response(transfer)
+
   override val broadcastTetraTransfer: ToplRpc.Transaction.BroadcastTetraTransfer.rpc.ServerHandler =
     params =>
       for {

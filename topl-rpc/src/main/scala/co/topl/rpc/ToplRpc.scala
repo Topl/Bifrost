@@ -521,6 +521,39 @@ object ToplRpc {
       case class Response(unprovenTransfer: TetraTransaction.Unproven)
     }
 
+    object UnprovenArbitTransfer {
+
+      val rpc: Rpc[Params, Response] = Rpc("topl_unprovenArbitTransfer")
+
+      case class Params(
+        sender:                NonEmptyChain[DionAddress],
+        recipients:            NonEmptyChain[TetraTransaction.ArbitOutput],
+        fee:                   TetraInt128,
+        changeAddress:         DionAddress,
+        data:                  Option[TransactionData],
+        boxSelectionAlgorithm: BoxSelectionAlgorithm
+      )
+
+      case class Response(unprovenTransfer: TetraTransaction.Unproven)
+    }
+
+    object UnprovenAssetTransfer {
+
+      val rpc: Rpc[Params, Response] = Rpc("topl_unprovenAssetTransfer")
+
+      case class Params(
+        sender:                NonEmptyChain[DionAddress],
+        recipients:            NonEmptyChain[TetraTransaction.AssetOutput],
+        fee:                   TetraInt128,
+        changeAddress:         DionAddress,
+        data:                  Option[TransactionData],
+        minting:               Boolean,
+        boxSelectionAlgorithm: BoxSelectionAlgorithm
+      )
+
+      case class Response(unprovenTransfer: TetraTransaction.Unproven)
+    }
+
     object BroadcastTx {
 
       /**

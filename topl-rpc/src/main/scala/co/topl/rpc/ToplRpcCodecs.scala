@@ -519,6 +519,14 @@ trait TransactionRpcParamsDecoders extends SharedCodecs {
   implicit val transactionUnprovenPolyTransferParamsDecoder: Decoder[ToplRpc.Transaction.UnprovenPolyTransfer.Params] =
     deriveDecoder
 
+  implicit val transactionUnprovenArbitTransferParamsDecoder
+    : Decoder[ToplRpc.Transaction.UnprovenArbitTransfer.Params] =
+    deriveDecoder
+
+  implicit val transactionUnprovenAssetTransferParamsDecoder
+    : Decoder[ToplRpc.Transaction.UnprovenAssetTransfer.Params] =
+    deriveDecoder
+
   implicit def transactionBroadcastTxParamsDecoder(implicit
     networkPrefix: NetworkPrefix
   ): Decoder[ToplRpc.Transaction.BroadcastTx.Params] =
