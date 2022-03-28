@@ -1,6 +1,7 @@
 package co.topl.consensus
 
-import co.topl.modifier.transaction.ArbitTransfer
+import co.topl.modifier.box.ArbitBox
+import co.topl.modifier.transaction.{ArbitTransfer, TransferTransaction}
 import co.topl.nodeView.ValidTransactionGenerators
 import co.topl.utils.{InMemoryKeyRingTestHelper, Int128}
 import org.scalacheck.Gen
@@ -60,17 +61,19 @@ class GenesisProviderSpec
 //  }
 
   property("is able to construct a genesis block from generated inputs") {
-    forAll(nonEmptySetAddressGen, positiveLongGen, positiveLongGen, Gen.choose[Byte](1, Byte.MaxValue)) {
-      (addresses, balances, initalDifficulty, blockVersion) =>
-        val genesis = GenesisProvider.construct(addresses, balances, initalDifficulty, blockVersion)
+    forAll(nonEmptySetAddressGen, Gen.choose(1, Int.MaxValue), positiveLongGen, Gen.choose[Byte](1, Byte.MaxValue)) {
+      (addresses, balances, initialDifficulty, blockVersion) =>
+        val genesis = GenesisProvider.construct(addresses, balances, initialDifficulty, blockVersion)
 
-        val blockTotalStake = genesis.block.transactions.foldLeft(Int128(0)) { (txAcc, tx) =>
-          tx match {
-            case arbitTx: ArbitTransfer[_] =>
-              txAcc + arbitTx.coinOutput.foldLeft(Int128(0))((acc, out) => acc + out.value.quantity)
-            case _ => txAcc
+        val blockTotalStake = genesis.block.transactions
+          .collect { case transaction: TransferTransaction[_, _] =>
+            transaction.newBoxes.collect { case box: ArbitBox => box.value.quantity }.toSeq
           }
-        }
+          .flatten
+          .sum
+
+        println(genesis.state.totalStake)
+        println(blockTotalStake)
 
         genesis.block.height shouldBe 1L
         genesis.state.height shouldBe 1L

@@ -12,7 +12,7 @@ import co.topl.nodeView.{NodeViewTestHelpers, ValidTransactionGenerators}
 import co.topl.utils.GeneratorOps.GeneratorOps
 import co.topl.utils.NetworkType.PrivateTestnet
 import co.topl.utils.StringDataTypes.Latin1Data
-import co.topl.utils.{InMemoryKeyRingTestHelper, NetworkType, TestSettings}
+import co.topl.utils.{InMemoryKeyRingTestHelper, Int128, NetworkType, TestSettings}
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
@@ -174,7 +174,7 @@ class TransactionValidationSpec
       forAll(genCurve25519) { tx =>
         tx.semanticValidation(boxState) should haveInvalidC[SemanticValidationFailure](
           InputFeeChangeOutputUnequalNonMinting(
-            1000000,
+            Int128(Int.MaxValue),
             0,
             0
           )
@@ -200,33 +200,33 @@ class TransactionValidationSpec
       forAll(genEd25519) { tx =>
         tx.semanticValidation(boxState) should haveInvalidC[SemanticValidationFailure](
           InputFeeChangeOutputUnequalNonMinting(
-            1000000,
+            Int128(Int.MaxValue),
             0,
             0
           )
         )
       }
     }
+  }
 
-    property("Transactions created on a specific network should not be accepted on any other network") {
-      withValidState { boxState =>
-        val otherNetworks = NetworkType.all.filterNot(_ == PrivateTestnet)
-        forAll(
-          validAssetTransferGen(
-            keyRingCurve25519,
-            keyRingEd25519,
-            propsThresholdCurve25519,
-            boxState,
-            minting = true
+  property("Transactions created on a specific network should not be accepted on any other network") {
+    withValidState { boxState =>
+      val otherNetworks = NetworkType.all.filterNot(_ == PrivateTestnet)
+      forAll(
+        validAssetTransferGen(
+          keyRingCurve25519,
+          keyRingEd25519,
+          propsThresholdCurve25519,
+          boxState,
+          minting = true
+        )
+      ) { tx =>
+        otherNetworks.foreach { netType =>
+          tx.syntacticValidation(netType.netPrefix) should haveInvalidC[SyntacticValidationFailure](
+            MintingMissingIssuersSignature
           )
-        ) { tx =>
-          otherNetworks.foreach { netType =>
-            tx.syntacticValidation(netType.netPrefix) should haveInvalidC[SyntacticValidationFailure](
-              MintingMissingIssuersSignature
-            )
-          }
-          tx.syntacticValidation(PrivateTestnet.netPrefix) should beValid[TransferTx](tx)
         }
+        tx.syntacticValidation(PrivateTestnet.netPrefix) should beValid[TransferTx](tx)
       }
     }
   }
@@ -340,7 +340,7 @@ class TransactionValidationSpec
       generateState(
         GenesisProvider
           .construct(
-            keyRingCurve25519.addresses ++ keyRingEd25519.addresses,
+            keyRingCurve25519.addresses ++ keyRingEd25519.addresses ++ propsThresholdCurve25519.map(_.address),
             Int.MaxValue,
             Long.MaxValue,
             0
