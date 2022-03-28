@@ -7,7 +7,6 @@ import akka.util.ByteString
 import cats.effect.kernel.Sync
 import cats.effect.{Async, Ref}
 import cats.implicits._
-import cats.~>
 import co.topl.catsakka._
 import co.topl.models.{BlockBodyV2, BlockHeaderV2, Transaction, TypedIdentifier}
 import co.topl.networking.TypedProtocolSetFactory.implicits._
@@ -23,7 +22,7 @@ import co.topl.networking.typedprotocols.{
 }
 import org.typelevel.log4cats.Logger
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.Promise
 
 /**
  * Produces a function which accepts a (connectedPeer, connectionLeader) and emits an Akka Stream Flow.  The flow performs
@@ -34,13 +33,13 @@ import scala.concurrent.{Future, Promise}
  */
 object BlockchainPeerConnectionFlowFactory {
 
-  def make[F[_]: Async: Logger: *[_] ~> Future](peerServer: BlockchainPeerServer[F])(implicit
-    materializer:                                           Materializer
+  def make[F[_]: Async: Logger: FToFuture](peerServer: BlockchainPeerServer[F])(implicit
+    materializer:                                      Materializer
   ): (ConnectedPeer, ConnectionLeader) => F[Flow[ByteString, ByteString, BlockchainPeerClient[F]]] =
     createFactory(peerServer).multiplexed
 
-  private def createFactory[F[_]: Async: Logger: *[_] ~> Future](protocolServer: BlockchainPeerServer[F])(implicit
-    materializer:                                                                Materializer
+  private def createFactory[F[_]: Async: Logger: FToFuture](protocolServer: BlockchainPeerServer[F])(implicit
+    materializer:                                                           Materializer
   ): TypedProtocolSetFactory[F, BlockchainPeerClient[F]] = {
     val blockAdoptionRecipF =
       notificationReciprocated(BlockchainProtocols.BlockAdoption, protocolServer.localBlockAdoptions, 1: Byte, 2: Byte)
@@ -99,50 +98,50 @@ object BlockchainPeerConnectionFlowFactory {
     protocol:              NotificationProtocol[T],
     notifications:         F[Source[T, NotUsed]]
   )(implicit tPushTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Push[T]]) =
-    Sync[F]
-      .delay {
-        val promise = Promise[Unit]()
+    for {
+      clientSignalPromise <- Sync[F].delay(Promise[Unit]())
+      protocolInstance <- Sync[F].delay {
         val transitions =
-          new protocol.StateTransitionsServer[F](() => Sync[F].delay(promise.success(())).void)
-        transitions -> promise
-      }
-      .flatMap { case (transitions, clientSignalPromise) =>
+          new protocol.StateTransitionsServer[F](() => Sync[F].delay(clientSignalPromise.success(())).void)
         import transitions._
-        notifications
-          .tupleRight(
-            TypedProtocolInstance(Parties.A)
-              .withTransition(startNoneBusy)
-              .withTransition(pushBusyBusy)
-              .withTransition(doneBusyDone)
-          )
-          .map { case (source, instance) =>
-            (sessionId: Byte) =>
-              TypedSubHandler(
-                sessionId,
-                instance = instance,
-                initialState = TypedProtocol.CommonStates.None,
-                outboundMessages = Source
-                  .future(clientSignalPromise.future)
-                  .flatMapConcat(_ =>
-                    source
-                      .map(TypedProtocol.CommonMessages.Push(_))
-                      .map(OutboundMessage(_))
-                  ),
-                codec = multiplexerCodec
-              )
-          }
+        TypedProtocolInstance(Parties.A)
+          .withTransition(startNoneBusy)
+          .withTransition(pushBusyBusy)
+          .withTransition(doneBusyDone)
       }
+      notifications_ <- notifications
+    } yield (
+      (sessionId: Byte) =>
+        TypedSubHandler(
+          sessionId,
+          instance = protocolInstance,
+          initialState = TypedProtocol.CommonStates.None,
+          outboundMessages = Source
+            .future(clientSignalPromise.future)
+            .flatMapConcat(_ =>
+              notifications_
+                .map(TypedProtocol.CommonMessages.Push(_))
+                .map(OutboundMessage(_))
+            ),
+          codec = multiplexerCodec
+        )
+    )
 
   private def notificationClient[F[_]: Async, T](
     protocol:              NotificationProtocol[T]
   )(implicit materializer: Materializer, tPushTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Push[T]]) =
     Sync[F].delay {
-      val (queue, source) = Source
-        .queue[T](128)
-        .toMat(BroadcastHub.sink)(Keep.both)
-        .run()
+      val (((offerF, completeF), demandSignaled), source) =
+        Source
+          .backpressuredQueue[F, T](16)
+          // A Notification Client must send a `Start` message to the server before it will start
+          // pushing notifications. We can signal this message to the server once the returned Source here requests
+          // data for the first time
+          .viaMat(OnFirstDemandFlow.apply)(Keep.both)
+          .toMat(BroadcastHub.sink)(Keep.both)
+          .run()
       val transitions =
-        new protocol.StateTransitionsClient[F](queue.offerF[F])
+        new protocol.StateTransitionsClient[F](offerF)
       import transitions._
       val instance = TypedProtocolInstance(Parties.B)
         .withTransition(startNoneBusy)
@@ -155,7 +154,10 @@ object BlockchainPeerConnectionFlowFactory {
             sessionId,
             instance,
             TypedProtocol.CommonStates.None,
-            Source.single(OutboundMessage(TypedProtocol.CommonMessages.Start)).concat(Source.never),
+            Source
+              .future(demandSignaled)
+              .map(_ => OutboundMessage(TypedProtocol.CommonMessages.Start))
+              .concat(Source.never),
             multiplexerCodec
           )
       subHandler -> source
@@ -166,8 +168,10 @@ object BlockchainPeerConnectionFlowFactory {
     fetch:                 TypedIdentifier => F[Option[T]]
   )(implicit materializer: Materializer, tResponseTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Response[T]]) =
     for {
-      (responsesQueue, responsesSource) <- Sync[F].delay(Source.queue[Option[T]](128).preMaterialize())
-      transitions = new protocol.ServerStateTransitions[F](fetch(_).flatMap(responsesQueue.offerF[F]))
+      ((offerResponseF, completeResponsesF), responsesSource) <- Sync[F].delay(
+        Source.backpressuredQueue[F, Option[T]](128).preMaterialize()
+      )
+      transitions = new protocol.ServerStateTransitions[F](fetch(_).flatMap(offerResponseF))
       instance = {
         import transitions._
         TypedProtocolInstance(Parties.A)
@@ -191,12 +195,14 @@ object BlockchainPeerConnectionFlowFactory {
     protocol:              RequestResponseProtocol[TypedIdentifier, T]
   )(implicit materializer: Materializer, tResponseTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Response[T]]) =
     for {
-      currentPromiseRef <- Ref.of[F, Option[Promise[Option[T]]]](none)
+      // Stores a reference to a Promise that is created for each inbound request.  The state transition implementation
+      // will complete the promise.
+      currentResponsePromiseRef <- Sync[F].defer(Ref.of[F, Option[Promise[Option[T]]]](none))
       serverSentGoPromise = Promise[Unit]()
       transitions =
         new protocol.ClientStateTransitions[F](
           r =>
-            currentPromiseRef.update { current =>
+            currentResponsePromiseRef.update { current =>
               current.foreach(_.success(r))
               None
             },
@@ -218,7 +224,11 @@ object BlockchainPeerConnectionFlowFactory {
         offerOutboundMessage(OutboundMessage(TypedProtocol.CommonMessages.Get(id))) >>
         Sync[F]
           .delay(Promise[Option[T]]())
-          .flatMap(promise => currentPromiseRef.set(promise.some) >> Async[F].fromFuture(promise.future.pure[F]))
+          .flatMap(promise =>
+            currentResponsePromiseRef
+              .set(promise.some)
+              .productR(Async[F].fromFuture(promise.future.pure[F]))
+          )
       subHandler = (sessionId: Byte) =>
         TypedSubHandler(
           sessionId,

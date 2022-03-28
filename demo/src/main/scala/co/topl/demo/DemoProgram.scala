@@ -27,7 +27,7 @@ object DemoProgram {
   /**
    * A forever-running program which traverses epochs and the slots within the epochs
    */
-  def run[F[_]: MonadThrow: Logger: Async: *[_] ~> Future](
+  def run[F[_]: MonadThrow: Logger: Async: FToFuture](
     mint:               Option[PerpetualBlockMintAlgebra[F]],
     headerValidation:   BlockHeaderValidationAlgebra[F],
     headerStore:        Store[F, BlockHeaderV2],

@@ -6,14 +6,11 @@ import akka.util.ByteString
 import cats.data.{EitherT, NonEmptyChain}
 import cats.effect.Async
 import cats.implicits._
-import cats.~>
 import co.topl.catsakka._
 import co.topl.networking.multiplexer._
 import co.topl.networking.p2p.{ConnectedPeer, ConnectionLeader, ConnectionLeaders}
 import co.topl.networking.typedprotocols.{TypedProtocolInstance, TypedProtocolTransitionFailure}
 import scodec.bits.ByteVector
-
-import scala.concurrent.Future
 
 /**
  * Helper for transforming a collection of Typed Sub Handlers into a multiplexed akka stream Flow
@@ -36,7 +33,7 @@ object TypedProtocolSetFactory {
 
   trait Ops {
 
-    implicit class TypedProtocolSetFactoryMultiplexer[F[_]: Async: *[_] ~> Future, Client](
+    implicit class TypedProtocolSetFactoryMultiplexer[F[_]: Async: FToFuture, Client](
       factory: TypedProtocolSetFactory[F, Client]
     ) {
 

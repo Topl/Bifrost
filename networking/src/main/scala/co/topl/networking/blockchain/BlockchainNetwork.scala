@@ -4,11 +4,11 @@ import akka.actor.typed.ActorSystem
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import akka.{Done, NotUsed}
+import cats.MonadThrow
 import cats.data.OptionT
 import cats.effect.std.Supervisor
 import cats.effect.{Async, Concurrent, Fiber, Sync}
 import cats.implicits._
-import cats.{~>, MonadThrow}
 import co.topl.algebras.Store
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
@@ -19,11 +19,10 @@ import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 
 import java.net.InetSocketAddress
-import scala.concurrent.Future
 
 object BlockchainNetwork {
 
-  def make[F[_]: Async: Logger: *[_] ~> Future](
+  def make[F[_]: Async: Logger: FToFuture](
     bindPort:               Int,
     remotePeers:            Source[InetSocketAddress, _],
     headerStore:            Store[F, BlockHeaderV2],
@@ -43,7 +42,7 @@ object BlockchainNetwork {
         (connectedPeer: ConnectedPeer) =>
           ConnectionLeaderFlow(leader =>
             Flow.futureFlow(
-              implicitly[F ~> Future].apply(connectionFlowFactory(connectedPeer, leader))
+              implicitly[FToFuture[F]].apply(connectionFlowFactory(connectedPeer, leader))
             )
           )
             .mapMaterializedValue(f => Async[F].fromFuture(f.flatten.pure[F]))
@@ -86,7 +85,7 @@ object BlockchainNetwork {
       }
     )
 
-  private def handleNetworkClients[F[_]: Async: Concurrent: Logger: *[_] ~> Future](
+  private def handleNetworkClients[F[_]: Async: Concurrent: Logger: FToFuture](
     clients:          Source[BlockchainPeerClient[F], _],
     headerStore:      Store[F, BlockHeaderV2],
     bodyStore:        Store[F, BlockBodyV2],
@@ -104,7 +103,7 @@ object BlockchainNetwork {
       )
     )
 
-  private def handleNetworkClient[F[_]: Async: Concurrent: Logger: *[_] ~> Future](
+  private def handleNetworkClient[F[_]: Async: Concurrent: Logger: FToFuture](
     client:           BlockchainPeerClient[F],
     headerStore:      Store[F, BlockHeaderV2],
     bodyStore:        Store[F, BlockBodyV2],
@@ -134,7 +133,7 @@ object BlockchainNetwork {
       )
     } yield s
 
-  private def processRemoteBlockNotification[F[_]: Async: Concurrent: Logger: *[_] ~> Future](
+  private def processRemoteBlockNotification[F[_]: Async: Concurrent: Logger: FToFuture](
     client:           BlockchainPeerClient[F],
     headerStore:      Store[F, BlockHeaderV2],
     bodyStore:        Store[F, BlockBodyV2],
@@ -163,7 +162,7 @@ object BlockchainNetwork {
         .value
     } yield ()
 
-  private def fetchHeader[F[_]: Async: Concurrent: Logger: *[_] ~> Future](
+  private def fetchHeader[F[_]: Async: Concurrent: Logger: FToFuture](
     client:      BlockchainPeerClient[F],
     headerStore: Store[F, BlockHeaderV2]
   )(id:          TypedIdentifier) =
@@ -181,7 +180,7 @@ object BlockchainNetwork {
       )
       .getOrNoSuchElement(id.show)
 
-  private def fetchBody[F[_]: Async: Concurrent: Logger: *[_] ~> Future](
+  private def fetchBody[F[_]: Async: Concurrent: Logger: FToFuture](
     client:    BlockchainPeerClient[F],
     bodyStore: Store[F, BlockBodyV2]
   )(id:        TypedIdentifier) =
@@ -199,13 +198,13 @@ object BlockchainNetwork {
       )
       .getOrNoSuchElement(id.show)
 
-  private def fetchTransactions[F[_]: Async: Concurrent: Logger: *[_] ~> Future](
+  private def fetchTransactions[F[_]: Async: Concurrent: Logger: FToFuture](
     client:           BlockchainPeerClient[F],
     transactionStore: Store[F, Transaction]
   ) =
     (body: BlockBodyV2) => body.traverse(fetchTransaction[F](client, transactionStore))
 
-  private def fetchTransaction[F[_]: Async: Concurrent: Logger: *[_] ~> Future](
+  private def fetchTransaction[F[_]: Async: Concurrent: Logger: FToFuture](
     client:           BlockchainPeerClient[F],
     transactionStore: Store[F, Transaction]
   ) = { (id: TypedIdentifier) =>

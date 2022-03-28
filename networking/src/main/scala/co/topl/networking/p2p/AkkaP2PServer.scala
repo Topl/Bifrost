@@ -5,16 +5,16 @@ import akka.actor.ActorSystem
 import akka.stream.RestartSettings
 import akka.stream.scaladsl._
 import akka.util.ByteString
+import cats._
 import cats.effect._
 import cats.effect.kernel.Sync
 import cats.implicits._
-import cats._
 import co.topl.catsakka._
 import org.typelevel.log4cats.Logger
 
 import java.net.InetSocketAddress
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 
 /**
  * Interprets P2PServer[F, Client] using akka-stream. Binds to the requested host/port to accept incoming connections,
@@ -26,7 +26,7 @@ object AkkaP2PServer {
   private val outboundConnectionsRestartSettings =
     RestartSettings(1.seconds, 3.seconds, 0.2).withMaxRestarts(5, 60.seconds)
 
-  def make[F[_]: Async: Logger: *[_] ~> Future, Client](
+  def make[F[_]: Async: Logger: FToFuture, Client](
     host:            String,
     port:            Int,
     localAddress:    InetSocketAddress,
@@ -81,7 +81,7 @@ object AkkaP2PServer {
     }
   }
 
-  private def makeAddPeersSink[F[_]: Monad: *[_] ~> Future, Client](
+  private def makeAddPeersSink[F[_]: Monad: FToFuture, Client](
     offerConnectionChange: PeerConnectionChange[Client] => F[Unit]
   ) =
     Flow[(ConnectedPeer, F[Client])]
@@ -92,22 +92,22 @@ object AkkaP2PServer {
       }
       .to(Sink.ignore)
 
-  private def makePeerHandlerFlowWithRemovalF[F[_]: Monad: *[_] ~> Future, Client](
+  private def makePeerHandlerFlowWithRemovalF[F[_]: Monad: FToFuture, Client](
     peerHandler:           ConnectedPeer => F[Flow[ByteString, ByteString, F[Client]]],
     offerConnectionChange: PeerConnectionChange[Client] => F[Unit]
   ) =
     (connectedPeer: ConnectedPeer) =>
       Flow
-        .futureFlow(implicitly[F ~> Future].apply(peerHandler(connectedPeer)))
+        .futureFlow(implicitly[FToFuture[F]].apply(peerHandler(connectedPeer)))
         .alsoTo(
           Sink.onComplete[ByteString](result =>
-            implicitly[F ~> Future].apply(
+            implicitly[FToFuture[F]].apply(
               offerConnectionChange(PeerConnectionChanges.ConnectionClosed(connectedPeer, result.failed.toOption))
             )
           )
         )
 
-  private def makeServerBindingRunnableGraph[F[_]: Monad: *[_] ~> Future, Client](
+  private def makeServerBindingRunnableGraph[F[_]: Monad: FToFuture, Client](
     host:                        String,
     port:                        Int,
     offerConnectionChange:       PeerConnectionChange[Client] => F[Unit],
@@ -128,7 +128,7 @@ object AkkaP2PServer {
       .toMat(Sink.ignore)(Keep.both)
       .withLogAttributes
 
-  private def makeOutboundConnectionsRunnableGraph[F[_]: Monad: *[_] ~> Future, Client](
+  private def makeOutboundConnectionsRunnableGraph[F[_]: Monad: FToFuture, Client](
     localAddress:                InetSocketAddress,
     remotePeers:                 Source[InetSocketAddress, _],
     offerConnectionChange:       PeerConnectionChange[Client] => F[Unit],
