@@ -271,5 +271,6 @@ object Dependencies {
     circe ++
     cats ++
     mainargs ++
+    misc ++
     test
 }
