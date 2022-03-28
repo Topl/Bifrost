@@ -2,31 +2,43 @@ package co.topl.attestation.keyManagement
 
 import cats.implicits._
 import co.topl.attestation.{PublicKeyPropositionEd25519, SignatureEd25519}
+import co.topl.codecs.binary.legacy.BifrostSerializer
+import co.topl.codecs.binary.legacy.attestation.keyManagement.PrivateKeyEd25519Serializer
 import co.topl.crypto.implicits._
-import co.topl.crypto.signatures.Ed25519
-import co.topl.crypto.{PrivateKey, PublicKey}
-import co.topl.utils.serialization.{BifrostSerializer, Reader, Writer}
+import co.topl.crypto.mnemonic.Entropy
+import co.topl.crypto.signing.Ed25519
+import co.topl.crypto.{PrivateKey, PublicKey, Signature}
+import co.topl.models.utility.HasLength.instances._
+import co.topl.models.utility.Sized
+import co.topl.models.{Bytes, SecretKeys}
 
-case class PrivateKeyEd25519(private val privateKey: PrivateKey, private val publicKey: PublicKey) extends Secret {
+//noinspection ScalaStyle
+case class PrivateKeyEd25519(privateKey: PrivateKey, publicKey: PublicKey) extends Secret {
 
+  private val ed25519 = new Ed25519()
   private val privateKeyLength = privateKey.value.length
   private val publicKeyLength = publicKey.value.length
-  private val ec = new Ed25519
 
-  require(privateKeyLength == ec.KeyLength, s"$privateKeyLength == ${ec.KeyLength}")
-  require(publicKeyLength == ec.KeyLength, s"$publicKeyLength == ${ec.KeyLength}")
+  require(privateKeyLength == ed25519.KeyLength, s"$privateKeyLength == ${ed25519.KeyLength}")
+  require(publicKeyLength == ed25519.KeyLength, s"$publicKeyLength == ${ed25519.KeyLength}")
 
   override type S = PrivateKeyEd25519
   override type PK = PublicKeyPropositionEd25519
   override type PR = SignatureEd25519
   override type KF = KeyfileEd25519
 
-  override lazy val serializer: BifrostSerializer[PrivateKeyEd25519] = PrivateKeyEd25519
+  override lazy val serializer: BifrostSerializer[PrivateKeyEd25519] = PrivateKeyEd25519Serializer
 
   override lazy val publicImage: PublicKeyPropositionEd25519 = PublicKeyPropositionEd25519(publicKey)
 
   override def sign(message: Array[Byte]): SignatureEd25519 = SignatureEd25519(
-    ec.sign(privateKey, message)
+    Signature(
+      ed25519
+        .sign(SecretKeys.Ed25519(Sized.strictUnsafe(Bytes(privateKey.value))), Bytes(message))
+        .bytes
+        .data
+        .toArray
+    )
   )
 
   override def equals(obj: Any): Boolean = obj match {
@@ -35,25 +47,14 @@ case class PrivateKeyEd25519(private val privateKey: PrivateKey, private val pub
   }
 }
 
-object PrivateKeyEd25519 extends BifrostSerializer[PrivateKeyEd25519] {
+object PrivateKeyEd25519 {
 
   implicit val secretGenerator: SecretGenerator[PrivateKeyEd25519] =
     SecretGenerator.instance[PrivateKeyEd25519] { seed: Array[Byte] =>
-      val ec = new Ed25519
-      val (sk, pk) = ec.createKeyPair(seed)
-      val secret: PrivateKeyEd25519 = PrivateKeyEd25519(sk, pk)
+      val (sk, pk) = Ed25519.instance.createKeyPair(Entropy(seed), None)
+      val secret: PrivateKeyEd25519 =
+        new PrivateKeyEd25519(PrivateKey(sk.bytes.data.toArray), PublicKey(pk.bytes.data.toArray))
       secret -> secret.publicImage
     }
-
-  override def serialize(obj: PrivateKeyEd25519, w: Writer): Unit = {
-    /* privKeyBytes: Array[Byte] */
-    w.putBytes(obj.privateKey.value)
-
-    /* publicKeyBytes: Array[Byte] */
-    w.putBytes(obj.publicKey.value)
-  }
-
-  override def parse(r: Reader): PrivateKeyEd25519 =
-    PrivateKeyEd25519(PrivateKey(r.getBytes(Ed25519.KeyLength)), PublicKey(r.getBytes(Ed25519.KeyLength)))
 
 }

@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+package co.topl.genus;
+
+message StringSelection {
+  repeated string values = 1;
+}
+
+message NumberRange {
+  oneof filter_type {
+    uint64 min = 1;
+    uint64 max = 2;
+  }
+}
+
+message NumberSelection {
+  repeated uint64 values = 1;
+}
+
+message BooleanSelection {
+  bool value = 1;
+}
+
+message TokenValueFilter {
+  oneof filter_type {
+    StringSelection asset_code_selection = 1;
+    NumberRange quantity_range = 2;
+    StringSelection token_value_type_selection = 3;
+  }
+}
+
+message TransactionFilter {
+
+  message AndFilter {
+    repeated TransactionFilter filters = 1;
+  }
+
+  message OrFilter {
+    repeated TransactionFilter filters = 1;
+  }
+
+  message NotFilter {
+    TransactionFilter filter = 1;
+  }
+
+  message AllFilter {}
+
+  oneof filter_type {
+    StringSelection tx_type_selection = 1;
+    NumberRange timestamp_range = 2;
+    StringSelection input_address_selection = 3;
+    NumberSelection input_nonce_selection = 4;
+    StringSelection output_token_box_type_selection = 5;
+    TokenValueFilter output_token_value_filter = 6;
+    StringSelection output_address_selection = 7;
+    BooleanSelection minting_selection = 8;
+    StringSelection tx_id_selection = 9;
+    StringSelection boxes_to_remove_selection = 10;
+    NumberRange fee_range = 11;
+    StringSelection proposition_selection = 12;
+    StringSelection block_id_selection = 13;
+    NumberRange block_height_range = 14;
+    AndFilter and = 15;
+    OrFilter or = 16;
+    NotFilter not = 17;
+    AllFilter all = 18;
+  }
+}
+
+message BlockFilter {
+
+  message AndFilter {
+    repeated BlockFilter filters = 1;
+  }
+
+  message OrFilter {
+    repeated BlockFilter filters = 1;
+  }
+
+  message NotFilter {
+    BlockFilter filter = 1;
+  }
+
+  message AllFilter {}
+
+  oneof filter_type {
+    StringSelection id_selection = 1;
+    StringSelection parent_id_selection = 2;
+    NumberRange timestamp_range = 3;
+    TokenValueFilter generator_box_token_value_filter = 4;
+    StringSelection public_key_selection = 5;
+    NumberRange height_range = 6;
+    NumberSelection height_selection = 7;
+    NumberRange difficulty_range = 8;
+    NumberSelection version_selection = 9;
+    NumberRange num_transaction_range = 10;
+    AndFilter and = 15;
+    OrFilter or = 16;
+    NotFilter not = 17;
+    AllFilter all = 18;
+  }
+}

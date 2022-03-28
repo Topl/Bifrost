@@ -1,8 +1,8 @@
 package co.topl.modifier.transaction.builder
 
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
-import co.topl.modifier.BoxReader
-import co.topl.modifier.box.{ArbitBox, PolyBox, ProgramId}
+import co.topl.modifier.box.{ArbitBox, PolyBox}
+import co.topl.modifier.{BoxReader, ProgramId}
 import co.topl.utils.CommonGenerators
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
