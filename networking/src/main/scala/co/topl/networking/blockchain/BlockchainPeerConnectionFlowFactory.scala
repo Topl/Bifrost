@@ -210,12 +210,12 @@ object BlockchainPeerConnectionFlowFactory {
           .withTransition(responseBusyIdle)
           .withTransition(doneIdleDone)
       }
-      (outboundMessagesQueue, outboundMessagesSource) = Source
-        .queue[OutboundMessage](128)
+      ((offerOutboundMessage, completeOutboundMessages), outboundMessagesSource) = Source
+        .backpressuredQueue[F, OutboundMessage](8)
         .toMat(BroadcastHub.sink)(Keep.both)
         .run()
       clientCallback = (id: TypedIdentifier) =>
-        outboundMessagesQueue.offerF[F](OutboundMessage(TypedProtocol.CommonMessages.Get(id))) >>
+        offerOutboundMessage(OutboundMessage(TypedProtocol.CommonMessages.Get(id))) >>
         Sync[F]
           .delay(Promise[Option[T]]())
           .flatMap(promise => currentPromiseRef.set(promise.some) >> Async[F].fromFuture(promise.future.pure[F]))

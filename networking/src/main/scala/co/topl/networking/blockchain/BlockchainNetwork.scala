@@ -8,7 +8,7 @@ import cats.data.OptionT
 import cats.effect.std.Supervisor
 import cats.effect.{Async, Concurrent, Fiber, Sync}
 import cats.implicits._
-import cats.{~>, Applicative, MonadThrow}
+import cats.{~>, MonadThrow}
 import co.topl.algebras.Store
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
@@ -58,9 +58,9 @@ object BlockchainNetwork {
           peerHandlerFlow
         )
       }
-      _ <- p2pServer.newConnectedPeers.flatMap(peers =>
-        handleNetworkClients(peers.map(_._2), headerStore, bodyStore, transactionStore, onBlockReceived)
-      )
+      peerChanges <- p2pServer.peerChanges
+      peerClients = peerChanges.collect { case PeerConnectionChanges.ConnectionEstablished(_, client) => client }
+      _ <- handleNetworkClients(peerClients, headerStore, bodyStore, transactionStore, onBlockReceived)
       _ <- Logger[F].info(s"Bound P2P at host=localhost port=$bindPort")
     } yield p2pServer
 
@@ -145,6 +145,7 @@ object BlockchainNetwork {
       _                  <- Logger[F].info(show"Remote peer adopted block id=$id")
       maybeCurrentHeader <- headerStore.get(id)
       _ <- (id, maybeCurrentHeader)
+        // Recursively fetch the remote header+body+transactions until a common ancestor is found
         .iterateWhileM[F] { case (id, _) =>
           fetchHeader(client, headerStore)(id)
             .productL(fetchBody(client, bodyStore)(id).flatMap(fetchTransactions(client, transactionStore)).void)

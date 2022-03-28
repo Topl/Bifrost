@@ -1,8 +1,9 @@
 package co.topl.catsakka
 
 import akka.NotUsed
-import akka.stream.{BoundedSourceQueue, QueueOfferResult}
+import akka.stream.{BoundedSourceQueue, OverflowStrategy, QueueOfferResult}
 import akka.stream.scaladsl.Source
+import cats.effect.Async
 import cats.kernel.Monoid
 import cats.{~>, Applicative, Eval, Foldable, Functor, MonadThrow, Semigroup}
 import cats.implicits._
@@ -23,8 +24,11 @@ trait SourceOps {
   }
 
   implicit class BoundedSourceQueueOps[T](queue: BoundedSourceQueue[T]) {
+    def offerF[F[_]: MonadThrow](t: T): F[Unit] = handleQueueOfferResult[F](queue.offer(t))
+  }
 
-    def offerF[F[_]: MonadThrow](t: T): F[Unit] = queue.offer(t) match {
+  private def handleQueueOfferResult[F[_]: MonadThrow](queueOfferResult: QueueOfferResult) =
+    queueOfferResult match {
       case QueueOfferResult.Enqueued =>
         Applicative[F].unit
       case QueueOfferResult.Dropped =>
@@ -34,6 +38,25 @@ trait SourceOps {
       case QueueOfferResult.Failure(e) =>
         MonadThrow[F].raiseError(e).void
     }
+
+  implicit class SourceCompanionCatsOps(companion: Source.type) {
+
+    /**
+     * Constructs a backpressured Akka Stream Source that can be interacted with using the materialized functions
+     * @param size The buffer size of the queue
+     * @tparam F F-context
+     * @tparam T Value Type
+     * @return a Source[T] where the materialized value is a tuple (offer to queue function, complete queue function)
+     */
+    def backpressuredQueue[F[_]: Async, T](size: Int = 16): Source[T, (T => F[Unit], Option[Throwable] => F[Unit])] =
+      companion
+        .queue[T](16, OverflowStrategy.backpressure)
+        .mapMaterializedValue(queue =>
+          (
+            (t: T) => Async[F].fromFuture(Async[F].delay(queue.offer(t))).flatMap(handleQueueOfferResult[F]),
+            (reason: Option[Throwable]) => Async[F].delay(reason.fold(queue.complete())(queue.fail))
+          )
+        )
   }
 
   implicit def sourceMonoid[T]: Monoid[Source[T, NotUsed]] =

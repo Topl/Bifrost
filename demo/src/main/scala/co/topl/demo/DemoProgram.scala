@@ -39,8 +39,11 @@ object DemoProgram {
     remotePeers:        Source[InetSocketAddress, _]
   )(implicit system:    ActorSystem[_]): F[Unit] =
     for {
-      (locallyAdoptedBlocksQueue, locallyAdoptedBlocksSource) <-
-        Source.queue[TypedIdentifier](128).toMat(BroadcastHub.sink[TypedIdentifier])(Keep.both).liftTo[F]
+      ((offerLocallyAdoptedBlocks, locallyAdoptedBlocksCompletion), locallyAdoptedBlocksSource) <-
+        Source
+          .backpressuredQueue[F, TypedIdentifier](128)
+          .toMat(BroadcastHub.sink[TypedIdentifier])(Keep.both)
+          .liftTo[F]
       blockProcessor =
         (blockV2: BlockV2) =>
           processBlock[F](
@@ -61,7 +64,7 @@ object DemoProgram {
           locallyAdoptedBlocksSource,
           block =>
             blockProcessor(block).flatMap(
-              Applicative[F].whenA(_)(locallyAdoptedBlocksQueue.offerF[F](block.headerV2.id))
+              Applicative[F].whenA(_)(offerLocallyAdoptedBlocks(block.headerV2.id))
             )
         )
       mintedBlockStream <- mint.fold(Source.never[BlockV2].pure[F])(_.blocks)
@@ -70,7 +73,7 @@ object DemoProgram {
           .tapAsyncF(1)(block => Logger[F].info(show"Minted block ${block.headerV2}"))
           .mapAsyncF(1)(block => blockProcessor(block).tupleLeft(block.headerV2.id.asTypedBytes))
           .collect { case (id, true) => id }
-          .tapAsyncF(1)(locallyAdoptedBlocksQueue.offerF[F])
+          .tapAsyncF(1)(offerLocallyAdoptedBlocks)
           .toMat(Sink.ignore)(Keep.right)
           .liftTo[F]
       _ <- Async[F]

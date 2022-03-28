@@ -10,7 +10,20 @@ import java.net.InetSocketAddress
  */
 trait P2PServer[F[_], Client] {
   def stop(): F[Unit]
-  def newConnectedPeers: F[Source[(ConnectedPeer, Client), NotUsed]]
-  def connectedPeers(): F[Map[ConnectedPeer, Client]]
+  def peerChanges: F[Source[PeerConnectionChange[Client], NotUsed]]
   def localAddress: F[InetSocketAddress]
+
+}
+
+sealed abstract class PeerConnectionChange[+Client]
+
+object PeerConnectionChanges {
+  case class InboundConnectionInitializing(remoteAddress: InetSocketAddress) extends PeerConnectionChange[Nothing]
+  case class OutboundConnectionInitializing(remoteAddress: InetSocketAddress) extends PeerConnectionChange[Nothing]
+
+  case class ConnectionEstablished[Client](connectedPeer: ConnectedPeer, client: Client)
+      extends PeerConnectionChange[Client]
+
+  case class ConnectionClosed(connectedPeer: ConnectedPeer, reason: Option[Throwable])
+      extends PeerConnectionChange[Nothing]
 }
