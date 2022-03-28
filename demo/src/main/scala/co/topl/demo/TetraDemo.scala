@@ -28,6 +28,7 @@ import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility._
+import co.topl.numerics.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
@@ -36,8 +37,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import java.net.InetSocketAddress
 import java.nio.file.{Files, Paths}
 import java.time.Instant
-import java.time.temporal.TemporalUnit
-import java.util.{Calendar, UUID}
+import java.util.UUID
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Random
@@ -52,7 +52,7 @@ object TetraDemo extends IOApp {
 
   // Configuration Data
   private val vrfConfig =
-    VrfConfig(lddCutoff = 40, precision = 16, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(2, 5))
+    VrfConfig(lddCutoff = 40, precision = 40, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(2, 5))
 
   private val OperationalPeriodLength = 180L
   private val OperationalPeriodsPerEpoch = 4L
@@ -236,8 +236,11 @@ object TetraDemo extends IOApp {
         blake2b256Resource,
         blake2b512Resource
       )
-      leaderElectionThreshold = LeaderElectionValidation.Eval.make[F](vrfConfig, blake2b512Resource)
       consensusState <- state(stakers)
+      exp            <- ExpInterpreter.make[F](10000, 38)
+      log1p          <- Log1pInterpreter.make[F](10000, 8)
+      log1pCached    <- Log1pInterpreter.makeCached[F](log1p)
+      leaderElectionThreshold = LeaderElectionValidation.Eval.make[F](vrfConfig, blake2b512Resource, exp, log1pCached)
       underlyingHeaderValidation <- BlockHeaderValidation.Eval.make[F](
         etaCalculation,
         VrfRelativeStakeValidationLookup.Eval.make(consensusState, clock),

@@ -16,15 +16,6 @@ object TetraParameters {
   val f_s: Double = config.getDouble("params.f_s")
   // order of accuracy for convergent series
   val o_n: Int = config.getInt("params.o_n")
-
-  def log_one_minus(f: Ratio): Ratio = {
-    // calculate log(1-f)
-    var out = Ratio(0)
-    for (n <- 1 to o_n)
-      out = out - (f.pow(n) / n)
-    out
-  }
-  val m_f: Ratio = log_one_minus(Ratio(f_s, 4))
   val f_dynamic: Boolean = config.getBoolean("params.f_dynamic")
   val testStrategy: String = config.getString("params.testStrategy")
   val f_A: Ratio = Ratio(config.getDouble("params.f_A"), 4)
@@ -35,20 +26,6 @@ object TetraParameters {
   val useMaxValidTK: Boolean = config.getBoolean("params.useMaxValidTK")
   val k_bar: Int = config.getInt("params.k_bar")
   val forging_window: Int = config.getInt("params.forging_window")
-
-  // Local Dynamic Difficulty curve
-  def snowplow_curve(i: Int): Ratio =
-    if (i <= slot_gap) {
-      Ratio(0)
-    } else {
-      Ratio(i - slot_gap, gamma - slot_gap) * f_A
-    }
-  val m_f_B: Ratio = log_one_minus(f_B)
-
-  val m_f_range: Array[Ratio] = (0 to gamma).toArray
-    .map(i => snowplow_curve(i))
-    .map(f => log_one_minus(f))
-
   // checkpoint depth in blocks, k parameter in maxValid-bg, k > 192*delta/epsilon*beta
   val k_n: Int = config.getInt("params.k_n")
   // epoch length R >= 3k/2f_eff

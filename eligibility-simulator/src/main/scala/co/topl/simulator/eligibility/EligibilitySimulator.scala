@@ -25,6 +25,7 @@ import co.topl.minting._
 import co.topl.minting.algebras.BlockMintAlgebra
 import co.topl.models._
 import co.topl.models.utility._
+import co.topl.numerics.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
@@ -40,16 +41,16 @@ object EligibilitySimulator extends IOApp.Simple {
 
   // Configuration Data
   private val vrfConfig =
-    VrfConfig(lddCutoff = 10, precision = 64, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(1))
+    VrfConfig(lddCutoff = 10, precision = 38, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(1))
 
   private val OperationalPeriodLength = 180L
   private val OperationalPeriodsPerEpoch = 4L
   private val EpochLength = OperationalPeriodLength * OperationalPeriodsPerEpoch
   private val SlotDuration = 10.milli
   private val NumberOfStakers = 1
-  private val RelativeStake = Ratio(1, 2)
+  private val RelativeStake = Ratio(1, 1)
   private val TargetHeight = 10_000L
-  private val TestName = "Test11"
+  private val TestName = "test_threshold"
 
   require(
     EpochLength % OperationalPeriodLength === 0L,
@@ -232,12 +233,16 @@ object EligibilitySimulator extends IOApp.Simple {
         blake2b256Resource,
         blake2b512Resource
       )
-      leaderElectionThreshold = LeaderElectionValidation.Eval.make[F](vrfConfig, blake2b512Resource)
-      consensusState <- state
+      exp         <- ExpInterpreter.make[F](10000, vrfConfig.precision)
+      log1p       <- Log1pInterpreter.make[F](10000, 5)
+      log1pCached <- Log1pInterpreter.makeCached[F](log1p)
+      leaderElectionThreshold = LeaderElectionValidation.Eval.make[F](vrfConfig, blake2b512Resource, exp, log1pCached)
+      leaderElectionThresholdCached <- LeaderElectionValidation.Eval.makeCached[F](leaderElectionThreshold)
+      consensusState                <- state
       underlyingHeaderValidation <- BlockHeaderValidation.Eval.make[F](
         etaCalculation,
         VrfRelativeStakeValidationLookup.Eval.make(consensusState, clock),
-        leaderElectionThreshold,
+        leaderElectionThresholdCached,
         RegistrationLookup.Eval.make(consensusState, clock),
         ed25519VRFResource,
         kesProductResource,
@@ -251,7 +256,7 @@ object EligibilitySimulator extends IOApp.Simple {
       )
       m <- mints(
         etaCalculation,
-        leaderElectionThreshold,
+        leaderElectionThresholdCached,
         consensusState,
         ed25519VRFResource,
         kesProductResource,

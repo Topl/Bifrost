@@ -2,7 +2,8 @@ package co.topl.consensus
 
 import cats.Monad
 import cats.implicits._
-import co.topl.algebras.UnsafeResource
+import cats.effect.kernel.{Clock, Sync}
+import co.topl.algebras.{Exp, Log1p, UnsafeResource}
 import co.topl.codecs.bytes.typeclasses.Signable
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
 import co.topl.crypto.hash.Blake2b512
@@ -10,8 +11,7 @@ import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models._
 import co.topl.models.utility.Ratio
 import co.topl.typeclasses.implicits._
-
-import scala.collection.concurrent.TrieMap
+import scalacache.caffeine.CaffeineCache
 
 object LeaderElectionValidation {
 
@@ -24,72 +24,64 @@ object LeaderElectionValidation {
 
   object Eval {
 
+    /**
+     * Normalization constant for test nonce hash evaluation based on 512 byte hash function output
+     */
+    private val NormalizationConstant: BigInt = BigInt(2).pow(512)
+
     def make[F[_]: Monad](
       config:             VrfConfig,
-      blake2b512Resource: UnsafeResource[F, Blake2b512]
+      blake2b512Resource: UnsafeResource[F, Blake2b512],
+      exp:                Exp[F],
+      log1p:              Log1p[F]
     ): LeaderElectionValidationAlgebra[F] =
       new LeaderElectionValidationAlgebra[F] {
 
-        // TODO: Cache of relative stake for each address
-
         def getThreshold(relativeStake: Ratio, slotDiff: Long): F[Ratio] = {
-          val mFValue = mFunction(slotDiff, config)
-          val base = mFValue * relativeStake
 
-          // This is the Taylor-Series Expansion of the number
-          var total = Ratio(0)
-          var i = 1
-          while (i <= config.precision) {
-            total = total - (base.pow(i) * Ratio(BigInt(1), MathUtils.factorial(i)))
-            i += 1
-          }
-          total.pure[F]
+          val difficultyCurve: Ratio =
+            if (slotDiff > config.lddCutoff) config.baselineDifficulty
+            else Ratio(BigInt(slotDiff), BigInt(config.lddCutoff)) * config.amplitude
+
+          if (difficultyCurve == Ratio.One) {
+            Ratio.One.pure[F]
+          } else
+            for {
+              coefficient <- log1p.evaluate(Ratio.NegativeOne * difficultyCurve)
+              result      <- exp.evaluate(coefficient * relativeStake)
+            } yield Ratio.One - result
         }
 
         /**
          * Determines if the given proof meets the threshold to be elected slot leader
          * @param threshold the threshold to reach
-         * @param proof the proof output
+         * @param rho the randomness
          * @return true if elected slot leader and false otherwise
          */
         def isSlotLeaderForThreshold(threshold: Ratio)(rho: Rho): F[Boolean] = blake2b512Resource.use {
           implicit blake2b512 =>
             val testRhoHash = Ed25519VRF.rhoToRhoTestHash(rho)
-            val testRhoHashBytes = testRhoHash.sizedBytes.data
-            // TODO: Where does this come from?
-            (threshold > testRhoHashBytes.toIterable
-              .zip(1 to testRhoHashBytes.length.toInt) // zip with indexes starting from 1
-              .foldLeft(Ratio(0)) { case (net, (byte, i)) =>
-                net + Ratio(BigInt(byte & 0xff), BigInt(2).pow(8 * i))
-              })
-              .pure[F]
+            val testRhoHashBytes = testRhoHash.sizedBytes.data.toArray
+            val test = Ratio(BigInt(Array(0x00.toByte) ++ testRhoHashBytes), NormalizationConstant, BigInt(1))
+            (threshold > test).pure[F]
         }
-
-        /** Calculates log(1-f(slot-parentSlot)) or log(1-f) depending on the configuration */
-        private def mFunction(slotDiff: Long, config: VrfConfig): Ratio =
-          // use sawtooth curve if local dynamic difficulty is enabled
-          if (slotDiff <= config.lddCutoff)
-            MathUtils.logOneMinus(
-              MathUtils.lddGapSawtooth(slotDiff, config.lddCutoff, config.amplitude),
-              config.precision
-            )
-          else MathUtils.logOneMinus(config.baselineDifficulty, config.precision)
-
       }
+
+    def makeCached[F[_]: Sync: Clock](alg: LeaderElectionValidationAlgebra[F]): F[LeaderElectionValidationAlgebra[F]] =
+      CaffeineCache[F, Ratio].map(cache =>
+        new LeaderElectionValidationAlgebra[F] {
+
+          override def getThreshold(relativeStake: Ratio, slotDiff: Slot): F[Ratio] =
+            cache.cachingF((relativeStake, slotDiff))(ttl = None)(
+              Sync[F].defer(
+                alg.getThreshold(relativeStake, slotDiff)
+              )
+            )
+
+          override def isSlotLeaderForThreshold(threshold: Ratio)(rho: Rho): F[Boolean] =
+            alg.isSlotLeaderForThreshold(threshold)(rho)
+        }
+      )
+
   }
-}
-
-private object MathUtils {
-
-  private val factorialCache = TrieMap(0 -> BigInt(1))
-  def factorial(n: Int): BigInt = factorialCache.getOrElseUpdate(n, n * factorial(n - 1))
-
-  /** Calculates log(1-f) */
-  def logOneMinus(f: Ratio, precision: Int): Ratio =
-    (1 to precision).foldLeft(Ratio(0))((total, value) => total - (f.pow(value) / value))
-
-  // Local Dynamic Difficulty curve
-  def lddGapSawtooth(slotDiff: Long, lddCutoff: Int, amplitude: Ratio): Ratio =
-    Ratio(BigInt(slotDiff), BigInt(lddCutoff)) * amplitude
-
 }
