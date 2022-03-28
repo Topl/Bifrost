@@ -131,7 +131,6 @@ object DemoProgram {
           .defer(Logger[F].info(show"Ignoring weaker block header id=${block.headerV2.id.asTypedBytes}"))
           .as(false)
       )
-      a = adopted
-    } yield a
+    } yield adopted
 
 }
