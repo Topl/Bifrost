@@ -96,41 +96,42 @@ object DemoProgram {
     ed25519VrfResource: UnsafeResource[F, Ed25519VRF]
   ): F[Boolean] =
     for {
-      _ <- OptionT(headerStore.get(block.headerV2.id))
-        .flatTapNone(headerStore.put(block.headerV2.id, block.headerV2))
-        .value
-      _ <- OptionT(bodyStore.get(block.headerV2.id))
-        .flatTapNone(bodyStore.put(block.headerV2.id, block.blockBodyV2))
-        .value
+      _ <- headerStore
+        .contains(block.headerV2.id)
+        .ifM(Applicative[F].unit, headerStore.put(block.headerV2.id, block.headerV2))
+      _ <- bodyStore
+        .contains(block.headerV2.id)
+        .ifM(Applicative[F].unit, bodyStore.put(block.headerV2.id, block.blockBodyV2))
       slotData <- ed25519VrfResource.use(implicit ed25519Vrf => block.headerV2.slotData.pure[F])
-      adopted <- Monad[F].ifElseM(
-        localChain.isWorseThan(slotData) ->
-        Sync[F].defer(
-          EitherT(
-            OptionT(headerStore.get(block.headerV2.parentHeaderId))
-              .getOrElseF(MonadThrow[F].raiseError(new NoSuchElementException(block.headerV2.parentHeaderId.show)))
-              .flatMap(parent => headerValidation.validate(block.headerV2, parent))
-          )
-            .semiflatTap(_ => localChain.adopt(Validated.Valid(slotData)))
-            .semiflatTap(header =>
-              Logger[F].info(
-                show"Adopted head block id=${header.id.asTypedBytes} height=${header.height} slot=${header.slot}"
+      adopted <-
+        localChain
+          .isWorseThan(slotData)
+          .ifM(
+            Sync[F].defer(
+              EitherT(
+                OptionT(headerStore.get(block.headerV2.parentHeaderId))
+                  .getOrElseF(MonadThrow[F].raiseError(new NoSuchElementException(block.headerV2.parentHeaderId.show)))
+                  .flatMap(parent => headerValidation.validate(block.headerV2, parent))
               )
-            )
-            .as(true)
-            .valueOrF(e =>
-              Logger[F]
-                .warn(show"Invalid block header. reason=$e block=${block.headerV2}")
-                // TODO: Penalize the peer
-                .flatTap(_ => headerStore.remove(block.headerV2.id).tupleRight(bodyStore.remove(block.headerV2.id)))
-                .as(false)
-            )
-        )
-      )(
-        Sync[F]
-          .defer(Logger[F].info(show"Ignoring weaker block header id=${block.headerV2.id.asTypedBytes}"))
-          .as(false)
-      )
+                .semiflatTap(_ => localChain.adopt(Validated.Valid(slotData)))
+                .semiflatTap(header =>
+                  Logger[F].info(
+                    show"Adopted head block id=${header.id.asTypedBytes} height=${header.height} slot=${header.slot}"
+                  )
+                )
+                .as(true)
+                .valueOrF(e =>
+                  Logger[F]
+                    .warn(show"Invalid block header. reason=$e block=${block.headerV2}")
+                    // TODO: Penalize the peer
+                    .flatTap(_ => headerStore.remove(block.headerV2.id).tupleRight(bodyStore.remove(block.headerV2.id)))
+                    .as(false)
+                )
+            ),
+            Sync[F]
+              .defer(Logger[F].info(show"Ignoring weaker block header id=${block.headerV2.id.asTypedBytes}"))
+              .as(false)
+          )
     } yield adopted
 
 }

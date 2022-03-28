@@ -24,6 +24,9 @@ object RefStore {
 
             def remove(id: TypedIdentifier): F[Unit] =
               ref.update(_.removed(id))
+
+            def contains(id: TypedIdentifier): F[Boolean] =
+              ref.get.map(_.contains(id))
           }
         )
   }

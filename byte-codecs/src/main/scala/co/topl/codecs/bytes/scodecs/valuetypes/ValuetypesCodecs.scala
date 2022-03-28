@@ -13,6 +13,10 @@ import scala.reflect.ClassTag
 
 trait ValuetypesCodecs {
 
+  /**
+   * A valuetype codec which encodes zero bytes and decodes zero bytes.
+   * @param instance The instance to return when decoding
+   */
   def emptyCodec[T](instance: T): Codec[T] =
     new Codec[T] {
       def decode(bits: BitVector): Attempt[DecodeResult[T]] = Attempt.successful(DecodeResult(instance, bits))

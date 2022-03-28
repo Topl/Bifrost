@@ -208,6 +208,7 @@ object EligibilitySimulator extends IOApp.Simple {
       def remove(id: TypedIdentifier): F[Unit] =
         (headerStore.remove(id), bodyStore.remove(id)).tupled.void
 
+      def contains(id: TypedIdentifier): F[Boolean] = (headerStore.contains(id), bodyStore.contains(id)).mapN(_ && _)
     }
 
   // Program definition
