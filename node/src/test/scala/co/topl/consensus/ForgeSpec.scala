@@ -41,11 +41,6 @@ class ForgeSpec
         mock[MemPoolReader[Transaction.TX]]
       )
 
-      (() => nodeView.history.height)
-        .expects()
-        .once()
-        .returning(parentBlock.height)
-
       (nodeView.memPool
         .take[Int128](_: Int)(_: UnconfirmedTx[Transaction.TX] => Int128)(_: Ordering[Int128]))
         .expects(100, *, *)
@@ -136,11 +131,6 @@ class ForgeSpec
         mock[StateReader[ProgramId, Address]],
         mock[MemPoolReader[Transaction.TX]]
       )
-
-      (() => nodeView.history.height)
-        .expects()
-        .once()
-        .returning(2)
 
       (nodeView.memPool
         .take[Int128](_: Int)(_: UnconfirmedTx[Transaction.TX] => Int128)(_: Ordering[Int128]))
