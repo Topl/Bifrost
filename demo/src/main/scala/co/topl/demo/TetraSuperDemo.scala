@@ -36,6 +36,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.net.InetSocketAddress
 import java.nio.file.{Files, Paths}
+import java.security.SecureRandom
 import java.time.Instant
 import java.util.UUID
 import scala.concurrent.Future
@@ -212,15 +213,15 @@ object TetraSuperDemo extends IOApp {
   def run(args: List[String]): IO[ExitCode] = {
     for {
       random <- new Random(0L).pure[F]
-      genesisTimestamp = Instant.now().plusSeconds(5)
-      stakerCount = 2
+      genesisTimestamp = Instant.now().plusSeconds(10)
+      stakerCount = 3
       stakers = computeStakers(stakerCount, random)
       configurations = List.tabulate(stakerCount)(idx =>
         (
           idx + 9090,
           if (idx > 0) List(InetSocketAddress.createUnresolved("localhost", 9090 + idx - 1)) else Nil,
           idx,
-          idx < 2
+          idx < 3
         )
       )
       _ <- configurations.parTraverse { case (port, remotes, stakerIndex, stakingEnabled) =>
@@ -260,7 +261,7 @@ object TetraSuperDemo extends IOApp {
         loggerColor = loggerColors(stakerIndex).toString
         implicit0(logger: Logger[F]) = Slf4jLogger
           .getLoggerFromName[F](s"${loggerColor}TetraSuperDemo$stakerIndex${Console.RESET}")
-          .withModifiedString(str => s"$loggerColor$str$stakerIndex${Console.RESET}")
+          .withModifiedString(str => s"$loggerColor$str${Console.RESET}")
         blockHeaderStore <- RefStore.Eval.make[F, BlockHeaderV2]()
         blockBodyStore   <- RefStore.Eval.make[F, BlockBodyV2]()
         transactionStore <- RefStore.Eval.make[F, Transaction]()
@@ -313,6 +314,7 @@ object TetraSuperDemo extends IOApp {
             )
           )
           .value
+        implicit0(networkRandom: Random) = new Random(new SecureRandom())
         _ <- DemoProgram
           .run[F](
             mintOpt,

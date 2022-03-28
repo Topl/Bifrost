@@ -106,7 +106,7 @@ object AkkaP2PServer {
           )
         )
 
-  private def makeServerBindingRunnableGraph[F[_]: Monad: FToFuture, Client](
+  private def makeServerBindingRunnableGraph[F[_]: Monad: Logger: FToFuture, Client](
     host:                        String,
     port:                        Int,
     offerConnectionChange:       PeerConnectionChange[Client] => F[Unit],
@@ -115,8 +115,8 @@ object AkkaP2PServer {
   )(implicit system:             ActorSystem, ec: ExecutionContext) =
     Tcp()
       .bind(host, port)
-      .log("Inbound peer connection", _.remoteAddress)
       .tapAsyncF(1)(conn =>
+        Logger[F].info(s"Inbound peer connection from address=${conn.remoteAddress}") *>
         offerConnectionChange(PeerConnectionChanges.InboundConnectionInitializing(conn.remoteAddress))
       )
       .mapAsync(1) { conn =>
@@ -127,7 +127,7 @@ object AkkaP2PServer {
       .toMat(Sink.ignore)(Keep.both)
       .withLogAttributes
 
-  private def makeOutboundConnectionsRunnableGraph[F[_]: Async: FToFuture, Client](
+  private def makeOutboundConnectionsRunnableGraph[F[_]: Async: FToFuture: Logger, Client](
     localAddress:                InetSocketAddress,
     remotePeers:                 Source[InetSocketAddress, _],
     offerConnectionChange:       PeerConnectionChange[Client] => F[Unit],
@@ -136,9 +136,11 @@ object AkkaP2PServer {
   )(implicit system:             ActorSystem, ec: ExecutionContext) =
     remotePeers
       .filterNot(_ == localAddress)
-      .tapAsyncF(1)(address => offerConnectionChange(PeerConnectionChanges.OutboundConnectionInitializing(address)))
+      .tapAsyncF(1)(address =>
+        Logger[F].info(s"Initializing outbound peer connection to address=$address") *>
+        offerConnectionChange(PeerConnectionChanges.OutboundConnectionInitializing(address))
+      )
       .map(ConnectedPeer)
-      .log("Initializing connection")
       .mapAsyncF(1)(connectedPeer =>
         RestartFlow
           .onFailuresWithBackoff(outboundConnectionsRestartSettings)(() =>

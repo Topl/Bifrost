@@ -21,6 +21,7 @@ import org.typelevel.log4cats.Logger
 
 import java.net.InetSocketAddress
 import scala.concurrent.Future
+import scala.util.Random
 
 object DemoProgram {
 
@@ -37,7 +38,7 @@ object DemoProgram {
     ed25519VrfResource: UnsafeResource[F, Ed25519VRF],
     bindPort:           Int,
     remotePeers:        Source[InetSocketAddress, _]
-  )(implicit system:    ActorSystem[_]): F[Unit] =
+  )(implicit system:    ActorSystem[_], random: Random): F[Unit] =
     for {
       ((offerLocallyAdoptedBlocks, locallyAdoptedBlocksCompletion), locallyAdoptedBlocksSource) <-
         Source

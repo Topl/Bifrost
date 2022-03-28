@@ -19,6 +19,7 @@ import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 
 import java.net.InetSocketAddress
+import scala.util.Random
 
 object BlockchainNetwork {
 
@@ -31,7 +32,8 @@ object BlockchainNetwork {
     locallyAdoptedBlockIds: Source[TypedIdentifier, NotUsed],
     onBlockReceived:        BlockV2 => F[Unit]
   )(implicit
-    system: ActorSystem[_]
+    system: ActorSystem[_],
+    random: Random
   ): F[P2PServer[F, BlockchainPeerClient[F]]] =
     for {
       localAddress <- InetSocketAddress.createUnresolved("localhost", bindPort).pure[F]

@@ -36,6 +36,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.net.InetSocketAddress
 import java.nio.file.{Files, Paths}
+import java.security.SecureRandom
 import java.time.Instant
 import java.util.UUID
 import scala.concurrent.Future
@@ -275,6 +276,7 @@ object TetraDemo extends IOApp {
           )
         )
         .value
+      implicit0(networkRandom: Random) = new Random(new SecureRandom())
       _ <- DemoProgram
         .run[F](
           mintOpt,

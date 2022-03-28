@@ -5,8 +5,14 @@ import akka.stream.stage._
 import akka.stream.{Attributes, FlowShape, Inlet, Outlet}
 import akka.util.ByteString
 import cats.implicits._
+import co.topl.crypto.hash.Blake2b256
+import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.{Lengths, Sized}
+import co.topl.models.{Bytes, Evidence}
+import co.topl.networking.multiplexer.{bytestringToInt, intToBytestring}
 
 import scala.concurrent.{Future, Promise}
+import scala.util.Random
 
 /**
  * An Akka-Stream Flow which performs a pre-handshake before materializing the given sub-flow.  This mini-handshake
@@ -14,11 +20,14 @@ import scala.concurrent.{Future, Promise}
  * established by each party sending a random number to the other.  The party with the larger number is deemed to be
  * the "Connection Leader" which can be interpreted as needed when forming the child sub-flow.
  *
- * TODO: Directly sending a random number to the other party allows the other party to delay disclosing their
- * random number.  This allows an adversary to choose to "always" be the leader.  To remedy, the parties should
- * first commit to a number by exchanging a hash of their locally computed random numbers.  Once the commitments are
- * exchanged, the actual numbers can be exchanged and verified.  Next, compare:
- * - BigInt(hash(localNumber.bytes ++ remoteNumber.bytes)) vs. BigInt(hash(remoteNumber.bytes ++ localNumber.bytes))
+ * Each party locally selects an integer at random.  Next, each party sends a hash of their local number to the other.
+ * Next, the parties exchange the actual numbers.  Each party locally verifies the commitment made by the other.  Next,
+ * the "Connection Leader" is determined by:
+ * - if(
+ *      BigInt(hash(localNumber.bytes ++ remoteNumber.bytes)) >
+ *        BigInt(hash(remoteNumber.bytes ++ localNumber.bytes))
+ *    ) ConnectionLeaders.Local
+ *   else ConnectionLeaders.Remote
  *
  * If the hash where the localNumber's bytes came first "wins", then the local party is the "Connection Leader"
  *
@@ -26,8 +35,63 @@ import scala.concurrent.{Future, Promise}
  */
 object ConnectionLeaderFlow {
 
-  def apply[Mat](f: ConnectionLeader => Flow[ByteString, ByteString, Mat]): Flow[ByteString, ByteString, Future[Mat]] =
-    Flow.fromGraph(new ConnectionLeaderFlow(f))
+  def apply[Mat](
+    f:               ConnectionLeader => Flow[ByteString, ByteString, Mat]
+  )(implicit random: Random): Flow[ByteString, ByteString, Future[Mat]] =
+    Flow
+      .fromMaterializer { (_, _) =>
+        val localValue = random.nextInt()
+        val localValueBytes = intToBytestring(localValue).toArray
+        val localValueEvidence = new Blake2b256().hash(Bytes(localValueBytes))
+        evidenceFlow(
+          localValueEvidence,
+          remoteEvidence => {
+            if (remoteEvidence == localValueEvidence)
+              throw new IllegalStateException("Remote party selected the same int value")
+            intFlow(
+              localValue,
+              remoteInt => {
+                val remoteValueBytes = intToBytestring(remoteInt).toArray
+                val remoteValueEvidence = new Blake2b256().hash(Bytes(remoteValueBytes))
+                if (remoteEvidence != remoteValueEvidence)
+                  throw new IllegalStateException("Remote evidence did not match remote value")
+                val connectionLeader =
+                  if (
+                    BigInt(new Blake2b256().hash(Bytes(localValueBytes ++ remoteValueBytes)).data.toArray) >
+                    BigInt(new Blake2b256().hash(Bytes(remoteValueBytes ++ localValueBytes)).data.toArray)
+                  )
+                    ConnectionLeaders.Local
+                  else ConnectionLeaders.Remote
+                f(connectionLeader)
+              }
+            )
+          }
+        )
+          .mapMaterializedValue(_.flatten)
+      }
+      .mapMaterializedValue(_.flatten)
+
+  private def intFlow[Mat](localValue: Int, f: Int => Flow[ByteString, ByteString, Mat]) =
+    ValueExchanger[Int, Mat](
+      localValue,
+      co.topl.networking.multiplexer.intToBytestring,
+      byteString =>
+        Option.when(byteString.length >= 4)(
+          (bytestringToInt(byteString), byteString.drop(4))
+        ),
+      f
+    )
+
+  private def evidenceFlow[Mat](localValue: Evidence, f: Evidence => Flow[ByteString, ByteString, Mat]) =
+    ValueExchanger[Evidence, Mat](
+      localValue,
+      evidence => ByteString(evidence.data.toArray),
+      byteString =>
+        Option.when(byteString.length >= 32)(
+          Sized.strictUnsafe[Bytes, Lengths.`32`.type](Bytes(byteString.take(32).toArray)) -> byteString.drop(32)
+        ),
+      f
+    )
 }
 
 sealed trait ConnectionLeader
