@@ -2,17 +2,16 @@ package co.topl.attestation.ops
 
 import cats.data.{Chain, NonEmptyChain}
 import co.topl.attestation.Evidence
-import co.topl.attestation.Evidence.EvidenceContent
-import co.topl.utils.CommonGenerators
-import org.scalatest.funspec.AnyFunSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import co.topl.attestation.implicits._
 import co.topl.attestation.ops.AddressOps.ToDionAddressFailures
 import co.topl.attestation.ops.EvidenceOps.ToTypedEvidenceFailures
 import co.topl.models.utility.Sized
+import co.topl.utils.CommonGenerators
 import org.scalacheck.Gen
 import org.scalatest.EitherValues
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 class AddressOpsSpec
     extends AnyFunSpec
