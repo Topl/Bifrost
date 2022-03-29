@@ -67,12 +67,6 @@ class ForgerSpec
       .anyNumberOfTimes()
       .returning(Future.successful(keyView))
 
-    val fetchStartupKeyView = mockFunction[Future[StartupKeyView]]
-    fetchStartupKeyView
-      .expects()
-      .once()
-      .returning(Future.successful(StartupKeyView(keyView.addresses, keyView.rewardAddr)))
-
     val nodeView = ReadableNodeView(
       mock[HistoryReader[Block, BifrostSyncInfo]],
       mock[StateReader[ProgramId, Address]],
@@ -141,6 +135,7 @@ class ForgerSpec
               ),
               NxtConsensus.actorName
             )
+          val consensusInterface = new ActorConsensusInterface(consensusStorageRef)
           val forgerRef = spawn(
             Forger.behavior(
               blockGenerationDelay,
@@ -148,10 +143,16 @@ class ForgerSpec
               forgeOnStartup = false,
               fetchKeyView,
               reader,
-              new ActorConsensusInterface(consensusStorageRef)
+              consensusInterface
             )
           )
 
+          // updating the consensus since we don't initialize the nodeViewHolder which sets the default consensus value
+          consensusInterface.update(
+            parentBlock.id,
+            NxtConsensus
+              .StateUpdate(Some(Int128(10000000)), Some(1000000000000000000L), None, Some(0))
+          )
           forgerRef.tell(Forger.ReceivableMessages.StartForging(initializedProbe.ref))
           initializedProbe.expectMessage(2.seconds, Done)
 
@@ -190,12 +191,6 @@ class ForgerSpec
       .expects()
       .anyNumberOfTimes()
       .returning(Future.failed(new Exception("Expected failure")))
-
-    val fetchStartupKeyView = mockFunction[Future[StartupKeyView]]
-    fetchStartupKeyView
-      .expects()
-      .once()
-      .returning(Future.successful(StartupKeyView(keyView.addresses, keyView.rewardAddr)))
 
     val reader = mock[NodeViewReader]
 
@@ -236,19 +231,16 @@ class ForgerSpec
 
   it should "fail if private forging does not specify a rewards address" in {
     implicit val timeProvider: TimeProvider = mock[TimeProvider]
+
     val keyView =
       KeyView(keyRingCurve25519.addresses, None, keyRingCurve25519.signWithAddress, keyRingCurve25519.lookupPublicKey)
 
     val fetchKeyView = mockFunction[Future[KeyView]]
     fetchKeyView
       .expects()
-      .never()
-
-    val fetchStartupKeyView = mockFunction[Future[StartupKeyView]]
-    fetchStartupKeyView
-      .expects()
       .once()
-      .returning(Future.successful(StartupKeyView(keyView.addresses, keyView.rewardAddr)))
+      .returning(Future.successful(keyView))
+
     val reader = mock[NodeViewReader]
 
     LoggingTestKit.error("Forging requires a rewards address").expect {
