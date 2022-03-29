@@ -61,25 +61,26 @@ class GenesisProviderSpec
 //  }
 
   property("is able to construct a genesis block from generated inputs") {
-    forAll(nonEmptySetAddressGen, Gen.choose(1, Int.MaxValue), positiveLongGen, Gen.choose[Byte](1, Byte.MaxValue)) {
-      (addresses, balances, initialDifficulty, blockVersion) =>
-        val genesis = GenesisProvider.construct(addresses, balances, initialDifficulty, blockVersion)
+    forAll(nonEmptySetAddressGen) { addresses =>
+      val (balances, initialDifficulty, blockVersion) = (
+        Gen.choose(1, Int.MaxValue).sample.get.toLong,
+        positiveLongGen.sample.get,
+        Gen.choose[Byte](1, Byte.MaxValue).sample.get
+      )
+      val genesis = GenesisProvider.construct(addresses, balances, initialDifficulty, blockVersion)
 
-        val blockTotalStake = genesis.block.transactions
-          .collect { case transaction: TransferTransaction[_, _] =>
-            transaction.newBoxes.collect { case box: ArbitBox => box.value.quantity }.toSeq
-          }
-          .flatten
-          .sum
+      val blockTotalStake = genesis.block.transactions
+        .collect { case transaction: TransferTransaction[_, _] =>
+          transaction.newBoxes.collect { case box: ArbitBox => box.value.quantity }.toSeq
+        }
+        .flatten
+        .sum
 
-        println(genesis.state.totalStake)
-        println(blockTotalStake)
-
-        genesis.block.height shouldBe 1L
-        genesis.state.height shouldBe 1L
-        genesis.state.totalStake shouldBe addresses.size * balances
-        genesis.state.totalStake shouldBe blockTotalStake
-        genesis.state.difficulty shouldBe genesis.block.difficulty
+      genesis.block.height shouldBe 1L
+      genesis.state.height shouldBe 1L
+      genesis.state.totalStake shouldBe addresses.size * balances
+      genesis.state.totalStake shouldBe blockTotalStake
+      genesis.state.difficulty shouldBe genesis.block.difficulty
     }
   }
 
