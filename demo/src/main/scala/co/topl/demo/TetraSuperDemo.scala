@@ -57,7 +57,7 @@ object TetraSuperDemo extends IOApp {
   private val OperationalPeriodLength = 180L
   private val OperationalPeriodsPerEpoch = 4L
   private val EpochLength = OperationalPeriodLength * OperationalPeriodsPerEpoch
-  private val SlotDuration = 100.milli
+  private val SlotDuration = 200.milli
 
   require(
     EpochLength % OperationalPeriodLength === 0L,
@@ -210,6 +210,21 @@ object TetraSuperDemo extends IOApp {
 
   implicit val fToFuture: F ~> Future = FunctionK.liftFunction(_.unsafeToFuture()(runtime))
 
+  private val loggerColors = List(
+    Console.MAGENTA,
+    Console.BLUE,
+    Console.YELLOW,
+    Console.GREEN,
+    Console.CYAN,
+    Console.RED,
+    Console.MAGENTA_B,
+    Console.BLUE_B,
+    Console.YELLOW_B,
+    Console.GREEN_B,
+    Console.CYAN_B,
+    Console.RED_B
+  )
+
   def run(args: List[String]): IO[ExitCode] = {
     for {
       random <- new Random(0L).pure[F]
@@ -219,9 +234,10 @@ object TetraSuperDemo extends IOApp {
       configurations = List.tabulate(stakerCount)(idx =>
         (
           idx + 9090,
-          if (idx > 0) List(InetSocketAddress.createUnresolved("localhost", 9090 + idx - 1)) else Nil,
+          if (idx > 0) List(InetSocketAddress.createUnresolved("localhost", 9090 + idx - 1))
+          else List(InetSocketAddress.createUnresolved("localhost", 9090 + idx + stakerCount - 1)),
           idx,
-          idx < 3
+          true
         )
       )
       _ <- configurations.parTraverse { case (port, remotes, stakerIndex, stakingEnabled) =>
@@ -233,15 +249,6 @@ object TetraSuperDemo extends IOApp {
       Sync[F].delay(system.terminate()).flatMap(_ => Async[F].fromFuture(system.whenTerminated.pure[F])).void
     )
     .as(ExitCode.Success)
-
-  private val loggerColors = List(
-    Console.MAGENTA,
-    Console.BLUE,
-    Console.YELLOW,
-    Console.GREEN,
-    Console.CYAN,
-    Console.RED
-  )
 
   private def runInstance(
     port:             Int,
@@ -325,7 +332,7 @@ object TetraSuperDemo extends IOApp {
             localChain,
             ed25519VRFResource,
             port,
-            Source(remotes).concat(Source.never)
+            Source.single(remotes).delay(2.seconds).mapConcat(identity).concat(Source.never)
           )
       } yield ()
     )

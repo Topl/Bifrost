@@ -48,7 +48,43 @@ trait SourceOps {
      */
     def backpressuredQueue[F[_]: Async, T](size: Int = 16): Source[T, (T => F[Unit], Option[Throwable] => F[Unit])] =
       companion
-        .queue[T](16, OverflowStrategy.backpressure)
+        .queue[T](size, OverflowStrategy.backpressure)
+        .mapMaterializedValue(queue =>
+          (
+            (t: T) => Async[F].fromFuture(Async[F].delay(queue.offer(t))).flatMap(handleQueueOfferResult[F]),
+            (reason: Option[Throwable]) => Async[F].delay(reason.fold(queue.complete())(queue.fail))
+          )
+        )
+
+    /**
+     * Constructs a Akka Stream Source that discards old elements to keep up with demand.
+     * It can be interacted with using the materialized functions
+     * @param size The buffer size of the queue
+     * @tparam F F-context
+     * @tparam T Value Type
+     * @return a Source[T] where the materialized value is a tuple (offer to queue function, complete queue function)
+     */
+    def dropHeadQueue[F[_]: Async, T](size: Int = 16): Source[T, (T => F[Unit], Option[Throwable] => F[Unit])] =
+      companion
+        .queue[T](size, OverflowStrategy.dropHead)
+        .mapMaterializedValue(queue =>
+          (
+            (t: T) => Async[F].fromFuture(Async[F].delay(queue.offer(t))).flatMap(handleQueueOfferResult[F]),
+            (reason: Option[Throwable]) => Async[F].delay(reason.fold(queue.complete())(queue.fail))
+          )
+        )
+
+    /**
+     * Constructs a Akka Stream Source that discards old elements to keep up with demand.
+     * It can be interacted with using the materialized functions
+     * @param size The buffer size of the queue
+     * @tparam F F-context
+     * @tparam T Value Type
+     * @return a Source[T] where the materialized value is a tuple (offer to queue function, complete queue function)
+     */
+    def failQueue[F[_]: Async, T](size: Int = 16): Source[T, (T => F[Unit], Option[Throwable] => F[Unit])] =
+      companion
+        .queue[T](size, OverflowStrategy.fail)
         .mapMaterializedValue(queue =>
           (
             (t: T) => Async[F].fromFuture(Async[F].delay(queue.offer(t))).flatMap(handleQueueOfferResult[F]),

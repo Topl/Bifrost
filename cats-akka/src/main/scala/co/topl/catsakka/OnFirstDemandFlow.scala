@@ -33,10 +33,30 @@ class OnFirstDemandFlowImpl[T] extends GraphStageWithMaterializedValue[FlowShape
             def onPull(): Unit = pull(inlet)
           }
 
+        private val normalInHandler =
+          new InHandler {
+            def onPush(): Unit = push(outlet, grab(inlet))
+          }
+
         setHandler(
           inlet,
           new InHandler {
-            def onPush(): Unit = push(outlet, grab(inlet))
+            def onPush(): Unit = {
+              push(outlet, grab(inlet))
+              setHandler(inlet, normalInHandler)
+              setHandler(outlet, normalOutHandler)
+            }
+
+            override def onUpstreamFinish(): Unit = {
+              super.onUpstreamFinish()
+              promise.success(Done) // TODO: Success or fail?
+            }
+
+            override def onUpstreamFailure(ex: Throwable): Unit = {
+              super.onUpstreamFailure(ex)
+              promise.failure(ex)
+            }
+
           }
         )
 
@@ -46,6 +66,7 @@ class OnFirstDemandFlowImpl[T] extends GraphStageWithMaterializedValue[FlowShape
             def onPull(): Unit = {
               promise.success(Done)
               pull(inlet)
+              setHandler(inlet, normalInHandler)
               setHandler(outlet, normalOutHandler)
             }
 

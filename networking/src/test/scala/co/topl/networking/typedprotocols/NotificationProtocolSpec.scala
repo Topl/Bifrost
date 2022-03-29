@@ -66,21 +66,21 @@ class NotificationProtocolSpec
 private object NotificationProtocolSpec {
 
   implicit val commonMessagesStartNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Start.type] =
-    NetworkTypeTag.create
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.Start")
 
   implicit val commonStatesNoneNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonStates.None.type] =
-    NetworkTypeTag.create
+    NetworkTypeTag.create("TypedProtocol.CommonStates.None")
 
   implicit val commonStatesBusyNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonStates.Busy.type] =
-    NetworkTypeTag.create
+    NetworkTypeTag.create("TypedProtocol.CommonStates.Busy")
 
   implicit val commonMessagesPushStringNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Push[String]] =
-    NetworkTypeTag.create
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.Push[String]")
 
   implicit val commonStatesDoneNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonStates.Done.type] =
-    NetworkTypeTag.create
+    NetworkTypeTag.create("TypedProtocol.CommonStates.Done")
 
   implicit val commonMessagesDoneNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Done.type] =
-    NetworkTypeTag.create
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.Done")
 
 }

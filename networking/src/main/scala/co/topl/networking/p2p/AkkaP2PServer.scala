@@ -2,7 +2,7 @@ package co.topl.networking.p2p
 
 import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.stream.RestartSettings
+import akka.stream.{OverflowStrategy, RestartSettings}
 import akka.stream.scaladsl._
 import akka.util.ByteString
 import cats._
@@ -15,6 +15,7 @@ import org.typelevel.log4cats.Logger
 import java.net.InetSocketAddress
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Random
 
 /**
  * Interprets P2PServer[F, Client] using akka-stream. Binds to the requested host/port to accept incoming connections,
@@ -105,6 +106,7 @@ object AkkaP2PServer {
             )
           )
         )
+        .delayWith(() => ((_ => Random.nextInt(100).milli): DelayStrategy[ByteString]), OverflowStrategy.fail)
 
   private def makeServerBindingRunnableGraph[F[_]: Monad: Logger: FToFuture, Client](
     host:                        String,
@@ -142,10 +144,12 @@ object AkkaP2PServer {
       )
       .map(ConnectedPeer)
       .mapAsyncF(1)(connectedPeer =>
-        RestartFlow
-          .onFailuresWithBackoff(outboundConnectionsRestartSettings)(() =>
-            Tcp().outgoingConnection(connectedPeer.remoteAddress)
-          )
+//        RestartFlow
+//          .onFailuresWithBackoff(outboundConnectionsRestartSettings)(() =>
+//            Tcp().outgoingConnection(connectedPeer.remoteAddress)
+//          )
+        Tcp()
+          .outgoingConnection(connectedPeer.remoteAddress)
           .joinMat(peerHandlerFlowWithRemovalF(connectedPeer))((_, r) => r.tupleLeft(connectedPeer))
           .liftTo[F]
           .flatMap(future => Async[F].fromFuture(future.pure[F]))

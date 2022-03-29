@@ -5,7 +5,7 @@ import akka.stream.scaladsl.{BroadcastHub, Keep, Sink, Source}
 import cats.data.{EitherT, OptionT, Validated}
 import cats.effect._
 import cats.implicits._
-import cats.{~>, Applicative, Monad, MonadThrow, Show}
+import cats.{~>, Applicative, Monad, MonadThrow, Parallel, Show}
 import co.topl.algebras.{Store, UnsafeResource}
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
@@ -28,7 +28,7 @@ object DemoProgram {
   /**
    * A forever-running program which traverses epochs and the slots within the epochs
    */
-  def run[F[_]: MonadThrow: Logger: Async: FToFuture](
+  def run[F[_]: Parallel: MonadThrow: Logger: Async: FToFuture](
     mint:               Option[PerpetualBlockMintAlgebra[F]],
     headerValidation:   BlockHeaderValidationAlgebra[F],
     headerStore:        Store[F, BlockHeaderV2],
@@ -42,7 +42,7 @@ object DemoProgram {
     for {
       ((offerLocallyAdoptedBlocks, locallyAdoptedBlocksCompletion), locallyAdoptedBlocksSource) <-
         Source
-          .backpressuredQueue[F, TypedIdentifier](128)
+          .dropHeadQueue[F, TypedIdentifier](36)
           .toMat(BroadcastHub.sink[TypedIdentifier])(Keep.both)
           .liftTo[F]
       blockProcessor =
@@ -55,7 +55,7 @@ object DemoProgram {
             localChain,
             ed25519VrfResource
           )
-      p2pServer <- BlockchainNetwork
+      (p2pServer, p2pFiber) <- BlockchainNetwork
         .make[F](
           bindPort,
           remotePeers,
@@ -77,9 +77,8 @@ object DemoProgram {
           .tapAsyncF(1)(offerLocallyAdoptedBlocks)
           .toMat(Sink.ignore)(Keep.right)
           .liftTo[F]
-      _ <- Async[F]
-        .fromFuture(streamCompletionFuture)
-        .void
+      _ <- Async[F].fromFuture(streamCompletionFuture)
+      _ <- p2pFiber.join
     } yield ()
 
   implicit private val showBlockHeaderValidationFailure: Show[BlockHeaderValidationFailure] =

@@ -68,26 +68,26 @@ class RequestResponseProtocolSpec
 object RequestResponseProtocolSpec {
 
   implicit val commonMessagesStartNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Start.type] =
-    NetworkTypeTag.create
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.Start")
 
   implicit val commonStatesNoneNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonStates.None.type] =
-    NetworkTypeTag.create
+    NetworkTypeTag.create("TypedProtocol.CommonStates.None")
 
   implicit val commonStatesIdleNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonStates.Idle.type] =
-    NetworkTypeTag.create
+    NetworkTypeTag.create("TypedProtocol.CommonStates.Idle")
 
   implicit val commonStatesBusyNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonStates.Busy.type] =
-    NetworkTypeTag.create
+    NetworkTypeTag.create("TypedProtocol.CommonStates.Busy")
 
   implicit val commonMessagesGetStringNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Get[String]] =
-    NetworkTypeTag.create
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.Get[String]")
 
   implicit val commonMessagesResoibseIntNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Response[Int]] =
-    NetworkTypeTag.create
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[Int]")
 
   implicit val commonStatesDoneNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonStates.Done.type] =
-    NetworkTypeTag.create
+    NetworkTypeTag.create("TypedProtocol.CommonStates.Done")
 
   implicit val commonMessagesDoneNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Done.type] =
-    NetworkTypeTag.create
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.Done")
 }

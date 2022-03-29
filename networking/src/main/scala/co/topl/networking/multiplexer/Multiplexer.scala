@@ -31,7 +31,7 @@ object Multiplexer {
           val partition = builder.add(
             new Partition[(Byte, ByteString)](
               subProtocolsList.size,
-              { case (typeByte, _) => subPortMapping(typeByte) },
+              { case (sessionId, _) => subPortMapping(sessionId) },
               eagerCancel = true
             )
           )

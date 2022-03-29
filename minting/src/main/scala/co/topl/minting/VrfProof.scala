@@ -87,6 +87,10 @@ object VrfProof {
 
       def proofForSlot(slot: Slot, eta: Eta): F[Proofs.Knowledge.VrfEd25519] =
         OptionT(vrfProofsCache.get(eta))
+          .orElseF(
+            clock.epochOf(slot).flatMap(precomputeForEpoch(_, eta)) >>
+            vrfProofsCache.get(eta)
+          )
           .subflatMap(_.get(slot))
           .getOrElseF(
             new IllegalStateException(show"proof was not precomputed for slot=$slot eta=$eta")
@@ -95,6 +99,10 @@ object VrfProof {
 
       def rhoForSlot(slot: Slot, eta: Eta): F[Rho] =
         OptionT(rhosCache.get(eta))
+          .orElseF(
+            clock.epochOf(slot).flatMap(precomputeForEpoch(_, eta)) >>
+            rhosCache.get(eta)
+          )
           .subflatMap(_.get(slot))
           .getOrElseF(
             new IllegalStateException(show"rho was not precomputed for slot=$slot eta=$eta")
@@ -119,6 +127,7 @@ object VrfProof {
         for {
           rhosMap <-
             OptionT(rhosCache.get(eta))
+              .orElseF(precomputeForEpoch(epoch, eta) >> rhosCache.get(eta))
               .getOrElseF(
                 new IllegalStateException(show"rhos were not precomputed for epoch=$epoch eta=$eta")
                   .raiseError[F, Map[Long, Rho]]
