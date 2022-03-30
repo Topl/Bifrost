@@ -18,21 +18,23 @@ class LeaderElectionTests extends AnyFlatSpec with MockFactory with NodeGenerato
     Base58Data.unsafe("AUAvJqLKc8Un3C6bC4aj8WgHZo74vamvX8Kdm6MhtdXgw51cGfix").decodeAddress.toEither.value
 
   "collectArbitBoxes" should "return NoAddressesAvailable when no addresses provided" in {
-      val stateReader = mock[NxtLeaderElection.SR]
-      val addresses = Set[Address]()
+    val stateReader = mock[NxtLeaderElection.SR]
+    val addresses = Set[Address]()
 
-      val expectedResult = Left(NoAddressesAvailable)
+    val expectedResult = Left(NoAddressesAvailable)
 
-      val result = NxtLeaderElection.collectArbitBoxes(addresses, stateReader)
+    val result = NxtLeaderElection.collectArbitBoxes(addresses, stateReader)
 
-      result shouldBe expectedResult
+    result shouldBe expectedResult
   }
 
   "getEligibleBox" should "return NoArbitBoxesAvailable when no addresses contain arbit boxes" in {
-    forAll(blockCurve25519Gen, nonEmptySetAddressGen) { (parent, addresses) =>
+    forAll(blockCurve25519Gen) { parent =>
+      val addresses = nonEmptySetAddressGen.sample.get
       val stateReader = mock[NxtLeaderElection.SR]
       (stateReader.getTokenBoxes _)
-        .expects(address)
+        .expects(*)
+        .anyNumberOfTimes()
         .returns(None)
       val leaderElection = new NxtLeaderElection(ProtocolVersioner.default)
       val arbitBoxIterator = NxtLeaderElection.collectArbitBoxes(addresses, stateReader).getOrThrow()
@@ -47,5 +49,4 @@ class LeaderElectionTests extends AnyFlatSpec with MockFactory with NodeGenerato
       result shouldBe expectedResult
     }
   }
-
 }
