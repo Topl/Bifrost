@@ -1,7 +1,8 @@
 package co.topl.demo
 
 import akka.actor.typed.ActorSystem
-import akka.stream.scaladsl.{BroadcastHub, Keep, Sink, Source}
+import akka.stream.scaladsl.{BroadcastHub, Flow, Keep, Sink, Source}
+import akka.util.ByteString
 import cats.data.{EitherT, OptionT, Validated}
 import cats.effect._
 import cats.implicits._
@@ -16,10 +17,10 @@ import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.algebras.PerpetualBlockMintAlgebra
 import co.topl.models._
 import co.topl.networking.blockchain._
+import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, LocalPeer}
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 
-import java.net.InetSocketAddress
 import scala.util.Random
 
 object DemoProgram {
@@ -35,9 +36,15 @@ object DemoProgram {
     transactionStore:   Store[F, Transaction],
     localChain:         LocalChainAlgebra[F],
     ed25519VrfResource: UnsafeResource[F, Ed25519VRF],
+    host:               String,
     bindPort:           Int,
-    remotePeers:        Source[InetSocketAddress, _]
-  )(implicit system:    ActorSystem[_], random: Random): F[Unit] =
+    localPeer:          LocalPeer,
+    remotePeers:        Source[DisconnectedPeer, _],
+    peerFlowModifier: (
+      ConnectedPeer,
+      Flow[ByteString, ByteString, F[BlockchainPeerClient[F]]]
+    ) => Flow[ByteString, ByteString, F[BlockchainPeerClient[F]]]
+  )(implicit system: ActorSystem[_], random: Random): F[Unit] =
     for {
       ((offerLocallyAdoptedBlocks, locallyAdoptedBlocksCompletion), locallyAdoptedBlocksSource) <-
         Source
@@ -69,8 +76,9 @@ object DemoProgram {
         transactionStore,
         locallyAdoptedBlocksSource
       )
-      (p2pServer, p2pFiber) <- BlockchainNetwork.make[F](bindPort, remotePeers, clientHandler, peerServer)
-      mintedBlockStream     <- mint.fold(Source.never[BlockV2].pure[F])(_.blocks)
+      (p2pServer, p2pFiber) <- BlockchainNetwork
+        .make[F](host, bindPort, localPeer, remotePeers, clientHandler, peerServer, peerFlowModifier)
+      mintedBlockStream <- mint.fold(Source.never[BlockV2].pure[F])(_.blocks)
       streamCompletionFuture =
         mintedBlockStream
           .tapAsyncF(1)(block => Logger[F].info(show"Minted block ${block.headerV2}"))

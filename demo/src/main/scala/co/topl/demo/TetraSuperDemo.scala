@@ -2,8 +2,8 @@ package co.topl.demo
 
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
-import akka.stream.scaladsl.Source
-import akka.util.Timeout
+import akka.stream.scaladsl.{Flow, Keep, Source}
+import akka.util.{ByteString, Timeout}
 import cats.arrow.FunctionK
 import cats.data.OptionT
 import cats.effect.implicits._
@@ -28,6 +28,7 @@ import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility._
+import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer, SimulatedGeospatialDelayFlow}
 import co.topl.numerics.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._
@@ -229,19 +230,31 @@ object TetraSuperDemo extends IOApp {
     for {
       random <- new Random(0L).pure[F]
       genesisTimestamp = Instant.now().plusSeconds(10)
-      stakerCount = 3
-      stakers = computeStakers(stakerCount, random)
-      configurations = List.tabulate(stakerCount)(idx =>
-        (
-          idx + 9090,
-          if (idx > 0) List(InetSocketAddress.createUnresolved("localhost", 9090 + idx - 1))
-          else List(InetSocketAddress.createUnresolved("localhost", 9090 + idx + stakerCount - 1)),
-          idx,
-          true
-        )
+      localPeers = List(
+        LocalPeer(parseAddress(port = 9090), Locations.NorthPole),
+        LocalPeer(parseAddress(port = 9091), Locations.NorthPole),
+        LocalPeer(parseAddress(port = 9092), Locations.NorthPole),
+        LocalPeer(parseAddress(port = 9093), Locations.SouthPole),
+        LocalPeer(parseAddress(port = 9094), Locations.SouthPole),
+        LocalPeer(parseAddress(port = 9095), Locations.SouthPole)
       )
-      _ <- configurations.parTraverse { case (port, remotes, stakerIndex, stakingEnabled) =>
-        runInstance(port, remotes, stakers, stakerIndex, stakingEnabled, genesisTimestamp)
+      configurations = List(
+        (
+          localPeers(0),
+          DisconnectedPeer.tupled(LocalPeer.unapply(localPeers.last).get) :: DisconnectedPeer.tupled(
+            LocalPeer.unapply(localPeers(2)).get
+          ) :: Nil,
+          true
+        ),
+        (localPeers(1), DisconnectedPeer.tupled(LocalPeer.unapply(localPeers(0)).get) :: Nil, true),
+        (localPeers(2), DisconnectedPeer.tupled(LocalPeer.unapply(localPeers(1)).get) :: Nil, true),
+        (localPeers(3), DisconnectedPeer.tupled(LocalPeer.unapply(localPeers(5)).get) :: Nil, true),
+        (localPeers(4), DisconnectedPeer.tupled(LocalPeer.unapply(localPeers(3)).get) :: Nil, true),
+        (localPeers(5), DisconnectedPeer.tupled(LocalPeer.unapply(localPeers(4)).get) :: Nil, true)
+      ).zipWithIndex
+      stakers = computeStakers(configurations.length, random)
+      _ <- configurations.parTraverse { case ((localPeer, remotes, stakingEnabled), stakerIndex) =>
+        runInstance(localPeer, remotes, stakers, stakerIndex, stakingEnabled, genesisTimestamp)
       }
     } yield ()
   }
@@ -251,8 +264,8 @@ object TetraSuperDemo extends IOApp {
     .as(ExitCode.Success)
 
   private def runInstance(
-    port:             Int,
-    remotes:          List[InetSocketAddress],
+    localPeer:        LocalPeer,
+    remotes:          List[DisconnectedPeer],
     stakers:          List[Staker],
     stakerIndex:      Int,
     stakingEnabled:   Boolean,
@@ -331,9 +344,18 @@ object TetraSuperDemo extends IOApp {
             transactionStore,
             localChain,
             ed25519VRFResource,
-            port,
-            Source.single(remotes).delay(2.seconds).mapConcat(identity).concat(Source.never)
+            localPeer.localAddress.getHostString,
+            localPeer.localAddress.getPort,
+            localPeer,
+            Source.single(remotes).delay(2.seconds).mapConcat(identity).concat(Source.never),
+            (peer, flow) => {
+              val delayer = SimulatedGeospatialDelayFlow(localPeer.coordinate, peer.coordinate)
+              Flow[ByteString].via(delayer).viaMat(flow)(Keep.right).via(delayer)
+            }
           )
       } yield ()
     )
+
+  private def parseAddress(host: String = "localhost", port: Int) =
+    InetSocketAddress.createUnresolved(host, port)
 }

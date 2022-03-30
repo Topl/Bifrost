@@ -1,7 +1,10 @@
 package co.topl.networking.blockchain
 
+import akka.NotUsed
 import akka.actor.typed.ActorSystem
-import akka.stream.scaladsl.{Keep, Sink}
+import akka.stream.{FlowShape, OverflowStrategy}
+import akka.stream.scaladsl.GraphDSL.Implicits._
+import akka.stream.scaladsl.{Flow, GraphDSL, Keep, Merge, Partition, Sink}
 import cats.MonadThrow
 import cats.data.OptionT
 import cats.effect.kernel.Sync
@@ -34,17 +37,16 @@ object BlockchainClientHandler {
           client =>
             for {
               remoteAdoptionsSource <- client.remotePeerAdoptions
+              blockProcessorFlow <- processRemoteBlockNotificationFlow(
+                client,
+                headerStore,
+                bodyStore,
+                transactionStore,
+                onBlockReceived
+              )
               _ <- Async[F].fromFuture(
                 remoteAdoptionsSource
-                  .mapAsyncF(1)(
-                    processRemoteBlockNotification[F](
-                      client,
-                      headerStore,
-                      bodyStore,
-                      transactionStore,
-                      onBlockReceived
-                    )
-                  )
+                  .via(blockProcessorFlow)
                   .toMat(Sink.ignore)(Keep.right)
                   .liftTo[F]
               )
@@ -52,34 +54,79 @@ object BlockchainClientHandler {
         ): BlockchainClientHandler[F]
       )
 
-    private def processRemoteBlockNotification[F[_]: Async: Concurrent: Logger: FToFuture](
+    /**
+     * Fetch each block header, body, and transactions from the peer for each notified block ID.  If the local node
+     * is unable to keep up, it may ignore "older" notifications to make room for new ones.
+     *
+     * The fetch process works recursively; if a block's parent header is also missing, it requests it from the remote peer.
+     */
+    private def processRemoteBlockNotificationFlow[F[_]: Async: Concurrent: Logger: FToFuture](
       client:           BlockchainPeerClient[F],
       headerStore:      Store[F, BlockHeaderV2],
       bodyStore:        Store[F, BlockBodyV2],
       transactionStore: Store[F, Transaction],
       onBlockReceived:  BlockV2 => F[Unit]
-    )(id:               TypedIdentifier) =
-      for {
-        _                  <- Logger[F].info(show"Remote peer adopted block id=$id")
-        maybeCurrentHeader <- headerStore.get(id)
-        _ <- (id, maybeCurrentHeader)
-          // Recursively fetch the remote header+body+transactions until a common ancestor is found
-          .iterateWhileM[F] { case (id, _) =>
-            fetchHeader(client, headerStore)(id)
-              .productL(fetchBody(client, bodyStore)(id).flatMap(fetchTransactions(client, transactionStore)).void)
-              .flatMap(header => headerStore.get(header.parentHeaderId).tupleLeft(header.parentHeaderId))
-          }(_._2.isEmpty)
-        _ <- OptionT
-          .fromOption[F](maybeCurrentHeader)
-          .flatTapNone(
-            (OptionT(headerStore.get(id)), OptionT(bodyStore.get(id)))
-              .mapN((header, body) => BlockV2(header, body))
-              .semiflatTap(_ => Logger[F].info(show"Processing remote block id=$id"))
-              .semiflatTap(onBlockReceived)
-              .value
+    ): F[Flow[TypedIdentifier, Unit, NotUsed]] = Sync[F].delay {
+      val fHeader = fetchHeader(client, headerStore) _
+      val fBody = fetchBody(client, bodyStore) _
+      val fTransactions = fetchTransactions(client, transactionStore)
+      val subFlow: Flow[(TypedIdentifier, TypedIdentifier), (Option[TypedIdentifier], TypedIdentifier), NotUsed] =
+        Flow[(TypedIdentifier, TypedIdentifier)]
+          // Fetch the header
+          .mapAsyncF(1) { case (id, originalId) => fHeader(id).tupleLeft(id).tupleRight(originalId) }
+          // Fetch the body
+          .mapAsyncF(1) { case ((id, header), originalId) => fBody(id).tupleLeft(id, header).tupleRight(originalId) }
+          // Fetch the transactions
+          .mapAsyncF(1) { case (((_, header), body), originalId) =>
+            fTransactions(body).as((header, originalId))
+          }
+          // Now check to see if this node already possesses the parent header
+          .mapAsyncF(1) { case (header, originalId) =>
+            // If the node has the parent header, return (none, originalId)
+            // Otherwise, return (some(parentId), originalId)
+            headerStore
+              .contains(header.parentHeaderId)
+              .ifM(none[TypedIdentifier].pure[F], header.parentHeaderId.some.pure[F])
+              .tupleRight(originalId)
+          }
+
+      val recursiveFetch =
+        GraphDSL.create() { implicit builder =>
+          val sf = builder.add(subFlow)
+
+          val merge = builder.add(Merge[(TypedIdentifier, TypedIdentifier)](2))
+          val partition =
+            builder.add(Partition[(Option[TypedIdentifier], TypedIdentifier)](2, x => if (x._1.isEmpty) 0 else 1))
+          val collectSomeParent = builder.add(
+            Flow[(Option[TypedIdentifier], TypedIdentifier)].collect { case (Some(id), originalId) =>
+              id -> originalId
+            }
           )
-          .value
-      } yield ()
+
+          merge.out ~> sf ~> partition.in
+          partition.out(1) ~> collectSomeParent ~> merge.in(1)
+
+          FlowShape(merge.in(0), partition.out(0))
+        }
+      Flow[TypedIdentifier]
+        // We only really care about the remote peer's "most recent" block adoption since the remote peer may
+        // switch branches while the local node is still processing the original.
+        .buffer(1, OverflowStrategy.dropHead)
+        .mapAsyncF(1)(id => headerStore.contains(id).tupleLeft(id))
+        .collect { case (id, false) => id }
+        .map(id => (id, id))
+        .via(recursiveFetch)
+        .collect { case (None, originalId) =>
+          originalId
+        }
+        .mapAsyncF(1)(id =>
+          (OptionT(headerStore.get(id)), OptionT(bodyStore.get(id)))
+            .mapN((header, body) => BlockV2(header, body))
+            .semiflatTap(onBlockReceived)
+            .value
+            .void
+        )
+    }
 
     private def fetchHeader[F[_]: Async: Concurrent: Logger: FToFuture](
       client:      BlockchainPeerClient[F],

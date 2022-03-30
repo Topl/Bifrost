@@ -6,8 +6,9 @@ import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import akka.util.ByteString
 import cats.Show
 import cats.data.{EitherT, NonEmptyChain}
+import cats.effect.Async
 import cats.effect.kernel.Sync
-import cats.effect.{Async, Ref}
+import cats.effect.std.Queue
 import cats.implicits._
 import co.topl.catsakka._
 import co.topl.codecs.bytes.typeclasses.Transmittable
@@ -311,17 +312,11 @@ object TypedProtocolSetFactory {
       tResponseTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Response[T]]
     ): F[(Byte => TypedSubHandler[F, CommonStates.None.type], Query => F[Option[T]])] =
       for {
-        // Stores a reference to a Promise that is created for each inbound request.  The state transition implementation
-        // will complete the promise.
-        currentResponsePromiseRef <- Sync[F].defer(Ref.of[F, Option[Promise[Option[T]]]](none))
+        responsePromisesQueue <- Sync[F].defer(Queue.bounded[F, Promise[Option[T]]](1))
         serverSentStartPromise = Promise[Unit]()
         transitions =
           new protocol.ClientStateTransitions[F](
-            r =>
-              currentResponsePromiseRef.update { current =>
-                current.foreach(_.success(r))
-                None
-              },
+            r => responsePromisesQueue.take.map(_.success(r)),
             () =>
               Sync[F].delay(serverSentStartPromise.success(())) >> Logger[F].info(
                 s"Server is accepting request-response requests of type=${tResponseTypeTag.name}"
@@ -343,8 +338,8 @@ object TypedProtocolSetFactory {
           Sync[F]
             .delay(Promise[Option[T]]())
             .flatMap(promise =>
-              currentResponsePromiseRef
-                .set(promise.some)
+              responsePromisesQueue
+                .offer(promise)
                 .flatTap(_ => offerOutboundMessage(OutboundMessage(TypedProtocol.CommonMessages.Get(query))))
                 .productR(Async[F].fromFuture(promise.future.pure[F]))
             )

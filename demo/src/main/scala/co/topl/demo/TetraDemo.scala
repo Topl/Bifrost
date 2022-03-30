@@ -28,6 +28,7 @@ import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility._
+import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer}
 import co.topl.numerics.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._
@@ -286,8 +287,11 @@ object TetraDemo extends IOApp {
           transactionStore,
           localChain,
           ed25519VRFResource,
+          "host",
           demoArgs.port,
-          Source(demoArgs.remotes).concat(Source.never)
+          LocalPeer(InetSocketAddress.createUnresolved("localhost", demoArgs.port), (0, 0)),
+          Source(demoArgs.remotes).concat(Source.never),
+          (_, flow) => flow
         )
     } yield ()
   }
@@ -307,7 +311,7 @@ private case class Staker(
 
 case class DemoArgs(
   port:             Int,
-  remotes:          List[InetSocketAddress],
+  remotes:          List[DisconnectedPeer],
   seed:             Long,
   stakerCount:      Int,
   stakerIndex:      Option[Int],
@@ -326,7 +330,7 @@ object DemoArgs {
         .toList
         .filter(_.nonEmpty)
         .map(_.split(':'))
-        .map(arr => InetSocketAddress.createUnresolved(arr(0), arr(1).toInt)),
+        .map(arr => DisconnectedPeer(InetSocketAddress.createUnresolved(arr(0), arr(1).toInt), (0, 0))),
       args(2).toLong,
       args(3).toInt,
       Option(args(4).toInt).filterNot(_ < 0),

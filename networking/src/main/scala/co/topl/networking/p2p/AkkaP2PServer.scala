@@ -2,7 +2,7 @@ package co.topl.networking.p2p
 
 import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.stream.{OverflowStrategy, RestartSettings}
+import akka.stream._
 import akka.stream.scaladsl._
 import akka.util.ByteString
 import cats._
@@ -24,17 +24,14 @@ import scala.util.Random
  */
 object AkkaP2PServer {
 
-  private val outboundConnectionsRestartSettings =
-    RestartSettings(1.seconds, 3.seconds, 0.2).withMaxRestarts(5, 60.seconds)
-
   def make[F[_]: Async: Logger: FToFuture, Client](
     host:            String,
     port:            Int,
-    localAddress:    InetSocketAddress,
-    remotePeers:     Source[InetSocketAddress, _],
+    localPeer:       LocalPeer,
+    remotePeers:     Source[DisconnectedPeer, _],
     peerHandler:     ConnectedPeer => F[Flow[ByteString, ByteString, F[Client]]]
   )(implicit system: ActorSystem): F[P2PServer[F, Client]] = {
-    def localAddress_ = localAddress
+    def localAddress_ = localPeer.localAddress
     import system.dispatcher
     for {
       ((offerConnectionChange, completeConnectionChanges), connectionChangesSource) <- Source
@@ -52,7 +49,7 @@ object AkkaP2PServer {
       )
       outboundConnectionsRunnableGraph =
         makeOutboundConnectionsRunnableGraph(
-          localAddress,
+          localPeer,
           remotePeers,
           offerConnectionChange,
           peerHandlerFlowWithRemovalF,
@@ -122,7 +119,7 @@ object AkkaP2PServer {
         offerConnectionChange(PeerConnectionChanges.InboundConnectionInitializing(conn.remoteAddress))
       )
       .mapAsync(1) { conn =>
-        val connectedPeer = ConnectedPeer(conn.remoteAddress)
+        val connectedPeer = ConnectedPeer(conn.remoteAddress, (0, 0))
         conn.handleWith(peerHandlerFlowWithRemovalF(connectedPeer)).tupleLeft(connectedPeer)
       }
       .alsoTo(addPeersSink)
@@ -130,27 +127,26 @@ object AkkaP2PServer {
       .withLogAttributes
 
   private def makeOutboundConnectionsRunnableGraph[F[_]: Async: FToFuture: Logger, Client](
-    localAddress:                InetSocketAddress,
-    remotePeers:                 Source[InetSocketAddress, _],
+    localPeer:                   LocalPeer,
+    remotePeers:                 Source[DisconnectedPeer, _],
     offerConnectionChange:       PeerConnectionChange[Client] => F[Unit],
     peerHandlerFlowWithRemovalF: ConnectedPeer => Flow[ByteString, ByteString, Future[F[Client]]],
     addPeersSink:                Sink[(ConnectedPeer, F[Client]), NotUsed]
   )(implicit system:             ActorSystem, ec: ExecutionContext) =
     remotePeers
-      .filterNot(_ == localAddress)
-      .tapAsyncF(1)(address =>
-        Logger[F].info(s"Initializing outbound peer connection to address=$address") *>
-        offerConnectionChange(PeerConnectionChanges.OutboundConnectionInitializing(address))
+      .filterNot(_.remoteAddress == localPeer.localAddress)
+      .tapAsyncF(1)(disconnectedPeer =>
+        Logger[F].info(s"Initializing outbound peer connection to address=${disconnectedPeer.remoteAddress}") *>
+        offerConnectionChange(PeerConnectionChanges.OutboundConnectionInitializing(disconnectedPeer.remoteAddress))
       )
-      .map(ConnectedPeer)
+      .map(disconnected => ConnectedPeer(disconnected.remoteAddress, disconnected.coordinate))
       .mapAsyncF(1)(connectedPeer =>
-//        RestartFlow
-//          .onFailuresWithBackoff(outboundConnectionsRestartSettings)(() =>
-//            Tcp().outgoingConnection(connectedPeer.remoteAddress)
-//          )
         Tcp()
           .outgoingConnection(connectedPeer.remoteAddress)
-          .joinMat(peerHandlerFlowWithRemovalF(connectedPeer))((_, r) => r.tupleLeft(connectedPeer))
+          .joinMat(
+            Flow[ByteString]
+              .viaMat(peerHandlerFlowWithRemovalF(connectedPeer))(Keep.right)
+          )((_, r) => r.tupleLeft(connectedPeer))
           .liftTo[F]
           .flatMap(future => Async[F].fromFuture(future.pure[F]))
       )

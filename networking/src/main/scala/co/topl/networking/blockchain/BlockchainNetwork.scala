@@ -2,6 +2,7 @@ package co.topl.networking.blockchain
 
 import akka.actor.typed.ActorSystem
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
+import akka.util.ByteString
 import cats.effect._
 import cats.implicits._
 import cats.{Applicative, MonadThrow, Parallel}
@@ -9,39 +10,45 @@ import co.topl.catsakka._
 import co.topl.networking.p2p._
 import org.typelevel.log4cats.Logger
 
-import java.net.InetSocketAddress
 import scala.util.Random
 
 object BlockchainNetwork {
 
   def make[F[_]: Parallel: Async: Logger: FToFuture](
+    host:          String,
     bindPort:      Int,
-    remotePeers:   Source[InetSocketAddress, _],
+    localPeer:     LocalPeer,
+    remotePeers:   Source[DisconnectedPeer, _],
     clientHandler: BlockchainClientHandler[F],
-    server:        BlockchainPeerServer[F]
+    server:        BlockchainPeerServer[F],
+    peerFlowModifier: (
+      ConnectedPeer,
+      Flow[ByteString, ByteString, F[BlockchainPeerClient[F]]]
+    ) => Flow[ByteString, ByteString, F[BlockchainPeerClient[F]]]
   )(implicit
     system: ActorSystem[_],
     random: Random
   ): F[(P2PServer[F, BlockchainPeerClient[F]], Fiber[F, Throwable, Unit])] =
     for {
-      localAddress <- InetSocketAddress.createUnresolved("localhost", bindPort).pure[F]
-      localPeer = LocalPeer(localAddress)
-      connectionFlowFactory = BlockchainPeerConnectionFlowFactory.make[F](server)
+      connectionFlowFactory <- BlockchainPeerConnectionFlowFactory.make[F](server).pure[F]
       peerHandlerFlow =
         (connectedPeer: ConnectedPeer) =>
-          ConnectionLeaderFlow(leader =>
-            Flow.futureFlow(
-              implicitly[FToFuture[F]].apply(connectionFlowFactory(connectedPeer, leader))
+          peerFlowModifier(
+            connectedPeer,
+            ConnectionLeaderFlow(leader =>
+              Flow.futureFlow(
+                implicitly[FToFuture[F]].apply(connectionFlowFactory(connectedPeer, leader))
+              )
             )
+              .mapMaterializedValue(f => Async[F].fromFuture(f.flatten.pure[F]))
           )
-            .mapMaterializedValue(f => Async[F].fromFuture(f.flatten.pure[F]))
             .pure[F]
       p2pServer <- {
         implicit val classicSystem = system.classicSystem
         AkkaP2PServer.make[F, BlockchainPeerClient[F]](
-          "localhost",
+          host,
           bindPort,
-          localAddress,
+          localPeer,
           remotePeers = remotePeers,
           peerHandlerFlow
         )
