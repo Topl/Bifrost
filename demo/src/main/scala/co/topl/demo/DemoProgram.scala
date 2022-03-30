@@ -61,14 +61,16 @@ object DemoProgram {
             localChain,
             ed25519VrfResource
           )
+      ((offerRemoteBlockQueue, _), remoteBlockSource) <-
+        Source
+          .backpressuredQueue[F, BlockV2]()
+          .preMaterialize()
+          .pure[F]
       clientHandler <- BlockchainClientHandler.FetchAllBlocks.make[F](
         headerStore,
         bodyStore,
         transactionStore,
-        block =>
-          blockProcessor(block).flatMap(
-            Applicative[F].whenA(_)(offerLocallyAdoptedBlocks(block.headerV2.id))
-          )
+        offerRemoteBlockQueue
       )
       peerServer <- BlockchainPeerServer.FromStores.make(
         headerStore,
@@ -82,6 +84,7 @@ object DemoProgram {
       streamCompletionFuture =
         mintedBlockStream
           .tapAsyncF(1)(block => Logger[F].info(show"Minted block ${block.headerV2}"))
+          .merge(remoteBlockSource)
           .mapAsyncF(1)(block => blockProcessor(block).tupleLeft(block.headerV2.id.asTypedBytes))
           .collect { case (id, true) => id }
           .tapAsyncF(1)(offerLocallyAdoptedBlocks)
@@ -123,19 +126,20 @@ object DemoProgram {
                   .getOrElseF(MonadThrow[F].raiseError(new NoSuchElementException(block.headerV2.parentHeaderId.show)))
                   .flatMap(parent => headerValidation.validate(block.headerV2, parent))
               )
-                .semiflatTap(_ => localChain.adopt(Validated.Valid(slotData)))
-                .semiflatTap(header =>
-                  Logger[F].info(
-                    show"Adopted head block id=${header.id.asTypedBytes} height=${header.height} slot=${header.slot}"
-                  )
-                )
-                .as(true)
-                .valueOrF(e =>
-                  Logger[F]
-                    .warn(show"Invalid block header. reason=$e block=${block.headerV2}")
-                    // TODO: Penalize the peer
-                    .flatTap(_ => headerStore.remove(block.headerV2.id).tupleRight(bodyStore.remove(block.headerV2.id)))
-                    .as(false)
+                .foldF(
+                  e =>
+                    Logger[F]
+                      .warn(show"Invalid block header. reason=$e block=${block.headerV2}")
+                      // TODO: Penalize the peer
+                      .flatTap(_ =>
+                        headerStore.remove(block.headerV2.id).tupleRight(bodyStore.remove(block.headerV2.id))
+                      )
+                      .as(false),
+                  header =>
+                    (localChain.adopt(Validated.Valid(slotData)) >>
+                    Logger[F].info(
+                      show"Adopted head block id=${header.id.asTypedBytes} height=${header.height} slot=${header.slot}"
+                    )).as(true)
                 )
             ),
             Sync[F]
