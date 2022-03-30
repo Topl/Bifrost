@@ -1,9 +1,12 @@
 package co.topl.networking.multiplexer
 
 import cats.implicits._
+import co.topl.codecs.bytes.scodecs.valuetypes.emptyCodec
 import co.topl.codecs.bytes.typeclasses.Transmittable
 import co.topl.networking.NetworkTypeTag
-import scodec.bits.ByteVector
+import co.topl.networking.typedprotocols.TypedProtocol
+import scodec.bits.{BitVector, ByteVector}
+import scodec.{Attempt, Codec, DecodeResult, Decoder, Encoder, Err}
 
 /**
  * Encodes and decodes ByteVector data across many types.  In other words, this encodes and decodes _all_ messages
@@ -63,6 +66,81 @@ case class MultiplexerCodecBuilder(
           .toRight(MultiplexerCodecFailures.UnknownData(data): MultiplexerCodecFailure)
           .flatMap(_.apply(data))
     }
+}
+
+object MultiplexerCodecBuilder {
+
+  def apply(): MultiplexerCodecBuilder =
+    MultiplexerCodecBuilder(Map.empty, Map.empty)
+}
+
+object MultiplexerCodecs {
+
+  implicit val commonMessagesStartTransmittable: Transmittable[TypedProtocol.CommonMessages.Start.type] =
+    Transmittable.instanceFromCodec(emptyCodec(TypedProtocol.CommonMessages.Start))
+
+  implicit def commonMessagesGetTransmittable[Query: Transmittable]
+    : Transmittable[TypedProtocol.CommonMessages.Get[Query]] =
+    Transmittable.instanceFromCodec[TypedProtocol.CommonMessages.Get[Query]](
+      Codec[TypedProtocol.CommonMessages.Get[Query]](
+        (p: TypedProtocol.CommonMessages.Get[Query]) =>
+          Attempt.successful(Transmittable[Query].transmittableBytes(p.query)).map(_.toBitVector),
+        (p: BitVector) =>
+          Attempt.fromEither(
+            Transmittable[Query]
+              .fromTransmittableBytes(p.toByteVector)
+              .leftMap(Err(_))
+              .map(DecodeResult(_, BitVector.empty).map(t => TypedProtocol.CommonMessages.Get(t)))
+          )
+      )
+    )
+
+  implicit def commonMessagesResponseTransmittable[T: Transmittable]
+    : Transmittable[TypedProtocol.CommonMessages.Response[T]] =
+    Transmittable.instanceFromCodec[TypedProtocol.CommonMessages.Response[T]](
+      Codec[TypedProtocol.CommonMessages.Response[T]](
+        encoder = Encoder((p: TypedProtocol.CommonMessages.Response[T]) =>
+          p.dataOpt match {
+            case Some(data) =>
+              Attempt
+                .successful(BitVector.one ++ Transmittable[T].transmittableBytes(data).toBitVector)
+            case _ =>
+              Attempt.successful(BitVector.zero)
+          }
+        ),
+        decoder = Decoder((p: BitVector) =>
+          (
+            if (p.head)
+              Attempt.fromEither(
+                Transmittable[T]
+                  .fromTransmittableBytes(p.tail.toByteVector)
+                  .leftMap(Err(_))
+                  .map(DecodeResult(_, BitVector.empty).map(t => TypedProtocol.CommonMessages.Response(t.some)))
+              )
+            else
+              Attempt.successful(DecodeResult(TypedProtocol.CommonMessages.Response(none[T]), p.tail))
+          )
+        )
+      )
+    )
+
+  implicit def commonMessagesPushTransmittable[T: Transmittable]: Transmittable[TypedProtocol.CommonMessages.Push[T]] =
+    Transmittable.instanceFromCodec[TypedProtocol.CommonMessages.Push[T]](
+      Codec[TypedProtocol.CommonMessages.Push[T]](
+        (p: TypedProtocol.CommonMessages.Push[T]) =>
+          Attempt.successful(Transmittable[T].transmittableBytes(p.data)).map(_.toBitVector),
+        (p: BitVector) =>
+          Attempt.fromEither(
+            Transmittable[T]
+              .fromTransmittableBytes(p.toByteVector)
+              .leftMap(Err(_))
+              .map(DecodeResult(_, BitVector.empty).map(TypedProtocol.CommonMessages.Push[T](_)))
+          )
+      )
+    )
+
+  implicit val commonMessagesDoneTransmittable: Transmittable[TypedProtocol.CommonMessages.Done.type] =
+    Transmittable.instanceFromCodec(emptyCodec(TypedProtocol.CommonMessages.Done))
 }
 
 sealed abstract class MultiplexerCodecFailure
