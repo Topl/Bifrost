@@ -1,205 +1,163 @@
 package co.topl.nodeView
 
+import akka.actor.testkit.typed.FishingOutcome
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import akka.actor.typed.ActorRef
-import akka.actor.typed.eventstream.EventStream
-import akka.actor.{ActorRef => CActorRef, ActorSystem => CActorSystem}
-import akka.io.{IO, Tcp}
-import co.topl.attestation.PublicKeyPropositionCurve25519
-import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
-import co.topl.consensus.{ActorConsensusInterface, Forger, GenesisProvider, LocallyGeneratedBlock, NxtConsensus}
-import co.topl.modifier.block.Block
-import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithms, TransferBuilder, TransferRequests}
-import co.topl.network.{NetworkControllerRef, PeerManager, PeerManagerRef}
-import co.topl.nodeView.MemPoolAuditorSpec.TestInWithActor
-import co.topl.nodeView.NodeViewTestHelpers.TestIn
-import co.topl.nodeView.history.InMemoryKeyValueStore
-import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
-import co.topl.utils.{InMemoryKeyRingTestHelper, Int128, TestSettings, TimeProvider}
-import org.scalamock.scalatest.MockFactory
-import org.scalatest.OptionValues
+import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.scaladsl.adapter._
+import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.crypto.signatures.Curve25519
+import co.topl.modifier.transaction.PolyTransfer
+import co.topl.nodeView.history.MockHistoryReader
+import co.topl.nodeView.mempool.{MockMemPoolReader, UnconfirmedTx}
+import co.topl.nodeView.state.MockStateReader
+import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.TimeProvider.Time
+import co.topl.utils._
 import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-import scala.concurrent.Future
+import scala.collection.immutable.ListMap
 import scala.concurrent.duration._
 
 class MemPoolAuditorSpec
     extends ScalaTestWithActorTestKit
     with AnyFlatSpecLike
     with TestSettings
-    with NodeViewTestHelpers
-    with InMemoryKeyRingTestHelper
-    with MockFactory
-    with OptionValues {
+    with ScalaCheckDrivenPropertyChecks
+    with CommonGenerators {
 
   behavior of "MemPoolAuditor"
 
-  private val blockGenerationDelay = 1.seconds
-  private val minTransactionFee: Int128 = 0
+  import org.scalacheck.Gen
+  Gen.chooseNum(1, 400)
 
-  it should "Tell nodeViewHolder to eliminate transactions that stayed mem pool longer than mempoolTimeout" in {
+  it should "Tell nodeViewHolder to eliminate transactions that stayed in mem-pool longer than mempoolTimeout" in {
+    forAll(keyCurve25519Gen, addressGen, polyBoxGen, positiveLongGen, positiveMediumIntGen) {
+      (sender, recipient, polyBox, timestamp, timeout) =>
+        implicit val networkPrefix: NetworkPrefix = 9.toByte
 
-    implicit val timeProvider: TimeProvider = mock[TimeProvider]
+        val unsignedTransfer =
+          PolyTransfer[PublicKeyPropositionCurve25519](
+            IndexedSeq(sender._2.address -> polyBox.nonce),
+            IndexedSeq(recipient         -> polyBox.value),
+            ListMap.empty,
+            0,
+            timestamp,
+            None,
+            minting = false
+          )
 
-    (() => timeProvider.time)
-      .expects()
-      .anyNumberOfTimes()
-      .onCall(() => System.currentTimeMillis())
-
-    (() => timeProvider.time)
-      .expects()
-      .anyNumberOfTimes()
-      .onCall(() => System.currentTimeMillis())
-
-    genesisActorTest { testIn =>
-      val addressA :: addressB :: _ = keyRingCurve25519.addresses.toList
-      val polyTransfer = {
-        val base =
-          TransferBuilder
-            .buildUnsignedPolyTransfer[PublicKeyPropositionCurve25519](
-              testIn.testIn.nodeView.state,
-              TransferRequests.PolyTransferRequest(
-                List(addressB),
-                List(addressA -> 10),
-                addressB,
-                0,
-                None
-              ),
-              BoxSelectionAlgorithms.All
+        val signedTransfer =
+          unsignedTransfer
+            .copy(attestation =
+              ListMap[PublicKeyPropositionCurve25519, SignatureCurve25519](
+                sender._2 -> SignatureCurve25519(Curve25519.sign(sender._1.privateKey, unsignedTransfer.messageToSign))
+              )
             )
-            .getOrThrow()
-        base.copy(attestation = keyRingCurve25519.generateAttestation(addressB)(base.messageToSign))
-      }
-      val transactions = List(polyTransfer)
-      testIn.nodeViewHolderRef.tell(NodeViewHolder.ReceivableMessages.WriteTransactions(transactions))
-      Thread.sleep(0.5.seconds.toMillis)
-      testIn.testIn.nodeView.mempool.modifierById(transactions.head.id).value shouldBe transactions.head
-      Thread.sleep(1.seconds.toMillis)
-      // Using genesisBlock since the memPoolAuditor doesn't care which specific block passed the checks
-      system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(testIn.testIn.genesisView.block)))
-      Thread.sleep(0.5.seconds.toMillis)
-      testIn.testIn.nodeView.mempool.modifierById(transactions.head.id) shouldBe None
+
+        val readableNodeView =
+          ReadableNodeView(
+            MockHistoryReader(List.empty),
+            MockStateReader(Map(sender._2.address -> List(polyBox))),
+            MockMemPoolReader(List(UnconfirmedTx(signedTransfer, timestamp)))
+          )
+
+        val nodeViewHolderBehavior = MockNodeViewHolderBehavior.readOnly(readableNodeView)
+
+        val nodeViewProbe = createTestProbe[NodeViewHolder.ReceivableMessage]()
+
+        val nodeViewHolder = spawn(Behaviors.monitor(nodeViewProbe.ref, nodeViewHolderBehavior))
+
+        implicit val timeProvider: TimeProvider = new TimeProvider {
+          override def time: Time = timestamp + timeout + 1
+        }
+
+        val appSettings =
+          TestSettings.defaultSettings.copy(application =
+            TestSettings.defaultSettings.application.copy(mempoolTimeout = timeout.millis)
+          )
+
+        val underTest = spawn(MemPoolAuditor(nodeViewHolder, spawn(Behaviors.ignore).toClassic, appSettings))
+
+        underTest.tell(MemPoolAuditor.ReceivableMessages.RunCleanup)
+
+        // search for an eliminate transactions message
+        val nodeViewHolderMessages =
+          nodeViewProbe.fishForMessage(5.seconds) { // 5 seconds might be too long
+            case NodeViewHolder.ReceivableMessages.EliminateTransactions(txs)
+                if txs.toList.contains(signedTransfer.id) =>
+              FishingOutcome.Complete
+            case _ => FishingOutcome.ContinueAndIgnore
+          }
+
+        nodeViewHolderMessages should contain(
+          NodeViewHolder.ReceivableMessages.EliminateTransactions(List(signedTransfer.id))
+        )
     }
   }
 
   it should "Invalidate transactions with invalid input boxes after state changes" in {
+    forAll(keyCurve25519Gen, addressGen, polyBoxGen, positiveLongGen, positiveMediumIntGen) {
+      (sender, recipient, polyBox, timestamp, timeout) =>
+        implicit val networkPrefix: NetworkPrefix = 9.toByte
 
-    implicit val timeProvider: TimeProvider = mock[TimeProvider]
-
-    (() => timeProvider.time)
-      .expects()
-      .anyNumberOfTimes()
-      .onCall(() => System.currentTimeMillis())
-
-    genesisActorTest { testIn =>
-      val addressA :: addressB :: _ = keyRingCurve25519.addresses.toList
-      val fstRawTx =
-        TransferBuilder
-          .buildUnsignedPolyTransfer[PublicKeyPropositionCurve25519](
-            testIn.testIn.nodeView.state,
-            TransferRequests.PolyTransferRequest(
-              List(addressB),
-              List(addressA -> 10),
-              changeAddress = addressB,
-              fee = 666667,
-              data = None
-            ),
-            BoxSelectionAlgorithms.All
+        val unsignedTransfer =
+          PolyTransfer[PublicKeyPropositionCurve25519](
+            IndexedSeq(sender._2.address -> polyBox.nonce),
+            IndexedSeq(recipient         -> polyBox.value),
+            ListMap.empty,
+            0,
+            timestamp,
+            None,
+            minting = false
           )
-          .getOrThrow()
 
-      val secRawTx = fstRawTx.copy(fee = 555555)
+        val signedTransfer =
+          unsignedTransfer
+            .copy(attestation =
+              ListMap[PublicKeyPropositionCurve25519, SignatureCurve25519](
+                sender._2 -> SignatureCurve25519(Curve25519.sign(sender._1.privateKey, unsignedTransfer.messageToSign))
+              )
+            )
 
-      val fstTx = fstRawTx.copy(attestation = keyRingCurve25519.generateAttestation(addressB)(fstRawTx.messageToSign))
-      val secTx = secRawTx.copy(attestation = keyRingCurve25519.generateAttestation(addressB)(secRawTx.messageToSign))
+        val readableNodeView =
+          ReadableNodeView(
+            MockHistoryReader(List.empty),
+            MockStateReader(Map.empty), // no state boxes available
+            MockMemPoolReader(List(UnconfirmedTx(signedTransfer, timestamp)))
+          )
 
-      val probe = createTestProbe[LocallyGeneratedBlock]()
-      system.eventStream.tell(EventStream.Subscribe(probe.ref))
+        val nodeViewHolderBehavior = MockNodeViewHolderBehavior.readOnly(readableNodeView)
 
-      testIn.nodeViewHolderRef.tell(NodeViewHolder.ReceivableMessages.WriteTransactions(List(fstTx)))
-      Thread.sleep(0.3.seconds.toMillis)
-      testIn.testIn.nodeView.mempool.modifierById(fstTx.id).value shouldBe fstTx
+        val nodeViewProbe = createTestProbe[NodeViewHolder.ReceivableMessage]()
 
-      testIn.forgerRef.tell(Forger.ReceivableMessages.StartForging(system.ignoreRef))
-      val forgedBlock: Block = probe.receiveMessage(1.seconds).block
-      forgedBlock.transactions.map(_.id).contains(fstTx.id) shouldBe true
-      Thread.sleep(1.seconds.toMillis)
-      testIn.testIn.nodeView.mempool.modifierById(fstTx.id) shouldBe None
+        val nodeViewHolder = spawn(Behaviors.monitor(nodeViewProbe.ref, nodeViewHolderBehavior))
 
-      testIn.forgerRef.tell(Forger.ReceivableMessages.StopForging(system.ignoreRef))
-      testIn.nodeViewHolderRef.tell(NodeViewHolder.ReceivableMessages.WriteTransactions(List(secTx)))
-      Thread.sleep(0.5.seconds.toMillis)
-      testIn.testIn.nodeView.mempool.modifierById(fstTx.id) shouldBe None
+        implicit val timeProvider: TimeProvider = new TimeProvider {
+          override def time: Time = timestamp + timeout + 1
+        }
+
+        val appSettings =
+          TestSettings.defaultSettings.copy(application =
+            TestSettings.defaultSettings.application.copy(mempoolTimeout = timeout.millis)
+          )
+
+        val underTest = spawn(MemPoolAuditor(nodeViewHolder, spawn(Behaviors.ignore).toClassic, appSettings))
+
+        underTest.tell(MemPoolAuditor.ReceivableMessages.RunCleanup)
+
+        // search for an eliminate transactions message
+        val nodeViewHolderMessages =
+          nodeViewProbe.fishForMessage(1.second) {
+            case NodeViewHolder.ReceivableMessages.EliminateTransactions(txs)
+                if txs.toList.contains(signedTransfer.id) =>
+              FishingOutcome.Complete
+            case _ => FishingOutcome.ContinueAndIgnore
+          }
+
+        nodeViewHolderMessages should contain(
+          NodeViewHolder.ReceivableMessages.EliminateTransactions(List(signedTransfer.id))
+        )
     }
   }
-
-  private def genesisActorTest(test: TestInWithActor => Unit)(implicit timeProvider: TimeProvider): Unit = {
-    implicit val cSystem: CActorSystem = akka.actor.ActorSystem("MPASpec")
-    val testSettings = settings.copy(application =
-      // Setting `mempoolTimeout` to 1s
-      settings.application.copy(mempoolTimeout = 1.seconds)
-    )
-
-    val keyView =
-      KeyView(
-        keyRingCurve25519.addresses,
-        Some(keyRingCurve25519.addresses.head),
-        keyRingCurve25519.signWithAddress,
-        keyRingCurve25519.lookupPublicKey
-      )
-
-    val testIn = genesisNodeViewTestInputs(
-      GenesisProvider.construct(
-        keyView.addresses,
-        Int.MaxValue,
-        0L,
-        0
-      )
-    )
-
-    val peerManagerRef: CActorRef =
-      cSystem.actorOf(PeerManagerRef.props(testSettings, None), PeerManager.actorName)
-    val networkControllerRef: CActorRef =
-      cSystem.actorOf(NetworkControllerRef.props(testSettings, peerManagerRef, appContext, IO(Tcp)))
-    val consensusStorageRef = spawn(
-      NxtConsensus(
-        settings,
-        InMemoryKeyValueStore.empty()
-      ),
-      NxtConsensus.actorName
-    )
-    val consensusVariablesInterface = new ActorConsensusInterface(consensusStorageRef)
-    val nodeViewHolderRef = spawn(
-      NodeViewHolder(testSettings, consensusVariablesInterface, () => Future.successful(testIn.nodeView))
-    )
-    val memPoolAuditorRef = spawn(MemPoolAuditor(nodeViewHolderRef, networkControllerRef, testSettings))
-    val forgerRef = spawn(
-      Forger.behavior(
-        blockGenerationDelay,
-        minTransactionFee,
-        forgeOnStartup = false,
-        () => Future.successful(keyView),
-        new ActorNodeViewHolderInterface(nodeViewHolderRef),
-        new ActorConsensusInterface(consensusStorageRef)
-      )
-    )
-
-    val testInWithActor = TestInWithActor(testIn, nodeViewHolderRef, consensusStorageRef, memPoolAuditorRef, forgerRef)
-    test(testInWithActor)
-    testKit.stop(nodeViewHolderRef)
-    testKit.stop(memPoolAuditorRef)
-    testKit.stop(consensusStorageRef)
-    testKit.stop(forgerRef)
-  }
-}
-
-object MemPoolAuditorSpec {
-
-  case class TestInWithActor(
-    testIn:              TestIn,
-    nodeViewHolderRef:   ActorRef[NodeViewHolder.ReceivableMessage],
-    consensusStorageRef: ActorRef[NxtConsensus.ReceivableMessage],
-    memPoolAuditorRef:   ActorRef[MemPoolAuditor.ReceivableMessage],
-    forgerRef:           ActorRef[Forger.ReceivableMessage]
-  )
 }
