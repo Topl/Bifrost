@@ -1,33 +1,68 @@
 package co.topl.nodeView
 
-import co.topl.attestation.Address
 import co.topl.consensus._
 import co.topl.modifier.block.Block
-import co.topl.modifier.box.ArbitBox
-import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer}
 import co.topl.nodeView.NodeViewTestHelpers.TestIn
 import co.topl.nodeView.history.{History, InMemoryKeyValueStore, Storage, TineProcessor}
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.{ProgramBoxRegistry, State, TokenBoxRegistry}
+import co.topl.utils.InMemoryKeyRingTestHelper
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.{InMemoryKeyRingTestHelper, TimeProvider}
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
-import scala.collection.AbstractIterator
-
-trait NodeViewTestHelpers extends BeforeAndAfterAll with InMemoryKeyRingTestHelper {
+trait NodeViewTestHelpers extends BeforeAndAfterAll with InMemoryKeyRingTestHelper with ValidBlockchainGenerator {
   self: Suite =>
 
-  protected case class AccessibleHistory(history: History, storage: InMemoryKeyValueStore)
+  def nodeViewValidChainTestInputs(
+    lengthOfChain:              Byte
+  )(implicit protocolVersioner: ProtocolVersioner): TestIn = {
+    val balancePerParticipant = Int.MaxValue
+    val initialDifficulty = Long.MaxValue
 
-  protected case class AccessibleState(
-    state:      State,
-    stateStore: InMemoryKeyValueStore,
-    tbrStore:   InMemoryKeyValueStore,
-    pbrStore:   InMemoryKeyValueStore
-  )
+    val totalStake = keyRingCurve25519.addresses.size * balancePerParticipant
 
-  def genesisNodeViewTestInputs(
+    val genesisHeadChain = validChainFromGenesis(
+      keyRingCurve25519,
+      balancePerParticipant,
+      initialDifficulty,
+      protocolVersioner
+    )(lengthOfChain).sample.get
+
+    val historyComponents = generateHistory(genesisHeadChain.head)
+    val appenedHistory = historyComponents.copy(
+      history = historyComponents.history match {
+        case h: History =>
+          genesisHeadChain.tail.foldLeft(h)((accHistory, block) => accHistory.append(block, Seq()).get._1)
+      }
+    )
+
+    val stateComponents = generateState(genesisHeadChain.head)
+    val appendedState = stateComponents.copy(
+      state = stateComponents.state match {
+        case h: State => genesisHeadChain.tail.foldLeft(h)((accState, block) => accState.applyModifier(block).get)
+      }
+    )
+
+    val nodeView = NodeView(
+      appenedHistory.history,
+      appendedState.state,
+      MemPool.empty()
+    )
+
+    TestIn(
+      nodeView,
+      appenedHistory.storage,
+      appendedState.tbrStore,
+      appendedState.pbrStore,
+      NxtConsensus.Genesis(
+        genesisHeadChain.head,
+        NxtConsensus.State(totalStake, genesisHeadChain.tail.last.difficulty, 0L, genesisHeadChain.tail.length + 1)
+      )
+    )
+
+  }
+
+  def nodeViewGenesisOnlyTestInputs(
     genesisConsensusView:       NxtConsensus.Genesis
   )(implicit protocolVersioner: ProtocolVersioner): TestIn = {
     val historyComponents = generateHistory(genesisConsensusView.block)
@@ -49,7 +84,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll with InMemoryKeyRingTestHelp
 
   def generateState(genesisBlock: Block)(implicit
     networkPrefix:                NetworkPrefix
-  ): AccessibleState = {
+  ): NodeViewTestHelpers.AccessibleState = {
     val tbrStore = InMemoryKeyValueStore.empty()
     val pbrStore = InMemoryKeyValueStore.empty()
     val stateStore = InMemoryKeyValueStore.empty()
@@ -57,90 +92,22 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll with InMemoryKeyRingTestHelp
     val programBoxRegistry = new ProgramBoxRegistry(pbrStore)
     val state = State(genesisBlock.id, stateStore, tokenBoxRegistry, programBoxRegistry)
     state.applyModifier(genesisBlock).get
-    AccessibleState(state, stateStore, tbrStore, pbrStore)
+    NodeViewTestHelpers.AccessibleState(state, stateStore, tbrStore, pbrStore)
   }
 
   def generateHistory(
-    genesisBlock:           Block
-  )(implicit networkPrefix: NetworkPrefix, protocolVersioner: ProtocolVersioner): AccessibleHistory = {
+    genesisBlock: Block
+  )(implicit
+    networkPrefix:     NetworkPrefix,
+    protocolVersioner: ProtocolVersioner
+  ): NodeViewTestHelpers.AccessibleHistory = {
     val tineProcessor = TineProcessor(1024)
     val store = new InMemoryKeyValueStore()
     val storage = new Storage(store)
     val history = new History(storage, tineProcessor)
     history.append(genesisBlock, Seq()).get._1
-    AccessibleHistory(history, store)
+    NodeViewTestHelpers.AccessibleHistory(history, store)
   }
-
-  protected def nextBlock(
-    parent:             Block,
-    arbitBox:           ArbitBox,
-    previousTimestamps: Seq[TimeProvider.Time],
-    rewardsAddress:     Address,
-    leaderElection:     NxtLeaderElection
-  ): Block = {
-    val timestamp = parent.timestamp + 50000
-    val rewards = {
-      val base = Rewards(Nil, rewardsAddress, parent.id, timestamp, 0L).get
-      base.map {
-        case b: PolyTransfer[_] =>
-          b.copy(attestation = keyRingCurve25519.generateAttestation(keyRingCurve25519.addresses)(b.messageToSign))
-        case a: ArbitTransfer[_] =>
-          a.copy(attestation = keyRingCurve25519.generateAttestation(keyRingCurve25519.addresses)(a.messageToSign))
-      }
-    }
-    Block
-      .createAndSign(
-        parent.id,
-        timestamp = timestamp,
-        txs = rewards,
-        generatorBox = arbitBox,
-        publicKey = keyRingCurve25519.lookupPublicKey(rewardsAddress).get,
-        height = parent.height + 1,
-        difficulty = leaderElection.calculateNewDifficulty(
-          parent.height + 1,
-          parent.difficulty,
-          previousTimestamps :+ timestamp
-        ),
-        version = 1: Byte
-      )(keyRingCurve25519.signWithAddress(rewardsAddress))
-      .get
-  }
-
-  def generateBlockExtensions(
-    genesisBlock:   Block,
-    previousBlocks: List[Block],
-    forgerAddress:  Address,
-    leaderElection: NxtLeaderElection
-  ): Iterator[Block] =
-    new AbstractIterator[Block] {
-
-      // Because the reward fee is 0, the genesis arbit box is never destroyed during forging, so we can re-use it
-      private val arbitBox =
-        previousBlocks.last.transactions
-          .flatMap(_.newBoxes)
-          .collectFirst { case a: ArbitBox if a.evidence == forgerAddress.evidence => a }
-          .get
-      private var previous3Blocks: List[Block] = previousBlocks.takeRight(3)
-
-      override def hasNext: Boolean = true
-
-      override def next(): Block =
-        if (previous3Blocks.isEmpty) {
-          previous3Blocks = List(genesisBlock)
-          genesisBlock
-        } else {
-          val newBlock = nextBlock(
-            previous3Blocks.last,
-            arbitBox,
-            previous3Blocks.map(_.timestamp),
-            forgerAddress,
-            leaderElection
-          )
-          previous3Blocks = (previous3Blocks :+ newBlock).takeRight(3)
-          newBlock
-        }
-    }
-
 }
 
 object NodeViewTestHelpers {
@@ -151,5 +118,14 @@ object NodeViewTestHelpers {
     stateStore:    InMemoryKeyValueStore,
     tokenBoxStore: InMemoryKeyValueStore,
     genesisView:   NxtConsensus.Genesis
+  )
+
+  case class AccessibleHistory(history: History, storage: InMemoryKeyValueStore)
+
+  case class AccessibleState(
+    state:      State,
+    stateStore: InMemoryKeyValueStore,
+    tbrStore:   InMemoryKeyValueStore,
+    pbrStore:   InMemoryKeyValueStore
   )
 }

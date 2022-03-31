@@ -73,7 +73,7 @@ class ConsensusInterfaceSpec
       probe.expectMessage(
         NxtConsensus.State(
           testInWithActors.genesis.state.totalStake,
-          newBlocks.lastOption.value.difficulty,
+          newBlocks.last.difficulty,
           0L,
           newBlocks.length + 1
         )
@@ -138,11 +138,11 @@ class ConsensusInterfaceSpec
 
       Thread.sleep(0.1.seconds.toMillis)
 
-      testInWithActors.consensusViewRef ! RollbackState(newBlocks.headOption.value.id, probe.ref)
+      testInWithActors.consensusViewRef ! RollbackState(newBlocks.head.id, probe.ref)
       // the first of the newBlocks would be at height 2 since it's the first one after the genesis block
       probe.expectMessage(
         StatusReply.success(
-          State(blockTotalStake(testInWithActors.genesis.block), newBlocks.headOption.value.difficulty, 0L, 2L)
+          State(blockTotalStake(testInWithActors.genesis.block), newBlocks.head.difficulty, 0L, 2L)
         )
       )
     }
@@ -168,7 +168,7 @@ class ConsensusInterfaceSpec
 
       Thread.sleep(0.1.seconds.toMillis)
 
-      testInWithActors.consensusViewRef ! RollbackState(newBlocks.headOption.value.id, probe.ref)
+      testInWithActors.consensusViewRef ! RollbackState(newBlocks.head.id, probe.ref)
       probe.receiveMessage(1.seconds).toString() shouldEqual "Error(Failed to roll back to the given version)"
     }
   }
@@ -203,7 +203,7 @@ class ConsensusInterfaceSpec
     testKit.stop(consensusRef)
   }
 
-  private def blockchainGen: Byte => Gen[NonEmptyChain[Block]] =
+  private def blockchainGen: Byte => Gen[GenesisHeadChain] =
     (length: Byte) =>
       validChainFromGenesis(
         keyRingCurve25519,

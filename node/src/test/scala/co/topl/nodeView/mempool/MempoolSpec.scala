@@ -1,4 +1,4 @@
-package co.topl.mempool
+package co.topl.nodeView.mempool
 
 import akka.actor.typed._
 import akka.actor.typed.eventstream.EventStream
@@ -10,7 +10,7 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.BifrostSyncInfo
 import co.topl.network.utils.NetworkTimeProvider
-import co.topl.nodeView.{ValidTransactionGenerators, NodeViewHolder}
+import co.topl.nodeView.{NodeViewHolder, ValidTransactionGenerators}
 import co.topl.nodeView.history.{HistoryReader, InMemoryKeyValueStore}
 import co.topl.nodeView.mempool.MemPoolReader
 import co.topl.utils.TimeProvider
@@ -23,7 +23,12 @@ import org.scalatest.{BeforeAndAfterAll, DoNotDiscover}
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 
-class MempoolSpec extends AnyPropSpec with Matchers with ValidTransactionGenerators with TestSettings with BeforeAndAfterAll {
+class MempoolSpec
+    extends AnyPropSpec
+    with Matchers
+    with ValidTransactionGenerators
+    with TestSettings
+    with BeforeAndAfterAll {
 
   implicit private val actorSystem: ActorSystem[_] = ActorSystem(Behaviors.empty, settings.network.agentName)
 

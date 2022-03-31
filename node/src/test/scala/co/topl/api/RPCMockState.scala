@@ -17,6 +17,7 @@ import co.topl.http.HttpService
 import co.topl.modifier.block.Block
 import co.topl.network.BifrostSyncInfo
 import co.topl.network.utils.NetworkTimeProvider
+import co.topl.nodeView.NodeViewTestHelpers.{AccessibleHistory, AccessibleState}
 import co.topl.nodeView._
 import co.topl.nodeView.history.{History, InMemoryKeyValueStore}
 import co.topl.nodeView.mempool.MemPool
@@ -52,7 +53,7 @@ trait RPCMockState
 
   implicit protected val routeTestTimeout: RouteTestTimeout = RouteTestTimeout(5.seconds)
 
-  protected def blockchainGen: Byte => Gen[NonEmptyChain[Block]] =
+  protected def blockchainGen: Byte => Gen[GenesisHeadChain] =
     (length: Byte) =>
       validChainFromGenesis(
         keyRingCurve25519,
@@ -101,21 +102,24 @@ trait RPCMockState
     consensusInterface = new ActorConsensusInterface(consensusHolderRef)(system.toTyped, 10.seconds)
 
     nodeViewHolderRef = {
-      // only initializing the state using a genesis with funds for all types of keys, because appending blocks to
-      // history right now only take Curve25519 signatures so the box that is eligible needs to be owned by a curve key
-      val testSettingsGenesis = constructGenesis(
-        keyRingCurve25519,
-        settings.application.genesis.generated.get,
-        protocolVersioner
+      // history is used for block header validation, but blocks are restricted to Curve keys at the moment
+      val testGenesisForHistory = GenesisProvider.construct(
+        keyRingCurve25519.addresses,
+        settings.application.genesis.generated.get.balanceForEachParticipant,
+        settings.application.genesis.generated.get.initialDifficulty,
+        protocolVersioner.applicable(1).blockVersion
       )
+      accessibleHistory = generateHistory(testGenesisForHistory.block)
+
+      // state is used for transaction validation, so we can test transaction of many different key types
       val testGenesisForState = GenesisProvider.construct(
         keyRingCurve25519.addresses ++ keyRingEd25519.addresses ++ propsThresholdCurve25519.map(_.address),
         settings.application.genesis.generated.get.balanceForEachParticipant,
         settings.application.genesis.generated.get.initialDifficulty,
         protocolVersioner.applicable(1).blockVersion
       )
-      accessibleHistory = generateHistory(testSettingsGenesis.block)
       accessibleState = generateState(testGenesisForState.block)
+
       system.toTyped.systemActorOf(
         NodeViewHolder(
           settings,

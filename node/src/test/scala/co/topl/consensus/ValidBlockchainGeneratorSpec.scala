@@ -36,7 +36,7 @@ class ValidBlockchainGeneratorSpec extends AnyPropSpec with ValidBlockchainGener
   }
 
   property("Generates a valid blockchain from genesis with up to 127 blocks in length") {
-    forAll(Gen.choose[Byte](2,Byte.MaxValue)) { length =>
+    forAll(Gen.choose[Byte](2, Byte.MaxValue)) { length =>
       val leaderElection = new NxtLeaderElection(ProtocolVersioner.default)
 
       val nonEmptyBlockchain: NonEmptyChain[Block] =
@@ -44,7 +44,7 @@ class ValidBlockchainGeneratorSpec extends AnyPropSpec with ValidBlockchainGener
           keyRingCurve25519,
           GenesisProvider.Strategies.Generation(Version.initial, Int.MaxValue, Long.MaxValue),
           ProtocolVersioner.default
-        )(length).sample.get
+        )(length).sample.get.tail
 
       val extractors = new BlockDataExtractors(nonEmptyBlockchain)
       import extractors._

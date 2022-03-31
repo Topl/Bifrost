@@ -12,16 +12,7 @@ import org.scalacheck.Gen
 
 trait ValidBlockchainGenerator extends NetworkPrefixTestHelper {
 
-  def constructGenesis(
-    keyRing:           KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-    genesisSettings:   GenesisProvider.Strategies.Generation,
-    protocolVersioner: ProtocolVersioner
-  ): NxtConsensus.Genesis = GenesisProvider.construct(
-    keyRing.addresses,
-    genesisSettings.balanceForEachParticipant,
-    genesisSettings.initialDifficulty,
-    protocolVersioner.applicable(1).blockVersion
-  )
+  case class GenesisHeadChain(head: Block, tail: NonEmptyChain[Block])
 
   def validChainFromGenesis(
     keyRing:           KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
@@ -29,13 +20,32 @@ trait ValidBlockchainGenerator extends NetworkPrefixTestHelper {
     protocolVersioner: ProtocolVersioner
   )(
     lengthOfChain: Byte
-  ): Gen[NonEmptyChain[Block]] = {
+  ): Gen[GenesisHeadChain] = validChainFromGenesis(
+    keyRing,
+    genesisSettings.balanceForEachParticipant,
+    genesisSettings.initialDifficulty,
+    protocolVersioner
+  )(lengthOfChain)
+
+  def validChainFromGenesis(
+    keyRing:                   KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+    balanceForEachParticipant: Long,
+    initialDifficulty:         Long,
+    protocolVersioner:         ProtocolVersioner
+  )(
+    lengthOfChain: Byte
+  ): Gen[GenesisHeadChain] = {
     val leaderElection = new NxtLeaderElection(protocolVersioner)
 
     // manipulate the time between subsequent blocks to manage the adjustment of difficulty
     val timeBetweenBlocks: Long = Long.MaxValue / lengthOfChain
 
-    val genesis = constructGenesis(keyRing, genesisSettings, protocolVersioner)
+    val genesis = GenesisProvider.construct(
+      keyRing.addresses,
+      balanceForEachParticipant,
+      initialDifficulty,
+      protocolVersioner.applicable(1).blockVersion
+    )
 
     val allArbitBoxesIterator: Iterator[ArbitBox] = genesis.block.transactions
       .collect { case transaction: TransferTransaction[_, _] =>
@@ -51,7 +61,7 @@ trait ValidBlockchainGenerator extends NetworkPrefixTestHelper {
       )(allArbitBoxesIterator)
       .getOrThrow(e => new Exception(e.toString))
 
-    (2 to lengthOfChain).foldLeft(NonEmptyChain(genesis.block)) { case (chain, height) =>
+    val tailBlocks = (2 to lengthOfChain).foldLeft(NonEmptyChain(genesis.block)) { case (chain, height) =>
       val newTimestamp = chain.last.timestamp + timeBetweenBlocks
       appendBlock(
         chain,
@@ -68,6 +78,8 @@ trait ValidBlockchainGenerator extends NetworkPrefixTestHelper {
         protocolVersioner.applicable(height).blockVersion
       )
     }
+
+    GenesisHeadChain(genesis.block, tailBlocks)
   }
 
   private def appendBlock(

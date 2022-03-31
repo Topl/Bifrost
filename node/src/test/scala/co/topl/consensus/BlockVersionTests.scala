@@ -34,7 +34,7 @@ class BlockVersionTests
         keyRingCurve25519,
         settings.application.genesis.generated.get,
         protocolVersioner
-      )(blocksToAppend.toByte).sample.get
+      )(blocksToAppend.toByte).sample.get.tail
 
 //    val history = generateHistory(listBlocks.head).history
 //    val updatedHistory = listBlocks.tail.foldLeft(history) { case (accHistory, block) =>

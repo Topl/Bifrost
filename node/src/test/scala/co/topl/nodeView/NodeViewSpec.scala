@@ -8,6 +8,7 @@ import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.NodeViewTestHelpers.TestIn
 import co.topl.nodeView.mempool.MemPool
 import co.topl.utils._
+import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpecLike
@@ -30,7 +31,7 @@ class NodeViewSpec
     with MockFactory {
 
   property("Rewards transactions are removed from transactions extracted from a block being rolled back") {
-    withGenesisNodeView { testIn =>
+    withGenesisOnlyNodeView { testIn =>
       forAll(blockCurve25519Gen) { block =>
         implicit val timeProvider: TimeProvider = mock[TimeProvider]
         (() => timeProvider.time)
@@ -39,7 +40,8 @@ class NodeViewSpec
           .returning(10)
         val polyReward = sampleUntilNonEmpty(polyTransferGen)
         val arbitReward = sampleUntilNonEmpty(arbitTransferGen)
-        val rewardBlock = block.copy(transactions = Seq(arbitReward, polyReward), parentId = testIn.genesisView.block.id)
+        val rewardBlock =
+          block.copy(transactions = Seq(arbitReward, polyReward), parentId = testIn.genesisView.block.id)
 
         val memPool =
           testIn.nodeView.updateMemPool(List(rewardBlock), Nil, MemPool.empty())
@@ -59,7 +61,7 @@ class NodeViewSpec
           .expects()
           .once()
           .returning(10)
-        withGenesisNodeView { testIn =>
+        withGenesisOnlyNodeView { testIn =>
           val (events, updatedNodeView) = testIn.nodeView.withTransaction(tx).run
           updatedNodeView.mempool.contains(tx.id) shouldBe true
           events shouldBe List(NodeViewHolder.Events.SuccessfulTransaction[Transaction.TX](tx))
@@ -74,7 +76,7 @@ class NodeViewSpec
       .never()
     // polyTransferGen generates invalid attestations, which are considered syntactically invalid
     forAll(polyTransferGen) { tx =>
-      withGenesisNodeView { testIn =>
+      withGenesisOnlyNodeView { testIn =>
         val (events, updatedNodeView) = testIn.nodeView.withTransaction(tx).run
         updatedNodeView.mempool.contains(tx.id) shouldBe false
 
@@ -94,7 +96,7 @@ class NodeViewSpec
     val addressA :: _ = keyRingCurve25519.addresses.toList
     forAll(signedPolyTransferGen(positiveMediumIntGen.map(nonce => IndexedSeq((addressA, nonce))), keyRingCurve25519)) {
       tx =>
-        withGenesisNodeView { testIn =>
+        withGenesisOnlyNodeView { testIn =>
           val (_, updatedNodeView1) = testIn.nodeView.withTransaction(tx).run
           updatedNodeView1.mempool.contains(tx.id) shouldBe true
 
@@ -118,7 +120,8 @@ class NodeViewSpec
     (() => timeProvider.time)
       .expects()
       .never()
-    withGenesisNodeView { testIn =>
+
+    withGenesisOnlyNodeView { testIn =>
       val initialHistoryStoreState = testIn.historyStore.state
       val (events, _) =
         testIn.nodeView
@@ -141,8 +144,8 @@ class NodeViewSpec
       .once()
       .returning(Long.MaxValue)
 
-    withGenesisNodeView { testIn =>
-      val block: Block = ???//nextBlock(testIn.genesisView.block, testIn.nodeView)
+    withGenesisOnlyNodeView { testIn =>
+      val block: Block = ??? // nextBlock(testIn.genesisView.block, testIn.nodeView)
 
       val (events, updatedNodeView) =
         testIn.nodeView
@@ -165,13 +168,12 @@ class NodeViewSpec
   property("NodeView should refuse an invalid Block") {
     implicit val timeProvider: TimeProvider = mock[TimeProvider]
 
-
     (() => timeProvider.time)
       .expects()
       .never()
 
-    withGenesisNodeView { testIn =>
-      val block: Block = ???//nextBlock(testIn.genesisView.block, testIn.nodeView).copy(difficulty = -1)
+    withGenesisOnlyNodeView { testIn =>
+      val block: Block = ??? // nextBlock(testIn.genesisView.block, testIn.nodeView).copy(difficulty = -1)
 
       val (events, updatedNodeView) =
         testIn.nodeView
@@ -186,7 +188,10 @@ class NodeViewSpec
     }
   }
 
-  private def withGenesisNodeView(test: TestIn => Unit): Unit =
-    test(genesisNodeViewTestInputs(nxtConsensusGenesisGen.sample.get))
+  private def withGenesisOnlyNodeView(test: TestIn => Unit): Unit =
+    test(nodeViewGenesisOnlyTestInputs(nxtConsensusGenesisGen.sample.get))
+
+  private def withValidChainNodeView(lengthOfChain: Byte)(test: TestIn => Unit): Unit =
+    test(nodeViewValidChainTestInputs(lengthOfChain))
 
 }
