@@ -1,6 +1,6 @@
-package co.topl.crypto.mnemonic
+package co.topl.crypto.generation.mnemonic
 
-import co.topl.crypto.mnemonic.Bip32Indexes.{HardenedIndex, SoftIndex}
+import co.topl.crypto.generation.mnemonic.Bip32Indexes.{HardenedIndex, SoftIndex}
 import co.topl.models.Bytes
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.{Lengths, Sized}

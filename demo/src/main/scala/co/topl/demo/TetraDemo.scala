@@ -20,7 +20,7 @@ import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
 import co.topl.consensus.algebras.{EtaCalculationAlgebra, LeaderElectionValidationAlgebra, LocalChainAlgebra}
 import co.topl.crypto.hash.{blake2b256, Blake2b256, Blake2b512}
-import co.topl.crypto.mnemonic.Entropy
+import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.interpreters._
 import co.topl.minting._

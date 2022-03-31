@@ -11,7 +11,7 @@ import cats.~>
 import co.topl.consensus.LeaderElectionValidation
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.crypto.hash.Blake2b512
-import co.topl.crypto.mnemonic.Entropy
+import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.interpreters.{ActorPoolUnsafeResource, AkkaSchedulerClock, NodeViewHolder, StatsInterpreter}
 import co.topl.models.utility.Ratio

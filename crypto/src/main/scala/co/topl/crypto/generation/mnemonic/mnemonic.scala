@@ -1,7 +1,7 @@
-package co.topl.crypto
+package co.topl.crypto.generation
 
 import co.topl.crypto.hash.sha256
-import co.topl.crypto.mnemonic.Language.LanguageWordList
+import co.topl.crypto.generation.mnemonic.Language.LanguageWordList
 import io.estatico.newtype.macros.newtype
 import io.estatico.newtype.ops._
 

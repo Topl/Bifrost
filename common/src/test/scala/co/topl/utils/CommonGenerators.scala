@@ -5,7 +5,7 @@ import co.topl.attestation._
 import co.topl.attestation.keyManagement._
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.crypto.mnemonic.Entropy
+import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing.{Curve25519, Ed25519, EntropyToSeed, Password}
 import co.topl.crypto.{PrivateKey, PublicKey, Signature}
 import co.topl.models.Bytes

@@ -9,7 +9,7 @@ import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.algebras.EtaCalculationAlgebra
-import co.topl.crypto.mnemonic.Entropy
+import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing._
 import co.topl.minting.algebras._
 import co.topl.models._

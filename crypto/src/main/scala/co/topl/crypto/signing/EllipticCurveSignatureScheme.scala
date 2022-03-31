@@ -1,7 +1,7 @@
 package co.topl.crypto.signing
 
-import co.topl.crypto.Pbkdf2Sha512
-import co.topl.crypto.mnemonic.Entropy
+import co.topl.crypto.generation.Pbkdf2Sha512
+import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.{Length, Sized}
 import co.topl.models.{Bytes, Proof, SecretKey, VerificationKey}

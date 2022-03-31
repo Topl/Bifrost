@@ -5,7 +5,7 @@ import co.topl.attestation.{PublicKeyPropositionEd25519, SignatureEd25519}
 import co.topl.codecs.binary.legacy.BifrostSerializer
 import co.topl.codecs.binary.legacy.attestation.keyManagement.PrivateKeyEd25519Serializer
 import co.topl.crypto.implicits._
-import co.topl.crypto.mnemonic.Entropy
+import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing.Ed25519
 import co.topl.crypto.{PrivateKey, PublicKey, Signature}
 import co.topl.models.utility.HasLength.instances._

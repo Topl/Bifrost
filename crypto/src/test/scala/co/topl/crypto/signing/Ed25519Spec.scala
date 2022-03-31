@@ -1,8 +1,8 @@
 package co.topl.crypto.signing
 
 import cats.implicits._
-import co.topl.crypto.mnemonic.Entropy
-import co.topl.crypto.mnemonic.EntropySupport._
+import co.topl.crypto.generation.mnemonic.Entropy
+import co.topl.crypto.generation.mnemonic.EntropySupport._
 import co.topl.crypto.utils.Hex
 import co.topl.crypto.utils.Hex.implicits._
 import co.topl.models.ModelGenerators.arbitraryBytes

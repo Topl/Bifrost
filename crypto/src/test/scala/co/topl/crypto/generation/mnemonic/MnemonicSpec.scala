@@ -1,7 +1,7 @@
-package co.topl.crypto.mnemonic
+package co.topl.crypto.generation.mnemonic
 
-import co.topl.crypto.mnemonic.Language.English
-import co.topl.crypto.mnemonic.MnemonicSize._
+import co.topl.crypto.generation.mnemonic.Language.English
+import co.topl.crypto.generation.mnemonic.MnemonicSize._
 import co.topl.crypto.utils.Generators.genByteArrayOfSize
 import co.topl.crypto.utils.Hex
 import co.topl.models.utility.Base58

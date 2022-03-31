@@ -1,7 +1,7 @@
 package co.topl.crypto.signing
 
-import co.topl.crypto.mnemonic.EntropySupport._
-import co.topl.crypto.mnemonic.{Bip32Indexes, Entropy}
+import co.topl.crypto.generation.mnemonic.EntropySupport._
+import co.topl.crypto.generation.mnemonic.{Bip32Indexes, Entropy}
 import co.topl.crypto.utils.Hex
 import co.topl.crypto.utils.Hex.implicits._
 import co.topl.models.ModelGenerators.arbitraryBytes

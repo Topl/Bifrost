@@ -1,6 +1,6 @@
 package co.topl.typeclasses
 
-import co.topl.crypto.mnemonic.Entropy
+import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing._
 import co.topl.models._
 import simulacrum.typeclass

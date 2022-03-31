@@ -1,7 +1,7 @@
-package co.topl.crypto.mnemonic
+package co.topl.crypto.generation.mnemonic
 
 import cats.implicits._
-import co.topl.crypto.mnemonic.Language.LanguageWordList
+import co.topl.crypto.generation.mnemonic.Language.LanguageWordList
 import co.topl.crypto.signing.ExtendedEd25519
 import co.topl.models.SecretKeys
 import simulacrum.typeclass

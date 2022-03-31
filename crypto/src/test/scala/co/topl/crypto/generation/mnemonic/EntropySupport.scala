@@ -1,4 +1,4 @@
-package co.topl.crypto.mnemonic
+package co.topl.crypto.generation.mnemonic
 
 import cats.Eq
 import co.topl.models.Bytes

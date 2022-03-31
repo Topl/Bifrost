@@ -1,6 +1,6 @@
 package co.topl.crypto.signing
 
-import co.topl.crypto.mnemonic.Entropy
+import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.utils.Hex
 import co.topl.crypto.utils.Hex.implicits._
 import co.topl.models.ModelGenerators.arbitraryBytes
@@ -10,7 +10,7 @@ import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import co.topl.crypto.mnemonic.EntropySupport._
+import co.topl.crypto.generation.mnemonic.EntropySupport._
 import cats.implicits._
 
 import java.nio.charset.StandardCharsets

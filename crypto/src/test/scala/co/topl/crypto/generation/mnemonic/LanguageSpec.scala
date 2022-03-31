@@ -1,7 +1,7 @@
-package co.topl.crypto.mnemonic
+package co.topl.crypto.generation.mnemonic
 
 import cats.implicits._
-import co.topl.crypto.mnemonic.Language._
+import co.topl.crypto.generation.mnemonic.Language._
 import org.scalatest.funspec.AnyFunSpec
 
 class LanguageSpec extends AnyFunSpec {

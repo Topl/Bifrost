@@ -1,4 +1,4 @@
-package co.topl.crypto
+package co.topl.crypto.generation
 
 import org.bouncycastle.crypto.digests.SHA512Digest
 import org.bouncycastle.crypto.generators.PKCS5S2ParametersGenerator

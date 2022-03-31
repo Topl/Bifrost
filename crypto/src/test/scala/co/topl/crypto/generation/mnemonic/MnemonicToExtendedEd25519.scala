@@ -1,9 +1,9 @@
-package co.topl.crypto.mnemonic
+package co.topl.crypto.generation.mnemonic
 
-import co.topl.crypto.mnemonic.FromEntropy.Instances._
-import co.topl.crypto.mnemonic.FromEntropy.derive
-import co.topl.crypto.mnemonic.Language._
-import co.topl.crypto.mnemonic.MnemonicSize._
+import co.topl.crypto.generation.mnemonic.FromEntropy.Instances._
+import co.topl.crypto.generation.mnemonic.FromEntropy.derive
+import co.topl.crypto.generation.mnemonic.Language._
+import co.topl.crypto.generation.mnemonic.MnemonicSize._
 import co.topl.crypto.utils.Generators._
 import co.topl.crypto.utils.Hex.implicits._
 import co.topl.models.SecretKeys
