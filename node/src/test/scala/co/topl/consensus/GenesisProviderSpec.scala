@@ -1,66 +1,31 @@
 package co.topl.consensus
 
+import co.topl.attestation.Address
+import co.topl.consensus.GenesisProvider.Strategies
 import co.topl.modifier.box.ArbitBox
-import co.topl.modifier.transaction.{ArbitTransfer, TransferTransaction}
+import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, TransferTransaction}
 import co.topl.nodeView.ValidTransactionGenerators
-import co.topl.utils.{InMemoryKeyRingTestHelper, Int128}
+import co.topl.settings.AppSettings
+import co.topl.settings.GenesisStrategies.{FromBlockJson, Generated}
+import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.{Int128, NetworkType, TestSettings}
+import io.circe.{parser, Json, JsonObject}
+import io.circe.syntax.EncoderOps
 import org.scalacheck.Gen
-import org.scalamock.scalatest.MockFactory
+import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpecLike
-import org.scalatest.{BeforeAndAfterAll, EitherValues}
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-import org.slf4j.Logger
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 class GenesisProviderSpec
     extends AnyPropSpecLike
-    with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with EitherValues
-    with MockFactory
-    with InMemoryKeyRingTestHelper
-    with BeforeAndAfterAll
+    with TestSettings
     with ValidTransactionGenerators
     with Matchers {
 
-  implicit private def implicitLogger: Logger = logger.underlying
-
-//  object GenesisSpecSetup {
-//    case class GenesisTotals(coinTotal: Int128, arbitTotal: Int128, polyTotal: Int128)
-//
-//    val genesisGenSettings: GenesisGenerationSettings = settings.forging.genesis.map(_.generated).head
-//
-//    val (toplnetJsonGenesisSettings, valhallaJsonGenesisSettings, helJsonGenesisSettings) =
-//      (
-//        GenesisFromBlockJsonSettings(
-//          "node/src/main/resources/toplnet-genesis.json",
-//          "228AWnLyoHdV3hzNaJmABsmB4VoS9rxPREA3AofbZnJob"
-//        ),
-//        GenesisFromBlockJsonSettings(
-//          "node/src/main/resources/valhalla-genesis.json",
-//          "wgUeiENYY32eC5T6WM2UiqAf6Ayba2tFNtvFkgn999iG"
-//        ),
-//        GenesisFromBlockJsonSettings(
-//          "node/src/main/resources/hel-genesis.json",
-//          "vKjyX77HLRUiihjWofSsacNEdDGMaJpNJTQMXkRyJkP2"
-//        )
-//      )
-//
-//    val keyfileCurve25519Companion: KeyfileCurve25519Companion.type = KeyfileCurve25519Companion
-//
-//    val privateKeyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519] =
-//      KeyRing.empty[PrivateKeyCurve25519, KeyfileCurve25519](None)(
-//        PrivateTestnet.netPrefix,
-//        PrivateKeyCurve25519.secretGenerator,
-//        keyfileCurve25519Companion
-//      )
-//
-//    privateKeyRing
-//      .generateNewKeyPairs(settings.forging.genesis.map(_.generated).get.numberOfParticipants, None)
-//      .map(keys => keys.map(_.publicImage.address))
-//  }
-
-  property("is able to construct a genesis block from generated inputs") {
+  property("should be able to construct a genesis block from generated inputs") {
     forAll(nonEmptySetAddressGen) { addresses =>
       val (balances, initialDifficulty, blockVersion) = (
         Gen.choose(1, Int.MaxValue).sample.get.toLong,
@@ -84,34 +49,94 @@ class GenesisProviderSpec
     }
   }
 
-  property("read in json files and verify checksum; block->checksum->Json->read Json->check checksum") {
-    // test
+  property("should be able to read in json files and verify checksum, and the encoded json from the " +
+    "generated block should be the same as the one from file") {
+    val jsonSettings = Seq(
+      GenesisSpecSetup.toplnetJsonGenesisSettings,
+      GenesisSpecSetup.valhallaJsonGenesisSettings,
+      GenesisSpecSetup.helJsonGenesisSettings
+    )
+    jsonSettings.map { jsonSetting =>
+      val genesis: NxtConsensus.Genesis =
+        new GenesisProvider(protocolVersioner.applicable(1).blockVersion, Set[Address]())
+          .fetchGenesis(GenesisSpecSetup.genesisFromJsonSettings(jsonSetting.fromJson))(jsonSetting.networkPrefix)
+          .value
+
+      val jsonFileSource = scala.io.Source.fromFile(jsonSetting.fromJson.providedJsonGenesisPath)
+      val jsonFromFile = parser.parse(jsonFileSource.mkString).getOrElse(Json.fromJsonObject(JsonObject.empty))
+      jsonFileSource.close()
+
+      jsonFromFile shouldEqual genesis.block.asJson
+    }
   }
 
-  property("successfully generate a genesis block and consensus view") {
-//      forAll() { genesisSettings =>
-//        val expectedCoinAmount = Int128(genesisSettings * genesisSettings.balanceForEachParticipant)
-//
-//        val genesis =
-//          GenesisProvider
-//            .generatedGenesisProvider(
-//              GenesisSpecSetup.privateKeyRing.addresses,
-//              genesisSettings.genesisApplicationVersion.blockByte
-//            )
-//            .executeStrategy(genesisSettings)
-//
-//        val actualCoinTotals = genesis.block.transactions match {
-//          case Seq(arbitTx: ArbitTransfer[_], polyTx: PolyTransfer[_]) =>
-//            val arbitCoinTotal = arbitTx.coinOutput.map(_.value.quantity).sum
-//            val polyCoinTotal =
-//              arbitTx.feeChangeOutput.value.quantity +
-//                polyTx.feeChangeOutput.value.quantity +
-//                polyTx.coinOutput.map(_.value.quantity).sum
-//
-//            (arbitCoinTotal, polyCoinTotal)
-//        }
-//
-//        actualCoinTotals._1 shouldBe expectedCoinAmount
-//        actualCoinTotals._2 shouldBe expectedCoinAmount
+  property("should successfully generate a genesis block and consensus view") {
+    forAll(nonEmptySetAddressGen) { addresses =>
+      val expectedCoinAmount = Int128(
+        addresses.size * GenesisSpecSetup.genesisGenSettings.application.genesis.generated
+          .map(_.balanceForEachParticipant)
+          .get
+      )
+
+      val genesis: NxtConsensus.Genesis =
+        new GenesisProvider(protocolVersioner.applicable(1).blockVersion, addresses)
+          .fetchGenesis(GenesisSpecSetup.genesisGenSettings)
+          .value
+
+      val actualCoinTotals = genesis.block.transactions match {
+        case Seq(arbitTx: ArbitTransfer[_], polyTx: PolyTransfer[_]) =>
+          val arbitCoinTotal = arbitTx.coinOutput.map(_.value.quantity).sum
+          val polyCoinTotal =
+            arbitTx.feeChangeOutput.value.quantity +
+            polyTx.feeChangeOutput.value.quantity +
+            polyTx.coinOutput.map(_.value.quantity).sum
+
+          (arbitCoinTotal, polyCoinTotal)
+      }
+
+      actualCoinTotals._1 shouldBe expectedCoinAmount
+      actualCoinTotals._2 shouldBe expectedCoinAmount
+    }
+  }
+
+  object GenesisSpecSetup {
+    case class GenesisTotals(coinTotal: Int128, arbitTotal: Int128, polyTotal: Int128)
+    case class blockJsonSetting(fromJson: Strategies.FromBlockJson, networkPrefix: NetworkPrefix)
+
+    val genesisGenSettings: AppSettings = settings.copy(application =
+      settings.application.copy(genesis = settings.application.genesis.copy(strategy = Generated))
+    )
+
+    val (toplnetJsonGenesisSettings, valhallaJsonGenesisSettings, helJsonGenesisSettings) =
+      (
+        blockJsonSetting(
+          Strategies.FromBlockJson(
+            "node/src/main/resources/toplnet-genesis.json",
+            "228AWnLyoHdV3hzNaJmABsmB4VoS9rxPREA3AofbZnJob"
+          ),
+          NetworkType.Mainnet.netPrefix
+        ),
+        blockJsonSetting(
+          Strategies.FromBlockJson(
+            "node/src/main/resources/valhalla-genesis.json",
+            "wgUeiENYY32eC5T6WM2UiqAf6Ayba2tFNtvFkgn999iG"
+          ),
+          NetworkType.ValhallaTestnet.netPrefix
+        ),
+        blockJsonSetting(
+          Strategies.FromBlockJson(
+            "node/src/main/resources/hel-genesis.json",
+            "vKjyX77HLRUiihjWofSsacNEdDGMaJpNJTQMXkRyJkP2"
+          ),
+          NetworkType.HelTestnet.netPrefix
+        )
+      )
+
+    def genesisFromJsonSettings(fromJson: GenesisProvider.Strategies.FromBlockJson): AppSettings =
+      settings.copy(application =
+        settings.application.copy(genesis =
+          settings.application.genesis.copy(strategy = FromBlockJson, fromBlockJson = Some(fromJson))
+        )
+      )
   }
 }

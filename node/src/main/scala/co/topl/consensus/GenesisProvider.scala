@@ -51,9 +51,9 @@ class GenesisProvider(genesisBlockVersion: Byte, nodeAddresses: Set[Address]) {
     block <- json.as[Block].leftMap(e => GenesisProvider.Failures.FailedToDecodeJsonToBlock(e.message))
     expectedBlockId <- Base58Data
       .validated(strategy.blockChecksum)
-      .map(_.value.decodeTransmitted[ModifierId])
-      .leftMap(_ => GenesisProvider.Failures.InvalidBlockChecksum)
       .toEither
+      .flatMap(_.value.decodeTransmitted[ModifierId])
+      .leftMap(_ => GenesisProvider.Failures.InvalidBlockChecksum)
     validBlock <- Either.cond(
       block.id == expectedBlockId,
       block,
