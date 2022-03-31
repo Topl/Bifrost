@@ -151,7 +151,7 @@ class NodeViewHolderSpec
         NodeViewHolder.ReceivableMessages.Read(view => view.memPool.modifierById(polyTransfer.id), testProbeActor)
       )
 
-      testProbe.receiveMessage(2.seconds).getValue shouldBe None
+      testProbe.receiveMessage().getValue shouldBe None
     }
   }
 
@@ -200,7 +200,7 @@ class NodeViewHolderSpec
         NodeViewHolder.ReceivableMessages.Read(view => view.history.filter(_.id == newBlock.id), testProbeActor)
       )
 
-      testProbe.receiveMessage(2.seconds).getValue should contain(newBlock)
+      testProbe.receiveMessage().getValue should contain(newBlock)
     }
   }
 
@@ -307,7 +307,7 @@ class NodeViewHolderSpec
         NodeViewHolder.ReceivableMessages.Read(view => view.history.filter(_.id == firstNewBlock.id), testProbeActor)
       )
 
-      testProbe.receiveMessage(2.seconds).getValue.isEmpty shouldBe true
+      testProbe.receiveMessage().getValue.isEmpty shouldBe true
 
       underTest.tell(NodeViewHolder.ReceivableMessages.WriteBlocks(List(secondNewBlock)))
 
@@ -349,7 +349,7 @@ object NodeViewHolderSpec {
     // If the Read message comes back without the new blocks, ignore it and try sending another read message.
     // This block will return no messages if the history was never updated correctly.
     testProbe
-      .fishForMessage(2.seconds) {
+      .fishForMessage(500.millis) {
         case StatusReply.Success(blocks: Seq[Block]) if search(blocks) =>
           FishingOutcome.Complete
         case _ =>

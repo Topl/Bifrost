@@ -1,6 +1,5 @@
 package co.topl.nodeView
 
-import akka.actor.testkit.typed.FishingOutcome
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.scaladsl.adapter._
@@ -10,7 +9,6 @@ import co.topl.modifier.transaction.PolyTransfer
 import co.topl.nodeView.history.MockImmutableBlockHistory
 import co.topl.nodeView.mempool.{MemPool, UnconfirmedTx}
 import co.topl.nodeView.state.MockStateReader
-import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider.Time
 import co.topl.utils._
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -29,14 +27,9 @@ class MemPoolAuditorSpec
 
   behavior of "MemPoolAuditor"
 
-  import org.scalacheck.Gen
-  Gen.chooseNum(1, 400)
-
   it should "Tell nodeViewHolder to eliminate transactions that stayed in mem-pool longer than mempoolTimeout" in {
     forAll(keyCurve25519Gen, addressGen, polyBoxGen, positiveLongGen, positiveMediumIntGen) {
       (sender, recipient, polyBox, timestamp, timeout) =>
-        implicit val networkPrefix: NetworkPrefix = 9.toByte
-
         val unsignedTransfer =
           PolyTransfer[PublicKeyPropositionCurve25519](
             IndexedSeq(sender._2.address -> polyBox.nonce),
@@ -56,6 +49,10 @@ class MemPoolAuditorSpec
               )
             )
 
+        implicit val timeProvider: TimeProvider = new TimeProvider {
+          override def time: Time = timestamp + timeout + 1
+        }
+
         val readableNodeView =
           ReadableNodeView(
             MockImmutableBlockHistory(List.empty),
@@ -63,15 +60,10 @@ class MemPoolAuditorSpec
             MemPool(TrieMap(signedTransfer.id -> UnconfirmedTx(signedTransfer, timestamp)))
           )
 
+        // set up a mock node view holder
         val nodeViewHolderBehavior = MockNodeViewHolderBehavior.readOnly(readableNodeView)
-
         val nodeViewProbe = createTestProbe[NodeViewHolder.ReceivableMessage]()
-
         val nodeViewHolder = spawn(Behaviors.monitor(nodeViewProbe.ref, nodeViewHolderBehavior))
-
-        implicit val timeProvider: TimeProvider = new TimeProvider {
-          override def time: Time = timestamp + timeout + 1
-        }
 
         val appSettings =
           TestSettings.defaultSettings.copy(application =
@@ -82,26 +74,15 @@ class MemPoolAuditorSpec
 
         underTest.tell(MemPoolAuditor.ReceivableMessages.RunCleanup)
 
-        // search for an eliminate transactions message
-        val nodeViewHolderMessages =
-          nodeViewProbe.fishForMessage(5.seconds) { // 5 seconds might be too long
-            case NodeViewHolder.ReceivableMessages.EliminateTransactions(txs)
-                if txs.toList.contains(signedTransfer.id) =>
-              FishingOutcome.Complete
-            case _ => FishingOutcome.ContinueAndIgnore
-          }
+        nodeViewProbe.receiveMessage()
 
-        nodeViewHolderMessages should contain(
-          NodeViewHolder.ReceivableMessages.EliminateTransactions(List(signedTransfer.id))
-        )
+        nodeViewProbe.expectMessage(NodeViewHolder.ReceivableMessages.EliminateTransactions(List(signedTransfer.id)))
     }
   }
 
   it should "Invalidate transactions with invalid input boxes after state changes" in {
     forAll(keyCurve25519Gen, addressGen, polyBoxGen, positiveLongGen, positiveMediumIntGen) {
       (sender, recipient, polyBox, timestamp, timeout) =>
-        implicit val networkPrefix: NetworkPrefix = 9.toByte
-
         val unsignedTransfer =
           PolyTransfer[PublicKeyPropositionCurve25519](
             IndexedSeq(sender._2.address -> polyBox.nonce),
@@ -125,7 +106,7 @@ class MemPoolAuditorSpec
           ReadableNodeView(
             MockImmutableBlockHistory(List.empty),
             MockStateReader(Map.empty), // no state boxes available
-            MemPool(TrieMap.empty)
+            MemPool(TrieMap(signedTransfer.id -> UnconfirmedTx(signedTransfer, timestamp)))
           )
 
         val nodeViewHolderBehavior = MockNodeViewHolderBehavior.readOnly(readableNodeView)
@@ -147,16 +128,9 @@ class MemPoolAuditorSpec
 
         underTest.tell(MemPoolAuditor.ReceivableMessages.RunCleanup)
 
-        // search for an eliminate transactions message
-        val nodeViewHolderMessages =
-          nodeViewProbe.fishForMessage(1.second) {
-            case NodeViewHolder.ReceivableMessages.EliminateTransactions(txs)
-                if txs.toList.contains(signedTransfer.id) =>
-              FishingOutcome.Complete
-            case _ => FishingOutcome.ContinueAndIgnore
-          }
+        nodeViewProbe.receiveMessage()
 
-        nodeViewHolderMessages should contain(
+        nodeViewProbe.expectMessage(
           NodeViewHolder.ReceivableMessages.EliminateTransactions(List(signedTransfer.id))
         )
     }
