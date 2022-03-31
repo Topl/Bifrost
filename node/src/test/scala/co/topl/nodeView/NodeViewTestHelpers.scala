@@ -85,9 +85,9 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll with InMemoryKeyRingTestHelp
   def generateState(genesisBlock: Block)(implicit
     networkPrefix:                NetworkPrefix
   ): NodeViewTestHelpers.AccessibleState = {
-    val tbrStore = InMemoryKeyValueStore.empty()
-    val pbrStore = InMemoryKeyValueStore.empty()
-    val stateStore = InMemoryKeyValueStore.empty()
+    val tbrStore = InMemoryKeyValueStore.empty
+    val pbrStore = InMemoryKeyValueStore.empty
+    val stateStore = InMemoryKeyValueStore.empty
     val tokenBoxRegistry = new TokenBoxRegistry(tbrStore)
     val programBoxRegistry = new ProgramBoxRegistry(pbrStore)
     val state = State(genesisBlock.id, stateStore, tokenBoxRegistry, programBoxRegistry)

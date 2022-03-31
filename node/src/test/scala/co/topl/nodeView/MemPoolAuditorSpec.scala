@@ -7,8 +7,8 @@ import akka.actor.typed.scaladsl.adapter._
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.crypto.signatures.Curve25519
 import co.topl.modifier.transaction.PolyTransfer
-import co.topl.nodeView.history.MockHistoryReader
-import co.topl.nodeView.mempool.{MockMemPoolReader, UnconfirmedTx}
+import co.topl.nodeView.history.MockImmutableBlockHistory
+import co.topl.nodeView.mempool.{MemPool, UnconfirmedTx}
 import co.topl.nodeView.state.MockStateReader
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider.Time
@@ -16,6 +16,7 @@ import co.topl.utils._
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
+import scala.collection.concurrent.TrieMap
 import scala.collection.immutable.ListMap
 import scala.concurrent.duration._
 
@@ -57,9 +58,9 @@ class MemPoolAuditorSpec
 
         val readableNodeView =
           ReadableNodeView(
-            MockHistoryReader(List.empty),
+            MockImmutableBlockHistory(List.empty),
             MockStateReader(Map(sender._2.address -> List(polyBox))),
-            MockMemPoolReader(List(UnconfirmedTx(signedTransfer, timestamp)))
+            MemPool(TrieMap(signedTransfer.id -> UnconfirmedTx(signedTransfer, timestamp)))
           )
 
         val nodeViewHolderBehavior = MockNodeViewHolderBehavior.readOnly(readableNodeView)
@@ -122,9 +123,9 @@ class MemPoolAuditorSpec
 
         val readableNodeView =
           ReadableNodeView(
-            MockHistoryReader(List.empty),
+            MockImmutableBlockHistory(List.empty),
             MockStateReader(Map.empty), // no state boxes available
-            MockMemPoolReader(List(UnconfirmedTx(signedTransfer, timestamp)))
+            MemPool(TrieMap.empty)
           )
 
         val nodeViewHolderBehavior = MockNodeViewHolderBehavior.readOnly(readableNodeView)

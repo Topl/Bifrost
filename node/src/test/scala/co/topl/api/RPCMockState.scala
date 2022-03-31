@@ -24,7 +24,6 @@ import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
 import co.topl.rpc.ToplRpcServer
 import co.topl.utils.{TestSettings, TimeProvider}
-import io.circe.syntax.EncoderOps
 import org.scalacheck.Gen
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
@@ -95,7 +94,7 @@ trait RPCMockState
     )
 
     consensusHolderRef = system.toTyped.systemActorOf(
-      NxtConsensus(settings, InMemoryKeyValueStore.empty()),
+      NxtConsensus(settings, InMemoryKeyValueStore.empty),
       NxtConsensus.actorName
     )
 

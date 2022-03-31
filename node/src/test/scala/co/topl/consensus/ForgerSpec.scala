@@ -131,7 +131,7 @@ class ForgerSpec
             spawn(
               NxtConsensus(
                 settings,
-                InMemoryKeyValueStore.empty()
+                InMemoryKeyValueStore.empty
               ),
               NxtConsensus.actorName
             )
@@ -204,7 +204,7 @@ class ForgerSpec
       spawn(
         NxtConsensus(
           settings,
-          InMemoryKeyValueStore.empty()
+          InMemoryKeyValueStore.empty
         ),
         NxtConsensus.actorName
       )
@@ -248,7 +248,7 @@ class ForgerSpec
         spawn(
           NxtConsensus(
             settings,
-            InMemoryKeyValueStore.empty()
+            InMemoryKeyValueStore.empty
           ),
           NxtConsensus.actorName
         )

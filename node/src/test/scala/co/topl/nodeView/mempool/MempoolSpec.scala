@@ -35,7 +35,7 @@ class MempoolSpec
   implicit private val timeProvider: TimeProvider = new NetworkTimeProvider(settings.ntp)
 
   private val consensusStorageRef = actorSystem.systemActorOf(
-    NxtConsensus(settings, InMemoryKeyValueStore.empty()),
+    NxtConsensus(settings, InMemoryKeyValueStore.empty),
     NxtConsensus.actorName
   )
 

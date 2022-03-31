@@ -55,7 +55,7 @@ class InMemoryKeyValueStore(val keepVersions: Int = 0) extends KeyValueStore {
 
 object InMemoryKeyValueStore {
 
-  def empty(): InMemoryKeyValueStore = new InMemoryKeyValueStore
+  def empty: InMemoryKeyValueStore = new InMemoryKeyValueStore
   def apply(keepVersions: Int): InMemoryKeyValueStore = new InMemoryKeyValueStore(keepVersions)
 
   case class ChangeSet(version: Array[Byte], changes: List[Change])

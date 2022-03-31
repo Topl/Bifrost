@@ -91,7 +91,7 @@ class ConsensusInterfaceSpec
       .onCall(() => System.currentTimeMillis())
 
     val probe = createTestProbe[State]()
-    val store = InMemoryKeyValueStore.empty()
+    val store = InMemoryKeyValueStore.empty
     val consensusStorageRef = spawn(
       NxtConsensus(settings, store),
       NxtConsensus.actorName
