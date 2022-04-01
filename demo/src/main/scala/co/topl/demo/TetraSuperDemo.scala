@@ -53,7 +53,7 @@ object TetraSuperDemo extends IOApp {
 
   // Configuration Data
   private val vrfConfig =
-    VrfConfig(lddCutoff = 40, precision = 40, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(2, 5))
+    VrfConfig(lddCutoff = 80, precision = 40, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(1, 5))
 
   private val OperationalPeriodLength = 180L
   private val OperationalPeriodsPerEpoch = 4L
@@ -231,30 +231,57 @@ object TetraSuperDemo extends IOApp {
       random <- new Random(0L).pure[F]
       genesisTimestamp = Instant.now().plusSeconds(10)
       localPeers = List(
-        LocalPeer(parseAddress(port = 9090), Locations.NorthPole),
-        LocalPeer(parseAddress(port = 9091), Locations.NorthPole),
-        LocalPeer(parseAddress(port = 9092), Locations.NorthPole),
-        LocalPeer(parseAddress(port = 9093), Locations.SouthPole),
-        LocalPeer(parseAddress(port = 9094), Locations.SouthPole),
-        LocalPeer(parseAddress(port = 9095), Locations.SouthPole)
+        LocalPeer(parseAddress(port = 9090), Locations.NorthPole) -> "North1",
+        LocalPeer(parseAddress(port = 9091), Locations.NorthPole) -> "North2",
+        LocalPeer(parseAddress(port = 9092), Locations.NorthPole) -> "North3",
+        LocalPeer(parseAddress(port = 9093), Locations.SouthPole) -> "South1",
+        LocalPeer(parseAddress(port = 9094), Locations.SouthPole) -> "South2",
+        LocalPeer(parseAddress(port = 9095), Locations.SouthPole) -> "South3"
       )
       configurations = List(
         (
-          localPeers(0),
-          DisconnectedPeer.tupled(LocalPeer.unapply(localPeers.last).get) :: DisconnectedPeer.tupled(
-            LocalPeer.unapply(localPeers(2)).get
-          ) :: Nil,
-          true
+          localPeers(0)._1,
+          List(
+            DisconnectedPeer.tupled(LocalPeer.unapply(localPeers(5)._1).get),
+            DisconnectedPeer.tupled(LocalPeer.unapply(localPeers(2)._1).get)
+          ),
+          true,
+          localPeers(0)._2
         ),
-        (localPeers(1), DisconnectedPeer.tupled(LocalPeer.unapply(localPeers(0)).get) :: Nil, true),
-        (localPeers(2), DisconnectedPeer.tupled(LocalPeer.unapply(localPeers(1)).get) :: Nil, true),
-        (localPeers(3), DisconnectedPeer.tupled(LocalPeer.unapply(localPeers(5)).get) :: Nil, true),
-        (localPeers(4), DisconnectedPeer.tupled(LocalPeer.unapply(localPeers(3)).get) :: Nil, true),
-        (localPeers(5), DisconnectedPeer.tupled(LocalPeer.unapply(localPeers(4)).get) :: Nil, true)
+        (
+          localPeers(1)._1,
+          List(DisconnectedPeer.tupled(LocalPeer.unapply(localPeers(0)._1).get)),
+          true,
+          localPeers(1)._2
+        ),
+        (
+          localPeers(2)._1,
+          List(DisconnectedPeer.tupled(LocalPeer.unapply(localPeers(1)._1).get)),
+          true,
+          localPeers(2)._2
+        ),
+        (
+          localPeers(3)._1,
+          List(DisconnectedPeer.tupled(LocalPeer.unapply(localPeers(5)._1).get)),
+          true,
+          localPeers(3)._2
+        ),
+        (
+          localPeers(4)._1,
+          List(DisconnectedPeer.tupled(LocalPeer.unapply(localPeers(3)._1).get)),
+          true,
+          localPeers(4)._2
+        ),
+        (
+          localPeers(5)._1,
+          List(DisconnectedPeer.tupled(LocalPeer.unapply(localPeers(4)._1).get)),
+          true,
+          localPeers(5)._2
+        )
       ).zipWithIndex
       stakers = computeStakers(configurations.length, random)
-      _ <- configurations.parTraverse { case ((localPeer, remotes, stakingEnabled), stakerIndex) =>
-        runInstance(localPeer, remotes, stakers, stakerIndex, stakingEnabled, genesisTimestamp)
+      _ <- configurations.parTraverse { case ((localPeer, remotes, stakingEnabled, stakerName), stakerIndex) =>
+        runInstance(localPeer, remotes, stakers, stakerName, stakerIndex, stakingEnabled, genesisTimestamp)
       }
     } yield ()
   }
@@ -267,6 +294,7 @@ object TetraSuperDemo extends IOApp {
     localPeer:        LocalPeer,
     remotes:          List[DisconnectedPeer],
     stakers:          List[Staker],
+    stakerName:       String,
     stakerIndex:      Int,
     stakingEnabled:   Boolean,
     genesisTimestamp: Instant
@@ -280,7 +308,7 @@ object TetraSuperDemo extends IOApp {
         ed25519Resource    <- ActorPoolUnsafeResource.Eval.make[F, Ed25519](new Ed25519, _ => ())
         loggerColor = loggerColors(stakerIndex).toString
         implicit0(logger: Logger[F]) = Slf4jLogger
-          .getLoggerFromName[F](s"${loggerColor}TetraSuperDemo$stakerIndex${Console.RESET}")
+          .getLoggerFromName[F](s"${loggerColor}$stakerName${Console.RESET}")
           .withModifiedString(str => s"$loggerColor$str${Console.RESET}")
         blockHeaderStore <- RefStore.Eval.make[F, BlockHeaderV2]()
         blockBodyStore   <- RefStore.Eval.make[F, BlockBodyV2]()
@@ -349,7 +377,14 @@ object TetraSuperDemo extends IOApp {
             localPeer,
             Source.single(remotes).delay(2.seconds).mapConcat(identity).concat(Source.never),
             (peer, flow) => {
-              val delayer = SimulatedGeospatialDelayFlow(localPeer.coordinate, peer.coordinate)
+              val delayer =
+                SimulatedGeospatialDelayFlow(
+                  localPeer.coordinate,
+                  peer.coordinate,
+                  durationPerKilometer = 10.micros,
+                  durationPerByte = 1.micros,
+                  noise = 30.milli
+                )
               Flow[ByteString].via(delayer).viaMat(flow)(Keep.right).via(delayer)
             }
           )

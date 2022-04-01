@@ -21,13 +21,18 @@ trait BlockchainClientHandler[F[_]] {
 
 object BlockchainClientHandler {
 
+  /**
+   * A naive `BlockchainClientHandler` which fetches each block that is notified by a remote peer.  If the fetched
+   * block's parent is missing on this node, it is also requested from the peer. Once all missing blocks have been
+   * fetched, the original block is signaled out to the program using the provided `onBlockReceived` callback
+   */
   object FetchAllBlocks {
 
     def make[F[_]: Async: Concurrent: Logger: FToFuture](
       headerStore:      Store[F, BlockHeaderV2],
       bodyStore:        Store[F, BlockBodyV2],
       transactionStore: Store[F, Transaction],
-      onBlockReceived:  BlockV2 => F[Unit]
+      onBlockReceived:  BlockV2 => F[Unit] // TODO: Sink[BlockV2]
     )(implicit system:  ActorSystem[_]): F[BlockchainClientHandler[F]] =
       Sync[F].delay(
         (

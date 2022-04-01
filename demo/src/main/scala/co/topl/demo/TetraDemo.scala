@@ -287,10 +287,10 @@ object TetraDemo extends IOApp {
           transactionStore,
           localChain,
           ed25519VRFResource,
-          "host",
+          "localhost",
           demoArgs.port,
           LocalPeer(InetSocketAddress.createUnresolved("localhost", demoArgs.port), (0, 0)),
-          Source(demoArgs.remotes).concat(Source.never),
+          Source(demoArgs.remotes).delay(2.seconds).concat(Source.never),
           (_, flow) => flow
         )
     } yield ()
