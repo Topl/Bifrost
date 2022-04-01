@@ -62,9 +62,9 @@ class History(
 
   override protected def persistenceAccessors: Iterator[ModifierId => Option[Block]] =
     Iterator(
-      id => if (id == History.GenesisParentId) Some(Block.genesisParent) else None,
       id => storage.modifierById(id),
-      id => tineProcessor.getCacheBlock(id).map(_.block)
+      id => tineProcessor.getCacheBlock(id).map(_.block),
+      id => if (id == History.GenesisParentId) Some(Block.genesisParent) else None
     )
 
   private def isGenesis(b: Block): Boolean = b.parentId == History.GenesisParentId

@@ -363,7 +363,7 @@ object NodeViewHolderSpec {
     )
 
     testProbe
-      .fishForMessage(5000.millis) {
+      .fishForMessage(10000.millis) {
         case StatusReply.Success(values: Seq[T]) if search(values) =>
           FishingOutcome.Complete
         case _ =>
