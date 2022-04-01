@@ -13,6 +13,11 @@ class MockConsensusReader(view: NxtConsensus.View)(implicit executionContext: Ex
     EitherT.right[ConsensusInterface.WithViewFailure](
       Future.fromTry(Try(f(view)))
     )
+
+  override def readState: EitherT[Future, ConsensusInterface.ReadStateFailure, NxtConsensus.State] =
+    EitherT.right[ConsensusInterface.ReadStateFailure](
+      Future.successful(view.state)
+    )
 }
 
 object MockConsensusReader {

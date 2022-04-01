@@ -2,7 +2,8 @@ package co.topl.nodeView
 
 import akka.actor.testkit.typed.FishingOutcome
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
-import akka.actor.typed.ActorRef
+import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.typed.scaladsl.AskPattern.Askable
 import akka.actor.typed.scaladsl.Behaviors
 import akka.pattern.StatusReply
 import cats.implicits._
@@ -10,6 +11,7 @@ import co.topl.attestation.keyManagement._
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus._
 import co.topl.crypto.signatures.Curve25519
+import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{PolyTransfer, Transaction}
 import co.topl.nodeView.history.{History, InMemoryKeyValueStore, MockImmutableBlockHistory, Storage}
@@ -17,14 +19,15 @@ import co.topl.nodeView.mempool.{MemPool, UnconfirmedTx}
 import co.topl.nodeView.state.MockState
 import co.topl.settings.Version
 import co.topl.utils.TimeProvider.Time
-import co.topl.utils.{NodeGenerators, TestSettings, TimeProvider}
+import co.topl.utils.{NetworkPrefixTestHelper, NodeGenerators, TestSettings, TimeProvider}
 import org.scalacheck.Gen
+import org.scalamock.matchers.Matchers
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.immutable.ListMap
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
 class NodeViewHolderSpec
@@ -155,17 +158,19 @@ class NodeViewHolderSpec
     }
   }
 
-  it should "append a valid block to history when receiving the write blocks message" in {
-    forAll(blockChainGen) { blockchain =>
+  it should "place multiple orphan blocks into history tineProcessor when receiving the write blocks message" in {
+    forAll(
+      genesisBlockGen
+    ) { genesisBlock =>
+      val newBlocks = Gen.listOfN(5, blockCurve25519Gen(Some(Seq.empty))).sample.get
+      val newBlockIds = newBlocks.map(_.id) // eval the block ids since they are lazy
+
       val consensusView =
         NxtConsensus.View(
           NxtConsensus.State(10000, 10000, 10000, 10000),
           new NxtLeaderElection(ProtocolVersioner.default),
           _ => Seq.empty
         )
-
-      val genesisBlock = blockchain.head
-      val newBlock = blockchain.tail.head
 
       val existingHistory =
         History(TestSettings.defaultSettings, new Storage(new InMemoryKeyValueStore()))
@@ -186,21 +191,28 @@ class NodeViewHolderSpec
         override def time: Time = 0L
       }
 
-      val testProbe = createTestProbe[StatusReply[Seq[Block]]]()
+      val testProbe = createTestProbe[StatusReply[Seq[ModifierId]]]()
 
       val testProbeActor =
-        spawn(Behaviors.monitor[StatusReply[Seq[Block]]](testProbe.ref, Behaviors.ignore))
+        spawn(Behaviors.monitor[StatusReply[Seq[ModifierId]]](testProbe.ref, Behaviors.ignore))
 
       val underTest =
         spawn(NodeViewHolder(TestSettings.defaultSettings, consensusReader, () => Future.successful(nodeView)))
 
-      underTest.tell(NodeViewHolder.ReceivableMessages.WriteBlocks(List(newBlock)))
+      val mapReadMessage = (view: ReadableNodeView) => newBlockIds.filter(view.history.contains)
 
-      underTest.tell(
-        NodeViewHolder.ReceivableMessages.Read(view => view.history.filter(_.id == newBlock.id), testProbeActor)
-      )
+      newBlocks.foreach(block => underTest.tell(NodeViewHolder.ReceivableMessages.WriteBlock(block)))
 
-      testProbe.receiveMessage().getValue should contain(newBlock)
+      val historyResult =
+        NodeViewHolderSpec.searchInNodeView[ModifierId](
+          blockIds => newBlockIds.forall(blockIds.contains),
+          mapReadMessage,
+          underTest,
+          testProbeActor,
+          testProbe
+        )
+
+      newBlockIds.foreach(historyResult.contains)
     }
   }
 
@@ -243,15 +255,14 @@ class NodeViewHolderSpec
       val underTest =
         spawn(NodeViewHolder(TestSettings.defaultSettings, consensusReader, () => Future.successful(nodeView)))
 
-      underTest.tell(NodeViewHolder.ReceivableMessages.WriteBlocks(newBlocks))
+      val mapReadMessage = (view: ReadableNodeView) => newBlocks.filter(view.history.contains)
 
-      underTest.tell(
-        NodeViewHolder.ReceivableMessages.Read(view => view.history.filter(_ => true), testProbeActor)
-      )
+      newBlocks.foreach(block => underTest.tell(NodeViewHolder.ReceivableMessages.WriteBlock(block)))
 
       val historyResult =
-        NodeViewHolderSpec.searchBlocksInNodeView(
-          blocks => newBlocks.forall(blocks.contains),
+        NodeViewHolderSpec.searchInNodeView[Block](
+          blockIds => newBlocks.forall(blockIds.contains),
+          mapReadMessage,
           underTest,
           testProbeActor,
           testProbe
@@ -309,22 +320,20 @@ class NodeViewHolderSpec
 
       testProbe.receiveMessage().getValue.isEmpty shouldBe true
 
+      val mapReadMessage = (view: ReadableNodeView) => List(firstNewBlock, secondNewBlock).filter(view.history.contains)
+
       underTest.tell(NodeViewHolder.ReceivableMessages.WriteBlocks(List(secondNewBlock)))
 
-      underTest.tell(
-        NodeViewHolder.ReceivableMessages
-          .Read(view => view.history.filter(block => block.id == firstNewBlock.id), testProbeActor)
-      )
-
       val historyResult =
-        NodeViewHolderSpec.searchBlocksInNodeView(
+        NodeViewHolderSpec.searchInNodeView[Block](
           blocks => blocks.contains(firstNewBlock),
+          mapReadMessage,
           underTest,
           testProbeActor,
           testProbe
         )
 
-      historyResult should contain(firstNewBlock)
+      List(firstNewBlock, secondNewBlock).forall(historyResult.contains) shouldBe true
     }
   }
 }
@@ -339,27 +348,33 @@ object NodeViewHolderSpec {
    * @param testProbe a test probe which can be used to check for response messages from the node view
    * @return the set of blocks in the node view if the search ever matched
    */
-  def searchBlocksInNodeView(
-    search:         Seq[Block] => Boolean,
+  def searchInNodeView[T](
+    search:         Seq[T] => Boolean,
+    mapView:        ReadableNodeView => Seq[T],
     nodeViewHolder: ActorRef[NodeViewHolder.ReceivableMessage],
-    testProbeActor: ActorRef[StatusReply[Seq[Block]]],
-    testProbe:      TestProbe[StatusReply[Seq[Block]]]
-  ): Seq[Block] =
+    testProbeActor: ActorRef[StatusReply[Seq[T]]],
+    testProbe:      TestProbe[StatusReply[Seq[T]]]
+  ): Seq[T] = {
     // A "creative" solution for waiting on the Node View Holder to write all the blocks in its cache to history.
     // If the Read message comes back without the new blocks, ignore it and try sending another read message.
     // This block will return no messages if the history was never updated correctly.
+    nodeViewHolder.tell(
+      NodeViewHolder.ReceivableMessages.Read(mapView, testProbeActor)
+    )
+
     testProbe
-      .fishForMessage(500.millis) {
-        case StatusReply.Success(blocks: Seq[Block]) if search(blocks) =>
+      .fishForMessage(5000.millis) {
+        case StatusReply.Success(values: Seq[T]) if search(values) =>
           FishingOutcome.Complete
         case _ =>
           nodeViewHolder.tell(
-            NodeViewHolder.ReceivableMessages.Read(view => view.history.filter(_ => true), testProbeActor)
+            NodeViewHolder.ReceivableMessages.Read(mapView, testProbeActor)
           )
           FishingOutcome.ContinueAndIgnore
       }
       .headOption
       .toList
       .flatMap(result => if (result.isSuccess) result.getValue else Seq.empty)
+  }
 
 }

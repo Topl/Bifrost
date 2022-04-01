@@ -1,10 +1,12 @@
 package co.topl.modifier.block
 
 import co.topl.attestation.EvidenceProducer.Syntax._
-import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.attestation.{Evidence, PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.crypto.PublicKey
+import co.topl.crypto.signatures.Curve25519
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
-import co.topl.modifier.box.ArbitBox
+import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
@@ -52,6 +54,18 @@ case class Block(
 object Block {
 
   val modifierTypeId: NodeViewModifier.ModifierTypeId = ModifierTypeId(3: Byte)
+
+  val genesisParent: Block = Block(
+    ModifierId.genesisParentId,
+    -1L,
+    ArbitBox(Evidence(Array.fill(Evidence.size)(0: Byte)), 0L, SimpleValue(0L)),
+    PublicKeyPropositionCurve25519(PublicKey(Array.fill(Curve25519.KeyLength)(0: Byte))),
+    SignatureCurve25519.empty,
+    -1L,
+    0L,
+    Seq(),
+    1: Byte
+  )
 
   /**
    * Deconstruct a block to its compoennts

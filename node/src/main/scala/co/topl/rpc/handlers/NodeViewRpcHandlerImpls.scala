@@ -5,7 +5,7 @@ import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, InvalidParametersError, RpcError, ThrowableData}
 import co.topl.attestation.Address
-import co.topl.consensus.{ConsensusInterface, ConsensusReader, ProtocolVersioner}
+import co.topl.consensus.{ConsensusInterface, ConsensusReader, NxtConsensus, ProtocolVersioner}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
@@ -40,14 +40,16 @@ class NodeViewRpcHandlerImpls(
 
   override val head: ToplRpc.NodeView.Head.rpc.ServerHandler =
     _ =>
-      withNodeView(view =>
-        ToplRpc.NodeView.Head.Response(
-          view.history.height,
-          view.history.score,
-          view.history.bestBlockId,
-          view.history.bestBlock
+      for {
+        consensusState <- withConsensusState(identity)(consensusReader)
+        nodeView       <- withNodeView(identity)
+        response = ToplRpc.NodeView.Head.Response(
+          consensusState.height,
+          consensusState.difficulty,
+          nodeView.history.bestBlockId,
+          nodeView.history.bestBlock
         )
-      )
+      } yield response
 
   override val headInfo: ToplRpc.NodeView.HeadInfo.rpc.ServerHandler =
     _ =>
@@ -238,4 +240,11 @@ class NodeViewRpcHandlerImpls(
 
   private def withNodeView[T](f: ReadableNodeView => T): EitherT[Future, RpcError, T] =
     readFromNodeViewHolder(nodeViewHolderInterface)(f)
+
+  private def withConsensusState[T](f: NxtConsensus.State => T)(
+    consensusReader:                   ConsensusReader
+  ): EitherT[Future, RpcError, T] =
+    consensusReader.readState
+      .map(f)
+      .leftMap(e => CustomError(-32099, e.toString): RpcError)
 }

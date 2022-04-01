@@ -37,7 +37,7 @@ object NxtConsensus {
   sealed abstract class ReceivableMessage
 
   object ReceivableMessages {
-    case class ReadState(replyTo: ActorRef[State]) extends ReceivableMessage
+    case class ReadState(replyTo: ActorRef[StatusReply[State]]) extends ReceivableMessage
 
     case class WithView[T](f: NxtConsensus.View => T, replyTo: ActorRef[StatusReply[T]]) extends ReceivableMessage {
 
@@ -67,9 +67,9 @@ object NxtConsensus {
   )
 
   case class View(
-    state:            State,
-    leaderElection:   NxtLeaderElection,
-    validators:       NxtConsensus.State => Seq[BlockValidator[_]]
+    state:          State,
+    leaderElection: NxtLeaderElection,
+    validators:     NxtConsensus.State => Seq[BlockValidator[_]]
   )
 
   case class Genesis(block: Block, state: State)
@@ -83,8 +83,8 @@ object NxtConsensus {
    * @param storageOpt  optional KeyValueStore for manual initialization or testing
    */
   def apply(
-    settings: AppSettings,
-    storage:  KeyValueStore
+    settings:                   AppSettings,
+    storage:                    KeyValueStore
   )(implicit protocolVersioner: ProtocolVersioner): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
       implicit val ec: ExecutionContext = context.executionContext
@@ -107,13 +107,14 @@ object NxtConsensus {
 
       val leaderElection = new NxtLeaderElection(protocolVersioner)
 
-      val validators = (consensusState: NxtConsensus.State) => Seq(
-        new BlockValidators.DifficultyValidator(leaderElection),
-        new BlockValidators.HeightValidator,
-        new BlockValidators.EligibilityValidator(leaderElection, consensusState),
-        new BlockValidators.SyntaxValidator(consensusState),
-        new BlockValidators.TimestampValidator
-      )
+      val validators = (consensusState: NxtConsensus.State) =>
+        Seq(
+          new BlockValidators.DifficultyValidator(leaderElection),
+          new BlockValidators.HeightValidator,
+          new BlockValidators.EligibilityValidator(leaderElection, consensusState),
+          new BlockValidators.SyntaxValidator(consensusState),
+          new BlockValidators.TimestampValidator
+        )
 
       active(storage, View(stateFromStorage(storage), leaderElection, validators))
     }
@@ -134,7 +135,7 @@ object NxtConsensus {
   private def active(storage: KeyValueStore, consensusView: View): Behavior[ReceivableMessage] =
     Behaviors.receivePartial {
       case (_, ReceivableMessages.ReadState(replyTo)) =>
-        replyTo ! consensusView.state
+        replyTo ! StatusReply.success(consensusView.state)
         Behaviors.same
 
       case (_, r: ReceivableMessages.WithView[_]) =>
@@ -225,6 +226,7 @@ object NxtConsensus {
 }
 
 trait ConsensusReader {
+  def readState: EitherT[Future, ConsensusInterface.ReadStateFailure, NxtConsensus.State]
   def withView[T](f: NxtConsensus.View => T): EitherT[Future, ConsensusInterface.WithViewFailure, T]
 }
 
@@ -234,10 +236,10 @@ trait ConsensusInterface extends ConsensusReader {
 
 object ConsensusInterface {
 
+  sealed trait ReadStateFailure
   sealed trait WithViewFailure
 
   object WithViewFailures {
-    case object ConsensusFailedToRead extends WithViewFailure
     case class InternalException(reason: Throwable) extends WithViewFailure
   }
 
@@ -252,6 +254,11 @@ class ActorConsensusInterface(actorRef: ActorRef[NxtConsensus.ReceivableMessage]
 
   import akka.actor.typed.scaladsl.AskPattern._
   import system.executionContext
+
+  override def readState: EitherT[Future, ConsensusInterface.ReadStateFailure, NxtConsensus.State] =
+    EitherT.liftF(
+      actorRef.askWithStatus[NxtConsensus.State](NxtConsensus.ReceivableMessages.ReadState(_))
+    )
 
   override def withView[T](f: NxtConsensus.View => T): EitherT[Future, ConsensusInterface.WithViewFailure, T] = {
     import scala.concurrent.duration._

@@ -18,7 +18,7 @@ object TestableConsensusViewHolder {
     consensusViewHolder: ActorRef[NxtConsensus.ReceivableMessage]
   )(implicit system:     ActorSystem[_]): NxtConsensus.State =
     Await.result(
-      consensusViewHolder.ask[NxtConsensus.State](NxtConsensus.ReceivableMessages.ReadState),
+      consensusViewHolder.askWithStatus[NxtConsensus.State](NxtConsensus.ReceivableMessages.ReadState),
       10.seconds
     )
 

@@ -2,8 +2,9 @@ package co.topl.nodeView.state
 
 import co.topl.modifier.ModifierId
 import co.topl.nodeView.history.InMemoryKeyValueStore
+import co.topl.utils.NetworkPrefixTestHelper
 
-object MockState {
+object MockState extends NetworkPrefixTestHelper {
 
   def empty: State =
     new State(
@@ -11,5 +12,5 @@ object MockState {
       InMemoryKeyValueStore.empty,
       new TokenBoxRegistry(InMemoryKeyValueStore.empty),
       new ProgramBoxRegistry(InMemoryKeyValueStore.empty)
-    )(10.toByte)
+    )
 }

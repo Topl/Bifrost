@@ -42,8 +42,6 @@ class History(
   lazy val bestBlockId: ModifierId = storage.bestBlockId
   lazy val bestBlock: Block = storage.bestBlock
   lazy val height: Long = storage.heightAt(bestBlockId)
-  lazy val score: Long = storage.scoreAt(bestBlockId)
-  lazy val difficulty: Long = storage.difficultyAt(bestBlockId)
 
   /** Public method to close storage */
   override def close(): Unit = {
@@ -56,16 +54,18 @@ class History(
 
   override def applicable(block: Block): Boolean = storage.containsModifier(block.parentId)
 
-  override def modifierById(id: ModifierId): Option[Block] = storage.modifierById(id)
-
   override def modifierByHeight(height: Long): Option[Block] =
     storage.idAtHeightOf(height).flatMap(storage.modifierById)
 
   def transactionById(id: ModifierId): Option[(Transaction.TX, ModifierId, Long)] =
     storage.lookupConfirmedTransaction(id)
 
-  override def contains(id: ModifierId): Boolean =
-    (id == History.GenesisParentId) || storage.containsModifier(id) || tineProcessor.contains(id)
+  override protected def persistenceAccessors: Iterator[ModifierId => Option[Block]] =
+    Iterator(
+      id => if (id == History.GenesisParentId) Some(Block.genesisParent) else None,
+      id => storage.modifierById(id),
+      id => tineProcessor.getCacheBlock(id).map(_.block)
+    )
 
   private def isGenesis(b: Block): Boolean = b.parentId == History.GenesisParentId
 
@@ -526,6 +526,7 @@ class History(
     }
 
   override def idAtHeightOf(height: Long): Option[ModifierId] = storage.idAtHeightOf(height)
+
 }
 
 object History extends Logging {

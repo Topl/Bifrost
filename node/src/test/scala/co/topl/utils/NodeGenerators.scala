@@ -31,8 +31,8 @@ trait NodeGenerators extends CommonGenerators {
 
   lazy val nxtConsensusGenesisGen: Gen[NxtConsensus.Genesis] = for {
     addresses         <- nonEmptySetAddressGen
-    balancePerAddress <- positiveLongGen
-    initialDifficulty <- positiveLongGen
+    balancePerAddress <- positiveMediumIntGen
+    initialDifficulty <- positiveMediumIntGen
     blockVersion      <- Gen.choose[Byte](0, Byte.MaxValue)
   } yield GenesisProvider.construct(addresses, balancePerAddress, initialDifficulty, blockVersion)
 

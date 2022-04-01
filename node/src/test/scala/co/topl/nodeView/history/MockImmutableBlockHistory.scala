@@ -15,9 +15,11 @@ import scala.util.Try
  * An immutable mock block history. Will throw a [[NotImplementedError]] when mutate functions are called.
  * @param blocks the immutable set of blocks representing history
  */
-class MockImmutableBlockHistory(blocks: List[Block])
-    extends GenericHistory[Block, BifrostSyncInfo, History] {
+class MockImmutableBlockHistory(blocks: List[Block]) extends GenericHistory[Block, BifrostSyncInfo, History] {
   override type NVCT = this.type
+
+  override protected def persistenceAccessors: Iterator[ModifierId => Option[Block]] =
+    Iterator(modifierId => blocks.find(_.id == modifierId))
 
   override def isEmpty: Boolean = blocks.isEmpty
 
@@ -49,11 +51,7 @@ class MockImmutableBlockHistory(blocks: List[Block])
 
   override def bestBlock: Block = blocks.last
 
-  override def difficulty: Long = bestBlock.difficulty
-
   override def bestBlockId: ModifierId = bestBlock.id
-
-  override def score: Long = throw new NotImplementedError()
 
   override def filter(f: Block => Boolean): Seq[Block] = blocks.filter(f)
 
@@ -61,8 +59,7 @@ class MockImmutableBlockHistory(blocks: List[Block])
     blocks.find(_ == m).flatMap(block => blocks.find(_.id == block.parentId))
 
   override def getTimestampsFrom(startBlock: Block, count: Long): Vector[Time] =
-    blocks
-      .reverse
+    blocks.reverse
       .takeWhile(_ != startBlock)
       .reverse
       .take(count.toInt)
@@ -90,8 +87,7 @@ class MockImmutableBlockHistory(blocks: List[Block])
     blocks.find(_.height == height).map(_.id)
 
   override def getIdsFrom(startBlock: Block, until: Block => Boolean, limit: Int): Option[Seq[ModifierId]] =
-    blocks
-      .reverse
+    blocks.reverse
       .takeWhile(_ != startBlock)
       .reverse
       .takeWhile(block => !until(block))
@@ -101,7 +97,10 @@ class MockImmutableBlockHistory(blocks: List[Block])
 }
 
 object MockImmutableBlockHistory {
-  def apply(blocks: List[Block]): GenericHistory[Block, BifrostSyncInfo, History] = new MockImmutableBlockHistory(blocks)
+
+  def apply(blocks: List[Block]): GenericHistory[Block, BifrostSyncInfo, History] = new MockImmutableBlockHistory(
+    blocks
+  )
 
   def empty: GenericHistory[Block, BifrostSyncInfo, History] = new MockImmutableBlockHistory(List.empty)
 }

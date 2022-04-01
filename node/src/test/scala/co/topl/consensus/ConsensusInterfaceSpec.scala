@@ -45,10 +45,10 @@ class ConsensusInterfaceSpec
       .onCall(() => System.currentTimeMillis())
 
     consensusActorTest { testInWithActors =>
-      val probe = createTestProbe[State]()
+      val probe = createTestProbe[StatusReply[State]]()
       Thread.sleep(0.1.seconds.toMillis)
       testInWithActors.consensusViewRef ! ReadState(probe.ref)
-      probe.expectMessage(testInWithActors.genesis.state)
+      probe.expectMessage(StatusReply.success(testInWithActors.genesis.state))
     }
   }
 
@@ -60,7 +60,7 @@ class ConsensusInterfaceSpec
       .onCall(() => System.currentTimeMillis())
 
     consensusActorTest { testInWithActors =>
-      val probe = createTestProbe[State]()
+      val probe = createTestProbe[StatusReply[State]]()
       // omitting the generated genesis from blockchainGen
       val newBlocks = blockchainGen((settings.application.consensusStoreVersionsToKeep / 2).toByte).sample.value.tail
       Thread.sleep(0.1.seconds.toMillis)
@@ -71,11 +71,13 @@ class ConsensusInterfaceSpec
       testInWithActors.consensusViewRef ! ReadState(probe.ref)
       // Increasing the newBlock number by one as the height since we start out with a genesis block
       probe.expectMessage(
-        NxtConsensus.State(
-          testInWithActors.genesis.state.totalStake,
-          newBlocks.last.difficulty,
-          0L,
-          newBlocks.length + 1
+        StatusReply.success(
+          NxtConsensus.State(
+            testInWithActors.genesis.state.totalStake,
+            newBlocks.last.difficulty,
+            0L,
+            newBlocks.length + 1
+          )
         )
       )
     }
@@ -90,7 +92,7 @@ class ConsensusInterfaceSpec
       .anyNumberOfTimes()
       .onCall(() => System.currentTimeMillis())
 
-    val probe = createTestProbe[State]()
+    val probe = createTestProbe[StatusReply[State]]()
     val store = InMemoryKeyValueStore.empty
     val consensusStorageRef = spawn(
       NxtConsensus(settings, store),
