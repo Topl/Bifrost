@@ -41,7 +41,7 @@ object EntropyToSeed {
 
   trait Instances {
 
-    def pbkdf2Sha512[SeedLength <: Length](implicit seedLength: SeedLength): EntropyToSeed[SeedLength] =
+    implicit def pbkdf2Sha512[SeedLength <: Length](implicit seedLength: SeedLength): EntropyToSeed[SeedLength] =
       (entropy: Entropy, password: Option[Password]) => {
         val kdf = new Pbkdf2Sha512()
         Sized.strictUnsafe(

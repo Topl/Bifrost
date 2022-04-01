@@ -1,11 +1,14 @@
 package co.topl.crypto.signing
 
+import co.topl.crypto.generation.Pbkdf2Sha512
+import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.{Lengths, Sized}
 import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
 import org.whispersystems.curve25519.OpportunisticCurve25519Provider
 
 import java.lang.reflect.Constructor
+import java.nio.charset.StandardCharsets
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 class Curve25519
@@ -71,6 +74,7 @@ class Curve25519
 
   override def getVerificationKey(secretKey: SecretKeys.Curve25519): VerificationKeys.Curve25519 =
     VerificationKeys.Curve25519(Sized.strictUnsafe(Bytes(provider.generatePublicKey(secretKey.bytes.data.toArray))))
+
 }
 
 object Curve25519 {
