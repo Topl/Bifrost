@@ -245,12 +245,14 @@ object NodeViewHolder {
           Behaviors.same
 
         case (context, ReceivableMessages.WriteBlock(block)) =>
-          context.pipeToSelf(consensusViewer.withView[NxtConsensus.View](identity).value) {
+          context.pipeToSelf(
+            consensusViewer.withView(ReceivableMessages.WriteBlockWithConsensusView(block, _)).value
+          ) {
             _.fold(
               error => ReceivableMessages.Terminate(error),
               _.fold(
                 error => ReceivableMessages.Terminate(new IllegalArgumentException(error.toString)),
-                view => ReceivableMessages.WriteBlockWithConsensusView(block, view)
+                identity
               )
             )
           }

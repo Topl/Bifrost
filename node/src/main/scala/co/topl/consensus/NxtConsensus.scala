@@ -257,7 +257,7 @@ class ActorConsensusInterface(actorRef: ActorRef[NxtConsensus.ReceivableMessage]
 
   override def readState: EitherT[Future, ConsensusInterface.ReadStateFailure, NxtConsensus.State] =
     EitherT.liftF(
-      actorRef.askWithStatus[NxtConsensus.State](NxtConsensus.ReceivableMessages.ReadState(_))
+      actorRef.askWithStatus[NxtConsensus.State](NxtConsensus.ReceivableMessages.ReadState)
     )
 
   override def withView[T](f: NxtConsensus.View => T): EitherT[Future, ConsensusInterface.WithViewFailure, T] = {

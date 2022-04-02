@@ -163,7 +163,7 @@ class NodeViewHolderSpec
       genesisBlockGen
     ) { genesisBlock =>
       val newBlocks = Gen.listOfN(5, blockCurve25519Gen(Some(Seq.empty))).sample.get
-      val newBlockIds = newBlocks.map(_.id) // eval the block ids since they are lazy
+      val newBlockIds = newBlocks.map(_.id)
 
       val consensusView =
         NxtConsensus.View(
@@ -255,14 +255,12 @@ class NodeViewHolderSpec
       val underTest =
         spawn(NodeViewHolder(TestSettings.defaultSettings, consensusReader, () => Future.successful(nodeView)))
 
-      val mapReadMessage = (view: ReadableNodeView) => newBlocks.filter(view.history.contains)
-
       newBlocks.foreach(block => underTest.tell(NodeViewHolder.ReceivableMessages.WriteBlock(block)))
 
       val historyResult =
         NodeViewHolderSpec.searchInNodeView[Block](
-          blockIds => newBlocks.forall(blockIds.contains),
-          mapReadMessage,
+          (blocks: Seq[Block]) => newBlocks.forall(blocks.contains),
+          (view: ReadableNodeView) => newBlocks.filter(view.history.contains),
           underTest,
           testProbeActor,
           testProbe

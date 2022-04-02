@@ -61,7 +61,7 @@ trait ValidBlockchainGenerator extends NetworkPrefixTestHelper {
       )(allArbitBoxesIterator)
       .getOrThrow(e => new Exception(e.toString))
 
-    val tailBlocks = (2 to lengthOfChain).foldLeft(NonEmptyChain(genesis.block)) { case (chain, height) =>
+    val blockchain = (2 to lengthOfChain).foldLeft(NonEmptyChain(genesis.block)) { case (chain, height) =>
       val newTimestamp = chain.last.timestamp + timeBetweenBlocks
       appendBlock(
         chain,
@@ -79,7 +79,7 @@ trait ValidBlockchainGenerator extends NetworkPrefixTestHelper {
       )
     }
 
-    GenesisHeadChain(genesis.block, tailBlocks)
+    GenesisHeadChain(blockchain.head, NonEmptyChain.fromChain(blockchain.tail).get)
   }
 
   private def appendBlock(
