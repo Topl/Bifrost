@@ -8,12 +8,13 @@ import cats.effect.kernel.Sync
 import cats.effect.{Async, IO, IOApp}
 import cats.implicits._
 import cats.~>
+import co.topl.catsakka._
 import co.topl.consensus.LeaderElectionValidation
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.mnemonic.Entropy
 import co.topl.crypto.signing.Ed25519VRF
-import co.topl.interpreters.{ActorPoolUnsafeResource, AkkaSchedulerClock, NodeViewHolder, StatsInterpreter}
+import co.topl.interpreters.{ActorPoolUnsafeResource, AkkaSchedulerClock, StatsInterpreter}
 import co.topl.models.utility.Ratio
 import co.topl.numerics.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits.Ops

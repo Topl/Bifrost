@@ -421,7 +421,7 @@ lazy val commonInterpreters = project
   )
   .settings(libraryDependencies ++= Dependencies.commonInterpreters)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, algebras, typeclasses, byteCodecs, tetraByteCodecs)
+  .dependsOn(models, algebras, typeclasses, byteCodecs, tetraByteCodecs, catsAkka)
 
 lazy val consensus = project
   .in(file("consensus"))

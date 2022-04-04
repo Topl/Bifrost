@@ -4,16 +4,15 @@ import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import akka.stream.scaladsl.{Flow, Keep, Source}
 import akka.util.{ByteString, Timeout}
-import cats.arrow.FunctionK
 import cats.data.OptionT
 import cats.effect.implicits._
 import cats.effect.kernel.Sync
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig}
 import cats.effect.{Async, ExitCode, IO, IOApp}
 import cats.implicits._
-import cats.~>
 import co.topl.algebras.ClockAlgebra.implicits.ClockOps
 import co.topl.algebras._
+import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
@@ -28,7 +27,7 @@ import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility._
-import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer, SimulatedGeospatialDelayFlow}
+import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer, Locations, SimulatedGeospatialDelayFlow}
 import co.topl.numerics.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._
@@ -40,7 +39,6 @@ import java.nio.file.{Files, Paths}
 import java.security.SecureRandom
 import java.time.Instant
 import java.util.UUID
-import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Random
 
@@ -206,10 +204,6 @@ object TetraSuperDemo extends IOApp {
     } yield perpetual
 
   // Program definition
-
-  implicit val fToIo: F ~> IO = FunctionK.id
-
-  implicit val fToFuture: F ~> Future = FunctionK.liftFunction(_.unsafeToFuture()(runtime))
 
   private val loggerColors = List(
     Console.MAGENTA,

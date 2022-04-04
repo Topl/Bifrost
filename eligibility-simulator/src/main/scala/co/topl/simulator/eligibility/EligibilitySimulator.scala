@@ -12,6 +12,7 @@ import cats.effect.{Async, IO, IOApp}
 import cats.implicits._
 import cats.~>
 import co.topl.algebras._
+import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig

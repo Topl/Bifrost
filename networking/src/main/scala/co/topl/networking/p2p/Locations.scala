@@ -1,4 +1,4 @@
-package co.topl.demo
+package co.topl.networking.p2p
 
 object Locations {
   val KansasUSA = (5.387547d, 21.358785d)

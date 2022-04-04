@@ -1,4 +1,4 @@
-package co.topl.interpreters
+package co.topl.catsakka
 
 import akka.actor.typed.{ActorSystem, DispatcherSelector, Extension, ExtensionId}
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
@@ -7,7 +7,7 @@ import scala.concurrent.duration.FiniteDuration
 
 class AkkaCatsRuntime(system: ActorSystem[_]) extends Extension {
 
-  val ioRuntimeConfig = IORuntimeConfig.apply()
+  val ioRuntimeConfig: IORuntimeConfig = IORuntimeConfig.apply()
 
   val scheduler: Scheduler = new Scheduler {
 
