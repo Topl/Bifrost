@@ -4,45 +4,20 @@ import cats.Functor
 import cats.data.OptionT
 import co.topl.models.TypedIdentifier
 
-trait StoreReader[F[_], T] {
-  outer =>
-  def get(id: TypedIdentifier): F[Option[T]]
+trait GenStoreReader[F[_], Key, T] {
+  def get(id: Key): F[Option[T]]
 
-  def contains(id: TypedIdentifier): F[Boolean]
-
-  def mapRead[U](f: T => U)(implicit functor: Functor[F]): StoreReader[F, U] = new StoreReader[F, U] {
-    def get(id: TypedIdentifier): F[Option[U]] = OptionT(outer.get(id)).map(f).value
-
-    def contains(id: TypedIdentifier): F[Boolean] = outer.contains(id)
-  }
+  def contains(id: Key): F[Boolean]
 }
 
-trait StoreWriter[F[_], T] {
-  o =>
-  def put(id:    TypedIdentifier, t: T): F[Unit]
-  def remove(id: TypedIdentifier): F[Unit]
+trait StoreReader[F[_], T] extends GenStoreReader[F, TypedIdentifier, T]
 
-  def mapWrite[U](f: U => T)(implicit functor: Functor[F]): StoreWriter[F, U] =
-    new StoreWriter[F, U] {
-      def put(id: TypedIdentifier, t: U): F[Unit] = o.put(id, f(t))
-
-      def remove(id: TypedIdentifier): F[Unit] = o.remove(id)
-    }
+trait GenStoreWriter[F[_], Key, T] {
+  def put(id:    Key, t: T): F[Unit]
+  def remove(id: Key): F[Unit]
 }
 
-trait Store[F[_], T] extends StoreReader[F, T] with StoreWriter[F, T] {
-  o =>
+trait StoreWriter[F[_], T] extends GenStoreWriter[F, TypedIdentifier, T]
 
-  def imapReadWrite[U](f: T => U)(g: U => T)(implicit functor: Functor[F]): Store[F, U] =
-    new Store[F, U] {
-      private val rMap = o.mapRead[U](f)
-      private val wMap = o.mapWrite[U](g)
-      def put(id: TypedIdentifier, t: U): F[Unit] = wMap.put(id, t)
-
-      def remove(id: TypedIdentifier): F[Unit] = wMap.remove(id)
-
-      def get(id: TypedIdentifier): F[Option[U]] = rMap.get(id)
-
-      def contains(id: TypedIdentifier): F[Boolean] = rMap.contains(id)
-    }
-}
+trait GenStore[F[_], Key, T] extends GenStoreReader[F, Key, T] with GenStoreWriter[F, Key, T]
+trait Store[F[_], T] extends GenStore[F, TypedIdentifier, T]

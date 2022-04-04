@@ -14,6 +14,7 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LocalChainAlgebra}
 import co.topl.consensus.{BlockHeaderV2Ops, BlockHeaderValidationFailure}
 import co.topl.crypto.signing.Ed25519VRF
+import co.topl.eventtree.EventSourcedState
 import co.topl.minting.algebras.PerpetualBlockMintAlgebra
 import co.topl.models._
 import co.topl.networking.blockchain._
@@ -35,6 +36,7 @@ object DemoProgram {
     bodyStore:          Store[F, BlockBodyV2],
     transactionStore:   Store[F, Transaction],
     localChain:         LocalChainAlgebra[F],
+    blockHeights:       EventSourcedState[F, TypedIdentifier, Long => Option[TypedIdentifier]],
     ed25519VrfResource: UnsafeResource[F, Ed25519VRF],
     host:               String,
     bindPort:           Int,
@@ -76,6 +78,8 @@ object DemoProgram {
         headerStore,
         bodyStore,
         transactionStore,
+        blockHeights,
+        localChain,
         locallyAdoptedBlocksSource
       )
       (p2pServer, p2pFiber) <- BlockchainNetwork

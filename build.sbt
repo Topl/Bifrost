@@ -314,7 +314,7 @@ lazy val numerics = project
   )
   .settings(scalamacrosParadiseSettings)
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.scalacache)
-  .dependsOn(algebras,typeclasses,models)
+  .dependsOn(algebras, typeclasses, models)
 
 lazy val eventTree = project
   .in(file("event-tree"))
@@ -493,7 +493,8 @@ lazy val networking = project
     algebras % "compile->compile;test->test",
     consensus,
     commonInterpreters,
-    catsAkka
+    catsAkka,
+    eventTree
   )
 
 lazy val demo = project
@@ -517,7 +518,16 @@ lazy val demo = project
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.demo ++ Dependencies.catsEffect)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models % "compile->compile;test->test", typeclasses, consensus, minting, scripting, commonInterpreters, networking, catsAkka)
+  .dependsOn(
+    models % "compile->compile;test->test",
+    typeclasses,
+    consensus,
+    minting,
+    scripting,
+    commonInterpreters,
+    networking,
+    catsAkka
+  )
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
 lazy val eligibilitySimulator: Project = project
@@ -548,7 +558,9 @@ lazy val scripting: Project = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.scripting"
   )
-  .settings(libraryDependencies ++= Dependencies.graal ++ Dependencies.catsEffect ++ Dependencies.circe ++ Dependencies.simulacrum)
+  .settings(
+    libraryDependencies ++= Dependencies.graal ++ Dependencies.catsEffect ++ Dependencies.circe ++ Dependencies.simulacrum
+  )
   .settings(libraryDependencies ++= Dependencies.test)
   .settings(scalamacrosParadiseSettings)
 
