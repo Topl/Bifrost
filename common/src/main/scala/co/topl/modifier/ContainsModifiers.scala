@@ -34,11 +34,8 @@ trait ContainsModifiers[MOD <: NodeViewModifier] {
    * @return modifier of type MOD with id == modifierId if exist
    */
   def modifierById(modifierId: ModifierId): Option[MOD] =
-    if (persistenceAccessors.hasNext) {
-      while (persistenceAccessors.hasNext) {
-        val accessorResult = persistenceAccessors.next()(modifierId)
-        if (accessorResult.isDefined) return accessorResult
-      }
-      None
-    } else None
+    persistenceAccessors.foldLeft(none[MOD]) {
+      case (None, check) => check(modifierId)
+      case (some, _)     => some
+    }
 }

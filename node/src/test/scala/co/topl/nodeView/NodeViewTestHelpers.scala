@@ -28,7 +28,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll with InMemoryKeyRingTestHelp
       protocolVersioner
     )(lengthOfChain).sample.get
 
-    val historyComponents = generateHistory(genesisHeadChain.head)
+    val historyComponents = generateHistory(genesisHeadChain.head.block)
     val appenedHistory = historyComponents.copy(
       history = historyComponents.history match {
         case h: History =>
@@ -36,7 +36,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll with InMemoryKeyRingTestHelp
       }
     )
 
-    val stateComponents = generateState(genesisHeadChain.head)
+    val stateComponents = generateState(genesisHeadChain.head.block)
     val appendedState = stateComponents.copy(
       state = stateComponents.state match {
         case h: State => genesisHeadChain.tail.foldLeft(h)((accState, block) => accState.applyModifier(block).get)
@@ -55,7 +55,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll with InMemoryKeyRingTestHelp
       appendedState.tbrStore,
       appendedState.pbrStore,
       NxtConsensus.Genesis(
-        genesisHeadChain.head,
+        genesisHeadChain.head.block,
         NxtConsensus.State(totalStake, genesisHeadChain.tail.last.difficulty, 0L, genesisHeadChain.tail.length + 1)
       )
     )

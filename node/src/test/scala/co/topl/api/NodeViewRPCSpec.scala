@@ -33,7 +33,7 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
 
     val genesisChain = blockchainGen(10).sampleFirst()
     blocks = genesisChain.tail
-    blocksAndTx = (genesisChain.head +: genesisChain.tail).map(b => b -> b.transactions)
+    blocksAndTx = (genesisChain.head.block +: genesisChain.tail).map(b => b -> b.transactions)
     tx = blocksAndTx.last._2.head
     txIdString = tx.id.show
 

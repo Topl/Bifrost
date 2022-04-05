@@ -46,7 +46,7 @@ class ValidBlockchainGeneratorSpec extends AnyPropSpec with ValidBlockchainGener
           ProtocolVersioner.default
         )(length).sample.get
 
-      val extractors = new BlockDataExtractors(nonEmptyBlockchain.head +: nonEmptyBlockchain.tail)
+      val extractors = new BlockDataExtractors(nonEmptyBlockchain.head.block +: nonEmptyBlockchain.tail)
       import extractors._
 
       val validators: Block => Seq[Try[Unit]] = (block: Block) =>

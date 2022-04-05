@@ -230,7 +230,7 @@ class NodeViewHolderSpec
 
       val existingHistory =
         History(TestSettings.defaultSettings, new Storage(new InMemoryKeyValueStore()))
-          .append(genesisBlock, Seq.empty)
+          .append(genesisBlock.block, Seq.empty)
           .get
           ._1
 
@@ -285,7 +285,7 @@ class NodeViewHolderSpec
 
       val existingHistory =
         History(TestSettings.defaultSettings, new Storage(new InMemoryKeyValueStore()))
-          .append(genesisBlock, Seq.empty)
+          .append(genesisBlock.block, Seq.empty)
           .get
           ._1
 

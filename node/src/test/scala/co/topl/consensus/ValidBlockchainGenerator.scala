@@ -12,7 +12,7 @@ import org.scalacheck.Gen
 
 trait ValidBlockchainGenerator extends NetworkPrefixTestHelper {
 
-  case class GenesisHeadChain(head: Block, tail: NonEmptyChain[Block])
+  case class GenesisHeadChain(head: NxtConsensus.Genesis, tail: NonEmptyChain[Block])
 
   def validChainFromGenesis(
     keyRing:           KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
@@ -79,7 +79,7 @@ trait ValidBlockchainGenerator extends NetworkPrefixTestHelper {
       )
     }
 
-    GenesisHeadChain(blockchain.head, NonEmptyChain.fromChain(blockchain.tail).get)
+    GenesisHeadChain(genesis, NonEmptyChain.fromChain(blockchain.tail).get)
   }
 
   private def appendBlock(
