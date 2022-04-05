@@ -17,6 +17,13 @@ services:
 
   genus:
     image: toplprotocol/bifrost-node
-    command: genus -m "mongodb://mongo" -p 9089
+    command: genus -m "mongodb://mongo" -p 8089
+    ports:
+      - 8089:8089
+
+  envoy:
+    image: envoyproxy/envoy-dev
     ports:
       - 9089:9089
+    volumes:
+      - ./genus/src/main/resources/envoy-grpc-web.yaml:/etc/envoy/envoy.yaml
