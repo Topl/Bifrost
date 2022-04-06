@@ -170,9 +170,6 @@ class NodeViewSpec
   property("NodeView should refuse an invalid Block") {
     implicit val timeProvider: TimeProvider = mock[TimeProvider]
 
-//    (() => timeProvider.time)
-//      .expects()
-//      .never()
     (() => timeProvider.time)
       .expects()
       .anyNumberOfTimes()

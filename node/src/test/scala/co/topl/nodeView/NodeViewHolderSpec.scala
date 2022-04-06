@@ -160,11 +160,9 @@ class NodeViewHolderSpec
 
   it should "place multiple orphan blocks into history tineProcessor when receiving the write blocks message" in {
     forAll(
-      genesisBlockGen
-    ) { genesisBlock =>
-      val newBlocks = Gen.listOfN(5, blockCurve25519Gen(Some(Seq.empty))).sample.get
-      val newBlockIds = newBlocks.map(_.id)
-
+      genesisBlockGen,
+      Gen.listOfN(5, blockCurve25519Gen(Some(Seq.empty)))
+    ) { (genesisBlock, orphanBlocks) =>
       val consensusView =
         NxtConsensus.View(
           NxtConsensus.State(10000, 10000, 10000, 10000),
@@ -199,20 +197,21 @@ class NodeViewHolderSpec
       val underTest =
         spawn(NodeViewHolder(TestSettings.defaultSettings, consensusReader, () => Future.successful(nodeView)))
 
-      val mapReadMessage = (view: ReadableNodeView) => newBlockIds.filter(view.history.contains)
-
-      newBlocks.foreach(block => underTest.tell(NodeViewHolder.ReceivableMessages.WriteBlock(block)))
+      underTest.tell(NodeViewHolder.ReceivableMessages.WriteBlocks(orphanBlocks))
 
       val historyResult =
         NodeViewHolderSpec.searchInNodeView[ModifierId](
-          blockIds => newBlockIds.forall(blockIds.contains),
-          mapReadMessage,
+          blockIds => orphanBlocks.forall(blockIds.contains),
+          { view =>
+            println(view.history.height)
+            view.history.filter(orphanBlocks.contains).map(_.id)
+          },
           underTest,
           testProbeActor,
           testProbe
         )
 
-      newBlockIds.foreach(historyResult.contains)
+      orphanBlocks.foreach(historyResult.contains)
     }
   }
 
@@ -255,7 +254,7 @@ class NodeViewHolderSpec
       val underTest =
         spawn(NodeViewHolder(TestSettings.defaultSettings, consensusReader, () => Future.successful(nodeView)))
 
-      newBlocks.foreach(block => underTest.tell(NodeViewHolder.ReceivableMessages.WriteBlock(block)))
+      underTest.tell(NodeViewHolder.ReceivableMessages.WriteBlocks(newBlocks))
 
       val historyResult =
         NodeViewHolderSpec.searchInNodeView[Block](
@@ -313,7 +312,7 @@ class NodeViewHolderSpec
       underTest.tell(NodeViewHolder.ReceivableMessages.WriteBlocks(List(firstNewBlock)))
 
       underTest.tell(
-        NodeViewHolder.ReceivableMessages.Read(view => view.history.filter(_.id == firstNewBlock.id), testProbeActor)
+        NodeViewHolder.ReceivableMessages.Read(_.history.filter(_.id == firstNewBlock.id), testProbeActor)
       )
 
       testProbe.receiveMessage().getValue.isEmpty shouldBe true
@@ -331,7 +330,8 @@ class NodeViewHolderSpec
           testProbe
         )
 
-      List(firstNewBlock, secondNewBlock).forall(historyResult.contains) shouldBe true
+      historyResult should contain(firstNewBlock)
+      historyResult should contain(secondNewBlock)
     }
   }
 }
@@ -361,7 +361,7 @@ object NodeViewHolderSpec {
     )
 
     testProbe
-      .fishForMessage(10000.millis) {
+      .fishForMessage(3.seconds) {
         case StatusReply.Success(values: Seq[T]) if search(values) =>
           FishingOutcome.Complete
         case _ =>
