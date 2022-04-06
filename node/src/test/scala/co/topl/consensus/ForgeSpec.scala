@@ -86,7 +86,11 @@ class ForgeSpec
           .prepareForge(
             nodeView,
             NxtConsensus
-              .View(NxtConsensus.State(10000000, 1000000000000000000L, 0L, 0L), leaderElection, _ => Seq()),
+              .View(
+                NxtConsensus.State(10000000, parentBlock.difficulty, 0L, parentBlock.height),
+                leaderElection,
+                _ => Seq()
+              ),
             keyView,
             0
           )
