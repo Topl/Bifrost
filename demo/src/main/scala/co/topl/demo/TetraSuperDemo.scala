@@ -142,7 +142,7 @@ object TetraSuperDemo extends IOApp {
     leaderElectionThreshold: LeaderElectionValidationAlgebra[F],
     localChain:              LocalChainAlgebra[F],
     mempool:                 MemPoolAlgebra[F],
-    headerStore:             Store[F, BlockHeaderV2],
+    headerStore:             Store[F, TypedIdentifier, BlockHeaderV2],
     state:                   ConsensusStateReader[F],
     ed25519VRFResource:      UnsafeResource[F, Ed25519VRF],
     kesProductResource:      UnsafeResource[F, KesProduct],
@@ -304,12 +304,27 @@ object TetraSuperDemo extends IOApp {
         implicit0(logger: Logger[F]) = Slf4jLogger
           .getLoggerFromName[F](s"${loggerColor}$stakerName${Console.RESET}")
           .withModifiedString(str => s"$loggerColor$str${Console.RESET}")
-        blockHeaderStore <- RefStore.Eval.make[F, BlockHeaderV2]()
-        blockBodyStore   <- RefStore.Eval.make[F, BlockBodyV2]()
-        transactionStore <- RefStore.Eval.make[F, Transaction]()
+        blockHeaderStore <- RefStore.Eval.make[F, TypedIdentifier, BlockHeaderV2]()
+        blockBodyStore   <- RefStore.Eval.make[F, TypedIdentifier, BlockBodyV2]()
+        transactionStore <- RefStore.Eval.make[F, TypedIdentifier, Transaction]()
         _                <- blockHeaderStore.put(genesis.headerV2.id, genesis.headerV2)
         _                <- blockBodyStore.put(genesis.headerV2.id, genesis.blockBodyV2)
         slotDataCache    <- SlotDataCache.Eval.make(blockHeaderStore, ed25519VRFResource)
+        slotDataStore = blockHeaderStore
+          .mapRead[TypedIdentifier, SlotData](identity, _.slotData(Ed25519VRF.precomputed()))
+        blockIdTree                 <- BlockIdTree.make[F]
+        _                           <- blockIdTree.associate(genesis.headerV2.id, genesis.headerV2.parentHeaderId)
+        blockHeightTreeStore        <- RefStore.Eval.make[F, Long, TypedIdentifier]()
+        _                           <- blockHeightTreeStore.put(1, genesis.headerV2.id)
+        blockHeightTreeUnapplyStore <- RefStore.Eval.make[F, TypedIdentifier, Long]()
+        blockHeightTree <- BlockHeightTree
+          .make[F](
+            blockHeightTreeStore,
+            genesis.headerV2.id,
+            slotDataStore,
+            blockHeightTreeUnapplyStore,
+            blockIdTree
+          )
         clock = makeClock(genesisTimestamp)
         etaCalculation <- EtaCalculation.Eval.make(
           slotDataCache,
@@ -364,7 +379,10 @@ object TetraSuperDemo extends IOApp {
             blockHeaderStore,
             blockBodyStore,
             transactionStore,
+            slotDataStore,
             localChain,
+            blockIdTree,
+            blockHeightTree,
             ed25519VRFResource,
             localPeer.localAddress.getHostString,
             localPeer.localAddress.getPort,

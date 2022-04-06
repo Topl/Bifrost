@@ -25,10 +25,10 @@ object BlockchainPeerServer {
   object FromStores {
 
     def make[F[_]: Monad](
-      headerStore:            Store[F, BlockHeaderV2],
-      bodyStore:              Store[F, BlockBodyV2],
-      transactionStore:       Store[F, Transaction],
-      blockHeights:           EventSourcedState[F, TypedIdentifier, Long => Option[TypedIdentifier]],
+      headerStore:            Store[F, TypedIdentifier, BlockHeaderV2],
+      bodyStore:              Store[F, TypedIdentifier, BlockBodyV2],
+      transactionStore:       Store[F, TypedIdentifier, Transaction],
+      blockHeights:           EventSourcedState[F, TypedIdentifier, Long => F[Option[TypedIdentifier]]],
       localChain:             LocalChainAlgebra[F],
       locallyAdoptedBlockIds: Source[TypedIdentifier, NotUsed]
     ): F[BlockchainPeerServer[F]] =
@@ -44,7 +44,7 @@ object BlockchainPeerServer {
         def getLocalTransaction(id: TypedIdentifier): F[Option[Transaction]] = transactionStore.get(id)
 
         def getLocalBlockAtHeight(height: Long): F[Option[TypedIdentifier]] =
-          localChain.head.map(_.slotId.blockId).flatMap(blockHeights.stateAt).ap(height.pure[F])
+          localChain.head.map(_.slotId.blockId).flatMap(blockHeights.stateAt).ap(height.pure[F]).flatten
       }
         .pure[F]
   }

@@ -205,10 +205,10 @@ object TypedProtocolSetFactory {
             initialState = TypedProtocol.CommonStates.None,
             outboundMessages = Source
               .future(clientSignalPromise.future)
-              .tapAsyncF(1)(_ => Logger[F].info(s"Remote peer requested notifications of type=${tPushTypeTag.name}"))
+              .tapAsyncF(1)(_ => Logger[F].debug(s"Remote peer requested notifications of type=${tPushTypeTag.name}"))
               .flatMapConcat(_ =>
                 notifications_
-                  .tapAsyncF(1)(data => Logger[F].info(show"Notifying peer of data=$data"))
+                  .tapAsyncF(1)(data => Logger[F].debug(show"Notifying peer of data=$data"))
                   .map(TypedProtocol.CommonMessages.Push(_))
                   .map(OutboundMessage(_))
               ),
@@ -226,7 +226,7 @@ object TypedProtocolSetFactory {
         (((offerF, completeF), demandSignal), source) <- Sync[F].defer(
           Source
             .backpressuredQueue[F, T](16)
-            .tapAsyncF(1)(data => Logger[F].info(show"Remote peer sent notification data=$data"))
+            .tapAsyncF(1)(data => Logger[F].debug(show"Remote peer sent notification data=$data"))
             // A Notification Client must send a `Start` message to the server before it will start
             // pushing notifications. We can signal this message to the server once the returned Source here requests
             // data for the first time
@@ -318,7 +318,7 @@ object TypedProtocolSetFactory {
           new protocol.ClientStateTransitions[F](
             r => responsePromisesQueue.take.map(_.success(r)),
             () =>
-              Sync[F].delay(serverSentStartPromise.success(())) >> Logger[F].info(
+              Sync[F].delay(serverSentStartPromise.success(())) >> Logger[F].debug(
                 s"Server is accepting request-response requests of type=${tResponseTypeTag.name}"
               )
           )

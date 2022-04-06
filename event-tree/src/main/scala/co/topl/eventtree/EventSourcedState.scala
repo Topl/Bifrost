@@ -29,8 +29,8 @@ object EventSourcedState {
       eventAsUnapplyEvent: (Event, State) => F[UnapplyEvent],
       applyEvent:          (State, Event) => F[State],
       unapplyEvent:        (State, UnapplyEvent) => F[State],
-      eventStore:          StoreReader[F, Event],
-      unapplyEventStore:   Store[F, UnapplyEvent],
+      eventStore:          StoreReader[F, TypedIdentifier, Event],
+      unapplyEventStore:   Store[F, TypedIdentifier, UnapplyEvent],
       parentChildTree:     ParentChildTree[F, TypedIdentifier]
     ): F[EventSourcedState[F, Event, State]] = for {
       permit            <- Semaphore[F](1).map(_.permit)
@@ -52,8 +52,8 @@ object EventSourcedState {
       eventAsUnapplyEvent: (Event, State) => F[UnapplyEvent],
       applyEvent:          (State, Event) => F[State],
       unapplyEvent:        (State, UnapplyEvent) => F[State],
-      eventStore:          StoreReader[F, Event],
-      unapplyEventStore:   Store[F, UnapplyEvent],
+      eventStore:          StoreReader[F, TypedIdentifier, Event],
+      unapplyEventStore:   Store[F, TypedIdentifier, UnapplyEvent],
       parentChildTree:     ParentChildTree[F, TypedIdentifier],
       permit:              Resource[F, Unit],
       currentStateRef:     Ref[F, State],

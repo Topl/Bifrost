@@ -145,7 +145,7 @@ object TetraDemo extends IOApp {
     leaderElectionThreshold: LeaderElectionValidationAlgebra[F],
     localChain:              LocalChainAlgebra[F],
     mempool:                 MemPoolAlgebra[F],
-    headerStore:             Store[F, BlockHeaderV2],
+    headerStore:             Store[F, TypedIdentifier, BlockHeaderV2],
     state:                   ConsensusStateReader[F],
     ed25519VRFResource:      UnsafeResource[F, Ed25519VRF],
     kesProductResource:      UnsafeResource[F, KesProduct],
@@ -218,12 +218,26 @@ object TetraDemo extends IOApp {
       ed25519VRFResource <- ActorPoolUnsafeResource.Eval.make[F, Ed25519VRF](Ed25519VRF.precomputed(), _ => ())
       kesProductResource <- ActorPoolUnsafeResource.Eval.make[F, KesProduct](new KesProduct, _ => ())
       ed25519Resource    <- ActorPoolUnsafeResource.Eval.make[F, Ed25519](new Ed25519, _ => ())
-      blockHeaderStore   <- RefStore.Eval.make[F, BlockHeaderV2]()
-      blockBodyStore     <- RefStore.Eval.make[F, BlockBodyV2]()
-      transactionStore   <- RefStore.Eval.make[F, Transaction]()
+      blockHeaderStore   <- RefStore.Eval.make[F, TypedIdentifier, BlockHeaderV2]()
+      blockBodyStore     <- RefStore.Eval.make[F, TypedIdentifier, BlockBodyV2]()
+      transactionStore   <- RefStore.Eval.make[F, TypedIdentifier, Transaction]()
       _                  <- blockHeaderStore.put(genesis.headerV2.id, genesis.headerV2)
       _                  <- blockBodyStore.put(genesis.headerV2.id, genesis.blockBodyV2)
       slotDataCache      <- SlotDataCache.Eval.make(blockHeaderStore, ed25519VRFResource)
+      slotDataStore = blockHeaderStore
+        .mapRead[TypedIdentifier, SlotData](identity, _.slotData(Ed25519VRF.precomputed()))
+      blockIdTree                 <- BlockIdTree.make[F]
+      _                           <- blockIdTree.associate(genesis.headerV2.id, genesis.headerV2.parentHeaderId)
+      blockHeightTreeStore        <- RefStore.Eval.make[F, Long, TypedIdentifier]()
+      blockHeightTreeUnapplyStore <- RefStore.Eval.make[F, TypedIdentifier, Long]()
+      blockHeightTree <- BlockHeightTree
+        .make[F](
+          blockHeightTreeStore,
+          genesis.headerV2.parentHeaderId,
+          slotDataStore,
+          blockHeightTreeUnapplyStore,
+          blockIdTree
+        )
       clock = makeClock(demoArgs)
       etaCalculation <- EtaCalculation.Eval.make(
         slotDataCache,
@@ -279,7 +293,10 @@ object TetraDemo extends IOApp {
           blockHeaderStore,
           blockBodyStore,
           transactionStore,
+          slotDataStore,
           localChain,
+          blockIdTree,
+          blockHeightTree,
           ed25519VRFResource,
           "localhost",
           demoArgs.port,

@@ -8,6 +8,7 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.models._
 import co.topl.models.utility.{Length, Sized}
 
+import java.net.InetSocketAddress
 import java.time.Instant
 
 trait ShowInstances {
@@ -46,6 +47,9 @@ trait ShowInstances {
       show" slot=${header.slot}" +
       show" timestamp=${Instant.ofEpochMilli(header.timestamp).toString})" +
       show" address=${header.address}"
+
+  implicit val showInetSocketAddress: Show[InetSocketAddress] =
+    address => s"${address.getHostName}:${address.getPort}"
 }
 
 object ShowInstances extends ShowInstances

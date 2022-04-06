@@ -7,14 +7,14 @@ import cats.data.{EitherT, OptionT, Validated}
 import cats.effect._
 import cats.implicits._
 import cats.{Applicative, MonadThrow, Parallel, Show}
-import co.topl.algebras.{Store, UnsafeResource}
+import co.topl.algebras.{Store, StoreReader, UnsafeResource}
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LocalChainAlgebra}
 import co.topl.consensus.{BlockHeaderV2Ops, BlockHeaderValidationFailure}
 import co.topl.crypto.signing.Ed25519VRF
-import co.topl.eventtree.EventSourcedState
+import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.minting.algebras.PerpetualBlockMintAlgebra
 import co.topl.models._
 import co.topl.networking.blockchain._
@@ -32,11 +32,13 @@ object DemoProgram {
   def run[F[_]: Parallel: MonadThrow: Logger: Async: FToFuture](
     mint:               Option[PerpetualBlockMintAlgebra[F]],
     headerValidation:   BlockHeaderValidationAlgebra[F],
-    headerStore:        Store[F, BlockHeaderV2],
-    bodyStore:          Store[F, BlockBodyV2],
-    transactionStore:   Store[F, Transaction],
+    headerStore:        Store[F, TypedIdentifier, BlockHeaderV2],
+    bodyStore:          Store[F, TypedIdentifier, BlockBodyV2],
+    transactionStore:   Store[F, TypedIdentifier, Transaction],
+    slotDataStore:      StoreReader[F, TypedIdentifier, SlotData],
     localChain:         LocalChainAlgebra[F],
-    blockHeights:       EventSourcedState[F, TypedIdentifier, Long => Option[TypedIdentifier]],
+    blockIdTree:        ParentChildTree[F, TypedIdentifier],
+    blockHeights:       EventSourcedState[F, TypedIdentifier, Long => F[Option[TypedIdentifier]]],
     ed25519VrfResource: UnsafeResource[F, Ed25519VRF],
     host:               String,
     bindPort:           Int,
@@ -61,6 +63,7 @@ object DemoProgram {
             headerStore,
             bodyStore,
             localChain,
+            blockIdTree,
             ed25519VrfResource
           )
       ((offerRemoteBlockQueue, _), remoteBlockSource) <-
@@ -72,7 +75,11 @@ object DemoProgram {
         headerStore,
         bodyStore,
         transactionStore,
-        offerRemoteBlockQueue
+        blockIdTree,
+        offerRemoteBlockQueue,
+        blockHeights,
+        localChain,
+        slotDataStore
       )
       peerServer <- BlockchainPeerServer.FromStores.make(
         headerStore,
@@ -107,9 +114,10 @@ object DemoProgram {
   private def processBlock[F[_]: MonadThrow: Sync: Logger](
     block:              BlockV2,
     headerValidation:   BlockHeaderValidationAlgebra[F],
-    headerStore:        Store[F, BlockHeaderV2],
-    bodyStore:          Store[F, BlockBodyV2],
+    headerStore:        Store[F, TypedIdentifier, BlockHeaderV2],
+    bodyStore:          Store[F, TypedIdentifier, BlockBodyV2],
     localChain:         LocalChainAlgebra[F],
+    blockIdTree:        ParentChildTree[F, TypedIdentifier],
     ed25519VrfResource: UnsafeResource[F, Ed25519VRF]
   ): F[Boolean] =
     for {
@@ -119,6 +127,7 @@ object DemoProgram {
       _ <- bodyStore
         .contains(block.headerV2.id)
         .ifM(Applicative[F].unit, bodyStore.put(block.headerV2.id, block.blockBodyV2))
+      _        <- blockIdTree.associate(block.headerV2.id, block.headerV2.parentHeaderId)
       slotData <- ed25519VrfResource.use(implicit ed25519Vrf => block.headerV2.slotData.pure[F])
       adopted <-
         localChain

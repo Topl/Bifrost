@@ -2,22 +2,24 @@ package co.topl.algebras
 
 import cats.Functor
 import cats.data.OptionT
-import co.topl.models.TypedIdentifier
 
-trait GenStoreReader[F[_], Key, T] {
+trait StoreReader[F[_], Key, T] {
+  outer =>
   def get(id: Key): F[Option[T]]
 
   def contains(id: Key): F[Boolean]
+
+  def mapRead[KU, TU](fKey: KU => Key, fValue: T => TU)(implicit functor: Functor[F]): StoreReader[F, KU, TU] =
+    new StoreReader[F, KU, TU] {
+      def get(id: KU): F[Option[TU]] = OptionT(outer.get(fKey(id))).map(fValue).value
+
+      def contains(id: KU): F[Boolean] = outer.contains(fKey(id))
+    }
 }
 
-trait StoreReader[F[_], T] extends GenStoreReader[F, TypedIdentifier, T]
-
-trait GenStoreWriter[F[_], Key, T] {
+trait StoreWriter[F[_], Key, T] {
   def put(id:    Key, t: T): F[Unit]
   def remove(id: Key): F[Unit]
 }
 
-trait StoreWriter[F[_], T] extends GenStoreWriter[F, TypedIdentifier, T]
-
-trait GenStore[F[_], Key, T] extends GenStoreReader[F, Key, T] with GenStoreWriter[F, Key, T]
-trait Store[F[_], T] extends GenStore[F, TypedIdentifier, T]
+trait Store[F[_], Key, T] extends StoreReader[F, Key, T] with StoreWriter[F, Key, T]

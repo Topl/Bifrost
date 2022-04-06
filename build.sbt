@@ -329,7 +329,7 @@ lazy val eventTree = project
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsEffect)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, typeclasses, algebras, commonInterpreters % "test->test")
+  .dependsOn(models, typeclasses, algebras % "compile->compile;test->test")
 
 lazy val byteCodecs = project
   .in(file("byte-codecs"))
@@ -404,7 +404,7 @@ lazy val algebras = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.algebras"
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Seq(Dependencies.catsSlf4j % "test"))
+  .settings(libraryDependencies ++= Dependencies.algebras)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, crypto, tetraByteCodecs)
 
@@ -421,7 +421,7 @@ lazy val commonInterpreters = project
   )
   .settings(libraryDependencies ++= Dependencies.commonInterpreters)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, algebras, typeclasses, byteCodecs, tetraByteCodecs, catsAkka)
+  .dependsOn(models, algebras, typeclasses, byteCodecs, tetraByteCodecs, catsAkka, eventTree)
 
 lazy val consensus = project
   .in(file("consensus"))
