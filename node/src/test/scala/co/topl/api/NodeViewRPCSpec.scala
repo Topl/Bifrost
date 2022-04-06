@@ -359,13 +359,14 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
     }
 
     "Get block at the height given" in {
+      // using blocks.size + 1 since blocks = genesisChain.tail (blocks after the genesis block)
       val requestBody = ByteString(s"""
         |{
         |   "jsonrpc": "2.0",
         |   "id": "1",
         |   "method": "topl_blockByHeight",
         |   "params": [{
-        |      "height": ${blocks.size}
+        |      "height": ${blocks.size + 1}
         |    }]
         |}
         """.stripMargin)
@@ -379,14 +380,15 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
     }
 
     "Get a segment of the chain by height range" in {
+      // using range 2 to blocks.size + 1 since blocks = genesisChain.tail (blocks after the genesis block)
       val requestBody = ByteString(s"""
         |{
         |   "jsonrpc": "2.0",
         |   "id": "1",
         |   "method": "topl_blocksInRange",
         |   "params": [{
-        |      "startHeight": 1,
-        |      "endHeight": ${blocks.size}
+        |      "startHeight": 2,
+        |      "endHeight": ${blocks.size + 1}
         |    }]
         |}
         """.stripMargin)
@@ -400,7 +402,8 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
     }
 
     "Fail if an invalid height range is provided for blocksInRange" in {
-      val chainLength: Long = blocks.size
+      // using blocks.size + 1 since blocks = genesisChain.tail (blocks after the genesis block)
+      val chainLength: Long = blocks.size + 1
       val ranges: Seq[(Long, Long)] = Seq((0, 1), (2, 1), (chainLength + 1, chainLength + 1))
       def requestBody(startHeight: Long, endHeight: Long): ByteString = ByteString(s"""
         |{
@@ -423,14 +426,15 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
     }
 
     "Get block ids of a segment of the chain by height range" in {
+      // using range 2 to blocks.size + 1 since blocks = genesisChain.tail (blocks after the genesis block)
       val requestBody = ByteString(s"""
         |{
         |   "jsonrpc": "2.0",
         |   "id": "1",
         |   "method": "topl_blockIdsInRange",
         |   "params": [{
-        |      "startHeight": 1,
-        |      "endHeight": ${blocks.size}
+        |      "startHeight": 2,
+        |      "endHeight": ${blocks.size + 1}
         |    }]
         |}
         """.stripMargin)
