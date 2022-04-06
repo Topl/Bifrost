@@ -202,10 +202,7 @@ class NodeViewHolderSpec
       val historyResult =
         NodeViewHolderSpec.searchInNodeView[ModifierId](
           blockIds => orphanBlocks.forall(blockIds.contains),
-          { view =>
-            println(view.history.height)
-            view.history.filter(orphanBlocks.contains).map(_.id)
-          },
+          view => view.history.filter(orphanBlocks.contains).map(_.id),
           underTest,
           testProbeActor,
           testProbe
