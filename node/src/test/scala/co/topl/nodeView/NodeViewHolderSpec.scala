@@ -158,11 +158,8 @@ class NodeViewHolderSpec
     }
   }
 
-  it should "place multiple orphan blocks into history tineProcessor when receiving the write blocks message" in {
-    forAll(
-      genesisBlockGen,
-      Gen.listOfN(5, blockCurve25519Gen(Some(Seq.empty)))
-    ) { (genesisBlock, orphanBlocks) =>
+  it should "append a valid block to the main tine when receiving the WriteBlocks message" in {
+    forAll(blockChainGen) { blockchain =>
       val consensusView =
         NxtConsensus.View(
           NxtConsensus.State(10000, 10000, 10000, 10000),
@@ -170,9 +167,12 @@ class NodeViewHolderSpec
           _ => Seq.empty
         )
 
+      val genesisBlock = blockchain.head
+      val newBlock = blockchain.tail.head
+
       val existingHistory =
         History(TestSettings.defaultSettings, new Storage(new InMemoryKeyValueStore()))
-          .append(genesisBlock, Seq.empty)
+          .append(genesisBlock.block, Seq.empty)
           .get
           ._1
 
@@ -189,26 +189,31 @@ class NodeViewHolderSpec
         override def time: Time = 0L
       }
 
-      val testProbe = createTestProbe[StatusReply[Seq[ModifierId]]]()
+      val testProbe = createTestProbe[StatusReply[Seq[Block]]]()
 
       val testProbeActor =
-        spawn(Behaviors.monitor[StatusReply[Seq[ModifierId]]](testProbe.ref, Behaviors.ignore))
+        spawn(Behaviors.monitor[StatusReply[Seq[Block]]](testProbe.ref, Behaviors.ignore))
 
       val underTest =
         spawn(NodeViewHolder(TestSettings.defaultSettings, consensusReader, () => Future.successful(nodeView)))
 
-      underTest.tell(NodeViewHolder.ReceivableMessages.WriteBlocks(orphanBlocks))
+      /*
+        Sending WriteBlocks kicks off a lot of background processes that should end with the block being
+        available in history.
+       */
+      underTest.tell(NodeViewHolder.ReceivableMessages.WriteBlocks(List(newBlock)))
 
       val historyResult =
-        NodeViewHolderSpec.searchInNodeView[ModifierId](
-          blockIds => orphanBlocks.forall(blockIds.contains),
-          view => view.history.filter(orphanBlocks.contains).map(_.id),
+        NodeViewHolderSpec.searchInNodeView[Block](
+          (blocks: Seq[Block]) => blocks.nonEmpty,
+          (view: ReadableNodeView) => view.history.filter(_.id == newBlock.id),
           underTest,
           testProbeActor,
           testProbe
         )
 
-      orphanBlocks.foreach(historyResult.contains)
+      historyResult should contain(newBlock)
+
     }
   }
 

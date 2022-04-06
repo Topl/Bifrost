@@ -77,6 +77,7 @@ object NodeViewHolder {
 
     /**
      * The main public "write" interface for block data.
+     * Starts a process of possibly adopting the blocks into the main chain or a tine.
      */
     case class WriteBlocks(blocks: Iterable[Block]) extends ReceivableMessage
 
