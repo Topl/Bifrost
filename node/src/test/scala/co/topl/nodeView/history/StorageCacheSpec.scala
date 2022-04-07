@@ -95,7 +95,7 @@ class StorageCacheSpec
   }
 
   property("Appending more entries than the maximum cache size will drop a portion of existing cache") {
-    forAll(chainGen(positiveTinyIntGen.sample.get.toByte)) { chain =>
+    forAll(chainGen(10.toByte)) { chain =>
       def customCacheHistory(cacheSize: Int): History = {
         val cacheStore = new CacheLayerKeyValueStore(new InMemoryKeyValueStore, 30.seconds, cacheSize)
         val storage = new Storage(cacheStore)
