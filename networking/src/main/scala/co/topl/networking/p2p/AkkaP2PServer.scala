@@ -103,7 +103,6 @@ object AkkaP2PServer {
             )
           )
         )
-        .delayWith(() => ((_ => Random.nextInt(100).milli): DelayStrategy[ByteString]), OverflowStrategy.fail)
 
   private def makeServerBindingRunnableGraph[F[_]: Monad: Logger: FToFuture, Client](
     host:                        String,

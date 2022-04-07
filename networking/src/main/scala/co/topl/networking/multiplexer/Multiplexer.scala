@@ -21,6 +21,8 @@ import cats.data.NonEmptyChain
  */
 object Multiplexer {
 
+  private val buffer = Flow[ByteString].buffer(1, OverflowStrategy.backpressure)
+
   def apply[Client](subProtocols: NonEmptyChain[SubHandler], client: => Client): Flow[ByteString, ByteString, Client] =
     Flow[ByteString]
       .via(MessageParserFramer())
@@ -42,9 +44,7 @@ object Multiplexer {
             )
           subProtocolsList.foreach { case SubHandler(sessionId, sink, source) =>
             val port = subPortMapping(sessionId)
-            val hFlow = builder.add(
-              Flow.fromSinkAndSource(Flow[ByteString].buffer(1, OverflowStrategy.backpressure).to(sink), source)
-            )
+            val hFlow = builder.add(Flow.fromSinkAndSource(buffer.to(sink), source))
             val stripSessionByte = builder.add(Flow[(Byte, ByteString)].map(_._2))
             val appendSessionByte = builder.add(Flow[ByteString].map((sessionId, _)))
             partition.out(port) ~> stripSessionByte ~> hFlow ~> appendSessionByte ~> merge.in(port)
