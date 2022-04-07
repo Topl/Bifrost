@@ -1,12 +1,13 @@
 package co.topl.genus
 
+import cats.implicits._
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.grpc.scaladsl.ServerReflection
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.stream.scaladsl.Source
-import cats.effect.unsafe.implicits.global
 import cats.effect.{Async, IO, IOApp}
+import cats.~>
 import co.topl.genus.algebras._
 import co.topl.genus.filters.{BlockFilter, TransactionFilter}
 import co.topl.genus.interpreters.MongoQueryInterp.MongoQueryAlg
@@ -41,9 +42,12 @@ object GenusApp extends IOApp.Simple {
 
   implicit val system: ActorSystem = ActorSystem("genus", config)
 
+  implicit val fToFuture: F ~> Future = ioToFuture(runtime)
+
   // server constants
-  val serverIp = "127.0.0.1"
+  val serverIp = "0.0.0.0"
   val serverPort = 8080
+  val apiKey: Option[String] = "test".some
 
   // tx and block mongo names
   val mongoConnectionString = "mongodb://localhost"
@@ -158,7 +162,7 @@ object GenusApp extends IOApp.Simple {
       transactionsSubHandler,
       blocksSubHandler,
       reflectionServiceHandler
-    )(serverIp, serverPort)
+    )(serverIp, serverPort, apiKey)
 
   override def run: IO[Unit] =
     RunServerProgram.Eval
