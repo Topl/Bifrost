@@ -77,7 +77,7 @@ class SourceCompanionCatsOps(val companion: Source.type) extends AnyVal {
    */
   def backpressuredQueue[F[_]: Async, T](size: Int = 16): Source[T, (T => F[Unit], Option[Throwable] => F[Unit])] =
     companion
-      .queue[T](size, OverflowStrategy.backpressure)
+      .queue[T](size, OverflowStrategy.backpressure, maxConcurrentOffers = size)
       .mapMaterializedValue(queue =>
         (
           (t: T) => Async[F].fromFuture(Async[F].delay(queue.offer(t))).flatMap(handleQueueOfferResult[F]),

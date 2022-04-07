@@ -86,15 +86,14 @@ case class TypedProtocolInstance[F[_]] private (
           def apply[Message: NetworkTypeTag](
             message: Message,
             sender:  Party
-          ): F[Either[TypedProtocolTransitionFailure, Any]] = {
-            for {
-              _                      <- EitherT.liftF[F, TypedProtocolTransitionFailure, Unit](semaphore.acquire)
-              (newState, newTypeTag) <- EitherT(applyMessage[Message](message, sender, state, typeTag))
-              _ = state = newState
-              _ = typeTag = newTypeTag
-              _ <- EitherT.liftF[F, TypedProtocolTransitionFailure, Unit](semaphore.release)
-            } yield newState
-          }.value
+          ): F[Either[TypedProtocolTransitionFailure, Any]] =
+            semaphore.permit.use(_ =>
+              (for {
+                (newState, newTypeTag) <- EitherT(applyMessage[Message](message, sender, state, typeTag))
+                _ = state = newState
+                _ = typeTag = newTypeTag
+              } yield newState).value
+            )
         }
       )
 

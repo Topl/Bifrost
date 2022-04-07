@@ -19,21 +19,23 @@ object BlockHeightTree {
     slotDataStore:  StoreReader[F, TypedIdentifier, SlotData],
     unapplyStore:   Store[F, TypedIdentifier, Long],
     blockTree:      ParentChildTree[F, TypedIdentifier]
-  ): F[EventSourcedState[F, TypedIdentifier, State[F]]] =
+  ): F[EventSourcedState[F, TypedIdentifier, State[F]]] = {
+    val heightStore = slotDataStore.mapRead[TypedIdentifier, Long](identity, _.height)
+    val getHeight = heightOf[F](heightStore) _
     EventSourcedState.OfTree.make[F, TypedIdentifier, State[F], Long](
       Async[F].delay(store.get),
       initialEventId = initialEventId.pure[F],
-      (id, _) => heightOf(slotDataStore)(id),
-      (state, id) => heightOf(slotDataStore)(id).flatTap(store.put(_, id)).as(state),
+      (id, _) => getHeight(id),
+      (state, id) => getHeight(id).flatTap(store.put(_, id)).as(state),
       (state, height) => store.remove(height).as(state),
       slotDataStore.mapRead(identity, _.slotId.blockId),
       unapplyStore,
       blockTree
     )
+  }
 
-  private def heightOf[F[_]: MonadThrow](store: StoreReader[F, TypedIdentifier, SlotData])(id: TypedIdentifier) =
+  private def heightOf[F[_]: MonadThrow](store: StoreReader[F, TypedIdentifier, Long])(id: TypedIdentifier) =
     OptionT(store.get(id))
       .getOrElseF(MonadThrow[F].raiseError(new IllegalStateException(show"Local slot data not found id=$id")))
-      .map(_.height)
 
 }

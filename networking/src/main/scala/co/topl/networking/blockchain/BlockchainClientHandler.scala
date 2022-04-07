@@ -1,8 +1,8 @@
 package co.topl.networking.blockchain
 
 import akka.actor.typed.ActorSystem
-import akka.stream.scaladsl.{Keep, Sink, Source}
-import cats.{MonadThrow, Parallel}
+import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
+import cats.{Applicative, MonadThrow, Parallel}
 import cats.data.OptionT
 import cats.effect.kernel.Sync
 import cats.effect.{Async, Concurrent}
@@ -17,7 +17,9 @@ import co.topl.models._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
+import scala.util.Failure
 
 trait BlockchainClientHandler[F[_]] {
   def useClient(client: BlockchainPeerClient[F]): F[Unit]
@@ -37,7 +39,7 @@ object BlockchainClientHandler {
       bodyStore:        Store[F, TypedIdentifier, BlockBodyV2],
       transactionStore: Store[F, TypedIdentifier, Transaction],
       blockIdTree:      ParentChildTree[F, TypedIdentifier],
-      onBlockReceived:  BlockV2 => F[Unit], // TODO: Sink[BlockV2]
+      onBlockReceived:  Sink[BlockV2, _],
       blockHeights:     EventSourcedState[F, TypedIdentifier, Long => F[Option[TypedIdentifier]]],
       localChain:       LocalChainAlgebra[F],
       slotDataStore:    StoreReader[F, TypedIdentifier, SlotData]
@@ -45,32 +47,36 @@ object BlockchainClientHandler {
       Sync[F].delay(
         (
           client =>
-            for {
-              _                     <- traceAndLogCommonAncestor(client, blockHeights, localChain, slotDataStore)
-              remoteAdoptionsSource <- client.remotePeerAdoptions
-              blockProcessor = processRemoteBlockNotification[F](
-                client,
-                headerStore,
-                bodyStore,
-                transactionStore,
-                blockIdTree,
-                onBlockReceived
-              ) _
-              f1 = Async[F].fromFuture(
-                remoteAdoptionsSource
-                  .mapAsyncF(1)(blockProcessor)
-                  .toMat(Sink.ignore)(Keep.right)
-                  .liftTo[F]
-              )
-              f2 = Async[F].fromFuture(
-                Source
-                  .tick(5.seconds, 10.seconds, ())
-                  .mapAsyncF(1)(_ => traceAndLogCommonAncestor(client, blockHeights, localChain, slotDataStore))
-                  .toMat(Sink.ignore)(Keep.right)
-                  .liftTo[F]
-              )
-              _ <- f1.parProduct(f2)
-            } yield ()
+            Sync[F].defer(
+              for {
+                _ <- ().pure[F]
+                blockProcessor = processRemoteBlockNotification[F](
+                  client,
+                  headerStore,
+                  bodyStore,
+                  transactionStore,
+                  blockIdTree
+                ) _
+                implicit0(ec: ExecutionContext) = system.executionContext
+                f1 = Async[F].fromFuture(
+                  client.remotePeerAdoptions
+                    .flatMap(
+                      _.mapAsyncF(1)(blockProcessor)
+                        .alsoTo(Flow[Option[BlockV2]].collect { case Some(t) => t }.to(onBlockReceived))
+                        .toMat(Sink.ignore)(Keep.right)
+                        .liftTo[F]
+                    )
+                )
+                f2 = Async[F].fromFuture(
+                  Source
+                    .tick(Duration.Zero, 10.seconds, ())
+                    .mapAsyncF(1)(_ => traceAndLogCommonAncestor(client, blockHeights, localChain, slotDataStore))
+                    .toMat(Sink.ignore)(Keep.right)
+                    .liftTo[F]
+                )
+                _ <- f1.parProduct(f2)
+              } yield ()
+            )
         ): BlockchainClientHandler[F]
       )
 
@@ -80,19 +86,27 @@ object BlockchainClientHandler {
       localChain:    LocalChainAlgebra[F],
       slotDataStore: StoreReader[F, TypedIdentifier, SlotData]
     ) =
-      client
-        .findCommonAncestor(blockHeights, localChain, slotDataStore)
-        .flatTap(ancestor =>
-          OptionT(slotDataStore.get(ancestor))
-            .getOrNoSuchElement(ancestor)
-            .flatMap(slotData =>
-              client.remotePeer
-                .flatMap(peer =>
+      client.remotePeer
+        .flatMap(peer =>
+          Logger[F].info(show"Starting common ancestor trace with remote=${peer.remoteAddress}") >>
+          client
+            .findCommonAncestor(blockHeights, localChain, slotDataStore)
+            .flatTap(ancestor =>
+              OptionT(slotDataStore.get(ancestor))
+                .getOrNoSuchElement(ancestor)
+                .flatMap(slotData =>
                   Logger[F].info(
-                    show"Traced remote=${peer.remoteAddress} common ancestor to id=$ancestor height=${slotData.height} slot=${slotData.slotId.slot}"
+                    show"Traced remote=${peer.remoteAddress} common ancestor to" +
+                    show" id=$ancestor" +
+                    show" height=${slotData.height}" +
+                    show" slot=${slotData.slotId.slot}"
                   )
                 )
             )
+        )
+        .void
+        .handleErrorWith(
+          Logger[F].error(_)("Common ancestor trace failed")
         )
 
     private def processRemoteBlockNotification[F[_]: Async: Concurrent: Logger: FToFuture](
@@ -100,11 +114,13 @@ object BlockchainClientHandler {
       headerStore:      Store[F, TypedIdentifier, BlockHeaderV2],
       bodyStore:        Store[F, TypedIdentifier, BlockBodyV2],
       transactionStore: Store[F, TypedIdentifier, Transaction],
-      blockIdTree:      ParentChildTree[F, TypedIdentifier],
-      onBlockReceived:  BlockV2 => F[Unit]
+      blockIdTree:      ParentChildTree[F, TypedIdentifier]
     )(id:               TypedIdentifier) =
       for {
-        _                  <- Logger[F].info(show"Remote peer adopted block id=$id")
+        _ <-
+          client.remotePeer.flatMap(peer =>
+            Logger[F].info(show"Remote=${peer.remoteAddress} peer adopted block id=$id")
+          )
         maybeCurrentHeader <- headerStore.get(id)
         _ <- (id, maybeCurrentHeader)
           // Recursively fetch the remote header+body+transactions until a common ancestor is found
@@ -113,21 +129,18 @@ object BlockchainClientHandler {
               .productL(fetchBody(client, bodyStore)(id).flatMap(fetchTransactions(client, transactionStore)).void)
               .flatMap(header => headerStore.get(header.parentHeaderId).tupleLeft(header.parentHeaderId))
           }(_._2.isEmpty)
-        _ <- OptionT
-          .fromOption[F](maybeCurrentHeader)
-          .flatTapNone(
+        maybeBlock <- (OptionT.fromOption[F](maybeCurrentHeader), (OptionT(bodyStore.get(id))))
+          .mapN(BlockV2.apply)
+          .orElse(
             (OptionT(headerStore.get(id)), OptionT(bodyStore.get(id)))
               .mapN((header, body) => BlockV2(header, body))
               .semiflatTap(_ =>
-                client.remotePeer.flatMap(peer =>
-                  Logger[F].info(show"Processing remote=${peer.remoteAddress} block id=$id")
-                )
+                client.remotePeer
+                  .flatMap(peer => Logger[F].info(show"Processing remote=${peer.remoteAddress} block id=$id"))
               )
-              .semiflatTap(onBlockReceived)
-              .value
           )
           .value
-      } yield ()
+      } yield maybeBlock
 
     private def fetchHeader[F[_]: Async: Concurrent: Logger: FToFuture](
       client:      BlockchainPeerClient[F],
