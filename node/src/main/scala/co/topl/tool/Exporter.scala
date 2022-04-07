@@ -8,7 +8,9 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.mongodb.codecs._
 import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataModel}
 import co.topl.utils.{Logging, NetworkType}
+import co.topl.settings.StartupOptsImplicits._
 import mainargs.{arg, main, ParserForMethods}
+import io.circe.Json
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
