@@ -61,7 +61,7 @@ object BlockValidators {
           require(
             NxtLeaderElection.getEligibleBox(hit, threshold)(Iterator(block.generatorBox)).isRight,
             s"Failed to verify eligibility for blockId=${block.id}" +
-              s"since ${hit(block.generatorBox)} >= ${threshold(block.generatorBox)}"
+            s"since ${hit(block.generatorBox)} >= ${threshold(block.generatorBox)}"
           )
 
         case None => throw new Error(s"Could not find parent with blockId=${block.parentId}")

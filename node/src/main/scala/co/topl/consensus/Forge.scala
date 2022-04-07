@@ -136,10 +136,12 @@ object Forge {
       arbitBoxIterator <- NxtLeaderElection
         .collectArbitBoxes(keyView.addresses, nodeView.state)
         .leftMap(LeaderElectionFailure)
-      eligibleArbitBox <- NxtLeaderElection.getEligibleBox(
-        consensusView.leaderElection.calculateHitValue(parentBlock)(_),
-        consensusView.leaderElection.calculateThresholdValue(timeSinceLastBlack, consensusView.state)(_)
-      )(arbitBoxIterator).leftMap(LeaderElectionFailure)
+      eligibleArbitBox <- NxtLeaderElection
+        .getEligibleBox(
+          consensusView.leaderElection.calculateHitValue(parentBlock)(_),
+          consensusView.leaderElection.calculateThresholdValue(timeSinceLastBlack, consensusView.state)(_)
+        )(arbitBoxIterator)
+        .leftMap(LeaderElectionFailure)
     } yield Forge(
       eligibleArbitBox,
       parentBlock,

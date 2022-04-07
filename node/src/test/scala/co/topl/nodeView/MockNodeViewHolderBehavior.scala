@@ -7,7 +7,7 @@ import akka.pattern.StatusReply
 /**
  * Mock [[Behavior]] which accepts messages of type [[NodeViewHolder.ReceivableMessage]].
  */
-object MockNodeViewHolderBehavior  {
+object MockNodeViewHolderBehavior {
 
   /**
    * Instantiates a read-only behavior with a static internal [[ReadableNodeView]] state which can be accessed

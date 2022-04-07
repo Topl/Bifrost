@@ -1,18 +1,17 @@
 package co.topl.nodeView.history
 
 import cats.implicits._
-import co.topl.consensus.NxtLeaderElection
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.nodeView.history.TineProcessor.ChainCache
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
+import co.topl.nodeView.history.TineProcessor.ChainCache
 import co.topl.utils.implicits._
 import co.topl.utils.{Logging, TimeProvider}
 
 import scala.annotation.tailrec
 import scala.collection.immutable.TreeMap
 
-class TineProcessor private(cache: ChainCache, maxDepth: Int) extends Logging {
+class TineProcessor private (cache: ChainCache, maxDepth: Int) extends Logging {
 
   import TineProcessor._
 

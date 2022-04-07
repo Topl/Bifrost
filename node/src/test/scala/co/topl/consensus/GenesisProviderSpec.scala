@@ -9,8 +9,8 @@ import co.topl.settings.AppSettings
 import co.topl.settings.GenesisStrategies.{FromBlockJson, Generated}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.{Int128, NetworkType, TestSettings}
-import io.circe.{parser, Json, JsonObject}
 import io.circe.syntax.EncoderOps
+import io.circe.{parser, Json, JsonObject}
 import org.scalacheck.Gen
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
@@ -49,8 +49,10 @@ class GenesisProviderSpec
     }
   }
 
-  property("should be able to read in json files and verify checksum, and the encoded json from the " +
-    "generated block should be the same as the one from file") {
+  property(
+    "should be able to read in json files and verify checksum, and the encoded json from the " +
+    "generated block should be the same as the one from file"
+  ) {
     val jsonSettings = Seq(
       GenesisSpecSetup.toplnetJsonGenesisSettings,
       GenesisSpecSetup.valhallaJsonGenesisSettings,

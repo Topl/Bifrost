@@ -63,9 +63,9 @@ object Forger {
     nodeViewReader:       NodeViewReader,
     consensusInterface:   ConsensusInterface
   )(implicit
-    networkPrefix: NetworkPrefix,
+    networkPrefix:     NetworkPrefix,
     protocolVersioner: ProtocolVersioner,
-    timeProvider:  TimeProvider
+    timeProvider:      TimeProvider
   ): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
       import context.executionContext
@@ -119,10 +119,10 @@ private class ForgerBehaviors(
   nodeViewReader:       NodeViewReader,
   consensusViewReader:  ConsensusReader
 )(implicit
-  context:       ActorContext[Forger.ReceivableMessage],
-  networkPrefix: NetworkPrefix,
+  context:           ActorContext[Forger.ReceivableMessage],
+  networkPrefix:     NetworkPrefix,
   protocolVersioner: ProtocolVersioner,
-  timeProvider:  TimeProvider
+  timeProvider:      TimeProvider
 ) {
 
   import context.executionContext

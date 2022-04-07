@@ -1,6 +1,6 @@
 package co.topl.tool
 
-import co.topl.consensus.{NxtLeaderElection, ProtocolVersioner}
+import co.topl.consensus.ProtocolVersioner
 import co.topl.nodeView.history.History
 import co.topl.settings.{AppSettings, StartupOpts}
 import co.topl.tools.exporter.{DataType, Exportable, MongoExport}
@@ -8,9 +8,7 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.mongodb.codecs._
 import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataModel}
 import co.topl.utils.{Logging, NetworkType}
-import io.circe.Json
-import mainargs.{ParserForMethods, arg, main}
-import co.topl.settings.StartupOptsImplicits._
+import mainargs.{arg, main, ParserForMethods}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
@@ -86,7 +84,11 @@ object Exporter extends Logging {
         dt
       )
     val (settings, config) = AppSettings.read(startupOpts)
-    val history = initHistory(settings, startupOpts.networkTypeOpt.getOrElse(NetworkType.PrivateTestnet).netPrefix, ProtocolVersioner.default)
+    val history = initHistory(
+      settings,
+      startupOpts.networkTypeOpt.getOrElse(NetworkType.PrivateTestnet).netPrefix,
+      ProtocolVersioner.default
+    )
 
     export(mongo, history, start.getOrElse(1L), end.getOrElse(history.bestBlock.height))
   }

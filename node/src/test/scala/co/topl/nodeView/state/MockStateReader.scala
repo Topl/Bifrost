@@ -11,12 +11,13 @@ import scala.reflect.ClassTag
  * @param tokenBoxes the mapping of addresses with sets of owned token boxes
  * @param versionId the version representing the current state
  */
-class MockStateReader(tokenBoxes: Map[Address, List[TokenBox[TokenValueHolder]]], versionId: ModifierId) extends StateReader[ProgramId, Address] {
+class MockStateReader(tokenBoxes: Map[Address, List[TokenBox[TokenValueHolder]]], versionId: ModifierId)
+    extends StateReader[ProgramId, Address] {
   override def version: ModifierId = versionId
 
   override def getBox(id: BoxId): Option[Box[_]] = tokenBoxes.values.toList.flatten.find(_.id == id)
 
-  override def getProgramBox[PBX <: ProgramBox : ClassTag](key: ProgramId): Option[PBX] = None
+  override def getProgramBox[PBX <: ProgramBox: ClassTag](key: ProgramId): Option[PBX] = None
 
   override def getTokenBoxes(key: Address): Option[Seq[TokenBox[TokenValueHolder]]] = tokenBoxes.get(key).map(_.toList)
 
@@ -24,10 +25,14 @@ class MockStateReader(tokenBoxes: Map[Address, List[TokenBox[TokenValueHolder]]]
 }
 
 object MockStateReader {
+
   def apply(tokenBoxes: Map[Address, List[TokenBox[TokenValueHolder]]]): StateReader[ProgramId, Address] =
     new MockStateReader(tokenBoxes, ModifierId.empty)
 
-  def apply(tokenBoxes: Map[Address, List[TokenBox[TokenValueHolder]]], version: ModifierId): StateReader[ProgramId, Address] =
+  def apply(
+    tokenBoxes: Map[Address, List[TokenBox[TokenValueHolder]]],
+    version:    ModifierId
+  ): StateReader[ProgramId, Address] =
     new MockStateReader(tokenBoxes, version)
 
   /**

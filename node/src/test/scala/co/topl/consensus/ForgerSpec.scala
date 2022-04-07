@@ -6,7 +6,7 @@ import akka.actor.typed.eventstream.EventStream
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.attestation.Address
-import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
+import co.topl.consensus.KeyManager.KeyView
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, ProgramId, SimpleValue}
 import co.topl.modifier.transaction.Transaction
@@ -14,7 +14,7 @@ import co.topl.network.BifrostSyncInfo
 import co.topl.nodeView.history.{HistoryReader, InMemoryKeyValueStore}
 import co.topl.nodeView.mempool.{MemPoolReader, UnconfirmedTx}
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.{NodeViewHolderInterface, NodeViewReader, NodeViewTestHelpers, ReadableNodeView}
+import co.topl.nodeView.{NodeViewHolderInterface, NodeViewReader, ReadableNodeView}
 import co.topl.utils._
 import org.scalacheck.Gen
 import org.scalacheck.rng.Seed
