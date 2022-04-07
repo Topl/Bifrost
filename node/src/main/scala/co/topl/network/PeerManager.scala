@@ -3,7 +3,7 @@ package co.topl.network
 import akka.actor.{Actor, ActorRef, Props}
 import co.topl.network.NetworkController.ReceivableMessages._
 import co.topl.network.peer.{InMemoryPeerDatabase, PeerInfo, PeerMetadata, PenaltyType}
-import co.topl.settings.{AppContext, AppSettings}
+import co.topl.settings.AppSettings
 import co.topl.utils.{Logging, NetworkUtils, TimeProvider}
 
 import java.net.{InetAddress, InetSocketAddress}
@@ -188,8 +188,8 @@ object PeerManager {
 object PeerManagerRef {
 
   def props(
-    settings:              AppSettings,
+    settings:               AppSettings,
     optSelfExternalAddress: Option[InetSocketAddress]
-  )(implicit timeProvider: TimeProvider): Props =
+  )(implicit timeProvider:  TimeProvider): Props =
     Props(new PeerManager(settings, optSelfExternalAddress))
 }

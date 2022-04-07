@@ -272,11 +272,12 @@ object Heimdall {
             NodeView.persistent(
               settings,
               new ActorConsensusInterface(consensusViewHolder)(system, Timeout(10.seconds)),
-              () => (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses(
-                settings.forging.addressGenerationSettings
-              ))
-                .mapTo[Try[StartupKeyView]]
-                .flatMap(Future.fromTry)
+              () =>
+                (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses(
+                  settings.forging.addressGenerationSettings
+                ))
+                  .mapTo[Try[StartupKeyView]]
+                  .flatMap(Future.fromTry)
             )(context.system, implicitly, networkPrefix, protocolVersioner)
         ),
         NodeViewHolder.ActorName,

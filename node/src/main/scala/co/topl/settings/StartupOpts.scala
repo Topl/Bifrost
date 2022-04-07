@@ -44,7 +44,11 @@ final case class RuntimeOpts(
   forgeOnStartup: Flag = Flag(),
   @arg(name = "disableAuth", doc = "Allow the node to receive API requests (via JSON-RPC) without an API key")
   disableAuth: Flag = Flag(),
-  @arg(name = "apiKeyHash", doc = "If API key protection is enabled, this argument specifies the Blake2b256 hash of API key required by the JSON-RPC server ")
+  @arg(
+    name = "apiKeyHash",
+    doc =
+      "If API key protection is enabled, this argument specifies the Blake2b256 hash of API key required by the JSON-RPC server "
+  )
   apiKeyHash: Option[String] = None
 ) {
 
