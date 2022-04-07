@@ -7,12 +7,11 @@ import co.topl.attestation.Address
 import co.topl.consensus.Hiccups.HiccupBlock
 import co.topl.consensus.KeyManager.StartupKeyView
 import co.topl.consensus.{Forger, Hiccups}
-import co.topl.modifier.ModifierId
+import co.topl.modifier.{ModifierId, ProgramId}
 import co.topl.modifier.block.Block
-import co.topl.modifier.box.ProgramId
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.validation.implicits._
-import co.topl.network.message.BifrostSyncInfo
+import co.topl.network.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.history.{GenericHistory, History, HistoryReader}
 import co.topl.nodeView.mempool.{MemPool, MemPoolReader, MemoryPool}
@@ -62,8 +61,6 @@ case class NodeView(
 
   protected val log: Logger = LoggerFactory.getLogger(this.getClass)
 
-  // todo: this method causes delays in a block processing as it removes transactions from mempool and checks
-  // todo: validity of remaining transactions in a synchronous way. Do this job async!
   protected[nodeView] def updateMemPool(
     blocksRemoved:          Seq[Block],
     blocksApplied:          Seq[Block],

@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+import "scalapb/scalapb.proto";
+
+package co.topl.genus;
+
+option (scalapb.options) = {
+  scope: PACKAGE
+  flat_package: false
+};
