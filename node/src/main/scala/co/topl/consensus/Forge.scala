@@ -28,6 +28,8 @@ import scala.util.Try
  * @param forgeTime             the current timestamp
  * @param sign                  a function for signing messages
  * @param getPublicKey          a function for getting the public key associated with an address
+ * @param nxtLeaderElection     contains all the methods need for determining the eligibility to forge
+ * @param latestBlockVersion    applicable block serializer version
  */
 case class Forge(
   box:                   ArbitBox,
@@ -158,9 +160,11 @@ object Forge {
   /**
    * Pick a set of transactions from the mempool that result in a valid state when applied to the current state
    *
-   * @param memPoolReader the set of pending transactions
-   * @param stateReader   state to use for semantic validity checking
-   * @return a sequence of valid transactions
+   * @param minTransactionFee minimum value for transaction fee from application settings
+   * @param numTxToPick       number of transactions to include specified in current protocol version
+   * @param memPoolReader     the set of pending transactions
+   * @param stateReader       state to use for semantic validity checking
+   * @return                  a sequence of valid transactions
    */
   private[consensus] def pickTransactions(
     minTransactionFee: Int128,
