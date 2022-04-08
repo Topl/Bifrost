@@ -20,6 +20,7 @@ import co.topl.genus.services.transactions_query.{TransactionSorting, Transactio
 import co.topl.genus.services.transactions_subscription.{TransactionsSubscription, TransactionsSubscriptionHandler}
 import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.types._
+import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.mongodb.codecs._
 import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataModel}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -47,7 +48,12 @@ object GenusApp extends IOApp.Simple {
   // server constants
   val serverIp = "0.0.0.0"
   val serverPort = 8080
-  val apiKey: Option[String] = "test".some
+
+  // key is 'test'
+  val apiKey: Option[Base58Data] =
+    Base58Data
+      .unsafe("As3ZuwnL9LpoW3wz8HoDpHtZqJ4dhPFFnv87GYrnCYKj")
+      .some
 
   // tx and block mongo names
   val mongoConnectionString = "mongodb://localhost"

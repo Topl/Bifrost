@@ -8,7 +8,10 @@ import akka.http.scaladsl.server.Directives.{handle, optionalHeaderValueByName, 
 import akka.http.scaladsl.{Http, ServerBuilder}
 import cats.effect.kernel.Async
 import cats.implicits._
+import co.topl.crypto.hash.blake2b256
 import co.topl.genus.algebras.HttpServerAlg
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.implicits._
 
 import scala.concurrent.Future
 
@@ -21,13 +24,14 @@ object HttpServerInterp {
      * @param handlers the collection of handlers to route requests to
      * @param ip the IP address to run this server on
      * @param port the port to run the server on
+     * @param apiKey the Base-58 encoded Blake2b-256 hash of the expected key to be provided in the x-api-key header
      * @param system the Akka [[ActorSystem]] to manage the server with
      * @tparam F an effect-ful type representing the final value of the program
      * @return an instance of the [[HttpServerAlg]]
      */
     def make[F[_]: Async](
       handlers: PartialFunction[HttpRequest, Future[HttpResponse]]*
-    )(ip:       String, port: Int, apiKey: Option[String])(implicit
+    )(ip:       String, port: Int, apiKey: Option[Base58Data])(implicit
       system:   ActorSystem
     ): HttpServerAlg[F] =
       new HttpServerAlg[F] {
@@ -41,8 +45,12 @@ object HttpServerInterp {
           optionalHeaderValueByName("x-api-key").flatMap { keyOpt =>
             (keyOpt, apiKey) match {
               case (Some(provided), Some(needed)) =>
-                if (provided === needed) pass
+                // check that the provided key hashes to the expected value
+                val hashedKey = blake2b256.hash(provided.getBytes("UTF-8"))
+
+                if (hashedKey.value === needed.value) pass
                 else reject
+
               case (None, Some(_)) => reject
               case _               => pass
             }
