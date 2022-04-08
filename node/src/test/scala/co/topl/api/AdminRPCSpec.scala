@@ -10,7 +10,7 @@ import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class AdminRPCSpec extends AnyWordSpec with Matchers with RPCMockState with DiskKeyRingTestHelper with EitherValues {
+class AdminRPCSpec extends AnyWordSpec with Matchers with RPCMockState with EitherValues {
 
   "Admin RPC" should {
     "Return informative error when the keyfile being unlocked is not found on disk" in {

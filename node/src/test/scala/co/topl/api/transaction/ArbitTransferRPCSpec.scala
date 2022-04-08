@@ -1,7 +1,6 @@
 package co.topl.api.transaction
 
 import co.topl.attestation.Address
-import co.topl.utils.DiskKeyRingTestHelper
 import io.circe.Json
 import io.circe.syntax._
 
