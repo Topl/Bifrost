@@ -2,11 +2,11 @@ package co.topl.networking.blockchain
 
 import akka.actor.typed.ActorSystem
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
-import cats.{Applicative, MonadThrow, Parallel}
 import cats.data.OptionT
 import cats.effect.kernel.Sync
 import cats.effect.{Async, Concurrent}
 import cats.implicits._
+import cats.{MonadThrow, Parallel}
 import co.topl.algebras.{Store, StoreReader}
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
@@ -19,7 +19,6 @@ import org.typelevel.log4cats.Logger
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.util.Failure
 
 trait BlockchainClientHandler[F[_]] {
   def useClient(client: BlockchainPeerClient[F]): F[Unit]
@@ -49,7 +48,28 @@ object BlockchainClientHandler {
           client =>
             Sync[F].defer(
               for {
-                _ <- ().pure[F]
+                getLocalBlockIdAtHeight <- (
+                  (height: Long) =>
+                    localChain.head
+                      .map(_.slotId.blockId)
+                      .flatMap(blockHeights.stateAt(_))
+                      .ap(height.pure[F])
+                      .flatten
+                      .flatMap(
+                        OptionT
+                          .fromOption[F](_)
+                          .getOrElseF(
+                            MonadThrow[F]
+                              .raiseError(
+                                new IllegalStateException(
+                                  show"Unable to derive block height state for height=$height"
+                                )
+                              )
+                          )
+                      )
+                ).pure[F]
+                currentHeightLookup <- (() => localChain.head.map(_.height)).pure[F]
+                _ <- traceAndLogCommonAncestor(client, getLocalBlockIdAtHeight, currentHeightLookup, slotDataStore)
                 blockProcessor = processRemoteBlockNotification[F](
                   client,
                   headerStore,
@@ -69,8 +89,10 @@ object BlockchainClientHandler {
                 )
                 f2 = Async[F].fromFuture(
                   Source
-                    .tick(Duration.Zero, 10.seconds, ())
-                    .mapAsyncF(1)(_ => traceAndLogCommonAncestor(client, blockHeights, localChain, slotDataStore))
+                    .tick(10.seconds, 10.seconds, ())
+                    .mapAsyncF(1)(_ =>
+                      traceAndLogCommonAncestor(client, getLocalBlockIdAtHeight, currentHeightLookup, slotDataStore)
+                    )
                     .toMat(Sink.ignore)(Keep.right)
                     .liftTo[F]
                 )
@@ -81,16 +103,16 @@ object BlockchainClientHandler {
       )
 
     private def traceAndLogCommonAncestor[F[_]: Sync: Logger](
-      client:        BlockchainPeerClient[F],
-      blockHeights:  EventSourcedState[F, TypedIdentifier, Long => F[Option[TypedIdentifier]]],
-      localChain:    LocalChainAlgebra[F],
-      slotDataStore: StoreReader[F, TypedIdentifier, SlotData]
+      client:                  BlockchainPeerClient[F],
+      getLocalBlockIdAtHeight: Long => F[TypedIdentifier],
+      currentHeight:           () => F[Long],
+      slotDataStore:           StoreReader[F, TypedIdentifier, SlotData]
     ) =
       client.remotePeer
         .flatMap(peer =>
           Logger[F].info(show"Starting common ancestor trace with remote=${peer.remoteAddress}") >>
           client
-            .findCommonAncestor(blockHeights, localChain, slotDataStore)
+            .findCommonAncestor(getLocalBlockIdAtHeight, currentHeight)
             .flatTap(ancestor =>
               OptionT(slotDataStore.get(ancestor))
                 .getOrNoSuchElement(ancestor)
@@ -158,8 +180,14 @@ object BlockchainClientHandler {
             )
             .flatMap(_ =>
               OptionT(client.getRemoteHeader(id))
-                // TODO:  Verify the locally computed header ID against `id`
-                .semiflatTap(header =>
+                .flatMapF(header =>
+                  if (header.id.asTypedBytes === id) header.some.pure[F]
+                  else
+                    MonadThrow[F].raiseError[Option[BlockHeaderV2]](
+                      new IllegalArgumentException(show"Remote sent block id=${header.id} but we requested id=${id}")
+                    )
+                )
+                .semiflatTap(_ =>
                   client.remotePeer
                     .flatMap(peer => Logger[F].info(show"Inserting remote=${peer.remoteAddress} header id=$id"))
                 )

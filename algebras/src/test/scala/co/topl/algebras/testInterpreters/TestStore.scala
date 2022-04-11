@@ -16,7 +16,7 @@ class TestStore[F[_]: Async, Key, T] extends Store[F, Key, T] {
     ref.flatMap(_.update(_.updated(id, t)))
 
   def remove(id: Key): F[Unit] =
-    ref.flatMap(_.update(_.removed(id)))
+    ref.flatMap(_.update(_ - id))
 
   def contains(id: Key): F[Boolean] =
     ref.flatMap(_.get.map(_.contains(id)))

@@ -57,7 +57,7 @@ object TetraSuperDemo extends IOApp {
   private val OperationalPeriodLength = 180L
   private val OperationalPeriodsPerEpoch = 4L
   private val EpochLength = OperationalPeriodLength * OperationalPeriodsPerEpoch
-  private val SlotDuration = 200.milli
+  private val SlotDuration = 100.milli
 
   require(
     EpochLength % OperationalPeriodLength === 0L,
@@ -239,7 +239,7 @@ object TetraSuperDemo extends IOApp {
         (
           localPeers(1)._1,
           Source
-            .future(akka.pattern.after(20.seconds)(Future.unit))
+            .future(akka.pattern.after(40.seconds)(Future.unit))
             .flatMapConcat(_ => Source(List(DisconnectedPeer.tupled(LocalPeer.unapply(localPeers(0)._1).get)))),
           true,
           localPeers(1)._2

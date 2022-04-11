@@ -31,8 +31,8 @@ object BlockchainPeerConnectionFlowFactory {
   ): (ConnectedPeer, ConnectionLeader) => F[Flow[ByteString, ByteString, BlockchainPeerClient[F]]] =
     createFactory(peerServer).multiplexed
 
-  private def createFactory[F[_]: Async: Logger: FToFuture](protocolServer: BlockchainPeerServer[F])(implicit
-    materializer:                                                           Materializer
+  private[blockchain] def createFactory[F[_]: Async: Logger: FToFuture](protocolServer: BlockchainPeerServer[F])(
+    implicit materializer:                                                              Materializer
   ): TypedProtocolSetFactory[F, BlockchainPeerClient[F]] = {
     val blockAdoptionRecipF =
       TypedProtocolSetFactory.CommonProtocols.notificationReciprocated(

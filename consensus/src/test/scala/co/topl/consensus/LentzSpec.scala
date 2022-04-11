@@ -82,14 +82,14 @@ class LentzSpec
     printUnsafe("Relative Stake: Threshold Bytes, Threshold, Threshold Value, Reference Value")
     data1.foreach(p =>
       printUnsafe(
-        p._1 + "/10^" + math
+        p._1.toString + "/10^" + math
           .log10(p._2.toDouble)
           .toInt + ": " + (p._3.numerator.toByteArray.length + p._3.denominator.toByteArray.length) + ", " + p._3 + ", " + p._4 + ", " + p._5
       )
     )
     data2.foreach(p =>
       printUnsafe(
-        p._1 + "/10^" + math
+        p._1.toString + "/10^" + math
           .log10(p._2.toDouble)
           .toInt + ": " + (p._3.numerator.toByteArray.length + p._3.denominator.toByteArray.length) + ", " + p._3 + ", " + p._4 + ", " + p._5
       )

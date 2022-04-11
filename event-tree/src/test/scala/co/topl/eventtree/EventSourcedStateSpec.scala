@@ -30,8 +30,8 @@ class EventSourcedStateSpec
   behavior of "EventSourcedState"
 
   it should "traverse events forwards and backwards to provide the correct state along a tree" in {
-    val eventStore = new TestStore[F, Tx]()
-    val deltaStore = new TestStore[F, LedgerUnapply]()
+    val eventStore = new TestStore[F, TypedIdentifier, Tx]()
+    val deltaStore = new TestStore[F, TypedIdentifier, LedgerUnapply]()
     val tree = ParentChildTree.FromRef.make[F, TypedIdentifier].value
 
     txData
@@ -41,7 +41,7 @@ class EventSourcedStateSpec
       .value
 
     txAssociations.foldLeftM[F, Unit](()) { case (_, (c, p)) => tree.associate(c.asTxId, p.asTxId) }.value
-    val ledgerStore = new TestStore[F, Bytes]()
+    val ledgerStore = new TestStore[F, TypedIdentifier, Bytes]()
     val initialEventId = "-1".asTxId
 
     ledgerStore.put(Ledger.Eval.CurrentEventIdId, initialEventId.allBytes).value
@@ -106,7 +106,7 @@ object Ledger {
   object Eval {
     val CurrentEventIdId = TypedBytes(-1: Byte, Bytes(-1: Byte))
 
-    def make[F[_]: MonadThrow](store: Store[F, Bytes]): Ledger[F] = new Ledger[F] {
+    def make[F[_]: MonadThrow](store: Store[F, TypedIdentifier, Bytes]): Ledger[F] = new Ledger[F] {
 
       def eventId: F[TypedIdentifier] =
         OptionT(store.get(CurrentEventIdId)).foldF(
