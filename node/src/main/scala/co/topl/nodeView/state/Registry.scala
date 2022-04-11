@@ -1,7 +1,8 @@
 package co.topl.nodeView.state
 
 import co.topl.attestation.Address
-import co.topl.modifier.box.{BoxId, ProgramId}
+import co.topl.modifier.ProgramId
+import co.topl.modifier.box.BoxId
 import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.utils.Logging
 
