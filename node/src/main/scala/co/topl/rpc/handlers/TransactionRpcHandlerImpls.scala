@@ -4,7 +4,6 @@ import akka.actor.typed.ActorSystem
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
 import co.topl.attestation._
-import co.topl.modifier.box.ProgramId
 import co.topl.modifier.transaction.builder.BuildTransferFailure.implicits._
 import co.topl.modifier.transaction.builder.{BuildTransferFailure, TransferBuilder, TransferRequests}
 import co.topl.modifier.transaction.validation.implicits._
@@ -13,9 +12,10 @@ import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView}
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.StringDataTypes.implicits._
-import co.topl.utils.codecs.implicits._
+import co.topl.codecs._
+import co.topl.modifier.ProgramId
 import io.circe.Encoder
+import co.topl.utils.implicits._
 
 import scala.concurrent.Future
 

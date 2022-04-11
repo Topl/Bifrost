@@ -1,9 +1,10 @@
 package co.topl.consensus.genesis
 
-import co.topl.attestation.AddressCodec.implicits._
 import co.topl.attestation.EvidenceProducer.Syntax.ProducerOps
+import co.topl.attestation.implicits._
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519}
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.codecs._
 import co.topl.consensus.Forger.ChainParams
 import co.topl.crypto.{PrivateKey, PublicKey}
 import co.topl.modifier.ModifierId
