@@ -1,18 +1,29 @@
 package co.topl.codecs.json.modifier.block
 
-import co.topl.attestation.{Proposition, PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.codecs.binary._
 import co.topl.codecs.json.crypto._
 import co.topl.codecs.json.modifier.box._
 import co.topl.codecs.json.modifier.transaction._
-import co.topl.codecs.json.{deriveDecoderFromScodec, deriveEncoderFromScodec, deriveKeyDecoderFromScodec, deriveKeyEncoderFromScodec}
-import co.topl.codecs.{base58JsonDecoder, proofJsonDecoder, proofJsonEncoder, propositionJsonDecoder, propositionJsonEncoder}
+import co.topl.codecs.json.{
+  deriveDecoderFromScodec,
+  deriveEncoderFromScodec,
+  deriveKeyDecoderFromScodec,
+  deriveKeyEncoderFromScodec
+}
+import co.topl.codecs.{
+  base58JsonDecoder,
+  proofJsonDecoder,
+  proofJsonEncoder,
+  propositionJsonDecoder,
+  propositionJsonEncoder
+}
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
-import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter, PersistentNodeViewModifier}
+import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.transaction.Transaction
+import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.TimeProvider
@@ -115,13 +126,10 @@ trait BlockJsonCodecs {
       version
     )
 
-  implicit val bloomFilterJsonEncoder: Encoder[BloomFilter] = (b: BloomFilter) => Base58.encode(b.value.flatMap(Longs.toByteArray)).asJson
-
-//  implicit val bloomFilterJsonKeyEncoder: KeyEncoder[BloomFilter] = deriveKeyEncoderFromScodec(bloomFilterTypeName)
+  implicit val bloomFilterJsonEncoder: Encoder[BloomFilter] = (b: BloomFilter) =>
+    Base58.encode(b.value.flatMap(Longs.toByteArray)).asJson
 
   implicit val bloomFilterJsonDecoder: Decoder[BloomFilter] = Decoder[Base58Data].map(fromBase58)
-
-//  implicit val bloomFilterJsonKeyDecoder: KeyDecoder[BloomFilter] = deriveKeyDecoderFromScodec(bloomFilterTypeName)
 
   private def fromBase58(data: Base58Data): BloomFilter =
     new BloomFilter(data.value.grouped(Longs.BYTES).map(Longs.fromByteArray).toArray)
