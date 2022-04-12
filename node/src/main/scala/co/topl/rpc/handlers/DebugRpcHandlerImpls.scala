@@ -1,14 +1,21 @@
 package co.topl.rpc.handlers
 
 import akka.actor.typed.ActorSystem
+import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
 import co.topl.consensus.{KeyManagerInterface, ListOpenKeyfilesFailureException}
+import co.topl.modifier.block.Block
 import co.topl.nodeView.history.HistoryDebug
 import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView}
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
-import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.NetworkType.{NetworkPrefix, pickNetworkType}
 import io.circe.Encoder
+import io.circe.syntax.EncoderOps
+
+import java.io.{BufferedWriter, File, FileWriter}
+import scala.concurrent.Future
+import scala.util.Try
 
 class DebugRpcHandlerImpls(
   nodeViewHolderInterface: NodeViewHolderInterface,
@@ -60,6 +67,30 @@ class DebugRpcHandlerImpls(
           _.toRight(ToplRpcErrors.NoBlockIdsAtHeight: RpcError)
             .map(_.toList)
         )
+
+  override val exportGenesisAndKeys: ToplRpc.Debug.ExportGenesisAndKeys.rpc.ServerHandler =
+    params =>
+      for {
+        path <- EitherT.pure[Future, RpcError](new File(params.path))
+        _ <- EitherT.pure[Future, RpcError](path.mkdirs())
+        addresses <- keyManagerInterface
+          .exportOpenKeyfiles(params.passwords, path.getAbsolutePath)
+          .leftMap(e => ToplRpcErrors.genericFailure(e.toString): RpcError)
+        block <- withNodeView(_.history.modifierByHeight(1)).subflatMap(_.toRight(ToplRpcErrors.NoBlockAtHeight))
+        _ <- Future
+          .fromTry(saveBlockJsonToDisk(block, path.getAbsolutePath))
+          .attemptT
+          .leftMap(e => ToplRpcErrors.genericFailure(e.toString): RpcError)
+      } yield ToplRpc.Debug.ExportGenesisAndKeys.Response(
+        s"Exported genesis block with id ${block.id} | Exported keyfiles for addresses: $addresses"
+      )
+
+  private def saveBlockJsonToDisk(block: Block, path: String): Try[Unit] = Try {
+    val networkName = pickNetworkType(networkPrefix).get.verboseName
+    val w = new BufferedWriter(new FileWriter(s"$path/$networkName-genesis.json"))
+    w.write(block.asJson.toString)
+    w.close()
+  }
 
   private def withNodeView[T](f: ReadableNodeView => T) =
     nodeViewHolderInterface

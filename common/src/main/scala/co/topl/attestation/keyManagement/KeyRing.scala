@@ -1,15 +1,14 @@
 package co.topl.attestation.keyManagement
 
 import cats.data.Validated.{Invalid, Valid}
+import cats.implicits._
 import co.topl.attestation.Address
 import co.topl.attestation.implicits._
-import co.topl.codecs._
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.SecureRandom.randomBytes
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import com.google.common.primitives.Ints
-import io.circe.Encoder
 
 import java.io.File
 import scala.collection.immutable.ListMap
@@ -191,6 +190,17 @@ class KeyRing[
         case Failure(e) =>
           Failure(e)
       }
+
+    /**
+     * Export the open keyfiles to disk
+     */
+    def exportOpenKeyfiles(passwords: List[Latin1Data], path: String): Try[List[Address]] = {
+      val keyPasswordPairs = secrets.toList.zip(passwords)
+      keyPasswordPairs.map(pair => saveToDiskSafe(path, pair._2, pair._1).toOption).sequence match {
+        case Some(_) => Success(keyPasswordPairs.map(_._1.publicImage.address))
+        case None    => Failure(new Exception("Failed to export keys to disk"))
+      }
+    }
 
     /**
      * @param address

@@ -66,6 +66,16 @@ object ToplRpc {
       case class Params(height: Long, limit: Int)
       type Response = List[ModifierId]
     }
+
+    object ExportGenesisAndKeys {
+
+      /**
+       * Export the genesis block and open keys as Json files on disk
+       */
+      val rpc: Rpc[Params, Response] = Rpc("debug_exportGenesisAndKeys")
+      case class Params(passwords: List[String], path: String)
+      case class Response(msg: String)
+    }
   }
 
   object Util {

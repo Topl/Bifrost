@@ -43,6 +43,8 @@ trait DebugRpcParamsEncoders {
   implicit val debugIdsFromHeightParamsEncoder: Encoder[ToplRpc.Debug.IdsFromHeight.Params] =
     deriveEncoder
 
+  implicit val debugExportGenesisAndKeysParamsEncoder: Encoder[ToplRpc.Debug.ExportGenesisAndKeys.Params] =
+    deriveEncoder
 }
 
 trait UtilRpcParamsEncoders {
@@ -171,6 +173,9 @@ trait DebugRpcResponseDecoders {
 
   implicit val debugIdsFromHeightResponseDecoder: Decoder[ToplRpc.Debug.IdsFromHeight.Response] =
     Decoder.decodeList
+
+  implicit val debugExportGenesisAndKeysResponseDecoder: Decoder[ToplRpc.Debug.ExportGenesisAndKeys.Response] =
+    deriveDecoder
 }
 
 trait UtilRpcResponseDecoders {
@@ -341,6 +346,9 @@ trait DebugRpcParamsDecoders extends SharedCodecs {
     deriveDecoder
 
   implicit val debugIdsFromHeightParamsDecoder: Decoder[ToplRpc.Debug.IdsFromHeight.Params] =
+    deriveDecoder
+
+  implicit val debugExportGenesisAndKeysParamsDecoder: Decoder[ToplRpc.Debug.ExportGenesisAndKeys.Params] =
     deriveDecoder
 }
 
@@ -564,6 +572,9 @@ trait DebugRpcResponseEncoders extends SharedCodecs {
 
   implicit val debugIdsFromHeightResponseEncoder: Encoder[ToplRpc.Debug.IdsFromHeight.Response] =
     Encoder.encodeList
+
+  implicit val debugExportGenesisAndKeysResponseEncoder: Encoder[ToplRpc.Debug.ExportGenesisAndKeys.Response] =
+    deriveEncoder
 }
 
 trait UtilRpcResponseEncoders extends SharedCodecs {

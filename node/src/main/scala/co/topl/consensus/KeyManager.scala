@@ -47,9 +47,11 @@ class KeyManager(settings: AppSettings)(implicit networkPrefix: NetworkPrefix) e
     case LockKey(addr)                       => sender() ! keyRing.removeFromKeyring(addr)
     case ImportKey(password, mnemonic, lang) => sender() ! keyRing.importPhrase(password, mnemonic, lang)
     case ListKeys                            => sender() ! keyRing.addresses
-    case UpdateRewardsAddress(address)       => sender() ! updateRewardsAddress(keyRing, address)
-    case GetRewardsAddress                   => sender() ! rewardAddress.fold("none")(_.show)
-    case GetKeyView                          => sender() ! getKeyView(keyRing, rewardAddress)
+    case ExportOpenKeyfiles(passwords, path) =>
+      sender() ! keyRing.DiskOps.exportOpenKeyfiles(passwords.map(Latin1Data.unsafe), path)
+    case UpdateRewardsAddress(address) => sender() ! updateRewardsAddress(keyRing, address)
+    case GetRewardsAddress             => sender() ! rewardAddress.fold("none")(_.show)
+    case GetKeyView                    => sender() ! getKeyView(keyRing, rewardAddress)
     case GenerateInitialAddresses(addressSettings) =>
       sender() ! generateInitialAddresses(keyRing, rewardAddress)(addressSettings)
   }
@@ -175,6 +177,8 @@ object KeyManager {
     case object GetKeyView
 
     case class GenerateInitialAddresses(addressGenerationSettings: Option[AddressGenerationSettings])
+
+    case class ExportOpenKeyfiles(passwords: List[String], path: String)
   }
 
 }
@@ -205,15 +209,22 @@ sealed trait UpdateRewardsAddressFailure
 case class UpdateRewardsAddressFailureException(throwable: Throwable) extends UpdateRewardsAddressFailure
 sealed trait ListOpenKeyfilesFailure
 case class ListOpenKeyfilesFailureException(throwable: Throwable) extends ListOpenKeyfilesFailure
+sealed trait ExportOpenKeyfilesFailure
+case class ExportOpenKeyfilesFailureException(throwable: Throwable) extends ExportOpenKeyfilesFailure
 
 trait KeyManagerInterface {
   def unlockKey(address:  String, password: String): EitherT[Future, UnlockKeyFailure, Address]
   def lockKey(address:    Address): EitherT[Future, LockKeyFailure, Done.type]
   def createKey(password: String): EitherT[Future, CreateKeyFailure, Address]
   def importKey(password: String, mnemonic: String, lang: String): EitherT[Future, ImportKeyFailure, Address]
-  def getRewardsAddress(): EitherT[Future, GetRewardsAddressFailure, String]
+  def getRewardsAddress: EitherT[Future, GetRewardsAddressFailure, String]
   def updateRewardsAddress(address: Address): EitherT[Future, UpdateRewardsAddressFailure, Done.type]
   def listOpenKeyfiles(): EitherT[Future, ListOpenKeyfilesFailure, Set[Address]]
+
+  def exportOpenKeyfiles(
+    passwords: List[String],
+    path:      String
+  ): EitherT[Future, ExportOpenKeyfilesFailure, List[Address]]
 }
 
 class ActorKeyManagerInterface(actorRef: ActorRef)(implicit ec: ExecutionContext, timeout: Timeout)
@@ -270,4 +281,14 @@ class ActorKeyManagerInterface(actorRef: ActorRef)(implicit ec: ExecutionContext
       .askEither[Set[Address]](KeyManager.ReceivableMessages.ListKeys)
       .leftMap { case AskException(throwable) => ListOpenKeyfilesFailureException(throwable) }
       .leftMap(e => e: ListOpenKeyfilesFailure)
+
+  override def exportOpenKeyfiles(
+    passwords: List[String],
+    path:      String
+  ): EitherT[Future, ExportOpenKeyfilesFailure, List[Address]] =
+    actorRef
+      .askEither[Try[List[Address]]](KeyManager.ReceivableMessages.ExportOpenKeyfiles(passwords, path))
+      .leftMap { case AskException(throwable) => ExportOpenKeyfilesFailureException(throwable) }
+      .subflatMap(_.toEither.leftMap(ExportOpenKeyfilesFailureException))
+      .leftMap(e => e: ExportOpenKeyfilesFailure)
 }
