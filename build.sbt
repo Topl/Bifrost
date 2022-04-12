@@ -198,6 +198,7 @@ lazy val bifrost = project
     toplRpc,
     benchmarking,
     crypto,
+    catsAkka,
     brambl,
     models,
     numerics,
@@ -420,7 +421,7 @@ lazy val commonInterpreters = project
   )
   .settings(libraryDependencies ++= Dependencies.commonInterpreters)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, algebras, typeclasses, byteCodecs, tetraByteCodecs)
+  .dependsOn(models, algebras, typeclasses, byteCodecs, tetraByteCodecs, catsAkka)
 
 lazy val consensus = project
   .in(file("consensus"))
@@ -466,7 +467,8 @@ lazy val minting = project
     crypto,
     tetraByteCodecs,
     algebras % "compile->compile;test->test",
-    consensus
+    consensus,
+    catsAkka
   )
 
 lazy val networking = project
@@ -480,15 +482,18 @@ lazy val networking = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.networking"
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsEffect)
+  .settings(libraryDependencies ++= Dependencies.networking)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(
     models % "compile->compile;test->test",
     typeclasses,
     crypto,
     byteCodecs,
+    tetraByteCodecs,
     algebras % "compile->compile;test->test",
-    consensus
+    consensus,
+    commonInterpreters,
+    catsAkka
   )
 
 lazy val demo = project
@@ -512,7 +517,7 @@ lazy val demo = project
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.demo ++ Dependencies.catsEffect)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models % "compile->compile;test->test", typeclasses, consensus, minting, scripting, commonInterpreters)
+  .dependsOn(models % "compile->compile;test->test", typeclasses, consensus, minting, scripting, commonInterpreters, networking, catsAkka)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
 lazy val eligibilitySimulator: Project = project
@@ -600,6 +605,19 @@ lazy val crypto = project
   )
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test")
+
+lazy val catsAkka = project
+  .in(file("cats-akka"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "cats-akka",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.catsakka",
+    libraryDependencies ++= Dependencies.catsAkka
+  )
+  .settings(scalamacrosParadiseSettings)
 
 lazy val tools = project
   .in(file("tools"))

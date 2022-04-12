@@ -125,6 +125,10 @@ object Dependencies {
     "org.scodec" %% "scodec-bits" % "1.1.27"
   )
 
+  val fleam = Seq(
+    "com.nike.fleam" %% "fleam" % "7.0.0"
+  )
+
   val node: Seq[ModuleID] = {
     Seq(
       "com.typesafe.akka"          %% "akka-cluster"       % akkaVersion,
@@ -227,6 +231,9 @@ object Dependencies {
     simulacrum ++
     test
 
+  lazy val catsAkka: Seq[ModuleID] =
+    cats ++ catsEffect ++ logging ++ Seq(akka("actor"), akka("actor-typed"), akka("stream"))
+
   lazy val models: Seq[ModuleID] =
     cats ++ simulacrum ++ newType ++ scodecBits
 
@@ -235,6 +242,12 @@ object Dependencies {
 
   lazy val minting: Seq[ModuleID] =
     Dependencies.test ++ Dependencies.catsEffect ++ Seq(Dependencies.akka("stream"))
+
+  lazy val networking: Seq[ModuleID] =
+    Dependencies.test ++ Dependencies.catsEffect ++ Seq(
+      Dependencies.akka("stream"),
+      Dependencies.akka("stream-testkit") % Test
+    ) ++ fleam
 
   lazy val demo: Seq[ModuleID] =
     Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++ logging
@@ -257,9 +270,9 @@ object Dependencies {
 
   lazy val loadTesting: Seq[ModuleID] = {
     Seq(
-      "com.lihaoyi"    %% "mainargs" % "0.2.1",
-      "com.nike.fleam" %% "fleam"    % "7.0.0"
+      "com.lihaoyi" %% "mainargs" % "0.2.1"
     ) ++
+    fleam ++
     allAkka ++
     circe
   }

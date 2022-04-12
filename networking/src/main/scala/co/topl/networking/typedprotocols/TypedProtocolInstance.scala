@@ -2,12 +2,10 @@ package co.topl.networking.typedprotocols
 
 import cats.Monad
 import cats.data.{Chain, EitherT}
-import cats.effect.Sync
-import cats.effect.kernel.Ref
+import cats.effect.Concurrent
+import cats.effect.std.Semaphore
 import cats.implicits._
-import co.topl.networking.Party
-
-import scala.reflect.ClassTag
+import co.topl.networking.{NetworkTypeTag, Party}
 
 /**
  * Captures the domain of state transitions for some typed protocol.  The domain is used by an "applier" to handle
@@ -17,52 +15,57 @@ import scala.reflect.ClassTag
  *                    captured and stored for later comparison
  */
 case class TypedProtocolInstance[F[_]] private (
-  localParty:              Party,
-  private val transitions: Chain[(StateTransition[F, _, _, _], ClassTag[_], ClassTag[_], ClassTag[_], StateAgency[_])]
+  localParty: Party,
+  private val transitions: Chain[
+    (StateTransition[F, _, _, _], NetworkTypeTag[_], NetworkTypeTag[_], NetworkTypeTag[_], StateAgency[_])
+  ]
 ) {
 
   /**
    * Append the given state transition to this instance
    */
-  def withTransition[Message: ClassTag, InState: ClassTag: StateAgency, OutState: ClassTag](
+  def withTransition[Message: NetworkTypeTag, InState: NetworkTypeTag: StateAgency, OutState: NetworkTypeTag](
     transition: StateTransition[F, Message, InState, OutState]
   ): TypedProtocolInstance[F] =
     copy(transitions =
       transitions.append(
         (
           transition,
-          implicitly[ClassTag[Message]],
-          implicitly[ClassTag[InState]],
-          implicitly[ClassTag[OutState]],
+          implicitly[NetworkTypeTag[Message]],
+          implicitly[NetworkTypeTag[InState]],
+          implicitly[NetworkTypeTag[OutState]],
           implicitly[StateAgency[InState]]
         )
       )
     )
 
-  private def applyMessage[Message: ClassTag](
-    message:              Message,
-    sender:               Party,
-    currentState:         Any,
-    currentStateClassTag: ClassTag[_]
-  )(implicit monadF:      Monad[F]): F[Either[TypedProtocolTransitionFailure, (Any, ClassTag[Any])]] =
+  private def applyMessage[Message: NetworkTypeTag](
+    message:                    Message,
+    sender:                     Party,
+    currentState:               Any,
+    currentStateNetworkTypeTag: NetworkTypeTag[_]
+  )(implicit
+    monadF:         Monad[F],
+    messageTypeTag: NetworkTypeTag[Message]
+  ): F[Either[TypedProtocolTransitionFailure, (Any, NetworkTypeTag[Any])]] =
     EitherT
       .fromOption[F](
-        transitions.find { case (_, messageClassTag, inStateClassTag, _, _) =>
-          implicitly[ClassTag[Message]] == messageClassTag && inStateClassTag == currentStateClassTag
+        transitions.find { case (_, messageNetworkTypeTag, inStateNetworkTypeTag, _, _) =>
+          messageTypeTag == messageNetworkTypeTag && inStateNetworkTypeTag == currentStateNetworkTypeTag
         },
         IllegalMessageState(message, currentState)
       )
       .ensure(MessageSenderNotAgent(sender): TypedProtocolTransitionFailure) { handler =>
         handler._5.asInstanceOf[StateAgency[Any]].agent.contains(sender)
       }
-      .semiflatMap { case (transition, _, _, outStateClassTag, _) =>
+      .semiflatMap { case (transition, _, _, outStateNetworkTypeTag, _) =>
         transition
           .asInstanceOf[StateTransition[F, Message, Any, Any]](
             message,
             currentState,
             localParty
           )
-          .tupleRight(outStateClassTag.asInstanceOf[ClassTag[Any]])
+          .tupleRight(outStateNetworkTypeTag.asInstanceOf[NetworkTypeTag[Any]])
       }
       .value
 
@@ -71,24 +74,27 @@ case class TypedProtocolInstance[F[_]] private (
    * current protocol state.
    * @param initialState The initial state of the protocol
    */
-  def applier[S: ClassTag](
-    initialState:    S
-  )(implicit monadF: Monad[F], syncF: Sync[F]): F[MessageApplier] =
-    Ref
-      .of[F, (Any, ClassTag[_])]((initialState, implicitly[ClassTag[S]]))
-      .map(ref =>
+  def applier[S: NetworkTypeTag](
+    initialState:         S
+  )(implicit concurrentF: Concurrent[F]): F[MessageApplier] =
+    Semaphore[F](1)
+      .map(semaphore =>
         new MessageApplier {
+          private var state: Any = initialState
+          private var typeTag: NetworkTypeTag[_] = implicitly[NetworkTypeTag[S]]
 
-          def apply[Message: ClassTag](
+          def apply[Message: NetworkTypeTag](
             message: Message,
             sender:  Party
-          ): F[Either[TypedProtocolTransitionFailure, Any]] =
-            EitherT(ref.get.flatMap { case (s, sClassTag) =>
-              applyMessage[Message](message, sender, s, sClassTag)
-            })
-              .semiflatTap(ref.set)
-              .map(_._1)
-              .value
+          ): F[Either[TypedProtocolTransitionFailure, Any]] = {
+            for {
+              _                      <- EitherT.liftF[F, TypedProtocolTransitionFailure, Unit](semaphore.acquire)
+              (newState, newTypeTag) <- EitherT(applyMessage[Message](message, sender, state, typeTag))
+              _ = state = newState
+              _ = typeTag = newTypeTag
+              _ <- EitherT.liftF[F, TypedProtocolTransitionFailure, Unit](semaphore.release)
+            } yield newState
+          }.value
         }
       )
 
@@ -97,7 +103,7 @@ case class TypedProtocolInstance[F[_]] private (
    */
   trait MessageApplier {
 
-    def apply[Message: ClassTag](
+    def apply[Message: NetworkTypeTag](
       message: Message,
       sender:  Party
     ): F[Either[TypedProtocolTransitionFailure, Any]]

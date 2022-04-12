@@ -12,6 +12,7 @@ import cats.effect.{Async, IO, IOApp}
 import cats.implicits._
 import cats.~>
 import co.topl.algebras._
+import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
@@ -32,6 +33,7 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.nio.file.{Files, Paths}
+import java.time.Instant
 import java.util.UUID
 import scala.concurrent.duration._
 import scala.util.Random
@@ -114,7 +116,7 @@ object EligibilitySimulator extends IOApp.Simple {
   implicit private val logger: Logger[F] = Slf4jLogger.getLogger[F]
 
   private val clock: ClockAlgebra[F] =
-    AkkaSchedulerClock.Eval.make(SlotDuration, EpochLength)
+    AkkaSchedulerClock.Eval.make(SlotDuration, EpochLength, Instant.now())
 
   implicit private val timeout: Timeout = Timeout(20.seconds)
 
@@ -207,6 +209,7 @@ object EligibilitySimulator extends IOApp.Simple {
       def remove(id: TypedIdentifier): F[Unit] =
         (headerStore.remove(id), bodyStore.remove(id)).tupled.void
 
+      def contains(id: TypedIdentifier): F[Boolean] = (headerStore.contains(id), bodyStore.contains(id)).mapN(_ && _)
     }
 
   // Program definition

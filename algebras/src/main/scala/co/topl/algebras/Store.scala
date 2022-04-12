@@ -5,10 +5,16 @@ import cats.data.OptionT
 import co.topl.models.TypedIdentifier
 
 trait StoreReader[F[_], T] {
+  outer =>
   def get(id: TypedIdentifier): F[Option[T]]
 
-  def mapRead[U](f: T => U)(implicit functor: Functor[F]): StoreReader[F, U] =
-    id => OptionT(get(id)).map(f).value
+  def contains(id: TypedIdentifier): F[Boolean]
+
+  def mapRead[U](f: T => U)(implicit functor: Functor[F]): StoreReader[F, U] = new StoreReader[F, U] {
+    def get(id: TypedIdentifier): F[Option[U]] = OptionT(outer.get(id)).map(f).value
+
+    def contains(id: TypedIdentifier): F[Boolean] = outer.contains(id)
+  }
 }
 
 trait StoreWriter[F[_], T] {
@@ -36,5 +42,7 @@ trait Store[F[_], T] extends StoreReader[F, T] with StoreWriter[F, T] {
       def remove(id: TypedIdentifier): F[Unit] = wMap.remove(id)
 
       def get(id: TypedIdentifier): F[Option[U]] = rMap.get(id)
+
+      def contains(id: TypedIdentifier): F[Boolean] = rMap.contains(id)
     }
 }

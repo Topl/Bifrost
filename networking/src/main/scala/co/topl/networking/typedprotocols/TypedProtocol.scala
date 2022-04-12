@@ -86,11 +86,4 @@ object StateAgency {
   def alwaysA[ProtocolState]: StateAgency[ProtocolState] = StateAgency[ProtocolState](Parties.A.some)
   def alwaysB[ProtocolState]: StateAgency[ProtocolState] = StateAgency[ProtocolState](Parties.B.some)
   def noAgent[ProtocolState]: StateAgency[ProtocolState] = StateAgency[ProtocolState](none)
-
-  trait CommonStateAgency {
-    implicit val stateAgentStart: StateAgency[TypedProtocol.CommonStates.None.type] = StateAgency.alwaysB
-    implicit val stateAgentIdle: StateAgency[TypedProtocol.CommonStates.Idle.type] = StateAgency.alwaysB
-    implicit val stateAgentBusy: StateAgency[TypedProtocol.CommonStates.Busy.type] = StateAgency.alwaysA
-    implicit val stateAgentDone: StateAgency[TypedProtocol.CommonStates.Done.type] = StateAgency.noAgent
-  }
 }
