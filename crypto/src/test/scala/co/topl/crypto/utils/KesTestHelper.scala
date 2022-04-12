@@ -56,10 +56,10 @@ object KesTestHelper {
             )
           ) =>
         areEqual(superTree_a, superTree_b) &&
-          areEqual(subTree_a, subTree_b) &&
-          Bytes(nextSubSeed_a) == Bytes(nextSubSeed_b) &&
-          subSignature_a == subSignature_b &&
-          offset_a == offset_b
+        areEqual(subTree_a, subTree_b) &&
+        Bytes(nextSubSeed_a) == Bytes(nextSubSeed_b) &&
+        subSignature_a == subSignature_b &&
+        offset_a == offset_b
       case _ => false
     }
 
@@ -82,15 +82,15 @@ object KesTestHelper {
             )
           ) =>
         Bytes(seed_a) == Bytes(seed_b) &&
-          Bytes(witnessLeft_a) == Bytes(witnessLeft_b) &&
-          Bytes(witnessRight_a) == Bytes(witnessRight_b) &&
-          areEqual(left_a, left_b) &&
-          areEqual(right_a, right_b)
+        Bytes(witnessLeft_a) == Bytes(witnessLeft_b) &&
+        Bytes(witnessRight_a) == Bytes(witnessRight_b) &&
+        areEqual(left_a, left_b) &&
+        areEqual(right_a, right_b)
       case (KesBinaryTree.Empty(), KesBinaryTree.Empty()) =>
         true
       case (KesBinaryTree.SigningLeaf(sk_a, vk_a), KesBinaryTree.SigningLeaf(sk_b, vk_b)) =>
         Bytes(sk_a) == Bytes(sk_b) &&
-          Bytes(vk_a) == Bytes(vk_b)
+        Bytes(vk_a) == Bytes(vk_b)
       case _ =>
         false
     }

@@ -194,7 +194,6 @@ lazy val bifrost = project
     node,
     common,
     akkaHttpRpc,
-    models,
     typeclasses,
     toplRpc,
     benchmarking,
@@ -210,7 +209,8 @@ lazy val bifrost = project
     consensus,
     demo,
     tools,
-    scripting
+    scripting,
+    genus
   )
 
 lazy val node = project
@@ -537,11 +537,11 @@ lazy val crypto = project
     name := "crypto",
     commonSettings,
     publishSettings,
+    scalamacrosParadiseSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.crypto",
     libraryDependencies ++= Dependencies.crypto
   )
-  .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test")
 
 lazy val tools = project
@@ -567,6 +567,17 @@ lazy val loadTesting = project
     libraryDependencies ++= Dependencies.loadTesting
   )
   .dependsOn(common, brambl)
+
+lazy val genus = project
+  .in(file("genus"))
+  .settings(
+    name := "genus",
+    commonSettings,
+    scalamacrosParadiseSettings,
+    libraryDependencies ++= Dependencies.genus,
+  )
+  .enablePlugins(AkkaGrpcPlugin)
+  .dependsOn(common)
 
 addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; + test")
 addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; + test")
