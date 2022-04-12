@@ -1,23 +1,27 @@
 package co.topl.algebras.testInterpreters
 
-import cats.implicits._
 import cats.effect.kernel.{Async, Ref}
+import cats.implicits._
 import co.topl.algebras.Store
-import co.topl.models.TypedIdentifier
 
-class TestStore[F[_]: Async, Key, T] extends Store[F, Key, T] {
+object TestStore {
 
-  private val ref = Ref.of[F, Map[Key, T]](Map.empty[Key, T])
+  def make[F[_]: Async, Key, T]: F[TestStore[F, Key, T]] =
+    Ref.of[F, Map[Key, T]](Map.empty[Key, T]).map(new TestStore[F, Key, T](_))
+
+}
+
+class TestStore[F[_]: Async, Key, T] private (ref: Ref[F, Map[Key, T]]) extends Store[F, Key, T] {
 
   def get(id: Key): F[Option[T]] =
-    ref.flatMap(_.get.map(_.get(id)))
+    ref.get.map(_.get(id))
 
   def put(id: Key, t: T): F[Unit] =
-    ref.flatMap(_.update(_.updated(id, t)))
+    ref.update(_.updated(id, t))
 
   def remove(id: Key): F[Unit] =
-    ref.flatMap(_.update(_ - id))
+    ref.update(_ - id)
 
   def contains(id: Key): F[Boolean] =
-    ref.flatMap(_.get.map(_.contains(id)))
+    ref.get.map(_.contains(id))
 }
