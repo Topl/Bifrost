@@ -34,8 +34,8 @@ object GenusApp extends IOApp {
     Resource
       .make(
         IO.delay(
-          ActorSystem[Unit](
-            Behaviors.empty,
+          ActorSystem(
+            Behaviors.empty[Unit],
             "genus-guardian",
             ConfigFactory
               .parseString("akka.http.server.preview.enable-http2 = on")
