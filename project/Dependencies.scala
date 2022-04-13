@@ -154,7 +154,7 @@ object Dependencies {
   }
 
   lazy val algebras =
-    Dependencies.test ++
+    test ++
     catsEffect.map(_ % Test) ++
     Seq(catsSlf4j % Test)
 

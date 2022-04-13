@@ -52,7 +52,7 @@ object BlockchainClientHandler {
                   (height: Long) =>
                     localChain.head
                       .map(_.slotId.blockId)
-                      .flatMap(blockHeights.stateAt(_))
+                      .flatMap(blockHeights.stateAt)
                       .ap(height.pure[F])
                       .flatten
                       .flatMap(
