@@ -52,12 +52,12 @@ object NodeViewHolder {
      *
      * @param nodeView the initialized NodeView
      */
-    private[NodeViewHolder] case class Initialized(nodeView: NodeView) extends ReceivableMessage
+    private[nodeView] case class Initialized(nodeView: NodeView) extends ReceivableMessage
 
     /**
      * A self-message indicating that initialization failed
      */
-    private[NodeViewHolder] case class InitializationFailed(reason: Throwable) extends ReceivableMessage
+    private[nodeView] case class InitializationFailed(reason: Throwable) extends ReceivableMessage
 
     /**
      * The main public "read" interface for interacting with a read-only node view.  It accepts a function which is
@@ -69,7 +69,7 @@ object NodeViewHolder {
      */
     case class Read[T](f: ReadableNodeView => T, replyTo: ActorRef[StatusReply[T]]) extends ReceivableMessage {
 
-      private[NodeViewHolder] def run(readableNodeView: ReadableNodeView): Unit =
+      private[nodeView] def run(readableNodeView: ReadableNodeView): Unit =
         replyTo.tell(
           Try(f(readableNodeView)).fold[StatusReply[T]](e => StatusReply.error(e), StatusReply.success)
         )
@@ -77,6 +77,7 @@ object NodeViewHolder {
 
     /**
      * The main public "write" interface for block data.
+     * Starts a process of possibly adopting the blocks into the main chain or a tine.
      */
     case class WriteBlocks(blocks: Iterable[Block]) extends ReceivableMessage
 
@@ -85,7 +86,7 @@ object NodeViewHolder {
      *
      * @param block A block that is valid in the current node view
      */
-    private[NodeViewHolder] case class WriteBlock(block: Block) extends ReceivableMessage
+    private[nodeView] case class WriteBlock(block: Block) extends ReceivableMessage
 
     /**
      * The private interface to write a single block
@@ -93,12 +94,12 @@ object NodeViewHolder {
      * @param block          A block that is valid in the current node view
      * @param consensusState The consensus parameters for the current node view
      */
-    private[NodeViewHolder] case class WriteBlockWithConsensusView(
+    private[nodeView] case class WriteBlockWithConsensusView(
       block:          Block,
       consensusState: NxtConsensus.View
     ) extends ReceivableMessage
 
-    private[NodeViewHolder] case class Terminate(reason: Throwable) extends ReceivableMessage
+    private[nodeView] case class Terminate(reason: Throwable) extends ReceivableMessage
 
     /**
      * Public message to write transactions
@@ -245,12 +246,14 @@ object NodeViewHolder {
           Behaviors.same
 
         case (context, ReceivableMessages.WriteBlock(block)) =>
-          context.pipeToSelf(consensusViewer.withView[NxtConsensus.View](identity).value) {
+          context.pipeToSelf(
+            consensusViewer.withView(ReceivableMessages.WriteBlockWithConsensusView(block, _)).value
+          ) {
             _.fold(
               error => ReceivableMessages.Terminate(error),
               _.fold(
-                error => ReceivableMessages.Terminate(error.reason),
-                view => ReceivableMessages.WriteBlockWithConsensusView(block, view)
+                error => ReceivableMessages.Terminate(new IllegalArgumentException(error.toString)),
+                identity
               )
             )
           }
@@ -262,7 +265,8 @@ object NodeViewHolder {
           // TODO: Exception handling
           // TODO: Should we hold onto the block in the cache?
           // TODO: Ban-list bad blocks?
-          val newNodeView = eventStreamWriterHandler(nodeView.withBlock(block, consensusView))
+          val newNodeView =
+            eventStreamWriterHandler(nodeView.withBlock(block, consensusView.validators(consensusView.state)))
           popBlock(cache, newNodeView)(context)
           initialized(newNodeView, cache, consensusViewer)
 

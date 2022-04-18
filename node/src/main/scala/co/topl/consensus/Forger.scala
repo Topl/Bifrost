@@ -7,20 +7,16 @@ import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
 import cats.data.EitherT
 import cats.implicits._
-import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
-import co.topl.consensus.genesis._
+import co.topl.consensus.KeyManager.KeyView
 import co.topl.modifier.block.Block
 import co.topl.nodeView.NodeViewReader
-import co.topl.settings.AppSettings
-import co.topl.settings.GenesisStrategy._
 import co.topl.utils.NetworkType._
-import co.topl.utils.{Int128, NetworkType, TimeProvider}
+import co.topl.utils.{Int128, TimeProvider}
 import org.slf4j.Logger
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
-import scala.util.Try
 
 /**
  * The "Forger" is an Actor which manages and executes a periodic "forge" process.
@@ -64,12 +60,12 @@ object Forger {
     minTransactionFee:    Int128,
     forgeOnStartup:       Boolean,
     fetchKeyView:         () => Future[KeyView],
-    fetchStartupKeyView:  () => Future[StartupKeyView],
     nodeViewReader:       NodeViewReader,
     consensusInterface:   ConsensusInterface
   )(implicit
-    networkPrefix: NetworkPrefix,
-    timeProvider:  TimeProvider
+    networkPrefix:     NetworkPrefix,
+    protocolVersioner: ProtocolVersioner,
+    timeProvider:      TimeProvider
   ): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
       import context.executionContext
@@ -78,7 +74,7 @@ object Forger {
         context.log.info(s"${Console.YELLOW}Forging will start after initialization${Console.RESET}")
       }
 
-      context.pipeToSelf(checkPrivateForging(fetchStartupKeyView))(
+      context.pipeToSelf(checkPrivateForging(fetchKeyView))(
         _.fold(ReceivableMessages.Terminate, _ => ReceivableMessages.InitializationComplete)
       )
 
@@ -95,16 +91,14 @@ object Forger {
   /**
    * If this node is running a private or local network, verify that a rewards address is set
    */
-  private def checkPrivateForging(fetchStartupKeyView: () => Future[StartupKeyView])(implicit
-    ec:                                                ExecutionContext,
-    networkPrefix:                                     NetworkPrefix
+  private def checkPrivateForging(fetchKeyView: () => Future[KeyView])(implicit
+    ec:                                         ExecutionContext,
+    networkPrefix:                              NetworkPrefix
   ): Future[Done] =
     if (PrivateTestnet.netPrefix == networkPrefix) {
-      fetchStartupKeyView().flatMap {
-        case keyView if keyView.rewardAddr.nonEmpty =>
-          Future.successful(Done)
-        case _ =>
-          Future.failed(new IllegalStateException("Forging requires a rewards address"))
+      fetchKeyView().flatMap {
+        case keyView if keyView.rewardAddr.nonEmpty => Future.successful(Done)
+        case _ => Future.failed(new IllegalStateException("Forging requires a rewards address"))
       }
     } else {
       Future.successful(Done)
@@ -125,9 +119,10 @@ private class ForgerBehaviors(
   nodeViewReader:       NodeViewReader,
   consensusViewReader:  ConsensusReader
 )(implicit
-  context:       ActorContext[Forger.ReceivableMessage],
-  networkPrefix: NetworkPrefix,
-  timeProvider:  TimeProvider
+  context:           ActorContext[Forger.ReceivableMessage],
+  networkPrefix:     NetworkPrefix,
+  protocolVersioner: ProtocolVersioner,
+  timeProvider:      TimeProvider
 ) {
 
   import context.executionContext
@@ -207,7 +202,7 @@ private class ForgerBehaviors(
           result.foreach(block => context.system.eventStream.tell(EventStream.Publish(LocallyGeneratedBlock(block))))
           result match {
             case Left(ForgeFailure(Forge.NoRewardsAddressSpecified)) |
-                Left(ForgeFailure(Forge.LeaderElectionFailure(LeaderElection.NoAddressesAvailable))) =>
+                Left(ForgeFailure(Forge.LeaderElectionFailure(NxtLeaderElection.NoAddressesAvailable))) =>
               // In these specific cases, it would not help to try again
               scheduler.cancelAll()
               log.info("Forger transitioning to idle state")
@@ -230,7 +225,12 @@ private class ForgerBehaviors(
       keyView <- EitherT[Future, ForgerFailure, KeyView](
         fetchKeyView().map(Right(_)).recover { case e => Left(ForgingError(e)) }
       )
-      consensusView <- consensusViewReader.withView[NxtConsensus.View](identity).leftMap(e => ForgingError(e.reason))
+      consensusView <- consensusViewReader
+        .withView[NxtConsensus.View](identity)
+        .leftMap {
+          case ConsensusInterface.WithViewFailures.InternalException(e) => ForgingError(e)
+          case e => ForgingError(new IllegalArgumentException(e.toString))
+        }
       forge <- nodeViewReader
         .withNodeView(Forge.prepareForge(_, consensusView, keyView, minTransactionFee))
         .leftMap(e => ForgingError(e.reason))
@@ -251,11 +251,11 @@ private class ForgerBehaviors(
         f match {
           case Forge.LeaderElectionFailure(reason) =>
             reason match {
-              case LeaderElection.NoAddressesAvailable =>
+              case NxtLeaderElection.NoAddressesAvailable =>
                 log.warn("Forger has no addresses available to stake with.")
-              case LeaderElection.NoBoxesEligible =>
+              case NxtLeaderElection.NoBoxesEligible =>
                 log.debug("No Arbit boxes are eligible at the current difficulty.")
-              case LeaderElection.NoArbitBoxesAvailable =>
+              case NxtLeaderElection.NoArbitBoxesAvailable =>
                 log.debug("No arbit boxes available to stake with.")
             }
           case Forge.NoRewardsAddressSpecified =>

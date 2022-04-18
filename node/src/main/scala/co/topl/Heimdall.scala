@@ -56,14 +56,16 @@ object Heimdall {
   def apply(settings: AppSettings, appContext: AppContext): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
       implicit def system: ActorSystem[_] = context.system
+      implicit def networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
       implicit val timeout: Timeout = Timeout(10.minutes)
       implicit val timeProvider: NetworkTimeProvider = new NetworkTimeProvider(settings.ntp)(context.system)
+      implicit val protocolVersioner: ProtocolVersioner =
+        ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
 
-      context.log.info("Initializing ProtocolVersioner, ConsensusStorage, KeyManager, and NodeViewHolder")
+      context.log.info("Initializing KeyManager, ConsensusHolder, and NodeViewHolder")
 
-      val consensusViewState = prepareConsensusViewRef(settings, appContext)
-      val state = prepareNodeViewRef(settings, appContext, consensusViewState)
+      val state = prepareNodeViewState(settings)
 
       context.watch(state.keyManager)
       context.watch(state.nodeViewHolder)
@@ -74,7 +76,7 @@ object Heimdall {
         case Success(_)         => ReceivableMessages.NodeViewHolderReady
       }
 
-      awaitingNodeViewReady(settings, appContext, state)(timeProvider)
+      awaitingNodeViewReady(settings, appContext, state)(timeProvider, protocolVersioner)
     }
 
   /**
@@ -85,10 +87,11 @@ object Heimdall {
     settings:              AppSettings,
     appContext:            AppContext,
     state:                 NodeViewInitializingState
-  )(implicit timeProvider: TimeProvider): Behavior[ReceivableMessage] =
+  )(implicit timeProvider: TimeProvider, protocolVersioner: ProtocolVersioner): Behavior[ReceivableMessage] =
     Behaviors.receivePartial {
       case (context, ReceivableMessages.NodeViewHolderReady) =>
         implicit def ctx: ActorContext[ReceivableMessage] = context
+        implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
 
         context.log.info("Initializing PeerManager, NetworkController, Forger, and MemPoolAuditor")
         val nextState = prepareNetworkControllerState(settings, appContext, state)
@@ -114,7 +117,7 @@ object Heimdall {
 
       implicit def ctx: ActorContext[ReceivableMessage] = context
 
-      val nextState = prepareRemainingActors(settings, appContext, state)
+      val nextState = prepareRemainingActors(settings, state)
 
       context.watch(nextState.peerSynchronizer)
       context.watch(nextState.nodeViewSynchronizer)
@@ -156,7 +159,7 @@ object Heimdall {
       case (context, ReceivableMessages.P2PTrafficBound(p2pAddress)) =>
         context.log.info(s"${Console.YELLOW}P2P protocol bound to $p2pAddress${Console.RESET}")
         val service =
-          httpService(
+          prepareHttpService(
             settings,
             appContext,
             state.keyManager,
@@ -201,8 +204,9 @@ object Heimdall {
         Behaviors.same
       }
 
-  private case class ConsensusViewInitialiazingState(
-    consensusViewHolder: ActorRef[NxtConsensus.ReceivableMessage]
+  private case class KeyManagerInitializingState(
+    keyManagerRef: CActorRef,
+    futureKeyView: Future[StartupKeyView]
   )
 
   private case class NodeViewInitializingState(
@@ -236,111 +240,51 @@ object Heimdall {
 
   private case class State(childActorState: ActorsInitializedState, httpBinding: Http.ServerBinding)
 
-  private def httpService(
-    settings:           AppSettings,
-    appContext:         AppContext,
-    keyManagerRef:      CActorRef,
-    forgerRef:          ActorRef[Forger.ReceivableMessage],
-    nodeViewHolderRef:  ActorRef[NodeViewHolder.ReceivableMessage],
-    consensusHolderRef: ActorRef[NxtConsensus.ReceivableMessage]
-  )(implicit system:    ActorSystem[_]): HttpService = {
-    import system.executionContext
-
-    implicit val networkPrefix: NetworkPrefix =
-      appContext.networkType.netPrefix
-
-    implicit val throwableEncoder: Encoder[ThrowableData] =
-      ThrowableSupport.verbose(settings.rpcApi.verboseAPI)
-
-    implicit val askTimeout: Timeout =
-      Timeout(settings.rpcApi.timeout)
-
-    val forgerInterface = new ActorForgerInterface(forgerRef)
-    val keyManagerInterface = new ActorKeyManagerInterface(keyManagerRef)
-
-    val nodeViewHolderInterface =
-      new ActorNodeViewHolderInterface(nodeViewHolderRef)
-
-    val consensusInterface = new ActorConsensusInterface(consensusHolderRef)
-
-    val bifrostRpcServer: ToplRpcServer = {
-      import co.topl.rpc.handlers._
-      new ToplRpcServer(
-        ToplRpcHandlers(
-          new DebugRpcHandlerImpls(nodeViewHolderInterface, keyManagerInterface),
-          new UtilsRpcHandlerImpls,
-          new NodeViewRpcHandlerImpls(settings.rpcApi, appContext, consensusInterface, nodeViewHolderInterface),
-          new TransactionRpcHandlerImpls(nodeViewHolderInterface),
-          new AdminRpcHandlerImpls(forgerInterface, keyManagerInterface, nodeViewHolderInterface)
-        ),
-        appContext
-      )
-    }
-
-    HttpService(settings.rpcApi, bifrostRpcServer)
-  }
-
-  private def prepareConsensusViewRef(
-    settings:   AppSettings,
-    appContext: AppContext
+  private def prepareNodeViewState(
+    settings: AppSettings
   )(implicit
-    context:      ActorContext[ReceivableMessage],
-    timeProvider: TimeProvider
-  ): ConsensusViewInitialiazingState = {
-    implicit val networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
+    networkPrefix:     NetworkPrefix,
+    protocolVersioner: ProtocolVersioner,
+    context:           ActorContext[ReceivableMessage],
+    timeProvider:      TimeProvider
+  ): NodeViewInitializingState = {
+    import context.executionContext
     implicit def system: ActorSystem[_] = context.system
-    ConsensusViewInitialiazingState(
+    implicit val getKeyViewAskTimeout: Timeout = Timeout(10.seconds)
+
+    val consensusViewHolder =
       context.spawn(
         NxtConsensus(
           settings,
-          appContext.networkType,
           NxtConsensus.readOrGenerateConsensusStore(settings)
         ),
         NxtConsensus.actorName
       )
-    )
-  }
 
-  private def prepareNodeViewRef(
-    settings:   AppSettings,
-    appContext: AppContext,
-    state:      ConsensusViewInitialiazingState
-  )(implicit
-    context:      ActorContext[ReceivableMessage],
-    timeProvider: TimeProvider
-  ): NodeViewInitializingState = {
+    val keyManagerRef = context.actorOf(KeyManagerRef.props(settings), KeyManager.actorName)
 
-    import context.executionContext
-
-    implicit def system: ActorSystem[_] = context.system
-
-    implicit def networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
-
-    val keyManagerRef = context.actorOf(KeyManagerRef.props(settings, appContext), KeyManager.actorName)
-
-    val nodeViewHolderRef = {
-      implicit val getKeyViewAskTimeout: Timeout = Timeout(10.seconds)
+    val nodeViewHolderRef =
       context.spawn(
         NodeViewHolder(
           settings,
-          new ActorConsensusInterface(state.consensusViewHolder)(system, Timeout(10.seconds)),
+          new ActorConsensusInterface(consensusViewHolder)(system, Timeout(10.seconds)),
           () =>
             NodeView.persistent(
               settings,
-              appContext.networkType,
-              new ActorConsensusInterface(state.consensusViewHolder)(system, Timeout(10.seconds)),
+              new ActorConsensusInterface(consensusViewHolder)(system, Timeout(10.seconds)),
               () =>
-                (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
+                (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses(
+                  settings.forging.addressGenerationSettings
+                ))
                   .mapTo[Try[StartupKeyView]]
                   .flatMap(Future.fromTry)
-            )(context.system, implicitly)
+            )(context.system, implicitly, networkPrefix, protocolVersioner)
         ),
         NodeViewHolder.ActorName,
         DispatcherSelector.fromConfig("bifrost.application.node-view.dispatcher")
       )
-    }
 
-    NodeViewInitializingState(keyManagerRef, nodeViewHolderRef, state.consensusViewHolder)
+    NodeViewInitializingState(keyManagerRef, nodeViewHolderRef, consensusViewHolder)
   }
 
   private def prepareNetworkControllerState(
@@ -348,17 +292,16 @@ object Heimdall {
     appContext: AppContext,
     state:      NodeViewInitializingState
   )(implicit
-    context:      ActorContext[ReceivableMessage],
-    timeProvider: TimeProvider
+    networkPrefix:     NetworkPrefix,
+    protocolVersioner: ProtocolVersioner,
+    context:           ActorContext[ReceivableMessage],
+    timeProvider:      TimeProvider
   ): NetworkControllerInitializingState = {
-
-    import context.executionContext
 
     implicit def system: ActorSystem[_] = context.system
 
-    implicit def networkPrefix: NetworkPrefix = appContext.networkType.netPrefix
-
-    val peerManager = context.actorOf(PeerManagerRef.props(settings, appContext), PeerManager.actorName)
+    val peerManager =
+      context.actorOf(PeerManagerRef.props(settings, appContext.externalNodeAddress), PeerManager.actorName)
     val networkController = context.actorOf(
       NetworkControllerRef.props(settings, peerManager, appContext, IO(Tcp)(context.system.toClassic))
     )
@@ -370,10 +313,6 @@ object Heimdall {
           settings.forging.minTransactionFee,
           settings.forging.forgeOnStartup,
           () => (state.keyManager ? KeyManager.ReceivableMessages.GetKeyView).mapTo[KeyView],
-          () =>
-            (state.keyManager ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
-              .mapTo[Try[StartupKeyView]]
-              .flatMap(Future.fromTry),
           new ActorNodeViewHolderInterface(state.nodeViewHolder),
           new ActorConsensusInterface(state.consensusViewHolder)
         ),
@@ -399,21 +338,20 @@ object Heimdall {
   }
 
   private def prepareRemainingActors(
-    settings:   AppSettings,
-    appContext: AppContext,
-    state:      NetworkControllerInitializingState
+    settings: AppSettings,
+    state:    NetworkControllerInitializingState
   )(implicit
     context:      ActorContext[ReceivableMessage],
     timeProvider: TimeProvider
   ): ActorsInitializedState = {
 
     val peerSynchronizer = context.actorOf(
-      PeerSynchronizerRef.props(state.networkController, state.peerManager, settings, appContext),
+      PeerSynchronizerRef.props(state.networkController, state.peerManager, settings),
       PeerSynchronizer.actorName
     )
 
     val nodeViewSynchronizer = context.actorOf(
-      NodeViewSynchronizerRef.props(state.networkController, state.nodeViewHolder, settings, appContext),
+      NodeViewSynchronizerRef.props(state.networkController, state.nodeViewHolder, settings),
       NodeViewSynchronizer.actorName
     )
 
@@ -452,4 +390,52 @@ object Heimdall {
       chainReplicator
     )
   }
+
+  private def prepareHttpService(
+    settings:           AppSettings,
+    appContext:         AppContext,
+    keyManagerRef:      CActorRef,
+    forgerRef:          ActorRef[Forger.ReceivableMessage],
+    nodeViewHolderRef:  ActorRef[NodeViewHolder.ReceivableMessage],
+    consensusHolderRef: ActorRef[NxtConsensus.ReceivableMessage]
+  )(implicit system:    ActorSystem[_]): HttpService = {
+    import system.executionContext
+
+    implicit val networkPrefix: NetworkPrefix =
+      appContext.networkType.netPrefix
+
+    implicit val protocolVersioner: ProtocolVersioner =
+      ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
+
+    implicit val throwableEncoder: Encoder[ThrowableData] =
+      ThrowableSupport.verbose(settings.rpcApi.verboseAPI)
+
+    implicit val askTimeout: Timeout =
+      Timeout(settings.rpcApi.timeout)
+
+    val forgerInterface = new ActorForgerInterface(forgerRef)
+    val keyManagerInterface = new ActorKeyManagerInterface(keyManagerRef)
+
+    val nodeViewHolderInterface =
+      new ActorNodeViewHolderInterface(nodeViewHolderRef)
+
+    val consensusInterface = new ActorConsensusInterface(consensusHolderRef)
+
+    val bifrostRpcServer: ToplRpcServer = {
+      import co.topl.rpc.handlers._
+      new ToplRpcServer(
+        ToplRpcHandlers(
+          new DebugRpcHandlerImpls(nodeViewHolderInterface, keyManagerInterface),
+          new UtilsRpcHandlerImpls,
+          new NodeViewRpcHandlerImpls(settings.rpcApi, appContext, consensusInterface, nodeViewHolderInterface),
+          new TransactionRpcHandlerImpls(nodeViewHolderInterface),
+          new AdminRpcHandlerImpls(forgerInterface, keyManagerInterface, nodeViewHolderInterface)
+        ),
+        appContext
+      )
+    }
+
+    HttpService(settings.rpcApi, bifrostRpcServer)
+  }
+
 }

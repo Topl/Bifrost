@@ -2,61 +2,51 @@ package co.topl.consensus
 
 import co.topl.attestation.Address
 import co.topl.attestation.implicits._
-import co.topl.consensus.LeaderElection.{NoAddressesAvailable, NoArbitBoxesAvailable}
+import co.topl.consensus.NxtLeaderElection.{NoAddressesAvailable, NoArbitBoxesAvailable}
+import co.topl.utils.NodeGenerators
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.{CommonGenerators, TestSettings}
+import co.topl.utils.implicits.toEitherOps
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks.forAll
 
-class LeaderElectionTests extends AnyFlatSpec with MockFactory with CommonGenerators with EitherValues {
-
-  val nxtLeaderElection: NxtLeaderElection = NxtLeaderElection(TestSettings.defaultSettings)
+class LeaderElectionTests extends AnyFlatSpec with MockFactory with NodeGenerators with EitherValues {
 
   val address: Address =
     Base58Data.unsafe("AUAvJqLKc8Un3C6bC4aj8WgHZo74vamvX8Kdm6MhtdXgw51cGfix").decodeAddress.toEither.value
 
-  "getEligibleBox" should "return NoAddressesAvailable when no addresses provided" in {
-    forAll(blockCurve25519Gen) { parent =>
-      val stateReader = mock[LeaderElection.SR]
-      val addresses = Set[Address]()
-      val expectedResult = Left(NoAddressesAvailable)
+  "collectArbitBoxes" should "return NoAddressesAvailable when no addresses provided" in {
+    val stateReader = mock[NxtLeaderElection.SR]
+    val addresses = Set[Address]()
 
-      val result = LeaderElection.getEligibleBox(
-        parent,
-        addresses,
-        parent.timestamp + 100,
-        NxtConsensus.State(10000000, parent.difficulty, 0L, parent.height),
-        nxtLeaderElection,
-        stateReader
-      )
+    val expectedResult = Left(NoAddressesAvailable)
 
-      result shouldBe expectedResult
-    }
+    val result = NxtLeaderElection.collectArbitBoxes(addresses, stateReader)
+
+    result shouldBe expectedResult
   }
 
   "getEligibleBox" should "return NoArbitBoxesAvailable when no addresses contain arbit boxes" in {
     forAll(blockCurve25519Gen) { parent =>
-      val stateReader = mock[LeaderElection.SR]
+      val addresses = nonEmptySetAddressGen.sample.get
+      val stateReader = mock[NxtLeaderElection.SR]
       (stateReader.getTokenBoxes _)
-        .expects(address)
+        .expects(*)
+        .anyNumberOfTimes()
         .returns(None)
-      val addresses = Set[Address](address)
+      val leaderElection = new NxtLeaderElection(ProtocolVersioner.default)
+      val arbitBoxIterator = NxtLeaderElection.collectArbitBoxes(addresses, stateReader).getOrThrow()
+
       val expectedResult = Left(NoArbitBoxesAvailable)
 
-      val result = LeaderElection.getEligibleBox(
-        parent,
-        addresses,
-        parent.timestamp + 100,
-        NxtConsensus.State(10000000, parent.difficulty, 0L, parent.height),
-        nxtLeaderElection,
-        stateReader
-      )
+      val result = NxtLeaderElection.getEligibleBox(
+        leaderElection.calculateHitValue(parent)(_),
+        leaderElection.calculateThresholdValue(0, NxtConsensus.State.empty)(_)
+      )(arbitBoxIterator)
 
       result shouldBe expectedResult
     }
   }
-
 }

@@ -144,4 +144,10 @@ trait AttestationJsonCodecs {
 
   implicit val propositionJsonKeyDecoder: KeyDecoder[_ <: Proposition] =
     deriveKeyDecoderFromScodec(propositionTypeName)(propositionCodec.asDecoder)
+
+  implicit def propositionJsonEncoder[P <: Proposition]: Encoder[P] =
+    deriveEncoderFromScodec(propositionTypeName)(propositionCodec.asEncoder)
+
+  implicit val propositionJsonDecoder: Decoder[_ <: Proposition] =
+    deriveDecoderFromScodec(propositionTypeName)(propositionCodec.asDecoder)
 }

@@ -5,7 +5,7 @@ import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, InvalidParametersError, RpcError, ThrowableData}
 import co.topl.attestation.Address
-import co.topl.consensus.{ConsensusInterface, ConsensusReader}
+import co.topl.consensus.{ConsensusInterface, ConsensusReader, NxtConsensus, ProtocolVersioner}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
@@ -30,23 +30,26 @@ class NodeViewRpcHandlerImpls(
   consensusReader:         ConsensusReader,
   nodeViewHolderInterface: NodeViewHolderInterface
 )(implicit
-  system:           ActorSystem[_],
-  throwableEncoder: Encoder[ThrowableData],
-  networkPrefix:    NetworkPrefix
+  system:            ActorSystem[_],
+  throwableEncoder:  Encoder[ThrowableData],
+  networkPrefix:     NetworkPrefix,
+  protocolVersioner: ProtocolVersioner
 ) extends ToplRpcHandlers.NodeView {
 
   import system.executionContext
 
   override val head: ToplRpc.NodeView.Head.rpc.ServerHandler =
     _ =>
-      withNodeView(view =>
-        ToplRpc.NodeView.Head.Response(
-          view.history.height,
-          view.history.score,
-          view.history.bestBlockId,
-          view.history.bestBlock
+      for {
+        consensusState <- withConsensusState(identity)(consensusReader)
+        nodeView       <- withNodeView(identity)
+        response = ToplRpc.NodeView.Head.Response(
+          consensusState.height,
+          consensusState.difficulty,
+          nodeView.history.bestBlockId,
+          nodeView.history.bestBlock
         )
-      )
+      } yield response
 
   override val headInfo: ToplRpc.NodeView.HeadInfo.rpc.ServerHandler =
     _ =>
@@ -58,11 +61,7 @@ class NodeViewRpcHandlerImpls(
       )
 
   override val balances: ToplRpc.NodeView.Balances.rpc.ServerHandler =
-    params =>
-      withNodeView(view =>
-        checkAddresses(params.addresses, view.state)
-          .map(balancesResponse(view.state, _))
-      ).subflatMap(identity)
+    params => withNodeView(view => balancesResponse(view.state, params.addresses))
 
   override val transactionById: ToplRpc.NodeView.TransactionById.rpc.ServerHandler =
     params =>
@@ -146,17 +145,12 @@ class NodeViewRpcHandlerImpls(
 
   override val info: ToplRpc.NodeView.Info.rpc.ServerHandler = _ =>
     for {
-      supportedProtocolVersions <- consensusReader.withView(_.protocolVersions).leftMap {
-        case ConsensusInterface.Failures.Read(throwable) =>
-          CustomError.fromThrowable(throwable): RpcError
-      }
       currentHeight <- withNodeView(_.history.height)
     } yield ToplRpc.NodeView.Info.Response(
       appContext.networkType.toString,
       appContext.externalNodeAddress.fold("N/A")(_.toString),
       appContext.settings.application.version.toString,
-      supportedProtocolVersions.getProtocolRules(currentHeight).version.toString,
-      supportedProtocolVersions.blockVersion(currentHeight).toString
+      protocolVersioner.applicable(currentHeight).toString
     )
 
   private def balancesResponse(
@@ -166,8 +160,10 @@ class NodeViewRpcHandlerImpls(
     val boxes =
       addresses.map { k =>
         val orderedBoxes = state.getTokenBoxes(k) match {
-          case Some(boxes) => boxes.groupBy[String](Box.identifier(_).typeString).map { case (k, v) => k -> v.toList }
-          case _           => Map[String, List[TokenBox[TokenValueHolder]]]()
+          case Some(boxes) =>
+            println(boxes)
+            boxes.groupBy[String](Box.identifier(_).typeString).map { case (k, v) => k -> v.toList }
+          case _ => Map[String, List[TokenBox[TokenValueHolder]]]()
         }
         k -> orderedBoxes
       }.toMap
@@ -244,4 +240,11 @@ class NodeViewRpcHandlerImpls(
 
   private def withNodeView[T](f: ReadableNodeView => T): EitherT[Future, RpcError, T] =
     readFromNodeViewHolder(nodeViewHolderInterface)(f)
+
+  private def withConsensusState[T](f: NxtConsensus.State => T)(
+    consensusReader:                   ConsensusReader
+  ): EitherT[Future, RpcError, T] =
+    consensusReader.readState
+      .map(f)
+      .leftMap(e => CustomError(-32099, e.toString): RpcError)
 }

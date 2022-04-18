@@ -1,8 +1,7 @@
 package co.topl.nodeView
 
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import co.topl.consensus.{NxtConsensus, NxtLeaderElection, ProtocolVersioner}
-import co.topl.consensus.NxtConsensus.State
+import co.topl.consensus.{BlockValidators, NxtConsensus}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.NodeViewTestHelpers.TestIn
@@ -11,27 +10,24 @@ import co.topl.utils._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpecLike
-import org.scalatest.{BeforeAndAfterAll, EitherValues, OptionValues}
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatest.{EitherValues, OptionValues}
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 class NodeViewSpec
     extends ScalaTestWithActorTestKit
     with AnyPropSpecLike
-    with CommonGenerators
-    with ScalaCheckPropertyChecks
+    with NodeGenerators
     with ScalaCheckDrivenPropertyChecks
     with Matchers
     with TestSettings
-    with BeforeAndAfterAll
     with NodeViewTestHelpers
-    with InMemoryKeyFileTestHelper
-    with GenesisBlockGenerators
+    with InMemoryKeyRingTestHelper
     with OptionValues
     with EitherValues
     with MockFactory {
 
   property("Rewards transactions are removed from transactions extracted from a block being rolled back") {
-    withGenesisNodeView { testIn =>
+    withGenesisOnlyNodeView(nxtConsensusGenesisGen.sample.get) { testIn =>
       forAll(blockCurve25519Gen) { block =>
         implicit val timeProvider: TimeProvider = mock[TimeProvider]
         (() => timeProvider.time)
@@ -40,7 +36,8 @@ class NodeViewSpec
           .returning(10)
         val polyReward = sampleUntilNonEmpty(polyTransferGen)
         val arbitReward = sampleUntilNonEmpty(arbitTransferGen)
-        val rewardBlock = block.copy(transactions = Seq(arbitReward, polyReward), parentId = genesisBlock.id)
+        val rewardBlock =
+          block.copy(transactions = Seq(arbitReward, polyReward), parentId = testIn.genesisView.block.id)
 
         val memPool =
           testIn.nodeView.updateMemPool(List(rewardBlock), Nil, MemPool.empty())
@@ -60,7 +57,7 @@ class NodeViewSpec
           .expects()
           .once()
           .returning(10)
-        withGenesisNodeView { testIn =>
+        withGenesisOnlyNodeView(nxtConsensusGenesisGen.sample.get) { testIn =>
           val (events, updatedNodeView) = testIn.nodeView.withTransaction(tx).run
           updatedNodeView.mempool.contains(tx.id) shouldBe true
           events shouldBe List(NodeViewHolder.Events.SuccessfulTransaction[Transaction.TX](tx))
@@ -75,7 +72,7 @@ class NodeViewSpec
       .never()
     // polyTransferGen generates invalid attestations, which are considered syntactically invalid
     forAll(polyTransferGen) { tx =>
-      withGenesisNodeView { testIn =>
+      withGenesisOnlyNodeView(nxtConsensusGenesisGen.sample.get) { testIn =>
         val (events, updatedNodeView) = testIn.nodeView.withTransaction(tx).run
         updatedNodeView.mempool.contains(tx.id) shouldBe false
 
@@ -95,7 +92,7 @@ class NodeViewSpec
     val addressA :: _ = keyRingCurve25519.addresses.toList
     forAll(signedPolyTransferGen(positiveMediumIntGen.map(nonce => IndexedSeq((addressA, nonce))), keyRingCurve25519)) {
       tx =>
-        withGenesisNodeView { testIn =>
+        withGenesisOnlyNodeView(nxtConsensusGenesisGen.sample.get) { testIn =>
           val (_, updatedNodeView1) = testIn.nodeView.withTransaction(tx).run
           updatedNodeView1.mempool.contains(tx.id) shouldBe true
 
@@ -119,17 +116,14 @@ class NodeViewSpec
     (() => timeProvider.time)
       .expects()
       .never()
-    withGenesisNodeView { testIn =>
+
+    withGenesisOnlyNodeView(nxtConsensusGenesisGen.sample.get) { testIn =>
       val initialHistoryStoreState = testIn.historyStore.state
       val (events, _) =
         testIn.nodeView
           .withBlock(
-            genesisBlock,
-            NxtConsensus.View(
-              NxtConsensus.State(10000000, genesisBlock.difficulty, 0L, genesisBlock.height),
-              nxtLeaderElection,
-              protocolVersioner
-            )
+            testIn.genesisView.block,
+            Seq()
           )
           .run
 
@@ -146,31 +140,30 @@ class NodeViewSpec
       .once()
       .returning(Long.MaxValue)
 
-    withGenesisNodeView { testIn =>
-      val block = nextBlock(genesisBlock, testIn.nodeView, keyRingCurve25519.addresses.head)
+    val chain: GenesisHeadChain =
+      validChainFromGenesis(
+        keyRingCurve25519,
+        settings.application.genesis.generated.value,
+        protocolVersioner
+      )(2).sample.get
 
+    withGenesisOnlyNodeView(chain.head) { testIn =>
       val (events, updatedNodeView) =
         testIn.nodeView
-          .withBlock(
-            block,
-            NxtConsensus.View(
-              NxtConsensus.State(10000000, genesisBlock.difficulty, 0L, genesisBlock.height),
-              nxtLeaderElection,
-              protocolVersioner
-            )
-          )
+          .withBlock(chain.tail.head, Seq())
           .run
 
       events shouldBe List(
-        NodeViewHolder.Events.StartingPersistentModifierApplication(block),
-        NodeViewHolder.Events.SyntacticallySuccessfulModifier(block),
-        NodeViewHolder.Events.NewOpenSurface(List(genesisBlock.id)),
+        NodeViewHolder.Events.StartingPersistentModifierApplication(chain.tail.head),
+        NodeViewHolder.Events.SyntacticallySuccessfulModifier(chain.tail.head),
+        NodeViewHolder.Events.NewOpenSurface(List(testIn.genesisView.block.id)),
         NodeViewHolder.Events.ChangedHistory,
-        NodeViewHolder.Events.SemanticallySuccessfulModifier(block),
+        NodeViewHolder.Events.SemanticallySuccessfulModifier(chain.tail.head),
         NodeViewHolder.Events.ChangedState,
         NodeViewHolder.Events.ChangedMempool
       )
-      updatedNodeView.history.modifierById(block.id).value shouldBe block
+
+      updatedNodeView.history.modifierById(chain.tail.head.id).value shouldBe chain.tail.head
     }
   }
 
@@ -179,21 +172,22 @@ class NodeViewSpec
 
     (() => timeProvider.time)
       .expects()
-      .never()
+      .anyNumberOfTimes()
+      .returning(Long.MaxValue)
 
-    withGenesisNodeView { testIn =>
-      val block = nextBlock(genesisBlock, testIn.nodeView, keyRingCurve25519.addresses.head).copy(difficulty = -1)
+    val chain: GenesisHeadChain =
+      validChainFromGenesis(
+        keyRingCurve25519,
+        settings.application.genesis.generated.value,
+        protocolVersioner
+      )(2).sample.get
+
+    withGenesisOnlyNodeView(chain.head) { testIn =>
+      val block: Block = chain.tail.head.copy(height = -1)
 
       val (events, updatedNodeView) =
         testIn.nodeView
-          .withBlock(
-            block,
-            NxtConsensus.View(
-              NxtConsensus.State(10000000, genesisBlock.difficulty, 0L, genesisBlock.height),
-              nxtLeaderElection,
-              protocolVersioner
-            )
-          )
+          .withBlock(block, Seq(new BlockValidators.HeightValidator))
           .run
 
       events should have size 2
@@ -204,7 +198,6 @@ class NodeViewSpec
     }
   }
 
-  private def withGenesisNodeView(test: TestIn => Unit): Unit =
-    test(genesisNodeView())
-
+  private def withGenesisOnlyNodeView(genesis: NxtConsensus.Genesis)(test: TestIn => Unit): Unit =
+    test(nodeViewGenesisOnlyTestInputs(genesis))
 }

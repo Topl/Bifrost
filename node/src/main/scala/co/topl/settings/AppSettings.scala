@@ -1,5 +1,6 @@
 package co.topl.settings
 
+import co.topl.consensus.{GenesisProvider, KeyManager}
 import co.topl.network.utils.NetworkTimeProviderSettings
 import co.topl.utils.Logging
 import com.typesafe.config.{Config, ConfigFactory}
@@ -16,13 +17,12 @@ case class ApplicationSettings(
   cacheSize:                    Int,
   dataDir:                      Option[String],
   keyFileDir:                   Option[String],
-  enablePBR:                    Boolean,
-  enableTBR:                    Boolean,
   mempoolTimeout:               FiniteDuration,
   nodeKeys:                     Option[Set[String]],
   rebroadcastCount:             Int,
   consensusStoreVersionsToKeep: Int,
-  version:                      Version
+  version:                      Version,
+  genesis:                      GenesisSettings
 )
 
 case class RPCApiSettings(
@@ -75,44 +75,24 @@ case class NetworkSettings(
 )
 
 case class ForgingSettings(
-  blockGenerationDelay: FiniteDuration,
-  minTransactionFee:    Long,
-  protocolVersions:     List[ProtocolSettings],
-  forgeOnStartup:       Boolean,
-  rewardsAddress:       Option[String], // String here since we don't know netPrefix when settings are read
-  genesis:              Option[GenesisSettings]
+  blockGenerationDelay:      FiniteDuration,
+  minTransactionFee:         Long,
+  protocolVersions:          List[ProtocolSettings],
+  forgeOnStartup:            Boolean,
+  rewardsAddress:            Option[String], // String here since we don't know netPrefix when settings are read
+  addressGenerationSettings: Option[KeyManager.AddressGenerationSettings]
 )
 
 case class GenesisSettings(
-  genesisStrategy: Option[GenesisStrategy.Value],
-  generated:       Option[GenesisGenerationSettings],
-  fromBlockJson:   Option[GenesisFromBlockJsonSettings]
+  strategy:      GenesisStrategies.Value,
+  generated:     Option[GenesisProvider.Strategies.Generation],
+  fromBlockJson: Option[GenesisProvider.Strategies.FromBlockJson]
 )
 
-object GenesisStrategy extends Enumeration {
-  val Generated: GenesisStrategy.Value = Value("generated")
-  val FromBlockJson: GenesisStrategy.Value = Value("fromBlockJson")
+object GenesisStrategies extends Enumeration {
+  val Generated: GenesisStrategies.Value = Value("generated")
+  val FromBlockJson: GenesisStrategies.Value = Value("fromBlockJson")
 }
-
-case class GenesisGenerationSettings(
-  numTestnetAccts:           Int,
-  genesisApplicationVersion: Version,
-  testnetBalance:            Long,
-  initialDifficulty:         Long,
-  genesisSeed:               Option[String]
-)
-
-case class GenesisFromConfigSettings(
-  blockChecksum:     String,
-  initialDifficulty: Long,
-  memberAddresses:   List[String],
-  memberStakes:      List[Long]
-)
-
-case class GenesisFromBlockJsonSettings(
-  providedJsonGenesisPath: String,
-  blockChecksum:           String
-)
 
 case class GjallarhornSettings(
   enableWallet:   Boolean,
@@ -156,9 +136,9 @@ object AppSettings extends Logging with SettingsReaders {
    * @return application settings
    */
   def read(startupOpts: StartupOpts = StartupOpts()): (AppSettings, Config) = {
-    val config = readConfig(startupOpts)
-    val settingFromConfig = fromConfig(config)
-    val completeConfig = clusterConfig(settingFromConfig, config)
+    val config: Config = readConfig(startupOpts)
+    val settingFromConfig: AppSettings = fromConfig(config)
+    val completeConfig: Config = clusterConfig(settingFromConfig, config)
     (startupOpts.runtimeParams.overrideWithCmdArgs(settingFromConfig), completeConfig)
   }
 
@@ -168,7 +148,7 @@ object AppSettings extends Logging with SettingsReaders {
    * @param config config factory compatible configuration
    * @return application settings
    */
-  def fromConfig(config: Config): AppSettings = config.as[AppSettings](configPath)
+  private def fromConfig(config: Config): AppSettings = config.as[AppSettings](configPath)
 
   /**
    * Based on the startup arguments given by the user, modify and return the default application config
@@ -176,7 +156,7 @@ object AppSettings extends Logging with SettingsReaders {
    * @param args startup options such as the path of the user defined config and network type
    * @return config factory compatible configuration
    */
-  def readConfig(args: StartupOpts): Config = {
+  private def readConfig(args: StartupOpts): Config = {
 
     val userConfig = args.userConfigPathOpt.fold(ConfigFactory.empty()) { uc =>
       val userFile = new File(uc)
@@ -207,7 +187,7 @@ object AppSettings extends Logging with SettingsReaders {
 
   }
 
-  def clusterConfig(settings: AppSettings, config: Config): Config =
+  private def clusterConfig(settings: AppSettings, config: Config): Config =
     if (settings.gjallarhorn.clusterEnabled) {
       ConfigFactory
         .parseString(s"""

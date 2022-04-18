@@ -1,20 +1,19 @@
 package co.topl.nodeView.history
 
 import cats.implicits._
-import co.topl.consensus.NxtLeaderElection
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.nodeView.history.BlockProcessor.ChainCache
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
+import co.topl.nodeView.history.TineProcessor.ChainCache
 import co.topl.utils.implicits._
 import co.topl.utils.{Logging, TimeProvider}
 
 import scala.annotation.tailrec
 import scala.collection.immutable.TreeMap
 
-class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends Logging {
+class TineProcessor private (cache: ChainCache, maxDepth: Int) extends Logging {
 
-  import BlockProcessor._
+  import TineProcessor._
 
   private var chainCache = cache
 
@@ -49,11 +48,11 @@ class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends Logging 
    * @param block - new block to put in cache
    * @return
    */
-  def process(history: History, block: Block): ProgressInfo[Block] = {
+  def process(history: History, block: Block, lookBackDepth: Int): ProgressInfo[Block] = {
     // check if the current block is starting a new branch off the main chain
     val pi: ProgressInfo[Block] = if (history.applicable(block)) {
       val parentBlock = history.parentBlock(block).get // safe to .get since otherwise wouldn't be applicable
-      val prevTimes = history.getTimestampsFrom(parentBlock, NxtLeaderElection.nxtBlockNum - 1) :+ block.timestamp
+      val prevTimes = history.getTimestampsFrom(parentBlock, lookBackDepth - 1) :+ block.timestamp
 
       chainCache = chainCache.add(block, prevTimes)
 
@@ -109,12 +108,12 @@ class BlockProcessor private (cache: ChainCache, maxDepth: Int) extends Logging 
   }
 }
 
-object BlockProcessor extends Logging {
+object TineProcessor extends Logging {
 
   implicit private val ord: Ordering[CacheBlock] =
     Ordering[(Long, ModifierId)].on(x => (x.block.height, x.block.id))
 
-  def apply(maxDepth: Int): BlockProcessor = new BlockProcessor(emptyCache, maxDepth)
+  def apply(maxDepth: Int): TineProcessor = new TineProcessor(emptyCache, maxDepth)
 
   def emptyCache: ChainCache = ChainCache(TreeMap.empty)
 

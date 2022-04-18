@@ -1,7 +1,6 @@
 package co.topl.consensus
 
 import co.topl.attestation.Address
-import co.topl.consensus.NxtConsensus.State
 import co.topl.consensus.KeyManager.KeyView
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, ProgramId, SimpleValue}
@@ -25,7 +24,7 @@ class ForgeSpec
     with ScalaCheckDrivenPropertyChecks
     with EitherValues
     with MockFactory
-    with InMemoryKeyFileTestHelper
+    with InMemoryKeyRingTestHelper
     with TestSettings
     with BeforeAndAfterAll
     with CommonGenerators
@@ -41,11 +40,6 @@ class ForgeSpec
         mock[StateReader[ProgramId, Address]],
         mock[MemPoolReader[Transaction.TX]]
       )
-
-      (() => nodeView.history.height)
-        .expects()
-        .once()
-        .returning(parentBlock.height)
 
       (nodeView.memPool
         .take[Int128](_: Int)(_: UnconfirmedTx[Transaction.TX] => Int128)(_: Ordering[Int128]))
@@ -85,12 +79,18 @@ class ForgeSpec
           keyRingCurve25519.lookupPublicKey
         )
 
+      val leaderElection = new NxtLeaderElection(protocolVersioner)
+
       val forge =
         Forge
           .prepareForge(
             nodeView,
             NxtConsensus
-              .View(NxtConsensus.State(10000000, 1000000000000000000L, 0L, 0L), nxtLeaderElection, protocolVersioner),
+              .View(
+                NxtConsensus.State(10000000, parentBlock.difficulty, 0L, parentBlock.height),
+                leaderElection,
+                _ => Seq()
+              ),
             keyView,
             0
           )
@@ -112,11 +112,13 @@ class ForgeSpec
     val keyView =
       KeyView(keyRingCurve25519.addresses, None, keyRingCurve25519.signWithAddress, keyRingCurve25519.lookupPublicKey)
 
+    val leaderElection = new NxtLeaderElection(protocolVersioner)
+
     Forge
       .prepareForge(
         nodeView,
         NxtConsensus
-          .View(NxtConsensus.State(10000000, 1000000000000000000L, 0L, 0L), nxtLeaderElection, protocolVersioner),
+          .View(NxtConsensus.State(10000000, 1000000000000000000L, 0L, 0L), leaderElection, _ => Seq()),
         keyView,
         0
       )
@@ -133,11 +135,6 @@ class ForgeSpec
         mock[StateReader[ProgramId, Address]],
         mock[MemPoolReader[Transaction.TX]]
       )
-
-      (() => nodeView.history.height)
-        .expects()
-        .once()
-        .returning(2)
 
       (nodeView.memPool
         .take[Int128](_: Int)(_: UnconfirmedTx[Transaction.TX] => Int128)(_: Ordering[Int128]))
@@ -177,21 +174,21 @@ class ForgeSpec
           keyRingCurve25519.lookupPublicKey
         )
 
+      val leaderElection = new NxtLeaderElection(protocolVersioner)
+
       Forge
         .prepareForge(
           nodeView,
           NxtConsensus.View(
             NxtConsensus.State(10000000, parentBlock.difficulty, 0L, parentBlock.height),
-            nxtLeaderElection,
-            protocolVersioner
+            leaderElection,
+            _ => Seq()
           ),
           keyView,
           0
         )
         .left
-        .value shouldBe Forge.LeaderElectionFailure(
-        LeaderElection.NoBoxesEligible
-      )
+        .value shouldBe Forge.LeaderElectionFailure(NxtLeaderElection.NoBoxesEligible)
     }
   }
 

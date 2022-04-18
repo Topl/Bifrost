@@ -3,6 +3,11 @@ package co.topl.nodeView.state
 import cats.data.ValidatedNec
 import cats.implicits._
 import co.topl.attestation.Address
+import co.topl.attestation.implicits._
+import co.topl.codecs._
+import co.topl.codecs.binary.legacy.modifier.ModifierIdSerializer
+import co.topl.codecs.binary.legacy.modifier.box.BoxSerializer
+import co.topl.codecs.binary.typeclasses.Persistable
 import co.topl.db.LDBVersionedStore
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
@@ -10,19 +15,13 @@ import co.topl.modifier.box._
 import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.validation._
 import co.topl.modifier.transaction.validation.implicits._
-import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.nodeView.{KeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
-import co.topl.utils.implicits._
 import co.topl.utils.Logging
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.codecs.binary.legacy.modifier.ModifierIdSerializer
-import co.topl.codecs.binary.legacy.modifier.box.BoxSerializer
 import co.topl.utils.encode.Base58
-import co.topl.codecs._
-import co.topl.codecs.binary.typeclasses.Persistable
-import co.topl.attestation.implicits._
+import co.topl.utils.implicits._
 
 import java.io.File
 import scala.reflect.ClassTag
@@ -38,12 +37,11 @@ import scala.util.{Failure, Success, Try}
  *                //@param timestamp timestamp of the block that results in this state
  */
 case class State(
-  override val version:      VersionTag,
-  protected val storage:     KeyValueStore,
-  private[state] val tbrOpt: Option[TokenBoxRegistry] = None,
-  private[state] val pbrOpt: Option[ProgramBoxRegistry] = None,
-  nodeKeys:                  Option[Set[Address]] = None
-)(implicit networkPrefix:    NetworkPrefix)
+  override val version:                  ModifierId,
+  protected val storage:                 KeyValueStore,
+  private[state] val tokenBoxRegistry:   TokenBoxRegistry,
+  private[state] val programBoxRegistry: ProgramBoxRegistry
+)(implicit networkPrefix:                NetworkPrefix)
     extends MinimalState[Block, State]
     with StoreInterface
     with Logging
@@ -51,18 +49,15 @@ case class State(
 
   override type NVCT = State
 
-  lazy val hasTBR: Boolean = tbrOpt.isDefined
-  lazy val hasPBR: Boolean = pbrOpt.isDefined
-
   override def close(): Unit = {
     log.info("Attempting to close state storage")
     super.close()
 
     log.info("Attempting to close token box registry storage")
-    tbrOpt.foreach(_.close())
+    tokenBoxRegistry.close()
 
     log.info("Attempting to close program box registry storage")
-    pbrOpt.foreach(_.close())
+    programBoxRegistry.close()
   }
 
   /**
@@ -85,10 +80,10 @@ case class State(
    * @return a program box of the specified type if found at the given program is
    */
   override def getProgramBox[PBX <: ProgramBox: ClassTag](key: ProgramId): Option[PBX] =
-    pbrOpt.flatMap(_.getBox(key, getReader) match {
+    programBoxRegistry.getBox(key, getReader) match {
       case Some(box: PBX) => Some(box)
       case _              => None
-    })
+    }
 
   /**
    * Accessor method to retrieve a set of token boxes from state that are owned by a
@@ -98,7 +93,7 @@ case class State(
    * @return a sequence of token boxes held by the public key
    */
   override def getTokenBoxes(key: Address): Option[Seq[TokenBox[TokenValueHolder]]] =
-    tbrOpt.flatMap(_.getBox(key, getReader))
+    tokenBoxRegistry.getBox(key, getReader)
 
   /**
    * Lookup a sequence of boxIds from the appropriate registry.
@@ -109,9 +104,9 @@ case class State(
    */
   def registryLookup[K](key: K): Option[Seq[BoxId]] =
     key match {
-      case k: TokenBoxRegistry.K if tbrOpt.isDefined   => tbrOpt.get.lookup(k)
-      case k: ProgramBoxRegistry.K if pbrOpt.isDefined => pbrOpt.get.lookup(k)
-      case _ if pbrOpt.isEmpty | tbrOpt.isEmpty        => None
+      case k: TokenBoxRegistry.K   => tokenBoxRegistry.lookup(k)
+      case k: ProgramBoxRegistry.K => programBoxRegistry.lookup(k)
+      case _                       => None
     }
 
   /**
@@ -120,26 +115,20 @@ case class State(
    * @param version tag marking a specific state within the store
    * @return an instance of State at the version given
    */
-  override def rollbackTo(version: VersionTag): Try[NVCT] = Try {
+  override def rollbackTo(version: ModifierId): Try[NVCT] = Try {
 
     // throwing error here since we should stop attempting updates if any part fails
-    val updatedTBR = if (tbrOpt.isDefined) {
-      tbrOpt.get.rollbackTo(version) match {
-        case Success(updates) => Some(updates)
+    val updatedTBR =
+      tokenBoxRegistry.rollbackTo(version) match {
+        case Success(updates) => updates
         case Failure(ex)      => throw new Error(s"Failed to rollback TBR with error\n$ex")
       }
-    } else {
-      None
-    }
 
-    val updatedPBR = if (pbrOpt.isDefined) {
-      pbrOpt.get.rollbackTo(version) match {
-        case Success(updates) => Some(updates)
+    val updatedPBR =
+      programBoxRegistry.rollbackTo(version) match {
+        case Success(updates) => updates
         case Failure(ex)      => throw new Error(s"Failed to rollback PBR with error\n$ex")
       }
-    } else {
-      None
-    }
 
     if (storage.latestVersionId().exists(_ sameElements version.persistedBytes)) {
       this
@@ -147,7 +136,7 @@ case class State(
       log.debug(s"Rollback State to $version from version ${this.version.show}")
       storage.rollbackTo(version.persistedBytes)
 
-      State(version, storage, updatedTBR, updatedPBR, nodeKeys)
+      State(version, storage, updatedTBR, updatedPBR)
     }
   }
 
@@ -161,8 +150,8 @@ case class State(
     // extract the state changes to be made
     // using option for TBR and PBR since we can skip if the registries aren't present
     val stateChanges = StateChanges(block)
-    val tokenChanges = if (tbrOpt.isDefined) TokenRegistryChanges(block).toOption else None
-    val programChanges = if (pbrOpt.isDefined) ProgramRegistryChanges(block).toOption else None
+    val tokenChanges = TokenRegistryChanges(block).toOption
+    val programChanges = ProgramRegistryChanges(block).toOption
 
     // if the registries update successfully, attempt to update the utxo storage
     stateChanges match {
@@ -181,7 +170,7 @@ case class State(
    * @return an updated version of state
    */
   private[state] def applyChanges(
-    newVersion:     VersionTag,
+    newVersion:     ModifierId,
     stateChanges:   StateChanges,
     tokenChanges:   Option[TokenRegistryChanges] = None,
     programChanges: Option[ProgramRegistryChanges] = None
@@ -189,20 +178,9 @@ case class State(
     Try {
 
       // Filtering boxes pertaining to public keys specified in settings file
-      val boxesToAdd = (nodeKeys match {
-        case Some(keys) => stateChanges.toAppend.filter(b => keys.contains(Address(b.evidence)))
-        case None       => stateChanges.toAppend
-      }).map(b => b.id.hash.value -> Persistable[Box[_]].persistedBytes(b))
+      val boxesToAdd = stateChanges.toAppend.map(b => b.id.hash.value -> Persistable[Box[_]].persistedBytes(b))
 
-      val boxIdsToRemove = (nodeKeys match {
-        case Some(keys) =>
-          stateChanges.boxIdsToRemove
-            .flatMap(getBox)
-            .filter(b => keys.contains(Address(b.evidence)))
-            .map(b => b.id)
-
-        case None => stateChanges.boxIdsToRemove
-      }).map(b => b.hash.value)
+      val boxIdsToRemove = stateChanges.boxIdsToRemove.map(b => b.hash.value)
 
       // enforce that the input id's must not match any of the output id's (added emptiness checks for testing)
       require(
@@ -230,28 +208,28 @@ case class State(
         )
 
       // throwing error here since we should stop attempting updates if any part fails
-      val updatedTBR = tokenChanges match {
-        case Some(tc) =>
-          tbrOpt.get.update(newVersion, tc.toRemove, tc.toAppend) match {
-            case Success(updates) => Some(updates)
+      val updatedTBR = tokenChanges
+        .map { tc =>
+          tokenBoxRegistry.update(newVersion, tc.toRemove, tc.toAppend) match {
+            case Success(updates) => updates
             case Failure(ex)      => throw new Error(s"Failed to update TBR with error\n$ex")
           }
-        case _ => None
-      }
+        }
+        .getOrElse(tokenBoxRegistry)
 
-      val updatedPBR = programChanges match {
-        case Some(pc) =>
-          pbrOpt.get.update(newVersion, pc.toRemove, pc.toUpdate) match {
-            case Success(updates) => Some(updates)
+      val updatedPBR = programChanges
+        .map { pc =>
+          programBoxRegistry.update(newVersion, pc.toRemove, pc.toUpdate) match {
+            case Success(updates) => updates
             case Failure(ex)      => throw new Error(s"Failed to update PBR with error\n$ex")
           }
-        case _ => None
-      }
+        }
+        .getOrElse(programBoxRegistry)
 
       storage.update(newVersion.persistedBytes, boxIdsToRemove, boxesToAdd)
 
       // create updated instance of state
-      val newState = State(newVersion, storage, updatedTBR, updatedPBR, nodeKeys)
+      val newState = State(newVersion, storage, updatedTBR, updatedPBR)
 
       // enforce that a new valid state must have emptied all boxes to remove
       // boxIdsToRemove.foreach(box => require(newState.getBox(box).isEmpty, s"Box $box is still in state"))
@@ -313,16 +291,16 @@ object State extends Logging {
     sFile.mkdirs()
     val storage = new LDBKeyValueStore(new LDBVersionedStore(sFile, keepVersions = 100))
 
-    apply(settings, storage, TokenBoxRegistry.readOrGenerate(settings, _), ProgramBoxRegistry.readOrGenerate(settings))
+    apply(settings, storage, TokenBoxRegistry.readOrGenerate(settings), ProgramBoxRegistry.readOrGenerate(settings))
   }
 
   def apply(
     settings:               AppSettings,
     storage:                KeyValueStore,
-    tbrOptF:                Option[Set[Address]] => Option[TokenBoxRegistry],
-    pbrOpt:                 Option[ProgramBoxRegistry]
+    tokenBoxRegistry:       TokenBoxRegistry,
+    programBoxRegistry:     ProgramBoxRegistry
   )(implicit networkPrefix: NetworkPrefix): State = {
-    val version: VersionTag =
+    val version: ModifierId =
       storage
         .latestVersionId()
         .fold(Option(ModifierId.empty))(bw => ModifierIdSerializer.parseBytes(bw).toOption)
@@ -348,6 +326,6 @@ object State extends Logging {
     if (nodeKeys.isDefined) log.info(s"Initializing state to watch for public keys: $nodeKeys")
     else log.info("Initializing state to watch for all public keys")
 
-    State(version, storage, tbrOptF(nodeKeys), pbrOpt, nodeKeys)
+    State(version, storage, tokenBoxRegistry, programBoxRegistry)
   }
 }

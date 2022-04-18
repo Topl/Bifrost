@@ -1,6 +1,7 @@
 package co.topl.nodeView.history
 
 import cats.implicits._
+import co.topl.consensus.BlockValidators._
 import co.topl.consensus.Hiccups.HiccupBlock
 import co.topl.consensus._
 import co.topl.db.LDBVersionedStore
@@ -20,7 +21,7 @@ import co.topl.utils.{Logging, TimeProvider}
 
 import java.io.File
 import scala.annotation.tailrec
-import scala.util.{Failure, Success, Try}
+import scala.util.{Success, Try}
 
 /**
  * A representation of the entire blockchain (whether it's a blocktree, blockchain, etc.)
@@ -29,10 +30,9 @@ import scala.util.{Failure, Success, Try}
  * @param validators rule sets that dictate validity of blocks in the history
  */
 class History(
-  val storage:            Storage, // todo: JAA - make this private[history]
-  fullBlockProcessor:     BlockProcessor,
-  validators:             Seq[BlockValidator[Block]]
-)(implicit networkPrefix: NetworkPrefix)
+  private[history] val storage: Storage,
+  tineProcessor:                TineProcessor
+)(implicit networkPrefix:       NetworkPrefix, protocolVersioner: ProtocolVersioner)
     extends GenericHistory[Block, BifrostSyncInfo, History]
     with AutoCloseable
     with Logging {
@@ -42,8 +42,6 @@ class History(
   lazy val bestBlockId: ModifierId = storage.bestBlockId
   lazy val bestBlock: Block = storage.bestBlock
   lazy val height: Long = storage.heightAt(bestBlockId)
-  lazy val score: Long = storage.scoreAt(bestBlockId)
-  lazy val difficulty: Long = storage.difficultyAt(bestBlockId)
 
   /** Public method to close storage */
   override def close(): Unit = {
@@ -56,16 +54,17 @@ class History(
 
   override def applicable(block: Block): Boolean = storage.containsModifier(block.parentId)
 
-  override def modifierById(id: ModifierId): Option[Block] = storage.modifierById(id)
-
   override def modifierByHeight(height: Long): Option[Block] =
     storage.idAtHeightOf(height).flatMap(storage.modifierById)
 
   def transactionById(id: ModifierId): Option[(Transaction.TX, ModifierId, Long)] =
     storage.lookupConfirmedTransaction(id)
 
-  override def contains(id: ModifierId): Boolean =
-    (id == History.GenesisParentId) || storage.containsModifier(id) || fullBlockProcessor.contains(id)
+  override protected def persistenceAccessors: Iterator[ModifierId => Option[Block]] =
+    Iterator(
+      id => storage.modifierById(id),
+      id => tineProcessor.getCacheBlock(id).map(_.block)
+    )
 
   private def isGenesis(b: Block): Boolean = b.parentId == History.GenesisParentId
 
@@ -75,6 +74,41 @@ class History(
   def lastHeaders(count: Int, offset: Int = 0): IndexedSeq[ModifierId] =
     getBlocksFrom(bestBlock, count).map(block => block.id).toIndexedSeq
 
+  /** Helper functions to find the source of the parent block (either storage or chain cache) */
+  private object BlockValidation {
+
+    def handlers(block: Block): PartialFunction[BlockValidator[_], Try[Unit]] = {
+      case v: SyntaxValidator      => v.validate(identity)(block)
+      case v: EligibilityValidator => v.validate(parentBlock)(block)
+      case v: HeightValidator      => v.validate(BlockValidation.getParentHeightOf)(block)
+      case v: DifficultyValidator  => v.validate(BlockValidation.getParentDetailsOf)(block)
+      case v: TimestampValidator   => v.validate(BlockValidation.getParentTimestampsOf)(block)
+    }
+
+    private val getParentDetailsOf: Block => Option[(Block, Seq[TimeProvider.Time])] = (block: Block) => {
+      val lookBackDepth = protocolVersioner.applicable(block.height).value.lookBackDepth
+      tineProcessor.getCacheBlock(block.parentId) match {
+        case Some(cacheParent) => Some((cacheParent.block, cacheParent.prevBlockTimes :+ block.timestamp))
+        case None =>
+          modifierById(block.parentId).map { parent =>
+            (parent, History.getTimestamps(storage, lookBackDepth, parent) :+ block.timestamp)
+          }
+      }
+    }
+
+    private val getParentTimestampsOf: Block => Option[TimeProvider.Time] = (block: Block) =>
+      tineProcessor
+        .getCacheBlock(block.parentId)
+        .map(_.block.timestamp)
+        .orElse(parentBlock(block).map(_.timestamp))
+
+    private val getParentHeightOf: Block => Option[TimeProvider.Time] = (block: Block) =>
+      tineProcessor
+        .getCacheBlock(block.parentId)
+        .map(_.block.height)
+        .orElse(parentBlock(block).map(_.height))
+  }
+
   /**
    * Adds block to chain and updates storage (difficulty, score, etc.) relating to that
    *
@@ -82,15 +116,15 @@ class History(
    * @return the update history including `block` as the most recent block
    */
   override def append(
-    block:         Block,
-    consensusView: NxtConsensus.View
+    block:      Block,
+    validators: Seq[BlockValidator[_]]
   ): Try[(History, ProgressInfo[Block])] = Try {
 
     log.debug(s"Trying to append block ${block.id} to history")
 
     val isHiccupBlock =
       if (Hiccups.blockValidation.contains(HiccupBlock(block))) {
-        log.debug(s"Skipping block validation for HiccupBlock.  blockId=${block.id}")
+        log.debug(s"Skipping block validation for HiccupBlock, blockId=${block.id}")
         true
       } else {
         false
@@ -98,14 +132,11 @@ class History(
 
     // test new block against all validators
     val validationResults =
-      if (!isGenesis(block) && !isHiccupBlock) {
-        validators.map(_.validate(block, consensusView)).map {
-          case Failure(e) =>
-            log.warn(s"Block validation failed", e)
-            false
-          case _ => true
-        }
-      } else Seq(true) // skipping validation for genesis block
+      if (!isHiccupBlock) {
+        validators
+          .map(BlockValidation.handlers(block))
+          .map(_.isSuccess)
+      } else Seq(true) // skipping validation for genesis block and hiccup blocks
 
     // check if all block validation passed
     if (validationResults.forall(_ == true)) {
@@ -116,7 +147,7 @@ class History(
           val progInfo = ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
 
           // construct result and return
-          (new History(storage, fullBlockProcessor, validators), progInfo)
+          (new History(storage, tineProcessor), progInfo)
 
         } else {
           val progInfo: ProgressInfo[Block] =
@@ -131,7 +162,8 @@ class History(
               // if not, we'll check for a fork
             } else {
               // we want to check for a fork
-              val forkProgInfo = fullBlockProcessor.process(this, block)
+              val forkProgInfo =
+                tineProcessor.process(this, block, protocolVersioner.applicable(block.height).value.lookBackDepth)
 
               // check if we need to update storage after checking for forks
               if (forkProgInfo.branchPoint.nonEmpty) {
@@ -144,7 +176,7 @@ class History(
             }
 
           // construct result and return
-          (new History(storage, fullBlockProcessor, validators), progInfo)
+          (new History(storage, tineProcessor), progInfo)
         }
       }
       log.info(
@@ -173,7 +205,7 @@ class History(
 
     log.debug(s"Failed to apply block. Rollback BifrostState to ${parentBlock.id} from version ${block.id}")
     storage.rollback(parentBlock.id).getOrThrow()
-    new History(storage, fullBlockProcessor, validators)
+    new History(storage, tineProcessor)
   }
 
   /**
@@ -372,7 +404,7 @@ class History(
   ): (History, ProgressInfo[Block]) = {
     drop(modifier.id)
     val progInfo: ProgressInfo[Block] = ProgressInfo(None, Seq.empty, Seq.empty, Seq.empty)
-    (new History(storage, fullBlockProcessor, validators), progInfo)
+    (new History(storage, tineProcessor), progInfo)
   }
 
   /**
@@ -394,7 +426,7 @@ class History(
    * @return 'true' if the block extends a known block, false otherwise
    */
   override def extendsKnownTine(modifier: Block): Boolean =
-    applicable(modifier) || fullBlockProcessor.applicableInCache(modifier)
+    applicable(modifier) || tineProcessor.applicableInCache(modifier)
 
   // TODO used in tests, but should replace with HistoryReader.continuationIds
   /**
@@ -493,6 +525,7 @@ class History(
     }
 
   override def idAtHeightOf(height: Long): Option[ModifierId] = storage.idAtHeightOf(height)
+
 }
 
 object History extends Logging {
@@ -501,7 +534,7 @@ object History extends Logging {
 
   def readOrGenerate(
     settings:               AppSettings
-  )(implicit networkPrefix: NetworkPrefix): History = {
+  )(implicit networkPrefix: NetworkPrefix, protocolVersioner: ProtocolVersioner): History = {
     val storage = {
 
       /** Setup persistent on-disk storage */
@@ -523,20 +556,15 @@ object History extends Logging {
     apply(settings, storage)
   }
 
-  def apply(settings: AppSettings, storage: Storage)(implicit
-    networkPrefix:    NetworkPrefix
+  def apply(settings:  AppSettings, storage: Storage)(implicit
+    networkPrefix:     NetworkPrefix,
+    protocolVersioner: ProtocolVersioner
   ): History = {
 
     /** This in-memory cache helps us to keep track of tines sprouting off the canonical chain */
-    val blockProcessor = BlockProcessor(settings.network.maxChainCacheDepth)
+    val blockProcessor = TineProcessor(settings.network.maxChainCacheDepth)
 
-    val validators = Seq(
-      new DifficultyBlockValidator(storage, blockProcessor),
-      new SyntaxBlockValidator,
-      new TimestampValidator(storage, blockProcessor)
-    )
-
-    new History(storage, blockProcessor, validators)
+    new History(storage, blockProcessor)
   }
 
   /** Gets the timestamps for 'count' number of blocks prior to (and including) the startBlock */
