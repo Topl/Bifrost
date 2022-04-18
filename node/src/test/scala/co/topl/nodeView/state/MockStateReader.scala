@@ -1,7 +1,7 @@
 package co.topl.nodeView.state
 
 import co.topl.attestation.Address
-import co.topl.modifier.ModifierId
+import co.topl.modifier.{ModifierId, ProgramId}
 import co.topl.modifier.box._
 
 import scala.reflect.ClassTag

@@ -9,7 +9,7 @@ import co.topl.attestation.keyManagement.{
   KeyfileEd25519Companion
 }
 import co.topl.codecs._
-import co.topl.modifier.ModifierId
+import co.topl.modifier.{ModifierId, ProgramId}
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction
@@ -94,7 +94,7 @@ class JsonTests
   }
 
   property("Keyfile json") {
-    forAll(keyCurve25519Gen) { key =>
+    forAll(keyCurve25519FastGen) { key =>
       val keyfile = KeyfileCurve25519Companion.encryptSecret(key._1, "test")
       keyfile.asJson.as[KeyfileCurve25519] match {
         case Right(kf) =>
@@ -107,7 +107,7 @@ class JsonTests
       }
     }
 
-    forAll(keyEd25519Gen) { key =>
+    forAll(keyEd25519FastGen) { key =>
       val keyfile = KeyfileEd25519Companion.encryptSecret(key._1, "test")
       keyfile.asJson.as[KeyfileEd25519] match {
         case Right(kf) =>
@@ -157,22 +157,6 @@ class JsonTests
 
   property("AssetBox json") {
     forAll(assetBoxGen)(box => box.asJson.as[AssetBox] should eqvShow(box.asRight[DecodingFailure]))
-  }
-
-  property("ProgramId json") {
-    forAll(programIdGen)(id => id.asJson.as[ProgramId] should eqvShow(id.asRight[DecodingFailure]))
-  }
-
-  property("StateBox json") {
-    forAll(stateBoxGen)(box => box.asJson.as[StateBox] should eqvShow(box.asRight[DecodingFailure]))
-  }
-
-  property("CodeBox json") {
-    forAll(codeBoxGen)(box => box.asJson.as[CodeBox] should eqvShow(box.asRight[DecodingFailure]))
-  }
-
-  property("ExecutionBox json") {
-    forAll(executionBoxGen)(box => box.asJson.as[ExecutionBox] should eqvShow(box.asRight[DecodingFailure]))
   }
 
   property("Transaction json") {

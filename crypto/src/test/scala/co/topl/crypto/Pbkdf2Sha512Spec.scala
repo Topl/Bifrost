@@ -47,8 +47,9 @@ class Pbkdf2Sha512Spec extends AnyPropSpec {
 
     testVectors.foreach { vector =>
       val expectedResult = Hex.encode(bytesStringToArray(vector.result))
+      val kdf = new Pbkdf2Sha512()
 
-      val result = Pbkdf2Sha512.generateKey(
+      val result = kdf.generateKey(
         vector.password.getBytes("UTF-8"),
         vector.salt.getBytes("UTF-8"),
         vector.keySize,

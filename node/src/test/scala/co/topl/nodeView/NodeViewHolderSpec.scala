@@ -2,16 +2,18 @@ package co.topl.nodeView
 
 import akka.actor.testkit.typed.FishingOutcome
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
-import akka.actor.typed.{ActorRef, ActorSystem}
-import akka.actor.typed.scaladsl.AskPattern.Askable
+import akka.actor.typed.ActorRef
 import akka.actor.typed.scaladsl.Behaviors
 import akka.pattern.StatusReply
 import cats.implicits._
 import co.topl.attestation.keyManagement._
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.consensus._
-import co.topl.crypto.signatures.Curve25519
-import co.topl.modifier.ModifierId
+import co.topl.crypto.Signature
+import co.topl.crypto.signing.Curve25519
+import co.topl.models.utility.HasLength.instances._
+import co.topl.models.utility.Sized
+import co.topl.models.{Bytes, SecretKeys}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{PolyTransfer, Transaction}
 import co.topl.nodeView.history.{History, InMemoryKeyValueStore, MockImmutableBlockHistory, Storage}
@@ -19,15 +21,14 @@ import co.topl.nodeView.mempool.{MemPool, UnconfirmedTx}
 import co.topl.nodeView.state.MockState
 import co.topl.settings.Version
 import co.topl.utils.TimeProvider.Time
-import co.topl.utils.{NetworkPrefixTestHelper, NodeGenerators, TestSettings, TimeProvider}
+import co.topl.utils.{NodeGenerators, TestSettings, TimeProvider}
 import org.scalacheck.Gen
-import org.scalamock.matchers.Matchers
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.immutable.ListMap
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 class NodeViewHolderSpec
@@ -39,7 +40,7 @@ class NodeViewHolderSpec
     with ValidBlockchainGenerator {
 
   val blockChainGen: Gen[GenesisHeadChain] =
-    keyCurve25519Gen
+    keyCurve25519FastGen
       .map { keys =>
         implicit val keyFileCompanion: KeyfileCompanion[PrivateKeyCurve25519, KeyfileCurve25519] =
           KeyfileCurve25519Companion
@@ -56,63 +57,74 @@ class NodeViewHolderSpec
   behavior of "NodeViewHolder"
 
   it should "add syntactically valid transactions to the mempool when receiving write message" in {
-    forAll(keyCurve25519Gen, addressGen, polyBoxGen, positiveLongGen) { (senderKeys, recipient, polyInput, timestamp) =>
-      val unsignedPolyTransfer =
-        PolyTransfer[PublicKeyPropositionCurve25519](
-          IndexedSeq(senderKeys._2.address -> polyInput.nonce),
-          IndexedSeq(recipient             -> polyInput.value),
-          ListMap.empty,
-          0,
-          timestamp,
-          None,
-          minting = false
-        )
-
-      val signedPolyTransfer =
-        unsignedPolyTransfer
-          .copy(attestation =
-            ListMap(
-              senderKeys._2 -> SignatureCurve25519(
-                Curve25519.sign(senderKeys._1.privateKey, unsignedPolyTransfer.messageToSign)
-              )
-            )
+    forAll(keyCurve25519FastGen, addressGen, polyBoxGen, positiveLongGen) {
+      (senderKeys, recipient, polyInput, timestamp) =>
+        val unsignedPolyTransfer =
+          PolyTransfer[PublicKeyPropositionCurve25519](
+            IndexedSeq(senderKeys._2.address -> polyInput.nonce),
+            IndexedSeq(recipient             -> polyInput.value),
+            ListMap.empty,
+            0,
+            timestamp,
+            None,
+            minting = false
           )
 
-      val consensusView =
-        NxtConsensus.View(
-          NxtConsensus.State(10000, 10000, 10000, 10000),
-          new NxtLeaderElection(ProtocolVersioner.default),
-          _ => Seq.empty
+        val signedPolyTransfer =
+          unsignedPolyTransfer
+            .copy(attestation =
+              ListMap(
+                senderKeys._2 -> SignatureCurve25519(
+                  Signature(
+                    Curve25519.instance
+                      .sign(
+                        SecretKeys.Curve25519(Sized.strictUnsafe(Bytes(senderKeys._1.privateKey.value))),
+                        Bytes(unsignedPolyTransfer.messageToSign)
+                      )
+                      .bytes
+                      .data
+                      .toArray
+                  )
+                )
+              )
+            )
+
+        val consensusView =
+          NxtConsensus.View(
+            NxtConsensus.State(10000, 10000, 10000, 10000),
+            new NxtLeaderElection(ProtocolVersioner.default),
+            _ => Seq.empty
+          )
+
+        val nodeView =
+          NodeView(
+            MockImmutableBlockHistory.empty,
+            MockState.empty,
+            MemPool(TrieMap.empty)
+          )
+
+        implicit val timeProvider: TimeProvider = new TimeProvider {
+          override def time: Time = timestamp + 1000
+        }
+
+        val consensusReader = MockConsensusReader(consensusView)(system.executionContext)
+
+        val testProbe = createTestProbe[StatusReply[Option[Transaction.TX]]]()
+
+        val testProbeActor =
+          spawn(Behaviors.monitor[StatusReply[Option[Transaction.TX]]](testProbe.ref, Behaviors.ignore))
+
+        val underTest =
+          spawn(NodeViewHolder(TestSettings.defaultSettings, consensusReader, () => Future.successful(nodeView)))
+
+        underTest.tell(NodeViewHolder.ReceivableMessages.WriteTransactions(List(signedPolyTransfer)))
+
+        underTest.tell(
+          NodeViewHolder.ReceivableMessages
+            .Read(view => view.memPool.modifierById(signedPolyTransfer.id), testProbeActor)
         )
 
-      val nodeView =
-        NodeView(
-          MockImmutableBlockHistory.empty,
-          MockState.empty,
-          MemPool(TrieMap.empty)
-        )
-
-      implicit val timeProvider: TimeProvider = new TimeProvider {
-        override def time: Time = timestamp + 1000
-      }
-
-      val consensusReader = MockConsensusReader(consensusView)(system.executionContext)
-
-      val testProbe = createTestProbe[StatusReply[Option[Transaction.TX]]]()
-
-      val testProbeActor =
-        spawn(Behaviors.monitor[StatusReply[Option[Transaction.TX]]](testProbe.ref, Behaviors.ignore))
-
-      val underTest =
-        spawn(NodeViewHolder(TestSettings.defaultSettings, consensusReader, () => Future.successful(nodeView)))
-
-      underTest.tell(NodeViewHolder.ReceivableMessages.WriteTransactions(List(signedPolyTransfer)))
-
-      underTest.tell(
-        NodeViewHolder.ReceivableMessages.Read(view => view.memPool.modifierById(signedPolyTransfer.id), testProbeActor)
-      )
-
-      testProbe.receiveMessage(2.seconds).getValue.get shouldBe signedPolyTransfer
+        testProbe.receiveMessage(2.seconds).getValue.get shouldBe signedPolyTransfer
     }
   }
 

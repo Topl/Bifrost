@@ -4,9 +4,9 @@ import co.topl.attestation.Address
 import co.topl.codecs._
 import co.topl.codecs.binary.typeclasses.Persistable
 import co.topl.crypto.hash.blake2b256
-import co.topl.modifier.NodeViewModifier
+import co.topl.modifier.{NodeViewModifier, ProgramId}
 import co.topl.modifier.block.Block
-import co.topl.modifier.box.{ArbitBox, Box, ProgramId}
+import co.topl.modifier.box.{ArbitBox, Box}
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.StateReader
 import co.topl.utils.TimeProvider

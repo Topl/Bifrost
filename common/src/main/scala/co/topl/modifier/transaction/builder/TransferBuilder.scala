@@ -2,10 +2,10 @@ package co.topl.modifier.transaction.builder
 
 import cats.implicits._
 import co.topl.attestation.{Address, EvidenceProducer, Proposition}
-import co.topl.modifier.BoxReader
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.builder.Validation._
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer}
+import co.topl.modifier.{BoxReader, ProgramId}
 import co.topl.utils.{Identifiable, Int128}
 
 import java.time.Instant

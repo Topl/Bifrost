@@ -4,7 +4,11 @@ import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.scaladsl.adapter._
 import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
-import co.topl.crypto.signatures.Curve25519
+import co.topl.crypto.Signature
+import co.topl.crypto.signing.Curve25519
+import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.Sized
+import co.topl.models.{Bytes, SecretKeys}
 import co.topl.modifier.box.PolyBox
 import co.topl.modifier.transaction.PolyTransfer
 import co.topl.nodeView.history.MockImmutableBlockHistory
@@ -31,7 +35,7 @@ class MemPoolAuditorSpec
 
   it should "tell nodeViewHolder to eliminate transactions that stayed in mem-pool longer than mempoolTimeout" in {
     forAll(
-      keyCurve25519Gen,
+      keyCurve25519FastGen,
       addressGen,
       Gen.zip(Gen.posNum[Long], simpleValueGen),
       positiveLongGen,
@@ -54,7 +58,24 @@ class MemPoolAuditorSpec
         unsignedTransfer
           .copy(attestation =
             ListMap[PublicKeyPropositionCurve25519, SignatureCurve25519](
-              sender._2 -> SignatureCurve25519(Curve25519.sign(sender._1.privateKey, unsignedTransfer.messageToSign))
+              sender._2 -> SignatureCurve25519(
+                Signature(
+                  Curve25519.instance
+                    .sign(
+                      SecretKeys.Curve25519(
+                        Sized.strictUnsafe(
+                          Bytes(
+                            sender._1.privateKey.value
+                          )
+                        )
+                      ),
+                      Bytes(unsignedTransfer.messageToSign)
+                    )
+                    .bytes
+                    .data
+                    .toArray
+                )
+              )
             )
           )
 
@@ -91,7 +112,7 @@ class MemPoolAuditorSpec
 
   it should "invalidate transactions with invalid input boxes after state changes" in {
     forAll(
-      keyCurve25519Gen,
+      keyCurve25519FastGen,
       addressGen,
       Gen.zip(Gen.posNum[Long], simpleValueGen),
       positiveLongGen,
@@ -114,7 +135,18 @@ class MemPoolAuditorSpec
         unsignedTransfer
           .copy(attestation =
             ListMap[PublicKeyPropositionCurve25519, SignatureCurve25519](
-              sender._2 -> SignatureCurve25519(Curve25519.sign(sender._1.privateKey, unsignedTransfer.messageToSign))
+              sender._2 -> SignatureCurve25519(
+                Signature(
+                  Curve25519.instance
+                    .sign(
+                      SecretKeys.Curve25519(Sized.strictUnsafe(Bytes(sender._1.privateKey.value))),
+                      Bytes(unsignedTransfer.messageToSign)
+                    )
+                    .bytes
+                    .data
+                    .toArray
+                )
+              )
             )
           )
 
@@ -154,7 +186,7 @@ class MemPoolAuditorSpec
 
   it should "eliminate transactions that have output boxes that already exist in state" in {
     forAll(
-      keyCurve25519Gen,
+      keyCurve25519FastGen,
       addressGen,
       Gen.zip(Gen.posNum[Long], simpleValueGen),
       positiveLongGen,
@@ -179,7 +211,16 @@ class MemPoolAuditorSpec
           .copy(attestation =
             ListMap[PublicKeyPropositionCurve25519, SignatureCurve25519](
               sender._2 -> SignatureCurve25519(
-                Curve25519.sign(sender._1.privateKey, unsignedTransfer.messageToSign)
+                Signature(
+                  Curve25519.instance
+                    .sign(
+                      SecretKeys.Curve25519(Sized.strictUnsafe(Bytes(sender._1.privateKey.value))),
+                      Bytes(unsignedTransfer.messageToSign)
+                    )
+                    .bytes
+                    .data
+                    .toArray
+                )
               )
             )
           )

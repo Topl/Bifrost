@@ -3,6 +3,7 @@ package co.topl.modifier.box
 import co.topl.attestation.Evidence
 import co.topl.codecs.binary.legacy.BifrostSerializer
 import co.topl.codecs.binary.legacy.modifier.box.BoxSerializer
+import co.topl.modifier.ProgramId
 import co.topl.modifier.box.Box.Nonce
 import co.topl.utils.Identifier
 import com.google.common.primitives.Ints
@@ -33,13 +34,10 @@ object Box {
   type BoxType = Byte
 
   def identifier(box: Box[_]): Identifier = box match {
-    case _: ArbitBox     => ArbitBox.identifier.getId
-    case _: PolyBox      => PolyBox.identifier.getId
-    case _: AssetBox     => AssetBox.identifier.getId
-    case _: ExecutionBox => ExecutionBox.identifier.getId
-    case _: StateBox     => StateBox.identifier.getId
-    case _: CodeBox      => CodeBox.identifier.getId
-    case _               => throw new Exception("No matching identifier found")
+    case _: ArbitBox => ArbitBox.identifier.getId
+    case _: PolyBox  => PolyBox.identifier.getId
+    case _: AssetBox => AssetBox.identifier.getId
+    case _           => throw new Exception("No matching identifier found")
   }
 }
 
@@ -52,6 +50,7 @@ abstract class TokenBox[
 
 /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
 
+// todo: this may be removed if we no longer need the program box registry
 abstract class ProgramBox(
   override val evidence: Evidence,
   override val nonce:    Nonce,

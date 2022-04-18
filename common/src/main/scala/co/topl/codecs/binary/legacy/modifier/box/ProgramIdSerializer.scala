@@ -1,7 +1,7 @@
 package co.topl.codecs.binary.legacy.modifier.box
 
 import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
-import co.topl.modifier.box.ProgramId
+import co.topl.modifier.ProgramId
 
 object ProgramIdSerializer extends BifrostSerializer[ProgramId] {
 

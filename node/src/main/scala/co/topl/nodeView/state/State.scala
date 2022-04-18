@@ -9,7 +9,7 @@ import co.topl.codecs.binary.legacy.modifier.ModifierIdSerializer
 import co.topl.codecs.binary.legacy.modifier.box.BoxSerializer
 import co.topl.codecs.binary.typeclasses.Persistable
 import co.topl.db.LDBVersionedStore
-import co.topl.modifier.ModifierId
+import co.topl.modifier.{ModifierId, ProgramId}
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
 import co.topl.modifier.transaction._

@@ -2,8 +2,9 @@ package co.topl.consensus
 
 import co.topl.attestation.Address
 import co.topl.consensus.KeyManager.KeyView
+import co.topl.modifier.ProgramId
 import co.topl.modifier.block.Block
-import co.topl.modifier.box.{ArbitBox, ProgramId, SimpleValue}
+import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.BifrostSyncInfo
 import co.topl.nodeView.ReadableNodeView

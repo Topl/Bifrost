@@ -3,8 +3,8 @@ package co.topl.nodeView.state
 import cats.implicits._
 import co.topl.codecs._
 import co.topl.db.LDBVersionedStore
-import co.topl.modifier.ModifierId
-import co.topl.modifier.box.{BoxId, ProgramBox, ProgramId}
+import co.topl.modifier.{ModifierId, ProgramId}
+import co.topl.modifier.box.{BoxId, ProgramBox}
 import co.topl.nodeView.{KeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps

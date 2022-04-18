@@ -36,7 +36,7 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
   }
 
   property("PrivateKeyCurve25519 serialization") {
-    forAll(keyCurve25519Gen) { case (key: PrivateKeyCurve25519, _) =>
+    forAll(keyCurve25519FastGen) { case (key: PrivateKeyCurve25519, _) =>
       val parsed = PrivateKeyCurve25519Serializer.parseBytes(PrivateKeyCurve25519Serializer.toBytes(key)).get
 
       parsed.bytes sameElements key.bytes shouldBe true
@@ -44,7 +44,7 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
   }
 
   property("PrivateKeyEd25519 serialization") {
-    forAll(keyEd25519Gen) { case (key: PrivateKeyEd25519, _) =>
+    forAll(keyEd25519FastGen) { case (key: PrivateKeyEd25519, _) =>
       val parsed = PrivateKeyEd25519Serializer.parseBytes(PrivateKeyEd25519Serializer.toBytes(key)).get
 
       parsed.bytes sameElements key.bytes shouldBe true
@@ -52,7 +52,7 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
   }
 
   property("Signature serialization") {
-    forAll(signatureGen) { sig =>
+    forAll(signatureGen.map(_.asInstanceOf[Proof[_ <: Proposition]])) { sig =>
       val parsed = ProofSerializer
         .parseBytes(ProofSerializer.toBytes(sig))
         .get
@@ -123,39 +123,6 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
 
   property("AssetBox serialization") {
     forAll(assetBoxGen) { b: AssetBox =>
-      val parsed = BoxSerializer
-        .parseBytes(BoxSerializer.toBytes(b))
-        .get
-
-      val serialized = BoxSerializer.toBytes(parsed)
-      serialized sameElements BoxSerializer.toBytes(b) shouldBe true
-    }
-  }
-
-  property("StateBox serialization") {
-    forAll(stateBoxGen) { b: StateBox =>
-      val parsed = BoxSerializer
-        .parseBytes(BoxSerializer.toBytes(b))
-        .get
-
-      val serialized = BoxSerializer.toBytes(parsed)
-      serialized sameElements BoxSerializer.toBytes(b) shouldBe true
-    }
-  }
-
-  property("CodeBox serialization") {
-    forAll(codeBoxGen) { b: CodeBox =>
-      val parsed = BoxSerializer
-        .parseBytes(BoxSerializer.toBytes(b))
-        .get
-
-      val serialized = BoxSerializer.toBytes(parsed)
-      serialized sameElements BoxSerializer.toBytes(b) shouldBe true
-    }
-  }
-
-  property("ExecutionBox serialization") {
-    forAll(executionBoxGen) { b: ExecutionBox =>
       val parsed = BoxSerializer
         .parseBytes(BoxSerializer.toBytes(b))
         .get

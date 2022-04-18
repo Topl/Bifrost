@@ -85,4 +85,5 @@ trait PersistableInstances {
   implicit val transactionPersistable: Persistable[Transaction.TX] = Persistable.instanceFromCodec
 
   implicit val nodeViewModifierPersistable: Persistable[NodeViewModifier] = Persistable.instanceFromCodec
+
 }

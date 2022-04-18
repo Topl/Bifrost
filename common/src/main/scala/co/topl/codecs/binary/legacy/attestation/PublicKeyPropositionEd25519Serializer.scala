@@ -3,7 +3,7 @@ package co.topl.codecs.binary.legacy.attestation
 import co.topl.attestation.PublicKeyPropositionEd25519
 import co.topl.codecs.binary.legacy.{BifrostSerializer, Reader, Writer}
 import co.topl.crypto.PublicKey
-import co.topl.crypto.signatures.Ed25519
+import co.topl.crypto.signing.Ed25519
 
 object PublicKeyPropositionEd25519Serializer extends BifrostSerializer[PublicKeyPropositionEd25519] {
 
@@ -11,7 +11,7 @@ object PublicKeyPropositionEd25519Serializer extends BifrostSerializer[PublicKey
     w.putBytes(obj.pubKeyBytes.value)
 
   override def parse(r: Reader): PublicKeyPropositionEd25519 = {
-    val proposition = r.getBytes(Ed25519.KeyLength)
+    val proposition = r.getBytes(Ed25519.instance.KeyLength)
     PublicKeyPropositionEd25519(PublicKey(proposition))
   }
 }

@@ -11,6 +11,6 @@ class PrivateKeyCurve25519CodecSpec extends CodecCompatabilityBehavior with Comm
     "private key curve 25519",
     privateKeyCurve25519Codec,
     PrivateKeyCurve25519Serializer,
-    keyCurve25519Gen.map(_._1)
+    keyCurve25519FastGen.map(_._1)
   )
 }
