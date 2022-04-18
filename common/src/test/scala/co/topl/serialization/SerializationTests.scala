@@ -230,7 +230,7 @@ class SerializationTests extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
       parsed match {
         case Success(p) =>
           BlockSerializer.toBytes(p) sameElements
-            BlockSerializer.toBytes(bb) shouldBe true
+          BlockSerializer.toBytes(bb) shouldBe true
         case Failure(e) => throw e
       }
     }

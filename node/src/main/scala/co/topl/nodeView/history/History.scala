@@ -140,8 +140,7 @@ class History(
 
     // check if all block validation passed
     if (validationResults.forall(_ == true)) {
-      val res: (History, ProgressInfo[Block]) = {
-
+      val res: (History, ProgressInfo[Block]) =
         if (isGenesis(block)) {
           storage.update(block, isBest = true)
           val progInfo = ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
@@ -178,10 +177,9 @@ class History(
           // construct result and return
           (new History(storage, tineProcessor), progInfo)
         }
-      }
       log.info(
         s"${Console.CYAN} Block ${block.id} appended to parent ${block.parentId} at height ${block.height} with score ${storage
-          .scoreOf(block.id)}.${Console.RESET}"
+            .scoreOf(block.id)}.${Console.RESET}"
       )
       res
 
