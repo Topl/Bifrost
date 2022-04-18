@@ -1,10 +1,11 @@
 package co.topl.attestation
 
 import co.topl.codecs.binary._
+import co.topl.nodeView.ValidTransactionGenerators
 import co.topl.utils.GeneratorOps.GeneratorOps
 import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.implicits._
-import co.topl.utils.{DiskKeyFileTestHelper, EqMatcher, NodeGenerators}
+import co.topl.utils.{DiskKeyRingTestHelper, EqMatcher}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
@@ -13,10 +14,10 @@ class KeySpec
     extends AnyPropSpec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
-    with NodeGenerators
+    with ValidTransactionGenerators
     with Matchers
     with EqMatcher
-    with DiskKeyFileTestHelper {
+    with DiskKeyRingTestHelper {
 
   var password: Latin1Data = _
   var messageByte: Array[Byte] = _

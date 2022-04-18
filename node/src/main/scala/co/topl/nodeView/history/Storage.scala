@@ -107,22 +107,22 @@ class Storage(private[nodeView] val keyValueStore: KeyValueStore) extends Loggin
    * without needing to parse the entire block from storage
    */
   private def blockScoreKey(blockId: ModifierId): Array[Byte] =
-    blake2b256.hash("score".getBytes ++ blockId.getIdBytes).value
+    blake2b256.hash("score".getBytes("UTF-8") ++ blockId.getIdBytes).value
 
   private def blockHeightKey(blockId: ModifierId): Array[Byte] =
-    blake2b256.hash("height".getBytes ++ blockId.getIdBytes).value
+    blake2b256.hash("height".getBytes("UTF-8") ++ blockId.getIdBytes).value
 
   private def blockDiffKey(blockId: ModifierId): Array[Byte] =
-    blake2b256.hash("difficulty".getBytes ++ blockId.getIdBytes).value
+    blake2b256.hash("difficulty".getBytes("UTF-8") ++ blockId.getIdBytes).value
 
   private def blockTimestampKey(blockId: ModifierId): Array[Byte] =
-    blake2b256.hash("timestamp".getBytes ++ blockId.getIdBytes).value
+    blake2b256.hash("timestamp".getBytes("UTF-8") ++ blockId.getIdBytes).value
 
   private def blockBloomKey(blockId: ModifierId): Array[Byte] =
-    blake2b256.hash("bloom".getBytes ++ blockId.getIdBytes).value
+    blake2b256.hash("bloom".getBytes("UTF-8") ++ blockId.getIdBytes).value
 
   private def blockParentKey(blockId: ModifierId): Array[Byte] =
-    blake2b256.hash("parentId".getBytes ++ blockId.getIdBytes).value
+    blake2b256.hash("parentId".getBytes("UTF-8") ++ blockId.getIdBytes).value
 
   private def idHeightKey(height: Long): Digest32 = blake2b256.hash(Longs.toByteArray(height))
 

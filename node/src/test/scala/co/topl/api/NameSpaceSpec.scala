@@ -5,10 +5,11 @@ import akka.http.scaladsl.server.Route
 import akka.util.ByteString
 import co.topl.akkahttprpc.MethodNotFoundError
 import co.topl.akkahttprpc.ThrowableSupport.Standard._
-import co.topl.consensus.{ActorForgerInterface, ActorKeyManagerInterface}
+import co.topl.consensus.{ActorConsensusInterface, ActorForgerInterface, ActorKeyManagerInterface}
 import co.topl.http.HttpService
 import co.topl.nodeView.ActorNodeViewHolderInterface
 import co.topl.rpc.ToplRpcServer
+import co.topl.utils.TestSettings
 import co.topl.settings.{AppContext, AppSettings, StartupOpts}
 import io.circe.parser.parse
 import org.scalatest.matchers.should.Matchers
@@ -35,12 +36,19 @@ class NameSpaceSpec extends AnyWordSpec with Matchers with RPCMockState {
       val forgerInterface = new ActorForgerInterface(forgerRef)
       val keyManagerInterface = new ActorKeyManagerInterface(keyManagerRef)
       val nodeViewHolderInterface = new ActorNodeViewHolderInterface(nodeViewHolderRef)
+      val consensusInterface = new ActorConsensusInterface(consensusHolderRef)
+
       import co.topl.rpc.handlers._
       new ToplRpcServer(
         ToplRpcHandlers(
           new DebugRpcHandlerImpls(nodeViewHolderInterface, keyManagerInterface),
           new UtilsRpcHandlerImpls,
-          new NodeViewRpcHandlerImpls(newRpcSettings.rpcApi, newAppContext, nodeViewHolderInterface),
+          new NodeViewRpcHandlerImpls(
+            newRpcSettings.rpcApi,
+            newAppContext,
+            consensusInterface,
+            nodeViewHolderInterface
+          ),
           new TransactionRpcHandlerImpls(nodeViewHolderInterface),
           new AdminRpcHandlerImpls(forgerInterface, keyManagerInterface, nodeViewHolderInterface)
         ),

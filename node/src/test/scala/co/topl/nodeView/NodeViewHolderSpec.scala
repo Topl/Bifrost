@@ -1,185 +1,380 @@
 package co.topl.nodeView
 
-import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import akka.actor.typed.ActorRef
-import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
+import akka.actor.testkit.typed.FishingOutcome
+import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
+import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.typed.scaladsl.AskPattern.Askable
+import akka.actor.typed.scaladsl.Behaviors
+import akka.pattern.StatusReply
+import cats.implicits._
+import co.topl.attestation.keyManagement._
+import co.topl.attestation.{PublicKeyPropositionCurve25519, SignatureCurve25519}
+import co.topl.consensus._
+import co.topl.crypto.signatures.Curve25519
+import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
-import co.topl.modifier.box.ArbitBox
-import co.topl.modifier.transaction.builder
-import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithms, TransferBuilder}
-import co.topl.modifier.transaction.builder.TransferRequests.PolyTransferRequest
-import co.topl.nodeView.NodeViewHolder.ReceivableMessages
-import co.topl.nodeView.NodeViewHolderSpec.TestInWithActor
-import co.topl.nodeView.NodeViewTestHelpers.TestIn
-import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
-import co.topl.utils.{InMemoryKeyFileTestHelper, TestSettings, TimeProvider}
-import org.scalamock.scalatest.MockFactory
+import co.topl.modifier.transaction.{PolyTransfer, Transaction}
+import co.topl.nodeView.history.{History, InMemoryKeyValueStore, MockImmutableBlockHistory, Storage}
+import co.topl.nodeView.mempool.{MemPool, UnconfirmedTx}
+import co.topl.nodeView.state.MockState
+import co.topl.settings.Version
+import co.topl.utils.TimeProvider.Time
+import co.topl.utils.{NetworkPrefixTestHelper, NodeGenerators, TestSettings, TimeProvider}
+import org.scalacheck.Gen
+import org.scalamock.matchers.Matchers
 import org.scalatest.flatspec.AnyFlatSpecLike
-import org.scalatest.{Inspectors, OptionValues}
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-import scala.collection.AbstractIterator
-import scala.concurrent.Future
+import scala.collection.concurrent.TrieMap
+import scala.collection.immutable.ListMap
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
 class NodeViewHolderSpec
     extends ScalaTestWithActorTestKit
+    with ScalaCheckDrivenPropertyChecks
     with AnyFlatSpecLike
+    with NodeGenerators
     with TestSettings
-    with InMemoryKeyFileTestHelper
-    with NodeViewTestHelpers
-    with MockFactory
-    with OptionValues
-    with Inspectors {
+    with ValidBlockchainGenerator {
+
+  val blockChainGen: Gen[GenesisHeadChain] =
+    keyCurve25519Gen
+      .map { keys =>
+        implicit val keyFileCompanion: KeyfileCompanion[PrivateKeyCurve25519, KeyfileCurve25519] =
+          KeyfileCurve25519Companion
+        new KeyRing[PrivateKeyCurve25519, KeyfileCurve25519](None, Set(keys._1))
+      }
+      .flatMap(keyring =>
+        validChainFromGenesis(
+          keyring,
+          GenesisProvider.Strategies.Generation(Version("0.0.1"), 10000000, 1000),
+          ProtocolVersioner.default
+        )(10.toByte)
+      )
 
   behavior of "NodeViewHolder"
 
-  it should "write, read, and remove transactions" in {
-
-    implicit val timeProvider: TimeProvider = mock[TimeProvider]
-
-    (() => timeProvider.time)
-      .expects()
-      .anyNumberOfTimes()
-      .onCall(() => System.currentTimeMillis())
-
-    genesisActorTest { testIn =>
-      val addressA :: addressB :: _ = keyRingCurve25519.addresses.toList
-
+  it should "add syntactically valid transactions to the mempool when receiving write message" in {
+    forAll(keyCurve25519Gen, addressGen, polyBoxGen, positiveLongGen) { (senderKeys, recipient, polyInput, timestamp) =>
       val unsignedPolyTransfer =
-        TransferBuilder
-          .buildUnsignedPolyTransfer[PublicKeyPropositionCurve25519](
-            testIn.testIn.nodeView.state,
-            PolyTransferRequest(
-              List(addressB),
-              List(addressA -> 10),
-              addressB,
-              0,
-              None
-            ),
-            BoxSelectionAlgorithms.All
-          )
-          .getOrThrow()
-
-      val polyTransfer =
-        unsignedPolyTransfer.copy(attestation =
-          keyRingCurve25519.generateAttestation(addressB)(unsignedPolyTransfer.messageToSign)
+        PolyTransfer[PublicKeyPropositionCurve25519](
+          IndexedSeq(senderKeys._2.address -> polyInput.nonce),
+          IndexedSeq(recipient             -> polyInput.value),
+          ListMap.empty,
+          0,
+          timestamp,
+          None,
+          minting = false
         )
 
-      val transactions = List(polyTransfer)
-      testIn.actorRef.tell(NodeViewHolder.ReceivableMessages.WriteTransactions(transactions))
-      Thread.sleep(1.seconds.toMillis)
-      testIn.testIn.nodeView.mempool.modifierById(transactions.head.id).value shouldBe transactions.head
-
-      testIn.actorRef.tell(NodeViewHolder.ReceivableMessages.EliminateTransactions(transactions.map(_.id)))
-      Thread.sleep(1.seconds.toMillis)
-      testIn.testIn.nodeView.mempool.modifierById(transactions.head.id) shouldBe None
-    }
-  }
-
-  it should "write a single viable block" in {
-
-    implicit val timeProvider: TimeProvider = mock[TimeProvider]
-
-    (() => timeProvider.time)
-      .expects()
-      .anyNumberOfTimes()
-      .onCall(() => System.currentTimeMillis())
-
-    genesisActorTest { testIn =>
-      val next =
-        nextBlock(testIn.testIn.nodeView.history.bestBlock, testIn.testIn.nodeView, keyRingCurve25519.addresses.head)
-      testIn.actorRef.tell(ReceivableMessages.WriteBlocks(List(next)))
-
-      Thread.sleep(1.seconds.toMillis)
-      testIn.testIn.nodeView.history.modifierById(next.id).value shouldBe next
-    }
-  }
-
-  it should "write multiple viable blocks" in {
-
-    implicit val timeProvider: TimeProvider = mock[TimeProvider]
-
-    (() => timeProvider.time)
-      .expects()
-      .anyNumberOfTimes()
-      .onCall(() => System.currentTimeMillis())
-
-    genesisActorTest { testIn =>
-      val nextBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head).take(3).toList
-      testIn.actorRef.tell(ReceivableMessages.WriteBlocks(nextBlocks))
-      Thread.sleep(2.seconds.toMillis)
-      forAll(nextBlocks) { block =>
-        testIn.testIn.nodeView.history.modifierById(block.id).value
-      }
-    }
-  }
-
-  it should "cache non-viable blocks" in {
-
-    implicit val timeProvider: TimeProvider = mock[TimeProvider]
-
-    (() => timeProvider.time)
-      .expects()
-      .anyNumberOfTimes()
-      .onCall(() => System.currentTimeMillis())
-
-    genesisActorTest { testIn =>
-      val nextBlocks = generateBlocks(List(genesisBlock), keyRingCurve25519.addresses.head).take(3).toList
-      // Insert blocks 2 and 3, but not block 1
-      testIn.actorRef.tell(ReceivableMessages.WriteBlocks(nextBlocks.takeRight(2)))
-      Thread.sleep(2.seconds.toMillis)
-      // Because block 1 is not available yet, blocks 2 and 3 should not be in history yet either
-      forAll(nextBlocks) { block =>
-        testIn.testIn.nodeView.history.modifierById(block.id) shouldBe None
-      }
-      // Now write block 1
-      testIn.actorRef.tell(ReceivableMessages.WriteBlocks(nextBlocks.take(1)))
-      Thread.sleep(2.seconds.toMillis)
-      // And verify that block 1 was written, as well as blocks 2 and 3 from the previous attempt
-      forAll(nextBlocks) { block =>
-        testIn.testIn.nodeView.history.modifierById(block.id).value
-      }
-    }
-  }
-
-  private def genesisActorTest(test: TestInWithActor => Unit)(implicit timeProvider: TimeProvider): Unit = {
-    val testIn = genesisNodeView()
-    val ref = spawn(NodeViewHolder(settings, () => Future.successful(testIn.nodeView)))
-    val testInWithActor = TestInWithActor(testIn, ref)
-    test(testInWithActor)
-    testKit.stop(ref)
-  }
-
-  private def generateBlocks(previousBlocks: List[Block], forgerAddress: Address): Iterator[Block] =
-    new AbstractIterator[Block] {
-
-      // Because the reward fee is 0, the genesis arbit box is never destroyed during forging, so we can re-use it
-      private val arbitBox =
-        previousBlocks.last.transactions
-          .flatMap(_.newBoxes)
-          .collectFirst { case a: ArbitBox if a.evidence == forgerAddress.evidence => a }
-          .value
-      private var previous3Blocks: List[Block] = previousBlocks.takeRight(3)
-
-      override def hasNext: Boolean = true
-
-      override def next(): Block =
-        if (previous3Blocks.isEmpty) {
-          previous3Blocks = List(genesisBlock)
-          genesisBlock
-        } else {
-          val newBlock = nextBlock(
-            previous3Blocks.last,
-            arbitBox,
-            previous3Blocks.map(_.timestamp),
-            forgerAddress
+      val signedPolyTransfer =
+        unsignedPolyTransfer
+          .copy(attestation =
+            ListMap(
+              senderKeys._2 -> SignatureCurve25519(
+                Curve25519.sign(senderKeys._1.privateKey, unsignedPolyTransfer.messageToSign)
+              )
+            )
           )
-          previous3Blocks = (previous3Blocks :+ newBlock).takeRight(3)
-          newBlock
-        }
+
+      val consensusView =
+        NxtConsensus.View(
+          NxtConsensus.State(10000, 10000, 10000, 10000),
+          new NxtLeaderElection(ProtocolVersioner.default),
+          _ => Seq.empty
+        )
+
+      val nodeView =
+        NodeView(
+          MockImmutableBlockHistory.empty,
+          MockState.empty,
+          MemPool(TrieMap.empty)
+        )
+
+      implicit val timeProvider: TimeProvider = new TimeProvider {
+        override def time: Time = timestamp + 1000
+      }
+
+      val consensusReader = MockConsensusReader(consensusView)(system.executionContext)
+
+      val testProbe = createTestProbe[StatusReply[Option[Transaction.TX]]]()
+
+      val testProbeActor =
+        spawn(Behaviors.monitor[StatusReply[Option[Transaction.TX]]](testProbe.ref, Behaviors.ignore))
+
+      val underTest =
+        spawn(NodeViewHolder(TestSettings.defaultSettings, consensusReader, () => Future.successful(nodeView)))
+
+      underTest.tell(NodeViewHolder.ReceivableMessages.WriteTransactions(List(signedPolyTransfer)))
+
+      underTest.tell(
+        NodeViewHolder.ReceivableMessages.Read(view => view.memPool.modifierById(signedPolyTransfer.id), testProbeActor)
+      )
+
+      testProbe.receiveMessage(2.seconds).getValue.get shouldBe signedPolyTransfer
     }
+  }
+
+  it should "remove transaction from the mempool when receiving eliminate message" in {
+    forAll(polyTransferGen) { polyTransfer =>
+      val consensusView =
+        NxtConsensus.View(
+          NxtConsensus.State(10000, 10000, 10000, 10000),
+          new NxtLeaderElection(ProtocolVersioner.default),
+          _ => Seq.empty
+        )
+
+      val currentTime = polyTransfer.timestamp + 1000
+
+      val nodeView =
+        NodeView(
+          MockImmutableBlockHistory.empty,
+          MockState.empty,
+          MemPool(TrieMap(polyTransfer.id -> UnconfirmedTx(polyTransfer, currentTime)))
+        )
+
+      implicit val timeProvider: TimeProvider = new TimeProvider {
+        override def time: Time = currentTime
+      }
+
+      val consensusReader = MockConsensusReader(consensusView)(system.executionContext)
+
+      val testProbe = createTestProbe[StatusReply[Option[Transaction.TX]]]()
+
+      val testProbeActor =
+        spawn(Behaviors.monitor[StatusReply[Option[Transaction.TX]]](testProbe.ref, Behaviors.ignore))
+
+      val underTest =
+        spawn(NodeViewHolder(TestSettings.defaultSettings, consensusReader, () => Future.successful(nodeView)))
+
+      underTest.tell(NodeViewHolder.ReceivableMessages.EliminateTransactions(List(polyTransfer.id)))
+
+      underTest.tell(
+        NodeViewHolder.ReceivableMessages.Read(view => view.memPool.modifierById(polyTransfer.id), testProbeActor)
+      )
+
+      testProbe.receiveMessage().getValue shouldBe None
+    }
+  }
+
+  it should "append a valid block to the main tine when receiving the WriteBlocks message" in {
+    forAll(blockChainGen) { blockchain =>
+      val consensusView =
+        NxtConsensus.View(
+          NxtConsensus.State(10000, 10000, 10000, 10000),
+          new NxtLeaderElection(ProtocolVersioner.default),
+          _ => Seq.empty
+        )
+
+      val genesisBlock = blockchain.head
+      val newBlock = blockchain.tail.head
+
+      val existingHistory =
+        History(TestSettings.defaultSettings, new Storage(new InMemoryKeyValueStore()))
+          .append(genesisBlock.block, Seq.empty)
+          .get
+          ._1
+
+      val nodeView =
+        NodeView(
+          existingHistory,
+          MockState.empty,
+          MemPool.empty()
+        )
+
+      val consensusReader = MockConsensusReader(consensusView)(system.executionContext)
+
+      implicit val timeProvider: TimeProvider = new TimeProvider {
+        override def time: Time = 0L
+      }
+
+      val testProbe = createTestProbe[StatusReply[Seq[Block]]]()
+
+      val testProbeActor =
+        spawn(Behaviors.monitor[StatusReply[Seq[Block]]](testProbe.ref, Behaviors.ignore))
+
+      val underTest =
+        spawn(NodeViewHolder(TestSettings.defaultSettings, consensusReader, () => Future.successful(nodeView)))
+
+      /*
+        Sending WriteBlocks kicks off a lot of background processes that should end with the block being
+        available in history.
+       */
+      underTest.tell(NodeViewHolder.ReceivableMessages.WriteBlocks(List(newBlock)))
+
+      val historyResult =
+        NodeViewHolderSpec.searchInNodeView[Block](
+          (blocks: Seq[Block]) => blocks.nonEmpty,
+          (view: ReadableNodeView) => view.history.filter(_.id == newBlock.id),
+          underTest,
+          testProbeActor,
+          testProbe
+        )
+
+      historyResult should contain(newBlock)
+
+    }
+  }
+
+  it should "append multiple viable blocks to history when receiving the write blocks message" in {
+    forAll(blockChainGen) { blockchain =>
+      val consensusView =
+        NxtConsensus.View(
+          NxtConsensus.State(10000, 10000, 10000, 10000),
+          new NxtLeaderElection(ProtocolVersioner.default),
+          _ => Seq.empty
+        )
+
+      val genesisBlock = blockchain.head
+      val newBlocks = blockchain.tail.toList
+
+      val existingHistory =
+        History(TestSettings.defaultSettings, new Storage(new InMemoryKeyValueStore()))
+          .append(genesisBlock.block, Seq.empty)
+          .get
+          ._1
+
+      val nodeView =
+        NodeView(
+          existingHistory,
+          MockState.empty,
+          MemPool.empty()
+        )
+
+      val consensusReader = MockConsensusReader(consensusView)(system.executionContext)
+
+      implicit val timeProvider: TimeProvider = new TimeProvider {
+        override def time: Time = 0L
+      }
+
+      val testProbe = createTestProbe[StatusReply[Seq[Block]]]()
+
+      val testProbeActor =
+        spawn(Behaviors.monitor[StatusReply[Seq[Block]]](testProbe.ref, Behaviors.ignore))
+
+      val underTest =
+        spawn(NodeViewHolder(TestSettings.defaultSettings, consensusReader, () => Future.successful(nodeView)))
+
+      underTest.tell(NodeViewHolder.ReceivableMessages.WriteBlocks(newBlocks))
+
+      val historyResult =
+        NodeViewHolderSpec.searchInNodeView[Block](
+          (blocks: Seq[Block]) => newBlocks.forall(blocks.contains),
+          (view: ReadableNodeView) => newBlocks.filter(view.history.contains),
+          underTest,
+          testProbeActor,
+          testProbe
+        )
+
+      newBlocks.foreach(historyResult.contains)
+    }
+  }
+
+  it should "cache a block received from the write blocks message and apply when the parent block is written" in {
+    forAll(blockChainGen) { blockchain =>
+      val consensusView =
+        NxtConsensus.View(
+          NxtConsensus.State(10000, 10000, 10000, 10000),
+          new NxtLeaderElection(ProtocolVersioner.default),
+          _ => Seq.empty
+        )
+
+      val genesisBlock = blockchain.head
+      val firstNewBlock = blockchain.tail.tail.headOption.get
+      val secondNewBlock = blockchain.tail.head
+
+      val existingHistory =
+        History(TestSettings.defaultSettings, new Storage(new InMemoryKeyValueStore()))
+          .append(genesisBlock.block, Seq.empty)
+          .get
+          ._1
+
+      val nodeView =
+        NodeView(
+          existingHistory,
+          MockState.empty,
+          MemPool.empty()
+        )
+
+      val consensusReader = MockConsensusReader(consensusView)(system.executionContext)
+
+      implicit val timeProvider: TimeProvider = new TimeProvider {
+        override def time: Time = 0L
+      }
+
+      val testProbe = createTestProbe[StatusReply[Seq[Block]]]()
+
+      val testProbeActor =
+        spawn(Behaviors.monitor[StatusReply[Seq[Block]]](testProbe.ref, Behaviors.ignore))
+
+      val underTest =
+        spawn(NodeViewHolder(TestSettings.defaultSettings, consensusReader, () => Future.successful(nodeView)))
+
+      underTest.tell(NodeViewHolder.ReceivableMessages.WriteBlocks(List(firstNewBlock)))
+
+      underTest.tell(
+        NodeViewHolder.ReceivableMessages.Read(_.history.filter(_.id == firstNewBlock.id), testProbeActor)
+      )
+
+      testProbe.receiveMessage().getValue.isEmpty shouldBe true
+
+      val mapReadMessage = (view: ReadableNodeView) => List(firstNewBlock, secondNewBlock).filter(view.history.contains)
+
+      underTest.tell(NodeViewHolder.ReceivableMessages.WriteBlocks(List(secondNewBlock)))
+
+      val historyResult =
+        NodeViewHolderSpec.searchInNodeView[Block](
+          blocks => blocks.contains(firstNewBlock),
+          mapReadMessage,
+          underTest,
+          testProbeActor,
+          testProbe
+        )
+
+      historyResult should contain(firstNewBlock)
+      historyResult should contain(secondNewBlock)
+    }
+  }
 }
 
 object NodeViewHolderSpec {
-  case class TestInWithActor(testIn: TestIn, actorRef: ActorRef[NodeViewHolder.ReceivableMessage])
+
+  /**
+   * Uses a searching function to poll for the existence of blocks in the node view.
+   * @param search a function which determines if the desired blocks exist in the current node view
+   * @param nodeViewHolder thenode view holder to check
+   * @param testProbeActor an actor that can be used as the reply to for sending messages to the node view
+   * @param testProbe a test probe which can be used to check for response messages from the node view
+   * @return the set of blocks in the node view if the search ever matched
+   */
+  def searchInNodeView[T](
+    search:         Seq[T] => Boolean,
+    mapView:        ReadableNodeView => Seq[T],
+    nodeViewHolder: ActorRef[NodeViewHolder.ReceivableMessage],
+    testProbeActor: ActorRef[StatusReply[Seq[T]]],
+    testProbe:      TestProbe[StatusReply[Seq[T]]]
+  ): Seq[T] = {
+    // A "creative" solution for waiting on the Node View Holder to write all the blocks in its cache to history.
+    // If the Read message comes back without the new blocks, ignore it and try sending another read message.
+    // This block will return no messages if the history was never updated correctly.
+    nodeViewHolder.tell(
+      NodeViewHolder.ReceivableMessages.Read(mapView, testProbeActor)
+    )
+
+    testProbe
+      .fishForMessage(3.seconds) {
+        case StatusReply.Success(values: Seq[T]) if search(values) =>
+          FishingOutcome.Complete
+        case _ =>
+          nodeViewHolder.tell(
+            NodeViewHolder.ReceivableMessages.Read(mapView, testProbeActor)
+          )
+          FishingOutcome.ContinueAndIgnore
+      }
+      .headOption
+      .toList
+      .flatMap(result => if (result.isSuccess) result.getValue else Seq.empty)
+  }
+
 }
