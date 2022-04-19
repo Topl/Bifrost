@@ -6,9 +6,11 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.SimpleValue
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.{Int128, NetworkType}
+import co.topl.codecs._
 
 import scala.collection.immutable.ListMap
 import scala.util.Try
@@ -18,7 +20,10 @@ case object ToplnetGenesis extends GenesisProvider {
   implicit val networkPrefix: NetworkPrefix = NetworkType.Mainnet.netPrefix
 
   override protected val blockChecksum: ModifierId =
-    ModifierId.fromBase58(Base58Data.unsafe("228AWnLyoHdV3hzNaJmABsmB4VoS9rxPREA3AofbZnJob"))
+    Base58Data
+      .unsafe("228AWnLyoHdV3hzNaJmABsmB4VoS9rxPREA3AofbZnJob")
+      .decodeTransmitted[ModifierId]
+      .getOrThrow()
 
   override protected val blockVersion: PNVMVersion = 1: Byte
 
