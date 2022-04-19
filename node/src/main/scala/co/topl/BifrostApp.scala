@@ -1,6 +1,7 @@
 package co.topl
 
 import akka.actor.typed._
+import co.topl.genus.GenusApp
 import co.topl.network.utils.UPnPGateway
 import co.topl.settings._
 import co.topl.tool.Exporter
@@ -97,6 +98,7 @@ object BifrostApp extends Logging {
 
   def main(args: Array[String]): Unit = args.headOption.getOrElse("") match {
     case "export" => Exporter.main(args.tail)
+    case "genus"  => GenusApp.main(args.tail)
     case _        => startNode(args)
   }
 

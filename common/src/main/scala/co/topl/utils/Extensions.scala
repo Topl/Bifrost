@@ -1,5 +1,7 @@
 package co.topl.utils
 
+import co.topl.utils.StringDataTypes.{Base16Data, Base58Data}
+
 import java.nio.charset.{Charset, StandardCharsets}
 import scala.collection.compat.BuildFrom
 import scala.collection.immutable.Iterable
