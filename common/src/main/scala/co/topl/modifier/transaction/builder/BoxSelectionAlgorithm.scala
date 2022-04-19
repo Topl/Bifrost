@@ -151,38 +151,4 @@ object BoxSelectionAlgorithm {
           .getOrElse(boxes.copy(assets = List()))
       case _ => boxes
     }
-
-  val jsonEncoder: Encoder[BoxSelectionAlgorithm] = {
-    case BoxSelectionAlgorithms.All           => "All".asJson
-    case BoxSelectionAlgorithms.LargestFirst  => "LargestFirst".asJson
-    case BoxSelectionAlgorithms.SmallestFirst => "SmallestFirst".asJson
-    case BoxSelectionAlgorithms.Specific(ids) =>
-      Json.obj(
-        "Specific" -> Json.obj(
-          "ids" -> ids.asJson
-        )
-      )
-  }
-
-  val jsonDecoder: Decoder[BoxSelectionAlgorithm] =
-    List[Decoder[BoxSelectionAlgorithm]](
-      Decoder[String].emap(str => Either.cond(str == "All", BoxSelectionAlgorithms.All, "value is not of type 'All'")),
-      Decoder[String].emap(str =>
-        Either.cond(str == "LargestFirst", BoxSelectionAlgorithms.LargestFirst, "value is not of type 'LargestFirst'")
-      ),
-      Decoder[String].emap(str =>
-        Either.cond(
-          str == "SmallestFirst",
-          BoxSelectionAlgorithms.SmallestFirst,
-          "value is not of type 'SmallestFirst'"
-        )
-      ),
-      Decoder.instance(hcursor =>
-        hcursor
-          .downField("Specific")
-          .downField("ids")
-          .as[List[BoxId]]
-          .map(BoxSelectionAlgorithms.Specific)
-      )
-    ).reduceLeft(_ or _)
 }

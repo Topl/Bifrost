@@ -1,7 +1,9 @@
 package co.topl.consensus
 
+import cats.implicits._
 import co.topl.modifier.block.Block
 import co.topl.utils.NetworkType.{NetworkPrefix, ValhallaTestnet}
+import co.topl.utils.implicits._
 
 /**
  * Represents the sets of blocks that should have failed to be added to networks, but were anyways.
@@ -18,7 +20,7 @@ object Hiccups {
   object HiccupBlock {
 
     def apply(block: Block)(implicit networkPrefix: NetworkPrefix): HiccupBlock =
-      HiccupBlock(block.id.toString, block.height, networkPrefix)
+      HiccupBlock(block.id.show, block.height, networkPrefix)
   }
 
   /**
