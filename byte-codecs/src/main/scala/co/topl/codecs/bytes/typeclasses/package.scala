@@ -11,6 +11,7 @@ package object typeclasses {
       with ImmutableCodec.ToImmutableCodecOps
       with ImmutableEncoder.ToImmutableEncoderOps
       with ImmutableDecoder.ToImmutableDecoderOps
+      with ImmutableDecoder.ToExtensionOps
       with Identifiable.ToIdentifiableOps
       with Signable.ToSignableOps
 

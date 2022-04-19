@@ -129,6 +129,10 @@ object Dependencies {
     "org.scodec" %% "scodec-bits" % "1.1.27"
   )
 
+  val fleam = Seq(
+    "com.nike.fleam" %% "fleam" % "7.0.0"
+  )
+
   val mainargs = Seq(
     "com.lihaoyi" %% "mainargs" % "0.2.2"
   )
@@ -153,6 +157,11 @@ object Dependencies {
     misc ++
     monitoring ++
     mainargs
+
+  lazy val algebras =
+    test ++
+    catsEffect.map(_ % Test) ++
+    Seq(catsSlf4j % Test)
 
   lazy val common: Seq[ModuleID] =
     Seq(
@@ -231,23 +240,37 @@ object Dependencies {
     cats ++
     test
 
+  lazy val catsAkka: Seq[ModuleID] =
+    cats ++ catsEffect ++ logging ++ Seq(akka("actor"), akka("actor-typed"), akka("stream"))
+
   lazy val models: Seq[ModuleID] =
     cats ++ simulacrum ++ newType ++ scodecBits
 
   lazy val consensus: Seq[ModuleID] =
     bouncyCastle ++ Seq(akka("actor-typed")) ++ catsEffect ++ logging ++ scalacache
 
+  lazy val minting: Seq[ModuleID] =
+    Dependencies.test ++ Dependencies.catsEffect ++ Seq(Dependencies.akka("stream"))
+
+  lazy val networking: Seq[ModuleID] =
+    Dependencies.test ++ Dependencies.catsEffect ++ Seq(
+      Dependencies.akka("stream"),
+      Dependencies.akka("stream-testkit") % Test
+    ) ++ fleam
+
   lazy val demo: Seq[ModuleID] =
     Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++ logging
 
-  lazy val commonInterpreters: Seq[ModuleID] =
+  lazy val commonInterpreters =
     Dependencies.test ++
-    Dependencies.catsEffect ++
-    Dependencies.levelDb ++
     Seq(
-      Dependencies.akka("actor-typed"),
-      Dependencies.akka("actor-testkit-typed") % Test
-    )
+      akka("actor-typed"),
+      akka("actor-testkit-typed") % Test,
+      Dependencies.catsSlf4j      % "test"
+    ) ++
+    Dependencies.cats ++
+    Dependencies.catsEffect ++
+    Dependencies.scalacache
 
   lazy val tools: Seq[ModuleID] =
     Seq(
@@ -256,8 +279,10 @@ object Dependencies {
 
   lazy val loadTesting: Seq[ModuleID] =
     Seq(
+      "com.lihaoyi" %% "mainargs" % "0.2.1",
       "com.nike.fleam" %% "fleam" % "7.0.0"
     ) ++
+    fleam ++
     allAkka ++
     circe ++
     mainargs

@@ -3,16 +3,16 @@ package co.topl.consensus
 import cats.Monad
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
-import co.topl.algebras.{ClockAlgebra, ConsensusState}
+import co.topl.algebras.{ClockAlgebra, ConsensusStateReader}
 import co.topl.consensus.algebras.VrfRelativeStakeValidationLookupAlgebra
-import co.topl.models.{Slot, SlotId, TaktikosAddress, TypedIdentifier}
+import co.topl.models.{SlotId, TaktikosAddress}
 
 object VrfRelativeStakeValidationLookup {
 
   object Eval {
 
     def make[F[_]: Monad](
-      state: ConsensusState[F],
+      state: ConsensusStateReader[F],
       clock: ClockAlgebra[F]
     ): VrfRelativeStakeValidationLookupAlgebra[F] =
       (slotId: SlotId, address: TaktikosAddress) =>

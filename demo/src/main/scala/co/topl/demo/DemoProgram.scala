@@ -1,159 +1,110 @@
 package co.topl.demo
 
+import akka.actor.typed.ActorSystem
+import akka.stream.scaladsl.{BroadcastHub, Flow, Keep, MergeHub, Sink, Source}
+import akka.util.ByteString
 import cats.data.{EitherT, OptionT, Validated}
 import cats.effect._
 import cats.implicits._
-import cats.{Monad, MonadError, Parallel, Show}
-import co.topl.algebras.ClockAlgebra.implicits._
-import co.topl.algebras.{ClockAlgebra, ConsensusState, Store, UnsafeResource}
+import cats.{Applicative, MonadThrow, Parallel, Show}
+import co.topl.algebras.{Store, StoreReader, UnsafeResource}
+import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, EtaCalculationAlgebra, LocalChainAlgebra}
-import co.topl.consensus.{BlockHeaderValidationFailure, SlotData}
+import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LocalChainAlgebra}
+import co.topl.consensus.{BlockHeaderV2Ops, BlockHeaderValidationFailure}
 import co.topl.crypto.signing.Ed25519VRF
-import co.topl.minting.algebras.BlockMintAlgebra
+import co.topl.eventtree.{EventSourcedState, ParentChildTree}
+import co.topl.minting.algebras.PerpetualBlockMintAlgebra
 import co.topl.models._
-import co.topl.models.utility.Ratio
+import co.topl.networking.blockchain._
+import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, LocalPeer}
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
+
+import scala.util.Random
 
 object DemoProgram {
 
   /**
    * A forever-running program which traverses epochs and the slots within the epochs
    */
-  def run[F[_]: MonadError[*[_], Throwable]: Logger: Parallel: Clock: Sync](
-    clock:              ClockAlgebra[F],
-    mints:              List[BlockMintAlgebra[F]],
+  def run[F[_]: Parallel: MonadThrow: Logger: Async: FToFuture](
+    mint:               Option[PerpetualBlockMintAlgebra[F]],
     headerValidation:   BlockHeaderValidationAlgebra[F],
-    state:              ConsensusState[F],
-    headerStore:        Store[F, BlockHeaderV2],
-    blockStore:         Store[F, BlockV2],
-    etaCalculation:     EtaCalculationAlgebra[F],
+    headerStore:        Store[F, TypedIdentifier, BlockHeaderV2],
+    bodyStore:          Store[F, TypedIdentifier, BlockBodyV2],
+    transactionStore:   Store[F, TypedIdentifier, Transaction],
+    slotDataStore:      StoreReader[F, TypedIdentifier, SlotData],
     localChain:         LocalChainAlgebra[F],
-    ed25519VrfResource: UnsafeResource[F, Ed25519VRF]
-  ): F[Unit] =
+    blockIdTree:        ParentChildTree[F, TypedIdentifier],
+    blockHeights:       EventSourcedState[F, TypedIdentifier, Long => F[Option[TypedIdentifier]]],
+    ed25519VrfResource: UnsafeResource[F, Ed25519VRF],
+    host:               String,
+    bindPort:           Int,
+    localPeer:          LocalPeer,
+    remotePeers:        Source[DisconnectedPeer, _],
+    peerFlowModifier: (
+      ConnectedPeer,
+      Flow[ByteString, ByteString, F[BlockchainPeerClient[F]]]
+    ) => Flow[ByteString, ByteString, F[BlockchainPeerClient[F]]]
+  )(implicit system: ActorSystem[_], random: Random): F[Unit] =
     for {
-      initialSlot  <- clock.globalSlot.map(_.min(1L))
-      initialEpoch <- clock.epochOf(initialSlot)
-      _ <- initialEpoch
-        .iterateForeverM(epoch =>
-          handleEpoch(
-            epoch,
-            Option.when(epoch === initialEpoch)(initialSlot),
-            clock,
-            mints,
-            headerValidation,
-            state,
-            headerStore,
-            blockStore,
-            etaCalculation,
-            localChain,
-            ed25519VrfResource
-          )
-            .as(epoch + 1)
-        )
-        .void
-    } yield ()
-
-  /**
-   * Perform the operations for an epoch
-   */
-  private def handleEpoch[F[_]: MonadError[*[_], Throwable]: Logger: Parallel: Sync](
-    epoch:              Epoch,
-    fromSlot:           Option[Slot],
-    clock:              ClockAlgebra[F],
-    mints:              List[BlockMintAlgebra[F]],
-    headerValidation:   BlockHeaderValidationAlgebra[F],
-    state:              ConsensusState[F],
-    headerStore:        Store[F, BlockHeaderV2],
-    blockStore:         Store[F, BlockV2],
-    etaCalculation:     EtaCalculationAlgebra[F],
-    localChain:         LocalChainAlgebra[F],
-    ed25519VrfResource: UnsafeResource[F, Ed25519VRF]
-  ): F[Unit] =
-    for {
-      boundary <- clock.epochRange(epoch)
-      _        <- startEpoch(epoch, boundary, headerStore, localChain, etaCalculation)
-      _ <- traverseEpoch(
-        fromSlot,
-        boundary,
-        clock,
-        mints,
-        headerValidation,
+      (locallyAdoptedBlocksSource, locallyAdoptedBlocksSink) <-
+        BroadcastHub.sink[TypedIdentifier].preMaterialize().pure[F]
+      blockProcessor =
+        (blockV2: BlockV2) =>
+          MonadThrow[F].recoverWith(
+            processBlock[F](
+              blockV2,
+              headerValidation,
+              headerStore,
+              bodyStore,
+              localChain,
+              blockIdTree,
+              ed25519VrfResource
+            )
+          ) { case t =>
+            Logger[F].error(t)(show"Failed to process block id=${blockV2.headerV2.id}").as(false)
+          }
+      (remoteBlockSink, remoteBlockSource) <-
+        MergeHub
+          .source[BlockV2]
+          .preMaterialize()
+          .pure[F]
+      clientHandler <- BlockchainClientHandler.FetchAllBlocks.make[F](
         headerStore,
-        blockStore,
+        bodyStore,
+        transactionStore,
+        blockIdTree,
+        remoteBlockSink,
+        blockHeights,
         localChain,
-        ed25519VrfResource
+        slotDataStore
       )
-      _ <- finishEpoch(epoch, state)
-    } yield ()
-
-  /**
-   * Perform operations at the start of the epoch
-   */
-  private def startEpoch[F[_]: MonadError[*[_], Throwable]: Logger: Parallel](
-    epoch:          Epoch,
-    boundary:       ClockAlgebra.EpochBoundary,
-    headerStore:    Store[F, BlockHeaderV2],
-    localChain:     LocalChainAlgebra[F],
-    etaCalculation: EtaCalculationAlgebra[F]
-  ): F[Unit] =
-    for {
-      _      <- Logger[F].info(show"Starting epoch=$epoch (${boundary.start}..${boundary.end})")
-      headId <- localChain.head.map(_.slotId.blockId)
-      head <- OptionT(headerStore.get(headId))
-        .getOrElseF(new IllegalStateException(show"Missing blockId=$headId").raiseError[F, BlockHeaderV2])
-      _ <- etaCalculation.etaToBe(head.slotId, boundary.start)
-    } yield ()
-
-  /**
-   * Iterate through the epoch slot-by-slot
-   */
-  private def traverseEpoch[F[_]: MonadError[*[_], Throwable]: Logger: Parallel: Sync](
-    fromSlot:           Option[Slot],
-    boundary:           ClockAlgebra.EpochBoundary,
-    clock:              ClockAlgebra[F],
-    mints:              List[BlockMintAlgebra[F]],
-    headerValidation:   BlockHeaderValidationAlgebra[F],
-    headerStore:        Store[F, BlockHeaderV2],
-    blockStore:         Store[F, BlockV2],
-    localChain:         LocalChainAlgebra[F],
-    ed25519VrfResource: UnsafeResource[F, Ed25519VRF]
-  ): F[Unit] =
-    fromSlot
-      .getOrElse(boundary.start)
-      .iterateUntilM(localSlot =>
-        for {
-          _ <- clock.delayedUntilSlot(localSlot)
-          _ <- processSlot(localSlot, mints, headerValidation, headerStore, blockStore, localChain, ed25519VrfResource)
-        } yield localSlot + 1
-      )(_ >= boundary.end)
-      .void
-
-  /**
-   * For each minter, attempt to mint.  For each minted block, process it.
-   */
-  private def processSlot[F[_]: MonadError[*[_], Throwable]: Logger: Parallel: Sync](
-    slot:               Slot,
-    mints:              List[BlockMintAlgebra[F]],
-    headerValidation:   BlockHeaderValidationAlgebra[F],
-    headerStore:        Store[F, BlockHeaderV2],
-    blockStore:         Store[F, BlockV2],
-    localChain:         LocalChainAlgebra[F],
-    ed25519VrfResource: UnsafeResource[F, Ed25519VRF]
-  ): F[Unit] =
-    for {
-      _ <- Logger[F].debug(show"Processing slot=$slot")
-      canonicalHead <- localChain.head
-        .flatMap(slotData =>
-          OptionT(headerStore.get(slotData.slotId.blockId))
-            .getOrElseF(new IllegalStateException("BlockNotFound").raiseError[F, BlockHeaderV2])
-        )
-      mintedBlocks <- mints.parTraverse(_.attemptMint(canonicalHead, Nil, slot)).map(_.flatten)
-      _ <- mintedBlocks.traverse(
-        processMintedBlock(_, headerValidation, blockStore, localChain, ed25519VrfResource, canonicalHead)
+      peerServer <- BlockchainPeerServer.FromStores.make(
+        headerStore,
+        bodyStore,
+        transactionStore,
+        blockHeights,
+        localChain,
+        locallyAdoptedBlocksSource
       )
+      (p2pServer, p2pFiber) <- BlockchainNetwork
+        .make[F](host, bindPort, localPeer, remotePeers, clientHandler, peerServer, peerFlowModifier)
+      mintedBlockStream <- mint.fold(Source.never[BlockV2].pure[F])(_.blocks)
+      streamCompletionFuture =
+        mintedBlockStream
+          .tapAsyncF(1)(block => Logger[F].info(show"Minted block ${block.headerV2}"))
+          // Prioritize locally minted blocks over remote blocks
+          .mergePreferred(remoteBlockSource, priority = false)
+          .mapAsyncF(1)(block => blockProcessor(block).tupleLeft(block.headerV2.id.asTypedBytes))
+          .collect { case (id, true) => id }
+          .alsoTo(locallyAdoptedBlocksSink)
+          .toMat(Sink.ignore)(Keep.right)
+          .liftTo[F]
+      _ <- Async[F].fromFuture(streamCompletionFuture)
+      _ <- p2pFiber.join
     } yield ()
 
   implicit private val showBlockHeaderValidationFailure: Show[BlockHeaderValidationFailure] =
@@ -162,54 +113,54 @@ object DemoProgram {
   /**
    * Insert block to local storage and perform chain selection.  If better, validate the block and then adopt it locally.
    */
-  private def processMintedBlock[F[_]: Monad: Logger](
-    nextBlock:          BlockV2,
+  private def processBlock[F[_]: MonadThrow: Sync: Logger](
+    block:              BlockV2,
     headerValidation:   BlockHeaderValidationAlgebra[F],
-    blockStore:         Store[F, BlockV2],
+    headerStore:        Store[F, TypedIdentifier, BlockHeaderV2],
+    bodyStore:          Store[F, TypedIdentifier, BlockBodyV2],
     localChain:         LocalChainAlgebra[F],
-    ed25519VrfResource: UnsafeResource[F, Ed25519VRF],
-    canonicalHead:      BlockHeaderV2
-  ): F[Unit] =
+    blockIdTree:        ParentChildTree[F, TypedIdentifier],
+    ed25519VrfResource: UnsafeResource[F, Ed25519VRF]
+  ): F[Boolean] =
     for {
-      _                     <- Logger[F].info(show"Minted block ${nextBlock.headerV2}")
-      _                     <- blockStore.put(nextBlock.headerV2.id, nextBlock)
-      slotData              <- ed25519VrfResource.use(implicit ed25519Vrf => SlotData(nextBlock.headerV2).pure[F])
-      localChainIsWorseThan <- localChain.isWorseThan(slotData)
-      _ <-
-        if (localChainIsWorseThan)
-          EitherT(headerValidation.validate(nextBlock.headerV2, canonicalHead))
-            // TODO: Now fetch the body from the network and validate against the ledger
-            .semiflatTap(_ => localChain.adopt(Validated.Valid(slotData)))
-            .semiflatTap(header => Logger[F].info(show"Adopted local head block id=${header.id}"))
-            .void
-            .valueOrF(e =>
-              Logger[F]
-                .warn(show"Invalid block header. reason=$e block=${nextBlock.headerV2}")
-                // TODO: Penalize the peer
-                .flatTap(_ => blockStore.remove(nextBlock.headerV2.id))
-            )
-        else
-          Logger[F].info(show"Ignoring weaker block header id=${nextBlock.headerV2.id}")
-    } yield ()
-
-  /**
-   * Perform operations at the completion of an epoch
-   */
-  private def finishEpoch[F[_]: Monad: Logger](epoch: Epoch, state: ConsensusState[F]): F[Unit] =
-    for {
-      _ <- Logger[F].info(show"Finishing epoch=$epoch")
-      _ <- Logger[F].info("Populating registrations for next epoch")
-      newRegistrations <- state
-        .foldRegistrations(epoch)(Map.empty[TaktikosAddress, Box.Values.TaktikosRegistration]) {
-          case (acc, (address, registration)) => acc.updated(address, registration).pure[F]
-        }
-      _ <- state.writeRegistrations(epoch + 1, newRegistrations)
-      _ <- Logger[F].info("Populating relative stake distributions for next epoch")
-      newRelativeStakes <- state
-        .foldRelativeStakes(epoch)(Map.empty[TaktikosAddress, Ratio]) { case (acc, (address, stake)) =>
-          acc.updated(address, stake).pure[F]
-        }
-      _ <- state.writeRelativeStakes(epoch + 1, newRelativeStakes)
-    } yield ()
+      _ <- headerStore
+        .contains(block.headerV2.id)
+        .ifM(Applicative[F].unit, headerStore.put(block.headerV2.id, block.headerV2))
+      _ <- bodyStore
+        .contains(block.headerV2.id)
+        .ifM(Applicative[F].unit, bodyStore.put(block.headerV2.id, block.blockBodyV2))
+      _        <- blockIdTree.associate(block.headerV2.id, block.headerV2.parentHeaderId)
+      slotData <- ed25519VrfResource.use(implicit ed25519Vrf => block.headerV2.slotData.pure[F])
+      adopted <-
+        localChain
+          .isWorseThan(slotData)
+          .ifM(
+            Sync[F].defer(
+              EitherT(
+                OptionT(headerStore.get(block.headerV2.parentHeaderId))
+                  .getOrElseF(MonadThrow[F].raiseError(new NoSuchElementException(block.headerV2.parentHeaderId.show)))
+                  .flatMap(parent => headerValidation.validate(block.headerV2, parent))
+              )
+                .foldF(
+                  e =>
+                    Logger[F]
+                      .warn(show"Invalid block header. reason=$e block=${block.headerV2}")
+                      // TODO: Penalize the peer
+                      .flatTap(_ =>
+                        headerStore.remove(block.headerV2.id).tupleRight(bodyStore.remove(block.headerV2.id))
+                      )
+                      .as(false),
+                  header =>
+                    (localChain.adopt(Validated.Valid(slotData)) >>
+                    Logger[F].info(
+                      show"Adopted head block id=${header.id.asTypedBytes} height=${header.height} slot=${header.slot}"
+                    )).as(true)
+                )
+            ),
+            Sync[F]
+              .defer(Logger[F].info(show"Ignoring weaker block header id=${block.headerV2.id.asTypedBytes}"))
+              .as(false)
+          )
+    } yield adopted
 
 }
