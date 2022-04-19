@@ -5,7 +5,7 @@ import cats.effect.{IO, Sync}
 import cats.implicits._
 import cats.{Functor, MonadThrow, Semigroupal}
 import co.topl.algebras.Store
-import co.topl.interpreters.RefStore
+import co.topl.algebras.testInterpreters.TestStore
 import co.topl.models._
 import co.topl.typeclasses.implicits._
 import org.scalamock.scalatest.MockFactory
@@ -30,8 +30,8 @@ class EventSourcedStateSpec
   behavior of "EventSourcedState"
 
   it should "traverse events forwards and backwards to provide the correct state along a tree" in {
-    val eventStore = RefStore.Eval.make[F, Tx]().value
-    val deltaStore = RefStore.Eval.make[F, LedgerUnapply]().value
+    val eventStore = TestStore.make[F, TypedIdentifier, Tx].value
+    val deltaStore = TestStore.make[F, TypedIdentifier, LedgerUnapply].value
     val tree = ParentChildTree.FromRef.make[F, TypedIdentifier].value
 
     txData
@@ -41,7 +41,7 @@ class EventSourcedStateSpec
       .value
 
     txAssociations.foldLeftM[F, Unit](()) { case (_, (c, p)) => tree.associate(c.asTxId, p.asTxId) }.value
-    val ledgerStore = RefStore.Eval.make[F, Bytes]().value
+    val ledgerStore = TestStore.make[F, TypedIdentifier, Bytes].value
     val initialEventId = "-1".asTxId
 
     ledgerStore.put(Ledger.Eval.CurrentEventIdId, initialEventId.allBytes).value
@@ -106,7 +106,7 @@ object Ledger {
   object Eval {
     val CurrentEventIdId = TypedBytes(-1: Byte, Bytes(-1: Byte))
 
-    def make[F[_]: MonadThrow](store: Store[F, Bytes]): Ledger[F] = new Ledger[F] {
+    def make[F[_]: MonadThrow](store: Store[F, TypedIdentifier, Bytes]): Ledger[F] = new Ledger[F] {
 
       def eventId: F[TypedIdentifier] =
         OptionT(store.get(CurrentEventIdId)).foldF(

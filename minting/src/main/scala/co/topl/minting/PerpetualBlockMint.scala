@@ -10,7 +10,7 @@ import co.topl.algebras.{ClockAlgebra, MemPoolAlgebra, Store}
 import co.topl.catsakka._
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.minting.algebras.{BlockMintAlgebra, PerpetualBlockMintAlgebra}
-import co.topl.models.{BlockHeaderV2, BlockV2, Slot}
+import co.topl.models.{BlockHeaderV2, BlockV2, Slot, TypedIdentifier}
 import co.topl.typeclasses.implicits._
 
 import scala.concurrent.Future
@@ -24,7 +24,7 @@ object PerpetualBlockMint {
       blockMint:   BlockMintAlgebra[F],
       localChain:  LocalChainAlgebra[F],
       mempool:     MemPoolAlgebra[F],
-      headerStore: Store[F, BlockHeaderV2]
+      headerStore: Store[F, TypedIdentifier, BlockHeaderV2]
     ): F[PerpetualBlockMintAlgebra[F]] =
       Sync[F].delay(
         new PerpetualBlockMintAlgebra[F] {

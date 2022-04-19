@@ -25,6 +25,10 @@ object NetworkTypeTags {
     : NetworkTypeTag[TypedProtocol.CommonMessages.Get[TypedIdentifier]] =
     NetworkTypeTag.create("TypedProtocol.CommonMessages.Get[TypedIdentifier]")
 
+  implicit val commonMessagesGetLongTypedIdentifierOptNetworkTypeTag
+    : NetworkTypeTag[TypedProtocol.CommonMessages.Get[(Long, Option[TypedIdentifier])]] =
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.Get[(Long, TypedIdentifier)]")
+
   implicit val commonMessagesResponseBlockHeaderNetworkTypeTag
     : NetworkTypeTag[TypedProtocol.CommonMessages.Response[BlockHeaderV2]] =
     NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[BlockHeaderV2]")
@@ -36,6 +40,10 @@ object NetworkTypeTags {
   implicit val commonMessagesResponseTransactionNetworkTypeTag
     : NetworkTypeTag[TypedProtocol.CommonMessages.Response[Transaction]] =
     NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[Transaction]")
+
+  implicit val commonMessagesResponseTypedIdentifierNetworkTypeTag
+    : NetworkTypeTag[TypedProtocol.CommonMessages.Response[TypedIdentifier]] =
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[TypedIdentifier]")
 
   implicit val commonMessagesPushTypedIdentifierNetworkTypeTag
     : NetworkTypeTag[TypedProtocol.CommonMessages.Push[TypedIdentifier]] =

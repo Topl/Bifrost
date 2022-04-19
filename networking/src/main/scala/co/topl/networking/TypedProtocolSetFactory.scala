@@ -1,15 +1,15 @@
 package co.topl.networking
 
 import akka.NotUsed
-import akka.stream.Materializer
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
+import akka.stream.{Materializer, OverflowStrategy}
 import akka.util.ByteString
-import cats.Show
-import cats.data.{EitherT, NonEmptyChain}
+import cats.data.{EitherT, NonEmptyChain, OptionT}
 import cats.effect.Async
 import cats.effect.kernel.Sync
 import cats.effect.std.Queue
 import cats.implicits._
+import cats.{Applicative, MonadThrow, Show}
 import co.topl.catsakka._
 import co.topl.codecs.bytes.typeclasses.Transmittable
 import co.topl.networking.blockchain.NetworkTypeTags._
@@ -44,7 +44,7 @@ object TypedProtocolSetFactory {
 
   trait Ops {
 
-    implicit class TypedProtocolSetFactoryMultiplexer[F[_]: Async: FToFuture, Client](
+    implicit class TypedProtocolSetFactoryMultiplexer[F[_]: Async: FToFuture: Logger, Client](
       factory: TypedProtocolSetFactory[F, Client]
     ) {
 
@@ -102,6 +102,7 @@ object TypedProtocolSetFactory {
               )
             )
               .leftMap(error => TypedProtocolTransitionFailureException(decodedData, error))
+              .leftSemiflatTap(error => Logger[F].error(error)("Failed to apply inbound message"))
               .rethrowT
           }
           .to(Sink.ignore)
@@ -120,6 +121,7 @@ object TypedProtocolSetFactory {
                 )
             )
               .leftMap(error => TypedProtocolTransitionFailureException(outboundMessage.data, error))
+              .leftSemiflatTap(error => Logger[F].error(error)("Failed to apply outbound message"))
               .rethrowT
               .as(outboundMessage)
           )
@@ -196,7 +198,6 @@ object TypedProtocolSetFactory {
           .withCodec[TypedProtocol.CommonMessages.Done.type](2: Byte)
           .withCodec[TypedProtocol.CommonMessages.Push[T]](3: Byte)
           .multiplexerCodec
-        notifications_ <- notifications
       } yield (
         (sessionId: Byte) =>
           TypedSubHandler(
@@ -204,14 +205,13 @@ object TypedProtocolSetFactory {
             instance = protocolInstance,
             initialState = TypedProtocol.CommonStates.None,
             outboundMessages = Source
-              .future(clientSignalPromise.future)
-              .tapAsyncF(1)(_ => Logger[F].info(s"Remote peer requested notifications of type=${tPushTypeTag.name}"))
-              .flatMapConcat(_ =>
-                notifications_
-                  .tapAsyncF(1)(data => Logger[F].info(show"Notifying peer of data=$data"))
-                  .map(TypedProtocol.CommonMessages.Push(_))
-                  .map(OutboundMessage(_))
-              ),
+              .lazyFutureSource(() => implicitly[FToFuture[F]].apply(notifications))
+              .buffer(1, OverflowStrategy.dropHead)
+              .zip(Source.repeat(()).mapAsync(1)(_ => clientSignalPromise.future))
+              .map(_._1)
+              .tapAsyncF(1)(data => Logger[F].debug(show"Notifying peer of data=$data"))
+              .map(TypedProtocol.CommonMessages.Push(_))
+              .map(OutboundMessage(_)),
             codec = multiplexerCodec
           )
       )
@@ -223,20 +223,20 @@ object TypedProtocolSetFactory {
       tPushTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Push[T]]
     ): F[(Byte => TypedSubHandler[F, CommonStates.None.type], Source[T, NotUsed])] =
       for {
-        (((offerF, completeF), demandSignal), source) <- Sync[F].defer(
-          Source
-            .backpressuredQueue[F, T](16)
-            .tapAsyncF(1)(data => Logger[F].info(show"Remote peer sent notification data=$data"))
-            // A Notification Client must send a `Start` message to the server before it will start
-            // pushing notifications. We can signal this message to the server once the returned Source here requests
-            // data for the first time
-            .viaMat(OnFirstDemandFlow[T])(Keep.both)
-            .preMaterialize()
-            .pure[F]
-        )
+        (((offerF, completeF), demandSignal), source) <-
+          Sync[F].delay(
+            Source
+              .dropHeadQueue[F, T](8)
+              .tapAsyncF(1)(data => Logger[F].debug(show"Remote peer sent notification data=$data"))
+              // A Notification Client must send a `Start` message to the server before it will start
+              // pushing notifications. We can signal this message to the server once the returned Source here requests
+              // data for the first time
+              .viaMat(OnFirstDemandFlow[T])(Keep.both)
+              .preMaterialize()
+          )
         instance <- Sync[F].delay {
           val transitions =
-            new protocol.StateTransitionsClient[F](offerF)
+            new protocol.StateTransitionsClient[F](update => offerF(update))
           import transitions._
           TypedProtocolInstance(Parties.B)
             .withTransition(startNoneBusy)
@@ -257,12 +257,18 @@ object TypedProtocolSetFactory {
               .future(demandSignal)
               .map(_ => OutboundMessage(TypedProtocol.CommonMessages.Start))
               .concat(Source.never)
-              .alsoTo(Sink.onComplete(res => implicitly[FToFuture[F]].apply(completeF(res.failed.toOption)))),
+              .alsoTo(
+                Sink.onComplete(res => implicitly[FToFuture[F]].apply(completeF(res.failed.toOption)))
+              ),
             multiplexerCodec
           )
       } yield (
         subHandler,
-        source.alsoTo(Sink.onComplete(res => implicitly[FToFuture[F]].apply(completeF(res.failed.toOption))))
+        source
+          .alsoTo(
+            Sink.onComplete(res => implicitly[FToFuture[F]].apply(completeF(res.failed.toOption)))
+          )
+          .mapMaterializedValue(_ => NotUsed)
       )
 
     def requestResponseServer[F[_]: Async: FToFuture, Query: Transmittable, T: Transmittable](
@@ -274,10 +280,10 @@ object TypedProtocolSetFactory {
       tResponseTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Response[T]]
     ): F[Byte => TypedSubHandler[F, CommonStates.None.type]] =
       for {
-        ((offerResponseF, completeResponsesF), responsesSource) <- Sync[F].delay(
-          Source.backpressuredQueue[F, Option[T]](4).preMaterialize()
+        ((offerResponse, completeResponse), responseSource) <- Sync[F].delay(
+          Source.backpressuredQueue[F, Option[T]](1).preMaterialize()
         )
-        transitions = new protocol.ServerStateTransitions[F](fetch(_).flatMap(offerResponseF))
+        transitions = new protocol.ServerStateTransitions[F](fetch(_).flatMap(offerResponse))
         instance = {
           import transitions._
           TypedProtocolInstance(Parties.A)
@@ -299,8 +305,10 @@ object TypedProtocolSetFactory {
           TypedProtocol.CommonStates.None,
           Source
             .single(OutboundMessage(TypedProtocol.CommonMessages.Start))
-            .concat(responsesSource.map(TypedProtocol.CommonMessages.Response(_)).map(OutboundMessage(_)))
-            .alsoTo(Sink.onComplete(res => implicitly[FToFuture[F]].apply(completeResponsesF(res.failed.toOption)))),
+            .concat(responseSource.map(TypedProtocol.CommonMessages.Response(_)).map(OutboundMessage(_)))
+            .alsoTo(
+              Sink.onComplete(res => implicitly[FToFuture[F]].apply(completeResponse(res.failed.toOption)))
+            ),
           multiplexerCodec
         )
 
@@ -312,13 +320,16 @@ object TypedProtocolSetFactory {
       tResponseTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Response[T]]
     ): F[(Byte => TypedSubHandler[F, CommonStates.None.type], Query => F[Option[T]])] =
       for {
-        responsePromisesQueue <- Sync[F].defer(Queue.bounded[F, Promise[Option[T]]](1))
+        responsePromisesQueue <- Sync[F].defer(Queue.bounded[F, Promise[Option[T]]](2))
         serverSentStartPromise = Promise[Unit]()
         transitions =
           new protocol.ClientStateTransitions[F](
-            r => responsePromisesQueue.take.map(_.success(r)),
+            r =>
+              OptionT(responsePromisesQueue.tryTake).foldF(
+                MonadThrow[F].raiseError(new IllegalStateException("Unexpected response from server")).void
+              )(_.success(r).pure[F].void),
             () =>
-              Sync[F].delay(serverSentStartPromise.success(())) >> Logger[F].info(
+              Sync[F].delay(serverSentStartPromise.success(())) >> Logger[F].debug(
                 s"Server is accepting request-response requests of type=${tResponseTypeTag.name}"
               )
           )
@@ -330,17 +341,17 @@ object TypedProtocolSetFactory {
             .withTransition(responseBusyIdle)
             .withTransition(doneIdleDone)
         }
-        ((offerOutboundMessage, completeOutboundMessages), outboundMessagesSource) <- Source
-          .backpressuredQueue[F, OutboundMessage](4)
-          .preMaterialize()
-          .pure[F]
+        ((offerOutbound, completeOutbound), outboundSource) =
+          Source
+            .backpressuredQueue[F, OutboundMessage](1)
+            .preMaterialize()
         clientCallback = (query: Query) =>
           Sync[F]
             .delay(Promise[Option[T]]())
             .flatMap(promise =>
               responsePromisesQueue
                 .offer(promise)
-                .flatTap(_ => offerOutboundMessage(OutboundMessage(TypedProtocol.CommonMessages.Get(query))))
+                .flatTap(_ => offerOutbound(OutboundMessage(TypedProtocol.CommonMessages.Get(query))))
                 .productR(Async[F].fromFuture(promise.future.pure[F]))
             )
         multiplexerCodec = MultiplexerCodecBuilder()
@@ -356,11 +367,19 @@ object TypedProtocolSetFactory {
             TypedProtocol.CommonStates.None,
             Source
               .future(serverSentStartPromise.future)
-              .flatMapConcat(_ =>
-                outboundMessagesSource
-                  .alsoTo(
-                    Sink
-                      .onComplete(res => implicitly[FToFuture[F]].apply(completeOutboundMessages(res.failed.toOption)))
+              .flatMapConcat(_ => outboundSource)
+              .alsoTo(
+                Sink
+                  .onComplete(res =>
+                    implicitly[FToFuture[F]].apply(
+                      completeOutbound(res.failed.toOption) >> {
+                        def f: F[Unit] = OptionT(responsePromisesQueue.tryTake)
+                          .map(_.failure(res.failed.toOption.getOrElse(new IllegalStateException("Done early"))))
+                          .isEmpty
+                          .ifM(Applicative[F].unit, f)
+                        f
+                      }
+                    )
                   )
               ),
             multiplexerCodec

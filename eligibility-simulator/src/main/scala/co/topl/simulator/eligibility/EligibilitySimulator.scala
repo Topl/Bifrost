@@ -195,10 +195,10 @@ object EligibilitySimulator extends IOApp.Simple {
       )
 
   private def createBlockStore(
-    headerStore: Store[F, BlockHeaderV2],
-    bodyStore:   Store[F, BlockBodyV2]
-  ): Store[F, BlockV2] =
-    new Store[F, BlockV2] {
+    headerStore: Store[F, TypedIdentifier, BlockHeaderV2],
+    bodyStore:   Store[F, TypedIdentifier, BlockBodyV2]
+  ): Store[F, TypedIdentifier, BlockV2] =
+    new Store[F, TypedIdentifier, BlockV2] {
 
       def get(id: TypedIdentifier): F[Option[BlockV2]] =
         (OptionT(headerStore.get(id)), OptionT(bodyStore.get(id))).tupled.map((BlockV2.apply _).tupled).value
@@ -223,8 +223,8 @@ object EligibilitySimulator extends IOApp.Simple {
       ed25519VRFResource <- ActorPoolUnsafeResource.Eval.make[F, Ed25519VRF](Ed25519VRF.precomputed(), _ => ())
       kesProductResource <- ActorPoolUnsafeResource.Eval.make[F, KesProduct](new KesProduct, _ => ())
       ed25519Resource    <- ActorPoolUnsafeResource.Eval.make[F, Ed25519](new Ed25519, _ => ())
-      blockHeaderStore   <- RefStore.Eval.make[F, BlockHeaderV2]()
-      blockBodyStore     <- RefStore.Eval.make[F, BlockBodyV2]()
+      blockHeaderStore   <- RefStore.Eval.make[F, TypedIdentifier, BlockHeaderV2]()
+      blockBodyStore     <- RefStore.Eval.make[F, TypedIdentifier, BlockBodyV2]()
       blockStore = createBlockStore(blockHeaderStore, blockBodyStore)
       _             <- blockStore.put(genesis.headerV2.id, genesis)
       slotDataCache <- SlotDataCache.Eval.make(blockHeaderStore, ed25519VRFResource)

@@ -25,7 +25,7 @@ object SlotDataCache {
 
     // TODO: Use Epoch thirds for storage
     def make[F[_]: MonadError[*[_], Throwable]: Clock: Sync](
-      blockHeaderLookup:  Store[F, BlockHeaderV2],
+      blockHeaderLookup:  Store[F, TypedIdentifier, BlockHeaderV2],
       ed25519VRFResource: UnsafeResource[F, Ed25519VRF]
     ): F[SlotDataCache[F]] =
       CaffeineCache[F, SlotData].map(implicit cache =>

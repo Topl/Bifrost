@@ -153,6 +153,11 @@ object Dependencies {
     monitoring
   }
 
+  lazy val algebras =
+    test ++
+    catsEffect.map(_ % Test) ++
+    Seq(catsSlf4j % Test)
+
   lazy val common: Seq[ModuleID] =
     Seq(
       "org.typelevel"          %% "simulacrum"              % simulacrumVersion,

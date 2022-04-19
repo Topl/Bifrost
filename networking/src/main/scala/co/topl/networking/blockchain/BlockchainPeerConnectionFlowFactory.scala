@@ -11,6 +11,7 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.models.{BlockBodyV2, BlockHeaderV2, Transaction, TypedIdentifier}
 import co.topl.networking.TypedProtocolSetFactory.implicits._
 import co.topl.networking._
+import co.topl.networking.blockchain.BlockchainMultiplexerCodecs.longTypedIdentifierOptTransmittable
 import co.topl.networking.blockchain.NetworkTypeTags._
 import co.topl.networking.p2p.{ConnectedPeer, ConnectionLeader}
 import co.topl.typeclasses.implicits._
@@ -30,8 +31,8 @@ object BlockchainPeerConnectionFlowFactory {
   ): (ConnectedPeer, ConnectionLeader) => F[Flow[ByteString, ByteString, BlockchainPeerClient[F]]] =
     createFactory(peerServer).multiplexed
 
-  private def createFactory[F[_]: Async: Logger: FToFuture](protocolServer: BlockchainPeerServer[F])(implicit
-    materializer:                                                           Materializer
+  private[blockchain] def createFactory[F[_]: Async: Logger: FToFuture](protocolServer: BlockchainPeerServer[F])(
+    implicit materializer:                                                              Materializer
   ): TypedProtocolSetFactory[F, BlockchainPeerClient[F]] = {
     val blockAdoptionRecipF =
       TypedProtocolSetFactory.CommonProtocols.notificationReciprocated(
@@ -65,20 +66,36 @@ object BlockchainPeerConnectionFlowFactory {
         8: Byte
       )
 
+    val idAtHeightRecipF =
+      TypedProtocolSetFactory.CommonProtocols
+        .requestResponseReciprocated[F, (Long, Option[TypedIdentifier]), TypedIdentifier](
+          BlockchainProtocols.BlockIdAtHeight,
+          t => protocolServer.getLocalBlockAtHeight(t._1),
+          9: Byte,
+          10: Byte
+        )
+
     (connectedPeer: ConnectedPeer, connectionLeader: ConnectionLeader) =>
       for {
         (adoptionTypedSubHandlers, remoteBlockIdsSource)           <- blockAdoptionRecipF.ap(connectionLeader.pure[F])
         (headerTypedSubHandlers, headerReceivedCallback)           <- headerRecipF.ap(connectionLeader.pure[F])
         (bodyTypedSubHandlers, bodyReceivedCallback)               <- bodyRecipF.ap(connectionLeader.pure[F])
         (transactionTypedSubHandlers, transactionReceivedCallback) <- transactionRecipF.ap(connectionLeader.pure[F])
+        (idAtHeightTypedSubHandlers, heightIdReceivedCallback)     <- idAtHeightRecipF.ap(connectionLeader.pure[F])
         blockchainProtocolClient = new BlockchainPeerClient[F] {
+          val remotePeer: F[ConnectedPeer] = connectedPeer.pure[F]
           val remotePeerAdoptions: F[Source[TypedIdentifier, NotUsed]] = remoteBlockIdsSource.pure[F]
           def getRemoteHeader(id: TypedIdentifier): F[Option[BlockHeaderV2]] = headerReceivedCallback(id)
           def getRemoteBody(id: TypedIdentifier): F[Option[BlockBodyV2]] = bodyReceivedCallback(id)
           def getRemoteTransaction(id: TypedIdentifier): F[Option[Transaction]] = transactionReceivedCallback(id)
+          def getRemoteBlockIdAtHeight(
+            height:       Long,
+            localBlockId: Option[TypedIdentifier]
+          ): F[Option[TypedIdentifier]] =
+            heightIdReceivedCallback((height, localBlockId))
         }
         subHandlers =
-          adoptionTypedSubHandlers ++ headerTypedSubHandlers ++ bodyTypedSubHandlers ++ transactionTypedSubHandlers
+          adoptionTypedSubHandlers ++ headerTypedSubHandlers ++ bodyTypedSubHandlers ++ transactionTypedSubHandlers ++ idAtHeightTypedSubHandlers
       } yield subHandlers -> blockchainProtocolClient
   }
 
