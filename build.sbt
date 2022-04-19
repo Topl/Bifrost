@@ -214,6 +214,7 @@ lazy val bifrost = project
     tools,
     scripting,
     eligibilitySimulator
+    genus
   )
 
 lazy val node = project
@@ -235,7 +236,7 @@ lazy val node = project
   .settings(
     IntegrationTest / parallelExecution := false
   )
-  .dependsOn(common % "compile->compile;test->test", toplRpc, tools)
+  .dependsOn(common % "compile->compile;test->test", toplRpc, tools, genus)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
 lazy val common = project
@@ -611,11 +612,11 @@ lazy val crypto = project
     name := "crypto",
     commonSettings,
     publishSettings,
+    scalamacrosParadiseSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.crypto",
     libraryDependencies ++= Dependencies.crypto
   )
-  .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test")
 
 lazy val catsAkka = project
@@ -654,6 +655,17 @@ lazy val loadTesting = project
     libraryDependencies ++= Dependencies.loadTesting
   )
   .dependsOn(common, brambl)
+
+lazy val genus = project
+  .in(file("genus"))
+  .settings(
+    name := "genus",
+    commonSettings,
+    scalamacrosParadiseSettings,
+    libraryDependencies ++= Dependencies.genus,
+  )
+  .enablePlugins(AkkaGrpcPlugin)
+  .dependsOn(common)
 
 addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; + test")
 addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; + test")
