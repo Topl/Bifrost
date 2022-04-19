@@ -279,7 +279,7 @@ object Dependencies {
 
   lazy val loadTesting: Seq[ModuleID] =
     Seq(
-      "com.lihaoyi" %% "mainargs" % "0.2.1"
+      "com.lihaoyi" %% "mainargs" % "0.2.1",
       "com.nike.fleam" %% "fleam" % "7.0.0"
     ) ++
     fleam ++

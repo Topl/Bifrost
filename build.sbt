@@ -213,7 +213,7 @@ lazy val bifrost = project
     demo,
     tools,
     scripting,
-    eligibilitySimulator
+    eligibilitySimulator,
     genus
   )
 
