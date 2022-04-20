@@ -5,7 +5,7 @@ services:
     build: ../../../../target/docker/stage
     ports:
       - 9085:9085
-    command: -s test --apiKeyHash As3ZuwnL9LpoW3wz8HoDpHtZqJ4dhPFFnv87GYrnCYKj
+    command: -s test -f --apiKeyHash As3ZuwnL9LpoW3wz8HoDpHtZqJ4dhPFFnv87GYrnCYKj
 
   assistant:
     image: toplprotocol/postman-integration-testing-server
