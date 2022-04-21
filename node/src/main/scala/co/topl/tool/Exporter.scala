@@ -7,9 +7,7 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.mongodb.codecs._
 import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataModel}
 import co.topl.utils.{Logging, NetworkType}
-import io.circe.Json
-import mainargs.{arg, main, ParserForMethods}
-import co.topl.settings.StartupOptsImplicits._
+import mainargs.{ParserForMethods, arg, main}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
@@ -20,7 +18,7 @@ object Exporter extends Logging {
 
   private def initHistory(settings: AppSettings, np: NetworkPrefix): History = History.readOrGenerate(settings)(np)
 
-  private def export(connection: Exportable, history: History, start: Long = 1L, end: Long): Unit = {
+  private def exportHistory(connection: Exportable, history: History, start: Long = 1L, end: Long): Unit = {
 
     val startTime = System.currentTimeMillis()
 
@@ -43,7 +41,7 @@ object Exporter extends Logging {
 
     Await.ready(Future.sequence(futures), Duration.Inf).onComplete {
       case Failure(exception) => throw exception
-      case Success(value) =>
+      case Success(_) =>
         val totalTime = (System.currentTimeMillis() - startTime) / 1000
         log.info(s"The total time it took to export: ${totalTime / 60} minutes and ${totalTime % 60} seconds")
         connection.close()
@@ -83,10 +81,10 @@ object Exporter extends Logging {
         collection.getOrElse(dt.name),
         dt
       )
-    val (settings, config) = AppSettings.read(startupOpts)
+    val (settings, _) = AppSettings.read(startupOpts)
     val history = initHistory(settings, startupOpts.networkTypeOpt.getOrElse(NetworkType.PrivateTestnet).netPrefix)
 
-    export(mongo, history, start.getOrElse(1L), end.getOrElse(history.bestBlock.height))
+    exportHistory(mongo, history, start.getOrElse(1L), end.getOrElse(history.bestBlock.height))
   }
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
