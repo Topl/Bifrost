@@ -1,9 +1,11 @@
 package co.topl.minting
 
-import cats.{Applicative, Monad}
 import cats.data.OptionT
 import cats.implicits._
+import cats.{Applicative, Monad}
 import co.topl.algebras.{ClockAlgebra, UnsafeResource}
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras.EtaCalculationAlgebra
 import co.topl.crypto.signing.Ed25519
 import co.topl.minting.algebras.LeaderElectionMintingAlgebra.VrfHit
@@ -11,9 +13,6 @@ import co.topl.minting.algebras._
 import co.topl.models._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
-import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
 
 object Staking {
 
@@ -78,7 +77,7 @@ object Staking {
             )
             BlockV2(
               header,
-              BlockBodyV2(header.id, unsignedBlock.transactions)
+              unsignedBlock.body
             ).pure[F]
           }
         }.value

@@ -23,14 +23,14 @@ object Dependencies {
   )
 
   val test = Seq(
-    "org.scalatest"      %% "scalatest"         % "3.2.11"  % "test",
-    "org.scalactic"      %% "scalactic"         % "3.2.11"  % "test",
-    "org.scalacheck"     %% "scalacheck"        % "1.15.4"  % "test",
-    "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
-    "com.spotify"         % "docker-client"     % "8.16.0"  % "test",
-    "org.asynchttpclient" % "async-http-client" % "2.12.3"  % "test",
-    "org.scalamock"      %% "scalamock"         % "5.2.0"   % "test",
-    "com.ironcorelabs"   %% "cats-scalatest"    % "3.1.1"   % "test",
+    "org.scalatest"      %% "scalatest"                     % "3.2.11"  % "test",
+    "org.scalactic"      %% "scalactic"                     % "3.2.11"  % "test",
+    "org.scalacheck"     %% "scalacheck"                    % "1.15.4"  % "test",
+    "org.scalatestplus"  %% "scalacheck-1-14"               % "3.2.2.0" % "test",
+    "com.spotify"         % "docker-client"                 % "8.16.0"  % "test",
+    "org.asynchttpclient" % "async-http-client"             % "2.12.3"  % "test",
+    "org.scalamock"      %% "scalamock"                     % "5.2.0"   % "test",
+    "com.ironcorelabs"   %% "cats-scalatest"                % "3.1.1"   % "test",
     "org.typelevel"      %% "cats-effect-testing-scalatest" % "1.3.0"   % "test"
   )
 
@@ -129,12 +129,19 @@ object Dependencies {
     "org.scodec" %% "scodec-bits" % "1.1.27"
   )
 
-  val node: Seq[ModuleID] = {
+  val fleam = Seq(
+    "com.nike.fleam" %% "fleam" % "7.0.0"
+  )
+
+  val mainargs = Seq(
+    "com.lihaoyi" %% "mainargs" % "0.2.2"
+  )
+
+  val node: Seq[ModuleID] =
     Seq(
       "com.typesafe.akka"          %% "akka-cluster"       % akkaVersion,
       "com.typesafe.akka"          %% "akka-remote"        % akkaVersion,
       "com.typesafe"                % "config"             % "1.4.2",
-      "com.lihaoyi"                %% "mainargs"           % "0.2.2",
       "net.jpountz.lz4"             % "lz4"                % "1.3.0",
       "com.github.julien-truffaut" %% "monocle-core"       % "3.0.0-M6",
       "com.github.julien-truffaut" %% "monocle-macro"      % "3.0.0-M6",
@@ -148,8 +155,13 @@ object Dependencies {
     network ++
     circe ++
     misc ++
-    monitoring
-  }
+    monitoring ++
+    mainargs
+
+  lazy val algebras =
+    test ++
+    catsEffect.map(_ % Test) ++
+    Seq(catsSlf4j % Test)
 
   lazy val common: Seq[ModuleID] =
     Seq(
@@ -228,46 +240,62 @@ object Dependencies {
     cats ++
     test
 
+  lazy val catsAkka: Seq[ModuleID] =
+    cats ++ catsEffect ++ logging ++ Seq(akka("actor"), akka("actor-typed"), akka("stream"))
+
   lazy val models: Seq[ModuleID] =
     cats ++ simulacrum ++ newType ++ scodecBits
 
   lazy val consensus: Seq[ModuleID] =
     bouncyCastle ++ Seq(akka("actor-typed")) ++ catsEffect ++ logging ++ scalacache
 
+  lazy val minting: Seq[ModuleID] =
+    Dependencies.test ++ Dependencies.catsEffect ++ Seq(Dependencies.akka("stream"))
+
+  lazy val networking: Seq[ModuleID] =
+    Dependencies.test ++ Dependencies.catsEffect ++ Seq(
+      Dependencies.akka("stream"),
+      Dependencies.akka("stream-testkit") % Test
+    ) ++ fleam
+
   lazy val demo: Seq[ModuleID] =
     Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++ logging
 
-  lazy val commonInterpreters: Seq[ModuleID] =
+  lazy val commonInterpreters =
     Dependencies.test ++
-    Dependencies.catsEffect ++
-    Dependencies.levelDb ++
     Seq(
-      Dependencies.akka("actor-typed"),
-      Dependencies.akka("actor-testkit-typed") % Test
-    )
+      akka("actor-typed"),
+      akka("actor-testkit-typed") % Test,
+      Dependencies.catsSlf4j      % "test"
+    ) ++
+    Dependencies.cats ++
+    Dependencies.catsEffect ++
+    Dependencies.scalacache
 
   lazy val tools: Seq[ModuleID] =
     Seq(
       "org.mongodb.scala" %% "mongo-scala-driver" % "4.5.0"
     )
 
-  lazy val loadTesting: Seq[ModuleID] = {
+  lazy val loadTesting: Seq[ModuleID] =
     Seq(
-      "com.lihaoyi"    %% "mainargs" % "0.2.2",
-      "com.nike.fleam" %% "fleam"    % "7.0.0"
+      "com.lihaoyi" %% "mainargs" % "0.2.1",
+      "com.nike.fleam" %% "fleam" % "7.0.0"
     ) ++
+    fleam ++
     allAkka ++
-    circe
-  }
+    circe ++
+    mainargs
 
   lazy val genus: Seq[ModuleID] =
     Seq(
       "com.lightbend.akka"   %% "akka-stream-alpakka-mongodb" % "3.0.4",
-      "com.thesamet.scalapb" %% "scalapb-runtime"             % scalapb.compiler.Version.scalapbVersion % "protobuf",
-      compilerPlugin("org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full)
+      "com.thesamet.scalapb" %% "scalapb-runtime"             % scalapb.compiler.Version.scalapbVersion % "protobuf"
     ) ++
     allAkka ++
     circe ++
     cats ++
+    mainargs ++
+    misc ++
     test
 }

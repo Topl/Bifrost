@@ -29,11 +29,11 @@ object EventSourcedState {
       eventAsUnapplyEvent: (Event, State) => F[UnapplyEvent],
       applyEvent:          (State, Event) => F[State],
       unapplyEvent:        (State, UnapplyEvent) => F[State],
-      eventStore:          StoreReader[F, Event],
-      unapplyEventStore:   Store[F, UnapplyEvent],
+      eventStore:          StoreReader[F, TypedIdentifier, Event],
+      unapplyEventStore:   Store[F, TypedIdentifier, UnapplyEvent],
       parentChildTree:     ParentChildTree[F, TypedIdentifier]
     ): F[EventSourcedState[F, Event, State]] = for {
-      permit            <- Semaphore[F](1).map(_.permit)
+      semaphore         <- Semaphore[F](1)
       currentStateRef   <- initialState.flatMap(Ref.of[F, State])
       currentEventIdRef <- initialEventId.flatMap(Ref.of[F, TypedIdentifier])
     } yield new Impl[F, Event, State, UnapplyEvent](
@@ -43,7 +43,7 @@ object EventSourcedState {
       eventStore,
       unapplyEventStore,
       parentChildTree,
-      permit,
+      semaphore,
       currentStateRef,
       currentEventIdRef
     )
@@ -52,16 +52,16 @@ object EventSourcedState {
       eventAsUnapplyEvent: (Event, State) => F[UnapplyEvent],
       applyEvent:          (State, Event) => F[State],
       unapplyEvent:        (State, UnapplyEvent) => F[State],
-      eventStore:          StoreReader[F, Event],
-      unapplyEventStore:   Store[F, UnapplyEvent],
+      eventStore:          StoreReader[F, TypedIdentifier, Event],
+      unapplyEventStore:   Store[F, TypedIdentifier, UnapplyEvent],
       parentChildTree:     ParentChildTree[F, TypedIdentifier],
-      permit:              Resource[F, Unit],
+      semaphore:           Semaphore[F],
       currentStateRef:     Ref[F, State],
       currentEventIdRef:   Ref[F, TypedIdentifier]
     ) extends EventSourcedState[F, Event, State] {
 
       def stateAt(eventId: TypedIdentifier): F[State] =
-        permit.use(_ =>
+        semaphore.permit.use(_ =>
           for {
             currentEventId <- currentEventIdRef.get
             state <- Monad[F].ifElseM(
@@ -104,11 +104,11 @@ object EventSourcedState {
 
       private def getEvent(eventId: TypedIdentifier): F[Event] =
         OptionT(eventStore.get(eventId))
-          .getOrElseF(MonadThrow[F].raiseError(new NoSuchElementException(eventId.toString)))
+          .getOrElseF(MonadThrow[F].raiseError(new NoSuchElementException(show"Apply id=${eventId}")))
 
       private def getUnapply(eventId: TypedIdentifier): F[UnapplyEvent] =
         OptionT(unapplyEventStore.get(eventId))
-          .getOrElseF(MonadThrow[F].raiseError(new NoSuchElementException(eventId.toString)))
+          .getOrElseF(MonadThrow[F].raiseError(new NoSuchElementException(show"Unapply id=${eventId}")))
     }
   }
 }

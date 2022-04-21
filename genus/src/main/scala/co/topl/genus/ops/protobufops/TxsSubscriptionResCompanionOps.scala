@@ -2,7 +2,7 @@ package co.topl.genus.ops.protobufops
 
 import cats.implicits._
 import cats.Functor
-import co.topl.genus.algebras.SubscriptionServiceAlg.{CreateSubscriptionFailure, CreateSubscriptionFailures}
+import co.topl.genus.algebras.SubscriptionService.{CreateSubscriptionFailure, CreateSubscriptionFailures}
 import co.topl.genus.services.transactions_subscription.TxsSubscriptionRes
 import co.topl.genus.services.transactions_subscription.TxsSubscriptionRes.Failure.{messageCompanion, Reason}
 import co.topl.genus.types.Transaction

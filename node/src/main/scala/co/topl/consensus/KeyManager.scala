@@ -9,21 +9,20 @@ import co.topl.attestation.implicits._
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.catsakka.AskException
-import co.topl.codecs._
-import co.topl.settings.{AppContext, AppSettings}
-import co.topl.utils.Logging
+import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType._
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import co.topl.utils.catsinstances.implicits._
+import co.topl.utils.{Logging, SecureRandom}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Success, Try}
 
 /** Actor that manages the keyRing and reward address */
-class KeyManager(settings: AppSettings, appContext: AppContext)(implicit np: NetworkPrefix) extends Actor with Logging {
+class KeyManager(settings: AppSettings)(implicit networkPrefix: NetworkPrefix) extends Actor with Logging {
 
-  import KeyManager._
   import KeyManager.ReceivableMessages._
+  import KeyManager._
 
   // //////////////////////////////////////////////////////////////////////////////////
   // //////////////////////////// ACTOR MESSAGE HANDLING //////////////////////////////
@@ -51,7 +50,8 @@ class KeyManager(settings: AppSettings, appContext: AppContext)(implicit np: Net
     case UpdateRewardsAddress(address)       => sender() ! updateRewardsAddress(keyRing, address)
     case GetRewardsAddress                   => sender() ! rewardAddress.fold("none")(_.show)
     case GetKeyView                          => sender() ! getKeyView(keyRing, rewardAddress)
-    case GenerateInitialAddresses            => sender() ! generateInitialAddresses(keyRing, rewardAddress)
+    case GenerateInitialAddresses(addressSettings) =>
+      sender() ! generateInitialAddresses(keyRing, rewardAddress)(addressSettings)
   }
 
   // //////////////////////////////////////////////////////////////////////////////////
@@ -70,39 +70,35 @@ class KeyManager(settings: AppSettings, appContext: AppContext)(implicit np: Net
 
   /**
    * Generates the initial addresses in the node for a private or local test network.
+   * NOTE: The keyManager will apply the default settings to a Private testnet to ease launching a development node
    * @param keyRing the key ring to generate addresses in
    * @param rewardAddress the current reward address
    * @return a try which results in a ForgerView of the current addresses and rewards address
    */
   private def generateInitialAddresses(
-    keyRing:       KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-    rewardAddress: Option[Address]
-  ): Try[StartupKeyView] =
-    // If the keyring is not already populated and this is a private/local testnet, generate the keys
-    // this is for when you have started up a private network and are attempting to resume it using
-    // the same seed you used previously to continue forging
-    if (keyRing.addresses.isEmpty && PrivateTestnet == appContext.networkType) {
-      settings.forging.privateTestnet match {
-        case Some(sfp) =>
-          val (numAccts, seed) = (sfp.numTestnetAccts, sfp.genesisSeed)
+    keyRing:                   KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+    rewardAddress:             Option[Address]
+  )(addressGenerationSettings: Option[AddressGenerationSettings])(implicit
+    networkPrefix:             NetworkPrefix
+  ): Try[StartupKeyView] = {
+    def addKeys(settings: AddressGenerationSettings): Try[StartupKeyView] =
+      keyRing
+        .generateNewKeyPairs(settings.numberOfAddresses, settings.addressSeedOpt)
+        .map { keys =>
+          keys.map(_.publicImage.address)
+        }
+        .map { addresses =>
+          val newRewardAddress = if (rewardAddress.isEmpty) Some(addresses.head) else rewardAddress
+          context.become(receive(keyRing, newRewardAddress))
+          StartupKeyView(addresses, newRewardAddress)
+        }
 
-          keyRing
-            .generateNewKeyPairs(numAccts, seed)
-            .map(keys => keys.map(_.publicImage.address))
-            .map { addresses =>
-              val newRewardAddress = if (rewardAddress.isEmpty) Some(addresses.head) else rewardAddress
-
-              context.become(receive(keyRing, newRewardAddress))
-
-              StartupKeyView(addresses, newRewardAddress)
-            }
-        case _ =>
-          log.warn("No private testnet settings found!")
-          Success(StartupKeyView(keyRing.addresses, rewardAddress))
-      }
-    } else {
-      Success(StartupKeyView(keyRing.addresses, rewardAddress))
+    addressGenerationSettings match {
+      case Some(settings)                                    => addKeys(settings)
+      case None if networkPrefix == PrivateTestnet.netPrefix => addKeys(KeyManager.AddressGenerationSettings.default)
+      case None => Success(StartupKeyView(keyRing.addresses, rewardAddress))
     }
+  }
 
   /** Gets a read-only view of the key ring to use for forging. */
   private def getKeyView(
@@ -146,6 +142,12 @@ object KeyManager {
 
   val actorName = "keyManager"
 
+  case class AddressGenerationSettings(numberOfAddresses: Int, addressSeedOpt: Option[String])
+
+  object AddressGenerationSettings {
+    val default: AddressGenerationSettings = AddressGenerationSettings(10, Some(SecureRandom.randomBytes().mkString))
+  }
+
   case class StartupKeyView(addresses: Set[Address], rewardAddr: Option[Address])
 
   case class KeyView(
@@ -172,7 +174,7 @@ object KeyManager {
 
     case object GetKeyView
 
-    case object GenerateInitialAddresses
+    case class GenerateInitialAddresses(addressGenerationSettings: Option[AddressGenerationSettings])
   }
 
 }
@@ -182,9 +184,9 @@ object KeyManager {
 
 object KeyManagerRef {
 
-  def props(settings: AppSettings, appContext: AppContext)(implicit np: NetworkPrefix): Props =
+  def props(settings: AppSettings)(implicit networkPrefix: NetworkPrefix): Props =
     Props(
-      new KeyManager(settings, appContext)
+      new KeyManager(settings)
     ).withDispatcher("bifrost.application.key-manager.dispatcher")
 
 }

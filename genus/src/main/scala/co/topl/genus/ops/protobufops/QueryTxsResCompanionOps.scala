@@ -2,7 +2,7 @@ package co.topl.genus.ops.protobufops
 
 import cats.Foldable
 import cats.implicits._
-import co.topl.genus.algebras.QueryServiceAlg.{QueryFailure, QueryFailures}
+import co.topl.genus.algebras.QueryService.{QueryFailure, QueryFailures}
 import co.topl.genus.services.transactions_query.QueryTxsRes
 import co.topl.genus.services.transactions_query.QueryTxsRes.Failure.Reason
 import co.topl.genus.types.Transaction

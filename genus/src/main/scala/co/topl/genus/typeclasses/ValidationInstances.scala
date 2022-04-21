@@ -3,8 +3,8 @@ package co.topl.genus.typeclasses
 import cats.implicits._
 import cats.data.{NonEmptyChain, Validated, ValidatedNec}
 import co.topl.genus.types.BlockHeight
-import co.topl.genus.algebras.QueryServiceAlg.QueryRequest
-import co.topl.genus.algebras.SubscriptionServiceAlg.CreateRequest
+import co.topl.genus.algebras.QueryService.QueryRequest
+import co.topl.genus.algebras.SubscriptionService.CreateRequest
 import co.topl.genus.services.services_types.Paging
 
 trait ValidationInstances {
