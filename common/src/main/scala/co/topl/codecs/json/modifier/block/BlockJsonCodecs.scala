@@ -11,14 +11,24 @@ import co.topl.codecs.json.{
   deriveKeyDecoderFromScodec,
   deriveKeyEncoderFromScodec
 }
+import co.topl.codecs.{
+  base58JsonDecoder,
+  proofJsonDecoder,
+  proofJsonEncoder,
+  propositionJsonDecoder,
+  propositionJsonEncoder
+}
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.modifier.ModifierId
 import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.transaction.Transaction
+import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.TimeProvider
+import co.topl.utils.encode.Base58
+import com.google.common.primitives.Longs
 import io.circe._
 import io.circe.syntax._
 
@@ -40,7 +50,7 @@ trait BlockJsonCodecs {
     Map(
       "header"    -> header.asJson,
       "body"      -> body.asJson,
-      "blockSize" -> b.persistedBytes.length.asJson
+      "blockSize" -> (b: NodeViewModifier).persistedBytes.length.asJson
     ).asJson
   }
 
@@ -73,8 +83,8 @@ trait BlockJsonCodecs {
       "parentId"     -> bh.parentId.asJson,
       "timestamp"    -> bh.timestamp.asJson,
       "generatorBox" -> bh.generatorBox.asJson,
-      "publicKey"    -> bh.publicKey.asJson,
-      "signature"    -> bh.signature.asJson,
+      "publicKey"    -> bh.publicKey.asJson(propositionJsonEncoder),
+      "signature"    -> proofJsonEncoder(bh.signature).asJson,
       "height"       -> bh.height.asJson,
       "difficulty"   -> bh.difficulty.asJson,
       "txRoot"       -> bh.txRoot.asJson,
@@ -89,13 +99,19 @@ trait BlockJsonCodecs {
       parentId     <- c.downField("parentId").as[ModifierId]
       timestamp    <- c.downField("timestamp").as[TimeProvider.Time]
       generatorBox <- c.downField("generatorBox").as[ArbitBox]
-      publicKey    <- c.downField("publicKey").as[PublicKeyPropositionCurve25519]
-      signature    <- c.downField("signature").as[SignatureCurve25519]
-      height       <- c.downField("height").as[Long]
-      difficulty   <- c.downField("difficulty").as[Long]
-      txRoot       <- c.downField("txRoot").as[Digest32]
-      bloomFilter  <- c.downField("bloomFilter").as[BloomFilter]
-      version      <- c.downField("version").as[Byte]
+      publicKey <- c.downField("publicKey").as(propositionJsonDecoder).flatMap {
+        case pubKey: PublicKeyPropositionCurve25519 => Right(pubKey)
+        case _                                      => Left(DecodingFailure("Not a Curve25519 publicKey", Nil))
+      }
+      signature <- c.downField("signature").as(proofJsonDecoder).flatMap {
+        case sig: SignatureCurve25519 => Right(sig)
+        case _                        => Left(DecodingFailure("not a Curve25519 signature", Nil))
+      }
+      height      <- c.downField("height").as[Long]
+      difficulty  <- c.downField("difficulty").as[Long]
+      txRoot      <- c.downField("txRoot").as[Digest32]
+      bloomFilter <- c.downField("bloomFilter").as[BloomFilter]
+      version     <- c.downField("version").as[Byte]
     } yield BlockHeader(
       id,
       parentId,
@@ -110,9 +126,11 @@ trait BlockJsonCodecs {
       version
     )
 
-  implicit val bloomFilterJsonEncoder: Encoder[BloomFilter] = deriveEncoderFromScodec(bloomFilterTypeName)
+  implicit val bloomFilterJsonEncoder: Encoder[BloomFilter] = (b: BloomFilter) =>
+    Base58.encode(b.value.flatMap(Longs.toByteArray)).asJson
 
-  implicit val bloomFilterJsonKeyEncoder: KeyEncoder[BloomFilter] = deriveKeyEncoderFromScodec(bloomFilterTypeName)
+  implicit val bloomFilterJsonDecoder: Decoder[BloomFilter] = Decoder[Base58Data].map(fromBase58)
 
-  implicit val bloomFilterJsonDecoder: Decoder[BloomFilter] = deriveDecoderFromScodec(bloomFilterTypeName)
+  private def fromBase58(data: Base58Data): BloomFilter =
+    new BloomFilter(data.value.grouped(Longs.BYTES).map(Longs.fromByteArray).toArray)
 }

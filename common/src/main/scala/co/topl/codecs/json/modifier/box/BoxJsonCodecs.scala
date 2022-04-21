@@ -252,7 +252,7 @@ trait BoxJsonCodecs {
       "type"     -> box.getId.typeString.asJson,
       "evidence" -> box.evidence.asJson,
       "value"    -> box.value.asJson,
-      "nonce"    -> box.nonce.asJson
+      "nonce"    -> box.nonce.toString.asJson
     )
 
   private def jsonDecodeBox[T: Decoder](c: HCursor): Either[DecodingFailure, (Evidence, Nonce, T)] =
