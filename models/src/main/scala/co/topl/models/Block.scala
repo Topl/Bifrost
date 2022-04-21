@@ -61,12 +61,6 @@ object BlockHeaderV2 {
   }
 }
 
-// id = hash(headerId, txRoot)
-case class BlockBodyV2(
-  headerId:     TypedIdentifier,
-  transactions: Seq[Transaction]
-)
-
 // This is a synthetic type, and is not "identifiable"
 case class BlockV2(headerV2: BlockHeaderV2, blockBodyV2: BlockBodyV2)
 
@@ -74,6 +68,6 @@ object BlockV2 {
 
   case class Unsigned(
     unsignedHeader: BlockHeaderV2.Unsigned,
-    transactions:   Seq[Transaction]
+    body:           BlockBodyV2
   )
 }

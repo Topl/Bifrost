@@ -576,6 +576,8 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
   lazy val addressCurve25519Gen: Gen[Address] = for { key <- propositionCurve25519Gen } yield key.address
   lazy val addressEd25519Gen: Gen[Address] = for { key <- propositionEd25519Gen } yield key.address
   lazy val addressGen: Gen[Address] = Gen.oneOf(addressCurve25519Gen, addressEd25519Gen)
+  lazy val setAddressGen: Gen[Set[Address]] = Gen.listOf(addressGen).map(_.toSet)
+  lazy val nonEmptySetAddressGen: Gen[Set[Address]] = Gen.nonEmptyListOf(addressGen).map(_.toSet)
 
   lazy val signatureCurve25519Gen: Gen[SignatureCurve25519] =
     genBytesList(SignatureCurve25519.signatureSize).map(bytes => SignatureCurve25519(Signature(bytes)))
@@ -606,21 +608,33 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     .listOfN(length, Arbitrary.arbitrary[Byte])
     .map(_.toArray)
 
-  lazy val blockCurve25519Gen: Gen[Block] = for {
-    parentIdBytes <- specificLengthBytesGen(ModifierId.size)
-    timestamp     <- positiveLongGen
-    generatorBox  <- arbitBoxCurve25519Gen
-    publicKey     <- propositionCurve25519Gen
-    signature     <- signatureCurve25519Gen
-    txs           <- bifrostTransactionSeqGen
-  } yield {
-    val parentId = ModifierId(parentIdBytes)
-    val height: Long = 1L
-    val difficulty = 1000000000000000000L
-    val version: PNVMVersion = 1: Byte
+  lazy val blockCurve25519Gen: Gen[Block] =
+    for {
+      parentId     <- modifierIdGen
+      timestamp    <- positiveLongGen
+      generatorBox <- arbitBoxCurve25519Gen
+      publicKey    <- propositionCurve25519Gen
+      signature    <- signatureCurve25519Gen
+      txs          <- bifrostTransactionSeqGen
+      height       <- positiveLongGen
+      difficulty   <- positiveLongGen
+      version      <- Gen.choose[Byte](1, 127)
+    } yield Block(parentId, timestamp, generatorBox, publicKey, signature, height, difficulty, txs, version)
 
-    Block(parentId, timestamp, generatorBox, publicKey, signature, height, difficulty, txs, version)
-  }
+  def blockCurve25519Gen(
+    transactions: Option[Seq[Transaction[_ <: TokenValueHolder, _ <: Proposition]]] = None
+  ): Gen[Block] =
+    for {
+      parentId     <- modifierIdGen
+      timestamp    <- positiveLongGen
+      generatorBox <- arbitBoxCurve25519Gen
+      publicKey    <- propositionCurve25519Gen
+      signature    <- signatureCurve25519Gen
+      txs = transactions.fold(bifrostTransactionSeqGen.sample.get)(identity)
+      height     <- positiveLongGen
+      difficulty <- positiveLongGen
+      version    <- Gen.choose[Byte](1, 127)
+    } yield Block(parentId, timestamp, generatorBox, publicKey, signature, height, difficulty, txs, version)
 
   lazy val bloomFilterGen: Gen[BloomFilter] =
     Gen.listOfN(BloomFilter.numLongs, Gen.long).map(listT => BloomFilter(listT.toArray))

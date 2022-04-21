@@ -15,6 +15,7 @@ import co.topl.models.utility.Lengths._
 import co.topl.models.utility.{Lengths, Ratio, Sized}
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
+import co.topl.numerics.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
@@ -55,13 +56,25 @@ class BlockHeaderValidationSpec
   private val blake2b512: Blake2b512 =
     new Blake2b512
 
+  private val expInterpreter = ExpInterpreter.make[F](10000, 38).unsafeRunSync()
+
+  private val log1pInterpreter = Log1pInterpreter.make[F](10000, 16).unsafeRunSync()
+
+  private val log1pCached = Log1pInterpreter.makeCached[F](log1pInterpreter).unsafeRunSync()
+
   private val leaderElectionInterpreter =
-    LeaderElectionValidation.Eval.make[F](
-      VrfConfig(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5)),
-      new UnsafeResource[F, Blake2b512] {
-        def use[Res](f: Blake2b512 => F[Res]): F[Res] = f(blake2b512)
-      }
-    )
+    LeaderElectionValidation.Eval
+      .makeCached[F](
+        LeaderElectionValidation.Eval.make[F](
+          VrfConfig(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5)),
+          new UnsafeResource[F, Blake2b512] {
+            def use[Res](f: Blake2b512 => F[Res]): F[Res] = f(blake2b512)
+          },
+          expInterpreter,
+          log1pCached
+        )
+      )
+      .unsafeRunSync()
 
   it should "invalidate blocks with non-forward slot" in {
     forAll(genValid(u => u.copy(slot = 0L))) { case (parent, child, registration, eta, relativeStake) =>
@@ -396,7 +409,7 @@ class BlockHeaderValidationSpec
         .lookupAt(_: SlotId, _: TaktikosAddress))
         .expects(child.slotId, *)
         .once()
-        .returning(Ratio(0).some.pure[F])
+        .returning(Ratio.Zero.some.pure[F])
 
       (ed25519VRFResource
         .use[Boolean](_: Function1[Ed25519VRF, F[Boolean]]))

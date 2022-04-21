@@ -11,6 +11,11 @@ import scala.language.implicitConversions
 class EvidenceOps(private val evidence: DionEvidence) extends AnyVal {
   import EvidenceOps._
 
+  /**
+   * Attempts to convert the evidence to an equivalent [[TypedEvidence]] value.
+   * @return if successful, a [[TypedEvidence]] value, otherwise a failure of type [[ToTypedEvidenceFailure]]
+   *         representing an error with the conversion
+   */
   def toTypedEvidence: Either[ToTypedEvidenceFailure, TypedEvidence] =
     for {
       typePrefix <- evidence.evBytes.headOption.toRight(ToTypedEvidenceFailures.EmptyEvidence)

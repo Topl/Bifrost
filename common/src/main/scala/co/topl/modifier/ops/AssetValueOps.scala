@@ -25,7 +25,7 @@ class AssetValueOps(private val assetValue: AssetValue) extends AnyVal {
    * @param address the address to use in the asset output value
    * @return a [[Transaction.AssetOutput]] if successful, otherwise a [[ToAssetOutputFailure]]
    */
-  def toAssetOutput(address: DionAddress): Either[ToAssetOutputFailure, Transaction.AssetOutput] =
+  def toAssetOutput(address: DionAddress): ToAssetOutputResult[Transaction.AssetOutput] =
     for {
       quantity <-
         Sized
@@ -41,10 +41,10 @@ class AssetValueOps(private val assetValue: AssetValue) extends AnyVal {
           }
       securityRoot = Bytes(assetValue.securityRoot.root)
       metadata <-
-        assetValue.metadata.traverse(data =>
+        assetValue.metadata.traverse[ToAssetOutputResult, Sized.Max[Latin1Data, Lengths.`127`.type]](data =>
           Sized
             .max[Latin1Data, Lengths.`127`.type](Latin1Data.fromData(data.value))
-            .leftMap(error => ToAssetOutputFailures.InvalidMetadata(data, error))
+            .leftMap[ToAssetOutputFailure](error => ToAssetOutputFailures.InvalidMetadata(data, error))
         )
       asset = Box.Values.Asset(quantity, assetCode, securityRoot, metadata)
     } yield Transaction.AssetOutput(address, asset)
@@ -59,6 +59,8 @@ object AssetValueOps {
     case class InvalidShortName(shortName: DionLatin1Data) extends ToAssetOutputFailure
     case class InvalidMetadata(metadata: DionLatin1Data, inner: Sized.InvalidLength) extends ToAssetOutputFailure
   }
+
+  type ToAssetOutputResult[T] = Either[ToAssetOutputFailure, T]
 
   trait ToAssetValueOps {
     implicit def assetValueOpsFromAssetValue(assetValue: AssetValue): AssetValueOps = new AssetValueOps(assetValue)

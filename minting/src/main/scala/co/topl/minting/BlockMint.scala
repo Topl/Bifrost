@@ -46,7 +46,7 @@ object BlockMint {
                       metadata = None,
                       address = address
                     ),
-                    transactions
+                    transactions.map(_.id.asTypedBytes).toList
                   )
             )
             .flatMap(staker.certifyBlock(parent.slotId, slot, _))

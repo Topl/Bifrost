@@ -17,4 +17,11 @@ package co.topl
  * import co.topl.codecs.binary._
  * }}}
  */
-package object codecs extends Codecs
+package object codecs extends Codecs {
+
+  /**
+   * This simple method just is meant to force the initialization of the remainder of the package object.  If
+   * two threads attempt to initialize this package object at the same time, the initializations will conflict.
+   */
+  def init(): Unit = ()
+}
