@@ -2,7 +2,7 @@ package co.topl.network
 
 import akka.actor.{Actor, ActorRef, Props}
 import co.topl.network.NetworkController.ReceivableMessages._
-import co.topl.network.peer.{InMemoryPeerDatabase, PeerInfo, PeerSpec, PenaltyType}
+import co.topl.network.peer.{InMemoryPeerDatabase, PeerInfo, PeerMetadata, PenaltyType}
 import co.topl.settings.{AppContext, AppSettings}
 import co.topl.utils.{Logging, NetworkUtils, TimeProvider}
 
@@ -50,7 +50,7 @@ class PeerManager(settings: AppSettings, appContext: AppContext)(implicit timePr
 
     case AddOrUpdatePeer(peerInfo) =>
       /** We have connected to a peer and got peerInfo from them */
-      if (!isSelf(peerInfo.peerSpec)) peerDatabase.addOrUpdateKnownPeer(peerInfo)
+      if (!isSelf(peerInfo.metadata)) peerDatabase.addOrUpdateKnownPeer(peerInfo)
 
     case Penalize(peer, penaltyType) =>
       log.info(s"$peer penalized, penalty: $penaltyType")
@@ -89,7 +89,7 @@ class PeerManager(settings: AppSettings, appContext: AppContext)(implicit timePr
   private def isSelf(peerAddress: InetSocketAddress): Boolean =
     NetworkUtils.isSelf(peerAddress, settings.network.bindAddress, appContext.externalNodeAddress)
 
-  private def isSelf(peerSpec: PeerSpec): Boolean =
+  private def isSelf(peerSpec: PeerMetadata): Boolean =
     peerSpec.declaredAddress.exists(isSelf) || peerSpec.localAddressOpt.exists(isSelf)
 
 }
@@ -114,7 +114,7 @@ object PeerManager {
 
     case class PeerSeen(peerInfo: PeerInfo)
 
-    case class AddPeerIfEmpty(data: PeerSpec)
+    case class AddPeerIfEmpty(data: PeerMetadata)
 
     case class RemovePeer(address: InetSocketAddress)
 
@@ -142,7 +142,7 @@ object PeerManager {
         val recentlySeenNonBlacklisted = knownPeers.values.toSeq
           .filter { p =>
             (p.connectionType.isDefined || p.lastSeen > 0) &&
-            !blacklistedPeers.exists(ip => p.peerSpec.declaredAddress.exists(_.getAddress == ip))
+            !blacklistedPeers.exists(ip => p.metadata.declaredAddress.exists(_.getAddress == ip))
           }
         Random.shuffle(recentlySeenNonBlacklisted).take(howMany)
       }
@@ -165,8 +165,8 @@ object PeerManager {
         sc:               AppContext
       ): Option[PeerInfo] = {
         val candidates = knownPeers.values.filterNot { p =>
-          excludedPeers.exists(_.peerSpec.address == p.peerSpec.address) &&
-          blacklistedPeers.exists(addr => p.peerSpec.address.map(_.getAddress).contains(addr))
+          excludedPeers.exists(_.metadata.address == p.metadata.address) &&
+          blacklistedPeers.exists(addr => p.metadata.address.map(_.getAddress).contains(addr))
         }.toSeq
         if (candidates.nonEmpty) Some(candidates(Random.nextInt(candidates.size)))
         else None
