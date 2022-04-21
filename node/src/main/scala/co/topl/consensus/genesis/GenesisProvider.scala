@@ -48,7 +48,7 @@ trait GenesisProvider extends Logging {
 
   protected def memberKeys: Iterable[Address] = members.keys.map(Base58Data.unsafe(_).decodeAddress.getOrThrow())
 
-  final case class GenesisTransactionParams(
+  case class GenesisTransactionParams(
     from:       IndexedSeq[(Address, Box.Nonce)],
     to:         IndexedSeq[(Address, SimpleValue)],
     signatures: ListMap[PublicKeyPropositionCurve25519, SignatureCurve25519],
