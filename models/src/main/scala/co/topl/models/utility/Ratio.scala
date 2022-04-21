@@ -19,6 +19,13 @@ case class Ratio(numerator: BigInt, denominator: BigInt, greatestCommonDenominat
 
 // todo: JAA - I think we need to look into simplifying and/or cleaning this up
 object Ratio {
+
+  val One: Ratio = Ratio(1)
+
+  val Zero: Ratio = Ratio(0)
+
+  val NegativeOne: Ratio = Ratio(-1)
+
   def apply(n: BigInt): Ratio = apply(n, 1: BigInt)
 
   def apply(n: BigInt, d: BigInt): Ratio = {

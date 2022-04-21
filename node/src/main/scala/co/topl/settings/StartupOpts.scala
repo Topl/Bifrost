@@ -38,32 +38,40 @@ final case class StartupOpts(
  */
 @main
 final case class RuntimeOpts(
-  @arg(name = "seed", short = 's', doc = "string to deterministically generate keys on private and local networks")
+  @arg(name = "seed", short = 's', doc = "String used to deterministically generate addresses during startup")
   seed: Option[String] = None,
-  @arg(name = "forge", short = 'f', doc = "enable forging as soon as the node starts")
+  @arg(name = "forge", short = 'f', doc = "Enable forging as soon as the node starts")
   forgeOnStartup: Flag = Flag(),
-  @arg(name = "disableAuth", doc = "Allow the node to receive API requests without an API key")
+  @arg(name = "disableAuth", doc = "Allow the node to receive API requests (via JSON-RPC) without an API key")
   disableAuth: Flag = Flag(),
-  @arg(name = "apiKeyHash", doc = "hash of API key")
+  @arg(
+    name = "apiKeyHash",
+    doc =
+      "If API key protection is enabled, this argument specifies the Blake2b256 hash of API key required by the JSON-RPC server "
+  )
   apiKeyHash: Option[String] = None
 ) {
 
   /**
    * Helper method to replace settings values with parameters passed from command line arguments
+   * NOTE: The default behavior is to defer to CLI arguments
    * @param appSettings application settings read from the configuration file
    * @return an updated appSettings instance
    */
   def overrideWithCmdArgs(appSettings: AppSettings): AppSettings =
     appSettings
       // seed
-      .focus(_.forging.privateTestnet)
-      .modify(_.map(_.focus(_.genesisSeed).modify(_.orElse(seed))))
+      .focus(_.forging.addressGenerationSettings)
+      .modify(_.map(_.focus(_.addressSeedOpt).modify(configSeed => seed.orElse(configSeed))))
+
       // forge
       .focus(_.forging.forgeOnStartup)
       .replace(appSettings.forging.forgeOnStartup || forgeOnStartup.value)
+
       // disableAuth
       .focus(_.rpcApi.disableAuth)
       .replace(appSettings.rpcApi.disableAuth || disableAuth.value)
+
       // apiKeyHash
       .focus(_.rpcApi.apiKeyHash)
       .modify(configKey =>

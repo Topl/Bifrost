@@ -36,6 +36,9 @@ trait TetraImmutableCodecs {
   implicit val ed25519VRFVKStableCodec: ImmutableCodec[VerificationKeys.VrfEd25519] =
     ImmutableCodec.fromScodecCodec
 
+  implicit val taktikosRegistrationBoxValueStableCodec: ImmutableCodec[Box.Values.TaktikosRegistration] =
+    ImmutableCodec.fromScodecCodec
+
   implicit val longStableCodec: ImmutableCodec[Long] =
     ImmutableCodec.fromScodecCodec
 

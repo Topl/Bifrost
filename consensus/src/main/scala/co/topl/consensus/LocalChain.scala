@@ -5,6 +5,7 @@ import cats.effect.Ref
 import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.consensus.algebras.LocalChainAlgebra
+import co.topl.models.SlotData
 import co.topl.typeclasses.OrderT
 
 object LocalChain {
