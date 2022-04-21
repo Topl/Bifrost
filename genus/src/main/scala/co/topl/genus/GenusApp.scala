@@ -105,7 +105,7 @@ object GenusApp extends IOApp {
           SubscriptionServiceImpl.make(blocksSubscription),
           settings.ip,
           settings.port,
-          Option.when(!settings.disableAuth)(settings.apiKeyHash)
+          if (settings.disableAuth) None else settings.apiKeyHash.some
         )
     } yield ExitCode.Success
 
