@@ -61,7 +61,7 @@ object Validation {
     paymentAmounts: Map[AssetCode, Int128]
   ): Either[BuildTransferFailure, Map[AssetCode, Int128]] =
     paymentAmounts.toList
-      .traverse { asset =>
+      .traverse[Either[BuildTransferFailure, *], (AssetCode, Int128)] { asset =>
         val assetFunds = funds.getOrElse(asset._1, Int128(0))
         Either.cond(
           assetFunds >= asset._2,

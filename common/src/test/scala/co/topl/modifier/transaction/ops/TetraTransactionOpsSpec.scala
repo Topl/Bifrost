@@ -159,7 +159,7 @@ class TetraTransactionOpsSpec
 
       it("should convert a Tetra TX into a Dion TX with the same attestation ordering") {
         forAll(polyTxGen) { tx =>
-          val expectedAttestation = tx.inputs.values.flatMap {
+          val expectedAttestation = tx.inputs.values.map {
             case (prop: Propositions.Knowledge.Ed25519, proof: Proofs.Knowledge.Ed25519) =>
               prop.key.bytes.data.toBase16 -> proof.bytes.data.toBase16
             case _ => throw new IllegalStateException("Unexpected attestation type")

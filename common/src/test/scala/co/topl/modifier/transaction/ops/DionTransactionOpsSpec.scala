@@ -124,7 +124,7 @@ class DionTransactionOpsSpec
 
           val tetraTx = tx.toTetraTx
 
-          val ouputs = tetraTx.value.coinOutputs.iterator.toList.flatMap {
+          val ouputs = tetraTx.value.coinOutputs.iterator.toList.map {
             case Transaction.PolyOutput(dionAddress, value) =>
               (dionAddress.allBytes.toBase16, value.data)
             case _ => throw new IllegalStateException("Unexpected from poly transfer")

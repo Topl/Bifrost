@@ -97,7 +97,8 @@ object Dependencies {
   )
 
   val cats = Seq(
-    "org.typelevel" %% "cats-core" % catsCoreVersion
+    "org.typelevel" %% "cats-core" % catsCoreVersion,
+    "org.typelevel" %% "mouse"     % "1.0.10"
   )
 
   val catsEffect = Seq(
@@ -279,8 +280,8 @@ object Dependencies {
 
   lazy val loadTesting: Seq[ModuleID] =
     Seq(
-      "com.lihaoyi" %% "mainargs" % "0.2.1",
-      "com.nike.fleam" %% "fleam" % "7.0.0"
+      "com.lihaoyi"    %% "mainargs" % "0.2.1",
+      "com.nike.fleam" %% "fleam"    % "7.0.0"
     ) ++
     fleam ++
     allAkka ++

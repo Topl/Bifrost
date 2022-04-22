@@ -18,21 +18,22 @@ class AssetCodeOps(private val value: AssetCode) extends AnyVal {
   import AssetCodeOps._
 
   def toTetraAssetCode: Either[ToTetraAssetCodeFailure, Asset.Code] =
-    (
-      value.issuer.toDionAddress.leftMap(_ => ToTetraAssetCodeFailures.InvalidAddress(value.issuer)),
-      Sized
-        .max[TetraLatin1Data, Lengths.`8`.type](
-          TetraLatin1Data.fromData(value.shortName.value)
-        )
-        .leftMap(_ => ToTetraAssetCodeFailures.InvalidShortName(value.shortName))
-    )
-      .mapN((issuer, shortName) =>
+    for {
+      issuer <-
+        value.issuer.toDionAddress.leftMap(_ => ToTetraAssetCodeFailures.InvalidAddress(value.issuer))
+      shortName <-
+        Sized
+          .max[TetraLatin1Data, Lengths.`8`.type](
+            TetraLatin1Data.fromData(value.shortName.value)
+          )
+          .leftMap(_ => ToTetraAssetCodeFailures.InvalidShortName(value.shortName))
+      assetCode =
         Asset.Code(
           value.version,
           issuer,
           shortName
         )
-      )
+    } yield assetCode
 }
 
 object AssetCodeOps {
