@@ -18,7 +18,10 @@ import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckP
  * https://github.com/input-output-hk/rust-cardano/blob/9fad3d12341acc2ab0f9c2026149af3d839447e4/cardano/src/bip/test_vectors/bip39_english.txt
  * but crucially, we are not testing the 64 byte output specified by BIP-39 (since we follow a modification of the BIP-39 spec)
  */
-class MnemonicToSlip23IcarusSeed extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaCheckDrivenPropertyChecks {
+class MnemonicToSlip23IcarusSeedSpec
+    extends AnyPropSpec
+    with ScalaCheckPropertyChecks
+    with ScalaCheckDrivenPropertyChecks {
 
   case class SpecIn(words: String, size: MnemonicSize, language: Language, password: String)
   case class SpecOut(seed: Sized.Strict[Bytes, SecretKeys.ExtendedEd25519.Length])

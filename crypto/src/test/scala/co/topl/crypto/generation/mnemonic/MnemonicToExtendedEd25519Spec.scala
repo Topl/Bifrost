@@ -14,7 +14,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
-class MnemonicToExtendedEd25519
+class MnemonicToExtendedEd25519Spec
     extends AnyFlatSpec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks

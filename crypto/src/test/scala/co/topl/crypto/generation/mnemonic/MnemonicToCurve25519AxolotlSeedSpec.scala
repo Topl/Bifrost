@@ -1,25 +1,44 @@
-package co.topl.crypto.generation
+package co.topl.crypto.generation.mnemonic
 
 import co.topl.crypto.generation.mnemonic.EntropySupport.arbitraryEntropy
 import co.topl.crypto.generation.mnemonic.Language.{English, LanguageWordList}
-import co.topl.crypto.generation.mnemonic.MnemonicSize.Mnemonic12
-import co.topl.crypto.generation.mnemonic.{Entropy, Phrase}
-import co.topl.crypto.utils.Hex.implicits._
+import co.topl.crypto.generation.mnemonic.MnemonicSize.{Mnemonic12, Mnemonic15}
 import co.topl.crypto.signing.EntropyToSeed.instances._
 import co.topl.crypto.signing.{Curve25519, EntropyToSeed}
-import co.topl.models.utility.Sized
+import co.topl.crypto.utils
+import co.topl.crypto.utils.Hex.implicits._
+import co.topl.crypto.utils.TestVector
+import co.topl.models.utility.{Lengths, Sized}
 import co.topl.models.{Bytes, SecretKeys}
+import io.circe.generic.semiauto.deriveDecoder
+import io.circe.{parser, Decoder}
+import cats.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import scodec.bits.ByteVector
 
-class Curve25519AxolotlKeyGenSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
+import java.nio.file.{Files, Paths}
+
+class MnemonicToCurve25519AxolotlSeedSpec
+    extends AnyPropSpec
+    with ScalaCheckDrivenPropertyChecks
+    with Matchers
+    with EitherValues {
 
   case class SpecIn(entropy: Entropy, password: String)
   case class SpecOut(seed: Sized.Strict[Bytes, SecretKeys.Curve25519.Length])
 
+  case class Curve25519AxolotlTestVector(entropy: String, mnemonics: String, passphrase: String, seed: String)
+      extends TestVector
+
+  implicit val testVectorDecoder: Decoder[Curve25519AxolotlTestVector] = deriveDecoder[Curve25519AxolotlTestVector]
+
   private val curveEntropy = implicitly[EntropyToSeed[SecretKeys.Curve25519.Length]]
+  private val entropyToSeed = EntropyToSeed.instances.pbkdf2Sha512[Lengths.`32`.type]
+
+  val testVectors: List[Curve25519AxolotlTestVector] =
+    utils.readTestVectors("Curve25519AxolotlTestVectors.json")
 
   private val wordList = LanguageWordList.validated(English) match {
     case Left(err)   => throw new Exception(s"Could not load English language BIP-0039 file: $err")
@@ -50,6 +69,8 @@ class Curve25519AxolotlKeyGenSpec extends AnyPropSpec with ScalaCheckDrivenPrope
     val specIn = SpecIn(entropy, "TREZOR")
     val specOut = SpecOut("9f49b8aa6610995af06dd77f4c73866fba249f398ed9fe2327726d12b4e71cad".unsafeStrictBytes)
 
+    println(ByteVector(entropy.value))
+    println(curveEntropy.toSeed(specIn.entropy, Some(specIn.password)))
     curveEntropy.toSeed(specIn.entropy, Some(specIn.password)) shouldBe specOut.seed
   }
 
@@ -77,4 +98,30 @@ class Curve25519AxolotlKeyGenSpec extends AnyPropSpec with ScalaCheckDrivenPrope
     curveEntropy.toSeed(specIn.entropy, Some(specIn.password)) shouldBe specOut.seed
   }
 
+  property("entropy and passphrase should generate a valid deterministic Topl Curve25519 Axolotl seed") {
+    testVectors.foreach { vec =>
+      val entropy = Entropy.validated(vec.entropy.getBytes, Mnemonic12)
+
+      curveEntropy.toSeed(entropy.value, Some(vec.passphrase)) shouldBe vec.seed
+        .unsafeStrictBytes[SecretKeys.Curve25519.Length]
+    }
+  }
+
+  property("mnemonic and passphrase should generate a valid deterministic Topl Curve25519 Axolotl seed") {
+    testVectors.foreach { vec =>
+//      val mnemonicSize = vec.mnemonics.split(" ").length match {
+//        case Mnemonic12.wordLength => Mnemonic12
+////        case Mnemonic15.wordLength => MnemonicSize(15)
+//      }
+      val mnemonic = Phrase.validated(vec.mnemonics, Mnemonic12, wordList)
+      val entropy = mnemonic.map(Entropy.fromPhrase(_, wordList, Mnemonic12))
+
+      println(ByteVector(entropy.value.value))
+      println(vec.seed)
+      println(curveEntropy.toSeed(entropy.value, Some(vec.passphrase)))
+
+      curveEntropy.toSeed(entropy.value, Some(vec.passphrase)) shouldBe vec.seed
+        .unsafeStrictBytes[SecretKeys.Curve25519.Length]
+    }
+  }
 }
