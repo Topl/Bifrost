@@ -17,7 +17,7 @@ import co.topl.nodeView.history.{GenericHistory, History, HistoryReader}
 import co.topl.nodeView.mempool.{MemPool, MemPoolReader, MemoryPool}
 import co.topl.nodeView.state.{MinimalState, State, StateReader}
 import co.topl.settings.AppSettings
-import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.NetworkType.{NetworkPrefix, PrivateTestnet}
 import co.topl.utils.TimeProvider
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -94,19 +94,21 @@ object NodeView {
     protocolVersioner: ProtocolVersioner
   ): Future[NodeView] =
     if (State.exists(settings)) {
-      resume(settings)
+      resume(settings, startupKeyView)
     } else
       fetchAndApplyGenesis(settings, consensusInterface, startupKeyView)
         .valueOrF(e => Future.failed(new IllegalArgumentException(e.toString)))
 
   private def resume(
-    settings: AppSettings
+    settings:       AppSettings,
+    startupKeyView: () => Future[StartupKeyView]
   )(implicit
     system:            ActorSystem[_],
     ec:                ExecutionContext,
     networkPrefix:     NetworkPrefix,
     protocolVersioner: ProtocolVersioner
-  ): Future[NodeView] =
+  ): Future[NodeView] = {
+    if (networkPrefix == PrivateTestnet.netPrefix) startupKeyView()
     Future.successful(
       NodeView(
         History.readOrGenerate(settings),
@@ -114,6 +116,7 @@ object NodeView {
         MemPool.empty()
       )
     )
+  }
 
   private def fetchAndApplyGenesis(
     settings:           AppSettings,
