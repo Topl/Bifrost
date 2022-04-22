@@ -44,4 +44,11 @@ trait EqInstances {
   implicit val rhoEq: Eq[Rho] =
     (a, b) => a.sizedBytes === b.sizedBytes
 
+  implicit val slotDataEq: Eq[SlotData] =
+    (a, b) =>
+      a.slotId === b.slotId &&
+      a.parentSlotId === b.parentSlotId &&
+      a.rho === b.rho &&
+      a.eta === b.eta &&
+      a.height === b.height
 }

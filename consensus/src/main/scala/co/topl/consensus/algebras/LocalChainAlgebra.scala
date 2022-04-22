@@ -1,7 +1,7 @@
 package co.topl.consensus.algebras
 
 import cats.data.Validated
-import co.topl.consensus.SlotData
+import co.topl.models.SlotData
 
 /**
  * Operations involving this node's locally-adopted canonical chain

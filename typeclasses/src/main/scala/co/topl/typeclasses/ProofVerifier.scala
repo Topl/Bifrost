@@ -109,30 +109,16 @@ object ProofVerifier {
       def compareBoxes(propositionBox: Box[_])(sourceBox: Box[_]): Boolean = propositionBox match {
         case Box(TypedEvidence.empty, 0, value) =>
           value == sourceBox.value
-        case Box(TypedEvidence.empty, 0, value) =>
-          value == sourceBox.value
-        case Box(TypedEvidence.empty, nonce, Box.Values.Empty) =>
-          nonce == sourceBox.nonce
-        case Box(TypedEvidence.empty, nonce, Box.Values.Empty) =>
-          nonce == sourceBox.nonce
         case Box(TypedEvidence.empty, nonce, Box.Values.Empty) =>
           nonce == sourceBox.nonce
         case Box(TypedEvidence.empty, nonce, value) =>
           nonce == sourceBox.nonce
         case Box(typedEvidence, 0, Box.Values.Empty) =>
           typedEvidence == sourceBox.evidence
-        case Box(typedEvidence, 0, Box.Values.Empty) =>
-          typedEvidence == sourceBox.evidence
-        case Box(typedEvidence, 0, value) =>
-          typedEvidence == sourceBox.evidence && value == sourceBox.value
         case Box(typedEvidence, 0, value) =>
           typedEvidence == sourceBox.evidence && value == sourceBox.value
         case Box(typedEvidence, nonce, Box.Values.Empty) =>
           typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce
-        case Box(typedEvidence, nonce, Box.Values.Empty) =>
-          typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce
-        case Box(typedEvidence, nonce, value) =>
-          typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce && value == sourceBox.value
         case Box(typedEvidence, nonce, value) =>
           typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce && value == sourceBox.value
         case _ => false

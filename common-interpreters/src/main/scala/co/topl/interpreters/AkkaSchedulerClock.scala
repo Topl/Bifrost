@@ -8,6 +8,7 @@ import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.models.{Epoch, Slot, Timestamp}
 
+import java.time.Instant
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
@@ -17,11 +18,12 @@ object AkkaSchedulerClock {
 
     def make[F[_]: Monad: Async](
       _slotLength:     FiniteDuration,
-      _slotsPerEpoch:  Long
+      _slotsPerEpoch:  Long,
+      genesisTime:     Instant
     )(implicit system: ActorSystem[_]): ClockAlgebra[F] =
       new ClockAlgebra[F] {
 
-        private val startTime = System.currentTimeMillis()
+        private val startTime = genesisTime.toEpochMilli
 
         val slotLength: F[FiniteDuration] = _slotLength.pure[F]
 

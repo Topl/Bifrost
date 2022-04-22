@@ -4,23 +4,21 @@ import cats._
 import cats.data._
 import cats.effect.Ref
 import cats.effect.kernel.Concurrent
-import co.topl.codecs.bytes.tetra.instances._
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
-import co.topl.algebras.{ClockAlgebra, ConsensusState, UnsafeResource}
-import co.topl.algebras.SecureStore
+import co.topl.algebras._
+import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.algebras.EtaCalculationAlgebra
 import co.topl.crypto.mnemonic.Entropy
 import co.topl.crypto.signing._
 import co.topl.minting.algebras._
 import co.topl.models._
-import co.topl.typeclasses.implicits._
 import co.topl.models.utility.Ratio
+import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
 import org.typelevel.log4cats.Logger
 
 import java.util.UUID
-import scala.collection.immutable.LongMap
 
 object OperationalKeys {
 
@@ -40,17 +38,17 @@ object OperationalKeys {
       clock:                       ClockAlgebra[F],
       vrfProof:                    VrfProofAlgebra[F],
       etaCalculation:              EtaCalculationAlgebra[F],
-      consensusState:              ConsensusState[F],
+      consensusState:              ConsensusStateReader[F],
       kesProductResource:          UnsafeResource[F, KesProduct],
       ed25519Resource:             UnsafeResource[F, Ed25519],
       parentSlotId:                SlotId,
       operationalPeriodLength:     Long,
       activationOperationalPeriod: Long,
-      address:                     TaktikosAddress
+      address:                     TaktikosAddress,
+      initialSlot:                 Slot
     ): F[OperationalKeysAlgebra[F]] =
       for {
-        initialSlot <- clock.globalSlot
-        initialOperationalPeriod = initialSlot / operationalPeriodLength
+        initialOperationalPeriod <- (initialSlot / operationalPeriodLength).pure[F]
         initialKeysOpt <-
           OptionT(clock.epochOf(initialSlot).flatMap(consensusState.lookupRelativeStake(_)(address)))
             .flatMapF(relativeStake =>
@@ -93,7 +91,7 @@ object OperationalKeys {
       clock:                       ClockAlgebra[F],
       vrfProof:                    VrfProofAlgebra[F],
       etaCalculation:              EtaCalculationAlgebra[F],
-      consensusState:              ConsensusState[F],
+      consensusState:              ConsensusStateReader[F],
       kesProductResource:          UnsafeResource[F, KesProduct],
       ed25519Resource:             UnsafeResource[F, Ed25519],
       operationalPeriodLength:     Long,

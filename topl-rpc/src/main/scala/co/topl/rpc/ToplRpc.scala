@@ -364,8 +364,7 @@ object ToplRpc {
         network:                String,
         nodeAddress:            String,
         appVersion:             String,
-        currentProtocolRuleset: String,
-        currentBlockVersion:    String
+        currentProtocolRuleset: String
       )
     }
   }

@@ -32,10 +32,7 @@ class TransactionRpcHandlerImpls(
   override val rawAssetTransfer: ToplRpc.Transaction.RawAssetTransfer.rpc.ServerHandler =
     params =>
       for {
-        unsignedTx <- withNodeView(view =>
-          checkAddresses(params.sender.toList, view.state)
-            .map(_ => createAssetTransfer(params, view.state))
-        ).subflatMap(identity)
+        unsignedTx <- withNodeView(view => createAssetTransfer(params, view.state))
         transfer <- unsignedTx
           .leftMap(failure => new Error(failure.show))
           .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
@@ -46,10 +43,7 @@ class TransactionRpcHandlerImpls(
   override val rawArbitTransfer: ToplRpc.Transaction.RawArbitTransfer.rpc.ServerHandler =
     params =>
       for {
-        unsignedTx <- withNodeView(view =>
-          checkAddresses(params.sender.toList, view.state)
-            .map(_ => createArbitTransfer(params, view.state))
-        ).subflatMap(identity)
+        unsignedTx <- withNodeView(view => createArbitTransfer(params, view.state))
         transfer <- unsignedTx
           .leftMap(failure => new Error(failure.show))
           .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
@@ -60,10 +54,7 @@ class TransactionRpcHandlerImpls(
   override val rawPolyTransfer: ToplRpc.Transaction.RawPolyTransfer.rpc.ServerHandler =
     params =>
       for {
-        unsignedTx <- withNodeView(view =>
-          checkAddresses(params.sender.toList, view.state)
-            .map(_ => tryCreatePolyTransfer(params, view.state))
-        ).subflatMap(identity)
+        unsignedTx <- withNodeView(view => tryCreatePolyTransfer(params, view.state))
         transfer <- unsignedTx
           .leftMap(failure => new Error(failure.show))
           .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))

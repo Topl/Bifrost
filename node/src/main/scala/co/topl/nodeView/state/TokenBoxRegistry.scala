@@ -2,15 +2,15 @@ package co.topl.nodeView.state
 
 import cats.implicits.toShow
 import co.topl.attestation.Address
+import co.topl.codecs._
 import co.topl.db.LDBVersionedStore
+import co.topl.modifier.ModifierId
 import co.topl.modifier.box.{Box, BoxId, TokenBox, TokenValueHolder}
-import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.nodeView.{KeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
 import co.topl.utils.Logging
-import com.google.common.primitives.Longs
-import co.topl.codecs._
 import co.topl.utils.implicits._
+import com.google.common.primitives.Longs
 
 import java.io.File
 import scala.util.Try
@@ -21,8 +21,7 @@ import scala.util.Try
  * @param storage Persistent storage object for saving the TokenBoxRegistry to disk
  * @param nodeKeys set of node keys that denote the state this node will maintain (useful for personal wallet nodes)
  */
-class TokenBoxRegistry(protected val storage: KeyValueStore, nodeKeys: Option[Set[Address]])
-    extends Registry[TokenBoxRegistry.K, TokenBoxRegistry.V] {
+class TokenBoxRegistry(protected val storage: KeyValueStore) extends Registry[TokenBoxRegistry.K, TokenBoxRegistry.V] {
 
   import TokenBoxRegistry.{K, V}
 
@@ -38,12 +37,6 @@ class TokenBoxRegistry(protected val storage: KeyValueStore, nodeKeys: Option[Se
   protected[state] def getBox(key: K, state: SR): Option[Seq[TokenBox[TokenValueHolder]]] =
     super.getBox[TokenBox[TokenValueHolder]](key, state)
 
-  /** Helper function to filter updates by node keys if they are present */
-  private def filterByNodeKeys(updates: Map[K, Seq[V]]): Map[K, Seq[V]] = nodeKeys match {
-    case Some(keys) => updates.filter(b => keys.contains(b._1))
-    case None       => updates
-  }
-
   /**
    * Updates the key-value store to a new version by updating keys with their new state. LSM Store.
    * @param newVersion - block id
@@ -57,17 +50,16 @@ class TokenBoxRegistry(protected val storage: KeyValueStore, nodeKeys: Option[Se
    *         L = Number of boxes to append
    */
   protected[state] def update(
-    newVersion: VersionTag,
+    newVersion: ModifierId,
     toRemove:   Map[K, Seq[V]],
     toAppend:   Map[K, Seq[V]]
   ): Try[TokenBoxRegistry] = {
-    val (filteredRemove, filteredAppend) = (filterByNodeKeys(toRemove), filterByNodeKeys(toAppend))
 
-    val (deleted: Seq[K], updated: Seq[(K, Seq[V])]) = formatUpdates(filteredRemove, filteredAppend)
+    val (deleted: Seq[K], updated: Seq[(K, Seq[V])]) = formatUpdates(toRemove, toAppend)
 
     saveToStore(newVersion, deleted, updated).map { _ =>
       log.debug(s"${Console.GREEN} Update TokenBoxRegistry to version: ${newVersion.show}${Console.RESET}")
-      new TokenBoxRegistry(storage, nodeKeys)
+      new TokenBoxRegistry(storage)
     }
   }
 
@@ -107,7 +99,7 @@ class TokenBoxRegistry(protected val storage: KeyValueStore, nodeKeys: Option[Se
     }
   }
 
-  private def saveToStore(newVersion: VersionTag, toDelete: Seq[K], toUpdate: Seq[(K, Seq[V])]): Try[Unit] = Try {
+  private def saveToStore(newVersion: ModifierId, toDelete: Seq[K], toUpdate: Seq[(K, Seq[V])]): Try[Unit] = Try {
     storage.update(
       newVersion.persistedBytes,
       toDelete.map(k => registryInput(k)),
@@ -117,13 +109,13 @@ class TokenBoxRegistry(protected val storage: KeyValueStore, nodeKeys: Option[Se
     )
   }
 
-  override def rollbackTo(version: VersionTag): Try[TokenBoxRegistry] = Try {
+  override def rollbackTo(version: ModifierId): Try[TokenBoxRegistry] = Try {
     if (storage.latestVersionId().exists(_ sameElements version.persistedBytes)) {
       this
     } else {
       log.debug(s"Rolling back TokenBoxRegistry to: ${version.show}")
       storage.rollbackTo(version.persistedBytes)
-      new TokenBoxRegistry(storage, nodeKeys)
+      new TokenBoxRegistry(storage)
     }
   }
 }
@@ -133,17 +125,14 @@ object TokenBoxRegistry extends Logging {
   type K = Address
   type V = Box.Nonce
 
-  def readOrGenerate(settings: AppSettings, nodeKeys: Option[Set[Address]]): Option[TokenBoxRegistry] =
-    if (settings.application.enableTBR) {
-      log.info("Initializing state with Token Box Registry")
+  def readOrGenerate(settings: AppSettings): TokenBoxRegistry = {
+    log.info("Initializing state with Token Box Registry")
+    val dataDir = settings.application.dataDir.ensuring(_.isDefined, "data dir must be specified").get
 
-      val dataDir = settings.application.dataDir.ensuring(_.isDefined, "data dir must be specified").get
+    val file = new File(s"$dataDir/tokenBoxRegistry")
+    file.mkdirs()
+    val storage = new LDBKeyValueStore(new LDBVersionedStore(file, keepVersions = 100))
 
-      val file = new File(s"$dataDir/tokenBoxRegistry")
-      file.mkdirs()
-      val storage = new LDBKeyValueStore(new LDBVersionedStore(file, keepVersions = 100))
-
-      Some(new TokenBoxRegistry(storage, nodeKeys))
-
-    } else None
+    new TokenBoxRegistry(storage)
+  }
 }

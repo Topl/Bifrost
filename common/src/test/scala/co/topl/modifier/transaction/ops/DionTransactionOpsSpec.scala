@@ -10,9 +10,9 @@ import co.topl.utils.CommonGenerators
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.encode.Base16
 import org.scalacheck.Gen
-import org.scalatest.{EitherValues, OptionValues}
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.{EitherValues, OptionValues}
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 import scala.collection.immutable.ListMap
@@ -100,17 +100,19 @@ class DionTransactionOpsSpec
 
       it("should convert a Dion TX to a Tetra TX with the same ordering of inputs") {
         forAll(txGen) { tx =>
-          val expectedInput = tx.from.toList.map { case (address, nonce) =>
+          val expectedInput = tx.from.map { case (address, nonce) =>
             (Base16.encode(address.networkPrefix +: address.evidence.evBytes), nonce)
           }
 
           val tetraTx = tx.toTetraTx
 
-          val input = tetraTx.value.inputs.keys.map { case (address, nonce) =>
-            (address.allBytes.toBase16, nonce)
-          }
+          val inputs = tetraTx.value.inputs.toIndexedSeq
+            .map(_._1)
+            .map { case (address, nonce) =>
+              (address.allBytes.toBase16, nonce)
+            }
 
-          input shouldBe expectedInput
+          inputs shouldBe expectedInput
         }
       }
 
@@ -122,10 +124,10 @@ class DionTransactionOpsSpec
 
           val tetraTx = tx.toTetraTx
 
-          val ouputs = tetraTx.value.coinOutputs.iterator.toList.flatMap {
+          val ouputs = tetraTx.value.coinOutputs.iterator.toList.map {
             case Transaction.PolyOutput(dionAddress, value) =>
-              List(dionAddress.allBytes.toBase16 -> value.data)
-            case _ => List.empty
+              (dionAddress.allBytes.toBase16, value.data)
+            case _ => throw new IllegalStateException("Unexpected from poly transfer")
           }
 
           ouputs shouldBe expectedOutputs
@@ -137,7 +139,7 @@ class DionTransactionOpsSpec
           val firstOutput = tx.to.head
           val outputWith0Fee = firstOutput._1 -> firstOutput._2.copy(quantity = 0)
 
-          val tetraTx = tx.copy(to = tx.to.tail.prepended(outputWith0Fee)).toTetraTx
+          val tetraTx = tx.copy(to = outputWith0Fee +: tx.to.tail).toTetraTx
 
           tetraTx.value.feeOutput shouldBe None
         }
@@ -148,7 +150,7 @@ class DionTransactionOpsSpec
           val firstOutput = tx.to.head
           val outputWith0Fee = firstOutput._1 -> firstOutput._2.copy(quantity = fee)
 
-          val tetraTx = tx.copy(to = tx.to.tail.prepended(outputWith0Fee)).toTetraTx
+          val tetraTx = tx.copy(to = outputWith0Fee +: tx.to.tail).toTetraTx
 
           tetraTx.value.feeOutput.value.value.data shouldBe fee
         }

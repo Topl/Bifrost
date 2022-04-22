@@ -197,7 +197,7 @@ object BlockHeaderValidation {
           .lookupAt(SlotId(child.slot, child.id), child.address)
           .flatMap(relativeStake =>
             leaderElection.getThreshold(
-              relativeStake.getOrElse(Ratio(0)),
+              relativeStake.getOrElse(Ratio.Zero),
               child.slot - parent.slot
             )
           )
@@ -280,7 +280,7 @@ object BlockHeaderValidation {
 
     def make[F[_]: MonadError[*[_], Throwable]: Sync](
       underlying:       BlockHeaderValidationAlgebra[F],
-      blockHeaderStore: Store[F, BlockHeaderV2]
+      blockHeaderStore: Store[F, TypedIdentifier, BlockHeaderV2]
     ): F[BlockHeaderValidationAlgebra[F]] =
       CaffeineCache[F, TypedIdentifier].map(implicit cache =>
         new BlockHeaderValidationAlgebra[F] {
