@@ -13,6 +13,6 @@ abstract class GenericBox[+T] extends BytesSerializable {
 
   override def equals(obj: Any): Boolean = obj match {
     case bx: GenericBox[T @unchecked] => (bx.id == id) && bx.value == value && bx.evidence == evidence
-    case _                 => false
+    case _                            => false
   }
 }
