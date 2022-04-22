@@ -89,6 +89,6 @@ object Exporter extends Logging {
     exportHistory(mongo, history, start.getOrElse(1L), end.getOrElse(history.bestBlock.height))
   }
 
-  def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
+  def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args.toIndexedSeq)
 
 }
