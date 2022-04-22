@@ -94,21 +94,20 @@ object NodeView {
     protocolVersioner: ProtocolVersioner
   ): Future[NodeView] =
     if (State.exists(settings)) {
-      resume(settings, startupKeyView)
+      startupKeyView() // keyRing is mutable so need to call this
+      resume(settings)
     } else
       fetchAndApplyGenesis(settings, consensusInterface, startupKeyView)
         .valueOrF(e => Future.failed(new IllegalArgumentException(e.toString)))
 
   private def resume(
-    settings:       AppSettings,
-    startupKeyView: () => Future[StartupKeyView]
+    settings: AppSettings
   )(implicit
     system:            ActorSystem[_],
     ec:                ExecutionContext,
     networkPrefix:     NetworkPrefix,
     protocolVersioner: ProtocolVersioner
-  ): Future[NodeView] = {
-    if (networkPrefix == PrivateTestnet.netPrefix) startupKeyView()
+  ): Future[NodeView] =
     Future.successful(
       NodeView(
         History.readOrGenerate(settings),
@@ -116,7 +115,6 @@ object NodeView {
         MemPool.empty()
       )
     )
-  }
 
   private def fetchAndApplyGenesis(
     settings:           AppSettings,

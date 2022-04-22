@@ -1,6 +1,6 @@
 package co.topl.settings
 
-import co.topl.consensus.{GenesisProvider, KeyManager}
+import co.topl.consensus.GenesisProvider
 import co.topl.network.utils.NetworkTimeProviderSettings
 import co.topl.utils.Logging
 import com.typesafe.config.{Config, ConfigFactory}
@@ -80,8 +80,20 @@ case class ForgingSettings(
   protocolVersions:          List[ProtocolSettings],
   forgeOnStartup:            Boolean,
   rewardsAddress:            Option[String], // String here since we don't know netPrefix when settings are read
-  addressGenerationSettings: Option[KeyManager.AddressGenerationSettings]
+  addressGenerationSettings: AddressGenerationSettings
 )
+
+case class AddressGenerationSettings(
+  numberOfAddresses: Int,
+  strategy:          AddressGenerationStrategies.Value,
+  addressSeedOpt:    Option[String]
+)
+
+object AddressGenerationStrategies extends Enumeration {
+  val FromSeed: AddressGenerationStrategies.Value = Value("fromSeed")
+  val Random: AddressGenerationStrategies.Value = Value("random")
+  val None: AddressGenerationStrategies.Value = Value("none")
+}
 
 case class GenesisSettings(
   strategy:      GenesisStrategies.Value,
