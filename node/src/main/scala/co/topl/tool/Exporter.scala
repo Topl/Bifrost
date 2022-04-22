@@ -20,7 +20,7 @@ object Exporter extends Logging {
 
   private def initHistory(settings: AppSettings, np: NetworkPrefix): History = History.readOrGenerate(settings)(np)
 
-  private def export(connection: Exportable, history: History, start: Long = 1L, end: Long): Unit = {
+  private def exportHistory(connection: Exportable, history: History, start: Long = 1L, end: Long): Unit = {
 
     val startTime = System.currentTimeMillis()
 
@@ -86,7 +86,7 @@ object Exporter extends Logging {
     val (settings, config) = AppSettings.read(startupOpts)
     val history = initHistory(settings, startupOpts.networkTypeOpt.getOrElse(NetworkType.PrivateTestnet).netPrefix)
 
-    export(mongo, history, start.getOrElse(1L), end.getOrElse(history.bestBlock.height))
+    exportHistory(mongo, history, start.getOrElse(1L), end.getOrElse(history.bestBlock.height))
   }
 
   def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
