@@ -3,7 +3,7 @@ package co.topl.nodeView.history
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ContainsModifiers, ModifierId}
-import co.topl.network.message.SyncInfo
+import co.topl.network.SyncInfo
 import co.topl.nodeView.NodeViewComponent
 import co.topl.nodeView.history.GenericHistory.{HistoryComparisonResult, ModifierIds}
 import co.topl.utils.TimeProvider
@@ -16,9 +16,7 @@ trait HistoryReader[PM <: PersistentNodeViewModifier, SI <: SyncInfo]
 
   def height: Long
   def bestBlock: PM
-  def difficulty: Long
   def bestBlockId: ModifierId
-  def score: Long
 
   /**
    * Is there's no history, even genesis block

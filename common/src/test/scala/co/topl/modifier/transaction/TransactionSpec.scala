@@ -1,13 +1,15 @@
 package co.topl.modifier.transaction
 
 import cats.implicits._
-import co.topl.attestation.AddressCodec.implicits._
+import co.topl.attestation.implicits._
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
+import co.topl.codecs._
 import co.topl.modifier.ModifierId
 import co.topl.modifier.box._
-import co.topl.utils.CommonGenerators
 import co.topl.utils.IdiomaticScalaTransition.implicits._
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
+import co.topl.utils.catsinstances.implicits._
+import co.topl.utils.{CommonGenerators, EqMatcher}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
@@ -22,7 +24,8 @@ class TransactionSpec
     with Matchers
     with ScalaCheckDrivenPropertyChecks
     with MockFactory
-    with EitherValues {
+    with EitherValues
+    with EqMatcher {
 
   behavior of "Transaction.id"
 
@@ -60,7 +63,7 @@ class TransactionSpec
         minting
       )
 
-    polyTransfer.id shouldBe expectedModifierId
+    polyTransfer.id should eqvShow(expectedModifierId)
   }
 
   /**
@@ -97,7 +100,7 @@ class TransactionSpec
         minting
       )
 
-    arbitTransfer.id shouldBe expectedModifierId
+    arbitTransfer.id should eqvShow(expectedModifierId)
   }
 
   /**
@@ -145,12 +148,12 @@ class TransactionSpec
         minting
       )
 
-    assetTransfer.id shouldBe expectedModifierId
+    assetTransfer.id should eqvShow(expectedModifierId)
   }
 
   def asAddress(addressString: String): Address =
     Base58Data.unsafe(addressString).decodeAddress.getOrThrow()
 
   def asModifierId(modifierIdString: String): ModifierId =
-    ModifierId.fromBase58(Base58Data.unsafe(modifierIdString))
+    Base58Data.unsafe(modifierIdString).encodeAsBytes.decodeTransmitted[ModifierId].getOrThrow()
 }

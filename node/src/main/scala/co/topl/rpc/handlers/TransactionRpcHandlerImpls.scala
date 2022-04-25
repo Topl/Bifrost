@@ -4,7 +4,6 @@ import akka.actor.typed.ActorSystem
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
 import co.topl.attestation._
-import co.topl.modifier.box.ProgramId
 import co.topl.modifier.transaction.builder.BuildTransferFailure.implicits._
 import co.topl.modifier.transaction.builder.{BuildTransferFailure, TransferBuilder, TransferRequests}
 import co.topl.modifier.transaction.validation.implicits._
@@ -13,9 +12,10 @@ import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView}
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.StringDataTypes.implicits._
-import co.topl.utils.codecs.implicits._
+import co.topl.codecs._
+import co.topl.modifier.ProgramId
 import io.circe.Encoder
+import co.topl.utils.implicits._
 
 import scala.concurrent.Future
 
@@ -32,10 +32,7 @@ class TransactionRpcHandlerImpls(
   override val rawAssetTransfer: ToplRpc.Transaction.RawAssetTransfer.rpc.ServerHandler =
     params =>
       for {
-        unsignedTx <- withNodeView(view =>
-          checkAddresses(params.sender.toList, view.state)
-            .map(_ => createAssetTransfer(params, view.state))
-        ).subflatMap(identity)
+        unsignedTx <- withNodeView(view => createAssetTransfer(params, view.state))
         transfer <- unsignedTx
           .leftMap(failure => new Error(failure.show))
           .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
@@ -46,10 +43,7 @@ class TransactionRpcHandlerImpls(
   override val rawArbitTransfer: ToplRpc.Transaction.RawArbitTransfer.rpc.ServerHandler =
     params =>
       for {
-        unsignedTx <- withNodeView(view =>
-          checkAddresses(params.sender.toList, view.state)
-            .map(_ => createArbitTransfer(params, view.state))
-        ).subflatMap(identity)
+        unsignedTx <- withNodeView(view => createArbitTransfer(params, view.state))
         transfer <- unsignedTx
           .leftMap(failure => new Error(failure.show))
           .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
@@ -60,10 +54,7 @@ class TransactionRpcHandlerImpls(
   override val rawPolyTransfer: ToplRpc.Transaction.RawPolyTransfer.rpc.ServerHandler =
     params =>
       for {
-        unsignedTx <- withNodeView(view =>
-          checkAddresses(params.sender.toList, view.state)
-            .map(_ => tryCreatePolyTransfer(params, view.state))
-        ).subflatMap(identity)
+        unsignedTx <- withNodeView(view => tryCreatePolyTransfer(params, view.state))
         transfer <- unsignedTx
           .leftMap(failure => new Error(failure.show))
           .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
