@@ -9,8 +9,10 @@ import org.bouncycastle.crypto.params.KeyParameter
  *
  * It repeats the HMAC-SHA512 hashing function a given number of iterations and then slices a number of bytes off the
  * result.
+ *
+ * NOTE: This is a class wrapper on the Java impl to help with thread safety issues that were occurring during testing
  */
-object Pbkdf2Sha512 {
+class Pbkdf2Sha512 {
 
   /**
    * Generates a public key from the given message and salt.
@@ -23,12 +25,9 @@ object Pbkdf2Sha512 {
    * @param iterations the number of iterations to run
    * @return the bytes of the key result
    */
-  def generateKey(password: Array[Byte], salt: Array[Byte], keySizeBytes: Int, iterations: Int): Array[Byte] =
-    synchronized {
-      val generator = new PKCS5S2ParametersGenerator(new SHA512Digest)
-
-      generator.init(password, salt, iterations)
-
-      generator.generateDerivedParameters(keySizeBytes * 8).asInstanceOf[KeyParameter].getKey
-    }
+  def generateKey(password: Array[Byte], salt: Array[Byte], keySizeBytes: Int, iterations: Int): Array[Byte] = {
+    val generator = new PKCS5S2ParametersGenerator(new SHA512Digest)
+    generator.init(password, salt, iterations)
+    generator.generateDerivedParameters(keySizeBytes * 8).asInstanceOf[KeyParameter].getKey
+  }
 }
