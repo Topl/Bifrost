@@ -21,6 +21,8 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.crypto.typeclasses.KeyInitializer
+import co.topl.crypto.typeclasses.KeyInitializer.Instances.vrfInitializer
 
 class EtaCalculationSpec
     extends AnyFlatSpec

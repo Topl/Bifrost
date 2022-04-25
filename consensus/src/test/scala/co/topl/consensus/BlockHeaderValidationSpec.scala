@@ -15,6 +15,8 @@ import co.topl.models.utility.Lengths._
 import co.topl.models.utility.{Lengths, Ratio, Sized}
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
+import co.topl.crypto.typeclasses.KeyInitializer
+import co.topl.crypto.typeclasses.KeyInitializer.Instances.ed25519Initializer
 import co.topl.numerics.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._

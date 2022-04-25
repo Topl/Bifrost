@@ -24,8 +24,6 @@ package object typeclasses {
       with ContainsVerificationKey.ToContainsVerificationKeyOps
       with Evolves.Instances
       with Evolves.ToEvolvesOps
-      with KeyInitializer.Instances
-      with KeyInitializer.ToKeyInitializerOps
       with ProofVerifier.Instances
       with ProofVerifier.Implicits
       with Proposer.Instances
