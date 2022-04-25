@@ -177,7 +177,7 @@ class ConsensusInterfaceSpec
 
   private def consensusActorTest(test: TestInWithActor => Unit)(implicit timeProvider: TimeProvider): Unit = {
     val addresses: Set[Address] =
-      nonEmptySetAddressGen.sample.get.take(settings.forging.addressGenerationSettings.get.numberOfAddresses)
+      nonEmptySetAddressGen.sample.get.take(settings.forging.addressGenerationSettings.numberOfAddresses)
     val genesis: NxtConsensus.Genesis =
       new GenesisProvider(protocolVersioner.applicable(1).blockVersion, addresses)
         .fetchGenesis(settings)
