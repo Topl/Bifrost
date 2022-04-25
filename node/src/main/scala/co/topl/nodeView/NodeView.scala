@@ -17,7 +17,7 @@ import co.topl.nodeView.history.{GenericHistory, History, HistoryReader}
 import co.topl.nodeView.mempool.{MemPool, MemPoolReader, MemoryPool}
 import co.topl.nodeView.state.{MinimalState, State, StateReader}
 import co.topl.settings.AppSettings
-import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.NetworkType.{NetworkPrefix, PrivateTestnet}
 import co.topl.utils.TimeProvider
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -94,6 +94,7 @@ object NodeView {
     protocolVersioner: ProtocolVersioner
   ): Future[NodeView] =
     if (State.exists(settings)) {
+      startupKeyView() // keyRing is mutable so need to call this
       resume(settings)
     } else
       fetchAndApplyGenesis(settings, consensusInterface, startupKeyView)

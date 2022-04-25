@@ -1,9 +1,8 @@
 package co.topl.utils
 
-import co.topl.consensus.KeyManager.AddressGenerationSettings
 import co.topl.consensus.{GenesisProvider, NxtConsensus, ProtocolVersioner}
 import co.topl.modifier.block.Block
-import co.topl.settings.{ProtocolConfigurations, ProtocolSettings, Version}
+import co.topl.settings._
 import org.scalacheck.Gen
 import org.scalatest.Suite
 
@@ -25,7 +24,7 @@ trait NodeGenerators extends CommonGenerators {
   lazy val addressGenerationSettingsGen: Gen[AddressGenerationSettings] = for {
     numberOfParticipants <- positiveMediumIntGen
     genesisSeed          <- stringGen
-  } yield AddressGenerationSettings(numberOfParticipants, Some(genesisSeed))
+  } yield AddressGenerationSettings(numberOfParticipants, AddressGenerationStrategies.FromSeed, Some(genesisSeed))
 
   lazy val genesisBlockGen: Gen[Block] = nxtConsensusGenesisGen.sample.get.block
 
