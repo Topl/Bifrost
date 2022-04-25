@@ -17,8 +17,8 @@ object Dependencies {
   )
 
   val test = Seq(
-    "org.scalatest"      %% "scalatest"         % "3.2.10"   % "test",
-    "org.scalactic"      %% "scalactic"         % "3.2.10"   % "test",
+    "org.scalatest"      %% "scalatest"         % "3.2.12"  % "test",
+    "org.scalactic"      %% "scalactic"         % "3.2.10"  % "test",
     "org.scalacheck"     %% "scalacheck"        % "1.15.4"  % "test",
     "org.scalatestplus"  %% "scalacheck-1-14"   % "3.2.2.0" % "test",
     "com.spotify"         % "docker-client"     % "8.16.0"  % "test",
@@ -91,14 +91,14 @@ object Dependencies {
       "org.iq80.leveldb"            % "leveldb"            % "0.12",
       "org.mongodb.scala"          %% "mongo-scala-driver" % "4.3.4"
     ) ++
-      logging ++
-      test ++
-      it ++
-      akka ++
-      network ++
-      circe ++
-      misc ++
-      monitoring
+    logging ++
+    test ++
+    it ++
+    akka ++
+    network ++
+    circe ++
+    misc ++
+    monitoring
   }
 
   lazy val common: Seq[ModuleID] = {
@@ -109,10 +109,10 @@ object Dependencies {
       "org.mongodb.scala"      %% "mongo-scala-driver"      % "4.3.2",
       "io.circe"               %% "circe-generic"           % circeVersion
     ) ++
-      logging ++
-      circe ++
-      test ++
-      akka
+    logging ++
+    circe ++
+    test ++
+    akka
   }
 
   lazy val chainProgram: Seq[ModuleID] =
@@ -121,8 +121,8 @@ object Dependencies {
       "io.circe"               %% "circe-parser"            % circeVersion,
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.6.0"
     ) ++
-      test ++
-      graal
+    test ++
+    graal
 
   lazy val brambl: Seq[ModuleID] =
     test
@@ -134,17 +134,17 @@ object Dependencies {
       "io.circe"               %% "circe-generic"           % circeVersion,
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.6.0"
     ) ++
-      circe ++
-      akka ++
-      test
+    circe ++
+    akka ++
+    test
 
   lazy val toplRpc: Seq[ModuleID] =
     Seq(
       "io.circe"               %% "circe-generic"           % circeVersion,
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.6.0"
     ) ++
-      circe ++
-      test
+    circe ++
+    test
 
   lazy val gjallarhorn: Seq[ModuleID] =
     Seq(
@@ -152,12 +152,12 @@ object Dependencies {
       "com.typesafe.akka"     %% "akka-remote"  % akkaVersion,
       "com.github.pureconfig" %% "pureconfig"   % "0.16.0"
     ) ++
-      akka ++
-      test ++
-      circe ++
-      logging ++
-      misc ++
-      it
+    akka ++
+    test ++
+    circe ++
+    logging ++
+    misc ++
+    it
 
   lazy val benchmarking: Seq[ModuleID] = Seq()
 
@@ -168,8 +168,8 @@ object Dependencies {
       "org.bouncycastle"   % "bcprov-jdk15on"  % "1.70",
       "org.whispersystems" % "curve25519-java" % "0.5.0"
     ) ++
-      misc ++
-      test
+    misc ++
+    test
 
   lazy val tools: Seq[ModuleID] =
     Seq(
@@ -181,8 +181,8 @@ object Dependencies {
       "com.lihaoyi"    %% "mainargs" % "0.2.1",
       "com.nike.fleam" %% "fleam"    % "7.0.0"
     ) ++
-      akka ++
-      circe
+    akka ++
+    circe
   }
 
 }
