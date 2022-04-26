@@ -22,7 +22,7 @@ object Exporter extends Logging {
   private def initHistory(settings: AppSettings, np: NetworkPrefix, protocolVersioner: ProtocolVersioner): History =
     History.readOrGenerate(settings)(np, protocolVersioner)
 
-  private def `export`(connection: Exportable, history: History, start: Long = 1L, end: Long): Unit = {
+  private def exportHistory(connection: Exportable, history: History, start: Long = 1L, end: Long): Unit = {
 
     val startTime = System.currentTimeMillis()
 
@@ -92,9 +92,9 @@ object Exporter extends Logging {
       ProtocolVersioner.default
     )
 
-    export(mongo, history, start.getOrElse(1L), end.getOrElse(history.bestBlock.height))
+    exportHistory(mongo, history, start.getOrElse(1L), end.getOrElse(history.bestBlock.height))
   }
 
-  def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
+  def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args.toIndexedSeq)
 
 }
