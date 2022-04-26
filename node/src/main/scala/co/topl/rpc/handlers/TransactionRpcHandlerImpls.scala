@@ -116,7 +116,7 @@ class TransactionRpcHandlerImpls(
               .buildUnprovenTransfer(
                 view.state,
                 TransferRequests.UnprovenTransferRequest(
-                  params.sender.toList,
+                  params.senders.toList,
                   params.recipients.toList,
                   params.changeAddress,
                   params.changeAddress,

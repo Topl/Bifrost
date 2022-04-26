@@ -647,6 +647,9 @@ trait TransactionRpcResponseEncoders extends SharedCodecs {
   implicit val transactionUnprovenPolyTransferResponseEncoder
     : Encoder[ToplRpc.Transaction.UnprovenPolyTransfer.Response] = deriveEncoder
 
+  implicit val transactionUnprovenArbitTransferResponseEncoder
+    : Encoder[ToplRpc.Transaction.UnprovenArbitTransfer.Response] = deriveEncoder
+
   implicit val transactionEncodeTransferResponseEncoder: Encoder[ToplRpc.Transaction.EncodeTransfer.Response] =
     deriveEncoder
 }
