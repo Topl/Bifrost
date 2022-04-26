@@ -1,15 +1,17 @@
 package co.topl.api.transaction
 
 import akka.util.ByteString
-import cats.implicits._
+import cats.data.NonEmptyChain
 import co.topl.api.RPCMockState
-import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
-import co.topl.modifier.box.SimpleValue
-import io.circe.parser.parse
-import io.circe.{ACursor, Decoder, HCursor}
+import co.topl.attestation.PublicKeyPropositionCurve25519
+import co.topl.attestation.implicits._
+import co.topl.codecs.json.tetra.instances._
+import co.topl.models.{BoxReference, Transaction}
+import io.circe.HCursor
+import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 
-class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers {
+class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with EitherValues {
 
   import UnprovenPolyTransferRPCHandlerSpec._
 
@@ -17,92 +19,115 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers {
   val amount = 100
   val fee = 1
 
-  var sender: Address = _
-  var recipient: Address = _
+  var sender: String = ""
+  var recipient: String = ""
 
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    sender = keyRingCurve25519.addresses.head
-    recipient = keyRingCurve25519.addresses.head
+    sender = keyRingCurve25519.addresses.head.toDionAddress.toOption.get.allBytes.toBase58
+    recipient = keyRingCurve25519.addresses.head.toDionAddress.toOption.get.allBytes.toBase58
   }
 
   "Unproven Poly Transfer RPC Handler" should {
 
-    "successfully create a transfer with a 'PolyTransfer' tx-type" in {
+    "successfully create a transfer with the provided sender in the 'inputs' field" in {
       val requestBody = createRequestBody(propositionType, sender, recipient, amount, fee)
 
-      val path = (cursor: HCursor) => cursor.downField("result").downField("rawTx").downField("txType")
-
-      val result =
-        httpPOST(requestBody) ~> route ~> check(traverseJsonPath[String](responseAs[String], path))
-
-      result shouldBe Right("PolyTransfer")
-    }
-
-    "successfully create a transfer with the provided sender in the 'from' field" in {
-      val requestBody = createRequestBody(propositionType, sender, recipient, amount, fee)
-
-      val path = (cursor: HCursor) => cursor.downField("result").downField("rawTx").downField("from")
+      val path = (cursor: HCursor) => cursor.downField("result").downField("inputs")
 
       val result =
         httpPOST(requestBody) ~> route ~> check(
-          traverseJsonPath[List[(String, String)]](responseAs[String], path)
+          traverseJsonPath[NonEmptyChain[BoxReference]](responseAs[String], path)
         )
 
-      result.map(_.head._1) shouldBe Right(sender.toString)
+      result.map(_.head._1.allBytes.toBase58).value shouldBe sender
     }
 
     "successfully create a transfer with 'minting' set to false" in {
       val requestBody = createRequestBody(propositionType, sender, recipient, amount, fee)
 
-      val path = (cursor: HCursor) => cursor.downField("result").downField("rawTx").downField("minting")
+      val path = (cursor: HCursor) => cursor.downField("result").downField("minting")
 
       val result =
         httpPOST(requestBody) ~> route ~> check(
           traverseJsonPath[Boolean](responseAs[String], path)
         )
 
-      result shouldBe Right(false)
+      result.value shouldBe false
     }
 
-    "successfully create a transfer with expected proposition-type" in {
+    "successfully create a transfer with recipient in 'coinOutputs' field" in {
       val requestBody = createRequestBody(propositionType, sender, recipient, amount, fee)
 
-      val path = (cursor: HCursor) => cursor.downField("result").downField("rawTx").downField("propositionType")
+      val path = (cursor: HCursor) => cursor.downField("result").downField("coinOutputs")
+
+      val result =
+        httpPOST(requestBody) ~> route ~> check(
+          traverseJsonPath[List[Transaction.CoinOutput]](responseAs[String], path)
+        )
+
+      val outputAddresses =
+        result.map(outputs =>
+          outputs.flatMap {
+            case Transaction.PolyOutput(dionAddress, _) =>
+              List(dionAddress.allBytes.toBase58)
+            case _ =>
+              List.empty
+          }
+        )
+
+      outputAddresses.value should contain(recipient)
+    }
+
+    "successfully create a transfer with the expected change address" in {
+      val requestBody = createRequestBody(propositionType, sender, recipient, amount, fee)
+
+      val path = (cursor: HCursor) => cursor.downField("result").downField("feeOutput").downField("dionAddress")
 
       val result =
         httpPOST(requestBody) ~> route ~> check(
           traverseJsonPath[String](responseAs[String], path)
         )
 
-      result shouldBe Right(propositionType)
+      result.value shouldBe sender
     }
 
-    "successfully create a transfer with recipient in 'to' field" in {
-      val requestBody = createRequestBody(propositionType, sender, recipient, amount, fee)
+    "successfully create a transfer with the expected 'data'" in {
+      val data = "test-data"
 
-      val path = (cursor: HCursor) => cursor.downField("result").downField("rawTx").downField("to")
+      val requestBody =
+        ByteString(s"""
+          |{
+          | "jsonrpc": "2.0",
+          | "id": "2",
+          | "method": "topl_unprovenPolyTransfer",
+          | "params": [ {
+          |   "senders": ["$sender"],
+          |   "recipients": [ {
+          |     "dionAddress": "$recipient",
+          |     "value": "$amount"
+          |   } ],
+          |   "fee": $fee,
+          |   "changeAddress": "$sender",
+          |   "data": "$data",
+          |   "boxSelectionAlgorithm": "All"
+          | } ]
+          |}
+        """.stripMargin)
+
+      val path = (cursor: HCursor) => cursor.downField("result").downField("data")
 
       val result =
         httpPOST(requestBody) ~> route ~> check(
-          traverseJsonPath[List[(String, SimpleValue)]](responseAs[String], path)
+          traverseJsonPath[Option[String]](responseAs[String], path)
         )
 
-      val searchResult =
-        result
-          .flatMap(recipients =>
-            recipients
-              .find(_._1 == sender.toString)
-              .map(_._1)
-              .toRight("sender address not found")
-          )
-
-      searchResult shouldBe Right(sender.toString)
+      result.value.get shouldBe data
     }
 
     "fail to create a transfer when sender has no polys" in {
-      val emptySender = addressGen.sample.get
+      val emptySender = addressGen.sample.get.toDionAddress.toOption.get.allBytes.toBase58
 
       val requestBody = createRequestBody(propositionType, emptySender, recipient, amount, fee)
 
@@ -110,7 +135,7 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers {
 
       val result = httpPOST(requestBody) ~> route ~> check(traverseJsonPath[String](responseAs[String], path))
 
-      result shouldBe Right("EmptyPolyInputs")
+      result.value shouldBe "EmptyPolyInputs"
     }
 
     "fail to create a transfer when no sender is provided" in {
@@ -119,15 +144,15 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers {
           |{
           | "jsonrpc": "2.0",
           | "id": "2",
-          | "method": "topl_rawPolyTransfer",
+          | "method": "topl_unprovenPolyTransfer",
           | "params": [{
-          |   "propositionType": "$propositionType",
-          |   "recipients": [["$recipient", "$amount"]],
           |   "sender": [],
+          |   "recipients": [ {
+          |     "dionAddress": "$sender",
+          |     "value": "$amount"
+          |   } ],
+          |   "fee": $fee,
           |   "changeAddress": "$sender",
-          |   "consolidationAddress": "$sender",
-          |   "minting": "false",
-          |   "fee": "$fee",
           |   "data": "",
           |   "boxSelectionAlgorithm": "All"
           | }]
@@ -141,7 +166,7 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers {
         traverseJsonPath[String](json, path)
       }
 
-      result shouldBe Right("Invalid method parameter(s)")
+      result.value shouldBe "Invalid method parameter(s)"
     }
 
     "fail to create a transfer when send amount is negative" in {
@@ -156,7 +181,7 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers {
         traverseJsonPath[String](json, path)
       }
 
-      result shouldBe Right("Could not validate transaction")
+      result.value shouldBe "Could not validate transaction"
     }
   }
 }
@@ -174,40 +199,28 @@ object UnprovenPolyTransferRPCHandlerSpec {
    */
   def createRequestBody(
     propositionType: String,
-    sender:          Address,
-    recipient:       Address,
+    sender:          String,
+    recipient:       String,
     amount:          Int,
     fee:             Int
   ): ByteString =
     ByteString(s"""
-      |{
-      | "jsonrpc": "2.0",
-      | "id": "2",
-      | "method": "topl_rawPolyTransfer",
-      | "params": [{
-      |   "propositionType": "$propositionType",
-      |   "recipients": [["$recipient", "$amount"]],
-      |   "sender": ["$sender"],
-      |   "changeAddress": "$sender",
-      |   "consolidationAddress": "$sender",
-      |   "minting": "false",
-      |   "fee": "$fee",
-      |   "data": "",
-      |   "boxSelectionAlgorithm": "All"
-      | }]
-      |}
+         |{
+         | "jsonrpc": "2.0",
+         | "id": "2",
+         | "method": "topl_unprovenPolyTransfer",
+         | "params": [ {
+         |   "senders": ["$sender"],
+         |   "recipients": [ {
+         |     "dionAddress": "$recipient",
+         |     "value": "$amount"
+         |   } ],
+         |   "fee": $fee,
+         |   "changeAddress": "$sender",
+         |   "data": null,
+         |   "boxSelectionAlgorithm": "All"
+         | } ]
+         |}
     """.stripMargin)
 
-  /**
-   * Traverses the provided json [[String]] using the provided cursor path.
-   * @param json the JSON to parse and traverse
-   * @param path the path to follow down the JSON tree
-   * @tparam T the type of value to attempt to decode at the leaf of the path
-   * @return if successful, a value of [[T]], otherwise a [[String]]
-   */
-  def traverseJsonPath[T: Decoder](json: String, path: HCursor => ACursor): Either[String, T] =
-    for {
-      json   <- parse(json).leftMap(_.toString)
-      result <- path(json.hcursor).as[T].leftMap(_.message)
-    } yield result
 }

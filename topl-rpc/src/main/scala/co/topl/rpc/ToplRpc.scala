@@ -509,7 +509,7 @@ object ToplRpc {
       val rpc: Rpc[Params, Response] = Rpc("topl_unprovenPolyTransfer")
 
       case class Params(
-        sender:                NonEmptyChain[DionAddress],
+        senders:               NonEmptyChain[DionAddress],
         recipients:            NonEmptyChain[TetraTransaction.PolyOutput],
         fee:                   TetraInt128,
         changeAddress:         DionAddress,

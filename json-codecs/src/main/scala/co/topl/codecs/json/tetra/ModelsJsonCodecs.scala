@@ -39,26 +39,24 @@ trait ModelsJsonCodecs {
   implicit def sizedMaxDecoder[T: Decoder: HasLength, L <: Length](implicit
     length: L
   ): Decoder[Sized.Max[T, L]] =
-    Decoder[T].flatMap(value =>
-      Sized
-        .max(value)
-        .fold(
-          failure => Decoder.failedWithMessage[Sized.Max[T, L]](failure.toString),
-          sizedValue => Decoder.const(sizedValue)
-        )
-    )
+    cursor =>
+      for {
+        value <- cursor.as[T]
+        sized <- Sized
+          .max[T, L](value)
+          .leftMap(failure => DecodingFailure(s"invalid value $value with length ${failure.length}", List.empty))
+      } yield sized
 
   implicit def sizedStrictEncoder[T: Encoder, L]: Encoder[Sized.Strict[T, L]] = Encoder[T].contramap(_.data)
 
   implicit def sizedStrictDecoder[T: Decoder: HasLength, L <: Length](implicit length: L): Decoder[Sized.Strict[T, L]] =
-    Decoder[T].flatMap(value =>
-      Sized
-        .strict(value)
-        .fold(
-          failure => Decoder.failedWithMessage[Sized.Strict[T, L]](failure.toString),
-          sizedValue => Decoder.const(sizedValue)
-        )
-    )
+    cursor =>
+      for {
+        value <- cursor.as[T]
+        sized <- Sized
+          .strict[T, L](value)
+          .leftMap(failure => DecodingFailure(s"invalid value $value with length ${failure.length}", List.empty))
+      } yield sized
 
   implicit val networkPrefixEncoder: Encoder[NetworkPrefix] = Encoder[Byte].contramap(_.value)
   implicit val networkPrefixDecoder: Decoder[NetworkPrefix] = Decoder[Byte].map(byte => NetworkPrefix(byte))
@@ -312,9 +310,10 @@ trait ModelsJsonCodecs {
           .fold(failure => Decoder.failedWithMessage(failure.toString), data => Decoder.const(data))
       )
 
-  implicit val transactionDataEncoder: Encoder[TransactionData] = Encoder[Latin1Data].contramap(_.data)
+  implicit val transactionDataEncoder: Encoder[TransactionData] =
+    Encoder[Latin1Data].contramap(transactionData => transactionData.data)
 
-  implicit val transactionDataDecoder: Decoder[TransactionData] = Decoder[Sized.Max[Latin1Data, Lengths.`127`.type]]
+  implicit val transactionDataDecoder: Decoder[TransactionData] = sizedMaxDecoder[Latin1Data, Lengths.`127`.type]
 
   implicit val assetCodeEncoder: Encoder[Box.Values.Asset.Code] =
     t =>
@@ -359,14 +358,14 @@ trait ModelsJsonCodecs {
   implicit val polyOutputEncoder: Encoder[Transaction.PolyOutput] =
     t =>
       Json.obj(
-        "address" -> t.dionAddress.asJson,
-        "value"   -> t.value.asJson
+        "dionAddress" -> t.dionAddress.asJson,
+        "value"       -> t.value.asJson
       )
 
   implicit val polyOutputDecoder: Decoder[Transaction.PolyOutput] =
     hcursor =>
       for {
-        address <- hcursor.downField("address").as[DionAddress]
+        address <- hcursor.downField("dionAddress").as[DionAddress]
         value   <- hcursor.downField("value").as[Int128]
       } yield Transaction.PolyOutput(address, value)
 
@@ -379,9 +378,9 @@ trait ModelsJsonCodecs {
       )
     case o: Transaction.ArbitOutput =>
       Json.obj(
-        "coinType" -> "Arbit".asJson,
-        "address"  -> o.dionAddress.asJson,
-        "value"    -> o.value.asJson
+        "coinType"    -> "Arbit".asJson,
+        "dionAddress" -> o.dionAddress.asJson,
+        "value"       -> o.value.asJson
       )
     case o: Transaction.AssetOutput =>
       Json.obj(

@@ -1,10 +1,10 @@
 package co.topl.rpc
 
-import cats.data.{NonEmptyChain, NonEmptyList}
+import cats.data.NonEmptyChain
 import co.topl.attestation.{Address, Proposition}
 import co.topl.codecs.json.JsonCodecs
 import co.topl.codecs.json.tetra.ModelsJsonCodecs
-import co.topl.models.DionAddress
+import co.topl.models.{DionAddress, Int128 => TetraInt128, Transaction => TetraTransaction, TransactionData}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithm, BoxSelectionAlgorithms}
@@ -282,7 +282,7 @@ trait TransactionRpcResponseDecoders extends SharedCodecs {
 
   implicit val transactionUnprovenPolyTransferResponseDecoder: Decoder[
     ToplRpc.Transaction.UnprovenPolyTransfer.Response
-  ] = deriveDecoder
+  ] = unprovenTransactionJsonDecoder.map(x => ToplRpc.Transaction.UnprovenPolyTransfer.Response(x))
 
   implicit val transactionBroadcastTetraTransferResponseDecoder: Decoder[
     ToplRpc.Transaction.BroadcastTetraTransfer.Response
@@ -498,7 +498,7 @@ trait TransactionRpcParamsDecoders extends SharedCodecs {
     cursor =>
       for {
         propositionType <- cursor.downField("propositionType").as[String]
-        sender          <- cursor.downField("sender").as[NonEmptyChain[Address]]
+        senders         <- cursor.downField("senders").as[NonEmptyChain[Address]]
         recipients      <- cursor.downField("recipients").as[NonEmptyChain[(Address, Int128)]]
         fee             <- cursor.downField("fee").as[Int128]
         changeAddress   <- cursor.downField("changeAddress").as[Address]
@@ -508,7 +508,7 @@ trait TransactionRpcParamsDecoders extends SharedCodecs {
         )
       } yield ToplRpc.Transaction.RawPolyTransfer.Params(
         propositionType,
-        sender,
+        senders,
         recipients,
         fee,
         changeAddress,
@@ -517,7 +517,22 @@ trait TransactionRpcParamsDecoders extends SharedCodecs {
       )
 
   implicit val transactionUnprovenPolyTransferParamsDecoder: Decoder[ToplRpc.Transaction.UnprovenPolyTransfer.Params] =
-    deriveDecoder
+    cursor =>
+      for {
+        senders               <- cursor.downField("senders").as[NonEmptyChain[DionAddress]]
+        recipients            <- cursor.downField("recipients").as[NonEmptyChain[TetraTransaction.PolyOutput]]
+        fee                   <- cursor.downField("fee").as[TetraInt128]
+        changeAddress         <- cursor.downField("changeAddress").as[DionAddress]
+        data                  <- cursor.downField("data").as[Option[TransactionData]]
+        boxSelectionAlgorithm <- cursor.downField("boxSelectionAlgorithm").as[BoxSelectionAlgorithm]
+      } yield ToplRpc.Transaction.UnprovenPolyTransfer.Params(
+        senders,
+        recipients,
+        fee,
+        changeAddress,
+        data,
+        boxSelectionAlgorithm
+      )
 
   implicit val transactionUnprovenArbitTransferParamsDecoder
     : Decoder[ToplRpc.Transaction.UnprovenArbitTransfer.Params] =
@@ -666,7 +681,8 @@ trait TransactionRpcResponseEncoders extends SharedCodecs {
     deriveEncoder
 
   implicit val transactionUnprovenPolyTransferResponseEncoder
-    : Encoder[ToplRpc.Transaction.UnprovenPolyTransfer.Response] = deriveEncoder
+    : Encoder[ToplRpc.Transaction.UnprovenPolyTransfer.Response] =
+    Encoder[TetraTransaction.Unproven].contramap(response => response.unprovenTransfer)
 
   implicit val transactionEncodeTransferResponseEncoder: Encoder[ToplRpc.Transaction.EncodeTransfer.Response] =
     deriveEncoder
