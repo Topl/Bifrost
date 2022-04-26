@@ -107,7 +107,7 @@ object CredentialPlaygroundSean extends App {
 
       def currentSlot: Slot = 450L
 
-      def inputBoxes: List[Box[Box.Value]] = List()
+      def inputBoxes: List[Box] = List()
     }
 
   implicit val jsExecutor: Propositions.Script.JS.JSScript => F[(Json, Json) => F[Boolean]] =

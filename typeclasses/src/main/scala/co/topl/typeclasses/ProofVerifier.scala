@@ -106,7 +106,7 @@ object ProofVerifier {
       proposition: Propositions.Contextual.RequiredBoxState,
       context:     VerificationContext[F]
     ): F[Boolean] = {
-      def compareBoxes(propositionBox: Box[_])(sourceBox: Box[_]): Boolean = propositionBox match {
+      def compareBoxes(propositionBox: Box)(sourceBox: Box): Boolean = propositionBox match {
         case Box(TypedEvidence.empty, 0, value) =>
           value == sourceBox.value
         case Box(TypedEvidence.empty, nonce, Box.Values.Empty) =>
@@ -265,6 +265,6 @@ object ProofVerifier {
 trait VerificationContext[F[_]] {
   def currentTransaction: Transaction
   def currentHeight: Long
-  def inputBoxes: List[Box[Box.Value]]
+  def inputBoxes: List[Box]
   def currentSlot: Slot
 }

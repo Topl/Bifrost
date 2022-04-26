@@ -115,7 +115,7 @@ object CredentialPlaygroundJAA extends App {
     def currentTransaction: Transaction = transaction
     def currentHeight: Long = 1
 
-    def inputBoxes: List[Box[Box.Value]] = List(
+    def inputBoxes: List[Box] = List(
       Box(
         proposition.typedEvidence,
         unprovenTransaction.inputs.head._2,
@@ -164,7 +164,7 @@ object RequiredOutput extends App {
     def currentTransaction: Transaction = transaction
     def currentHeight: Long = 1
 
-    def inputBoxes: List[Box[Box.Value]] = List(
+    def inputBoxes: List[Box] = List(
       Box(
         proposition.typedEvidence,
         unprovenTransaction.inputs.head._2,
@@ -304,7 +304,7 @@ object XorGameCompletion extends App {
     def currentTransaction: Transaction = transaction
     def currentHeight: Long = 1
 
-    def inputBoxes: List[Box[Box.Value]] = List(
+    def inputBoxes: List[Box] = List(
       Box(
         halfGameProposition.typedEvidence,
         unprovenTransaction.inputs.head._2,
@@ -361,7 +361,7 @@ object RequiredBoxValue extends App {
   implicit val context: VerificationContext[F] = new VerificationContext[F] {
     def currentTransaction: Transaction = transaction
     def currentHeight: Long = 1
-    def inputBoxes: List[Box[Box.Value]] = List()
+    def inputBoxes: List[Box] = List()
     def currentSlot: Slot = 1
   }
 
@@ -396,7 +396,7 @@ object NotTest extends App {
     def currentTransaction: Transaction = transaction
     def currentHeight: Long = 3
 
-    def inputBoxes: List[Box[Box.Value]] = List(
+    def inputBoxes: List[Box] = List(
       Box(
         proposition.typedEvidence,
         unprovenTransaction.inputs.head._2,

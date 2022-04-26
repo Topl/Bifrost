@@ -1,5 +1,6 @@
 package co.topl.codecs.bytes.scodecs.valuetypes
 
+import cats.data.NonEmptyChain
 import cats.implicits._
 import co.topl.codecs.bytes.ZigZagEncoder._
 import co.topl.codecs.bytes.scodecs.valuetypes.Constants._
@@ -134,6 +135,12 @@ trait ValuetypesCodecs {
 
   implicit def seqCodec[T: Codec]: Codec[Seq[T]] =
     listCodec[T].xmap(list => list.toSeq, seq => seq.toList)
+
+  implicit def nonEmptyChainCodec[T: Codec]: Codec[NonEmptyChain[T]] =
+    listCodec[T].exmap(
+      list => Attempt.fromOption(NonEmptyChain.fromSeq(list), Err("Expected non-empty seq, but empty found")),
+      seq => Attempt.successful(seq.toList)
+    )
 
   implicit def arrayCodec[T: Codec: ClassTag]: Codec[Array[T]] =
     listCodec[T].xmap(list => list.toArray, array => array.toList)

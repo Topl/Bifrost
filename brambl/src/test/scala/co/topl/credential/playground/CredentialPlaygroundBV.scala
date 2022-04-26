@@ -131,7 +131,7 @@ object CredentialPlaygroundBV extends App {
       )
 
     override def currentHeight: Slot = 10
-    def inputBoxes: List[Box[Box.Value]] = List()
+    def inputBoxes: List[Box] = List()
     def currentSlot: Slot = 1
   }
 

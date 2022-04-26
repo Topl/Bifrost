@@ -38,6 +38,27 @@ trait ModelGenerators {
   def proofVrfEd25519Gen: Gen[Proofs.Knowledge.VrfEd25519] =
     genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Knowledge.VrfEd25519(_))
 
+  def typedEvidenceGen: Gen[TypedEvidence] =
+    for {
+      prefix   <- byteGen
+      evidence <- genSizedStrictBytes[Lengths.`32`.type]()
+    } yield TypedEvidence(prefix, evidence)
+
+  def networkPrefixGen: Gen[NetworkPrefix] =
+    byteGen.map(NetworkPrefix(_))
+
+  def dionAddressGen: Gen[DionAddress] =
+    for {
+      prefix        <- networkPrefixGen
+      typedEvidence <- typedEvidenceGen
+    } yield DionAddress(prefix, typedEvidence)
+
+  def boxReferenceGen: Gen[BoxReference] =
+    for {
+      address <- dionAddressGen
+      nonce   <- Gen.long
+    } yield (address, nonce)
+
   def eligibilityCertificateGen: Gen[EligibilityCertificate] =
     for {
       vrfProof          <- proofVrfEd25519Gen

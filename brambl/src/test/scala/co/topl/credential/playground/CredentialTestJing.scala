@@ -152,7 +152,7 @@ object CredentialTestJing extends App {
       new VerificationContext[F] {
         def currentTransaction: Transaction = transaction
         def currentHeight: Long = height
-        def inputBoxes: List[Box[Box.Value]] = List()
+        def inputBoxes: List[Box] = List()
         def currentSlot: Slot = 1
       }
     prop.isSatisfiedBy[F](proof).unsafeRunSync()

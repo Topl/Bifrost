@@ -4,12 +4,16 @@ import cats.{Eq, Show}
 import co.topl.codecs.bytes.CodecSpec
 import co.topl.models.{
   BlockHeaderV2,
+  BoxReference,
+  DionAddress,
   EligibilityCertificate,
+  Evidence,
   Int128,
   ModelGenerators,
   Proofs,
   SecretKeys,
   TaktikosAddress,
+  TypedEvidence,
   VerificationKeys
 }
 import co.topl.models.utility.{KesBinaryTree, Ratio}
@@ -181,5 +185,23 @@ class TetraScodecCodecsSpec extends CodecSpec {
     "BlockHeaderV2",
     TetraScodecCodecs.blockHeaderV2Codec,
     ModelGenerators.headerGen()
+  )
+
+  codecBehavior[TypedEvidence](
+    "TypedEvidence",
+    TetraScodecCodecs.typedEvidenceCodec,
+    ModelGenerators.typedEvidenceGen
+  )
+
+  codecBehavior[DionAddress](
+    "DionAddress",
+    TetraScodecCodecs.dionAddressCodec,
+    ModelGenerators.dionAddressGen
+  )
+
+  codecBehavior[BoxReference](
+    "BoxReference",
+    TetraScodecCodecs.boxReferenceCodec,
+    ModelGenerators.boxReferenceGen
   )
 }

@@ -1,14 +1,18 @@
 package co.topl.codecs.bytes.tetra
 
+import cats.data.NonEmptyChain
 import cats.implicits._
 import co.topl.codecs.bytes.scodecs._
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility._
+import scodec.bits.BitVector
 import scodec.codecs.{discriminated, lazily}
-import scodec.{Attempt, Codec, Err}
+import scodec.{Attempt, Codec, DecodeResult, Err}
 import shapeless.{::, HList, HNil}
+
+import scala.collection.immutable.ListMap
 
 trait TetraScodecCodecs {
 
@@ -80,6 +84,21 @@ trait TetraScodecCodecs {
         Attempt.successful(Array.fill(16 - dBytes.length)(padValue) ++ dBytes)
       }
     )
+
+  implicit val networkPrefixCodec: Codec[NetworkPrefix] =
+    Codec[Byte].xmapc(b => NetworkPrefix(b))(_.value)
+
+  implicit val typedEvidenceCodec: Codec[TypedEvidence] =
+    (Codec[TypePrefix] :: Codec[Evidence])
+      .xmapc { case prefix :: evidence :: HNil => TypedEvidence(prefix, evidence) }(t =>
+        HList(t.typePrefix, t.evidence)
+      )
+
+  implicit val dionAddressCodec: Codec[DionAddress] =
+    (Codec[NetworkPrefix] :: Codec[TypedEvidence]) // TODO: Checksum
+      .xmapc { case prefix :: typedEvidence :: HNil => DionAddress(prefix, typedEvidence) }(t =>
+        HList(t.networkPrefix, t.typedEvidence)
+      )
 
   implicit val kesBinaryTreeCodec: Codec[KesBinaryTree] = {
     val kesBinaryTreeEmptyCodec: Codec[KesBinaryTree.Empty] =
@@ -335,12 +354,52 @@ trait TetraScodecCodecs {
 
   implicit val blockBodyV2Codec: Codec[BlockBodyV2] = listCodec
 
-  implicit val transactionCodec: Codec[Transaction] = Codec.lazily(???)
-
   implicit val taktikosRegistrationBoxCodec: Codec[Box.Values.TaktikosRegistration] =
     Codec[Proofs.Knowledge.KesProduct].xmap(Box.Values.TaktikosRegistration(_), _.commitment)
 
-  implicit val boxCodec: Codec[Box[_]] = Codec.lazily(???)
+  implicit val boxCodec: Codec[Box] = Codec.lazily(???)
+
+  implicit val boxReferenceCodec: Codec[BoxReference] =
+    (Codec[DionAddress] :: Codec[BoxNonce](longCodec))
+      .xmapc { case address :: nonce :: HNil => (address, nonce) }(t => HList(t._1, t._2))
+
+  implicit val propositionCodec: Codec[Proposition] =
+    Codec(
+      {
+        case Propositions.PermanentlyLocked => Attempt.successful(BitVector.fromByte(0))
+        case _                              => ???
+      },
+      bitVector => {
+        val (typePrefixBits, remaining) = bitVector.splitAt(8)
+        val typePrefix = typePrefixBits.toByte()
+        typePrefix match {
+          case 0 => Attempt.successful(DecodeResult(Propositions.PermanentlyLocked, remaining))
+        }
+      }
+    )
+
+  implicit val proofCodec: Codec[Proof] =
+    Codec.lazily(???)
+
+  implicit val polyOutputCodec: Codec[Transaction.PolyOutput] =
+    Codec.lazily(???)
+
+  implicit val coinOutputCodec: Codec[Transaction.CoinOutput] =
+    Codec.lazily(???)
+
+  implicit val transactionCodec: Codec[Transaction] =
+    (
+      Codec[ListMap[BoxReference, (Proposition, Proof)]] ::
+        Codec[Option[Transaction.PolyOutput]] ::
+        Codec[NonEmptyChain[Transaction.CoinOutput]] ::
+        Codec[Int128] ::
+        Codec[Timestamp](uLongCodec) ::
+        Codec[Option[TransactionData]] ::
+        Codec[Boolean]
+    ).xmapc { case inputs :: feeOutput :: coinOutputs :: fee :: timestamp :: data :: minting :: HNil =>
+      Transaction(inputs, feeOutput, coinOutputs, fee, timestamp, data, minting)
+    }(t => HList(t.inputs, t.feeOutput, t.coinOutputs, t.fee, t.timestamp, t.data, t.minting))
+
 }
 
 object TetraScodecCodecs extends TetraScodecCodecs

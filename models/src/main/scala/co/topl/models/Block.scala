@@ -7,7 +7,7 @@ import co.topl.models.utility.{Lengths, Sized}
 case class BlockV1(
   parentId:     TypedIdentifier,
   timestamp:    Timestamp,
-  generatorBox: Box[Box.Values.Arbit],
+  generatorBox: Box,
   publicKey:    Bytes,
   signature:    Bytes,
   height:       Long,
