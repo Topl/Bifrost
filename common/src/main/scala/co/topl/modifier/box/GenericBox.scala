@@ -12,7 +12,7 @@ abstract class GenericBox[+T] extends BytesSerializable {
   val id: BoxId // a one-time only, unique reference id (computed from the input transaction data)
 
   override def equals(obj: Any): Boolean = obj match {
-    case bx: GenericBox[T] => (bx.id == id) && bx.value == value && bx.evidence == evidence
-    case _                 => false
+    case bx: GenericBox[T @unchecked] => (bx.id == id) && bx.value == value && bx.evidence == evidence
+    case _                            => false
   }
 }
