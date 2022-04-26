@@ -10,9 +10,12 @@ import co.topl.models.{
   Evidence,
   Int128,
   ModelGenerators,
+  Proof,
   Proofs,
+  Proposition,
   SecretKeys,
   TaktikosAddress,
+  Transaction,
   TypedEvidence,
   VerificationKeys
 }
@@ -203,5 +206,23 @@ class TetraScodecCodecsSpec extends CodecSpec {
     "BoxReference",
     TetraScodecCodecs.boxReferenceCodec,
     ModelGenerators.boxReferenceGen
+  )
+
+  codecBehavior[Proposition](
+    "Proposition",
+    TetraScodecCodecs.propositionCodec,
+    ModelGenerators.arbitraryProposition.arbitrary
+  )
+
+  codecBehavior[Proof](
+    "Proof",
+    TetraScodecCodecs.proofCodec,
+    ModelGenerators.arbitraryProof.arbitrary
+  )
+
+  codecBehavior[Transaction](
+    "Transaction",
+    TetraScodecCodecs.transactionCodec,
+    ModelGenerators.arbitraryTransaction.arbitrary
   )
 }

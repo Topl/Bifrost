@@ -99,7 +99,9 @@ object ProofVerifier {
       proposition: Propositions.Knowledge.HashLock,
       proof:       Proofs.Knowledge.HashLock
     ): F[Boolean] =
-      (blake2b256.hash(proof.salt.data.toArray :+ proof.value).value sameElements proposition.digest.data.toArray)
+      (blake2b256
+        .hash((proof.salt.data :+ proof.value).toArray)
+        .value sameElements proposition.digest.data.toArray)
         .pure[F]
 
     private def requiredBoxVerifier[F[_]: Applicative](

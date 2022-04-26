@@ -8,11 +8,12 @@ import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility._
 import scodec.bits.BitVector
-import scodec.codecs.{discriminated, lazily}
+import scodec.codecs.{bytes, discriminated, lazily}
 import scodec.{Attempt, Codec, DecodeResult, Err}
 import shapeless.{::, HList, HNil}
 
-import scala.collection.immutable.ListMap
+import scala.collection.immutable.{ListMap, ListSet}
+import scala.reflect.ClassTag
 
 trait TetraScodecCodecs {
 
@@ -42,11 +43,14 @@ trait TetraScodecCodecs {
         )
       )(t => Attempt.successful(t.data.allBytes.toArray))
 
+  implicit val byteVectorCodec: Codec[Bytes] =
+    arrayCodec[Byte].xmap(arr => Bytes(arr), _.toArray)
+
   implicit val typedBytesCodec: Codec[TypedBytes] =
-    (byteCodec :: arrayCodec[Byte])
+    (byteCodec :: byteVectorCodec)
       .xmapc { case prefix :: data :: _ =>
-        TypedBytes(prefix, Bytes(data))
-      }(t => HList(t.typePrefix, t.dataBytes.toArray))
+        TypedBytes(prefix, data)
+      }(t => HList(t.typePrefix, t.dataBytes))
       .as[TypedBytes]
 
   // todo: JAA - consider implications of variable vs. fixed length (BigInt vs. Int128)
@@ -163,6 +167,9 @@ trait TetraScodecCodecs {
       .xmapc { case b :: step :: HNil => VerificationKeys.KesProduct(b, step) }(t => HList(t.bytes, t.step))
       .as[VerificationKeys.KesProduct]
 
+  implicit val proofsFalseCodec: Codec[Proofs.False.type] =
+    emptyCodec(Proofs.False)
+
   implicit val proofSignatureCurve25519: Codec[Proofs.Knowledge.Curve25519] =
     strictSizedBytesCodec[Proofs.Knowledge.Curve25519.Length].xmapc(t => Proofs.Knowledge.Curve25519(t))(_.bytes)
 
@@ -197,6 +204,55 @@ trait TetraScodecCodecs {
         t.subRoot
       )
     }.as[Proofs.Knowledge.KesProduct]
+
+  implicit val proofsKnowledgeHashLockCodec: Codec[Proofs.Knowledge.HashLock] =
+    (Codec[Digest32] :: byteCodec)
+      .xmapc { case salt :: value :: HNil => Proofs.Knowledge.HashLock(salt, value) }(t => HList(t.salt, t.value))
+
+  implicit val proofsCompositionalThresholdCodec: Codec[Proofs.Compositional.Threshold] =
+    Codec
+      .lazily(Codec[List[Proof]])
+      .xmap(proofs => Proofs.Compositional.Threshold(proofs), _.proofs)
+
+  implicit val proofsCompositionalAndCodec: Codec[Proofs.Compositional.And] =
+    Codec
+      .lazily(Codec[Proof] :: Codec[Proof])
+      .xmapc { case a :: b :: HNil => Proofs.Compositional.And(a, b) }(t => HList(t.a, t.b))
+
+  implicit val proofsCompositionalOrCodec: Codec[Proofs.Compositional.Or] =
+    Codec
+      .lazily(Codec[Proof] :: Codec[Proof])
+      .xmapc { case a :: b :: HNil => Proofs.Compositional.Or(a, b) }(t => HList(t.a, t.b))
+
+  implicit val proofsCompositionalNotCodec: Codec[Proofs.Compositional.Not] =
+    Codec.lazily(Codec[Proof]).xmap(Proofs.Compositional.Not, _.a)
+
+  implicit val proofsContextualHeightLockCodec: Codec[Proofs.Contextual.HeightLock] =
+    emptyCodec(Proofs.Contextual.HeightLock())
+
+  implicit val proofsContextualRequiredBoxStateCodec: Codec[Proofs.Contextual.RequiredBoxState] =
+    emptyCodec(Proofs.Contextual.RequiredBoxState())
+
+  implicit val proofsScriptJsCodec: Codec[Proofs.Script.JS] =
+    byteStringCodec.xmap(bs => Proofs.Script.JS(bs), _.serializedArgs)
+
+  implicit val proofCodec: Codec[Proof] =
+    discriminated[Proof]
+      .by(byteCodec)
+      .typecase(0: Byte, proofsFalseCodec)
+      .typecase(1: Byte, proofSignatureCurve25519)
+      .typecase(2: Byte, proofSignatureEd25519Codec)
+      .typecase(3: Byte, proofSignatureVrfCodec)
+      .typecase(4: Byte, proofSignatureKesSumCodec)
+      .typecase(5: Byte, proofSignatureKesProductCodec)
+      .typecase(6: Byte, proofsKnowledgeHashLockCodec)
+      .typecase(7: Byte, proofsCompositionalThresholdCodec)
+      .typecase(8: Byte, proofsCompositionalAndCodec)
+      .typecase(9: Byte, proofsCompositionalOrCodec)
+      .typecase(10: Byte, proofsCompositionalNotCodec)
+      .typecase(11: Byte, proofsContextualHeightLockCodec)
+      .typecase(12: Byte, proofsContextualRequiredBoxStateCodec)
+      .typecase(13: Byte, proofsScriptJsCodec)
 
   implicit val secretKeyCurve25519Codec: Codec[SecretKeys.Curve25519] =
     strictSizedBytesCodec[SecretKeys.Curve25519.Length].xmapc(t => SecretKeys.Curve25519(t))(t => t.bytes)
@@ -352,7 +408,7 @@ trait TetraScodecCodecs {
         )
       )
 
-  implicit val blockBodyV2Codec: Codec[BlockBodyV2] = listCodec
+  implicit val blockBodyV2Codec: Codec[BlockBodyV2] = listCodec[TypedIdentifier]
 
   implicit val taktikosRegistrationBoxCodec: Codec[Box.Values.TaktikosRegistration] =
     Codec[Proofs.Knowledge.KesProduct].xmap(Box.Values.TaktikosRegistration(_), _.commitment)
@@ -363,29 +419,104 @@ trait TetraScodecCodecs {
     (Codec[DionAddress] :: Codec[BoxNonce](longCodec))
       .xmapc { case address :: nonce :: HNil => (address, nonce) }(t => HList(t._1, t._2))
 
-  implicit val propositionCodec: Codec[Proposition] =
-    Codec(
-      {
-        case Propositions.PermanentlyLocked => Attempt.successful(BitVector.fromByte(0))
-        case _                              => ???
-      },
-      bitVector => {
-        val (typePrefixBits, remaining) = bitVector.splitAt(8)
-        val typePrefix = typePrefixBits.toByte()
-        typePrefix match {
-          case 0 => Attempt.successful(DecodeResult(Propositions.PermanentlyLocked, remaining))
-        }
-      }
+  implicit val propositionPermanentlyLockedCodec: Codec[Propositions.PermanentlyLocked.type] =
+    emptyCodec(Propositions.PermanentlyLocked)
+
+  implicit val propositionsKnowledgeCurve25519Codec: Codec[Propositions.Knowledge.Curve25519] =
+    Codec[VerificationKeys.Curve25519].xmap(Propositions.Knowledge.Curve25519, _.key)
+
+  implicit val propositionsKnowledgeEd25519Codec: Codec[Propositions.Knowledge.Ed25519] =
+    Codec[VerificationKeys.Ed25519].xmap(Propositions.Knowledge.Ed25519, _.key)
+
+  implicit val propositionsKnowledgeExtendedEd25519Codec: Codec[Propositions.Knowledge.ExtendedEd25519] =
+    Codec[VerificationKeys.ExtendedEd25519].xmap(Propositions.Knowledge.ExtendedEd25519, _.key)
+
+  implicit val propositionsKnowledgeHashLockCodec: Codec[Propositions.Knowledge.HashLock] =
+    Codec[Digest32].xmap(Propositions.Knowledge.HashLock, _.digest)
+
+  implicit val propositionsCompositionalThresholdCodec: Codec[Propositions.Compositional.Threshold] =
+    Codec.lazily(
+      (Codec[Int](intCodec) :: Codec[ListSet[Proposition]])
+        .xmapc { case threshold :: propositions :: HNil =>
+          Propositions.Compositional.Threshold(threshold, propositions)
+        }(t => HList(t.threshold, t.propositions))
     )
 
-  implicit val proofCodec: Codec[Proof] =
-    Codec.lazily(???)
+  implicit val propositionsCompositionalAndCodec: Codec[Propositions.Compositional.And] =
+    Codec.lazily(
+      (Codec[Proposition] :: Codec[Proposition])
+        .xmapc { case a :: b :: HNil => Propositions.Compositional.And(a, b) }(t => HList(t.a, t.b))
+    )
+
+  implicit val propositionsCompositionalOrCodec: Codec[Propositions.Compositional.Or] =
+    Codec.lazily(
+      (Codec[Proposition] :: Codec[Proposition])
+        .xmapc { case a :: b :: HNil => Propositions.Compositional.Or(a, b) }(t => HList(t.a, t.b))
+    )
+
+  implicit val propositionsCompositionalNotCodec: Codec[Propositions.Compositional.Not] =
+    Codec.lazily(Codec[Proposition].xmap(Propositions.Compositional.Not, _.a))
+
+  implicit val propositionsContextualHeightLockCodec: Codec[Propositions.Contextual.HeightLock] =
+    uLongCodec.xmap(Propositions.Contextual.HeightLock, _.height)
+
+  implicit val boxLocationCodec: Codec[BoxLocation] =
+    discriminated[BoxLocation]
+      .by(byteCodec)
+      .typecase(0: Byte, emptyCodec(BoxLocations.Input))
+      .typecase(1: Byte, emptyCodec(BoxLocations.Output))
+
+  implicit val propositionsContextualRequiredBoxStateCodec: Codec[Propositions.Contextual.RequiredBoxState] =
+    Codec.lazily(
+      (Codec[BoxLocation] :: Codec[List[(Int, Box)]](listCodec(tupleCodec(intCodec, boxCodec))))
+        .xmapc { case location :: boxes :: HNil => Propositions.Contextual.RequiredBoxState(location, boxes) }(t =>
+          HList(t.location, t.boxes)
+        )
+    )
+
+  implicit val propositionsScriptJsCodec: Codec[Propositions.Script.JS] =
+    byteStringCodec.xmap(bs => Propositions.Script.JS(Propositions.Script.JS.JSScript(bs)), _.script.value)
+
+  implicit val propositionCodec: Codec[Proposition] =
+    discriminated[Proposition]
+      .by(byteCodec)
+      .typecase[Propositions.PermanentlyLocked.type](0: Byte, propositionPermanentlyLockedCodec)
+      .typecase[Propositions.Knowledge.Curve25519](1: Byte, propositionsKnowledgeCurve25519Codec)
+      .typecase[Propositions.Knowledge.Ed25519](2: Byte, propositionsKnowledgeEd25519Codec)
+      .typecase[Propositions.Knowledge.ExtendedEd25519](3: Byte, propositionsKnowledgeExtendedEd25519Codec)
+      .typecase[Propositions.Knowledge.HashLock](4: Byte, propositionsKnowledgeHashLockCodec)
+      .typecase[Propositions.Compositional.Threshold](5: Byte, propositionsCompositionalThresholdCodec)
+      .typecase[Propositions.Compositional.And](6: Byte, propositionsCompositionalAndCodec)
+      .typecase[Propositions.Compositional.Or](7: Byte, propositionsCompositionalOrCodec)
+      .typecase[Propositions.Compositional.Not](8: Byte, propositionsCompositionalNotCodec)
+      .typecase[Propositions.Contextual.HeightLock](9: Byte, propositionsContextualHeightLockCodec)
+      .typecase[Propositions.Contextual.RequiredBoxState](10: Byte, propositionsContextualRequiredBoxStateCodec)
+      .typecase[Propositions.Script.JS](11: Byte, propositionsScriptJsCodec)
 
   implicit val polyOutputCodec: Codec[Transaction.PolyOutput] =
-    Codec.lazily(???)
+    (Codec[DionAddress] :: Codec[Int128])
+      .xmapc { case address :: value :: HNil => Transaction.PolyOutput(address, value) }(t =>
+        HList(t.dionAddress, t.value)
+      )
+
+  implicit val arbitOutputCodec: Codec[Transaction.ArbitOutput] =
+    (Codec[DionAddress] :: Codec[Int128])
+      .xmapc { case address :: value :: HNil => Transaction.ArbitOutput(address, value) }(t =>
+        HList(t.dionAddress, t.value)
+      )
+
+  implicit val assetOutputCodec: Codec[Transaction.AssetOutput] =
+    (Codec[DionAddress] :: Codec[Box.Values.Asset])
+      .xmapc { case address :: value :: HNil => Transaction.AssetOutput(address, value) }(t =>
+        HList(t.dionAddress, t.value)
+      )
 
   implicit val coinOutputCodec: Codec[Transaction.CoinOutput] =
-    Codec.lazily(???)
+    discriminated[Transaction.CoinOutput]
+      .by(byteCodec)
+      .typecase(0: Byte, polyOutputCodec)
+      .typecase(1: Byte, arbitOutputCodec)
+      .typecase(2: Byte, assetOutputCodec)
 
   implicit val transactionCodec: Codec[Transaction] =
     (

@@ -1,6 +1,6 @@
 package co.topl.modifier.transaction.ops
 
-import cats.data.NonEmptyChain
+import cats.data.{Chain, NonEmptyChain}
 import co.topl.attestation.{PublicKeyPropositionEd25519, SignatureEd25519}
 import co.topl.models._
 import co.topl.modifier.implicits._
@@ -14,6 +14,8 @@ import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
+import scala.collection.immutable.ListMap
+
 class TetraTransactionOpsSpec
     extends AnyFunSpec
     with Matchers
@@ -24,8 +26,37 @@ class TetraTransactionOpsSpec
   object ModelGen extends ModelGenerators
 
   private def txWithOutputs(outputs: NonEmptyChain[Transaction.CoinOutput]): Gen[Transaction] =
-    ModelGen.arbitraryTransaction.arbitrary
-      .map(tx => tx.copy(coinOutputs = outputs))
+    (
+      for {
+        inputs <- Gen.nonEmptyContainerOf[List, BoxReference](
+          ModelGenerators.arbitraryDionAddress.arbitrary.flatMap(a => Gen.long.map(l => (a, l)))
+        )
+        feeOutput <- Gen.option(ModelGenerators.arbitraryPolyOutput.arbitrary)
+        fee       <- ModelGenerators.arbitraryInt128.arbitrary
+        timestamp <- Gen.chooseNum[Long](0L, 100000L)
+        data = None
+        minting = false
+        provenInputs <-
+          Gen
+            .listOfN(
+              inputs.length,
+              Gen.zip(
+                ModelGenerators.arbitraryPropositionsKnowledgeEd25519.arbitrary,
+                ModelGenerators.arbitraryProofsKnowledgeEd25519.arbitrary
+              )
+            )
+            .map(pairs => inputs.zip(pairs))
+        tx = Transaction(
+          inputs = ListMap(provenInputs: _*),
+          feeOutput = feeOutput,
+          coinOutputs = outputs,
+          fee = fee,
+          timestamp = timestamp,
+          data = data,
+          minting = minting
+        )
+      } yield tx
+    )
 
   private val arbitTxGen: Gen[Transaction] =
     Gen
