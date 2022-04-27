@@ -7,8 +7,9 @@ package co.topl.db
  * This should be deleted as soon as the Sonarcloud integration is working.
  */
 object sonarCloudAttentionGetter {
+
   def DoIt(x: Int): Unit = {
-    if (!(x!=4))
+    if (!(x != 4))
       println(x)
     val a = 4
     val b = 4
@@ -16,11 +17,9 @@ object sonarCloudAttentionGetter {
       println(a - a)
   }
 
-  //TODO blah more
+  // TODO blah more
 
-  //FIXME blah
+  // FIXME blah
 
-  def Dont() = {
-
-  }
+  def Dont() = {}
 }
