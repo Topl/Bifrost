@@ -4,9 +4,9 @@ import cats.data.{Chain, NonEmptyChain}
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.StringDataTypes.Latin1Data
-import co.topl.models.utility.{KesBinaryTree, Length, Lengths, Ratio, Sized}
-import org.scalacheck.{Arbitrary, Gen}
+import co.topl.models.utility._
 import org.scalacheck.rng.Seed
+import org.scalacheck.{Arbitrary, Gen}
 
 import scala.collection.immutable.{ListMap, ListSet}
 
@@ -344,6 +344,25 @@ trait ModelGenerators {
       } yield box
     )
 
+  implicit val arbitraryBoxValue: Arbitrary[Box.Value] =
+    Arbitrary(
+      Gen.oneOf(
+        Gen.const(Box.Values.Empty),
+        arbitraryInt128.arbitrary.map(Box.Values.Poly),
+        arbitraryInt128.arbitrary.map(Box.Values.Arbit),
+        arbitraryAssetBox.arbitrary
+      )
+    )
+
+  implicit val arbitraryBox: Arbitrary[Box] =
+    Arbitrary(
+      for {
+        evidence <- typedEvidenceGen
+        nonce    <- Gen.long
+        value    <- arbitraryBoxValue.arbitrary
+      } yield Box(evidence, nonce, value)
+    )
+
   implicit val arbitraryPolyOutput: Arbitrary[Transaction.PolyOutput] =
     Arbitrary(
       arbitraryDionAddress.arbitrary.flatMap(a => arbitraryInt128.arbitrary.map(v => Transaction.PolyOutput(a, v)))
@@ -422,6 +441,29 @@ trait ModelGenerators {
   implicit val arbitraryPropositionsContextualHeightLock: Arbitrary[Propositions.Contextual.HeightLock] =
     Arbitrary(Gen.posNum[Long].map(Propositions.Contextual.HeightLock))
 
+  implicit val arbitraryBoxLocation: Arbitrary[BoxLocation] =
+    Arbitrary(Gen.oneOf(BoxLocations.Input, BoxLocations.Output))
+
+  implicit val arbitraryPropositionsContextualRequiredBoxState: Arbitrary[Propositions.Contextual.RequiredBoxState] =
+    Arbitrary(
+      for {
+        location <- arbitraryBoxLocation.arbitrary
+        boxes <- Gen.nonEmptyListOf(
+          Gen.zip(
+            Gen.chooseNum[Int](0, 5),
+            arbitraryBox.arbitrary
+          )
+        )
+      } yield Propositions.Contextual.RequiredBoxState(location, boxes)
+    )
+
+  implicit val arbitraryPropositionsScriptJs: Arbitrary[Propositions.Script.JS] =
+    Arbitrary(
+      Gen.asciiPrintableStr
+        .map(Propositions.Script.JS.JSScript(_))
+        .map(Propositions.Script.JS(_))
+    )
+
   implicit val arbitraryProposition: Arbitrary[Proposition] =
     Arbitrary(
       Gen.oneOf(
@@ -434,8 +476,9 @@ trait ModelGenerators {
         implicitly[Arbitrary[Propositions.Compositional.And]].arbitrary,
         implicitly[Arbitrary[Propositions.Compositional.Or]].arbitrary,
         implicitly[Arbitrary[Propositions.Compositional.Not]].arbitrary,
-        implicitly[Arbitrary[Propositions.Contextual.HeightLock]].arbitrary
-        // TODO: RequiredBoxState and JS
+        implicitly[Arbitrary[Propositions.Contextual.HeightLock]].arbitrary,
+        implicitly[Arbitrary[Propositions.Contextual.RequiredBoxState]].arbitrary,
+        implicitly[Arbitrary[Propositions.Script.JS]].arbitrary
       )
     )
 
