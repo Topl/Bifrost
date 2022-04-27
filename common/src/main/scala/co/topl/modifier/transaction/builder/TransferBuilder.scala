@@ -19,6 +19,7 @@ import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer}
 import co.topl.modifier.{BoxReader, ProgramId}
 import co.topl.utils.ops.implicits._
 import co.topl.utils.{Identifiable, Int128}
+import mouse.all._
 
 import java.time.Instant
 import scala.collection.immutable.ListMap
@@ -89,7 +90,11 @@ object TransferBuilder {
     request:      TransferRequests.AssetTransferRequest,
     boxSelection: BoxSelectionAlgorithm
   ): Either[BuildTransferFailure, AssetTransfer[P]] = {
-    val assetsOwed = request.to.groupMapReduce(_._2.assetCode)(_._2.quantity)(_ + _)
+    val assetsOwed =
+      request.to
+        .map(_._2)
+        .map(value => value.assetCode -> value.quantity)
+        .toMap
 
     val inputBoxes =
       if (!request.minting)
@@ -103,7 +108,8 @@ object TransferBuilder {
 
     val assetCodeOpt = request.to.headOption.map(_._2.assetCode)
 
-    val inputs = (inputBoxes.assets.map(_.map(_.nonce)) ++ inputBoxes.polys.map(_.map(_.nonce))).toIndexedSeq
+    val inputs =
+      (inputBoxes.assets.map(a => a._1 -> a._2.nonce) ++ inputBoxes.polys.map(p => p._1 -> p._2.nonce)).toIndexedSeq
 
     val outputs: AssetCode => IndexedSeq[(Address, TokenValueHolder)] = { assetCode =>
       val polyChange = polyFunds - request.fee
@@ -179,8 +185,8 @@ object TransferBuilder {
     val polyChangeOutput = request.changeAddress         -> SimpleValue(polyFunds - request.fee)
     val arbitChangeOutput = request.consolidationAddress -> SimpleValue(arbitFunds - arbitsOwed)
 
-    val polyInputs = inputBoxes.polys.map(_.map(_.nonce))
-    val arbitInputs = inputBoxes.arbits.map(_.map(_.nonce))
+    val polyInputs = inputBoxes.polys.map(p => p._1 -> p._2.nonce)
+    val arbitInputs = inputBoxes.arbits.map(a => a._1 -> a._2.nonce)
     val inputs = (polyInputs ++ arbitInputs).toIndexedSeq
 
     val outputs = (polyChangeOutput :: arbitChangeOutput :: arbitOutputs).toIndexedSeq
@@ -232,9 +238,11 @@ object TransferBuilder {
     val arbitsOwed = arbitOutputValues.sum
 
     val assetOutputValues = assetOutputs.map(x => Int128(x.value.quantity.data))
-    val assetsOwed =
+    val assetsOwed: Map[AssetCode, Int128] =
       assetOutputs
-        .groupMapReduce(key => key.value.toAssetValue.assetCode)(value => Int128(value.value.quantity.data))(_ + _)
+        .map(_.value.toAssetValue)
+        .map(value => value.assetCode -> value.quantity)
+        .toMap
 
     val inputAddresses = request.from.map(_.toAddress)
 
@@ -252,15 +260,15 @@ object TransferBuilder {
 
     // only create a poly change output when the poly change is not 0
     val polyChangeOutput =
-      Option.when(polyChange > 0)(Transaction.PolyOutput(request.feeChangeAddress, polyChange.toSized))
+      (polyChange > 0).option(Transaction.PolyOutput(request.feeChangeAddress, polyChange.toSized))
 
-    val arbitFunds = Option.when(arbitsOwed > 0)(inputBoxes.arbitSum)
+    val arbitFunds = (arbitsOwed > 0).option(inputBoxes.arbitSum)
     val arbitChange = arbitFunds.map(_ - arbitsOwed)
 
     // only create an arbit change output when arbits a spent in the transfer and the remaining change is not 0
     val arbitChangeOutput =
       arbitChange.flatMap(change =>
-        Option.when(change > 0)(Transaction.ArbitOutput(request.consolidationAddress, change.toSized))
+        (change > 0).option(Transaction.ArbitOutput(request.consolidationAddress, change.toSized))
       )
 
     val assetFunds = inputBoxes.assetSums.filter(_._2 > 0)
@@ -380,7 +388,7 @@ object TransferBuilder {
   ): Either[BuildTransferFailure, List[Transaction.AssetOutput]] =
     assetChange.toList
       // attempt to convert each asset into an output
-      .traverse(asset =>
+      .traverse[Either[BuildTransferFailure, *], Transaction.AssetOutput](asset =>
         asset._1.toTetraAssetCode
           .map(assetCode =>
             Transaction.AssetOutput(

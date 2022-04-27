@@ -3,6 +3,7 @@ package co.topl.modifier.transaction.builder
 import co.topl.attestation.Address
 import co.topl.modifier.box._
 import co.topl.utils.Int128
+import mouse.all._
 
 sealed trait BoxSelectionAlgorithm
 
@@ -46,7 +47,7 @@ object BoxSelectionAlgorithm {
   private def all(from: BoxSet, arbitsNeeded: Int128, assetsNeeded: Map[AssetCode, Int128]): BoxSet =
     from.copy(
       assets = from.assets.filter(box => assetsNeeded.contains(box._2.value.assetCode)),
-      arbits = Option.when(arbitsNeeded > 0)(from.arbits).toList.flatten
+      arbits = (arbitsNeeded > 0).option(from.arbits).toList.flatten
     )
 
   private def orderedByValue(
