@@ -34,7 +34,7 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with
     "successfully create a transfer with the provided sender in the 'inputs' field" in {
       val requestBody = createRequestBody(propositionType, sender, recipient, amount, fee)
 
-      val path = (cursor: HCursor) => cursor.downField("result").downField("inputs")
+      val path = (cursor: HCursor) => cursor.downField("result").downField("unprovenTransfer").downField("inputs")
 
       val result =
         httpPOST(requestBody) ~> route ~> check(
@@ -47,7 +47,7 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with
     "successfully create a transfer with 'minting' set to false" in {
       val requestBody = createRequestBody(propositionType, sender, recipient, amount, fee)
 
-      val path = (cursor: HCursor) => cursor.downField("result").downField("minting")
+      val path = (cursor: HCursor) => cursor.downField("result").downField("unprovenTransfer").downField("minting")
 
       val result =
         httpPOST(requestBody) ~> route ~> check(
@@ -60,7 +60,7 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with
     "successfully create a transfer with recipient in 'coinOutputs' field" in {
       val requestBody = createRequestBody(propositionType, sender, recipient, amount, fee)
 
-      val path = (cursor: HCursor) => cursor.downField("result").downField("coinOutputs")
+      val path = (cursor: HCursor) => cursor.downField("result").downField("unprovenTransfer").downField("coinOutputs")
 
       val result =
         httpPOST(requestBody) ~> route ~> check(
@@ -83,7 +83,8 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with
     "successfully create a transfer with the expected change address" in {
       val requestBody = createRequestBody(propositionType, sender, recipient, amount, fee)
 
-      val path = (cursor: HCursor) => cursor.downField("result").downField("feeOutput").downField("dionAddress")
+      val path = (cursor: HCursor) =>
+        cursor.downField("result").downField("unprovenTransfer").downField("feeOutput").downField("dionAddress")
 
       val result =
         httpPOST(requestBody) ~> route ~> check(
@@ -116,7 +117,7 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with
           |}
         """.stripMargin)
 
-      val path = (cursor: HCursor) => cursor.downField("result").downField("data")
+      val path = (cursor: HCursor) => cursor.downField("result").downField("unprovenTransfer").downField("data")
 
       val result =
         httpPOST(requestBody) ~> route ~> check(
