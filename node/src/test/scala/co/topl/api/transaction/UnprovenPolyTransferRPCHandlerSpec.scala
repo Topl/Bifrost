@@ -15,7 +15,6 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with
 
   import UnprovenPolyTransferRPCHandlerSpec._
 
-  val propositionType: String = PublicKeyPropositionCurve25519.typeString
   val amount = 100
   val fee = 1
 
@@ -32,7 +31,7 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with
   "Unproven Poly Transfer RPC Handler" should {
 
     "successfully create a transfer with the provided sender in the 'inputs' field" in {
-      val requestBody = createRequestBody(propositionType, sender, recipient, amount, fee)
+      val requestBody = createRequestBody(List(sender), List(recipient -> amount), fee, sender, None)
 
       val path = (cursor: HCursor) => cursor.downField("result").downField("unprovenTransfer").downField("inputs")
 
@@ -45,7 +44,7 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with
     }
 
     "successfully create a transfer with 'minting' set to false" in {
-      val requestBody = createRequestBody(propositionType, sender, recipient, amount, fee)
+      val requestBody = createRequestBody(List(sender), List(recipient -> amount), fee, sender, None)
 
       val path = (cursor: HCursor) => cursor.downField("result").downField("unprovenTransfer").downField("minting")
 
@@ -58,7 +57,7 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with
     }
 
     "successfully create a transfer with recipient in 'coinOutputs' field" in {
-      val requestBody = createRequestBody(propositionType, sender, recipient, amount, fee)
+      val requestBody = createRequestBody(List(sender), List(recipient -> amount), fee, sender, None)
 
       val path = (cursor: HCursor) => cursor.downField("result").downField("unprovenTransfer").downField("coinOutputs")
 
@@ -81,7 +80,7 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with
     }
 
     "successfully create a transfer with the expected change address" in {
-      val requestBody = createRequestBody(propositionType, sender, recipient, amount, fee)
+      val requestBody = createRequestBody(List(sender), List(recipient -> amount), fee, sender, None)
 
       val path = (cursor: HCursor) =>
         cursor.downField("result").downField("unprovenTransfer").downField("feeOutput").downField("dionAddress")
@@ -97,25 +96,7 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with
     "successfully create a transfer with the expected 'data'" in {
       val data = "test-data"
 
-      val requestBody =
-        ByteString(s"""
-          |{
-          | "jsonrpc": "2.0",
-          | "id": "2",
-          | "method": "topl_unprovenPolyTransfer",
-          | "params": [ {
-          |   "senders": ["$sender"],
-          |   "recipients": [ {
-          |     "dionAddress": "$recipient",
-          |     "value": "$amount"
-          |   } ],
-          |   "fee": $fee,
-          |   "changeAddress": "$sender",
-          |   "data": "$data",
-          |   "boxSelectionAlgorithm": "All"
-          | } ]
-          |}
-        """.stripMargin)
+      val requestBody = createRequestBody(List(sender), List(recipient -> amount), fee, sender, Some(data))
 
       val path = (cursor: HCursor) => cursor.downField("result").downField("unprovenTransfer").downField("data")
 
@@ -130,7 +111,7 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with
     "fail to create a transfer when sender has no polys" in {
       val emptySender = addressGen.sample.get.toDionAddress.toOption.get.allBytes.toBase58
 
-      val requestBody = createRequestBody(propositionType, emptySender, recipient, amount, fee)
+      val requestBody = createRequestBody(List(emptySender), List(recipient -> amount), fee, sender, None)
 
       val path = (cursor: HCursor) => cursor.downField("error").downField("data").downField("message")
 
@@ -140,25 +121,7 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with
     }
 
     "fail to create a transfer when no sender is provided" in {
-      val requestBody =
-        ByteString(s"""
-          |{
-          | "jsonrpc": "2.0",
-          | "id": "2",
-          | "method": "topl_unprovenPolyTransfer",
-          | "params": [{
-          |   "sender": [],
-          |   "recipients": [ {
-          |     "dionAddress": "$sender",
-          |     "value": "$amount"
-          |   } ],
-          |   "fee": $fee,
-          |   "changeAddress": "$sender",
-          |   "data": "",
-          |   "boxSelectionAlgorithm": "All"
-          | }]
-          |}
-      """.stripMargin)
+      val requestBody = createRequestBody(List.empty, List(recipient -> amount), fee, sender, None)
 
       val path = (cursor: HCursor) => cursor.downField("error").downField("message")
 
@@ -173,7 +136,7 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with
     "fail to create a transfer when send amount is negative" in {
       val negativeAmount = -100
 
-      val requestBody = createRequestBody(propositionType, sender, recipient, negativeAmount, fee)
+      val requestBody = createRequestBody(List(sender), List(recipient -> negativeAmount), fee, sender, None)
 
       val path = (cursor: HCursor) => cursor.downField("error").downField("message")
 
@@ -190,38 +153,48 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with
 object UnprovenPolyTransferRPCHandlerSpec {
 
   /**
-   * Creates an Unproven Poly Transfer request HTTP body.
-   * @param propositionType the type of proposition used for signing the transfer
-   * @param sender the address that polys should be sent from
-   * @param recipient the recipient of the polys
-   * @param amount the amount of polys to send
-   * @param fee the fee provided for the transaction
-   * @return a [[ByteString]] representing the HTTP body
+   * Creates an Unproven Poly Transfer request body.
+   * @param senders the list of addresses sending polys
+   * @param recipients pairs of addresses and how many polys they should receive
+   * @param fee the fee to pay for the transaction
+   * @param changeAddress the address to send poly fee change to
+   * @param data transaction data
+   * @return a [[ByteString]] representing the transfer request
    */
   def createRequestBody(
-    propositionType: String,
-    sender:          String,
-    recipient:       String,
-    amount:          Int,
-    fee:             Int
-  ): ByteString =
+    senders:       List[String],
+    recipients:    List[(String, Int)],
+    fee:           Int,
+    changeAddress: String,
+    data:          Option[String]
+  ): ByteString = {
+    val sendersString =
+      senders
+        .map(value => s""""$value"""")
+        .mkString(", ")
+
+    val recipientsString =
+      recipients
+        .map(value => s"""{ "dionAddress": "${value._1}", "value": "${value._2}" }""")
+        .mkString(", ")
+
+    val dataString = data.fold("null")(value => s""""$value"""")
+
     ByteString(s"""
-         |{
-         | "jsonrpc": "2.0",
-         | "id": "2",
-         | "method": "topl_unprovenPolyTransfer",
-         | "params": [ {
-         |   "senders": ["$sender"],
-         |   "recipients": [ {
-         |     "dionAddress": "$recipient",
-         |     "value": "$amount"
-         |   } ],
-         |   "fee": $fee,
-         |   "changeAddress": "$sender",
-         |   "data": null,
-         |   "boxSelectionAlgorithm": "All"
-         | } ]
-         |}
+      |{
+      | "jsonrpc": "2.0",
+      | "id": "2",
+      | "method": "topl_unprovenPolyTransfer",
+      | "params": [ {
+      |   "senders": [$sendersString],
+      |   "recipients": [$recipientsString],
+      |   "fee": $fee,
+      |   "changeAddress": "$changeAddress",
+      |   "data": $dataString,
+      |   "boxSelectionAlgorithm": "All"
+      | } ]
+      |}
     """.stripMargin)
+  }
 
 }
