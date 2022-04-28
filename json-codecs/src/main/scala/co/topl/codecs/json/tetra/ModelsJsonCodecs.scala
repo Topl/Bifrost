@@ -378,9 +378,9 @@ trait ModelsJsonCodecs {
       )
     case o: Transaction.ArbitOutput =>
       Json.obj(
-        "coinType"    -> "Arbit".asJson,
-        "dionAddress" -> o.dionAddress.asJson,
-        "value"       -> o.value.asJson
+        "coinType" -> "Arbit".asJson,
+        "address"  -> o.dionAddress.asJson,
+        "value"    -> o.value.asJson
       )
     case o: Transaction.AssetOutput =>
       Json.obj(
@@ -400,7 +400,7 @@ trait ModelsJsonCodecs {
           case "Poly" =>
             valueJson.as[Int128].map(value => Transaction.PolyOutput(address, value))
           case "Arbit" =>
-            valueJson.as[Int128].map(value => Transaction.PolyOutput(address, value))
+            valueJson.as[Int128].map(value => Transaction.ArbitOutput(address, value))
           case "Asset" =>
             valueJson.as[Box.Values.Asset].map(value => Transaction.AssetOutput(address, value))
           case _ =>
