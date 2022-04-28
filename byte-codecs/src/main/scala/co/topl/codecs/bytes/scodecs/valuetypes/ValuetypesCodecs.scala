@@ -2,38 +2,17 @@ package co.topl.codecs.bytes.scodecs.valuetypes
 
 import cats.data.NonEmptyChain
 import cats.implicits._
-import cats.{Monad, Monoid}
 import co.topl.codecs.bytes.ZigZagEncoder._
 import co.topl.codecs.bytes.scodecs.valuetypes.Constants._
 import co.topl.codecs.bytes.scodecs.valuetypes.Types._
-import scodec.bits.BitVector
+import scodec.bits.{BitVector, ByteVector}
 import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
-
-import scala.annotation.tailrec
 import scala.collection.SortedSet
 import scala.collection.immutable.{ListMap, ListSet}
 import scala.reflect.ClassTag
 import scala.util.Try
 
 trait ValuetypesCodecs {
-
-  implicit private val bitVectorMonoid: Monoid[BitVector] =
-    Monoid.instance(BitVector.empty, _ ++ _)
-
-  implicit val attemptMonad: Monad[Attempt] =
-    new Monad[Attempt] {
-      def flatMap[A, B](fa: Attempt[A])(f: A => Attempt[B]): Attempt[B] = fa.flatMap(f)
-
-      @tailrec
-      def tailRecM[A, B](a: A)(f: A => Attempt[Either[A, B]]): Attempt[B] =
-        f(a) match {
-          case Attempt.Successful(Left(a))  => tailRecM(a)(f)
-          case Attempt.Successful(Right(b)) => Attempt.successful(b)
-          case Attempt.Failure(cause)       => Attempt.Failure(cause)
-        }
-
-      def pure[A](x: A): Attempt[A] = Attempt.successful(x)
-    }
 
   /**
    * A valuetype codec which encodes zero bytes and decodes zero bytes.
@@ -50,7 +29,9 @@ trait ValuetypesCodecs {
 
   implicit val byteCodec: Codec[Byte] = ByteCodec
 
-  def bytesCodec(size: Int): Codec[Array[Byte]] = new BytesCodec(size)
+  def bytesCodec(size: Int): Codec[ByteVector] = byteArrayCodec(size).xmap(ByteVector(_), _.toArray)
+
+  def byteArrayCodec(size: Int): Codec[Array[Byte]] = new ByteArrayCodec(size)
 
   val uByteCodec: Codec[UByte] =
     byteCodec
@@ -93,7 +74,7 @@ trait ValuetypesCodecs {
 
   implicit val byteStringCodec: Codec[ByteString] =
     uByteCodec.consume[ByteString](size =>
-      bytesCodec(size)
+      byteArrayCodec(size)
         .xmap(bytes => new String(bytes, stringCharacterSet), str => str.getBytes(stringCharacterSet))
     )(str => str.length.toByte)
 
@@ -108,7 +89,7 @@ trait ValuetypesCodecs {
         v => Attempt.successful(v.toLong)
       )
       .consume[IntString](int =>
-        bytesCodec(int)
+        byteArrayCodec(int)
           .xmap(bytes => new String(bytes, stringCharacterSet), str => str.getBytes(stringCharacterSet))
       )(str => str.length)
 
@@ -124,7 +105,7 @@ trait ValuetypesCodecs {
 
     override def encode(value: Array[T]): Attempt[BitVector] =
       Attempt
-        .guard(value.length == size && size > 0, Err("invalid collection size"))
+        .guard(value.length == size, Err("invalid collection size"))
         .flatMap(_ =>
           value.foldLeft(Attempt.successful(BitVector.empty)) {
             case (Attempt.Successful(bits), item) => Codec[T].encode(item).map(bits ++ _)
@@ -158,7 +139,7 @@ trait ValuetypesCodecs {
 
     override def encode(value: Seq[T]): Attempt[BitVector] =
       Attempt
-        .guard(value.length == size && size > 0, Err("invalid collection size"))
+        .guard(value.length == size, Err(s"invalid collection size=${value.length} expected=$size"))
         .flatMap(_ =>
           value.foldLeft(Attempt.successful(BitVector.empty)) {
             case (Attempt.Successful(bits), item) => Codec[T].encode(item).map(bits ++ _)
@@ -195,7 +176,10 @@ trait ValuetypesCodecs {
     sizedSeqCodec[T](size).xmap(_.toList, identity)
 
   implicit def listCodec[T: Codec]: Codec[List[T]] =
-    uIntCodec.consume[List[T]](uInt => sizedListCodec(uInt.toInt))(listT => listT.length)
+    uIntCodec.consume[List[T]](uInt => sizedListCodec(uInt.toInt))(_.length)
+
+  implicit def vectorCodec[T: Codec]: Codec[Vector[T]] =
+    uIntCodec.consume[Vector[T]](uInt => sizedSeqCodec[T](uInt.toInt).xmap(_.toVector, identity))(_.length)
 
   implicit def setCodec[T: Codec]: Codec[Set[T]] =
     seqCodec[T].xmap(list => list.toSet, set => set.toSeq)
