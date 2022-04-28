@@ -347,7 +347,6 @@ lazy val byteCodecs = project
       Dependencies.test ++
       Dependencies.simulacrum ++
       Dependencies.scodec ++
-      Dependencies.scodecBits ++
       Dependencies.cats ++
       Seq(Dependencies.akka("actor"))
   )
