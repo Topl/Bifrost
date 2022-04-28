@@ -372,9 +372,9 @@ trait ModelsJsonCodecs {
   implicit val encodeCoinOutput: Encoder[Transaction.CoinOutput] = {
     case o: Transaction.PolyOutput =>
       Json.obj(
-        "coinType" -> "Poly".asJson,
-        "address"  -> o.dionAddress.asJson,
-        "value"    -> o.value.asJson
+        "coinType"    -> "Poly".asJson,
+        "dionAddress" -> o.dionAddress.asJson,
+        "value"       -> o.value.asJson
       )
     case o: Transaction.ArbitOutput =>
       Json.obj(
@@ -384,23 +384,23 @@ trait ModelsJsonCodecs {
       )
     case o: Transaction.AssetOutput =>
       Json.obj(
-        "coinType" -> "Asset".asJson,
-        "address"  -> o.dionAddress.asJson,
-        "value"    -> o.value.asJson
+        "coinType"    -> "Asset".asJson,
+        "dionAddress" -> o.dionAddress.asJson,
+        "value"       -> o.value.asJson
       )
   }
 
   implicit val decodeCoinOutput: Decoder[Transaction.CoinOutput] =
     hcursor =>
       for {
-        address  <- hcursor.downField("address").as[DionAddress]
+        address  <- hcursor.downField("dionAddress").as[DionAddress]
         coinType <- hcursor.downField("coinType").as[String]
         valueJson = hcursor.downField("value")
         output <- coinType match {
           case "Poly" =>
             valueJson.as[Int128].map(value => Transaction.PolyOutput(address, value))
           case "Arbit" =>
-            valueJson.as[Int128].map(value => Transaction.PolyOutput(address, value))
+            valueJson.as[Int128].map(value => Transaction.ArbitOutput(address, value))
           case "Asset" =>
             valueJson.as[Box.Values.Asset].map(value => Transaction.AssetOutput(address, value))
           case _ =>
