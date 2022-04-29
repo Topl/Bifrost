@@ -1,6 +1,7 @@
-package co.topl.crypto.generation.mnemonic
+package co.topl.crypto.generation
 
 import cats.Eq
+import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.models.Bytes
 import org.scalacheck.Arbitrary
 

@@ -1,8 +1,9 @@
-package co.topl.crypto.generation.mnemonic
+package co.topl.crypto.generation
 
-import co.topl.crypto.generation.mnemonic.EntropySupport.arbitraryEntropy
+import cats.scalatest.EitherValues
 import co.topl.crypto.generation.mnemonic.Language.{English, LanguageWordList}
-import co.topl.crypto.generation.mnemonic.MnemonicSize.{Mnemonic12, Mnemonic15}
+import co.topl.crypto.generation.mnemonic.MnemonicSize.Mnemonic12
+import co.topl.crypto.generation.mnemonic.{Entropy, Phrase}
 import co.topl.crypto.signing.EntropyToSeed.instances._
 import co.topl.crypto.signing.{Curve25519, EntropyToSeed}
 import co.topl.crypto.utils
@@ -10,15 +11,12 @@ import co.topl.crypto.utils.Hex.implicits._
 import co.topl.crypto.utils.TestVector
 import co.topl.models.utility.{Lengths, Sized}
 import co.topl.models.{Bytes, SecretKeys}
+import io.circe.Decoder
 import io.circe.generic.semiauto.deriveDecoder
-import io.circe.{parser, Decoder}
-import cats.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import scodec.bits.ByteVector
-
-import java.nio.file.{Files, Paths}
 
 class MnemonicToCurve25519AxolotlSeedSpec
     extends AnyPropSpec
@@ -38,7 +36,7 @@ class MnemonicToCurve25519AxolotlSeedSpec
   private val entropyToSeed = EntropyToSeed.instances.pbkdf2Sha512[Lengths.`32`.type]
 
   val testVectors: List[Curve25519AxolotlTestVector] =
-    utils.readTestVectors("Curve25519AxolotlTestVectors.json")
+    utils.readTestVectors("MnemonicToSeedTestVectors.json")
 
   private val wordList = LanguageWordList.validated(English) match {
     case Left(err)   => throw new Exception(s"Could not load English language BIP-0039 file: $err")
@@ -98,14 +96,14 @@ class MnemonicToCurve25519AxolotlSeedSpec
     curveEntropy.toSeed(specIn.entropy, Some(specIn.password)) shouldBe specOut.seed
   }
 
-  property("entropy and passphrase should generate a valid deterministic Topl Curve25519 Axolotl seed") {
-    testVectors.foreach { vec =>
-      val entropy = Entropy.validated(vec.entropy.getBytes, Mnemonic12)
-
-      curveEntropy.toSeed(entropy.value, Some(vec.passphrase)) shouldBe vec.seed
-        .unsafeStrictBytes[SecretKeys.Curve25519.Length]
-    }
-  }
+//  property("entropy and passphrase should generate a valid deterministic Topl Curve25519 Axolotl seed") {
+//    testVectors.foreach { vec =>
+//      val entropy = Entropy.validated(vec.entropy.getBytes, Mnemonic12)
+//
+//      curveEntropy.toSeed(entropy.value, Some(vec.passphrase)) shouldBe vec.seed
+//        .unsafeStrictBytes[SecretKeys.Curve25519.Length]
+//    }
+//  }
 
   property("mnemonic and passphrase should generate a valid deterministic Topl Curve25519 Axolotl seed") {
     testVectors.foreach { vec =>

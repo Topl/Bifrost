@@ -1,7 +1,8 @@
-package co.topl.crypto.generation.mnemonic
+package co.topl.crypto.generation
 
 import co.topl.crypto.generation.mnemonic.Language.English
 import co.topl.crypto.generation.mnemonic.MnemonicSize.{Mnemonic12, Mnemonic18, Mnemonic24}
+import co.topl.crypto.generation.mnemonic.{FromEntropy, Language, MnemonicSize}
 import co.topl.crypto.signing.ExtendedEd25519
 import co.topl.crypto.utils.Hex.implicits._
 import co.topl.models.SecretKeys.ExtendedEd25519.Length
