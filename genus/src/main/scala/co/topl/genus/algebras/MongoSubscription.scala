@@ -15,7 +15,6 @@ import co.topl.genus.types.BlockHeight
  * @tparam T the type of data returned
  */
 trait MongoSubscription[F[_], T] {
-  def fromStart[Filter: MongoFilter](filter:       Filter): F[Source[T, NotUsed]]
   def fromBlockHeight[Filter: MongoFilter](filter: Filter, blockHeight: BlockHeight): F[Source[T, NotUsed]]
 }
 
@@ -37,9 +36,6 @@ object MongoSubscription {
     fA:      A => B
   ): MongoSubscription[F, B] =
     new MongoSubscription[F, B] {
-
-      override def fromStart[Filter: MongoFilter](filter: Filter): F[Source[B, NotUsed]] =
-        algebra.fromStart(filter).map(_.map(fA))
 
       override def fromBlockHeight[Filter: MongoFilter](
         filter:     Filter,

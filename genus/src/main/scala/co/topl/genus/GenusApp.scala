@@ -7,14 +7,14 @@ import cats.effect.unsafe.implicits.global
 import cats.effect.{ExitCode, IO, IOApp, Resource}
 import cats.implicits._
 import co.topl.genus.algebras._
-import co.topl.genus.interpreters.mongo.{MongoOplogImpl, MongoQueryImpl, MongoSubscriptionImpl}
-import co.topl.genus.interpreters.services.{QueryServiceImpl, SubscriptionServiceImpl}
+import co.topl.genus.interpreters.mongo._
+import co.topl.genus.interpreters.services._
 import co.topl.genus.programs.GenusProgram
 import co.topl.genus.settings.{ApplicationSettings, FileConfiguration, StartupOptions}
 import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.types._
 import co.topl.utils.mongodb.codecs._
-import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataModel}
+import co.topl.utils.mongodb.models._
 import com.typesafe.config.ConfigFactory
 import mainargs.ParserForClass
 import org.mongodb.scala.MongoClient
@@ -56,8 +56,6 @@ object GenusApp extends IOApp {
       mongoDatabase = mongoClient.getDatabase(settings.mongoDatabaseName)
       transactionsCollection = mongoDatabase.getCollection(settings.transactionsCollectionName)
       blocksCollection = mongoDatabase.getCollection(settings.blocksCollectionName)
-      oplogCollection = mongoClient.getDatabase(settings.localDatabaseName).getCollection(settings.oplogCollectionName)
-      oplog = MongoOplogImpl.make[IO](oplogCollection)
 
       // set up query services
       transactionsQuery =
@@ -73,35 +71,22 @@ object GenusApp extends IOApp {
 
       // set up subscription services
       transactionsSubscription =
-        MongoSubscription.map[IO, ConfirmedTransactionDataModel, Transaction](
-          MongoSubscriptionImpl.make(
-            mongoClient,
-            settings.mongoDatabaseName,
-            settings.transactionsCollectionName,
-            "block.height",
-            oplog
-          ),
-          _.transformTo[Transaction]
+        MongoSubscriptionService.make[IO, ConfirmedTransactionDataModel, Transaction](
+          ConfirmedTransactionDataMongoSubscription.make[IO](transactionsCollection)
         )
+
       blocksSubscription =
-        MongoSubscription.map[IO, BlockDataModel, Block](
-          MongoSubscriptionImpl.make(
-            mongoClient,
-            settings.mongoDatabaseName,
-            settings.blocksCollectionName,
-            "height",
-            oplog
-          ),
-          _.transformTo[Block]
+        MongoSubscriptionService.make[IO, BlockDataModel, Block](
+          BlockDataMongoSubscription.make[IO](blocksCollection)
         )
 
       // create a GenusProgram from the services and application settings
       _ <-
         GenusProgram.make[IO](
           QueryServiceImpl.make(transactionsQuery, settings.queryTimeout.milliseconds),
-          SubscriptionServiceImpl.make(transactionsSubscription),
+          transactionsSubscription,
           QueryServiceImpl.make(blocksQuery, settings.queryTimeout.milliseconds),
-          SubscriptionServiceImpl.make(blocksSubscription),
+          blocksSubscription,
           settings.ip,
           settings.port
         )

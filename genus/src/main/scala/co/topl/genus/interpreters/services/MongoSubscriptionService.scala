@@ -1,16 +1,16 @@
 package co.topl.genus.interpreters.services
 
-import cats.implicits._
 import akka.NotUsed
 import akka.stream.scaladsl.Source
+import cats.MonadThrow
 import cats.data.EitherT
-import cats.{Applicative, MonadThrow}
 import co.topl.genus.algebras.SubscriptionService.{CreateSubscriptionFailure, CreateSubscriptionFailures}
 import co.topl.genus.algebras.{MongoSubscription, SubscriptionService}
-import co.topl.genus.typeclasses.MongoFilter
 import co.topl.genus.typeclasses.implicits._
+import co.topl.genus.typeclasses.{MongoFilter, Transform}
+import co.topl.genus.types.BlockHeight
 
-object SubscriptionServiceImpl {
+object MongoSubscriptionService {
 
   /**
    * Creates an interpreter of the [[SubscriptionService]] with a given default filter value and a
@@ -24,28 +24,28 @@ object SubscriptionServiceImpl {
    * @tparam Filter the type of filter that can be provided
    * @return a new instance of [[SubscriptionService]]
    */
-  def make[F[_]: MonadThrow, T](
-    dataStore: MongoSubscription[F, T]
-  ): SubscriptionService[F, T] =
-    new SubscriptionService[F, T] {
+  def make[F[_]: MonadThrow, Data, Model](
+    dataStore:          MongoSubscription[F, Data]
+  )(implicit transform: Transform[Data, Model]): SubscriptionService[F, Model] =
+    new SubscriptionService[F, Model] {
 
       override def create[Filter: MongoFilter](
         request: SubscriptionService.CreateRequest[Filter]
-      ): EitherT[F, CreateSubscriptionFailure, Source[T, NotUsed]] =
+      ): EitherT[F, CreateSubscriptionFailure, Source[Model, NotUsed]] =
         for {
           // validate the create request
           _ <- EitherT
             .fromEither[F](request.validate.toEither)
             .leftMap(CreateSubscriptionFailures.InvalidRequest)
-          result <-
-            EitherT(
-              request.startFromHeight
-                // if the starting height is provided, then start from that height offset,
-                // otherwise, start from the beginning
-                .fold(dataStore.fromStart(request.filter))(height => dataStore.fromBlockHeight(request.filter, height))
-                .map(_.asRight[CreateSubscriptionFailure])
-                .handleError(err => CreateSubscriptionFailures.DataConnectionFailure(err.getMessage).asLeft)
+          data <-
+            EitherT.right[SubscriptionService.CreateSubscriptionFailure](
+              dataStore
+                .fromBlockHeight(
+                  request.filter,
+                  request.startFromHeight.getOrElse(BlockHeight.defaultInstance)
+                )
             )
-        } yield result
+          models = data.map(_.transformTo[Model])
+        } yield models
     }
 }
