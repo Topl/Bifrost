@@ -14,16 +14,19 @@ package object utils {
 
   abstract class TestVector
 
-  def readTestVectors[A <: TestVector](fileName: String)(implicit decoder: Decoder[A]): List[A] = {
-    val file = scala.io.Source.fromResource(fileName).getLines().mkString
-    val vectorEither = for {
-      json    <- parser.parse(file)
-      vectors <- json.as[List[A]]
-    } yield vectors
+  object TestVector {
 
-    vectorEither match {
-      case Left(err)  => throw err
-      case Right(vec) => vec
+    def read[A <: TestVector](fileName: String)(implicit decoder: Decoder[A]): List[A] = {
+      val file = scala.io.Source.fromResource(fileName).getLines().mkString
+      val vectorEither = for {
+        json    <- parser.parse(file)
+        vectors <- json.as[List[A]]
+      } yield vectors
+
+      vectorEither match {
+        case Left(err)  => throw err
+        case Right(vec) => vec
+      }
     }
   }
 }
