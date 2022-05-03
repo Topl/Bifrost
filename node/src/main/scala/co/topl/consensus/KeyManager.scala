@@ -6,7 +6,13 @@ import akka.util.Timeout
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.attestation.implicits._
-import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
+import co.topl.attestation.keyManagement.{
+  KeyRing,
+  KeyfileCurve25519,
+  KeyfileCurve25519Companion,
+  PrivateKeyCurve25519,
+  Secret
+}
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.catsakka.AskException
 import co.topl.settings.AppSettings
@@ -49,6 +55,7 @@ class KeyManager(settings: AppSettings)(implicit networkPrefix: NetworkPrefix) e
     case ListKeys                            => sender() ! keyRing.addresses
     case ExportOpenKeyfiles(passwords, path) =>
       sender() ! keyRing.DiskOps.exportOpenKeyfiles(passwords.map(Latin1Data.unsafe), path)
+    case GetOpenKeys                   => sender() ! keyRing.getOpenKeys
     case UpdateRewardsAddress(address) => sender() ! updateRewardsAddress(keyRing, address)
     case GetRewardsAddress             => sender() ! rewardAddress.fold("none")(_.show)
     case GetKeyView                    => sender() ! getKeyView(keyRing, rewardAddress)
@@ -179,6 +186,8 @@ object KeyManager {
     case class GenerateInitialAddresses(addressGenerationSettings: Option[AddressGenerationSettings])
 
     case class ExportOpenKeyfiles(passwords: List[String], path: String)
+
+    case object GetOpenKeys
   }
 
 }
@@ -211,6 +220,8 @@ sealed trait ListOpenKeyfilesFailure
 case class ListOpenKeyfilesFailureException(throwable: Throwable) extends ListOpenKeyfilesFailure
 sealed trait ExportOpenKeyfilesFailure
 case class ExportOpenKeyfilesFailureException(throwable: Throwable) extends ExportOpenKeyfilesFailure
+sealed trait GetOpenKeysFailure
+case class GetOpenKeysFailureException(throwable: Throwable) extends GetOpenKeysFailure
 
 trait KeyManagerInterface {
   def unlockKey(address:  String, password: String): EitherT[Future, UnlockKeyFailure, Address]
@@ -220,11 +231,13 @@ trait KeyManagerInterface {
   def getRewardsAddress: EitherT[Future, GetRewardsAddressFailure, String]
   def updateRewardsAddress(address: Address): EitherT[Future, UpdateRewardsAddressFailure, Done.type]
   def listOpenKeyfiles(): EitherT[Future, ListOpenKeyfilesFailure, Set[Address]]
+  def getOpenKeys: EitherT[Future, GetOpenKeysFailure, Set[_ <: Secret]]
 
   def exportOpenKeyfiles(
     passwords: List[String],
     path:      String
   ): EitherT[Future, ExportOpenKeyfilesFailure, List[Address]]
+
 }
 
 class ActorKeyManagerInterface(actorRef: ActorRef)(implicit ec: ExecutionContext, timeout: Timeout)
@@ -263,7 +276,7 @@ class ActorKeyManagerInterface(actorRef: ActorRef)(implicit ec: ExecutionContext
       .subflatMap(_.toEither.leftMap(ImportKeyFailureException))
       .leftMap(e => e: ImportKeyFailure)
 
-  override def getRewardsAddress(): EitherT[Future, GetRewardsAddressFailure, String] =
+  override def getRewardsAddress: EitherT[Future, GetRewardsAddressFailure, String] =
     actorRef
       .askEither[String](KeyManager.ReceivableMessages.GetRewardsAddress)
       .leftMap { case AskException(throwable) => GetRewardsAddressFailureException(throwable) }
@@ -291,4 +304,12 @@ class ActorKeyManagerInterface(actorRef: ActorRef)(implicit ec: ExecutionContext
       .leftMap { case AskException(throwable) => ExportOpenKeyfilesFailureException(throwable) }
       .subflatMap(_.toEither.leftMap(ExportOpenKeyfilesFailureException))
       .leftMap(e => e: ExportOpenKeyfilesFailure)
+
+  override def getOpenKeys: EitherT[Future, GetOpenKeysFailure, Set[_ <: Secret]] =
+    actorRef
+      .askEither[Set[_ <: Secret]](KeyManager.ReceivableMessages.GetOpenKeys)
+      .leftMap {
+        case AskException(throwable) => GetOpenKeysFailureException(throwable)
+      }
+      .leftMap(e => e: GetOpenKeysFailure)
 }

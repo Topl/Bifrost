@@ -54,6 +54,9 @@ class KeyRing[
       case _        => throw new Exception("Unable to find secret for the given address")
     }
 
+  /** Get all the open keys */
+  def getOpenKeys: Set[S] = secrets
+
   /**
    * Generate an attestation map using the given address and message to sign
    * @param addr address to lookup the proposition associated with the proof that is needed
