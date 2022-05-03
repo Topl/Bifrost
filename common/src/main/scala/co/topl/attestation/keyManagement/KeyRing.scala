@@ -195,17 +195,6 @@ class KeyRing[
       }
 
     /**
-     * Export the open keyfiles to disk
-     */
-    def exportOpenKeyfiles(passwords: List[Latin1Data], path: String): Try[List[Address]] = {
-      val keyPasswordPairs = secrets.toList.zip(passwords)
-      keyPasswordPairs.map(pair => saveToDiskSafe(path, pair._2, pair._1).toOption).sequence match {
-        case Some(_) => Success(keyPasswordPairs.map(_._1.publicImage.address))
-        case None    => Failure(new Exception("Failed to export keys to disk"))
-      }
-    }
-
-    /**
      * @param address
      * @param password
      * @return
