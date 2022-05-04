@@ -99,7 +99,7 @@ object BoxSelectionAlgorithm {
     boxes
       .foldLeft(Int128(0), List[(Address, T)]()) {
         case ((sum, result), _) if sum >= target => sum                         -> result
-        case ((sum, result), box)                => sum + box._2.value.quantity -> (result :+ box)
+        case ((sum, result), box)                => sum + box._2.value.quantity -> (box :: result)
       }
       ._2
 
