@@ -4,6 +4,8 @@ import co.topl.utils.NetworkType
 import mainargs._
 import monocle.syntax.all._
 
+import java.net.InetSocketAddress
+
 /**
  * Parameters that are given at application startup. Only parameters that are
  * required for initialization should be included at the top level while all other
@@ -49,7 +51,9 @@ final case class RuntimeOpts(
     doc =
       "If API key protection is enabled, this argument specifies the Blake2b256 hash of API key required by the JSON-RPC server "
   )
-  apiKeyHash: Option[String] = None
+  apiKeyHash: Option[String] = None,
+  @arg(name = "knownPeers", short = 'k', doc = "List of IP addresses and ports of known peers, separated by commas")
+  knowPeers: Option[String] = None
 ) {
 
   /**
@@ -86,6 +90,19 @@ final case class RuntimeOpts(
         apiKeyHash match {
           case Some(cliKey) => cliKey
           case None         => configKey
+        }
+      )
+
+      // knownPeers
+      .focus(_.network.knownPeers)
+      .modify(configPeers =>
+        knowPeers match {
+          case Some(peersString) =>
+            peersString.split(",").map { peer =>
+              val split = peer.split(":")
+              new InetSocketAddress(split(0), split(1).toInt)
+            }
+          case None => configPeers
         }
       )
 }
