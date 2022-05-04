@@ -541,10 +541,11 @@ object ToplRpc {
       val rpc: Rpc[Params, Response] = Rpc("topl_unprovenAssetTransfer")
 
       case class Params(
-        sender:                NonEmptyChain[DionAddress],
+        senders:               NonEmptyChain[DionAddress],
         recipients:            NonEmptyChain[TetraTransaction.AssetOutput],
         fee:                   TetraInt128,
-        changeAddress:         DionAddress,
+        feeChangeAddress:      DionAddress,
+        assetChangeAddress:    DionAddress,
         data:                  Option[TransactionData],
         minting:               Boolean,
         boxSelectionAlgorithm: BoxSelectionAlgorithm
