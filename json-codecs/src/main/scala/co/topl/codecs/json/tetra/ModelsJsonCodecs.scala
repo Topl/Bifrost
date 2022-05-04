@@ -1,5 +1,6 @@
 package co.topl.codecs.json.tetra
 
+import co.topl.models.Box.Values
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models._
 import io.circe.syntax.EncoderOps
@@ -104,6 +105,15 @@ trait ModelsJsonCodecs {
   implicit val latin1DataEncoder: Encoder[Latin1Data] =
     _.value.asJson
 
+  implicit val emptyBoxValueEncoder: Encoder[Box.Values.Empty.type] =
+    _ => Json.obj()
+
+  implicit val polyBoxValueEncoder: Encoder[Box.Values.Poly] =
+    t => Json.obj("value" -> t.value.asJson)
+
+  implicit val arbitBoxValueEncoder: Encoder[Box.Values.Arbit] =
+    t => Json.obj("value" -> t.value.asJson)
+
   implicit val assetCodeEncoder: Encoder[Box.Values.Asset.Code] =
     t =>
       Json.obj(
@@ -121,26 +131,34 @@ trait ModelsJsonCodecs {
         "metadata"     -> t.metadata.map(_.data).asJson
       )
 
-  implicit val encodeCoinOutput: Encoder[Transaction.CoinOutput] = {
-    case o: Transaction.PolyOutput =>
+  implicit val taktikosRegistrationBoxValueEncoder: Encoder[Box.Values.TaktikosRegistration] =
+    t => Json.obj("commitment" -> t.commitment.asJson)
+
+  def boxValueTypeName(value: Box.Value): String =
+    value match {
+      case Box.Values.Empty                   => "Empty"
+      case _: Box.Values.Poly                 => "Poly"
+      case _: Box.Values.Arbit                => "Arbit"
+      case _: Box.Values.Asset                => "Asset"
+      case _: Box.Values.TaktikosRegistration => "TaktikosRegistration"
+    }
+
+  implicit val boxEncoder: Encoder[Box] =
+    t =>
       Json.obj(
-        "coinType" -> "Poly".asJson,
-        "address"  -> o.dionAddress.asJson,
-        "value"    -> o.value.asJson
+        "evidence"  -> t.evidence.asJson,
+        "nonce"     -> t.nonce.asJson,
+        "valueType" -> boxValueTypeName(t.value).asJson,
+        "value"     -> t.value.asJson
       )
-    case o: Transaction.ArbitOutput =>
+
+  implicit val encodeCoinOutput: Encoder[Transaction.Output] =
+    o =>
       Json.obj(
-        "coinType" -> "Arbit".asJson,
-        "address"  -> o.dionAddress.asJson,
-        "value"    -> o.value.asJson
+        "address"   -> o.dionAddress.asJson,
+        "valueType" -> boxValueTypeName(o.value).asJson,
+        "value"     -> o.value.asJson
       )
-    case o: Transaction.AssetOutput =>
-      Json.obj(
-        "coinType" -> "Asset".asJson,
-        "address"  -> o.dionAddress.asJson,
-        "value"    -> o.value.asJson
-      )
-  }
 
   implicit val transactionJsonEncoder: Encoder[Transaction] =
     tx =>

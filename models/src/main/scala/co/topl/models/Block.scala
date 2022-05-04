@@ -1,5 +1,6 @@
 package co.topl.models
 
+import cats.data.Chain
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{Lengths, Sized}
 
@@ -60,6 +61,8 @@ object BlockHeaderV2 {
     )
   }
 }
+
+case class BlockBodyV2(transactionIds: Chain[TypedIdentifier], rewardsTransactionId: TypedIdentifier)
 
 // This is a synthetic type, and is not "identifiable"
 case class BlockV2(headerV2: BlockHeaderV2, blockBodyV2: BlockBodyV2)
