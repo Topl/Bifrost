@@ -139,7 +139,7 @@ class UnprovenAssetTransferRPCHandlerSpec extends RPCMockState with Matchers wit
 
       val result = httpPOST(requestBody) ~> route ~> check(traverseJsonPath[String](responseAs[String], path))
 
-      result.value.contains("InsufficientAssetFunds") shouldBe true
+      result.value.contains(s"insufficient assets") shouldBe true
     }
 
     "fail to create a transfer when no sender is provided" in {

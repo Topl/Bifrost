@@ -378,9 +378,9 @@ trait ModelsJsonCodecs {
       )
     case o: Transaction.ArbitOutput =>
       Json.obj(
-        "coinType" -> "Arbit".asJson,
-        "address"  -> o.dionAddress.asJson,
-        "value"    -> o.value.asJson
+        "coinType"    -> "Arbit".asJson,
+        "dionAddress" -> o.dionAddress.asJson,
+        "value"       -> o.value.asJson
       )
     case o: Transaction.AssetOutput =>
       Json.obj(
