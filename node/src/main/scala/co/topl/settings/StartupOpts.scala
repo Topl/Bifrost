@@ -62,7 +62,15 @@ final case class RuntimeOpts(
     appSettings
       // seed
       .focus(_.forging.addressGenerationSettings)
-      .modify(_.map(_.focus(_.addressSeedOpt).modify(configSeed => seed.orElse(configSeed))))
+      .modify { addrGenSettings =>
+        if (seed.isDefined) {
+          addrGenSettings
+            .focus(_.addressSeedOpt)
+            .modify(_ => seed)
+            .focus(_.strategy)
+            .modify(_ => AddressGenerationStrategies.FromSeed)
+        } else addrGenSettings
+      }
 
       // forge
       .focus(_.forging.forgeOnStartup)

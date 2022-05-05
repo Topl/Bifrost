@@ -11,6 +11,7 @@ import scala.collection.mutable
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 
+//noinspection ScalaDeprecation
 /* NOTE: Use of mutable.WrappedArray.ofByte for Scala 2.12 compatibility */
 class MerkleTree[H, D: Digest](
   topNode:           Option[Node[D]],
@@ -41,14 +42,14 @@ class MerkleTree[H, D: Digest](
       acc:       Seq[(Option[D], Side)]
     ): Option[(Leaf[H, D], Seq[(Option[D], Side)])] =
       node match {
-        case Some(n: InternalNode[H, D]) if i < curLength / 2 =>
+        case Some(n: InternalNode[H, D] @unchecked) if i < curLength / 2 =>
           n.right match {
             case Some(right) => loop(Some(n.left), i, curLength / 2, (Some(right.hash), MerkleProof.LeftSide) +: acc)
             case None        => loop(Some(n.left), i, curLength / 2, (None, MerkleProof.LeftSide) +: acc)
           }
-        case Some(n: InternalNode[H, D]) if i < curLength =>
+        case Some(n: InternalNode[H, D] @unchecked) if i < curLength =>
           loop(n.right, i - curLength / 2, curLength / 2, (Some(n.left.hash), MerkleProof.RightSide) +: acc)
-        case Some(n: Leaf[H, D]) =>
+        case Some(n: Leaf[H, D] @unchecked) =>
           Some((n, acc))
         case _ =>
           None

@@ -15,7 +15,7 @@ import co.topl.attestation.keyManagement.{
 }
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.catsakka.AskException
-import co.topl.settings.AppSettings
+import co.topl.settings.{AddressGenerationSettings, AddressGenerationStrategies, AppSettings}
 import co.topl.utils.NetworkType._
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
 import co.topl.utils.catsinstances.implicits._
@@ -85,12 +85,12 @@ class KeyManager(settings: AppSettings)(implicit networkPrefix: NetworkPrefix) e
   private def generateInitialAddresses(
     keyRing:                   KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
     rewardAddress:             Option[Address]
-  )(addressGenerationSettings: Option[AddressGenerationSettings])(implicit
+  )(addressGenerationSettings: AddressGenerationSettings)(implicit
     networkPrefix:             NetworkPrefix
   ): Try[StartupKeyView] = {
-    def addKeys(settings: AddressGenerationSettings): Try[StartupKeyView] =
+    def addKeys(numberOfAddresses: Int, addressSeedOpt: Option[String]): Try[StartupKeyView] =
       keyRing
-        .generateNewKeyPairs(settings.numberOfAddresses, settings.addressSeedOpt)
+        .generateNewKeyPairs(numberOfAddresses, addressSeedOpt)
         .map { keys =>
           keys.map(_.publicImage.address)
         }
@@ -101,9 +101,15 @@ class KeyManager(settings: AppSettings)(implicit networkPrefix: NetworkPrefix) e
         }
 
     addressGenerationSettings match {
-      case Some(settings)                                    => addKeys(settings)
-      case None if networkPrefix == PrivateTestnet.netPrefix => addKeys(KeyManager.AddressGenerationSettings.default)
-      case None => Success(StartupKeyView(keyRing.addresses, rewardAddress))
+      case AddressGenerationSettings(_, AddressGenerationStrategies.None, _) =>
+        Success(StartupKeyView(keyRing.addresses, rewardAddress))
+      case AddressGenerationSettings(numAddr, AddressGenerationStrategies.FromSeed, seedOpt) =>
+        addKeys(numAddr, seedOpt)
+      case AddressGenerationSettings(numAddr, AddressGenerationStrategies.Random, _) =>
+        addKeys(numAddr, Some(SecureRandom.randomBytes().mkString))
+      case AddressGenerationSettings(numAddr, AddressGenerationStrategies.None, _)
+          if networkPrefix == PrivateTestnet.netPrefix =>
+        addKeys(numAddr, Some(SecureRandom.randomBytes().mkString))
     }
   }
 
@@ -149,12 +155,6 @@ object KeyManager {
 
   val actorName = "keyManager"
 
-  case class AddressGenerationSettings(numberOfAddresses: Int, addressSeedOpt: Option[String])
-
-  object AddressGenerationSettings {
-    val default: AddressGenerationSettings = AddressGenerationSettings(10, Some(SecureRandom.randomBytes().mkString))
-  }
-
   case class StartupKeyView(addresses: Set[Address], rewardAddr: Option[Address])
 
   case class KeyView(
@@ -181,9 +181,7 @@ object KeyManager {
 
     case object GetKeyView
 
-    case class GenerateInitialAddresses(addressGenerationSettings: Option[AddressGenerationSettings])
-
-    case object GetOpenKeys
+    case class GenerateInitialAddresses(addressGenerationSettings: AddressGenerationSettings)
   }
 
 }
