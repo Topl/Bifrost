@@ -115,8 +115,8 @@ final case class RuntimeOpts(
       .modify(configAddr =>
         networkBindAddress match {
           case Some(addrStr) =>
-              val split = addrStr.split(":")
-              new InetSocketAddress(split(0), split(1).toInt)
+            val split = addrStr.split(":")
+            new InetSocketAddress(split(0), split(1).toInt)
           case None => configAddr
         }
       )
