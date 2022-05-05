@@ -52,11 +52,12 @@ final case class RuntimeOpts(
       "If API key protection is enabled, this argument specifies the Blake2b256 hash of API key required by the JSON-RPC server "
   )
   apiKeyHash: Option[String] = None,
-  @arg(name = "knownPeers", short = 'k', doc = "List of IP addresses and ports of known peers, separated by commas")
+  @arg(name = "knownPeers", short = 'k', doc = "List of IP addresses and ports of known peers, separated by commas. " +
+    "For example: 0.0.0.0:11,0.0.0.0:22")
   knownPeers: Option[String] = None,
-  @arg(name = "networkBindAddress", short = 'a', doc = "Network address to bind to")
+  @arg(name = "networkBindAddress", short = 'a', doc = "Network address and port to bind to")
   networkBindAddress: Option[String] = None,
-  @arg(name = "rpcBindAddress", short = 'r', doc = "Local network address to bind to")
+  @arg(name = "rpcBindAddress", short = 'r', doc = "Local network address and port to bind to")
   rpcBindAddress: Option[String] = None
 ) {
 
