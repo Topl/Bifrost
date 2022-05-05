@@ -18,10 +18,10 @@ import org.mongodb.scala.Document
 object TransactionsQueryService {
 
   def make[F[_]: Async](
-    queries:               MongoQuery[F, Document]
+    queries:               MongoQuery[F]
   )(implicit materializer: Materializer): QueryService[F, Transaction] = new Impl[F](queries)
 
-  private class Impl[F[_]: Async](queries: MongoQuery[F, Document])(implicit materializer: Materializer)
+  private class Impl[F[_]: Async](queries: MongoQuery[F])(implicit materializer: Materializer)
       extends QueryService[F, Transaction] {
 
     override def asList[Filter: MongoFilter, Sort: MongoSort](

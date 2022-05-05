@@ -17,10 +17,10 @@ import org.mongodb.scala.Document
 
 object BlocksQueryService {
 
-  def make[F[_]: Async](queries: MongoQuery[F, Document])(implicit materializer: Materializer): QueryService[F, Block] =
+  def make[F[_]: Async](queries: MongoQuery[F])(implicit materializer: Materializer): QueryService[F, Block] =
     new Impl[F](queries)
 
-  private class Impl[F[_]: Async](queries: MongoQuery[F, Document])(implicit materializer: Materializer)
+  private class Impl[F[_]: Async](queries: MongoQuery[F])(implicit materializer: Materializer)
       extends QueryService[F, Block] {
 
     override def asList[Filter: MongoFilter, Sort: MongoSort](

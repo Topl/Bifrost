@@ -14,7 +14,7 @@ import org.mongodb.scala.{Document, MongoCollection}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
 
-object MongoDocumentSubscription {
+object MongoSubscriptionImpl {
 
   def make[F[_]: Applicative](
     batchSize:  Int,
@@ -22,8 +22,8 @@ object MongoDocumentSubscription {
   )(implicit
     materializer:     Materializer,
     executionContext: ExecutionContext
-  ): MongoSubscription[F, Document] =
-    new MongoSubscription[F, Document] {
+  ): MongoSubscription[F] =
+    new MongoSubscription[F] {
 
       override def create[Filter: MongoFilter](
         filter: Filter

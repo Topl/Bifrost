@@ -9,10 +9,9 @@ import co.topl.genus.algebras.MongoQuery
 import co.topl.genus.services.services_types.Paging
 import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.typeclasses.{MongoFilter, MongoSort}
-import co.topl.utils.mongodb.DocumentDecoder
 import org.mongodb.scala.{Document, MongoCollection}
 
-object MongoDocumentQuery {
+object MongoQueryImpl {
 
   /**
    * Makes an instance of a MongoDB-specific query algebra.
@@ -24,8 +23,8 @@ object MongoDocumentQuery {
    */
   def make[F[_]: MonadThrow](
     collection: MongoCollection[Document]
-  ): MongoQuery[F, Document] =
-    new MongoQuery[F, Document] {
+  ): MongoQuery[F] =
+    new MongoQuery[F] {
 
       override def query[Filter: MongoFilter, Sort: MongoSort](
         filter: Filter,

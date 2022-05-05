@@ -59,14 +59,14 @@ object GenusApp extends IOApp {
       // set up query services
       transactionsQuery =
         TransactionsQueryService.make[IO](
-          MongoDocumentQuery.make[IO](
+          MongoQueryImpl.make[IO](
             transactionsCollection
           )
         )
 
       blocksQuery =
         BlocksQueryService.make[IO](
-          MongoDocumentQuery.make[IO](
+          MongoQueryImpl.make[IO](
             blocksCollection
           )
         )
@@ -74,7 +74,7 @@ object GenusApp extends IOApp {
       // set up subscription services
       transactionsSubscription =
         TransactionsSubscriptionService.make[IO](
-          MongoDocumentSubscription.make[IO](
+          MongoSubscriptionImpl.make[IO](
             settings.subBatchSize,
             transactionsCollection
           )
@@ -82,7 +82,7 @@ object GenusApp extends IOApp {
 
       blocksSubscription =
         BlocksSubscriptionService.make[IO](
-          MongoDocumentSubscription.make[IO](
+          MongoSubscriptionImpl.make[IO](
             settings.subBatchSize,
             blocksCollection
           )

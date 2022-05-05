@@ -2,18 +2,21 @@ package co.topl.genus.algebras
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
-import cats.implicits._
-import cats.Functor
 import co.topl.genus.typeclasses.MongoFilter
-import co.topl.genus.types.BlockHeight
+import org.mongodb.scala.Document
 
 /**
- * Creates a subscription to a data store's data log starting from a chosen offset.
- * @tparam F the effect-ful type of the final value
- * @tparam G the type of collection which data is returned in
- * @tparam Filter the type of filtering that can be used
- * @tparam T the type of data returned
+ * Represents a subscribe-able Mongo collection of [[Document]] values.
+ * @tparam F the effect-ful type of the result
  */
-trait MongoSubscription[F[_], T] {
-  def create[Filter: MongoFilter](filter: Filter): F[Source[T, NotUsed]]
+trait MongoSubscription[F[_]] {
+
+  /**
+   * Creates a subscription to a Mongo collection with filtered results.
+   * The subscription will continuously poll for new values in the database.
+   * @param filter the filter for results
+   * @tparam Filter the type of filter with an instance of [[MongoFilter]]
+   * @return a [[Source]] of [[Document]] values
+   */
+  def create[Filter: MongoFilter](filter: Filter): F[Source[Document, NotUsed]]
 }
