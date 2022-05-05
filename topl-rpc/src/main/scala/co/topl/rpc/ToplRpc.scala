@@ -74,7 +74,7 @@ object ToplRpc {
        * Export the genesis block and open keys as Json files on disk
        */
       val rpc: Rpc[Params, Response] = Rpc("debug_exportGenesisAndKeys")
-      case class Params(passwords: List[String], path: String)
+      case class Params()
       case class Response(keys: List[PrivateKeyCurve25519], genesis: Block)
     }
   }
