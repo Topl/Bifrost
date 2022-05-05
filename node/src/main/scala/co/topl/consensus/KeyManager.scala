@@ -6,13 +6,7 @@ import akka.util.Timeout
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.attestation.implicits._
-import co.topl.attestation.keyManagement.{
-  KeyRing,
-  KeyfileCurve25519,
-  KeyfileCurve25519Companion,
-  PrivateKeyCurve25519,
-  Secret
-}
+import co.topl.attestation.keyManagement._
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.catsakka.AskException
 import co.topl.settings.{AddressGenerationSettings, AddressGenerationStrategies, AppSettings}
@@ -53,10 +47,10 @@ class KeyManager(settings: AppSettings)(implicit networkPrefix: NetworkPrefix) e
     case LockKey(addr)                       => sender() ! keyRing.removeFromKeyring(addr)
     case ImportKey(password, mnemonic, lang) => sender() ! keyRing.importPhrase(password, mnemonic, lang)
     case ListKeys                            => sender() ! keyRing.addresses
-    case GetOpenKeys                   => sender() ! keyRing.getOpenKeys
-    case UpdateRewardsAddress(address) => sender() ! updateRewardsAddress(keyRing, address)
-    case GetRewardsAddress             => sender() ! rewardAddress.fold("none")(_.show)
-    case GetKeyView                    => sender() ! getKeyView(keyRing, rewardAddress)
+    case GetOpenKeys                         => sender() ! keyRing.getOpenKeys
+    case UpdateRewardsAddress(address)       => sender() ! updateRewardsAddress(keyRing, address)
+    case GetRewardsAddress                   => sender() ! rewardAddress.fold("none")(_.show)
+    case GetKeyView                          => sender() ! getKeyView(keyRing, rewardAddress)
     case GenerateInitialAddresses(addressSettings) =>
       sender() ! generateInitialAddresses(keyRing, rewardAddress)(addressSettings)
   }
@@ -284,8 +278,8 @@ class ActorKeyManagerInterface(actorRef: ActorRef)(implicit ec: ExecutionContext
   override def getOpenKeys: EitherT[Future, GetOpenKeysFailure, Set[_ <: Secret]] =
     actorRef
       .askEither[Set[_ <: Secret]](KeyManager.ReceivableMessages.GetOpenKeys)
-      .leftMap {
-        case AskException(throwable) => GetOpenKeysFailureException(throwable)
+      .leftMap { case AskException(throwable) =>
+        GetOpenKeysFailureException(throwable)
       }
       .leftMap(e => e: GetOpenKeysFailure)
 }

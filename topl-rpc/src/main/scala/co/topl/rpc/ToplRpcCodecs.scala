@@ -13,13 +13,10 @@ import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer,
 import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Latin1Data
-import co.topl.utils.encode.Base58
 import io.circe._
-import io.circe.generic.auto._
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.syntax._
 import scodec.Codec
-import scodec.bits.BitVector
 
 trait ToplRpcCodecs extends ToplRpcClientCodecs with ToplRpcServerCodecs
 
@@ -578,14 +575,15 @@ trait DebugRpcResponseEncoders extends SharedCodecs {
 
   implicit val debugExportGenesisAndKeysResponseEncoder: Encoder[ToplRpc.Debug.ExportGenesisAndKeys.Response] =
     r =>
-      Map("keys" -> Codec[List[PrivateKeyCurve25519]]
-        .encode(r.keys)
-        .getOrElse(throw new Exception("Unable to encode the list of private keys"))
-        .toBase58,
-      "genesis block" -> Codec[Block]
-        .encode(r.genesis)
-        .getOrElse(throw new Exception("Unable to encode the block"))
-        .toBase58
+      Map(
+        "keys" -> Codec[List[PrivateKeyCurve25519]]
+          .encode(r.keys)
+          .getOrElse(throw new Exception("Unable to encode the list of private keys"))
+          .toBase58,
+        "genesis block" -> Codec[Block]
+          .encode(r.genesis)
+          .getOrElse(throw new Exception("Unable to encode the block"))
+          .toBase58
       ).asJson
 
 }

@@ -1,7 +1,6 @@
 package co.topl.attestation.keyManagement
 
 import cats.data.Validated.{Invalid, Valid}
-import cats.implicits._
 import co.topl.attestation.Address
 import co.topl.attestation.implicits._
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
