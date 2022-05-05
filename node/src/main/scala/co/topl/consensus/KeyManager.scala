@@ -176,6 +176,8 @@ object KeyManager {
     case object GetKeyView
 
     case class GenerateInitialAddresses(addressGenerationSettings: AddressGenerationSettings)
+
+    case object GetOpenKeys
   }
 
 }
