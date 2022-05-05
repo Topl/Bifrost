@@ -52,6 +52,15 @@ object GenusApp extends IOApp {
 
   def makeWithSystem(settings: ApplicationSettings)(implicit system: actor.ActorSystem): IO[ExitCode] =
     for {
+      // construct the expected API key
+      apiKey <-
+        if (settings.disableAuth) none[Base58Data].pure[IO]
+        else
+          Base58Data
+            .validated(settings.apiKeyHash)
+            .map(_.some.pure[IO])
+            .valueOr(errors => IO.raiseError(new Throwable(s"invalid API key: $errors")))
+
       // set up MongoDB resources
       mongoClient <- IO.delay(MongoClient(settings.mongoConnectionString))
       mongoDatabase = mongoClient.getDatabase(settings.mongoDatabaseName)
@@ -105,7 +114,7 @@ object GenusApp extends IOApp {
           SubscriptionServiceImpl.make(blocksSubscription),
           settings.ip,
           settings.port,
-          if (settings.disableAuth) None else settings.apiKeyHash.some
+          apiKey
         )
     } yield ExitCode.Success
 

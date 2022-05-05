@@ -16,20 +16,21 @@ import co.topl.genus.services.blocks_query.{BlocksQuery, BlocksQueryHandler}
 import co.topl.genus.services.blocks_subscription.{BlocksSubscription, BlocksSubscriptionHandler}
 import co.topl.genus.services.transactions_query.{TransactionsQuery, TransactionsQueryHandler}
 import co.topl.genus.services.transactions_subscription.{TransactionsSubscription, TransactionsSubscriptionHandler}
+import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.implicits._
 
 import scala.concurrent.Future
 
 object GenusProgram {
 
-  def useAuth(apiKeyHash: Option[String]): Directive0 =
+  def useAuth(apiKeyHash: Option[Base58Data]): Directive0 =
     optionalHeaderValueByName("x-api-key").flatMap { keyOpt =>
       (keyOpt, apiKeyHash) match {
         case (Some(provided), Some(needed)) =>
           // check that the provided key hashes to the expected value
-          val hashedKey = blake2b256.hash(provided.getBytes("UTF-8"))
+          val hashedKey = Base58Data.fromData(blake2b256.hash(provided.getBytes("UTF-8")).value)
 
-          if (hashedKey.value === needed.getBytes()) pass
+          if (hashedKey === needed) pass
           else reject
 
         case (None, Some(_)) => reject
@@ -44,7 +45,7 @@ object GenusProgram {
     blocksSub:       BlocksSubscriptionService[F],
     ip:              String,
     port:            Int,
-    apiKeyHash:      Option[String]
+    apiKeyHash:      Option[Base58Data]
   )(implicit system: ActorSystem): F[Unit] =
     for {
       handlers <-
