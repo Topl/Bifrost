@@ -53,7 +53,11 @@ final case class RuntimeOpts(
   )
   apiKeyHash: Option[String] = None,
   @arg(name = "knownPeers", short = 'k', doc = "List of IP addresses and ports of known peers, separated by commas")
-  knowPeers: Option[String] = None
+  knownPeers: Option[String] = None,
+  @arg(name = "networkBindAddress", short = 'a', doc = "Network address to bind to")
+  networkBindAddress: Option[String] = None,
+  @arg(name = "rpcBindAddress", short = 'r', doc = "Local network address to bind to")
+  rpcBindAddress: Option[String] = None
 ) {
 
   /**
@@ -96,13 +100,35 @@ final case class RuntimeOpts(
       // knownPeers
       .focus(_.network.knownPeers)
       .modify(configPeers =>
-        knowPeers match {
+        knownPeers match {
           case Some(peersString) =>
             peersString.split(",").map { peer =>
               val split = peer.split(":")
               new InetSocketAddress(split(0), split(1).toInt)
             }
           case None => configPeers
+        }
+      )
+
+      // networkBindAddress
+      .focus(_.network.bindAddress)
+      .modify(configAddr =>
+        networkBindAddress match {
+          case Some(addrStr) =>
+              val split = addrStr.split(":")
+              new InetSocketAddress(split(0), split(1).toInt)
+          case None => configAddr
+        }
+      )
+
+      // rpcBindAddress
+      .focus(_.rpcApi.bindAddress)
+      .modify(configAddr =>
+        rpcBindAddress match {
+          case Some(addrStr) =>
+            val split = addrStr.split(":")
+            new InetSocketAddress(split(0), split(1).toInt)
+          case None => configAddr
         }
       )
 }
