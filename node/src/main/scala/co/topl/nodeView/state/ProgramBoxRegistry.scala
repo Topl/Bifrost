@@ -1,11 +1,15 @@
 package co.topl.nodeView.state
 
+import cats.implicits._
+import co.topl.codecs._
 import co.topl.db.LDBVersionedStore
-import co.topl.modifier.box.{BoxId, ProgramBox, ProgramId}
-import co.topl.nodeView.state.MinimalState.VersionTag
+import co.topl.modifier.{ModifierId, ProgramId}
+import co.topl.modifier.box.{BoxId, ProgramBox}
 import co.topl.nodeView.{KeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
+import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
 import co.topl.utils.Logging
+import co.topl.utils.implicits._
 
 import java.io.File
 import scala.util.{Failure, Success, Try}
@@ -23,7 +27,8 @@ class ProgramBoxRegistry(protected val storage: KeyValueStore)
   // ----- input and output transformation functions
   override protected val registryInput: K => Array[Byte] = (key: K) => key.bytes
 
-  override protected val registryOutput: Array[Byte] => Seq[V] = (value: Array[Byte]) => Seq(BoxId(value))
+  override protected val registryOutput: Array[Byte] => Seq[V] = (value: Array[Byte]) =>
+    Seq(value.decodePersisted[BoxId].getOrThrow())
 
   override protected val registryOut2StateIn: (K, V) => V = (_, value: V) => value
 
@@ -44,7 +49,7 @@ class ProgramBoxRegistry(protected val storage: KeyValueStore)
    */
   // todo: James - this needs to be updated similarly to TokenBoxRegistry
   protected[state] def update(
-    newVersion: VersionTag,
+    newVersion: ModifierId,
     toRemove:   Map[K, Seq[V]],
     toAppend:   Map[K, Seq[V]]
   ): Try[ProgramBoxRegistry] =
@@ -68,7 +73,7 @@ class ProgramBoxRegistry(protected val storage: KeyValueStore)
           .foldLeft((Seq[K](), Seq[(K, V)]()))((acc, progId) => (acc._1 ++ progId._1, acc._2 ++ progId._2))
 
       storage.update(
-        newVersion.bytes,
+        newVersion.persistedBytes,
         deleted.map(k => registryInput(k)),
         updated.map { case (key, value) =>
           registryInput(key) -> value.hash.value
@@ -77,18 +82,18 @@ class ProgramBoxRegistry(protected val storage: KeyValueStore)
 
     } match {
       case Success(_) =>
-        log.debug(s"${Console.GREEN} Update ProgramBoxRegistry to version: ${newVersion.toString}${Console.RESET}")
+        log.debug(s"${Console.GREEN} Update ProgramBoxRegistry to version: ${newVersion.show}${Console.RESET}")
         Success(new ProgramBoxRegistry(storage))
 
       case Failure(ex) => Failure(ex)
     }
 
-  override def rollbackTo(version: VersionTag): Try[ProgramBoxRegistry] = Try {
-    if (storage.latestVersionId().exists(_ sameElements version.bytes)) {
+  override def rollbackTo(version: ModifierId): Try[ProgramBoxRegistry] = Try {
+    if (storage.latestVersionId().exists(_ === version.persistedBytes)) {
       this
     } else {
-      log.debug(s"Rolling back ProgramBoxRegistry to: ${version.toString}")
-      storage.rollbackTo(version.bytes)
+      log.debug(s"Rolling back ProgramBoxRegistry to: ${version.show}")
+      storage.rollbackTo(version.persistedBytes)
       new ProgramBoxRegistry(storage)
     }
   }
@@ -99,17 +104,14 @@ object ProgramBoxRegistry extends Logging {
   type K = ProgramId
   type V = BoxId
 
-  def readOrGenerate(settings: AppSettings): Option[ProgramBoxRegistry] =
-    if (settings.application.enablePBR) {
-      log.info("Initializing state with Program Box Registry")
+  def readOrGenerate(settings: AppSettings): ProgramBoxRegistry = {
+    log.info("Initializing state with Program Box Registry")
+    val dataDir = settings.application.dataDir.ensuring(_.isDefined, "data dir must be specified").get
 
-      val dataDir = settings.application.dataDir.ensuring(_.isDefined, "data dir must be specified").get
+    val file = new File(s"$dataDir/programBoxRegistry")
+    file.mkdirs()
+    val storage = new LDBKeyValueStore(new LDBVersionedStore(file, keepVersions = 100))
 
-      val file = new File(s"$dataDir/programBoxRegistry")
-      file.mkdirs()
-      val storage = new LDBKeyValueStore(new LDBVersionedStore(file, keepVersions = 100))
-
-      Some(new ProgramBoxRegistry(storage))
-
-    } else None
+    new ProgramBoxRegistry(storage)
+  }
 }

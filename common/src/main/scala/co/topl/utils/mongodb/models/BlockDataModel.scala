@@ -1,9 +1,10 @@
 package co.topl.utils.mongodb.models
 
+import cats.implicits._
 import co.topl.crypto.implicits._
 import co.topl.modifier.block.Block
-import co.topl.utils.codecs.implicits._
-import co.topl.utils.encode.Base58
+import co.topl.codecs._
+import co.topl.utils.catsinstances.implicits._
 
 case class BlockDataModel(
   id:              String,
@@ -40,7 +41,7 @@ object BlockDataModel {
       block.signature.toString,
       block.height,
       block.difficulty.toString,
-      Base58.encode(block.merkleTree.rootHash.encodeAsBase58.value),
+      block.merkleTree.rootHash.encodeAsBase58.show,
       block.bloomFilter.toString,
       block.version,
       block.transactions.length,

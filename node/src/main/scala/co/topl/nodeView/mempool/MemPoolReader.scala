@@ -15,7 +15,7 @@ case class UnconfirmedTx[TX <: Transaction.TX](tx: TX, dateAdded: TimeProvider.T
 trait MemPoolReader[TX <: Transaction.TX] extends NodeViewComponent with ContainsModifiers[TX] {
 
   // getters
-  override def modifierById(modifierId: ModifierId): Option[TX]
+  def modifierById(modifierId: ModifierId): Option[TX]
 
   def contains(id: ModifierId): Boolean
 

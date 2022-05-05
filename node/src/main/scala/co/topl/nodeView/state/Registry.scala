@@ -1,8 +1,8 @@
 package co.topl.nodeView.state
 
 import co.topl.attestation.Address
-import co.topl.modifier.box.{BoxId, ProgramId}
-import co.topl.nodeView.state.MinimalState.VersionTag
+import co.topl.modifier.{ModifierId, ProgramId}
+import co.topl.modifier.box.BoxId
 import co.topl.utils.Logging
 
 import scala.reflect.ClassTag
@@ -12,9 +12,9 @@ trait Registry[K, V] extends StoreInterface with Logging {
 
   type SR = StateReader[ProgramId, Address]
 
-  protected def update(newVersion: VersionTag, toRemove: Map[K, Seq[V]], toAppend: Map[K, Seq[V]]): Try[Registry[K, V]]
+  protected def update(newVersion: ModifierId, toRemove: Map[K, Seq[V]], toAppend: Map[K, Seq[V]]): Try[Registry[K, V]]
 
-  protected def rollbackTo(version: VersionTag): Try[Registry[K, V]]
+  protected def rollbackTo(version: ModifierId): Try[Registry[K, V]]
 
   /** Helper function to transform registry input key to Array[Byte] */
   protected val registryInput: K => Array[Byte]

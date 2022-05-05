@@ -8,7 +8,7 @@ import co.topl.crypto.hash.implicits._
 import co.topl.modifier.box.AssetCode
 import co.topl.rpc.ToplRpcErrors
 import co.topl.utils.StringDataTypes.{Base58Data, Latin1Data}
-import co.topl.utils.codecs.implicits.base58JsonDecoder
+import co.topl.codecs.json._
 import co.topl.utils.encode.Base58
 import io.circe.Json
 import io.circe.parser.parse
@@ -89,7 +89,7 @@ class UtilsRPCSpec extends AnyWordSpec with Matchers with RPCMockState with Eith
         val res: Json = parse(responseAs[String]).value
         val hash = res.hcursor.downField("result").get[String]("hash").value
 
-        hash shouldEqual Base58.encode(blake2b256.hash("Hello World".getBytes).bytes)
+        hash shouldEqual Base58.encode(blake2b256.hash("Hello World".getBytes("UTF-8")).bytes)
         res.hcursor.downField("error").values shouldBe None
       }
     }
