@@ -7,13 +7,8 @@ import cats.data.EitherT
 import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.genus.algebras.{MongoQuery, QueryService}
-import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.typeclasses.{MongoFilter, MongoSort}
 import co.topl.genus.types.Block
-import co.topl.utils.mongodb.DocumentDecoder
-import co.topl.utils.mongodb.codecs._
-import co.topl.utils.mongodb.models.BlockDataModel
-import org.mongodb.scala.Document
 
 object BlocksQueryService {
 
@@ -46,7 +41,5 @@ object BlocksQueryService {
           .map(_.mapConcat(documentToBlock(_).toSeq))
       )
 
-    def documentToBlock(document: Document): Either[String, Block] =
-      DocumentDecoder[BlockDataModel].fromDocument(document).map(_.transformTo[Block])
   }
 }

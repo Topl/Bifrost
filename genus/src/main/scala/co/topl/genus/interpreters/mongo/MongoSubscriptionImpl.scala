@@ -43,8 +43,10 @@ object MongoSubscriptionImpl {
                   .limit(batchSize)
               )
               .runWith(Sink.seq[Document])
+              // increment the current index in the stream of documents for the next batch
               .map(documents => (index + documents.length -> documents.toList).some)
           )
+          // TODO make these values configurable
           .throttle(1, 5.seconds)
           .mapConcat(values => values)
           .pure[F]

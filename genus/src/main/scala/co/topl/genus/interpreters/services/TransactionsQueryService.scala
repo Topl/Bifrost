@@ -7,13 +7,8 @@ import cats.data.EitherT
 import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.genus.algebras.{MongoQuery, QueryService}
-import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.typeclasses.{MongoFilter, MongoSort}
 import co.topl.genus.types.Transaction
-import co.topl.utils.mongodb.DocumentDecoder
-import co.topl.utils.mongodb.codecs._
-import co.topl.utils.mongodb.models.ConfirmedTransactionDataModel
-import org.mongodb.scala.Document
 
 object TransactionsQueryService {
 
@@ -47,7 +42,5 @@ object TransactionsQueryService {
           .map(_.mapConcat(documentToTransaction(_).toSeq))
       )
 
-    def documentToTransaction(document: Document): Either[String, Transaction] =
-      DocumentDecoder[ConfirmedTransactionDataModel].fromDocument(document).map(_.transformTo[Transaction])
   }
 }

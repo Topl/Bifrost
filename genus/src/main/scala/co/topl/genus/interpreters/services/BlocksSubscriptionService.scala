@@ -7,11 +7,7 @@ import cats.data.EitherT
 import cats.implicits._
 import co.topl.genus.algebras.{MongoSubscription, SubscriptionService}
 import co.topl.genus.typeclasses.MongoFilter
-import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.types.Block
-import co.topl.utils.mongodb.DocumentDecoder
-import co.topl.utils.mongodb.codecs._
-import co.topl.utils.mongodb.models.BlockDataModel
 
 object BlocksSubscriptionService {
 
@@ -24,8 +20,7 @@ object BlocksSubscriptionService {
         EitherT.right[SubscriptionService.CreateSubscriptionFailure](
           subscriptions
             .create(request.filter)
-            .map(_.mapConcat(document => DocumentDecoder[BlockDataModel].fromDocument(document).toSeq))
-            .map(_.map(_.transformTo[Block]))
+            .map(_.mapConcat(documentToBlock(_).toSeq))
         )
     }
 }
