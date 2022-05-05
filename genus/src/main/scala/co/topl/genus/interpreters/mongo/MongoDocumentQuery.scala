@@ -12,7 +12,7 @@ import co.topl.genus.typeclasses.{MongoFilter, MongoSort}
 import co.topl.utils.mongodb.DocumentDecoder
 import org.mongodb.scala.{Document, MongoCollection}
 
-object MongoQueryImpl {
+object MongoDocumentQuery {
 
   /**
    * Makes an instance of a MongoDB-specific query algebra.
@@ -22,16 +22,16 @@ object MongoQueryImpl {
    * @tparam T the type of document to query for with an instnace of `DocumentDecoder`
    * @return a new instance of the query algebra which can query a mongo collection
    */
-  def make[F[_]: MonadThrow, T: DocumentDecoder](
+  def make[F[_]: MonadThrow](
     collection: MongoCollection[Document]
-  ): MongoQuery[F, T] =
-    new MongoQuery[F, T] {
+  ): MongoQuery[F, Document] =
+    new MongoQuery[F, Document] {
 
       override def query[Filter: MongoFilter, Sort: MongoSort](
         filter: Filter,
         sort:   Sort,
         paging: Option[Paging]
-      ): F[Source[T, NotUsed]] =
+      ): F[Source[Document, NotUsed]] =
         for {
           // catch error with finding and sorting on a mongo collection
           queryRequest    <- MonadThrow[F].catchNonFatal(collection.find(filter.toBsonFilter).sort(sort.toBsonSorting))
@@ -44,14 +44,6 @@ object MongoQueryImpl {
             )
           // catch error with creating a Mongo Source
           documentsSource <- MonadThrow[F].catchNonFatal(MongoSource(queryWithPaging))
-          // ignore any documents that fail to decode by using a flatmap from document to Source[T] where
-          // the source is empty for failed documents
-          querySource = documentsSource.flatMapConcat(document =>
-            DocumentDecoder[T]
-              .fromDocument(document)
-              .map(Source.single)
-              .getOrElse(Source.empty)
-          )
-        } yield querySource
+        } yield documentsSource
     }
 }

@@ -6,21 +6,18 @@ import akka.actor.typed.scaladsl.Behaviors
 import cats.effect.unsafe.implicits.global
 import cats.effect.{ExitCode, IO, IOApp, Resource}
 import cats.implicits._
-import co.topl.genus.algebras._
 import co.topl.genus.interpreters.mongo._
+import co.topl.genus.interpreters.requesthandlers._
 import co.topl.genus.interpreters.services._
 import co.topl.genus.programs.GenusProgram
-import co.topl.genus.settings.{ApplicationSettings, FileConfiguration, StartupOptions}
+import co.topl.genus.settings._
 import co.topl.genus.typeclasses.implicits._
-import co.topl.genus.types._
-import co.topl.utils.mongodb.codecs._
-import co.topl.utils.mongodb.models._
 import com.typesafe.config.ConfigFactory
 import mainargs.ParserForClass
 import org.mongodb.scala.MongoClient
 
 import java.io.File
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.ExecutionContext
 
 object GenusApp extends IOApp {
 
@@ -49,7 +46,9 @@ object GenusApp extends IOApp {
         makeWithSystem(settings)
       }
 
-  def makeWithSystem(settings: ApplicationSettings)(implicit system: actor.ActorSystem): IO[ExitCode] =
+  def makeWithSystem(settings: ApplicationSettings)(implicit system: actor.ActorSystem): IO[ExitCode] = {
+    implicit val executionContext: ExecutionContext = system.dispatcher
+
     for {
       // set up MongoDB resources
       mongoClient <- IO.delay(MongoClient(settings.mongoConnectionString))
@@ -59,38 +58,48 @@ object GenusApp extends IOApp {
 
       // set up query services
       transactionsQuery =
-        MongoQuery.map[IO, ConfirmedTransactionDataModel, Transaction](
-          MongoQueryImpl.make[IO, ConfirmedTransactionDataModel](transactionsCollection),
-          _.transformTo[Transaction]
+        TransactionsQueryService.make[IO](
+          MongoDocumentQuery.make[IO](
+            transactionsCollection
+          )
         )
+
       blocksQuery =
-        MongoQuery.map[IO, BlockDataModel, Block](
-          MongoQueryImpl.make[IO, BlockDataModel](blocksCollection),
-          _.transformTo[Block]
+        BlocksQueryService.make[IO](
+          MongoDocumentQuery.make[IO](
+            blocksCollection
+          )
         )
 
       // set up subscription services
       transactionsSubscription =
-        MongoSubscriptionService.make[IO, ConfirmedTransactionDataModel, Transaction](
-          ConfirmedTransactionDataMongoSubscription.make[IO](transactionsCollection)
+        TransactionsSubscriptionService.make[IO](
+          MongoDocumentSubscription.make[IO](
+            100,
+            transactionsCollection
+          )
         )
 
       blocksSubscription =
-        MongoSubscriptionService.make[IO, BlockDataModel, Block](
-          BlockDataMongoSubscription.make[IO](blocksCollection)
+        BlocksSubscriptionService.make[IO](
+          MongoDocumentSubscription.make[IO](
+            100,
+            blocksCollection
+          )
         )
 
       // create a GenusProgram from the services and application settings
       _ <-
         GenusProgram.make[IO](
-          QueryServiceImpl.make(transactionsQuery, settings.queryTimeout.milliseconds),
-          transactionsSubscription,
-          QueryServiceImpl.make(blocksQuery, settings.queryTimeout.milliseconds),
-          blocksSubscription,
+          HandleTransactionsQuery.make(transactionsQuery),
+          HandleTransactionsSubscription.make(transactionsSubscription),
+          HandleBlocksQuery.make(blocksQuery),
+          HandleBlocksSubscription.make(blocksSubscription),
           settings.ip,
           settings.port
         )
     } yield ExitCode.Success
+  }
 
   override def run(args: List[String]): IO[ExitCode] =
     ParserForClass[StartupOptions]
