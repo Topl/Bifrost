@@ -123,7 +123,7 @@ object Dependencies {
 
   val scodec = Seq(
     "org.scodec" %% "scodec-core" % "1.11.9",
-    "org.scodec" %% "scodec-bits" % "1.1.27",
+    "org.scodec" %% "scodec-bits" % "1.1.31",
     "org.scodec" %% "scodec-cats" % "1.1.0"
   )
 
