@@ -29,12 +29,10 @@ final case class StartupOptions(
   ip: Option[String] = None,
   @arg(short = 'p')
   port: Option[Int] = None,
-  @arg
-  localDatabaseName: Option[String] = None,
-  @arg
-  oplogCollectionName: Option[String] = None,
   @arg(short = 't', name = "query-timeout")
   queryTimeout: Option[Int] = None,
   @arg(short = 'c', name = "config")
-  configurationPath: Option[String] = None
+  configurationPath: Option[String] = None,
+  @arg
+  subBatchSize: Option[Int] = None
 )

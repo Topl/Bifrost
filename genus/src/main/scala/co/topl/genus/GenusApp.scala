@@ -75,7 +75,7 @@ object GenusApp extends IOApp {
       transactionsSubscription =
         TransactionsSubscriptionService.make[IO](
           MongoDocumentSubscription.make[IO](
-            100,
+            settings.subBatchSize,
             transactionsCollection
           )
         )
@@ -83,7 +83,7 @@ object GenusApp extends IOApp {
       blocksSubscription =
         BlocksSubscriptionService.make[IO](
           MongoDocumentSubscription.make[IO](
-            100,
+            settings.subBatchSize,
             blocksCollection
           )
         )

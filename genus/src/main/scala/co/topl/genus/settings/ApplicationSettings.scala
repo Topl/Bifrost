@@ -19,9 +19,8 @@ final case class ApplicationSettings(
   blocksCollectionName:       String,
   ip:                         String,
   port:                       Int,
-  localDatabaseName:          String,
-  oplogCollectionName:        String,
-  queryTimeout:               Int
+  queryTimeout:               Int,
+  subBatchSize:               Int
 )
 
 object ApplicationSettings {
@@ -40,8 +39,7 @@ object ApplicationSettings {
       options.blocksCollectionName.getOrElse(settings.blocksCollectionName),
       options.ip.getOrElse(settings.ip),
       options.port.getOrElse(settings.port),
-      options.localDatabaseName.getOrElse(settings.localDatabaseName),
-      options.oplogCollectionName.getOrElse(settings.oplogCollectionName),
-      options.queryTimeout.getOrElse(settings.queryTimeout)
+      options.queryTimeout.getOrElse(settings.queryTimeout),
+      options.subBatchSize.getOrElse(settings.subBatchSize)
     )
 }
