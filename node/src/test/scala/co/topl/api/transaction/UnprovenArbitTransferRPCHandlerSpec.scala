@@ -11,10 +11,11 @@ import io.circe.HCursor
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 
-class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with EitherValues {
+class UnprovenArbitTransferRPCHandlerSpec extends RPCMockState with Matchers with EitherValues {
 
-  import UnprovenPolyTransferRPCHandlerSpec._
+  import UnprovenArbitTransferRPCHandlerSpec._
 
+  val propositionType: String = PublicKeyPropositionCurve25519.typeString
   val amount = 100
   val fee = 1
 
@@ -28,7 +29,7 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with
     recipient = keyRingCurve25519.addresses.head.toDionAddress.toOption.get.allBytes.toBase58
   }
 
-  "Unproven Poly Transfer RPC Handler" should {
+  "Unproven Arbit Transfer RPC Handler" should {
 
     "successfully create a transfer with the provided sender in the 'inputs' field" in {
       val requestBody = createRequestBody(List(sender), List(recipient -> amount), fee, sender, None)
@@ -69,7 +70,7 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with
       val outputAddresses =
         result.map(outputs =>
           outputs.flatMap {
-            case Transaction.PolyOutput(dionAddress, _) =>
+            case Transaction.ArbitOutput(dionAddress, _) =>
               List(dionAddress.allBytes.toBase58)
             case _ =>
               List.empty
@@ -150,16 +151,16 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with
   }
 }
 
-object UnprovenPolyTransferRPCHandlerSpec {
+object UnprovenArbitTransferRPCHandlerSpec {
 
   /**
-   * Creates an Unproven Poly Transfer request body.
-   * @param senders the list of addresses sending polys
-   * @param recipients pairs of addresses and how many polys they should receive
-   * @param fee the fee to pay for the transaction
-   * @param changeAddress the address to send poly fee change to
-   * @param data transaction data
-   * @return a [[ByteString]] representing the transfer request
+   * Creates an Unproven Arbit Transfer request HTTP body.
+   * @param propositionType the type of proposition used for signing the transfer
+   * @param sender the address that polys should be sent from
+   * @param recipient the recipient of the polys
+   * @param amount the amount of polys to send
+   * @param fee the fee provided for the transaction
+   * @return a [[ByteString]] representing the HTTP body
    */
   def createRequestBody(
     senders:       List[String],
@@ -184,7 +185,7 @@ object UnprovenPolyTransferRPCHandlerSpec {
       |{
       | "jsonrpc": "2.0",
       | "id": "2",
-      | "method": "topl_unprovenPolyTransfer",
+      | "method": "topl_unprovenArbitTransfer",
       | "params": [ {
       |   "senders": [$sendersString],
       |   "recipients": [$recipientsString],

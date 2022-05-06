@@ -525,7 +525,7 @@ object ToplRpc {
       val rpc: Rpc[Params, Response] = Rpc("topl_unprovenArbitTransfer")
 
       case class Params(
-        sender:                NonEmptyChain[DionAddress],
+        senders:               NonEmptyChain[DionAddress],
         recipients:            NonEmptyChain[TetraTransaction.ArbitOutput],
         fee:                   TetraInt128,
         changeAddress:         DionAddress,

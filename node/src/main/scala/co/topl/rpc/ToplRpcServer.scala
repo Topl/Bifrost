@@ -62,6 +62,7 @@ class ToplRpcServer(handlers: ToplRpcHandlers, appContext: AppContext)(implicit
         .append(ToplRpc.Transaction.RawArbitTransfer.rpc)(handlers.transaction.rawArbitTransfer)
         .append(ToplRpc.Transaction.RawPolyTransfer.rpc)(handlers.transaction.rawPolyTransfer)
         .append(ToplRpc.Transaction.UnprovenPolyTransfer.rpc)(handlers.transaction.unprovenPolyTransfer)
+        .append(ToplRpc.Transaction.UnprovenArbitTransfer.rpc)(handlers.transaction.unprovenArbitTransfer)
         .append(ToplRpc.Transaction.UnprovenAssetTransfer.rpc)(handlers.transaction.unprovenAssetTransfer)
         .append(ToplRpc.Transaction.BroadcastTx.rpc)(handlers.transaction.broadcastTx)
         .append(ToplRpc.Transaction.BroadcastTetraTransfer.rpc)(handlers.transaction.broadcastTetraTransfer)
