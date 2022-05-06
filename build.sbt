@@ -6,7 +6,7 @@ import sbtsonar.SonarPlugin.autoImport.sonarProperties
 lazy val sonarSettings = Seq(
   sonarProperties ++= Map(
     "sonar.host.url" -> "https://sonarcloud.io",
-    "sonar.organiztion" -> "topl",
+    "sonar.organization" -> "topl",
     "sonar.projectName" -> "Bifrost",
     "sonar.projectKey" -> "Topl_Bifrost",
     "sonar.sources" -> "akka-http-rpc/src/main/scala,brambl/src/main/scala,chain-program/src/main/scala,common/src/main/scala,crypto/src/main/scala,gjallarhorn/src/main/scala,load-testing/src/main/scala,node/src/main/scala,tools/src/main/scala,topl-rpc/src/main/scala",
