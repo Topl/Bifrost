@@ -641,11 +641,11 @@ lazy val benchmarking = project
     name := "benchmark",
     commonSettings,
     publish / skip := true,
-    libraryDependencies ++= Dependencies.benchmarking
+    libraryDependencies ++= Dependencies.benchmarking,
+    sonarScan := false
   )
   .enablePlugins(JmhPlugin)
   .disablePlugins(sbtassembly.AssemblyPlugin)
-  .settings(sonarSettings)
 
 lazy val crypto = project
   .in(file("crypto"))
