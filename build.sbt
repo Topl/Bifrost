@@ -237,7 +237,7 @@ lazy val bifrost = project
     eligibilitySimulator,
     genus
   )
-  .settings(sonarSettings)
+  .settings(sonarScan := false)
 
 lazy val node = project
   .in(file("node"))
