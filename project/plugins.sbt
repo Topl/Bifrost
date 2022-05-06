@@ -2,6 +2,7 @@
 logLevel := Level.Error
 
 addDependencyTreePlugin
+addSbtPlugin("com.sonar-scala" % "sbt-sonar" % "2.3.0")
 
 Seq(
   "com.eed3si9n"       % "sbt-assembly"              % "1.1.1",
@@ -18,5 +19,5 @@ Seq(
   "com.eed3si9n"       % "sbt-buildinfo"             % "0.11.0",
   "com.geirsson"       % "sbt-ci-release"            % "1.5.7",
   "net.bzzt"           % "sbt-reproducible-builds"   % "0.30",
-  "com.lightbend.akka.grpc" % "sbt-akka-grpc" % "2.1.1"
+  "com.lightbend.akka.grpc" % "sbt-akka-grpc" % "2.1.4"
 ).map(addSbtPlugin)
