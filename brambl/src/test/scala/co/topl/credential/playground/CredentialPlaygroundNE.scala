@@ -92,7 +92,7 @@ object CredentialPlaygroundNE extends App {
 
       def currentHeight: Long = 50L
 
-      def inputBoxes: List[Box[Box.Value]] = List(
+      def inputBoxes: List[Box] = List(
         Box(
           proposition.typedEvidence,
           unprovenTransaction.inputs.head._2,
@@ -221,7 +221,7 @@ object TruthTable extends App {
 
       def currentHeight: Long = 50L
 
-      def inputBoxes: List[Box[Box.Value]] = List(
+      def inputBoxes: List[Box] = List(
         Box(
           proposition.typedEvidence,
           unprovenTransaction.inputs.head._2,

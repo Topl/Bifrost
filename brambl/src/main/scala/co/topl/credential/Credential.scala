@@ -75,7 +75,7 @@ object Credential {
       override def prove(currentProof: Proof): Proof = Proofs.Knowledge.HashLock(salt, value)
 
       override def proposition: Proposition =
-        Propositions.Knowledge.HashLock(Sized.strictUnsafe(Bytes(blake2b256.hash(salt.data.toArray :+ value).value)))
+        Propositions.Knowledge.HashLock(Sized.strictUnsafe(Bytes(blake2b256.hash((salt.data :+ value).toArray).value)))
     }
   }
 
@@ -185,7 +185,7 @@ object Credential {
 //        Propositions.Contextual.RequiredDionOutput(index, address)
 //    }
 
-    case class RequiredBoxState(location: BoxLocation, boxes: List[(Int, Box[Box.Value])]) extends Credential {
+    case class RequiredBoxState(location: BoxLocation, boxes: List[(Int, Box)]) extends Credential {
       def prove(currentProof: Proof): Proof = Proofs.Contextual.RequiredBoxState()
 
       val proposition: Propositions.Contextual.RequiredBoxState =

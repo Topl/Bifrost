@@ -4,7 +4,7 @@ import co.topl.codecs.bytes.scodecs.valuetypes.Constants.byteSize
 import scodec.bits.BitVector
 import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
 
-class BytesCodec(size: Int) extends Codec[Array[Byte]] {
+class ByteArrayCodec(size: Int) extends Codec[Array[Byte]] {
 
   /**
    * Attempts to decode an `Array[Byte]` from a vector of bits.

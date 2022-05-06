@@ -2,21 +2,15 @@ package co.topl.codecs.bytes.tetra
 
 import cats.{Eq, Show}
 import co.topl.codecs.bytes.CodecSpec
-import co.topl.models.{
-  BlockHeaderV2,
-  EligibilityCertificate,
-  Int128,
-  ModelGenerators,
-  Proofs,
-  SecretKeys,
-  TaktikosAddress,
-  VerificationKeys
-}
-import co.topl.models.utility.{KesBinaryTree, Ratio}
 import co.topl.models.utility.StringDataTypes.Latin1Data
+import co.topl.models.utility.{KesBinaryTree, Ratio}
+import co.topl.models._
 import org.scalacheck.Gen
 
 class TetraScodecCodecsSpec extends CodecSpec {
+
+  import ModelGenerators._
+  import TetraScodecCodecs._
 
   implicit def defaultShow[T]: Show[T] = Show.fromToString
   implicit def defaultEq[T]: Eq[T] = Eq.fromUniversalEquals
@@ -165,11 +159,7 @@ class TetraScodecCodecsSpec extends CodecSpec {
     ModelGenerators.partialOperationalCertificateGen
   )
 
-  codecBehavior[TaktikosAddress](
-    "TaktikosAddress",
-    TetraScodecCodecs.taktikosAddressCodec,
-    ModelGenerators.taktikosAddressGen
-  )
+  codecBehavior[TaktikosAddress]()
 
   codecBehavior[BlockHeaderV2.Unsigned](
     "BlockHeaderV2.Unsigned",
@@ -177,9 +167,23 @@ class TetraScodecCodecsSpec extends CodecSpec {
     ModelGenerators.unsignedHeaderGen()
   )
 
-  codecBehavior[BlockHeaderV2](
-    "BlockHeaderV2",
-    TetraScodecCodecs.blockHeaderV2Codec,
-    ModelGenerators.headerGen()
+  codecBehavior[BlockHeaderV2]()
+
+  codecBehavior[TypedEvidence](
+    "TypedEvidence",
+    TetraScodecCodecs.typedEvidenceCodec,
+    ModelGenerators.typedEvidenceGen
   )
+
+  codecBehavior[DionAddress]()
+
+  codecBehavior[BoxReference]()
+
+  codecBehavior[Proposition]()
+
+  codecBehavior[Proof]()
+
+  codecBehavior[Box]()
+
+  codecBehavior[Transaction]()
 }

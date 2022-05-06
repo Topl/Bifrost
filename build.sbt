@@ -343,13 +343,7 @@ lazy val byteCodecs = project
     buildInfoPackage := "co.topl.buildinfo.codecs.bytes"
   )
   .settings(
-    libraryDependencies ++=
-      Dependencies.test ++
-      Dependencies.simulacrum ++
-      Dependencies.scodec ++
-      Dependencies.scodecBits ++
-      Dependencies.cats ++
-      Seq(Dependencies.akka("actor"))
+    libraryDependencies ++= Dependencies.byteCodecs
   )
   .settings(scalamacrosParadiseSettings)
 

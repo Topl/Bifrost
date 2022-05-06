@@ -129,6 +129,10 @@ object Dependencies {
     "org.scodec" %% "scodec-bits" % "1.1.27"
   )
 
+  val scodecCats = Seq(
+    "org.scodec" %% "scodec-cats" % "1.1.0"
+  )
+
   val fleam = Seq(
     "com.nike.fleam" %% "fleam" % "7.0.0"
   )
@@ -272,6 +276,15 @@ object Dependencies {
     Dependencies.catsEffect ++
     Dependencies.scalacache
 
+  lazy val byteCodecs =
+    Dependencies.test ++
+    Dependencies.simulacrum ++
+    Dependencies.scodec ++
+    Dependencies.scodecBits ++
+    Dependencies.scodecCats ++
+    Dependencies.cats ++
+    Seq(Dependencies.akka("actor"))
+
   lazy val tools: Seq[ModuleID] =
     Seq(
       "org.mongodb.scala" %% "mongo-scala-driver" % "4.5.0"
@@ -279,8 +292,8 @@ object Dependencies {
 
   lazy val loadTesting: Seq[ModuleID] =
     Seq(
-      "com.lihaoyi" %% "mainargs" % "0.2.1",
-      "com.nike.fleam" %% "fleam" % "7.0.0"
+      "com.lihaoyi"    %% "mainargs" % "0.2.1",
+      "com.nike.fleam" %% "fleam"    % "7.0.0"
     ) ++
     fleam ++
     allAkka ++

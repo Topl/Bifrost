@@ -91,7 +91,7 @@ object CredentialPlaygroundOriginal extends App {
       def currentTransaction: Transaction = transaction
 
       def currentHeight: Long = 50L
-      def inputBoxes: List[Box[Box.Value]] = List()
+      def inputBoxes: List[Box] = List()
       def currentSlot: Slot = 1
     }
 
