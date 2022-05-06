@@ -9,8 +9,6 @@ lazy val sonarSettings = Seq(
     "sonar.organization" -> "topl",
     "sonar.projectName" -> "Bifrost",
     "sonar.projectKey" -> "Topl_Bifrost",
-    "sonar.sources" -> "akka-http-rpc/src/main/scala,brambl/src/main/scala,chain-program/src/main/scala,common/src/main/scala,crypto/src/main/scala,gjallarhorn/src/main/scala,load-testing/src/main/scala,node/src/main/scala,tools/src/main/scala,topl-rpc/src/main/scala",
-    "sonar.tests" -> "akka-http-rpc/src/test/scala,brambl/src/test/scala,chain-program/src/test/scala,common/src/test/scala,crypto/src/test/scala,gjallarhorn/src/test/scala,load-testing/src/test/scala,node/src/test/scala,tools/src/test/scala,topl-rpc/src/test/scala",
     "sonar.junit.reportPaths" -> "target/test-reports",
     "sonar.scala.version" -> "2.13",
     "sonar.sourceEncoding" -> "UTF-8",
@@ -119,7 +117,7 @@ def assemblySettings(main: String) = Seq(
   assembly / mainClass := Some(main),
   assembly / test := {},
   assemblyJarName := s"bifrost-node-${version.value}.jar",
-  assembly / assemblyMergeStrategy ~= { old: ((String) => MergeStrategy) =>
+  assembly / assemblyMergeStrategy ~= { old: (String => MergeStrategy) =>
     {
       case ps if ps.endsWith(".SF")  => MergeStrategy.discard
       case ps if ps.endsWith(".DSA") => MergeStrategy.discard
