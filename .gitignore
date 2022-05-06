@@ -49,5 +49,6 @@ docker/*.jar
 /project/project/project/metals.sbt
 
 # sonar
+.scannerwork
 .sonar_lock
 report-task.txt
