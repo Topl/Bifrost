@@ -9,6 +9,7 @@ lazy val sonarSettings = Seq(
     "sonar.organization" -> "topl",
     "sonar.projectName" -> "Bifrost",
     "sonar.projectKey" -> "Topl_Bifrost",
+    "sonar.java.binaries" -> "target/scala-2.13/classes",
     "sonar.junit.reportPaths" -> "target/test-reports",
     "sonar.scala.version" -> "2.13",
     "sonar.sourceEncoding" -> "UTF-8",
@@ -595,7 +596,8 @@ lazy val scripting: Project = project
     commonSettings,
     publishSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "co.topl.buildinfo.scripting"
+    buildInfoPackage := "co.topl.buildinfo.scripting",
+    sonarScan := false
   )
   .settings(
     libraryDependencies ++= Dependencies.graal ++ Dependencies.catsEffect ++ Dependencies.circe ++ Dependencies.simulacrum
