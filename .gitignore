@@ -50,3 +50,4 @@ docker/*.jar
 
 # sonar
 .sonar_lock
+report-task.txt
