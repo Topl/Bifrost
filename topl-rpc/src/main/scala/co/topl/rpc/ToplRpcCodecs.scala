@@ -1,12 +1,10 @@
 package co.topl.rpc
 
 import cats.data.NonEmptyChain
-import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 import co.topl.attestation.{Address, Proposition}
 import co.topl.codecs._
 import co.topl.codecs.json.JsonCodecs
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.Block
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithm, BoxSelectionAlgorithms}
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
@@ -16,7 +14,6 @@ import co.topl.utils.StringDataTypes.Latin1Data
 import io.circe._
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.syntax._
-import scodec.Codec
 
 trait ToplRpcCodecs extends ToplRpcClientCodecs with ToplRpcServerCodecs
 
@@ -176,6 +173,9 @@ trait DebugRpcResponseDecoders {
 
   implicit val debugIdsFromHeightResponseDecoder: Decoder[ToplRpc.Debug.IdsFromHeight.Response] =
     Decoder.decodeList
+
+  implicit val debugExportGenesisAndKeysResponseDecoder: Decoder[ToplRpc.Debug.Delay.Response] =
+    deriveDecoder
 }
 
 trait UtilRpcResponseDecoders {
@@ -574,17 +574,7 @@ trait DebugRpcResponseEncoders extends SharedCodecs {
     Encoder.encodeList
 
   implicit val debugExportGenesisAndKeysResponseEncoder: Encoder[ToplRpc.Debug.ExportGenesisAndKeys.Response] =
-    r =>
-      Map(
-        "keys" -> Codec[List[PrivateKeyCurve25519]]
-          .encode(r.keys)
-          .getOrElse(throw new Exception("Unable to encode the list of private keys"))
-          .toBase58,
-        "genesis block" -> Codec[Block]
-          .encode(r.genesis)
-          .getOrElse(throw new Exception("Unable to encode the block"))
-          .toBase58
-      ).asJson
+    deriveEncoder
 
 }
 

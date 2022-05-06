@@ -4,6 +4,7 @@ import akka.actor.typed.ActorSystem
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
 import co.topl.attestation.keyManagement.PrivateKeyCurve25519
+import co.topl.codecs.binary.scodecs.genesisAndKeys.GenesisAndKeys
 import co.topl.consensus.{KeyManagerInterface, ListOpenKeyfilesFailureException}
 import co.topl.nodeView.history.HistoryDebug
 import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView}
@@ -72,9 +73,10 @@ class DebugRpcHandlerImpls(
         val secretList = secrets.flatMap {
           case s: PrivateKeyCurve25519 => Some(s)
           case _                       => None
-        }.toList
+        }.toSeq
 
-        ToplRpc.Debug.ExportGenesisAndKeys.Response(secretList, block)
+        val genesisAndKeys = GenesisAndKeys(block, secretList)
+        ToplRpc.Debug.ExportGenesisAndKeys.Response(genesisAndKeys)
       }
 
   private def withNodeView[T](f: ReadableNodeView => T) =

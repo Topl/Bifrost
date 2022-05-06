@@ -2,8 +2,8 @@ package co.topl.rpc
 
 import cats.data.NonEmptyChain
 import co.topl.akkahttprpc.Rpc
-import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 import co.topl.attestation.{Address, Proposition}
+import co.topl.codecs.binary.scodecs.genesisAndKeys.GenesisAndKeys
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.AssetCode.AssetCodeVersion
@@ -75,7 +75,7 @@ object ToplRpc {
        */
       val rpc: Rpc[Params, Response] = Rpc("debug_exportGenesisAndKeys")
       case class Params()
-      case class Response(keys: List[PrivateKeyCurve25519], genesis: Block)
+      case class Response(genesisAndKeys: GenesisAndKeys)
     }
   }
 
