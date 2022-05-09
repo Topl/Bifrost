@@ -1,0 +1,1 @@
+sonar-scanner -D sonar.branch.name=`git branch --show-current`
