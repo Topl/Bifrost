@@ -1,21 +1,6 @@
 import sbt.Keys.{homepage, organization, test}
 import sbtassembly.MergeStrategy
 
-lazy val sonarSettings = Seq(
-  sonarProperties ++= Map(
-    "sonar.host.url" -> "https://sonarcloud.io",
-    "sonar.organization" -> "topl",
-    "sonar.projectName" -> "Bifrost",
-    "sonar.projectKey" -> "Topl_Bifrost",
-    "sonar.java.binaries" -> "target/scala-2.13/classes",
-    "sonar.junit.reportPaths" -> "target/test-reports",
-    "sonar.scala.version" -> "2.13",
-    "sonar.sourceEncoding" -> "UTF-8",
-    "sonar.scala.scoverage.reportPath" -> "target/scala-2.13/scoverage-report/scoverage.xml",
-    "sonar.scala.scapegoat.reportPath" -> "target/scala-2.13/scapegoat-report/scapegoat.xml"
-  )
-)
-
 val scala212 = "2.12.15"
 val scala213 = "2.13.6"
 
