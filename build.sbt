@@ -1,8 +1,6 @@
 import sbt.Keys.{homepage, organization, test}
 import sbtassembly.MergeStrategy
 
-import sbtsonar.SonarPlugin.autoImport.sonarProperties
-
 lazy val sonarSettings = Seq(
   sonarProperties ++= Map(
     "sonar.host.url" -> "https://sonarcloud.io",
@@ -237,7 +235,6 @@ lazy val bifrost = project
     eligibilitySimulator,
     genus
   )
-  .settings(sonarScan := false)
 
 lazy val node = project
   .in(file("node"))
@@ -258,7 +255,6 @@ lazy val node = project
   .settings(
     IntegrationTest / parallelExecution := false
   )
-  .settings(sonarSettings)
   .dependsOn(common % "compile->compile;test->test", toplRpc, tools, genus)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
@@ -272,7 +268,6 @@ lazy val common = project
   )
   .dependsOn(crypto, typeclasses, models % "compile->compile;test->test")
   .settings(scalamacrosParadiseSettings)
-  .settings(sonarSettings)
 
 //lazy val chainProgram = project
 //  .in(file("chain-program"))
@@ -297,7 +292,6 @@ lazy val brambl = project
     buildInfoPackage := "co.topl.buildinfo.brambl"
   )
   .settings(scalamacrosParadiseSettings)
-  .settings(sonarSettings)
   .dependsOn(toplRpc, common, typeclasses, models % "compile->compile;test->test", scripting, tetraByteCodecs)
 
 lazy val akkaHttpRpc = project
@@ -311,7 +305,6 @@ lazy val akkaHttpRpc = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.akkahttprpc"
   )
-  .settings(sonarSettings)
 
 lazy val models = project
   .in(file("models"))
@@ -328,7 +321,6 @@ lazy val models = project
     libraryDependencies ++= Dependencies.models
   )
   .settings(libraryDependencies ++= Dependencies.test)
-  .settings(sonarSettings)
 
 lazy val numerics = project
   .in(file("numerics"))
@@ -343,7 +335,6 @@ lazy val numerics = project
   .settings(scalamacrosParadiseSettings)
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.scalacache)
   .dependsOn(algebras, typeclasses, models)
-  .settings(sonarSettings)
 
 lazy val eventTree = project
   .in(file("event-tree"))
@@ -359,7 +350,6 @@ lazy val eventTree = project
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsEffect)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, typeclasses, algebras % "compile->compile;test->test")
-  .settings(sonarSettings)
 
 lazy val byteCodecs = project
   .in(file("byte-codecs"))
@@ -380,7 +370,6 @@ lazy val byteCodecs = project
       Seq(Dependencies.akka("actor"))
   )
   .settings(scalamacrosParadiseSettings)
-  .settings(sonarSettings)
 
 lazy val tetraByteCodecs = project
   .in(file("tetra-byte-codecs"))
@@ -395,7 +384,6 @@ lazy val tetraByteCodecs = project
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.guava)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test", byteCodecs % "compile->compile;test->test", crypto)
-  .settings(sonarSettings)
 
 lazy val jsonCodecs = project
   .in(file("json-codecs"))
@@ -410,7 +398,6 @@ lazy val jsonCodecs = project
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.circe)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models)
-  .settings(sonarSettings)
 
 lazy val typeclasses: Project = project
   .in(file("typeclasses"))
@@ -425,7 +412,6 @@ lazy val typeclasses: Project = project
   .settings(libraryDependencies ++= Dependencies.test)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test", crypto, tetraByteCodecs, jsonCodecs)
-  .settings(sonarSettings)
 
 lazy val algebras = project
   .in(file("algebras"))
@@ -440,7 +426,6 @@ lazy val algebras = project
   .settings(libraryDependencies ++= Dependencies.algebras)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, crypto, tetraByteCodecs)
-  .settings(sonarSettings)
 
 lazy val commonInterpreters = project
   .in(file("common-interpreters"))
@@ -456,7 +441,6 @@ lazy val commonInterpreters = project
   .settings(libraryDependencies ++= Dependencies.commonInterpreters)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, algebras, typeclasses, byteCodecs, tetraByteCodecs, catsAkka, eventTree)
-  .settings(sonarSettings)
 
 lazy val consensus = project
   .in(file("consensus"))
@@ -482,7 +466,6 @@ lazy val consensus = project
     algebras % "compile->compile;test->test",
     numerics
   )
-  .settings(sonarSettings)
 
 lazy val minting = project
   .in(file("minting"))
@@ -506,7 +489,6 @@ lazy val minting = project
     consensus,
     catsAkka
   )
-  .settings(sonarSettings)
 
 lazy val networking = project
   .in(file("networking"))
@@ -533,7 +515,6 @@ lazy val networking = project
     catsAkka,
     eventTree
   )
-  .settings(sonarSettings)
 
 lazy val demo = project
   .in(file("demo"))
@@ -567,7 +548,6 @@ lazy val demo = project
     catsAkka
   )
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
-  .settings(sonarSettings)
 
 lazy val eligibilitySimulator: Project = project
   .in(file("eligibility-simulator"))
@@ -586,7 +566,6 @@ lazy val eligibilitySimulator: Project = project
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test", typeclasses, consensus, minting, commonInterpreters, numerics)
   .enablePlugins(BuildInfoPlugin)
-  .settings(sonarSettings)
 
 lazy val scripting: Project = project
   .in(file("scripting"))
@@ -596,15 +575,13 @@ lazy val scripting: Project = project
     commonSettings,
     publishSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "co.topl.buildinfo.scripting",
-    sonarScan := false
+    buildInfoPackage := "co.topl.buildinfo.scripting"
   )
   .settings(
     libraryDependencies ++= Dependencies.graal ++ Dependencies.catsEffect ++ Dependencies.circe ++ Dependencies.simulacrum
   )
   .settings(libraryDependencies ++= Dependencies.test)
   .settings(scalamacrosParadiseSettings)
-  .settings(sonarSettings)
 
 lazy val toplRpc = project
   .in(file("topl-rpc"))
@@ -619,7 +596,6 @@ lazy val toplRpc = project
     buildInfoPackage := "co.topl.buildinfo.toplrpc"
   )
   .dependsOn(akkaHttpRpc, common)
-  .settings(sonarSettings)
 
 // This module has fallen out of sync with the rest of the codebase and is not currently needed
 //lazy val gjallarhorn = project
@@ -635,7 +611,6 @@ lazy val toplRpc = project
 //  .configs(IntegrationTest)
 //  .disablePlugins(sbtassembly.AssemblyPlugin)
 //  .settings(scalamacrosParadiseSettings)
-//  .settings(sonarSettings)
 
 lazy val benchmarking = project
   .in(file("benchmark"))
@@ -644,7 +619,6 @@ lazy val benchmarking = project
     commonSettings,
     publish / skip := true,
     libraryDependencies ++= Dependencies.benchmarking,
-    sonarScan := false
   )
   .enablePlugins(JmhPlugin)
   .disablePlugins(sbtassembly.AssemblyPlugin)
@@ -662,7 +636,6 @@ lazy val crypto = project
     libraryDependencies ++= Dependencies.crypto
   )
   .dependsOn(models % "compile->compile;test->test")
-  .settings(sonarSettings)
 
 lazy val catsAkka = project
   .in(file("cats-akka"))
@@ -676,7 +649,6 @@ lazy val catsAkka = project
     libraryDependencies ++= Dependencies.catsAkka
   )
   .settings(scalamacrosParadiseSettings)
-  .settings(sonarSettings)
 
 lazy val tools = project
   .in(file("tools"))
@@ -690,7 +662,6 @@ lazy val tools = project
     libraryDependencies ++= Dependencies.tools
   )
   .dependsOn(common)
-  .settings(sonarSettings)
 
 lazy val loadTesting = project
   .in(file("load-testing"))
@@ -702,7 +673,6 @@ lazy val loadTesting = project
     libraryDependencies ++= Dependencies.loadTesting
   )
   .dependsOn(common, brambl)
-  .settings(sonarSettings)
 
 lazy val genus = project
   .in(file("genus"))
@@ -714,7 +684,6 @@ lazy val genus = project
   )
   .enablePlugins(AkkaGrpcPlugin)
   .dependsOn(common)
-  .settings(sonarSettings)
 
 addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; + test")
 addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; + test")
