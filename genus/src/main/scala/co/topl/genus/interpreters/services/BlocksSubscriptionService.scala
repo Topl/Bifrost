@@ -20,7 +20,9 @@ object BlocksSubscriptionService {
       ): EitherT[F, SubscriptionService.CreateSubscriptionFailure, Source[Block, NotUsed]] =
         MonadThrow[F]
           // catch a possible failure with creating the subscription
-          .attemptT(subscriptions.create(request.filter))
+          .attemptT(
+            subscriptions.create(request.filter, BlockSorting(BlockSorting.SortBy.Height(BlockSorting.Height())))
+          )
           .leftMap[SubscriptionService.CreateSubscriptionFailure](failure =>
             SubscriptionService.CreateSubscriptionFailures.DataConnectionFailure(failure.getMessage)
           )

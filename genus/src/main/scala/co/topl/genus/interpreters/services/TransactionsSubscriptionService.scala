@@ -20,7 +20,10 @@ object TransactionsSubscriptionService {
       ): EitherT[F, SubscriptionService.CreateSubscriptionFailure, Source[Transaction, NotUsed]] =
         MonadThrow[F]
           // catch a possible failure with creating the subscription
-          .attemptT(subscriptions.create(request.filter))
+          .attemptT(
+            subscriptions
+              .create(request.filter, TransactionSorting(TransactionSorting.SortBy.Height(TransactionSorting.Height())))
+          )
           .leftMap[SubscriptionService.CreateSubscriptionFailure](failure =>
             SubscriptionService.CreateSubscriptionFailures.DataConnectionFailure(failure.getMessage)
           )
