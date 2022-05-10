@@ -8,7 +8,7 @@ import co.topl.models.utility._
 import org.scalacheck.rng.Seed
 import org.scalacheck.{Arbitrary, Gen}
 
-import scala.collection.immutable.{ListMap, ListSet}
+import scala.collection.immutable.ListSet
 
 trait ModelGenerators {
 
@@ -51,12 +51,6 @@ trait ModelGenerators {
       prefix        <- networkPrefixGen
       typedEvidence <- typedEvidenceGen
     } yield DionAddress(prefix, typedEvidence)
-
-  def boxReferenceGen: Gen[BoxReference] =
-    for {
-      address <- dionAddressGen
-      nonce   <- Gen.long
-    } yield (address, nonce)
 
   def eligibilityCertificateGen: Gen[EligibilityCertificate] =
     for {
@@ -358,36 +352,17 @@ trait ModelGenerators {
     Arbitrary(
       for {
         evidence <- typedEvidenceGen
-        nonce    <- Gen.long
         value    <- arbitraryBoxValue.arbitrary
-      } yield Box(evidence, nonce, value)
+      } yield Box(evidence, value)
     )
 
-  implicit val arbitraryPolyOutput: Arbitrary[Transaction.PolyOutput] =
-    Arbitrary(
-      arbitraryDionAddress.arbitrary.flatMap(a => arbitraryInt128.arbitrary.map(v => Transaction.PolyOutput(a, v)))
-    )
-
-  implicit val arbitraryArbitOutput: Arbitrary[Transaction.ArbitOutput] =
-    Arbitrary(
-      arbitraryDionAddress.arbitrary.flatMap(a => arbitraryInt128.arbitrary.map(v => Transaction.ArbitOutput(a, v)))
-    )
-
-  implicit val arbitraryAssetOutput: Arbitrary[Transaction.AssetOutput] =
+  implicit val arbitraryTransactionOutput: Arbitrary[Transaction.Output] =
     Arbitrary(
       for {
         address <- arbitraryDionAddress.arbitrary
-        value   <- arbitraryAssetBox.arbitrary
-      } yield Transaction.AssetOutput(address, value)
-    )
-
-  implicit val arbitraryCoinOutput: Arbitrary[Transaction.CoinOutput] =
-    Arbitrary(
-      Gen.oneOf(
-        arbitraryPolyOutput.arbitrary,
-        arbitraryArbitOutput.arbitrary,
-        arbitraryAssetOutput.arbitrary
-      )
+        value   <- arbitraryBoxValue.arbitrary
+        minting <- Gen.prob(0.5)
+      } yield Transaction.Output(address, value, minting)
     )
 
   implicit val arbitraryPropositionsPermanentlyLocked: Arbitrary[Propositions.PermanentlyLocked.type] =
@@ -462,6 +437,14 @@ trait ModelGenerators {
       Gen.asciiPrintableStr
         .map(Propositions.Script.JS.JSScript(_))
         .map(Propositions.Script.JS(_))
+    )
+
+  implicit val arbitraryTypedIdentifier: Arbitrary[TypedIdentifier] =
+    Arbitrary(
+      for {
+        byte <- byteGen
+        data <- arbitraryBytes.arbitrary
+      } yield TypedBytes(byte, data)
     )
 
   implicit val arbitraryProposition: Arbitrary[Proposition] =
@@ -570,45 +553,57 @@ trait ModelGenerators {
       )
     )
 
+  implicit val arbitraryTransactionInput: Arbitrary[Transaction.Input] =
+    Arbitrary(
+      for {
+        transactionId          <- arbitraryTypedIdentifier.arbitrary
+        transactionOutputIndex <- Gen.posNum[Short]
+        proposition            <- arbitraryProposition.arbitrary
+        proof                  <- arbitraryProof.arbitrary
+        value                  <- arbitraryBoxValue.arbitrary
+      } yield Transaction.Input(transactionId, transactionOutputIndex, proposition, proof, value)
+    )
+
+  implicit val arbitraryTransactionUnprovenInput: Arbitrary[Transaction.Unproven.Input] =
+    Arbitrary(
+      for {
+        transactionId          <- arbitraryTypedIdentifier.arbitrary
+        transactionOutputIndex <- Gen.posNum[Short]
+        proposition            <- arbitraryProposition.arbitrary
+        value                  <- arbitraryBoxValue.arbitrary
+      } yield Transaction.Unproven.Input(transactionId, transactionOutputIndex, proposition, value)
+    )
+
   implicit val arbitraryUnprovenTransaction: Arbitrary[Transaction.Unproven] =
     Arbitrary(
       for {
-        inputs <- Gen.nonEmptyContainerOf[List, BoxReference](
-          arbitraryDionAddress.arbitrary.flatMap(a => Gen.long.map(l => (a, l)))
-        )
-        feeOutput <- Gen.option(arbitraryPolyOutput.arbitrary)
-        coinOutputs <- Gen
-          .nonEmptyListOf(arbitraryCoinOutput.arbitrary)
+        inputs <- Gen
+          .nonEmptyListOf(arbitraryTransactionUnprovenInput.arbitrary)
           .map(Chain.fromSeq)
           .map(NonEmptyChain.fromChainUnsafe)
-        fee       <- arbitraryInt128.arbitrary
+        outputs <- Gen
+          .nonEmptyListOf(arbitraryTransactionOutput.arbitrary)
+          .map(Chain.fromSeq)
+          .map(NonEmptyChain.fromChainUnsafe)
         timestamp <- Gen.chooseNum[Long](0L, 100000L)
         data = None
-        minting = false
-      } yield Transaction.Unproven(inputs, feeOutput, coinOutputs, fee, timestamp, data, minting)
+      } yield Transaction.Unproven(inputs, outputs, timestamp, data)
     )
 
   implicit val arbitraryTransaction: Arbitrary[Transaction] =
     Arbitrary(
       for {
-        unprovenTx <- arbitraryUnprovenTransaction.arbitrary
-        provenInputs <-
-          Gen
-            .listOfN(
-              unprovenTx.inputs.length,
-              Gen.zip(arbitraryProposition.arbitrary, arbitraryProof.arbitrary)
-            )
-            .map(pairs => unprovenTx.inputs.zip(pairs))
-        tx = Transaction(
-          inputs = ListMap(provenInputs: _*),
-          feeOutput = unprovenTx.feeOutput,
-          coinOutputs = unprovenTx.coinOutputs,
-          fee = unprovenTx.fee,
-          timestamp = unprovenTx.timestamp,
-          data = unprovenTx.data,
-          minting = unprovenTx.minting
-        )
-      } yield tx
+        inputs <- Gen
+          .nonEmptyListOf(arbitraryTransactionInput.arbitrary)
+          .map(Chain.fromSeq)
+          .map(NonEmptyChain.fromChainUnsafe)
+        outputs <- Gen
+          .nonEmptyListOf(arbitraryTransactionOutput.arbitrary)
+          .map(Chain.fromSeq)
+          .map(NonEmptyChain.fromChainUnsafe)
+        timestamp <- Gen.chooseNum[Long](0L, 100000L)
+        data = None
+      } yield Transaction(inputs, outputs, timestamp, data)
     )
 
   implicit val arbitraryHeader: Arbitrary[BlockHeaderV2] =

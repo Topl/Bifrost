@@ -18,6 +18,7 @@ import org.graalvm.polyglot.Value
 
 import scala.collection.immutable.ListMap
 import scala.util.Random
+import ModelGenerators._
 
 object CredentialTestJing extends App {
   type F[A] = cats.effect.IO[A]
@@ -62,15 +63,13 @@ object CredentialTestJing extends App {
 
   val recipientAddress: DionAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.dionAddress
 
-  val unprovenTransaction: Transaction.Unproven = Transaction.Unproven(
-    inputs = List((combinedProp.dionAddress, Random.nextLong())),
-    feeOutput = None,
-    coinOutputs = NonEmptyChain(Transaction.PolyOutput(recipientAddress, Sized.maxUnsafe(BigInt(5)))),
-    fee = Sized.maxUnsafe(BigInt(1)),
-    timestamp = System.currentTimeMillis(),
-    data = None,
-    minting = false
-  )
+  val unprovenTransaction: Transaction.Unproven =
+    ModelGenerators.arbitraryUnprovenTransaction.arbitrary.first.copy(
+      inputs = NonEmptyChain(arbitraryTransactionUnprovenInput.arbitrary.first.copy(proposition = combinedProp)),
+      outputs = NonEmptyChain(
+        Transaction.Output(recipientAddress, Box.Values.Poly(Sized.maxUnsafe(BigInt(5))), minting = false)
+      )
+    )
 
   val credential = (
     combinedProp,
@@ -84,17 +83,7 @@ object CredentialTestJing extends App {
     )
   ).toCredential
 
-  val transactionAll = Transaction(
-    inputs = ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(
-      _ -> (combinedProp, credential.proof)
-    ),
-    feeOutput = unprovenTransaction.feeOutput,
-    coinOutputs = unprovenTransaction.coinOutputs,
-    fee = unprovenTransaction.fee,
-    timestamp = unprovenTransaction.timestamp,
-    data = unprovenTransaction.data,
-    minting = unprovenTransaction.minting
-  )
+  val transactionAll = unprovenTransaction.prove(_ => credential.proof)
   println(s"all transaction: $transactionAll")
   println(verify(transactionAll, combinedProp, credential.proof, 2L))
 
@@ -119,31 +108,11 @@ object CredentialTestJing extends App {
   val voter1and2ThresholdProof = voter1and2ThresholdCredential.proof
 //    println(voter1and2ThresholdProof)
 
-  val transactionAdmins = Transaction(
-    inputs = ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(
-      _ -> (adminsProp, adminsProof)
-    ),
-    feeOutput = unprovenTransaction.feeOutput,
-    coinOutputs = unprovenTransaction.coinOutputs,
-    fee = unprovenTransaction.fee,
-    timestamp = unprovenTransaction.timestamp,
-    data = unprovenTransaction.data,
-    minting = unprovenTransaction.minting
-  )
+  val transactionAdmins = unprovenTransaction.prove(_ => adminsProof)
   println(s"admin transaction: $transactionAdmins")
   println(verify(transactionAdmins, adminsProp, adminsProof, 2L))
 
-  val transactionVoter1and2 = Transaction(
-    inputs = ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(
-      _ -> (votersThresholdProp, voter1and2ThresholdProof)
-    ),
-    feeOutput = unprovenTransaction.feeOutput,
-    coinOutputs = unprovenTransaction.coinOutputs,
-    fee = unprovenTransaction.fee,
-    timestamp = unprovenTransaction.timestamp,
-    data = unprovenTransaction.data,
-    minting = unprovenTransaction.minting
-  )
+  val transactionVoter1and2 = unprovenTransaction.prove(_ => voter1and2ThresholdProof)
   println(s"voter transaction: $transactionVoter1and2")
   println(verify(transactionVoter1and2, votersThresholdProp, voter1and2ThresholdProof, 2L))
 

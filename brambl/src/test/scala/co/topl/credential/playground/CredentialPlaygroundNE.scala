@@ -18,6 +18,7 @@ import org.graalvm.polyglot.Value
 import scala.annotation.tailrec
 import scala.collection.immutable.ListMap
 import scala.util.Random
+import ModelGenerators._
 
 object CredentialPlaygroundNE extends App {
   type F[A] = cats.effect.IO[A]
@@ -53,15 +54,11 @@ object CredentialPlaygroundNE extends App {
   val proposition: Propositions.Compositional.And = party1SK.vk.asProposition.and(party2SK.vk.asProposition)
   println(proposition)
 
-  val unprovenTransaction: Transaction.Unproven = Transaction.Unproven(
-    inputs = List((proposition.dionAddress, Random.nextLong())),
-    feeOutput = None,
-    coinOutputs = NonEmptyChain(Transaction.PolyOutput(party3Address, Sized.maxUnsafe(BigInt(10)))),
-    fee = Sized.maxUnsafe(BigInt(5)),
-    timestamp = System.currentTimeMillis(),
-    data = None,
-    minting = false
-  )
+  val unprovenTransaction: Transaction.Unproven =
+    ModelGenerators.arbitraryUnprovenTransaction.arbitrary.first.copy(
+      outputs =
+        NonEmptyChain(Transaction.Output(party3Address, Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false))
+    )
 
   val credential = Credential.Compositional.And(
     proposition,
@@ -74,16 +71,7 @@ object CredentialPlaygroundNE extends App {
   val proof: Proof = credential.proof
   println(proof)
 
-  val transaction = Transaction(
-    inputs =
-      ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(_ -> (proposition, proof)),
-    feeOutput = unprovenTransaction.feeOutput,
-    coinOutputs = unprovenTransaction.coinOutputs,
-    fee = unprovenTransaction.fee,
-    timestamp = unprovenTransaction.timestamp,
-    data = unprovenTransaction.data,
-    minting = unprovenTransaction.minting
-  )
+  val transaction = unprovenTransaction.prove(_ => proof)
   println(transaction)
 
   implicit val verificationContext: VerificationContext[F] =
@@ -95,7 +83,6 @@ object CredentialPlaygroundNE extends App {
       def inputBoxes: List[Box] = List(
         Box(
           proposition.typedEvidence,
-          unprovenTransaction.inputs.head._2,
           Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))
         )
       )
@@ -181,15 +168,12 @@ object TruthTable extends App {
 
   println(s"proposition: $proposition")
 
-  val unprovenTransaction: Transaction.Unproven = Transaction.Unproven(
-    inputs = List((proposition.dionAddress, Random.nextLong())),
-    feeOutput = None,
-    coinOutputs = NonEmptyChain(Transaction.PolyOutput(party3Address, Sized.maxUnsafe(BigInt(10)))),
-    fee = Sized.maxUnsafe(BigInt(5)),
-    timestamp = System.currentTimeMillis(),
-    data = None,
-    minting = false
-  )
+  val unprovenTransaction: Transaction.Unproven =
+    ModelGenerators.arbitraryUnprovenTransaction.arbitrary.first.copy(
+      inputs = NonEmptyChain(arbitraryTransactionUnprovenInput.arbitrary.first.copy(proposition = proposition)),
+      outputs =
+        NonEmptyChain(Transaction.Output(party3Address, Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false))
+    )
 
   val credential = Credential.Compositional.Or(
     proposition,
@@ -203,16 +187,7 @@ object TruthTable extends App {
   }
   println(proof)
 
-  val transaction = Transaction(
-    inputs =
-      ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(_ -> (proposition, proof)),
-    feeOutput = unprovenTransaction.feeOutput,
-    coinOutputs = unprovenTransaction.coinOutputs,
-    fee = unprovenTransaction.fee,
-    timestamp = unprovenTransaction.timestamp,
-    data = unprovenTransaction.data,
-    minting = unprovenTransaction.minting
-  )
+  val transaction = unprovenTransaction.prove(_ => proof)
   println(transaction)
 
   implicit val verificationContext: VerificationContext[F] =
@@ -224,7 +199,6 @@ object TruthTable extends App {
       def inputBoxes: List[Box] = List(
         Box(
           proposition.typedEvidence,
-          unprovenTransaction.inputs.head._2,
           Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))
         )
       )

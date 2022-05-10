@@ -90,18 +90,7 @@ class CredentialSpec
 
         val andProof = andCredential.proof
 
-        val transaction =
-          Transaction(
-            ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(boxRef =>
-              boxRef -> (andProposition -> andProof)
-            ),
-            unprovenTransaction.feeOutput,
-            unprovenTransaction.coinOutputs,
-            unprovenTransaction.fee,
-            unprovenTransaction.timestamp,
-            unprovenTransaction.data,
-            unprovenTransaction.minting
-          )
+        val transaction = unprovenTransaction.prove(_ => andProof)
 
         implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
 
@@ -167,17 +156,7 @@ class CredentialSpec
 
           val thresholdProof = thresholdCredential.proof
 
-          val transaction =
-            Transaction(
-              ListMap.empty[BoxReference, (Proposition, Proof)] ++
-              unprovenTransaction.inputs.map(boxRef => boxRef -> (thresholdProposition -> thresholdProof)),
-              unprovenTransaction.feeOutput,
-              unprovenTransaction.coinOutputs,
-              unprovenTransaction.fee,
-              unprovenTransaction.timestamp,
-              unprovenTransaction.data,
-              unprovenTransaction.minting
-            )
+          val transaction = unprovenTransaction.prove(_ => thresholdProof)
 
           implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
 
@@ -227,17 +206,7 @@ class CredentialSpec
           val andProof =
             andCredential.proof
 
-          val transaction =
-            Transaction(
-              ListMap.empty[BoxReference, (Proposition, Proof)] ++
-              unprovenTransaction.inputs.map(boxRef => boxRef -> (andProposition -> andProof)),
-              unprovenTransaction.feeOutput,
-              unprovenTransaction.coinOutputs,
-              unprovenTransaction.fee,
-              unprovenTransaction.timestamp,
-              unprovenTransaction.data,
-              unprovenTransaction.minting
-            )
+          val transaction = unprovenTransaction.prove(_ => andProof)
 
           implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
 

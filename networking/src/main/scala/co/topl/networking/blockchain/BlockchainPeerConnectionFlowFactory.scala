@@ -11,7 +11,6 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.models.{BlockBodyV2, BlockHeaderV2, Transaction, TypedIdentifier}
 import co.topl.networking.TypedProtocolSetFactory.implicits._
 import co.topl.networking._
-import co.topl.networking.blockchain.BlockchainMultiplexerCodecs.longTypedIdentifierOptTransmittable
 import co.topl.networking.blockchain.NetworkTypeTags._
 import co.topl.networking.p2p.{ConnectedPeer, ConnectionLeader}
 import co.topl.typeclasses.implicits._

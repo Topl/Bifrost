@@ -20,6 +20,7 @@ import org.graalvm.polyglot.Value
 import java.nio.charset.StandardCharsets
 import scala.collection.immutable.ListMap
 import scala.util.Random
+import ModelGenerators._
 
 object CredentialPlaygroundSean extends App {
   implicit val ed25519: Ed25519 = new Ed25519
@@ -60,15 +61,12 @@ object CredentialPlaygroundSean extends App {
       .and(script4Proposition)
   println(proposition)
 
-  val unprovenTransaction: Transaction.Unproven = Transaction.Unproven(
-    inputs = List((proposition.dionAddress, Random.nextLong())),
-    feeOutput = None,
-    coinOutputs = NonEmptyChain(Transaction.PolyOutput(party3Address, Sized.maxUnsafe(BigInt(10)))),
-    fee = Sized.maxUnsafe(BigInt(5)),
-    timestamp = System.currentTimeMillis(),
-    data = None,
-    minting = false
-  )
+  val unprovenTransaction: Transaction.Unproven =
+    ModelGenerators.arbitraryUnprovenTransaction.arbitrary.first.copy(
+      inputs = NonEmptyChain(arbitraryTransactionUnprovenInput.arbitrary.first.copy(proposition = proposition)),
+      outputs =
+        NonEmptyChain(Transaction.Output(party3Address, Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false))
+    )
 
   val credential = Credential.Compositional.And(
     proposition,
@@ -85,16 +83,7 @@ object CredentialPlaygroundSean extends App {
   val proof = credential.proof
   println(proof)
 
-  val transaction = Transaction(
-    inputs =
-      ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(_ -> (proposition, proof)),
-    feeOutput = unprovenTransaction.feeOutput,
-    coinOutputs = unprovenTransaction.coinOutputs,
-    fee = unprovenTransaction.fee,
-    timestamp = unprovenTransaction.timestamp,
-    data = unprovenTransaction.data,
-    minting = unprovenTransaction.minting
-  )
+  val transaction = unprovenTransaction.prove(_ => proof)
   println(transaction)
 
   type F[A] = cats.effect.IO[A]

@@ -51,7 +51,7 @@ class ScriptedProofVerifierSpec
         .once()
         .returning(40L)
 
-      val transaction = unproven.prove(_ => (proposition, proof))
+      val transaction = unproven.prove(_ => proof)
 
       (() => context.currentTransaction)
         .expects()
@@ -92,7 +92,7 @@ class ScriptedProofVerifierSpec
         .once()
         .returning(20L)
 
-      val transaction = unproven.prove(_ => (proposition, proof))
+      val transaction = unproven.prove(_ => proof)
 
       (() => context.currentTransaction)
         .expects()
@@ -116,7 +116,7 @@ class ScriptedProofVerifierSpec
 
   it should "verify to true for a script using the current transaction" in {
     forAll { unproven: Transaction.Unproven =>
-      val outAddr = unproven.coinOutputs.head.dionAddress.allBytes.toBase58
+      val outAddr = unproven.outputs.head.dionAddress.allBytes.toBase58
       val proposition = Propositions.Script.JS(
         Propositions.Script.JS.JSScript(
           raw"""(ctx, args) =>
@@ -134,7 +134,7 @@ class ScriptedProofVerifierSpec
         .once()
         .returning(40L)
 
-      val transaction = unproven.prove(_ => (proposition, proof))
+      val transaction = unproven.prove(_ => proof)
 
       (() => context.currentTransaction)
         .expects()

@@ -1,8 +1,10 @@
 package co.topl.typeclasses
 
-import co.topl.models.{BoxReference, Proof, Proposition, Transaction}
-
-import scala.collection.immutable.ListMap
+import cats.data.Chain
+import cats.implicits._
+import co.topl.models.utility.HasLength.instances.bigIntLength
+import co.topl.models.utility.Sized
+import co.topl.models.{Box, Proof, Proposition, Transaction}
 
 object TransactionOps {
 
@@ -11,28 +13,44 @@ object TransactionOps {
     implicit class TransactionSupport(transaction: Transaction) {
 
       def unproven: Transaction.Unproven =
-        Transaction.Unproven(
-          transaction.inputs.keys.toList,
-          transaction.feeOutput,
-          transaction.coinOutputs,
-          transaction.fee,
-          transaction.timestamp,
-          transaction.data,
-          transaction.minting
-        )
+        Transaction
+          .Unproven(
+            transaction.inputs.map(i =>
+              Transaction.Unproven.Input(i.transactionId, i.transactionOutputIndex, i.proposition, i.value)
+            ),
+            transaction.outputs,
+            transaction.timestamp,
+            transaction.data
+          )
+
+      def unclaimedInputValues: Chain[Box.Value] = {
+        val poly = transaction.outputs
+          .collect { case Transaction.Output(_, Box.Values.Poly(value), _) =>
+            value.data
+          }
+          .toIterable
+          .sum
+        val arbit = transaction.outputs
+          .collect { case Transaction.Output(_, Box.Values.Arbit(value), _) =>
+            value.data
+          }
+          .toIterable
+          .sum
+        // TODO: Asset values?
+        Chain(Box.Values.Poly(Sized.maxUnsafe(poly)), Box.Values.Arbit(Sized.maxUnsafe(arbit)))
+      }
     }
 
     implicit class UnprovenTransactionSupport(unproven: Transaction.Unproven) {
 
-      def prove(prove: BoxReference => (Proposition, Proof)) =
+      def prove(prove: Proposition => Proof) =
         Transaction(
-          ListMap.empty ++ unproven.inputs.map(boxRef => boxRef -> prove(boxRef)),
-          unproven.feeOutput,
-          unproven.coinOutputs,
-          unproven.fee,
+          unproven.inputs.map(i =>
+            Transaction.Input(i.transactionId, i.transactionOutputIndex, i.proposition, prove(i.proposition), i.value)
+          ),
+          unproven.outputs,
           unproven.timestamp,
-          unproven.data,
-          unproven.minting
+          unproven.data
         )
     }
   }

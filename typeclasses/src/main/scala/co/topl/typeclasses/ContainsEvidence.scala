@@ -6,7 +6,7 @@ import co.topl.crypto.hash.{blake2b256, Blake2b256}
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.{Ratio, Sized}
-import com.google.common.primitives.{Ints, Longs}
+import com.google.common.primitives.Longs
 import simulacrum.{op, typeclass}
 
 import java.nio.charset.StandardCharsets
@@ -39,7 +39,7 @@ object ContainsEvidence {
     }
 
     implicit val permanentlyLockedContainsEvidence: ContainsEvidence[Propositions.PermanentlyLocked.type] =
-      t =>
+      _ =>
         TypedEvidence(
           9: Byte,
           Sized.strictUnsafe(Bytes(blake2b256.hash("LOCKED".getBytes(StandardCharsets.UTF_8)).value))
@@ -143,27 +143,11 @@ object ContainsEvidence {
 //        )
 
     implicit val requiredInputBoxStateContainsEvidence: ContainsEvidence[Propositions.Contextual.RequiredBoxState] =
-      t => {
-        val locationPrefix = t.location match {
-          case BoxLocations.Input  => 0: Byte
-          case BoxLocations.Output => 1: Byte
-        }
-
+      t =>
         TypedEvidence(
           15: Byte,
-          Sized.strictUnsafe(
-            Bytes(
-              blake2b256
-                .hash(
-                  locationPrefix +: t.boxes
-                    .map { case (index, box) => Ints.toByteArray(index) ++ Longs.toByteArray(box.nonce) }
-                    .foldLeft(Array.empty[Byte])((acc, a) => acc ++ a)
-                )
-                .value
-            )
-          )
+          new Blake2b256().hash(t.immutableBytes)
         )
-      }
 
 //    implicit val enumeratedOutputContainsEvidence: ContainsEvidence[Propositions.Example.EnumeratedInput] =
 //      t =>

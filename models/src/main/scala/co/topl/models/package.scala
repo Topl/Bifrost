@@ -36,9 +36,6 @@ package object models {
   case class DionAddress(networkPrefix: NetworkPrefix, typedEvidence: TypedEvidence) {
     def allBytes: Bytes = networkPrefix.value +: typedEvidence.allBytes
   }
-  // TODO: Maybe Evidence?
-  type BoxReference = (DionAddress, BoxNonce)
-  type TaktikosBoxReference = (TaktikosAddress, Sized.Strict[Bytes, Lengths.`32`.type])
 
   type TxRoot = Sized.Strict[Bytes, Lengths.`32`.type]
   type BloomFilter = Sized.Strict[Bytes, Lengths.`256`.type]
@@ -50,6 +47,8 @@ package object models {
   type TransactionData = Sized.Max[Latin1Data, Lengths.`127`.type]
 
   case class SlotId(slot: Slot, blockId: TypedIdentifier)
+
+  type BlockBodyV2 = List[TypedIdentifier]
 
   @newtype case class TypedBytes(allBytes: Bytes) {
     def typePrefix: TypePrefix = allBytes.head

@@ -11,7 +11,7 @@ import scodec.codecs.{discriminated, lazily}
 import scodec.{Attempt, Codec, Err}
 import shapeless.{::, HList, HNil}
 
-import scala.collection.immutable.{ListMap, ListSet}
+import scala.collection.immutable.ListSet
 
 trait TetraScodecCodecs
     extends TetraScodecPrimitiveCodecs
@@ -223,10 +223,7 @@ trait TetraScodecBoxCodecs {
       .typecase(4: Byte, boxValuesTaktikosRegistrationCodec)
 
   implicit val boxCodec: Codec[Box] =
-    (Codec[TypedEvidence] :: Codec[BoxNonce](longCodec) :: Codec[Box.Value]).as[Box]
-
-  implicit val boxReferenceCodec: Codec[BoxReference] =
-    (Codec[DionAddress] :: Codec[BoxNonce](longCodec)).as[BoxReference]
+    (Codec[TypedEvidence] :: Codec[Box.Value]).as[Box]
 
 }
 
@@ -385,33 +382,25 @@ trait TetraScodecTransactionCodecs {
     with TetraScodecProofCodecs
     with TetraScodecBoxCodecs =>
 
-  implicit val polyOutputCodec: Codec[Transaction.PolyOutput] =
-    (Codec[DionAddress] :: Codec[Int128]).as[Transaction.PolyOutput]
-
-  implicit val arbitOutputCodec: Codec[Transaction.ArbitOutput] =
-    (Codec[DionAddress] :: Codec[Int128]).as[Transaction.ArbitOutput]
-
-  implicit val assetOutputCodec: Codec[Transaction.AssetOutput] =
-    (Codec[DionAddress] :: Codec[Box.Values.Asset]).as[Transaction.AssetOutput]
-
-  implicit val coinOutputCodec: Codec[Transaction.CoinOutput] =
-    discriminated[Transaction.CoinOutput]
-      .by(byteCodec)
-      .typecase(0: Byte, polyOutputCodec)
-      .typecase(1: Byte, arbitOutputCodec)
-      .typecase(2: Byte, assetOutputCodec)
+  implicit val coinOutputCodec: Codec[Transaction.Output] =
+    (Codec[DionAddress] :: Codec[Box.Value] :: Codec[Boolean])
+      .as[Transaction.Output]
 
   implicit val transactionCodec: Codec[Transaction] =
     (
-      Codec[ListMap[BoxReference, (Proposition, Proof)]] ::
-        Codec[Option[Transaction.PolyOutput]] ::
-        Codec[NonEmptyChain[Transaction.CoinOutput]] ::
-        Codec[Int128] ::
+      Codec[NonEmptyChain[Transaction.Input]] ::
+        Codec[NonEmptyChain[Transaction.Output]] ::
         Codec[Timestamp](uLongCodec) ::
-        Codec[Option[TransactionData]] ::
-        Codec[Boolean]
+        Codec[Option[TransactionData]]
     ).as[Transaction]
 
+  implicit val unprovenTransactionCodec: Codec[Transaction.Unproven] =
+    (
+      Codec[NonEmptyChain[Transaction.Unproven.Input]] ::
+        Codec[NonEmptyChain[Transaction.Output]] ::
+        Codec[Timestamp](uLongCodec) ::
+        Codec[Option[TransactionData]]
+    ).as[Transaction.Unproven]
 }
 
 trait TetraScodecBlockCodecs {

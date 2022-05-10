@@ -1,20 +1,20 @@
 package co.topl.codecs.bytes.tetra
 
 import co.topl.codecs.bytes.typeclasses._
-import co.topl.models.{BlockHeaderV2, Bytes, Transaction}
-import com.google.common.primitives.{Ints, Longs}
+import co.topl.models.{BlockHeaderV2, Transaction}
 
 trait TetraSignableCodecs {
 
   import TetraImmutableCodecs._
+  import co.topl.codecs.bytes.typeclasses.implicits._
 
   implicit val signableUnsignedBlockHeaderV2: Signable[BlockHeaderV2.Unsigned] =
-    t => unsignedHeaderV2StableCodec.immutableBytes(t)
+    _.immutableBytes
 
   implicit val signableBlockHeaderV2: Signable[BlockHeaderV2] =
     t =>
-      signableUnsignedBlockHeaderV2.signableBytes(
-        BlockHeaderV2.Unsigned(
+      BlockHeaderV2
+        .Unsigned(
           t.parentHeaderId,
           t.parentSlot,
           t.txRoot,
@@ -31,27 +31,23 @@ trait TetraSignableCodecs {
           t.metadata,
           t.address
         )
-      )
+        .signableBytes
 
-  // TODO
+  implicit val signableUnprovenTransaction: Signable[Transaction.Unproven] =
+    _.immutableBytes
+
   implicit val signableTransaction: Signable[Transaction] =
     t =>
-      Bytes.concat(
-        List(Bytes(Ints.toByteArray(t.inputs.size))) ++
-        t.inputs.map { case ((a, r), (prop, proof)) => a.allBytes ++ Bytes(Longs.toByteArray(r)) } ++
-        t.feeOutput.map(o => o.dionAddress.allBytes ++ Bytes(o.value.data.toByteArray)) ++
-        List(Bytes(Ints.toByteArray(t.coinOutputs.length.toInt)))
-      )
-
-  // TODO
-  implicit val signableUnprovenTransaction: Signable[Transaction.Unproven] =
-    t =>
-      Bytes.concat(
-        List(Bytes(Ints.toByteArray(t.inputs.length))) ++
-        t.inputs.map { case (a, r) => a.allBytes ++ Bytes(Longs.toByteArray(r)) } ++
-        t.feeOutput.map(o => o.dionAddress.allBytes ++ Bytes(o.value.data.toByteArray)) ++
-        List(Bytes(Ints.toByteArray(t.coinOutputs.length.toInt)))
-      )
+      Transaction
+        .Unproven(
+          t.inputs.map(i =>
+            Transaction.Unproven.Input(i.transactionId, i.transactionOutputIndex, i.proposition, i.value)
+          ),
+          t.outputs,
+          t.timestamp,
+          t.data
+        )
+        .signableBytes
 }
 
 object TetraSignableCodecs extends TetraSignableCodecs

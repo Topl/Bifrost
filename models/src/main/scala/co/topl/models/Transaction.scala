@@ -12,7 +12,14 @@ case class Transaction(
 )
 
 object Transaction {
-  case class Input(proposition: Proposition, proof: Proof, nonce: BoxNonce, value: Box.Value)
+
+  case class Input(
+    transactionId:          TypedIdentifier,
+    transactionOutputIndex: Short,
+    proposition:            Proposition,
+    proof:                  Proof,
+    value:                  Box.Value
+  )
   case class Output(dionAddress: DionAddress, value: Box.Value, minting: Boolean)
 
   case class Unproven(
@@ -23,7 +30,13 @@ object Transaction {
   )
 
   object Unproven {
-    case class Input(proposition: Proposition, nonce: BoxNonce, value: Box.Value)
+
+    case class Input(
+      transactionId:          TypedIdentifier,
+      transactionOutputIndex: Short,
+      proposition:            Proposition,
+      value:                  Box.Value
+    )
   }
 
 }
