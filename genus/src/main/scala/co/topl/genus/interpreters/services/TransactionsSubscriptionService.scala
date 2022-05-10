@@ -2,25 +2,26 @@ package co.topl.genus.interpreters.services
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
-import cats.Functor
+import cats.MonadThrow
 import cats.data.EitherT
-import cats.implicits._
 import co.topl.genus.algebras.{MongoSubscription, SubscriptionService}
 import co.topl.genus.typeclasses.MongoFilter
 import co.topl.genus.types.Transaction
 
 object TransactionsSubscriptionService {
 
-  def make[F[_]: Functor](subscriptions: MongoSubscription[F]): SubscriptionService[F, Transaction] =
+  def make[F[_]: MonadThrow](subscriptions: MongoSubscription[F]): SubscriptionService[F, Transaction] =
     new SubscriptionService[F, Transaction] {
 
       override def create[Filter: MongoFilter](
         request: SubscriptionService.CreateRequest[Filter]
       ): EitherT[F, SubscriptionService.CreateSubscriptionFailure, Source[Transaction, NotUsed]] =
-        EitherT.right[SubscriptionService.CreateSubscriptionFailure](
-          subscriptions
-            .create(request.filter)
-            .map(_.mapConcat(documentToTransaction(_).toSeq))
-        )
+        MonadThrow[F]
+          // catch a possible failure with creating the subscription
+          .attemptT(subscriptions.create(request.filter))
+          .leftMap[SubscriptionService.CreateSubscriptionFailure](failure =>
+            SubscriptionService.CreateSubscriptionFailures.DataConnectionFailure(failure.getMessage)
+          )
+          .map(source => source.mapConcat(documentToTransaction(_).toSeq))
     }
 }
