@@ -18,6 +18,7 @@ import org.mongodb.scala.MongoClient
 
 import java.io.File
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.DurationInt
 
 object GenusApp extends IOApp {
 
@@ -76,6 +77,7 @@ object GenusApp extends IOApp {
         TransactionsSubscriptionService.make[IO](
           MongoSubscriptionImpl.make[IO](
             settings.subBatchSize,
+            settings.subBatchSleepDuration.seconds,
             transactionsCollection
           )
         )
@@ -84,6 +86,7 @@ object GenusApp extends IOApp {
         BlocksSubscriptionService.make[IO](
           MongoSubscriptionImpl.make[IO](
             settings.subBatchSize,
+            settings.subBatchSleepDuration.seconds,
             blocksCollection
           )
         )

@@ -6,7 +6,9 @@ import cats.Functor
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.genus.algebras.{MongoSubscription, SubscriptionService}
+import co.topl.genus.services.blocks_query.BlockSorting
 import co.topl.genus.typeclasses.MongoFilter
+import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.types.Block
 
 object BlocksSubscriptionService {
@@ -19,7 +21,7 @@ object BlocksSubscriptionService {
       ): EitherT[F, SubscriptionService.CreateSubscriptionFailure, Source[Block, NotUsed]] =
         EitherT.right[SubscriptionService.CreateSubscriptionFailure](
           subscriptions
-            .create(request.filter)
+            .create(request.filter, BlockSorting(BlockSorting.SortBy.Height(BlockSorting.Height())))
             .map(_.mapConcat(documentToBlock(_).toSeq))
         )
     }

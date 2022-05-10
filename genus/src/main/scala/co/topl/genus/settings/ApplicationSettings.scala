@@ -20,7 +20,8 @@ final case class ApplicationSettings(
   ip:                         String,
   port:                       Int,
   queryTimeout:               Int,
-  subBatchSize:               Int
+  subBatchSize:               Int,
+  subBatchSleepDuration:      Int
 )
 
 object ApplicationSettings {
@@ -40,6 +41,7 @@ object ApplicationSettings {
       options.ip.getOrElse(settings.ip),
       options.port.getOrElse(settings.port),
       options.queryTimeout.getOrElse(settings.queryTimeout),
-      options.subBatchSize.getOrElse(settings.subBatchSize)
+      options.subBatchSize.getOrElse(settings.subBatchSize),
+      options.subBatchSleepDuration.getOrElse(settings.subBatchSleepDuration)
     )
 }
