@@ -34,5 +34,7 @@ final case class StartupOptions(
   @arg(short = 'c', name = "config")
   configurationPath: Option[String] = None,
   @arg
-  subBatchSize: Option[Int] = None
+  subBatchSize: Option[Int] = None,
+  @arg
+  subBatchSleepDuration: Option[Int] = None
 )

@@ -5,7 +5,9 @@ import akka.stream.scaladsl.Source
 import cats.MonadThrow
 import cats.data.EitherT
 import co.topl.genus.algebras.{MongoSubscription, SubscriptionService}
+import co.topl.genus.services.transactions_query.TransactionSorting
 import co.topl.genus.typeclasses.MongoFilter
+import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.types.Transaction
 
 object TransactionsSubscriptionService {
