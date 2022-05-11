@@ -1,6 +1,6 @@
 package co.topl.codecs.bytes.tetra
 
-import cats.data.NonEmptyChain
+import cats.data.{Chain, NonEmptyChain}
 import cats.implicits._
 import co.topl.codecs.bytes.scodecs._
 import co.topl.models._
@@ -279,7 +279,7 @@ trait TetraScodecPropositionCodecs {
     )
 
   implicit val propositionsScriptJsCodec: Codec[Propositions.Script.JS] =
-    bigByteStringCodec.xmap(bs => Propositions.Script.JS(Propositions.Script.JS.JSScript(bs)), _.script.value)
+    intStringCodec.xmap(bs => Propositions.Script.JS(Propositions.Script.JS.JSScript(bs)), _.script.value)
 
   implicit val propositionCodec: Codec[Proposition] =
     discriminated[Proposition]
@@ -355,7 +355,7 @@ trait TetraScodecProofCodecs {
     emptyCodec(Proofs.Contextual.RequiredBoxState())
 
   implicit val proofsScriptJsCodec: Codec[Proofs.Script.JS] =
-    bigByteStringCodec.as[Proofs.Script.JS]
+    intStringCodec.as[Proofs.Script.JS]
 
   implicit val proofCodec: Codec[Proof] =
     discriminated[Proof]
@@ -388,7 +388,7 @@ trait TetraScodecTransactionCodecs {
 
   implicit val transactionCodec: Codec[Transaction] =
     (
-      Codec[NonEmptyChain[Transaction.Input]] ::
+      Codec[Chain[Transaction.Input]] ::
         Codec[NonEmptyChain[Transaction.Output]] ::
         Codec[Timestamp](uLongCodec) ::
         Codec[Option[TransactionData]]
@@ -396,7 +396,7 @@ trait TetraScodecTransactionCodecs {
 
   implicit val unprovenTransactionCodec: Codec[Transaction.Unproven] =
     (
-      Codec[NonEmptyChain[Transaction.Unproven.Input]] ::
+      Codec[Chain[Transaction.Unproven.Input]] ::
         Codec[NonEmptyChain[Transaction.Output]] ::
         Codec[Timestamp](uLongCodec) ::
         Codec[Option[TransactionData]]

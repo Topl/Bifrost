@@ -1,6 +1,6 @@
 package co.topl.credential.playground
 
-import cats.data.NonEmptyChain
+import cats.data.{Chain, NonEmptyChain}
 import co.topl.credential.Credential
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
 import co.topl.models.utility.Sized
@@ -14,6 +14,7 @@ import co.topl.typeclasses.{KeyInitializer, VerificationContext}
 import io.circe.Json
 import org.graalvm.polyglot.Value
 import ModelGenerators._
+
 import scala.collection.immutable.ListMap
 
 object CredentialPlaygroundBV extends App {
@@ -100,7 +101,7 @@ object CredentialPlaygroundBV extends App {
 
   val randomTx: Transaction.Unproven =
     Transaction.Unproven(
-      inputs = NonEmptyChain(ModelGenerators.arbitraryTransactionUnprovenInput.arbitrary.first),
+      inputs = Chain(ModelGenerators.arbitraryTransactionUnprovenInput.arbitrary.first),
       outputs = NonEmptyChain(
         Transaction.Output(boardProp.dionAddress, Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false)
       ),

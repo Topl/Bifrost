@@ -1,6 +1,6 @@
 package co.topl.credential.playground
 
-import cats.data.NonEmptyChain
+import cats.data.{Chain, NonEmptyChain}
 import cats.effect.unsafe.implicits.global
 import co.topl.credential.Credential
 import co.topl.credential.implicits._
@@ -65,7 +65,7 @@ object CredentialTestJing extends App {
 
   val unprovenTransaction: Transaction.Unproven =
     ModelGenerators.arbitraryUnprovenTransaction.arbitrary.first.copy(
-      inputs = NonEmptyChain(arbitraryTransactionUnprovenInput.arbitrary.first.copy(proposition = combinedProp)),
+      inputs = Chain(arbitraryTransactionUnprovenInput.arbitrary.first.copy(proposition = combinedProp)),
       outputs = NonEmptyChain(
         Transaction.Output(recipientAddress, Box.Values.Poly(Sized.maxUnsafe(BigInt(5))), minting = false)
       )

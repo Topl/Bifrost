@@ -581,9 +581,8 @@ trait ModelGenerators {
     Arbitrary(
       for {
         inputs <- Gen
-          .nonEmptyListOf(arbitraryTransactionUnprovenInput.arbitrary)
+          .listOf(arbitraryTransactionUnprovenInput.arbitrary)
           .map(Chain.fromSeq)
-          .map(NonEmptyChain.fromChainUnsafe)
         outputs <- Gen
           .nonEmptyListOf(arbitraryTransactionOutput.arbitrary)
           .map(Chain.fromSeq)
@@ -597,9 +596,8 @@ trait ModelGenerators {
     Arbitrary(
       for {
         inputs <- Gen
-          .nonEmptyListOf(arbitraryTransactionInput.arbitrary)
+          .listOf(arbitraryTransactionInput.arbitrary)
           .map(Chain.fromSeq)
-          .map(NonEmptyChain.fromChainUnsafe)
         outputs <- Gen
           .nonEmptyListOf(arbitraryTransactionOutput.arbitrary)
           .map(Chain.fromSeq)

@@ -28,7 +28,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
   def toDionTx: ToDionTxResult[DionTransaction.TX] =
     for {
       // all propositions in the Dion transfer must be the same as the first one
-      expectedProposition <- transaction.inputs.head.proposition.pure[ToDionTxResult]
+      expectedProposition <- transaction.inputs.headOption.toRight(ToDionTxFailures.EmptyInputs).map(_.proposition)
       tx                  <-
         // use the first proposition type and first coin output type to derive what the Dion transfer type will be
         (expectedProposition, transaction.outputs.head.value) match {

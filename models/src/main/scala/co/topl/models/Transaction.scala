@@ -1,11 +1,9 @@
 package co.topl.models
 
-import cats.data.NonEmptyChain
-
-import scala.collection.immutable.ListMap
+import cats.data.{Chain, NonEmptyChain}
 
 case class Transaction(
-  inputs:    NonEmptyChain[Transaction.Input],
+  inputs:    Chain[Transaction.Input],
   outputs:   NonEmptyChain[Transaction.Output],
   timestamp: Timestamp,
   data:      Option[TransactionData]
@@ -13,6 +11,9 @@ case class Transaction(
 
 object Transaction {
 
+  /**
+   * @param transactionOutputIndex TODO: How does the network behave if we allow a huge number of outputs in a transaction?
+   */
   case class Input(
     transactionId:          TypedIdentifier,
     transactionOutputIndex: Short,
@@ -23,7 +24,7 @@ object Transaction {
   case class Output(dionAddress: DionAddress, value: Box.Value, minting: Boolean)
 
   case class Unproven(
-    inputs:    NonEmptyChain[Transaction.Unproven.Input],
+    inputs:    Chain[Transaction.Unproven.Input],
     outputs:   NonEmptyChain[Transaction.Output],
     timestamp: Timestamp,
     data:      Option[TransactionData]

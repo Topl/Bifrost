@@ -36,6 +36,11 @@ trait ModelsJsonCodecs {
           "chainCode" -> k.chainCode.data.asJson
         )
       )
+    case Propositions.Knowledge.HashLock(digest) =>
+      Json.obj(
+        "propositionType" -> "Knowledge.HashLock".asJson,
+        "digest"          -> digest.data.asJson
+      )
     case Propositions.Compositional.Threshold(threshold, propositions) =>
       Json.obj(
         "propositionType" -> "Compositional.Threshold".asJson,
@@ -54,10 +59,24 @@ trait ModelsJsonCodecs {
         "a"               -> a.asJson(propositionEncoder),
         "b"               -> b.asJson(propositionEncoder)
       )
+    case Propositions.Compositional.Not(a) =>
+      Json.obj(
+        "propositionType" -> "Compositional.Not".asJson,
+        "a"               -> a.asJson(propositionEncoder)
+      )
     case Propositions.Contextual.HeightLock(height) =>
       Json.obj(
         "propositionType" -> "Contextual.HeightLock".asJson,
         "height"          -> height.asJson
+      )
+    case Propositions.Contextual.RequiredBoxState(location, boxes) =>
+      Json.obj(
+        "propositionType" -> "Contextual.RequiredBoxState".asJson,
+        "location" -> (location match {
+          case BoxLocations.Input  => "input"
+          case BoxLocations.Output => "output"
+        }).asJson,
+        "boxes" -> boxes.map { case (i, b) => List(i.asJson, b.asJson).asJson }.asJson
       )
     case Propositions.Script.JS(script) =>
       Json.obj(
@@ -81,6 +100,27 @@ trait ModelsJsonCodecs {
         "proofType" -> "Knowledge.Ed25519".asJson,
         "signature" -> bytes.data.asJson
       )
+    case Proofs.Knowledge.VrfEd25519(bytes) =>
+      Json.obj(
+        "proofType" -> "Knowledge.VrfEd25519".asJson,
+        "signature" -> bytes.data.asJson
+      )
+    case p: Proofs.Knowledge.KesProduct =>
+      Json.obj(
+        "proofType" -> "Knowledge.KesProduct".asJson,
+        "signature" -> p.immutableBytes.asJson
+      )
+    case p: Proofs.Knowledge.KesSum =>
+      Json.obj(
+        "proofType" -> "Knowledge.KesSum".asJson,
+        "signature" -> p.immutableBytes.asJson
+      )
+    case Proofs.Knowledge.HashLock(salt, value) =>
+      Json.obj(
+        "proofType" -> "Knowledge.HashLock".asJson,
+        "salt"      -> salt.data.asJson,
+        "value"     -> value.asJson
+      )
     case Proofs.Compositional.Threshold(proofs) =>
       Json.obj(
         "proofType" -> "Compositional.Threshold".asJson,
@@ -98,9 +138,18 @@ trait ModelsJsonCodecs {
         "a"         -> a.asJson(proofEncoder),
         "b"         -> b.asJson(proofEncoder)
       )
+    case Proofs.Compositional.Not(a) =>
+      Json.obj(
+        "proofType" -> "Compositional.Not".asJson,
+        "a"         -> a.asJson(proofEncoder)
+      )
     case Proofs.Contextual.HeightLock() =>
       Json.obj(
         "proofType" -> "Contextual.HeightLock".asJson
+      )
+    case Proofs.Contextual.RequiredBoxState() =>
+      Json.obj(
+        "proofType" -> "Contextual.RequiredBoxState".asJson
       )
     case Proofs.Script.JS(serializedArgs) =>
       Json.obj(
@@ -116,7 +165,7 @@ trait ModelsJsonCodecs {
     _.value.asJson
 
   implicit val emptyBoxValueEncoder: Encoder[Box.Values.Empty.type] =
-    _ => Json.obj()
+    _ => Json.Null
 
   implicit val polyBoxValueEncoder: Encoder[Box.Values.Poly] =
     t => Json.obj("value" -> t.value.asJson)
@@ -154,7 +203,7 @@ trait ModelsJsonCodecs {
     }
 
   implicit val boxValueEncoder: Encoder[Box.Value] = {
-    case v @ Box.Values.Empty               => v.asJson
+    case Box.Values.Empty                   => Json.Null
     case v: Box.Values.Poly                 => v.asJson
     case v: Box.Values.Arbit                => v.asJson
     case v: Box.Values.Asset                => v.asJson
@@ -169,7 +218,18 @@ trait ModelsJsonCodecs {
         "value"     -> t.value.asJson
       )
 
-  implicit val encodeCoinOutput: Encoder[Transaction.Output] =
+  implicit val encodeTransactionInput: Encoder[Transaction.Input] =
+    input =>
+      Json.obj(
+        "transactionId"          -> input.transactionId.asJson,
+        "transactionOutputIndex" -> input.transactionOutputIndex.asJson,
+        "proposition"            -> input.proposition.asJson,
+        "proof"                  -> input.proof.asJson,
+        "valueType"              -> boxValueTypeName(input.value).asJson,
+        "value"                  -> input.value.asJson
+      )
+
+  implicit val encodeTransactionOutput: Encoder[Transaction.Output] =
     o =>
       Json.obj(
         "address"   -> o.dionAddress.asJson,
@@ -181,18 +241,8 @@ trait ModelsJsonCodecs {
   implicit val transactionJsonEncoder: Encoder[Transaction] =
     tx =>
       Json.obj(
-        "inputs" -> tx.inputs
-          .map(input =>
-            Json.obj(
-              "transactionId"          -> input.transactionId.asJson,
-              "transactionOutputIndex" -> input.transactionOutputIndex.asJson,
-              "proposition"            -> input.proposition.asJson,
-              "proof"                  -> input.proof.asJson,
-              "value"                  -> input.value.asJson
-            )
-          )
-          .asJson,
-        "outputs"   -> tx.outputs.toNonEmptyList.asJson,
+        "inputs"    -> tx.inputs.asJson,
+        "outputs"   -> tx.outputs.asJson,
         "timestamp" -> tx.timestamp.asJson,
         "data"      -> tx.data.map(_.data).asJson
       )
