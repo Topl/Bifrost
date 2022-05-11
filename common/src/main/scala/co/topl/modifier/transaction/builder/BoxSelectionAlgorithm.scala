@@ -47,7 +47,7 @@ object BoxSelectionAlgorithm {
   private def all(from: BoxSet, arbitsNeeded: Int128, assetsNeeded: Map[AssetCode, Int128]): BoxSet =
     from.copy(
       assets = from.assets.filter(box => assetsNeeded.contains(box._2.value.assetCode)),
-      arbits = (arbitsNeeded > 0).option(from.arbits).toList.flatten
+      arbits = (arbitsNeeded > 0).option(from.arbits).toSet.flatten
     )
 
   private def orderedByValue(
@@ -60,20 +60,23 @@ object BoxSelectionAlgorithm {
     BoxSet(
       takeBoxesUntilQuantity[SimpleValue, ArbitBox](
         arbitsNeeded,
-        from.arbits.sortBy(box => orderBy(box._2.value))
-      ),
+        from.arbits.toList.sortBy(box => orderBy(box._2.value))
+      ).toSet,
       takeBoxesUntilQuantity[SimpleValue, PolyBox](
         polysNeeded,
-        from.polys.sortBy(box => orderBy(box._2.value))
-      ),
+        from.polys.toList.sortBy(box => orderBy(box._2.value))
+      ).toSet,
       assetsNeeded
         .map { case (assetCode, quantity) =>
           takeBoxesUntilQuantity[AssetValue, AssetBox](
             quantity,
-            from.assets.filter(_._2.value.assetCode == assetCode).sortBy(box => orderBy(box._2.value))
+            from.assets
+              .filter(_._2.value.assetCode == assetCode)
+              .toList
+              .sortBy(box => orderBy(box._2.value))
           )
         }
-        .toList
+        .toSet
         .flatten
     )
 

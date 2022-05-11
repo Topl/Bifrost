@@ -69,7 +69,6 @@ object TransferBuilder {
     // run validation and if successful return the created transfer
     for {
       _ <- validateNonEmptyPolyInputNonces(inputBoxes.polyNonces)
-      _ <- validateUniqueInputNonces(inputBoxes.polyNonces)
       _ <- validateNonEmptyOutputAddresses(outputAddresses)
       _ <- validateUniqueOutputAddresses(outputAddresses)
       _ <- validatePositiveOutputValues(request.to.map(_._2))
@@ -135,14 +134,12 @@ object TransferBuilder {
     // run validation and if successful return the created transfer using the extracted asset code
     for {
       _ <- validateNonEmptyPolyInputNonces(inputBoxes.polyNonces)
-      _ <- validateUniqueInputNonces(inputBoxes.polyNonces)
-      _ <- validateUniqueInputNonces(inputBoxes.assetNonces)
       _ <- validateNonEmptyOutputAddresses(outputAddresses)
       _ <- validateUniqueOutputAddresses(outputAddresses)
       _ <- validatePositiveOutputValues(request.to.map(_._2.quantity))
       // safe because we have checked that the outputs are not empty
       assetCode = assetCodeOpt.get
-      _ <- validateSameAssetCode(assetCode, inputBoxes.assets.map(_._2))
+      _ <- validateSameAssetCode(assetCode, inputBoxes.assets.map(_._2).toList)
       _ <- validatePolyFunds(polyFunds, request.fee, 0)
       _ <-
         // only need to validate asset funds when not a minting transfer
@@ -205,8 +202,6 @@ object TransferBuilder {
     // run validation and if successful return the created transfer
     for {
       _ <- validateNonEmptyPolyInputNonces(inputBoxes.polyNonces)
-      _ <- validateUniqueInputNonces(inputBoxes.polyNonces)
-      _ <- validateUniqueInputNonces(inputBoxes.arbitNonces)
       _ <- validateNonEmptyOutputAddresses(outputAddresses)
       _ <- validateUniqueOutputAddresses(outputAddresses)
       _ <- validatePositiveOutputValues(request.to.map(_._2))
@@ -281,7 +276,7 @@ object TransferBuilder {
 
     // create the transfer with a given set of inputs and optional asset change outputs
     val transfer
-      : (List[BoxReference], List[Transaction.AssetOutput]) => Either[BuildTransferFailure, Transaction.Unproven] =
+      : (Set[BoxReference], List[Transaction.AssetOutput]) => Either[BuildTransferFailure, Transaction.Unproven] =
       (boxReferences, assetChangeOutputs) =>
         NonEmptyChain
           .fromSeq(request.to)
@@ -290,7 +285,7 @@ object TransferBuilder {
           .map(outputs => outputs.prependChain(Chain.fromOption(arbitChangeOutput)))
           .map(outputs =>
             Transaction.Unproven(
-              boxReferences,
+              boxReferences.toList,
               polyChangeOutput,
               outputs,
               request.fee,
@@ -306,9 +301,8 @@ object TransferBuilder {
       boxReferences      <-
         // do not use arbit boxes if no arbit outputs
         if (arbitsOwed > 0) toBoxReferencesResult(inputBoxes)
-        else toBoxReferencesResult(inputBoxes.copy(arbits = List.empty))
+        else toBoxReferencesResult(inputBoxes.copy(arbits = Set.empty))
       _ <- validateNonEmptyPolyInputNonces(inputPolyNonces)
-      _ <- validateUniqueInputNonces(inputPolyNonces)
       _ <- validatePositiveOutputValues(polyOutputValues)
       _ <- validatePositiveOutputValues(arbitOutputValues)
       _ <- validatePositiveOutputValues(assetOutputValues)
@@ -349,9 +343,9 @@ object TransferBuilder {
             .map(addr -> _)
         )
         .foldLeft(BoxSet.empty) {
-          case (boxes, (addr, box: PolyBox))  => boxes.copy(polys = (addr -> box) :: boxes.polys)
-          case (boxes, (addr, box: ArbitBox)) => boxes.copy(arbits = (addr -> box) :: boxes.arbits)
-          case (boxes, (addr, box: AssetBox)) => boxes.copy(assets = (addr -> box) :: boxes.assets)
+          case (boxes, (addr, box: PolyBox))  => boxes.copy(polys = boxes.polys + (addr -> box))
+          case (boxes, (addr, box: ArbitBox)) => boxes.copy(arbits = boxes.arbits + (addr -> box))
+          case (boxes, (addr, box: AssetBox)) => boxes.copy(assets = boxes.assets + (addr -> box))
           case (boxes, _)                     => boxes
         }
 
@@ -410,7 +404,7 @@ object TransferBuilder {
    * @param set the [[BoxSet]] to convert into a collection of [[BoxReference]]
    * @return if successful, a collection of box references, otherwise a [[BuildTransferFailure]]
    */
-  private def toBoxReferencesResult(set: BoxSet): Either[BuildTransferFailure, List[BoxReference]] =
+  private def toBoxReferencesResult(set: BoxSet): Either[BuildTransferFailure, Set[BoxReference]] =
     set.toBoxReferences.leftMap { case ToBoxReferencesFailures.InvalidAddress(address) =>
       BuildTransferFailures.InvalidAddress(address)
     }

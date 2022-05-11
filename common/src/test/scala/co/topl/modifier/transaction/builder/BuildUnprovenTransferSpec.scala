@@ -888,40 +888,6 @@ class BuildUnprovenTransferSpec
     }
   }
 
-  it should "be invalid if duplicate poly boxes are provided" in {
-    forAll(
-      polyBoxesGen,
-      dionAddressesGen,
-      ModelGenerators.arbitraryPolyOutputs.arbitrary,
-      ModelGenerators.arbitraryPositiveInt128.arbitrary
-    ) { (polyBoxes, senders, polyOutputs, fee) =>
-      val polysSent = polyOutputsAmount(polyOutputs.toList)
-
-      val boxReader =
-        MockBoxReader.fromSeq(
-          senders.head.toAddress ->
-          NonEmptyChain(polyBoxes.head.copy(value = SimpleValue(polysSent)), polyBoxes.head)
-            .appendChain(polyBoxes.tail)
-            .toList
-        )
-
-      val request =
-        TransferRequests.UnprovenTransferRequest(
-          senders.toList,
-          polyOutputs.toList,
-          senders.head,
-          senders.head,
-          fee,
-          None,
-          minting = false
-        )
-
-      val transferResult = TransferBuilder.buildUnprovenTransfer(boxReader, request, BoxSelectionAlgorithms.All)
-
-      transferResult.left.value shouldBe BuildTransferFailures.DuplicateInputs
-    }
-  }
-
   it should "be invalid if no outputs are provided" in {
     forAll(
       polyBoxesGen,
