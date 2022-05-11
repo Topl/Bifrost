@@ -312,6 +312,9 @@ trait ModelGenerators {
   implicit val arbitraryInt128: Arbitrary[Int128] =
     Arbitrary(Gen.long.map(BigInt(_)).map(Sized.maxUnsafe[BigInt, Lengths.`128`.type](_)))
 
+  implicit val arbitraryPositiveInt128: Arbitrary[Int128] =
+    Arbitrary(Gen.posNum[Long].map(BigInt(_)).map(Sized.maxUnsafe[BigInt, Lengths.`128`.type](_)))
+
   implicit val arbitraryAssetCode: Arbitrary[Box.Values.Asset.Code] =
     Arbitrary(
       for {
@@ -325,7 +328,7 @@ trait ModelGenerators {
   implicit val arbitraryAssetBox: Arbitrary[Box.Values.Asset] =
     Arbitrary(
       for {
-        quantity <- arbitraryInt128.arbitrary
+        quantity <- arbitraryPositiveInt128.arbitrary
         code     <- arbitraryAssetCode.arbitrary
         root     <- genSizedStrictBytes[Lengths.`32`.type]().map(_.data)
         metadata <-
@@ -334,7 +337,7 @@ trait ModelGenerators {
               .map(data => Latin1Data.unsafe(data.value.take(127)))
               .map(data => Sized.maxUnsafe[Latin1Data, Lengths.`127`.type](data))
           )
-        box = Box.Values.Asset(quantity, code, root, metadata)
+        box = Box.Values.Asset(quantity, code, root, None)
       } yield box
     )
 
@@ -342,8 +345,8 @@ trait ModelGenerators {
     Arbitrary(
       Gen.oneOf(
         Gen.const(Box.Values.Empty),
-        arbitraryInt128.arbitrary.map(Box.Values.Poly),
-        arbitraryInt128.arbitrary.map(Box.Values.Arbit),
+        arbitraryPositiveInt128.arbitrary.map(Box.Values.Poly),
+        arbitraryPositiveInt128.arbitrary.map(Box.Values.Arbit),
         arbitraryAssetBox.arbitrary
       )
     )

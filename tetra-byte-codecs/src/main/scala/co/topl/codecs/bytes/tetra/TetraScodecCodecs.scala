@@ -279,7 +279,7 @@ trait TetraScodecPropositionCodecs {
     )
 
   implicit val propositionsScriptJsCodec: Codec[Propositions.Script.JS] =
-    byteStringCodec.xmap(bs => Propositions.Script.JS(Propositions.Script.JS.JSScript(bs)), _.script.value)
+    bigByteStringCodec.xmap(bs => Propositions.Script.JS(Propositions.Script.JS.JSScript(bs)), _.script.value)
 
   implicit val propositionCodec: Codec[Proposition] =
     discriminated[Proposition]
@@ -355,7 +355,7 @@ trait TetraScodecProofCodecs {
     emptyCodec(Proofs.Contextual.RequiredBoxState())
 
   implicit val proofsScriptJsCodec: Codec[Proofs.Script.JS] =
-    byteStringCodec.as[Proofs.Script.JS]
+    bigByteStringCodec.as[Proofs.Script.JS]
 
   implicit val proofCodec: Codec[Proof] =
     discriminated[Proof]

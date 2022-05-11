@@ -81,6 +81,15 @@ trait ValuetypesCodecs {
         .xmap(bytes => new String(bytes, stringCharacterSet), str => str.getBytes(stringCharacterSet))
     )(str => str.length.toByte)
 
+  /**
+   * For encoding byte strings of length > 128
+   */
+  val bigByteStringCodec: Codec[ByteString] =
+    intCodec.consume[ByteString](size =>
+      byteArrayCodec(size)
+        .xmap(bytes => new String(bytes, stringCharacterSet), str => str.getBytes(stringCharacterSet))
+    )(str => str.length)
+
   implicit val intStringCodec: Codec[IntString] =
     uIntCodec
       .exmap[Int](

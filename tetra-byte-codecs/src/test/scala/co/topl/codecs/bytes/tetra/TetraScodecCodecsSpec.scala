@@ -184,4 +184,6 @@ class TetraScodecCodecsSpec extends CodecSpec {
   codecBehavior[Box]()
 
   codecBehavior[Transaction]()
+
+  codecBehavior[Transaction.Unproven]()
 }

@@ -88,7 +88,8 @@ class CredentialSpec
 
         andCredential.proposition shouldBe andProposition
 
-        val andProof = andCredential.proof
+        val andProof =
+          andCredential.proof
 
         val transaction = unprovenTransaction.prove(_ => andProof)
 
