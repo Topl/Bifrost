@@ -44,6 +44,7 @@ object MongoChainHeight {
 
     val defaultValue: BlockHeight = BlockHeight(0)
 
+    // get height will ask the tracker for the current chain height
     val getHeight: () => BlockHeight =
       Source
         .tick(0.seconds, 10.seconds, NotUsed)
