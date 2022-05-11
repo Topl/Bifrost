@@ -120,7 +120,7 @@ class ScriptedProofVerifierSpec
       val proposition = Propositions.Script.JS(
         Propositions.Script.JS.JSScript(
           raw"""(ctx, args) =>
-               |    ctx.currentTransaction.coinOutputs[args.outputIndex].address == "$outAddr";
+               |    ctx.currentTransaction.coinOutputs[args.outputIndex].dionAddress == "$outAddr";
                |""".stripMargin
         )
       )

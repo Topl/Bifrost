@@ -2,26 +2,26 @@ package co.topl.genus.interpreters.requesthandlers
 
 import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.stream.scaladsl.Source
 import cats.effect.Async
 import cats.{~>, Monad}
-import co.topl.genus.algebras.BlocksQueryService
+import co.topl.genus.algebras.QueryService
 import co.topl.genus.ops.implicits._
 import co.topl.genus.services.blocks_query._
 import co.topl.genus.typeclasses.implicits._
+import co.topl.genus.types.Block
 
 import scala.concurrent.Future
 
-object BlocksQueryImpl {
+object HandleBlocksQuery {
 
   def make[F[_]: Async: Monad: *[_] ~> Future](
-    queryService:    BlocksQueryService[F]
+    queries:         QueryService[F, Block]
   )(implicit system: ActorSystem): BlocksQuery =
     new BlocksQuery {
 
       override def query(in: QueryBlocksReq): Future[QueryBlocksRes] =
-        queryService
+        queries
           .asList(in.toQueryRequest)
           .fold(QueryBlocksRes.fromQueryFailure, QueryBlocksRes.fromBlocks[List])
           .mapFunctor
@@ -29,7 +29,7 @@ object BlocksQueryImpl {
       override def queryStream(in: BlocksQueryStreamReq): Source[BlocksQueryStreamRes, NotUsed] =
         Source
           .futureSource(
-            queryService
+            queries
               .asSource(in.toQueryRequest)
               .fold(
                 failure => Source.single(BlocksQueryStreamRes.fromQueryFailure(failure)),

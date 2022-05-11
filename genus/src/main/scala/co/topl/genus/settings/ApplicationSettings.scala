@@ -21,9 +21,9 @@ final case class ApplicationSettings(
   port:                       Int,
   disableAuth:                Boolean,
   apiKeyHash:                 String,
-  localDatabaseName:          String,
-  oplogCollectionName:        String,
-  queryTimeout:               Int
+  queryTimeout:               Int,
+  subBatchSize:               Int,
+  subBatchSleepDuration:      Int
 )
 
 object ApplicationSettings {
@@ -44,8 +44,8 @@ object ApplicationSettings {
       options.port.getOrElse(settings.port),
       options.disableAuth.getOrElse(settings.disableAuth),
       options.apiKeyHash.getOrElse(settings.apiKeyHash),
-      options.localDatabaseName.getOrElse(settings.localDatabaseName),
-      options.oplogCollectionName.getOrElse(settings.oplogCollectionName),
-      options.queryTimeout.getOrElse(settings.queryTimeout)
+      options.queryTimeout.getOrElse(settings.queryTimeout),
+      options.subBatchSize.getOrElse(settings.subBatchSize),
+      options.subBatchSleepDuration.getOrElse(settings.subBatchSleepDuration)
     )
 }

@@ -28,15 +28,17 @@ final case class StartupOptions(
   @arg(short = 'i')
   ip: Option[String] = None,
   @arg(short = 'p')
-  port:        Option[Int] = None,
+  port: Option[Int] = None,
+  @arg
   disableAuth: Option[Boolean] = None,
-  apiKeyHash:  Option[String] = None,
   @arg
-  localDatabaseName: Option[String] = None,
-  @arg
-  oplogCollectionName: Option[String] = None,
+  apiKeyHash: Option[String] = None,
   @arg(short = 't', name = "query-timeout")
   queryTimeout: Option[Int] = None,
   @arg(short = 'c', name = "config")
-  configurationPath: Option[String] = None
+  configurationPath: Option[String] = None,
+  @arg
+  subBatchSize: Option[Int] = None,
+  @arg
+  subBatchSleepDuration: Option[Int] = None
 )
