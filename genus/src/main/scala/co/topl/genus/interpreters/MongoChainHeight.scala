@@ -3,8 +3,7 @@ package co.topl.genus.interpreters
 import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Keep, Sink, Source}
-import cats.Applicative
-import cats.implicits._
+import cats.effect.kernel.Async
 import co.topl.genus.algebras.ChainHeight
 import co.topl.genus.flows.TrackLatestFlow
 import co.topl.genus.services.blocks_query.BlockSorting
@@ -17,6 +16,7 @@ import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.{Document, MongoCollection}
 
 import scala.concurrent.duration.DurationInt
+import scala.concurrent.{ExecutionContext, Future}
 
 /**
  * Represents the chain height of the blockchain currently stored in Mongo.
@@ -34,36 +34,38 @@ object MongoChainHeight {
    * @tparam F the effect-ful type to use for results
    * @return a new instance of [[ChainHeight]]
    */
-  def make[F[_]: Applicative](blocksCollection: MongoCollection[Document])(implicit
-    materializer:                               Materializer
+  def make[F[_]: Async](blocksCollection: MongoCollection[Document])(implicit
+    materializer:                         Materializer,
+    executionContext:                     ExecutionContext
   ): ChainHeight[F] = new Impl[F](blocksCollection)
 
-  private class Impl[F[_]: Applicative](blocksCollection: MongoCollection[Document])(implicit
-    materializer:                                         Materializer
+  private class Impl[F[_]: Async](blocksCollection: MongoCollection[Document])(implicit
+    materializer:                                   Materializer
   ) extends ChainHeight[F] {
 
-    val defaultValue: BlockHeight = BlockHeight(0)
-
-    // get height will ask the tracker for the current chain height
-    val getHeight: () => BlockHeight =
+    // asks the tracker for the current chain height
+    val getHeight: () => Future[BlockHeight] =
       Source
         .tick(0.seconds, 10.seconds, NotUsed)
         .flatMapConcat(_ =>
-          // get the current largest value
           Source
             .fromPublisher(
-              blocksCollection.find().sort(descendingHeightBlockSorting)
+              blocksCollection
+                .find()
+                .sort(descendingHeightBlockSorting)
+                .limit(1)
             )
-            .take(1)
         )
-        // decode the documents into blocks and get the height
         .mapConcat(document =>
-          DocumentDecoder[BlockDataModel].fromDocument(document).map(block => BlockHeight(block.height)).toSeq
+          DocumentDecoder[BlockDataModel]
+            .fromDocument(document)
+            .map(block => BlockHeight(block.height))
+            .toSeq
         )
         // track the latest value seen
-        .toMat(TrackLatestFlow.create(defaultValue).to(Sink.ignore))(Keep.right)
+        .toMat(TrackLatestFlow.create[BlockHeight].to(Sink.ignore))(Keep.right)
         .run()
 
-    override def get: F[BlockHeight] = getHeight().pure[F]
+    override def get: F[BlockHeight] = Async[F].fromFuture(Async[F].delay(getHeight()))
   }
 }

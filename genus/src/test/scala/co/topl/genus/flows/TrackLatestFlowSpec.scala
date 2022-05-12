@@ -1,51 +1,45 @@
 package co.topl.genus.flows
 
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import akka.stream.scaladsl.{Keep, Sink, Source}
-import org.scalatest.flatspec.AsyncFlatSpecLike
+import akka.stream.scaladsl.{Keep, Sink}
+import akka.stream.testkit.scaladsl.TestSource
+import org.scalatest.concurrent.PatienceConfiguration.Timeout
+import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-class TrackLatestFlowSpec extends ScalaTestWithActorTestKit with AsyncFlatSpecLike with Matchers {
+import scala.concurrent.duration.DurationInt
+import scala.util.Try
+
+class TrackLatestFlowSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike with Matchers with ScalaFutures {
   behavior of "Track Latest Flow"
 
   it should "materialize to a function which returns the latest value seen" in {
-    val upstream = Source(List(1, 2, 3, 4))
+    val upstream = TestSource[Int]()
 
-    val expectedLatest = 4
+    val underTest = TrackLatestFlow.create[Int]
 
-    val underTest = TrackLatestFlow.create(0)
+    val lastElement = 5
 
-    val resultFuture =
-      upstream
-        .viaMat(underTest)(Keep.right)
-        .toMat(Sink.ignore)((getLatest, onComplete) =>
-          onComplete.map(_ => getLatest())(testKit.system.executionContext)
-        )
-        .run()
+    val (probe, getLatest) = upstream.toMat(underTest.to(Sink.ignore))(Keep.both).run()
 
-    resultFuture.map { result =>
-      result shouldBe expectedLatest
-    }
+    probe
+      .sendNext(1)
+      .sendNext(3)
+      .sendNext(lastElement)
+
+    getLatest().futureValue shouldBe lastElement
   }
 
-  it should "materialize to a function which returns the default value when no values seen" in {
-    val upstream = Source.empty[Int]
+  it should "materialize to a function which returns a never-completed future if no values seen" in {
+    val upstream = TestSource[Int]()
 
-    val default = 100
+    val underTest = TrackLatestFlow.create[Int]
 
-    val underTest = TrackLatestFlow.create(default)
+    val (probe, getLatest) = upstream.toMat(underTest.to(Sink.ignore))(Keep.both).run()
 
-    val resultFuture =
-      upstream
-        .viaMat(underTest)(Keep.right)
-        // return the latest value when upstream completes
-        .toMat(Sink.ignore)((getLatest, onComplete) =>
-          onComplete.map(_ => getLatest())(testKit.system.executionContext)
-        )
-        .run()
+    probe.sendComplete()
 
-    resultFuture.map { result =>
-      result shouldBe default
-    }
+    Try(getLatest().futureValue(Timeout(500.milliseconds))).isFailure shouldBe true
   }
 }
