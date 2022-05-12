@@ -33,7 +33,6 @@ import scala.util.Random
  * Created by cykoz on 4/12/17.
  */
 trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
-  self: Suite =>
 
   type P = Proposition
   type S = Secret
