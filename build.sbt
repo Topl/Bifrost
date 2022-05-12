@@ -666,6 +666,7 @@ lazy val genus = project
     commonSettings,
     scalamacrosParadiseSettings,
     libraryDependencies ++= Dependencies.genus,
+    PB.protocVersion := "21.0-rc-1"
   )
   .enablePlugins(AkkaGrpcPlugin)
   .dependsOn(common)
