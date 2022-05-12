@@ -1,6 +1,6 @@
 package co.topl.models
 
-import cats.data.{Chain, NonEmptyChain}
+import cats.data.{Chain, NonEmptyChain, NonEmptyList}
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.StringDataTypes.Latin1Data
@@ -11,6 +11,17 @@ import org.scalacheck.{Arbitrary, Gen}
 import scala.collection.immutable.{ListMap, ListSet}
 
 trait ModelGenerators {
+
+  def nonEmptyChainOf[T](gen: => Gen[T]): Gen[NonEmptyChain[T]] =
+    for {
+      tail <- Gen.listOf(gen)
+    } yield NonEmptyChain.fromNonEmptyList(NonEmptyList(gen.first, tail))
+
+  /**
+   * Similar to Gen.nonEmptyListOf, but without the bug associated with:https://github.com/typelevel/scalacheck/issues/372
+   */
+  def nonEmptyListOf[T](gen: => Gen[T]): Gen[List[T]] =
+    nonEmptyChainOf(gen).map(_.toNonEmptyList.toList)
 
   def etaGen: Gen[Eta] =
     genSizedStrictBytes[Lengths.`32`.type]()
@@ -351,8 +362,8 @@ trait ModelGenerators {
     Arbitrary(
       Gen.oneOf(
         Gen.const(Box.Values.Empty),
-        arbitraryInt128.arbitrary.map(Box.Values.Poly),
-        arbitraryInt128.arbitrary.map(Box.Values.Arbit),
+        arbitraryPositiveInt128.arbitrary.map(Box.Values.Poly),
+        arbitraryPositiveInt128.arbitrary.map(Box.Values.Arbit),
         arbitraryAssetBox.arbitrary
       )
     )
@@ -368,7 +379,9 @@ trait ModelGenerators {
 
   implicit val arbitraryPolyOutput: Arbitrary[Transaction.PolyOutput] =
     Arbitrary(
-      arbitraryDionAddress.arbitrary.flatMap(a => arbitraryInt128.arbitrary.map(v => Transaction.PolyOutput(a, v)))
+      arbitraryDionAddress.arbitrary.flatMap(a =>
+        arbitraryPositiveInt128.arbitrary.map(v => Transaction.PolyOutput(a, v))
+      )
     )
 
   implicit val arbitraryArbitOutput: Arbitrary[Transaction.ArbitOutput] =
@@ -586,7 +599,7 @@ trait ModelGenerators {
           .nonEmptyListOf(arbitraryCoinOutput.arbitrary)
           .map(Chain.fromSeq)
           .map(NonEmptyChain.fromChainUnsafe)
-        fee       <- arbitraryInt128.arbitrary
+        fee       <- arbitraryPositiveInt128.arbitrary
         timestamp <- Gen.chooseNum[Long](0L, 100000L)
         data = None
         minting = false
