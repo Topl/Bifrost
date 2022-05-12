@@ -1,18 +1,18 @@
 package co.topl.genus.typeclasses.mongofilter
 
 import co.topl.genus.typeclasses.MongoFilter
-import org.scalacheck.Gen
+import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 trait MongoFilterBehavior extends AnyFlatSpec with ScalaCheckDrivenPropertyChecks with Matchers {
 
-  def testMongoFilterBehavior[T: MongoFilter](testName: String, generator: Gen[T]): Unit = {
+  def testMongoFilterBehavior[T: MongoFilter: Arbitrary](testName: String): Unit = {
     behavior of testName
 
     it should "not fail when converting to filter JSON string" in {
-      forAll(generator) { value =>
+      forAll { (value: T) =>
         MongoFilter[T]
           .toBsonFilter(value)
           .toBsonDocument
@@ -21,7 +21,7 @@ trait MongoFilterBehavior extends AnyFlatSpec with ScalaCheckDrivenPropertyCheck
     }
 
     it should "not result in an empty JSON string" in {
-      forAll(generator) { value =>
+      forAll { (value: T) =>
         val result = MongoFilter[T]
           .toBsonFilter(value)
           .toBsonDocument
