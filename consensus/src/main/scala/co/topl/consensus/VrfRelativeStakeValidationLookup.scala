@@ -5,7 +5,7 @@ import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras.{ClockAlgebra, ConsensusStateReader}
 import co.topl.consensus.algebras.VrfRelativeStakeValidationLookupAlgebra
-import co.topl.models.{SlotId, TaktikosAddress}
+import co.topl.models.{SlotId, StakingAddress}
 
 object VrfRelativeStakeValidationLookup {
 
@@ -15,7 +15,7 @@ object VrfRelativeStakeValidationLookup {
       state: ConsensusStateReader[F],
       clock: ClockAlgebra[F]
     ): VrfRelativeStakeValidationLookupAlgebra[F] =
-      (slotId: SlotId, address: TaktikosAddress) =>
+      (slotId: SlotId, address: StakingAddress) =>
         clock
           .epochOf(slotId.slot)
           .map(e => (e - 1).max(0))

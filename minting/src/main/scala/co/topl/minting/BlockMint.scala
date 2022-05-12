@@ -53,7 +53,7 @@ object BlockMint {
         )
         .semiflatTap(block =>
           stats.write(
-            block.headerV2.address.show,
+            (block.headerV2.address: StakingAddress).show,
             Json.obj(
               "h" -> block.headerV2.height.asJson,
               "s" -> block.headerV2.slot.asJson

@@ -4,6 +4,8 @@ import cats.effect._
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import co.topl.algebras.UnsafeResource
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus.algebras._
 import co.topl.crypto.hash.{blake2b256, Blake2b256, Blake2b512}
@@ -13,8 +15,6 @@ import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.{Lengths, Ratio, Sized}
-import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.codecs.bytes.tetra.instances._
 import co.topl.numerics.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._
@@ -296,7 +296,7 @@ class BlockHeaderValidationSpec
   it should "invalidate blocks with a semantically incorrect registration verification" in {
     forAll(
       genValid(u =>
-        u.copy(address = u.address.copy(poolVK = VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes.fill(32)(0: Byte)))))
+        u.copy(address = u.address.copy(vk = VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes.fill(32)(0: Byte)))))
       )
     ) { case (parent, child, registration, eta, relativeStake) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
@@ -321,7 +321,7 @@ class BlockHeaderValidationSpec
           .unsafeRunSync()
 
       (registrationInterpreter
-        .registrationOf(_: SlotId, _: TaktikosAddress))
+        .registrationOf(_: SlotId, _: StakingAddresses.Pool))
         .expects(*, *)
         .once()
         .returning(registration.some.pure[F])
@@ -394,7 +394,7 @@ class BlockHeaderValidationSpec
           .unsafeRunSync()
 
       (registrationInterpreter
-        .registrationOf(_: SlotId, _: TaktikosAddress))
+        .registrationOf(_: SlotId, _: StakingAddresses.Pool))
         .expects(*, *)
         .once()
         .returning(registration.some.pure[F])
@@ -406,7 +406,7 @@ class BlockHeaderValidationSpec
         .returning(eta.pure[F])
 
       (relativeStakeInterpreter
-        .lookupAt(_: SlotId, _: TaktikosAddress))
+        .lookupAt(_: SlotId, _: StakingAddress))
         .expects(child.slotId, *)
         .once()
         .returning(Ratio.Zero.some.pure[F])
@@ -473,7 +473,7 @@ class BlockHeaderValidationSpec
           .unsafeRunSync()
 
       (registrationInterpreter
-        .registrationOf(_: SlotId, _: TaktikosAddress))
+        .registrationOf(_: SlotId, _: StakingAddresses.Pool))
         .expects(*, *)
         .once()
         .returning(registration.some.pure[F])
@@ -485,7 +485,7 @@ class BlockHeaderValidationSpec
         .returning(eta.pure[F])
 
       (relativeStakeInterpreter
-        .lookupAt(_: SlotId, _: TaktikosAddress))
+        .lookupAt(_: SlotId, _: StakingAddress))
         .expects(child.slotId, *)
         .once()
         .returning(relativeStake.some.pure[F])
@@ -579,7 +579,7 @@ class BlockHeaderValidationSpec
 
   private def genValid(
     preSign: BlockHeaderV2.Unsigned => BlockHeaderV2.Unsigned = identity
-  ): Gen[(BlockHeaderV2, BlockHeaderV2, Box.Values.TaktikosRegistration, Eta, Ratio)] =
+  ): Gen[(BlockHeaderV2, BlockHeaderV2, Box.Values.Registrations.Pool, Eta, Ratio)] =
     for {
       parent <- headerGen(slotGen = Gen.const[Long](5000))
       (txRoot, bloomFilter, eta) <- genSizedStrictBytes[Lengths.`32`.type]().flatMap(txRoot =>
@@ -659,21 +659,15 @@ object BlockHeaderValidationSpec {
     vkVrf:               VerificationKeys.VrfEd25519,
     poolVK:              VerificationKeys.Ed25519,
     skKes:               SecretKeys.KesProduct
-  )(implicit kesProduct: KesProduct): Box.Values.TaktikosRegistration = {
+  )(implicit kesProduct: KesProduct): Box.Values.Registrations.Pool = {
     val commitmentMessage = Bytes(blake2b256.hash((vkVrf.bytes.data ++ poolVK.bytes.data).toArray).value)
-    Box.Values.TaktikosRegistration(kesProduct.sign(skKes, commitmentMessage))
+    Box.Values.Registrations.Pool(kesProduct.sign(skKes, commitmentMessage))
   }
 
   def validAddress(paymentSK: SecretKeys.Ed25519, poolVK: VerificationKeys.Ed25519)(implicit
     ed25519:                  Ed25519
-  ): TaktikosAddress = {
+  ): StakingAddresses.Pool = {
     val paymentVerificationKey = ed25519.getVerificationKey(paymentSK)
-    TaktikosAddress(
-      Sized.strictUnsafe(
-        Bytes(blake2b256.hash(paymentVerificationKey.bytes.data.toArray).value)
-      ),
-      poolVK,
-      ed25519.sign(paymentSK, poolVK.bytes.data)
-    )
+    StakingAddresses.Pool(poolVK)
   }
 }

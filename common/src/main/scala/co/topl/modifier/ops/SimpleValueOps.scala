@@ -3,7 +3,7 @@ package co.topl.modifier.ops
 import cats.implicits._
 import co.topl.models.utility.HasLength.instances.bigIntLength
 import co.topl.models.utility.{Lengths, Sized}
-import co.topl.models.{Box => TetraBox, DionAddress, Transaction}
+import co.topl.models.{Box => TetraBox, FullAddress, SpendingAddress, Transaction}
 import co.topl.modifier.box.SimpleValue
 
 import scala.language.implicitConversions
@@ -12,11 +12,12 @@ class SimpleValueOps(private val simpleValue: SimpleValue) extends AnyVal {
   import SimpleValueOps._
 
   /**
-   * Attempts to convert the [[SimpleValue]] into a [[Transaction.Output]] with the given [[DionAddress]].
+   * Attempts to convert the [[SimpleValue]] into a [[Transaction.Output]] with the given [[SpendingAddress]].
+   *
    * @param address the address which will be the recipient of the output
    * @return a [[Transaction.Output]] if successful, otherwise a [[ToOutputFailure]]
    */
-  def toPolyOutput(address: DionAddress): Either[ToOutputFailure, Transaction.Output] =
+  def toPolyOutput(address: FullAddress): Either[ToOutputFailure, Transaction.Output] =
     for {
       quantity <-
         Sized
@@ -27,11 +28,12 @@ class SimpleValueOps(private val simpleValue: SimpleValue) extends AnyVal {
     } yield Transaction.Output(address, value, minting = false)
 
   /**
-   * Attempts to convert the [[SimpleValue]] into a [[Transaction.Output]] with the given [[DionAddress]].
+   * Attempts to convert the [[SimpleValue]] into a [[Transaction.Output]] with the given [[SpendingAddress]].
+   *
    * @param address the address which will be the recipient of the output
    * @return a [[Transaction.Output]] if successful, otherwise a [[ToOutputFailure]]
    */
-  def toArbitOutput(address: DionAddress): Either[ToOutputFailure, Transaction.Output] =
+  def toArbitOutput(address: FullAddress): Either[ToOutputFailure, Transaction.Output] =
     for {
       quantity <-
         Sized

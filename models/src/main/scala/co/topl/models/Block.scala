@@ -30,7 +30,7 @@ case class BlockHeaderV2(
   operationalCertificate: OperationalCertificate,
   // TODO: Discussion on mint signatures
   metadata: Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
-  address:  TaktikosAddress
+  address:  StakingAddresses.Pool
 ) {
   def parentSlotId: SlotId = SlotId(parentSlot, parentHeaderId)
 }
@@ -48,7 +48,7 @@ object BlockHeaderV2 {
     eligibilityCertificate:        EligibilityCertificate,
     partialOperationalCertificate: Unsigned.PartialOperationalCertificate,
     metadata:                      Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
-    address:                       TaktikosAddress
+    address:                       StakingAddresses.Pool
   )
 
   object Unsigned {

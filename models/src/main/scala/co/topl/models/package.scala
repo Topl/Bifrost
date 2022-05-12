@@ -33,10 +33,6 @@ package object models {
 
   @newsubtype case class NetworkPrefix(value: Byte)
 
-  case class DionAddress(networkPrefix: NetworkPrefix, typedEvidence: TypedEvidence) {
-    def allBytes: Bytes = networkPrefix.value +: typedEvidence.allBytes
-  }
-
   type TxRoot = Sized.Strict[Bytes, Lengths.`32`.type]
   type BloomFilter = Sized.Strict[Bytes, Lengths.`256`.type]
   @newtype case class Rho(sizedBytes: Sized.Strict[Bytes, Lengths.`64`.type])

@@ -97,13 +97,13 @@ object CredentialPlaygroundBV extends App {
 
   val boardProp = board.toProposition(playerA.vk.asProposition, playerB.vk.asProposition)
 
-  val randomAddr = KeyInitializer[SecretKeys.Ed25519].random().vk.dionAddress
+  val randomAddr = KeyInitializer[SecretKeys.Ed25519].random().vk.spendingAddress
 
   val randomTx: Transaction.Unproven =
     Transaction.Unproven(
       inputs = Chain(ModelGenerators.arbitraryTransactionUnprovenInput.arbitrary.first),
       outputs = NonEmptyChain(
-        Transaction.Output(boardProp.dionAddress, Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false)
+        Transaction.Output(boardProp.spendingAddress, Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false)
       ),
       timestamp = System.currentTimeMillis(),
       data = None
@@ -132,13 +132,13 @@ object CredentialPlaygroundBV extends App {
   //  val party1SK: SecretKeys.Ed25519 = KeyInitializer[SecretKeys.Ed25519].random()
   //  val party2SK: SecretKeys.Curve25519 = KeyInitializer[SecretKeys.Curve25519].random()
   //
-  //  val party3Address: DionAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.dionAddress
+  //  val party3Address: DionAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.spendingAddress
   //
   //  val proposition = party1SK.vk.asProposition.and(party2SK.vk.asProposition)
   //  println(proposition)
   //
   //  val unprovenTransaction: Transaction.Unproven = Transaction.Unproven(
-  //    inputs = List((proposition.dionAddress, Random.nextLong())),
+  //    inputs = List((proposition.spendingAddress, Random.nextLong())),
   //    feeOutput = None,
   //    coinOutputs = NonEmptyChain[CoinOutput](Transaction.PolyOutput(party3Address, Sized.maxUnsafe(BigInt(10)))),
   //    fee = Sized.maxUnsafe(BigInt(5)),

@@ -4,6 +4,8 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
 import co.topl.models._
+import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.codecs.bytes.tetra.instances._
 import co.topl.scripting.GraalVMScripting
 import co.topl.scripting.GraalVMScripting.GraalVMValuable
 import co.topl.scripting.GraalVMScripting.instances._
@@ -116,7 +118,7 @@ class ScriptedProofVerifierSpec
 
   it should "verify to true for a script using the current transaction" in {
     forAll { unproven: Transaction.Unproven =>
-      val outAddr = unproven.outputs.head.dionAddress.allBytes.toBase58
+      val outAddr = unproven.outputs.head.address.immutableBytes.toBase58
       val proposition = Propositions.Script.JS(
         Propositions.Script.JS.JSScript(
           raw"""(ctx, args) =>

@@ -46,12 +46,6 @@ trait ModelGenerators {
   def networkPrefixGen: Gen[NetworkPrefix] =
     byteGen.map(NetworkPrefix(_))
 
-  def dionAddressGen: Gen[DionAddress] =
-    for {
-      prefix        <- networkPrefixGen
-      typedEvidence <- typedEvidenceGen
-    } yield DionAddress(prefix, typedEvidence)
-
   def eligibilityCertificateGen: Gen[EligibilityCertificate] =
     for {
       vrfProof          <- proofVrfEd25519Gen
@@ -155,12 +149,13 @@ trait ModelGenerators {
       childSignature  <- ed25519ProofGen
     } yield OperationalCertificate(parentVK, parentSignature, childVK, childSignature)
 
-  def taktikosAddressGen: Gen[TaktikosAddress] =
+  def baseAddressGen: Gen[StakingAddresses.Pool] =
     for {
-      paymentVKEvidence <- genSizedStrictBytes[Lengths.`32`.type]()
-      poolVK            <- ed25519VkGen
-      signature         <- ed25519ProofGen
-    } yield TaktikosAddress(paymentVKEvidence, poolVK, signature)
+      poolVK <- ed25519VkGen
+    } yield StakingAddresses.Pool(poolVK)
+
+  def stakingAddressGen: Gen[StakingAddress] =
+    baseAddressGen
 
   def unsignedHeaderGen(
     parentHeaderIdGen: Gen[TypedIdentifier] =
@@ -176,7 +171,7 @@ trait ModelGenerators {
       partialOperationalCertificateGen,
     metadataGen: Gen[Option[Sized.Max[Latin1Data, Lengths.`32`.type]]] =
       Gen.option(latin1DataGen.map(Sized.maxUnsafe[Latin1Data, Lengths.`32`.type](_))),
-    addressGen: Gen[TaktikosAddress] = taktikosAddressGen
+    addressGen: Gen[StakingAddresses.Pool] = baseAddressGen
   ): Gen[BlockHeaderV2.Unsigned] =
     for {
       parentHeaderID <- parentHeaderIdGen
@@ -217,7 +212,7 @@ trait ModelGenerators {
     operationalCertificateGen: Gen[OperationalCertificate] = operationalCertificateGen,
     metadataGen: Gen[Option[Sized.Max[Latin1Data, Lengths.`32`.type]]] =
       Gen.option(latin1DataGen.map(Sized.maxUnsafe[Latin1Data, Lengths.`32`.type](_))),
-    addressGen: Gen[TaktikosAddress] = taktikosAddressGen
+    addressGen: Gen[StakingAddresses.Pool] = baseAddressGen
   ): Gen[BlockHeaderV2] =
     for {
       parentHeaderID <- parentHeaderIdGen
@@ -301,25 +296,34 @@ trait ModelGenerators {
       } yield SecretKeys.ExtendedEd25519(l, r, c)
     )
 
-  implicit def arbitraryDionAddress: Arbitrary[DionAddress] =
+  implicit def arbitrarySpendingAddress: Arbitrary[SpendingAddress] =
     Arbitrary(
       for {
-        typePrefix <- Gen.chooseNum[Byte](0, Byte.MaxValue)
-        evidence   <- genSizedStrictBytes[Lengths.`32`.type]()
-      } yield DionAddress(NetworkPrefix(1: Byte), TypedEvidence(typePrefix, evidence))
+        typedEvidence <- typedEvidenceGen
+      } yield SpendingAddress(typedEvidence)
+    )
+
+  implicit val arbitraryFullAddress: Arbitrary[FullAddress] =
+    Arbitrary(
+      for {
+        prefix   <- networkPrefixGen
+        spending <- arbitrarySpendingAddress.arbitrary
+        staking  <- stakingAddressGen
+        binding  <- arbitraryProofsKnowledgeEd25519.arbitrary
+      } yield FullAddress(prefix, spending, staking, binding)
     )
 
   implicit val arbitraryInt128: Arbitrary[Int128] =
     Arbitrary(Gen.long.map(BigInt(_)).map(Sized.maxUnsafe[BigInt, Lengths.`128`.type](_)))
 
-  implicit val arbitraryPositiveInt128: Arbitrary[Int128] =
+  val arbitraryPositiveInt128: Arbitrary[Int128] =
     Arbitrary(Gen.posNum[Long].map(BigInt(_)).map(Sized.maxUnsafe[BigInt, Lengths.`128`.type](_)))
 
   implicit val arbitraryAssetCode: Arbitrary[Box.Values.Asset.Code] =
     Arbitrary(
       for {
         version   <- byteGen
-        issuer    <- arbitraryDionAddress.arbitrary
+        issuer    <- arbitrarySpendingAddress.arbitrary
         shortName <- latin1DataGen.map(data => Latin1Data.unsafe(data.value.take(8)))
         code = Box.Values.Asset.Code(version, issuer, Sized.maxUnsafe(shortName))
       } yield code
@@ -362,7 +366,7 @@ trait ModelGenerators {
   implicit val arbitraryTransactionOutput: Arbitrary[Transaction.Output] =
     Arbitrary(
       for {
-        address <- arbitraryDionAddress.arbitrary
+        address <- arbitraryFullAddress.arbitrary
         value   <- arbitraryBoxValue.arbitrary
         minting <- Gen.prob(0.5)
       } yield Transaction.Output(address, value, minting)
@@ -613,8 +617,8 @@ trait ModelGenerators {
   implicit val arbitraryEta: Arbitrary[Eta] =
     Arbitrary(etaGen)
 
-  implicit val arbitraryTaktikosAddress: Arbitrary[TaktikosAddress] =
-    Arbitrary(taktikosAddressGen)
+  implicit val arbitraryTaktikosAddress: Arbitrary[StakingAddress] =
+    Arbitrary(stakingAddressGen)
 
   implicit class GenHelper[T](gen: Gen[T]) {
     def first: T = gen.pureApply(Gen.Parameters.default, Seed.random())

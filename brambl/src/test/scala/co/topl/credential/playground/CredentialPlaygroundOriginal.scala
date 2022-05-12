@@ -49,7 +49,7 @@ object CredentialPlaygroundOriginal extends App {
   val party1SK: SecretKeys.Ed25519 = KeyInitializer[SecretKeys.Ed25519].random()
   val party2SK: SecretKeys.Curve25519 = KeyInitializer[SecretKeys.Curve25519].random()
 
-  val party3Address: DionAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.dionAddress
+  val party3Address: SpendingAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.spendingAddress
 
   val proposition = party1SK.vk.asProposition.and(party2SK.vk.asProposition)
   println(proposition)

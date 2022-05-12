@@ -49,7 +49,7 @@ object CredentialPlaygroundNE extends App {
   val party1SK: SecretKeys.Ed25519 = KeyInitializer[SecretKeys.Ed25519].random()
   val party2SK: SecretKeys.Curve25519 = KeyInitializer[SecretKeys.Curve25519].random()
 
-  val party3Address: DionAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.dionAddress
+  val party3Address: SpendingAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.spendingAddress
 
   val proposition: Propositions.Compositional.And = party1SK.vk.asProposition.and(party2SK.vk.asProposition)
   println(proposition)
@@ -154,7 +154,7 @@ object TruthTable extends App {
 
   println(parties.size)
 
-  val party3Address: DionAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.dionAddress
+  val party3Address: SpendingAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.spendingAddress
 
   @tailrec
   def recurseOr(propositions: Seq[Proposition], acc: Proposition): Propositions.Compositional.Or = propositions match {

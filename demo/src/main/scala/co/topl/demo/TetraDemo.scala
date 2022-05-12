@@ -83,25 +83,15 @@ object TetraDemo extends IOApp {
     val (kesKey, _) =
       kesProduct.createKeyPair(seed = seed.data, height = KesKeyHeight, 0)
 
-    val stakerRegistration: Box.Values.TaktikosRegistration =
-      Box.Values.TaktikosRegistration(
-        commitment = kesProduct.sign(
+    val stakerRegistration: Box.Values.Registrations.Pool =
+      Box.Values.Registrations.Pool(
+        vrfCommitment = kesProduct.sign(
           kesKey,
           new Blake2b256().hash(ed25519Vrf.getVerificationKey(stakerVrfKey).immutableBytes, poolVK.bytes.data).data
         )
       )
 
-    val stakerAddress: TaktikosAddress = {
-      val (paymentKey, paymentVerificationKey) = ed25519.createKeyPair(seed)
-      TaktikosAddress(
-        Sized.strictUnsafe(
-          Bytes(blake2b256.hash(paymentVerificationKey.bytes.data.toArray).value)
-        ),
-        poolVK,
-        ed25519.sign(paymentKey, poolVK.bytes.data)
-      )
-    }
-    Staker(Ratio(1, count), stakerVrfKey, kesKey, stakerRegistration, stakerAddress)
+    Staker(Ratio(1, count), stakerVrfKey, kesKey, stakerRegistration, StakingAddresses.Pool(poolVK))
   }
 
   private val genesis =
@@ -316,8 +306,8 @@ private case class Staker(
   relativeStake: Ratio,
   vrfKey:        SecretKeys.VrfEd25519,
   kesKey:        SecretKeys.KesProduct,
-  registration:  Box.Values.TaktikosRegistration,
-  address:       TaktikosAddress
+  registration:  Box.Values.Registrations.Pool,
+  address:       StakingAddresses.Pool
 )
 
 case class DemoArgs(

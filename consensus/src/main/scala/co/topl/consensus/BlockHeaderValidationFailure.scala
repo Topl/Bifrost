@@ -32,7 +32,7 @@ object BlockHeaderValidationFailures {
 
   case class InvalidBlockProof(operationalCertificate: OperationalCertificate) extends BlockHeaderValidationFailure
 
-  case class Unregistered(address: TaktikosAddress) extends BlockHeaderValidationFailure
+  case class Unregistered(address: StakingAddress) extends BlockHeaderValidationFailure
 
   case class RegistrationCommitmentMismatch(
     vrfCommitment: Proofs.Knowledge.KesProduct,

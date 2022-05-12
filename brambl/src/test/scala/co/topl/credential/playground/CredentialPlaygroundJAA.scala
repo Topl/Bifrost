@@ -57,8 +57,8 @@ object SetupSandbox {
   val aliceSk: SecretKeys.Curve25519 = KeyInitializer[SecretKeys.Curve25519].random()
   val bobSk: SecretKeys.Ed25519 = KeyInitializer[SecretKeys.Ed25519].random()
 
-  val address0: DionAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.dionAddress
-  val address1: DionAddress = curve25519Sk.vk.asProposition.and(ed25519Sk.vk.asProposition).dionAddress
+  val address0: SpendingAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.dionAddress
+  val address1: SpendingAddress = curve25519Sk.vk.asProposition.and(ed25519Sk.vk.asProposition).dionAddress
 
   def createUnprovenTransaction(
     inputs:  NonEmptyChain[Transaction.Unproven.Input],

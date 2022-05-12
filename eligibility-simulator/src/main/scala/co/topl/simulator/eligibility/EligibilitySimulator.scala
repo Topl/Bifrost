@@ -80,23 +80,15 @@ object EligibilitySimulator extends IOApp.Simple {
     val (kesKey, _) =
       kesProduct.createKeyPair(seed = Bytes(Random.nextBytes(32)), height = KesKeyHeight, 0)
 
-    val stakerRegistration: Box.Values.TaktikosRegistration =
-      Box.Values.TaktikosRegistration(
-        commitment = kesProduct.sign(
+    val stakerRegistration: Box.Values.Registrations.Pool =
+      Box.Values.Registrations.Pool(
+        vrfCommitment = kesProduct.sign(
           kesKey,
           new Blake2b256().hash(ed25519Vrf.getVerificationKey(stakerVrfKey).immutableBytes, poolVK.bytes.data).data
         )
       )
 
-    val stakerAddress: TaktikosAddress = {
-      val (paymentKey, paymentVerificationKey) = ed25519.createKeyPair(Entropy.fromUuid(UUID.randomUUID()), None)
-      TaktikosAddress(
-        new Blake2b256().hash(paymentVerificationKey.bytes.data),
-        poolVK,
-        ed25519.sign(paymentKey, poolVK.bytes.data)
-      )
-    }
-    Staker(RelativeStake, stakerVrfKey, kesKey, stakerRegistration, stakerAddress)
+    Staker(RelativeStake, stakerVrfKey, kesKey, stakerRegistration, StakingAddresses.Pool(poolVK))
   }
 
   private val genesis =
@@ -289,6 +281,6 @@ private case class Staker(
   relativeStake: Ratio,
   vrfKey:        SecretKeys.VrfEd25519,
   kesKey:        SecretKeys.KesProduct,
-  registration:  Box.Values.TaktikosRegistration,
-  address:       TaktikosAddress
+  registration:  Box.Values.Registrations.Pool,
+  address:       StakingAddresses.Pool
 )

@@ -21,7 +21,7 @@ object Transaction {
     proof:                  Proof,
     value:                  Box.Value
   )
-  case class Output(dionAddress: DionAddress, value: Box.Value, minting: Boolean)
+  case class Output(address: FullAddress, value: Box.Value, minting: Boolean)
 
   case class Unproven(
     inputs:    Chain[Transaction.Unproven.Input],

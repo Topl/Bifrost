@@ -61,7 +61,7 @@ object CredentialTestJing extends App {
   val votersThresholdProp = List(voter1Prop, voter2Prop, voter3Prop, heightProp).threshold(2)
   val combinedProp = votersThresholdProp or adminsProp
 
-  val recipientAddress: DionAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.dionAddress
+  val recipientAddress: SpendingAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.spendingAddress
 
   val unprovenTransaction: Transaction.Unproven =
     ModelGenerators.arbitraryUnprovenTransaction.arbitrary.first.copy(

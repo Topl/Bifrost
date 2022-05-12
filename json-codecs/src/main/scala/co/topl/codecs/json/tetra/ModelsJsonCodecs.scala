@@ -18,8 +18,11 @@ trait ModelsJsonCodecs {
   implicit val typedEvidenceEncoder: Encoder[TypedEvidence] =
     bytes => bytes.allBytes.asJson
 
-  implicit val dionAddressEncoder: Encoder[DionAddress] =
-    t => t.allBytes.asJson
+  implicit val spendingAddressEncoder: Encoder[SpendingAddress] =
+    t => t.immutableBytes.asJson
+
+  implicit val fullAddressEncoder: Encoder[FullAddress] =
+    t => t.immutableBytes.asJson
 
   implicit def propositionEncoder: Encoder[Proposition] = {
     case Propositions.PermanentlyLocked =>
@@ -190,24 +193,24 @@ trait ModelsJsonCodecs {
         "metadata"     -> t.metadata.map(_.data).asJson
       )
 
-  implicit val taktikosRegistrationBoxValueEncoder: Encoder[Box.Values.TaktikosRegistration] =
-    t => Json.obj("commitment" -> t.commitment.immutableBytes.asJson)
+  implicit val baseRegistrationBoxValueEncoder: Encoder[Box.Values.Registrations.Pool] =
+    t => Json.obj("vrfCommitment" -> t.vrfCommitment.immutableBytes.asJson)
 
   def boxValueTypeName(value: Box.Value): String =
     value match {
-      case Box.Values.Empty                   => "Empty"
-      case _: Box.Values.Poly                 => "Poly"
-      case _: Box.Values.Arbit                => "Arbit"
-      case _: Box.Values.Asset                => "Asset"
-      case _: Box.Values.TaktikosRegistration => "TaktikosRegistration"
+      case Box.Values.Empty                 => "Empty"
+      case _: Box.Values.Poly               => "Poly"
+      case _: Box.Values.Arbit              => "Arbit"
+      case _: Box.Values.Asset              => "Asset"
+      case _: Box.Values.Registrations.Pool => "Registration.Pool"
     }
 
   implicit val boxValueEncoder: Encoder[Box.Value] = {
-    case Box.Values.Empty                   => Json.Null
-    case v: Box.Values.Poly                 => v.asJson
-    case v: Box.Values.Arbit                => v.asJson
-    case v: Box.Values.Asset                => v.asJson
-    case v: Box.Values.TaktikosRegistration => v.asJson
+    case Box.Values.Empty                 => Json.Null
+    case v: Box.Values.Poly               => v.asJson
+    case v: Box.Values.Arbit              => v.asJson
+    case v: Box.Values.Asset              => v.asJson
+    case v: Box.Values.Registrations.Pool => v.asJson
   }
 
   implicit val boxEncoder: Encoder[Box] =
@@ -232,7 +235,7 @@ trait ModelsJsonCodecs {
   implicit val encodeTransactionOutput: Encoder[Transaction.Output] =
     o =>
       Json.obj(
-        "address"   -> o.dionAddress.asJson,
+        "address"   -> o.address.asJson,
         "valueType" -> boxValueTypeName(o.value).asJson,
         "value"     -> o.value.asJson,
         "minting"   -> o.minting.asJson

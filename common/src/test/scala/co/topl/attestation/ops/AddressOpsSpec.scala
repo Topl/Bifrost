@@ -3,7 +3,7 @@ package co.topl.attestation.ops
 import cats.data.{Chain, NonEmptyChain}
 import co.topl.attestation.Evidence
 import co.topl.attestation.implicits._
-import co.topl.attestation.ops.AddressOps.ToDionAddressFailures
+import co.topl.attestation.ops.AddressOps.ToSpendingAddressFailures
 import co.topl.attestation.ops.EvidenceOps.ToTypedEvidenceFailures
 import co.topl.models.utility.Sized
 import co.topl.utils.CommonGenerators
@@ -22,17 +22,9 @@ class AddressOpsSpec
 
   describe("AddressOps") {
     describe("toDionAddress") {
-      it("should convert an Address to a Dion Address with the same network prefix") {
-        forAll(addressGen) { address =>
-          val dionAddress = address.toDionAddress
-
-          dionAddress.value.networkPrefix.value shouldBe address.networkPrefix
-        }
-      }
-
       it("should convert an Address to a Dion Address with the same evidence") {
         forAll(addressGen) { address =>
-          val dionAddress = address.toDionAddress
+          val dionAddress = address.toSpendingAddress
 
           dionAddress.value.typedEvidence.allBytes.toArray shouldBe address.evidence.evBytes
         }
@@ -48,10 +40,10 @@ class AddressOpsSpec
 
           val shortenedAddress = address.copy(evidence = Evidence(evidenceTypePrefix +: shortenedContent))
 
-          val dionAddress = shortenedAddress.toDionAddress
+          val dionAddress = shortenedAddress.toSpendingAddress
 
           dionAddress shouldBe Left(
-            ToDionAddressFailures.InvalidEvidence(
+            ToSpendingAddressFailures.InvalidEvidence(
               ToTypedEvidenceFailures.InvalidEvidenceSize(Sized.InvalidLength(shortenedContent.length))
             )
           )
@@ -63,10 +55,10 @@ class AddressOpsSpec
           val stretchedAddress =
             address.copy(evidence = Evidence(address.evidence.evBytes ++ addedBytes.toNonEmptyList.toList))
 
-          val dionAddress = stretchedAddress.toDionAddress
+          val dionAddress = stretchedAddress.toSpendingAddress
 
           dionAddress shouldBe Left(
-            ToDionAddressFailures.InvalidEvidence(
+            ToSpendingAddressFailures.InvalidEvidence(
               ToTypedEvidenceFailures.InvalidEvidenceSize(Sized.InvalidLength(32 + addedBytes.length.toInt))
             )
           )
