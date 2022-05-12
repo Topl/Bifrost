@@ -1,13 +1,14 @@
 package co.topl.nodeView.history
 
 import cats.implicits._
+import co.topl.codecs._
+import co.topl.consensus.{BlockValidator, NxtConsensus}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.PersistentNodeViewModifier
+import co.topl.network.SyncInfo
 import co.topl.nodeView.NodeViewComponent
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.codecs._
-import co.topl.network.SyncInfo
 
 import scala.util.Try
 
@@ -35,22 +36,6 @@ trait GenericHistory[
   def isEmpty: Boolean
 
   /**
-   * Whether the history contains the given modifier
-   *
-   * @param persistentModifier - modifier
-   * @return
-   */
-  override def contains(persistentModifier: PM): Boolean = contains(persistentModifier.id)
-
-  /**
-   * Whether the history contains a modifier with the given id
-   *
-   * @param id - modifier's id
-   * @return
-   */
-  override def contains(id: ModifierId): Boolean = modifierById(id).isDefined
-
-  /**
    * Whether a modifier could be applied to the history
    *
    * @param modifier - modifier to apply
@@ -59,18 +44,16 @@ trait GenericHistory[
   def applicable(modifier: PM): Boolean =
     openSurfaceIds().exists(_.persistedBytes sameElements modifier.parentId.persistedBytes)
 
-  def modifierById(modifierId: ModifierId): Option[PM]
-
   def modifierById(modifierId: String): Option[PM] =
     Base58Data
       .validated(modifierId)
       .andThen(_.decodeTransmitted[ModifierId].toValidatedNec)
       .toOption
-      .flatMap(modifierById)
+      .flatMap(id => modifierById(id))
 
   def modifierByHeight(height: Long): Option[PM]
 
-  def append(modifier: PM): Try[(HT, ProgressInfo[PM])]
+  def append(modifier: PM, validators: Seq[BlockValidator[_]]): Try[(HT, ProgressInfo[PM])]
 
   def drop(modifierId: ModifierId): HT
 

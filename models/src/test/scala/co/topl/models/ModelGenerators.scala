@@ -318,10 +318,13 @@ trait ModelGenerators {
   implicit val arbitraryInt128: Arbitrary[Int128] =
     Arbitrary(Gen.long.map(BigInt(_)).map(Sized.maxUnsafe[BigInt, Lengths.`128`.type](_)))
 
+  implicit val arbitraryPositiveInt128: Arbitrary[Int128] =
+    Arbitrary(Gen.posNum[Long].map(Sized.maxUnsafe[BigInt, Lengths.`128`.type](_)))
+
   implicit val arbitraryAssetCode: Arbitrary[Box.Values.Asset.Code] =
     Arbitrary(
       for {
-        version   <- byteGen
+        version   <- Gen.const(1.toByte)
         issuer    <- arbitraryDionAddress.arbitrary
         shortName <- latin1DataGen.map(data => Latin1Data.unsafe(data.value.take(8)))
         code = Box.Values.Asset.Code(version, issuer, Sized.maxUnsafe(shortName))
@@ -331,7 +334,7 @@ trait ModelGenerators {
   implicit val arbitraryAssetBox: Arbitrary[Box.Values.Asset] =
     Arbitrary(
       for {
-        quantity <- arbitraryInt128.arbitrary
+        quantity <- arbitraryPositiveInt128.arbitrary
         code     <- arbitraryAssetCode.arbitrary
         root     <- genSizedStrictBytes[Lengths.`32`.type]().map(_.data)
         metadata <-
@@ -370,7 +373,9 @@ trait ModelGenerators {
 
   implicit val arbitraryArbitOutput: Arbitrary[Transaction.ArbitOutput] =
     Arbitrary(
-      arbitraryDionAddress.arbitrary.flatMap(a => arbitraryInt128.arbitrary.map(v => Transaction.ArbitOutput(a, v)))
+      arbitraryDionAddress.arbitrary.flatMap(a =>
+        arbitraryPositiveInt128.arbitrary.map(v => Transaction.ArbitOutput(a, v))
+      )
     )
 
   implicit val arbitraryAssetOutput: Arbitrary[Transaction.AssetOutput] =

@@ -3,9 +3,8 @@ package co.topl.nodeView.state
 import cats.implicits._
 import co.topl.codecs._
 import co.topl.db.LDBVersionedStore
-import co.topl.modifier.ProgramId
+import co.topl.modifier.{ModifierId, ProgramId}
 import co.topl.modifier.box.{BoxId, ProgramBox}
-import co.topl.nodeView.state.MinimalState.VersionTag
 import co.topl.nodeView.{KeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
 import co.topl.utils.IdiomaticScalaTransition.implicits.toEitherOps
@@ -50,7 +49,7 @@ class ProgramBoxRegistry(protected val storage: KeyValueStore)
    */
   // todo: James - this needs to be updated similarly to TokenBoxRegistry
   protected[state] def update(
-    newVersion: VersionTag,
+    newVersion: ModifierId,
     toRemove:   Map[K, Seq[V]],
     toAppend:   Map[K, Seq[V]]
   ): Try[ProgramBoxRegistry] =
@@ -89,7 +88,7 @@ class ProgramBoxRegistry(protected val storage: KeyValueStore)
       case Failure(ex) => Failure(ex)
     }
 
-  override def rollbackTo(version: VersionTag): Try[ProgramBoxRegistry] = Try {
+  override def rollbackTo(version: ModifierId): Try[ProgramBoxRegistry] = Try {
     if (storage.latestVersionId().exists(_ === version.persistedBytes)) {
       this
     } else {
@@ -105,17 +104,14 @@ object ProgramBoxRegistry extends Logging {
   type K = ProgramId
   type V = BoxId
 
-  def readOrGenerate(settings: AppSettings): Option[ProgramBoxRegistry] =
-    if (settings.application.enablePBR) {
-      log.info("Initializing state with Program Box Registry")
+  def readOrGenerate(settings: AppSettings): ProgramBoxRegistry = {
+    log.info("Initializing state with Program Box Registry")
+    val dataDir = settings.application.dataDir.ensuring(_.isDefined, "data dir must be specified").get
 
-      val dataDir = settings.application.dataDir.ensuring(_.isDefined, "data dir must be specified").get
+    val file = new File(s"$dataDir/programBoxRegistry")
+    file.mkdirs()
+    val storage = new LDBKeyValueStore(new LDBVersionedStore(file, keepVersions = 100))
 
-      val file = new File(s"$dataDir/programBoxRegistry")
-      file.mkdirs()
-      val storage = new LDBKeyValueStore(new LDBVersionedStore(file, keepVersions = 100))
-
-      Some(new ProgramBoxRegistry(storage))
-
-    } else None
+    new ProgramBoxRegistry(storage)
+  }
 }
