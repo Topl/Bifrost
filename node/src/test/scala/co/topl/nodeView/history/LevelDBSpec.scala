@@ -8,11 +8,12 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.box.Box
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.codecs.binary.typeclasses.Persistable
-import co.topl.utils.{FileUtils, NodeGenerators}
+import co.topl.utils.FileUtils
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import co.topl.codecs._
+import co.topl.nodeView.ValidTransactionGenerators
 
 import java.io.File
 
@@ -21,7 +22,7 @@ class LevelDBSpec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers
-    with NodeGenerators
+    with ValidTransactionGenerators
     with FileUtils {
 
   val iFile: File = createTempDir

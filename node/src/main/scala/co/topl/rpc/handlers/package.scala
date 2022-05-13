@@ -17,19 +17,6 @@ import scala.language.existentials
 
 package object handlers {
 
-  private[handlers] def checkAddresses(
-    keys:  List[Address],
-    state: StateReader[_, Address]
-  ): Either[RpcError, List[Address]] =
-    for {
-      _ <- Either.cond(state.hasTBR, {}, ToplRpcErrors.unsupportedOperation("TokenBoxRegistry not defined for node"))
-      _ <- Either.cond(
-        state.nodeKeys.forall(_.intersect(keys.toSet).nonEmpty),
-        {},
-        ToplRpcErrors.unsupportedOperation("TokenBoxRegistry not defined for node")
-      )
-    } yield keys
-
   private[handlers] def checkModifierIdType(
     idType: ModifierTypeId,
     ids:    List[ModifierId]

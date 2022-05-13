@@ -23,8 +23,8 @@ object Dependencies {
   )
 
   val test = Seq(
-    "org.scalatest"      %% "scalatest"                     % "3.2.11"  % "test",
-    "org.scalactic"      %% "scalactic"                     % "3.2.11"  % "test",
+    "org.scalatest"      %% "scalatest"                     % "3.2.12"  % "test",
+    "org.scalactic"      %% "scalactic"                     % "3.2.12"  % "test",
     "org.scalacheck"     %% "scalacheck"                    % "1.15.4"  % "test",
     "org.scalatestplus"  %% "scalacheck-1-14"               % "3.2.2.0" % "test",
     "com.spotify"         % "docker-client"                 % "8.16.0"  % "test",
@@ -97,7 +97,8 @@ object Dependencies {
   )
 
   val cats = Seq(
-    "org.typelevel" %% "cats-core" % catsCoreVersion
+    "org.typelevel" %% "cats-core" % catsCoreVersion,
+    "org.typelevel" %% "mouse"     % "1.0.10"
   )
 
   val catsEffect = Seq(
@@ -122,11 +123,9 @@ object Dependencies {
   )
 
   val scodec = Seq(
-    "org.scodec" %% "scodec-core" % "1.11.9"
-  )
-
-  val scodecBits = Seq(
-    "org.scodec" %% "scodec-bits" % "1.1.27"
+    "org.scodec" %% "scodec-core" % "1.11.9",
+    "org.scodec" %% "scodec-bits" % "1.1.27",
+    "org.scodec" %% "scodec-cats" % "1.1.0"
   )
 
   val scodecCats = Seq(
@@ -172,12 +171,10 @@ object Dependencies {
       "org.typelevel"          %% "simulacrum"              % simulacrumVersion,
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.6.0",
       "org.mongodb.scala"      %% "mongo-scala-driver"      % "4.3.2",
-      "io.circe"               %% "circe-generic"           % circeVersion,
-      "org.scodec"             %% "scodec-core"             % "1.11.8",
-      "org.scodec"             %% "scodec-bits"             % "1.1.30"
+      "io.circe"               %% "circe-generic"           % circeVersion
     ) ++
     logging ++
-    scodecBits ++
+    scodec ++
     circe ++
     simulacrum ++
     test ++
@@ -235,7 +232,7 @@ object Dependencies {
       "org.bouncycastle"   % "bcprov-jdk15on"  % "1.70",
       "org.whispersystems" % "curve25519-java" % "0.5.0"
     ) ++
-    scodecBits ++
+    scodec ++
     misc ++
     circe ++
     bouncyCastle ++
@@ -248,7 +245,7 @@ object Dependencies {
     cats ++ catsEffect ++ logging ++ Seq(akka("actor"), akka("actor-typed"), akka("stream"))
 
   lazy val models: Seq[ModuleID] =
-    cats ++ simulacrum ++ newType ++ scodecBits
+    cats ++ simulacrum ++ newType ++ scodec
 
   lazy val consensus: Seq[ModuleID] =
     bouncyCastle ++ Seq(akka("actor-typed")) ++ catsEffect ++ logging ++ scalacache
@@ -266,24 +263,22 @@ object Dependencies {
     Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++ logging
 
   lazy val commonInterpreters =
-    Dependencies.test ++
+    test ++
     Seq(
       akka("actor-typed"),
       akka("actor-testkit-typed") % Test,
-      Dependencies.catsSlf4j      % "test"
+      catsSlf4j                   % "test"
     ) ++
-    Dependencies.cats ++
-    Dependencies.catsEffect ++
-    Dependencies.scalacache
+    cats ++
+    catsEffect ++
+    scalacache
 
   lazy val byteCodecs =
-    Dependencies.test ++
-    Dependencies.simulacrum ++
-    Dependencies.scodec ++
-    Dependencies.scodecBits ++
-    Dependencies.scodecCats ++
-    Dependencies.cats ++
-    Seq(Dependencies.akka("actor"))
+    test ++
+    simulacrum ++
+    scodec ++
+    cats ++
+    Seq(akka("actor"))
 
   lazy val tools: Seq[ModuleID] =
     Seq(

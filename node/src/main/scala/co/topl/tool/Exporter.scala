@@ -1,5 +1,6 @@
 package co.topl.tool
 
+import co.topl.consensus.ProtocolVersioner
 import co.topl.nodeView.history.History
 import co.topl.settings.{AppSettings, StartupOpts}
 import co.topl.tools.exporter.{DataType, Exportable, MongoExport}
@@ -7,9 +8,9 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.mongodb.codecs._
 import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataModel}
 import co.topl.utils.{Logging, NetworkType}
-import io.circe.Json
-import mainargs.{arg, main, ParserForMethods}
 import co.topl.settings.StartupOptsImplicits._
+import mainargs.{arg, main, ParserForMethods}
+import io.circe.Json
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
@@ -18,9 +19,10 @@ import scala.util.{Failure, Success}
 
 object Exporter extends Logging {
 
-  private def initHistory(settings: AppSettings, np: NetworkPrefix): History = History.readOrGenerate(settings)(np)
+  private def initHistory(settings: AppSettings, np: NetworkPrefix, protocolVersioner: ProtocolVersioner): History =
+    History.readOrGenerate(settings)(np, protocolVersioner)
 
-  private def export(connection: Exportable, history: History, start: Long = 1L, end: Long): Unit = {
+  private def exportHistory(connection: Exportable, history: History, start: Long = 1L, end: Long): Unit = {
 
     val startTime = System.currentTimeMillis()
 
@@ -84,11 +86,15 @@ object Exporter extends Logging {
         dt
       )
     val (settings, config) = AppSettings.read(startupOpts)
-    val history = initHistory(settings, startupOpts.networkTypeOpt.getOrElse(NetworkType.PrivateTestnet).netPrefix)
+    val history = initHistory(
+      settings,
+      startupOpts.networkTypeOpt.getOrElse(NetworkType.PrivateTestnet).netPrefix,
+      ProtocolVersioner.default
+    )
 
-    export(mongo, history, start.getOrElse(1L), end.getOrElse(history.bestBlock.height))
+    exportHistory(mongo, history, start.getOrElse(1L), end.getOrElse(history.bestBlock.height))
   }
 
-  def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args)
+  def main(args: Array[String]): Unit = ParserForMethods(this).runOrExit(args.toIndexedSeq)
 
 }

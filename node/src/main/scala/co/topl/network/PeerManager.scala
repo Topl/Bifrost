@@ -3,7 +3,7 @@ package co.topl.network
 import akka.actor.{Actor, ActorRef, Props}
 import co.topl.network.NetworkController.ReceivableMessages._
 import co.topl.network.peer.{InMemoryPeerDatabase, PeerInfo, PeerMetadata, PenaltyType}
-import co.topl.settings.{AppContext, AppSettings}
+import co.topl.settings.AppSettings
 import co.topl.utils.{Logging, NetworkUtils, TimeProvider}
 
 import java.net.{InetAddress, InetSocketAddress}
@@ -13,8 +13,9 @@ import scala.util.Random
  * Peer manager takes care of peers connected and in process, and also chooses a random peer to connect
  * Must be singleton
  */
-class PeerManager(settings: AppSettings, appContext: AppContext)(implicit timeProvider: TimeProvider)
-    extends Actor
+class PeerManager(settings: AppSettings, optSelfExternalAddress: Option[InetSocketAddress])(implicit
+  timeProvider:             TimeProvider
+) extends Actor
     with Logging {
 
   /** Import the types of messages this actor can RECEIVE */
@@ -75,7 +76,7 @@ class PeerManager(settings: AppSettings, appContext: AppContext)(implicit timePr
       peerDatabase.remove(address)
 
     case get: GetPeers[_] =>
-      sender() ! get.choose(peerDatabase.knownPeers, peerDatabase.blacklistedPeers, appContext)
+      sender() ! get.choose(peerDatabase.knownPeers, peerDatabase.blacklistedPeers)
   }
 
   private def nonsense: Receive = { case nonsense: Any =>
@@ -87,7 +88,7 @@ class PeerManager(settings: AppSettings, appContext: AppContext)(implicit timePr
 
   /** Given a peer's address, returns `true` if the peer is the same is this node. */
   private def isSelf(peerAddress: InetSocketAddress): Boolean =
-    NetworkUtils.isSelf(peerAddress, settings.network.bindAddress, appContext.externalNodeAddress)
+    NetworkUtils.isSelf(peerAddress, settings.network.bindAddress, optSelfExternalAddress)
 
   private def isSelf(peerSpec: PeerMetadata): Boolean =
     peerSpec.declaredAddress.exists(isSelf) || peerSpec.localAddressOpt.exists(isSelf)
@@ -123,8 +124,7 @@ object PeerManager {
 
       def choose(
         knownPeers:       Map[InetSocketAddress, PeerInfo],
-        blacklistedPeers: Seq[InetAddress],
-        appContext:       AppContext
+        blacklistedPeers: Seq[InetAddress]
       ): T
     }
 
@@ -136,8 +136,7 @@ object PeerManager {
 
       override def choose(
         knownPeers:       Map[InetSocketAddress, PeerInfo],
-        blacklistedPeers: Seq[InetAddress],
-        sc:               AppContext
+        blacklistedPeers: Seq[InetAddress]
       ): Seq[PeerInfo] = {
         val recentlySeenNonBlacklisted = knownPeers.values.toSeq
           .filter { p =>
@@ -152,8 +151,7 @@ object PeerManager {
 
       override def choose(
         knownPeers:       Map[InetSocketAddress, PeerInfo],
-        blacklistedPeers: Seq[InetAddress],
-        sc:               AppContext
+        blacklistedPeers: Seq[InetAddress]
       ): Map[InetSocketAddress, PeerInfo] = knownPeers
     }
 
@@ -161,8 +159,7 @@ object PeerManager {
 
       override def choose(
         knownPeers:       Map[InetSocketAddress, PeerInfo],
-        blacklistedPeers: Seq[InetAddress],
-        sc:               AppContext
+        blacklistedPeers: Seq[InetAddress]
       ): Option[PeerInfo] = {
         val candidates = knownPeers.values.filterNot { p =>
           excludedPeers.exists(_.metadata.address == p.metadata.address) &&
@@ -177,8 +174,7 @@ object PeerManager {
 
       override def choose(
         knownPeers:       Map[InetSocketAddress, PeerInfo],
-        blacklistedPeers: Seq[InetAddress],
-        appContext:       AppContext
+        blacklistedPeers: Seq[InetAddress]
       ): Seq[InetAddress] = blacklistedPeers
     }
 
@@ -192,8 +188,8 @@ object PeerManager {
 object PeerManagerRef {
 
   def props(
-    settings:              AppSettings,
-    appContext:            AppContext
-  )(implicit timeProvider: TimeProvider): Props =
-    Props(new PeerManager(settings, appContext))
+    settings:               AppSettings,
+    optSelfExternalAddress: Option[InetSocketAddress]
+  )(implicit timeProvider:  TimeProvider): Props =
+    Props(new PeerManager(settings, optSelfExternalAddress))
 }

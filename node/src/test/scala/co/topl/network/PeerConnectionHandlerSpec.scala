@@ -6,7 +6,8 @@ import akka.io.{IO, Tcp}
 import akka.testkit.TestKit
 import co.topl.network.codecs.legacy.message.TransmissionSerializer
 import co.topl.network.utils.NetworkTimeProvider
-import co.topl.utils.{NodeGenerators, TimeProvider}
+import co.topl.nodeView.ValidTransactionGenerators
+import co.topl.utils.{TestSettings, TimeProvider}
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.propspec.AnyPropSpecLike
 
@@ -16,7 +17,8 @@ class PeerConnectionHandlerSpec
     extends TestKit(ActorSystem("PCHSpec"))
     with AnyPropSpecLike
     with Matchers
-    with NodeGenerators {
+    with TestSettings
+    with ValidTransactionGenerators {
 
   implicit val timeProvider: TimeProvider = new NetworkTimeProvider(settings.ntp)(system.toTyped)
 
@@ -27,7 +29,7 @@ class PeerConnectionHandlerSpec
 
   property("A new PeerConnectionHandler should be created") {
 
-    val peerManagerRef: ActorRef = system.actorOf(PeerManagerRef.props(settings, appContext))
+    val peerManagerRef: ActorRef = system.actorOf(PeerManagerRef.props(settings, None))
     val networkControllerRef: ActorRef =
       system.actorOf(NetworkControllerRef.props(settings, peerManagerRef, appContext, IO(Tcp)))
 
