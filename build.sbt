@@ -111,6 +111,7 @@ def assemblySettings(main: String) = Seq(
       case PathList("local.conf")                      => MergeStrategy.discard
       case "META-INF/truffle/instrument"               => MergeStrategy.concat
       case "META-INF/truffle/language"                 => MergeStrategy.rename
+      case x if x.contains("google/protobuf")          => MergeStrategy.last
       case x                                           => old(x)
     }
   },
@@ -662,7 +663,7 @@ lazy val genus = project
     name := "genus",
     commonSettings,
     scalamacrosParadiseSettings,
-    libraryDependencies ++= Dependencies.genus,
+    libraryDependencies ++= Dependencies.genus
   )
   .enablePlugins(AkkaGrpcPlugin)
   .dependsOn(common)
