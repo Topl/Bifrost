@@ -13,8 +13,10 @@ import co.topl.genus.filters.TransactionFilter
 import co.topl.genus.interpreters.BatchedMongoSubscription
 import co.topl.genus.services.transactions_query.TransactionSorting
 import co.topl.genus.typeclasses.implicits._
+import org.mongodb.scala.Document
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.EitherValues
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
@@ -27,7 +29,8 @@ class BatchedMongoSubscriptionSpec
     with AnyFlatSpecLike
     with ScalaFutures
     with MockFactory
-    with ScalaCheckDrivenPropertyChecks {
+    with ScalaCheckDrivenPropertyChecks
+    with EitherValues {
 
   import BatchedMongoSubscriptionSpec._
 
@@ -55,6 +58,34 @@ class BatchedMongoSubscriptionSpec
 
       resultsList shouldBe documents
     }
+  }
+
+  it should "never complete upstream" in {
+    // batch size and sleep time will be ignored since we will just return the list of generated documents
+    val batchSize = 100
+    val batchSleepTime = 10.millis
+
+    val mongoStoreMock: MongoStore[IO] = mock[MongoStore[IO]]
+    (mongoStoreMock.getDocuments _)
+      .expects(*, *, *, *)
+      .anyNumberOfTimes()
+      .returns(Source.empty[Document].mapMaterializedValue(_ => NotUsed).pure[IO])
+
+    val underTest = BatchedMongoSubscription.make[IO](batchSize, batchSleepTime, mongoStoreMock)
+
+    val resultSource = underTest
+      .create(TransactionFilter.defaultInstance, TransactionSorting.defaultInstance)
+
+    val result =
+      resultSource
+        .map(_.completionTimeout(1.second))
+        .flatMap(x => IO.fromFuture(x.runWith(Sink.seq[Document]).pure[IO]))
+        .map(_.asRight[Throwable])
+        .handleError(failure => failure.asLeft)
+        .unsafeToFuture()
+        .futureValue
+
+    result.leftMap(_.getMessage) shouldBe Left("The stream has not been completed in 1 second.")
   }
 }
 
