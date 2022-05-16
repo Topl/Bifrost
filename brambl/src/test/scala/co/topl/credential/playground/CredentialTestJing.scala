@@ -66,7 +66,7 @@ object CredentialTestJing extends App {
   val unprovenTransaction: Transaction.Unproven =
     ModelGenerators.arbitraryUnprovenTransaction.arbitrary.first.copy(
       inputs = Chain(arbitraryTransactionUnprovenInput.arbitrary.first.copy(proposition = combinedProp)),
-      outputs = NonEmptyChain(
+      outputs = Chain(
         Transaction.Output(recipientAddress, Box.Values.Poly(Sized.maxUnsafe(BigInt(5))), minting = false)
       )
     )

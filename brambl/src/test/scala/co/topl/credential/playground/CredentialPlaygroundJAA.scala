@@ -66,7 +66,7 @@ object SetupSandbox {
   ): Transaction.Unproven =
     Transaction.Unproven(
       inputs.toChain,
-      outputs,
+      outputs.toChain,
       timestamp = System.currentTimeMillis(),
       data = None
     )

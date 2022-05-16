@@ -16,9 +16,7 @@ trait HistoryReader[PM <: PersistentNodeViewModifier, SI <: SyncInfo]
 
   def height: Long
   def bestBlock: PM
-  def difficulty: Long
   def bestBlockId: ModifierId
-  def score: Long
 
   /**
    * Is there's no history, even genesis block
