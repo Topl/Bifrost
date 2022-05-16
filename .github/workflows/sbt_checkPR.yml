@@ -11,7 +11,7 @@ jobs:
     name: Build and Test
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, macos-latest]
         java: [graalvm-ce-java11@21.1.0]
     runs-on: ${{ matrix.os }}
     steps:
@@ -39,3 +39,12 @@ jobs:
 
       - name: Compile and Test
         run: sbt checkPR
+
+      - name: Test Report
+        uses: dorny/test-reporter@v1
+        if: success() || failure()    # run this step even if previous step failed
+        with:
+          name: Java Tests            # Name of the check run which will be created
+          path: target/test-reports/*.xml    # Path to test results
+          reporter: java-junit        # Format of test results
+
