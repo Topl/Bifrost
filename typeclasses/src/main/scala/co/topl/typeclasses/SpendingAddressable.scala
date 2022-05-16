@@ -13,7 +13,7 @@ object SpendingAddressable {
 
   trait Instances {
 
-    implicit def containsEvidenceDionAddressable[T: ContainsEvidence](implicit
+    implicit def containsEvidenceSpendingAddressable[T: ContainsEvidence](implicit
       networkPrefix: NetworkPrefix
     ): SpendingAddressable[T] =
       (t: T) => SpendingAddress(ContainsEvidence[T].typedEvidenceOf(t))
