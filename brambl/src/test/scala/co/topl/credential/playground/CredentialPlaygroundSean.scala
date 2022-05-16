@@ -1,10 +1,12 @@
 package co.topl.credential.playground
 
-import cats.data.{Chain, NonEmptyChain}
+import cats.data.Chain
 import cats.effect.unsafe.implicits.global
 import co.topl.credential.Credential
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
+import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.codecs.bytes.tetra.instances._
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.{Base58, Sized}
@@ -18,14 +20,25 @@ import io.circe.syntax._
 import org.graalvm.polyglot.Value
 
 import java.nio.charset.StandardCharsets
-import scala.collection.immutable.ListMap
-import scala.util.Random
 import ModelGenerators._
 
 object CredentialPlaygroundSean extends App {
   implicit val ed25519: Ed25519 = new Ed25519
   implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.precomputed()
   implicit val networkPrefix: NetworkPrefix = NetworkPrefix(1: Byte)
+
+  val stakingAddress: StakingAddress =
+    StakingAddresses.Pool(ed25519.getVerificationKey(KeyInitializer[SecretKeys.Ed25519].random()))
+
+  val offlineWalletSK =
+    KeyInitializer[SecretKeys.Ed25519].random()
+
+  def fullAddress(spendingAddress: SpendingAddress) = FullAddress(
+    networkPrefix,
+    spendingAddress,
+    stakingAddress,
+    ed25519.sign(offlineWalletSK, (spendingAddress, stakingAddress).signableBytes)
+  )
 
   // Exercise: Construct complex propositions and attempt to prove them using Credentials
 
@@ -45,7 +58,7 @@ object CredentialPlaygroundSean extends App {
     """(ctx, args, utils) => ctx.currentSlot > 400""".stripMargin.jsProposition
 
   val script3Proposition =
-    """(ctx, args, utils) => ctx.currentTransaction.coinOutputs[0].value == "10"""".stripMargin.jsProposition
+    """(ctx, args, utils) => ctx.currentTransaction.outputs[0].value.value == "10"""".stripMargin.jsProposition
 
   val script4Proposition =
     """(ctx, args, utils) => {
@@ -64,7 +77,9 @@ object CredentialPlaygroundSean extends App {
   val unprovenTransaction: Transaction.Unproven =
     ModelGenerators.arbitraryUnprovenTransaction.arbitrary.first.copy(
       inputs = Chain(arbitraryTransactionUnprovenInput.arbitrary.first.copy(proposition = proposition)),
-      outputs = Chain(Transaction.Output(party3Address, Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false))
+      outputs = Chain(
+        Transaction.Output(fullAddress(party3Address), Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false)
+      )
     )
 
   val credential = Credential.Compositional.And(

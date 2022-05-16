@@ -1,8 +1,10 @@
 package co.topl.credential.playground
 
-import cats.data.{Chain, NonEmptyChain}
+import cats.data.Chain
 import co.topl.credential.Credential
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
+import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.codecs.bytes.tetra.instances._
 import co.topl.models.utility.Sized
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
@@ -14,8 +16,7 @@ import co.topl.typeclasses.{KeyInitializer, VerificationContext}
 import io.circe.Json
 import org.graalvm.polyglot.Value
 import ModelGenerators._
-
-import scala.collection.immutable.ListMap
+import cats.effect.unsafe.implicits.global
 
 object CredentialPlaygroundBV extends App {
   type F[A] = cats.effect.IO[A]
@@ -42,6 +43,18 @@ object CredentialPlaygroundBV extends App {
 
   // Exercise: Construct complex propositions and attempt to prove them using Credentials
 
+  val stakingAddress: StakingAddress =
+    StakingAddresses.Pool(ed25519.getVerificationKey(KeyInitializer[SecretKeys.Ed25519].random()))
+
+  val offlineWalletSK =
+    KeyInitializer[SecretKeys.Ed25519].random()
+
+  def fullAddress(spendingAddress: SpendingAddress) = FullAddress(
+    networkPrefix,
+    spendingAddress,
+    stakingAddress,
+    ed25519.sign(offlineWalletSK, (spendingAddress, stakingAddress).signableBytes)
+  )
   // tic-tac-toe with propositions
 
   sealed trait Player {
@@ -103,7 +116,8 @@ object CredentialPlaygroundBV extends App {
     Transaction.Unproven(
       inputs = Chain(ModelGenerators.arbitraryTransactionUnprovenInput.arbitrary.first),
       outputs = Chain(
-        Transaction.Output(boardProp.dionAddress, Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false)
+        Transaction
+          .Output(fullAddress(boardProp.spendingAddress), Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false)
       ),
       timestamp = System.currentTimeMillis(),
       data = None
@@ -124,7 +138,7 @@ object CredentialPlaygroundBV extends App {
     def currentSlot: Slot = 1
   }
 
-  val validProof = boardProp.isSatisfiedBy(boardCred.proof)
+  val validProof = boardProp.isSatisfiedBy(boardCred.proof).unsafeRunSync()
 
   println(validProof)
 

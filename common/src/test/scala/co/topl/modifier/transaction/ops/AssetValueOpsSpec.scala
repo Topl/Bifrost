@@ -59,7 +59,7 @@ class AssetValueOpsSpec
       it("should convert an Asset Value and Dion Address to an Asset Output with the same asset code issuer") {
         forAll(assetValueGen, ModelGen.arbitraryFullAddress.arbitrary) { (assetValue, address) =>
           val expectedAddressBytes =
-            assetValue.assetCode.issuer.networkPrefix +: assetValue.assetCode.issuer.evidence.evBytes
+            assetValue.assetCode.issuer.evidence.evBytes
 
           val Transaction.Output(_, v: TetraBox.Values.Asset, _) =
             assetValue.toAssetOutput(address, minting = true).value
