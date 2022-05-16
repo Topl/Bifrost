@@ -12,6 +12,10 @@ import co.topl.genus.interpreters.services._
 import co.topl.genus.programs.GenusProgram
 import co.topl.genus.settings._
 import co.topl.genus.typeclasses.implicits._
+import co.topl.genus.types._
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.mongodb.codecs._
+import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataModel}
 import com.typesafe.config.ConfigFactory
 import mainargs.ParserForClass
 import org.mongodb.scala.MongoClient
@@ -51,6 +55,15 @@ object GenusApp extends IOApp {
     implicit val executionContext: ExecutionContext = system.dispatcher
 
     for {
+      // construct the expected API key
+      apiKey <-
+        if (settings.disableAuth) none[Base58Data].pure[IO]
+        else
+          Base58Data
+            .validated(settings.apiKeyHash)
+            .map(_.some.pure[IO])
+            .valueOr(errors => IO.raiseError(new Throwable(s"invalid API key: $errors")))
+
       // set up MongoDB resources
       mongoClient <- IO.delay(MongoClient(settings.mongoConnectionString))
       mongoDatabase = mongoClient.getDatabase(settings.mongoDatabaseName)
@@ -99,7 +112,8 @@ object GenusApp extends IOApp {
           HandleBlocksQuery.make(blocksQuery),
           HandleBlocksSubscription.make(blocksSubscription),
           settings.ip,
-          settings.port
+          settings.port,
+          apiKey
         )
     } yield ExitCode.Success
   }

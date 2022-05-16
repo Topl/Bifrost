@@ -29,6 +29,10 @@ final case class StartupOptions(
   ip: Option[String] = None,
   @arg(short = 'p')
   port: Option[Int] = None,
+  @arg
+  disableAuth: Option[Boolean] = None,
+  @arg
+  apiKeyHash: Option[String] = None,
   @arg(short = 't', name = "query-timeout")
   queryTimeout: Option[Int] = None,
   @arg(short = 'c', name = "config")

@@ -1,7 +1,7 @@
 package co.topl.genus.settings
 
-import cats.Monad
 import cats.data.EitherT
+import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.genus.settings.Configuration.{ReadFailure, ReadFailures}
 import com.typesafe.config.ConfigFactory
@@ -9,7 +9,6 @@ import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 
 import java.io.File
-import scala.util.Try
 
 object FileConfiguration {
 
@@ -19,19 +18,26 @@ object FileConfiguration {
    * @tparam F the effect type
    * @return a [[Configuration]] instance
    */
-  def make[F[_]: Monad](configPath: File): Configuration[F] =
+  def make[F[_]: Sync](configPath: File): Configuration[F] =
     new Configuration[F] {
 
       override def read: EitherT[F, ReadFailure, ApplicationSettings] =
         for {
           root <-
-            Try(ConfigFactory.parseFile(configPath).withFallback(ConfigFactory.defaultApplication())).toEither
-              .leftMap[ReadFailure](failure => ReadFailures.IOFailure(failure.getMessage))
-              .toEitherT[F]
+            EitherT(
+              Sync[F]
+                .blocking(
+                  ConfigFactory
+                    .parseFile(configPath)
+                    .withFallback(ConfigFactory.defaultApplication())
+                )
+                .map(_.asRight[ReadFailure])
+                .handleError(failure => ReadFailures.IOFailure(failure.getMessage).asLeft)
+            )
           genus <-
-            Try(root.getConfig("genus")).toEither
+            Sync[F]
+              .attemptT(root.getConfig("genus").pure[F])
               .leftMap[ReadFailure](_ => ReadFailures.MissingField("genus"))
-              .toEitherT[F]
           result = genus.as[ApplicationSettings]
         } yield result
     }
