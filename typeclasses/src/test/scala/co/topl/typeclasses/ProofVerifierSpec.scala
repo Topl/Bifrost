@@ -35,7 +35,7 @@ class ProofVerifierSpec
       val proof = Curve25519.instance.sign(sk, unprovenTransaction.signableBytes)
       val proposition = sk.vk.asProposition
 
-      val transaction = unprovenTransaction.prove(boxRef => (proposition -> proof))
+      val transaction = unprovenTransaction.prove(_ => proof)
 
       implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
 
@@ -63,7 +63,7 @@ class ProofVerifierSpec
       val proof = ed25519.sign(sk, unprovenTransaction.signableBytes)
       val proposition = sk.vk.asProposition
 
-      val transaction = unprovenTransaction.prove(boxRef => (proposition -> proof))
+      val transaction = unprovenTransaction.prove(_ => proof)
 
       implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
 
@@ -87,7 +87,7 @@ class ProofVerifierSpec
       val proof = extendedEd25519.sign(sk, unprovenTransaction.signableBytes)
       val proposition = sk.vk.asProposition
 
-      val transaction = unprovenTransaction.prove(boxRef => (proposition -> proof))
+      val transaction = unprovenTransaction.prove(_ => proof)
 
       implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
 
@@ -189,7 +189,7 @@ class ProofVerifierSpec
 
     val unprovenTransaction = ModelGenerators.arbitraryUnprovenTransaction.arbitrary.first
 
-    val transaction = unprovenTransaction.prove(boxRef => (proposition -> proof))
+    val transaction = unprovenTransaction.prove(_ => proof)
 
     (() => context.currentTransaction)
       .expects()
@@ -230,7 +230,7 @@ class ProofVerifierSpec
         ed25519.sign(sk, unprovenTransaction.signableBytes)
       )
 
-      val transaction = unprovenTransaction.prove(boxRef => (proposition -> proof))
+      val transaction = unprovenTransaction.prove(_ => proof)
 
       implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
 
@@ -322,18 +322,7 @@ class ProofVerifierSpec
         ed25519.sign(sk, unprovenTransaction.signableBytes)
       )
 
-      val transaction =
-        Transaction(
-          ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(boxRef =>
-            boxRef -> (proposition -> proof)
-          ),
-          unprovenTransaction.feeOutput,
-          unprovenTransaction.coinOutputs,
-          unprovenTransaction.fee,
-          unprovenTransaction.timestamp,
-          unprovenTransaction.data,
-          unprovenTransaction.minting
-        )
+      val transaction = unprovenTransaction.prove(_ => proof)
 
       implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
 
@@ -400,18 +389,7 @@ class ProofVerifierSpec
         )
       )
 
-      val transaction =
-        Transaction(
-          ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(boxRef =>
-            boxRef -> (proposition -> proof)
-          ),
-          unprovenTransaction.feeOutput,
-          unprovenTransaction.coinOutputs,
-          unprovenTransaction.fee,
-          unprovenTransaction.timestamp,
-          unprovenTransaction.data,
-          unprovenTransaction.minting
-        )
+      val transaction = unprovenTransaction.prove(_ => proof)
 
       implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
 
@@ -450,18 +428,7 @@ class ProofVerifierSpec
         )
       )
 
-      val transaction =
-        Transaction(
-          ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(boxRef =>
-            boxRef -> (proposition -> proof)
-          ),
-          unprovenTransaction.feeOutput,
-          unprovenTransaction.coinOutputs,
-          unprovenTransaction.fee,
-          unprovenTransaction.timestamp,
-          unprovenTransaction.data,
-          unprovenTransaction.minting
-        )
+      val transaction = unprovenTransaction.prove(_ => proof)
 
       implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
 

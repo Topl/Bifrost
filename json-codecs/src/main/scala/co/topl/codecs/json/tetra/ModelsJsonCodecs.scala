@@ -1,68 +1,51 @@
 package co.topl.codecs.json.tetra
 
-import cats.data.{NonEmptyChain, NonEmptyList}
+import cats.data.Chain
 import cats.implicits._
-import co.topl.models.Propositions.Contextual.HeightLock
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
+import co.topl.models.utility.Lengths._
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{HasLength, Length, Lengths, Sized}
 import io.circe._
-import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
-import io.circe.syntax.EncoderOps
+import io.circe.generic.semiauto._
+import io.circe.syntax._
 
-import scala.collection.immutable.{ListMap, ListSet}
+import scala.collection.immutable.ListSet
 
 trait ModelsJsonCodecs {
 
-  implicit val bytesEncoder: Encoder[Bytes] = Encoder[String].contramap(_.toBase58)
+  implicit val bytesEncoder: Encoder[Bytes] =
+    _.toBase58.asJson
 
   implicit val bytesDecoder: Decoder[Bytes] =
-    Decoder[String].flatMap(string =>
-      Bytes
-        .fromBase58(string)
-        .fold(Decoder.failedWithMessage[Bytes]("invalid base-58"))(bytes => Decoder.const(bytes))
-    )
+    h => h.as[String].flatMap(Bytes.fromBase58(_).toRight(DecodingFailure("Not base58", Nil)))
 
-  implicit def listSetEncoder[T: Encoder]: Encoder[ListSet[T]] = Encoder[List[T]].contramap(_.toList)
+  implicit def sizedStrictDecoder[T: HasLength: Decoder, L <: Length](implicit l: L): Decoder[Sized.Strict[T, L]] =
+    _.as[T].flatMap(t => Sized.strict[T, L](t).leftMap(f => DecodingFailure(f.toString, Nil)))
 
-  implicit def listSetDecoder[T: Decoder]: Decoder[ListSet[T]] = Decoder[List[T]].map(list => ListSet(list: _*))
+  implicit def sizedStrictEncoder[T: Encoder, L <: Length]: Encoder[Sized.Strict[T, L]] =
+    _.data.asJson
 
-  implicit def nonEmptyChainEncoder[T: Encoder]: Encoder[NonEmptyChain[T]] =
-    Encoder[NonEmptyList[T]].contramap(_.toNonEmptyList)
+  implicit def sizedMaxDecoder[T: HasLength: Decoder, L <: Length](implicit l: L): Decoder[Sized.Max[T, L]] =
+    _.as[T].flatMap(t => Sized.max[T, L](t).leftMap(f => DecodingFailure(f.toString, Nil)))
 
-  implicit def nonEmptyChainDecoder[T: Decoder]: Decoder[NonEmptyChain[T]] =
-    Decoder[NonEmptyList[T]].map(NonEmptyChain.fromNonEmptyList)
+  implicit def sizedMaxEncoder[T: Encoder, L <: Length]: Encoder[Sized.Max[T, L]] =
+    _.data.asJson
 
-  implicit def sizedMaxEncoder[T: Encoder, L]: Encoder[Sized.Max[T, L]] = Encoder[T].contramap(_.data)
+  implicit val typedBytesEncoder: Encoder[TypedBytes] =
+    bytes => bytes.allBytes.asJson
 
-  implicit def sizedMaxDecoder[T: Decoder: HasLength, L <: Length](implicit
-    length: L
-  ): Decoder[Sized.Max[T, L]] =
-    cursor =>
-      for {
-        value <- cursor.as[T]
-        sized <- Sized
-          .max[T, L](value)
-          .leftMap(failure => DecodingFailure(s"invalid value $value with length ${failure.length}", List.empty))
-      } yield sized
+  implicit val typedBytesDecoder: Decoder[TypedBytes] =
+    h => h.as[Bytes].map(TypedBytes(_))
 
-  implicit def sizedStrictEncoder[T: Encoder, L]: Encoder[Sized.Strict[T, L]] = Encoder[T].contramap(_.data)
-
-  implicit def sizedStrictDecoder[T: Decoder: HasLength, L <: Length](implicit length: L): Decoder[Sized.Strict[T, L]] =
-    cursor =>
-      for {
-        value <- cursor.as[T]
-        sized <- Sized
-          .strict[T, L](value)
-          .leftMap(failure => DecodingFailure(s"invalid value $value with length ${failure.length}", List.empty))
-      } yield sized
-
-  implicit val networkPrefixEncoder: Encoder[NetworkPrefix] = Encoder[Byte].contramap(_.value)
-  implicit val networkPrefixDecoder: Decoder[NetworkPrefix] = Decoder[Byte].map(byte => NetworkPrefix(byte))
+  implicit val typedEvidenceEncoder: Encoder[TypedEvidence] =
+    bytes => bytes.allBytes.asJson
 
   implicit val dionAddressEncoder: Encoder[DionAddress] =
-    t => t.allBytes.toBase58.asJson
+    t => t.allBytes.asJson
 
   implicit val dionAddressDecoder: Decoder[DionAddress] =
     for {
@@ -135,24 +118,27 @@ trait ModelsJsonCodecs {
     case Propositions.PermanentlyLocked =>
       Json.obj("propositionType" -> "PermanentlyLocked".asJson)
     case Propositions.Knowledge.Curve25519(k) =>
-      Json.obj("propositionType" -> "Knowledge.Curve25519".asJson, "key" -> k.asJson)
+      Json.obj("propositionType" -> "Knowledge.Curve25519".asJson, "key" -> k.bytes.data.asJson)
     case Propositions.Knowledge.Ed25519(k) =>
-      Json.obj("propositionType" -> "Knowledge.Ed25519".asJson, "key" -> k.asJson)
+      Json.obj("propositionType" -> "Knowledge.Ed25519".asJson, "key" -> k.bytes.data.asJson)
     case Propositions.Knowledge.ExtendedEd25519(k) =>
       Json.obj(
         "propositionType" -> "Knowledge.ExtendedEd25519".asJson,
-        "key"             -> k.asJson
+        "key" -> Json.obj(
+          "vk"        -> k.vk.bytes.data.asJson,
+          "chainCode" -> k.chainCode.data.asJson
+        )
       )
-    case Propositions.Knowledge.HashLock(d) =>
+    case Propositions.Knowledge.HashLock(digest) =>
       Json.obj(
         "propositionType" -> "Knowledge.HashLock".asJson,
-        "digest"          -> d.asJson
+        "digest"          -> digest.data.asJson
       )
     case Propositions.Compositional.Threshold(threshold, propositions) =>
       Json.obj(
         "propositionType" -> "Compositional.Threshold".asJson,
         "threshold"       -> threshold.asJson,
-        "propositions"    -> propositions.asJson(listSetEncoder(propositionEncoder))
+        "propositions"    -> propositions.toList.asJson(Encoder.encodeList(propositionEncoder))
       )
     case Propositions.Compositional.And(a, b) =>
       Json.obj(
@@ -178,7 +164,12 @@ trait ModelsJsonCodecs {
       )
     case Propositions.Contextual.RequiredBoxState(location, boxes) =>
       Json.obj(
-        "propositionType" -> "Contextual.RequiredBoxState".asJson
+        "propositionType" -> "Contextual.RequiredBoxState".asJson,
+        "location" -> (location match {
+          case BoxLocations.Input  => "input"
+          case BoxLocations.Output => "output"
+        }).asJson,
+        "boxes" -> boxes.map { case (i, b) => List(i.asJson, b.asJson).asJson }.asJson
       )
     case Propositions.Script.JS(script) =>
       Json.obj(
@@ -199,7 +190,7 @@ trait ModelsJsonCodecs {
             hcursor.downField("threshold").as[Int],
             hcursor
               .downField("propositions")
-              .as[ListSet[Proposition]](listSetDecoder(propositionDecoder))
+              .as[ListSet[Proposition]](Decoder.decodeList(propositionDecoder).map(ListSet.empty[Proposition] ++ _))
           ).mapN((threshold, propositions) => Propositions.Compositional.Threshold(threshold, propositions))
         case "Compositional.And" =>
           (
@@ -229,12 +220,33 @@ trait ModelsJsonCodecs {
     case Proofs.Knowledge.Curve25519(bytes) =>
       Json.obj(
         "proofType" -> "Knowledge.Curve25519".asJson,
-        "signature" -> bytes.asJson
+        "signature" -> bytes.data.asJson
       )
     case Proofs.Knowledge.Ed25519(bytes) =>
       Json.obj(
         "proofType" -> "Knowledge.Ed25519".asJson,
-        "signature" -> bytes.asJson
+        "signature" -> bytes.data.asJson
+      )
+    case Proofs.Knowledge.VrfEd25519(bytes) =>
+      Json.obj(
+        "proofType" -> "Knowledge.VrfEd25519".asJson,
+        "signature" -> bytes.data.asJson
+      )
+    case p: Proofs.Knowledge.KesProduct =>
+      Json.obj(
+        "proofType" -> "Knowledge.KesProduct".asJson,
+        "signature" -> p.immutableBytes.asJson
+      )
+    case p: Proofs.Knowledge.KesSum =>
+      Json.obj(
+        "proofType" -> "Knowledge.KesSum".asJson,
+        "signature" -> p.immutableBytes.asJson
+      )
+    case Proofs.Knowledge.HashLock(salt, value) =>
+      Json.obj(
+        "proofType" -> "Knowledge.HashLock".asJson,
+        "salt"      -> salt.data.asJson,
+        "value"     -> value.asJson
       )
     case Proofs.Compositional.Threshold(proofs) =>
       Json.obj(
@@ -253,9 +265,18 @@ trait ModelsJsonCodecs {
         "a"         -> a.asJson(proofEncoder),
         "b"         -> b.asJson(proofEncoder)
       )
+    case Proofs.Compositional.Not(a) =>
+      Json.obj(
+        "proofType" -> "Compositional.Not".asJson,
+        "a"         -> a.asJson(proofEncoder)
+      )
     case Proofs.Contextual.HeightLock() =>
       Json.obj(
         "proofType" -> "Contextual.HeightLock".asJson
+      )
+    case Proofs.Contextual.RequiredBoxState() =>
+      Json.obj(
+        "proofType" -> "Contextual.RequiredBoxState".asJson
       )
     case Proofs.Script.JS(serializedArgs) =>
       Json.obj(
@@ -303,17 +324,22 @@ trait ModelsJsonCodecs {
     _.value.asJson
 
   implicit val latin1DataDecoder: Decoder[Latin1Data] =
-    Decoder[String]
-      .flatMap(string =>
-        Latin1Data
-          .validated(string)
-          .fold(failure => Decoder.failedWithMessage(failure.toString), data => Decoder.const(data))
-      )
+    h => h.as[String].flatMap(Latin1Data.validated(_).toEither.leftMap(e => DecodingFailure(e.toString, Nil)))
 
-  implicit val transactionDataEncoder: Encoder[TransactionData] =
-    Encoder[Latin1Data].contramap(transactionData => transactionData.data)
+  implicit val emptyBoxValueEncoder: Encoder[Box.Values.Empty.type] =
+    _ => Json.Null
 
-  implicit val transactionDataDecoder: Decoder[TransactionData] = sizedMaxDecoder[Latin1Data, Lengths.`127`.type]
+  implicit val polyBoxValueEncoder: Encoder[Box.Values.Poly] =
+    t => Json.obj("value" -> t.value.asJson)
+
+  implicit val polyBoxValueDecoder: Decoder[Box.Values.Poly] =
+    hcursor => hcursor.downField("value").as[Int128].map(Box.Values.Poly)
+
+  implicit val arbitBoxValueEncoder: Encoder[Box.Values.Arbit] =
+    t => Json.obj("value" -> t.value.asJson)
+
+  implicit val arbitBoxValueDecoder: Decoder[Box.Values.Arbit] =
+    hcursor => hcursor.downField("value").as[Int128].map(Box.Values.Arbit)
 
   implicit val assetCodeEncoder: Encoder[Box.Values.Asset.Code] =
     t =>
@@ -339,118 +365,166 @@ trait ModelsJsonCodecs {
       Json.obj(
         "quantity"     -> t.quantity.asJson,
         "assetCode"    -> t.assetCode.asJson,
-        "securityRoot" -> t.securityRoot.toBase58.asJson,
+        "securityRoot" -> t.securityRoot.asJson,
         "metadata"     -> t.metadata.map(_.data).asJson
       )
 
   implicit val assetBoxValueDecoder: Decoder[Box.Values.Asset] =
-    hcursor =>
-      for {
-        quantity           <- hcursor.downField("quantity").as[Int128]
-        assetCode          <- hcursor.downField("assetCode").as[Box.Values.Asset.Code]
-        securityRootString <- hcursor.downField("securityRoot").as[String]
-        securityRootBytes <- Bytes
-          .fromBase58(securityRootString)
-          .toRight(DecodingFailure("invalid base-58 data", List(CursorOp.Field("securityRoot"))))
-        metadata <- hcursor.downField("metadata").as[Option[Sized.Max[Latin1Data, Lengths.`127`.type]]]
-      } yield Box.Values.Asset(quantity, assetCode, securityRootBytes, metadata)
+    deriveDecoder
 
-  implicit val polyOutputEncoder: Encoder[Transaction.PolyOutput] =
-    t =>
-      Json.obj(
-        "dionAddress" -> t.dionAddress.asJson,
-        "value"       -> t.value.asJson
-      )
+  implicit val taktikosRegistrationBoxValueEncoder: Encoder[Box.Values.TaktikosRegistration] =
+    t => Json.obj("commitment" -> t.commitment.immutableBytes.asJson)
 
-  implicit val polyOutputDecoder: Decoder[Transaction.PolyOutput] =
-    hcursor =>
-      for {
-        address <- hcursor.downField("dionAddress").as[DionAddress]
-        value   <- hcursor.downField("value").as[Int128]
-      } yield Transaction.PolyOutput(address, value)
+  implicit val taktikosRegistrationBoxValueDecoder: Decoder[Box.Values.TaktikosRegistration] =
+    h =>
+      h.downField("commitment")
+        .as[Bytes]
+        .flatMap(_.decodeImmutable[Proofs.Knowledge.KesProduct].leftMap(e => DecodingFailure(e, Nil)))
+        .map(Box.Values.TaktikosRegistration)
 
-  implicit val encodeCoinOutput: Encoder[Transaction.CoinOutput] = {
-    case o: Transaction.PolyOutput =>
-      Json.obj(
-        "coinType"    -> "Poly".asJson,
-        "dionAddress" -> o.dionAddress.asJson,
-        "value"       -> o.value.asJson
-      )
-    case o: Transaction.ArbitOutput =>
-      Json.obj(
-        "coinType"    -> "Arbit".asJson,
-        "dionAddress" -> o.dionAddress.asJson,
-        "value"       -> o.value.asJson
-      )
-    case o: Transaction.AssetOutput =>
-      Json.obj(
-        "coinType"    -> "Asset".asJson,
-        "dionAddress" -> o.dionAddress.asJson,
-        "value"       -> o.value.asJson
-      )
+  def boxValueTypeName(value: Box.Value): String =
+    value match {
+      case Box.Values.Empty                   => "Empty"
+      case _: Box.Values.Poly                 => "Poly"
+      case _: Box.Values.Arbit                => "Arbit"
+      case _: Box.Values.Asset                => "Asset"
+      case _: Box.Values.TaktikosRegistration => "TaktikosRegistration"
+    }
+
+  implicit val boxValueEncoder: Encoder[Box.Value] = {
+    case Box.Values.Empty                   => Json.Null
+    case v: Box.Values.Poly                 => v.asJson
+    case v: Box.Values.Arbit                => v.asJson
+    case v: Box.Values.Asset                => v.asJson
+    case v: Box.Values.TaktikosRegistration => v.asJson
   }
 
-  implicit val decodeCoinOutput: Decoder[Transaction.CoinOutput] =
-    hcursor =>
-      for {
-        address  <- hcursor.downField("dionAddress").as[DionAddress]
-        coinType <- hcursor.downField("coinType").as[String]
-        valueJson = hcursor.downField("value")
-        output <- coinType match {
-          case "Poly" =>
-            valueJson.as[Int128].map(value => Transaction.PolyOutput(address, value))
-          case "Arbit" =>
-            valueJson.as[Int128].map(value => Transaction.ArbitOutput(address, value))
-          case "Asset" =>
-            valueJson.as[Box.Values.Asset].map(value => Transaction.AssetOutput(address, value))
-          case _ =>
-            DecodingFailure("invalid coin type", List(CursorOp.Field("coinType"))).asLeft
-        }
-      } yield output
-
-  implicit val boxReferenceEncoder: Encoder[BoxReference] =
+  implicit val boxEncoder: Encoder[Box] =
     t =>
       Json.obj(
-        "address" -> t._1.asJson,
-        "nonce"   -> t._2.asJson
+        "evidence"  -> t.evidence.asJson,
+        "valueType" -> boxValueTypeName(t.value).asJson,
+        "value"     -> t.value.asJson
       )
 
-  implicit val boxReferenceDecoder: Decoder[BoxReference] =
+  implicit val encodeTransactionInput: Encoder[Transaction.Input] =
+    input =>
+      Json.obj(
+        "transactionId"          -> input.transactionId.asJson,
+        "transactionOutputIndex" -> input.transactionOutputIndex.asJson,
+        "proposition"            -> input.proposition.asJson,
+        "proof"                  -> input.proof.asJson,
+        "valueType"              -> boxValueTypeName(input.value).asJson,
+        "value"                  -> input.value.asJson
+      )
+
+  implicit val decodeTransactionInput: Decoder[Transaction.Input] =
     hcursor =>
       for {
-        address <- hcursor.downField("address").as[DionAddress]
-        nonce   <- hcursor.downField("nonce").as[BoxNonce]
-      } yield address -> nonce
+        transactionId          <- hcursor.downField("transactionId").as[TypedIdentifier]
+        transactionOutputIndex <- hcursor.downField("transactionOutputIndex").as[Short]
+        proposition            <- hcursor.downField("proposition").as[Proposition]
+        proof                  <- hcursor.downField("proof").as[Proof]
+        valueType              <- hcursor.downField("valueType").as[String]
+        valueJson = hcursor.downField("value")
+        value <- valueType match {
+          case "Poly"                 => valueJson.as[Box.Values.Poly]
+          case "Arbit"                => valueJson.as[Box.Values.Arbit]
+          case "Asset"                => valueJson.as[Box.Values.Asset]
+          case "TaktikosRegistration" => valueJson.as[Box.Values.TaktikosRegistration]
+        }
+      } yield Transaction.Input(transactionId, transactionOutputIndex, proposition, proof, value)
+
+  implicit val encodeTransactionUnprovenInput: Encoder[Transaction.Unproven.Input] =
+    input =>
+      Json.obj(
+        "transactionId"          -> input.transactionId.asJson,
+        "transactionOutputIndex" -> input.transactionOutputIndex.asJson,
+        "proposition"            -> input.proposition.asJson,
+        "valueType"              -> boxValueTypeName(input.value).asJson,
+        "value"                  -> input.value.asJson
+      )
+
+  implicit val decodeTransactionUnprovenInput: Decoder[Transaction.Unproven.Input] =
+    hcursor =>
+      for {
+        transactionId          <- hcursor.downField("transactionId").as[TypedIdentifier]
+        transactionOutputIndex <- hcursor.downField("transactionOutputIndex").as[Short]
+        proposition            <- hcursor.downField("proposition").as[Proposition]
+        valueType              <- hcursor.downField("valueType").as[String]
+        valueJson = hcursor.downField("value")
+        value <- valueType match {
+          case "Poly"                 => valueJson.as[Box.Values.Poly]
+          case "Arbit"                => valueJson.as[Box.Values.Arbit]
+          case "Asset"                => valueJson.as[Box.Values.Asset]
+          case "TaktikosRegistration" => valueJson.as[Box.Values.TaktikosRegistration]
+        }
+      } yield Transaction.Unproven.Input(transactionId, transactionOutputIndex, proposition, value)
+
+  implicit val encodeTransactionOutput: Encoder[Transaction.Output] =
+    o =>
+      Json.obj(
+        "address"   -> o.dionAddress.asJson,
+        "valueType" -> boxValueTypeName(o.value).asJson,
+        "value"     -> o.value.asJson,
+        "minting"   -> o.minting.asJson
+      )
+
+  implicit val decodeTransactionOutput: Decoder[Transaction.Output] =
+    hcursor =>
+      for {
+        address   <- hcursor.downField("address").as[DionAddress]
+        valueType <- hcursor.downField("valueType").as[String]
+        minting   <- hcursor.downField("minting").as[Boolean]
+        valueJson = hcursor.downField("value")
+        output <- valueType match {
+          case "Poly" =>
+            valueJson.as[Box.Values.Poly].map(value => Transaction.Output(address, value, minting))
+          case "Arbit" =>
+            valueJson.as[Box.Values.Arbit].map(value => Transaction.Output(address, value, minting))
+          case "Asset" =>
+            valueJson.as[Box.Values.Asset].map(value => Transaction.Output(address, value, minting))
+          case "TaktikosRegistration" =>
+            valueJson.as[Box.Values.TaktikosRegistration].map(value => Transaction.Output(address, value, minting))
+          case _ =>
+            DecodingFailure("invalid output type", List(CursorOp.Field("valueType"))).asLeft
+        }
+      } yield output
 
   implicit val transactionJsonEncoder: Encoder[Transaction] =
     tx =>
       Json.obj(
-        "inputs"      -> tx.inputs.toList.asJson,
-        "feeOutput"   -> tx.feeOutput.asJson,
-        "coinOutputs" -> tx.coinOutputs.asJson(nonEmptyChainEncoder[Transaction.CoinOutput]),
-        "fee"         -> tx.fee.asJson,
-        "timestamp"   -> tx.timestamp.asJson,
-        "data"        -> tx.data.asJson,
-        "minting"     -> tx.minting.asJson
+        "inputs"    -> tx.inputs.asJson,
+        "outputs"   -> tx.outputs.asJson,
+        "timestamp" -> tx.timestamp.asJson,
+        "data"      -> tx.data.map(_.data).asJson
       )
 
   implicit val transactionJsonDecoder: Decoder[Transaction] =
     hcursor =>
       for {
-        inputs <- hcursor
-          .downField("inputs")
-          .as[List[(BoxReference, (Proposition, Proof))]]
-          .map(list => ListMap(list: _*))
-        feeOutput   <- hcursor.downField("feeOutput").as[Option[Transaction.PolyOutput]]
-        coinOutputs <- hcursor.downField("coinOutputs").as[NonEmptyChain[Transaction.CoinOutput]]
-        fee         <- hcursor.downField("fee").as[Int128]
-        timestamp   <- hcursor.downField("timestamp").as[Timestamp]
-        data        <- hcursor.downField("data").as[Option[TransactionData]]
-        minting     <- hcursor.downField("minting").as[Boolean]
-      } yield Transaction(inputs, feeOutput, coinOutputs, fee, timestamp, data, minting)
+        inputs    <- hcursor.downField("inputs").as[Chain[Transaction.Input]]
+        outputs   <- hcursor.downField("outputs").as[Chain[Transaction.Output]]
+        timestamp <- hcursor.downField("timestamp").as[Timestamp]
+        data      <- hcursor.downField("data").as[Option[TransactionData]]
+      } yield Transaction(inputs, outputs, timestamp, data)
 
-  implicit val unprovenTransactionJsonEncoder: Encoder[Transaction.Unproven] = deriveEncoder
+  implicit val unprovenTransactionJsonEncoder: Encoder[Transaction.Unproven] =
+    tx =>
+      Json.obj(
+        "inputs"    -> tx.inputs.asJson,
+        "outputs"   -> tx.outputs.asJson,
+        "timestamp" -> tx.timestamp.asJson,
+        "data"      -> tx.data.map(_.data).asJson
+      )
 
-  implicit val unprovenTransactionJsonDecoder: Decoder[Transaction.Unproven] = deriveDecoder
+  implicit val unprovenTransactionJsonDecoder: Decoder[Transaction.Unproven] =
+    hcursor =>
+      for {
+        inputs    <- hcursor.downField("inputs").as[Chain[Transaction.Unproven.Input]]
+        outputs   <- hcursor.downField("outputs").as[Chain[Transaction.Output]]
+        timestamp <- hcursor.downField("timestamp").as[Timestamp]
+        data      <- hcursor.downField("data").as[Option[TransactionData]]
+      } yield Transaction.Unproven(inputs, outputs, timestamp, data)
 
 }

@@ -1,6 +1,6 @@
 package co.topl.modifier.transaction.ops
 
-import co.topl.models.ModelGenerators
+import co.topl.models.{Box => TetraBox, ModelGenerators, Transaction}
 import co.topl.utils.CommonGenerators
 import org.scalatest.EitherValues
 import org.scalatest.funspec.AnyFunSpec
@@ -22,33 +22,37 @@ class AssetValueOpsSpec
     describe("toAssetValue") {
       it("should convert an Asset Value and Dion Address to an Asset Output with the same quantity") {
         forAll(assetValueGen, ModelGen.arbitraryDionAddress.arbitrary) { (assetValue, address) =>
-          val assetOutput = assetValue.toAssetOutput(address)
+          val Transaction.Output(_, v: TetraBox.Values.Asset, _) =
+            assetValue.toAssetOutput(address, minting = true).value
 
-          assetOutput.value.value.quantity.data shouldBe BigInt(assetValue.quantity.toByteArray)
+          v.quantity.data shouldBe BigInt(assetValue.quantity.toByteArray)
         }
       }
 
       it("should convert an Asset Value and Dion Address to an Asset Output with the same address") {
         forAll(assetValueGen, ModelGen.arbitraryDionAddress.arbitrary) { (assetValue, address) =>
-          val assetOutput = assetValue.toAssetOutput(address)
+          val Transaction.Output(dionAddress, _: TetraBox.Values.Asset, _) =
+            assetValue.toAssetOutput(address, minting = true).value
 
-          assetOutput.value.dionAddress shouldBe address
+          dionAddress shouldBe address
         }
       }
 
       it("should convert an Asset Value and Dion Address to an Asset Output with the same version") {
         forAll(assetValueGen, ModelGen.arbitraryDionAddress.arbitrary) { (assetValue, address) =>
-          val assetOutput = assetValue.toAssetOutput(address)
+          val Transaction.Output(_, v: TetraBox.Values.Asset, _) =
+            assetValue.toAssetOutput(address, minting = true).value
 
-          assetOutput.value.value.assetCode.version shouldBe assetValue.assetCode.version
+          v.assetCode.version shouldBe assetValue.assetCode.version
         }
       }
 
       it("should convert an Asset Value and Dion Address to an Asset Output with the same asset code short name") {
         forAll(assetValueGen, ModelGen.arbitraryDionAddress.arbitrary) { (assetValue, address) =>
-          val assetOutput = assetValue.toAssetOutput(address)
+          val Transaction.Output(_, v: TetraBox.Values.Asset, _) =
+            assetValue.toAssetOutput(address, minting = true).value
 
-          assetOutput.value.value.assetCode.shortName.data.bytes shouldBe assetValue.assetCode.shortName.value
+          v.assetCode.shortName.data.bytes shouldBe assetValue.assetCode.shortName.value
         }
       }
 
@@ -57,17 +61,19 @@ class AssetValueOpsSpec
           val expectedAddressBytes =
             assetValue.assetCode.issuer.networkPrefix +: assetValue.assetCode.issuer.evidence.evBytes
 
-          val assetOutput = assetValue.toAssetOutput(address)
+          val Transaction.Output(_, v: TetraBox.Values.Asset, _) =
+            assetValue.toAssetOutput(address, minting = true).value
 
-          assetOutput.value.value.assetCode.issuer.allBytes.toArray shouldBe expectedAddressBytes
+          v.assetCode.issuer.allBytes.toArray shouldBe expectedAddressBytes
         }
       }
 
       it("should convert an Asset Value and Dion Address to an Asset Output with the same security root") {
         forAll(assetValueGen, ModelGen.arbitraryDionAddress.arbitrary) { (assetValue, address) =>
-          val assetOutput = assetValue.toAssetOutput(address)
+          val Transaction.Output(_, v: TetraBox.Values.Asset, _) =
+            assetValue.toAssetOutput(address, minting = true).value
 
-          assetOutput.value.value.securityRoot.toArray shouldBe assetValue.securityRoot.root
+          v.securityRoot.toArray shouldBe assetValue.securityRoot.root
         }
       }
 
@@ -75,9 +81,10 @@ class AssetValueOpsSpec
         forAll(assetValueGen, ModelGen.arbitraryDionAddress.arbitrary) { (assetValue, address) =>
           val expectedMetadataBytes = assetValue.metadata.map(_.value).getOrElse(Array.empty)
 
-          val assetOutput = assetValue.toAssetOutput(address)
+          val Transaction.Output(_, v: TetraBox.Values.Asset, _) =
+            assetValue.toAssetOutput(address, minting = true).value
 
-          val outputMetadataBytes = assetOutput.value.value.metadata.map(_.data.bytes).getOrElse(Array.empty)
+          val outputMetadataBytes = v.metadata.map(_.data.bytes).getOrElse(Array.empty)
 
           outputMetadataBytes shouldBe expectedMetadataBytes
         }

@@ -177,8 +177,6 @@ class TetraScodecCodecsSpec extends CodecSpec {
 
   codecBehavior[DionAddress]()
 
-  codecBehavior[BoxReference]()
-
   codecBehavior[Proposition]()
 
   codecBehavior[Proof]()
@@ -186,4 +184,6 @@ class TetraScodecCodecsSpec extends CodecSpec {
   codecBehavior[Box]()
 
   codecBehavior[Transaction]()
+
+  codecBehavior[Transaction.Unproven]()
 }

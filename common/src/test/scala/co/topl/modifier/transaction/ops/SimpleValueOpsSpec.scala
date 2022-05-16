@@ -1,6 +1,6 @@
 package co.topl.modifier.transaction.ops
 
-import co.topl.models.{DionAddress, ModelGenerators}
+import co.topl.models.{Box => TetraBox, DionAddress, ModelGenerators, Transaction}
 import co.topl.modifier.box.SimpleValue
 import co.topl.modifier.implicits._
 import co.topl.utils.{CommonGenerators, Int128}
@@ -25,9 +25,10 @@ class SimpleValueOpsSpec
         forAll(positiveInt128Gen, ModelGen.arbitraryDionAddress.arbitrary) { (value: Int128, address: DionAddress) =>
           val simpleValue = SimpleValue(value)
 
-          val polyOutput = simpleValue.toPolyOutput(address)
+          val Transaction.Output(_, polyValue: TetraBox.Values.Poly, _) =
+            simpleValue.toPolyOutput(address).value
 
-          polyOutput.value.value.data shouldBe BigInt(simpleValue.quantity.toByteArray)
+          polyValue.value.data shouldBe BigInt(simpleValue.quantity.toByteArray)
         }
       }
 
@@ -47,19 +48,22 @@ class SimpleValueOpsSpec
         forAll(positiveInt128Gen, ModelGen.arbitraryDionAddress.arbitrary) { (value: Int128, address: DionAddress) =>
           val simpleValue = SimpleValue(value)
 
-          val arbitOutput = simpleValue.toArbitOutput(address)
+          val Transaction.Output(_, v, _) =
+            simpleValue.toArbitOutput(address).value
 
-          arbitOutput.value.value.data shouldBe BigInt(simpleValue.quantity.toByteArray)
+          val arbitValue = v.asInstanceOf[TetraBox.Values.Arbit]
+
+          arbitValue.value.data shouldBe BigInt(simpleValue.quantity.toByteArray)
         }
       }
 
-      it("should convert to am arbit output with the expected address") {
+      it("should convert to an arbit output with the expected address") {
         forAll(positiveInt128Gen, ModelGen.arbitraryDionAddress.arbitrary) { (value: Int128, address: DionAddress) =>
           val simpleValue = SimpleValue(value)
 
-          val polyOutput = simpleValue.toArbitOutput(address)
+          val output = simpleValue.toArbitOutput(address)
 
-          polyOutput.value.dionAddress shouldBe address
+          output.value.dionAddress shouldBe address
         }
       }
     }

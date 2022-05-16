@@ -15,6 +15,12 @@ trait TetraTransmittableCodecs {
   implicit val blockHeaderV2Transmittable: Transmittable[BlockHeaderV2] = Transmittable.instanceFromCodec
   implicit val slotDataTransmittable: Transmittable[SlotData] = Transmittable.instanceFromCodec
   implicit val transactionTransmittable: Transmittable[Transaction] = Transmittable.instanceFromCodec
+
+  implicit val longTypedIdentifierOptTransmittable: Transmittable[(Long, Option[TypedIdentifier])] =
+    Transmittable.instanceFromCodec(
+      (longCodec :: optionCodec[TypedIdentifier])
+        .as[(Long, Option[TypedIdentifier])]
+    )
 }
 
 object TetraTransmittableCodecs extends TetraTransmittableCodecs

@@ -1,9 +1,8 @@
 package co.topl.credential.playground
 
-import cats.data.NonEmptyChain
+import cats.data.{Chain, NonEmptyChain}
 import co.topl.credential.Credential
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
-import co.topl.models.Transaction.{CoinOutput, Unproven}
 import co.topl.models.utility.Sized
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
@@ -14,6 +13,7 @@ import co.topl.typeclasses.implicits._
 import co.topl.typeclasses.{KeyInitializer, VerificationContext}
 import io.circe.Json
 import org.graalvm.polyglot.Value
+import ModelGenerators._
 
 import scala.collection.immutable.ListMap
 
@@ -99,16 +99,14 @@ object CredentialPlaygroundBV extends App {
 
   val randomAddr = KeyInitializer[SecretKeys.Ed25519].random().vk.dionAddress
 
-  val randomTx: Unproven =
+  val randomTx: Transaction.Unproven =
     Transaction.Unproven(
-      inputs = List(),
-      feeOutput = None,
-      coinOutputs =
-        NonEmptyChain[CoinOutput](Transaction.PolyOutput(boardProp.dionAddress, Sized.maxUnsafe(BigInt(10)))),
-      fee = Sized.maxUnsafe(BigInt(5)),
+      inputs = Chain(ModelGenerators.arbitraryTransactionUnprovenInput.arbitrary.first),
+      outputs = Chain(
+        Transaction.Output(boardProp.dionAddress, Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false)
+      ),
       timestamp = System.currentTimeMillis(),
-      data = None,
-      minting = false
+      data = None
     )
 
   val boardCred = Credential.Compositional.Or(
@@ -118,19 +116,10 @@ object CredentialPlaygroundBV extends App {
 
   implicit val context: VerificationContext[F] = new VerificationContext[F] {
 
-    override def currentTransaction: Transaction =
-      Transaction(
-        inputs =
-          ListMap.empty[BoxReference, (Proposition, Proof)] ++ randomTx.inputs.map(_ -> (boardProp, boardCred.proof)),
-        feeOutput = randomTx.feeOutput,
-        coinOutputs = randomTx.coinOutputs,
-        fee = randomTx.fee,
-        timestamp = randomTx.timestamp,
-        data = randomTx.data,
-        minting = randomTx.minting
-      )
+    override val currentTransaction: Transaction =
+      randomTx.prove(_ => boardCred.proof)
 
-    override def currentHeight: Slot = 10
+    override val currentHeight: Slot = 10
     def inputBoxes: List[Box] = List()
     def currentSlot: Slot = 1
   }

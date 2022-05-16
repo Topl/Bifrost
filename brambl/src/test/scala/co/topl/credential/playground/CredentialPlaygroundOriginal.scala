@@ -1,6 +1,6 @@
 package co.topl.credential.playground
 
-import cats.data.NonEmptyChain
+import cats.data.{Chain, NonEmptyChain}
 import cats.effect.unsafe.implicits.global
 import co.topl.credential.Credential
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
@@ -17,6 +17,7 @@ import org.graalvm.polyglot.Value
 
 import scala.collection.immutable.ListMap
 import scala.util.Random
+import ModelGenerators._
 
 object CredentialPlaygroundOriginal extends App {
   type F[A] = cats.effect.IO[A]
@@ -53,15 +54,11 @@ object CredentialPlaygroundOriginal extends App {
   val proposition = party1SK.vk.asProposition.and(party2SK.vk.asProposition)
   println(proposition)
 
-  val unprovenTransaction: Transaction.Unproven = Transaction.Unproven(
-    inputs = List((proposition.dionAddress, Random.nextLong())),
-    feeOutput = None,
-    coinOutputs = NonEmptyChain(Transaction.PolyOutput(party3Address, Sized.maxUnsafe(BigInt(10)))),
-    fee = Sized.maxUnsafe(BigInt(5)),
-    timestamp = System.currentTimeMillis(),
-    data = None,
-    minting = false
-  )
+  val unprovenTransaction: Transaction.Unproven =
+    ModelGenerators.arbitraryUnprovenTransaction.arbitrary.first.copy(
+      inputs = Chain(arbitraryTransactionUnprovenInput.arbitrary.first.copy(proposition = proposition)),
+      outputs = Chain(Transaction.Output(party3Address, Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false))
+    )
 
   val credential = Credential.Compositional.And(
     proposition,
@@ -74,16 +71,7 @@ object CredentialPlaygroundOriginal extends App {
   val proof = credential.proof
   println(proof)
 
-  val transaction = Transaction(
-    inputs =
-      ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(_ -> (proposition, proof)),
-    feeOutput = unprovenTransaction.feeOutput,
-    coinOutputs = unprovenTransaction.coinOutputs,
-    fee = unprovenTransaction.fee,
-    timestamp = unprovenTransaction.timestamp,
-    data = unprovenTransaction.data,
-    minting = unprovenTransaction.minting
-  )
+  val transaction = unprovenTransaction.prove(_ => proof)
   println(transaction)
 
   implicit val verificationContext: VerificationContext[F] =

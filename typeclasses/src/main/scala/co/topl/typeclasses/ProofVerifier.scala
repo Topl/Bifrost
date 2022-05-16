@@ -109,28 +109,22 @@ object ProofVerifier {
       context:     VerificationContext[F]
     ): F[Boolean] = {
       def compareBoxes(propositionBox: Box)(sourceBox: Box): Boolean = propositionBox match {
-        case Box(TypedEvidence.empty, 0, value) =>
+        case Box(TypedEvidence.empty, value) =>
           value == sourceBox.value
-        case Box(TypedEvidence.empty, nonce, Box.Values.Empty) =>
-          nonce == sourceBox.nonce
-        case Box(TypedEvidence.empty, nonce, value) =>
-          nonce == sourceBox.nonce
-        case Box(typedEvidence, 0, Box.Values.Empty) =>
+        case Box(typedEvidence, Box.Values.Empty) =>
           typedEvidence == sourceBox.evidence
-        case Box(typedEvidence, 0, value) =>
+        case Box(typedEvidence, value) =>
           typedEvidence == sourceBox.evidence && value == sourceBox.value
-        case Box(typedEvidence, nonce, Box.Values.Empty) =>
-          typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce
-        case Box(typedEvidence, nonce, value) =>
-          typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce && value == sourceBox.value
         case _ => false
       }
 
       proposition.boxes
         .forall { case (index, box) =>
           proposition.location match {
-            case BoxLocations.Input  => compareBoxes(box)(context.inputBoxes(index))
-            case BoxLocations.Output => compareBoxes(box)(Box(context.currentTransaction.coinOutputs.toList(index)))
+            case BoxLocations.Input => compareBoxes(box)(context.inputBoxes(index))
+            case BoxLocations.Output =>
+              val output = context.currentTransaction.outputs.toList(index)
+              compareBoxes(box)(Box(output.dionAddress.typedEvidence, output.value))
           }
         }
         .pure[F]

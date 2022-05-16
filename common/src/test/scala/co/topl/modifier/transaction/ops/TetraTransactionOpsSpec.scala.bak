@@ -25,37 +25,24 @@ class TetraTransactionOpsSpec
 
   object ModelGen extends ModelGenerators
 
-  private def txWithOutputs(outputs: NonEmptyChain[Transaction.CoinOutput]): Gen[Transaction] =
+  private def txWithOutputs(outputs: NonEmptyChain[Transaction.Output]): Gen[Transaction] =
     (
       for {
-        inputs <- Gen.nonEmptyContainerOf[List, BoxReference](
-          ModelGenerators.arbitraryDionAddress.arbitrary.flatMap(a => Gen.long.map(l => (a, l)))
-        )
-        feeOutput <- Gen.option(ModelGenerators.arbitraryPolyOutput.arbitrary)
-        fee       <- ModelGenerators.arbitraryInt128.arbitrary
+        inputs <- Gen
+          .nonEmptyListOf(
+            for {
+              transactionId          <- ModelGenerators.arbitraryTypedIdentifier.arbitrary
+              transactionOutputIndex <- Gen.posNum[Short]
+              proposition            <- ModelGenerators.arbitraryPropositionsKnowledgeEd25519.arbitrary
+              proof                  <- ModelGenerators.arbitraryProofsKnowledgeEd25519.arbitrary
+              value                  <- ModelGenerators.arbitraryBoxValue.arbitrary
+            } yield Transaction.Input(transactionId, transactionOutputIndex, proposition, proof, value)
+          )
+          .map(Chain.fromSeq)
+          .map(NonEmptyChain.fromChainUnsafe)
         timestamp <- Gen.chooseNum[Long](0L, 100000L)
         data = None
-        minting = false
-        provenInputs <-
-          Gen
-            .listOfN(
-              inputs.length,
-              Gen.zip(
-                ModelGenerators.arbitraryPropositionsKnowledgeEd25519.arbitrary,
-                ModelGenerators.arbitraryProofsKnowledgeEd25519.arbitrary
-              )
-            )
-            .map(pairs => inputs.zip(pairs))
-        tx = Transaction(
-          inputs = ListMap(provenInputs: _*),
-          feeOutput = feeOutput,
-          coinOutputs = outputs,
-          fee = fee,
-          timestamp = timestamp,
-          data = data,
-          minting = minting
-        )
-      } yield tx
+      } yield Transaction(inputs, outputs, timestamp, data)
     )
 
   private val arbitTxGen: Gen[Transaction] =
@@ -167,7 +154,7 @@ class TetraTransactionOpsSpec
         forAll(polyTxGen) { tx =>
           val expectedOutputs =
             tx.coinOutputs
-              .map(output => output.asInstanceOf[Transaction.PolyOutput])
+              .map(output => output.asInstanceOf[Transaction.Output])
               // encode output address as a Base-16 string to ensure a valid equality check
               .map(polyOutput => Base16.encode(polyOutput.dionAddress.allBytes.toArray) -> polyOutput.value.data)
               .iterator
@@ -250,7 +237,7 @@ class TetraTransactionOpsSpec
 
             result.left.value shouldBe a[TetraTransactionOps.ToDionTxFailures.InvalidOutput]
             val invalidOutput = result.left.value.asInstanceOf[TetraTransactionOps.ToDionTxFailures.InvalidOutput]
-            invalidOutput.invalidOutput shouldBe a[Transaction.ArbitOutput]
+            invalidOutput.invalidOutput shouldBe a[Transaction.Output]
         }
       }
 
@@ -263,7 +250,7 @@ class TetraTransactionOpsSpec
 
             result.left.value shouldBe a[TetraTransactionOps.ToDionTxFailures.InvalidOutput]
             val invalidOutput = result.left.value.asInstanceOf[TetraTransactionOps.ToDionTxFailures.InvalidOutput]
-            invalidOutput.invalidOutput shouldBe a[Transaction.PolyOutput]
+            invalidOutput.invalidOutput shouldBe a[Transaction.Output]
         }
       }
     }

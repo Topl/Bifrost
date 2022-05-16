@@ -510,7 +510,7 @@ object ToplRpc {
 
       case class Params(
         senders:               NonEmptyChain[DionAddress],
-        recipients:            NonEmptyChain[TetraTransaction.PolyOutput],
+        recipients:            NonEmptyChain[TetraTransaction.Output],
         fee:                   TetraInt128,
         changeAddress:         DionAddress,
         data:                  Option[TransactionData],
@@ -526,7 +526,7 @@ object ToplRpc {
 
       case class Params(
         senders:               NonEmptyChain[DionAddress],
-        recipients:            NonEmptyChain[TetraTransaction.ArbitOutput],
+        recipients:            NonEmptyChain[TetraTransaction.Output],
         fee:                   TetraInt128,
         changeAddress:         DionAddress,
         data:                  Option[TransactionData],
@@ -542,7 +542,7 @@ object ToplRpc {
 
       case class Params(
         senders:               NonEmptyChain[DionAddress],
-        recipients:            NonEmptyChain[TetraTransaction.AssetOutput],
+        recipients:            NonEmptyChain[TetraTransaction.Output],
         fee:                   TetraInt128,
         feeChangeAddress:      DionAddress,
         assetChangeAddress:    DionAddress,

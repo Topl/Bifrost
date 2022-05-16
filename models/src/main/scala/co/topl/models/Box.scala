@@ -3,9 +3,7 @@ package co.topl.models
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{Lengths, Sized}
 
-import scala.util.Random
-
-case class Box(evidence: TypedEvidence, nonce: BoxNonce, value: Box.Value)
+case class Box(evidence: TypedEvidence, value: Box.Value)
 
 object Box {
   sealed abstract class Value
@@ -15,6 +13,7 @@ object Box {
     case class Poly(value: Int128) extends Value
     case class Arbit(value: Int128) extends Value
 
+    // TODO: AssetV1
     case class Asset(
       quantity:     Int128,
       assetCode:    Asset.Code,
@@ -32,13 +31,5 @@ object Box {
     case class TaktikosRegistration(commitment: Proofs.Knowledge.KesProduct) extends Value
   }
 
-  def apply(coinOutput: Transaction.CoinOutput): Box = coinOutput match {
-    case Transaction.PolyOutput(dionAddress, value) =>
-      Box(dionAddress.typedEvidence, Random.nextLong(), Box.Values.Poly(value))
-    case Transaction.ArbitOutput(dionAddress, value) =>
-      Box(dionAddress.typedEvidence, Random.nextLong(), Box.Values.Arbit(value))
-    case Transaction.AssetOutput(dionAddress, value) => Box(dionAddress.typedEvidence, Random.nextLong(), value)
-  }
-
-  val empty: Box = Box(TypedEvidence.empty, 0, Box.Values.Empty)
+  val empty: Box = Box(TypedEvidence.empty, Box.Values.Empty)
 }

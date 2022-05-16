@@ -2,24 +2,17 @@ package co.topl.modifier.transaction.builder
 
 import cats.data.{Chain, NonEmptyChain}
 import cats.implicits._
-import co.topl.attestation.ops.implicits._
 import co.topl.attestation.{Address, EvidenceProducer, Proposition}
-import co.topl.models.Box.Values.Asset
-import co.topl.models.utility.HasLength.instances.latin1DataLength
-import co.topl.models.utility.StringDataTypes.{Latin1Data => TetraLatin1Data}
-import co.topl.models.utility.{Lengths, Sized}
-import co.topl.models.{Box => TetraBox, BoxReference, Bytes, DionAddress, Transaction}
+import co.topl.models.{Box => TetraBox, Bytes, DionAddress, Transaction}
 import co.topl.modifier.box._
 import co.topl.modifier.implicits._
 import co.topl.modifier.ops.AssetCodeOps.ToTetraAssetCodeFailures
 import co.topl.modifier.transaction.builder.Validation._
-import co.topl.modifier.transaction.builder.ops.BoxSetOps.ToBoxReferencesFailures
 import co.topl.modifier.transaction.builder.ops.implicits._
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer}
 import co.topl.modifier.{BoxReader, ProgramId}
 import co.topl.utils.ops.implicits._
 import co.topl.utils.{Identifiable, Int128}
-import mouse.all._
 
 import java.time.Instant
 import scala.collection.immutable.ListMap
@@ -228,99 +221,99 @@ object TransferBuilder {
     boxReader:    BoxReader[ProgramId, Address],
     request:      TransferRequests.UnprovenTransferRequest,
     boxSelection: BoxSelectionAlgorithm
-  ): Either[BuildTransferFailure, Transaction.Unproven] = {
-    val (polyOutputs, arbitOutputs, assetOutputs) = request.to.splitByCoinType
-
-    val polyOutputValues = polyOutputs.map(x => Int128(x.value.data))
-    val polysOwed = polyOutputValues.sum
-
-    val arbitOutputValues = arbitOutputs.map(x => Int128(x.value.data))
-    val arbitsOwed = arbitOutputValues.sum
-
-    val assetOutputValues = assetOutputs.map(x => Int128(x.value.quantity.data))
-    val assetsOwed: Map[AssetCode, Int128] =
-      assetOutputs
-        .map(_.value.toAssetValue)
-        .map(value => value.assetCode -> value.quantity)
-        .toMap
-
-    val inputAddresses = request.from.map(_.toAddress)
-
-    // depending on if this is an asset minting transfer, choose to ignore existing asset boxes in state
-    val inputBoxes =
-      if (!request.minting)
-        pickBoxesFromState(inputAddresses, polysOwed, arbitsOwed, assetsOwed, boxSelection, boxReader)
-      else
-        pickPolyAndArbitBoxesFromState(inputAddresses, polysOwed, arbitsOwed, boxSelection, boxReader)
-
-    val inputPolyNonces = inputBoxes.polyNonces
-
-    val polyFunds = inputBoxes.polySum
-    val polyChange = polyFunds - Int128(request.fee.data) - polysOwed
-
-    // only create a poly change output when the poly change is not 0
-    val polyChangeOutput =
-      (polyChange > 0).option(Transaction.PolyOutput(request.feeChangeAddress, polyChange.toSized))
-
-    val arbitFunds = (arbitsOwed > 0).option(inputBoxes.arbitSum)
-    val arbitChange = arbitFunds.map(_ - arbitsOwed)
-
-    // only create an arbit change output when arbits a spent in the transfer and the remaining change is not 0
-    val arbitChangeOutput =
-      arbitChange.flatMap(change =>
-        (change > 0).option(Transaction.ArbitOutput(request.consolidationAddress, change.toSized))
-      )
-
-    val assetFunds = inputBoxes.assetSums.filter(_._2 > 0)
-
-    // determine the amount of change from each asset used in the transfer and ignore if the change amount is 0
-    val assetChange: Map[AssetCode, Int128] =
-      assetFunds
-        .map(asset => asset._1 -> (asset._2 - assetsOwed.getOrElse(asset._1, 0)))
-        .filter(_._2 > 0)
-
-    // create the transfer with a given set of inputs and optional asset change outputs
-    val transfer
-      : (List[BoxReference], List[Transaction.AssetOutput]) => Either[BuildTransferFailure, Transaction.Unproven] =
-      (boxReferences, assetChangeOutputs) =>
-        NonEmptyChain
-          .fromSeq(request.to)
-          .toRight(BuildTransferFailures.EmptyOutputs)
-          .map(outputs => outputs.prependChain(Chain.fromSeq(assetChangeOutputs)))
-          .map(outputs => outputs.prependChain(Chain.fromOption(arbitChangeOutput)))
-          .map(outputs =>
-            Transaction.Unproven(
-              boxReferences,
-              polyChangeOutput,
-              outputs,
-              request.fee,
-              Instant.now.toEpochMilli,
-              request.data,
-              request.minting
-            )
-          )
-
-    // run validation and create the transfer with the valid parameters
-    for {
-      assetChangeOutputs <- toAssetChangeOutput(assetChange, request.consolidationAddress)
-      boxReferences      <-
-        // do not use arbit boxes if no arbit outputs
-        if (arbitsOwed > 0) toBoxReferencesResult(inputBoxes)
-        else toBoxReferencesResult(inputBoxes.copy(arbits = List.empty))
-      _ <- validateNonEmptyPolyInputNonces(inputPolyNonces)
-      _ <- validateUniqueInputNonces(inputPolyNonces)
-      _ <- validatePositiveOutputValues(polyOutputValues)
-      _ <- validatePositiveOutputValues(arbitOutputValues)
-      _ <- validatePositiveOutputValues(assetOutputValues)
-      _ <- validatePolyFunds(polyFunds, request.fee.data, polysOwed)
-      // only validate the amount of arbit funds when there are some arbits spent in the transfer
-      _ <- arbitFunds.fold(Int128(0).asRight[BuildTransferFailure])(funds => validateArbitFunds(funds, arbitsOwed))
-      _ <-
-        if (!request.minting) validateAssetFunds(assetFunds, assetsOwed)
-        else Map.empty.asRight
-      result <- transfer(boxReferences, assetChangeOutputs)
-    } yield result
-  }
+  ): Either[BuildTransferFailure, Transaction.Unproven] =
+//    val (polyOutputs, arbitOutputs, assetOutputs) = request.to.splitByCoinType
+//
+//    val polyOutputValues = polyOutputs.map(x => Int128(x.value.data))
+//    val polysOwed = polyOutputValues.sum
+//
+//    val arbitOutputValues = arbitOutputs.map(x => Int128(x.value.data))
+//    val arbitsOwed = arbitOutputValues.sum
+//
+//    val assetOutputValues = assetOutputs.map(x => Int128(x.value.quantity.data))
+//    val assetsOwed: Map[AssetCode, Int128] =
+//      assetOutputs
+//        .map(_.value.toAssetValue)
+//        .map(value => value.assetCode -> value.quantity)
+//        .toMap
+//
+//    val inputAddresses = request.from.map(_.toAddress)
+//
+//    // depending on if this is an asset minting transfer, choose to ignore existing asset boxes in state
+//    val inputBoxes =
+//      if (!request.minting)
+//        pickBoxesFromState(inputAddresses, polysOwed, arbitsOwed, assetsOwed, boxSelection, boxReader)
+//      else
+//        pickPolyAndArbitBoxesFromState(inputAddresses, polysOwed, arbitsOwed, boxSelection, boxReader)
+//
+//    val inputPolyNonces = inputBoxes.polyNonces
+//
+//    val polyFunds = inputBoxes.polySum
+//    val polyChange = polyFunds - Int128(request.fee.data) - polysOwed
+//
+//    // only create a poly change output when the poly change is not 0
+//    val polyChangeOutput =
+//      (polyChange > 0).option(Transaction.PolyOutput(request.feeChangeAddress, polyChange.toSized))
+//
+//    val arbitFunds = (arbitsOwed > 0).option(inputBoxes.arbitSum)
+//    val arbitChange = arbitFunds.map(_ - arbitsOwed)
+//
+//    // only create an arbit change output when arbits a spent in the transfer and the remaining change is not 0
+//    val arbitChangeOutput =
+//      arbitChange.flatMap(change =>
+//        (change > 0).option(Transaction.ArbitOutput(request.consolidationAddress, change.toSized))
+//      )
+//
+//    val assetFunds = inputBoxes.assetSums.filter(_._2 > 0)
+//
+//    // determine the amount of change from each asset used in the transfer and ignore if the change amount is 0
+//    val assetChange: Map[AssetCode, Int128] =
+//      assetFunds
+//        .map(asset => asset._1 -> (asset._2 - assetsOwed.getOrElse(asset._1, 0)))
+//        .filter(_._2 > 0)
+//
+//    // create the transfer with a given set of inputs and optional asset change outputs
+//    val transfer
+//      : (List[BoxReference], List[Transaction.AssetOutput]) => Either[BuildTransferFailure, Transaction.Unproven] =
+//      (boxReferences, assetChangeOutputs) =>
+//        NonEmptyChain
+//          .fromSeq(request.to)
+//          .toRight(BuildTransferFailures.EmptyOutputs)
+//          .map(outputs => outputs.prependChain(Chain.fromSeq(assetChangeOutputs)))
+//          .map(outputs => outputs.prependChain(Chain.fromOption(arbitChangeOutput)))
+//          .map(outputs =>
+//            Transaction.Unproven(
+//              boxReferences,
+//              polyChangeOutput,
+//              outputs,
+//              request.fee,
+//              Instant.now.toEpochMilli,
+//              request.data,
+//              request.minting
+//            )
+//          )
+//
+//    // run validation and create the transfer with the valid parameters
+//    for {
+//      assetChangeOutputs <- toAssetChangeOutput(assetChange, request.consolidationAddress)
+//      boxReferences      <-
+//        // do not use arbit boxes if no arbit outputs
+//        if (arbitsOwed > 0) toBoxReferencesResult(inputBoxes)
+//        else toBoxReferencesResult(inputBoxes.copy(arbits = List.empty))
+//      _ <- validateNonEmptyPolyInputNonces(inputPolyNonces)
+//      _ <- validateUniqueInputNonces(inputPolyNonces)
+//      _ <- validatePositiveOutputValues(polyOutputValues)
+//      _ <- validatePositiveOutputValues(arbitOutputValues)
+//      _ <- validatePositiveOutputValues(assetOutputValues)
+//      _ <- validatePolyFunds(polyFunds, request.fee.data, polysOwed)
+//      // only validate the amount of arbit funds when there are some arbits spent in the transfer
+//      _ <- arbitFunds.fold(Int128(0).asRight[BuildTransferFailure])(funds => validateArbitFunds(funds, arbitsOwed))
+//      _ <-
+//        if (!request.minting) validateAssetFunds(assetFunds, assetsOwed)
+//        else Map.empty.asRight
+//      result <- transfer(boxReferences, assetChangeOutputs)
+//    } yield result
+    ???
 
   /**
    * Picks boxes from state using the given context information and selection algorithm.
@@ -384,16 +377,18 @@ object TransferBuilder {
    */
   private def toAssetChangeOutput(
     assetChange:          Map[AssetCode, Int128],
-    consolidationAddress: DionAddress
-  ): Either[BuildTransferFailure, List[Transaction.AssetOutput]] =
+    consolidationAddress: DionAddress,
+    minting:              Boolean
+  ): Either[BuildTransferFailure, List[Transaction.Output]] =
     assetChange.toList
       // attempt to convert each asset into an output
-      .traverse[Either[BuildTransferFailure, *], Transaction.AssetOutput](asset =>
+      .traverse[Either[BuildTransferFailure, *], Transaction.Output](asset =>
         asset._1.toTetraAssetCode
           .map(assetCode =>
-            Transaction.AssetOutput(
+            Transaction.Output(
               consolidationAddress,
-              TetraBox.Values.Asset(asset._2.toSized, assetCode, Bytes.empty, None)
+              TetraBox.Values.Asset(asset._2.toSized, assetCode, Bytes.empty, None),
+              minting
             )
           )
           .leftMap {
@@ -403,15 +398,4 @@ object TransferBuilder {
               BuildTransferFailures.InvalidAddress(address)
           }
       )
-
-  /**
-   * Attempts to convert the given set of boxes into a collection of box references.
-   * Converts a conversion failure to a [[BuildTransferFailure]].
-   * @param set the [[BoxSet]] to convert into a collection of [[BoxReference]]
-   * @return if successful, a collection of box references, otherwise a [[BuildTransferFailure]]
-   */
-  private def toBoxReferencesResult(set: BoxSet): Either[BuildTransferFailure, List[BoxReference]] =
-    set.toBoxReferences.leftMap { case ToBoxReferencesFailures.InvalidAddress(address) =>
-      BuildTransferFailures.InvalidAddress(address)
-    }
 }

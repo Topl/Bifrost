@@ -7,7 +7,6 @@ import io.estatico.newtype.macros.{newsubtype, newtype}
 import io.estatico.newtype.ops._
 import scodec.bits.ByteVector
 
-import scala.collection.immutable.ListMap
 import scala.language.implicitConversions
 
 package object models {
@@ -30,8 +29,6 @@ package object models {
   type Int128 = Sized.Max[BigInt, Lengths.`128`.type]
   type Timestamp = Long
   type Slot = Long
-  type Attestation = ListMap[Proposition, Proof]
-  val Attestation = ListMap
   type Epoch = Long
 
   @newsubtype case class NetworkPrefix(value: Byte)
@@ -39,9 +36,6 @@ package object models {
   case class DionAddress(networkPrefix: NetworkPrefix, typedEvidence: TypedEvidence) {
     def allBytes: Bytes = networkPrefix.value +: typedEvidence.allBytes
   }
-  // TODO: Maybe Evidence?
-  type BoxReference = (DionAddress, BoxNonce)
-  type TaktikosBoxReference = (TaktikosAddress, Sized.Strict[Bytes, Lengths.`32`.type])
 
   type TxRoot = Sized.Strict[Bytes, Lengths.`32`.type]
   type BloomFilter = Sized.Strict[Bytes, Lengths.`256`.type]

@@ -20,12 +20,12 @@ class AssetValueOps(private val assetValue: AssetValue) extends AnyVal {
   import AssetCodeOps.implicits._
 
   /**
-   * Attempts to convert a Dion [[AssetValue]] into a Tetra [[Transaction.AssetOutput]] with a given [[DionAddress]].
+   * Attempts to convert a Dion [[AssetValue]] into a Tetra [[Transaction.Output]] with a given [[DionAddress]].
    *
    * @param address the address to use in the asset output value
-   * @return a [[Transaction.AssetOutput]] if successful, otherwise a [[ToAssetOutputFailure]]
+   * @return a [[Transaction.Output]] if successful, otherwise a [[ToAssetOutputFailure]]
    */
-  def toAssetOutput(address: DionAddress): ToAssetOutputResult[Transaction.AssetOutput] =
+  def toAssetOutput(address: DionAddress, minting: Boolean): ToAssetOutputResult[Transaction.Output] =
     for {
       quantity <-
         Sized
@@ -47,7 +47,7 @@ class AssetValueOps(private val assetValue: AssetValue) extends AnyVal {
             .leftMap[ToAssetOutputFailure](error => ToAssetOutputFailures.InvalidMetadata(data, error))
         )
       asset = Box.Values.Asset(quantity, assetCode, securityRoot, metadata)
-    } yield Transaction.AssetOutput(address, asset)
+    } yield Transaction.Output(address, asset, minting)
 }
 
 object AssetValueOps {

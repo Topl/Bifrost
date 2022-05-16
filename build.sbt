@@ -373,7 +373,7 @@ lazy val jsonCodecs = project
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.circe)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models)
+  .dependsOn(models, tetraByteCodecs)
 
 lazy val typeclasses: Project = project
   .in(file("typeclasses"))

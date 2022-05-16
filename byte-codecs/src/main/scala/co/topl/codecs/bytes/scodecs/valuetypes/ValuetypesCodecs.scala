@@ -1,12 +1,15 @@
 package co.topl.codecs.bytes.scodecs.valuetypes
 
-import cats.data.NonEmptyChain
+import cats.ApplicativeError
+import cats.data.{Chain, NonEmptyChain}
 import cats.implicits._
 import co.topl.codecs.bytes.ZigZagEncoder._
 import co.topl.codecs.bytes.scodecs.valuetypes.Constants._
 import co.topl.codecs.bytes.scodecs.valuetypes.Types._
 import scodec.bits.{BitVector, ByteVector}
+import scodec.interop.cats._
 import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
+
 import scala.collection.SortedSet
 import scala.collection.immutable.{ListMap, ListSet}
 import scala.reflect.ClassTag
@@ -135,75 +138,60 @@ trait ValuetypesCodecs {
     }
   }
 
-  def sizedSeqCodec[T: Codec](size: Int): Codec[Seq[T]] = new Codec[Seq[T]] {
+  def sizedChainCodec[T: Codec](size: Int): Codec[Chain[T]] = new Codec[Chain[T]] {
 
-    override def encode(value: Seq[T]): Attempt[BitVector] =
+    override def encode(value: Chain[T]): Attempt[BitVector] =
       Attempt
         .guard(value.length == size, Err(s"invalid collection size=${value.length} expected=$size"))
-        .flatMap(_ =>
-          value.foldLeft(Attempt.successful(BitVector.empty)) {
-            case (Attempt.Successful(bits), item) => Codec[T].encode(item).map(bits ++ _)
-            case (failure, _)                     => failure
-          }
-        )
+        .flatMap(_ => value.foldMapM(Codec[T].encode))
 
     override def sizeBound: SizeBound = Codec[T].sizeBound * size
 
-    override def decode(bits: BitVector): Attempt[DecodeResult[Seq[T]]] = {
-      var remaining = bits
-      Attempt
-        .fromTry(
-          Try(
-            IndexedSeq.fill(size) {
-              Codec[T].decode(remaining) match {
-                case Attempt.Successful(value) =>
-                  remaining = value.remainder
-                  value.value
-                case Attempt.Failure(cause) =>
-                  throw new Exception(cause.messageWithContext)
-              }
-            }
-          )
-        )
-        .map(DecodeResult(_, remaining))
-    }
+    override def decode(bits: BitVector): Attempt[DecodeResult[Chain[T]]] =
+      (0 until size).foldLeft(Attempt.successful(DecodeResult(Chain.empty[T], bits))) {
+        case (Attempt.Successful(DecodeResult(listT, remaining)), _) =>
+          Codec[T].decode(remaining).map(result => result.map(listT.append))
+        case (failure, _) => failure
+      }
   }
 
-  implicit def seqCodec[T: Codec]: Codec[Seq[T]] =
-    uIntCodec.consume(uInt => sizedSeqCodec[T](uInt.toInt))(listT => listT.length)
+  implicit def chainCodec[T: Codec]: Codec[Chain[T]] =
+    uIntCodec.consume(uInt => sizedChainCodec[T](uInt.toInt))(_.length)
 
-  def sizedListCodec[T: Codec](size: Int): Codec[List[T]] =
-    sizedSeqCodec[T](size).xmap(_.toList, identity)
+  implicit def seqCodec[T: Codec]: Codec[Seq[T]] =
+    chainCodec[T].xmap(_.toList, Chain.fromSeq)
 
   implicit def listCodec[T: Codec]: Codec[List[T]] =
-    uIntCodec.consume[List[T]](uInt => sizedListCodec(uInt.toInt))(_.length)
+    chainCodec[T].xmap(_.toList, Chain.fromSeq)
 
   implicit def vectorCodec[T: Codec]: Codec[Vector[T]] =
-    uIntCodec.consume[Vector[T]](uInt => sizedSeqCodec[T](uInt.toInt).xmap(_.toVector, identity))(_.length)
+    chainCodec[T].xmap(_.toVector, Chain.fromSeq)
 
   implicit def setCodec[T: Codec]: Codec[Set[T]] =
-    seqCodec[T].xmap(list => list.toSet, set => set.toSeq)
+    seqCodec[T].xmap(_.toSet, _.toSeq)
 
   implicit def listSetCodec[T: Codec]: Codec[ListSet[T]] =
-    seqCodec[T].xmap(list => ListSet.empty[T] ++ list, set => set.toSeq)
+    seqCodec[T].xmap(ListSet.empty[T] ++ _, _.toSeq)
 
   implicit def sortedSetCodec[T: Codec: Ordering]: Codec[SortedSet[T]] =
-    seqCodec[T].xmap(list => SortedSet.empty[T] ++ list, sortedSet => sortedSet.toSeq)
+    seqCodec[T].xmap(SortedSet.empty[T] ++ _, _.toSeq)
 
   implicit def indexedSeqCodec[T: Codec]: Codec[IndexedSeq[T]] =
-    seqCodec[T].xmap(list => list.toIndexedSeq, identity)
+    seqCodec[T].xmap(_.toIndexedSeq, identity)
 
   implicit def nonEmptyChainCodec[T: Codec]: Codec[NonEmptyChain[T]] =
-    seqCodec[T].exmap(
-      list => Attempt.fromOption(NonEmptyChain.fromSeq(list), Err("Expected non-empty seq, but empty found")),
-      seq => Attempt.successful(seq.toList)
+    chainCodec[T].exmap(
+      t =>
+        ApplicativeError
+          .liftFromOption[Attempt](NonEmptyChain.fromChain(t), Err("Expected non-empty seq, but empty found")),
+      _.toChain.pure[Attempt]
     )
 
   implicit def arrayCodec[T: Codec: ClassTag]: Codec[Array[T]] =
-    uIntCodec.consume(uInt => sizedArrayCodec[T](uInt.toInt))(listT => listT.length)
+    uIntCodec.consume(uInt => sizedArrayCodec[T](uInt.toInt))(_.length)
 
   implicit def listMapCodec[A: Codec, B: Codec]: Codec[ListMap[A, B]] =
-    seqCodec[(A, B)].xmap[ListMap[A, B]](list => ListMap.empty[A, B] ++ list, listMap => listMap.toSeq)
+    seqCodec[(A, B)].xmap[ListMap[A, B]](ListMap.empty[A, B] ++ _, _.toSeq)
 
   implicit def mapCodec[A: Codec, B: Codec]: Codec[Map[A, B]] =
     listMapCodec[A, B].xmap(_.toMap, ListMap.empty[A, B] ++ _)

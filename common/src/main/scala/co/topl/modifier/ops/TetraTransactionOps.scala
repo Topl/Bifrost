@@ -1,12 +1,13 @@
 package co.topl.modifier.ops
 
-import cats.data.NonEmptyChain
+import cats.data.Chain
 import cats.implicits._
 import co.topl.attestation._
 import co.topl.crypto.{PublicKey, Signature}
-import co.topl.models.{DionAddress, Proof, Proofs, Proposition, Propositions, Transaction}
-import co.topl.modifier.box.{AssetCode, AssetValue, Box, SecurityRoot, SimpleValue, TokenValueHolder}
+import co.topl.models.{Box => TetraBox, DionAddress, Proof, Proofs, Proposition, Propositions, Transaction}
+import co.topl.modifier.box._
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction => DionTransaction}
+import co.topl.typeclasses.implicits.TransactionSupport
 import co.topl.utils.Int128
 import co.topl.utils.StringDataTypes.Latin1Data
 
@@ -17,6 +18,8 @@ import scala.language.implicitConversions
 class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
   import TetraTransactionOps._
 
+  def minting: Boolean = transaction.outputs.exists(_.minting)
+
   /**
    * Attempts to convert a Tetra [[Transaction]] into an equivalent [[DionTransaction.TX]] value.
    * @return if successful, a [[DionTransaction.TX]], otherwise a [[ToDionTxFailure]] representing an error with the
@@ -25,21 +28,22 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
   def toDionTx: ToDionTxResult[DionTransaction.TX] =
     for {
       // all propositions in the Dion transfer must be the same as the first one
-      expectedProposition <-
-        transaction.inputs.headOption.map(_._2._1).toRight(ToDionTxFailures.EmptyInputs)
-      tx <-
+      expectedProposition <- transaction.inputs.headOption.toRight(ToDionTxFailures.EmptyInputs).map(_.proposition)
+      headOutput          <- transaction.outputs.headOption.toRight(ToDionTxFailures.EmptyOutputs)
+      tx                  <-
         // use the first proposition type and first coin output type to derive what the Dion transfer type will be
-        (expectedProposition, transaction.coinOutputs.head) match {
-          case (_: Propositions.Knowledge.Curve25519, _: Transaction.PolyOutput)     => asPolyTransferCurve
-          case (_: Propositions.Knowledge.Curve25519, _: Transaction.ArbitOutput)    => asArbitTransferCurve
-          case (_: Propositions.Knowledge.Curve25519, _: Transaction.AssetOutput)    => asAssetTransferCurve
-          case (_: Propositions.Knowledge.Ed25519, _: Transaction.PolyOutput)        => asPolyTransferEd
-          case (_: Propositions.Knowledge.Ed25519, _: Transaction.ArbitOutput)       => asArbitTransferEd
-          case (_: Propositions.Knowledge.Ed25519, _: Transaction.AssetOutput)       => asAssetTransferEd
-          case (_: Propositions.Compositional.Threshold, _: Transaction.PolyOutput)  => asPolyTransferThreshold
-          case (_: Propositions.Compositional.Threshold, _: Transaction.ArbitOutput) => asArbitTransferThreshold
-          case (_: Propositions.Compositional.Threshold, _: Transaction.AssetOutput) => asAssetTransferThreshold
-          case (prop, output) => ToDionTxFailures.InvalidTransferType(prop, output).asLeft[DionTransaction.TX]
+        (expectedProposition, headOutput.value) match {
+          case (_: Propositions.Knowledge.Curve25519, _: TetraBox.Values.Poly)     => asPolyTransferCurve
+          case (_: Propositions.Knowledge.Curve25519, _: TetraBox.Values.Arbit)    => asArbitTransferCurve
+          case (_: Propositions.Knowledge.Curve25519, _: TetraBox.Values.Asset)    => asAssetTransferCurve
+          case (_: Propositions.Knowledge.Ed25519, _: TetraBox.Values.Poly)        => asPolyTransferEd
+          case (_: Propositions.Knowledge.Ed25519, _: TetraBox.Values.Arbit)       => asArbitTransferEd
+          case (_: Propositions.Knowledge.Ed25519, _: TetraBox.Values.Asset)       => asAssetTransferEd
+          case (_: Propositions.Compositional.Threshold, _: TetraBox.Values.Poly)  => asPolyTransferThreshold
+          case (_: Propositions.Compositional.Threshold, _: TetraBox.Values.Arbit) => asArbitTransferThreshold
+          case (_: Propositions.Compositional.Threshold, _: TetraBox.Values.Asset) => asAssetTransferThreshold
+          case (prop, output) =>
+            ToDionTxFailures.InvalidTransferType(prop, headOutput).asLeft[DionTransaction.TX]
         }
     } yield tx
 
@@ -61,7 +65,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           getFee,
           transaction.timestamp,
           getData,
-          transaction.minting
+          minting
         )
     } yield tx
 
@@ -83,7 +87,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           getFee,
           transaction.timestamp,
           getData,
-          transaction.minting
+          minting
         )
     } yield tx
 
@@ -105,7 +109,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           getFee,
           transaction.timestamp,
           getData,
-          transaction.minting
+          minting
         )
     } yield tx
 
@@ -127,7 +131,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           getFee,
           transaction.timestamp,
           getData,
-          transaction.minting
+          minting
         )
     } yield tx
 
@@ -149,7 +153,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           getFee,
           transaction.timestamp,
           getData,
-          transaction.minting
+          minting
         )
     } yield tx
 
@@ -171,7 +175,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           getFee,
           transaction.timestamp,
           getData,
-          transaction.minting
+          minting
         )
     } yield tx
 
@@ -193,7 +197,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           getFee,
           transaction.timestamp,
           getData,
-          transaction.minting
+          minting
         )
     } yield tx
 
@@ -215,7 +219,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           getFee,
           transaction.timestamp,
           getData,
-          transaction.minting
+          minting
         )
     } yield tx
 
@@ -237,7 +241,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           getFee,
           transaction.timestamp,
           getData,
-          transaction.minting
+          minting
         )
     } yield tx
 
@@ -247,16 +251,16 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
    *         representing an error with the extraction
    */
   private def curveAttestation: ToDionTxResult[ListMap[PublicKeyPropositionCurve25519, SignatureCurve25519]] =
-    transaction.inputs.values.toList
+    transaction.inputs
       .traverse[ToDionTxResult, (PublicKeyPropositionCurve25519, SignatureCurve25519)] {
-        case (prop: Propositions.Knowledge.Curve25519, proof: Proofs.Knowledge.Curve25519) =>
+        case Transaction.Input(_, _, prop: Propositions.Knowledge.Curve25519, proof: Proofs.Knowledge.Curve25519, _) =>
           (
             PublicKeyPropositionCurve25519(PublicKey(prop.key.bytes.data.toArray)),
             SignatureCurve25519(Signature(proof.bytes.data.toArray))
           ).asRight
-        case invalid => ToDionTxFailures.InvalidProposition(invalid._1).asLeft
+        case invalid => ToDionTxFailures.InvalidProposition(invalid.proposition).asLeft
       }
-      .map(ListMap(_: _*))
+      .map(ListMap.empty[PublicKeyPropositionCurve25519, SignatureCurve25519] ++ _.toIterable)
 
   /**
    * Attempts to extract a Dion-compatible attestation map from the Tetra transaction.
@@ -264,16 +268,16 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
    *         representing an error with the extraction
    */
   private def edAttestation: Either[ToDionTxFailure, ListMap[PublicKeyPropositionEd25519, SignatureEd25519]] =
-    transaction.inputs.values.toList
+    transaction.inputs
       .traverse[ToDionTxResult, (PublicKeyPropositionEd25519, SignatureEd25519)] {
-        case (prop: Propositions.Knowledge.Ed25519, proof: Proofs.Knowledge.Ed25519) =>
+        case Transaction.Input(_, _, prop: Propositions.Knowledge.Ed25519, proof: Proofs.Knowledge.Ed25519, _) =>
           (
             PublicKeyPropositionEd25519(PublicKey(prop.key.bytes.data.toArray)),
             SignatureEd25519(Signature(proof.bytes.data.toArray))
           ).asRight
-        case invalid => ToDionTxFailures.InvalidProposition(invalid._1).asLeft
+        case invalid => ToDionTxFailures.InvalidProposition(invalid.proposition).asLeft
       }
-      .map(ListMap(_: _*))
+      .map(ListMap.empty[PublicKeyPropositionEd25519, SignatureEd25519] ++ _.toIterable)
 
   /**
    * Attempts to extract a Dion-compatible attestation map from the Tetra transaction.
@@ -282,9 +286,15 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
    */
   private def thresholdAttestation
     : Either[ToDionTxFailure, ListMap[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519]] =
-    transaction.inputs.values.toList
+    transaction.inputs
       .traverse[ToDionTxResult, (ThresholdPropositionCurve25519, ThresholdSignatureCurve25519)] {
-        case (prop: Propositions.Compositional.Threshold, proof: Proofs.Compositional.Threshold) =>
+        case Transaction.Input(
+              _,
+              _,
+              prop: Propositions.Compositional.Threshold,
+              proof: Proofs.Compositional.Threshold,
+              _
+            ) =>
           for {
             props <-
               prop.propositions.toList
@@ -303,63 +313,70 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
             thresholdProp = ThresholdPropositionCurve25519(prop.threshold, SortedSet(props: _*))
             thresholdProof = ThresholdSignatureCurve25519(proofs.toSet)
           } yield thresholdProp -> thresholdProof
-        case invalid => ToDionTxFailures.InvalidProposition(invalid._1).asLeft
+        case invalid => ToDionTxFailures.InvalidProposition(invalid.proposition).asLeft
       }
-      .map(ListMap(_: _*))
+      .map(ListMap.empty[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519] ++ _.toIterable)
 
-  private def polyOutputs: ToDionTxResult[NonEmptyChain[(Address, SimpleValue)]] =
-    transaction.coinOutputs
+  private def polyOutputs: ToDionTxResult[Chain[(Address, SimpleValue)]] =
+    transaction.outputs
       .traverse[ToDionTxResult, (Address, SimpleValue)] {
-        case polyOutput: Transaction.PolyOutput =>
-          (toAddress(polyOutput.dionAddress), SimpleValue(Int128(polyOutput.value.data))).asRight
+        case Transaction.Output(dionAddress, poly: TetraBox.Values.Poly, _) =>
+          (toAddress(dionAddress), SimpleValue(Int128(poly.value.data))).asRight
         case invalidCoin => ToDionTxFailures.InvalidOutput(invalidCoin).asLeft
       }
 
-  private def arbitOutputs: ToDionTxResult[NonEmptyChain[(Address, SimpleValue)]] =
-    transaction.coinOutputs
+  private def arbitOutputs: ToDionTxResult[Chain[(Address, SimpleValue)]] =
+    transaction.outputs
       .traverse[ToDionTxResult, (Address, SimpleValue)] {
-        case arbitOutput: Transaction.ArbitOutput =>
-          (toAddress(arbitOutput.dionAddress), SimpleValue(Int128(arbitOutput.value.data))).asRight
+        case Transaction.Output(dionAddress, arbit: TetraBox.Values.Arbit, _) =>
+          (toAddress(dionAddress), SimpleValue(Int128(arbit.value.data))).asRight
         case invalidCoin => ToDionTxFailures.InvalidOutput(invalidCoin).asLeft
       }
 
-  private def assetOutputs: Either[ToDionTxFailure, NonEmptyChain[(Address, TokenValueHolder)]] =
-    transaction.coinOutputs
+  private def assetOutputs: Either[ToDionTxFailure, Chain[(Address, TokenValueHolder)]] =
+    transaction.outputs
       .traverse[ToDionTxResult, (Address, TokenValueHolder)] {
-        case assetOutput: Transaction.AssetOutput =>
+        case Transaction.Output(dionAddress, asset: TetraBox.Values.Asset, _) =>
           (
-            toAddress(assetOutput.dionAddress),
+            toAddress(dionAddress),
             AssetValue(
-              Int128(assetOutput.value.quantity.data),
+              Int128(asset.quantity.data),
               AssetCode(
-                assetOutput.value.assetCode.version,
-                toAddress(assetOutput.value.assetCode.issuer),
-                Latin1Data.fromData(assetOutput.value.assetCode.shortName.data.bytes)
+                asset.assetCode.version,
+                toAddress(asset.assetCode.issuer),
+                Latin1Data.fromData(asset.assetCode.shortName.data.bytes)
               ),
-              SecurityRoot(assetOutput.value.securityRoot.toArray),
-              assetOutput.value.metadata.map(data => Latin1Data.fromData(data.data.bytes))
+              SecurityRoot(asset.securityRoot.toArray),
+              asset.metadata.map(data => Latin1Data.fromData(data.data.bytes))
             ): TokenValueHolder
           ).asRight
         case invalidCoin => ToDionTxFailures.InvalidOutput(invalidCoin).asLeft
       }
 
+  // TODO: Unable to determine the input Box Nonce(s) from a Tetra Transaction
   private def getFrom: IndexedSeq[(Address, Box.Nonce)] =
-    transaction.inputs.toIndexedSeq.map(input => toAddress(input._1._1) -> input._1._2)
+    ???
+//    transaction.inputs.toNonEmptyVector.toVector.map(input => toAddress(input.proposition.dionAddress) -> input._1._2)
 
-  private def getFee: Int128 = Int128(transaction.fee.data)
+  private def getFee: Int128 =
+    transaction.unclaimedInputValues
+      .collectFirst { case TetraBox.Values.Poly(value) =>
+        Int128(value.data)
+      }
+      .getOrElse(Int128(0))
 
   private def getData: Option[Latin1Data] = transaction.data.map(d => Latin1Data.fromData(d.data.bytes))
 
-  private def getFeeOutput: (Address, SimpleValue) =
-    transaction.feeOutput
-      /*
-        when the fee output is None, use an invalid address and 0 output
-        this will not affect the outcome of the transaction signature or codecs
-        as this output will be discarded
-       */
-      .fold(Address(Evidence(Array.empty))(0.toByte) -> SimpleValue(0))(fee =>
-        toAddress(fee.dionAddress) -> SimpleValue(Int128(fee.value.data))
-      )
+  // TODO
+  private def getFeeOutput: (Address, SimpleValue) = ???
+//      /*
+//        when the fee output is None, use an invalid address and 0 output
+//        this will not affect the outcome of the transaction signature or codecs
+//        as this output will be discarded
+//       */
+//      .fold(Address(Evidence(Array.empty))(0.toByte) -> SimpleValue(0))(fee =>
+//        toAddress(fee.dionAddress) -> SimpleValue(Int128(fee.value.data))
+//      )
 
   private def toAddress(dionAddress: DionAddress): Address =
     Address(Evidence(dionAddress.typedEvidence.allBytes.toArray))(dionAddress.networkPrefix.value)
@@ -370,11 +387,12 @@ object TetraTransactionOps {
   sealed trait ToDionTxFailure
 
   object ToDionTxFailures {
-    case class InvalidOutput(invalidOutput: Transaction.CoinOutput) extends ToDionTxFailure
+    case class InvalidOutput(invalidOutput: Transaction.Output) extends ToDionTxFailure
     case class InvalidProposition(propositon: Proposition) extends ToDionTxFailure
     case class InvalidProof(proof: Proof) extends ToDionTxFailure
-    case class InvalidTransferType(proposition: Proposition, coinType: Transaction.CoinOutput) extends ToDionTxFailure
+    case class InvalidTransferType(proposition: Proposition, coinType: Transaction.Output) extends ToDionTxFailure
     case object EmptyInputs extends ToDionTxFailure
+    case object EmptyOutputs extends ToDionTxFailure
   }
 
   type ToDionTxResult[T] = Either[ToDionTxFailure, T]

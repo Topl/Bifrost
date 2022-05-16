@@ -2,19 +2,22 @@ package co.topl.modifier.transaction.builder.ops
 
 import cats.implicits._
 import cats.Foldable
-import co.topl.models.Transaction
+import co.topl.models._
 
 import scala.language.implicitConversions
 
-class CoinOutputsOps(private val value: List[Transaction.CoinOutput]) {
+class CoinOutputsOps(private val value: List[Transaction.Output]) {
 
-  def splitByCoinType: (List[Transaction.PolyOutput], List[Transaction.ArbitOutput], List[Transaction.AssetOutput]) =
+  def splitByCoinType: (List[Transaction.Output], List[Transaction.Output], List[Transaction.Output]) =
     value.foldLeft(
-      (List.empty[Transaction.PolyOutput], List.empty[Transaction.ArbitOutput], List.empty[Transaction.AssetOutput])
+      (List.empty[Transaction.Output], List.empty[Transaction.Output], List.empty[Transaction.Output])
     ) {
-      case ((polys, arbits, assets), poly: Transaction.PolyOutput)   => (polys :+ poly, arbits, assets)
-      case ((polys, arbits, assets), arbit: Transaction.ArbitOutput) => (polys, arbits :+ arbit, assets)
-      case ((polys, arbits, assets), asset: Transaction.AssetOutput) => (polys, arbits, assets :+ asset)
+      case ((polys, arbits, assets), poly @ Transaction.Output(_, _: Box.Values.Poly, _)) =>
+        (polys :+ poly, arbits, assets)
+      case ((polys, arbits, assets), arbit @ Transaction.Output(_, _: Box.Values.Arbit, _)) =>
+        (polys, arbits :+ arbit, assets)
+      case ((polys, arbits, assets), asset @ Transaction.Output(_, _: Box.Values.Asset, _)) =>
+        (polys, arbits, assets :+ asset)
     }
 }
 
@@ -22,7 +25,7 @@ object CoinOutputsOps {
 
   trait ToCoinOutputOps {
 
-    implicit def coinOutputOpsFromCoinOutputs[F[_]: Foldable](value: F[Transaction.CoinOutput]): CoinOutputsOps =
+    implicit def coinOutputOpsFromCoinOutputs[F[_]: Foldable](value: F[Transaction.Output]): CoinOutputsOps =
       new CoinOutputsOps(value.toList)
 
   }
