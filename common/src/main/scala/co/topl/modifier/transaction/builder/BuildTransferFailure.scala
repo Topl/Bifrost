@@ -10,8 +10,6 @@ sealed trait BuildTransferFailure
 object BuildTransferFailures {
   case object EmptyPolyInputs extends BuildTransferFailure
 
-  case object DuplicateInputs extends BuildTransferFailure
-
   case object EmptyOutputs extends BuildTransferFailure
 
   case object DuplicateOutputs extends BuildTransferFailure

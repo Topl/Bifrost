@@ -89,48 +89,6 @@ class BuildUnsignedArbitTransferSpec
     }
   }
 
-  it should "return invalid if duplicate poly input boxes" in {
-    forAll(polyBoxesGen, arbitBoxesGen, addressGen, addressGen) { (polyBoxes, arbitBoxes, sender, recipient) =>
-      // provide poly boxes twice
-      val boxReader = MockBoxReader.fromNec(sender -> (polyBoxes ++ polyBoxes ++ arbitBoxes))
-
-      val request = TransferRequests.ArbitTransferRequest(
-        List(sender),
-        List(recipient -> 100),
-        sender,
-        sender,
-        0,
-        None
-      )
-
-      val result = TransferBuilder
-        .buildUnsignedArbitTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
-
-      result.left.value shouldBe BuildTransferFailures.DuplicateInputs
-    }
-  }
-
-  it should "return invalid if duplicate arbit input boxes" in {
-    forAll(polyBoxesGen, arbitBoxesGen, addressGen, addressGen) { (polyBoxes, arbitBoxes, sender, recipient) =>
-      // provide arbit boxes twice
-      val boxReader = MockBoxReader.fromNec(sender -> (polyBoxes ++ arbitBoxes ++ arbitBoxes))
-
-      val request = TransferRequests.ArbitTransferRequest(
-        List(sender),
-        List(recipient -> 100),
-        sender,
-        sender,
-        0,
-        None
-      )
-
-      val result = TransferBuilder
-        .buildUnsignedArbitTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
-
-      result.left.value shouldBe BuildTransferFailures.DuplicateInputs
-    }
-  }
-
   it should "return invalid if no recipients" in {
     forAll(polyBoxesGen, arbitBoxesGen, addressGen) { (polyBoxes, arbitBoxes, sender) =>
       val boxReader = MockBoxReader.fromNec(sender -> (polyBoxes ++ arbitBoxes))
