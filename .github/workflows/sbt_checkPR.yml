@@ -55,7 +55,6 @@ jobs:
       checks: write
       # only needed unless run with comment_mode: off
       pull-requests: write
-    if: always()
     steps:
       - name: Download Artifacts
         uses: actions/download-artifact@v2
@@ -67,8 +66,16 @@ jobs:
       #   with:
       #     files: "artifacts/**/*.xml"
 
-      - name: Publish Test Report
-        uses: mikepenz/action-junit-report@v3
-        if: always() # always run even if the previous step fails
+      - name: Test Report
+        uses: phoenix-actions/test-reporting@v6
+        if: success() || failure()    # run this step even if previous step failed
         with:
-          report_paths: "artifacts/**/*.xml"
+          name: Java Tests            # Name of the check run which will be created
+          path: target/test-reports/*.xml    # Path to test results
+          reporter: java-junit        # Format of test results
+
+      # - name: Publish Test Report
+      #   uses: mikepenz/action-junit-report@v3
+      #   if: always() # always run even if the previous step fails
+      #   with:
+      #     report_paths: "artifacts/**/*.xml"
