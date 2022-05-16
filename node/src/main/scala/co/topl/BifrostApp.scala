@@ -16,6 +16,8 @@ import scala.concurrent.Await
 
 class BifrostApp(startupOpts: StartupOpts) extends NodeLogging {
 
+  co.topl.codecs.init()
+
   /**
    * Configure logging backend to set debug logging level if verbose mode is enabled. Needs to be placed
    *  before any log output to set the level correctly.

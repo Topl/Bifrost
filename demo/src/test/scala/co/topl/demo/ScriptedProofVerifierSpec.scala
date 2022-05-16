@@ -118,7 +118,7 @@ class ScriptedProofVerifierSpec
 
   it should "verify to true for a script using the current transaction" in {
     forAll { unproven: Transaction.Unproven =>
-      val outAddr = unproven.outputs.head.address.immutableBytes.toBase58
+      val outAddr = unproven.outputs.headOption.value.address.immutableBytes.toBase58
       val proposition = Propositions.Script.JS(
         Propositions.Script.JS.JSScript(
           raw"""(ctx, args) =>

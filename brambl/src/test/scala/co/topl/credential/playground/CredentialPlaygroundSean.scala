@@ -64,8 +64,7 @@ object CredentialPlaygroundSean extends App {
   val unprovenTransaction: Transaction.Unproven =
     ModelGenerators.arbitraryUnprovenTransaction.arbitrary.first.copy(
       inputs = Chain(arbitraryTransactionUnprovenInput.arbitrary.first.copy(proposition = proposition)),
-      outputs =
-        NonEmptyChain(Transaction.Output(party3Address, Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false))
+      outputs = Chain(Transaction.Output(party3Address, Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false))
     )
 
   val credential = Credential.Compositional.And(

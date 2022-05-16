@@ -1,10 +1,10 @@
 package co.topl.models
 
-import cats.data.{Chain, NonEmptyChain}
+import cats.data.Chain
 
 case class Transaction(
   inputs:    Chain[Transaction.Input],
-  outputs:   NonEmptyChain[Transaction.Output],
+  outputs:   Chain[Transaction.Output],
   timestamp: Timestamp,
   data:      Option[TransactionData]
 )
@@ -25,7 +25,7 @@ object Transaction {
 
   case class Unproven(
     inputs:    Chain[Transaction.Unproven.Input],
-    outputs:   NonEmptyChain[Transaction.Output],
+    outputs:   Chain[Transaction.Output],
     timestamp: Timestamp,
     data:      Option[TransactionData]
   )

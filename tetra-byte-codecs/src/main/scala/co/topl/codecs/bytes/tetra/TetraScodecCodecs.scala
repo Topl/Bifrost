@@ -1,6 +1,6 @@
 package co.topl.codecs.bytes.tetra
 
-import cats.data.{Chain, NonEmptyChain}
+import cats.data.Chain
 import cats.implicits._
 import co.topl.codecs.bytes.scodecs._
 import co.topl.models._
@@ -407,7 +407,7 @@ trait TetraScodecTransactionCodecs {
   implicit val transactionCodec: Codec[Transaction] =
     (
       Codec[Chain[Transaction.Input]] ::
-        Codec[NonEmptyChain[Transaction.Output]] ::
+        Codec[Chain[Transaction.Output]] ::
         Codec[Timestamp](uLongCodec) ::
         Codec[Option[TransactionData]]
     ).as[Transaction]
@@ -415,7 +415,7 @@ trait TetraScodecTransactionCodecs {
   implicit val unprovenTransactionCodec: Codec[Transaction.Unproven] =
     (
       Codec[Chain[Transaction.Unproven.Input]] ::
-        Codec[NonEmptyChain[Transaction.Output]] ::
+        Codec[Chain[Transaction.Output]] ::
         Codec[Timestamp](uLongCodec) ::
         Codec[Option[TransactionData]]
     ).as[Transaction.Unproven]

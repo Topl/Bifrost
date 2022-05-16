@@ -1,19 +1,10 @@
 package co.topl.modifier.ops
 
-import cats.data.NonEmptyChain
+import cats.data.Chain
 import cats.implicits._
 import co.topl.attestation._
 import co.topl.crypto.{PublicKey, Signature}
-import co.topl.models.{
-  Box => TetraBox,
-  FullAddress,
-  Proof,
-  Proofs,
-  Proposition,
-  Propositions,
-  SpendingAddress,
-  Transaction
-}
+import co.topl.models.{Box => TetraBox, FullAddress, Proof, Proofs, Proposition, Propositions, Transaction}
 import co.topl.modifier.box.{AssetCode, AssetValue, Box, SecurityRoot, SimpleValue, TokenValueHolder}
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction => DionTransaction}
 import co.topl.typeclasses.implicits.TransactionSupport
@@ -38,9 +29,10 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
     for {
       // all propositions in the Dion transfer must be the same as the first one
       expectedProposition <- transaction.inputs.headOption.toRight(ToDionTxFailures.EmptyInputs).map(_.proposition)
+      headOutput          <- transaction.outputs.headOption.toRight(ToDionTxFailures.EmptyOutputs)
       tx                  <-
         // use the first proposition type and first coin output type to derive what the Dion transfer type will be
-        (expectedProposition, transaction.outputs.head.value) match {
+        (expectedProposition, headOutput.value) match {
           case (_: Propositions.Knowledge.Curve25519, _: TetraBox.Values.Poly)     => asPolyTransferCurve
           case (_: Propositions.Knowledge.Curve25519, _: TetraBox.Values.Arbit)    => asArbitTransferCurve
           case (_: Propositions.Knowledge.Curve25519, _: TetraBox.Values.Asset)    => asAssetTransferCurve
@@ -51,7 +43,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           case (_: Propositions.Compositional.Threshold, _: TetraBox.Values.Arbit) => asArbitTransferThreshold
           case (_: Propositions.Compositional.Threshold, _: TetraBox.Values.Asset) => asAssetTransferThreshold
           case (prop, output) =>
-            ToDionTxFailures.InvalidTransferType(prop, transaction.outputs.head).asLeft[DionTransaction.TX]
+            ToDionTxFailures.InvalidTransferType(prop, headOutput).asLeft[DionTransaction.TX]
         }
     } yield tx
 
@@ -325,7 +317,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
       }
       .map(ListMap.empty[ThresholdPropositionCurve25519, ThresholdSignatureCurve25519] ++ _.toIterable)
 
-  private def polyOutputs: ToDionTxResult[NonEmptyChain[(Address, SimpleValue)]] =
+  private def polyOutputs: ToDionTxResult[Chain[(Address, SimpleValue)]] =
     transaction.outputs
       .traverse[ToDionTxResult, (Address, SimpleValue)] {
         case Transaction.Output(address, poly: TetraBox.Values.Poly, _) =>
@@ -333,7 +325,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
         case invalidCoin => ToDionTxFailures.InvalidOutput(invalidCoin).asLeft
       }
 
-  private def arbitOutputs: ToDionTxResult[NonEmptyChain[(Address, SimpleValue)]] =
+  private def arbitOutputs: ToDionTxResult[Chain[(Address, SimpleValue)]] =
     transaction.outputs
       .traverse[ToDionTxResult, (Address, SimpleValue)] {
         case Transaction.Output(address, arbit: TetraBox.Values.Arbit, _) =>
@@ -341,7 +333,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
         case invalidCoin => ToDionTxFailures.InvalidOutput(invalidCoin).asLeft
       }
 
-  private def assetOutputs: Either[ToDionTxFailure, NonEmptyChain[(Address, TokenValueHolder)]] =
+  private def assetOutputs: Either[ToDionTxFailure, Chain[(Address, TokenValueHolder)]] =
     transaction.outputs
       .traverse[ToDionTxResult, (Address, TokenValueHolder)] {
         case Transaction.Output(address, asset: TetraBox.Values.Asset, _) =>
@@ -400,6 +392,7 @@ object TetraTransactionOps {
     case class InvalidProof(proof: Proof) extends ToDionTxFailure
     case class InvalidTransferType(proposition: Proposition, coinType: Transaction.Output) extends ToDionTxFailure
     case object EmptyInputs extends ToDionTxFailure
+    case object EmptyOutputs extends ToDionTxFailure
   }
 
   type ToDionTxResult[T] = Either[ToDionTxFailure, T]

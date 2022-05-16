@@ -33,8 +33,7 @@ import scala.util.{Failure, Success, Try}
 class NodeViewSynchronizer(
   networkControllerRef:  ActorRef,
   viewHolderRef:         akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage],
-  settings:              AppSettings,
-  appContext:            AppContext
+  settings:              AppSettings
 )(implicit timeProvider: TimeProvider)
     extends Synchronizer
     with Logging {
@@ -656,9 +655,8 @@ object NodeViewSynchronizerRef {
   def props(
     networkControllerRef:  ActorRef,
     viewHolderRef:         akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage],
-    settings:              AppSettings,
-    appContext:            AppContext
+    settings:              AppSettings
   )(implicit timeProvider: TimeProvider): Props =
-    Props(new NodeViewSynchronizer(networkControllerRef, viewHolderRef, settings, appContext))
+    Props(new NodeViewSynchronizer(networkControllerRef, viewHolderRef, settings))
 
 }

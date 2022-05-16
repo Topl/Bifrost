@@ -102,8 +102,8 @@ object CredentialPlaygroundBV extends App {
   val randomTx: Transaction.Unproven =
     Transaction.Unproven(
       inputs = Chain(ModelGenerators.arbitraryTransactionUnprovenInput.arbitrary.first),
-      outputs = NonEmptyChain(
-        Transaction.Output(boardProp.spendingAddress, Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false)
+      outputs = Chain(
+        Transaction.Output(boardProp.dionAddress, Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false)
       ),
       timestamp = System.currentTimeMillis(),
       data = None

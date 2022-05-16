@@ -1,6 +1,6 @@
 package co.topl.models
 
-import cats.data.{Chain, NonEmptyChain}
+import cats.data.{Chain, NonEmptyChain, NonEmptyList}
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.StringDataTypes.Latin1Data
@@ -11,6 +11,17 @@ import org.scalacheck.{Arbitrary, Gen}
 import scala.collection.immutable.ListSet
 
 trait ModelGenerators {
+
+  def nonEmptyChainOf[T](gen: => Gen[T]): Gen[NonEmptyChain[T]] =
+    for {
+      tail <- Gen.listOf(gen)
+    } yield NonEmptyChain.fromNonEmptyList(NonEmptyList(gen.first, tail))
+
+  /**
+   * Similar to Gen.nonEmptyListOf, but without the bug associated with:https://github.com/typelevel/scalacheck/issues/372
+   */
+  def nonEmptyListOf[T](gen: => Gen[T]): Gen[List[T]] =
+    nonEmptyChainOf(gen).map(_.toNonEmptyList.toList)
 
   def etaGen: Gen[Eta] =
     genSizedStrictBytes[Lengths.`32`.type]()
@@ -590,7 +601,6 @@ trait ModelGenerators {
         outputs <- Gen
           .nonEmptyListOf(arbitraryTransactionOutput.arbitrary)
           .map(Chain.fromSeq)
-          .map(NonEmptyChain.fromChainUnsafe)
         timestamp <- Gen.chooseNum[Long](0L, 100000L)
         data = None
       } yield Transaction.Unproven(inputs, outputs, timestamp, data)
@@ -605,7 +615,6 @@ trait ModelGenerators {
         outputs <- Gen
           .nonEmptyListOf(arbitraryTransactionOutput.arbitrary)
           .map(Chain.fromSeq)
-          .map(NonEmptyChain.fromChainUnsafe)
         timestamp <- Gen.chooseNum[Long](0L, 100000L)
         data = None
       } yield Transaction(inputs, outputs, timestamp, data)
