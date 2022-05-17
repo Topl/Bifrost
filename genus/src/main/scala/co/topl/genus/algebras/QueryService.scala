@@ -17,15 +17,6 @@ trait QueryService[F[_], T] {
   import QueryService._
 
   /**
-   * Queries the data source and returns values as a list if successful.
-   * @param request the query request containing options for data to be returned
-   * @return if successful, a list of values matching the query, otherwise a failure
-   */
-  def asList[Filter: MongoFilter, Sort: MongoSort](
-    request: QueryRequest[Filter, Sort]
-  ): EitherT[F, QueryFailure, List[T]]
-
-  /**
    * Queries the data source and returns values as a Source if successful.
    *
    * It is expected that the source will terminate at some point.
@@ -33,7 +24,7 @@ trait QueryService[F[_], T] {
    * @param request the query request containing options for data to be returned
    * @return if successful, a list of values matching the query, otherwise a failure
    */
-  def asSource[Filter: MongoFilter, Sort: MongoSort](
+  def query[Filter: MongoFilter, Sort: MongoSort](
     request: QueryRequest[Filter, Sort]
   ): EitherT[F, QueryFailure, Source[T, NotUsed]]
 }

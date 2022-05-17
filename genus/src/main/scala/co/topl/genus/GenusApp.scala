@@ -6,6 +6,7 @@ import akka.actor.typed.scaladsl.Behaviors
 import cats.effect.unsafe.implicits.global
 import cats.effect.{ExitCode, IO, IOApp, Resource}
 import cats.implicits._
+import co.topl.genus.interpreters.MongoChainHeight
 import co.topl.genus.interpreters.mongo._
 import co.topl.genus.interpreters.requesthandlers._
 import co.topl.genus.interpreters.services._
@@ -70,19 +71,23 @@ object GenusApp extends IOApp {
       transactionsCollection = mongoDatabase.getCollection(settings.transactionsCollectionName)
       blocksCollection = mongoDatabase.getCollection(settings.blocksCollectionName)
 
+      chainHeight = MongoChainHeight.make[IO](transactionsCollection)
+
       // set up query services
       transactionsQuery =
         TransactionsQueryService.make[IO](
           MongoQueryImpl.make[IO](
             transactionsCollection
-          )
+          ),
+          chainHeight
         )
 
       blocksQuery =
         BlocksQueryService.make[IO](
           MongoQueryImpl.make[IO](
             blocksCollection
-          )
+          ),
+          chainHeight
         )
 
       // set up subscription services

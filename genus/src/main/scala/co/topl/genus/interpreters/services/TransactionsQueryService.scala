@@ -1,46 +1,38 @@
 package co.topl.genus.interpreters.services
 
 import akka.NotUsed
-import akka.stream.Materializer
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.scaladsl.Source
 import cats.data.EitherT
 import cats.effect.kernel.Async
-import cats.implicits._
-import co.topl.genus.algebras.{MongoQuery, QueryService}
+import co.topl.genus.algebras.{ChainHeight, MongoQuery, QueryService}
 import co.topl.genus.typeclasses.{MongoFilter, MongoSort}
 import co.topl.genus.types.Transaction
 
 object TransactionsQueryService {
 
-  def make[F[_]: Async](
-    queries:               MongoQuery[F]
-  )(implicit materializer: Materializer): QueryService[F, Transaction] = new Impl[F](queries)
+  import QueryService._
 
-  private class Impl[F[_]: Async](queries: MongoQuery[F])(implicit materializer: Materializer)
+  def make[F[_]: Async](
+    queries:     MongoQuery[F],
+    chainHeight: ChainHeight[F]
+  ): QueryService[F, Transaction] = new Impl[F](queries, chainHeight)
+
+  private class Impl[F[_]: Async](queries: MongoQuery[F], chainHeight: ChainHeight[F])
       extends QueryService[F, Transaction] {
 
-    override def asList[Filter: MongoFilter, Sort: MongoSort](
-      request: QueryService.QueryRequest[Filter, Sort]
-    ): EitherT[F, QueryService.QueryFailure, List[Transaction]] =
-      EitherT.right[QueryService.QueryFailure](
-        Async[F]
-          .fromFuture(
-            queries
-              .query(request.filter, request.sort, request.paging)
-              .map(_.mapConcat(documentToTransaction(_).toSeq))
-              .map(_.runWith(Sink.seq[Transaction]))
-          )
-          .map(_.toList)
-      )
-
-    override def asSource[Filter: MongoFilter, Sort: MongoSort](
+    override def query[Filter: MongoFilter, Sort: MongoSort](
       request: QueryService.QueryRequest[Filter, Sort]
     ): EitherT[F, QueryService.QueryFailure, Source[Transaction, NotUsed]] =
-      EitherT.right[QueryService.QueryFailure](
-        queries
-          .query(request.filter, request.sort, request.paging)
-          .map(_.mapConcat(documentToTransaction(_).toSeq))
-      )
+      for {
+        currentHeight <- EitherT.right[QueryFailure](chainHeight.get)
+        transactionDocsSource <- EitherT.right[QueryFailure](
+          queries.query(request.filter, request.sort, request.paging)
+        )
+        transactionsSource =
+          transactionDocsSource
+            .mapConcat(documentToTransaction(_).toSeq)
+            .filter(tx => tx.blockHeight <= (currentHeight.value - request.confirmationDepth))
+      } yield transactionsSource
 
   }
 }

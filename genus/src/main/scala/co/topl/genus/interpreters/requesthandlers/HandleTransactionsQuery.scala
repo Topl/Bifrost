@@ -22,7 +22,7 @@ object HandleTransactionsQuery {
 
       override def query(in: QueryTxsReq): Future[QueryTxsRes] =
         queries
-          .asList(in.toQueryRequest)
+          .queryAsList(in.toQueryRequest)
           .fold(QueryTxsRes.fromQueryFailure, QueryTxsRes.fromTransactions[List])
           .mapFunctor
 
@@ -30,7 +30,7 @@ object HandleTransactionsQuery {
         Source
           .futureSource(
             queries
-              .asSource(in.toQueryRequest)
+              .query(in.toQueryRequest)
               .fold(
                 failure => Source.single(TxsQueryStreamRes.fromQueryFailure(failure)),
                 TxsQueryStreamRes.fromTransactions[Source[*, NotUsed]]
