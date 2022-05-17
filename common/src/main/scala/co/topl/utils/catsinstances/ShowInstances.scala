@@ -1,5 +1,6 @@
 package co.topl.utils.catsinstances
 
+import cats.implicits._
 import cats.Show
 import co.topl.attestation.keyManagement.{PrivateKeyCurve25519, PrivateKeyEd25519}
 import co.topl.attestation._
@@ -9,7 +10,9 @@ import co.topl.crypto.hash.digest.Digest
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
 import co.topl.modifier.box._
+import co.topl.modifier.transaction.builder.{BuildTransferFailure, BuildTransferFailures}
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
+import co.topl.utils.Int128
 import co.topl.utils.StringDataTypes.{
   Base16Data,
   Base58Data,
@@ -118,4 +121,35 @@ trait ShowInstances {
   private def asBase16[T: BinaryShow]: Show[T] = value => Base16.encode(BinaryShow[T].encodeAsBytes(value))
 
   private def asJsonWithSpaces[T: Encoder]: Show[T] = value => Encoder[T].apply(value).spaces2
+
+  implicit val int128Show: Show[Int128] = value => value.bigInt.toString
+
+  implicit val buildTransferFailureShow: Show[BuildTransferFailure] =
+    Show.show(failure =>
+      "Failed to build transfer: " +
+      (failure match {
+        case BuildTransferFailures.EmptyOutputs =>
+          "no outputs provided"
+        case BuildTransferFailures.EmptyPolyInputs =>
+          "no poly inputs provided"
+        case BuildTransferFailures.MultipleAssetCodes(expected, actual) =>
+          show"expected asset code $expected to be provided as inputs and outputs, but received $actual"
+        case BuildTransferFailures.InsufficientArbitFunds(provided, needed) =>
+          show"insufficient arbit funds provided: needed $needed but received $provided"
+        case BuildTransferFailures.InsufficientPolyFunds(provided, needed) =>
+          show"insufficient poly funds provided: needed $needed but received $provided"
+        case BuildTransferFailures.InsufficientAssetFunds(code, provided, needed) =>
+          show"insufficient assets with code $code provided: needed $needed but received $provided"
+        case BuildTransferFailures.DuplicateOutputs =>
+          "duplicate addresses were provided as outputs"
+        case BuildTransferFailures.Int128Overflow(value) =>
+          show"numeric value was too large to fit into an Int-128 value: $value"
+        case BuildTransferFailures.InvalidAddress(address) =>
+          show"address is invalid: $address"
+        case BuildTransferFailures.InvalidShortName(shortName) =>
+          show"asset short name is invalid: $shortName"
+        case BuildTransferFailures.InvalidOutputValues(values) =>
+          show"output values are invalid: $values"
+      })
+    )
 }

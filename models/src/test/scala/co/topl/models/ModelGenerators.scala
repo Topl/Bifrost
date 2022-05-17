@@ -1,7 +1,7 @@
 package co.topl.models
 
-import cats.data.NonEmptyChain
-import co.topl.models.Transaction.{ArbitOutput, AssetOutput, PolyOutput}
+import cats.data.{Chain, NonEmptyChain}
+import co.topl.models.Transaction.{ArbitOutput, AssetOutput, CoinOutput, PolyOutput}
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.StringDataTypes.Latin1Data
@@ -298,10 +298,13 @@ trait ModelGenerators {
   implicit val arbitraryInt128: Arbitrary[Int128] =
     Arbitrary(Gen.long.map(BigInt(_)).map(Sized.maxUnsafe[BigInt, Lengths.`128`.type](_)))
 
+  implicit val arbitraryPositiveInt128: Arbitrary[Int128] =
+    Arbitrary(Gen.posNum[Long].map(Sized.maxUnsafe[BigInt, Lengths.`128`.type](_)))
+
   implicit val arbitraryAssetCode: Arbitrary[Box.Values.Asset.Code] =
     Arbitrary(
       for {
-        version   <- byteGen
+        version   <- Gen.const(1.toByte)
         issuer    <- arbitraryDionAddress.arbitrary
         shortName <- latin1DataGen.map(data => Latin1Data.unsafe(data.value.take(8)))
         code = Box.Values.Asset.Code(version, issuer, Sized.maxUnsafe(shortName))
@@ -311,7 +314,7 @@ trait ModelGenerators {
   implicit val arbitraryAssetBox: Arbitrary[Box.Values.Asset] =
     Arbitrary(
       for {
-        quantity <- arbitraryInt128.arbitrary
+        quantity <- arbitraryPositiveInt128.arbitrary
         code     <- arbitraryAssetCode.arbitrary
         root     <- genSizedStrictBytes[Lengths.`32`.type]().map(_.data)
         metadata <-
@@ -326,12 +329,30 @@ trait ModelGenerators {
 
   implicit val arbitraryPolyOutput: Arbitrary[PolyOutput] =
     Arbitrary(
-      arbitraryDionAddress.arbitrary.flatMap(a => arbitraryInt128.arbitrary.map(v => Transaction.PolyOutput(a, v)))
+      arbitraryDionAddress.arbitrary.flatMap(a =>
+        arbitraryPositiveInt128.arbitrary.map(v => Transaction.PolyOutput(a, v))
+      )
+    )
+
+  implicit val arbitraryPolyOutputs: Arbitrary[NonEmptyChain[PolyOutput]] =
+    Arbitrary(
+      Gen
+        .zip(arbitraryPolyOutput.arbitrary, Gen.listOf(arbitraryPolyOutput.arbitrary))
+        .map(polys => NonEmptyChain.one(polys._1).appendChain(Chain.fromSeq(polys._2)))
     )
 
   implicit val arbitraryArbitOutput: Arbitrary[ArbitOutput] =
     Arbitrary(
-      arbitraryDionAddress.arbitrary.flatMap(a => arbitraryInt128.arbitrary.map(v => Transaction.ArbitOutput(a, v)))
+      arbitraryDionAddress.arbitrary.flatMap(a =>
+        arbitraryPositiveInt128.arbitrary.map(v => Transaction.ArbitOutput(a, v))
+      )
+    )
+
+  implicit val arbitraryArbitOutputs: Arbitrary[NonEmptyChain[ArbitOutput]] =
+    Arbitrary(
+      Gen
+        .zip(arbitraryArbitOutput.arbitrary, Gen.listOf(arbitraryArbitOutput.arbitrary))
+        .map(arbits => NonEmptyChain.one(arbits._1).appendChain(Chain.fromSeq(arbits._2)))
     )
 
   implicit val arbitraryAssetOutput: Arbitrary[AssetOutput] =
@@ -340,6 +361,11 @@ trait ModelGenerators {
         address <- arbitraryDionAddress.arbitrary
         value   <- arbitraryAssetBox.arbitrary
       } yield AssetOutput(address, value)
+    )
+
+  implicit val arbitraryCoinOutput: Arbitrary[CoinOutput] =
+    Arbitrary(
+      Gen.oneOf(arbitraryPolyOutput.arbitrary, arbitraryArbitOutput.arbitrary, arbitraryAssetOutput.arbitrary)
     )
 
   implicit val arbitraryUnprovenTransaction: Arbitrary[Transaction.Unproven] =
