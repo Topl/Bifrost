@@ -38,6 +38,7 @@ dumps/
 local/
 local.conf
 localVersion.sbt
+.scannerwork
 
 # monitoring persistent data files
 monit/data/
