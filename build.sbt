@@ -194,6 +194,10 @@ lazy val bifrost = project
     crossScalaVersions := Nil
   )
   .configs(IntegrationTest)
+  .settings(
+    IntegrationTest / parallelExecution := false,
+    Defaults.itSettings
+  )
   .aggregate(
     node,
     common,
@@ -238,7 +242,8 @@ lazy val node = project
   )
   .configs(IntegrationTest)
   .settings(
-    IntegrationTest / parallelExecution := false
+    IntegrationTest / parallelExecution := false,
+    Defaults.itSettings
   )
   .dependsOn(common % "compile->compile;test->test", toplRpc, tools, genus)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
