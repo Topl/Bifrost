@@ -160,7 +160,7 @@ object LDBFactory extends Logging {
     try Some(loader.loadClass(factoryName).getConstructor().newInstance().asInstanceOf[DBFactory])
     catch {
       case e: Throwable =>
-        log.warn(s"Failed to load database factory $factoryName due to: $e")
+        log.warn(s"Failed to load database factory $factoryName. Classloader is $loader.\nClasspath is ${System.getProperty("java.class.path")}", e)
         None
     }
 }
