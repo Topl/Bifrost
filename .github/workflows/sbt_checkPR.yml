@@ -55,6 +55,7 @@ jobs:
       checks: write
       # only needed unless run with comment_mode: off
       pull-requests: write
+    if: always()
     steps:
       - name: Download Artifacts
         uses: actions/download-artifact@v2
