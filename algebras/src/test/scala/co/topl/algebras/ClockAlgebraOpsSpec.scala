@@ -27,7 +27,7 @@ class ClockAlgebraOpsSpec
       .once()
       .returning(500L.pure[F])
 
-    clock.epochOf(500L) shouldBe 1L
+    clock.epochOf(500L) shouldBe 2L
   }
 
   it should "calculate the epoch boundary" in {
