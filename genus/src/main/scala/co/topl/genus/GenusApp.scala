@@ -13,7 +13,7 @@ import co.topl.genus.interpreters.services._
 import co.topl.genus.programs.GenusProgram
 import co.topl.genus.settings._
 import co.topl.genus.typeclasses.implicits._
-import co.topl.genus.types.BlockHeight
+import co.topl.genus.ops.implicits._
 import co.topl.utils.StringDataTypes.Base58Data
 import com.typesafe.config.ConfigFactory
 import mainargs.ParserForClass
@@ -22,7 +22,6 @@ import org.mongodb.scala.{Document, MongoClient}
 import java.io.File
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
-import scala.util.Try
 
 object GenusApp extends IOApp {
 
@@ -95,7 +94,7 @@ object GenusApp extends IOApp {
           MongoSubscriptionImpl.make[IO](
             settings.subBatchSize,
             settings.subBatchSleepDuration.seconds,
-            heightFromTransactionDocument,
+            _.getTransactionBlockHeight,
             transactionsCollection,
             chainHeight
           )
@@ -106,7 +105,7 @@ object GenusApp extends IOApp {
           MongoSubscriptionImpl.make[IO](
             settings.subBatchSize,
             settings.subBatchSleepDuration.seconds,
-            heightFromBlockDocument,
+            _.getBlockHeight,
             blocksCollection,
             chainHeight
           )
@@ -146,20 +145,4 @@ object GenusApp extends IOApp {
           IO.println(s"Failed to start application: $error").map[ExitCode](_ => ExitCode.Error)
         case Right(success) => success
       }
-
-  val heightFromTransactionDocument: Document => Option[BlockHeight] =
-    document =>
-      document
-        .get("block")
-        .flatMap(value => Try(value.asDocument()).toOption)
-        .flatMap(document => Document(document).get("height"))
-        .flatMap(value => Try(value.asNumber()).toOption)
-        .map(number => BlockHeight(number.longValue()))
-
-  val heightFromBlockDocument: Document => Option[BlockHeight] =
-    document =>
-      document
-        .get("block")
-        .flatMap(value => Try(value.asNumber()).toOption)
-        .map(number => BlockHeight(number.longValue()))
 }
