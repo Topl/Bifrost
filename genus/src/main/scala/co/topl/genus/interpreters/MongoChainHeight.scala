@@ -63,7 +63,9 @@ object MongoChainHeight {
             .toSeq
         )
         // track the latest value seen
-        .toMat(TrackLatestFlow.create[BlockHeight].to(Sink.ignore))(Keep.right)
+        .viaMat(TrackLatestFlow.create[BlockHeight])(Keep.right)
+        // ignore value after tracked
+        .toMat(Sink.ignore)(Keep.left)
         .run()
 
     override def get: F[BlockHeight] = Async[F].fromFuture(Async[F].delay(getHeight()))

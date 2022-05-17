@@ -7,6 +7,7 @@ package object ops {
       with FunctionKOps.ToFunctionKOps
       with protobufops.Implicits
       with QueryServiceOps.ToOps
+      with SourceCompanionOps.ToOps
 
   object implicits extends Implicits
 }

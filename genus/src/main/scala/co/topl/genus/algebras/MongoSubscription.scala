@@ -20,5 +20,9 @@ trait MongoSubscription[F[_]] {
    * @tparam Sort the type of sorting options with an instance of [[MongoSort]]
    * @return a [[Source]] of [[Document]] values wrapped in an effect-ful context
    */
-  def create[Filter: MongoFilter, Sort: MongoSort](filter: Filter, sort: Sort): F[Source[Document, NotUsed]]
+  def create[Filter: MongoFilter, Sort: MongoSort](
+    filter:            Filter,
+    sort:              Sort,
+    confirmationDepth: Int
+  ): F[Source[Document, NotUsed]]
 }

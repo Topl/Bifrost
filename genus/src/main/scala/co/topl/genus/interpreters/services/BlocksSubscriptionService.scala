@@ -21,7 +21,11 @@ object BlocksSubscriptionService {
         MonadThrow[F]
           // catch a possible failure with creating the subscription
           .attemptT(
-            subscriptions.create(request.filter, BlockSorting(BlockSorting.SortBy.Height(BlockSorting.Height())))
+            subscriptions.create(
+              request.filter,
+              BlockSorting(BlockSorting.SortBy.Height(BlockSorting.Height())),
+              request.confirmationDepth
+            )
           )
           .leftMap[SubscriptionService.CreateSubscriptionFailure](failure =>
             SubscriptionService.CreateSubscriptionFailures.DataConnectionFailure(failure.getMessage)
