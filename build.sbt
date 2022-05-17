@@ -45,7 +45,7 @@ lazy val commonSettings = Seq(
   Test / parallelExecution := false,
   Test / logBuffered := false,
   classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
-  Test / fork := false,
+  Test / fork := true,
   Compile / run / fork := true,
   resolvers ++= Seq(
     "Typesafe Repository" at "https://repo.typesafe.com/typesafe/releases/",
