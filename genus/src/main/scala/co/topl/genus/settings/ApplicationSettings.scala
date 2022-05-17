@@ -19,6 +19,8 @@ final case class ApplicationSettings(
   blocksCollectionName:       String,
   ip:                         String,
   port:                       Int,
+  disableAuth:                Boolean,
+  apiKeyHash:                 String,
   queryTimeout:               Int,
   subBatchSize:               Int,
   subBatchSleepDuration:      Int
@@ -40,6 +42,8 @@ object ApplicationSettings {
       options.blocksCollectionName.getOrElse(settings.blocksCollectionName),
       options.ip.getOrElse(settings.ip),
       options.port.getOrElse(settings.port),
+      options.disableAuth.getOrElse(settings.disableAuth),
+      options.apiKeyHash.getOrElse(settings.apiKeyHash),
       options.queryTimeout.getOrElse(settings.queryTimeout),
       options.subBatchSize.getOrElse(settings.subBatchSize),
       options.subBatchSleepDuration.getOrElse(settings.subBatchSleepDuration)

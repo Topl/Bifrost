@@ -100,26 +100,6 @@ class BuildUnsignedPolyTransferSpec
     }
   }
 
-  it should "return invalid if duplicate input boxes" in {
-    forAll(polyBoxGen, addressGen, addressGen) { (box, sender, recipient) =>
-      val boxReader = MockBoxReader.fromSeq(sender -> List(box, box))
-
-      val request = TransferRequests.PolyTransferRequest(
-        List(sender),
-        List(recipient -> 100),
-        sender,
-        0,
-        None
-      )
-
-      val result =
-        TransferBuilder
-          .buildUnsignedPolyTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
-
-      result.left.value shouldBe BuildTransferFailures.DuplicateInputs
-    }
-  }
-
   it should "return invalid if no recipients" in {
     forAll(polyBoxesGen, addressGen) { (polyBoxes, sender) =>
       val boxReader = MockBoxReader.fromNec(sender -> polyBoxes)

@@ -14,27 +14,27 @@ class BoxSetOps(private val value: BoxSet) extends AnyVal {
 
   import BoxSetOps._
 
-  def toBoxReferences: Either[BoxSetOps.ToBoxReferencesFailure, List[BoxReference]] =
+  def toBoxReferences: Either[BoxSetOps.ToBoxReferencesFailure, Set[BoxReference]] =
     for {
       polyReferences <-
-        value.polys.traverse[Either[BoxSetOps.ToBoxReferencesFailure, *], (DionAddress, Box.Nonce)](poly =>
+        value.polys.toList.traverse[Either[BoxSetOps.ToBoxReferencesFailure, *], (DionAddress, Box.Nonce)](poly =>
           poly._1.toDionAddress
             .map(addr => addr -> poly._2.nonce)
             .leftMap(_ => ToBoxReferencesFailures.InvalidAddress(poly._1): ToBoxReferencesFailure)
         )
       arbitReferences <-
-        value.arbits.traverse[Either[BoxSetOps.ToBoxReferencesFailure, *], (DionAddress, Box.Nonce)](arbit =>
+        value.arbits.toList.traverse[Either[BoxSetOps.ToBoxReferencesFailure, *], (DionAddress, Box.Nonce)](arbit =>
           arbit._1.toDionAddress
             .map(addr => addr -> arbit._2.nonce)
             .leftMap(_ => ToBoxReferencesFailures.InvalidAddress(arbit._1): ToBoxReferencesFailure)
         )
       assetReferences <-
-        value.assets.traverse[Either[BoxSetOps.ToBoxReferencesFailure, *], (DionAddress, Box.Nonce)](asset =>
+        value.assets.toList.traverse[Either[BoxSetOps.ToBoxReferencesFailure, *], (DionAddress, Box.Nonce)](asset =>
           asset._1.toDionAddress
             .map(addr => addr -> asset._2.nonce)
             .leftMap(_ => ToBoxReferencesFailures.InvalidAddress(asset._1): ToBoxReferencesFailure)
         )
-    } yield polyReferences ++ arbitReferences ++ assetReferences
+    } yield polyReferences.toSet ++ arbitReferences.toSet ++ assetReferences.toSet
 
   def polySum: Int128 = value.polys.map(_._2.value.quantity).sum
 
@@ -46,11 +46,11 @@ class BoxSetOps(private val value: BoxSet) extends AnyVal {
       .map(value => value.assetCode -> value.quantity)
       .toMap
 
-  def polyNonces: List[Box.Nonce] = value.polys.map(_._2.nonce)
+  def polyNonces: Set[Box.Nonce] = value.polys.map(_._2.nonce)
 
-  def arbitNonces: List[Box.Nonce] = value.arbits.map(_._2.nonce)
+  def arbitNonces: Set[Box.Nonce] = value.arbits.map(_._2.nonce)
 
-  def assetNonces: List[Box.Nonce] = value.assets.map(_._2.nonce)
+  def assetNonces: Set[Box.Nonce] = value.assets.map(_._2.nonce)
 }
 
 object BoxSetOps {
