@@ -40,9 +40,15 @@ jobs:
       - name: Compile and Test
         run: sbt checkPR
 
-      - name: Upload Test Results
-        if: always()
-        uses: actions/upload-artifact@v3
+      - uses: dorny/test-reporter@v1
         with:
-          name: test-results
-          path: target/test-reports/*.xml
+          name: Java Tests                  # Name of the check run which will be created
+          path: target/test-reports/*.xml                    # Path to test results (inside artifact .zip)
+          reporter: java-junit              # Format of test results
+
+      # - name: Upload Test Results
+      #   if: always()
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: test-results
+      #     path: target/test-reports/*.xml
