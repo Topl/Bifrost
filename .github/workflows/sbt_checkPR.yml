@@ -40,7 +40,9 @@ jobs:
       - name: Compile and Test
         run: sbt checkPR
 
-      - uses: dorny/test-reporter@v1
+      - name: Publish Test Report
+        uses: dorny/test-reporter@v1
+        if: success() || failure()
         with:
           name: Java Tests                  # Name of the check run which will be created
           path: target/test-reports/*.xml                    # Path to test results (inside artifact .zip)
