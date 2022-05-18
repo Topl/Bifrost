@@ -80,15 +80,15 @@ object EligibilitySimulator extends IOApp.Simple {
     val (kesKey, _) =
       kesProduct.createKeyPair(seed = Bytes(Random.nextBytes(32)), height = KesKeyHeight, 0)
 
-    val stakerRegistration: Box.Values.Registrations.Pool =
-      Box.Values.Registrations.Pool(
+    val stakerRegistration: Box.Values.Registrations.Operator =
+      Box.Values.Registrations.Operator(
         vrfCommitment = kesProduct.sign(
           kesKey,
           new Blake2b256().hash(ed25519Vrf.getVerificationKey(stakerVrfKey).immutableBytes, poolVK.bytes.data).data
         )
       )
 
-    Staker(RelativeStake, stakerVrfKey, kesKey, stakerRegistration, StakingAddresses.Pool(poolVK))
+    Staker(RelativeStake, stakerVrfKey, kesKey, stakerRegistration, StakingAddresses.Operator(poolVK))
   }
 
   private val genesis =
@@ -281,6 +281,6 @@ private case class Staker(
   relativeStake: Ratio,
   vrfKey:        SecretKeys.VrfEd25519,
   kesKey:        SecretKeys.KesProduct,
-  registration:  Box.Values.Registrations.Pool,
-  address:       StakingAddresses.Pool
+  registration:  Box.Values.Registrations.Operator,
+  address:       StakingAddresses.Operator
 )

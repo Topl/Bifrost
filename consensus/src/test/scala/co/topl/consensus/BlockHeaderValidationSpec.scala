@@ -321,7 +321,7 @@ class BlockHeaderValidationSpec
           .unsafeRunSync()
 
       (registrationInterpreter
-        .registrationOf(_: SlotId, _: StakingAddresses.Pool))
+        .registrationOf(_: SlotId, _: StakingAddresses.Operator))
         .expects(*, *)
         .once()
         .returning(registration.some.pure[F])
@@ -394,7 +394,7 @@ class BlockHeaderValidationSpec
           .unsafeRunSync()
 
       (registrationInterpreter
-        .registrationOf(_: SlotId, _: StakingAddresses.Pool))
+        .registrationOf(_: SlotId, _: StakingAddresses.Operator))
         .expects(*, *)
         .once()
         .returning(registration.some.pure[F])
@@ -473,7 +473,7 @@ class BlockHeaderValidationSpec
           .unsafeRunSync()
 
       (registrationInterpreter
-        .registrationOf(_: SlotId, _: StakingAddresses.Pool))
+        .registrationOf(_: SlotId, _: StakingAddresses.Operator))
         .expects(*, *)
         .once()
         .returning(registration.some.pure[F])
@@ -579,7 +579,7 @@ class BlockHeaderValidationSpec
 
   private def genValid(
     preSign: BlockHeaderV2.Unsigned => BlockHeaderV2.Unsigned = identity
-  ): Gen[(BlockHeaderV2, BlockHeaderV2, Box.Values.Registrations.Pool, Eta, Ratio)] =
+  ): Gen[(BlockHeaderV2, BlockHeaderV2, Box.Values.Registrations.Operator, Eta, Ratio)] =
     for {
       parent <- headerGen(slotGen = Gen.const[Long](5000))
       (txRoot, bloomFilter, eta) <- genSizedStrictBytes[Lengths.`32`.type]().flatMap(txRoot =>
@@ -659,15 +659,15 @@ object BlockHeaderValidationSpec {
     vkVrf:               VerificationKeys.VrfEd25519,
     poolVK:              VerificationKeys.Ed25519,
     skKes:               SecretKeys.KesProduct
-  )(implicit kesProduct: KesProduct): Box.Values.Registrations.Pool = {
+  )(implicit kesProduct: KesProduct): Box.Values.Registrations.Operator = {
     val commitmentMessage = Bytes(blake2b256.hash((vkVrf.bytes.data ++ poolVK.bytes.data).toArray).value)
-    Box.Values.Registrations.Pool(kesProduct.sign(skKes, commitmentMessage))
+    Box.Values.Registrations.Operator(kesProduct.sign(skKes, commitmentMessage))
   }
 
   def validAddress(paymentSK: SecretKeys.Ed25519, poolVK: VerificationKeys.Ed25519)(implicit
     ed25519:                  Ed25519
-  ): StakingAddresses.Pool = {
+  ): StakingAddresses.Operator = {
     val paymentVerificationKey = ed25519.getVerificationKey(paymentSK)
-    StakingAddresses.Pool(poolVK)
+    StakingAddresses.Operator(poolVK)
   }
 }

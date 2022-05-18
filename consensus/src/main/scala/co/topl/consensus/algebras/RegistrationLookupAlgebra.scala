@@ -10,6 +10,6 @@ trait RegistrationLookupAlgebra[F[_]] {
    * @param address The address to lookup
    * @return An optional registration, if the address was registered
    */
-  def registrationOf(slotId: SlotId, address: StakingAddresses.Pool): F[Option[Box.Values.Registrations.Pool]]
+  def registrationOf(slotId: SlotId, address: StakingAddresses.Operator): F[Option[Box.Values.Registrations.Operator]]
 
 }

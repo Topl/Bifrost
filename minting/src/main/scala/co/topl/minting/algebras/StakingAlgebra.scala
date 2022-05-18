@@ -9,7 +9,7 @@ import co.topl.models._
  */
 trait StakingAlgebra[F[_]] {
 
-  def address: F[StakingAddresses.Pool]
+  def address: F[StakingAddresses.Operator]
 
   def elect(parent: BlockHeaderV2, slot: Slot): F[Option[VrfHit]]
 

@@ -19,7 +19,7 @@ object Staking {
   object Eval {
 
     def make[F[_]: Monad: Logger](
-      a:                      StakingAddresses.Pool,
+      a:                      StakingAddresses.Operator,
       leaderElection:         LeaderElectionMintingAlgebra[F],
       evolver:                OperationalKeysAlgebra[F],
       vrfRelativeStakeLookup: VrfRelativeStakeMintingLookupAlgebra[F],
@@ -28,7 +28,7 @@ object Staking {
       vrfProof:               VrfProofAlgebra[F],
       clock:                  ClockAlgebra[F]
     ): StakingAlgebra[F] = new StakingAlgebra[F] {
-      val address: F[StakingAddresses.Pool] = a.pure[F]
+      val address: F[StakingAddresses.Operator] = a.pure[F]
 
       def elect(parent: BlockHeaderV2, slot: Slot): F[Option[VrfHit]] =
         for {

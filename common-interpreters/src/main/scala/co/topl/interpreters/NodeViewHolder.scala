@@ -12,14 +12,14 @@ object NodeViewHolder {
 
     def make[F[_]: Applicative](
       relativeStakes: Map[StakingAddress, Ratio],
-      registrations:  Map[StakingAddress, Box.Values.Registrations.Pool]
+      registrations:  Map[StakingAddress, Box.Values.Registrations.Operator]
     ): F[ConsensusStateReader[F]] =
       (new ConsensusStateReader[F] {
 
         def lookupRelativeStake(epoch: Epoch)(address: StakingAddress): F[Option[Ratio]] =
           relativeStakes.get(address).pure[F]
 
-        def lookupRegistration(epoch: Epoch)(address: StakingAddress): F[Option[Box.Values.Registrations.Pool]] =
+        def lookupRegistration(epoch: Epoch)(address: StakingAddress): F[Option[Box.Values.Registrations.Operator]] =
           registrations.get(address).pure[F]
       }).pure[F]
 

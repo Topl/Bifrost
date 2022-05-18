@@ -360,31 +360,31 @@ trait ModelsJsonCodecs {
   implicit val assetBoxValueDecoder: Decoder[Box.Values.Asset] =
     deriveDecoder
 
-  implicit val baseRegistrationBoxValueEncoder: Encoder[Box.Values.Registrations.Pool] =
+  implicit val baseRegistrationBoxValueEncoder: Encoder[Box.Values.Registrations.Operator] =
     t => Json.obj("vrfCommitment" -> t.vrfCommitment.immutableBytes.asJson)
 
-  implicit val taktikosRegistrationBoxValueDecoder: Decoder[Box.Values.Registrations.Pool] =
+  implicit val taktikosRegistrationBoxValueDecoder: Decoder[Box.Values.Registrations.Operator] =
     h =>
       h.downField("vrfCommitment")
         .as[Bytes]
         .flatMap(_.decodeImmutable[Proofs.Knowledge.KesProduct].leftMap(e => DecodingFailure(e, Nil)))
-        .map(Box.Values.Registrations.Pool)
+        .map(Box.Values.Registrations.Operator)
 
   def boxValueTypeName(value: Box.Value): String =
     value match {
-      case Box.Values.Empty                 => "Empty"
-      case _: Box.Values.Poly               => "Poly"
-      case _: Box.Values.Arbit              => "Arbit"
-      case _: Box.Values.Asset              => "Asset"
-      case _: Box.Values.Registrations.Pool => "Registration.Pool"
+      case Box.Values.Empty                     => "Empty"
+      case _: Box.Values.Poly                   => "Poly"
+      case _: Box.Values.Arbit                  => "Arbit"
+      case _: Box.Values.Asset                  => "Asset"
+      case _: Box.Values.Registrations.Operator => "Registration.Pool"
     }
 
   implicit val boxValueEncoder: Encoder[Box.Value] = {
-    case Box.Values.Empty                 => Json.Null
-    case v: Box.Values.Poly               => v.asJson
-    case v: Box.Values.Arbit              => v.asJson
-    case v: Box.Values.Asset              => v.asJson
-    case v: Box.Values.Registrations.Pool => v.asJson
+    case Box.Values.Empty                     => Json.Null
+    case v: Box.Values.Poly                   => v.asJson
+    case v: Box.Values.Arbit                  => v.asJson
+    case v: Box.Values.Asset                  => v.asJson
+    case v: Box.Values.Registrations.Operator => v.asJson
   }
 
   implicit val boxEncoder: Encoder[Box] =
@@ -419,7 +419,7 @@ trait ModelsJsonCodecs {
           case "Poly"              => valueJson.as[Box.Values.Poly]
           case "Arbit"             => valueJson.as[Box.Values.Arbit]
           case "Asset"             => valueJson.as[Box.Values.Asset]
-          case "Registration.Pool" => valueJson.as[Box.Values.Registrations.Pool]
+          case "Registration.Pool" => valueJson.as[Box.Values.Registrations.Operator]
         }
       } yield Transaction.Input(transactionId, transactionOutputIndex, proposition, proof, value)
 
@@ -445,7 +445,7 @@ trait ModelsJsonCodecs {
           case "Poly"              => valueJson.as[Box.Values.Poly]
           case "Arbit"             => valueJson.as[Box.Values.Arbit]
           case "Asset"             => valueJson.as[Box.Values.Asset]
-          case "Registration.Pool" => valueJson.as[Box.Values.Registrations.Pool]
+          case "Registration.Pool" => valueJson.as[Box.Values.Registrations.Operator]
         }
       } yield Transaction.Unproven.Input(transactionId, transactionOutputIndex, proposition, value)
 
@@ -473,7 +473,7 @@ trait ModelsJsonCodecs {
           case "Asset" =>
             valueJson.as[Box.Values.Asset].map(value => Transaction.Output(address, value, minting))
           case "Registration.Pool" =>
-            valueJson.as[Box.Values.Registrations.Pool].map(value => Transaction.Output(address, value, minting))
+            valueJson.as[Box.Values.Registrations.Operator].map(value => Transaction.Output(address, value, minting))
           case _ =>
             DecodingFailure("invalid output type", List(CursorOp.Field("valueType"))).asLeft
         }

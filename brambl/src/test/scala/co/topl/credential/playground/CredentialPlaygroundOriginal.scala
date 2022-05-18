@@ -48,7 +48,7 @@ object CredentialPlaygroundOriginal extends App {
   // Example:
 
   val stakingAddress: StakingAddress =
-    StakingAddresses.Pool(ed25519.getVerificationKey(KeyInitializer[SecretKeys.Ed25519].random()))
+    StakingAddresses.Operator(ed25519.getVerificationKey(KeyInitializer[SecretKeys.Ed25519].random()))
 
   val offlineWalletSK =
     KeyInitializer[SecretKeys.Ed25519].random()

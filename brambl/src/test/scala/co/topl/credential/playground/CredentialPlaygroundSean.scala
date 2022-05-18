@@ -28,7 +28,7 @@ object CredentialPlaygroundSean extends App {
   implicit val networkPrefix: NetworkPrefix = NetworkPrefix(1: Byte)
 
   val stakingAddress: StakingAddress =
-    StakingAddresses.Pool(ed25519.getVerificationKey(KeyInitializer[SecretKeys.Ed25519].random()))
+    StakingAddresses.Operator(ed25519.getVerificationKey(KeyInitializer[SecretKeys.Ed25519].random()))
 
   val offlineWalletSK =
     KeyInitializer[SecretKeys.Ed25519].random()

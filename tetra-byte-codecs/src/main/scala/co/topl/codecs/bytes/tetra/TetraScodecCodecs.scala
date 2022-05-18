@@ -169,8 +169,8 @@ trait TetraScodecVerificationKeyCodecs {
 trait TetraScodecAddressCodecs {
   self: TetraScodecPrimitiveCodecs with TetraScodecVerificationKeyCodecs =>
 
-  implicit val stakingAddressesPoolCodec: Codec[StakingAddresses.Pool] =
-    vkEd25519Codec.as[StakingAddresses.Pool]
+  implicit val stakingAddressesPoolCodec: Codec[StakingAddresses.Operator] =
+    vkEd25519Codec.as[StakingAddresses.Operator]
 
   implicit val stakingAddressCodec: Codec[StakingAddress] =
     discriminated[StakingAddress]
@@ -227,8 +227,8 @@ trait TetraScodecBoxCodecs {
       Sized.Max[Latin1Data, Lengths.`127`.type]
     ]]).as[Box.Values.Asset]
 
-  implicit val boxValuesPoolRegistrationCodec: Codec[Box.Values.Registrations.Pool] =
-    Codec[Proofs.Knowledge.KesProduct].as[Box.Values.Registrations.Pool]
+  implicit val boxValuesPoolRegistrationCodec: Codec[Box.Values.Registrations.Operator] =
+    Codec[Proofs.Knowledge.KesProduct].as[Box.Values.Registrations.Operator]
 
   implicit val boxValueCode: Codec[Box.Value] =
     discriminated[Box.Value]

@@ -35,7 +35,7 @@ object Box {
        *                      signer: the operational key (KES parentSK at timestep=0)
        *                      message: Hash(vrfVK | poolVK)
        */
-      case class Pool(vrfCommitment: Proofs.Knowledge.KesProduct) extends Registration
+      case class Operator(vrfCommitment: Proofs.Knowledge.KesProduct) extends Registration
 
       /**
        * Represents the registration of someone intending to delegate their stake to a stake pool operator.  Owners

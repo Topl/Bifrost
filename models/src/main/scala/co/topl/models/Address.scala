@@ -12,7 +12,7 @@ case class SpendingAddress(typedEvidence: TypedEvidence)
 sealed abstract class StakingAddress
 
 object StakingAddresses {
-  case class Pool(vk: VerificationKeys.Ed25519) extends StakingAddress
+  case class Operator(vk: VerificationKeys.Ed25519) extends StakingAddress
   // TODO
 //  case class Delegating(vk: VerificationKeys.Ed25519) extends StakingAddress
 //  case object NonStaking extends StakingAddress

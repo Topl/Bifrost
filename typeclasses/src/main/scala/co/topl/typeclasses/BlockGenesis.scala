@@ -48,7 +48,7 @@ object BlockGenesis {
   )
 
   def apply(transactions: Seq[Transaction]): Eval[BlockV2] = Eval.later {
-    val address = StakingAddresses.Pool(
+    val address = StakingAddresses.Operator(
       VerificationKeys.Ed25519(zeroBytes(Lengths.`32`))
     )
 

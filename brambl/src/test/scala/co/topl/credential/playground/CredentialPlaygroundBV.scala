@@ -44,7 +44,7 @@ object CredentialPlaygroundBV extends App {
   // Exercise: Construct complex propositions and attempt to prove them using Credentials
 
   val stakingAddress: StakingAddress =
-    StakingAddresses.Pool(ed25519.getVerificationKey(KeyInitializer[SecretKeys.Ed25519].random()))
+    StakingAddresses.Operator(ed25519.getVerificationKey(KeyInitializer[SecretKeys.Ed25519].random()))
 
   val offlineWalletSK =
     KeyInitializer[SecretKeys.Ed25519].random()
