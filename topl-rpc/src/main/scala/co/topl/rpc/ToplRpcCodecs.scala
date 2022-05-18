@@ -5,6 +5,7 @@ import co.topl.attestation.{Address, Proposition}
 import co.topl.codecs._
 import co.topl.codecs.json.JsonCodecs
 import co.topl.codecs.json.tetra.ModelsJsonCodecs
+import co.topl.models.{DionAddress, Int128 => TetraInt128, Transaction => TetraTransaction, TransactionData}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithm, BoxSelectionAlgorithms}
@@ -44,7 +45,7 @@ trait DebugRpcParamsEncoders {
   implicit val debugIdsFromHeightParamsEncoder: Encoder[ToplRpc.Debug.IdsFromHeight.Params] =
     deriveEncoder
 
-  implicit val debugExportGenesisAndKeysParamsEncoder: Encoder[ToplRpc.Debug.ExportGenesisAndKeys.Params] =
+  implicit val debugExportGenesisBlobParamsEncoder: Encoder[ToplRpc.Debug.ExportGenesisBlob.Params] =
     deriveEncoder
 }
 
@@ -181,7 +182,7 @@ trait DebugRpcResponseDecoders {
   implicit val debugIdsFromHeightResponseDecoder: Decoder[ToplRpc.Debug.IdsFromHeight.Response] =
     Decoder.decodeList
 
-  implicit val debugExportGenesisAndKeysResponseDecoder: Decoder[ToplRpc.Debug.Delay.Response] =
+  implicit val debugExportGenesisBlobResponseDecoder: Decoder[ToplRpc.Debug.Delay.Response] =
     deriveDecoder
 }
 
@@ -363,7 +364,7 @@ trait DebugRpcParamsDecoders extends SharedCodecs {
   implicit val debugIdsFromHeightParamsDecoder: Decoder[ToplRpc.Debug.IdsFromHeight.Params] =
     deriveDecoder
 
-  implicit val debugExportGenesisAndKeysParamsDecoder: Decoder[ToplRpc.Debug.ExportGenesisAndKeys.Params] =
+  implicit val debugExportGenesisBlobParamsDecoder: Decoder[ToplRpc.Debug.ExportGenesisBlob.Params] =
     deriveDecoder
 }
 
@@ -583,7 +584,7 @@ trait DebugRpcResponseEncoders extends SharedCodecs {
   implicit val debugIdsFromHeightResponseEncoder: Encoder[ToplRpc.Debug.IdsFromHeight.Response] =
     Encoder.encodeList
 
-  implicit val debugExportGenesisAndKeysResponseEncoder: Encoder[ToplRpc.Debug.ExportGenesisAndKeys.Response] =
+  implicit val debugExportGenesisBlobResponseEncoder: Encoder[ToplRpc.Debug.ExportGenesisBlob.Response] =
     deriveEncoder
 
 }

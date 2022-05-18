@@ -2,12 +2,10 @@ package co.topl.rpc
 
 import cats.data.NonEmptyChain
 import co.topl.akkahttprpc.Rpc
-import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 import co.topl.attestation.{Address, Proposition}
-import co.topl.codecs.binary.scodecs.genesisAndKeys.GenesisAndKeys
 import co.topl.models.{DionAddress, Int128 => TetraInt128, Transaction => TetraTransaction, TransactionData}
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.Block
+import co.topl.modifier.block.{Block, GenesisBlob}
 import co.topl.modifier.box.AssetCode.AssetCodeVersion
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TX
@@ -70,14 +68,14 @@ object ToplRpc {
       type Response = List[ModifierId]
     }
 
-    object ExportGenesisAndKeys {
+    object ExportGenesisBlob {
 
       /**
        * Export the genesis block and open keys as Json files on disk
        */
-      val rpc: Rpc[Params, Response] = Rpc("debug_exportGenesisAndKeys")
+      val rpc: Rpc[Params, Response] = Rpc("debug_exportGenesisBlob")
       case class Params()
-      case class Response(genesis: Block, keys: Seq[PrivateKeyCurve25519])
+      case class Response(genesisBlob: GenesisBlob)
     }
   }
 

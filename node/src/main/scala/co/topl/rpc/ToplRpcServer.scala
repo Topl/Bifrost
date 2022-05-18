@@ -23,7 +23,7 @@ class ToplRpcServer(handlers: ToplRpcHandlers, appContext: AppContext)(implicit
         .append(ToplRpc.Debug.MyBlocks.rpc)(handlers.debug.myBlocks)
         .append(ToplRpc.Debug.Generators.rpc)(handlers.debug.generators)
         .append(ToplRpc.Debug.IdsFromHeight.rpc)(handlers.debug.idsFromHeight)
-        .append(ToplRpc.Debug.ExportGenesisAndKeys.rpc)(handlers.debug.exportGenesisAndKeys)
+        .append(ToplRpc.Debug.ExportGenesisBlob.rpc)(handlers.debug.exportGenesisBlob)
     } else RpcServer.Builder.empty
 
   val utilRoutes: RpcServer.Builder =

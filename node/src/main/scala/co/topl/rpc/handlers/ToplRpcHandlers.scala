@@ -17,7 +17,7 @@ object ToplRpcHandlers {
     def myBlocks: ToplRpc.Debug.MyBlocks.rpc.ServerHandler
     def generators: ToplRpc.Debug.Generators.rpc.ServerHandler
     def idsFromHeight: ToplRpc.Debug.IdsFromHeight.rpc.ServerHandler
-    def exportGenesisAndKeys: ToplRpc.Debug.ExportGenesisAndKeys.rpc.ServerHandler
+    def exportGenesisBlob: ToplRpc.Debug.ExportGenesisBlob.rpc.ServerHandler
   }
 
   trait Utils {
