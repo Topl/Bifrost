@@ -236,7 +236,7 @@ lazy val node = project
   .settings(
     IntegrationTest / parallelExecution := false
   )
-  .dependsOn(common % "compile->compile;test->test", toplRpc, tools, genus)
+  .dependsOn(common % "compile->compile;test->test", toplRpc, tools, genus, jsonCodecs)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
 lazy val common = project
@@ -376,9 +376,9 @@ lazy val jsonCodecs = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.codecs.json"
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.circe)
+  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.circe ++ Dependencies.scodec)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models)
+  .dependsOn(models, crypto, byteCodecs)
 
 lazy val typeclasses: Project = project
   .in(file("typeclasses"))

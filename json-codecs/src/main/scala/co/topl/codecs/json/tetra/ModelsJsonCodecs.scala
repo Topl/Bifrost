@@ -2,7 +2,8 @@ package co.topl.codecs.json.tetra
 
 import cats.data.{NonEmptyChain, NonEmptyList}
 import cats.implicits._
-import co.topl.models.Propositions.Contextual.HeightLock
+import co.topl.codecs.bytes.scodecs.valuetypes.{byteCodec, bytesCodec, tupleCodec}
+import co.topl.crypto.hash.blake2b256
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.StringDataTypes.Latin1Data
@@ -10,6 +11,9 @@ import co.topl.models.utility.{HasLength, Length, Lengths, Sized}
 import io.circe._
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.syntax.EncoderOps
+import scodec.bits.ByteVector
+import scodec.{Codec => ScodecCodec}
+import shapeless.{::, HNil}
 
 import scala.collection.immutable.{ListMap, ListSet}
 
@@ -62,28 +66,42 @@ trait ModelsJsonCodecs {
   implicit val networkPrefixDecoder: Decoder[NetworkPrefix] = Decoder[Byte].map(byte => NetworkPrefix(byte))
 
   implicit val dionAddressEncoder: Encoder[DionAddress] =
-    t => t.allBytes.toBase58.asJson
+    address => dionAddressWithChecksum(address).toBase58.asJson
+
+  private val sizedStrictBytes4BytesCodec: ScodecCodec[Sized.Strict[Bytes, Lengths.`4`.type]] =
+    bytesCodec(4)
+      .xmap[Sized.Strict[Bytes, Lengths.`4`.type]](
+        bytes => Sized.strictUnsafe(ByteVector(bytes)),
+        sizedBytes => sizedBytes.data.toArray
+      )
+
+  private val dionAddressBytesCodec: ScodecCodec[DionAddress] =
+    (byteCodec :: byteCodec :: bytesCodec(32))
+      .xmapc[DionAddress] { case netPrefix :: evidenceTypePrefix :: evidenceBytes :: HNil =>
+        DionAddress(
+          NetworkPrefix(netPrefix),
+          TypedEvidence(evidenceTypePrefix, Sized.strictUnsafe(ByteVector(evidenceBytes)))
+        )
+      }(dionAddress =>
+        dionAddress.networkPrefix.value :: dionAddress.typedEvidence.typePrefix :: dionAddress.typedEvidence.evidence.data.toArray :: HNil
+      )
 
   implicit val dionAddressDecoder: Decoder[DionAddress] =
-    for {
-      string <- Decoder[String]
-      bytes <-
-        Bytes
-          .fromBase58(string)
-          .fold(Decoder.failedWithMessage[Bytes]("address is an invalid base-58 string"))(Decoder.const)
-      networkPrefix <-
-        bytes.headOption
-          .fold(Decoder.failedWithMessage[NetworkPrefix]("address length is too short"))(byte =>
-            Decoder.const(NetworkPrefix(byte))
-          )
-      evidenceTypePrefix <-
-        bytes.tail.headOption
-          .fold(Decoder.failedWithMessage[TypePrefix]("address length is too short"))(byte => Decoder.const(byte))
-      evidence <-
-        Sized
-          .strict[Bytes, Lengths.`32`.type](bytes.tail.tail)
-          .fold(error => Decoder.failedWithMessage(error.toString), evidence => Decoder.const(evidence))
-    } yield DionAddress(networkPrefix, TypedEvidence(evidenceTypePrefix, evidence))
+    cursor =>
+      for {
+        addressString <- cursor.as[String]
+        bytes <-
+          Bytes
+            .fromBase58(addressString)
+            .toRight(DecodingFailure("address is an invalid base-58 string", Nil))
+        (address, checksum) <-
+          tupleCodec(dionAddressBytesCodec, sizedStrictBytes4BytesCodec)
+            .decode(bytes.toBitVector)
+            .toEither
+            .map(_.value)
+            .leftMap(failure => DecodingFailure(s"failed to decode bytes: $failure", Nil))
+        _ <- Either.cond(isValidChecksum(address, checksum), (), DecodingFailure("invalid checksum", Nil))
+      } yield address
 
   implicit val verificationKeysCurve25519Encoder: Encoder[VerificationKeys.Curve25519] =
     t => t.bytes.data.toBase58.asJson
@@ -453,4 +471,12 @@ trait ModelsJsonCodecs {
 
   implicit val unprovenTransactionJsonDecoder: Decoder[Transaction.Unproven] = deriveDecoder
 
+  private def dionAddressWithChecksum(address: DionAddress): Bytes =
+    address.allBytes ++ getAddressChecksum(address)
+
+  private def isValidChecksum(address: DionAddress, checksum: Sized.Strict[Bytes, Lengths.`4`.type]): Boolean =
+    checksum.data === getAddressChecksum(address)
+
+  private def getAddressChecksum(address: DionAddress): Bytes =
+    Bytes(blake2b256.hash(address.allBytes.toArray).value.take(4))
 }
