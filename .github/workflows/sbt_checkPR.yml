@@ -42,9 +42,9 @@ jobs:
 
       - name: Upload Test Results
         if: always()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
-          name: test-results
+          name: test-results-${{ matrix.os }}-${{ matrix.java }}
           path: target/test-reports/*.xml
 
   publish-test-results:
@@ -56,12 +56,6 @@ jobs:
       # only needed unless run with comment_mode: off
       pull-requests: write
     if: always()
-    steps:
-      - name: Download Artifacts
-        uses: actions/download-artifact@v2
-        with:
-          path: artifacts
-
       # - name: Publish Test Results
       #   uses: EnricoMi/publish-unit-test-result-action@v1.35
       #   with:
@@ -70,7 +64,7 @@ jobs:
 
       - uses: dorny/test-reporter@v1
         with:
-          artifact: test-results            # artifact name
-          name: Java Tests                  # Name of the check run which will be created
+          artifact: test-results-(.*)            # artifact name
+          name: Test Report $1                  # Name of the check run which will be created
           path: '*.xml'                     # Path to test results (inside artifact .zip)
           reporter: java-junit              # Format of test results
