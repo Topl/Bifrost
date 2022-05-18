@@ -2,15 +2,18 @@ package co.topl.attestation.ops
 
 import co.topl.attestation.Evidence.EvidenceContent
 import co.topl.attestation.{Address, Evidence}
-import co.topl.models.DionAddress
+import co.topl.models.FullAddress
 
 import scala.language.implicitConversions
 
-class DionAddressOps(private val value: DionAddress) extends AnyVal {
+class DionAddressOps(private val value: FullAddress) extends AnyVal {
 
   def toAddress: Address =
     Address(
-      Evidence(value.typedEvidence.typePrefix, EvidenceContent(value.typedEvidence.evidence.data.toArray))
+      Evidence(
+        value.spendingAddress.typedEvidence.typePrefix,
+        EvidenceContent(value.spendingAddress.typedEvidence.evidence.data.toArray)
+      )
     )(
       value.networkPrefix.value
     )
@@ -20,7 +23,7 @@ object DionAddressOps {
 
   trait ToDionAddressOps {
 
-    implicit def dionAddressOpsFromValue(value: DionAddress): DionAddressOps =
+    implicit def dionAddressOpsFromValue(value: FullAddress): DionAddressOps =
       new DionAddressOps(value)
   }
 

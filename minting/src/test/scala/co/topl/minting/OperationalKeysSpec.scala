@@ -42,7 +42,7 @@ class OperationalKeysSpec
   implicit private val ed25519: Ed25519 = new Ed25519
 
   it should "load the initial key from SecureStore and produce (VRF-filtered) linear keys" in {
-    forAll { (eta: Eta, address: TaktikosAddress) =>
+    forAll { (eta: Eta, address: StakingAddress) =>
       val secureStore = mock[SecureStore[F]]
       val clock = mock[ClockAlgebra[F]]
       val vrfProof = mock[VrfProofAlgebra[F]]
@@ -92,7 +92,7 @@ class OperationalKeysSpec
         .returning(ineligibilities.pure[F])
 
       (consensusState
-        .lookupRelativeStake(_: Epoch)(_: TaktikosAddress))
+        .lookupRelativeStake(_: Epoch)(_: StakingAddress))
         .expects(*, *)
         .once()
         .returning(Ratio.One.some.pure[F])
@@ -160,7 +160,7 @@ class OperationalKeysSpec
   }
 
   it should "update the initial key at the turn of an operational period" in {
-    forAll { (eta: Eta, address: TaktikosAddress) =>
+    forAll { (eta: Eta, address: StakingAddress) =>
       val secureStore = mock[SecureStore[F]]
       val clock = mock[ClockAlgebra[F]]
       val vrfProof = mock[VrfProofAlgebra[F]]
@@ -208,7 +208,7 @@ class OperationalKeysSpec
         .returning(Vector.empty[Slot].pure[F])
 
       (consensusState
-        .lookupRelativeStake(_: Epoch)(_: TaktikosAddress))
+        .lookupRelativeStake(_: Epoch)(_: StakingAddress))
         .expects(*, *)
         .twice()
         .returning(Ratio.One.some.pure[F])

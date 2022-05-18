@@ -1,6 +1,6 @@
 package co.topl.modifier.transaction.ops
 
-import co.topl.models.{Box => TetraBox, DionAddress, ModelGenerators, Transaction}
+import co.topl.models.{Box => TetraBox, FullAddress, ModelGenerators, SpendingAddress, Transaction}
 import co.topl.modifier.box.SimpleValue
 import co.topl.modifier.implicits._
 import co.topl.utils.{CommonGenerators, Int128}
@@ -22,7 +22,7 @@ class SimpleValueOpsSpec
   describe("SimpleValueOps") {
     describe("toPolyOutput") {
       it("should convert to a poly output with the same quantity") {
-        forAll(positiveInt128Gen, ModelGen.arbitraryDionAddress.arbitrary) { (value: Int128, address: DionAddress) =>
+        forAll(positiveInt128Gen, ModelGen.arbitraryFullAddress.arbitrary) { (value: Int128, address: FullAddress) =>
           val simpleValue = SimpleValue(value)
 
           val Transaction.Output(_, polyValue: TetraBox.Values.Poly, _) =
@@ -33,19 +33,19 @@ class SimpleValueOpsSpec
       }
 
       it("should convert to a poly output with the expected address") {
-        forAll(positiveInt128Gen, ModelGen.arbitraryDionAddress.arbitrary) { (value: Int128, address: DionAddress) =>
+        forAll(positiveInt128Gen, ModelGen.arbitraryFullAddress.arbitrary) { (value: Int128, address: FullAddress) =>
           val simpleValue = SimpleValue(value)
 
           val polyOutput = simpleValue.toPolyOutput(address)
 
-          polyOutput.value.dionAddress shouldBe address
+          polyOutput.value.address shouldBe address
         }
       }
     }
 
     describe("toArbitOutput") {
       it("should convert to an arbit output with the same quantity") {
-        forAll(positiveInt128Gen, ModelGen.arbitraryDionAddress.arbitrary) { (value: Int128, address: DionAddress) =>
+        forAll(positiveInt128Gen, ModelGen.arbitraryFullAddress.arbitrary) { (value: Int128, address: FullAddress) =>
           val simpleValue = SimpleValue(value)
 
           val Transaction.Output(_, v, _) =
@@ -58,12 +58,12 @@ class SimpleValueOpsSpec
       }
 
       it("should convert to an arbit output with the expected address") {
-        forAll(positiveInt128Gen, ModelGen.arbitraryDionAddress.arbitrary) { (value: Int128, address: DionAddress) =>
+        forAll(positiveInt128Gen, ModelGen.arbitraryFullAddress.arbitrary) { (value: Int128, address: FullAddress) =>
           val simpleValue = SimpleValue(value)
 
           val output = simpleValue.toArbitOutput(address)
 
-          output.value.dionAddress shouldBe address
+          output.value.address shouldBe address
         }
       }
     }

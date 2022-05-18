@@ -5,7 +5,13 @@ import co.topl.attestation.{Address, Proposition}
 import co.topl.codecs.json.JsonCodecs
 import co.topl.codecs.json.tetra.ModelsJsonCodecs
 import co.topl.models.utility.Lengths
-import co.topl.models.{DionAddress, Int128 => TetraInt128, Transaction => TetraTransaction, TransactionData}
+import co.topl.models.{
+  FullAddress,
+  Int128 => TetraInt128,
+  SpendingAddress,
+  Transaction => TetraTransaction,
+  TransactionData
+}
 import co.topl.models.utility.HasLength.instances._
 import co.topl.modifier.ModifierId
 import co.topl.modifier.box._
@@ -515,10 +521,10 @@ trait TransactionRpcParamsDecoders extends SharedCodecs {
   implicit val transactionUnprovenPolyTransferParamsDecoder: Decoder[ToplRpc.Transaction.UnprovenPolyTransfer.Params] =
     h =>
       for {
-        senders               <- h.downField("senders").as[NonEmptyChain[DionAddress]]
+        senders               <- h.downField("senders").as[NonEmptyChain[SpendingAddress]]
         recipients            <- h.downField("recipients").as[NonEmptyChain[TetraTransaction.Output]]
         fee                   <- h.downField("fee").as[TetraInt128]
-        changeAddress         <- h.downField("changeAddress").as[DionAddress]
+        changeAddress         <- h.downField("changeAddress").as[FullAddress]
         data                  <- h.downField("data").as[Option[TransactionData]]
         boxSelectionAlgorithm <- h.downField("boxSelectionAlgorithm").as[BoxSelectionAlgorithm]
       } yield ToplRpc.Transaction.UnprovenPolyTransfer.Params(
@@ -534,10 +540,10 @@ trait TransactionRpcParamsDecoders extends SharedCodecs {
     : Decoder[ToplRpc.Transaction.UnprovenArbitTransfer.Params] =
     h =>
       for {
-        senders       <- h.downField("senders").as[NonEmptyChain[DionAddress]]
+        senders       <- h.downField("senders").as[NonEmptyChain[SpendingAddress]]
         recipients    <- h.downField("recipients").as[NonEmptyChain[TetraTransaction.Output]]
         fee           <- h.downField("fee").as[TetraInt128]
-        changeAddress <- h.downField("changeAddress").as[DionAddress]
+        changeAddress <- h.downField("changeAddress").as[FullAddress]
         data <- h
           .downField("data")
           .as[Option[TransactionData]](
@@ -559,11 +565,11 @@ trait TransactionRpcParamsDecoders extends SharedCodecs {
     : Decoder[ToplRpc.Transaction.UnprovenAssetTransfer.Params] =
     h =>
       for {
-        senders               <- h.downField("senders").as[NonEmptyChain[DionAddress]]
+        senders               <- h.downField("senders").as[NonEmptyChain[SpendingAddress]]
         recipients            <- h.downField("recipients").as[NonEmptyChain[TetraTransaction.Output]]
         fee                   <- h.downField("fee").as[TetraInt128]
-        feeChangeAddress      <- h.downField("feeChangeAddress").as[DionAddress]
-        assetChangeAddress    <- h.downField("assetChangeAddress").as[DionAddress]
+        feeChangeAddress      <- h.downField("feeChangeAddress").as[FullAddress]
+        assetChangeAddress    <- h.downField("assetChangeAddress").as[FullAddress]
         data                  <- h.downField("data").as[Option[TransactionData]]
         boxSelectionAlgorithm <- h.downField("boxSelectionAlgorithm").as[BoxSelectionAlgorithm]
         minting = recipients.exists(_.minting)

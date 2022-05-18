@@ -124,7 +124,7 @@ object ProofVerifier {
             case BoxLocations.Input => compareBoxes(box)(context.inputBoxes(index))
             case BoxLocations.Output =>
               val output = context.currentTransaction.outputs.toList(index)
-              compareBoxes(box)(Box(output.dionAddress.typedEvidence, output.value))
+              compareBoxes(box)(Box(output.address.spendingAddress.typedEvidence, output.value))
           }
         }
         .pure[F]

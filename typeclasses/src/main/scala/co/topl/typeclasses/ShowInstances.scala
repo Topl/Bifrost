@@ -34,8 +34,8 @@ trait ShowInstances {
   implicit val showRho: Show[Rho] =
     _.sizedBytes.show
 
-  implicit val showTaktikosAddress: Show[TaktikosAddress] =
-    showBytes.contramap[TaktikosAddress](_.immutableBytes)
+  implicit val showStakingAddress: Show[StakingAddress] =
+    showBytes.contramap[StakingAddress](_.immutableBytes)
 
   import IdentityOps._
 
@@ -46,7 +46,7 @@ trait ShowInstances {
       show" height=${header.height}" +
       show" slot=${header.slot}" +
       show" timestamp=${Instant.ofEpochMilli(header.timestamp).toString})" +
-      show" address=${header.address}"
+      show" address=${header.address: StakingAddress}"
 
   implicit val showInetSocketAddress: Show[InetSocketAddress] =
     address => s"${address.getHostName}:${address.getPort}"

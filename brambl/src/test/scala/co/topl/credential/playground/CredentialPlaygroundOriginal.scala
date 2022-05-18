@@ -1,9 +1,11 @@
 package co.topl.credential.playground
 
-import cats.data.{Chain, NonEmptyChain}
+import cats.data.Chain
 import cats.effect.unsafe.implicits.global
 import co.topl.credential.Credential
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
+import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.codecs.bytes.tetra.instances._
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
@@ -15,8 +17,6 @@ import co.topl.typeclasses.{KeyInitializer, VerificationContext}
 import io.circe.Json
 import org.graalvm.polyglot.Value
 
-import scala.collection.immutable.ListMap
-import scala.util.Random
 import ModelGenerators._
 
 object CredentialPlaygroundOriginal extends App {
@@ -46,10 +46,24 @@ object CredentialPlaygroundOriginal extends App {
   // Exercise: Construct complex propositions and attempt to prove them using Credentials
 
   // Example:
+
+  val stakingAddress: StakingAddress =
+    StakingAddresses.Operator(ed25519.getVerificationKey(KeyInitializer[SecretKeys.Ed25519].random()))
+
+  val offlineWalletSK =
+    KeyInitializer[SecretKeys.Ed25519].random()
+
+  def fullAddress(spendingAddress: SpendingAddress) = FullAddress(
+    networkPrefix,
+    spendingAddress,
+    stakingAddress,
+    ed25519.sign(offlineWalletSK, (spendingAddress, stakingAddress).signableBytes)
+  )
+
   val party1SK: SecretKeys.Ed25519 = KeyInitializer[SecretKeys.Ed25519].random()
   val party2SK: SecretKeys.Curve25519 = KeyInitializer[SecretKeys.Curve25519].random()
 
-  val party3Address: DionAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.dionAddress
+  val party3Address: SpendingAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.spendingAddress
 
   val proposition = party1SK.vk.asProposition.and(party2SK.vk.asProposition)
   println(proposition)
@@ -57,7 +71,9 @@ object CredentialPlaygroundOriginal extends App {
   val unprovenTransaction: Transaction.Unproven =
     ModelGenerators.arbitraryUnprovenTransaction.arbitrary.first.copy(
       inputs = Chain(arbitraryTransactionUnprovenInput.arbitrary.first.copy(proposition = proposition)),
-      outputs = Chain(Transaction.Output(party3Address, Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false))
+      outputs = Chain(
+        Transaction.Output(fullAddress(party3Address), Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false)
+      )
     )
 
   val credential = Credential.Compositional.And(

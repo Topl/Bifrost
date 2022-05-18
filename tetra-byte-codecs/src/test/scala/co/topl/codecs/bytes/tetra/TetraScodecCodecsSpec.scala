@@ -159,7 +159,7 @@ class TetraScodecCodecsSpec extends CodecSpec {
     ModelGenerators.partialOperationalCertificateGen
   )
 
-  codecBehavior[TaktikosAddress]()
+  codecBehavior[StakingAddress]()
 
   codecBehavior[BlockHeaderV2.Unsigned](
     "BlockHeaderV2.Unsigned",
@@ -175,7 +175,7 @@ class TetraScodecCodecsSpec extends CodecSpec {
     ModelGenerators.typedEvidenceGen
   )
 
-  codecBehavior[DionAddress]()
+  codecBehavior[SpendingAddress]()
 
   codecBehavior[Proposition]()
 

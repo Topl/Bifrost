@@ -1,9 +1,8 @@
 package co.topl.modifier.transaction.builder
 
-import cats.data.{Chain, NonEmptyChain}
 import cats.implicits._
 import co.topl.attestation.{Address, EvidenceProducer, Proposition}
-import co.topl.models.{Box => TetraBox, Bytes, DionAddress, Transaction}
+import co.topl.models.{Box => TetraBox, Bytes, FullAddress, Transaction}
 import co.topl.modifier.box._
 import co.topl.modifier.implicits._
 import co.topl.modifier.ops.AssetCodeOps.ToTetraAssetCodeFailures
@@ -377,7 +376,7 @@ object TransferBuilder {
    */
   private def toAssetChangeOutput(
     assetChange:          Map[AssetCode, Int128],
-    consolidationAddress: DionAddress,
+    consolidationAddress: FullAddress,
     minting:              Boolean
   ): Either[BuildTransferFailure, List[Transaction.Output]] =
     assetChange.toList

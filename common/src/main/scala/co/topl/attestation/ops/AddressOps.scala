@@ -3,7 +3,7 @@ package co.topl.attestation.ops
 import cats.implicits._
 import co.topl.attestation.Address
 import co.topl.attestation.ops.EvidenceOps.ToTypedEvidenceFailure
-import co.topl.models.{DionAddress, NetworkPrefix}
+import co.topl.models.{NetworkPrefix, SpendingAddress}
 import co.topl.attestation.ops.EvidenceOps.implicits._
 
 import scala.language.implicitConversions
@@ -16,21 +16,22 @@ class AddressOps(private val address: Address) extends AnyVal {
   import AddressOps._
 
   /**
-   * Attempts to convert the address to an equivalent [[DionAddress]] value.
-   * @return if successful, a [[DionAddress]], otherwise a [[ToDionAddressFailure]] represnting an error with the
+   * Attempts to convert the address to an equivalent [[SpendingAddress]] value.
+   *
+   * @return if successful, a [[SpendingAddress]], otherwise a [[ToDionAddressFailure]] represnting an error with the
    *         conversion
    */
-  def toDionAddress: Either[ToDionAddressFailure, DionAddress] =
+  def toSpendingAddress: Either[ToDionAddressFailure, SpendingAddress] =
     address.evidence.toTypedEvidence
-      .map(evidence => DionAddress(NetworkPrefix(address.networkPrefix), evidence))
-      .leftMap(ToDionAddressFailures.InvalidEvidence.apply)
+      .map(evidence => SpendingAddress(evidence))
+      .leftMap(ToSpendingAddressFailures.InvalidEvidence.apply)
 }
 
 object AddressOps {
 
   sealed trait ToDionAddressFailure
 
-  object ToDionAddressFailures {
+  object ToSpendingAddressFailures {
     case class InvalidEvidence(inner: ToTypedEvidenceFailure) extends ToDionAddressFailure
   }
 

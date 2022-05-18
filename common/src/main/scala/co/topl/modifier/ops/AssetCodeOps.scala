@@ -5,7 +5,6 @@ import co.topl.attestation.Address
 import co.topl.models.Box.Values.Asset
 import co.topl.models.utility.{Lengths, Sized}
 import co.topl.modifier.box.AssetCode
-import co.topl.modifier.transaction.builder.BuildTransferFailures
 import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.models.utility.StringDataTypes.{Latin1Data => TetraLatin1Data}
 import co.topl.attestation.ops.implicits._
@@ -20,7 +19,7 @@ class AssetCodeOps(private val value: AssetCode) extends AnyVal {
   def toTetraAssetCode: Either[ToTetraAssetCodeFailure, Asset.Code] =
     for {
       issuer <-
-        value.issuer.toDionAddress.leftMap(_ => ToTetraAssetCodeFailures.InvalidAddress(value.issuer))
+        value.issuer.toSpendingAddress.leftMap(_ => ToTetraAssetCodeFailures.InvalidAddress(value.issuer))
       shortName <-
         Sized
           .max[TetraLatin1Data, Lengths.`8`.type](

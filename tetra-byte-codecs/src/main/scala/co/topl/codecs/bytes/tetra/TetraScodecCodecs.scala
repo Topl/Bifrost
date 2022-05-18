@@ -17,6 +17,7 @@ trait TetraScodecCodecs
     extends TetraScodecPrimitiveCodecs
     with TetraScodecCryptoCodecs
     with TetraScodecVerificationKeyCodecs
+    with TetraScodecAddressCodecs
     with TetraScodecProofCodecs
     with TetraScodecSecretKeyCodecs
     with TetraScodecBoxCodecs
@@ -105,12 +106,11 @@ trait TetraScodecPrimitiveCodecs {
   implicit val typedEvidenceCodec: Codec[TypedEvidence] =
     (Codec[TypePrefix] :: Codec[Evidence]).as[TypedEvidence]
 
-  implicit val dionAddressCodec: Codec[DionAddress] =
-    (Codec[NetworkPrefix] :: Codec[TypedEvidence]).as[DionAddress] // TODO: Checksum
+  implicit val spendingAddressCodec: Codec[SpendingAddress] =
+    Codec[TypedEvidence].as[SpendingAddress] // TODO: Checksum
 
   implicit val rhoCodec: Codec[Rho] =
     Codec[Sized.Strict[Bytes, Lengths.`64`.type]].xmap(Rho(_), _.sizedBytes)
-
 }
 
 trait TetraScodecCryptoCodecs {
@@ -166,6 +166,23 @@ trait TetraScodecVerificationKeyCodecs {
       .as[VerificationKeys.KesProduct]
 }
 
+trait TetraScodecAddressCodecs {
+  self: TetraScodecPrimitiveCodecs with TetraScodecVerificationKeyCodecs =>
+
+  implicit val stakingAddressesPoolCodec: Codec[StakingAddresses.Operator] =
+    vkEd25519Codec.as[StakingAddresses.Operator]
+
+  implicit val stakingAddressCodec: Codec[StakingAddress] =
+    discriminated[StakingAddress]
+      .by(byteCodec)
+      .typecase(0: Byte, stakingAddressesPoolCodec)
+
+  implicit val fullAddressCodec: Codec[FullAddress] =
+    (Codec[NetworkPrefix] :: Codec[SpendingAddress] :: Codec[StakingAddress] :: Codec[Proofs.Knowledge.Ed25519])
+      .as[FullAddress]
+
+}
+
 trait TetraScodecSecretKeyCodecs {
   self: TetraScodecPrimitiveCodecs with TetraScodecCryptoCodecs with TetraScodecProofCodecs =>
 
@@ -210,8 +227,8 @@ trait TetraScodecBoxCodecs {
       Sized.Max[Latin1Data, Lengths.`127`.type]
     ]]).as[Box.Values.Asset]
 
-  implicit val boxValuesTaktikosRegistrationCodec: Codec[Box.Values.TaktikosRegistration] =
-    Codec[Proofs.Knowledge.KesProduct].as[Box.Values.TaktikosRegistration]
+  implicit val boxValuesPoolRegistrationCodec: Codec[Box.Values.Registrations.Operator] =
+    Codec[Proofs.Knowledge.KesProduct].as[Box.Values.Registrations.Operator]
 
   implicit val boxValueCode: Codec[Box.Value] =
     discriminated[Box.Value]
@@ -220,7 +237,7 @@ trait TetraScodecBoxCodecs {
       .typecase(1: Byte, boxValuesPolyCodec)
       .typecase(2: Byte, boxValuesArbitCodec)
       .typecase(3: Byte, boxValuesAssetCodec)
-      .typecase(4: Byte, boxValuesTaktikosRegistrationCodec)
+      .typecase(4: Byte, boxValuesPoolRegistrationCodec)
 
   implicit val boxCodec: Codec[Box] =
     (Codec[TypedEvidence] :: Codec[Box.Value]).as[Box]
@@ -379,11 +396,12 @@ trait TetraScodecProofCodecs {
 trait TetraScodecTransactionCodecs {
   self: TetraScodecPrimitiveCodecs
     with TetraScodecPropositionCodecs
+    with TetraScodecAddressCodecs
     with TetraScodecProofCodecs
     with TetraScodecBoxCodecs =>
 
   implicit val coinOutputCodec: Codec[Transaction.Output] =
-    (Codec[DionAddress] :: Codec[Box.Value] :: Codec[Boolean])
+    (Codec[FullAddress] :: Codec[Box.Value] :: Codec[Boolean])
       .as[Transaction.Output]
 
   implicit val transactionCodec: Codec[Transaction] =
@@ -404,7 +422,10 @@ trait TetraScodecTransactionCodecs {
 }
 
 trait TetraScodecBlockCodecs {
-  self: TetraScodecPrimitiveCodecs with TetraScodecVerificationKeyCodecs with TetraScodecProofCodecs =>
+  self: TetraScodecPrimitiveCodecs
+    with TetraScodecVerificationKeyCodecs
+    with TetraScodecProofCodecs
+    with TetraScodecAddressCodecs =>
 
   implicit val eligibilityCertificateCodec: Codec[EligibilityCertificate] =
     (proofSignatureVrfCodec :: vkVrfCodec :: Codec[Evidence] :: Codec[Eta])
@@ -418,16 +439,20 @@ trait TetraScodecBlockCodecs {
     (vkKesProductCodec :: proofSignatureKesProductCodec :: vkEd25519Codec)
       .as[BlockHeaderV2.Unsigned.PartialOperationalCertificate]
 
-  implicit val taktikosAddressCodec: Codec[TaktikosAddress] =
-    (strictSizedBytesCodec[Lengths.`32`.type] :: vkEd25519Codec :: proofSignatureEd25519Codec)
-      .as[TaktikosAddress]
-
   implicit val blockHeaderV2Codec: Codec[BlockHeaderV2] =
-    (typedBytesCodec :: longCodec :: Codec[TxRoot] :: Codec[
-      BloomFilter
-    ] :: longCodec :: longCodec :: longCodec :: eligibilityCertificateCodec :: operationalCertificateCodec :: optionCodec(
-      maxSizedCodec[Latin1Data, Lengths.`32`.type]
-    ) :: taktikosAddressCodec).as[BlockHeaderV2]
+    (
+      typedBytesCodec ::
+        longCodec ::
+        Codec[TxRoot] ::
+        Codec[BloomFilter] ::
+        longCodec ::
+        longCodec ::
+        longCodec ::
+        eligibilityCertificateCodec ::
+        operationalCertificateCodec ::
+        optionCodec(maxSizedCodec[Latin1Data, Lengths.`32`.type]) ::
+        stakingAddressesPoolCodec
+    ).as[BlockHeaderV2]
 
   implicit val slotIdCodec: Codec[SlotId] =
     (Codec[Slot](uLongCodec) :: Codec[TypedIdentifier]).as[SlotId]
@@ -436,11 +461,19 @@ trait TetraScodecBlockCodecs {
     (Codec[SlotId] :: Codec[SlotId] :: Codec[Rho] :: Codec[Eta] :: Codec[Long](uLongCodec)).as[SlotData]
 
   implicit val unsignedBlockHeaderV2Codec: Codec[BlockHeaderV2.Unsigned] =
-    (typedBytesCodec :: longCodec :: Codec[TxRoot] :: Codec[
-      BloomFilter
-    ] :: longCodec :: longCodec :: longCodec :: eligibilityCertificateCodec :: partialOperationalCertificateCodec :: optionCodec(
-      maxSizedCodec[Latin1Data, Lengths.`32`.type]
-    ) :: taktikosAddressCodec).as[BlockHeaderV2.Unsigned]
+    (
+      typedBytesCodec ::
+        longCodec ::
+        Codec[TxRoot] ::
+        Codec[BloomFilter] ::
+        longCodec ::
+        longCodec ::
+        longCodec ::
+        eligibilityCertificateCodec ::
+        partialOperationalCertificateCodec ::
+        optionCodec(maxSizedCodec[Latin1Data, Lengths.`32`.type]) ::
+        stakingAddressesPoolCodec
+    ).as[BlockHeaderV2.Unsigned]
 
   implicit val blockBodyV2Codec: Codec[BlockBodyV2] = listCodec[TypedIdentifier]
 

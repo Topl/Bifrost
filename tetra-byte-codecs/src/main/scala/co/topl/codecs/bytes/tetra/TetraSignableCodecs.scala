@@ -1,7 +1,7 @@
 package co.topl.codecs.bytes.tetra
 
 import co.topl.codecs.bytes.typeclasses._
-import co.topl.models.{BlockHeaderV2, Transaction}
+import co.topl.models.{BlockHeaderV2, SpendingAddress, StakingAddress, Transaction}
 
 trait TetraSignableCodecs {
 
@@ -48,6 +48,11 @@ trait TetraSignableCodecs {
           t.data
         )
         .signableBytes
+
+  implicit val signableAddressCommitment: Signable[(SpendingAddress, StakingAddress)] = {
+    case (spendingAddress, stakingAddress) =>
+      spendingAddress.immutableBytes ++ stakingAddress.immutableBytes
+  }
 }
 
 object TetraSignableCodecs extends TetraSignableCodecs

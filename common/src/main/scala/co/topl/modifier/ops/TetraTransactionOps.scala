@@ -4,8 +4,8 @@ import cats.data.Chain
 import cats.implicits._
 import co.topl.attestation._
 import co.topl.crypto.{PublicKey, Signature}
-import co.topl.models.{Box => TetraBox, DionAddress, Proof, Proofs, Proposition, Propositions, Transaction}
-import co.topl.modifier.box._
+import co.topl.models.{Box => TetraBox, FullAddress, Proof, Proofs, Proposition, Propositions, Transaction}
+import co.topl.modifier.box.{AssetCode, AssetValue, Box, SecurityRoot, SimpleValue, TokenValueHolder}
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction => DionTransaction}
 import co.topl.typeclasses.implicits.TransactionSupport
 import co.topl.utils.Int128
@@ -320,30 +320,30 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
   private def polyOutputs: ToDionTxResult[Chain[(Address, SimpleValue)]] =
     transaction.outputs
       .traverse[ToDionTxResult, (Address, SimpleValue)] {
-        case Transaction.Output(dionAddress, poly: TetraBox.Values.Poly, _) =>
-          (toAddress(dionAddress), SimpleValue(Int128(poly.value.data))).asRight
+        case Transaction.Output(address, poly: TetraBox.Values.Poly, _) =>
+          (toAddress(address), SimpleValue(Int128(poly.value.data))).asRight
         case invalidCoin => ToDionTxFailures.InvalidOutput(invalidCoin).asLeft
       }
 
   private def arbitOutputs: ToDionTxResult[Chain[(Address, SimpleValue)]] =
     transaction.outputs
       .traverse[ToDionTxResult, (Address, SimpleValue)] {
-        case Transaction.Output(dionAddress, arbit: TetraBox.Values.Arbit, _) =>
-          (toAddress(dionAddress), SimpleValue(Int128(arbit.value.data))).asRight
+        case Transaction.Output(address, arbit: TetraBox.Values.Arbit, _) =>
+          (toAddress(address), SimpleValue(Int128(arbit.value.data))).asRight
         case invalidCoin => ToDionTxFailures.InvalidOutput(invalidCoin).asLeft
       }
 
   private def assetOutputs: Either[ToDionTxFailure, Chain[(Address, TokenValueHolder)]] =
     transaction.outputs
       .traverse[ToDionTxResult, (Address, TokenValueHolder)] {
-        case Transaction.Output(dionAddress, asset: TetraBox.Values.Asset, _) =>
+        case Transaction.Output(address, asset: TetraBox.Values.Asset, _) =>
           (
-            toAddress(dionAddress),
+            toAddress(address),
             AssetValue(
               Int128(asset.quantity.data),
               AssetCode(
                 asset.assetCode.version,
-                toAddress(asset.assetCode.issuer),
+                Address(Evidence(asset.assetCode.issuer.typedEvidence.allBytes.toArray))(???),
                 Latin1Data.fromData(asset.assetCode.shortName.data.bytes)
               ),
               SecurityRoot(asset.securityRoot.toArray),
@@ -378,8 +378,8 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
 //        toAddress(fee.dionAddress) -> SimpleValue(Int128(fee.value.data))
 //      )
 
-  private def toAddress(dionAddress: DionAddress): Address =
-    Address(Evidence(dionAddress.typedEvidence.allBytes.toArray))(dionAddress.networkPrefix.value)
+  private def toAddress(fullAddress: FullAddress): Address =
+    Address(Evidence(fullAddress.spendingAddress.typedEvidence.allBytes.toArray))(fullAddress.networkPrefix.value)
 }
 
 object TetraTransactionOps {

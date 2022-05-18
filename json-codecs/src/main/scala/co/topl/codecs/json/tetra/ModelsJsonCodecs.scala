@@ -44,29 +44,17 @@ trait ModelsJsonCodecs {
   implicit val typedEvidenceEncoder: Encoder[TypedEvidence] =
     bytes => bytes.allBytes.asJson
 
-  implicit val dionAddressEncoder: Encoder[DionAddress] =
-    t => t.allBytes.asJson
+  implicit val spendingAddressEncoder: Encoder[SpendingAddress] =
+    t => t.immutableBytes.asJson
 
-  implicit val dionAddressDecoder: Decoder[DionAddress] =
-    for {
-      string <- Decoder[String]
-      bytes <-
-        Bytes
-          .fromBase58(string)
-          .fold(Decoder.failedWithMessage[Bytes]("address is an invalid base-58 string"))(Decoder.const)
-      networkPrefix <-
-        bytes.headOption
-          .fold(Decoder.failedWithMessage[NetworkPrefix]("address length is too short"))(byte =>
-            Decoder.const(NetworkPrefix(byte))
-          )
-      evidenceTypePrefix <-
-        bytes.tail.headOption
-          .fold(Decoder.failedWithMessage[TypePrefix]("address length is too short"))(byte => Decoder.const(byte))
-      evidence <-
-        Sized
-          .strict[Bytes, Lengths.`32`.type](bytes.tail.tail)
-          .fold(error => Decoder.failedWithMessage(error.toString), evidence => Decoder.const(evidence))
-    } yield DionAddress(networkPrefix, TypedEvidence(evidenceTypePrefix, evidence))
+  implicit val spendingAddressDecoder: Decoder[SpendingAddress] =
+    t => t.as[Bytes].flatMap(_.decodeImmutable[SpendingAddress].leftMap(e => DecodingFailure(e, Nil)))
+
+  implicit val fullAddressEncoder: Encoder[FullAddress] =
+    t => t.immutableBytes.asJson
+
+  implicit val fullAddressDecoder: Decoder[FullAddress] =
+    t => t.as[Bytes].flatMap(_.decodeImmutable[FullAddress].leftMap(e => DecodingFailure(e, Nil)))
 
   implicit val verificationKeysCurve25519Encoder: Encoder[VerificationKeys.Curve25519] =
     t => t.bytes.data.toBase58.asJson
@@ -353,7 +341,7 @@ trait ModelsJsonCodecs {
     hcursor =>
       for {
         version   <- hcursor.downField("version").as[Byte]
-        issuer    <- hcursor.downField("issuer").as[DionAddress]
+        issuer    <- hcursor.downField("issuer").as[SpendingAddress]
         shortName <- hcursor.downField("shortName").as[Latin1Data]
         validLengthShortName <- Sized
           .max[Latin1Data, Lengths.`8`.type](shortName)
@@ -372,31 +360,31 @@ trait ModelsJsonCodecs {
   implicit val assetBoxValueDecoder: Decoder[Box.Values.Asset] =
     deriveDecoder
 
-  implicit val taktikosRegistrationBoxValueEncoder: Encoder[Box.Values.TaktikosRegistration] =
-    t => Json.obj("commitment" -> t.commitment.immutableBytes.asJson)
+  implicit val baseRegistrationBoxValueEncoder: Encoder[Box.Values.Registrations.Operator] =
+    t => Json.obj("vrfCommitment" -> t.vrfCommitment.immutableBytes.asJson)
 
-  implicit val taktikosRegistrationBoxValueDecoder: Decoder[Box.Values.TaktikosRegistration] =
+  implicit val taktikosRegistrationBoxValueDecoder: Decoder[Box.Values.Registrations.Operator] =
     h =>
-      h.downField("commitment")
+      h.downField("vrfCommitment")
         .as[Bytes]
         .flatMap(_.decodeImmutable[Proofs.Knowledge.KesProduct].leftMap(e => DecodingFailure(e, Nil)))
-        .map(Box.Values.TaktikosRegistration)
+        .map(Box.Values.Registrations.Operator)
 
   def boxValueTypeName(value: Box.Value): String =
     value match {
-      case Box.Values.Empty                   => "Empty"
-      case _: Box.Values.Poly                 => "Poly"
-      case _: Box.Values.Arbit                => "Arbit"
-      case _: Box.Values.Asset                => "Asset"
-      case _: Box.Values.TaktikosRegistration => "TaktikosRegistration"
+      case Box.Values.Empty                     => "Empty"
+      case _: Box.Values.Poly                   => "Poly"
+      case _: Box.Values.Arbit                  => "Arbit"
+      case _: Box.Values.Asset                  => "Asset"
+      case _: Box.Values.Registrations.Operator => "Registration.Pool"
     }
 
   implicit val boxValueEncoder: Encoder[Box.Value] = {
-    case Box.Values.Empty                   => Json.Null
-    case v: Box.Values.Poly                 => v.asJson
-    case v: Box.Values.Arbit                => v.asJson
-    case v: Box.Values.Asset                => v.asJson
-    case v: Box.Values.TaktikosRegistration => v.asJson
+    case Box.Values.Empty                     => Json.Null
+    case v: Box.Values.Poly                   => v.asJson
+    case v: Box.Values.Arbit                  => v.asJson
+    case v: Box.Values.Asset                  => v.asJson
+    case v: Box.Values.Registrations.Operator => v.asJson
   }
 
   implicit val boxEncoder: Encoder[Box] =
@@ -428,10 +416,10 @@ trait ModelsJsonCodecs {
         valueType              <- hcursor.downField("valueType").as[String]
         valueJson = hcursor.downField("value")
         value <- valueType match {
-          case "Poly"                 => valueJson.as[Box.Values.Poly]
-          case "Arbit"                => valueJson.as[Box.Values.Arbit]
-          case "Asset"                => valueJson.as[Box.Values.Asset]
-          case "TaktikosRegistration" => valueJson.as[Box.Values.TaktikosRegistration]
+          case "Poly"              => valueJson.as[Box.Values.Poly]
+          case "Arbit"             => valueJson.as[Box.Values.Arbit]
+          case "Asset"             => valueJson.as[Box.Values.Asset]
+          case "Registration.Pool" => valueJson.as[Box.Values.Registrations.Operator]
         }
       } yield Transaction.Input(transactionId, transactionOutputIndex, proposition, proof, value)
 
@@ -454,17 +442,17 @@ trait ModelsJsonCodecs {
         valueType              <- hcursor.downField("valueType").as[String]
         valueJson = hcursor.downField("value")
         value <- valueType match {
-          case "Poly"                 => valueJson.as[Box.Values.Poly]
-          case "Arbit"                => valueJson.as[Box.Values.Arbit]
-          case "Asset"                => valueJson.as[Box.Values.Asset]
-          case "TaktikosRegistration" => valueJson.as[Box.Values.TaktikosRegistration]
+          case "Poly"              => valueJson.as[Box.Values.Poly]
+          case "Arbit"             => valueJson.as[Box.Values.Arbit]
+          case "Asset"             => valueJson.as[Box.Values.Asset]
+          case "Registration.Pool" => valueJson.as[Box.Values.Registrations.Operator]
         }
       } yield Transaction.Unproven.Input(transactionId, transactionOutputIndex, proposition, value)
 
   implicit val encodeTransactionOutput: Encoder[Transaction.Output] =
     o =>
       Json.obj(
-        "address"   -> o.dionAddress.asJson,
+        "address"   -> o.address.asJson,
         "valueType" -> boxValueTypeName(o.value).asJson,
         "value"     -> o.value.asJson,
         "minting"   -> o.minting.asJson
@@ -473,7 +461,7 @@ trait ModelsJsonCodecs {
   implicit val decodeTransactionOutput: Decoder[Transaction.Output] =
     hcursor =>
       for {
-        address   <- hcursor.downField("address").as[DionAddress]
+        address   <- hcursor.downField("address").as[FullAddress]
         valueType <- hcursor.downField("valueType").as[String]
         minting   <- hcursor.downField("minting").as[Boolean]
         valueJson = hcursor.downField("value")
@@ -484,8 +472,8 @@ trait ModelsJsonCodecs {
             valueJson.as[Box.Values.Arbit].map(value => Transaction.Output(address, value, minting))
           case "Asset" =>
             valueJson.as[Box.Values.Asset].map(value => Transaction.Output(address, value, minting))
-          case "TaktikosRegistration" =>
-            valueJson.as[Box.Values.TaktikosRegistration].map(value => Transaction.Output(address, value, minting))
+          case "Registration.Pool" =>
+            valueJson.as[Box.Values.Registrations.Operator].map(value => Transaction.Output(address, value, minting))
           case _ =>
             DecodingFailure("invalid output type", List(CursorOp.Field("valueType"))).asLeft
         }

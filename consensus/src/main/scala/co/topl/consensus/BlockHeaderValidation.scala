@@ -250,12 +250,12 @@ object BlockHeaderValidation {
         OptionT(
           registrationInterpreter.registrationOf(SlotId(header.slot, header.id), header.address)
         )
-          .map(_.commitment)
+          .map(_.vrfCommitment)
           .toRight(BlockHeaderValidationFailures.Unregistered(header.address): BlockHeaderValidationFailure)
           .flatMapF(commitment =>
             for {
               message <- blake2b256Resource
-                .use(_.hash(header.eligibilityCertificate.vkVRF.bytes.data, header.address.poolVK.bytes.data).pure[F])
+                .use(_.hash(header.eligibilityCertificate.vkVRF.bytes.data, header.address.vk.bytes.data).pure[F])
               isValid <- kesProductResource
                 .use(p =>
                   p.verify(commitment, message.data, header.operationalCertificate.parentVK.copy(step = 0)).pure[F]
@@ -267,7 +267,7 @@ object BlockHeaderValidation {
                 .RegistrationCommitmentMismatch(
                   commitment,
                   header.eligibilityCertificate.vkVRF,
-                  header.address.poolVK
+                  header.address.vk
                 )
             )
           )
