@@ -44,7 +44,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v2
         with:
-          name: Test Results (Java ${{ matrix.os }})
+          name: test-results
           path: target/test-reports/*.xml
 
   publish-test-results:
@@ -62,8 +62,15 @@ jobs:
         with:
           path: artifacts
 
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v1.35
+      # - name: Publish Test Results
+      #   uses: EnricoMi/publish-unit-test-result-action@v1.35
+      #   with:
+      #     files: "artifacts/**/*.xml"
+      #     check_run_annotations_branch: main, dev
+
+      - uses: dorny/test-reporter@v1
         with:
-          files: "artifacts/**/*.xml"
-          check_run_annotations_branch: main, dev
+          artifact: test-results            # artifact name
+          name: Java Tests                  # Name of the check run which will be created
+          path: '*.xml'                     # Path to test results (inside artifact .zip)
+          reporter: java-junit              # Format of test results
