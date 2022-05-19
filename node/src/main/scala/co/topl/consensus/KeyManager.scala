@@ -94,16 +94,17 @@ class KeyManager(settings: AppSettings)(implicit networkPrefix: NetworkPrefix) e
           StartupKeyView(addresses, newRewardAddress)
         }
 
-    addressGenerationSettings match {
-      case AddressGenerationSettings(_, AddressGenerationStrategies.None, _) =>
-        Success(StartupKeyView(keyRing.addresses, rewardAddress))
-      case AddressGenerationSettings(numAddr, AddressGenerationStrategies.FromSeed, seedOpt) =>
-        addKeys(numAddr, seedOpt)
-      case AddressGenerationSettings(numAddr, AddressGenerationStrategies.Random, _) =>
-        addKeys(numAddr, Some(SecureRandom.randomBytes().mkString))
-      case AddressGenerationSettings(numAddr, AddressGenerationStrategies.None, _)
-          if networkPrefix == PrivateTestnet.netPrefix =>
-        addKeys(numAddr, Some(SecureRandom.randomBytes().mkString))
+    addressGenerationSettings.strategy match {
+      case AddressGenerationStrategies.None =>
+        if (networkPrefix == PrivateTestnet.netPrefix) {
+          addKeys(addressGenerationSettings.numberOfAddresses, Some(SecureRandom.randomBytes().mkString))
+        } else {
+          Success(StartupKeyView(keyRing.addresses, rewardAddress))
+        }
+      case AddressGenerationStrategies.FromSeed =>
+        addKeys(addressGenerationSettings.numberOfAddresses, addressGenerationSettings.addressSeedOpt)
+      case AddressGenerationStrategies.Random =>
+        addKeys(addressGenerationSettings.numberOfAddresses, Some(SecureRandom.randomBytes().mkString))
     }
   }
 
