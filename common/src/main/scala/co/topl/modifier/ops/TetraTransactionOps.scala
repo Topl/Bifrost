@@ -346,7 +346,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
                 Address(Evidence(asset.assetCode.issuer.typedEvidence.allBytes.toArray))(???),
                 Latin1Data.fromData(asset.assetCode.shortName.data.bytes)
               ),
-              SecurityRoot(asset.securityRoot.toArray),
+              SecurityRoot(asset.securityRoot.data.toArray),
               asset.metadata.map(data => Latin1Data.fromData(data.data.bytes))
             ): TokenValueHolder
           ).asRight

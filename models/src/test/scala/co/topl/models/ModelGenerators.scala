@@ -356,12 +356,18 @@ trait ModelGenerators {
       } yield box
     )
 
+  implicit val arbitraryPolyBox: Arbitrary[Box.Values.Poly] =
+    Arbitrary(arbitraryPositiveInt128.arbitrary.map(Box.Values.Poly))
+
+  implicit val arbitraryArbitBox: Arbitrary[Box.Values.Arbit] =
+    Arbitrary(arbitraryPositiveInt128.arbitrary.map(Box.Values.Arbit))
+
   implicit val arbitraryBoxValue: Arbitrary[Box.Value] =
     Arbitrary(
       Gen.oneOf(
         Gen.const(Box.Values.Empty),
-        arbitraryPositiveInt128.arbitrary.map(Box.Values.Poly),
-        arbitraryPositiveInt128.arbitrary.map(Box.Values.Arbit),
+        arbitraryPolyBox.arbitrary,
+        arbitraryArbitBox.arbitrary,
         arbitraryAssetBox.arbitrary
       )
     )
