@@ -210,6 +210,7 @@ lazy val bifrost = project
     byteCodecs,
     tetraByteCodecs,
     consensus,
+    ledger,
     demo,
     tools,
     scripting,
@@ -490,6 +491,23 @@ lazy val networking = project
     commonInterpreters,
     catsAkka,
     eventTree
+  )
+
+lazy val ledger = project
+  .in(file("ledger"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "ledger",
+    commonSettings,
+    crossScalaVersions := Seq(scala213),
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.ledger"
+  )
+  .settings(libraryDependencies ++= Dependencies.ledger)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(
+    models % "compile->compile;test->test"
   )
 
 lazy val demo = project

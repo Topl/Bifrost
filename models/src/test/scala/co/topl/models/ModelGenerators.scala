@@ -345,14 +345,14 @@ trait ModelGenerators {
       for {
         quantity <- arbitraryPositiveInt128.arbitrary
         code     <- arbitraryAssetCode.arbitrary
-        root     <- genSizedStrictBytes[Lengths.`32`.type]().map(_.data)
+        root     <- genSizedStrictBytes[Lengths.`32`.type]()
         metadata <-
           Gen.option(
             latin1DataGen
               .map(data => Latin1Data.unsafe(data.value.take(127)))
               .map(data => Sized.maxUnsafe[Latin1Data, Lengths.`127`.type](data))
           )
-        box = Box.Values.Asset(quantity, code, root, None)
+        box = Box.Values.Asset(quantity, code, root, metadata)
       } yield box
     )
 

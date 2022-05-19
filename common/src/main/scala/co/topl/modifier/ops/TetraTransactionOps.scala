@@ -321,7 +321,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
     transaction.outputs
       .traverse[ToDionTxResult, (Address, SimpleValue)] {
         case Transaction.Output(address, poly: TetraBox.Values.Poly, _) =>
-          (toAddress(address), SimpleValue(Int128(poly.value.data))).asRight
+          (toAddress(address), SimpleValue(Int128(poly.quantity.data))).asRight
         case invalidCoin => ToDionTxFailures.InvalidOutput(invalidCoin).asLeft
       }
 
@@ -329,7 +329,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
     transaction.outputs
       .traverse[ToDionTxResult, (Address, SimpleValue)] {
         case Transaction.Output(address, arbit: TetraBox.Values.Arbit, _) =>
-          (toAddress(address), SimpleValue(Int128(arbit.value.data))).asRight
+          (toAddress(address), SimpleValue(Int128(arbit.quantity.data))).asRight
         case invalidCoin => ToDionTxFailures.InvalidOutput(invalidCoin).asLeft
       }
 

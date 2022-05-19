@@ -58,7 +58,7 @@ object CredentialPlaygroundSean extends App {
     """(ctx, args, utils) => ctx.currentSlot > 400""".stripMargin.jsProposition
 
   val script3Proposition =
-    """(ctx, args, utils) => ctx.currentTransaction.outputs[0].value.value == "10"""".stripMargin.jsProposition
+    """(ctx, args, utils) => ctx.currentTransaction.outputs[0].value.quantity == "10"""".stripMargin.jsProposition
 
   val script4Proposition =
     """(ctx, args, utils) => {
