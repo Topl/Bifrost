@@ -2,9 +2,9 @@ name: SBT checkPR
 
 on:
   pull_request:
-    branches: ['*']
+    branches: [dev, main, release-*, rc-*]
   push:
-    branches: [dev, main]
+    branches: [dev, main, release-*, rc-*]
 
 jobs:
   build:

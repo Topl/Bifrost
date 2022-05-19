@@ -1,28 +1,27 @@
-package co.topl.genus.interpreters.mongo
+package co.topl.genus.interpreters
 
+import cats.implicits._
 import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}
-import cats.Applicative
-import cats.implicits._
-import co.topl.genus.algebras.{ChainHeight, MongoSubscription}
-import co.topl.genus.typeclasses.implicits._
-import co.topl.genus.typeclasses.{MongoFilter, MongoSort}
-import co.topl.genus.types.BlockHeight
+import cats.{~>, Applicative}
+import co.topl.genus.algebras.{ChainHeight, MongoStore, MongoSubscription}
 import co.topl.genus.ops.implicits._
-import org.mongodb.scala.{Document, MongoCollection}
-import cats.~>
+import co.topl.genus.typeclasses.{MongoFilter, MongoSort}
+import org.mongodb.scala.Document
+import co.topl.genus.typeclasses.implicits._
+import co.topl.genus.types.BlockHeight
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.{ExecutionContext, Future}
 
-object MongoSubscriptionImpl {
+object BatchedMongoSubscription {
 
   def make[F[_]: Applicative: *[_] ~> Future](
     batchSize:           Int,
     batchSleepTime:      FiniteDuration,
     documentToHeightOpt: Document => Option[BlockHeight],
-    collection:          MongoCollection[Document],
+    store:               MongoStore[F],
     chainHeight:         ChainHeight[F]
   )(implicit
     materializer:     Materializer,
@@ -38,12 +37,10 @@ object MongoSubscriptionImpl {
         Source
           .unfoldAsync(0)(index =>
             Source
-              .fromPublisher(
-                collection
-                  .find(filter.toBsonFilter)
-                  .sort(sort.toBsonSorting)
-                  .skip(index)
-                  .limit(batchSize)
+              .futureSource(
+                store
+                  .getDocuments(filter.toBsonFilter.some, sort.toBsonSorting.some, batchSize.some, index.some)
+                  .mapFunctor[Future]
               )
               .flatMapConcat(document =>
                 Source

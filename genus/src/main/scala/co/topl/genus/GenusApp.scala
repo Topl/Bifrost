@@ -6,8 +6,7 @@ import akka.actor.typed.scaladsl.Behaviors
 import cats.effect.unsafe.implicits.global
 import cats.effect.{ExitCode, IO, IOApp, Resource}
 import cats.implicits._
-import co.topl.genus.interpreters.MongoChainHeight
-import co.topl.genus.interpreters.mongo._
+import co.topl.genus.interpreters._
 import co.topl.genus.interpreters.requesthandlers._
 import co.topl.genus.interpreters.services._
 import co.topl.genus.programs.GenusProgram
@@ -66,47 +65,37 @@ object GenusApp extends IOApp {
       // set up MongoDB resources
       mongoClient <- IO.delay(MongoClient(settings.mongoConnectionString))
       mongoDatabase = mongoClient.getDatabase(settings.mongoDatabaseName)
-      transactionsCollection = mongoDatabase.getCollection(settings.transactionsCollectionName)
-      blocksCollection = mongoDatabase.getCollection(settings.blocksCollectionName)
 
-      chainHeight = MongoChainHeight.make[IO](blocksCollection)
+      transactionsStore = MongoCollectionStore.make[IO](
+        mongoDatabase.getCollection(settings.transactionsCollectionName)
+      )
+      blocksStore = MongoCollectionStore.make[IO](mongoDatabase.getCollection(settings.blocksCollectionName))
+
+      chainHeight = MongoChainHeight.make[IO](blocksStore)
 
       // set up query services
-      transactionsQuery =
-        TransactionsQueryService.make[IO](
-          MongoQueryImpl.make[IO](
-            transactionsCollection
-          ),
-          chainHeight
-        )
-
-      blocksQuery =
-        BlocksQueryService.make[IO](
-          MongoQueryImpl.make[IO](
-            blocksCollection
-          ),
-          chainHeight
-        )
+      transactionsQuery = TransactionsQueryService.make[IO](transactionsStore, chainHeight)
+      blocksQuery = BlocksQueryService.make[IO](blocksStore, chainHeight)
 
       // set up subscription services
       transactionsSubscription =
         TransactionsSubscriptionService.make[IO](
-          MongoSubscriptionImpl.make[IO](
+          BatchedMongoSubscription.make[IO](
             settings.subBatchSize,
             settings.subBatchSleepDuration.seconds,
             _.getTransactionBlockHeight,
-            transactionsCollection,
+            transactionsStore,
             chainHeight
           )
         )
 
       blocksSubscription =
         BlocksSubscriptionService.make[IO](
-          MongoSubscriptionImpl.make[IO](
+          BatchedMongoSubscription.make[IO](
             settings.subBatchSize,
             settings.subBatchSleepDuration.seconds,
             _.getBlockHeight,
-            blocksCollection,
+            blocksStore,
             chainHeight
           )
         )
