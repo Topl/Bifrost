@@ -2,8 +2,10 @@ package co.topl.rpc
 
 import cats.data.NonEmptyChain
 import co.topl.attestation.{Address, Proposition}
+import co.topl.codecs._
 import co.topl.codecs.json.JsonCodecs
 import co.topl.codecs.json.tetra.ModelsJsonCodecs
+import co.topl.models.{DionAddress, Int128 => TetraInt128, Transaction => TetraTransaction, TransactionData}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithm, BoxSelectionAlgorithms}
@@ -12,7 +14,6 @@ import co.topl.utils.Int128
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.StringDataTypes.Latin1Data
 import io.circe._
-import io.circe.generic.auto._
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.syntax._
 
@@ -44,6 +45,8 @@ trait DebugRpcParamsEncoders {
   implicit val debugIdsFromHeightParamsEncoder: Encoder[ToplRpc.Debug.IdsFromHeight.Params] =
     deriveEncoder
 
+  implicit val debugExportGenesisBlobParamsEncoder: Encoder[ToplRpc.Debug.ExportGenesisBlob.Params] =
+    deriveEncoder
 }
 
 trait UtilRpcParamsEncoders {
@@ -178,6 +181,9 @@ trait DebugRpcResponseDecoders {
 
   implicit val debugIdsFromHeightResponseDecoder: Decoder[ToplRpc.Debug.IdsFromHeight.Response] =
     Decoder.decodeList
+
+  implicit val debugExportGenesisBlobResponseDecoder: Decoder[ToplRpc.Debug.Delay.Response] =
+    deriveDecoder
 }
 
 trait UtilRpcResponseDecoders {
@@ -356,6 +362,9 @@ trait DebugRpcParamsDecoders extends SharedCodecs {
     deriveDecoder
 
   implicit val debugIdsFromHeightParamsDecoder: Decoder[ToplRpc.Debug.IdsFromHeight.Params] =
+    deriveDecoder
+
+  implicit val debugExportGenesisBlobParamsDecoder: Decoder[ToplRpc.Debug.ExportGenesisBlob.Params] =
     deriveDecoder
 }
 
@@ -574,6 +583,10 @@ trait DebugRpcResponseEncoders extends SharedCodecs {
 
   implicit val debugIdsFromHeightResponseEncoder: Encoder[ToplRpc.Debug.IdsFromHeight.Response] =
     Encoder.encodeList
+
+  implicit val debugExportGenesisBlobResponseEncoder: Encoder[ToplRpc.Debug.ExportGenesisBlob.Response] =
+    deriveEncoder
+
 }
 
 trait UtilRpcResponseEncoders extends SharedCodecs {
