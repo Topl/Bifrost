@@ -11,7 +11,7 @@ jobs:
     name: Build and Test
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [macos-latest]
         java: [graalvm-ce-java11@21.1.0]
     runs-on: ${{ matrix.os }}
     steps:
