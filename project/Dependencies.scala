@@ -205,6 +205,7 @@ object Dependencies {
       "io.circe"               %% "circe-generic"           % circeVersion,
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.6.0"
     ) ++
+    scodec ++
     circe ++
     test
 
