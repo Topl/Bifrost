@@ -8,7 +8,7 @@ import co.topl.codecs.json.tetra.instances._
 import co.topl.models.utility.HasLength.instances.{bigIntLength, latin1DataLength}
 import co.topl.models.utility.Sized
 import co.topl.models.utility.StringDataTypes.Latin1Data
-import co.topl.models.{Box, BoxReference, Bytes, Transaction}
+import co.topl.models.{Box, BoxReference, Bytes, DionAddress, Transaction}
 import io.circe.HCursor
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
@@ -20,8 +20,8 @@ class UnprovenAssetTransferRPCHandlerSpec extends RPCMockState with Matchers wit
 
   val fee = 1
 
-  var sender: String = ""
-  var recipient: String = ""
+  var sender: DionAddress = _
+  var recipient: DionAddress = _
   var assetCode: Box.Values.Asset.Code = _
 
   var assetValue: Box.Values.Asset = _
@@ -29,8 +29,8 @@ class UnprovenAssetTransferRPCHandlerSpec extends RPCMockState with Matchers wit
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    sender = keyRingCurve25519.addresses.head.toDionAddress.toOption.get.allBytes.toBase58
-    recipient = keyRingCurve25519.addresses.head.toDionAddress.toOption.get.allBytes.toBase58
+    sender = keyRingCurve25519.addresses.head.toDionAddress.toOption.get
+    recipient = keyRingCurve25519.addresses.head.toDionAddress.toOption.get
 
     assetCode = Box.Values.Asset.Code(
       1.toByte,
@@ -59,7 +59,7 @@ class UnprovenAssetTransferRPCHandlerSpec extends RPCMockState with Matchers wit
           traverseJsonPath[NonEmptyChain[BoxReference]](responseAs[String], path)
         )
 
-      result.map(_.head._1.allBytes.toBase58).value shouldBe sender
+      result.map(_.head._1).value shouldBe sender
     }
 
     "successfully create a transfer with 'minting' set to true" in {
@@ -90,10 +90,8 @@ class UnprovenAssetTransferRPCHandlerSpec extends RPCMockState with Matchers wit
       val outputAddresses =
         result.map(outputs =>
           outputs.flatMap {
-            case Transaction.AssetOutput(dionAddress, _) =>
-              List(dionAddress.allBytes.toBase58)
-            case _ =>
-              List.empty
+            case Transaction.AssetOutput(dionAddress, _) => List(dionAddress)
+            case _                                       => List.empty
           }
         )
 
@@ -112,7 +110,7 @@ class UnprovenAssetTransferRPCHandlerSpec extends RPCMockState with Matchers wit
           traverseJsonPath[String](responseAs[String], path)
         )
 
-      result.value shouldBe sender
+      result.value.asJson shouldBe sender.asJson
     }
 
     "successfully create a transfer with the expected 'data'" in {
@@ -185,24 +183,21 @@ class UnprovenAssetTransferRPCHandlerSpec extends RPCMockState with Matchers wit
 object UnprovenAssetTransferRPCHandlerSpec {
 
   def createRequestBody(
-    senders:            List[String],
-    recipients:         List[(String, Box.Values.Asset)],
+    senders:            List[DionAddress],
+    recipients:         List[(DionAddress, Box.Values.Asset)],
     fee:                Int,
-    feeChangeAddress:   String,
-    assetChangeAddress: String,
+    feeChangeAddress:   DionAddress,
+    assetChangeAddress: DionAddress,
     data:               Option[String],
     minting:            Boolean
   ): ByteString = {
-    val sendersString =
-      senders
-        .map(value => s""""$value"""")
-        .mkString(", ")
+    val sendersString = senders.map(_.asJson).mkString(", ")
 
     val recipientsString =
       recipients
         .map(value => s"""
              |{
-             |  "dionAddress": "${value._1}",
+             |  "dionAddress": ${value._1.asJson},
              |  "value": ${value._2.asJson.noSpaces}
              |}""".stripMargin)
         .mkString(", ")
@@ -218,8 +213,8 @@ object UnprovenAssetTransferRPCHandlerSpec {
       |   "senders": [$sendersString],
       |   "recipients": [$recipientsString],
       |   "fee": $fee,
-      |   "feeChangeAddress": "$feeChangeAddress",
-      |   "assetChangeAddress": "$assetChangeAddress",
+      |   "feeChangeAddress": ${feeChangeAddress.asJson},
+      |   "assetChangeAddress": ${assetChangeAddress.asJson},
       |   "data": $dataString,
       |   "minting": $minting,
       |   "boxSelectionAlgorithm": "All"

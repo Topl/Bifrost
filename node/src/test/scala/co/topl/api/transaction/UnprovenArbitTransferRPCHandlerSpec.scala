@@ -6,8 +6,9 @@ import co.topl.api.RPCMockState
 import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.attestation.implicits._
 import co.topl.codecs.json.tetra.instances._
-import co.topl.models.{BoxReference, Transaction}
+import co.topl.models.{BoxReference, DionAddress, Transaction}
 import io.circe.HCursor
+import io.circe.syntax._
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 
@@ -19,14 +20,14 @@ class UnprovenArbitTransferRPCHandlerSpec extends RPCMockState with Matchers wit
   val amount = 100
   val fee = 1
 
-  var sender: String = ""
-  var recipient: String = ""
+  var sender: DionAddress = _
+  var recipient: DionAddress = _
 
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    sender = keyRingCurve25519.addresses.head.toDionAddress.toOption.get.allBytes.toBase58
-    recipient = keyRingCurve25519.addresses.head.toDionAddress.toOption.get.allBytes.toBase58
+    sender = keyRingCurve25519.addresses.head.toDionAddress.toOption.get
+    recipient = keyRingCurve25519.addresses.head.toDionAddress.toOption.get
   }
 
   "Unproven Arbit Transfer RPC Handler" should {
@@ -41,7 +42,7 @@ class UnprovenArbitTransferRPCHandlerSpec extends RPCMockState with Matchers wit
           traverseJsonPath[NonEmptyChain[BoxReference]](responseAs[String], path)
         )
 
-      result.map(_.head._1.allBytes.toBase58).value shouldBe sender
+      result.map(_.head._1).value shouldBe sender
     }
 
     "successfully create a transfer with 'minting' set to false" in {
@@ -71,7 +72,7 @@ class UnprovenArbitTransferRPCHandlerSpec extends RPCMockState with Matchers wit
         result.map(outputs =>
           outputs.flatMap {
             case Transaction.ArbitOutput(dionAddress, _) =>
-              List(dionAddress.allBytes.toBase58)
+              List(dionAddress)
             case _ =>
               List.empty
           }
@@ -91,7 +92,7 @@ class UnprovenArbitTransferRPCHandlerSpec extends RPCMockState with Matchers wit
           traverseJsonPath[String](responseAs[String], path)
         )
 
-      result.value shouldBe sender
+      result.value.asJson shouldBe sender.asJson
     }
 
     "successfully create a transfer with the expected 'data'" in {
@@ -110,7 +111,7 @@ class UnprovenArbitTransferRPCHandlerSpec extends RPCMockState with Matchers wit
     }
 
     "fail to create a transfer when sender has no polys" in {
-      val emptySender = addressGen.sample.get.toDionAddress.toOption.get.allBytes.toBase58
+      val emptySender = addressGen.sample.get.toDionAddress.toOption.get
 
       val requestBody = createRequestBody(List(emptySender), List(recipient -> amount), fee, sender, None)
 
@@ -163,20 +164,17 @@ object UnprovenArbitTransferRPCHandlerSpec {
    * @return a [[ByteString]] representing the HTTP body
    */
   def createRequestBody(
-    senders:       List[String],
-    recipients:    List[(String, Int)],
+    senders:       List[DionAddress],
+    recipients:    List[(DionAddress, Int)],
     fee:           Int,
-    changeAddress: String,
+    changeAddress: DionAddress,
     data:          Option[String]
   ): ByteString = {
-    val sendersString =
-      senders
-        .map(value => s""""$value"""")
-        .mkString(", ")
+    val sendersString = senders.map(_.asJson).mkString(", ")
 
     val recipientsString =
       recipients
-        .map(value => s"""{ "dionAddress": "${value._1}", "value": "${value._2}" }""")
+        .map(value => s"""{ "dionAddress": ${value._1.asJson}, "value": "${value._2}" }""")
         .mkString(", ")
 
     val dataString = data.fold("null")(value => s""""$value"""")
@@ -190,7 +188,7 @@ object UnprovenArbitTransferRPCHandlerSpec {
       |   "senders": [$sendersString],
       |   "recipients": [$recipientsString],
       |   "fee": $fee,
-      |   "changeAddress": "$changeAddress",
+      |   "changeAddress": ${changeAddress.asJson},
       |   "data": $dataString,
       |   "boxSelectionAlgorithm": "All"
       | } ]
