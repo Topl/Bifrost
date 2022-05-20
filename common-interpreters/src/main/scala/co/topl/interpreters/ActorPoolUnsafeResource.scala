@@ -5,9 +5,9 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.pattern.StatusReply
 import akka.util.Timeout
 import cats.data.Chain
-import cats.effect.{Async, IO, Sync}
-import cats.~>
+import cats.effect.{Async, Sync}
 import co.topl.algebras.UnsafeResource
+import co.topl.catsakka.FToFuture
 
 import java.util.UUID
 
@@ -21,9 +21,9 @@ object ActorPoolUnsafeResource {
 
   object Eval {
 
-    def make[F[_]: Async: ~>[*[_], IO], T](init: => T, cleanup: T => Unit)(implicit
-      system:                                    ActorSystem[_],
-      askTimeout:                                Timeout
+    def make[F[_]: Async: FToFuture, T](init: => T, cleanup: T => Unit)(implicit
+      system:                                 ActorSystem[_],
+      askTimeout:                             Timeout
     ): F[UnsafeResource[F, T]] =
       Sync[F].delay {
         implicit val scheduler: Scheduler = system.scheduler
@@ -47,7 +47,7 @@ object ActorPoolUnsafeResource {
   private object PoolManagerActor {
     sealed abstract class ReceivableMessage[T]
 
-    case class Use[F[_]: ~>[*[_], IO], T, Res](f: T => F[Res], replyTo: ActorRef[StatusReply[Res]])
+    case class Use[F[_]: FToFuture, T, Res](f: T => F[Res], replyTo: ActorRef[StatusReply[Res]])
         extends ReceivableMessage[T] {
 
       def run(child: ActorRef[SingleResourceOwner.ReceivableMessage[T]]): Unit =
@@ -80,20 +80,16 @@ object ActorPoolUnsafeResource {
   private object SingleResourceOwner {
     sealed abstract class ReceivableMessage[T]
 
-    case class Use[F[_]: ~>[*[_], IO], T, Res](f: T => F[Res], replyTo: ActorRef[StatusReply[Res]])
+    case class Use[F[_]: FToFuture, T, Res](f: T => F[Res], replyTo: ActorRef[StatusReply[Res]])
         extends ReceivableMessage[T] {
 
       def run(t: T, ctx: ActorContext[ReceivableMessage[T]]): Unit =
-        implicitly[~>[F, IO]]
-          .apply(f(t))
-          .unsafeRunAsync(e =>
-            ctx.self.tell(
-              Complete(
-                e.fold(StatusReply.error(_), StatusReply.success),
-                replyTo
-              )
-            )
-          )(AkkaCatsRuntime(ctx.system).runtime)
+        ctx.pipeToSelf(implicitly[FToFuture[F]].apply(f(t)))(e =>
+          Complete(
+            e.fold(StatusReply.error(_), StatusReply.success),
+            replyTo
+          )
+        )
     }
 
     case class Complete[T, Res](result: StatusReply[Res], replyTo: ActorRef[StatusReply[Res]])

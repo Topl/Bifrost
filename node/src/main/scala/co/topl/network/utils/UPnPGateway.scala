@@ -16,21 +16,25 @@ class UPnPGateway(gateway: GatewayDevice, port: Int) extends Logging {
   log.info("Using UPnP gateway device on " + localAddress.getHostAddress)
   log.info("External IP address is " + externalAddress.getHostAddress)
 
-  try if (gateway.addPortMapping(port, port, localAddress.getHostAddress, "TCP", "BifrostClient")) {
-    log.info("Mapped port [" + externalAddress.getHostAddress + "]:" + port)
-  } else {
-    log.info("Unable to map port " + port)
-  } catch {
+  try
+    if (gateway.addPortMapping(port, port, localAddress.getHostAddress, "TCP", "BifrostClient")) {
+      log.info("Mapped port [" + externalAddress.getHostAddress + "]:" + port)
+    } else {
+      log.info("Unable to map port " + port)
+    }
+  catch {
     case t: Throwable =>
       log.error("Unable to map port " + port + ": " + t.toString)
   }
 
   def deletePort(port: Int): Unit =
-    try if (gateway.deletePortMapping(port, "TCP")) {
-      log.info("Mapping deleted for port " + port)
-    } else {
-      log.info("Unable to delete mapping for port " + port)
-    } catch {
+    try
+      if (gateway.deletePortMapping(port, "TCP")) {
+        log.info("Mapping deleted for port " + port)
+      } else {
+        log.info("Unable to delete mapping for port " + port)
+      }
+    catch {
       case t: Throwable =>
         log.error("Unable to delete mapping for port " + port + ": " + t.toString)
     }

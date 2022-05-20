@@ -4,21 +4,20 @@ import cats.effect._
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import co.topl.algebras.UnsafeResource
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus.algebras._
 import co.topl.crypto.hash.{blake2b256, Blake2b256, Blake2b512}
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
+import co.topl.crypto.typeclasses.KeyInitializer
+import co.topl.crypto.typeclasses.KeyInitializer.Instances.ed25519Initializer
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.{Lengths, Ratio, Sized}
-import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.codecs.bytes.tetra.instances._
-import co.topl.crypto.typeclasses.KeyInitializer
-import co.topl.crypto.typeclasses.KeyInitializer.Instances.ed25519Initializer
 import co.topl.numerics.{ExpInterpreter, Log1pInterpreter}
-import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
 import org.scalacheck.Gen
@@ -298,7 +297,7 @@ class BlockHeaderValidationSpec
   it should "invalidate blocks with a semantically incorrect registration verification" in {
     forAll(
       genValid(u =>
-        u.copy(address = u.address.copy(poolVK = VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes.fill(32)(0: Byte)))))
+        u.copy(address = u.address.copy(vk = VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes.fill(32)(0: Byte)))))
       )
     ) { case (parent, child, registration, eta, relativeStake) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
@@ -323,7 +322,7 @@ class BlockHeaderValidationSpec
           .unsafeRunSync()
 
       (registrationInterpreter
-        .registrationOf(_: SlotId, _: TaktikosAddress))
+        .registrationOf(_: SlotId, _: StakingAddresses.Operator))
         .expects(*, *)
         .once()
         .returning(registration.some.pure[F])
@@ -396,7 +395,7 @@ class BlockHeaderValidationSpec
           .unsafeRunSync()
 
       (registrationInterpreter
-        .registrationOf(_: SlotId, _: TaktikosAddress))
+        .registrationOf(_: SlotId, _: StakingAddresses.Operator))
         .expects(*, *)
         .once()
         .returning(registration.some.pure[F])
@@ -408,7 +407,7 @@ class BlockHeaderValidationSpec
         .returning(eta.pure[F])
 
       (relativeStakeInterpreter
-        .lookupAt(_: SlotId, _: TaktikosAddress))
+        .lookupAt(_: SlotId, _: StakingAddress))
         .expects(child.slotId, *)
         .once()
         .returning(Ratio.Zero.some.pure[F])
@@ -475,7 +474,7 @@ class BlockHeaderValidationSpec
           .unsafeRunSync()
 
       (registrationInterpreter
-        .registrationOf(_: SlotId, _: TaktikosAddress))
+        .registrationOf(_: SlotId, _: StakingAddresses.Operator))
         .expects(*, *)
         .once()
         .returning(registration.some.pure[F])
@@ -487,7 +486,7 @@ class BlockHeaderValidationSpec
         .returning(eta.pure[F])
 
       (relativeStakeInterpreter
-        .lookupAt(_: SlotId, _: TaktikosAddress))
+        .lookupAt(_: SlotId, _: StakingAddress))
         .expects(child.slotId, *)
         .once()
         .returning(relativeStake.some.pure[F])
@@ -581,7 +580,7 @@ class BlockHeaderValidationSpec
 
   private def genValid(
     preSign: BlockHeaderV2.Unsigned => BlockHeaderV2.Unsigned = identity
-  ): Gen[(BlockHeaderV2, BlockHeaderV2, Box.Values.TaktikosRegistration, Eta, Ratio)] =
+  ): Gen[(BlockHeaderV2, BlockHeaderV2, Box.Values.Registrations.Operator, Eta, Ratio)] =
     for {
       parent <- headerGen(slotGen = Gen.const[Long](5000))
       (txRoot, bloomFilter, eta) <- genSizedStrictBytes[Lengths.`32`.type]().flatMap(txRoot =>
@@ -661,21 +660,15 @@ object BlockHeaderValidationSpec {
     vkVrf:               VerificationKeys.VrfEd25519,
     poolVK:              VerificationKeys.Ed25519,
     skKes:               SecretKeys.KesProduct
-  )(implicit kesProduct: KesProduct): Box.Values.TaktikosRegistration = {
+  )(implicit kesProduct: KesProduct): Box.Values.Registrations.Operator = {
     val commitmentMessage = Bytes(blake2b256.hash((vkVrf.bytes.data ++ poolVK.bytes.data).toArray).value)
-    Box.Values.TaktikosRegistration(kesProduct.sign(skKes, commitmentMessage))
+    Box.Values.Registrations.Operator(kesProduct.sign(skKes, commitmentMessage))
   }
 
   def validAddress(paymentSK: SecretKeys.Ed25519, poolVK: VerificationKeys.Ed25519)(implicit
     ed25519:                  Ed25519
-  ): TaktikosAddress = {
+  ): StakingAddresses.Operator = {
     val paymentVerificationKey = ed25519.getVerificationKey(paymentSK)
-    TaktikosAddress(
-      Sized.strictUnsafe(
-        Bytes(blake2b256.hash(paymentVerificationKey.bytes.data.toArray).value)
-      ),
-      poolVK,
-      ed25519.sign(paymentSK, poolVK.bytes.data)
-    )
+    StakingAddresses.Operator(poolVK)
   }
 }

@@ -4,6 +4,8 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
 import co.topl.models._
+import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.codecs.bytes.tetra.instances._
 import co.topl.scripting.GraalVMScripting
 import co.topl.scripting.GraalVMScripting.GraalVMValuable
 import co.topl.scripting.GraalVMScripting.instances._
@@ -51,7 +53,7 @@ class ScriptedProofVerifierSpec
         .once()
         .returning(40L)
 
-      val transaction = unproven.prove(_ => (proposition, proof))
+      val transaction = unproven.prove(_ => proof)
 
       (() => context.currentTransaction)
         .expects()
@@ -92,7 +94,7 @@ class ScriptedProofVerifierSpec
         .once()
         .returning(20L)
 
-      val transaction = unproven.prove(_ => (proposition, proof))
+      val transaction = unproven.prove(_ => proof)
 
       (() => context.currentTransaction)
         .expects()
@@ -116,11 +118,11 @@ class ScriptedProofVerifierSpec
 
   it should "verify to true for a script using the current transaction" in {
     forAll { unproven: Transaction.Unproven =>
-      val outAddr = unproven.coinOutputs.head.dionAddress.allBytes.toBase58
+      val outAddr = unproven.outputs.headOption.value.address.immutableBytes.toBase58
       val proposition = Propositions.Script.JS(
         Propositions.Script.JS.JSScript(
           raw"""(ctx, args) =>
-               |    ctx.currentTransaction.coinOutputs[args.outputIndex].address == "$outAddr";
+               |    ctx.currentTransaction.outputs[args.outputIndex].address == "$outAddr";
                |""".stripMargin
         )
       )
@@ -134,7 +136,7 @@ class ScriptedProofVerifierSpec
         .once()
         .returning(40L)
 
-      val transaction = unproven.prove(_ => (proposition, proof))
+      val transaction = unproven.prove(_ => proof)
 
       (() => context.currentTransaction)
         .expects()

@@ -1,15 +1,13 @@
 package co.topl.interpreters
 
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import cats.arrow.FunctionK
 import cats.effect.{IO, Sync}
-import cats.effect.unsafe.implicits.global
-import cats.~>
+import co.topl.catsakka._
 import co.topl.models.Bytes
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{BeforeAndAfterAll, EitherValues, Inspectors, OptionValues}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.{BeforeAndAfterAll, EitherValues, Inspectors, OptionValues}
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
 
@@ -24,7 +22,6 @@ class ActorPoolUnsafeResourceSpec
     with AnyFlatSpecLike {
 
   type F[A] = IO[A]
-  implicit val ioToIo: F ~> IO = FunctionK.id
 
   implicit val ec: ExecutionContextExecutor = testKit.system.executionContext
 

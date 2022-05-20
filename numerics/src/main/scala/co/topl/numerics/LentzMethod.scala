@@ -30,10 +30,9 @@ trait LentzMethod {
     val bigFactor = BigInt(10).pow(prec + 10)
     val tinyFactor = Ratio(1, bigFactor)
     val truncationError: Ratio = Ratio(1, BigInt(10).pow(prec + 1))
-    var fj: Ratio = {
+    var fj: Ratio =
       if (b(0) == Ratio.Zero) tinyFactor
       else b(0)
-    }
     var cj: Ratio = fj
     var dj: Ratio = Ratio.Zero
     var deltaj = Ratio.One

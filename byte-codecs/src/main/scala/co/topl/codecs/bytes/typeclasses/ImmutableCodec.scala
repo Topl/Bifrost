@@ -68,4 +68,10 @@ object ImmutableDecoder {
     def decodeImmutable[T: ImmutableDecoder]: Either[String, T] =
       ImmutableDecoder[T].fromImmutableBytes(bytes)
   }
+
+  trait ToExtensionOps {
+
+    implicit def immutableFromBytes(value: ByteVector): BytesImmutableDecoderOps =
+      new BytesImmutableDecoderOps(value)
+  }
 }

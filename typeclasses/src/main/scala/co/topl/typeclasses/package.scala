@@ -33,8 +33,8 @@ package object typeclasses {
       with Prover.ToProverOps
       with ShowInstances
       with EqInstances
-      with DionAddressable.Instances
-      with DionAddressable.ToDionAddressableOps
+      with SpendingAddressable.Instances
+      with SpendingAddressable.ToSpendingAddressableOps
       with Prepend.Instances
       with Prepend.ToPrependOps
       with NonEmpty.Instances

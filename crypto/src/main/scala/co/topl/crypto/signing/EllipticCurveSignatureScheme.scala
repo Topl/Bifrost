@@ -24,7 +24,7 @@ abstract class EllipticCurveSignatureScheme[SK <: SecretKey, VK <: VerificationK
     createKeyPair(seed)
   }
 
-  protected def createKeyPair(seed: Sized.Strict[Bytes, SeedLength]): (SK, VK)
+  def createKeyPair(seed: Sized.Strict[Bytes, SeedLength]): (SK, VK)
 
   def sign(privateKey: SK, message: Bytes): SIG
 

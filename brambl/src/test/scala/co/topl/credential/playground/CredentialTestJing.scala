@@ -1,12 +1,15 @@
 package co.topl.credential.playground
 
-import cats.data.NonEmptyChain
+import cats.data.Chain
 import cats.effect.unsafe.implicits.global
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.credential.Credential
 import co.topl.credential.implicits._
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
 import co.topl.crypto.typeclasses.KeyInitializer
 import co.topl.crypto.typeclasses.KeyInitializer.Instances.{curve25519Initializer, ed25519Initializer}
+import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
@@ -17,9 +20,6 @@ import co.topl.typeclasses.implicits._
 import co.topl.typeclasses.VerificationContext
 import io.circe.Json
 import org.graalvm.polyglot.Value
-
-import scala.collection.immutable.ListMap
-import scala.util.Random
 
 object CredentialTestJing extends App {
   type F[A] = cats.effect.IO[A]
@@ -44,6 +44,19 @@ object CredentialTestJing extends App {
         )
   implicit val networkPrefix: NetworkPrefix = NetworkPrefix(1: Byte)
 
+  val stakingAddress: StakingAddress =
+    StakingAddresses.Operator(ed25519.getVerificationKey(KeyInitializer[SecretKeys.Ed25519].random()))
+
+  val offlineWalletSK =
+    KeyInitializer[SecretKeys.Ed25519].random()
+
+  def fullAddress(spendingAddress: SpendingAddress) = FullAddress(
+    networkPrefix,
+    spendingAddress,
+    stakingAddress,
+    ed25519.sign(offlineWalletSK, (spendingAddress, stakingAddress).signableBytes)
+  )
+
   // Exercise: Construct complex propositions and attempt to prove them using Credentials
   val admin1SK: SecretKeys.Ed25519 = KeyInitializer[SecretKeys.Ed25519].random()
   val admin2SK: SecretKeys.Curve25519 = KeyInitializer[SecretKeys.Curve25519].random()
@@ -62,17 +75,15 @@ object CredentialTestJing extends App {
   val votersThresholdProp = List(voter1Prop, voter2Prop, voter3Prop, heightProp).threshold(2)
   val combinedProp = votersThresholdProp or adminsProp
 
-  val recipientAddress: DionAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.dionAddress
+  val recipientAddress: SpendingAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.spendingAddress
 
-  val unprovenTransaction: Transaction.Unproven = Transaction.Unproven(
-    inputs = List((combinedProp.dionAddress, Random.nextLong())),
-    feeOutput = None,
-    coinOutputs = NonEmptyChain(Transaction.PolyOutput(recipientAddress, Sized.maxUnsafe(BigInt(5)))),
-    fee = Sized.maxUnsafe(BigInt(1)),
-    timestamp = System.currentTimeMillis(),
-    data = None,
-    minting = false
-  )
+  val unprovenTransaction: Transaction.Unproven =
+    ModelGenerators.arbitraryUnprovenTransaction.arbitrary.first.copy(
+      inputs = Chain(arbitraryTransactionUnprovenInput.arbitrary.first.copy(proposition = combinedProp)),
+      outputs = Chain(
+        Transaction.Output(fullAddress(recipientAddress), Box.Values.Poly(Sized.maxUnsafe(BigInt(5))), minting = false)
+      )
+    )
 
   val credential = (
     combinedProp,
@@ -86,17 +97,7 @@ object CredentialTestJing extends App {
     )
   ).toCredential
 
-  val transactionAll = Transaction(
-    inputs = ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(
-      _ -> (combinedProp, credential.proof)
-    ),
-    feeOutput = unprovenTransaction.feeOutput,
-    coinOutputs = unprovenTransaction.coinOutputs,
-    fee = unprovenTransaction.fee,
-    timestamp = unprovenTransaction.timestamp,
-    data = unprovenTransaction.data,
-    minting = unprovenTransaction.minting
-  )
+  val transactionAll = unprovenTransaction.prove(_ => credential.proof)
   println(s"all transaction: $transactionAll")
   println(verify(transactionAll, combinedProp, credential.proof, 2L))
 
@@ -121,31 +122,11 @@ object CredentialTestJing extends App {
   val voter1and2ThresholdProof = voter1and2ThresholdCredential.proof
 //    println(voter1and2ThresholdProof)
 
-  val transactionAdmins = Transaction(
-    inputs = ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(
-      _ -> (adminsProp, adminsProof)
-    ),
-    feeOutput = unprovenTransaction.feeOutput,
-    coinOutputs = unprovenTransaction.coinOutputs,
-    fee = unprovenTransaction.fee,
-    timestamp = unprovenTransaction.timestamp,
-    data = unprovenTransaction.data,
-    minting = unprovenTransaction.minting
-  )
+  val transactionAdmins = unprovenTransaction.prove(_ => adminsProof)
   println(s"admin transaction: $transactionAdmins")
   println(verify(transactionAdmins, adminsProp, adminsProof, 2L))
 
-  val transactionVoter1and2 = Transaction(
-    inputs = ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(
-      _ -> (votersThresholdProp, voter1and2ThresholdProof)
-    ),
-    feeOutput = unprovenTransaction.feeOutput,
-    coinOutputs = unprovenTransaction.coinOutputs,
-    fee = unprovenTransaction.fee,
-    timestamp = unprovenTransaction.timestamp,
-    data = unprovenTransaction.data,
-    minting = unprovenTransaction.minting
-  )
+  val transactionVoter1and2 = unprovenTransaction.prove(_ => voter1and2ThresholdProof)
   println(s"voter transaction: $transactionVoter1and2")
   println(verify(transactionVoter1and2, votersThresholdProp, voter1and2ThresholdProof, 2L))
 
@@ -154,7 +135,7 @@ object CredentialTestJing extends App {
       new VerificationContext[F] {
         def currentTransaction: Transaction = transaction
         def currentHeight: Long = height
-        def inputBoxes: List[Box[Box.Value]] = List()
+        def inputBoxes: List[Box] = List()
         def currentSlot: Slot = 1
       }
     prop.isSatisfiedBy[F](proof).unsafeRunSync()

@@ -99,50 +99,32 @@ object ProofVerifier {
       proposition: Propositions.Knowledge.HashLock,
       proof:       Proofs.Knowledge.HashLock
     ): F[Boolean] =
-      (blake2b256.hash(proof.salt.data.toArray :+ proof.value).value sameElements proposition.digest.data.toArray)
+      (blake2b256
+        .hash((proof.salt.data :+ proof.value).toArray)
+        .value sameElements proposition.digest.data.toArray)
         .pure[F]
 
     private def requiredBoxVerifier[F[_]: Applicative](
       proposition: Propositions.Contextual.RequiredBoxState,
       context:     VerificationContext[F]
     ): F[Boolean] = {
-      def compareBoxes(propositionBox: Box[_])(sourceBox: Box[_]): Boolean = propositionBox match {
-        case Box(TypedEvidence.empty, 0, value) =>
+      def compareBoxes(propositionBox: Box)(sourceBox: Box): Boolean = propositionBox match {
+        case Box(TypedEvidence.empty, value) =>
           value == sourceBox.value
-        case Box(TypedEvidence.empty, 0, value) =>
-          value == sourceBox.value
-        case Box(TypedEvidence.empty, nonce, Box.Values.Empty) =>
-          nonce == sourceBox.nonce
-        case Box(TypedEvidence.empty, nonce, Box.Values.Empty) =>
-          nonce == sourceBox.nonce
-        case Box(TypedEvidence.empty, nonce, Box.Values.Empty) =>
-          nonce == sourceBox.nonce
-        case Box(TypedEvidence.empty, nonce, value) =>
-          nonce == sourceBox.nonce
-        case Box(typedEvidence, 0, Box.Values.Empty) =>
+        case Box(typedEvidence, Box.Values.Empty) =>
           typedEvidence == sourceBox.evidence
-        case Box(typedEvidence, 0, Box.Values.Empty) =>
-          typedEvidence == sourceBox.evidence
-        case Box(typedEvidence, 0, value) =>
+        case Box(typedEvidence, value) =>
           typedEvidence == sourceBox.evidence && value == sourceBox.value
-        case Box(typedEvidence, 0, value) =>
-          typedEvidence == sourceBox.evidence && value == sourceBox.value
-        case Box(typedEvidence, nonce, Box.Values.Empty) =>
-          typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce
-        case Box(typedEvidence, nonce, Box.Values.Empty) =>
-          typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce
-        case Box(typedEvidence, nonce, value) =>
-          typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce && value == sourceBox.value
-        case Box(typedEvidence, nonce, value) =>
-          typedEvidence == sourceBox.evidence && nonce == sourceBox.nonce && value == sourceBox.value
         case _ => false
       }
 
       proposition.boxes
         .forall { case (index, box) =>
           proposition.location match {
-            case BoxLocations.Input  => compareBoxes(box)(context.inputBoxes(index))
-            case BoxLocations.Output => compareBoxes(box)(Box(context.currentTransaction.coinOutputs.toList(index)))
+            case BoxLocations.Input => compareBoxes(box)(context.inputBoxes(index))
+            case BoxLocations.Output =>
+              val output = context.currentTransaction.outputs.toList(index)
+              compareBoxes(box)(Box(output.address.spendingAddress.typedEvidence, output.value))
           }
         }
         .pure[F]
@@ -279,6 +261,6 @@ object ProofVerifier {
 trait VerificationContext[F[_]] {
   def currentTransaction: Transaction
   def currentHeight: Long
-  def inputBoxes: List[Box[Box.Value]]
+  def inputBoxes: List[Box]
   def currentSlot: Slot
 }

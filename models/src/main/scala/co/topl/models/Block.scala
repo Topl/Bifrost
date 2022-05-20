@@ -7,7 +7,7 @@ import co.topl.models.utility.{Lengths, Sized}
 case class BlockV1(
   parentId:     TypedIdentifier,
   timestamp:    Timestamp,
-  generatorBox: Box[Box.Values.Arbit],
+  generatorBox: Box,
   publicKey:    Bytes,
   signature:    Bytes,
   height:       Long,
@@ -30,7 +30,7 @@ case class BlockHeaderV2(
   operationalCertificate: OperationalCertificate,
   // TODO: Discussion on mint signatures
   metadata: Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
-  address:  TaktikosAddress
+  address:  StakingAddresses.Operator
 ) {
   def parentSlotId: SlotId = SlotId(parentSlot, parentHeaderId)
 }
@@ -48,7 +48,7 @@ object BlockHeaderV2 {
     eligibilityCertificate:        EligibilityCertificate,
     partialOperationalCertificate: Unsigned.PartialOperationalCertificate,
     metadata:                      Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
-    address:                       TaktikosAddress
+    address:                       StakingAddresses.Operator
   )
 
   object Unsigned {
@@ -61,12 +61,6 @@ object BlockHeaderV2 {
   }
 }
 
-// id = hash(headerId, txRoot)
-case class BlockBodyV2(
-  headerId:     TypedIdentifier,
-  transactions: Seq[Transaction]
-)
-
 // This is a synthetic type, and is not "identifiable"
 case class BlockV2(headerV2: BlockHeaderV2, blockBodyV2: BlockBodyV2)
 
@@ -74,6 +68,6 @@ object BlockV2 {
 
   case class Unsigned(
     unsignedHeader: BlockHeaderV2.Unsigned,
-    transactions:   Seq[Transaction]
+    body:           BlockBodyV2
   )
 }

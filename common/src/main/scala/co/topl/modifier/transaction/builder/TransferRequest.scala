@@ -1,6 +1,7 @@
 package co.topl.modifier.transaction.builder
 
 import co.topl.attestation.Address
+import co.topl.models.{FullAddress, Int128 => TetraInt128, SpendingAddress, Transaction, TransactionData}
 import co.topl.modifier.box.AssetValue
 import co.topl.utils.Int128
 import co.topl.utils.StringDataTypes.Latin1Data
@@ -35,4 +36,14 @@ object TransferRequests {
     data:                 Option[Latin1Data],
     minting:              Boolean
   ) extends TransferRequest
+
+  case class UnprovenTransferRequest(
+    from:                 List[SpendingAddress],
+    to:                   List[Transaction.Output],
+    feeChangeAddress:     FullAddress,
+    consolidationAddress: FullAddress,
+    fee:                  TetraInt128,
+    data:                 Option[TransactionData],
+    minting:              Boolean
+  )
 }

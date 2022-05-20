@@ -1,12 +1,14 @@
 package co.topl.codecs.bytes
 
 import cats.{Eq, Show}
-import org.scalacheck.Gen
+import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import scodec.Codec
+
+import scala.reflect.ClassTag
 
 trait CodecSpec extends AnyFlatSpec with Matchers with EqMatcher with EitherValues with ScalaCheckDrivenPropertyChecks {
 
@@ -37,4 +39,7 @@ trait CodecSpec extends AnyFlatSpec with Matchers with EqMatcher with EitherValu
       }
     }
   }
+
+  def codecBehavior[T: Eq: Show: Codec: Arbitrary: ClassTag](): Unit =
+    codecBehavior[T](implicitly[ClassTag[T]].toString, implicitly[Codec[T]], implicitly[Arbitrary[T]].arbitrary)
 }

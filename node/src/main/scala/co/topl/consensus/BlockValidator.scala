@@ -1,170 +1,157 @@
 package co.topl.consensus
 
 import cats.implicits._
-import co.topl.consensus
-import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
-import co.topl.nodeView.history.{BlockProcessor, History, Storage}
 import co.topl.utils.TimeProvider
 import co.topl.utils.implicits._
 
-import scala.util.{Failure, Try}
+import scala.util.Try
 
 //PoS consensus rules checks, throws exception if anything wrong
-sealed trait BlockValidator[PM <: Block] {
-  def validate(block: PM): Try[Unit]
+sealed trait BlockValidator[T] {
+  def validate(f: Block => T)(block: Block): Try[Unit]
 }
 
-class DifficultyBlockValidator(storage: Storage, blockProcessor: BlockProcessor) extends BlockValidator[Block] {
+object BlockValidators {
 
-  def validate(block: Block): Try[Unit] = Try {
-    // lookup our local data about the parent
-    val (parent, prevBlockTimes) = getParentDetailsOf(block)
+  class HeightValidator extends BlockValidator[Option[Long]] {
 
-    // first ensure that we can calculate the same block data as is stamped on the block
-    ensureHeightAndDifficulty(block, parent, prevBlockTimes) match {
-      case Failure(ex) => throw ex
-      case _           => // continue on
-    }
-
-    // next, ensure the hit was valid
-    ensureValidHit(block, parent) match {
-      case Failure(ex) => throw ex
-      case _           => // continue on
+    override def validate(f: Block => Option[Long])(block: Block): Try[Unit] = Try {
+      f(block) match {
+        case Some(parentHeight) =>
+          require(
+            block.height == parentHeight + 1,
+            s"Invalid child block height from parent; ${block.height} != ${parentHeight + 1}"
+          )
+        case None => throw new Error(s"Could not find parent height for blockId=${block.parentId}")
+      }
     }
   }
 
-  private def ensureHeightAndDifficulty(block: Block, parent: Block, prevTimes: Seq[TimeProvider.Time]): Try[Unit] =
-    Try {
-      // calculate the new base difficulty
-      val newHeight = parent.height + 1
-      val newBaseDifficulty = consensus.calcNewBaseDifficulty(newHeight, parent.difficulty, prevTimes)
+  class DifficultyValidator(leaderElection: NxtLeaderElection)
+      extends BlockValidator[Option[(Block, Seq[TimeProvider.Time])]] {
 
-      // does the difficulty stamped on the block match what we would calculate locally?
-      require(
-        block.difficulty == newBaseDifficulty,
-        s"Local calculation of block difficulty failed since ${block.difficulty} != $newBaseDifficulty"
-      )
+    override def validate(f: Block => Option[(Block, Seq[TimeProvider.Time])])(block: Block): Try[Unit] = Try {
+      f(block) match {
+        case Some((parent, prevTimes)) =>
+          val childBaseDifficulty =
+            leaderElection.calculateNewDifficulty(parent.height + 1, parent.difficulty, prevTimes)
+          require(
+            block.difficulty == childBaseDifficulty,
+            s"Local calculation of block difficulty failed since ${block.difficulty} != $childBaseDifficulty"
+          )
 
-      // does the height stamped on the block match what we would calculate locally?
-      require(
-        block.height == newHeight,
-        s"Local calculation of block height failed since ${block.height} != $newHeight"
-      )
-    }
-
-  private def ensureValidHit(block: Block, parent: Block): Try[Unit] = Try {
-    // calculate the hit value from the forger box included in the new block
-    val hit = calcHit(parent)(block.generatorBox)
-
-    // calculate the difficulty the forger would have used to determine eligibility
-    val target = calcTarget(
-      block.generatorBox.value.quantity,
-      block.timestamp - parent.timestamp,
-      parent.difficulty,
-      parent.height
-    )
-
-    // did the forger create a block with a valid forger box and adjusted difficulty?
-    require(BigInt(hit) < target, s"Block difficulty failed since $hit >= $target")
-  }
-
-  /** Helper function to find the source of the parent block (either storage or chain cache) */
-  private def getParentDetailsOf(block: Block): (Block, Seq[TimeProvider.Time]) =
-    blockProcessor.getCacheBlock(block.parentId) match {
-      case Some(cacheParent) => (cacheParent.block, cacheParent.prevBlockTimes :+ block.timestamp)
-      case None              =>
-        // we have already checked if the parent exists so can get
-        val parent = storage.modifierById(block.parentId).get
-        (parent, History.getTimestamps(storage, consensus.nxtBlockNum, parent) :+ block.timestamp)
-    }
-}
-
-/* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */
-
-class SyntaxBlockValidator extends BlockValidator[Block] {
-  // todo: decide on a maximum size for blocks and enforce here
-
-  // the signature on the block should match the signature used in the Arbit and Poly minting transactions
-  val forgerEntitlementCheck: (Transaction.TX, Block) => Unit =
-    (tx: Transaction.TX, b: Block) =>
-      require(
-        tx.attestation.keys.toSeq.contains(b.publicKey),
-        "The forger entitled transactions must match the block details"
-      )
-
-  def validate(block: Block): Try[Unit] = Try {
-
-    // check block signature is valid
-    require(block.signature.isValid(block.publicKey, block.messageToSign), "Failed to validate block signature")
-
-    // ensure only a single Arbit minting transaction
-    val numArbitCoinbase = block.transactions.count {
-      case tx: ArbitTransfer[_] => tx.minting
-      case _                    => false
-    }
-    require(numArbitCoinbase == 1, "Invalid number of Arbit reward transactions.")
-
-    // ensure only a single Poly minting transaction
-    val numPolyCoinbase = block.transactions.count {
-      case tx: PolyTransfer[_] => tx.minting
-      case _                   => false
-    }
-    require(numPolyCoinbase == 1, "Invalid number of Poly reward transactions.")
-
-    // enforce the structure of the Arbit and Poly minting transactions
-    block.transactions.zipWithIndex.map {
-      case (tx, 0) =>
-        tx match {
-          case tx: ArbitTransfer[_] if tx.minting =>
-            forgerEntitlementCheck(tx, block)
-            require(
-              tx.to.map(_._2.quantity).sum == consensusStorage.inflation, // JAA -this needs to be done more carefully
-              "The inflation amount in the block must match the output of the Arbit rewards transaction"
-            )
-            require(
-              tx.data.fold(false)(_.show.split("_").head == block.parentId.show),
-              "Arbit reward transactions must contain the parent id of their minting block"
-            )
-
-          case _ => throw new Error("The first transaction in a block must be a minting ArbitTransfer")
-        }
-
-      case (tx, 1) =>
-        tx match {
-          case tx: PolyTransfer[_] if tx.minting =>
-            forgerEntitlementCheck(tx, block)
-            require(
-              block.transactions.map(_.fee).sum == tx.to.map(_._2.quantity).sum,
-              "The sum of the fees in the block must match the output of the Poly rewards transaction"
-            )
-            require(
-              tx.data.fold(false)(_.show.split("_").head == block.parentId.show),
-              "Poly reward transactions must contain the parent id of their minting block"
-            )
-
-          case _ => throw new Error("The second transaction in a block must be a minting PolyTransfer")
-        }
-
-      case _ => // do nothing
+        case None => throw new Error(s"Could not find parent with blockId=${block.parentId}")
+      }
     }
   }
-}
 
-class TimestampValidator(storage: Storage, blockProcessor: BlockProcessor) extends BlockValidator[Block] {
+  class EligibilityValidator(leaderElection: NxtLeaderElection, consensusState: NxtConsensus.State)
+      extends BlockValidator[Option[Block]] {
 
-  private def blockTimestamp(id: ModifierId): Option[TimeProvider.Time] =
-    blockProcessor.getCacheBlock(id).map(_.block.timestamp).orElse(storage.timestampOf(id))
+    override def validate(f: Block => Option[Block])(block: Block): Try[Unit] = Try {
+      f(block) match {
+        case Some(parent) =>
+          val timeSinceLastBlack = block.timestamp - parent.timestamp
+          val hit = leaderElection.calculateHitValue(parent)(_)
+          val threshold = leaderElection.calculateThresholdValue(timeSinceLastBlack, consensusState)(_)
 
-  override def validate(block: Block): Try[Unit] = Try {
-    blockTimestamp(block.parentId) match {
-      case Some(parentTimestamp) =>
+          // did the forger create a block with a valid forger box and adjusted difficulty?
+          require(
+            NxtLeaderElection.getEligibleBox(hit, threshold)(Iterator(block.generatorBox)).isRight,
+            s"Failed to verify eligibility for blockId=${block.id}" +
+            s"since ${hit(block.generatorBox)} >= ${threshold(block.generatorBox)}"
+          )
+
+        case None => throw new Error(s"Could not find parent with blockId=${block.parentId}")
+      }
+    }
+  }
+
+  class SyntaxValidator(consensusState: NxtConsensus.State) extends BlockValidator[Block] {
+    // todo: decide on a maximum size for blocks and enforce here
+
+    // the signature on the block should match the signature used in the Arbit and Poly minting transactions
+    private val forgerEntitlementCheck: (Transaction.TX, Block) => Unit =
+      (tx: Transaction.TX, b: Block) =>
         require(
-          block.timestamp > parentTimestamp,
-          s"Block timestamp ${block.timestamp} is earlier than parent timestamp $parentTimestamp"
+          tx.attestation.keys.toSeq.contains(b.publicKey),
+          "The forger entitled transactions must match the block details"
         )
-      case None => throw new Error(s"Could not find timestamp for parent blockId=${block.parentId}")
+
+    override def validate(f: Block => Block)(block: Block): Try[Unit] = Try {
+
+      // check block signature is valid
+      require(block.signature.isValid(block.publicKey, block.messageToSign), "Failed to validate block signature")
+
+      // ensure only a single Arbit minting transaction
+      val numArbitCoinbase = block.transactions.count {
+        case tx: ArbitTransfer[_] => tx.minting
+        case _                    => false
+      }
+      require(numArbitCoinbase == 1, "Invalid number of Arbit reward transactions.")
+
+      // ensure only a single Poly minting transaction
+      val numPolyCoinbase = block.transactions.count {
+        case tx: PolyTransfer[_] => tx.minting
+        case _                   => false
+      }
+      require(numPolyCoinbase == 1, "Invalid number of Poly reward transactions.")
+
+      // enforce the structure of the Arbit and Poly minting transactions
+      block.transactions.zipWithIndex.map {
+        case (tx, 0) =>
+          tx match {
+            case tx: ArbitTransfer[_] if tx.minting =>
+              forgerEntitlementCheck(tx, block)
+              require(
+                tx.to
+                  .map(_._2.quantity)
+                  .sum == consensusState.inflation, // JAA -this needs to be done more carefully
+                "The inflation amount in the block must match the output of the Arbit rewards transaction"
+              )
+              require(
+                tx.data.fold(false)(_.show.split("_").head == block.parentId.show),
+                "Arbit reward transactions must contain the parent id of their minting block"
+              )
+
+            case _ => throw new Error("The first transaction in a block must be a minting ArbitTransfer")
+          }
+
+        case (tx, 1) =>
+          tx match {
+            case tx: PolyTransfer[_] if tx.minting =>
+              forgerEntitlementCheck(tx, block)
+              require(
+                block.transactions.map(_.fee).sum == tx.to.map(_._2.quantity).sum,
+                "The sum of the fees in the block must match the output of the Poly rewards transaction"
+              )
+              require(
+                tx.data.fold(false)(_.show.split("_").head == block.parentId.show),
+                "Poly reward transactions must contain the parent id of their minting block"
+              )
+
+            case _ => throw new Error("The second transaction in a block must be a minting PolyTransfer")
+          }
+
+        case _ => // do nothing
+      }
     }
   }
+
+  class TimestampValidator extends BlockValidator[Option[TimeProvider.Time]] {
+
+    override def validate(f: Block => Option[TimeProvider.Time])(block: Block): Try[Unit] = Try {
+      f(block) match {
+        case Some(parentTimestamp) =>
+          require(
+            block.timestamp > parentTimestamp,
+            s"Block timestamp ${block.timestamp} is earlier than parent timestamp $parentTimestamp"
+          )
+        case None => throw new Error(s"Could not find timestamp for parent blockId=${block.parentId}")
+      }
+    }
+  }
+
 }

@@ -27,7 +27,7 @@ object Propositions {
 
   object Contextual {
     case class HeightLock(height: Long) extends Proposition
-    case class RequiredBoxState(location: BoxLocation, boxes: List[(Int, Box[Box.Value])]) extends Proposition
+    case class RequiredBoxState(location: BoxLocation, boxes: List[(Int, Box)]) extends Proposition
   }
 
   object Script {

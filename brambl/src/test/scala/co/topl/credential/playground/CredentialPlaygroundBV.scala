@@ -1,11 +1,12 @@
 package co.topl.credential.playground
 
-import cats.data.NonEmptyChain
+import cats.data.Chain
 import co.topl.credential.Credential
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
+import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.codecs.bytes.tetra.instances._
 import co.topl.crypto.typeclasses.KeyInitializer
 import co.topl.crypto.typeclasses.KeyInitializer.Instances.ed25519Initializer
-import co.topl.models.Transaction.{CoinOutput, Unproven}
 import co.topl.models.utility.Sized
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
@@ -16,8 +17,8 @@ import co.topl.typeclasses.implicits._
 import co.topl.typeclasses.VerificationContext
 import io.circe.Json
 import org.graalvm.polyglot.Value
-
-import scala.collection.immutable.ListMap
+import ModelGenerators._
+import cats.effect.unsafe.implicits.global
 
 object CredentialPlaygroundBV extends App {
   type F[A] = cats.effect.IO[A]
@@ -44,6 +45,18 @@ object CredentialPlaygroundBV extends App {
 
   // Exercise: Construct complex propositions and attempt to prove them using Credentials
 
+  val stakingAddress: StakingAddress =
+    StakingAddresses.Operator(ed25519.getVerificationKey(KeyInitializer[SecretKeys.Ed25519].random()))
+
+  val offlineWalletSK =
+    KeyInitializer[SecretKeys.Ed25519].random()
+
+  def fullAddress(spendingAddress: SpendingAddress) = FullAddress(
+    networkPrefix,
+    spendingAddress,
+    stakingAddress,
+    ed25519.sign(offlineWalletSK, (spendingAddress, stakingAddress).signableBytes)
+  )
   // tic-tac-toe with propositions
 
   sealed trait Player {
@@ -99,18 +112,17 @@ object CredentialPlaygroundBV extends App {
 
   val boardProp = board.toProposition(playerA.vk.asProposition, playerB.vk.asProposition)
 
-  val randomAddr = KeyInitializer[SecretKeys.Ed25519].random().vk.dionAddress
+  val randomAddr = KeyInitializer[SecretKeys.Ed25519].random().vk.spendingAddress
 
-  val randomTx: Unproven =
+  val randomTx: Transaction.Unproven =
     Transaction.Unproven(
-      inputs = List(),
-      feeOutput = None,
-      coinOutputs =
-        NonEmptyChain[CoinOutput](Transaction.PolyOutput(boardProp.dionAddress, Sized.maxUnsafe(BigInt(10)))),
-      fee = Sized.maxUnsafe(BigInt(5)),
+      inputs = Chain(ModelGenerators.arbitraryTransactionUnprovenInput.arbitrary.first),
+      outputs = Chain(
+        Transaction
+          .Output(fullAddress(boardProp.spendingAddress), Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false)
+      ),
       timestamp = System.currentTimeMillis(),
-      data = None,
-      minting = false
+      data = None
     )
 
   val boardCred = Credential.Compositional.Or(
@@ -120,24 +132,15 @@ object CredentialPlaygroundBV extends App {
 
   implicit val context: VerificationContext[F] = new VerificationContext[F] {
 
-    override def currentTransaction: Transaction =
-      Transaction(
-        inputs =
-          ListMap.empty[BoxReference, (Proposition, Proof)] ++ randomTx.inputs.map(_ -> (boardProp, boardCred.proof)),
-        feeOutput = randomTx.feeOutput,
-        coinOutputs = randomTx.coinOutputs,
-        fee = randomTx.fee,
-        timestamp = randomTx.timestamp,
-        data = randomTx.data,
-        minting = randomTx.minting
-      )
+    override val currentTransaction: Transaction =
+      randomTx.prove(_ => boardCred.proof)
 
-    override def currentHeight: Slot = 10
-    def inputBoxes: List[Box[Box.Value]] = List()
+    override val currentHeight: Slot = 10
+    def inputBoxes: List[Box] = List()
     def currentSlot: Slot = 1
   }
 
-  val validProof = boardProp.isSatisfiedBy(boardCred.proof)
+  val validProof = boardProp.isSatisfiedBy(boardCred.proof).unsafeRunSync()
 
   println(validProof)
 
@@ -145,13 +148,13 @@ object CredentialPlaygroundBV extends App {
   //  val party1SK: SecretKeys.Ed25519 = KeyInitializer[SecretKeys.Ed25519].random()
   //  val party2SK: SecretKeys.Curve25519 = KeyInitializer[SecretKeys.Curve25519].random()
   //
-  //  val party3Address: DionAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.dionAddress
+  //  val party3Address: DionAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.spendingAddress
   //
   //  val proposition = party1SK.vk.asProposition.and(party2SK.vk.asProposition)
   //  println(proposition)
   //
   //  val unprovenTransaction: Transaction.Unproven = Transaction.Unproven(
-  //    inputs = List((proposition.dionAddress, Random.nextLong())),
+  //    inputs = List((proposition.spendingAddress, Random.nextLong())),
   //    feeOutput = None,
   //    coinOutputs = NonEmptyChain[CoinOutput](Transaction.PolyOutput(party3Address, Sized.maxUnsafe(BigInt(10)))),
   //    fee = Sized.maxUnsafe(BigInt(5)),

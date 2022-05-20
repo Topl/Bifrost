@@ -8,12 +8,13 @@ import cats.effect.kernel.Sync
 import cats.effect.{Async, IO, IOApp}
 import cats.implicits._
 import cats.~>
+import co.topl.catsakka._
 import co.topl.consensus.LeaderElectionValidation
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing.Ed25519VRF
-import co.topl.interpreters.{ActorPoolUnsafeResource, AkkaSchedulerClock, NodeViewHolder, StatsInterpreter}
+import co.topl.interpreters.{ActorPoolUnsafeResource, AkkaSchedulerClock, StatsInterpreter}
 import co.topl.models.utility.Ratio
 import co.topl.numerics.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits.Ops
@@ -23,6 +24,7 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.nio.file.{Files, Paths}
+import java.time.Instant
 import java.util.UUID
 import scala.concurrent.duration._
 import scala.math.BigDecimal.RoundingMode
@@ -65,7 +67,7 @@ object ThresholdSimulator extends IOApp.Simple {
       (stakerVRFSK, stakerVRFVK) <- ed25519VRFResource.use(
         _.createKeyPair(Entropy.fromUuid(UUID.randomUUID()), None).pure[F]
       )
-      clock = AkkaSchedulerClock.Eval.make[F](SlotDuration, EpochLength)
+      clock = AkkaSchedulerClock.Eval.make[F](SlotDuration, EpochLength, Instant.now())
       statsInterpreter = StatsInterpreter.Eval.make[F](statsDir)
       _ <- testConfigs.traverse { case (precision, amplitude, relativeStake) =>
         val vrfConfig =

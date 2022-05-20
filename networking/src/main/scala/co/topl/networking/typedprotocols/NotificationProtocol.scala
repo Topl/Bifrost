@@ -12,7 +12,11 @@ trait NotificationProtocol[T] {
   /**
    * Provides state transitions from the perspective of the "server"
    */
-  class StateTransitionsServer[F[_]: Applicative] extends StateAgency.CommonStateAgency {
+  class StateTransitionsServer[F[_]: Applicative](clientSentStart: () => F[Unit]) {
+    implicit val stateAgentStart: StateAgency[TypedProtocol.CommonStates.None.type] = StateAgency.alwaysB
+    implicit val stateAgentIdle: StateAgency[TypedProtocol.CommonStates.Idle.type] = StateAgency.alwaysB
+    implicit val stateAgentBusy: StateAgency[TypedProtocol.CommonStates.Busy.type] = StateAgency.alwaysA
+    implicit val stateAgentDone: StateAgency[TypedProtocol.CommonStates.Done.type] = StateAgency.noAgent
 
     implicit val startNoneBusy: StateTransition[
       F,
@@ -20,7 +24,7 @@ trait NotificationProtocol[T] {
       TypedProtocol.CommonStates.None.type,
       TypedProtocol.CommonStates.Busy.type
     ] =
-      (_, _, _) => TypedProtocol.CommonStates.Busy.pure[F]
+      (_, _, _) => clientSentStart().as(TypedProtocol.CommonStates.Busy)
 
     implicit val pushBusyBusy: StateTransition[
       F,
@@ -43,7 +47,11 @@ trait NotificationProtocol[T] {
    * Provides state transitions from the perspective of the "client"
    * @param updateReceived Signals that the server has gossiped a new ID
    */
-  class StateTransitionsClient[F[_]: Applicative](updateReceived: T => F[Unit]) extends StateAgency.CommonStateAgency {
+  class StateTransitionsClient[F[_]: Applicative](updateReceived: T => F[Unit]) {
+    implicit val stateAgentStart: StateAgency[TypedProtocol.CommonStates.None.type] = StateAgency.alwaysB
+    implicit val stateAgentIdle: StateAgency[TypedProtocol.CommonStates.Idle.type] = StateAgency.alwaysB
+    implicit val stateAgentBusy: StateAgency[TypedProtocol.CommonStates.Busy.type] = StateAgency.alwaysA
+    implicit val stateAgentDone: StateAgency[TypedProtocol.CommonStates.Done.type] = StateAgency.noAgent
 
     implicit val startNoneBusy: StateTransition[
       F,

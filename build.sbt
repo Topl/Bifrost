@@ -198,6 +198,7 @@ lazy val bifrost = project
     toplRpc,
     benchmarking,
     crypto,
+    catsAkka,
     brambl,
     models,
     numerics,
@@ -212,7 +213,8 @@ lazy val bifrost = project
     demo,
     tools,
     scripting,
-    eligibilitySimulator
+    eligibilitySimulator,
+    genus
   )
 
 lazy val node = project
@@ -234,7 +236,7 @@ lazy val node = project
   .settings(
     IntegrationTest / parallelExecution := false
   )
-  .dependsOn(common % "compile->compile;test->test", toplRpc, tools)
+  .dependsOn(common % "compile->compile;test->test", toplRpc, tools, genus)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
 lazy val common = project
@@ -313,7 +315,7 @@ lazy val numerics = project
   )
   .settings(scalamacrosParadiseSettings)
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.scalacache)
-  .dependsOn(algebras,typeclasses,models)
+  .dependsOn(algebras, typeclasses, models)
 
 lazy val eventTree = project
   .in(file("event-tree"))
@@ -328,7 +330,7 @@ lazy val eventTree = project
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsEffect)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, typeclasses, algebras, commonInterpreters % "test->test")
+  .dependsOn(models, typeclasses, algebras % "compile->compile;test->test")
 
 lazy val byteCodecs = project
   .in(file("byte-codecs"))
@@ -341,13 +343,7 @@ lazy val byteCodecs = project
     buildInfoPackage := "co.topl.buildinfo.codecs.bytes"
   )
   .settings(
-    libraryDependencies ++=
-      Dependencies.test ++
-      Dependencies.simulacrum ++
-      Dependencies.scodec ++
-      Dependencies.scodecBits ++
-      Dependencies.cats ++
-      Seq(Dependencies.akka("actor"))
+    libraryDependencies ++= Dependencies.byteCodecs
   )
   .settings(scalamacrosParadiseSettings)
 
@@ -377,7 +373,7 @@ lazy val jsonCodecs = project
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.circe)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models)
+  .dependsOn(models, tetraByteCodecs)
 
 lazy val typeclasses: Project = project
   .in(file("typeclasses"))
@@ -403,7 +399,7 @@ lazy val algebras = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.algebras"
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Seq(Dependencies.catsSlf4j % "test"))
+  .settings(libraryDependencies ++= Dependencies.algebras)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, crypto, tetraByteCodecs)
 
@@ -420,7 +416,7 @@ lazy val commonInterpreters = project
   )
   .settings(libraryDependencies ++= Dependencies.commonInterpreters)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, algebras, typeclasses, byteCodecs, tetraByteCodecs)
+  .dependsOn(models, algebras, typeclasses, byteCodecs, tetraByteCodecs, catsAkka, eventTree)
 
 lazy val consensus = project
   .in(file("consensus"))
@@ -466,7 +462,8 @@ lazy val minting = project
     crypto,
     tetraByteCodecs,
     algebras % "compile->compile;test->test",
-    consensus
+    consensus,
+    catsAkka
   )
 
 lazy val networking = project
@@ -480,15 +477,19 @@ lazy val networking = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.networking"
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsEffect)
+  .settings(libraryDependencies ++= Dependencies.networking)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(
     models % "compile->compile;test->test",
     typeclasses,
     crypto,
     byteCodecs,
+    tetraByteCodecs,
     algebras % "compile->compile;test->test",
-    consensus
+    consensus,
+    commonInterpreters,
+    catsAkka,
+    eventTree
   )
 
 lazy val demo = project
@@ -512,7 +513,16 @@ lazy val demo = project
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.demo ++ Dependencies.catsEffect)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models % "compile->compile;test->test", typeclasses, consensus, minting, scripting, commonInterpreters)
+  .dependsOn(
+    models % "compile->compile;test->test",
+    typeclasses,
+    consensus,
+    minting,
+    scripting,
+    commonInterpreters,
+    networking,
+    catsAkka
+  )
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
 lazy val eligibilitySimulator: Project = project
@@ -543,7 +553,9 @@ lazy val scripting: Project = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.scripting"
   )
-  .settings(libraryDependencies ++= Dependencies.graal ++ Dependencies.catsEffect ++ Dependencies.circe ++ Dependencies.simulacrum)
+  .settings(
+    libraryDependencies ++= Dependencies.graal ++ Dependencies.catsEffect ++ Dependencies.circe ++ Dependencies.simulacrum
+  )
   .settings(libraryDependencies ++= Dependencies.test)
   .settings(scalamacrosParadiseSettings)
 
@@ -594,12 +606,25 @@ lazy val crypto = project
     name := "crypto",
     commonSettings,
     publishSettings,
+    scalamacrosParadiseSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.crypto",
     libraryDependencies ++= Dependencies.crypto
   )
-  .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test")
+
+lazy val catsAkka = project
+  .in(file("cats-akka"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "cats-akka",
+    commonSettings,
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.catsakka",
+    libraryDependencies ++= Dependencies.catsAkka
+  )
+  .settings(scalamacrosParadiseSettings)
 
 lazy val tools = project
   .in(file("tools"))
@@ -624,6 +649,17 @@ lazy val loadTesting = project
     libraryDependencies ++= Dependencies.loadTesting
   )
   .dependsOn(common, brambl)
+
+lazy val genus = project
+  .in(file("genus"))
+  .settings(
+    name := "genus",
+    commonSettings,
+    scalamacrosParadiseSettings,
+    libraryDependencies ++= Dependencies.genus,
+  )
+  .enablePlugins(AkkaGrpcPlugin)
+  .dependsOn(common)
 
 addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; + test")
 addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; + test")

@@ -12,6 +12,7 @@ import cats.effect.{Async, IO, IOApp}
 import cats.implicits._
 import cats.~>
 import co.topl.algebras._
+import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
@@ -32,6 +33,7 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.nio.file.{Files, Paths}
+import java.time.Instant
 import java.util.UUID
 import scala.concurrent.duration._
 import scala.util.Random
@@ -78,23 +80,15 @@ object EligibilitySimulator extends IOApp.Simple {
     val (kesKey, _) =
       kesProduct.createKeyPair(seed = Bytes(Random.nextBytes(32)), height = KesKeyHeight, 0)
 
-    val stakerRegistration: Box.Values.TaktikosRegistration =
-      Box.Values.TaktikosRegistration(
-        commitment = kesProduct.sign(
+    val stakerRegistration: Box.Values.Registrations.Operator =
+      Box.Values.Registrations.Operator(
+        vrfCommitment = kesProduct.sign(
           kesKey,
           new Blake2b256().hash(ed25519Vrf.getVerificationKey(stakerVrfKey).immutableBytes, poolVK.bytes.data).data
         )
       )
 
-    val stakerAddress: TaktikosAddress = {
-      val (paymentKey, paymentVerificationKey) = ed25519.createKeyPair(Entropy.fromUuid(UUID.randomUUID()), None)
-      TaktikosAddress(
-        new Blake2b256().hash(paymentVerificationKey.bytes.data),
-        poolVK,
-        ed25519.sign(paymentKey, poolVK.bytes.data)
-      )
-    }
-    Staker(RelativeStake, stakerVrfKey, kesKey, stakerRegistration, stakerAddress)
+    Staker(RelativeStake, stakerVrfKey, kesKey, stakerRegistration, StakingAddresses.Operator(poolVK))
   }
 
   private val genesis =
@@ -114,7 +108,7 @@ object EligibilitySimulator extends IOApp.Simple {
   implicit private val logger: Logger[F] = Slf4jLogger.getLogger[F]
 
   private val clock: ClockAlgebra[F] =
-    AkkaSchedulerClock.Eval.make(SlotDuration, EpochLength)
+    AkkaSchedulerClock.Eval.make(SlotDuration, EpochLength, Instant.now())
 
   implicit private val timeout: Timeout = Timeout(20.seconds)
 
@@ -193,10 +187,10 @@ object EligibilitySimulator extends IOApp.Simple {
       )
 
   private def createBlockStore(
-    headerStore: Store[F, BlockHeaderV2],
-    bodyStore:   Store[F, BlockBodyV2]
-  ): Store[F, BlockV2] =
-    new Store[F, BlockV2] {
+    headerStore: Store[F, TypedIdentifier, BlockHeaderV2],
+    bodyStore:   Store[F, TypedIdentifier, BlockBodyV2]
+  ): Store[F, TypedIdentifier, BlockV2] =
+    new Store[F, TypedIdentifier, BlockV2] {
 
       def get(id: TypedIdentifier): F[Option[BlockV2]] =
         (OptionT(headerStore.get(id)), OptionT(bodyStore.get(id))).tupled.map((BlockV2.apply _).tupled).value
@@ -207,6 +201,7 @@ object EligibilitySimulator extends IOApp.Simple {
       def remove(id: TypedIdentifier): F[Unit] =
         (headerStore.remove(id), bodyStore.remove(id)).tupled.void
 
+      def contains(id: TypedIdentifier): F[Boolean] = (headerStore.contains(id), bodyStore.contains(id)).mapN(_ && _)
     }
 
   // Program definition
@@ -220,8 +215,8 @@ object EligibilitySimulator extends IOApp.Simple {
       ed25519VRFResource <- ActorPoolUnsafeResource.Eval.make[F, Ed25519VRF](Ed25519VRF.precomputed(), _ => ())
       kesProductResource <- ActorPoolUnsafeResource.Eval.make[F, KesProduct](new KesProduct, _ => ())
       ed25519Resource    <- ActorPoolUnsafeResource.Eval.make[F, Ed25519](new Ed25519, _ => ())
-      blockHeaderStore   <- RefStore.Eval.make[F, BlockHeaderV2]()
-      blockBodyStore     <- RefStore.Eval.make[F, BlockBodyV2]()
+      blockHeaderStore   <- RefStore.Eval.make[F, TypedIdentifier, BlockHeaderV2]()
+      blockBodyStore     <- RefStore.Eval.make[F, TypedIdentifier, BlockBodyV2]()
       blockStore = createBlockStore(blockHeaderStore, blockBodyStore)
       _             <- blockStore.put(genesis.headerV2.id, genesis)
       slotDataCache <- SlotDataCache.Eval.make(blockHeaderStore, ed25519VRFResource)
@@ -286,6 +281,6 @@ private case class Staker(
   relativeStake: Ratio,
   vrfKey:        SecretKeys.VrfEd25519,
   kesKey:        SecretKeys.KesProduct,
-  registration:  Box.Values.TaktikosRegistration,
-  address:       TaktikosAddress
+  registration:  Box.Values.Registrations.Operator,
+  address:       StakingAddresses.Operator
 )

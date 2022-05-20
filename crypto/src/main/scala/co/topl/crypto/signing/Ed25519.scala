@@ -17,7 +17,7 @@ class Ed25519
   override val SignatureLength: Int = impl.SIGNATURE_SIZE
   override val KeyLength: Int = impl.SECRET_KEY_SIZE
 
-  override protected def createKeyPair(
+  override def createKeyPair(
     seed: Sized.Strict[Bytes, SecretKeys.Ed25519.Length]
   ): (SecretKeys.Ed25519, VerificationKeys.Ed25519) = {
     val sk = new Array[Byte](impl.SECRET_KEY_SIZE)

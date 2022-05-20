@@ -39,7 +39,7 @@ class ExtendedEd25519
     createKeyPair(seed)
   }
 
-  override protected def createKeyPair(
+  override def createKeyPair(
     seed: Sized.Strict[Bytes, Lengths.`96`.type]
   ): (SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519) = {
     val sk = ExtendedEd25519.clampBits(seed)

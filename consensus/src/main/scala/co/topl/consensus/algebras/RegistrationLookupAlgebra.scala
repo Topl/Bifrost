@@ -1,6 +1,6 @@
 package co.topl.consensus.algebras
 
-import co.topl.models.{Box, SlotId, TaktikosAddress}
+import co.topl.models.{Box, SlotId, StakingAddresses}
 
 trait RegistrationLookupAlgebra[F[_]] {
 
@@ -10,6 +10,6 @@ trait RegistrationLookupAlgebra[F[_]] {
    * @param address The address to lookup
    * @return An optional registration, if the address was registered
    */
-  def registrationOf(slotId: SlotId, address: TaktikosAddress): F[Option[Box.Values.TaktikosRegistration]]
+  def registrationOf(slotId: SlotId, address: StakingAddresses.Operator): F[Option[Box.Values.Registrations.Operator]]
 
 }

@@ -3,6 +3,8 @@ package co.topl.credential.playground
 import cats.data.NonEmptyChain
 import cats.effect.unsafe.implicits.global
 import co.topl.credential.Credential
+import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.codecs.bytes.tetra.instances._
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
 import co.topl.crypto.typeclasses.KeyInitializer
@@ -17,7 +19,7 @@ import co.topl.typeclasses.implicits._
 import co.topl.typeclasses.VerificationContext
 import io.circe.Json
 import org.graalvm.polyglot.Value
-
+import ModelGenerators._
 import scala.collection.immutable.ListMap
 import scala.util.Random
 
@@ -54,37 +56,36 @@ object SetupSandbox {
         )
   implicit val networkPrefix: NetworkPrefix = NetworkPrefix(1: Byte)
 
+  val stakingAddress: StakingAddress =
+    StakingAddresses.Operator(ed25519.getVerificationKey(KeyInitializer[SecretKeys.Ed25519].random()))
+
+  val offlineWalletSK =
+    KeyInitializer[SecretKeys.Ed25519].random()
+
+  def fullAddress(spendingAddress: SpendingAddress) = FullAddress(
+    networkPrefix,
+    spendingAddress,
+    stakingAddress,
+    ed25519.sign(offlineWalletSK, (spendingAddress, stakingAddress).signableBytes)
+  )
+
   val curve25519Sk: SecretKeys.Curve25519 = KeyInitializer[SecretKeys.Curve25519].random()
   val ed25519Sk: SecretKeys.Ed25519 = KeyInitializer[SecretKeys.Ed25519].random()
   val aliceSk: SecretKeys.Curve25519 = KeyInitializer[SecretKeys.Curve25519].random()
   val bobSk: SecretKeys.Ed25519 = KeyInitializer[SecretKeys.Ed25519].random()
 
-  val address0: DionAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.dionAddress
-  val address1: DionAddress = curve25519Sk.vk.asProposition.and(ed25519Sk.vk.asProposition).dionAddress
+  val address0: SpendingAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.spendingAddress
+  val address1: SpendingAddress = curve25519Sk.vk.asProposition.and(ed25519Sk.vk.asProposition).spendingAddress
 
   def createUnprovenTransaction(
-    inputs:      List[BoxReference],
-    coinOutputs: NonEmptyChain[Transaction.CoinOutput]
+    inputs:  NonEmptyChain[Transaction.Unproven.Input],
+    outputs: NonEmptyChain[Transaction.Output]
   ): Transaction.Unproven =
     Transaction.Unproven(
-      inputs,
-      feeOutput = None,
-      coinOutputs,
-      fee = Sized.maxUnsafe(BigInt(5)),
+      inputs.toChain,
+      outputs.toChain,
       timestamp = System.currentTimeMillis(),
-      data = None,
-      minting = false
-    )
-
-  def transactionFromUnproven(unprovenTransaction: Transaction.Unproven, attestation: Attestation): Transaction =
-    Transaction(
-      inputs = ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.zip(attestation),
-      feeOutput = unprovenTransaction.feeOutput,
-      coinOutputs = unprovenTransaction.coinOutputs,
-      fee = unprovenTransaction.fee,
-      timestamp = unprovenTransaction.timestamp,
-      data = unprovenTransaction.data,
-      minting = unprovenTransaction.minting
+      data = None
     )
 }
 
@@ -92,11 +93,13 @@ object CredentialPlaygroundJAA extends App {
   import SetupSandbox._
 
   val proposition = curve25519Sk.vk.asProposition.and(ed25519Sk.vk.asProposition)
-  println(s"The address for the proposition is: ${proposition.dionAddress}")
+  println(s"The address for the proposition is: ${proposition.spendingAddress}")
 
   val unprovenTransaction: Transaction.Unproven = createUnprovenTransaction(
-    List((proposition.dionAddress, Random.nextLong())),
-    NonEmptyChain(Transaction.PolyOutput(address0, Sized.maxUnsafe(BigInt(10))))
+    NonEmptyChain(ModelGenerators.arbitraryTransactionUnprovenInput.arbitrary.first.copy(proposition = proposition)),
+    NonEmptyChain(
+      Transaction.Output(fullAddress(address0), Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false)
+    )
   )
 
   val credential = Credential.Compositional.And(
@@ -110,17 +113,16 @@ object CredentialPlaygroundJAA extends App {
   val proof = credential.proof
   println(proof)
 
-  val transaction = transactionFromUnproven(unprovenTransaction, ListMap(proposition -> proof))
+  val transaction = unprovenTransaction.prove(_ => proof)
   println(transaction)
 
   implicit val context: VerificationContext[F] = new VerificationContext[F] {
     def currentTransaction: Transaction = transaction
     def currentHeight: Long = 1
 
-    def inputBoxes: List[Box[Box.Value]] = List(
+    def inputBoxes: List[Box] = List(
       Box(
         proposition.typedEvidence,
-        unprovenTransaction.inputs.head._2,
         Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))
       )
     )
@@ -140,11 +142,13 @@ object RequiredOutput extends App {
     List((0, Box.empty.copy(evidence = address0.typedEvidence))) // todo: helper function name for Box.empty.copy
   )
   val proposition = curve25519Sk.vk.asProposition.and(requiredBoxProposition)
-  println(s"The address for the proposition is: ${proposition.dionAddress}")
+  println(s"The address for the proposition is: ${proposition.spendingAddress}")
 
   val unprovenTransaction: Transaction.Unproven = createUnprovenTransaction(
-    List((proposition.dionAddress, Random.nextLong())),
-    NonEmptyChain(Transaction.PolyOutput(address0, Sized.maxUnsafe(BigInt(10))))
+    NonEmptyChain(arbitraryTransactionUnprovenInput.arbitrary.first.copy(proposition = proposition)),
+    NonEmptyChain(
+      Transaction.Output(fullAddress(address0), Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false)
+    )
   )
 
   val credential = Credential.Compositional.And(
@@ -159,17 +163,16 @@ object RequiredOutput extends App {
   val proof = credential.proof
   println(proof)
 
-  val transaction = transactionFromUnproven(unprovenTransaction, ListMap(proposition -> proof))
+  val transaction = unprovenTransaction.prove(_ => proof)
   println(transaction)
 
   implicit val context: VerificationContext[F] = new VerificationContext[F] {
     def currentTransaction: Transaction = transaction
     def currentHeight: Long = 1
 
-    def inputBoxes: List[Box[Box.Value]] = List(
+    def inputBoxes: List[Box] = List(
       Box(
         proposition.typedEvidence,
-        unprovenTransaction.inputs.head._2,
         Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))
       )
     )
@@ -273,14 +276,20 @@ object XorGameCompletion extends App {
 
   val halfGameProposition = Propositions.Contextual.RequiredBoxState(
     BoxLocations.Output,
-    List((0, Box.empty.copy(evidence = fullGameProposition.dionAddress.typedEvidence)))
+    List((0, Box.empty.copy(evidence = fullGameProposition.spendingAddress.typedEvidence)))
   )
 
-  println(s"The address for the proposition is: ${fullGameProposition.dionAddress}")
+  println(s"The address for the proposition is: ${fullGameProposition.spendingAddress}")
 
   val unprovenTransaction: Transaction.Unproven = createUnprovenTransaction(
-    List((halfGameProposition.dionAddress, Random.nextLong())),
-    NonEmptyChain(Transaction.PolyOutput(aliceSk.vk.dionAddress, Sized.maxUnsafe(BigInt(10))))
+    NonEmptyChain(arbitraryTransactionUnprovenInput.arbitrary.first.copy(proposition = halfGameProposition)),
+    NonEmptyChain(
+      Transaction.Output(
+        fullAddress(aliceSk.vk.spendingAddress),
+        Box.Values.Poly(Sized.maxUnsafe(BigInt(10))),
+        minting = false
+      )
+    )
   )
 
   val credential = Credential.Compositional.Or(
@@ -299,17 +308,16 @@ object XorGameCompletion extends App {
   val proof = credential.proof
   println(proof)
 
-  val transaction = transactionFromUnproven(unprovenTransaction, ListMap(fullGameProposition -> proof))
+  val transaction = unprovenTransaction.prove(_ => proof)
   println(transaction)
 
   implicit val context: VerificationContext[F] = new VerificationContext[F] {
     def currentTransaction: Transaction = transaction
     def currentHeight: Long = 1
 
-    def inputBoxes: List[Box[Box.Value]] = List(
+    def inputBoxes: List[Box] = List(
       Box(
         halfGameProposition.typedEvidence,
-        unprovenTransaction.inputs.head._2,
         Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))
       )
     )
@@ -345,8 +353,10 @@ object RequiredBoxValue extends App {
   println(s"The address for the proposition is: ${proposition}")
 
   val unprovenTransaction: Transaction.Unproven = createUnprovenTransaction(
-    List((proposition.dionAddress, Random.nextLong())),
-    NonEmptyChain(Transaction.PolyOutput(address0, Sized.maxUnsafe(BigInt(10))))
+    NonEmptyChain(arbitraryTransactionUnprovenInput.arbitrary.first.copy(proposition = proposition)),
+    NonEmptyChain(
+      Transaction.Output(fullAddress(address0), Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false)
+    )
   )
 
   val credential = Credential.Contextual.RequiredBoxState(
@@ -357,13 +367,13 @@ object RequiredBoxValue extends App {
   val proof = credential.proof
   println(proof)
 
-  val transaction = transactionFromUnproven(unprovenTransaction, ListMap(proposition -> proof))
+  val transaction = unprovenTransaction.prove(_ => proof)
   println(transaction)
 
   implicit val context: VerificationContext[F] = new VerificationContext[F] {
     def currentTransaction: Transaction = transaction
     def currentHeight: Long = 1
-    def inputBoxes: List[Box[Box.Value]] = List()
+    def inputBoxes: List[Box] = List()
     def currentSlot: Slot = 1
   }
 
@@ -374,11 +384,13 @@ object NotTest extends App {
   import SetupSandbox._
 
   val proposition = Propositions.Compositional.Not(Propositions.Contextual.HeightLock(5))
-  println(s"The address for the proposition is: ${proposition.dionAddress}")
+  println(s"The address for the proposition is: ${proposition.spendingAddress}")
 
   val unprovenTransaction: Transaction.Unproven = createUnprovenTransaction(
-    List((proposition.dionAddress, Random.nextLong())),
-    NonEmptyChain(Transaction.PolyOutput(address0, Sized.maxUnsafe(BigInt(10))))
+    NonEmptyChain(arbitraryTransactionUnprovenInput.arbitrary.first.copy(proposition = proposition)),
+    NonEmptyChain(
+      Transaction.Output(fullAddress(address0), Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false)
+    )
   )
 
   val credential = Credential.Compositional.Not(
@@ -391,17 +403,16 @@ object NotTest extends App {
   val proof = credential.proof
   println(proof)
 
-  val transaction = transactionFromUnproven(unprovenTransaction, ListMap(proposition -> proof))
+  val transaction = unprovenTransaction.prove(_ => proof)
   println(transaction)
 
   implicit val context: VerificationContext[F] = new VerificationContext[F] {
     def currentTransaction: Transaction = transaction
     def currentHeight: Long = 3
 
-    def inputBoxes: List[Box[Box.Value]] = List(
+    def inputBoxes: List[Box] = List(
       Box(
         proposition.typedEvidence,
-        unprovenTransaction.inputs.head._2,
         Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))
       )
     )

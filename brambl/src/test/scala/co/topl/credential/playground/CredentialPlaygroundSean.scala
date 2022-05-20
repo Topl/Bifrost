@@ -1,12 +1,14 @@
 package co.topl.credential.playground
 
-import cats.data.NonEmptyChain
+import cats.data.Chain
 import cats.effect.unsafe.implicits.global
 import co.topl.credential.Credential
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
 import co.topl.crypto.typeclasses.KeyInitializer
 import co.topl.crypto.typeclasses.KeyInitializer.Instances.{curve25519Initializer, ed25519Initializer}
+import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.codecs.bytes.tetra.instances._
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.{Base58, Sized}
@@ -20,13 +22,25 @@ import io.circe.syntax._
 import org.graalvm.polyglot.Value
 
 import java.nio.charset.StandardCharsets
-import scala.collection.immutable.ListMap
-import scala.util.Random
+import ModelGenerators._
 
 object CredentialPlaygroundSean extends App {
   implicit val ed25519: Ed25519 = new Ed25519
   implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.precomputed()
   implicit val networkPrefix: NetworkPrefix = NetworkPrefix(1: Byte)
+
+  val stakingAddress: StakingAddress =
+    StakingAddresses.Operator(ed25519.getVerificationKey(KeyInitializer[SecretKeys.Ed25519].random()))
+
+  val offlineWalletSK =
+    KeyInitializer[SecretKeys.Ed25519].random()
+
+  def fullAddress(spendingAddress: SpendingAddress) = FullAddress(
+    networkPrefix,
+    spendingAddress,
+    stakingAddress,
+    ed25519.sign(offlineWalletSK, (spendingAddress, stakingAddress).signableBytes)
+  )
 
   // Exercise: Construct complex propositions and attempt to prove them using Credentials
 
@@ -34,7 +48,7 @@ object CredentialPlaygroundSean extends App {
   val party1SK: SecretKeys.Ed25519 = KeyInitializer[SecretKeys.Ed25519].random()
   val party2SK: SecretKeys.Curve25519 = KeyInitializer[SecretKeys.Curve25519].random()
 
-  val party3Address: DionAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.dionAddress
+  val party3Address: SpendingAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.spendingAddress
 
   val script1Proposition =
     """(ctx, args, utils) =>
@@ -46,7 +60,7 @@ object CredentialPlaygroundSean extends App {
     """(ctx, args, utils) => ctx.currentSlot > 400""".stripMargin.jsProposition
 
   val script3Proposition =
-    """(ctx, args, utils) => ctx.currentTransaction.coinOutputs[0].value == "10"""".stripMargin.jsProposition
+    """(ctx, args, utils) => ctx.currentTransaction.outputs[0].value.value == "10"""".stripMargin.jsProposition
 
   val script4Proposition =
     """(ctx, args, utils) => {
@@ -62,15 +76,13 @@ object CredentialPlaygroundSean extends App {
       .and(script4Proposition)
   println(proposition)
 
-  val unprovenTransaction: Transaction.Unproven = Transaction.Unproven(
-    inputs = List((proposition.dionAddress, Random.nextLong())),
-    feeOutput = None,
-    coinOutputs = NonEmptyChain(Transaction.PolyOutput(party3Address, Sized.maxUnsafe(BigInt(10)))),
-    fee = Sized.maxUnsafe(BigInt(5)),
-    timestamp = System.currentTimeMillis(),
-    data = None,
-    minting = false
-  )
+  val unprovenTransaction: Transaction.Unproven =
+    ModelGenerators.arbitraryUnprovenTransaction.arbitrary.first.copy(
+      inputs = Chain(arbitraryTransactionUnprovenInput.arbitrary.first.copy(proposition = proposition)),
+      outputs = Chain(
+        Transaction.Output(fullAddress(party3Address), Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false)
+      )
+    )
 
   val credential = Credential.Compositional.And(
     proposition,
@@ -87,16 +99,7 @@ object CredentialPlaygroundSean extends App {
   val proof = credential.proof
   println(proof)
 
-  val transaction = Transaction(
-    inputs =
-      ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(_ -> (proposition, proof)),
-    feeOutput = unprovenTransaction.feeOutput,
-    coinOutputs = unprovenTransaction.coinOutputs,
-    fee = unprovenTransaction.fee,
-    timestamp = unprovenTransaction.timestamp,
-    data = unprovenTransaction.data,
-    minting = unprovenTransaction.minting
-  )
+  val transaction = unprovenTransaction.prove(_ => proof)
   println(transaction)
 
   type F[A] = cats.effect.IO[A]
@@ -109,7 +112,7 @@ object CredentialPlaygroundSean extends App {
 
       def currentSlot: Slot = 450L
 
-      def inputBoxes: List[Box[Box.Value]] = List()
+      def inputBoxes: List[Box] = List()
     }
 
   implicit val jsExecutor: Propositions.Script.JS.JSScript => F[(Json, Json) => F[Boolean]] =

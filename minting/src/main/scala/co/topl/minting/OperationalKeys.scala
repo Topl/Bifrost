@@ -44,7 +44,7 @@ object OperationalKeys {
       parentSlotId:                SlotId,
       operationalPeriodLength:     Long,
       activationOperationalPeriod: Long,
-      address:                     TaktikosAddress,
+      address:                     StakingAddress,
       initialSlot:                 Slot
     ): F[OperationalKeysAlgebra[F]] =
       for {
@@ -96,7 +96,7 @@ object OperationalKeys {
       ed25519Resource:             UnsafeResource[F, Ed25519],
       operationalPeriodLength:     Long,
       activationOperationalPeriod: Long,
-      address:                     TaktikosAddress,
+      address:                     StakingAddress,
       ref:                         Ref[F, (Long, Option[Map[Long, OperationalKeyOut]])]
     ): OperationalKeysAlgebra[F] = { (slot: Slot, parentSlotId: SlotId) =>
       val operationalPeriod = slot / operationalPeriodLength

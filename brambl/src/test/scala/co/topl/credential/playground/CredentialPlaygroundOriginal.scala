@@ -1,9 +1,11 @@
 package co.topl.credential.playground
 
-import cats.data.NonEmptyChain
+import cats.data.Chain
 import cats.effect.unsafe.implicits.global
 import co.topl.credential.Credential
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
+import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.codecs.bytes.tetra.instances._
 import co.topl.crypto.typeclasses.KeyInitializer
 import co.topl.crypto.typeclasses.KeyInitializer.Instances.{curve25519Initializer, ed25519Initializer}
 import co.topl.models._
@@ -17,8 +19,7 @@ import co.topl.typeclasses.VerificationContext
 import io.circe.Json
 import org.graalvm.polyglot.Value
 
-import scala.collection.immutable.ListMap
-import scala.util.Random
+import ModelGenerators._
 
 object CredentialPlaygroundOriginal extends App {
   type F[A] = cats.effect.IO[A]
@@ -47,23 +48,35 @@ object CredentialPlaygroundOriginal extends App {
   // Exercise: Construct complex propositions and attempt to prove them using Credentials
 
   // Example:
+
+  val stakingAddress: StakingAddress =
+    StakingAddresses.Operator(ed25519.getVerificationKey(KeyInitializer[SecretKeys.Ed25519].random()))
+
+  val offlineWalletSK =
+    KeyInitializer[SecretKeys.Ed25519].random()
+
+  def fullAddress(spendingAddress: SpendingAddress) = FullAddress(
+    networkPrefix,
+    spendingAddress,
+    stakingAddress,
+    ed25519.sign(offlineWalletSK, (spendingAddress, stakingAddress).signableBytes)
+  )
+
   val party1SK: SecretKeys.Ed25519 = KeyInitializer[SecretKeys.Ed25519].random()
   val party2SK: SecretKeys.Curve25519 = KeyInitializer[SecretKeys.Curve25519].random()
 
-  val party3Address: DionAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.dionAddress
+  val party3Address: SpendingAddress = KeyInitializer[SecretKeys.Curve25519].random().vk.spendingAddress
 
   val proposition = party1SK.vk.asProposition.and(party2SK.vk.asProposition)
   println(proposition)
 
-  val unprovenTransaction: Transaction.Unproven = Transaction.Unproven(
-    inputs = List((proposition.dionAddress, Random.nextLong())),
-    feeOutput = None,
-    coinOutputs = NonEmptyChain(Transaction.PolyOutput(party3Address, Sized.maxUnsafe(BigInt(10)))),
-    fee = Sized.maxUnsafe(BigInt(5)),
-    timestamp = System.currentTimeMillis(),
-    data = None,
-    minting = false
-  )
+  val unprovenTransaction: Transaction.Unproven =
+    ModelGenerators.arbitraryUnprovenTransaction.arbitrary.first.copy(
+      inputs = Chain(arbitraryTransactionUnprovenInput.arbitrary.first.copy(proposition = proposition)),
+      outputs = Chain(
+        Transaction.Output(fullAddress(party3Address), Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false)
+      )
+    )
 
   val credential = Credential.Compositional.And(
     proposition,
@@ -76,16 +89,7 @@ object CredentialPlaygroundOriginal extends App {
   val proof = credential.proof
   println(proof)
 
-  val transaction = Transaction(
-    inputs =
-      ListMap.empty[BoxReference, (Proposition, Proof)] ++ unprovenTransaction.inputs.map(_ -> (proposition, proof)),
-    feeOutput = unprovenTransaction.feeOutput,
-    coinOutputs = unprovenTransaction.coinOutputs,
-    fee = unprovenTransaction.fee,
-    timestamp = unprovenTransaction.timestamp,
-    data = unprovenTransaction.data,
-    minting = unprovenTransaction.minting
-  )
+  val transaction = unprovenTransaction.prove(_ => proof)
   println(transaction)
 
   implicit val verificationContext: VerificationContext[F] =
@@ -93,7 +97,7 @@ object CredentialPlaygroundOriginal extends App {
       def currentTransaction: Transaction = transaction
 
       def currentHeight: Long = 50L
-      def inputBoxes: List[Box[Box.Value]] = List()
+      def inputBoxes: List[Box] = List()
       def currentSlot: Slot = 1
     }
 
