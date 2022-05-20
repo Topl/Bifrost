@@ -20,7 +20,6 @@ class MnemonicToSeedSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
 
   case class SpecInputs(mnemonic: String, mnemonicSize: Int, passphrase: String)
   case class SpecOutputs(entropy: String, seed32: String, seed64: String, seed96: String)
-
   case class MnemonicToSeedTestVector(inputs: SpecInputs, outputs: SpecOutputs) extends TestVector
 
   implicit val inputsDecoder: Decoder[SpecInputs] = deriveDecoder[SpecInputs]

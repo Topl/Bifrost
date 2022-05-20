@@ -3,7 +3,8 @@ package co.topl.crypto.generation
 import co.topl.crypto.generation.mnemonic.Language.English
 import co.topl.crypto.generation.mnemonic.MnemonicSize.{Mnemonic12, Mnemonic18, Mnemonic24}
 import co.topl.crypto.generation.mnemonic.{FromEntropy, Language, MnemonicSize}
-import co.topl.crypto.signing.ExtendedEd25519
+import co.topl.crypto.signing.EntropyToSeed.instances.pbkdf2Sha512
+import co.topl.crypto.signing.{EntropyToSeed, ExtendedEd25519}
 import co.topl.crypto.utils.Hex.implicits._
 import co.topl.models.SecretKeys.ExtendedEd25519.Length
 import co.topl.models.utility.Sized
@@ -27,6 +28,8 @@ class MnemonicToSlip23IcarusSeedSpec
   case class SpecIn(words: String, size: MnemonicSize, language: Language, password: String)
   case class SpecOut(seed: Sized.Strict[Bytes, SecretKeys.ExtendedEd25519.Length])
 
+  private val extEdEntropy = implicitly[EntropyToSeed[SecretKeys.ExtendedEd25519.Length]]
+
   property("mnemonic should generate seed from test vector 1") {
     val specIn = SpecIn(
       "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
@@ -41,7 +44,7 @@ class MnemonicToSlip23IcarusSeedSpec
     val seed: Sized.Strict[Bytes, Length] =
       FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
-        case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
+        case Right(value) => extEdEntropy.toSeed(value, Some(specIn.password))
       }
 
     seed shouldBe specOut.seed
