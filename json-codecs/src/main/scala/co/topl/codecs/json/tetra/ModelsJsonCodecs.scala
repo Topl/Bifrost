@@ -387,6 +387,34 @@ trait ModelsJsonCodecs {
         value   <- hcursor.downField("value").as[Int128]
       } yield Transaction.PolyOutput(address, value)
 
+  implicit val arbitOutputEncoder: Encoder[Transaction.ArbitOutput] =
+    t =>
+      Json.obj(
+        "dionAddress" -> t.dionAddress.asJson,
+        "value"       -> t.value.asJson
+      )
+
+  implicit val arbitOutputDecoder: Decoder[Transaction.ArbitOutput] =
+    hcursor =>
+      for {
+        address <- hcursor.downField("dionAddress").as[DionAddress]
+        value   <- hcursor.downField("value").as[Int128]
+      } yield Transaction.ArbitOutput(address, value)
+
+  implicit val assetOutputEncoder: Encoder[Transaction.AssetOutput] =
+    t =>
+      Json.obj(
+        "dionAddress" -> t.dionAddress.asJson,
+        "value"       -> t.value.asJson
+      )
+
+  implicit val assetOutputDecoder: Decoder[Transaction.AssetOutput] =
+    hcursor =>
+      for {
+        address <- hcursor.downField("dionAddress").as[DionAddress]
+        value   <- hcursor.downField("value").as[Box.Values.Asset]
+      } yield Transaction.AssetOutput(address, value)
+
   implicit val encodeCoinOutput: Encoder[Transaction.CoinOutput] = {
     case o: Transaction.PolyOutput =>
       Json.obj(
