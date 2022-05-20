@@ -111,7 +111,7 @@ class SyntacticValidationSpec extends AnyFlatSpec with Matchers with ScalaCheckP
           .flatMap(_.validateSyntax(transaction))
           .unsafeRunSync()
         val inSum = transaction.inputs.map(_.value.asInstanceOf[T]).map(quantity).sumAll
-        val outSum = transaction.outputs.map(_.value.asInstanceOf[T]).map(quantity).sumAll
+        val outSum = transaction.outputs.filterNot(_.minting).map(_.value.asInstanceOf[T]).map(quantity).sumAll
         whenever(outSum > inSum)(
           result.toEither.left.value.exists {
             case _: InvalidSyntaxErrors.InsufficientInputFunds[_] => true
@@ -125,7 +125,7 @@ class SyntacticValidationSpec extends AnyFlatSpec with Matchers with ScalaCheckP
           .flatMap(_.validateSyntax(transaction))
           .unsafeRunSync()
         val inSum = transaction.inputs.map(_.value.asInstanceOf[T]).map(quantity).sumAll
-        val outSum = transaction.outputs.map(_.value.asInstanceOf[T]).map(quantity).sumAll
+        val outSum = transaction.outputs.filterNot(_.minting).map(_.value.asInstanceOf[T]).map(quantity).sumAll
         whenever(inSum >= outSum)(
           result.toEither match {
             case Right(_) =>

@@ -61,7 +61,7 @@ object SyntacticValidation {
       val (in, out) =
         (
           transaction.inputs.map(_.value).filter(f.isDefinedAt),
-          transaction.outputs.map(_.value).filter(f.isDefinedAt)
+          transaction.outputs.filterNot(_.minting).map(_.value).filter(f.isDefinedAt)
         )
       val outSum = out.map(f).sumAll
       val inSum = in.map(f).sumAll
