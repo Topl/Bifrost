@@ -94,9 +94,10 @@ class SyntacticValidationSpec extends AnyFlatSpec with Matchers with ScalaCheckP
       } yield o.copy(value = v)
     def typedOutGen[T <: Box.Value: Arbitrary] =
       for {
-        o <- arbitraryTransactionOutput.arbitrary
-        v <- implicitly[Arbitrary[T]].arbitrary
-      } yield o.copy(value = v)
+        o       <- arbitraryTransactionOutput.arbitrary
+        v       <- implicitly[Arbitrary[T]].arbitrary
+        minting <- Gen.prob(0.05)
+      } yield o.copy(value = v, minting = minting)
     def txGen[T <: Box.Value: Arbitrary] =
       for {
         tx      <- arbitraryTransaction.arbitrary
@@ -105,7 +106,7 @@ class SyntacticValidationSpec extends AnyFlatSpec with Matchers with ScalaCheckP
       } yield tx.copy(inputs = Chain.fromSeq(inputs), outputs = Chain.fromSeq(outputs))
 
     def runTest[T <: Box.Value: Arbitrary](quantity: T => BigInt) = {
-      forAll(txGen[T]) { transaction: Transaction =>
+      forAll(txGen[T], maxDiscardedFactor(100)) { transaction: Transaction =>
         val result = SyntacticValidation
           .make[F]
           .flatMap(_.validateSyntax(transaction))
@@ -119,7 +120,7 @@ class SyntacticValidationSpec extends AnyFlatSpec with Matchers with ScalaCheckP
           } shouldBe true
         )
       }
-      forAll(txGen[T]) { transaction: Transaction =>
+      forAll(txGen[T], maxDiscardedFactor(100)) { transaction: Transaction =>
         val result = SyntacticValidation
           .make[F]
           .flatMap(_.validateSyntax(transaction))
