@@ -63,15 +63,26 @@ class SyntacticValidationSpec extends AnyFlatSpec with Matchers with ScalaCheckP
       } yield tx.copy(outputs = outputs.toChain)
 
     forAll(negativeTransactionGen) { transaction: Transaction =>
-      val result = SyntacticValidation
-        .make[F]
-        .flatMap(_.validateSyntax(transaction))
-        .unsafeRunSync()
+      whenever(
+        transaction.outputs.exists(o =>
+          o.value match {
+            case v: Box.Values.Poly  => true
+            case v: Box.Values.Arbit => true
+            case v: Box.Values.Asset => true
+            case _                   => false
+          }
+        )
+      ) {
+        val result = SyntacticValidation
+          .make[F]
+          .flatMap(_.validateSyntax(transaction))
+          .unsafeRunSync()
 
-      result.toEither.left.value.exists {
-        case _: InvalidSyntaxErrors.NonPositiveOutputValue => true
-        case _                                             => false
-      } shouldBe true
+        result.toEither.left.value.exists {
+          case _: InvalidSyntaxErrors.NonPositiveOutputValue => true
+          case _                                             => false
+        } shouldBe true
+      }
     }
   }
 
