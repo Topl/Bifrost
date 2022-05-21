@@ -1,10 +1,10 @@
 package co.topl.crypto.generation
 
 import co.topl.crypto.generation.mnemonic.Language.English
-import co.topl.crypto.generation.mnemonic.MnemonicSize.{Mnemonic12, Mnemonic18, Mnemonic24}
-import co.topl.crypto.generation.mnemonic.{FromEntropy, Language, MnemonicSize}
+import co.topl.crypto.generation.mnemonic.MnemonicSizes.{`12`, `18`, `24`}
+import co.topl.crypto.generation.mnemonic.{Language, MnemonicSizes, ToEntropy}
 import co.topl.crypto.signing.EntropyToSeed.instances.pbkdf2Sha512
-import co.topl.crypto.signing.{EntropyToSeed, ExtendedEd25519}
+import co.topl.crypto.signing.ExtendedEd25519
 import co.topl.crypto.utils.Hex.implicits._
 import co.topl.models.SecretKeys.ExtendedEd25519.Length
 import co.topl.models.utility.Sized
@@ -20,12 +20,12 @@ import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckP
  * https://github.com/input-output-hk/rust-cardano/blob/9fad3d12341acc2ab0f9c2026149af3d839447e4/cardano/src/bip/test_vectors/bip39_english.txt
  * but crucially, we are not testing the 64 byte output specified by BIP-39 (since we follow a modification of the BIP-39 spec)
  */
-class MnemonicToSlip23IcarusSeedSpec
+class V0MnemonicToSlip23IcarusSeedSpec
     extends AnyPropSpec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks {
 
-  case class SpecIn(words: String, size: MnemonicSize, language: Language, password: String)
+  case class SpecIn(words: String, size: MnemonicSizes, language: Language, password: String)
   case class SpecOut(seed: Sized.Strict[Bytes, SecretKeys.ExtendedEd25519.Length])
 
   private val extEdEntropy = implicitly[EntropyToSeed[SecretKeys.ExtendedEd25519.Length]]
@@ -33,7 +33,7 @@ class MnemonicToSlip23IcarusSeedSpec
   property("mnemonic should generate seed from test vector 1") {
     val specIn = SpecIn(
       "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
-      Mnemonic12,
+      `12`,
       English,
       "TREZOR"
     )
@@ -42,7 +42,7 @@ class MnemonicToSlip23IcarusSeedSpec
     )
 
     val seed: Sized.Strict[Bytes, Length] =
-      FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      ToEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => extEdEntropy.toSeed(value, Some(specIn.password))
       }
@@ -53,7 +53,7 @@ class MnemonicToSlip23IcarusSeedSpec
   property("mnemonic should generate seed from test vector 2") {
     val specIn = SpecIn(
       "legal winner thank year wave sausage worth useful legal winner thank yellow",
-      Mnemonic12,
+      `12`,
       English,
       "TREZOR"
     )
@@ -62,7 +62,7 @@ class MnemonicToSlip23IcarusSeedSpec
     )
 
     val seed: Sized.Strict[Bytes, Length] =
-      FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      ToEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }
@@ -73,7 +73,7 @@ class MnemonicToSlip23IcarusSeedSpec
   property("mnemonic should generate seed from test vector 3") {
     val specIn = SpecIn(
       "letter advice cage absurd amount doctor acoustic avoid letter advice cage above",
-      Mnemonic12,
+      `12`,
       English,
       "TREZOR"
     )
@@ -82,7 +82,7 @@ class MnemonicToSlip23IcarusSeedSpec
     )
 
     val seed: Sized.Strict[Bytes, Length] =
-      FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      ToEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }
@@ -93,7 +93,7 @@ class MnemonicToSlip23IcarusSeedSpec
   property("mnemonic should generate seed from test vector 4") {
     val specIn = SpecIn(
       "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong",
-      Mnemonic12,
+      `12`,
       English,
       "TREZOR"
     )
@@ -102,7 +102,7 @@ class MnemonicToSlip23IcarusSeedSpec
     )
 
     val seed: Sized.Strict[Bytes, Length] =
-      FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      ToEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }
@@ -113,7 +113,7 @@ class MnemonicToSlip23IcarusSeedSpec
   property("mnemonic should generate seed from test vector 5") {
     val specIn = SpecIn(
       "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon agent",
-      Mnemonic18,
+      `18`,
       English,
       "TREZOR"
     )
@@ -122,7 +122,7 @@ class MnemonicToSlip23IcarusSeedSpec
     )
 
     val seed: Sized.Strict[Bytes, Length] =
-      FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      ToEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }
@@ -133,7 +133,7 @@ class MnemonicToSlip23IcarusSeedSpec
   property("mnemonic should generate seed from test vector 6") {
     val specIn = SpecIn(
       "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal will",
-      Mnemonic18,
+      `18`,
       English,
       "TREZOR"
     )
@@ -142,7 +142,7 @@ class MnemonicToSlip23IcarusSeedSpec
     )
 
     val seed: Sized.Strict[Bytes, Length] =
-      FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      ToEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }
@@ -153,7 +153,7 @@ class MnemonicToSlip23IcarusSeedSpec
   property("mnemonic should generate seed from test vector 7") {
     val specIn = SpecIn(
       "letter advice cage absurd amount doctor acoustic avoid letter advice cage absurd amount doctor acoustic avoid letter always",
-      Mnemonic18,
+      `18`,
       English,
       "TREZOR"
     )
@@ -162,7 +162,7 @@ class MnemonicToSlip23IcarusSeedSpec
     )
 
     val seed: Sized.Strict[Bytes, Length] =
-      FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      ToEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }
@@ -173,7 +173,7 @@ class MnemonicToSlip23IcarusSeedSpec
   property("mnemonic should generate seed from test vector 8") {
     val specIn = SpecIn(
       "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo when",
-      Mnemonic18,
+      `18`,
       English,
       "TREZOR"
     )
@@ -182,7 +182,7 @@ class MnemonicToSlip23IcarusSeedSpec
     )
 
     val seed: Sized.Strict[Bytes, Length] =
-      FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      ToEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }
@@ -193,7 +193,7 @@ class MnemonicToSlip23IcarusSeedSpec
   property("mnemonic should generate seed from test vector 9") {
     val specIn = SpecIn(
       "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art",
-      Mnemonic24,
+      `24`,
       English,
       "TREZOR"
     )
@@ -202,7 +202,7 @@ class MnemonicToSlip23IcarusSeedSpec
     )
 
     val seed: Sized.Strict[Bytes, Length] =
-      FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      ToEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }
@@ -213,7 +213,7 @@ class MnemonicToSlip23IcarusSeedSpec
   property("mnemonic should generate seed from test vector 10") {
     val specIn = SpecIn(
       "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth title",
-      Mnemonic24,
+      `24`,
       English,
       "TREZOR"
     )
@@ -222,7 +222,7 @@ class MnemonicToSlip23IcarusSeedSpec
     )
 
     val seed: Sized.Strict[Bytes, Length] =
-      FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      ToEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }
@@ -233,7 +233,7 @@ class MnemonicToSlip23IcarusSeedSpec
   property("mnemonic should generate seed from test vector 11") {
     val specIn = SpecIn(
       "letter advice cage absurd amount doctor acoustic avoid letter advice cage absurd amount doctor acoustic avoid letter advice cage absurd amount doctor acoustic bless",
-      Mnemonic24,
+      `24`,
       English,
       "TREZOR"
     )
@@ -242,7 +242,7 @@ class MnemonicToSlip23IcarusSeedSpec
     )
 
     val seed: Sized.Strict[Bytes, Length] =
-      FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      ToEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }
@@ -253,7 +253,7 @@ class MnemonicToSlip23IcarusSeedSpec
   property("mnemonic should generate seed from test vector 12") {
     val specIn = SpecIn(
       "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo vote",
-      Mnemonic24,
+      `24`,
       English,
       "TREZOR"
     )
@@ -262,7 +262,7 @@ class MnemonicToSlip23IcarusSeedSpec
     )
 
     val seed: Sized.Strict[Bytes, Length] =
-      FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      ToEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }
@@ -273,7 +273,7 @@ class MnemonicToSlip23IcarusSeedSpec
   property("mnemonic should generate seed from test vector 13") {
     val specIn = SpecIn(
       "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic",
-      Mnemonic12,
+      `12`,
       English,
       "TREZOR"
     )
@@ -282,7 +282,7 @@ class MnemonicToSlip23IcarusSeedSpec
     )
 
     val seed: Sized.Strict[Bytes, Length] =
-      FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      ToEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }
@@ -293,7 +293,7 @@ class MnemonicToSlip23IcarusSeedSpec
   property("mnemonic should generate seed from test vector 14") {
     val specIn = SpecIn(
       "gravity machine north sort system female filter attitude volume fold club stay feature office ecology stable narrow fog",
-      Mnemonic18,
+      `18`,
       English,
       "TREZOR"
     )
@@ -302,7 +302,7 @@ class MnemonicToSlip23IcarusSeedSpec
     )
 
     val seed: Sized.Strict[Bytes, Length] =
-      FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      ToEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }
@@ -313,7 +313,7 @@ class MnemonicToSlip23IcarusSeedSpec
   property("mnemonic should generate seed from test vector 15") {
     val specIn = SpecIn(
       "hamster diagram private dutch cause delay private meat slide toddler razor book happy fancy gospel tennis maple dilemma loan word shrug inflict delay length",
-      Mnemonic24,
+      `24`,
       English,
       "TREZOR"
     )
@@ -322,7 +322,7 @@ class MnemonicToSlip23IcarusSeedSpec
     )
 
     val seed: Sized.Strict[Bytes, Length] =
-      FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      ToEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }
@@ -333,7 +333,7 @@ class MnemonicToSlip23IcarusSeedSpec
   property("mnemonic should generate seed from test vector 16") {
     val specIn = SpecIn(
       "scheme spot photo card baby mountain device kick cradle pact join borrow",
-      Mnemonic12,
+      `12`,
       English,
       "TREZOR"
     )
@@ -342,7 +342,7 @@ class MnemonicToSlip23IcarusSeedSpec
     )
 
     val seed: Sized.Strict[Bytes, Length] =
-      FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      ToEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }
@@ -353,7 +353,7 @@ class MnemonicToSlip23IcarusSeedSpec
   property("mnemonic should generate seed from test vector 17") {
     val specIn = SpecIn(
       "horn tenant knee talent sponsor spell gate clip pulse soap slush warm silver nephew swap uncle crack brave",
-      Mnemonic18,
+      `18`,
       English,
       "TREZOR"
     )
@@ -362,7 +362,7 @@ class MnemonicToSlip23IcarusSeedSpec
     )
 
     val seed: Sized.Strict[Bytes, Length] =
-      FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      ToEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }
@@ -373,7 +373,7 @@ class MnemonicToSlip23IcarusSeedSpec
   property("mnemonic should generate seed from test vector 18") {
     val specIn = SpecIn(
       "panda eyebrow bullet gorilla call smoke muffin taste mesh discover soft ostrich alcohol speed nation flash devote level hobby quick inner drive ghost inside",
-      Mnemonic24,
+      `24`,
       English,
       "TREZOR"
     )
@@ -382,7 +382,7 @@ class MnemonicToSlip23IcarusSeedSpec
     )
 
     val seed: Sized.Strict[Bytes, Length] =
-      FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      ToEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }
@@ -393,7 +393,7 @@ class MnemonicToSlip23IcarusSeedSpec
   property("mnemonic should generate seed from test vector 19") {
     val specIn = SpecIn(
       "cat swing flag economy stadium alone churn speed unique patch report train",
-      Mnemonic12,
+      `12`,
       English,
       "TREZOR"
     )
@@ -402,7 +402,7 @@ class MnemonicToSlip23IcarusSeedSpec
     )
 
     val seed: Sized.Strict[Bytes, Length] =
-      FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      ToEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }
@@ -413,7 +413,7 @@ class MnemonicToSlip23IcarusSeedSpec
   property("mnemonic should generate seed from test vector 20") {
     val specIn = SpecIn(
       "light rule cinnamon wrap drastic word pride squirrel upgrade then income fatal apart sustain crack supply proud access",
-      Mnemonic18,
+      `18`,
       English,
       "TREZOR"
     )
@@ -422,7 +422,7 @@ class MnemonicToSlip23IcarusSeedSpec
     )
 
     val seed: Sized.Strict[Bytes, Length] =
-      FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      ToEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }
@@ -433,7 +433,7 @@ class MnemonicToSlip23IcarusSeedSpec
   property("mnemonic should generate seed from test vector 21") {
     val specIn = SpecIn(
       "all hour make first leader extend hole alien behind guard gospel lava path output census museum junior mass reopen famous sing advance salt reform",
-      Mnemonic24,
+      `24`,
       English,
       "TREZOR"
     )
@@ -442,7 +442,7 @@ class MnemonicToSlip23IcarusSeedSpec
     )
 
     val seed: Sized.Strict[Bytes, Length] =
-      FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      ToEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }
@@ -453,7 +453,7 @@ class MnemonicToSlip23IcarusSeedSpec
   property("mnemonic should generate seed from test vector 22") {
     val specIn = SpecIn(
       "vessel ladder alter error federal sibling chat ability sun glass valve picture",
-      Mnemonic12,
+      `12`,
       English,
       "TREZOR"
     )
@@ -462,7 +462,7 @@ class MnemonicToSlip23IcarusSeedSpec
     )
 
     val seed: Sized.Strict[Bytes, Length] =
-      FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      ToEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }
@@ -473,7 +473,7 @@ class MnemonicToSlip23IcarusSeedSpec
   property("mnemonic should generate seed from test vector 23") {
     val specIn = SpecIn(
       "scissors invite lock maple supreme raw rapid void congress muscle digital elegant little brisk hair mango congress clump",
-      Mnemonic18,
+      `18`,
       English,
       "TREZOR"
     )
@@ -482,7 +482,7 @@ class MnemonicToSlip23IcarusSeedSpec
     )
 
     val seed: Sized.Strict[Bytes, Length] =
-      FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      ToEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }
@@ -493,7 +493,7 @@ class MnemonicToSlip23IcarusSeedSpec
   property("mnemonic should generate seed from test vector 24") {
     val specIn = SpecIn(
       "void come effort suffer camp survey warrior heavy shoot primary clutch crush open amazing screen patrol group space point ten exist slush involve unfold",
-      Mnemonic24,
+      `24`,
       English,
       "TREZOR"
     )
@@ -502,7 +502,7 @@ class MnemonicToSlip23IcarusSeedSpec
     )
 
     val seed: Sized.Strict[Bytes, Length] =
-      FromEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
+      ToEntropy.derive(specIn.words, specIn.size, specIn.language)(e => e) match {
         case Left(_)      => throw new Error("error deriving entropy from words")
         case Right(value) => ExtendedEd25519.entropyToSeed(value)(specIn.password)
       }

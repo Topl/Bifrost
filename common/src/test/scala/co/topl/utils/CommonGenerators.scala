@@ -3,10 +3,11 @@ package co.topl.utils
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
 import co.topl.attestation.keyManagement._
+import co.topl.crypto.generation.EntropyToSeed
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.generation.mnemonic.Entropy
-import co.topl.crypto.signing.{Curve25519, Ed25519, EntropyToSeed, Password}
+import co.topl.crypto.signing.{Curve25519, Ed25519, Password}
 import co.topl.crypto.{PrivateKey, PublicKey, Signature}
 import co.topl.models.Bytes
 import co.topl.models.utility.HasLength.instances.bytesLength

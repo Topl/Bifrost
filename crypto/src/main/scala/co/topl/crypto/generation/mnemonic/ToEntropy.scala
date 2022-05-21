@@ -1,6 +1,7 @@
 package co.topl.crypto.generation.mnemonic
 
 import cats.implicits._
+import co.topl.crypto.generation.mnemonic.EntropyDecodeFailures.{PhraseFailure, WordListFailure}
 import co.topl.crypto.generation.mnemonic.Language.LanguageWordList
 import co.topl.crypto.signing.{Curve25519, ExtendedEd25519}
 import co.topl.models.SecretKeys
@@ -13,7 +14,7 @@ import java.util.UUID
  * @tparam T the type of the value
  */
 @typeclass
-trait FromEntropy[T] {
+trait ToEntropy[T] {
 
   /**
    * Derives a value of `T` from some random entropy.
@@ -23,12 +24,7 @@ trait FromEntropy[T] {
   def deriveFrom(entropy: Entropy): T
 }
 
-sealed trait DeriveFailure
-case class EntropyFailure(failure: Entropy.ValidationFailure) extends DeriveFailure
-case class PhraseFailure(failure: Phrase.ValidationFailure) extends DeriveFailure
-case class WordListFailure(failure: LanguageWordList.ValidationFailure) extends DeriveFailure
-
-object FromEntropy {
+object ToEntropy {
 
   /**
    * Derives a value `T` from the set of entropy underlying the given mnemonic.
@@ -39,21 +35,21 @@ object FromEntropy {
    * @tparam T the value to create from the generated entropy
    * @return either a `DeriveFailure` if a failure occurred or a value `T`
    */
-  def derive[T: FromEntropy](mnemonic: String, size: MnemonicSize, language: Language): Either[DeriveFailure, T] =
+  def derive[T: ToEntropy](mnemonic: String, size: MnemonicSize, language: Language): Either[EntropyDecodeFailure, T] =
     for {
       wordList <- LanguageWordList.validated(language).leftMap(WordListFailure)
       phrase   <- Phrase.validated(mnemonic, size, wordList).leftMap(PhraseFailure)
       entropy = Entropy.fromPhrase(phrase, wordList, size)
-    } yield FromEntropy[T].deriveFrom(entropy)
+    } yield ToEntropy[T].deriveFrom(entropy)
 
-  def derive[T: FromEntropy](entropy: Array[Byte], size: MnemonicSize): Either[DeriveFailure, T] =
-    Entropy.validated(entropy, size).leftMap(EntropyFailure).map(FromEntropy[T].deriveFrom)
+  def derive[T: ToEntropy](bytes: Array[Byte], size: MnemonicSize): Either[EntropyDecodeFailure, T] =
+    Entropy.validated(bytes, size).leftMap(EntropyFailure).map(ToEntropy[T].deriveFrom)
 
-  def derive[T: FromEntropy](uuid: UUID): T = FromEntropy[T].deriveFrom(Entropy.fromUuid(uuid))
+  def derive[T: ToEntropy](uuid: UUID): T = ToEntropy[T].deriveFrom(Entropy.fromUuid(uuid))
 
   trait Instances {
 
-    implicit val stringToExtended25519FromEntropy: FromEntropy[String => SecretKeys.ExtendedEd25519] = {
+    implicit val stringToExtended25519FromEntropy: ToEntropy[String => SecretKeys.ExtendedEd25519] = {
       entropy => password => ExtendedEd25519.fromEntropy(entropy)(password)
     }
   }

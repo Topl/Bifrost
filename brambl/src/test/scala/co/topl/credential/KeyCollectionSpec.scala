@@ -5,9 +5,10 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
+import co.topl.crypto.generation.EntropyToSeed
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.generation.mnemonic.Entropy
-import co.topl.crypto.signing.{Ed25519, EntropyToSeed, ExtendedEd25519, Password}
+import co.topl.crypto.signing.{Ed25519, ExtendedEd25519, Password}
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.Sized

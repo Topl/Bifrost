@@ -2,10 +2,9 @@ package co.topl.crypto.generation
 
 import cats.scalatest.EitherValues
 import co.topl.crypto.generation.mnemonic.Language.{English, LanguageWordList}
-import co.topl.crypto.generation.mnemonic.MnemonicSize._
-import co.topl.crypto.generation.mnemonic.{Entropy, MnemonicSize, Phrase}
-import co.topl.crypto.signing.{Curve25519, EntropyToSeed}
-import co.topl.crypto.signing.EntropyToSeed.instances.pbkdf2Sha512
+import co.topl.crypto.generation.mnemonic.MnemonicSizes._
+import co.topl.crypto.generation.mnemonic.{Entropy, MnemonicSize, MnemonicSizes, Phrase}
+import co.topl.crypto.signing.Curve25519
 import co.topl.crypto.utils.Hex.implicits.Ops
 import co.topl.crypto.utils.TestVector
 import co.topl.models.SecretKeys
@@ -16,10 +15,10 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class MnemonicToSeedSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers with EitherValues {
+class MnemonicToEntropySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers with EitherValues {
 
-  case class SpecInputs(mnemonic: String, mnemonicSize: Int, passphrase: String)
-  case class SpecOutputs(entropy: String, seed32: String, seed64: String, seed96: String)
+  case class SpecInputs(mnemonic: Phrase, mnemonicSize: MnemonicSize, passphrase: String)
+  case class SpecOutputs(entropy: Entropy)
   case class MnemonicToSeedTestVector(inputs: SpecInputs, outputs: SpecOutputs) extends TestVector
 
   implicit val inputsDecoder: Decoder[SpecInputs] = deriveDecoder[SpecInputs]
@@ -28,23 +27,18 @@ class MnemonicToSeedSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
 
   val testVectors: List[MnemonicToSeedTestVector] = TestVector.read("MnemonicToSeedTestVectors.json")
 
-  private val curveEntropy = implicitly[EntropyToSeed[SecretKeys.Curve25519.Length]]
-  private val edEntropy = EntropyToSeed.instances.pbkdf2Sha512(Lengths.`64`)
-  private val extEdEntropy = implicitly[EntropyToSeed[SecretKeys.ExtendedEd25519.Length]]
-
   private val wordList = LanguageWordList.validated(English) match {
     case Left(err)   => throw new Exception(s"Could not load English language BIP-0039 file: $err")
     case Right(list) => list
   }
 
-  private def getMnemonicSize(size: Int) = size match {
-    case 12 => Mnemonic12
-    case 15 => Mnemonic15
-    case 18 => Mnemonic18
-    case 21 => Mnemonic21
-    case 24 => Mnemonic24
-
-  }
+//  private def getMnemonicSize(size: Int) = size match {
+//    case 12 => `12`
+//    case 15 => `15`
+//    case 18 => `18`
+//    case 21 => `21`
+//    case 24 => `24`
+//  }
 
   property("Generate 32 byte length seeds") {
     testVectors.foreach { vec =>

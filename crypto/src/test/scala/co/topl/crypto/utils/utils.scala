@@ -17,7 +17,7 @@ package object utils {
   object TestVector {
 
     def read[A <: TestVector](fileName: String)(implicit decoder: Decoder[A]): List[A] = {
-      val file = scala.io.Source.fromResource(fileName).getLines().mkString
+      val file = scala.io.Source.fromResource("testVectors/" + fileName).getLines().mkString
       val vectorEither = for {
         json    <- parser.parse(file)
         vectors <- json.as[List[A]]

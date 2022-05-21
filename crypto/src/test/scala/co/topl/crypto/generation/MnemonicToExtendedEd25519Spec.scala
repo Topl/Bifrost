@@ -1,10 +1,10 @@
 package co.topl.crypto.generation
 
-import co.topl.crypto.generation.mnemonic.FromEntropy.Instances._
-import co.topl.crypto.generation.mnemonic.FromEntropy.derive
+import co.topl.crypto.generation.mnemonic.ToEntropy.Instances._
+import co.topl.crypto.generation.mnemonic.ToEntropy.derive
 import co.topl.crypto.generation.mnemonic.Language._
-import co.topl.crypto.generation.mnemonic.MnemonicSize._
-import co.topl.crypto.generation.mnemonic.{FromEntropy, Language, MnemonicSize}
+import co.topl.crypto.generation.mnemonic.MnemonicSizes._
+import co.topl.crypto.generation.mnemonic.{Language, MnemonicSizes, ToEntropy}
 import co.topl.crypto.utils.Generators._
 import co.topl.crypto.utils.Hex.implicits._
 import co.topl.models.SecretKeys
@@ -23,7 +23,7 @@ class MnemonicToExtendedEd25519Spec
     with EitherValues {
 
   case class TestVector(name: String, specIn: SpecIn, specOut: SpecOut)
-  case class SpecIn(phrase: String, size: MnemonicSize, language: Language, password: String)
+  case class SpecIn(phrase: String, size: MnemonicSizes, language: Language, password: String)
   case class SpecOut(sk: SecretKeys.ExtendedEd25519)
 
   object SpecOut {
@@ -44,7 +44,7 @@ class MnemonicToExtendedEd25519Spec
     val createKey: String => SecretKeys.ExtendedEd25519 =
       derive[String => SecretKeys.ExtendedEd25519](
         "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic",
-        Mnemonic12,
+        `12`,
         English
       ).value
 
@@ -62,7 +62,7 @@ class MnemonicToExtendedEd25519Spec
     val createKey: String => SecretKeys.ExtendedEd25519 =
       derive[String => SecretKeys.ExtendedEd25519](
         "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic",
-        Mnemonic12,
+        `12`,
         English
       ).value
 
@@ -83,7 +83,7 @@ class MnemonicToExtendedEd25519Spec
       "Test Vector #1",
       SpecIn(
         "buyer bomb chapter carbon chair grid wheel protect giraffe spike pupil model",
-        Mnemonic12,
+        `12`,
         English,
         "dinner"
       ),
@@ -93,7 +93,7 @@ class MnemonicToExtendedEd25519Spec
       )
     )
 
-    val sk = FromEntropy
+    val sk = ToEntropy
       .derive[String => SecretKeys.ExtendedEd25519](tv.specIn.phrase, tv.specIn.size, tv.specIn.language)
       .map(_.apply(tv.specIn.password))
       .value
@@ -106,7 +106,7 @@ class MnemonicToExtendedEd25519Spec
       "Test Vector #2",
       SpecIn(
         "vessel erase town arrow girl emotion siren better fork approve spare convince sauce amused clap",
-        Mnemonic15,
+        `15`,
         English,
         "heart"
       ),
@@ -116,7 +116,7 @@ class MnemonicToExtendedEd25519Spec
       )
     )
 
-    val sk = FromEntropy
+    val sk = ToEntropy
       .derive[String => SecretKeys.ExtendedEd25519](tv.specIn.phrase, tv.specIn.size, tv.specIn.language)
       .map(_.apply(tv.specIn.password))
       .value
@@ -130,7 +130,7 @@ class MnemonicToExtendedEd25519Spec
       SpecIn(
         "model abandon genius figure shiver craft surround sister permit output network swift slush lumber " +
         "dune license run sugar",
-        Mnemonic18,
+        `18`,
         English,
         "describe"
       ),
@@ -140,7 +140,7 @@ class MnemonicToExtendedEd25519Spec
       )
     )
 
-    val sk = FromEntropy
+    val sk = ToEntropy
       .derive[String => SecretKeys.ExtendedEd25519](tv.specIn.phrase, tv.specIn.size, tv.specIn.language)
       .map(_.apply(tv.specIn.password))
       .value
@@ -154,7 +154,7 @@ class MnemonicToExtendedEd25519Spec
       SpecIn(
         "acquire pretty ocean screen assist purity exchange memory universe attitude sense charge fragile emerge " +
         "quick home asthma intact gloom giant gather",
-        Mnemonic21,
+        `21`,
         English,
         "manager"
       ),
@@ -164,7 +164,7 @@ class MnemonicToExtendedEd25519Spec
       )
     )
 
-    val sk = FromEntropy
+    val sk = ToEntropy
       .derive[String => SecretKeys.ExtendedEd25519](tv.specIn.phrase, tv.specIn.size, tv.specIn.language)
       .map(_.apply(tv.specIn.password))
       .value
@@ -178,7 +178,7 @@ class MnemonicToExtendedEd25519Spec
       SpecIn(
         "nice demise viable bonus flavor genre kick nominee supreme couple tattoo shadow ethics swamp rebuild pencil " +
         "rebuild pet ignore define seek fire wrong harvest",
-        Mnemonic24,
+        `24`,
         English,
         "exact"
       ),
@@ -188,7 +188,7 @@ class MnemonicToExtendedEd25519Spec
       )
     )
 
-    val sk = FromEntropy
+    val sk = ToEntropy
       .derive[String => SecretKeys.ExtendedEd25519](tv.specIn.phrase, tv.specIn.size, tv.specIn.language)
       .map(_.apply(tv.specIn.password))
       .value
@@ -202,7 +202,7 @@ class MnemonicToExtendedEd25519Spec
       SpecIn(
         "toss enrich steak utility dolphin cushion jeans work ski angle total alley trade poem february whisper toe " +
         "office half assume keep shift also fade",
-        Mnemonic24,
+        `24`,
         English,
         ""
       ),
@@ -212,7 +212,7 @@ class MnemonicToExtendedEd25519Spec
       )
     )
 
-    val sk = FromEntropy
+    val sk = ToEntropy
       .derive[String => SecretKeys.ExtendedEd25519](tv.specIn.phrase, tv.specIn.size, tv.specIn.language)
       .map(_.apply(tv.specIn.password))
       .value
@@ -226,7 +226,7 @@ class MnemonicToExtendedEd25519Spec
       "Icarus Test Vector #1",
       SpecIn(
         "eight country switch draw meat scout mystery blade tip drift useless good keep usage title",
-        Mnemonic15,
+        `15`,
         English,
         ""
       ),
@@ -236,7 +236,7 @@ class MnemonicToExtendedEd25519Spec
       )
     )
 
-    val sk = FromEntropy
+    val sk = ToEntropy
       .derive[String => SecretKeys.ExtendedEd25519](tv.specIn.phrase, tv.specIn.size, tv.specIn.language)
       .map(_.apply(tv.specIn.password))
       .value
@@ -250,7 +250,7 @@ class MnemonicToExtendedEd25519Spec
       "Icarus Test Vector #1",
       SpecIn(
         "eight country switch draw meat scout mystery blade tip drift useless good keep usage title",
-        Mnemonic15,
+        `15`,
         English,
         "foo"
       ),
@@ -260,7 +260,7 @@ class MnemonicToExtendedEd25519Spec
       )
     )
 
-    val sk = FromEntropy
+    val sk = ToEntropy
       .derive[String => SecretKeys.ExtendedEd25519](tv.specIn.phrase, tv.specIn.size, tv.specIn.language)
       .map(_.apply(tv.specIn.password))
       .value

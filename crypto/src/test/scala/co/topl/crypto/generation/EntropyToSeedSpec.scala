@@ -2,10 +2,9 @@ package co.topl.crypto.generation
 
 import cats.scalatest.EitherValues
 import co.topl.crypto.generation.mnemonic.Entropy
-import co.topl.crypto.signing.EntropyToSeed
 import co.topl.crypto.utils
 import co.topl.crypto.utils.TestVector
-import co.topl.models.Bytes
+import co.topl.models.{Bytes, SecretKeys}
 import co.topl.models.utility.{Lengths, Sized}
 import io.circe.Decoder
 import io.circe.generic.semiauto.deriveDecoder
@@ -29,6 +28,8 @@ class EntropyToSeedSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks 
     testVectors.foreach { vec =>
       val entropy = Entropy(vec.inputs.entropy.getBytes)
 
+      EntropyToSeed[SecretKeys.Curve25519.Length].toSeed
+
       EntropyToSeed.instances.pbkdf2Sha512(Lengths.`32`).toSeed(entropy, Some("TREZOR")) shouldBe vec.outputs.seed32
     }
   }
@@ -41,11 +42,14 @@ class EntropyToSeedSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks 
     }
   }
 
-  property("Generate 96 byte length seeds") {
-    testVectors.foreach { vec =>
-      val entropy = Entropy(vec.inputs.entropy.getBytes)
+  property("Generate 96 byte seed") {
+    testVectors.foreach { underTest =>
 
-      EntropyToSeed.instances.pbkdf2Sha512(Lengths.`96`).toSeed(entropy, Some("TREZOR")) shouldBe vec.outputs.seed96
+      underTest.inputs.
+
+        Entropy.validated(underTest.inputs.entropy.getBytes)
+
+      EntropyToSeed.instances.pbkdf2Sha512(Lengths.`96`).toSeed(, Some("TREZOR")) shouldBe underTest.outputs.seed96
     }
   }
 }

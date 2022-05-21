@@ -1,7 +1,7 @@
 package co.topl.crypto.signing
 
-import co.topl.crypto.generation.Pbkdf2Sha512
-import co.topl.crypto.generation.mnemonic.{Bip32Index, Bip32Indexes, Entropy}
+import co.topl.crypto.generation.{Bip32Index, Bip32Indexes, EntropyToSeed, Pbkdf2Sha512}
+import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.models.SecretKeys.ExtendedEd25519.Length
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
@@ -212,7 +212,7 @@ class ExtendedEd25519
     )
   }
 
-  def getVerificationKey(secretKey: SecretKeys.ExtendedEd25519): VerificationKeys.ExtendedEd25519 = {
+  override def getVerificationKey(secretKey: SecretKeys.ExtendedEd25519): VerificationKeys.ExtendedEd25519 = {
     val pk = new Array[Byte](PublicKeyLength)
     impl.scalarMultBaseEncoded(secretKey.leftKey.data.toArray, pk, 0)
 
