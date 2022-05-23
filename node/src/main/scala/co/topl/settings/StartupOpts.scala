@@ -107,10 +107,13 @@ final case class RuntimeOpts(
       .modify(configPeers =>
         knownPeers match {
           case Some(peersString) =>
-            peersString.split(",").map { peer =>
-              val split = peer.split(":")
-              new InetSocketAddress(split(0), split(1).toInt)
-            }
+            peersString
+              .split(",")
+              .toIndexedSeq
+              .map { peer =>
+                val split = peer.split(":")
+                new InetSocketAddress(split(0), split(1).toInt)
+              }
           case None => configPeers
         }
       )
