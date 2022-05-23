@@ -385,7 +385,7 @@ trait ModelGenerators {
       for {
         address <- arbitraryFullAddress.arbitrary
         value   <- arbitraryBoxValue.arbitrary
-        minting <- Gen.prob(0.5)
+        minting <- Gen.prob(0.05)
       } yield Transaction.Output(address, value, minting)
     )
 
