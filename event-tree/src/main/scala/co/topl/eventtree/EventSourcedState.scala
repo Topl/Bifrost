@@ -111,4 +111,5 @@ object EventSourcedState {
           .getOrElseF(MonadThrow[F].raiseError(new NoSuchElementException(show"Unapply id=${eventId}")))
     }
   }
+
 }

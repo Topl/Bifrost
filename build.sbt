@@ -507,7 +507,8 @@ lazy val ledger = project
   .settings(libraryDependencies ++= Dependencies.ledger)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(
-    models % "compile->compile;test->test"
+    models % "compile->compile;test->test",
+    eventTree
   )
 
 lazy val demo = project
