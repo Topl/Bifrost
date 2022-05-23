@@ -35,8 +35,8 @@ class TransactionsQueryServiceSpec
     val confirmationDepth = 8
     val currentChainHeight = 100
 
-    val dataStore = MockMongoStore.withTransactions(List(createTransactionWithHeight(100)))
-    val chainHeight = MockChainHeight.withHeight(BlockHeight(currentChainHeight))
+    val dataStore = MockMongoStore.withTransactions[IO](List(createTransactionWithHeight(100)))
+    val chainHeight = MockChainHeight.withHeight[IO](BlockHeight(currentChainHeight))
 
     val underTest = TransactionsQueryService.make[IO](dataStore, chainHeight)
 
@@ -60,8 +60,8 @@ class TransactionsQueryServiceSpec
         createTransactionWithHeight(44)
       )
 
-    val dataStore = MockMongoStore.withTransactions(transactions)
-    val chainHeight = MockChainHeight.withHeight(BlockHeight(currentChainHeight))
+    val dataStore = MockMongoStore.withTransactions[IO](transactions)
+    val chainHeight = MockChainHeight.withHeight[IO](BlockHeight(currentChainHeight))
 
     val underTest = TransactionsQueryService.make[IO](dataStore, chainHeight)
 
@@ -84,8 +84,8 @@ class TransactionsQueryServiceSpec
     val validTransactionDocuments = List(transaction.asDocument)
     val invalidTransactionDocuments = List(Document("{ \"invalid\": \"test\" }"))
 
-    val dataStore = MockMongoStore.withDocuments(validTransactionDocuments ++ invalidTransactionDocuments)
-    val chainHeight = MockChainHeight.withHeight(BlockHeight(currentChainHeight))
+    val dataStore = MockMongoStore.withDocuments[IO](validTransactionDocuments ++ invalidTransactionDocuments)
+    val chainHeight = MockChainHeight.withHeight[IO](BlockHeight(currentChainHeight))
 
     val underTest = TransactionsQueryService.make[IO](dataStore, chainHeight)
 

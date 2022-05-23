@@ -30,9 +30,9 @@ class BlocksSubscriptionServiceSpec
   it should "return a connection failure error if the mongo subscription request fails" in {
     val errorMessage = "mongo server not found!"
 
-    val mongoSubscription = MockMongoSubscription.alwaysFailWith(errorMessage)
+    val mongoSubscription = MockMongoSubscription.alwaysFailWith[IO](errorMessage)
 
-    val underTest = BlocksSubscriptionService.make(mongoSubscription)
+    val underTest = BlocksSubscriptionService.make[IO](mongoSubscription)
 
     val result = underTest.create(defaultSubscriptionRequest)
 
@@ -47,7 +47,7 @@ class BlocksSubscriptionServiceSpec
     val invalidBlockDocument = Document("{ \"invalid\": true }")
 
     val mongoSubscription =
-      MockMongoSubscription.withDocuments(List(validBlockDocument, invalidBlockDocument))
+      MockMongoSubscription.withDocuments[IO](List(validBlockDocument, invalidBlockDocument))
 
     val underTest = BlocksSubscriptionService.make[IO](mongoSubscription)
 

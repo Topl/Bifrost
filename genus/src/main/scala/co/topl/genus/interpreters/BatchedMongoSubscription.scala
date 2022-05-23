@@ -1,17 +1,18 @@
 package co.topl.genus.interpreters
 
-import cats.implicits._
 import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}
-import cats.{~>, Applicative}
+import cats.data.OptionT
+import cats.implicits._
+import cats.{~>, Applicative, Functor}
 import co.topl.genus.algebras.{ChainHeight, MongoStore, MongoSubscription}
-import co.topl.genus.flows.FilterWithConfirmationDepthFlow
+import co.topl.genus.flows.FutureOptionTFilterFlow
 import co.topl.genus.ops.implicits._
-import co.topl.genus.typeclasses.{MongoFilter, MongoSort}
-import org.mongodb.scala.Document
 import co.topl.genus.typeclasses.implicits._
+import co.topl.genus.typeclasses.{MongoFilter, MongoSort}
 import co.topl.genus.types.BlockHeight
+import org.mongodb.scala.Document
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
@@ -43,7 +44,7 @@ object BatchedMongoSubscription {
                   .getDocuments(filter.toBsonFilter.some, sort.toBsonSorting.some, batchSize.some, index.some)
                   .mapFunctor[Future]
               )
-              .via(FilterWithConfirmationDepthFlow.create(confirmationDepth, documentToHeightOpt, chainHeight))
+              .via(FutureOptionTFilterFlow.create(whenConfirmed(confirmationDepth, documentToHeightOpt, chainHeight)))
               .runWith(Sink.seq[Document])
               // increment the current index in the stream of documents for the next batch
               .map(documents => (index + documents.length -> documents.toList).some)
@@ -53,4 +54,25 @@ object BatchedMongoSubscription {
           .mapConcat(values => values)
           .pure[F]
     }
+
+  /**
+   * Checks if the given document is confirmed for the given confirmation depth.
+   * @param confirmationDepth the confirmation depth to use for checking if given documents have been confirmed
+   * @param document the document to check
+   * @return if cofnirmed, a Some option-T value, otherwise a None
+   */
+  private[genus] def whenConfirmed[F[_]: Functor](
+    confirmationDepth:   Int,
+    documentToHeightOpt: Document => Option[BlockHeight],
+    chainHeight:         ChainHeight[F]
+  )(
+    document: Document
+  ): OptionT[F, Document] =
+    OptionT(
+      chainHeight.get.map(currentHeight =>
+        documentToHeightOpt(document)
+          .filter(docHeight => docHeight.value <= currentHeight.value - confirmationDepth)
+          .as(document)
+      )
+    )
 }

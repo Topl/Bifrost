@@ -34,8 +34,8 @@ class BlocksQueryServiceSpec
     val confirmationDepth = 8
     val currentChainHeight = 100
 
-    val dataStore = MockMongoStore.withBlocks(List(createBlockWithHeight(100)))
-    val chainHeight = MockChainHeight.withHeight(BlockHeight(currentChainHeight))
+    val dataStore = MockMongoStore.withBlocks[IO](List(createBlockWithHeight(100)))
+    val chainHeight = MockChainHeight.withHeight[IO](BlockHeight(currentChainHeight))
 
     val underTest = BlocksQueryService.make[IO](dataStore, chainHeight)
 
@@ -59,8 +59,8 @@ class BlocksQueryServiceSpec
         createBlockWithHeight(66)
       )
 
-    val dataStore = MockMongoStore.withBlocks(blocks)
-    val chainHeight = MockChainHeight.withHeight(BlockHeight(currentChainHeight))
+    val dataStore = MockMongoStore.withBlocks[IO](blocks)
+    val chainHeight = MockChainHeight.withHeight[IO](BlockHeight(currentChainHeight))
 
     val underTest = BlocksQueryService.make[IO](dataStore, chainHeight)
 
@@ -83,8 +83,8 @@ class BlocksQueryServiceSpec
     val validBlockDocuments = List(block.asDocument)
     val invalidBlockDocuments = List(Document("{ \"invalid\": \"test\" }"))
 
-    val dataStore = MockMongoStore.withDocuments(validBlockDocuments ++ invalidBlockDocuments)
-    val chainHeight = MockChainHeight.withHeight(BlockHeight(currentChainHeight))
+    val dataStore = MockMongoStore.withDocuments[IO](validBlockDocuments ++ invalidBlockDocuments)
+    val chainHeight = MockChainHeight.withHeight[IO](BlockHeight(currentChainHeight))
 
     val underTest = BlocksQueryService.make[IO](dataStore, chainHeight)
 
