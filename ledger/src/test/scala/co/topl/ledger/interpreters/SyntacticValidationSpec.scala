@@ -1,15 +1,15 @@
 package co.topl.ledger.interpreters
 
-import cats.implicits._
 import cats.data.Chain
 import cats.effect._
 import cats.effect.unsafe.implicits.global
+import cats.implicits._
 import co.topl.ledger.algebras.InvalidSyntaxErrors
 import co.topl.models.ModelGenerators._
 import co.topl.models.utility.HasLength.instances.bigIntLength
-import co.topl.models.utility.Sized
+import co.topl.models.utility.{Lengths, Sized}
 import co.topl.models.{Box, Transaction}
-import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.Gen
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -44,31 +44,31 @@ class SyntacticValidationSpec extends AnyFlatSpec with Matchers with ScalaCheckP
   }
 
   it should "validate positive output quantities" in {
-    val negativeBoxValueGen =
-      arbitraryBoxValue.arbitrary.map {
-        case Box.Values.Poly(_)  => Box.Values.Poly(Sized.maxUnsafe(BigInt(-1)))
-        case Box.Values.Arbit(_) => Box.Values.Arbit(Sized.maxUnsafe(BigInt(-1)))
-        case a: Box.Values.Asset => a.copy(quantity = Sized.maxUnsafe(BigInt(-1)))
-        case v                   => v
+    val boxValueGen =
+      arbitraryBoxValue.arbitrary.flatMap {
+        case Box.Values.Poly(_)  => arbitraryInt128.arbitrary.map(Box.Values.Poly)
+        case Box.Values.Arbit(_) => arbitraryInt128.arbitrary.map(Box.Values.Arbit)
+        case a: Box.Values.Asset => arbitraryInt128.arbitrary.map(q => a.copy(quantity = q))
+        case v                   => Gen.const(v)
       }
-    val negativeOutputGen =
+    val outputGen =
       for {
         o <- arbitraryTransactionOutput.arbitrary
-        v <- negativeBoxValueGen
+        v <- boxValueGen
       } yield o.copy(value = v)
     val negativeTransactionGen =
       for {
         tx      <- arbitraryTransaction.arbitrary
-        outputs <- nonEmptyChainOf(negativeOutputGen)
-      } yield tx.copy(outputs = outputs.toChain)
+        outputs <- Gen.listOf(outputGen)
+      } yield tx.copy(outputs = Chain.fromSeq(outputs))
 
     forAll(negativeTransactionGen) { transaction: Transaction =>
       whenever(
         transaction.outputs.exists(o =>
           o.value match {
-            case v: Box.Values.Poly  => true
-            case v: Box.Values.Arbit => true
-            case v: Box.Values.Asset => true
+            case v: Box.Values.Poly  => v.quantity.data <= 0
+            case v: Box.Values.Arbit => v.quantity.data <= 0
+            case v: Box.Values.Asset => v.quantity.data <= 0
             case _                   => false
           }
         )
@@ -87,63 +87,125 @@ class SyntacticValidationSpec extends AnyFlatSpec with Matchers with ScalaCheckP
   }
 
   it should "validate sufficient input funds" in {
-    def typedInGen[T <: Box.Value: Arbitrary] =
-      for {
-        o <- arbitraryTransactionInput.arbitrary
-        v <- implicitly[Arbitrary[T]].arbitrary
-      } yield o.copy(value = v)
-    def typedOutGen[T <: Box.Value: Arbitrary] =
-      for {
-        o <- arbitraryTransactionOutput.arbitrary
-        v <- implicitly[Arbitrary[T]].arbitrary
-      } yield o.copy(value = v)
-    def txGen[T <: Box.Value: Arbitrary] =
-      for {
-        tx      <- arbitraryTransaction.arbitrary
-        inputs  <- Gen.listOf(typedInGen[T])
-        outputs <- Gen.listOf(typedOutGen[T])
-      } yield tx.copy(inputs = Chain.fromSeq(inputs), outputs = Chain.fromSeq(outputs))
-
-    def runTest[T <: Box.Value: Arbitrary](quantity: T => BigInt) = {
-      forAll(txGen[T]) { transaction: Transaction =>
+    // Manual tests
+    forAll { (baseTransaction: Transaction, input: Transaction.Input, output: Transaction.Output) =>
+      // Poly Test
+      {
+        val tx = baseTransaction.copy(
+          inputs = Chain(
+            input.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(1))))
+          ),
+          outputs = Chain(
+            output.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(2))), minting = false)
+          )
+        )
         val result = SyntacticValidation
           .make[F]
-          .flatMap(_.validateSyntax(transaction))
+          .flatMap(_.validateSyntax(tx))
           .unsafeRunSync()
-        val inSum = transaction.inputs.map(_.value.asInstanceOf[T]).map(quantity).sumAll
-        val outSum = transaction.outputs.filterNot(_.minting).map(_.value.asInstanceOf[T]).map(quantity).sumAll
-        whenever(outSum > inSum)(
-          result.toEither.left.value.exists {
-            case _: InvalidSyntaxErrors.InsufficientInputFunds[_] => true
-            case _                                                => false
-          } shouldBe true
-        )
+        result.toEither.left.value.exists {
+          case _: InvalidSyntaxErrors.InsufficientInputFunds[_] => true
+          case _                                                => false
+        } shouldBe true
       }
-      forAll(txGen[T]) { transaction: Transaction =>
+      // Arbit Test
+      {
+        val tx = baseTransaction.copy(
+          inputs = Chain(
+            input.copy(value = Box.Values.Arbit(Sized.maxUnsafe(BigInt(1))))
+          ),
+          outputs = Chain(
+            output.copy(value = Box.Values.Arbit(Sized.maxUnsafe(BigInt(2))), minting = false)
+          )
+        )
         val result = SyntacticValidation
           .make[F]
-          .flatMap(_.validateSyntax(transaction))
+          .flatMap(_.validateSyntax(tx))
           .unsafeRunSync()
-        val inSum = transaction.inputs.map(_.value.asInstanceOf[T]).map(quantity).sumAll
-        val outSum = transaction.outputs.filterNot(_.minting).map(_.value.asInstanceOf[T]).map(quantity).sumAll
-        whenever(inSum >= outSum)(
-          result.toEither match {
-            case Right(_) =>
-              assert(true)
-            case Left(errors) =>
-              assert(
-                !errors.exists {
-                  case _: InvalidSyntaxErrors.InsufficientInputFunds[_] => true
-                  case _                                                => false
-                }
-              )
-          }
+        result.toEither.left.value.exists {
+          case _: InvalidSyntaxErrors.InsufficientInputFunds[_] => true
+          case _                                                => false
+        } shouldBe true
+      }
+      // Asset Test
+      {
+        val assetCode = arbitraryAssetCode.arbitrary.first
+        val tx = baseTransaction.copy(
+          inputs = Chain(
+            input.copy(value =
+              arbitraryAssetBox.arbitrary.first.copy(quantity = Sized.maxUnsafe(BigInt(1)), assetCode = assetCode)
+            )
+          ),
+          outputs = Chain(
+            output.copy(
+              value =
+                arbitraryAssetBox.arbitrary.first.copy(quantity = Sized.maxUnsafe(BigInt(2)), assetCode = assetCode),
+              minting = false
+            )
+          )
         )
+        val result = SyntacticValidation
+          .make[F]
+          .flatMap(_.validateSyntax(tx))
+          .unsafeRunSync()
+        result.toEither.left.value.exists {
+          case _: InvalidSyntaxErrors.InsufficientInputFunds[_] => true
+          case _                                                => false
+        } shouldBe true
       }
     }
 
-    runTest[Box.Values.Poly](_.quantity.data)
-    runTest[Box.Values.Arbit](_.quantity.data)
-    runTest[Box.Values.Asset](_.quantity.data)
+    // Arbitrary/generator tests
+    forAll(arbitraryTransaction.arbitrary, maxDiscardedFactor(100)) { transaction: Transaction =>
+      val result = SyntacticValidation
+        .make[F]
+        .flatMap(_.validateSyntax(transaction))
+        .unsafeRunSync()
+
+      val polyInSum =
+        transaction.inputs.collect { case Transaction.Input(_, _, _, _, Box.Values.Poly(quantity)) =>
+          quantity.data
+        }.sumAll
+      val polyOutSum =
+        transaction.outputs.collect { case Transaction.Output(_, Box.Values.Poly(quantity), false) =>
+          quantity.data
+        }.sumAll
+      whenever(polyOutSum > polyInSum) {
+        result.toEither.left.value.exists {
+          case _: InvalidSyntaxErrors.InsufficientInputFunds[_] => true
+          case _                                                => false
+        } shouldBe true
+      }
+
+      val arbitInSum =
+        transaction.inputs.collect { case Transaction.Input(_, _, _, _, Box.Values.Arbit(quantity)) =>
+          quantity.data
+        }.sumAll
+      val arbitOutSum =
+        transaction.outputs.collect { case Transaction.Output(_, Box.Values.Arbit(quantity), false) =>
+          quantity.data
+        }.sumAll
+      whenever(arbitOutSum > arbitInSum) {
+        result.toEither.left.value.exists {
+          case _: InvalidSyntaxErrors.InsufficientInputFunds[_] => true
+          case _                                                => false
+        } shouldBe true
+      }
+
+      val assetInSum =
+        transaction.inputs.collect { case Transaction.Input(_, _, _, _, v: Box.Values.Asset) =>
+          v.quantity.data
+        }.sumAll
+      val assetOutSum =
+        transaction.outputs.collect { case Transaction.Output(_, v: Box.Values.Asset, false) =>
+          v.quantity.data
+        }.sumAll
+      whenever(assetOutSum > assetInSum) {
+        result.toEither.left.value.exists {
+          case _: InvalidSyntaxErrors.InsufficientInputFunds[_] => true
+          case _                                                => false
+        } shouldBe true
+      }
+    }
   }
 }

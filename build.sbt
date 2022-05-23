@@ -508,6 +508,7 @@ lazy val ledger = project
   .settings(scalamacrosParadiseSettings)
   .dependsOn(
     models % "compile->compile;test->test",
+    typeclasses,
     eventTree
   )
 
