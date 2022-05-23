@@ -6,7 +6,7 @@ import cats.effect.unsafe.implicits.global
 import co.topl.genus.algebras.QueryService.QueryRequest
 import co.topl.genus.filters.BlockFilter
 import co.topl.genus.interpreters.{MockChainHeight, MockMongoStore}
-import co.topl.genus.ops.QueryResultOps.implicits._
+import co.topl.genus.ops.EitherTSourceOps.implicits._
 import co.topl.genus.services.blocks_query.BlockSorting
 import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.types.{Block, BlockHeight}

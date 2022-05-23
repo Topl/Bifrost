@@ -5,16 +5,15 @@ import akka.stream.scaladsl.{Sink, Source}
 import cats.data.EitherT
 import cats.effect.kernel.Async
 import cats.implicits._
-import co.topl.genus.algebras.QueryService.QueryFailure
 
 import scala.language.implicitConversions
 
-class QueryResultOps[F[_], T, Mat](private val value: EitherT[F, QueryFailure, Source[T, Mat]]) extends AnyVal {
+class EitherTSourceOps[F[_], Left, T, Mat](private val value: EitherT[F, Left, Source[T, Mat]]) extends AnyVal {
 
   def materializeToList(implicit
     materializer: Materializer,
     asyncF:       Async[F]
-  ): EitherT[F, QueryFailure, List[T]] =
+  ): EitherT[F, Left, List[T]] =
     value
       .flatMap(result =>
         EitherT.right(
@@ -30,14 +29,14 @@ class QueryResultOps[F[_], T, Mat](private val value: EitherT[F, QueryFailure, S
       )
 }
 
-object QueryResultOps {
+object EitherTSourceOps {
 
   trait ToOps {
 
-    implicit def queryResultOpsFromValue[F[_], T, Mat](
-      value: EitherT[F, QueryFailure, Source[T, Mat]]
-    ): QueryResultOps[F, T, Mat] =
-      new QueryResultOps(value)
+    implicit def queryResultOpsFromValue[F[_], Left, T, Mat](
+      value: EitherT[F, Left, Source[T, Mat]]
+    ): EitherTSourceOps[F, Left, T, Mat] =
+      new EitherTSourceOps(value)
   }
 
   object implicits extends ToOps

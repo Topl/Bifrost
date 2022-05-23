@@ -6,6 +6,7 @@ import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}
 import cats.{~>, Applicative}
 import co.topl.genus.algebras.{ChainHeight, MongoStore, MongoSubscription}
+import co.topl.genus.flows.FilterWithConfirmationDepthFlow
 import co.topl.genus.ops.implicits._
 import co.topl.genus.typeclasses.{MongoFilter, MongoSort}
 import org.mongodb.scala.Document
@@ -42,18 +43,7 @@ object BatchedMongoSubscription {
                   .getDocuments(filter.toBsonFilter.some, sort.toBsonSorting.some, batchSize.some, index.some)
                   .mapFunctor[Future]
               )
-              .flatMapConcat(document =>
-                Source
-                  .asyncF(chainHeight.get)
-                  .mapConcat(height =>
-                    documentToHeightOpt(document)
-                      .flatMap(documentHeight =>
-                        if (documentHeight.value <= height.value - confirmationDepth) document.some
-                        else None
-                      )
-                      .toList
-                  )
-              )
+              .via(FilterWithConfirmationDepthFlow.create(confirmationDepth, documentToHeightOpt, chainHeight))
               .runWith(Sink.seq[Document])
               // increment the current index in the stream of documents for the next batch
               .map(documents => (index + documents.length -> documents.toList).some)
