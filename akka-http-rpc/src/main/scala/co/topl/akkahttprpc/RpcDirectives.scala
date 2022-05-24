@@ -102,7 +102,7 @@ trait RpcDirectives {
     Try(
       context.params
         .as[RpcParams]
-        .leftMap(InvalidParametersError(_))
+        .leftMap(err => InvalidParametersError(err))
     ).toEither
       .leftMap(throwable => InvalidParametersError(DecodingFailure.fromThrowable(throwable, Nil)))
       .flatMap(identity)

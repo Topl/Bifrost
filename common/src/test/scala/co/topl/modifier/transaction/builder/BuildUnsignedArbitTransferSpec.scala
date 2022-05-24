@@ -1,11 +1,8 @@
 package co.topl.modifier.transaction.builder
 
-import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
-import co.topl.modifier.BoxReader
-import co.topl.modifier.box.{ArbitBox, PolyBox, ProgramId}
+import co.topl.attestation.PublicKeyPropositionCurve25519
+import co.topl.modifier.transaction.builder.Generators._
 import co.topl.utils.CommonGenerators
-import org.scalacheck.Gen
-import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -16,297 +13,139 @@ class BuildUnsignedArbitTransferSpec
     with CommonGenerators
     with Matchers
     with ScalaCheckDrivenPropertyChecks
-    with MockFactory
     with EitherValues {
 
   "buildUnsignedArbitTransfer" should "return invalid if not enough funds for fee" in {
-    forAll(polyBoxGen, Gen.listOf(polyBoxGen), arbitBoxGen, Gen.listOf(arbitBoxGen), addressGen, addressGen) {
-      (
-        firstFeeBox:     PolyBox,
-        otherFeeBoxes:   List[PolyBox],
-        firstArbitBox:   ArbitBox,
-        otherArbitBoxes: List[ArbitBox],
-        sender:          Address,
-        recipient:       Address
-      ) =>
-        val feeBoxes = firstFeeBox :: otherFeeBoxes
-        val arbitBoxes = firstArbitBox :: otherArbitBoxes
-        val fee = feeBoxes.map(_.value.quantity).sum + 100000
+    forAll(polyBoxesGen, arbitBoxesGen, addressGen, addressGen) { (polyBoxes, arbitBoxes, sender, recipient) =>
+      val existingPolys = boxesAmount(polyBoxes)
+      val fee = existingPolys + 100000
 
-        val boxReader = mock[BoxReader[ProgramId, Address]]
-        (boxReader.getTokenBoxes _).expects(sender).returns(Some(feeBoxes ++ arbitBoxes))
+      val boxReader = MockBoxReader.fromNec(sender -> (polyBoxes ++ arbitBoxes))
 
-        val request = TransferRequests.ArbitTransferRequest(
-          List(sender),
-          List(recipient -> 100),
-          sender,
-          sender,
-          fee,
-          None
+      val expectedFailure =
+        BuildTransferFailures.InsufficientPolyFunds(
+          existingPolys,
+          fee
         )
 
-        val result = TransferBuilder
-          .buildUnsignedArbitTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
+      val request = TransferRequests.ArbitTransferRequest(
+        List(sender),
+        List(recipient -> 100),
+        sender,
+        sender,
+        fee,
+        None
+      )
 
-        result shouldBe Symbol("left")
-        result.left.value shouldBe BuildTransferFailures.InsufficientFeeFunds
+      val result = TransferBuilder
+        .buildUnsignedArbitTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
+
+      result.left.value shouldBe expectedFailure
     }
   }
 
   it should "return invalid if not enough funds for recipients" in {
-    forAll(polyBoxGen, Gen.listOf(polyBoxGen), arbitBoxGen, Gen.listOf(arbitBoxGen), addressGen, addressGen) {
-      (
-        firstFeeBox:     PolyBox,
-        otherFeeBoxes:   List[PolyBox],
-        firstArbitBox:   ArbitBox,
-        otherArbitBoxes: List[ArbitBox],
-        sender:          Address,
-        recipient:       Address
-      ) =>
-        val feeBoxes = firstFeeBox :: otherFeeBoxes
-        val arbitBoxes = firstArbitBox :: otherArbitBoxes
-        val toSend = arbitBoxes.map(_.value.quantity).sum + 10000
+    forAll(polyBoxesGen, arbitBoxesGen, addressGen, addressGen) { (polyBoxes, arbitBoxes, sender, recipient) =>
+      val existingArbits = boxesAmount(arbitBoxes)
+      val toSend = existingArbits + 10000
 
-        val boxReader = mock[BoxReader[ProgramId, Address]]
-        (boxReader.getTokenBoxes _).expects(sender).returns(Some(feeBoxes ++ arbitBoxes))
+      val boxReader = MockBoxReader.fromNec(sender -> (polyBoxes ++ arbitBoxes))
 
-        val request = TransferRequests.ArbitTransferRequest(
-          List(sender),
-          List(recipient -> toSend),
-          sender,
-          sender,
-          0,
-          None
-        )
+      val request = TransferRequests.ArbitTransferRequest(
+        List(sender),
+        List(recipient -> toSend),
+        sender,
+        sender,
+        0,
+        None
+      )
 
-        val result = TransferBuilder
-          .buildUnsignedArbitTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
+      val result = TransferBuilder
+        .buildUnsignedArbitTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
 
-        result shouldBe Symbol("left")
-        result.left.value shouldBe BuildTransferFailures.InsufficientPaymentFunds
-    }
-  }
-
-  it should "return invalid if no input poly boxes" in {
-    forAll(arbitBoxGen, Gen.listOf(arbitBoxGen), addressGen, addressGen) {
-      (
-        firstArbitBox:   ArbitBox,
-        otherArbitBoxes: List[ArbitBox],
-        sender:          Address,
-        recipient:       Address
-      ) =>
-        val arbitBoxes = firstArbitBox :: otherArbitBoxes
-
-        val boxReader = mock[BoxReader[ProgramId, Address]]
-        (boxReader.getTokenBoxes _).expects(sender).returns(Some(arbitBoxes))
-
-        val request = TransferRequests.ArbitTransferRequest(
-          List(sender),
-          List(recipient -> 1),
-          sender,
-          sender,
-          0,
-          None
-        )
-
-        val result = TransferBuilder
-          .buildUnsignedArbitTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
-
-        result shouldBe Symbol("left")
-        result.left.value shouldBe BuildTransferFailures.EmptyInputs
+      result.left.value shouldBe BuildTransferFailures.InsufficientArbitFunds(existingArbits, toSend)
     }
   }
 
   it should "return invalid if no input arbit boxes" in {
-    forAll(polyBoxGen, Gen.listOf(polyBoxGen), addressGen, addressGen) {
-      (
-        firstFeeBox:   PolyBox,
-        otherFeeBoxes: List[PolyBox],
-        sender:        Address,
-        recipient:     Address
-      ) =>
-        val feeBoxes = firstFeeBox :: otherFeeBoxes
+    forAll(polyBoxesGen, addressGen, addressGen) { (polyBoxes, sender, recipient) =>
+      val boxReader = MockBoxReader.fromNec(sender -> polyBoxes)
 
-        val boxReader = mock[BoxReader[ProgramId, Address]]
-        (boxReader.getTokenBoxes _).expects(sender).returns(Some(feeBoxes))
+      val arbitsToSend = 1
 
-        val request = TransferRequests.ArbitTransferRequest(
-          List(sender),
-          List(recipient -> 1),
-          sender,
-          sender,
-          0,
-          None
-        )
+      val request = TransferRequests.ArbitTransferRequest(
+        List(sender),
+        List(recipient -> arbitsToSend),
+        sender,
+        sender,
+        0,
+        None
+      )
 
-        val result = TransferBuilder
-          .buildUnsignedArbitTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
+      val result = TransferBuilder
+        .buildUnsignedArbitTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
 
-        result shouldBe Symbol("left")
-        result.left.value shouldBe BuildTransferFailures.EmptyInputs
-    }
-  }
-
-  it should "return invalid if duplicate poly input boxes" in {
-    forAll(polyBoxGen, Gen.listOf(polyBoxGen), arbitBoxGen, Gen.listOf(arbitBoxGen), addressGen, addressGen) {
-      (
-        firstFeeBox:     PolyBox,
-        otherFeeBoxes:   List[PolyBox],
-        firstArbitBox:   ArbitBox,
-        otherArbitBoxes: List[ArbitBox],
-        sender:          Address,
-        recipient:       Address
-      ) =>
-        val feeBoxes = firstFeeBox :: otherFeeBoxes
-        val arbitBoxes = firstArbitBox :: otherArbitBoxes
-
-        val boxReader = mock[BoxReader[ProgramId, Address]]
-        (boxReader.getTokenBoxes _).expects(sender).returns(Some(feeBoxes ++ feeBoxes ++ arbitBoxes))
-
-        val request = TransferRequests.ArbitTransferRequest(
-          List(sender),
-          List(recipient -> 100),
-          sender,
-          sender,
-          0,
-          None
-        )
-
-        val result = TransferBuilder
-          .buildUnsignedArbitTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
-
-        result shouldBe Symbol("left")
-        result.left.value shouldBe BuildTransferFailures.DuplicateInputs
-    }
-  }
-
-  it should "return invalid if duplicate arbit input boxes" in {
-    forAll(polyBoxGen, Gen.listOf(polyBoxGen), arbitBoxGen, Gen.listOf(arbitBoxGen), addressGen, addressGen) {
-      (
-        firstFeeBox:     PolyBox,
-        otherFeeBoxes:   List[PolyBox],
-        firstArbitBox:   ArbitBox,
-        otherArbitBoxes: List[ArbitBox],
-        sender:          Address,
-        recipient:       Address
-      ) =>
-        val feeBoxes = firstFeeBox :: otherFeeBoxes
-        val arbitBoxes = firstArbitBox :: otherArbitBoxes
-
-        val boxReader = mock[BoxReader[ProgramId, Address]]
-        (boxReader.getTokenBoxes _).expects(sender).returns(Some(feeBoxes ++ arbitBoxes ++ arbitBoxes))
-
-        val request = TransferRequests.ArbitTransferRequest(
-          List(sender),
-          List(recipient -> 100),
-          sender,
-          sender,
-          0,
-          None
-        )
-
-        val result = TransferBuilder
-          .buildUnsignedArbitTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
-
-        result shouldBe Symbol("left")
-        result.left.value shouldBe BuildTransferFailures.DuplicateInputs
+      result.left.value shouldBe BuildTransferFailures.InsufficientArbitFunds(0, arbitsToSend)
     }
   }
 
   it should "return invalid if no recipients" in {
-    forAll(polyBoxGen, Gen.listOf(polyBoxGen), arbitBoxGen, Gen.listOf(arbitBoxGen), addressGen) {
-      (
-        firstFeeBox:     PolyBox,
-        otherFeeBoxes:   List[PolyBox],
-        firstArbitBox:   ArbitBox,
-        otherArbitBoxes: List[ArbitBox],
-        sender:          Address
-      ) =>
-        val feeBoxes = firstFeeBox :: otherFeeBoxes
-        val arbitBoxes = firstArbitBox :: otherArbitBoxes
+    forAll(polyBoxesGen, arbitBoxesGen, addressGen) { (polyBoxes, arbitBoxes, sender) =>
+      val boxReader = MockBoxReader.fromNec(sender -> (polyBoxes ++ arbitBoxes))
 
-        val boxReader = mock[BoxReader[ProgramId, Address]]
-        (boxReader.getTokenBoxes _).expects(sender).returns(Some(feeBoxes ++ arbitBoxes))
+      val request = TransferRequests.ArbitTransferRequest(
+        List(sender),
+        List(),
+        sender,
+        sender,
+        0,
+        None
+      )
 
-        val request = TransferRequests.ArbitTransferRequest(
-          List(sender),
-          List(),
-          sender,
-          sender,
-          0,
-          None
-        )
+      val result = TransferBuilder
+        .buildUnsignedArbitTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
 
-        val result = TransferBuilder
-          .buildUnsignedArbitTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
-
-        result shouldBe Symbol("left")
-        result.left.value shouldBe BuildTransferFailures.EmptyRecipients
+      result.left.value shouldBe BuildTransferFailures.EmptyOutputs
     }
   }
 
   it should "return invalid if duplicate recipients" in {
-    forAll(polyBoxGen, Gen.listOf(polyBoxGen), arbitBoxGen, Gen.listOf(arbitBoxGen), addressGen, addressGen) {
-      (
-        firstFeeBox:     PolyBox,
-        otherFeeBoxes:   List[PolyBox],
-        firstArbitBox:   ArbitBox,
-        otherArbitBoxes: List[ArbitBox],
-        sender:          Address,
-        recipient:       Address
-      ) =>
-        val feeBoxes = firstFeeBox :: otherFeeBoxes
-        val arbitBoxes = firstArbitBox :: otherArbitBoxes
+    forAll(polyBoxesGen, arbitBoxesGen, addressGen, addressGen) { (polyBoxes, arbitBoxes, sender, recipient) =>
+      val boxReader = MockBoxReader.fromNec(sender -> (polyBoxes ++ arbitBoxes))
 
-        val boxReader = mock[BoxReader[ProgramId, Address]]
-        (boxReader.getTokenBoxes _).expects(sender).returns(Some(feeBoxes ++ arbitBoxes))
+      val request = TransferRequests.ArbitTransferRequest(
+        List(sender),
+        List(recipient -> 100, recipient -> 100),
+        sender,
+        sender,
+        0,
+        None
+      )
 
-        val request = TransferRequests.ArbitTransferRequest(
-          List(sender),
-          List(recipient -> 100, recipient -> 100),
-          sender,
-          sender,
-          0,
-          None
-        )
+      val result = TransferBuilder
+        .buildUnsignedArbitTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
 
-        val result = TransferBuilder
-          .buildUnsignedArbitTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
-
-        result shouldBe Symbol("left")
-        result.left.value shouldBe BuildTransferFailures.DuplicateRecipients
+      result.left.value shouldBe BuildTransferFailures.DuplicateOutputs
     }
   }
 
   it should "return valid if valid inputs" in {
-    forAll(polyBoxGen, Gen.listOf(polyBoxGen), arbitBoxGen, Gen.listOf(arbitBoxGen), addressGen, addressGen) {
-      (
-        firstFeeBox:     PolyBox,
-        otherFeeBoxes:   List[PolyBox],
-        firstArbitBox:   ArbitBox,
-        otherArbitBoxes: List[ArbitBox],
-        sender:          Address,
-        recipient:       Address
-      ) =>
-        val feeBoxes = firstFeeBox :: otherFeeBoxes
-        val arbitBoxes = firstArbitBox :: otherArbitBoxes
+    forAll(polyBoxesGen, arbitBoxesGen, addressGen, addressGen) { (polyBoxes, arbitBoxes, sender, recipient) =>
+      val boxReader = MockBoxReader.fromNec(sender -> (polyBoxes ++ arbitBoxes))
 
-        val boxReader = mock[BoxReader[ProgramId, Address]]
-        (boxReader.getTokenBoxes _).expects(sender).returns(Some(feeBoxes ++ arbitBoxes))
+      val request = TransferRequests.ArbitTransferRequest(
+        List(sender),
+        List(recipient -> 100),
+        sender,
+        sender,
+        0,
+        None
+      )
 
-        val request = TransferRequests.ArbitTransferRequest(
-          List(sender),
-          List(recipient -> 100),
-          sender,
-          sender,
-          0,
-          None
-        )
+      val result = TransferBuilder
+        .buildUnsignedArbitTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
 
-        val result = TransferBuilder
-          .buildUnsignedArbitTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
-
-        result shouldBe Symbol("right")
+      result shouldBe Symbol("right")
     }
   }
 }

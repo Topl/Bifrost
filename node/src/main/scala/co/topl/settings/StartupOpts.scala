@@ -4,6 +4,8 @@ import co.topl.utils.NetworkType
 import mainargs._
 import monocle.syntax.all._
 
+import java.net.InetSocketAddress
+
 /**
  * Parameters that are given at application startup. Only parameters that are
  * required for initialization should be included at the top level while all other
@@ -38,38 +40,103 @@ final case class StartupOpts(
  */
 @main
 final case class RuntimeOpts(
-  @arg(name = "seed", short = 's', doc = "string to deterministically generate keys on private and local networks")
+  @arg(name = "seed", short = 's', doc = "String used to deterministically generate addresses during startup")
   seed: Option[String] = None,
-  @arg(name = "forge", short = 'f', doc = "enable forging as soon as the node starts")
+  @arg(name = "forge", short = 'f', doc = "Enable forging as soon as the node starts")
   forgeOnStartup: Flag = Flag(),
-  @arg(name = "disableAuth", doc = "Allow the node to receive API requests without an API key")
+  @arg(name = "disableAuth", doc = "Allow the node to receive API requests (via JSON-RPC) without an API key")
   disableAuth: Flag = Flag(),
-  @arg(name = "apiKeyHash", doc = "hash of API key")
-  apiKeyHash: Option[String] = None
+  @arg(
+    name = "apiKeyHash",
+    doc =
+      "If API key protection is enabled, this argument specifies the Blake2b256 hash of API key required by the JSON-RPC server "
+  )
+  apiKeyHash: Option[String] = None,
+  @arg(
+    name = "knownPeers",
+    short = 'k',
+    doc = "List of IP addresses and ports of known peers, separated by commas. " +
+      "For example: 0.0.0.0:11,0.0.0.0:22"
+  )
+  knownPeers: Option[String] = None,
+  @arg(name = "networkBindAddress", short = 'a', doc = "Network address and port to bind to")
+  networkBindAddress: Option[String] = None,
+  @arg(name = "rpcBindAddress", short = 'r', doc = "Local network address and port to bind to")
+  rpcBindAddress: Option[String] = None
 ) {
 
   /**
    * Helper method to replace settings values with parameters passed from command line arguments
+   * NOTE: The default behavior is to defer to CLI arguments
    * @param appSettings application settings read from the configuration file
    * @return an updated appSettings instance
    */
   def overrideWithCmdArgs(appSettings: AppSettings): AppSettings =
     appSettings
       // seed
-      .focus(_.forging.privateTestnet)
-      .modify(_.map(_.focus(_.genesisSeed).modify(_.orElse(seed))))
+      .focus(_.forging.addressGenerationSettings)
+      .modify { addrGenSettings =>
+        if (seed.isDefined) {
+          addrGenSettings
+            .focus(_.addressSeedOpt)
+            .modify(_ => seed)
+            .focus(_.strategy)
+            .modify(_ => AddressGenerationStrategies.FromSeed)
+        } else addrGenSettings
+      }
+
       // forge
       .focus(_.forging.forgeOnStartup)
       .replace(appSettings.forging.forgeOnStartup || forgeOnStartup.value)
+
       // disableAuth
       .focus(_.rpcApi.disableAuth)
       .replace(appSettings.rpcApi.disableAuth || disableAuth.value)
+
       // apiKeyHash
       .focus(_.rpcApi.apiKeyHash)
       .modify(configKey =>
         apiKeyHash match {
           case Some(cliKey) => cliKey
           case None         => configKey
+        }
+      )
+
+      // knownPeers
+      .focus(_.network.knownPeers)
+      .modify(configPeers =>
+        knownPeers match {
+          case Some(peersString) =>
+            peersString
+              .split(",")
+              .toIndexedSeq
+              .map { peer =>
+                val split = peer.split(":")
+                new InetSocketAddress(split(0), split(1).toInt)
+              }
+          case None => configPeers
+        }
+      )
+
+      // networkBindAddress
+      .focus(_.network.bindAddress)
+      .modify(configAddr =>
+        networkBindAddress match {
+          case Some(addrStr) =>
+            val split = addrStr.split(":")
+            new InetSocketAddress(split(0), split(1).toInt)
+          case None => configAddr
+        }
+      )
+
+      // rpcBindAddress
+      .focus(_.rpcApi.bindAddress)
+      .modify(configAddr =>
+        rpcBindAddress match {
+          case Some(addrStr) =>
+            val split = addrStr.split(":")
+            new InetSocketAddress(split(0), split(1).toInt)
+          case None => configAddr
         }
       )
 }

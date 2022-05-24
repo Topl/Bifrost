@@ -9,12 +9,12 @@ import akka.pattern.StatusReply
 import akka.util.Timeout
 import cats.Show
 import cats.data.{EitherT, Writer}
-import co.topl.consensus.LocallyGeneratedBlock
+import co.topl.consensus.{ConsensusReader, LocallyGeneratedBlock, NxtConsensus}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
 import co.topl.modifier.transaction.Transaction
-import co.topl.network.message.BifrostSyncInfo
+import co.topl.network.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.history.{GenericHistory, History}
 import co.topl.nodeView.state.{MinimalState, State}
@@ -49,25 +49,27 @@ object NodeViewHolder {
 
     /**
      * A self-message that's sent to the actor once async initialization is completed
+     *
      * @param nodeView the initialized NodeView
      */
-    private[NodeViewHolder] case class Initialized(nodeView: NodeView) extends ReceivableMessage
+    private[nodeView] case class Initialized(nodeView: NodeView) extends ReceivableMessage
 
     /**
      * A self-message indicating that initialization failed
      */
-    private[NodeViewHolder] case class InitializationFailed(reason: Throwable) extends ReceivableMessage
+    private[nodeView] case class InitializationFailed(reason: Throwable) extends ReceivableMessage
 
     /**
      * The main public "read" interface for interacting with a read-only node view.  It accepts a function which is
      * run on a readable node view and returns some sort of data belonging to the domain of the caller.
-     * @param f A function to extract data from the node view
+     *
+     * @param f       A function to extract data from the node view
      * @param replyTo The actor that asked for the data
      * @tparam T The caller's domain-specific response type
      */
     case class Read[T](f: ReadableNodeView => T, replyTo: ActorRef[StatusReply[T]]) extends ReceivableMessage {
 
-      private[NodeViewHolder] def run(readableNodeView: ReadableNodeView): Unit =
+      private[nodeView] def run(readableNodeView: ReadableNodeView): Unit =
         replyTo.tell(
           Try(f(readableNodeView)).fold[StatusReply[T]](e => StatusReply.error(e), StatusReply.success)
         )
@@ -75,14 +77,29 @@ object NodeViewHolder {
 
     /**
      * The main public "write" interface for block data.
+     * Starts a process of possibly adopting the blocks into the main chain or a tine.
      */
     case class WriteBlocks(blocks: Iterable[Block]) extends ReceivableMessage
 
     /**
-     * The private interface to write a single block.
+     * The private interface to start writing a single block, by getting the consensus params first
+     *
      * @param block A block that is valid in the current node view
      */
-    private[NodeViewHolder] case class WriteBlock(block: Block) extends ReceivableMessage
+    private[nodeView] case class WriteBlock(block: Block) extends ReceivableMessage
+
+    /**
+     * The private interface to write a single block
+     *
+     * @param block          A block that is valid in the current node view
+     * @param consensusState The consensus parameters for the current node view
+     */
+    private[nodeView] case class WriteBlockWithConsensusView(
+      block:          Block,
+      consensusState: NxtConsensus.View
+    ) extends ReceivableMessage
+
+    private[nodeView] case class Terminate(reason: Throwable) extends ReceivableMessage
 
     /**
      * Public message to write transactions
@@ -107,7 +124,9 @@ object NodeViewHolder {
   }
 
   sealed abstract class Event
+
   sealed abstract class ChangeEvent extends Event
+
   sealed abstract class OutcomeEvent extends Event
 
   object Events {
@@ -117,6 +136,7 @@ object NodeViewHolder {
     case object ChangedMempool extends ChangeEvent
 
     case object ChangedState extends ChangeEvent
+
     case class NewOpenSurface(newSurface: Seq[ModifierId]) extends Event
 
     /** @param immediateFailure a flag indicating whether a transaction was invalid by the moment it was received. */
@@ -146,13 +166,14 @@ object NodeViewHolder {
 
   def apply(
     appSettings:            AppSettings,
-    initialState:           () => Future[NodeView]
+    consensusViewer:        ConsensusReader,
+    initialNodeView:        () => Future[NodeView]
   )(implicit networkPrefix: NetworkPrefix, timeProvider: TimeProvider): Behavior[ReceivableMessage] =
     Behaviors.setup { context =>
-      context.pipeToSelf(initialState())(
+      context.pipeToSelf(initialNodeView())(
         _.fold(ReceivableMessages.InitializationFailed, ReceivableMessages.Initialized)
       )
-      uninitialized(appSettings.network.maxModifiersCacheSize)
+      uninitialized(appSettings.network.maxModifiersCacheSize, consensusViewer)
     }
 
   final private val UninitializedStashSize = 150
@@ -164,9 +185,10 @@ object NodeViewHolder {
   /**
    * The starting state of a NodeViewHolder actor.  It does not have a NodeView yet, so something in the background should
    * be fetching a NodeView and forwarding it to this uninitialized state.
+   *
    * @return A Behavior that is uninitialized
    */
-  private def uninitialized(cacheSize: Int)(implicit
+  private def uninitialized(cacheSize: Int, consensusViewer: ConsensusReader)(implicit
     networkPrefix:                     NetworkPrefix,
     timeProvider:                      TimeProvider
   ): Behavior[ReceivableMessage] =
@@ -196,7 +218,7 @@ object NodeViewHolder {
 
           popBlock(cache, nodeView)(context)
           context.log.info("Initialization complete")
-          stash.unstashAll(initialized(nodeView, cache))
+          stash.unstashAll(initialized(nodeView, cache, consensusViewer))
         case (_, ReceivableMessages.InitializationFailed(reason)) =>
           throw reason
         case (_, message) =>
@@ -210,7 +232,8 @@ object NodeViewHolder {
    */
   private def initialized(
     nodeView:               NodeView,
-    cache:                  ActorRef[SortedCache.ReceivableMessage[Block]]
+    cache:                  ActorRef[SortedCache.ReceivableMessage[Block]],
+    consensusViewer:        ConsensusReader
   )(implicit networkPrefix: NetworkPrefix, timeProvider: TimeProvider): Behavior[ReceivableMessage] =
     Behaviors
       .receivePartial[ReceivableMessage] {
@@ -223,23 +246,41 @@ object NodeViewHolder {
           Behaviors.same
 
         case (context, ReceivableMessages.WriteBlock(block)) =>
+          context.pipeToSelf(
+            consensusViewer.withView(ReceivableMessages.WriteBlockWithConsensusView(block, _)).value
+          ) {
+            _.fold(
+              error => ReceivableMessages.Terminate(error),
+              _.fold(
+                error => ReceivableMessages.Terminate(new IllegalArgumentException(error.toString)),
+                identity
+              )
+            )
+          }
+          Behaviors.same
+
+        case (context, ReceivableMessages.WriteBlockWithConsensusView(block, consensusView)) =>
           implicit def system: ActorSystem[_] = context.system
+
           // TODO: Exception handling
           // TODO: Should we hold onto the block in the cache?
           // TODO: Ban-list bad blocks?
-          val newNodeView = eventStreamWriterHandler(nodeView.withBlock(block))
+          val newNodeView =
+            eventStreamWriterHandler(nodeView.withBlock(block, consensusView.validators(consensusView.state)))
           popBlock(cache, newNodeView)(context)
-          initialized(newNodeView, cache)
+          initialized(newNodeView, cache, consensusViewer)
 
         case (context, ReceivableMessages.WriteTransactions(transactions)) =>
           implicit def system: ActorSystem[_] = context.system
+
           val newNodeView = eventStreamWriterHandler(nodeView.withTransactions(transactions))
-          initialized(newNodeView, cache)
+          initialized(newNodeView, cache, consensusViewer)
 
         case (context, ReceivableMessages.EliminateTransactions(transactionIds)) =>
           implicit def system: ActorSystem[_] = context.system
+
           val newNodeView = eventStreamWriterHandler(nodeView.withoutTransactions(transactionIds.toSeq))
-          initialized(newNodeView, cache)
+          initialized(newNodeView, cache, consensusViewer)
 
         case (_, ReceivableMessages.GetWritableNodeView(replyTo)) =>
           replyTo.tell(nodeView)
@@ -247,7 +288,10 @@ object NodeViewHolder {
 
         case (_, ReceivableMessages.ModifyNodeView(f, replyTo)) =>
           replyTo.tell(Done)
-          initialized(f(nodeView), cache)
+          initialized(f(nodeView), cache, consensusViewer)
+
+        case (_, ReceivableMessages.Terminate(reason)) =>
+          throw reason
       }
       .receiveSignal { case (_, PostStop) =>
         nodeView.close()
@@ -282,18 +326,22 @@ trait NodeViewReader {
  * A generic interface for interacting with a NodeView
  */
 trait NodeViewHolderInterface extends NodeViewReader {
-  def applyBlocks(blocks:   Iterable[Block]): EitherT[Future, NodeViewHolderInterface.ApplyFailure, Done]
+  def applyBlocks(blocks: Iterable[Block]): EitherT[Future, NodeViewHolderInterface.ApplyFailure, Done]
+
   def applyTransactions(tx: Transaction.TX): EitherT[Future, NodeViewHolderInterface.ApplyFailure, Done]
 
   def unapplyTransactions(
     transactionIds: Iterable[ModifierId]
   ): EitherT[Future, NodeViewHolderInterface.UnapplyFailure, Done]
+
   def onReady(): Future[Done]
 }
 
 object NodeViewHolderInterface {
   case class ReadFailure(reason: Throwable)
+
   case class ApplyFailure(reason: Throwable)
+
   case class UnapplyFailure(reason: Throwable)
 }
 

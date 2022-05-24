@@ -9,33 +9,37 @@ import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.pattern.ask
 import akka.testkit.TestActorRef
 import akka.util.{ByteString, Timeout}
+import cats.data.NonEmptyChain
 import co.topl.akkahttprpc.ThrowableSupport.Standard._
-import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
+import co.topl.consensus.KeyManager.KeyView
 import co.topl.consensus._
 import co.topl.http.HttpService
 import co.topl.modifier.block.Block
-import co.topl.network.message.BifrostSyncInfo
+import co.topl.network.BifrostSyncInfo
 import co.topl.network.utils.NetworkTimeProvider
-import co.topl.nodeView.history.History
+import co.topl.nodeView.NodeViewTestHelpers.{AccessibleHistory, AccessibleState}
+import co.topl.nodeView._
+import co.topl.nodeView.history.{History, InMemoryKeyValueStore}
 import co.topl.nodeView.mempool.MemPool
 import co.topl.nodeView.state.State
-import co.topl.nodeView.{ActorNodeViewHolderInterface, NodeView, NodeViewHolder, TestableNodeViewHolder}
 import co.topl.rpc.ToplRpcServer
-import co.topl.utils.{DiskKeyFileTestHelper, NodeGenerators, TimeProvider}
+import co.topl.utils.{TestSettings, TimeProvider}
+import org.scalacheck.Gen
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
-import scala.util.Try
 
 trait RPCMockState
     extends AnyWordSpec
-    with NodeGenerators
+    with TestSettings
+    with NodeViewTestHelpers
+    with ValidTransactionGenerators
+    with ValidBlockchainGenerator
     with ScalatestRouteTest
     with BeforeAndAfterAll
-    with DiskKeyFileTestHelper
     with ScalaFutures {
 
   type BSI = BifrostSyncInfo
@@ -48,8 +52,13 @@ trait RPCMockState
 
   implicit protected val routeTestTimeout: RouteTestTimeout = RouteTestTimeout(5.seconds)
 
-  // Initialize the protocol settings
-  protocolMngr = ProtocolVersioner(settings.application.version, settings.forging.protocolVersions)
+  protected def blockchainGen: Byte => Gen[GenesisHeadChain] =
+    (length: Byte) =>
+      validChainFromGenesis(
+        keyRingCurve25519,
+        settings.application.genesis.generated.get,
+        protocolVersioner
+      )(length)
 
   // TODO Fails when using rpcSettings
   override def createActorSystem(): ActorSystem = ActorSystem(settings.network.agentName)
@@ -61,9 +70,11 @@ trait RPCMockState
   protected var keyManagerRef: TestActorRef[KeyManager] = _
   protected var forgerRef: akka.actor.typed.ActorRef[Forger.ReceivableMessage] = _
 
+  protected var consensusHolderRef: akka.actor.typed.ActorRef[NxtConsensus.ReceivableMessage] = _
+  protected var consensusInterface: ConsensusInterface = _
   protected var nodeViewHolderRef: akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage] = _
-
-  protected var km: KeyManager = _
+  protected var accessibleHistory: AccessibleHistory = _
+  protected var accessibleState: AccessibleState = _
 
   implicit protected var timeProvider: TimeProvider = _
 
@@ -76,25 +87,47 @@ trait RPCMockState
 
     timeProvider = new NetworkTimeProvider(settings.ntp)(system.toTyped)
 
-    keyManagerRef = TestActorRef(
-      new KeyManager(settings, appContext)(appContext.networkType.netPrefix)
+    keyManagerRef = TestActorRef(new KeyManager(settings)(appContext.networkType.netPrefix))
+
+    keyManagerRef.underlyingActor.context.become(
+      keyManagerRef.underlyingActor.receive(keyRingCurve25519, Some(keyRingCurve25519.addresses.head))
     )
 
-    nodeViewHolderRef = system.toTyped.systemActorOf(
-      NodeViewHolder(
-        settings,
-        () =>
-          NodeView.persistent(
-            settings,
-            appContext.networkType,
-            () =>
-              (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
-                .mapTo[Try[StartupKeyView]]
-                .flatMap(Future.fromTry)
-          )
-      ),
-      NodeViewHolder.ActorName
+    consensusHolderRef = system.toTyped.systemActorOf(
+      NxtConsensus(settings, InMemoryKeyValueStore.empty),
+      NxtConsensus.actorName
     )
+
+    consensusInterface = new ActorConsensusInterface(consensusHolderRef)(system.toTyped, 10.seconds)
+
+    nodeViewHolderRef = {
+      // history is used for block header validation, but blocks are restricted to Curve keys at the moment
+      val testGenesisForHistory = GenesisProvider.construct(
+        keyRingCurve25519.addresses,
+        settings.application.genesis.generated.get.balanceForEachParticipant,
+        settings.application.genesis.generated.get.initialDifficulty,
+        protocolVersioner.applicable(1).blockVersion
+      )
+      accessibleHistory = generateHistory(testGenesisForHistory.block)
+
+      // state is used for transaction validation, so we can test transaction of many different key types
+      val testGenesisForState = GenesisProvider.construct(
+        keyRingCurve25519.addresses ++ keyRingEd25519.addresses ++ propsThresholdCurve25519.map(_.address),
+        settings.application.genesis.generated.get.balanceForEachParticipant,
+        settings.application.genesis.generated.get.initialDifficulty,
+        protocolVersioner.applicable(1).blockVersion
+      )
+      accessibleState = generateState(testGenesisForState.block)
+
+      system.toTyped.systemActorOf(
+        NodeViewHolder(
+          settings,
+          consensusInterface,
+          () => Future.successful(NodeView(accessibleHistory.history, accessibleState.state, MemPool.empty()))
+        ),
+        NodeViewHolder.ActorName
+      )
+    }
 
     forgerRef = system.toTyped.systemActorOf(
       Forger.behavior(
@@ -102,36 +135,25 @@ trait RPCMockState
         settings.forging.minTransactionFee,
         settings.forging.forgeOnStartup,
         () => (keyManagerRef ? KeyManager.ReceivableMessages.GetKeyView).mapTo[KeyView],
-        () =>
-          (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses)
-            .mapTo[Try[StartupKeyView]]
-            .flatMap(Future.fromTry),
-        new ActorNodeViewHolderInterface(nodeViewHolderRef)(system.toTyped, implicitly[Timeout])
+        new ActorNodeViewHolderInterface(nodeViewHolderRef)(system.toTyped, implicitly[Timeout]),
+        new ActorConsensusInterface(consensusHolderRef)(system.toTyped, 10.seconds)
       ),
       Forger.ActorName
     )
-
-    km = keyManagerRef.underlyingActor
-
-    // manipulate the underlying actor state
-    TestableNodeViewHolder.setNodeView(
-      nodeViewHolderRef,
-      _.copy(state = genesisState)
-    )(system.toTyped)
-    km.context.become(km.receive(keyRingCurve25519, Some(keyRingCurve25519.addresses.head)))
 
     rpcServer = {
       implicit val typedSystem: akka.actor.typed.ActorSystem[_] = system.toTyped
       val forgerInterface = new ActorForgerInterface(forgerRef)
       val keyManagerInterface = new ActorKeyManagerInterface(keyManagerRef)
-      val nodeViewHolderInterface =
-        new ActorNodeViewHolderInterface(nodeViewHolderRef)
+      val nodeViewHolderInterface = new ActorNodeViewHolderInterface(nodeViewHolderRef)
+      val consensusInterface = new ActorConsensusInterface(consensusHolderRef)
+
       import co.topl.rpc.handlers._
       new ToplRpcServer(
         ToplRpcHandlers(
           new DebugRpcHandlerImpls(nodeViewHolderInterface, keyManagerInterface),
           new UtilsRpcHandlerImpls,
-          new NodeViewRpcHandlerImpls(settings.rpcApi, appContext, nodeViewHolderInterface),
+          new NodeViewRpcHandlerImpls(settings.rpcApi, appContext, consensusInterface, nodeViewHolderInterface),
           new TransactionRpcHandlerImpls(nodeViewHolderInterface),
           new AdminRpcHandlerImpls(forgerInterface, keyManagerInterface, nodeViewHolderInterface)
         ),
