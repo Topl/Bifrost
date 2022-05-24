@@ -629,6 +629,9 @@ trait ModelGenerators {
   implicit val arbitraryHeader: Arbitrary[BlockHeaderV2] =
     Arbitrary(headerGen())
 
+  implicit val arbitraryBody: Arbitrary[BlockBodyV2] =
+    Arbitrary(Gen.listOf(arbitraryTypedIdentifier.arbitrary))
+
   implicit val arbitraryEta: Arbitrary[Eta] =
     Arbitrary(etaGen)
 

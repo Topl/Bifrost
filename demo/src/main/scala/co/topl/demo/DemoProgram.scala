@@ -38,7 +38,7 @@ object DemoProgram {
     slotDataStore:      StoreReader[F, TypedIdentifier, SlotData],
     localChain:         LocalChainAlgebra[F],
     blockIdTree:        ParentChildTree[F, TypedIdentifier],
-    blockHeights:       EventSourcedState[F, TypedIdentifier, Long => F[Option[TypedIdentifier]]],
+    blockHeights:       EventSourcedState[F, Long => F[Option[TypedIdentifier]]],
     ed25519VrfResource: UnsafeResource[F, Ed25519VRF],
     host:               String,
     bindPort:           Int,

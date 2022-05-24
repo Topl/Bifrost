@@ -30,7 +30,7 @@ object BlockchainPeerServer {
       headerStore:            Store[F, TypedIdentifier, BlockHeaderV2],
       bodyStore:              Store[F, TypedIdentifier, BlockBodyV2],
       transactionStore:       Store[F, TypedIdentifier, Transaction],
-      blockHeights:           EventSourcedState[F, TypedIdentifier, Long => F[Option[TypedIdentifier]]],
+      blockHeights:           EventSourcedState[F, Long => F[Option[TypedIdentifier]]],
       localChain:             LocalChainAlgebra[F],
       locallyAdoptedBlockIds: Source[TypedIdentifier, NotUsed]
     ): F[BlockchainPeerServer[F]] =

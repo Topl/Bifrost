@@ -2,7 +2,6 @@ package co.topl.ledger.interpreters
 
 import cats.effect.{Async, Ref}
 import cats.implicits._
-import co.topl.algebras.Store
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.models.{BlockBodyV2, TypedIdentifier}
@@ -10,21 +9,25 @@ import co.topl.models.{BlockBodyV2, TypedIdentifier}
 object Mempool {
 
   def make[F[_]: Async](
-    currentBlockId:        F[TypedIdentifier],
-    blockBodyStore:        Store[F, TypedIdentifier, BlockBodyV2],
-    unapplyBlockBodyStore: Store[F, TypedIdentifier, BlockBodyV2],
-    parentChildTree:       ParentChildTree[F, TypedIdentifier]
+    currentBlockId:  F[TypedIdentifier],
+    fetchBlockBody:  TypedIdentifier => F[BlockBodyV2],
+    parentChildTree: ParentChildTree[F, TypedIdentifier]
   ): F[MempoolAlgebra[F]] =
     for {
       unconfirmedTransactionsRef <- Ref.of(Set.empty[TypedIdentifier])
-      eventSourcedState <- EventSourcedState.OfTree.make[F, BlockBodyV2, Ref[F, Set[TypedIdentifier]], BlockBodyV2](
+      eventSourcedState <- EventSourcedState.OfTree.make[F, Ref[F, Set[TypedIdentifier]]](
         unconfirmedTransactionsRef.pure[F],
         currentBlockId,
-        (blockBody, _) => blockBody.pure[F],
-        (ref, blockBody) => ref.update(unconfirmedTransactionIds => unconfirmedTransactionIds -- blockBody).as(ref),
-        (ref, blockBody) => ref.update(unconfirmedTransactionIds => unconfirmedTransactionIds ++ blockBody).as(ref),
-        blockBodyStore,
-        unapplyBlockBodyStore,
+        (ref, blockId) =>
+          // TODO: Check all other transactions in the mempool to see if they attempt to spend the same inputs
+          // as the given block.  If so, schedule (a very eager) eviction
+          fetchBlockBody(blockId).flatMap(blockBody =>
+            ref.update(unconfirmedTransactionIds => unconfirmedTransactionIds -- blockBody).as(ref)
+          ),
+        (ref, blockId) =>
+          fetchBlockBody(blockId).flatMap(blockBody =>
+            ref.update(unconfirmedTransactionIds => unconfirmedTransactionIds ++ blockBody).as(ref)
+          ),
         parentChildTree
       )
     } yield new MempoolAlgebra[F] {
