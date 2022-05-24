@@ -36,7 +36,7 @@ case class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClien
     val tmpConfigDirectory = Files.createTempDirectory("bifrost-test-config")
     val renderedConfig = config.root().render(ConfigRenderOptions.concise())
     val testConfigPath = Paths.get(tmpConfigDirectory.toString, "testConfig.conf")
-    Files.write(testConfigPath, renderedConfig.getBytes)
+    Files.write(testConfigPath, renderedConfig.getBytes("UTF-8"))
 
     dockerClient.copyToContainer(tmpConfigDirectory, containerId, "/opt/docker/config")
 

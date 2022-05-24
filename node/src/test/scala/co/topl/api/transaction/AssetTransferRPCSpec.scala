@@ -2,6 +2,7 @@ package co.topl.api.transaction
 
 import co.topl.attestation.Address
 import co.topl.modifier.box.AssetCode
+import co.topl.utils.DiskKeyRingTestHelper
 import co.topl.utils.StringDataTypes.Latin1Data
 import io.circe.Json
 import io.circe.parser.parse
@@ -122,7 +123,7 @@ class AssetTransferRPCSpec extends TransferRPCTestMethods {
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).value
         val error = res.hcursor.downField("error").as[Json].toString
-        error should (include("securityRoot") and include("Value is not Base 58"))
+        error should (include("securityRoot") and include("failed to decode base-58 string") and include("="))
       }
     }
 
@@ -138,7 +139,7 @@ class AssetTransferRPCSpec extends TransferRPCTestMethods {
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).value
         val error = res.hcursor.downField("error").as[Json].toString
-        error should include("Invalid securityRoot length")
+        error should include("security root must be 32 bytes long")
       }
     }
 
@@ -153,7 +154,7 @@ class AssetTransferRPCSpec extends TransferRPCTestMethods {
       httpPOST(requestBody) ~> route ~> check {
         val res = parse(responseAs[String]).value
         val error = res.hcursor.downField("error").as[Json].toString
-        error should (include("assetCode") and include("Value is not Base 58"))
+        error should (include("assetCode") and include("failed to decode base-58 string") and include("l"))
       }
     }
   }

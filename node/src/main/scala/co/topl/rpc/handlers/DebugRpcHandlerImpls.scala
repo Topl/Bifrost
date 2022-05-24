@@ -3,7 +3,9 @@ package co.topl.rpc.handlers
 import akka.actor.typed.ActorSystem
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
+import co.topl.attestation.keyManagement.PrivateKeyCurve25519
 import co.topl.consensus.{KeyManagerInterface, ListOpenKeyfilesFailureException}
+import co.topl.modifier.block.GenesisBlob
 import co.topl.nodeView.history.HistoryDebug
 import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView}
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
@@ -60,6 +62,18 @@ class DebugRpcHandlerImpls(
           _.toRight(ToplRpcErrors.NoBlockIdsAtHeight: RpcError)
             .map(_.toList)
         )
+
+  override val exportGenesisBlob: ToplRpc.Debug.ExportGenesisBlob.rpc.ServerHandler =
+    _ =>
+      for {
+        block <- withNodeView(_.history.modifierByHeight(1)).subflatMap(_.toRight(ToplRpcErrors.NoBlockAtHeight))
+        secrets <- keyManagerInterface.getOpenKeys
+          .leftMap(e => ToplRpcErrors.genericFailure(e.toString): RpcError)
+      } yield {
+        val secretList = secrets.collect { case s: PrivateKeyCurve25519 => s }.toSeq
+        val genesisBlob = GenesisBlob(block, secretList)
+        ToplRpc.Debug.ExportGenesisBlob.Response(genesisBlob)
+      }
 
   private def withNodeView[T](f: ReadableNodeView => T) =
     nodeViewHolderInterface
