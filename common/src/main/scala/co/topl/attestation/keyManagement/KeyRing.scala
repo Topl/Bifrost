@@ -2,7 +2,7 @@ package co.topl.attestation.keyManagement
 
 import cats.data.Validated.{Invalid, Valid}
 import co.topl.attestation.Address
-import co.topl.attestation.AddressCodec.implicits._
+import co.topl.attestation.implicits._
 import co.topl.utils.IdiomaticScalaTransition.implicits.toValidatedOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.SecureRandom.randomBytes
@@ -52,6 +52,9 @@ class KeyRing[
       case Some(sk) => Success(sk.publicImage)
       case _        => throw new Exception("Unable to find secret for the given address")
     }
+
+  /** Get all the open keys */
+  def getOpenKeys: Set[S] = secrets
 
   /**
    * Generate an attestation map using the given address and message to sign
@@ -220,12 +223,14 @@ class KeyRing[
      */
     private def checkValid(address: Base58Data, password: Latin1Data): Try[KF] =
       Try {
-        listKeyFiles()
+        val filteredKeys = listKeyFiles()
           .map {
             _.filter {
               _.address == address.decodeAddress.getOrThrow()
             }
-          } match {
+          }
+
+        filteredKeys match {
           case Some(listOfKeyfiles) =>
             require(listOfKeyfiles.size == 1, s"Cannot find a unique matching keyfile in $keyDirectory")
             listOfKeyfiles.head

@@ -1,49 +1,33 @@
 package co.topl.modifier.transaction.builder
 
-import cats.Show
+import co.topl.attestation.Address
+import co.topl.modifier.box.AssetCode
+import co.topl.utils.Int128
+import co.topl.utils.StringDataTypes.Latin1Data
 
 sealed trait BuildTransferFailure
 
 object BuildTransferFailures {
-  case object DuplicateInputs extends BuildTransferFailure
-  case object EmptyInputs extends BuildTransferFailure
-  case object EmptyRecipients extends BuildTransferFailure
-  case object DuplicateRecipients extends BuildTransferFailure
-  case object InsufficientFeeFunds extends BuildTransferFailure
-  case object InsufficientPaymentFunds extends BuildTransferFailure
-  case object DifferentInputOutputCodes extends BuildTransferFailure
-  case object DuplicateAssetCodes extends BuildTransferFailure
-}
+  case object EmptyPolyInputs extends BuildTransferFailure
 
-object BuildTransferFailure {
+  case object EmptyOutputs extends BuildTransferFailure
 
-  trait Implicits {
+  case object DuplicateOutputs extends BuildTransferFailure
 
-    implicit val buildTransferFailureShow: Show[BuildTransferFailure] = { transfer =>
-      val failureMessage = "Failed to build unsigned transfer: "
+  case class InvalidOutputValues(values: List[Int128]) extends BuildTransferFailure
 
-      val specificMessage = transfer match {
-        case BuildTransferFailures.DuplicateInputs =>
-          "duplicate input boxes provided"
-        case BuildTransferFailures.EmptyInputs =>
-          "no input boxes provided"
-        case BuildTransferFailures.EmptyRecipients =>
-          "no transfer recipients provided"
-        case BuildTransferFailures.DuplicateRecipients =>
-          "duplicate transfer recipients provided"
-        case BuildTransferFailures.InsufficientFeeFunds =>
-          "insufficient poly funds provided to pay fee"
-        case BuildTransferFailures.InsufficientPaymentFunds =>
-          "insufficient token funds provided to pay recipients"
-        case BuildTransferFailures.DifferentInputOutputCodes =>
-          "input asset codes are different than output asset codes"
-        case BuildTransferFailures.DuplicateAssetCodes =>
-          "duplicate input asset codes provided"
-      }
+  case class InsufficientPolyFunds(provided: Int128, required: Int128) extends BuildTransferFailure
 
-      failureMessage + specificMessage
-    }
-  }
+  case class InsufficientArbitFunds(provided: Int128, required: Int128) extends BuildTransferFailure
 
-  object implicits extends Implicits
+  case class InsufficientAssetFunds(assetCode: AssetCode, provided: Int128, required: Int128)
+      extends BuildTransferFailure
+
+  case class MultipleAssetCodes(expected: AssetCode, found: List[AssetCode]) extends BuildTransferFailure
+
+  case class Int128Overflow(value: Int128) extends BuildTransferFailure
+
+  case class InvalidAddress(address: Address) extends BuildTransferFailure
+
+  case class InvalidShortName(shortName: Latin1Data) extends BuildTransferFailure
 }

@@ -23,6 +23,7 @@ class ToplRpcServer(handlers: ToplRpcHandlers, appContext: AppContext)(implicit
         .append(ToplRpc.Debug.MyBlocks.rpc)(handlers.debug.myBlocks)
         .append(ToplRpc.Debug.Generators.rpc)(handlers.debug.generators)
         .append(ToplRpc.Debug.IdsFromHeight.rpc)(handlers.debug.idsFromHeight)
+        .append(ToplRpc.Debug.ExportGenesisBlob.rpc)(handlers.debug.exportGenesisBlob)
     } else RpcServer.Builder.empty
 
   val utilRoutes: RpcServer.Builder =
@@ -61,7 +62,11 @@ class ToplRpcServer(handlers: ToplRpcHandlers, appContext: AppContext)(implicit
         .append(ToplRpc.Transaction.RawAssetTransfer.rpc)(handlers.transaction.rawAssetTransfer)
         .append(ToplRpc.Transaction.RawArbitTransfer.rpc)(handlers.transaction.rawArbitTransfer)
         .append(ToplRpc.Transaction.RawPolyTransfer.rpc)(handlers.transaction.rawPolyTransfer)
+        .append(ToplRpc.Transaction.UnprovenPolyTransfer.rpc)(handlers.transaction.unprovenPolyTransfer)
+        .append(ToplRpc.Transaction.UnprovenArbitTransfer.rpc)(handlers.transaction.unprovenArbitTransfer)
+        .append(ToplRpc.Transaction.UnprovenAssetTransfer.rpc)(handlers.transaction.unprovenAssetTransfer)
         .append(ToplRpc.Transaction.BroadcastTx.rpc)(handlers.transaction.broadcastTx)
+        .append(ToplRpc.Transaction.BroadcastTetraTransfer.rpc)(handlers.transaction.broadcastTetraTransfer)
         .append(ToplRpc.Transaction.EncodeTransfer.rpc)(handlers.transaction.encodeTransfer)
     } else RpcServer.Builder.empty
 

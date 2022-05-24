@@ -4,16 +4,18 @@ import co.topl.crypto.accumulators.{LeafData, Side}
 import co.topl.crypto.hash.Hash
 import co.topl.crypto.hash.digest.Digest
 import co.topl.crypto.hash.digest.implicits._
+import co.topl.models.Bytes
 
 import scala.annotation.tailrec
 import scala.collection.mutable
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 
+//noinspection ScalaDeprecation
 /* NOTE: Use of mutable.WrappedArray.ofByte for Scala 2.12 compatibility */
 class MerkleTree[H, D: Digest](
   topNode:           Option[Node[D]],
-  elementsHashIndex: Map[mutable.WrappedArray.ofByte, Int]
+  elementsHashIndex: Map[Bytes, Int]
 )(implicit h:        Hash[H, D]) {
 
   private lazy val emptyRootHash: D = Digest[D].empty
@@ -28,7 +30,7 @@ class MerkleTree[H, D: Digest](
   def proofByElement(element: Leaf[H, D]): Option[MerkleProof[H, D]] = proofByElementHash(element.hash)
 
   def proofByElementHash(hash: D): Option[MerkleProof[H, D]] =
-    elementsHashIndex.get(new mutable.WrappedArray.ofByte(hash.bytes)).flatMap(i => proofByIndex(i))
+    elementsHashIndex.get(Bytes(hash.bytes)).flatMap(i => proofByIndex(i))
 
   def proofByIndex(index: Int): Option[MerkleProof[H, D]] = if (index >= 0 && index < length) {
 
@@ -40,14 +42,14 @@ class MerkleTree[H, D: Digest](
       acc:       Seq[(Option[D], Side)]
     ): Option[(Leaf[H, D], Seq[(Option[D], Side)])] =
       node match {
-        case Some(n: InternalNode[H, D]) if i < curLength / 2 =>
+        case Some(n: InternalNode[H, D] @unchecked) if i < curLength / 2 =>
           n.right match {
             case Some(right) => loop(Some(n.left), i, curLength / 2, (Some(right.hash), MerkleProof.LeftSide) +: acc)
             case None        => loop(Some(n.left), i, curLength / 2, (None, MerkleProof.LeftSide) +: acc)
           }
-        case Some(n: InternalNode[H, D]) if i < curLength =>
+        case Some(n: InternalNode[H, D] @unchecked) if i < curLength =>
           loop(n.right, i - curLength / 2, curLength / 2, (Some(n.left.hash), MerkleProof.RightSide) +: acc)
-        case Some(n: Leaf[H, D]) =>
+        case Some(n: Leaf[H, D] @unchecked) =>
           Some((n, acc))
         case _ =>
           None
@@ -82,8 +84,8 @@ object MerkleTree {
 
     val elementsToIndex =
       leafs.zipWithIndex
-        .foldLeft(Map[mutable.WrappedArray.ofByte, Int]()) { case (elements, (leaf, leafIndex)) =>
-          elements + (new mutable.WrappedArray.ofByte(leaf.hash.bytes) -> leafIndex)
+        .foldLeft(Map[Bytes, Int]()) { case (elements, (leaf, leafIndex)) =>
+          elements + (Bytes(leaf.hash.bytes) -> leafIndex)
         }
 
     val topNode = calcTopNode[H, D](leafs)

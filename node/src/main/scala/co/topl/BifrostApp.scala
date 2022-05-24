@@ -1,6 +1,7 @@
 package co.topl
 
 import akka.actor.typed._
+import co.topl.genus.GenusApp
 import co.topl.network.utils.UPnPGateway
 import co.topl.settings._
 import co.topl.tool.Exporter
@@ -14,6 +15,8 @@ import java.lang.management.ManagementFactory
 import scala.concurrent.Await
 
 class BifrostApp(startupOpts: StartupOpts) extends NodeLogging {
+
+  co.topl.codecs.init()
 
   /**
    * Configure logging backend to set debug logging level if verbose mode is enabled. Needs to be placed
@@ -97,6 +100,7 @@ object BifrostApp extends Logging {
 
   def main(args: Array[String]): Unit = args.headOption.getOrElse("") match {
     case "export" => Exporter.main(args.tail)
+    case "genus"  => GenusApp.main(args.tail)
     case _        => startNode(args)
   }
 
