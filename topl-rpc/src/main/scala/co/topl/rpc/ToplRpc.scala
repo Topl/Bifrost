@@ -3,8 +3,9 @@ package co.topl.rpc
 import cats.data.NonEmptyChain
 import co.topl.akkahttprpc.Rpc
 import co.topl.attestation.{Address, Proposition}
+import co.topl.models.{DionAddress, Int128 => TetraInt128, Transaction => TetraTransaction, TransactionData}
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.Block
+import co.topl.modifier.block.{Block, GenesisBlob}
 import co.topl.modifier.box.AssetCode.AssetCodeVersion
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TX
@@ -65,6 +66,16 @@ object ToplRpc {
       val rpc: Rpc[Params, Response] = Rpc("debug_idsFromHeight")
       case class Params(height: Long, limit: Int)
       type Response = List[ModifierId]
+    }
+
+    object ExportGenesisBlob {
+
+      /**
+       * Export the genesis block and open keys as Json files on disk
+       */
+      val rpc: Rpc[Params, Response] = Rpc("debug_exportGenesisBlob")
+      case class Params()
+      case class Response(genesisBlob: GenesisBlob)
     }
   }
 
@@ -503,6 +514,56 @@ object ToplRpc {
       case class Response(rawTx: PolyTransfer[Proposition], messageToSign: String)
     }
 
+    object UnprovenPolyTransfer {
+
+      val rpc: Rpc[Params, Response] = Rpc("topl_unprovenPolyTransfer")
+
+      case class Params(
+        senders:               NonEmptyChain[DionAddress],
+        recipients:            NonEmptyChain[TetraTransaction.PolyOutput],
+        fee:                   TetraInt128,
+        changeAddress:         DionAddress,
+        data:                  Option[TransactionData],
+        boxSelectionAlgorithm: BoxSelectionAlgorithm
+      )
+
+      case class Response(unprovenTransfer: TetraTransaction.Unproven)
+    }
+
+    object UnprovenArbitTransfer {
+
+      val rpc: Rpc[Params, Response] = Rpc("topl_unprovenArbitTransfer")
+
+      case class Params(
+        senders:               NonEmptyChain[DionAddress],
+        recipients:            NonEmptyChain[TetraTransaction.ArbitOutput],
+        fee:                   TetraInt128,
+        changeAddress:         DionAddress,
+        data:                  Option[TransactionData],
+        boxSelectionAlgorithm: BoxSelectionAlgorithm
+      )
+
+      case class Response(unprovenTransfer: TetraTransaction.Unproven)
+    }
+
+    object UnprovenAssetTransfer {
+
+      val rpc: Rpc[Params, Response] = Rpc("topl_unprovenAssetTransfer")
+
+      case class Params(
+        senders:               NonEmptyChain[DionAddress],
+        recipients:            NonEmptyChain[TetraTransaction.AssetOutput],
+        fee:                   TetraInt128,
+        feeChangeAddress:      DionAddress,
+        assetChangeAddress:    DionAddress,
+        data:                  Option[TransactionData],
+        minting:               Boolean,
+        boxSelectionAlgorithm: BoxSelectionAlgorithm
+      )
+
+      case class Response(unprovenTransfer: TetraTransaction.Unproven)
+    }
+
     object BroadcastTx {
 
       /**
@@ -524,6 +585,15 @@ object ToplRpc {
        * @param tx A full formatted transaction JSON object (prototype transaction + signatures)
        */
       case class Params(tx: TX)
+
+      type Response = TX
+    }
+
+    object BroadcastTetraTransfer {
+
+      val rpc: Rpc[Params, Response] = Rpc("topl_broadcastTetraTransfer")
+
+      case class Params(transfer: TetraTransaction)
 
       type Response = TX
     }

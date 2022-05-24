@@ -6,7 +6,7 @@ import akka.util.Timeout
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.attestation.implicits._
-import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
+import co.topl.attestation.keyManagement._
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519, SignatureCurve25519}
 import co.topl.catsakka.AskException
 import co.topl.settings.{AddressGenerationSettings, AddressGenerationStrategies, AppSettings}
@@ -47,6 +47,7 @@ class KeyManager(settings: AppSettings)(implicit networkPrefix: NetworkPrefix) e
     case LockKey(addr)                       => sender() ! keyRing.removeFromKeyring(addr)
     case ImportKey(password, mnemonic, lang) => sender() ! keyRing.importPhrase(password, mnemonic, lang)
     case ListKeys                            => sender() ! keyRing.addresses
+    case GetOpenKeys                         => sender() ! keyRing.getOpenKeys
     case UpdateRewardsAddress(address)       => sender() ! updateRewardsAddress(keyRing, address)
     case GetRewardsAddress                   => sender() ! rewardAddress.fold("none")(_.show)
     case GetKeyView                          => sender() ! getKeyView(keyRing, rewardAddress)
@@ -93,16 +94,17 @@ class KeyManager(settings: AppSettings)(implicit networkPrefix: NetworkPrefix) e
           StartupKeyView(addresses, newRewardAddress)
         }
 
-    addressGenerationSettings match {
-      case AddressGenerationSettings(_, AddressGenerationStrategies.None, _) =>
-        Success(StartupKeyView(keyRing.addresses, rewardAddress))
-      case AddressGenerationSettings(numAddr, AddressGenerationStrategies.FromSeed, seedOpt) =>
-        addKeys(numAddr, seedOpt)
-      case AddressGenerationSettings(numAddr, AddressGenerationStrategies.Random, _) =>
-        addKeys(numAddr, Some(SecureRandom.randomBytes().mkString))
-      case AddressGenerationSettings(numAddr, AddressGenerationStrategies.None, _)
-          if networkPrefix == PrivateTestnet.netPrefix =>
-        addKeys(numAddr, Some(SecureRandom.randomBytes().mkString))
+    addressGenerationSettings.strategy match {
+      case AddressGenerationStrategies.None =>
+        if (networkPrefix == PrivateTestnet.netPrefix) {
+          addKeys(addressGenerationSettings.numberOfAddresses, Some(SecureRandom.randomBytes().mkString))
+        } else {
+          Success(StartupKeyView(keyRing.addresses, rewardAddress))
+        }
+      case AddressGenerationStrategies.FromSeed =>
+        addKeys(addressGenerationSettings.numberOfAddresses, addressGenerationSettings.addressSeedOpt)
+      case AddressGenerationStrategies.Random =>
+        addKeys(addressGenerationSettings.numberOfAddresses, Some(SecureRandom.randomBytes().mkString))
     }
   }
 
@@ -175,6 +177,8 @@ object KeyManager {
     case object GetKeyView
 
     case class GenerateInitialAddresses(addressGenerationSettings: AddressGenerationSettings)
+
+    case object GetOpenKeys
   }
 
 }
@@ -205,15 +209,18 @@ sealed trait UpdateRewardsAddressFailure
 case class UpdateRewardsAddressFailureException(throwable: Throwable) extends UpdateRewardsAddressFailure
 sealed trait ListOpenKeyfilesFailure
 case class ListOpenKeyfilesFailureException(throwable: Throwable) extends ListOpenKeyfilesFailure
+sealed trait GetOpenKeysFailure
+case class GetOpenKeysFailureException(throwable: Throwable) extends GetOpenKeysFailure
 
 trait KeyManagerInterface {
   def unlockKey(address:  String, password: String): EitherT[Future, UnlockKeyFailure, Address]
   def lockKey(address:    Address): EitherT[Future, LockKeyFailure, Done.type]
   def createKey(password: String): EitherT[Future, CreateKeyFailure, Address]
   def importKey(password: String, mnemonic: String, lang: String): EitherT[Future, ImportKeyFailure, Address]
-  def getRewardsAddress(): EitherT[Future, GetRewardsAddressFailure, String]
+  def getRewardsAddress: EitherT[Future, GetRewardsAddressFailure, String]
   def updateRewardsAddress(address: Address): EitherT[Future, UpdateRewardsAddressFailure, Done.type]
   def listOpenKeyfiles(): EitherT[Future, ListOpenKeyfilesFailure, Set[Address]]
+  def getOpenKeys: EitherT[Future, GetOpenKeysFailure, Set[_ <: Secret]]
 }
 
 class ActorKeyManagerInterface(actorRef: ActorRef)(implicit ec: ExecutionContext, timeout: Timeout)
@@ -252,7 +259,7 @@ class ActorKeyManagerInterface(actorRef: ActorRef)(implicit ec: ExecutionContext
       .subflatMap(_.toEither.leftMap(ImportKeyFailureException))
       .leftMap(e => e: ImportKeyFailure)
 
-  override def getRewardsAddress(): EitherT[Future, GetRewardsAddressFailure, String] =
+  override def getRewardsAddress: EitherT[Future, GetRewardsAddressFailure, String] =
     actorRef
       .askEither[String](KeyManager.ReceivableMessages.GetRewardsAddress)
       .leftMap { case AskException(throwable) => GetRewardsAddressFailureException(throwable) }
@@ -270,4 +277,12 @@ class ActorKeyManagerInterface(actorRef: ActorRef)(implicit ec: ExecutionContext
       .askEither[Set[Address]](KeyManager.ReceivableMessages.ListKeys)
       .leftMap { case AskException(throwable) => ListOpenKeyfilesFailureException(throwable) }
       .leftMap(e => e: ListOpenKeyfilesFailure)
+
+  override def getOpenKeys: EitherT[Future, GetOpenKeysFailure, Set[_ <: Secret]] =
+    actorRef
+      .askEither[Set[_ <: Secret]](KeyManager.ReceivableMessages.GetOpenKeys)
+      .leftMap { case AskException(throwable) =>
+        GetOpenKeysFailureException(throwable)
+      }
+      .leftMap(e => e: GetOpenKeysFailure)
 }
