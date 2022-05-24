@@ -479,40 +479,51 @@ trait ModelsJsonCodecs {
         }
       } yield output
 
+  implicit val transactionChronologyJsonEncoder: Encoder[Transaction.Chronology] =
+    t =>
+      Json.obj(
+        "creation"    -> t.creation.asJson,
+        "minimumSlot" -> t.minimumSlot.asJson,
+        "maximumSlot" -> t.maximumSlot.asJson
+      )
+
+  implicit val transactionChronologyJsonDecoder: Decoder[Transaction.Chronology] =
+    deriveDecoder
+
   implicit val transactionJsonEncoder: Encoder[Transaction] =
     tx =>
       Json.obj(
-        "inputs"    -> tx.inputs.asJson,
-        "outputs"   -> tx.outputs.asJson,
-        "timestamp" -> tx.timestamp.asJson,
-        "data"      -> tx.data.map(_.data).asJson
+        "inputs"     -> tx.inputs.asJson,
+        "outputs"    -> tx.outputs.asJson,
+        "chronology" -> tx.chronology.asJson,
+        "data"       -> tx.data.map(_.data).asJson
       )
 
   implicit val transactionJsonDecoder: Decoder[Transaction] =
     hcursor =>
       for {
-        inputs    <- hcursor.downField("inputs").as[Chain[Transaction.Input]]
-        outputs   <- hcursor.downField("outputs").as[Chain[Transaction.Output]]
-        timestamp <- hcursor.downField("timestamp").as[Timestamp]
-        data      <- hcursor.downField("data").as[Option[TransactionData]]
-      } yield Transaction(inputs, outputs, timestamp, data)
+        inputs     <- hcursor.downField("inputs").as[Chain[Transaction.Input]]
+        outputs    <- hcursor.downField("outputs").as[Chain[Transaction.Output]]
+        chronology <- hcursor.downField("chronology").as[Transaction.Chronology]
+        data       <- hcursor.downField("data").as[Option[TransactionData]]
+      } yield Transaction(inputs, outputs, chronology, data)
 
   implicit val unprovenTransactionJsonEncoder: Encoder[Transaction.Unproven] =
     tx =>
       Json.obj(
-        "inputs"    -> tx.inputs.asJson,
-        "outputs"   -> tx.outputs.asJson,
-        "timestamp" -> tx.timestamp.asJson,
-        "data"      -> tx.data.map(_.data).asJson
+        "inputs"     -> tx.inputs.asJson,
+        "outputs"    -> tx.outputs.asJson,
+        "chronology" -> tx.chronology.asJson,
+        "data"       -> tx.data.map(_.data).asJson
       )
 
   implicit val unprovenTransactionJsonDecoder: Decoder[Transaction.Unproven] =
     hcursor =>
       for {
-        inputs    <- hcursor.downField("inputs").as[Chain[Transaction.Unproven.Input]]
-        outputs   <- hcursor.downField("outputs").as[Chain[Transaction.Output]]
-        timestamp <- hcursor.downField("timestamp").as[Timestamp]
-        data      <- hcursor.downField("data").as[Option[TransactionData]]
-      } yield Transaction.Unproven(inputs, outputs, timestamp, data)
+        inputs     <- hcursor.downField("inputs").as[Chain[Transaction.Unproven.Input]]
+        outputs    <- hcursor.downField("outputs").as[Chain[Transaction.Output]]
+        chronology <- hcursor.downField("chronology").as[Transaction.Chronology]
+        data       <- hcursor.downField("data").as[Option[TransactionData]]
+      } yield Transaction.Unproven(inputs, outputs, chronology, data)
 
 }

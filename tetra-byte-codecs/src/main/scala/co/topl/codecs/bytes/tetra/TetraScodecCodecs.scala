@@ -404,11 +404,15 @@ trait TetraScodecTransactionCodecs {
     (Codec[FullAddress] :: Codec[Box.Value] :: Codec[Boolean])
       .as[Transaction.Output]
 
+  implicit val transactionChronologyCodec: Codec[Transaction.Chronology] =
+    (Codec[Timestamp](uLongCodec) :: Codec[Slot](uLongCodec) :: Codec[Slot](uLongCodec))
+      .as[Transaction.Chronology]
+
   implicit val transactionCodec: Codec[Transaction] =
     (
       Codec[Chain[Transaction.Input]] ::
         Codec[Chain[Transaction.Output]] ::
-        Codec[Timestamp](uLongCodec) ::
+        Codec[Transaction.Chronology] ::
         Codec[Option[TransactionData]]
     ).as[Transaction]
 
@@ -416,7 +420,7 @@ trait TetraScodecTransactionCodecs {
     (
       Codec[Chain[Transaction.Unproven.Input]] ::
         Codec[Chain[Transaction.Output]] ::
-        Codec[Timestamp](uLongCodec) ::
+        Codec[Transaction.Chronology] ::
         Codec[Option[TransactionData]]
     ).as[Transaction.Unproven]
 }

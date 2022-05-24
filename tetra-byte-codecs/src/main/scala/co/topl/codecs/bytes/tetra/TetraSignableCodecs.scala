@@ -44,7 +44,7 @@ trait TetraSignableCodecs {
             Transaction.Unproven.Input(i.transactionId, i.transactionOutputIndex, i.proposition, i.value)
           ),
           t.outputs,
-          t.timestamp,
+          t.chronology,
           t.data
         )
         .signableBytes

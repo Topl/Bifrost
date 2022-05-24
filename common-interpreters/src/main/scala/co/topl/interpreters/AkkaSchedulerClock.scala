@@ -9,7 +9,7 @@ import co.topl.algebras.ClockAlgebra
 import co.topl.models.{Epoch, Slot, Timestamp}
 
 import java.time.Instant
-import scala.concurrent.Future
+import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration._
 
 object AkkaSchedulerClock {
@@ -22,6 +22,7 @@ object AkkaSchedulerClock {
       genesisTime:     Instant
     )(implicit system: ActorSystem[_]): ClockAlgebra[F] =
       new ClockAlgebra[F] {
+        import system.executionContext
 
         private val startTime = genesisTime.toEpochMilli
 
@@ -37,18 +38,25 @@ object AkkaSchedulerClock {
         def currentEpoch: F[Epoch] =
           (globalSlot, slotsPerEpoch).mapN(_ / _)
 
-        def delayedUntilSlot(slot: Slot): F[Unit] =
-          Async[F].fromFuture(
-            globalSlot
-              .map(currentSlot => (slot - currentSlot) * _slotLength)
-              .map(delay => if (delay.toMillis > 0) akka.pattern.after(delay)(Future.unit) else Future.unit)
-          )
+        // TODO: Deal with negative delay values
+        // TODO: Don't repeat yourself
+        def delayedUntilSlot(slot: Slot): F[(F[Unit], () => Unit)] =
+          for {
+            currentSlot <- globalSlot
+            delay = (slot - currentSlot) * _slotLength
+            promise = Promise[Unit]()
+            callback = system.scheduler.scheduleOnce(delay, () => promise.success(()))
+          } yield (Async[F].fromFuture(promise.future.pure[F]), callback)
 
-        def delayedUntilTimestamp(timestamp: Timestamp): F[Unit] =
-          Async[F].fromFuture(
-            currentTimestamp
-              .map(currentTimestamp => akka.pattern.after((timestamp - currentTimestamp).millis)(Future.unit))
-          )
+        // TODO: Deal with negative delay values
+        // TODO: Don't repeat yourself
+        def delayedUntilTimestamp(timestamp: Timestamp): F[(F[Unit], () => Unit)] =
+          for {
+            now <- currentTimestamp
+            delay = (timestamp - now).milli
+            promise = Promise[Unit]()
+            callback = system.scheduler.scheduleOnce(delay, () => promise.success(()))
+          } yield (Async[F].fromFuture(promise.future.pure[F]), callback)
       }
   }
 }

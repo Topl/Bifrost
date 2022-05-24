@@ -63,7 +63,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
-          transaction.timestamp,
+          transaction.chronology.creation,
           getData,
           minting
         )
@@ -85,7 +85,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
-          transaction.timestamp,
+          transaction.chronology.creation,
           getData,
           minting
         )
@@ -107,7 +107,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
-          transaction.timestamp,
+          transaction.chronology.creation,
           getData,
           minting
         )
@@ -129,7 +129,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
-          transaction.timestamp,
+          transaction.chronology.creation,
           getData,
           minting
         )
@@ -151,7 +151,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
-          transaction.timestamp,
+          transaction.chronology.creation,
           getData,
           minting
         )
@@ -173,7 +173,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
-          transaction.timestamp,
+          transaction.chronology.creation,
           getData,
           minting
         )
@@ -195,7 +195,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
-          transaction.timestamp,
+          transaction.chronology.creation,
           getData,
           minting
         )
@@ -217,7 +217,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
-          transaction.timestamp,
+          transaction.chronology.creation,
           getData,
           minting
         )
@@ -239,7 +239,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
-          transaction.timestamp,
+          transaction.chronology.creation,
           getData,
           minting
         )

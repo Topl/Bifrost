@@ -598,6 +598,15 @@ trait ModelGenerators {
       } yield Transaction.Unproven.Input(transactionId, transactionOutputIndex, proposition, value)
     )
 
+  implicit val arbitraryTransactionChronology: Arbitrary[Transaction.Chronology] =
+    Arbitrary(
+      for {
+        creation    <- Gen.chooseNum[Long](0L, 100000L)
+        minimumSlot <- Gen.chooseNum[Slot](0L, 100000L)
+        maximumSlot <- Gen.chooseNum[Slot](0L, 100000L)
+      } yield Transaction.Chronology(creation, minimumSlot, maximumSlot)
+    )
+
   implicit val arbitraryUnprovenTransaction: Arbitrary[Transaction.Unproven] =
     Arbitrary(
       for {
@@ -607,9 +616,9 @@ trait ModelGenerators {
         outputs <- Gen
           .nonEmptyListOf(arbitraryTransactionOutput.arbitrary)
           .map(Chain.fromSeq)
-        timestamp <- Gen.chooseNum[Long](0L, 100000L)
+        chronology <- arbitraryTransactionChronology.arbitrary
         data = None
-      } yield Transaction.Unproven(inputs, outputs, timestamp, data)
+      } yield Transaction.Unproven(inputs, outputs, chronology, data)
     )
 
   implicit val arbitraryTransaction: Arbitrary[Transaction] =
@@ -621,9 +630,9 @@ trait ModelGenerators {
         outputs <- Gen
           .nonEmptyListOf(arbitraryTransactionOutput.arbitrary)
           .map(Chain.fromSeq)
-        timestamp <- Gen.chooseNum[Long](0L, 100000L)
+        chronology <- arbitraryTransactionChronology.arbitrary
         data = None
-      } yield Transaction(inputs, outputs, timestamp, data)
+      } yield Transaction(inputs, outputs, chronology, data)
     )
 
   implicit val arbitraryHeader: Arbitrary[BlockHeaderV2] =

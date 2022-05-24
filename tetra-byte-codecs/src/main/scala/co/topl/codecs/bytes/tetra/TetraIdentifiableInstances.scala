@@ -33,7 +33,7 @@ trait TetraIdentifiableInstances {
               Transaction.Unproven.Input(i.transactionId, i.transactionOutputIndex, i.proposition, i.value)
             ),
             transaction.outputs,
-            transaction.timestamp,
+            transaction.chronology,
             transaction.data
           )
           .immutableBytes

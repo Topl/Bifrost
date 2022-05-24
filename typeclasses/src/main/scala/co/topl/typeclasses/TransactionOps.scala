@@ -19,7 +19,7 @@ object TransactionOps {
               Transaction.Unproven.Input(i.transactionId, i.transactionOutputIndex, i.proposition, i.value)
             ),
             transaction.outputs,
-            transaction.timestamp,
+            transaction.chronology,
             transaction.data
           )
 
@@ -49,7 +49,7 @@ object TransactionOps {
             Transaction.Input(i.transactionId, i.transactionOutputIndex, i.proposition, prove(i.proposition), i.value)
           ),
           unproven.outputs,
-          unproven.timestamp,
+          unproven.chronology,
           unproven.data
         )
     }
