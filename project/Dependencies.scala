@@ -192,7 +192,7 @@ object Dependencies {
   lazy val akkaHttpRpc: Seq[ModuleID] =
     Seq(
       "de.heikoseeberger"      %% "akka-http-circe"         % "1.39.2",
-      "io.circe"               %% "circe-optics"            % circeVersion,
+      "io.circe"               %% "circe-optics"            % "0.14.1",
       "io.circe"               %% "circe-generic"           % circeVersion,
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.6.0"
     ) ++
