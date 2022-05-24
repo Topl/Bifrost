@@ -8,7 +8,6 @@ package object ops {
       with protobufops.Implicits
       with QueryServiceOps.ToOps
       with SourceCompanionOps.ToOps
-      with DocumentOps.ToOps
       with MongoStoreOps.ToOps
 
   object implicits extends Implicits

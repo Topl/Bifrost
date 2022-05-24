@@ -1,35 +1,33 @@
 package co.topl.genus.interpreters
 
-import cats.implicits._
 import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Sink, Source}
-import cats.{~>, Applicative}
+import cats.implicits._
+import cats.{~>, Monad}
 import co.topl.genus.algebras.{ChainHeight, MongoStore, MongoSubscription}
 import co.topl.genus.ops.implicits._
-import co.topl.genus.typeclasses.{MongoFilter, MongoSort}
-import org.mongodb.scala.Document
 import co.topl.genus.typeclasses.implicits._
+import co.topl.genus.typeclasses.{MongoFilter, MongoSort, WithMaxBlockHeight}
 import co.topl.genus.types.BlockHeight
+import org.mongodb.scala.Document
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 
 object BatchedMongoSubscription {
 
-  def make[F[_]: Applicative: *[_] ~> Future](
-    batchSize:           Int,
-    batchSleepTime:      FiniteDuration,
-    documentToHeightOpt: Document => Option[BlockHeight],
-    store:               MongoStore[F],
-    chainHeight:         ChainHeight[F]
+  def make[F[_]: Monad: *[_] ~> Future: ChainHeight](
+    batchSize:      Int,
+    batchSleepTime: FiniteDuration,
+    store:          MongoStore[F]
   )(implicit
     materializer:     Materializer,
     executionContext: ExecutionContext
   ): MongoSubscription[F] =
     new MongoSubscription[F] {
 
-      override def create[Filter: MongoFilter, Sort: MongoSort](
+      override def create[Filter: MongoFilter: WithMaxBlockHeight, Sort: MongoSort](
         filter:            Filter,
         sort:              Sort,
         confirmationDepth: Int
@@ -37,23 +35,15 @@ object BatchedMongoSubscription {
         Source
           .unfoldAsync(0)(index =>
             Source
-              .futureSource(
-                store
-                  .getDocuments(filter.toBsonFilter.some, sort.toBsonSorting.some, batchSize.some, index.some)
-                  .mapFunctor[Future]
-              )
-              .flatMapConcat(document =>
-                Source
-                  .asyncF(chainHeight.get)
-                  .mapConcat(height =>
-                    documentToHeightOpt(document)
-                      .flatMap(documentHeight =>
-                        if (documentHeight.value <= height.value - confirmationDepth) document.some
-                        else None
-                      )
-                      .toList
+              .asyncF(
+                filter
+                  .withConfirmationDepth[F](confirmationDepth)
+                  .flatMap(heightFilter =>
+                    store
+                      .getDocuments(heightFilter.toBsonFilter.some, sort.toBsonSorting.some, batchSize.some, index.some)
                   )
               )
+              .flatMapConcat(identity)
               .runWith(Sink.seq[Document])
               // increment the current index in the stream of documents for the next batch
               .map(documents => (index + documents.length -> documents.toList).some)
@@ -63,4 +53,26 @@ object BatchedMongoSubscription {
           .mapConcat(values => values)
           .pure[F]
     }
+
+  private[genus] def getBatchFromIndex[F[_]: Monad, Filter: MongoFilter: WithMaxBlockHeight, Sort: MongoSort](
+    filter:            Filter,
+    sort:              Sort,
+    confirmationDepth: Int,
+    fromIndex:         Int,
+    batchSize:         Int,
+    chainHeight:       ChainHeight[F],
+    store:             MongoStore[F]
+  ): F[Source[Document, NotUsed]] =
+    for {
+      currentHeight <- chainHeight.get
+      maxBlockHeight = BlockHeight(currentHeight.value - confirmationDepth)
+      filterWithMaxBlockHeight = filter.withMaxBlockHeight(maxBlockHeight)
+      documents <-
+        store.getDocuments(
+          filterWithMaxBlockHeight.toBsonFilter.some,
+          sort.toBsonSorting.some,
+          batchSize.some,
+          fromIndex.some
+        )
+    } yield documents
 }

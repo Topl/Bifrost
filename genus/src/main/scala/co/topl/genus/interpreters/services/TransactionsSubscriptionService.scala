@@ -2,13 +2,12 @@ package co.topl.genus.interpreters.services
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
-import cats.{~>, catsInstancesForId, MonadThrow}
 import cats.data.EitherT
-import co.topl.genus.algebras.{ChainHeight, MongoSubscription, SubscriptionService}
+import cats.{~>, MonadThrow}
+import co.topl.genus.algebras.{MongoSubscription, SubscriptionService}
 import co.topl.genus.services.transactions_query.TransactionSorting
-import co.topl.genus.typeclasses.MongoFilter
 import co.topl.genus.typeclasses.implicits._
-import co.topl.genus.ops.implicits._
+import co.topl.genus.typeclasses.{MongoFilter, WithMaxBlockHeight}
 import co.topl.genus.types.Transaction
 
 import scala.concurrent.Future
@@ -20,7 +19,7 @@ object TransactionsSubscriptionService {
   ): SubscriptionService[F, Transaction] =
     new SubscriptionService[F, Transaction] {
 
-      override def create[Filter: MongoFilter](
+      override def create[Filter: MongoFilter: WithMaxBlockHeight](
         request: SubscriptionService.CreateRequest[Filter]
       ): EitherT[F, SubscriptionService.CreateSubscriptionFailure, Source[Transaction, NotUsed]] =
         MonadThrow[F]

@@ -53,7 +53,7 @@ class BatchedMongoSubscriptionSpec
         .anyNumberOfTimes()
         .returns(Source(documents).mapMaterializedValue(_ => NotUsed).pure[IO])
 
-      val chainHeightMock: ChainHeight[IO] = mock[ChainHeight[IO]]
+      implicit val chainHeightMock: ChainHeight[IO] = mock[ChainHeight[IO]]
       (() => chainHeightMock.get)
         .expects()
         .anyNumberOfTimes()
@@ -62,7 +62,7 @@ class BatchedMongoSubscriptionSpec
 
       val underTest =
         BatchedMongoSubscription
-          .make[IO](batchSize, batchSleepTime, _.getTransactionBlockHeight, mongoStoreMock, chainHeightMock)
+          .make[IO](batchSize, batchSleepTime, mongoStoreMock)
 
       val resultsSource = underTest.create(TransactionFilter.defaultInstance, TransactionSorting.defaultInstance, 0)
       val resultsList = sourceIOToList(resultsSource.map(_.take(documents.length))).futureValue
@@ -82,7 +82,7 @@ class BatchedMongoSubscriptionSpec
       .anyNumberOfTimes()
       .returns(Source.empty[Document].mapMaterializedValue(_ => NotUsed).pure[IO])
 
-    val chainHeightMock: ChainHeight[IO] = mock[ChainHeight[IO]]
+    implicit val chainHeightMock: ChainHeight[IO] = mock[ChainHeight[IO]]
     (() => chainHeightMock.get)
       .expects()
       .anyNumberOfTimes()
@@ -90,7 +90,7 @@ class BatchedMongoSubscriptionSpec
       .returns(IO(BlockHeight(Long.MaxValue)))
 
     val underTest = BatchedMongoSubscription
-      .make[IO](batchSize, batchSleepTime, _.getTransactionBlockHeight, mongoStoreMock, chainHeightMock)
+      .make[IO](batchSize, batchSleepTime, mongoStoreMock)
 
     val resultSource = underTest
       .create(TransactionFilter.defaultInstance, TransactionSorting.defaultInstance, 0)

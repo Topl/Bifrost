@@ -2,7 +2,7 @@ package co.topl.genus.algebras
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
-import co.topl.genus.typeclasses.{MongoFilter, MongoSort}
+import co.topl.genus.typeclasses.{MongoFilter, MongoSort, WithMaxBlockHeight}
 import org.mongodb.scala.Document
 
 /**
@@ -20,7 +20,7 @@ trait MongoSubscription[F[_]] {
    * @tparam Sort the type of sorting options with an instance of [[MongoSort]]
    * @return a [[Source]] of [[Document]] values wrapped in an effect-ful context
    */
-  def create[Filter: MongoFilter, Sort: MongoSort](
+  def create[Filter: MongoFilter: WithMaxBlockHeight, Sort: MongoSort](
     filter:            Filter,
     sort:              Sort,
     confirmationDepth: Int

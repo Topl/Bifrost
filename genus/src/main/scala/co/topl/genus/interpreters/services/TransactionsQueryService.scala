@@ -15,32 +15,23 @@ object TransactionsQueryService {
 
   import QueryService._
 
-  def make[F[_]: Async](
-    store:       MongoStore[F],
-    chainHeight: ChainHeight[F]
-  ): QueryService[F, Transaction] = new Impl[F](store, chainHeight)
+  def make[F[_]: Async: ChainHeight](store: MongoStore[F]): QueryService[F, Transaction] =
+    new QueryService[F, Transaction] {
 
-  private class Impl[F[_]: Async](store: MongoStore[F], chainHeight: ChainHeight[F])
-      extends QueryService[F, Transaction] {
-
-    override def query[Filter: MongoFilter, Sort: MongoSort](
-      request: QueryService.QueryRequest[Filter, Sort]
-    ): EitherT[F, QueryService.QueryFailure, Source[Transaction, NotUsed]] =
-      for {
-        currentHeight <- EitherT.right[QueryFailure](chainHeight.get)
-        transactionDocsSource <-
-          EitherT.right[QueryFailure](
-            store.getDocumentsWithPaging(
-              request.filter.toBsonFilter.some,
-              request.sort.toBsonSorting.some,
-              request.paging
-            )
-          )
-        transactionsSource =
-          transactionDocsSource
-            .mapConcat(documentToTransaction(_).toSeq)
-            .filter(tx => tx.blockHeight <= (currentHeight.value - request.confirmationDepth))
-      } yield transactionsSource
-
-  }
+      override def query[Filter: MongoFilter: WithMaxBlockHeight, Sort: MongoSort](
+        request: QueryRequest[Filter, Sort]
+      ): EitherT[F, QueryFailure, Source[Transaction, NotUsed]] =
+        EitherT.right[QueryFailure](
+          for {
+            filterWithConfirmationDepth <- request.filter.withConfirmationDepth[F](request.confirmationDepth)
+            docsSource <-
+              store.getDocumentsWithPaging(
+                filterWithConfirmationDepth.toBsonFilter.some,
+                request.sort.toBsonSorting.some,
+                request.paging
+              )
+            blocks = docsSource.mapConcat(documentToTransaction(_).toSeq)
+          } yield blocks
+        )
+    }
 }
