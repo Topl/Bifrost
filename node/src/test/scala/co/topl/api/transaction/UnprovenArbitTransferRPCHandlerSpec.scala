@@ -7,6 +7,7 @@ import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.attestation.implicits._
 import co.topl.codecs.json.tetra.instances._
 import co.topl.models.{BoxReference, DionAddress, Transaction}
+import co.topl.models.NetworkPrefix
 import io.circe.HCursor
 import io.circe.syntax._
 import org.scalatest.EitherValues
@@ -22,6 +23,8 @@ class UnprovenArbitTransferRPCHandlerSpec extends RPCMockState with Matchers wit
 
   var sender: DionAddress = _
   var recipient: DionAddress = _
+
+  implicit val tetraNetworkPrefix: NetworkPrefix = NetworkPrefix(networkPrefix)
 
   override def beforeAll(): Unit = {
     super.beforeAll()

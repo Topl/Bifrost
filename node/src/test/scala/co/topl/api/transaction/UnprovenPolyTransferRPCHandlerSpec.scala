@@ -5,7 +5,7 @@ import cats.data.NonEmptyChain
 import co.topl.api.RPCMockState
 import co.topl.attestation.implicits._
 import co.topl.codecs.json.tetra.instances._
-import co.topl.models.{BoxReference, DionAddress, Transaction}
+import co.topl.models.{BoxReference, DionAddress, NetworkPrefix, Transaction}
 import io.circe.HCursor
 import io.circe.syntax._
 import org.scalatest.EitherValues
@@ -20,6 +20,8 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with
 
   var sender: DionAddress = _
   var recipient: DionAddress = _
+
+  implicit val tetraNetworkPrefix: NetworkPrefix = NetworkPrefix(networkPrefix)
 
   override def beforeAll(): Unit = {
     super.beforeAll()

@@ -8,7 +8,7 @@ import co.topl.codecs.json.tetra.instances._
 import co.topl.models.utility.HasLength.instances.{bigIntLength, latin1DataLength}
 import co.topl.models.utility.Sized
 import co.topl.models.utility.StringDataTypes.Latin1Data
-import co.topl.models.{Box, BoxReference, Bytes, DionAddress, Transaction}
+import co.topl.models.{Box, BoxReference, Bytes, DionAddress, NetworkPrefix, Transaction}
 import io.circe.HCursor
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
@@ -25,6 +25,8 @@ class UnprovenAssetTransferRPCHandlerSpec extends RPCMockState with Matchers wit
   var assetCode: Box.Values.Asset.Code = _
 
   var assetValue: Box.Values.Asset = _
+
+  implicit val tetraNetworkPrefix: NetworkPrefix = NetworkPrefix(networkPrefix)
 
   override def beforeAll(): Unit = {
     super.beforeAll()
