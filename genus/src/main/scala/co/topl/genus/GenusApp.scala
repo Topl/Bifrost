@@ -6,19 +6,18 @@ import akka.actor.typed.scaladsl.Behaviors
 import cats.effect.unsafe.implicits.global
 import cats.effect.{ExitCode, IO, IOApp, Resource}
 import cats.implicits._
-import co.topl.genus.interpreters.{BatchedMongoSubscription, MongoCollectionStore}
+import co.topl.genus.algebras.ChainHeight
+import co.topl.genus.interpreters._
 import co.topl.genus.interpreters.requesthandlers._
 import co.topl.genus.interpreters.services._
 import co.topl.genus.programs.GenusProgram
 import co.topl.genus.settings._
 import co.topl.genus.typeclasses.implicits._
-import co.topl.genus.types._
+import co.topl.genus.ops.implicits._
 import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.utils.mongodb.codecs._
-import co.topl.utils.mongodb.models.{BlockDataModel, ConfirmedTransactionDataModel}
 import com.typesafe.config.ConfigFactory
 import mainargs.ParserForClass
-import org.mongodb.scala.MongoClient
+import org.mongodb.scala.{Document, MongoClient}
 
 import java.io.File
 import scala.concurrent.ExecutionContext
@@ -72,6 +71,8 @@ object GenusApp extends IOApp {
         mongoDatabase.getCollection(settings.transactionsCollectionName)
       )
       blocksStore = MongoCollectionStore.make[IO](mongoDatabase.getCollection(settings.blocksCollectionName))
+
+      implicit0(chainHeight: ChainHeight[IO]) = MongoChainHeight.make[IO](blocksStore)
 
       // set up query services
       transactionsQuery = TransactionsQueryService.make[IO](transactionsStore)

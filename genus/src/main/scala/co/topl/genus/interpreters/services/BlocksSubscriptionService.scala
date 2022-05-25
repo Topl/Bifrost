@@ -6,7 +6,7 @@ import cats.MonadThrow
 import cats.data.EitherT
 import co.topl.genus.algebras.{MongoSubscription, SubscriptionService}
 import co.topl.genus.services.blocks_query.BlockSorting
-import co.topl.genus.typeclasses.MongoFilter
+import co.topl.genus.typeclasses.{MongoFilter, WithMaxBlockHeight}
 import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.types.Block
 
@@ -15,13 +15,17 @@ object BlocksSubscriptionService {
   def make[F[_]: MonadThrow](subscriptions: MongoSubscription[F]): SubscriptionService[F, Block] =
     new SubscriptionService[F, Block] {
 
-      override def create[Filter: MongoFilter](
+      override def create[Filter: MongoFilter: WithMaxBlockHeight](
         request: SubscriptionService.CreateRequest[Filter]
       ): EitherT[F, SubscriptionService.CreateSubscriptionFailure, Source[Block, NotUsed]] =
         MonadThrow[F]
           // catch a possible failure with creating the subscription
           .attemptT(
-            subscriptions.create(request.filter, BlockSorting(BlockSorting.SortBy.Height(BlockSorting.Height())))
+            subscriptions.create(
+              request.filter,
+              BlockSorting(BlockSorting.SortBy.Height(BlockSorting.Height())),
+              request.confirmationDepth
+            )
           )
           .leftMap[SubscriptionService.CreateSubscriptionFailure](failure =>
             SubscriptionService.CreateSubscriptionFailures.DataConnectionFailure(failure.getMessage)

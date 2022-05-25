@@ -14,3 +14,7 @@ trait ChainHeight[F[_]] {
    */
   def get: F[BlockHeight]
 }
+
+object ChainHeight {
+  def apply[F[_]](implicit chainHeight: ChainHeight[F]): ChainHeight[F] = chainHeight
+}

@@ -8,7 +8,7 @@ import cats.effect.IO
 import cats.effect.unsafe.IORuntime
 import cats.implicits._
 import co.topl.genus.Generators
-import co.topl.genus.algebras.MongoStore
+import co.topl.genus.algebras.{ChainHeight, MongoStore}
 import co.topl.genus.filters.TransactionFilter
 import co.topl.genus.interpreters.BatchedMongoSubscription
 import co.topl.genus.services.transactions_query.TransactionSorting
@@ -20,6 +20,8 @@ import org.scalatest.EitherValues
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import co.topl.genus.ops.implicits._
+import co.topl.genus.types.BlockHeight
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
@@ -51,9 +53,18 @@ class BatchedMongoSubscriptionSpec
         .anyNumberOfTimes()
         .returns(Source(documents).mapMaterializedValue(_ => NotUsed).pure[IO])
 
-      val underTest = BatchedMongoSubscription.make[IO](batchSize, batchSleepTime, mongoStoreMock)
+      implicit val chainHeightMock: ChainHeight[IO] = mock[ChainHeight[IO]]
+      (() => chainHeightMock.get)
+        .expects()
+        .anyNumberOfTimes()
+        // guarantee that confirmation depth will never filter out any values
+        .returns(IO(BlockHeight(Long.MaxValue)))
 
-      val resultsSource = underTest.create(TransactionFilter.defaultInstance, TransactionSorting.defaultInstance)
+      val underTest =
+        BatchedMongoSubscription
+          .make[IO](batchSize, batchSleepTime, mongoStoreMock)
+
+      val resultsSource = underTest.create(TransactionFilter.defaultInstance, TransactionSorting.defaultInstance, 0)
       val resultsList = sourceIOToList(resultsSource.map(_.take(documents.length))).futureValue
 
       resultsList shouldBe documents
@@ -71,10 +82,18 @@ class BatchedMongoSubscriptionSpec
       .anyNumberOfTimes()
       .returns(Source.empty[Document].mapMaterializedValue(_ => NotUsed).pure[IO])
 
-    val underTest = BatchedMongoSubscription.make[IO](batchSize, batchSleepTime, mongoStoreMock)
+    implicit val chainHeightMock: ChainHeight[IO] = mock[ChainHeight[IO]]
+    (() => chainHeightMock.get)
+      .expects()
+      .anyNumberOfTimes()
+      // guarantee that confirmation depth will never filter out any values
+      .returns(IO(BlockHeight(Long.MaxValue)))
+
+    val underTest = BatchedMongoSubscription
+      .make[IO](batchSize, batchSleepTime, mongoStoreMock)
 
     val resultSource = underTest
-      .create(TransactionFilter.defaultInstance, TransactionSorting.defaultInstance)
+      .create(TransactionFilter.defaultInstance, TransactionSorting.defaultInstance, 0)
 
     val result =
       resultSource
