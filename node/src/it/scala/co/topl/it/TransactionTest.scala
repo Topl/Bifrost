@@ -43,7 +43,8 @@ class TransactionTest
     ConfigFactory.parseString(
       raw"""bifrost.network.knownPeers = []
            |bifrost.rpcApi.namespaceSelector.debug = true
-           |bifrost.forging.privateTestnet.genesisSeed = "$nodeGroupName"
+           |bifrost.forging.addressGenerationSettings.strategy = fromSeed
+           |bifrost.forging.addressGenerationSettings.addressSeedOpt = "$nodeGroupName"
            |bifrost.forging.forgeOnStartup = false
            |""".stripMargin
     )

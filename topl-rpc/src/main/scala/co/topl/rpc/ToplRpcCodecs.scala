@@ -289,9 +289,6 @@ trait TransactionRpcResponseDecoders extends SharedCodecs {
     ToplRpc.Transaction.UnprovenPolyTransfer.Response
   ] = unprovenTransactionJsonDecoder.map(x => ToplRpc.Transaction.UnprovenPolyTransfer.Response(x))
 
-  implicit val transactionBroadcastTetraTransferResponseDecoder: Decoder[
-    ToplRpc.Transaction.BroadcastTetraTransfer.Response
-  ] = hcursor => hcursor.as[Transaction.TX]
 }
 
 trait AdminRpcResponseDecoders extends SharedCodecs {
