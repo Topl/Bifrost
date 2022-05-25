@@ -2,6 +2,7 @@ package co.topl.demo
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import co.topl.codecs.json.tetra.instances.dionAddressEncoder
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
 import co.topl.models._
 import co.topl.scripting.GraalVMScripting
@@ -116,11 +117,11 @@ class ScriptedProofVerifierSpec
 
   it should "verify to true for a script using the current transaction" in {
     forAll { unproven: Transaction.Unproven =>
-      val outAddr = unproven.coinOutputs.head.dionAddress.allBytes.toBase58
+      val outAddr = unproven.coinOutputs.head.dionAddress.asJson
       val proposition = Propositions.Script.JS(
         Propositions.Script.JS.JSScript(
           raw"""(ctx, args) =>
-               |    ctx.currentTransaction.coinOutputs[args.outputIndex].dionAddress == "$outAddr";
+               |    ctx.currentTransaction.coinOutputs[args.outputIndex].dionAddress == $outAddr;
                |""".stripMargin
         )
       )

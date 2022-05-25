@@ -5,7 +5,13 @@ import co.topl.attestation.{Address, Proposition}
 import co.topl.codecs._
 import co.topl.codecs.json.JsonCodecs
 import co.topl.codecs.json.tetra.ModelsJsonCodecs
-import co.topl.models.{DionAddress, Int128 => TetraInt128, Transaction => TetraTransaction, TransactionData}
+import co.topl.models.{
+  DionAddress,
+  Int128 => TetraInt128,
+  NetworkPrefix => TetraNetworkPrefix,
+  Transaction => TetraTransaction,
+  TransactionData
+}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithm, BoxSelectionAlgorithms}
@@ -285,13 +291,18 @@ trait TransactionRpcResponseDecoders extends SharedCodecs {
   ): Decoder[ToplRpc.Transaction.EncodeTransfer.Response] =
     deriveDecoder
 
-  implicit val transactionUnprovenPolyTransferResponseDecoder: Decoder[
+  implicit def transactionUnprovenPolyTransferResponseDecoder(implicit networkPrefix: NetworkPrefix): Decoder[
     ToplRpc.Transaction.UnprovenPolyTransfer.Response
-  ] = unprovenTransactionJsonDecoder.map(x => ToplRpc.Transaction.UnprovenPolyTransfer.Response(x))
+  ] = unprovenTransactionJsonDecoder(TetraNetworkPrefix(networkPrefix)).map(x =>
+    ToplRpc.Transaction.UnprovenPolyTransfer.Response(x)
+  )
 
-  implicit val transactionBroadcastTetraTransferResponseDecoder: Decoder[
+  implicit def transactionBroadcastTetraTransferResponseDecoder(implicit networkPrefix: NetworkPrefix): Decoder[
     ToplRpc.Transaction.BroadcastTetraTransfer.Response
-  ] = hcursor => hcursor.as[Transaction.TX]
+  ] = { hcursor =>
+    implicit val tetraNetworkPrefix: TetraNetworkPrefix = TetraNetworkPrefix(networkPrefix)
+    hcursor.as[Transaction.TX]
+  }
 }
 
 trait AdminRpcResponseDecoders extends SharedCodecs {
@@ -504,25 +515,38 @@ trait TransactionRpcParamsDecoders extends SharedCodecs {
     networkPrefix: NetworkPrefix
   ): Decoder[ToplRpc.Transaction.RawPolyTransfer.Params] = deriveDecoder
 
-  implicit val transactionUnprovenPolyTransferParamsDecoder: Decoder[ToplRpc.Transaction.UnprovenPolyTransfer.Params] =
+  implicit def transactionUnprovenPolyTransferParamsDecoder(implicit
+    networkPrefix: NetworkPrefix
+  ): Decoder[ToplRpc.Transaction.UnprovenPolyTransfer.Params] = {
+    implicit val tetraNetworkPrefix: TetraNetworkPrefix = TetraNetworkPrefix(networkPrefix)
     deriveDecoder
+  }
 
-  implicit val transactionUnprovenArbitTransferParamsDecoder
-    : Decoder[ToplRpc.Transaction.UnprovenArbitTransfer.Params] =
+  implicit def transactionUnprovenArbitTransferParamsDecoder(implicit
+    networkPrefix: NetworkPrefix
+  ): Decoder[ToplRpc.Transaction.UnprovenArbitTransfer.Params] = {
+    implicit val tetraNetworkPrefix: TetraNetworkPrefix = TetraNetworkPrefix(networkPrefix)
     deriveDecoder
+  }
 
-  implicit val transactionUnprovenAssetTransferParamsDecoder
-    : Decoder[ToplRpc.Transaction.UnprovenAssetTransfer.Params] =
+  implicit def transactionUnprovenAssetTransferParamsDecoder(implicit
+    networkPrefix: NetworkPrefix
+  ): Decoder[ToplRpc.Transaction.UnprovenAssetTransfer.Params] = {
+    implicit val tetraNetworkPrefix: TetraNetworkPrefix = TetraNetworkPrefix(networkPrefix)
     deriveDecoder
+  }
 
   implicit def transactionBroadcastTxParamsDecoder(implicit
     networkPrefix: NetworkPrefix
   ): Decoder[ToplRpc.Transaction.BroadcastTx.Params] =
     Decoder.forProduct1("tx")(ToplRpc.Transaction.BroadcastTx.Params.apply)
 
-  implicit val transactionBroadcastTetraTransferParamsDecoder
-    : Decoder[ToplRpc.Transaction.BroadcastTetraTransfer.Params] =
+  implicit def transactionBroadcastTetraTransferParamsDecoder(implicit
+    networkPrefix: NetworkPrefix
+  ): Decoder[ToplRpc.Transaction.BroadcastTetraTransfer.Params] = {
+    implicit val tetraNetworkPrefix: TetraNetworkPrefix = TetraNetworkPrefix(networkPrefix)
     deriveDecoder
+  }
 
   implicit def transactionEncodeTransferParamsDecoder(implicit
     networkPrefix: NetworkPrefix
