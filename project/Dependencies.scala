@@ -4,7 +4,7 @@ object Dependencies {
 
   val akkaVersion = "2.6.18"
   val akkaHttpVersion = "10.2.9"
-  val circeVersion = "0.14.1"
+  val circeVersion = "0.14.2"
   val kamonVersion = "2.5.0"
   val graalVersion = "21.1.0"
   val simulacrumVersion = "1.0.1"
@@ -15,7 +15,7 @@ object Dependencies {
     "org.typelevel" %% "log4cats-slf4j" % "2.1.1"
 
   val logging = Seq(
-    "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.4",
+    "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.5",
     "ch.qos.logback"              % "logback-classic" % "1.2.11",
     "ch.qos.logback"              % "logback-core"    % "1.2.11",
     "org.slf4j"                   % "slf4j-api"       % "1.7.36",
@@ -124,7 +124,7 @@ object Dependencies {
 
   val scodec = Seq(
     "org.scodec" %% "scodec-core" % "1.11.9",
-    "org.scodec" %% "scodec-bits" % "1.1.27",
+    "org.scodec" %% "scodec-bits" % "1.1.31",
     "org.scodec" %% "scodec-cats" % "1.1.0"
   )
 
@@ -192,7 +192,7 @@ object Dependencies {
   lazy val akkaHttpRpc: Seq[ModuleID] =
     Seq(
       "de.heikoseeberger"      %% "akka-http-circe"         % "1.39.2",
-      "io.circe"               %% "circe-optics"            % circeVersion,
+      "io.circe"               %% "circe-optics"            % "0.14.1",
       "io.circe"               %% "circe-generic"           % circeVersion,
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.6.0"
     ) ++
@@ -205,6 +205,7 @@ object Dependencies {
       "io.circe"               %% "circe-generic"           % circeVersion,
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.6.0"
     ) ++
+    scodec ++
     circe ++
     test
 

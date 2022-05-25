@@ -4,7 +4,7 @@ import akka.NotUsed
 import akka.stream.scaladsl.Source
 import cats.data.{EitherT, NonEmptyChain}
 import co.topl.genus.services.services_types.Paging
-import co.topl.genus.typeclasses.{MongoFilter, MongoSort}
+import co.topl.genus.typeclasses.{MongoFilter, MongoSort, WithMaxBlockHeight}
 
 /**
  * Represents a service which can handle query requests for data from some data source.
@@ -24,7 +24,7 @@ trait QueryService[F[_], T] {
    * @param request the query request containing options for data to be returned
    * @return if successful, a list of values matching the query, otherwise a failure
    */
-  def query[Filter: MongoFilter, Sort: MongoSort](
+  def query[Filter: MongoFilter: WithMaxBlockHeight, Sort: MongoSort](
     request: QueryRequest[Filter, Sort]
   ): EitherT[F, QueryFailure, Source[T, NotUsed]]
 }

@@ -6,13 +6,13 @@ import cats.data.EitherT
 import cats.effect.Async
 import co.topl.genus.algebras.QueryService
 import co.topl.genus.algebras.QueryService.{QueryFailure, QueryRequest}
-import co.topl.genus.typeclasses.{MongoFilter, MongoSort}
+import co.topl.genus.typeclasses.{MongoFilter, MongoSort, WithMaxBlockHeight}
 
 import scala.language.implicitConversions
 
 class QueryServiceOps[F[_], T](private val value: QueryService[F, T]) extends AnyVal {
 
-  def queryAsList[Filter: MongoFilter, Sort: MongoSort](
+  def queryAsList[Filter: MongoFilter: WithMaxBlockHeight, Sort: MongoSort](
     request:         QueryRequest[Filter, Sort]
   )(implicit asyncF: Async[F], materializer: Materializer): EitherT[F, QueryFailure, List[T]] =
     for {

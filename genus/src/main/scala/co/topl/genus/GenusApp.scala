@@ -6,6 +6,7 @@ import akka.actor.typed.scaladsl.Behaviors
 import cats.effect.unsafe.implicits.global
 import cats.effect.{ExitCode, IO, IOApp, Resource}
 import cats.implicits._
+import co.topl.genus.algebras.ChainHeight
 import co.topl.genus.interpreters._
 import co.topl.genus.interpreters.requesthandlers._
 import co.topl.genus.interpreters.services._
@@ -71,11 +72,11 @@ object GenusApp extends IOApp {
       )
       blocksStore = MongoCollectionStore.make[IO](mongoDatabase.getCollection(settings.blocksCollectionName))
 
-      chainHeight = MongoChainHeight.make[IO](blocksStore)
+      implicit0(chainHeight: ChainHeight[IO]) = MongoChainHeight.make[IO](blocksStore)
 
       // set up query services
-      transactionsQuery = TransactionsQueryService.make[IO](transactionsStore, chainHeight)
-      blocksQuery = BlocksQueryService.make[IO](blocksStore, chainHeight)
+      transactionsQuery = TransactionsQueryService.make[IO](transactionsStore)
+      blocksQuery = BlocksQueryService.make[IO](blocksStore)
 
       // set up subscription services
       transactionsSubscription =
@@ -83,9 +84,7 @@ object GenusApp extends IOApp {
           BatchedMongoSubscription.make[IO](
             settings.subBatchSize,
             settings.subBatchSleepDuration.seconds,
-            _.getTransactionBlockHeight,
-            transactionsStore,
-            chainHeight
+            transactionsStore
           )
         )
 
@@ -94,9 +93,7 @@ object GenusApp extends IOApp {
           BatchedMongoSubscription.make[IO](
             settings.subBatchSize,
             settings.subBatchSleepDuration.seconds,
-            _.getBlockHeight,
-            blocksStore,
-            chainHeight
+            blocksStore
           )
         )
 
