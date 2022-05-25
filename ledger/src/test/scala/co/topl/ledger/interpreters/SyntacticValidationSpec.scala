@@ -7,7 +7,7 @@ import cats.implicits._
 import co.topl.ledger.algebras.InvalidSyntaxErrors
 import co.topl.models.ModelGenerators._
 import co.topl.models.utility.HasLength.instances.bigIntLength
-import co.topl.models.utility.{Lengths, Sized}
+import co.topl.models.utility.Sized
 import co.topl.models.{Box, Transaction}
 import org.scalacheck.Gen
 import org.scalatest.EitherValues
