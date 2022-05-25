@@ -5,7 +5,7 @@ import akka.stream.scaladsl.Source
 import cats.implicits._
 import cats.{Applicative, MonadThrow}
 import co.topl.genus.algebras.MongoSubscription
-import co.topl.genus.typeclasses.{MongoFilter, MongoSort}
+import co.topl.genus.typeclasses.{MongoFilter, MongoSort, WithMaxBlockHeight}
 import org.mongodb.scala.Document
 
 object MockMongoSubscription {
@@ -13,7 +13,7 @@ object MockMongoSubscription {
   def alwaysFailWith[F[_]: MonadThrow](message: String): MongoSubscription[F] =
     new MongoSubscription[F] {
 
-      override def create[Filter: MongoFilter, Sort: MongoSort](
+      override def create[Filter: MongoFilter: WithMaxBlockHeight, Sort: MongoSort](
         filter:            Filter,
         sort:              Sort,
         confirmationDepth: Int
@@ -23,7 +23,7 @@ object MockMongoSubscription {
   def withDocuments[F[_]: Applicative](documents: List[Document]): MongoSubscription[F] =
     new MongoSubscription[F] {
 
-      override def create[Filter: MongoFilter, Sort: MongoSort](
+      override def create[Filter: MongoFilter: WithMaxBlockHeight, Sort: MongoSort](
         filter:            Filter,
         sort:              Sort,
         confirmationDepth: Int

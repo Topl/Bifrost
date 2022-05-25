@@ -3,6 +3,7 @@ package co.topl.genus.interpreters.services
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import co.topl.genus.algebras.ChainHeight
 import co.topl.genus.algebras.QueryService.QueryRequest
 import co.topl.genus.filters.BlockFilter
 import co.topl.genus.interpreters.{MockChainHeight, MockMongoStore}
@@ -35,9 +36,9 @@ class BlocksQueryServiceSpec
     val currentChainHeight = 100
 
     val dataStore = MockMongoStore.withBlocks[IO](List(createBlockWithHeight(100)))
-    val chainHeight = MockChainHeight.withHeight[IO](BlockHeight(currentChainHeight))
+    implicit val chainHeight: ChainHeight[IO] = MockChainHeight.withHeight[IO](BlockHeight(currentChainHeight))
 
-    val underTest = BlocksQueryService.make[IO](dataStore, chainHeight)
+    val underTest = BlocksQueryService.make[IO](dataStore)
 
     val result =
       underTest
@@ -60,9 +61,9 @@ class BlocksQueryServiceSpec
       )
 
     val dataStore = MockMongoStore.withBlocks[IO](blocks)
-    val chainHeight = MockChainHeight.withHeight[IO](BlockHeight(currentChainHeight))
+    implicit val chainHeight: ChainHeight[IO] = MockChainHeight.withHeight[IO](BlockHeight(currentChainHeight))
 
-    val underTest = BlocksQueryService.make[IO](dataStore, chainHeight)
+    val underTest = BlocksQueryService.make[IO](dataStore)
 
     val result =
       underTest
@@ -84,9 +85,9 @@ class BlocksQueryServiceSpec
     val invalidBlockDocuments = List(Document("{ \"invalid\": \"test\" }"))
 
     val dataStore = MockMongoStore.withDocuments[IO](validBlockDocuments ++ invalidBlockDocuments)
-    val chainHeight = MockChainHeight.withHeight[IO](BlockHeight(currentChainHeight))
+    implicit val chainHeight: ChainHeight[IO] = MockChainHeight.withHeight[IO](BlockHeight(currentChainHeight))
 
-    val underTest = BlocksQueryService.make[IO](dataStore, chainHeight)
+    val underTest = BlocksQueryService.make[IO](dataStore)
 
     val result =
       underTest

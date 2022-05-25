@@ -20,4 +20,8 @@ object MockMongoStore {
 
   def withDocuments[F[_]: Applicative](documents: List[Document]): MongoStore[F] =
     (_: Option[Bson], _: Option[Bson], _: Option[Int], _: Option[Int]) => Source(documents).pure[F]
+
+  def inMemoryWithoutSortingOrFiltering[F[_]: Applicative](values: List[Document]): MongoStore[F] =
+    (_: Option[Bson], _: Option[Bson], limit: Option[Int], skip: Option[Int]) =>
+      Source(values.slice(skip.getOrElse(0), skip.getOrElse(0) + limit.getOrElse(values.length))).pure[F]
 }

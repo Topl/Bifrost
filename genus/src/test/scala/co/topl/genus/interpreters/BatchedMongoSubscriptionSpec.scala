@@ -1,66 +1,112 @@
 package co.topl.genus.interpreters
 
-import cats.Id
-import cats.implicits._
+import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import akka.stream.testkit.scaladsl.TestSink
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
+import co.topl.genus.algebras.ChainHeight
+import co.topl.genus.filters.TransactionFilter
+import co.topl.genus.ops.implicits._
+import co.topl.genus.services.transactions_query.TransactionSorting
+import co.topl.genus.typeclasses.implicits._
 import co.topl.genus.types.BlockHeight
 import org.mongodb.scala.Document
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.flatspec.AsyncFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-class BatchedMongoSubscriptionSpec extends AnyFlatSpec with Matchers {
-  import BatchedMongoSubscriptionSpec._
+import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
 
-  behavior of "Batched Mongo Subscription whenConfirmed"
+class BatchedMongoSubscriptionSpec extends ScalaTestWithActorTestKit with AsyncFlatSpecLike with Matchers {
 
-  it should "return OptionT-None when value has not been confirmed" in {
-    val confirmationDepth = 15
-    val currentChainHeight = 1000
+  behavior of "Batched Mongo Subscription"
 
-    val document = defaultDocument
-    val documentToHeight = (_: Document) => BlockHeight(999).some
+  it should "iterate through all the existing values in the store" in {
+    val mongoDocuments = List(Document("{ \"id\": 1 }"), Document("{ \"id\": 2}"), Document("{ \"id\": 3 }"))
 
-    val chainHeight = MockChainHeight.withHeight[Id](BlockHeight(currentChainHeight))
+    // filter, sorting, and confirmation depth will be unused
+    val filter = TransactionFilter()
+    val sort = TransactionSorting()
+    val confirmationDepth = 1
 
-    val underTest = BatchedMongoSubscription.whenConfirmed[Id](confirmationDepth, documentToHeight, chainHeight) _
+    val batchSize = 1
+    val batchSleepTime = 10.milliseconds
 
-    val result = underTest(document)
+    val mongoStore = MockMongoStore.inMemoryWithoutSortingOrFiltering[IO](mongoDocuments)
 
-    result.value shouldBe None
+    implicit val chainHeight: ChainHeight[IO] = MockChainHeight.withHeight(BlockHeight(10))
+
+    val underTest = BatchedMongoSubscription.make[IO](batchSize, batchSleepTime, mongoStore)
+
+    val testSink = TestSink[Document]()
+
+    (for {
+      result <- underTest.create(filter, sort, confirmationDepth)
+      probe = result.runWith(testSink)
+      _ = probe.request(3)
+      firstDocument = probe.expectNext()
+      secondDocument = probe.expectNext()
+      thirdDocument = probe.expectNext()
+    } yield List(firstDocument, secondDocument, thirdDocument) shouldBe mongoDocuments)
+      .mapFunctor[Future]
   }
 
-  it should "return OptionT-Some with document when value has been confirmed" in {
-    val confirmationDepth = 15
-    val currentChainHeight = 1000
+  it should "only emit the batch size number of elements at a time" in {
+    val mongoDocuments = List(Document("{ \"id\": 1 }"), Document("{ \"id\": 2}"), Document("{ \"id\": 3 }"))
 
-    val document = defaultDocument
-    val documentToHeight = (_: Document) => BlockHeight(500).some
+    // filter, sorting, and confirmation depth will be unused
+    val filter = TransactionFilter()
+    val sort = TransactionSorting()
+    val confirmationDepth = 1
 
-    val chainHeight = MockChainHeight.withHeight[Id](BlockHeight(currentChainHeight))
+    val batchSize = 2
+    // wait a long time before batches
+    val batchSleepTime = 100.seconds
 
-    val underTest = BatchedMongoSubscription.whenConfirmed[Id](confirmationDepth, documentToHeight, chainHeight) _
+    val mongoStore = MockMongoStore.inMemoryWithoutSortingOrFiltering[IO](mongoDocuments)
 
-    val result = underTest(document)
+    implicit val chainHeight: ChainHeight[IO] = MockChainHeight.withHeight(BlockHeight(10))
 
-    result.value shouldBe Some(document)
+    val underTest = BatchedMongoSubscription.make[IO](batchSize, batchSleepTime, mongoStore)
+
+    val testSink = TestSink[Document]()
+
+    (for {
+      result <- underTest.create(filter, sort, confirmationDepth)
+      probe = result.runWith(testSink)
+      _ = probe.request(3)
+      batch = probe.expectNextN(2)
+      _ = probe.expectNoMessage()
+    } yield batch shouldBe mongoDocuments.take(2))
+      .mapFunctor[Future]
   }
 
-  it should "return OptionT-None when height can not be retrieved from the document" in {
-    val confirmationDepth = 15
-    val currentChainHeight = 1000
+  it should "not emit any elements once all values in the store have been retrieved" in {
+    val mongoDocuments = List(Document("{ \"id\": 1 }"), Document("{ \"id\": 2}"), Document("{ \"id\": 3 }"))
 
-    val document = defaultDocument
-    val documentToHeight = (_: Document) => none[BlockHeight]
+    // filter, sorting, and confirmation depth will be unused
+    val filter = TransactionFilter()
+    val sort = TransactionSorting()
+    val confirmationDepth = 1
 
-    val chainHeight = MockChainHeight.withHeight[Id](BlockHeight(currentChainHeight))
+    val batchSize = 1
+    val batchSleepTime = 10.milliseconds
 
-    val underTest = BatchedMongoSubscription.whenConfirmed[Id](confirmationDepth, documentToHeight, chainHeight) _
+    val mongoStore = MockMongoStore.inMemoryWithoutSortingOrFiltering[IO](mongoDocuments)
 
-    val result = underTest(document)
+    implicit val chainHeight: ChainHeight[IO] = MockChainHeight.withHeight(BlockHeight(10))
 
-    result.value shouldBe None
+    val underTest = BatchedMongoSubscription.make[IO](batchSize, batchSleepTime, mongoStore)
+
+    val testSink = TestSink[Document]()
+
+    (for {
+      result <- underTest.create(filter, sort, confirmationDepth)
+      probe = result.runWith(testSink)
+      _ = probe.request(4)
+      storeValues = probe.expectNextN(3)
+      _ = probe.expectNoMessage()
+    } yield storeValues shouldBe mongoDocuments)
+      .mapFunctor[Future]
   }
-}
-
-object BatchedMongoSubscriptionSpec {
-  val defaultDocument = Document("{ \"test\": true }")
 }

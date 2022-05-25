@@ -3,6 +3,7 @@ package co.topl.genus.interpreters.services
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import co.topl.genus.algebras.ChainHeight
 import co.topl.genus.algebras.QueryService.QueryRequest
 import co.topl.genus.filters.TransactionFilter
 import co.topl.genus.interpreters.{MockChainHeight, MockMongoStore}
@@ -36,9 +37,9 @@ class TransactionsQueryServiceSpec
     val currentChainHeight = 100
 
     val dataStore = MockMongoStore.withTransactions[IO](List(createTransactionWithHeight(100)))
-    val chainHeight = MockChainHeight.withHeight[IO](BlockHeight(currentChainHeight))
+    implicit val chainHeight: ChainHeight[IO] = MockChainHeight.withHeight[IO](BlockHeight(currentChainHeight))
 
-    val underTest = TransactionsQueryService.make[IO](dataStore, chainHeight)
+    val underTest = TransactionsQueryService.make[IO](dataStore)
 
     val result =
       underTest
@@ -61,9 +62,9 @@ class TransactionsQueryServiceSpec
       )
 
     val dataStore = MockMongoStore.withTransactions[IO](transactions)
-    val chainHeight = MockChainHeight.withHeight[IO](BlockHeight(currentChainHeight))
+    implicit val chainHeight: ChainHeight[IO] = MockChainHeight.withHeight[IO](BlockHeight(currentChainHeight))
 
-    val underTest = TransactionsQueryService.make[IO](dataStore, chainHeight)
+    val underTest = TransactionsQueryService.make[IO](dataStore)
 
     val result =
       underTest
@@ -85,9 +86,9 @@ class TransactionsQueryServiceSpec
     val invalidTransactionDocuments = List(Document("{ \"invalid\": \"test\" }"))
 
     val dataStore = MockMongoStore.withDocuments[IO](validTransactionDocuments ++ invalidTransactionDocuments)
-    val chainHeight = MockChainHeight.withHeight[IO](BlockHeight(currentChainHeight))
+    implicit val chainHeight: ChainHeight[IO] = MockChainHeight.withHeight[IO](BlockHeight(currentChainHeight))
 
-    val underTest = TransactionsQueryService.make[IO](dataStore, chainHeight)
+    val underTest = TransactionsQueryService.make[IO](dataStore)
 
     val result =
       underTest
