@@ -6,6 +6,9 @@ import co.topl.models.utility.{Lengths, Sized}
 case class Box(evidence: TypedEvidence, value: Box.Value)
 
 object Box {
+
+  case class Id(transactionId: TypedIdentifier, transactionOutputIndex: Short)
+
   sealed abstract class Value
 
   object Values {

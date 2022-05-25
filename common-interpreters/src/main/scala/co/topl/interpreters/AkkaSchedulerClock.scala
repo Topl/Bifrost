@@ -40,23 +40,23 @@ object AkkaSchedulerClock {
 
         // TODO: Deal with negative delay values
         // TODO: Don't repeat yourself
-        def delayedUntilSlot(slot: Slot): F[(F[Unit], () => Unit)] =
+        def delayedUntilSlot(slot: Slot): F[Unit] =
           for {
             currentSlot <- globalSlot
             delay = (slot - currentSlot) * _slotLength
             promise = Promise[Unit]()
             callback = system.scheduler.scheduleOnce(delay, () => promise.success(()))
-          } yield (Async[F].fromFuture(promise.future.pure[F]), callback)
+          } yield Async[F].onCancel(Async[F].fromFuture(promise.future.pure[F]), Async[F].delay(callback.cancel()))
 
         // TODO: Deal with negative delay values
         // TODO: Don't repeat yourself
-        def delayedUntilTimestamp(timestamp: Timestamp): F[(F[Unit], () => Unit)] =
+        def delayedUntilTimestamp(timestamp: Timestamp): F[Unit] =
           for {
             now <- currentTimestamp
             delay = (timestamp - now).milli
             promise = Promise[Unit]()
             callback = system.scheduler.scheduleOnce(delay, () => promise.success(()))
-          } yield (Async[F].fromFuture(promise.future.pure[F]), callback)
+          } yield Async[F].onCancel(Async[F].fromFuture(promise.future.pure[F]), Async[F].delay(callback.cancel()))
       }
   }
 }

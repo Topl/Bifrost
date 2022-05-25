@@ -15,11 +15,10 @@ object Transaction {
    * @param transactionOutputIndex TODO: How does the network behave if we allow a huge number of outputs in a transaction?
    */
   case class Input(
-    transactionId:          TypedIdentifier,
-    transactionOutputIndex: Short,
-    proposition:            Proposition,
-    proof:                  Proof,
-    value:                  Box.Value
+    boxId:       Box.Id,
+    proposition: Proposition,
+    proof:       Proof,
+    value:       Box.Value
   )
   case class Output(address: FullAddress, value: Box.Value, minting: Boolean)
 
@@ -41,10 +40,9 @@ object Transaction {
   object Unproven {
 
     case class Input(
-      transactionId:          TypedIdentifier,
-      transactionOutputIndex: Short,
-      proposition:            Proposition,
-      value:                  Box.Value
+      boxId:       Box.Id,
+      proposition: Proposition,
+      value:       Box.Value
     )
   }
 
