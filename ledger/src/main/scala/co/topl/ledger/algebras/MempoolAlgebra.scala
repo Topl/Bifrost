@@ -16,8 +16,6 @@ trait MempoolAlgebra[F[_]] {
 
   /**
    * Remove/evict the given Transaction ID from the Mempool
-   *
-   * TODO: transactionIds: Set[TypedIdentifier]
    */
   def remove(transactionId: TypedIdentifier): F[Unit]
 

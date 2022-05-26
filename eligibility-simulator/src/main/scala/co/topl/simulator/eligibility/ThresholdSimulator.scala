@@ -14,7 +14,7 @@ import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.mnemonic.Entropy
 import co.topl.crypto.signing.Ed25519VRF
-import co.topl.interpreters.{ActorPoolUnsafeResource, AkkaSchedulerClock, StatsInterpreter}
+import co.topl.interpreters.{ActorPoolUnsafeResource, SchedulerClock, StatsInterpreter}
 import co.topl.models.utility.Ratio
 import co.topl.numerics.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits.Ops
@@ -67,7 +67,7 @@ object ThresholdSimulator extends IOApp.Simple {
       (stakerVRFSK, stakerVRFVK) <- ed25519VRFResource.use(
         _.createKeyPair(Entropy.fromUuid(UUID.randomUUID()), None).pure[F]
       )
-      clock = AkkaSchedulerClock.Eval.make[F](SlotDuration, EpochLength, Instant.now())
+      clock = SchedulerClock.Eval.make[F](SlotDuration, EpochLength, Instant.now())
       statsInterpreter = StatsInterpreter.Eval.make[F](statsDir)
       _ <- testConfigs.traverse { case (precision, amplitude, relativeStake) =>
         val vrfConfig =

@@ -36,7 +36,7 @@ class MempoolSpec
   implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
     PropertyCheckConfiguration(sizeRange = 3)
 
-  it should "expose a Set of Transaction IDs" in {
+  it should "expose a Set of Transaction IDs at a specific block" in {
     forAll(
       nonEmptyChainOf[(TypedIdentifier, NonEmptyChain[Transaction])](
         Gen.zip(arbitraryTypedIdentifier.arbitrary, nonEmptyChainOf(arbitraryTransaction.arbitrary))
@@ -47,7 +47,6 @@ class MempoolSpec
       val transactions = bodies.flatMap(_._2).toList.map(t => t.id.asTypedBytes -> t).toMap.updated(newTx.id, newTx)
       val fetchBody = (id: TypedIdentifier) => bodiesMap(id).map(_.id: TypedIdentifier).toList.pure[F]
       val fetchTransaction = (id: TypedIdentifier) => transactions(id).pure[F]
-      val tree = ParentChildTree.FromRef.make[F, TypedIdentifier].unsafeRunSync()
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot)
         .expects()
@@ -58,6 +57,7 @@ class MempoolSpec
         .expects(*)
         .anyNumberOfTimes()
         .returning(MonadCancel[F].never[Unit])
+      val tree = ParentChildTree.FromRef.make[F, TypedIdentifier].unsafeRunSync()
       bodies.map(_._1).sliding2.foreach { case (id1, id2) => tree.associate(id2, id1).unsafeRunSync() }
       val underTest =
         Mempool
@@ -134,6 +134,7 @@ class MempoolSpec
         .returning(0L.pure[F])
       (clock
         .delayedUntilSlot(_: Slot))
+        // This is the real thing being tested here
         .expects(transaction.chronology.maximumSlot)
         .once()
         .returning(deferred.get)
@@ -157,7 +158,7 @@ class MempoolSpec
     }
   }
 
-  it should "expire transactions at the node-configured slot if the user configuration is too high" in {
+  it should "expire transactions at the node-configured slot if the user-defined slot is too high" in {
     forAll { (currentBlockId: TypedIdentifier, transactionWithRandomTime: Transaction) =>
       val transaction =
         transactionWithRandomTime.copy(chronology =
@@ -271,9 +272,9 @@ class MempoolSpec
   }
 
   private def retry[A](f: => F[A], attempts: Int = 5, delay: FiniteDuration = 100.milli): F[A] =
-    MonadThrow[F].recoverWith(f) { case e =>
-      if (attempts <= 1) MonadThrow[F].raiseError(e)
-      else IO.sleep(delay) >> retry(f, attempts - 1, delay)
-    }
+    if (attempts > 1)
+      MonadThrow[F].recoverWith(f) { case _ => IO.sleep(delay) >> retry(f, attempts - 1, delay) }
+    else
+      f
 
 }

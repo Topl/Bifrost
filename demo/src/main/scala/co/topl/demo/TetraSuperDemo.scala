@@ -110,7 +110,7 @@ object TetraSuperDemo extends IOApp {
   type F[A] = IO[A]
 
   private def makeClock(genesisTimestamp: Instant): ClockAlgebra[F] =
-    AkkaSchedulerClock.Eval.make(SlotDuration, EpochLength, genesisTimestamp)
+    SchedulerClock.Eval.make(SlotDuration, EpochLength, genesisTimestamp)
 
   implicit private val timeout: Timeout = Timeout(20.seconds)
 

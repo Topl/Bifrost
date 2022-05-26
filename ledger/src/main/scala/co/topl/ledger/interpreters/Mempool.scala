@@ -36,9 +36,7 @@ object Mempool {
       // A function which inserts a transaction into the mempool and schedules its expiration using a Fiber
       addTransaction = (transaction: Transaction, expirationSlot: Slot) =>
         for {
-          expirationTask <-
-            //
-            Async[F].delay(clock.delayedUntilSlot(expirationSlot) >> state.update(_ - transaction.id))
+          expirationTask  <- Async[F].delay(clock.delayedUntilSlot(expirationSlot) >> state.update(_ - transaction.id))
           expirationFiber <- Spawn[F].start(expirationTask)
           entry = MempoolEntry(expirationFiber, transaction.inputs.map(_.boxId).toList.toSet)
           _ <- state.update(_.updated(transaction.id, entry))
@@ -92,6 +90,7 @@ object Mempool {
       def read(blockId: TypedIdentifier): F[Set[TypedIdentifier]] =
         eventSourcedState.stateAt(blockId).flatMap(_.get).map(_.keySet)
 
+      // TODO: Check for double-spends along current canonical chain?
       def add(transactionId: TypedIdentifier): F[Unit] =
         fetchTransaction(transactionId).flatMap(addTransactionWithDefaultDelay)
 

@@ -253,7 +253,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
   private def curveAttestation: ToDionTxResult[ListMap[PublicKeyPropositionCurve25519, SignatureCurve25519]] =
     transaction.inputs
       .traverse[ToDionTxResult, (PublicKeyPropositionCurve25519, SignatureCurve25519)] {
-        case Transaction.Input(_, _, prop: Propositions.Knowledge.Curve25519, proof: Proofs.Knowledge.Curve25519, _) =>
+        case Transaction.Input(_, prop: Propositions.Knowledge.Curve25519, proof: Proofs.Knowledge.Curve25519, _) =>
           (
             PublicKeyPropositionCurve25519(PublicKey(prop.key.bytes.data.toArray)),
             SignatureCurve25519(Signature(proof.bytes.data.toArray))
@@ -270,7 +270,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
   private def edAttestation: Either[ToDionTxFailure, ListMap[PublicKeyPropositionEd25519, SignatureEd25519]] =
     transaction.inputs
       .traverse[ToDionTxResult, (PublicKeyPropositionEd25519, SignatureEd25519)] {
-        case Transaction.Input(_, _, prop: Propositions.Knowledge.Ed25519, proof: Proofs.Knowledge.Ed25519, _) =>
+        case Transaction.Input(_, prop: Propositions.Knowledge.Ed25519, proof: Proofs.Knowledge.Ed25519, _) =>
           (
             PublicKeyPropositionEd25519(PublicKey(prop.key.bytes.data.toArray)),
             SignatureEd25519(Signature(proof.bytes.data.toArray))
@@ -289,7 +289,6 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
     transaction.inputs
       .traverse[ToDionTxResult, (ThresholdPropositionCurve25519, ThresholdSignatureCurve25519)] {
         case Transaction.Input(
-              _,
               _,
               prop: Propositions.Compositional.Threshold,
               proof: Proofs.Compositional.Threshold,

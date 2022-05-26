@@ -112,7 +112,7 @@ object TetraDemo extends IOApp {
   implicit private val logger: Logger[F] = Slf4jLogger.getLogger[F]
 
   private def makeClock(args: DemoArgs): ClockAlgebra[F] =
-    AkkaSchedulerClock.Eval.make(SlotDuration, EpochLength, args.genesisTimestamp)
+    SchedulerClock.Eval.make(SlotDuration, EpochLength, args.genesisTimestamp)
 
   implicit private val timeout: Timeout = Timeout(20.seconds)
 
