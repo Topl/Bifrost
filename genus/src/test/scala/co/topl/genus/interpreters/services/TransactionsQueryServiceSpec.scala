@@ -32,44 +32,15 @@ class TransactionsQueryServiceSpec
 
   behavior of "Transactions Query Service"
 
-  it should "not return transactions with heights that are above the confirmation depth" in {
-    val confirmationDepth = 8
-    val currentChainHeight = 100
-
-    val dataStore = MockMongoStore.withTransactions[IO](List(createTransactionWithHeight(100)))
-    implicit val chainHeight: ChainHeight[IO] = MockChainHeight.withHeight[IO](BlockHeight(currentChainHeight))
-
-    val underTest = TransactionsQueryService.make[IO](dataStore)
-
-    val result =
-      underTest
-        .query(queryRequestWithConfirmationDepth(confirmationDepth))
-        .materializeToList
-
-    result.value
-      .map(values => values shouldBe Right(List.empty[Transaction]))
-      .unsafeToFuture()
-  }
-
-  it should "return all transactions mongo provides when confirmation depth is 0" in {
-    val confirmationDepth = 0
-    val currentChainHeight = 100
-
-    val transactions =
-      List(
-        createTransactionWithHeight(85),
-        createTransactionWithHeight(44)
-      )
+  it should "return all transactions that mongo provides" in {
+    val transactions = List(testTransactionModel, testTransactionModel)
 
     val dataStore = MockMongoStore.withTransactions[IO](transactions)
-    implicit val chainHeight: ChainHeight[IO] = MockChainHeight.withHeight[IO](BlockHeight(currentChainHeight))
+    implicit val chainHeight: ChainHeight[IO] = MockChainHeight.default[IO]
 
     val underTest = TransactionsQueryService.make[IO](dataStore)
 
-    val result =
-      underTest
-        .query(queryRequestWithConfirmationDepth(confirmationDepth))
-        .materializeToList
+    val result = underTest.query(defaultQueryRequest).materializeToList
 
     result.value
       .map(values => values shouldBe Right(transactions.map(_.transformTo[Transaction])))
@@ -77,22 +48,19 @@ class TransactionsQueryServiceSpec
   }
 
   it should "not return documents that fail to convert into transactions" in {
-    val confirmationDepth = 0
-    val currentChainHeight = 100
-
-    val transaction = createTransactionWithHeight(55)
+    val transaction = testTransactionModel
 
     val validTransactionDocuments = List(transaction.asDocument)
     val invalidTransactionDocuments = List(Document("{ \"invalid\": \"test\" }"))
 
     val dataStore = MockMongoStore.withDocuments[IO](validTransactionDocuments ++ invalidTransactionDocuments)
-    implicit val chainHeight: ChainHeight[IO] = MockChainHeight.withHeight[IO](BlockHeight(currentChainHeight))
+    implicit val chainHeight: ChainHeight[IO] = MockChainHeight.default[IO]
 
     val underTest = TransactionsQueryService.make[IO](dataStore)
 
     val result =
       underTest
-        .query(queryRequestWithConfirmationDepth(confirmationDepth))
+        .query(defaultQueryRequest)
         .materializeToList
 
     result.value
@@ -103,9 +71,9 @@ class TransactionsQueryServiceSpec
 
 object TransactionsQueryServiceSpec {
 
-  def createTransactionWithHeight(height: Long): ConfirmedTransactionDataModel =
+  val testTransactionModel: ConfirmedTransactionDataModel =
     ConfirmedTransactionDataModel(
-      BlockSummaryDataModel("test-id", height),
+      BlockSummaryDataModel("test-id", 10),
       "PolyTransfer",
       "100000",
       ListMap.empty,
@@ -120,11 +88,6 @@ object TransactionsQueryServiceSpec {
       "PublicKeyCurve25519"
     )
 
-  def queryRequestWithConfirmationDepth(depth: Int): QueryRequest[TransactionFilter, TransactionSorting] =
-    QueryRequest(
-      TransactionFilter.defaultInstance,
-      TransactionSorting.defaultInstance,
-      None,
-      depth
-    )
+  val defaultQueryRequest: QueryRequest[TransactionFilter, TransactionSorting] =
+    QueryRequest(TransactionFilter.defaultInstance, TransactionSorting.defaultInstance, None, 0)
 }

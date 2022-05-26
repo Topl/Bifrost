@@ -10,7 +10,7 @@ import co.topl.genus.interpreters.{MockChainHeight, MockMongoStore}
 import co.topl.genus.ops.EitherTSourceOps.implicits._
 import co.topl.genus.services.blocks_query.BlockSorting
 import co.topl.genus.typeclasses.implicits._
-import co.topl.genus.types.{Block, BlockHeight}
+import co.topl.genus.types.Block
 import co.topl.utils.mongodb.codecs._
 import co.topl.utils.mongodb.implicits._
 import co.topl.utils.mongodb.models._
@@ -31,44 +31,15 @@ class BlocksQueryServiceSpec
 
   behavior of "Blocks Query Service"
 
-  it should "not return blocks with heights that are above the confirmation depth" in {
-    val confirmationDepth = 8
-    val currentChainHeight = 100
-
-    val dataStore = MockMongoStore.withBlocks[IO](List(createBlockWithHeight(100)))
-    implicit val chainHeight: ChainHeight[IO] = MockChainHeight.withHeight[IO](BlockHeight(currentChainHeight))
-
-    val underTest = BlocksQueryService.make[IO](dataStore)
-
-    val result =
-      underTest
-        .query(queryRequestWithConfirmationDepth(confirmationDepth))
-        .materializeToList
-
-    result.value
-      .map(values => values shouldBe Right(List.empty[Block]))
-      .unsafeToFuture()
-  }
-
-  it should "return all blocks mongo provides when confirmation depth is 0" in {
-    val confirmationDepth = 0
-    val currentChainHeight = 100
-
-    val blocks =
-      List(
-        createBlockWithHeight(33),
-        createBlockWithHeight(66)
-      )
+  it should "return all blocks that mongo provides" in {
+    val blocks = List(testBlockModel, testBlockModel)
 
     val dataStore = MockMongoStore.withBlocks[IO](blocks)
-    implicit val chainHeight: ChainHeight[IO] = MockChainHeight.withHeight[IO](BlockHeight(currentChainHeight))
+    implicit val chainHeight: ChainHeight[IO] = MockChainHeight.default[IO]
 
     val underTest = BlocksQueryService.make[IO](dataStore)
 
-    val result =
-      underTest
-        .query(queryRequestWithConfirmationDepth(confirmationDepth))
-        .materializeToList
+    val result = underTest.query(defaultQueryRequest).materializeToList
 
     result.value
       .map(values => values shouldBe Right(blocks.map(_.transformTo[Block])))
@@ -76,22 +47,19 @@ class BlocksQueryServiceSpec
   }
 
   it should "not return documents that fail to convert into blocks" in {
-    val confirmationDepth = 0
-    val currentChainHeight = 100
-
-    val block = createBlockWithHeight(77)
+    val block = testBlockModel
 
     val validBlockDocuments = List(block.asDocument)
     val invalidBlockDocuments = List(Document("{ \"invalid\": \"test\" }"))
 
     val dataStore = MockMongoStore.withDocuments[IO](validBlockDocuments ++ invalidBlockDocuments)
-    implicit val chainHeight: ChainHeight[IO] = MockChainHeight.withHeight[IO](BlockHeight(currentChainHeight))
+    implicit val chainHeight: ChainHeight[IO] = MockChainHeight.default[IO]
 
     val underTest = BlocksQueryService.make[IO](dataStore)
 
     val result =
       underTest
-        .query(queryRequestWithConfirmationDepth(confirmationDepth))
+        .query(defaultQueryRequest)
         .materializeToList
 
     result.value
@@ -102,7 +70,7 @@ class BlocksQueryServiceSpec
 
 object BlocksQueryServiceSpec {
 
-  def createBlockWithHeight(height: Long): BlockDataModel =
+  def testBlockModel: BlockDataModel =
     BlockDataModel(
       "test-block-id",
       "test-block-parent-id",
@@ -110,7 +78,7 @@ object BlocksQueryServiceSpec {
       TokenBoxDataModel("test-type", "test-id", "1888", "test-evidence", SimpleValueDataModel("9999")),
       "test-public-key",
       "test-signature",
-      height,
+      0,
       "test-difficulty",
       "test-tx-root",
       "test-bloom-filter",
@@ -120,11 +88,11 @@ object BlocksQueryServiceSpec {
       "test-fees"
     )
 
-  def queryRequestWithConfirmationDepth(depth: Int): QueryRequest[BlockFilter, BlockSorting] =
-    QueryRequest(
+  val defaultQueryRequest: QueryRequest[BlockFilter, BlockSorting] =
+    QueryRequest[BlockFilter, BlockSorting](
       BlockFilter.defaultInstance,
       BlockSorting.defaultInstance,
       None,
-      depth
+      0
     )
 }
