@@ -259,6 +259,9 @@ object Dependencies {
       Dependencies.akka("stream-testkit") % Test
     ) ++ fleam
 
+  lazy val ledger: Seq[ModuleID] =
+    Dependencies.test ++ Dependencies.catsEffect
+
   lazy val demo: Seq[ModuleID] =
     Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++ logging
 

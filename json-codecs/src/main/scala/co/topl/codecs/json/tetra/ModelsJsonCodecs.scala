@@ -318,13 +318,13 @@ trait ModelsJsonCodecs {
     _ => Json.Null
 
   implicit val polyBoxValueEncoder: Encoder[Box.Values.Poly] =
-    t => Json.obj("value" -> t.value.asJson)
+    t => Json.obj("value" -> t.quantity.asJson)
 
   implicit val polyBoxValueDecoder: Decoder[Box.Values.Poly] =
     hcursor => hcursor.downField("value").as[Int128].map(Box.Values.Poly)
 
   implicit val arbitBoxValueEncoder: Encoder[Box.Values.Arbit] =
-    t => Json.obj("value" -> t.value.asJson)
+    t => Json.obj("value" -> t.quantity.asJson)
 
   implicit val arbitBoxValueDecoder: Decoder[Box.Values.Arbit] =
     hcursor => hcursor.downField("value").as[Int128].map(Box.Values.Arbit)
@@ -376,7 +376,7 @@ trait ModelsJsonCodecs {
       case _: Box.Values.Poly                   => "Poly"
       case _: Box.Values.Arbit                  => "Arbit"
       case _: Box.Values.Asset                  => "Asset"
-      case _: Box.Values.Registrations.Operator => "Registration.Pool"
+      case _: Box.Values.Registrations.Operator => "Registration.Operator"
     }
 
   implicit val boxValueEncoder: Encoder[Box.Value] = {
@@ -416,10 +416,10 @@ trait ModelsJsonCodecs {
         valueType              <- hcursor.downField("valueType").as[String]
         valueJson = hcursor.downField("value")
         value <- valueType match {
-          case "Poly"              => valueJson.as[Box.Values.Poly]
-          case "Arbit"             => valueJson.as[Box.Values.Arbit]
-          case "Asset"             => valueJson.as[Box.Values.Asset]
-          case "Registration.Pool" => valueJson.as[Box.Values.Registrations.Operator]
+          case "Poly"                  => valueJson.as[Box.Values.Poly]
+          case "Arbit"                 => valueJson.as[Box.Values.Arbit]
+          case "Asset"                 => valueJson.as[Box.Values.Asset]
+          case "Registration.Operator" => valueJson.as[Box.Values.Registrations.Operator]
         }
       } yield Transaction.Input(transactionId, transactionOutputIndex, proposition, proof, value)
 

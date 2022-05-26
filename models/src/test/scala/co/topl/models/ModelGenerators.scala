@@ -345,23 +345,29 @@ trait ModelGenerators {
       for {
         quantity <- arbitraryPositiveInt128.arbitrary
         code     <- arbitraryAssetCode.arbitrary
-        root     <- genSizedStrictBytes[Lengths.`32`.type]().map(_.data)
+        root     <- genSizedStrictBytes[Lengths.`32`.type]()
         metadata <-
           Gen.option(
             latin1DataGen
               .map(data => Latin1Data.unsafe(data.value.take(127)))
               .map(data => Sized.maxUnsafe[Latin1Data, Lengths.`127`.type](data))
           )
-        box = Box.Values.Asset(quantity, code, root, None)
+        box = Box.Values.Asset(quantity, code, root, metadata)
       } yield box
     )
+
+  implicit val arbitraryPolyBox: Arbitrary[Box.Values.Poly] =
+    Arbitrary(arbitraryPositiveInt128.arbitrary.map(Box.Values.Poly))
+
+  implicit val arbitraryArbitBox: Arbitrary[Box.Values.Arbit] =
+    Arbitrary(arbitraryPositiveInt128.arbitrary.map(Box.Values.Arbit))
 
   implicit val arbitraryBoxValue: Arbitrary[Box.Value] =
     Arbitrary(
       Gen.oneOf(
         Gen.const(Box.Values.Empty),
-        arbitraryPositiveInt128.arbitrary.map(Box.Values.Poly),
-        arbitraryPositiveInt128.arbitrary.map(Box.Values.Arbit),
+        arbitraryPolyBox.arbitrary,
+        arbitraryArbitBox.arbitrary,
         arbitraryAssetBox.arbitrary
       )
     )
@@ -379,7 +385,7 @@ trait ModelGenerators {
       for {
         address <- arbitraryFullAddress.arbitrary
         value   <- arbitraryBoxValue.arbitrary
-        minting <- Gen.prob(0.5)
+        minting <- Gen.prob(0.05)
       } yield Transaction.Output(address, value, minting)
     )
 

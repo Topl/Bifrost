@@ -2,6 +2,8 @@ package co.topl.modifier.transaction.builder
 
 import cats.implicits._
 import co.topl.attestation.{Address, EvidenceProducer, Proposition}
+import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.Sized
 import co.topl.models.{Box => TetraBox, Bytes, FullAddress, Transaction}
 import co.topl.modifier.box._
 import co.topl.modifier.implicits._
@@ -386,7 +388,7 @@ object TransferBuilder {
           .map(assetCode =>
             Transaction.Output(
               consolidationAddress,
-              TetraBox.Values.Asset(asset._2.toSized, assetCode, Bytes.empty, None),
+              TetraBox.Values.Asset(asset._2.toSized, assetCode, Sized.strictUnsafe(Bytes.fill(32)(0: Byte)), None),
               minting
             )
           )

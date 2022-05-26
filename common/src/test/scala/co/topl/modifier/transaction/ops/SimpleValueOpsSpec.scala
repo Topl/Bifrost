@@ -28,7 +28,7 @@ class SimpleValueOpsSpec
           val Transaction.Output(_, polyValue: TetraBox.Values.Poly, _) =
             simpleValue.toPolyOutput(address).value
 
-          polyValue.value.data shouldBe BigInt(simpleValue.quantity.toByteArray)
+          polyValue.quantity.data shouldBe BigInt(simpleValue.quantity.toByteArray)
         }
       }
 
@@ -53,7 +53,7 @@ class SimpleValueOpsSpec
 
           val arbitValue = v.asInstanceOf[TetraBox.Values.Arbit]
 
-          arbitValue.value.data shouldBe BigInt(simpleValue.quantity.toByteArray)
+          arbitValue.quantity.data shouldBe BigInt(simpleValue.quantity.toByteArray)
         }
       }
 

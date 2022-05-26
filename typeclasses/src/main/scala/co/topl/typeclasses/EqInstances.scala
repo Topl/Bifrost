@@ -5,6 +5,7 @@ import cats.implicits._
 import co.topl.crypto.mnemonic.Entropy
 import co.topl.models._
 import co.topl.models.utility.Sized
+import co.topl.models.utility.StringDataTypes.Latin1Data
 
 trait EqInstances {
 
@@ -22,6 +23,15 @@ trait EqInstances {
 
   implicit def sizedStrictEq[T: Eq, L]: Eq[Sized.Strict[T, L]] =
     (a, b) => a.data === b.data
+
+  implicit val latin1DataEq: Eq[Latin1Data] =
+    (a, b) => a.value === b.value
+
+  implicit val typedEvidenceEq: Eq[TypedEvidence] =
+    (a, b) => a.typePrefix === b.typePrefix && a.evidence === b.evidence
+
+  implicit val spendingAddressEq: Eq[SpendingAddress] =
+    (a, b) => a.typedEvidence === b.typedEvidence
 
   implicit val blockV2Eq: Eq[BlockV2] =
     Eq.fromUniversalEquals
@@ -51,4 +61,10 @@ trait EqInstances {
       a.rho === b.rho &&
       a.eta === b.eta &&
       a.height === b.height
+
+  implicit val assetCodeEq: Eq[Box.Values.Asset.Code] =
+    (a, b) =>
+      a.version === b.version &&
+      a.issuer === b.issuer &&
+      a.shortName === b.shortName
 }
