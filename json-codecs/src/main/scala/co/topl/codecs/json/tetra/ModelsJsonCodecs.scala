@@ -395,25 +395,37 @@ trait ModelsJsonCodecs {
         "value"     -> t.value.asJson
       )
 
+  implicit val encodeBoxId: Encoder[Box.Id] =
+    t =>
+      Json.obj(
+        "transactionId"          -> t.transactionId.asJson,
+        "transactionOutputIndex" -> t.transactionOutputIndex.asJson
+      )
+
   implicit val encodeTransactionInput: Encoder[Transaction.Input] =
     input =>
       Json.obj(
-        "transactionId"          -> input.transactionId.asJson,
-        "transactionOutputIndex" -> input.transactionOutputIndex.asJson,
-        "proposition"            -> input.proposition.asJson,
-        "proof"                  -> input.proof.asJson,
-        "valueType"              -> boxValueTypeName(input.value).asJson,
-        "value"                  -> input.value.asJson
+        "boxId"       -> input.boxId.asJson,
+        "proposition" -> input.proposition.asJson,
+        "proof"       -> input.proof.asJson,
+        "valueType"   -> boxValueTypeName(input.value).asJson,
+        "value"       -> input.value.asJson
       )
 
-  implicit val decodeTransactionInput: Decoder[Transaction.Input] =
+  implicit val decodeBoxId: Decoder[Box.Id] =
     hcursor =>
       for {
         transactionId          <- hcursor.downField("transactionId").as[TypedIdentifier]
         transactionOutputIndex <- hcursor.downField("transactionOutputIndex").as[Short]
-        proposition            <- hcursor.downField("proposition").as[Proposition]
-        proof                  <- hcursor.downField("proof").as[Proof]
-        valueType              <- hcursor.downField("valueType").as[String]
+      } yield Box.Id(transactionId, transactionOutputIndex)
+
+  implicit val decodeTransactionInput: Decoder[Transaction.Input] =
+    hcursor =>
+      for {
+        boxId       <- hcursor.downField("boxId").as[Box.Id]
+        proposition <- hcursor.downField("proposition").as[Proposition]
+        proof       <- hcursor.downField("proof").as[Proof]
+        valueType   <- hcursor.downField("valueType").as[String]
         valueJson = hcursor.downField("value")
         value <- valueType match {
           case "Poly"                  => valueJson.as[Box.Values.Poly]
@@ -421,25 +433,23 @@ trait ModelsJsonCodecs {
           case "Asset"                 => valueJson.as[Box.Values.Asset]
           case "Registration.Operator" => valueJson.as[Box.Values.Registrations.Operator]
         }
-      } yield Transaction.Input(transactionId, transactionOutputIndex, proposition, proof, value)
+      } yield Transaction.Input(boxId, proposition, proof, value)
 
   implicit val encodeTransactionUnprovenInput: Encoder[Transaction.Unproven.Input] =
     input =>
       Json.obj(
-        "transactionId"          -> input.transactionId.asJson,
-        "transactionOutputIndex" -> input.transactionOutputIndex.asJson,
-        "proposition"            -> input.proposition.asJson,
-        "valueType"              -> boxValueTypeName(input.value).asJson,
-        "value"                  -> input.value.asJson
+        "boxId"       -> input.boxId.asJson,
+        "proposition" -> input.proposition.asJson,
+        "valueType"   -> boxValueTypeName(input.value).asJson,
+        "value"       -> input.value.asJson
       )
 
   implicit val decodeTransactionUnprovenInput: Decoder[Transaction.Unproven.Input] =
     hcursor =>
       for {
-        transactionId          <- hcursor.downField("transactionId").as[TypedIdentifier]
-        transactionOutputIndex <- hcursor.downField("transactionOutputIndex").as[Short]
-        proposition            <- hcursor.downField("proposition").as[Proposition]
-        valueType              <- hcursor.downField("valueType").as[String]
+        boxId       <- hcursor.downField("boxId").as[Box.Id]
+        proposition <- hcursor.downField("proposition").as[Proposition]
+        valueType   <- hcursor.downField("valueType").as[String]
         valueJson = hcursor.downField("value")
         value <- valueType match {
           case "Poly"              => valueJson.as[Box.Values.Poly]
@@ -447,7 +457,7 @@ trait ModelsJsonCodecs {
           case "Asset"             => valueJson.as[Box.Values.Asset]
           case "Registration.Pool" => valueJson.as[Box.Values.Registrations.Operator]
         }
-      } yield Transaction.Unproven.Input(transactionId, transactionOutputIndex, proposition, value)
+      } yield Transaction.Unproven.Input(boxId, proposition, value)
 
   implicit val encodeTransactionOutput: Encoder[Transaction.Output] =
     o =>

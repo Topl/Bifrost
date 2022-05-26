@@ -577,25 +577,31 @@ trait ModelGenerators {
       )
     )
 
-  implicit val arbitraryTransactionInput: Arbitrary[Transaction.Input] =
+  implicit val arbitraryBoxId: Arbitrary[Box.Id] =
     Arbitrary(
       for {
         transactionId          <- arbitraryTypedIdentifier.arbitrary
         transactionOutputIndex <- Gen.posNum[Short]
-        proposition            <- arbitraryProposition.arbitrary
-        proof                  <- arbitraryProof.arbitrary
-        value                  <- arbitraryBoxValue.arbitrary
-      } yield Transaction.Input(transactionId, transactionOutputIndex, proposition, proof, value)
+      } yield Box.Id(transactionId, transactionOutputIndex)
+    )
+
+  implicit val arbitraryTransactionInput: Arbitrary[Transaction.Input] =
+    Arbitrary(
+      for {
+        boxId       <- arbitraryBoxId.arbitrary
+        proposition <- arbitraryProposition.arbitrary
+        proof       <- arbitraryProof.arbitrary
+        value       <- arbitraryBoxValue.arbitrary
+      } yield Transaction.Input(boxId, proposition, proof, value)
     )
 
   implicit val arbitraryTransactionUnprovenInput: Arbitrary[Transaction.Unproven.Input] =
     Arbitrary(
       for {
-        transactionId          <- arbitraryTypedIdentifier.arbitrary
-        transactionOutputIndex <- Gen.posNum[Short]
-        proposition            <- arbitraryProposition.arbitrary
-        value                  <- arbitraryBoxValue.arbitrary
-      } yield Transaction.Unproven.Input(transactionId, transactionOutputIndex, proposition, value)
+        boxId       <- arbitraryBoxId.arbitrary
+        proposition <- arbitraryProposition.arbitrary
+        value       <- arbitraryBoxValue.arbitrary
+      } yield Transaction.Unproven.Input(boxId, proposition, value)
     )
 
   implicit val arbitraryTransactionChronology: Arbitrary[Transaction.Chronology] =
@@ -610,12 +616,22 @@ trait ModelGenerators {
   implicit val arbitraryUnprovenTransaction: Arbitrary[Transaction.Unproven] =
     Arbitrary(
       for {
-        inputs <- Gen
-          .listOf(arbitraryTransactionUnprovenInput.arbitrary)
-          .map(Chain.fromSeq)
-        outputs <- Gen
-          .nonEmptyListOf(arbitraryTransactionOutput.arbitrary)
-          .map(Chain.fromSeq)
+        inputs <-
+          Gen
+            .chooseNum[Int](1, 10)
+            .flatMap(count =>
+              Gen
+                .listOfN(count, arbitraryTransactionUnprovenInput.arbitrary)
+                .map(Chain.fromSeq)
+            )
+        outputs <-
+          Gen
+            .chooseNum[Int](1, 10)
+            .flatMap(count =>
+              Gen
+                .listOfN(count, arbitraryTransactionOutput.arbitrary)
+                .map(Chain.fromSeq)
+            )
         chronology <- arbitraryTransactionChronology.arbitrary
         data = None
       } yield Transaction.Unproven(inputs, outputs, chronology, data)
@@ -624,12 +640,22 @@ trait ModelGenerators {
   implicit val arbitraryTransaction: Arbitrary[Transaction] =
     Arbitrary(
       for {
-        inputs <- Gen
-          .listOf(arbitraryTransactionInput.arbitrary)
-          .map(Chain.fromSeq)
-        outputs <- Gen
-          .nonEmptyListOf(arbitraryTransactionOutput.arbitrary)
-          .map(Chain.fromSeq)
+        inputs <-
+          Gen
+            .chooseNum[Int](1, 10)
+            .flatMap(count =>
+              Gen
+                .listOfN(count, arbitraryTransactionInput.arbitrary)
+                .map(Chain.fromSeq)
+            )
+        outputs <-
+          Gen
+            .chooseNum[Int](1, 10)
+            .flatMap(count =>
+              Gen
+                .listOfN(count, arbitraryTransactionOutput.arbitrary)
+                .map(Chain.fromSeq)
+            )
         chronology <- arbitraryTransactionChronology.arbitrary
         data = None
       } yield Transaction(inputs, outputs, chronology, data)

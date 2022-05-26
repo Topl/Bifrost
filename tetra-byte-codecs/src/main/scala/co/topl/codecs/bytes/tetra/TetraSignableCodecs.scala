@@ -40,9 +40,7 @@ trait TetraSignableCodecs {
     t =>
       Transaction
         .Unproven(
-          t.inputs.map(i =>
-            Transaction.Unproven.Input(i.transactionId, i.transactionOutputIndex, i.proposition, i.value)
-          ),
+          t.inputs.map(i => Transaction.Unproven.Input(i.boxId, i.proposition, i.value)),
           t.outputs,
           t.chronology,
           t.data

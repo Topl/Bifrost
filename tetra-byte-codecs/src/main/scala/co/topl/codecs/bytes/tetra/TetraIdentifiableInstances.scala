@@ -29,9 +29,7 @@ trait TetraIdentifiableInstances {
       val bytes =
         Transaction
           .Unproven(
-            transaction.inputs.map(i =>
-              Transaction.Unproven.Input(i.transactionId, i.transactionOutputIndex, i.proposition, i.value)
-            ),
+            transaction.inputs.map(i => Transaction.Unproven.Input(i.boxId, i.proposition, i.value)),
             transaction.outputs,
             transaction.chronology,
             transaction.data

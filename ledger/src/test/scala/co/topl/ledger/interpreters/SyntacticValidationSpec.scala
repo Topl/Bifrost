@@ -164,7 +164,7 @@ class SyntacticValidationSpec extends AnyFlatSpec with Matchers with ScalaCheckP
         .unsafeRunSync()
 
       val polyInSum =
-        transaction.inputs.collect { case Transaction.Input(_, _, _, _, Box.Values.Poly(quantity)) =>
+        transaction.inputs.collect { case Transaction.Input(_, _, _, Box.Values.Poly(quantity)) =>
           quantity.data
         }.sumAll
       val polyOutSum =
@@ -179,7 +179,7 @@ class SyntacticValidationSpec extends AnyFlatSpec with Matchers with ScalaCheckP
       }
 
       val arbitInSum =
-        transaction.inputs.collect { case Transaction.Input(_, _, _, _, Box.Values.Arbit(quantity)) =>
+        transaction.inputs.collect { case Transaction.Input(_, _, _, Box.Values.Arbit(quantity)) =>
           quantity.data
         }.sumAll
       val arbitOutSum =
@@ -194,7 +194,7 @@ class SyntacticValidationSpec extends AnyFlatSpec with Matchers with ScalaCheckP
       }
 
       val assetInSum =
-        transaction.inputs.collect { case Transaction.Input(_, _, _, _, v: Box.Values.Asset) =>
+        transaction.inputs.collect { case Transaction.Input(_, _, _, v: Box.Values.Asset) =>
           v.quantity.data
         }.sumAll
       val assetOutSum =
