@@ -30,6 +30,8 @@ class ProofVerifierSpec
 
   import ProofVerifierSpec._
 
+  implicit val privateTestNetPrefix: NetworkPrefix = NetworkPrefix(64)
+
   "publicKeyCurve25519Verifier" should "verify a proof" in {
     forAll { (sk: SecretKeys.Curve25519, unprovenTransaction: Transaction.Unproven) =>
       val proof = Curve25519.instance.sign(sk, unprovenTransaction.signableBytes)

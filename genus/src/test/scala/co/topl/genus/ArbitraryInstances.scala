@@ -1,12 +1,16 @@
 package co.topl.genus
 
 import co.topl.genus.filters._
+import co.topl.genus.types.BlockHeight
 import co.topl.utils.mongodb.models._
 import org.scalacheck.{Arbitrary, Gen}
 
 import scala.collection.immutable.ListMap
 
 trait ArbitraryInstances {
+
+  implicit val blockHeightArbitrary: Arbitrary[BlockHeight] =
+    Arbitrary(Gen.posNum[Long].map(value => BlockHeight(value)))
 
   implicit val stringSelectionArbitrary: Arbitrary[StringSelection] =
     Arbitrary(Gen.listOf(Gen.asciiStr).map(StringSelection.of))
