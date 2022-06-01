@@ -265,6 +265,7 @@ object TetraDemo extends IOApp {
         transactionStore.getOrRaise,
         blockIdTree,
         clock,
+        id => Logger[F].info(show"Expiring transaction id=$id"),
         Long.MaxValue,
         1000L
       )

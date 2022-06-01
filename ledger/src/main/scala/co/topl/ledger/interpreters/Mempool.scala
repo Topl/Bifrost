@@ -1,7 +1,7 @@
 package co.topl.ledger.interpreters
 
 import cats.effect.kernel.Spawn
-import cats.effect.{Async, Fiber, Ref}
+import cats.effect.{Async, Fiber, Ref, Sync}
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.codecs.bytes.tetra.instances._
@@ -28,6 +28,7 @@ object Mempool {
     fetchTransaction:             TypedIdentifier => F[Transaction],
     parentChildTree:              ParentChildTree[F, TypedIdentifier],
     clock:                        ClockAlgebra[F],
+    onExpiration:                 TypedIdentifier => F[Unit],
     defaultExpirationLimit:       Long,
     duplicateSpenderSlotLifetime: Long
   ): F[MempoolAlgebra[F]] =
@@ -36,7 +37,14 @@ object Mempool {
       // A function which inserts a transaction into the mempool and schedules its expiration using a Fiber
       addTransaction = (transaction: Transaction, expirationSlot: Slot) =>
         for {
-          expirationTask  <- Async[F].delay(clock.delayedUntilSlot(expirationSlot) >> state.update(_ - transaction.id))
+          expirationTask <- Async[F].delay(
+            clock.delayedUntilSlot(expirationSlot) >> Sync[F].defer(
+              (
+                state.update(_ - transaction.id),
+                onExpiration(transaction.id)
+              ).tupled
+            )
+          )
           expirationFiber <- Spawn[F].start(expirationTask)
           entry = MempoolEntry(expirationFiber, transaction.inputs.map(_.boxId).toList.toSet)
           _ <- state.update(_.updated(transaction.id, entry))

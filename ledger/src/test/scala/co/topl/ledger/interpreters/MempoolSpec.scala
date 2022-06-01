@@ -1,6 +1,6 @@
 package co.topl.ledger.interpreters
 
-import cats.MonadThrow
+import cats.{Applicative, MonadThrow}
 import cats.data.{Chain, NonEmptyChain}
 import cats.effect.unsafe.implicits.global
 import cats.effect.{Deferred, IO, MonadCancel}
@@ -67,6 +67,7 @@ class MempoolSpec
             fetchTransaction,
             tree,
             clock,
+            _ => Applicative[F].unit,
             Long.MaxValue,
             Long.MaxValue
           )
@@ -108,6 +109,7 @@ class MempoolSpec
             fetchTransaction,
             mock[ParentChildTree[F, TypedIdentifier]],
             clock,
+            _ => Applicative[F].unit,
             Long.MaxValue,
             Long.MaxValue
           )
@@ -146,6 +148,7 @@ class MempoolSpec
             fetchTransaction,
             mock[ParentChildTree[F, TypedIdentifier]],
             clock,
+            _ => Applicative[F].unit,
             Long.MaxValue,
             Long.MaxValue
           )
@@ -188,6 +191,7 @@ class MempoolSpec
             fetchTransaction,
             mock[ParentChildTree[F, TypedIdentifier]],
             clock,
+            _ => Applicative[F].unit,
             100L,
             Long.MaxValue
           )
@@ -246,6 +250,7 @@ class MempoolSpec
               fetchTransaction,
               tree,
               clock,
+              _ => Applicative[F].unit,
               Long.MaxValue,
               1L
             )
