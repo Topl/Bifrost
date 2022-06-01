@@ -42,7 +42,7 @@ object Mempool {
           _ <- state.update(_.updated(transaction.id, entry))
         } yield ()
       // A function which inserts a transaction into the mempool using the limit specified in the transaction
-      addTransactionWithDefaultDelay = (transaction: Transaction) =>
+      addTransactionWithDefaultExpiration = (transaction: Transaction) =>
         for {
           currentSlot <- clock.globalSlot
           targetSlot = transaction.chronology.maximumSlot.min(currentSlot + defaultExpirationLimit)
@@ -76,7 +76,7 @@ object Mempool {
         } yield state
       unapplyBlock = (state: State[F], blockId: TypedIdentifier) =>
         fetchBlockBody(blockId)
-          .flatMap(_.traverse(fetchTransaction(_).flatMap(addTransactionWithDefaultDelay)))
+          .flatMap(_.traverse(fetchTransaction(_).flatMap(addTransactionWithDefaultExpiration)))
           .as(state)
       eventSourcedState <- EventSourcedState.OfTree.make[F, State[F]](
         state.pure[F],
@@ -92,7 +92,7 @@ object Mempool {
 
       // TODO: Check for double-spends along current canonical chain?
       def add(transactionId: TypedIdentifier): F[Unit] =
-        fetchTransaction(transactionId).flatMap(addTransactionWithDefaultDelay)
+        fetchTransaction(transactionId).flatMap(addTransactionWithDefaultExpiration)
 
       def remove(transactionId: TypedIdentifier): F[Unit] =
         state.update(_ - transactionId)

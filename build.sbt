@@ -464,7 +464,8 @@ lazy val minting = project
     tetraByteCodecs,
     algebras % "compile->compile;test->test",
     consensus,
-    catsAkka
+    catsAkka,
+    ledger
   )
 
 lazy val networking = project
