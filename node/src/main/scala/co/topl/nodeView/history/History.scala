@@ -187,7 +187,8 @@ class History(
         errors.toIterable.foreach(e =>
           log.warn(s"${Console.RED} Block id=${block.id} validation failure.${Console.RESET}", e)
         )
-        throw new Error(s"${Console.RED}Failed to append block ${block.id} to history.${Console.RESET}", errors.head)
+        log.error(s"${Console.RED}Failed to append block ${block.id} to history.${Console.RESET}", errors.head)
+        throw errors.head
     }
   }
 
