@@ -400,7 +400,7 @@ class TransactionTest
   }
 
   private def broadcastAndAwait(name: String, signedTx: Transaction.TX): Transaction.TX = {
-    logger.info(s"Broadcasting signed $name")
+    logger.info(s"Broadcasting signed $name id=${signedTx.id}")
     val broadcastedTx =
       node
         .run(ToplRpc.Transaction.BroadcastTx.rpc)(

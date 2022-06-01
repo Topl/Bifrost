@@ -1,5 +1,6 @@
 package co.topl.nodeView.history
 
+import cats.data.Validated
 import cats.implicits._
 import co.topl.consensus.BlockValidators._
 import co.topl.consensus.Hiccups.HiccupBlock
@@ -134,57 +135,59 @@ class History(
     val validationResults =
       if (!isHiccupBlock) {
         validators
-          .map(BlockValidation.handlers(block))
-          .map(_.isSuccess)
-      } else Seq(true) // skipping validation for genesis block and hiccup blocks
+          .traverse(BlockValidation.handlers(block)(_).toValidated.toValidatedNec)
+          .void
+      } else ().validNec // skipping validation for genesis block and hiccup blocks
 
-    // check if all block validation passed
-    if (validationResults.forall(_ == true)) {
-      val res: (History, ProgressInfo[Block]) =
-        if (isGenesis(block)) {
-          storage.update(block, isBest = true)
-          val progInfo = ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
+    validationResults match {
+      case Validated.Valid(_) =>
+        val res: (History, ProgressInfo[Block]) =
+          if (isGenesis(block)) {
+            storage.update(block, isBest = true)
+            val progInfo = ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
 
-          // construct result and return
-          (new History(storage, tineProcessor), progInfo)
+            // construct result and return
+            (new History(storage, tineProcessor), progInfo)
 
-        } else {
-          val progInfo: ProgressInfo[Block] =
-            // Check if the new block extends the last best block
-            if (block.parentId === storage.bestBlockId) {
-              log.debug(s"New best block ${block.id.show}")
+          } else {
+            val progInfo: ProgressInfo[Block] =
+              // Check if the new block extends the last best block
+              if (block.parentId === storage.bestBlockId) {
+                log.debug(s"New best block ${block.id.show}")
 
-              // update storage
-              storage.update(block, isBest = true)
-              ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
+                // update storage
+                storage.update(block, isBest = true)
+                ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
 
-              // if not, we'll check for a fork
-            } else {
-              // we want to check for a fork
-              val forkProgInfo =
-                tineProcessor.process(this, block, protocolVersioner.applicable(block.height).value.lookBackDepth)
+                // if not, we'll check for a fork
+              } else {
+                // we want to check for a fork
+                val forkProgInfo =
+                  tineProcessor.process(this, block, protocolVersioner.applicable(block.height).value.lookBackDepth)
 
-              // check if we need to update storage after checking for forks
-              if (forkProgInfo.branchPoint.nonEmpty) {
-                storage.rollback(forkProgInfo.branchPoint.get).getOrThrow()
+                // check if we need to update storage after checking for forks
+                forkProgInfo.branchPoint.foreach { branchPoint =>
+                  storage.rollback(branchPoint).getOrThrow()
+                  forkProgInfo.toApply.foreach(b => storage.update(b, isBest = true))
+                }
 
-                forkProgInfo.toApply.foreach(b => storage.update(b, isBest = true))
+                forkProgInfo
               }
 
-              forkProgInfo
-            }
+            // construct result and return
+            (new History(storage, tineProcessor), progInfo)
+          }
+        log.info(
+          s"${Console.CYAN} Block ${block.id} appended to parent ${block.parentId} at height ${block.height} with score ${storage
+              .scoreOf(block.id)}.${Console.RESET}"
+        )
+        res
 
-          // construct result and return
-          (new History(storage, tineProcessor), progInfo)
-        }
-      log.info(
-        s"${Console.CYAN} Block ${block.id} appended to parent ${block.parentId} at height ${block.height} with score ${storage
-            .scoreOf(block.id)}.${Console.RESET}"
-      )
-      res
-
-    } else {
-      throw new Error(s"${Console.RED}Failed to append block ${block.id} to history.${Console.RESET}")
+      case Validated.Invalid(errors) =>
+        errors.toIterable.foreach(e =>
+          log.warn(s"${Console.RED} Block id=${block.id} validation failure.${Console.RESET}", e)
+        )
+        throw new Error(s"${Console.RED}Failed to append block ${block.id} to history.${Console.RESET}", errors.head)
     }
   }
 
