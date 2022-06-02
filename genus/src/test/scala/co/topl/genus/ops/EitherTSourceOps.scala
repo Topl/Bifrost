@@ -33,7 +33,7 @@ object EitherTSourceOps {
 
   trait ToOps {
 
-    implicit def queryResultOpsFromValue[F[_], Left, T, Mat](
+    implicit def eitherTSourceOpsFromValue[F[_], Left, T, Mat](
       value: EitherT[F, Left, Source[T, Mat]]
     ): EitherTSourceOps[F, Left, T, Mat] =
       new EitherTSourceOps(value)
