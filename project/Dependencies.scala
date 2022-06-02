@@ -44,6 +44,9 @@ object Dependencies {
   def akka(name: String): ModuleID =
     "com.typesafe.akka" %% s"akka-$name" % akkaVersion
 
+  def akkaHttp(name: String): ModuleID =
+    "com.typesafe.akka" %% s"akka-$name" % akkaHttpVersion
+
   val allAkka = Seq(
     "com.typesafe.akka" %% "akka-actor"               % akkaVersion,
     "com.typesafe.akka" %% "akka-actor-typed"         % akkaVersion,
@@ -191,7 +194,7 @@ object Dependencies {
     graal
 
   lazy val brambl: Seq[ModuleID] =
-    test ++ scodec ++ simulacrum
+    test ++ scodec ++ simulacrum ++ Seq(akkaHttp("http2-support"))
 
   lazy val akkaHttpRpc: Seq[ModuleID] =
     Seq(
@@ -263,7 +266,7 @@ object Dependencies {
     Dependencies.test ++ Dependencies.catsEffect
 
   lazy val demo: Seq[ModuleID] =
-    Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++ logging
+    Seq(akka("actor"), akka("actor-typed"), akka("stream"), akkaHttp("http2-support")) ++ logging
 
   lazy val commonInterpreters =
     test ++
@@ -297,6 +300,16 @@ object Dependencies {
     allAkka ++
     circe ++
     mainargs
+
+  lazy val scalaPb =
+    "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
+
+  lazy val toplGrpc: Seq[ModuleID] =
+    Seq(scalaPb) ++
+    allAkka ++
+    cats ++
+    catsEffect ++
+    test
 
   lazy val genus: Seq[ModuleID] =
     Seq(

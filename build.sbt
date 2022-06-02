@@ -274,7 +274,7 @@ lazy val brambl = project
     buildInfoPackage := "co.topl.buildinfo.brambl"
   )
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(toplRpc, common, typeclasses, models % "compile->compile;test->test", scripting, tetraByteCodecs)
+  .dependsOn(toplRpc, common, typeclasses, models % "compile->compile;test->test", scripting, tetraByteCodecs, toplGrpc)
 
 lazy val akkaHttpRpc = project
   .in(file("akka-http-rpc"))
@@ -491,7 +491,8 @@ lazy val networking = project
     consensus,
     commonInterpreters,
     catsAkka,
-    eventTree
+    eventTree,
+    ledger
   )
 
 lazy val ledger = project
@@ -542,7 +543,8 @@ lazy val demo = project
     scripting,
     commonInterpreters,
     networking,
-    catsAkka
+    catsAkka,
+    toplGrpc
   )
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
@@ -593,6 +595,17 @@ lazy val toplRpc = project
     buildInfoPackage := "co.topl.buildinfo.toplrpc"
   )
   .dependsOn(akkaHttpRpc, common)
+
+lazy val toplGrpc = project
+  .in(file("topl-grpc"))
+  .settings(
+    name := "topl-grpc",
+    commonSettings,
+    scalamacrosParadiseSettings,
+    libraryDependencies ++= Dependencies.toplGrpc,
+  )
+  .enablePlugins(AkkaGrpcPlugin)
+  .dependsOn(models, byteCodecs, tetraByteCodecs, algebras, catsAkka)
 
 // This module has fallen out of sync with the rest of the codebase and is not currently needed
 //lazy val gjallarhorn = project

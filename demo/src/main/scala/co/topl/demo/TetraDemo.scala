@@ -22,7 +22,7 @@ import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.interpreters._
 import co.topl.ledger.algebras.MempoolAlgebra
-import co.topl.ledger.interpreters.Mempool
+import co.topl.ledger.interpreters.{Mempool, SyntacticValidation}
 import co.topl.minting._
 import co.topl.minting.algebras.PerpetualBlockMintAlgebra
 import co.topl.models._
@@ -259,6 +259,7 @@ object TetraDemo extends IOApp {
         genesis.headerV2.slotData(Ed25519VRF.precomputed()),
         ChainSelection.orderT[F](slotDataCache, blake2b512Resource, ChainSelectionKLookback, ChainSelectionSWindow)
       )
+      syntacticValidation <- SyntacticValidation.make[F]
       mempool <- Mempool.make[F](
         genesis.headerV2.id.asTypedBytes.pure[F],
         blockBodyStore.getOrRaise,
@@ -305,7 +306,11 @@ object TetraDemo extends IOApp {
           demoArgs.port,
           LocalPeer(InetSocketAddress.createUnresolved("localhost", demoArgs.port), (0, 0)),
           Source(demoArgs.remotes).delay(2.seconds).concat(Source.never),
-          (_, flow) => flow
+          (_, flow) => flow,
+          syntacticValidation,
+          mempool,
+          ???,
+          ???
         )
     } yield ()
   }

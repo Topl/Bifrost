@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package co.topl.grpc.services;
+
+service ToplGrpc {
+  rpc BroadcastTx (BroadcastTxReq) returns (BroadcastTxRes);
+}
+
+message BroadcastTxReq {
+  bytes transmittableBytes = 1;
+}
+
+message BroadcastTxRes {}
