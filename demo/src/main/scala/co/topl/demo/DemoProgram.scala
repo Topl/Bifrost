@@ -7,7 +7,7 @@ import cats.data.{EitherT, OptionT, Validated}
 import cats.effect._
 import cats.implicits._
 import cats.{Applicative, MonadThrow, Parallel, Show}
-import co.topl.algebras.{Store, StoreReader, UnsafeResource}
+import co.topl.algebras.{Store, StoreReader, ToplRpc, UnsafeResource}
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
@@ -102,32 +102,38 @@ object DemoProgram {
       rpcServer = ToplGrpc.Server.serve(
         rpcHost,
         rpcPort,
-        tx =>
-          transactionStore
-            .contains(tx.id)
-            .ifM(
-              Sync[F].defer(Logger[F].info(show"Received duplicate transaction id=${tx.id.asTypedBytes}")),
-              Sync[F].defer(
-                Logger[F].info(show"Received RPC Transaction id=${tx.id.asTypedBytes}") >>
-                EitherT(syntacticValidation.validateSyntax(tx).map(_.toEither))
-                  .leftSemiflatTap(errors =>
-                    errors.traverse(error =>
-                      Logger[F]
-                        .warn(s"Transaction id=${tx.id.asTypedBytes.show} was syntactically invalid.  reason=$error")
+        new ToplRpc[F, SourceMatNotUsed] {
+
+          def broadcastTx(tx: Transaction): F[Unit] =
+            transactionStore
+              .contains(tx.id)
+              .ifM(
+                Sync[F].defer(Logger[F].info(show"Received duplicate transaction id=${tx.id.asTypedBytes}")),
+                Sync[F].defer(
+                  Logger[F].info(show"Received RPC Transaction id=${tx.id.asTypedBytes}") >>
+                  EitherT(syntacticValidation.validateSyntax(tx).map(_.toEither))
+                    .leftSemiflatTap(errors =>
+                      errors.traverse(error =>
+                        Logger[F]
+                          .warn(s"Transaction id=${tx.id.asTypedBytes.show} was syntactically invalid.  reason=$error")
+                      )
                     )
-                  )
-                  // TODO: Semantic and Authorization Validation
-                  .semiflatTap(_ =>
-                    Logger[F].info(show"Inserting Transaction id=${tx.id.asTypedBytes} into transaction store") >>
-                    transactionStore.put(tx.id, tx) >>
-                    Logger[F].info(show"Inserting Transaction id=${tx.id.asTypedBytes} into mempool") >>
-                    mempool.add(tx.id)
-                  // TODO: Broadcast to P2P
-                  )
-                  .value
-                  .void
+                    // TODO: Semantic and Authorization Validation
+                    .semiflatTap(_ =>
+                      Logger[F].info(show"Inserting Transaction id=${tx.id.asTypedBytes} into transaction store") >>
+                      transactionStore.put(tx.id, tx) >>
+                      Logger[F].info(show"Inserting Transaction id=${tx.id.asTypedBytes} into mempool") >>
+                      mempool.add(tx.id)
+                    // TODO: Broadcast to P2P
+                    )
+                    .value
+                    .void
+                )
               )
-            )
+
+          def blockAdoptions(): F[SourceMatNotUsed[TypedIdentifier]] =
+            Sync[F].delay(locallyAdoptedBlocksSource)
+        }
       )
       streamCompletionFuture =
         mintedBlockStream
@@ -192,7 +198,7 @@ object DemoProgram {
                   header =>
                     (localChain.adopt(Validated.Valid(slotData)) >>
                     Logger[F].info(
-                      show"Adopted head block id=${header.id.asTypedBytes} height=${header.height} slot=${header.slot}"
+                      show"Adopted head block id=${header.id.asTypedBytes} height=${header.height} slot=${header.slot} size=${header.transmittableBytes.length}"
                     )).as(true)
                 )
             ),

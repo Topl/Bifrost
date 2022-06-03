@@ -1,7 +1,9 @@
 package co.topl.algebras
 
-import co.topl.models.Transaction
+import akka.NotUsed
+import co.topl.models.{Transaction, TypedIdentifier}
 
-trait ToplRpc[F[_]] {
+trait ToplRpc[F[_], Stream[_]] {
   def broadcastTx(transaction: Transaction): F[Unit]
+  def blockAdoptions(): F[Stream[TypedIdentifier]]
 }

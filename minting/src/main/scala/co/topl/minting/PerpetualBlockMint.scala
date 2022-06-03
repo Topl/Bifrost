@@ -27,6 +27,8 @@ object PerpetualBlockMint {
       mempool:          MempoolAlgebra[F],
       headerStore:      Store[F, TypedIdentifier, BlockHeaderV2],
       fetchTransaction: TypedIdentifier => F[Transaction]
+      // TODO:
+//      transactionSelectionStrategy: Set[Transaction] => F[List[Transaction]]
     ): F[PerpetualBlockMintAlgebra[F]] =
       Sync[F].delay(
         new PerpetualBlockMintAlgebra[F] {

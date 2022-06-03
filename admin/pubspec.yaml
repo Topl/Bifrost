@@ -1,0 +1,31 @@
+name: admin
+description: Bifrost admin console
+
+publish_to: 'none'
+
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=2.17.0-266.8.beta <3.0.0"
+
+
+dependencies:
+  flutter:
+    sdk: flutter
+  protobuf: ^2.0.1
+  grpc: ^3.0.2
+  fixnum: ^1.0.0
+  fast_base58: ^0.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+    
+  build_runner: ^1.10.3
+  flutter_lints: ^2.0.0
+
+flutter:
+
+  uses-material-design: true
+

@@ -20,9 +20,9 @@ case class BlockV1(
 // id = hash(headerBytes) INCLUDING kesCertificate proofs
 case class BlockHeaderV2(
   parentHeaderId:         TypedIdentifier,
-  parentSlot:             Slot,
+  parentSlot:             Slot, // TODO: Maybe remove
   txRoot:                 TxRoot,
-  bloomFilter:            BloomFilter,
+  bloomFilter:            BloomFilter, // TODO: Maybe move to Body
   timestamp:              Timestamp,
   height:                 Long,
   slot:                   Slot,

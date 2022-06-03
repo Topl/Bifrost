@@ -24,7 +24,7 @@ object BramblTetra extends IOApp.Simple {
       )(system => Sync[F].delay(system.terminate()) >> Async[F].fromFuture(Sync[F].delay(system.whenTerminated)).void)
       .use(implicit system =>
         Resource
-          .make(ToplGrpc.Client.make[F]("localhost", 8090))(_ => Applicative[F].unit)
+          .make(ToplGrpc.Client.make[F]("localhost", 8091))(_ => Applicative[F].unit)
           .use(implicit rpcClient =>
             Transaction(
               inputs = Chain(

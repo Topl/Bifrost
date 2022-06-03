@@ -59,10 +59,7 @@ trait TetraScodecPrimitiveCodecs {
     arrayCodec[Byte].xmap(arr => Bytes(arr), _.toArray)
 
   implicit val typedBytesCodec: Codec[TypedBytes] =
-    (byteCodec :: byteVectorCodec)
-      .xmapc { case prefix :: data :: _ =>
-        TypedBytes(prefix, data)
-      }(t => HList(t.typePrefix, t.dataBytes))
+    Codec[Bytes].xmap(bytes => TypedBytes(bytes), _.allBytes)
 
   // todo: JAA - consider implications of variable vs. fixed length (BigInt vs. Int128)
   // (I think this is never transmitted so probably safe if we used built in BigInt)
