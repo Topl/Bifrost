@@ -1,7 +1,9 @@
 package co.topl.client
 
+import akka.NotUsed
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
+import akka.stream.scaladsl.Source
 import cats.Applicative
 import cats.data.Chain
 import cats.effect.{Async, IO, IOApp, Resource, Sync}
@@ -43,7 +45,9 @@ object BramblTetra extends IOApp.Simple {
       )
 
   implicit class TransactionOps(transaction: Transaction) {
-    def broadcast[F[_]: ToplRpc]: F[Unit] = implicitly[ToplRpc[F]].broadcastTx(transaction)
+
+    def broadcast[F[_]: ToplRpc[*[_], Source[*, NotUsed]]]: F[Unit] =
+      implicitly[ToplRpc[F, Source[*, NotUsed]]].broadcastTx(transaction)
   }
 
 }

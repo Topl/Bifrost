@@ -25,6 +25,12 @@ class ToplGrpcClient extends $grpc.Client {
           ($0.BlockAdoptionsReq value) => value.writeToBuffer(),
           ($core.List<$core.int> value) =>
               $0.BlockAdoptionsRes.fromBuffer(value));
+  static final _$fetchBlockHeader =
+      $grpc.ClientMethod<$0.FetchBlockHeaderReq, $0.FetchBlockHeaderRes>(
+          '/co.topl.grpc.services.ToplGrpc/FetchBlockHeader',
+          ($0.FetchBlockHeaderReq value) => value.writeToBuffer(),
+          ($core.List<$core.int> value) =>
+              $0.FetchBlockHeaderRes.fromBuffer(value));
 
   ToplGrpcClient($grpc.ClientChannel channel,
       {$grpc.CallOptions? options,
@@ -42,6 +48,12 @@ class ToplGrpcClient extends $grpc.Client {
     return $createStreamingCall(
         _$blockAdoptions, $async.Stream.fromIterable([request]),
         options: options);
+  }
+
+  $grpc.ResponseFuture<$0.FetchBlockHeaderRes> fetchBlockHeader(
+      $0.FetchBlockHeaderReq request,
+      {$grpc.CallOptions? options}) {
+    return $createUnaryCall(_$fetchBlockHeader, request, options: options);
   }
 }
 
@@ -63,6 +75,15 @@ abstract class ToplGrpcServiceBase extends $grpc.Service {
         true,
         ($core.List<$core.int> value) => $0.BlockAdoptionsReq.fromBuffer(value),
         ($0.BlockAdoptionsRes value) => value.writeToBuffer()));
+    $addMethod(
+        $grpc.ServiceMethod<$0.FetchBlockHeaderReq, $0.FetchBlockHeaderRes>(
+            'FetchBlockHeader',
+            fetchBlockHeader_Pre,
+            false,
+            false,
+            ($core.List<$core.int> value) =>
+                $0.FetchBlockHeaderReq.fromBuffer(value),
+            ($0.FetchBlockHeaderRes value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.BroadcastTxRes> broadcastTx_Pre(
@@ -75,8 +96,16 @@ abstract class ToplGrpcServiceBase extends $grpc.Service {
     yield* blockAdoptions(call, await request);
   }
 
+  $async.Future<$0.FetchBlockHeaderRes> fetchBlockHeader_Pre(
+      $grpc.ServiceCall call,
+      $async.Future<$0.FetchBlockHeaderReq> request) async {
+    return fetchBlockHeader(call, await request);
+  }
+
   $async.Future<$0.BroadcastTxRes> broadcastTx(
       $grpc.ServiceCall call, $0.BroadcastTxReq request);
   $async.Stream<$0.BlockAdoptionsRes> blockAdoptions(
       $grpc.ServiceCall call, $0.BlockAdoptionsReq request);
+  $async.Future<$0.FetchBlockHeaderRes> fetchBlockHeader(
+      $grpc.ServiceCall call, $0.FetchBlockHeaderReq request);
 }

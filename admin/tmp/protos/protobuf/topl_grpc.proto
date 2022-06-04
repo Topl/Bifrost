@@ -5,15 +5,38 @@ package co.topl.grpc.services;
 service ToplGrpc {
   rpc BroadcastTx (BroadcastTxReq) returns (BroadcastTxRes);
   rpc BlockAdoptions (BlockAdoptionsReq) returns (stream BlockAdoptionsRes);
+  rpc FetchBlockHeader (FetchBlockHeaderReq) returns (FetchBlockHeaderRes);
 }
 
 message BroadcastTxReq {
   bytes transmittableBytes = 1;
 }
-
 message BroadcastTxRes {}
 
 message BlockAdoptionsReq {}
 message BlockAdoptionsRes {
   bytes blockId = 1;
+}
+
+message FetchBlockHeaderReq {
+  bytes blockId = 1;
+}
+
+message FetchBlockHeaderRes {
+  BlockHeader header = 1;
+}
+
+
+message BlockHeader {
+  bytes parentHeaderIdBytes = 1;
+  int64 parentSlot = 2;
+  bytes txRootBytes = 3;
+  bytes bloomFilterBytes = 4;
+  int64 timestamp = 5;
+  int64 height = 6;
+  int64 slot = 7;
+  bytes eligibilityCertificateBytes = 8;
+  bytes operationalCertificateBytes = 9;
+  bytes metadataBytes = 10;
+  bytes addressBytes = 11;
 }

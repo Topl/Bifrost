@@ -17,6 +17,9 @@ dependencies:
   grpc: ^3.0.2
   fixnum: ^1.0.0
   fast_base58: ^0.2.1
+  graphview: ^1.1.1
+  tuple: ^2.0.0
+  async: ^2.8.2
 
 dev_dependencies:
   flutter_test:

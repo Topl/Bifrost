@@ -133,6 +133,9 @@ object DemoProgram {
 
           def blockAdoptions(): F[SourceMatNotUsed[TypedIdentifier]] =
             Sync[F].delay(locallyAdoptedBlocksSource)
+
+          def fetchHeader(id: TypedIdentifier): F[Option[BlockHeaderV2]] =
+            headerStore.get(id)
         }
       )
       streamCompletionFuture =

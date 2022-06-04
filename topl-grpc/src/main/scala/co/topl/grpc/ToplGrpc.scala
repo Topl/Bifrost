@@ -12,12 +12,16 @@ import co.topl.algebras.ToplRpc
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.grpc.services.{BlockAdoptionsReq, BlockAdoptionsRes}
+import co.topl.grpc.services.{BlockAdoptionsReq, BlockAdoptionsRes, FetchBlockHeaderReq, FetchBlockHeaderRes}
 import co.topl.models._
+import co.topl.models.utility.HasLength.instances.{bytesLength, latin1DataLength}
+import co.topl.models.utility.Sized
+import co.topl.models.utility.StringDataTypes.Latin1Data
 import com.google.protobuf.ByteString
 import scodec.bits.ByteVector
 
 import scala.concurrent.Future
+import scala.language.implicitConversions
 
 object ToplGrpc {
 
@@ -52,6 +56,36 @@ object ToplGrpc {
                 .map(ByteVector(_))
                 .map(TypedBytes(_))
             )
+
+          def fetchHeader(id: TypedIdentifier): F[Option[BlockHeaderV2]] =
+            Async[F]
+              .fromFuture(
+                Async[F].delay(
+                  client.fetchBlockHeader(
+                    services.FetchBlockHeaderReq(id.allBytes)
+                  )
+                )
+              )
+              .map(res =>
+                res.header.map(h =>
+                  BlockHeaderV2(
+                    TypedBytes(h.parentHeaderIdBytes),
+                    h.parentSlot,
+                    Sized.strictUnsafe(h.txRootBytes: Bytes),
+                    Sized.strictUnsafe(h.bloomFilterBytes: Bytes),
+                    h.timestamp,
+                    h.height,
+                    h.slot,
+                    (h.eligibilityCertificateBytes: Bytes).decodeImmutable[EligibilityCertificate].getOrElse(???),
+                    (h.operationalCertificateBytes: Bytes).decodeImmutable[OperationalCertificate].getOrElse(???),
+                    h.metadataBytes.some
+                      .filter(_.nonEmpty)
+                      .map(b => Latin1Data.fromData(b.toByteArray))
+                      .map(Sized.maxUnsafe(_)),
+                    (h.addressBytes: Bytes).decodeImmutable[StakingAddresses.Operator].getOrElse(???)
+                  )
+                )
+              )
         }
       }
   }
@@ -93,6 +127,37 @@ object ToplGrpc {
             .map(ByteString.copyFrom)
             .map(BlockAdoptionsRes(_))
             .mapMaterializedValue(_ => NotUsed)
+
+        def fetchBlockHeader(in: FetchBlockHeaderReq): Future[FetchBlockHeaderRes] =
+          implicitly[FToFuture[F]].apply(
+            interpreter
+              .fetchHeader(TypedBytes(in.blockId))
+              .map(opt =>
+                services.FetchBlockHeaderRes(
+                  opt.map(h =>
+                    services.BlockHeader(
+                      h.parentHeaderId.allBytes,
+                      h.parentSlot,
+                      h.txRoot.data,
+                      h.bloomFilter.data,
+                      h.timestamp,
+                      h.height,
+                      h.slot,
+                      h.eligibilityCertificate.immutableBytes,
+                      h.operationalCertificate.immutableBytes,
+                      h.metadata.fold(Bytes.empty)(v => Bytes(v.data.bytes)),
+                      h.address.immutableBytes
+                    )
+                  )
+                )
+              )
+          )
       }
   }
+
+  implicit def byteVectorToByteString(byteVector: ByteVector): ByteString =
+    ByteString.copyFrom(byteVector.toByteBuffer)
+
+  implicit def byteStringToByteVector(byteString: ByteString): Bytes =
+    ByteVector(byteString.asReadOnlyByteBuffer())
 }

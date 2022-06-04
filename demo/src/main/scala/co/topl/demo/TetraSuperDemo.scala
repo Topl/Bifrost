@@ -54,7 +54,7 @@ object TetraSuperDemo extends IOApp {
 
   // Configuration Data
   private val vrfConfig =
-    VrfConfig(lddCutoff = 80, precision = 40, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(2, 5))
+    VrfConfig(lddCutoff = 20, precision = 40, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(4, 5))
 
   private val OperationalPeriodLength = 180L
   private val OperationalPeriodsPerEpoch = 4L
@@ -220,7 +220,7 @@ object TetraSuperDemo extends IOApp {
       genesisTimestamp = Instant.now().plusSeconds(10)
       localPeers = List(
         (LocalPeer(parseAddress(port = 9090), Locations.NorthPole), "North1", parseAddress(port = 8090)),
-        (LocalPeer(parseAddress(port = 9091), Locations.NorthPole), "North2", parseAddress(port = 8091))
+        (LocalPeer(parseAddress(port = 9091), Locations.SouthPole), "South1", parseAddress(port = 8091))
       )
       configurations = List(
         (
@@ -233,7 +233,7 @@ object TetraSuperDemo extends IOApp {
         (
           localPeers(1)._1,
           Source
-            .future(akka.pattern.after(40.seconds)(Future.unit))
+            .future(akka.pattern.after(5.seconds)(Future.unit))
             .flatMapConcat(_ => Source(List(DisconnectedPeer.tupled(LocalPeer.unapply(localPeers(0)._1).get)))),
           true,
           localPeers(1)._2,
@@ -384,9 +384,9 @@ object TetraSuperDemo extends IOApp {
                 SimulatedGeospatialDelayFlow(
                   localPeer.coordinate,
                   peer.coordinate,
-                  durationPerKilometer = 10.micros,
+                  durationPerKilometer = 1.micros,
                   durationPerByte = 1.micros,
-                  noise = 30.milli
+                  noise = 3.milli
                 )
               Flow[ByteString].via(delayer).viaMat(flow)(Keep.right).via(delayer)
             },
