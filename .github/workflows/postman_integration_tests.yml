@@ -21,7 +21,7 @@ jobs:
         java-version: graalvm-ce-java11@21.1.0
         
     - name: Stage Docker Image
-      run: sbt bifrost/docker:stage
+      run: sbt node/docker:stage
 
     - name: Integration Tests
       run: docker-compose -f ./node/src/it/resources/postman-tests/docker-compose.yml up --exit-code-from postman

@@ -22,8 +22,8 @@ class BootstrapFromGenesisTest
 
   val initialForgeTarget: Int128 = 1500
   val newNodeForgeDuration: FiniteDuration = 10.seconds
-  val targetBlockTime: FiniteDuration = 50.milli
-  val syncWindow: FiniteDuration = 10.seconds
+  val targetBlockTime: FiniteDuration = 250.milli
+  val syncWindow: FiniteDuration = 60.seconds
   val seed: String = "BootstrapFromGenesisTest" + System.currentTimeMillis()
 
   "A new node can sync its genesis block with an old node" in {
@@ -34,19 +34,24 @@ class BootstrapFromGenesisTest
              |bifrost.rpcApi.namespaceSelector.debug = true
              |bifrost.forging.forgeOnStartup = false
              |bifrost.forging.blockGenerationDelay = $targetBlockTime
-             |bifrost.forging.privateTestnet.numTestnetAccts = 2
-             |bifrost.forging.privateTestnet.genesisSeed = "$seed"
+             |bifrost.forging.addressGenerationSettings.numberOfAddresses = 2
+             |bifrost.forging.addressGenerationSettings.strategy = fromSeed
+             |bifrost.forging.addressGenerationSettings.addressSeedOpt = "$seed"
              |bifrost.forging.protocolVersions = [
              |      {
-             |        version { value = 1.0.0 }
+             |        minAppVersion {value = 1.0.0}
              |        startBlock = 0
              |        blockVersion = 1
-             |        targetBlockTime = $targetBlockTime
-             |        numTxPerBlock = 100
+             |        value {
+             |          targetBlockTime = $targetBlockTime
+             |          numTxPerBlock = 100
+             |          inflationRate = 0
+             |          lookBackDepth = 3
+             |        }
              |      }
              |    ]
-             |bifrost.network.syncInterval = 250ms
-             |bifrost.network.syncIntervalStable = 1s
+             |bifrost.network.syncInterval = 50ms
+             |bifrost.network.syncIntervalStable = 500s
              |""".stripMargin
       )
 
@@ -71,7 +76,7 @@ class BootstrapFromGenesisTest
 
     logger.info(s"Allowing oldNode to forge $initialForgeTarget blocks.  This may take a while.")
 
-    oldNode.pollUntilHeight(initialForgeTarget).futureValue(Timeout(20.minutes)).value
+    oldNode.pollUntilHeight(initialForgeTarget).futureValue(Timeout(45.minutes)).value
 
     logger.info("Starting newNode")
 
@@ -81,7 +86,7 @@ class BootstrapFromGenesisTest
       ConfigFactory
         .parseString(
           raw"""bifrost.network.knownPeers = ["oldNode:${BifrostDockerNode.NetworkPort}"]
-          |""".stripMargin
+               |""".stripMargin
         )
         .withFallback(config)
 
