@@ -54,11 +54,12 @@ object TetraSuperDemo extends IOApp {
 
   // Configuration Data
   private val vrfConfig =
-    VrfConfig(lddCutoff = 20, precision = 40, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(4, 5))
+    VrfConfig(lddCutoff = 80, precision = 40, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(2, 5))
 
   private val OperationalPeriodLength = 180L
-  private val OperationalPeriodsPerEpoch = 4L
-  private val EpochLength = OperationalPeriodLength * OperationalPeriodsPerEpoch
+  private val OperationalPeriodsPerEpoch = 3L
+  private val ChainSelectionKLookback = 180L
+  private val EpochLength = ChainSelectionKLookback * 3
   private val SlotDuration = 100.milli
 
   require(
@@ -66,8 +67,7 @@ object TetraSuperDemo extends IOApp {
     "EpochLength must be evenly divisible by OperationalPeriodLength"
   )
 
-  private val ChainSelectionKLookback = 5_000L
-  private val ChainSelectionSWindow = 200_000L
+  private val ChainSelectionSWindow = 200L
 
   private val KesKeyHeight = (9, 9)
 
@@ -220,7 +220,8 @@ object TetraSuperDemo extends IOApp {
       genesisTimestamp = Instant.now().plusSeconds(10)
       localPeers = List(
         (LocalPeer(parseAddress(port = 9090), Locations.NorthPole), "North1", parseAddress(port = 8090)),
-        (LocalPeer(parseAddress(port = 9091), Locations.SouthPole), "South1", parseAddress(port = 8091))
+        (LocalPeer(parseAddress(port = 9091), Locations.SouthPole), "South1", parseAddress(port = 8091)),
+        (LocalPeer(parseAddress(port = 9092), Locations.AustinTxUSA), "Austin", parseAddress(port = 8092))
       )
       configurations = List(
         (
@@ -232,15 +233,29 @@ object TetraSuperDemo extends IOApp {
         ),
         (
           localPeers(1)._1,
-          Source
-            .future(akka.pattern.after(5.seconds)(Future.unit))
-            .flatMapConcat(_ => Source(List(DisconnectedPeer.tupled(LocalPeer.unapply(localPeers(0)._1).get)))),
+          Source(Nil: List[DisconnectedPeer]),
           true,
           localPeers(1)._2,
           localPeers(1)._3
+        ),
+        (
+          localPeers(2)._1,
+          Source
+            .future(akka.pattern.after(3.seconds)(Future.unit))
+            .flatMapConcat(_ =>
+              Source(
+                List(
+                  DisconnectedPeer.tupled(LocalPeer.unapply(localPeers(0)._1).get),
+                  DisconnectedPeer.tupled(LocalPeer.unapply(localPeers(1)._1).get)
+                )
+              )
+            ),
+          true,
+          localPeers(2)._2,
+          localPeers(2)._3
         )
       ).zipWithIndex
-      stakers = computeStakers(2, random)
+      stakers = computeStakers(3, random)
       _ <- configurations.parTraverse {
         case ((localPeer, remotes, stakingEnabled, stakerName, rpcAddress), stakerIndex) =>
           runInstance(
@@ -384,9 +399,9 @@ object TetraSuperDemo extends IOApp {
                 SimulatedGeospatialDelayFlow(
                   localPeer.coordinate,
                   peer.coordinate,
-                  durationPerKilometer = 1.micros,
+                  durationPerKilometer = 40.micros,
                   durationPerByte = 1.micros,
-                  noise = 3.milli
+                  noise = 10.milli
                 )
               Flow[ByteString].via(delayer).viaMat(flow)(Keep.right).via(delayer)
             },

@@ -28,6 +28,11 @@ class MyApp extends StatelessWidget {
       port: 8091,
       options: const ChannelOptions(credentials: ChannelCredentials.insecure()),
     ),
+    ClientChannel(
+      "localhost",
+      port: 8092,
+      options: const ChannelOptions(credentials: ChannelCredentials.insecure()),
+    ),
   ];
 
   @override
@@ -98,6 +103,7 @@ class BlockchainGraphState extends State<BlockchainGraph> {
               graph: snapshot.data!,
               algorithm: FruchtermanReingoldAlgorithm(
                   repulsionPercentage: 0.6, repulsionRate: 0.7),
+              // algorithm: SugiyamaAlgorithm(SugiyamaConfiguration()),
               paint: Paint()
                 ..color = Colors.green
                 ..strokeWidth = 1
@@ -127,6 +133,7 @@ class BlockchainGraphState extends State<BlockchainGraph> {
       var id = tuple.item1;
       var idString = Base58Encode(id);
       var foundGenesis = false;
+      // Fetch _this_ many missing ancestors of the received block
       var count = 4;
       List<Tuple2<String, BlockHeader>> missing = [];
       while (!nodes.containsKey(idString) && !foundGenesis && count > 0) {
@@ -160,7 +167,7 @@ class BlockchainGraphState extends State<BlockchainGraph> {
       }
       if (missing.isNotEmpty) {
         final toRemove = heights.entries
-            .where((element) => element.value < (maxHeight - 300))
+            .where((element) => element.value < (maxHeight - 80))
             .toList();
         for (final entry in toRemove) {
           heights.remove(entry.key);
