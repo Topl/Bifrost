@@ -37,6 +37,7 @@ lazy val commonSettings = Seq(
     }
   },
   crossScalaVersions := Seq(scala212, scala213),
+  testFrameworks += new TestFramework("munit.Framework"),
   Test / testOptions ++= Seq(
     Tests.Argument("-oD", "-u", "target/test-reports"),
     Tests.Argument(TestFrameworks.ScalaCheck, "-verbosity", "2"),
@@ -605,7 +606,7 @@ lazy val toplGrpc = project
     libraryDependencies ++= Dependencies.toplGrpc,
   )
   .enablePlugins(AkkaGrpcPlugin)
-  .dependsOn(models, byteCodecs, tetraByteCodecs, algebras, catsAkka)
+  .dependsOn(models % "compile->compile;test->test", byteCodecs, tetraByteCodecs, algebras, catsAkka)
 
 // This module has fallen out of sync with the rest of the codebase and is not currently needed
 //lazy val gjallarhorn = project

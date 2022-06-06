@@ -2,12 +2,12 @@ package co.topl.client
 
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
-import cats.Applicative
 import cats.data.Chain
-import cats.effect.{Async, IO, IOApp, Resource, Sync}
-import co.topl.algebras.ToplRpc
-import co.topl.grpc.ToplGrpc
+import cats.effect.{IO, IOApp}
 import cats.implicits._
+import co.topl.algebras.ToplRpc
+import co.topl.catsakka.AkkaCatsRuntime
+import co.topl.grpc.ToplGrpc
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bigIntLength
 import co.topl.models.utility.Lengths._
@@ -18,14 +18,12 @@ object BramblTetra extends IOApp.Simple {
   type F[A] = IO[A]
 
   override def run: IO[Unit] =
-    Resource
-      .make(
-        Sync[F].delay(ActorSystem(Behaviors.empty, "Brambl"))
-      )(system => Sync[F].delay(system.terminate()) >> Async[F].fromFuture(Sync[F].delay(system.whenTerminated)).void)
+    AkkaCatsRuntime
+      .systemResource[F, Nothing](ActorSystem(Behaviors.empty, "Brambl"))
       .use(implicit system =>
-        Resource
-          .make(ToplGrpc.Client.make[F]("localhost", 8090))(_ => Applicative[F].unit)
-          .use(implicit rpcClient =>
+        ToplGrpc.Client
+          .make[F]("localhost", 8090, tls = false)
+          .flatMap(implicit rpcClient =>
             Transaction(
               inputs = Chain(
                 Transaction.Input(
@@ -43,7 +41,7 @@ object BramblTetra extends IOApp.Simple {
       )
 
   implicit class TransactionOps(transaction: Transaction) {
-    def broadcast[F[_]: ToplRpc]: F[Unit] = implicitly[ToplRpc[F]].broadcastTx(transaction)
+    def broadcast[F[_]: ToplRpc]: F[Unit] = implicitly[ToplRpc[F]].broadcastTransaction(transaction)
   }
 
 }

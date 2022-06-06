@@ -22,17 +22,27 @@ object Dependencies {
     catsSlf4j
   )
 
-  val test = Seq(
-    "org.scalatest"      %% "scalatest"                     % "3.2.12"  % "test",
-    "org.scalactic"      %% "scalactic"                     % "3.2.12"  % "test",
-    "org.scalacheck"     %% "scalacheck"                    % "1.15.4"  % "test",
-    "org.scalatestplus"  %% "scalacheck-1-14"               % "3.2.2.0" % "test",
-    "com.spotify"         % "docker-client"                 % "8.16.0"  % "test",
-    "org.asynchttpclient" % "async-http-client"             % "2.12.3"  % "test",
-    "org.scalamock"      %% "scalamock"                     % "5.2.0"   % "test",
-    "com.ironcorelabs"   %% "cats-scalatest"                % "3.1.1"   % "test",
-    "org.typelevel"      %% "cats-effect-testing-scalatest" % "1.3.0"   % "test"
+  val scalacheck = Seq(
+    "org.scalacheck"    %% "scalacheck"      % "1.15.4"  % "test",
+    "org.scalatestplus" %% "scalacheck-1-14" % "3.2.2.0" % "test"
   )
+
+  val scalamock = Seq(
+    "org.scalamock" %% "scalamock" % "5.2.0" % "test"
+  )
+
+  val test = Seq(
+    "org.scalatest"    %% "scalatest"                     % "3.2.12" % "test",
+    "com.ironcorelabs" %% "cats-scalatest"                % "3.1.1"  % "test",
+    "org.typelevel"    %% "cats-effect-testing-scalatest" % "1.3.0"  % "test"
+  ) ++ scalacheck ++ scalamock
+
+  val mUnitTest = Seq(
+    "org.scalameta" %% "munit"                   % "0.7.29" % Test,
+    "org.typelevel" %% "munit-cats-effect-3"     % "1.0.7"  % Test,
+    "org.scalameta" %% "munit-scalacheck"        % "0.7.29" % Test,
+    "org.typelevel" %% "scalacheck-effect-munit" % "1.0.4"  % Test
+  ) ++ scalamock
 
   val it = Seq(
     "org.scalatest"     %% "scalatest"           % "3.2.6"         % "it",
@@ -309,12 +319,12 @@ object Dependencies {
     allAkka ++
     cats ++
     catsEffect ++
-    test
+    mUnitTest
 
   lazy val genus: Seq[ModuleID] =
     Seq(
-      "com.lightbend.akka"   %% "akka-stream-alpakka-mongodb" % "3.0.4",
-      "com.thesamet.scalapb" %% "scalapb-runtime"             % scalapb.compiler.Version.scalapbVersion % "protobuf"
+      "com.lightbend.akka" %% "akka-stream-alpakka-mongodb" % "3.0.4",
+      scalaPb
     ) ++
     allAkka ++
     circe ++
