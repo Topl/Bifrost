@@ -33,13 +33,14 @@ class SyntacticValidationSpec extends AnyFlatSpec with Matchers with ScalaCheckP
   }
 
   it should "validate positive timestamp" in {
-    forAll(arbitraryTransaction.arbitrary.map(_.copy(timestamp = -1))) { transaction: Transaction =>
-      val result = SyntacticValidation
-        .make[F]
-        .flatMap(_.validateSyntax(transaction))
-        .unsafeRunSync()
+    forAll(arbitraryTransaction.arbitrary.map(tx => tx.copy(chronology = tx.chronology.copy(creation = -1)))) {
+      transaction: Transaction =>
+        val result = SyntacticValidation
+          .make[F]
+          .flatMap(_.validateSyntax(transaction))
+          .unsafeRunSync()
 
-      result.toEither.left.value.toChain.toList should contain(InvalidSyntaxErrors.InvalidTimestamp(-1))
+        result.toEither.left.value.toChain.toList should contain(InvalidSyntaxErrors.InvalidTimestamp(-1))
     }
   }
 
@@ -163,7 +164,7 @@ class SyntacticValidationSpec extends AnyFlatSpec with Matchers with ScalaCheckP
         .unsafeRunSync()
 
       val polyInSum =
-        transaction.inputs.collect { case Transaction.Input(_, _, _, _, Box.Values.Poly(quantity)) =>
+        transaction.inputs.collect { case Transaction.Input(_, _, _, Box.Values.Poly(quantity)) =>
           quantity.data
         }.sumAll
       val polyOutSum =
@@ -178,7 +179,7 @@ class SyntacticValidationSpec extends AnyFlatSpec with Matchers with ScalaCheckP
       }
 
       val arbitInSum =
-        transaction.inputs.collect { case Transaction.Input(_, _, _, _, Box.Values.Arbit(quantity)) =>
+        transaction.inputs.collect { case Transaction.Input(_, _, _, Box.Values.Arbit(quantity)) =>
           quantity.data
         }.sumAll
       val arbitOutSum =
@@ -193,7 +194,7 @@ class SyntacticValidationSpec extends AnyFlatSpec with Matchers with ScalaCheckP
       }
 
       val assetInSum =
-        transaction.inputs.collect { case Transaction.Input(_, _, _, _, v: Box.Values.Asset) =>
+        transaction.inputs.collect { case Transaction.Input(_, _, _, v: Box.Values.Asset) =>
           v.quantity.data
         }.sumAll
       val assetOutSum =

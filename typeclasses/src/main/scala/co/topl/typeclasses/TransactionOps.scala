@@ -15,11 +15,9 @@ object TransactionOps {
       def unproven: Transaction.Unproven =
         Transaction
           .Unproven(
-            transaction.inputs.map(i =>
-              Transaction.Unproven.Input(i.transactionId, i.transactionOutputIndex, i.proposition, i.value)
-            ),
+            transaction.inputs.map(i => Transaction.Unproven.Input(i.boxId, i.proposition, i.value)),
             transaction.outputs,
-            transaction.timestamp,
+            transaction.chronology,
             transaction.data
           )
 
@@ -45,11 +43,9 @@ object TransactionOps {
 
       def prove(prove: Proposition => Proof) =
         Transaction(
-          unproven.inputs.map(i =>
-            Transaction.Input(i.transactionId, i.transactionOutputIndex, i.proposition, prove(i.proposition), i.value)
-          ),
+          unproven.inputs.map(i => Transaction.Input(i.boxId, i.proposition, prove(i.proposition), i.value)),
           unproven.outputs,
-          unproven.timestamp,
+          unproven.chronology,
           unproven.data
         )
     }

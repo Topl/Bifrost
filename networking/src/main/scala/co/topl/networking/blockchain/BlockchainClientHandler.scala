@@ -39,7 +39,7 @@ object BlockchainClientHandler {
       transactionStore: Store[F, TypedIdentifier, Transaction],
       blockIdTree:      ParentChildTree[F, TypedIdentifier],
       onBlockReceived:  Sink[BlockV2, _],
-      blockHeights:     EventSourcedState[F, TypedIdentifier, Long => F[Option[TypedIdentifier]]],
+      blockHeights:     EventSourcedState[F, Long => F[Option[TypedIdentifier]]],
       localChain:       LocalChainAlgebra[F],
       slotDataStore:    StoreReader[F, TypedIdentifier, SlotData]
     )(implicit system:  ActorSystem[_]): F[BlockchainClientHandler[F]] =

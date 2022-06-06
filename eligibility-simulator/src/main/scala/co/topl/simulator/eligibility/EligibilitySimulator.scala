@@ -108,7 +108,7 @@ object EligibilitySimulator extends IOApp.Simple {
   implicit private val logger: Logger[F] = Slf4jLogger.getLogger[F]
 
   private val clock: ClockAlgebra[F] =
-    AkkaSchedulerClock.Eval.make(SlotDuration, EpochLength, Instant.now())
+    SchedulerClock.Eval.make(SlotDuration, EpochLength, Instant.now())
 
   implicit private val timeout: Timeout = Timeout(20.seconds)
 
