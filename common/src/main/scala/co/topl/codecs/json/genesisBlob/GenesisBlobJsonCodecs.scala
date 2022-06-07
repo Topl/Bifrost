@@ -1,9 +1,8 @@
 package co.topl.codecs.json.genesisBlob
 
 import cats.implicits._
-import co.topl.codecs.base58JsonEncoder
 import co.topl.codecs.binary._
-import co.topl.codecs.json.valuetypes.base58JsonDecoder
+import co.topl.codecs.json.valuetypes._
 import co.topl.modifier.block.GenesisBlob
 import co.topl.utils.StringDataTypes.Base58Data
 import io.circe.syntax.EncoderOps

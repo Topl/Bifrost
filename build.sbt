@@ -196,7 +196,6 @@ lazy val bifrost = project
     akkaHttpRpc,
     typeclasses,
     toplRpc,
-    benchmarking,
     crypto,
     catsAkka,
     brambl,
@@ -666,5 +665,5 @@ lazy val genus = project
   .enablePlugins(AkkaGrpcPlugin)
   .dependsOn(common)
 
-addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; + test")
-addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; + test")
+addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; +test; it:compile")
+addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; +test; it:compile")

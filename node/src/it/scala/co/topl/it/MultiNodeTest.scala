@@ -117,8 +117,9 @@ class MultiNodeTest extends AnyFreeSpec with Matchers with IntegrationSuite with
       ConfigFactory.parseString(
         raw"""bifrost.network.knownPeers = ${nodeNames.map(n => s"$n:${BifrostDockerNode.NetworkPort}").asJson}
              |bifrost.rpcApi.namespaceSelector.debug = true
-             |bifrost.forging.privateTestnet.numTestnetAccts = $nodeCount
-             |bifrost.forging.privateTestnet.genesisSeed = "$seed"
+             |bifrost.forging.addressGenerationSettings.numberOfAddresses = $nodeCount
+             |bifrost.forging.addressGenerationSettings.strategy = fromSeed
+             |bifrost.forging.addressGenerationSettings.addressSeedOpt = "$seed"
              |bifrost.forging.forgeOnStartup = false
              |""".stripMargin
       )

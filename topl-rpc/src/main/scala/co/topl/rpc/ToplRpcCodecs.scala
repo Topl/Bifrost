@@ -297,12 +297,6 @@ trait TransactionRpcResponseDecoders extends SharedCodecs {
     ToplRpc.Transaction.UnprovenPolyTransfer.Response(x)
   )
 
-  implicit def transactionBroadcastTetraTransferResponseDecoder(implicit networkPrefix: NetworkPrefix): Decoder[
-    ToplRpc.Transaction.BroadcastTetraTransfer.Response
-  ] = { hcursor =>
-    implicit val tetraNetworkPrefix: TetraNetworkPrefix = TetraNetworkPrefix(networkPrefix)
-    hcursor.as[Transaction.TX]
-  }
 }
 
 trait AdminRpcResponseDecoders extends SharedCodecs {
