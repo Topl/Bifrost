@@ -1,50 +1,52 @@
 package co.topl.ledger.interpreters
 
-import cats.data.Chain
+import cats.Applicative
+import cats.data.{Chain, EitherT, NonEmptyChain}
 import cats.effect._
-import cats.effect.unsafe.implicits.global
 import cats.implicits._
-import co.topl.ledger.algebras.InvalidSyntaxErrors
+import co.topl.ledger.algebras.{InvalidSyntaxError, InvalidSyntaxErrors}
 import co.topl.models.ModelGenerators._
 import co.topl.models.utility.HasLength.instances.bigIntLength
 import co.topl.models.utility.Sized
 import co.topl.models.{Box, Transaction}
+import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.Gen
-import org.scalatest.EitherValues
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalacheck.effect.PropF
 
-class SyntacticValidationSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with EitherValues {
+class SyntacticValidationSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
 
   type F[A] = IO[A]
 
-  behavior of "SyntacticValidation"
-
-  it should "validate non-empty inputs" in {
-    forAll(arbitraryTransaction.arbitrary.map(_.copy(inputs = Chain.empty))) { transaction: Transaction =>
-      val result = SyntacticValidation
-        .make[F]
-        .flatMap(_.validateSyntax(transaction))
-        .unsafeRunSync()
-
-      result.toEither.left.value.toChain.toList should contain(InvalidSyntaxErrors.EmptyInputs)
+  test("validate non-empty inputs") {
+    PropF.forAllF(arbitraryTransaction.arbitrary.map(_.copy(inputs = Chain.empty))) { transaction: Transaction =>
+      for {
+        underTest <- SyntacticValidation.make[F]
+        result    <- underTest.validateSyntax(transaction)
+        _ <- EitherT
+          .fromEither[F](result.toEither)
+          .swap
+          .exists(_.toList.contains(InvalidSyntaxErrors.EmptyInputs))
+          .assert
+      } yield ()
     }
   }
 
-  it should "validate positive timestamp" in {
-    forAll(arbitraryTransaction.arbitrary.map(tx => tx.copy(chronology = tx.chronology.copy(creation = -1)))) {
+  test("validate positive timestamp") {
+    PropF.forAllF(arbitraryTransaction.arbitrary.map(tx => tx.copy(chronology = tx.chronology.copy(creation = -1)))) {
       transaction: Transaction =>
-        val result = SyntacticValidation
-          .make[F]
-          .flatMap(_.validateSyntax(transaction))
-          .unsafeRunSync()
-
-        result.toEither.left.value.toChain.toList should contain(InvalidSyntaxErrors.InvalidTimestamp(-1))
+        for {
+          underTest <- SyntacticValidation.make[F]
+          result    <- underTest.validateSyntax(transaction)
+          _ <- EitherT
+            .fromEither[F](result.toEither)
+            .swap
+            .exists(_.toList.contains(InvalidSyntaxErrors.InvalidTimestamp(-1)))
+            .assert
+        } yield ()
     }
   }
 
-  it should "validate positive output quantities" in {
+  test("validate positive output quantities") {
     val boxValueGen =
       arbitraryBoxValue.arbitrary.flatMap {
         case Box.Values.Poly(_)  => arbitraryInt128.arbitrary.map(Box.Values.Poly)
@@ -58,13 +60,10 @@ class SyntacticValidationSpec extends AnyFlatSpec with Matchers with ScalaCheckP
         v <- boxValueGen
       } yield o.copy(value = v)
     val negativeTransactionGen =
-      for {
+      (for {
         tx      <- arbitraryTransaction.arbitrary
         outputs <- Gen.listOf(outputGen)
-      } yield tx.copy(outputs = Chain.fromSeq(outputs))
-
-    forAll(negativeTransactionGen) { transaction: Transaction =>
-      whenever(
+      } yield tx.copy(outputs = Chain.fromSeq(outputs))).filter(transaction =>
         transaction.outputs.exists(o =>
           o.value match {
             case v: Box.Values.Poly  => v.quantity.data <= 0
@@ -73,26 +72,43 @@ class SyntacticValidationSpec extends AnyFlatSpec with Matchers with ScalaCheckP
             case _                   => false
           }
         )
-      ) {
-        val result = SyntacticValidation
-          .make[F]
-          .flatMap(_.validateSyntax(transaction))
-          .unsafeRunSync()
+      )
 
-        result.toEither.left.value.exists {
-          case _: InvalidSyntaxErrors.NonPositiveOutputValue => true
-          case _                                             => false
-        } shouldBe true
-      }
+    PropF.forAllF(negativeTransactionGen) { transaction: Transaction =>
+      for {
+        underTest <- SyntacticValidation.make[F]
+        result    <- underTest.validateSyntax(transaction)
+        _ <- EitherT
+          .fromEither[F](result.toEither)
+          .swap
+          .exists(_.toList.exists {
+            case _: InvalidSyntaxErrors.NonPositiveOutputValue => true
+            case _                                             => false
+          })
+          .assert
+      } yield ()
     }
   }
 
-  it should "validate sufficient input funds" in {
+  test("validate sufficient input funds (Manual)") {
+    def testTx(transaction: Transaction) =
+      for {
+        underTest <- SyntacticValidation.make[F]
+        result    <- underTest.validateSyntax(transaction)
+        _ <- EitherT
+          .fromEither[F](result.toEither)
+          .swap
+          .exists(_.toList.exists {
+            case InvalidSyntaxErrors.InsufficientInputFunds(_, _) => true
+            case _                                                => false
+          })
+          .assert
+      } yield ()
     // Manual tests
-    forAll { (baseTransaction: Transaction, input: Transaction.Input, output: Transaction.Output) =>
+    PropF.forAllF { (baseTransaction: Transaction, input: Transaction.Input, output: Transaction.Output) =>
       // Poly Test
-      {
-        val tx = baseTransaction.copy(
+      testTx(
+        baseTransaction.copy(
           inputs = Chain(
             input.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(1))))
           ),
@@ -100,18 +116,10 @@ class SyntacticValidationSpec extends AnyFlatSpec with Matchers with ScalaCheckP
             output.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(2))), minting = false)
           )
         )
-        val result = SyntacticValidation
-          .make[F]
-          .flatMap(_.validateSyntax(tx))
-          .unsafeRunSync()
-        result.toEither.left.value.exists {
-          case _: InvalidSyntaxErrors.InsufficientInputFunds[_] => true
-          case _                                                => false
-        } shouldBe true
-      }
+      ) >>
       // Arbit Test
-      {
-        val tx = baseTransaction.copy(
+      testTx(
+        baseTransaction.copy(
           inputs = Chain(
             input.copy(value = Box.Values.Arbit(Sized.maxUnsafe(BigInt(1))))
           ),
@@ -119,19 +127,11 @@ class SyntacticValidationSpec extends AnyFlatSpec with Matchers with ScalaCheckP
             output.copy(value = Box.Values.Arbit(Sized.maxUnsafe(BigInt(2))), minting = false)
           )
         )
-        val result = SyntacticValidation
-          .make[F]
-          .flatMap(_.validateSyntax(tx))
-          .unsafeRunSync()
-        result.toEither.left.value.exists {
-          case _: InvalidSyntaxErrors.InsufficientInputFunds[_] => true
-          case _                                                => false
-        } shouldBe true
-      }
+      ) >>
       // Asset Test
-      {
+      testTx {
         val assetCode = arbitraryAssetCode.arbitrary.first
-        val tx = baseTransaction.copy(
+        baseTransaction.copy(
           inputs = Chain(
             input.copy(value =
               arbitraryAssetBox.arbitrary.first.copy(quantity = Sized.maxUnsafe(BigInt(1)), assetCode = assetCode)
@@ -145,24 +145,13 @@ class SyntacticValidationSpec extends AnyFlatSpec with Matchers with ScalaCheckP
             )
           )
         )
-        val result = SyntacticValidation
-          .make[F]
-          .flatMap(_.validateSyntax(tx))
-          .unsafeRunSync()
-        result.toEither.left.value.exists {
-          case _: InvalidSyntaxErrors.InsufficientInputFunds[_] => true
-          case _                                                => false
-        } shouldBe true
       }
     }
+  }
 
+  test("validate sufficient input funds (Gen)") {
     // Arbitrary/generator tests
-    forAll(arbitraryTransaction.arbitrary, maxDiscardedFactor(100)) { transaction: Transaction =>
-      val result = SyntacticValidation
-        .make[F]
-        .flatMap(_.validateSyntax(transaction))
-        .unsafeRunSync()
-
+    PropF.forAllF(arbitraryTransaction.arbitrary) { transaction: Transaction =>
       val polyInSum =
         transaction.inputs.collect { case Transaction.Input(_, _, _, Box.Values.Poly(quantity)) =>
           quantity.data
@@ -171,13 +160,6 @@ class SyntacticValidationSpec extends AnyFlatSpec with Matchers with ScalaCheckP
         transaction.outputs.collect { case Transaction.Output(_, Box.Values.Poly(quantity), false) =>
           quantity.data
         }.sumAll
-      whenever(polyOutSum > polyInSum) {
-        result.toEither.left.value.exists {
-          case _: InvalidSyntaxErrors.InsufficientInputFunds[_] => true
-          case _                                                => false
-        } shouldBe true
-      }
-
       val arbitInSum =
         transaction.inputs.collect { case Transaction.Input(_, _, _, Box.Values.Arbit(quantity)) =>
           quantity.data
@@ -186,12 +168,6 @@ class SyntacticValidationSpec extends AnyFlatSpec with Matchers with ScalaCheckP
         transaction.outputs.collect { case Transaction.Output(_, Box.Values.Arbit(quantity), false) =>
           quantity.data
         }.sumAll
-      whenever(arbitOutSum > arbitInSum) {
-        result.toEither.left.value.exists {
-          case _: InvalidSyntaxErrors.InsufficientInputFunds[_] => true
-          case _                                                => false
-        } shouldBe true
-      }
 
       val assetInSum =
         transaction.inputs.collect { case Transaction.Input(_, _, _, v: Box.Values.Asset) =>
@@ -201,12 +177,22 @@ class SyntacticValidationSpec extends AnyFlatSpec with Matchers with ScalaCheckP
         transaction.outputs.collect { case Transaction.Output(_, v: Box.Values.Asset, false) =>
           v.quantity.data
         }.sumAll
-      whenever(assetOutSum > assetInSum) {
-        result.toEither.left.value.exists {
-          case _: InvalidSyntaxErrors.InsufficientInputFunds[_] => true
-          case _                                                => false
-        } shouldBe true
-      }
+      def existsInsufficientInputFunds(result: Either[NonEmptyChain[InvalidSyntaxError], Transaction]) =
+        EitherT
+          .fromEither[F](result)
+          .swap
+          .exists(_.toList.exists {
+            case InvalidSyntaxErrors.InsufficientInputFunds(_, _) => true
+            case _                                                => false
+          })
+          .assert
+      for {
+        underTest <- SyntacticValidation.make[F]
+        result    <- underTest.validateSyntax(transaction).map(_.toEither)
+        _         <- (polyOutSum > polyInSum).pure[F].ifM(existsInsufficientInputFunds(result), Applicative[F].unit)
+        _         <- (arbitOutSum > arbitInSum).pure[F].ifM(existsInsufficientInputFunds(result), Applicative[F].unit)
+        _         <- (assetOutSum > assetInSum).pure[F].ifM(existsInsufficientInputFunds(result), Applicative[F].unit)
+      } yield ()
     }
   }
 }

@@ -7,8 +7,9 @@ import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility._
 import org.scalacheck.rng.Seed
 import org.scalacheck.{Arbitrary, Gen}
+import org.scalactic.anyvals.NonEmptyMap
 
-import scala.collection.immutable.ListSet
+import scala.collection.immutable.{ListSet, SortedSet}
 
 trait ModelGenerators {
 

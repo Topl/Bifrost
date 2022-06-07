@@ -273,7 +273,7 @@ object Dependencies {
     ) ++ fleam
 
   lazy val ledger: Seq[ModuleID] =
-    Dependencies.test ++ Dependencies.catsEffect
+    Dependencies.mUnitTest ++ Dependencies.catsEffect
 
   lazy val demo: Seq[ModuleID] =
     Seq(akka("actor"), akka("actor-typed"), akka("stream"), akkaHttp("http2-support")) ++ logging

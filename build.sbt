@@ -15,7 +15,9 @@ inThisBuild(
       val d = new java.util.Date
       sbtdynver.DynVer.getGitDescribeOutput(d).mkVersion(versionFmt, fallbackVersion(d))
     },
-    parallelExecution := false
+    parallelExecution := false,
+    testFrameworks += TestFrameworks.MUnit,
+    libraryDependencies ++= Dependencies.mUnitTest
   )
 )
 
@@ -37,7 +39,8 @@ lazy val commonSettings = Seq(
     }
   },
   crossScalaVersions := Seq(scala212, scala213),
-  testFrameworks += new TestFramework("munit.Framework"),
+  testFrameworks += TestFrameworks.MUnit,
+  libraryDependencies ++= Dependencies.mUnitTest,
   Test / testOptions ++= Seq(
     Tests.Argument("-oD", "-u", "target/test-reports"),
     Tests.Argument(TestFrameworks.ScalaCheck, "-verbosity", "2"),
@@ -511,6 +514,7 @@ lazy val ledger = project
   .settings(scalamacrosParadiseSettings)
   .dependsOn(
     models % "compile->compile;test->test",
+    algebras % "compile->compile;test->test",
     typeclasses,
     eventTree
   )
