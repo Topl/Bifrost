@@ -6,7 +6,7 @@ import akka.util.ByteString
 import cats.data.{EitherT, OptionT, Validated}
 import cats.effect._
 import cats.implicits._
-import cats.{Applicative, MonadThrow, Parallel, Show}
+import cats.{Applicative, Monad, MonadThrow, Parallel, Show}
 import co.topl.algebras.{Store, StoreReader, ToplRpc, UnsafeResource}
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
@@ -58,6 +58,14 @@ object DemoProgram {
     for {
       (locallyAdoptedBlocksSource, locallyAdoptedBlocksSink) <-
         BroadcastHub.sink[TypedIdentifier].preMaterialize().pure[F]
+      (locallyAdoptedTransactionsSource, locallyAdoptedTransactionsSink) <-
+        BroadcastHub.sink[TypedIdentifier].preMaterialize().pure[F]
+      (remoteBlockSink, remoteBlockSource) <-
+        MergeHub.source[BlockV2].preMaterialize().pure[F]
+      (remoteTransactionsSink, remoteTransactionsSource) <-
+        MergeHub.source[Transaction].preMaterialize().pure[F]
+      ((offerRpcTransaction, terminateRpcTransactions), rpcTransactionsSource) =
+        Source.backpressuredQueue[F, Transaction]().preMaterialize()
       blockProcessor =
         (blockV2: BlockV2) =>
           MonadThrow[F].recoverWith(
@@ -73,17 +81,16 @@ object DemoProgram {
           ) { case t =>
             Logger[F].error(t)(show"Failed to process block id=${blockV2.headerV2.id}").as(false)
           }
-      (remoteBlockSink, remoteBlockSource) <-
-        MergeHub
-          .source[BlockV2]
-          .preMaterialize()
-          .pure[F]
       clientHandler <- BlockchainClientHandler.FetchAllBlocks.make[F](
         headerStore,
         bodyStore,
         transactionStore,
         blockIdTree,
         remoteBlockSink,
+        Flow[Transaction]
+          .mapAsyncF(1)(syntacticValidateOrRaise(syntacticValidation))
+          .tapAsyncF(1)(processValidTransaction(transactionStore, mempool))
+          .to(remoteTransactionsSink),
         blockHeights,
         localChain,
         slotDataStore
@@ -94,16 +101,25 @@ object DemoProgram {
         transactionStore,
         blockHeights,
         localChain,
-        locallyAdoptedBlocksSource
+        locallyAdoptedBlocksSource,
+        locallyAdoptedTransactionsSource.tapAsyncF(1)(id =>
+          Logger[F].info(show"Broadcasting transaction id=$id to peers")
+        )
       )
       (p2pServer, p2pFiber) <- BlockchainNetwork
         .make[F](host, bindPort, localPeer, remotePeers, clientHandler, peerServer, peerFlowModifier)
       mintedBlockStream <- mint.fold(Source.never[BlockV2].pure[F])(_.blocks)
-      rpcInterpreter = toplRpcInterpreter(transactionStore, mempool, syntacticValidation)
+      rpcInterpreter = toplRpcInterpreter(transactionStore, mempool, syntacticValidation, offerRpcTransaction)
       rpcServer = ToplGrpc.Server.serve(rpcHost, rpcPort, rpcInterpreter)
-      streamCompletionFuture =
+      _ <- rpcTransactionsSource
+        .merge(remoteTransactionsSource)
+        .map(_.id.asTypedBytes)
+        .alsoTo(locallyAdoptedTransactionsSink)
+        .toMat(Sink.ignore)(Keep.right)
+        .liftTo[F]
+      blockStreamCompletionFuture =
         mintedBlockStream
-          .tapAsyncF(1)(block => Logger[F].info(show"Minted block ${block.headerV2}"))
+          .tapAsyncF(1)(block => Logger[F].info(show"Minted header=${block.headerV2} body=${block.blockBodyV2}"))
           // Prioritize locally minted blocks over remote blocks
           .mergePreferred(remoteBlockSource, priority = false)
           .mapAsyncF(1)(block => blockProcessor(block).tupleLeft(block.headerV2.id.asTypedBytes))
@@ -113,7 +129,7 @@ object DemoProgram {
           .liftTo[F]
       _ <- rpcServer.use(binding =>
         Logger[F].info(s"RPC Server bound at ${binding.localAddress}") >>
-        Async[F].fromFuture(streamCompletionFuture) >>
+        Async[F].fromFuture(blockStreamCompletionFuture) >>
         p2pFiber.join
       )
     } yield ()
@@ -149,7 +165,8 @@ object DemoProgram {
             Sync[F].defer(
               EitherT(
                 OptionT(headerStore.get(block.headerV2.parentHeaderId))
-                  .getOrElseF(MonadThrow[F].raiseError(new NoSuchElementException(block.headerV2.parentHeaderId.show)))
+                  .toRight(new NoSuchElementException(block.headerV2.parentHeaderId.show))
+                  .rethrowT
                   .flatMap(parent => headerValidation.validate(block.headerV2, parent))
               )
                 .foldF(
@@ -175,38 +192,47 @@ object DemoProgram {
     } yield adopted
 
   private def toplRpcInterpreter[F[_]: Async: Logger: FToFuture](
-    transactionStore:    Store[F, TypedIdentifier, Transaction],
-    mempool:             MempoolAlgebra[F],
-    syntacticValidation: SyntacticValidationAlgebra[F]
+    transactionStore:          Store[F, TypedIdentifier, Transaction],
+    mempool:                   MempoolAlgebra[F],
+    syntacticValidation:       SyntacticValidationAlgebra[F],
+    broadcastTransactionToP2P: Transaction => F[Unit]
   ) =
     new ToplRpc[F] {
 
-      def broadcastTransaction(tx: Transaction): F[Unit] =
+      def broadcastTransaction(transaction: Transaction): F[Unit] =
         transactionStore
-          .contains(tx.id)
+          .contains(transaction.id)
           .ifM(
-            Sync[F].defer(Logger[F].info(show"Received duplicate transaction id=${tx.id.asTypedBytes}")),
-            Sync[F].defer(
-              Logger[F].info(show"Received RPC Transaction id=${tx.id.asTypedBytes}") >>
-              EitherT(syntacticValidation.validateSyntax(tx).map(_.toEither))
-                .leftSemiflatTap(errors =>
-                  errors.traverse(error =>
-                    Logger[F]
-                      .warn(s"Transaction id=${tx.id.asTypedBytes.show} was syntactically invalid.  reason=$error")
-                  )
-                )
-                // TODO: Semantic and Authorization Validation
-                .semiflatTap(_ =>
-                  Logger[F].info(show"Inserting Transaction id=${tx.id.asTypedBytes} into transaction store") >>
-                  transactionStore.put(tx.id, tx) >>
-                  Logger[F].info(show"Inserting Transaction id=${tx.id.asTypedBytes} into mempool") >>
-                  mempool.add(tx.id)
-                // TODO: Broadcast to P2P
-                )
-                .value
-                .void
-            )
+            Logger[F].info(show"Received duplicate transaction id=${transaction.id.asTypedBytes}"),
+            Logger[F].info(show"Received RPC Transaction id=${transaction.id.asTypedBytes}") >>
+            syntacticValidateOrRaise(syntacticValidation)(transaction)
+              // TODO: Semantic and Authorization Validation
+              .flatTap(processValidTransaction[F](transactionStore, mempool))
+              .flatTap(broadcastTransactionToP2P)
+              .void
           )
     }
+
+  private def syntacticValidateOrRaise[F[_]: MonadThrow: Logger](
+    syntacticValidation: SyntacticValidationAlgebra[F]
+  )(transaction:         Transaction) =
+    EitherT(syntacticValidation.validateSyntax(transaction).map(_.toEither))
+      .leftMap(_.map(_.toString).mkString_(", "))
+      .leftSemiflatTap(errors =>
+        Logger[F].warn(show"Received invalid transaction id=${transaction.id.asTypedBytes} reasons=$errors")
+      )
+      .leftMap(_ =>
+        new IllegalArgumentException(s"Syntactically invalid transaction id=${transaction.id.asTypedBytes}")
+      )
+      .rethrowT
+
+  private def processValidTransaction[F[_]: Monad: Logger](
+    transactionStore: Store[F, TypedIdentifier, Transaction],
+    mempool:          MempoolAlgebra[F]
+  )(transaction:      Transaction) =
+    Logger[F].info(show"Inserting Transaction id=${transaction.id.asTypedBytes} into transaction store") >>
+    transactionStore.put(transaction.id, transaction) >>
+    Logger[F].info(show"Inserting Transaction id=${transaction.id.asTypedBytes} into mempool") >>
+    mempool.add(transaction.id)
 
 }

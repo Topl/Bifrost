@@ -28,6 +28,11 @@ trait BlockchainPeerClient[F[_]] {
   def remotePeerAdoptions: F[Source[TypedIdentifier, NotUsed]]
 
   /**
+   * A Source of transaction IDs that were observed by the remote node
+   */
+  def remoteTransactionNotifications: F[Source[TypedIdentifier, NotUsed]]
+
+  /**
    * A Lookup to retrieve a remote block header by ID
    */
   def getRemoteHeader(id: TypedIdentifier): F[Option[BlockHeaderV2]]
