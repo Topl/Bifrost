@@ -37,6 +37,7 @@ lazy val commonSettings = Seq(
     }
   },
   crossScalaVersions := Seq(scala212, scala213),
+  testFrameworks += new TestFramework("munit.Framework"),
   Test / testOptions ++= Seq(
     Tests.Argument("-oD", "-u", "target/test-reports"),
     Tests.Argument(TestFrameworks.ScalaCheck, "-verbosity", "2"),
@@ -274,7 +275,7 @@ lazy val brambl = project
     buildInfoPackage := "co.topl.buildinfo.brambl"
   )
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(toplRpc, common, typeclasses, models % "compile->compile;test->test", scripting, tetraByteCodecs)
+  .dependsOn(toplRpc, common, typeclasses, models % "compile->compile;test->test", scripting, tetraByteCodecs, toplGrpc)
 
 lazy val akkaHttpRpc = project
   .in(file("akka-http-rpc"))
@@ -491,7 +492,8 @@ lazy val networking = project
     consensus,
     commonInterpreters,
     catsAkka,
-    eventTree
+    eventTree,
+    ledger
   )
 
 lazy val ledger = project
@@ -542,7 +544,8 @@ lazy val demo = project
     scripting,
     commonInterpreters,
     networking,
-    catsAkka
+    catsAkka,
+    toplGrpc
   )
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
@@ -593,6 +596,17 @@ lazy val toplRpc = project
     buildInfoPackage := "co.topl.buildinfo.toplrpc"
   )
   .dependsOn(akkaHttpRpc, common)
+
+lazy val toplGrpc = project
+  .in(file("topl-grpc"))
+  .settings(
+    name := "topl-grpc",
+    commonSettings,
+    scalamacrosParadiseSettings,
+    libraryDependencies ++= Dependencies.toplGrpc,
+  )
+  .enablePlugins(AkkaGrpcPlugin)
+  .dependsOn(models % "compile->compile;test->test", byteCodecs, tetraByteCodecs, algebras, catsAkka)
 
 // This module has fallen out of sync with the rest of the codebase and is not currently needed
 //lazy val gjallarhorn = project
