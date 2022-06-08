@@ -39,8 +39,8 @@ object Dependencies {
 
   val mUnitTest = Seq(
     "org.scalameta" %% "munit"                   % "0.7.29" % Test,
-    "org.typelevel" %% "munit-cats-effect-3"     % "1.0.7"  % Test,
     "org.scalameta" %% "munit-scalacheck"        % "0.7.29" % Test,
+    "org.typelevel" %% "munit-cats-effect-3"     % "1.0.7"  % Test,
     "org.typelevel" %% "scalacheck-effect-munit" % "1.0.4"  % Test
   ) ++ scalamock
 
@@ -332,4 +332,7 @@ object Dependencies {
     mainargs ++
     misc ++
     test
+
+  lazy val munitScalamock =
+    mUnitTest
 }

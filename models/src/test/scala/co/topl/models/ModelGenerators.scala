@@ -643,7 +643,7 @@ trait ModelGenerators {
       for {
         inputs <-
           Gen
-            .chooseNum[Int](1, 10)
+            .chooseNum[Int](1, 4)
             .flatMap(count =>
               Gen
                 .listOfN(count, arbitraryTransactionInput.arbitrary)
@@ -651,7 +651,7 @@ trait ModelGenerators {
             )
         outputs <-
           Gen
-            .chooseNum[Int](1, 10)
+            .chooseNum[Int](1, 4)
             .flatMap(count =>
               Gen
                 .listOfN(count, arbitraryTransactionOutput.arbitrary)

@@ -109,7 +109,13 @@ object DemoProgram {
       (p2pServer, p2pFiber) <- BlockchainNetwork
         .make[F](host, bindPort, localPeer, remotePeers, clientHandler, peerServer, peerFlowModifier)
       mintedBlockStream <- mint.fold(Source.never[BlockV2].pure[F])(_.blocks)
-      rpcInterpreter = toplRpcInterpreter(transactionStore, mempool, syntacticValidation, offerRpcTransaction)
+      rpcInterpreter = toplRpcInterpreter(
+        transactionStore,
+        mempool,
+        syntacticValidation,
+        offerRpcTransaction,
+        localChain
+      )
       rpcServer = ToplGrpc.Server.serve(rpcHost, rpcPort, rpcInterpreter)
       _ <- rpcTransactionsSource
         .merge(remoteTransactionsSource)
@@ -186,7 +192,7 @@ object DemoProgram {
                 )
             ),
             Sync[F]
-              .defer(Logger[F].info(show"Ignoring weaker block header id=${block.headerV2.id.asTypedBytes}"))
+              .defer(Logger[F].info(show"Ignoring weaker (or equal) block header id=${block.headerV2.id.asTypedBytes}"))
               .as(false)
           )
     } yield adopted
@@ -195,7 +201,8 @@ object DemoProgram {
     transactionStore:          Store[F, TypedIdentifier, Transaction],
     mempool:                   MempoolAlgebra[F],
     syntacticValidation:       SyntacticValidationAlgebra[F],
-    broadcastTransactionToP2P: Transaction => F[Unit]
+    broadcastTransactionToP2P: Transaction => F[Unit],
+    localChain:                LocalChainAlgebra[F]
   ) =
     new ToplRpc[F] {
 
@@ -211,6 +218,9 @@ object DemoProgram {
               .flatTap(broadcastTransactionToP2P)
               .void
           )
+
+      def currentMempool(): F[Set[TypedIdentifier]] =
+        localChain.head.map(_.slotId.blockId).flatMap(mempool.read)
     }
 
   private def syntacticValidateOrRaise[F[_]: MonadThrow: Logger](

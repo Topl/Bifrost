@@ -16,8 +16,15 @@ import scala.collection.immutable.SortedSet
 
 object BoxState {
 
+  /**
+   * Store Key: Transaction ID
+   * Store Value: Array of Shorts, representing the currently spendable indices of the original transaction output array
+   */
   type State[F[_]] = Store[F, TypedIdentifier, NonEmptySet[Short]]
 
+  /**
+   * Creates a BoxStateAlgebra interpreter that is backed by an event-sourced tree
+   */
   def make[F[_]: Async](
     currentBlockId:   F[TypedIdentifier],
     fetchBlockBody:   TypedIdentifier => F[BlockBodyV2],

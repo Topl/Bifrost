@@ -2,7 +2,7 @@ import sbt.Keys.{homepage, organization, test}
 import sbtassembly.MergeStrategy
 
 val scala212 = "2.12.15"
-val scala213 = "2.13.6"
+val scala213 = "2.13.8"
 
 inThisBuild(
   List(
@@ -15,9 +15,7 @@ inThisBuild(
       val d = new java.util.Date
       sbtdynver.DynVer.getGitDescribeOutput(d).mkVersion(versionFmt, fallbackVersion(d))
     },
-    parallelExecution := false,
-    testFrameworks += TestFrameworks.MUnit,
-    libraryDependencies ++= Dependencies.mUnitTest
+    testFrameworks += TestFrameworks.MUnit
   )
 )
 
@@ -39,18 +37,10 @@ lazy val commonSettings = Seq(
     }
   },
   crossScalaVersions := Seq(scala212, scala213),
-  testFrameworks += TestFrameworks.MUnit,
-  libraryDependencies ++= Dependencies.mUnitTest,
   Test / testOptions ++= Seq(
-    Tests.Argument("-oD", "-u", "target/test-reports"),
     Tests.Argument(TestFrameworks.ScalaCheck, "-verbosity", "2"),
-    Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-oDG")
+    Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-oDGG", "-u", "target/test-reports")
   ),
-  Test / parallelExecution := false,
-  Test / logBuffered := false,
-  classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
-  Test / fork := false,
-  Compile / run / fork := true,
   resolvers ++= Seq(
     "Typesafe Repository" at "https://repo.typesafe.com/typesafe/releases/",
     "Sonatype Staging" at "https://s01.oss.sonatype.org/content/repositories/staging",
@@ -58,7 +48,8 @@ lazy val commonSettings = Seq(
     "Bintray" at "https://jcenter.bintray.com/"
   ),
   addCompilerPlugin("org.typelevel" % "kind-projector"     % "0.13.2" cross CrossVersion.full),
-  addCompilerPlugin("com.olegpy"   %% "better-monadic-for" % "0.3.1")
+  addCompilerPlugin("com.olegpy"   %% "better-monadic-for" % "0.3.1"),
+  testFrameworks += TestFrameworks.MUnit
 )
 
 lazy val publishSettings = Seq(
@@ -513,10 +504,11 @@ lazy val ledger = project
   .settings(libraryDependencies ++= Dependencies.ledger)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(
-    models % "compile->compile;test->test",
+    models   % "compile->compile;test->test",
     algebras % "compile->compile;test->test",
     typeclasses,
-    eventTree
+    eventTree,
+    munitScalamock % "test->test"
   )
 
 lazy val demo = project
@@ -606,11 +598,17 @@ lazy val toplGrpc = project
   .settings(
     name := "topl-grpc",
     commonSettings,
-    scalamacrosParadiseSettings,
-    libraryDependencies ++= Dependencies.toplGrpc,
+    libraryDependencies ++= Dependencies.toplGrpc
   )
   .enablePlugins(AkkaGrpcPlugin)
-  .dependsOn(models % "compile->compile;test->test", byteCodecs, tetraByteCodecs, algebras, catsAkka)
+  .dependsOn(
+    models % "compile->compile;test->test",
+    byteCodecs,
+    tetraByteCodecs,
+    algebras,
+    catsAkka,
+    munitScalamock % "test->test"
+  )
 
 // This module has fallen out of sync with the rest of the codebase and is not currently needed
 //lazy val gjallarhorn = project
@@ -695,10 +693,18 @@ lazy val genus = project
     name := "genus",
     commonSettings,
     scalamacrosParadiseSettings,
-    libraryDependencies ++= Dependencies.genus,
+    libraryDependencies ++= Dependencies.genus
   )
   .enablePlugins(AkkaGrpcPlugin)
   .dependsOn(common)
+
+lazy val munitScalamock = project
+  .in(file("munit-scalamock"))
+  .settings(
+    name := "munit-scalamock",
+    commonSettings,
+    libraryDependencies ++= Dependencies.munitScalamock
+  )
 
 addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; + test")
 addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; + test")

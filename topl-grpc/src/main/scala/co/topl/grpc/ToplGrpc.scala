@@ -4,13 +4,16 @@ import akka.actor.ClassicActorSystemProvider
 import akka.grpc.GrpcClientSettings
 import akka.http.scaladsl.Http
 import cats.MonadThrow
+import cats.data.ValidatedNec
 import cats.effect.kernel.{Async, Resource}
 import cats.implicits._
 import co.topl.algebras.ToplRpc
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.grpc.services.{CurrentMempoolReq, CurrentMempoolRes}
 import co.topl.models._
+import com.google.protobuf.ByteString
 
 import scala.concurrent.Future
 
@@ -40,6 +43,22 @@ object ToplGrpc {
                 )
               )
               .void
+
+          def currentMempool(): F[Set[TypedIdentifier]] =
+            Async[F]
+              .fromFuture(
+                Async[F].delay(client.currentMempool(services.CurrentMempoolReq()))
+              )
+              .map(
+                _.transactionIds.toList
+                  .traverse[ValidatedNec[String, *], TypedIdentifier](data =>
+                    (data: Bytes).decodeTransmitted[TypedIdentifier].toValidatedNec
+                  )
+                  .map(_.toSet)
+                  .leftMap(errors => new IllegalArgumentException(show"Invalid Transaction bytes. reason=$errors"))
+                  .toEither
+              )
+              .rethrow
         }
       }
   }
@@ -75,6 +94,13 @@ object ToplGrpc {
             .liftTo[F]
             .flatMap(interpreter.broadcastTransaction)
             .as(services.BroadcastTransactionRes())
+        )
+
+      def currentMempool(in: CurrentMempoolReq): Future[CurrentMempoolRes] =
+        implicitly[FToFuture[F]].apply(
+          interpreter
+            .currentMempool()
+            .map(ids => CurrentMempoolRes(ids.toList.map(_.transmittableBytes: ByteString)))
         )
     }
   }

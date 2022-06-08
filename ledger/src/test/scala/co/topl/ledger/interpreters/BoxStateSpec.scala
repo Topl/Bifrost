@@ -5,7 +5,6 @@ import cats.effect.IO
 import co.topl.models.{Box, Transaction, TypedIdentifier}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
-import org.scalamock.scalatest.MockFactory
 import co.topl.models.ModelGenerators._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
@@ -14,7 +13,7 @@ import cats.implicits._
 import co.topl.algebras.testInterpreters.TestStore
 import co.topl.eventtree.ParentChildTree
 
-class BoxStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite with MockFactory {
+class BoxStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
 
   test("BoxState includes new outputs") {
     PropF.forAllF {
@@ -53,7 +52,6 @@ class BoxStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite with MockF
 
           _ <- underTest.boxExistsAt(blockId1)(outputBoxId).assert
           _ <- underTest.boxExistsAt(blockId2)(outputBoxId).map(!_).assert
-          _ <- IO(false).assert
         } yield ()
     }
   }
