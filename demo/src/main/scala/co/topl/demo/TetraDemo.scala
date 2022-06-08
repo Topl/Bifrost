@@ -47,8 +47,8 @@ import scala.util.Random
 /**
  * Command-line args:
  *
- * port [remotes] seed stakerCount stakerIndex ?genesisTimestampMs
- * i.e.: 9094 [localhost:9095] 2348921 10 3 1648049271191
+ * port rpcPort [remotes] seed stakerCount stakerIndex ?genesisTimestampMs
+ * i.e.: 9094 8094 [localhost:9095] 2348921 10 3 1648049271191
  */
 object TetraDemo extends IOApp {
 
@@ -309,8 +309,8 @@ object TetraDemo extends IOApp {
           (_, flow) => flow,
           syntacticValidation,
           mempool,
-          ???,
-          ???
+          "localhost",
+          demoArgs.rpcPort
         )
     } yield ()
   }
@@ -330,6 +330,7 @@ private case class Staker(
 
 case class DemoArgs(
   port:             Int,
+  rpcPort:          Int,
   remotes:          List[DisconnectedPeer],
   seed:             Long,
   stakerCount:      Int,
@@ -342,6 +343,7 @@ object DemoArgs {
   def parse(args: List[String]): DemoArgs =
     DemoArgs(
       args(0).toInt,
+      args(1).toInt,
       args(1)
         .drop(1)
         .dropRight(1)

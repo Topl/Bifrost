@@ -12,7 +12,18 @@ import co.topl.typeclasses.implicits._
  * Derives/computes/retrieves the State at some eventId
  */
 trait EventSourcedState[F[_], State] {
+
+  /**
+   * Produces a State at the given Event ID
+   */
   def stateAt(eventId: TypedIdentifier): F[State]
+
+  /**
+   * Produces a State at the given Event ID and applies the given function to the State.
+   *
+   * This method is intended to provide thread safety to States that are internally unsafe
+   */
+  def useStateAt[U](eventId: TypedIdentifier)(f: State => F[U]): F[U]
 }
 
 object EventSourcedState {
@@ -51,24 +62,28 @@ object EventSourcedState {
     ) extends EventSourcedState[F, State] {
 
       def stateAt(eventId: TypedIdentifier): F[State] =
+        useStateAt(eventId)(_.pure[F])
+
+      override def useStateAt[U](eventId: TypedIdentifier)(f: State => F[U]): F[U] =
         semaphore.permit.use(_ =>
           for {
             currentEventId <- currentEventIdRef.get
-            state <- Monad[F].ifElseM(
-              Async[F].delay(currentEventId === eventId) -> currentStateRef.get
-            )(
-              Async[F].defer(
-                for {
-                  ((unapplyChain, applyChain), currentState) <- (
-                    parentChildTree.findCommonAncestor(currentEventId, eventId),
-                    currentStateRef.get
-                  ).tupled
-                  stateAtCommonAncestor <- unapplyEvents(unapplyChain.tail, currentState)
-                  newState              <- applyEvents(applyChain.tail, stateAtCommonAncestor)
-                } yield newState
-              )
-            )
-          } yield state
+            state <-
+              (currentEventId === eventId)
+                .pure[F]
+                .ifM(
+                  currentStateRef.get,
+                  for {
+                    ((unapplyChain, applyChain), currentState) <- (
+                      parentChildTree.findCommonAncestor(currentEventId, eventId),
+                      currentStateRef.get
+                    ).tupled
+                    stateAtCommonAncestor <- unapplyEvents(unapplyChain.tail, currentState)
+                    newState              <- applyEvents(applyChain.tail, stateAtCommonAncestor)
+                  } yield newState
+                )
+            res <- f(state)
+          } yield res
         )
 
       private def unapplyEvents(eventIds: Chain[TypedIdentifier], currentState: State): F[State] =

@@ -7,8 +7,9 @@ import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility._
 import org.scalacheck.rng.Seed
 import org.scalacheck.{Arbitrary, Gen}
+import org.scalactic.anyvals.NonEmptyMap
 
-import scala.collection.immutable.ListSet
+import scala.collection.immutable.{ListSet, SortedSet}
 
 trait ModelGenerators {
 
@@ -642,7 +643,7 @@ trait ModelGenerators {
       for {
         inputs <-
           Gen
-            .chooseNum[Int](1, 10)
+            .chooseNum[Int](1, 4)
             .flatMap(count =>
               Gen
                 .listOfN(count, arbitraryTransactionInput.arbitrary)
@@ -650,7 +651,7 @@ trait ModelGenerators {
             )
         outputs <-
           Gen
-            .chooseNum[Int](1, 10)
+            .chooseNum[Int](1, 4)
             .flatMap(count =>
               Gen
                 .listOfN(count, arbitraryTransactionOutput.arbitrary)
