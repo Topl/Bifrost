@@ -6,7 +6,7 @@ import akka.grpc.GrpcClientSettings
 import akka.http.scaladsl.Http
 import akka.stream.scaladsl.Source
 import cats.MonadThrow
-import cats.data.ValidatedNec
+import cats.data.{Chain, OptionT, ValidatedNec}
 import cats.effect.kernel.{Async, Resource}
 import cats.implicits._
 import co.topl.algebras.ToplRpc
@@ -14,9 +14,9 @@ import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances.{bytesLength, latin1DataLength}
-import co.topl.models.utility.Sized
+import co.topl.models.utility.HasLength.instances.{bigIntLength, bytesLength, latin1DataLength}
 import co.topl.models.utility.StringDataTypes.Latin1Data
+import co.topl.models.utility.{Lengths, Sized}
 import com.google.protobuf.ByteString
 import scodec.bits.ByteVector
 
@@ -71,23 +71,109 @@ object ToplGrpc {
               .map(res =>
                 res.header.map(h =>
                   BlockHeaderV2(
-                    TypedBytes(h.parentHeaderIdBytes),
+                    TypedBytes(h.parentHeaderId),
                     h.parentSlot,
-                    Sized.strictUnsafe(h.txRootBytes: Bytes),
-                    Sized.strictUnsafe(h.bloomFilterBytes: Bytes),
+                    Sized.strictUnsafe(h.txRoot: Bytes),
+                    Sized.strictUnsafe(h.bloomFilter: Bytes),
                     h.timestamp,
                     h.height,
                     h.slot,
-                    (h.eligibilityCertificateBytes: Bytes).decodeImmutable[EligibilityCertificate].getOrElse(???),
-                    (h.operationalCertificateBytes: Bytes).decodeImmutable[OperationalCertificate].getOrElse(???),
-                    h.metadataBytes.some
+                    (h.eligibilityCertificate: Bytes).decodeImmutable[EligibilityCertificate].getOrElse(???),
+                    (h.operationalCertificate: Bytes).decodeImmutable[OperationalCertificate].getOrElse(???),
+                    h.metadata.some
                       .filter(_.nonEmpty)
                       .map(b => Latin1Data.fromData(b.toByteArray))
                       .map(Sized.maxUnsafe(_)),
-                    (h.addressBytes: Bytes).decodeImmutable[StakingAddresses.Operator].getOrElse(???)
+                    (h.address: Bytes).decodeImmutable[StakingAddresses.Operator].getOrElse(???)
                   )
                 )
               )
+
+          def fetchBody(id: TypedIdentifier): F[Option[BlockBodyV2]] =
+            Async[F]
+              .fromFuture(
+                Async[F].delay(
+                  client.fetchBlockBody(
+                    services.FetchBlockBodyReq(id.allBytes)
+                  )
+                )
+              )
+              .map(res => res.body.map(body => body.transactionIds.map(t => TypedBytes(t)).toList))
+
+          def fetchTransaction(id: TypedIdentifier): F[Option[Transaction]] =
+            Async[F]
+              .fromFuture(
+                Async[F].delay(
+                  client.fetchTransaction(
+                    services.FetchTransactionReq(id.allBytes)
+                  )
+                )
+              )
+              .map(_.transaction.map(decodeTransaction))
+
+          private def decodeTransaction(transaction: services.Transaction): Transaction =
+            Transaction(
+              inputs = Chain.fromSeq(
+                transaction.inputs.map(i =>
+                  Transaction.Input(
+                    i.boxId
+                      .map(id => Box.Id(TypedBytes(id.transactionId), id.transactionOutputIndex.toShort))
+                      .getOrElse(???),
+                    (i.proposition: Bytes).decodeTransmitted[Proposition].getOrElse(???),
+                    (i.proof: Bytes).decodeTransmitted[Proof].getOrElse(???),
+                    decodeBoxValue(i.value)
+                  )
+                )
+              ),
+              outputs = Chain.fromSeq(
+                transaction.outputs.map(o =>
+                  Transaction.Output(
+                    (o.address: Bytes).decodeTransmitted[FullAddress].getOrElse(???),
+                    decodeBoxValue(o.value),
+                    o.minting
+                  )
+                )
+              ),
+              chronology =
+                transaction.chronology.map(c => Transaction.Chronology(c.creation, c.minimumSlot, c.maximumSlot)).get,
+              transaction.metadataBytes.some
+                .filter(_.nonEmpty)
+                .map(b => Latin1Data.fromData(b.toByteArray))
+                .map(Sized.maxUnsafe(_))
+            )
+
+          private def decodeBoxValue(value: services.BoxValue): Box.Value =
+            value match {
+              case services.BoxValue.Empty   => Box.Values.Empty
+              case _: services.EmptyBoxValue => Box.Values.Empty
+              case v: services.PolyBoxValue =>
+                Box.Values.Poly(Sized.maxUnsafe(BigInt(v.quantity.toByteArray)))
+              case v: services.ArbitBoxValue =>
+                Box.Values.Arbit(Sized.maxUnsafe(BigInt(v.quantity.toByteArray)))
+              case v: services.AssetBoxValue =>
+                Box.Values.Asset(
+                  Sized.maxUnsafe(BigInt(v.quantity.toByteArray)),
+                  Box.Values.Asset.Code(
+                    v.assetCode.get.version.toByte,
+                    (v.assetCode.get.issuerAddress: Bytes)
+                      .decodeTransmitted[SpendingAddress]
+                      .getOrElse(???),
+                    Sized.maxUnsafe[Latin1Data, Lengths.`8`.type](
+                      Latin1Data.fromData(v.assetCode.get.shortName.toByteArray)
+                    )
+                  ),
+                  Sized.strictUnsafe(v.securityRoot),
+                  v.metadata.some
+                    .filter(_.nonEmpty)
+                    .map(b => Latin1Data.fromData(b.toByteArray))
+                    .map(Sized.maxUnsafe(_))
+                )
+              case v: services.OperatorRegistrationBoxValue =>
+                Box.Values.Registrations.Operator(
+                  (v.vrfCommitment: Bytes).decodeTransmitted[Proofs.Knowledge.KesProduct].getOrElse(???)
+                )
+            }
+
           def currentMempool(): F[Set[TypedIdentifier]] =
             Async[F]
               .fromFuture(
@@ -180,6 +266,79 @@ object ToplGrpc {
               )
             )
         )
+
+      def fetchBlockBody(in: services.FetchBlockBodyReq): Future[services.FetchBlockBodyRes] =
+        implicitly[FToFuture[F]].apply(
+          OptionT(interpreter.fetchBody(TypedBytes(in.blockId)))
+            .map(body => services.BlockBody(body.map(_.allBytes)))
+            .value
+            .map(services.FetchBlockBodyRes(_))
+        )
+
+      def fetchTransaction(in: services.FetchTransactionReq): Future[services.FetchTransactionRes] =
+        implicitly[FToFuture[F]].apply(
+          OptionT(interpreter.fetchTransaction(TypedBytes(in.transactionId)))
+            .fold(services.FetchTransactionRes(None, 0))(transaction =>
+              services.FetchTransactionRes(
+                services
+                  .Transaction(
+                    inputs = transaction.inputs
+                      .map(i =>
+                        services.Transaction.Input(
+                          services.Box.Id(i.boxId.transactionId.allBytes, i.boxId.transactionOutputIndex).some,
+                          i.proposition.transmittableBytes,
+                          i.proof.transmittableBytes,
+                          encodeBoxValue(i.value)
+                        )
+                      )
+                      .toList,
+                    outputs = transaction.outputs
+                      .map(o =>
+                        services.Transaction.Output(
+                          o.address.transmittableBytes,
+                          encodeBoxValue(o.value),
+                          o.minting
+                        )
+                      )
+                      .toList,
+                    chronology = services.Transaction
+                      .Chronology(
+                        transaction.chronology.creation,
+                        transaction.chronology.minimumSlot,
+                        transaction.chronology.maximumSlot
+                      )
+                      .some,
+                    metadataBytes = transaction.data.fold(Bytes.empty)(t => Bytes(t.data.bytes))
+                  )
+                  .some,
+                transaction.immutableBytes.length.toInt
+              )
+            )
+        )
+
+      private def encodeBoxValue(value: Box.Value): services.BoxValue =
+        value match {
+          case Box.Values.Empty    => services.EmptyBoxValue()
+          case v: Box.Values.Poly  => services.PolyBoxValue(ByteString.copyFrom(v.quantity.data.toByteArray))
+          case v: Box.Values.Arbit => services.ArbitBoxValue(ByteString.copyFrom(v.quantity.data.toByteArray))
+          case v: Box.Values.Asset =>
+            services.AssetBoxValue(
+              ByteString.copyFrom(v.quantity.data.toByteArray),
+              services.AssetBoxValue
+                .Code(
+                  v.assetCode.version,
+                  v.assetCode.issuer.transmittableBytes,
+                  Bytes(v.assetCode.shortName.data.bytes)
+                )
+                .some,
+              v.securityRoot.data,
+              v.metadata.fold(Bytes.empty)(t => Bytes(t.data.bytes))
+            )
+          case v: Box.Values.Registrations.Operator =>
+            services.OperatorRegistrationBoxValue(
+              v.vrfCommitment.transmittableBytes
+            )
+        }
     }
   }
 

@@ -111,6 +111,7 @@ object DemoProgram {
       mintedBlockStream <- mint.fold(Source.never[BlockV2].pure[F])(_.blocks)
       rpcInterpreter = toplRpcInterpreter(
         headerStore,
+        bodyStore,
         transactionStore,
         mempool,
         syntacticValidation,
@@ -201,6 +202,7 @@ object DemoProgram {
 
   private def toplRpcInterpreter[F[_]: Async: Logger: FToFuture](
     headerStore:               Store[F, TypedIdentifier, BlockHeaderV2],
+    bodyStore:                 Store[F, TypedIdentifier, BlockBodyV2],
     transactionStore:          Store[F, TypedIdentifier, Transaction],
     mempool:                   MempoolAlgebra[F],
     syntacticValidation:       SyntacticValidationAlgebra[F],
@@ -215,6 +217,12 @@ object DemoProgram {
 
       def fetchHeader(id: TypedIdentifier): F[Option[BlockHeaderV2]] =
         headerStore.get(id)
+
+      def fetchBody(id: TypedIdentifier): F[Option[BlockBodyV2]] =
+        bodyStore.get(id)
+
+      def fetchTransaction(id: TypedIdentifier): F[Option[Transaction]] =
+        transactionStore.get(id)
 
       def broadcastTransaction(transaction: Transaction): F[Unit] =
         transactionStore

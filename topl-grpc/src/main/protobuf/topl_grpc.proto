@@ -4,8 +4,13 @@ package co.topl.grpc.services;
 
 service ToplGrpc {
   rpc BroadcastTransaction (BroadcastTransactionReq) returns (BroadcastTransactionRes);
+
   rpc BlockAdoptions (BlockAdoptionsReq) returns (stream BlockAdoptionsRes);
+
   rpc FetchBlockHeader (FetchBlockHeaderReq) returns (FetchBlockHeaderRes);
+  rpc FetchBlockBody (FetchBlockBodyReq) returns (FetchBlockBodyRes);
+  rpc FetchTransaction (FetchTransactionReq) returns (FetchTransactionRes);
+
   rpc CurrentMempool (CurrentMempoolReq) returns (CurrentMempoolRes);
 }
 
@@ -31,21 +36,108 @@ message FetchBlockHeaderRes {
   BlockHeader header = 1;
 }
 
-message BlockHeader {
-  bytes parentHeaderIdBytes = 1;
-  int64 parentSlot = 2;
-  bytes txRootBytes = 3;
-  bytes bloomFilterBytes = 4;
-  int64 timestamp = 5;
-  int64 height = 6;
-  int64 slot = 7;
-  bytes eligibilityCertificateBytes = 8;
-  bytes operationalCertificateBytes = 9;
-  bytes metadataBytes = 10;
-  bytes addressBytes = 11;
+message FetchBlockBodyReq {
+  bytes blockId = 1;
 }
+
+message FetchBlockBodyRes {
+  BlockBody body = 1;
+}
+
+message FetchTransactionReq {
+  bytes transactionId = 1;
+}
+
+message FetchTransactionRes {
+  Transaction transaction = 1;
+  // Debug data
+  int32 transmittableBytesLength = 2;
+}
+
 message CurrentMempoolReq {}
 
 message CurrentMempoolRes {
   repeated bytes transactionIds = 1;
+}
+
+message BlockHeader {
+  bytes parentHeaderId = 1;
+  int64 parentSlot = 2;
+  bytes txRoot = 3;
+  bytes bloomFilter = 4;
+  int64 timestamp = 5;
+  int64 height = 6;
+  int64 slot = 7;
+  bytes eligibilityCertificate = 8;
+  bytes operationalCertificate = 9;
+  bytes metadata = 10;
+  bytes address = 11;
+}
+
+message BlockBody {
+  repeated bytes transactionIds = 1;
+}
+
+message Transaction {
+  repeated Input inputs = 1;
+  repeated Output outputs = 2;
+  Chronology chronology = 3;
+  bytes metadataBytes = 4;
+
+  message Input {
+    Box.Id boxId = 1;
+    bytes proposition = 2;
+    bytes proof = 3;
+    BoxValue value = 4;
+  }
+  message Output {
+    bytes address = 1;
+    BoxValue value = 2;
+    bool minting = 3;
+  }
+  message Chronology {
+    int64 creation = 1;
+    int64 minimumSlot = 2;
+    int64 maximumSlot = 3;
+  }
+}
+
+message Box {
+  message Id {
+    bytes transactionId = 1;
+    int32 transactionOutputIndex = 2;
+  }
+}
+
+message BoxValue {
+  oneof sealed_value {
+    EmptyBoxValue empty = 1;
+    PolyBoxValue poly = 2;
+    ArbitBoxValue arbit = 3;
+    AssetBoxValue asset = 4;
+    OperatorRegistrationBoxValue operatorRegistration = 5;
+  }
+}
+
+message EmptyBoxValue {}
+message PolyBoxValue {
+  bytes quantity = 1;
+}
+message ArbitBoxValue {
+  bytes quantity = 1;
+}
+message AssetBoxValue {
+  bytes quantity = 1;
+  Code assetCode = 2;
+  bytes securityRoot = 3;
+  bytes metadata = 4;
+
+  message Code {
+    int32 version = 1;
+    bytes issuerAddress = 2;
+    bytes shortName = 3;
+  }
+}
+message OperatorRegistrationBoxValue {
+  bytes vrfCommitment = 1;
 }
