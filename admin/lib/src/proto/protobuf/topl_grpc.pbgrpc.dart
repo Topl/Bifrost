@@ -14,11 +14,12 @@ import 'topl_grpc.pb.dart' as $0;
 export 'topl_grpc.pb.dart';
 
 class ToplGrpcClient extends $grpc.Client {
-  static final _$broadcastTx =
-      $grpc.ClientMethod<$0.BroadcastTxReq, $0.BroadcastTxRes>(
-          '/co.topl.grpc.services.ToplGrpc/BroadcastTx',
-          ($0.BroadcastTxReq value) => value.writeToBuffer(),
-          ($core.List<$core.int> value) => $0.BroadcastTxRes.fromBuffer(value));
+  static final _$broadcastTransaction = $grpc.ClientMethod<
+          $0.BroadcastTransactionReq, $0.BroadcastTransactionRes>(
+      '/co.topl.grpc.services.ToplGrpc/BroadcastTransaction',
+      ($0.BroadcastTransactionReq value) => value.writeToBuffer(),
+      ($core.List<$core.int> value) =>
+          $0.BroadcastTransactionRes.fromBuffer(value));
   static final _$blockAdoptions =
       $grpc.ClientMethod<$0.BlockAdoptionsReq, $0.BlockAdoptionsRes>(
           '/co.topl.grpc.services.ToplGrpc/BlockAdoptions',
@@ -31,15 +32,22 @@ class ToplGrpcClient extends $grpc.Client {
           ($0.FetchBlockHeaderReq value) => value.writeToBuffer(),
           ($core.List<$core.int> value) =>
               $0.FetchBlockHeaderRes.fromBuffer(value));
+  static final _$currentMempool =
+      $grpc.ClientMethod<$0.CurrentMempoolReq, $0.CurrentMempoolRes>(
+          '/co.topl.grpc.services.ToplGrpc/CurrentMempool',
+          ($0.CurrentMempoolReq value) => value.writeToBuffer(),
+          ($core.List<$core.int> value) =>
+              $0.CurrentMempoolRes.fromBuffer(value));
 
   ToplGrpcClient($grpc.ClientChannel channel,
       {$grpc.CallOptions? options,
       $core.Iterable<$grpc.ClientInterceptor>? interceptors})
       : super(channel, options: options, interceptors: interceptors);
 
-  $grpc.ResponseFuture<$0.BroadcastTxRes> broadcastTx($0.BroadcastTxReq request,
+  $grpc.ResponseFuture<$0.BroadcastTransactionRes> broadcastTransaction(
+      $0.BroadcastTransactionReq request,
       {$grpc.CallOptions? options}) {
-    return $createUnaryCall(_$broadcastTx, request, options: options);
+    return $createUnaryCall(_$broadcastTransaction, request, options: options);
   }
 
   $grpc.ResponseStream<$0.BlockAdoptionsRes> blockAdoptions(
@@ -55,19 +63,27 @@ class ToplGrpcClient extends $grpc.Client {
       {$grpc.CallOptions? options}) {
     return $createUnaryCall(_$fetchBlockHeader, request, options: options);
   }
+
+  $grpc.ResponseFuture<$0.CurrentMempoolRes> currentMempool(
+      $0.CurrentMempoolReq request,
+      {$grpc.CallOptions? options}) {
+    return $createUnaryCall(_$currentMempool, request, options: options);
+  }
 }
 
 abstract class ToplGrpcServiceBase extends $grpc.Service {
   $core.String get $name => 'co.topl.grpc.services.ToplGrpc';
 
   ToplGrpcServiceBase() {
-    $addMethod($grpc.ServiceMethod<$0.BroadcastTxReq, $0.BroadcastTxRes>(
-        'BroadcastTx',
-        broadcastTx_Pre,
+    $addMethod($grpc.ServiceMethod<$0.BroadcastTransactionReq,
+            $0.BroadcastTransactionRes>(
+        'BroadcastTransaction',
+        broadcastTransaction_Pre,
         false,
         false,
-        ($core.List<$core.int> value) => $0.BroadcastTxReq.fromBuffer(value),
-        ($0.BroadcastTxRes value) => value.writeToBuffer()));
+        ($core.List<$core.int> value) =>
+            $0.BroadcastTransactionReq.fromBuffer(value),
+        ($0.BroadcastTransactionRes value) => value.writeToBuffer()));
     $addMethod($grpc.ServiceMethod<$0.BlockAdoptionsReq, $0.BlockAdoptionsRes>(
         'BlockAdoptions',
         blockAdoptions_Pre,
@@ -84,11 +100,19 @@ abstract class ToplGrpcServiceBase extends $grpc.Service {
             ($core.List<$core.int> value) =>
                 $0.FetchBlockHeaderReq.fromBuffer(value),
             ($0.FetchBlockHeaderRes value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.CurrentMempoolReq, $0.CurrentMempoolRes>(
+        'CurrentMempool',
+        currentMempool_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.CurrentMempoolReq.fromBuffer(value),
+        ($0.CurrentMempoolRes value) => value.writeToBuffer()));
   }
 
-  $async.Future<$0.BroadcastTxRes> broadcastTx_Pre(
-      $grpc.ServiceCall call, $async.Future<$0.BroadcastTxReq> request) async {
-    return broadcastTx(call, await request);
+  $async.Future<$0.BroadcastTransactionRes> broadcastTransaction_Pre(
+      $grpc.ServiceCall call,
+      $async.Future<$0.BroadcastTransactionReq> request) async {
+    return broadcastTransaction(call, await request);
   }
 
   $async.Stream<$0.BlockAdoptionsRes> blockAdoptions_Pre($grpc.ServiceCall call,
@@ -102,10 +126,17 @@ abstract class ToplGrpcServiceBase extends $grpc.Service {
     return fetchBlockHeader(call, await request);
   }
 
-  $async.Future<$0.BroadcastTxRes> broadcastTx(
-      $grpc.ServiceCall call, $0.BroadcastTxReq request);
+  $async.Future<$0.CurrentMempoolRes> currentMempool_Pre($grpc.ServiceCall call,
+      $async.Future<$0.CurrentMempoolReq> request) async {
+    return currentMempool(call, await request);
+  }
+
+  $async.Future<$0.BroadcastTransactionRes> broadcastTransaction(
+      $grpc.ServiceCall call, $0.BroadcastTransactionReq request);
   $async.Stream<$0.BlockAdoptionsRes> blockAdoptions(
       $grpc.ServiceCall call, $0.BlockAdoptionsReq request);
   $async.Future<$0.FetchBlockHeaderRes> fetchBlockHeader(
       $grpc.ServiceCall call, $0.FetchBlockHeaderReq request);
+  $async.Future<$0.CurrentMempoolRes> currentMempool(
+      $grpc.ServiceCall call, $0.CurrentMempoolReq request);
 }

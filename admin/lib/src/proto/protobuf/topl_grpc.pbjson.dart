@@ -8,23 +8,23 @@
 import 'dart:core' as $core;
 import 'dart:convert' as $convert;
 import 'dart:typed_data' as $typed_data;
-@$core.Deprecated('Use broadcastTxReqDescriptor instead')
-const BroadcastTxReq$json = const {
-  '1': 'BroadcastTxReq',
+@$core.Deprecated('Use broadcastTransactionReqDescriptor instead')
+const BroadcastTransactionReq$json = const {
+  '1': 'BroadcastTransactionReq',
   '2': const [
     const {'1': 'transmittableBytes', '3': 1, '4': 1, '5': 12, '10': 'transmittableBytes'},
   ],
 };
 
-/// Descriptor for `BroadcastTxReq`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List broadcastTxReqDescriptor = $convert.base64Decode('Cg5Ccm9hZGNhc3RUeFJlcRIuChJ0cmFuc21pdHRhYmxlQnl0ZXMYASABKAxSEnRyYW5zbWl0dGFibGVCeXRlcw==');
-@$core.Deprecated('Use broadcastTxResDescriptor instead')
-const BroadcastTxRes$json = const {
-  '1': 'BroadcastTxRes',
+/// Descriptor for `BroadcastTransactionReq`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List broadcastTransactionReqDescriptor = $convert.base64Decode('ChdCcm9hZGNhc3RUcmFuc2FjdGlvblJlcRIuChJ0cmFuc21pdHRhYmxlQnl0ZXMYASABKAxSEnRyYW5zbWl0dGFibGVCeXRlcw==');
+@$core.Deprecated('Use broadcastTransactionResDescriptor instead')
+const BroadcastTransactionRes$json = const {
+  '1': 'BroadcastTransactionRes',
 };
 
-/// Descriptor for `BroadcastTxRes`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List broadcastTxResDescriptor = $convert.base64Decode('Cg5Ccm9hZGNhc3RUeFJlcw==');
+/// Descriptor for `BroadcastTransactionRes`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List broadcastTransactionResDescriptor = $convert.base64Decode('ChdCcm9hZGNhc3RUcmFuc2FjdGlvblJlcw==');
 @$core.Deprecated('Use blockAdoptionsReqDescriptor instead')
 const BlockAdoptionsReq$json = const {
   '1': 'BlockAdoptionsReq',
@@ -82,3 +82,20 @@ const BlockHeader$json = const {
 
 /// Descriptor for `BlockHeader`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List blockHeaderDescriptor = $convert.base64Decode('CgtCbG9ja0hlYWRlchIwChNwYXJlbnRIZWFkZXJJZEJ5dGVzGAEgASgMUhNwYXJlbnRIZWFkZXJJZEJ5dGVzEh4KCnBhcmVudFNsb3QYAiABKANSCnBhcmVudFNsb3QSIAoLdHhSb290Qnl0ZXMYAyABKAxSC3R4Um9vdEJ5dGVzEioKEGJsb29tRmlsdGVyQnl0ZXMYBCABKAxSEGJsb29tRmlsdGVyQnl0ZXMSHAoJdGltZXN0YW1wGAUgASgDUgl0aW1lc3RhbXASFgoGaGVpZ2h0GAYgASgDUgZoZWlnaHQSEgoEc2xvdBgHIAEoA1IEc2xvdBJAChtlbGlnaWJpbGl0eUNlcnRpZmljYXRlQnl0ZXMYCCABKAxSG2VsaWdpYmlsaXR5Q2VydGlmaWNhdGVCeXRlcxJAChtvcGVyYXRpb25hbENlcnRpZmljYXRlQnl0ZXMYCSABKAxSG29wZXJhdGlvbmFsQ2VydGlmaWNhdGVCeXRlcxIkCg1tZXRhZGF0YUJ5dGVzGAogASgMUg1tZXRhZGF0YUJ5dGVzEiIKDGFkZHJlc3NCeXRlcxgLIAEoDFIMYWRkcmVzc0J5dGVz');
+@$core.Deprecated('Use currentMempoolReqDescriptor instead')
+const CurrentMempoolReq$json = const {
+  '1': 'CurrentMempoolReq',
+};
+
+/// Descriptor for `CurrentMempoolReq`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List currentMempoolReqDescriptor = $convert.base64Decode('ChFDdXJyZW50TWVtcG9vbFJlcQ==');
+@$core.Deprecated('Use currentMempoolResDescriptor instead')
+const CurrentMempoolRes$json = const {
+  '1': 'CurrentMempoolRes',
+  '2': const [
+    const {'1': 'transactionIds', '3': 1, '4': 3, '5': 12, '10': 'transactionIds'},
+  ],
+};
+
+/// Descriptor for `CurrentMempoolRes`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List currentMempoolResDescriptor = $convert.base64Decode('ChFDdXJyZW50TWVtcG9vbFJlcxImCg50cmFuc2FjdGlvbklkcxgBIAMoDFIOdHJhbnNhY3Rpb25JZHM=');

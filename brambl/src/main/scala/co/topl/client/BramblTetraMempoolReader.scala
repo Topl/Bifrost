@@ -1,7 +1,9 @@
 package co.topl.client
 
+import akka.NotUsed
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
+import akka.stream.scaladsl.Source
 import cats.effect.{Async, IO, IOApp, Sync}
 import cats.implicits._
 import co.topl.algebras.ToplRpc
@@ -42,7 +44,9 @@ object BramblTetraMempoolReader extends IOApp.Simple {
           .void
       )
 
-  private def infiniteMempool(sleepDuration: FiniteDuration)(implicit rpcClient: ToplRpc[F], logger: Logger[F]) =
+  private def infiniteMempool(
+    sleepDuration:      FiniteDuration
+  )(implicit rpcClient: ToplRpc[F, Source[*, NotUsed]], logger: Logger[F]) =
     Sync[F]
       .defer(
         for {
@@ -53,9 +57,5 @@ object BramblTetraMempoolReader extends IOApp.Simple {
       )
       .foreverM
       .void
-
-  implicit class TransactionOps(transaction: Transaction) {
-    def broadcast[F[_]: ToplRpc]: F[Unit] = implicitly[ToplRpc[F]].broadcastTransaction(transaction)
-  }
 
 }

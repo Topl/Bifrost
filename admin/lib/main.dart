@@ -68,8 +68,8 @@ class MyHomePage extends StatelessWidget {
           minScale: 0.1,
           maxScale: 100,
           child: Container(
-              width: 5000,
-              height: 5000,
+              // width: 5000,
+              // height: 5000,
               child: BlockchainGraph(clients: clients)),
         ),
       ),
@@ -101,9 +101,10 @@ class BlockchainGraphState extends State<BlockchainGraph> {
       builder: (context, snapshot) => snapshot.hasData
           ? GraphView(
               graph: snapshot.data!,
-              algorithm: FruchtermanReingoldAlgorithm(
-                  repulsionPercentage: 0.6, repulsionRate: 0.7),
-              // algorithm: SugiyamaAlgorithm(SugiyamaConfiguration()),
+              // algorithm: FruchtermanReingoldAlgorithm(
+              //     repulsionPercentage: 0.6, repulsionRate: 0.7),
+              algorithm: SugiyamaAlgorithm(SugiyamaConfiguration()
+                ..orientation = SugiyamaConfiguration.ORIENTATION_RIGHT_LEFT),
               paint: Paint()
                 ..color = Colors.green
                 ..strokeWidth = 1
@@ -167,7 +168,7 @@ class BlockchainGraphState extends State<BlockchainGraph> {
       }
       if (missing.isNotEmpty) {
         final toRemove = heights.entries
-            .where((element) => element.value < (maxHeight - 80))
+            .where((element) => element.value < (maxHeight - 10))
             .toList();
         for (final entry in toRemove) {
           heights.remove(entry.key);

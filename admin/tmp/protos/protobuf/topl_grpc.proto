@@ -3,15 +3,20 @@ syntax = "proto3";
 package co.topl.grpc.services;
 
 service ToplGrpc {
-  rpc BroadcastTx (BroadcastTxReq) returns (BroadcastTxRes);
+  rpc BroadcastTransaction (BroadcastTransactionReq) returns (BroadcastTransactionRes);
   rpc BlockAdoptions (BlockAdoptionsReq) returns (stream BlockAdoptionsRes);
   rpc FetchBlockHeader (FetchBlockHeaderReq) returns (FetchBlockHeaderRes);
+  rpc CurrentMempool (CurrentMempoolReq) returns (CurrentMempoolRes);
 }
 
-message BroadcastTxReq {
+message BroadcastTransactionReq {
+  // TODO: Use a Transaction structure instead of just its transmittableBytes
+  // But for now, just encode/decode the byte representation.  Re-implementing the full
+  // structure requires re-implementing the full Proposition/Proof structure.
   bytes transmittableBytes = 1;
 }
-message BroadcastTxRes {}
+
+message BroadcastTransactionRes {}
 
 message BlockAdoptionsReq {}
 message BlockAdoptionsRes {
@@ -26,7 +31,6 @@ message FetchBlockHeaderRes {
   BlockHeader header = 1;
 }
 
-
 message BlockHeader {
   bytes parentHeaderIdBytes = 1;
   int64 parentSlot = 2;
@@ -39,4 +43,9 @@ message BlockHeader {
   bytes operationalCertificateBytes = 9;
   bytes metadataBytes = 10;
   bytes addressBytes = 11;
+}
+message CurrentMempoolReq {}
+
+message CurrentMempoolRes {
+  repeated bytes transactionIds = 1;
 }

@@ -211,7 +211,7 @@ object DemoProgram {
     new ToplRpc[F, SourceMatNotUsed] {
 
       def blockAdoptions(): F[SourceMatNotUsed[TypedIdentifier]] =
-        Sync[F].delay(locallyAdoptedBlocks)
+        Sync[F].defer(locallyAdoptedBlocks)
 
       def fetchHeader(id: TypedIdentifier): F[Option[BlockHeaderV2]] =
         headerStore.get(id)

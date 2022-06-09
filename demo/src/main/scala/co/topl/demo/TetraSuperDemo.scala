@@ -60,7 +60,7 @@ object TetraSuperDemo extends IOApp {
   private val OperationalPeriodsPerEpoch = 3L
   private val ChainSelectionKLookback = 180L
   private val EpochLength = ChainSelectionKLookback * 3
-  private val SlotDuration = 100.milli
+  private val SlotDuration = 200.milli
 
   require(
     EpochLength % OperationalPeriodLength === 0L,
@@ -399,9 +399,9 @@ object TetraSuperDemo extends IOApp {
                 SimulatedGeospatialDelayFlow(
                   localPeer.coordinate,
                   peer.coordinate,
-                  durationPerKilometer = 40.micros,
+                  durationPerKilometer = 1.micros,
                   durationPerByte = 1.micros,
-                  noise = 10.milli
+                  noise = 500.milli
                 )
               Flow[ByteString].via(delayer).viaMat(flow)(Keep.right).via(delayer)
             },
