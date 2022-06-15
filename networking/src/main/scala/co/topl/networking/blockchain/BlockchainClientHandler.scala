@@ -2,7 +2,7 @@ package co.topl.networking.blockchain
 
 import akka.actor.typed.ActorSystem
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
-import cats.data.OptionT
+import cats.data.{EitherT, NonEmptyChain, OptionT}
 import cats.effect.kernel.Sync
 import cats.effect.{Async, Concurrent}
 import cats.implicits._
@@ -13,6 +13,7 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
+import co.topl.ledger.algebras.{MempoolAlgebra, SyntacticValidationAlgebra}
 import co.topl.models._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
@@ -34,15 +35,16 @@ object BlockchainClientHandler {
   object FetchAllBlocks {
 
     def make[F[_]: Async: Concurrent: Parallel: Logger: FToFuture](
-      headerStore:      Store[F, TypedIdentifier, BlockHeaderV2],
-      bodyStore:        Store[F, TypedIdentifier, BlockBodyV2],
-      transactionStore: Store[F, TypedIdentifier, Transaction],
-      blockIdTree:      ParentChildTree[F, TypedIdentifier],
-      onBlockReceived:  Sink[BlockV2, _],
-      blockHeights:     EventSourcedState[F, Long => F[Option[TypedIdentifier]]],
-      localChain:       LocalChainAlgebra[F],
-      slotDataStore:    StoreReader[F, TypedIdentifier, SlotData]
-    )(implicit system:  ActorSystem[_]): F[BlockchainClientHandler[F]] =
+      headerStore:           Store[F, TypedIdentifier, BlockHeaderV2],
+      bodyStore:             Store[F, TypedIdentifier, BlockBodyV2],
+      transactionStore:      Store[F, TypedIdentifier, Transaction],
+      blockIdTree:           ParentChildTree[F, TypedIdentifier],
+      onBlockReceived:       Sink[BlockV2, _],
+      onTransactionReceived: Sink[Transaction, _],
+      blockHeights:          EventSourcedState[F, Long => F[Option[TypedIdentifier]]],
+      localChain:            LocalChainAlgebra[F],
+      slotDataStore:         StoreReader[F, TypedIdentifier, SlotData]
+    )(implicit system:       ActorSystem[_]): F[BlockchainClientHandler[F]] =
       Sync[F].delay(
         (
           client =>
@@ -58,14 +60,12 @@ object BlockchainClientHandler {
                       .flatMap(
                         OptionT
                           .fromOption[F](_)
-                          .getOrElseF(
-                            MonadThrow[F]
-                              .raiseError(
-                                new IllegalStateException(
-                                  show"Unable to derive block height state for height=$height"
-                                )
-                              )
+                          .toRight(
+                            new IllegalStateException(
+                              show"Unable to derive block height state for height=$height"
+                            )
                           )
+                          .rethrowT
                       )
                 ).pure[F]
                 currentHeightLookup <- (() => localChain.head.map(_.height)).pure[F]
@@ -78,7 +78,7 @@ object BlockchainClientHandler {
                   blockIdTree
                 ) _
                 implicit0(ec: ExecutionContext) = system.executionContext
-                f1 = Async[F].fromFuture(
+                blocksReceivedBackgroundF = Async[F].fromFuture(
                   client.remotePeerAdoptions
                     .flatMap(
                       _.mapAsyncF(1)(blockProcessor)
@@ -87,7 +87,38 @@ object BlockchainClientHandler {
                         .liftTo[F]
                     )
                 )
-                f2 = Async[F].fromFuture(
+                transactionsReceivedBackgroundF = Async[F].fromFuture(
+                  client.remoteTransactionNotifications
+                    .flatMap(
+                      _.tapAsyncF(1)(id =>
+                        client.remotePeer.flatMap(peer =>
+                          Logger[F].info(show"Remote peer=${peer.remoteAddress} observed transaction id=$id")
+                        )
+                      )
+                        .mapAsyncF(1)(id =>
+                          transactionStore
+                            .contains(id)
+                            .ifM(
+                              none[Transaction].pure[F],
+                              OptionT(client.getRemoteTransaction(id)).getOrNoSuchElement(id).map(_.some)
+                            )
+                        )
+                        .collect { case Some(transaction) =>
+                          transaction
+                        }
+                        .tapAsyncF(1)(transaction =>
+                          client.remotePeer.flatMap(peer =>
+                            Logger[F].info(
+                              show"Retrieved transaction id=${transaction.id.asTypedBytes} from remote peer=${peer.remoteAddress}"
+                            )
+                          )
+                        )
+                        .alsoTo(onTransactionReceived)
+                        .toMat(Sink.ignore)(Keep.right)
+                        .liftTo[F]
+                    )
+                )
+                commonAncestorBackgroundF = Async[F].fromFuture(
                   Source
                     .tick(10.seconds, 10.seconds, ())
                     .mapAsyncF(1)(_ =>
@@ -96,7 +127,11 @@ object BlockchainClientHandler {
                     .toMat(Sink.ignore)(Keep.right)
                     .liftTo[F]
                 )
-                _ <- f1.parProduct(f2)
+                _ <- NonEmptyChain(
+                  blocksReceivedBackgroundF,
+                  transactionsReceivedBackgroundF,
+                  commonAncestorBackgroundF
+                ).parSequence
               } yield ()
             )
         ): BlockchainClientHandler[F]
@@ -151,7 +186,7 @@ object BlockchainClientHandler {
               .productL(fetchBody(client, bodyStore)(id).flatMap(fetchTransactions(client, transactionStore)).void)
               .flatMap(header => headerStore.get(header.parentHeaderId).tupleLeft(header.parentHeaderId))
           }(_._2.isEmpty)
-        maybeBlock <- (OptionT.fromOption[F](maybeCurrentHeader), (OptionT(bodyStore.get(id))))
+        maybeBlock <- (OptionT.fromOption[F](maybeCurrentHeader), OptionT(bodyStore.get(id)))
           .mapN(BlockV2.apply)
           .orElse(
             (OptionT(headerStore.get(id)), OptionT(bodyStore.get(id)))
@@ -262,7 +297,7 @@ object BlockchainClientHandler {
     implicit class OptionTOps[F[_], T](optionT: OptionT[F, T]) {
 
       def getOrNoSuchElement(id: Any)(implicit M: MonadThrow[F]): F[T] =
-        optionT.getOrElseF(M.raiseError(new NoSuchElementException(id.toString)))
+        optionT.toRight(new NoSuchElementException(id.toString)).rethrowT
     }
   }
 }

@@ -42,6 +42,8 @@ class BlockchainClientSpec
 
           def remotePeerAdoptions: F[Source[TypedIdentifier, NotUsed]] = ???
 
+          def remoteTransactionNotifications: F[Source[TypedIdentifier, NotUsed]] = ???
+
           def getRemoteHeader(id: TypedIdentifier): F[Option[BlockHeaderV2]] = ???
 
           def getRemoteBody(id: TypedIdentifier): F[Option[BlockBodyV2]] = ???
