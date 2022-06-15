@@ -17,25 +17,49 @@ object ContainsEvidence {
   def fromImmutableCodec[T: ImmutableCodec](prefix: Byte): ContainsEvidence[T] =
     (t: T) => TypedEvidence(prefix, new Blake2b256().hash(t.immutableBytes))
 
+  object TypePrefixes {
+    final val VerificationKeysCurve25519: Byte = 1
+    final val VerificationKeysEd25519: Byte = 2
+    final val VerificationKeysExtendedEd25519: Byte = 3
+    final val VerificationKeysVrfEd25519: Byte = 4
+    final val VerificationKeysKesSum: Byte = 5
+    final val VerificationKeysKesProduct: Byte = 6
+
+    final val PropositionsPermanentlyLocked: Byte = 7
+    final val PropositionsKnowledgeCurve25519: Byte = 8
+    final val PropositionsKnowledgeEd25519: Byte = 9
+    final val PropositionsKnowledgeExtendedEd25519: Byte = 10
+    final val PropositionsKnowledgeHashLock: Byte = 11
+    final val PropositionsCompositionalThreshold: Byte = 12
+    final val PropositionsCompositionalAnd: Byte = 13
+    final val PropositionsCompositionalOr: Byte = 14
+    final val PropositionsCompositionalNot: Byte = 15
+    final val PropositionsContextualHeightLock: Byte = 16
+    final val PropositionsContextualRequiredBoxState: Byte = 17
+    final val PropositionsScriptJS: Byte = 18
+
+    final val Ratio: Byte = 19
+  }
+
   trait VerificationKeyInstances {
 
     implicit val curve25519VKContainsEvidence: ContainsEvidence[VerificationKeys.Curve25519] =
-      fromImmutableCodec(1)
+      fromImmutableCodec(TypePrefixes.VerificationKeysCurve25519)
 
     implicit val ed25519VKContainsEvidence: ContainsEvidence[VerificationKeys.Ed25519] =
-      fromImmutableCodec(2)
+      fromImmutableCodec(TypePrefixes.VerificationKeysEd25519)
 
     implicit val extended25519VKContainsEvidence: ContainsEvidence[VerificationKeys.ExtendedEd25519] =
-      fromImmutableCodec(3)
+      fromImmutableCodec(TypePrefixes.VerificationKeysExtendedEd25519)
 
     implicit val vrfEd25519VKContainsEvidence: ContainsEvidence[VerificationKeys.VrfEd25519] =
-      fromImmutableCodec(4)
+      fromImmutableCodec(TypePrefixes.VerificationKeysVrfEd25519)
 
     implicit val kesSumVKContainsEvidence: ContainsEvidence[VerificationKeys.KesSum] =
-      fromImmutableCodec(5)
+      fromImmutableCodec(TypePrefixes.VerificationKeysKesSum)
 
     implicit val kesProductVKContainsEvidence: ContainsEvidence[VerificationKeys.KesProduct] =
-      fromImmutableCodec(6)
+      fromImmutableCodec(TypePrefixes.VerificationKeysKesProduct)
 
     implicit val vkContainsEvidence: ContainsEvidence[VerificationKey] = {
       case t: VerificationKeys.Curve25519      => curve25519VKContainsEvidence.typedEvidenceOf(t)
@@ -50,41 +74,41 @@ object ContainsEvidence {
   trait PropositionInstances {
 
     implicit val permanentlyLockedContainsEvidence: ContainsEvidence[Propositions.PermanentlyLocked.type] =
-      fromImmutableCodec(1)
+      fromImmutableCodec(TypePrefixes.PropositionsPermanentlyLocked)
 
     implicit val curve25519KnowledgePropositionContainsEvidence: ContainsEvidence[Propositions.Knowledge.Curve25519] =
-      fromImmutableCodec(2)
+      fromImmutableCodec(TypePrefixes.PropositionsKnowledgeCurve25519)
 
     implicit val ed25519KnowledgePropositionContainsEvidence: ContainsEvidence[Propositions.Knowledge.Ed25519] =
-      fromImmutableCodec(3)
+      fromImmutableCodec(TypePrefixes.PropositionsKnowledgeEd25519)
 
     implicit val extendedEd25519KnowledgePropositionContainsEvidence
       : ContainsEvidence[Propositions.Knowledge.ExtendedEd25519] =
-      fromImmutableCodec(4)
+      fromImmutableCodec(TypePrefixes.PropositionsKnowledgeExtendedEd25519)
 
     implicit val commitRevealContainsEvidence: ContainsEvidence[Propositions.Knowledge.HashLock] =
-      fromImmutableCodec(5)
+      fromImmutableCodec(TypePrefixes.PropositionsKnowledgeHashLock)
 
     implicit val thresholdContainsEvidence: ContainsEvidence[Propositions.Compositional.Threshold] =
-      fromImmutableCodec(6)
+      fromImmutableCodec(TypePrefixes.PropositionsCompositionalThreshold)
 
     implicit val andContainsEvidence: ContainsEvidence[Propositions.Compositional.And] =
-      fromImmutableCodec(7)
+      fromImmutableCodec(TypePrefixes.PropositionsCompositionalAnd)
 
     implicit val orContainsEvidence: ContainsEvidence[Propositions.Compositional.Or] =
-      fromImmutableCodec(8)
+      fromImmutableCodec(TypePrefixes.PropositionsCompositionalOr)
 
     implicit val notContainsEvidence: ContainsEvidence[Propositions.Compositional.Not] =
-      fromImmutableCodec(9)
+      fromImmutableCodec(TypePrefixes.PropositionsCompositionalNot)
 
     implicit val heightLockContainsEvidence: ContainsEvidence[Propositions.Contextual.HeightLock] =
-      fromImmutableCodec(10)
+      fromImmutableCodec(TypePrefixes.PropositionsContextualHeightLock)
 
     implicit val requiredInputBoxStateContainsEvidence: ContainsEvidence[Propositions.Contextual.RequiredBoxState] =
-      fromImmutableCodec(11)
+      fromImmutableCodec(TypePrefixes.PropositionsContextualRequiredBoxState)
 
     implicit val jsScriptPropositionContainsEvidence: ContainsEvidence[Propositions.Script.JS] =
-      fromImmutableCodec(12)
+      fromImmutableCodec(TypePrefixes.PropositionsScriptJS)
 
     implicit lazy val propositionContainsEvidence: ContainsEvidence[Proposition] = {
       case Propositions.PermanentlyLocked =>
@@ -107,7 +131,7 @@ object ContainsEvidence {
   trait Instances extends VerificationKeyInstances with PropositionInstances {
 
     implicit val ratioContainsEvidence: ContainsEvidence[Ratio] =
-      fromImmutableCodec(10)
+      fromImmutableCodec(TypePrefixes.Ratio)
 
   }
 
