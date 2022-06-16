@@ -13,7 +13,7 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
-import co.topl.ledger.algebras.{MempoolAlgebra, SyntacticValidationAlgebra}
+import co.topl.ledger.algebras.{MempoolAlgebra, TransactionSyntacticValidationAlgebra}
 import co.topl.models._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger

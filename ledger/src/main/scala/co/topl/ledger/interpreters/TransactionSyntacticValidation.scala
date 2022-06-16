@@ -3,17 +3,17 @@ package co.topl.ledger.interpreters
 import cats.data.{Chain, NonEmptyChain, Validated, ValidatedNec}
 import cats.effect.Sync
 import cats.implicits._
-import co.topl.ledger.algebras.{InvalidSyntaxError, InvalidSyntaxErrors, SyntacticValidationAlgebra}
+import co.topl.ledger.algebras.{InvalidSyntaxError, InvalidSyntaxErrors, TransactionSyntacticValidationAlgebra}
 import co.topl.models.{Box, Transaction}
 import co.topl.typeclasses.implicits._
 
-object SyntacticValidation {
+object TransactionSyntacticValidation {
 
-  def make[F[_]: Sync]: F[SyntacticValidationAlgebra[F]] =
+  def make[F[_]: Sync]: F[TransactionSyntacticValidationAlgebra[F]] =
     Sync[F].delay(
       (
         transaction => Sync[F].delay(validators.foldMap(_.apply(transaction)).as(transaction))
-      ): SyntacticValidationAlgebra[F]
+      ): TransactionSyntacticValidationAlgebra[F]
     )
 
   private[interpreters] val validators: Chain[Transaction => ValidatedNec[InvalidSyntaxError, Unit]] =

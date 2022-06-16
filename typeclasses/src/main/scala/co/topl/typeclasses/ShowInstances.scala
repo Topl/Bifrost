@@ -50,6 +50,9 @@ trait ShowInstances {
 
   implicit val showInetSocketAddress: Show[InetSocketAddress] =
     address => s"${address.getHostName}:${address.getPort}"
+
+  implicit val showBoxId: Show[Box.Id] =
+    boxId => show"${boxId.transactionId}.outputs[${boxId.transactionOutputIndex}]"
 }
 
 object ShowInstances extends ShowInstances

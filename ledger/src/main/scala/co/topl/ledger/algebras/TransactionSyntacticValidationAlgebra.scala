@@ -1,15 +1,10 @@
 package co.topl.ledger.algebras
 
-import cats.data.{Chain, ValidatedNec}
+import cats.data.Chain
+import co.topl.algebras.ContextlessValidation
 import co.topl.models.{Box, Timestamp, Transaction}
 
-trait SyntacticValidationAlgebra[F[_]] {
-
-  /**
-   * Determines the syntactic integrity of the given transaction
-   */
-  def validateSyntax(transaction: Transaction): F[ValidatedNec[InvalidSyntaxError, Transaction]]
-}
+trait TransactionSyntacticValidationAlgebra[F[_]] extends ContextlessValidation[F, InvalidSyntaxError, Transaction]
 
 sealed abstract class InvalidSyntaxError
 
