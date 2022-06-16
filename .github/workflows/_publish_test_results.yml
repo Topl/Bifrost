@@ -1,0 +1,25 @@
+name: Publish Test Results
+
+on:
+  workflow_call:
+
+jobs:
+  publish-test-results:
+    name: "Publish Tests Results"
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      # only needed unless run with comment_mode: off
+      pull-requests: write
+    if: always()
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v1.35
+        with:
+          files: "artifacts/**/*.xml"
+          check_run_annotations_branch: main, dev

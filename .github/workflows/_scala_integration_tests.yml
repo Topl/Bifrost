@@ -1,0 +1,74 @@
+name: Scala Integration Tests
+
+on:
+  workflow_call:
+    inputs:
+      target-os:
+        description: 'List of operating systems to build on.'
+        default: 'ubuntu-latest'
+        required: false
+        type: string
+      java-versions:
+        description: 'List of Java versions to target.'
+        default: 'graalvm-ce-java11@21.1.0'
+        required: false
+        type: string
+
+jobs:
+  scala_integration_tests:
+    name: Scala Integration Tests
+    strategy:
+      matrix:
+        os: ${{fromJson(inputs.target-os)}}
+        java: ${{fromJson(inputs.java-versions)}}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 # Need full history to update last modified time.
+
+      - name: git-restore-mtime
+        uses: chetan/git-restore-mtime-action@v1
+
+      - name: Download Remote Cache
+        uses: actions/download-artifact@v3
+        with:
+          name: remote-cache
+          path: /tmp/remote-cache/
+
+      - name: Cache sbt
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.sbt
+            ~/.ivy2/cache
+            ~/.coursier/cache/v1
+            ~/.cache/coursier/v1
+            ~/AppData/Local/Coursier/Cache/v1
+            ~/Library/Caches/Coursier/v1
+          key: ${{ runner.os }}-sbt-cache-v2-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
+      - name: Integration Tests
+        run: >
+          IMAGE_ID=$(docker build -q -f node/src/it/resources/Dockerfile .)
+          && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd):/bifrost -v ~/.cache:/root/.cache -v ~/.ivy2/cache:/root/.ivy2/cache -v /tmp/remote-cache:/tmp/remote-cache $IMAGE_ID sbt pullRemoteCache node/docker:publishLocal node/it:test
+          && docker image rm -f $IMAGE_ID
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: Scala Integration Test Results (${{ matrix.os }})
+          path: node/target/test-reports/*.xml
+
+      - name: Cleanup before cache
+        shell: bash
+        run: |
+          rm -rf "$HOME/.ivy2/local" || true
+          find $HOME/Library/Caches/Coursier/v1        -name "ivydata-*.properties" -delete || true
+          find $HOME/.ivy2/cache                       -name "ivydata-*.properties" -delete || true
+          find $HOME/.cache/coursier/v1                -name "ivydata-*.properties" -delete || true
+          find $HOME/.sbt                              -name "*.lock"               -delete || true
+
+      
