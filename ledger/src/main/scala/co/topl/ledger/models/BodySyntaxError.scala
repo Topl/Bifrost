@@ -10,5 +10,5 @@ object BodySyntaxErrors {
   case class TransactionSyntaxErrors(
     transaction:    Transaction,
     semanticErrors: NonEmptyChain[TransactionSyntaxError]
-  )
+  ) extends BodySyntaxError
 }

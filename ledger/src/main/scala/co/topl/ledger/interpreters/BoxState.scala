@@ -107,6 +107,14 @@ object BoxState {
 
 object AugmentedBoxState {
 
+  /**
+   * Constructs a BoxState that wraps another underlying BoxState.  The new BoxState intercepts calls to boxExistsAt
+   * and checks to see if the values are included in the given StateAugmentation object.  StateAugmentation acts as
+   * a simple in-memory tracker of BoxIds that have been spent and created.  It is intended to allow box existence
+   * checks while considering the history of transactions _within_ the block that is being validated
+   * @param boxState an underlying BoxState
+   * @param stateAugmentation a set of BoxState changes to consider when intercepting box existence checks
+   */
   def make[F[_]: Sync](boxState: BoxStateAlgebra[F])(stateAugmentation: StateAugmentation): F[BoxStateAlgebra[F]] =
     Sync[F].delay {
       new BoxStateAlgebra[F] {
@@ -122,8 +130,12 @@ object AugmentedBoxState {
     def augment(transaction: Transaction): StateAugmentation = {
       val transactionSpentBoxIds = transaction.inputs.map(_.boxId).toIterable.toSet
       val transactionId = transaction.id.asTypedBytes
-      val transactionNewBoxIds = transaction.outputs.mapWithIndex((_, idx) => Box.Id(transactionId, idx.toShort)).toIterable.toSet
-      StateAugmentation(spentBoxIds ++ transactionSpentBoxIds, newBoxIds -- transactionSpentBoxIds -- transactionNewBoxIds)
+      val transactionNewBoxIds =
+        transaction.outputs.mapWithIndex((_, idx) => Box.Id(transactionId, idx.toShort)).toIterable.toSet
+      StateAugmentation(
+        spentBoxIds ++ transactionSpentBoxIds,
+        newBoxIds -- transactionSpentBoxIds -- transactionNewBoxIds
+      )
     }
 
   }

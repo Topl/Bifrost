@@ -26,7 +26,9 @@ object BodySemanticValidation {
                 validationResult      <- transactionValidation.validate(context)(transaction)
               } yield validationResult
                 .as(augmentation.augment(transaction))
-                .leftMap(errors => NonEmptyChain(BodySemanticErrors.TransactionSemanticErrors(transaction, errors)))
+                .leftMap(errors =>
+                  NonEmptyChain[BodySemanticError](BodySemanticErrors.TransactionSemanticErrors(transaction, errors))
+                )
             case (invalid, _) => invalid.pure[F]
           }.map(_.as(t))
       }

@@ -39,7 +39,7 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
               .returning(true.pure[F])
             underTest <- TransactionSemanticValidation.make[F](fetchTransaction, boxState)
             _ <- underTest
-              .validateSemantics(blockId)(transactionB)
+              .validate(blockId)(transactionB)
               .map(_.toEither.swap.getOrElse(???).exists(_.isInstanceOf[TransactionSemanticErrors.UnspendableBox]))
               .assert
           } yield ()
@@ -82,7 +82,7 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
               .returning(true.pure[F])
             underTest <- TransactionSemanticValidation.make[F](fetchTransaction, boxState)
             result <- underTest
-              .validateSemantics(blockId)(transactionB)
+              .validate(blockId)(transactionB)
             _ <- IO(
               if (transactionA.outputs.headOption.get.value =!= transactionB.inputs.headOption.get.value)
                 result.toEither.swap.getOrElse(???).exists(_.isInstanceOf[TransactionSemanticErrors.InputDataMismatch])
@@ -127,7 +127,7 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
               .anyNumberOfTimes()
               .returning(true.pure[F])
             underTest <- TransactionSemanticValidation.make[F](fetchTransaction, boxState)
-            result    <- underTest.validateSemantics(blockId)(transactionB)
+            result    <- underTest.validate(blockId)(transactionB)
             _ <- IO(
               result.toEither.swap.getOrElse(???).exists(_.isInstanceOf[TransactionSemanticErrors.InputDataMismatch])
             ).assert
@@ -172,7 +172,7 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
               .once()
               .returning(false.pure[F])
             underTest <- TransactionSemanticValidation.make[F](fetchTransaction, boxState)
-            result    <- underTest.validateSemantics(blockId)(transactionB)
+            result    <- underTest.validate(blockId)(transactionB)
             _ <- IO(
               result.toEither.swap.getOrElse(???).exists(_.isInstanceOf[TransactionSemanticErrors.UnspendableBox])
             ).assert

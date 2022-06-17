@@ -15,7 +15,7 @@ object BodySyntaxValidation {
   ): F[BodySyntaxValidationAlgebra[F]] =
     Sync[F].delay {
       new BodySyntaxValidationAlgebra[F] {
-        def validate(context: TypedIdentifier)(t: BlockBodyV2): F[ValidatedNec[BodySyntaxError, BlockBodyV2]] =
+        def validate(t: BlockBodyV2): F[ValidatedNec[BodySyntaxError, BlockBodyV2]] =
           t.traverse(
             fetchTransaction(_)
               .flatMap(transaction =>
@@ -24,7 +24,7 @@ object BodySyntaxValidation {
                   .map(
                     _.void
                       .leftMap(BodySyntaxErrors.TransactionSyntaxErrors(transaction, _))
-                      .leftMap(NonEmptyChain(_))
+                      .leftMap(NonEmptyChain[BodySyntaxError](_))
                   )
               )
           ).map(_.combineAll.as(t))
