@@ -3,22 +3,24 @@ package co.topl.ledger.interpreters
 import cats.data.{Chain, NonEmptyChain, Validated, ValidatedNec}
 import cats.effect.Sync
 import cats.implicits._
-import co.topl.ledger.algebras.{InvalidSyntaxError, InvalidSyntaxErrors, TransactionSyntacticValidationAlgebra}
+import co.topl.ledger.algebras._
+import co.topl.ledger.models._
 import co.topl.models.{Box, Transaction}
 import co.topl.typeclasses.implicits._
 
-object TransactionSyntacticValidation {
+object TransactionSyntaxValidation {
 
-  def make[F[_]: Sync]: F[TransactionSyntacticValidationAlgebra[F]] =
+  def make[F[_]: Sync]: F[TransactionSyntaxValidationAlgebra[F]] =
     Sync[F].delay(
       (
         transaction => Sync[F].delay(validators.foldMap(_.apply(transaction)).as(transaction))
-      ): TransactionSyntacticValidationAlgebra[F]
+      ): TransactionSyntaxValidationAlgebra[F]
     )
 
-  private[interpreters] val validators: Chain[Transaction => ValidatedNec[InvalidSyntaxError, Unit]] =
+  private[interpreters] val validators: Chain[Transaction => ValidatedNec[TransactionSyntaxError, Unit]] =
     Chain(
       nonEmptyInputsValidation,
+      distinctInputsValidation,
       positiveTimestampValidation,
       positiveOutputValuesValidation,
       sufficientFundsValidation
@@ -27,8 +29,27 @@ object TransactionSyntacticValidation {
   /**
    * Verify that this transaction contains at least one input
    */
-  private[interpreters] def nonEmptyInputsValidation(transaction: Transaction): ValidatedNec[InvalidSyntaxError, Unit] =
-    Validated.condNec(transaction.inputs.nonEmpty, (), InvalidSyntaxErrors.EmptyInputs)
+  private[interpreters] def nonEmptyInputsValidation(
+    transaction: Transaction
+  ): ValidatedNec[TransactionSyntaxError, Unit] =
+    Validated.condNec(transaction.inputs.nonEmpty, (), TransactionSyntaxErrors.EmptyInputs)
+
+  /**
+   * Verify that this transaction does not spend the same box more than once
+   */
+  private[interpreters] def distinctInputsValidation(
+    transaction: Transaction
+  ): ValidatedNec[TransactionSyntaxError, Unit] =
+    NonEmptyChain
+      .fromSeq(
+        transaction.inputs.toIterable
+          .groupBy(_.boxId)
+          .collect {
+            case (boxId, inputs) if inputs.size > 1 => TransactionSyntaxErrors.DuplicateInput(boxId)
+          }
+          .toSeq
+      )
+      .fold(().validNec[TransactionSyntaxError])(_.invalid[Unit])
 
   /**
    * Verify that the timestamp of the transaction is positive (greater than 0).  Transactions _can_ be created
@@ -36,15 +57,15 @@ object TransactionSyntacticValidation {
    */
   private[interpreters] def positiveTimestampValidation(
     transaction: Transaction
-  ): ValidatedNec[InvalidSyntaxError, Unit] =
-    Validated.condNec(transaction.timestamp >= 0, (), InvalidSyntaxErrors.InvalidTimestamp(transaction.timestamp))
+  ): ValidatedNec[TransactionSyntaxError, Unit] =
+    Validated.condNec(transaction.timestamp >= 0, (), TransactionSyntaxErrors.InvalidTimestamp(transaction.timestamp))
 
   /**
    * Verify that each transaction output contains a positive quantity (where applicable)
    */
   private[interpreters] def positiveOutputValuesValidation(
     transaction: Transaction
-  ): ValidatedNec[InvalidSyntaxError, Unit] =
+  ): ValidatedNec[TransactionSyntaxError, Unit] =
     transaction.outputs
       .foldMap(output =>
         (output.value match {
@@ -57,7 +78,7 @@ object TransactionSyntacticValidation {
             .condNec(
               quantity > BigInt(0),
               (),
-              InvalidSyntaxErrors.NonPositiveOutputValue(output.value): InvalidSyntaxError
+              TransactionSyntaxErrors.NonPositiveOutputValue(output.value): TransactionSyntaxError
             )
         )
       )
@@ -67,7 +88,7 @@ object TransactionSyntacticValidation {
    */
   private[interpreters] def sufficientFundsValidation(
     transaction: Transaction
-  ): ValidatedNec[InvalidSyntaxError, Unit] =
+  ): ValidatedNec[TransactionSyntaxError, Unit] =
     quantityBasedValidation(transaction) { f =>
       val filteredInputs = transaction.inputs.map(_.value).filter(f.isDefinedAt)
       val filteredOutputs = transaction.outputs.filterNot(_.minting).map(_.value).filter(f.isDefinedAt)
@@ -76,7 +97,7 @@ object TransactionSyntacticValidation {
       Validated.condNec(
         inputsSum >= outputsSum,
         (),
-        InvalidSyntaxErrors.InsufficientInputFunds(filteredInputs, filteredOutputs): InvalidSyntaxError
+        TransactionSyntaxErrors.InsufficientInputFunds(filteredInputs, filteredOutputs): TransactionSyntaxError
       )
     }
 
@@ -85,8 +106,8 @@ object TransactionSyntacticValidation {
    * @param f an extractor function which retrieves a BigInt from a Box.Value
    */
   private[interpreters] def quantityBasedValidation(transaction: Transaction)(
-    f: PartialFunction[Box.Value, BigInt] => ValidatedNec[InvalidSyntaxError, Unit]
-  ): ValidatedNec[InvalidSyntaxError, Unit] =
+    f: PartialFunction[Box.Value, BigInt] => ValidatedNec[TransactionSyntaxError, Unit]
+  ): ValidatedNec[TransactionSyntaxError, Unit] =
     NonEmptyChain(
       // Extract all Poly values and their quantities
       f { case Box.Values.Poly(quantity) => quantity.data },

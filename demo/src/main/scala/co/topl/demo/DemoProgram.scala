@@ -16,7 +16,7 @@ import co.topl.consensus.{BlockHeaderV2Ops, BlockHeaderValidationFailure}
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.grpc.ToplGrpc
-import co.topl.ledger.algebras.{MempoolAlgebra, TransactionSyntacticValidationAlgebra}
+import co.topl.ledger.algebras.{MempoolAlgebra, TransactionSyntaxValidationAlgebra}
 import co.topl.minting.algebras.PerpetualBlockMintAlgebra
 import co.topl.models._
 import co.topl.networking.blockchain._
@@ -32,28 +32,28 @@ object DemoProgram {
    * A forever-running program which traverses epochs and the slots within the epochs
    */
   def run[F[_]: Parallel: MonadThrow: Logger: Async: FToFuture](
-    mint:               Option[PerpetualBlockMintAlgebra[F]],
-    headerValidation:   BlockHeaderValidationAlgebra[F],
-    headerStore:        Store[F, TypedIdentifier, BlockHeaderV2],
-    bodyStore:          Store[F, TypedIdentifier, BlockBodyV2],
-    transactionStore:   Store[F, TypedIdentifier, Transaction],
-    slotDataStore:      StoreReader[F, TypedIdentifier, SlotData],
-    localChain:         LocalChainAlgebra[F],
-    blockIdTree:        ParentChildTree[F, TypedIdentifier],
-    blockHeights:       EventSourcedState[F, Long => F[Option[TypedIdentifier]]],
-    ed25519VrfResource: UnsafeResource[F, Ed25519VRF],
-    host:               String,
-    bindPort:           Int,
-    localPeer:          LocalPeer,
-    remotePeers:        Source[DisconnectedPeer, _],
-    peerFlowModifier: (
+                                                                 mint:               Option[PerpetualBlockMintAlgebra[F]],
+                                                                 headerValidation:   BlockHeaderValidationAlgebra[F],
+                                                                 headerStore:        Store[F, TypedIdentifier, BlockHeaderV2],
+                                                                 bodyStore:          Store[F, TypedIdentifier, BlockBodyV2],
+                                                                 transactionStore:   Store[F, TypedIdentifier, Transaction],
+                                                                 slotDataStore:      StoreReader[F, TypedIdentifier, SlotData],
+                                                                 localChain:         LocalChainAlgebra[F],
+                                                                 blockIdTree:        ParentChildTree[F, TypedIdentifier],
+                                                                 blockHeights:       EventSourcedState[F, Long => F[Option[TypedIdentifier]]],
+                                                                 ed25519VrfResource: UnsafeResource[F, Ed25519VRF],
+                                                                 host:               String,
+                                                                 bindPort:           Int,
+                                                                 localPeer:          LocalPeer,
+                                                                 remotePeers:        Source[DisconnectedPeer, _],
+                                                                 peerFlowModifier: (
       ConnectedPeer,
       Flow[ByteString, ByteString, F[BlockchainPeerClient[F]]]
     ) => Flow[ByteString, ByteString, F[BlockchainPeerClient[F]]],
-    syntacticValidation: TransactionSyntacticValidationAlgebra[F],
-    mempool:             MempoolAlgebra[F],
-    rpcHost:             String,
-    rpcPort:             Int
+                                                                 syntacticValidation: TransactionSyntaxValidationAlgebra[F],
+                                                                 mempool:             MempoolAlgebra[F],
+                                                                 rpcHost:             String,
+                                                                 rpcPort:             Int
   )(implicit system:     ActorSystem[_], random: Random): F[Unit] =
     for {
       (locallyAdoptedBlocksSource, locallyAdoptedBlocksSink) <-
@@ -198,11 +198,11 @@ object DemoProgram {
     } yield adopted
 
   private def toplRpcInterpreter[F[_]: Async: Logger: FToFuture](
-    transactionStore:          Store[F, TypedIdentifier, Transaction],
-    mempool:                   MempoolAlgebra[F],
-    syntacticValidation:       TransactionSyntacticValidationAlgebra[F],
-    broadcastTransactionToP2P: Transaction => F[Unit],
-    localChain:                LocalChainAlgebra[F]
+                                                                  transactionStore:          Store[F, TypedIdentifier, Transaction],
+                                                                  mempool:                   MempoolAlgebra[F],
+                                                                  syntacticValidation:       TransactionSyntaxValidationAlgebra[F],
+                                                                  broadcastTransactionToP2P: Transaction => F[Unit],
+                                                                  localChain:                LocalChainAlgebra[F]
   ) =
     new ToplRpc[F] {
 
@@ -224,7 +224,7 @@ object DemoProgram {
     }
 
   private def syntacticValidateOrRaise[F[_]: MonadThrow: Logger](
-    syntacticValidation: TransactionSyntacticValidationAlgebra[F]
+    syntacticValidation: TransactionSyntaxValidationAlgebra[F]
   )(transaction:         Transaction) =
     EitherT(syntacticValidation.validate(transaction).map(_.toEither))
       .leftMap(_.map(_.toString).mkString_(", "))

@@ -1,7 +1,7 @@
 package co.topl.ledger.interpreters
 
 import cats.data.{NonEmptySet, OptionT}
-import cats.effect.Async
+import cats.effect.{Async, Sync}
 import cats.implicits._
 import cats.{Applicative, MonadThrow}
 import co.topl.algebras.Store
@@ -103,4 +103,32 @@ object BoxState {
         )
       )
     } yield state
+}
+
+object AugmentedBoxState {
+
+  def make[F[_]: Sync](boxState: BoxStateAlgebra[F])(stateAugmentation: StateAugmentation): F[BoxStateAlgebra[F]] =
+    Sync[F].delay {
+      new BoxStateAlgebra[F] {
+        def boxExistsAt(blockId: TypedIdentifier)(boxId: Box.Id): F[Boolean] =
+          if (stateAugmentation.newBoxIds.contains(boxId)) true.pure[F]
+          else if (stateAugmentation.spentBoxIds.contains(boxId)) false.pure[F]
+          else boxState.boxExistsAt(blockId)(boxId)
+      }
+    }
+
+  case class StateAugmentation(spentBoxIds: Set[Box.Id], newBoxIds: Set[Box.Id]) {
+
+    def augment(transaction: Transaction): StateAugmentation = {
+      val transactionSpentBoxIds = transaction.inputs.map(_.boxId).toIterable.toSet
+      val transactionId = transaction.id.asTypedBytes
+      val transactionNewBoxIds = transaction.outputs.mapWithIndex((_, idx) => Box.Id(transactionId, idx.toShort)).toIterable.toSet
+      StateAugmentation(spentBoxIds ++ transactionSpentBoxIds, newBoxIds -- transactionSpentBoxIds -- transactionNewBoxIds)
+    }
+
+  }
+
+  object StateAugmentation {
+    val Empty: StateAugmentation = StateAugmentation(Set.empty, Set.empty)
+  }
 }

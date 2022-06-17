@@ -1,0 +1,8 @@
+package co.topl.ledger.algebras
+
+import co.topl.algebras.ContextualValidationAlgebra
+import co.topl.ledger.models.BodySemanticError
+import co.topl.models.{BlockBodyV2, TypedIdentifier}
+
+trait BodySemanticValidationAlgebra[F[_]]
+    extends ContextualValidationAlgebra[F, BodySemanticError, BlockBodyV2, TypedIdentifier]
