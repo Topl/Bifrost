@@ -12,26 +12,28 @@ import co.topl.models.ModelGenerators._
 import co.topl.models.Transaction
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
-import org.scalamock.scalatest.MockFactory
+import org.scalamock.munit.AsyncMockFactory
 
-class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with MockFactory {
+class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
 
   test("A transaction can be broadcast") {
     PropF.forAllF { (transaction: Transaction) =>
-      val interpreter = mock[ToplRpc[F]]
-      val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+      withMock {
+        val interpreter = mock[ToplRpc[F]]
+        val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
 
-      (interpreter.broadcastTransaction _)
-        .expects(transaction)
-        .once()
-        .returning(Applicative[F].unit)
+        (interpreter.broadcastTransaction _)
+          .expects(transaction)
+          .once()
+          .returning(Applicative[F].unit)
 
-      Async[F]
-        .fromFuture(
-          underTest.broadcastTransaction(BroadcastTransactionReq(transaction.immutableBytes)).pure[F]
-        )
-        .assertEquals(BroadcastTransactionRes())
+        Async[F]
+          .fromFuture(
+            underTest.broadcastTransaction(BroadcastTransactionReq(transaction.immutableBytes)).pure[F]
+          )
+          .assertEquals(BroadcastTransactionRes())
+      }
     }
   }
 }

@@ -4,6 +4,7 @@ package co.topl.grpc.services;
 
 service ToplGrpc {
   rpc BroadcastTransaction (BroadcastTransactionReq) returns (BroadcastTransactionRes);
+  rpc CurrentMempool (CurrentMempoolReq) returns (CurrentMempoolRes);
 }
 
 message BroadcastTransactionReq {
@@ -14,3 +15,9 @@ message BroadcastTransactionReq {
 }
 
 message BroadcastTransactionRes {}
+
+message CurrentMempoolReq {}
+
+message CurrentMempoolRes {
+  repeated bytes transactionIds = 1;
+}

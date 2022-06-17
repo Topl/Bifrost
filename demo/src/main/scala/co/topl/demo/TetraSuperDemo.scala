@@ -59,7 +59,7 @@ object TetraSuperDemo extends IOApp {
   private val OperationalPeriodLength = 180L
   private val OperationalPeriodsPerEpoch = 4L
   private val EpochLength = OperationalPeriodLength * OperationalPeriodsPerEpoch
-  private val SlotDuration = 1000.milli
+  private val SlotDuration = 200.milli
 
   require(
     EpochLength % OperationalPeriodLength === 0L,

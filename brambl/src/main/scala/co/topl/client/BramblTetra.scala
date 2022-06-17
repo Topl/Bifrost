@@ -23,9 +23,6 @@ object BramblTetra extends IOApp.Simple {
 
   type F[A] = IO[A]
 
-  implicit private val logger: F[SelfAwareStructuredLogger[F]] =
-    Slf4jLogger.create[F]
-
   override def run: IO[Unit] =
     AkkaCatsRuntime
       .systemResource[F, Nothing](ActorSystem(Behaviors.empty, "Brambl"))
@@ -35,7 +32,7 @@ object BramblTetra extends IOApp.Simple {
           .flatMap(implicit rpcClient =>
             Slf4jLogger
               .fromName[F]("Brambl@localhost:8090")
-              .flatMap(implicit logger => infiniteTransactions(1500.milli))
+              .flatMap(implicit logger => infiniteTransactions(500.milli))
           )
           .parProduct(
             Async[F].sleep(200.milli) >>
@@ -44,7 +41,7 @@ object BramblTetra extends IOApp.Simple {
               .flatMap(implicit rpcClient =>
                 Slf4jLogger
                   .fromName[F]("Brambl@localhost:8091")
-                  .flatMap(implicit logger => infiniteTransactions(1500.milli))
+                  .flatMap(implicit logger => infiniteTransactions(500.milli))
               )
           )
           .void
