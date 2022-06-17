@@ -67,4 +67,48 @@ trait EqInstances {
       a.version === b.version &&
       a.issuer === b.issuer &&
       a.shortName === b.shortName
+
+  implicit val ed25519ProofEq: Eq[Proofs.Knowledge.Ed25519] =
+    (a, b) => a.bytes === b.bytes
+
+  implicit val ed25519VKEq: Eq[VerificationKeys.Ed25519] =
+    (a, b) => a.bytes === b.bytes
+
+  implicit val kesSumProofEq: Eq[Proofs.Knowledge.KesSum] =
+    (a, b) => a.signature === b.signature && a.verificationKey === b.verificationKey && a.witness === b.witness
+
+  implicit val kesProductProofEq: Eq[Proofs.Knowledge.KesProduct] =
+    (a, b) =>
+      a.superSignature === b.superSignature &&
+      a.subSignature === b.subSignature &&
+      a.subRoot === b.subRoot
+
+  implicit val emptyBoxValueEq: Eq[Box.Values.Empty.type] =
+    Eq.allEqual
+
+  implicit val polyBoxValueEq: Eq[Box.Values.Poly] =
+    (a, b) => a.quantity === b.quantity
+
+  implicit val arbitBoxValueEq: Eq[Box.Values.Arbit] =
+    (a, b) => a.quantity === b.quantity
+
+  implicit val assetBoxValueEq: Eq[Box.Values.Asset] =
+    (a, b) =>
+      a.quantity === b.quantity &&
+      a.assetCode === b.assetCode &&
+      a.securityRoot === b.securityRoot &&
+      a.metadata === b.metadata
+
+  implicit val operatorRegistrationBoxValueEq: Eq[Box.Values.Registrations.Operator] =
+    (a, b) => a.vrfCommitment === b.vrfCommitment
+
+  implicit val boxValueEq: Eq[Box.Value] = {
+    case (a: Box.Values.Empty.type, b: Box.Values.Empty.type) => emptyBoxValueEq.eqv(a, b)
+    case (a: Box.Values.Poly, b: Box.Values.Poly)             => polyBoxValueEq.eqv(a, b)
+    case (a: Box.Values.Arbit, b: Box.Values.Arbit)           => arbitBoxValueEq.eqv(a, b)
+    case (a: Box.Values.Asset, b: Box.Values.Asset)           => assetBoxValueEq.eqv(a, b)
+    case (a: Box.Values.Registrations.Operator, b: Box.Values.Registrations.Operator) =>
+      operatorRegistrationBoxValueEq.eqv(a, b)
+    case _ => false
+  }
 }
