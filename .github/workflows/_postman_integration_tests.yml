@@ -60,7 +60,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: Postman Integration Test Results (${{ matrix.os }})
-          path: target/test-reports/*.xml
+          path: node/src/it/resources/postman-tests/target/test-results/*.xml
 
       - name: Cleanup before cache
         shell: bash
