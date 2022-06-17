@@ -1,18 +1,18 @@
 package co.topl.ledger.interpreters
 
 import cats.data.Chain
-import cats.implicits._
 import cats.effect.IO
+import cats.implicits._
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
+import co.topl.models.ModelGenerators._
 import co.topl.models._
+import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
-import co.topl.models.ModelGenerators._
-import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.codecs.bytes.tetra.instances._
-import co.topl.typeclasses.implicits._
 
 class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]

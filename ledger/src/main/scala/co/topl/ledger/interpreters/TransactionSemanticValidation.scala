@@ -56,10 +56,11 @@ object TransactionSemanticValidation {
           .get(input.boxId.transactionOutputIndex)
           .toValidNec[TransactionSemanticError](TransactionSemanticErrors.UnspendableBox(input.boxId))
           .ensure(NonEmptyChain(TransactionSemanticErrors.InputDataMismatch(input)))(spentOutput =>
-            // Does the value claimed in the input match the value defined on the referenced output?
+            // Does the box value claimed on the input of _this_ transaction match the
+            // box value (in state) from the spent output?
             spentOutput.value === input.value &&
             // Does the proposition claimed in the input contain the same evidence that is defined on the
-            // referenced output's address?
+            // spent output's address?
             spentOutput.address.spendingAddress.typedEvidence === input.proposition.typedEvidence
           )
           .void

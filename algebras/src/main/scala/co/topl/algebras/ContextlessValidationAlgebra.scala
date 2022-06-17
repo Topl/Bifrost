@@ -2,7 +2,7 @@ package co.topl.algebras
 
 import cats.data.ValidatedNec
 
-trait ContextlessValidation[F[_], E, T] {
+trait ContextlessValidationAlgebra[F[_], E, T] {
 
   /**
    * Determines the validity of the given value, scoped without any contextual information

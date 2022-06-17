@@ -10,6 +10,5 @@ object TransactionSyntaxErrors {
   case class DuplicateInput(boxId: Box.Id) extends TransactionSyntaxError
   case class InvalidTimestamp(timestamp: Timestamp) extends TransactionSyntaxError
   case class NonPositiveOutputValue(outputValue: Box.Value) extends TransactionSyntaxError
-
   case class InsufficientInputFunds[V <: Box.Value](inputs: Chain[V], outputs: Chain[V]) extends TransactionSyntaxError
 }
