@@ -4,12 +4,8 @@ import cats.data.{EitherT, NonEmptyChain, Validated, ValidatedNec}
 import cats.effect._
 import cats.implicits._
 import cats.{Functor, Monad}
-import co.topl.ledger.algebras.{
-  BoxStateAlgebra,
-  InvalidSemanticError,
-  InvalidSemanticErrors,
-  TransactionSemanticValidationAlgebra
-}
+import co.topl.ledger.algebras._
+import co.topl.ledger.models._
 import co.topl.models._
 import co.topl.typeclasses.implicits._
 
@@ -29,10 +25,10 @@ object TransactionSemanticValidation {
          */
         def validate(
           parentBlockId: TypedIdentifier
-        )(transaction:   Transaction): F[ValidatedNec[InvalidSemanticError, Transaction]] =
+        )(transaction:   Transaction): F[ValidatedNec[TransactionSemanticError, Transaction]] =
           transaction.inputs
             // Stop validating after the first error
-            .foldM(transaction.validNec[InvalidSemanticError]) {
+            .foldM(transaction.validNec[TransactionSemanticError]) {
               case (Validated.Valid(_), input) =>
                 EitherT(dataValidation(fetchTransaction)(input).map(_.toEither))
                   .flatMapF(_ => spendableValidation(boxState)(parentBlockId)(input).map(_.toEither))
@@ -52,18 +48,19 @@ object TransactionSemanticValidation {
    */
   private def dataValidation[F[_]: Functor](
     fetchTransaction: TypedIdentifier => F[Transaction]
-  )(input:            Transaction.Input): F[Validated[NonEmptyChain[InvalidSemanticError], Unit]] =
+  )(input:            Transaction.Input): F[Validated[NonEmptyChain[TransactionSemanticError], Unit]] =
     fetchTransaction(input.boxId.transactionId)
       .map(spentTransaction =>
         // Did the output referenced by this input ever exist?  (Not a spend-ability check, just existence)
         spentTransaction.outputs
           .get(input.boxId.transactionOutputIndex)
-          .toValidNec[InvalidSemanticError](InvalidSemanticErrors.UnspendableBox(input.boxId))
-          .ensure(NonEmptyChain(InvalidSemanticErrors.InputDataMismatch(input)))(spentOutput =>
-            // Does the value claimed in the input match the value defined on the referenced output?
+          .toValidNec[TransactionSemanticError](TransactionSemanticErrors.UnspendableBox(input.boxId))
+          .ensure(NonEmptyChain(TransactionSemanticErrors.InputDataMismatch(input)))(spentOutput =>
+            // Does the box value claimed on the input of _this_ transaction match the
+            // box value (in state) from the spent output?
             spentOutput.value === input.value &&
             // Does the proposition claimed in the input contain the same evidence that is defined on the
-            // referenced output's address?
+            // spent output's address?
             spentOutput.address.spendingAddress.typedEvidence === input.proposition.typedEvidence
           )
           .void
@@ -74,11 +71,11 @@ object TransactionSemanticValidation {
    */
   private def spendableValidation[F[_]: Monad](
     boxState: BoxStateAlgebra[F]
-  )(blockId:  TypedIdentifier)(input: Transaction.Input): F[ValidatedNec[InvalidSemanticError, Unit]] =
+  )(blockId:  TypedIdentifier)(input: Transaction.Input): F[ValidatedNec[TransactionSemanticError, Unit]] =
     boxState
       .boxExistsAt(blockId)(input.boxId)
       .ifM(
-        ().validNec[InvalidSemanticError].pure[F],
-        (InvalidSemanticErrors.UnspendableBox(input.boxId): InvalidSemanticError).invalidNec[Unit].pure[F]
+        ().validNec[TransactionSemanticError].pure[F],
+        (TransactionSemanticErrors.UnspendableBox(input.boxId): TransactionSemanticError).invalidNec[Unit].pure[F]
       )
 }

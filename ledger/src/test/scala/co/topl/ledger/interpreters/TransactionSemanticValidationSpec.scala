@@ -1,17 +1,18 @@
 package co.topl.ledger.interpreters
 
 import cats.data.Chain
-import cats.implicits._
 import cats.effect.IO
-import co.topl.ledger.algebras.{BoxStateAlgebra, InvalidSemanticErrors}
+import cats.implicits._
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.ledger.algebras._
+import co.topl.ledger.models._
+import co.topl.models.ModelGenerators._
 import co.topl.models._
+import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
-import co.topl.models.ModelGenerators._
-import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.codecs.bytes.tetra.instances._
-import co.topl.typeclasses.implicits._
 
 class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
@@ -38,8 +39,8 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
               .returning(true.pure[F])
             underTest <- TransactionSemanticValidation.make[F](fetchTransaction, boxState)
             _ <- underTest
-              .validateSemantics(blockId)(transactionB)
-              .map(_.toEither.swap.getOrElse(???).exists(_.isInstanceOf[InvalidSemanticErrors.UnspendableBox]))
+              .validate(blockId)(transactionB)
+              .map(_.toEither.swap.getOrElse(???).exists(_.isInstanceOf[TransactionSemanticErrors.UnspendableBox]))
               .assert
           } yield ()
         }
@@ -81,10 +82,10 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
               .returning(true.pure[F])
             underTest <- TransactionSemanticValidation.make[F](fetchTransaction, boxState)
             result <- underTest
-              .validateSemantics(blockId)(transactionB)
+              .validate(blockId)(transactionB)
             _ <- IO(
               if (transactionA.outputs.headOption.get.value =!= transactionB.inputs.headOption.get.value)
-                result.toEither.swap.getOrElse(???).exists(_.isInstanceOf[InvalidSemanticErrors.InputDataMismatch])
+                result.toEither.swap.getOrElse(???).exists(_.isInstanceOf[TransactionSemanticErrors.InputDataMismatch])
               else
                 true
             ).assert
@@ -126,9 +127,9 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
               .anyNumberOfTimes()
               .returning(true.pure[F])
             underTest <- TransactionSemanticValidation.make[F](fetchTransaction, boxState)
-            result    <- underTest.validateSemantics(blockId)(transactionB)
+            result    <- underTest.validate(blockId)(transactionB)
             _ <- IO(
-              result.toEither.swap.getOrElse(???).exists(_.isInstanceOf[InvalidSemanticErrors.InputDataMismatch])
+              result.toEither.swap.getOrElse(???).exists(_.isInstanceOf[TransactionSemanticErrors.InputDataMismatch])
             ).assert
           } yield ()
         }
@@ -171,9 +172,9 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
               .once()
               .returning(false.pure[F])
             underTest <- TransactionSemanticValidation.make[F](fetchTransaction, boxState)
-            result    <- underTest.validateSemantics(blockId)(transactionB)
+            result    <- underTest.validate(blockId)(transactionB)
             _ <- IO(
-              result.toEither.swap.getOrElse(???).exists(_.isInstanceOf[InvalidSemanticErrors.UnspendableBox])
+              result.toEither.swap.getOrElse(???).exists(_.isInstanceOf[TransactionSemanticErrors.UnspendableBox])
             ).assert
           } yield ()
         }

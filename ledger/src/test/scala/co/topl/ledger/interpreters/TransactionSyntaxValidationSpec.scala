@@ -4,7 +4,7 @@ import cats.Applicative
 import cats.data.{Chain, EitherT, NonEmptyChain}
 import cats.effect._
 import cats.implicits._
-import co.topl.ledger.algebras.{InvalidSyntaxError, InvalidSyntaxErrors}
+import co.topl.ledger.models._
 import co.topl.models.ModelGenerators._
 import co.topl.models.utility.HasLength.instances.bigIntLength
 import co.topl.models.utility.Sized
@@ -13,19 +13,19 @@ import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.Gen
 import org.scalacheck.effect.PropF
 
-class TransactionSyntacticValidationSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
+class TransactionSyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
 
   type F[A] = IO[A]
 
   test("validate non-empty inputs") {
     PropF.forAllF(arbitraryTransaction.arbitrary.map(_.copy(inputs = Chain.empty))) { transaction: Transaction =>
       for {
-        underTest <- TransactionSyntacticValidation.make[F]
+        underTest <- TransactionSyntaxValidation.make[F]
         result    <- underTest.validate(transaction)
         _ <- EitherT
           .fromEither[F](result.toEither)
           .swap
-          .exists(_.toList.contains(InvalidSyntaxErrors.EmptyInputs))
+          .exists(_.toList.contains(TransactionSyntaxErrors.EmptyInputs))
           .assert
       } yield ()
     }
@@ -35,12 +35,12 @@ class TransactionSyntacticValidationSpec extends CatsEffectSuite with ScalaCheck
     PropF.forAllF(arbitraryTransaction.arbitrary.map(tx => tx.copy(chronology = tx.chronology.copy(creation = -1)))) {
       transaction: Transaction =>
         for {
-          underTest <- TransactionSyntacticValidation.make[F]
+          underTest <- TransactionSyntaxValidation.make[F]
           result    <- underTest.validate(transaction)
           _ <- EitherT
             .fromEither[F](result.toEither)
             .swap
-            .exists(_.toList.contains(InvalidSyntaxErrors.InvalidTimestamp(-1)))
+            .exists(_.toList.contains(TransactionSyntaxErrors.InvalidTimestamp(-1)))
             .assert
         } yield ()
     }
@@ -76,14 +76,14 @@ class TransactionSyntacticValidationSpec extends CatsEffectSuite with ScalaCheck
 
     PropF.forAllF(negativeTransactionGen) { transaction: Transaction =>
       for {
-        underTest <- TransactionSyntacticValidation.make[F]
+        underTest <- TransactionSyntaxValidation.make[F]
         result    <- underTest.validate(transaction)
         _ <- EitherT
           .fromEither[F](result.toEither)
           .swap
           .exists(_.toList.exists {
-            case _: InvalidSyntaxErrors.NonPositiveOutputValue => true
-            case _                                             => false
+            case _: TransactionSyntaxErrors.NonPositiveOutputValue => true
+            case _                                                 => false
           })
           .assert
       } yield ()
@@ -93,14 +93,14 @@ class TransactionSyntacticValidationSpec extends CatsEffectSuite with ScalaCheck
   test("validate sufficient input funds (Manual)") {
     def testTx(transaction: Transaction) =
       for {
-        underTest <- TransactionSyntacticValidation.make[F]
+        underTest <- TransactionSyntaxValidation.make[F]
         result    <- underTest.validate(transaction)
         _ <- EitherT
           .fromEither[F](result.toEither)
           .swap
           .exists(_.toList.exists {
-            case InvalidSyntaxErrors.InsufficientInputFunds(_, _) => true
-            case _                                                => false
+            case TransactionSyntaxErrors.InsufficientInputFunds(_, _) => true
+            case _                                                    => false
           })
           .assert
       } yield ()
@@ -177,17 +177,17 @@ class TransactionSyntacticValidationSpec extends CatsEffectSuite with ScalaCheck
         transaction.outputs.collect { case Transaction.Output(_, v: Box.Values.Asset, false) =>
           v.quantity.data
         }.sumAll
-      def existsInsufficientInputFunds(result: Either[NonEmptyChain[InvalidSyntaxError], Transaction]) =
+      def existsInsufficientInputFunds(result: Either[NonEmptyChain[TransactionSyntaxError], Transaction]) =
         EitherT
           .fromEither[F](result)
           .swap
           .exists(_.toList.exists {
-            case InvalidSyntaxErrors.InsufficientInputFunds(_, _) => true
-            case _                                                => false
+            case TransactionSyntaxErrors.InsufficientInputFunds(_, _) => true
+            case _                                                    => false
           })
           .assert
       for {
-        underTest <- TransactionSyntacticValidation.make[F]
+        underTest <- TransactionSyntaxValidation.make[F]
         result    <- underTest.validate(transaction).map(_.toEither)
         _         <- (polyOutSum > polyInSum).pure[F].ifM(existsInsufficientInputFunds(result), Applicative[F].unit)
         _         <- (arbitOutSum > arbitInSum).pure[F].ifM(existsInsufficientInputFunds(result), Applicative[F].unit)

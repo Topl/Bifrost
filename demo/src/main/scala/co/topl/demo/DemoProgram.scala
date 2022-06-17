@@ -16,7 +16,7 @@ import co.topl.consensus.{BlockHeaderV2Ops, BlockHeaderValidationFailure}
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.grpc.ToplGrpc
-import co.topl.ledger.algebras.{MempoolAlgebra, TransactionSyntacticValidationAlgebra}
+import co.topl.ledger.algebras.{MempoolAlgebra, TransactionSyntaxValidationAlgebra}
 import co.topl.minting.algebras.PerpetualBlockMintAlgebra
 import co.topl.models._
 import co.topl.networking.blockchain._
@@ -50,7 +50,7 @@ object DemoProgram {
       ConnectedPeer,
       Flow[ByteString, ByteString, F[BlockchainPeerClient[F]]]
     ) => Flow[ByteString, ByteString, F[BlockchainPeerClient[F]]],
-    syntacticValidation: TransactionSyntacticValidationAlgebra[F],
+    syntacticValidation: TransactionSyntaxValidationAlgebra[F],
     mempool:             MempoolAlgebra[F],
     rpcHost:             String,
     rpcPort:             Int
@@ -200,7 +200,7 @@ object DemoProgram {
   private def toplRpcInterpreter[F[_]: Async: Logger: FToFuture](
     transactionStore:          Store[F, TypedIdentifier, Transaction],
     mempool:                   MempoolAlgebra[F],
-    syntacticValidation:       TransactionSyntacticValidationAlgebra[F],
+    syntacticValidation:       TransactionSyntaxValidationAlgebra[F],
     broadcastTransactionToP2P: Transaction => F[Unit],
     localChain:                LocalChainAlgebra[F]
   ) =
@@ -224,7 +224,7 @@ object DemoProgram {
     }
 
   private def syntacticValidateOrRaise[F[_]: MonadThrow: Logger](
-    syntacticValidation: TransactionSyntacticValidationAlgebra[F]
+    syntacticValidation: TransactionSyntaxValidationAlgebra[F]
   )(transaction:         Transaction) =
     EitherT(syntacticValidation.validate(transaction).map(_.toEither))
       .leftMap(_.map(_.toString).mkString_(", "))
