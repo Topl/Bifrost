@@ -55,7 +55,7 @@ object TransactionSemanticValidation {
   )(input:            Transaction.Input): F[Validated[NonEmptyChain[InvalidSemanticError], Unit]] =
     fetchTransaction(input.boxId.transactionId)
       .map(spentTransaction =>
-        // Did the output referenced by this input every exist?  (Not a spend-ability check, just existence)
+        // Did the output referenced by this input ever exist?  (Not a spend-ability check, just existence)
         spentTransaction.outputs
           .get(input.boxId.transactionOutputIndex)
           .toValidNec[InvalidSemanticError](InvalidSemanticErrors.UnspendableBox(input.boxId))
