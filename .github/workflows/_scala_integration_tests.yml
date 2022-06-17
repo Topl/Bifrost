@@ -52,7 +52,7 @@ jobs:
       - name: Integration Tests
         run: >
           IMAGE_ID=$(docker build -q -f node/src/it/resources/Dockerfile .)
-          && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd)/node/target/test-reports:/bifrost/node/target/test-reports -v ~/.cache:/root/.cache -v ~/.ivy2/cache:/root/.ivy2/cache -v /tmp/remote-cache:/tmp/remote-cache $IMAGE_ID sbt pullRemoteCache node/docker:publishLocal node/it:test
+          && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd)/node/target/it-reports:/bifrost/node/target/it-reports -v ~/.cache:/root/.cache -v ~/.ivy2/cache:/root/.ivy2/cache -v /tmp/remote-cache:/tmp/remote-cache $IMAGE_ID sbt pullRemoteCache node/docker:publishLocal node/it:test
           && docker image rm -f $IMAGE_ID
 
       - name: Upload Test Results
@@ -60,7 +60,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: Scala Integration Test Results (${{ matrix.os }})
-          path: node/target/test-reports/*.xml
+          path: node/target/it-reports/*.xml
 
       - name: Cleanup before cache
         shell: bash
