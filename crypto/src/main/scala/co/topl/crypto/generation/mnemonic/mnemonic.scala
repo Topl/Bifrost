@@ -1,11 +1,5 @@
 package co.topl.crypto.generation
 
-import co.topl.crypto.generation.mnemonic.Language.LanguageWordList
-import co.topl.crypto.hash.sha256
-import io.estatico.newtype.macros.newtype
-import io.estatico.newtype.ops._
-
-import java.util.UUID
 import scala.language.implicitConversions
 import scala.math.BigInt
 

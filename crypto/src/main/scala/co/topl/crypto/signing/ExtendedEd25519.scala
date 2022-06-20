@@ -27,18 +27,6 @@ class ExtendedEd25519
   override val KeyLength: Int = impl.SECRET_KEY_SIZE
   val PublicKeyLength: Int = impl.PUBLIC_KEY_SIZE
 
-  /**
-   * Warning: The provided entropyToSeed is ignored in order to guarantee adherence to BIP32-Ed25519 Icarus Derivation
-   * @param entropyToSeed Ignored
-   * @return
-   */
-  override def createKeyPair(entropy: Entropy, password: Option[Password])(implicit
-    entropyToSeed:                    EntropyToSeed[Length]
-  ): (SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519) = {
-    val seed = EntropyToSeed.instances.pbkdf2Sha512[SecretKeys.ExtendedEd25519.Length].toSeed(entropy, password)
-    createKeyPair(seed)
-  }
-
   override def createKeyPair(
     seed: Sized.Strict[Bytes, Lengths.`96`.type]
   ): (SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519) = {
@@ -227,7 +215,7 @@ class ExtendedEd25519
 
 object ExtendedEd25519 {
 
-  def precomputed(): ExtendedEd25519 = {
+  lazy val instance: ExtendedEd25519 = {
     val instance = new ExtendedEd25519
     instance.precompute()
     instance
@@ -249,15 +237,6 @@ object ExtendedEd25519 {
   def validate(value: SecretKeys.ExtendedEd25519): Either[InvalidDerivedKey, SecretKeys.ExtendedEd25519] =
     Either.cond(leftNumber(value) % edBaseN != 0, value, InvalidDerivedKey)
 
-  /**
-   * Instantiates an `ExtendedPrivateKeyEd25519` from entropy and a password.
-   * @param entropy some random entropy
-   * @param password an optional password for an extra layer of security
-   * @return an `ExtendedPrivateKeyEd25519`
-   */
-  def fromEntropy(entropy: Entropy)(password: Password = ""): SecretKeys.ExtendedEd25519 =
-    clampBits(entropyToSeed(entropy)(password))
-
   /** clamp bits to make a valid Bip32-Ed25519 private key */
   private[ExtendedEd25519] def clampBits(
     sizedSeed: Sized.Strict[Bytes, SecretKeys.ExtendedEd25519.Length]
@@ -272,22 +251,6 @@ object ExtendedEd25519 {
       Sized.strictUnsafe(Bytes(seed.slice(0, 32))),
       Sized.strictUnsafe(Bytes(seed.slice(32, 64))),
       Sized.strictUnsafe(Bytes(seed.slice(64, 96)))
-    )
-  }
-
-  def entropyToSeed(
-    entropy:  Entropy
-  )(password: Password = ""): Sized.Strict[Bytes, SecretKeys.ExtendedEd25519.Length] = {
-    val kdf = new Pbkdf2Sha512()
-    Sized.strictUnsafe(
-      Bytes(
-        kdf.generateKey(
-          password.getBytes(StandardCharsets.UTF_8),
-          entropy.value,
-          96,
-          4096
-        )
-      )
     )
   }
 

@@ -44,7 +44,7 @@ class MnemonicToEntropySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChe
     testVectors.foreach { vec =>
       val mnemonicSize = getMnemonicSize(vec.inputs.mnemonicSize)
       val mnemonic = Phrase.validated(vec.inputs.mnemonic, mnemonicSize, wordList)
-      val entropy = mnemonic.map(Entropy.fromPhrase(_, wordList, mnemonicSize))
+      val entropy = mnemonic.map(Entropy.unsafeFromPhrase(_, wordList, mnemonicSize))
 
       curveEntropy.toSeed(entropy.value, Some(vec.inputs.passphrase)) shouldBe vec.outputs.seed32.unsafeStrictBytes(
         Lengths.`32`
@@ -56,7 +56,7 @@ class MnemonicToEntropySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChe
     testVectors.foreach { vec =>
       val mnemonicSize = getMnemonicSize(vec.inputs.mnemonicSize)
       val mnemonic = Phrase.validated(vec.inputs.mnemonic, mnemonicSize, wordList)
-      val entropy = mnemonic.map(Entropy.fromPhrase(_, wordList, mnemonicSize))
+      val entropy = mnemonic.map(Entropy.unsafeFromPhrase(_, wordList, mnemonicSize))
 
       edEntropy.toSeed(entropy.value, Some(vec.inputs.passphrase)) shouldBe vec.outputs.seed64.unsafeStrictBytes(
         Lengths.`64`
@@ -68,7 +68,7 @@ class MnemonicToEntropySpec extends AnyPropSpec with ScalaCheckDrivenPropertyChe
     testVectors.foreach { vec =>
       val mnemonicSize = getMnemonicSize(vec.inputs.mnemonicSize)
       val mnemonic = Phrase.validated(vec.inputs.mnemonic, mnemonicSize, wordList)
-      val entropy = mnemonic.map(Entropy.fromPhrase(_, wordList, mnemonicSize))
+      val entropy = mnemonic.map(Entropy.unsafeFromPhrase(_, wordList, mnemonicSize))
 
       extEdEntropy.toSeed(entropy.value, Some(vec.inputs.passphrase)) shouldBe vec.outputs.seed96.unsafeStrictBytes(
         Lengths.`96`

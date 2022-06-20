@@ -24,7 +24,7 @@ object CredentialPlaygroundBV extends App {
   type F[A] = cats.effect.IO[A]
 
   implicit val ed25519: Ed25519 = new Ed25519
-  implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.precomputed()
+  implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.instance()
 
   implicit val jsExecutor: Propositions.Script.JS.JSScript => F[(Json, Json) => F[Boolean]] =
     s =>

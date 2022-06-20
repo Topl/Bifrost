@@ -26,7 +26,7 @@ import co.topl.crypto.generation.KeyInitializer
 
 object CredentialPlaygroundSean extends App {
   implicit val ed25519: Ed25519 = new Ed25519
-  implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.precomputed()
+  implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.instance()
   implicit val networkPrefix: NetworkPrefix = NetworkPrefix(1: Byte)
 
   val stakingAddress: StakingAddress =

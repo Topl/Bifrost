@@ -65,7 +65,7 @@ object KeyInitializer {
           fromEntropy(Entropy.fromUuid(UUID.randomUUID()), password = Some(""))
 
         def fromEntropy(entropy: Entropy, password: Option[Password]): SecretKeys.ExtendedEd25519 =
-          ExtendedEd25519.precomputed().createKeyPair(entropy, password)._1
+          ExtendedEd25519.instance.createKeyPair(entropy, password)._1
       }
 
 //    implicit def kesSumInitializer(implicit slot: Slot): KeyInitializer[SecretKeys.KesSum] =
