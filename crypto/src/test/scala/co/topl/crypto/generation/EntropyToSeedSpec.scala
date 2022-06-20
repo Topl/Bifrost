@@ -28,8 +28,6 @@ class EntropyToSeedSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks 
     testVectors.foreach { vec =>
       val entropy = Entropy(vec.inputs.entropy.getBytes)
 
-      EntropyToSeed[SecretKeys.Curve25519.Length].toSeed
-
       EntropyToSeed.instances.pbkdf2Sha512(Lengths.`32`).toSeed(entropy, Some("TREZOR")) shouldBe vec.outputs.seed32
     }
   }
@@ -43,13 +41,10 @@ class EntropyToSeedSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks 
   }
 
   property("Generate 96 byte seed") {
-    testVectors.foreach { underTest =>
+    testVectors.foreach { vec =>
+      val entropy = Entropy(vec.inputs.entropy.getBytes)
 
-      underTest.inputs.
-
-        Entropy.validated(underTest.inputs.entropy.getBytes)
-
-      EntropyToSeed.instances.pbkdf2Sha512(Lengths.`96`).toSeed(, Some("TREZOR")) shouldBe underTest.outputs.seed96
+      EntropyToSeed.instances.pbkdf2Sha512(Lengths.`96`).toSeed(entropy, Some("TREZOR")) shouldBe vec.outputs.seed96
     }
   }
 }

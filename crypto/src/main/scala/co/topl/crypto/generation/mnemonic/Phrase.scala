@@ -1,92 +1,26 @@
 package co.topl.crypto.generation.mnemonic
 
+import cats.implicits._
 import co.topl.crypto.generation.mnemonic.Language.LanguageWordList
 import co.topl.crypto.hash.sha256
-import io.estatico.newtype.macros.newtype
-import io.estatico.newtype.ops._
 
 /**
  * A mnemonic phrase of words from a valid language list.
  *
  * @param value the sequence of words in the phrase
  */
-@newtype
-class Phrase(val value: IndexedSeq[String])
+case class Phrase(value: IndexedSeq[String], size: MnemonicSize, languageWords: LanguageWordList)
 
 object Phrase {
 
   sealed trait ValidationFailure
-  case class InvalidWordLength() extends ValidationFailure
-  case class InvalidWords() extends ValidationFailure
-  case class InvalidChecksum() extends ValidationFailure
 
-  /**
-   * Validates that the length of the given phrase matches the expected length.
-   * @param phrase the mnemonic phrase
-   * @param expected the expected length of the phrase
-   * @return a `PhraseFailure` if invalid or the validated phrase
-   */
-  private def validateWordLength(
-    phrase:   IndexedSeq[String],
-    expected: Int
-  ): Either[ValidationFailure, IndexedSeq[String]] =
-    Either.cond(
-      phrase.length == expected,
-      phrase,
-      InvalidWordLength()
-    )
-
-  /**
-   * Validates that the given set of words exists in the given word list.
-   * @param phrase the mnemonic phrase to validate
-   * @param expected the word list to check against
-   * @return a `PhraseFailure` if invalid or the validated phrase
-   */
-  private def validateWords(
-    phrase:   IndexedSeq[String],
-    expected: LanguageWordList
-  ): Either[ValidationFailure, IndexedSeq[String]] =
-    Either.cond(
-      phrase.forall(expected.value.contains),
-      phrase,
-      InvalidWords()
-    )
-
-  /**
-   * Validates the checksum of the given mnemonic phrase.
-   * @param phrase the mnemonic phrase
-   * @param wordList the BIP-0039 word list
-   * @param size the expected mnemonic size
-   * @return a `PhraseFailure` if invalid or the validated phrase
-   */
-  private def validateChecksum(
-    phrase:   IndexedSeq[String],
-    wordList: LanguageWordList,
-    size:     MnemonicSize
-  ): Either[ValidationFailure, IndexedSeq[String]] = {
-    // the phrase converted to binary with each word being 11 bits
-    val phraseBinary: String = phrase.map(wordList.value.indexOf(_)).map(toBinaryStringWith11Bits).mkString
-
-    val entropyHash: List[String] =
-      sha256
-        .hash(
-          // get the first `entropyLength` number of bits and hash the resulting byte array
-          phraseBinary
-            .slice(0, size.entropyLength)
-            .grouped(byteLen)
-            .toArray
-            .map(Integer.parseInt(_, 2).toByte)
-        )
-        .value
-        .map(toBinaryString)
-        .toList
-
-    Either.cond(
-      // checksum section of phrase should be equal to hash of the entropy section
-      phraseBinary.substring(size.entropyLength) == entropyHash.head.slice(0, size.checksumLength),
-      phrase,
-      InvalidChecksum()
-    )
+  object ValidationFailures {
+    case object InvalidWordLength extends ValidationFailure
+    case object InvalidWords extends ValidationFailure
+    case object InvalidChecksum extends ValidationFailure
+    case object InvalidEntropyLength extends ValidationFailure
+    case class WordListFailure(failure: LanguageWordList.ValidationFailure) extends ValidationFailure
   }
 
   /**
@@ -103,12 +37,77 @@ object Phrase {
     languageWords: LanguageWordList
   ): Either[ValidationFailure, Phrase] =
     for {
-      validWordLength <-
-        validateWordLength(
-          words.toLowerCase.split("\\s+").map(_.trim).toIndexedSeq,
-          size.wordLength
+      phrase <- Right(Phrase(words.toLowerCase.split("\\s+").map(_.trim).toIndexedSeq, size, languageWords))
+      _      <- Either.cond(phrase.value.length == size.wordLength, phrase, ValidationFailures.InvalidWordLength)
+      _      <- Either.cond(phrase.value.forall(languageWords.value.contains), phrase, ValidationFailures.InvalidWords)
+      (entropyBinaryString, checksumFromPhrase) = toBinaryString(phrase)
+      checksumFromSha256: String = calculateChecksum(entropyBinaryString, size)
+      _ <- Either.cond(checksumFromPhrase == checksumFromSha256, phrase, ValidationFailures.InvalidChecksum)
+    } yield phrase
+
+  def fromEntropy(
+    entropy:  Entropy,
+    size:     MnemonicSize,
+    language: Language
+  ): Either[ValidationFailure, Phrase] = for {
+    _ <- Either.cond(
+      entropy.value.length == size.entropyLength / byteLen,
+      entropy,
+      ValidationFailures.InvalidEntropyLength
+    )
+    wordList <- LanguageWordList.validated(language).leftMap(ValidationFailures.WordListFailure)
+    entropyBinaryString = entropy.value.map(byteTo8BitString).mkString
+    checksum = calculateChecksum(entropyBinaryString, size)
+    phrase = fromBinaryString(entropyBinaryString ++ checksum, size, wordList)
+  } yield phrase
+
+  // the phrase converted to binary with each word being 11 bits
+  // 1. get index of word in wordlist
+  // 2.  map indices to 11 bit representation (return List[String])
+  // 3. concatenate the strings together to make a long binary string
+  // 4. slice the string into the entropy + checksum pieces
+  private[mnemonic] def toBinaryString(phrase: Phrase): (String, String) =
+    phrase.value
+      .map(phrase.languageWords.value.indexOf(_))
+      .map(intTo11BitString)
+      .mkString
+      .splitAt(phrase.size.entropyLength)
+
+  // the phrase converted to binary with each word being 11 bits
+  // 1. get index of word in wordlist
+  // 2.  map indices to 11 bit representation (return List[String])
+  // 3. concatenate the strings together to make a long binary string
+  // 4. slice the string into the entropy + checksum pieces
+  private[mnemonic] def fromBinaryString(
+    phraseBinaryString: String,
+    size:               MnemonicSize,
+    languageWords:      LanguageWordList
+  ): Phrase = {
+    val phraseWords = phraseBinaryString
+      .grouped(indexLen)
+      .map(Integer.parseInt(_, 2))
+      .map(languageWords.value(_))
+      .toIndexedSeq
+
+    Phrase(phraseWords, size, languageWords)
+  }
+
+  // checksum section of phrase should be equal to hash of the entropy section
+  private[mnemonic] def calculateChecksum(
+    entropyBinaryString: String,
+    size:                MnemonicSize
+  ): String =
+    byteTo8BitString(
+      sha256
+        .hash(
+          // get the first `entropyLength` number of bits and hash the resulting byte array
+          entropyBinaryString
+            .slice(0, size.entropyLength)
+            .grouped(byteLen)
+            .toArray
+            .map(Integer.parseInt(_, 2).toByte)
         )
-      validWords    <- validateWords(validWordLength, languageWords)
-      validChecksum <- validateChecksum(validWords, languageWords, size)
-    } yield validChecksum.coerce
+        .value
+        .head
+    ).slice(0, size.checksumLength)
 }

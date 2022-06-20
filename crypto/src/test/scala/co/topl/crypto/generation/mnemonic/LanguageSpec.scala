@@ -1,4 +1,4 @@
-package co.topl.crypto.generation
+package co.topl.crypto.generation.mnemonic
 
 import cats.implicits._
 import co.topl.crypto.generation.mnemonic.Language._

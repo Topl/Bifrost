@@ -1,8 +1,7 @@
-package co.topl.crypto.generation
+package co.topl.crypto.generation.mnemonic
 
 import co.topl.crypto.generation.mnemonic.Language.English
 import co.topl.crypto.generation.mnemonic.MnemonicSizes._
-import co.topl.crypto.generation.mnemonic.{Entropy, MnemonicSize}
 import co.topl.crypto.utils.Generators.genByteArrayOfSize
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec

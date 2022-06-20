@@ -34,7 +34,7 @@ package object mnemonic {
    * @param i the index to convert
    * @return the 11-bit binary representation as a `String`
    */
-  private[mnemonic] def toBinaryStringWith11Bits(i: Int): String =
+  private[mnemonic] def intTo11BitString(i: Int): String =
     String.format("%11s", BigInt(i).toString(2)).replace(' ', '0')
 
   /**
@@ -42,7 +42,7 @@ package object mnemonic {
    * @param b the byte to convert
    * @return the binary representation as a `String`
    */
-  private[mnemonic] def toBinaryString(b: Byte): String =
+  private[mnemonic] def byteTo8BitString(b: Byte): String =
     String.format("%8s", BigInt(b & 0xff).toString(2)).replace(' ', '0')
 
   /**
