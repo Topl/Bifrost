@@ -24,7 +24,7 @@ object BodySemanticValidation {
         def validate(
           parentBlockId: TypedIdentifier
         )(body:          BlockBodyV2): F[ValidatedNec[BodySemanticError, BlockBodyV2]] =
-          body
+          body.toList
             .foldLeftM(AugmentedBoxState.StateAugmentation.empty.validNec[BodySemanticError]) {
               case (Validated.Valid(augmentation), transactionId) =>
                 validateTransaction(parentBlockId)(augmentation)(transactionId)

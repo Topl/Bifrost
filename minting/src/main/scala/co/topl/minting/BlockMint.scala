@@ -12,6 +12,8 @@ import io.circe.syntax._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 
+import scala.collection.immutable.ListSet
+
 /**
  * A `Mint` which produces "Unsigned" Blocks.  An UnsignedBlock has all of the components needed to form a BlockV2
  * except for a KES Certificate.  This allows for a delayed creation of a KES certificate until it is actually needed,
@@ -46,7 +48,7 @@ object BlockMint {
                       metadata = None,
                       address = address
                     ),
-                    transactions.map(_.id.asTypedBytes).toList
+                    ListSet.from(transactions.map(_.id.asTypedBytes))
                   )
             )
             .flatMap(staker.certifyBlock(parent.slotId, slot, _))

@@ -16,6 +16,7 @@ import org.scalacheck.{Gen, Test}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 
+import scala.collection.immutable.ListSet
 import scala.concurrent.duration._
 
 class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
@@ -36,7 +37,8 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
       withMock {
         val bodiesMap = bodies.toList.toMap
         val transactions = bodies.flatMap(_._2).toList.map(t => t.id.asTypedBytes -> t).toMap.updated(newTx.id, newTx)
-        val fetchBody = (id: TypedIdentifier) => bodiesMap(id).map(_.id: TypedIdentifier).toList.pure[F]
+        val fetchBody =
+          (id: TypedIdentifier) => ListSet.from(bodiesMap(id).map(_.id: TypedIdentifier).toIterable).pure[F]
         val fetchTransaction = (id: TypedIdentifier) => transactions(id).pure[F]
         val clock = mock[ClockAlgebra[F]]
         (() => clock.globalSlot)
@@ -211,7 +213,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
     }
   }
 
-  test("expire a transaction more aggressively when a double-spend is detected") {
+  test("expire a transaction more aggressively when a double-spend is detected".flaky) {
     PropF.forAllF {
       (
         baseTransaction: Transaction,
@@ -231,8 +233,8 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
           val transactionBId = transactionB.id.asTypedBytes
           val bodies =
             Map(
-              blockIdA -> List(transactionAId),
-              blockIdB -> List(transactionBId)
+              blockIdA -> ListSet(transactionAId),
+              blockIdB -> ListSet(transactionBId)
             )
           val transactions =
             Map(

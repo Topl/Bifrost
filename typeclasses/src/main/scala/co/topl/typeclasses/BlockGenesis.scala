@@ -12,6 +12,7 @@ import co.topl.models.utility.{Length, Lengths, Sized}
 import co.topl.typeclasses.implicits._
 
 import java.nio.charset.StandardCharsets
+import scala.collection.immutable.ListSet
 
 object BlockGenesis {
 
@@ -73,6 +74,6 @@ object BlockGenesis {
         metadata = None,
         address = address
       )
-    BlockV2(header, transactions.toList.map(_.id.asTypedBytes))
+    BlockV2(header, ListSet.empty ++ transactions.map(_.id.asTypedBytes))
   }
 }

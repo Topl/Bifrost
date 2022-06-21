@@ -479,6 +479,6 @@ trait TetraScodecBlockCodecs {
         stakingAddressesPoolCodec
     ).as[BlockHeaderV2.Unsigned]
 
-  implicit val blockBodyV2Codec: Codec[BlockBodyV2] = listCodec[TypedIdentifier]
+  implicit val blockBodyV2Codec: Codec[BlockBodyV2] = listSetCodec[TypedIdentifier]
 
 }
