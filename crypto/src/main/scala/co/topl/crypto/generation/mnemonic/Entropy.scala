@@ -23,8 +23,9 @@ object Entropy {
     Entropy(randSeed)
   }
 
-  def toMnemonicString(entropy: Entropy, size: MnemonicSize, language: Language): Either[EntropyFailure, String] =
+  def toMnemonicString(entropy: Entropy, language: Language = Language.English): Either[EntropyFailure, String] =
     for {
+      size   <- getMnemonicSize(entropy.value.length)
       phrase <- Phrase.fromEntropy(entropy, size, language).leftMap(PhraseFailure)
       mnemonicString = phrase.value.mkString(" ")
     } yield mnemonicString
@@ -68,12 +69,10 @@ object Entropy {
    * @param size the expected size of the byte data to use for validation
    * @return either a `ValidationFailure` if the byte data is invalid or `Entropy` if it is valid
    */
-  def fromBytes(bytes: Array[Byte], size: MnemonicSize): Either[EntropyFailure, Entropy] =
-    Either.cond(
-      bytes.length * byteLen == size.entropyLength,
-      Entropy(bytes),
-      InvalidByteSize
-    )
+  def fromBytes(bytes: Array[Byte]): Either[EntropyFailure, Entropy] = for {
+    _ <- getMnemonicSize(bytes.length)
+    entropy = Entropy(bytes)
+  } yield entropy
 
   /**
    * Instantiates an `Entropy` value from a `Phrase`, `LanguageWordList`, and `MnemonicSize`.
@@ -85,7 +84,7 @@ object Entropy {
    * @param size the mnemonic size of the phrase
    * @return the underlying entropy of the mnemonic phrase
    */
-  private def unsafeFromPhrase(phrase: Phrase, wordList: LanguageWordList, size: MnemonicSize): Entropy =
+  private[mnemonic] def unsafeFromPhrase(phrase: Phrase, wordList: LanguageWordList, size: MnemonicSize): Entropy =
     Entropy(
       Phrase
         .toBinaryString(phrase)
@@ -94,6 +93,16 @@ object Entropy {
         .map(Integer.parseInt(_, 2).toByte) // interpret the binary string as a List[Byte]
         .toArray
     )
+
+  private[mnemonic] def getMnemonicSize(entropyByteLength: Int): Either[EntropyFailure, MnemonicSize] =
+    entropyByteLength match {
+      case 16 => Right(MnemonicSizes.`12`)
+      case 20 => Right(MnemonicSizes.`15`)
+      case 24 => Right(MnemonicSizes.`18`)
+      case 28 => Right(MnemonicSizes.`21`)
+      case 32 => Right(MnemonicSizes.`24`)
+      case _  => Left(InvalidByteSize)
+    }
 }
 
 sealed trait EntropyFailure
