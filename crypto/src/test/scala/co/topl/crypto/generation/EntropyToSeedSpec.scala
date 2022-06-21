@@ -3,48 +3,51 @@ package co.topl.crypto.generation
 import cats.scalatest.EitherValues
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.utils
-import co.topl.crypto.utils.TestVector
+import co.topl.crypto.utils.{Hex, TestVector}
 import co.topl.models.{Bytes, SecretKeys}
 import co.topl.models.utility.{Lengths, Sized}
-import io.circe.Decoder
+import io.circe.{Decoder, HCursor}
 import io.circe.generic.semiauto.deriveDecoder
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import co.topl.crypto.generation.mnemonic.EntropyTestVectorHelper
+import co.topl.models.utility.HasLength.instances._
 
 class EntropyToSeedSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers with EitherValues {
 
-  case class SpecInputs(entropy: String)
-  case class SpecOutputs(seed32: String, seed64: String, seed96: String)
+  case class SpecInputs(entropy: Entropy, password: Option[String])
+  case class SpecOutputs(seed96: Array[Byte])
   case class EntropyToSeedTestVectors(inputs: SpecInputs, outputs: SpecOutputs) extends TestVector
 
-  implicit val inputsDecoder: Decoder[SpecInputs] = deriveDecoder[SpecInputs]
-  implicit val outputsDecoder: Decoder[SpecOutputs] = deriveDecoder[SpecOutputs]
+  implicit val inputsDecoder: Decoder[SpecInputs] = (c: HCursor) =>
+    for {
+      entropy  <- EntropyTestVectorHelper.entropyDecoder(c)
+      password <- c.downField("password").as[Option[String]]
+    } yield SpecInputs(entropy, password)
+
+  implicit val outputsDecoder: Decoder[SpecOutputs] = (c: HCursor) =>
+    for {
+      bytes <- c.downField("seed96").as[String].map(Hex.decode)
+      specOut = SpecOutputs(bytes)
+    } yield specOut
+
   implicit val testVectorDecoder: Decoder[EntropyToSeedTestVectors] = deriveDecoder[EntropyToSeedTestVectors]
 
-  val testVectors: List[EntropyToSeedTestVectors] = TestVector.read("EntropyToSeedTestVectors.json")
+  val testVectors: List[EntropyToSeedTestVectors] = TestVector.read("EntropyToSeed.json")
 
-  property("Generate 32 byte length seeds") {
-    testVectors.foreach { vec =>
-      val entropy = Entropy(vec.inputs.entropy.getBytes)
+  testVectors.foreach { underTest =>
+    property(s"Generate 96 byte seed from entropy: ${underTest.inputs.entropy}") {
+      val actualSeed =
+        EntropyToSeed.instances
+          .pbkdf2Sha512[Lengths.`96`.type]
+          .toSeed(underTest.inputs.entropy, underTest.inputs.password)
+          .data
 
-      EntropyToSeed.instances.pbkdf2Sha512(Lengths.`32`).toSeed(entropy, Some("TREZOR")) shouldBe vec.outputs.seed32
-    }
-  }
+      val expectedSeed = Bytes(underTest.outputs.seed96)
 
-  property("Generate 64 byte length seeds") {
-    testVectors.foreach { vec =>
-      val entropy = Entropy(vec.inputs.entropy.getBytes)
+      (actualSeed == expectedSeed) shouldBe true
 
-      EntropyToSeed.instances.pbkdf2Sha512(Lengths.`64`).toSeed(entropy, Some("TREZOR")) shouldBe vec.outputs.seed64
-    }
-  }
-
-  property("Generate 96 byte seed") {
-    testVectors.foreach { vec =>
-      val entropy = Entropy(vec.inputs.entropy.getBytes)
-
-      EntropyToSeed.instances.pbkdf2Sha512(Lengths.`96`).toSeed(entropy, Some("TREZOR")) shouldBe vec.outputs.seed96
     }
   }
 }

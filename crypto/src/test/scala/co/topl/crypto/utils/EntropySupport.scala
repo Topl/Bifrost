@@ -1,4 +1,4 @@
-package co.topl.crypto.generation
+package co.topl.crypto.utils
 
 import cats.Eq
 import co.topl.crypto.generation.mnemonic.Entropy

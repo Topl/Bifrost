@@ -4,7 +4,6 @@ import cats.implicits._
 import co.topl.crypto.generation.mnemonic.EntropyFailures.{InvalidByteSize, PhraseFailure, WordListFailure}
 import co.topl.crypto.generation.mnemonic.Language.LanguageWordList
 
-import java.security.SecureRandom
 import java.util.UUID
 
 /**
@@ -17,10 +16,9 @@ object Entropy {
 
   def generate(size: MnemonicSize = MnemonicSizes.`12`): Entropy = {
     val numBytes = size.entropyLength / byteLen
-    val secureRandom = SecureRandom.getInstanceStrong
-    var randSeed = secureRandom.generateSeed(numBytes)
-    secureRandom.nextBytes(randSeed)
-    Entropy(randSeed)
+    val r = new Array[Byte](numBytes)
+    new java.security.SecureRandom().nextBytes(r) // overrides r
+    Entropy(r)
   }
 
   def toMnemonicString(entropy: Entropy, language: Language = Language.English): Either[EntropyFailure, String] =

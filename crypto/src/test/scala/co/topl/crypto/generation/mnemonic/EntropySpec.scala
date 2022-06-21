@@ -65,29 +65,35 @@ class EntropySpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaCh
       (actualEntropy.value sameElements expectedEntropy.value) shouldBe true
     }
   }
+}
 
-  object EntropyTestVectorHelper {
-    case class SpecInputs(mnemonic: String, size: MnemonicSize)
-    case class SpecOutputs(entropy: Entropy)
-    case class MnemonicToEntropyTestVector(inputs: SpecInputs, outputs: SpecOutputs) extends TestVector
+object EntropyTestVectorHelper {
+  case class SpecInputs(mnemonic: String, size: MnemonicSize)
+  case class SpecOutputs(entropy: Entropy)
+  case class MnemonicToEntropyTestVector(inputs: SpecInputs, outputs: SpecOutputs) extends TestVector
 
-    implicit val inputsDecoder: Decoder[SpecInputs] = (c: HCursor) =>
-      for {
-        mnemonic <- c.downField("mnemonic").as[String]
-        wordLength = mnemonic.split(" ").length
-        entropyByteLength = (wordLength * 4) / 3
-        size <- Entropy
-          .getMnemonicSize(entropyByteLength)
-          .leftMap(err => DecodingFailure(err.toString, c.history))
-      } yield SpecInputs(mnemonic, size)
+  def mnemonicStringAndSize(c: HCursor): Either[DecodingFailure, (String, MnemonicSize)] = for {
+    mnemonic <- c.downField("mnemonic").as[String]
+    wordLength = mnemonic.split(" ").length
+    entropyByteLength = (wordLength * 4) / 3
+    size <- Entropy
+      .getMnemonicSize(entropyByteLength)
+      .leftMap(err => DecodingFailure(err.toString, c.history))
+  } yield (mnemonic, size)
 
-    implicit val outputsDecoder: Decoder[SpecOutputs] = (c: HCursor) =>
-      for {
-        bytes   <- c.downField("entropy").as[String].map(Hex.decode)
-        entropy <- Entropy.fromBytes(bytes).leftMap(err => DecodingFailure(err.toString, c.history))
-      } yield SpecOutputs(entropy)
+  def entropyDecoder(c: HCursor): Either[DecodingFailure, Entropy] =
+    for {
+      bytes   <- c.downField("entropy").as[String].map(Hex.decode)
+      entropy <- Entropy.fromBytes(bytes).leftMap(err => DecodingFailure(err.toString, c.history))
+    } yield entropy
 
-    implicit val testVectorDecoder: Decoder[MnemonicToEntropyTestVector] = deriveDecoder[MnemonicToEntropyTestVector]
-    val testVectors: List[MnemonicToEntropyTestVector] = TestVector.read("MnemonicToEntropy.json")
-  }
+  implicit val inputsDecoder: Decoder[SpecInputs] = (c: HCursor) =>
+    mnemonicStringAndSize(c).map { case (str, size) =>
+      SpecInputs(str, size)
+    }
+
+  implicit val outputsDecoder: Decoder[SpecOutputs] = (c: HCursor) => entropyDecoder(c).map(SpecOutputs)
+
+  implicit val testVectorDecoder: Decoder[MnemonicToEntropyTestVector] = deriveDecoder[MnemonicToEntropyTestVector]
+  val testVectors: List[MnemonicToEntropyTestVector] = TestVector.read("MnemonicToEntropy.json")
 }
