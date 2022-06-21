@@ -37,6 +37,20 @@ class Curve25519AxolotlSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChe
     }
   }
 
+  property("with Curve25519, keyPairs generated with the same seed should be the same") {
+    forAll { entropy: Entropy =>
+      whenever(entropy.value.nonEmpty) {
+        val curve25519 = new Curve25519
+
+        val (sk1, vk1) = curve25519.createKeyPair(entropy, None)
+        val (sk2, vk2) = curve25519.createKeyPair(entropy, None)
+
+        sk1 === sk2 shouldBe true
+        vk1 === vk2 shouldBe true
+      }
+    }
+  }
+
   property("test vector - 1") {
     val curve25519 = new Curve25519
     val specInSk = SecretKeys.Curve25519(
