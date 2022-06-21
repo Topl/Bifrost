@@ -73,7 +73,7 @@ class AssetValueOpsSpec
           val Transaction.Output(_, v: TetraBox.Values.Asset, _) =
             assetValue.toAssetOutput(address, minting = true).value
 
-          v.securityRoot.toArray shouldBe assetValue.securityRoot.root
+          v.securityRoot.data.toArray shouldBe assetValue.securityRoot.root
         }
       }
 

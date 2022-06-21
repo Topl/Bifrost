@@ -6,18 +6,21 @@ import co.topl.models.utility.{Lengths, Sized}
 case class Box(evidence: TypedEvidence, value: Box.Value)
 
 object Box {
+
+  case class Id(transactionId: TypedIdentifier, transactionOutputIndex: Short)
+
   sealed abstract class Value
 
   object Values {
     case object Empty extends Value
-    case class Poly(value: Int128) extends Value
-    case class Arbit(value: Int128) extends Value
+    case class Poly(quantity: Int128) extends Value
+    case class Arbit(quantity: Int128) extends Value
 
     // TODO: AssetV1
     case class Asset(
       quantity:     Int128,
       assetCode:    Asset.Code,
-      securityRoot: Bytes,
+      securityRoot: Sized.Strict[Bytes, Lengths.`32`.type],
       metadata:     Option[Sized.Max[Latin1Data, Lengths.`127`.type]]
     ) extends Value
 

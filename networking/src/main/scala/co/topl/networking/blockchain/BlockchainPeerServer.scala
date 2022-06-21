@@ -16,6 +16,7 @@ import org.typelevel.log4cats.Logger
  */
 trait BlockchainPeerServer[F[_]] {
   def localBlockAdoptions: F[Source[TypedIdentifier, NotUsed]]
+  def localTransactionNotifications: F[Source[TypedIdentifier, NotUsed]]
   def getLocalHeader(id:            TypedIdentifier): F[Option[BlockHeaderV2]]
   def getLocalBody(id:              TypedIdentifier): F[Option[BlockBodyV2]]
   def getLocalTransaction(id:       TypedIdentifier): F[Option[Transaction]]
@@ -27,17 +28,21 @@ object BlockchainPeerServer {
   object FromStores {
 
     def make[F[_]: Monad: Logger](
-      headerStore:            Store[F, TypedIdentifier, BlockHeaderV2],
-      bodyStore:              Store[F, TypedIdentifier, BlockBodyV2],
-      transactionStore:       Store[F, TypedIdentifier, Transaction],
-      blockHeights:           EventSourcedState[F, TypedIdentifier, Long => F[Option[TypedIdentifier]]],
-      localChain:             LocalChainAlgebra[F],
-      locallyAdoptedBlockIds: Source[TypedIdentifier, NotUsed]
+      headerStore:                  Store[F, TypedIdentifier, BlockHeaderV2],
+      bodyStore:                    Store[F, TypedIdentifier, BlockBodyV2],
+      transactionStore:             Store[F, TypedIdentifier, Transaction],
+      blockHeights:                 EventSourcedState[F, Long => F[Option[TypedIdentifier]]],
+      localChain:                   LocalChainAlgebra[F],
+      locallyAdoptedBlockIds:       Source[TypedIdentifier, NotUsed],
+      locallyAdoptedTransactionIds: Source[TypedIdentifier, NotUsed]
     ): F[BlockchainPeerServer[F]] =
       new BlockchainPeerServer[F] {
 
         def localBlockAdoptions: F[Source[TypedIdentifier, NotUsed]] =
           locallyAdoptedBlockIds.buffer(1, OverflowStrategy.dropHead).pure[F]
+
+        def localTransactionNotifications: F[Source[TypedIdentifier, NotUsed]] =
+          locallyAdoptedTransactionIds.buffer(5, OverflowStrategy.dropHead).pure[F]
 
         def getLocalHeader(id: TypedIdentifier): F[Option[BlockHeaderV2]] = headerStore.get(id)
 

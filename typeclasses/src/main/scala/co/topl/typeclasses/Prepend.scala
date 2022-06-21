@@ -1,16 +1,17 @@
 package co.topl.typeclasses
 
 import cats.data.{NonEmptyChain, NonEmptyVector}
-import simulacrum.typeclass
 
 /**
  * Typeclass indicating that something can prepend elements
  */
-@typeclass trait Prepend[F[_]] {
+trait Prepend[F[_]] {
   def prepend[A](a: A, c: F[A]): F[A]
 }
 
 object Prepend {
+
+  def apply[F[_]: Prepend]: Prepend[F] = implicitly
 
   trait Instances {
 

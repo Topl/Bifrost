@@ -18,9 +18,11 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
 import co.topl.consensus.algebras.{EtaCalculationAlgebra, LeaderElectionValidationAlgebra, LocalChainAlgebra}
-import co.topl.crypto.hash.{blake2b256, Blake2b256, Blake2b512}
+import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.interpreters._
+import co.topl.ledger.algebras.MempoolAlgebra
+import co.topl.ledger.interpreters.{Mempool, TransactionSyntaxValidation}
 import co.topl.minting._
 import co.topl.minting.algebras.PerpetualBlockMintAlgebra
 import co.topl.models._
@@ -57,7 +59,7 @@ object TetraSuperDemo extends IOApp {
   private val OperationalPeriodLength = 180L
   private val OperationalPeriodsPerEpoch = 4L
   private val EpochLength = OperationalPeriodLength * OperationalPeriodsPerEpoch
-  private val SlotDuration = 100.milli
+  private val SlotDuration = 200.milli
 
   require(
     EpochLength % OperationalPeriodLength === 0L,
@@ -110,7 +112,7 @@ object TetraSuperDemo extends IOApp {
   type F[A] = IO[A]
 
   private def makeClock(genesisTimestamp: Instant): ClockAlgebra[F] =
-    AkkaSchedulerClock.Eval.make(SlotDuration, EpochLength, genesisTimestamp)
+    SchedulerClock.Eval.make(SlotDuration, EpochLength, genesisTimestamp)
 
   implicit private val timeout: Timeout = Timeout(20.seconds)
 
@@ -132,8 +134,9 @@ object TetraSuperDemo extends IOApp {
     etaCalculation:          EtaCalculationAlgebra[F],
     leaderElectionThreshold: LeaderElectionValidationAlgebra[F],
     localChain:              LocalChainAlgebra[F],
-    mempool:                 MemPoolAlgebra[F],
+    mempool:                 MempoolAlgebra[F],
     headerStore:             Store[F, TypedIdentifier, BlockHeaderV2],
+    fetchTransaction:        TypedIdentifier => F[Transaction],
     state:                   ConsensusStateReader[F],
     ed25519VRFResource:      UnsafeResource[F, Ed25519VRF],
     kesProductResource:      UnsafeResource[F, KesProduct],
@@ -191,7 +194,7 @@ object TetraSuperDemo extends IOApp {
           statsInterpreter
         )
       perpetual <- PerpetualBlockMint.InAkkaStream
-        .make(clock, mint, localChain, mempool, headerStore)
+        .make(clock, mint, localChain, mempool, headerStore, fetchTransaction)
     } yield perpetual
 
   // Program definition
@@ -216,28 +219,41 @@ object TetraSuperDemo extends IOApp {
       random <- new Random(0L).pure[F]
       genesisTimestamp = Instant.now().plusSeconds(10)
       localPeers = List(
-        LocalPeer(parseAddress(port = 9090), Locations.NorthPole) -> "North1",
-        LocalPeer(parseAddress(port = 9091), Locations.NorthPole) -> "North2"
+        (LocalPeer(parseAddress(port = 9090), Locations.NorthPole), "North1", parseAddress(port = 8090)),
+        (LocalPeer(parseAddress(port = 9091), Locations.NorthPole), "North2", parseAddress(port = 8091))
       )
       configurations = List(
         (
           localPeers(0)._1,
           Source(Nil: List[DisconnectedPeer]),
           true,
-          localPeers(0)._2
+          localPeers(0)._2,
+          localPeers(0)._3
         ),
         (
           localPeers(1)._1,
           Source
-            .future(akka.pattern.after(40.seconds)(Future.unit))
+            .future(akka.pattern.after(8.seconds)(Future.unit))
             .flatMapConcat(_ => Source(List(DisconnectedPeer.tupled(LocalPeer.unapply(localPeers(0)._1).get)))),
           true,
-          localPeers(1)._2
+          localPeers(1)._2,
+          localPeers(1)._3
         )
       ).zipWithIndex
       stakers = computeStakers(2, random)
-      _ <- configurations.parTraverse { case ((localPeer, remotes, stakingEnabled, stakerName), stakerIndex) =>
-        runInstance(localPeer, remotes, stakers, stakerName, stakerIndex, stakingEnabled, genesisTimestamp)
+      _ <- configurations.parTraverse {
+        case ((localPeer, remotes, stakingEnabled, stakerName, rpcAddress), stakerIndex) =>
+          runInstance(
+            localPeer,
+            remotes,
+            stakers,
+            stakerName,
+            stakerIndex,
+            stakingEnabled,
+            genesisTimestamp,
+            rpcAddress.getHostName,
+            rpcAddress.getPort
+          )
       }
     } yield ()
   }
@@ -253,7 +269,9 @@ object TetraSuperDemo extends IOApp {
     stakerName:       String,
     stakerIndex:      Int,
     stakingEnabled:   Boolean,
-    genesisTimestamp: Instant
+    genesisTimestamp: Instant,
+    rpcHost:          String,
+    rpcPort:          Int
   ) =
     Sync[F].defer(
       for {
@@ -315,7 +333,17 @@ object TetraSuperDemo extends IOApp {
           genesis.headerV2.slotData(Ed25519VRF.precomputed()),
           ChainSelection.orderT[F](slotDataCache, blake2b512Resource, ChainSelectionKLookback, ChainSelectionSWindow)
         )
-        mempool <- EmptyMemPool.make[F]
+        syntacticValidation <- TransactionSyntaxValidation.make[F]
+        mempool <- Mempool.make[F](
+          genesis.headerV2.id.asTypedBytes.pure[F],
+          blockBodyStore.getOrRaise,
+          transactionStore.getOrRaise,
+          blockIdTree,
+          clock,
+          id => Logger[F].info(show"Expiring transaction id=$id"),
+          Long.MaxValue,
+          1000L
+        )
         mintOpt <- OptionT
           .whenF(stakingEnabled)(
             createMint(
@@ -326,6 +354,7 @@ object TetraSuperDemo extends IOApp {
               localChain,
               mempool,
               blockHeaderStore,
+              transactionStore.getOrRaise,
               consensusState,
               ed25519VRFResource,
               kesProductResource,
@@ -360,7 +389,11 @@ object TetraSuperDemo extends IOApp {
                   noise = 30.milli
                 )
               Flow[ByteString].via(delayer).viaMat(flow)(Keep.right).via(delayer)
-            }
+            },
+            syntacticValidation,
+            mempool,
+            rpcHost,
+            rpcPort
           )
       } yield ()
     )

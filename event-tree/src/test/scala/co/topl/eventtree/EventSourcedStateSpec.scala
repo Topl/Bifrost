@@ -51,28 +51,26 @@ class EventSourcedStateSpec
     ledger.modifyBalanceOf("alice", _ => 100L.some.pure[F]).value
 
     val eventTree = EventSourcedState.OfTree
-      .make[F, Tx, Ledger[F], LedgerUnapply](
+      .make[F, Ledger[F]](
         initialState = Sync[F].delay(ledger),
         initialEventId = Sync[F].delay(initialEventId),
-        eventAsUnapplyEvent = (tx, ledger) =>
+        applyEvent = (ledger, txId) =>
           for {
-            currentId      <- ledger.eventId
-            currentBalance <- OptionT(ledger.balanceOf(tx.from._1)).getOrElse(0L)
-          } yield LedgerUnapply(currentId, currentBalance, tx),
-        applyEvent = (ledger, tx) =>
-          for {
-            _ <- ledger.modifyBalanceOf(tx.from._1, b => (b.getOrElse(0L) - tx.from._2).some.pure[F])
-            _ <- ledger.modifyBalanceOf(tx.to, b => (b.getOrElse(0L) + tx.from._2).some.pure[F])
-            _ <- ledger.setEventId(tx.id)
+            tx              <- OptionT(eventStore.get(txId)).getOrElse(???)
+            previousBalance <- OptionT(ledger.balanceOf(tx.from._1)).getOrElse(???)
+            _               <- ledger.modifyBalanceOf(tx.from._1, b => (b.getOrElse(0L) - tx.from._2).some.pure[F])
+            _               <- ledger.modifyBalanceOf(tx.to, b => (b.getOrElse(0L) + tx.from._2).some.pure[F])
+            currentTxId     <- ledger.eventId
+            _               <- deltaStore.put(txId, LedgerUnapply(currentTxId, previousBalance, tx))
+            _               <- ledger.setEventId(tx.id)
           } yield ledger,
-        unapplyEvent = (ledger, unapply) =>
+        unapplyEvent = (ledger, txId) =>
           for {
-            _ <- ledger.modifyBalanceOf(unapply.tx.from._1, _ => unapply.senderPreviousBalance.some.pure[F])
-            _ <- ledger.modifyBalanceOf(unapply.tx.to, b => (b.getOrElse(0L) - unapply.tx.from._2).some.pure[F])
-            _ <- ledger.setEventId(unapply.previousTxId)
+            unapply <- OptionT(deltaStore.get(txId)).getOrElse(???)
+            _       <- ledger.modifyBalanceOf(unapply.tx.from._1, _ => unapply.senderPreviousBalance.some.pure[F])
+            _       <- ledger.modifyBalanceOf(unapply.tx.to, b => (b.getOrElse(0L) - unapply.tx.from._2).some.pure[F])
+            _       <- ledger.setEventId(unapply.previousTxId)
           } yield ledger,
-        eventStore = eventStore,
-        unapplyEventStore = deltaStore,
         parentChildTree = tree
       )
       .value

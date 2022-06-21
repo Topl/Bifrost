@@ -7,8 +7,9 @@ import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility._
 import org.scalacheck.rng.Seed
 import org.scalacheck.{Arbitrary, Gen}
+import org.scalactic.anyvals.NonEmptyMap
 
-import scala.collection.immutable.ListSet
+import scala.collection.immutable.{ListSet, SortedSet}
 
 trait ModelGenerators {
 
@@ -345,23 +346,29 @@ trait ModelGenerators {
       for {
         quantity <- arbitraryPositiveInt128.arbitrary
         code     <- arbitraryAssetCode.arbitrary
-        root     <- genSizedStrictBytes[Lengths.`32`.type]().map(_.data)
+        root     <- genSizedStrictBytes[Lengths.`32`.type]()
         metadata <-
           Gen.option(
             latin1DataGen
               .map(data => Latin1Data.unsafe(data.value.take(127)))
               .map(data => Sized.maxUnsafe[Latin1Data, Lengths.`127`.type](data))
           )
-        box = Box.Values.Asset(quantity, code, root, None)
+        box = Box.Values.Asset(quantity, code, root, metadata)
       } yield box
     )
+
+  implicit val arbitraryPolyBox: Arbitrary[Box.Values.Poly] =
+    Arbitrary(arbitraryPositiveInt128.arbitrary.map(Box.Values.Poly))
+
+  implicit val arbitraryArbitBox: Arbitrary[Box.Values.Arbit] =
+    Arbitrary(arbitraryPositiveInt128.arbitrary.map(Box.Values.Arbit))
 
   implicit val arbitraryBoxValue: Arbitrary[Box.Value] =
     Arbitrary(
       Gen.oneOf(
         Gen.const(Box.Values.Empty),
-        arbitraryPositiveInt128.arbitrary.map(Box.Values.Poly),
-        arbitraryPositiveInt128.arbitrary.map(Box.Values.Arbit),
+        arbitraryPolyBox.arbitrary,
+        arbitraryArbitBox.arbitrary,
         arbitraryAssetBox.arbitrary
       )
     )
@@ -379,7 +386,7 @@ trait ModelGenerators {
       for {
         address <- arbitraryFullAddress.arbitrary
         value   <- arbitraryBoxValue.arbitrary
-        minting <- Gen.prob(0.5)
+        minting <- Gen.prob(0.05)
       } yield Transaction.Output(address, value, minting)
     )
 
@@ -571,57 +578,95 @@ trait ModelGenerators {
       )
     )
 
-  implicit val arbitraryTransactionInput: Arbitrary[Transaction.Input] =
+  implicit val arbitraryBoxId: Arbitrary[Box.Id] =
     Arbitrary(
       for {
         transactionId          <- arbitraryTypedIdentifier.arbitrary
         transactionOutputIndex <- Gen.posNum[Short]
-        proposition            <- arbitraryProposition.arbitrary
-        proof                  <- arbitraryProof.arbitrary
-        value                  <- arbitraryBoxValue.arbitrary
-      } yield Transaction.Input(transactionId, transactionOutputIndex, proposition, proof, value)
+      } yield Box.Id(transactionId, transactionOutputIndex)
+    )
+
+  implicit val arbitraryTransactionInput: Arbitrary[Transaction.Input] =
+    Arbitrary(
+      for {
+        boxId       <- arbitraryBoxId.arbitrary
+        proposition <- arbitraryProposition.arbitrary
+        proof       <- arbitraryProof.arbitrary
+        value       <- arbitraryBoxValue.arbitrary
+      } yield Transaction.Input(boxId, proposition, proof, value)
     )
 
   implicit val arbitraryTransactionUnprovenInput: Arbitrary[Transaction.Unproven.Input] =
     Arbitrary(
       for {
-        transactionId          <- arbitraryTypedIdentifier.arbitrary
-        transactionOutputIndex <- Gen.posNum[Short]
-        proposition            <- arbitraryProposition.arbitrary
-        value                  <- arbitraryBoxValue.arbitrary
-      } yield Transaction.Unproven.Input(transactionId, transactionOutputIndex, proposition, value)
+        boxId       <- arbitraryBoxId.arbitrary
+        proposition <- arbitraryProposition.arbitrary
+        value       <- arbitraryBoxValue.arbitrary
+      } yield Transaction.Unproven.Input(boxId, proposition, value)
+    )
+
+  implicit val arbitraryTransactionChronology: Arbitrary[Transaction.Chronology] =
+    Arbitrary(
+      for {
+        creation    <- Gen.chooseNum[Long](0L, 100000L)
+        minimumSlot <- Gen.chooseNum[Slot](0L, 100000L)
+        maximumSlot <- Gen.chooseNum[Slot](0L, 100000L)
+      } yield Transaction.Chronology(creation, minimumSlot, maximumSlot)
     )
 
   implicit val arbitraryUnprovenTransaction: Arbitrary[Transaction.Unproven] =
     Arbitrary(
       for {
-        inputs <- Gen
-          .listOf(arbitraryTransactionUnprovenInput.arbitrary)
-          .map(Chain.fromSeq)
-        outputs <- Gen
-          .nonEmptyListOf(arbitraryTransactionOutput.arbitrary)
-          .map(Chain.fromSeq)
-        timestamp <- Gen.chooseNum[Long](0L, 100000L)
+        inputs <-
+          Gen
+            .chooseNum[Int](1, 10)
+            .flatMap(count =>
+              Gen
+                .listOfN(count, arbitraryTransactionUnprovenInput.arbitrary)
+                .map(Chain.fromSeq)
+            )
+        outputs <-
+          Gen
+            .chooseNum[Int](1, 10)
+            .flatMap(count =>
+              Gen
+                .listOfN(count, arbitraryTransactionOutput.arbitrary)
+                .map(Chain.fromSeq)
+            )
+        chronology <- arbitraryTransactionChronology.arbitrary
         data = None
-      } yield Transaction.Unproven(inputs, outputs, timestamp, data)
+      } yield Transaction.Unproven(inputs, outputs, chronology, data)
     )
 
   implicit val arbitraryTransaction: Arbitrary[Transaction] =
     Arbitrary(
       for {
-        inputs <- Gen
-          .listOf(arbitraryTransactionInput.arbitrary)
-          .map(Chain.fromSeq)
-        outputs <- Gen
-          .nonEmptyListOf(arbitraryTransactionOutput.arbitrary)
-          .map(Chain.fromSeq)
-        timestamp <- Gen.chooseNum[Long](0L, 100000L)
+        inputs <-
+          Gen
+            .chooseNum[Int](1, 4)
+            .flatMap(count =>
+              Gen
+                .listOfN(count, arbitraryTransactionInput.arbitrary)
+                .map(Chain.fromSeq)
+            )
+        outputs <-
+          Gen
+            .chooseNum[Int](1, 4)
+            .flatMap(count =>
+              Gen
+                .listOfN(count, arbitraryTransactionOutput.arbitrary)
+                .map(Chain.fromSeq)
+            )
+        chronology <- arbitraryTransactionChronology.arbitrary
         data = None
-      } yield Transaction(inputs, outputs, timestamp, data)
+      } yield Transaction(inputs, outputs, chronology, data)
     )
 
   implicit val arbitraryHeader: Arbitrary[BlockHeaderV2] =
     Arbitrary(headerGen())
+
+  implicit val arbitraryBody: Arbitrary[BlockBodyV2] =
+    Arbitrary(Gen.listOf(arbitraryTypedIdentifier.arbitrary))
 
   implicit val arbitraryEta: Arbitrary[Eta] =
     Arbitrary(etaGen)

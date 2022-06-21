@@ -1,16 +1,17 @@
 package co.topl.typeclasses
 
 import cats.data.{NonEmptyChain, NonEmptyVector}
-import simulacrum.typeclass
 
 /**
  * Typeclass indicating something is non-empty
  */
-@typeclass trait NonEmpty[F[_]] {
+trait NonEmpty[F[_]] {
   def head[A](c: F[A]): A
 }
 
 object NonEmpty {
+
+  def apply[F[_]: NonEmpty]: NonEmpty[F] = implicitly
 
   trait Instances {
 

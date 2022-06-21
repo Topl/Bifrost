@@ -9,12 +9,12 @@ package object builder {
 
   def arbitOutputsAmount(from: List[TetraTransaction.Output]): BigInt =
     from.collect { case TetraTransaction.Output(_, value: TetraBox.Values.Arbit, _) =>
-      value.value.data
+      value.quantity.data
     }.sum
 
   def polyOutputsAmount(from: List[TetraTransaction.Output]): BigInt =
     from.collect { case TetraTransaction.Output(_, value: TetraBox.Values.Poly, _) =>
-      value.value.data
+      value.quantity.data
     }.sum
 
   def boxesAmount(from: List[TokenBox[TokenValueHolder]]): BigInt =
