@@ -11,7 +11,7 @@ import co.topl.typeclasses.implicits._
 
 object BlockHeightTree {
 
-  type State[F[_]] = (Long => F[Option[TypedIdentifier]])
+  type State[F[_]] = Long => F[Option[TypedIdentifier]]
 
   def make[F[_]: Async](
     store:          Store[F, Long, TypedIdentifier],
@@ -19,17 +19,14 @@ object BlockHeightTree {
     slotDataStore:  StoreReader[F, TypedIdentifier, SlotData],
     unapplyStore:   Store[F, TypedIdentifier, Long],
     blockTree:      ParentChildTree[F, TypedIdentifier]
-  ): F[EventSourcedState[F, TypedIdentifier, State[F]]] = {
+  ): F[EventSourcedState[F, State[F]]] = {
     val heightStore = slotDataStore.mapRead[TypedIdentifier, Long](identity, _.height)
     val getHeight = heightOf[F](heightStore) _
-    EventSourcedState.OfTree.make[F, TypedIdentifier, State[F], Long](
+    EventSourcedState.OfTree.make[F, State[F]](
       Async[F].delay(store.get),
       initialEventId = initialEventId.pure[F],
-      (id, _) => getHeight(id),
       (state, id) => getHeight(id).flatTap(store.put(_, id)).as(state),
-      (state, height) => store.remove(height).as(state),
-      slotDataStore.mapRead(identity, _.slotId.blockId),
-      unapplyStore,
+      (state, id) => getHeight(id).flatMap(height => store.remove(height).as(state)),
       blockTree
     )
   }

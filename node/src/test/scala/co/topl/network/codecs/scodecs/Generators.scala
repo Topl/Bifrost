@@ -4,7 +4,6 @@ import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.network.message.Messages.MessagesV1
 import co.topl.network.peer.{LocalAddressPeerFeature, PeerFeature, PeerMetadata}
 import co.topl.settings.Version
-import io.netty.channel.local.LocalAddress
 import org.scalacheck.Gen
 
 import java.net.{InetAddress, InetSocketAddress}

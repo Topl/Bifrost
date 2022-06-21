@@ -63,7 +63,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
-          transaction.timestamp,
+          transaction.chronology.creation,
           getData,
           minting
         )
@@ -85,7 +85,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
-          transaction.timestamp,
+          transaction.chronology.creation,
           getData,
           minting
         )
@@ -107,7 +107,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
-          transaction.timestamp,
+          transaction.chronology.creation,
           getData,
           minting
         )
@@ -129,7 +129,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
-          transaction.timestamp,
+          transaction.chronology.creation,
           getData,
           minting
         )
@@ -151,7 +151,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
-          transaction.timestamp,
+          transaction.chronology.creation,
           getData,
           minting
         )
@@ -173,7 +173,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
-          transaction.timestamp,
+          transaction.chronology.creation,
           getData,
           minting
         )
@@ -195,7 +195,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
-          transaction.timestamp,
+          transaction.chronology.creation,
           getData,
           minting
         )
@@ -217,7 +217,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
-          transaction.timestamp,
+          transaction.chronology.creation,
           getData,
           minting
         )
@@ -239,7 +239,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
           coinOutputs.prepend(getFeeOutput).iterator.toIndexedSeq,
           attestation,
           getFee,
-          transaction.timestamp,
+          transaction.chronology.creation,
           getData,
           minting
         )
@@ -253,7 +253,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
   private def curveAttestation: ToDionTxResult[ListMap[PublicKeyPropositionCurve25519, SignatureCurve25519]] =
     transaction.inputs
       .traverse[ToDionTxResult, (PublicKeyPropositionCurve25519, SignatureCurve25519)] {
-        case Transaction.Input(_, _, prop: Propositions.Knowledge.Curve25519, proof: Proofs.Knowledge.Curve25519, _) =>
+        case Transaction.Input(_, prop: Propositions.Knowledge.Curve25519, proof: Proofs.Knowledge.Curve25519, _) =>
           (
             PublicKeyPropositionCurve25519(PublicKey(prop.key.bytes.data.toArray)),
             SignatureCurve25519(Signature(proof.bytes.data.toArray))
@@ -270,7 +270,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
   private def edAttestation: Either[ToDionTxFailure, ListMap[PublicKeyPropositionEd25519, SignatureEd25519]] =
     transaction.inputs
       .traverse[ToDionTxResult, (PublicKeyPropositionEd25519, SignatureEd25519)] {
-        case Transaction.Input(_, _, prop: Propositions.Knowledge.Ed25519, proof: Proofs.Knowledge.Ed25519, _) =>
+        case Transaction.Input(_, prop: Propositions.Knowledge.Ed25519, proof: Proofs.Knowledge.Ed25519, _) =>
           (
             PublicKeyPropositionEd25519(PublicKey(prop.key.bytes.data.toArray)),
             SignatureEd25519(Signature(proof.bytes.data.toArray))
@@ -289,7 +289,6 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
     transaction.inputs
       .traverse[ToDionTxResult, (ThresholdPropositionCurve25519, ThresholdSignatureCurve25519)] {
         case Transaction.Input(
-              _,
               _,
               prop: Propositions.Compositional.Threshold,
               proof: Proofs.Compositional.Threshold,
@@ -321,7 +320,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
     transaction.outputs
       .traverse[ToDionTxResult, (Address, SimpleValue)] {
         case Transaction.Output(address, poly: TetraBox.Values.Poly, _) =>
-          (toAddress(address), SimpleValue(Int128(poly.value.data))).asRight
+          (toAddress(address), SimpleValue(Int128(poly.quantity.data))).asRight
         case invalidCoin => ToDionTxFailures.InvalidOutput(invalidCoin).asLeft
       }
 
@@ -329,7 +328,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
     transaction.outputs
       .traverse[ToDionTxResult, (Address, SimpleValue)] {
         case Transaction.Output(address, arbit: TetraBox.Values.Arbit, _) =>
-          (toAddress(address), SimpleValue(Int128(arbit.value.data))).asRight
+          (toAddress(address), SimpleValue(Int128(arbit.quantity.data))).asRight
         case invalidCoin => ToDionTxFailures.InvalidOutput(invalidCoin).asLeft
       }
 
@@ -346,7 +345,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
                 Address(Evidence(asset.assetCode.issuer.typedEvidence.allBytes.toArray))(???),
                 Latin1Data.fromData(asset.assetCode.shortName.data.bytes)
               ),
-              SecurityRoot(asset.securityRoot.toArray),
+              SecurityRoot(asset.securityRoot.data.toArray),
               asset.metadata.map(data => Latin1Data.fromData(data.data.bytes))
             ): TokenValueHolder
           ).asRight

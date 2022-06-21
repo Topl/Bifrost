@@ -121,7 +121,7 @@ object CredentialPlaygroundBV extends App {
         Transaction
           .Output(fullAddress(boardProp.spendingAddress), Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false)
       ),
-      timestamp = System.currentTimeMillis(),
+      chronology = Transaction.Chronology(System.currentTimeMillis(), 0, Long.MaxValue),
       data = None
     )
 

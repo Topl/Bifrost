@@ -3,7 +3,7 @@ package co.topl.modifier.ops
 import cats.implicits._
 import co.topl.attestation.Address
 import co.topl.models.{Box, Bytes, FullAddress, SpendingAddress, Transaction}
-import co.topl.models.utility.HasLength.instances.{bigIntLength, latin1DataLength}
+import co.topl.models.utility.HasLength.instances.{bigIntLength, bytesLength, latin1DataLength}
 import co.topl.models.utility.{Lengths, Sized}
 import co.topl.modifier.box.AssetValue
 import co.topl.utils.{Int128 => DionInt128}
@@ -50,7 +50,7 @@ class AssetValueOps(private val assetValue: AssetValue) extends AnyVal {
             case ToTetraAssetCodeFailures.InvalidShortName(shortName) =>
               ToAssetOutputFailures.InvalidShortName(shortName)
           }
-      securityRoot = Bytes(assetValue.securityRoot.root)
+      securityRoot = Sized.strictUnsafe[Bytes, Lengths.`32`.type](Bytes(assetValue.securityRoot.root))
       metadata <-
         assetValue.metadata.traverse[ToAssetOutputResult, Sized.Max[Latin1Data, Lengths.`127`.type]](data =>
           Sized

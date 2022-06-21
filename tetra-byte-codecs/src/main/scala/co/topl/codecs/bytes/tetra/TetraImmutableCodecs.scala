@@ -42,13 +42,60 @@ trait TetraImmutableCodecs {
   implicit val unprovenTransactionStableCodec: ImmutableCodec[Transaction.Unproven] =
     ImmutableCodec.fromScodecCodec
 
+  implicit val curve25519VKImmutableCodec: ImmutableCodec[VerificationKeys.Curve25519] =
+    ImmutableCodec.fromScodecCodec
+
+  implicit val ed25519VKImmutableCodec: ImmutableCodec[VerificationKeys.Ed25519] =
+    ImmutableCodec.fromScodecCodec
+
   implicit val extendedEd25519VKStableCodec: ImmutableCodec[VerificationKeys.ExtendedEd25519] =
     ImmutableCodec.fromScodecCodec
 
   implicit val ed25519VRFVKStableCodec: ImmutableCodec[VerificationKeys.VrfEd25519] =
     ImmutableCodec.fromScodecCodec
 
-  implicit val requiredBoxStateImmutableCodec: ImmutableCodec[Propositions.Contextual.RequiredBoxState] =
+  implicit val kesSumVKStableCodec: ImmutableCodec[VerificationKeys.KesSum] =
+    ImmutableCodec.fromScodecCodec
+
+  implicit val kesProductVKStableCodec: ImmutableCodec[VerificationKeys.KesProduct] =
+    ImmutableCodec.fromScodecCodec
+
+  implicit val propositionsPermanentlyLockedImmutableCodec: ImmutableCodec[Propositions.PermanentlyLocked.type] =
+    ImmutableCodec.fromScodecCodec
+
+  implicit val propositionKnowledgeCurve25519ImmutableCodec: ImmutableCodec[Propositions.Knowledge.Curve25519] =
+    ImmutableCodec.fromScodecCodec
+
+  implicit val propositionKnowledgeEd25519ImmutableCodec: ImmutableCodec[Propositions.Knowledge.Ed25519] =
+    ImmutableCodec.fromScodecCodec
+
+  implicit val propositionKnowledgeExtendedEd25519ImmutableCodec
+    : ImmutableCodec[Propositions.Knowledge.ExtendedEd25519] =
+    ImmutableCodec.fromScodecCodec
+
+  implicit val propositionKnowledgehashLockImmutableCodec: ImmutableCodec[Propositions.Knowledge.HashLock] =
+    ImmutableCodec.fromScodecCodec
+
+  implicit val propositionCompositionalThresholdImmutableCodec: ImmutableCodec[Propositions.Compositional.Threshold] =
+    ImmutableCodec.fromScodecCodec
+
+  implicit val propositionCompositionalAndImmutableCodec: ImmutableCodec[Propositions.Compositional.And] =
+    ImmutableCodec.fromScodecCodec
+
+  implicit val propositionCompositionalOrImmutableCodec: ImmutableCodec[Propositions.Compositional.Or] =
+    ImmutableCodec.fromScodecCodec
+
+  implicit val propositionCompositionalNotImmutableCodec: ImmutableCodec[Propositions.Compositional.Not] =
+    ImmutableCodec.fromScodecCodec
+
+  implicit val propositionContextualHeightLockImmutableCodec: ImmutableCodec[Propositions.Contextual.HeightLock] =
+    ImmutableCodec.fromScodecCodec
+
+  implicit val propositionContextualRequiredBoxStateImmutableCodec
+    : ImmutableCodec[Propositions.Contextual.RequiredBoxState] =
+    ImmutableCodec.fromScodecCodec
+
+  implicit val propositionScriptJsImmutableCodec: ImmutableCodec[Propositions.Script.JS] =
     ImmutableCodec.fromScodecCodec
 
   implicit val kesSumProofStableCodec: ImmutableCodec[Proofs.Knowledge.KesSum] =

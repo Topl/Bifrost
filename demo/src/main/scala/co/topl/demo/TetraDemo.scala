@@ -18,10 +18,12 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
 import co.topl.consensus.algebras.{EtaCalculationAlgebra, LeaderElectionValidationAlgebra, LocalChainAlgebra}
-import co.topl.crypto.hash.{blake2b256, Blake2b256, Blake2b512}
+import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.interpreters._
+import co.topl.ledger.algebras.MempoolAlgebra
+import co.topl.ledger.interpreters.{Mempool, TransactionSyntaxValidation}
 import co.topl.minting._
 import co.topl.minting.algebras.PerpetualBlockMintAlgebra
 import co.topl.models._
@@ -46,8 +48,8 @@ import scala.util.Random
 /**
  * Command-line args:
  *
- * port [remotes] seed stakerCount stakerIndex ?genesisTimestampMs
- * i.e.: 9094 [localhost:9095] 2348921 10 3 1648049271191
+ * port rpcPort [remotes] seed stakerCount stakerIndex ?genesisTimestampMs
+ * i.e.: 9094 8094 [localhost:9095] 2348921 10 3 1648049271191
  */
 object TetraDemo extends IOApp {
 
@@ -113,7 +115,7 @@ object TetraDemo extends IOApp {
   implicit private val logger: Logger[F] = Slf4jLogger.getLogger[F]
 
   private def makeClock(args: DemoArgs): ClockAlgebra[F] =
-    AkkaSchedulerClock.Eval.make(SlotDuration, EpochLength, args.genesisTimestamp)
+    SchedulerClock.Eval.make(SlotDuration, EpochLength, args.genesisTimestamp)
 
   implicit private val timeout: Timeout = Timeout(20.seconds)
 
@@ -135,8 +137,9 @@ object TetraDemo extends IOApp {
     etaCalculation:          EtaCalculationAlgebra[F],
     leaderElectionThreshold: LeaderElectionValidationAlgebra[F],
     localChain:              LocalChainAlgebra[F],
-    mempool:                 MemPoolAlgebra[F],
+    mempool:                 MempoolAlgebra[F],
     headerStore:             Store[F, TypedIdentifier, BlockHeaderV2],
+    fetchTransaction:        TypedIdentifier => F[Transaction],
     state:                   ConsensusStateReader[F],
     ed25519VRFResource:      UnsafeResource[F, Ed25519VRF],
     kesProductResource:      UnsafeResource[F, KesProduct],
@@ -194,7 +197,7 @@ object TetraDemo extends IOApp {
           statsInterpreter
         )
       perpetual <- PerpetualBlockMint.InAkkaStream
-        .make(clock, mint, localChain, mempool, headerStore)
+        .make(clock, mint, localChain, mempool, headerStore, fetchTransaction)
     } yield perpetual
 
   // Program definition
@@ -257,7 +260,17 @@ object TetraDemo extends IOApp {
         genesis.headerV2.slotData(Ed25519VRF.precomputed()),
         ChainSelection.orderT[F](slotDataCache, blake2b512Resource, ChainSelectionKLookback, ChainSelectionSWindow)
       )
-      mempool <- EmptyMemPool.make[F]
+      syntacticValidation <- TransactionSyntaxValidation.make[F]
+      mempool <- Mempool.make[F](
+        genesis.headerV2.id.asTypedBytes.pure[F],
+        blockBodyStore.getOrRaise,
+        transactionStore.getOrRaise,
+        blockIdTree,
+        clock,
+        id => Logger[F].info(show"Expiring transaction id=$id"),
+        Long.MaxValue,
+        1000L
+      )
       mintOpt <- OptionT
         .fromOption[F](demoArgs.stakerIndex)
         .semiflatMap(idx =>
@@ -269,6 +282,7 @@ object TetraDemo extends IOApp {
             localChain,
             mempool,
             blockHeaderStore,
+            transactionStore.getOrRaise,
             consensusState,
             ed25519VRFResource,
             kesProductResource,
@@ -293,7 +307,11 @@ object TetraDemo extends IOApp {
           demoArgs.port,
           LocalPeer(InetSocketAddress.createUnresolved("localhost", demoArgs.port), (0, 0)),
           Source(demoArgs.remotes).delay(2.seconds).concat(Source.never),
-          (_, flow) => flow
+          (_, flow) => flow,
+          syntacticValidation,
+          mempool,
+          "localhost",
+          demoArgs.rpcPort
         )
     } yield ()
   }
@@ -313,6 +331,7 @@ private case class Staker(
 
 case class DemoArgs(
   port:             Int,
+  rpcPort:          Int,
   remotes:          List[DisconnectedPeer],
   seed:             Long,
   stakerCount:      Int,
@@ -325,6 +344,7 @@ object DemoArgs {
   def parse(args: List[String]): DemoArgs =
     DemoArgs(
       args(0).toInt,
+      args(1).toInt,
       args(1)
         .drop(1)
         .dropRight(1)
