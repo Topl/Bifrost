@@ -46,6 +46,21 @@ class TransactionSyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEff
     }
   }
 
+  test("validate maximum outputs count") {
+    PropF.forAllF { (_transaction: Transaction, output: Transaction.Output) =>
+      for {
+        underTest <- TransactionSyntaxValidation.make[F]
+        transaction = _transaction.copy(outputs = Chain.fromSeq(Vector.fill(Short.MaxValue)(output)))
+        result <- underTest.validate(transaction)
+        _ <- EitherT
+          .fromEither[F](result.toEither)
+          .swap
+          .exists(_.toList.contains(TransactionSyntaxErrors.ExcessiveOutputsCount))
+          .assert
+      } yield ()
+    }
+  }
+
   test("validate positive timestamp") {
     PropF.forAllF(arbitraryTransaction.arbitrary.map(tx => tx.copy(chronology = tx.chronology.copy(creation = -1)))) {
       transaction: Transaction =>

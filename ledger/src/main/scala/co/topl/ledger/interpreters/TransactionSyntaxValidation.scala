@@ -21,6 +21,7 @@ object TransactionSyntaxValidation {
     Chain(
       nonEmptyInputsValidation,
       distinctInputsValidation,
+      maximumOutputsCountValidation,
       positiveTimestampValidation,
       positiveOutputValuesValidation,
       sufficientFundsValidation
@@ -50,6 +51,15 @@ object TransactionSyntaxValidation {
           .toSeq
       )
       .fold(().validNec[TransactionSyntaxError])(_.invalid[Unit])
+
+  /**
+   * Verify that this transaction does not contain too many outputs.  A transaction's outputs are referenced by index,
+   * but that index must be a Short value.
+   */
+  private[interpreters] def maximumOutputsCountValidation(
+    transaction: Transaction
+  ): ValidatedNec[TransactionSyntaxError, Unit] =
+    Validated.condNec(transaction.outputs.size < Short.MaxValue, (), TransactionSyntaxErrors.ExcessiveOutputsCount)
 
   /**
    * Verify that the timestamp of the transaction is positive (greater than 0).  Transactions _can_ be created
