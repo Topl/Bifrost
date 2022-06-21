@@ -1,6 +1,6 @@
 package co.topl.ledger.interpreters
 
-import cats.data.{NonEmptyChain, ValidatedNec}
+import cats.data.{NonEmptyChain, Validated, ValidatedNec}
 import cats.effect.Sync
 import cats.implicits._
 import co.topl.ledger.algebras._
@@ -15,19 +15,29 @@ object BodySyntaxValidation {
   ): F[BodySyntaxValidationAlgebra[F]] =
     Sync[F].delay {
       new BodySyntaxValidationAlgebra[F] {
-        def validate(t: BlockBodyV2): F[ValidatedNec[BodySyntaxError, BlockBodyV2]] =
-          t.traverse(
-            fetchTransaction(_)
-              .flatMap(transaction =>
-                transactionSyntacticValidation
-                  .validate(transaction)
-                  .map(
-                    _.void
-                      .leftMap(BodySyntaxErrors.TransactionSyntaxErrors(transaction, _))
-                      .leftMap(NonEmptyChain[BodySyntaxError](_))
-                  )
-              )
-          ).map(_.combineAll.as(t))
+
+        /**
+         * Syntactically validates each of the transactions in the given block.
+         */
+        def validate(body: BlockBodyV2): F[ValidatedNec[BodySyntaxError, BlockBodyV2]] =
+          body.foldMapM(validateTransaction).map(_.as(body))
+
+        /**
+         * Performs syntactic validation on the given transaction ID.
+         */
+        private def validateTransaction(
+          transactionId: TypedIdentifier
+        ): F[Validated[NonEmptyChain[BodySyntaxError], Unit]] =
+          fetchTransaction(transactionId)
+            .flatMap(transaction =>
+              transactionSyntacticValidation
+                .validate(transaction)
+                .map(
+                  _.void
+                    .leftMap(BodySyntaxErrors.TransactionSyntaxErrors(transaction, _))
+                    .leftMap(NonEmptyChain[BodySyntaxError](_))
+                )
+            )
       }
     }
 }

@@ -125,8 +125,18 @@ object AugmentedBoxState {
       }
     }
 
+  /**
+   * Establishes an ephemeral set of spent box IDs and new box IDs.  This augmentation can be further augmented
+   * by including an additional transaction.
+   * @param spentBoxIds a set of box IDs that are no longer eligibile to be spent
+   * @param newBoxIds a set of box IDs that have been created _and_ have not been spent
+   */
   case class StateAugmentation(spentBoxIds: Set[Box.Id], newBoxIds: Set[Box.Id]) {
 
+    /**
+     * Returns a new StateAugmentation which includes the inputs and outputs of the given transaction.  If
+     * the Transaction spends a box that exists in `newBoxIds`, the entry is moved from `newBoxIds` to `spentBoxIds`.
+     */
     def augment(transaction: Transaction): StateAugmentation = {
       val transactionSpentBoxIds = transaction.inputs.map(_.boxId).toIterable.toSet
       val transactionId = transaction.id.asTypedBytes
@@ -141,6 +151,6 @@ object AugmentedBoxState {
   }
 
   object StateAugmentation {
-    val Empty: StateAugmentation = StateAugmentation(Set.empty, Set.empty)
+    val empty: StateAugmentation = StateAugmentation(Set.empty, Set.empty)
   }
 }

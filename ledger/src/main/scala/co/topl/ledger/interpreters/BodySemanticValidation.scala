@@ -16,21 +16,41 @@ object BodySemanticValidation {
   ): F[BodySemanticValidationAlgebra[F]] =
     Sync[F].delay {
       new BodySemanticValidationAlgebra[F] {
-        def validate(context: TypedIdentifier)(t: BlockBodyV2): F[ValidatedNec[BodySemanticError, BlockBodyV2]] =
-          t.foldLeftM(AugmentedBoxState.StateAugmentation.Empty.validNec[BodySemanticError]) {
-            case (Validated.Valid(augmentation), transactionId) =>
-              for {
-                _boxState             <- AugmentedBoxState.make(boxState)(augmentation)
-                transactionValidation <- makeTransactionSemanticValidation(_boxState)
-                transaction           <- fetchTransaction(transactionId)
-                validationResult      <- transactionValidation.validate(context)(transaction)
-              } yield validationResult
-                .as(augmentation.augment(transaction))
-                .leftMap(errors =>
-                  NonEmptyChain[BodySemanticError](BodySemanticErrors.TransactionSemanticErrors(transaction, errors))
-                )
-            case (invalid, _) => invalid.pure[F]
-          }.map(_.as(t))
+
+        /**
+         * Semantically validates each of the transactions in the given block.  The given transactions _may_ spend
+         * the outputs of previous transactions in the block, but no two transactions may spend the same input.
+         */
+        def validate(
+          parentBlockId: TypedIdentifier
+        )(body:          BlockBodyV2): F[ValidatedNec[BodySemanticError, BlockBodyV2]] =
+          body
+            .foldLeftM(AugmentedBoxState.StateAugmentation.empty.validNec[BodySemanticError]) {
+              case (Validated.Valid(augmentation), transactionId) =>
+                validateTransaction(parentBlockId)(augmentation)(transactionId)
+              case (invalid, _) => invalid.pure[F]
+            }
+            .map(_.as(body))
+
+        /**
+         * Fetch the given transaction ID and (semantically) validate it in the context of the given block ID.
+         * Transaction semantic validation uses the given augmented box state during validation.
+         *
+         * @return a ValidatedNec containing either errors or a _new_ StateAugmentation
+         */
+        private def validateTransaction(
+          blockId:      TypedIdentifier
+        )(augmentation: AugmentedBoxState.StateAugmentation)(transactionId: TypedIdentifier) =
+          for {
+            augmentedBoxState     <- AugmentedBoxState.make(boxState)(augmentation)
+            transactionValidation <- makeTransactionSemanticValidation(augmentedBoxState)
+            transaction           <- fetchTransaction(transactionId)
+            validationResult      <- transactionValidation.validate(blockId)(transaction)
+          } yield validationResult
+            .as(augmentation.augment(transaction))
+            .leftMap(errors =>
+              NonEmptyChain[BodySemanticError](BodySemanticErrors.TransactionSemanticErrors(transaction, errors))
+            )
       }
     }
 
