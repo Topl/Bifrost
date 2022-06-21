@@ -1,6 +1,6 @@
 package co.topl.crypto.signing
 
-import co.topl.crypto.generation.Pbkdf2Sha512
+import co.topl.crypto.generation.{EntropyToSeed, Pbkdf2Sha512}
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.{Length, Sized}
@@ -31,32 +31,4 @@ abstract class EllipticCurveSignatureScheme[SK <: SecretKey, VK <: VerificationK
   def verify(signature: SIG, message: Bytes, verifyKey: VK): Boolean
 
   def getVerificationKey(privateKey: SK): VK
-}
-
-trait EntropyToSeed[SeedLength <: Length] {
-  def toSeed(entropy: Entropy, password: Option[Password]): Sized.Strict[Bytes, SeedLength]
-}
-
-object EntropyToSeed {
-
-  trait Instances {
-
-    implicit def pbkdf2Sha512[SeedLength <: Length](implicit seedLength: SeedLength): EntropyToSeed[SeedLength] =
-      (entropy: Entropy, password: Option[Password]) => {
-        val kdf = new Pbkdf2Sha512()
-        Sized.strictUnsafe(
-          Bytes(
-            kdf.generateKey(
-              password.getOrElse("").getBytes(StandardCharsets.UTF_8),
-              entropy.value,
-              seedLength.value,
-              4096
-            )
-          )
-        )
-      }
-
-  }
-
-  object instances extends Instances
 }

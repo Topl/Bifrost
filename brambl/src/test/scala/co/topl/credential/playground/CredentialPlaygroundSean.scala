@@ -5,8 +5,7 @@ import cats.effect.unsafe.implicits.global
 import co.topl.credential.Credential
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
-import co.topl.crypto.typeclasses.KeyInitializer
-import co.topl.crypto.typeclasses.KeyInitializer.Instances.{curve25519Initializer, ed25519Initializer}
+import co.topl.crypto.generation.KeyInitializer.Instances.{curve25519Initializer, ed25519Initializer}
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.models._
@@ -23,10 +22,11 @@ import org.graalvm.polyglot.Value
 
 import java.nio.charset.StandardCharsets
 import ModelGenerators._
+import co.topl.crypto.generation.KeyInitializer
 
 object CredentialPlaygroundSean extends App {
   implicit val ed25519: Ed25519 = new Ed25519
-  implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.precomputed()
+  implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.instance
   implicit val networkPrefix: NetworkPrefix = NetworkPrefix(1: Byte)
 
   val stakingAddress: StakingAddress =

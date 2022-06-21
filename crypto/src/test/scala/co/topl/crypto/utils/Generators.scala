@@ -1,6 +1,8 @@
 package co.topl.crypto.utils
 
+import co.topl.crypto.generation.mnemonic.{MnemonicSize, MnemonicSizes}
 import co.topl.models.Bytes
+import javassist.bytecode.Mnemonic
 import org.scalacheck.{Arbitrary, Gen}
 
 object Generators {
@@ -22,5 +24,13 @@ object Generators {
     Gen.listOfN(n, Arbitrary.arbitrary[Byte]).retryUntil(_.length == n).map(_.toArray)
 
   lazy val stringGen: Gen[String] = Gen.alphaNumStr.suchThat(_.nonEmpty)
+
+  def pickMnemonicSize(int: Int): MnemonicSize = int % 5 match {
+    case 0 => MnemonicSizes.`12`
+    case 1 => MnemonicSizes.`15`
+    case 2 => MnemonicSizes.`18`
+    case 3 => MnemonicSizes.`21`
+    case 4 => MnemonicSizes.`24`
+  }
 
 }

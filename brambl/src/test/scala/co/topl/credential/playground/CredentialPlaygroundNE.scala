@@ -6,8 +6,7 @@ import co.topl.credential.Credential
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.crypto.typeclasses.KeyInitializer
-import co.topl.crypto.typeclasses.KeyInitializer.Instances.{curve25519Initializer, ed25519Initializer}
+import co.topl.crypto.generation.KeyInitializer.Instances.{curve25519Initializer, ed25519Initializer}
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
@@ -22,12 +21,13 @@ import org.graalvm.polyglot.Value
 import scala.annotation.tailrec
 import scala.util.Random
 import ModelGenerators._
+import co.topl.crypto.generation.KeyInitializer
 
 object CredentialPlaygroundNE extends App {
   type F[A] = cats.effect.IO[A]
 
   implicit val ed25519: Ed25519 = new Ed25519
-  implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.precomputed()
+  implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.instance
 
   implicit val jsExecutor: Propositions.Script.JS.JSScript => F[(Json, Json) => F[Boolean]] =
     s =>
@@ -143,7 +143,7 @@ object TruthTable extends App {
   type F[A] = cats.effect.IO[A]
 
   implicit val ed25519: Ed25519 = new Ed25519
-  implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.precomputed()
+  implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.instance
 
   implicit val jsExecutor: Propositions.Script.JS.JSScript => F[(Json, Json) => F[Boolean]] =
     s =>

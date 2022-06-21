@@ -10,7 +10,7 @@ import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import co.topl.crypto.generation.EntropySupport._
+import co.topl.crypto.utils.EntropySupport._
 import cats.implicits._
 
 import java.nio.charset.StandardCharsets
