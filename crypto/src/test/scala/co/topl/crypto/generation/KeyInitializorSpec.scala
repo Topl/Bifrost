@@ -23,8 +23,6 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 class KeyInitializorSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers with EitherValues {
   import KeyInitializer.Instances._
 
-  val testVectors: List[KeyInitializor] = TestVector.read("KeyInitializor.json")
-
   case class SpecInputs(mnemonic: String, size: MnemonicSize, password: Option[String])
 
   case class SpecOutputs(
@@ -72,8 +70,12 @@ class KeyInitializorSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
 
   implicit val testVectorDecoder: Decoder[KeyInitializor] = deriveDecoder[KeyInitializor]
 
+  val testVectors: List[KeyInitializor] = TestVector.read("KeyInitializor.json")
+
   testVectors.foreach { underTest =>
-    property(s"Generate 96 byte seed from mnemonic: ${underTest.inputs.mnemonic}") {
+    property(
+      s"Generate 96 byte seed from mnemonic: ${underTest.inputs.mnemonic} + password: ${underTest.inputs.password}"
+    ) {
       val entropy = Entropy.fromMnemonicString(underTest.inputs.mnemonic, underTest.inputs.size, Language.English).value
       val actualCurve25519Sk = curve25519Initializer.fromEntropy(entropy, underTest.inputs.password)
       val actualEd25519Sk = ed25519Initializer.fromEntropy(entropy, underTest.inputs.password)
