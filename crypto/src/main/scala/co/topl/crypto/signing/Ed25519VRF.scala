@@ -28,7 +28,7 @@ class Ed25519VRF
     val sk = new Array[Byte](impl.SECRET_KEY_SIZE)
     val pk = new Array[Byte](impl.PUBLIC_KEY_SIZE)
 
-    val random = defaultRandom(Some(Seed(seed.data.toArray)))
+    val random = co.topl.crypto.defaultRandom(Some(Seed(seed.data.toArray)))
 
     impl.generatePrivateKey(random, sk)
     impl.generatePublicKey(sk, 0, pk, 0)

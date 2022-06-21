@@ -190,5 +190,13 @@
     "outputs": {
       "entropy": "f585c11aec520db57dd353c69554b21a89b20fb0650966fa0a9d6f74fd989d8f"
     }
+  },
+  {
+    "inputs": {
+      "mnemonic": "rude stadium move tumble spice vocal undo butter cargo win valid session question walk indoor nothing wagon column artefact monster fold gallery receive just"
+    },
+    "outputs": {
+      "entropy": "bcfa7e43752d19eabb38fa22bf6bc3622af9ed1cc4b6f645b833c7a5a8be2ce3"
+    }
   }
 ]

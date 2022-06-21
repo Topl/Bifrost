@@ -2,7 +2,6 @@ package co.topl.crypto.utils
 
 import co.topl.crypto.generation.mnemonic.{MnemonicSize, MnemonicSizes}
 import co.topl.models.Bytes
-import javassist.bytecode.Mnemonic
 import org.scalacheck.{Arbitrary, Gen}
 
 object Generators {

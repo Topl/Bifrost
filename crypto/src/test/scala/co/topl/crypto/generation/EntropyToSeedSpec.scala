@@ -1,18 +1,15 @@
 package co.topl.crypto.generation
 
 import cats.scalatest.EitherValues
-import co.topl.crypto.generation.mnemonic.Entropy
-import co.topl.crypto.utils
+import co.topl.crypto.generation.mnemonic.{Entropy, EntropyTestVectorHelper}
 import co.topl.crypto.utils.{Hex, TestVector}
-import co.topl.models.{Bytes, SecretKeys}
-import co.topl.models.utility.{Lengths, Sized}
-import io.circe.{Decoder, HCursor}
+import co.topl.models.Bytes
+import co.topl.models.utility.Lengths
 import io.circe.generic.semiauto.deriveDecoder
+import io.circe.{Decoder, HCursor}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import co.topl.crypto.generation.mnemonic.EntropyTestVectorHelper
-import co.topl.models.utility.HasLength.instances._
 
 class EntropyToSeedSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers with EitherValues {
 

@@ -8,8 +8,14 @@ import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import co.topl.crypto.utils.EntropySupport._
+import org.scalatest.EitherValues
 
-class EntropySpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaCheckDrivenPropertyChecks {
+class EntropySpec
+    extends AnyPropSpec
+    with ScalaCheckPropertyChecks
+    with ScalaCheckDrivenPropertyChecks
+    with EitherValues {
 
   property("random byte arrays (of the correct length) should be a valid Entropy") {
     forAll(Gen.oneOf(Seq(16, 20, 24, 28, 32))) { byteLength =>
@@ -47,9 +53,9 @@ class EntropySpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaCh
         .flatMap { mnemonicString =>
           Entropy.fromMnemonicString(mnemonicString, mnemonicSize, Language.English)
         }
-        .getOrElse(throw new Exception("again not sure :/"))
+        .value
 
-      (entropy1.value sameElements entropy2.value) shouldBe true
+      entropy1.eqv(entropy2) shouldBe true
     }
   }
 
@@ -58,7 +64,7 @@ class EntropySpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaCh
       val actualEntropy =
         Entropy
           .fromMnemonicString(underTest.inputs.mnemonic, underTest.inputs.size, Language.English)
-          .getOrElse(throw new Exception("another bad place"))
+          .value
 
       val expectedEntropy = underTest.outputs.entropy
 
