@@ -20,6 +20,8 @@ object TransactionSyntaxValidation {
   private[interpreters] val validators: Chain[Transaction => ValidatedNec[TransactionSyntaxError, Unit]] =
     Chain(
       nonEmptyInputsValidation,
+      distinctInputsValidation,
+      maximumOutputsCountValidation,
       positiveTimestampValidation,
       positiveOutputValuesValidation,
       sufficientFundsValidation
@@ -32,6 +34,32 @@ object TransactionSyntaxValidation {
     transaction: Transaction
   ): ValidatedNec[TransactionSyntaxError, Unit] =
     Validated.condNec(transaction.inputs.nonEmpty, (), TransactionSyntaxErrors.EmptyInputs)
+
+  /**
+   * Verify that this transaction does not spend the same box more than once
+   */
+  private[interpreters] def distinctInputsValidation(
+    transaction: Transaction
+  ): ValidatedNec[TransactionSyntaxError, Unit] =
+    NonEmptyChain
+      .fromSeq(
+        transaction.inputs.toIterable
+          .groupBy(_.boxId)
+          .collect {
+            case (boxId, inputs) if inputs.size > 1 => TransactionSyntaxErrors.DuplicateInput(boxId)
+          }
+          .toSeq
+      )
+      .fold(().validNec[TransactionSyntaxError])(_.invalid[Unit])
+
+  /**
+   * Verify that this transaction does not contain too many outputs.  A transaction's outputs are referenced by index,
+   * but that index must be a Short value.
+   */
+  private[interpreters] def maximumOutputsCountValidation(
+    transaction: Transaction
+  ): ValidatedNec[TransactionSyntaxError, Unit] =
+    Validated.condNec(transaction.outputs.size < Short.MaxValue, (), TransactionSyntaxErrors.ExcessiveOutputsCount)
 
   /**
    * Verify that the timestamp of the transaction is positive (greater than 0).  Transactions _can_ be created
