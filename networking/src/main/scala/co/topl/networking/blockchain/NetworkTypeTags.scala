@@ -1,6 +1,6 @@
 package co.topl.networking.blockchain
 
-import co.topl.models.{BlockBodyV2, BlockHeaderV2, Transaction, TypedIdentifier}
+import co.topl.models.{BlockBodyV2, BlockHeaderV2, SlotData, Transaction, TypedIdentifier}
 import co.topl.networking.NetworkTypeTag
 import co.topl.networking.typedprotocols.TypedProtocol
 
@@ -28,6 +28,10 @@ object NetworkTypeTags {
   implicit val commonMessagesGetLongTypedIdentifierOptNetworkTypeTag
     : NetworkTypeTag[TypedProtocol.CommonMessages.Get[(Long, Option[TypedIdentifier])]] =
     NetworkTypeTag.create("TypedProtocol.CommonMessages.Get[(Long, TypedIdentifier)]")
+
+  implicit val commonMessagesResponseSlotDataNetworkTypeTag
+    : NetworkTypeTag[TypedProtocol.CommonMessages.Response[SlotData]] =
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[SlotData]")
 
   implicit val commonMessagesResponseBlockHeaderNetworkTypeTag
     : NetworkTypeTag[TypedProtocol.CommonMessages.Response[BlockHeaderV2]] =

@@ -81,7 +81,7 @@ object DemoProgram {
           ) { case t =>
             Logger[F].error(t)(show"Failed to process block id=${blockV2.headerV2.id}").as(false)
           }
-      clientHandler <- BlockchainClientHandler.FetchAllBlocks.make[F](
+      clientHandler <- BlockchainPeerHandler.FetchAllBlocks.make[F](
         headerStore,
         bodyStore,
         transactionStore,
@@ -109,7 +109,7 @@ object DemoProgram {
       (p2pServer, p2pFiber) <- BlockchainNetwork
         .make[F](host, bindPort, localPeer, remotePeers, clientHandler, peerServer, peerFlowModifier)
       mintedBlockStream <- mint.fold(Source.never[BlockV2].pure[F])(_.blocks)
-      rpcInterpreter = toplRpcInterpreter(
+      rpcInterpreter <- ToplRpcServer.make(
         transactionStore,
         mempool,
         syntacticValidation,
@@ -196,32 +196,6 @@ object DemoProgram {
               .as(false)
           )
     } yield adopted
-
-  private def toplRpcInterpreter[F[_]: Async: Logger: FToFuture](
-    transactionStore:          Store[F, TypedIdentifier, Transaction],
-    mempool:                   MempoolAlgebra[F],
-    syntacticValidation:       TransactionSyntaxValidationAlgebra[F],
-    broadcastTransactionToP2P: Transaction => F[Unit],
-    localChain:                LocalChainAlgebra[F]
-  ) =
-    new ToplRpc[F] {
-
-      def broadcastTransaction(transaction: Transaction): F[Unit] =
-        transactionStore
-          .contains(transaction.id)
-          .ifM(
-            Logger[F].info(show"Received duplicate transaction id=${transaction.id.asTypedBytes}"),
-            Logger[F].info(show"Received RPC Transaction id=${transaction.id.asTypedBytes}") >>
-            syntacticValidateOrRaise(syntacticValidation)(transaction)
-              // TODO: Semantic and Authorization Validation
-              .flatTap(processValidTransaction[F](transactionStore, mempool))
-              .flatTap(broadcastTransactionToP2P)
-              .void
-          )
-
-      def currentMempool(): F[Set[TypedIdentifier]] =
-        localChain.head.map(_.slotId.blockId).flatMap(mempool.read)
-    }
 
   private def syntacticValidateOrRaise[F[_]: MonadThrow: Logger](
     syntacticValidation: TransactionSyntaxValidationAlgebra[F]

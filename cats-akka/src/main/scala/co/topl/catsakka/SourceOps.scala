@@ -1,9 +1,10 @@
 package co.topl.catsakka
 
 import akka.NotUsed
-import akka.stream.scaladsl.Source
-import akka.stream.{BoundedSourceQueue, OverflowStrategy, QueueOfferResult}
+import akka.stream.scaladsl.{Keep, Source}
+import akka.stream.{BoundedSourceQueue, KillSwitches, Materializer, OverflowStrategy, QueueOfferResult}
 import cats.effect.Async
+import cats.effect.kernel.{MonadCancel, Sync}
 import cats.implicits._
 import cats.kernel.Monoid
 import cats.{Applicative, Functor, MonadThrow}
@@ -55,11 +56,27 @@ trait SourceOps {
 
 class SourceCatsOps[T, Mat](val source: Source[T, Mat]) extends AnyVal {
 
+  /**
+   * Evaluates the given `f` function on each element of the stream
+   */
   def mapAsyncF[F[_]: FToFuture, U](parallelism: Int)(f: T => F[U]): Source[U, Mat] =
     source.map(f).mapAsync(parallelism)(implicitly[FToFuture[F]].apply)
 
+  /**
+   * Perform a side-effecting operation on the given values in the F context
+   */
   def tapAsyncF[F[_]: Functor: FToFuture](parallelism: Int)(f: T => F[Unit]): Source[T, Mat] =
     source.map(a => f(a).as(a)).mapAsync(parallelism)(implicitly[FToFuture[F]].apply)
+
+  /**
+   * Inserts MonadCancel#onCancel support into this Source
+   */
+  def withCancel[F[_]: Async](implicit materializer: Materializer): F[Source[T, Mat]] =
+    Sync[F]
+      .delay(source.viaMat(KillSwitches.single)(Keep.both).preMaterialize())
+      .flatMap { case ((mat, killSwitch), source) =>
+        Async[F].onCancel(source.mapMaterializedValue(_ => mat).pure[F], Sync[F].delay(killSwitch.shutdown()))
+      }
 }
 
 class BoundedSourceQueueOps[T](val queue: BoundedSourceQueue[T]) extends AnyVal {
