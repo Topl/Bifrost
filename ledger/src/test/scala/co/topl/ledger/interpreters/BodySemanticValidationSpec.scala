@@ -14,6 +14,8 @@ import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 
+import scala.collection.immutable.ListSet
+
 class BodySemanticValidationSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
@@ -22,7 +24,7 @@ class BodySemanticValidationSpec extends CatsEffectSuite with ScalaCheckEffectSu
     PropF.forAllF { (parentBlockId: TypedIdentifier, _transaction: Transaction, input: Transaction.Input) =>
       val transaction = _transaction.copy(inputs = Chain(input))
       withMock {
-        val body = List(transaction.id.asTypedBytes)
+        val body = ListSet(transaction.id.asTypedBytes)
         for {
           fetchTransaction <- mockFunction[TypedIdentifier, F[Transaction]].pure[F]
           _ = fetchTransaction.expects(transaction.id.asTypedBytes).once().returning(transaction.pure[F])
@@ -56,7 +58,7 @@ class BodySemanticValidationSpec extends CatsEffectSuite with ScalaCheckEffectSu
         val transactionA = _transactionA.copy(inputs = Chain(input))
         val transactionB = _transactionB.copy(inputs = Chain(input))
         withMock {
-          val body = List(transactionA.id.asTypedBytes, transactionB.id.asTypedBytes)
+          val body = ListSet(transactionA.id.asTypedBytes, transactionB.id.asTypedBytes)
           for {
             fetchTransaction <- mockFunction[TypedIdentifier, F[Transaction]].pure[F]
             _ = fetchTransaction

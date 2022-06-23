@@ -7,6 +7,7 @@ import io.estatico.newtype.macros.{newsubtype, newtype}
 import io.estatico.newtype.ops._
 import scodec.bits.ByteVector
 
+import scala.collection.immutable.ListSet
 import scala.language.implicitConversions
 
 package object models {
@@ -44,7 +45,7 @@ package object models {
 
   case class SlotId(slot: Slot, blockId: TypedIdentifier)
 
-  type BlockBodyV2 = List[TypedIdentifier]
+  type BlockBodyV2 = ListSet[TypedIdentifier]
 
   @newtype case class TypedBytes(allBytes: Bytes) {
     def typePrefix: TypePrefix = allBytes.head

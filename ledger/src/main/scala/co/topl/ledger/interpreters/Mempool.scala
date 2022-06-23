@@ -58,7 +58,7 @@ object Mempool {
         } yield ()
       applyBlock = (state: State[F], blockId: TypedIdentifier) =>
         for {
-          blockBody         <- fetchBlockBody(blockId)
+          blockBody         <- fetchBlockBody(blockId).map(_.toList)
           blockTransactions <- blockBody.traverse(fetchTransaction)
           blockInputIds = blockTransactions.flatMap(_.inputs.map(_.boxId).toList).toSet
           currentEntries <- state.get
@@ -84,6 +84,7 @@ object Mempool {
         } yield state
       unapplyBlock = (state: State[F], blockId: TypedIdentifier) =>
         fetchBlockBody(blockId)
+          .map(_.toList)
           .flatMap(_.traverse(fetchTransaction(_).flatMap(addTransactionWithDefaultExpiration)))
           .as(state)
       eventSourcedState <- EventSourcedState.OfTree.make[F, State[F]](

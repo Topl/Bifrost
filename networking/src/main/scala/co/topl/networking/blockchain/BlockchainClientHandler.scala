@@ -269,7 +269,7 @@ object BlockchainClientHandler {
       client:           BlockchainPeerClient[F],
       transactionStore: Store[F, TypedIdentifier, Transaction]
     ) =
-      (body: BlockBodyV2) => body.traverse(fetchTransaction[F](client, transactionStore))
+      (body: BlockBodyV2) => body.toList.traverse(fetchTransaction[F](client, transactionStore))
 
     private def fetchTransaction[F[_]: Async: Concurrent: Logger: FToFuture](
       client:           BlockchainPeerClient[F],

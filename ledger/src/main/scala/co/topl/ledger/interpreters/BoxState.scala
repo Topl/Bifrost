@@ -60,7 +60,7 @@ object BoxState {
     fetchTransaction: TypedIdentifier => F[Transaction]
   )(state:            State[F], blockId: TypedIdentifier): F[State[F]] =
     for {
-      body         <- fetchBlockBody(blockId)
+      body         <- fetchBlockBody(blockId).map(_.toList)
       transactions <- body.traverse(fetchTransaction)
       _ <- transactions.traverse(transaction =>
         transaction.inputs.traverse(input =>
@@ -91,7 +91,7 @@ object BoxState {
     fetchTransaction: TypedIdentifier => F[Transaction]
   )(state:            State[F], blockId: TypedIdentifier): F[State[F]] =
     for {
-      body         <- fetchBlockBody(blockId)
+      body         <- fetchBlockBody(blockId).map(_.toList)
       transactions <- body.traverse(fetchTransaction)
       _ <- transactions.traverse(transaction =>
         state.remove(transaction.id) >>

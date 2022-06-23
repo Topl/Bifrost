@@ -13,6 +13,8 @@ import cats.implicits._
 import co.topl.algebras.testInterpreters.TestStore
 import co.topl.eventtree.ParentChildTree
 
+import scala.collection.immutable.ListSet
+
 class BoxStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
 
   test("BoxState includes new outputs") {
@@ -39,8 +41,8 @@ class BoxStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
           underTest <- BoxState.make[IO](
             blockId0.pure[IO],
             Map(
-              blockId1 -> List(transaction1.id.asTypedBytes).pure[IO],
-              blockId2 -> List(transaction2.id.asTypedBytes).pure[IO]
+              blockId1 -> ListSet(transaction1.id.asTypedBytes).pure[IO],
+              blockId2 -> ListSet(transaction2.id.asTypedBytes).pure[IO]
             ).apply _,
             Map(
               transaction1.id.asTypedBytes -> transaction1.pure[IO],

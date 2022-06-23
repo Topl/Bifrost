@@ -1,7 +1,7 @@
 package co.topl.ledger.models
 
-import cats.data.NonEmptyChain
-import co.topl.models.Transaction
+import cats.data.{NonEmptyChain, NonEmptySet}
+import co.topl.models.{Box, Transaction}
 
 trait BodySyntaxError
 
@@ -11,4 +11,6 @@ object BodySyntaxErrors {
     transaction:    Transaction,
     semanticErrors: NonEmptyChain[TransactionSyntaxError]
   ) extends BodySyntaxError
+
+  case class DoubleSpend(boxIds: NonEmptySet[Box.Id]) extends BodySyntaxError
 }
