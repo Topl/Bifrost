@@ -4,7 +4,7 @@ import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import akka.stream.scaladsl.{Flow, Keep, Source}
 import akka.util.{ByteString, Timeout}
-import cats.data.OptionT
+import cats.data._
 import cats.effect.implicits._
 import cats.effect.kernel.Sync
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig}
@@ -12,6 +12,7 @@ import cats.effect.{Async, ExitCode, IO, IOApp}
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits.ClockOps
 import co.topl.algebras._
+import co.topl.blockchain.Blockchain
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
@@ -22,7 +23,7 @@ import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.interpreters._
 import co.topl.ledger.algebras.MempoolAlgebra
-import co.topl.ledger.interpreters.{Mempool, TransactionSyntaxValidation}
+import co.topl.ledger.interpreters._
 import co.topl.minting._
 import co.topl.minting.algebras.PerpetualBlockMintAlgebra
 import co.topl.models._
@@ -292,6 +293,7 @@ object TetraSuperDemo extends IOApp {
         slotDataCache    <- SlotDataCache.Eval.make(blockHeaderStore, ed25519VRFResource)
         slotDataStore = blockHeaderStore
           .mapRead[TypedIdentifier, SlotData](identity, t => t.slotData(Ed25519VRF.precomputed()))
+        boxStateStore               <- RefStore.Eval.make[F, TypedIdentifier, NonEmptySet[Short]]
         blockIdTree                 <- BlockIdTree.make[F]
         _                           <- blockIdTree.associate(genesis.headerV2.id, genesis.headerV2.parentHeaderId)
         blockHeightTreeStore        <- RefStore.Eval.make[F, Long, TypedIdentifier]()
@@ -333,7 +335,6 @@ object TetraSuperDemo extends IOApp {
           genesis.headerV2.slotData(Ed25519VRF.precomputed()),
           ChainSelection.orderT[F](slotDataCache, blake2b512Resource, ChainSelectionKLookback, ChainSelectionSWindow)
         )
-        syntacticValidation <- TransactionSyntaxValidation.make[F]
         mempool <- Mempool.make[F](
           genesis.headerV2.id.asTypedBytes.pure[F],
           blockBodyStore.getOrRaise,
@@ -363,20 +364,37 @@ object TetraSuperDemo extends IOApp {
           )
           .value
         implicit0(networkRandom: Random) = new Random(new SecureRandom())
-        _ <- DemoProgram
+        boxState <- BoxState.make(
+          genesis.headerV2.id.asTypedBytes.pure[F],
+          blockBodyStore.getOrRaise,
+          transactionStore.getOrRaise,
+          blockIdTree,
+          boxStateStore.pure[F]
+        )
+        transactionSyntaxValidation   <- TransactionSyntaxValidation.make[F]
+        transactionSemanticValidation <- TransactionSemanticValidation.make[F](transactionStore.getOrRaise, boxState)
+        bodySyntaxValidation <- BodySyntaxValidation.make[F](transactionStore.getOrRaise, transactionSyntaxValidation)
+        bodySemanticValidation <- BodySemanticValidation.make[F](
+          transactionStore.getOrRaise,
+          boxState,
+          boxState => TransactionSemanticValidation.make[F](transactionStore.getOrRaise, boxState)
+        )
+        _ <- Blockchain
           .run[F](
             mintOpt,
-            cachedHeaderValidation,
+            slotDataStore,
             blockHeaderStore,
             blockBodyStore,
             transactionStore,
-            slotDataStore,
             localChain,
-            blockIdTree,
             blockHeightTree,
+            cachedHeaderValidation,
+            transactionSyntaxValidation,
+            transactionSemanticValidation,
+            bodySyntaxValidation,
+            bodySemanticValidation,
+            mempool,
             ed25519VRFResource,
-            localPeer.localAddress.getHostString,
-            localPeer.localAddress.getPort,
             localPeer,
             remotes.concat(Source.never),
             (peer, flow) => {
@@ -390,8 +408,6 @@ object TetraSuperDemo extends IOApp {
                 )
               Flow[ByteString].via(delayer).viaMat(flow)(Keep.right).via(delayer)
             },
-            syntacticValidation,
-            mempool,
             rpcHost,
             rpcPort
           )

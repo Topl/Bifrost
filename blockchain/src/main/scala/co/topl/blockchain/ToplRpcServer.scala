@@ -1,4 +1,4 @@
-package co.topl.demo
+package co.topl.blockchain
 
 import cats.{Monad, Show}
 import cats.data.EitherT
@@ -27,14 +27,16 @@ object ToplRpcServer {
   implicit private val showTransactionSemanticError: Show[TransactionSemanticError] =
     Show.fromToString
 
+  /**
+   * Interpreter which serves Topl RPC data using local blockchain interpreters
+   */
   def make[F[_]: Async: Logger: FToFuture](
-    transactionStore:          Store[F, TypedIdentifier, Transaction],
-    mempool:                   MempoolAlgebra[F],
-    syntacticValidation:       TransactionSyntaxValidationAlgebra[F],
-    semanticValidation:        TransactionSemanticValidationAlgebra[F],
-    broadcastTransactionToP2P: Transaction => F[Unit],
-    localChain:                LocalChainAlgebra[F]
-  ) =
+    transactionStore:    Store[F, TypedIdentifier, Transaction],
+    mempool:             MempoolAlgebra[F],
+    syntacticValidation: TransactionSyntaxValidationAlgebra[F],
+    semanticValidation:  TransactionSemanticValidationAlgebra[F],
+    localChain:          LocalChainAlgebra[F]
+  ): F[ToplRpc[F]] =
     Async[F].delay {
       new ToplRpc[F] {
 
@@ -48,7 +50,6 @@ object ToplRpcServer {
                 .flatMap(semanticValidateOrRaise)
                 // TODO: Authorization Validation
                 .flatTap(processValidTransaction[F](transactionStore, mempool))
-                .flatTap(broadcastTransactionToP2P)
                 .void
             )
 

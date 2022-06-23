@@ -12,6 +12,7 @@ import cats.effect.{Async, ExitCode, IO, IOApp}
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits.ClockOps
 import co.topl.algebras._
+import co.topl.blockchain.Blockchain
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
@@ -22,7 +23,7 @@ import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.interpreters._
 import co.topl.ledger.algebras.MempoolAlgebra
-import co.topl.ledger.interpreters.{Mempool, TransactionSyntaxValidation}
+import co.topl.ledger.interpreters._
 import co.topl.minting._
 import co.topl.minting.algebras.PerpetualBlockMintAlgebra
 import co.topl.models._
@@ -259,7 +260,6 @@ object TetraDemo extends IOApp {
         genesis.headerV2.slotData(Ed25519VRF.precomputed()),
         ChainSelection.orderT[F](slotDataCache, blake2b512Resource, ChainSelectionKLookback, ChainSelectionSWindow)
       )
-      syntacticValidation <- TransactionSyntaxValidation.make[F]
       mempool <- Mempool.make[F](
         genesis.headerV2.id.asTypedBytes.pure[F],
         blockBodyStore.getOrRaise,
@@ -290,25 +290,33 @@ object TetraDemo extends IOApp {
         )
         .value
       implicit0(networkRandom: Random) = new Random(new SecureRandom())
-      _ <- DemoProgram
+      transactionSyntaxValidation   <- TransactionSyntaxValidation.make[F]
+      transactionSemanticValidation <- TransactionSemanticValidation.make[F](transactionStore.getOrRaise, boxState)
+      bodySyntaxValidation <- BodySyntaxValidation.make[F](transactionStore.getOrRaise, transactionSyntaxValidation)
+      bodySemanticValidation <- BodySemanticValidation.make[F](
+        transactionStore.getOrRaise,
+        boxState,
+        boxState => TransactionSemanticValidation.make[F](transactionStore.getOrRaise, boxState)
+      )
+      _ <- Blockchain
         .run[F](
           mintOpt,
-          cachedHeaderValidation,
+          slotDataStore,
           blockHeaderStore,
           blockBodyStore,
           transactionStore,
-          slotDataStore,
           localChain,
-          blockIdTree,
           blockHeightTree,
+          cachedHeaderValidation,
+          transactionSyntaxValidation,
+          transactionSemanticValidation,
+          bodySyntaxValidation,
+          bodySemanticValidation,
+          mempool,
           ed25519VRFResource,
-          "localhost",
-          demoArgs.port,
           LocalPeer(InetSocketAddress.createUnresolved("localhost", demoArgs.port), (0, 0)),
           Source(demoArgs.remotes).delay(2.seconds).concat(Source.never),
           (_, flow) => flow,
-          syntacticValidation,
-          mempool,
           "localhost",
           demoArgs.rpcPort
         )

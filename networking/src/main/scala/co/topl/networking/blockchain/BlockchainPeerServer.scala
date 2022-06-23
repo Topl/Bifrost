@@ -35,16 +35,16 @@ object BlockchainPeerServer {
       transactionStore:             Store[F, TypedIdentifier, Transaction],
       blockHeights:                 EventSourcedState[F, Long => F[Option[TypedIdentifier]]],
       localChain:                   LocalChainAlgebra[F],
-      locallyAdoptedBlockIds:       Source[TypedIdentifier, NotUsed],
-      locallyAdoptedTransactionIds: Source[TypedIdentifier, NotUsed]
+      locallyAdoptedBlockIds:       F[Source[TypedIdentifier, NotUsed]],
+      locallyAdoptedTransactionIds: F[Source[TypedIdentifier, NotUsed]]
     ): F[BlockchainPeerServer[F]] =
       new BlockchainPeerServer[F] {
 
         def localBlockAdoptions: F[Source[TypedIdentifier, NotUsed]] =
-          locallyAdoptedBlockIds.buffer(1, OverflowStrategy.dropHead).pure[F]
+          locallyAdoptedBlockIds.map(_.buffer(1, OverflowStrategy.dropHead))
 
         def localTransactionNotifications: F[Source[TypedIdentifier, NotUsed]] =
-          locallyAdoptedTransactionIds.buffer(5, OverflowStrategy.dropHead).pure[F]
+          locallyAdoptedTransactionIds.map(_.buffer(5, OverflowStrategy.dropHead))
 
         def getLocalSlotData(id: TypedIdentifier): F[Option[SlotData]] = slotDataStore.get(id)
 
