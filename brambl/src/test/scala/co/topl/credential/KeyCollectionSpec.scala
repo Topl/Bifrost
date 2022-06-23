@@ -109,7 +109,7 @@ object KeyCollectionSpec {
     Arbitrary(
       Arbitrary.arbUuid.arbitrary
         .map(Entropy.fromUuid)
-        .map(new ExtendedEd25519().createKeyPair(_, None)._1)
+        .map(new ExtendedEd25519().deriveKeyPairFromEntropy(_, None)._1)
     )
 
   implicit val arbitraryEd25519: Arbitrary[SecretKeys.Ed25519] = {
@@ -119,7 +119,7 @@ object KeyCollectionSpec {
     Arbitrary(
       Arbitrary.arbUuid.arbitrary
         .map(Entropy.fromUuid)
-        .map(new Ed25519().createKeyPair(_, None)._1)
+        .map(new Ed25519().deriveKeyPairFromEntropy(_, None)._1)
     )
   }
 }

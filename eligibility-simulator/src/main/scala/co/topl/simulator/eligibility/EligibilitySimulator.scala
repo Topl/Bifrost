@@ -66,7 +66,7 @@ object EligibilitySimulator extends IOApp.Simple {
   // Create stubbed/sample/demo data
 
   private val (_, poolVK) =
-    new Ed25519().createKeyPair(Entropy.fromUuid(UUID.randomUUID()), None)
+    new Ed25519().deriveKeyPairFromEntropy(Entropy.fromUuid(UUID.randomUUID()), None)
 
   private val stakers = List.fill(NumberOfStakers) {
 
@@ -75,7 +75,7 @@ object EligibilitySimulator extends IOApp.Simple {
     implicit val kesProduct: KesProduct = new KesProduct
 
     val (stakerVrfKey, _) =
-      ed25519Vrf.createKeyPair(Entropy.fromUuid(UUID.randomUUID()), None)
+      ed25519Vrf.deriveKeyPairFromEntropy(Entropy.fromUuid(UUID.randomUUID()), None)
 
     val (kesKey, _) =
       kesProduct.createKeyPair(seed = Bytes(Random.nextBytes(32)), height = KesKeyHeight, 0)

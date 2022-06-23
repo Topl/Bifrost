@@ -33,7 +33,7 @@ object KeyInitializer {
           fromEntropy(Entropy.fromUuid(UUID.randomUUID()), password = Some(""))
 
         override def fromEntropy(entropy: Entropy, password: Option[Password]): SecretKeys.Curve25519 =
-          Curve25519.instance.createKeyPair(entropy, password)._1
+          Curve25519.instance.deriveKeyPairFromEntropy(entropy, password)._1
 
       }
 
@@ -44,7 +44,7 @@ object KeyInitializer {
           fromEntropy(Entropy.fromUuid(UUID.randomUUID()), password = Some(""))
 
         override def fromEntropy(entropy: Entropy, password: Option[Password]): SecretKeys.Ed25519 =
-          Ed25519.instance.createKeyPair(entropy, password)._1
+          Ed25519.instance.deriveKeyPairFromEntropy(entropy, password)._1
 
       }
 
@@ -55,7 +55,7 @@ object KeyInitializer {
           fromEntropy(Entropy.fromUuid(UUID.randomUUID()), password = Some(""))
 
         def fromEntropy(entropy: Entropy, password: Option[Password]): SecretKeys.VrfEd25519 =
-          ed25519VRF.createKeyPair(entropy, password)._1
+          ed25519VRF.deriveKeyPairFromEntropy(entropy, password)._1
       }
 
     implicit def extendedEd25519Initializer: KeyInitializer[SecretKeys.ExtendedEd25519] =
@@ -65,7 +65,7 @@ object KeyInitializer {
           fromEntropy(Entropy.fromUuid(UUID.randomUUID()), password = Some(""))
 
         def fromEntropy(entropy: Entropy, password: Option[Password]): SecretKeys.ExtendedEd25519 =
-          ExtendedEd25519.instance.createKeyPair(entropy, password)._1
+          ExtendedEd25519.instance.deriveKeyPairFromEntropy(entropy, password)._1
       }
 
 //    implicit def kesSumInitializer(implicit slot: Slot): KeyInitializer[SecretKeys.KesSum] =

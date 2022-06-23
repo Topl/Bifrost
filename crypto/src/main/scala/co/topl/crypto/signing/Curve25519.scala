@@ -30,7 +30,7 @@ class Curve25519
     constructor.newInstance()
   }
 
-  override def createKeyPair(
+  override def deriveKeyPairFromSeed(
     seed: Sized.Strict[Bytes, SecretKeys.Curve25519.Length]
   ): (SecretKeys.Curve25519, VerificationKeys.Curve25519) = {
     val privateKey = SecretKeys.Curve25519(Sized.strictUnsafe(Bytes(provider.generatePrivateKey(seed.data.toArray))))

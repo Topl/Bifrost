@@ -65,7 +65,7 @@ object ThresholdSimulator extends IOApp.Simple {
       ed25519VRFResource <- ActorPoolUnsafeResource.Eval.make[F, Ed25519VRF](Ed25519VRF.precomputed(), _ => ())
       blake2b512Resource <- ActorPoolUnsafeResource.Eval.make[F, Blake2b512](new Blake2b512, _ => ())
       (stakerVRFSK, stakerVRFVK) <- ed25519VRFResource.use(
-        _.createKeyPair(Entropy.fromUuid(UUID.randomUUID()), None).pure[F]
+        _.deriveKeyPairFromEntropy(Entropy.fromUuid(UUID.randomUUID()), None).pure[F]
       )
       clock = SchedulerClock.Eval.make[F](SlotDuration, EpochLength, Instant.now())
       statsInterpreter = StatsInterpreter.Eval.make[F](statsDir)

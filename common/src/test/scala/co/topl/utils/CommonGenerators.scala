@@ -501,7 +501,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     implicit val entropyToSeed: EntropyToSeed[Lengths.`32`.type] = fastEntropyToSeed
 
     Gen.uuid.map { uuid =>
-      val (sk, pk) = Curve25519.instance.createKeyPair(Entropy.fromUuid(uuid), None)
+      val (sk, pk) = Curve25519.instance.deriveKeyPairFromEntropy(Entropy.fromUuid(uuid), None)
       val secret: PrivateKeyCurve25519 =
         new PrivateKeyCurve25519(PrivateKey(sk.bytes.data.toArray), PublicKey(pk.bytes.data.toArray))
       secret -> secret.publicImage
@@ -512,7 +512,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     implicit val entropyToSeed: EntropyToSeed[Lengths.`32`.type] = fastEntropyToSeed
 
     Gen.uuid.map { uuid =>
-      val (sk, pk) = Ed25519.instance.createKeyPair(Entropy.fromUuid(uuid), None)
+      val (sk, pk) = Ed25519.instance.deriveKeyPairFromEntropy(Entropy.fromUuid(uuid), None)
       val secret =
         new PrivateKeyEd25519(PrivateKey(sk.bytes.data.toArray), PublicKey(pk.bytes.data.toArray))
       secret -> secret.publicImage

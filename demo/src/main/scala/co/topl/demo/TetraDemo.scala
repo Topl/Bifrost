@@ -78,10 +78,10 @@ object TetraDemo extends IOApp {
     implicit val kesProduct: KesProduct = new KesProduct
     val seed = Sized.strictUnsafe[Bytes, Lengths.`32`.type](Bytes(random.nextBytes(32)))
 
-    val (_, poolVK) = new Ed25519().createKeyPair(seed)
+    val (_, poolVK) = new Ed25519().deriveKeyPairFromSeed(seed)
 
     val (stakerVrfKey, _) =
-      ed25519Vrf.createKeyPair(seed)
+      ed25519Vrf.deriveKeyPairFromSeed(seed)
 
     val (kesKey, _) =
       kesProduct.createKeyPair(seed = seed.data, height = KesKeyHeight, 0)

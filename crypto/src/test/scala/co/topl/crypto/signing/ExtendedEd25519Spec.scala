@@ -25,8 +25,8 @@ class ExtendedEd25519Spec
     forAll { (entropy1: Entropy, entropy: Entropy, message1: Bytes, message2: Bytes) =>
       whenever(!(entropy1 == entropy) && !(message1 == message2)) {
         val extendedEd25519 = new ExtendedEd25519
-        val (sk1, vk1) = extendedEd25519.createKeyPair(entropy1, passwordOpt)
-        val (_, vk2) = extendedEd25519.createKeyPair(entropy, passwordOpt)
+        val (sk1, vk1) = extendedEd25519.deriveKeyPairFromEntropy(entropy1, passwordOpt)
+        val (_, vk2) = extendedEd25519.deriveKeyPairFromEntropy(entropy, passwordOpt)
         val sig = extendedEd25519.sign(sk1, message1)
 
         extendedEd25519.verify(sig, message1, vk1) shouldBe true
@@ -40,8 +40,8 @@ class ExtendedEd25519Spec
     forAll { entropy: Entropy =>
       whenever(entropy.value.length != 0) {
         val extendedEd25519 = new ExtendedEd25519
-        val keyPair1 = extendedEd25519.createKeyPair(entropy, passwordOpt)
-        val keyPair2 = extendedEd25519.createKeyPair(entropy, passwordOpt)
+        val keyPair1 = extendedEd25519.deriveKeyPairFromEntropy(entropy, passwordOpt)
+        val keyPair2 = extendedEd25519.deriveKeyPairFromEntropy(entropy, passwordOpt)
 
         keyPair1._1 === keyPair2._1 shouldBe true
         keyPair1._2 === keyPair2._2 shouldBe true
@@ -451,7 +451,7 @@ class ExtendedEd25519Spec
       )
 
     val underTest = new ExtendedEd25519
-    val (sk, vk) = underTest.createKeyPair(e, Some(p))
+    val (sk, vk) = underTest.deriveKeyPairFromEntropy(e, Some(p))
     sk shouldBe specOutSK
     vk shouldBe specOutVK
   }

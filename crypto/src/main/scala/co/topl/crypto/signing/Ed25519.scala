@@ -17,18 +17,12 @@ class Ed25519
   override val SignatureLength: Int = impl.SIGNATURE_SIZE
   override val KeyLength: Int = impl.SECRET_KEY_SIZE
 
-  override def createKeyPair(
+  override def deriveKeyPairFromSeed(
     seed: Sized.Strict[Bytes, SecretKeys.Ed25519.Length]
   ): (SecretKeys.Ed25519, VerificationKeys.Ed25519) = {
-    val sk = new Array[Byte](impl.SECRET_KEY_SIZE)
-    val pk = new Array[Byte](impl.PUBLIC_KEY_SIZE)
-
-    val random = co.topl.crypto.defaultRandom(Some(Seed(seed.data.toArray)))
-
-    impl.generatePrivateKey(random, sk)
-    impl.generatePublicKey(sk, 0, pk, 0)
-
-    (SecretKeys.Ed25519(Sized.strictUnsafe(Bytes(sk))), VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(pk))))
+    val secretKey = SecretKeys.Ed25519(Sized.strictUnsafe(Bytes(seed.data.toArray)))
+    val verificationKey = getVerificationKey(secretKey)
+    secretKey -> verificationKey
   }
 
   override def sign(privateKey: SecretKeys.Ed25519, message: Bytes): Proofs.Knowledge.Ed25519 = {

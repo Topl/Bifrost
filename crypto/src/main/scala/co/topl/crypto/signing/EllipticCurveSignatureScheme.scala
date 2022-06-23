@@ -1,12 +1,12 @@
 package co.topl.crypto.signing
 
-import co.topl.crypto.generation.{EntropyToSeed, Pbkdf2Sha512}
+import co.topl.crypto.generation.EntropyToSeed
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.{Length, Sized}
 import co.topl.models.{Bytes, Proof, SecretKey, VerificationKey}
 
-import java.nio.charset.StandardCharsets
+import java.security.SecureRandom
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 
@@ -17,14 +17,21 @@ abstract class EllipticCurveSignatureScheme[SK <: SecretKey, VK <: VerificationK
   val SignatureLength: Int
   val KeyLength: Int
 
-  def createKeyPair(entropy: Entropy, password: Option[Password])(implicit
-    entropyToSeed:           EntropyToSeed[SeedLength] = EntropyToSeed.instances.pbkdf2Sha512[SeedLength]
-  ): (SK, VK) = {
-    val seed = entropyToSeed.toSeed(entropy, password)
-    createKeyPair(seed)
+  def generateRandom: (SK, VK) = {
+    val random = SecureRandom.getInstance("SHA1PRNG")
+    val seed = random.generateSeed(KeyLength)
+    random.nextBytes(seed) // updating random seed per https://howtodoinjava.com/java8/secure-random-number-generation/
+    deriveKeyPairFromSeed(Sized.strictUnsafe(Bytes(seed)))
   }
 
-  def createKeyPair(seed: Sized.Strict[Bytes, SeedLength]): (SK, VK)
+  def deriveKeyPairFromEntropy(entropy: Entropy, password: Option[Password])(implicit
+    entropyToSeed:                      EntropyToSeed[SeedLength] = EntropyToSeed.instances.pbkdf2Sha512[SeedLength]
+  ): (SK, VK) = {
+    val seed = entropyToSeed.toSeed(entropy, password)
+    deriveKeyPairFromSeed(seed)
+  }
+
+  def deriveKeyPairFromSeed(seed: Sized.Strict[Bytes, SeedLength]): (SK, VK)
 
   def sign(privateKey: SK, message: Bytes): SIG
 

@@ -51,7 +51,7 @@ object PrivateKeyEd25519 {
 
   implicit val secretGenerator: SecretGenerator[PrivateKeyEd25519] =
     SecretGenerator.instance[PrivateKeyEd25519] { seed: Array[Byte] =>
-      val (sk, pk) = Ed25519.instance.createKeyPair(Entropy(seed), None)
+      val (sk, pk) = Ed25519.instance.deriveKeyPairFromEntropy(Entropy(seed), None)
       val secret: PrivateKeyEd25519 =
         new PrivateKeyEd25519(PrivateKey(sk.bytes.data.toArray), PublicKey(pk.bytes.data.toArray))
       secret -> secret.publicImage

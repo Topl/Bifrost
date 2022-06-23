@@ -7,9 +7,8 @@ import co.topl.crypto.utils.{Hex, TestVector}
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
 import co.topl.models.{Bytes, SecretKeys}
-import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
-import io.circe.syntax._
-import io.circe.{Decoder, DecodingFailure, Encoder, HCursor, Json}
+import io.circe.generic.semiauto.deriveDecoder
+import io.circe.{Decoder, DecodingFailure, HCursor}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
@@ -20,7 +19,7 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
  * https://github.com/input-output-hk/rust-cardano/blob/9fad3d12341acc2ab0f9c2026149af3d839447e4/cardano/src/bip/test_vectors/bip39_english.txt
  */
 
-class KeyInitializorSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers with EitherValues {
+class KeyInitializerSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers with EitherValues {
   import KeyInitializer.Instances._
 
   case class SpecInputs(mnemonic: String, size: MnemonicSize, password: Option[String])
@@ -70,7 +69,7 @@ class KeyInitializorSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
 
   implicit val testVectorDecoder: Decoder[KeyInitializor] = deriveDecoder[KeyInitializor]
 
-  val testVectors: List[KeyInitializor] = TestVector.read("KeyInitializor.json")
+  val testVectors: List[KeyInitializor] = TestVector.read("KeyInitializer.json")
 
   testVectors.foreach { underTest =>
     property(

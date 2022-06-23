@@ -27,7 +27,7 @@ class ExtendedEd25519
   override val KeyLength: Int = impl.SECRET_KEY_SIZE
   val PublicKeyLength: Int = impl.PUBLIC_KEY_SIZE
 
-  override def createKeyPair(
+  override def deriveKeyPairFromSeed(
     seed: Sized.Strict[Bytes, Lengths.`96`.type]
   ): (SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519) = {
     val sk = ExtendedEd25519.clampBits(seed)
