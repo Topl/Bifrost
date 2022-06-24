@@ -123,6 +123,6 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
       } yield SpecOutputs(vk, pi, beta)
 
     implicit val testVectorDecoder: Decoder[VrfEd25519TestVector] = deriveDecoder[VrfEd25519TestVector]
-    val testVectors: List[VrfEd25519TestVector] = TestVector.read("VrfEd25519.json")
+    val testVectors: List[VrfEd25519TestVector] = TestVector.read("signing/VrfEd25519.json")
   }
 }

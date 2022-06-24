@@ -101,5 +101,5 @@ object EntropyTestVectorHelper {
   implicit val outputsDecoder: Decoder[SpecOutputs] = (c: HCursor) => entropyDecoder(c).map(SpecOutputs)
 
   implicit val testVectorDecoder: Decoder[MnemonicToEntropyTestVector] = deriveDecoder[MnemonicToEntropyTestVector]
-  val testVectors: List[MnemonicToEntropyTestVector] = TestVector.read("MnemonicToEntropy.json")
+  val testVectors: List[MnemonicToEntropyTestVector] = TestVector.read("generation/MnemonicToEntropy.json")
 }

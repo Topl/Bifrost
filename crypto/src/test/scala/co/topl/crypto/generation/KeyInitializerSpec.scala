@@ -69,7 +69,7 @@ class KeyInitializerSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
 
   implicit val testVectorDecoder: Decoder[KeyInitializor] = deriveDecoder[KeyInitializor]
 
-  val testVectors: List[KeyInitializor] = TestVector.read("KeyInitializer.json")
+  val testVectors: List[KeyInitializor] = TestVector.read("generation/KeyInitializer.json")
 
   testVectors.foreach { underTest =>
     property(

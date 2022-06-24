@@ -1,0 +1,35 @@
+[
+  {
+    "description": "test vector 1 - empty message",
+    "inputs": {
+      "secretKey": "52f9f8c55ef9646976ee4bf8a4d10b3cdf15cfe99d899b9e6e5a0d9c77534940411e817aa4047dfb9cb11cf83f1cca23079446879299e11558bcd24bcf418b15936fb3418dcdf821f589fc2a5b553a094918cf69ca5e10a30e644708ab55d9aa",
+      "message": ""
+    },
+    "outputs": {
+      "verificationKey": "d4d38ed7e78f2ec724b129a6842c60805d793e6731f728c8da8b310b9024f6b7936fb3418dcdf821f589fc2a5b553a094918cf69ca5e10a30e644708ab55d9aa",
+      "signature": "a9821dc3aa74dbf5c1253989adf49863b0b8a761ee157ee8a10af751ec15fe417f8fc605074abeb1b3a6655871f98510d77f45031ad8b0f62b562afc90eeea0c"
+    }
+  },
+  {
+    "description": "test vector - 2 - produce verifiable signatures with a short message",
+    "inputs": {
+      "secretKey": "",
+      "message": ""
+    },
+    "outputs": {
+      "verificationKey": "",
+      "signature": ""
+    }
+  },
+  {
+    "description": "test vector - 3 - produce verifiable signatures with a long message",
+    "inputs": {
+      "secretKey": "",
+      "message": ""
+    },
+    "outputs": {
+      "verificationKey": "",
+      "signature": ""
+    }
+  }
+]

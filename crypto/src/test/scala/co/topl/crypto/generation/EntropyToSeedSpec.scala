@@ -31,7 +31,7 @@ class EntropyToSeedSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks 
 
   implicit val testVectorDecoder: Decoder[EntropyToSeedTestVectors] = deriveDecoder[EntropyToSeedTestVectors]
 
-  val testVectors: List[EntropyToSeedTestVectors] = TestVector.read("EntropyToSeed.json")
+  val testVectors: List[EntropyToSeedTestVectors] = TestVector.read("generation/EntropyToSeed.json")
 
   testVectors.foreach { underTest =>
     property(s"Generate 96 byte seed from entropy: ${underTest.inputs.entropy}") {

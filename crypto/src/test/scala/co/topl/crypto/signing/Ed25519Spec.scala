@@ -118,6 +118,6 @@ class Ed25519Spec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with M
       } yield SpecOutputs(vk, sig)
 
     implicit val testVectorDecoder: Decoder[Ed25519TestVector] = deriveDecoder[Ed25519TestVector]
-    val testVectors: List[Ed25519TestVector] = TestVector.read("Ed25519.json")
+    val testVectors: List[Ed25519TestVector] = TestVector.read("signing/Ed25519.json")
   }
 }

@@ -118,6 +118,6 @@ class Curve25519AxolotlSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChe
       } yield SpecOutputs(vk, sig)
 
     implicit val testVectorDecoder: Decoder[Curve25519AxolotlTestVector] = deriveDecoder[Curve25519AxolotlTestVector]
-    val testVectors: List[Curve25519AxolotlTestVector] = TestVector.read("Curve25519Axolotl.json")
+    val testVectors: List[Curve25519AxolotlTestVector] = TestVector.read("signing/Curve25519Axolotl.json")
   }
 }
