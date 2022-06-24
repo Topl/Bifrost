@@ -21,11 +21,21 @@ import co.topl.typeclasses.implicits._
 
 object ToplRpcServer {
 
-  implicit private val showTransactionSyntaxError: Show[TransactionSyntaxError] =
-    Show.fromToString
+  implicit private val showTransactionSyntaxError: Show[TransactionSyntaxError] = {
+    case TransactionSyntaxErrors.EmptyInputs                 => "EmptyInputs"
+    case TransactionSyntaxErrors.DuplicateInput(boxId)       => show"DuplicateInput(boxId=$boxId)"
+    case TransactionSyntaxErrors.ExcessiveOutputsCount       => "ExcessiveOutputsCount"
+    case TransactionSyntaxErrors.InvalidTimestamp(timestamp) => show"InvalidTimestamp(timestamp=$timestamp)"
+    case TransactionSyntaxErrors.NonPositiveOutputValue(outputValue) =>
+      show"NonPositiveOutputValue(value=${outputValue.toString})"
+    case TransactionSyntaxErrors.InsufficientInputFunds(_, _) => "InsufficientInputFunds"
 
-  implicit private val showTransactionSemanticError: Show[TransactionSemanticError] =
-    Show.fromToString
+  }
+
+  implicit private val showTransactionSemanticError: Show[TransactionSemanticError] = {
+    case TransactionSemanticErrors.InputDataMismatch(input) => show"InputDataMismatch(boxId=${input.boxId})"
+    case TransactionSemanticErrors.UnspendableBox(boxId)    => show"UnspendableBox(boxId=$boxId)"
+  }
 
   /**
    * Interpreter which serves Topl RPC data using local blockchain interpreters
@@ -47,7 +57,11 @@ object ToplRpcServer {
               Logger[F].info(show"Received duplicate transaction id=${transaction.id.asTypedBytes}"),
               Logger[F].info(show"Received RPC Transaction id=${transaction.id.asTypedBytes}") >>
               syntacticValidateOrRaise(transaction)
+                .flatTap(_ =>
+                  Logger[F].info(show"Transaction id=${transaction.id.asTypedBytes} is syntactically valid")
+                )
                 .flatMap(semanticValidateOrRaise)
+                .flatTap(_ => Logger[F].info(show"Transaction id=${transaction.id.asTypedBytes} is semantically valid"))
                 // TODO: Authorization Validation
                 .flatTap(processValidTransaction[F](transactionStore, mempool))
                 .void
@@ -78,7 +92,7 @@ object ToplRpcServer {
               )
             )
             .leftMap(_ =>
-              new IllegalArgumentException(s"Semantically invalid transaction id=${transaction.id.asTypedBytes}")
+              new IllegalArgumentException(show"Semantically invalid transaction id=${transaction.id.asTypedBytes}")
             )
             .rethrowT
       }

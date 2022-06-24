@@ -1,18 +1,19 @@
 package co.topl.blockchain
 
 import akka.stream.Materializer
-import akka.stream.scaladsl.{Keep, RunnableGraph, Sink, Source}
+import akka.stream.scaladsl.{Keep, Sink, Source}
 import cats.data._
 import cats.effect.Async
 import cats.effect.kernel.Sync
 import cats.implicits._
-import cats.{~>, Monad, MonadThrow, Parallel, Show}
+import cats.{Monad, MonadThrow, Parallel, Show}
 import co.topl.algebras.{Store, StoreReader}
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.BlockHeaderValidationFailure
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LocalChainAlgebra}
+import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
 import co.topl.ledger.models.{BodySemanticError, BodySyntaxError, TransactionSemanticError, TransactionSyntaxError}
 import co.topl.models._
@@ -30,26 +31,27 @@ object BlockchainPeerHandlerImpl {
       optionT.toRight(new NoSuchElementException(id.toString)).rethrowT
   }
 
-  object V2 {
+  object LazyFetch {
 
     def make[F[_]: Async: Parallel: FToFuture: RunnableGraphToF: Logger](
-      localChain:                    LocalChainAlgebra[F],
-      headerValidation:              BlockHeaderValidationAlgebra[F],
-      transactionSyntaxValidation:   TransactionSyntaxValidationAlgebra[F],
-      transactionSemanticValidation: TransactionSemanticValidationAlgebra[F],
-      bodySyntaxValidation:          BodySyntaxValidationAlgebra[F],
-      bodySemanticValidation:        BodySemanticValidationAlgebra[F],
-      slotDataStore:                 Store[F, TypedIdentifier, SlotData],
-      headerStore:                   Store[F, TypedIdentifier, BlockHeaderV2],
-      bodyStore:                     Store[F, TypedIdentifier, BlockBodyV2],
-      transactionStore:              Store[F, TypedIdentifier, Transaction],
-      mempool:                       MempoolAlgebra[F],
-      getLocalBlockIdAtHeight:       Long => F[TypedIdentifier],
-      currentHeight:                 () => F[Long]
-    )(implicit mat:                  Materializer): F[BlockchainPeerHandler[F]] =
+      localChain:                  LocalChainAlgebra[F],
+      headerValidation:            BlockHeaderValidationAlgebra[F],
+      transactionSyntaxValidation: TransactionSyntaxValidationAlgebra[F],
+      bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
+      bodySemanticValidation:      BodySemanticValidationAlgebra[F],
+      slotDataStore:               Store[F, TypedIdentifier, SlotData],
+      headerStore:                 Store[F, TypedIdentifier, BlockHeaderV2],
+      bodyStore:                   Store[F, TypedIdentifier, BlockBodyV2],
+      transactionStore:            Store[F, TypedIdentifier, Transaction],
+      mempool:                     MempoolAlgebra[F],
+      getLocalBlockIdAtHeight:     Long => F[TypedIdentifier],
+      currentHeight:               () => F[Long],
+      blockIdTree:                 ParentChildTree[F, TypedIdentifier]
+    )(implicit mat:                Materializer): F[BlockchainPeerHandler[F]] =
       Async[F].delay {
         new BlockchainPeerHandler[F] {
           def usePeer(client: BlockchainPeerClient[F]): F[Unit] =
+            traceAndLogCommonAncestor(getLocalBlockIdAtHeight, currentHeight, slotDataStore)(client) >>
             List(
               processBlockNotifications(
                 localChain,
@@ -59,11 +61,11 @@ object BlockchainPeerHandlerImpl {
                 slotDataStore,
                 headerStore,
                 bodyStore,
-                transactionStore
+                transactionStore,
+                blockIdTree
               )(client),
               processTransactionNotifications(
                 transactionSyntaxValidation,
-                transactionSemanticValidation,
                 transactionStore,
                 mempool
               )(client),
@@ -72,7 +74,7 @@ object BlockchainPeerHandlerImpl {
         }
       }
 
-    def processBlockNotifications[F[_]: Async: FToFuture: Logger: RunnableGraph ~> *[_]](
+    private def processBlockNotifications[F[_]: Async: FToFuture: Logger: RunnableGraphToF](
       localChain:             LocalChainAlgebra[F],
       headerValidation:       BlockHeaderValidationAlgebra[F],
       bodySyntaxValidation:   BodySyntaxValidationAlgebra[F],
@@ -80,7 +82,8 @@ object BlockchainPeerHandlerImpl {
       slotDataStore:          Store[F, TypedIdentifier, SlotData],
       headerStore:            Store[F, TypedIdentifier, BlockHeaderV2],
       bodyStore:              Store[F, TypedIdentifier, BlockBodyV2],
-      transactionStore:       Store[F, TypedIdentifier, Transaction]
+      transactionStore:       Store[F, TypedIdentifier, Transaction],
+      blockIdTree:            ParentChildTree[F, TypedIdentifier]
     )(client:                 BlockchainPeerClient[F])(implicit mat: Materializer): F[Unit] =
       for {
         _adoptions <- client.remotePeerAdoptions
@@ -107,14 +110,25 @@ object BlockchainPeerHandlerImpl {
               .ifM(
                 ifTrue = Logger[F].info(show"Ignoring already-known block header id=$id"),
                 ifFalse = for {
+                  _        <- Logger[F].info(show"Fetching remote SlotData id=$id")
                   slotData <- OptionT(client.getRemoteSlotData(id)).getOrNoSuchElement(id)
                   // Fetch missing SlotData from the remote peer
                   tine: NonEmptyChain[SlotData] <- buildSlotDataTine(
                     slotDataStore,
                     id => OptionT(client.getRemoteSlotData(id)).getOrNoSuchElement(id.show)
                   )(slotData)
+                  _ <- Logger[F].info(show"Retrieved remote tine length=${tine.length}")
                   // We necessarily need to save Slot Data in the store prior to performing chain "preference"
-                  _ <- tine.traverse(slotData => slotDataStore.put(slotData.slotId.blockId, slotData))
+                  _ <- tine.traverse(slotData =>
+                    Logger[F].info(
+                      show"Associating child=${slotData.slotId.blockId} to parent=${slotData.parentSlotId.blockId}"
+                    ) >>
+                    blockIdTree.associate(slotData.slotId.blockId, slotData.parentSlotId.blockId) >>
+                    Logger[F].info(
+                      show"Storing SlotData id=${slotData.slotId.blockId}"
+                    ) >>
+                    slotDataStore.put(slotData.slotId.blockId, slotData)
+                  )
                   _ <-
                     localChain
                       .isWorseThan(tine.last)
@@ -122,6 +136,8 @@ object BlockchainPeerHandlerImpl {
                         // The case where the remote tine is better than the local tine,
                         // but we first need to fetch and validate all of the data
                         ifTrue = for {
+                          _ <- Logger[F]
+                            .info(show"Remote tine (head id=${id}) appears to be better than the local chain")
                           _ <- _fetchAndValidateMissingHeaders(id)
                           _ <- _fetchAndValidateMissingBodies(id)
                           _ <-
@@ -168,24 +184,29 @@ object BlockchainPeerHandlerImpl {
       slotDataStore:    Store[F, TypedIdentifier, SlotData],
       headerStore:      Store[F, TypedIdentifier, BlockHeaderV2]
     )(from:             TypedIdentifier) =
-      missingValues(
+      determineMissingValues(
         headerStore.contains,
         slotDataStore.getOrRaise(_).map(_.parentSlotId.blockId)
       )(from)
         .flatMap(missingHeaders =>
           Source
             .fromIterator(() => missingHeaders.iterator)
+            .tapAsyncF(1)(blockId => Logger[F].info(show"Fetching remote header id=$blockId"))
             .mapAsyncF(1)(blockId =>
               OptionT(client.getRemoteHeader(blockId))
                 .filter(_.id.asTypedBytes === blockId)
                 .getOrNoSuchElement(blockId.show)
                 .tupleLeft(blockId)
             )
+            .tapAsyncF(1) { case (blockId, _) =>
+              Logger[F].info(show"Validating remote header id=$blockId")
+            }
             .tapAsyncF(1) { case (blockId, header) =>
-              EitherT(headerStore.getOrRaise(header.parentHeaderId).flatMap(headerValidation.validate(_, header)))
+              EitherT(headerStore.getOrRaise(header.parentHeaderId).flatMap(headerValidation.validate(header, _)))
                 .leftSemiflatTap(error => Logger[F].warn(show"Received invalid block header id=$blockId error=$error"))
                 .leftMap(error => new IllegalArgumentException(error.show))
                 .rethrowT >>
+              Logger[F].info(show"Saving header id=$blockId") >>
               headerStore.put(blockId, header)
             }
             .toMat(Sink.ignore)(Keep.right)
@@ -202,13 +223,14 @@ object BlockchainPeerHandlerImpl {
       bodyStore:              Store[F, TypedIdentifier, BlockBodyV2],
       transactionStore:       Store[F, TypedIdentifier, Transaction]
     )(from:                   TypedIdentifier) =
-      missingValues(
+      determineMissingValues(
         bodyStore.contains,
         slotDataStore.getOrRaise(_).map(_.parentSlotId.blockId)
       )(from)
         .flatMap(missingBodyIds =>
           Source
             .fromIterator(() => missingBodyIds.iterator)
+            .tapAsyncF(1)(blockId => Logger[F].info(show"Fetching remote body id=$blockId"))
             .mapAsyncF(1)(blockId =>
               OptionT(client.getRemoteBody(blockId)) // TODO: Verify against Header#txRoot
                 .getOrNoSuchElement(blockId.show)
@@ -219,25 +241,32 @@ object BlockchainPeerHandlerImpl {
                 .traverse(transactionId =>
                   OptionT(transactionStore.get(transactionId))
                     .getOrElseF(
+                      Logger[F].info(show"Fetching remote transaction id=$transactionId") >>
                       OptionT(client.getRemoteTransaction(transactionId))
                         .filter(_.id.asTypedBytes === transactionId)
                         .getOrNoSuchElement(transactionId.show)
+                        .flatTap(_ => Logger[F].info(show"Saving transaction id=$transactionId"))
                         .flatTap(transaction => transactionStore.put(transactionId, transaction))
                     )
                 )
                 .map((blockId, body, _))
             }
-            .tapAsyncF(1) { case (blockId, body, _) => bodyStore.put(blockId, body) }
+            .tapAsyncF(1) { case (blockId, body, _) =>
+              Logger[F].info(show"Saving body id=$blockId") >>
+              bodyStore.put(blockId, body)
+            }
             .tapAsyncF(1) { case (blockId, body, _) =>
               headerStore
                 .getOrRaise(blockId)
                 .map(header => BlockV2(header, body))
                 .flatMap(block =>
+                  Logger[F].info(show"Validating syntax of body id=$blockId") >>
                   EitherT(bodySyntaxValidation.validate(block.blockBodyV2).map(_.toEither))
                     .leftSemiflatTap(errors =>
                       Logger[F].warn(show"Received invalid block body id=$blockId errors=$errors")
                     )
                     .leftMap(errors => new IllegalArgumentException(errors.show))
+                    .semiflatTap(_ => Logger[F].info(show"Validating semantics of body id=$blockId"))
                     .flatMap(_ =>
                       EitherT(
                         bodySemanticValidation
@@ -258,13 +287,15 @@ object BlockchainPeerHandlerImpl {
             .liftFutureTo[F]
         )
 
-    private def missingValues[F[_]: Monad](
+    private def determineMissingValues[F[_]: Monad](
       existsLocally: TypedIdentifier => F[Boolean],
       parentOf:      TypedIdentifier => F[TypedIdentifier]
     )(from:          TypedIdentifier) =
       (NonEmptyChain(from), false)
         .iterateUntilM { case (ids, _) =>
-          parentOf(ids.head).flatMap(parentId => existsLocally(parentId).map((ids.prepend(parentId), _)))
+          parentOf(ids.head).flatMap(parentId =>
+            existsLocally(parentId).ifM((ids, true).pure[F], (ids.prepend(parentId), false).pure[F])
+          )
         }(_._2)
         .map(_._1)
 
@@ -281,7 +312,7 @@ object BlockchainPeerHandlerImpl {
                 .contains(parentId)
                 .ifM(
                   (data, true).pure[F],
-                  fetchRemoteData(parentId).map(parentData => (data.prepend(parentData), false))
+                  fetchRemoteData(parentId).map(parentData => (data.prepend((parentId, parentData)), false))
                 )
             )
         }(_._2)
@@ -296,19 +327,30 @@ object BlockchainPeerHandlerImpl {
       )
 
     private def processTransactionNotifications[F[_]: Async: FToFuture: RunnableGraphToF: Logger](
-      transactionSyntaxValidation:   TransactionSyntaxValidationAlgebra[F],
-      transactionSemanticValidation: TransactionSemanticValidationAlgebra[F],
-      transactionStore:              Store[F, TypedIdentifier, Transaction],
-      mempool:                       MempoolAlgebra[F]
-    )(client:                        BlockchainPeerClient[F])(implicit materializer: Materializer) =
+      transactionSyntaxValidation: TransactionSyntaxValidationAlgebra[F],
+      transactionStore:            Store[F, TypedIdentifier, Transaction],
+      mempool:                     MempoolAlgebra[F]
+    )(client:                      BlockchainPeerClient[F])(implicit materializer: Materializer) =
       client.remoteTransactionNotifications
         .flatMap(_.withCancel[F])
         .flatMap(source =>
           Async[F].fromFuture(
             source
+              .tapAsyncF(1)(id => Logger[F].info(show"Received transaction notification from remote peer id=$id"))
+              .mapAsyncF(1)(id => transactionStore.contains(id).tupleLeft(id))
+              .tapAsyncF(1) {
+                case (id, true) =>
+                  Logger[F].info(show"Ignoring already known remote transaction id=$id")
+                case (id, false) =>
+                  Logger[F].info(show"Fetching remote transaction id=$id")
+              }
+              .collect { case (id, false) => id }
               .mapAsyncF(1)(id => OptionT(client.getRemoteTransaction(id)).getOrNoSuchElement(id.show))
               .mapAsyncF(1)(transaction =>
                 EitherT(transactionSyntaxValidation.validate(transaction).map(_.toEither))
+                  .semiflatTap(transaction =>
+                    Logger[F].info(show"Transaction id=${transaction.id.asTypedBytes} is syntactically valid")
+                  )
                   .leftSemiflatMap(errors =>
                     Logger[F].warn(
                       show"Received syntactically invalid transaction id=${transaction.id.asTypedBytes} errors=$errors"
@@ -319,13 +361,13 @@ object BlockchainPeerHandlerImpl {
               .collect { case Right(transaction) => transaction }
               .tapAsyncF(1)(transaction =>
                 Logger[F]
-                  .info(show"Inserting syntactically valid transaction id=${transaction.id.asTypedBytes} into Store")
+                  .info(show"Inserting transaction id=${transaction.id.asTypedBytes} into Store")
               )
               .tapAsyncF(1)(transaction => transactionStore.put(transaction.id, transaction))
               .tapAsyncF(1)(transaction =>
                 Logger[F]
                   .info(
-                    show"Inserting syntactically valid transaction id=${transaction.id.asTypedBytes} into Mempool"
+                    show"Inserting transaction id=${transaction.id.asTypedBytes} into Mempool"
                   )
               )
               .tapAsyncF(1)(transaction => mempool.add(transaction.id))

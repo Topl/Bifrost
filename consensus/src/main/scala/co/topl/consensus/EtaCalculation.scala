@@ -15,8 +15,6 @@ import org.typelevel.log4cats.Logger
 import scalacache._
 import scalacache.caffeine.CaffeineCache
 
-import scala.concurrent.duration._
-
 object EtaCalculation {
 
   object Eval {
@@ -24,7 +22,7 @@ object EtaCalculation {
     implicit private val cacheConfig: CacheConfig = CacheConfig(cacheKeyBuilder[TypedIdentifier])
 
     def make[F[_]: Clock: Sync: MonadError[*[_], Throwable]: Logger](
-      slotDataCache:      SlotDataCache[F],
+      fetchSlotData:      TypedIdentifier => F[SlotData],
       clock:              ClockAlgebra[F],
       genesisEta:         Eta,
       blake2b256Resource: UnsafeResource[F, Blake2b256],
@@ -33,11 +31,11 @@ object EtaCalculation {
       for {
         implicit0(cache: CaffeineCache[F, Eta]) <- CaffeineCache[F, Eta]
         slotsPerEpoch                           <- clock.slotsPerEpoch
-        impl = new Impl[F](slotDataCache, clock, genesisEta, slotsPerEpoch, blake2b256Resource, blake2b512Resource)
+        impl = new Impl[F](fetchSlotData, clock, genesisEta, slotsPerEpoch, blake2b256Resource, blake2b512Resource)
       } yield impl
 
     private class Impl[F[_]: Clock: Sync: MonadError[*[_], Throwable]: Logger](
-      slotDataCache:      SlotDataCache[F],
+      fetchSlotData:      TypedIdentifier => F[SlotData],
       clock:              ClockAlgebra[F],
       genesisEta:         Eta,
       slotsPerEpoch:      Long,
@@ -54,7 +52,7 @@ object EtaCalculation {
           (
             clock.epochOf(parentSlotId.slot),
             clock.epochOf(childSlot),
-            slotDataCache.get(parentSlotId.blockId)
+            fetchSlotData(parentSlotId.blockId)
           ).tupled
             .flatMap {
               case (parentEpoch, childEpoch, parentSlotData) if parentEpoch === childEpoch =>
@@ -80,7 +78,7 @@ object EtaCalculation {
         if (isWithinTwoThirds(from)) from.pure[F]
         else
           from
-            .iterateUntilM(data => slotDataCache.get(data.parentSlotId.blockId))(isWithinTwoThirds)
+            .iterateUntilM(data => fetchSlotData(data.parentSlotId.blockId))(isWithinTwoThirds)
             .flatTap(twoThirdsBest =>
               Logger[F].info(show"Located twoThirdsBest=${twoThirdsBest.slotId.blockId} from=${from.slotId.blockId}")
             )
@@ -98,7 +96,7 @@ object EtaCalculation {
             epoch      <- clock.epochOf(twoThirdsBest.slotId.slot)
             epochRange <- clock.epochRange(epoch)
             epochData <- NonEmptyChain(twoThirdsBest).iterateUntilM(items =>
-              slotDataCache.get(items.head.parentSlotId.blockId).map(items.prepend)
+              fetchSlotData(items.head.parentSlotId.blockId).map(items.prepend)
             )(items => items.head.parentSlotId.slot < epochRange.start)
             rhoValues = epochData.map(_.rho)
             nextEta <- calculate(previousEta = twoThirdsBest.eta, epoch + 1, rhoValues)

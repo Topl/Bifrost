@@ -117,6 +117,7 @@ object BlockchainPeerConnectionFlowFactory {
         subHandlers =
           adoptionTypedSubHandlers ++
             transactionNotificationTypedSubHandlers ++
+            slotDataTypedSubHandlers ++
             headerTypedSubHandlers ++
             bodyTypedSubHandlers ++
             transactionTypedSubHandlers ++

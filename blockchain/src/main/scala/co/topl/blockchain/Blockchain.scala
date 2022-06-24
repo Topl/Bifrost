@@ -14,7 +14,7 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.BlockHeaderV2Ops
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LocalChainAlgebra}
 import co.topl.crypto.signing.Ed25519VRF
-import co.topl.eventtree.EventSourcedState
+import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.grpc.ToplGrpc
 import co.topl.ledger.algebras._
 import co.topl.minting.algebras.PerpetualBlockMintAlgebra
@@ -38,6 +38,7 @@ object Blockchain {
     bodyStore:                     Store[F, TypedIdentifier, BlockBodyV2],
     transactionStore:              Store[F, TypedIdentifier, Transaction],
     _localChain:                   LocalChainAlgebra[F],
+    blockIdTree:                   ParentChildTree[F, TypedIdentifier],
     blockHeights:                  EventSourcedState[F, Long => F[Option[TypedIdentifier]]],
     headerValidation:              BlockHeaderValidationAlgebra[F],
     transactionSyntaxValidation:   TransactionSyntaxValidationAlgebra[F],
@@ -60,11 +61,10 @@ object Blockchain {
       localBlockAdoptionsSource <- _localBlockAdoptionsSource.toMat(BroadcastHub.sink)(Keep.right).liftTo[F]
       (mempool, _localTransactionAdoptionsSource) <- MempoolBroadcaster.make(_mempool)
       localTransactionAdoptionsSource <- _localTransactionAdoptionsSource.toMat(BroadcastHub.sink)(Keep.right).liftTo[F]
-      clientHandler <- BlockchainPeerHandlerImpl.V2.make[F](
+      clientHandler <- BlockchainPeerHandlerImpl.LazyFetch.make[F](
         localChain,
         headerValidation,
         transactionSyntaxValidation,
-        transactionSemanticValidation,
         bodySyntaxValidation,
         bodySemanticValidation,
         slotDataStore,
@@ -78,7 +78,8 @@ object Blockchain {
               .map(_.slotId.blockId)
               .flatMap(blockHeights.useStateAt(_)(_.apply(id)))
           ).getOrElse(???),
-        () => localChain.head.map(_.height)
+        () => localChain.head.map(_.height),
+        blockIdTree
       )
       peerServer <- BlockchainPeerServer.FromStores.make(
         slotDataStore,
@@ -117,6 +118,8 @@ object Blockchain {
         mintedBlockStream
           .tapAsyncF(1)(block => Logger[F].info(show"Minted header=${block.headerV2} body=${block.blockBodyV2}"))
           .tapAsyncF(1)(block =>
+            blockIdTree.associate(block.headerV2.id, block.headerV2.parentHeaderId) >>
+            ed25519VrfResource.use(implicit e => slotDataStore.put(block.headerV2.id, block.headerV2.slotData)) >>
             headerStore.put(block.headerV2.id, block.headerV2) >>
             bodyStore.put(block.headerV2.id, block.blockBodyV2)
           )

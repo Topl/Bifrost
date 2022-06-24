@@ -4,7 +4,7 @@ import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import akka.stream.scaladsl.{Flow, Keep, Source}
 import akka.util.{ByteString, Timeout}
-import cats.data._
+import cats.data.{Store => _, _}
 import cats.effect.implicits._
 import cats.effect.kernel.Sync
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig}
@@ -97,8 +97,27 @@ object TetraSuperDemo extends IOApp {
     Staker(Ratio(1, count), stakerVrfKey, kesKey, stakerRegistration, StakingAddresses.Operator(poolVK))
   }
 
+  private val genesisTransaction =
+    Transaction(
+      inputs = Chain.empty,
+      outputs = Chain(
+        Transaction.Output(
+          FullAddress(
+            NetworkPrefix(1),
+            Propositions.Contextual.HeightLock(1L).spendingAddress,
+            StakingAddresses.Operator(VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes.fill(32)(0: Byte)))),
+            Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes.fill(64)(0: Byte)))
+          ),
+          Box.Values.Poly(Sized.maxUnsafe(BigInt(10_000L))),
+          minting = true
+        )
+      ),
+      chronology = Transaction.Chronology(0L, 0L, Long.MaxValue),
+      None
+    )
+
   private val genesis =
-    BlockGenesis(Nil).value
+    BlockGenesis(List(genesisTransaction)).value
 
   // Actor system initialization
 
@@ -285,17 +304,22 @@ object TetraSuperDemo extends IOApp {
         implicit0(logger: Logger[F]) = Slf4jLogger
           .getLoggerFromName[F](s"node.${loggerColor}$stakerName${Console.RESET}")
           .withModifiedString(str => s"$loggerColor$str${Console.RESET}")
+        _ <- Logger[F].info(
+          show"Initializing node with genesis block id=${genesis.headerV2.id.asTypedBytes}" +
+          show" and transactionIds=${genesis.blockBodyV2}"
+        )
+        slotDataStore    <- RefStore.Eval.make[F, TypedIdentifier, SlotData]()
         blockHeaderStore <- RefStore.Eval.make[F, TypedIdentifier, BlockHeaderV2]()
         blockBodyStore   <- RefStore.Eval.make[F, TypedIdentifier, BlockBodyV2]()
         transactionStore <- RefStore.Eval.make[F, TypedIdentifier, Transaction]()
+        boxStateStore    <- RefStore.Eval.make[F, TypedIdentifier, NonEmptySet[Short]]()
+        _                <- slotDataStore.put(genesis.headerV2.id, genesis.headerV2.slotData(Ed25519VRF.precomputed()))
         _                <- blockHeaderStore.put(genesis.headerV2.id, genesis.headerV2)
         _                <- blockBodyStore.put(genesis.headerV2.id, genesis.blockBodyV2)
-        slotDataCache    <- SlotDataCache.Eval.make(blockHeaderStore, ed25519VRFResource)
-        slotDataStore = blockHeaderStore
-          .mapRead[TypedIdentifier, SlotData](identity, t => t.slotData(Ed25519VRF.precomputed()))
-        boxStateStore               <- RefStore.Eval.make[F, TypedIdentifier, NonEmptySet[Short]]
-        blockIdTree                 <- BlockIdTree.make[F]
-        _                           <- blockIdTree.associate(genesis.headerV2.id, genesis.headerV2.parentHeaderId)
+        _                <- transactionStore.put(genesisTransaction.id, genesisTransaction)
+        _                <- boxStateStore.put(genesisTransaction.id, NonEmptySet.one(0: Short))
+        blockIdTree      <- BlockIdTree.make[F]
+        _                <- blockIdTree.associate(genesis.headerV2.id, genesis.headerV2.parentHeaderId)
         blockHeightTreeStore        <- RefStore.Eval.make[F, Long, TypedIdentifier]()
         _                           <- blockHeightTreeStore.put(0, genesis.headerV2.parentHeaderId)
         blockHeightTreeUnapplyStore <- RefStore.Eval.make[F, TypedIdentifier, Long]()
@@ -309,7 +333,7 @@ object TetraSuperDemo extends IOApp {
           )
         clock = makeClock(genesisTimestamp)
         etaCalculation <- EtaCalculation.Eval.make(
-          slotDataCache,
+          slotDataStore.getOrRaise,
           clock,
           genesis.headerV2.eligibilityCertificate.eta,
           blake2b256Resource,
@@ -333,7 +357,8 @@ object TetraSuperDemo extends IOApp {
         cachedHeaderValidation <- BlockHeaderValidation.WithCache.make[F](underlyingHeaderValidation, blockHeaderStore)
         localChain <- LocalChain.Eval.make(
           genesis.headerV2.slotData(Ed25519VRF.precomputed()),
-          ChainSelection.orderT[F](slotDataCache, blake2b512Resource, ChainSelectionKLookback, ChainSelectionSWindow)
+          ChainSelection
+            .orderT[F](slotDataStore.getOrRaise, blake2b512Resource, ChainSelectionKLookback, ChainSelectionSWindow)
         )
         mempool <- Mempool.make[F](
           genesis.headerV2.id.asTypedBytes.pure[F],
@@ -387,6 +412,7 @@ object TetraSuperDemo extends IOApp {
             blockBodyStore,
             transactionStore,
             localChain,
+            blockIdTree,
             blockHeightTree,
             cachedHeaderValidation,
             transactionSyntaxValidation,
