@@ -1,6 +1,7 @@
 package co.topl.crypto.generation
 
 import cats.implicits._
+import co.topl.crypto.generation.InitializationFailures.InvalidSizeByteLength
 import co.topl.crypto.generation.mnemonic.{Entropy, EntropyFailure, Language}
 import co.topl.crypto.signing._
 import co.topl.models._
