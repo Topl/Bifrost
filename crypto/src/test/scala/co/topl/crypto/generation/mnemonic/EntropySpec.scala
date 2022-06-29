@@ -10,6 +10,7 @@ import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import co.topl.crypto.utils.EntropySupport._
 import org.scalatest.EitherValues
+import co.topl.models.Bytes
 
 class EntropySpec
     extends AnyPropSpec
@@ -19,7 +20,7 @@ class EntropySpec
 
   property("random byte arrays (of the correct length) should be a valid Entropy") {
     forAll(Gen.oneOf(Seq(16, 20, 24, 28, 32))) { byteLength =>
-      val bytes = Generators.genByteArrayOfSize(byteLength).sample.get
+      val bytes = Bytes(Generators.genByteArrayOfSize(byteLength).sample.get)
 
       Entropy.fromBytes(bytes).isRight shouldBe true
     }
@@ -51,7 +52,7 @@ class EntropySpec
       val entropy2 = Entropy
         .toMnemonicString(entropy1, Language.English)
         .flatMap { mnemonicString =>
-          Entropy.fromMnemonicString(mnemonicString, mnemonicSize, Language.English)
+          Entropy.fromMnemonicString(mnemonicString, Language.English)
         }
         .value
 
@@ -63,12 +64,12 @@ class EntropySpec
     property(s"Test vector mnemonic should produce known entropy. Mnemonic: ${underTest.inputs.mnemonic}") {
       val actualEntropy =
         Entropy
-          .fromMnemonicString(underTest.inputs.mnemonic, underTest.inputs.size, Language.English)
+          .fromMnemonicString(underTest.inputs.mnemonic, Language.English)
           .value
 
       val expectedEntropy = underTest.outputs.entropy
 
-      (actualEntropy.value sameElements expectedEntropy.value) shouldBe true
+      actualEntropy.value shouldBe expectedEntropy.value
     }
   }
 }
@@ -83,14 +84,14 @@ object EntropyTestVectorHelper {
     wordLength = mnemonic.split(" ").length
     entropyByteLength = (wordLength * 4) / 3
     size <- Entropy
-      .getMnemonicSize(entropyByteLength)
+      .sizeFromEntropyLength(entropyByteLength)
       .leftMap(err => DecodingFailure(err.toString, c.history))
   } yield (mnemonic, size)
 
   def entropyDecoder(c: HCursor): Either[DecodingFailure, Entropy] =
     for {
       bytes   <- c.downField("entropy").as[String].map(Hex.decode)
-      entropy <- Entropy.fromBytes(bytes).leftMap(err => DecodingFailure(err.toString, c.history))
+      entropy <- Entropy.fromBytes(Bytes(bytes)).leftMap(err => DecodingFailure(err.toString, c.history))
     } yield entropy
 
   implicit val inputsDecoder: Decoder[SpecInputs] = (c: HCursor) =>

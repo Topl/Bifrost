@@ -10,9 +10,6 @@ import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckP
 
 class PhraseSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaCheckDrivenPropertyChecks {
 
-  private val englishWordList =
-    LanguageWordList.validated(Language.English).getOrElse(throw new Exception("error getting wordlist"))
-
   property("random entropy (of the correct length) should be a valid phrase") {
     forAll(Gen.posNum[Int]) { size =>
       val mnemonicSize = Generators.pickMnemonicSize(size)
@@ -36,45 +33,45 @@ class PhraseSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaChe
 
   property("12 phrase mnemonic with valid words should be valid") {
     val phrase = "cat swing flag economy stadium alone churn speed unique patch report train"
-    val mnemonic = Phrase.validated(phrase, `12`, englishWordList)
+    val mnemonic = Phrase.validated(phrase, Language.English)
 
     mnemonic.isRight shouldBe true
   }
 
   property("12 phrase mnemonic with invalid word length should be invalid") {
     val phrase = "result fresh margin life life filter vapor trim"
-    val mnemonic = Phrase.validated(phrase, `12`, englishWordList)
+    val mnemonic = Phrase.validated(phrase, Language.English)
 
     mnemonic.isLeft shouldBe true
   }
 
   property("12 phrase mnemonic with invalid words should be invalid") {
     val phrase = "amber glue hallway can truth drawer wave flex cousin grace close compose"
-    val mnemonic = Phrase.validated(phrase, `12`, englishWordList)
+    val mnemonic = Phrase.validated(phrase, Language.English)
 
     mnemonic.isLeft shouldBe true
   }
 
   property("12 phrase mnemonic with valid words and invalid checksum should be invalid") {
     val phrase = "ugly wire busy skate slice kidney razor eager bicycle struggle aerobic picnic"
-    val mnemonic = Phrase.validated(phrase, `12`, englishWordList)
+    val mnemonic = Phrase.validated(phrase, Language.English)
 
     mnemonic.isLeft shouldBe true
   }
 
   property("mnemonic with extra whitespace is valid") {
     val phrase = "vessel ladder alter error  federal sibling chat   ability sun glass valve picture"
-    val mnemonic = Phrase.validated(phrase, `12`, englishWordList)
+    val mnemonic = Phrase.validated(phrase, Language.English)
 
     mnemonic.isRight shouldBe true
   }
 
   property("mnemonic with extra whitespace has same value as single spaced") {
     val phrase1 = "vessel ladder alter error federal sibling chat ability sun glass valve picture"
-    val test1 = Phrase.validated(phrase1, `12`, englishWordList)
+    val test1 = Phrase.validated(phrase1, Language.English)
 
     val phrase2 = "vessel ladder alter error  federal sibling chat   ability sun glass valve picture"
-    val test2 = Phrase.validated(phrase2, `12`, englishWordList)
+    val test2 = Phrase.validated(phrase2, Language.English)
 
     test1.isRight shouldBe true
     test2.isRight shouldBe true
@@ -84,7 +81,7 @@ class PhraseSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaChe
   property("mnemonic with capital letters is valid") {
     val phrase = "Legal Winner Thank Year Wave Sausage Worth Useful Legal " +
       "Winner Thank Year Wave Sausage Worth Useful Legal Will"
-    val mnemonic = Phrase.validated(phrase, `18`, englishWordList)
+    val mnemonic = Phrase.validated(phrase, Language.English)
 
     mnemonic.isRight shouldBe true
   }
@@ -92,11 +89,11 @@ class PhraseSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaChe
   property("mnemonic with capital letters has same entropy as lowercase") {
     val phrase1 = "Legal Winner Thank Year Wave Sausage Worth Useful Legal " +
       "Winner Thank Year Wave Sausage Worth Useful Legal Will"
-    val test1 = Phrase.validated(phrase1, `18`, englishWordList)
+    val test1 = Phrase.validated(phrase1, Language.English)
 
     val phrase2 = "legal winner thank year wave sausage worth useful legal " +
       "winner thank year wave sausage worth useful legal will"
-    val test2 = Phrase.validated(phrase2, `18`, englishWordList)
+    val test2 = Phrase.validated(phrase2, Language.English)
 
     test1.isRight shouldBe true
     test2.isRight shouldBe true
@@ -110,8 +107,7 @@ class PhraseSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaChe
         " clutch c\uD83D\uDD25rush" +
         " open amazing screen " +
         "patrol group space point ten exist slush inv\uD83D\uDD25olve unfold",
-        `24`,
-        englishWordList
+        Language.English
       )
 
     entropy.isLeft shouldBe true

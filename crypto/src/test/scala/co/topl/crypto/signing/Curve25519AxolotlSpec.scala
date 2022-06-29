@@ -56,7 +56,7 @@ class Curve25519AxolotlSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChe
   property(
     "Topl specific seed generation mechanism should generate a fixed secret key given a fixed entropy and password"
   ) {
-    val e = Entropy("topl".getBytes(StandardCharsets.UTF_8))
+    val e = Entropy(Bytes("topl".getBytes(StandardCharsets.UTF_8)))
     val p = "topl"
     val specOutSK =
       SecretKeys.Curve25519("d8f0ad4d22ec1a143905af150e87c7f0dadd13749ef56fbd1bb380c37bc18c78".unsafeStrictBytes)

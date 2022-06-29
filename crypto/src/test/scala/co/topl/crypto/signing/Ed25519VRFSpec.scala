@@ -58,7 +58,7 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
   }
 
   property("Topl specific seed generation mechanism should generate a fixed secret key given an entropy and password") {
-    val e = Entropy("topl".getBytes(StandardCharsets.UTF_8))
+    val e = Entropy(Bytes("topl".getBytes(StandardCharsets.UTF_8)))
     val p = "topl"
     val specOutSK =
       SecretKeys.VrfEd25519("d8f0ad4d22ec1a143905af150e87c7f0dadd13749ef56fbd1bb380c37bc18cf8".unsafeStrictBytes)

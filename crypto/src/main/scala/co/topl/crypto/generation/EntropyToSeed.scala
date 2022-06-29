@@ -26,7 +26,7 @@ object EntropyToSeed {
           Bytes(
             kdf.generateKey(
               password.getOrElse("").getBytes(StandardCharsets.UTF_8),
-              entropy.value,
+              entropy.value.toArray,
               seedLength.value,
               4096
             )

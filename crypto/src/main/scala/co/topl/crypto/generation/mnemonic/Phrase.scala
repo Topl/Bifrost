@@ -2,6 +2,7 @@ package co.topl.crypto.generation.mnemonic
 
 import cats.implicits._
 import co.topl.crypto.generation.mnemonic.Language.LanguageWordList
+import co.topl.crypto.generation.mnemonic.PhraseFailures.InvalidWordLength
 import co.topl.crypto.hash.sha256
 
 /**
@@ -13,50 +14,40 @@ case class Phrase(value: IndexedSeq[String], size: MnemonicSize, languageWords: 
 
 object Phrase {
 
-  sealed trait ValidationFailure
-
-  object ValidationFailures {
-    case object InvalidWordLength extends ValidationFailure
-    case object InvalidWords extends ValidationFailure
-    case object InvalidChecksum extends ValidationFailure
-    case object InvalidEntropyLength extends ValidationFailure
-    case class WordListFailure(failure: LanguageWordList.ValidationFailure) extends ValidationFailure
-  }
-
   /**
    * Instantiates a `Phrase` from a `String` containing a list of words separated by white-space.
    *
    * @param words the words of the mnemonic phrase
-   * @param size the expected size of the phrase
-   * @param languageWords the word list of the language
+   * @param language the word list in a particular language
    * @return either a `ValidationFailure` if the mnemonic phrase is invalid or a `Phrase` if it is valid
    */
   def validated(
-    words:         String,
-    size:          MnemonicSize,
-    languageWords: LanguageWordList
-  ): Either[ValidationFailure, Phrase] =
+    words:    String,
+    language: Language
+  ): Either[PhraseFailure, Phrase] =
     for {
-      phrase <- Right(Phrase(words.toLowerCase.split("\\s+").map(_.trim).toIndexedSeq, size, languageWords))
-      _      <- Either.cond(phrase.value.length == size.wordLength, phrase, ValidationFailures.InvalidWordLength)
-      _      <- Either.cond(phrase.value.forall(languageWords.value.contains), phrase, ValidationFailures.InvalidWords)
+      size     <- sizeFromNumberOfWords(words.split(" ").length)
+      wordList <- LanguageWordList.validated(language).leftMap(PhraseFailures.WordListFailure)
+      phrase   <- Right(Phrase(words.toLowerCase.split("\\s+").map(_.trim).toIndexedSeq, size, wordList))
+      _        <- Either.cond(phrase.value.length == size.wordLength, phrase, PhraseFailures.InvalidWordLength)
+      _        <- Either.cond(phrase.value.forall(wordList.value.contains), phrase, PhraseFailures.InvalidWords)
       (entropyBinaryString, checksumFromPhrase) = toBinaryString(phrase)
       checksumFromSha256: String = calculateChecksum(entropyBinaryString, size)
-      _ <- Either.cond(checksumFromPhrase == checksumFromSha256, phrase, ValidationFailures.InvalidChecksum)
+      _ <- Either.cond(checksumFromPhrase == checksumFromSha256, phrase, PhraseFailures.InvalidChecksum)
     } yield phrase
 
   def fromEntropy(
     entropy:  Entropy,
     size:     MnemonicSize,
     language: Language
-  ): Either[ValidationFailure, Phrase] = for {
+  ): Either[PhraseFailure, Phrase] = for {
     _ <- Either.cond(
       entropy.value.length == size.entropyLength / byteLen,
       entropy,
-      ValidationFailures.InvalidEntropyLength
+      PhraseFailures.InvalidEntropyLength
     )
-    wordList <- LanguageWordList.validated(language).leftMap(ValidationFailures.WordListFailure)
-    entropyBinaryString = entropy.value.map(byteTo8BitString).mkString
+    wordList <- LanguageWordList.validated(language).leftMap(PhraseFailures.WordListFailure)
+    entropyBinaryString = entropy.value.toArray.map(byteTo8BitString).mkString
     checksum = calculateChecksum(entropyBinaryString, size)
     phrase = fromBinaryString(entropyBinaryString ++ checksum, size, wordList)
   } yield phrase
@@ -110,4 +101,25 @@ object Phrase {
         .value
         .head
     ).slice(0, size.checksumLength)
+
+  private[mnemonic] def sizeFromNumberOfWords(numberOfWords: Int): Either[PhraseFailure, MnemonicSize] =
+    numberOfWords match {
+      case 12 => Right(MnemonicSizes.`12`)
+      case 15 => Right(MnemonicSizes.`15`)
+      case 18 => Right(MnemonicSizes.`18`)
+      case 21 => Right(MnemonicSizes.`21`)
+      case 24 => Right(MnemonicSizes.`24`)
+      case _  => Left(PhraseFailures.InvalidWordLength)
+    }
+
+}
+
+sealed trait PhraseFailure
+
+object PhraseFailures {
+  case object InvalidWordLength extends PhraseFailure
+  case object InvalidWords extends PhraseFailure
+  case object InvalidChecksum extends PhraseFailure
+  case object InvalidEntropyLength extends PhraseFailure
+  case class WordListFailure(failure: LanguageWordList.ValidationFailure) extends PhraseFailure
 }

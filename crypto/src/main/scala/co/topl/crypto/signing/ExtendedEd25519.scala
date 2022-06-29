@@ -215,12 +215,6 @@ class ExtendedEd25519
 
 object ExtendedEd25519 {
 
-  lazy val instance: ExtendedEd25519 = {
-    val instance = new ExtendedEd25519
-    instance.precompute()
-    instance
-  }
-
   /**
    * ED-25519 Base Order N
    *
