@@ -50,7 +50,7 @@ object PrivateKeyCurve25519 {
 
   implicit val secretGenerator: SecretGenerator[PrivateKeyCurve25519] =
     SecretGenerator.instance[PrivateKeyCurve25519] { seed: Array[Byte] =>
-      val (sk, pk) = Curve25519.instance.deriveKeyPairFromEntropy(Entropy(seed), None)
+      val (sk, pk) = Curve25519.instance.deriveKeyPairFromEntropy(Entropy(Bytes(seed)), None)
       val secret: PrivateKeyCurve25519 =
         new PrivateKeyCurve25519(PrivateKey(sk.bytes.data.toArray), PublicKey(pk.bytes.data.toArray))
       secret -> secret.publicImage

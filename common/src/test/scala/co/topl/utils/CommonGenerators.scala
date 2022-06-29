@@ -492,7 +492,11 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
       Sized.strictUnsafe(
         Bytes(
           blake2b256
-            .hash(entropy.value ++ password.map(_.getBytes(StandardCharsets.UTF_8)).getOrElse(Array.emptyByteArray))
+            .hash(
+              entropy.value.toArray ++ password
+                .map(p => p.getBytes(StandardCharsets.UTF_8))
+                .getOrElse(Array.emptyByteArray)
+            )
             .value
         )
       )

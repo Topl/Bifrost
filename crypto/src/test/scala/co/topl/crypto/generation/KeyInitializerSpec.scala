@@ -60,12 +60,16 @@ class KeyInitializerSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks
     ) {
       val actualCurve25519Sk = curve25519Initializer
         .fromMnemonicString(underTest.inputs.mnemonic)(Language.English, underTest.inputs.password)
+        .value
       val actualEd25519Sk = ed25519Initializer
         .fromMnemonicString(underTest.inputs.mnemonic)(Language.English, underTest.inputs.password)
+        .value
       val actualVrf25519Sk = vrfInitializer
         .fromMnemonicString(underTest.inputs.mnemonic)(Language.English, underTest.inputs.password)
+        .value
       val actualExtended25519Sk = extendedEd25519Initializer
         .fromMnemonicString(underTest.inputs.mnemonic)(Language.English, underTest.inputs.password)
+        .value
 
       actualCurve25519Sk shouldBe underTest.outputs.curve25519
       actualEd25519Sk shouldBe underTest.outputs.ed25519

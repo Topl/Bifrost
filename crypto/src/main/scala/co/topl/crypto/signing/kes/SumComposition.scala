@@ -120,7 +120,7 @@ class SumComposition extends KesEd25519Blake2b256 {
     }
   }
 
-  private def eraseOldNode(node: KesBinaryTree): Unit =
+  private[signing] def eraseOldNode(node: KesBinaryTree): Unit =
     node match {
       case merkleNode: MerkleNode =>
         random.nextBytes(merkleNode.seed)
@@ -145,8 +145,6 @@ class SumComposition extends KesEd25519Blake2b256 {
         random.nextBytes(leaf.vk)
       case _ =>
     }
-
-  def eraseKey(input: KesBinaryTree): Unit = eraseOldNode(input)
 
   /**
    * Evolves key a specified number of steps

@@ -18,7 +18,7 @@ class ToplRpcCodecsSpec extends AnyFlatSpec with ToplRpcCodecs with Matchers wit
   implicit private val networkPrefix: NetworkPrefix = NetworkType.PrivateTestnet.netPrefix
 
   private val address =
-    PrivateKeyCurve25519.secretGenerator.generateSecret(Entropy.fromUuid(UUID.randomUUID()).value)._2.address
+    PrivateKeyCurve25519.secretGenerator.generateSecret(Entropy.fromUuid(UUID.randomUUID()).value.toArray)._2.address
   private val assetCode = AssetCode(1: Byte, address, Latin1Data.unsafe("test"))
 
   behavior of "ToplRpcCodecs"

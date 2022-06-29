@@ -93,7 +93,7 @@ class KeyCollectionSpec
 
       underTest.unlock[SecretKeys.ExtendedEd25519](evidence, password).unsafeRunSync().value shouldBe sk
 
-      underTest.lift(evidence).unsafeRunSync().value shouldBe sk
+      underTest.lift[SecretKeys.ExtendedEd25519](evidence).unsafeRunSync().value shouldBe sk
     }
   }
 }
@@ -114,7 +114,7 @@ object KeyCollectionSpec {
 
   implicit val arbitraryEd25519: Arbitrary[SecretKeys.Ed25519] = {
     implicit val entropyToSeed: EntropyToSeed[SecretKeys.Ed25519.Length] =
-      (entropy, _) => Sized.strictUnsafe(Bytes(blake2b256.hash(entropy.value).value))
+      (entropy, _) => Sized.strictUnsafe(Bytes(blake2b256.hash(entropy.value.toArray).value))
 
     Arbitrary(
       Arbitrary.arbUuid.arbitrary

@@ -26,7 +26,7 @@ object Phrase {
     language: Language
   ): Either[PhraseFailure, Phrase] =
     for {
-      size     <- sizeFromNumberOfWords(words.split(" ").length)
+      size     <- sizeFromNumberOfWords(words.split(" ").count(_.nonEmpty))
       wordList <- LanguageWordList.validated(language).leftMap(PhraseFailures.WordListFailure)
       phrase   <- Right(Phrase(words.toLowerCase.split("\\s+").map(_.trim).toIndexedSeq, size, wordList))
       _        <- Either.cond(phrase.value.length == size.wordLength, phrase, PhraseFailures.InvalidWordLength)
