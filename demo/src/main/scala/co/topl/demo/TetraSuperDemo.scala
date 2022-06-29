@@ -22,7 +22,7 @@ import co.topl.consensus.algebras.{EtaCalculationAlgebra, LeaderElectionValidati
 import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.interpreters._
-import co.topl.ledger.algebras.MempoolAlgebra
+import co.topl.ledger.algebras.{BodySemanticValidationAlgebra, BodySyntaxValidationAlgebra, MempoolAlgebra}
 import co.topl.ledger.interpreters._
 import co.topl.minting._
 import co.topl.minting.algebras.PerpetualBlockMintAlgebra
@@ -54,7 +54,7 @@ import scala.util.Random
 object TetraSuperDemo extends IOApp {
 
   // Configuration Data
-  private val vrfConfig =
+  implicit private val vrfConfig =
     VrfConfig(lddCutoff = 80, precision = 40, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(2, 5))
 
   private val OperationalPeriodLength = 180L
@@ -147,75 +147,6 @@ object TetraSuperDemo extends IOApp {
 
   private def statsInterpreter =
     StatsInterpreter.Eval.make[F](statsDir)
-
-  private def createMint(
-    staker:                  Staker,
-    clock:                   ClockAlgebra[F],
-    etaCalculation:          EtaCalculationAlgebra[F],
-    leaderElectionThreshold: LeaderElectionValidationAlgebra[F],
-    localChain:              LocalChainAlgebra[F],
-    mempool:                 MempoolAlgebra[F],
-    headerStore:             Store[F, TypedIdentifier, BlockHeaderV2],
-    fetchTransaction:        TypedIdentifier => F[Transaction],
-    state:                   ConsensusStateReader[F],
-    ed25519VRFResource:      UnsafeResource[F, Ed25519VRF],
-    kesProductResource:      UnsafeResource[F, KesProduct],
-    ed25519Resource:         UnsafeResource[F, Ed25519]
-  )(implicit logger:         Logger[F]): F[PerpetualBlockMintAlgebra[F]] =
-    for {
-      _            <- Logger[F].info(show"Initializing staker key idx=0 address=${staker.address}")
-      stakerKeyDir <- IO.blocking(Files.createTempDirectory(show"TetraDemoStaker${staker.address}"))
-      secureStore  <- AkkaSecureStore.Eval.make[F](stakerKeyDir)
-      _            <- secureStore.write(UUID.randomUUID().toString, staker.kesKey)
-      vrfProofConstruction <- VrfProof.Eval.make[F](
-        staker.vrfKey,
-        clock,
-        leaderElectionThreshold,
-        ed25519VRFResource,
-        vrfConfig
-      )
-      initialSlot  <- clock.globalSlot.map(_.max(0L))
-      initialEpoch <- clock.epochOf(initialSlot)
-      _            <- vrfProofConstruction.precomputeForEpoch(initialEpoch, genesis.headerV2.eligibilityCertificate.eta)
-      operationalKeys <- OperationalKeys.FromSecureStore.make[F](
-        secureStore = secureStore,
-        clock = clock,
-        vrfProof = vrfProofConstruction,
-        etaCalculation,
-        state,
-        kesProductResource,
-        ed25519Resource,
-        genesis.headerV2.slotId,
-        operationalPeriodLength = OperationalPeriodLength,
-        activationOperationalPeriod = 0L,
-        staker.address,
-        initialSlot = initialSlot
-      )
-      stakerVRFVK <- ed25519VRFResource.use(_.getVerificationKey(staker.vrfKey).pure[F])
-      mint =
-        BlockMint.Eval.make(
-          Staking.Eval.make(
-            staker.address,
-            LeaderElectionMinting.Eval.make(
-              stakerVRFVK,
-              leaderElectionThreshold,
-              vrfProofConstruction,
-              statsInterpreter = StatsInterpreter.Noop.make[F],
-              statsName = ""
-            ),
-            operationalKeys,
-            VrfRelativeStakeMintingLookup.Eval.make(state, clock),
-            etaCalculation,
-            ed25519Resource,
-            vrfProofConstruction,
-            clock
-          ),
-          clock,
-          statsInterpreter
-        )
-      perpetual <- PerpetualBlockMint.InAkkaStream
-        .make(clock, mint, localChain, mempool, headerStore, fetchTransaction)
-    } yield perpetual
 
   // Program definition
 
@@ -370,24 +301,6 @@ object TetraSuperDemo extends IOApp {
           Long.MaxValue,
           1000L
         )
-        mintOpt <- OptionT
-          .whenF(stakingEnabled)(
-            createMint(
-              stakers(stakerIndex),
-              clock,
-              etaCalculation,
-              leaderElectionThreshold,
-              localChain,
-              mempool,
-              blockHeaderStore,
-              transactionStore.getOrRaise,
-              consensusState,
-              ed25519VRFResource,
-              kesProductResource,
-              ed25519Resource
-            )
-          )
-          .value
         implicit0(networkRandom: Random) = new Random(new SecureRandom())
         boxState <- BoxState.make(
           genesis.headerV2.id.asTypedBytes.pure[F],
@@ -404,6 +317,29 @@ object TetraSuperDemo extends IOApp {
           boxState,
           boxState => TransactionSemanticValidation.make[F](transactionStore.getOrRaise, boxState)
         )
+        mintOpt <- OptionT
+          .whenF(stakingEnabled)(
+            DemoUtils.createMint[F](
+              genesis,
+              stakers(stakerIndex),
+              clock,
+              etaCalculation,
+              leaderElectionThreshold,
+              localChain,
+              mempool,
+              blockHeaderStore,
+              transactionStore.getOrRaise,
+              bodySyntaxValidation,
+              bodySemanticValidation,
+              consensusState,
+              ed25519VRFResource,
+              kesProductResource,
+              ed25519Resource,
+              statsInterpreter,
+              OperationalPeriodLength
+            )
+          )
+          .value
         _ <- Blockchain
           .run[F](
             mintOpt,

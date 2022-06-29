@@ -662,6 +662,30 @@ trait ModelGenerators {
       } yield Transaction(inputs, outputs, chronology, data)
     )
 
+  implicit val arbitrarySlotId: Arbitrary[SlotId] =
+    Arbitrary(
+      for {
+        slot    <- Gen.posNum[Long]
+        blockId <- arbitraryTypedIdentifier.arbitrary
+      } yield SlotId(slot, blockId)
+    )
+
+  implicit val arbitraryRho: Arbitrary[Rho] =
+    Arbitrary(
+      genSizedStrictBytes[Lengths.`64`.type]().map(Rho(_))
+    )
+
+  implicit val arbitrarySlotData: Arbitrary[SlotData] =
+    Arbitrary(
+      for {
+        slotId       <- arbitrarySlotId.arbitrary
+        parentSlotId <- arbitrarySlotId.arbitrary
+        rho          <- arbitraryRho.arbitrary
+        eta          <- etaGen
+        height       <- Gen.posNum[Long]
+      } yield SlotData(slotId, parentSlotId, rho, eta, height)
+    )
+
   implicit val arbitraryHeader: Arbitrary[BlockHeaderV2] =
     Arbitrary(headerGen())
 

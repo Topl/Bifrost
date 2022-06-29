@@ -53,8 +53,9 @@ class BlockchainPeerConnectionFlowFactorySpec
 
       val (protocols, _) = factory.protocolsForPeer(connectedPeer, connectionLeader).unsafeRunSync()
 
-      protocols.length shouldBe 12L
-      protocols.map(_.sessionId).toNes[Byte].toSortedSet shouldBe SortedSet[Byte](1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+      protocols.length shouldBe 14L
+      protocols.map(_.sessionId).toNes[Byte].toSortedSet shouldBe SortedSet[Byte](1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+        13, 14)
     }
   }
 }

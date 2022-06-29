@@ -44,6 +44,8 @@ class BlockchainClientSpec
 
           def remoteTransactionNotifications: F[Source[TypedIdentifier, NotUsed]] = ???
 
+          def getRemoteSlotData(id: TypedIdentifier): F[Option[SlotData]] = ???
+
           def getRemoteHeader(id: TypedIdentifier): F[Option[BlockHeaderV2]] = ???
 
           def getRemoteBody(id: TypedIdentifier): F[Option[BlockBodyV2]] = ???

@@ -25,12 +25,6 @@ import scala.concurrent.duration._
 
 object BlockchainPeerHandlerImpl {
 
-  implicit class OptionTOps[F[_], T](optionT: OptionT[F, T]) {
-
-    def getOrNoSuchElement(id: Any)(implicit M: MonadThrow[F]): F[T] =
-      optionT.toRight(new NoSuchElementException(id.toString)).rethrowT
-  }
-
   object LazyFetch {
 
     def make[F[_]: Async: Parallel: FToFuture: RunnableGraphToF: Logger](
@@ -50,8 +44,8 @@ object BlockchainPeerHandlerImpl {
     )(implicit mat:                Materializer): F[BlockchainPeerHandler[F]] =
       Async[F].delay {
         new BlockchainPeerHandler[F] {
-          def usePeer(client: BlockchainPeerClient[F]): F[Unit] =
-            traceAndLogCommonAncestor(getLocalBlockIdAtHeight, currentHeight, slotDataStore)(client) >>
+
+          private val backgroundProcesses: List[BlockchainPeerClient[F] => F[Unit]] =
             List(
               processBlockNotifications(
                 localChain,
@@ -63,14 +57,17 @@ object BlockchainPeerHandlerImpl {
                 bodyStore,
                 transactionStore,
                 blockIdTree
-              )(client),
+              ),
               processTransactionNotifications(
                 transactionSyntaxValidation,
                 transactionStore,
                 mempool
-              )(client),
-              periodicallyTraceAndLogCommonAncestor(getLocalBlockIdAtHeight, currentHeight, slotDataStore)(client)
-            ).parSequence.void
+              ),
+              periodicallyTraceAndLogCommonAncestor(getLocalBlockIdAtHeight, currentHeight, slotDataStore)
+            )
+          def usePeer(client: BlockchainPeerClient[F]): F[Unit] =
+            traceAndLogCommonAncestor(getLocalBlockIdAtHeight, currentHeight, slotDataStore)(client) >>
+            backgroundProcesses.parTraverse(_.apply(client)).void
         }
       }
 
@@ -178,7 +175,7 @@ object BlockchainPeerHandlerImpl {
     implicit private val showBodySemanticError: Show[BodySemanticError] =
       Show.fromToString
 
-    private def fetchAndValidateMissingHeaders[F[_]: Async: FToFuture: RunnableGraphToF: Logger](
+    private[blockchain] def fetchAndValidateMissingHeaders[F[_]: Async: FToFuture: RunnableGraphToF: Logger](
       client:           BlockchainPeerClient[F],
       headerValidation: BlockHeaderValidationAlgebra[F],
       slotDataStore:    Store[F, TypedIdentifier, SlotData],
@@ -419,5 +416,11 @@ object BlockchainPeerHandlerImpl {
         .handleErrorWith(
           Logger[F].error(_)("Common ancestor trace failed")
         )
+  }
+
+  implicit class OptionTOps[F[_], T](optionT: OptionT[F, T]) {
+
+    def getOrNoSuchElement(id: Any)(implicit M: MonadThrow[F]): F[T] =
+      optionT.toRight(new NoSuchElementException(id.toString)).rethrowT
   }
 }

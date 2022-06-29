@@ -9,24 +9,29 @@ import cats.{~>, MonadThrow}
 import co.topl.algebras.{ClockAlgebra, Store}
 import co.topl.catsakka._
 import co.topl.consensus.algebras.LocalChainAlgebra
-import co.topl.ledger.algebras.MempoolAlgebra
+import co.topl.ledger.algebras.{BodySemanticValidationAlgebra, BodySyntaxValidationAlgebra, MempoolAlgebra}
 import co.topl.minting.algebras.{BlockMintAlgebra, PerpetualBlockMintAlgebra}
 import co.topl.models.{BlockHeaderV2, BlockV2, Slot, Transaction, TypedIdentifier}
 import co.topl.typeclasses.implicits._
+import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.codecs.bytes.tetra.instances._
 
+import scala.collection.immutable.ListSet
 import scala.concurrent.Future
 
 object PerpetualBlockMint {
 
   object InAkkaStream {
 
-    def make[F[_]: Sync: *[_] ~> Future: MonadThrow](
-      clock:            ClockAlgebra[F],
-      blockMint:        BlockMintAlgebra[F],
-      localChain:       LocalChainAlgebra[F],
-      mempool:          MempoolAlgebra[F],
-      headerStore:      Store[F, TypedIdentifier, BlockHeaderV2],
-      fetchTransaction: TypedIdentifier => F[Transaction]
+    def make[F[_]: Sync: FToFuture: MonadThrow](
+      clock:                  ClockAlgebra[F],
+      blockMint:              BlockMintAlgebra[F],
+      localChain:             LocalChainAlgebra[F],
+      mempool:                MempoolAlgebra[F],
+      headerStore:            Store[F, TypedIdentifier, BlockHeaderV2],
+      fetchTransaction:       TypedIdentifier => F[Transaction],
+      bodySyntaxValidation:   BodySyntaxValidationAlgebra[F],
+      bodySemanticValidation: BodySemanticValidationAlgebra[F]
     ): F[PerpetualBlockMintAlgebra[F]] =
       Sync[F].delay(
         new PerpetualBlockMintAlgebra[F] {
@@ -57,7 +62,17 @@ object PerpetualBlockMint {
                   new NoSuchElementException(canonicalHeadSlotData.slotId.blockId.show)
                 )
               )
-              newBlockOpt <- blockMint.attemptMint(parent, transactions, slot)
+              // TODO: This "Transaction Selection Algorithm" will not perform well and is meant to be improved in the future
+              selectedTransactions <- transactions.foldLeftM(List.empty[Transaction]) { case (selected, transaction) =>
+                val fullBody = transaction +: selected
+                val body = ListSet.empty[TypedIdentifier] ++ fullBody.map(_.id.asTypedBytes)
+                OptionT(bodySyntaxValidation.validate(body).map(_.toOption))
+                  .flatMapF(_ =>
+                    bodySemanticValidation.validate(canonicalHeadSlotData.slotId.blockId)(body).map(_.toOption)
+                  )
+                  .fold(selected)(_ => fullBody)
+              }
+              newBlockOpt <- blockMint.attemptMint(parent, selectedTransactions, slot)
             } yield newBlockOpt
         }
       )

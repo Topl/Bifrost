@@ -77,7 +77,7 @@ object Blockchain {
             localChain.head
               .map(_.slotId.blockId)
               .flatMap(blockHeights.useStateAt(_)(_.apply(id)))
-          ).getOrElse(???),
+          ).toRight(new IllegalStateException("Unable to determine block height tree")).rethrowT,
         () => localChain.head.map(_.height),
         blockIdTree
       )

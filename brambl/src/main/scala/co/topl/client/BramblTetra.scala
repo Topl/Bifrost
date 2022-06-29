@@ -66,13 +66,13 @@ object BramblTetra extends IOApp.Simple {
             boxId = boxId,
             proposition = Propositions.Contextual.HeightLock(1L),
             proof = Proofs.False,
-            value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10_000L)))
+            value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10000L)))
           )
         ),
         outputs = Chain(
           Transaction.Output(
             address,
-            Box.Values.Poly(Sized.maxUnsafe(BigInt(10_000L))),
+            Box.Values.Poly(Sized.maxUnsafe(BigInt(10000L))),
             minting = false
           )
         ),
@@ -100,7 +100,7 @@ object BramblTetra extends IOApp.Simple {
             StakingAddresses.Operator(VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes.fill(32)(0: Byte)))),
             Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes.fill(64)(0: Byte)))
           ),
-          Box.Values.Poly(Sized.maxUnsafe(BigInt(10_000L))),
+          Box.Values.Poly(Sized.maxUnsafe(BigInt(10000L))),
           minting = true
         )
       ),
