@@ -45,14 +45,13 @@ class GenesisProvider(genesisBlockVersion: Byte, nodeAddresses: Set[Address]) {
     networkPrefix:                              NetworkPrefix
   ): Either[GenesisProvider.Failure, NxtConsensus.Genesis] = for {
     src <- Either
-      .fromTry(Try(scala.io.Source.fromFile(strategy.providedJsonGenesisPath)))
+      .fromTry(Try(scala.io.Source.fromResource(strategy.genesisFile)))
       .leftMap(GenesisProvider.Failures.FailedToReadBlockJsonFileFromDisk)
     json  <- parser.parse(src.mkString).leftMap(GenesisProvider.Failures.FailedToParseJson)
     block <- json.as[Block].leftMap(e => GenesisProvider.Failures.FailedToDecodeJsonToBlock(e.message))
-    expectedBlockId <- Base58Data
-      .validated(strategy.blockChecksum)
-      .toEither
-      .flatMap(_.value.decodeTransmitted[ModifierId])
+    expectedBlockId <- json.hcursor
+      .downField("header")
+      .get[ModifierId]("id")
       .leftMap(_ => GenesisProvider.Failures.InvalidBlockChecksum)
     validBlock <- Either.cond(
       block.id == expectedBlockId,
@@ -180,7 +179,7 @@ object GenesisProvider {
       initialDifficulty:         Long
     ) extends Strategy
 
-    case class FromBlockJson(providedJsonGenesisPath: String, blockChecksum: String) extends Strategy
+    case class FromBlockJson(genesisFile: String) extends Strategy
   }
 
 }
