@@ -123,19 +123,14 @@ object KeyInitializer {
 
         def fromBytes(bytes: Bytes): Either[InitializationFailure, SecretKeys.ExtendedEd25519] = for {
           _ <- Either.cond(bytes.length == 96, bytes, InitializationFailures.InvalidByteLength)
-          sizedByteList = bytes.toArray
-            .grouped(32)
-            .toList
-            .map(b => Sized.strict[Bytes, Lengths.`32`.type](Bytes(b)))
-            .sequence
-            .leftMap(InitializationFailures.InvalidSizeByteLength)
-          secretKey <- sizedByteList.flatMap {
-            case left :: right :: chainCode :: Nil =>
-              Right(SecretKeys.ExtendedEd25519(left, right, chainCode))
-            case _ =>
-              Left(InitializationFailures.KeyCreationError(new Exception("Error parsing hex string to secret")))
-          }
-        } yield secretKey
+          left = bytes.slice(0, 32)
+          right = bytes.slice(32, 64)
+          chainCode = bytes.slice(64, 96)
+        } yield SecretKeys.ExtendedEd25519(
+          Sized.strictUnsafe(left),
+          Sized.strictUnsafe(right),
+          Sized.strictUnsafe(chainCode)
+        )
 
       }
   }
