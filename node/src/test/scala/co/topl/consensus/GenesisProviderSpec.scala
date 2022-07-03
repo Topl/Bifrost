@@ -64,7 +64,7 @@ class GenesisProviderSpec
           .fetchGenesis(GenesisSpecSetup.genesisFromJsonSettings(jsonSetting.fromJson))(jsonSetting.networkPrefix)
           .value
 
-      val jsonFileSource = scala.io.Source.fromFile(jsonSetting.fromJson.genesisFile)
+      val jsonFileSource = scala.io.Source.fromResource(jsonSetting.fromJson.genesisFile)
       val jsonFromFile = parser.parse(jsonFileSource.mkString).getOrElse(Json.fromJsonObject(JsonObject.empty))
       jsonFileSource.close()
 

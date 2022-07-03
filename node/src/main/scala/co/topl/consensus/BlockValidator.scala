@@ -50,8 +50,8 @@ object BlockValidators {
   class EligibilityValidator(leaderElection: NxtLeaderElection, consensusState: NxtConsensus.State)
       extends BlockValidator[Option[Block]] {
 
-    override def validate(f: Block => Option[Block])(block: Block): Try[Unit] = Try {
-      f(block) match {
+    override def validate(fetchParentOf: Block => Option[Block])(block: Block): Try[Unit] = Try {
+      fetchParentOf(block) match {
         case Some(parent) =>
           val timeSinceLastBlack = block.timestamp - parent.timestamp
           val hit = leaderElection.calculateHitValue(parent)(_)

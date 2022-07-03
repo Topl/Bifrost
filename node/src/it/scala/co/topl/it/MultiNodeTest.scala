@@ -57,6 +57,9 @@ class MultiNodeTest extends AnyFreeSpec with Matchers with IntegrationSuite with
     logger.info(s"Waiting $forgeDuration for forging")
     Thread.sleep(forgeDuration.toMillis)
 
+    // Now instruct the nodes to stop forging
+    nodes.foreach(_.run(ToplRpc.Admin.StopForging.rpc)(ToplRpc.Admin.StopForging.Params()).value)
+
     // Verify that each node has forged a roughly equal number of blocks according to their own "myBlocks" information
     val forgeCounts =
       nodes

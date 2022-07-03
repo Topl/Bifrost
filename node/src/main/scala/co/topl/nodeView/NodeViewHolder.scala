@@ -8,6 +8,7 @@ import akka.actor.typed.scaladsl._
 import akka.pattern.StatusReply
 import akka.util.Timeout
 import cats.Show
+import cats.implicits._
 import cats.data.{EitherT, Writer}
 import co.topl.consensus.{ConsensusReader, LocallyGeneratedBlock, NxtConsensus}
 import co.topl.modifier.ModifierId
@@ -15,6 +16,7 @@ import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.BifrostSyncInfo
+import co.topl.nodeView.NodeViewHolder.ReceivableMessages
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.history.{GenericHistory, History}
 import co.topl.nodeView.state.{MinimalState, State}
@@ -23,7 +25,7 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider
 import co.topl.utils.actors.SortedCache
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 import scala.util.Try
 
 /**
@@ -98,6 +100,8 @@ object NodeViewHolder {
       block:          Block,
       consensusState: NxtConsensus.View
     ) extends ReceivableMessage
+
+    private[nodeView] case class WriteBlockResult(resultBehaviors: NodeView) extends ReceivableMessage
 
     private[nodeView] case class Terminate(reason: Throwable) extends ReceivableMessage
 
@@ -246,18 +250,44 @@ object NodeViewHolder {
           Behaviors.same
 
         case (context, ReceivableMessages.WriteBlock(block)) =>
+          implicit def system: ActorSystem[_] = context.system
+          implicit val executionContext: ExecutionContext = context.executionContext
+
+          // TODO: Exception handling
+          // TODO: Should we hold onto the block in the cache?
+          // TODO: Ban-list bad blocks?
+
           context.pipeToSelf(
-            consensusViewer.withView(ReceivableMessages.WriteBlockWithConsensusView(block, _)).value
+            consensusViewer.withView { consensusView =>
+              eventStreamWriterHandler(nodeView.withBlock(block, consensusView.validators(consensusView.state)))
+            }.value
           ) {
             _.fold(
               error => ReceivableMessages.Terminate(error),
-              _.fold(
-                error => ReceivableMessages.Terminate(new IllegalArgumentException(error.toString)),
-                identity
-              )
+              {
+                case Left(error)     => ReceivableMessages.Terminate(new IllegalArgumentException(error.toString))
+                case Right(nodeView) => ReceivableMessages.WriteBlockResult(nodeView)
+              }
             )
           }
           Behaviors.same
+
+//          context.pipeToSelf(
+//            consensusViewer.withView(ReceivableMessages.WriteBlockWithConsensusView(block, _)).value
+//          ) {
+//            _.fold(
+//              error => ReceivableMessages.Terminate(error),
+//              _.fold(
+//                error => ReceivableMessages.Terminate(new IllegalArgumentException(error.toString)),
+//                identity
+//              )
+//            )
+//          }
+//          Behaviors.same
+
+        case (context, ReceivableMessages.WriteBlockResult(newNodeView)) =>
+          popBlock(cache, newNodeView)(context)
+          initialized(newNodeView, cache, consensusViewer)
 
         case (context, ReceivableMessages.WriteBlockWithConsensusView(block, consensusView)) =>
           implicit def system: ActorSystem[_] = context.system
