@@ -30,8 +30,7 @@ class LanguageSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaC
     }
 
     property(s"phrases should be generated in ${lang.toString}") {
-      forAll(Gen.posNum[Int]) { size =>
-        val mnemonicSize = Generators.pickMnemonicSize(size)
+      forAll(Generators.mnemonicSizeGen) { mnemonicSize =>
         val entropy = Entropy.generate(mnemonicSize)
 
         Phrase.fromEntropy(entropy, mnemonicSize, lang).isRight shouldBe true

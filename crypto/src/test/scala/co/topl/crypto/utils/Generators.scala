@@ -24,12 +24,7 @@ object Generators {
 
   lazy val stringGen: Gen[String] = Gen.alphaNumStr.suchThat(_.nonEmpty)
 
-  def pickMnemonicSize(int: Int): MnemonicSize = int % 5 match {
-    case 0 => MnemonicSizes.`12`
-    case 1 => MnemonicSizes.`15`
-    case 2 => MnemonicSizes.`18`
-    case 3 => MnemonicSizes.`21`
-    case 4 => MnemonicSizes.`24`
-  }
+  val mnemonicSizeGen: Gen[MnemonicSize] =
+    Gen.oneOf(MnemonicSizes.`12`, MnemonicSizes.`15`, MnemonicSizes.`18`, MnemonicSizes.`21`, MnemonicSizes.`24`)
 
 }

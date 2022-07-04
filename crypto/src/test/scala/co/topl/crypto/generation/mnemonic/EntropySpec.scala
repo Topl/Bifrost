@@ -35,8 +35,7 @@ class EntropySpec
   }
 
   property(s"Entropy can be generated and results in valid mnemonic strings") {
-    forAll(Gen.posNum[Int]) { size =>
-      val mnemonicSize = Generators.pickMnemonicSize(size)
+    forAll(Generators.mnemonicSizeGen) { mnemonicSize =>
       val entropy = Entropy.generate(mnemonicSize)
 
       Entropy.toMnemonicString(entropy).isRight shouldBe true
@@ -46,8 +45,7 @@ class EntropySpec
   property(
     s"Entropy can be generated, transformed to a mnemonic phrase string, and converted back to the original entropy value"
   ) {
-    forAll(Gen.posNum[Int]) { size =>
-      val mnemonicSize = Generators.pickMnemonicSize(size)
+    forAll(Generators.mnemonicSizeGen) { mnemonicSize =>
       val entropy1 = Entropy.generate(mnemonicSize)
       val entropy2 = Entropy
         .toMnemonicString(entropy1, Language.English)

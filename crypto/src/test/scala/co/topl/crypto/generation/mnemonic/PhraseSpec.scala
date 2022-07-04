@@ -11,8 +11,7 @@ import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckP
 class PhraseSpec extends AnyPropSpec with ScalaCheckPropertyChecks with ScalaCheckDrivenPropertyChecks {
 
   property("random entropy (of the correct length) should be a valid phrase") {
-    forAll(Gen.posNum[Int]) { size =>
-      val mnemonicSize = Generators.pickMnemonicSize(size)
+    forAll(Generators.mnemonicSizeGen) { mnemonicSize =>
       val entropy = Entropy.generate(mnemonicSize)
       val phrase = Phrase.fromEntropy(entropy, mnemonicSize, Language.English)
 
