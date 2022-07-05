@@ -262,7 +262,7 @@ class ProofVerifierSpec
 
       val proof = Proofs.Compositional.And(
         Proofs.Contextual.HeightLock(),
-        Proofs.False
+        Proofs.Undefined
       )
 
       implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
@@ -354,7 +354,7 @@ class ProofVerifierSpec
 
       val proof = Proofs.Compositional.Or(
         Proofs.Contextual.HeightLock(),
-        Proofs.False
+        Proofs.Undefined
       )
 
       implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
@@ -385,7 +385,7 @@ class ProofVerifierSpec
         List(
           Proofs.Contextual.HeightLock(),
           ed25519.sign(sk, unprovenTransaction.signableBytes),
-          Proofs.False
+          Proofs.Undefined
         )
       )
 
@@ -424,7 +424,7 @@ class ProofVerifierSpec
         List(
           Proofs.Contextual.HeightLock(),
           ed25519.sign(sk, unprovenTransaction.signableBytes),
-          Proofs.False
+          Proofs.Undefined
         )
       )
 

@@ -201,7 +201,7 @@ trait ModelsJsonCodecs {
       }
 
   implicit def proofEncoder: Encoder[Proof] = {
-    case Proofs.False =>
+    case Proofs.Undefined =>
       Json.obj(
         "proofType" -> "False".asJson
       )
@@ -280,7 +280,7 @@ trait ModelsJsonCodecs {
   implicit def proofDecoder: Decoder[Proof] =
     hcursor =>
       hcursor.downField("proofType").as[String].flatMap {
-        case "False"                => Proofs.False.asRight[DecodingFailure]
+        case "False"                => Proofs.Undefined.asRight[DecodingFailure]
         case "Knowledge.Curve25519" => hcursor.downField("signature").as[Proofs.Knowledge.Curve25519]
         case "Knowledge.Ed25519"    => hcursor.downField("signature").as[Proofs.Knowledge.Ed25519]
         case "Compositional.Threshold" =>

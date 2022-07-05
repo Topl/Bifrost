@@ -7,9 +7,9 @@ sealed trait Proof
 object Proofs {
 
   /**
-   * A proof which always verifies to `false`
+   * A proof which acts as a placeholder
    */
-  case object False extends Proof
+  case object Undefined extends Proof
 
   object Knowledge {
     case class Curve25519(bytes: Sized.Strict[Bytes, Curve25519.Length]) extends Proof

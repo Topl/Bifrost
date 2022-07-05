@@ -26,7 +26,7 @@ trait Credential {
   /**
    * Initializes a new Proof
    */
-  def proof: Proof = prove(Proofs.False)
+  def proof: Proof = prove(Proofs.Undefined)
 
   /**
    * The proposition corresponding to this credential
@@ -38,7 +38,7 @@ trait Credential {
 object Credential {
 
   case object False extends Credential {
-    def prove(currentProof: Proof): Proof = Proofs.False
+    def prove(currentProof: Proof): Proof = Proofs.Undefined
 
     def proposition: Proposition = Propositions.PermanentlyLocked
   }
@@ -94,7 +94,7 @@ object Credential {
             )
           case _ =>
             Proofs.Compositional.Threshold(
-              proposition.propositions.toList.map(prop => compositionalProver(prop, Proofs.False, credentials))
+              proposition.propositions.toList.map(prop => compositionalProver(prop, Proofs.Undefined, credentials))
             )
         }
     }
@@ -110,8 +110,8 @@ object Credential {
             )
           case _ =>
             Proofs.Compositional.And(
-              compositionalProver(proposition.a, Proofs.False, credentials),
-              compositionalProver(proposition.b, Proofs.False, credentials)
+              compositionalProver(proposition.a, Proofs.Undefined, credentials),
+              compositionalProver(proposition.b, Proofs.Undefined, credentials)
             )
         }
     }
@@ -127,8 +127,8 @@ object Credential {
             )
           case _ =>
             Proofs.Compositional.Or(
-              compositionalProver(proposition.a, Proofs.False, credentials),
-              compositionalProver(proposition.b, Proofs.False, credentials)
+              compositionalProver(proposition.a, Proofs.Undefined, credentials),
+              compositionalProver(proposition.b, Proofs.Undefined, credentials)
             )
         }
     }
@@ -143,7 +143,7 @@ object Credential {
             )
           case _ =>
             Proofs.Compositional.Not(
-              compositionalProver(proposition.a, Proofs.False, credentials)
+              compositionalProver(proposition.a, Proofs.Undefined, credentials)
             )
         }
     }
@@ -155,7 +155,7 @@ object Credential {
     ): Proof =
       (proposition, currentProof) match {
         case (Propositions.PermanentlyLocked, _) =>
-          Proofs.False
+          Proofs.Undefined
         case (a: Propositions.Compositional.And, proof) =>
           Credential.Compositional.And(a, credentials).prove(proof)
         case (o: Propositions.Compositional.Or, proof) =>
@@ -164,8 +164,8 @@ object Credential {
           Credential.Compositional.Not(o, credentials).prove(proof)
         case (t: Propositions.Compositional.Threshold, proof) =>
           Credential.Compositional.Threshold(t, credentials).prove(proof)
-        case (prop, Proofs.False) =>
-          credentials.find(_.proposition == prop).fold(Proofs.False: Proof)(_.proof)
+        case (prop, Proofs.Undefined) =>
+          credentials.find(_.proposition == prop).fold(Proofs.Undefined: Proof)(_.proof)
         case (_, proof) =>
           proof
       }

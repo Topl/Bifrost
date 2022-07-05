@@ -450,7 +450,7 @@ trait ModelGenerators {
         location <- arbitraryBoxLocation.arbitrary
         boxes <- Gen.nonEmptyListOf(
           Gen.zip(
-            Gen.chooseNum[Int](0, 5),
+            Gen.chooseNum[Short](0, 5),
             arbitraryBox.arbitrary
           )
         )
@@ -490,8 +490,8 @@ trait ModelGenerators {
       )
     )
 
-  implicit val arbitraryProofsFalse: Arbitrary[Proofs.False.type] =
-    Arbitrary(Gen.const(Proofs.False))
+  implicit val arbitraryProofsFalse: Arbitrary[Proofs.Undefined.type] =
+    Arbitrary(Gen.const(Proofs.Undefined))
 
   implicit val arbitraryProofsKnowledgeCurve25519: Arbitrary[Proofs.Knowledge.Curve25519] =
     Arbitrary(curve25519ProofGen)

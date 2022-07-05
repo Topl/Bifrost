@@ -291,7 +291,7 @@ trait TetraScodecPropositionCodecs {
 
   implicit val propositionsContextualRequiredBoxStateCodec: Codec[Propositions.Contextual.RequiredBoxState] =
     Codec.lazily(
-      (Codec[BoxLocation] :: Codec[List[(Int, Box)]](listCodec(tupleCodec(intCodec, boxCodec))))
+      (Codec[BoxLocation] :: Codec[List[(Short, Box)]](listCodec(tupleCodec(shortCodec, boxCodec))))
         .as[Propositions.Contextual.RequiredBoxState]
     )
 
@@ -319,8 +319,8 @@ trait TetraScodecPropositionCodecs {
 trait TetraScodecProofCodecs {
   self: TetraScodecPrimitiveCodecs with TetraScodecVerificationKeyCodecs =>
 
-  implicit val proofsFalseCodec: Codec[Proofs.False.type] =
-    emptyCodec(Proofs.False)
+  implicit val proofsFalseCodec: Codec[Proofs.Undefined.type] =
+    emptyCodec(Proofs.Undefined)
 
   implicit val proofSignatureCurve25519: Codec[Proofs.Knowledge.Curve25519] =
     strictSizedBytesCodec[Proofs.Knowledge.Curve25519.Length].as[Proofs.Knowledge.Curve25519]

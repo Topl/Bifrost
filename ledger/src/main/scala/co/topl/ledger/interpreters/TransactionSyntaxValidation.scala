@@ -5,7 +5,7 @@ import cats.effect.Sync
 import cats.implicits._
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
-import co.topl.models.{Box, Transaction}
+import co.topl.models.{Box, Proof, Proofs, Proposition, Propositions, Transaction}
 import co.topl.typeclasses.implicits._
 
 object TransactionSyntaxValidation {
@@ -24,7 +24,8 @@ object TransactionSyntaxValidation {
       maximumOutputsCountValidation,
       positiveTimestampValidation,
       positiveOutputValuesValidation,
-      sufficientFundsValidation
+      sufficientFundsValidation,
+      proofTypeValidation
     )
 
   /**
@@ -112,6 +113,18 @@ object TransactionSyntaxValidation {
     }
 
   /**
+   * Validates that the proofs associated with each proposition matches the expected _type_
+   *
+   * (i.e. a Curve25519 Proof that is associated with an Ed25519 Proposition, this validation will fail)
+   */
+  private[interpreters] def proofTypeValidation(
+    transaction: Transaction
+  ): ValidatedNec[TransactionSyntaxError, Unit] =
+    transaction.inputs
+      .map(input => proofTypeValidationRecursive(input.proposition, input.proof, allowUndefined = false))
+      .combineAll
+
+  /**
    * Perform validation based on the quantities of boxes grouped by type
    * @param f an extractor function which retrieves a BigInt from a Box.Value
    */
@@ -135,4 +148,86 @@ object TransactionSyntaxValidation {
           .map(code => f { case a: Box.Values.Asset if a.assetCode === code => a.quantity.data })
       )
     ).combineAll
+
+  private def proofTypeValidationRecursive(
+    proposition:    Proposition,
+    proof:          Proof,
+    allowUndefined: Boolean
+  ): ValidatedNec[TransactionSyntaxError, Unit] =
+    proposition match {
+      case Propositions.PermanentlyLocked =>
+        matchProof(proposition, proof)(allowUndefined = true) { case Proofs.Undefined => }
+      case _: Propositions.Knowledge.Curve25519 =>
+        matchProof(proposition, proof)(allowUndefined) { case _: Proofs.Knowledge.Curve25519 => }
+      case _: Propositions.Knowledge.Ed25519 =>
+        matchProof(proposition, proof)(allowUndefined) { case _: Proofs.Knowledge.Ed25519 => }
+      case _: Propositions.Knowledge.ExtendedEd25519 =>
+        matchProof(proposition, proof)(allowUndefined) { case _: Proofs.Knowledge.Ed25519 => }
+      case _: Propositions.Knowledge.HashLock =>
+        matchProof(proposition, proof)(allowUndefined) { case _: Proofs.Knowledge.HashLock => }
+      case Propositions.Compositional.And(aProp, bProp) =>
+        proof match {
+          case Proofs.Undefined if allowUndefined => ().validNec[TransactionSyntaxError]
+          case Proofs.Compositional.And(a, b) =>
+            proofTypeValidationRecursive(aProp, a, allowUndefined = true)
+              .combine(proofTypeValidationRecursive(bProp, b, allowUndefined = true))
+          case _ =>
+            TransactionSyntaxErrors.InvalidProofType(proposition, proof).invalidNec[Unit]
+        }
+      case Propositions.Compositional.Or(aProp, bProp) =>
+        proof match {
+          case Proofs.Undefined if allowUndefined => ().validNec[TransactionSyntaxError]
+          case Proofs.Compositional.Or(a, b) =>
+            proofTypeValidationRecursive(aProp, a, allowUndefined = true)
+              .combine(proofTypeValidationRecursive(bProp, b, allowUndefined = true))
+          case _ =>
+            TransactionSyntaxErrors.InvalidProofType(proposition, proof).invalidNec[Unit]
+        }
+      case Propositions.Compositional.Threshold(_, propositions) =>
+        proof match {
+          case Proofs.Undefined if allowUndefined => ().validNec[TransactionSyntaxError]
+          case Proofs.Compositional.Threshold(proofs) =>
+            Validated
+              .condNec(
+                propositions.size == proofs.size,
+                (),
+                TransactionSyntaxErrors.InvalidProofType(proposition, proof): TransactionSyntaxError
+              )
+              .andThen(_ =>
+                propositions.toList
+                  .zip(proofs)
+                  .map { case (proposition, proof) =>
+                    proofTypeValidationRecursive(proposition, proof, allowUndefined = true)
+                  }
+                  .combineAll
+              )
+          case _ =>
+            TransactionSyntaxErrors.InvalidProofType(proposition, proof).invalidNec[Unit]
+        }
+      case Propositions.Compositional.Not(aProposition) =>
+        proof match {
+          case Proofs.Undefined if allowUndefined => ().validNec[TransactionSyntaxError]
+          case Proofs.Compositional.Not(aProof) =>
+            TransactionSyntaxErrors.InvalidProofType(aProposition, aProof).invalidNec[Unit]
+          case _ =>
+            TransactionSyntaxErrors.InvalidProofType(proposition, proof).invalidNec[Unit]
+        }
+      case _: Propositions.Contextual.HeightLock =>
+        matchProof(proposition, proof)(allowUndefined) { case _: Proofs.Contextual.HeightLock => }
+      case _: Propositions.Contextual.RequiredBoxState =>
+        matchProof(proposition, proof)(allowUndefined) { case _: Proofs.Contextual.RequiredBoxState => }
+    }
+
+  private def matchProof(proposition: Proposition, proof: Proof)(
+    allowUndefined:                   Boolean
+  )(f:                                PartialFunction[Proof, Unit]): ValidatedNec[TransactionSyntaxError, Unit] =
+    if (allowUndefined && proof == Proofs.Undefined)
+      ().validNec
+    else
+      f.andThen(_.validNec[TransactionSyntaxError])
+        .applyOrElse[Proof, ValidatedNec[TransactionSyntaxError, Unit]](
+          proof,
+          _ => (TransactionSyntaxErrors.InvalidProofType(proposition, proof): TransactionSyntaxError).invalidNec[Unit]
+        )
+
 }
