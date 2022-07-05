@@ -267,18 +267,28 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
             _ <- underTest.read(blockIdA).assertEquals(Set.empty[TypedIdentifier])
             _ <-
               inSequence {
-                // The "unapply" operation will schedule a normal expiration
-                (clock
-                  .delayedUntilSlot(_: Slot))
-                  .expects(transactionA.chronology.maximumSlot)
-                  .once()
-                  .returning(MonadCancel[F].never[Unit])
-                // But the "apply" operation will re-schedule the expiration
-                (clock
-                  .delayedUntilSlot(_: Slot))
-                  .expects(1L)
-                  .once()
-                  .returning(MonadCancel[F].never[Unit])
+                if (transactionA.chronology.maximumSlot != 1L) {
+                  // The "unapply" operation will schedule a normal expiration
+                  (clock
+                    .delayedUntilSlot(_: Slot))
+                    .expects(transactionA.chronology.maximumSlot)
+                    .once()
+                    .returning(MonadCancel[F].never[Unit])
+                  // But the "apply" operation will re-schedule the expiration
+                  (clock
+                    .delayedUntilSlot(_: Slot))
+                    .expects(1L)
+                    .once()
+                    .returning(MonadCancel[F].never[Unit])
+                } else {
+                  // This is just an edge-case where the Chronology generator produces a maximum slot of 1L,
+                  // so the scalamock expectation needs to expect the value twice instead of just once
+                  (clock
+                    .delayedUntilSlot(_: Slot))
+                    .expects(1L)
+                    .twice()
+                    .returning(MonadCancel[F].never[Unit])
+                }
                 underTest.read(blockIdB).assertEquals(Set(transactionAId))
               }
           } yield ()

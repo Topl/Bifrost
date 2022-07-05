@@ -9,7 +9,7 @@ import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.algebras.EtaCalculationAlgebra
-import co.topl.crypto.mnemonic.Entropy
+import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing._
 import co.topl.minting.algebras._
 import co.topl.models._
@@ -221,7 +221,9 @@ object OperationalKeys {
       ed25519Resource:    UnsafeResource[F, Ed25519]
     ): F[Vector[OperationalKeyOut]] =
       ed25519Resource
-        .use(ed => List.fill(slots.size)(ed.createKeyPair(Entropy.fromUuid(UUID.randomUUID()), None)).pure[F])
+        .use(ed =>
+          List.fill(slots.size)(ed.deriveKeyPairFromEntropy(Entropy.fromUuid(UUID.randomUUID()), None)).pure[F]
+        )
         .flatMap(children =>
           kesProductResource.use { kesProductScheme =>
             val parentVK = kesProductScheme.getVerificationKey(kesParent)

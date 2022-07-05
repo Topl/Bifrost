@@ -2,24 +2,26 @@ package co.topl.credential.playground
 
 import cats.data.NonEmptyChain
 import cats.effect.unsafe.implicits.global
-import co.topl.credential.Credential
-import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.credential.Credential
+import co.topl.crypto.generation.KeyInitializer
+import co.topl.crypto.generation.KeyInitializer.Instances.{curve25519Initializer, ed25519Initializer}
 import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
+import co.topl.crypto.signing.{Curve25519, Ed25519, ExtendedEd25519}
+import co.topl.models.ModelGenerators._
+import co.topl.models.Propositions.Compositional
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
 import co.topl.scripting.GraalVMScripting
 import co.topl.scripting.GraalVMScripting.GraalVMValuable
 import co.topl.scripting.GraalVMScripting.instances._
+import co.topl.typeclasses.VerificationContext
 import co.topl.typeclasses.implicits._
-import co.topl.typeclasses.{KeyInitializer, VerificationContext}
 import io.circe.Json
 import org.graalvm.polyglot.Value
-import ModelGenerators._
-import scala.collection.immutable.ListMap
-import scala.util.Random
+import co.topl.credential.implicits._
 
 ///**
 // *  contextual proof to check the output box of the current transaction
@@ -34,8 +36,9 @@ import scala.util.Random
 object SetupSandbox {
   type F[A] = cats.effect.IO[A]
 
+  implicit val curve25519: Curve25519 = new Curve25519
   implicit val ed25519: Ed25519 = new Ed25519
-  implicit val extendedEd25519: ExtendedEd25519 = ExtendedEd25519.precomputed()
+  implicit val extendedEd25519: ExtendedEd25519 = new ExtendedEd25519
 
   implicit val jsExecutor: Propositions.Script.JS.JSScript => F[(Json, Json) => F[Boolean]] =
     s =>
@@ -326,19 +329,48 @@ object XorGameCompletion extends App {
 }
 
 // (pk(Receiver) && sha256(H)) || (pk(Refundee) && older(10))
-object HashTimeLockContract {
+object HashTimeLockContract extends App {
   import SetupSandbox._
 
-  val aliceSaltInput = blake2b256.hash("test".getBytes)
+  val aliceSaltInput: Digest32 = Sized.strictUnsafe(Bytes(blake2b256.hash("test".getBytes).value))
   val aliceValueInput: Byte = 0
-  val aliceCommit: Digest32 = Sized.strictUnsafe(Bytes(blake2b256.hash(aliceSaltInput.value :+ aliceValueInput).value))
 
-  val proposition =
-    aliceSk.vk.asProposition
-      .and(Propositions.Knowledge.HashLock(aliceCommit))
-      .or(bobSk.vk.asProposition.and(Propositions.Contextual.HeightLock(300)))
+  val credential = Credential.Knowledge.HashLock(aliceSaltInput, aliceValueInput)
 
-  println(s"The address for the proposition is: ${proposition}")
+  val proposition = credential.proposition
+  println(s"The proposition is: ${proposition}")
+  println(s"The address for the proposition is: ${fullAddress(proposition.spendingAddress)}")
+
+  val unprovenTransaction: Transaction.Unproven =
+    createUnprovenTransaction(
+      NonEmptyChain(
+        Transaction.Unproven
+          .Input(arbitraryBoxId.arbitrary.first, proposition, arbitraryBoxValue.arbitrary.first)
+      ),
+      NonEmptyChain(arbitraryTransactionOutput.arbitrary.first)
+    )
+
+  val proof = credential.proof
+  println(proof)
+
+  val transaction = unprovenTransaction.prove(_ => proof)
+  println(transaction)
+
+  implicit val context: VerificationContext[F] = new VerificationContext[F] {
+    def currentTransaction: Transaction = transaction
+    def currentHeight: Long = 3
+
+    def inputBoxes: List[Box] = List(
+      Box(
+        proposition.typedEvidence,
+        Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))
+      )
+    )
+
+    def currentSlot: Slot = 1
+  }
+
+  println(s"Does the proof satisfy the proposition? ${proposition.isSatisfiedBy(proof).unsafeRunSync()}")
 }
 
 object RequiredBoxValue extends App {
@@ -406,7 +438,7 @@ object NotTest extends App {
 
   implicit val context: VerificationContext[F] = new VerificationContext[F] {
     def currentTransaction: Transaction = transaction
-    def currentHeight: Long = 3
+    def currentHeight: Long = 10
 
     def inputBoxes: List[Box] = List(
       Box(

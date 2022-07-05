@@ -2,7 +2,7 @@ package co.topl.typeclasses
 
 import cats.Eq
 import cats.implicits._
-import co.topl.crypto.mnemonic.Entropy
+import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.models._
 import co.topl.models.utility.Sized
 import co.topl.models.utility.StringDataTypes.Latin1Data

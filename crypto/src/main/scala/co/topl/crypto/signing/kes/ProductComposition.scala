@@ -62,7 +62,7 @@ class ProductComposition extends KesEd25519Blake2b256 {
    * @return new key with overwritten SigningLeaf sk
    */
 
-  def eraseLeafSecretKey(input: KesBinaryTree): KesBinaryTree =
+  private[signing] def eraseLeafSecretKey(input: KesBinaryTree): KesBinaryTree =
     input match {
       case n: MerkleNode =>
         (n.left, n.right) match {
@@ -86,7 +86,7 @@ class ProductComposition extends KesEd25519Blake2b256 {
    * @return new key with overwritten child scheme SigningLeaf sk
    */
 
-  def eraseProductLeafSk(key: SK): SK =
+  private[signing] def eraseProductLeafSk(key: SK): SK =
     (key._1, eraseLeafSecretKey(key._2), key._3, key._4)
 
   /**
@@ -116,7 +116,7 @@ class ProductComposition extends KesEd25519Blake2b256 {
     if (step == 0) key
     else if (step > keyTime && step < totalSteps) {
       if (keyTimeSup < newKeyTimeSup) {
-        sumComposition.eraseKey(key._2)
+        sumComposition.eraseOldNode(key._2)
         val (s1, s2) = getSeed((Array(), key._3), keyTimeSup)
         val superScheme = sumComposition.evolveKey(key._1, newKeyTimeSup)
         val newSubScheme = sumComposition.generateSecretKey(s1, heightSub)

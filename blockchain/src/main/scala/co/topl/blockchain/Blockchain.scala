@@ -63,17 +63,17 @@ object Blockchain {
       localTransactionAdoptionsSource <- _localTransactionAdoptionsSource.toMat(BroadcastHub.sink)(Keep.right).liftTo[F]
       clientHandler =
         List(
-        BlockchainPeerHandler.ChainSynchronizer.make[F](
-        localChain,
-        headerValidation,
-        bodySyntaxValidation,
-        bodySemanticValidation,
-        slotDataStore,
-        headerStore,
-        bodyStore,
-        transactionStore,
-        blockIdTree
-      ),
+          BlockchainPeerHandler.ChainSynchronizer.make[F](
+            localChain,
+            headerValidation,
+            bodySyntaxValidation,
+            bodySemanticValidation,
+            slotDataStore,
+            headerStore,
+            bodyStore,
+            transactionStore,
+            blockIdTree
+          ),
           BlockchainPeerHandler.FetchMempool.make(
             transactionSyntaxValidation,
             transactionStore,

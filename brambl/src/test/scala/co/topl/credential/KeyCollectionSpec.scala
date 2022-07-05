@@ -5,9 +5,10 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
+import co.topl.crypto.generation.EntropyToSeed
 import co.topl.crypto.hash.blake2b256
-import co.topl.crypto.mnemonic.Entropy
-import co.topl.crypto.signing.{Ed25519, EntropyToSeed, ExtendedEd25519, Password}
+import co.topl.crypto.generation.mnemonic.Entropy
+import co.topl.crypto.signing.{Ed25519, ExtendedEd25519, Password}
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.Sized
@@ -92,7 +93,7 @@ class KeyCollectionSpec
 
       underTest.unlock[SecretKeys.ExtendedEd25519](evidence, password).unsafeRunSync().value shouldBe sk
 
-      underTest.lift(evidence).unsafeRunSync().value shouldBe sk
+      underTest.lift[SecretKeys.ExtendedEd25519](evidence).unsafeRunSync().value shouldBe sk
     }
   }
 }
@@ -108,17 +109,17 @@ object KeyCollectionSpec {
     Arbitrary(
       Arbitrary.arbUuid.arbitrary
         .map(Entropy.fromUuid)
-        .map(new ExtendedEd25519().createKeyPair(_, None)._1)
+        .map(new ExtendedEd25519().deriveKeyPairFromEntropy(_, None)._1)
     )
 
   implicit val arbitraryEd25519: Arbitrary[SecretKeys.Ed25519] = {
     implicit val entropyToSeed: EntropyToSeed[SecretKeys.Ed25519.Length] =
-      (entropy, _) => Sized.strictUnsafe(Bytes(blake2b256.hash(entropy.value).value))
+      (entropy, _) => Sized.strictUnsafe(Bytes(blake2b256.hash(entropy.value.toArray).value))
 
     Arbitrary(
       Arbitrary.arbUuid.arbitrary
         .map(Entropy.fromUuid)
-        .map(new Ed25519().createKeyPair(_, None)._1)
+        .map(new Ed25519().deriveKeyPairFromEntropy(_, None)._1)
     )
   }
 }
