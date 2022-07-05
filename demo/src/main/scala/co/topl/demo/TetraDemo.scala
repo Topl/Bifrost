@@ -19,6 +19,7 @@ import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
 import co.topl.consensus.algebras.{EtaCalculationAlgebra, LeaderElectionValidationAlgebra, LocalChainAlgebra}
 import co.topl.crypto.hash.{Blake2b256, Blake2b512}
+import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.interpreters._
 import co.topl.ledger.algebras.MempoolAlgebra
@@ -77,10 +78,10 @@ object TetraDemo extends IOApp {
     implicit val kesProduct: KesProduct = new KesProduct
     val seed = Sized.strictUnsafe[Bytes, Lengths.`32`.type](Bytes(random.nextBytes(32)))
 
-    val (_, poolVK) = new Ed25519().createKeyPair(seed)
+    val (_, poolVK) = new Ed25519().deriveKeyPairFromSeed(seed)
 
     val (stakerVrfKey, _) =
-      ed25519Vrf.createKeyPair(seed)
+      ed25519Vrf.deriveKeyPairFromSeed(seed)
 
     val (kesKey, _) =
       kesProduct.createKeyPair(seed = seed.data, height = KesKeyHeight, 0)

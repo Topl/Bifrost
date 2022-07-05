@@ -1,7 +1,7 @@
 package co.topl.rpc
 
 import co.topl.attestation.keyManagement.PrivateKeyCurve25519
-import co.topl.crypto.mnemonic.Entropy
+import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.modifier.box._
 import co.topl.utils.NetworkType
 import co.topl.utils.NetworkType.NetworkPrefix
@@ -18,7 +18,7 @@ class ToplRpcCodecsSpec extends AnyFlatSpec with ToplRpcCodecs with Matchers wit
   implicit private val networkPrefix: NetworkPrefix = NetworkType.PrivateTestnet.netPrefix
 
   private val address =
-    PrivateKeyCurve25519.secretGenerator.generateSecret(Entropy.fromUuid(UUID.randomUUID()).value)._2.address
+    PrivateKeyCurve25519.secretGenerator.generateSecret(Entropy.fromUuid(UUID.randomUUID()).value.toArray)._2.address
   private val assetCode = AssetCode(1: Byte, address, Latin1Data.unsafe("test"))
 
   behavior of "ToplRpcCodecs"

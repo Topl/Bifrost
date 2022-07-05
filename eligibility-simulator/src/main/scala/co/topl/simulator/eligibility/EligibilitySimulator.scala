@@ -19,7 +19,7 @@ import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
 import co.topl.consensus.algebras.{EtaCalculationAlgebra, LeaderElectionValidationAlgebra}
 import co.topl.crypto.hash.{Blake2b256, Blake2b512}
-import co.topl.crypto.mnemonic.Entropy
+import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.interpreters._
 import co.topl.minting._
@@ -66,7 +66,7 @@ object EligibilitySimulator extends IOApp.Simple {
   // Create stubbed/sample/demo data
 
   private val (_, poolVK) =
-    new Ed25519().createKeyPair(Entropy.fromUuid(UUID.randomUUID()), None)
+    new Ed25519().deriveKeyPairFromEntropy(Entropy.fromUuid(UUID.randomUUID()), None)
 
   private val stakers = List.fill(NumberOfStakers) {
 
@@ -75,7 +75,7 @@ object EligibilitySimulator extends IOApp.Simple {
     implicit val kesProduct: KesProduct = new KesProduct
 
     val (stakerVrfKey, _) =
-      ed25519Vrf.createKeyPair(Entropy.fromUuid(UUID.randomUUID()), None)
+      ed25519Vrf.deriveKeyPairFromEntropy(Entropy.fromUuid(UUID.randomUUID()), None)
 
     val (kesKey, _) =
       kesProduct.createKeyPair(seed = Bytes(Random.nextBytes(32)), height = KesKeyHeight, 0)

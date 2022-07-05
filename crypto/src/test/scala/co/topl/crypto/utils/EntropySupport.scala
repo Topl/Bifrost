@@ -1,6 +1,7 @@
-package co.topl.crypto.mnemonic
+package co.topl.crypto.utils
 
 import cats.Eq
+import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.models.Bytes
 import org.scalacheck.Arbitrary
 
@@ -9,7 +10,7 @@ trait EntropySupport {
   implicit val arbitraryEntropy: Arbitrary[Entropy] =
     Arbitrary.apply[Entropy](Arbitrary.arbUuid.arbitrary.map(Entropy.fromUuid))
 
-  implicit val entropyEq: Eq[Entropy] = (a, b) => Bytes(a.value) == Bytes(b.value)
+  implicit val entropyEq: Eq[Entropy] = (a, b) => a.value == b.value
 }
 
 object EntropySupport extends EntropySupport

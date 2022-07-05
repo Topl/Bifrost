@@ -1,5 +1,6 @@
 package co.topl.crypto
 
+import co.topl.crypto.generation.Pbkdf2Sha512
 import org.scalatest.propspec.AnyPropSpec
 import co.topl.crypto.utils.Hex
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper

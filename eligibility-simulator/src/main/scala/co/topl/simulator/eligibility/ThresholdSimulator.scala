@@ -12,7 +12,7 @@ import co.topl.catsakka._
 import co.topl.consensus.LeaderElectionValidation
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.crypto.hash.Blake2b512
-import co.topl.crypto.mnemonic.Entropy
+import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.interpreters.{ActorPoolUnsafeResource, SchedulerClock, StatsInterpreter}
 import co.topl.models.utility.Ratio
@@ -65,7 +65,7 @@ object ThresholdSimulator extends IOApp.Simple {
       ed25519VRFResource <- ActorPoolUnsafeResource.Eval.make[F, Ed25519VRF](Ed25519VRF.precomputed(), _ => ())
       blake2b512Resource <- ActorPoolUnsafeResource.Eval.make[F, Blake2b512](new Blake2b512, _ => ())
       (stakerVRFSK, stakerVRFVK) <- ed25519VRFResource.use(
-        _.createKeyPair(Entropy.fromUuid(UUID.randomUUID()), None).pure[F]
+        _.deriveKeyPairFromEntropy(Entropy.fromUuid(UUID.randomUUID()), None).pure[F]
       )
       clock = SchedulerClock.Eval.make[F](SlotDuration, EpochLength, Instant.now())
       statsInterpreter = StatsInterpreter.Eval.make[F](statsDir)
