@@ -43,7 +43,12 @@ class LeaderElectionTests extends AnyFlatSpec with MockFactory with NodeGenerato
 
       val result = NxtLeaderElection.getEligibleBox(
         leaderElection.calculateHitValue(parent)(_),
-        leaderElection.calculateThresholdValue(0, NxtConsensus.State.empty)(_)
+        leaderElection.calculateThresholdValue(
+          0,
+          NxtConsensus.State.empty.height,
+          NxtConsensus.State.empty.difficulty,
+          NxtConsensus.State.empty.totalStake
+        )(_)
       )(arbitBoxIterator)
 
       result shouldBe expectedResult

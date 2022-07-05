@@ -111,8 +111,8 @@ object NxtConsensus {
         Seq(
           new BlockValidators.DifficultyValidator(leaderElection),
           new BlockValidators.HeightValidator,
-          new BlockValidators.EligibilityValidator(leaderElection, consensusState),
-          new BlockValidators.SyntaxValidator(consensusState),
+          new BlockValidators.EligibilityValidator(leaderElection, consensusState.totalStake),
+          new BlockValidators.SyntaxValidator(consensusState.inflation),
           new BlockValidators.TimestampValidator
         )
 

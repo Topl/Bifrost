@@ -9,7 +9,7 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, Box}
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.state.StateReader
-import co.topl.utils.TimeProvider
+import co.topl.utils.{Int128, TimeProvider}
 
 import scala.collection.Set
 import scala.math.{max, min}
@@ -49,12 +49,17 @@ class NxtLeaderElection(protocolVersioner: ProtocolVersioner) {
    * @param parentHeight parent block height
    * @return the target value
    */
-  private[consensus] def calculateThresholdValue(timeDelta: Long, consensusState: NxtConsensus.State)(
-    box:                                                    ArbitBox
+  private[consensus] def calculateThresholdValue(
+    timeDelta:        Long,
+    parentHeight:     Long,
+    parentDifficulty: Long,
+    totalStake:       Int128
+  )(
+    box: ArbitBox
   ): BigInt = {
-    val targetBlockTime = protocolVersioner.applicable(consensusState.height + 1).value.targetBlockTime
-    (BigInt(box.value.quantity.toByteArray) * BigInt(timeDelta) * BigInt(consensusState.difficulty)) /
-    (BigInt(consensusState.totalStake.toByteArray) * BigInt(targetBlockTime.toMillis))
+    val targetBlockTime = protocolVersioner.applicable(parentHeight + 1).value.targetBlockTime
+    (BigInt(box.value.quantity.toByteArray) * BigInt(timeDelta) * BigInt(parentDifficulty)) /
+    (BigInt(totalStake.toByteArray) * BigInt(targetBlockTime.toMillis))
   }
 
   /**

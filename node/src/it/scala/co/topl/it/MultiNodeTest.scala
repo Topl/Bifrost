@@ -55,7 +55,21 @@ class MultiNodeTest extends AnyFreeSpec with Matchers with IntegrationSuite with
     nodes.foreach(_.run(ToplRpc.Admin.StartForging.rpc)(ToplRpc.Admin.StartForging.Params()).value)
 
     logger.info(s"Waiting $forgeDuration for forging")
-    Thread.sleep(forgeDuration.toMillis)
+    val endTime = System.currentTimeMillis() + forgeDuration.toMillis
+    while (System.currentTimeMillis() < endTime) {
+      logger.info(s"${Console.YELLOW}##########################${Console.RESET}")
+      nodes.foreach { node =>
+        val headInfo = node.run(ToplRpc.NodeView.HeadInfo.rpc)(ToplRpc.NodeView.HeadInfo.Params()).value
+        val openKeyfile = node.run(ToplRpc.Admin.ListOpenKeyfiles.rpc)(ToplRpc.Admin.ListOpenKeyfiles.Params()).value
+        val localBlockView = node.run(ToplRpc.Debug.Generators.rpc)(ToplRpc.Debug.Generators.Params()).value
+
+        logger.info(
+          s"\nFor ${node.containerId}: \n keyfiles: ${openKeyfile} \n headInfo: ${headInfo} \n localBlockView: ${localBlockView}"
+        )
+      }
+
+      Thread.sleep(forgeDuration.toMillis / 10)
+    }
 
     // Now instruct the nodes to stop forging
     nodes.foreach(_.run(ToplRpc.Admin.StopForging.rpc)(ToplRpc.Admin.StopForging.Params()).value)

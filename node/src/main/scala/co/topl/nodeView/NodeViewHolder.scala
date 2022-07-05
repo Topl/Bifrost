@@ -101,7 +101,8 @@ object NodeViewHolder {
       consensusState: NxtConsensus.View
     ) extends ReceivableMessage
 
-    private[nodeView] case class WriteBlockResult(resultBehaviors: NodeView) extends ReceivableMessage
+    private[nodeView] case class WriteBlockResult(resultBehaviors: Writer[List[Any], NodeView])
+        extends ReceivableMessage
 
     private[nodeView] case class Terminate(reason: Throwable) extends ReceivableMessage
 
@@ -259,7 +260,7 @@ object NodeViewHolder {
 
           context.pipeToSelf(
             consensusViewer.withView { consensusView =>
-              eventStreamWriterHandler(nodeView.withBlock(block, consensusView.validators(consensusView.state)))
+              nodeView.withBlock(block, consensusView.validators(consensusView.state))
             }.value
           ) {
             _.fold(
@@ -285,7 +286,9 @@ object NodeViewHolder {
 //          }
 //          Behaviors.same
 
-        case (context, ReceivableMessages.WriteBlockResult(newNodeView)) =>
+        case (context, ReceivableMessages.WriteBlockResult(updateNodeViewResult)) =>
+          implicit def system: ActorSystem[_] = context.system
+          val newNodeView = eventStreamWriterHandler(updateNodeViewResult)
           popBlock(cache, newNodeView)(context)
           initialized(newNodeView, cache, consensusViewer)
 

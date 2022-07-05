@@ -3,7 +3,7 @@ package co.topl.consensus
 import cats.implicits._
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.{ArbitTransfer, PolyTransfer, Transaction}
-import co.topl.utils.TimeProvider
+import co.topl.utils.{Int128, TimeProvider}
 import co.topl.utils.implicits._
 
 import scala.util.Try
@@ -47,7 +47,7 @@ object BlockValidators {
     }
   }
 
-  class EligibilityValidator(leaderElection: NxtLeaderElection, consensusState: NxtConsensus.State)
+  class EligibilityValidator(leaderElection: NxtLeaderElection, totalStake: Int128)
       extends BlockValidator[Option[Block]] {
 
     override def validate(fetchParentOf: Block => Option[Block])(block: Block): Try[Unit] = Try {
@@ -55,12 +55,25 @@ object BlockValidators {
         case Some(parent) =>
           val timeSinceLastBlack = block.timestamp - parent.timestamp
           val hit = leaderElection.calculateHitValue(parent)(_)
-          val threshold = leaderElection.calculateThresholdValue(timeSinceLastBlack, consensusState)(_)
+          val threshold = leaderElection.calculateThresholdValue(
+            timeSinceLastBlack,
+            parent.height,
+            parent.difficulty,
+            totalStake
+          )(_)
+
+          println(
+            s"\n>>>>>>>>>>>>>>>" +
+            s"\ntimesinceLastBlock: $timeSinceLastBlack " +
+            s"\nhit: ${hit(block.generatorBox)} " +
+            s"\nthreshold: ${threshold(block.generatorBox)}" +
+            s"\ntotalStake: $totalStake"
+          )
 
           // did the forger create a block with a valid forger box and adjusted difficulty?
           require(
             NxtLeaderElection.getEligibleBox(hit, threshold)(Iterator(block.generatorBox)).isRight,
-            s"Failed to verify eligibility for blockId=${block.id}" +
+            s"Failed to verify eligibility for blockId=${block.id} " +
             s"since ${hit(block.generatorBox)} >= ${threshold(block.generatorBox)}"
           )
 
@@ -69,7 +82,7 @@ object BlockValidators {
     }
   }
 
-  class SyntaxValidator(consensusState: NxtConsensus.State) extends BlockValidator[Block] {
+  class SyntaxValidator(inflationRate: Long) extends BlockValidator[Block] {
     // todo: decide on a maximum size for blocks and enforce here
 
     // the signature on the block should match the signature used in the Arbit and Poly minting transactions
@@ -108,7 +121,7 @@ object BlockValidators {
               require(
                 tx.to
                   .map(_._2.quantity)
-                  .sum == consensusState.inflation, // JAA -this needs to be done more carefully
+                  .sum == inflationRate, // JAA -this needs to be done more carefully
                 "The inflation amount in the block must match the output of the Arbit rewards transaction"
               )
               require(

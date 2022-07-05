@@ -57,7 +57,12 @@ trait ValidBlockchainGenerator extends NetworkPrefixTestHelper {
     val eligibleBox = NxtLeaderElection
       .getEligibleBox(
         leaderElection.calculateHitValue(genesis.block)(_),
-        leaderElection.calculateThresholdValue(timeBetweenBlocks, genesis.state)(_)
+        leaderElection.calculateThresholdValue(
+          timeBetweenBlocks,
+          genesis.block.height,
+          genesis.block.difficulty,
+          genesis.state.totalStake
+        )(_)
       )(allArbitBoxesIterator)
       .getOrThrow(e => new Exception(e.toString))
 

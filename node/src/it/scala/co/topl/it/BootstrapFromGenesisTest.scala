@@ -20,7 +20,7 @@ class BootstrapFromGenesisTest
     with ScalaFutures
     with Inspectors {
 
-  val initialForgeTarget: Int128 = 1500
+  val initialForgeTarget: Int128 = 150
   val newNodeForgeDuration: FiniteDuration = 10.seconds
   val targetBlockTime: FiniteDuration = 250.milli
   val syncWindow: FiniteDuration = 60.seconds
@@ -33,7 +33,7 @@ class BootstrapFromGenesisTest
         raw"""bifrost.network.knownPeers = []
              |bifrost.rpcApi.namespaceSelector.debug = true
              |bifrost.forging.forgeOnStartup = false
-             |bifrost.forging.blockGenerationDelay = $targetBlockTime
+             |bifrost.forging.blockGenerationDelay = ${targetBlockTime / 2}
              |bifrost.forging.addressGenerationSettings.numberOfAddresses = 2
              |bifrost.forging.addressGenerationSettings.strategy = fromSeed
              |bifrost.forging.addressGenerationSettings.addressSeedOpt = "$seed"
