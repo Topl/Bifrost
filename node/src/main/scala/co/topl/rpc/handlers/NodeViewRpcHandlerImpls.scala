@@ -27,7 +27,6 @@ import scala.language.existentials
 class NodeViewRpcHandlerImpls(
   rpcSettings:             RPCApiSettings,
   appContext:              AppContext,
-  consensusReader:         ConsensusReader,
   nodeViewHolderInterface: NodeViewHolderInterface
 )(implicit
   system:            ActorSystem[_],
@@ -41,11 +40,10 @@ class NodeViewRpcHandlerImpls(
   override val head: ToplRpc.NodeView.Head.rpc.ServerHandler =
     _ =>
       for {
-        consensusState <- withConsensusState(identity)(consensusReader)
-        nodeView       <- withNodeView(identity)
+        nodeView <- withNodeView(identity)
         response = ToplRpc.NodeView.Head.Response(
-          consensusState.height,
-          consensusState.difficulty,
+          nodeView.history.bestBlock.height,
+          nodeView.history.bestBlock.difficulty,
           nodeView.history.bestBlockId,
           nodeView.history.bestBlock
         )
@@ -240,11 +238,4 @@ class NodeViewRpcHandlerImpls(
 
   private def withNodeView[T](f: ReadableNodeView => T): EitherT[Future, RpcError, T] =
     readFromNodeViewHolder(nodeViewHolderInterface)(f)
-
-  private def withConsensusState[T](f: NxtConsensus.State => T)(
-    consensusReader:                   ConsensusReader
-  ): EitherT[Future, RpcError, T] =
-    consensusReader.readState
-      .map(f)
-      .leftMap(e => CustomError(-32099, e.toString): RpcError)
 }

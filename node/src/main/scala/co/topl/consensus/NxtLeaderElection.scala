@@ -72,7 +72,11 @@ class NxtLeaderElection(protocolVersioner: ProtocolVersioner) {
    */
 
   // used in a node view test, so made public for now
-  def calculateNewDifficulty(newHeight: Long, prevDifficulty: Long, prevTimes: Seq[TimeProvider.Time]): Long = {
+  private[consensus] def calculateNewDifficulty(
+    newHeight:      Long,
+    prevDifficulty: Long,
+    prevTimes:      Seq[TimeProvider.Time]
+  ): Long = {
     val averageDelay = prevTimes.drop(1).lazyZip(prevTimes).map(_ - _).sum / (prevTimes.length - 1)
     val targetTimeMilli = protocolVersioner
       .applicable(newHeight)
@@ -93,7 +97,7 @@ object NxtLeaderElection {
   type TX = Transaction.TX
   type SR = StateReader[ProgramId, Address]
 
-  def collectArbitBoxes(
+  private[consensus] def collectArbitBoxes(
     addresses:   Set[Address],
     stateReader: SR
   ): Either[IneligibilityReason, Iterator[ArbitBox]] =
@@ -122,7 +126,7 @@ object NxtLeaderElection {
    * @param stateReader a read-only version of state
    * @return an eligible box if one is found
    */
-  def getEligibleBox(
+  private[consensus] def getEligibleBox(
     hitForBox:          ArbitBox => BigInt,
     thresholdForBox:    ArbitBox => BigInt
   )(arbitBoxesIterator: Iterator[ArbitBox]): Either[IneligibilityReason, ArbitBox] =
