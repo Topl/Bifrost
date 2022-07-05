@@ -16,13 +16,13 @@ import scala.util.Random
 object BlockchainNetwork {
 
   def make[F[_]: Parallel: Async: Logger: FToFuture](
-    host:          String,
-    bindPort:      Int,
-    localPeer:     LocalPeer,
-    remotePeers:   Source[DisconnectedPeer, _],
-    clientHandler: BlockchainPeerHandler[F],
-    server:        BlockchainPeerServer[F],
-    peerFlowModifier: (
+                                                      host:          String,
+                                                      bindPort:      Int,
+                                                      localPeer:     LocalPeer,
+                                                      remotePeers:   Source[DisconnectedPeer, _],
+                                                      clientHandler: BlockchainPeerHandlerAlgebra[F],
+                                                      server:        BlockchainPeerServer[F],
+                                                      peerFlowModifier: (
       ConnectedPeer,
       Flow[ByteString, ByteString, F[BlockchainPeerClient[F]]]
     ) => Flow[ByteString, ByteString, F[BlockchainPeerClient[F]]]
@@ -77,7 +77,7 @@ object BlockchainNetwork {
 
   private def handleNetworkClients[F[_]: Parallel: Async: Concurrent: Logger: FToFuture](
     clients:         Source[BlockchainPeerClient[F], _],
-    clientHandler:   BlockchainPeerHandler[F]
+    clientHandler:   BlockchainPeerHandlerAlgebra[F]
   )(implicit system: ActorSystem[_]): F[Fiber[F, Throwable, Unit]] =
     Spawn[F].start(
       Async[F]

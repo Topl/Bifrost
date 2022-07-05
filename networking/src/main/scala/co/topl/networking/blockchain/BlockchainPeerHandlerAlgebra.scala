@@ -1,6 +1,6 @@
 package co.topl.networking.blockchain
 
-trait BlockchainPeerHandler[F[_]] {
+trait BlockchainPeerHandlerAlgebra[F[_]] {
 
   /**
    * When there is a new P2P connection, invoke this method to handle the peer
