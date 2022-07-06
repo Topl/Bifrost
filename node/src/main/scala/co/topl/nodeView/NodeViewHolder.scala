@@ -224,8 +224,10 @@ object NodeViewHolder {
           popBlock(cache, nodeView)(context)
           context.log.info("Initialization complete")
           stash.unstashAll(initialized(nodeView, cache, consensusReader))
+
         case (_, ReceivableMessages.InitializationFailed(reason)) =>
           throw reason
+
         case (_, message) =>
           stash.stash(message)
           Behaviors.same
@@ -243,101 +245,77 @@ object NodeViewHolder {
     networkPrefix:     NetworkPrefix,
     timeProvider:      TimeProvider,
     protocolVersioner: ProtocolVersioner
-  ): Behavior[ReceivableMessage] = Behaviors.receivePartial[ReceivableMessage](
-    standard(nodeView, cache, consensusReader) orElse applyWriteBlocks(nodeView, cache, consensusReader)
-  )
+  ): Behavior[ReceivableMessage] =
+    Behaviors
+      .receivePartial[ReceivableMessage] {
+        case (_, r: ReceivableMessages.Read[_]) =>
+          r.run(nodeView.readableNodeView)
+          Behaviors.same
 
-  private def standard(
-    nodeView:        NodeView,
-    cache:           ActorRef[SortedCache.ReceivableMessage[Block]],
-    consensusReader: ConsensusReader
-  )(implicit
-    networkPrefix:     NetworkPrefix,
-    timeProvider:      TimeProvider,
-    protocolVersioner: ProtocolVersioner
-  ): PartialFunction[(ActorContext[ReceivableMessage], ReceivableMessage), Behavior[ReceivableMessage]] = {
-    case (_, r: ReceivableMessages.Read[_]) =>
-      r.run(nodeView.readableNodeView)
-      Behaviors.same
+        case (_, ReceivableMessages.WriteBlocks(blocks)) =>
+          cache.tell(SortedCache.ReceivableMessages.Insert(blocks))
+          Behaviors.same
 
-    case (_, ReceivableMessages.WriteBlocks(blocks)) =>
-      cache.tell(SortedCache.ReceivableMessages.Insert(blocks))
-      Behaviors.same
-
-    case (context, ReceivableMessages.WriteBlockResult(updateNodeViewResult)) =>
-      implicit def system: ActorSystem[_] = context.system
-      val newNodeView = eventStreamWriterHandler(updateNodeViewResult)
-      popBlock(cache, newNodeView)(context)
-      initialized(newNodeView, cache, consensusReader)
-
-    case (context, ReceivableMessages.WriteTransactions(transactions)) =>
-      implicit def system: ActorSystem[_] = context.system
-      val newNodeView = eventStreamWriterHandler(nodeView.withTransactions(transactions))
-      initialized(newNodeView, cache, consensusReader)
-
-    case (context, ReceivableMessages.EliminateTransactions(transactionIds)) =>
-      val newNodeView = eventStreamWriterHandler(nodeView.withoutTransactions(transactionIds.toSeq))(context.system)
-      initialized(newNodeView, cache, consensusReader)
-
-    case (_, ReceivableMessages.GetWritableNodeView(replyTo)) =>
-      replyTo.tell(nodeView)
-      Behaviors.same
-
-    case (_, ReceivableMessages.ModifyNodeView(f, replyTo)) =>
-      replyTo.tell(Done)
-      initialized(f(nodeView), cache, consensusReader)
-
-    case (_, ReceivableMessages.Terminate(reason)) =>
-      throw reason
-  }
-
-  private def applyWriteBlocks(
-    nodeView:        NodeView,
-    cache:           ActorRef[SortedCache.ReceivableMessage[Block]],
-    consensusReader: ConsensusReader
-  )(implicit
-    networkPrefix:     NetworkPrefix,
-    timeProvider:      TimeProvider,
-    protocolVersioner: ProtocolVersioner
-  ): PartialFunction[(ActorContext[ReceivableMessage], ReceivableMessage), Behavior[ReceivableMessage]] = {
-    // TODO: Exception handling
-    // TODO: Should we hold onto the block in the cache?
-    // TODO: Ban-list bad blocks?
-    case (context, ReceivableMessages.WriteBlock(block)) =>
-      implicit val executionContext: ExecutionContext = context.executionContext
-      context.pipeToSelf {
-        consensusReader.lookupState.map { consensusState =>
-          val leaderElection = new NxtLeaderElection(protocolVersioner)
-          // calculate the new node view resulting from applying the block
-          nodeView.withBlock(
-            block,
-            Seq(
-              new BlockValidators.DifficultyValidator(leaderElection),
-              new BlockValidators.HeightValidator,
-              new BlockValidators.EligibilityValidator(leaderElection, consensusState.totalStake),
-              new BlockValidators.SyntaxValidator(consensusState.inflation),
-              new BlockValidators.TimestampValidator
+        case (context, ReceivableMessages.WriteBlock(block)) =>
+          // TODO: Exception handling
+          // TODO: Should we hold onto the block in the cache?
+          // TODO: Ban-list bad blocks?
+          implicit val executionContext: ExecutionContext = context.executionContext
+          context.pipeToSelf {
+            consensusReader.lookupState.map { consensusState =>
+              val leaderElection = new NxtLeaderElection(protocolVersioner)
+              // calculate the new node view resulting from applying the block
+              nodeView.withBlock(
+                block,
+                Seq(
+                  new BlockValidators.DifficultyValidator(leaderElection),
+                  new BlockValidators.HeightValidator,
+                  new BlockValidators.EligibilityValidator(leaderElection, consensusState.totalStake),
+                  new BlockValidators.SyntaxValidator(consensusState.inflation),
+                  new BlockValidators.TimestampValidator
+                )
+              )
+            }.value
+          } {
+            _.fold(
+              error => ReceivableMessages.Terminate(error),
+              {
+                case Left(error)     => ReceivableMessages.Terminate(new IllegalArgumentException(error.toString))
+                case Right(nodeView) => ReceivableMessages.WriteBlockResult(nodeView)
+              }
             )
-          )
-        }.value
-      } {
-        _.fold(
-          error => ReceivableMessages.Terminate(error),
-          {
-            case Left(error)     => ReceivableMessages.Terminate(new IllegalArgumentException(error.toString))
-            case Right(nodeView) => ReceivableMessages.WriteBlockResult(nodeView)
           }
-        )
+          processingBlock(nodeView, cache, consensusReader)
+
+        case (context, ReceivableMessages.WriteTransactions(transactions)) =>
+          implicit def system: ActorSystem[_] = context.system
+          val newNodeView = eventStreamWriterHandler(nodeView.withTransactions(transactions))
+          initialized(newNodeView, cache, consensusReader)
+
+        case (context, ReceivableMessages.EliminateTransactions(transactionIds)) =>
+          val newNodeView = eventStreamWriterHandler(nodeView.withoutTransactions(transactionIds.toSeq))(context.system)
+          initialized(newNodeView, cache, consensusReader)
+
+        case (_, ReceivableMessages.GetWritableNodeView(replyTo)) =>
+          replyTo.tell(nodeView)
+          Behaviors.same
+
+        case (_, ReceivableMessages.ModifyNodeView(f, replyTo)) =>
+          replyTo.tell(Done)
+          initialized(f(nodeView), cache, consensusReader)
+
+        case (_, ReceivableMessages.Terminate(reason)) =>
+          throw reason
+      }
+      .receiveSignal { case (_, PostStop) =>
+        nodeView.close()
+        Behaviors.same
       }
 
-      // while processing this future, we want to disallow any more `WriteBlock` messages so re-cache anything that is triggered
-      Behaviors.receivePartial[ReceivableMessage](
-        standard(nodeView, cache, consensusReader) orElse cacheWriteBlocks(nodeView, cache, consensusReader)
-      )
-
-  }
-
-  private def cacheWriteBlocks(
+  /**
+   * while processing a write block message, we want to disallow any more message processing to allow for synchronous node view updates
+   */
+  private def processingBlock(
     nodeView:        NodeView,
     cache:           ActorRef[SortedCache.ReceivableMessage[Block]],
     consensusReader: ConsensusReader
@@ -345,13 +323,25 @@ object NodeViewHolder {
     networkPrefix:     NetworkPrefix,
     timeProvider:      TimeProvider,
     protocolVersioner: ProtocolVersioner
-  ): PartialFunction[(ActorContext[ReceivableMessage], ReceivableMessage), Behavior[ReceivableMessage]] = {
-    case (context, ReceivableMessages.WriteBlock(block)) =>
-      context.self.tell(ReceivableMessages.WriteBlocks(Iterable(block)))
-      Behaviors.receivePartial[ReceivableMessage](
-        standard(nodeView, cache, consensusReader) orElse cacheWriteBlocks(nodeView, cache, consensusReader)
-      )
-  }
+  ): Behavior[ReceivableMessage] =
+    Behaviors.withStash(UninitializedStashSize) { stash =>
+      Behaviors
+        .receivePartial[ReceivableMessage] {
+          case (context, ReceivableMessages.WriteBlockResult(updateNodeViewResult)) =>
+            implicit def system: ActorSystem[_] = context.system
+            context.log.info("Received valid WriteBlockResult, updating node view")
+            val newNodeView = eventStreamWriterHandler(updateNodeViewResult)
+            popBlock(cache, newNodeView)(context)
+            stash.unstashAll(initialized(newNodeView, cache, consensusReader))
+          case (_, message) =>
+            stash.stash(message)
+            Behaviors.same
+        }
+        .receiveSignal { case (_, PostStop) =>
+          nodeView.close()
+          Behaviors.same
+        }
+    }
 
   private def eventStreamWriterHandler[T](writer: Writer[List[Any], T])(implicit system: ActorSystem[_]): T = {
     val (changes, t) = writer.run
