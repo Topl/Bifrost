@@ -54,19 +54,19 @@ class MultiNodeTest extends AnyFreeSpec with Matchers with IntegrationSuite with
     // Now instruct the nodes to start forging
     nodes.foreach(_.run(ToplRpc.Admin.StartForging.rpc)(ToplRpc.Admin.StartForging.Params()).value)
 
+    // wait for forging and periodically query some data about the nodes
     logger.info(s"Waiting $forgeDuration for forging")
     val endTime = System.currentTimeMillis() + forgeDuration.toMillis
     while (System.currentTimeMillis() < endTime) {
-      logger.info(s"${Console.YELLOW}##########################${Console.RESET}")
-      nodes.foreach { node =>
+      val intermediateResult = nodes.map { node =>
         val headInfo = node.run(ToplRpc.NodeView.HeadInfo.rpc)(ToplRpc.NodeView.HeadInfo.Params()).value
         val openKeyfile = node.run(ToplRpc.Admin.ListOpenKeyfiles.rpc)(ToplRpc.Admin.ListOpenKeyfiles.Params()).value
         val localBlockView = node.run(ToplRpc.Debug.Generators.rpc)(ToplRpc.Debug.Generators.Params()).value
 
-        logger.info(
-          s"\nFor ${node.containerId}: \n keyfiles: ${openKeyfile} \n headInfo: ${headInfo} \n localBlockView: ${localBlockView}"
-        )
+        s"\nFor ${node.containerId}: \n\t keyfiles: ${openKeyfile} \n\t headInfo: ${headInfo} \n\t localBlockView: ${localBlockView}"
       }
+
+      logger.info(s"\n${Console.YELLOW}##########################${Console.RESET}\n$intermediateResult")
 
       Thread.sleep(forgeDuration.toMillis / 10)
     }

@@ -62,14 +62,6 @@ object BlockValidators {
             totalStake
           )(_)
 
-          println(
-            s"\n>>>>>>>>>>>>>>>" +
-            s"\ntimesinceLastBlock: $timeSinceLastBlack " +
-            s"\nhit: ${hit(block.generatorBox)} " +
-            s"\nthreshold: ${threshold(block.generatorBox)}" +
-            s"\ntotalStake: $totalStake"
-          )
-
           // did the forger create a block with a valid forger box and adjusted difficulty?
           require(
             NxtLeaderElection.getEligibleBox(hit, threshold)(Iterator(block.generatorBox)).isRight,

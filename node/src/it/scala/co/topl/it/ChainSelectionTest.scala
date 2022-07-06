@@ -41,8 +41,6 @@ class ChainSelectionTest
   val baseConfig: Config =
     ConfigFactory.parseString(
       raw"""bifrost.network.knownPeers = []
-           |bifrost.network.syncIntervalStable = 2s
-           |bifrost.network.syncInterval = 2s
            |bifrost.rpcApi.namespaceSelector.debug = true
            |bifrost.application.genesis.generated.balanceForEachParticipant = ${maxStake / nodeCount}
            |bifrost.forging.addressGenerationSettings.numberOfAddresses = $nodeCount

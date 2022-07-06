@@ -20,7 +20,7 @@ class BootstrapFromGenesisTest
     with ScalaFutures
     with Inspectors {
 
-  val initialForgeTarget: Int128 = 150
+  val initialForgeTarget: Int128 = 1500
   val newNodeForgeDuration: FiniteDuration = 10.seconds
   val targetBlockTime: FiniteDuration = 250.milli
   val syncWindow: FiniteDuration = 60.seconds
