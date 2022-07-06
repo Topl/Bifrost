@@ -8,15 +8,16 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus.algebras._
+import co.topl.crypto.generation.KeyInitializer
 import co.topl.crypto.hash.{blake2b256, Blake2b256, Blake2b512}
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
+import co.topl.crypto.generation.KeyInitializer.Instances.ed25519Initializer
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.{Lengths, Ratio, Sized}
 import co.topl.numerics.{ExpInterpreter, Log1pInterpreter}
-import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
 import org.scalacheck.Gen

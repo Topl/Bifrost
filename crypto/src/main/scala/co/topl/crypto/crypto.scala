@@ -2,11 +2,25 @@ package co.topl
 
 import cats.Eq
 import co.topl.crypto.hash.digest
+import co.topl.crypto.signing.Seed
 import io.estatico.newtype.macros.newtype
 
+import java.security.SecureRandom
 import scala.language.implicitConversions
 
 package object crypto {
+
+  def defaultRandom: SecureRandom = defaultRandom(None)
+
+  def defaultRandom(seed: Option[Seed]): SecureRandom = {
+    val random = SecureRandom.getInstance("SHA1PRNG")
+    seed.map(_.value).foreach(random.setSeed)
+
+    random.nextBytes(
+      Array(0: Byte)
+    ) // updating random seed per https://howtodoinjava.com/java8/secure-random-number-generation/
+    random
+  }
 
   // todo: deprecatee
   @newtype

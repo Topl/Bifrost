@@ -3,10 +3,11 @@ package co.topl.utils
 import co.topl.attestation.PublicKeyPropositionCurve25519.evProducer
 import co.topl.attestation._
 import co.topl.attestation.keyManagement._
+import co.topl.crypto.generation.EntropyToSeed
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.hash.digest.Digest32
-import co.topl.crypto.mnemonic.Entropy
-import co.topl.crypto.signing.{Curve25519, Ed25519, EntropyToSeed, Password}
+import co.topl.crypto.generation.mnemonic.Entropy
+import co.topl.crypto.signing.{Curve25519, Ed25519, Password}
 import co.topl.crypto.{PrivateKey, PublicKey, Signature}
 import co.topl.models.Bytes
 import co.topl.models.utility.HasLength.instances.bytesLength
@@ -491,7 +492,11 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
       Sized.strictUnsafe(
         Bytes(
           blake2b256
-            .hash(entropy.value ++ password.map(_.getBytes(StandardCharsets.UTF_8)).getOrElse(Array.emptyByteArray))
+            .hash(
+              entropy.value.toArray ++ password
+                .map(p => p.getBytes(StandardCharsets.UTF_8))
+                .getOrElse(Array.emptyByteArray)
+            )
             .value
         )
       )
@@ -500,7 +505,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     implicit val entropyToSeed: EntropyToSeed[Lengths.`32`.type] = fastEntropyToSeed
 
     Gen.uuid.map { uuid =>
-      val (sk, pk) = Curve25519.instance.createKeyPair(Entropy.fromUuid(uuid), None)
+      val (sk, pk) = Curve25519.instance.deriveKeyPairFromEntropy(Entropy.fromUuid(uuid), None)
       val secret: PrivateKeyCurve25519 =
         new PrivateKeyCurve25519(PrivateKey(sk.bytes.data.toArray), PublicKey(pk.bytes.data.toArray))
       secret -> secret.publicImage
@@ -511,7 +516,7 @@ trait CommonGenerators extends Logging with NetworkPrefixTestHelper {
     implicit val entropyToSeed: EntropyToSeed[Lengths.`32`.type] = fastEntropyToSeed
 
     Gen.uuid.map { uuid =>
-      val (sk, pk) = Ed25519.instance.createKeyPair(Entropy.fromUuid(uuid), None)
+      val (sk, pk) = Ed25519.instance.deriveKeyPairFromEntropy(Entropy.fromUuid(uuid), None)
       val secret =
         new PrivateKeyEd25519(PrivateKey(sk.bytes.data.toArray), PublicKey(pk.bytes.data.toArray))
       secret -> secret.publicImage

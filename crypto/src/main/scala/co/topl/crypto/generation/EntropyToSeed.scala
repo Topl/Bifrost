@@ -1,8 +1,42 @@
-package co.topl.crypto
+package co.topl.crypto.generation
 
+import co.topl.crypto.generation.mnemonic.Entropy
+import co.topl.crypto.signing.Password
+import co.topl.models.Bytes
+import co.topl.models.utility.HasLength.instances._
+import co.topl.models.utility.{Length, Sized}
 import org.bouncycastle.crypto.digests.SHA512Digest
 import org.bouncycastle.crypto.generators.PKCS5S2ParametersGenerator
 import org.bouncycastle.crypto.params.KeyParameter
+
+import java.nio.charset.StandardCharsets
+
+trait EntropyToSeed[SeedLength <: Length] {
+  def toSeed(entropy: Entropy, password: Option[Password]): Sized.Strict[Bytes, SeedLength]
+}
+
+object EntropyToSeed {
+
+  trait Instances {
+
+    implicit def pbkdf2Sha512[SeedLength <: Length](implicit seedLength: SeedLength): EntropyToSeed[SeedLength] =
+      (entropy: Entropy, password: Option[Password]) => {
+        val kdf = new Pbkdf2Sha512()
+        Sized.strictUnsafe(
+          Bytes(
+            kdf.generateKey(
+              password.getOrElse("").getBytes(StandardCharsets.UTF_8),
+              entropy.value.toArray,
+              seedLength.value,
+              4096
+            )
+          )
+        )
+      }
+  }
+
+  object instances extends Instances
+}
 
 /**
  * PBKDF-SHA512 defines a function for creating a public key from a password and salt.

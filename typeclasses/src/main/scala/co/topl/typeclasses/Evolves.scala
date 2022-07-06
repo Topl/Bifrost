@@ -1,6 +1,6 @@
 package co.topl.typeclasses
 
-import co.topl.crypto.mnemonic.{Bip32Index, Bip32Indexes}
+import co.topl.crypto.generation.{Bip32Index, Bip32Indexes}
 import co.topl.crypto.signing.ExtendedEd25519
 import co.topl.models.{SecretKeys, VerificationKeys}
 import simulacrum.{op, typeclass}

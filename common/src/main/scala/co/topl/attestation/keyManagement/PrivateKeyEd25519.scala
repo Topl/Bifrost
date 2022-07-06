@@ -5,7 +5,7 @@ import co.topl.attestation.{PublicKeyPropositionEd25519, SignatureEd25519}
 import co.topl.codecs.binary.legacy.BifrostSerializer
 import co.topl.codecs.binary.legacy.attestation.keyManagement.PrivateKeyEd25519Serializer
 import co.topl.crypto.implicits._
-import co.topl.crypto.mnemonic.Entropy
+import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing.Ed25519
 import co.topl.crypto.{PrivateKey, PublicKey, Signature}
 import co.topl.models.utility.HasLength.instances._
@@ -51,7 +51,7 @@ object PrivateKeyEd25519 {
 
   implicit val secretGenerator: SecretGenerator[PrivateKeyEd25519] =
     SecretGenerator.instance[PrivateKeyEd25519] { seed: Array[Byte] =>
-      val (sk, pk) = Ed25519.instance.createKeyPair(Entropy(seed), None)
+      val (sk, pk) = Ed25519.instance.deriveKeyPairFromEntropy(Entropy(Bytes(seed)), None)
       val secret: PrivateKeyEd25519 =
         new PrivateKeyEd25519(PrivateKey(sk.bytes.data.toArray), PublicKey(pk.bytes.data.toArray))
       secret -> secret.publicImage

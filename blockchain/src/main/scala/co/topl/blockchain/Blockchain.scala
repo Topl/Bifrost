@@ -23,7 +23,7 @@ import co.topl.networking.blockchain._
 import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, LocalPeer}
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
-
+import BlockchainPeerHandler.monoidBlockchainPeerHandler
 import scala.util.Random
 
 object Blockchain {
@@ -61,26 +61,35 @@ object Blockchain {
       localBlockAdoptionsSource <- _localBlockAdoptionsSource.toMat(BroadcastHub.sink)(Keep.right).liftTo[F]
       (mempool, _localTransactionAdoptionsSource) <- MempoolBroadcaster.make(_mempool)
       localTransactionAdoptionsSource <- _localTransactionAdoptionsSource.toMat(BroadcastHub.sink)(Keep.right).liftTo[F]
-      clientHandler <- BlockchainPeerHandlerImpl.LazyFetch.make[F](
-        localChain,
-        headerValidation,
-        transactionSyntaxValidation,
-        bodySyntaxValidation,
-        bodySemanticValidation,
-        slotDataStore,
-        headerStore,
-        bodyStore,
-        transactionStore,
-        mempool,
-        id =>
-          OptionT(
-            localChain.head
-              .map(_.slotId.blockId)
-              .flatMap(blockHeights.useStateAt(_)(_.apply(id)))
-          ).toRight(new IllegalStateException("Unable to determine block height tree")).rethrowT,
-        () => localChain.head.map(_.height),
-        blockIdTree
-      )
+      clientHandler =
+        List(
+          BlockchainPeerHandler.ChainSynchronizer.make[F](
+            localChain,
+            headerValidation,
+            bodySyntaxValidation,
+            bodySemanticValidation,
+            slotDataStore,
+            headerStore,
+            bodyStore,
+            transactionStore,
+            blockIdTree
+          ),
+          BlockchainPeerHandler.FetchMempool.make(
+            transactionSyntaxValidation,
+            transactionStore,
+            mempool
+          ),
+          BlockchainPeerHandler.CommonAncestorSearch.make(
+            id =>
+              OptionT(
+                localChain.head
+                  .map(_.slotId.blockId)
+                  .flatMap(blockHeights.useStateAt(_)(_.apply(id)))
+              ).toRight(new IllegalStateException("Unable to determine block height tree")).rethrowT,
+            () => localChain.head.map(_.height),
+            slotDataStore
+          )
+        ).combineAll
       peerServer <- BlockchainPeerServer.FromStores.make(
         slotDataStore,
         headerStore,
