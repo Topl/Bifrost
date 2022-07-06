@@ -56,7 +56,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll with InMemoryKeyRingTestHelp
       appendedState.pbrStore,
       NxtConsensus.Genesis(
         genesisHeadChain.head.block,
-        NxtConsensus.State(totalStake, genesisHeadChain.tail.last.difficulty, 0L, genesisHeadChain.tail.length + 1)
+        NxtConsensus.State(totalStake, 0L)
       )
     )
 

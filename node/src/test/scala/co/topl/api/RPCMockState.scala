@@ -146,14 +146,13 @@ trait RPCMockState
       val forgerInterface = new ActorForgerInterface(forgerRef)
       val keyManagerInterface = new ActorKeyManagerInterface(keyManagerRef)
       val nodeViewHolderInterface = new ActorNodeViewHolderInterface(nodeViewHolderRef)
-      val consensusInterface = new ActorConsensusInterface(consensusHolderRef)
 
       import co.topl.rpc.handlers._
       new ToplRpcServer(
         ToplRpcHandlers(
           new DebugRpcHandlerImpls(nodeViewHolderInterface, keyManagerInterface),
           new UtilsRpcHandlerImpls,
-          new NodeViewRpcHandlerImpls(settings.rpcApi, appContext, consensusInterface, nodeViewHolderInterface),
+          new NodeViewRpcHandlerImpls(settings.rpcApi, appContext, nodeViewHolderInterface),
           new TransactionRpcHandlerImpls(nodeViewHolderInterface),
           new AdminRpcHandlerImpls(forgerInterface, keyManagerInterface, nodeViewHolderInterface)
         ),

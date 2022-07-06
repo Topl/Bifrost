@@ -42,7 +42,6 @@ class GenesisProviderSpec
         .sum
 
       genesis.block.height shouldBe 1L
-      genesis.state.height shouldBe 1L
       genesis.state.totalStake shouldBe addresses.size * balances
       genesis.state.totalStake shouldBe blockTotalStake
       genesis.block.difficulty shouldBe genesis.block.difficulty

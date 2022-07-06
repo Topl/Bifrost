@@ -66,7 +66,7 @@ class GenesisProvider(genesisBlockVersion: Byte, nodeAddresses: Set[Address]) {
       case box: ArbitBox => box.value.quantity
       case _             => Int128(0)
     })
-  } yield NxtConsensus.Genesis(validBlock, NxtConsensus.State(stakeAmounts.sum, validBlock.difficulty, 0L, 1L))
+  } yield NxtConsensus.Genesis(validBlock, NxtConsensus.State(stakeAmounts.sum, 0L))
 
   private def fromGeneratedProvider(
     strategy:               Generation
@@ -152,7 +152,7 @@ object GenesisProvider {
       blockVersion
     )
 
-    val state = NxtConsensus.State(Int128(totalStake), initialDifficulty, 0L, 1L)
+    val state = NxtConsensus.State(Int128(totalStake), 0L)
 
     NxtConsensus.Genesis(block, state)
   }

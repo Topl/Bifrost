@@ -419,15 +419,13 @@ object Heimdall {
     val nodeViewHolderInterface =
       new ActorNodeViewHolderInterface(nodeViewHolderRef)
 
-    val consensusInterface = new ActorConsensusInterface(consensusHolderRef)
-
     val bifrostRpcServer: ToplRpcServer = {
       import co.topl.rpc.handlers._
       new ToplRpcServer(
         ToplRpcHandlers(
           new DebugRpcHandlerImpls(nodeViewHolderInterface, keyManagerInterface),
           new UtilsRpcHandlerImpls,
-          new NodeViewRpcHandlerImpls(settings.rpcApi, appContext, consensusInterface, nodeViewHolderInterface),
+          new NodeViewRpcHandlerImpls(settings.rpcApi, appContext, nodeViewHolderInterface),
           new TransactionRpcHandlerImpls(nodeViewHolderInterface),
           new AdminRpcHandlerImpls(forgerInterface, keyManagerInterface, nodeViewHolderInterface)
         ),

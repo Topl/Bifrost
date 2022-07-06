@@ -7,7 +7,7 @@ import akka.pattern.StatusReply
 import cats.data.NonEmptyChain
 import co.topl.attestation.Address
 import co.topl.consensus.ConsensusInterfaceSpec.TestInWithActor
-import co.topl.consensus.NxtConsensus.ReceivableMessages.{ReadState, RollbackState}
+import co.topl.consensus.NxtConsensus.ReceivableMessages.{LookupState, RollbackState}
 import co.topl.consensus.NxtConsensus.State
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
@@ -47,7 +47,7 @@ class ConsensusInterfaceSpec
     consensusActorTest { testInWithActors =>
       val probe = createTestProbe[StatusReply[State]]()
       Thread.sleep(0.1.seconds.toMillis)
-      testInWithActors.consensusViewRef ! ReadState(probe.ref)
+      testInWithActors.consensusViewRef ! LookupState(probe.ref)
       probe.expectMessage(StatusReply.success(testInWithActors.genesis.state))
     }
   }
@@ -68,15 +68,13 @@ class ConsensusInterfaceSpec
         system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
       }
       Thread.sleep(0.1.seconds.toMillis)
-      testInWithActors.consensusViewRef ! ReadState(probe.ref)
+      testInWithActors.consensusViewRef ! LookupState(probe.ref)
       // Increasing the newBlock number by one as the height since we start out with a genesis block
       probe.expectMessage(
         StatusReply.success(
           NxtConsensus.State(
             testInWithActors.genesis.state.totalStake,
-            newBlocks.last.difficulty,
-            0L,
-            newBlocks.length + 1
+            0L
           )
         )
       )
@@ -106,7 +104,7 @@ class ConsensusInterfaceSpec
       system.eventStream.tell(EventStream.Publish(NodeViewHolder.Events.SemanticallySuccessfulModifier(block)))
     }
     Thread.sleep(0.1.seconds.toMillis)
-    consensusStorageRef ! ReadState(probe.ref)
+    consensusStorageRef ! LookupState(probe.ref)
     val params = probe.receiveMessage(0.1.seconds)
     testKit.stop(consensusStorageRef)
 
@@ -115,7 +113,7 @@ class ConsensusInterfaceSpec
       NxtConsensus(settings, store),
       NxtConsensus.actorName
     )
-    newConsensusStorageRef ! ReadState(probe.ref)
+    newConsensusStorageRef ! LookupState(probe.ref)
     probe.expectMessage(params)
     testKit.stop(newConsensusStorageRef)
   }
@@ -144,7 +142,7 @@ class ConsensusInterfaceSpec
       // the first of the newBlocks would be at height 2 since it's the first one after the genesis block
       probe.expectMessage(
         StatusReply.success(
-          State(blockTotalStake(testInWithActors.genesis.block), newBlocks.head.difficulty, 0L, 2L)
+          State(blockTotalStake(testInWithActors.genesis.block), 0L)
         )
       )
     }
@@ -197,7 +195,7 @@ class ConsensusInterfaceSpec
     consensusInterface.update(
       genesis.block.id,
       NxtConsensus
-        .StateUpdate(Some(genesis.state.totalStake), Some(genesis.block.difficulty), None, Some(genesis.block.height))
+        .StateUpdate(Some(genesis.state.totalStake), None)
     )
 
     val testInWithActor = TestInWithActor(genesis, consensusRef)

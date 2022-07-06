@@ -7,17 +7,17 @@ import co.topl.attestation.Address
 import co.topl.consensus.Hiccups.HiccupBlock
 import co.topl.consensus.KeyManager.StartupKeyView
 import co.topl.consensus._
-import co.topl.modifier.{ModifierId, ProgramId}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.validation.implicits._
+import co.topl.modifier.{ModifierId, ProgramId}
 import co.topl.network.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.history.{GenericHistory, History, HistoryReader}
 import co.topl.nodeView.mempool.{MemPool, MemPoolReader, MemoryPool}
 import co.topl.nodeView.state.{MinimalState, State, StateReader}
 import co.topl.settings.AppSettings
-import co.topl.utils.NetworkType.{NetworkPrefix, PrivateTestnet}
+import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -135,7 +135,7 @@ object NodeView {
       .update(
         genesis.block.id,
         NxtConsensus
-          .StateUpdate(Some(genesis.state.totalStake), Some(genesis.block.difficulty), None, Some(genesis.block.height))
+          .StateUpdate(Some(genesis.state.totalStake), None)
       )
       .leftMap(e => NodeViewHolderInterface.ApplyFailure(new IllegalArgumentException(e.toString)))
     nodeView = NodeView(

@@ -153,7 +153,7 @@ class ForgerSpec
           consensusInterface.update(
             parentBlock.id,
             NxtConsensus
-              .StateUpdate(Some(Int128(10000000)), Some(parentBlock.difficulty), None, Some(parentBlock.height))
+              .StateUpdate(Some(Int128(10000000)), None)
           )
           forgerRef.tell(Forger.ReceivableMessages.StartForging(initializedProbe.ref))
           initializedProbe.expectMessage(2.seconds, Done)

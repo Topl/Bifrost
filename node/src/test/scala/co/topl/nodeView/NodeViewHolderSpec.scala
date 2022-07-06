@@ -15,6 +15,7 @@ import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
 import co.topl.models.{Bytes, SecretKeys}
 import co.topl.modifier.block.Block
+import co.topl.modifier.block.Block.toComponents
 import co.topl.modifier.transaction.{PolyTransfer, Transaction}
 import co.topl.nodeView.history.{History, InMemoryKeyValueStore, MockImmutableBlockHistory, Storage}
 import co.topl.nodeView.mempool.{MemPool, UnconfirmedTx}
@@ -90,11 +91,7 @@ class NodeViewHolderSpec
             )
 
         val consensusView =
-          NxtConsensus.View(
-            NxtConsensus.State(10000, 10000, 10000, 10000),
-            new NxtLeaderElection(ProtocolVersioner.default),
-            _ => Seq.empty
-          )
+          NxtConsensus.State(10000, 10000)
 
         val nodeView =
           NodeView(
@@ -131,11 +128,7 @@ class NodeViewHolderSpec
   it should "remove transaction from the mempool when receiving eliminate message" in {
     forAll(polyTransferGen) { polyTransfer =>
       val consensusView =
-        NxtConsensus.View(
-          NxtConsensus.State(10000, 10000, 10000, 10000),
-          new NxtLeaderElection(ProtocolVersioner.default),
-          _ => Seq.empty
-        )
+        NxtConsensus.State(10000, 10000)
 
       val currentTime = polyTransfer.timestamp + 1000
 
@@ -172,19 +165,12 @@ class NodeViewHolderSpec
 
   it should "append a valid block to the main tine when receiving the WriteBlocks message" in {
     forAll(blockChainGen) { blockchain =>
-      val consensusView =
-        NxtConsensus.View(
-          NxtConsensus.State(10000, 10000, 10000, 10000),
-          new NxtLeaderElection(ProtocolVersioner.default),
-          _ => Seq.empty
-        )
-
-      val genesisBlock = blockchain.head
+      val genesis = blockchain.head
       val newBlock = blockchain.tail.head
 
       val existingHistory =
         History(TestSettings.defaultSettings, new Storage(new InMemoryKeyValueStore()))
-          .append(genesisBlock.block, Seq.empty)
+          .append(genesis.block, Seq.empty)
           .get
           ._1
 
@@ -195,7 +181,7 @@ class NodeViewHolderSpec
           MemPool.empty()
         )
 
-      val consensusReader = MockConsensusReader(consensusView)(system.executionContext)
+      val consensusReader = MockConsensusReader(genesis.state)(system.executionContext)
 
       implicit val timeProvider: TimeProvider = new TimeProvider {
         override def time: Time = 0L
@@ -231,19 +217,12 @@ class NodeViewHolderSpec
 
   it should "append multiple viable blocks to history when receiving the write blocks message" in {
     forAll(blockChainGen) { blockchain =>
-      val consensusView =
-        NxtConsensus.View(
-          NxtConsensus.State(10000, 10000, 10000, 10000),
-          new NxtLeaderElection(ProtocolVersioner.default),
-          _ => Seq.empty
-        )
-
-      val genesisBlock = blockchain.head
+      val genesis = blockchain.head
       val newBlocks = blockchain.tail.toList
 
       val existingHistory =
         History(TestSettings.defaultSettings, new Storage(new InMemoryKeyValueStore()))
-          .append(genesisBlock.block, Seq.empty)
+          .append(genesis.block, Seq.empty)
           .get
           ._1
 
@@ -254,7 +233,7 @@ class NodeViewHolderSpec
           MemPool.empty()
         )
 
-      val consensusReader = MockConsensusReader(consensusView)(system.executionContext)
+      val consensusReader = MockConsensusReader(genesis.state)(system.executionContext)
 
       implicit val timeProvider: TimeProvider = new TimeProvider {
         override def time: Time = 0L
@@ -285,20 +264,13 @@ class NodeViewHolderSpec
 
   it should "cache a block received from the write blocks message and apply when the parent block is written" in {
     forAll(blockChainGen) { blockchain =>
-      val consensusView =
-        NxtConsensus.View(
-          NxtConsensus.State(10000, 10000, 10000, 10000),
-          new NxtLeaderElection(ProtocolVersioner.default),
-          _ => Seq.empty
-        )
-
-      val genesisBlock = blockchain.head
+      val genesis = blockchain.head
       val firstNewBlock = blockchain.tail.tail.headOption.get
       val secondNewBlock = blockchain.tail.head
 
       val existingHistory =
         History(TestSettings.defaultSettings, new Storage(new InMemoryKeyValueStore()))
-          .append(genesisBlock.block, Seq.empty)
+          .append(genesis.block, Seq.empty)
           .get
           ._1
 
@@ -309,7 +281,7 @@ class NodeViewHolderSpec
           MemPool.empty()
         )
 
-      val consensusReader = MockConsensusReader(consensusView)(system.executionContext)
+      val consensusReader = MockConsensusReader(genesis.state)(system.executionContext)
 
       implicit val timeProvider: TimeProvider = new TimeProvider {
         override def time: Time = 0L
