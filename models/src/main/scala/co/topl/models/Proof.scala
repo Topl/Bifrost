@@ -50,7 +50,7 @@ object Proofs {
       type DigestLength = Lengths.`32`.type
     }
 
-    case class Password(value: Sized.Max[Bytes, Lengths.`256`.type]) extends Proof
+    case class HashLock(value: Bytes) extends Proof
   }
 
   object Compositional {

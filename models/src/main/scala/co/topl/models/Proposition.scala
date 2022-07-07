@@ -35,7 +35,7 @@ object Propositions {
     /**
      * Requires "proof of knowledge of bytes which hash to the proposition's digest" to unlock the box
      */
-    case class Password(digest: Digest32) extends Proposition
+    case class HashLock(valueDigest: Digest32) extends Proposition
   }
 
   object Compositional {

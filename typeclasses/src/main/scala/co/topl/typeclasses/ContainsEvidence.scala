@@ -85,7 +85,7 @@ object ContainsEvidence {
       : ContainsEvidence[Propositions.Knowledge.ExtendedEd25519] =
       fromImmutableCodec(TypePrefixes.PropositionsKnowledgeExtendedEd25519)
 
-    implicit val commitRevealContainsEvidence: ContainsEvidence[Propositions.Knowledge.Password] =
+    implicit val commitRevealContainsEvidence: ContainsEvidence[Propositions.Knowledge.HashLock] =
       fromImmutableCodec(TypePrefixes.PropositionsKnowledgeHashLock)
 
     implicit val thresholdContainsEvidence: ContainsEvidence[Propositions.Compositional.Threshold] =
@@ -118,7 +118,7 @@ object ContainsEvidence {
       case t: Propositions.Compositional.Not           => notContainsEvidence.typedEvidenceOf(t)
       case t: Propositions.Compositional.Threshold     => thresholdContainsEvidence.typedEvidenceOf(t)
       case t: Propositions.Contextual.HeightLock       => heightLockContainsEvidence.typedEvidenceOf(t)
-      case t: Propositions.Knowledge.Password          => commitRevealContainsEvidence.typedEvidenceOf(t)
+      case t: Propositions.Knowledge.HashLock          => commitRevealContainsEvidence.typedEvidenceOf(t)
       case t: Propositions.Contextual.RequiredBoxState => requiredInputBoxStateContainsEvidence.typedEvidenceOf(t)
     }
   }

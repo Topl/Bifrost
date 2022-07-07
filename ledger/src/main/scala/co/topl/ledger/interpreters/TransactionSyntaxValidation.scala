@@ -149,6 +149,12 @@ object TransactionSyntaxValidation {
       )
     ).combineAll
 
+  /**
+   * Validate that the type of Proof _can_ satisfy the given Proposition
+   * @param allowUndefined flag indicating if `Proofs.Undefined` is an acceptable proof/proof type
+   *                       This is necessary to support partial compositional proofs like `Or(proofA, undefined)`
+   * @return
+   */
   private def proofTypeValidationRecursive(
     proposition:    Proposition,
     proof:          Proof,
@@ -163,14 +169,14 @@ object TransactionSyntaxValidation {
         matchProof(proposition, proof)(allowUndefined) { case _: Proofs.Knowledge.Ed25519 => }
       case _: Propositions.Knowledge.ExtendedEd25519 =>
         matchProof(proposition, proof)(allowUndefined) { case _: Proofs.Knowledge.Ed25519 => }
-      case _: Propositions.Knowledge.Password =>
-        matchProof(proposition, proof)(allowUndefined) { case _: Proofs.Knowledge.Password => }
+      case _: Propositions.Knowledge.HashLock =>
+        matchProof(proposition, proof)(allowUndefined) { case _: Proofs.Knowledge.HashLock => }
       case Propositions.Compositional.And(aProp, bProp) =>
         proof match {
           case Proofs.Undefined if allowUndefined => ().validNec[TransactionSyntaxError]
           case Proofs.Compositional.And(a, b) =>
-            proofTypeValidationRecursive(aProp, a, allowUndefined = true)
-              .combine(proofTypeValidationRecursive(bProp, b, allowUndefined = true))
+            proofTypeValidationRecursive(aProp, a, allowUndefined = false)
+              .combine(proofTypeValidationRecursive(bProp, b, allowUndefined = false))
           case _ =>
             TransactionSyntaxErrors.InvalidProofType(proposition, proof).invalidNec[Unit]
         }
@@ -208,7 +214,7 @@ object TransactionSyntaxValidation {
         proof match {
           case Proofs.Undefined if allowUndefined => ().validNec[TransactionSyntaxError]
           case Proofs.Compositional.Not(aProof) =>
-            TransactionSyntaxErrors.InvalidProofType(aProposition, aProof).invalidNec[Unit]
+            proofTypeValidationRecursive(aProposition, aProof, allowUndefined = false)
           case _ =>
             TransactionSyntaxErrors.InvalidProofType(proposition, proof).invalidNec[Unit]
         }

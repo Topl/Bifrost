@@ -65,7 +65,7 @@ object BramblTetra extends IOApp.Simple {
           Transaction.Input(
             boxId = boxId,
             proposition = Propositions.Contextual.HeightLock(1L),
-            proof = Proofs.Undefined,
+            proof = Proofs.Contextual.HeightLock(),
             value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10000L)))
           )
         ),

@@ -2,7 +2,6 @@ package co.topl.credential
 
 import co.topl.crypto.hash.Blake2b256
 import co.topl.models._
-import co.topl.models.utility.{Lengths, Sized}
 import co.topl.typeclasses.implicits._
 
 /**
@@ -69,11 +68,11 @@ object Credential {
       def prove(currentProof: Proof): Proof = (sk, unprovenTransaction).asProof
     }
 
-    case class Password(value: Sized.Max[Bytes, Lengths.`256`.type]) extends Credential {
-      override def prove(currentProof: Proof): Proof = Proofs.Knowledge.Password(value)
+    case class HashLock(value: Bytes) extends Credential {
+      override def prove(currentProof: Proof): Proof = Proofs.Knowledge.HashLock(value)
 
       override def proposition: Proposition =
-        Propositions.Knowledge.Password(new Blake2b256().hash(value.data))
+        Propositions.Knowledge.HashLock(new Blake2b256().hash(value))
     }
   }
 

@@ -13,7 +13,12 @@ import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus.algebras.{EtaCalculationAlgebra, LeaderElectionValidationAlgebra, LocalChainAlgebra}
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.interpreters.{AkkaSecureStore, StatsInterpreter}
-import co.topl.ledger.algebras.{BodySemanticValidationAlgebra, BodySyntaxValidationAlgebra, MempoolAlgebra}
+import co.topl.ledger.algebras.{
+  BodyAuthorizationValidationAlgebra,
+  BodySemanticValidationAlgebra,
+  BodySyntaxValidationAlgebra,
+  MempoolAlgebra
+}
 import co.topl.minting.algebras.PerpetualBlockMintAlgebra
 import co.topl.minting._
 import co.topl.models.{BlockHeaderV2, BlockV2, Transaction, TypedIdentifier}
@@ -26,23 +31,24 @@ import java.util.UUID
 object DemoUtils {
 
   def createMint[F[_]: Async: Parallel: FToFuture](
-    genesis:                 BlockV2,
-    staker:                  Staker,
-    clock:                   ClockAlgebra[F],
-    etaCalculation:          EtaCalculationAlgebra[F],
-    leaderElectionThreshold: LeaderElectionValidationAlgebra[F],
-    localChain:              LocalChainAlgebra[F],
-    mempool:                 MempoolAlgebra[F],
-    headerStore:             Store[F, TypedIdentifier, BlockHeaderV2],
-    fetchTransaction:        TypedIdentifier => F[Transaction],
-    bodySyntaxValidation:    BodySyntaxValidationAlgebra[F],
-    bodySemanticValidation:  BodySemanticValidationAlgebra[F],
-    state:                   ConsensusStateReader[F],
-    ed25519VRFResource:      UnsafeResource[F, Ed25519VRF],
-    kesProductResource:      UnsafeResource[F, KesProduct],
-    ed25519Resource:         UnsafeResource[F, Ed25519],
-    statsInterpreter:        Stats[F],
-    operationalPeriodLength: Long
+    genesis:                     BlockV2,
+    staker:                      Staker,
+    clock:                       ClockAlgebra[F],
+    etaCalculation:              EtaCalculationAlgebra[F],
+    leaderElectionThreshold:     LeaderElectionValidationAlgebra[F],
+    localChain:                  LocalChainAlgebra[F],
+    mempool:                     MempoolAlgebra[F],
+    headerStore:                 Store[F, TypedIdentifier, BlockHeaderV2],
+    fetchTransaction:            TypedIdentifier => F[Transaction],
+    bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
+    bodySemanticValidation:      BodySemanticValidationAlgebra[F],
+    bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
+    state:                       ConsensusStateReader[F],
+    ed25519VRFResource:          UnsafeResource[F, Ed25519VRF],
+    kesProductResource:          UnsafeResource[F, KesProduct],
+    ed25519Resource:             UnsafeResource[F, Ed25519],
+    statsInterpreter:            Stats[F],
+    operationalPeriodLength:     Long
   )(implicit
     logger:    Logger[F],
     system:    ActorSystem[_],
@@ -109,7 +115,8 @@ object DemoUtils {
           headerStore,
           fetchTransaction,
           bodySyntaxValidation,
-          bodySemanticValidation
+          bodySemanticValidation,
+          bodyAuthorizationValidation
         )
     } yield perpetual
 

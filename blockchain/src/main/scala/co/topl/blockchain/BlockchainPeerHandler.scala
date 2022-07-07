@@ -261,19 +261,19 @@ object BlockchainPeerHandler {
                   Logger[F].info(show"Validating syntax of body id=$blockId") >>
                   (
                     for {
-                      _ <- EitherT.rightT(Logger[F].info(show"Validating syntax of body id=$blockId"))
+                      _ <- EitherT.liftF(Logger[F].info(show"Validating syntax of body id=$blockId"))
                       _ <- EitherT(
                         bodySyntaxValidation
                           .validate(block.blockBodyV2)
                           .map(_.toEither.leftMap(_.show))
                       )
-                      _ <- EitherT.rightT(Logger[F].info(show"Validating semantics of body id=$blockId"))
+                      _ <- EitherT.liftF(Logger[F].info(show"Validating semantics of body id=$blockId"))
                       _ <- EitherT(
                         bodySemanticValidation
                           .validate(block.headerV2.parentHeaderId)(block.blockBodyV2)
                           .map(_.toEither.leftMap(_.show))
                       )
-                      _ <- EitherT.rightT(Logger[F].info(show"Validating authorization of body id=$blockId"))
+                      _ <- EitherT.liftF(Logger[F].info(show"Validating authorization of body id=$blockId"))
                       _ <- EitherT(
                         bodyAuthorizationValidation
                           .validate(block.headerV2.parentHeaderId)(block.blockBodyV2)

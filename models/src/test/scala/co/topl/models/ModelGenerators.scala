@@ -405,8 +405,8 @@ trait ModelGenerators {
   implicit def arbitraryStrictSizedBytes[L <: Length](implicit l: L): Arbitrary[Sized.Strict[Bytes, L]] =
     Arbitrary(genSizedStrictBytes[L]())
 
-  implicit val arbitraryPropositionsKnowledgeHashLock: Arbitrary[Propositions.Knowledge.Password] =
-    Arbitrary(implicitly[Arbitrary[Digest32]].arbitrary.map(Propositions.Knowledge.Password))
+  implicit val arbitraryPropositionsKnowledgeHashLock: Arbitrary[Propositions.Knowledge.HashLock] =
+    Arbitrary(implicitly[Arbitrary[Digest32]].arbitrary.map(Propositions.Knowledge.HashLock))
 
   implicit val arbitraryPropositionsCompositionalThreshold: Arbitrary[Propositions.Compositional.Threshold] =
     Arbitrary(
@@ -471,7 +471,7 @@ trait ModelGenerators {
         implicitly[Arbitrary[Propositions.Knowledge.Curve25519]].arbitrary,
         implicitly[Arbitrary[Propositions.Knowledge.Ed25519]].arbitrary,
         implicitly[Arbitrary[Propositions.Knowledge.ExtendedEd25519]].arbitrary,
-        implicitly[Arbitrary[Propositions.Knowledge.Password]].arbitrary,
+        implicitly[Arbitrary[Propositions.Knowledge.HashLock]].arbitrary,
         implicitly[Arbitrary[Propositions.Compositional.Threshold]].arbitrary,
         implicitly[Arbitrary[Propositions.Compositional.And]].arbitrary,
         implicitly[Arbitrary[Propositions.Compositional.Or]].arbitrary,
@@ -499,11 +499,11 @@ trait ModelGenerators {
   implicit val arbitraryProofsKnowledgeKesProduct: Arbitrary[Proofs.Knowledge.KesProduct] =
     Arbitrary(kesProductProofGen)
 
-  implicit val arbitraryProofsKnowledgeHashLock: Arbitrary[Proofs.Knowledge.Password] =
+  implicit val arbitraryProofsKnowledgeHashLock: Arbitrary[Proofs.Knowledge.HashLock] =
     Arbitrary(
       for {
-        value <- genSizedMaxBytes[Lengths.`256`.type]()
-      } yield Proofs.Knowledge.Password(value)
+        value <- arbitraryBytes.arbitrary
+      } yield Proofs.Knowledge.HashLock(value)
     )
 
   implicit val arbitraryProofsCompositionalThreshold: Arbitrary[Proofs.Compositional.Threshold] =

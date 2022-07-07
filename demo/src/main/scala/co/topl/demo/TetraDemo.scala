@@ -269,6 +269,7 @@ object TetraDemo extends IOApp {
             transactionStore.getOrRaise,
             bodySyntaxValidation,
             bodySemanticValidation,
+            bodyAuthorizationValidation,
             consensusState,
             ed25519VRFResource,
             kesProductResource,

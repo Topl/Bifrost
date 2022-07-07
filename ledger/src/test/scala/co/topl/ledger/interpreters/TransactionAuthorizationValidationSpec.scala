@@ -10,8 +10,6 @@ import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.{Curve25519, Ed25519, ExtendedEd25519}
 import co.topl.models.ModelGenerators._
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.Sized
 import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
@@ -77,17 +75,16 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
     }
   }
 
-  test("Propositions.Knowledge.Password Authorization") {
-    PropF.forAllF { (blockId: TypedIdentifier, _password: Bytes) =>
-      val password = _password.take(256)
+  test("Propositions.Knowledge.HashLock Authorization") {
+    PropF.forAllF { (blockId: TypedIdentifier, password: Bytes) =>
       withMock {
         val blake2b256 = new Blake2b256()
 
-        val proposition = Propositions.Knowledge.Password(blake2b256.hash(password))
+        val proposition = Propositions.Knowledge.HashLock(blake2b256.hash(password))
 
         val transaction = createTestTransaction(
           proposition,
-          _ => Proofs.Knowledge.Password(Sized.maxUnsafe(password))
+          _ => Proofs.Knowledge.HashLock(password)
         )
 
         for {
@@ -321,7 +318,20 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
     }
   }
 
-  // TODO: Propositions.Contextual.RequiredBoxState
+  test("Propositions.Contextual.RequiredBoxState Authorization") {
+    PropF.forAllF { (blockId: TypedIdentifier, box: Box) =>
+      withMock {
+        for {
+          badTransaction <- createTestTransaction(
+            Propositions.Contextual.RequiredBoxState(List(box -> BoxLocations.Output(0))),
+            _ => Proofs.Contextual.RequiredBoxState()
+          ).pure[F]
+          underTest <- makeValidation()
+          _         <- underTest.validate(blockId)(badTransaction).map(_.isInvalid).assert
+        } yield ()
+      }
+    }
+  }
 
   private def makeValidation(
     blake2b256Resource:      UnsafeResource[F, Blake2b256] = mock[UnsafeResource[F, Blake2b256]],

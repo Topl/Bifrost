@@ -215,7 +215,7 @@ object XorGameCompletion extends App {
     .and(Propositions.Contextual.HeightLock(50))
     .or(
       Propositions.Knowledge
-        .Password(aliceCommit)
+        .HashLock(aliceCommit)
         .and(
           aliceSk.vk.asProposition
             .and(requiredInputBoxProposition)
@@ -246,7 +246,7 @@ object XorGameCompletion extends App {
     fullGameProposition,
     List(
       Credential.Contextual.HeightLock(50),
-      Credential.Knowledge.Password(Sized.maxUnsafe(Bytes.encodeUtf8("test" + "1").getOrElse(???))),
+      Credential.Knowledge.HashLock(Bytes.encodeUtf8("test" + "1").getOrElse(???)),
       Credential.Knowledge.Curve25519(aliceSk, unprovenTransaction),
       Credential.Contextual.RequiredBoxState(
         List(
@@ -268,7 +268,7 @@ object XorGameCompletion extends App {
 object HashTimeLockContract extends App {
   import SetupSandbox._
 
-  val credential = Credential.Knowledge.Password(Sized.maxUnsafe(Bytes.encodeUtf8("test").getOrElse(???)))
+  val credential = Credential.Knowledge.HashLock(Bytes.encodeUtf8("test").getOrElse(???))
 
   val proposition = credential.proposition
   println(s"The proposition is: ${proposition}")

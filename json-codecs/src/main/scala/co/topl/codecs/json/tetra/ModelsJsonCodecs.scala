@@ -117,7 +117,7 @@ trait ModelsJsonCodecs {
           "chainCode" -> k.chainCode.data.asJson
         )
       )
-    case Propositions.Knowledge.Password(digest) =>
+    case Propositions.Knowledge.HashLock(digest) =>
       Json.obj(
         "propositionType" -> "Knowledge.HashLock".asJson,
         "digest"          -> digest.data.asJson
@@ -227,7 +227,7 @@ trait ModelsJsonCodecs {
         "proofType" -> "Knowledge.KesSum".asJson,
         "signature" -> p.immutableBytes.asJson
       )
-    case Proofs.Knowledge.Password(value) =>
+    case Proofs.Knowledge.HashLock(value) =>
       Json.obj(
         "proofType" -> "Knowledge.HashLock".asJson,
         "value"     -> value.asJson

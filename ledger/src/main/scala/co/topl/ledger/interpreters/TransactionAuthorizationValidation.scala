@@ -67,7 +67,7 @@ object TransactionAuthorizationValidation {
           validateKnowledgeEd25519(transaction)(proposition, proof)
         case (proposition: Propositions.Knowledge.ExtendedEd25519, proof: Proofs.Knowledge.Ed25519) =>
           validateKnowledgeExtendedEd25519(transaction)(proposition, proof)
-        case (proposition: Propositions.Knowledge.Password, proof: Proofs.Knowledge.Password) =>
+        case (proposition: Propositions.Knowledge.HashLock, proof: Proofs.Knowledge.HashLock) =>
           validateKnowledgePassword(proposition, proof)
 
         case (proposition: Propositions.Compositional.And, proof: Proofs.Compositional.And) =>
@@ -135,14 +135,14 @@ object TransactionAuthorizationValidation {
         )
 
     private def validateKnowledgePassword(
-      proposition: Propositions.Knowledge.Password,
-      proof:       Proofs.Knowledge.Password
+      proposition: Propositions.Knowledge.HashLock,
+      proof:       Proofs.Knowledge.HashLock
     ): F[ValidatedNec[TransactionAuthorizationError, Unit]] =
       blake2b256Resource
-        .use(_.hash(proof.value.data).pure[F])
+        .use(_.hash(proof.value).pure[F])
         .map(hashed =>
           Validated.condNec(
-            hashed.data === proposition.digest.data,
+            hashed.data === proposition.valueDigest.data,
             (),
             (TransactionAuthorizationErrors.Permanent(proposition, proof): TransactionAuthorizationError)
           )
