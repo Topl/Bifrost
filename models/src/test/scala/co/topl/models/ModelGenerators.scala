@@ -405,8 +405,8 @@ trait ModelGenerators {
   implicit def arbitraryStrictSizedBytes[L <: Length](implicit l: L): Arbitrary[Sized.Strict[Bytes, L]] =
     Arbitrary(genSizedStrictBytes[L]())
 
-  implicit val arbitraryPropositionsKnowledgeHashLock: Arbitrary[Propositions.Knowledge.HashLock] =
-    Arbitrary(implicitly[Arbitrary[Digest32]].arbitrary.map(Propositions.Knowledge.HashLock))
+  implicit val arbitraryPropositionsKnowledgeHashLock: Arbitrary[Propositions.Knowledge.Password] =
+    Arbitrary(implicitly[Arbitrary[Digest32]].arbitrary.map(Propositions.Knowledge.Password))
 
   implicit val arbitraryPropositionsCompositionalThreshold: Arbitrary[Propositions.Compositional.Threshold] =
     Arbitrary(
@@ -442,26 +442,18 @@ trait ModelGenerators {
     Arbitrary(Gen.posNum[Long].map(Propositions.Contextual.HeightLock))
 
   implicit val arbitraryBoxLocation: Arbitrary[BoxLocation] =
-    Arbitrary(Gen.oneOf(BoxLocations.Input, BoxLocations.Output))
+    Arbitrary(Gen.posNum[Short].flatMap(index => Gen.oneOf(BoxLocations.Input(index), BoxLocations.Output(index))))
 
   implicit val arbitraryPropositionsContextualRequiredBoxState: Arbitrary[Propositions.Contextual.RequiredBoxState] =
     Arbitrary(
       for {
-        location <- arbitraryBoxLocation.arbitrary
         boxes <- Gen.nonEmptyListOf(
           Gen.zip(
-            Gen.chooseNum[Short](0, 5),
-            arbitraryBox.arbitrary
+            arbitraryBox.arbitrary,
+            arbitraryBoxLocation.arbitrary
           )
         )
-      } yield Propositions.Contextual.RequiredBoxState(location, boxes)
-    )
-
-  implicit val arbitraryPropositionsScriptJs: Arbitrary[Propositions.Script.JS] =
-    Arbitrary(
-      Gen.asciiPrintableStr
-        .map(Propositions.Script.JS.JSScript(_))
-        .map(Propositions.Script.JS(_))
+      } yield Propositions.Contextual.RequiredBoxState(boxes)
     )
 
   implicit val arbitraryTypedIdentifier: Arbitrary[TypedIdentifier] =
@@ -479,14 +471,13 @@ trait ModelGenerators {
         implicitly[Arbitrary[Propositions.Knowledge.Curve25519]].arbitrary,
         implicitly[Arbitrary[Propositions.Knowledge.Ed25519]].arbitrary,
         implicitly[Arbitrary[Propositions.Knowledge.ExtendedEd25519]].arbitrary,
-        implicitly[Arbitrary[Propositions.Knowledge.HashLock]].arbitrary,
+        implicitly[Arbitrary[Propositions.Knowledge.Password]].arbitrary,
         implicitly[Arbitrary[Propositions.Compositional.Threshold]].arbitrary,
         implicitly[Arbitrary[Propositions.Compositional.And]].arbitrary,
         implicitly[Arbitrary[Propositions.Compositional.Or]].arbitrary,
         implicitly[Arbitrary[Propositions.Compositional.Not]].arbitrary,
         implicitly[Arbitrary[Propositions.Contextual.HeightLock]].arbitrary,
-        implicitly[Arbitrary[Propositions.Contextual.RequiredBoxState]].arbitrary,
-        implicitly[Arbitrary[Propositions.Script.JS]].arbitrary
+        implicitly[Arbitrary[Propositions.Contextual.RequiredBoxState]].arbitrary
       )
     )
 
@@ -508,12 +499,11 @@ trait ModelGenerators {
   implicit val arbitraryProofsKnowledgeKesProduct: Arbitrary[Proofs.Knowledge.KesProduct] =
     Arbitrary(kesProductProofGen)
 
-  implicit val arbitraryProofsKnowledgeHashLock: Arbitrary[Proofs.Knowledge.HashLock] =
+  implicit val arbitraryProofsKnowledgeHashLock: Arbitrary[Proofs.Knowledge.Password] =
     Arbitrary(
       for {
-        salt  <- genSizedStrictBytes[Lengths.`32`.type]()
-        value <- byteGen
-      } yield Proofs.Knowledge.HashLock(salt, value)
+        value <- genSizedMaxBytes[Lengths.`256`.type]()
+      } yield Proofs.Knowledge.Password(value)
     )
 
   implicit val arbitraryProofsCompositionalThreshold: Arbitrary[Proofs.Compositional.Threshold] =

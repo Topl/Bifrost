@@ -1,26 +1,18 @@
 package co.topl.credential.playground
 
 import cats.data.Chain
-import cats.effect.unsafe.implicits.global
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.credential.Credential
 import co.topl.credential.implicits._
-import co.topl.credential.playground.CredentialTestJing.curve25519
 import co.topl.crypto.generation.KeyInitializer
-import co.topl.crypto.signing.{Curve25519, Ed25519, ExtendedEd25519}
 import co.topl.crypto.generation.KeyInitializer.Instances.{curve25519Initializer, ed25519Initializer}
+import co.topl.crypto.signing.{Curve25519, Ed25519, ExtendedEd25519}
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
-import co.topl.scripting.GraalVMScripting
-import co.topl.scripting.GraalVMScripting.GraalVMValuable
-import co.topl.scripting.GraalVMScripting.instances._
 import co.topl.typeclasses.implicits._
-import co.topl.typeclasses.VerificationContext
-import io.circe.Json
-import org.graalvm.polyglot.Value
 
 object CredentialTestJing extends App {
   type F[A] = cats.effect.IO[A]
@@ -29,21 +21,6 @@ object CredentialTestJing extends App {
   implicit val ed25519: Ed25519 = new Ed25519
   implicit val extendedEd25519: ExtendedEd25519 = new ExtendedEd25519
 
-  implicit val jsExecutor: Propositions.Script.JS.JSScript => F[(Json, Json) => F[Boolean]] =
-    s =>
-      GraalVMScripting
-        .jsExecutor[F, Boolean](s.value)
-        .map(f =>
-          Function.untupled(
-            f.compose[(Json, Json)] { t =>
-              Seq(
-                GraalVMValuable[Json].toGraalValue(t._1),
-                GraalVMValuable[Json].toGraalValue(t._2),
-                Value.asValue(new VerificationUtils)
-              )
-            }
-          )
-        )
   implicit val networkPrefix: NetworkPrefix = NetworkPrefix(1: Byte)
 
   val stakingAddress: StakingAddress =
@@ -101,7 +78,6 @@ object CredentialTestJing extends App {
 
   val transactionAll = unprovenTransaction.prove(_ => credential.proof)
   println(s"all transaction: $transactionAll")
-  println(verify(transactionAll, combinedProp, credential.proof, 2L))
 
   val adminsCredential = Credential.Compositional.And(
     adminsProp,
@@ -126,20 +102,8 @@ object CredentialTestJing extends App {
 
   val transactionAdmins = unprovenTransaction.prove(_ => adminsProof)
   println(s"admin transaction: $transactionAdmins")
-  println(verify(transactionAdmins, adminsProp, adminsProof, 2L))
 
   val transactionVoter1and2 = unprovenTransaction.prove(_ => voter1and2ThresholdProof)
   println(s"voter transaction: $transactionVoter1and2")
-  println(verify(transactionVoter1and2, votersThresholdProp, voter1and2ThresholdProof, 2L))
 
-  def verify(transaction: Transaction, prop: Proposition, proof: Proof, height: Long): Boolean = {
-    implicit val verificationContext: VerificationContext[F] =
-      new VerificationContext[F] {
-        def currentTransaction: Transaction = transaction
-        def currentHeight: Long = height
-        def inputBoxes: List[Box] = List()
-        def currentSlot: Slot = 1
-      }
-    prop.isSatisfiedBy[F](proof).unsafeRunSync()
-  }
 }

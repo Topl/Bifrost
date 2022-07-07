@@ -1,22 +1,16 @@
 package co.topl.credential
 
-import cats.implicits._
-import cats.implicits._
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.crypto.signing.{Curve25519, Ed25519, ExtendedEd25519}
 import co.topl.models.ModelGenerators._
 import co.topl.models._
-import co.topl.typeclasses.VerificationContext
 import co.topl.typeclasses.implicits._
-import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.codecs.bytes.tetra.instances._
-import io.circe.Json
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, EitherValues, OptionValues}
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-
-import scala.collection.immutable.ListMap
 
 class CredentialSpec
     extends AnyFlatSpec
@@ -92,21 +86,6 @@ class CredentialSpec
           andCredential.proof
 
         val transaction = unprovenTransaction.prove(_ => andProof)
-
-        implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
-
-        (() => context.currentTransaction)
-          .expects()
-          .once()
-          .returning(transaction)
-
-        (() => context.currentHeight)
-          .expects()
-          .once()
-          .returning(height + 1)
-
-        andProof.satisfies[F](andProposition) shouldBe true
-
       }
     }
   }
@@ -123,15 +102,6 @@ class CredentialSpec
         orCredential.proposition shouldBe orProposition
 
         val orProof = orCredential.proof
-
-        implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
-
-        (() => context.currentHeight)
-          .expects()
-          .once()
-          .returning(height + 1)
-
-        orProof.satisfies[F](orProposition) shouldBe true
       }
     }
   }
@@ -158,20 +128,6 @@ class CredentialSpec
           val thresholdProof = thresholdCredential.proof
 
           val transaction = unprovenTransaction.prove(_ => thresholdProof)
-
-          implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
-
-          (() => context.currentTransaction)
-            .expects()
-            .once()
-            .returning(transaction)
-
-          (() => context.currentHeight)
-            .expects()
-            .once()
-            .returning(height + 1)
-
-          thresholdProposition isSatisfiedBy thresholdProof shouldBe true
         }
     }
   }
@@ -208,20 +164,6 @@ class CredentialSpec
             andCredential.proof
 
           val transaction = unprovenTransaction.prove(_ => andProof)
-
-          implicit val context: VerificationContext[F] = mock[VerificationContext[F]]
-
-          (() => context.currentTransaction)
-            .expects()
-            .anyNumberOfTimes()
-            .returning(transaction)
-
-          (() => context.currentHeight)
-            .expects()
-            .once()
-            .returning(height + 1)
-
-          andProof.satisfies[F](andProposition)
         }
     }
   }
@@ -234,7 +176,4 @@ object CredentialSpec {
 
   implicit val ed25519: Ed25519 = new Ed25519()
   implicit val extendedEd25519: ExtendedEd25519 = new ExtendedEd25519
-
-  implicit val jsExecutor: Propositions.Script.JS.JSScript => F[(Json, Json) => F[Boolean]] =
-    (script: Propositions.Script.JS.JSScript) => (verificationCtx: Json, args: Json) => true.pure[F]
 }

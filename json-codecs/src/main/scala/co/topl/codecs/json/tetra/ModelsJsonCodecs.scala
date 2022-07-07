@@ -117,7 +117,7 @@ trait ModelsJsonCodecs {
           "chainCode" -> k.chainCode.data.asJson
         )
       )
-    case Propositions.Knowledge.HashLock(digest) =>
+    case Propositions.Knowledge.Password(digest) =>
       Json.obj(
         "propositionType" -> "Knowledge.HashLock".asJson,
         "digest"          -> digest.data.asJson
@@ -150,19 +150,22 @@ trait ModelsJsonCodecs {
         "propositionType" -> "Contextual.HeightLock".asJson,
         "height"          -> height.asJson
       )
-    case Propositions.Contextual.RequiredBoxState(location, boxes) =>
+    case Propositions.Contextual.RequiredBoxState(boxes) =>
       Json.obj(
         "propositionType" -> "Contextual.RequiredBoxState".asJson,
-        "location" -> (location match {
-          case BoxLocations.Input  => "input"
-          case BoxLocations.Output => "output"
-        }).asJson,
-        "boxes" -> boxes.map { case (i, b) => List(i.asJson, b.asJson).asJson }.asJson
-      )
-    case Propositions.Script.JS(script) =>
-      Json.obj(
-        "propositionType" -> "Script.JS".asJson,
-        "script"          -> script.value.asJson
+        "boxes" -> boxes.map { case (b, location) =>
+          Json.obj(
+            "box" -> b.asJson,
+            "location" -> (location match {
+              case _: BoxLocations.Input  => "input"
+              case _: BoxLocations.Output => "output"
+            }).asJson,
+            "index" -> (location match {
+              case BoxLocations.Input(index)  => index
+              case BoxLocations.Output(index) => index
+            }).asJson
+          )
+        }.asJson
       )
   }
 
@@ -192,12 +195,6 @@ trait ModelsJsonCodecs {
           ).mapN((a, b) => Propositions.Compositional.Or(a, b))
         case "Contextual.HeightLock" =>
           hcursor.downField("height").as[Long].map(Propositions.Contextual.HeightLock.apply)
-        case "Script.JS" =>
-          hcursor
-            .downField("script")
-            .as[String]
-            .map(Propositions.Script.JS.JSScript.apply)
-            .map(Propositions.Script.JS.apply)
       }
 
   implicit def proofEncoder: Encoder[Proof] = {
@@ -230,10 +227,9 @@ trait ModelsJsonCodecs {
         "proofType" -> "Knowledge.KesSum".asJson,
         "signature" -> p.immutableBytes.asJson
       )
-    case Proofs.Knowledge.HashLock(salt, value) =>
+    case Proofs.Knowledge.Password(value) =>
       Json.obj(
         "proofType" -> "Knowledge.HashLock".asJson,
-        "salt"      -> salt.data.asJson,
         "value"     -> value.asJson
       )
     case Proofs.Compositional.Threshold(proofs) =>

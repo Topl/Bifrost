@@ -60,9 +60,6 @@ object Proposer {
     implicit val longProposesHeightLock: Proposer[Long] =
       t => Propositions.Contextual.HeightLock(t)
 
-    implicit class StringOps(value: String) {
-      def jsProposition: Propositions.Script.JS = Propositions.Script.JS(Propositions.Script.JS.JSScript(value))
-    }
   }
 
   object instances extends Instances

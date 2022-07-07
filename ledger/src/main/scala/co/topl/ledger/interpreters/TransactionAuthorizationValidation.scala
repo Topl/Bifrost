@@ -14,6 +14,10 @@ import co.topl.ledger.models.{TransactionAuthorizationError, TransactionAuthoriz
 import co.topl.models._
 import co.topl.typeclasses.implicits._
 
+/**
+ * Validates that each Input within a Transaction is properly "authorized".  "Authorized" simply means "does the given
+ * Proof satisfy the given Proposition?".
+ */
 object TransactionAuthorizationValidation {
 
   def make[F[_]: Sync](
@@ -35,6 +39,10 @@ object TransactionAuthorizationValidation {
     fetchSlotData:           TypedIdentifier => F[SlotData]
   ) extends TransactionAuthorizationValidationAlgebra[F] {
 
+    /**
+     * Verifies each (Proposition, Proof) pair in the given Transaction
+     * @param blockId the ID of the block containing this particular Transaction
+     */
     def validate(blockId: TypedIdentifier)(
       transaction:        Transaction
     ): F[ValidatedNec[TransactionAuthorizationError, Transaction]] =
@@ -42,6 +50,10 @@ object TransactionAuthorizationValidation {
         .foldMapM(input => verifyProof(blockId)(transaction)(input.proposition, input.proof))
         .map(_.as(transaction))
 
+    /**
+     * Validates that the given Proof satisfies the given Proposition, within the context of the
+     * given transaction and block ID
+     */
     private def verifyProof(blockId: TypedIdentifier)(
       transaction:                   Transaction
     )(proposition:                   Proposition, proof: Proof): F[ValidatedNec[TransactionAuthorizationError, Unit]] =
@@ -55,8 +67,8 @@ object TransactionAuthorizationValidation {
           validateKnowledgeEd25519(transaction)(proposition, proof)
         case (proposition: Propositions.Knowledge.ExtendedEd25519, proof: Proofs.Knowledge.Ed25519) =>
           validateKnowledgeExtendedEd25519(transaction)(proposition, proof)
-        case (proposition: Propositions.Knowledge.HashLock, proof: Proofs.Knowledge.HashLock) =>
-          validateKnowledgeHashLock(proposition, proof)
+        case (proposition: Propositions.Knowledge.Password, proof: Proofs.Knowledge.Password) =>
+          validateKnowledgePassword(proposition, proof)
 
         case (proposition: Propositions.Compositional.And, proof: Proofs.Compositional.And) =>
           validateCompositionalAnd(blockId)(transaction)(proposition, proof)
@@ -122,12 +134,12 @@ object TransactionAuthorizationValidation {
             .Permanent(proposition, proof): TransactionAuthorizationError).invalidNec[Unit].pure[F]
         )
 
-    private def validateKnowledgeHashLock(
-      proposition: Propositions.Knowledge.HashLock,
-      proof:       Proofs.Knowledge.HashLock
+    private def validateKnowledgePassword(
+      proposition: Propositions.Knowledge.Password,
+      proof:       Proofs.Knowledge.Password
     ): F[ValidatedNec[TransactionAuthorizationError, Unit]] =
       blake2b256Resource
-        .use(_.hash(proof.salt.data :+ proof.value).pure[F])
+        .use(_.hash(proof.value.data).pure[F])
         .map(hashed =>
           Validated.condNec(
             hashed.data === proposition.digest.data,
@@ -146,11 +158,12 @@ object TransactionAuthorizationValidation {
         EitherT(verifyProof(blockId)(transaction)(proposition.a, proof.a).map(_.toEither)) >>
           EitherT(verifyProof(blockId)(transaction)(proposition.b, proof.b).map(_.toEither))
       )
-        .leftMap(errors =>
-          if (errors.containsContextualError)
-            NonEmptyChain[TransactionAuthorizationError](TransactionAuthorizationErrors.Contextual(proposition, proof))
-          else
+        .leftMap((errors: NonEmptyChain[TransactionAuthorizationError]) =>
+          // If either A or B are permanently invalid, then this whole proof is permanently invalid
+          if (errors.containsPermanentError)
             NonEmptyChain[TransactionAuthorizationError](TransactionAuthorizationErrors.Permanent(proposition, proof))
+          else
+            NonEmptyChain[TransactionAuthorizationError](TransactionAuthorizationErrors.Contextual(proposition, proof))
         )
         .toValidated
 
@@ -163,15 +176,16 @@ object TransactionAuthorizationValidation {
       EitherT(
         verifyProof(blockId)(transaction)(proposition.a, proof.a)
           .map(_.toEither)
-      ).leftFlatMap(errors =>
+      ).leftFlatMap(aErrors =>
         EitherT(verifyProof(blockId)(transaction)(proposition.b, proof.b).map(_.toEither))
           .leftMap { bErrors =>
+            // If both A and B are permanently invalid, then this whole proof is permanently invalid
             val error =
-              if (errors.concat(bErrors).containsContextualError)
-                TransactionAuthorizationErrors.Contextual(proposition, proof)
-              else
+              if (aErrors.containsPermanentError && bErrors.containsPermanentError)
                 TransactionAuthorizationErrors.Permanent(proposition, proof)
-            NonEmptyChain(error: TransactionAuthorizationError)
+              else
+                TransactionAuthorizationErrors.Contextual(proposition, proof)
+            NonEmptyChain[TransactionAuthorizationError](error)
           }
       ).toValidated
 
@@ -183,29 +197,34 @@ object TransactionAuthorizationValidation {
     ): F[ValidatedNec[TransactionAuthorizationError, Unit]] =
       proposition.propositions.toList
         .zip(proof.proofs)
-        .foldLeftM((0, false)) {
-          case ((successCount, contextualErrorFound), (subProposition, subProof))
+        // (successCount, permanentSubErrorsCount)
+        .foldLeftM((0, 0)) {
+          case ((successCount, permanentSubErrorsCount), (subProposition, subProof))
               if successCount < proposition.threshold =>
             verifyProof(blockId)(transaction)(subProposition, subProof)
               .map {
                 case Validated.Valid(_) =>
-                  (successCount + 1, contextualErrorFound)
+                  (successCount + 1, permanentSubErrorsCount)
                 case Validated.Invalid(errors) =>
                   (
                     successCount,
-                    contextualErrorFound && errors.containsContextualError
+                    permanentSubErrorsCount + (if (errors.containsPermanentError) 1 else 0)
                   )
               }
+          // The case where we have already satisfied the minimum number of valid sub-proofs for this threshold
           case (res, _) => res.pure[F]
         }
         .map {
           case (successCount, _) if successCount >= proposition.threshold => ().validNec
-          case (_, true) =>
-            (TransactionAuthorizationErrors.Contextual(proposition, proof): TransactionAuthorizationError)
-              .invalidNec[Unit]
-          case _ =>
-            (TransactionAuthorizationErrors.Permanent(proposition, proof): TransactionAuthorizationError)
-              .invalidNec[Unit]
+          case (_, permanentSubErrorsCount) =>
+            val marginOfError = proposition.propositions.size - proposition.threshold
+            // If there are too many permanent sub-errors, then we know for sure that this threshold will never pass
+            val error =
+              if (permanentSubErrorsCount > marginOfError)
+                TransactionAuthorizationErrors.Permanent(proposition, proof)
+              else
+                TransactionAuthorizationErrors.Contextual(proposition, proof)
+            (error: TransactionAuthorizationError).invalidNec[Unit]
         }
 
     private def validateCompositionalNot(blockId: TypedIdentifier)(
@@ -218,8 +237,8 @@ object TransactionAuthorizationValidation {
         .map(
           _.swap
             .leftMap(_ =>
-              NonEmptyChain(
-                TransactionAuthorizationErrors.Contextual(proposition, proof): TransactionAuthorizationError
+              NonEmptyChain[TransactionAuthorizationError](
+                TransactionAuthorizationErrors.Contextual(proposition, proof)
               )
             )
             .void
@@ -232,30 +251,28 @@ object TransactionAuthorizationValidation {
         .map(_.height)
         .map(height =>
           Validated.condNec(
-            height <= proposition.height,
+            height >= proposition.height,
             (),
             TransactionAuthorizationErrors
-              .Permanent(proposition, Proofs.Contextual.HeightLock()): TransactionAuthorizationError
+              .Contextual(proposition, Proofs.Contextual.HeightLock()): TransactionAuthorizationError
           )
         )
 
     private def validateContextualRequiredBoxState(transaction: Transaction)(
       proposition:                                              Propositions.Contextual.RequiredBoxState
     ): F[ValidatedNec[TransactionAuthorizationError, Unit]] = {
-      val fetchBox = proposition.location match {
-        case BoxLocations.Input =>
-          (index: Short) =>
-            transaction.inputs.get(index.toLong).map(input => Box(input.proposition.typedEvidence, input.value))
-        case BoxLocations.Output =>
-          (index: Short) =>
-            transaction.outputs
-              .get(index.toLong)
-              .map(output => Box(output.address.spendingAddress.typedEvidence, output.value))
+      val fetchBoxByLocation: BoxLocation => Option[Box] = {
+        case BoxLocations.Input(index) =>
+          transaction.inputs.get(index.toLong).map(input => Box(input.proposition.typedEvidence, input.value))
+        case BoxLocations.Output(index) =>
+          transaction.outputs
+            .get(index.toLong)
+            .map(output => Box(output.address.spendingAddress.typedEvidence, output.value))
       }
       proposition.boxes
-        .foldMap { case (index, expectedBox) =>
+        .foldMap { case (expectedBox, location) =>
           Validated.condNec(
-            fetchBox(index).contains(expectedBox),
+            fetchBoxByLocation(location).contains(expectedBox),
             (),
             TransactionAuthorizationErrors
               .Permanent(proposition, Proofs.Contextual.RequiredBoxState()): TransactionAuthorizationError
@@ -266,9 +283,9 @@ object TransactionAuthorizationValidation {
 
     implicit private class ErrorsSupport[G[_]: UnorderedFoldable](errors: G[TransactionAuthorizationError]) {
 
-      def containsContextualError: Boolean = errors.exists {
-        case _: TransactionAuthorizationErrors.Contextual => true
-        case _                                            => false
+      def containsPermanentError: Boolean = errors.exists {
+        case _: TransactionAuthorizationErrors.Permanent => true
+        case _                                           => false
       }
     }
   }

@@ -36,9 +36,8 @@ object ContainsEvidence {
     final val PropositionsCompositionalNot: Byte = 15
     final val PropositionsContextualHeightLock: Byte = 16
     final val PropositionsContextualRequiredBoxState: Byte = 17
-    final val PropositionsScriptJS: Byte = 18
 
-    final val Ratio: Byte = 19
+    final val Ratio: Byte = 18
   }
 
   trait VerificationKeyInstances {
@@ -86,7 +85,7 @@ object ContainsEvidence {
       : ContainsEvidence[Propositions.Knowledge.ExtendedEd25519] =
       fromImmutableCodec(TypePrefixes.PropositionsKnowledgeExtendedEd25519)
 
-    implicit val commitRevealContainsEvidence: ContainsEvidence[Propositions.Knowledge.HashLock] =
+    implicit val commitRevealContainsEvidence: ContainsEvidence[Propositions.Knowledge.Password] =
       fromImmutableCodec(TypePrefixes.PropositionsKnowledgeHashLock)
 
     implicit val thresholdContainsEvidence: ContainsEvidence[Propositions.Compositional.Threshold] =
@@ -107,9 +106,6 @@ object ContainsEvidence {
     implicit val requiredInputBoxStateContainsEvidence: ContainsEvidence[Propositions.Contextual.RequiredBoxState] =
       fromImmutableCodec(TypePrefixes.PropositionsContextualRequiredBoxState)
 
-    implicit val jsScriptPropositionContainsEvidence: ContainsEvidence[Propositions.Script.JS] =
-      fromImmutableCodec(TypePrefixes.PropositionsScriptJS)
-
     implicit lazy val propositionContainsEvidence: ContainsEvidence[Proposition] = {
       case Propositions.PermanentlyLocked =>
         permanentlyLockedContainsEvidence.typedEvidenceOf(Propositions.PermanentlyLocked)
@@ -122,8 +118,7 @@ object ContainsEvidence {
       case t: Propositions.Compositional.Not           => notContainsEvidence.typedEvidenceOf(t)
       case t: Propositions.Compositional.Threshold     => thresholdContainsEvidence.typedEvidenceOf(t)
       case t: Propositions.Contextual.HeightLock       => heightLockContainsEvidence.typedEvidenceOf(t)
-      case t: Propositions.Script.JS                   => jsScriptPropositionContainsEvidence.typedEvidenceOf(t)
-      case t: Propositions.Knowledge.HashLock          => commitRevealContainsEvidence.typedEvidenceOf(t)
+      case t: Propositions.Knowledge.Password          => commitRevealContainsEvidence.typedEvidenceOf(t)
       case t: Propositions.Contextual.RequiredBoxState => requiredInputBoxStateContainsEvidence.typedEvidenceOf(t)
     }
   }

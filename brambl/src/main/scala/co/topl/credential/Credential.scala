@@ -1,11 +1,9 @@
 package co.topl.credential
 
-import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.hash.Blake2b256
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.Sized
+import co.topl.models.utility.{Lengths, Sized}
 import co.topl.typeclasses.implicits._
-import io.circe.Json
 
 /**
  * An entity which represents a prover for some proposition.
@@ -71,11 +69,11 @@ object Credential {
       def prove(currentProof: Proof): Proof = (sk, unprovenTransaction).asProof
     }
 
-    case class HashLock(salt: Digest32, value: Byte) extends Credential {
-      override def prove(currentProof: Proof): Proof = Proofs.Knowledge.HashLock(salt, value)
+    case class Password(value: Sized.Max[Bytes, Lengths.`256`.type]) extends Credential {
+      override def prove(currentProof: Proof): Proof = Proofs.Knowledge.Password(value)
 
       override def proposition: Proposition =
-        Propositions.Knowledge.HashLock(Sized.strictUnsafe(Bytes(blake2b256.hash((salt.data :+ value).toArray).value)))
+        Propositions.Knowledge.Password(new Blake2b256().hash(value.data))
     }
   }
 
@@ -178,33 +176,11 @@ object Credential {
       val proposition: Propositions.Contextual.HeightLock = Propositions.Contextual.HeightLock(minimumHeight)
     }
 
-//    case class RequiredDionOutput(index: Int, address: DionAddress) extends Credential {
-//      def prove(currentProof: Proof): Proof = Proofs.Contextual.RequiredOutput()
-//
-//      val proposition: Propositions.Contextual.RequiredDionOutput =
-//        Propositions.Contextual.RequiredDionOutput(index, address)
-//    }
-
-    case class RequiredBoxState(location: BoxLocation, boxes: List[(Int, Box)]) extends Credential {
+    case class RequiredBoxState(boxes: List[(Box, BoxLocation)]) extends Credential {
       def prove(currentProof: Proof): Proof = Proofs.Contextual.RequiredBoxState()
 
       val proposition: Propositions.Contextual.RequiredBoxState =
-        Propositions.Contextual.RequiredBoxState(location, boxes)
-    }
-  }
-
-//  object Example {
-//
-//    case class EnumeratedInput(inputs: List[Int], value: Int) extends Credential {
-//      override def prove(currentProof: Proof): Proof = Proofs.Example.EnumeratedInput(value)
-//      override def proposition: Proposition = Propositions.Example.EnumeratedInput(inputs)
-//    }
-//  }
-
-  object Script {
-
-    case class JS(proposition: Propositions.Script.JS, arguments: Json) extends Credential {
-      def prove(currentProof: Proof): Proof = Proofs.Script.JS(arguments.toString())
+        Propositions.Contextual.RequiredBoxState(boxes)
     }
   }
 }

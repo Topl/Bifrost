@@ -10,9 +10,10 @@ import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.{Curve25519, Ed25519, ExtendedEd25519}
 import co.topl.models.ModelGenerators._
 import co.topl.models._
+import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.Sized
 import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
-import org.scalacheck.{Arbitrary, Gen}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 
@@ -76,7 +77,27 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
     }
   }
 
-  // TODO: Propositions.Knowledge.HashLock
+  test("Propositions.Knowledge.Password Authorization") {
+    PropF.forAllF { (blockId: TypedIdentifier, _password: Bytes) =>
+      val password = _password.take(256)
+      withMock {
+        val blake2b256 = new Blake2b256()
+
+        val proposition = Propositions.Knowledge.Password(blake2b256.hash(password))
+
+        val transaction = createTestTransaction(
+          proposition,
+          _ => Proofs.Knowledge.Password(Sized.maxUnsafe(password))
+        )
+
+        for {
+          blake2b256Resource <- staticUnsafeResource(blake2b256).pure[F]
+          underTest          <- makeValidation(blake2b256Resource = blake2b256Resource)
+          _                  <- underTest.validate(blockId)(transaction).map(_.isValid).assert
+        } yield ()
+      }
+    }
+  }
 
   test("Propositions.Compositional.And Authorization") {
     PropF.forAllF { (blockId: TypedIdentifier, sk: SecretKeys.Ed25519, sk2: SecretKeys.Ed25519) =>
@@ -294,7 +315,7 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
           ).pure[F]
           fetchSlotData = (blockId: TypedIdentifier) => slotData.pure[F]
           underTest <- makeValidation(fetchSlotData = fetchSlotData)
-          _         <- underTest.validate(blockId)(transaction).map(_.isValid == (slotData.height <= height)).assert
+          _         <- underTest.validate(blockId)(transaction).map(_.isValid == (slotData.height >= height)).assert
         } yield ()
       }
     }

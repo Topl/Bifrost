@@ -10,7 +10,6 @@ import cats.effect.kernel.Sync
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig}
 import cats.effect.{Async, ExitCode, IO, IOApp}
 import cats.implicits._
-import co.topl.algebras.ClockAlgebra.implicits.ClockOps
 import co.topl.algebras._
 import co.topl.blockchain.Blockchain
 import co.topl.catsakka._
@@ -18,14 +17,10 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
-import co.topl.consensus.algebras.{EtaCalculationAlgebra, LeaderElectionValidationAlgebra, LocalChainAlgebra}
 import co.topl.crypto.hash.{Blake2b256, Blake2b512}
-import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
+import co.topl.crypto.signing.{Curve25519, Ed25519, Ed25519VRF, ExtendedEd25519, KesProduct}
 import co.topl.interpreters._
-import co.topl.ledger.algebras.{BodySemanticValidationAlgebra, BodySyntaxValidationAlgebra, MempoolAlgebra}
 import co.topl.ledger.interpreters._
-import co.topl.minting._
-import co.topl.minting.algebras.PerpetualBlockMintAlgebra
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
@@ -41,7 +36,6 @@ import java.net.InetSocketAddress
 import java.nio.file.{Files, Paths}
 import java.security.SecureRandom
 import java.time.Instant
-import java.util.UUID
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Random
@@ -54,7 +48,7 @@ import scala.util.Random
 object TetraSuperDemo extends IOApp {
 
   // Configuration Data
-  implicit private val vrfConfig =
+  implicit private val vrfConfig: VrfConfig =
     VrfConfig(lddCutoff = 80, precision = 40, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(2, 5))
 
   private val OperationalPeriodLength = 180L
@@ -230,7 +224,10 @@ object TetraSuperDemo extends IOApp {
         blake2b512Resource <- ActorPoolUnsafeResource.Eval.make[F, Blake2b512](new Blake2b512, _ => ())
         ed25519VRFResource <- ActorPoolUnsafeResource.Eval.make[F, Ed25519VRF](Ed25519VRF.precomputed(), _ => ())
         kesProductResource <- ActorPoolUnsafeResource.Eval.make[F, KesProduct](new KesProduct, _ => ())
+        curve25519Resource <- ActorPoolUnsafeResource.Eval.make[F, Curve25519](new Curve25519, _ => ())
         ed25519Resource    <- ActorPoolUnsafeResource.Eval.make[F, Ed25519](new Ed25519, _ => ())
+        extendedEd25519Resource <- ActorPoolUnsafeResource.Eval
+          .make[F, ExtendedEd25519](ExtendedEd25519.precomputed(), _ => ())
         loggerColor = loggerColors(stakerIndex).toString
         implicit0(logger: Logger[F]) = Slf4jLogger
           .getLoggerFromName[F](s"node.${loggerColor}$stakerName${Console.RESET}")
@@ -311,11 +308,22 @@ object TetraSuperDemo extends IOApp {
         )
         transactionSyntaxValidation   <- TransactionSyntaxValidation.make[F]
         transactionSemanticValidation <- TransactionSemanticValidation.make[F](transactionStore.getOrRaise, boxState)
+        transactionAuthorizationValidation <- TransactionAuthorizationValidation.make[F](
+          blake2b256Resource,
+          curve25519Resource,
+          ed25519Resource,
+          extendedEd25519Resource,
+          slotDataStore.getOrRaise
+        )
         bodySyntaxValidation <- BodySyntaxValidation.make[F](transactionStore.getOrRaise, transactionSyntaxValidation)
         bodySemanticValidation <- BodySemanticValidation.make[F](
           transactionStore.getOrRaise,
           boxState,
           boxState => TransactionSemanticValidation.make[F](transactionStore.getOrRaise, boxState)
+        )
+        bodyAuthorizationValidation <- BodyAuthorizationValidation.make[F](
+          transactionStore.getOrRaise,
+          transactionAuthorizationValidation
         )
         mintOpt <- OptionT
           .whenF(stakingEnabled)(
@@ -355,6 +363,7 @@ object TetraSuperDemo extends IOApp {
             transactionSemanticValidation,
             bodySyntaxValidation,
             bodySemanticValidation,
+            bodyAuthorizationValidation,
             mempool,
             ed25519VRFResource,
             localPeer,

@@ -15,7 +15,13 @@ import co.topl.consensus.BlockHeaderValidationFailure
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LocalChainAlgebra}
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
-import co.topl.ledger.models.{BodySemanticError, BodySyntaxError, TransactionSemanticError, TransactionSyntaxError}
+import co.topl.ledger.models.{
+  BodyAuthorizationError,
+  BodySemanticError,
+  BodySyntaxError,
+  TransactionSemanticError,
+  TransactionSyntaxError
+}
 import co.topl.models._
 import co.topl.networking.blockchain._
 import co.topl.typeclasses.implicits._
@@ -51,16 +57,17 @@ object BlockchainPeerHandler {
   object ChainSynchronizer {
 
     def make[F[_]: Async: Parallel: FToFuture: RunnableGraphToF: Logger](
-      localChain:             LocalChainAlgebra[F],
-      headerValidation:       BlockHeaderValidationAlgebra[F],
-      bodySyntaxValidation:   BodySyntaxValidationAlgebra[F],
-      bodySemanticValidation: BodySemanticValidationAlgebra[F],
-      slotDataStore:          Store[F, TypedIdentifier, SlotData],
-      headerStore:            Store[F, TypedIdentifier, BlockHeaderV2],
-      bodyStore:              Store[F, TypedIdentifier, BlockBodyV2],
-      transactionStore:       Store[F, TypedIdentifier, Transaction],
-      blockIdTree:            ParentChildTree[F, TypedIdentifier]
-    )(implicit mat:           Materializer): BlockchainPeerHandlerAlgebra[F] =
+      localChain:                  LocalChainAlgebra[F],
+      headerValidation:            BlockHeaderValidationAlgebra[F],
+      bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
+      bodySemanticValidation:      BodySemanticValidationAlgebra[F],
+      bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
+      slotDataStore:               Store[F, TypedIdentifier, SlotData],
+      headerStore:                 Store[F, TypedIdentifier, BlockHeaderV2],
+      bodyStore:                   Store[F, TypedIdentifier, BlockBodyV2],
+      transactionStore:            Store[F, TypedIdentifier, Transaction],
+      blockIdTree:                 ParentChildTree[F, TypedIdentifier]
+    )(implicit mat:                Materializer): BlockchainPeerHandlerAlgebra[F] =
       (client: BlockchainPeerClient[F]) =>
         for {
           _adoptions <- client.remotePeerAdoptions
@@ -75,6 +82,7 @@ object BlockchainPeerHandler {
             client,
             bodySyntaxValidation,
             bodySemanticValidation,
+            bodyAuthorizationValidation,
             slotDataStore,
             headerStore,
             bodyStore,
@@ -152,6 +160,9 @@ object BlockchainPeerHandler {
     implicit private val showBodySemanticError: Show[BodySemanticError] =
       Show.fromToString
 
+    implicit private val showBodyAuthorizationError: Show[BodyAuthorizationError] =
+      Show.fromToString
+
     /**
      * Fetches each missing header block from the remote peer, starting with the given `from`.  The search first determines
      * the sequence of missing header IDs by comparing IDs known in the SlotDataStore with IDs known in the HeaderStore.
@@ -200,14 +211,15 @@ object BlockchainPeerHandler {
      * the remote peer and validated in-order.
      */
     private def fetchAndValidateMissingBodies[F[_]: Async: FToFuture: RunnableGraphToF: Logger](
-      client:                 BlockchainPeerClient[F],
-      bodySyntaxValidation:   BodySyntaxValidationAlgebra[F],
-      bodySemanticValidation: BodySemanticValidationAlgebra[F],
-      slotDataStore:          Store[F, TypedIdentifier, SlotData],
-      headerStore:            Store[F, TypedIdentifier, BlockHeaderV2],
-      bodyStore:              Store[F, TypedIdentifier, BlockBodyV2],
-      transactionStore:       Store[F, TypedIdentifier, Transaction]
-    )(from:                   TypedIdentifier) =
+      client:                      BlockchainPeerClient[F],
+      bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
+      bodySemanticValidation:      BodySemanticValidationAlgebra[F],
+      bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
+      slotDataStore:               Store[F, TypedIdentifier, SlotData],
+      headerStore:                 Store[F, TypedIdentifier, BlockHeaderV2],
+      bodyStore:                   Store[F, TypedIdentifier, BlockBodyV2],
+      transactionStore:            Store[F, TypedIdentifier, Transaction]
+    )(from:                        TypedIdentifier) =
       determineMissingValues(
         bodyStore.contains,
         slotDataStore.getOrRaise(_).map(_.parentSlotId.blockId)
@@ -246,26 +258,31 @@ object BlockchainPeerHandler {
                 .map(header => BlockV2(header, body))
                 .flatMap(block =>
                   Logger[F].info(show"Validating syntax of body id=$blockId") >>
-                  EitherT(bodySyntaxValidation.validate(block.blockBodyV2).map(_.toEither))
-                    .leftSemiflatTap(errors =>
-                      Logger[F].warn(show"Received invalid block body id=$blockId errors=$errors")
-                    )
-                    .leftMap(errors => new IllegalArgumentException(errors.show))
-                    .semiflatTap(_ => Logger[F].info(show"Validating semantics of body id=$blockId"))
-                    .flatMap(_ =>
-                      EitherT(
+                  (
+                    for {
+                      _ <- EitherT.rightT(Logger[F].info(show"Validating syntax of body id=$blockId"))
+                      _ <- EitherT(
+                        bodySyntaxValidation
+                          .validate(block.blockBodyV2)
+                          .map(_.toEither.leftMap(_.show))
+                      )
+                      _ <- EitherT.rightT(Logger[F].info(show"Validating semantics of body id=$blockId"))
+                      _ <- EitherT(
                         bodySemanticValidation
                           .validate(block.headerV2.parentHeaderId)(block.blockBodyV2)
-                          .map(_.toEither)
+                          .map(_.toEither.leftMap(_.show))
                       )
-                        .leftSemiflatTap(errors =>
-                          Logger[F].warn(show"Received invalid block body id=$blockId errors=$errors")
-                        )
-                        .leftMap(errors => new IllegalArgumentException(errors.show))
-                    )
+                      _ <- EitherT.rightT(Logger[F].info(show"Validating authorization of body id=$blockId"))
+                      _ <- EitherT(
+                        bodyAuthorizationValidation
+                          .validate(block.headerV2.parentHeaderId)(block.blockBodyV2)
+                          .map(_.toEither.leftMap(_.show))
+                      )
+                    } yield ()
+                  )
+                    .leftSemiflatTap(e => Logger[F].warn(show"Received invalid block body id=$blockId errors=$e"))
+                    .leftMap(e => new IllegalArgumentException(e))
                     .rethrowT
-                    // TODO: Delete the bad transaction, body, and header
-                    .void
                 )
             }
             .toMat(Sink.ignore)(Keep.right)
@@ -298,19 +315,27 @@ object BlockchainPeerHandler {
       store:           Store[F, TypedIdentifier, Value],
       fetchRemoteData: TypedIdentifier => F[Value],
       parentOf:        (TypedIdentifier, Value) => F[TypedIdentifier]
-    )(from:            (TypedIdentifier, Value)) =
+    )(from:            (TypedIdentifier, Value)): F[NonEmptyChain[Value]] =
+      // Tuple: (Data Elements, Parent Exists Locally)
+      // Starting with `from`, work backwards until a local value is found
       (NonEmptyChain(from), false)
         .iterateUntilM { case (data, _) =>
+          // First determine the parent of the head of the current list of data elements
           parentOf(data.head._1, data.head._2)
             .flatMap(parentId =>
+              // Now check to see if that parent exists locally
               store
                 .contains(parentId)
                 .ifM(
-                  (data, true).pure[F],
-                  fetchRemoteData(parentId).map(parentData => (data.prepend((parentId, parentData)), false))
+                  // If it exists locally, we're all done
+                  ifTrue = (data, true).pure[F],
+                  // Otherwise, prepend it to the data elements and re-iterate
+                  ifFalse = fetchRemoteData(parentId).map(parentData => (data.prepend((parentId, parentData)), false))
                 )
             )
+        // Stop iterating once a local value has been found
         }(_._2)
+        // Keep just the data elements
         .map(_._1.map(_._2))
   }
 

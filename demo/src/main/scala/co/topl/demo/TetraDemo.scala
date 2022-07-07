@@ -21,7 +21,7 @@ import co.topl.consensus._
 import co.topl.consensus.algebras.{EtaCalculationAlgebra, LeaderElectionValidationAlgebra, LocalChainAlgebra}
 import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.crypto.generation.mnemonic.Entropy
-import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
+import co.topl.crypto.signing.{Curve25519, Ed25519, Ed25519VRF, ExtendedEd25519, KesProduct}
 import co.topl.interpreters._
 import co.topl.ledger.algebras.{BodySemanticValidationAlgebra, BodySyntaxValidationAlgebra, MempoolAlgebra}
 import co.topl.ledger.interpreters._
@@ -162,19 +162,22 @@ object TetraDemo extends IOApp {
       blake2b512Resource <- ActorPoolUnsafeResource.Eval.make[F, Blake2b512](new Blake2b512, _ => ())
       ed25519VRFResource <- ActorPoolUnsafeResource.Eval.make[F, Ed25519VRF](Ed25519VRF.precomputed(), _ => ())
       kesProductResource <- ActorPoolUnsafeResource.Eval.make[F, KesProduct](new KesProduct, _ => ())
+      curve25519Resource <- ActorPoolUnsafeResource.Eval.make[F, Curve25519](new Curve25519, _ => ())
       ed25519Resource    <- ActorPoolUnsafeResource.Eval.make[F, Ed25519](new Ed25519, _ => ())
-      slotDataStore      <- RefStore.Eval.make[F, TypedIdentifier, SlotData]()
-      blockHeaderStore   <- RefStore.Eval.make[F, TypedIdentifier, BlockHeaderV2]()
-      blockBodyStore     <- RefStore.Eval.make[F, TypedIdentifier, BlockBodyV2]()
-      transactionStore   <- RefStore.Eval.make[F, TypedIdentifier, Transaction]()
-      boxStateStore      <- RefStore.Eval.make[F, TypedIdentifier, NonEmptySet[Short]]()
-      _                  <- slotDataStore.put(genesis.headerV2.id, genesis.headerV2.slotData(Ed25519VRF.precomputed()))
-      _                  <- blockHeaderStore.put(genesis.headerV2.id, genesis.headerV2)
-      _                  <- blockBodyStore.put(genesis.headerV2.id, genesis.blockBodyV2)
-      _                  <- transactionStore.put(genesisTransaction.id, genesisTransaction)
-      _                  <- boxStateStore.put(genesisTransaction.id, NonEmptySet.one(0: Short))
-      blockIdTree        <- BlockIdTree.make[F]
-      _                  <- blockIdTree.associate(genesis.headerV2.id, genesis.headerV2.parentHeaderId)
+      extendedEd25519Resource <- ActorPoolUnsafeResource.Eval
+        .make[F, ExtendedEd25519](ExtendedEd25519.precomputed(), _ => ())
+      slotDataStore    <- RefStore.Eval.make[F, TypedIdentifier, SlotData]()
+      blockHeaderStore <- RefStore.Eval.make[F, TypedIdentifier, BlockHeaderV2]()
+      blockBodyStore   <- RefStore.Eval.make[F, TypedIdentifier, BlockBodyV2]()
+      transactionStore <- RefStore.Eval.make[F, TypedIdentifier, Transaction]()
+      boxStateStore    <- RefStore.Eval.make[F, TypedIdentifier, NonEmptySet[Short]]()
+      _                <- slotDataStore.put(genesis.headerV2.id, genesis.headerV2.slotData(Ed25519VRF.precomputed()))
+      _                <- blockHeaderStore.put(genesis.headerV2.id, genesis.headerV2)
+      _                <- blockBodyStore.put(genesis.headerV2.id, genesis.blockBodyV2)
+      _                <- transactionStore.put(genesisTransaction.id, genesisTransaction)
+      _                <- boxStateStore.put(genesisTransaction.id, NonEmptySet.one(0: Short))
+      blockIdTree      <- BlockIdTree.make[F]
+      _                <- blockIdTree.associate(genesis.headerV2.id, genesis.headerV2.parentHeaderId)
       blockHeightTreeStore        <- RefStore.Eval.make[F, Long, TypedIdentifier]()
       blockHeightTreeUnapplyStore <- RefStore.Eval.make[F, TypedIdentifier, Long]()
       blockHeightTree <- BlockHeightTree
@@ -234,11 +237,22 @@ object TetraDemo extends IOApp {
       )
       transactionSyntaxValidation   <- TransactionSyntaxValidation.make[F]
       transactionSemanticValidation <- TransactionSemanticValidation.make[F](transactionStore.getOrRaise, boxState)
+      transactionAuthorizationValidation <- TransactionAuthorizationValidation.make[F](
+        blake2b256Resource,
+        curve25519Resource,
+        ed25519Resource,
+        extendedEd25519Resource,
+        slotDataStore.getOrRaise
+      )
       bodySyntaxValidation <- BodySyntaxValidation.make[F](transactionStore.getOrRaise, transactionSyntaxValidation)
       bodySemanticValidation <- BodySemanticValidation.make[F](
         transactionStore.getOrRaise,
         boxState,
         boxState => TransactionSemanticValidation.make[F](transactionStore.getOrRaise, boxState)
+      )
+      bodyAuthorizationValidation <- BodyAuthorizationValidation.make[F](
+        transactionStore.getOrRaise,
+        transactionAuthorizationValidation
       )
       mintOpt <- OptionT
         .fromOption[F](demoArgs.stakerIndex)
@@ -279,6 +293,7 @@ object TetraDemo extends IOApp {
           transactionSemanticValidation,
           bodySyntaxValidation,
           bodySemanticValidation,
+          bodyAuthorizationValidation,
           mempool,
           ed25519VRFResource,
           LocalPeer(InetSocketAddress.createUnresolved("localhost", demoArgs.port), (0, 0)),

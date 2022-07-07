@@ -1,27 +1,18 @@
 package co.topl.credential.playground
 
 import cats.data.NonEmptyChain
-import cats.effect.unsafe.implicits.global
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.credential.Credential
 import co.topl.crypto.generation.KeyInitializer
 import co.topl.crypto.generation.KeyInitializer.Instances.{curve25519Initializer, ed25519Initializer}
-import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.{Curve25519, Ed25519, ExtendedEd25519}
 import co.topl.models.ModelGenerators._
-import co.topl.models.Propositions.Compositional
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
-import co.topl.scripting.GraalVMScripting
-import co.topl.scripting.GraalVMScripting.GraalVMValuable
-import co.topl.scripting.GraalVMScripting.instances._
-import co.topl.typeclasses.VerificationContext
 import co.topl.typeclasses.implicits._
-import io.circe.Json
-import org.graalvm.polyglot.Value
-import co.topl.credential.implicits._
 
 ///**
 // *  contextual proof to check the output box of the current transaction
@@ -40,21 +31,6 @@ object SetupSandbox {
   implicit val ed25519: Ed25519 = new Ed25519
   implicit val extendedEd25519: ExtendedEd25519 = new ExtendedEd25519
 
-  implicit val jsExecutor: Propositions.Script.JS.JSScript => F[(Json, Json) => F[Boolean]] =
-    s =>
-      GraalVMScripting
-        .jsExecutor[F, Boolean](s.value)
-        .map(f =>
-          Function.untupled(
-            f.compose[(Json, Json)] { t =>
-              Seq(
-                GraalVMValuable[Json].toGraalValue(t._1),
-                GraalVMValuable[Json].toGraalValue(t._2),
-                Value.asValue(new VerificationUtils)
-              )
-            }
-          )
-        )
   implicit val networkPrefix: NetworkPrefix = NetworkPrefix(1: Byte)
 
   val stakingAddress: StakingAddress =
@@ -116,31 +92,15 @@ object CredentialPlaygroundJAA extends App {
 
   val transaction = unprovenTransaction.prove(_ => proof)
   println(transaction)
-
-  implicit val context: VerificationContext[F] = new VerificationContext[F] {
-    def currentTransaction: Transaction = transaction
-    def currentHeight: Long = 1
-
-    def inputBoxes: List[Box] = List(
-      Box(
-        proposition.typedEvidence,
-        Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))
-      )
-    )
-
-    def currentSlot: Slot = 1
-  }
-
-  println(s"Does the proof satisfy the proposition? ${proposition.isSatisfiedBy(proof).unsafeRunSync()}")
-
 }
 
 object RequiredOutput extends App {
   import SetupSandbox._
 
   val requiredBoxProposition = Propositions.Contextual.RequiredBoxState(
-    BoxLocations.Output,
-    List((0, Box.empty.copy(evidence = address0.typedEvidence))) // todo: helper function name for Box.empty.copy
+    List(
+      Box.empty.copy(evidence = address0.typedEvidence) -> BoxLocations.Output(0)
+    ) // todo: helper function name for Box.empty.copy
   )
   val proposition = curve25519Sk.vk.asProposition.and(requiredBoxProposition)
   println(s"The address for the proposition is: ${proposition.spendingAddress}")
@@ -157,7 +117,11 @@ object RequiredOutput extends App {
     List(
       Credential.Knowledge.Curve25519(curve25519Sk, unprovenTransaction),
       Credential.Contextual
-        .RequiredBoxState(BoxLocations.Output, List((0, Box.empty.copy(evidence = address0.typedEvidence))))
+        .RequiredBoxState(
+          List(
+            Box.empty.copy(evidence = address0.typedEvidence) -> BoxLocations.Output(0)
+          )
+        )
     )
   )
 
@@ -165,22 +129,6 @@ object RequiredOutput extends App {
   println(proof)
 
   val transaction = unprovenTransaction.prove(_ => proof)
-  println(transaction)
-
-  implicit val context: VerificationContext[F] = new VerificationContext[F] {
-    def currentTransaction: Transaction = transaction
-    def currentHeight: Long = 1
-
-    def inputBoxes: List[Box] = List(
-      Box(
-        proposition.typedEvidence,
-        Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))
-      )
-    )
-    def currentSlot: Slot = 1
-  }
-
-  println(s"Does the proof satisfy the proposition? ${proposition.isSatisfiedBy(proof).unsafeRunSync()}")
 }
 
 //object XorGameSetup extends App {
@@ -253,21 +201,21 @@ object RequiredOutput extends App {
 object XorGameCompletion extends App {
   import SetupSandbox._
 
-  val aliceSaltInput = blake2b256.hash("test".getBytes)
-  val aliceValueInput: Byte = 1
-  val aliceCommit: Digest32 = Sized.strictUnsafe(Bytes(blake2b256.hash(aliceSaltInput.value :+ aliceValueInput).value))
+  val aliceCommit: Digest32 =
+    new Blake2b256().hash(Bytes.encodeUtf8("test" + "1").getOrElse(???))
 
   val requiredInputBoxProposition =
     Propositions.Contextual.RequiredBoxState(
-      BoxLocations.Input,
-      List((0, Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10))))))
+      List(
+        Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))) -> BoxLocations.Input(0)
+      )
     )
 
   val fullGameProposition = bobSk.vk.asProposition
     .and(Propositions.Contextual.HeightLock(50))
     .or(
       Propositions.Knowledge
-        .HashLock(aliceCommit)
+        .Password(aliceCommit)
         .and(
           aliceSk.vk.asProposition
             .and(requiredInputBoxProposition)
@@ -276,8 +224,9 @@ object XorGameCompletion extends App {
     )
 
   val halfGameProposition = Propositions.Contextual.RequiredBoxState(
-    BoxLocations.Output,
-    List((0, Box.empty.copy(evidence = fullGameProposition.spendingAddress.typedEvidence)))
+    List(
+      Box.empty.copy(evidence = fullGameProposition.spendingAddress.typedEvidence) -> BoxLocations.Output(0)
+    )
   )
 
   println(s"The address for the proposition is: ${fullGameProposition.spendingAddress}")
@@ -297,11 +246,12 @@ object XorGameCompletion extends App {
     fullGameProposition,
     List(
       Credential.Contextual.HeightLock(50),
-      Credential.Knowledge.HashLock(Sized.strictUnsafe(Bytes(aliceSaltInput.value)), aliceValueInput),
+      Credential.Knowledge.Password(Sized.maxUnsafe(Bytes.encodeUtf8("test" + "1").getOrElse(???))),
       Credential.Knowledge.Curve25519(aliceSk, unprovenTransaction),
       Credential.Contextual.RequiredBoxState(
-        BoxLocations.Input,
-        List((0, Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10))))))
+        List(
+          Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))) -> BoxLocations.Input(0)
+        )
       )
     )
   )
@@ -312,30 +262,13 @@ object XorGameCompletion extends App {
   val transaction = unprovenTransaction.prove(_ => proof)
   println(transaction)
 
-  implicit val context: VerificationContext[F] = new VerificationContext[F] {
-    def currentTransaction: Transaction = transaction
-    def currentHeight: Long = 1
-
-    def inputBoxes: List[Box] = List(
-      Box(
-        halfGameProposition.typedEvidence,
-        Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))
-      )
-    )
-    def currentSlot: Slot = 1
-  }
-
-  println(s"Does the proof satisfy the proposition? ${fullGameProposition.isSatisfiedBy(proof).unsafeRunSync()}")
 }
 
 // (pk(Receiver) && sha256(H)) || (pk(Refundee) && older(10))
 object HashTimeLockContract extends App {
   import SetupSandbox._
 
-  val aliceSaltInput: Digest32 = Sized.strictUnsafe(Bytes(blake2b256.hash("test".getBytes).value))
-  val aliceValueInput: Byte = 0
-
-  val credential = Credential.Knowledge.HashLock(aliceSaltInput, aliceValueInput)
+  val credential = Credential.Knowledge.Password(Sized.maxUnsafe(Bytes.encodeUtf8("test").getOrElse(???)))
 
   val proposition = credential.proposition
   println(s"The proposition is: ${proposition}")
@@ -355,30 +288,15 @@ object HashTimeLockContract extends App {
 
   val transaction = unprovenTransaction.prove(_ => proof)
   println(transaction)
-
-  implicit val context: VerificationContext[F] = new VerificationContext[F] {
-    def currentTransaction: Transaction = transaction
-    def currentHeight: Long = 3
-
-    def inputBoxes: List[Box] = List(
-      Box(
-        proposition.typedEvidence,
-        Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))
-      )
-    )
-
-    def currentSlot: Slot = 1
-  }
-
-  println(s"Does the proof satisfy the proposition? ${proposition.isSatisfiedBy(proof).unsafeRunSync()}")
 }
 
 object RequiredBoxValue extends App {
   import SetupSandbox._
 
   val proposition = Propositions.Contextual.RequiredBoxState(
-    BoxLocations.Output,
-    List((0, Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10))))))
+    List(
+      Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))) -> BoxLocations.Output(0)
+    )
   )
   println(s"The address for the proposition is: ${proposition}")
 
@@ -390,8 +308,9 @@ object RequiredBoxValue extends App {
   )
 
   val credential = Credential.Contextual.RequiredBoxState(
-    BoxLocations.Output,
-    List((0, Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10))))))
+    List(
+      Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))) -> BoxLocations.Output(0)
+    )
   )
 
   val proof = credential.proof
@@ -399,15 +318,6 @@ object RequiredBoxValue extends App {
 
   val transaction = unprovenTransaction.prove(_ => proof)
   println(transaction)
-
-  implicit val context: VerificationContext[F] = new VerificationContext[F] {
-    def currentTransaction: Transaction = transaction
-    def currentHeight: Long = 1
-    def inputBoxes: List[Box] = List()
-    def currentSlot: Slot = 1
-  }
-
-  println(s"Does the proof satisfy the proposition? ${proposition.isSatisfiedBy(proof).unsafeRunSync()}")
 }
 
 object NotTest extends App {
@@ -435,21 +345,5 @@ object NotTest extends App {
 
   val transaction = unprovenTransaction.prove(_ => proof)
   println(transaction)
-
-  implicit val context: VerificationContext[F] = new VerificationContext[F] {
-    def currentTransaction: Transaction = transaction
-    def currentHeight: Long = 10
-
-    def inputBoxes: List[Box] = List(
-      Box(
-        proposition.typedEvidence,
-        Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))
-      )
-    )
-
-    def currentSlot: Slot = 1
-  }
-
-  println(s"Does the proof satisfy the proposition? ${proposition.isSatisfiedBy(proof).unsafeRunSync()}")
 
 }

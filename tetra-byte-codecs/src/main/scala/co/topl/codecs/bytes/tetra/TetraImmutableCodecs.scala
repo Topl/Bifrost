@@ -73,7 +73,7 @@ trait TetraImmutableCodecs {
     : ImmutableCodec[Propositions.Knowledge.ExtendedEd25519] =
     ImmutableCodec.fromScodecCodec
 
-  implicit val propositionKnowledgehashLockImmutableCodec: ImmutableCodec[Propositions.Knowledge.HashLock] =
+  implicit val propositionKnowledgehashLockImmutableCodec: ImmutableCodec[Propositions.Knowledge.Password] =
     ImmutableCodec.fromScodecCodec
 
   implicit val propositionCompositionalThresholdImmutableCodec: ImmutableCodec[Propositions.Compositional.Threshold] =
@@ -93,9 +93,6 @@ trait TetraImmutableCodecs {
 
   implicit val propositionContextualRequiredBoxStateImmutableCodec
     : ImmutableCodec[Propositions.Contextual.RequiredBoxState] =
-    ImmutableCodec.fromScodecCodec
-
-  implicit val propositionScriptJsImmutableCodec: ImmutableCodec[Propositions.Script.JS] =
     ImmutableCodec.fromScodecCodec
 
   implicit val kesSumProofStableCodec: ImmutableCodec[Proofs.Knowledge.KesSum] =

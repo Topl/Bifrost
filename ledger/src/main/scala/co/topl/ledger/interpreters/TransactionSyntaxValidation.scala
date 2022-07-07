@@ -163,8 +163,8 @@ object TransactionSyntaxValidation {
         matchProof(proposition, proof)(allowUndefined) { case _: Proofs.Knowledge.Ed25519 => }
       case _: Propositions.Knowledge.ExtendedEd25519 =>
         matchProof(proposition, proof)(allowUndefined) { case _: Proofs.Knowledge.Ed25519 => }
-      case _: Propositions.Knowledge.HashLock =>
-        matchProof(proposition, proof)(allowUndefined) { case _: Proofs.Knowledge.HashLock => }
+      case _: Propositions.Knowledge.Password =>
+        matchProof(proposition, proof)(allowUndefined) { case _: Proofs.Knowledge.Password => }
       case Propositions.Compositional.And(aProp, bProp) =>
         proof match {
           case Proofs.Undefined if allowUndefined => ().validNec[TransactionSyntaxError]

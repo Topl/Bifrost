@@ -259,8 +259,8 @@ trait TetraScodecPropositionCodecs {
   implicit val propositionsKnowledgeExtendedEd25519Codec: Codec[Propositions.Knowledge.ExtendedEd25519] =
     Codec[VerificationKeys.ExtendedEd25519].as[Propositions.Knowledge.ExtendedEd25519]
 
-  implicit val propositionsKnowledgeHashLockCodec: Codec[Propositions.Knowledge.HashLock] =
-    Codec[Digest32].as[Propositions.Knowledge.HashLock]
+  implicit val propositionsKnowledgeHashLockCodec: Codec[Propositions.Knowledge.Password] =
+    Codec[Digest32].as[Propositions.Knowledge.Password]
 
   implicit val propositionsCompositionalThresholdCodec: Codec[Propositions.Compositional.Threshold] =
     Codec
@@ -286,17 +286,14 @@ trait TetraScodecPropositionCodecs {
   implicit val boxLocationCodec: Codec[BoxLocation] =
     discriminated[BoxLocation]
       .by(byteCodec)
-      .typecase(0: Byte, emptyCodec(BoxLocations.Input))
-      .typecase(1: Byte, emptyCodec(BoxLocations.Output))
+      .typecase(0: Byte, shortCodec.as[BoxLocations.Input])
+      .typecase(1: Byte, shortCodec.as[BoxLocations.Output])
 
   implicit val propositionsContextualRequiredBoxStateCodec: Codec[Propositions.Contextual.RequiredBoxState] =
     Codec.lazily(
-      (Codec[BoxLocation] :: Codec[List[(Short, Box)]](listCodec(tupleCodec(shortCodec, boxCodec))))
+      Codec[List[(Box, BoxLocation)]](listCodec(tupleCodec(boxCodec, boxLocationCodec)))
         .as[Propositions.Contextual.RequiredBoxState]
     )
-
-  implicit val propositionsScriptJsCodec: Codec[Propositions.Script.JS] =
-    intStringCodec.xmap(bs => Propositions.Script.JS(Propositions.Script.JS.JSScript(bs)), _.script.value)
 
   implicit val propositionCodec: Codec[Proposition] =
     discriminated[Proposition]
@@ -305,14 +302,13 @@ trait TetraScodecPropositionCodecs {
       .typecase[Propositions.Knowledge.Curve25519](1: Byte, propositionsKnowledgeCurve25519Codec)
       .typecase[Propositions.Knowledge.Ed25519](2: Byte, propositionsKnowledgeEd25519Codec)
       .typecase[Propositions.Knowledge.ExtendedEd25519](3: Byte, propositionsKnowledgeExtendedEd25519Codec)
-      .typecase[Propositions.Knowledge.HashLock](4: Byte, propositionsKnowledgeHashLockCodec)
+      .typecase[Propositions.Knowledge.Password](4: Byte, propositionsKnowledgeHashLockCodec)
       .typecase[Propositions.Compositional.Threshold](5: Byte, propositionsCompositionalThresholdCodec)
       .typecase[Propositions.Compositional.And](6: Byte, propositionsCompositionalAndCodec)
       .typecase[Propositions.Compositional.Or](7: Byte, propositionsCompositionalOrCodec)
       .typecase[Propositions.Compositional.Not](8: Byte, propositionsCompositionalNotCodec)
       .typecase[Propositions.Contextual.HeightLock](9: Byte, propositionsContextualHeightLockCodec)
       .typecase[Propositions.Contextual.RequiredBoxState](10: Byte, propositionsContextualRequiredBoxStateCodec)
-      .typecase[Propositions.Script.JS](11: Byte, propositionsScriptJsCodec)
 
 }
 
@@ -341,9 +337,8 @@ trait TetraScodecProofCodecs {
       Proofs.Knowledge.KesProduct.DigestLength
     ]).as[Proofs.Knowledge.KesProduct]
 
-  implicit val proofsKnowledgeHashLockCodec: Codec[Proofs.Knowledge.HashLock] =
-    (Codec[Digest32] :: byteCodec)
-      .as[Proofs.Knowledge.HashLock]
+  implicit val proofsKnowledgeHashLockCodec: Codec[Proofs.Knowledge.Password] =
+    maxSizedCodec[Bytes, Lengths.`256`.type].as[Proofs.Knowledge.Password]
 
   implicit val proofsCompositionalThresholdCodec: Codec[Proofs.Compositional.Threshold] =
     Codec

@@ -50,7 +50,7 @@ object Proofs {
       type DigestLength = Lengths.`32`.type
     }
 
-    case class HashLock(salt: Digest32, value: Byte) extends Proof
+    case class Password(value: Sized.Max[Bytes, Lengths.`256`.type]) extends Proof
   }
 
   object Compositional {
@@ -64,11 +64,6 @@ object Proofs {
     case class HeightLock() extends Proof
     case class RequiredBoxState() extends Proof
   }
-
-//  object Example {
-//    case class EnumeratedInput(value: Int) extends Proof
-//
-//  }
 
   object Script {
     case class JS(serializedArgs: String) extends Proof
