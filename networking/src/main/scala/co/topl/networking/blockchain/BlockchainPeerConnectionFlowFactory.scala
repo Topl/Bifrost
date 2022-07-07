@@ -8,7 +8,7 @@ import cats.effect.Async
 import cats.implicits._
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.models.{BlockBodyV2, BlockHeaderV2, Transaction, TypedIdentifier}
+import co.topl.models.{BlockBodyV2, BlockHeaderV2, SlotData, Transaction, TypedIdentifier}
 import co.topl.networking.TypedProtocolSetFactory.implicits._
 import co.topl.networking._
 import co.topl.networking.blockchain.NetworkTypeTags._
@@ -48,28 +48,36 @@ object BlockchainPeerConnectionFlowFactory {
         4: Byte
       )
 
+    val slotDataRecipF =
+      TypedProtocolSetFactory.CommonProtocols.requestResponseReciprocated(
+        BlockchainProtocols.SlotData,
+        protocolServer.getLocalSlotData,
+        5: Byte,
+        6: Byte
+      )
+
     val headerRecipF =
       TypedProtocolSetFactory.CommonProtocols.requestResponseReciprocated(
         BlockchainProtocols.Header,
         protocolServer.getLocalHeader,
-        5: Byte,
-        6: Byte
+        7: Byte,
+        8: Byte
       )
 
     val bodyRecipF =
       TypedProtocolSetFactory.CommonProtocols.requestResponseReciprocated(
         BlockchainProtocols.Body,
         protocolServer.getLocalBody,
-        7: Byte,
-        8: Byte
+        9: Byte,
+        10: Byte
       )
 
     val transactionRecipF =
       TypedProtocolSetFactory.CommonProtocols.requestResponseReciprocated(
         BlockchainProtocols.Transaction,
         protocolServer.getLocalTransaction,
-        9: Byte,
-        10: Byte
+        11: Byte,
+        12: Byte
       )
 
     val idAtHeightRecipF =
@@ -77,8 +85,8 @@ object BlockchainPeerConnectionFlowFactory {
         .requestResponseReciprocated[F, (Long, Option[TypedIdentifier]), TypedIdentifier](
           BlockchainProtocols.BlockIdAtHeight,
           t => protocolServer.getLocalBlockAtHeight(t._1),
-          11: Byte,
-          12: Byte
+          13: Byte,
+          14: Byte
         )
 
     (connectedPeer: ConnectedPeer, connectionLeader: ConnectionLeader) =>
@@ -87,6 +95,7 @@ object BlockchainPeerConnectionFlowFactory {
         (transactionNotificationTypedSubHandlers, remoteTransactionIdsSource) <- transactionNotificationRecipF.ap(
           connectionLeader.pure[F]
         )
+        (slotDataTypedSubHandlers, slotDataReceivedCallback)       <- slotDataRecipF.ap(connectionLeader.pure[F])
         (headerTypedSubHandlers, headerReceivedCallback)           <- headerRecipF.ap(connectionLeader.pure[F])
         (bodyTypedSubHandlers, bodyReceivedCallback)               <- bodyRecipF.ap(connectionLeader.pure[F])
         (transactionTypedSubHandlers, transactionReceivedCallback) <- transactionRecipF.ap(connectionLeader.pure[F])
@@ -95,6 +104,7 @@ object BlockchainPeerConnectionFlowFactory {
           val remotePeer: F[ConnectedPeer] = connectedPeer.pure[F]
           val remotePeerAdoptions: F[Source[TypedIdentifier, NotUsed]] = remoteBlockIdsSource.pure[F]
           val remoteTransactionNotifications: F[Source[TypedIdentifier, NotUsed]] = remoteTransactionIdsSource.pure[F]
+          def getRemoteSlotData(id: TypedIdentifier): F[Option[SlotData]] = slotDataReceivedCallback(id)
           def getRemoteHeader(id: TypedIdentifier): F[Option[BlockHeaderV2]] = headerReceivedCallback(id)
           def getRemoteBody(id: TypedIdentifier): F[Option[BlockBodyV2]] = bodyReceivedCallback(id)
           def getRemoteTransaction(id: TypedIdentifier): F[Option[Transaction]] = transactionReceivedCallback(id)
@@ -107,6 +117,7 @@ object BlockchainPeerConnectionFlowFactory {
         subHandlers =
           adoptionTypedSubHandlers ++
             transactionNotificationTypedSubHandlers ++
+            slotDataTypedSubHandlers ++
             headerTypedSubHandlers ++
             bodyTypedSubHandlers ++
             transactionTypedSubHandlers ++

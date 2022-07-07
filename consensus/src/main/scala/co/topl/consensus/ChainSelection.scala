@@ -42,17 +42,17 @@ object ChainSelection {
    * @param sWindow The number of slots of the forward-moving window of blocks for chain-density rule
    */
   def orderT[F[_]: Monad: Logger](
-    storage:            SlotDataCache[F],
+    fetchSlotData:      TypedIdentifier => F[SlotData],
     blake2b512Resource: UnsafeResource[F, Blake2b512],
     kLookback:          Long,
     sWindow:            Long
-  ): OrderT[F, SlotData] = new ChainSelectionOrderT[F](storage, blake2b512Resource, kLookback, sWindow)
+  ): OrderT[F, SlotData] = new ChainSelectionOrderT[F](fetchSlotData, blake2b512Resource, kLookback, sWindow)
 
   /**
    * Implementation of OrderT which provides F[_]-context-based ordering to SlotData (block headers)
    */
   private class ChainSelectionOrderT[F[_]: Monad: Logger](
-    storage:            SlotDataCache[F],
+    fetchSlotData:      TypedIdentifier => F[SlotData],
     blake2b512Resource: UnsafeResource[F, Blake2b512],
     kLookback:          Long,
     sWindow:            Long
@@ -112,7 +112,7 @@ object ChainSelection {
 
         def prependSegment(segment: C[SlotData]): F[C[SlotData]] =
           for {
-            parent <- storage.get(NonEmpty[C].head(segment).parentSlotId.blockId)
+            parent <- fetchSlotData(NonEmpty[C].head(segment).parentSlotId.blockId)
             prepended = Prepend[C].prepend(parent, segment)
           } yield prepended
 

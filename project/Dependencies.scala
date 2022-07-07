@@ -275,6 +275,12 @@ object Dependencies {
   lazy val ledger: Seq[ModuleID] =
     Dependencies.mUnitTest ++ Dependencies.catsEffect
 
+  lazy val blockchain: Seq[ModuleID] =
+    Dependencies.mUnitTest ++ Dependencies.catsEffect ++ logging ++ Seq(
+      akka("stream"),
+      akka("stream-testkit") % Test
+    )
+
   lazy val demo: Seq[ModuleID] =
     Seq(akka("actor"), akka("actor-typed"), akka("stream"), akkaHttp("http2-support")) ++ logging
 

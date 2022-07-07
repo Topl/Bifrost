@@ -206,6 +206,7 @@ lazy val bifrost = project
     tetraByteCodecs,
     consensus,
     ledger,
+    blockchain,
     demo,
     tools,
     scripting,
@@ -511,6 +512,35 @@ lazy val ledger = project
     munitScalamock % "test->test"
   )
 
+lazy val blockchain = project
+  .in(file("blockchain"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "blockchain",
+    commonSettings,
+    crossScalaVersions := Seq(scala213),
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.blockchain"
+  )
+  .settings(libraryDependencies ++= Dependencies.blockchain)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(
+    models   % "compile->compile;test->test",
+    algebras % "compile->compile;test->test",
+    typeclasses,
+    eventTree,
+    ledger,
+    munitScalamock % "test->test",
+    consensus,
+    minting,
+    scripting,
+    commonInterpreters,
+    networking,
+    catsAkka,
+    toplGrpc
+  )
+
 lazy val demo = project
   .in(file("demo"))
   .settings(
@@ -541,7 +571,8 @@ lazy val demo = project
     commonInterpreters,
     networking,
     catsAkka,
-    toplGrpc
+    toplGrpc,
+    blockchain
   )
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 

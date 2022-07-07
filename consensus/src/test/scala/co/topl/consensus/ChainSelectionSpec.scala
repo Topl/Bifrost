@@ -45,7 +45,8 @@ class ChainSelectionSpec
     val slotData = createSlotData(10, SlotId(9, TypedBytes(1: Byte, Bytes(Array[Byte](9)))), height = 4)
 
     val orderT =
-      ChainSelection.orderT[F](mock[SlotDataCache[F]], blake2b512Resource, kLookback = 1, sWindow = 1)
+      ChainSelection
+        .orderT[F](mockFunction[TypedIdentifier, F[SlotData]], blake2b512Resource, kLookback = 1, sWindow = 1)
 
     orderT.compare(slotData, slotData).unsafeRunSync() shouldBe 0
   }
@@ -70,15 +71,14 @@ class ChainSelectionSpec
 
     val allBlocks = (List(grandAncestor, ancestor) ++ xSegment ++ ySegment).map(d => d.slotId.blockId -> d).toMap
 
-    val cache = mock[SlotDataCache[F]]
+    val fetchSlotData = mockFunction[TypedIdentifier, F[SlotData]]
 
-    (cache
-      .get(_: TypedIdentifier))
+    fetchSlotData
       .expects(*)
       .anyNumberOfTimes()
       .onCall((id: TypedIdentifier) => allBlocks(id).pure[F])
 
-    val orderT = ChainSelection.orderT[F](cache, blake2b512Resource, kLookback = 100, sWindow = 1)
+    val orderT = ChainSelection.orderT[F](fetchSlotData, blake2b512Resource, kLookback = 100, sWindow = 1)
 
     orderT.compare(xSegment.last, ySegment.last).unsafeRunSync() should be > 0
   }
@@ -109,15 +109,14 @@ class ChainSelectionSpec
 
     val allBlocks = (List(grandAncestor, ancestor) ++ xSegment ++ ySegment).map(d => d.slotId.blockId -> d).toMap
 
-    val cache = mock[SlotDataCache[F]]
+    val fetchSlotData = mockFunction[TypedIdentifier, F[SlotData]]
 
-    (cache
-      .get(_: TypedIdentifier))
+    fetchSlotData
       .expects(*)
       .anyNumberOfTimes()
       .onCall((id: TypedIdentifier) => allBlocks(id).pure[F])
 
-    val orderT = ChainSelection.orderT[F](cache, blake2b512Resource, kLookback = 100, sWindow = 1)
+    val orderT = ChainSelection.orderT[F](fetchSlotData, blake2b512Resource, kLookback = 100, sWindow = 1)
 
     orderT.compare(xSegment.last, ySegment.last).unsafeRunSync() should be > 0
   }
@@ -169,15 +168,14 @@ class ChainSelectionSpec
 
     val allBlocks = (List(grandAncestor, ancestor) ++ xSegment ++ ySegment).map(d => d.slotId.blockId -> d).toMap
 
-    val cache = mock[SlotDataCache[F]]
+    val fetchSlotData = mockFunction[TypedIdentifier, F[SlotData]]
 
-    (cache
-      .get(_: TypedIdentifier))
+    fetchSlotData
       .expects(*)
       .anyNumberOfTimes()
       .onCall((id: TypedIdentifier) => allBlocks(id).pure[F])
 
-    val orderT = ChainSelection.orderT[F](cache, blake2b512Resource, kLookback = 100, sWindow = 1)
+    val orderT = ChainSelection.orderT[F](fetchSlotData, blake2b512Resource, kLookback = 100, sWindow = 1)
 
     orderT.compare(xSegment.last, ySegment.last).unsafeRunSync() should be > 0
   }
@@ -203,15 +201,14 @@ class ChainSelectionSpec
 
     val allBlocks = (List(grandAncestor, ancestor) ++ xSegment ++ ySegment).map(d => d.slotId.blockId -> d).toMap
 
-    val cache = mock[SlotDataCache[F]]
+    val fetchSlotData = mockFunction[TypedIdentifier, F[SlotData]]
 
-    (cache
-      .get(_: TypedIdentifier))
+    fetchSlotData
       .expects(*)
       .anyNumberOfTimes()
       .onCall((id: TypedIdentifier) => allBlocks(id).pure[F])
 
-    val orderT = ChainSelection.orderT[F](cache, blake2b512Resource, kLookback = 10, sWindow = 20)
+    val orderT = ChainSelection.orderT[F](fetchSlotData, blake2b512Resource, kLookback = 10, sWindow = 20)
 
     orderT.compare(xSegment.last, ySegment.last).unsafeRunSync() should be > 0
   }

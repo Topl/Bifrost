@@ -20,7 +20,7 @@ object TransactionSemanticValidation {
 
         /**
          * Validate the semantics of a transaction by verifying
-         *  - for each input, the claimed value/proposition matches the data defined in the referenced output
+         *  - for each input, the claimed value/proposition matches the data defined in the spent output
          *  - for each input, the referenced output is still spendable
          */
         def validate(

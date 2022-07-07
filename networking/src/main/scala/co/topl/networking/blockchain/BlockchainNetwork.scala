@@ -20,7 +20,7 @@ object BlockchainNetwork {
     bindPort:      Int,
     localPeer:     LocalPeer,
     remotePeers:   Source[DisconnectedPeer, _],
-    clientHandler: BlockchainClientHandler[F],
+    clientHandler: BlockchainPeerHandlerAlgebra[F],
     server:        BlockchainPeerServer[F],
     peerFlowModifier: (
       ConnectedPeer,
@@ -77,7 +77,7 @@ object BlockchainNetwork {
 
   private def handleNetworkClients[F[_]: Parallel: Async: Concurrent: Logger: FToFuture](
     clients:         Source[BlockchainPeerClient[F], _],
-    clientHandler:   BlockchainClientHandler[F]
+    clientHandler:   BlockchainPeerHandlerAlgebra[F]
   )(implicit system: ActorSystem[_]): F[Fiber[F, Throwable, Unit]] =
     Spawn[F].start(
       Async[F]
@@ -86,7 +86,7 @@ object BlockchainNetwork {
             .mapAsyncF(1)(client =>
               Spawn[F].start(
                 clientHandler
-                  .useClient(client)
+                  .usePeer(client)
                   .handleErrorWith(t =>
                     client.remotePeer
                       .flatMap(peer =>

@@ -44,7 +44,6 @@ class EtaCalculationSpec
   private val blake2b512 = new Blake2b512
 
   it should "compute the eta for an epoch" in {
-    val state = mock[SlotDataCache[F]]
     val clock = mock[ClockAlgebra[F]]
     val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
     val blake2b512Resource = mock[UnsafeResource[F, Blake2b512]]
@@ -55,9 +54,17 @@ class EtaCalculationSpec
       .anyNumberOfTimes()
       .returning(15L.pure[F])
 
+    val fetchSlotData = mockFunction[TypedIdentifier, F[SlotData]]
+
     val underTest =
       EtaCalculation.Eval
-        .make[F](state, clock, genesis.headerV2.eligibilityCertificate.eta, blake2b256Resource, blake2b512Resource)
+        .make[F](
+          fetchSlotData,
+          clock,
+          genesis.headerV2.eligibilityCertificate.eta,
+          blake2b256Resource,
+          blake2b512Resource
+        )
         .unsafeRunSync()
     val epoch = 0L
     val skVrf = KeyInitializer[SecretKeys.VrfEd25519].random()
@@ -92,8 +99,7 @@ class EtaCalculationSpec
         }
         .toList
 
-    (state
-      .get(_: TypedIdentifier))
+    fetchSlotData
       .expects(*)
       .onCall((id: TypedIdentifier) =>
         blocks.find(b => byteByteVectorTupleAsTypedBytes(b.id) eqv id).get.slotData.pure[F]
@@ -126,10 +132,10 @@ class EtaCalculationSpec
   }
 
   it should "compute the eta for an epoch with only a genesis block" in {
-    val state = mock[SlotDataCache[F]]
     val clock = mock[ClockAlgebra[F]]
     val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
     val blake2b512Resource = mock[UnsafeResource[F, Blake2b512]]
+    val fetchSlotData = mockFunction[TypedIdentifier, F[SlotData]]
     val genesis = BlockGenesis(Nil).value
 
     (() => clock.slotsPerEpoch)
@@ -139,12 +145,17 @@ class EtaCalculationSpec
 
     val underTest =
       EtaCalculation.Eval
-        .make[F](state, clock, genesis.headerV2.eligibilityCertificate.eta, blake2b256Resource, blake2b512Resource)
+        .make[F](
+          fetchSlotData,
+          clock,
+          genesis.headerV2.eligibilityCertificate.eta,
+          blake2b256Resource,
+          blake2b512Resource
+        )
         .unsafeRunSync()
     val epoch = 0L
 
-    (state
-      .get(_: TypedIdentifier))
+    fetchSlotData
       .expects(byteByteVectorTupleAsTypedBytes(genesis.headerV2.id))
       .once()
       .returning(genesis.headerV2.slotData.pure[F])

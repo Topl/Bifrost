@@ -33,6 +33,11 @@ trait BlockchainPeerClient[F[_]] {
   def remoteTransactionNotifications: F[Source[TypedIdentifier, NotUsed]]
 
   /**
+   * A Lookup to retrieve a remote SlotData by ID
+   */
+  def getRemoteSlotData(id: TypedIdentifier): F[Option[SlotData]]
+
+  /**
    * A Lookup to retrieve a remote block header by ID
    */
   def getRemoteHeader(id: TypedIdentifier): F[Option[BlockHeaderV2]]

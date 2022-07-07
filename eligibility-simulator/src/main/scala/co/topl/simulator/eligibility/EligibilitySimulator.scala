@@ -215,13 +215,14 @@ object EligibilitySimulator extends IOApp.Simple {
       ed25519VRFResource <- ActorPoolUnsafeResource.Eval.make[F, Ed25519VRF](Ed25519VRF.precomputed(), _ => ())
       kesProductResource <- ActorPoolUnsafeResource.Eval.make[F, KesProduct](new KesProduct, _ => ())
       ed25519Resource    <- ActorPoolUnsafeResource.Eval.make[F, Ed25519](new Ed25519, _ => ())
+      slotDataStore      <- RefStore.Eval.make[F, TypedIdentifier, SlotData]()
       blockHeaderStore   <- RefStore.Eval.make[F, TypedIdentifier, BlockHeaderV2]()
       blockBodyStore     <- RefStore.Eval.make[F, TypedIdentifier, BlockBodyV2]()
       blockStore = createBlockStore(blockHeaderStore, blockBodyStore)
-      _             <- blockStore.put(genesis.headerV2.id, genesis)
-      slotDataCache <- SlotDataCache.Eval.make(blockHeaderStore, ed25519VRFResource)
+      _ <- blockStore.put(genesis.headerV2.id, genesis)
+      _ <- slotDataStore.put(genesis.headerV2.id, genesis.headerV2.slotData(Ed25519VRF.precomputed()))
       etaCalculation <- EtaCalculation.Eval.make(
-        slotDataCache,
+        slotDataStore.getOrRaise,
         clock,
         genesis.headerV2.eligibilityCertificate.eta,
         blake2b256Resource,
@@ -246,7 +247,8 @@ object EligibilitySimulator extends IOApp.Simple {
       cachedHeaderValidation <- BlockHeaderValidation.WithCache.make[F](underlyingHeaderValidation, blockHeaderStore)
       localChain <- LocalChain.Eval.make(
         genesis.headerV2.slotData(Ed25519VRF.precomputed()),
-        ChainSelection.orderT[F](slotDataCache, blake2b512Resource, ChainSelectionKLookback, ChainSelectionSWindow)
+        ChainSelection
+          .orderT[F](slotDataStore.getOrRaise, blake2b512Resource, ChainSelectionKLookback, ChainSelectionSWindow)
       )
       m <- mints(
         etaCalculation,

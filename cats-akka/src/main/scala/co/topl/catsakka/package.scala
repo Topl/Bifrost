@@ -1,6 +1,7 @@
 package co.topl
 
 import akka.actor.typed.ActorSystem
+import akka.stream.scaladsl.RunnableGraph
 import cats.arrow.FunctionK
 import cats.effect.IO
 import cats.effect.unsafe.IORuntime
@@ -10,6 +11,7 @@ import scala.concurrent.Future
 
 package object catsakka extends SourceOps with RunnableGraphOps with FlowOps {
   type FToFuture[F[_]] = F ~> Future
+  type RunnableGraphToF[F[_]] = RunnableGraph ~> F
 
   implicit def ioToFuture(implicit ioRuntime: IORuntime): IO ~> Future =
     FunctionK.liftFunction(_.unsafeToFuture())
