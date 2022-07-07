@@ -125,12 +125,13 @@ object BlockchainPeerHandler {
                               localChain
                                 .isWorseThan(tine.last)
                                 .ifM(
-                                  // And finally, adopt the remote peer's tine
-                                  localChain.adopt(Validated.Valid(tine.last)) >>
-                                  Logger[F].info(
-                                    show"Adopted head block id=${tine.last.slotId.blockId} height=${tine.last.height} slot=${tine.last.slotId.slot}"
-                                  ),
-                                  Logger[F].info(show"Ignoring weaker (or equal) block header id=$id")
+                                  ifTrue =
+                                    // And finally, adopt the remote peer's tine
+                                    localChain.adopt(Validated.Valid(tine.last)) >>
+                                    Logger[F].info(
+                                      show"Adopted head block id=${tine.last.slotId.blockId} height=${tine.last.height} slot=${tine.last.slotId.slot}"
+                                    ),
+                                  ifFalse = Logger[F].info(show"Ignoring weaker (or equal) block header id=$id")
                                 )
                           } yield (),
                           // The case where the remote tine can be ignored
@@ -285,7 +286,7 @@ object BlockchainPeerHandler {
       (NonEmptyChain(from), false)
         .iterateUntilM { case (ids, _) =>
           parentOf(ids.head).flatMap(parentId =>
-            existsLocally(parentId).ifM((ids, true).pure[F], (ids.prepend(parentId), false).pure[F])
+            existsLocally(parentId).ifM(ifTrue = (ids, true).pure[F], ifFalse = (ids.prepend(parentId), false).pure[F])
           )
         }(_._2)
         .map(_._1)
@@ -298,19 +299,27 @@ object BlockchainPeerHandler {
       store:           Store[F, TypedIdentifier, Value],
       fetchRemoteData: TypedIdentifier => F[Value],
       parentOf:        (TypedIdentifier, Value) => F[TypedIdentifier]
-    )(from:            (TypedIdentifier, Value)) =
+    )(from:            (TypedIdentifier, Value)): F[NonEmptyChain[Value]] =
+      // (Data Elements, Parent Exists Locally)
+      // Starting with `from`, work backwards until a local value is found
       (NonEmptyChain(from), false)
         .iterateUntilM { case (data, _) =>
+          // First determine the parent of the head of the current list of data elements
           parentOf(data.head._1, data.head._2)
             .flatMap(parentId =>
+              // Now check to see if that parent exists locally
               store
                 .contains(parentId)
                 .ifM(
-                  (data, true).pure[F],
-                  fetchRemoteData(parentId).map(parentData => (data.prepend((parentId, parentData)), false))
+                  // If it exists locally, we're all done
+                  ifTrue = (data, true).pure[F],
+                  // Otherwise, prepend it to the data elements and re-iterate
+                  ifFalse = fetchRemoteData(parentId).map(parentData => (data.prepend((parentId, parentData)), false))
                 )
             )
+        // Stop iterating once a local value has been found
         }(_._2)
+        // Keep just the data elements
         .map(_._1.map(_._2))
   }
 
