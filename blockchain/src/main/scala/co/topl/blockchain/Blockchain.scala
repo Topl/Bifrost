@@ -125,7 +125,7 @@ object Blockchain {
         localChain
       )
       rpcServer = ToplGrpc.Server.serve(rpcHost, rpcPort, rpcInterpreter)
-      blockStreamCompletionFuture =
+      mintedBlockStreamCompletionFuture =
         mintedBlockStream
           .tapAsyncF(1)(block => Logger[F].info(show"Minted header=${block.headerV2} body=${block.blockBodyV2}"))
           .tapAsyncF(1)(block =>
@@ -141,7 +141,7 @@ object Blockchain {
           .liftTo[F]
       _ <- rpcServer.use(binding =>
         Logger[F].info(s"RPC Server bound at ${binding.localAddress}") >>
-        Async[F].fromFuture(blockStreamCompletionFuture) >>
+        Async[F].fromFuture(mintedBlockStreamCompletionFuture) >>
         p2pFiber.join
       )
     } yield ()

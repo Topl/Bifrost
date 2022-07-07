@@ -133,12 +133,13 @@ object BlockchainPeerHandler {
                               localChain
                                 .isWorseThan(tine.last)
                                 .ifM(
-                                  // And finally, adopt the remote peer's tine
-                                  localChain.adopt(Validated.Valid(tine.last)) >>
-                                  Logger[F].info(
-                                    show"Adopted head block id=${tine.last.slotId.blockId} height=${tine.last.height} slot=${tine.last.slotId.slot}"
-                                  ),
-                                  Logger[F].info(show"Ignoring weaker (or equal) block header id=$id")
+                                  ifTrue =
+                                    // And finally, adopt the remote peer's tine
+                                    localChain.adopt(Validated.Valid(tine.last)) >>
+                                    Logger[F].info(
+                                      show"Adopted head block id=${tine.last.slotId.blockId} height=${tine.last.height} slot=${tine.last.slotId.slot}"
+                                    ),
+                                  ifFalse = Logger[F].info(show"Ignoring weaker (or equal) block header id=$id")
                                 )
                           } yield (),
                           // The case where the remote tine can be ignored
@@ -302,7 +303,7 @@ object BlockchainPeerHandler {
       (NonEmptyChain(from), false)
         .iterateUntilM { case (ids, _) =>
           parentOf(ids.head).flatMap(parentId =>
-            existsLocally(parentId).ifM((ids, true).pure[F], (ids.prepend(parentId), false).pure[F])
+            existsLocally(parentId).ifM(ifTrue = (ids, true).pure[F], ifFalse = (ids.prepend(parentId), false).pure[F])
           )
         }(_._2)
         .map(_._1)
