@@ -56,7 +56,7 @@ jobs:
           restore-keys: ${{ runner.os }}-project-${{ github.run_number }}
 
       - name: Checkout current
-        run: git checkout . && git clean -df
+        run: git checkout .
 
       - name: Compile and Test
         run: sbt checkPR pushRemoteCache
