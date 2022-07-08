@@ -15,7 +15,8 @@ inThisBuild(
       val d = new java.util.Date
       sbtdynver.DynVer.getGitDescribeOutput(d).mkVersion(versionFmt, fallbackVersion(d))
     },
-    parallelExecution := false
+    parallelExecution := false,
+    pushRemoteCacheTo := Some(MavenCache("local-cache", file("/tmp/remote-cache")))
   )
 )
 
