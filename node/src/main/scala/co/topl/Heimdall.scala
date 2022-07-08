@@ -212,13 +212,13 @@ object Heimdall {
   private case class NodeViewInitializingState(
     keyManager:          CActorRef,
     nodeViewHolder:      ActorRef[NodeViewHolder.ReceivableMessage],
-    consensusViewHolder: ActorRef[NxtConsensus.ReceivableMessage]
+    consensusViewHolder: ActorRef[ConsensusHolder.ReceivableMessage]
   )
 
   private case class NetworkControllerInitializingState(
     keyManager:          CActorRef,
     nodeViewHolder:      ActorRef[NodeViewHolder.ReceivableMessage],
-    consensusViewHolder: ActorRef[NxtConsensus.ReceivableMessage],
+    consensusViewHolder: ActorRef[ConsensusHolder.ReceivableMessage],
     peerManager:         CActorRef,
     networkController:   CActorRef,
     forger:              ActorRef[Forger.ReceivableMessage],
@@ -231,7 +231,7 @@ object Heimdall {
     keyManager:           CActorRef,
     forger:               ActorRef[Forger.ReceivableMessage],
     nodeViewHolder:       ActorRef[NodeViewHolder.ReceivableMessage],
-    consensusViewHolder:  ActorRef[NxtConsensus.ReceivableMessage],
+    consensusViewHolder:  ActorRef[ConsensusHolder.ReceivableMessage],
     mempoolAuditor:       ActorRef[MemPoolAuditor.ReceivableMessage],
     peerSynchronizer:     CActorRef,
     nodeViewSynchronizer: CActorRef,
@@ -254,11 +254,8 @@ object Heimdall {
 
     val consensusViewHolder =
       context.spawn(
-        NxtConsensus(
-          settings,
-          NxtConsensus.readOrGenerateConsensusStore(settings)
-        ),
-        NxtConsensus.actorName
+        ConsensusHolder(settings),
+        ConsensusHolder.actorName
       )
 
     val keyManagerRef = context.actorOf(KeyManagerRef.props(settings), KeyManager.actorName)
@@ -267,11 +264,11 @@ object Heimdall {
       context.spawn(
         NodeViewHolder(
           settings,
-          new ActorConsensusInterface(consensusViewHolder)(system, Timeout(10.seconds)),
+          new ActorConsensusHolderInterface(consensusViewHolder)(system, Timeout(10.seconds)),
           () =>
             NodeView.persistent(
               settings,
-              new ActorConsensusInterface(consensusViewHolder)(system, Timeout(10.seconds)),
+              new ActorConsensusHolderInterface(consensusViewHolder)(system, Timeout(10.seconds)),
               () =>
                 (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses(
                   settings.forging.addressGenerationSettings
@@ -314,7 +311,7 @@ object Heimdall {
           settings.forging.forgeOnStartup,
           () => (state.keyManager ? KeyManager.ReceivableMessages.GetKeyView).mapTo[KeyView],
           new ActorNodeViewHolderInterface(state.nodeViewHolder),
-          new ActorConsensusInterface(state.consensusViewHolder)
+          new ActorConsensusHolderInterface(state.consensusViewHolder)
         ),
         Forger.ActorName
       )
@@ -397,7 +394,7 @@ object Heimdall {
     keyManagerRef:      CActorRef,
     forgerRef:          ActorRef[Forger.ReceivableMessage],
     nodeViewHolderRef:  ActorRef[NodeViewHolder.ReceivableMessage],
-    consensusHolderRef: ActorRef[NxtConsensus.ReceivableMessage]
+    consensusHolderRef: ActorRef[ConsensusHolder.ReceivableMessage]
   )(implicit system:    ActorSystem[_]): HttpService = {
     import system.executionContext
 

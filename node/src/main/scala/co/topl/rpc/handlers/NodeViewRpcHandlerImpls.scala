@@ -5,7 +5,7 @@ import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, InvalidParametersError, RpcError, ThrowableData}
 import co.topl.attestation.Address
-import co.topl.consensus.{ConsensusInterface, ConsensusReader, NxtConsensus, ProtocolVersioner}
+import co.topl.consensus.{ConsensusHolder, ConsensusHolderInterface, ConsensusReader, ProtocolVersioner}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._

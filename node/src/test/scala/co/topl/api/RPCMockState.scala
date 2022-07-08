@@ -70,8 +70,8 @@ trait RPCMockState
   protected var keyManagerRef: TestActorRef[KeyManager] = _
   protected var forgerRef: akka.actor.typed.ActorRef[Forger.ReceivableMessage] = _
 
-  protected var consensusHolderRef: akka.actor.typed.ActorRef[NxtConsensus.ReceivableMessage] = _
-  protected var consensusInterface: ConsensusInterface = _
+  protected var consensusHolderRef: akka.actor.typed.ActorRef[ConsensusHolder.ReceivableMessage] = _
+  protected var consensusInterface: ConsensusHolderInterface = _
   protected var nodeViewHolderRef: akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage] = _
   protected var accessibleHistory: AccessibleHistory = _
   protected var accessibleState: AccessibleState = _
@@ -94,11 +94,11 @@ trait RPCMockState
     )
 
     consensusHolderRef = system.toTyped.systemActorOf(
-      NxtConsensus(settings, InMemoryKeyValueStore.empty),
-      NxtConsensus.actorName
+      ConsensusHolder(settings, InMemoryKeyValueStore.empty),
+      ConsensusHolder.actorName
     )
 
-    consensusInterface = new ActorConsensusInterface(consensusHolderRef)(system.toTyped, 10.seconds)
+    consensusInterface = new ActorConsensusHolderInterface(consensusHolderRef)(system.toTyped, 10.seconds)
 
     nodeViewHolderRef = {
       // history is used for block header validation, but blocks are restricted to Curve keys at the moment
@@ -136,7 +136,7 @@ trait RPCMockState
         settings.forging.forgeOnStartup,
         () => (keyManagerRef ? KeyManager.ReceivableMessages.GetKeyView).mapTo[KeyView],
         new ActorNodeViewHolderInterface(nodeViewHolderRef)(system.toTyped, implicitly[Timeout]),
-        new ActorConsensusInterface(consensusHolderRef)(system.toTyped, 10.seconds)
+        new ActorConsensusHolderInterface(consensusHolderRef)(system.toTyped, 10.seconds)
       ),
       Forger.ActorName
     )

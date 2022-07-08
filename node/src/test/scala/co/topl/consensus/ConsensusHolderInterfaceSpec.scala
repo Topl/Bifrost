@@ -6,9 +6,9 @@ import akka.actor.typed.eventstream.EventStream
 import akka.pattern.StatusReply
 import cats.data.NonEmptyChain
 import co.topl.attestation.Address
-import co.topl.consensus.ConsensusInterfaceSpec.TestInWithActor
-import co.topl.consensus.NxtConsensus.ReceivableMessages.{LookupState, RollbackState}
-import co.topl.consensus.NxtConsensus.State
+import co.topl.consensus.ConsensusHolderInterfaceSpec.TestInWithActor
+import co.topl.consensus.ConsensusHolder.ReceivableMessages.{LookupState, RollbackState}
+import co.topl.consensus.ConsensusHolder.State
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.ArbitBox
 import co.topl.modifier.transaction.TransferTransaction
@@ -23,7 +23,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationDouble
 
-class ConsensusInterfaceSpec
+class ConsensusHolderInterfaceSpec
     extends ScalaTestWithActorTestKit
     with AnyFlatSpecLike
     with TestSettings
@@ -72,7 +72,7 @@ class ConsensusInterfaceSpec
       // Increasing the newBlock number by one as the height since we start out with a genesis block
       probe.expectMessage(
         StatusReply.success(
-          NxtConsensus.State(
+          ConsensusHolder.State(
             testInWithActors.genesis.state.totalStake,
             0L
           )
@@ -93,8 +93,8 @@ class ConsensusInterfaceSpec
     val probe = createTestProbe[StatusReply[State]]()
     val store = InMemoryKeyValueStore.empty
     val consensusStorageRef = spawn(
-      NxtConsensus(settings, store),
-      NxtConsensus.actorName
+      ConsensusHolder(settings, store),
+      ConsensusHolder.actorName
     )
     // omitting the generated genesis from blockchainGen
     val newBlocks = blockchainGen((settings.application.consensusStoreVersionsToKeep / 2).toByte).sample.value.tail
@@ -110,8 +110,8 @@ class ConsensusInterfaceSpec
 
     // initialize a new consensus actor with the modified InMemoryKeyValueStore
     val newConsensusStorageRef = spawn(
-      NxtConsensus(settings, store),
-      NxtConsensus.actorName
+      ConsensusHolder(settings, store),
+      ConsensusHolder.actorName
     )
     newConsensusStorageRef ! LookupState(probe.ref)
     probe.expectMessage(params)
@@ -176,7 +176,7 @@ class ConsensusInterfaceSpec
   private def consensusActorTest(test: TestInWithActor => Unit)(implicit timeProvider: TimeProvider): Unit = {
     val addresses: Set[Address] =
       nonEmptySetAddressGen.sample.get.take(settings.forging.addressGenerationSettings.numberOfAddresses)
-    val genesis: NxtConsensus.Genesis =
+    val genesis: ConsensusHolder.Genesis =
       new GenesisProvider(protocolVersioner.applicable(1).blockVersion, addresses)
         .fetchGenesis(settings)
         .toOption
@@ -184,17 +184,17 @@ class ConsensusInterfaceSpec
 
     val consensusRef =
       spawn(
-        NxtConsensus(
+        ConsensusHolder(
           settings,
           InMemoryKeyValueStore(settings.application.consensusStoreVersionsToKeep)
         ),
-        NxtConsensus.actorName
+        ConsensusHolder.actorName
       )
-    val consensusInterface = new ActorConsensusInterface(consensusRef)
+    val consensusInterface = new ActorConsensusHolderInterface(consensusRef)
     // update the genesis state to consensus since we are not spinning up a nodeViewHolder which does the initial update
     consensusInterface.update(
       genesis.block.id,
-      NxtConsensus
+      ConsensusHolder
         .StateUpdate(Some(genesis.state.totalStake), None)
     )
 
@@ -220,10 +220,10 @@ class ConsensusInterfaceSpec
       .sum
 }
 
-object ConsensusInterfaceSpec {
+object ConsensusHolderInterfaceSpec {
 
   case class TestInWithActor(
-    genesis:          NxtConsensus.Genesis,
-    consensusViewRef: ActorRef[NxtConsensus.ReceivableMessage]
+    genesis:          ConsensusHolder.Genesis,
+    consensusViewRef: ActorRef[ConsensusHolder.ReceivableMessage]
   )
 }

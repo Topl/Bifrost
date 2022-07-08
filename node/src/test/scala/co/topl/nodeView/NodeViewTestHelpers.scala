@@ -54,16 +54,16 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll with InMemoryKeyRingTestHelp
       appenedHistory.storage,
       appendedState.tbrStore,
       appendedState.pbrStore,
-      NxtConsensus.Genesis(
+      ConsensusHolder.Genesis(
         genesisHeadChain.head.block,
-        NxtConsensus.State(totalStake, 0L)
+        ConsensusHolder.State(totalStake, 0L)
       )
     )
 
   }
 
   def nodeViewGenesisOnlyTestInputs(
-    genesisConsensusView:       NxtConsensus.Genesis
+    genesisConsensusView:       ConsensusHolder.Genesis
   )(implicit protocolVersioner: ProtocolVersioner): TestIn = {
     val historyComponents = generateHistory(genesisConsensusView.block)
     val stateComponents = generateState(genesisConsensusView.block)
@@ -117,7 +117,7 @@ object NodeViewTestHelpers {
     historyStore:  InMemoryKeyValueStore,
     stateStore:    InMemoryKeyValueStore,
     tokenBoxStore: InMemoryKeyValueStore,
-    genesisView:   NxtConsensus.Genesis
+    genesisView:   ConsensusHolder.Genesis
   )
 
   case class AccessibleHistory(history: History, storage: InMemoryKeyValueStore)

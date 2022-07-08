@@ -1,6 +1,6 @@
 package co.topl.utils
 
-import co.topl.consensus.{GenesisProvider, NxtConsensus, ProtocolVersioner}
+import co.topl.consensus.{ConsensusHolder, GenesisProvider, ProtocolVersioner}
 import co.topl.modifier.block.Block
 import co.topl.settings._
 import org.scalacheck.Gen
@@ -28,7 +28,7 @@ trait NodeGenerators extends CommonGenerators {
 
   lazy val genesisBlockGen: Gen[Block] = nxtConsensusGenesisGen.sample.get.block
 
-  lazy val nxtConsensusGenesisGen: Gen[NxtConsensus.Genesis] = for {
+  lazy val nxtConsensusGenesisGen: Gen[ConsensusHolder.Genesis] = for {
     addresses         <- nonEmptySetAddressGen
     balancePerAddress <- positiveMediumIntGen
     initialDifficulty <- positiveMediumIntGen

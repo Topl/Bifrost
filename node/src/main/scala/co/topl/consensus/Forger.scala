@@ -61,7 +61,7 @@ object Forger {
     forgeOnStartup:       Boolean,
     fetchKeyView:         () => Future[KeyView],
     nodeViewReader:       NodeViewReader,
-    consensusInterface:   ConsensusInterface
+    consensusInterface:   ConsensusHolderInterface
   )(implicit
     networkPrefix:     NetworkPrefix,
     protocolVersioner: ProtocolVersioner,

@@ -5,7 +5,7 @@ import akka.http.scaladsl.server.Route
 import akka.util.ByteString
 import co.topl.akkahttprpc.MethodNotFoundError
 import co.topl.akkahttprpc.ThrowableSupport.Standard._
-import co.topl.consensus.{ActorConsensusInterface, ActorForgerInterface, ActorKeyManagerInterface}
+import co.topl.consensus.{ActorConsensusHolderInterface, ActorForgerInterface, ActorKeyManagerInterface}
 import co.topl.http.HttpService
 import co.topl.nodeView.ActorNodeViewHolderInterface
 import co.topl.rpc.ToplRpcServer

@@ -81,11 +81,17 @@ case class NodeView(
   }
 }
 
+case class ReadableNodeView(
+  history: HistoryReader[Block, BifrostSyncInfo],
+  state:   StateReader[ProgramId, Address],
+  memPool: MemPoolReader[Transaction.TX]
+)
+
 object NodeView {
 
   def persistent(
     settings:           AppSettings,
-    consensusInterface: ConsensusInterface,
+    consensusInterface: ConsensusHolderInterface,
     startupKeyView:     () => Future[StartupKeyView]
   )(implicit
     system:            ActorSystem[_],
@@ -118,7 +124,7 @@ object NodeView {
 
   private def fetchAndApplyGenesis(
     settings:           AppSettings,
-    consensusInterface: ConsensusInterface,
+    consensusInterface: ConsensusHolderInterface,
     startupKeyView:     () => Future[StartupKeyView]
   )(implicit
     system:            ActorSystem[_],
@@ -416,9 +422,3 @@ trait NodeViewTransactionOps {
     )
   }
 }
-
-case class ReadableNodeView(
-  history: HistoryReader[Block, BifrostSyncInfo],
-  state:   StateReader[ProgramId, Address],
-  memPool: MemPoolReader[Transaction.TX]
-)

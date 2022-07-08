@@ -2,7 +2,7 @@ package co.topl.nodeView.history
 
 import cats.implicits._
 import co.topl.codecs._
-import co.topl.consensus.{BlockValidator, NxtConsensus}
+import co.topl.consensus.{BlockValidator, ConsensusHolder}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.PersistentNodeViewModifier
@@ -57,11 +57,9 @@ trait GenericHistory[
 
   def drop(modifierId: ModifierId): HT
 
-  // todo: output should be ID | Seq[ID]
   def openSurfaceIds(): Seq[ModifierId]
 
-  // todo: argument should be ID | Seq[ID]
-  def continuationIds(from: ModifierIds, size: Int): Option[ModifierIds]
+  def continuationIds(from: TypedModifierIds, size: Int): Option[TypedModifierIds]
 
   def syncInfo: SI
 
@@ -90,7 +88,7 @@ trait GenericHistory[
 
 object GenericHistory {
 
-  type ModifierIds = Seq[(ModifierTypeId, ModifierId)]
+  type TypedModifierIds = Seq[(ModifierTypeId, ModifierId)]
 
   sealed trait HistoryComparisonResult
 

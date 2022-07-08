@@ -86,7 +86,7 @@ class ForgeSpec
         Forge
           .prepareForge(
             nodeView,
-            NxtConsensus.State(10000000, 0L),
+            ConsensusHolder.State(10000000, 0L),
             keyView,
             0
           )
@@ -113,7 +113,7 @@ class ForgeSpec
     Forge
       .prepareForge(
         nodeView,
-        NxtConsensus.State(10000000, 0L),
+        ConsensusHolder.State(10000000, 0L),
         keyView,
         0
       )
@@ -174,7 +174,7 @@ class ForgeSpec
       Forge
         .prepareForge(
           nodeView,
-          NxtConsensus.State(10000000, 0L),
+          ConsensusHolder.State(10000000, 0L),
           keyView,
           0
         )

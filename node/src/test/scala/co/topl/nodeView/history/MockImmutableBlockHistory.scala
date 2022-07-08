@@ -5,7 +5,7 @@ import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.network.BifrostSyncInfo
-import co.topl.nodeView.history.GenericHistory.ModifierIds
+import co.topl.nodeView.history.GenericHistory.TypedModifierIds
 import co.topl.utils.TimeProvider.Time
 import cats.implicits._
 
@@ -36,7 +36,7 @@ class MockImmutableBlockHistory(blocks: List[Block]) extends GenericHistory[Bloc
 
   override def openSurfaceIds(): Seq[ModifierId] = Seq.empty
 
-  override def continuationIds(from: ModifierIds, size: Int): Option[ModifierIds] = None
+  override def continuationIds(from: TypedModifierIds, size: Int): Option[TypedModifierIds] = None
 
   override def syncInfo: BifrostSyncInfo = throw new NotImplementedError()
 
@@ -76,7 +76,7 @@ class MockImmutableBlockHistory(blocks: List[Block]) extends GenericHistory[Bloc
 
   override def applicableTry(modifier: Block): Try[Unit] = throw new NotImplementedError()
 
-  override def continuationIds(info: BifrostSyncInfo, size: Int): ModifierIds = throw new NotImplementedError()
+  override def continuationIds(info: BifrostSyncInfo, size: Int): TypedModifierIds = throw new NotImplementedError()
 
   override def compare(other: BifrostSyncInfo): GenericHistory.HistoryComparisonResult =
     throw new NotImplementedError()

@@ -91,7 +91,7 @@ class NodeViewHolderSpec
             )
 
         val consensusView =
-          NxtConsensus.State(10000, 10000)
+          ConsensusHolder.State(10000, 10000)
 
         val nodeView =
           NodeView(
@@ -128,7 +128,7 @@ class NodeViewHolderSpec
   it should "remove transaction from the mempool when receiving eliminate message" in {
     forAll(polyTransferGen) { polyTransfer =>
       val consensusView =
-        NxtConsensus.State(10000, 10000)
+        ConsensusHolder.State(10000, 10000)
 
       val currentTime = polyTransfer.timestamp + 1000
 

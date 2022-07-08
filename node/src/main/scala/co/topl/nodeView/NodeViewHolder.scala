@@ -12,9 +12,9 @@ import cats.implicits._
 import cats.data.{EitherT, Writer}
 import co.topl.consensus.{
   BlockValidators,
+  ConsensusHolder,
   ConsensusReader,
   LocallyGeneratedBlock,
-  NxtConsensus,
   NxtLeaderElection,
   ProtocolVersioner
 }

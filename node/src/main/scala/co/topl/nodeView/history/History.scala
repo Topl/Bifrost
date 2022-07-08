@@ -40,9 +40,11 @@ class History(
 
   override type NVCT = History
 
-  lazy val bestBlockId: ModifierId = storage.bestBlockId
-  lazy val bestBlock: Block = storage.bestBlock
-  lazy val height: Long = storage.heightAt(bestBlockId)
+  lazy val height: Long = storage.heightOf(bestBlockId).getOrElse(-1)
+  lazy val bestBlockId: ModifierId = storage.bestBlockId.getOrElse(History.GenesisParentId)
+
+  lazy val bestBlock: Block =
+    storage.modifierById(bestBlockId).getOrElse(throw new Error("Unable to retrieve best block from storage"))
 
   /** Public method to close storage */
   override def close(): Unit = {
@@ -152,7 +154,7 @@ class History(
           } else {
             val progInfo: ProgressInfo[Block] =
               // Check if the new block extends the last best block
-              if (block.parentId === storage.bestBlockId) {
+              if (block.parentId === bestBlockId) {
                 log.debug(s"New best block ${block.id.show}")
 
                 // update storage
@@ -417,7 +419,7 @@ class History(
    */
   override def applicableTry(modifier: Block): Try[Unit] =
     modifier match {
-      case b: Block => Success(())
+      case _: Block => Success(())
     }
 
   /**
@@ -477,10 +479,10 @@ class History(
    * @param size limit of the number of block id's to send to the remote node
    * @return a seq of modifier ids to help the remote node sync up their chain
    */
-  override def continuationIds(info: BifrostSyncInfo, size: Int): ModifierIds = {
+  override def continuationIds(info: BifrostSyncInfo, size: Int): TypedModifierIds = {
 
     /** Helper function to avoid repetition */
-    def getChainIds(heightFrom: Long): ModifierIds =
+    def getChainIds(heightFrom: Long): TypedModifierIds =
       storage
         .idAtHeightOf(heightFrom)
         .flatMap(modifierById)

@@ -1,7 +1,7 @@
 package co.topl.nodeView
 
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import co.topl.consensus.{BlockValidators, NxtConsensus}
+import co.topl.consensus.{BlockValidators, ConsensusHolder}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.NodeViewTestHelpers.TestIn
@@ -198,6 +198,6 @@ class NodeViewSpec
     }
   }
 
-  private def withGenesisOnlyNodeView(genesis: NxtConsensus.Genesis)(test: TestIn => Unit): Unit =
+  private def withGenesisOnlyNodeView(genesis: ConsensusHolder.Genesis)(test: TestIn => Unit): Unit =
     test(nodeViewGenesisOnlyTestInputs(genesis))
 }
