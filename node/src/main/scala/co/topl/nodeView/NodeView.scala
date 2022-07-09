@@ -15,7 +15,7 @@ import co.topl.network.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.history.{GenericHistory, History, HistoryReader}
 import co.topl.nodeView.mempool.{MemPool, MemPoolReader, MemoryPool}
-import co.topl.nodeView.state.{MinimalState, State, StateReader}
+import co.topl.nodeView.state.{BoxState, MinimalBoxState, StateReader}
 import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider
@@ -33,7 +33,7 @@ import scala.util.{Failure, Success, Try}
  */
 case class NodeView(
   history: GenericHistory[Block, BifrostSyncInfo, History],
-  state:   MinimalState[Block, State],
+  state:   MinimalBoxState[Block, BoxState],
   mempool: MemoryPool[Transaction.TX, MemPool]
 ) extends NodeViewBlockOps
     with NodeViewTransactionOps
@@ -99,7 +99,7 @@ object NodeView {
     networkPrefix:     NetworkPrefix,
     protocolVersioner: ProtocolVersioner
   ): Future[NodeView] =
-    if (State.exists(settings)) {
+    if (BoxState.exists(settings)) {
       startupKeyView() // keyRing is mutable so need to call this
       resume(settings)
     } else
@@ -117,7 +117,7 @@ object NodeView {
     Future.successful(
       NodeView(
         History.readOrGenerate(settings),
-        State.readOrGenerate(settings),
+        BoxState.readOrGenerate(settings),
         MemPool.empty()
       )
     )
@@ -146,7 +146,7 @@ object NodeView {
       .leftMap(e => NodeViewHolderInterface.ApplyFailure(new IllegalArgumentException(e.toString)))
     nodeView = NodeView(
       History.readOrGenerate(settings).append(genesis.block, Seq()).get._1, // no validators because genesis
-      State.genesisState(settings, Seq(genesis.block)),
+      BoxState.genesisState(settings, Seq(genesis.block)),
       MemPool.empty()
     )
   } yield nodeView
@@ -284,10 +284,12 @@ trait NodeViewBlockOps {
    */
   def updateState(
     history:       GenericHistory[Block, BifrostSyncInfo, History],
-    state:         MinimalState[Block, State],
+    state:         MinimalBoxState[Block, BoxState],
     progressInfo:  ProgressInfo[Block],
     suffixApplied: IndexedSeq[Block]
-  ): Writer[List[Any], (GenericHistory[Block, BifrostSyncInfo, History], Try[MinimalState[Block, State]], Seq[Block])] =
+  ): Writer[List[
+    Any
+  ], (GenericHistory[Block, BifrostSyncInfo, History], Try[MinimalBoxState[Block, BoxState]], Seq[Block])] =
     requestDownloads(progressInfo)
       .map(_ => this)
       .flatMap { nodeView =>
@@ -342,7 +344,7 @@ trait NodeViewBlockOps {
    */
   def applyState(
     history:       GenericHistory[Block, BifrostSyncInfo, History],
-    stateToApply:  MinimalState[Block, State],
+    stateToApply:  MinimalBoxState[Block, BoxState],
     suffixTrimmed: IndexedSeq[Block],
     progressInfo:  ProgressInfo[Block]
   ): Writer[List[Any], UpdateInformation] =

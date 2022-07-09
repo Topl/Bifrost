@@ -6,8 +6,8 @@ import co.topl.utils.NetworkPrefixTestHelper
 
 object MockState extends NetworkPrefixTestHelper {
 
-  def empty: State =
-    new State(
+  def empty: BoxState =
+    new BoxState(
       ModifierId.empty,
       InMemoryKeyValueStore.empty,
       new TokenBoxRegistry(InMemoryKeyValueStore.empty),

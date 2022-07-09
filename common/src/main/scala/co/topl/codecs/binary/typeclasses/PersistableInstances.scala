@@ -7,7 +7,8 @@ import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
 import co.topl.modifier.{ModifierId, NodeViewModifier}
-import co.topl.codecs.binary.scodecs._
+import co.topl.codecs.binary._
+import co.topl.utils.Int128
 
 trait PersistableInstances {
 
@@ -50,7 +51,7 @@ trait PersistableInstances {
 
   implicit val evidencePersistable: Persistable[Evidence] = Persistable.instanceFromCodec
 
-  implicit val addressPersistable: Persistable[Address] = Persistable.instanceFromCodec[Address]
+  implicit val addressPersistable: Persistable[Address] = Persistable.instanceFromCodec
 
   implicit val modifierIdPersistable: Persistable[ModifierId] = Persistable.instanceFromCodec
 
@@ -85,5 +86,11 @@ trait PersistableInstances {
   implicit val transactionPersistable: Persistable[Transaction.TX] = Persistable.instanceFromCodec
 
   implicit val nodeViewModifierPersistable: Persistable[NodeViewModifier] = Persistable.instanceFromCodec
+
+  implicit val longPersistable: Persistable[Long] = Persistable.instanceFromCodec[Long](longCodec)
+
+  implicit val intPersistable: Persistable[Int] = Persistable.instanceFromCodec[Int](intCodec)
+
+  implicit val int128Persistable: Persistable[Int128] = Persistable.instanceFromCodec
 
 }

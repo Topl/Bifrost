@@ -12,13 +12,14 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory._
-import co.topl.nodeView.history.History.GenesisParentId
-import co.topl.nodeView.{CacheLayerKeyValueStore, LDBKeyValueStore}
+import co.topl.nodeView.history.History.{GenesisParentId, HistoryFailures}
+import co.topl.nodeView.{CacheLayerKeyValueStore, KeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
 import co.topl.utils.IdiomaticScalaTransition.implicits.toTryOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.implicits._
-import co.topl.utils.{Logging, TimeProvider}
+import co.topl.utils.{Int128, Logging, TimeProvider}
+import com.google.common.primitives.Longs
 
 import java.io.File
 import scala.annotation.tailrec
@@ -40,11 +41,25 @@ class History(
 
   override type NVCT = History
 
-  lazy val height: Long = storage.heightOf(bestBlockId).getOrElse(-1)
+  def consensusStateAt(blockId: ModifierId): Either[History.HistoryFailures.StorageReadFailure, NxtConsensus.State] =
+    for {
+      totalStake <- Either.fromOption(
+        storage.totalStakeOf(blockId),
+        HistoryFailures.StorageReadFailure(new Exception(s"Unable to find totalStake for blockId: ${blockId}"))
+      )
+      inflation <- Either.fromOption(
+        storage.inflationOf(blockId),
+        HistoryFailures.StorageReadFailure(new Exception(s"Unable to find inflation for blockId: ${blockId}"))
+      )
+    } yield NxtConsensus.State(totalStake, inflation)
+
   lazy val bestBlockId: ModifierId = storage.bestBlockId.getOrElse(History.GenesisParentId)
+  lazy val height: Long = storage.heightOf(bestBlockId).getOrElse(-1)
 
   lazy val bestBlock: Block =
-    storage.modifierById(bestBlockId).getOrElse(throw new Error("Unable to retrieve best block from storage"))
+    storage
+      .modifierById(bestBlockId)
+      .getOrElse(throw new Exception(s"Unable to retrieve best block for id: ${bestBlockId}"))
 
   /** Public method to close storage */
   override def close(): Unit = {
@@ -68,8 +83,6 @@ class History(
       id => storage.modifierById(id),
       id => tineProcessor.getCacheBlock(id).map(_.block)
     )
-
-  private def isGenesis(b: Block): Boolean = b.parentId == History.GenesisParentId
 
   def parentBlock(m: Block): Option[Block] = modifierById(m.parentId)
 
@@ -143,42 +156,44 @@ class History(
 
     validationResults match {
       case Validated.Valid(_) =>
-        val res: (History, ProgressInfo[Block]) =
-          if (isGenesis(block)) {
-            storage.update(block, isBest = true)
-            val progInfo = ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
+        val res: (History, ProgressInfo[Block]) = {
+//          if (isGenesis(block)) {
+//            storage.update(block, isBest = true)
+//            val progInfo = ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
+//
+//            // construct result and return
+//            (new History(storage, tineProcessor), progInfo)
+//
+//          } else {
+          val progInfo: ProgressInfo[Block] =
+            // Check if the new block extends the last best block
+            if (block.parentId === bestBlockId) {
+              log.debug(s"New best block ${block.id.show}")
+              val newProtocolSettings = protocolVersioner.applicable(block.height).value
+              storage.update(block, newProtocolSettings, isBest = true)
+              ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
 
-            // construct result and return
-            (new History(storage, tineProcessor), progInfo)
+              // if not, we'll check for a fork
+            } else {
+              // we want to check for a fork
+              val forkProgInfo =
+                tineProcessor.process(this, block, protocolVersioner.applicable(block.height).value.lookBackDepth)
 
-          } else {
-            val progInfo: ProgressInfo[Block] =
-              // Check if the new block extends the last best block
-              if (block.parentId === bestBlockId) {
-                log.debug(s"New best block ${block.id.show}")
-
-                // update storage
-                storage.update(block, isBest = true)
-                ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
-
-                // if not, we'll check for a fork
-              } else {
-                // we want to check for a fork
-                val forkProgInfo =
-                  tineProcessor.process(this, block, protocolVersioner.applicable(block.height).value.lookBackDepth)
-
-                // check if we need to update storage after checking for forks
-                forkProgInfo.branchPoint.foreach { branchPoint =>
-                  storage.rollback(branchPoint).getOrThrow()
-                  forkProgInfo.toApply.foreach(b => storage.update(b, isBest = true))
+              // check if we need to update storage after checking for forks
+              forkProgInfo.branchPoint.foreach { branchPoint =>
+                storage.rollback(branchPoint).getOrThrow()
+                forkProgInfo.toApply.foreach { b =>
+                  val newProtocolSettings = protocolVersioner.applicable(b.height).value
+                  storage.update(b, newProtocolSettings, isBest = true)
                 }
-
-                forkProgInfo
               }
 
-            // construct result and return
-            (new History(storage, tineProcessor), progInfo)
-          }
+              forkProgInfo
+            }
+
+          // construct result and return
+          (new History(storage, tineProcessor), progInfo)
+        }
         log.info(
           s"${Console.CYAN} Block ${block.id} appended to parent ${block.parentId} at height ${block.height} with score ${storage
               .scoreOf(block.id)}.${Console.RESET}"
@@ -369,7 +384,7 @@ class History(
   final def commonBlockThenSuffixes(forkBlock: Block, limit: Int = Int.MaxValue): (Seq[ModifierId], Seq[ModifierId]) = {
 
     /* The entire chain that was "best" */
-    val loserChain = getIdsFrom(bestBlock, isGenesis, limit).get
+    val loserChain = getIdsFrom(bestBlock, _.parentId == History.GenesisParentId, limit).get
 
     /* `in` specifies whether `loserChain` has this block */
     def in(m: Block): Boolean = loserChain.contains(m.id)
@@ -443,7 +458,7 @@ class History(
   def continuationIds(from: Seq[(ModifierTypeId, ModifierId)], size: Int): Option[Seq[(ModifierTypeId, ModifierId)]] = {
 
     /* Whether m is a genesis block or is in `from` */
-    def inList(m: Block): Boolean = idInList(m.id) || isGenesis(m)
+    def inList(block: Block): Boolean = idInList(block.id) || block.parentId == History.GenesisParentId
 
     def idInList(id: ModifierId): Boolean = from.exists(f => f._2 == id)
 
@@ -587,4 +602,11 @@ object History extends Logging {
 
     loop(startBlock.id, Vector(startBlock.timestamp))
   }
+
+  sealed abstract class HistoryFailure
+
+  object HistoryFailures {
+    case class StorageReadFailure(reason: Throwable) extends HistoryFailure
+  }
+
 }

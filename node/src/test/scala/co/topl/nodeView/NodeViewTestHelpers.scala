@@ -5,7 +5,7 @@ import co.topl.modifier.block.Block
 import co.topl.nodeView.NodeViewTestHelpers.TestIn
 import co.topl.nodeView.history.{History, InMemoryKeyValueStore, Storage, TineProcessor}
 import co.topl.nodeView.mempool.MemPool
-import co.topl.nodeView.state.{ProgramBoxRegistry, State, TokenBoxRegistry}
+import co.topl.nodeView.state.{BoxState, ProgramBoxRegistry, TokenBoxRegistry}
 import co.topl.utils.InMemoryKeyRingTestHelper
 import co.topl.utils.NetworkType.NetworkPrefix
 import org.scalatest.{BeforeAndAfterAll, Suite}
@@ -39,7 +39,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll with InMemoryKeyRingTestHelp
     val stateComponents = generateState(genesisHeadChain.head.block)
     val appendedState = stateComponents.copy(
       state = stateComponents.state match {
-        case h: State => genesisHeadChain.tail.foldLeft(h)((accState, block) => accState.applyModifier(block).get)
+        case h: BoxState => genesisHeadChain.tail.foldLeft(h)((accState, block) => accState.applyModifier(block).get)
       }
     )
 
@@ -90,7 +90,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll with InMemoryKeyRingTestHelp
     val stateStore = InMemoryKeyValueStore.empty
     val tokenBoxRegistry = new TokenBoxRegistry(tbrStore)
     val programBoxRegistry = new ProgramBoxRegistry(pbrStore)
-    val state = State(genesisBlock.id, stateStore, tokenBoxRegistry, programBoxRegistry)
+    val state = BoxState(genesisBlock.id, stateStore, tokenBoxRegistry, programBoxRegistry)
     state.applyModifier(genesisBlock).get
     NodeViewTestHelpers.AccessibleState(state, stateStore, tbrStore, pbrStore)
   }
@@ -123,7 +123,7 @@ object NodeViewTestHelpers {
   case class AccessibleHistory(history: History, storage: InMemoryKeyValueStore)
 
   case class AccessibleState(
-    state:      State,
+    state:      BoxState,
     stateStore: InMemoryKeyValueStore,
     tbrStore:   InMemoryKeyValueStore,
     pbrStore:   InMemoryKeyValueStore

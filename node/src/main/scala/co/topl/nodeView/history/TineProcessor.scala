@@ -12,9 +12,6 @@ import scala.annotation.tailrec
 import scala.collection.immutable.TreeMap
 
 class TineProcessor private (cache: ChainCache, maxDepth: Int) extends Logging {
-
-  import TineProcessor._
-
   private var chainCache = cache
 
   /**
@@ -39,7 +36,7 @@ class TineProcessor private (cache: ChainCache, maxDepth: Int) extends Logging {
    * @param id id of the block to retrieve
    * @return
    */
-  def getCacheBlock(id: ModifierId): Option[CacheBlock] = chainCache.getCacheBlock(id)
+  def getCacheBlock(id: ModifierId): Option[TineProcessor.CacheBlock] = chainCache.getCacheBlock(id)
 
   /**
    * Process a single block and determine if any of the possible chains in the
@@ -50,7 +47,7 @@ class TineProcessor private (cache: ChainCache, maxDepth: Int) extends Logging {
    */
   def process(history: History, block: Block, lookBackDepth: Int): ProgressInfo[Block] = {
     // check if the current block is starting a new branch off the main chain
-    val pi: ProgressInfo[Block] = if (history.applicable(block)) {
+    val progressInfo: ProgressInfo[Block] = if (history.applicable(block)) {
       val parentBlock = history.parentBlock(block).get // safe to .get since otherwise wouldn't be applicable
       val prevTimes = history.getTimestampsFrom(parentBlock, lookBackDepth - 1) :+ block.timestamp
 
@@ -87,7 +84,7 @@ class TineProcessor private (cache: ChainCache, maxDepth: Int) extends Logging {
     chainCache = chainCache.dropUntil(history.height - maxDepth)
 
     // return ProgressInfo to the append method
-    pi
+    progressInfo
   }
 
   /**
@@ -96,9 +93,9 @@ class TineProcessor private (cache: ChainCache, maxDepth: Int) extends Logging {
    * @param from starting point to recurse from at the tip of the chain
    * @return a sequence of blocks from the new highest block to the common ancestor
    */
-  private def possibleChain(from: CacheBlock): Seq[Block] = {
+  private def possibleChain(from: TineProcessor.CacheBlock): Seq[Block] = {
     @tailrec
-    def loop(currBlock: Option[CacheBlock], height: Long, acc: Seq[Block]): Seq[Block] =
+    def loop(currBlock: Option[TineProcessor.CacheBlock], height: Long, acc: Seq[Block]): Seq[Block] =
       currBlock match {
         case Some(b) => loop(chainCache.getCacheBlock(b.block.parentId), height - 1, b.block +: acc)
         case None    => acc

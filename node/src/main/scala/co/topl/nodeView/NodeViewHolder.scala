@@ -26,7 +26,7 @@ import co.topl.network.BifrostSyncInfo
 import co.topl.nodeView.NodeViewHolder.ReceivableMessages
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.history.{GenericHistory, History}
-import co.topl.nodeView.state.{MinimalState, State}
+import co.topl.nodeView.state.{BoxState, MinimalBoxState}
 import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider
@@ -46,7 +46,7 @@ object NodeViewHolder {
 
   case class UpdateInformation(
     history:                 GenericHistory[Block, BifrostSyncInfo, History],
-    state:                   MinimalState[Block, State],
+    state:                   MinimalBoxState[Block, BoxState],
     failedMod:               Option[Block],
     alternativeProgressInfo: Option[ProgressInfo[Block]],
     suffix:                  IndexedSeq[Block]

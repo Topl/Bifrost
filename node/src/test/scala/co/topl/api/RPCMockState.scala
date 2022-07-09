@@ -21,7 +21,7 @@ import co.topl.nodeView.NodeViewTestHelpers.{AccessibleHistory, AccessibleState}
 import co.topl.nodeView._
 import co.topl.nodeView.history.{History, InMemoryKeyValueStore}
 import co.topl.nodeView.mempool.MemPool
-import co.topl.nodeView.state.State
+import co.topl.nodeView.state.BoxState
 import co.topl.rpc.ToplRpcServer
 import co.topl.utils.{TestSettings, TimeProvider}
 import org.scalacheck.Gen
@@ -46,7 +46,7 @@ trait RPCMockState
   type PMOD = Block
   type HIS = History
   type MP = MemPool
-  type ST = State
+  type ST = BoxState
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 
