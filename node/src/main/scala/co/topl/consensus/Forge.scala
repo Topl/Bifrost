@@ -99,7 +99,6 @@ object Forge {
 
   def prepareForge(
     nodeView:          ReadableNodeView,
-    consensusState:    NxtConsensus.State,
     keyView:           KeyView,
     minTransactionFee: Int128
   )(implicit
@@ -111,6 +110,7 @@ object Forge {
     for {
       rewardAddress <- keyView.rewardAddr.toRight(NoRewardsAddressSpecified)
       parentBlock = nodeView.history.bestBlock
+      consensusState <- nodeView.history.consensusStateAt(parentBlock.id).leftMap(e => ForgingError(e.reason))
       currentHeight = parentBlock.height
       transactions <- pickTransactions(
         minTransactionFee,

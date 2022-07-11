@@ -225,10 +225,8 @@ private class ForgerBehaviors(
       keyView <- EitherT[Future, ForgerFailure, KeyView](
         fetchKeyView().map(Right(_)).recover { case e => Left(ForgingError(e)) }
       )
-      consensusState <- consensusReader.lookupState
-        .leftMap(e => ForgingError(new IllegalArgumentException(e.toString)))
       forge <- nodeViewReader
-        .withNodeView(Forge.prepareForge(_, consensusState, keyView, minTransactionFee))
+        .withNodeView(Forge.prepareForge(_, keyView, minTransactionFee))
         .leftMap(e => ForgingError(e.reason))
         .subflatMap(_.leftMap(ForgeFailure(_): ForgerFailure))
       block <- EitherT.fromEither[Future](forge.make).leftMap(ForgeFailure(_): ForgerFailure)

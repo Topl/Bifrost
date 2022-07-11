@@ -12,14 +12,13 @@ import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.network.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory._
-import co.topl.nodeView.history.History.{GenesisParentId, HistoryFailures}
-import co.topl.nodeView.{CacheLayerKeyValueStore, KeyValueStore, LDBKeyValueStore}
+import co.topl.nodeView.history.History.GenesisParentId
+import co.topl.nodeView.{CacheLayerKeyValueStore, LDBKeyValueStore}
 import co.topl.settings.AppSettings
 import co.topl.utils.IdiomaticScalaTransition.implicits.toTryOps
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.implicits._
-import co.topl.utils.{Int128, Logging, TimeProvider}
-import com.google.common.primitives.Longs
+import co.topl.utils.{Logging, TimeProvider}
 
 import java.io.File
 import scala.annotation.tailrec
@@ -41,7 +40,15 @@ class History(
 
   override type NVCT = History
 
-  def consensusStateAt(blockId: ModifierId): Either[History.HistoryFailures.StorageReadFailure, NxtConsensus.State] =
+  /** Public method to close storage */
+  override def close(): Unit = {
+    log.info("Attempting to close history storage")
+    storage.keyValueStore.close()
+  }
+
+  override def consensusStateAt(
+    blockId: ModifierId
+  ): Either[HistoryFailures.StorageReadFailure, NxtConsensus.State] =
     for {
       totalStake <- Either.fromOption(
         storage.totalStakeOf(blockId),
@@ -60,12 +67,6 @@ class History(
     storage
       .modifierById(bestBlockId)
       .getOrElse(throw new Exception(s"Unable to retrieve best block for id: ${bestBlockId}"))
-
-  /** Public method to close storage */
-  override def close(): Unit = {
-    log.info("Attempting to close history storage")
-    storage.keyValueStore.close()
-  }
 
   /** If there's no history, even genesis block */
   override def isEmpty: Boolean = height <= 0
@@ -601,12 +602,6 @@ object History extends Logging {
         }
 
     loop(startBlock.id, Vector(startBlock.timestamp))
-  }
-
-  sealed abstract class HistoryFailure
-
-  object HistoryFailures {
-    case class StorageReadFailure(reason: Throwable) extends HistoryFailure
   }
 
 }

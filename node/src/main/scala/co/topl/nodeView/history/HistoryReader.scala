@@ -1,5 +1,6 @@
 package co.topl.nodeView.history
 
+import co.topl.consensus.NxtConsensus
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ContainsModifiers, ModifierId}
@@ -17,6 +18,10 @@ trait HistoryReader[PM <: PersistentNodeViewModifier, SI <: SyncInfo]
   def height: Long
   def bestBlock: PM
   def bestBlockId: ModifierId
+
+  def consensusStateAt(
+    blockId: ModifierId
+  ): Either[HistoryFailures.StorageReadFailure, NxtConsensus.State]
 
   /**
    * Is there's no history, even genesis block
@@ -101,4 +106,10 @@ trait HistoryReader[PM <: PersistentNodeViewModifier, SI <: SyncInfo]
    *         (None only if the parent for a block was not found) starting from the original `m`
    */
   def getIdsFrom(startBlock: Block, until: Block => Boolean, limit: Int): Option[Seq[ModifierId]]
+}
+
+sealed abstract class HistoryFailure
+
+object HistoryFailures {
+  case class StorageReadFailure(reason: Throwable) extends HistoryFailure
 }

@@ -19,6 +19,7 @@ import co.topl.nodeView.state.{BoxState, MinimalBoxState, StateReader}
 import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider
+import co.topl.utils.IdiomaticScalaTransition.implicits._
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -157,9 +158,10 @@ trait NodeViewBlockOps {
 
   import NodeViewHolder.UpdateInformation
 
-  def withBlock(block: Block, validators: Seq[BlockValidator[_]])(implicit
+  def withBlock(block: Block)(implicit
     networkPrefix:     NetworkPrefix,
-    timeProvider:      TimeProvider
+    timeProvider:      TimeProvider,
+    protocolVersioner: ProtocolVersioner
   ): Writer[List[Any], NodeView] = {
     import cats.implicits._
     if (!history.contains(block.id)) {
@@ -177,8 +179,19 @@ trait NodeViewBlockOps {
             case Validated.Valid(a) =>
               log.info("Applying valid blockId={} to history", block.id)
               val openSurfaceIdsBeforeUpdate = history.openSurfaceIds()
+              val validators = for {
+                consensusState <- nodeView.history.consensusStateAt(block.parentId)
+                leaderElection = new NxtLeaderElection(protocolVersioner)
+                v = Seq(
+                  new BlockValidators.DifficultyValidator(leaderElection),
+                  new BlockValidators.HeightValidator,
+                  new BlockValidators.EligibilityValidator(leaderElection, consensusState.totalStake),
+                  new BlockValidators.SyntaxValidator(consensusState.inflation),
+                  new BlockValidators.TimestampValidator
+                )
+              } yield v
 
-              history.append(block, validators) match {
+              history.append(block, validators.getOrThrow()) match {
                 case Success((historyBeforeStUpdate, progressInfo)) =>
                   log.info("Block blockId={} applied to history successfully", block.id)
                   log.debug("Applying valid blockId={} to state with progressInfo={}", block.id, progressInfo)
