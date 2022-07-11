@@ -133,8 +133,9 @@ class History(
    * @return the update history including `block` as the most recent block
    */
   override def append(
-    block:      Block,
-    validators: Seq[BlockValidator[_]]
+    block:                   Block,
+    validators:              Seq[BlockValidator[_]],
+    applicableConsesusState: NxtConsensus.State
   ): Try[(History, ProgressInfo[Block])] = Try {
 
     log.debug(s"Trying to append block ${block.id} to history")
@@ -158,34 +159,26 @@ class History(
     validationResults match {
       case Validated.Valid(_) =>
         val res: (History, ProgressInfo[Block]) = {
-//          if (isGenesis(block)) {
-//            storage.update(block, isBest = true)
-//            val progInfo = ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
-//
-//            // construct result and return
-//            (new History(storage, tineProcessor), progInfo)
-//
-//          } else {
+          val newProtocolSettings = protocolVersioner.applicable(block.height).value
           val progInfo: ProgressInfo[Block] =
             // Check if the new block extends the last best block
             if (block.parentId === bestBlockId) {
               log.debug(s"New best block ${block.id.show}")
-              val newProtocolSettings = protocolVersioner.applicable(block.height).value
-              storage.update(block, newProtocolSettings, isBest = true)
+              storage.update(block, newProtocolSettings, applicableConsesusState, isBest = true)
               ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
 
               // if not, we'll check for a fork
             } else {
               // we want to check for a fork
               val forkProgInfo =
-                tineProcessor.process(this, block, protocolVersioner.applicable(block.height).value.lookBackDepth)
+                tineProcessor.process(this, block, newProtocolSettings.lookBackDepth)
 
               // check if we need to update storage after checking for forks
               forkProgInfo.branchPoint.foreach { branchPoint =>
                 storage.rollback(branchPoint).getOrThrow()
                 forkProgInfo.toApply.foreach { b =>
                   val newProtocolSettings = protocolVersioner.applicable(b.height).value
-                  storage.update(b, newProtocolSettings, isBest = true)
+                  storage.update(b, newProtocolSettings, applicableConsesusState, isBest = true)
                 }
               }
 

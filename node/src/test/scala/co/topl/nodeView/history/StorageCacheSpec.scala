@@ -1,6 +1,6 @@
 package co.topl.nodeView.history
 
-import co.topl.consensus.ValidBlockchainGenerator
+import co.topl.consensus.{NxtConsensus, ValidBlockchainGenerator}
 import co.topl.modifier.block.Block
 import co.topl.nodeView.CacheLayerKeyValueStore
 import co.topl.utils.{InMemoryKeyRingTestHelper, NodeGenerators, TestSettings}
@@ -25,7 +25,7 @@ class StorageCacheSpec
   private val bestBlockIdKey = Array.fill(33)(-1: Byte)
 
   property("The genesis block is stored in cache") {
-    withTestHistory(genesisBlockGen.sample.get) { history =>
+    withTestHistory(chainGen(1).sample.get.head) { history =>
       history.storage.keyValueStore
         .asInstanceOf[CacheLayerKeyValueStore]
         .cache
@@ -38,9 +38,9 @@ class StorageCacheSpec
 
   property("Cache should invalidate a single entry when it's rolled back in storage") {
     forAll(chainGen(2)) { chain =>
-      withTestHistory(chain.head.block) { history =>
+      withTestHistory(chain.head) { history =>
         val block = chain.tail.head
-        val historyAddBlock = history.append(block, Seq()).get._1
+        val historyAddBlock = history.append(block, Seq(), chain.head.state).get._1
 
         historyAddBlock.storage.keyValueStore
           .asInstanceOf[CacheLayerKeyValueStore]
@@ -58,9 +58,9 @@ class StorageCacheSpec
 
   property("Cache should invalidate multiple entries when it's rolled back in storage") {
     forAll(chainGen(2)) { chain =>
-      withTestHistory(chain.head.block) { history =>
+      withTestHistory(chain.head) { history =>
         val historyAddBlock = chain.tail.foldLeft(history) { (accHistory, newBlock) =>
-          accHistory.append(newBlock, Seq()).get._1
+          accHistory.append(newBlock, Seq(), chain.head.state).get._1
         }
 
         historyAddBlock.storage.keyValueStore
@@ -79,9 +79,9 @@ class StorageCacheSpec
 
   property("The new block updated is stored in cache") {
     forAll(chainGen(2)) { chain =>
-      withTestHistory(chain.head.block) { history =>
+      withTestHistory(chain.head) { history =>
         val block: Block = chain.tail.head
-        val updatedHistory = history.append(block, Seq()).get._1
+        val updatedHistory = history.append(block, Seq(), chain.head.state).get._1
 
         val blockInCache =
           updatedHistory.storage.keyValueStore
@@ -100,12 +100,12 @@ class StorageCacheSpec
         val cacheStore = new CacheLayerKeyValueStore(new InMemoryKeyValueStore, 30.seconds, cacheSize)
         val storage = new Storage(cacheStore)
         val history = new History(storage, TineProcessor(1024))
-        history.append(chain.head.block, Seq()).get._1
+        history.append(chain.head.block, Seq(), chain.head.state).get._1
       }
 
       val history = customCacheHistory(512)
       val historyWithBlocks = chain.tail.foldLeft(history) { (accHistory, newBlock) =>
-        accHistory.append(newBlock, Seq()).get._1
+        accHistory.append(newBlock, Seq(), chain.head.state).get._1
       }
 
       val cacheSize = historyWithBlocks.storage.keyValueStore
@@ -114,7 +114,7 @@ class StorageCacheSpec
         .size()
       val historyInsufficientCache = customCacheHistory(cacheSize.toInt / 2)
       val historyWithTooManyBlocks = chain.tail.foldLeft(historyInsufficientCache) { (accHistory, newBlock) =>
-        accHistory.append(newBlock, Seq()).get._1
+        accHistory.append(newBlock, Seq(), chain.head.state).get._1
       }
 
       historyWithBlocks.storage.keyValueStore
@@ -131,8 +131,8 @@ class StorageCacheSpec
 
   property("blockLoader should correctly return a block from storage not found in cache") {
     forAll(chainGen(2)) { chain =>
-      withTestHistory(chain.head.block) { history =>
-        val updatedHistory = history.append(chain.tail.head, Seq()).get._1
+      withTestHistory(chain.head) { history =>
+        val updatedHistory = history.append(chain.tail.head, Seq(), chain.head.state).get._1
         updatedHistory.storage.keyValueStore.asInstanceOf[CacheLayerKeyValueStore].cache.invalidateAll()
         updatedHistory.modifierById(chain.tail.head.id).get should not be None
       }
@@ -147,12 +147,12 @@ class StorageCacheSpec
         protocolVersioner
       )(length)
 
-  private def withTestHistory(genesis: Block)(test: History => Unit): Unit =
+  private def withTestHistory(genesis: NxtConsensus.Genesis)(test: History => Unit): Unit =
     test {
       val underlyingStore = new InMemoryKeyValueStore
       val cacheStore = new CacheLayerKeyValueStore(underlyingStore, 10.seconds, 512)
       val storage = new Storage(cacheStore)
       val history = new History(storage, TineProcessor(1024))
-      history.append(genesis, Seq()).get._1
+      history.append(genesis.block, Seq(), genesis.state).get._1
     }
 }

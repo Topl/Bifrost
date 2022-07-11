@@ -70,8 +70,6 @@ trait RPCMockState
   protected var keyManagerRef: TestActorRef[KeyManager] = _
   protected var forgerRef: akka.actor.typed.ActorRef[Forger.ReceivableMessage] = _
 
-  protected var consensusHolderRef: akka.actor.typed.ActorRef[ConsensusHolder.ReceivableMessage] = _
-  protected var consensusInterface: ConsensusHolderInterface = _
   protected var nodeViewHolderRef: akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage] = _
   protected var accessibleHistory: AccessibleHistory = _
   protected var accessibleState: AccessibleState = _
@@ -93,13 +91,6 @@ trait RPCMockState
       keyManagerRef.underlyingActor.receive(keyRingCurve25519, Some(keyRingCurve25519.addresses.head))
     )
 
-    consensusHolderRef = system.toTyped.systemActorOf(
-      ConsensusHolder(settings, InMemoryKeyValueStore.empty),
-      ConsensusHolder.actorName
-    )
-
-    consensusInterface = new ActorConsensusHolderInterface(consensusHolderRef)(system.toTyped, 10.seconds)
-
     nodeViewHolderRef = {
       // history is used for block header validation, but blocks are restricted to Curve keys at the moment
       val testGenesisForHistory = GenesisProvider.construct(
@@ -108,7 +99,7 @@ trait RPCMockState
         settings.application.genesis.generated.get.initialDifficulty,
         protocolVersioner.applicable(1).blockVersion
       )
-      accessibleHistory = generateHistory(testGenesisForHistory.block)
+      accessibleHistory = generateHistory(testGenesisForHistory)
 
       // state is used for transaction validation, so we can test transaction of many different key types
       val testGenesisForState = GenesisProvider.construct(
@@ -122,7 +113,6 @@ trait RPCMockState
       system.toTyped.systemActorOf(
         NodeViewHolder(
           settings,
-          consensusInterface,
           () => Future.successful(NodeView(accessibleHistory.history, accessibleState.state, MemPool.empty()))
         ),
         NodeViewHolder.ActorName
@@ -135,8 +125,7 @@ trait RPCMockState
         settings.forging.minTransactionFee,
         settings.forging.forgeOnStartup,
         () => (keyManagerRef ? KeyManager.ReceivableMessages.GetKeyView).mapTo[KeyView],
-        new ActorNodeViewHolderInterface(nodeViewHolderRef)(system.toTyped, implicitly[Timeout]),
-        new ActorConsensusHolderInterface(consensusHolderRef)(system.toTyped, 10.seconds)
+        new ActorNodeViewHolderInterface(nodeViewHolderRef)(system.toTyped, implicitly[Timeout])
       ),
       Forger.ActorName
     )

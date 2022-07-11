@@ -10,7 +10,7 @@ import akka.util.Timeout
 import cats.Show
 import cats.data.{EitherT, Writer}
 import cats.implicits._
-import co.topl.consensus.{ConsensusReader, LocallyGeneratedBlock, ProtocolVersioner}
+import co.topl.consensus.{LocallyGeneratedBlock, ProtocolVersioner}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
@@ -158,7 +158,6 @@ object NodeViewHolder {
 
   def apply(
     appSettings:     AppSettings,
-    consensusReader: ConsensusReader,
     initialNodeView: () => Future[NodeView]
   )(implicit
     networkPrefix:     NetworkPrefix,
@@ -169,7 +168,7 @@ object NodeViewHolder {
       context.pipeToSelf(initialNodeView())(
         _.fold(ReceivableMessages.InitializationFailed, ReceivableMessages.Initialized)
       )
-      uninitialized(appSettings.network.maxModifiersCacheSize, consensusReader)
+      uninitialized(appSettings.network.maxModifiersCacheSize)
     }
 
   final private val UninitializedStashSize = 150
@@ -184,7 +183,7 @@ object NodeViewHolder {
    *
    * @return A Behavior that is uninitialized
    */
-  private def uninitialized(cacheSize: Int, consensusReader: ConsensusReader)(implicit
+  private def uninitialized(cacheSize: Int)(implicit
     networkPrefix:                     NetworkPrefix,
     timeProvider:                      TimeProvider,
     protocolVersioner:                 ProtocolVersioner

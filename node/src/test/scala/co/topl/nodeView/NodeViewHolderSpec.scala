@@ -90,9 +90,6 @@ class NodeViewHolderSpec
               )
             )
 
-        val consensusView =
-          ConsensusHolder.State(10000, 10000)
-
         val nodeView =
           NodeView(
             MockImmutableBlockHistory.empty,
@@ -104,15 +101,13 @@ class NodeViewHolderSpec
           override def time: Time = timestamp + 1000
         }
 
-        val consensusReader = MockConsensusReader(consensusView)(system.executionContext)
-
         val testProbe = createTestProbe[StatusReply[Option[Transaction.TX]]]()
 
         val testProbeActor =
           spawn(Behaviors.monitor[StatusReply[Option[Transaction.TX]]](testProbe.ref, Behaviors.ignore))
 
         val underTest =
-          spawn(NodeViewHolder(TestSettings.defaultSettings, consensusReader, () => Future.successful(nodeView)))
+          spawn(NodeViewHolder(TestSettings.defaultSettings, () => Future.successful(nodeView)))
 
         underTest.tell(NodeViewHolder.ReceivableMessages.WriteTransactions(List(signedPolyTransfer)))
 
@@ -127,9 +122,6 @@ class NodeViewHolderSpec
 
   it should "remove transaction from the mempool when receiving eliminate message" in {
     forAll(polyTransferGen) { polyTransfer =>
-      val consensusView =
-        ConsensusHolder.State(10000, 10000)
-
       val currentTime = polyTransfer.timestamp + 1000
 
       val nodeView =
@@ -143,15 +135,13 @@ class NodeViewHolderSpec
         override def time: Time = currentTime
       }
 
-      val consensusReader = MockConsensusReader(consensusView)(system.executionContext)
-
       val testProbe = createTestProbe[StatusReply[Option[Transaction.TX]]]()
 
       val testProbeActor =
         spawn(Behaviors.monitor[StatusReply[Option[Transaction.TX]]](testProbe.ref, Behaviors.ignore))
 
       val underTest =
-        spawn(NodeViewHolder(TestSettings.defaultSettings, consensusReader, () => Future.successful(nodeView)))
+        spawn(NodeViewHolder(TestSettings.defaultSettings, () => Future.successful(nodeView)))
 
       underTest.tell(NodeViewHolder.ReceivableMessages.EliminateTransactions(List(polyTransfer.id)))
 
@@ -170,7 +160,7 @@ class NodeViewHolderSpec
 
       val existingHistory =
         History(TestSettings.defaultSettings, new Storage(new InMemoryKeyValueStore()))
-          .append(genesis.block, Seq.empty)
+          .append(genesis.block, Seq.empty, genesis.state)
           .get
           ._1
 
@@ -180,8 +170,6 @@ class NodeViewHolderSpec
           MockState.empty,
           MemPool.empty()
         )
-
-      val consensusReader = MockConsensusReader(genesis.state)(system.executionContext)
 
       implicit val timeProvider: TimeProvider = new TimeProvider {
         override def time: Time = 0L
@@ -193,7 +181,7 @@ class NodeViewHolderSpec
         spawn(Behaviors.monitor[StatusReply[Seq[Block]]](testProbe.ref, Behaviors.ignore))
 
       val underTest =
-        spawn(NodeViewHolder(TestSettings.defaultSettings, consensusReader, () => Future.successful(nodeView)))
+        spawn(NodeViewHolder(TestSettings.defaultSettings, () => Future.successful(nodeView)))
 
       /*
         Sending WriteBlocks kicks off a lot of background processes that should end with the block being
@@ -222,7 +210,7 @@ class NodeViewHolderSpec
 
       val existingHistory =
         History(TestSettings.defaultSettings, new Storage(new InMemoryKeyValueStore()))
-          .append(genesis.block, Seq.empty)
+          .append(genesis.block, Seq.empty, genesis.state)
           .get
           ._1
 
@@ -232,8 +220,6 @@ class NodeViewHolderSpec
           MockState.empty,
           MemPool.empty()
         )
-
-      val consensusReader = MockConsensusReader(genesis.state)(system.executionContext)
 
       implicit val timeProvider: TimeProvider = new TimeProvider {
         override def time: Time = 0L
@@ -245,7 +231,7 @@ class NodeViewHolderSpec
         spawn(Behaviors.monitor[StatusReply[Seq[Block]]](testProbe.ref, Behaviors.ignore))
 
       val underTest =
-        spawn(NodeViewHolder(TestSettings.defaultSettings, consensusReader, () => Future.successful(nodeView)))
+        spawn(NodeViewHolder(TestSettings.defaultSettings, () => Future.successful(nodeView)))
 
       underTest.tell(NodeViewHolder.ReceivableMessages.WriteBlocks(newBlocks))
 
@@ -270,7 +256,7 @@ class NodeViewHolderSpec
 
       val existingHistory =
         History(TestSettings.defaultSettings, new Storage(new InMemoryKeyValueStore()))
-          .append(genesis.block, Seq.empty)
+          .append(genesis.block, Seq.empty, genesis.state)
           .get
           ._1
 
@@ -280,8 +266,6 @@ class NodeViewHolderSpec
           MockState.empty,
           MemPool.empty()
         )
-
-      val consensusReader = MockConsensusReader(genesis.state)(system.executionContext)
 
       implicit val timeProvider: TimeProvider = new TimeProvider {
         override def time: Time = 0L
@@ -293,7 +277,7 @@ class NodeViewHolderSpec
         spawn(Behaviors.monitor[StatusReply[Seq[Block]]](testProbe.ref, Behaviors.ignore))
 
       val underTest =
-        spawn(NodeViewHolder(TestSettings.defaultSettings, consensusReader, () => Future.successful(nodeView)))
+        spawn(NodeViewHolder(TestSettings.defaultSettings, () => Future.successful(nodeView)))
 
       underTest.tell(NodeViewHolder.ReceivableMessages.WriteBlocks(List(firstNewBlock)))
 

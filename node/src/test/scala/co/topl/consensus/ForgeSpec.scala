@@ -86,7 +86,6 @@ class ForgeSpec
         Forge
           .prepareForge(
             nodeView,
-            ConsensusHolder.State(10000000, 0L),
             keyView,
             0
           )
@@ -108,12 +107,9 @@ class ForgeSpec
     val keyView =
       KeyView(keyRingCurve25519.addresses, None, keyRingCurve25519.signWithAddress, keyRingCurve25519.lookupPublicKey)
 
-    val leaderElection = new NxtLeaderElection(protocolVersioner)
-
     Forge
       .prepareForge(
         nodeView,
-        ConsensusHolder.State(10000000, 0L),
         keyView,
         0
       )
@@ -169,12 +165,9 @@ class ForgeSpec
           keyRingCurve25519.lookupPublicKey
         )
 
-      val leaderElection = new NxtLeaderElection(protocolVersioner)
-
       Forge
         .prepareForge(
           nodeView,
-          ConsensusHolder.State(10000000, 0L),
           keyView,
           0
         )

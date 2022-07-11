@@ -2,7 +2,7 @@ package co.topl.nodeView.history
 
 import cats.implicits._
 import co.topl.codecs._
-import co.topl.consensus.{BlockValidator, ConsensusHolder}
+import co.topl.consensus.{BlockValidator, NxtConsensus}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.PersistentNodeViewModifier
@@ -53,7 +53,11 @@ trait GenericHistory[
 
   def modifierByHeight(height: Long): Option[PM]
 
-  def append(modifier: PM, validators: Seq[BlockValidator[_]]): Try[(HT, ProgressInfo[PM])]
+  def append(
+    modifier:                PM,
+    validators:              Seq[BlockValidator[_]],
+    applicableConsesusState: NxtConsensus.State
+  ): Try[(HT, ProgressInfo[PM])]
 
   def drop(modifierId: ModifierId): HT
 

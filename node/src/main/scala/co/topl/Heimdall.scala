@@ -69,7 +69,6 @@ object Heimdall {
 
       context.watch(state.keyManager)
       context.watch(state.nodeViewHolder)
-      context.watch(state.consensusViewHolder)
 
       context.pipeToSelf(new ActorNodeViewHolderInterface(state.nodeViewHolder).onReady()) {
         case Failure(exception) => ReceivableMessages.Fail(exception)
@@ -164,8 +163,7 @@ object Heimdall {
             appContext,
             state.keyManager,
             state.forger,
-            state.nodeViewHolder,
-            state.consensusViewHolder
+            state.nodeViewHolder
           )(
             context.system
           )
@@ -210,19 +208,17 @@ object Heimdall {
   )
 
   private case class NodeViewInitializingState(
-    keyManager:          CActorRef,
-    nodeViewHolder:      ActorRef[NodeViewHolder.ReceivableMessage],
-    consensusViewHolder: ActorRef[ConsensusHolder.ReceivableMessage]
+    keyManager:     CActorRef,
+    nodeViewHolder: ActorRef[NodeViewHolder.ReceivableMessage]
   )
 
   private case class NetworkControllerInitializingState(
-    keyManager:          CActorRef,
-    nodeViewHolder:      ActorRef[NodeViewHolder.ReceivableMessage],
-    consensusViewHolder: ActorRef[ConsensusHolder.ReceivableMessage],
-    peerManager:         CActorRef,
-    networkController:   CActorRef,
-    forger:              ActorRef[Forger.ReceivableMessage],
-    mempoolAuditor:      ActorRef[MemPoolAuditor.ReceivableMessage]
+    keyManager:        CActorRef,
+    nodeViewHolder:    ActorRef[NodeViewHolder.ReceivableMessage],
+    peerManager:       CActorRef,
+    networkController: CActorRef,
+    forger:            ActorRef[Forger.ReceivableMessage],
+    mempoolAuditor:    ActorRef[MemPoolAuditor.ReceivableMessage]
   )
 
   private case class ActorsInitializedState(
@@ -231,7 +227,6 @@ object Heimdall {
     keyManager:           CActorRef,
     forger:               ActorRef[Forger.ReceivableMessage],
     nodeViewHolder:       ActorRef[NodeViewHolder.ReceivableMessage],
-    consensusViewHolder:  ActorRef[ConsensusHolder.ReceivableMessage],
     mempoolAuditor:       ActorRef[MemPoolAuditor.ReceivableMessage],
     peerSynchronizer:     CActorRef,
     nodeViewSynchronizer: CActorRef,
@@ -252,23 +247,15 @@ object Heimdall {
     implicit def system: ActorSystem[_] = context.system
     implicit val getKeyViewAskTimeout: Timeout = Timeout(10.seconds)
 
-    val consensusViewHolder =
-      context.spawn(
-        ConsensusHolder(settings),
-        ConsensusHolder.actorName
-      )
-
     val keyManagerRef = context.actorOf(KeyManagerRef.props(settings), KeyManager.actorName)
 
     val nodeViewHolderRef =
       context.spawn(
         NodeViewHolder(
           settings,
-          new ActorConsensusHolderInterface(consensusViewHolder)(system, Timeout(10.seconds)),
           () =>
             NodeView.persistent(
               settings,
-              new ActorConsensusHolderInterface(consensusViewHolder)(system, Timeout(10.seconds)),
               () =>
                 (keyManagerRef ? KeyManager.ReceivableMessages.GenerateInitialAddresses(
                   settings.forging.addressGenerationSettings
@@ -281,7 +268,7 @@ object Heimdall {
         DispatcherSelector.fromConfig("bifrost.application.node-view.dispatcher")
       )
 
-    NodeViewInitializingState(keyManagerRef, nodeViewHolderRef, consensusViewHolder)
+    NodeViewInitializingState(keyManagerRef, nodeViewHolderRef)
   }
 
   private def prepareNetworkControllerState(
@@ -310,8 +297,7 @@ object Heimdall {
           settings.forging.minTransactionFee,
           settings.forging.forgeOnStartup,
           () => (state.keyManager ? KeyManager.ReceivableMessages.GetKeyView).mapTo[KeyView],
-          new ActorNodeViewHolderInterface(state.nodeViewHolder),
-          new ActorConsensusHolderInterface(state.consensusViewHolder)
+          new ActorNodeViewHolderInterface(state.nodeViewHolder)
         ),
         Forger.ActorName
       )
@@ -326,7 +312,6 @@ object Heimdall {
     NetworkControllerInitializingState(
       state.keyManager,
       state.nodeViewHolder,
-      state.consensusViewHolder,
       peerManager,
       networkController,
       forgerRef,
@@ -380,7 +365,6 @@ object Heimdall {
       state.keyManager,
       state.forger,
       state.nodeViewHolder,
-      state.consensusViewHolder,
       state.mempoolAuditor,
       peerSynchronizer,
       nodeViewSynchronizer,
@@ -389,13 +373,12 @@ object Heimdall {
   }
 
   private def prepareHttpService(
-    settings:           AppSettings,
-    appContext:         AppContext,
-    keyManagerRef:      CActorRef,
-    forgerRef:          ActorRef[Forger.ReceivableMessage],
-    nodeViewHolderRef:  ActorRef[NodeViewHolder.ReceivableMessage],
-    consensusHolderRef: ActorRef[ConsensusHolder.ReceivableMessage]
-  )(implicit system:    ActorSystem[_]): HttpService = {
+    settings:          AppSettings,
+    appContext:        AppContext,
+    keyManagerRef:     CActorRef,
+    forgerRef:         ActorRef[Forger.ReceivableMessage],
+    nodeViewHolderRef: ActorRef[NodeViewHolder.ReceivableMessage]
+  )(implicit system:   ActorSystem[_]): HttpService = {
     import system.executionContext
 
     implicit val networkPrefix: NetworkPrefix =

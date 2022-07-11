@@ -129,32 +129,22 @@ class ForgerSpec
     LoggingTestKit.info("Forger is initialized").expect {
       LoggingTestKit.info("Starting forging").expect {
         LoggingTestKit.debug("New local block").withOccurrences(newBlockCount + 1).expect {
-          val consensusStorageRef =
-            spawn(
-              ConsensusHolder(
-                settings,
-                InMemoryKeyValueStore.empty
-              ),
-              ConsensusHolder.actorName
-            )
-          val consensusInterface = new ActorConsensusHolderInterface(consensusStorageRef)
           val forgerRef = spawn(
             Forger.behavior(
               blockGenerationDelay,
               minTransactionFee,
               forgeOnStartup = false,
               fetchKeyView,
-              reader,
-              consensusInterface
+              reader
             )
           )
 
-          // updating the consensus since we don't initialize the nodeViewHolder which sets the default consensus value
-          consensusInterface.update(
-            parentBlock.id,
-            ConsensusHolder
-              .StateUpdate(Some(Int128(10000000)), None)
-          )
+//          // updating the consensus since we don't initialize the nodeViewHolder which sets the default consensus value
+//          consensusInterface.update(
+//            parentBlock.id,
+//            ConsensusHolder
+//              .StateUpdate(Some(Int128(10000000)), None)
+//          )
           forgerRef.tell(Forger.ReceivableMessages.StartForging(initializedProbe.ref))
           initializedProbe.expectMessage(2.seconds, Done)
 
@@ -179,15 +169,6 @@ class ForgerSpec
       .expects()
       .never()
 
-    val rewardsAddress = keyRingCurve25519.addresses.head
-    val keyView =
-      KeyView(
-        keyRingCurve25519.addresses,
-        Some(rewardsAddress),
-        keyRingCurve25519.signWithAddress,
-        keyRingCurve25519.lookupPublicKey
-      )
-
     val fetchKeyView = mockFunction[Future[KeyView]]
     fetchKeyView
       .expects()
@@ -202,23 +183,13 @@ class ForgerSpec
 
     val newBlockCount = 4
 
-    val consensusStorageRef =
-      spawn(
-        ConsensusHolder(
-          settings,
-          InMemoryKeyValueStore.empty
-        ),
-        ConsensusHolder.actorName
-      )
-
     val forgerRef = spawn(
       Forger.behavior(
         blockGenerationDelay,
         minTransactionFee,
         forgeOnStartup = false,
         fetchKeyView,
-        reader,
-        new ActorConsensusHolderInterface(consensusStorageRef)
+        reader
       )
     )
 
@@ -246,22 +217,13 @@ class ForgerSpec
     val reader = mock[NodeViewReader]
 
     LoggingTestKit.error("Forging requires a rewards address").expect {
-      val consensusStorageRef =
-        spawn(
-          ConsensusHolder(
-            settings,
-            InMemoryKeyValueStore.empty
-          ),
-          ConsensusHolder.actorName
-        )
       val forgerRef = spawn(
         Forger.behavior(
           blockGenerationDelay,
           minTransactionFee,
           forgeOnStartup = true,
           fetchKeyView,
-          reader,
-          new ActorConsensusHolderInterface(consensusStorageRef)
+          reader
         )
       )
       createTestProbe().expectTerminated(forgerRef)

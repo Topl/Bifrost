@@ -31,7 +31,7 @@ class ValidBlockchainGeneratorSpec extends AnyPropSpec with ValidBlockchainGener
       )
     val getParentTimestamp: Block => Option[Time] = (block: Block) => getParent(block).map(_.timestamp)
 
-    val consensusState: Block => ConsensusHolder.State = (block: Block) => ConsensusHolder.State(Int.MaxValue, 0L)
+    val consensusState: Block => NxtConsensus.State = (block: Block) => NxtConsensus.State(Int.MaxValue, 0L)
   }
 
   property("Generates a valid blockchain from genesis with up to 127 blocks in length") {

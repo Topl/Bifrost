@@ -1,6 +1,6 @@
 package co.topl.nodeView.history
 
-import co.topl.consensus.BlockValidator
+import co.topl.consensus.{BlockValidator, NxtConsensus}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.TX
@@ -28,8 +28,9 @@ class MockImmutableBlockHistory(blocks: List[Block]) extends GenericHistory[Bloc
   override def modifierByHeight(height: Long): Option[Block] = blocks.find(_.height == height)
 
   override def append(
-    modifier:   Block,
-    validators: Seq[BlockValidator[_]]
+    modifier:                Block,
+    validators:              Seq[BlockValidator[_]],
+    applicableConsesusState: NxtConsensus.State
   ): Try[(History, GenericHistory.ProgressInfo[Block])] = throw new NotImplementedError()
 
   override def drop(modifierId: ModifierId): History = throw new NotImplementedError()
@@ -94,6 +95,9 @@ class MockImmutableBlockHistory(blocks: List[Block]) extends GenericHistory[Bloc
       .take(limit)
       .map(_.id)
       .some
+
+  override def consensusStateAt(blockId: ModifierId): Either[HistoryFailures.StorageReadFailure, NxtConsensus.State] =
+    throw new NotImplementedError()
 }
 
 object MockImmutableBlockHistory {

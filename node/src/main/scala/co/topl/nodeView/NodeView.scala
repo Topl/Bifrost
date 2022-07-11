@@ -91,9 +91,8 @@ case class ReadableNodeView(
 object NodeView {
 
   def persistent(
-    settings:           AppSettings,
-    consensusInterface: ConsensusHolderInterface,
-    startupKeyView:     () => Future[StartupKeyView]
+    settings:       AppSettings,
+    startupKeyView: () => Future[StartupKeyView]
   )(implicit
     system:            ActorSystem[_],
     ec:                ExecutionContext,
@@ -104,7 +103,7 @@ object NodeView {
       startupKeyView() // keyRing is mutable so need to call this
       resume(settings)
     } else
-      fetchAndApplyGenesis(settings, consensusInterface, startupKeyView)
+      fetchAndApplyGenesis(settings, startupKeyView)
         .valueOrF(e => Future.failed(new IllegalArgumentException(e.toString)))
 
   private def resume(
@@ -124,9 +123,8 @@ object NodeView {
     )
 
   private def fetchAndApplyGenesis(
-    settings:           AppSettings,
-    consensusInterface: ConsensusHolderInterface,
-    startupKeyView:     () => Future[StartupKeyView]
+    settings:       AppSettings,
+    startupKeyView: () => Future[StartupKeyView]
   )(implicit
     system:            ActorSystem[_],
     ec:                ExecutionContext,
@@ -138,15 +136,12 @@ object NodeView {
       .fetchGenesis(settings)
       .toEitherT[Future]
       .leftMap(e => NodeViewHolderInterface.ApplyFailure(new IllegalArgumentException(e.toString)))
-    _ <- consensusInterface
-      .update(
-        genesis.block.id,
-        NxtConsensus
-          .StateUpdate(Some(genesis.state.totalStake), None)
-      )
-      .leftMap(e => NodeViewHolderInterface.ApplyFailure(new IllegalArgumentException(e.toString)))
     nodeView = NodeView(
-      History.readOrGenerate(settings).append(genesis.block, Seq()).get._1, // no validators because genesis
+      History
+        .readOrGenerate(settings)
+        .append(genesis.block, Seq(), genesis.state)
+        .get
+        ._1, // no validators because genesis
       BoxState.genesisState(settings, Seq(genesis.block)),
       MemPool.empty()
     )
@@ -179,19 +174,19 @@ trait NodeViewBlockOps {
             case Validated.Valid(a) =>
               log.info("Applying valid blockId={} to history", block.id)
               val openSurfaceIdsBeforeUpdate = history.openSurfaceIds()
-              val validators = for {
-                consensusState <- nodeView.history.consensusStateAt(block.parentId)
-                leaderElection = new NxtLeaderElection(protocolVersioner)
-                v = Seq(
+              val consensusStateAtHead = nodeView.history.consensusStateAt(block.parentId)
+              val blockValidatorsAtHead = consensusStateAtHead.map { cState =>
+                val leaderElection = new NxtLeaderElection(protocolVersioner)
+                Seq(
                   new BlockValidators.DifficultyValidator(leaderElection),
                   new BlockValidators.HeightValidator,
-                  new BlockValidators.EligibilityValidator(leaderElection, consensusState.totalStake),
-                  new BlockValidators.SyntaxValidator(consensusState.inflation),
+                  new BlockValidators.EligibilityValidator(leaderElection, cState.totalStake),
+                  new BlockValidators.SyntaxValidator(cState.inflation),
                   new BlockValidators.TimestampValidator
                 )
-              } yield v
+              }
 
-              history.append(block, validators.getOrThrow()) match {
+              history.append(block, blockValidatorsAtHead.getOrThrow(), consensusStateAtHead.getOrThrow()) match {
                 case Success((historyBeforeStUpdate, progressInfo)) =>
                   log.info("Block blockId={} applied to history successfully", block.id)
                   log.debug("Applying valid blockId={} to state with progressInfo={}", block.id, progressInfo)

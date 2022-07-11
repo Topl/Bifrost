@@ -1,7 +1,7 @@
 package co.topl.nodeView
 
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import co.topl.consensus.{BlockValidators, ConsensusHolder}
+import co.topl.consensus.NxtConsensus
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.NodeViewTestHelpers.TestIn
@@ -37,7 +37,7 @@ class NodeViewSpec
         val polyReward = sampleUntilNonEmpty(polyTransferGen)
         val arbitReward = sampleUntilNonEmpty(arbitTransferGen)
         val rewardBlock =
-          block.copy(transactions = Seq(arbitReward, polyReward), parentId = testIn.genesisView.block.id)
+          block.copy(transactions = Seq(arbitReward, polyReward), parentId = testIn.genesis.block.id)
 
         val memPool =
           testIn.nodeView.updateMemPool(List(rewardBlock), Nil, MemPool.empty())
@@ -121,10 +121,7 @@ class NodeViewSpec
       val initialHistoryStoreState = testIn.historyStore.state
       val (events, _) =
         testIn.nodeView
-          .withBlock(
-            testIn.genesisView.block,
-            Seq()
-          )
+          .withBlock(testIn.genesis.block)
           .run
 
       testIn.historyStore.state shouldBe initialHistoryStoreState
@@ -150,13 +147,13 @@ class NodeViewSpec
     withGenesisOnlyNodeView(chain.head) { testIn =>
       val (events, updatedNodeView) =
         testIn.nodeView
-          .withBlock(chain.tail.head, Seq())
+          .withBlock(chain.tail.head)
           .run
 
       events shouldBe List(
         NodeViewHolder.Events.StartingPersistentModifierApplication(chain.tail.head),
         NodeViewHolder.Events.SyntacticallySuccessfulModifier(chain.tail.head),
-        NodeViewHolder.Events.NewOpenSurface(List(testIn.genesisView.block.id)),
+        NodeViewHolder.Events.NewOpenSurface(List(testIn.genesis.block.id)),
         NodeViewHolder.Events.ChangedHistory,
         NodeViewHolder.Events.SemanticallySuccessfulModifier(chain.tail.head),
         NodeViewHolder.Events.ChangedState,
@@ -187,7 +184,7 @@ class NodeViewSpec
 
       val (events, updatedNodeView) =
         testIn.nodeView
-          .withBlock(block, Seq(new BlockValidators.HeightValidator))
+          .withBlock(block)
           .run
 
       events should have size 2
@@ -198,6 +195,6 @@ class NodeViewSpec
     }
   }
 
-  private def withGenesisOnlyNodeView(genesis: ConsensusHolder.Genesis)(test: TestIn => Unit): Unit =
+  private def withGenesisOnlyNodeView(genesis: NxtConsensus.Genesis)(test: TestIn => Unit): Unit =
     test(nodeViewGenesisOnlyTestInputs(genesis))
 }

@@ -60,8 +60,7 @@ object Forger {
     minTransactionFee:    Int128,
     forgeOnStartup:       Boolean,
     fetchKeyView:         () => Future[KeyView],
-    nodeViewReader:       NodeViewReader,
-    consensusInterface:   ConsensusHolderInterface
+    nodeViewReader:       NodeViewReader
   )(implicit
     networkPrefix:     NetworkPrefix,
     protocolVersioner: ProtocolVersioner,
@@ -82,8 +81,7 @@ object Forger {
         blockGenerationDelay,
         minTransactionFee,
         fetchKeyView,
-        nodeViewReader,
-        consensusInterface
+        nodeViewReader
       ).uninitialized(forgeWhenReady = forgeOnStartup)
 
     }
@@ -116,8 +114,7 @@ private class ForgerBehaviors(
   blockGenerationDelay: FiniteDuration,
   minTransactionFee:    Int128,
   fetchKeyView:         () => Future[KeyView],
-  nodeViewReader:       NodeViewReader,
-  consensusReader:      ConsensusReader
+  nodeViewReader:       NodeViewReader
 )(implicit
   context:           ActorContext[Forger.ReceivableMessage],
   networkPrefix:     NetworkPrefix,

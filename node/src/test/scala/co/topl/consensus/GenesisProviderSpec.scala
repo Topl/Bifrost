@@ -58,7 +58,7 @@ class GenesisProviderSpec
       GenesisSpecSetup.helJsonGenesisSettings
     )
     jsonSettings.map { jsonSetting =>
-      val genesis: ConsensusHolder.Genesis =
+      val genesis: NxtConsensus.Genesis =
         new GenesisProvider(protocolVersioner.applicable(1).blockVersion, Set[Address]())
           .fetchGenesis(GenesisSpecSetup.genesisFromJsonSettings(jsonSetting.fromJson))(jsonSetting.networkPrefix)
           .value
@@ -79,7 +79,7 @@ class GenesisProviderSpec
           .get
       )
 
-      val genesis: ConsensusHolder.Genesis =
+      val genesis: NxtConsensus.Genesis =
         new GenesisProvider(protocolVersioner.applicable(1).blockVersion, addresses)
           .fetchGenesis(GenesisSpecSetup.genesisGenSettings)
           .value

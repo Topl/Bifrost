@@ -1,6 +1,7 @@
 package co.topl.nodeView.history
 
 import co.topl.codecs.binary._
+import co.topl.consensus.NxtConsensus
 import co.topl.settings.ProtocolConfigurations
 import co.topl.crypto.hash.blake2b256
 import co.topl.modifier.ModifierId
@@ -61,7 +62,12 @@ class Storage(private[history] val keyValueStore: KeyValueStore) extends Logging
     "bestBlock": b00123123
   }
    */
-  private[history] def update(b: Block, protocolConfig: ProtocolConfigurations.Dion, isBest: Boolean): Unit = {
+  private[history] def update(
+    b:                        Block,
+    protocolConfig:           ProtocolConfigurations.Dion,
+    applicableConsensusState: NxtConsensus.State,
+    isBest:                   Boolean
+  ): Unit = {
     log.debug(s"Write new best=$isBest block ${b.id}")
 
     // store block data with Modifier Type ID for storage backwards compatibility
@@ -81,13 +87,7 @@ class Storage(private[history] val keyValueStore: KeyValueStore) extends Logging
     val blockTimestamp = Seq(blockTimestampKey(b.id) -> b.timestamp.persistedBytes)
 
     val blockTotalStake = {
-      val previousTotalStake = totalStakeOf(b.parentId).getOrElse(
-        throw new Exception(s"Failed to retrieve total stake for id: ${b.parentId}")
-      )
-      val expectedRewardAmount = inflationOf(b.parentId).getOrElse(
-        throw new Exception(s"Failed to retrieve inflation for id: ${b.parentId}")
-      )
-      val newTotalStake = previousTotalStake + Int128(expectedRewardAmount)
+      val newTotalStake = applicableConsensusState.totalStake + applicableConsensusState.inflation
       Seq(totalStakeKey(b.id) -> newTotalStake.persistedBytes)
     }
 
