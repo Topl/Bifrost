@@ -1,10 +1,11 @@
 package co.topl.nodeView.history
 
 import co.topl.codecs.binary._
+import co.topl.codecs.binary.typeclasses.Persistable
 import co.topl.consensus.NxtConsensus
 import co.topl.settings.ProtocolConfigurations
 import co.topl.crypto.hash.blake2b256
-import co.topl.modifier.ModifierId
+import co.topl.modifier.{ModifierId, NodeViewModifier}
 import co.topl.modifier.block.{Block, BloomFilter}
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.KeyValueStore
@@ -63,50 +64,52 @@ class Storage(private[history] val keyValueStore: KeyValueStore) extends Logging
   }
    */
   private[history] def update(
-    b:                        Block,
+    block:                    Block,
     protocolConfig:           ProtocolConfigurations.Dion,
     applicableConsensusState: NxtConsensus.State,
     isBest:                   Boolean
   ): Unit = {
-    log.debug(s"Write new best=$isBest block ${b.id}")
+    log.debug(s"Write new best=$isBest block ${block.id}")
 
     // store block data with Modifier Type ID for storage backwards compatibility
-    val blockK = Seq(b.id.getIdBytes -> b.id.persistedBytes)
+    // you must go through the Persistable[NodeViewModifier] in order to get the correct type prefix added
+    val blockK = Seq(block.id.getIdBytes -> Persistable[NodeViewModifier].persistedBytes(block))
 
     val bestBlock =
-      if (isBest) Seq(bestBlockIdKey -> b.id.persistedBytes) else Seq()
+      if (isBest) Seq(bestBlockIdKey -> block.id.persistedBytes) else Seq()
 
-    val newTransactionsToBlockIds = b.transactions.map(tx => (tx.id.getIdBytes, b.id.getIdBytes))
+    val newTransactionsToBlockIds = block.transactions.map(tx => (tx.id.getIdBytes, block.id.getIdBytes))
 
-    val blockHeight = Seq(blockHeightKey(b.id) -> b.height.persistedBytes)
+    val blockHeight = Seq(blockHeightKey(block.id) -> block.height.persistedBytes)
 
-    val heightToId = Seq(idHeightKey(b.height) -> b.id.persistedBytes)
+    val heightToId = Seq(idHeightKey(block.height) -> block.id.persistedBytes)
 
-    val blockDiff = Seq(blockDiffKey(b.id) -> b.difficulty.persistedBytes)
+    val blockDiff = Seq(blockDiffKey(block.id) -> block.difficulty.persistedBytes)
 
-    val blockTimestamp = Seq(blockTimestampKey(b.id) -> b.timestamp.persistedBytes)
+    val blockTimestamp = Seq(blockTimestampKey(block.id) -> block.timestamp.persistedBytes)
 
     val blockTotalStake = {
       val newTotalStake = applicableConsensusState.totalStake + applicableConsensusState.inflation
-      Seq(totalStakeKey(b.id) -> newTotalStake.persistedBytes)
+      Seq(totalStakeKey(block.id) -> newTotalStake.persistedBytes)
     }
 
-    val blockInflation = Seq(inflationKey(b.id) -> protocolConfig.inflationRate.persistedBytes)
+    val blockInflation = Seq(inflationKey(block.id) -> protocolConfig.inflationRate.persistedBytes)
 
     // reference Bifrost #519 & #527 for discussion on this division of the score
     val blockScore = {
-      val parentScore = scoreOf(b.parentId).getOrElse(
-        throw new Exception(s"Failed to retrieve score for id: ${b.parentId}")
-      )
-      val newBlockScore = parentScore + b.difficulty / 10000000000L
-      Seq(blockScoreKey(b.id) -> newBlockScore.persistedBytes)
+      val parentScore =
+        if (block.parentId == History.GenesisParentId) 0L
+        else
+          scoreOf(block.parentId).getOrElse(throw new Exception(s"Failed to retrieve score for id: ${block.parentId}"))
+      val newBlockScore = parentScore + block.difficulty / 10000000000L
+      Seq(blockScoreKey(block.id) -> newBlockScore.persistedBytes)
     }
 
     val parentBlock =
-      if (b.parentId == History.GenesisParentId) Seq()
-      else Seq(blockParentKey(b.id) -> b.parentId.persistedBytes)
+      if (block.parentId == History.GenesisParentId) Seq()
+      else Seq(blockParentKey(block.id) -> block.parentId.persistedBytes)
 
-    val blockBloom = Seq(blockBloomKey(b.id) -> b.bloomFilter.persistedBytes)
+    val blockBloom = Seq(blockBloomKey(block.id) -> block.bloomFilter.persistedBytes)
 
     val wrappedUpdate =
       blockK ++
@@ -123,7 +126,7 @@ class Storage(private[history] val keyValueStore: KeyValueStore) extends Logging
       parentBlock
 
     /* update storage */
-    keyValueStore.update(b.id.persistedBytes, Seq(), wrappedUpdate)
+    keyValueStore.update(block.id.persistedBytes, Seq(), wrappedUpdate)
 
   }
 
@@ -140,22 +143,22 @@ class Storage(private[history] val keyValueStore: KeyValueStore) extends Logging
   private[history] def scoreOf(blockId: ModifierId): Option[Long] =
     keyValueStore
       .get(blockScoreKey(blockId))
-      .map(b => Longs.fromByteArray(b))
+      .flatMap(b => b.decodePersisted[Long].toOption)
 
   private[history] def heightOf(blockId: ModifierId): Option[Long] =
     keyValueStore
       .get(blockHeightKey(blockId))
-      .map(b => Longs.fromByteArray(b))
+      .flatMap(b => b.decodePersisted[Long].toOption)
 
   private[history] def difficultyOf(blockId: ModifierId): Option[Long] =
     keyValueStore
       .get(blockDiffKey(blockId))
-      .map(b => Longs.fromByteArray(b))
+      .flatMap(b => b.decodePersisted[Long].toOption)
 
   private[history] def timestampOf(blockId: ModifierId): Option[Long] =
     keyValueStore
       .get(blockTimestampKey(blockId))
-      .map(b => Longs.fromByteArray(b))
+      .flatMap(b => b.decodePersisted[Long].toOption)
 
   private[history] def bloomOf(blockId: ModifierId): Option[BloomFilter] =
     keyValueStore
@@ -175,7 +178,7 @@ class Storage(private[history] val keyValueStore: KeyValueStore) extends Logging
   private[history] def inflationOf(blockId: ModifierId): Option[Long] =
     keyValueStore
       .get(inflationKey(blockId))
-      .map(b => Longs.fromByteArray(b))
+      .flatMap(b => b.decodePersisted[Long].toOption)
 
   private[history] def idAtHeightOf(height: Long): Option[ModifierId] =
     keyValueStore

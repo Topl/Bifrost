@@ -8,7 +8,7 @@ import cats.implicits._
 import co.topl.attestation.Address
 import co.topl.consensus.KeyManager.KeyView
 import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
-import co.topl.modifier.ProgramId
+import co.topl.modifier.{ModifierId, ProgramId}
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.modifier.transaction.Transaction
@@ -116,6 +116,12 @@ class ForgerSpec
       .expects(*)
       .anyNumberOfTimes()
       .onCall((a: Address) => Some(List(ArbitBox(a.evidence, nonce = Long.MaxValue, value = SimpleValue(1)))))
+
+    (nodeView.history
+      .consensusStateAt(_: ModifierId))
+      .expects(*)
+      .anyNumberOfTimes()
+      .returning(Right(NxtConsensus.State(10000000, 0)))
 
     val probe = createTestProbe[LocallyGeneratedBlock]()
     val initializedProbe = createTestProbe[Done]()

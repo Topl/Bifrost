@@ -66,6 +66,8 @@ trait ValidBlockchainGenerator extends NetworkPrefixTestHelper {
       )(allArbitBoxesIterator)
       .getOrThrow(e => new Exception(e.toString))
 
+    require(lengthOfChain >= 2, "Use a value greater than or equal to 2 when generating valid chains")
+
     val blockchain = (2 to lengthOfChain).foldLeft(NonEmptyChain(genesis.block)) { case (chain, height) =>
       val newTimestamp = chain.last.timestamp + timeBetweenBlocks
       appendBlock(

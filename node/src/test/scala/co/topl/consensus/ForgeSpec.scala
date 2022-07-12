@@ -2,7 +2,7 @@ package co.topl.consensus
 
 import co.topl.attestation.Address
 import co.topl.consensus.KeyManager.KeyView
-import co.topl.modifier.ProgramId
+import co.topl.modifier.{ModifierId, ProgramId}
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.modifier.transaction.Transaction
@@ -64,6 +64,11 @@ class ForgeSpec
         .expects(parentBlock, 3)
         .returning(Vector(parentBlock.timestamp))
 
+      (nodeView.history
+        .consensusStateAt(_: ModifierId))
+        .expects(parentBlock.id)
+        .returning(Right(NxtConsensus.State(10000000L, 0)))
+
       val rewardsAddress = keyRingCurve25519.addresses.head
 
       (nodeView.state
@@ -79,8 +84,6 @@ class ForgeSpec
           keyRingCurve25519.signWithAddress,
           keyRingCurve25519.lookupPublicKey
         )
-
-      val leaderElection = new NxtLeaderElection(protocolVersioner)
 
       val forge =
         Forge
@@ -148,6 +151,11 @@ class ForgeSpec
         .getTimestampsFrom(_: Block, _: Long))
         .expects(parentBlock, 3)
         .returning(Vector(parentBlock.timestamp))
+
+      (nodeView.history
+        .consensusStateAt(_: ModifierId))
+        .expects(parentBlock.id)
+        .returning(Right(NxtConsensus.State(10000000L, 0)))
 
       val rewardsAddress = keyRingCurve25519.addresses.head
 

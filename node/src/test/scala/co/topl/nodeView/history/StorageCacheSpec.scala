@@ -1,5 +1,7 @@
 package co.topl.nodeView.history
 
+import co.topl.codecs.binary._
+import co.topl.codecs.binary.typeclasses.Persistable
 import co.topl.consensus.{NxtConsensus, ValidBlockchainGenerator}
 import co.topl.modifier.block.Block
 import co.topl.nodeView.CacheLayerKeyValueStore
@@ -25,14 +27,18 @@ class StorageCacheSpec
   private val bestBlockIdKey = Array.fill(33)(-1: Byte)
 
   property("The genesis block is stored in cache") {
-    withTestHistory(chainGen(1).sample.get.head) { history =>
-      history.storage.keyValueStore
-        .asInstanceOf[CacheLayerKeyValueStore]
-        .cache
-        .getIfPresent(
-          new CacheLayerKeyValueStore.WrappedBytes(bestBlockIdKey)
-        ) shouldEqual history.storage.keyValueStore
-        .get(bestBlockIdKey)
+    forAll(chainGen(3)) { chain =>
+      withTestHistory(chain.head) { history =>
+//        history.storage.keyValueStore
+//          .asInstanceOf[CacheLayerKeyValueStore]
+//          .cache
+//          .getIfPresent(
+//            new CacheLayerKeyValueStore.WrappedBytes(bestBlockIdKey)
+//          ) shouldEqual history.storage.keyValueStore
+//          .get(bestBlockIdKey)
+
+        history.storage.keyValueStore.get(bestBlockIdKey).value shouldBe chain.head.block.id.persistedBytes
+      }
     }
   }
 

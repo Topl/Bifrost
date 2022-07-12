@@ -216,7 +216,7 @@ class History(
     val block = storage.modifierById(modifierId).get
     val parentBlock = storage.modifierById(block.parentId).get
 
-    log.debug(s"Failed to apply block. Rollback BifrostState to ${parentBlock.id} from version ${block.id}")
+    log.debug(s"Failed to apply block. Rolling back history storage to ${parentBlock.id} from version ${block.id}")
     storage.rollback(parentBlock.id).getOrThrow()
     new History(storage, tineProcessor)
   }

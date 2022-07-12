@@ -174,19 +174,18 @@ trait NodeViewBlockOps {
             case Validated.Valid(a) =>
               log.info("Applying valid blockId={} to history", block.id)
               val openSurfaceIdsBeforeUpdate = history.openSurfaceIds()
-              val consensusStateAtHead = nodeView.history.consensusStateAt(block.parentId)
-              val blockValidatorsAtHead = consensusStateAtHead.map { cState =>
-                val leaderElection = new NxtLeaderElection(protocolVersioner)
+              val leaderElection = new NxtLeaderElection(protocolVersioner)
+              val consensusStateAtHead = nodeView.history.consensusStateAt(block.parentId).getOrThrow()
+              val blockValidatorsAtHead =
                 Seq(
                   new BlockValidators.DifficultyValidator(leaderElection),
                   new BlockValidators.HeightValidator,
-                  new BlockValidators.EligibilityValidator(leaderElection, cState.totalStake),
-                  new BlockValidators.SyntaxValidator(cState.inflation),
+                  new BlockValidators.EligibilityValidator(leaderElection, consensusStateAtHead.totalStake),
+                  new BlockValidators.SyntaxValidator(consensusStateAtHead.inflation),
                   new BlockValidators.TimestampValidator
                 )
-              }
 
-              history.append(block, blockValidatorsAtHead.getOrThrow(), consensusStateAtHead.getOrThrow()) match {
+              history.append(block, blockValidatorsAtHead, consensusStateAtHead) match {
                 case Success((historyBeforeStUpdate, progressInfo)) =>
                   log.info("Block blockId={} applied to history successfully", block.id)
                   log.debug("Applying valid blockId={} to state with progressInfo={}", block.id, progressInfo)
