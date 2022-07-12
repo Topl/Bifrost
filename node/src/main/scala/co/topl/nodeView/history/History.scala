@@ -60,10 +60,14 @@ class History(
       )
     } yield NxtConsensus.State(totalStake, inflation)
 
-  lazy val bestBlockId: ModifierId = storage.bestBlockId.getOrElse(History.GenesisParentId)
-  lazy val height: Long = storage.heightOf(bestBlockId).getOrElse(-1)
+  /** the block id at the tip of the chain */
+  def bestBlockId: ModifierId = storage.bestBlockId.getOrElse(History.GenesisParentId)
 
-  lazy val bestBlock: Block =
+  /** height at the tip of the chain */
+  def height: Long = storage.heightOf(bestBlockId).getOrElse(-1)
+
+  /** the best block our node knows about, this defines the tip of our chain */
+  def bestBlock: Block =
     storage
       .modifierById(bestBlockId)
       .getOrElse(throw new Exception(s"Unable to retrieve best block for id: ${bestBlockId}"))
