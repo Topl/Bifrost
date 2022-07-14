@@ -51,11 +51,17 @@ class History(
   ): Either[HistoryFailures.StorageReadFailure, NxtConsensus.State] =
     for {
       totalStake <- Either.fromOption(
-        storage.totalStakeOf(blockId),
+        tineProcessor
+          .getCacheBlock(blockId)
+          .map(_.consensusState.totalStake)
+          .orElse(storage.totalStakeOf(blockId)),
         HistoryFailures.StorageReadFailure(new Exception(s"Unable to find totalStake for blockId: ${blockId}"))
       )
       inflation <- Either.fromOption(
-        storage.inflationOf(blockId),
+        tineProcessor
+          .getCacheBlock(blockId)
+          .map(_.consensusState.inflation)
+          .orElse(storage.inflationOf(blockId)),
         HistoryFailures.StorageReadFailure(new Exception(s"Unable to find inflation for blockId: ${blockId}"))
       )
     } yield NxtConsensus.State(totalStake, inflation)
@@ -182,7 +188,12 @@ class History(
                 storage.rollback(branchPoint).getOrThrow()
                 forkProgInfo.toApply.foreach { b =>
                   val newProtocolSettings = protocolVersioner.applicable(b.height).value
-                  storage.update(b, newProtocolSettings, applicableConsesusState, isBest = true)
+                  storage.update(
+                    b,
+                    newProtocolSettings,
+                    tineProcessor.getCacheBlock(b.id).get.consensusState,
+                    isBest = true
+                  )
                 }
               }
 

@@ -38,11 +38,15 @@ class ValidBlockchainGeneratorSpec extends AnyPropSpec with ValidBlockchainGener
     forAll(Gen.choose[Byte](2, Byte.MaxValue)) { length =>
       val leaderElection = new NxtLeaderElection(ProtocolVersioner.default)
 
+      val genesisStrat = GenesisProvider.Strategies.Generation(Version.initial, Int.MaxValue, Long.MaxValue)
+
       val nonEmptyBlockchain =
         validChainFromGenesis(
           keyRingCurve25519,
-          GenesisProvider.Strategies.Generation(Version.initial, Int.MaxValue, Long.MaxValue),
-          ProtocolVersioner.default
+          genesisStrat.balanceForEachParticipant,
+          genesisStrat.initialDifficulty,
+          ProtocolVersioner.default,
+          Long.MaxValue / length
         )(length).sample.get
 
       val extractors = new BlockDataExtractors(nonEmptyBlockchain.head.block +: nonEmptyBlockchain.tail)

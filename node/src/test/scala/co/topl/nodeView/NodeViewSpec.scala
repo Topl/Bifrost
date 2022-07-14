@@ -195,6 +195,51 @@ class NodeViewSpec
     }
   }
 
+  property("NodeView should switch to a longer chain") {
+    implicit val timeProvider: TimeProvider = mock[TimeProvider]
+
+    (() => timeProvider.time)
+      .expects()
+      .anyNumberOfTimes()
+      .returning(Long.MaxValue)
+
+    val chain1: GenesisHeadChain =
+      validChainFromGenesis(
+        keyRingCurve25519,
+        10000,
+        Long.MaxValue,
+        protocolVersioner,
+        Long.MaxValue / 10
+      )(3).sample.get
+
+    val chain2: GenesisHeadChain =
+      validChainFromGenesis(
+        keyRingCurve25519,
+        10000,
+        Long.MaxValue,
+        protocolVersioner,
+        Long.MaxValue / 100
+      )(5).sample.get
+
+    withGenesisOnlyNodeView(chain1.head) { testIn =>
+      val (_, updatedNodeView) = chain1.tail.foldLeft((List[Any](), testIn.nodeView)) {
+        case ((events, nodeView), block) =>
+          val (newEvents, updatedNodeView) = nodeView.withBlock(block).run
+          (events ++ newEvents, updatedNodeView)
+      }
+
+      updatedNodeView.history.bestBlockId shouldBe chain1.tail.last.id
+
+      val (_, reorgedNodeView) = chain2.tail.foldLeft((List[Any](), updatedNodeView)) {
+        case ((events, nodeView), block) =>
+          val (newEvents, updatedNodeView) = nodeView.withBlock(block).run
+          (events ++ newEvents, updatedNodeView)
+      }
+
+      reorgedNodeView.history.bestBlockId shouldBe chain2.tail.last.id
+    }
+  }
+
   private def withGenesisOnlyNodeView(genesis: NxtConsensus.Genesis)(test: TestIn => Unit): Unit =
     test(nodeViewGenesisOnlyTestInputs(genesis))
 }

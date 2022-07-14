@@ -27,18 +27,18 @@ trait ValidBlockchainGenerator extends NetworkPrefixTestHelper {
     protocolVersioner
   )(lengthOfChain)
 
+  // manipulate the time between subsequent blocks to manage the adjustment of difficulty (this will
+  // also generate different chains for differnet values of timeBetweenBlocks)
   def validChainFromGenesis(
     keyRing:                   KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
     balanceForEachParticipant: Long,
     initialDifficulty:         Long,
-    protocolVersioner:         ProtocolVersioner
+    protocolVersioner:         ProtocolVersioner,
+    timeBetweenBlocks:         Long = Long.MaxValue / 10
   )(
     lengthOfChain: Byte
   ): Gen[GenesisHeadChain] = {
     val leaderElection = new NxtLeaderElection(protocolVersioner)
-
-    // manipulate the time between subsequent blocks to manage the adjustment of difficulty
-    val timeBetweenBlocks: Long = Long.MaxValue / lengthOfChain
 
     val genesis = GenesisProvider.construct(
       keyRing.addresses,
