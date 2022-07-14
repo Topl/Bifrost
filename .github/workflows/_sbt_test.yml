@@ -59,7 +59,7 @@ jobs:
         run: git checkout .
 
       - name: Compile and Test
-        run: sbt it:compile pushRemoteCache
+        run: sbt checkPR pushRemoteCache
 
       - name: Upload Test Results
         if: always()
