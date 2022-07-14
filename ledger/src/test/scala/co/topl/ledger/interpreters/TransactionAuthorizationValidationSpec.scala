@@ -323,8 +323,8 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
       withMock {
         for {
           badTransaction <- createTestTransaction(
-            Propositions.Contextual.RequiredBoxState(List(box -> BoxLocations.Output(0))),
-            _ => Proofs.Contextual.RequiredBoxState()
+            Propositions.Contextual.RequiredTransactionIO(List(box -> BoxLocations.Output(0))),
+            _ => Proofs.Contextual.RequiredTransactionIO()
           ).pure[F]
           underTest <- makeValidation()
           _         <- underTest.validate(blockId)(badTransaction).map(_.isInvalid).assert

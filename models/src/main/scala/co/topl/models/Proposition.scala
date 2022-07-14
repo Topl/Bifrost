@@ -11,7 +11,7 @@ sealed trait Proposition
 object Propositions {
 
   /**
-   * A Proposition that can never be satisfied, thus rendering the box unlockable
+   * A Proposition that can never be satisfied, thus making it impossible to spend the box
    */
   case object PermanentlyLocked extends Proposition
 
@@ -34,6 +34,8 @@ object Propositions {
 
     /**
      * Requires "proof of knowledge of bytes which hash to the proposition's digest" to unlock the box
+     *
+     * TODO: Can we support multiple hash algorithms? (And multiple digest sizes)
      */
     case class HashLock(valueDigest: Digest32) extends Proposition
   }
@@ -74,7 +76,7 @@ object Propositions {
      * @param boxes a list of (box, location) tuples indicating an expected box at the expected location of the
      *              spending transaction
      */
-    case class RequiredBoxState(boxes: List[(Box, BoxLocation)]) extends Proposition
+    case class RequiredTransactionIO(boxes: List[(Box, BoxLocation)]) extends Proposition
   }
 
 }

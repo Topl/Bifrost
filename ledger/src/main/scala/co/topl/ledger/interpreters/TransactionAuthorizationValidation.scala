@@ -68,7 +68,7 @@ object TransactionAuthorizationValidation {
         case (proposition: Propositions.Knowledge.ExtendedEd25519, proof: Proofs.Knowledge.Ed25519) =>
           validateKnowledgeExtendedEd25519(transaction)(proposition, proof)
         case (proposition: Propositions.Knowledge.HashLock, proof: Proofs.Knowledge.HashLock) =>
-          validateKnowledgePassword(proposition, proof)
+          validateKnowledgeHashLock(proposition, proof)
 
         case (proposition: Propositions.Compositional.And, proof: Proofs.Compositional.And) =>
           validateCompositionalAnd(blockId)(transaction)(proposition, proof)
@@ -81,7 +81,7 @@ object TransactionAuthorizationValidation {
 
         case (proposition: Propositions.Contextual.HeightLock, _: Proofs.Contextual.HeightLock) =>
           validateContextualHeightLock(blockId)(proposition)
-        case (proposition: Propositions.Contextual.RequiredBoxState, _: Proofs.Contextual.RequiredBoxState) =>
+        case (proposition: Propositions.Contextual.RequiredTransactionIO, _: Proofs.Contextual.RequiredTransactionIO) =>
           validateContextualRequiredBoxState(transaction)(proposition)
 
         case _ =>
@@ -134,7 +134,7 @@ object TransactionAuthorizationValidation {
             .Permanent(proposition, proof): TransactionAuthorizationError).invalidNec[Unit].pure[F]
         )
 
-    private def validateKnowledgePassword(
+    private def validateKnowledgeHashLock(
       proposition: Propositions.Knowledge.HashLock,
       proof:       Proofs.Knowledge.HashLock
     ): F[ValidatedNec[TransactionAuthorizationError, Unit]] =
@@ -259,7 +259,7 @@ object TransactionAuthorizationValidation {
         )
 
     private def validateContextualRequiredBoxState(transaction: Transaction)(
-      proposition:                                              Propositions.Contextual.RequiredBoxState
+      proposition:                                              Propositions.Contextual.RequiredTransactionIO
     ): F[ValidatedNec[TransactionAuthorizationError, Unit]] = {
       val fetchBoxByLocation: BoxLocation => Option[Box] = {
         case BoxLocations.Input(index) =>
@@ -275,7 +275,7 @@ object TransactionAuthorizationValidation {
             fetchBoxByLocation(location).contains(expectedBox),
             (),
             TransactionAuthorizationErrors
-              .Permanent(proposition, Proofs.Contextual.RequiredBoxState()): TransactionAuthorizationError
+              .Permanent(proposition, Proofs.Contextual.RequiredTransactionIO()): TransactionAuthorizationError
           )
         }
         .pure[F]

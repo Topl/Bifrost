@@ -150,7 +150,7 @@ trait ModelsJsonCodecs {
         "propositionType" -> "Contextual.HeightLock".asJson,
         "height"          -> height.asJson
       )
-    case Propositions.Contextual.RequiredBoxState(boxes) =>
+    case Propositions.Contextual.RequiredTransactionIO(boxes) =>
       Json.obj(
         "propositionType" -> "Contextual.RequiredBoxState".asJson,
         "boxes" -> boxes.map { case (b, location) =>
@@ -258,7 +258,7 @@ trait ModelsJsonCodecs {
       Json.obj(
         "proofType" -> "Contextual.HeightLock".asJson
       )
-    case Proofs.Contextual.RequiredBoxState() =>
+    case Proofs.Contextual.RequiredTransactionIO() =>
       Json.obj(
         "proofType" -> "Contextual.RequiredBoxState".asJson
       )

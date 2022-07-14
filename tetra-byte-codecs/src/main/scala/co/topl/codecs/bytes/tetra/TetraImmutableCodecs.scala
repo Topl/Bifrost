@@ -92,7 +92,7 @@ trait TetraImmutableCodecs {
     ImmutableCodec.fromScodecCodec
 
   implicit val propositionContextualRequiredBoxStateImmutableCodec
-    : ImmutableCodec[Propositions.Contextual.RequiredBoxState] =
+    : ImmutableCodec[Propositions.Contextual.RequiredTransactionIO] =
     ImmutableCodec.fromScodecCodec
 
   implicit val kesSumProofStableCodec: ImmutableCodec[Proofs.Knowledge.KesSum] =
