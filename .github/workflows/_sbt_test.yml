@@ -1,4 +1,4 @@
-name: Scala Build and Test
+name: Scala Test
 
 on:
   workflow_call:
@@ -59,7 +59,7 @@ jobs:
         run: git checkout .
 
       - name: Compile and Test
-        run: sbt checkPR pushRemoteCache
+        run: sbt +test pullRemoteCache
 
       - name: Upload Test Results
         if: always()
