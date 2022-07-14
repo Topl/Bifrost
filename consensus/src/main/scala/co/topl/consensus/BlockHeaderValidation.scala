@@ -30,9 +30,8 @@ object BlockHeaderValidation {
 
     def make[F[_]: Monad: Sync](
       etaInterpreter:           EtaCalculationAlgebra[F],
-      relativeStakeInterpreter: VrfRelativeStakeValidationLookupAlgebra[F],
+      consensusValidationState: ConsensusValidationStateAlgebra[F],
       leaderElection:           LeaderElectionValidationAlgebra[F],
-      registrationInterpreter:  RegistrationLookupAlgebra[F],
       ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
       kesProductResource:       UnsafeResource[F, KesProduct],
       ed25519Resource:          UnsafeResource[F, Ed25519],
@@ -41,9 +40,8 @@ object BlockHeaderValidation {
       Sync[F].delay(
         new Impl[F](
           etaInterpreter,
-          relativeStakeInterpreter,
+          consensusValidationState,
           leaderElection,
-          registrationInterpreter,
           ed25519VRFResource,
           kesProductResource,
           ed25519Resource,
@@ -53,9 +51,8 @@ object BlockHeaderValidation {
 
     private class Impl[F[_]: Monad: Sync](
       etaInterpreter:           EtaCalculationAlgebra[F],
-      relativeStakeInterpreter: VrfRelativeStakeValidationLookupAlgebra[F],
+      consensusValidationState: ConsensusValidationStateAlgebra[F],
       leaderElection:           LeaderElectionValidationAlgebra[F],
-      registrationInterpreter:  RegistrationLookupAlgebra[F],
       ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
       kesProductResource:       UnsafeResource[F, KesProduct],
       ed25519Resource:          UnsafeResource[F, Ed25519],
@@ -193,8 +190,8 @@ object BlockHeaderValidation {
        * Determines the VRF threshold for the given child
        */
       private def vrfThresholdFor(child: BlockHeaderV2, parent: BlockHeaderV2): F[Ratio] =
-        relativeStakeInterpreter
-          .lookupAt(SlotId(child.slot, child.id), child.address)
+        consensusValidationState
+          .operatorRelativeStake(child.id, child.slot)(child.address)
           .flatMap(relativeStake =>
             leaderElection.getThreshold(
               relativeStake.getOrElse(Ratio.Zero),
@@ -247,9 +244,7 @@ object BlockHeaderValidation {
       private[consensus] def registrationVerification(
         header: BlockHeaderV2
       ): EitherT[F, BlockHeaderValidationFailure, BlockHeaderV2] =
-        OptionT(
-          registrationInterpreter.registrationOf(SlotId(header.slot, header.id), header.address)
-        )
+        OptionT(consensusValidationState.operatorRegistration(header.id, header.slot)(header.address))
           .map(_.vrfCommitment)
           .toRight(BlockHeaderValidationFailures.Unregistered(header.address): BlockHeaderValidationFailure)
           .flatMapF(commitment =>

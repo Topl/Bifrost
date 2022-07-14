@@ -10,7 +10,6 @@ import cats.effect.kernel.Sync
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig}
 import cats.effect.{Async, ExitCode, IO, IOApp}
 import cats.implicits._
-import co.topl.algebras.ClockAlgebra.implicits.ClockOps
 import co.topl.algebras._
 import co.topl.blockchain.Blockchain
 import co.topl.catsakka._
@@ -18,15 +17,11 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
-import co.topl.consensus.algebras.{EtaCalculationAlgebra, LeaderElectionValidationAlgebra, LocalChainAlgebra}
+import co.topl.consensus.interpreters.ConsensusValidationState
 import co.topl.crypto.hash.{Blake2b256, Blake2b512}
-import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing.{Curve25519, Ed25519, Ed25519VRF, ExtendedEd25519, KesProduct}
 import co.topl.interpreters._
-import co.topl.ledger.algebras.{BodySemanticValidationAlgebra, BodySyntaxValidationAlgebra, MempoolAlgebra}
 import co.topl.ledger.interpreters._
-import co.topl.minting._
-import co.topl.minting.algebras.PerpetualBlockMintAlgebra
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
@@ -54,71 +49,8 @@ import scala.util.Random
  */
 object TetraDemo extends IOApp {
 
-  // Configuration Data
-  implicit private val vrfConfig =
-    VrfConfig(lddCutoff = 40, precision = 40, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(2, 5))
-
-  private val OperationalPeriodLength = 180L
-  private val OperationalPeriodsPerEpoch = 4L
-  private val EpochLength = OperationalPeriodLength * OperationalPeriodsPerEpoch
-  private val SlotDuration = 100.milli
-
-  require(
-    EpochLength % OperationalPeriodLength === 0L,
-    "EpochLength must be evenly divisible by OperationalPeriodLength"
-  )
-
-  private val ChainSelectionKLookback = 5_000L
-  private val ChainSelectionSWindow = 200_000L
-
-  private val KesKeyHeight = (9, 9)
-
-  private def computeStakers(count: Int, random: Random) = List.tabulate(count) { idx =>
-    implicit val ed25519Vrf: Ed25519VRF = Ed25519VRF.precomputed()
-    implicit val ed25519: Ed25519 = new Ed25519
-    implicit val kesProduct: KesProduct = new KesProduct
-    val seed = Sized.strictUnsafe[Bytes, Lengths.`32`.type](Bytes(random.nextBytes(32)))
-
-    val (_, poolVK) = new Ed25519().deriveKeyPairFromSeed(seed)
-
-    val (stakerVrfKey, _) =
-      ed25519Vrf.deriveKeyPairFromSeed(seed)
-
-    val (kesKey, _) =
-      kesProduct.createKeyPair(seed = seed.data, height = KesKeyHeight, 0)
-
-    val stakerRegistration: Box.Values.Registrations.Operator =
-      Box.Values.Registrations.Operator(
-        vrfCommitment = kesProduct.sign(
-          kesKey,
-          new Blake2b256().hash(ed25519Vrf.getVerificationKey(stakerVrfKey).immutableBytes, poolVK.bytes.data).data
-        )
-      )
-
-    Staker(Ratio(1, count), stakerVrfKey, kesKey, stakerRegistration, StakingAddresses.Operator(poolVK))
-  }
-
-  private val genesisTransaction =
-    Transaction(
-      inputs = Chain.empty,
-      outputs = Chain(
-        Transaction.Output(
-          FullAddress(
-            NetworkPrefix(1),
-            Propositions.Contextual.HeightLock(1L).spendingAddress,
-            StakingAddresses.Operator(VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes.fill(32)(0: Byte)))),
-            Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes.fill(64)(0: Byte)))
-          ),
-          Box.Values.Poly(Sized.maxUnsafe(BigInt(10_000L))),
-          minting = true
-        )
-      ),
-      chronology = Transaction.Chronology(0L, 0L, Long.MaxValue),
-      None
-    )
-
-  private val genesis =
-    BlockGenesis(List(genesisTransaction)).value
+  import DemoConfig._
+  import DemoUtils._
 
   // Actor system initialization
 
@@ -136,14 +68,6 @@ object TetraDemo extends IOApp {
 
   private def makeClock(args: DemoArgs): ClockAlgebra[F] =
     SchedulerClock.Eval.make(SlotDuration, EpochLength, args.genesisTimestamp)
-
-  implicit private val timeout: Timeout = Timeout(20.seconds)
-
-  private def state(stakers: List[Staker]): F[ConsensusStateReader[F]] =
-    NodeViewHolder.StaticData.make[F](
-      stakers.map(staker => staker.address -> staker.relativeStake).toMap,
-      stakers.map(staker => staker.address -> staker.registration).toMap
-    )
 
   private val statsDir = Paths.get(".bifrost", "stats")
   Files.createDirectories(statsDir)
@@ -196,16 +120,15 @@ object TetraDemo extends IOApp {
         blake2b256Resource,
         blake2b512Resource
       )
-      consensusState <- state(stakers)
-      exp            <- ExpInterpreter.make[F](10000, 38)
-      log1p          <- Log1pInterpreter.make[F](10000, 8)
-      log1pCached    <- Log1pInterpreter.makeCached[F](log1p)
+      exp         <- ExpInterpreter.make[F](10000, 38)
+      log1p       <- Log1pInterpreter.make[F](10000, 8)
+      log1pCached <- Log1pInterpreter.makeCached[F](log1p)
       leaderElectionThreshold = LeaderElectionValidation.Eval.make[F](vrfConfig, blake2b512Resource, exp, log1pCached)
+      consensusValidationState <- ConsensusValidationState.make[F](blockHeaderStore.getOrRaise, ???, ???, clock)
       underlyingHeaderValidation <- BlockHeaderValidation.Eval.make[F](
         etaCalculation,
-        VrfRelativeStakeValidationLookup.Eval.make(consensusState, clock),
+        consensusValidationState,
         leaderElectionThreshold,
-        RegistrationLookup.Eval.make(consensusState, clock),
         ed25519VRFResource,
         kesProductResource,
         ed25519Resource,

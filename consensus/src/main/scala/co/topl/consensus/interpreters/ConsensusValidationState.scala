@@ -6,15 +6,11 @@ import cats.implicits._
 import cats.{Applicative, MonadThrow, Monoid}
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras._
-import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras.ConsensusValidationStateAlgebra
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
-import co.topl.models.Box.Values.Registrations
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bigIntLength
 import co.topl.models.utility.{Ratio, Sized}
-import co.topl.typeclasses.implicits._
 
 object ConsensusValidationState {
 
@@ -39,29 +35,23 @@ object ConsensusValidationState {
   ): F[ConsensusValidationStateAlgebra[F]] =
     Applicative[F].pure {
       new ConsensusValidationStateAlgebra[F] {
-        def operatorRelativeStake(currentBlockId: TypedIdentifier)(
+        def operatorRelativeStake(currentBlockId: TypedIdentifier, slot: Slot)(
           address:                                StakingAddresses.Operator
         ): F[Option[Ratio]] =
-          fetchHeader(currentBlockId)
-            .flatMap(currentHeader =>
-              useStateAtTargetBoundary(currentHeader)(consensusData =>
-                OptionT(consensusData.operatorStakes.get(currentHeader.address))
-                  .semiflatMap(operatorStake =>
-                    consensusData.totalActiveStake
-                      .getOrRaise(())
-                      .map(totalActiveStake => Ratio(operatorStake.data, totalActiveStake.data))
-                  )
-                  .value
+          useStateAtTargetBoundary(currentBlockId, slot)(consensusData =>
+            OptionT(consensusData.operatorStakes.get(address))
+              .semiflatMap(operatorStake =>
+                consensusData.totalActiveStake
+                  .getOrRaise(())
+                  .map(totalActiveStake => Ratio(operatorStake.data, totalActiveStake.data))
               )
-            )
+              .value
+          )
 
-        def operatorRegistration(currentBlockId: TypedIdentifier)(
+        def operatorRegistration(currentBlockId: TypedIdentifier, slot: Slot)(
           address:                               StakingAddresses.Operator
         ): F[Option[Box.Values.Registrations.Operator]] =
-          fetchHeader(currentBlockId)
-            .flatMap(currentHeader =>
-              useStateAtTargetBoundary(currentHeader)(_.registrations.get(currentHeader.address))
-            )
+          useStateAtTargetBoundary(currentBlockId, slot)(_.registrations.get(address))
 
         /**
          * Determines the N-2 epoch from the given block, then determines the final block ID of the N-2 epoch.  That
@@ -69,12 +59,14 @@ object ConsensusValidationState {
          * given `f` function
          */
         private def useStateAtTargetBoundary[Res](
-          currentHeader: BlockHeaderV2
-        )(f:             ConsensusData[F] => F[Res]): F[Res] =
+          currentBlockId: TypedIdentifier,
+          slot:           Slot
+        )(f:              ConsensusData[F] => F[Res]): F[Res] =
           for {
-            epoch <- clock.epochOf(currentHeader.slot)
+            epoch <- clock.epochOf(slot)
+            // TODO: Could we give epochs `-2` and `-1` special meaning to point to the genesis stake/registrations?
             targetEpoch = (epoch - 2).max(0)
-            boundaryBlockId <- epochBoundaryEventSourcedState.useStateAt(currentHeader.id)(_.getOrRaise(targetEpoch))
+            boundaryBlockId <- epochBoundaryEventSourcedState.useStateAt(currentBlockId)(_.getOrRaise(targetEpoch))
             res             <- consensusDataEventSourcedState.useStateAt(boundaryBlockId)(f)
           } yield res
       }

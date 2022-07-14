@@ -11,6 +11,9 @@ object RatioOps {
 
     implicit class Ops(ratio: Ratio) {
 
+      def inverse: Ratio =
+        Ratio(ratio.denominator, ratio.numerator)
+
       def abs: Ratio =
         Ratio(
           ratio.numerator match {
