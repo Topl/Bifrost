@@ -526,7 +526,7 @@ class History(
       // case where the remote node is younger or on a recent fork (branchPoint less than size blocks back)
     } else {
       val commonAncestor: Option[ModifierId] =
-        info.lastBlockIds.view.reverse.find(storage.containsModifier).orElse(None)
+        info.lastBlockIds.view.findLast(storage.containsModifier).orElse(None)
 
       commonAncestor.toSeq.flatMap { branchPoint =>
         val remoteHeight = storage.heightOf(branchPoint).get

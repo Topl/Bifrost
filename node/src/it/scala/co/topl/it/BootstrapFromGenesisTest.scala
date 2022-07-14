@@ -50,8 +50,10 @@ class BootstrapFromGenesisTest
              |        }
              |      }
              |    ]
-             |bifrost.network.syncInterval = 50ms
-             |bifrost.network.syncIntervalStable = 500s
+             |bifrost.network.syncInterval = 500ms
+             |bifrost.network.syncIntervalStable = 500ms
+             |bifrost.network.maxChainCacheDepth = ${initialForgeTarget + 1}
+             |bifrost.network.maxModifiersCacheSize = 1024
              |""".stripMargin
       )
 

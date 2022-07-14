@@ -66,7 +66,7 @@ class MultiNodeTest extends AnyFreeSpec with Matchers with IntegrationSuite with
         s"\nFor ${node.containerId}: \n\t keyfiles: ${openKeyfile} \n\t headInfo: ${headInfo} \n\t localBlockView: ${localBlockView}"
       }
 
-      logger.info(s"\n${Console.YELLOW}##########################${Console.RESET}\n$intermediateResult\n")
+      logger.info(s"\n$intermediateResult\n")
 
       Thread.sleep(forgeDuration.toMillis / 10)
     }
