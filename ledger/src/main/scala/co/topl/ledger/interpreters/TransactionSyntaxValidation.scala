@@ -220,8 +220,8 @@ object TransactionSyntaxValidation {
         }
       case _: Propositions.Contextual.HeightLock =>
         matchProof(proposition, proof)(allowUndefined) { case _: Proofs.Contextual.HeightLock => }
-      case _: Propositions.Contextual.RequiredBoxState =>
-        matchProof(proposition, proof)(allowUndefined) { case _: Proofs.Contextual.RequiredBoxState => }
+      case _: Propositions.Contextual.RequiredTransactionIO =>
+        matchProof(proposition, proof)(allowUndefined) { case _: Proofs.Contextual.RequiredTransactionIO => }
     }
 
   private def matchProof(proposition: Proposition, proof: Proof)(

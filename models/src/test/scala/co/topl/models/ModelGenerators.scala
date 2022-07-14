@@ -444,7 +444,8 @@ trait ModelGenerators {
   implicit val arbitraryBoxLocation: Arbitrary[BoxLocation] =
     Arbitrary(Gen.posNum[Short].flatMap(index => Gen.oneOf(BoxLocations.Input(index), BoxLocations.Output(index))))
 
-  implicit val arbitraryPropositionsContextualRequiredBoxState: Arbitrary[Propositions.Contextual.RequiredBoxState] =
+  implicit val arbitraryPropositionsContextualRequiredBoxState
+    : Arbitrary[Propositions.Contextual.RequiredTransactionIO] =
     Arbitrary(
       for {
         boxes <- Gen.nonEmptyListOf(
@@ -453,7 +454,7 @@ trait ModelGenerators {
             arbitraryBoxLocation.arbitrary
           )
         )
-      } yield Propositions.Contextual.RequiredBoxState(boxes)
+      } yield Propositions.Contextual.RequiredTransactionIO(boxes)
     )
 
   implicit val arbitraryTypedIdentifier: Arbitrary[TypedIdentifier] =
@@ -477,7 +478,7 @@ trait ModelGenerators {
         implicitly[Arbitrary[Propositions.Compositional.Or]].arbitrary,
         implicitly[Arbitrary[Propositions.Compositional.Not]].arbitrary,
         implicitly[Arbitrary[Propositions.Contextual.HeightLock]].arbitrary,
-        implicitly[Arbitrary[Propositions.Contextual.RequiredBoxState]].arbitrary
+        implicitly[Arbitrary[Propositions.Contextual.RequiredTransactionIO]].arbitrary
       )
     )
 
@@ -540,9 +541,9 @@ trait ModelGenerators {
       Gen.const(Proofs.Contextual.HeightLock())
     )
 
-  implicit val arbitraryProofsContextualRequiredBoxState: Arbitrary[Proofs.Contextual.RequiredBoxState] =
+  implicit val arbitraryProofsContextualRequiredBoxState: Arbitrary[Proofs.Contextual.RequiredTransactionIO] =
     Arbitrary(
-      Gen.const(Proofs.Contextual.RequiredBoxState())
+      Gen.const(Proofs.Contextual.RequiredTransactionIO())
     )
 
   implicit val arbitraryProofsScriptJs: Arbitrary[Proofs.Script.JS] =

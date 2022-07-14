@@ -97,7 +97,7 @@ object CredentialPlaygroundJAA extends App {
 object RequiredOutput extends App {
   import SetupSandbox._
 
-  val requiredBoxProposition = Propositions.Contextual.RequiredBoxState(
+  val requiredBoxProposition = Propositions.Contextual.RequiredTransactionIO(
     List(
       Box.empty.copy(evidence = address0.typedEvidence) -> BoxLocations.Output(0)
     ) // todo: helper function name for Box.empty.copy
@@ -205,7 +205,7 @@ object XorGameCompletion extends App {
     new Blake2b256().hash(Bytes.encodeUtf8("test" + "1").getOrElse(???))
 
   val requiredInputBoxProposition =
-    Propositions.Contextual.RequiredBoxState(
+    Propositions.Contextual.RequiredTransactionIO(
       List(
         Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))) -> BoxLocations.Input(0)
       )
@@ -223,7 +223,7 @@ object XorGameCompletion extends App {
         )
     )
 
-  val halfGameProposition = Propositions.Contextual.RequiredBoxState(
+  val halfGameProposition = Propositions.Contextual.RequiredTransactionIO(
     List(
       Box.empty.copy(evidence = fullGameProposition.spendingAddress.typedEvidence) -> BoxLocations.Output(0)
     )
@@ -293,7 +293,7 @@ object HashTimeLockContract extends App {
 object RequiredBoxValue extends App {
   import SetupSandbox._
 
-  val proposition = Propositions.Contextual.RequiredBoxState(
+  val proposition = Propositions.Contextual.RequiredTransactionIO(
     List(
       Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))) -> BoxLocations.Output(0)
     )

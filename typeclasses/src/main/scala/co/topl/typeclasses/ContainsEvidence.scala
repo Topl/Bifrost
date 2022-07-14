@@ -103,7 +103,8 @@ object ContainsEvidence {
     implicit val heightLockContainsEvidence: ContainsEvidence[Propositions.Contextual.HeightLock] =
       fromImmutableCodec(TypePrefixes.PropositionsContextualHeightLock)
 
-    implicit val requiredInputBoxStateContainsEvidence: ContainsEvidence[Propositions.Contextual.RequiredBoxState] =
+    implicit val requiredInputBoxStateContainsEvidence
+      : ContainsEvidence[Propositions.Contextual.RequiredTransactionIO] =
       fromImmutableCodec(TypePrefixes.PropositionsContextualRequiredBoxState)
 
     implicit lazy val propositionContainsEvidence: ContainsEvidence[Proposition] = {
@@ -113,13 +114,13 @@ object ContainsEvidence {
       case t: Propositions.Knowledge.Ed25519    => ed25519KnowledgePropositionContainsEvidence.typedEvidenceOf(t)
       case t: Propositions.Knowledge.ExtendedEd25519 =>
         extendedEd25519KnowledgePropositionContainsEvidence.typedEvidenceOf(t)
-      case t: Propositions.Compositional.And           => andContainsEvidence.typedEvidenceOf(t)
-      case t: Propositions.Compositional.Or            => orContainsEvidence.typedEvidenceOf(t)
-      case t: Propositions.Compositional.Not           => notContainsEvidence.typedEvidenceOf(t)
-      case t: Propositions.Compositional.Threshold     => thresholdContainsEvidence.typedEvidenceOf(t)
-      case t: Propositions.Contextual.HeightLock       => heightLockContainsEvidence.typedEvidenceOf(t)
-      case t: Propositions.Knowledge.HashLock          => commitRevealContainsEvidence.typedEvidenceOf(t)
-      case t: Propositions.Contextual.RequiredBoxState => requiredInputBoxStateContainsEvidence.typedEvidenceOf(t)
+      case t: Propositions.Compositional.And                => andContainsEvidence.typedEvidenceOf(t)
+      case t: Propositions.Compositional.Or                 => orContainsEvidence.typedEvidenceOf(t)
+      case t: Propositions.Compositional.Not                => notContainsEvidence.typedEvidenceOf(t)
+      case t: Propositions.Compositional.Threshold          => thresholdContainsEvidence.typedEvidenceOf(t)
+      case t: Propositions.Contextual.HeightLock            => heightLockContainsEvidence.typedEvidenceOf(t)
+      case t: Propositions.Knowledge.HashLock               => commitRevealContainsEvidence.typedEvidenceOf(t)
+      case t: Propositions.Contextual.RequiredTransactionIO => requiredInputBoxStateContainsEvidence.typedEvidenceOf(t)
     }
   }
 

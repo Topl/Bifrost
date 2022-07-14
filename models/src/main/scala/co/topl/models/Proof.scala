@@ -50,6 +50,9 @@ object Proofs {
       type DigestLength = Lengths.`32`.type
     }
 
+    /**
+     * This is not a zero-knowledge proof-of-knowledge
+     */
     case class HashLock(value: Bytes) extends Proof
   }
 
@@ -62,7 +65,7 @@ object Proofs {
 
   object Contextual {
     case class HeightLock() extends Proof
-    case class RequiredBoxState() extends Proof
+    case class RequiredTransactionIO() extends Proof
   }
 
   object Script {
