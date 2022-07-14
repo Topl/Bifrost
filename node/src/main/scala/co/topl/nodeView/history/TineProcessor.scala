@@ -12,7 +12,7 @@ import co.topl.utils.{Logging, TimeProvider}
 import scala.annotation.tailrec
 import scala.collection.immutable.TreeMap
 
-class TineProcessor private (cache: ChainCache, maxDepth: Int)(implicit protocolVersioner: ProtocolVersioner)
+class TineProcessor private (cache: ChainCache, val maxDepth: Int)(implicit protocolVersioner: ProtocolVersioner)
     extends Logging {
   private var chainCache = cache
 
@@ -124,7 +124,7 @@ object TineProcessor extends Logging {
   def apply(maxDepth: Int)(implicit protocolVersioner: ProtocolVersioner): TineProcessor =
     new TineProcessor(emptyCache, maxDepth)
 
-  def emptyCache: ChainCache = ChainCache(TreeMap.empty)
+  private def emptyCache: ChainCache = ChainCache(TreeMap.empty)
 
   /** Wrapper for storing a block and its height in the chain cache */
   case class CacheBlock(block: Block, prevBlockTimes: Seq[TimeProvider.Time], consensusState: NxtConsensus.State)

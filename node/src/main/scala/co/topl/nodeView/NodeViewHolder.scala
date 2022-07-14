@@ -253,25 +253,6 @@ object NodeViewHolder {
           popBlock(cache, newNodeView)(context)
           initialized(newNodeView, cache)
 
-//          context.pipeToSelf {
-//            consensusReader.lookupState.map { consensusState =>
-//              val leaderElection = new NxtLeaderElection(protocolVersioner)
-//              // calculate the new node view resulting from applying the block
-//              nodeView.withBlock(
-//                block
-//              )
-//            }.value
-//          } {
-//            _.fold(
-//              error => ReceivableMessages.Terminate(error),
-//              {
-//                case Left(error)     => ReceivableMessages.Terminate(new IllegalArgumentException(error.toString))
-//                case Right(nodeView) => ReceivableMessages.WriteBlockResult(nodeView)
-//              }
-//            )
-//          }
-//          processingBlock(nodeView, cache, consensusReader)
-
         case (context, ReceivableMessages.WriteTransactions(transactions)) =>
           implicit def system: ActorSystem[_] = context.system
           val newNodeView = eventStreamWriterHandler(nodeView.withTransactions(transactions))
@@ -296,37 +277,6 @@ object NodeViewHolder {
         nodeView.close()
         Behaviors.same
       }
-//
-//  /**
-//   * while processing a write block message, we want to disallow any more message processing to allow for synchronous node view updates
-//   */
-//  private def processingBlock(
-//    nodeView:        NodeView,
-//    cache:           ActorRef[SortedCache.ReceivableMessage[Block]],
-//    consensusReader: ConsensusReader
-//  )(implicit
-//    networkPrefix:     NetworkPrefix,
-//    timeProvider:      TimeProvider,
-//    protocolVersioner: ProtocolVersioner
-//  ): Behavior[ReceivableMessage] =
-//    Behaviors.withStash(UninitializedStashSize) { stash =>
-//      Behaviors
-//        .receivePartial[ReceivableMessage] {
-//          case (context, ReceivableMessages.WriteBlockResult(updateNodeViewResult)) =>
-//            implicit def system: ActorSystem[_] = context.system
-//            context.log.info("Received valid WriteBlockResult, updating node view")
-//            val newNodeView = eventStreamWriterHandler(updateNodeViewResult)
-//            popBlock(cache, newNodeView)(context)
-//            stash.unstashAll(initialized(newNodeView, cache))
-//          case (_, message) =>
-//            stash.stash(message)
-//            Behaviors.same
-//        }
-//        .receiveSignal { case (_, PostStop) =>
-//          nodeView.close()
-//          Behaviors.same
-//        }
-//    }
 
   private def eventStreamWriterHandler[T](writer: Writer[List[Any], T])(implicit system: ActorSystem[_]): T = {
     val (changes, t) = writer.run

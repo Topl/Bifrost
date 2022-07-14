@@ -170,12 +170,12 @@ class History(
       case Validated.Valid(_) =>
         val res: (History, ProgressInfo[Block]) = {
           val newProtocolSettings = protocolVersioner.applicable(block.height).value
-          val progInfo: ProgressInfo[Block] =
+          val (updatedTineProcessor, progInfo: ProgressInfo[Block]) =
             // Check if the new block extends the last best block
             if (block.parentId === bestBlockId) {
               log.debug(s"New best block ${block.id.show}")
               storage.update(block, newProtocolSettings, applicableConsesusState, isBest = true)
-              ProgressInfo(None, Seq.empty, Seq(block), Seq.empty)
+              (tineProcessor, ProgressInfo(None, Seq.empty, Seq(block), Seq.empty))
 
               // if not, we'll check for a fork
             } else {
@@ -184,24 +184,32 @@ class History(
                 tineProcessor.process(this, block, newProtocolSettings.lookBackDepth)
 
               // check if we need to update storage after checking for forks
-              forkProgInfo.branchPoint.foreach { branchPoint =>
-                storage.rollback(branchPoint).getOrThrow()
-                forkProgInfo.toApply.foreach { b =>
-                  val newProtocolSettings = protocolVersioner.applicable(b.height).value
-                  storage.update(
-                    b,
-                    newProtocolSettings,
-                    tineProcessor.getCacheBlock(b.id).get.consensusState,
-                    isBest = true
-                  )
+              val maybeUpdatedTineProcessor: TineProcessor =
+                if (forkProgInfo.branchPoint.isDefined) {
+                  forkProgInfo.branchPoint.foreach { branchPoint =>
+                    storage.rollback(branchPoint).getOrThrow()
+                    forkProgInfo.toApply.foreach { b =>
+                      val newProtocolSettings = protocolVersioner.applicable(b.height).value
+                      storage.update(
+                        b,
+                        newProtocolSettings,
+                        tineProcessor.getCacheBlock(b.id).get.consensusState,
+                        isBest = true
+                      )
+                    }
+                  }
+                  // if there was a fork that we switch to then clear the tine processor cache
+                  TineProcessor(tineProcessor.maxDepth)
+                } else {
+                  // otherwise, return the same tine processor
+                  tineProcessor
                 }
-              }
 
-              forkProgInfo
+              (maybeUpdatedTineProcessor, forkProgInfo)
             }
 
           // construct result and return
-          (new History(storage, tineProcessor), progInfo)
+          (new History(storage, updatedTineProcessor), progInfo)
         }
         log.info(
           s"${Console.CYAN} Block ${block.id} appended to parent ${block.parentId} at height ${block.height} with score ${storage
