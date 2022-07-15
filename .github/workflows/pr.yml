@@ -13,15 +13,6 @@ jobs:
       java-versions: >-
         ["graalvm-ce-java11@21.1.0"]
 
-  scala-unit-tests:
-    uses: ./.github/workflows/_sbt_test.yml
-    needs: sbt-build
-    with:
-      target-os: >-
-        ["ubuntu-latest"]
-      java-versions: >-
-        ["graalvm-ce-java11@21.1.0"]
-
   post-man-integration-tests:
     uses: ./.github/workflows/_postman_integration_tests.yml
     needs: sbt-build
@@ -34,4 +25,4 @@ jobs:
   publish-test-results:
     uses: ./.github/workflows/_publish_test_results.yml
     if: always()
-    needs: [post-man-integration-tests, scala-unit-tests]
+    needs: [post-man-integration-tests]
