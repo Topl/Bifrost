@@ -152,7 +152,7 @@ trait ModelsJsonCodecs {
       )
     case Propositions.Contextual.RequiredTransactionIO(boxes) =>
       Json.obj(
-        "propositionType" -> "Contextual.RequiredBoxState".asJson,
+        "propositionType" -> "Contextual.RequiredTransactionIO".asJson,
         "boxes" -> boxes.map { case (b, location) =>
           Json.obj(
             "box" -> b.asJson,
@@ -260,12 +260,7 @@ trait ModelsJsonCodecs {
       )
     case Proofs.Contextual.RequiredTransactionIO() =>
       Json.obj(
-        "proofType" -> "Contextual.RequiredBoxState".asJson
-      )
-    case Proofs.Script.JS(serializedArgs) =>
-      Json.obj(
-        "proofType" -> "Script.JS".asJson,
-        "args"      -> io.circe.parser.parse(serializedArgs).getOrElse(serializedArgs.asJson)
+        "proofType" -> "Contextual.RequiredTransactionIO".asJson
       )
   }
 
@@ -291,7 +286,6 @@ trait ModelsJsonCodecs {
           (hcursor.downField("a").as(proofDecoder), hcursor.downField("b").as(proofDecoder))
             .mapN((a, b) => Proofs.Compositional.Or(a, b))
         case "Contextual.HeightLock" => Proofs.Contextual.HeightLock().asRight
-        case "Script.JS"             => hcursor.downField("args").as[String].map(Proofs.Script.JS.apply)
       }
 
   implicit val int128Codec: Encoder[Int128] =

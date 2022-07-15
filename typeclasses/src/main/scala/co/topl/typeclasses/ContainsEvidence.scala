@@ -35,7 +35,7 @@ object ContainsEvidence {
     final val PropositionsCompositionalOr: Byte = 14
     final val PropositionsCompositionalNot: Byte = 15
     final val PropositionsContextualHeightLock: Byte = 16
-    final val PropositionsContextualRequiredBoxState: Byte = 17
+    final val PropositionsContextualRequiredTransactionIO: Byte = 17
 
     final val Ratio: Byte = 18
   }
@@ -105,7 +105,7 @@ object ContainsEvidence {
 
     implicit val requiredInputBoxStateContainsEvidence
       : ContainsEvidence[Propositions.Contextual.RequiredTransactionIO] =
-      fromImmutableCodec(TypePrefixes.PropositionsContextualRequiredBoxState)
+      fromImmutableCodec(TypePrefixes.PropositionsContextualRequiredTransactionIO)
 
     implicit lazy val propositionContainsEvidence: ContainsEvidence[Proposition] = {
       case Propositions.PermanentlyLocked =>

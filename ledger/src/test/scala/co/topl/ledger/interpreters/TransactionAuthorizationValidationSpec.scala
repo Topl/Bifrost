@@ -318,7 +318,7 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
     }
   }
 
-  test("Propositions.Contextual.RequiredBoxState Authorization") {
+  test("Propositions.Contextual.RequiredTransactionIO Authorization") {
     PropF.forAllF { (blockId: TypedIdentifier, box: Box) =>
       withMock {
         for {
