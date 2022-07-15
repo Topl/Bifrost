@@ -152,7 +152,7 @@ trait ModelsJsonCodecs {
       )
     case Propositions.Contextual.RequiredTransactionIO(boxes) =>
       Json.obj(
-        "propositionType" -> "Contextual.RequiredBoxState".asJson,
+        "propositionType" -> "Contextual.RequiredTransactionIO".asJson,
         "boxes" -> boxes.map { case (b, location) =>
           Json.obj(
             "box" -> b.asJson,
@@ -260,7 +260,7 @@ trait ModelsJsonCodecs {
       )
     case Proofs.Contextual.RequiredTransactionIO() =>
       Json.obj(
-        "proofType" -> "Contextual.RequiredBoxState".asJson
+        "proofType" -> "Contextual.RequiredTransactionIO".asJson
       )
     case Proofs.Script.JS(serializedArgs) =>
       Json.obj(

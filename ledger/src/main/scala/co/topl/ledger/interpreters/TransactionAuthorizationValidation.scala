@@ -82,7 +82,7 @@ object TransactionAuthorizationValidation {
         case (proposition: Propositions.Contextual.HeightLock, _: Proofs.Contextual.HeightLock) =>
           validateContextualHeightLock(blockId)(proposition)
         case (proposition: Propositions.Contextual.RequiredTransactionIO, _: Proofs.Contextual.RequiredTransactionIO) =>
-          validateContextualRequiredBoxState(transaction)(proposition)
+          validateContextualRequiredTransactionIO(transaction)(proposition)
 
         case _ =>
           (TransactionAuthorizationErrors.Permanent(proposition, proof): TransactionAuthorizationError)
@@ -258,8 +258,8 @@ object TransactionAuthorizationValidation {
           )
         )
 
-    private def validateContextualRequiredBoxState(transaction: Transaction)(
-      proposition:                                              Propositions.Contextual.RequiredTransactionIO
+    private def validateContextualRequiredTransactionIO(transaction: Transaction)(
+      proposition:                                                   Propositions.Contextual.RequiredTransactionIO
     ): F[ValidatedNec[TransactionAuthorizationError, Unit]] = {
       val fetchBoxByLocation: BoxLocation => Option[Box] = {
         case BoxLocations.Input(index) =>

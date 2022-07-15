@@ -117,7 +117,7 @@ object RequiredOutput extends App {
     List(
       Credential.Knowledge.Curve25519(curve25519Sk, unprovenTransaction),
       Credential.Contextual
-        .RequiredBoxState(
+        .RequiredTransactionIO(
           List(
             Box.empty.copy(evidence = address0.typedEvidence) -> BoxLocations.Output(0)
           )
@@ -139,7 +139,7 @@ object RequiredOutput extends App {
 //  val aliceCommit: Digest32 = Sized.strictUnsafe(Bytes(blake2b256.hash(aliceSaltInput.value :+ aliceValueInput).value))
 //
 //  val requiredInputBoxProposition =
-//    Propositions.Contextual.RequiredBoxState(BoxLocations.Input, List((0, Box.empty.copy(data = aliceValueInput))))
+//    Propositions.Contextual.RequiredTransactionIO(BoxLocations.Input, List((0, Box.empty.copy(data = aliceValueInput))))
 //
 //  val fullGameProposition = bobSk.vk.asProposition
 //    .and(Propositions.Contextual.HeightLock(50))
@@ -153,7 +153,7 @@ object RequiredOutput extends App {
 //        )
 //    )
 //
-//  val requiredOutputBoxProposition = Propositions.Contextual.RequiredBoxState(
+//  val requiredOutputBoxProposition = Propositions.Contextual.RequiredTransactionIO(
 //    BoxLocations.Output,
 //    List((0, Box.empty.copy(evidence = fullGameProposition.typedEvidence)))
 //  )
@@ -173,7 +173,7 @@ object RequiredOutput extends App {
 //    halfGameProposition,
 //    List(
 //      Credential.Example.EnumeratedInput(List(0, 1), 0),
-//      Credential.Contextual.RequiredBoxState(
+//      Credential.Contextual.RequiredTransactionIO(
 //        BoxLocations.Output,
 //        List((0, Box.empty.copy(evidence = fullGameProposition.dionAddress.typedEvidence)))
 //      )
@@ -248,7 +248,7 @@ object XorGameCompletion extends App {
       Credential.Contextual.HeightLock(50),
       Credential.Knowledge.HashLock(Bytes.encodeUtf8("test" + "1").getOrElse(???)),
       Credential.Knowledge.Curve25519(aliceSk, unprovenTransaction),
-      Credential.Contextual.RequiredBoxState(
+      Credential.Contextual.RequiredTransactionIO(
         List(
           Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))) -> BoxLocations.Input(0)
         )
@@ -307,7 +307,7 @@ object RequiredBoxValue extends App {
     )
   )
 
-  val credential = Credential.Contextual.RequiredBoxState(
+  val credential = Credential.Contextual.RequiredTransactionIO(
     List(
       Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))) -> BoxLocations.Output(0)
     )

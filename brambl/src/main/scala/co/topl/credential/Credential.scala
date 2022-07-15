@@ -175,7 +175,7 @@ object Credential {
       val proposition: Propositions.Contextual.HeightLock = Propositions.Contextual.HeightLock(minimumHeight)
     }
 
-    case class RequiredBoxState(boxes: List[(Box, BoxLocation)]) extends Credential {
+    case class RequiredTransactionIO(boxes: List[(Box, BoxLocation)]) extends Credential {
       def prove(currentProof: Proof): Proof = Proofs.Contextual.RequiredTransactionIO()
 
       val proposition: Propositions.Contextual.RequiredTransactionIO =
