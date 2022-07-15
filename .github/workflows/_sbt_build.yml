@@ -48,9 +48,9 @@ jobs:
       - name: Cache project
         uses: actions/cache@v3
         with:
-          path: '**'
-          key: ${{ runner.os }}-project-${{ github.run_number }}
-          restore-keys: ${{ runner.os }}-project-
+          path: '**/target/**'
+          key: ${{ runner.os }}-project--${{ github.base_ref }}-${{ github.run_number }}
+          restore-keys: ${{ runner.os }}-project-${{ github.base_ref }}-
 
       - name: Checkout current
         run: git checkout .
