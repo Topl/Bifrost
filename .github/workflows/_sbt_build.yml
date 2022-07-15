@@ -28,9 +28,6 @@ jobs:
         with:
           fetch-depth: 0 # Need full history to update last modified time.
 
-      - name: git-restore-mtime
-        uses: chetan/git-restore-mtime-action@v1
-
       - name: Setup Java
         uses: olafurpg/setup-scala@v10
         with:
@@ -57,6 +54,9 @@ jobs:
 
       - name: Checkout current
         run: git checkout .
+
+      - name: git-restore-mtime
+        uses: chetan/git-restore-mtime-action@v1
 
       - name: Compile and Test
         run: sbt buildPR pushRemoteCache
