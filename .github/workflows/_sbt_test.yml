@@ -50,7 +50,7 @@ jobs:
         with:
           path: '**'
           key: ${{ runner.os }}-project-${{ github.run_number }}
-          restore-keys: ${{ runner.os }}-project-${{ github.run_number }}
+          restore-keys: ${{ runner.os }}-project-
 
       - name: Checkout current
         run: git checkout .
