@@ -286,17 +286,14 @@ trait TetraScodecPropositionCodecs {
   implicit val boxLocationCodec: Codec[BoxLocation] =
     discriminated[BoxLocation]
       .by(byteCodec)
-      .typecase(0: Byte, emptyCodec(BoxLocations.Input))
-      .typecase(1: Byte, emptyCodec(BoxLocations.Output))
+      .typecase(0: Byte, shortCodec.as[BoxLocations.Input])
+      .typecase(1: Byte, shortCodec.as[BoxLocations.Output])
 
-  implicit val propositionsContextualRequiredBoxStateCodec: Codec[Propositions.Contextual.RequiredBoxState] =
+  implicit val propositionsContextualRequiredTransactionIOCodec: Codec[Propositions.Contextual.RequiredTransactionIO] =
     Codec.lazily(
-      (Codec[BoxLocation] :: Codec[List[(Int, Box)]](listCodec(tupleCodec(intCodec, boxCodec))))
-        .as[Propositions.Contextual.RequiredBoxState]
+      Codec[List[(Box, BoxLocation)]](listCodec(tupleCodec(boxCodec, boxLocationCodec)))
+        .as[Propositions.Contextual.RequiredTransactionIO]
     )
-
-  implicit val propositionsScriptJsCodec: Codec[Propositions.Script.JS] =
-    intStringCodec.xmap(bs => Propositions.Script.JS(Propositions.Script.JS.JSScript(bs)), _.script.value)
 
   implicit val propositionCodec: Codec[Proposition] =
     discriminated[Proposition]
@@ -311,16 +308,18 @@ trait TetraScodecPropositionCodecs {
       .typecase[Propositions.Compositional.Or](7: Byte, propositionsCompositionalOrCodec)
       .typecase[Propositions.Compositional.Not](8: Byte, propositionsCompositionalNotCodec)
       .typecase[Propositions.Contextual.HeightLock](9: Byte, propositionsContextualHeightLockCodec)
-      .typecase[Propositions.Contextual.RequiredBoxState](10: Byte, propositionsContextualRequiredBoxStateCodec)
-      .typecase[Propositions.Script.JS](11: Byte, propositionsScriptJsCodec)
+      .typecase[Propositions.Contextual.RequiredTransactionIO](
+        10: Byte,
+        propositionsContextualRequiredTransactionIOCodec
+      )
 
 }
 
 trait TetraScodecProofCodecs {
   self: TetraScodecPrimitiveCodecs with TetraScodecVerificationKeyCodecs =>
 
-  implicit val proofsFalseCodec: Codec[Proofs.False.type] =
-    emptyCodec(Proofs.False)
+  implicit val proofsUndefinedCodec: Codec[Proofs.Undefined.type] =
+    emptyCodec(Proofs.Undefined)
 
   implicit val proofSignatureCurve25519: Codec[Proofs.Knowledge.Curve25519] =
     strictSizedBytesCodec[Proofs.Knowledge.Curve25519.Length].as[Proofs.Knowledge.Curve25519]
@@ -342,8 +341,7 @@ trait TetraScodecProofCodecs {
     ]).as[Proofs.Knowledge.KesProduct]
 
   implicit val proofsKnowledgeHashLockCodec: Codec[Proofs.Knowledge.HashLock] =
-    (Codec[Digest32] :: byteCodec)
-      .as[Proofs.Knowledge.HashLock]
+    byteVectorCodec.as[Proofs.Knowledge.HashLock]
 
   implicit val proofsCompositionalThresholdCodec: Codec[Proofs.Compositional.Threshold] =
     Codec
@@ -368,16 +366,13 @@ trait TetraScodecProofCodecs {
   implicit val proofsContextualHeightLockCodec: Codec[Proofs.Contextual.HeightLock] =
     emptyCodec(Proofs.Contextual.HeightLock())
 
-  implicit val proofsContextualRequiredBoxStateCodec: Codec[Proofs.Contextual.RequiredBoxState] =
-    emptyCodec(Proofs.Contextual.RequiredBoxState())
-
-  implicit val proofsScriptJsCodec: Codec[Proofs.Script.JS] =
-    intStringCodec.as[Proofs.Script.JS]
+  implicit val proofsContextualRequiredTransactionIOCodec: Codec[Proofs.Contextual.RequiredTransactionIO] =
+    emptyCodec(Proofs.Contextual.RequiredTransactionIO())
 
   implicit val proofCodec: Codec[Proof] =
     discriminated[Proof]
       .by(byteCodec)
-      .typecase(0: Byte, proofsFalseCodec)
+      .typecase(0: Byte, proofsUndefinedCodec)
       .typecase(1: Byte, proofSignatureCurve25519)
       .typecase(2: Byte, proofSignatureEd25519Codec)
       .typecase(3: Byte, proofSignatureVrfCodec)
@@ -389,8 +384,7 @@ trait TetraScodecProofCodecs {
       .typecase(9: Byte, proofsCompositionalOrCodec)
       .typecase(10: Byte, proofsCompositionalNotCodec)
       .typecase(11: Byte, proofsContextualHeightLockCodec)
-      .typecase(12: Byte, proofsContextualRequiredBoxStateCodec)
-      .typecase(13: Byte, proofsScriptJsCodec)
+      .typecase(12: Byte, proofsContextualRequiredTransactionIOCodec)
 }
 
 trait TetraScodecTransactionCodecs {

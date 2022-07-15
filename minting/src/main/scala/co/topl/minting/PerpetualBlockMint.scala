@@ -9,7 +9,12 @@ import cats.{~>, MonadThrow}
 import co.topl.algebras.{ClockAlgebra, Store}
 import co.topl.catsakka._
 import co.topl.consensus.algebras.LocalChainAlgebra
-import co.topl.ledger.algebras.{BodySemanticValidationAlgebra, BodySyntaxValidationAlgebra, MempoolAlgebra}
+import co.topl.ledger.algebras.{
+  BodyAuthorizationValidationAlgebra,
+  BodySemanticValidationAlgebra,
+  BodySyntaxValidationAlgebra,
+  MempoolAlgebra
+}
 import co.topl.minting.algebras.{BlockMintAlgebra, PerpetualBlockMintAlgebra}
 import co.topl.models.{BlockHeaderV2, BlockV2, Slot, Transaction, TypedIdentifier}
 import co.topl.typeclasses.implicits._
@@ -24,14 +29,15 @@ object PerpetualBlockMint {
   object InAkkaStream {
 
     def make[F[_]: Sync: FToFuture: MonadThrow](
-      clock:                  ClockAlgebra[F],
-      blockMint:              BlockMintAlgebra[F],
-      localChain:             LocalChainAlgebra[F],
-      mempool:                MempoolAlgebra[F],
-      headerStore:            Store[F, TypedIdentifier, BlockHeaderV2],
-      fetchTransaction:       TypedIdentifier => F[Transaction],
-      bodySyntaxValidation:   BodySyntaxValidationAlgebra[F],
-      bodySemanticValidation: BodySemanticValidationAlgebra[F]
+      clock:                       ClockAlgebra[F],
+      blockMint:                   BlockMintAlgebra[F],
+      localChain:                  LocalChainAlgebra[F],
+      mempool:                     MempoolAlgebra[F],
+      headerStore:                 Store[F, TypedIdentifier, BlockHeaderV2],
+      fetchTransaction:            TypedIdentifier => F[Transaction],
+      bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
+      bodySemanticValidation:      BodySemanticValidationAlgebra[F],
+      bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F]
     ): F[PerpetualBlockMintAlgebra[F]] =
       Sync[F].delay(
         new PerpetualBlockMintAlgebra[F] {
@@ -69,6 +75,9 @@ object PerpetualBlockMint {
                 OptionT(bodySyntaxValidation.validate(body).map(_.toOption))
                   .flatMapF(_ =>
                     bodySemanticValidation.validate(canonicalHeadSlotData.slotId.blockId)(body).map(_.toOption)
+                  )
+                  .flatMapF(_ =>
+                    bodyAuthorizationValidation.validate(canonicalHeadSlotData.slotId.blockId)(body).map(_.toOption)
                   )
                   .fold(selected)(_ => fullBody)
               }

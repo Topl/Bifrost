@@ -150,19 +150,22 @@ trait ModelsJsonCodecs {
         "propositionType" -> "Contextual.HeightLock".asJson,
         "height"          -> height.asJson
       )
-    case Propositions.Contextual.RequiredBoxState(location, boxes) =>
+    case Propositions.Contextual.RequiredTransactionIO(boxes) =>
       Json.obj(
-        "propositionType" -> "Contextual.RequiredBoxState".asJson,
-        "location" -> (location match {
-          case BoxLocations.Input  => "input"
-          case BoxLocations.Output => "output"
-        }).asJson,
-        "boxes" -> boxes.map { case (i, b) => List(i.asJson, b.asJson).asJson }.asJson
-      )
-    case Propositions.Script.JS(script) =>
-      Json.obj(
-        "propositionType" -> "Script.JS".asJson,
-        "script"          -> script.value.asJson
+        "propositionType" -> "Contextual.RequiredTransactionIO".asJson,
+        "boxes" -> boxes.map { case (b, location) =>
+          Json.obj(
+            "box" -> b.asJson,
+            "location" -> (location match {
+              case _: BoxLocations.Input  => "input"
+              case _: BoxLocations.Output => "output"
+            }).asJson,
+            "index" -> (location match {
+              case BoxLocations.Input(index)  => index
+              case BoxLocations.Output(index) => index
+            }).asJson
+          )
+        }.asJson
       )
   }
 
@@ -192,16 +195,10 @@ trait ModelsJsonCodecs {
           ).mapN((a, b) => Propositions.Compositional.Or(a, b))
         case "Contextual.HeightLock" =>
           hcursor.downField("height").as[Long].map(Propositions.Contextual.HeightLock.apply)
-        case "Script.JS" =>
-          hcursor
-            .downField("script")
-            .as[String]
-            .map(Propositions.Script.JS.JSScript.apply)
-            .map(Propositions.Script.JS.apply)
       }
 
   implicit def proofEncoder: Encoder[Proof] = {
-    case Proofs.False =>
+    case Proofs.Undefined =>
       Json.obj(
         "proofType" -> "False".asJson
       )
@@ -230,10 +227,9 @@ trait ModelsJsonCodecs {
         "proofType" -> "Knowledge.KesSum".asJson,
         "signature" -> p.immutableBytes.asJson
       )
-    case Proofs.Knowledge.HashLock(salt, value) =>
+    case Proofs.Knowledge.HashLock(value) =>
       Json.obj(
         "proofType" -> "Knowledge.HashLock".asJson,
-        "salt"      -> salt.data.asJson,
         "value"     -> value.asJson
       )
     case Proofs.Compositional.Threshold(proofs) =>
@@ -262,14 +258,9 @@ trait ModelsJsonCodecs {
       Json.obj(
         "proofType" -> "Contextual.HeightLock".asJson
       )
-    case Proofs.Contextual.RequiredBoxState() =>
+    case Proofs.Contextual.RequiredTransactionIO() =>
       Json.obj(
-        "proofType" -> "Contextual.RequiredBoxState".asJson
-      )
-    case Proofs.Script.JS(serializedArgs) =>
-      Json.obj(
-        "proofType" -> "Script.JS".asJson,
-        "args"      -> io.circe.parser.parse(serializedArgs).getOrElse(serializedArgs.asJson)
+        "proofType" -> "Contextual.RequiredTransactionIO".asJson
       )
   }
 
@@ -280,7 +271,7 @@ trait ModelsJsonCodecs {
   implicit def proofDecoder: Decoder[Proof] =
     hcursor =>
       hcursor.downField("proofType").as[String].flatMap {
-        case "False"                => Proofs.False.asRight[DecodingFailure]
+        case "False"                => Proofs.Undefined.asRight[DecodingFailure]
         case "Knowledge.Curve25519" => hcursor.downField("signature").as[Proofs.Knowledge.Curve25519]
         case "Knowledge.Ed25519"    => hcursor.downField("signature").as[Proofs.Knowledge.Ed25519]
         case "Compositional.Threshold" =>
@@ -295,7 +286,6 @@ trait ModelsJsonCodecs {
           (hcursor.downField("a").as(proofDecoder), hcursor.downField("b").as(proofDecoder))
             .mapN((a, b) => Proofs.Compositional.Or(a, b))
         case "Contextual.HeightLock" => Proofs.Contextual.HeightLock().asRight
-        case "Script.JS"             => hcursor.downField("args").as[String].map(Proofs.Script.JS.apply)
       }
 
   implicit val int128Codec: Encoder[Int128] =

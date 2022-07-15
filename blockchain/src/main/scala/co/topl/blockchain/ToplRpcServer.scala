@@ -29,6 +29,7 @@ object ToplRpcServer {
     case TransactionSyntaxErrors.NonPositiveOutputValue(outputValue) =>
       show"NonPositiveOutputValue(value=${outputValue.toString})"
     case TransactionSyntaxErrors.InsufficientInputFunds(_, _) => "InsufficientInputFunds"
+    case TransactionSyntaxErrors.InvalidProofType(_, _)       => "InvalidProofType"
 
   }
 

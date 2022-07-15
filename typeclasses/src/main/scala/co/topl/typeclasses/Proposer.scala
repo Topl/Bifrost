@@ -27,6 +27,7 @@ object Proposer {
     implicit class CompositionalOps(p: Proposition) {
       def and(other: Proposition): Propositions.Compositional.And = Propositions.Compositional.And(p, other)
       def or(other: Proposition): Propositions.Compositional.Or = Propositions.Compositional.Or(p, other)
+      def not: Propositions.Compositional.Not = Propositions.Compositional.Not(p)
     }
 
     implicit class IterableOps(props: Iterable[Proposition]) {
@@ -59,9 +60,6 @@ object Proposer {
     implicit val longProposesHeightLock: Proposer[Long] =
       t => Propositions.Contextual.HeightLock(t)
 
-    implicit class StringOps(value: String) {
-      def jsProposition: Propositions.Script.JS = Propositions.Script.JS(Propositions.Script.JS.JSScript(value))
-    }
   }
 
   object instances extends Instances

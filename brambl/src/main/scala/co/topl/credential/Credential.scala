@@ -1,11 +1,8 @@
 package co.topl.credential
 
-import co.topl.crypto.hash.blake2b256
+import co.topl.crypto.hash.Blake2b256
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.Sized
 import co.topl.typeclasses.implicits._
-import io.circe.Json
 
 /**
  * An entity which represents a prover for some proposition.
@@ -26,7 +23,7 @@ trait Credential {
   /**
    * Initializes a new Proof
    */
-  def proof: Proof = prove(Proofs.False)
+  def proof: Proof = prove(Proofs.Undefined)
 
   /**
    * The proposition corresponding to this credential
@@ -38,7 +35,7 @@ trait Credential {
 object Credential {
 
   case object False extends Credential {
-    def prove(currentProof: Proof): Proof = Proofs.False
+    def prove(currentProof: Proof): Proof = Proofs.Undefined
 
     def proposition: Proposition = Propositions.PermanentlyLocked
   }
@@ -71,11 +68,11 @@ object Credential {
       def prove(currentProof: Proof): Proof = (sk, unprovenTransaction).asProof
     }
 
-    case class HashLock(salt: Digest32, value: Byte) extends Credential {
-      override def prove(currentProof: Proof): Proof = Proofs.Knowledge.HashLock(salt, value)
+    case class HashLock(value: Bytes) extends Credential {
+      override def prove(currentProof: Proof): Proof = Proofs.Knowledge.HashLock(value)
 
       override def proposition: Proposition =
-        Propositions.Knowledge.HashLock(Sized.strictUnsafe(Bytes(blake2b256.hash((salt.data :+ value).toArray).value)))
+        Propositions.Knowledge.HashLock(new Blake2b256().hash(value))
     }
   }
 
@@ -94,7 +91,7 @@ object Credential {
             )
           case _ =>
             Proofs.Compositional.Threshold(
-              proposition.propositions.toList.map(prop => compositionalProver(prop, Proofs.False, credentials))
+              proposition.propositions.toList.map(prop => compositionalProver(prop, Proofs.Undefined, credentials))
             )
         }
     }
@@ -110,8 +107,8 @@ object Credential {
             )
           case _ =>
             Proofs.Compositional.And(
-              compositionalProver(proposition.a, Proofs.False, credentials),
-              compositionalProver(proposition.b, Proofs.False, credentials)
+              compositionalProver(proposition.a, Proofs.Undefined, credentials),
+              compositionalProver(proposition.b, Proofs.Undefined, credentials)
             )
         }
     }
@@ -127,8 +124,8 @@ object Credential {
             )
           case _ =>
             Proofs.Compositional.Or(
-              compositionalProver(proposition.a, Proofs.False, credentials),
-              compositionalProver(proposition.b, Proofs.False, credentials)
+              compositionalProver(proposition.a, Proofs.Undefined, credentials),
+              compositionalProver(proposition.b, Proofs.Undefined, credentials)
             )
         }
     }
@@ -143,7 +140,7 @@ object Credential {
             )
           case _ =>
             Proofs.Compositional.Not(
-              compositionalProver(proposition.a, Proofs.False, credentials)
+              compositionalProver(proposition.a, Proofs.Undefined, credentials)
             )
         }
     }
@@ -155,7 +152,7 @@ object Credential {
     ): Proof =
       (proposition, currentProof) match {
         case (Propositions.PermanentlyLocked, _) =>
-          Proofs.False
+          Proofs.Undefined
         case (a: Propositions.Compositional.And, proof) =>
           Credential.Compositional.And(a, credentials).prove(proof)
         case (o: Propositions.Compositional.Or, proof) =>
@@ -164,8 +161,8 @@ object Credential {
           Credential.Compositional.Not(o, credentials).prove(proof)
         case (t: Propositions.Compositional.Threshold, proof) =>
           Credential.Compositional.Threshold(t, credentials).prove(proof)
-        case (prop, Proofs.False) =>
-          credentials.find(_.proposition == prop).fold(Proofs.False: Proof)(_.proof)
+        case (prop, Proofs.Undefined) =>
+          credentials.find(_.proposition == prop).fold(Proofs.Undefined: Proof)(_.proof)
         case (_, proof) =>
           proof
       }
@@ -178,33 +175,11 @@ object Credential {
       val proposition: Propositions.Contextual.HeightLock = Propositions.Contextual.HeightLock(minimumHeight)
     }
 
-//    case class RequiredDionOutput(index: Int, address: DionAddress) extends Credential {
-//      def prove(currentProof: Proof): Proof = Proofs.Contextual.RequiredOutput()
-//
-//      val proposition: Propositions.Contextual.RequiredDionOutput =
-//        Propositions.Contextual.RequiredDionOutput(index, address)
-//    }
+    case class RequiredTransactionIO(boxes: List[(Box, BoxLocation)]) extends Credential {
+      def prove(currentProof: Proof): Proof = Proofs.Contextual.RequiredTransactionIO()
 
-    case class RequiredBoxState(location: BoxLocation, boxes: List[(Int, Box)]) extends Credential {
-      def prove(currentProof: Proof): Proof = Proofs.Contextual.RequiredBoxState()
-
-      val proposition: Propositions.Contextual.RequiredBoxState =
-        Propositions.Contextual.RequiredBoxState(location, boxes)
-    }
-  }
-
-//  object Example {
-//
-//    case class EnumeratedInput(inputs: List[Int], value: Int) extends Credential {
-//      override def prove(currentProof: Proof): Proof = Proofs.Example.EnumeratedInput(value)
-//      override def proposition: Proposition = Propositions.Example.EnumeratedInput(inputs)
-//    }
-//  }
-
-  object Script {
-
-    case class JS(proposition: Propositions.Script.JS, arguments: Json) extends Credential {
-      def prove(currentProof: Proof): Proof = Proofs.Script.JS(arguments.toString())
+      val proposition: Propositions.Contextual.RequiredTransactionIO =
+        Propositions.Contextual.RequiredTransactionIO(boxes)
     }
   }
 }

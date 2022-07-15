@@ -91,11 +91,8 @@ trait TetraImmutableCodecs {
   implicit val propositionContextualHeightLockImmutableCodec: ImmutableCodec[Propositions.Contextual.HeightLock] =
     ImmutableCodec.fromScodecCodec
 
-  implicit val propositionContextualRequiredBoxStateImmutableCodec
-    : ImmutableCodec[Propositions.Contextual.RequiredBoxState] =
-    ImmutableCodec.fromScodecCodec
-
-  implicit val propositionScriptJsImmutableCodec: ImmutableCodec[Propositions.Script.JS] =
+  implicit val propositionContextualRequiredTransactionIOImmutableCodec
+    : ImmutableCodec[Propositions.Contextual.RequiredTransactionIO] =
     ImmutableCodec.fromScodecCodec
 
   implicit val kesSumProofStableCodec: ImmutableCodec[Proofs.Knowledge.KesSum] =
