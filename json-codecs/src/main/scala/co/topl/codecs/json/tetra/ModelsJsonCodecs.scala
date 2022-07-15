@@ -366,7 +366,7 @@ trait ModelsJsonCodecs {
       case _: Box.Values.Poly                   => "Poly"
       case _: Box.Values.Arbit                  => "Arbit"
       case _: Box.Values.Asset                  => "Asset"
-      case _: Box.Values.Registrations.Operator => "Registration.Operator"
+      case _: Box.Values.Registrations.Operator => "Registrations.Operator"
     }
 
   implicit val boxValueEncoder: Encoder[Box.Value] = {

@@ -12,21 +12,11 @@ import co.topl.catsakka.FToFuture
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
-import co.topl.consensus.algebras.{
-  ConsensusValidationStateAlgebra,
-  EtaCalculationAlgebra,
-  LeaderElectionValidationAlgebra,
-  LocalChainAlgebra
-}
+import co.topl.consensus.algebras.{ConsensusValidationStateAlgebra, EtaCalculationAlgebra, LeaderElectionValidationAlgebra, LocalChainAlgebra}
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.interpreters.{AkkaSecureStore, StatsInterpreter}
-import co.topl.ledger.algebras.{
-  BodyAuthorizationValidationAlgebra,
-  BodySemanticValidationAlgebra,
-  BodySyntaxValidationAlgebra,
-  MempoolAlgebra
-}
+import co.topl.ledger.algebras.{BodyAuthorizationValidationAlgebra, BodySemanticValidationAlgebra, BodySyntaxValidationAlgebra, MempoolAlgebra}
 import co.topl.minting.algebras.PerpetualBlockMintAlgebra
 import co.topl.minting._
 import co.topl.models.utility.{Lengths, Ratio, Sized}
@@ -38,6 +28,7 @@ import org.typelevel.log4cats.Logger
 
 import java.nio.file.Files
 import java.util.UUID
+import scala.collection.immutable.ListMap
 import scala.concurrent.duration._
 import scala.util.Random
 
@@ -136,7 +127,6 @@ object DemoUtils {
 
   def computeStakers(count: Int, random: Random) = List.tabulate(count) { idx =>
     implicit val ed25519Vrf: Ed25519VRF = Ed25519VRF.precomputed()
-    implicit val ed25519: Ed25519 = new Ed25519
     implicit val kesProduct: KesProduct = new KesProduct
     val seed = Sized.strictUnsafe[Bytes, Lengths.`32`.type](Bytes(random.nextBytes(32)))
 
@@ -191,23 +181,12 @@ object DemoConfig {
   val OperatorRegistrationMaxLength: Long =
     OperationalPeriodLength * Ratio(2, 1).pow(KesKeyHeight._1 + KesKeyHeight._2).round.toLong
 
-  val genesisTransaction: Transaction =
+  val TotalStake: Int128 = 1_000_000L
+
+  def genesisTransaction(outputs: Chain[Transaction.Output]): Transaction =
     Transaction(
       inputs = Chain.empty,
-      outputs = Chain(
-        Transaction.Output(
-          FullAddress(
-            NetworkPrefix(1),
-            Propositions.Contextual.HeightLock(1L).spendingAddress,
-            StakingAddresses.Operator(VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes.fill(32)(0: Byte)))),
-            Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes.fill(64)(0: Byte)))
-          ),
-          Box.Values.Poly(Sized.maxUnsafe(BigInt(10_000L))),
-          minting = true
-        )
-        // TODO: Arbit stake distribution
-        // TODO: Registrations
-      ),
+      outputs = outputs,
       chronology = Transaction.Chronology(0L, 0L, Long.MaxValue),
       None
     )
