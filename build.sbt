@@ -15,7 +15,7 @@ inThisBuild(
       val d = new java.util.Date
       sbtdynver.DynVer.getGitDescribeOutput(d).mkVersion(versionFmt, fallbackVersion(d))
     },
-    parallelExecution := false,
+    parallelExecution := true,
     pushRemoteCacheTo := Some(MavenCache("local-cache", file("/tmp/remote-cache")))
   )
 )
@@ -43,7 +43,7 @@ lazy val commonSettings = Seq(
     Tests.Argument(TestFrameworks.ScalaCheck, "-verbosity", "2"),
     Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-oDG")
   ),
-  Test / parallelExecution := false,
+  Test / parallelExecution := true,
   Test / logBuffered := false,
   classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
   Test / fork := false,
@@ -666,5 +666,7 @@ lazy val genus = project
   .enablePlugins(AkkaGrpcPlugin)
   .dependsOn(common)
 
-addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; +test; it:compile")
+addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; it:compile")
 addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; +test; it:compile")
+addCommandAlias("buildPR", s"; scalafixAll --check; scalafmtCheckAll; +test; it:compile")
+addCommandAlias("testPR", s"; +test; it:compile")

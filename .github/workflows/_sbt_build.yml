@@ -59,7 +59,7 @@ jobs:
         run: git checkout .
 
       - name: Compile and Test
-        run: sbt ; scalafixAll --check; scalafmtCheckAll; it:compile; pushRemoteCache
+        run: sbt buildPR pushRemoteCache
 
       - name: Upload Test Results
         if: always()
