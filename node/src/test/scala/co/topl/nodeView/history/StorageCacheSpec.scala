@@ -29,14 +29,6 @@ class StorageCacheSpec
   property("The genesis block is stored in cache") {
     forAll(chainGen(3)) { chain =>
       withTestHistory(chain.head) { history =>
-//        history.storage.keyValueStore
-//          .asInstanceOf[CacheLayerKeyValueStore]
-//          .cache
-//          .getIfPresent(
-//            new CacheLayerKeyValueStore.WrappedBytes(bestBlockIdKey)
-//          ) shouldEqual history.storage.keyValueStore
-//          .get(bestBlockIdKey)
-
         history.storage.keyValueStore.get(bestBlockIdKey).value shouldBe chain.head.block.id.persistedBytes
       }
     }
