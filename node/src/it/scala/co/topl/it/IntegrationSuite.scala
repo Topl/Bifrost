@@ -40,10 +40,11 @@ trait IntegrationSuite
   override def beforeAll(): Unit =
     log.debug("Starting integration tests")
 
-  override def afterAll(): Unit =
+  override def afterAll(): Unit = {
     dockerSupport.close()
-  dockerClient.close()
-  Await.result(system.terminate(), 10.seconds)
+    dockerClient.close()
+    Await.result(system.terminate(), 10.seconds)
+  }
 
   /**
    * The genesis block contains pre-loaded addresses, one for each of our test nodes.  Assign
