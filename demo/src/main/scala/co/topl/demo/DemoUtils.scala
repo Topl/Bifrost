@@ -12,7 +12,12 @@ import co.topl.catsakka.FToFuture
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
-import co.topl.consensus.algebras.{EtaCalculationAlgebra, LeaderElectionValidationAlgebra, LocalChainAlgebra}
+import co.topl.consensus.algebras.{
+  ConsensusValidationStateAlgebra,
+  EtaCalculationAlgebra,
+  LeaderElectionValidationAlgebra,
+  LocalChainAlgebra
+}
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.interpreters.{AkkaSecureStore, StatsInterpreter}
@@ -43,6 +48,7 @@ object DemoUtils {
     staker:                      Staker,
     clock:                       ClockAlgebra[F],
     etaCalculation:              EtaCalculationAlgebra[F],
+    consensusState:              ConsensusValidationStateAlgebra[F],
     leaderElectionThreshold:     LeaderElectionValidationAlgebra[F],
     localChain:                  LocalChainAlgebra[F],
     mempool:                     MempoolAlgebra[F],
@@ -82,14 +88,15 @@ object DemoUtils {
         clock = clock,
         vrfProof = vrfProofConstruction,
         etaCalculation,
-        state,
+        consensusState,
         kesProductResource,
         ed25519Resource,
         genesis.headerV2.slotId,
         operationalPeriodLength = operationalPeriodLength,
         activationOperationalPeriod = 0L,
         staker.address,
-        initialSlot = initialSlot
+        initialSlot = initialSlot,
+        genesis.headerV2.id
       )
       stakerVRFVK <- ed25519VRFResource.use(_.getVerificationKey(staker.vrfKey).pure[F])
       mint =
@@ -104,7 +111,7 @@ object DemoUtils {
               statsName = ""
             ),
             operationalKeys,
-            VrfRelativeStakeMintingLookup.Eval.make(state, clock),
+            consensusState,
             etaCalculation,
             ed25519Resource,
             vrfProofConstruction,
@@ -181,6 +188,9 @@ object DemoConfig {
   val KesKeyHeight: (Int, Int) =
     (9, 9)
 
+  val OperatorRegistrationMaxLength: Long =
+    OperationalPeriodLength * Ratio(2, 1).pow(KesKeyHeight._1 + KesKeyHeight._2).round.toLong
+
   val genesisTransaction: Transaction =
     Transaction(
       inputs = Chain.empty,
@@ -195,6 +205,8 @@ object DemoConfig {
           Box.Values.Poly(Sized.maxUnsafe(BigInt(10_000L))),
           minting = true
         )
+        // TODO: Arbit stake distribution
+        // TODO: Registrations
       ),
       chronology = Transaction.Chronology(0L, 0L, Long.MaxValue),
       None

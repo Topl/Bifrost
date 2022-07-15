@@ -64,8 +64,9 @@ object ConsensusValidationState {
         )(f:              ConsensusData[F] => F[Res]): F[Res] =
           for {
             epoch <- clock.epochOf(slot)
-            // TODO: Could we give epochs `-2` and `-1` special meaning to point to the genesis stake/registrations?
-            targetEpoch = (epoch - 2).max(0)
+            // Note: Special consideration is given to epochs `-2` and `-1`.  It is assumed that the epoch boundary
+            // state will point to the Genesis block in those two cases.
+            targetEpoch = epoch - 2
             boundaryBlockId <- epochBoundaryEventSourcedState.useStateAt(currentBlockId)(_.getOrRaise(targetEpoch))
             res             <- consensusDataEventSourcedState.useStateAt(boundaryBlockId)(f)
           } yield res

@@ -161,18 +161,24 @@ object TetraSuperDemo extends IOApp {
           show"Initializing node with genesis block id=${genesis.headerV2.id.asTypedBytes}" +
           show" and transactionIds=${genesis.blockBodyV2}"
         )
-        slotDataStore    <- RefStore.Eval.make[F, TypedIdentifier, SlotData]()
-        blockHeaderStore <- RefStore.Eval.make[F, TypedIdentifier, BlockHeaderV2]()
-        blockBodyStore   <- RefStore.Eval.make[F, TypedIdentifier, BlockBodyV2]()
-        transactionStore <- RefStore.Eval.make[F, TypedIdentifier, Transaction]()
-        boxStateStore    <- RefStore.Eval.make[F, TypedIdentifier, NonEmptySet[Short]]()
-        _                <- slotDataStore.put(genesis.headerV2.id, genesis.headerV2.slotData(Ed25519VRF.precomputed()))
-        _                <- blockHeaderStore.put(genesis.headerV2.id, genesis.headerV2)
-        _                <- blockBodyStore.put(genesis.headerV2.id, genesis.blockBodyV2)
-        _                <- transactionStore.put(genesisTransaction.id, genesisTransaction)
-        _                <- boxStateStore.put(genesisTransaction.id, NonEmptySet.one(0: Short))
-        blockIdTree      <- BlockIdTree.make[F]
-        _                <- blockIdTree.associate(genesis.headerV2.id, genesis.headerV2.parentHeaderId)
+        slotDataStore        <- RefStore.Eval.make[F, TypedIdentifier, SlotData]()
+        blockHeaderStore     <- RefStore.Eval.make[F, TypedIdentifier, BlockHeaderV2]()
+        blockBodyStore       <- RefStore.Eval.make[F, TypedIdentifier, BlockBodyV2]()
+        transactionStore     <- RefStore.Eval.make[F, TypedIdentifier, Transaction]()
+        boxStateStore        <- RefStore.Eval.make[F, TypedIdentifier, NonEmptySet[Short]]()
+        epochBoundariesStore <- RefStore.Eval.make[F, Long, TypedIdentifier]()
+        operatorStakesStore  <- RefStore.Eval.make[F, StakingAddresses.Operator, Int128]()
+        totalStakesStore     <- RefStore.Eval.make[F, Unit, Int128]()
+        registrationsStore   <- RefStore.Eval.make[F, StakingAddresses.Operator, Box.Values.Registrations.Operator]()
+        _                    <- epochBoundariesStore.put(-2, genesis.headerV2.id)
+        _                    <- epochBoundariesStore.put(-1, genesis.headerV2.id)
+        _           <- slotDataStore.put(genesis.headerV2.id, genesis.headerV2.slotData(Ed25519VRF.precomputed()))
+        _           <- blockHeaderStore.put(genesis.headerV2.id, genesis.headerV2)
+        _           <- blockBodyStore.put(genesis.headerV2.id, genesis.blockBodyV2)
+        _           <- transactionStore.put(genesisTransaction.id, genesisTransaction)
+        _           <- boxStateStore.put(genesisTransaction.id, NonEmptySet.one(0: Short))
+        blockIdTree <- BlockIdTree.make[F]
+        _           <- blockIdTree.associate(genesis.headerV2.id, genesis.headerV2.parentHeaderId)
         blockHeightTreeStore        <- RefStore.Eval.make[F, Long, TypedIdentifier]()
         _                           <- blockHeightTreeStore.put(0, genesis.headerV2.parentHeaderId)
         blockHeightTreeUnapplyStore <- RefStore.Eval.make[F, TypedIdentifier, Long]()
@@ -196,7 +202,24 @@ object TetraSuperDemo extends IOApp {
         log1p       <- Log1pInterpreter.make[F](10000, 8)
         log1pCached <- Log1pInterpreter.makeCached[F](log1p)
         leaderElectionThreshold = LeaderElectionValidation.Eval.make[F](vrfConfig, blake2b512Resource, exp, log1pCached)
-        consensusValidationState <- ConsensusValidationState.make[F](blockHeaderStore.getOrRaise, ???, ???, clock)
+        epochBoundariesState <- ConsensusValidationState.EpochBoundariesEventSourcedState.make[F](
+          clock,
+          genesis.headerV2.id.asTypedBytes.pure[F],
+          blockIdTree,
+          epochBoundariesStore.pure[F],
+          slotDataStore.getOrRaise
+        )
+        consensusDataState <- ConsensusValidationState.ConsensusDataEventSourcedState.make[F](
+          genesis.headerV2.id.asTypedBytes.pure[F],
+          blockIdTree,
+          ConsensusValidationState.ConsensusData(operatorStakesStore, totalStakesStore, registrationsStore).pure[F],
+          blockBodyStore.getOrRaise,
+          transactionStore.getOrRaise,
+          boxId =>
+            transactionStore.getOrRaise(boxId.transactionId).map(_.outputs.get(boxId.transactionOutputIndex.toLong).get)
+        )
+        consensusValidationState <- ConsensusValidationState
+          .make[F](blockHeaderStore.getOrRaise, epochBoundariesState, consensusDataState, clock)
         underlyingHeaderValidation <- BlockHeaderValidation.Eval.make[F](
           etaCalculation,
           consensusValidationState,
@@ -256,6 +279,7 @@ object TetraSuperDemo extends IOApp {
               stakers(stakerIndex),
               clock,
               etaCalculation,
+              consensusValidationState,
               leaderElectionThreshold,
               localChain,
               mempool,

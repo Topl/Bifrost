@@ -6,7 +6,7 @@ import cats.{Applicative, Monad}
 import co.topl.algebras.{ClockAlgebra, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.consensus.algebras.EtaCalculationAlgebra
+import co.topl.consensus.algebras.{ConsensusValidationStateAlgebra, EtaCalculationAlgebra}
 import co.topl.crypto.signing.Ed25519
 import co.topl.minting.algebras.LeaderElectionMintingAlgebra.VrfHit
 import co.topl.minting.algebras._
@@ -19,14 +19,14 @@ object Staking {
   object Eval {
 
     def make[F[_]: Monad: Logger](
-      a:                      StakingAddresses.Operator,
-      leaderElection:         LeaderElectionMintingAlgebra[F],
-      evolver:                OperationalKeysAlgebra[F],
-      vrfRelativeStakeLookup: VrfRelativeStakeMintingLookupAlgebra[F],
-      etaCalculation:         EtaCalculationAlgebra[F],
-      ed25519Resource:        UnsafeResource[F, Ed25519],
-      vrfProof:               VrfProofAlgebra[F],
-      clock:                  ClockAlgebra[F]
+      a:               StakingAddresses.Operator,
+      leaderElection:  LeaderElectionMintingAlgebra[F],
+      evolver:         OperationalKeysAlgebra[F],
+      consensusState:  ConsensusValidationStateAlgebra[F],
+      etaCalculation:  EtaCalculationAlgebra[F],
+      ed25519Resource: UnsafeResource[F, Ed25519],
+      vrfProof:        VrfProofAlgebra[F],
+      clock:           ClockAlgebra[F]
     ): StakingAlgebra[F] = new StakingAlgebra[F] {
       val address: F[StakingAddresses.Operator] = a.pure[F]
 
@@ -38,7 +38,7 @@ object Staking {
           _ <- Applicative[F].whenA(slot % slotsPerEpoch === 0L)(
             vrfProof.precomputeForEpoch(slot / slotsPerEpoch, eta)
           )
-          maybeHit <- OptionT(vrfRelativeStakeLookup.lookupAt(slot, a))
+          maybeHit <- OptionT(consensusState.operatorRelativeStake(parent.id, slot)(a))
             .flatMapF(relativeStake => leaderElection.getHit(relativeStake, slot, slot - parent.slot, eta))
             .value
         } yield maybeHit

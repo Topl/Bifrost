@@ -3,8 +3,7 @@ package co.topl.demo
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import akka.stream.scaladsl.Source
-import akka.util.Timeout
-import cats.data.{Chain, NonEmptySet, OptionT}
+import cats.data.{NonEmptySet, OptionT}
 import cats.effect.implicits._
 import cats.effect.kernel.Sync
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig}
@@ -15,7 +14,6 @@ import co.topl.blockchain.Blockchain
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
 import co.topl.consensus.interpreters.ConsensusValidationState
 import co.topl.crypto.hash.{Blake2b256, Blake2b512}
@@ -23,8 +21,6 @@ import co.topl.crypto.signing.{Curve25519, Ed25519, Ed25519VRF, ExtendedEd25519,
 import co.topl.interpreters._
 import co.topl.ledger.interpreters._
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.Lengths._
 import co.topl.models.utility._
 import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer}
 import co.topl.numerics.{ExpInterpreter, Log1pInterpreter}
@@ -90,18 +86,22 @@ object TetraDemo extends IOApp {
       ed25519Resource    <- ActorPoolUnsafeResource.Eval.make[F, Ed25519](new Ed25519, _ => ())
       extendedEd25519Resource <- ActorPoolUnsafeResource.Eval
         .make[F, ExtendedEd25519](ExtendedEd25519.precomputed(), _ => ())
-      slotDataStore    <- RefStore.Eval.make[F, TypedIdentifier, SlotData]()
-      blockHeaderStore <- RefStore.Eval.make[F, TypedIdentifier, BlockHeaderV2]()
-      blockBodyStore   <- RefStore.Eval.make[F, TypedIdentifier, BlockBodyV2]()
-      transactionStore <- RefStore.Eval.make[F, TypedIdentifier, Transaction]()
-      boxStateStore    <- RefStore.Eval.make[F, TypedIdentifier, NonEmptySet[Short]]()
-      _                <- slotDataStore.put(genesis.headerV2.id, genesis.headerV2.slotData(Ed25519VRF.precomputed()))
-      _                <- blockHeaderStore.put(genesis.headerV2.id, genesis.headerV2)
-      _                <- blockBodyStore.put(genesis.headerV2.id, genesis.blockBodyV2)
-      _                <- transactionStore.put(genesisTransaction.id, genesisTransaction)
-      _                <- boxStateStore.put(genesisTransaction.id, NonEmptySet.one(0: Short))
-      blockIdTree      <- BlockIdTree.make[F]
-      _                <- blockIdTree.associate(genesis.headerV2.id, genesis.headerV2.parentHeaderId)
+      slotDataStore        <- RefStore.Eval.make[F, TypedIdentifier, SlotData]()
+      blockHeaderStore     <- RefStore.Eval.make[F, TypedIdentifier, BlockHeaderV2]()
+      blockBodyStore       <- RefStore.Eval.make[F, TypedIdentifier, BlockBodyV2]()
+      transactionStore     <- RefStore.Eval.make[F, TypedIdentifier, Transaction]()
+      boxStateStore        <- RefStore.Eval.make[F, TypedIdentifier, NonEmptySet[Short]]()
+      epochBoundariesStore <- RefStore.Eval.make[F, Long, TypedIdentifier]()
+      operatorStakesStore  <- RefStore.Eval.make[F, StakingAddresses.Operator, Int128]()
+      totalStakesStore     <- RefStore.Eval.make[F, Unit, Int128]()
+      registrationsStore   <- RefStore.Eval.make[F, StakingAddresses.Operator, Box.Values.Registrations.Operator]()
+      _           <- slotDataStore.put(genesis.headerV2.id, genesis.headerV2.slotData(Ed25519VRF.precomputed()))
+      _           <- blockHeaderStore.put(genesis.headerV2.id, genesis.headerV2)
+      _           <- blockBodyStore.put(genesis.headerV2.id, genesis.blockBodyV2)
+      _           <- transactionStore.put(genesisTransaction.id, genesisTransaction)
+      _           <- boxStateStore.put(genesisTransaction.id, NonEmptySet.one(0: Short))
+      blockIdTree <- BlockIdTree.make[F]
+      _           <- blockIdTree.associate(genesis.headerV2.id, genesis.headerV2.parentHeaderId)
       blockHeightTreeStore        <- RefStore.Eval.make[F, Long, TypedIdentifier]()
       blockHeightTreeUnapplyStore <- RefStore.Eval.make[F, TypedIdentifier, Long]()
       blockHeightTree <- BlockHeightTree
@@ -124,7 +124,24 @@ object TetraDemo extends IOApp {
       log1p       <- Log1pInterpreter.make[F](10000, 8)
       log1pCached <- Log1pInterpreter.makeCached[F](log1p)
       leaderElectionThreshold = LeaderElectionValidation.Eval.make[F](vrfConfig, blake2b512Resource, exp, log1pCached)
-      consensusValidationState <- ConsensusValidationState.make[F](blockHeaderStore.getOrRaise, ???, ???, clock)
+      epochBoundariesState <- ConsensusValidationState.EpochBoundariesEventSourcedState.make[F](
+        clock,
+        genesis.headerV2.id.asTypedBytes.pure[F],
+        blockIdTree,
+        epochBoundariesStore.pure[F],
+        slotDataStore.getOrRaise
+      )
+      consensusDataState <- ConsensusValidationState.ConsensusDataEventSourcedState.make[F](
+        genesis.headerV2.id.asTypedBytes.pure[F],
+        blockIdTree,
+        ConsensusValidationState.ConsensusData(operatorStakesStore, totalStakesStore, registrationsStore).pure[F],
+        blockBodyStore.getOrRaise,
+        transactionStore.getOrRaise,
+        boxId =>
+          transactionStore.getOrRaise(boxId.transactionId).map(_.outputs.get(boxId.transactionOutputIndex.toLong).get)
+      )
+      consensusValidationState <- ConsensusValidationState
+        .make[F](blockHeaderStore.getOrRaise, epochBoundariesState, consensusDataState, clock)
       underlyingHeaderValidation <- BlockHeaderValidation.Eval.make[F](
         etaCalculation,
         consensusValidationState,
@@ -185,6 +202,7 @@ object TetraDemo extends IOApp {
             staker = stakers(idx),
             clock = clock,
             etaCalculation = etaCalculation,
+            consensusValidationState,
             leaderElectionThreshold = leaderElectionThreshold,
             localChain = localChain,
             mempool,
@@ -193,7 +211,6 @@ object TetraDemo extends IOApp {
             bodySyntaxValidation,
             bodySemanticValidation,
             bodyAuthorizationValidation,
-            consensusState,
             ed25519VRFResource,
             kesProductResource,
             ed25519Resource,
@@ -234,7 +251,7 @@ object TetraDemo extends IOApp {
     .as(ExitCode.Success)
 }
 
-private case class Staker(
+private[demo] case class Staker(
   relativeStake: Ratio,
   vrfKey:        SecretKeys.VrfEd25519,
   kesKey:        SecretKeys.KesProduct,
