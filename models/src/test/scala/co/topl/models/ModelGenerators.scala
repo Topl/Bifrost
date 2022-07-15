@@ -546,11 +546,6 @@ trait ModelGenerators {
       Gen.const(Proofs.Contextual.RequiredTransactionIO())
     )
 
-  implicit val arbitraryProofsScriptJs: Arbitrary[Proofs.Script.JS] =
-    Arbitrary(
-      Gen.asciiStr.map(Proofs.Script.JS(_))
-    )
-
   implicit val arbitraryProof: Arbitrary[Proof] =
     Arbitrary(
       Gen.oneOf(
@@ -564,8 +559,7 @@ trait ModelGenerators {
         arbitraryProofsCompositionalOr.arbitrary,
         arbitraryProofsCompositionalNot.arbitrary,
         arbitraryProofsContextualHeightLock.arbitrary,
-        arbitraryProofsContextualRequiredTransactionIO.arbitrary,
-        arbitraryProofsScriptJs.arbitrary
+        arbitraryProofsContextualRequiredTransactionIO.arbitrary
       )
     )
 

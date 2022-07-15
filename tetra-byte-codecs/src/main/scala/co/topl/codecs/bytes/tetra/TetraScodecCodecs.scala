@@ -369,9 +369,6 @@ trait TetraScodecProofCodecs {
   implicit val proofsContextualRequiredTransactionIOCodec: Codec[Proofs.Contextual.RequiredTransactionIO] =
     emptyCodec(Proofs.Contextual.RequiredTransactionIO())
 
-  implicit val proofsScriptJsCodec: Codec[Proofs.Script.JS] =
-    intStringCodec.as[Proofs.Script.JS]
-
   implicit val proofCodec: Codec[Proof] =
     discriminated[Proof]
       .by(byteCodec)
@@ -388,7 +385,6 @@ trait TetraScodecProofCodecs {
       .typecase(10: Byte, proofsCompositionalNotCodec)
       .typecase(11: Byte, proofsContextualHeightLockCodec)
       .typecase(12: Byte, proofsContextualRequiredTransactionIOCodec)
-      .typecase(13: Byte, proofsScriptJsCodec)
 }
 
 trait TetraScodecTransactionCodecs {

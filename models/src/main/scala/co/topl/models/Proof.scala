@@ -67,8 +67,4 @@ object Proofs {
     case class HeightLock() extends Proof
     case class RequiredTransactionIO() extends Proof
   }
-
-  object Script {
-    case class JS(serializedArgs: String) extends Proof
-  }
 }

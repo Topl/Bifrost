@@ -262,11 +262,6 @@ trait ModelsJsonCodecs {
       Json.obj(
         "proofType" -> "Contextual.RequiredTransactionIO".asJson
       )
-    case Proofs.Script.JS(serializedArgs) =>
-      Json.obj(
-        "proofType" -> "Script.JS".asJson,
-        "args"      -> io.circe.parser.parse(serializedArgs).getOrElse(serializedArgs.asJson)
-      )
   }
 
   implicit val proofsKnowledgeCurve25519Decoder: Decoder[Proofs.Knowledge.Curve25519] = deriveDecoder
@@ -291,7 +286,6 @@ trait ModelsJsonCodecs {
           (hcursor.downField("a").as(proofDecoder), hcursor.downField("b").as(proofDecoder))
             .mapN((a, b) => Proofs.Compositional.Or(a, b))
         case "Contextual.HeightLock" => Proofs.Contextual.HeightLock().asRight
-        case "Script.JS"             => hcursor.downField("args").as[String].map(Proofs.Script.JS.apply)
       }
 
   implicit val int128Codec: Encoder[Int128] =
