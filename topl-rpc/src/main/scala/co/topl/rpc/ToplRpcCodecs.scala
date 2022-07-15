@@ -68,6 +68,9 @@ trait NodeViewRpcParamsEncoders {
   implicit val nodeViewHeadParamsEncoder: Encoder[ToplRpc.NodeView.Head.Params] =
     deriveEncoder
 
+  implicit val nodeViewHeadInfoParamsEncoder: Encoder[ToplRpc.NodeView.HeadInfo.Params] =
+    deriveEncoder
+
   implicit val nodeViewBalancesParamsEncoder: Encoder[ToplRpc.NodeView.Balances.Params] =
     deriveEncoder
 

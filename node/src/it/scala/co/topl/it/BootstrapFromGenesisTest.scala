@@ -33,7 +33,7 @@ class BootstrapFromGenesisTest
         raw"""bifrost.network.knownPeers = []
              |bifrost.rpcApi.namespaceSelector.debug = true
              |bifrost.forging.forgeOnStartup = false
-             |bifrost.forging.blockGenerationDelay = $targetBlockTime
+             |bifrost.forging.blockGenerationDelay = ${targetBlockTime / 2}
              |bifrost.forging.addressGenerationSettings.numberOfAddresses = 2
              |bifrost.forging.addressGenerationSettings.strategy = fromSeed
              |bifrost.forging.addressGenerationSettings.addressSeedOpt = "$seed"
@@ -50,8 +50,10 @@ class BootstrapFromGenesisTest
              |        }
              |      }
              |    ]
-             |bifrost.network.syncInterval = 50ms
-             |bifrost.network.syncIntervalStable = 500s
+             |bifrost.network.syncInterval = 500ms
+             |bifrost.network.syncIntervalStable = 500ms
+             |bifrost.network.maxChainCacheDepth = ${initialForgeTarget + 1}
+             |bifrost.network.maxModifiersCacheSize = 1024
              |""".stripMargin
       )
 

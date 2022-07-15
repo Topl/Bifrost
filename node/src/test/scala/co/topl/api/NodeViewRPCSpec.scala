@@ -4,13 +4,12 @@ import akka.util.ByteString
 import cats.data.NonEmptyChain
 import cats.implicits._
 import co.topl.codecs._
-import co.topl.consensus.TestableConsensusViewHolder
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.nodeView.TestableNodeViewHolder
 import co.topl.nodeView.history.History
-import co.topl.nodeView.state.State
+import co.topl.nodeView.state.BoxState
 import co.topl.utils.GeneratorOps.GeneratorOps
 import co.topl.utils.Int128
 import co.topl.utils.implicits._
@@ -44,17 +43,13 @@ class NodeViewRPCSpec extends AnyWordSpec with Matchers with RPCMockState with E
       current =>
         current.copy(
           history = current.history match {
-            case h: History => blocks.foldLeft(h)((accHistory, block) => accHistory.append(block, Seq()).get._1)
+            case h: History =>
+              blocks.foldLeft(h)((accHistory, block) => accHistory.append(block, Seq(), genesisChain.head.state).get._1)
           },
           state = current.state match {
-            case s: State => blocks.foldLeft(s)((accState, block) => accState.applyModifier(block).get)
+            case s: BoxState => blocks.foldLeft(s)((accState, block) => accState.applyModifier(block).get)
           }
         )
-    )(system.toTyped)
-
-    TestableConsensusViewHolder.updateConsensusView(
-      consensusHolderRef,
-      blocks.last
     )(system.toTyped)
 
     blocksAndTx.map { case (block, txs) =>

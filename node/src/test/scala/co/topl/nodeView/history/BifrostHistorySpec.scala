@@ -1,5 +1,6 @@
 package co.topl.nodeView.history
 
+import co.topl.consensus.NxtConsensus
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.nodeView.ValidTransactionGenerators
@@ -22,13 +23,13 @@ class BifrostHistorySpec
 
     val storage = new Storage(new InMemoryKeyValueStore)
     var history = new History(storage, TineProcessor(1024))
-    history.append(genesisBlockGen.sample.get, Seq()).get._1
+    history.append(genesisBlockGen.sample.get, Seq(), NxtConsensus.State(0, 0)).get._1
 
     /* Apply blocks and ensure that they are stored */
     forAll(blockCurve25519Gen) { blockTemp =>
       val block = blockTemp.copy(parentId = history.bestBlockId)
 
-      history = history.append(block, Seq()).get._1
+      history = history.append(block, Seq(), NxtConsensus.State(0, 0)).get._1
 
       history.modifierById(block.id).isDefined shouldBe true
       ids = ids :+ block.id
