@@ -10,20 +10,22 @@ Applications of the network include:
 Releases
 ----------
 Begin interacting with Topl protocol using the latest `bifrost-node` client available under [Releases](https://github.com/Topl/Project-Bifrost/releases/latest). 
-This repository is a monorepo for Scala projects related to the Topl Protocol.
-Therefore, the source code for several published libraries of independent utility outside `bifrost-node` are maintained in this repository and build artifacts are published to [Maven](https://mvnrepository.com/artifact/co.topl)
-
-Build artifacts are also available for each tagged version at [repo.topl.network](https://repo.topl.network). 
 An alternative host for each released JAR is accessible at `https://repo.topl.network/jars/<X.X.X>/bifrost-node-X.X.X.jar` where `X.X.X` is a tagged software version. 
-An MD5 checksum is also available for the JAR artifact at this location under `bifrost-node-X.X.X.jar.md5`
+Additioanlly, build artifacts for each tagged version are also available at [repo.topl.network](https://repo.topl.network). 
+An MD5 checksum is provideded for each JAR artifact at this location under `bifrost-node-X.X.X.jar.md5`
 
 Docker containers for each release are available via [Github Container Repository](https://github.com/Topl/Bifrost/pkgs/container/bifrost-node) and [Docker Hub](https://hub.docker.com/r/toplprotocol/bifrost-node/tags)
 
+This source-code repository is maintained as a monorepo for Scala projects related to the Topl protocol.
+Therefore, the source code for several published libraries of independent utility outside `bifrost-node` are maintained in this repository and build artifacts are published to [Maven](https://mvnrepository.com/artifact/co.topl)
+
 #### Application Versioning
-Bifrost loosely follows semantic versioning. Deviating slightly since blockchains should always retain binary compatibility, we instead apply the following rules:
-- `MAJOR` index is conditioned on hard-forks (most notably with regards to the consensus mechanism) and substantial network upgrades
-- `MINOR` index is incremented when there are breaking API changes (to any module within the Bifrost monorepo) or significant feature improvements being newly introduced
-- `PATCH` index is used for non-breaking changes to functionality and bug fixes
+Bifrost applies [semantic versioning](https://semver.org/) with respect to the protocol consensus mechanism.
+This is chosen since blockchains must maintain strict backwards binary compatibility with all previous consensus, application, and network messages to allow trustless bootstrapping of new network participants from genesis. 
+We instead apply the following rules:
+- `MAJOR` index is conditioned on hard-forks and substantial network upgrades requiring significant community coordination
+- `MINOR` index is incremented on soft-forks and may include breaking API changes (to any module within the Bifrost monorepo) or significant feature improvements being newly introduced 
+- `PATCH` index is used for non-breaking changes and bug fixes
 
 Installation
 -------------------
@@ -55,10 +57,8 @@ Testing
       - NOTE: To speed up repeated runs, remove the cleanup step (` && docker image rm -f $IMAGE_ID`) from the end of the command.
       - NOTE: When local testing through an IDE instead of through the Dockerfile, it is recommended to create a `version.sbt` at the project root with contents `ThisBuild / version := "it"`.   This file should not be checked into git, but it will help keep the published Docker tag stable.
 
-
 Contributions
 -------------
-
 We appreciate your interest in this project and welcome contributions!
 
 If you'd like to contribute to Project Bifrost, please fork, fix, commit and send a pull request so that we can review your code and merge it when it is complete. For more complex changes, please contact us via Gitter or Slack to ensure those changes are reasonable and/or get some early feedback to expedite the review and merge process.
@@ -68,7 +68,6 @@ If you'd like to contribute to Project Bifrost, please fork, fix, commit and sen
 To keep up with our development
 
 - View open [issues](https://github.com/Topl/Project-Bifrost/issues)!
-
 
 License
 -------
