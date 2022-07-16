@@ -29,7 +29,7 @@ We instead apply the following rules:
 
 Installation
 -------------------
-Check out our [Installation instructions](https://github.com/Topl/Bifrost/wiki/Install-and-Build) for step-by-step instructions for installation using a JAR, a Docker container, or from source.
+Check out our [Installation instructions](https://github.com/Topl/Bifrost/wiki/Install-and-Build) for step-by-step instructions using a JAR, a Docker container, or from source.
 
 Docs
 ----------
@@ -39,23 +39,48 @@ Wiki
 ----------
 The latest version of the Topl wiki (our in-depth alternative to a traditional whitepaper) can be found at [wiki.topl.co](https://wiki.topl.co).
 
+Command Line Reference
+----------
+This output is generated using `sbt node/run --help` 
+```
+-c --config <str>       file path to a user defined config file
+-d --debug              Turn on debugging information
+-n --network <network>  specify preset network by name
+-s --seed <str>         String used to deterministically generate addresses during startup
+-f --forge              Enable forging as soon as the node starts
+--disableAuth           Allow the node to receive API requests (via JSON-RPC) without an API key
+--apiKeyHash <str>      If API key protection is enabled, this argument specifies the Blake2b256
+                        hash of API key required by the JSON-RPC server
+```
+
 Testing
 -------
 **NOTE:** These instructions assume the source code, sbt, JDK 11, and Docker have been previously installed.
-1. Go to the project directory: `cd Bifrost`
-1. Type: `sbt test`
-   - NOTE: Using sbt to run tests using the Windows command line may error. Either use Intellij IDEA's test runner or run sbt in a Unix environment. Alternatively, if you have the Linux Subsystem for Windows enabled, you can just use bash.
-1. To publish a Docker image for local testing, type: `sbt node/docker:publishLocal`
+- To run unit tests
+   1. Go to the project directory: `cd Bifrost`
+   1. Type: `sbt test`
+      - NOTE: Using sbt to run tests using the Windows command line may error. Either use Intellij IDEA's test runner or run sbt in a Unix environment. Alternatively, if you have the Linux Subsystem for Windows enabled, you can just use bash.
+- To publish a Docker image for local testing, type: 
+   ```
+   sbt node/docker:publishLocal
+   ```
    - To run the published container, type: `docker run bifrost:x.x.x` (where `x.x.x` is the version that was published).
    - To pass command line arguments, type `docker run bifrost:x.x.x -s mySpecialSeed`
-1. To run integration tests:
+- To run integration tests:
    1. Install Docker
    1. Build, Run, and Cleanup the Integration Test via Docker:
-      - On Unix systems, run: `IMAGE_ID=$(docker build -q -f node/src/it/resources/Dockerfile .) && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock $IMAGE_ID && docker image rm -f $IMAGE_ID`
-      - On Windows systems, run: ``for /f "tokens=* USEBACKQ" %i in (`docker build -q -f node/src/it/resources/Dockerfile .`) do (set IMAGE_ID=%i) && docker run --rm -v //var/run/docker.sock:/var/run/docker.sock %IMAGE_ID% && docker image rm -f %IMAGE_ID%``
-      - NOTE: You may not see any output for quite a while.  The Docker image takes a long time to build, and its output is mostly silent.  You will only see output for the run of the integration test.
-      - NOTE: To speed up repeated runs, remove the cleanup step (` && docker image rm -f $IMAGE_ID`) from the end of the command.
-      - NOTE: When local testing through an IDE instead of through the Dockerfile, it is recommended to create a `version.sbt` at the project root with contents `ThisBuild / version := "it"`.   This file should not be checked into git, but it will help keep the published Docker tag stable.
+      - On Unix systems, run:
+      ```
+      IMAGE_ID=$(docker build -q -f node/src/it/resources/Dockerfile .) && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock $IMAGE_ID && docker image rm -f $IMAGE_ID
+      ```
+      - On Windows systems, run: 
+      ```
+      `for /f "tokens=* USEBACKQ" %i in (`docker build -q -f node/src/it/resources/Dockerfile .`) do (set IMAGE_ID=%i) && docker run --rm -v //var/run/docker.sock:/var/run/docker.sock %IMAGE_ID% && docker image rm -f %IMAGE_ID%`
+      ```
+   - NOTE: 
+      - You may not see any output for quite a while.  The Docker image takes a long time to build, and its output is mostly silent.  You will only see output for the run of the integration test.
+      - To speed up repeated runs, remove the cleanup step (`&& docker image rm -f $IMAGE_ID`) from the end of the command.
+      - When local testing through an IDE instead of through the Dockerfile, it is recommended to create a `version.sbt` at the project root with contents `ThisBuild / version := "it"`.   This file should not be checked into git, but it will help keep the published Docker tag stable.
 
 Contributions
 -------------
