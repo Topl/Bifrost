@@ -22,7 +22,7 @@ Therefore, the source code for several published libraries of independent utilit
 #### Application Versioning
 Bifrost applies [semantic versioning](https://semver.org/) with respect to the protocol consensus mechanism.
 This is chosen since blockchains must maintain strict backwards binary compatibility with all previous consensus, application, and network messages to allow trustless bootstrapping of new network participants from genesis. 
-We instead apply the following rules:
+We apply the following rules:
 - `MAJOR` index is conditioned on hard-forks and substantial network upgrades requiring significant community coordination
 - `MINOR` index is incremented on soft-forks and may include breaking API changes (to any module within the Bifrost monorepo) or significant feature improvements being newly introduced 
 - `PATCH` index is used for non-breaking changes and bug fixes
@@ -73,7 +73,7 @@ Testing
       ```
       IMAGE_ID=$(docker build -q -f node/src/it/resources/Dockerfile .) && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock $IMAGE_ID && docker image rm -f $IMAGE_ID
       ```
-      - On Windows systems, run: 
+      - On Windows systems, using PowerShell, run: 
       ```
       `for /f "tokens=* USEBACKQ" %i in (`docker build -q -f node/src/it/resources/Dockerfile .`) do (set IMAGE_ID=%i) && docker run --rm -v //var/run/docker.sock:/var/run/docker.sock %IMAGE_ID% && docker image rm -f %IMAGE_ID%`
       ```
