@@ -49,8 +49,8 @@ jobs:
         uses: actions/cache@v3
         with:
           path: |
-            '**/target/**'
-            '!**/test-results/**'
+            **/target/**
+            !**/test-results/**
           key: ${{ runner.os }}-project-${{ github.base_ref }}-${{ github.run_number }}
           restore-keys: ${{ runner.os }}-project-${{ github.base_ref }}-
 
