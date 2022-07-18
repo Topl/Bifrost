@@ -15,7 +15,7 @@ inThisBuild(
       val d = new java.util.Date
       sbtdynver.DynVer.getGitDescribeOutput(d).mkVersion(versionFmt, fallbackVersion(d))
     },
-    parallelExecution := true,
+    parallelExecution := false,
     pushRemoteCacheTo := Some(MavenCache("local-cache", file("/tmp/remote-cache")))
   )
 )
@@ -43,7 +43,7 @@ lazy val commonSettings = Seq(
     Tests.Argument(TestFrameworks.ScalaCheck, "-verbosity", "2"),
     Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-oDG")
   ),
-  Test / parallelExecution := true,
+  Test / parallelExecution := false,
   Test / logBuffered := false,
   classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
   Test / fork := false,
