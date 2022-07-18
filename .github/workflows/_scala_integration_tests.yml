@@ -61,7 +61,7 @@ jobs:
             **/target/**
             !**/test-results/**
           key: ${{ runner.os }}-project-${{ github.base_ref }}-${{ github.run_number }}
-          restore-keys: ${{ inputs.preserve-cache-between-runs }} && ${{ runner.os }}-project-${{ github.base_ref }}- || ${{ runner.os }}-project-${{ github.base_ref }}-${{ github.run_number }}
+          restore-keys: ${{ inputs.preserve-cache-between-runs && runner.os-project-github.base_ref- || runner.os-project-github.base_ref-github.run_number }}
 
       - name: Checkout current
         run: git checkout .
