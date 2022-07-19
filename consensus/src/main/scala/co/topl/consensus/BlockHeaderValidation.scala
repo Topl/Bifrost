@@ -10,7 +10,6 @@ import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.models._
 import co.topl.models.utility.Ratio
-import co.topl.typeclasses.BlockGenesis
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
 import scalacache.CacheConfig
@@ -294,7 +293,9 @@ object BlockHeaderValidation {
               )
 
           private def validateParent(parent: BlockHeaderV2): EitherT[F, BlockHeaderValidationFailure, BlockHeaderV2] =
-            if (parent.parentHeaderId === BlockGenesis.ParentId)
+            if (parent.parentSlot < 0)
+              // TODO: Is this a security concern?
+              // Could an adversary just "claim" the parentSlot is -1 to circumvent validation?
               EitherT.pure[F, BlockHeaderValidationFailure](parent)
             else
               EitherT(

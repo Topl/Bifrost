@@ -80,8 +80,7 @@ class BlockHeaderValidationSpec
   it should "invalidate blocks with non-forward slot" in {
     forAll(genValid(u => u.copy(slot = 0L))) { case (parent, child, registration, eta, relativeStake) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
-      val relativeStakeInterpreter = mock[VrfRelativeStakeValidationLookupAlgebra[F]]
-      val registrationInterpreter = mock[RegistrationLookupAlgebra[F]]
+      val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
       val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
@@ -90,9 +89,8 @@ class BlockHeaderValidationSpec
         BlockHeaderValidation.Eval
           .make[F](
             etaInterpreter,
-            relativeStakeInterpreter,
+            consensusValidationState,
             leaderElectionInterpreter,
-            registrationInterpreter,
             ed25519VRFResource,
             kesProductResource,
             ed25519Resource,
@@ -108,8 +106,7 @@ class BlockHeaderValidationSpec
   it should "invalidate blocks with non-forward timestamp" in {
     forAll(genValid(u => u.copy(timestamp = 0L))) { case (parent, child, registration, eta, relativeStake) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
-      val relativeStakeInterpreter = mock[VrfRelativeStakeValidationLookupAlgebra[F]]
-      val registrationInterpreter = mock[RegistrationLookupAlgebra[F]]
+      val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
       val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
@@ -118,9 +115,8 @@ class BlockHeaderValidationSpec
         BlockHeaderValidation.Eval
           .make[F](
             etaInterpreter,
-            relativeStakeInterpreter,
+            consensusValidationState,
             leaderElectionInterpreter,
-            registrationInterpreter,
             ed25519VRFResource,
             kesProductResource,
             ed25519Resource,
@@ -137,8 +133,7 @@ class BlockHeaderValidationSpec
     forAll(genValid(u => u.copy(parentHeaderId = TypedBytes(1: Byte, Bytes.fill(32)(0: Byte))))) {
       case (parent, child, registration, eta, relativeStake) =>
         val etaInterpreter = mock[EtaCalculationAlgebra[F]]
-        val relativeStakeInterpreter = mock[VrfRelativeStakeValidationLookupAlgebra[F]]
-        val registrationInterpreter = mock[RegistrationLookupAlgebra[F]]
+        val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
         val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
         val kesProductResource = mock[UnsafeResource[F, KesProduct]]
         val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
@@ -147,9 +142,8 @@ class BlockHeaderValidationSpec
           BlockHeaderValidation.Eval
             .make[F](
               etaInterpreter,
-              relativeStakeInterpreter,
+              consensusValidationState,
               leaderElectionInterpreter,
-              registrationInterpreter,
               ed25519VRFResource,
               kesProductResource,
               ed25519Resource,
@@ -183,8 +177,7 @@ class BlockHeaderValidationSpec
       etaGen
     ) { case ((parent, child), eta) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
-      val relativeStakeInterpreter = mock[VrfRelativeStakeValidationLookupAlgebra[F]]
-      val registrationInterpreter = mock[RegistrationLookupAlgebra[F]]
+      val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
       val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
@@ -193,9 +186,8 @@ class BlockHeaderValidationSpec
         BlockHeaderValidation.Eval
           .make[F](
             etaInterpreter,
-            relativeStakeInterpreter,
+            consensusValidationState,
             leaderElectionInterpreter,
-            registrationInterpreter,
             ed25519VRFResource,
             kesProductResource,
             ed25519Resource,
@@ -233,8 +225,7 @@ class BlockHeaderValidationSpec
   it should "invalidate blocks with a syntactically incorrect KES certificate" in {
     forAll(genValid()) { case (parent, child, registration, eta, relativeStake) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
-      val relativeStakeInterpreter = mock[VrfRelativeStakeValidationLookupAlgebra[F]]
-      val registrationInterpreter = mock[RegistrationLookupAlgebra[F]]
+      val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
       val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
@@ -243,9 +234,8 @@ class BlockHeaderValidationSpec
         BlockHeaderValidation.Eval
           .make[F](
             etaInterpreter,
-            relativeStakeInterpreter,
+            consensusValidationState,
             leaderElectionInterpreter,
-            registrationInterpreter,
             ed25519VRFResource,
             kesProductResource,
             ed25519Resource,
@@ -301,8 +291,7 @@ class BlockHeaderValidationSpec
       )
     ) { case (parent, child, registration, eta, relativeStake) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
-      val relativeStakeInterpreter = mock[VrfRelativeStakeValidationLookupAlgebra[F]]
-      val registrationInterpreter = mock[RegistrationLookupAlgebra[F]]
+      val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
       val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
@@ -311,9 +300,8 @@ class BlockHeaderValidationSpec
         BlockHeaderValidation.Eval
           .make[F](
             etaInterpreter,
-            relativeStakeInterpreter,
+            consensusValidationState,
             leaderElectionInterpreter,
-            registrationInterpreter,
             ed25519VRFResource,
             kesProductResource,
             ed25519Resource,
@@ -321,9 +309,9 @@ class BlockHeaderValidationSpec
           )
           .unsafeRunSync()
 
-      (registrationInterpreter
-        .registrationOf(_: SlotId, _: StakingAddresses.Operator))
-        .expects(*, *)
+      (consensusValidationState
+        .operatorRegistration(_: TypedIdentifier, _: Slot)(_: StakingAddresses.Operator))
+        .expects(*, *, *)
         .once()
         .returning(registration.some.pure[F])
 
@@ -374,8 +362,7 @@ class BlockHeaderValidationSpec
   it should "invalidate blocks with an insufficient VRF threshold" in {
     forAll(genValid()) { case (parent, child, registration, eta, relativeStake) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
-      val relativeStakeInterpreter = mock[VrfRelativeStakeValidationLookupAlgebra[F]]
-      val registrationInterpreter = mock[RegistrationLookupAlgebra[F]]
+      val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
       val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
@@ -384,9 +371,8 @@ class BlockHeaderValidationSpec
         BlockHeaderValidation.Eval
           .make[F](
             etaInterpreter,
-            relativeStakeInterpreter,
+            consensusValidationState,
             leaderElectionInterpreter,
-            registrationInterpreter,
             ed25519VRFResource,
             kesProductResource,
             ed25519Resource,
@@ -394,9 +380,9 @@ class BlockHeaderValidationSpec
           )
           .unsafeRunSync()
 
-      (registrationInterpreter
-        .registrationOf(_: SlotId, _: StakingAddresses.Operator))
-        .expects(*, *)
+      (consensusValidationState
+        .operatorRegistration(_: TypedIdentifier, _: Slot)(_: StakingAddresses.Operator))
+        .expects(*, *, *)
         .once()
         .returning(registration.some.pure[F])
 
@@ -406,9 +392,9 @@ class BlockHeaderValidationSpec
         .anyNumberOfTimes()
         .returning(eta.pure[F])
 
-      (relativeStakeInterpreter
-        .lookupAt(_: SlotId, _: StakingAddress))
-        .expects(child.slotId, *)
+      (consensusValidationState
+        .operatorRelativeStake(_: TypedIdentifier, _: Slot)(_: StakingAddresses.Operator))
+        .expects(*, *, *)
         .once()
         .returning(Ratio.Zero.some.pure[F])
 
@@ -453,8 +439,7 @@ class BlockHeaderValidationSpec
   it should "validate valid blocks" in {
     forAll(genValid()) { case (parent, child, registration, eta, relativeStake) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
-      val relativeStakeInterpreter = mock[VrfRelativeStakeValidationLookupAlgebra[F]]
-      val registrationInterpreter = mock[RegistrationLookupAlgebra[F]]
+      val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
       val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
@@ -463,9 +448,8 @@ class BlockHeaderValidationSpec
         BlockHeaderValidation.Eval
           .make[F](
             etaInterpreter,
-            relativeStakeInterpreter,
+            consensusValidationState,
             leaderElectionInterpreter,
-            registrationInterpreter,
             ed25519VRFResource,
             kesProductResource,
             ed25519Resource,
@@ -473,9 +457,9 @@ class BlockHeaderValidationSpec
           )
           .unsafeRunSync()
 
-      (registrationInterpreter
-        .registrationOf(_: SlotId, _: StakingAddresses.Operator))
-        .expects(*, *)
+      (consensusValidationState
+        .operatorRegistration(_: TypedIdentifier, _: Slot)(_: StakingAddresses.Operator))
+        .expects(*, *, *)
         .once()
         .returning(registration.some.pure[F])
 
@@ -485,9 +469,9 @@ class BlockHeaderValidationSpec
         .anyNumberOfTimes()
         .returning(eta.pure[F])
 
-      (relativeStakeInterpreter
-        .lookupAt(_: SlotId, _: StakingAddress))
-        .expects(child.slotId, *)
+      (consensusValidationState
+        .operatorRelativeStake(_: TypedIdentifier, _: Slot)(_: StakingAddresses.Operator))
+        .expects(*, *, *)
         .once()
         .returning(relativeStake.some.pure[F])
 

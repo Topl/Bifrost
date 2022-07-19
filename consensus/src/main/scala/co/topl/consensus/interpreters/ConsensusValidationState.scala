@@ -205,6 +205,8 @@ object ConsensusValidationState {
             case Transaction
                   .Output(FullAddress(_, _, o: StakingAddresses.Operator, _), Box.Values.Arbit(quantity), _) =>
               StakeChanges(Map(o -> quantity.data), quantity.data)
+            case _ =>
+              Monoid[StakeChanges].empty
           }
         } yield inputStakeChanges.combine(outputStakeChanges)
 

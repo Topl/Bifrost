@@ -3,40 +3,47 @@ package co.topl.demo
 import akka.actor.typed.ActorSystem
 import akka.util.Timeout
 import cats.Parallel
-import cats.data.Chain
 import cats.effect.Async
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras._
+import co.topl.blockchain.Stakers
 import co.topl.catsakka.FToFuture
-import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
-import co.topl.consensus.algebras.{ConsensusValidationStateAlgebra, EtaCalculationAlgebra, LeaderElectionValidationAlgebra, LocalChainAlgebra}
-import co.topl.crypto.hash.Blake2b256
+import co.topl.consensus.algebras.{
+  ConsensusValidationStateAlgebra,
+  EtaCalculationAlgebra,
+  LeaderElectionValidationAlgebra,
+  LocalChainAlgebra
+}
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.interpreters.{AkkaSecureStore, StatsInterpreter}
-import co.topl.ledger.algebras.{BodyAuthorizationValidationAlgebra, BodySemanticValidationAlgebra, BodySyntaxValidationAlgebra, MempoolAlgebra}
-import co.topl.minting.algebras.PerpetualBlockMintAlgebra
+import co.topl.ledger.algebras.{
+  BodyAuthorizationValidationAlgebra,
+  BodySemanticValidationAlgebra,
+  BodySyntaxValidationAlgebra,
+  MempoolAlgebra
+}
 import co.topl.minting._
-import co.topl.models.utility.{Lengths, Ratio, Sized}
+import co.topl.minting.algebras.PerpetualBlockMintAlgebra
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances.{bigIntLength, bytesLength}
-import co.topl.typeclasses.BlockGenesis
+import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.{Ratio, Sized}
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 
 import java.nio.file.Files
 import java.util.UUID
-import scala.collection.immutable.ListMap
 import scala.concurrent.duration._
 import scala.util.Random
 
 object DemoUtils {
 
   def createMint[F[_]: Async: Parallel: FToFuture](
-    genesis:                     BlockV2,
-    staker:                      Staker,
+    bigBangHeader:               BlockHeaderV2,
+    staker:                      Stakers.Operator,
     clock:                       ClockAlgebra[F],
     etaCalculation:              EtaCalculationAlgebra[F],
     consensusState:              ConsensusValidationStateAlgebra[F],
@@ -60,12 +67,12 @@ object DemoUtils {
     vrfConfig: VrfConfig
   ): F[PerpetualBlockMintAlgebra[F]] =
     for {
-      _            <- Logger[F].info(show"Initializing staker key idx=0 address=${staker.address}")
-      stakerKeyDir <- Async[F].blocking(Files.createTempDirectory(show"TetraDemoStaker${staker.address}"))
+      _            <- Logger[F].info(show"Initializing staker key idx=0 address=${staker.stakingAddress}")
+      stakerKeyDir <- Async[F].blocking(Files.createTempDirectory(show"TetraDemoStaker${staker.stakingAddress}"))
       secureStore  <- AkkaSecureStore.Eval.make[F](stakerKeyDir)
-      _            <- secureStore.write(UUID.randomUUID().toString, staker.kesKey)
+      _            <- secureStore.write(UUID.randomUUID().toString, staker.kesSK)
       vrfProofConstruction <- VrfProof.Eval.make[F](
-        staker.vrfKey,
+        staker.vrfSK,
         clock,
         leaderElectionThreshold,
         ed25519VRFResource,
@@ -73,7 +80,7 @@ object DemoUtils {
       )
       initialSlot  <- clock.globalSlot.map(_.max(0L))
       initialEpoch <- clock.epochOf(initialSlot)
-      _            <- vrfProofConstruction.precomputeForEpoch(initialEpoch, genesis.headerV2.eligibilityCertificate.eta)
+      _            <- vrfProofConstruction.precomputeForEpoch(initialEpoch, bigBangHeader.eligibilityCertificate.eta)
       operationalKeys <- OperationalKeys.FromSecureStore.make[F](
         secureStore = secureStore,
         clock = clock,
@@ -82,20 +89,19 @@ object DemoUtils {
         consensusState,
         kesProductResource,
         ed25519Resource,
-        genesis.headerV2.slotId,
+        bigBangHeader.slotId,
         operationalPeriodLength = operationalPeriodLength,
         activationOperationalPeriod = 0L,
-        staker.address,
+        staker.stakingAddress,
         initialSlot = initialSlot,
-        genesis.headerV2.id
+        bigBangHeader.id
       )
-      stakerVRFVK <- ed25519VRFResource.use(_.getVerificationKey(staker.vrfKey).pure[F])
       mint =
         BlockMint.Eval.make(
           Staking.Eval.make(
-            staker.address,
+            staker.stakingAddress,
             LeaderElectionMinting.Eval.make(
-              stakerVRFVK,
+              staker.vrfVK,
               leaderElectionThreshold,
               vrfProofConstruction,
               statsInterpreter = StatsInterpreter.Noop.make[F],
@@ -125,29 +131,25 @@ object DemoUtils {
         )
     } yield perpetual
 
-  def computeStakers(count: Int, random: Random) = List.tabulate(count) { idx =>
-    implicit val ed25519Vrf: Ed25519VRF = Ed25519VRF.precomputed()
-    implicit val kesProduct: KesProduct = new KesProduct
-    val seed = Sized.strictUnsafe[Bytes, Lengths.`32`.type](Bytes(random.nextBytes(32)))
+  def computeStakers(count: Int, random: Random): List[Stakers.Operator] =
+    List.fill(count) {
+      Stakers.Operator(Sized.strictUnsafe(Bytes(random.nextBytes(32))), DemoConfig.KesKeyHeight)
+    }
 
-    val (_, poolVK) = new Ed25519().deriveKeyPairFromSeed(seed)
-
-    val (stakerVrfKey, _) =
-      ed25519Vrf.deriveKeyPairFromSeed(seed)
-
-    val (kesKey, _) =
-      kesProduct.createKeyPair(seed = seed.data, height = DemoConfig.KesKeyHeight, 0)
-
-    val stakerRegistration: Box.Values.Registrations.Operator =
-      Box.Values.Registrations.Operator(
-        vrfCommitment = kesProduct.sign(
-          kesKey,
-          new Blake2b256().hash(ed25519Vrf.getVerificationKey(stakerVrfKey).immutableBytes, poolVK.bytes.data).data
-        )
-      )
-
-    Staker(Ratio(1, count), stakerVrfKey, kesKey, stakerRegistration, StakingAddresses.Operator(poolVK))
-  }
+  val loggerColors = List(
+    Console.MAGENTA,
+    Console.BLUE,
+    Console.YELLOW,
+    Console.GREEN,
+    Console.CYAN,
+    Console.RED,
+    Console.MAGENTA_B,
+    Console.BLUE_B,
+    Console.YELLOW_B,
+    Console.GREEN_B,
+    Console.CYAN_B,
+    Console.RED_B
+  )
 }
 
 object DemoConfig {
@@ -182,17 +184,6 @@ object DemoConfig {
     OperationalPeriodLength * Ratio(2, 1).pow(KesKeyHeight._1 + KesKeyHeight._2).round.toLong
 
   val TotalStake: Int128 = 1_000_000L
-
-  def genesisTransaction(outputs: Chain[Transaction.Output]): Transaction =
-    Transaction(
-      inputs = Chain.empty,
-      outputs = outputs,
-      chronology = Transaction.Chronology(0L, 0L, Long.MaxValue),
-      None
-    )
-
-  val genesis: BlockV2 =
-    BlockGenesis(List(genesisTransaction)).value
 
   implicit val timeout: Timeout =
     Timeout(20.seconds)
