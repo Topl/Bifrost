@@ -55,7 +55,7 @@ class RpcSpec
     ) ~> underTest ~> check {
       val json = responseAs[Json]
 
-      root.id.string.getOption(json).value shouldBe "2"
+      root.id.string.getOption(json).value shouldBe "1"
       root.result.value.int.getOption(json).value shouldBe 6
     }
   }
