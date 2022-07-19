@@ -62,13 +62,14 @@ jobs:
             !**/test-results/**
           key: ${{ format('{0}-project-{1}-{2}', runner.os, github.base_ref, github.run_number) }}
           restore-keys: ${{ inputs.preserve-cache-between-runs && format('{0}-project-{1}-', runner.os, github.base_ref) || format('{0}-project-{1}-{2}', runner.os, github.base_ref, github.run_number) }}
+
       - name: Checkout current
         run: git checkout .
 
       - name: Integration Tests
         run: >
           IMAGE_ID=$(docker build -q -f node/src/it/resources/Dockerfile .)
-          && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd)/node/target/it-reports:/bifrost/node/target/it-reports -v ~/.cache:/root/.cache -v ~/.ivy2/cache:/root/.ivy2/cache -v /tmp/remote-cache:/tmp/remote-cache $IMAGE_ID sbt pullRemoteCache node/docker:publishLocal node/it:test
+          && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd)/node/target/it-reports:/bifrost/node/target/it-reports -v ~/.cache:/root/.cache -v ~/.ivy2/cache:/root/.ivy2/cache $IMAGE_ID sbt node/docker:publishLocal node/it:test
           && docker image rm -f $IMAGE_ID
 
       - name: Upload Test Results

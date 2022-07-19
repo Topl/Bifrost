@@ -33,12 +33,6 @@ jobs:
         with:
           fetch-depth: 0 # Need full history to update last modified time.
 
-      - name: Download Remote Cache
-        uses: actions/download-artifact@v3
-        with:
-          name: remote-cache
-          path: /tmp/remote-cache/
-
       - name: Cache sbt
         uses: actions/cache@v3
         with:

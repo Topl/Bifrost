@@ -666,7 +666,6 @@ lazy val genus = project
   .enablePlugins(AkkaGrpcPlugin)
   .dependsOn(common)
 
-addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; it:compile")
+addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; +test; it:compile")
 addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; +test; it:compile")
-addCommandAlias("buildPR", s"; scalafixAll --check; scalafmtCheckAll; testQuick; it:compile")
-addCommandAlias("testPR", s"; +test; it:compile")
+addCommandAlias("checkPRTestQuick", s"; scalafixAll --check; scalafmtCheckAll; testQuick; it:compile")
