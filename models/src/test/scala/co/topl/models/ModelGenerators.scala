@@ -161,13 +161,13 @@ trait ModelGenerators {
       childSignature  <- ed25519ProofGen
     } yield OperationalCertificate(parentVK, parentSignature, childVK, childSignature)
 
-  def baseAddressGen: Gen[StakingAddresses.Operator] =
+  def operatorStakingAddressGen: Gen[StakingAddresses.Operator] =
     for {
       poolVK <- ed25519VkGen
     } yield StakingAddresses.Operator(poolVK)
 
   def stakingAddressGen: Gen[StakingAddress] =
-    baseAddressGen
+    operatorStakingAddressGen
 
   def unsignedHeaderGen(
     parentHeaderIdGen: Gen[TypedIdentifier] =
@@ -183,7 +183,7 @@ trait ModelGenerators {
       partialOperationalCertificateGen,
     metadataGen: Gen[Option[Sized.Max[Latin1Data, Lengths.`32`.type]]] =
       Gen.option(latin1DataGen.map(Sized.maxUnsafe[Latin1Data, Lengths.`32`.type](_))),
-    addressGen: Gen[StakingAddresses.Operator] = baseAddressGen
+    addressGen: Gen[StakingAddresses.Operator] = operatorStakingAddressGen
   ): Gen[BlockHeaderV2.Unsigned] =
     for {
       parentHeaderID <- parentHeaderIdGen
@@ -224,7 +224,7 @@ trait ModelGenerators {
     operationalCertificateGen: Gen[OperationalCertificate] = operationalCertificateGen,
     metadataGen: Gen[Option[Sized.Max[Latin1Data, Lengths.`32`.type]]] =
       Gen.option(latin1DataGen.map(Sized.maxUnsafe[Latin1Data, Lengths.`32`.type](_))),
-    addressGen: Gen[StakingAddresses.Operator] = baseAddressGen
+    addressGen: Gen[StakingAddresses.Operator] = operatorStakingAddressGen
   ): Gen[BlockHeaderV2] =
     for {
       parentHeaderID <- parentHeaderIdGen
@@ -680,7 +680,10 @@ trait ModelGenerators {
   implicit val arbitraryEta: Arbitrary[Eta] =
     Arbitrary(etaGen)
 
-  implicit val arbitraryTaktikosAddress: Arbitrary[StakingAddress] =
+  implicit val arbitraryOperatorStakingAddress: Arbitrary[StakingAddresses.Operator] =
+    Arbitrary(operatorStakingAddressGen)
+
+  implicit val arbitraryStakingAddress: Arbitrary[StakingAddress] =
     Arbitrary(stakingAddressGen)
 
   implicit class GenHelper[T](gen: Gen[T]) {

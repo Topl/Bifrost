@@ -4,7 +4,7 @@ import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import akka.util.Timeout
 import cats.arrow.FunctionK
-import cats.data.OptionT
+import cats.data.{Chain, OptionT}
 import cats.effect.implicits._
 import cats.effect.kernel.Sync
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig}
@@ -12,22 +12,28 @@ import cats.effect.{Async, IO, IOApp}
 import cats.implicits._
 import cats.~>
 import co.topl.algebras._
+import co.topl.blockchain.{BigBang, StakerInitializers}
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
-import co.topl.consensus.algebras.{EtaCalculationAlgebra, LeaderElectionValidationAlgebra}
-import co.topl.crypto.hash.{Blake2b256, Blake2b512}
+import co.topl.consensus.algebras.{
+  ConsensusValidationStateAlgebra,
+  EtaCalculationAlgebra,
+  LeaderElectionValidationAlgebra
+}
 import co.topl.crypto.generation.mnemonic.Entropy
+import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.interpreters._
 import co.topl.minting._
 import co.topl.minting.algebras.BlockMintAlgebra
+import co.topl.models.Box.Values.Registrations
 import co.topl.models._
+import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility._
 import co.topl.numerics.{ExpInterpreter, Log1pInterpreter}
-import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -49,7 +55,7 @@ object EligibilitySimulator extends IOApp.Simple {
   private val EpochLength = OperationalPeriodLength * OperationalPeriodsPerEpoch
   private val SlotDuration = 10.milli
   private val NumberOfStakers = 1
-  private val RelativeStake = Ratio(1, 1)
+  private val TotalStake = NumberOfStakers
   private val TargetHeight = 10_000L
   private val TestName = "test_threshold"
 
@@ -69,30 +75,14 @@ object EligibilitySimulator extends IOApp.Simple {
     new Ed25519().deriveKeyPairFromEntropy(Entropy.fromUuid(UUID.randomUUID()), None)
 
   private val stakers = List.fill(NumberOfStakers) {
-
-    implicit val ed25519Vrf: Ed25519VRF = Ed25519VRF.precomputed()
-    implicit val ed25519: Ed25519 = new Ed25519
-    implicit val kesProduct: KesProduct = new KesProduct
-
-    val (stakerVrfKey, _) =
-      ed25519Vrf.deriveKeyPairFromEntropy(Entropy.fromUuid(UUID.randomUUID()), None)
-
-    val (kesKey, _) =
-      kesProduct.createKeyPair(seed = Bytes(Random.nextBytes(32)), height = KesKeyHeight, 0)
-
-    val stakerRegistration: Box.Values.Registrations.Operator =
-      Box.Values.Registrations.Operator(
-        vrfCommitment = kesProduct.sign(
-          kesKey,
-          new Blake2b256().hash(ed25519Vrf.getVerificationKey(stakerVrfKey).immutableBytes, poolVK.bytes.data).data
-        )
-      )
-
-    Staker(RelativeStake, stakerVrfKey, kesKey, stakerRegistration, StakingAddresses.Operator(poolVK))
+    StakerInitializers.Operator(
+      Sized.strictUnsafe(Bytes(Random.nextBytes(32))),
+      KesKeyHeight
+    )
   }
 
   private val genesis =
-    BlockGenesis(Nil).value
+    BigBang.block(BigBang.Config(0L, Chain.empty))
 
   // Actor system initialization
 
@@ -107,16 +97,25 @@ object EligibilitySimulator extends IOApp.Simple {
 
   implicit private val logger: Logger[F] = Slf4jLogger.getLogger[F]
 
+  implicit private val networkPrefix: NetworkPrefix = NetworkPrefix(1)
+
   private val clock: ClockAlgebra[F] =
     SchedulerClock.Eval.make(SlotDuration, EpochLength, Instant.now())
 
   implicit private val timeout: Timeout = Timeout(20.seconds)
 
-  private def state: F[ConsensusStateReader[F]] =
-    NodeViewHolder.StaticData.make[F](
-      stakers.map(staker => staker.address -> staker.relativeStake).toMap,
-      stakers.map(staker => staker.address -> staker.registration).toMap
-    )
+  private val consensusValidationState: ConsensusValidationStateAlgebra[F] =
+    new ConsensusValidationStateAlgebra[F] {
+      private val registrations = stakers.map(staker => staker.stakingAddress -> staker.registration).toMap
+
+      def operatorRelativeStake(currentBlockId: TypedIdentifier, slot: Slot)(
+        address:                                StakingAddresses.Operator
+      ): F[Option[Ratio]] = Ratio(1, NumberOfStakers).some.pure[F]
+
+      def operatorRegistration(currentBlockId: TypedIdentifier, slot: Slot)(
+        address:                               StakingAddresses.Operator
+      ): F[Option[Registrations.Operator]] = registrations.get(address).pure[F]
+    }
 
   private val statsDir = Paths.get(".bifrost", "stats")
   Files.createDirectories(statsDir)
@@ -127,7 +126,7 @@ object EligibilitySimulator extends IOApp.Simple {
   private def mints(
     etaCalculation:          EtaCalculationAlgebra[F],
     leaderElectionThreshold: LeaderElectionValidationAlgebra[F],
-    state:                   ConsensusStateReader[F],
+    state:                   ConsensusValidationStateAlgebra[F],
     ed25519VRFResource:      UnsafeResource[F, Ed25519VRF],
     kesProductResource:      UnsafeResource[F, KesProduct],
     ed25519Resource:         UnsafeResource[F, Ed25519]
@@ -135,12 +134,11 @@ object EligibilitySimulator extends IOApp.Simple {
     stakers
       .parTraverse(staker =>
         for {
-          _            <- Logger[F].info(show"Initializing staker key idx=0 address=${staker.address}")
-          stakerKeyDir <- IO.blocking(Files.createTempDirectory(show"TetraDemoStaker${staker.address}"))
-          secureStore  <- InMemorySecureStore.Eval.make[F]
-          _            <- secureStore.write(UUID.randomUUID().toString, staker.kesKey)
+          _           <- Logger[F].info(show"Initializing staker key idx=0 address=${staker.stakingAddress}")
+          secureStore <- InMemorySecureStore.Eval.make[F]
+          _           <- secureStore.write(UUID.randomUUID().toString, staker.kesSK)
           vrfProofConstruction <- VrfProof.Eval.make[F](
-            staker.vrfKey,
+            staker.vrfSK,
             clock,
             leaderElectionThreshold,
             ed25519VRFResource,
@@ -158,23 +156,22 @@ object EligibilitySimulator extends IOApp.Simple {
             genesis.headerV2.slotId,
             operationalPeriodLength = OperationalPeriodLength,
             activationOperationalPeriod = 0L,
-            staker.address,
+            staker.stakingAddress,
             initialSlot = 0L
           )
-          stakerVRFVK <- ed25519VRFResource.use(_.getVerificationKey(staker.vrfKey).pure[F])
           mint =
             BlockMint.Eval.make(
               Staking.Eval.make(
-                staker.address,
+                staker.stakingAddress,
                 LeaderElectionMinting.Eval.make(
-                  stakerVRFVK,
+                  staker.vrfVK,
                   leaderElectionThreshold,
                   vrfProofConstruction,
                   statsInterpreter,
                   TestName + "Thresholds"
                 ),
                 operationalKeys,
-                VrfRelativeStakeMintingLookup.Eval.make(state, clock),
+                state,
                 etaCalculation,
                 ed25519Resource,
                 vrfProofConstruction,
@@ -218,9 +215,7 @@ object EligibilitySimulator extends IOApp.Simple {
       slotDataStore      <- RefStore.Eval.make[F, TypedIdentifier, SlotData]()
       blockHeaderStore   <- RefStore.Eval.make[F, TypedIdentifier, BlockHeaderV2]()
       blockBodyStore     <- RefStore.Eval.make[F, TypedIdentifier, BlockBodyV2]()
-      blockStore = createBlockStore(blockHeaderStore, blockBodyStore)
-      _ <- blockStore.put(genesis.headerV2.id, genesis)
-      _ <- slotDataStore.put(genesis.headerV2.id, genesis.headerV2.slotData(Ed25519VRF.precomputed()))
+      _                  <- slotDataStore.put(genesis.headerV2.id, genesis.headerV2.slotData(Ed25519VRF.precomputed()))
       etaCalculation <- EtaCalculation.Eval.make(
         slotDataStore.getOrRaise,
         clock,
@@ -233,12 +228,10 @@ object EligibilitySimulator extends IOApp.Simple {
       log1pCached <- Log1pInterpreter.makeCached[F](log1p)
       leaderElectionThreshold = LeaderElectionValidation.Eval.make[F](vrfConfig, blake2b512Resource, exp, log1pCached)
       leaderElectionThresholdCached <- LeaderElectionValidation.Eval.makeCached[F](leaderElectionThreshold)
-      consensusState                <- state
       underlyingHeaderValidation <- BlockHeaderValidation.Eval.make[F](
         etaCalculation,
-        VrfRelativeStakeValidationLookup.Eval.make(consensusState, clock),
+        consensusValidationState,
         leaderElectionThresholdCached,
-        RegistrationLookup.Eval.make(consensusState, clock),
         ed25519VRFResource,
         kesProductResource,
         ed25519Resource,
@@ -253,7 +246,7 @@ object EligibilitySimulator extends IOApp.Simple {
       m <- mints(
         etaCalculation,
         leaderElectionThresholdCached,
-        consensusState,
+        consensusValidationState,
         ed25519VRFResource,
         kesProductResource,
         ed25519Resource
@@ -264,7 +257,6 @@ object EligibilitySimulator extends IOApp.Simple {
           m,
           cachedHeaderValidation,
           blockHeaderStore,
-          blockStore,
           etaCalculation,
           localChain,
           ed25519VRFResource,
@@ -278,11 +270,3 @@ object EligibilitySimulator extends IOApp.Simple {
       Sync[F].delay(system.terminate()).flatMap(_ => Async[F].fromFuture(system.whenTerminated.pure[F])).void
     )
 }
-
-private case class Staker(
-  relativeStake: Ratio,
-  vrfKey:        SecretKeys.VrfEd25519,
-  kesKey:        SecretKeys.KesProduct,
-  registration:  Box.Values.Registrations.Operator,
-  address:       StakingAddresses.Operator
-)

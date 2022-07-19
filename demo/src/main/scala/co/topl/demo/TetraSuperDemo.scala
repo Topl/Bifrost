@@ -11,7 +11,7 @@ import cats.effect.unsafe.{IORuntime, IORuntimeConfig}
 import cats.effect.{Async, ExitCode, IO, IOApp}
 import cats.implicits._
 import co.topl.algebras._
-import co.topl.blockchain.{BigBang, Blockchain, Stakers}
+import co.topl.blockchain.{BigBang, Blockchain, StakerInitializers}
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
@@ -112,7 +112,7 @@ object TetraSuperDemo extends IOApp {
   private def runInstance(bigBangBlock: BlockV2.Full)(
     localPeer:                          LocalPeer,
     remotes:                            Source[DisconnectedPeer, _],
-    staker:                             Stakers.Operator,
+    staker:                             StakerInitializers.Operator,
     stakerName:                         String,
     stakerIndex:                        Int,
     mintingEnabled:                     Boolean,
@@ -331,6 +331,6 @@ case class DemoNodeConfig(
   val localPeer: LocalPeer =
     LocalPeer(inetSocketAddress, location)
 
-  val staker: Stakers.Operator =
-    Stakers.Operator(Sized.strictUnsafe(Bytes(Random.nextBytes(32))), DemoConfig.KesKeyHeight)
+  val staker: StakerInitializers.Operator =
+    StakerInitializers.Operator(Sized.strictUnsafe(Bytes(Random.nextBytes(32))), DemoConfig.KesKeyHeight)
 }

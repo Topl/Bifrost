@@ -45,13 +45,12 @@ object OperationalKeys {
       operationalPeriodLength:     Long,
       activationOperationalPeriod: Long,
       address:                     StakingAddresses.Operator,
-      initialSlot:                 Slot,
-      initialBlockId:              TypedIdentifier
+      initialSlot:                 Slot
     ): F[OperationalKeysAlgebra[F]] =
       for {
         initialOperationalPeriod <- (initialSlot / operationalPeriodLength).pure[F]
         initialKeysOpt <-
-          OptionT(consensusState.operatorRelativeStake(initialBlockId, initialSlot)(address))
+          OptionT(consensusState.operatorRelativeStake(parentSlotId.blockId, initialSlot)(address))
             .flatMapF(relativeStake =>
               consumeEvolvePersist(
                 (initialOperationalPeriod - activationOperationalPeriod).toInt,

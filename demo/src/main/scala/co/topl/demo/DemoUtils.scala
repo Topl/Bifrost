@@ -7,7 +7,7 @@ import cats.effect.Async
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras._
-import co.topl.blockchain.Stakers
+import co.topl.blockchain.StakerInitializers
 import co.topl.catsakka.FToFuture
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
@@ -43,7 +43,7 @@ object DemoUtils {
 
   def createMint[F[_]: Async: Parallel: FToFuture](
     bigBangHeader:               BlockHeaderV2,
-    staker:                      Stakers.Operator,
+    staker:                      StakerInitializers.Operator,
     clock:                       ClockAlgebra[F],
     etaCalculation:              EtaCalculationAlgebra[F],
     consensusState:              ConsensusValidationStateAlgebra[F],
@@ -93,8 +93,7 @@ object DemoUtils {
         operationalPeriodLength = operationalPeriodLength,
         activationOperationalPeriod = 0L,
         staker.stakingAddress,
-        initialSlot = initialSlot,
-        bigBangHeader.id
+        initialSlot = initialSlot
       )
       mint =
         BlockMint.Eval.make(
@@ -131,9 +130,9 @@ object DemoUtils {
         )
     } yield perpetual
 
-  def computeStakers(count: Int, random: Random): List[Stakers.Operator] =
+  def computeStakers(count: Int, random: Random): List[StakerInitializers.Operator] =
     List.fill(count) {
-      Stakers.Operator(Sized.strictUnsafe(Bytes(random.nextBytes(32))), DemoConfig.KesKeyHeight)
+      StakerInitializers.Operator(Sized.strictUnsafe(Bytes(random.nextBytes(32))), DemoConfig.KesKeyHeight)
     }
 
   val loggerColors = List(
@@ -164,7 +163,7 @@ object DemoConfig {
   val OperationalPeriodsPerEpoch: Long = 2L
 
   val ChainSelectionSWindow: Long =
-    (Ratio(ChainSelectionKLookback, 4) * fEffective.inverse).toDouble.ceil.round
+    (Ratio(ChainSelectionKLookback, 4L) * fEffective.inverse).round.toLong
 
   val EpochLength: Long =
     ChainSelectionSWindow * 6

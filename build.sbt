@@ -592,7 +592,15 @@ lazy val eligibilitySimulator: Project = project
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.demo ++ Dependencies.catsEffect)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models % "compile->compile;test->test", typeclasses, consensus, minting, commonInterpreters, numerics)
+  .dependsOn(
+    models % "compile->compile;test->test",
+    typeclasses,
+    consensus,
+    minting,
+    commonInterpreters,
+    numerics,
+    blockchain
+  )
   .enablePlugins(BuildInfoPlugin)
 
 lazy val scripting: Project = project

@@ -46,7 +46,7 @@ class EtaCalculationSpec
     val clock = mock[ClockAlgebra[F]]
     val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
     val blake2b512Resource = mock[UnsafeResource[F, Blake2b512]]
-    val genesis = arbitraryHeader.arbitrary.first
+    val bigBangHeader = arbitraryHeader.arbitrary.first.copy(slot = 0L, parentSlot = -1L)
 
     (() => clock.slotsPerEpoch)
       .expects()
@@ -60,7 +60,7 @@ class EtaCalculationSpec
         .make[F](
           fetchSlotData,
           clock,
-          genesis.eligibilityCertificate.eta,
+          bigBangHeader.eligibilityCertificate.eta,
           blake2b256Resource,
           blake2b512Resource
         )
@@ -73,16 +73,16 @@ class EtaCalculationSpec
         ed25519Vrf.sign(
           skVrf,
           LeaderElectionValidation
-            .VrfArgument(genesis.eligibilityCertificate.eta, slot)
+            .VrfArgument(bigBangHeader.eligibilityCertificate.eta, slot)
             .signableBytes
         )
       slot -> signature
     }
 
     val blocks: List[BlockHeaderV2] =
-      genesis ::
+      bigBangHeader ::
       LazyList
-        .unfold(List(genesis)) {
+        .unfold(List(bigBangHeader)) {
           case items if items.length == args.length + 1 => None
           case items =>
             val (slot, signature) = args(items.length - 1)
@@ -90,7 +90,7 @@ class EtaCalculationSpec
               slotGen = Gen.const[Long](slot),
               parentSlotGen = Gen.const(items.last.slot),
               eligibilityCertificateGen = eligibilityCertificateGen.map(c =>
-                c.copy(vrfSig = signature, eta = genesis.eligibilityCertificate.eta)
+                c.copy(vrfSig = signature, eta = bigBangHeader.eligibilityCertificate.eta)
               ),
               parentHeaderIdGen = Gen.const(items.last.id)
             ).first
@@ -122,7 +122,7 @@ class EtaCalculationSpec
 
     val expected =
       EtaCalculationSpec.expectedEta(
-        genesis.eligibilityCertificate.eta,
+        bigBangHeader.eligibilityCertificate.eta,
         epoch + 1,
         blocks.map(_.eligibilityCertificate.vrfSig).map(ed25519Vrf.proofToHash)
       )
@@ -135,7 +135,7 @@ class EtaCalculationSpec
     val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
     val blake2b512Resource = mock[UnsafeResource[F, Blake2b512]]
     val fetchSlotData = mockFunction[TypedIdentifier, F[SlotData]]
-    val genesis = arbitraryHeader.arbitrary.first
+    val bigBangHeader = arbitraryHeader.arbitrary.first.copy(slot = 0L, parentSlot = -1L)
 
     (() => clock.slotsPerEpoch)
       .expects()
@@ -147,7 +147,7 @@ class EtaCalculationSpec
         .make[F](
           fetchSlotData,
           clock,
-          genesis.eligibilityCertificate.eta,
+          bigBangHeader.eligibilityCertificate.eta,
           blake2b256Resource,
           blake2b512Resource
         )
@@ -155,9 +155,9 @@ class EtaCalculationSpec
     val epoch = 0L
 
     fetchSlotData
-      .expects(byteByteVectorTupleAsTypedBytes(genesis.id))
+      .expects(byteByteVectorTupleAsTypedBytes(bigBangHeader.id))
       .once()
-      .returning(genesis.slotData.pure[F])
+      .returning(bigBangHeader.slotData.pure[F])
 
     (blake2b256Resource
       .use[NonEmptyChain[RhoNonceHash]](_: Function1[Blake2b256, F[NonEmptyChain[RhoNonceHash]]]))
@@ -172,13 +172,13 @@ class EtaCalculationSpec
       .onCall { f: Function1[Blake2b512, F[NonEmptyChain[RhoNonceHash]]] => f(blake2b512) }
 
     val actual =
-      underTest.etaToBe(genesis.slotId, 16L).unsafeRunSync()
+      underTest.etaToBe(bigBangHeader.slotId, 16L).unsafeRunSync()
 
     val expected =
       EtaCalculationSpec.expectedEta(
-        genesis.eligibilityCertificate.eta,
+        bigBangHeader.eligibilityCertificate.eta,
         epoch + 1,
-        List(ed25519Vrf.proofToHash(genesis.eligibilityCertificate.vrfSig))
+        List(ed25519Vrf.proofToHash(bigBangHeader.eligibilityCertificate.vrfSig))
       )
 
     actual shouldBe expected

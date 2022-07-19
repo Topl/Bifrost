@@ -9,17 +9,29 @@ import co.topl.models.utility.{Lengths, Sized}
 import co.topl.models._
 import co.topl.typeclasses.implicits._
 
-sealed abstract class Staker
+/**
+ * Represents the data required to initialize a new staking.  This includes the necessary secret keys, plus their
+ * derived verification keys and addresses.
+ */
+sealed abstract class StakerInitializer
 
-object Stakers {
+object StakerInitializers {
 
+  /**
+   * An initializer for an Operator.  An Operator needs the full suite of keys in order to perform its duties.
+   * @param operatorSK The operator's registration key
+   * @param walletSK The operator's offline wallet key
+   * @param spendingSK The operator's key with authority to spend its stake and registration
+   * @param vrfSK The operator's VRF/eligibility/PoS key
+   * @param kesSK The operator's forward-secure key
+   */
   case class Operator(
     operatorSK: SecretKeys.Ed25519,
     walletSK:   SecretKeys.Ed25519,
     spendingSK: SecretKeys.Ed25519,
     vrfSK:      SecretKeys.VrfEd25519,
     kesSK:      SecretKeys.KesProduct
-  ) extends Staker {
+  ) extends StakerInitializer {
 
     val vrfVK: VerificationKeys.VrfEd25519 =
       Ed25519VRF.precomputed().getVerificationKey(vrfSK)
@@ -57,6 +69,9 @@ object Stakers {
         )
       )
 
+    /**
+     * This staker's initial stake in the network
+     */
     def bigBangOutputs(stake: Int128)(implicit networkPrefix: NetworkPrefix): Chain[Transaction.Output] =
       Chain(
         Transaction.Output(address, Box.Values.Arbit(stake), minting = true),
@@ -81,22 +96,22 @@ object Stakers {
       val blake2b256 = new Blake2b256()
 
       val (operatorSK, _) = new Ed25519().deriveKeyPairFromSeed(
-        blake2b256.hash(seed.data ++ Bytes.fromByte(1))
+        blake2b256.hash(seed.data :+ 1)
       )
       val (walletSK, _) = new Ed25519().deriveKeyPairFromSeed(
-        blake2b256.hash(seed.data ++ Bytes.fromByte(2))
+        blake2b256.hash(seed.data :+ 2)
       )
       val (spendingSK, _) = new Ed25519().deriveKeyPairFromSeed(
-        blake2b256.hash(seed.data ++ Bytes.fromByte(3))
+        blake2b256.hash(seed.data :+ 3)
       )
       val (vrfSK, _) =
         Ed25519VRF
           .precomputed()
           .deriveKeyPairFromSeed(
-            blake2b256.hash(seed.data ++ Bytes.fromByte(3))
+            blake2b256.hash(seed.data :+ 4)
           )
       val (kesSK, _) = new KesProduct().createKeyPair(
-        seed = blake2b256.hash(seed.data ++ Bytes.fromByte(4)).data,
+        seed = blake2b256.hash(seed.data :+ 5).data,
         height = kesKeyHeight,
         0
       )
