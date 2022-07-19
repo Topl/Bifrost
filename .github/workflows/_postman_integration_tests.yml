@@ -57,8 +57,8 @@ jobs:
           path: |
             **/target/**
             !**/test-results/**
-          key: ${{ runner.os }}-project-${{ github.base_ref }}-${{ github.run_number }}
-          restore-keys: ${{ inputs.preserve-cache-between-runs && runner.os-project-github.base_ref- || runner.os-project-github.base_ref-github.run_number }}
+          key: ${{ format('{0}-project-{1}-{2}', runner.os, github.base_ref, github.run_number) }}
+          restore-keys: ${{ inputs.preserve-cache-between-runs && format('{0}-project-{1}-', runner.os, github.base_ref) || format('{0}-project-{1}-{2}', runner.os, github.base_ref, github.run_number) }}
 
       - name: Checkout current
         run: git checkout .
