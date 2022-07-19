@@ -56,7 +56,7 @@ jobs:
           path: |
             **/target/**
             !**/test-results/**
-          key: ${{ format({0]-{1}-{2}, runner.os-project, github.base_ref, github.run_number) }}
+          key: ${{ format({0}-{1}-{2}, runner.os-project, github.base_ref, github.run_number) }}
           restore-keys: ${{ inputs.preserve-cache-between-runs && runner.os-project-github.base_ref- || runner.os-project-github.base_ref-github.run_number }}
 
       - run: echo ${{ inputs.preserve-cache-between-runs && runner.os-project-github.base_ref- || runner.os-project-github.base_ref-github.run_number }}
