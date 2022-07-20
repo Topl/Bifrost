@@ -639,7 +639,7 @@ lazy val tools = project
     publishSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.tools",
-    libraryDependencies ++= Dependencies.tools
+    libraryDependencies ++= Dependencies.mongoDb
   )
   .dependsOn(common)
 
