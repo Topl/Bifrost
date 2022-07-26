@@ -1,4 +1,5 @@
 # Publish a test report for the individual GitHub action utilizing https://github.com/marketplace/actions/publish-unit-test-results.
+# Artifacts can be found on the summary page for each individual workflow run.
 name: Publish Test Results
 
 on:

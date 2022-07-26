@@ -63,7 +63,8 @@ jobs:
       - name: Integration Tests
         run: docker-compose -f ./node/src/it/resources/postman-tests/docker-compose.yml up --exit-code-from postman
 
-      # Upload JUnit test results so that we can publish a test report in our workflow.
+      # Upload JUnit test results as an artifact so that we can publish a test report in our workflow.
+      # Artifacts can be found on the summary page for each individual workflow run.
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v3
