@@ -5,32 +5,32 @@ on:
     branches: [dev, main, release-*, rc-*]
   workflow_dispatch:
 
+env:
+  TARGET_OS: >-
+    ["ubuntu-latest"]
+  JAVA_VERSIONS: >-
+    ["graalvm-ce-java11@21.1.0"]
+
 jobs:
   sbt-build:
     uses: ./.github/workflows/_sbt_build.yml
     with:
-      target-os: >-
-        ["ubuntu-latest"]
-      java-versions: >-
-        ["graalvm-ce-java11@21.1.0"]
+      target-os: ${{ env.TARGET_OS }}
+      java-versions: ${{ env.JAVA_VERSIONS }}
 
   sbt-integration-tests:
     uses: ./.github/workflows/_scala_integration_tests.yml
     needs: sbt-build
     with:
-      target-os: >-
-        ["ubuntu-latest"]
-      java-versions: >-
-        ["graalvm-ce-java11@21.1.0"]
+      target-os: ${{ env.TARGET_OS }}
+      java-versions: ${{ env.JAVA_VERSIONS }}
 
   post-man-integration-tests:
     uses: ./.github/workflows/_postman_integration_tests.yml
     needs: sbt-build
     with:
-      target-os: >-
-        ["ubuntu-latest"]
-      java-versions: >-
-        ["graalvm-ce-java11@21.1.0"]
+      target-os: ${{ env.TARGET_OS }}
+      java-versions: ${{ env.JAVA_VERSIONS }}
 
   publish-test-results:
     uses: ./.github/workflows/_publish_test_results.yml
