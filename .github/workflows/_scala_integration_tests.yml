@@ -68,7 +68,7 @@ jobs:
           IMAGE_ID=$(docker build -q -f node/src/it/resources/Dockerfile .)
           && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd)/node/target/it-reports:/bifrost/node/target/it-reports -v ~/.cache:/root/.cache -v ~/.ivy2/cache:/root/.ivy2/cache $IMAGE_ID sbt node/docker:publishLocal node/it:test
           && docker image rm -f $IMAGE_ID
-
+      # Upload JUnit test results so that we can publish a test report in our workflow.
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v3

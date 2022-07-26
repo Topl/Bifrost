@@ -1,3 +1,4 @@
+# Publish a test report for the individual GitHub action utilizing https://github.com/marketplace/actions/publish-unit-test-results.
 name: Publish Test Results
 
 on:
@@ -19,7 +20,7 @@ jobs:
           path: artifacts
 
       - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v1.35
+        uses: EnricoMi/publish-unit-test-result-action@v1
         with:
           files: "artifacts/**/*.xml"
           check_run_annotations_branch: main, dev
