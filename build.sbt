@@ -438,7 +438,8 @@ lazy val consensus = project
     tetraByteCodecs,
     algebras % "compile->compile;test->test",
     numerics,
-    eventTree
+    eventTree,
+    munitScalamock % "test->test"
   )
 
 lazy val minting = project

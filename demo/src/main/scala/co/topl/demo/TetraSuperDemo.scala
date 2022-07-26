@@ -146,8 +146,6 @@ object TetraSuperDemo extends IOApp {
         operatorStakesStore  <- RefStore.Eval.make[F, StakingAddresses.Operator, Int128]()
         totalStakesStore     <- RefStore.Eval.make[F, Unit, Int128]()
         registrationsStore   <- RefStore.Eval.make[F, StakingAddresses.Operator, Box.Values.Registrations.Operator]()
-        _                    <- epochBoundariesStore.put(-2, bigBangBlock.headerV2.id)
-        _                    <- epochBoundariesStore.put(-1, bigBangBlock.headerV2.id)
         _ <- slotDataStore.put(bigBangBlock.headerV2.id, bigBangBlock.headerV2.slotData(Ed25519VRF.precomputed()))
         _ <- blockHeaderStore.put(bigBangBlock.headerV2.id, bigBangBlock.headerV2)
         _ <- blockBodyStore.put(
@@ -198,7 +196,7 @@ object TetraSuperDemo extends IOApp {
             transactionStore.getOrRaise(boxId.transactionId).map(_.outputs.get(boxId.transactionOutputIndex.toLong).get)
         )
         consensusValidationState <- ConsensusValidationState
-          .make[F](blockHeaderStore.getOrRaise, epochBoundariesState, consensusDataState, clock)
+          .make[F](epochBoundariesState, consensusDataState, clock)
         underlyingHeaderValidation <- BlockHeaderValidation.Eval.make[F](
           etaCalculation,
           consensusValidationState,
