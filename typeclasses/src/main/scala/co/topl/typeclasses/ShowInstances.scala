@@ -34,6 +34,9 @@ trait ShowInstances {
   implicit val showRho: Show[Rho] =
     _.sizedBytes.show
 
+  implicit val showStakingAddressesOperator: Show[StakingAddresses.Operator] =
+    showBytes.contramap[StakingAddresses.Operator](_.immutableBytes)
+
   implicit val showStakingAddress: Show[StakingAddress] =
     showBytes.contramap[StakingAddress](_.immutableBytes)
 

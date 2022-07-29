@@ -1,12 +1,13 @@
 package co.topl.consensus.interpreters
 
-import cats.data.OptionT
+import cats.data.{Chain, OptionT}
 import cats.effect.Async
 import cats.implicits._
 import cats.{MonadThrow, Monoid}
 import co.topl.algebras._
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.models._
+import co.topl.typeclasses.implicits._
 import co.topl.models.utility.HasLength.instances.bigIntLength
 import co.topl.models.utility.Sized
 
@@ -57,8 +58,9 @@ object ConsensusDataEventSourcedState {
         stakeChanges        <- transactions.foldMapM(calculateStakeChanges)
         registrationChanges <- transactions.foldMapM(calculateRegistrationChanges)
         previousTotalStake  <- state.totalActiveStake.getOrRaise(())
-        _ <- state.totalActiveStake.put((), Sized.maxUnsafe(previousTotalStake.data + stakeChanges.totalStakeChange))
-        _ <- stakeChanges.deltas.toSeq.traverseTap { case (address, quantity) =>
+        newTotalStake = stakeChanges.map(_.delta).prepend(previousTotalStake.data).sumAll
+        _ <- state.totalActiveStake.put((), Sized.maxUnsafe(newTotalStake))
+        _ <- stakeChanges.traverseTap { case StakeChange(address, quantity) =>
           OptionT(state.operatorStakes.get(address))
             .fold(quantity)(_.data + quantity)
             .map[Int128](Sized.maxUnsafe)
@@ -72,30 +74,26 @@ object ConsensusDataEventSourcedState {
         }
       } yield state
 
-    private def calculateStakeChanges(transaction: Transaction): F[StakeChanges] =
+    private def calculateStakeChanges(transaction: Transaction): F[Chain[StakeChange]] =
       for {
-        inputStakeChanges <- transaction.inputs
+        inputAddressQuantities <- transaction.inputs
           .collect { case Transaction.Input(boxId, _, _, Box.Values.Arbit(quantity)) =>
-            boxId -> (quantity.data * -1)
+            boxId -> -quantity.data
           }
-          .foldMapM { case (boxId, negativeQuantity) =>
-            fetchTransactionOutput(boxId).map(output =>
-              output.address.stakingAddress match {
-                case StakingAddresses.NonStaking =>
-                  StakeChanges(Map.empty, negativeQuantity)
-                case s: StakingAddresses.Operator =>
-                  StakeChanges(Map(s -> (negativeQuantity)), negativeQuantity)
-              }
-            )
+          .traverse { case (boxId, quantity) =>
+            fetchTransactionOutput(boxId).map(_.address.stakingAddress).tupleRight(quantity)
           }
-        outputStakeChanges = transaction.outputs.foldMap {
+        inputStakeChanges =
+          inputAddressQuantities.collect { case (s: StakingAddresses.Operator, quantity) =>
+            StakeChange(s, quantity)
+          }
+        outputStakeChanges = transaction.outputs.collect {
           case Transaction
                 .Output(FullAddress(_, _, o: StakingAddresses.Operator, _), Box.Values.Arbit(quantity), _) =>
-            StakeChanges(Map(o -> quantity.data), quantity.data)
-          case _ =>
-            Monoid[StakeChanges].empty
+            StakeChange(o, quantity.data)
         }
-      } yield inputStakeChanges.combine(outputStakeChanges)
+        result = inputStakeChanges ++ outputStakeChanges
+      } yield result
 
     private def calculateRegistrationChanges(
       transaction: Transaction
@@ -107,9 +105,7 @@ object ConsensusDataEventSourcedState {
           }
           .pure[F]
         allStakingAddresses <- spentOperatorBoxIds.traverse(fetchTransactionOutput(_).map(_.address.stakingAddress))
-        operatorAddresses = allStakingAddresses.toIterable
-          .flatMap(_.some.collect { case o: StakingAddresses.Operator => o })
-          .toSet
+        operatorAddresses = allStakingAddresses.toIterable.collect { case o: StakingAddresses.Operator => o }.toSet
         deregistrations = operatorAddresses.toList.tupleRight(none[Box.Values.Registrations.Operator]).toMap
         registrations = transaction.outputs
           .collect {
@@ -122,7 +118,7 @@ object ConsensusDataEventSourcedState {
           }
           .toIterable
           .toMap
-      } yield deregistrations.combine(registrations)
+      } yield deregistrations ++ registrations
 
   }
 
@@ -139,12 +135,13 @@ object ConsensusDataEventSourcedState {
         stakeChanges        <- transactions.foldMapM(calculateStakeChanges)
         registrationChanges <- transactions.foldMapM(calculateRegistrationChanges)
         previousTotalStake  <- state.totalActiveStake.getOrRaise(())
-        _ <- state.totalActiveStake.put((), Sized.maxUnsafe(previousTotalStake.data + stakeChanges.totalStakeChange))
-        _ <- stakeChanges.deltas.toSeq.traverseTap { case (address, quantity) =>
-          OptionT(state.operatorStakes.get(address))
-            .fold(quantity)(_.data + quantity)
+        newTotalStake = stakeChanges.map(_.delta).append(previousTotalStake.data).sumAll
+        _ <- state.totalActiveStake.put((), Sized.maxUnsafe(newTotalStake))
+        _ <- stakeChanges.traverseTap { stakeChange =>
+          OptionT(state.operatorStakes.get(stakeChange.address))
+            .fold(stakeChange.delta)(_.data + stakeChange.delta)
             .map[Int128](Sized.maxUnsafe)
-            .flatMap(newQuantity => state.operatorStakes.put(address, newQuantity))
+            .flatMap(newQuantity => state.operatorStakes.put(stakeChange.address, newQuantity))
         }
         _ <- registrationChanges.toSeq.traverseTap {
           case (address, Some(registration)) =>
@@ -154,41 +151,39 @@ object ConsensusDataEventSourcedState {
         }
       } yield state
 
-    private def calculateStakeChanges(transaction: Transaction): F[StakeChanges] =
+    private def calculateStakeChanges(transaction: Transaction): F[Chain[StakeChange]] =
       for {
         outputStakeChanges <- transaction.outputs.reverse
-          .foldMap {
+          .collect {
             case Transaction
                   .Output(FullAddress(_, _, o: StakingAddresses.Operator, _), Box.Values.Arbit(quantity), _) =>
-              val negativeQuantity = quantity.data * -1
-              StakeChanges(Map(o -> negativeQuantity), negativeQuantity)
+              StakeChange(o, -quantity.data)
           }
           .pure[F]
-        inputStakeChanges <- transaction.inputs.reverse
+        inputAddressQuantities <- transaction.inputs.reverse
           .collect { case Transaction.Input(boxId, _, _, Box.Values.Arbit(quantity)) =>
             boxId -> quantity.data
           }
-          .foldMapM { case (boxId, quantity) =>
-            fetchTransactionOutput(boxId).map(output =>
-              output.address.stakingAddress match {
-                case StakingAddresses.NonStaking =>
-                  StakeChanges(Map.empty, quantity)
-                case s: StakingAddresses.Operator =>
-                  StakeChanges(Map(s -> (quantity)), quantity)
-              }
-            )
+          .traverse { case (boxId, quantity) =>
+            fetchTransactionOutput(boxId)
+              .map(_.address.stakingAddress)
+              .tupleRight(quantity)
           }
-      } yield outputStakeChanges.combine(inputStakeChanges)
+        inputStakeChanges =
+          inputAddressQuantities.collect { case (s: StakingAddresses.Operator, quantity) =>
+            StakeChange(s, quantity)
+          }
+      } yield outputStakeChanges ++ inputStakeChanges
 
     private def calculateRegistrationChanges(
       transaction: Transaction
     ): F[Map[StakingAddresses.Operator, Option[Box.Values.Registrations.Operator]]] =
       for {
-        registrations <- transaction.outputs.reverse
+        deregistrations <- transaction.outputs.reverse
           .collect {
             case Transaction.Output(
                   FullAddress(_, _, a: StakingAddresses.Operator, _),
-                  o: Box.Values.Registrations.Operator,
+                  _: Box.Values.Registrations.Operator,
                   _
                 ) =>
               a -> none[Box.Values.Registrations.Operator]
@@ -204,27 +199,15 @@ object ConsensusDataEventSourcedState {
         addressedBoxes <- spentOperatorBoxes.traverse { case (boxId, value) =>
           fetchTransactionOutput(boxId).map(_.address.stakingAddress).tupleRight(value)
         }
-        deregistrations = addressedBoxes.toIterable
+        registrations = addressedBoxes.toIterable
           .flatMap(_.some.collect { case (o: StakingAddresses.Operator, value) => o -> value.some })
           .toMap
-      } yield registrations.combine(deregistrations)
+      } yield deregistrations ++ registrations
   }
 
-  private case class StakeChanges(deltas: Map[StakingAddresses.Operator, BigInt], totalStakeChange: BigInt)
+  private case class StakeChange(address: StakingAddresses.Operator, delta: BigInt)
 
-  implicit private val stakeChangesMonoid: Monoid[StakeChanges] =
-    Monoid.instance(
-      StakeChanges(Map.empty, BigInt(0)),
-      (a, b) => {
-        val newDeltas =
-          b.deltas.foldLeft(a.deltas) { case (deltas, (address, quantity)) =>
-            deltas.updatedWith(address)(_.fold(quantity)(_ + quantity).some)
-          }
-        StakeChanges(newDeltas, a.totalStakeChange + b.totalStakeChange)
-      }
-    )
-
-  implicit private val registrationChangesMonoid
-    : Monoid[Map[StakingAddresses.Operator, Option[Box.Values.Registrations.Operator]]] =
+  implicit
+  val registrationChangesMonoid: Monoid[Map[StakingAddresses.Operator, Option[Box.Values.Registrations.Operator]]] =
     Monoid.instance(Map.empty, _ ++ _)
 }

@@ -16,7 +16,7 @@ import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus._
-import co.topl.consensus.interpreters.ConsensusValidationState
+import co.topl.consensus.interpreters._
 import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.crypto.signing.{Curve25519, Ed25519, Ed25519VRF, ExtendedEd25519, KesProduct}
 import co.topl.interpreters._
@@ -179,24 +179,26 @@ object TetraSuperDemo extends IOApp {
         log1p       <- Log1pInterpreter.make[F](10000, 8)
         log1pCached <- Log1pInterpreter.makeCached[F](log1p)
         leaderElectionThreshold = LeaderElectionValidation.Eval.make[F](vrfConfig, blake2b512Resource, exp, log1pCached)
-        epochBoundariesState <- ConsensusValidationState.EpochBoundariesEventSourcedState.make[F](
+        epochBoundariesState <- EpochBoundariesEventSourcedState.make[F](
           clock,
           bigBangBlock.headerV2.id.asTypedBytes.pure[F],
           blockIdTree,
           epochBoundariesStore.pure[F],
           slotDataStore.getOrRaise
         )
-        consensusDataState <- ConsensusValidationState.ConsensusDataEventSourcedState.make[F](
+        consensusDataState <- ConsensusDataEventSourcedState.make[F](
           bigBangBlock.headerV2.parentHeaderId.pure[F],
           blockIdTree,
-          ConsensusValidationState.ConsensusData(operatorStakesStore, totalStakesStore, registrationsStore).pure[F],
+          ConsensusDataEventSourcedState
+            .ConsensusData(operatorStakesStore, totalStakesStore, registrationsStore)
+            .pure[F],
           blockBodyStore.getOrRaise,
           transactionStore.getOrRaise,
           boxId =>
             transactionStore.getOrRaise(boxId.transactionId).map(_.outputs.get(boxId.transactionOutputIndex.toLong).get)
         )
         consensusValidationState <- ConsensusValidationState
-          .make[F](epochBoundariesState, consensusDataState, clock)
+          .make[F](bigBangBlock.headerV2.id, epochBoundariesState, consensusDataState, clock)
         underlyingHeaderValidation <- BlockHeaderValidation.Eval.make[F](
           etaCalculation,
           consensusValidationState,

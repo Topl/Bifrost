@@ -134,7 +134,7 @@ object EligibilitySimulator extends IOApp.Simple {
     stakers
       .parTraverse(staker =>
         for {
-          _           <- Logger[F].info(show"Initializing staker key idx=0 address=${staker.stakingAddress}")
+          _           <- Logger[F].info(show"Initializing staker key idx=0 address=${staker.stakingAddress.show}")
           secureStore <- InMemorySecureStore.Eval.make[F]
           _           <- secureStore.write(UUID.randomUUID().toString, staker.kesSK)
           vrfProofConstruction <- VrfProof.Eval.make[F](

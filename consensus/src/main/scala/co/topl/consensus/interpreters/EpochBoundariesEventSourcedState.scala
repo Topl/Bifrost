@@ -10,13 +10,11 @@ import co.topl.models._
 /**
  * An EventSourcedState which operates on an `EpochBoundaries`.
  *
- * Applying a block depends on whether or not the block crosses an epoch boundary.  If the block crosses an epoch
- * boundary, its parent is added to the EpochBoundaries store.  If the block does not cross an epoch boundary,
- * no operation takes place.
+ * Applying a block simply marks that particular block as the epoch boundary for that epoch.
  *
  * Unapplying a block depends on whether or not the block crosses an epoch boundary.  If the block crosses an epoch
- * boundary, its parent is removed from the EpochBoundaries store.  If the block does not cross an epoch boundary,
- * no operation takes place.
+ * boundary, the block's epoch is removed from the store.  If the block does not cross an epoch boundary, the block's
+ * parent is set to the epoch's boundary.
  */
 object EpochBoundariesEventSourcedState {
 
@@ -32,29 +30,20 @@ object EpochBoundariesEventSourcedState {
   ): F[EventSourcedState[F, EpochBoundaries[F]]] = {
     def applyBlock(state: EpochBoundaries[F], blockId: TypedIdentifier) =
       for {
-        slotData    <- fetchSlotData(blockId)
-        epoch       <- clock.epochOf(slotData.slotId.slot)
-        parentEpoch <- clock.epochOf(slotData.parentSlotId.slot)
-        newState <- (epoch === parentEpoch)
-          .pure[F]
-          .ifM(
-            ifTrue = state.pure[F],
-            ifFalse = state.put(parentEpoch, slotData.parentSlotId.blockId).as(state)
-          )
-      } yield newState
+        slotData <- fetchSlotData(blockId)
+        epoch    <- clock.epochOf(slotData.slotId.slot)
+        _        <- state.put(epoch, blockId)
+      } yield state
 
     def unapplyBlock(state: EpochBoundaries[F], blockId: TypedIdentifier) =
       for {
         slotData    <- fetchSlotData(blockId)
         epoch       <- clock.epochOf(slotData.slotId.slot)
         parentEpoch <- clock.epochOf(slotData.parentSlotId.slot)
-        newState <- (epoch === parentEpoch)
-          .pure[F]
-          .ifM(
-            ifTrue = state.pure[F],
-            ifFalse = state.remove(parentEpoch).as(state)
-          )
-      } yield newState
+        _ <-
+          if (epoch === parentEpoch) state.put(epoch, slotData.parentSlotId.blockId)
+          else state.remove(epoch).as(state)
+      } yield state
 
     EventSourcedState.OfTree.make(
       initialState = initialState,

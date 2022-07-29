@@ -67,8 +67,8 @@ object DemoUtils {
     vrfConfig: VrfConfig
   ): F[PerpetualBlockMintAlgebra[F]] =
     for {
-      _            <- Logger[F].info(show"Initializing staker key idx=0 address=${staker.stakingAddress}")
-      stakerKeyDir <- Async[F].blocking(Files.createTempDirectory(show"TetraDemoStaker${staker.stakingAddress}"))
+      _            <- Logger[F].info(show"Initializing staker key idx=0 address=${staker.stakingAddress.show}")
+      stakerKeyDir <- Async[F].blocking(Files.createTempDirectory(show"TetraDemoStaker${staker.stakingAddress.show}"))
       secureStore  <- AkkaSecureStore.Eval.make[F](stakerKeyDir)
       _            <- secureStore.write(UUID.randomUUID().toString, staker.kesSK)
       vrfProofConstruction <- VrfProof.Eval.make[F](
