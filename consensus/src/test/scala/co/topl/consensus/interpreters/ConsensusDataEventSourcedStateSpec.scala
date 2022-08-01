@@ -45,9 +45,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
           TestStore.make[F, StakingAddresses.Operator, Int128],
           TestStore.make[F, Unit, Int128],
           TestStore.make[F, StakingAddresses.Operator, Box.Values.Registrations.Operator]
-        ).mapN((operatorStakes, totalActiveStake, registrations) =>
-          ConsensusDataEventSourcedState.ConsensusData[F](operatorStakes, totalActiveStake, registrations)
-        )
+        ).mapN(ConsensusDataEventSourcedState.ConsensusData[F])
         _                <- initialState.totalActiveStake.put((), 0)
         bodyStore        <- TestStore.make[F, TypedIdentifier, BlockBodyV2]
         transactionStore <- TestStore.make[F, TypedIdentifier, Transaction]
@@ -66,6 +64,9 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
         _ <- bodyStore.put(bigBangId, ListSet(bigBangBlockTransaction.id.asTypedBytes))
         _ <- transactionStore.put(bigBangBlockTransaction.id, bigBangBlockTransaction)
 
+        // Start from 0 Arbits
+        // Move 5 Arbits to the Operator
+
         _ <- underTest.useStateAt(bigBangId)(state =>
           state.totalActiveStake.getOrRaise(()).assertEquals(5: Int128) >>
           state.operatorStakes
@@ -73,6 +74,8 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
             .assertEquals(5: Int128)
         )
 
+        // Now spend those 5 arbits from the Operator
+        // And create 3 arbits for the Operator and 2 arbits for a non-operator
         transaction2 = Transaction(
           Chain(
             Transaction.Input(
@@ -102,6 +105,8 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
             .assertEquals(3: Int128)
         )
 
+        // Spend the 2 Arbits from the non-operator
+        // And create 1 Arbit for the operator and 1 Arbit for the non-operator
         transaction3 = Transaction(
           Chain(
             Transaction.Input(

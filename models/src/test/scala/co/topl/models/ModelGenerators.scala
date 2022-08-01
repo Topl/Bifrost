@@ -363,6 +363,9 @@ trait ModelGenerators {
   implicit val arbitraryArbitBox: Arbitrary[Box.Values.Arbit] =
     Arbitrary(arbitraryPositiveInt128.arbitrary.map(Box.Values.Arbit))
 
+  implicit val arbitraryRegistrationOperatorBox: Arbitrary[Box.Values.Registrations.Operator] =
+    Arbitrary(arbitraryProofsKnowledgeKesProduct.arbitrary.map(Box.Values.Registrations.Operator))
+
   implicit val arbitraryBoxValue: Arbitrary[Box.Value] =
     Arbitrary(
       Gen.oneOf(
