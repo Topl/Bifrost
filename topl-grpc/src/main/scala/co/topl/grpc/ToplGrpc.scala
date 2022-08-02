@@ -89,13 +89,11 @@ object ToplGrpc {
                   operationalCertificate <- (protoHeader.operationalCertificate: Bytes)
                     .decodeImmutable[OperationalCertificate]
                     .leftMap(_ => new IllegalArgumentException("Invalid operationalCertificate"))
-                  metadata <-
-                    if (protoHeader.metadata.isEmpty) Right(None)
-                    else
-                      Sized
-                        .max[Latin1Data, Lengths.`32`.type](Latin1Data.fromData(protoHeader.metadata.toByteArray))
-                        .map(_.some)
-                        .leftMap(_ => new IllegalArgumentException("Invalid metadata"))
+                  metadata <- protoHeader.metadata.traverse(metadata =>
+                    Sized
+                      .max[Latin1Data, Lengths.`32`.type](Latin1Data.fromData(metadata.toByteArray))
+                      .leftMap(_ => new IllegalArgumentException("Invalid metadata"))
+                  )
                   address <- (protoHeader.address: Bytes)
                     .decodeImmutable[StakingAddresses.Operator]
                     .leftMap(_ => new IllegalArgumentException("Invalid address"))
@@ -153,6 +151,7 @@ object ToplGrpc {
             .liftTo[F]
             .flatMap(interpreter.broadcastTransaction)
             .as(services.BroadcastTransactionRes())
+            .adaptErrorsToGrpc
         )
 
       def currentMempool(in: CurrentMempoolReq): Future[CurrentMempoolRes] =
@@ -160,6 +159,7 @@ object ToplGrpc {
           interpreter
             .currentMempool()
             .map(ids => CurrentMempoolRes(ids.toList.map(_.transmittableBytes: ByteString)))
+            .adaptErrorsToGrpc
         )
 
       def fetchBlockHeader(in: FetchBlockHeaderReq): Future[FetchBlockHeaderRes] =
@@ -181,12 +181,13 @@ object ToplGrpc {
                     header.slot,
                     header.eligibilityCertificate.immutableBytes,
                     header.operationalCertificate.immutableBytes,
-                    header.metadata.fold(Bytes.empty)(v => Bytes(v.data.bytes)),
+                    header.metadata.map(v => services.BlockHeader.Metadata(Bytes(v.data.bytes))),
                     header.address.immutableBytes
                   )
                 )
                 .value
                 .map(services.FetchBlockHeaderRes(_))
+                .adaptErrorsToGrpc
             )
         )
     }

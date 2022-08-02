@@ -43,7 +43,10 @@ message BlockHeader {
   int64 slot = 7;
   bytes eligibilityCertificate = 8;
   bytes operationalCertificate = 9;
-  // TODO: Empty/None metadata?
-  bytes metadata = 10;
+  Metadata metadata = 10;
   bytes address = 11;
+
+  message Metadata {
+    bytes value = 1;
+  }
 }

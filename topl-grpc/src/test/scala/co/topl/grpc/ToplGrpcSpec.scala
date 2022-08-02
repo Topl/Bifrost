@@ -69,12 +69,11 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
           _ = assert((protoHeader.eligibilityCertificate: Bytes) == header.eligibilityCertificate.immutableBytes)
           _ = assert((protoHeader.operationalCertificate: Bytes) == header.operationalCertificate.immutableBytes)
           _ =
-            header.metadata match {
-              case Some(data) =>
-                assert((protoHeader.metadata: Bytes) == Bytes(data.data.bytes))
-              case _ =>
-                assert(protoHeader.metadata.isEmpty)
-            }
+            assert(
+              protoHeader.metadata.map(_.value.toByteArray).map(Bytes(_)) == header.metadata
+                .map(_.data.bytes)
+                .map(Bytes(_))
+            )
           _ = assert((protoHeader.address: Bytes) == header.address.immutableBytes)
         } yield ()
       }
