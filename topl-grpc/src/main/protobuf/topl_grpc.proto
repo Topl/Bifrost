@@ -5,6 +5,9 @@ package co.topl.grpc.services;
 service ToplGrpc {
   rpc BroadcastTransaction (BroadcastTransactionReq) returns (BroadcastTransactionRes);
   rpc CurrentMempool (CurrentMempoolReq) returns (CurrentMempoolRes);
+
+  rpc FetchBlockHeader (FetchBlockHeaderReq) returns (FetchBlockHeaderRes);
+
 }
 
 message BroadcastTransactionReq {
@@ -20,4 +23,27 @@ message CurrentMempoolReq {}
 
 message CurrentMempoolRes {
   repeated bytes transactionIds = 1;
+}
+
+message FetchBlockHeaderReq {
+  bytes blockId = 1;
+}
+
+message FetchBlockHeaderRes {
+  BlockHeader header = 1;
+}
+
+message BlockHeader {
+  bytes parentHeaderId = 1;
+  int64 parentSlot = 2;
+  bytes txRoot = 3;
+  bytes bloomFilter = 4;
+  int64 timestamp = 5;
+  int64 height = 6;
+  int64 slot = 7;
+  bytes eligibilityCertificate = 8;
+  bytes operationalCertificate = 9;
+  // TODO: Empty/None metadata?
+  bytes metadata = 10;
+  bytes address = 11;
 }

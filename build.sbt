@@ -638,6 +638,7 @@ lazy val toplGrpc = project
     tetraByteCodecs,
     algebras,
     catsAkka,
+    typeclasses,
     munitScalamock % "test->test"
   )
 
