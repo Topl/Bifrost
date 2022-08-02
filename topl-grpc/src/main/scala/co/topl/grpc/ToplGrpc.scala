@@ -4,7 +4,7 @@ import akka.actor.ClassicActorSystemProvider
 import akka.grpc.{GrpcClientSettings, GrpcServiceException}
 import akka.http.scaladsl.Http
 import cats.MonadThrow
-import cats.data.{OptionT, ValidatedNec}
+import cats.data.{EitherT, OptionT, ValidatedNec}
 import cats.effect.kernel.{Async, Resource}
 import cats.implicits._
 import co.topl.algebras.ToplRpc
@@ -13,9 +13,6 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.grpc.services.{CurrentMempoolReq, CurrentMempoolRes, FetchBlockHeaderReq, FetchBlockHeaderRes}
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances.{bytesLength, latin1DataLength}
-import co.topl.models.utility.StringDataTypes.Latin1Data
-import co.topl.models.utility.{Lengths, Sized}
 import com.google.protobuf.ByteString
 import io.grpc.Status
 
@@ -42,6 +39,7 @@ object ToplGrpc {
               .fromFuture(
                 Async[F].delay(
                   client.broadcastTransaction(
+                    // Note: All other cases use .transmittedBytes, but for now, keep this as immutableBytes
                     services.BroadcastTransactionReq(transaction.immutableBytes)
                   )
                 )
@@ -69,47 +67,16 @@ object ToplGrpc {
                 .fromFuture(
                   Async[F].delay(
                     client.fetchBlockHeader(
-                      services.FetchBlockHeaderReq(blockId.allBytes)
+                      services.FetchBlockHeaderReq(blockId.transmittableBytes)
                     )
                   )
                 )
                 .map(_.header)
             )
               .semiflatMap(protoHeader =>
-                (for {
-                  txRoot <- Sized
-                    .strict[Bytes, Lengths.`32`.type](protoHeader.txRoot: Bytes)
-                    .leftMap(_ => new IllegalArgumentException("Invalid txRoot"))
-                  bloomFilter <- Sized
-                    .strict[Bytes, Lengths.`256`.type](protoHeader.bloomFilter: Bytes)
-                    .leftMap(_ => new IllegalArgumentException("Invalid bloomFilter"))
-                  eligibilityCertificate <- (protoHeader.eligibilityCertificate: Bytes)
-                    .decodeImmutable[EligibilityCertificate]
-                    .leftMap(_ => new IllegalArgumentException("Invalid eligibilityCertificate"))
-                  operationalCertificate <- (protoHeader.operationalCertificate: Bytes)
-                    .decodeImmutable[OperationalCertificate]
-                    .leftMap(_ => new IllegalArgumentException("Invalid operationalCertificate"))
-                  metadata <- protoHeader.metadata.traverse(metadata =>
-                    Sized
-                      .max[Latin1Data, Lengths.`32`.type](Latin1Data.fromData(metadata.toByteArray))
-                      .leftMap(_ => new IllegalArgumentException("Invalid metadata"))
-                  )
-                  address <- (protoHeader.address: Bytes)
-                    .decodeImmutable[StakingAddresses.Operator]
-                    .leftMap(_ => new IllegalArgumentException("Invalid address"))
-                } yield BlockHeaderV2(
-                  TypedBytes(protoHeader.parentHeaderId),
-                  protoHeader.parentSlot,
-                  txRoot,
-                  bloomFilter,
-                  protoHeader.timestamp,
-                  protoHeader.height,
-                  protoHeader.slot,
-                  eligibilityCertificate,
-                  operationalCertificate,
-                  metadata,
-                  address
-                )).liftTo[F]
+                EitherT(protoHeader.pure[F].toA[BlockHeaderV2])
+                  .leftMap(new IllegalArgumentException(_))
+                  .rethrowT
               )
               .value
         }
@@ -165,25 +132,15 @@ object ToplGrpc {
       def fetchBlockHeader(in: FetchBlockHeaderReq): Future[FetchBlockHeaderRes] =
         implicitly[FToFuture[F]].apply(
           (in.blockId: Bytes)
-            .decodeImmutable[TypedIdentifier]
+            .decodeTransmitted[TypedIdentifier]
             .leftMap(_ => new GrpcServiceException(Status.INVALID_ARGUMENT.withDescription("Invalid Block ID")))
             .liftTo[F]
             .flatMap(id =>
               OptionT(interpreter.fetchBlockHeader(id))
-                .map(header =>
-                  services.BlockHeader(
-                    header.parentHeaderId.immutableBytes,
-                    header.parentSlot,
-                    header.txRoot.data,
-                    header.bloomFilter.data,
-                    header.timestamp,
-                    header.height,
-                    header.slot,
-                    header.eligibilityCertificate.immutableBytes,
-                    header.operationalCertificate.immutableBytes,
-                    header.metadata.map(v => services.BlockHeader.Metadata(Bytes(v.data.bytes))),
-                    header.address.immutableBytes
-                  )
+                .semiflatMap(header =>
+                  EitherT(header.pure[F].toB[services.BlockHeader])
+                    .leftMap(e => new GrpcServiceException(Status.DATA_LOSS.withDescription(e)))
+                    .rethrowT
                 )
                 .value
                 .map(services.FetchBlockHeaderRes(_))

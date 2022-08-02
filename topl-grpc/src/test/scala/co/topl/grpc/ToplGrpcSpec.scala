@@ -56,25 +56,25 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
         for {
           res <- Async[F]
             .fromFuture(
-              underTest.fetchBlockHeader(FetchBlockHeaderReq(headerId.immutableBytes)).pure[F]
+              underTest.fetchBlockHeader(FetchBlockHeaderReq(headerId.transmittableBytes)).pure[F]
             )
           protoHeader = res.header.get
-          _ = assert((protoHeader.parentHeaderId: Bytes) == header.parentHeaderId.immutableBytes)
+          _ = assert((protoHeader.parentHeaderId: Bytes) == header.parentHeaderId.transmittableBytes)
           _ = assert(protoHeader.parentSlot == header.parentSlot)
           _ = assert((protoHeader.txRoot: Bytes) == header.txRoot.data)
           _ = assert((protoHeader.bloomFilter: Bytes) == header.bloomFilter.data)
           _ = assert(protoHeader.timestamp == header.timestamp)
           _ = assert(protoHeader.height == header.height)
           _ = assert(protoHeader.slot == header.slot)
-          _ = assert((protoHeader.eligibilityCertificate: Bytes) == header.eligibilityCertificate.immutableBytes)
-          _ = assert((protoHeader.operationalCertificate: Bytes) == header.operationalCertificate.immutableBytes)
+          _ = assert((protoHeader.eligibilityCertificate: Bytes) == header.eligibilityCertificate.transmittableBytes)
+          _ = assert((protoHeader.operationalCertificate: Bytes) == header.operationalCertificate.transmittableBytes)
           _ =
             assert(
               protoHeader.metadata.map(_.value.toByteArray).map(Bytes(_)) == header.metadata
                 .map(_.data.bytes)
                 .map(Bytes(_))
             )
-          _ = assert((protoHeader.address: Bytes) == header.address.immutableBytes)
+          _ = assert((protoHeader.address: Bytes) == header.address.transmittableBytes)
         } yield ()
       }
     }
