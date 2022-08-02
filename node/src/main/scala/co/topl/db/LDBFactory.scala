@@ -126,7 +126,7 @@ object LDBFactory extends Logging {
   }
 
   lazy val factory: DBFactory = {
-    val loaders = List(ClassLoader.getSystemClassLoader, this.getClass.getClassLoader)
+    val loaders = List(this.getClass.getClassLoader, ClassLoader.getSystemClassLoader)
 
     // As LevelDB-JNI has problems on Mac (see https://github.com/ergoplatform/ergo/issues/1067),
     // we are using only pure-Java LevelDB on Mac
