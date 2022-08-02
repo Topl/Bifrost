@@ -667,3 +667,4 @@ lazy val genus = project
 
 addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; +test; it:compile")
 addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; +test; it:compile")
+addCommandAlias("checkPRTestQuick", s"; scalafixAll --check; scalafmtCheckAll; testQuick; it:compile")
