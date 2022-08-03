@@ -11,7 +11,14 @@ import co.topl.algebras.ToplRpc
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.grpc.services.{CurrentMempoolReq, CurrentMempoolRes, FetchBlockHeaderReq, FetchBlockHeaderRes}
+import co.topl.grpc.services.{
+  CurrentMempoolReq,
+  CurrentMempoolRes,
+  FetchBlockBodyReq,
+  FetchBlockBodyRes,
+  FetchBlockHeaderReq,
+  FetchBlockHeaderRes
+}
 import co.topl.models._
 import com.google.protobuf.ByteString
 import io.grpc.Status
@@ -75,6 +82,25 @@ object ToplGrpc {
             )
               .semiflatMap(protoHeader =>
                 EitherT(protoHeader.pure[F].toA[BlockHeaderV2])
+                  .leftMap(new IllegalArgumentException(_))
+                  .rethrowT
+              )
+              .value
+
+          def fetchBlockBody(blockId: TypedIdentifier): F[Option[BlockBodyV2]] =
+            OptionT(
+              Async[F]
+                .fromFuture(
+                  Async[F].delay(
+                    client.fetchBlockBody(
+                      services.FetchBlockBodyReq(blockId.transmittableBytes)
+                    )
+                  )
+                )
+                .map(_.body)
+            )
+              .semiflatMap(protoBody =>
+                EitherT(protoBody.pure[F].toA[BlockBodyV2])
                   .leftMap(new IllegalArgumentException(_))
                   .rethrowT
               )
@@ -144,8 +170,27 @@ object ToplGrpc {
                 )
                 .value
                 .map(services.FetchBlockHeaderRes(_))
-                .adaptErrorsToGrpc
             )
+            .adaptErrorsToGrpc
+        )
+
+      def fetchBlockBody(in: FetchBlockBodyReq): Future[FetchBlockBodyRes] =
+        implicitly[FToFuture[F]].apply(
+          (in.blockId: Bytes)
+            .decodeTransmitted[TypedIdentifier]
+            .leftMap(_ => new GrpcServiceException(Status.INVALID_ARGUMENT.withDescription("Invalid Block ID")))
+            .liftTo[F]
+            .flatMap(id =>
+              OptionT(interpreter.fetchBlockBody(id))
+                .semiflatMap(body =>
+                  EitherT(body.pure[F].toB[services.BlockBody])
+                    .leftMap(e => new GrpcServiceException(Status.DATA_LOSS.withDescription(e)))
+                    .rethrowT
+                )
+                .value
+                .map(services.FetchBlockBodyRes(_))
+            )
+            .adaptErrorsToGrpc
         )
     }
   }

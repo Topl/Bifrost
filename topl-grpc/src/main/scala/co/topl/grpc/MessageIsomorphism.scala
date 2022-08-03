@@ -1,6 +1,7 @@
 package co.topl.grpc
 
 import cats.Monad
+import cats.data.ValidatedNec
 import cats.implicits._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
@@ -8,6 +9,9 @@ import co.topl.models
 import co.topl.models.utility.HasLength.instances.{bytesLength, latin1DataLength}
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{Lengths, Sized}
+import com.google.protobuf.ByteString
+
+import scala.collection.immutable.ListSet
 
 /**
  * Represents a fallible isomorphism between two types, A and B.
@@ -85,6 +89,20 @@ object MessageIsomorphism {
             metadata,
             address
           )
+        )
+      )
+
+    implicit def bodyIsomorphism[F[_]: Monad]: MessageIsomorphism[F, models.BlockBodyV2, services.BlockBody] =
+      MessageIsomorphism.create(
+        _.map(body => services.BlockBody(body.toList.map(_.transmittableBytes: ByteString)).asRight),
+        _.map(protoBody =>
+          protoBody.transactionIds.toList
+            .traverse[ValidatedNec[String, *], models.TypedIdentifier](data =>
+              (data: models.Bytes).decodeTransmitted[models.TypedIdentifier].toValidatedNec
+            )
+            .map(ListSet.empty[models.TypedIdentifier] ++ _)
+            .leftMap(errors => show"Invalid block body. reason=$errors")
+            .toEither
         )
       )
   }
