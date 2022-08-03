@@ -1,12 +1,25 @@
 package co.topl.modifier.transaction.builder
 
+import cats.data.{Chain, NonEmptyChain}
 import cats.implicits._
+import co.topl.attestation.ops.implicits._
 import co.topl.attestation.{Address, EvidenceProducer, Proposition}
-import co.topl.modifier.BoxReader
+import co.topl.models.Box.Values.Asset
+import co.topl.models.utility.HasLength.instances.latin1DataLength
+import co.topl.models.utility.StringDataTypes.{Latin1Data => TetraLatin1Data}
+import co.topl.models.utility.{Lengths, Sized}
+import co.topl.models.{Box => TetraBox, BoxReference, Bytes, DionAddress, Transaction}
 import co.topl.modifier.box._
+import co.topl.modifier.implicits._
+import co.topl.modifier.ops.AssetCodeOps.ToTetraAssetCodeFailures
 import co.topl.modifier.transaction.builder.Validation._
+import co.topl.modifier.transaction.builder.ops.BoxSetOps.ToBoxReferencesFailures
+import co.topl.modifier.transaction.builder.ops.implicits._
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer}
+import co.topl.modifier.{BoxReader, ProgramId}
+import co.topl.utils.ops.implicits._
 import co.topl.utils.{Identifiable, Int128}
+import mouse.all._
 
 import java.time.Instant
 import scala.collection.immutable.ListMap
@@ -26,32 +39,41 @@ object TransferBuilder {
     request:      TransferRequests.PolyTransferRequest,
     boxSelection: BoxSelectionAlgorithm
   ): Either[BuildTransferFailure, PolyTransfer[P]] = {
-    val availableBoxes = getAvailableBoxes(request.from, boxReader)
+    val polysOwed = request.to.map(_._2).sum
 
-    // filter the available boxes as specified in the box selection algorithm
-    val filteredBoxes = BoxSelectionAlgorithm.pickBoxes(boxSelection, availableBoxes, request)
-    val inputPolys = filteredBoxes.polys
+    val inputBoxes: BoxSet = pickPolyAndArbitBoxesFromState(request.from, polysOwed, 0, boxSelection, boxReader)
 
+    val outputAddresses = request.to.map(_._1)
+
+    val polyFunds = inputBoxes.polySum
+
+    val changeAmount = polyFunds - request.fee - polysOwed
+
+    val polyChangeOutput = request.changeAddress -> SimpleValue(changeAmount)
+
+    val inputs = inputBoxes.polys.map(box => box._1 -> box._2.nonce).toIndexedSeq
+
+    val outputs = (polyChangeOutput :: request.to.map(x => x._1 -> SimpleValue(x._2))).toIndexedSeq
+
+    val polyTransfer =
+      PolyTransfer[P](
+        inputs,
+        outputs,
+        ListMap(),
+        request.fee,
+        Instant.now.toEpochMilli,
+        request.data,
+        minting = false
+      )
+
+    // run validation and if successful return the created transfer
     for {
-      _                      <- validateNonEmptyInputs[SimpleValue, PolyBox](inputPolys)
-      _                      <- validateUniqueInputs[SimpleValue, PolyBox](inputPolys)
-      _                      <- validateNonEmptyRecipients(request.to)
-      _                      <- validateUniqueRecipients(request.to)
-      polysAvailableAfterFee <- validateFeeFunds(boxFunds(inputPolys), request.fee)
-      amountOwed = request.to.map(_._2).sum
-      changeAmount <- validatePaymentFunds(polysAvailableAfterFee, amountOwed)
-      changeRecipient = request.changeAddress -> SimpleValue(changeAmount)
-      recipientValues = request.to.map(x => x._1 -> SimpleValue(x._2))
-      fromBoxNonces = inputPolys.map(box => box._1 -> box._2.nonce)
-    } yield PolyTransfer[P](
-      fromBoxNonces.toIndexedSeq,
-      (changeRecipient +: recipientValues).toIndexedSeq,
-      ListMap(),
-      request.fee,
-      Instant.now.toEpochMilli,
-      request.data,
-      false
-    )
+      _ <- validateNonEmptyPolyInputNonces(inputBoxes.polyNonces)
+      _ <- validateNonEmptyOutputAddresses(outputAddresses)
+      _ <- validateUniqueOutputAddresses(outputAddresses)
+      _ <- validatePositiveOutputValues(request.to.map(_._2))
+      _ <- validatePolyFunds(polyFunds, request.fee, polysOwed)
+    } yield polyTransfer
   }
 
   /**
@@ -67,43 +89,70 @@ object TransferBuilder {
     request:      TransferRequests.AssetTransferRequest,
     boxSelection: BoxSelectionAlgorithm
   ): Either[BuildTransferFailure, AssetTransfer[P]] = {
-    val availableBoxes = getAvailableBoxes(request.from, boxReader)
+    val assetsOwed =
+      request.to
+        .map(_._2)
+        .map(value => value.assetCode -> value.quantity)
+        .toMap
 
-    // filter the available boxes as specified in the box selection algorithm
-    val filteredBoxes = BoxSelectionAlgorithm.pickBoxes(boxSelection, availableBoxes, request)
-    val inputPolys = filteredBoxes.polys
-    val inputAssets = filteredBoxes.assets
+    val inputBoxes =
+      if (!request.minting)
+        pickBoxesFromState(request.from, request.fee, 0, assetsOwed, boxSelection, boxReader)
+      else
+        pickPolyAndArbitBoxesFromState(request.from, request.fee, 0, boxSelection, boxReader)
 
+    val outputAddresses = request.to.map(_._1)
+
+    val polyFunds = inputBoxes.polySum
+
+    val assetCodeOpt = request.to.headOption.map(_._2.assetCode)
+
+    val inputs =
+      (inputBoxes.assets.map(a => a._1 -> a._2.nonce) ++ inputBoxes.polys.map(p => p._1 -> p._2.nonce)).toIndexedSeq
+
+    val outputs: AssetCode => IndexedSeq[(Address, TokenValueHolder)] = { assetCode =>
+      val polyChange = polyFunds - request.fee
+      val assetChange = inputBoxes.assetSums.values.sum - assetsOwed.values.sum
+
+      val polyChangeOutput = request.changeAddress         -> SimpleValue(polyChange)
+      val assetChangeOutput = request.consolidationAddress -> AssetValue(assetChange, assetCode)
+
+      (polyChangeOutput :: assetChangeOutput :: request.to).toIndexedSeq
+    }
+
+    val assetTransfer: AssetCode => AssetTransfer[P] = assetCode =>
+      AssetTransfer[P](
+        inputs,
+        outputs(assetCode),
+        ListMap(),
+        request.fee,
+        Instant.now.toEpochMilli,
+        request.data,
+        request.minting
+      )
+
+    // run validation and if successful return the created transfer using the extracted asset code
     for {
-      _ <- validateNonEmptyInputs[SimpleValue, PolyBox](inputPolys)
-      _ <- validateUniqueInputs[SimpleValue, PolyBox](inputPolys)
-      _ <- validateAssetInputs(inputAssets, request.minting)
-      _ <- validateNonEmptyRecipients(request.to)
-      _ <- validateUniqueRecipients(request.to)
-      assetCode = request.to.head._2.assetCode
-      _          <- validateSameAssetCode(assetCode, filteredBoxes.assets, request.minting)
-      polyChange <- validateFeeFunds(boxFunds(filteredBoxes.polys), request.fee)
-      assetPayment = request.to.map(_._2.quantity).sum
-      assetChange <-
-        // no input assets required when minting
-        if (!request.minting) validatePaymentFunds(boxFunds(filteredBoxes.assets), assetPayment)
-        else boxFunds(filteredBoxes.assets).asRight
-      assetInputNonces =
-        // do not use any inputs when minting
-        if (!request.minting) inputAssets.map(box => box._1 -> box._2.nonce)
-        else List()
-      polyInputNonces = inputPolys.map(box => box._1 -> box._2.nonce)
-      changeOutput = request.changeAddress             -> SimpleValue(polyChange)
-      assetChangeOutput = request.consolidationAddress -> AssetValue(assetChange, assetCode)
-    } yield AssetTransfer[P](
-      (polyInputNonces ++ assetInputNonces).toIndexedSeq,
-      IndexedSeq(changeOutput, assetChangeOutput) ++ request.to,
-      ListMap(),
-      request.fee,
-      Instant.now.toEpochMilli,
-      request.data,
-      request.minting
-    )
+      _ <- validateNonEmptyPolyInputNonces(inputBoxes.polyNonces)
+      _ <- validateNonEmptyOutputAddresses(outputAddresses)
+      _ <- validateUniqueOutputAddresses(outputAddresses)
+      _ <- validatePositiveOutputValues(request.to.map(_._2.quantity))
+      // safe because we have checked that the outputs are not empty
+      assetCode = assetCodeOpt.get
+      _ <- validateSameAssetCode(assetCode, inputBoxes.assets.map(_._2).toList)
+      _ <- validatePolyFunds(polyFunds, request.fee, 0)
+      _ <-
+        // only need to validate asset funds when not a minting transfer
+        if (!request.minting)
+          validateAssetFunds(
+            inputBoxes.assets
+              .map(_._2.value.quantity)
+              .map(assetCode -> _)
+              .toMap,
+            assetsOwed
+          )
+        else Map.empty.asRight
+    } yield assetTransfer(assetCode)
   }
 
   /**
@@ -119,68 +168,244 @@ object TransferBuilder {
     request:      TransferRequests.ArbitTransferRequest,
     boxSelection: BoxSelectionAlgorithm
   ): Either[BuildTransferFailure, ArbitTransfer[P]] = {
-    val availableBoxes = getAvailableBoxes(request.from, boxReader)
+    val arbitsOwed = request.to.map(_._2).sum
 
-    // filter the available boxes as specified in the box selection algorithm
-    val filteredBoxes = BoxSelectionAlgorithm.pickBoxes(boxSelection, availableBoxes, request)
-    val inputPolys = filteredBoxes.polys
-    val inputArbits = filteredBoxes.arbits
+    val inputBoxes = pickPolyAndArbitBoxesFromState(request.from, request.fee, arbitsOwed, boxSelection, boxReader)
 
+    val outputAddresses = request.to.map(_._1)
+
+    val polyFunds = inputBoxes.polySum
+    val arbitFunds = inputBoxes.arbitSum
+
+    val arbitOutputs = request.to.map(x => x._1 -> SimpleValue(x._2))
+
+    val polyChangeOutput = request.changeAddress         -> SimpleValue(polyFunds - request.fee)
+    val arbitChangeOutput = request.consolidationAddress -> SimpleValue(arbitFunds - arbitsOwed)
+
+    val polyInputs = inputBoxes.polys.map(p => p._1 -> p._2.nonce)
+    val arbitInputs = inputBoxes.arbits.map(a => a._1 -> a._2.nonce)
+    val inputs = (polyInputs ++ arbitInputs).toIndexedSeq
+
+    val outputs = (polyChangeOutput :: arbitChangeOutput :: arbitOutputs).toIndexedSeq
+
+    val arbitTransfer =
+      ArbitTransfer[P](
+        inputs,
+        outputs,
+        ListMap(),
+        request.fee,
+        Instant.now.toEpochMilli,
+        request.data,
+        minting = false
+      )
+
+    // run validation and if successful return the created transfer
     for {
-      _      <- validateNonEmptyInputs[SimpleValue, PolyBox](inputPolys)
-      _      <- validateUniqueInputs[SimpleValue, PolyBox](inputPolys)
-      _      <- validateNonEmptyInputs[SimpleValue, ArbitBox](inputArbits)
-      _      <- validateUniqueInputs[SimpleValue, ArbitBox](inputArbits)
-      _      <- validateNonEmptyRecipients(request.to)
-      _      <- validateUniqueRecipients(request.to)
-      change <- validateFeeFunds(inputPolys.map(_._2.value.quantity).sum, request.fee)
-      arbitsAvailable = inputArbits.map(_._2.value.quantity).sum
-      arbitsOwed = request.to.map(_._2).sum
-      arbitChange <- validatePaymentFunds(arbitsAvailable, arbitsOwed)
-      changeOutput = request.changeAddress             -> SimpleValue(change)
-      arbitChangeOutput = request.consolidationAddress -> SimpleValue(arbitChange)
-      arbitOutputs = request.to.map(x => x._1 -> SimpleValue(x._2))
-      inputBoxNonces = (inputPolys ++ inputArbits).map(x => x._1 -> x._2.nonce)
-    } yield ArbitTransfer[P](
-      inputBoxNonces.toIndexedSeq,
-      IndexedSeq(changeOutput, arbitChangeOutput) ++ arbitOutputs,
-      ListMap(),
-      request.fee,
-      Instant.now.toEpochMilli,
-      request.data,
-      false
-    )
+      _ <- validateNonEmptyPolyInputNonces(inputBoxes.polyNonces)
+      _ <- validateNonEmptyOutputAddresses(outputAddresses)
+      _ <- validateUniqueOutputAddresses(outputAddresses)
+      _ <- validatePositiveOutputValues(request.to.map(_._2))
+      _ <- validatePolyFunds(polyFunds, request.fee, 0)
+      _ <- validateArbitFunds(arbitFunds, arbitsOwed)
+      // determine the amount of change from each asset used in the transferFunds(arbitFunds, arbitsOwed)
+    } yield arbitTransfer
   }
 
   /**
-   * Gets the available boxes a list of addresses owns.
-   * @param addresses the list of addresses to get boxes for
-   * @param state the current state of unopened boxes
-   * @return a set of available boxes a `TokenBoxes` type
+   * Builds a Tetra Unproven Transfer Transaction from a box state, transfer parameters, and a selection algorithm.
+   * @param boxReader the box state to use for selecting inputs to the transfer
+   * @param request a set of parameters used to create the transfer
+   * @param boxSelection the selection algorithm to use for choosing which boxes from state should be used in the
+   *                     transfer transaction
+   * @return if successful, a [[Transaction.Unproven]], otherwise a [[BuildTransferFailure]]
    */
-  private def getAvailableBoxes(
-    addresses: List[Address],
-    state:     BoxReader[ProgramId, Address]
-  ): TokenBoxes =
-    addresses
-      .flatMap(addr =>
-        state
-          .getTokenBoxes(addr)
-          .getOrElse(List())
-          .map(addr -> _)
+  def buildUnprovenTransfer(
+    boxReader:    BoxReader[ProgramId, Address],
+    request:      TransferRequests.UnprovenTransferRequest,
+    boxSelection: BoxSelectionAlgorithm
+  ): Either[BuildTransferFailure, Transaction.Unproven] = {
+    val (polyOutputs, arbitOutputs, assetOutputs) = request.to.splitByCoinType
+
+    val polyOutputValues = polyOutputs.map(x => Int128(x.value.data))
+    val polysOwed = polyOutputValues.sum
+
+    val arbitOutputValues = arbitOutputs.map(x => Int128(x.value.data))
+    val arbitsOwed = arbitOutputValues.sum
+
+    val assetOutputValues = assetOutputs.map(x => Int128(x.value.quantity.data))
+    val assetsOwed: Map[AssetCode, Int128] =
+      assetOutputs
+        .map(_.value.toAssetValue)
+        .map(value => value.assetCode -> value.quantity)
+        .toMap
+
+    val inputAddresses = request.from.map(_.toAddress)
+
+    // depending on if this is an asset minting transfer, choose to ignore existing asset boxes in state
+    val inputBoxes =
+      if (!request.minting)
+        pickBoxesFromState(inputAddresses, polysOwed, arbitsOwed, assetsOwed, boxSelection, boxReader)
+      else
+        pickPolyAndArbitBoxesFromState(inputAddresses, polysOwed, arbitsOwed, boxSelection, boxReader)
+
+    val inputPolyNonces = inputBoxes.polyNonces
+
+    val polyFunds = inputBoxes.polySum
+    val polyChange = polyFunds - Int128(request.fee.data) - polysOwed
+
+    // only create a poly change output when the poly change is not 0
+    val polyChangeOutput =
+      (polyChange > 0).option(Transaction.PolyOutput(request.feeChangeAddress, polyChange.toSized))
+
+    val arbitFunds = (arbitsOwed > 0).option(inputBoxes.arbitSum)
+    val arbitChange = arbitFunds.map(_ - arbitsOwed)
+
+    // only create an arbit change output when arbits a spent in the transfer and the remaining change is not 0
+    val arbitChangeOutput =
+      arbitChange.flatMap(change =>
+        (change > 0).option(Transaction.ArbitOutput(request.consolidationAddress, change.toSized))
       )
-      .foldLeft(TokenBoxes(List(), List(), List())) {
-        case (boxes, (addr, box: PolyBox))  => boxes.copy(polys = (addr -> box) :: boxes.polys)
-        case (boxes, (addr, box: ArbitBox)) => boxes.copy(arbits = (addr -> box) :: boxes.arbits)
-        case (boxes, (addr, box: AssetBox)) => boxes.copy(assets = (addr -> box) :: boxes.assets)
-        case (boxes, _)                     => boxes
-      }
+
+    val assetFunds = inputBoxes.assetSums.filter(_._2 > 0)
+
+    // determine the amount of change from each asset used in the transfer and ignore if the change amount is 0
+    val assetChange: Map[AssetCode, Int128] =
+      assetFunds
+        .map(asset => asset._1 -> (asset._2 - assetsOwed.getOrElse(asset._1, 0)))
+        .filter(_._2 > 0)
+
+    // create the transfer with a given set of inputs and optional asset change outputs
+    val transfer
+      : (Set[BoxReference], List[Transaction.AssetOutput]) => Either[BuildTransferFailure, Transaction.Unproven] =
+      (boxReferences, assetChangeOutputs) =>
+        NonEmptyChain
+          .fromSeq(request.to)
+          .toRight(BuildTransferFailures.EmptyOutputs)
+          .map(outputs => outputs.prependChain(Chain.fromSeq(assetChangeOutputs)))
+          .map(outputs => outputs.prependChain(Chain.fromOption(arbitChangeOutput)))
+          .map(outputs =>
+            Transaction.Unproven(
+              boxReferences.toList,
+              polyChangeOutput,
+              outputs,
+              request.fee,
+              Instant.now.toEpochMilli,
+              request.data,
+              request.minting
+            )
+          )
+
+    // run validation and create the transfer with the valid parameters
+    for {
+      assetChangeOutputs <- toAssetChangeOutput(assetChange, request.consolidationAddress)
+      boxReferences      <-
+        // do not use arbit boxes if no arbit outputs
+        if (arbitsOwed > 0) toBoxReferencesResult(inputBoxes)
+        else toBoxReferencesResult(inputBoxes.copy(arbits = Set.empty))
+      _ <- validateNonEmptyPolyInputNonces(inputPolyNonces)
+      _ <- validatePositiveOutputValues(polyOutputValues)
+      _ <- validatePositiveOutputValues(arbitOutputValues)
+      _ <- validatePositiveOutputValues(assetOutputValues)
+      _ <- validatePolyFunds(polyFunds, request.fee.data, polysOwed)
+      // only validate the amount of arbit funds when there are some arbits spent in the transfer
+      _ <- arbitFunds.fold(Int128(0).asRight[BuildTransferFailure])(funds => validateArbitFunds(funds, arbitsOwed))
+      _ <-
+        if (!request.minting) validateAssetFunds(assetFunds, assetsOwed)
+        else Map.empty.asRight
+      result <- transfer(boxReferences, assetChangeOutputs)
+    } yield result
+  }
 
   /**
-   * Calculates the value of funds contained inside of the provided boxes.
-   * @param fromBoxes a list of address/box tuples to sum together
-   * @return the amount of funds contained within the boxes
+   * Picks boxes from state using the given context information and selection algorithm.
+   * @param addresses the set of address controlling boxes to select from
+   * @param polysNeeded the number of polys needed in the transfer
+   * @param arbitsNeeded the number of arbits needed in the transfer
+   * @param assetsNeeded the number of assets of various asset codes needed in the transfer
+   * @param boxAlgorithm the algorithm to use for selecting boxes
+   * @param state the box reader to retrieve the existing box state from
+   * @return a set of boxes controlled by the given addresses
    */
-  private def boxFunds(fromBoxes: List[(Address, Box[TokenValueHolder])]): Int128 =
-    fromBoxes.map(_._2.value.quantity).sum
+  private def pickBoxesFromState(
+    addresses:    List[Address],
+    polysNeeded:  Int128,
+    arbitsNeeded: Int128,
+    assetsNeeded: Map[AssetCode, Int128],
+    boxAlgorithm: BoxSelectionAlgorithm,
+    state:        BoxReader[ProgramId, Address]
+  ): BoxSet = {
+    val boxesFromState =
+      addresses
+        .flatMap(addr =>
+          state
+            .getTokenBoxes(addr)
+            .getOrElse(List())
+            .map(addr -> _)
+        )
+        .foldLeft(BoxSet.empty) {
+          case (boxes, (addr, box: PolyBox))  => boxes.copy(polys = boxes.polys + (addr -> box))
+          case (boxes, (addr, box: ArbitBox)) => boxes.copy(arbits = boxes.arbits + (addr -> box))
+          case (boxes, (addr, box: AssetBox)) => boxes.copy(assets = boxes.assets + (addr -> box))
+          case (boxes, _)                     => boxes
+        }
+
+    BoxSelectionAlgorithm.pickBoxes(boxAlgorithm, boxesFromState, polysNeeded, arbitsNeeded, assetsNeeded)
+  }
+
+  /**
+   * Picks only poly and arbit boxes from state using the given context information and selection algorithm.
+   * @param addresses the set of address controlling boxes to select from
+   * @param polysNeeded the number of polys needed in the transfer
+   * @param arbitsNeeded the number of arbits needed in the transfer
+   * @param boxSelection the algorithm to use for selecting boxes
+   * @param state the box reader to retrieve the existing box state from
+   * @return a set of boxes controlled by the given addresses
+   */
+  private def pickPolyAndArbitBoxesFromState(
+    addresses:    List[Address],
+    polysNeeded:  Int128,
+    arbitsNeeded: Int128,
+    boxSelection: BoxSelectionAlgorithm,
+    state:        BoxReader[ProgramId, Address]
+  ): BoxSet =
+    pickBoxesFromState(addresses, polysNeeded, arbitsNeeded, Map.empty, boxSelection, state)
+
+  /**
+   * Converts the given collection of asset change into a collection of asset outputs.
+   * @param assetChange sets of change amounts associated with their asset code
+   * @param consolidationAddress the address to send change outputs to
+   * @return if successful, a collection of asset change outputs, otherwise a [[BuildTransferFailure]]
+   */
+  private def toAssetChangeOutput(
+    assetChange:          Map[AssetCode, Int128],
+    consolidationAddress: DionAddress
+  ): Either[BuildTransferFailure, List[Transaction.AssetOutput]] =
+    assetChange.toList
+      // attempt to convert each asset into an output
+      .traverse[Either[BuildTransferFailure, *], Transaction.AssetOutput](asset =>
+        asset._1.toTetraAssetCode
+          .map(assetCode =>
+            Transaction.AssetOutput(
+              consolidationAddress,
+              TetraBox.Values.Asset(asset._2.toSized, assetCode, Bytes.empty, None)
+            )
+          )
+          .leftMap {
+            case ToTetraAssetCodeFailures.InvalidShortName(shortName) =>
+              BuildTransferFailures.InvalidShortName(shortName)
+            case ToTetraAssetCodeFailures.InvalidAddress(address) =>
+              BuildTransferFailures.InvalidAddress(address)
+          }
+      )
+
+  /**
+   * Attempts to convert the given set of boxes into a collection of box references.
+   * Converts a conversion failure to a [[BuildTransferFailure]].
+   * @param set the [[BoxSet]] to convert into a collection of [[BoxReference]]
+   * @return if successful, a collection of box references, otherwise a [[BuildTransferFailure]]
+   */
+  private def toBoxReferencesResult(set: BoxSet): Either[BuildTransferFailure, Set[BoxReference]] =
+    set.toBoxReferences.leftMap { case ToBoxReferencesFailures.InvalidAddress(address) =>
+      BuildTransferFailures.InvalidAddress(address)
+    }
 }

@@ -27,7 +27,9 @@ Bifrost loosely follows semantic versioning. Deviating slightly since blockchain
 
 Installation
 -------------------
-Check out our [Installation instructions](https://github.com/Topl/Bifrost/wiki/Install-and-Build) for step-by-step instructions for installation using a JAR, a Docker container, or from source.
+Check out our [Installation instructions](https://github.com/Topl/Bifrost/wiki/Install-and-Build) for step-by-step
+instructions for installation using a JAR, a Docker container, or from source. **Do not attempt to build this in a
+windows environment. Some of the tests will fail under windows.**
 
 Docs
 ----------

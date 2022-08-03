@@ -3,6 +3,7 @@ package co.topl.client
 import co.topl.akkahttprpc.{CustomError, RpcClientFailure, RpcErrorFailure}
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, EvidenceProducer, Proof, Proposition}
+import co.topl.codecs._
 import co.topl.modifier.transaction._
 import co.topl.utils.Identifiable
 import co.topl.utils.NetworkType.NetworkPrefix
@@ -23,7 +24,7 @@ object Brambl {
   def importCurve25519JsonToKeyRing(keyfile: Json, password: String, keyRing: KeyRing_PK25519)(implicit
     networkPrefix:                           NetworkPrefix
   ): Either[RpcClientFailure, Address] =
-    KeyfileCurve25519.jsonDecoder(networkPrefix)(keyfile.hcursor) match {
+    keyfile.as[KeyfileCurve25519] match {
       case Left(_) => Left(RpcErrorFailure(CustomError(7091, "Failed to decode JSON key")))
       case Right(kf) =>
         keyRing.importKeyPair(kf, password) match {
