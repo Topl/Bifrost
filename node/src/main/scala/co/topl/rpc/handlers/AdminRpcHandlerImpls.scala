@@ -8,6 +8,7 @@ import co.topl.akkahttprpc.{InvalidParametersError, RpcError, ThrowableData}
 import co.topl.consensus.{Forger, ForgerInterface, KeyManagerInterface}
 import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView}
 import co.topl.rpc.{ToplRpc, ToplRpcErrors}
+import co.topl.utils.implicits._
 import io.circe.Encoder
 
 import scala.concurrent.Future
@@ -30,7 +31,7 @@ class AdminRpcHandlerImpls(
         .unlockKey(params.address, params.password)
         .leftMap(e => ToplRpcErrors.genericFailure(e.toString): RpcError)
         .subflatMap {
-          case addr if params.address == addr.toString => Map(addr -> "unlocked").asRight
+          case addr if params.address == addr.show => Map(addr -> "unlocked").asRight
           case _ => InvalidParametersError.adhoc("address", "Decrypted address does not match requested address").asLeft
         }
 
@@ -81,12 +82,11 @@ class AdminRpcHandlerImpls(
       keyManagerInterface
         .updateRewardsAddress(params.address)
         .leftMap(e => ToplRpcErrors.genericFailure(e.toString): RpcError)
-        .map(_ => ToplRpc.Admin.UpdateRewardsAddress.Response(s"Updated reward address to ${params.address}"))
+        .map(_ => ToplRpc.Admin.UpdateRewardsAddress.Response(s"Updated reward address to ${params.address.show}"))
 
   override val getRewardsAddress: ToplRpc.Admin.GetRewardsAddress.rpc.ServerHandler =
     _ =>
-      keyManagerInterface
-        .getRewardsAddress()
+      keyManagerInterface.getRewardsAddress
         .leftMap(e => ToplRpcErrors.genericFailure(e.toString): RpcError)
         .map(ToplRpc.Admin.GetRewardsAddress.Response)
 
