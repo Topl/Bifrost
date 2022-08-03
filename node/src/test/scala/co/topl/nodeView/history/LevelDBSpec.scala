@@ -1,13 +1,19 @@
 package co.topl.nodeView.history
 
+import cats.implicits._
+import co.topl.utils.implicits._
 import co.topl.db.LDBVersionedStore
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
+import co.topl.modifier.box.Box
 import co.topl.modifier.transaction.Transaction.TX
-import co.topl.utils.{FileUtils, NodeGenerators}
+import co.topl.codecs.binary.typeclasses.Persistable
+import co.topl.utils.FileUtils
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import co.topl.codecs._
+import co.topl.nodeView.ValidTransactionGenerators
 
 import java.io.File
 
@@ -16,7 +22,7 @@ class LevelDBSpec
     with ScalaCheckPropertyChecks
     with ScalaCheckDrivenPropertyChecks
     with Matchers
-    with NodeGenerators
+    with ValidTransactionGenerators
     with FileUtils {
 
   val iFile: File = createTempDir
@@ -35,7 +41,7 @@ class LevelDBSpec
       val boxIdsToRemove: Iterable[Array[Byte]] = Seq()
       val boxesToAdd: Iterable[(Array[Byte], Array[Byte])] =
         tx.newBoxes
-          .map(b => (b.id.hash.value, b.bytes))
+          .map(b => (b.id.hash.value, Persistable[Box[_]].persistedBytes(b)))
           .toList
 
       blocksStorage.update(tx.id.getIdBytes, boxIdsToRemove, boxesToAdd)
@@ -81,7 +87,7 @@ class LevelDBSpec
       blocksStorage.update(
         b.id.getIdBytes,
         Seq(),
-        Seq(b.id.getIdBytes -> (Block.modifierTypeId.value +: b.bytes))
+        Seq(b.id.getIdBytes -> (Block.modifierTypeId.value +: b.persistedBytes))
       )
 
     var ids: Seq[ModifierId] = Seq()
@@ -94,7 +100,7 @@ class LevelDBSpec
 
     ids.foreach { id =>
       val idInStorage = blocksStorage.get(id.getIdBytes) match {
-        case None    => log.warn(s"${Console.RED} Id ${id.toString} not found"); false
+        case None    => log.warn(s"${Console.RED} Id ${id.show} not found"); false
         case Some(_) => true
       }
       require(idInStorage)

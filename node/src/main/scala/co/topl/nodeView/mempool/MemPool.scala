@@ -18,10 +18,13 @@ case class MemPool(private val unconfirmed: TrieMap[ModifierId, UnconfirmedTx[Tr
 
   private val boxesInMempool = new TrieMap[BoxId, BoxId]()
 
-  // getters
-  override def modifierById(id: ModifierId): Option[TX] = unconfirmed.get(id).map(_.tx)
+  override protected def persistenceAccessors: Iterator[ModifierId => Option[TX]] =
+    Iterator(id => unconfirmed.get(id).map(_.tx))
 
-  override def contains(id: ModifierId): Boolean = unconfirmed.contains(id)
+  // getters
+//  override def modifierById(id: ModifierId): Option[TX] = unconfirmed.get(id).map(_.tx)
+//
+//  override def contains(id: ModifierId): Boolean = unconfirmed.contains(id)
 
   override def getAll(ids: Seq[ModifierId]): Seq[TX] = ids.flatMap(modifierById)
 

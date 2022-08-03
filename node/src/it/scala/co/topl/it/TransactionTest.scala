@@ -43,7 +43,8 @@ class TransactionTest
     ConfigFactory.parseString(
       raw"""bifrost.network.knownPeers = []
            |bifrost.rpcApi.namespaceSelector.debug = true
-           |bifrost.forging.privateTestnet.genesisSeed = "$nodeGroupName"
+           |bifrost.forging.addressGenerationSettings.strategy = fromSeed
+           |bifrost.forging.addressGenerationSettings.addressSeedOpt = "$nodeGroupName"
            |bifrost.forging.forgeOnStartup = false
            |""".stripMargin
     )
@@ -399,7 +400,7 @@ class TransactionTest
   }
 
   private def broadcastAndAwait(name: String, signedTx: Transaction.TX): Transaction.TX = {
-    logger.info(s"Broadcasting signed $name")
+    logger.info(s"Broadcasting signed $name id=${signedTx.id}")
     val broadcastedTx =
       node
         .run(ToplRpc.Transaction.BroadcastTx.rpc)(

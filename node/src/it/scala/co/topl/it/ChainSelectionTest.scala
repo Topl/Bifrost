@@ -42,9 +42,10 @@ class ChainSelectionTest
     ConfigFactory.parseString(
       raw"""bifrost.network.knownPeers = []
            |bifrost.rpcApi.namespaceSelector.debug = true
-           |bifrost.forging.privateTestnet.numTestnetAccts = $nodeCount
-           |bifrost.forging.privateTestnet.testnetBalance = ${maxStake / nodeCount}
-           |bifrost.forging.privateTestnet.genesisSeed = "$seed"
+           |bifrost.application.genesis.generated.balanceForEachParticipant = ${maxStake / nodeCount}
+           |bifrost.forging.addressGenerationSettings.numberOfAddresses = $nodeCount
+           |bifrost.forging.addressGenerationSettings.strategy = fromSeed
+           |bifrost.forging.addressGenerationSettings.addressSeedOpt = "$seed"
            |bifrost.forging.forgeOnStartup = false
            |""".stripMargin
     )

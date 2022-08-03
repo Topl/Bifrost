@@ -3,13 +3,14 @@ package co.topl.api
 import akka.actor.typed.scaladsl.adapter.ClassicActorSystemOps
 import akka.util.ByteString
 import co.topl.consensus.ActorForgerInterface
+import co.topl.utils.DiskKeyRingTestHelper
 import io.circe.Json
 import io.circe.parser.parse
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class AdminRPCSpec extends AnyWordSpec with Matchers with RPCMockState with EitherValues {
+class AdminRPCSpec extends AnyWordSpec with Matchers with RPCMockState with DiskKeyRingTestHelper with EitherValues {
 
   "Admin RPC" should {
     "Return informative error when the keyfile being unlocked is not found on disk" in {

@@ -1,8 +1,8 @@
 package co.topl.utils
 
 import cats.Eq
-import co.topl.utils.StringDataTypes.implicits._
 import co.topl.utils.StringDataTypes.{Base16Data, Base58Data, Latin1Data}
+import co.topl.utils.implicits._
 import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers.be
