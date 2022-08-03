@@ -1,6 +1,7 @@
 package co.topl.utils
 
 import cats.data.Validated
+import scodec.Attempt
 
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
@@ -53,10 +54,27 @@ private[topl] object IdiomaticScalaTransition {
 
   trait ToTryOps {
 
-    implicit def toEitherOps[R](v: Try[R]): TryOps[R] = new TryOps[R] {
+    implicit def toTryOps[R](v: Try[R]): TryOps[R] = new TryOps[R] {
       def instance: Try[R] = v
     }
   }
 
-  object implicits extends ToValidatedOps with ToEitherOps with ToTryOps
+  trait AttemptOps[R] {
+    def instance: Attempt[R]
+
+    def getOrThrow(): R =
+      instance match {
+        case Attempt.Successful(a) => a
+        case Attempt.Failure(e)    => throw new Exception(e.messageWithContext)
+      }
+  }
+
+  trait ToAttemptOps {
+
+    implicit def toAttemptOps[R](v: Attempt[R]): AttemptOps[R] = new AttemptOps[R] {
+      def instance: Attempt[R] = v
+    }
+  }
+
+  object implicits extends ToValidatedOps with ToEitherOps with ToTryOps with ToAttemptOps
 }

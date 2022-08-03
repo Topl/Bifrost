@@ -30,6 +30,8 @@ class SingleNodeTest extends AnyFreeSpec with Matchers with IntegrationSuite wit
 
     node.waitForStartup().futureValue(Timeout(30.seconds)).value
 
+    node.run(ToplRpc.Admin.StartForging.rpc)(ToplRpc.Admin.StartForging.Params()).value
+
     logger.info("Wait 2 seconds for forging")
     Thread.sleep(2.seconds.toMillis)
 
