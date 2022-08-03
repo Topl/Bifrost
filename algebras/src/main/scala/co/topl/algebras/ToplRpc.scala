@@ -1,6 +1,6 @@
 package co.topl.algebras
 
-import co.topl.models.{BlockHeaderV2, Transaction, TypedIdentifier}
+import co.topl.models.{BlockBodyV2, BlockHeaderV2, Transaction, TypedIdentifier}
 
 /**
  * An interaction layer intended for users/clients of a blockchain node.
@@ -11,4 +11,6 @@ trait ToplRpc[F[_]] {
   def currentMempool(): F[Set[TypedIdentifier]]
 
   def fetchBlockHeader(blockId: TypedIdentifier): F[Option[BlockHeaderV2]]
+
+  def fetchBlockBody(blockId: TypedIdentifier): F[Option[BlockBodyV2]]
 }

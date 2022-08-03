@@ -7,6 +7,7 @@ service ToplGrpc {
   rpc CurrentMempool (CurrentMempoolReq) returns (CurrentMempoolRes);
 
   rpc FetchBlockHeader (FetchBlockHeaderReq) returns (FetchBlockHeaderRes);
+  rpc FetchBlockBody (FetchBlockBodyReq) returns (FetchBlockBodyRes);
 
 }
 
@@ -49,4 +50,16 @@ message BlockHeader {
   message Metadata {
     bytes value = 1;
   }
+}
+
+message FetchBlockBodyReq {
+  bytes blockId = 1;
+}
+
+message FetchBlockBodyRes {
+  BlockBody body = 1;
+}
+
+message BlockBody {
+  repeated bytes transactionIds = 1;
 }

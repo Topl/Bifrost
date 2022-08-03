@@ -8,9 +8,9 @@ import co.topl.algebras.ToplRpc
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.grpc.services.{BroadcastTransactionReq, BroadcastTransactionRes, FetchBlockHeaderReq}
+import co.topl.grpc.services.{BroadcastTransactionReq, BroadcastTransactionRes, FetchBlockBodyReq, FetchBlockHeaderReq}
 import co.topl.models.ModelGenerators._
-import co.topl.models.{BlockHeaderV2, Bytes, Transaction}
+import co.topl.models.{BlockBodyV2, BlockHeaderV2, Bytes, Transaction, TypedIdentifier}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
@@ -90,6 +90,50 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
           Async[F]
             .fromFuture(
               underTest.fetchBlockHeader(FetchBlockHeaderReq(ByteString.EMPTY)).pure[F]
+            )
+        )
+        _ = assert(e.status.getCode == Status.Code.INVALID_ARGUMENT)
+      } yield ()
+    }
+  }
+
+  test("A block body can be retrieved") {
+    PropF.forAllF { (id: TypedIdentifier, body: BlockBodyV2) =>
+      withMock {
+        val interpreter = mock[ToplRpc[F]]
+        val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+
+        (interpreter.fetchBlockBody _)
+          .expects(id)
+          .once()
+          .returning(body.some.pure[F])
+
+        for {
+          res <- Async[F]
+            .fromFuture(
+              underTest.fetchBlockBody(FetchBlockBodyReq(id.transmittableBytes)).pure[F]
+            )
+          protoBody = res.body.get
+          _ = assert(
+            protoBody.transactionIds
+              .map(b => (b: Bytes).decodeTransmitted[TypedIdentifier].getOrElse(???))
+              .toList == body.toList
+          )
+        } yield ()
+      }
+    }
+  }
+
+  test("An invalid block body ID is rejected") {
+    withMock {
+      val interpreter = mock[ToplRpc[F]]
+      val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+
+      for {
+        e <- interceptIO[GrpcServiceException](
+          Async[F]
+            .fromFuture(
+              underTest.fetchBlockBody(FetchBlockBodyReq(ByteString.EMPTY)).pure[F]
             )
         )
         _ = assert(e.status.getCode == Status.Code.INVALID_ARGUMENT)

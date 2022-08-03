@@ -15,7 +15,7 @@ import co.topl.ledger.algebras.{
   TransactionSyntaxValidationAlgebra
 }
 import co.topl.ledger.models._
-import co.topl.models.{BlockHeaderV2, Transaction, TypedIdentifier}
+import co.topl.models.{BlockBodyV2, BlockHeaderV2, Transaction, TypedIdentifier}
 import org.typelevel.log4cats.Logger
 import co.topl.typeclasses.implicits._
 
@@ -43,6 +43,7 @@ object ToplRpcServer {
    */
   def make[F[_]: Async: Logger: FToFuture](
     headerStore:         Store[F, TypedIdentifier, BlockHeaderV2],
+    bodyStore:           Store[F, TypedIdentifier, BlockBodyV2],
     transactionStore:    Store[F, TypedIdentifier, Transaction],
     mempool:             MempoolAlgebra[F],
     syntacticValidation: TransactionSyntaxValidationAlgebra[F],
@@ -72,6 +73,12 @@ object ToplRpcServer {
         def currentMempool(): F[Set[TypedIdentifier]] =
           localChain.head.map(_.slotId.blockId).flatMap(mempool.read)
 
+        def fetchBlockHeader(blockId: TypedIdentifier): F[Option[BlockHeaderV2]] =
+          headerStore.get(blockId)
+
+        def fetchBlockBody(blockId: TypedIdentifier): F[Option[BlockBodyV2]] =
+          bodyStore.get(blockId)
+
         private def syntacticValidateOrRaise(transaction: Transaction) =
           EitherT(syntacticValidation.validate(transaction).map(_.toEither))
             .leftSemiflatTap(errors =>
@@ -97,9 +104,6 @@ object ToplRpcServer {
               new IllegalArgumentException(show"Semantically invalid transaction id=${transaction.id.asTypedBytes}")
             )
             .rethrowT
-
-        def fetchBlockHeader(blockId: TypedIdentifier): F[Option[BlockHeaderV2]] =
-          headerStore.get(blockId)
       }
     }
 
