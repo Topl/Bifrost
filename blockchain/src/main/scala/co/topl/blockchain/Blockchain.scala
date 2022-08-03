@@ -118,6 +118,7 @@ object Blockchain {
         )
       mintedBlockStream <- mint.fold(Source.never[BlockV2].pure[F])(_.blocks)
       rpcInterpreter <- ToplRpcServer.make(
+        headerStore,
         transactionStore,
         mempool,
         transactionSyntaxValidation,

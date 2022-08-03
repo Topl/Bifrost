@@ -1,19 +1,20 @@
 package co.topl.grpc
 
 import akka.actor.ClassicActorSystemProvider
-import akka.grpc.GrpcClientSettings
+import akka.grpc.{GrpcClientSettings, GrpcServiceException}
 import akka.http.scaladsl.Http
 import cats.MonadThrow
-import cats.data.ValidatedNec
+import cats.data.{EitherT, OptionT, ValidatedNec}
 import cats.effect.kernel.{Async, Resource}
 import cats.implicits._
 import co.topl.algebras.ToplRpc
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.grpc.services.{CurrentMempoolReq, CurrentMempoolRes}
+import co.topl.grpc.services.{CurrentMempoolReq, CurrentMempoolRes, FetchBlockHeaderReq, FetchBlockHeaderRes}
 import co.topl.models._
 import com.google.protobuf.ByteString
+import io.grpc.Status
 
 import scala.concurrent.Future
 
@@ -38,6 +39,7 @@ object ToplGrpc {
               .fromFuture(
                 Async[F].delay(
                   client.broadcastTransaction(
+                    // Note: All other cases use .transmittedBytes, but for now, keep this as immutableBytes
                     services.BroadcastTransactionReq(transaction.immutableBytes)
                   )
                 )
@@ -49,16 +51,34 @@ object ToplGrpc {
               .fromFuture(
                 Async[F].delay(client.currentMempool(services.CurrentMempoolReq()))
               )
-              .map(
+              .flatMap(
                 _.transactionIds.toList
                   .traverse[ValidatedNec[String, *], TypedIdentifier](data =>
                     (data: Bytes).decodeTransmitted[TypedIdentifier].toValidatedNec
                   )
                   .map(_.toSet)
                   .leftMap(errors => new IllegalArgumentException(show"Invalid Transaction bytes. reason=$errors"))
-                  .toEither
+                  .liftTo[F]
               )
-              .rethrow
+
+          def fetchBlockHeader(blockId: TypedIdentifier): F[Option[BlockHeaderV2]] =
+            OptionT(
+              Async[F]
+                .fromFuture(
+                  Async[F].delay(
+                    client.fetchBlockHeader(
+                      services.FetchBlockHeaderReq(blockId.transmittableBytes)
+                    )
+                  )
+                )
+                .map(_.header)
+            )
+              .semiflatMap(protoHeader =>
+                EitherT(protoHeader.pure[F].toA[BlockHeaderV2])
+                  .leftMap(new IllegalArgumentException(_))
+                  .rethrowT
+              )
+              .value
         }
       }
   }
@@ -90,10 +110,15 @@ object ToplGrpc {
         implicitly[FToFuture[F]].apply(
           (in.transmittableBytes: Bytes)
             .decodeTransmitted[Transaction]
-            .leftMap(err => new IllegalArgumentException(s"Invalid Transaction bytes. reason=$err"))
+            .leftMap(err =>
+              new GrpcServiceException(
+                Status.INVALID_ARGUMENT.withDescription(s"Invalid Transaction bytes. reason=$err")
+              )
+            )
             .liftTo[F]
             .flatMap(interpreter.broadcastTransaction)
             .as(services.BroadcastTransactionRes())
+            .adaptErrorsToGrpc
         )
 
       def currentMempool(in: CurrentMempoolReq): Future[CurrentMempoolRes] =
@@ -101,6 +126,26 @@ object ToplGrpc {
           interpreter
             .currentMempool()
             .map(ids => CurrentMempoolRes(ids.toList.map(_.transmittableBytes: ByteString)))
+            .adaptErrorsToGrpc
+        )
+
+      def fetchBlockHeader(in: FetchBlockHeaderReq): Future[FetchBlockHeaderRes] =
+        implicitly[FToFuture[F]].apply(
+          (in.blockId: Bytes)
+            .decodeTransmitted[TypedIdentifier]
+            .leftMap(_ => new GrpcServiceException(Status.INVALID_ARGUMENT.withDescription("Invalid Block ID")))
+            .liftTo[F]
+            .flatMap(id =>
+              OptionT(interpreter.fetchBlockHeader(id))
+                .semiflatMap(header =>
+                  EitherT(header.pure[F].toB[services.BlockHeader])
+                    .leftMap(e => new GrpcServiceException(Status.DATA_LOSS.withDescription(e)))
+                    .rethrowT
+                )
+                .value
+                .map(services.FetchBlockHeaderRes(_))
+                .adaptErrorsToGrpc
+            )
         )
     }
   }

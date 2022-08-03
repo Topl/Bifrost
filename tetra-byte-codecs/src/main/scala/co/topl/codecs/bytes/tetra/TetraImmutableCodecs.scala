@@ -9,6 +9,9 @@ import co.topl.models.utility.Ratio
 trait TetraImmutableCodecs {
   import TetraScodecCodecs._
 
+  implicit val typedBytesImmutableCodec: ImmutableCodec[TypedBytes] =
+    ImmutableCodec.fromScodecCodec
+
   implicit val ratioStableCodec: ImmutableCodec[Ratio] =
     ImmutableCodec.fromScodecCodec
 

@@ -26,6 +26,15 @@ enablePlugins(ReproducibleBuildsPlugin, ReproducibleBuildsAssemblyPlugin)
 lazy val commonSettings = Seq(
   sonatypeCredentialHost := "s01.oss.sonatype.org",
   scalacOptions ++= commonScalacOptions,
+  // Enable PartialUnification in Scala 2.12.  Scala 2.13 fixes this by default
+  scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, v)) if v <= 12 =>
+      Seq(
+        "-Ypartial-unification"
+      )
+    case _ =>
+      Nil
+  }),
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
 //  wartremoverErrors := Warts.unsafe, // settings for wartremover
@@ -638,6 +647,7 @@ lazy val toplGrpc = project
     tetraByteCodecs,
     algebras,
     catsAkka,
+    typeclasses,
     munitScalamock % "test->test"
   )
 
