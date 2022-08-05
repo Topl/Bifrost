@@ -65,7 +65,7 @@ We appreciate your interest in this project and welcome contributions!
 
 If you'd like to contribute to Project Bifrost, please fork, fix, commit and send a pull request so that we can review your code and merge it when it is complete. For more complex changes, please contact us via Gitter or Slack to ensure those changes are reasonable and/or get some early feedback to expedite the review and merge process.
 
-**Please read our [Contributing Guide](https://github.com/Topl/Project-Bifrost/blob/master/CONTRIBUTING.md) for more information before submitting any pull requests, as the submission of any content to Topl's repositories constitutes your understanding of and agreement to our Contributor License Agreement and Code of Conduct.**
+**Please read our [Contributing Guide](https://github.com/Topl/Bifrost/blob/main/.github/CONTRIBUTING.md) for more information before submitting any pull requests, as the submission of any content to Topl's repositories constitutes your understanding of and agreement to our Contributor License Agreement and Code of Conduct.**
 
 To keep up with our development
 

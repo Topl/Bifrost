@@ -14,7 +14,7 @@ Before you get lost in the repository, here are a few starting points
 for you to check out. You might find that others have had similar
 questions or that your question rather belongs in one place than another.
 
-* Chat: https://discord.gg/CHaG8utU
+* Chat: https://discord.gg/WVPGaG5Cqc
 * Website: https://www.topl.co/
 * Twitter: https://twitter.com/topl_protocol
 
