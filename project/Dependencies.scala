@@ -167,7 +167,7 @@ object Dependencies {
     Seq(
       "org.typelevel"          %% "simulacrum"              % simulacrumVersion,
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.6.0",
-      "org.mongodb.scala"      %% "mongo-scala-driver"      % "4.3.2",
+      "org.mongodb.scala"      %% "mongo-scala-driver"      % "4.3.4",
       "io.circe"               %% "circe-generic"           % circeVersion,
       "org.scodec"             %% "scodec-core"             % "1.11.8",
       "org.scodec"             %% "scodec-bits"             % "1.1.30"
@@ -279,8 +279,8 @@ object Dependencies {
 
   lazy val loadTesting: Seq[ModuleID] =
     Seq(
-      "com.lihaoyi" %% "mainargs" % "0.2.1",
-      "com.nike.fleam" %% "fleam" % "7.0.0"
+      "com.lihaoyi"    %% "mainargs" % "0.2.1",
+      "com.nike.fleam" %% "fleam"    % "7.0.0"
     ) ++
     fleam ++
     allAkka ++
