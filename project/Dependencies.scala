@@ -5,7 +5,7 @@ object Dependencies {
   val akkaVersion = "2.6.18"
   val akkaHttpVersion = "10.2.9"
   val circeVersion = "0.14.1"
-  val kamonVersion = "2.5.0"
+  val kamonVersion = "2.5.6"
   val graalVersion = "21.1.0"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.6.1"
@@ -279,8 +279,8 @@ object Dependencies {
 
   lazy val loadTesting: Seq[ModuleID] =
     Seq(
-      "com.lihaoyi" %% "mainargs" % "0.2.1",
-      "com.nike.fleam" %% "fleam" % "7.0.0"
+      "com.lihaoyi"    %% "mainargs" % "0.2.1",
+      "com.nike.fleam" %% "fleam"    % "7.0.0"
     ) ++
     fleam ++
     allAkka ++
