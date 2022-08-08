@@ -1,10 +1,12 @@
 package co.topl.typeclasses
 
 import co.topl.models.utility.{Lengths, Sized}
-import co.topl.models.{BlockBodyV2, BlockV1, BloomFilter, Bytes, Transaction}
+import co.topl.models.{BlockV1, BloomFilter, Bytes, Transaction}
 import simulacrum.{op, typeclass}
 import co.topl.models.utility.HasLength.instances._
 import Lengths._
+import cats.{Foldable, Traverse}
+import cats.implicits._
 
 /**
  * Satisfies that T contains transactions
@@ -25,7 +27,11 @@ object ContainsTransactions {
 
   trait Instances {
 
-    implicit val transactionsContainsTransactionsContainsTransactions: ContainsTransactions[Seq[Transaction]] = identity
+    implicit val transactionsContainsTransactions: ContainsTransactions[Seq[Transaction]] = identity
+
+    implicit def transactionsFoldableContainsTransactions[G[_]: Foldable]: ContainsTransactions[G[Transaction]] =
+      t => t.toIterable.toSeq
+
     implicit val blockV1ContainsTransactions: ContainsTransactions[BlockV1] = _.transactions
   }
   object Instances extends Instances

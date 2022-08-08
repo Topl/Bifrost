@@ -169,13 +169,17 @@ trait TetraScodecVerificationKeyCodecs {
 trait TetraScodecAddressCodecs {
   self: TetraScodecPrimitiveCodecs with TetraScodecVerificationKeyCodecs =>
 
-  implicit val stakingAddressesPoolCodec: Codec[StakingAddresses.Operator] =
+  implicit val stakingAddressesOperatorCodec: Codec[StakingAddresses.Operator] =
     vkEd25519Codec.as[StakingAddresses.Operator]
+
+  implicit val stakingAddressesNonStakingCodec: Codec[StakingAddresses.NonStaking.type] =
+    emptyCodec(StakingAddresses.NonStaking)
 
   implicit val stakingAddressCodec: Codec[StakingAddress] =
     discriminated[StakingAddress]
       .by(byteCodec)
-      .typecase(0: Byte, stakingAddressesPoolCodec)
+      .typecase(0: Byte, stakingAddressesOperatorCodec)
+      .typecase(1: Byte, stakingAddressesNonStakingCodec)
 
   implicit val fullAddressCodec: Codec[FullAddress] =
     (Codec[NetworkPrefix] :: Codec[SpendingAddress] :: Codec[StakingAddress] :: Codec[Proofs.Knowledge.Ed25519])
@@ -449,7 +453,7 @@ trait TetraScodecBlockCodecs {
         eligibilityCertificateCodec ::
         operationalCertificateCodec ::
         optionCodec(maxSizedCodec[Latin1Data, Lengths.`32`.type]) ::
-        stakingAddressesPoolCodec
+        stakingAddressesOperatorCodec
     ).as[BlockHeaderV2]
 
   implicit val slotIdCodec: Codec[SlotId] =
@@ -470,7 +474,7 @@ trait TetraScodecBlockCodecs {
         eligibilityCertificateCodec ::
         partialOperationalCertificateCodec ::
         optionCodec(maxSizedCodec[Latin1Data, Lengths.`32`.type]) ::
-        stakingAddressesPoolCodec
+        stakingAddressesOperatorCodec
     ).as[BlockHeaderV2.Unsigned]
 
   implicit val blockBodyV2Codec: Codec[BlockBodyV2] = listSetCodec[TypedIdentifier]

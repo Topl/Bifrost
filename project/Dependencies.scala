@@ -261,7 +261,7 @@ object Dependencies {
     cats ++ simulacrum ++ newType ++ scodec
 
   lazy val consensus: Seq[ModuleID] =
-    bouncyCastle ++ Seq(akka("actor-typed")) ++ catsEffect ++ logging ++ scalacache
+    Dependencies.mUnitTest ++ bouncyCastle ++ Seq(akka("actor-typed")) ++ catsEffect ++ logging ++ scalacache
 
   lazy val minting: Seq[ModuleID] =
     Dependencies.test ++ Dependencies.catsEffect ++ Seq(Dependencies.akka("stream"))

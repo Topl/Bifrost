@@ -5,9 +5,9 @@ import cats.data.Chain
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import co.topl.algebras.testInterpreters.NoOpLogger
-import co.topl.algebras.{ClockAlgebra, ConsensusStateReader, SecureStore, UnsafeResource}
+import co.topl.algebras.{ClockAlgebra, SecureStore, UnsafeResource}
 import co.topl.codecs.bytes.typeclasses.Persistable
-import co.topl.consensus.algebras.EtaCalculationAlgebra
+import co.topl.consensus.algebras.{ConsensusValidationStateAlgebra, EtaCalculationAlgebra}
 import co.topl.crypto.signing.{Ed25519, KesProduct}
 import co.topl.minting.algebras.{OperationalKeyOut, VrfProofAlgebra}
 import co.topl.models.ModelGenerators._
@@ -42,12 +42,12 @@ class OperationalKeysSpec
   implicit private val ed25519: Ed25519 = new Ed25519
 
   it should "load the initial key from SecureStore and produce (VRF-filtered) linear keys" in {
-    forAll { (eta: Eta, address: StakingAddress) =>
+    forAll { (eta: Eta, address: StakingAddresses.Operator) =>
       val secureStore = mock[SecureStore[F]]
       val clock = mock[ClockAlgebra[F]]
       val vrfProof = mock[VrfProofAlgebra[F]]
       val etaCalculation = mock[EtaCalculationAlgebra[F]]
-      val consensusState = mock[ConsensusStateReader[F]]
+      val consensusState = mock[ConsensusValidationStateAlgebra[F]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
       val parentSlotId = SlotId(10L, TypedBytes(1: Byte, Bytes.fill(32)(0: Byte)))
@@ -59,7 +59,7 @@ class OperationalKeysSpec
 
       (() => clock.slotsPerEpoch)
         .expects()
-        .twice()
+        .once()
         .returning(210L.pure[F])
 
       (() => secureStore.list)
@@ -92,8 +92,8 @@ class OperationalKeysSpec
         .returning(ineligibilities.pure[F])
 
       (consensusState
-        .lookupRelativeStake(_: Epoch)(_: StakingAddress))
-        .expects(*, *)
+        .operatorRelativeStake(_: TypedIdentifier, _: Slot)(_: StakingAddresses.Operator))
+        .expects(*, *, *)
         .once()
         .returning(Ratio.One.some.pure[F])
 
@@ -160,12 +160,12 @@ class OperationalKeysSpec
   }
 
   it should "update the initial key at the turn of an operational period" in {
-    forAll { (eta: Eta, address: StakingAddress) =>
+    forAll { (eta: Eta, address: StakingAddresses.Operator) =>
       val secureStore = mock[SecureStore[F]]
       val clock = mock[ClockAlgebra[F]]
       val vrfProof = mock[VrfProofAlgebra[F]]
       val etaCalculation = mock[EtaCalculationAlgebra[F]]
-      val consensusState = mock[ConsensusStateReader[F]]
+      val consensusState = mock[ConsensusValidationStateAlgebra[F]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
       val parentSlotId = SlotId(10L, TypedBytes(1: Byte, Bytes.fill(32)(0: Byte)))
@@ -208,8 +208,8 @@ class OperationalKeysSpec
         .returning(Vector.empty[Slot].pure[F])
 
       (consensusState
-        .lookupRelativeStake(_: Epoch)(_: StakingAddress))
-        .expects(*, *)
+        .operatorRelativeStake(_: TypedIdentifier, _: Slot)(_: StakingAddresses.Operator))
+        .expects(*, *, *)
         .twice()
         .returning(Ratio.One.some.pure[F])
 

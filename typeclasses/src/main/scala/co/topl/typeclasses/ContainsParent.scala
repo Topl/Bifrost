@@ -15,10 +15,10 @@ object ContainsParent {
   trait Instances {
 
     implicit val blockHeaderV2ContainsParent: ContainsParent[BlockHeaderV2] =
-      header => Some(header.parentHeaderId).filterNot(_.dataBytes == BlockGenesis.ParentId)
+      header => if (header.parentSlot >= 0) Some(header.parentHeaderId) else None
 
     implicit val blockV1ContainsParent: ContainsParent[BlockV1] =
-      block => Some(block.parentId).filterNot(_.dataBytes == BlockGenesis.ParentId)
+      block => if (block.height > 1) Some(block.parentId) else None
   }
   object Instances extends Instances
 }

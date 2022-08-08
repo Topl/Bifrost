@@ -213,7 +213,9 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
     }
   }
 
-  test("expire a transaction more aggressively when a double-spend is detected".flaky) {
+  // TODO: Re-enable once it is understood why this test is flaky
+  // (Note: Occasionally, this test fails due to a 30s Future timeout)
+  test("expire a transaction more aggressively when a double-spend is detected".ignore) {
     PropF.forAllF {
       (
         baseTransaction: Transaction,

@@ -8,7 +8,7 @@ import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.consensus.algebras.EtaCalculationAlgebra
+import co.topl.consensus.algebras.{ConsensusValidationStateAlgebra, EtaCalculationAlgebra}
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing._
 import co.topl.minting.algebras._
@@ -38,19 +38,19 @@ object OperationalKeys {
       clock:                       ClockAlgebra[F],
       vrfProof:                    VrfProofAlgebra[F],
       etaCalculation:              EtaCalculationAlgebra[F],
-      consensusState:              ConsensusStateReader[F],
+      consensusState:              ConsensusValidationStateAlgebra[F],
       kesProductResource:          UnsafeResource[F, KesProduct],
       ed25519Resource:             UnsafeResource[F, Ed25519],
       parentSlotId:                SlotId,
       operationalPeriodLength:     Long,
       activationOperationalPeriod: Long,
-      address:                     StakingAddress,
+      address:                     StakingAddresses.Operator,
       initialSlot:                 Slot
     ): F[OperationalKeysAlgebra[F]] =
       for {
         initialOperationalPeriod <- (initialSlot / operationalPeriodLength).pure[F]
         initialKeysOpt <-
-          OptionT(clock.epochOf(initialSlot).flatMap(consensusState.lookupRelativeStake(_)(address)))
+          OptionT(consensusState.operatorRelativeStake(parentSlotId.blockId, initialSlot)(address))
             .flatMapF(relativeStake =>
               consumeEvolvePersist(
                 (initialOperationalPeriod - activationOperationalPeriod).toInt,
@@ -91,12 +91,12 @@ object OperationalKeys {
       clock:                       ClockAlgebra[F],
       vrfProof:                    VrfProofAlgebra[F],
       etaCalculation:              EtaCalculationAlgebra[F],
-      consensusState:              ConsensusStateReader[F],
+      consensusState:              ConsensusValidationStateAlgebra[F],
       kesProductResource:          UnsafeResource[F, KesProduct],
       ed25519Resource:             UnsafeResource[F, Ed25519],
       operationalPeriodLength:     Long,
       activationOperationalPeriod: Long,
-      address:                     StakingAddress,
+      address:                     StakingAddresses.Operator,
       ref:                         Ref[F, (Long, Option[Map[Long, OperationalKeyOut]])]
     ): OperationalKeysAlgebra[F] = { (slot: Slot, parentSlotId: SlotId) =>
       val operationalPeriod = slot / operationalPeriodLength
@@ -104,7 +104,7 @@ object OperationalKeys {
         case (`operationalPeriod`, keysOpt) =>
           keysOpt.flatMap(_.get(slot)).pure[F]
         case _ =>
-          OptionT(clock.epochOf(slot).flatMap(consensusState.lookupRelativeStake(_)(address)))
+          OptionT(consensusState.operatorRelativeStake(parentSlotId.blockId, slot)(address))
             .flatMapF(relativeStake =>
               consumeEvolvePersist(
                 (operationalPeriod - activationOperationalPeriod).toInt,

@@ -15,5 +15,5 @@ object StakingAddresses {
   case class Operator(vk: VerificationKeys.Ed25519) extends StakingAddress
   // TODO
 //  case class Delegating(vk: VerificationKeys.Ed25519) extends StakingAddress
-//  case object NonStaking extends StakingAddress
+  case object NonStaking extends StakingAddress
 }

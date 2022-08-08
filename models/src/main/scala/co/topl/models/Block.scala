@@ -1,5 +1,6 @@
 package co.topl.models
 
+import cats.data.Chain
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{Lengths, Sized}
 
@@ -70,4 +71,6 @@ object BlockV2 {
     unsignedHeader: BlockHeaderV2.Unsigned,
     body:           BlockBodyV2
   )
+
+  case class Full(headerV2: BlockHeaderV2, transactions: Chain[Transaction])
 }

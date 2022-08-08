@@ -36,7 +36,7 @@ object BramblTetra extends IOApp.Simple {
           rpcClient2                   <- ToplGrpc.Client.make[F]("localhost", 8091, tls = false)
           logger2                      <- Slf4jLogger.fromName[F]("Brambl@localhost:8091")
           clientLoggerPairs = Array((rpcClient1, logger1), (rpcClient2, logger2))
-          source = infiniteTransactionsSource(Box.Id(genesisTransaction.id, 0))
+          source = infiniteTransactionsSource(genesisTransaction, Propositions.Contextual.HeightLock(1L))
           _ <-
             Async[F].fromFuture(
               source
@@ -58,33 +58,33 @@ object BramblTetra extends IOApp.Simple {
         } yield ()
       )
 
-  private def infiniteTransactionsSource(initialBoxId: Box.Id) =
-    Source.unfold(initialBoxId)(boxId =>
+  private def infiniteTransactionsSource(transaction: Transaction, proposition: Proposition) =
+    Source.unfold(transaction -> proposition) { case (previousTransaction, previousProposition) =>
       Transaction(
         inputs = Chain(
           Transaction.Input(
-            boxId = boxId,
-            proposition = Propositions.Contextual.HeightLock(1L),
+            boxId = Box.Id(previousTransaction.id, 0),
+            proposition = previousProposition,
             proof = Proofs.Contextual.HeightLock(),
             value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10000L)))
           )
         ),
         outputs = Chain(
           Transaction.Output(
-            address,
+            address(Propositions.Contextual.HeightLock(20L)),
             Box.Values.Poly(Sized.maxUnsafe(BigInt(10000L))),
             minting = false
           )
         ),
         chronology = Transaction.Chronology(System.currentTimeMillis(), 0L, Long.MaxValue),
         data = none
-      ).some.map(transaction => Box.Id(transaction.id, 0) -> transaction)
-    )
+      ).some.map(transaction => (transaction, Propositions.Contextual.HeightLock(20L)) -> transaction)
+    }
 
-  private val address =
+  private def address(proposition: Proposition) =
     FullAddress(
       NetworkPrefix(1),
-      Propositions.Contextual.HeightLock(1L).spendingAddress,
+      proposition.spendingAddress,
       StakingAddresses.Operator(VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes.fill(32)(0: Byte)))),
       Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes.fill(64)(0: Byte)))
     )

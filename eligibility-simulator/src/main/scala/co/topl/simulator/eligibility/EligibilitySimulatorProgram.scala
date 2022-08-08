@@ -29,7 +29,6 @@ object EligibilitySimulatorProgram {
     mints:              List[BlockMintAlgebra[F]],
     headerValidation:   BlockHeaderValidationAlgebra[F],
     headerStore:        Store[F, TypedIdentifier, BlockHeaderV2],
-    blockStore:         Store[F, TypedIdentifier, BlockV2],
     etaCalculation:     EtaCalculationAlgebra[F],
     localChain:         LocalChainAlgebra[F],
     ed25519VrfResource: UnsafeResource[F, Ed25519VRF],
@@ -45,7 +44,6 @@ object EligibilitySimulatorProgram {
           mints,
           headerValidation,
           headerStore,
-          blockStore,
           etaCalculation,
           localChain,
           ed25519VrfResource,
@@ -67,7 +65,6 @@ object EligibilitySimulatorProgram {
     mints:              List[BlockMintAlgebra[F]],
     headerValidation:   BlockHeaderValidationAlgebra[F],
     headerStore:        Store[F, TypedIdentifier, BlockHeaderV2],
-    blockStore:         Store[F, TypedIdentifier, BlockV2],
     etaCalculation:     EtaCalculationAlgebra[F],
     localChain:         LocalChainAlgebra[F],
     ed25519VrfResource: UnsafeResource[F, Ed25519VRF],
@@ -84,7 +81,6 @@ object EligibilitySimulatorProgram {
         mints,
         headerValidation,
         headerStore,
-        blockStore,
         localChain,
         ed25519VrfResource,
         stats,
@@ -121,7 +117,6 @@ object EligibilitySimulatorProgram {
     mints:              List[BlockMintAlgebra[F]],
     headerValidation:   BlockHeaderValidationAlgebra[F],
     headerStore:        Store[F, TypedIdentifier, BlockHeaderV2],
-    blockStore:         Store[F, TypedIdentifier, BlockV2],
     localChain:         LocalChainAlgebra[F],
     ed25519VrfResource: UnsafeResource[F, Ed25519VRF],
     stats:              Stats[F],
@@ -138,7 +133,6 @@ object EligibilitySimulatorProgram {
               mints,
               headerValidation,
               headerStore,
-              blockStore,
               localChain,
               ed25519VrfResource,
               stats,
@@ -157,7 +151,6 @@ object EligibilitySimulatorProgram {
     mints:              List[BlockMintAlgebra[F]],
     headerValidation:   BlockHeaderValidationAlgebra[F],
     headerStore:        Store[F, TypedIdentifier, BlockHeaderV2],
-    blockStore:         Store[F, TypedIdentifier, BlockV2],
     localChain:         LocalChainAlgebra[F],
     ed25519VrfResource: UnsafeResource[F, Ed25519VRF],
     stats:              Stats[F],
@@ -171,18 +164,20 @@ object EligibilitySimulatorProgram {
             .getOrElseF(new IllegalStateException("BlockNotFound").raiseError[F, BlockHeaderV2])
         )
       mintedBlocks <- mints.parTraverse(_.attemptMint(canonicalHead, Nil, slot)).map(_.flatten)
-      _ <- mintedBlocks.traverse(
-        processMintedBlock(
-          _,
-          headerValidation,
-          blockStore,
-          localChain,
-          ed25519VrfResource,
-          stats,
-          statsName,
-          canonicalHead
+      _ <- mintedBlocks
+        .map(_.headerV2)
+        .traverse(
+          processMintedBlock(
+            _,
+            headerValidation,
+            headerStore,
+            localChain,
+            ed25519VrfResource,
+            stats,
+            statsName,
+            canonicalHead
+          )
         )
-      )
     } yield ()
 
   implicit private val showBlockHeaderValidationFailure: Show[BlockHeaderValidationFailure] =
@@ -192,9 +187,9 @@ object EligibilitySimulatorProgram {
    * Insert block to local storage and perform chain selection.  If better, validate the block and then adopt it locally.
    */
   private def processMintedBlock[F[_]: Monad: Logger](
-    nextBlock:          BlockV2,
+    nextBlock:          BlockHeaderV2,
     headerValidation:   BlockHeaderValidationAlgebra[F],
-    blockStore:         Store[F, TypedIdentifier, BlockV2],
+    headerStore:        Store[F, TypedIdentifier, BlockHeaderV2],
     localChain:         LocalChainAlgebra[F],
     ed25519VrfResource: UnsafeResource[F, Ed25519VRF],
     stats:              Stats[F],
@@ -202,21 +197,21 @@ object EligibilitySimulatorProgram {
     canonicalHead:      BlockHeaderV2
   ): F[Unit] =
     for {
-      _                     <- Logger[F].info(show"Minted block ${nextBlock.headerV2}")
-      _                     <- blockStore.put(nextBlock.headerV2.id, nextBlock)
-      slotData              <- ed25519VrfResource.use(implicit ed25519Vrf => nextBlock.headerV2.slotData.pure[F])
+      _                     <- Logger[F].info(show"Minted block ${nextBlock}")
+      _                     <- headerStore.put(nextBlock.id, nextBlock)
+      slotData              <- ed25519VrfResource.use(implicit ed25519Vrf => nextBlock.slotData.pure[F])
       localChainIsWorseThan <- localChain.isWorseThan(slotData)
       _ <-
         if (localChainIsWorseThan)
-          EitherT(headerValidation.validate(nextBlock.headerV2, canonicalHead))
+          EitherT(headerValidation.validate(nextBlock, canonicalHead))
             // TODO: Now fetch the body from the network and validate against the ledger
             .semiflatTap(_ => localChain.adopt(Validated.Valid(slotData)))
             .semiflatTap(_ =>
               stats.write(
                 statsName,
                 Json.obj(
-                  "h" -> nextBlock.headerV2.height.asJson,
-                  "s" -> nextBlock.headerV2.slot.asJson
+                  "h" -> nextBlock.height.asJson,
+                  "s" -> nextBlock.slot.asJson
                 )
               )
             )
@@ -224,12 +219,12 @@ object EligibilitySimulatorProgram {
             .void
             .valueOrF(e =>
               Logger[F]
-                .warn(show"Invalid block header. reason=$e block=${nextBlock.headerV2}")
+                .warn(show"Invalid block header. reason=$e block=$nextBlock")
                 // TODO: Penalize the peer
-                .flatTap(_ => blockStore.remove(nextBlock.headerV2.id))
+                .flatTap(_ => headerStore.remove(nextBlock.id))
             )
         else
-          Logger[F].info(show"Ignoring weaker block header id=${nextBlock.headerV2.id}")
+          Logger[F].info(show"Ignoring weaker block header id=${nextBlock.id.asTypedBytes}")
     } yield ()
 
   /**

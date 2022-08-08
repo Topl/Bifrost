@@ -58,31 +58,40 @@ object PerpetualBlockMint {
             )
 
           private def forSlot(slot: Slot): F[Option[BlockV2]] =
-            for {
-              _                     <- clock.delayedUntilSlot(slot)
-              canonicalHeadSlotData <- localChain.head
-              transactionIds        <- mempool.read(canonicalHeadSlotData.slotId.blockId)
-              transactions          <- transactionIds.toList.traverse(fetchTransaction)
-              parent <- OptionT(headerStore.get(canonicalHeadSlotData.slotId.blockId)).getOrElseF(
-                MonadThrow[F].raiseError(
-                  new NoSuchElementException(canonicalHeadSlotData.slotId.blockId.show)
-                )
-              )
-              // TODO: This "Transaction Selection Algorithm" will not perform well and is meant to be improved in the future
-              selectedTransactions <- transactions.foldLeftM(List.empty[Transaction]) { case (selected, transaction) =>
-                val fullBody = transaction +: selected
-                val body = ListSet.empty[TypedIdentifier] ++ fullBody.map(_.id.asTypedBytes)
-                OptionT(bodySyntaxValidation.validate(body).map(_.toOption))
-                  .flatMapF(_ =>
-                    bodySemanticValidation.validate(canonicalHeadSlotData.slotId.blockId)(body).map(_.toOption)
+            clock.delayedUntilSlot(slot) >>
+            localChain.head.flatMap(canonicalHeadSlotData =>
+              if (canonicalHeadSlotData.slotId.slot >= slot)
+                none.pure[F]
+              else
+                for {
+                  _                     <- clock.delayedUntilSlot(slot)
+                  canonicalHeadSlotData <- localChain.head
+                  transactionIds        <- mempool.read(canonicalHeadSlotData.slotId.blockId)
+                  transactions          <- transactionIds.toList.traverse(fetchTransaction)
+                  parent <- OptionT(headerStore.get(canonicalHeadSlotData.slotId.blockId)).getOrElseF(
+                    MonadThrow[F].raiseError(
+                      new NoSuchElementException(canonicalHeadSlotData.slotId.blockId.show)
+                    )
                   )
-                  .flatMapF(_ =>
-                    bodyAuthorizationValidation.validate(canonicalHeadSlotData.slotId.blockId)(body).map(_.toOption)
-                  )
-                  .fold(selected)(_ => fullBody)
-              }
-              newBlockOpt <- blockMint.attemptMint(parent, selectedTransactions, slot)
-            } yield newBlockOpt
+                  // TODO: This "Transaction Selection Algorithm" will not perform well and is meant to be improved in the future
+                  selectedTransactions <- transactions.foldLeftM(List.empty[Transaction]) {
+                    case (selected, transaction) =>
+                      val fullBody = transaction +: selected
+                      val body = ListSet.empty[TypedIdentifier] ++ fullBody.map(_.id.asTypedBytes)
+                      OptionT(bodySyntaxValidation.validate(body).map(_.toOption))
+                        .flatMapF(_ =>
+                          bodySemanticValidation.validate(canonicalHeadSlotData.slotId.blockId)(body).map(_.toOption)
+                        )
+                        .flatMapF(_ =>
+                          bodyAuthorizationValidation
+                            .validate(canonicalHeadSlotData.slotId.blockId)(body)
+                            .map(_.toOption)
+                        )
+                        .fold(selected)(_ => fullBody)
+                  }
+                  newBlockOpt <- blockMint.attemptMint(parent, selectedTransactions, slot)
+                } yield newBlockOpt
+            )
         }
       )
   }

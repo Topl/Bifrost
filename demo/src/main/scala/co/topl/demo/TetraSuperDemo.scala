@@ -3,7 +3,7 @@ package co.topl.demo
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import akka.stream.scaladsl.{Flow, Keep, Source}
-import akka.util.{ByteString, Timeout}
+import akka.util.ByteString
 import cats.data.{Store => _, _}
 import cats.effect.implicits._
 import cats.effect.kernel.Sync
@@ -11,23 +11,21 @@ import cats.effect.unsafe.{IORuntime, IORuntimeConfig}
 import cats.effect.{Async, ExitCode, IO, IOApp}
 import cats.implicits._
 import co.topl.algebras._
-import co.topl.blockchain.Blockchain
+import co.topl.blockchain.{BigBang, Blockchain, StakerInitializers}
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
+import co.topl.consensus.interpreters._
 import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.crypto.signing.{Curve25519, Ed25519, Ed25519VRF, ExtendedEd25519, KesProduct}
 import co.topl.interpreters._
 import co.topl.ledger.interpreters._
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.Lengths._
-import co.topl.models.utility._
+import co.topl.models.utility.HasLength.instances.{bigIntLength, bytesLength}
+import co.topl.models.utility.{Ratio, Sized}
 import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer, Locations, SimulatedGeospatialDelayFlow}
 import co.topl.numerics.{ExpInterpreter, Log1pInterpreter}
-import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -36,7 +34,7 @@ import java.net.InetSocketAddress
 import java.nio.file.{Files, Paths}
 import java.security.SecureRandom
 import java.time.Instant
-import scala.concurrent.Future
+import scala.collection.immutable.ListSet
 import scala.concurrent.duration._
 import scala.util.Random
 
@@ -47,71 +45,8 @@ import scala.util.Random
  */
 object TetraSuperDemo extends IOApp {
 
-  // Configuration Data
-  implicit private val vrfConfig: VrfConfig =
-    VrfConfig(lddCutoff = 80, precision = 40, baselineDifficulty = Ratio(1, 20), amplitude = Ratio(2, 5))
-
-  private val OperationalPeriodLength = 180L
-  private val OperationalPeriodsPerEpoch = 4L
-  private val EpochLength = OperationalPeriodLength * OperationalPeriodsPerEpoch
-  private val SlotDuration = 200.milli
-
-  require(
-    EpochLength % OperationalPeriodLength === 0L,
-    "EpochLength must be evenly divisible by OperationalPeriodLength"
-  )
-
-  private val ChainSelectionKLookback = 5_000L
-  private val ChainSelectionSWindow = 200_000L
-
-  private val KesKeyHeight = (9, 9)
-
-  private def computeStakers(count: Int, random: Random) = List.tabulate(count) { idx =>
-    implicit val ed25519Vrf: Ed25519VRF = Ed25519VRF.precomputed()
-    implicit val ed25519: Ed25519 = new Ed25519
-    implicit val kesProduct: KesProduct = new KesProduct
-    val seed = Sized.strictUnsafe[Bytes, Lengths.`32`.type](Bytes(random.nextBytes(32)))
-
-    val (_, poolVK) = new Ed25519().deriveKeyPairFromSeed(seed)
-
-    val (stakerVrfKey, _) =
-      ed25519Vrf.deriveKeyPairFromSeed(seed)
-
-    val (kesKey, _) =
-      kesProduct.createKeyPair(seed = seed.data, height = KesKeyHeight, 0)
-
-    val stakerRegistration: Box.Values.Registrations.Operator =
-      Box.Values.Registrations.Operator(
-        vrfCommitment = kesProduct.sign(
-          kesKey,
-          new Blake2b256().hash(ed25519Vrf.getVerificationKey(stakerVrfKey).immutableBytes, poolVK.bytes.data).data
-        )
-      )
-
-    Staker(Ratio(1, count), stakerVrfKey, kesKey, stakerRegistration, StakingAddresses.Operator(poolVK))
-  }
-
-  private val genesisTransaction =
-    Transaction(
-      inputs = Chain.empty,
-      outputs = Chain(
-        Transaction.Output(
-          FullAddress(
-            NetworkPrefix(1),
-            Propositions.Contextual.HeightLock(1L).spendingAddress,
-            StakingAddresses.Operator(VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes.fill(32)(0: Byte)))),
-            Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes.fill(64)(0: Byte)))
-          ),
-          Box.Values.Poly(Sized.maxUnsafe(BigInt(10_000L))),
-          minting = true
-        )
-      ),
-      chronology = Transaction.Chronology(0L, 0L, Long.MaxValue),
-      None
-    )
-
-  private val genesis =
-    BlockGenesis(List(genesisTransaction)).value
+  import DemoConfig._
+  import DemoUtils._
 
   // Actor system initialization
 
@@ -125,16 +60,8 @@ object TetraSuperDemo extends IOApp {
 
   type F[A] = IO[A]
 
-  private def makeClock(genesisTimestamp: Instant): ClockAlgebra[F] =
-    SchedulerClock.Eval.make(SlotDuration, EpochLength, genesisTimestamp)
-
-  implicit private val timeout: Timeout = Timeout(20.seconds)
-
-  private def state(stakers: List[Staker]): F[ConsensusStateReader[F]] =
-    NodeViewHolder.StaticData.make[F](
-      stakers.map(staker => staker.address -> staker.relativeStake).toMap,
-      stakers.map(staker => staker.address -> staker.registration).toMap
-    )
+  private def makeClock(genesisTimestamp: Timestamp): ClockAlgebra[F] =
+    SchedulerClock.Eval.make(SlotDuration, EpochLength, Instant.ofEpochMilli(genesisTimestamp))
 
   private val statsDir = Paths.get(".bifrost", "stats")
   Files.createDirectories(statsDir)
@@ -144,61 +71,36 @@ object TetraSuperDemo extends IOApp {
 
   // Program definition
 
-  private val loggerColors = List(
-    Console.MAGENTA,
-    Console.BLUE,
-    Console.YELLOW,
-    Console.GREEN,
-    Console.CYAN,
-    Console.RED,
-    Console.MAGENTA_B,
-    Console.BLUE_B,
-    Console.YELLOW_B,
-    Console.GREEN_B,
-    Console.CYAN_B,
-    Console.RED_B
-  )
-
   def run(args: List[String]): IO[ExitCode] = {
     for {
-      random <- new Random(0L).pure[F]
-      genesisTimestamp = Instant.now().plusSeconds(10)
-      localPeers = List(
-        (LocalPeer(parseAddress(port = 9090), Locations.NorthPole), "North1", parseAddress(port = 8090)),
-        (LocalPeer(parseAddress(port = 9091), Locations.NorthPole), "North2", parseAddress(port = 8091))
+      bigBangTimestamp <- Instant.now().plusSeconds(10).toEpochMilli.pure[F]
+      implicit0(networkPrefix: NetworkPrefix) = NetworkPrefix(1: Byte)
+      configs = List(
+        DemoNodeConfig("North1", Locations.NorthPole, 9090, 8090),
+        DemoNodeConfig("North2", Locations.SouthPole, 9091, 8091, List("North1"))
       )
-      configurations = List(
-        (
-          localPeers(0)._1,
-          Source(Nil: List[DisconnectedPeer]),
-          true,
-          localPeers(0)._2,
-          localPeers(0)._3
-        ),
-        (
-          localPeers(1)._1,
-          Source
-            .future(akka.pattern.after(8.seconds)(Future.unit))
-            .flatMapConcat(_ => Source(List(DisconnectedPeer.tupled(LocalPeer.unapply(localPeers(0)._1).get)))),
-          true,
-          localPeers(1)._2,
-          localPeers(1)._3
+      implicit0(bigBangConfig: BigBang.Config) = BigBang.Config(
+        bigBangTimestamp,
+        Chain
+          .fromSeq(configs.map(_.staker))
+          .flatMap(_.bigBangOutputs(Sized.maxUnsafe(Ratio(TotalStake.data, configs.length).round)))
+      )
+      bigBangBlock = BigBang.block
+      _ <- configs.parTraverse { demoNodeConfig =>
+        runInstance(bigBangBlock)(
+          demoNodeConfig.localPeer,
+          Source(
+            demoNodeConfig.outboundConnectionsTo
+              .map(name => configs.find(_.name == name).get)
+              .map(remoteConfig => DisconnectedPeer(remoteConfig.inetSocketAddress, remoteConfig.location))
+          ),
+          demoNodeConfig.staker,
+          demoNodeConfig.name,
+          configs.indexWhere(_.name == demoNodeConfig.name),
+          demoNodeConfig.mintingEnabled,
+          "localhost",
+          demoNodeConfig.rpcPort
         )
-      ).zipWithIndex
-      stakers = computeStakers(2, random)
-      _ <- configurations.parTraverse {
-        case ((localPeer, remotes, stakingEnabled, stakerName, rpcAddress), stakerIndex) =>
-          runInstance(
-            localPeer,
-            remotes,
-            stakers,
-            stakerName,
-            stakerIndex,
-            stakingEnabled,
-            genesisTimestamp,
-            rpcAddress.getHostName,
-            rpcAddress.getPort
-          )
       }
     } yield ()
   }
@@ -207,16 +109,15 @@ object TetraSuperDemo extends IOApp {
     )
     .as(ExitCode.Success)
 
-  private def runInstance(
-    localPeer:        LocalPeer,
-    remotes:          Source[DisconnectedPeer, _],
-    stakers:          List[Staker],
-    stakerName:       String,
-    stakerIndex:      Int,
-    stakingEnabled:   Boolean,
-    genesisTimestamp: Instant,
-    rpcHost:          String,
-    rpcPort:          Int
+  private def runInstance(bigBangBlock: BlockV2.Full)(
+    localPeer:                          LocalPeer,
+    remotes:                            Source[DisconnectedPeer, _],
+    staker:                             StakerInitializers.Operator,
+    stakerName:                         String,
+    stakerIndex:                        Int,
+    mintingEnabled:                     Boolean,
+    rpcHost:                            String,
+    rpcPort:                            Int
   ) =
     Sync[F].defer(
       for {
@@ -233,37 +134,44 @@ object TetraSuperDemo extends IOApp {
           .getLoggerFromName[F](s"node.${loggerColor}$stakerName${Console.RESET}")
           .withModifiedString(str => s"$loggerColor$str${Console.RESET}")
         _ <- Logger[F].info(
-          show"Initializing node with genesis block id=${genesis.headerV2.id.asTypedBytes}" +
-          show" and transactionIds=${genesis.blockBodyV2}"
+          show"Initializing node with genesis block id=${bigBangBlock.headerV2.id.asTypedBytes}" +
+          show" and transactionIds=${bigBangBlock.transactions.map(_.id.asTypedBytes)}"
         )
-        slotDataStore    <- RefStore.Eval.make[F, TypedIdentifier, SlotData]()
-        blockHeaderStore <- RefStore.Eval.make[F, TypedIdentifier, BlockHeaderV2]()
-        blockBodyStore   <- RefStore.Eval.make[F, TypedIdentifier, BlockBodyV2]()
-        transactionStore <- RefStore.Eval.make[F, TypedIdentifier, Transaction]()
-        boxStateStore    <- RefStore.Eval.make[F, TypedIdentifier, NonEmptySet[Short]]()
-        _                <- slotDataStore.put(genesis.headerV2.id, genesis.headerV2.slotData(Ed25519VRF.precomputed()))
-        _                <- blockHeaderStore.put(genesis.headerV2.id, genesis.headerV2)
-        _                <- blockBodyStore.put(genesis.headerV2.id, genesis.blockBodyV2)
-        _                <- transactionStore.put(genesisTransaction.id, genesisTransaction)
-        _                <- boxStateStore.put(genesisTransaction.id, NonEmptySet.one(0: Short))
-        blockIdTree      <- BlockIdTree.make[F]
-        _                <- blockIdTree.associate(genesis.headerV2.id, genesis.headerV2.parentHeaderId)
-        blockHeightTreeStore        <- RefStore.Eval.make[F, Long, TypedIdentifier]()
-        _                           <- blockHeightTreeStore.put(0, genesis.headerV2.parentHeaderId)
+        slotDataStore        <- RefStore.Eval.make[F, TypedIdentifier, SlotData]()
+        blockHeaderStore     <- RefStore.Eval.make[F, TypedIdentifier, BlockHeaderV2]()
+        blockBodyStore       <- RefStore.Eval.make[F, TypedIdentifier, BlockBodyV2]()
+        transactionStore     <- RefStore.Eval.make[F, TypedIdentifier, Transaction]()
+        boxStateStore        <- RefStore.Eval.make[F, TypedIdentifier, NonEmptySet[Short]]()
+        epochBoundariesStore <- RefStore.Eval.make[F, Long, TypedIdentifier]()
+        operatorStakesStore  <- RefStore.Eval.make[F, StakingAddresses.Operator, Int128]()
+        totalStakesStore     <- RefStore.Eval.make[F, Unit, Int128]()
+        registrationsStore   <- RefStore.Eval.make[F, StakingAddresses.Operator, Box.Values.Registrations.Operator]()
+        _ <- slotDataStore.put(bigBangBlock.headerV2.id, bigBangBlock.headerV2.slotData(Ed25519VRF.precomputed()))
+        _ <- blockHeaderStore.put(bigBangBlock.headerV2.id, bigBangBlock.headerV2)
+        _ <- blockBodyStore.put(
+          bigBangBlock.headerV2.id,
+          ListSet.empty ++ bigBangBlock.transactions.map(_.id.asTypedBytes).toList
+        )
+        _ <- bigBangBlock.transactions.traverseTap(transaction => transactionStore.put(transaction.id, transaction))
+        blockIdTree          <- BlockIdTree.make[F]
+        _                    <- blockIdTree.associate(bigBangBlock.headerV2.id, bigBangBlock.headerV2.parentHeaderId)
+        blockHeightTreeStore <- RefStore.Eval.make[F, Long, TypedIdentifier]()
+        _                    <- blockHeightTreeStore.put(0, bigBangBlock.headerV2.parentHeaderId)
+        _                    <- totalStakesStore.put((), 0)
         blockHeightTreeUnapplyStore <- RefStore.Eval.make[F, TypedIdentifier, Long]()
         blockHeightTree <- BlockHeightTree
           .make[F](
             blockHeightTreeStore,
-            genesis.headerV2.parentHeaderId,
+            bigBangBlock.headerV2.parentHeaderId,
             slotDataStore,
             blockHeightTreeUnapplyStore,
             blockIdTree
           )
-        clock = makeClock(genesisTimestamp)
+        clock = makeClock(bigBangBlock.headerV2.timestamp)
         etaCalculation <- EtaCalculation.Eval.make(
           slotDataStore.getOrRaise,
           clock,
-          genesis.headerV2.eligibilityCertificate.eta,
+          bigBangBlock.headerV2.eligibilityCertificate.eta,
           blake2b256Resource,
           blake2b512Resource
         )
@@ -271,12 +179,30 @@ object TetraSuperDemo extends IOApp {
         log1p       <- Log1pInterpreter.make[F](10000, 8)
         log1pCached <- Log1pInterpreter.makeCached[F](log1p)
         leaderElectionThreshold = LeaderElectionValidation.Eval.make[F](vrfConfig, blake2b512Resource, exp, log1pCached)
-        consensusState <- state(stakers)
+        epochBoundariesState <- EpochBoundariesEventSourcedState.make[F](
+          clock,
+          bigBangBlock.headerV2.id.asTypedBytes.pure[F],
+          blockIdTree,
+          epochBoundariesStore.pure[F],
+          slotDataStore.getOrRaise
+        )
+        consensusDataState <- ConsensusDataEventSourcedState.make[F](
+          bigBangBlock.headerV2.parentHeaderId.pure[F],
+          blockIdTree,
+          ConsensusDataEventSourcedState
+            .ConsensusData(operatorStakesStore, totalStakesStore, registrationsStore)
+            .pure[F],
+          blockBodyStore.getOrRaise,
+          transactionStore.getOrRaise,
+          boxId =>
+            transactionStore.getOrRaise(boxId.transactionId).map(_.outputs.get(boxId.transactionOutputIndex.toLong).get)
+        )
+        consensusValidationState <- ConsensusValidationState
+          .make[F](bigBangBlock.headerV2.id, epochBoundariesState, consensusDataState, clock)
         underlyingHeaderValidation <- BlockHeaderValidation.Eval.make[F](
           etaCalculation,
-          VrfRelativeStakeValidationLookup.Eval.make(consensusState, clock),
+          consensusValidationState,
           leaderElectionThreshold,
-          RegistrationLookup.Eval.make(consensusState, clock),
           ed25519VRFResource,
           kesProductResource,
           ed25519Resource,
@@ -284,12 +210,12 @@ object TetraSuperDemo extends IOApp {
         )
         cachedHeaderValidation <- BlockHeaderValidation.WithCache.make[F](underlyingHeaderValidation, blockHeaderStore)
         localChain <- LocalChain.Eval.make(
-          genesis.headerV2.slotData(Ed25519VRF.precomputed()),
+          bigBangBlock.headerV2.slotData(Ed25519VRF.precomputed()),
           ChainSelection
             .orderT[F](slotDataStore.getOrRaise, blake2b512Resource, ChainSelectionKLookback, ChainSelectionSWindow)
         )
         mempool <- Mempool.make[F](
-          genesis.headerV2.id.asTypedBytes.pure[F],
+          bigBangBlock.headerV2.id.asTypedBytes.pure[F],
           blockBodyStore.getOrRaise,
           transactionStore.getOrRaise,
           blockIdTree,
@@ -300,7 +226,7 @@ object TetraSuperDemo extends IOApp {
         )
         implicit0(networkRandom: Random) = new Random(new SecureRandom())
         boxState <- BoxState.make(
-          genesis.headerV2.id.asTypedBytes.pure[F],
+          bigBangBlock.headerV2.id.asTypedBytes.pure[F],
           blockBodyStore.getOrRaise,
           transactionStore.getOrRaise,
           blockIdTree,
@@ -326,12 +252,13 @@ object TetraSuperDemo extends IOApp {
           transactionAuthorizationValidation
         )
         mintOpt <- OptionT
-          .whenF(stakingEnabled)(
+          .whenF(mintingEnabled)(
             DemoUtils.createMint[F](
-              genesis,
-              stakers(stakerIndex),
+              bigBangBlock.headerV2,
+              staker,
               clock,
               etaCalculation,
+              consensusValidationState,
               leaderElectionThreshold,
               localChain,
               mempool,
@@ -340,7 +267,6 @@ object TetraSuperDemo extends IOApp {
               bodySyntaxValidation,
               bodySemanticValidation,
               bodyAuthorizationValidation,
-              consensusState,
               ed25519VRFResource,
               kesProductResource,
               ed25519Resource,
@@ -374,9 +300,9 @@ object TetraSuperDemo extends IOApp {
                 SimulatedGeospatialDelayFlow(
                   localPeer.coordinate,
                   peer.coordinate,
-                  durationPerKilometer = 10.micros,
-                  durationPerByte = 1.micros,
-                  noise = 30.milli
+                  durationPerKilometer = 0.nanos, // 10.micros,
+                  durationPerByte = 0.nanos, // 1.micros,
+                  noise = 0.nanos // 30.milli
                 )
               Flow[ByteString].via(delayer).viaMat(flow)(Keep.right).via(delayer)
             },
@@ -388,4 +314,23 @@ object TetraSuperDemo extends IOApp {
 
   private def parseAddress(host: String = "localhost", port: Int) =
     InetSocketAddress.createUnresolved(host, port)
+}
+
+case class DemoNodeConfig(
+  name:                  String,
+  location:              (Double, Double),
+  p2pPort:               Int,
+  rpcPort:               Int,
+  outboundConnectionsTo: List[String] = Nil,
+  mintingEnabled:        Boolean = true
+) {
+
+  val inetSocketAddress: InetSocketAddress =
+    InetSocketAddress.createUnresolved("localhost", p2pPort)
+
+  val localPeer: LocalPeer =
+    LocalPeer(inetSocketAddress, location)
+
+  val staker: StakerInitializers.Operator =
+    StakerInitializers.Operator(Sized.strictUnsafe(Bytes(Random.nextBytes(32))), DemoConfig.KesKeyHeight)
 }
