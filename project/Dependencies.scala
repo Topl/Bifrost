@@ -79,7 +79,7 @@ object Dependencies {
   )
 
   val misc = Seq(
-    "com.chuusai" %% "shapeless" % "2.3.8",
+    "com.chuusai" %% "shapeless" % "2.3.9",
     "com.iheart"  %% "ficus"     % "1.5.2"
   ) ++ guava ++ newType
 
@@ -279,8 +279,8 @@ object Dependencies {
 
   lazy val loadTesting: Seq[ModuleID] =
     Seq(
-      "com.lihaoyi" %% "mainargs" % "0.2.1",
-      "com.nike.fleam" %% "fleam" % "7.0.0"
+      "com.lihaoyi"    %% "mainargs" % "0.2.1",
+      "com.nike.fleam" %% "fleam"    % "7.0.0"
     ) ++
     fleam ++
     allAkka ++
