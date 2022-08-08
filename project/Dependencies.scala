@@ -31,7 +31,7 @@ object Dependencies {
     "org.asynchttpclient" % "async-http-client"             % "2.12.3"  % "test",
     "org.scalamock"      %% "scalamock"                     % "5.2.0"   % "test",
     "com.ironcorelabs"   %% "cats-scalatest"                % "3.1.1"   % "test",
-    "org.typelevel"      %% "cats-effect-testing-scalatest" % "1.3.0"   % "test"
+    "org.typelevel"      %% "cats-effect-testing-scalatest" % "1.4.0"   % "test"
   )
 
   val it = Seq(
@@ -279,8 +279,8 @@ object Dependencies {
 
   lazy val loadTesting: Seq[ModuleID] =
     Seq(
-      "com.lihaoyi" %% "mainargs" % "0.2.1",
-      "com.nike.fleam" %% "fleam" % "7.0.0"
+      "com.lihaoyi"    %% "mainargs" % "0.2.1",
+      "com.nike.fleam" %% "fleam"    % "7.0.0"
     ) ++
     fleam ++
     allAkka ++
