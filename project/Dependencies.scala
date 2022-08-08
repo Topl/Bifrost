@@ -12,7 +12,7 @@ object Dependencies {
   val catsEffectVersion = "3.3.0"
 
   val catsSlf4j =
-    "org.typelevel" %% "log4cats-slf4j" % "2.1.1"
+    "org.typelevel" %% "log4cats-slf4j" % "2.4.0"
 
   val logging = Seq(
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.4",
@@ -279,8 +279,8 @@ object Dependencies {
 
   lazy val loadTesting: Seq[ModuleID] =
     Seq(
-      "com.lihaoyi" %% "mainargs" % "0.2.1",
-      "com.nike.fleam" %% "fleam" % "7.0.0"
+      "com.lihaoyi"    %% "mainargs" % "0.2.1",
+      "com.nike.fleam" %% "fleam"    % "7.0.0"
     ) ++
     fleam ++
     allAkka ++
