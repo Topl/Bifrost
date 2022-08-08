@@ -9,7 +9,7 @@ object Dependencies {
   val graalVersion = "21.1.0"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.6.1"
-  val catsEffectVersion = "3.3.0"
+  val catsEffectVersion = "3.3.14"
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.1.1"
@@ -279,8 +279,8 @@ object Dependencies {
 
   lazy val loadTesting: Seq[ModuleID] =
     Seq(
-      "com.lihaoyi" %% "mainargs" % "0.2.1",
-      "com.nike.fleam" %% "fleam" % "7.0.0"
+      "com.lihaoyi"    %% "mainargs" % "0.2.1",
+      "com.nike.fleam" %% "fleam"    % "7.0.0"
     ) ++
     fleam ++
     allAkka ++
