@@ -18,7 +18,7 @@ jobs:
     - name: Setup Java and Scala
       uses: olafurpg/setup-scala@v10
       with:
-        java-version: graalvm-ce-java11@21.1.0
+        java-version: graalvm-ce-java11@21.3.3
         
     - name: Stage Docker Image
       run: sbt node/docker:stage
