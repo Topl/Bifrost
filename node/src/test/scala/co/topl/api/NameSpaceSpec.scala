@@ -35,12 +35,17 @@ class NameSpaceSpec extends AnyWordSpec with Matchers with RPCMockState {
       val forgerInterface = new ActorForgerInterface(forgerRef)
       val keyManagerInterface = new ActorKeyManagerInterface(keyManagerRef)
       val nodeViewHolderInterface = new ActorNodeViewHolderInterface(nodeViewHolderRef)
+
       import co.topl.rpc.handlers._
       new ToplRpcServer(
         ToplRpcHandlers(
           new DebugRpcHandlerImpls(nodeViewHolderInterface, keyManagerInterface),
           new UtilsRpcHandlerImpls,
-          new NodeViewRpcHandlerImpls(newRpcSettings.rpcApi, newAppContext, nodeViewHolderInterface),
+          new NodeViewRpcHandlerImpls(
+            newRpcSettings.rpcApi,
+            newAppContext,
+            nodeViewHolderInterface
+          ),
           new TransactionRpcHandlerImpls(nodeViewHolderInterface),
           new AdminRpcHandlerImpls(forgerInterface, keyManagerInterface, nodeViewHolderInterface)
         ),

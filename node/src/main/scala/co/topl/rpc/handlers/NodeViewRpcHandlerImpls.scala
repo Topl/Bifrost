@@ -5,12 +5,12 @@ import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{InvalidParametersError, RpcError, ThrowableData}
 import co.topl.attestation.Address
-import co.topl.consensus.{blockVersion, getProtocolRules}
+import co.topl.consensus.ProtocolVersioner
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction
-import co.topl.network.message.BifrostSyncInfo
+import co.topl.network.BifrostSyncInfo
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView}
@@ -29,23 +29,25 @@ class NodeViewRpcHandlerImpls(
   appContext:              AppContext,
   nodeViewHolderInterface: NodeViewHolderInterface
 )(implicit
-  system:           ActorSystem[_],
-  throwableEncoder: Encoder[ThrowableData],
-  networkPrefix:    NetworkPrefix
+  system:            ActorSystem[_],
+  throwableEncoder:  Encoder[ThrowableData],
+  networkPrefix:     NetworkPrefix,
+  protocolVersioner: ProtocolVersioner
 ) extends ToplRpcHandlers.NodeView {
 
   import system.executionContext
 
   override val head: ToplRpc.NodeView.Head.rpc.ServerHandler =
     _ =>
-      withNodeView(view =>
-        ToplRpc.NodeView.Head.Response(
-          view.history.height,
-          view.history.score,
-          view.history.bestBlockId,
-          view.history.bestBlock
+      for {
+        nodeView <- withNodeView(identity)
+        response = ToplRpc.NodeView.Head.Response(
+          nodeView.history.bestBlock.height,
+          nodeView.history.bestBlock.difficulty,
+          nodeView.history.bestBlockId,
+          nodeView.history.bestBlock
         )
-      )
+      } yield response
 
   override val headInfo: ToplRpc.NodeView.HeadInfo.rpc.ServerHandler =
     _ =>
@@ -57,11 +59,7 @@ class NodeViewRpcHandlerImpls(
       )
 
   override val balances: ToplRpc.NodeView.Balances.rpc.ServerHandler =
-    params =>
-      withNodeView(view =>
-        checkAddresses(params.addresses, view.state)
-          .map(balancesResponse(view.state, _))
-      ).subflatMap(identity)
+    params => withNodeView(view => balancesResponse(view.state, params.addresses))
 
   override val transactionById: ToplRpc.NodeView.TransactionById.rpc.ServerHandler =
     params =>
@@ -143,17 +141,15 @@ class NodeViewRpcHandlerImpls(
         txStatus       <- txStatusOption.sequence.toRight(ToplRpcErrors.NoTransactionWithId: RpcError).toEitherT[Future]
       } yield txStatus.toMap
 
-  override val info: ToplRpc.NodeView.Info.rpc.ServerHandler =
-    _ =>
-      withNodeView { view =>
-        ToplRpc.NodeView.Info.Response(
-          appContext.networkType.toString,
-          appContext.externalNodeAddress.fold("N/A")(_.toString),
-          appContext.settings.application.version.toString,
-          getProtocolRules(view.history.height).version.toString,
-          blockVersion(view.history.height).toString
-        )
-      }
+  override val info: ToplRpc.NodeView.Info.rpc.ServerHandler = _ =>
+    for {
+      currentHeight <- withNodeView(_.history.height)
+    } yield ToplRpc.NodeView.Info.Response(
+      appContext.networkType.toString,
+      appContext.externalNodeAddress.fold("N/A")(_.toString),
+      appContext.settings.application.version.toString,
+      protocolVersioner.applicable(currentHeight).toString
+    )
 
   private def balancesResponse(
     state:     StateReader[_, Address],
@@ -162,8 +158,10 @@ class NodeViewRpcHandlerImpls(
     val boxes =
       addresses.map { k =>
         val orderedBoxes = state.getTokenBoxes(k) match {
-          case Some(boxes) => boxes.groupBy[String](Box.identifier(_).typeString).map { case (k, v) => k -> v.toList }
-          case _           => Map[String, List[TokenBox[TokenValueHolder]]]()
+          case Some(boxes) =>
+            println(boxes)
+            boxes.groupBy[String](Box.identifier(_).typeString).map { case (k, v) => k -> v.toList }
+          case _ => Map[String, List[TokenBox[TokenValueHolder]]]()
         }
         k -> orderedBoxes
       }.toMap

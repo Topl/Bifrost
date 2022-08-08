@@ -6,15 +6,17 @@ import akka.actor.typed.eventstream.EventStream
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.attestation.Address
+import co.topl.consensus.KeyManager.KeyView
 import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
+import co.topl.modifier.{ModifierId, ProgramId}
 import co.topl.modifier.block.Block
-import co.topl.modifier.box.{ArbitBox, ProgramId, SimpleValue}
+import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.modifier.transaction.Transaction
-import co.topl.network.message.BifrostSyncInfo
-import co.topl.nodeView.history.HistoryReader
+import co.topl.network.BifrostSyncInfo
+import co.topl.nodeView.history.{HistoryReader, InMemoryKeyValueStore}
 import co.topl.nodeView.mempool.{MemPoolReader, UnconfirmedTx}
 import co.topl.nodeView.state.StateReader
-import co.topl.nodeView.{NodeViewHolderInterface, NodeViewReader, NodeViewTestHelpers, ReadableNodeView}
+import co.topl.nodeView.{NodeViewHolderInterface, NodeViewReader, ReadableNodeView}
 import co.topl.utils._
 import org.scalacheck.Gen
 import org.scalacheck.rng.Seed
@@ -28,9 +30,8 @@ import scala.concurrent.{ExecutionContext, Future}
 class ForgerSpec
     extends ScalaTestWithActorTestKit(ManualTime.config.withFallback(TestSettings.defaultConfig))
     with AnyFlatSpecLike
+    with InMemoryKeyRingTestHelper
     with TestSettings
-    with InMemoryKeyFileTestHelper
-    with NodeViewTestHelpers
     with MockFactory
     with OptionValues
     with Inspectors
@@ -67,12 +68,6 @@ class ForgerSpec
       .expects()
       .anyNumberOfTimes()
       .returning(Future.successful(keyView))
-
-    val fetchStartupKeyView = mockFunction[Future[StartupKeyView]]
-    fetchStartupKeyView
-      .expects()
-      .once()
-      .returning(Future.successful(StartupKeyView(keyView.addresses, keyView.rewardAddr)))
 
     val nodeView = ReadableNodeView(
       mock[HistoryReader[Block, BifrostSyncInfo]],
@@ -122,14 +117,11 @@ class ForgerSpec
       .anyNumberOfTimes()
       .onCall((a: Address) => Some(List(ArbitBox(a.evidence, nonce = Long.MaxValue, value = SimpleValue(1)))))
 
-    val behavior = Forger.behavior(
-      blockGenerationDelay,
-      minTransactionFee,
-      forgeOnStartup = false,
-      fetchKeyView,
-      fetchStartupKeyView,
-      reader
-    )
+    (nodeView.history
+      .consensusStateAt(_: ModifierId))
+      .expects(*)
+      .anyNumberOfTimes()
+      .returning(Right(NxtConsensus.State(10000000, 0)))
 
     val probe = createTestProbe[LocallyGeneratedBlock]()
     val initializedProbe = createTestProbe[Done]()
@@ -143,9 +135,23 @@ class ForgerSpec
     LoggingTestKit.info("Forger is initialized").expect {
       LoggingTestKit.info("Starting forging").expect {
         LoggingTestKit.debug("New local block").withOccurrences(newBlockCount + 1).expect {
-          val ref = spawn(behavior)
+          val forgerRef = spawn(
+            Forger.behavior(
+              blockGenerationDelay,
+              minTransactionFee,
+              forgeOnStartup = false,
+              fetchKeyView,
+              reader
+            )
+          )
 
-          ref.tell(Forger.ReceivableMessages.StartForging(initializedProbe.ref))
+//          // updating the consensus since we don't initialize the nodeViewHolder which sets the default consensus value
+//          consensusInterface.update(
+//            parentBlock.id,
+//            ConsensusHolder
+//              .StateUpdate(Some(Int128(10000000)), None)
+//          )
+          forgerRef.tell(Forger.ReceivableMessages.StartForging(initializedProbe.ref))
           initializedProbe.expectMessage(2.seconds, Done)
 
           for (_ <- 0 until newBlockCount) {
@@ -169,37 +175,13 @@ class ForgerSpec
       .expects()
       .never()
 
-    val rewardsAddress = keyRingCurve25519.addresses.head
-    val keyView =
-      KeyView(
-        keyRingCurve25519.addresses,
-        Some(rewardsAddress),
-        keyRingCurve25519.signWithAddress,
-        keyRingCurve25519.lookupPublicKey
-      )
-
     val fetchKeyView = mockFunction[Future[KeyView]]
     fetchKeyView
       .expects()
       .anyNumberOfTimes()
       .returning(Future.failed(new Exception("Expected failure")))
 
-    val fetchStartupKeyView = mockFunction[Future[StartupKeyView]]
-    fetchStartupKeyView
-      .expects()
-      .once()
-      .returning(Future.successful(StartupKeyView(keyView.addresses, keyView.rewardAddr)))
-
     val reader = mock[NodeViewReader]
-
-    val behavior = Forger.behavior(
-      blockGenerationDelay,
-      minTransactionFee,
-      forgeOnStartup = false,
-      fetchKeyView,
-      fetchStartupKeyView,
-      reader
-    )
 
     val probe = createTestProbe[LocallyGeneratedBlock]()
 
@@ -207,8 +189,17 @@ class ForgerSpec
 
     val newBlockCount = 4
 
-    val ref = spawn(behavior)
-    ref.tell(Forger.ReceivableMessages.StartForging(system.ignoreRef))
+    val forgerRef = spawn(
+      Forger.behavior(
+        blockGenerationDelay,
+        minTransactionFee,
+        forgeOnStartup = false,
+        fetchKeyView,
+        reader
+      )
+    )
+
+    forgerRef.tell(Forger.ReceivableMessages.StartForging(system.ignoreRef))
 
     for (_ <- 0 until newBlockCount) {
       probe.expectNoMessage(1.seconds)
@@ -219,32 +210,29 @@ class ForgerSpec
 
   it should "fail if private forging does not specify a rewards address" in {
     implicit val timeProvider: TimeProvider = mock[TimeProvider]
+
     val keyView =
       KeyView(keyRingCurve25519.addresses, None, keyRingCurve25519.signWithAddress, keyRingCurve25519.lookupPublicKey)
 
     val fetchKeyView = mockFunction[Future[KeyView]]
     fetchKeyView
       .expects()
-      .never()
-
-    val fetchStartupKeyView = mockFunction[Future[StartupKeyView]]
-    fetchStartupKeyView
-      .expects()
       .once()
-      .returning(Future.successful(StartupKeyView(keyView.addresses, keyView.rewardAddr)))
+      .returning(Future.successful(keyView))
+
     val reader = mock[NodeViewReader]
-    val behavior = Forger.behavior(
-      blockGenerationDelay,
-      minTransactionFee,
-      forgeOnStartup = true,
-      fetchKeyView,
-      fetchStartupKeyView,
-      reader
-    )
 
     LoggingTestKit.error("Forging requires a rewards address").expect {
-      val ref = spawn(behavior)
-      createTestProbe().expectTerminated(ref)
+      val forgerRef = spawn(
+        Forger.behavior(
+          blockGenerationDelay,
+          minTransactionFee,
+          forgeOnStartup = true,
+          fetchKeyView,
+          reader
+        )
+      )
+      createTestProbe().expectTerminated(forgerRef)
     }
   }
 

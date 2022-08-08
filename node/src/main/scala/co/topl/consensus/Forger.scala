@@ -7,19 +7,16 @@ import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
 import cats.data.EitherT
 import cats.implicits._
-import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
-import co.topl.consensus.genesis.{HelGenesis, PrivateGenesis, ToplnetGenesis, ValhallaGenesis}
+import co.topl.consensus.KeyManager.KeyView
 import co.topl.modifier.block.Block
 import co.topl.nodeView.NodeViewReader
-import co.topl.settings.AppSettings
 import co.topl.utils.NetworkType._
-import co.topl.utils.{Int128, NetworkType, TimeProvider}
+import co.topl.utils.{Int128, TimeProvider}
 import org.slf4j.Logger
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
-import scala.util.Try
 
 /**
  * The "Forger" is an Actor which manages and executes a periodic "forge" process.
@@ -59,13 +56,16 @@ object Forger {
   case class ChainParams(totalStake: Int128, difficulty: Long)
 
   def behavior(
-    blockGenerationDelay:   FiniteDuration,
-    minTransactionFee:      Int128,
-    forgeOnStartup:         Boolean,
-    fetchKeyView:           () => Future[KeyView],
-    fetchStartupKeyView:    () => Future[StartupKeyView],
-    nodeViewReader:         NodeViewReader
-  )(implicit networkPrefix: NetworkPrefix, timeProvider: TimeProvider): Behavior[ReceivableMessage] =
+    blockGenerationDelay: FiniteDuration,
+    minTransactionFee:    Int128,
+    forgeOnStartup:       Boolean,
+    fetchKeyView:         () => Future[KeyView],
+    nodeViewReader:       NodeViewReader
+  )(implicit
+    networkPrefix:     NetworkPrefix,
+    protocolVersioner: ProtocolVersioner,
+    timeProvider:      TimeProvider
+  ): Behavior[ReceivableMessage] =
     Behaviors.setup { implicit context =>
       import context.executionContext
 
@@ -73,7 +73,7 @@ object Forger {
         context.log.info(s"${Console.YELLOW}Forging will start after initialization${Console.RESET}")
       }
 
-      context.pipeToSelf(checkPrivateForging(fetchStartupKeyView))(
+      context.pipeToSelf(checkPrivateForging(fetchKeyView))(
         _.fold(ReceivableMessages.Terminate, _ => ReceivableMessages.InitializationComplete)
       )
 
@@ -89,49 +89,23 @@ object Forger {
   /**
    * If this node is running a private or local network, verify that a rewards address is set
    */
-  private def checkPrivateForging(fetchStartupKeyView: () => Future[StartupKeyView])(implicit
-    ec:                                                ExecutionContext,
-    networkPrefix:                                     NetworkPrefix
+  private def checkPrivateForging(fetchKeyView: () => Future[KeyView])(implicit
+    ec:                                         ExecutionContext,
+    networkPrefix:                              NetworkPrefix
   ): Future[Done] =
     if (PrivateTestnet.netPrefix == networkPrefix) {
-      fetchStartupKeyView().flatMap {
-        case keyView if keyView.rewardAddr.nonEmpty =>
-          Future.successful(Done)
-        case _ =>
-          Future.failed(new IllegalStateException("Forging requires a rewards address"))
+      fetchKeyView().flatMap {
+        case keyView if keyView.rewardAddr.nonEmpty => Future.successful(Done)
+        case _ => Future.failed(new IllegalStateException("Forging requires a rewards address"))
       }
     } else {
       Future.successful(Done)
     }
 
-  def genesisBlock(settings: AppSettings, networkType: NetworkType, fetchStartupKeyView: () => Future[StartupKeyView])(
-    implicit ec:             ExecutionContext
-  ): Future[Block] = {
-    implicit val networkPrefix: NetworkPrefix = networkType.netPrefix
-
-    def initializeFromChainParamsAndGetBlock(block: Try[(Block, ChainParams)]): Try[Block] =
-      block.map { case (block: Block, ChainParams(totalStake, initDifficulty)) =>
-        consensusStorage.updateConsensusStorage(block.id, ConsensusParams(totalStake, initDifficulty, 0, 0))
-
-        block
-      }
-
-    networkType match {
-      case Mainnet         => Future.fromTry(initializeFromChainParamsAndGetBlock(ToplnetGenesis.getGenesisBlock))
-      case ValhallaTestnet => Future.fromTry(initializeFromChainParamsAndGetBlock(ValhallaGenesis.getGenesisBlock))
-      case HelTestnet      => Future.fromTry(initializeFromChainParamsAndGetBlock(HelGenesis.getGenesisBlock))
-      case PrivateTestnet =>
-        fetchStartupKeyView()
-          .map(view => PrivateGenesis(view.addresses, settings).getGenesisBlock)
-          .flatMap(r => Future.fromTry(initializeFromChainParamsAndGetBlock(r)))
-      case _ =>
-        Future.failed(new IllegalArgumentException(s"Undefined network type $networkType"))
-    }
-
-  }
-
   sealed trait ForgerFailure
+
   case class ForgeFailure(forgeFailure: Forge.Failure) extends ForgerFailure
+
   case class ForgingError(error: Throwable) extends ForgerFailure
 
 }
@@ -141,8 +115,15 @@ private class ForgerBehaviors(
   minTransactionFee:    Int128,
   fetchKeyView:         () => Future[KeyView],
   nodeViewReader:       NodeViewReader
-)(implicit context: ActorContext[Forger.ReceivableMessage], networkPrefix: NetworkPrefix, timeProvider: TimeProvider) {
+)(implicit
+  context:           ActorContext[Forger.ReceivableMessage],
+  networkPrefix:     NetworkPrefix,
+  protocolVersioner: ProtocolVersioner,
+  timeProvider:      TimeProvider
+) {
+
   import context.executionContext
+
   implicit private val log: Logger = context.log
 
   import Forger._
@@ -169,6 +150,7 @@ private class ForgerBehaviors(
 
   /**
    * The actor is not yet initialized and is awaiting an asynchronous ready signal
+   *
    * @param forgeWhenReady a flag indicating if forging should begin immediately after initialization
    */
   def uninitialized(forgeWhenReady: Boolean): Behavior[ReceivableMessage] =
@@ -217,7 +199,7 @@ private class ForgerBehaviors(
           result.foreach(block => context.system.eventStream.tell(EventStream.Publish(LocallyGeneratedBlock(block))))
           result match {
             case Left(ForgeFailure(Forge.NoRewardsAddressSpecified)) |
-                Left(ForgeFailure(Forge.LeaderElectionFailure(LeaderElection.NoAddressesAvailable))) =>
+                Left(ForgeFailure(Forge.LeaderElectionFailure(NxtLeaderElection.NoAddressesAvailable))) =>
               // In these specific cases, it would not help to try again
               scheduler.cancelAll()
               log.info("Forger transitioning to idle state")
@@ -236,14 +218,16 @@ private class ForgerBehaviors(
    * Forge the "next" block based on the "current" NodeView
    */
   private def nextBlock(): EitherT[Future, ForgerFailure, Block] =
-    EitherT(fetchKeyView().map(Right(_)).recover { case e => Left(ForgingError(e)) })
-      .flatMap(keyView =>
-        nodeViewReader
-          .withNodeView(Forge.fromNodeView(_, keyView, minTransactionFee))
-          .leftMap(e => ForgingError(e.reason))
-          .subflatMap(_.leftMap(ForgeFailure))
+    for {
+      keyView <- EitherT[Future, ForgerFailure, KeyView](
+        fetchKeyView().map(Right(_)).recover { case e => Left(ForgingError(e)) }
       )
-      .subflatMap(_.make.leftMap(ForgeFailure))
+      forge <- nodeViewReader
+        .withNodeView(Forge.prepareForge(_, keyView, minTransactionFee))
+        .leftMap(e => ForgingError(e.reason))
+        .subflatMap(_.leftMap(ForgeFailure(_): ForgerFailure))
+      block <- EitherT.fromEither[Future](forge.make).leftMap(ForgeFailure(_): ForgerFailure)
+    } yield block
 
   /**
    * Log the result of a forging attempt
@@ -258,11 +242,11 @@ private class ForgerBehaviors(
         f match {
           case Forge.LeaderElectionFailure(reason) =>
             reason match {
-              case LeaderElection.NoAddressesAvailable =>
+              case NxtLeaderElection.NoAddressesAvailable =>
                 log.warn("Forger has no addresses available to stake with.")
-              case LeaderElection.NoBoxesEligible =>
+              case NxtLeaderElection.NoBoxesEligible =>
                 log.debug("No Arbit boxes are eligible at the current difficulty.")
-              case LeaderElection.NoArbitBoxesAvailable =>
+              case NxtLeaderElection.NoArbitBoxesAvailable =>
                 log.debug("No arbit boxes available to stake with.")
             }
           case Forge.NoRewardsAddressSpecified =>
@@ -298,12 +282,15 @@ trait ForgerInterface {
 object ForgerInterface {
 
   sealed trait StartForgingFailure
+
   sealed trait StopForgingFailure
+
   sealed trait CheckStatusFailure
 }
 
 class ActorForgerInterface(actorRef: ActorRef[Forger.ReceivableMessage])(implicit system: ActorSystem[_])
     extends ForgerInterface {
+
   import system.executionContext
 
   implicit private val timeout: Timeout = Timeout(10.minutes)
@@ -322,6 +309,7 @@ class ActorForgerInterface(actorRef: ActorRef[Forger.ReceivableMessage])(implici
 
 /**
  * A broadcastable signal indicating that a new block was forged locally
+ *
  * @param block The new block that was forged
  */
 case class LocallyGeneratedBlock(block: Block)

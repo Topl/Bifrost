@@ -2,11 +2,11 @@ package co.topl.consensus
 
 import co.topl.attestation.Address
 import co.topl.consensus.KeyManager.KeyView
-import co.topl.consensus.consensusHelper.setProtocolMngr
+import co.topl.modifier.{ModifierId, ProgramId}
 import co.topl.modifier.block.Block
-import co.topl.modifier.box.{ArbitBox, ProgramId, SimpleValue}
+import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.modifier.transaction.Transaction
-import co.topl.network.message.BifrostSyncInfo
+import co.topl.network.BifrostSyncInfo
 import co.topl.nodeView.ReadableNodeView
 import co.topl.nodeView.history.HistoryReader
 import co.topl.nodeView.mempool.{MemPoolReader, UnconfirmedTx}
@@ -25,7 +25,7 @@ class ForgeSpec
     with ScalaCheckDrivenPropertyChecks
     with EitherValues
     with MockFactory
-    with InMemoryKeyFileTestHelper
+    with InMemoryKeyRingTestHelper
     with TestSettings
     with BeforeAndAfterAll
     with CommonGenerators
@@ -41,11 +41,6 @@ class ForgeSpec
         mock[StateReader[ProgramId, Address]],
         mock[MemPoolReader[Transaction.TX]]
       )
-
-      (() => nodeView.history.height)
-        .expects()
-        .once()
-        .returning(parentBlock.height)
 
       (nodeView.memPool
         .take[Int128](_: Int)(_: UnconfirmedTx[Transaction.TX] => Int128)(_: Ordering[Int128]))
@@ -69,6 +64,11 @@ class ForgeSpec
         .expects(parentBlock, 3)
         .returning(Vector(parentBlock.timestamp))
 
+      (nodeView.history
+        .consensusStateAt(_: ModifierId))
+        .expects(parentBlock.id)
+        .returning(Right(NxtConsensus.State(10000000L, 0)))
+
       val rewardsAddress = keyRingCurve25519.addresses.head
 
       (nodeView.state
@@ -85,7 +85,14 @@ class ForgeSpec
           keyRingCurve25519.lookupPublicKey
         )
 
-      val forge = Forge.fromNodeView(nodeView, keyView, 0).value
+      val forge =
+        Forge
+          .prepareForge(
+            nodeView,
+            keyView,
+            0
+          )
+          .value
 
       val block = forge.make.value
       block.parentId shouldBe parentBlock.id
@@ -103,7 +110,14 @@ class ForgeSpec
     val keyView =
       KeyView(keyRingCurve25519.addresses, None, keyRingCurve25519.signWithAddress, keyRingCurve25519.lookupPublicKey)
 
-    Forge.fromNodeView(nodeView, keyView, 0).left.value shouldBe Forge.NoRewardsAddressSpecified
+    Forge
+      .prepareForge(
+        nodeView,
+        keyView,
+        0
+      )
+      .left
+      .value shouldBe Forge.NoRewardsAddressSpecified
 
   }
 
@@ -115,11 +129,6 @@ class ForgeSpec
         mock[StateReader[ProgramId, Address]],
         mock[MemPoolReader[Transaction.TX]]
       )
-
-      (() => nodeView.history.height)
-        .expects()
-        .once()
-        .returning(2)
 
       (nodeView.memPool
         .take[Int128](_: Int)(_: UnconfirmedTx[Transaction.TX] => Int128)(_: Ordering[Int128]))
@@ -143,6 +152,11 @@ class ForgeSpec
         .expects(parentBlock, 3)
         .returning(Vector(parentBlock.timestamp))
 
+      (nodeView.history
+        .consensusStateAt(_: ModifierId))
+        .expects(parentBlock.id)
+        .returning(Right(NxtConsensus.State(10000000L, 0)))
+
       val rewardsAddress = keyRingCurve25519.addresses.head
 
       (nodeView.state
@@ -159,16 +173,18 @@ class ForgeSpec
           keyRingCurve25519.lookupPublicKey
         )
 
-      Forge.fromNodeView(nodeView, keyView, 0).left.value shouldBe Forge.LeaderElectionFailure(
-        LeaderElection.NoBoxesEligible
-      )
+      Forge
+        .prepareForge(
+          nodeView,
+          keyView,
+          0
+        )
+        .left
+        .value shouldBe Forge.LeaderElectionFailure(NxtLeaderElection.NoBoxesEligible)
     }
   }
 
-  override def beforeAll(): Unit = {
+  override def beforeAll(): Unit =
     super.beforeAll()
-    setProtocolMngr(settings)
-    consensusStorage = ConsensusStorage(settings, appContext.networkType)
-  }
 
 }
