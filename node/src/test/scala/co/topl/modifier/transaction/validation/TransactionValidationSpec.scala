@@ -7,7 +7,7 @@ import co.topl.consensus.GenesisProvider
 import co.topl.modifier.box._
 import co.topl.modifier.transaction._
 import co.topl.modifier.transaction.validation.implicits._
-import co.topl.nodeView.state.State
+import co.topl.nodeView.state.BoxState
 import co.topl.nodeView.{NodeViewTestHelpers, ValidTransactionGenerators}
 import co.topl.utils.GeneratorOps.GeneratorOps
 import co.topl.utils.NetworkType.PrivateTestnet
@@ -335,7 +335,7 @@ class TransactionValidationSpec
       Transaction.updateAttestation(tx)(keyRingEd25519.generateAttestation(tx.from.map(_._1).toSet))
     )
 
-  private def withValidState(test: State => Unit): Unit =
+  private def withValidState(test: BoxState => Unit): Unit =
     test(
       generateState(
         GenesisProvider

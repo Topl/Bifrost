@@ -11,7 +11,7 @@ import co.topl.modifier.transaction.builder.TransferRequests.{
 }
 import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithms, TransferBuilder}
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
-import co.topl.nodeView.state.State
+import co.topl.nodeView.state.BoxState
 import co.topl.utils.StringDataTypes.Latin1Data
 import co.topl.utils.implicits.toEitherOps
 import co.topl.utils.{CommonGenerators, DiskKeyRingTestHelper, Int128, TestSettings}
@@ -26,7 +26,7 @@ trait ValidTransactionGenerators extends CommonGenerators {
 
   def validPolyTransferCurve25519Gen(
     keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-    state:   State,
+    state:   BoxState,
     fee:     Long = 1L
   ): Gen[PolyTransfer[PublicKeyPropositionCurve25519]] = {
 
@@ -54,7 +54,7 @@ trait ValidTransactionGenerators extends CommonGenerators {
   def validPolyTransferThresholdCurve25519Gen(
     keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
     props:   Set[ThresholdPropositionCurve25519],
-    state:   State,
+    state:   BoxState,
     fee:     Long = 1L
   ): Gen[PolyTransfer[ThresholdPropositionCurve25519]] = {
 
@@ -89,7 +89,7 @@ trait ValidTransactionGenerators extends CommonGenerators {
 
   def validPolyTransferEd25519Gen(
     keyRing: KeyRing[PrivateKeyEd25519, KeyfileEd25519],
-    state:   State,
+    state:   BoxState,
     fee:     Long = 1L
   ): Gen[PolyTransfer[PublicKeyPropositionEd25519]] = {
 
@@ -118,7 +118,7 @@ trait ValidTransactionGenerators extends CommonGenerators {
     keyRingCurve25519:        KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
     keyRingEd25519:           KeyRing[PrivateKeyEd25519, KeyfileEd25519],
     propsThresholdCurve25519: Set[ThresholdPropositionCurve25519],
-    state:                    State,
+    state:                    BoxState,
     fee:                      Long = 1L
   ): Gen[PolyTransfer[_ <: Proposition]] =
     Gen.oneOf(
@@ -129,7 +129,7 @@ trait ValidTransactionGenerators extends CommonGenerators {
 
   def validArbitTransferCurve25519Gen(
     keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-    state:   State,
+    state:   BoxState,
     fee:     Long = 1L
   ): Gen[ArbitTransfer[PublicKeyPropositionCurve25519]] = {
 
@@ -157,7 +157,7 @@ trait ValidTransactionGenerators extends CommonGenerators {
   def validArbitTransferThresholdCurve25519Gen(
     keyRing:      KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
     propositions: Set[ThresholdPropositionCurve25519],
-    state:        State,
+    state:        BoxState,
     fee:          Long = 1L
   ): Gen[ArbitTransfer[ThresholdPropositionCurve25519]] = {
 
@@ -192,7 +192,7 @@ trait ValidTransactionGenerators extends CommonGenerators {
 
   def validArbitTransferEd25519Gen(
     keyRing: KeyRing[PrivateKeyEd25519, KeyfileEd25519],
-    state:   State,
+    state:   BoxState,
     fee:     Long = 1L
   ): Gen[ArbitTransfer[PublicKeyPropositionEd25519]] = {
 
@@ -221,7 +221,7 @@ trait ValidTransactionGenerators extends CommonGenerators {
     keyRingCurve25519:        KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
     keyRingEd25519:           KeyRing[PrivateKeyEd25519, KeyfileEd25519],
     propsThresholdCurve25519: Set[ThresholdPropositionCurve25519],
-    state:                    State,
+    state:                    BoxState,
     fee:                      Long = 1L
   ): Gen[ArbitTransfer[_ <: Proposition]] =
     Gen.oneOf(
@@ -232,7 +232,7 @@ trait ValidTransactionGenerators extends CommonGenerators {
 
   def validAssetTransferCurve25519Gen(
     keyRing: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-    state:   State,
+    state:   BoxState,
     fee:     Long = 1L,
     minting: Boolean = false
   ): Gen[AssetTransfer[PublicKeyPropositionCurve25519]] = {
@@ -255,7 +255,7 @@ trait ValidTransactionGenerators extends CommonGenerators {
   def validAssetTransferThresholdCurve25519Gen(
     keyRing:      KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
     propositions: Set[ThresholdPropositionCurve25519],
-    state:        State,
+    state:        BoxState,
     fee:          Long = 1L,
     minting:      Boolean = false
   ): Gen[AssetTransfer[ThresholdPropositionCurve25519]] = {
@@ -285,7 +285,7 @@ trait ValidTransactionGenerators extends CommonGenerators {
 
   def validAssetTransferEd25519Gen(
     keyRing: KeyRing[PrivateKeyEd25519, KeyfileEd25519],
-    state:   State,
+    state:   BoxState,
     fee:     Long = 1L,
     minting: Boolean = false
   ): Gen[AssetTransfer[PublicKeyPropositionEd25519]] = {
@@ -309,7 +309,7 @@ trait ValidTransactionGenerators extends CommonGenerators {
     keyRingCurve25519:        KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
     keyRingEd25519:           KeyRing[PrivateKeyEd25519, KeyfileEd25519],
     propsThresholdCurve25519: Set[ThresholdPropositionCurve25519],
-    state:                    State,
+    state:                    BoxState,
     fee:                      Long = 1L,
     minting:                  Boolean = false
   ): Gen[AssetTransfer[_ <: Proposition]] =
@@ -319,7 +319,7 @@ trait ValidTransactionGenerators extends CommonGenerators {
       validAssetTransferEd25519Gen(keyRingEd25519, state, fee, minting)
     )
 
-  def collectBoxes(addresses: Set[Address], state: State): Seq[TokenBox[TokenValueHolder]] =
+  def collectBoxes(addresses: Set[Address], state: BoxState): Seq[TokenBox[TokenValueHolder]] =
     addresses.flatMap(address => state.getTokenBoxes(address)).flatten.toSeq
 
   def sumBoxes(boxes: Seq[TokenBox[TokenValueHolder]], tokenType: String): Seq[(Address, Int128)] = {

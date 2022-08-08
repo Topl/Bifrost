@@ -1,7 +1,7 @@
 package co.topl.nodeView
 
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import co.topl.consensus.{BlockValidators, NxtConsensus}
+import co.topl.consensus.NxtConsensus
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.nodeView.NodeViewTestHelpers.TestIn
@@ -37,7 +37,7 @@ class NodeViewSpec
         val polyReward = sampleUntilNonEmpty(polyTransferGen)
         val arbitReward = sampleUntilNonEmpty(arbitTransferGen)
         val rewardBlock =
-          block.copy(transactions = Seq(arbitReward, polyReward), parentId = testIn.genesisView.block.id)
+          block.copy(transactions = Seq(arbitReward, polyReward), parentId = testIn.genesis.block.id)
 
         val memPool =
           testIn.nodeView.updateMemPool(List(rewardBlock), Nil, MemPool.empty())
@@ -121,10 +121,7 @@ class NodeViewSpec
       val initialHistoryStoreState = testIn.historyStore.state
       val (events, _) =
         testIn.nodeView
-          .withBlock(
-            testIn.genesisView.block,
-            Seq()
-          )
+          .withBlock(testIn.genesis.block)
           .run
 
       testIn.historyStore.state shouldBe initialHistoryStoreState
@@ -150,13 +147,13 @@ class NodeViewSpec
     withGenesisOnlyNodeView(chain.head) { testIn =>
       val (events, updatedNodeView) =
         testIn.nodeView
-          .withBlock(chain.tail.head, Seq())
+          .withBlock(chain.tail.head)
           .run
 
       events shouldBe List(
         NodeViewHolder.Events.StartingPersistentModifierApplication(chain.tail.head),
         NodeViewHolder.Events.SyntacticallySuccessfulModifier(chain.tail.head),
-        NodeViewHolder.Events.NewOpenSurface(List(testIn.genesisView.block.id)),
+        NodeViewHolder.Events.NewOpenSurface(List(chain.head.block.id)),
         NodeViewHolder.Events.ChangedHistory,
         NodeViewHolder.Events.SemanticallySuccessfulModifier(chain.tail.head),
         NodeViewHolder.Events.ChangedState,
@@ -180,14 +177,14 @@ class NodeViewSpec
         keyRingCurve25519,
         settings.application.genesis.generated.value,
         protocolVersioner
-      )(2).sample.get
+      )(3).sample.get
 
     withGenesisOnlyNodeView(chain.head) { testIn =>
       val block: Block = chain.tail.head.copy(height = -1)
 
       val (events, updatedNodeView) =
         testIn.nodeView
-          .withBlock(block, Seq(new BlockValidators.HeightValidator))
+          .withBlock(block)
           .run
 
       events should have size 2
@@ -195,6 +192,51 @@ class NodeViewSpec
       events(0) shouldBe NodeViewHolder.Events.StartingPersistentModifierApplication(block)
       events(1).asInstanceOf[NodeViewHolder.Events.SyntacticallyFailedModification[Block]].modifier shouldBe block
       updatedNodeView.history.modifierById(block.id) shouldBe None
+    }
+  }
+
+  property("NodeView should switch to a longer chain") {
+    implicit val timeProvider: TimeProvider = mock[TimeProvider]
+
+    (() => timeProvider.time)
+      .expects()
+      .anyNumberOfTimes()
+      .returning(Long.MaxValue)
+
+    val chain1: GenesisHeadChain =
+      validChainFromGenesis(
+        keyRingCurve25519,
+        10000,
+        Long.MaxValue,
+        protocolVersioner,
+        Long.MaxValue / 10
+      )(3).sample.get
+
+    val chain2: GenesisHeadChain =
+      validChainFromGenesis(
+        keyRingCurve25519,
+        10000,
+        Long.MaxValue,
+        protocolVersioner,
+        Long.MaxValue / 100
+      )(5).sample.get
+
+    withGenesisOnlyNodeView(chain1.head) { testIn =>
+      val (_, updatedNodeView) = chain1.tail.foldLeft((List[Any](), testIn.nodeView)) {
+        case ((events, nodeView), block) =>
+          val (newEvents, updatedNodeView) = nodeView.withBlock(block).run
+          (events ++ newEvents, updatedNodeView)
+      }
+
+      updatedNodeView.history.bestBlockId shouldBe chain1.tail.last.id
+
+      val (_, reorgedNodeView) = chain2.tail.foldLeft((List[Any](), updatedNodeView)) {
+        case ((events, nodeView), block) =>
+          val (newEvents, updatedNodeView) = nodeView.withBlock(block).run
+          (events ++ newEvents, updatedNodeView)
+      }
+
+      reorgedNodeView.history.bestBlockId shouldBe chain2.tail.last.id
     }
   }
 

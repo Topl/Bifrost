@@ -6,6 +6,7 @@ import co.topl.consensus.NxtLeaderElection.{NoAddressesAvailable, NoArbitBoxesAv
 import co.topl.utils.NodeGenerators
 import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.implicits.toEitherOps
+import org.scalacheck.{Arbitrary, Gen}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
@@ -43,7 +44,12 @@ class LeaderElectionTests extends AnyFlatSpec with MockFactory with NodeGenerato
 
       val result = NxtLeaderElection.getEligibleBox(
         leaderElection.calculateHitValue(parent)(_),
-        leaderElection.calculateThresholdValue(0, NxtConsensus.State.empty)(_)
+        leaderElection.calculateThresholdValue(
+          1,
+          1,
+          1,
+          1
+        )(_)
       )(arbitBoxIterator)
 
       result shouldBe expectedResult
