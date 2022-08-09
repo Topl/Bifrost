@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package co.topl.grpc.models;
+
+import 'models/common.proto';
+
+message Box {
+  message Id {
+    TransactionId transactionId = 1;
+    int32 transactionOutputIndex = 2;
+  }
+}
+
+message BoxValue {
+  oneof sealed_value {
+    EmptyBoxValue empty = 1;
+    PolyBoxValue poly = 2;
+    ArbitBoxValue arbit = 3;
+    DionAssetBoxValue asset = 4;
+    OperatorRegistrationBoxValue operatorRegistration = 5;
+  }
+}
+
+message EmptyBoxValue {}
+message PolyBoxValue {
+  Int128 quantity = 1;
+}
+message ArbitBoxValue {
+  Int128 quantity = 1;
+}
+message DionAssetBoxValue {
+  Int128 quantity = 1;
+  Code assetCode = 2;
+  bytes securityRoot = 3;
+  bytes metadata = 4;
+
+  message Code {
+    int32 version = 1;
+    bytes issuerAddress = 2;
+    bytes shortName = 3;
+  }
+}
+message OperatorRegistrationBoxValue {
+  bytes vrfCommitment = 1;
+}

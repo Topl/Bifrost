@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package co.topl.grpc.models;
+
+import 'models/common.proto';
+import 'models/address.proto';
+import 'models/certificate.proto';
+import 'models/transaction.proto';
+
+message BlockHeader {
+  BlockId parentHeaderId = 1;
+  int64 parentSlot = 2;
+  bytes txRoot = 3;
+  bytes bloomFilter = 4;
+  int64 timestamp = 5;
+  int64 height = 6;
+  int64 slot = 7;
+  EligibilityCertificate eligibilityCertificate = 8;
+  OperationalCertificate operationalCertificate = 9;
+  Metadata metadata = 10;
+  StakingAddressOperator address = 11;
+
+  message Metadata {
+    bytes value = 1;
+  }
+}
+
+message BlockBody {
+  repeated TransactionId transactionIds = 1;
+}
+
+message FullBlockBody {
+  repeated Transaction transaction = 1;
+}
+
+message FullBlock {
+  BlockHeader header = 1;
+  FullBlockBody fullBody = 2;
+}

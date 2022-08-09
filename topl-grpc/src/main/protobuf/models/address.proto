@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package co.topl.grpc.models;
+
+import 'models/common.proto';
+import 'models/verification_key.proto';
+import 'models/proof.proto';
+
+message FullAddress {
+  NetworkPrefix networkPrefix = 1;
+  SpendingAddress spendingAddress = 2;
+  StakingAddress stakingAddress = 3;
+  ProofKnowledgeEd25519 commitment = 4;
+}
+
+message SpendingAddress {
+  TypedEvidence typedEvidence = 1;
+}
+
+message StakingAddress {
+  oneof sealed_value {
+    StakingAddressOperator operator = 1;
+    StakingAddressNonStaking nonStaking = 2;
+  }
+}
+
+message StakingAddressOperator {
+  VerificationKeyEd25519 vk = 1;
+}
+
+message StakingAddressNonStaking {}
