@@ -2,6 +2,9 @@ syntax = "proto3";
 
 package co.topl.grpc.services;
 
+import 'models/common.proto';
+import 'models/block.proto';
+
 service ToplGrpc {
   rpc BroadcastTransaction (BroadcastTransactionReq) returns (BroadcastTransactionRes);
   rpc CurrentMempool (CurrentMempoolReq) returns (CurrentMempoolRes);
@@ -23,43 +26,21 @@ message BroadcastTransactionRes {}
 message CurrentMempoolReq {}
 
 message CurrentMempoolRes {
-  repeated bytes transactionIds = 1;
+  repeated co.topl.grpc.models.TransactionId transactionIds = 1;
 }
 
 message FetchBlockHeaderReq {
-  bytes blockId = 1;
+  co.topl.grpc.models.BlockId blockId = 1;
 }
 
 message FetchBlockHeaderRes {
-  BlockHeader header = 1;
-}
-
-message BlockHeader {
-  bytes parentHeaderId = 1;
-  int64 parentSlot = 2;
-  bytes txRoot = 3;
-  bytes bloomFilter = 4;
-  int64 timestamp = 5;
-  int64 height = 6;
-  int64 slot = 7;
-  bytes eligibilityCertificate = 8;
-  bytes operationalCertificate = 9;
-  Metadata metadata = 10;
-  bytes address = 11;
-
-  message Metadata {
-    bytes value = 1;
-  }
+  co.topl.grpc.models.BlockHeader header = 1;
 }
 
 message FetchBlockBodyReq {
-  bytes blockId = 1;
+  co.topl.grpc.models.BlockId blockId = 1;
 }
 
 message FetchBlockBodyRes {
-  BlockBody body = 1;
-}
-
-message BlockBody {
-  repeated bytes transactionIds = 1;
+  co.topl.grpc.models.BlockBody body = 1;
 }
