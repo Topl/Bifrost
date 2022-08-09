@@ -60,8 +60,7 @@ object Forger {
     minTransactionFee:    Int128,
     forgeOnStartup:       Boolean,
     fetchKeyView:         () => Future[KeyView],
-    nodeViewReader:       NodeViewReader,
-    consensusInterface:   ConsensusInterface
+    nodeViewReader:       NodeViewReader
   )(implicit
     networkPrefix:     NetworkPrefix,
     protocolVersioner: ProtocolVersioner,
@@ -82,8 +81,7 @@ object Forger {
         blockGenerationDelay,
         minTransactionFee,
         fetchKeyView,
-        nodeViewReader,
-        consensusInterface
+        nodeViewReader
       ).uninitialized(forgeWhenReady = forgeOnStartup)
 
     }
@@ -116,8 +114,7 @@ private class ForgerBehaviors(
   blockGenerationDelay: FiniteDuration,
   minTransactionFee:    Int128,
   fetchKeyView:         () => Future[KeyView],
-  nodeViewReader:       NodeViewReader,
-  consensusViewReader:  ConsensusReader
+  nodeViewReader:       NodeViewReader
 )(implicit
   context:           ActorContext[Forger.ReceivableMessage],
   networkPrefix:     NetworkPrefix,
@@ -225,14 +222,8 @@ private class ForgerBehaviors(
       keyView <- EitherT[Future, ForgerFailure, KeyView](
         fetchKeyView().map(Right(_)).recover { case e => Left(ForgingError(e)) }
       )
-      consensusView <- consensusViewReader
-        .withView[NxtConsensus.View](identity)
-        .leftMap {
-          case ConsensusInterface.WithViewFailures.InternalException(e) => ForgingError(e)
-          case e => ForgingError(new IllegalArgumentException(e.toString))
-        }
       forge <- nodeViewReader
-        .withNodeView(Forge.prepareForge(_, consensusView, keyView, minTransactionFee))
+        .withNodeView(Forge.prepareForge(_, keyView, minTransactionFee))
         .leftMap(e => ForgingError(e.reason))
         .subflatMap(_.leftMap(ForgeFailure(_): ForgerFailure))
       block <- EitherT.fromEither[Future](forge.make).leftMap(ForgeFailure(_): ForgerFailure)

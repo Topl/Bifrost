@@ -57,13 +57,14 @@ class BlockVersionTests
   property("Applying genesis block to history/state with different available versions should be successful") {
     for (version <- protocolVersioner.compatibleProtocolVersions.map(_.blockVersion)) {
       val genesis = new GenesisProvider(version, keyRingCurve25519.addresses ++ keyRingEd25519.addresses)
-      val genesisBlock = genesis.fetchGenesis(settings).getOrThrow().block
+        .fetchGenesis(settings)
+        .getOrThrow()
 
-      val history = generateHistory(genesisBlock).history
-      val state = generateState(genesisBlock).state
+      val history = generateHistory(genesis).history
+      val state = generateState(genesis.block).state
 
-      history.modifierById(genesisBlock.id).isDefined shouldBe true
-      state.version == genesisBlock.id shouldBe true
+      history.modifierById(genesis.block.id).isDefined shouldBe true
+      state.version == genesis.block.id shouldBe true
     }
   }
 }

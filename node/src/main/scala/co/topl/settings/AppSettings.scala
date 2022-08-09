@@ -13,16 +13,15 @@ import java.net.InetSocketAddress
 import scala.concurrent.duration._
 
 case class ApplicationSettings(
-  cacheExpire:                  Int,
-  cacheSize:                    Int,
-  dataDir:                      Option[String],
-  keyFileDir:                   Option[String],
-  mempoolTimeout:               FiniteDuration,
-  nodeKeys:                     Option[Set[String]],
-  rebroadcastCount:             Int,
-  consensusStoreVersionsToKeep: Int,
-  version:                      Version,
-  genesis:                      GenesisSettings
+  cacheExpire:      Int,
+  cacheSize:        Int,
+  dataDir:          Option[String],
+  keyFileDir:       Option[String],
+  mempoolTimeout:   FiniteDuration,
+  nodeKeys:         Option[Set[String]],
+  rebroadcastCount: Int,
+  version:          Version,
+  genesis:          GenesisSettings
 )
 
 case class RPCApiSettings(

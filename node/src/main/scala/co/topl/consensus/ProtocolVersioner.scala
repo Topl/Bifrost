@@ -22,7 +22,7 @@ class ProtocolVersioner private (appVersion: Version, protocolVersions: SortedSe
    */
   def applicable(blockHeight: Long): ProtocolSettings =
     compatibleProtocolVersions
-      .find(blockHeight >= _.startBlock)
+      .find(pv => blockHeight >= pv.startBlock)
       .getOrElse(throw new Error("Unable to find applicable protocol rules"))
 }
 

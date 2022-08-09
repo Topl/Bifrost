@@ -31,19 +31,22 @@ class ValidBlockchainGeneratorSpec extends AnyPropSpec with ValidBlockchainGener
       )
     val getParentTimestamp: Block => Option[Time] = (block: Block) => getParent(block).map(_.timestamp)
 
-    val consensusState: Block => NxtConsensus.State = (block: Block) =>
-      NxtConsensus.State(Int.MaxValue, getParent(block).get.difficulty, 0L, getParent(block).get.height)
+    val consensusState: Block => NxtConsensus.State = (block: Block) => NxtConsensus.State(Int.MaxValue, 0L)
   }
 
   property("Generates a valid blockchain from genesis with up to 127 blocks in length") {
     forAll(Gen.choose[Byte](2, Byte.MaxValue)) { length =>
       val leaderElection = new NxtLeaderElection(ProtocolVersioner.default)
 
+      val genesisStrat = GenesisProvider.Strategies.Generation(Version.initial, Int.MaxValue, Long.MaxValue)
+
       val nonEmptyBlockchain =
         validChainFromGenesis(
           keyRingCurve25519,
-          GenesisProvider.Strategies.Generation(Version.initial, Int.MaxValue, Long.MaxValue),
-          ProtocolVersioner.default
+          genesisStrat.balanceForEachParticipant,
+          genesisStrat.initialDifficulty,
+          ProtocolVersioner.default,
+          Long.MaxValue / length
         )(length).sample.get
 
       val extractors = new BlockDataExtractors(nonEmptyBlockchain.head.block +: nonEmptyBlockchain.tail)
@@ -53,8 +56,8 @@ class ValidBlockchainGeneratorSpec extends AnyPropSpec with ValidBlockchainGener
         Seq(
           new DifficultyValidator(leaderElection).validate(getDetails)(block),
           new HeightValidator().validate(getParentHeight)(block),
-          new EligibilityValidator(leaderElection, consensusState(block)).validate(getParent)(block),
-          new SyntaxValidator(consensusState(block)).validate(identity)(block),
+          new EligibilityValidator(leaderElection, consensusState(block).totalStake).validate(getParent)(block),
+          new SyntaxValidator(consensusState(block).inflation).validate(identity)(block),
           new TimestampValidator().validate(getParentTimestamp)(block)
         )
 

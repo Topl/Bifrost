@@ -54,7 +54,7 @@ class ChainSelectionTest
     ConfigFactory
       .parseString(
         raw"""bifrost.network.knownPeers = ${nodeNames.map(_ + ":" + BifrostDockerNode.NetworkPort).asJson.noSpaces}
-           |""".stripMargin
+             |""".stripMargin
       )
       .withFallback(baseConfig)
 

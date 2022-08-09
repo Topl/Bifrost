@@ -9,5 +9,5 @@ import co.topl.nodeView.history.GenericHistory
 trait SyncInfo {
 
   /** Sequence of modifier ids and type ids */
-  def startingPoints: GenericHistory.ModifierIds
+  def startingPoints: GenericHistory.TypedModifierIds
 }

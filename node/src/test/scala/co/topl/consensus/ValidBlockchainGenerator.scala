@@ -27,18 +27,18 @@ trait ValidBlockchainGenerator extends NetworkPrefixTestHelper {
     protocolVersioner
   )(lengthOfChain)
 
+  // manipulate the time between subsequent blocks to manage the adjustment of difficulty (this will
+  // also generate different chains for differnet values of timeBetweenBlocks)
   def validChainFromGenesis(
     keyRing:                   KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
     balanceForEachParticipant: Long,
     initialDifficulty:         Long,
-    protocolVersioner:         ProtocolVersioner
+    protocolVersioner:         ProtocolVersioner,
+    timeBetweenBlocks:         Long = Long.MaxValue / 10
   )(
     lengthOfChain: Byte
   ): Gen[GenesisHeadChain] = {
     val leaderElection = new NxtLeaderElection(protocolVersioner)
-
-    // manipulate the time between subsequent blocks to manage the adjustment of difficulty
-    val timeBetweenBlocks: Long = Long.MaxValue / lengthOfChain
 
     val genesis = GenesisProvider.construct(
       keyRing.addresses,
@@ -57,9 +57,16 @@ trait ValidBlockchainGenerator extends NetworkPrefixTestHelper {
     val eligibleBox = NxtLeaderElection
       .getEligibleBox(
         leaderElection.calculateHitValue(genesis.block)(_),
-        leaderElection.calculateThresholdValue(timeBetweenBlocks, genesis.state)(_)
+        leaderElection.calculateThresholdValue(
+          timeBetweenBlocks,
+          genesis.block.height,
+          genesis.block.difficulty,
+          genesis.state.totalStake
+        )(_)
       )(allArbitBoxesIterator)
       .getOrThrow(e => new Exception(e.toString))
+
+    require(lengthOfChain >= 2, "Use a value greater than or equal to 2 when generating valid chains")
 
     val blockchain = (2 to lengthOfChain).foldLeft(NonEmptyChain(genesis.block)) { case (chain, height) =>
       val newTimestamp = chain.last.timestamp + timeBetweenBlocks
