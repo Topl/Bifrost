@@ -5,7 +5,7 @@ import cats.data.ValidatedNec
 import cats.implicits._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.models
+import co.topl.{models => bifrostModels}
 import co.topl.models.utility.HasLength.instances.{bytesLength, latin1DataLength}
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{Lengths, Sized}
@@ -35,7 +35,8 @@ object MessageIsomorphism {
 
   trait Instances {
 
-    implicit def headerIsomorphism[F[_]: Monad]: MessageIsomorphism[F, models.BlockHeaderV2, services.BlockHeader] =
+    implicit def headerIsomorphism[F[_]: Monad]
+      : MessageIsomorphism[F, bifrostModels.BlockHeaderV2, services.BlockHeader] =
       MessageIsomorphism.create(
         _.map(header =>
           services
@@ -49,7 +50,7 @@ object MessageIsomorphism {
               header.slot,
               header.eligibilityCertificate.transmittableBytes,
               header.operationalCertificate.transmittableBytes,
-              header.metadata.map(v => services.BlockHeader.Metadata(models.Bytes(v.data.bytes))),
+              header.metadata.map(v => services.BlockHeader.Metadata(bifrostModels.Bytes(v.data.bytes))),
               header.address.transmittableBytes
             )
             .asRight
@@ -57,27 +58,27 @@ object MessageIsomorphism {
         _.map(protoHeader =>
           for {
             txRoot <- Sized
-              .strict[models.Bytes, Lengths.`32`.type](protoHeader.txRoot: models.Bytes)
+              .strict[bifrostModels.Bytes, Lengths.`32`.type](protoHeader.txRoot: bifrostModels.Bytes)
               .leftMap(_ => "Invalid txRoot")
             bloomFilter <- Sized
-              .strict[models.Bytes, Lengths.`256`.type](protoHeader.bloomFilter: models.Bytes)
+              .strict[bifrostModels.Bytes, Lengths.`256`.type](protoHeader.bloomFilter: bifrostModels.Bytes)
               .leftMap(_ => "Invalid bloomFilter")
-            eligibilityCertificate <- (protoHeader.eligibilityCertificate: models.Bytes)
-              .decodeTransmitted[models.EligibilityCertificate]
+            eligibilityCertificate <- (protoHeader.eligibilityCertificate: bifrostModels.Bytes)
+              .decodeTransmitted[bifrostModels.EligibilityCertificate]
               .leftMap(_ => "Invalid eligibilityCertificate")
-            operationalCertificate <- (protoHeader.operationalCertificate: models.Bytes)
-              .decodeTransmitted[models.OperationalCertificate]
+            operationalCertificate <- (protoHeader.operationalCertificate: bifrostModels.Bytes)
+              .decodeTransmitted[bifrostModels.OperationalCertificate]
               .leftMap(_ => "Invalid operationalCertificate")
             metadata <- protoHeader.metadata.traverse(metadata =>
               Sized
                 .max[Latin1Data, Lengths.`32`.type](Latin1Data.fromData(metadata.toByteArray))
                 .leftMap(_ => "Invalid metadata")
             )
-            address <- (protoHeader.address: models.Bytes)
-              .decodeTransmitted[models.StakingAddresses.Operator]
+            address <- (protoHeader.address: bifrostModels.Bytes)
+              .decodeTransmitted[bifrostModels.StakingAddresses.Operator]
               .leftMap(_ => "Invalid address")
-          } yield models.BlockHeaderV2(
-            models.TypedBytes(protoHeader.parentHeaderId),
+          } yield bifrostModels.BlockHeaderV2(
+            bifrostModels.TypedBytes(protoHeader.parentHeaderId),
             protoHeader.parentSlot,
             txRoot,
             bloomFilter,
@@ -92,15 +93,15 @@ object MessageIsomorphism {
         )
       )
 
-    implicit def bodyIsomorphism[F[_]: Monad]: MessageIsomorphism[F, models.BlockBodyV2, services.BlockBody] =
+    implicit def bodyIsomorphism[F[_]: Monad]: MessageIsomorphism[F, bifrostModels.BlockBodyV2, services.BlockBody] =
       MessageIsomorphism.create(
         _.map(body => services.BlockBody(body.toList.map(_.transmittableBytes: ByteString)).asRight),
         _.map(protoBody =>
           protoBody.transactionIds.toList
-            .traverse[ValidatedNec[String, *], models.TypedIdentifier](data =>
-              (data: models.Bytes).decodeTransmitted[models.TypedIdentifier].toValidatedNec
+            .traverse[ValidatedNec[String, *], bifrostModels.TypedIdentifier](data =>
+              (data: bifrostModels.Bytes).decodeTransmitted[bifrostModels.TypedIdentifier].toValidatedNec
             )
-            .map(ListSet.empty[models.TypedIdentifier] ++ _)
+            .map(ListSet.empty[bifrostModels.TypedIdentifier] ++ _)
             .leftMap(errors => show"Invalid block body. reason=$errors")
             .toEither
         )

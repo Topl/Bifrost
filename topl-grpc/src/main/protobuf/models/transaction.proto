@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package co.topl.grpc.models;
+
+import 'models/address.proto';
+import 'models/box.proto';
+import 'models/proof.proto';
+import 'models/proposition.proto';
+
+message Transaction {
+  repeated Input inputs = 1;
+  repeated Output outputs = 2;
+  Schedule schedule = 3;
+  Data data = 4;
+
+  message Input {
+    Box.Id boxId = 1;
+    Proposition proposition = 2;
+    Proof proof = 3;
+    BoxValue value = 4;
+  }
+  message Output {
+    FullAddress address = 1;
+    BoxValue value = 2;
+    bool minting = 3;
+  }
+  message Schedule {
+    int64 creation = 1;
+    int64 minimumSlot = 2;
+    int64 maximumSlot = 3;
+  }
+  message Data {
+    bytes value = 1;
+  }
+}

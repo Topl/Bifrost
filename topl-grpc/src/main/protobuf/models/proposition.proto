@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package co.topl.grpc.models;
+
+import 'models/verification_key.proto';
+import 'models/box.proto';
+
+message Proposition {
+  oneof sealed_value {
+    PropositionPermanentlyLocked permanentlyLocked = 1;
+
+    PropositionKnowledgeEd25519 knowledgeEd25519 = 2;
+    PropositionKnowledgeExtendedEd25519 knowledgeExtendedEd25519 = 3;
+    PropositionKnowledgeHashLock knowledgeHashLock = 4;
+
+    PropositionCompositionalThreshold compositionalThreshold = 5;
+    PropositionCompositionalAnd compositionalAnd = 6;
+    PropositionCompositionalOr compositionalOr = 7;
+    PropositionCompositionalNot compositionalNot = 8;
+
+    PropositionContextualHeightLock contextualHeightLock = 9;
+    PropositionContextualRequiredTransactionIO contextualTransactionIO = 10;
+  }
+}
+
+message PropositionPermanentlyLocked {}
+
+message PropositionKnowledgeEd25519 {
+  VerificationKeyEd25519 key = 1;
+}
+
+message PropositionKnowledgeExtendedEd25519 {
+  VerificationKeyExtendedEd25519 key = 1;
+}
+
+message PropositionKnowledgeHashLock {
+  bytes valueDigest = 1;
+}
+
+message PropositionCompositionalThreshold {
+  int32 threshold = 1;
+  repeated Proposition propositions = 2;
+}
+
+message PropositionCompositionalAnd {
+  Proposition a = 1;
+  Proposition b = 2;
+}
+
+message PropositionCompositionalOr {
+  Proposition a = 1;
+  Proposition b = 2;
+}
+
+message PropositionCompositionalNot {
+  Proposition a = 1;
+}
+
+message PropositionContextualHeightLock {
+  int64 height = 1;
+}
+message PropositionContextualRequiredTransactionIO {
+  repeated Requirement boxes = 1;
+
+  message Requirement {
+    Box box = 1;
+    BoxLocation location = 2;
+  }
+}
+
+message BoxLocation {
+  int32 index = 1;
+  IO location = 2;
+  enum IO {
+    INPUT = 0;
+    OUTPUT = 1;
+  }
+}

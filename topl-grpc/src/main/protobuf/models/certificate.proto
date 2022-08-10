@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package co.topl.grpc.models;
+
+import 'models/verification_key.proto';
+import 'models/proof.proto';
+
+message OperationalCertificate {
+  VerificationKeyKesProduct parentVK = 1;
+  ProofKnowledgeKesProduct parentSignature = 2;
+  VerificationKeyEd25519 childVK = 3;
+  ProofKnowledgeEd25519 childSignature = 4;
+}
+
+message EligibilityCertificate {
+  ProofKnowledgeVrfEd25519 vrfSig = 1;
+  VerificationKeyVrfEd25519 vkVRF = 2;
+  bytes thresholdEvidence = 3;
+  bytes eta = 4;
+}

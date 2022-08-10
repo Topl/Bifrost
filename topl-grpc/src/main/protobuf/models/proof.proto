@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package co.topl.grpc.models;
+
+import 'models/verification_key.proto';
+
+message Proof {
+  oneof sealed_value {
+    ProofUndefined undefined = 1;
+
+    ProofKnowledgeEd25519 knowledgeEd25519 = 2;
+    ProofKnowledgeVrfEd25519 knowledgeVrfEd25519 = 3;
+    ProofKnowledgeKesSum knowledgeKesSum = 4;
+    ProofKnowledgeKesProduct knowledgeKesProduct = 5;
+    ProofKnowledgeHashLock knowledgeHashLock = 6;
+
+    ProofCompositionalThreshold compositionalThreshold = 7;
+    ProofCompositionalAnd compositionalAnd = 8;
+    ProofCompositionalOr compositionalOr = 9;
+    ProofCompositionalNot compositionalNot = 10;
+
+    ProofContextualHeightLock contextualHeightLock = 11;
+    ProofContextualRequiredTransactionIO contextualTransactionIO = 12;
+  }
+}
+
+message ProofUndefined {}
+
+message ProofKnowledgeEd25519 {
+  bytes value = 1;
+}
+
+message ProofKnowledgeVrfEd25519 {
+  bytes value = 1;
+}
+
+message ProofKnowledgeKesSum {
+  VerificationKeyEd25519 verificationKey = 1;
+  ProofKnowledgeEd25519 signature = 2;
+  repeated bytes witness = 3;
+}
+
+message ProofKnowledgeKesProduct {
+  ProofKnowledgeKesSum superSignature = 1;
+  ProofKnowledgeKesSum subSignature = 2;
+  bytes subRoot = 3;
+}
+
+message ProofKnowledgeHashLock {
+  bytes value = 1;
+}
+
+message ProofCompositionalThreshold {
+  repeated Proof proofs = 1;
+}
+
+message ProofCompositionalAnd {
+  Proof a = 1;
+  Proof b = 2;
+}
+
+message ProofCompositionalOr {
+  Proof a = 1;
+  Proof b = 2;
+}
+
+message ProofCompositionalNot {
+  Proof a = 1;
+}
+
+message ProofContextualHeightLock {}
+message ProofContextualRequiredTransactionIO {}

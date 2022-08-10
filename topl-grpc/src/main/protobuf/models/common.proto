@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package co.topl.grpc.models;
+
+message NetworkPrefix {
+  int32 value = 1;
+}
+
+message TypedEvidence {
+  int32 typePrefix = 1;
+  bytes evidence = 2;
+}
+
+message BlockId {
+  bytes value = 1;
+}
+
+message TransactionId {
+  bytes value = 1;
+}
+
+message Int128 {
+  bytes value = 1;
+}
