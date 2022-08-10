@@ -187,7 +187,9 @@ trait CommonBifrostMorphismInstances {
 }
 
 trait ProofBifrostMorphismInstances {
-  self: PrimitiveBifrostMorphismInstances with VerificationKeyBifrostMorphismInstances =>
+  self: PrimitiveBifrostMorphismInstances
+    with CommonBifrostMorphismInstances
+    with VerificationKeyBifrostMorphismInstances =>
 
   implicit def proofsUndefinedIsomorphism[F[_]: Monad]
     : Isomorphism[F, bifrostModels.Proofs.Undefined.type, models.ProofUndefined] =
@@ -270,6 +272,170 @@ trait ProofBifrostMorphismInstances {
           subRoot <- EitherT(p.subRoot.toF[F, Sized.Strict[bifrostModels.Bytes, Lengths.`32`.type]])
         } yield bifrostModels.Proofs.Knowledge.KesProduct(superSignature, subSignature, subRoot)
       ).flatMap(_.value)
+    )
+
+  implicit def proofsKnowledgeHashLockIsomorphism[F[_]: Monad]
+    : Isomorphism[F, bifrostModels.Proofs.Knowledge.HashLock, models.ProofKnowledgeHashLock] =
+    Isomorphism(
+      _.map(p =>
+        for {
+          value <- EitherT(p.value.toF[F, ByteString])
+        } yield models.ProofKnowledgeHashLock(value)
+      ).flatMap(_.value),
+      _.map(p =>
+        for {
+          value <- EitherT(p.value.toF[F, bifrostModels.Bytes])
+        } yield bifrostModels.Proofs.Knowledge.HashLock(value)
+      ).flatMap(_.value)
+    )
+
+  implicit def proofsCompositionalAndIsomorphism[F[_]: Monad]
+    : Isomorphism[F, bifrostModels.Proofs.Compositional.And, models.ProofCompositionalAnd] =
+    Isomorphism(
+      _.map(p =>
+        for {
+          a <- EitherT(p.a.toF[F, models.Proof])
+          b <- EitherT(p.b.toF[F, models.Proof])
+        } yield models.ProofCompositionalAnd(a, b)
+      ).flatMap(_.value),
+      _.map(p =>
+        for {
+          a <- EitherT(p.a.toF[F, bifrostModels.Proof])
+          b <- EitherT(p.b.toF[F, bifrostModels.Proof])
+        } yield bifrostModels.Proofs.Compositional.And(a, b)
+      ).flatMap(_.value)
+    )
+
+  implicit def proofsCompositionalOrIsomorphism[F[_]: Monad]
+    : Isomorphism[F, bifrostModels.Proofs.Compositional.Or, models.ProofCompositionalOr] =
+    Isomorphism(
+      _.map(p =>
+        for {
+          a <- EitherT(p.a.toF[F, models.Proof])
+          b <- EitherT(p.b.toF[F, models.Proof])
+        } yield models.ProofCompositionalOr(a, b)
+      ).flatMap(_.value),
+      _.map(p =>
+        for {
+          a <- EitherT(p.a.toF[F, bifrostModels.Proof])
+          b <- EitherT(p.b.toF[F, bifrostModels.Proof])
+        } yield bifrostModels.Proofs.Compositional.Or(a, b)
+      ).flatMap(_.value)
+    )
+
+  implicit def proofsCompositionalThresholdIsomorphism[F[_]: Monad]
+    : Isomorphism[F, bifrostModels.Proofs.Compositional.Threshold, models.ProofCompositionalThreshold] =
+    Isomorphism(
+      _.map(p =>
+        for {
+          proofs <- EitherT(
+            p.proofs
+              .traverse(_.toF[F, models.Proof])
+              .map(_.sequence)
+          )
+        } yield models.ProofCompositionalThreshold(proofs)
+      ).flatMap(_.value),
+      _.map(p =>
+        for {
+          proofs <- EitherT(
+            p.proofs.toList
+              .traverse(_.toF[F, bifrostModels.Proof])
+              .map(_.sequence)
+          )
+        } yield bifrostModels.Proofs.Compositional.Threshold(proofs)
+      ).flatMap(_.value)
+    )
+
+  implicit def proofsCompositionalNotIsomorphism[F[_]: Monad]
+    : Isomorphism[F, bifrostModels.Proofs.Compositional.Not, models.ProofCompositionalNot] =
+    Isomorphism(
+      _.map(p =>
+        for {
+          a <- EitherT(p.a.toF[F, models.Proof])
+        } yield models.ProofCompositionalNot(a)
+      ).flatMap(_.value),
+      _.map(p =>
+        for {
+          a <- EitherT(p.a.toF[F, bifrostModels.Proof])
+        } yield bifrostModels.Proofs.Compositional.Not(a)
+      ).flatMap(_.value)
+    )
+
+  implicit def proofsContextualHeightLockIsomorphism[F[_]: Monad]
+    : Isomorphism[F, bifrostModels.Proofs.Contextual.HeightLock, models.ProofContextualHeightLock] =
+    Isomorphism(
+      _.as(models.ProofContextualHeightLock().asRight[String]),
+      _.as(bifrostModels.Proofs.Contextual.HeightLock().asRight[String])
+    )
+
+  implicit def proofsContextualRequiredTransactionIOIsomorphism[F[_]: Monad]: Isomorphism[
+    F,
+    bifrostModels.Proofs.Contextual.RequiredTransactionIO,
+    models.ProofContextualRequiredTransactionIO
+  ] =
+    Isomorphism(
+      _.as(models.ProofContextualRequiredTransactionIO().asRight[String]),
+      _.as(bifrostModels.Proofs.Contextual.RequiredTransactionIO().asRight[String])
+    )
+
+  implicit def proofIsomorphism[F[_]: Monad]: Isomorphism[F, bifrostModels.Proof, models.Proof] =
+    Isomorphism(
+      _.flatMap {
+        case bifrostModels.Proofs.Undefined =>
+          EitherT(bifrostModels.Proofs.Undefined.toF[F, models.ProofUndefined]).widen[models.Proof].value
+        case _: bifrostModels.Proofs.Knowledge.Curve25519 =>
+          "Curve25519 Unsupported".asLeft[models.Proof].pure[F]
+        case p: bifrostModels.Proofs.Knowledge.Ed25519 =>
+          EitherT(p.toF[F, models.ProofKnowledgeEd25519]).widen[models.Proof].value
+        case p: bifrostModels.Proofs.Knowledge.VrfEd25519 =>
+          EitherT(p.toF[F, models.ProofKnowledgeVrfEd25519]).widen[models.Proof].value
+        case p: bifrostModels.Proofs.Knowledge.KesSum =>
+          EitherT(p.toF[F, models.ProofKnowledgeKesSum]).widen[models.Proof].value
+        case p: bifrostModels.Proofs.Knowledge.KesProduct =>
+          EitherT(p.toF[F, models.ProofKnowledgeKesProduct]).widen[models.Proof].value
+        case p: bifrostModels.Proofs.Knowledge.HashLock =>
+          EitherT(p.toF[F, models.ProofKnowledgeHashLock]).widen[models.Proof].value
+        case p: bifrostModels.Proofs.Compositional.And =>
+          EitherT(p.toF[F, models.ProofCompositionalAnd]).widen[models.Proof].value
+        case p: bifrostModels.Proofs.Compositional.Or =>
+          EitherT(p.toF[F, models.ProofCompositionalOr]).widen[models.Proof].value
+        case p: bifrostModels.Proofs.Compositional.Threshold =>
+          EitherT(p.toF[F, models.ProofCompositionalThreshold]).widen[models.Proof].value
+        case p: bifrostModels.Proofs.Compositional.Not =>
+          EitherT(p.toF[F, models.ProofCompositionalNot]).widen[models.Proof].value
+        case p: bifrostModels.Proofs.Contextual.HeightLock =>
+          EitherT(p.toF[F, models.ProofContextualHeightLock]).widen[models.Proof].value
+        case p: bifrostModels.Proofs.Contextual.RequiredTransactionIO =>
+          EitherT(p.toF[F, models.ProofContextualRequiredTransactionIO]).widen[models.Proof].value
+      },
+      _.flatMap {
+        case models.Proof.Empty =>
+          "Empty proof".asLeft[bifrostModels.Proof].toEitherT[F].value
+        case p: models.ProofUndefined =>
+          EitherT(p.toF[F, bifrostModels.Proofs.Undefined.type]).widen[bifrostModels.Proof].value
+        case p: models.ProofKnowledgeEd25519 =>
+          EitherT(p.toF[F, bifrostModels.Proofs.Knowledge.Ed25519]).widen[bifrostModels.Proof].value
+        case p: models.ProofKnowledgeVrfEd25519 =>
+          EitherT(p.toF[F, bifrostModels.Proofs.Knowledge.VrfEd25519]).widen[bifrostModels.Proof].value
+        case p: models.ProofKnowledgeKesSum =>
+          EitherT(p.toF[F, bifrostModels.Proofs.Knowledge.KesSum]).widen[bifrostModels.Proof].value
+        case p: models.ProofKnowledgeKesProduct =>
+          EitherT(p.toF[F, bifrostModels.Proofs.Knowledge.KesProduct]).widen[bifrostModels.Proof].value
+        case p: models.ProofKnowledgeHashLock =>
+          EitherT(p.toF[F, bifrostModels.Proofs.Knowledge.HashLock]).widen[bifrostModels.Proof].value
+        case p: models.ProofCompositionalAnd =>
+          EitherT(p.toF[F, bifrostModels.Proofs.Compositional.And]).widen[bifrostModels.Proof].value
+        case p: models.ProofCompositionalOr =>
+          EitherT(p.toF[F, bifrostModels.Proofs.Compositional.Or]).widen[bifrostModels.Proof].value
+        case p: models.ProofCompositionalThreshold =>
+          EitherT(p.toF[F, bifrostModels.Proofs.Compositional.Threshold]).widen[bifrostModels.Proof].value
+        case p: models.ProofCompositionalNot =>
+          EitherT(p.toF[F, bifrostModels.Proofs.Compositional.Not]).widen[bifrostModels.Proof].value
+        case p: models.ProofContextualHeightLock =>
+          EitherT(p.toF[F, bifrostModels.Proofs.Contextual.HeightLock]).widen[bifrostModels.Proof].value
+        case p: models.ProofContextualRequiredTransactionIO =>
+          EitherT(p.toF[F, bifrostModels.Proofs.Contextual.RequiredTransactionIO]).widen[bifrostModels.Proof].value
+      }
     )
 }
 
