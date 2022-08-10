@@ -4,11 +4,16 @@ package co.topl.grpc.models;
 
 message VerificationKey {
   oneof sealed_value {
-    VerificationKeyEd25519 ed25519 = 1;
-    VerificationKeyExtendedEd25519 extendedEd25519 = 2;
-    VerificationKeyVrfEd25519 vrfEd25519 = 3;
-    VerificationKeyKesProduct kesProduct = 4;
+    VerificationKeyCurve25519 curve25519 = 1;
+    VerificationKeyEd25519 ed25519 = 2;
+    VerificationKeyExtendedEd25519 extendedEd25519 = 3;
+    VerificationKeyVrfEd25519 vrfEd25519 = 4;
+    VerificationKeyKesProduct kesProduct = 5;
   }
+}
+
+message VerificationKeyCurve25519 {
+  bytes value = 1;
 }
 
 message VerificationKeyEd25519 {

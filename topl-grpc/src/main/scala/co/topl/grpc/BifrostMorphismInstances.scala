@@ -70,6 +70,23 @@ trait PrimitiveBifrostMorphismInstances {
 trait VerificationKeyBifrostMorphismInstances {
   self: PrimitiveBifrostMorphismInstances =>
 
+  implicit def verificationKeysCurve25519Isomorphism[F[_]: Monad]
+    : Isomorphism[F, bifrostModels.VerificationKeys.Curve25519, models.VerificationKeyCurve25519] =
+    Isomorphism(
+      _.map(p =>
+        for {
+          value <- EitherT(p.bytes.toF[F, ByteString])
+        } yield models.VerificationKeyCurve25519(value)
+      ).flatMap(_.value),
+      _.map(p =>
+        for {
+          value <- EitherT(
+            p.value.toF[F, Sized.Strict[bifrostModels.Bytes, bifrostModels.VerificationKeys.Ed25519.Length]]
+          )
+        } yield bifrostModels.VerificationKeys.Curve25519(value)
+      ).flatMap(_.value)
+    )
+
   implicit def verificationKeysEd25519Isomorphism[F[_]: Monad]
     : Isomorphism[F, bifrostModels.VerificationKeys.Ed25519, models.VerificationKeyEd25519] =
     Isomorphism(
@@ -196,6 +213,17 @@ trait ProofBifrostMorphismInstances {
     Isomorphism(
       _.as(models.ProofUndefined().asRight[String]),
       _.as(bifrostModels.Proofs.Undefined.asRight[String])
+    )
+
+  implicit def proofsKnowledgeCurve25519Isomorphism[F[_]: Monad]
+    : Isomorphism[F, bifrostModels.Proofs.Knowledge.Curve25519, models.ProofKnowledgeCurve25519] =
+    Isomorphism(
+      _.map(p => models.ProofKnowledgeCurve25519(p.bytes.data).asRight[String]),
+      _.flatMap(p =>
+        EitherT(p.value.toF[F, Sized.Strict[bifrostModels.Bytes, Lengths.`64`.type]])
+          .map(bifrostModels.Proofs.Knowledge.Curve25519(_))
+          .value
+      )
     )
 
   implicit def proofsKnowledgeEd25519Isomorphism[F[_]: Monad]
@@ -383,8 +411,8 @@ trait ProofBifrostMorphismInstances {
       _.flatMap {
         case bifrostModels.Proofs.Undefined =>
           EitherT(bifrostModels.Proofs.Undefined.toF[F, models.ProofUndefined]).widen[models.Proof].value
-        case _: bifrostModels.Proofs.Knowledge.Curve25519 =>
-          "Curve25519 Unsupported".asLeft[models.Proof].pure[F]
+        case p: bifrostModels.Proofs.Knowledge.Curve25519 =>
+          EitherT(p.toF[F, models.ProofKnowledgeCurve25519]).widen[models.Proof].value
         case p: bifrostModels.Proofs.Knowledge.Ed25519 =>
           EitherT(p.toF[F, models.ProofKnowledgeEd25519]).widen[models.Proof].value
         case p: bifrostModels.Proofs.Knowledge.VrfEd25519 =>
@@ -415,6 +443,8 @@ trait ProofBifrostMorphismInstances {
           EitherT(p.toF[F, bifrostModels.Proofs.Undefined.type]).widen[bifrostModels.Proof].value
         case p: models.ProofKnowledgeEd25519 =>
           EitherT(p.toF[F, bifrostModels.Proofs.Knowledge.Ed25519]).widen[bifrostModels.Proof].value
+        case p: models.ProofKnowledgeCurve25519 =>
+          EitherT(p.toF[F, bifrostModels.Proofs.Knowledge.Curve25519]).widen[bifrostModels.Proof].value
         case p: models.ProofKnowledgeVrfEd25519 =>
           EitherT(p.toF[F, bifrostModels.Proofs.Knowledge.VrfEd25519]).widen[bifrostModels.Proof].value
         case p: models.ProofKnowledgeKesSum =>

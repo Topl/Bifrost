@@ -22,7 +22,6 @@ class BifrostMorphismInstancesSpec extends CatsEffectSuite with ScalaCheckEffect
   }
 
   test("Proof Morphism") {
-    // TODO: ModelGenerators makes Curve proofs which fails here
     testIsomorphism[bifrostModels.Proof, models.Proof]
   }
 
