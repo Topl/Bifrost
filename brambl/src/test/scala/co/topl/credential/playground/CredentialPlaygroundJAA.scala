@@ -98,8 +98,11 @@ object RequiredOutput extends App {
   import SetupSandbox._
 
   val requiredBoxProposition = Propositions.Contextual.RequiredTransactionIO(
-    List(
-      Box.empty.copy(evidence = address0.typedEvidence) -> BoxLocations.Output(0)
+    NonEmptyChain(
+      Propositions.Contextual.RequiredTransactionIO.Requirement(
+        Box.empty.copy(evidence = address0.typedEvidence),
+        BoxLocations.Output(0)
+      )
     ) // todo: helper function name for Box.empty.copy
   )
   val proposition = curve25519Sk.vk.asProposition.and(requiredBoxProposition)
@@ -118,8 +121,11 @@ object RequiredOutput extends App {
       Credential.Knowledge.Curve25519(curve25519Sk, unprovenTransaction),
       Credential.Contextual
         .RequiredTransactionIO(
-          List(
-            Box.empty.copy(evidence = address0.typedEvidence) -> BoxLocations.Output(0)
+          NonEmptyChain(
+            Propositions.Contextual.RequiredTransactionIO.Requirement(
+              Box.empty.copy(evidence = address0.typedEvidence),
+              BoxLocations.Output(0)
+            )
           )
         )
     )
@@ -206,8 +212,11 @@ object XorGameCompletion extends App {
 
   val requiredInputBoxProposition =
     Propositions.Contextual.RequiredTransactionIO(
-      List(
-        Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))) -> BoxLocations.Input(0)
+      NonEmptyChain(
+        Propositions.Contextual.RequiredTransactionIO.Requirement(
+          Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))),
+          BoxLocations.Input(0)
+        )
       )
     )
 
@@ -224,8 +233,11 @@ object XorGameCompletion extends App {
     )
 
   val halfGameProposition = Propositions.Contextual.RequiredTransactionIO(
-    List(
-      Box.empty.copy(evidence = fullGameProposition.spendingAddress.typedEvidence) -> BoxLocations.Output(0)
+    NonEmptyChain(
+      Propositions.Contextual.RequiredTransactionIO.Requirement(
+        Box.empty.copy(evidence = fullGameProposition.spendingAddress.typedEvidence),
+        BoxLocations.Output(0)
+      )
     )
   )
 
@@ -249,8 +261,11 @@ object XorGameCompletion extends App {
       Credential.Knowledge.HashLock(Bytes.encodeUtf8("test" + "1").getOrElse(???)),
       Credential.Knowledge.Curve25519(aliceSk, unprovenTransaction),
       Credential.Contextual.RequiredTransactionIO(
-        List(
-          Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))) -> BoxLocations.Input(0)
+        NonEmptyChain(
+          Propositions.Contextual.RequiredTransactionIO.Requirement(
+            Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))),
+            BoxLocations.Input(0)
+          )
         )
       )
     )
@@ -294,8 +309,11 @@ object RequiredBoxValue extends App {
   import SetupSandbox._
 
   val proposition = Propositions.Contextual.RequiredTransactionIO(
-    List(
-      Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))) -> BoxLocations.Output(0)
+    NonEmptyChain(
+      Propositions.Contextual.RequiredTransactionIO.Requirement(
+        Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))),
+        BoxLocations.Output(0)
+      )
     )
   )
   println(s"The address for the proposition is: ${proposition}")
@@ -308,8 +326,11 @@ object RequiredBoxValue extends App {
   )
 
   val credential = Credential.Contextual.RequiredTransactionIO(
-    List(
-      Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))) -> BoxLocations.Output(0)
+    NonEmptyChain(
+      Propositions.Contextual.RequiredTransactionIO.Requirement(
+        Box.empty.copy(value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10)))),
+        BoxLocations.Output(0)
+      )
     )
   )
 

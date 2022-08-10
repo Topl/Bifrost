@@ -65,7 +65,7 @@ message PropositionContextualHeightLock {
   int64 height = 1;
 }
 message PropositionContextualRequiredTransactionIO {
-  repeated Requirement boxes = 1;
+  repeated Requirement requirements = 1;
 
   message Requirement {
     Box box = 1;

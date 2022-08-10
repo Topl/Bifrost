@@ -1,6 +1,6 @@
 package co.topl.ledger.interpreters
 
-import cats.data.Chain
+import cats.data.{Chain, NonEmptyChain}
 import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.UnsafeResource
@@ -323,7 +323,9 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
       withMock {
         for {
           badTransaction <- createTestTransaction(
-            Propositions.Contextual.RequiredTransactionIO(List(box -> BoxLocations.Output(0))),
+            Propositions.Contextual.RequiredTransactionIO(
+              NonEmptyChain(Propositions.Contextual.RequiredTransactionIO.Requirement(box, BoxLocations.Output(0)))
+            ),
             _ => Proofs.Contextual.RequiredTransactionIO()
           ).pure[F]
           underTest <- makeValidation()

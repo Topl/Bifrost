@@ -1,5 +1,7 @@
 package co.topl.models
 
+import cats.data.NonEmptyChain
+
 import scala.collection.immutable.ListSet
 import scala.language.implicitConversions
 
@@ -76,7 +78,11 @@ object Propositions {
      * @param boxes a list of (box, location) tuples indicating an expected box at the expected location of the
      *              spending transaction
      */
-    case class RequiredTransactionIO(boxes: List[(Box, BoxLocation)]) extends Proposition
+    case class RequiredTransactionIO(requirements: NonEmptyChain[RequiredTransactionIO.Requirement]) extends Proposition
+
+    object RequiredTransactionIO {
+      case class Requirement(box: Box, location: BoxLocation)
+    }
   }
 
 }

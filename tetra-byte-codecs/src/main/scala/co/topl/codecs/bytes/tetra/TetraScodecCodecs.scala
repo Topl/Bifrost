@@ -1,6 +1,6 @@
 package co.topl.codecs.bytes.tetra
 
-import cats.data.Chain
+import cats.data.{Chain, NonEmptyChain}
 import cats.implicits._
 import co.topl.codecs.bytes.scodecs._
 import co.topl.models._
@@ -293,9 +293,15 @@ trait TetraScodecPropositionCodecs {
       .typecase(0: Byte, shortCodec.as[BoxLocations.Input])
       .typecase(1: Byte, shortCodec.as[BoxLocations.Output])
 
+  implicit val propositionsContextualRequiredTransactionIORequirementCodec
+    : Codec[Propositions.Contextual.RequiredTransactionIO.Requirement] =
+    Codec.lazily(
+      (Codec[Box] :: Codec[BoxLocation]).as[Propositions.Contextual.RequiredTransactionIO.Requirement]
+    )
+
   implicit val propositionsContextualRequiredTransactionIOCodec: Codec[Propositions.Contextual.RequiredTransactionIO] =
     Codec.lazily(
-      Codec[List[(Box, BoxLocation)]](listCodec(tupleCodec(boxCodec, boxLocationCodec)))
+      Codec[NonEmptyChain[Propositions.Contextual.RequiredTransactionIO.Requirement]]
         .as[Propositions.Contextual.RequiredTransactionIO]
     )
 

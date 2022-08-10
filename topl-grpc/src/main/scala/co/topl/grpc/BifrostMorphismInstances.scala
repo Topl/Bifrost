@@ -1,7 +1,7 @@
 package co.topl.grpc
 
-import cats.Monad
-import cats.data.{Chain, EitherT, OptionT}
+import cats.{Functor, Monad}
+import cats.data.{Chain, EitherT, NonEmptyChain, OptionT}
 import cats.implicits._
 import co.topl.models.utility.HasLength.instances.{bigIntLength, _}
 import co.topl.models.utility.Lengths._
@@ -119,6 +119,26 @@ trait VerificationKeyBifrostMorphismInstances {
       ).flatMap(_.value)
     )
 
+  implicit def verificationKeysExtendedEd25519Isomorphism[F[_]: Monad]
+    : Isomorphism[F, bifrostModels.VerificationKeys.ExtendedEd25519, models.VerificationKeyExtendedEd25519] =
+    Isomorphism(
+      _.map(p =>
+        for {
+          vk        <- EitherT(p.vk.toF[F, models.VerificationKeyEd25519])
+          chainCode <- EitherT(p.chainCode.toF[F, ByteString])
+        } yield models.VerificationKeyExtendedEd25519(vk.some, chainCode)
+      ).flatMap(_.value),
+      _.map(p =>
+        for {
+          vk <- p.vk.toRight("Missing VK").toEitherT[F].flatMapF(_.toF[F, bifrostModels.VerificationKeys.Ed25519])
+          chainCode <- EitherT(
+            p.chainCode
+              .toF[F, Sized.Strict[bifrostModels.Bytes, bifrostModels.VerificationKeys.ExtendedEd25519.ChainCodeLength]]
+          )
+        } yield bifrostModels.VerificationKeys.ExtendedEd25519(vk, chainCode)
+      ).flatMap(_.value)
+    )
+
   implicit def verificationKeysVrfEd25519Isomorphism[F[_]: Monad]
     : Isomorphism[F, bifrostModels.VerificationKeys.VrfEd25519, models.VerificationKeyVrfEd25519] =
     Isomorphism(
@@ -185,7 +205,7 @@ trait CommonBifrostMorphismInstances {
       ).flatMap(_.value),
       _.map(p =>
         for {
-          prefix   <- EitherT.cond[F](p.typePrefix < Byte.MaxValue, p.typePrefix.toByte, "Invalid typePrefix")
+          prefix   <- EitherT.cond[F](p.typePrefix <= Byte.MaxValue, p.typePrefix.toByte, "Invalid typePrefix")
           evidence <- EitherT(p.evidence.toF[F, bifrostModels.Evidence])
         } yield bifrostModels.TypedEvidence(prefix, evidence)
       ).flatMap(_.value)
@@ -221,10 +241,279 @@ trait CommonBifrostMorphismInstances {
 trait PropositionBifrostMorphismInstances {
   self: PrimitiveBifrostMorphismInstances
     with CommonBifrostMorphismInstances
-    with VerificationKeyBifrostMorphismInstances =>
+    with VerificationKeyBifrostMorphismInstances
+    with BoxBifrostMorphismInstances =>
+
+  implicit def permanentlyLockedPropositionIsomorphism[F[_]: Functor]
+    : Isomorphism[F, bifrostModels.Propositions.PermanentlyLocked.type, models.PropositionPermanentlyLocked] =
+    Isomorphism.constant(bifrostModels.Propositions.PermanentlyLocked, models.PropositionPermanentlyLocked())
+
+  implicit def curve25519PropositionIsomorphism[F[_]: Monad]
+    : Isomorphism[F, bifrostModels.Propositions.Knowledge.Curve25519, models.PropositionKnowledgeCurve25519] =
+    Isomorphism(
+      fa =>
+        EitherT(fa.map(_.key).to[models.VerificationKeyCurve25519])
+          .map(_.some)
+          .map(models.PropositionKnowledgeCurve25519(_))
+          .value,
+      _.map(
+        _.key
+          .toRight("Missing key")
+          .toEitherT[F]
+          .flatMapF(_.toF[F, bifrostModels.VerificationKeys.Curve25519])
+          .map(bifrostModels.Propositions.Knowledge.Curve25519(_))
+      )
+        .flatMap(_.value)
+    )
+
+  implicit def ed25519PropositionIsomorphism[F[_]: Monad]
+    : Isomorphism[F, bifrostModels.Propositions.Knowledge.Ed25519, models.PropositionKnowledgeEd25519] =
+    Isomorphism(
+      fa =>
+        EitherT(fa.map(_.key).to[models.VerificationKeyEd25519])
+          .map(_.some)
+          .map(models.PropositionKnowledgeEd25519(_))
+          .value,
+      _.map(
+        _.key
+          .toRight("Missing key")
+          .toEitherT[F]
+          .flatMapF(_.toF[F, bifrostModels.VerificationKeys.Ed25519])
+          .map(bifrostModels.Propositions.Knowledge.Ed25519(_))
+      )
+        .flatMap(_.value)
+    )
+
+  implicit def extendedEd25519PropositionIsomorphism[F[_]: Monad]
+    : Isomorphism[F, bifrostModels.Propositions.Knowledge.ExtendedEd25519, models.PropositionKnowledgeExtendedEd25519] =
+    Isomorphism(
+      fa =>
+        EitherT(fa.map(_.key).to[models.VerificationKeyExtendedEd25519])
+          .map(_.some)
+          .map(models.PropositionKnowledgeExtendedEd25519(_))
+          .value,
+      _.map(
+        _.key
+          .toRight("Missing key")
+          .toEitherT[F]
+          .flatMapF(_.toF[F, bifrostModels.VerificationKeys.ExtendedEd25519])
+          .map(bifrostModels.Propositions.Knowledge.ExtendedEd25519(_))
+      )
+        .flatMap(_.value)
+    )
+
+  implicit def hashLockPropositionIsomorphism[F[_]: Monad]
+    : Isomorphism[F, bifrostModels.Propositions.Knowledge.HashLock, models.PropositionKnowledgeHashLock] =
+    Isomorphism(
+      fa =>
+        EitherT(fa.map(_.valueDigest).to[ByteString])
+          .map(models.PropositionKnowledgeHashLock(_))
+          .value,
+      fa =>
+        EitherT(fa.map(_.valueDigest).to[bifrostModels.Digest32])
+          .map(bifrostModels.Propositions.Knowledge.HashLock(_))
+          .value
+    )
+
+  implicit def andPropositionIsomorphism[F[_]: Monad]
+    : Isomorphism[F, bifrostModels.Propositions.Compositional.And, models.PropositionCompositionalAnd] =
+    Isomorphism(
+      _.map(v =>
+        for {
+          a <- EitherT(v.a.toF[F, models.Proposition])
+          b <- EitherT(v.b.toF[F, models.Proposition])
+        } yield models.PropositionCompositionalAnd(a, b)
+      ).flatMap(_.value),
+      _.map(v =>
+        for {
+          a <- EitherT(v.a.toF[F, bifrostModels.Proposition])
+          b <- EitherT(v.b.toF[F, bifrostModels.Proposition])
+        } yield bifrostModels.Propositions.Compositional.And(a, b)
+      ).flatMap(_.value)
+    )
+
+  implicit def orPropositionIsomorphism[F[_]: Monad]
+    : Isomorphism[F, bifrostModels.Propositions.Compositional.Or, models.PropositionCompositionalOr] =
+    Isomorphism(
+      _.map(v =>
+        for {
+          a <- EitherT(v.a.toF[F, models.Proposition])
+          b <- EitherT(v.b.toF[F, models.Proposition])
+        } yield models.PropositionCompositionalOr(a, b)
+      ).flatMap(_.value),
+      _.map(v =>
+        for {
+          a <- EitherT(v.a.toF[F, bifrostModels.Proposition])
+          b <- EitherT(v.b.toF[F, bifrostModels.Proposition])
+        } yield bifrostModels.Propositions.Compositional.Or(a, b)
+      ).flatMap(_.value)
+    )
+
+  implicit def thresholdPropositionIsomorphism[F[_]: Monad]
+    : Isomorphism[F, bifrostModels.Propositions.Compositional.Threshold, models.PropositionCompositionalThreshold] =
+    Isomorphism(
+      _.map(v =>
+        for {
+          threshold    <- v.threshold.asRight[String].toEitherT[F]
+          propositions <- EitherT(v.propositions.toList.traverse(_.toF[F, models.Proposition]).map(_.sequence))
+        } yield models.PropositionCompositionalThreshold(threshold, propositions)
+      ).flatMap(_.value),
+      _.map(v =>
+        for {
+          threshold    <- v.threshold.asRight[String].toEitherT[F]
+          propositions <- EitherT(v.propositions.toList.traverse(_.toF[F, bifrostModels.Proposition]).map(_.sequence))
+        } yield bifrostModels.Propositions.Compositional.Threshold(threshold, ListSet.empty ++ propositions)
+      ).flatMap(_.value)
+    )
+
+  implicit def notPropositionIsomorphism[F[_]: Monad]
+    : Isomorphism[F, bifrostModels.Propositions.Compositional.Not, models.PropositionCompositionalNot] =
+    Isomorphism(
+      _.map(v =>
+        for {
+          a <- EitherT(v.a.toF[F, models.Proposition])
+        } yield models.PropositionCompositionalNot(a)
+      ).flatMap(_.value),
+      _.map(v =>
+        for {
+          a <- EitherT(v.a.toF[F, bifrostModels.Proposition])
+        } yield bifrostModels.Propositions.Compositional.Not(a)
+      ).flatMap(_.value)
+    )
+
+  implicit def heightLockPropositionIsomorphism[F[_]: Monad]
+    : Isomorphism[F, bifrostModels.Propositions.Contextual.HeightLock, models.PropositionContextualHeightLock] =
+    Isomorphism(
+      _.map(v => models.PropositionContextualHeightLock(v.height).asRight[String]),
+      _.map(v => bifrostModels.Propositions.Contextual.HeightLock(v.height).asRight[String])
+    )
+
+  implicit def boxLocationPropositionIsomorphism[F[_]: Monad]
+    : Isomorphism[F, bifrostModels.BoxLocation, models.BoxLocation] =
+    Isomorphism(
+      _.map {
+        case bifrostModels.BoxLocations.Input(index) =>
+          models.BoxLocation(index.toInt, models.BoxLocation.IO.INPUT)
+        case bifrostModels.BoxLocations.Output(index) =>
+          models.BoxLocation(index.toInt, models.BoxLocation.IO.OUTPUT)
+      }.map(_.asRight[String]),
+      _.map(location =>
+        Either
+          .cond(location.index <= Short.MaxValue, location.index.toShort, "Index out of bounds")
+          .flatMap(index =>
+            location.location match {
+              case models.BoxLocation.IO.INPUT  => bifrostModels.BoxLocations.Input(index).asRight[String]
+              case models.BoxLocation.IO.OUTPUT => bifrostModels.BoxLocations.Output(index).asRight[String]
+              case _                            => "Invalid location".asLeft[bifrostModels.BoxLocation]
+            }
+          )
+      )
+    )
+
+  implicit def requiredTransactionIORequirementPropositionIsomorphism[F[_]: Monad]: Isomorphism[
+    F,
+    bifrostModels.Propositions.Contextual.RequiredTransactionIO.Requirement,
+    models.PropositionContextualRequiredTransactionIO.Requirement
+  ] =
+    Isomorphism(
+      _.map(v =>
+        for {
+          box      <- EitherT(v.box.toF[F, models.Box])
+          location <- EitherT(v.location.toF[F, models.BoxLocation])
+        } yield models.PropositionContextualRequiredTransactionIO.Requirement(box.some, location.some)
+      ).flatMap(_.value),
+      _.map(v =>
+        for {
+          box      <- v.box.toRight("Missing box").toEitherT[F].flatMapF(_.toF[F, bifrostModels.Box])
+          location <- v.location.toRight("Missing location").toEitherT[F].flatMapF(_.toF[F, bifrostModels.BoxLocation])
+        } yield bifrostModels.Propositions.Contextual.RequiredTransactionIO.Requirement(box, location)
+      ).flatMap(_.value)
+    )
+
+  implicit def requiredTransactionIOPropositionIsomorphism[F[_]: Monad]: Isomorphism[
+    F,
+    bifrostModels.Propositions.Contextual.RequiredTransactionIO,
+    models.PropositionContextualRequiredTransactionIO
+  ] =
+    Isomorphism(
+      _.map(v =>
+        EitherT(
+          v.requirements.toList
+            .traverse(_.toF[F, models.PropositionContextualRequiredTransactionIO.Requirement])
+            .map(_.sequence)
+        ).map(models.PropositionContextualRequiredTransactionIO(_))
+      ).flatMap(_.value),
+      _.map(v =>
+        NonEmptyChain
+          .fromSeq(v.requirements)
+          .toRight("Empty requirements")
+          .toEitherT[F]
+          .flatMap(v =>
+            EitherT(
+              v
+                .traverse(_.toF[F, bifrostModels.Propositions.Contextual.RequiredTransactionIO.Requirement])
+                .map(_.sequence)
+            )
+          )
+          .map(bifrostModels.Propositions.Contextual.RequiredTransactionIO(_))
+      ).flatMap(_.value)
+    )
 
   implicit def propositionIsomorphism[F[_]: Monad]: Isomorphism[F, bifrostModels.Proposition, models.Proposition] =
-    Isomorphism(???, ???)
+    Isomorphism(
+      _.map {
+        case bifrostModels.Propositions.PermanentlyLocked =>
+          EitherT(bifrostModels.Propositions.PermanentlyLocked.toF[F, models.PropositionPermanentlyLocked])
+            .widen[models.Proposition]
+        case p: bifrostModels.Propositions.Knowledge.Curve25519 =>
+          EitherT(p.toF[F, models.PropositionKnowledgeCurve25519]).widen[models.Proposition]
+        case p: bifrostModels.Propositions.Knowledge.Ed25519 =>
+          EitherT(p.toF[F, models.PropositionKnowledgeEd25519]).widen[models.Proposition]
+        case p: bifrostModels.Propositions.Knowledge.ExtendedEd25519 =>
+          EitherT(p.toF[F, models.PropositionKnowledgeExtendedEd25519]).widen[models.Proposition]
+        case p: bifrostModels.Propositions.Knowledge.HashLock =>
+          EitherT(p.toF[F, models.PropositionKnowledgeHashLock]).widen[models.Proposition]
+        case p: bifrostModels.Propositions.Compositional.And =>
+          EitherT(p.toF[F, models.PropositionCompositionalAnd]).widen[models.Proposition]
+        case p: bifrostModels.Propositions.Compositional.Or =>
+          EitherT(p.toF[F, models.PropositionCompositionalOr]).widen[models.Proposition]
+        case p: bifrostModels.Propositions.Compositional.Threshold =>
+          EitherT(p.toF[F, models.PropositionCompositionalThreshold]).widen[models.Proposition]
+        case p: bifrostModels.Propositions.Compositional.Not =>
+          EitherT(p.toF[F, models.PropositionCompositionalNot]).widen[models.Proposition]
+        case p: bifrostModels.Propositions.Contextual.HeightLock =>
+          EitherT(p.toF[F, models.PropositionContextualHeightLock]).widen[models.Proposition]
+        case p: bifrostModels.Propositions.Contextual.RequiredTransactionIO =>
+          EitherT(p.toF[F, models.PropositionContextualRequiredTransactionIO]).widen[models.Proposition]
+      }.flatMap(_.value),
+      _.map {
+        case models.Proposition.Empty =>
+          "Empty proposition".asLeft[bifrostModels.Proposition].toEitherT[F]
+        case p: models.PropositionPermanentlyLocked =>
+          EitherT(p.toF[F, bifrostModels.Propositions.PermanentlyLocked.type]).widen[bifrostModels.Proposition]
+        case p: models.PropositionKnowledgeCurve25519 =>
+          EitherT(p.toF[F, bifrostModels.Propositions.Knowledge.Curve25519]).widen[bifrostModels.Proposition]
+        case p: models.PropositionKnowledgeEd25519 =>
+          EitherT(p.toF[F, bifrostModels.Propositions.Knowledge.Ed25519]).widen[bifrostModels.Proposition]
+        case p: models.PropositionKnowledgeExtendedEd25519 =>
+          EitherT(p.toF[F, bifrostModels.Propositions.Knowledge.ExtendedEd25519]).widen[bifrostModels.Proposition]
+        case p: models.PropositionKnowledgeHashLock =>
+          EitherT(p.toF[F, bifrostModels.Propositions.Knowledge.HashLock]).widen[bifrostModels.Proposition]
+        case p: models.PropositionCompositionalAnd =>
+          EitherT(p.toF[F, bifrostModels.Propositions.Compositional.And]).widen[bifrostModels.Proposition]
+        case p: models.PropositionCompositionalOr =>
+          EitherT(p.toF[F, bifrostModels.Propositions.Compositional.Or]).widen[bifrostModels.Proposition]
+        case p: models.PropositionCompositionalThreshold =>
+          EitherT(p.toF[F, bifrostModels.Propositions.Compositional.Threshold]).widen[bifrostModels.Proposition]
+        case p: models.PropositionCompositionalNot =>
+          EitherT(p.toF[F, bifrostModels.Propositions.Compositional.Not]).widen[bifrostModels.Proposition]
+        case p: models.PropositionContextualHeightLock =>
+          EitherT(p.toF[F, bifrostModels.Propositions.Contextual.HeightLock]).widen[bifrostModels.Proposition]
+        case p: models.PropositionContextualRequiredTransactionIO =>
+          EitherT(p.toF[F, bifrostModels.Propositions.Contextual.RequiredTransactionIO])
+            .widen[bifrostModels.Proposition]
+      }.flatMap(_.value)
+    )
 }
 
 trait ProofBifrostMorphismInstances {
@@ -744,6 +1033,25 @@ trait BoxBifrostMorphismInstances {
         case p: models.OperatorRegistrationBoxValue =>
           EitherT(p.toF[F, bifrostModels.Box.Values.Registrations.Operator]).widen[bifrostModels.Box.Value]
       }.flatMap(_.value)
+    )
+
+  implicit def boxIsomorphism[F[_]: Monad]: Isomorphism[F, bifrostModels.Box, models.Box] =
+    Isomorphism(
+      _.map(p =>
+        for {
+          evidence <- EitherT(p.evidence.toF[F, models.TypedEvidence])
+          value    <- EitherT(p.value.toF[F, models.BoxValue])
+        } yield models.Box(evidence.some, value)
+      ).flatMap(_.value),
+      _.map(p =>
+        for {
+          evidence <- p.evidence
+            .toRight("Missing evidence")
+            .toEitherT[F]
+            .flatMapF(_.toF[F, bifrostModels.TypedEvidence])
+          value <- EitherT(p.value.toF[F, bifrostModels.Box.Value])
+        } yield bifrostModels.Box(evidence, value)
+      ).flatMap(_.value)
     )
 }
 

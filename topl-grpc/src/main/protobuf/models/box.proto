@@ -7,6 +7,9 @@ import 'models/address.proto';
 import 'models/proof.proto';
 
 message Box {
+  TypedEvidence evidence = 1;
+  BoxValue value = 2;
+
   message Id {
     TransactionId transactionId = 1;
     int32 transactionOutputIndex = 2;
