@@ -87,7 +87,7 @@ object Dependencies {
   )
 
   val shapeless = Seq(
-    "com.chuusai" %% "shapeless" % "2.3.8"
+    "com.chuusai" %% "shapeless" % "2.3.9"
   )
 
   val monitoring = Seq(
