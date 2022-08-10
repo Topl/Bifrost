@@ -1,6 +1,6 @@
 package co.topl.grpc
 
-import cats.Applicative
+import cats.{Applicative, Functor}
 import cats.implicits._
 
 /**
@@ -16,6 +16,9 @@ trait Morphism[F[_], A, B] {
 case class Isomorphism[F[_], A, B](abMorphism: Morphism[F, A, B], baMorphism: Morphism[F, B, A])
 
 object Isomorphism {
+
+  def constant[F[_]: Functor, A, B](a: A, b: B): Isomorphism[F, A, B] =
+    Isomorphism(_.as(b.asRight[String]), _.as(a.asRight[String]))
 
   trait Ops {
 
