@@ -173,4 +173,29 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
       } yield ()
     }
   }
+
+  test("The block ID at a height can be retrieved") {
+    PropF.forAllF { (height: Long, header: bifrostModels.BlockHeaderV2) =>
+      val blockId = header.id.asTypedBytes
+      withMock {
+        val interpreter = mock[ToplRpc[F]]
+        val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+
+        (interpreter.blockIdAtHeight _)
+          .expects(height)
+          .once()
+          .returning(blockId.some.pure[F])
+
+        for {
+          res <- Async[F]
+            .fromFuture(
+              underTest.fetchBlockIdAtHeight(FetchBlockIdAtHeightReq(height)).pure[F]
+            )
+          proto = res.blockId.get
+          _id <- EitherT(proto.toF[F, bifrostModels.TypedIdentifier]).getOrElse(???)
+          _ = assert(blockId == _id)
+        } yield ()
+      }
+    }
+  }
 }

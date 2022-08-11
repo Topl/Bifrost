@@ -9,6 +9,7 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.algebras.{Store, ToplRpc}
 import co.topl.catsakka.FToFuture
 import co.topl.consensus.algebras.LocalChainAlgebra
+import co.topl.eventtree.EventSourcedState
 import co.topl.ledger.algebras.{
   MempoolAlgebra,
   TransactionSemanticValidationAlgebra,
@@ -48,7 +49,8 @@ object ToplRpcServer {
     mempool:             MempoolAlgebra[F],
     syntacticValidation: TransactionSyntaxValidationAlgebra[F],
     semanticValidation:  TransactionSemanticValidationAlgebra[F],
-    localChain:          LocalChainAlgebra[F]
+    localChain:          LocalChainAlgebra[F],
+    blockHeights:        EventSourcedState[F, Long => F[Option[TypedIdentifier]]]
   ): F[ToplRpc[F]] =
     Async[F].delay {
       new ToplRpc[F] {
@@ -81,6 +83,9 @@ object ToplRpcServer {
 
         def fetchTransaction(transactionId: TypedIdentifier): F[Option[Transaction]] =
           transactionStore.get(transactionId)
+
+        def blockIdAtHeight(height: Long): F[Option[TypedIdentifier]] =
+          localChain.head.map(_.slotId.blockId).flatMap(blockHeights.useStateAt(_)(_.apply(height)))
 
         private def syntacticValidateOrRaise(transaction: Transaction) =
           EitherT(syntacticValidation.validate(transaction).map(_.toEither))

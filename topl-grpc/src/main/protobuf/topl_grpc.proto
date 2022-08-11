@@ -13,6 +13,8 @@ service ToplGrpc {
   rpc FetchBlockHeader (FetchBlockHeaderReq) returns (FetchBlockHeaderRes);
   rpc FetchBlockBody (FetchBlockBodyReq) returns (FetchBlockBodyRes);
   rpc FetchTransaction (FetchTransactionReq) returns (FetchTransactionRes);
+
+  rpc FetchBlockIdAtHeight (FetchBlockIdAtHeightReq) returns (FetchBlockIdAtHeightRes);
 }
 
 message BroadcastTransactionReq {
@@ -49,4 +51,12 @@ message FetchTransactionReq {
 
 message FetchTransactionRes {
   co.topl.grpc.models.Transaction transaction = 1;
+}
+
+message FetchBlockIdAtHeightReq {
+  int64 height = 1;
+}
+
+message FetchBlockIdAtHeightRes {
+  co.topl.grpc.models.BlockId blockId = 1;
 }

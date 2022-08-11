@@ -15,4 +15,6 @@ trait ToplRpc[F[_]] {
   def fetchBlockBody(blockId: TypedIdentifier): F[Option[BlockBodyV2]]
 
   def fetchTransaction(transactionId: TypedIdentifier): F[Option[Transaction]]
+
+  def blockIdAtHeight(height: Long): F[Option[TypedIdentifier]]
 }
