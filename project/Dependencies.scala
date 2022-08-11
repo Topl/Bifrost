@@ -146,7 +146,7 @@ object Dependencies {
   )
 
   val mainargs = Seq(
-    "com.lihaoyi" %% "mainargs" % "0.2.2"
+    "com.lihaoyi" %% "mainargs" % "0.2.3"
   )
 
   val node: Seq[ModuleID] =
