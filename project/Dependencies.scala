@@ -2,17 +2,17 @@ import sbt._
 
 object Dependencies {
 
-  val akkaVersion = "2.6.18"
+  val akkaVersion = "2.6.19"
   val akkaHttpVersion = "10.2.9"
   val circeVersion = "0.14.2"
-  val kamonVersion = "2.5.0"
-  val graalVersion = "21.1.0"
+  val kamonVersion = "2.5.6"
+  val graalVersion = "21.3.3"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.8.0"
-  val catsEffectVersion = "3.3.0"
+  val catsEffectVersion = "3.3.14"
 
   val catsSlf4j =
-    "org.typelevel" %% "log4cats-slf4j" % "2.1.1"
+    "org.typelevel" %% "log4cats-slf4j" % "2.4.0"
 
   val logging = Seq(
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.5",
@@ -25,17 +25,17 @@ object Dependencies {
   val test = Seq(
     "org.scalatest"      %% "scalatest"                     % "3.2.13"  % "test",
     "org.scalactic"      %% "scalactic"                     % "3.2.13"  % "test",
-    "org.scalacheck"     %% "scalacheck"                    % "1.15.4"  % "test",
+    "org.scalacheck"     %% "scalacheck"                    % "1.16.0"  % "test",
     "org.scalatestplus"  %% "scalacheck-1-14"               % "3.2.2.0" % "test",
     "com.spotify"         % "docker-client"                 % "8.16.0"  % "test",
     "org.asynchttpclient" % "async-http-client"             % "2.12.3"  % "test",
     "org.scalamock"      %% "scalamock"                     % "5.2.0"   % "test",
     "com.ironcorelabs"   %% "cats-scalatest"                % "3.1.1"   % "test",
-    "org.typelevel"      %% "cats-effect-testing-scalatest" % "1.3.0"   % "test"
+    "org.typelevel"      %% "cats-effect-testing-scalatest" % "1.4.0"   % "test"
   )
 
   val it = Seq(
-    "org.scalatest"     %% "scalatest"           % "3.2.6"         % "it",
+    "org.scalatest"     %% "scalatest"           % "3.2.12"        % "it",
     "com.spotify"        % "docker-client"       % "8.16.0"        % "it",
     "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion     % "it",
     "com.typesafe.akka" %% "akka-http-testkit"   % akkaHttpVersion % "it"
@@ -79,7 +79,7 @@ object Dependencies {
   )
 
   val guava = Seq(
-    "com.google.guava" % "guava" % "31.0.1-jre"
+    "com.google.guava" % "guava" % "31.1-jre"
   )
 
   val ficus = Seq(
@@ -87,7 +87,7 @@ object Dependencies {
   )
 
   val shapeless = Seq(
-    "com.chuusai" %% "shapeless" % "2.3.8"
+    "com.chuusai" %% "shapeless" % "2.3.9"
   )
 
   val monitoring = Seq(
@@ -105,7 +105,7 @@ object Dependencies {
 
   val cats = Seq(
     "org.typelevel" %% "cats-core" % catsCoreVersion,
-    "org.typelevel" %% "mouse"     % "1.0.10"
+    "org.typelevel" %% "mouse"     % "1.1.0"
   )
 
   val catsEffect = Seq(
@@ -146,7 +146,7 @@ object Dependencies {
   )
 
   val mainargs = Seq(
-    "com.lihaoyi" %% "mainargs" % "0.2.2"
+    "com.lihaoyi" %% "mainargs" % "0.2.3"
   )
 
   val node: Seq[ModuleID] =
@@ -220,7 +220,7 @@ object Dependencies {
     Seq(
       "com.typesafe.akka"     %% "akka-cluster" % akkaVersion,
       "com.typesafe.akka"     %% "akka-remote"  % akkaVersion,
-      "com.github.pureconfig" %% "pureconfig"   % "0.16.0"
+      "com.github.pureconfig" %% "pureconfig"   % "0.17.1"
     ) ++
     allAkka ++
     test ++
@@ -278,7 +278,7 @@ object Dependencies {
 
   lazy val loadTesting: Seq[ModuleID] =
     Seq(
-      "com.lihaoyi"    %% "mainargs" % "0.2.1",
+      "com.lihaoyi"    %% "mainargs" % "0.2.3",
       "com.nike.fleam" %% "fleam"    % "7.0.0"
     ) ++
     fleam ++
