@@ -464,7 +464,7 @@ trait ModelGenerators {
     Arbitrary(
       for {
         byte <- byteGen
-        data <- arbitraryBytes.arbitrary
+        data <- genSizedStrictBytes[Lengths.`32`.type]().map(_.data)
       } yield TypedBytes(byte, data)
     )
 
@@ -678,7 +678,11 @@ trait ModelGenerators {
     Arbitrary(headerGen())
 
   implicit val arbitraryBody: Arbitrary[BlockBodyV2] =
-    Arbitrary(Gen.listOf(arbitraryTypedIdentifier.arbitrary).map(ListSet.empty[TypedIdentifier] ++ _))
+    Arbitrary(
+      Gen
+        .listOf(arbitraryTypedIdentifier.arbitrary.map(id => TypedBytes(IdentifierTypes.Transaction, id.dataBytes)))
+        .map(ListSet.empty[TypedIdentifier] ++ _)
+    )
 
   implicit val arbitraryEta: Arbitrary[Eta] =
     Arbitrary(etaGen)

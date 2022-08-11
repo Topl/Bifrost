@@ -9,7 +9,7 @@ import scodec.bits.ByteVector
 
 import scala.language.implicitConversions
 
-package object grpc extends MessageIsomorphism.Instances with MessageIsomorphism.Ops {
+package object grpc extends Isomorphism.Ops with BifrostMorphismInstances {
 
   implicit def byteStringToByteVector(byteString: ByteString): ByteVector =
     ByteVector(byteString.asReadOnlyByteBuffer())

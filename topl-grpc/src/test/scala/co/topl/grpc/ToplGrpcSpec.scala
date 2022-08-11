@@ -2,6 +2,7 @@ package co.topl.grpc
 
 import akka.grpc.GrpcServiceException
 import cats.Applicative
+import cats.data.EitherT
 import cats.effect.{Async, IO}
 import cats.implicits._
 import co.topl.algebras.ToplRpc
@@ -10,19 +11,19 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.grpc.services.{BroadcastTransactionReq, BroadcastTransactionRes, FetchBlockBodyReq, FetchBlockHeaderReq}
 import co.topl.models.ModelGenerators._
-import co.topl.models.{BlockBodyV2, BlockHeaderV2, Bytes, Transaction, TypedIdentifier}
+import co.topl.typeclasses.implicits._
+import co.topl.{models => bifrostModels}
+import com.google.protobuf.ByteString
+import io.grpc.Status
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
-import co.topl.typeclasses.implicits._
-import com.google.protobuf.ByteString
-import io.grpc.Status
 
 class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
 
   test("A transaction can be broadcast") {
-    PropF.forAllF { (transaction: Transaction) =>
+    PropF.forAllF { (transaction: bifrostModels.Transaction) =>
       withMock {
         val interpreter = mock[ToplRpc[F]]
         val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
@@ -42,7 +43,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
   }
 
   test("A block header can be retrieved") {
-    PropF.forAllF { (header: BlockHeaderV2) =>
+    PropF.forAllF { (header: bifrostModels.BlockHeaderV2) =>
       val headerId = header.id.asTypedBytes
       withMock {
         val interpreter = mock[ToplRpc[F]]
@@ -54,27 +55,14 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
           .returning(header.some.pure[F])
 
         for {
+          protoId <- EitherT(headerId.toF[F, models.BlockId]).getOrElse(???)
           res <- Async[F]
             .fromFuture(
-              underTest.fetchBlockHeader(FetchBlockHeaderReq(headerId.transmittableBytes)).pure[F]
+              underTest.fetchBlockHeader(FetchBlockHeaderReq(protoId.some)).pure[F]
             )
           protoHeader = res.header.get
-          _ = assert((protoHeader.parentHeaderId: Bytes) == header.parentHeaderId.transmittableBytes)
-          _ = assert(protoHeader.parentSlot == header.parentSlot)
-          _ = assert((protoHeader.txRoot: Bytes) == header.txRoot.data)
-          _ = assert((protoHeader.bloomFilter: Bytes) == header.bloomFilter.data)
-          _ = assert(protoHeader.timestamp == header.timestamp)
-          _ = assert(protoHeader.height == header.height)
-          _ = assert(protoHeader.slot == header.slot)
-          _ = assert((protoHeader.eligibilityCertificate: Bytes) == header.eligibilityCertificate.transmittableBytes)
-          _ = assert((protoHeader.operationalCertificate: Bytes) == header.operationalCertificate.transmittableBytes)
-          _ =
-            assert(
-              protoHeader.metadata.map(_.value.toByteArray).map(Bytes(_)) == header.metadata
-                .map(_.data.bytes)
-                .map(Bytes(_))
-            )
-          _ = assert((protoHeader.address: Bytes) == header.address.transmittableBytes)
+          _header <- EitherT(protoHeader.toF[F, bifrostModels.BlockHeaderV2]).getOrElse(???)
+          _ = assert(_header == header)
         } yield ()
       }
     }
@@ -89,7 +77,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
         e <- interceptIO[GrpcServiceException](
           Async[F]
             .fromFuture(
-              underTest.fetchBlockHeader(FetchBlockHeaderReq(ByteString.EMPTY)).pure[F]
+              underTest.fetchBlockHeader(FetchBlockHeaderReq(models.BlockId(ByteString.EMPTY).some)).pure[F]
             )
         )
         _ = assert(e.status.getCode == Status.Code.INVALID_ARGUMENT)
@@ -98,7 +86,8 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
   }
 
   test("A block body can be retrieved") {
-    PropF.forAllF { (id: TypedIdentifier, body: BlockBodyV2) =>
+    PropF.forAllF { (_id: bifrostModels.TypedIdentifier, body: bifrostModels.BlockBodyV2) =>
+      val id = bifrostModels.TypedBytes(bifrostModels.IdentifierTypes.Block.HeaderV2, _id.dataBytes)
       withMock {
         val interpreter = mock[ToplRpc[F]]
         val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
@@ -109,16 +98,14 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
           .returning(body.some.pure[F])
 
         for {
+          protoId <- EitherT(id.toF[F, models.BlockId]).getOrElse(???)
           res <- Async[F]
             .fromFuture(
-              underTest.fetchBlockBody(FetchBlockBodyReq(id.transmittableBytes)).pure[F]
+              underTest.fetchBlockBody(FetchBlockBodyReq(protoId.some)).pure[F]
             )
           protoBody = res.body.get
-          _ = assert(
-            protoBody.transactionIds
-              .map(b => (b: Bytes).decodeTransmitted[TypedIdentifier].getOrElse(???))
-              .toList == body.toList
-          )
+          _body <- EitherT(protoBody.toF[F, bifrostModels.BlockBodyV2]).getOrElse(???)
+          _ = assert(_body == body)
         } yield ()
       }
     }
@@ -133,7 +120,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
         e <- interceptIO[GrpcServiceException](
           Async[F]
             .fromFuture(
-              underTest.fetchBlockBody(FetchBlockBodyReq(ByteString.EMPTY)).pure[F]
+              underTest.fetchBlockBody(FetchBlockBodyReq(models.BlockId(ByteString.EMPTY).some)).pure[F]
             )
         )
         _ = assert(e.status.getCode == Status.Code.INVALID_ARGUMENT)

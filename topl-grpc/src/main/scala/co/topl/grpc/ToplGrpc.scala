@@ -4,23 +4,15 @@ import akka.actor.ClassicActorSystemProvider
 import akka.grpc.{GrpcClientSettings, GrpcServiceException}
 import akka.http.scaladsl.Http
 import cats.MonadThrow
-import cats.data.{EitherT, OptionT, ValidatedNec}
+import cats.data.{EitherT, OptionT}
 import cats.effect.kernel.{Async, Resource}
 import cats.implicits._
 import co.topl.algebras.ToplRpc
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.grpc.services.{
-  CurrentMempoolReq,
-  CurrentMempoolRes,
-  FetchBlockBodyReq,
-  FetchBlockBodyRes,
-  FetchBlockHeaderReq,
-  FetchBlockHeaderRes
-}
-import co.topl.models._
-import com.google.protobuf.ByteString
+import co.topl.grpc.services._
+import co.topl.{models => bifrostModels}
 import io.grpc.Status
 
 import scala.concurrent.Future
@@ -41,7 +33,7 @@ object ToplGrpc {
       Async[F].delay {
         val client = services.ToplGrpcClient(GrpcClientSettings.connectToServiceAt(host, port).withTls(tls))
         new ToplRpc[F] {
-          def broadcastTransaction(transaction: Transaction): F[Unit] =
+          def broadcastTransaction(transaction: bifrostModels.Transaction): F[Unit] =
             Async[F]
               .fromFuture(
                 Async[F].delay(
@@ -53,54 +45,61 @@ object ToplGrpc {
               )
               .void
 
-          def currentMempool(): F[Set[TypedIdentifier]] =
+          def currentMempool(): F[Set[bifrostModels.TypedIdentifier]] =
             Async[F]
               .fromFuture(
                 Async[F].delay(client.currentMempool(services.CurrentMempoolReq()))
               )
-              .flatMap(
-                _.transactionIds.toList
-                  .traverse[ValidatedNec[String, *], TypedIdentifier](data =>
-                    (data: Bytes).decodeTransmitted[TypedIdentifier].toValidatedNec
-                  )
+              .flatMap(p =>
+                EitherT(
+                  p.transactionIds.toList
+                    .traverse(_.toF[F, bifrostModels.TypedIdentifier])
+                    .map(_.sequence)
+                )
                   .map(_.toSet)
                   .leftMap(errors => new IllegalArgumentException(show"Invalid Transaction bytes. reason=$errors"))
-                  .liftTo[F]
+                  .rethrowT
               )
 
-          def fetchBlockHeader(blockId: TypedIdentifier): F[Option[BlockHeaderV2]] =
+          def fetchBlockHeader(blockId: bifrostModels.TypedIdentifier): F[Option[bifrostModels.BlockHeaderV2]] =
             OptionT(
               Async[F]
                 .fromFuture(
-                  Async[F].delay(
-                    client.fetchBlockHeader(
-                      services.FetchBlockHeaderReq(blockId.transmittableBytes)
+                  EitherT(blockId.toF[F, models.BlockId])
+                    .leftMap(new IllegalArgumentException(_))
+                    .rethrowT
+                    .map(blockId =>
+                      client.fetchBlockHeader(
+                        services.FetchBlockHeaderReq(blockId.some)
+                      )
                     )
-                  )
                 )
                 .map(_.header)
             )
               .semiflatMap(protoHeader =>
-                EitherT(protoHeader.pure[F].toA[BlockHeaderV2])
+                EitherT(protoHeader.toF[F, bifrostModels.BlockHeaderV2])
                   .leftMap(new IllegalArgumentException(_))
                   .rethrowT
               )
               .value
 
-          def fetchBlockBody(blockId: TypedIdentifier): F[Option[BlockBodyV2]] =
+          def fetchBlockBody(blockId: bifrostModels.TypedIdentifier): F[Option[bifrostModels.BlockBodyV2]] =
             OptionT(
               Async[F]
                 .fromFuture(
-                  Async[F].delay(
-                    client.fetchBlockBody(
-                      services.FetchBlockBodyReq(blockId.transmittableBytes)
+                  EitherT(blockId.toF[F, models.BlockId])
+                    .leftMap(new IllegalArgumentException(_))
+                    .rethrowT
+                    .map(blockId =>
+                      client.fetchBlockBody(
+                        services.FetchBlockBodyReq(blockId.some)
+                      )
                     )
-                  )
                 )
                 .map(_.body)
             )
               .semiflatMap(protoBody =>
-                EitherT(protoBody.pure[F].toA[BlockBodyV2])
+                EitherT(protoBody.toF[F, bifrostModels.BlockBodyV2])
                   .leftMap(new IllegalArgumentException(_))
                   .rethrowT
               )
@@ -134,8 +133,8 @@ object ToplGrpc {
 
       def broadcastTransaction(in: services.BroadcastTransactionReq): Future[services.BroadcastTransactionRes] =
         implicitly[FToFuture[F]].apply(
-          (in.transmittableBytes: Bytes)
-            .decodeTransmitted[Transaction]
+          (in.transmittableBytes: bifrostModels.Bytes)
+            .decodeTransmitted[bifrostModels.Transaction]
             .leftMap(err =>
               new GrpcServiceException(
                 Status.INVALID_ARGUMENT.withDescription(s"Invalid Transaction bytes. reason=$err")
@@ -151,20 +150,29 @@ object ToplGrpc {
         implicitly[FToFuture[F]].apply(
           interpreter
             .currentMempool()
-            .map(ids => CurrentMempoolRes(ids.toList.map(_.transmittableBytes: ByteString)))
+            .flatMap(ids =>
+              EitherT(
+                ids.toList.traverse(_.toF[F, models.TransactionId]).map(_.sequence)
+              )
+                .leftMap(e => new GrpcServiceException(Status.DATA_LOSS.withDescription(e)))
+                .rethrowT
+            )
+            .map(CurrentMempoolRes(_))
             .adaptErrorsToGrpc
         )
 
       def fetchBlockHeader(in: FetchBlockHeaderReq): Future[FetchBlockHeaderRes] =
         implicitly[FToFuture[F]].apply(
-          (in.blockId: Bytes)
-            .decodeTransmitted[TypedIdentifier]
+          in.blockId
+            .toRight("Missing blockId")
+            .toEitherT[F]
+            .flatMapF(_.toF[F, bifrostModels.TypedIdentifier])
             .leftMap(_ => new GrpcServiceException(Status.INVALID_ARGUMENT.withDescription("Invalid Block ID")))
-            .liftTo[F]
+            .rethrowT
             .flatMap(id =>
               OptionT(interpreter.fetchBlockHeader(id))
                 .semiflatMap(header =>
-                  EitherT(header.pure[F].toB[services.BlockHeader])
+                  EitherT(header.toF[F, models.BlockHeader])
                     .leftMap(e => new GrpcServiceException(Status.DATA_LOSS.withDescription(e)))
                     .rethrowT
                 )
@@ -176,14 +184,16 @@ object ToplGrpc {
 
       def fetchBlockBody(in: FetchBlockBodyReq): Future[FetchBlockBodyRes] =
         implicitly[FToFuture[F]].apply(
-          (in.blockId: Bytes)
-            .decodeTransmitted[TypedIdentifier]
+          in.blockId
+            .toRight("Missing blockId")
+            .toEitherT[F]
+            .flatMapF(_.toF[F, bifrostModels.TypedIdentifier])
             .leftMap(_ => new GrpcServiceException(Status.INVALID_ARGUMENT.withDescription("Invalid Block ID")))
-            .liftTo[F]
+            .rethrowT
             .flatMap(id =>
               OptionT(interpreter.fetchBlockBody(id))
                 .semiflatMap(body =>
-                  EitherT(body.pure[F].toB[services.BlockBody])
+                  EitherT(body.toF[F, models.BlockBody])
                     .leftMap(e => new GrpcServiceException(Status.DATA_LOSS.withDescription(e)))
                     .rethrowT
                 )
