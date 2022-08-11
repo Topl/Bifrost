@@ -1,5 +1,6 @@
 package co.topl.credential
 
+import cats.data.NonEmptyChain
 import co.topl.crypto.hash.Blake2b256
 import co.topl.models._
 import co.topl.typeclasses.implicits._
@@ -175,11 +176,13 @@ object Credential {
       val proposition: Propositions.Contextual.HeightLock = Propositions.Contextual.HeightLock(minimumHeight)
     }
 
-    case class RequiredTransactionIO(boxes: List[(Box, BoxLocation)]) extends Credential {
+    case class RequiredTransactionIO(
+      requirements: NonEmptyChain[Propositions.Contextual.RequiredTransactionIO.Requirement]
+    ) extends Credential {
       def prove(currentProof: Proof): Proof = Proofs.Contextual.RequiredTransactionIO()
 
       val proposition: Propositions.Contextual.RequiredTransactionIO =
-        Propositions.Contextual.RequiredTransactionIO(boxes)
+        Propositions.Contextual.RequiredTransactionIO(requirements)
     }
   }
 }

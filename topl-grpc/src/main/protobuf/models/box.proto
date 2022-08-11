@@ -3,8 +3,13 @@ syntax = "proto3";
 package co.topl.grpc.models;
 
 import 'models/common.proto';
+import 'models/address.proto';
+import 'models/proof.proto';
 
 message Box {
+  TypedEvidence evidence = 1;
+  BoxValue value = 2;
+
   message Id {
     TransactionId transactionId = 1;
     int32 transactionOutputIndex = 2;
@@ -32,14 +37,17 @@ message DionAssetBoxValue {
   Int128 quantity = 1;
   Code assetCode = 2;
   bytes securityRoot = 3;
-  bytes metadata = 4;
+  Metadata metadata = 4;
 
   message Code {
     int32 version = 1;
-    bytes issuerAddress = 2;
+    SpendingAddress issuerAddress = 2;
     bytes shortName = 3;
+  }
+  message Metadata {
+    bytes metadata = 1;
   }
 }
 message OperatorRegistrationBoxValue {
-  bytes vrfCommitment = 1;
+  ProofKnowledgeKesProduct vrfCommitment = 1;
 }

@@ -153,14 +153,14 @@ trait ModelsJsonCodecs {
     case Propositions.Contextual.RequiredTransactionIO(boxes) =>
       Json.obj(
         "propositionType" -> "Contextual.RequiredTransactionIO".asJson,
-        "boxes" -> boxes.map { case (b, location) =>
+        "requirements" -> boxes.map { requirement =>
           Json.obj(
-            "box" -> b.asJson,
-            "location" -> (location match {
+            "box" -> requirement.box.asJson,
+            "location" -> (requirement.location match {
               case _: BoxLocations.Input  => "input"
               case _: BoxLocations.Output => "output"
             }).asJson,
-            "index" -> (location match {
+            "index" -> (requirement.location match {
               case BoxLocations.Input(index)  => index
               case BoxLocations.Output(index) => index
             }).asJson

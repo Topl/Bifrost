@@ -269,8 +269,8 @@ object TransactionAuthorizationValidation {
             .get(index.toLong)
             .map(output => Box(output.address.spendingAddress.typedEvidence, output.value))
       }
-      proposition.boxes
-        .foldMap { case (expectedBox, location) =>
+      proposition.requirements
+        .foldMap { case Propositions.Contextual.RequiredTransactionIO.Requirement(expectedBox, location) =>
           Validated.condNec(
             fetchBoxByLocation(location).contains(expectedBox),
             (),

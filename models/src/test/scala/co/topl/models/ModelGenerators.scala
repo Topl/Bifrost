@@ -1,6 +1,7 @@
 package co.topl.models
 
 import cats.data.{Chain, NonEmptyChain, NonEmptyList}
+import co.topl.models.Propositions.Contextual.RequiredTransactionIO
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.StringDataTypes.Latin1Data
@@ -447,17 +448,20 @@ trait ModelGenerators {
   implicit val arbitraryBoxLocation: Arbitrary[BoxLocation] =
     Arbitrary(Gen.posNum[Short].flatMap(index => Gen.oneOf(BoxLocations.Input(index), BoxLocations.Output(index))))
 
+  implicit val arbitraryPropositionsContextualRequiredTransactionIORequirement
+    : Arbitrary[RequiredTransactionIO.Requirement] =
+    Arbitrary(
+      for {
+        box      <- arbitraryBox.arbitrary
+        location <- arbitraryBoxLocation.arbitrary
+      } yield Propositions.Contextual.RequiredTransactionIO.Requirement(box, location)
+    )
+
   implicit val arbitraryPropositionsContextualRequiredTransactionIO
     : Arbitrary[Propositions.Contextual.RequiredTransactionIO] =
     Arbitrary(
-      for {
-        boxes <- Gen.nonEmptyListOf(
-          Gen.zip(
-            arbitraryBox.arbitrary,
-            arbitraryBoxLocation.arbitrary
-          )
-        )
-      } yield Propositions.Contextual.RequiredTransactionIO(boxes)
+      nonEmptyChainOf(arbitraryPropositionsContextualRequiredTransactionIORequirement.arbitrary)
+        .map(Propositions.Contextual.RequiredTransactionIO(_))
     )
 
   implicit val arbitraryTypedIdentifier: Arbitrary[TypedIdentifier] =
@@ -569,7 +573,9 @@ trait ModelGenerators {
   implicit val arbitraryBoxId: Arbitrary[Box.Id] =
     Arbitrary(
       for {
-        transactionId          <- arbitraryTypedIdentifier.arbitrary
+        transactionId <- arbitraryTypedIdentifier.arbitrary.map(id =>
+          TypedBytes(IdentifierTypes.Transaction, id.dataBytes)
+        )
         transactionOutputIndex <- Gen.posNum[Short]
       } yield Box.Id(transactionId, transactionOutputIndex)
     )
