@@ -155,8 +155,8 @@ object Dependencies {
       "com.typesafe.akka"          %% "akka-remote"   % akkaVersion,
       "com.typesafe"                % "config"        % "1.4.2",
       "net.jpountz.lz4"             % "lz4"           % "1.3.0",
-      "com.github.julien-truffaut" %% "monocle-core"  % "3.0.0-M6",
-      "com.github.julien-truffaut" %% "monocle-macro" % "3.0.0-M6"
+      "com.github.julien-truffaut" %% "monocle-core"  % "3.0.0",
+      "com.github.julien-truffaut" %% "monocle-macro" % "3.0.0"
     ) ++
     levelDb ++
     logging ++
