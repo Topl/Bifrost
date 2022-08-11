@@ -9,21 +9,26 @@ message Proposition {
   oneof sealed_value {
     PropositionPermanentlyLocked permanentlyLocked = 1;
 
-    PropositionKnowledgeEd25519 knowledgeEd25519 = 2;
-    PropositionKnowledgeExtendedEd25519 knowledgeExtendedEd25519 = 3;
-    PropositionKnowledgeHashLock knowledgeHashLock = 4;
+    PropositionKnowledgeCurve25519 knowledgeCurve25519 = 3;
+    PropositionKnowledgeEd25519 knowledgeEd25519 = 4;
+    PropositionKnowledgeExtendedEd25519 knowledgeExtendedEd25519 = 5;
+    PropositionKnowledgeHashLock knowledgeHashLock = 6;
 
-    PropositionCompositionalThreshold compositionalThreshold = 5;
-    PropositionCompositionalAnd compositionalAnd = 6;
-    PropositionCompositionalOr compositionalOr = 7;
-    PropositionCompositionalNot compositionalNot = 8;
+    PropositionCompositionalThreshold compositionalThreshold = 7;
+    PropositionCompositionalAnd compositionalAnd = 8;
+    PropositionCompositionalOr compositionalOr = 9;
+    PropositionCompositionalNot compositionalNot = 10;
 
-    PropositionContextualHeightLock contextualHeightLock = 9;
-    PropositionContextualRequiredTransactionIO contextualTransactionIO = 10;
+    PropositionContextualHeightLock contextualHeightLock = 11;
+    PropositionContextualRequiredTransactionIO contextualTransactionIO = 12;
   }
 }
 
 message PropositionPermanentlyLocked {}
+
+message PropositionKnowledgeCurve25519 {
+  VerificationKeyCurve25519 key = 1;
+}
 
 message PropositionKnowledgeEd25519 {
   VerificationKeyEd25519 key = 1;

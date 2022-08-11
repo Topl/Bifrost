@@ -8,23 +8,28 @@ message Proof {
   oneof sealed_value {
     ProofUndefined undefined = 1;
 
-    ProofKnowledgeEd25519 knowledgeEd25519 = 2;
-    ProofKnowledgeVrfEd25519 knowledgeVrfEd25519 = 3;
-    ProofKnowledgeKesSum knowledgeKesSum = 4;
-    ProofKnowledgeKesProduct knowledgeKesProduct = 5;
-    ProofKnowledgeHashLock knowledgeHashLock = 6;
+    ProofKnowledgeCurve25519 knowledgeCurve25519 = 2;
+    ProofKnowledgeEd25519 knowledgeEd25519 = 3;
+    ProofKnowledgeVrfEd25519 knowledgeVrfEd25519 = 4;
+    ProofKnowledgeKesSum knowledgeKesSum = 5;
+    ProofKnowledgeKesProduct knowledgeKesProduct = 6;
+    ProofKnowledgeHashLock knowledgeHashLock = 7;
 
-    ProofCompositionalThreshold compositionalThreshold = 7;
-    ProofCompositionalAnd compositionalAnd = 8;
-    ProofCompositionalOr compositionalOr = 9;
-    ProofCompositionalNot compositionalNot = 10;
+    ProofCompositionalThreshold compositionalThreshold = 8;
+    ProofCompositionalAnd compositionalAnd = 9;
+    ProofCompositionalOr compositionalOr = 10;
+    ProofCompositionalNot compositionalNot = 11;
 
-    ProofContextualHeightLock contextualHeightLock = 11;
-    ProofContextualRequiredTransactionIO contextualTransactionIO = 12;
+    ProofContextualHeightLock contextualHeightLock = 12;
+    ProofContextualRequiredTransactionIO contextualTransactionIO = 13;
   }
 }
 
 message ProofUndefined {}
+
+message ProofKnowledgeCurve25519 {
+  bytes value = 1;
+}
 
 message ProofKnowledgeEd25519 {
   bytes value = 1;
