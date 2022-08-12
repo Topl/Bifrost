@@ -124,7 +124,8 @@ object Blockchain {
         mempool,
         transactionSyntaxValidation,
         transactionSemanticValidation,
-        localChain
+        localChain,
+        blockHeights
       )
       rpcServer = ToplGrpc.Server.serve(rpcHost, rpcPort, rpcInterpreter)
       mintedBlockStreamCompletionFuture =

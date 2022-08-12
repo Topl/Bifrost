@@ -84,6 +84,18 @@ object TetraSuperDemo extends IOApp {
         Chain
           .fromSeq(configs.map(_.staker))
           .flatMap(_.bigBangOutputs(Sized.maxUnsafe(Ratio(TotalStake.data, configs.length).round)))
+          .append(
+            Transaction.Output(
+              FullAddress(
+                networkPrefix,
+                Propositions.Contextual.HeightLock(1).spendingAddress,
+                StakingAddresses.NonStaking,
+                Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes.fill(64)(0: Byte)))
+              ),
+              Box.Values.Poly(10_000),
+              minting = true
+            )
+          )
       )
       bigBangBlock = BigBang.block
       _ <- configs.parTraverse { demoNodeConfig =>
@@ -181,7 +193,7 @@ object TetraSuperDemo extends IOApp {
         leaderElectionThreshold = LeaderElectionValidation.Eval.make[F](vrfConfig, blake2b512Resource, exp, log1pCached)
         epochBoundariesState <- EpochBoundariesEventSourcedState.make[F](
           clock,
-          bigBangBlock.headerV2.id.asTypedBytes.pure[F],
+          bigBangBlock.headerV2.parentHeaderId.pure[F],
           blockIdTree,
           epochBoundariesStore.pure[F],
           slotDataStore.getOrRaise
@@ -215,7 +227,7 @@ object TetraSuperDemo extends IOApp {
             .orderT[F](slotDataStore.getOrRaise, blake2b512Resource, ChainSelectionKLookback, ChainSelectionSWindow)
         )
         mempool <- Mempool.make[F](
-          bigBangBlock.headerV2.id.asTypedBytes.pure[F],
+          bigBangBlock.headerV2.parentHeaderId.pure[F],
           blockBodyStore.getOrRaise,
           transactionStore.getOrRaise,
           blockIdTree,
@@ -226,7 +238,7 @@ object TetraSuperDemo extends IOApp {
         )
         implicit0(networkRandom: Random) = new Random(new SecureRandom())
         boxState <- BoxState.make(
-          bigBangBlock.headerV2.id.asTypedBytes.pure[F],
+          bigBangBlock.headerV2.parentHeaderId.pure[F],
           blockBodyStore.getOrRaise,
           transactionStore.getOrRaise,
           blockIdTree,

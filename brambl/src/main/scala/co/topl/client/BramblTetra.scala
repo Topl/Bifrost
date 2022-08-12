@@ -3,7 +3,7 @@ package co.topl.client
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import akka.stream.scaladsl._
-import cats.data.Chain
+import cats.data.{Chain, OptionT}
 import cats.effect.std.Random
 import cats.effect.{Async, IO, IOApp}
 import cats.implicits._
@@ -36,7 +36,14 @@ object BramblTetra extends IOApp.Simple {
           rpcClient2                   <- ToplGrpc.Client.make[F]("localhost", 8091, tls = false)
           logger2                      <- Slf4jLogger.fromName[F]("Brambl@localhost:8091")
           clientLoggerPairs = Array((rpcClient1, logger1), (rpcClient2, logger2))
-          source = infiniteTransactionsSource(genesisTransaction, Propositions.Contextual.HeightLock(1L))
+          genesisTransactionId <- OptionT(rpcClient1.blockIdAtHeight(1)).getOrElse(???)
+          genesisBody          <- OptionT(rpcClient1.fetchBlockBody(genesisTransactionId)).getOrElse(???)
+          genesisTransaction   <- OptionT(rpcClient1.fetchTransaction(genesisBody.head)).getOrElse(???)
+          source = infiniteTransactionsSource(
+            genesisTransaction,
+            Propositions.Contextual.HeightLock(1L),
+            findPolyOutputIndex(genesisTransaction)
+          )
           _ <-
             Async[F].fromFuture(
               source
@@ -58,12 +65,20 @@ object BramblTetra extends IOApp.Simple {
         } yield ()
       )
 
-  private def infiniteTransactionsSource(transaction: Transaction, proposition: Proposition) =
-    Source.unfold(transaction -> proposition) { case (previousTransaction, previousProposition) =>
+  private def findPolyOutputIndex(transaction: Transaction) =
+    transaction.outputs.toList
+      .indexWhere(_.value match {
+        case _: Box.Values.Poly => true
+        case _                  => false
+      })
+      .toShort
+
+  private def infiniteTransactionsSource(transaction: Transaction, proposition: Proposition, polyIndex: Short) =
+    Source.unfold((transaction, proposition, polyIndex)) { case (previousTransaction, previousProposition, polyIndex) =>
       Transaction(
         inputs = Chain(
           Transaction.Input(
-            boxId = Box.Id(previousTransaction.id, 0),
+            boxId = Box.Id(previousTransaction.id, polyIndex),
             proposition = previousProposition,
             proof = Proofs.Contextual.HeightLock(),
             value = Box.Values.Poly(Sized.maxUnsafe(BigInt(10000L)))
@@ -72,13 +87,13 @@ object BramblTetra extends IOApp.Simple {
         outputs = Chain(
           Transaction.Output(
             address(Propositions.Contextual.HeightLock(20L)),
-            Box.Values.Poly(Sized.maxUnsafe(BigInt(10000L))),
+            Box.Values.Poly(10000L),
             minting = false
           )
         ),
         chronology = Transaction.Chronology(System.currentTimeMillis(), 0L, Long.MaxValue),
         data = none
-      ).some.map(transaction => (transaction, Propositions.Contextual.HeightLock(20L)) -> transaction)
+      ).some.map(transaction => (transaction, Propositions.Contextual.HeightLock(20L), 0: Short) -> transaction)
     }
 
   private def address(proposition: Proposition) =
@@ -87,25 +102,6 @@ object BramblTetra extends IOApp.Simple {
       proposition.spendingAddress,
       StakingAddresses.Operator(VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes.fill(32)(0: Byte)))),
       Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes.fill(64)(0: Byte)))
-    )
-
-  private val genesisTransaction =
-    Transaction(
-      inputs = Chain.empty,
-      outputs = Chain(
-        Transaction.Output(
-          FullAddress(
-            NetworkPrefix(1),
-            Propositions.Contextual.HeightLock(1L).spendingAddress,
-            StakingAddresses.Operator(VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes.fill(32)(0: Byte)))),
-            Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes.fill(64)(0: Byte)))
-          ),
-          Box.Values.Poly(Sized.maxUnsafe(BigInt(10000L))),
-          minting = true
-        )
-      ),
-      chronology = Transaction.Chronology(0L, 0L, Long.MaxValue),
-      None
     )
 
 }

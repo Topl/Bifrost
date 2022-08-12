@@ -10,6 +10,7 @@ import cats.implicits._
 import co.topl.algebras.ToplRpc
 import co.topl.catsakka._
 import co.topl.grpc.services._
+import co.topl.models.TypedIdentifier
 import co.topl.{models => bifrostModels}
 import io.grpc.Status
 
@@ -125,6 +126,20 @@ object ToplGrpc {
                   .leftMap(new IllegalArgumentException(_))
                   .rethrowT
               )
+              .value
+
+          def blockIdAtHeight(height: Long): F[Option[TypedIdentifier]] =
+            OptionT(
+              Async[F]
+                .fromFuture(
+                  Async[F].delay(
+                    client.fetchBlockIdAtHeight(services.FetchBlockIdAtHeightReq(height))
+                  )
+                )
+                .map(_.blockId)
+            )
+              .semiflatMap(_.toF[F, bifrostModels.TypedIdentifier])
+              .semiflatMap(EitherT.fromEither[F](_).leftMap(new IllegalArgumentException(_)).rethrowT)
               .value
         }
       }
@@ -245,6 +260,19 @@ object ToplGrpc {
                 .value
                 .map(services.FetchTransactionRes(_))
             )
+            .adaptErrorsToGrpc
+        )
+
+      def fetchBlockIdAtHeight(in: services.FetchBlockIdAtHeightReq): Future[services.FetchBlockIdAtHeightRes] =
+        implicitly[FToFuture[F]].apply(
+          OptionT(interpreter.blockIdAtHeight(in.height))
+            .semiflatMap(id =>
+              EitherT(id.toF[F, models.BlockId])
+                .leftMap(e => new GrpcServiceException(Status.DATA_LOSS.withDescription(e)))
+                .rethrowT
+            )
+            .value
+            .map(services.FetchBlockIdAtHeightRes(_))
             .adaptErrorsToGrpc
         )
     }
