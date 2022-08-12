@@ -1,7 +1,5 @@
 package co.topl
 
-import co.topl.models.{Bytes, TypedBytes}
-
 package object typeclasses {
 
   object implicits
@@ -38,9 +36,7 @@ package object typeclasses {
       with DionAddressable.Instances
       with DionAddressable.ToDionAddressableOps
       with Prepend.Instances
-      with Prepend.ToPrependOps
       with NonEmpty.Instances
-      with NonEmpty.ToNonEmptyOps
       with TransactionOps.Instances
       with IdentityOps
 }
