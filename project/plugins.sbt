@@ -21,6 +21,7 @@ Seq(
   "com.lightbend.akka.grpc" % "sbt-akka-grpc"             % "2.1.5"
 ).map(addSbtPlugin)
 
+// See: https://github.com/sbt/sbt/issues/6997
 ThisBuild / libraryDependencySchemes ++= Seq(
   "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always
 )
