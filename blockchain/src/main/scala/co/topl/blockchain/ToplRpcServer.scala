@@ -79,6 +79,9 @@ object ToplRpcServer {
         def fetchBlockBody(blockId: TypedIdentifier): F[Option[BlockBodyV2]] =
           bodyStore.get(blockId)
 
+        def fetchTransaction(transactionId: TypedIdentifier): F[Option[Transaction]] =
+          transactionStore.get(transactionId)
+
         private def syntacticValidateOrRaise(transaction: Transaction) =
           EitherT(syntacticValidation.validate(transaction).map(_.toEither))
             .leftSemiflatTap(errors =>

@@ -9,7 +9,7 @@ import co.topl.algebras.ToplRpc
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.grpc.services.{BroadcastTransactionReq, BroadcastTransactionRes, FetchBlockBodyReq, FetchBlockHeaderReq}
+import co.topl.grpc.services.{ToplGrpc => _, _}
 import co.topl.models.ModelGenerators._
 import co.topl.typeclasses.implicits._
 import co.topl.{models => bifrostModels}
@@ -33,11 +33,14 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
           .once()
           .returning(Applicative[F].unit)
 
-        Async[F]
-          .fromFuture(
-            underTest.broadcastTransaction(BroadcastTransactionReq(transaction.immutableBytes)).pure[F]
-          )
-          .assertEquals(BroadcastTransactionRes())
+        for {
+          proto <- EitherT(transaction.toF[F, models.Transaction]).getOrElse(???)
+          res <- Async[F]
+            .fromFuture(
+              underTest.broadcastTransaction(BroadcastTransactionReq(proto.some)).pure[F]
+            )
+          _ = assert(res == BroadcastTransactionRes())
+        } yield ()
       }
     }
   }
@@ -121,6 +124,49 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
           Async[F]
             .fromFuture(
               underTest.fetchBlockBody(FetchBlockBodyReq(models.BlockId(ByteString.EMPTY).some)).pure[F]
+            )
+        )
+        _ = assert(e.status.getCode == Status.Code.INVALID_ARGUMENT)
+      } yield ()
+    }
+  }
+
+  test("A transaction can be retrieved") {
+    PropF.forAllF { (transaction: bifrostModels.Transaction) =>
+      val transactionId = transaction.id.asTypedBytes
+      withMock {
+        val interpreter = mock[ToplRpc[F]]
+        val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+
+        (interpreter.fetchTransaction _)
+          .expects(transactionId)
+          .once()
+          .returning(transaction.some.pure[F])
+
+        for {
+          protoId <- EitherT(transactionId.toF[F, models.TransactionId]).getOrElse(???)
+          res <- Async[F]
+            .fromFuture(
+              underTest.fetchTransaction(FetchTransactionReq(protoId.some)).pure[F]
+            )
+          proto = res.transaction.get
+          _transaction <- EitherT(proto.toF[F, bifrostModels.Transaction]).getOrElse(???)
+          _ = assert(transaction == _transaction)
+        } yield ()
+      }
+    }
+  }
+
+  test("An invalid transaction ID is rejected") {
+    withMock {
+      val interpreter = mock[ToplRpc[F]]
+      val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+
+      for {
+        e <- interceptIO[GrpcServiceException](
+          Async[F]
+            .fromFuture(
+              underTest.fetchTransaction(FetchTransactionReq(models.TransactionId(ByteString.EMPTY).some)).pure[F]
             )
         )
         _ = assert(e.status.getCode == Status.Code.INVALID_ARGUMENT)

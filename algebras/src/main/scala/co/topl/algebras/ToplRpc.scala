@@ -13,4 +13,6 @@ trait ToplRpc[F[_]] {
   def fetchBlockHeader(blockId: TypedIdentifier): F[Option[BlockHeaderV2]]
 
   def fetchBlockBody(blockId: TypedIdentifier): F[Option[BlockBodyV2]]
+
+  def fetchTransaction(transactionId: TypedIdentifier): F[Option[Transaction]]
 }

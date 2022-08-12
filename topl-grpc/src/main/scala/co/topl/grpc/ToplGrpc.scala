@@ -9,8 +9,6 @@ import cats.effect.kernel.{Async, Resource}
 import cats.implicits._
 import co.topl.algebras.ToplRpc
 import co.topl.catsakka._
-import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.grpc.services._
 import co.topl.{models => bifrostModels}
 import io.grpc.Status
@@ -36,12 +34,14 @@ object ToplGrpc {
           def broadcastTransaction(transaction: bifrostModels.Transaction): F[Unit] =
             Async[F]
               .fromFuture(
-                Async[F].delay(
-                  client.broadcastTransaction(
-                    // Note: All other cases use .transmittedBytes, but for now, keep this as immutableBytes
-                    services.BroadcastTransactionReq(transaction.immutableBytes)
+                EitherT(transaction.toF[F, models.Transaction])
+                  .leftMap(new IllegalArgumentException(_))
+                  .rethrowT
+                  .map(protoTransaction =>
+                    client.broadcastTransaction(
+                      services.BroadcastTransactionReq(protoTransaction.some)
+                    )
                   )
-                )
               )
               .void
 
@@ -104,6 +104,28 @@ object ToplGrpc {
                   .rethrowT
               )
               .value
+
+          def fetchTransaction(transactionId: bifrostModels.TypedIdentifier): F[Option[bifrostModels.Transaction]] =
+            OptionT(
+              Async[F]
+                .fromFuture(
+                  EitherT(transactionId.toF[F, models.TransactionId])
+                    .leftMap(new IllegalArgumentException(_))
+                    .rethrowT
+                    .map(transactionId =>
+                      client.fetchTransaction(
+                        services.FetchTransactionReq(transactionId.some)
+                      )
+                    )
+                )
+                .map(_.transaction)
+            )
+              .semiflatMap(protoTransaction =>
+                EitherT(protoTransaction.toF[F, bifrostModels.Transaction])
+                  .leftMap(new IllegalArgumentException(_))
+                  .rethrowT
+              )
+              .value
         }
       }
   }
@@ -133,14 +155,16 @@ object ToplGrpc {
 
       def broadcastTransaction(in: services.BroadcastTransactionReq): Future[services.BroadcastTransactionRes] =
         implicitly[FToFuture[F]].apply(
-          (in.transmittableBytes: bifrostModels.Bytes)
-            .decodeTransmitted[bifrostModels.Transaction]
+          in.transaction
+            .toRight("Missing transaction")
+            .toEitherT[F]
+            .flatMapF(_.toF[F, bifrostModels.Transaction])
             .leftMap(err =>
               new GrpcServiceException(
                 Status.INVALID_ARGUMENT.withDescription(s"Invalid Transaction bytes. reason=$err")
               )
             )
-            .liftTo[F]
+            .rethrowT
             .flatMap(interpreter.broadcastTransaction)
             .as(services.BroadcastTransactionRes())
             .adaptErrorsToGrpc
@@ -199,6 +223,27 @@ object ToplGrpc {
                 )
                 .value
                 .map(services.FetchBlockBodyRes(_))
+            )
+            .adaptErrorsToGrpc
+        )
+
+      def fetchTransaction(in: FetchTransactionReq): Future[FetchTransactionRes] =
+        implicitly[FToFuture[F]].apply(
+          in.transactionId
+            .toRight("Missing transactionId")
+            .toEitherT[F]
+            .flatMapF(_.toF[F, bifrostModels.TypedIdentifier])
+            .leftMap(e => new GrpcServiceException(Status.INVALID_ARGUMENT.withDescription(e)))
+            .rethrowT
+            .flatMap(id =>
+              OptionT(interpreter.fetchTransaction(id))
+                .semiflatMap(transaction =>
+                  EitherT(transaction.toF[F, models.Transaction])
+                    .leftMap(e => new GrpcServiceException(Status.DATA_LOSS.withDescription(e)))
+                    .rethrowT
+                )
+                .value
+                .map(services.FetchTransactionRes(_))
             )
             .adaptErrorsToGrpc
         )
