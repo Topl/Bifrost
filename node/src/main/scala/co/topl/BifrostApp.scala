@@ -6,12 +6,10 @@ import co.topl.network.utils.UPnPGateway
 import co.topl.settings._
 import co.topl.tool.Exporter
 import co.topl.utils.Logging
-import com.sun.management.{HotSpotDiagnosticMXBean, VMOption}
 import com.typesafe.config.{Config, ConfigFactory}
 import kamon.Kamon
 import mainargs.ParserForClass
 
-import java.lang.management.ManagementFactory
 import scala.concurrent.Await
 
 class BifrostApp(startupOpts: StartupOpts) extends NodeLogging {
@@ -49,31 +47,6 @@ class BifrostApp(startupOpts: StartupOpts) extends NodeLogging {
   log.debug(s"RPC is allowed at: ${settings.rpcApi.bindAddress}")
   /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
   /** Setup the execution environment for running the application */
-
-  /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ----------------- */ /* ---------------- */
-  /** Am I running on a JDK that supports JVMCI? */
-  val vm_version: String = System.getProperty("java.vm.version")
-  System.out.printf("java.vm.version = %s%n", vm_version)
-
-  val bean: HotSpotDiagnosticMXBean = ManagementFactory.getPlatformMXBean(classOf[HotSpotDiagnosticMXBean])
-
-  // Is JVMCI enabled?
-  try {
-    val enableJVMCI: VMOption = bean.getVMOption("EnableJVMCI")
-    log.debug(s"$enableJVMCI")
-  } catch {
-    case e: Throwable =>
-      log.error(s"${Console.RED}Unexpected error when checking for JVMCI: $e ${Console.RESET}")
-      throw e
-  }
-
-  /** Is the system using the JVMCI compiler for normal compilations? */
-  val useJVMCICompiler: VMOption = bean.getVMOption("UseJVMCICompiler")
-  log.debug(s"$useJVMCICompiler")
-
-  /** What compiler is selected? */
-  val compiler: String = System.getProperty("jvmci.Compiler")
-  System.out.printf("jvmci.Compiler = %s%n", compiler)
 
   implicit val actorSystem: ActorSystem[Heimdall.ReceivableMessage] =
     ActorSystem(Heimdall(settings, appContext), settings.network.agentName, config)
