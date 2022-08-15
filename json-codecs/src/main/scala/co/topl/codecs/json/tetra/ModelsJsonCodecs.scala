@@ -53,41 +53,9 @@ trait ModelsJsonCodecs {
   implicit val fullAddressEncoder: Encoder[FullAddress] =
     t => t.immutableBytes.asJson
 
+  // TODO: Checksum
   implicit val fullAddressDecoder: Decoder[FullAddress] =
     t => t.as[Bytes].flatMap(_.decodeImmutable[FullAddress].leftMap(e => DecodingFailure(e, Nil)))
-
-  private val dionAddressBytesCodec: ScodecCodec[DionAddress] =
-    (byteCodec :: byteCodec :: bytesCodec(32))
-      .xmapc[DionAddress] { case netPrefix :: evidenceTypePrefix :: evidenceBytes :: HNil =>
-        DionAddress(
-          NetworkPrefix(netPrefix),
-          TypedEvidence(evidenceTypePrefix, Sized.strictUnsafe(ByteVector(evidenceBytes)))
-        )
-      }(dionAddress =>
-        dionAddress.networkPrefix.value :: dionAddress.typedEvidence.typePrefix :: dionAddress.typedEvidence.evidence.data.toArray :: HNil
-      )
-
-  implicit def dionAddressDecoder(implicit networkPrefix: NetworkPrefix): Decoder[DionAddress] =
-    cursor =>
-      for {
-        addressString <- cursor.as[String]
-        bytes <-
-          Bytes
-            .fromBase58(addressString)
-            .toRight(DecodingFailure("address is an invalid base-58 string", cursor.history))
-        (address, checksum) <-
-          tupleCodec(dionAddressBytesCodec, sizedStrictBytes4BytesCodec)
-            .decode(bytes.toBitVector)
-            .toEither
-            .map(_.value)
-            .leftMap(failure => DecodingFailure(s"failed to decode bytes: $failure", cursor.history))
-        _ <- Either.cond(
-          address.networkPrefix.value == networkPrefix.value,
-          (),
-          DecodingFailure("incorrect network prefix", cursor.history)
-        )
-        _ <- Either.cond(isValidChecksum(address, checksum), (), DecodingFailure("invalid checksum", cursor.history))
-      } yield address
 
   implicit val verificationKeysCurve25519Encoder: Encoder[VerificationKeys.Curve25519] =
     t => t.bytes.data.toBase58.asJson
@@ -360,7 +328,7 @@ trait ModelsJsonCodecs {
         "shortName" -> t.shortName.data.value.asJson
       )
 
-  implicit def assetCodeDecoder(implicit networkPrefix: NetworkPrefix): Decoder[Box.Values.Asset.Code] =
+  implicit val assetCodeDecoder: Decoder[Box.Values.Asset.Code] =
     hcursor =>
       for {
         version   <- hcursor.downField("version").as[Byte]
@@ -559,12 +527,4 @@ trait ModelsJsonCodecs {
         data       <- hcursor.downField("data").as[Option[TransactionData]]
       } yield Transaction.Unproven(inputs, outputs, chronology, data)
 
-  private def dionAddressWithChecksum(address: DionAddress): Bytes =
-    address.allBytes ++ getAddressChecksum(address)
-
-  private def isValidChecksum(address: DionAddress, checksum: Sized.Strict[Bytes, Lengths.`4`.type]): Boolean =
-    checksum.data === getAddressChecksum(address)
-
-  private def getAddressChecksum(address: DionAddress): Bytes =
-    Bytes(blake2b256.hash(address.allBytes.toArray).value.take(4))
 }

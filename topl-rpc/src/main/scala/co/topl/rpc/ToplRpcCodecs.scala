@@ -5,13 +5,10 @@ import co.topl.attestation.{Address, Proposition}
 import co.topl.codecs._
 import co.topl.codecs.json.JsonCodecs
 import co.topl.codecs.json.tetra.ModelsJsonCodecs
-import co.topl.models.{
-  DionAddress,
-  Int128 => TetraInt128,
-  NetworkPrefix => TetraNetworkPrefix,
-  Transaction => TetraTransaction,
-  TransactionData
-}
+import co.topl.models.utility.Lengths
+import co.topl.models.utility.Lengths._
+import co.topl.models.utility.HasLength.instances._
+import co.topl.models.{NetworkPrefix => TetraNetworkPrefix, TransactionData}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithm, BoxSelectionAlgorithms}
@@ -309,9 +306,7 @@ trait TransactionRpcResponseDecoders extends SharedCodecs {
 
   implicit def transactionUnprovenPolyTransferResponseDecoder(implicit networkPrefix: NetworkPrefix): Decoder[
     ToplRpc.Transaction.UnprovenPolyTransfer.Response
-  ] = unprovenTransactionJsonDecoder(TetraNetworkPrefix(networkPrefix)).map(x =>
-    ToplRpc.Transaction.UnprovenPolyTransfer.Response(x)
-  )
+  ] = unprovenTransactionJsonDecoder.map(x => ToplRpc.Transaction.UnprovenPolyTransfer.Response(x))
 
 }
 
