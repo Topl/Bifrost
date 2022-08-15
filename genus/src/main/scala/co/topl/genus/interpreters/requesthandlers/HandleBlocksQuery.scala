@@ -22,7 +22,7 @@ object HandleBlocksQuery {
 
       override def query(in: QueryBlocksReq): Future[QueryBlocksRes] =
         queries
-          .asList(in.toQueryRequest)
+          .queryAsList(in.toQueryRequest)
           .fold(QueryBlocksRes.fromQueryFailure, QueryBlocksRes.fromBlocks[List])
           .mapFunctor
 
@@ -30,7 +30,7 @@ object HandleBlocksQuery {
         Source
           .futureSource(
             queries
-              .asSource(in.toQueryRequest)
+              .query(in.toQueryRequest)
               .fold(
                 failure => Source.single(BlocksQueryStreamRes.fromQueryFailure(failure)),
                 BlocksQueryStreamRes.fromBlocks[Source[*, NotUsed]]

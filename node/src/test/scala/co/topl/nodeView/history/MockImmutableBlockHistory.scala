@@ -1,11 +1,11 @@
 package co.topl.nodeView.history
 
-import co.topl.consensus.BlockValidator
+import co.topl.consensus.{BlockValidator, NxtConsensus}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction.TX
 import co.topl.network.BifrostSyncInfo
-import co.topl.nodeView.history.GenericHistory.ModifierIds
+import co.topl.nodeView.history.GenericHistory.TypedModifierIds
 import co.topl.utils.TimeProvider.Time
 import cats.implicits._
 
@@ -28,15 +28,16 @@ class MockImmutableBlockHistory(blocks: List[Block]) extends GenericHistory[Bloc
   override def modifierByHeight(height: Long): Option[Block] = blocks.find(_.height == height)
 
   override def append(
-    modifier:   Block,
-    validators: Seq[BlockValidator[_]]
+    modifier:                Block,
+    validators:              Seq[BlockValidator[_]],
+    applicableConsesusState: NxtConsensus.State
   ): Try[(History, GenericHistory.ProgressInfo[Block])] = throw new NotImplementedError()
 
   override def drop(modifierId: ModifierId): History = throw new NotImplementedError()
 
   override def openSurfaceIds(): Seq[ModifierId] = Seq.empty
 
-  override def continuationIds(from: ModifierIds, size: Int): Option[ModifierIds] = None
+  override def continuationIds(from: TypedModifierIds, size: Int): Option[TypedModifierIds] = None
 
   override def syncInfo: BifrostSyncInfo = throw new NotImplementedError()
 
@@ -76,7 +77,7 @@ class MockImmutableBlockHistory(blocks: List[Block]) extends GenericHistory[Bloc
 
   override def applicableTry(modifier: Block): Try[Unit] = throw new NotImplementedError()
 
-  override def continuationIds(info: BifrostSyncInfo, size: Int): ModifierIds = throw new NotImplementedError()
+  override def continuationIds(info: BifrostSyncInfo, size: Int): TypedModifierIds = throw new NotImplementedError()
 
   override def compare(other: BifrostSyncInfo): GenericHistory.HistoryComparisonResult =
     throw new NotImplementedError()
@@ -94,6 +95,9 @@ class MockImmutableBlockHistory(blocks: List[Block]) extends GenericHistory[Bloc
       .take(limit)
       .map(_.id)
       .some
+
+  override def consensusStateAt(blockId: ModifierId): Either[HistoryFailures.StorageReadFailure, NxtConsensus.State] =
+    throw new NotImplementedError()
 }
 
 object MockImmutableBlockHistory {

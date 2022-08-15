@@ -1,46 +1,37 @@
 package co.topl.genus.interpreters.services
 
+import cats.implicits._
 import akka.NotUsed
-import akka.stream.Materializer
-import akka.stream.scaladsl.{Sink, Source}
+import akka.stream.scaladsl.Source
 import cats.data.EitherT
 import cats.effect.kernel.Async
-import cats.implicits._
-import co.topl.genus.algebras.{MongoQuery, QueryService}
-import co.topl.genus.typeclasses.{MongoFilter, MongoSort}
+import co.topl.genus.algebras._
+import co.topl.genus.typeclasses._
 import co.topl.genus.types.Transaction
+import co.topl.genus.ops.implicits._
+import co.topl.genus.typeclasses.implicits._
 
 object TransactionsQueryService {
 
-  def make[F[_]: Async](
-    queries:               MongoQuery[F]
-  )(implicit materializer: Materializer): QueryService[F, Transaction] = new Impl[F](queries)
+  import QueryService._
 
-  private class Impl[F[_]: Async](queries: MongoQuery[F])(implicit materializer: Materializer)
-      extends QueryService[F, Transaction] {
+  def make[F[_]: Async: ChainHeight](store: MongoStore[F]): QueryService[F, Transaction] =
+    new QueryService[F, Transaction] {
 
-    override def asList[Filter: MongoFilter, Sort: MongoSort](
-      request: QueryService.QueryRequest[Filter, Sort]
-    ): EitherT[F, QueryService.QueryFailure, List[Transaction]] =
-      EitherT.right[QueryService.QueryFailure](
-        Async[F]
-          .fromFuture(
-            queries
-              .query(request.filter, request.sort, request.paging)
-              .map(_.mapConcat(documentToTransaction(_).toSeq))
-              .map(_.runWith(Sink.seq[Transaction]))
-          )
-          .map(_.toList)
-      )
-
-    override def asSource[Filter: MongoFilter, Sort: MongoSort](
-      request: QueryService.QueryRequest[Filter, Sort]
-    ): EitherT[F, QueryService.QueryFailure, Source[Transaction, NotUsed]] =
-      EitherT.right[QueryService.QueryFailure](
-        queries
-          .query(request.filter, request.sort, request.paging)
-          .map(_.mapConcat(documentToTransaction(_).toSeq))
-      )
-
-  }
+      override def query[Filter: MongoFilter: WithMaxBlockHeight, Sort: MongoSort](
+        request: QueryRequest[Filter, Sort]
+      ): EitherT[F, QueryFailure, Source[Transaction, NotUsed]] =
+        EitherT.right[QueryFailure](
+          for {
+            filterWithConfirmationDepth <- request.filter.withConfirmationDepth[F](request.confirmationDepth)
+            docsSource <-
+              store.getDocumentsWithPaging(
+                filterWithConfirmationDepth.toBsonFilter.some,
+                request.sort.toBsonSorting.some,
+                request.paging
+              )
+            blocks = docsSource.mapConcat(documentToTransaction(_).toSeq)
+          } yield blocks
+        )
+    }
 }

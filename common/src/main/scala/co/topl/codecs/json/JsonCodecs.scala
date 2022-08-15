@@ -6,3 +6,4 @@ trait JsonCodecs
     with attestation.AttestationJsonCodecs
     with attestation.keyManagement.KeyManagementJsonCodecs
     with modifier.ModifierJsonCodecs
+    with genesisBlob.GenesisBlobJsonCodecs

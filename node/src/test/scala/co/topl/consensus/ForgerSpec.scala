@@ -8,7 +8,7 @@ import cats.implicits._
 import co.topl.attestation.Address
 import co.topl.consensus.KeyManager.KeyView
 import co.topl.consensus.KeyManager.{KeyView, StartupKeyView}
-import co.topl.modifier.ProgramId
+import co.topl.modifier.{ModifierId, ProgramId}
 import co.topl.modifier.block.Block
 import co.topl.modifier.box.{ArbitBox, SimpleValue}
 import co.topl.modifier.transaction.Transaction
@@ -117,6 +117,12 @@ class ForgerSpec
       .anyNumberOfTimes()
       .onCall((a: Address) => Some(List(ArbitBox(a.evidence, nonce = Long.MaxValue, value = SimpleValue(1)))))
 
+    (nodeView.history
+      .consensusStateAt(_: ModifierId))
+      .expects(*)
+      .anyNumberOfTimes()
+      .returning(Right(NxtConsensus.State(10000000, 0)))
+
     val probe = createTestProbe[LocallyGeneratedBlock]()
     val initializedProbe = createTestProbe[Done]()
 
@@ -129,32 +135,22 @@ class ForgerSpec
     LoggingTestKit.info("Forger is initialized").expect {
       LoggingTestKit.info("Starting forging").expect {
         LoggingTestKit.debug("New local block").withOccurrences(newBlockCount + 1).expect {
-          val consensusStorageRef =
-            spawn(
-              NxtConsensus(
-                settings,
-                InMemoryKeyValueStore.empty
-              ),
-              NxtConsensus.actorName
-            )
-          val consensusInterface = new ActorConsensusInterface(consensusStorageRef)
           val forgerRef = spawn(
             Forger.behavior(
               blockGenerationDelay,
               minTransactionFee,
               forgeOnStartup = false,
               fetchKeyView,
-              reader,
-              consensusInterface
+              reader
             )
           )
 
-          // updating the consensus since we don't initialize the nodeViewHolder which sets the default consensus value
-          consensusInterface.update(
-            parentBlock.id,
-            NxtConsensus
-              .StateUpdate(Some(Int128(10000000)), Some(parentBlock.difficulty), None, Some(parentBlock.height))
-          )
+//          // updating the consensus since we don't initialize the nodeViewHolder which sets the default consensus value
+//          consensusInterface.update(
+//            parentBlock.id,
+//            ConsensusHolder
+//              .StateUpdate(Some(Int128(10000000)), None)
+//          )
           forgerRef.tell(Forger.ReceivableMessages.StartForging(initializedProbe.ref))
           initializedProbe.expectMessage(2.seconds, Done)
 
@@ -179,15 +175,6 @@ class ForgerSpec
       .expects()
       .never()
 
-    val rewardsAddress = keyRingCurve25519.addresses.head
-    val keyView =
-      KeyView(
-        keyRingCurve25519.addresses,
-        Some(rewardsAddress),
-        keyRingCurve25519.signWithAddress,
-        keyRingCurve25519.lookupPublicKey
-      )
-
     val fetchKeyView = mockFunction[Future[KeyView]]
     fetchKeyView
       .expects()
@@ -202,23 +189,13 @@ class ForgerSpec
 
     val newBlockCount = 4
 
-    val consensusStorageRef =
-      spawn(
-        NxtConsensus(
-          settings,
-          InMemoryKeyValueStore.empty
-        ),
-        NxtConsensus.actorName
-      )
-
     val forgerRef = spawn(
       Forger.behavior(
         blockGenerationDelay,
         minTransactionFee,
         forgeOnStartup = false,
         fetchKeyView,
-        reader,
-        new ActorConsensusInterface(consensusStorageRef)
+        reader
       )
     )
 
@@ -246,22 +223,13 @@ class ForgerSpec
     val reader = mock[NodeViewReader]
 
     LoggingTestKit.error("Forging requires a rewards address").expect {
-      val consensusStorageRef =
-        spawn(
-          NxtConsensus(
-            settings,
-            InMemoryKeyValueStore.empty
-          ),
-          NxtConsensus.actorName
-        )
       val forgerRef = spawn(
         Forger.behavior(
           blockGenerationDelay,
           minTransactionFee,
           forgeOnStartup = true,
           fetchKeyView,
-          reader,
-          new ActorConsensusInterface(consensusStorageRef)
+          reader
         )
       )
       createTestProbe().expectTerminated(forgerRef)

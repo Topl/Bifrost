@@ -33,10 +33,10 @@ class BuildUnprovenTransferSpec
     forAll(
       dionAddressesGen,
       ModelGenerators.arbitraryPositiveInt128.arbitrary,
-      ModelGenerators.nonEmptyListOf(ModelGenerators.arbitraryPolyOutput.arbitrary),
+      ModelGenerators.arbitraryPolyOutputs.arbitrary,
       polyBoxGen
     ) { (fromAddresses, fee, polyOutputs, polyBox) =>
-      val polysSent = polyOutputsAmount(polyOutputs)
+      val polysSent = polyOutputsAmount(polyOutputs.toList)
 
       val boxReader =
         MockBoxReader.fromSeq(
@@ -203,30 +203,27 @@ class BuildUnprovenTransferSpec
   }
 
   it should "have no fee change output when no fee and exact number of polys are provided" in {
-    forAll(
-      dionAddressesGen,
-      polyBoxGen,
-      ModelGenerators.nonEmptyListOf(ModelGenerators.arbitraryPolyOutput.arbitrary)
-    ) { (senders, polyBox, outputs) =>
-      val polysSent = polyOutputsAmount(outputs)
+    forAll(dionAddressesGen, polyBoxGen, ModelGenerators.arbitraryPolyOutputs.arbitrary) {
+      (senders, polyBox, outputs) =>
+        val polysSent = polyOutputsAmount(outputs.toList)
 
-      val boxReader =
-        MockBoxReader.fromSeq(senders.head.toAddress -> Seq(polyBox.copy(value = SimpleValue(polysSent))))
+        val boxReader =
+          MockBoxReader.fromSeq(senders.head.toAddress -> Seq(polyBox.copy(value = SimpleValue(polysSent))))
 
-      val request =
-        TransferRequests.UnprovenTransferRequest(
-          senders.toList,
-          outputs,
-          senders.head,
-          senders.head,
-          zeroInt128,
-          None,
-          minting = false
-        )
+        val request =
+          TransferRequests.UnprovenTransferRequest(
+            senders.toList,
+            outputs.toList,
+            senders.head,
+            senders.head,
+            zeroInt128,
+            None,
+            minting = false
+          )
 
-      val result = TransferBuilder.buildUnprovenTransfer(boxReader, request, BoxSelectionAlgorithms.All)
+        val result = TransferBuilder.buildUnprovenTransfer(boxReader, request, BoxSelectionAlgorithms.All)
 
-      result.value.feeOutput shouldBe None
+        result.value.feeOutput shouldBe None
     }
   }
 
@@ -234,10 +231,10 @@ class BuildUnprovenTransferSpec
     forAll(
       dionAddressesGen,
       polyBoxGen,
-      ModelGenerators.nonEmptyListOf(ModelGenerators.arbitraryPolyOutput.arbitrary),
+      ModelGenerators.arbitraryPolyOutputs.arbitrary,
       ModelGenerators.arbitraryPositiveInt128.arbitrary
     ) { (senders, polyBox, outputs, extra) =>
-      val polysSent = polyOutputsAmount(outputs)
+      val polysSent = polyOutputsAmount(outputs.toList)
 
       val boxReader =
         MockBoxReader.fromSeq(senders.head.toAddress -> Seq(polyBox.copy(value = SimpleValue(polysSent + extra.data))))
@@ -245,7 +242,7 @@ class BuildUnprovenTransferSpec
       val request =
         TransferRequests.UnprovenTransferRequest(
           senders.toList,
-          outputs,
+          outputs.toList,
           senders.head,
           senders.head,
           zeroInt128,
@@ -263,10 +260,10 @@ class BuildUnprovenTransferSpec
     forAll(
       dionAddressesGen,
       polyBoxGen,
-      ModelGenerators.nonEmptyListOf(ModelGenerators.arbitraryPolyOutput.arbitrary),
+      ModelGenerators.arbitraryPolyOutputs.arbitrary,
       ModelGenerators.arbitraryPositiveInt128.arbitrary
     ) { (senders, polyBox, outputs, fee) =>
-      val polysSent = polyOutputsAmount(outputs)
+      val polysSent = polyOutputsAmount(outputs.toList)
 
       val boxReader =
         MockBoxReader.fromSeq(
@@ -276,7 +273,7 @@ class BuildUnprovenTransferSpec
       val request =
         TransferRequests.UnprovenTransferRequest(
           senders.toList,
-          outputs,
+          outputs.toList,
           senders.head,
           senders.head,
           fee,
@@ -293,10 +290,10 @@ class BuildUnprovenTransferSpec
   it should "have a poly change output and no arbit change output when exact arbits are provided and no fee" in {
     forAll(
       dionAddressesGen,
-      ModelGenerators.nonEmptyListOf(ModelGenerators.arbitraryArbitOutput.arbitrary),
+      ModelGenerators.arbitraryArbitOutputs.arbitrary,
       Gen.zip(polyBoxGen, arbitBoxGen)
     ) { (senders, arbitOutputs, boxes) =>
-      val arbitsSent = arbitOutputsAmount(arbitOutputs)
+      val arbitsSent = arbitOutputsAmount(arbitOutputs.toList)
 
       val boxReader =
         MockBoxReader.fromSeq(
@@ -306,7 +303,7 @@ class BuildUnprovenTransferSpec
       val request =
         TransferRequests.UnprovenTransferRequest(
           senders.toList,
-          arbitOutputs,
+          arbitOutputs.toList,
           senders.head,
           senders.head,
           zeroInt128,
@@ -325,12 +322,12 @@ class BuildUnprovenTransferSpec
   "more polys are provided than the fee" in {
     forAll(
       dionAddressesGen,
-      ModelGenerators.nonEmptyListOf(ModelGenerators.arbitraryArbitOutput.arbitrary),
+      ModelGenerators.arbitraryArbitOutputs.arbitrary,
       Gen.zip(polyBoxGen, arbitBoxGen),
       ModelGenerators.arbitraryPositiveInt128.arbitrary,
       ModelGenerators.arbitraryPositiveInt128.arbitrary
     ) { (senders, arbitOutputs, boxes, fee, extraPolys) =>
-      val arbitsSent = arbitOutputsAmount(arbitOutputs)
+      val arbitsSent = arbitOutputsAmount(arbitOutputs.toList)
 
       val boxReader =
         MockBoxReader.fromSeq(
@@ -343,7 +340,7 @@ class BuildUnprovenTransferSpec
       val request =
         TransferRequests.UnprovenTransferRequest(
           senders.toList,
-          arbitOutputs,
+          arbitOutputs.toList,
           senders.head,
           senders.head,
           fee,
@@ -361,13 +358,13 @@ class BuildUnprovenTransferSpec
   it should "have a poly and arbit change output when more arbits and polys are provided than the fee and payment" in {
     forAll(
       dionAddressesGen,
-      ModelGenerators.nonEmptyListOf(ModelGenerators.arbitraryArbitOutput.arbitrary),
+      ModelGenerators.arbitraryArbitOutputs.arbitrary,
       Gen.zip(polyBoxGen, arbitBoxGen),
       ModelGenerators.arbitraryPositiveInt128.arbitrary,
       ModelGenerators.arbitraryPositiveInt128.arbitrary,
       ModelGenerators.arbitraryPositiveInt128.arbitrary
     ) { (senders, arbitOutputs, boxes, fee, extraPolys, extraArbits) =>
-      val arbitsSent = arbitOutputsAmount(arbitOutputs)
+      val arbitsSent = arbitOutputsAmount(arbitOutputs.toList)
 
       val boxReader =
         MockBoxReader.fromSeq(
@@ -380,7 +377,7 @@ class BuildUnprovenTransferSpec
       val request =
         TransferRequests.UnprovenTransferRequest(
           senders.toList,
-          arbitOutputs,
+          arbitOutputs.toList,
           senders.head,
           senders.head,
           fee,
@@ -398,11 +395,11 @@ class BuildUnprovenTransferSpec
   it should "have no poly or arbit change output when exact amounts of arbits and polys are provided for fee and payment" in {
     forAll(
       dionAddressesGen,
-      ModelGenerators.nonEmptyListOf(ModelGenerators.arbitraryArbitOutput.arbitrary),
+      ModelGenerators.arbitraryArbitOutputs.arbitrary,
       Gen.zip(polyBoxGen, arbitBoxGen),
       ModelGenerators.arbitraryPositiveInt128.arbitrary
     ) { (senders, arbitOutputs, boxes, fee) =>
-      val arbitsSent = arbitOutputsAmount(arbitOutputs)
+      val arbitsSent = arbitOutputsAmount(arbitOutputs.toList)
 
       val boxReader =
         MockBoxReader.fromSeq(
@@ -415,7 +412,7 @@ class BuildUnprovenTransferSpec
       val request =
         TransferRequests.UnprovenTransferRequest(
           senders.toList,
-          arbitOutputs,
+          arbitOutputs.toList,
           senders.head,
           senders.head,
           fee,
@@ -433,12 +430,12 @@ class BuildUnprovenTransferSpec
   it should "have no poly change output and an arbit change output when exact fee and more arbits than required are provided" in {
     forAll(
       dionAddressesGen,
-      ModelGenerators.nonEmptyListOf(ModelGenerators.arbitraryArbitOutput.arbitrary),
+      ModelGenerators.arbitraryArbitOutputs.arbitrary,
       Gen.zip(polyBoxGen, arbitBoxGen),
       ModelGenerators.arbitraryPositiveInt128.arbitrary,
       ModelGenerators.arbitraryPositiveInt128.arbitrary
     ) { (senders, arbitOutputs, boxes, fee, extraArbits) =>
-      val arbitsSent = arbitOutputsAmount(arbitOutputs)
+      val arbitsSent = arbitOutputsAmount(arbitOutputs.toList)
 
       val boxReader =
         MockBoxReader.fromSeq(
@@ -451,7 +448,7 @@ class BuildUnprovenTransferSpec
       val request =
         TransferRequests.UnprovenTransferRequest(
           senders.toList,
-          arbitOutputs,
+          arbitOutputs.toList,
           senders.head,
           senders.head,
           fee,
@@ -888,40 +885,6 @@ class BuildUnprovenTransferSpec
       val transferResult = TransferBuilder.buildUnprovenTransfer(boxReader, request, BoxSelectionAlgorithms.All)
 
       transferResult.left.value shouldBe BuildTransferFailures.EmptyPolyInputs
-    }
-  }
-
-  it should "be invalid if duplicate poly boxes are provided" in {
-    forAll(
-      polyBoxesGen,
-      dionAddressesGen,
-      ModelGenerators.nonEmptyListOf(ModelGenerators.arbitraryPolyOutput.arbitrary),
-      ModelGenerators.arbitraryPositiveInt128.arbitrary
-    ) { (polyBoxes, senders, polyOutputs, fee) =>
-      val polysSent = polyOutputsAmount(polyOutputs.toList)
-
-      val boxReader =
-        MockBoxReader.fromSeq(
-          senders.head.toAddress ->
-          NonEmptyChain(polyBoxes.head.copy(value = SimpleValue(polysSent)), polyBoxes.head)
-            .appendChain(polyBoxes.tail)
-            .toList
-        )
-
-      val request =
-        TransferRequests.UnprovenTransferRequest(
-          senders.toList,
-          polyOutputs,
-          senders.head,
-          senders.head,
-          fee,
-          None,
-          minting = false
-        )
-
-      val transferResult = TransferBuilder.buildUnprovenTransfer(boxReader, request, BoxSelectionAlgorithms.All)
-
-      transferResult.left.value shouldBe BuildTransferFailures.DuplicateInputs
     }
   }
 

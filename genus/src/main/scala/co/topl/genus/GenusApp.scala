@@ -6,15 +6,18 @@ import akka.actor.typed.scaladsl.Behaviors
 import cats.effect.unsafe.implicits.global
 import cats.effect.{ExitCode, IO, IOApp, Resource}
 import cats.implicits._
-import co.topl.genus.interpreters.mongo._
+import co.topl.genus.algebras.ChainHeight
+import co.topl.genus.interpreters._
 import co.topl.genus.interpreters.requesthandlers._
 import co.topl.genus.interpreters.services._
 import co.topl.genus.programs.GenusProgram
 import co.topl.genus.settings._
 import co.topl.genus.typeclasses.implicits._
+import co.topl.genus.ops.implicits._
+import co.topl.utils.StringDataTypes.Base58Data
 import com.typesafe.config.ConfigFactory
 import mainargs.ParserForClass
-import org.mongodb.scala.MongoClient
+import org.mongodb.scala.{Document, MongoClient}
 
 import java.io.File
 import scala.concurrent.ExecutionContext
@@ -51,43 +54,46 @@ object GenusApp extends IOApp {
     implicit val executionContext: ExecutionContext = system.dispatcher
 
     for {
+      // construct the expected API key
+      apiKey <-
+        if (settings.disableAuth) none[Base58Data].pure[IO]
+        else
+          Base58Data
+            .validated(settings.apiKeyHash)
+            .map(_.some.pure[IO])
+            .valueOr(errors => IO.raiseError(new Throwable(s"invalid API key: $errors")))
+
       // set up MongoDB resources
       mongoClient <- IO.delay(MongoClient(settings.mongoConnectionString))
       mongoDatabase = mongoClient.getDatabase(settings.mongoDatabaseName)
-      transactionsCollection = mongoDatabase.getCollection(settings.transactionsCollectionName)
-      blocksCollection = mongoDatabase.getCollection(settings.blocksCollectionName)
+
+      transactionsStore = MongoCollectionStore.make[IO](
+        mongoDatabase.getCollection(settings.transactionsCollectionName)
+      )
+      blocksStore = MongoCollectionStore.make[IO](mongoDatabase.getCollection(settings.blocksCollectionName))
+
+      implicit0(chainHeight: ChainHeight[IO]) = MongoChainHeight.make[IO](blocksStore)
 
       // set up query services
-      transactionsQuery =
-        TransactionsQueryService.make[IO](
-          MongoQueryImpl.make[IO](
-            transactionsCollection
-          )
-        )
-
-      blocksQuery =
-        BlocksQueryService.make[IO](
-          MongoQueryImpl.make[IO](
-            blocksCollection
-          )
-        )
+      transactionsQuery = TransactionsQueryService.make[IO](transactionsStore)
+      blocksQuery = BlocksQueryService.make[IO](blocksStore)
 
       // set up subscription services
       transactionsSubscription =
         TransactionsSubscriptionService.make[IO](
-          MongoSubscriptionImpl.make[IO](
+          BatchedMongoSubscription.make[IO](
             settings.subBatchSize,
             settings.subBatchSleepDuration.seconds,
-            transactionsCollection
+            transactionsStore
           )
         )
 
       blocksSubscription =
         BlocksSubscriptionService.make[IO](
-          MongoSubscriptionImpl.make[IO](
+          BatchedMongoSubscription.make[IO](
             settings.subBatchSize,
             settings.subBatchSleepDuration.seconds,
-            blocksCollection
+            blocksStore
           )
         )
 
@@ -99,7 +105,8 @@ object GenusApp extends IOApp {
           HandleBlocksQuery.make(blocksQuery),
           HandleBlocksSubscription.make(blocksSubscription),
           settings.ip,
-          settings.port
+          settings.port,
+          apiKey
         )
     } yield ExitCode.Success
   }

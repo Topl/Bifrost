@@ -99,7 +99,6 @@ object Forge {
 
   def prepareForge(
     nodeView:          ReadableNodeView,
-    consensusView:     NxtConsensus.View,
     keyView:           KeyView,
     minTransactionFee: Int128
   )(implicit
@@ -111,6 +110,7 @@ object Forge {
     for {
       rewardAddress <- keyView.rewardAddr.toRight(NoRewardsAddressSpecified)
       parentBlock = nodeView.history.bestBlock
+      consensusState <- nodeView.history.consensusStateAt(parentBlock.id).leftMap(e => ForgingError(e.reason))
       currentHeight = parentBlock.height
       transactions <- pickTransactions(
         minTransactionFee,
@@ -118,19 +118,9 @@ object Forge {
         nodeView.memPool,
         nodeView.state
       ).map(_.toApply)
-      _ <- Either.cond(
-        parentBlock.height == 1 || parentBlock.height == consensusView.state.height,
-        {},
-        ForgingError(
-          new Throwable(
-            s"Parent block's height doesn't match the height held by consensus state: " +
-            s"Parent block height ${parentBlock.height} | Consensus height ${consensusView.state.height}"
-          )
-        )
-      )
       forgeTime = timeProvider.time
       timeSinceLastBlack = forgeTime - parentBlock.timestamp
-      rewards <- Rewards(transactions, rewardAddress, parentBlock.id, forgeTime, consensusView.state.inflation).toEither
+      rewards <- Rewards(transactions, rewardAddress, parentBlock.id, forgeTime, consensusState.inflation).toEither
         .leftMap(ForgingError)
       prevTimes = nodeView.history.getTimestampsFrom(
         parentBlock,
@@ -139,10 +129,16 @@ object Forge {
       arbitBoxIterator <- NxtLeaderElection
         .collectArbitBoxes(keyView.addresses, nodeView.state)
         .leftMap(LeaderElectionFailure)
+      leaderElection = new NxtLeaderElection(protocolVersioner)
       eligibleArbitBox <- NxtLeaderElection
         .getEligibleBox(
-          consensusView.leaderElection.calculateHitValue(parentBlock)(_),
-          consensusView.leaderElection.calculateThresholdValue(timeSinceLastBlack, consensusView.state)(_)
+          leaderElection.calculateHitValue(parentBlock)(_),
+          leaderElection.calculateThresholdValue(
+            timeSinceLastBlack,
+            parentBlock.height,
+            parentBlock.difficulty,
+            consensusState.totalStake
+          )(_)
         )(arbitBoxIterator)
         .leftMap(LeaderElectionFailure)
     } yield Forge(
@@ -154,7 +150,7 @@ object Forge {
       forgeTime,
       keyView.sign,
       keyView.getPublicKey,
-      consensusView.leaderElection,
+      leaderElection,
       protocolVersioner.applicable(currentHeight).blockVersion
     )
 

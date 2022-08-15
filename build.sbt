@@ -1,7 +1,7 @@
 import sbt.Keys.{homepage, organization, test}
 import sbtassembly.MergeStrategy
 
-val scala212 = "2.12.15"
+val scala212 = "2.12.16"
 val scala213 = "2.13.8"
 
 inThisBuild(
@@ -115,6 +115,7 @@ def assemblySettings(main: String) = Seq(
       case PathList("local.conf")                      => MergeStrategy.discard
       case "META-INF/truffle/instrument"               => MergeStrategy.concat
       case "META-INF/truffle/language"                 => MergeStrategy.rename
+      case x if x.contains("google/protobuf")          => MergeStrategy.last
       case x                                           => old(x)
     }
   },
@@ -200,7 +201,6 @@ lazy val bifrost = project
     akkaHttpRpc,
     typeclasses,
     toplRpc,
-    benchmarking,
     crypto,
     catsAkka,
     brambl,
@@ -242,7 +242,7 @@ lazy val node = project
   .settings(
     IntegrationTest / parallelExecution := false
   )
-  .dependsOn(common % "compile->compile;test->test", toplRpc, tools, genus)
+  .dependsOn(common % "compile->compile;test->test", toplRpc, tools, genus, jsonCodecs)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
 lazy val common = project
@@ -377,9 +377,9 @@ lazy val jsonCodecs = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.codecs.json"
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.circe)
+  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.circe ++ Dependencies.scodec)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, tetraByteCodecs)
+  .dependsOn(models, crypto, tetraByteCodecs)
 
 lazy val typeclasses: Project = project
   .in(file("typeclasses"))
@@ -641,7 +641,7 @@ lazy val toplRpc = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.toplrpc"
   )
-  .dependsOn(akkaHttpRpc, common)
+  .dependsOn(akkaHttpRpc, common, jsonCodecs)
 
 lazy val toplGrpc = project
   .in(file("topl-grpc"))
@@ -723,7 +723,7 @@ lazy val tools = project
     publishSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.tools",
-    libraryDependencies ++= Dependencies.tools
+    libraryDependencies ++= Dependencies.mongoDb
   )
   .dependsOn(common)
 
@@ -757,5 +757,6 @@ lazy val munitScalamock = project
     libraryDependencies ++= Dependencies.munitScalamock
   )
 
-addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; + test")
-addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; + test")
+addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; +test; it:compile")
+addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; +test; it:compile")
+addCommandAlias("checkPRTestQuick", s"; scalafixAll --check; scalafmtCheckAll; testQuick; it:compile")

@@ -91,8 +91,8 @@ class TransactionRpcHandlerImpls(
                 TransferRequests.UnprovenTransferRequest(
                   params.senders.toList,
                   params.recipients.toList,
-                  params.changeAddress,
-                  params.changeAddress,
+                  params.changeAddress.spendingAddress,
+                  params.changeAddress.spendingAddress,
                   params.fee,
                   params.data,
                   minting = false
@@ -118,8 +118,8 @@ class TransactionRpcHandlerImpls(
                 TransferRequests.UnprovenTransferRequest(
                   params.senders.toList,
                   params.recipients.toList,
-                  params.changeAddress,
-                  params.changeAddress,
+                  params.changeAddress.spendingAddress,
+                  params.changeAddress.spendingAddress,
                   params.fee,
                   params.data,
                   minting = false
@@ -145,8 +145,8 @@ class TransactionRpcHandlerImpls(
                 TransferRequests.UnprovenTransferRequest(
                   params.senders.toList,
                   params.recipients.toList,
-                  params.feeChangeAddress,
-                  params.assetChangeAddress,
+                  params.feeChangeAddress.spendingAddress,
+                  params.assetChangeAddress.spendingAddress,
                   params.fee,
                   params.data,
                   params.minting

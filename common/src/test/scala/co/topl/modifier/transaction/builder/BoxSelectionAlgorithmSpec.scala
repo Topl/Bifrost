@@ -22,7 +22,7 @@ class BoxSelectionAlgorithmSpec
   "BoxSelectionAlgorithm.pickBoxes" should "return all provided boxes when using 'All' algorithm" in {
     forAll(polyBoxGen, Gen.listOf(polyBoxGen), addressGen) { (firstBox, otherBoxes, address) =>
       val polyBoxes = (firstBox :: otherBoxes).map(address -> _)
-      val tokenBoxes = BoxSet(List(), polyBoxes, List())
+      val tokenBoxes = BoxSet(Set.empty, polyBoxes.toSet, Set.empty)
 
       val result = BoxSelectionAlgorithm.pickBoxes(BoxSelectionAlgorithms.All, tokenBoxes, 0, 0, Map.empty)
 
@@ -33,7 +33,7 @@ class BoxSelectionAlgorithmSpec
   it should "return specific poly box when using 'Specific' algorithm with existing poly boxes" in {
     forAll(polyBoxGen, Gen.listOf(polyBoxGen), addressGen) { (firstBox, otherBoxes, address) =>
       val polyBoxes = (firstBox :: otherBoxes).map(address -> _)
-      val tokenBoxes = BoxSet(List(), polyBoxes, List())
+      val tokenBoxes = BoxSet(Set.empty, polyBoxes.toSet, Set.empty)
       val algorithm = BoxSelectionAlgorithms.Specific(List(firstBox.id))
 
       val result = BoxSelectionAlgorithm.pickBoxes(algorithm, tokenBoxes, 0, 0, Map.empty)
@@ -47,7 +47,7 @@ class BoxSelectionAlgorithmSpec
       (firstPolyBox, otherPolyBoxes, firstArbitBox, otherArbitBoxes, address) =>
         val polyBoxes = (firstPolyBox :: otherPolyBoxes).map(address -> _)
         val arbitBoxes = (firstArbitBox :: otherArbitBoxes).map(address -> _)
-        val tokenBoxes = BoxSet(arbitBoxes, polyBoxes, List())
+        val tokenBoxes = BoxSet(arbitBoxes.toSet, polyBoxes.toSet, Set.empty)
         val request = ArbitTransferRequest(List(address), List(address -> 100), address, address, 0, None)
         val algorithm = BoxSelectionAlgorithms.Specific(List(firstPolyBox.id, firstArbitBox.id))
 
@@ -63,7 +63,7 @@ class BoxSelectionAlgorithmSpec
       (firstPolyBox, otherPolyBoxes, firstAssetBox, otherAssetBoxes, address) =>
         val polyBoxes = (firstPolyBox :: otherPolyBoxes).map(address -> _)
         val assetBoxes = (firstAssetBox :: otherAssetBoxes).map(address -> _)
-        val tokenBoxes = BoxSet(List(), polyBoxes, assetBoxes)
+        val tokenBoxes = BoxSet(Set.empty, polyBoxes.toSet, assetBoxes.toSet)
         val algorithm = BoxSelectionAlgorithms.Specific(List(firstPolyBox.id, firstAssetBox.id))
 
         val result = BoxSelectionAlgorithm.pickBoxes(algorithm, tokenBoxes, 0, 0, Map.empty)
@@ -81,7 +81,7 @@ class BoxSelectionAlgorithmSpec
 
       val smallestBox = polyBoxes.minBy(_._2.value.quantity)
 
-      val tokenBoxes = BoxSet(List(), polyBoxes, List())
+      val tokenBoxes = BoxSet(Set.empty, polyBoxes.toSet, Set.empty)
       val algorithm = BoxSelectionAlgorithms.SmallestFirst
 
       val result = BoxSelectionAlgorithm.pickBoxes(algorithm, tokenBoxes, smallestBox._2.value.quantity, 0, Map.empty)
@@ -99,7 +99,7 @@ class BoxSelectionAlgorithmSpec
         val arbitBoxes = random.shuffle(firstArbitBox :: otherArbitBoxes).map(address -> _)
         val smallestArbitBox = arbitBoxes.minBy(_._2.value.quantity)
 
-        val tokenBoxes = BoxSet(arbitBoxes, polyBoxes, List())
+        val tokenBoxes = BoxSet(arbitBoxes.toSet, polyBoxes.toSet, Set.empty)
         val algorithm = BoxSelectionAlgorithms.SmallestFirst
 
         val result = BoxSelectionAlgorithm.pickBoxes(
@@ -124,7 +124,7 @@ class BoxSelectionAlgorithmSpec
         val assetBoxes = random.shuffle(firstAssetBox :: otherAssetBoxes).map(address -> _)
         val smallestAssetBox = assetBoxes.minBy(_._2.value.quantity)
 
-        val tokenBoxes = BoxSet(List(), polyBoxes, assetBoxes)
+        val tokenBoxes = BoxSet(Set.empty, polyBoxes.toSet, assetBoxes.toSet)
         val algorithm = BoxSelectionAlgorithms.SmallestFirst
 
         val result = BoxSelectionAlgorithm.pickBoxes(
@@ -146,7 +146,7 @@ class BoxSelectionAlgorithmSpec
 
       val largestBox = polyBoxes.maxBy(_._2.value.quantity)
 
-      val tokenBoxes = BoxSet(List(), polyBoxes, List())
+      val tokenBoxes = BoxSet(Set.empty, polyBoxes.toSet, Set.empty)
       val algorithm = BoxSelectionAlgorithms.LargestFirst
 
       val result = BoxSelectionAlgorithm.pickBoxes(algorithm, tokenBoxes, largestBox._2.value.quantity, 0, Map.empty)
@@ -164,7 +164,7 @@ class BoxSelectionAlgorithmSpec
         val arbitBoxes = random.shuffle(firstArbitBox :: otherArbitBoxes).map(address -> _)
         val largestArbitbox = arbitBoxes.maxBy(_._2.value.quantity)
 
-        val tokenBoxes = BoxSet(arbitBoxes, polyBoxes, List())
+        val tokenBoxes = BoxSet(arbitBoxes.toSet, polyBoxes.toSet, Set.empty)
         val algorithm = BoxSelectionAlgorithms.LargestFirst
 
         val result = BoxSelectionAlgorithm.pickBoxes(
@@ -189,7 +189,7 @@ class BoxSelectionAlgorithmSpec
         val assetBoxes = random.shuffle(firstAssetBox :: otherAssetBoxes).map(address -> _)
         val largestAssetBox = assetBoxes.maxBy(_._2.value.quantity)
 
-        val tokenBoxes = BoxSet(List(), polyBoxes, assetBoxes)
+        val tokenBoxes = BoxSet(Set.empty, polyBoxes.toSet, assetBoxes.toSet)
 
         val algorithm = BoxSelectionAlgorithms.LargestFirst
 

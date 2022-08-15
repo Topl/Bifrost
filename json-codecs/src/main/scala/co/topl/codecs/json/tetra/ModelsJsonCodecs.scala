@@ -53,6 +53,7 @@ trait ModelsJsonCodecs {
   implicit val fullAddressEncoder: Encoder[FullAddress] =
     t => t.immutableBytes.asJson
 
+  // TODO: Checksum
   implicit val fullAddressDecoder: Decoder[FullAddress] =
     t => t.as[Bytes].flatMap(_.decodeImmutable[FullAddress].leftMap(e => DecodingFailure(e, Nil)))
 
@@ -335,7 +336,7 @@ trait ModelsJsonCodecs {
         shortName <- hcursor.downField("shortName").as[Latin1Data]
         validLengthShortName <- Sized
           .max[Latin1Data, Lengths.`8`.type](shortName)
-          .leftMap(failure => DecodingFailure(failure.toString, List(CursorOp.Field("shortName"))))
+          .leftMap(failure => DecodingFailure(failure.toString, hcursor.history :+ CursorOp.Field("shortName")))
       } yield Box.Values.Asset.Code(version, issuer, validLengthShortName)
 
   implicit val assetBoxValueEncoder: Encoder[Box.Values.Asset] =
@@ -499,7 +500,7 @@ trait ModelsJsonCodecs {
         "data"       -> tx.data.map(_.data).asJson
       )
 
-  implicit val transactionJsonDecoder: Decoder[Transaction] =
+  implicit def transactionJsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[Transaction] =
     hcursor =>
       for {
         inputs     <- hcursor.downField("inputs").as[Chain[Transaction.Input]]

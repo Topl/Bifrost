@@ -41,6 +41,7 @@ trait ValuetypesCodecs {
   implicit val boolCodec: Codec[Boolean] =
     byteCodec.xmap(byte => byte === trueByte, bool => if (bool) trueByte else falseByte)
 
+  // JAA - for signed values, use Zig-Zag encoder to modify bits so the varint encoding scheme is more efficient
   implicit val intCodec: Codec[Int] =
     uLongCodec.xmap(uLong => decodeZigZagInt(uLong.toInt), int => encodeZigZagInt(int))
 
