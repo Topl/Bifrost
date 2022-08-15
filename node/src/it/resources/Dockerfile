@@ -1,8 +1,6 @@
 FROM ubuntu:22.04
 
-ARG GRAALVM_VERSION=21.1.0
-ARG JAVA_VERSION=java11
-ARG SBT_VERSION=1.5.0
+ARG SBT_VERSION=1.7.1
 
 RUN apt -y update && apt -y upgrade
 RUN apt -y install \
@@ -20,17 +18,11 @@ RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /
       $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
       apt -y update && DEBIAN_FRONTEND=noninteractive apt -y install docker-ce docker-ce-cli containerd.io
 
-# GraalVM install
-# See: https://github.com/graalvm/container/blob/master/community/Dockerfile
-ARG GRAALVM_PKG=https://github.com/graalvm/graalvm-ce-builds/releases/download/vm-$GRAALVM_VERSION/graalvm-ce-$JAVA_VERSION-linux-amd64-$GRAALVM_VERSION.tar.gz
-
-ENV LANG=en_US.UTF-8 \
-    JAVA_HOME=/opt/graalvm-ce-$JAVA_VERSION-$GRAALVM_VERSION/ \
-    PATH=/opt/graalvm-ce-$JAVA_VERSION-$GRAALVM_VERSION/bin:$PATH
-
-RUN set -eux \
-    && curl --fail --silent --location --retry 3 ${GRAALVM_PKG} \
-    | gunzip | tar x -C /opt/
+# JDK Install
+RUN wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | sudo apt-key add - \
+    && echo "deb https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | sudo tee /etc/apt/sources.list.d/adoptium.list \
+    && apt update \
+    && apt install temurin-11-jdk
 
 # SBT Install
 ARG SBT_PKG=https://github.com/sbt/sbt/releases/download/v$SBT_VERSION/sbt-$SBT_VERSION.tgz

@@ -12,7 +12,7 @@ jobs:
       target-os: >-
         ["ubuntu-latest"]
       java-versions: >-
-        ["graalvm-ce-java11@21.1.0"]
+        ["11"]
 
   sbt-integration-tests:
     uses: ./.github/workflows/_scala_integration_tests.yml
@@ -21,7 +21,7 @@ jobs:
       target-os: >-
         ["ubuntu-latest"]
       java-versions: >-
-        ["graalvm-ce-java11@21.1.0"]
+        ["11"]
 
   post-man-integration-tests:
     uses: ./.github/workflows/_postman_integration_tests.yml
@@ -30,7 +30,7 @@ jobs:
       target-os: >-
         ["ubuntu-latest"]
       java-versions: >-
-        ["graalvm-ce-java11@21.1.0"]
+        ["11"]
 
   publish-test-results:
     uses: ./.github/workflows/_publish_test_results.yml

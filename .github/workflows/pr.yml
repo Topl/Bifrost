@@ -11,7 +11,7 @@ jobs:
       target-os: >-
         ["ubuntu-latest"]
       java-versions: >-
-        ["graalvm-ce-java11@21.1.0"]
+        ["11"]
       preserve-cache-between-runs: true
 
   post-man-integration-tests:
@@ -21,7 +21,7 @@ jobs:
       target-os: >-
         ["ubuntu-latest"]
       java-versions: >-
-        ["graalvm-ce-java11@21.1.0"]
+        ["11"]
       preserve-cache-between-runs: true
 
   publish-test-results:

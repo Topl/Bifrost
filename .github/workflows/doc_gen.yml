@@ -9,7 +9,7 @@ jobs:
     strategy:
         matrix:
           os: [ubuntu-latest]
-          java: [graalvm-ce-java11@21.1.0]
+          java: [11]
     
     runs-on: ${{ matrix.os }}
 
