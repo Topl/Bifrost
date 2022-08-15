@@ -2,7 +2,7 @@ name: Bifrost_CI
 
 on:
   push:
-    branches: [dev, main, release-*, rc-*]
+    branches: [dev, main, release-*, rc-*, tetra]
   workflow_dispatch:
 
 jobs:
