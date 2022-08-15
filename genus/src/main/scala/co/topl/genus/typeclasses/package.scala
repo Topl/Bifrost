@@ -13,6 +13,8 @@ package object typeclasses {
       with FunctorInstances
       with Transform.ToTransformOps
       with TransformInstances
+      with WithMaxBlockHeight.ToWithMaxBlockHeightOps
+      with WithMaxBlockHeightInstances
 
   object implicits extends Implicits
 }

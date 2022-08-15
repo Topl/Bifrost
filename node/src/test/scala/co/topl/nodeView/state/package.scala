@@ -13,7 +13,7 @@ package object state {
    * This function will modify the state storage directly without returning a new instance of state
    * USE WITH EXTREME CAUTION!!
    */
-  def directlyAddStateStorage(version: ModifierId, boxes: Seq[Box[_]], state: State): Unit = {
+  def directlyAddStateStorage(version: ModifierId, boxes: Seq[Box[_]], state: BoxState): Unit = {
     // Manually manipulate state
     val boxSC = StateChanges(Seq(), boxes)
 
@@ -28,7 +28,7 @@ package object state {
    * This function will modify the PBR storage directly without returning a new instance of the registry
    * USE WITH EXTREME CAUTION!!
    */
-  def directlyAddPBRStorage(version: ModifierId, boxes: Seq[ProgramBox], state: State): Unit = {
+  def directlyAddPBRStorage(version: ModifierId, boxes: Seq[ProgramBox], state: BoxState): Unit = {
 
     /** Manually manipulate state */
     val updates = boxes.map(bx => bx.value -> Seq(bx.id)).toMap
@@ -46,7 +46,7 @@ package object state {
    * This function will modify the PBR storage directly without returning a new instance of the registry
    * USE WITH EXTREME CAUTION!!
    */
-  def directlyAddTBRStorage(version: ModifierId, boxes: Seq[TokenBox[TokenValueHolder]], state: State)(implicit
+  def directlyAddTBRStorage(version: ModifierId, boxes: Seq[TokenBox[TokenValueHolder]], state: BoxState)(implicit
     networkPrefix:                   NetworkPrefix
   ): Unit = {
 

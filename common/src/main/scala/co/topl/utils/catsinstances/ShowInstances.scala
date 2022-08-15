@@ -130,8 +130,6 @@ trait ShowInstances {
       (failure match {
         case BuildTransferFailures.EmptyOutputs =>
           "no outputs provided"
-        case BuildTransferFailures.DuplicateInputs =>
-          "duplicate input boxes provided"
         case BuildTransferFailures.EmptyPolyInputs =>
           "no poly inputs provided"
         case BuildTransferFailures.MultipleAssetCodes(expected, actual) =>

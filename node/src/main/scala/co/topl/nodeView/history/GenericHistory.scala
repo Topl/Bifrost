@@ -53,15 +53,17 @@ trait GenericHistory[
 
   def modifierByHeight(height: Long): Option[PM]
 
-  def append(modifier: PM, validators: Seq[BlockValidator[_]]): Try[(HT, ProgressInfo[PM])]
+  def append(
+    modifier:                PM,
+    validators:              Seq[BlockValidator[_]],
+    applicableConsesusState: NxtConsensus.State
+  ): Try[(HT, ProgressInfo[PM])]
 
   def drop(modifierId: ModifierId): HT
 
-  // todo: output should be ID | Seq[ID]
   def openSurfaceIds(): Seq[ModifierId]
 
-  // todo: argument should be ID | Seq[ID]
-  def continuationIds(from: ModifierIds, size: Int): Option[ModifierIds]
+  def continuationIds(from: TypedModifierIds, size: Int): Option[TypedModifierIds]
 
   def syncInfo: SI
 
@@ -90,7 +92,7 @@ trait GenericHistory[
 
 object GenericHistory {
 
-  type ModifierIds = Seq[(ModifierTypeId, ModifierId)]
+  type TypedModifierIds = Seq[(ModifierTypeId, ModifierId)]
 
   sealed trait HistoryComparisonResult
 

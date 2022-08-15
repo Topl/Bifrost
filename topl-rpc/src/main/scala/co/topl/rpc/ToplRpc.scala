@@ -11,7 +11,7 @@ import co.topl.models.{
   TransactionData
 }
 import co.topl.modifier.ModifierId
-import co.topl.modifier.block.Block
+import co.topl.modifier.block.{Block, GenesisBlob}
 import co.topl.modifier.box.AssetCode.AssetCodeVersion
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction.TX
@@ -72,6 +72,16 @@ object ToplRpc {
       val rpc: Rpc[Params, Response] = Rpc("debug_idsFromHeight")
       case class Params(height: Long, limit: Int)
       type Response = List[ModifierId]
+    }
+
+    object ExportGenesisBlob {
+
+      /**
+       * Export the genesis block and open keys as Json files on disk
+       */
+      val rpc: Rpc[Params, Response] = Rpc("debug_exportGenesisBlob")
+      case class Params()
+      case class Response(genesisBlob: GenesisBlob)
     }
   }
 

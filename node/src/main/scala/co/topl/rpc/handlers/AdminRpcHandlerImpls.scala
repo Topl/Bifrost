@@ -86,8 +86,7 @@ class AdminRpcHandlerImpls(
 
   override val getRewardsAddress: ToplRpc.Admin.GetRewardsAddress.rpc.ServerHandler =
     _ =>
-      keyManagerInterface
-        .getRewardsAddress()
+      keyManagerInterface.getRewardsAddress
         .leftMap(e => ToplRpcErrors.genericFailure(e.toString): RpcError)
         .map(ToplRpc.Admin.GetRewardsAddress.Response)
 

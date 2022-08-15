@@ -7,18 +7,19 @@ import co.topl.attestation.Address
 import co.topl.consensus.Hiccups.HiccupBlock
 import co.topl.consensus.KeyManager.StartupKeyView
 import co.topl.consensus._
-import co.topl.modifier.{ModifierId, ProgramId}
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.transaction.validation.implicits._
+import co.topl.modifier.{ModifierId, ProgramId}
 import co.topl.network.BifrostSyncInfo
 import co.topl.nodeView.history.GenericHistory.ProgressInfo
 import co.topl.nodeView.history.{GenericHistory, History, HistoryReader}
 import co.topl.nodeView.mempool.{MemPool, MemPoolReader, MemoryPool}
-import co.topl.nodeView.state.{MinimalState, State, StateReader}
+import co.topl.nodeView.state.{BoxState, MinimalBoxState, StateReader}
 import co.topl.settings.AppSettings
-import co.topl.utils.NetworkType.{NetworkPrefix, PrivateTestnet}
+import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.TimeProvider
+import co.topl.utils.IdiomaticScalaTransition.implicits._
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -33,7 +34,7 @@ import scala.util.{Failure, Success, Try}
  */
 case class NodeView(
   history: GenericHistory[Block, BifrostSyncInfo, History],
-  state:   MinimalState[Block, State],
+  state:   MinimalBoxState[Block, BoxState],
   mempool: MemoryPool[Transaction.TX, MemPool]
 ) extends NodeViewBlockOps
     with NodeViewTransactionOps
@@ -81,23 +82,28 @@ case class NodeView(
   }
 }
 
+case class ReadableNodeView(
+  history: HistoryReader[Block, BifrostSyncInfo],
+  state:   StateReader[ProgramId, Address],
+  memPool: MemPoolReader[Transaction.TX]
+)
+
 object NodeView {
 
   def persistent(
-    settings:           AppSettings,
-    consensusInterface: ConsensusInterface,
-    startupKeyView:     () => Future[StartupKeyView]
+    settings:       AppSettings,
+    startupKeyView: () => Future[StartupKeyView]
   )(implicit
     system:            ActorSystem[_],
     ec:                ExecutionContext,
     networkPrefix:     NetworkPrefix,
     protocolVersioner: ProtocolVersioner
   ): Future[NodeView] =
-    if (State.exists(settings)) {
+    if (BoxState.exists(settings)) {
       startupKeyView() // keyRing is mutable so need to call this
       resume(settings)
     } else
-      fetchAndApplyGenesis(settings, consensusInterface, startupKeyView)
+      fetchAndApplyGenesis(settings, startupKeyView)
         .valueOrF(e => Future.failed(new IllegalArgumentException(e.toString)))
 
   private def resume(
@@ -111,15 +117,14 @@ object NodeView {
     Future.successful(
       NodeView(
         History.readOrGenerate(settings),
-        State.readOrGenerate(settings),
+        BoxState.readOrGenerate(settings),
         MemPool.empty()
       )
     )
 
   private def fetchAndApplyGenesis(
-    settings:           AppSettings,
-    consensusInterface: ConsensusInterface,
-    startupKeyView:     () => Future[StartupKeyView]
+    settings:       AppSettings,
+    startupKeyView: () => Future[StartupKeyView]
   )(implicit
     system:            ActorSystem[_],
     ec:                ExecutionContext,
@@ -131,16 +136,13 @@ object NodeView {
       .fetchGenesis(settings)
       .toEitherT[Future]
       .leftMap(e => NodeViewHolderInterface.ApplyFailure(new IllegalArgumentException(e.toString)))
-    _ <- consensusInterface
-      .update(
-        genesis.block.id,
-        NxtConsensus
-          .StateUpdate(Some(genesis.state.totalStake), Some(genesis.block.difficulty), None, Some(genesis.block.height))
-      )
-      .leftMap(e => NodeViewHolderInterface.ApplyFailure(new IllegalArgumentException(e.toString)))
     nodeView = NodeView(
-      History.readOrGenerate(settings).append(genesis.block, Seq()).get._1, // no validators because genesis
-      State.genesisState(settings, Seq(genesis.block)),
+      History
+        .readOrGenerate(settings)
+        .append(genesis.block, Seq(), genesis.state)
+        .get
+        ._1, // no validators because genesis
+      BoxState.genesisState(settings, Seq(genesis.block)),
       MemPool.empty()
     )
   } yield nodeView
@@ -151,9 +153,10 @@ trait NodeViewBlockOps {
 
   import NodeViewHolder.UpdateInformation
 
-  def withBlock(block: Block, validators: Seq[BlockValidator[_]])(implicit
+  def withBlock(block: Block)(implicit
     networkPrefix:     NetworkPrefix,
-    timeProvider:      TimeProvider
+    timeProvider:      TimeProvider,
+    protocolVersioner: ProtocolVersioner
   ): Writer[List[Any], NodeView] = {
     import cats.implicits._
     if (!history.contains(block.id)) {
@@ -171,8 +174,18 @@ trait NodeViewBlockOps {
             case Validated.Valid(a) =>
               log.info("Applying valid blockId={} to history", block.id)
               val openSurfaceIdsBeforeUpdate = history.openSurfaceIds()
+              val leaderElection = new NxtLeaderElection(protocolVersioner)
+              val consensusStateAtParent = nodeView.history.consensusStateAt(block.parentId).getOrThrow()
+              val blockValidatorsAtHead =
+                Seq(
+                  new BlockValidators.DifficultyValidator(leaderElection),
+                  new BlockValidators.HeightValidator,
+                  new BlockValidators.EligibilityValidator(leaderElection, consensusStateAtParent.totalStake),
+                  new BlockValidators.SyntaxValidator(consensusStateAtParent.inflation),
+                  new BlockValidators.TimestampValidator
+                )
 
-              history.append(block, validators) match {
+              history.append(block, blockValidatorsAtHead, consensusStateAtParent) match {
                 case Success((historyBeforeStUpdate, progressInfo)) =>
                   log.info("Block blockId={} applied to history successfully", block.id)
                   log.debug("Applying valid blockId={} to state with progressInfo={}", block.id, progressInfo)
@@ -278,10 +291,12 @@ trait NodeViewBlockOps {
    */
   def updateState(
     history:       GenericHistory[Block, BifrostSyncInfo, History],
-    state:         MinimalState[Block, State],
+    state:         MinimalBoxState[Block, BoxState],
     progressInfo:  ProgressInfo[Block],
     suffixApplied: IndexedSeq[Block]
-  ): Writer[List[Any], (GenericHistory[Block, BifrostSyncInfo, History], Try[MinimalState[Block, State]], Seq[Block])] =
+  ): Writer[List[
+    Any
+  ], (GenericHistory[Block, BifrostSyncInfo, History], Try[MinimalBoxState[Block, BoxState]], Seq[Block])] =
     requestDownloads(progressInfo)
       .map(_ => this)
       .flatMap { nodeView =>
@@ -336,7 +351,7 @@ trait NodeViewBlockOps {
    */
   def applyState(
     history:       GenericHistory[Block, BifrostSyncInfo, History],
-    stateToApply:  MinimalState[Block, State],
+    stateToApply:  MinimalBoxState[Block, BoxState],
     suffixTrimmed: IndexedSeq[Block],
     progressInfo:  ProgressInfo[Block]
   ): Writer[List[Any], UpdateInformation] =
@@ -416,9 +431,3 @@ trait NodeViewTransactionOps {
     )
   }
 }
-
-case class ReadableNodeView(
-  history: HistoryReader[Block, BifrostSyncInfo],
-  state:   StateReader[ProgramId, Address],
-  memPool: MemPoolReader[Transaction.TX]
-)

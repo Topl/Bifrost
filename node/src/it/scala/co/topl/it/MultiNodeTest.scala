@@ -54,8 +54,25 @@ class MultiNodeTest extends AnyFreeSpec with Matchers with IntegrationSuite with
     // Now instruct the nodes to start forging
     nodes.foreach(_.run(ToplRpc.Admin.StartForging.rpc)(ToplRpc.Admin.StartForging.Params()).value)
 
+    // wait for forging and periodically query some data about the nodes
     logger.info(s"Waiting $forgeDuration for forging")
-    Thread.sleep(forgeDuration.toMillis)
+    val endTime = System.currentTimeMillis() + forgeDuration.toMillis
+    while (System.currentTimeMillis() < endTime) {
+      val intermediateResult = nodes.map { node =>
+        val headInfo = node.run(ToplRpc.NodeView.HeadInfo.rpc)(ToplRpc.NodeView.HeadInfo.Params()).value
+        val openKeyfile = node.run(ToplRpc.Admin.ListOpenKeyfiles.rpc)(ToplRpc.Admin.ListOpenKeyfiles.Params()).value
+        val localBlockView = node.run(ToplRpc.Debug.Generators.rpc)(ToplRpc.Debug.Generators.Params()).value
+
+        s"\nFor ${node.containerId}: \n\t keyfiles: ${openKeyfile} \n\t headInfo: ${headInfo} \n\t localBlockView: ${localBlockView}"
+      }
+
+      logger.info(s"\n$intermediateResult\n")
+
+      Thread.sleep(forgeDuration.toMillis / 10)
+    }
+
+    // Now instruct the nodes to stop forging
+    nodes.foreach(_.run(ToplRpc.Admin.StopForging.rpc)(ToplRpc.Admin.StopForging.Params()).value)
 
     // Verify that each node has forged a roughly equal number of blocks according to their own "myBlocks" information
     val forgeCounts =
@@ -117,8 +134,9 @@ class MultiNodeTest extends AnyFreeSpec with Matchers with IntegrationSuite with
       ConfigFactory.parseString(
         raw"""bifrost.network.knownPeers = ${nodeNames.map(n => s"$n:${BifrostDockerNode.NetworkPort}").asJson}
              |bifrost.rpcApi.namespaceSelector.debug = true
-             |bifrost.forging.privateTestnet.numTestnetAccts = $nodeCount
-             |bifrost.forging.privateTestnet.genesisSeed = "$seed"
+             |bifrost.forging.addressGenerationSettings.numberOfAddresses = $nodeCount
+             |bifrost.forging.addressGenerationSettings.strategy = fromSeed
+             |bifrost.forging.addressGenerationSettings.addressSeedOpt = "$seed"
              |bifrost.forging.forgeOnStartup = false
              |""".stripMargin
       )

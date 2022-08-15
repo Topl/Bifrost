@@ -13,16 +13,15 @@ import java.net.InetSocketAddress
 import scala.concurrent.duration._
 
 case class ApplicationSettings(
-  cacheExpire:                  Int,
-  cacheSize:                    Int,
-  dataDir:                      Option[String],
-  keyFileDir:                   Option[String],
-  mempoolTimeout:               FiniteDuration,
-  nodeKeys:                     Option[Set[String]],
-  rebroadcastCount:             Int,
-  consensusStoreVersionsToKeep: Int,
-  version:                      Version,
-  genesis:                      GenesisSettings
+  cacheExpire:      Int,
+  cacheSize:        Int,
+  dataDir:          Option[String],
+  keyFileDir:       Option[String],
+  mempoolTimeout:   FiniteDuration,
+  nodeKeys:         Option[Set[String]],
+  rebroadcastCount: Int,
+  version:          Version,
+  genesis:          GenesisSettings
 )
 
 case class RPCApiSettings(
@@ -170,6 +169,12 @@ object AppSettings extends Logging with SettingsReaders {
    */
   private def readConfig(args: StartupOpts): Config = {
 
+    log.info(s"${Console.YELLOW}Loading environment.conf settings${Console.RESET}")
+    val environmentConfig = {
+      val base = ConfigFactory.load(this.getClass.getClassLoader, "environment.conf")
+      listConfigFix("bifrost.network.knownPeers")(base)
+    }
+
     val userConfig = args.userConfigPathOpt.fold(ConfigFactory.empty()) { uc =>
       val userFile = new File(uc)
       log.info(
@@ -192,12 +197,31 @@ object AppSettings extends Logging with SettingsReaders {
     // load config files from disk, if the above strings are empty then ConFigFactory will skip loading them
     ConfigFactory
       .defaultOverrides()
+      .withFallback(environmentConfig)
       .withFallback(userConfig)
       .withFallback(networkConfig)
       .withFallback(ConfigFactory.defaultApplication())
       .resolve()
 
   }
+
+  /**
+   * HOCON allows for _string_ environment variable substitutions.  When dealing with arrays, an extra step must be taken
+   * to re-parse the setting into a list.
+   *
+   * If a String value is not provided at the given path, the original config is returned
+   *
+   * @param path The dot-separated HOCON config path within the provided config
+   * @param config The base configuration to correct
+   * @return An updated configuration
+   */
+  private def listConfigFix(path: String)(config: Config): Config =
+    if (config.hasPath(path)) {
+      // The top-level item of HOCON can't be an array, so embed it inside of a temporary object before extracting
+      val list = ConfigFactory.parseString(s"{tmp = ${config.getString(path)}}").getValue("tmp")
+      // Now overwrite the value in the original config with the newly parsed value
+      config.withValue(path, list)
+    } else config
 
   private def clusterConfig(settings: AppSettings, config: Config): Config =
     if (settings.gjallarhorn.clusterEnabled) {

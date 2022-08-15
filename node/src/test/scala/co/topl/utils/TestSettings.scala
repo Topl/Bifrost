@@ -15,15 +15,7 @@ trait TestSettings extends KeyRingTestHelper {
 object TestSettings {
   private val settingsFilename = "node/src/test/resources/application-test.conf"
 
-  val (defaultSettings: AppSettings, defaultConfig: Config) = {
-    val (s, c) = AppSettings.read(StartupOpts(Some(settingsFilename)))
-    s.copy(
-      application = s.application.copy(
-        dataDir = Some(Files.createTempDirectory("bifrost-test-data").toString),
-        consensusStoreVersionsToKeep = 10
-      )
-    ) -> c
-  }
+  val (defaultSettings: AppSettings, defaultConfig: Config) = AppSettings.read(StartupOpts(Some(settingsFilename)))
 
   val defaultAppContext: AppContext =
     new AppContext(defaultSettings, StartupOpts(), None)

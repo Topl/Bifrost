@@ -42,10 +42,9 @@ class GenesisProviderSpec
         .sum
 
       genesis.block.height shouldBe 1L
-      genesis.state.height shouldBe 1L
       genesis.state.totalStake shouldBe addresses.size * balances
       genesis.state.totalStake shouldBe blockTotalStake
-      genesis.state.difficulty shouldBe genesis.block.difficulty
+      genesis.block.difficulty shouldBe genesis.block.difficulty
     }
   }
 
@@ -64,7 +63,7 @@ class GenesisProviderSpec
           .fetchGenesis(GenesisSpecSetup.genesisFromJsonSettings(jsonSetting.fromJson))(jsonSetting.networkPrefix)
           .value
 
-      val jsonFileSource = scala.io.Source.fromFile(jsonSetting.fromJson.providedJsonGenesisPath)
+      val jsonFileSource = scala.io.Source.fromResource(jsonSetting.fromJson.genesisFile)
       val jsonFromFile = parser.parse(jsonFileSource.mkString).getOrElse(Json.fromJsonObject(JsonObject.empty))
       jsonFileSource.close()
 
@@ -113,22 +112,19 @@ class GenesisProviderSpec
       (
         blockJsonSetting(
           Strategies.FromBlockJson(
-            "node/src/main/resources/toplnet-genesis.json",
-            "228AWnLyoHdV3hzNaJmABsmB4VoS9rxPREA3AofbZnJob"
+            "toplnet-genesis.json"
           ),
           NetworkType.Mainnet.netPrefix
         ),
         blockJsonSetting(
           Strategies.FromBlockJson(
-            "node/src/main/resources/valhalla-genesis.json",
-            "wgUeiENYY32eC5T6WM2UiqAf6Ayba2tFNtvFkgn999iG"
+            "valhalla-genesis.json"
           ),
           NetworkType.ValhallaTestnet.netPrefix
         ),
         blockJsonSetting(
           Strategies.FromBlockJson(
-            "node/src/main/resources/hel-genesis.json",
-            "vKjyX77HLRUiihjWofSsacNEdDGMaJpNJTQMXkRyJkP2"
+            "hel-genesis.json"
           ),
           NetworkType.HelTestnet.netPrefix
         )

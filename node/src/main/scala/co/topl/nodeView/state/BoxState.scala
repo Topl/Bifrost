@@ -36,18 +36,18 @@ import scala.util.{Failure, Success, Try}
  * @param version blockId used to identify each block. Also used for rollback
  *                //@param timestamp timestamp of the block that results in this state
  */
-case class State(
+case class BoxState(
   override val version:                  ModifierId,
   protected val storage:                 KeyValueStore,
   private[state] val tokenBoxRegistry:   TokenBoxRegistry,
   private[state] val programBoxRegistry: ProgramBoxRegistry
 )(implicit networkPrefix:                NetworkPrefix)
-    extends MinimalState[Block, State]
+    extends MinimalBoxState[Block, BoxState]
     with StoreInterface
     with Logging
     with AutoCloseable {
 
-  override type NVCT = State
+  override type NVCT = BoxState
 
   override def close(): Unit = {
     log.info("Attempting to close state storage")
@@ -136,7 +136,7 @@ case class State(
       log.debug(s"Rollback State to $version from version ${this.version.show}")
       storage.rollbackTo(version.persistedBytes)
 
-      State(version, storage, updatedTBR, updatedPBR)
+      BoxState(version, storage, updatedTBR, updatedPBR)
     }
   }
 
@@ -146,7 +146,7 @@ case class State(
    * @param block block to be applied to state
    * @return a new instance of state with the transaction within mod applied
    */
-  override def applyModifier(block: Block): Try[State] = {
+  override def applyModifier(block: Block): Try[BoxState] = {
     // extract the state changes to be made
     // using option for TBR and PBR since we can skip if the registries aren't present
     val stateChanges = StateChanges(block)
@@ -229,7 +229,7 @@ case class State(
       storage.update(newVersion.persistedBytes, boxIdsToRemove, boxesToAdd)
 
       // create updated instance of state
-      val newState = State(newVersion, storage, updatedTBR, updatedPBR)
+      val newState = BoxState(newVersion, storage, updatedTBR, updatedPBR)
 
       // enforce that a new valid state must have emptied all boxes to remove
       // boxIdsToRemove.foreach(box => require(newState.getBox(box).isEmpty, s"Box $box is still in state"))
@@ -255,7 +255,7 @@ case class State(
     transaction.semanticValidation(getReader)
 }
 
-object State extends Logging {
+object BoxState extends Logging {
 
   /**
    * @param settings
@@ -263,7 +263,7 @@ object State extends Logging {
    * @param networkPrefix
    * @return
    */
-  def genesisState(settings: AppSettings, initialBlocks: Seq[Block])(implicit networkPrefix: NetworkPrefix): State =
+  def genesisState(settings: AppSettings, initialBlocks: Seq[Block])(implicit networkPrefix: NetworkPrefix): BoxState =
     initialBlocks
       .foldLeft(readOrGenerate(settings)) { (state, mod) =>
         state.applyModifier(mod).get
@@ -286,7 +286,7 @@ object State extends Logging {
    * @param networkPrefix
    * @return
    */
-  def readOrGenerate(settings: AppSettings)(implicit networkPrefix: NetworkPrefix): State = {
+  def readOrGenerate(settings: AppSettings)(implicit networkPrefix: NetworkPrefix): BoxState = {
     val sFile = stateFile(settings)
     sFile.mkdirs()
     val storage = new LDBKeyValueStore(new LDBVersionedStore(sFile, keepVersions = 100))
@@ -299,7 +299,7 @@ object State extends Logging {
     storage:                KeyValueStore,
     tokenBoxRegistry:       TokenBoxRegistry,
     programBoxRegistry:     ProgramBoxRegistry
-  )(implicit networkPrefix: NetworkPrefix): State = {
+  )(implicit networkPrefix: NetworkPrefix): BoxState = {
     val version: ModifierId =
       storage
         .latestVersionId()
@@ -326,6 +326,6 @@ object State extends Logging {
     if (nodeKeys.isDefined) log.info(s"Initializing state to watch for public keys: $nodeKeys")
     else log.info("Initializing state to watch for all public keys")
 
-    State(version, storage, tokenBoxRegistry, programBoxRegistry)
+    BoxState(version, storage, tokenBoxRegistry, programBoxRegistry)
   }
 }

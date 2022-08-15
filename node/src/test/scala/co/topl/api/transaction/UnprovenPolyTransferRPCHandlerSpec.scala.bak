@@ -3,11 +3,11 @@ package co.topl.api.transaction
 import akka.util.ByteString
 import cats.data.NonEmptyChain
 import co.topl.api.RPCMockState
-import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.attestation.implicits._
 import co.topl.codecs.json.tetra.instances._
-import co.topl.models.{BoxReference, Transaction}
+import co.topl.models.{BoxReference, DionAddress, NetworkPrefix, Transaction}
 import io.circe.HCursor
+import io.circe.syntax._
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 
@@ -18,14 +18,16 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with
   val amount = 100
   val fee = 1
 
-  var sender: String = ""
-  var recipient: String = ""
+  var sender: DionAddress = _
+  var recipient: DionAddress = _
+
+  implicit val tetraNetworkPrefix: NetworkPrefix = NetworkPrefix(networkPrefix)
 
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    sender = keyRingCurve25519.addresses.head.toDionAddress.toOption.get.allBytes.toBase58
-    recipient = keyRingCurve25519.addresses.head.toDionAddress.toOption.get.allBytes.toBase58
+    sender = keyRingCurve25519.addresses.head.toDionAddress.toOption.get
+    recipient = keyRingCurve25519.addresses.head.toDionAddress.toOption.get
   }
 
   "Unproven Poly Transfer RPC Handler" should {
@@ -40,7 +42,7 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with
           traverseJsonPath[NonEmptyChain[BoxReference]](responseAs[String], path)
         )
 
-      result.map(_.head._1.allBytes.toBase58).value shouldBe sender
+      result.map(_.head._1).value shouldBe sender
     }
 
     "successfully create a transfer with 'minting' set to false" in {
@@ -69,14 +71,12 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with
       val outputAddresses =
         result.map(outputs =>
           outputs.flatMap {
-            case Transaction.PolyOutput(dionAddress, _) =>
-              List(dionAddress.allBytes.toBase58)
-            case _ =>
-              List.empty
+            case Transaction.PolyOutput(dionAddress, _) => List(dionAddress.asJson)
+            case _                                      => List.empty
           }
         )
 
-      outputAddresses.value should contain(recipient)
+      outputAddresses.value should contain(recipient.asJson)
     }
 
     "successfully create a transfer with the expected change address" in {
@@ -90,7 +90,7 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with
           traverseJsonPath[String](responseAs[String], path)
         )
 
-      result.value shouldBe sender
+      result.value.asJson shouldBe sender.asJson
     }
 
     "successfully create a transfer with the expected 'data'" in {
@@ -109,7 +109,7 @@ class UnprovenPolyTransferRPCHandlerSpec extends RPCMockState with Matchers with
     }
 
     "fail to create a transfer when sender has no polys" in {
-      val emptySender = addressGen.sample.get.toDionAddress.toOption.get.allBytes.toBase58
+      val emptySender = addressGen.sample.get.toDionAddress.toOption.get
 
       val requestBody = createRequestBody(List(emptySender), List(recipient -> amount), fee, sender, None)
 
@@ -162,20 +162,17 @@ object UnprovenPolyTransferRPCHandlerSpec {
    * @return a [[ByteString]] representing the transfer request
    */
   def createRequestBody(
-    senders:       List[String],
-    recipients:    List[(String, Int)],
+    senders:       List[DionAddress],
+    recipients:    List[(DionAddress, Int)],
     fee:           Int,
-    changeAddress: String,
+    changeAddress: DionAddress,
     data:          Option[String]
   ): ByteString = {
-    val sendersString =
-      senders
-        .map(value => s""""$value"""")
-        .mkString(", ")
+    val sendersString = senders.map(_.asJson).mkString(", ")
 
     val recipientsString =
       recipients
-        .map(value => s"""{ "dionAddress": "${value._1}", "value": "${value._2}" }""")
+        .map(value => s"""{ "dionAddress": ${value._1.asJson}, "value": "${value._2}" }""")
         .mkString(", ")
 
     val dataString = data.fold("null")(value => s""""$value"""")
@@ -189,7 +186,7 @@ object UnprovenPolyTransferRPCHandlerSpec {
       |   "senders": [$sendersString],
       |   "recipients": [$recipientsString],
       |   "fee": $fee,
-      |   "changeAddress": "$changeAddress",
+      |   "changeAddress": ${changeAddress.asJson},
       |   "data": $dataString,
       |   "boxSelectionAlgorithm": "All"
       | } ]

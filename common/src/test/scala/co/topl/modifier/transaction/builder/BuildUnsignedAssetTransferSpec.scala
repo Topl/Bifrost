@@ -114,61 +114,6 @@ class BuildUnsignedAssetTransferSpec
     }
   }
 
-  it should "return invalid if duplicate poly inputs are used" in {
-    forAll(polyBoxGen, addressGen, boolGen) { (polyBox, sender, minting) =>
-      val assetCode = AssetCode(1.toByte, sender, Latin1Data.unsafe("test"))
-      val senders = List(sender)
-      val recipients = List(sender -> AssetValue(100, assetCode))
-
-      // provide the same poly box twice
-      val boxReader = MockBoxReader.fromSeq(sender -> List(polyBox, polyBox))
-
-      val request =
-        TransferRequests.AssetTransferRequest(
-          senders,
-          recipients,
-          sender,
-          sender,
-          0,
-          None,
-          minting
-        )
-
-      val result =
-        TransferBuilder
-          .buildUnsignedAssetTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
-
-      result.left.value shouldBe BuildTransferFailures.DuplicateInputs
-    }
-  }
-
-  it should "return invalid if duplicate asset inputs are used and not minting" in {
-    forAll(polyBoxesGen, addressGen, positiveLongGen) { (polyBoxes, sender, boxNonce) =>
-      val assetCode = AssetCode(1.toByte, sender, Latin1Data.unsafe("test"))
-      val assetBox = AssetBox(sender.evidence, boxNonce, AssetValue(100, assetCode))
-      val senders = List(sender)
-      val recipients = List(sender -> AssetValue(100, assetCode))
-
-      val boxReader = MockBoxReader.fromNec(sender -> polyBoxes.appendChain(Chain(assetBox, assetBox)))
-
-      val request = TransferRequests.AssetTransferRequest(
-        senders,
-        recipients,
-        sender,
-        sender,
-        0,
-        None,
-        minting = false
-      )
-
-      val result =
-        TransferBuilder
-          .buildUnsignedAssetTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
-
-      result.left.value shouldBe BuildTransferFailures.DuplicateInputs
-    }
-  }
-
   it should "return invalid if input asset code is different than output asset code and not minting" in {
     forAll(polyBoxesGen, addressGen, positiveLongGen) { (polyBoxes, sender, boxNonce) =>
       val assetCode1 = AssetCode(1.toByte, sender, Latin1Data.unsafe("test1"))

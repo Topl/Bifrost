@@ -21,7 +21,7 @@ import co.topl.nodeView.NodeViewTestHelpers.{AccessibleHistory, AccessibleState}
 import co.topl.nodeView._
 import co.topl.nodeView.history.{History, InMemoryKeyValueStore}
 import co.topl.nodeView.mempool.MemPool
-import co.topl.nodeView.state.State
+import co.topl.nodeView.state.BoxState
 import co.topl.rpc.ToplRpcServer
 import co.topl.utils.{TestSettings, TimeProvider}
 import org.scalacheck.Gen
@@ -46,7 +46,7 @@ trait RPCMockState
   type PMOD = Block
   type HIS = History
   type MP = MemPool
-  type ST = State
+  type ST = BoxState
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 
@@ -70,8 +70,6 @@ trait RPCMockState
   protected var keyManagerRef: TestActorRef[KeyManager] = _
   protected var forgerRef: akka.actor.typed.ActorRef[Forger.ReceivableMessage] = _
 
-  protected var consensusHolderRef: akka.actor.typed.ActorRef[NxtConsensus.ReceivableMessage] = _
-  protected var consensusInterface: ConsensusInterface = _
   protected var nodeViewHolderRef: akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage] = _
   protected var accessibleHistory: AccessibleHistory = _
   protected var accessibleState: AccessibleState = _
@@ -93,13 +91,6 @@ trait RPCMockState
       keyManagerRef.underlyingActor.receive(keyRingCurve25519, Some(keyRingCurve25519.addresses.head))
     )
 
-    consensusHolderRef = system.toTyped.systemActorOf(
-      NxtConsensus(settings, InMemoryKeyValueStore.empty),
-      NxtConsensus.actorName
-    )
-
-    consensusInterface = new ActorConsensusInterface(consensusHolderRef)(system.toTyped, 10.seconds)
-
     nodeViewHolderRef = {
       // history is used for block header validation, but blocks are restricted to Curve keys at the moment
       val testGenesisForHistory = GenesisProvider.construct(
@@ -108,7 +99,7 @@ trait RPCMockState
         settings.application.genesis.generated.get.initialDifficulty,
         protocolVersioner.applicable(1).blockVersion
       )
-      accessibleHistory = generateHistory(testGenesisForHistory.block)
+      accessibleHistory = generateHistory(testGenesisForHistory)
 
       // state is used for transaction validation, so we can test transaction of many different key types
       val testGenesisForState = GenesisProvider.construct(
@@ -122,7 +113,6 @@ trait RPCMockState
       system.toTyped.systemActorOf(
         NodeViewHolder(
           settings,
-          consensusInterface,
           () => Future.successful(NodeView(accessibleHistory.history, accessibleState.state, MemPool.empty()))
         ),
         NodeViewHolder.ActorName
@@ -135,8 +125,7 @@ trait RPCMockState
         settings.forging.minTransactionFee,
         settings.forging.forgeOnStartup,
         () => (keyManagerRef ? KeyManager.ReceivableMessages.GetKeyView).mapTo[KeyView],
-        new ActorNodeViewHolderInterface(nodeViewHolderRef)(system.toTyped, implicitly[Timeout]),
-        new ActorConsensusInterface(consensusHolderRef)(system.toTyped, 10.seconds)
+        new ActorNodeViewHolderInterface(nodeViewHolderRef)(system.toTyped, implicitly[Timeout])
       ),
       Forger.ActorName
     )
@@ -146,14 +135,13 @@ trait RPCMockState
       val forgerInterface = new ActorForgerInterface(forgerRef)
       val keyManagerInterface = new ActorKeyManagerInterface(keyManagerRef)
       val nodeViewHolderInterface = new ActorNodeViewHolderInterface(nodeViewHolderRef)
-      val consensusInterface = new ActorConsensusInterface(consensusHolderRef)
 
       import co.topl.rpc.handlers._
       new ToplRpcServer(
         ToplRpcHandlers(
           new DebugRpcHandlerImpls(nodeViewHolderInterface, keyManagerInterface),
           new UtilsRpcHandlerImpls,
-          new NodeViewRpcHandlerImpls(settings.rpcApi, appContext, consensusInterface, nodeViewHolderInterface),
+          new NodeViewRpcHandlerImpls(settings.rpcApi, appContext, nodeViewHolderInterface),
           new TransactionRpcHandlerImpls(nodeViewHolderInterface),
           new AdminRpcHandlerImpls(forgerInterface, keyManagerInterface, nodeViewHolderInterface)
         ),
