@@ -220,7 +220,8 @@ lazy val bifrost = project
     tools,
     scripting,
     eligibilitySimulator,
-    genus
+    genus,
+    levelDbStore
   )
 
 lazy val node = project
