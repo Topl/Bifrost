@@ -329,6 +329,12 @@ object Dependencies {
     catsEffect ++
     mUnitTest
 
+  lazy val levelDbStore: Seq[ModuleID] =
+    levelDb ++
+    cats ++
+    catsEffect ++
+    mUnitTest
+
   lazy val genus: Seq[ModuleID] =
     Seq(
       "com.lightbend.akka" %% "akka-stream-alpakka-mongodb" % "3.0.4",

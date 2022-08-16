@@ -661,6 +661,20 @@ lazy val toplGrpc = project
     munitScalamock % "test->test"
   )
 
+lazy val levelDbStore = project
+  .in(file("level-db-store"))
+  .settings(
+    name := "level-db-store",
+    commonSettings,
+    libraryDependencies ++= Dependencies.levelDb
+  )
+  .dependsOn(
+    byteCodecs,
+    algebras,
+    catsAkka,
+    munitScalamock % "test->test"
+  )
+
 // This module has fallen out of sync with the rest of the codebase and is not currently needed
 //lazy val gjallarhorn = project
 //  .in(file("gjallarhorn"))
