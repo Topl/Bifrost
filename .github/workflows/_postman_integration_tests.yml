@@ -10,7 +10,7 @@ on:
         type: string
       java-versions:
         description: 'List of Java versions to target.'
-        default: 'graalvm-ce-java11@21.1.0'
+        default: '11'
         required: false
         type: string
       preserve-cache-between-runs:

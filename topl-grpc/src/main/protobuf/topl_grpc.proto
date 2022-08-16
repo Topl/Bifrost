@@ -15,6 +15,7 @@ service ToplGrpc {
   rpc FetchTransaction (FetchTransactionReq) returns (FetchTransactionRes);
 
   rpc FetchBlockIdAtHeight (FetchBlockIdAtHeightReq) returns (FetchBlockIdAtHeightRes);
+
 }
 
 message BroadcastTransactionReq {

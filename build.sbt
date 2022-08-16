@@ -82,7 +82,7 @@ lazy val publishSettings = Seq(
 
 lazy val dockerSettings = Seq(
   Docker / packageName := "bifrost-node",
-  dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:java11-21.3.0",
+  dockerBaseImage := "eclipse-temurin:11-jre",
   dockerUpdateLatest := true,
   dockerExposedPorts := Seq(9084, 9085),
   dockerExposedVolumes += "/opt/docker/.bifrost",
