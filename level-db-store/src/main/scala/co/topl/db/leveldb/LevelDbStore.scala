@@ -42,6 +42,9 @@ object LevelDbStore {
         def contains(id: Key): F[Boolean] =
           OptionT(useDb(db => Option(db.get(id.persistedBytes.toArray)))).isDefined
 
+        /**
+         * Use the instance of the DB within a blocking F context
+         */
         private def useDb[R](f: DB => R): F[R] =
           Sync[F].blocking(f(db))
       }
@@ -50,19 +53,28 @@ object LevelDbStore {
   /**
    * Creates an instance of a DB from the given path
    */
-  def makeDb[F[_]: Sync](baseDirectory: Path): F[DB] =
+  def makeDb[F[_]: Sync](
+    baseDirectory:   Path,
+    createIfMissing: Boolean = true,
+    paranoidChecks:  Boolean = true,
+    blockSize:       Int = 4 * 1024 * 1024,
+    cacheSize:       Long = 0,
+    maxOpenFiles:    Int = 10,
+    compressionType: CompressionType = CompressionType.SNAPPY
+  ): F[DB] = {
+    val options = new Options
+    options.createIfMissing(createIfMissing)
+    options.paranoidChecks(paranoidChecks)
+    options.blockSize(blockSize)
+    options.cacheSize(cacheSize)
+    options.maxOpenFiles(maxOpenFiles)
+    options.compressionType(compressionType)
     Sync[F].blocking {
       Files.createDirectories(baseDirectory)
-      val options = new Options
-      options.createIfMissing(true)
-      options.paranoidChecks(true)
-      options.blockSize(4 * 1024 * 1024)
-      options.cacheSize(0)
-      options.maxOpenFiles(10)
-      options.compressionType(CompressionType.SNAPPY)
       org.iq80.leveldb.impl.Iq80DBFactory.factory.open(
         baseDirectory.toFile,
         options
       )
     }
+  }
 }

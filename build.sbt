@@ -666,13 +666,12 @@ lazy val levelDbStore = project
   .settings(
     name := "level-db-store",
     commonSettings,
-    libraryDependencies ++= Dependencies.levelDb
+    libraryDependencies ++= Dependencies.levelDbStore
   )
   .dependsOn(
     byteCodecs,
     algebras,
-    catsAkka,
-    munitScalamock % "test->test"
+    catsAkka
   )
 
 // This module has fallen out of sync with the rest of the codebase and is not currently needed
