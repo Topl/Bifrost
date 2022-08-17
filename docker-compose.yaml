@@ -1,4 +1,4 @@
-version: "3.9"
+version: "3.7"
 
 services:
 
@@ -10,13 +10,13 @@ services:
 
   bifrost:
     image: toplprotocol/bifrost-node
-    command: -s test -c /mnt/local.conf
+    command: --forge --debug -s test -c /mnt/local.conf
     volumes:
-      - ./local.conf:/mnt/local.conf
+      - ./ribn-testing.conf:/mnt/local.conf
 
   genus:
     image: toplprotocol/bifrost-node
-    command: genus -m "mongodb://mongo" -p 8089
+    command: genus -m "mongodb://mongo" -p 8089 --disableAuth true
     ports:
       - 8089:8089
 
