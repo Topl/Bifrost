@@ -42,7 +42,7 @@ class AssetValueOps(private val assetValue: AssetValue) extends AnyVal {
           .leftMap[ToAssetOutputFailure](error =>
             ToAssetOutputFailures.InvalidShortName(assetValue.assetCode.shortName)
           )
-      assetCode = Box.Values.Asset.Code(assetValue.assetCode.version, issuer, shortName)
+      assetCode = Box.Values.AssetV1.Code(assetValue.assetCode.version, issuer, shortName)
       assetCode <-
         assetValue.assetCode.toTetraAssetCode
           .leftMap {
@@ -57,7 +57,7 @@ class AssetValueOps(private val assetValue: AssetValue) extends AnyVal {
             .max[Latin1Data, Lengths.`127`.type](Latin1Data.fromData(data.value))
             .leftMap[ToAssetOutputFailure](error => ToAssetOutputFailures.InvalidMetadata(data, error))
         )
-      asset = Box.Values.Asset(quantity, assetCode, securityRoot, metadata)
+      asset = Box.Values.AssetV1(quantity, assetCode, securityRoot, metadata)
     } yield Transaction.Output(address, asset, minting)
 }
 

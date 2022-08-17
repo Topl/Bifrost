@@ -16,16 +16,22 @@ object Box {
     case class Poly(quantity: Int128) extends Value
     case class Arbit(quantity: Int128) extends Value
 
-    // TODO: AssetV1
-    case class Asset(
+    case class AssetV1(
       quantity:     Int128,
-      assetCode:    Asset.Code,
-      securityRoot: Sized.Strict[Bytes, Lengths.`32`.type],
-      metadata:     Option[Sized.Max[Latin1Data, Lengths.`127`.type]]
+      assetCode:    AssetV1.Code,
+      securityRoot: AssetV1.SecurityRoot,
+      metadata:     Option[AssetV1.Metadata]
     ) extends Value
 
-    object Asset {
-      case class Code(version: Byte, issuer: SpendingAddress, shortName: Sized.Max[Latin1Data, Lengths.`8`.type])
+    object AssetV1 {
+      case class Code(version: Byte, issuer: SpendingAddress, shortName: Code.ShortName)
+
+      object Code {
+        type ShortName = Sized.Max[Latin1Data, Lengths.`8`.type]
+      }
+
+      type SecurityRoot = Sized.Strict[Bytes, Lengths.`32`.type]
+      type Metadata = Sized.Max[Latin1Data, Lengths.`127`.type]
     }
 
     sealed abstract class Registration extends Value

@@ -384,7 +384,7 @@ object TransferBuilder {
           .map(assetCode =>
             Transaction.Output(
               consolidationAddress,
-              TetraBox.Values.Asset(asset._2.toSized, assetCode, Sized.strictUnsafe(Bytes.fill(32)(0: Byte)), None),
+              TetraBox.Values.AssetV1(asset._2.toSized, assetCode, Sized.strictUnsafe(Bytes.fill(32)(0: Byte)), None),
               minting
             )
           )

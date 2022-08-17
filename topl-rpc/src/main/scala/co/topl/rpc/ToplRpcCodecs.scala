@@ -8,7 +8,7 @@ import co.topl.codecs.json.tetra.ModelsJsonCodecs
 import co.topl.models.utility.Lengths
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.HasLength.instances._
-import co.topl.models.{NetworkPrefix => TetraNetworkPrefix, TransactionData}
+import co.topl.models.{NetworkPrefix => TetraNetworkPrefix, Transaction => TetraTransaction}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.builder.{BoxSelectionAlgorithm, BoxSelectionAlgorithms}
@@ -144,7 +144,7 @@ trait TransactionRpcParamsEncoders extends SharedCodecs {
         "fee"           -> t.fee.asJson,
         "changeAddress" -> t.changeAddress.asJson,
         "data" -> t.data.asJson(
-          Encoder.encodeOption[TransactionData](
+          Encoder.encodeOption[TetraTransaction.Data](
             sizedMaxEncoder[co.topl.models.utility.StringDataTypes.Latin1Data, Lengths.`127`.type]
           )
         ),

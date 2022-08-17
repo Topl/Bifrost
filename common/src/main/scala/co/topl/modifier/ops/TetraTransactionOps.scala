@@ -33,15 +33,15 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
       tx                  <-
         // use the first proposition type and first coin output type to derive what the Dion transfer type will be
         (expectedProposition, headOutput.value) match {
-          case (_: Propositions.Knowledge.Curve25519, _: TetraBox.Values.Poly)     => asPolyTransferCurve
-          case (_: Propositions.Knowledge.Curve25519, _: TetraBox.Values.Arbit)    => asArbitTransferCurve
-          case (_: Propositions.Knowledge.Curve25519, _: TetraBox.Values.Asset)    => asAssetTransferCurve
-          case (_: Propositions.Knowledge.Ed25519, _: TetraBox.Values.Poly)        => asPolyTransferEd
-          case (_: Propositions.Knowledge.Ed25519, _: TetraBox.Values.Arbit)       => asArbitTransferEd
-          case (_: Propositions.Knowledge.Ed25519, _: TetraBox.Values.Asset)       => asAssetTransferEd
-          case (_: Propositions.Compositional.Threshold, _: TetraBox.Values.Poly)  => asPolyTransferThreshold
-          case (_: Propositions.Compositional.Threshold, _: TetraBox.Values.Arbit) => asArbitTransferThreshold
-          case (_: Propositions.Compositional.Threshold, _: TetraBox.Values.Asset) => asAssetTransferThreshold
+          case (_: Propositions.Knowledge.Curve25519, _: TetraBox.Values.Poly)       => asPolyTransferCurve
+          case (_: Propositions.Knowledge.Curve25519, _: TetraBox.Values.Arbit)      => asArbitTransferCurve
+          case (_: Propositions.Knowledge.Curve25519, _: TetraBox.Values.AssetV1)    => asAssetTransferCurve
+          case (_: Propositions.Knowledge.Ed25519, _: TetraBox.Values.Poly)          => asPolyTransferEd
+          case (_: Propositions.Knowledge.Ed25519, _: TetraBox.Values.Arbit)         => asArbitTransferEd
+          case (_: Propositions.Knowledge.Ed25519, _: TetraBox.Values.AssetV1)       => asAssetTransferEd
+          case (_: Propositions.Compositional.Threshold, _: TetraBox.Values.Poly)    => asPolyTransferThreshold
+          case (_: Propositions.Compositional.Threshold, _: TetraBox.Values.Arbit)   => asArbitTransferThreshold
+          case (_: Propositions.Compositional.Threshold, _: TetraBox.Values.AssetV1) => asAssetTransferThreshold
           case (prop, output) =>
             ToDionTxFailures.InvalidTransferType(prop, headOutput).asLeft[DionTransaction.TX]
         }
@@ -335,7 +335,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
   private def assetOutputs: Either[ToDionTxFailure, Chain[(Address, TokenValueHolder)]] =
     transaction.outputs
       .traverse[ToDionTxResult, (Address, TokenValueHolder)] {
-        case Transaction.Output(address, asset: TetraBox.Values.Asset, _) =>
+        case Transaction.Output(address, asset: TetraBox.Values.AssetV1, _) =>
           (
             toAddress(address),
             AssetValue(

@@ -30,13 +30,15 @@ case class BlockHeaderV2(
   eligibilityCertificate: EligibilityCertificate,
   operationalCertificate: OperationalCertificate,
   // TODO: Discussion on mint signatures
-  metadata: Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
+  metadata: Option[BlockHeaderV2.Metadata],
   address:  StakingAddresses.Operator
 ) {
   def parentSlotId: SlotId = SlotId(parentSlot, parentHeaderId)
 }
 
 object BlockHeaderV2 {
+
+  type Metadata = Sized.Max[Latin1Data, Lengths.`32`.type]
 
   case class Unsigned(
     parentHeaderId:                TypedIdentifier,

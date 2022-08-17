@@ -226,10 +226,10 @@ trait TetraScodecBoxCodecs {
   implicit val boxValuesArbitCodec: Codec[Box.Values.Arbit] =
     int128Codec.as[Box.Values.Arbit]
 
-  implicit val boxValuesAssetCodec: Codec[Box.Values.Asset] =
-    (Codec[Int128] :: Codec[Box.Values.Asset.Code] :: Codec[Sized.Strict[Bytes, Lengths.`32`.type]] :: Codec[Option[
+  implicit val boxValuesAssetCodec: Codec[Box.Values.AssetV1] =
+    (Codec[Int128] :: Codec[Box.Values.AssetV1.Code] :: Codec[Sized.Strict[Bytes, Lengths.`32`.type]] :: Codec[Option[
       Sized.Max[Latin1Data, Lengths.`127`.type]
-    ]]).as[Box.Values.Asset]
+    ]]).as[Box.Values.AssetV1]
 
   implicit val boxValuesPoolRegistrationCodec: Codec[Box.Values.Registrations.Operator] =
     Codec[Proofs.Knowledge.KesProduct].as[Box.Values.Registrations.Operator]
@@ -417,7 +417,7 @@ trait TetraScodecTransactionCodecs {
       Codec[Chain[Transaction.Input]] ::
         Codec[Chain[Transaction.Output]] ::
         Codec[Transaction.Chronology] ::
-        Codec[Option[TransactionData]]
+        Codec[Option[Transaction.Data]]
     ).as[Transaction]
 
   implicit val unprovenTransactionCodec: Codec[Transaction.Unproven] =
@@ -425,7 +425,7 @@ trait TetraScodecTransactionCodecs {
       Codec[Chain[Transaction.Unproven.Input]] ::
         Codec[Chain[Transaction.Output]] ::
         Codec[Transaction.Chronology] ::
-        Codec[Option[TransactionData]]
+        Codec[Option[Transaction.Data]]
     ).as[Transaction.Unproven]
 }
 

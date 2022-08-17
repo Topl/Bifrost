@@ -332,17 +332,17 @@ trait ModelGenerators {
   val arbitraryPositiveInt128: Arbitrary[Int128] =
     Arbitrary(Gen.posNum[Long].map(BigInt(_)).map(Sized.maxUnsafe[BigInt, Lengths.`128`.type](_)))
 
-  implicit val arbitraryAssetCode: Arbitrary[Box.Values.Asset.Code] =
+  implicit val arbitraryAssetCode: Arbitrary[Box.Values.AssetV1.Code] =
     Arbitrary(
       for {
         version   <- byteGen
         issuer    <- arbitrarySpendingAddress.arbitrary
         shortName <- latin1DataGen.map(data => Latin1Data.unsafe(data.value.take(8)))
-        code = Box.Values.Asset.Code(version, issuer, Sized.maxUnsafe(shortName))
+        code = Box.Values.AssetV1.Code(version, issuer, Sized.maxUnsafe(shortName))
       } yield code
     )
 
-  implicit val arbitraryAssetBox: Arbitrary[Box.Values.Asset] =
+  implicit val arbitraryAssetBox: Arbitrary[Box.Values.AssetV1] =
     Arbitrary(
       for {
         quantity <- arbitraryPositiveInt128.arbitrary
@@ -354,7 +354,7 @@ trait ModelGenerators {
               .map(data => Latin1Data.unsafe(data.value.take(127)))
               .map(data => Sized.maxUnsafe[Latin1Data, Lengths.`127`.type](data))
           )
-        box = Box.Values.Asset(quantity, code, root, metadata)
+        box = Box.Values.AssetV1(quantity, code, root, metadata)
       } yield box
     )
 

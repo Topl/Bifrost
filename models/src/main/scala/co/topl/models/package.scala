@@ -13,7 +13,6 @@ import scala.language.implicitConversions
 package object models {
   type Bytes = ByteVector
   val Bytes = ByteVector
-  type BoxNonce = Long
   type Eta = Sized.Strict[Bytes, Lengths.`32`.type]
   type Evidence = Sized.Strict[Bytes, Lengths.`32`.type]
 
@@ -39,9 +38,7 @@ package object models {
   @newtype case class Rho(sizedBytes: Sized.Strict[Bytes, Lengths.`64`.type])
   @newtype case class RhoTestHash(sizedBytes: Sized.Strict[Bytes, Lengths.`64`.type])
   @newtype case class RhoNonceHash(sizedBytes: Sized.Strict[Bytes, Lengths.`64`.type])
-  type StakeAddress = Propositions.Knowledge.Ed25519
   type Digest32 = Sized.Strict[Bytes, Lengths.`32`.type]
-  type TransactionData = Sized.Max[Latin1Data, Lengths.`127`.type]
 
   case class SlotId(slot: Slot, blockId: TypedIdentifier)
 

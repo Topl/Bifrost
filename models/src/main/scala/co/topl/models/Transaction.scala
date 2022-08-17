@@ -1,15 +1,19 @@
 package co.topl.models
 
 import cats.data.Chain
+import co.topl.models.utility.StringDataTypes.Latin1Data
+import co.topl.models.utility.{Lengths, Sized}
 
 case class Transaction(
   inputs:     Chain[Transaction.Input],
   outputs:    Chain[Transaction.Output],
   chronology: Transaction.Chronology,
-  data:       Option[TransactionData]
+  data:       Option[Transaction.Data]
 )
 
 object Transaction {
+
+  type Data = Sized.Max[Latin1Data, Lengths.`127`.type]
 
   /**
    * @param transactionOutputIndex TODO: How does the network behave if we allow a huge number of outputs in a transaction?
@@ -34,7 +38,7 @@ object Transaction {
     inputs:     Chain[Transaction.Unproven.Input],
     outputs:    Chain[Transaction.Output],
     chronology: Chronology,
-    data:       Option[TransactionData]
+    data:       Option[Transaction.Data]
   )
 
   object Unproven {

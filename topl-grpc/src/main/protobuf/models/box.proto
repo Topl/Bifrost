@@ -21,7 +21,7 @@ message BoxValue {
     EmptyBoxValue empty = 1;
     PolyBoxValue poly = 2;
     ArbitBoxValue arbit = 3;
-    DionAssetBoxValue asset = 4;
+    AssetV1BoxValue assetV1 = 4;
     OperatorRegistrationBoxValue operatorRegistration = 5;
   }
 }
@@ -33,19 +33,18 @@ message PolyBoxValue {
 message ArbitBoxValue {
   Int128 quantity = 1;
 }
-message DionAssetBoxValue {
+message AssetV1BoxValue {
   Int128 quantity = 1;
   Code assetCode = 2;
   bytes securityRoot = 3;
-  Metadata metadata = 4;
+  optional bytes metadata = 4;
 
   message Code {
-    int32 version = 1;
+    // See #ProtoByteComment
+    // TODO: Can we delete this because we know it's a V1 Asset?
+    uint32 version = 1;
     SpendingAddress issuerAddress = 2;
     bytes shortName = 3;
-  }
-  message Metadata {
-    bytes metadata = 1;
   }
 }
 message OperatorRegistrationBoxValue {
