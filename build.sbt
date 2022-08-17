@@ -220,7 +220,8 @@ lazy val bifrost = project
     tools,
     scripting,
     eligibilitySimulator,
-    genus
+    genus,
+    levelDbStore
   )
 
 lazy val node = project
@@ -659,6 +660,19 @@ lazy val toplGrpc = project
     catsAkka,
     typeclasses,
     munitScalamock % "test->test"
+  )
+
+lazy val levelDbStore = project
+  .in(file("level-db-store"))
+  .settings(
+    name := "level-db-store",
+    commonSettings,
+    libraryDependencies ++= Dependencies.levelDbStore
+  )
+  .dependsOn(
+    byteCodecs,
+    algebras,
+    catsAkka
   )
 
 // This module has fallen out of sync with the rest of the codebase and is not currently needed

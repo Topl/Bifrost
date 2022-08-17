@@ -10,6 +10,7 @@ object Dependencies {
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.8.0"
   val catsEffectVersion = "3.3.14"
+  val fs2Version = "3.2.12"
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.4.0"
@@ -165,6 +166,9 @@ object Dependencies {
   val mainargs = Seq(
     "com.lihaoyi" %% "mainargs" % "0.2.3"
   )
+
+  val fs2Core = "co.fs2" %% "fs2-core" % fs2Version
+  val fs2IO = "co.fs2"   %% "fs2-io"   % fs2Version
 
   val node: Seq[ModuleID] =
     Seq(
@@ -328,6 +332,13 @@ object Dependencies {
     cats ++
     catsEffect ++
     mUnitTest
+
+  lazy val levelDbStore: Seq[ModuleID] =
+    levelDb ++
+    cats ++
+    catsEffect ++
+    mUnitTest ++
+    Seq(fs2Core % Test, fs2IO % Test)
 
   lazy val genus: Seq[ModuleID] =
     Seq(
