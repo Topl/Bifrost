@@ -233,6 +233,15 @@ trait TetraScodecCodecs {
       }
       .as[EligibilityCertificate]
 
+  implicit val operationalCertificateCodec: Codec[OperationalCertificate] =
+    (vkKesProductCodec :: proofSignatureKesProductCodec :: vkEd25519Codec :: proofSignatureEd25519Codec)
+      .xmapc { case vkKes :: proofForChild :: vkChild :: signatureChild :: HNil =>
+        OperationalCertificate(vkKes, proofForChild, vkChild, signatureChild)
+      } { t =>
+        HList(t.parentVK, t.parentSignature, t.childVK, t.childSignature)
+      }
+      .as[OperationalCertificate]
+
   implicit val partialOperationalCertificateCodec: Codec[BlockHeaderV2.Unsigned.PartialOperationalCertificate] =
     (vkKesProductCodec :: proofSignatureKesProductCodec :: vkEd25519Codec)
       .xmapc { case vkKes :: proofForChild :: vkChild :: HNil =>
@@ -248,7 +257,44 @@ trait TetraScodecCodecs {
         HList(a.paymentVKEvidence, a.poolVK, a.signature)
       )
 
-  implicit val blockHeaderV2Codec: Codec[BlockHeaderV2] = Codec.lazily(???)
+  implicit val blockHeaderV2Codec: Codec[BlockHeaderV2] =
+    (typedBytesCodec :: longCodec :: Codec[TxRoot] :: Codec[
+      BloomFilter
+    ] :: longCodec :: longCodec :: longCodec :: eligibilityCertificateCodec :: operationalCertificateCodec :: optionCodec(
+      maxSizedCodec[Latin1Data, Lengths.`32`.type]
+    ) :: taktikosAddressCodec)
+      .xmapc {
+        case parentHeaderId :: parentSlot :: txRoot :: bloomFilter :: timestamp :: height :: slot :: eligibilityCertificate :: operationalCertificate :: metadata :: address :: _ =>
+          BlockHeaderV2(
+            parentHeaderId,
+            parentSlot,
+            txRoot,
+            bloomFilter,
+            timestamp,
+            height,
+            slot,
+            eligibilityCertificate,
+            operationalCertificate,
+            metadata,
+            address
+          )
+      }(t =>
+        HList(
+          t.parentHeaderId,
+          t.parentSlot,
+          t.txRoot,
+          t.bloomFilter,
+          t.timestamp,
+          t.height,
+          t.slot,
+          t.eligibilityCertificate,
+          t.operationalCertificate,
+          t.metadata,
+          t.address
+        )
+      )
+
+  implicit val slotDataCodec: Codec[SlotData] = Codec.lazily(???)
 
   implicit val unsignedBlockHeaderV2Codec: Codec[BlockHeaderV2.Unsigned] =
     (typedBytesCodec :: longCodec :: Codec[TxRoot] :: Codec[
@@ -287,9 +333,12 @@ trait TetraScodecCodecs {
         )
       )
 
-  implicit val blockBodyV2Codec: Codec[BlockBodyV2] = Codec.lazily(???)
+  implicit val blockBodyV2Codec: Codec[BlockBodyV2] = listCodec
 
   implicit val transactionCodec: Codec[Transaction] = Codec.lazily(???)
+
+  implicit val taktikosRegistrationBoxCodec: Codec[Box.Values.TaktikosRegistration] =
+    Codec[Proofs.Knowledge.KesProduct].xmap(Box.Values.TaktikosRegistration(_), _.commitment)
 
   implicit val boxCodec: Codec[Box[_]] = Codec.lazily(???)
 }

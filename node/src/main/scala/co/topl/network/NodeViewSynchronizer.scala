@@ -33,8 +33,7 @@ import scala.util.{Failure, Success, Try}
 class NodeViewSynchronizer(
   networkControllerRef:  ActorRef,
   viewHolderRef:         akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage],
-  settings:              AppSettings,
-  appContext:            AppContext
+  settings:              AppSettings
 )(implicit timeProvider: TimeProvider)
     extends Synchronizer
     with Logging {
@@ -452,13 +451,11 @@ class NodeViewSynchronizer(
     import akka.actor.typed.scaladsl.adapter._
     implicit val typedSender: typed.ActorRef[Any] = context.self.toTyped
     typeId match {
-      // @unchecked because `typeId == Transaction.modifierTypeId` indicates the serializer type
       case Transaction.modifierTypeId =>
         /** parse all transactions and send them to node view holder */
         val parsed = parseModifiers[Transaction.TX](requestedModifiers, remote)
         viewHolderRef.tell(NodeViewHolder.ReceivableMessages.WriteTransactions(parsed))
 
-      // @unchecked because `typeId == Transaction.modifierTypeId` indicates the serializer type
       case Block.modifierTypeId =>
         /** parse all modifiers and put them to modifiers cache */
         val parsed = parseModifiers[Block](requestedModifiers, remote)
@@ -656,9 +653,8 @@ object NodeViewSynchronizerRef {
   def props(
     networkControllerRef:  ActorRef,
     viewHolderRef:         akka.actor.typed.ActorRef[NodeViewHolder.ReceivableMessage],
-    settings:              AppSettings,
-    appContext:            AppContext
+    settings:              AppSettings
   )(implicit timeProvider: TimeProvider): Props =
-    Props(new NodeViewSynchronizer(networkControllerRef, viewHolderRef, settings, appContext))
+    Props(new NodeViewSynchronizer(networkControllerRef, viewHolderRef, settings))
 
 }

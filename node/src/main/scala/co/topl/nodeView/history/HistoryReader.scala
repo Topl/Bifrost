@@ -1,11 +1,12 @@
 package co.topl.nodeView.history
 
+import co.topl.consensus.NxtConsensus
 import co.topl.modifier.block.{Block, PersistentNodeViewModifier}
 import co.topl.modifier.transaction.Transaction
 import co.topl.modifier.{ContainsModifiers, ModifierId}
 import co.topl.network.SyncInfo
 import co.topl.nodeView.NodeViewComponent
-import co.topl.nodeView.history.GenericHistory.{HistoryComparisonResult, ModifierIds}
+import co.topl.nodeView.history.GenericHistory.{HistoryComparisonResult, TypedModifierIds}
 import co.topl.utils.TimeProvider
 
 import scala.util.Try
@@ -16,9 +17,11 @@ trait HistoryReader[PM <: PersistentNodeViewModifier, SI <: SyncInfo]
 
   def height: Long
   def bestBlock: PM
-  def difficulty: Long
   def bestBlockId: ModifierId
-  def score: Long
+
+  def consensusStateAt(
+    blockId: ModifierId
+  ): Either[HistoryFailures.StorageReadFailure, NxtConsensus.State]
 
   /**
    * Is there's no history, even genesis block
@@ -59,7 +62,7 @@ trait HistoryReader[PM <: PersistentNodeViewModifier, SI <: SyncInfo]
   /**
    * Ids of modifiers, that node with info should download and apply to synchronize
    */
-  def continuationIds(info: SI, size: Int): ModifierIds
+  def continuationIds(info: SI, size: Int): TypedModifierIds
 
   /**
    * Information about our node synchronization status. Other node should be able to compare it's view with ours by
@@ -103,4 +106,10 @@ trait HistoryReader[PM <: PersistentNodeViewModifier, SI <: SyncInfo]
    *         (None only if the parent for a block was not found) starting from the original `m`
    */
   def getIdsFrom(startBlock: Block, until: Block => Boolean, limit: Int): Option[Seq[ModifierId]]
+}
+
+sealed abstract class HistoryFailure
+
+object HistoryFailures {
+  case class StorageReadFailure(reason: Throwable) extends HistoryFailure
 }

@@ -176,4 +176,10 @@ class TetraScodecCodecsSpec extends CodecSpec {
     TetraScodecCodecs.unsignedBlockHeaderV2Codec,
     ModelGenerators.unsignedHeaderGen()
   )
+
+  codecBehavior[BlockHeaderV2](
+    "BlockHeaderV2",
+    TetraScodecCodecs.blockHeaderV2Codec,
+    ModelGenerators.headerGen()
+  )
 }

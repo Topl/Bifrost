@@ -5,7 +5,7 @@ services:
     build: ../../../../target/docker/stage
     ports:
       - 9085:9085
-    command: -s test --apiKeyHash As3ZuwnL9LpoW3wz8HoDpHtZqJ4dhPFFnv87GYrnCYKj
+    command: -s test -f --apiKeyHash As3ZuwnL9LpoW3wz8HoDpHtZqJ4dhPFFnv87GYrnCYKj
 
   assistant:
     image: toplprotocol/postman-integration-testing-server
@@ -26,6 +26,7 @@ services:
     volumes:
       - ./postman_env.json:/mnt/postman_env.json
       - ./wait-for-it.sh:/mnt/wait-for-it.sh
+      - ./target/test-results:/etc/newman
     links:
       - assistant
       - bifrost
@@ -35,3 +36,5 @@ services:
       newman
       run https://www.getpostman.com/collections/3468057a1009eebc86bf
       -e /mnt/postman_env.json
+      --reporters junit
+      --reporter-junit-export="postman-integration-tests-report.xml"

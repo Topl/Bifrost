@@ -17,6 +17,7 @@ object ToplRpcHandlers {
     def myBlocks: ToplRpc.Debug.MyBlocks.rpc.ServerHandler
     def generators: ToplRpc.Debug.Generators.rpc.ServerHandler
     def idsFromHeight: ToplRpc.Debug.IdsFromHeight.rpc.ServerHandler
+    def exportGenesisBlob: ToplRpc.Debug.ExportGenesisBlob.rpc.ServerHandler
   }
 
   trait Utils {
@@ -50,7 +51,11 @@ object ToplRpcHandlers {
     def rawAssetTransfer: ToplRpc.Transaction.RawAssetTransfer.rpc.ServerHandler
     def rawArbitTransfer: ToplRpc.Transaction.RawArbitTransfer.rpc.ServerHandler
     def rawPolyTransfer: ToplRpc.Transaction.RawPolyTransfer.rpc.ServerHandler
+    def unprovenPolyTransfer: ToplRpc.Transaction.UnprovenPolyTransfer.rpc.ServerHandler
+    def unprovenArbitTransfer: ToplRpc.Transaction.UnprovenArbitTransfer.rpc.ServerHandler
+    def unprovenAssetTransfer: ToplRpc.Transaction.UnprovenAssetTransfer.rpc.ServerHandler
     def broadcastTx: ToplRpc.Transaction.BroadcastTx.rpc.ServerHandler
+    def broadcastTetraTransfer: ToplRpc.Transaction.BroadcastTetraTransfer.rpc.ServerHandler
     def encodeTransfer: ToplRpc.Transaction.EncodeTransfer.rpc.ServerHandler
   }
 

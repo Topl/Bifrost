@@ -125,18 +125,21 @@ class NetworkController(
 
   private def businessLogic: Receive = {
     /** a message was RECEIVED from a remote peer */
-    case TransmissionReceived(transmission, Some(peer)) =>
-      /** update last seen time for the peer sending us this message */
-      updatePeerStatus(peer)
+    case TransmissionReceived(transmission) =>
+      connectionForHandler(sender())
+        .foreach { connectedPeer =>
+          /** update last seen time for the peer sending us this message */
+          updatePeerStatus(connectedPeer.connectionId.remoteAddress)
 
-      Either
-        .fromOption(
-          messageHandlers.get(transmission.header.code),
-          s"No handlers found for message $peer: ${transmission.header.code}"
-        ) match {
-        case Right(handler) => handler ! Synchronizer.TransmissionReceived(transmission, peer)
-        case Left(error)    => log.error(error)
-      }
+          Either
+            .fromOption(
+              messageHandlers.get(transmission.header.code),
+              s"No handlers found for message from $connectedPeer: ${transmission.header.code}"
+            ) match {
+            case Right(handler) => handler ! Synchronizer.TransmissionReceived(transmission, connectedPeer)
+            case Left(error)    => log.error(error)
+          }
+        }
 
     /** a message to be SENT to a remote peer */
     case SendToNetwork(transmission, messageVersion, sendingStrategy) =>
@@ -353,24 +356,22 @@ class NetworkController(
    *
    * @param remote a connected peer that sent a message
    */
-  private def updatePeerStatus(remote: ConnectedPeer): Unit = {
-    val remoteAddress = remote.connectionId.remoteAddress
-    connections.get(remoteAddress) match {
+  private def updatePeerStatus(remote: InetSocketAddress): Unit =
+    connections.get(remote) match {
       case Some(cp) =>
         cp.peerInfo match {
           case Some(pi) =>
             val now = networkTime()
             lastIncomingMessageTime = now
-            connections += remoteAddress -> cp.copy(peerInfo = Some(pi.copy(lastSeen = now)))
+            connections += remote -> cp.copy(peerInfo = Some(pi.copy(lastSeen = now)))
 
           case None =>
-            log.warn("Peer info not found for a message received from: " + remoteAddress)
+            log.warn("Peer info not found for a message received from: " + remote)
         }
 
       case None =>
-        log.warn("Connection not found for a message received from: " + remoteAddress)
+        log.warn("Connection not found for a message received from: " + remote)
     }
-  }
 
   /**
    * Saves a new peer into the database
@@ -597,7 +598,7 @@ object NetworkController {
 
     case object BindP2P
 
-    case class TransmissionReceived(transmission: Transmission, connectedPeer: Option[ConnectedPeer])
+    case class TransmissionReceived(transmission: Transmission)
   }
 }
 

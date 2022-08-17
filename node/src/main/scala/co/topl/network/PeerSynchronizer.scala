@@ -1,6 +1,6 @@
 package co.topl.network
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import co.topl.network.NetworkController.ReceivableMessages.{PenalizePeer, RegisterMessages, SendToNetwork}
@@ -8,8 +8,8 @@ import co.topl.network.PeerManager.ReceivableMessages.{AddPeerIfEmpty, RecentlyS
 import co.topl.network.message.Messages.MessagesV1
 import co.topl.network.message.{Message, MessageCode, Transmission}
 import co.topl.network.peer.{ConnectedPeer, PeerInfo, PeerMetadata, PenaltyType}
-import co.topl.settings.{AppContext, AppSettings}
-import co.topl.utils.Logging
+import co.topl.settings.AppSettings
+import co.topl.utils.{Logging, TimeProvider}
 import shapeless.syntax.typeable._
 
 import scala.concurrent.duration._
@@ -19,8 +19,7 @@ import scala.language.postfixOps
 class PeerSynchronizer(
   networkControllerRef: ActorRef,
   peerManager:          ActorRef,
-  settings:             AppSettings,
-  appContext:           AppContext
+  settings:             AppSettings
 ) extends Synchronizer
     with Logging {
 
@@ -120,20 +119,11 @@ object PeerSynchronizer {
 
 object PeerSynchronizerRef {
 
-  def apply(
-    name:                 String,
-    networkControllerRef: ActorRef,
-    peerManager:          ActorRef,
-    settings:             AppSettings,
-    appContext:           AppContext
-  )(implicit system:      ActorSystem): ActorRef =
-    system.actorOf(props(networkControllerRef, peerManager, settings, appContext), name)
-
   def props(
-    networkControllerRef: ActorRef,
-    peerManager:          ActorRef,
-    settings:             AppSettings,
-    appContext:           AppContext
-  ): Props =
-    Props(new PeerSynchronizer(networkControllerRef, peerManager, settings, appContext))
+    networkControllerRef:  ActorRef,
+    peerManager:           ActorRef,
+    settings:              AppSettings
+  )(implicit timeProvider: TimeProvider): Props =
+    Props(new PeerSynchronizer(networkControllerRef, peerManager, settings))
+
 }

@@ -47,8 +47,6 @@ class PeerConnectionHandler(
   /** there is no recovery for broken connections */
   override val supervisorStrategy: SupervisorStrategy = SupervisorStrategy.stoppingStrategy
 
-  private var selfPeer: Option[ConnectedPeer] = None
-
   private var handshakeTimeoutCancellableOpt: Option[Cancellable] = None
 
   private var chunksBuffer: ByteString = CompactByteString.empty
@@ -136,7 +134,7 @@ class PeerConnectionHandler(
 
         /** ban the peer for the wrong handshake message */
         /** peer will be added to the blacklist and the network controller will send CloseConnection */
-        selfPeer.foreach(c => networkControllerRef ! PenalizePeer(c.connectionId.remoteAddress, PermanentPenalty))
+        networkControllerRef ! PenalizePeer(this.connectionId.remoteAddress, PermanentPenalty)
     }
   }
 
@@ -272,8 +270,6 @@ class PeerConnectionHandler(
       timeProvider.time,
       Some(direction)
     )
-    val peer = ConnectedPeer(connectionDescription.connectionId, self, Some(peerInfo))
-    selfPeer = Some(peer)
 
     networkControllerRef ! Handshaked(peerInfo)
     handshakeTimeoutCancellableOpt.map(_.cancel())
@@ -321,7 +317,7 @@ class PeerConnectionHandler(
   private def handleTransmission(transmission: Transmission): Unit = {
     log.info("Received message " + transmission.header.code + " from " + connectionId)
 
-    networkControllerRef ! NetworkController.ReceivableMessages.TransmissionReceived(transmission, selfPeer)
+    networkControllerRef ! NetworkController.ReceivableMessages.TransmissionReceived(transmission)
 
     chunksBuffer = chunksBuffer.drop(
       Transmission.headerLength +

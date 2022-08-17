@@ -1,10 +1,12 @@
 package co.topl.settings
 
+import co.topl.consensus.GenesisProvider
 import co.topl.network.utils.NetworkTimeProviderSettings
 import co.topl.utils.Logging
 import com.typesafe.config.{Config, ConfigFactory}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
+import net.ceedubs.ficus.readers.EnumerationReader._
 
 import java.io.File
 import java.net.InetSocketAddress
@@ -15,12 +17,11 @@ case class ApplicationSettings(
   cacheSize:        Int,
   dataDir:          Option[String],
   keyFileDir:       Option[String],
-  enablePBR:        Boolean,
-  enableTBR:        Boolean,
   mempoolTimeout:   FiniteDuration,
   nodeKeys:         Option[Set[String]],
   rebroadcastCount: Int,
-  version:          Version
+  version:          Version,
+  genesis:          GenesisSettings
 )
 
 case class RPCApiSettings(
@@ -73,20 +74,36 @@ case class NetworkSettings(
 )
 
 case class ForgingSettings(
-  blockGenerationDelay: FiniteDuration,
-  minTransactionFee:    Long,
-  protocolVersions:     List[ProtocolSettings],
-  forgeOnStartup:       Boolean,
-  rewardsAddress:       Option[String], // String here since we don't know netPrefix when settings are read
-  privateTestnet:       Option[PrivateTestnetSettings]
+  blockGenerationDelay:      FiniteDuration,
+  minTransactionFee:         Long,
+  protocolVersions:          List[ProtocolSettings],
+  forgeOnStartup:            Boolean,
+  rewardsAddress:            Option[String], // String here since we don't know netPrefix when settings are read
+  addressGenerationSettings: AddressGenerationSettings
 )
 
-case class PrivateTestnetSettings(
-  numTestnetAccts:   Int,
-  testnetBalance:    Long,
-  initialDifficulty: Long,
-  genesisSeed:       Option[String]
+case class AddressGenerationSettings(
+  numberOfAddresses: Int,
+  strategy:          AddressGenerationStrategies.Value,
+  addressSeedOpt:    Option[String]
 )
+
+object AddressGenerationStrategies extends Enumeration {
+  val FromSeed: AddressGenerationStrategies.Value = Value("fromSeed")
+  val Random: AddressGenerationStrategies.Value = Value("random")
+  val None: AddressGenerationStrategies.Value = Value("none")
+}
+
+case class GenesisSettings(
+  strategy:      GenesisStrategies.Value,
+  generated:     Option[GenesisProvider.Strategies.Generation],
+  fromBlockJson: Option[GenesisProvider.Strategies.FromBlockJson]
+)
+
+object GenesisStrategies extends Enumeration {
+  val Generated: GenesisStrategies.Value = Value("generated")
+  val FromBlockJson: GenesisStrategies.Value = Value("fromBlockJson")
+}
 
 case class GjallarhornSettings(
   enableWallet:   Boolean,
@@ -130,9 +147,9 @@ object AppSettings extends Logging with SettingsReaders {
    * @return application settings
    */
   def read(startupOpts: StartupOpts = StartupOpts()): (AppSettings, Config) = {
-    val config = readConfig(startupOpts)
-    val settingFromConfig = fromConfig(config)
-    val completeConfig = clusterConfig(settingFromConfig, config)
+    val config: Config = readConfig(startupOpts)
+    val settingFromConfig: AppSettings = fromConfig(config)
+    val completeConfig: Config = clusterConfig(settingFromConfig, config)
     (startupOpts.runtimeParams.overrideWithCmdArgs(settingFromConfig), completeConfig)
   }
 
@@ -142,7 +159,7 @@ object AppSettings extends Logging with SettingsReaders {
    * @param config config factory compatible configuration
    * @return application settings
    */
-  def fromConfig(config: Config): AppSettings = config.as[AppSettings](configPath)
+  private def fromConfig(config: Config): AppSettings = config.as[AppSettings](configPath)
 
   /**
    * Based on the startup arguments given by the user, modify and return the default application config
@@ -150,7 +167,13 @@ object AppSettings extends Logging with SettingsReaders {
    * @param args startup options such as the path of the user defined config and network type
    * @return config factory compatible configuration
    */
-  def readConfig(args: StartupOpts): Config = {
+  private def readConfig(args: StartupOpts): Config = {
+
+    log.info(s"${Console.YELLOW}Loading environment.conf settings${Console.RESET}")
+    val environmentConfig = {
+      val base = ConfigFactory.load(this.getClass.getClassLoader, "environment.conf")
+      listConfigFix("bifrost.network.knownPeers")(base)
+    }
 
     val userConfig = args.userConfigPathOpt.fold(ConfigFactory.empty()) { uc =>
       val userFile = new File(uc)
@@ -174,6 +197,7 @@ object AppSettings extends Logging with SettingsReaders {
     // load config files from disk, if the above strings are empty then ConFigFactory will skip loading them
     ConfigFactory
       .defaultOverrides()
+      .withFallback(environmentConfig)
       .withFallback(userConfig)
       .withFallback(networkConfig)
       .withFallback(ConfigFactory.defaultApplication())
@@ -181,7 +205,25 @@ object AppSettings extends Logging with SettingsReaders {
 
   }
 
-  def clusterConfig(settings: AppSettings, config: Config): Config =
+  /**
+   * HOCON allows for _string_ environment variable substitutions.  When dealing with arrays, an extra step must be taken
+   * to re-parse the setting into a list.
+   *
+   * If a String value is not provided at the given path, the original config is returned
+   *
+   * @param path The dot-separated HOCON config path within the provided config
+   * @param config The base configuration to correct
+   * @return An updated configuration
+   */
+  private def listConfigFix(path: String)(config: Config): Config =
+    if (config.hasPath(path)) {
+      // The top-level item of HOCON can't be an array, so embed it inside of a temporary object before extracting
+      val list = ConfigFactory.parseString(s"{tmp = ${config.getString(path)}}").getValue("tmp")
+      // Now overwrite the value in the original config with the newly parsed value
+      config.withValue(path, list)
+    } else config
+
+  private def clusterConfig(settings: AppSettings, config: Config): Config =
     if (settings.gjallarhorn.clusterEnabled) {
       ConfigFactory
         .parseString(s"""

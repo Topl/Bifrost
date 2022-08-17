@@ -1,13 +1,15 @@
 package co.topl.models
 
-import cats.data.NonEmptyChain
-import co.topl.models.Transaction.PolyOutput
+import cats.data.{Chain, NonEmptyChain}
+import co.topl.models.Transaction.{ArbitOutput, AssetOutput, CoinOutput, PolyOutput}
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{KesBinaryTree, Length, Lengths, Ratio, Sized}
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalacheck.rng.Seed
+
+import scala.collection.immutable.ListMap
 
 trait ModelGenerators {
 
@@ -296,9 +298,74 @@ trait ModelGenerators {
   implicit val arbitraryInt128: Arbitrary[Int128] =
     Arbitrary(Gen.long.map(BigInt(_)).map(Sized.maxUnsafe[BigInt, Lengths.`128`.type](_)))
 
+  implicit val arbitraryPositiveInt128: Arbitrary[Int128] =
+    Arbitrary(Gen.posNum[Long].map(Sized.maxUnsafe[BigInt, Lengths.`128`.type](_)))
+
+  implicit val arbitraryAssetCode: Arbitrary[Box.Values.Asset.Code] =
+    Arbitrary(
+      for {
+        version   <- Gen.const(1.toByte)
+        issuer    <- arbitraryDionAddress.arbitrary
+        shortName <- latin1DataGen.map(data => Latin1Data.unsafe(data.value.take(8)))
+        code = Box.Values.Asset.Code(version, issuer, Sized.maxUnsafe(shortName))
+      } yield code
+    )
+
+  implicit val arbitraryAssetBox: Arbitrary[Box.Values.Asset] =
+    Arbitrary(
+      for {
+        quantity <- arbitraryPositiveInt128.arbitrary
+        code     <- arbitraryAssetCode.arbitrary
+        root     <- genSizedStrictBytes[Lengths.`32`.type]().map(_.data)
+        metadata <-
+          Gen.option(
+            latin1DataGen
+              .map(data => Latin1Data.unsafe(data.value.take(127)))
+              .map(data => Sized.maxUnsafe[Latin1Data, Lengths.`127`.type](data))
+          )
+        box = Box.Values.Asset(quantity, code, root, metadata)
+      } yield box
+    )
+
   implicit val arbitraryPolyOutput: Arbitrary[PolyOutput] =
     Arbitrary(
-      arbitraryDionAddress.arbitrary.flatMap(a => arbitraryInt128.arbitrary.map(v => Transaction.PolyOutput(a, v)))
+      arbitraryDionAddress.arbitrary.flatMap(a =>
+        arbitraryPositiveInt128.arbitrary.map(v => Transaction.PolyOutput(a, v))
+      )
+    )
+
+  implicit val arbitraryPolyOutputs: Arbitrary[NonEmptyChain[PolyOutput]] =
+    Arbitrary(
+      Gen
+        .zip(arbitraryPolyOutput.arbitrary, Gen.listOf(arbitraryPolyOutput.arbitrary))
+        .map(polys => NonEmptyChain.one(polys._1).appendChain(Chain.fromSeq(polys._2)))
+    )
+
+  implicit val arbitraryArbitOutput: Arbitrary[ArbitOutput] =
+    Arbitrary(
+      arbitraryDionAddress.arbitrary.flatMap(a =>
+        arbitraryPositiveInt128.arbitrary.map(v => Transaction.ArbitOutput(a, v))
+      )
+    )
+
+  implicit val arbitraryArbitOutputs: Arbitrary[NonEmptyChain[ArbitOutput]] =
+    Arbitrary(
+      Gen
+        .zip(arbitraryArbitOutput.arbitrary, Gen.listOf(arbitraryArbitOutput.arbitrary))
+        .map(arbits => NonEmptyChain.one(arbits._1).appendChain(Chain.fromSeq(arbits._2)))
+    )
+
+  implicit val arbitraryAssetOutput: Arbitrary[AssetOutput] =
+    Arbitrary(
+      for {
+        address <- arbitraryDionAddress.arbitrary
+        value   <- arbitraryAssetBox.arbitrary
+      } yield AssetOutput(address, value)
+    )
+
+  implicit val arbitraryCoinOutput: Arbitrary[CoinOutput] =
+    Arbitrary(
+      Gen.oneOf(arbitraryPolyOutput.arbitrary, arbitraryArbitOutput.arbitrary, arbitraryAssetOutput.arbitrary)
     )
 
   implicit val arbitraryUnprovenTransaction: Arbitrary[Transaction.Unproven] =
@@ -314,6 +381,34 @@ trait ModelGenerators {
         data = None
         minting = false
       } yield Transaction.Unproven(inputs, feeOutput, coinOutputs, fee, timestamp, data, minting)
+    )
+
+  implicit val arbitraryTransaction: Arbitrary[Transaction] =
+    Arbitrary(
+      for {
+        unprovenTx <- arbitraryUnprovenTransaction.arbitrary
+        provenInputs <-
+          Gen
+            .listOfN(
+              unprovenTx.inputs.length,
+              Gen
+                .zip(
+                  genSizedStrictBytes[VerificationKeys.Ed25519.Length]()
+                    .map(x => Propositions.Knowledge.Ed25519(VerificationKeys.Ed25519(x)): Proposition),
+                  genSizedStrictBytes[Proofs.Knowledge.Ed25519.Length]().map(x => Proofs.Knowledge.Ed25519(x): Proof)
+                )
+            )
+            .map(pairs => unprovenTx.inputs.zip(pairs))
+        tx = Transaction(
+          inputs = ListMap(provenInputs: _*),
+          feeOutput = unprovenTx.feeOutput,
+          coinOutputs = unprovenTx.coinOutputs,
+          fee = unprovenTx.fee,
+          timestamp = unprovenTx.timestamp,
+          data = unprovenTx.data,
+          minting = unprovenTx.minting
+        )
+      } yield tx
     )
 
   implicit val arbitraryHeader: Arbitrary[BlockHeaderV2] =

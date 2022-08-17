@@ -7,7 +7,7 @@ import cats.effect.unsafe.implicits.global
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models.ModelGenerators._
 import co.topl.models.utility.Lengths
-import co.topl.models.{Bytes, Rho, SlotId, TypedBytes}
+import co.topl.models._
 import co.topl.typeclasses.OrderT
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues

@@ -4,7 +4,7 @@ import akka.NotUsed
 import akka.stream.scaladsl.Source
 import cats.data.{EitherT, NonEmptyChain}
 import co.topl.genus.algebras.SubscriptionService.{CreateRequest, CreateSubscriptionFailure}
-import co.topl.genus.typeclasses.MongoFilter
+import co.topl.genus.typeclasses.{MongoFilter, WithMaxBlockHeight}
 import co.topl.genus.types.BlockHeight
 
 /**
@@ -20,7 +20,7 @@ trait SubscriptionService[F[_], T] {
    * @param request request parameters for creating a subscription
    * @return either a subscription as a value of [[Source]] or a [[CreateSubscriptionFailure]]
    */
-  def create[Filter: MongoFilter](
+  def create[Filter: MongoFilter: WithMaxBlockHeight](
     request: CreateRequest[Filter]
   ): EitherT[F, CreateSubscriptionFailure, Source[T, NotUsed]]
 }

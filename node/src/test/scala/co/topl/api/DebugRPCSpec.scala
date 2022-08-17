@@ -1,11 +1,43 @@
 package co.topl.api
 
 import akka.util.ByteString
+import cats.data.NonEmptyChain
+import co.topl.modifier.block.Block
+import co.topl.modifier.transaction.Transaction.TX
+import co.topl.nodeView.TestableNodeViewHolder
+import co.topl.nodeView.history.History
+import co.topl.nodeView.state.BoxState
 import io.circe.parser.parse
+import org.scalatest.{EitherValues, OptionValues}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class DebugRPCSpec extends AnyWordSpec with Matchers with RPCMockState {
+class DebugRPCSpec extends AnyWordSpec with Matchers with RPCMockState with EitherValues with OptionValues {
+
+  var blocks: NonEmptyChain[Block] = _
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+
+    val genesisChain = blockchainGen(10).sample.get
+    blocks = genesisChain.tail
+
+    import akka.actor.typed.scaladsl.adapter._
+
+    TestableNodeViewHolder.setNodeView(
+      nodeViewHolderRef,
+      current =>
+        current.copy(
+          history = current.history match {
+            case h: History =>
+              blocks.foldLeft(h)((accHistory, block) => accHistory.append(block, Seq(), genesisChain.head.state).get._1)
+          },
+          state = current.state match {
+            case s: BoxState => blocks.foldLeft(s)((accState, block) => accState.applyModifier(block).get)
+          }
+        )
+    )(system.toTyped)
+  }
 
   "Debug RPC" should {
     "Compute block delay" in {
