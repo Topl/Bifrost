@@ -62,7 +62,7 @@ trait EqInstances {
       a.eta === b.eta &&
       a.height === b.height
 
-  implicit val assetCodeEq: Eq[Box.Values.Asset.Code] =
+  implicit val assetCodeEq: Eq[Box.Values.AssetV1.Code] =
     (a, b) =>
       a.version === b.version &&
       a.issuer === b.issuer &&
@@ -92,7 +92,7 @@ trait EqInstances {
   implicit val arbitBoxValueEq: Eq[Box.Values.Arbit] =
     (a, b) => a.quantity === b.quantity
 
-  implicit val assetBoxValueEq: Eq[Box.Values.Asset] =
+  implicit val assetBoxValueEq: Eq[Box.Values.AssetV1] =
     (a, b) =>
       a.quantity === b.quantity &&
       a.assetCode === b.assetCode &&
@@ -106,7 +106,7 @@ trait EqInstances {
     case (a: Box.Values.Empty.type, b: Box.Values.Empty.type) => emptyBoxValueEq.eqv(a, b)
     case (a: Box.Values.Poly, b: Box.Values.Poly)             => polyBoxValueEq.eqv(a, b)
     case (a: Box.Values.Arbit, b: Box.Values.Arbit)           => arbitBoxValueEq.eqv(a, b)
-    case (a: Box.Values.Asset, b: Box.Values.Asset)           => assetBoxValueEq.eqv(a, b)
+    case (a: Box.Values.AssetV1, b: Box.Values.AssetV1)       => assetBoxValueEq.eqv(a, b)
     case (a: Box.Values.Registrations.Operator, b: Box.Values.Registrations.Operator) =>
       operatorRegistrationBoxValueEq.eqv(a, b)
     case _ => false

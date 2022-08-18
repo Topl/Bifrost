@@ -80,10 +80,10 @@ object TransactionSyntaxValidation {
     transaction.outputs
       .foldMap(output =>
         (output.value match {
-          case t: Box.Values.Poly  => t.quantity.data.some
-          case t: Box.Values.Arbit => t.quantity.data.some
-          case t: Box.Values.Asset => t.quantity.data.some
-          case _                   => none
+          case t: Box.Values.Poly    => t.quantity.data.some
+          case t: Box.Values.Arbit   => t.quantity.data.some
+          case t: Box.Values.AssetV1 => t.quantity.data.some
+          case _                     => none
         }).foldMap(quantity =>
           Validated
             .condNec(
@@ -140,12 +140,12 @@ object TransactionSyntaxValidation {
       // Extract all Asset values (grouped by asset code) and their quantities
       Chain.fromSeq(
         (transaction.inputs.map(_.value) ++ transaction.outputs.map(_.value))
-          .collect { case a: Box.Values.Asset =>
+          .collect { case a: Box.Values.AssetV1 =>
             a.assetCode
           }
           .toList
           .distinct
-          .map(code => f { case a: Box.Values.Asset if a.assetCode === code => a.quantity.data })
+          .map(code => f { case a: Box.Values.AssetV1 if a.assetCode === code => a.quantity.data })
       )
     ).combineAll
 

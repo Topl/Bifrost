@@ -10,6 +10,7 @@ message FullAddress {
   NetworkPrefix networkPrefix = 1;
   SpendingAddress spendingAddress = 2;
   StakingAddress stakingAddress = 3;
+  // TODO: What do we name this?
   ProofKnowledgeEd25519 commitment = 4;
 }
 

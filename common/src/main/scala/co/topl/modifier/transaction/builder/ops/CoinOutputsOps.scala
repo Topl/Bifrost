@@ -16,7 +16,7 @@ class CoinOutputsOps(private val value: List[Transaction.Output]) {
         (polys :+ poly, arbits, assets)
       case ((polys, arbits, assets), arbit @ Transaction.Output(_, _: Box.Values.Arbit, _)) =>
         (polys, arbits :+ arbit, assets)
-      case ((polys, arbits, assets), asset @ Transaction.Output(_, _: Box.Values.Asset, _)) =>
+      case ((polys, arbits, assets), asset @ Transaction.Output(_, _: Box.Values.AssetV1, _)) =>
         (polys, arbits, assets :+ asset)
     }
 }

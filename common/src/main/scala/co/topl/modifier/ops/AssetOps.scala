@@ -9,7 +9,7 @@ import co.topl.utils.StringDataTypes.Latin1Data
 
 import scala.language.implicitConversions
 
-class AssetOps(private val asset: Box.Values.Asset) extends AnyVal {
+class AssetOps(private val asset: Box.Values.AssetV1) extends AnyVal {
 
   def toAssetValue(implicit networkPrefix: NetworkPrefix): AssetValue =
     AssetValue(
@@ -27,7 +27,7 @@ class AssetOps(private val asset: Box.Values.Asset) extends AnyVal {
 object AssetOps {
 
   trait ToAssetOps {
-    implicit def assetOpsFromAsset(asset: Box.Values.Asset): AssetOps = new AssetOps(asset)
+    implicit def assetOpsFromAsset(asset: Box.Values.AssetV1): AssetOps = new AssetOps(asset)
   }
 
   trait Implicits extends ToAssetOps

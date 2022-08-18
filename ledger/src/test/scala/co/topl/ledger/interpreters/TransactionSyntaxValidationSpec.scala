@@ -80,10 +80,10 @@ class TransactionSyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEff
   test("validate positive output quantities") {
     val boxValueGen =
       arbitraryBoxValue.arbitrary.flatMap {
-        case Box.Values.Poly(_)  => arbitraryInt128.arbitrary.map(Box.Values.Poly)
-        case Box.Values.Arbit(_) => arbitraryInt128.arbitrary.map(Box.Values.Arbit)
-        case a: Box.Values.Asset => arbitraryInt128.arbitrary.map(q => a.copy(quantity = q))
-        case v                   => Gen.const(v)
+        case Box.Values.Poly(_)    => arbitraryInt128.arbitrary.map(Box.Values.Poly)
+        case Box.Values.Arbit(_)   => arbitraryInt128.arbitrary.map(Box.Values.Arbit)
+        case a: Box.Values.AssetV1 => arbitraryInt128.arbitrary.map(q => a.copy(quantity = q))
+        case v                     => Gen.const(v)
       }
     val outputGen =
       for {
@@ -97,10 +97,10 @@ class TransactionSyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEff
       } yield tx.copy(outputs = Chain.fromSeq(outputs))).filter(transaction =>
         transaction.outputs.exists(o =>
           o.value match {
-            case v: Box.Values.Poly  => v.quantity.data <= 0
-            case v: Box.Values.Arbit => v.quantity.data <= 0
-            case v: Box.Values.Asset => v.quantity.data <= 0
-            case _                   => false
+            case v: Box.Values.Poly    => v.quantity.data <= 0
+            case v: Box.Values.Arbit   => v.quantity.data <= 0
+            case v: Box.Values.AssetV1 => v.quantity.data <= 0
+            case _                     => false
           }
         )
       )
@@ -201,11 +201,11 @@ class TransactionSyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEff
         }.sumAll
 
       val assetInSum =
-        transaction.inputs.collect { case Transaction.Input(_, _, _, v: Box.Values.Asset) =>
+        transaction.inputs.collect { case Transaction.Input(_, _, _, v: Box.Values.AssetV1) =>
           v.quantity.data
         }.sumAll
       val assetOutSum =
-        transaction.outputs.collect { case Transaction.Output(_, v: Box.Values.Asset, false) =>
+        transaction.outputs.collect { case Transaction.Output(_, v: Box.Values.AssetV1, false) =>
           v.quantity.data
         }.sumAll
       def existsInsufficientInputFunds(result: Either[NonEmptyChain[TransactionSyntaxError], Transaction]) =

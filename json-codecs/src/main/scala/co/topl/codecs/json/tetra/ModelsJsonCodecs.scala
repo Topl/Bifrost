@@ -320,7 +320,7 @@ trait ModelsJsonCodecs {
   implicit val arbitBoxValueDecoder: Decoder[Box.Values.Arbit] =
     hcursor => hcursor.downField("value").as[Int128].map(Box.Values.Arbit)
 
-  implicit val assetCodeEncoder: Encoder[Box.Values.Asset.Code] =
+  implicit val assetCodeEncoder: Encoder[Box.Values.AssetV1.Code] =
     t =>
       Json.obj(
         "version"   -> t.version.asJson,
@@ -328,7 +328,7 @@ trait ModelsJsonCodecs {
         "shortName" -> t.shortName.data.value.asJson
       )
 
-  implicit val assetCodeDecoder: Decoder[Box.Values.Asset.Code] =
+  implicit val assetCodeDecoder: Decoder[Box.Values.AssetV1.Code] =
     hcursor =>
       for {
         version   <- hcursor.downField("version").as[Byte]
@@ -337,9 +337,9 @@ trait ModelsJsonCodecs {
         validLengthShortName <- Sized
           .max[Latin1Data, Lengths.`8`.type](shortName)
           .leftMap(failure => DecodingFailure(failure.toString, hcursor.history :+ CursorOp.Field("shortName")))
-      } yield Box.Values.Asset.Code(version, issuer, validLengthShortName)
+      } yield Box.Values.AssetV1.Code(version, issuer, validLengthShortName)
 
-  implicit val assetBoxValueEncoder: Encoder[Box.Values.Asset] =
+  implicit val assetBoxValueEncoder: Encoder[Box.Values.AssetV1] =
     t =>
       Json.obj(
         "quantity"     -> t.quantity.asJson,
@@ -348,7 +348,7 @@ trait ModelsJsonCodecs {
         "metadata"     -> t.metadata.map(_.data).asJson
       )
 
-  implicit val assetBoxValueDecoder: Decoder[Box.Values.Asset] =
+  implicit val assetBoxValueDecoder: Decoder[Box.Values.AssetV1] =
     deriveDecoder
 
   implicit val baseRegistrationBoxValueEncoder: Encoder[Box.Values.Registrations.Operator] =
@@ -366,7 +366,7 @@ trait ModelsJsonCodecs {
       case Box.Values.Empty                     => "Empty"
       case _: Box.Values.Poly                   => "Poly"
       case _: Box.Values.Arbit                  => "Arbit"
-      case _: Box.Values.Asset                  => "Asset"
+      case _: Box.Values.AssetV1                => "Asset"
       case _: Box.Values.Registrations.Operator => "Registrations.Operator"
     }
 
@@ -374,7 +374,7 @@ trait ModelsJsonCodecs {
     case Box.Values.Empty                     => Json.Null
     case v: Box.Values.Poly                   => v.asJson
     case v: Box.Values.Arbit                  => v.asJson
-    case v: Box.Values.Asset                  => v.asJson
+    case v: Box.Values.AssetV1                => v.asJson
     case v: Box.Values.Registrations.Operator => v.asJson
   }
 
@@ -421,7 +421,7 @@ trait ModelsJsonCodecs {
         value <- valueType match {
           case "Poly"                  => valueJson.as[Box.Values.Poly]
           case "Arbit"                 => valueJson.as[Box.Values.Arbit]
-          case "Asset"                 => valueJson.as[Box.Values.Asset]
+          case "Asset"                 => valueJson.as[Box.Values.AssetV1]
           case "Registration.Operator" => valueJson.as[Box.Values.Registrations.Operator]
         }
       } yield Transaction.Input(boxId, proposition, proof, value)
@@ -445,7 +445,7 @@ trait ModelsJsonCodecs {
         value <- valueType match {
           case "Poly"              => valueJson.as[Box.Values.Poly]
           case "Arbit"             => valueJson.as[Box.Values.Arbit]
-          case "Asset"             => valueJson.as[Box.Values.Asset]
+          case "Asset"             => valueJson.as[Box.Values.AssetV1]
           case "Registration.Pool" => valueJson.as[Box.Values.Registrations.Operator]
         }
       } yield Transaction.Unproven.Input(boxId, proposition, value)
@@ -472,7 +472,7 @@ trait ModelsJsonCodecs {
           case "Arbit" =>
             valueJson.as[Box.Values.Arbit].map(value => Transaction.Output(address, value, minting))
           case "Asset" =>
-            valueJson.as[Box.Values.Asset].map(value => Transaction.Output(address, value, minting))
+            valueJson.as[Box.Values.AssetV1].map(value => Transaction.Output(address, value, minting))
           case "Registration.Pool" =>
             valueJson.as[Box.Values.Registrations.Operator].map(value => Transaction.Output(address, value, minting))
           case _ =>
@@ -506,7 +506,7 @@ trait ModelsJsonCodecs {
         inputs     <- hcursor.downField("inputs").as[Chain[Transaction.Input]]
         outputs    <- hcursor.downField("outputs").as[Chain[Transaction.Output]]
         chronology <- hcursor.downField("chronology").as[Transaction.Chronology]
-        data       <- hcursor.downField("data").as[Option[TransactionData]]
+        data       <- hcursor.downField("data").as[Option[Transaction.Data]]
       } yield Transaction(inputs, outputs, chronology, data)
 
   implicit val unprovenTransactionJsonEncoder: Encoder[Transaction.Unproven] =
@@ -524,7 +524,7 @@ trait ModelsJsonCodecs {
         inputs     <- hcursor.downField("inputs").as[Chain[Transaction.Unproven.Input]]
         outputs    <- hcursor.downField("outputs").as[Chain[Transaction.Output]]
         chronology <- hcursor.downField("chronology").as[Transaction.Chronology]
-        data       <- hcursor.downField("data").as[Option[TransactionData]]
+        data       <- hcursor.downField("data").as[Option[Transaction.Data]]
       } yield Transaction.Unproven(inputs, outputs, chronology, data)
 
 }

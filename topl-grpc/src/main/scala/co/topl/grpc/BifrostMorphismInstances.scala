@@ -936,14 +936,14 @@ trait BoxBifrostMorphismInstances {
     )
 
   implicit def boxValueAssetCodeIsomorphism[F[_]: Monad]
-    : Isomorphism[F, bifrostModels.Box.Values.Asset.Code, models.DionAssetBoxValue.Code] =
+    : Isomorphism[F, bifrostModels.Box.Values.AssetV1.Code, models.AssetV1BoxValue.Code] =
     Isomorphism(
       _.map(v =>
         for {
           version       <- EitherT.rightT[F, String](v.version.toInt)
           issuerAddress <- EitherT(v.issuer.toF[F, models.SpendingAddress])
           shortName     <- EitherT(v.shortName.toF[F, ByteString])
-        } yield models.DionAssetBoxValue.Code(version, issuerAddress.some, shortName)
+        } yield models.AssetV1BoxValue.Code(version, issuerAddress.some, shortName)
       ).flatMap(_.value),
       _.map(v =>
         for {
@@ -952,28 +952,21 @@ trait BoxBifrostMorphismInstances {
             .toRight("Missing issuerAddress")
             .toEitherT[F]
             .flatMapF(_.toF[F, bifrostModels.SpendingAddress])
-          shortName <- EitherT(v.shortName.toF[F, Sized.Max[Latin1Data, Lengths.`8`.type]])
-        } yield bifrostModels.Box.Values.Asset.Code(version, issuerAddress, shortName)
+          shortName <- EitherT(v.shortName.toF[F, bifrostModels.Box.Values.AssetV1.Code.ShortName])
+        } yield bifrostModels.Box.Values.AssetV1.Code(version, issuerAddress, shortName)
       ).flatMap(_.value)
     )
 
-  implicit def boxValueAssetMetadataIsomorphism[F[_]: Monad]
-    : Isomorphism[F, Sized.Max[Latin1Data, Lengths.`127`.type], models.DionAssetBoxValue.Metadata] =
-    Isomorphism(
-      fa => EitherT(fa.to[ByteString]).map(models.DionAssetBoxValue.Metadata(_)).value,
-      _.map(_.metadata).to[Sized.Max[Latin1Data, Lengths.`127`.type]]
-    )
-
   implicit def boxValueAssetIsomorphism[F[_]: Monad]
-    : Isomorphism[F, bifrostModels.Box.Values.Asset, models.DionAssetBoxValue] =
+    : Isomorphism[F, bifrostModels.Box.Values.AssetV1, models.AssetV1BoxValue] =
     Isomorphism(
       _.map(v =>
         for {
           quantity     <- EitherT(v.quantity.toF[F, models.Int128])
-          assetCode    <- EitherT(v.assetCode.toF[F, models.DionAssetBoxValue.Code])
+          assetCode    <- EitherT(v.assetCode.toF[F, models.AssetV1BoxValue.Code])
           securityRoot <- EitherT(v.securityRoot.toF[F, ByteString])
-          metadata     <- v.metadata.map(_.toF[F, models.DionAssetBoxValue.Metadata]).traverse(EitherT(_))
-        } yield models.DionAssetBoxValue(quantity.some, assetCode.some, securityRoot, metadata)
+          metadata     <- v.metadata.traverse(v => EitherT(v.toF[F, ByteString]))
+        } yield models.AssetV1BoxValue(quantity.some, assetCode.some, securityRoot, metadata)
       ).flatMap(_.value),
       _.map(v =>
         for {
@@ -981,10 +974,10 @@ trait BoxBifrostMorphismInstances {
           assetCode <- v.assetCode
             .toRight("Missing assetCode")
             .toEitherT[F]
-            .flatMapF(_.toF[F, bifrostModels.Box.Values.Asset.Code])
-          securityRoot <- EitherT(v.securityRoot.toF[F, Sized.Strict[bifrostModels.Bytes, Lengths.`32`.type]])
-          metadata     <- v.metadata.map(_.toF[F, Sized.Max[Latin1Data, Lengths.`127`.type]]).traverse(EitherT(_))
-        } yield bifrostModels.Box.Values.Asset(quantity, assetCode, securityRoot, metadata)
+            .flatMapF(_.toF[F, bifrostModels.Box.Values.AssetV1.Code])
+          securityRoot <- EitherT(v.securityRoot.toF[F, bifrostModels.Box.Values.AssetV1.SecurityRoot])
+          metadata     <- v.metadata.map(_.toF[F, bifrostModels.Box.Values.AssetV1.Metadata]).traverse(EitherT(_))
+        } yield bifrostModels.Box.Values.AssetV1(quantity, assetCode, securityRoot, metadata)
       ).flatMap(_.value)
     )
 
@@ -1014,8 +1007,8 @@ trait BoxBifrostMorphismInstances {
           EitherT(p.toF[F, models.PolyBoxValue]).widen[models.BoxValue]
         case p: bifrostModels.Box.Values.Arbit =>
           EitherT(p.toF[F, models.ArbitBoxValue]).widen[models.BoxValue]
-        case p: bifrostModels.Box.Values.Asset =>
-          EitherT(p.toF[F, models.DionAssetBoxValue]).widen[models.BoxValue]
+        case p: bifrostModels.Box.Values.AssetV1 =>
+          EitherT(p.toF[F, models.AssetV1BoxValue]).widen[models.BoxValue]
         case p: bifrostModels.Box.Values.Registrations.Operator =>
           EitherT(p.toF[F, models.OperatorRegistrationBoxValue]).widen[models.BoxValue]
       }.flatMap(_.value),
@@ -1028,8 +1021,8 @@ trait BoxBifrostMorphismInstances {
           EitherT(p.toF[F, bifrostModels.Box.Values.Poly]).widen[bifrostModels.Box.Value]
         case p: models.ArbitBoxValue =>
           EitherT(p.toF[F, bifrostModels.Box.Values.Arbit]).widen[bifrostModels.Box.Value]
-        case p: models.DionAssetBoxValue =>
-          EitherT(p.toF[F, bifrostModels.Box.Values.Asset]).widen[bifrostModels.Box.Value]
+        case p: models.AssetV1BoxValue =>
+          EitherT(p.toF[F, bifrostModels.Box.Values.AssetV1]).widen[bifrostModels.Box.Value]
         case p: models.OperatorRegistrationBoxValue =>
           EitherT(p.toF[F, bifrostModels.Box.Values.Registrations.Operator]).widen[bifrostModels.Box.Value]
       }.flatMap(_.value)
@@ -1119,13 +1112,6 @@ trait TransactionBifrostMorphismInstances {
       )
     )
 
-  implicit def transactionDataIsomorphism[F[_]: Monad]
-    : Isomorphism[F, bifrostModels.TransactionData, models.Transaction.Data] =
-    Isomorphism(
-      _.map(input => models.Transaction.Data(ByteString.copyFrom(input.data.bytes)).asRight[String]),
-      _.flatMap(_.value.toF[F, bifrostModels.TransactionData])
-    )
-
   implicit def transactionIsomorphism[F[_]: Monad]: Isomorphism[F, bifrostModels.Transaction, models.Transaction] =
     Isomorphism(
       _.map(transaction =>
@@ -1143,7 +1129,7 @@ trait TransactionBifrostMorphismInstances {
           schedule <- EitherT(
             transaction.chronology.toF[F, models.Transaction.Schedule]
           )
-          data <- transaction.data.traverse(v => EitherT(v.toF[F, models.Transaction.Data]))
+          data <- transaction.data.traverse(v => EitherT(v.toF[F, ByteString]))
         } yield models.Transaction(inputs, outputs, schedule.some, data)
       )
         .flatMap(_.value),
@@ -1164,7 +1150,7 @@ trait TransactionBifrostMorphismInstances {
           chronology <- EitherT
             .fromOption[F](protoTransaction.schedule, "Missing schedule")
             .flatMapF(_.toF[F, bifrostModels.Transaction.Chronology])
-          data <- protoTransaction.data.traverse(v => EitherT(v.toF[F, bifrostModels.TransactionData]))
+          data <- protoTransaction.data.traverse(v => EitherT(v.toF[F, bifrostModels.Transaction.Data]))
         } yield bifrostModels.Transaction(inputs, outputs, chronology, data)
       )
         .flatMap(_.value)
@@ -1244,13 +1230,6 @@ trait BlockBifrostMorphismInstances {
     with AddressBifrostMorphismInstances
     with CertificateBifrostMorphismInstances =>
 
-  implicit def headerMetadataIsomorphism[F[_]: Monad]
-    : Isomorphism[F, Sized.Max[Latin1Data, Lengths.`32`.type], models.BlockHeader.Metadata] =
-    Isomorphism(
-      fa => EitherT(fa.to[ByteString]).map(models.BlockHeader.Metadata(_)).value,
-      _.map(_.value).to[Sized.Max[Latin1Data, Lengths.`32`.type]]
-    )
-
   implicit def headerIsomorphism[F[_]: Monad]: Isomorphism[F, bifrostModels.BlockHeaderV2, models.BlockHeader] =
     Isomorphism(
       _.map(header =>
@@ -1259,7 +1238,7 @@ trait BlockBifrostMorphismInstances {
           parentHeaderId         <- EitherT(header.parentHeaderId.toF[F, models.BlockId])
           eligibilityCertificate <- EitherT(header.eligibilityCertificate.toF[F, models.EligibilityCertificate])
           operationalCertificate <- EitherT(header.operationalCertificate.toF[F, models.OperationalCertificate])
-          metadata               <- header.metadata.traverse(v => EitherT(v.toF[F, models.BlockHeader.Metadata]))
+          metadata               <- header.metadata.traverse(v => EitherT(v.toF[F, ByteString]))
         } yield models
           .BlockHeader(
             parentHeaderId.some,
@@ -1281,9 +1260,9 @@ trait BlockBifrostMorphismInstances {
             .toRight("Missing parentHeaderId")
             .toEitherT[F]
             .flatMapF(_.toF[F, bifrostModels.TypedIdentifier])
-          txRoot <- EitherT(protoHeader.txRoot.toF[F, Sized.Strict[bifrostModels.Bytes, Lengths.`32`.type]])
+          txRoot <- EitherT(protoHeader.txRoot.toF[F, bifrostModels.TxRoot])
           bloomFilter <- EitherT(
-            protoHeader.bloomFilter.toF[F, Sized.Strict[bifrostModels.Bytes, Lengths.`256`.type]]
+            protoHeader.bloomFilter.toF[F, bifrostModels.BloomFilter]
           )
           eligibilityCertificate <- protoHeader.eligibilityCertificate
             .toRight("Missing eligibilityCertificate")
@@ -1294,7 +1273,7 @@ trait BlockBifrostMorphismInstances {
             .toEitherT[F]
             .flatMapF(_.toF[F, bifrostModels.OperationalCertificate])
           metadata <- protoHeader.metadata.traverse(metadata =>
-            EitherT(metadata.toF[F, Sized.Max[Latin1Data, Lengths.`32`.type]])
+            EitherT(metadata.toF[F, bifrostModels.BlockHeaderV2.Metadata])
           )
           address <- EitherT
             .fromEither[F](protoHeader.address.toRight("missing address"))

@@ -2,12 +2,17 @@ syntax = "proto3";
 
 package co.topl.grpc.models;
 
+// #ProtoByteComment
+// Protobuf does not support `byte` types, so we use uint32 instead
+
 message NetworkPrefix {
-  int32 value = 1;
+  // See #ProtoByteComment
+  uint32 value = 1;
 }
 
 message TypedEvidence {
-  int32 typePrefix = 1;
+  // See #ProtoByteComment
+  uint32 typePrefix = 1;
   bytes evidence = 2;
 }
 
@@ -19,6 +24,8 @@ message TransactionId {
   bytes value = 1;
 }
 
+// TODO: Does this representation need to change?
 message Int128 {
+  // BigInt Representation
   bytes value = 1;
 }

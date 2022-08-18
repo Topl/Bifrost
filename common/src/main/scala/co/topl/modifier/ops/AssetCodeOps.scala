@@ -2,7 +2,7 @@ package co.topl.modifier.ops
 
 import cats.implicits._
 import co.topl.attestation.Address
-import co.topl.models.Box.Values.Asset
+import co.topl.models.Box.Values.AssetV1
 import co.topl.models.utility.{Lengths, Sized}
 import co.topl.modifier.box.AssetCode
 import co.topl.utils.StringDataTypes.Latin1Data
@@ -16,7 +16,7 @@ class AssetCodeOps(private val value: AssetCode) extends AnyVal {
 
   import AssetCodeOps._
 
-  def toTetraAssetCode: Either[ToTetraAssetCodeFailure, Asset.Code] =
+  def toTetraAssetCode: Either[ToTetraAssetCodeFailure, AssetV1.Code] =
     for {
       issuer <-
         value.issuer.toSpendingAddress.leftMap(_ => ToTetraAssetCodeFailures.InvalidAddress(value.issuer))
@@ -27,7 +27,7 @@ class AssetCodeOps(private val value: AssetCode) extends AnyVal {
           )
           .leftMap(_ => ToTetraAssetCodeFailures.InvalidShortName(value.shortName))
       assetCode =
-        Asset.Code(
+        AssetV1.Code(
           value.version,
           issuer,
           shortName

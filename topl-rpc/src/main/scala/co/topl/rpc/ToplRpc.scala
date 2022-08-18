@@ -3,13 +3,7 @@ package co.topl.rpc
 import cats.data.NonEmptyChain
 import co.topl.akkahttprpc.Rpc
 import co.topl.attestation.{Address, Proposition}
-import co.topl.models.{
-  FullAddress,
-  Int128 => TetraInt128,
-  SpendingAddress,
-  Transaction => TetraTransaction,
-  TransactionData
-}
+import co.topl.models.{FullAddress, Int128 => TetraInt128, SpendingAddress, Transaction => TetraTransaction}
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, GenesisBlob}
 import co.topl.modifier.box.AssetCode.AssetCodeVersion
@@ -529,7 +523,7 @@ object ToplRpc {
         recipients:            NonEmptyChain[TetraTransaction.Output],
         fee:                   TetraInt128,
         changeAddress:         FullAddress,
-        data:                  Option[TransactionData],
+        data:                  Option[TetraTransaction.Data],
         boxSelectionAlgorithm: BoxSelectionAlgorithm
       )
 
@@ -545,7 +539,7 @@ object ToplRpc {
         recipients:            NonEmptyChain[TetraTransaction.Output],
         fee:                   TetraInt128,
         changeAddress:         FullAddress,
-        data:                  Option[TransactionData],
+        data:                  Option[TetraTransaction.Data],
         boxSelectionAlgorithm: BoxSelectionAlgorithm
       )
 
@@ -562,7 +556,7 @@ object ToplRpc {
         fee:                   TetraInt128,
         feeChangeAddress:      FullAddress,
         assetChangeAddress:    FullAddress,
-        data:                  Option[TransactionData],
+        data:                  Option[TetraTransaction.Data],
         minting:               Boolean,
         boxSelectionAlgorithm: BoxSelectionAlgorithm
       )

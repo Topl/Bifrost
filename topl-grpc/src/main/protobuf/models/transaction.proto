@@ -11,7 +11,7 @@ message Transaction {
   repeated Input inputs = 1;
   repeated Output outputs = 2;
   Schedule schedule = 3;
-  Data data = 4;
+  optional bytes data = 4;
 
   message Input {
     Box.Id boxId = 1;
@@ -25,11 +25,8 @@ message Transaction {
     bool minting = 3;
   }
   message Schedule {
-    int64 creation = 1;
-    int64 minimumSlot = 2;
-    int64 maximumSlot = 3;
-  }
-  message Data {
-    bytes value = 1;
+    uint64 creation = 1;
+    uint64 minimumSlot = 2;
+    uint64 maximumSlot = 3;
   }
 }

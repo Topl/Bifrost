@@ -74,7 +74,7 @@ message PropositionContextualRequiredTransactionIO {
 }
 
 message BoxLocation {
-  int32 index = 1;
+  uint32 index = 1;
   IO location = 2;
   enum IO {
     INPUT = 0;
