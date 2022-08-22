@@ -1,4 +1,4 @@
-package co.topl
+package co.topl.node
 
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
@@ -6,13 +6,12 @@ import cats.effect.IO
 import cats.implicits._
 import co.topl.catsakka.IOAkkaApp
 import com.typesafe.config.ConfigFactory
-import mainargs.ParserForClass
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 object NodeApp
-    extends IOAkkaApp[NodeAppCommandLineArgs, Nothing](
-      createArgs = args => ParserForClass[NodeAppCommandLineArgs].constructOrThrow(args),
+    extends IOAkkaApp[Args, Nothing](
+      createArgs = args => Args.parserArgs.constructOrThrow(args),
       createConfig = args => ConfigFactory.load(),
       createSystem = (args, config) => ActorSystem[Nothing](Behaviors.empty, "BifrostTetra", config)
     ) {

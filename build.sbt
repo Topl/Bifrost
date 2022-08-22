@@ -263,15 +263,15 @@ lazy val nodeTetra = project
   .settings(
     name := "bifrost-node-tetra",
     commonSettings,
-    assemblySettings("co.topl.NodeApp"),
+    assemblySettings("co.topl.node.NodeApp"),
     assemblyJarName := s"bifrost-node-tetra-${version.value}.jar",
     tetraNodeDockerSettings,
     Defaults.itSettings,
     crossScalaVersions := Seq(scala213),
-    Compile / mainClass := Some("co.topl.NodeApp"),
+    Compile / mainClass := Some("co.topl.node.NodeApp"),
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "co.topl.buildinfo.bifrost",
+    buildInfoPackage := "co.topl.buildinfo.node",
     libraryDependencies ++= Dependencies.nodeTetra
   )
   .configs(IntegrationTest)
