@@ -1,11 +1,11 @@
 package co.topl.catsakka
 
 import cats.implicits._
-import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorSystem, DispatcherSelector, Extension, ExtensionId}
 import cats.effect.{Async, Resource, Sync}
 import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
 
+import scala.concurrent.Await
 import scala.concurrent.duration.FiniteDuration
 
 class AkkaCatsRuntime(system: ActorSystem[_]) extends Extension {
@@ -30,7 +30,11 @@ class AkkaCatsRuntime(system: ActorSystem[_]) extends Extension {
       system.executionContext,
       system.dispatchers.lookup(DispatcherSelector.blocking()),
       scheduler = scheduler,
-      shutdown = () => system.terminate(),
+      shutdown = () => {
+        system.terminate()
+        import scala.concurrent.duration._
+        Await.result(system.whenTerminated, 30.seconds)
+      },
       config = ioRuntimeConfig
     )
 }

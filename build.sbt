@@ -81,11 +81,8 @@ lazy val publishSettings = Seq(
 )
 
 lazy val dockerSettings = Seq(
-  Docker / packageName := "bifrost-node",
   dockerBaseImage := "eclipse-temurin:11-jre",
   dockerUpdateLatest := true,
-  dockerExposedPorts := Seq(9084, 9085),
-  dockerExposedVolumes += "/opt/docker/.bifrost",
   dockerLabels ++= Map(
     "bifrost.version" -> version.value
   ),
@@ -96,6 +93,20 @@ lazy val dockerSettings = Seq(
     )
   }
 )
+
+lazy val tetraNodeDockerSettings =
+  dockerSettings ++ Seq(
+    dockerExposedPorts := Seq(9084, 9085),
+    dockerExposedVolumes += "/opt/docker/.bifrost",
+    Docker / packageName := "bifrost-node-tetra"
+  )
+
+lazy val dionNodeDockerSettings =
+  dockerSettings ++ Seq(
+    dockerExposedPorts := Seq(9084, 9085),
+    dockerExposedVolumes += "/opt/docker/.bifrost",
+    Docker / packageName := "bifrost-node"
+  )
 
 def assemblySettings(main: String) = Seq(
   assembly / mainClass := Some(main),
@@ -197,6 +208,7 @@ lazy val bifrost = project
   .configs(IntegrationTest)
   .aggregate(
     node,
+    nodeTetra,
     common,
     akkaHttpRpc,
     typeclasses,
@@ -230,20 +242,43 @@ lazy val node = project
     name := "bifrost-node",
     commonSettings,
     assemblySettings("co.topl.BifrostApp"),
-    dockerSettings,
+    dionNodeDockerSettings,
     Defaults.itSettings,
     crossScalaVersions := Seq(scala213), // The `monocle` library does not support Scala 2.12
     Compile / mainClass := Some("co.topl.BifrostApp"),
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.bifrost",
-    libraryDependencies ++= Dependencies.node
+    libraryDependencies ++= Dependencies.nodeDion
   )
   .configs(IntegrationTest)
   .settings(
     IntegrationTest / parallelExecution := false
   )
   .dependsOn(common % "compile->compile;test->test", toplRpc, tools, genus, jsonCodecs)
+  .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
+
+lazy val nodeTetra = project
+  .in(file("node-tetra"))
+  .settings(
+    name := "bifrost-node-tetra",
+    commonSettings,
+    assemblySettings("co.topl.NodeApp"),
+    assemblyJarName := s"bifrost-node-tetra-${version.value}.jar",
+    tetraNodeDockerSettings,
+    Defaults.itSettings,
+    crossScalaVersions := Seq(scala213),
+    Compile / mainClass := Some("co.topl.NodeApp"),
+    publish / skip := true,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.bifrost",
+    libraryDependencies ++= Dependencies.nodeTetra
+  )
+  .configs(IntegrationTest)
+  .settings(
+    IntegrationTest / parallelExecution := false
+  )
+  .dependsOn(catsAkka)
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
 lazy val common = project

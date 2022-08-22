@@ -170,7 +170,7 @@ object Dependencies {
   val fs2Core = "co.fs2" %% "fs2-core" % fs2Version
   val fs2IO = "co.fs2"   %% "fs2-io"   % fs2Version
 
-  val node: Seq[ModuleID] =
+  val nodeDion: Seq[ModuleID] =
     Seq(
       "com.typesafe.akka"          %% "akka-cluster"  % akkaVersion,
       "com.typesafe.akka"          %% "akka-remote"   % akkaVersion,
@@ -193,6 +193,12 @@ object Dependencies {
     newType ++
     monitoring ++
     mainargs
+
+  val nodeTetra: Seq[ModuleID] =
+    cats ++ catsEffect ++ mainargs ++ logging ++ Seq(
+      catsSlf4j,
+      akka("actor-typed")
+    )
 
   lazy val algebras =
     test ++
