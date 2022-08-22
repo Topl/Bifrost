@@ -122,7 +122,7 @@ object Dependencies {
 
   val externalCrypto = Seq(
     "org.whispersystems" % "curve25519-java" % "0.5.0",
-    "org.bouncycastle"   % "bcprov-jdk18on"  % "1.71"
+    "org.bouncycastle"   % "bcprov-jdk18on"  % "1.71.1"
   )
 
   val mongoDb: Seq[ModuleID] =
