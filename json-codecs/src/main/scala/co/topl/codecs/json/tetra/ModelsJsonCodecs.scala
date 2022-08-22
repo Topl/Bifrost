@@ -480,7 +480,7 @@ trait ModelsJsonCodecs {
         }
       } yield output
 
-  implicit val transactionChronologyJsonEncoder: Encoder[Transaction.Chronology] =
+  implicit val transactionChronologyJsonEncoder: Encoder[Transaction.Schedule] =
     t =>
       Json.obj(
         "creation"    -> t.creation.asJson,
@@ -488,7 +488,7 @@ trait ModelsJsonCodecs {
         "maximumSlot" -> t.maximumSlot.asJson
       )
 
-  implicit val transactionChronologyJsonDecoder: Decoder[Transaction.Chronology] =
+  implicit val transactionChronologyJsonDecoder: Decoder[Transaction.Schedule] =
     deriveDecoder
 
   implicit val transactionJsonEncoder: Encoder[Transaction] =
@@ -496,7 +496,7 @@ trait ModelsJsonCodecs {
       Json.obj(
         "inputs"     -> tx.inputs.asJson,
         "outputs"    -> tx.outputs.asJson,
-        "chronology" -> tx.chronology.asJson,
+        "chronology" -> tx.schedule.asJson,
         "data"       -> tx.data.map(_.data).asJson
       )
 
@@ -505,7 +505,7 @@ trait ModelsJsonCodecs {
       for {
         inputs     <- hcursor.downField("inputs").as[Chain[Transaction.Input]]
         outputs    <- hcursor.downField("outputs").as[Chain[Transaction.Output]]
-        chronology <- hcursor.downField("chronology").as[Transaction.Chronology]
+        chronology <- hcursor.downField("chronology").as[Transaction.Schedule]
         data       <- hcursor.downField("data").as[Option[Transaction.Data]]
       } yield Transaction(inputs, outputs, chronology, data)
 
@@ -523,7 +523,7 @@ trait ModelsJsonCodecs {
       for {
         inputs     <- hcursor.downField("inputs").as[Chain[Transaction.Unproven.Input]]
         outputs    <- hcursor.downField("outputs").as[Chain[Transaction.Output]]
-        chronology <- hcursor.downField("chronology").as[Transaction.Chronology]
+        chronology <- hcursor.downField("chronology").as[Transaction.Schedule]
         data       <- hcursor.downField("data").as[Option[Transaction.Data]]
       } yield Transaction.Unproven(inputs, outputs, chronology, data)
 

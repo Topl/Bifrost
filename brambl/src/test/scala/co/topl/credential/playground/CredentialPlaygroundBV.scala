@@ -100,7 +100,7 @@ object CredentialPlaygroundBV extends App {
         Transaction
           .Output(fullAddress(boardProp.spendingAddress), Box.Values.Poly(Sized.maxUnsafe(BigInt(10))), minting = false)
       ),
-      chronology = Transaction.Chronology(System.currentTimeMillis(), 0, Long.MaxValue),
+      chronology = Transaction.Schedule(System.currentTimeMillis(), 0, Long.MaxValue),
       data = None
     )
 

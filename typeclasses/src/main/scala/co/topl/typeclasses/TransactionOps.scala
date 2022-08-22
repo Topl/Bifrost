@@ -17,7 +17,7 @@ object TransactionOps {
           .Unproven(
             transaction.inputs.map(i => Transaction.Unproven.Input(i.boxId, i.proposition, i.value)),
             transaction.outputs,
-            transaction.chronology,
+            transaction.schedule,
             transaction.data
           )
 

@@ -61,7 +61,7 @@ object SetupSandbox {
     Transaction.Unproven(
       inputs.toChain,
       outputs.toChain,
-      chronology = Transaction.Chronology(System.currentTimeMillis(), 0, Long.MaxValue),
+      chronology = Transaction.Schedule(System.currentTimeMillis(), 0, Long.MaxValue),
       data = None
     )
 }

@@ -1102,12 +1102,12 @@ trait TransactionBifrostMorphismInstances {
     )
 
   implicit def transactionScheduleIsomorphism[F[_]: Monad]
-    : Isomorphism[F, bifrostModels.Transaction.Chronology, models.Transaction.Schedule] =
+    : Isomorphism[F, bifrostModels.Transaction.Schedule, models.Transaction.Schedule] =
     Isomorphism(
       _.map(input => models.Transaction.Schedule(input.creation, input.minimumSlot, input.maximumSlot).asRight[String]),
       _.map(protoInput =>
         bifrostModels.Transaction
-          .Chronology(protoInput.creation, protoInput.minimumSlot, protoInput.maximumSlot)
+          .Schedule(protoInput.creation, protoInput.minimumSlot, protoInput.maximumSlot)
           .asRight[String]
       )
     )
@@ -1127,7 +1127,7 @@ trait TransactionBifrostMorphismInstances {
               .map(_.sequence)
           )
           schedule <- EitherT(
-            transaction.chronology.toF[F, models.Transaction.Schedule]
+            transaction.schedule.toF[F, models.Transaction.Schedule]
           )
           data <- transaction.data.traverse(v => EitherT(v.toF[F, ByteString]))
         } yield models.Transaction(inputs, outputs, schedule.some, data)
@@ -1149,7 +1149,7 @@ trait TransactionBifrostMorphismInstances {
           )
           chronology <- EitherT
             .fromOption[F](protoTransaction.schedule, "Missing schedule")
-            .flatMapF(_.toF[F, bifrostModels.Transaction.Chronology])
+            .flatMapF(_.toF[F, bifrostModels.Transaction.Schedule])
           data <- protoTransaction.data.traverse(v => EitherT(v.toF[F, bifrostModels.Transaction.Data]))
         } yield bifrostModels.Transaction(inputs, outputs, chronology, data)
       )

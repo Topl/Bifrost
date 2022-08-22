@@ -123,7 +123,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
     PropF.forAllF { (currentBlockId: TypedIdentifier, transactionWithRandomTime: Transaction) =>
       withMock {
         val transaction =
-          transactionWithRandomTime.copy(chronology = transactionWithRandomTime.chronology.copy(maximumSlot = 2))
+          transactionWithRandomTime.copy(schedule = transactionWithRandomTime.schedule.copy(maximumSlot = 2))
         val fetchTransaction = mockFunction[TypedIdentifier, F[Transaction]]
         fetchTransaction
           .expects(transaction.id: TypedIdentifier)
@@ -140,7 +140,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
             (clock
               .delayedUntilSlot(_: Slot))
               // This is the real thing being tested here
-              .expects(transaction.chronology.maximumSlot)
+              .expects(transaction.schedule.maximumSlot)
               .once()
               .returning(deferred.get)
           underTest <-
@@ -169,8 +169,8 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
     PropF.forAllF { (currentBlockId: TypedIdentifier, transactionWithRandomTime: Transaction) =>
       withMock {
         val transaction =
-          transactionWithRandomTime.copy(chronology =
-            transactionWithRandomTime.chronology.copy(maximumSlot = Long.MaxValue)
+          transactionWithRandomTime.copy(schedule =
+            transactionWithRandomTime.schedule.copy(maximumSlot = Long.MaxValue)
           )
         val fetchTransaction = mockFunction[TypedIdentifier, F[Transaction]]
         fetchTransaction
@@ -228,10 +228,10 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
           val transactionWithSingleInput = baseTransaction.copy(inputs = Chain(input))
           // Transaction A and Transaction B are exactly the same, except for the creation timestamp to force a different ID
           val transactionA =
-            transactionWithSingleInput.copy(chronology = transactionWithSingleInput.chronology.copy(creation = 0))
+            transactionWithSingleInput.copy(schedule = transactionWithSingleInput.schedule.copy(creation = 0))
           val transactionAId = transactionA.id.asTypedBytes
           val transactionB =
-            transactionWithSingleInput.copy(chronology = transactionWithSingleInput.chronology.copy(creation = 1))
+            transactionWithSingleInput.copy(schedule = transactionWithSingleInput.schedule.copy(creation = 1))
           val transactionBId = transactionB.id.asTypedBytes
           val bodies =
             Map(
@@ -269,11 +269,11 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
             _ <- underTest.read(blockIdA).assertEquals(Set.empty[TypedIdentifier])
             _ <-
               inSequence {
-                if (transactionA.chronology.maximumSlot != 1L) {
+                if (transactionA.schedule.maximumSlot != 1L) {
                   // The "unapply" operation will schedule a normal expiration
                   (clock
                     .delayedUntilSlot(_: Slot))
-                    .expects(transactionA.chronology.maximumSlot)
+                    .expects(transactionA.schedule.maximumSlot)
                     .once()
                     .returning(MonadCancel[F].never[Unit])
                   // But the "apply" operation will re-schedule the expiration
