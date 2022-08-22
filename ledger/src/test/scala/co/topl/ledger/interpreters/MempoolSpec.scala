@@ -283,7 +283,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
                     .once()
                     .returning(MonadCancel[F].never[Unit])
                 } else {
-                  // This is just an edge-case where the Chronology generator produces a maximum slot of 1L,
+                  // This is just an edge-case where the Schedule generator produces a maximum slot of 1L,
                   // so the scalamock expectation needs to expect the value twice instead of just once
                   (clock
                     .delayedUntilSlot(_: Slot))

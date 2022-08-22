@@ -45,7 +45,7 @@ object TransactionOps {
         Transaction(
           unproven.inputs.map(i => Transaction.Input(i.boxId, i.proposition, prove(i.proposition), i.value)),
           unproven.outputs,
-          unproven.chronology,
+          unproven.schedule,
           unproven.data
         )
     }

@@ -408,7 +408,7 @@ trait TetraScodecTransactionCodecs {
     (Codec[FullAddress] :: Codec[Box.Value] :: Codec[Boolean])
       .as[Transaction.Output]
 
-  implicit val transactionChronologyCodec: Codec[Transaction.Schedule] =
+  implicit val transactionScheduleCodec: Codec[Transaction.Schedule] =
     (Codec[Timestamp](uLongCodec) :: Codec[Slot](uLongCodec) :: Codec[Slot](uLongCodec))
       .as[Transaction.Schedule]
 

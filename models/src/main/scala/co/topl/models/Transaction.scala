@@ -32,10 +32,10 @@ object Transaction {
   case class Schedule(creation: Timestamp, minimumSlot: Slot, maximumSlot: Slot)
 
   case class Unproven(
-    inputs:     Chain[Transaction.Unproven.Input],
-    outputs:    Chain[Transaction.Output],
-    chronology: Schedule,
-    data:       Option[Transaction.Data]
+    inputs:   Chain[Transaction.Unproven.Input],
+    outputs:  Chain[Transaction.Output],
+    schedule: Schedule,
+    data:     Option[Transaction.Data]
   )
 
   object Unproven {
