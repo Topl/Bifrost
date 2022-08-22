@@ -18,7 +18,7 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.5",
     "ch.qos.logback"              % "logback-classic" % "1.2.11",
     "ch.qos.logback"              % "logback-core"    % "1.2.11",
-    "org.slf4j"                   % "slf4j-api"       % "1.7.36",
+    "org.slf4j"                   % "slf4j-api"       % "2.0.0",
     catsSlf4j
   )
 
