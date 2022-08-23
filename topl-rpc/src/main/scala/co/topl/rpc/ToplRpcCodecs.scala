@@ -510,7 +510,27 @@ trait TransactionRpcParamsDecoders extends SharedCodecs {
 
   implicit def transactionRawPolyTransferParamsDecoder(implicit
     networkPrefix: NetworkPrefix
-  ): Decoder[ToplRpc.Transaction.RawPolyTransfer.Params] = deriveDecoder
+  ): Decoder[ToplRpc.Transaction.RawPolyTransfer.Params] =
+    cursor =>
+      for {
+        propositionType <- cursor.downField("propositionType").as[String]
+        sender          <- cursor.downField("sender").as[NonEmptyChain[Address]]
+        recipients      <- cursor.downField("recipients").as[NonEmptyChain[(Address, Int128)]]
+        fee             <- cursor.downField("fee").as[Int128]
+        changeAddress   <- cursor.downField("changeAddress").as[Address]
+        data            <- cursor.downField("data").as[Option[Latin1Data]]
+        boxSelectionAlgorithm <- cursor.getOrElse("boxSelectionAlgorithm")(
+          BoxSelectionAlgorithms.All: BoxSelectionAlgorithm // default to BoxSelectionAlgorithms.All
+        )
+      } yield ToplRpc.Transaction.RawPolyTransfer.Params(
+        propositionType,
+        sender,
+        recipients,
+        fee,
+        changeAddress,
+        data,
+        boxSelectionAlgorithm
+      )
 
   implicit def transactionUnprovenPolyTransferParamsDecoder(implicit
     networkPrefix: NetworkPrefix
