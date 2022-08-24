@@ -1,0 +1,19 @@
+{{- if .Values.bifrost.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.bifrost.name }}-service
+spec:
+  selector:
+    app: {{ .Values.bifrost.name }}
+  ports:
+    - protocol: TCP
+      name: p2p
+      port: {{ .Values.bifrost.service.ports.p2p }}
+      targetPort: {{ .Values.bifrost.ports.p2p }}
+    - protocol: TCP
+      name: rpc
+      port: {{ .Values.bifrost.service.ports.rpc }}
+      targetPort: {{ .Values.bifrost.ports.rpc }}
+  type: {{ .Values.bifrost.service.type }}
+{{- end }}

@@ -1,0 +1,38 @@
+# # Default values for bifrost.
+# # This is a YAML-formatted file.
+# # Declare variables to be passed into your templates.
+
+bifrost:
+  name: bifrost-node
+  image: ghcr.io/topl/bifrost-node:latest
+  replicas: 1
+  resources:
+    minCPU: 250m
+    maxCPU: 2.0
+    minMemory: 250Mi
+    maxMemory: 4000Mi
+  args: # Refer to CLI: https://github.com/Topl/Bifrost#command-line-reference
+  # args: ['--seed', 'test', '--forge']
+  # args: ['--network', 'valhalla']
+  command:
+  # command: ["tail", "-f", "/dev/null"] # Use this to debug Bifrost and exec into the running pod.
+  service:
+    enabled: false
+    type: ClusterIP
+    ports:
+      p2p: 9084
+      rpc: 9085
+  ports:
+    p2p: 9084
+    rpc: 9085
+  volume:
+    mountDirectory: /opt/docker/.bifrost
+    # GKE specific storage classes: standard, standard-rwo, premium-rwo
+    storageClass: default
+    storageSize: 10Gi
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 10
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 5
