@@ -38,7 +38,7 @@ command:
 # command: ["tail", "-f", "/dev/null"] # Use this to debug Bifrost and exec into the running pod.
 
 service:
-  enabled: false
+  enabled: true
   type: ClusterIP
   ports:
     p2p: 9084
