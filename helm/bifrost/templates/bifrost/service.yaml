@@ -1,19 +1,21 @@
-{{- if .Values.bifrost.service.enabled }}
+{{- if .Values.service.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Values.bifrost.name }}-service
+  name: {{ include "bifrost.fullname" . }}
+  labels:
+    {{- include "bifrost.labels" . | nindent 4}}
 spec:
   selector:
-    app: {{ .Values.bifrost.name }}
+    {{- include "bifrost.selectorLabels" . | nindent 4 }}
+  type: {{ .Values.service.type }}
   ports:
     - protocol: TCP
       name: p2p
-      port: {{ .Values.bifrost.service.ports.p2p }}
-      targetPort: {{ .Values.bifrost.ports.p2p }}
+      port: {{ .Values.service.ports.p2p }}
+      targetPort: {{ .Values.ports.p2p }}
     - protocol: TCP
       name: rpc
-      port: {{ .Values.bifrost.service.ports.rpc }}
-      targetPort: {{ .Values.bifrost.ports.rpc }}
-  type: {{ .Values.bifrost.service.type }}
+      port: {{ .Values.service.ports.rpc }}
+      targetPort: {{ .Values.ports.rpc }}
 {{- end }}

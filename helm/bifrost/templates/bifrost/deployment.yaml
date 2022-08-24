@@ -1,91 +1,63 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ .Release.Name }}-deployment
+  name: {{ include "bifrost.fullname" . }}
   labels:
-    app: {{ .Values.bifrost.name }}
+    {{- include "bifrost.labels" . | nindent 4 }}
 spec:
-  serviceName: {{ .Values.bifrost.name }}-service
-  replicas: {{ .Values.bifrost.replicas }}
+  replicas: {{ .Values.replicas }}
   selector:
     matchLabels:
-      app: {{ .Values.bifrost.name }}
+      {{- include "bifrost.selectorLabels" . | nindent 6 }}
   updateStrategy:
     type: RollingUpdate
   template:
     metadata:
       labels:
-        app: {{ .Values.bifrost.name }}
+        {{- include "bifrost.selectorLabels" . | nindent 8 }}
     spec:
       automountServiceAccountToken: false
       securityContext:
-        runAsUser: 1001 # TODO: Update Bifrost Docker container to use high UID. Add CKV_K8S_40 as a check.
-        runAsGroup: 0
-        fsGroup: 0
-        seccompProfile:
-            type: RuntimeDefault
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
-      - name: {{ .Values.bifrost.name }}
-        image: {{ .Values.bifrost.image }}
+      - name: {{ .Chart.Name }}
+        image: {{ .Values.image }}
         securityContext:
-          readOnlyRootFilesystem: true
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-              - ALL
+          {{- toYaml .Values.securityContext | nindent 10 }}
         command:
-          {{ range .Values.bifrost.command }}
+          {{ range .Values.command }}
             - {{ . }}
           {{ end }}
         args:
-          {{ range .Values.bifrost.args }}
+          {{ range .Values.args }}
             - {{ . }}
           {{ end }}
-        {{- if or (.Values.bifrost.resources.minCPU) (.Values.bifrost.resources.minMemory) (.Values.bifrost.resources.maxCPU) (.Values.bifrost.resources.maxMemory) }}
         resources:
-          {{- if or (.Values.bifrost.resources.minCPU) (.Values.bifrost.resources.minMemory) }}
-          requests:
-            {{- if .Values.bifrost.resources.minMemory }}
-            memory: {{ .Values.bifrost.resources.minMemory }}
-            {{- end }}
-            {{- if .Values.bifrost.resources.minCPU }}
-            cpu: {{ .Values.bifrost.resources.minCPU }}
-            {{- end }}
-          {{- end }}
-          {{- if or (.Values.bifrost.resources.maxCPU) (.Values.bifrost.resources.maxMemory) }}
-          limits:
-            {{- if .Values.bifrost.resources.maxMemory }}
-            memory: {{ .Values.bifrost.resources.maxMemory }}
-            {{- end }}
-            {{- if .Values.bifrost.resources.maxCPU }}
-            cpu: {{ .Values.bifrost.resources.maxCPU }}
-            {{- end }}
-          {{- end }}
-        {{- end}}
-        {{- if (.Values.bifrost.readinessProbe.enabled) }}
+          {{- toYaml .Values.resources | nindent 12 }}
+        {{- if (.Values.readinessProbe.enabled) }}
         readinessProbe:
           httpGet:
-            port: {{ .Values.bifrost.ports.rpc }}
-            initialDelaySeconds: {{ .Values.bifrost.readinessProbe.initialDelaySeconds }}
+            port: {{ .Values.ports.rpc }}
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
         {{- end }}
-        {{- if .Values.bifrost.livenessProbe.enabled }}
+        {{- if .Values.livenessProbe.enabled }}
         livenessProbe:
           httpGet:
-            port: {{ .Values.bifrost.ports.rpc }}
-            initialDelaySeconds: {{ .Values.bifrost.livenessProbe.initialDelaySeconds }}
+            port: {{ .Values.ports.rpc }}
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
         {{- end }}
         ports:
-        - containerPort: {{ .Values.bifrost.ports.p2p }}
-        - containerPort: {{ .Values.bifrost.ports.rpc }}
+        - containerPort: {{ .Values.ports.p2p }}
+        - containerPort: {{ .Values.ports.rpc }}
         volumeMounts:
-        - name: {{ .Values.bifrost.name }}-pv
-          mountPath: {{ .Values.bifrost.volume.mountDirectory }}
+        - name: {{ .Values.name }}-pv
+          mountPath: {{ .Values.volume.mountDirectory }}
   volumeClaimTemplates:
   - metadata:
-      name: {{ .Values.bifrost.name }}-pv
+      name: {{ .Values.name }}-pv
     spec:
       accessModes: [ "ReadWriteOnce" ]
-      storageClassName: {{ .Values.bifrost.volume.storageClass }}
+      storageClassName: {{ .Values.volume.storageClass }}
       resources:
         requests:
-          storage: {{ .Values.bifrost.volume.storageSize }}
+          storage: {{ .Values.volume.storageSize }}
