@@ -234,6 +234,9 @@ trait TetraScodecBoxCodecs {
   implicit val boxValuesPoolRegistrationCodec: Codec[Box.Values.Registrations.Operator] =
     Codec[Proofs.Knowledge.KesProduct].as[Box.Values.Registrations.Operator]
 
+  implicit val boxIdCodec: Codec[Box.Id] =
+    (Codec[TypedIdentifier] :: Codec[Short]).as[Box.Id]
+
   implicit val boxValueCode: Codec[Box.Value] =
     discriminated[Box.Value]
       .by(byteCodec)
@@ -403,6 +406,9 @@ trait TetraScodecTransactionCodecs {
     with TetraScodecAddressCodecs
     with TetraScodecProofCodecs
     with TetraScodecBoxCodecs =>
+
+  implicit val transactionInputCodec: Codec[Transaction.Input] =
+    (Codec[Box.Id] :: Codec[Proposition] :: Codec[Proof] :: Codec[Box.Value]).as[Transaction.Input]
 
   implicit val coinOutputCodec: Codec[Transaction.Output] =
     (Codec[FullAddress] :: Codec[Box.Value] :: Codec[Boolean])

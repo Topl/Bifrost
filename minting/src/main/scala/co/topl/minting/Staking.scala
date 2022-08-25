@@ -30,16 +30,16 @@ object Staking {
     ): StakingAlgebra[F] = new StakingAlgebra[F] {
       val address: F[StakingAddresses.Operator] = a.pure[F]
 
-      def elect(parent: BlockHeaderV2, slot: Slot): F[Option[VrfHit]] =
+      def elect(parent: SlotData, slot: Slot): F[Option[VrfHit]] =
         for {
-          _             <- Logger[F].debug(show"Attempting mint at slot=$slot with parent=${parent.id}")
+          _             <- Logger[F].debug(show"Attempting election at slot=$slot with parent=${parent.slotId.blockId}")
           slotsPerEpoch <- clock.slotsPerEpoch
           eta           <- etaCalculation.etaToBe(parent.slotId, slot)
           _ <- Applicative[F].whenA(slot % slotsPerEpoch === 0L)(
             vrfProof.precomputeForEpoch(slot / slotsPerEpoch, eta)
           )
-          maybeHit <- OptionT(consensusState.operatorRelativeStake(parent.id, slot)(a))
-            .flatMapF(relativeStake => leaderElection.getHit(relativeStake, slot, slot - parent.slot, eta))
+          maybeHit <- OptionT(consensusState.operatorRelativeStake(parent.slotId.blockId, slot)(a))
+            .flatMapF(relativeStake => leaderElection.getHit(relativeStake, slot, slot - parent.slotId.slot, eta))
             .value
         } yield maybeHit
 

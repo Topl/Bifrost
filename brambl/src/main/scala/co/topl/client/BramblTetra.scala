@@ -31,11 +31,12 @@ object BramblTetra extends IOApp.Simple {
       .use(implicit system =>
         for {
           implicit0(random: Random[F]) <- Random.scalaUtilRandom[F]
-          rpcClient1                   <- ToplGrpc.Client.make[F]("localhost", 8090, tls = false)
-          logger1                      <- Slf4jLogger.fromName[F]("Brambl@localhost:8090")
-          rpcClient2                   <- ToplGrpc.Client.make[F]("localhost", 8091, tls = false)
-          logger2                      <- Slf4jLogger.fromName[F]("Brambl@localhost:8091")
-          clientLoggerPairs = Array((rpcClient1, logger1), (rpcClient2, logger2))
+          rpcClient1                   <- ToplGrpc.Client.make[F]("localhost", 9084, tls = false)
+          logger1                      <- Slf4jLogger.fromName[F]("Brambl@localhost:9084")
+//          rpcClient2                   <- ToplGrpc.Client.make[F]("localhost", 8091, tls = false)
+//          logger2                      <- Slf4jLogger.fromName[F]("Brambl@localhost:8091")
+//          clientLoggerPairs = Array((rpcClient1, logger1), (rpcClient2, logger2))
+          clientLoggerPairs = Array((rpcClient1, logger1))
           genesisTransactionId <- OptionT(rpcClient1.blockIdAtHeight(1)).getOrElse(???)
           genesisBody          <- OptionT(rpcClient1.fetchBlockBody(genesisTransactionId)).getOrElse(???)
           genesisTransaction   <- OptionT(rpcClient1.fetchTransaction(genesisBody.head)).getOrElse(???)
@@ -49,7 +50,7 @@ object BramblTetra extends IOApp.Simple {
               source
                 .tapAsyncF(1)(transaction =>
                   Random[F]
-                    .nextIntBounded(2)
+                    .nextIntBounded(clientLoggerPairs.length)
                     .map(clientLoggerPairs.apply)
                     .flatMap { case (client, logger) =>
                       for {

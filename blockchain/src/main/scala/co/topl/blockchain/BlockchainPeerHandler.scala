@@ -1,5 +1,6 @@
 package co.topl.blockchain
 
+import akka.NotUsed
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import cats.data._

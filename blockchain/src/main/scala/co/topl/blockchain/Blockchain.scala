@@ -7,7 +7,7 @@ import cats.data.{OptionT, Validated}
 import cats.effect._
 import cats.implicits._
 import cats.{MonadThrow, Parallel}
-import co.topl.algebras.{Store, UnsafeResource}
+import co.topl.algebras.{ClockAlgebra, Store, UnsafeResource}
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
@@ -17,13 +17,15 @@ import co.topl.crypto.signing.Ed25519VRF
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.grpc.ToplGrpc
 import co.topl.ledger.algebras._
-import co.topl.minting.algebras.PerpetualBlockMintAlgebra
+import co.topl.minting.algebras.StakingAlgebra
 import co.topl.models._
 import co.topl.networking.blockchain._
 import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, LocalPeer}
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 import BlockchainPeerHandler.monoidBlockchainPeerHandler
+import co.topl.minting.{BlockPacker, BlockProducer}
+
 import scala.util.Random
 
 object Blockchain {
@@ -32,24 +34,24 @@ object Blockchain {
    * A forever-running program which traverses epochs and the slots within the epochs
    */
   def run[F[_]: Parallel: MonadThrow: Logger: Async: FToFuture](
-    mint:                          Option[PerpetualBlockMintAlgebra[F]],
-    slotDataStore:                 Store[F, TypedIdentifier, SlotData],
-    headerStore:                   Store[F, TypedIdentifier, BlockHeaderV2],
-    bodyStore:                     Store[F, TypedIdentifier, BlockBodyV2],
-    transactionStore:              Store[F, TypedIdentifier, Transaction],
-    _localChain:                   LocalChainAlgebra[F],
-    blockIdTree:                   ParentChildTree[F, TypedIdentifier],
-    blockHeights:                  EventSourcedState[F, Long => F[Option[TypedIdentifier]]],
-    headerValidation:              BlockHeaderValidationAlgebra[F],
-    transactionSyntaxValidation:   TransactionSyntaxValidationAlgebra[F],
-    transactionSemanticValidation: TransactionSemanticValidationAlgebra[F],
-    bodySyntaxValidation:          BodySyntaxValidationAlgebra[F],
-    bodySemanticValidation:        BodySemanticValidationAlgebra[F],
-    bodyAuthorizationValidation:   BodyAuthorizationValidationAlgebra[F],
-    _mempool:                      MempoolAlgebra[F],
-    ed25519VrfResource:            UnsafeResource[F, Ed25519VRF],
-    localPeer:                     LocalPeer,
-    remotePeers:                   Source[DisconnectedPeer, _],
+    clock:                       ClockAlgebra[F],
+    staker:                      Option[StakingAlgebra[F]],
+    slotDataStore:               Store[F, TypedIdentifier, SlotData],
+    headerStore:                 Store[F, TypedIdentifier, BlockHeaderV2],
+    bodyStore:                   Store[F, TypedIdentifier, BlockBodyV2],
+    transactionStore:            Store[F, TypedIdentifier, Transaction],
+    _localChain:                 LocalChainAlgebra[F],
+    blockIdTree:                 ParentChildTree[F, TypedIdentifier],
+    blockHeights:                EventSourcedState[F, Long => F[Option[TypedIdentifier]]],
+    headerValidation:            BlockHeaderValidationAlgebra[F],
+    transactionSyntaxValidation: TransactionSyntaxValidationAlgebra[F],
+    bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
+    bodySemanticValidation:      BodySemanticValidationAlgebra[F],
+    bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
+    _mempool:                    MempoolAlgebra[F],
+    ed25519VrfResource:          UnsafeResource[F, Ed25519VRF],
+    localPeer:                   LocalPeer,
+    remotePeers:                 Source[DisconnectedPeer, _],
     peerFlowModifier: (
       ConnectedPeer,
       Flow[ByteString, ByteString, F[BlockchainPeerClient[F]]]
@@ -116,14 +118,30 @@ object Blockchain {
           peerServer,
           peerFlowModifier
         )
-      mintedBlockStream <- mint.fold(Source.never[BlockV2].pure[F])(_.blocks)
+      blockPacker <- BlockPacker.make[F](
+        mempool,
+        transactionStore.getOrRaise,
+        BlockPacker.makeBodyValidator(bodySyntaxValidation, bodySemanticValidation, bodyAuthorizationValidation)
+      )
+      mintedBlockStream <- staker.fold(Source.never[BlockV2].pure[F])(staker =>
+        localChain.head
+          .flatMap(currentHead =>
+            BlockProducer
+              .make[F](
+                Source.single(currentHead).concat(localBlockAdoptionsSource.mapAsyncF(1)(slotDataStore.getOrRaise)),
+                staker,
+                clock,
+                blockPacker
+              )
+          )
+          .flatMap(_.blocks)
+      )
       rpcInterpreter <- ToplRpcServer.make(
         headerStore,
         bodyStore,
         transactionStore,
         mempool,
         transactionSyntaxValidation,
-        transactionSemanticValidation,
         localChain,
         blockHeights
       )

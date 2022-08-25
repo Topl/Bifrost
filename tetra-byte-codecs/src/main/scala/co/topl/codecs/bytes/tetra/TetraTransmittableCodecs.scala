@@ -32,6 +32,17 @@ trait TetraTransmittableCodecs {
       (longCodec :: optionCodec[TypedIdentifier])
         .as[(Long, Option[TypedIdentifier])]
     )
+
+  implicit val typedIdentifierBoxIdTransmittable: Transmittable[(TypedIdentifier, Box.Id)] =
+    Transmittable.instanceFromCodec(
+      (typedBytesCodec :: boxIdCodec).as[(TypedIdentifier, Box.Id)]
+    )
+
+  implicit val transmittableIdentifierList: Transmittable[List[TypedIdentifier]] =
+    Transmittable.instanceFromCodec
+
+  implicit val transmittableBoolean: Transmittable[Boolean] =
+    Transmittable.instanceFromCodec
 }
 
 object TetraTransmittableCodecs extends TetraTransmittableCodecs

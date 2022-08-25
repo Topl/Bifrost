@@ -67,6 +67,10 @@ object BlockHeaderV2 {
 // This is a synthetic type, and is not "identifiable"
 case class BlockV2(headerV2: BlockHeaderV2, blockBodyV2: BlockBodyV2)
 
+object BlockBodyV2 {
+  type Full = Chain[Transaction]
+}
+
 object BlockV2 {
 
   case class Unsigned(
@@ -74,5 +78,5 @@ object BlockV2 {
     body:           BlockBodyV2
   )
 
-  case class Full(headerV2: BlockHeaderV2, transactions: Chain[Transaction])
+  case class Full(headerV2: BlockHeaderV2, transactions: BlockBodyV2.Full)
 }
