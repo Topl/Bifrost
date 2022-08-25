@@ -5,6 +5,7 @@ metadata:
   labels:
     {{- include "bifrost.labels" . | nindent 4 }}
 spec:
+  serviceName: {{ include "bifrost.fullname" . }}
   replicas: {{ .Values.replicas }}
   selector:
     matchLabels:
@@ -38,13 +39,17 @@ spec:
         readinessProbe:
           httpGet:
             port: {{ .Values.ports.rpc }}
-            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+          initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+          timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+          periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
         {{- end }}
         {{- if .Values.livenessProbe.enabled }}
         livenessProbe:
           httpGet:
             port: {{ .Values.ports.rpc }}
-            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+          initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+          timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+          periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
         {{- end }}
         ports:
         - containerPort: {{ .Values.ports.p2p }}
