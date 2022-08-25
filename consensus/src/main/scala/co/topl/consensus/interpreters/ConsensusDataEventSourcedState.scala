@@ -131,7 +131,7 @@ object ConsensusDataEventSourcedState {
     def apply(state: ConsensusData[F], blockId: TypedIdentifier): F[ConsensusData[F]] =
       for {
         body                <- fetchBlockBody(blockId)
-        transactions        <- body.toList.traverse(fetchTransaction)
+        transactions        <- body.toList.reverse.traverse(fetchTransaction)
         stakeChanges        <- transactions.foldMapM(calculateStakeChanges)
         registrationChanges <- transactions.foldMapM(calculateRegistrationChanges)
         previousTotalStake  <- state.totalActiveStake.getOrRaise(())
