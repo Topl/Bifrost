@@ -1,6 +1,5 @@
 package co.topl.catsakka
 
-import akka.actor.typed.ActorSystem
 import cats.data.EitherT
 import cats.effect.kernel.Async
 import cats.effect.std.Queue
@@ -27,9 +26,7 @@ object Iterative {
    * Continually invoke the given iterative on a "current state" until a signal is received to halt.  Upon receiving
    * the signal, the current best item is captured, the iterative process is cancelled, and the best item returned.
    */
-  def run[F[_]: Async: FToFuture, E](init: F[E])(iterative: Iterative[F, E])(implicit
-    system:                                ActorSystem[_]
-  ): F[() => F[E]] =
+  def run[F[_]: Async: FToFuture, E](init: F[E])(iterative: Iterative[F, E]): F[() => F[E]] =
     for {
       initialValue <- init
       // A queue which accepts a single signal from the outside indicating that the Iterative process should stop
