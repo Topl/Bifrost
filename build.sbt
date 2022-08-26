@@ -231,7 +231,6 @@ lazy val bifrost = project
     demo,
     tools,
     scripting,
-    eligibilitySimulator,
     genus,
     levelDbStore
   )
@@ -622,31 +621,6 @@ lazy val demo = project
     networking,
     catsAkka,
     toplGrpc,
-    blockchain
-  )
-  .enablePlugins(BuildInfoPlugin)
-
-lazy val eligibilitySimulator: Project = project
-  .in(file("eligibility-simulator"))
-  .settings(
-    name := "eligibilitySimulator",
-    commonSettings,
-    Defaults.itSettings,
-    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
-    Compile / run / mainClass := Some("co.topl.simulator.eligibility.EligibilitySimulator"),
-    publish / skip := true,
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "co.topl.buildinfo.simulator.eligibility"
-  )
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.demo ++ Dependencies.catsEffect)
-  .settings(scalamacrosParadiseSettings)
-  .dependsOn(
-    models % "compile->compile;test->test",
-    typeclasses,
-    consensus,
-    minting,
-    commonInterpreters,
-    numerics,
     blockchain
   )
   .enablePlugins(BuildInfoPlugin)
