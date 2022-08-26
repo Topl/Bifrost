@@ -27,6 +27,7 @@ object Iterative {
       initialValue <- init
       stopQueue    <- Queue.bounded[F, Unit](1)
       resultsQueue <- Queue.dropping[F, E](1)
+      _            <- resultsQueue.offer(initialValue)
       fiber <- Async[F].start {
         initialValue.tailRecM(
           iterative
