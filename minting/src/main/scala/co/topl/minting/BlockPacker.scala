@@ -2,16 +2,15 @@ package co.topl.minting
 
 import cats.Monad
 import cats.data.{Chain, OptionT}
+import cats.effect.{Async, Sync}
 import cats.implicits._
 import co.topl.catsakka._
-import cats.effect.{Async, Sync}
-import co.topl.ledger.algebras.MempoolAlgebra
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.ledger.algebras._
 import co.topl.minting.algebras.BlockPackerAlgebra
 import co.topl.models._
 import co.topl.typeclasses.implicits._
-import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.codecs.bytes.tetra.instances._
-import co.topl.ledger.algebras._
 
 import scala.collection.immutable.ListSet
 
@@ -26,15 +25,15 @@ object BlockPacker {
       for {
         mempoolTransactionIds <- mempool.read(parentBlockId)
         transactions          <- mempoolTransactionIds.toList.traverse(fetchTransaction)
-        iterative: Iterative[F, BlockBodyV2.Full, BlockBodyV2.Full] =
+        iterative: Iterative[F, BlockBodyV2.Full] =
           if (transactions.isEmpty) {
-            new Iterative[F, BlockBodyV2.Full, BlockBodyV2.Full] {
+            new Iterative[F, BlockBodyV2.Full] {
               private var emitted = false
-              def improve(current: BlockBodyV2.Full): F[(BlockBodyV2.Full, BlockBodyV2.Full)] =
-                if (emitted) Async[F].never[(BlockBodyV2.Full, BlockBodyV2.Full)]
+              def improve(current: BlockBodyV2.Full): F[BlockBodyV2.Full] =
+                if (emitted) Async[F].never[BlockBodyV2.Full]
                 else {
                   emitted = true
-                  (Chain.empty[Transaction], Chain.empty[Transaction]).pure[F]
+                  Chain.empty[Transaction].pure[F]
                 }
             }
           } else {
@@ -45,7 +44,7 @@ object BlockPacker {
                 val transaction = remainingTransactions.dequeue()
                 val fullBody = transaction +: selected
                 val body = ListSet.empty[TypedIdentifier] ++ fullBody.toList.map(_.id.asTypedBytes)
-                validateBody(parentBlockId, body).ifF((fullBody, fullBody), (selected, selected))
+                validateBody(parentBlockId, body).ifF(fullBody, selected)
               }
           }
       } yield iterative

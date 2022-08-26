@@ -1,6 +1,6 @@
 package co.topl.minting.algebras
 
-import co.topl.catsakka.{Iterative, SourceMatNotUsed}
+import co.topl.catsakka.Iterative
 import co.topl.models.{BlockBodyV2, TypedIdentifier}
 
 /**
@@ -9,9 +9,7 @@ import co.topl.models.{BlockBodyV2, TypedIdentifier}
 trait BlockPackerAlgebra[F[_]] {
 
   /**
-   * Produce an ideal Block Body
-   * @return a Stream that is expected to be eagerly materialized, but the first element request will
-   *         be delayed.  Only one element is expected to be pulled from the returned Source.
+   * Constructs an `Iterative` which improves a given Block Body
    */
-  def improvePackedBlock(parentBlockId: TypedIdentifier): F[Iterative[F, BlockBodyV2.Full, BlockBodyV2.Full]]
+  def improvePackedBlock(parentBlockId: TypedIdentifier): F[Iterative[F, BlockBodyV2.Full]]
 }

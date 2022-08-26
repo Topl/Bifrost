@@ -56,7 +56,7 @@ object BramblTetra extends IOApp.Simple {
                       for {
                         _ <- Logger[F](logger).info(show"Broadcasting transaction id=${transaction.id.asTypedBytes}")
                         _ <- client.broadcastTransaction(transaction)
-                        _ <- Async[F].sleep(20000.milli)
+                        _ <- Async[F].sleep(10000.milli)
                       } yield ()
                     }
                 )
