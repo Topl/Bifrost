@@ -4,7 +4,7 @@ import cats.implicits._
 import akka.NotUsed
 import akka.stream.{Attributes, FlowShape, Inlet, Materializer, Outlet}
 import akka.stream.scaladsl.Flow
-import akka.stream.stage.{AsyncCallback, GraphStage, GraphStageLogic, InHandler, OutHandler}
+import akka.stream.stage.{AsyncCallback, GraphStage, GraphStageLogic, GraphStageLogicWithLogging, InHandler, OutHandler}
 import cats.effect.{Async, Fiber}
 
 import scala.concurrent.ExecutionContext
@@ -26,13 +26,16 @@ private class AbandonerFlowImpl[F[_]: Async: FToFuture, T, U](f: T => F[U]) exte
   val shape: FlowShape[T, U] = FlowShape(inlet, outlet)
 
   def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
-    new GraphStageLogic(shape) with InHandler with OutHandler {
+    new GraphStageLogicWithLogging(shape) with InHandler with OutHandler {
 
       implicit private var mat: Materializer = _
       implicit private var ec: ExecutionContext = _
       private var fiber: Fiber[F, Throwable, U] = _
+      // Invoked when upstream produces faster than this Flow can process the previous result
       private var currentCancelledCallback: AsyncCallback[Either[Throwable, T]] = _
+      // Invoked after the Fiber has launched in the cats-effect runtime
       private var fiberStartedCallback: AsyncCallback[Either[Throwable, Fiber[F, Throwable, U]]] = _
+      // Invoked when the currently running fiber completes
       private var fiberCompletedCallback: AsyncCallback[Either[Throwable, U]] = _
 
       override def preStart(): Unit = {
@@ -55,6 +58,9 @@ private class AbandonerFlowImpl[F[_]: Async: FToFuture, T, U](f: T => F[U]) exte
 
       setHandlers(inlet, outlet, this)
 
+      /**
+       * Launch a fiber to process the value provided by upstream
+       */
       private def handleNextValue(nextValue: T): Unit = {
         fiber = null
         implicitly[FToFuture[F]]
@@ -62,6 +68,9 @@ private class AbandonerFlowImpl[F[_]: Async: FToFuture, T, U](f: T => F[U]) exte
           .onComplete(r => fiberStartedCallback.invoke(r.toEither))
       }
 
+      /**
+       * A computation fiber was successfully launched in the background
+       */
       private def fiberStarted(f: Fiber[F, Throwable, U]): Unit = {
         fiber = f
         implicitly[FToFuture[F]]
@@ -71,20 +80,26 @@ private class AbandonerFlowImpl[F[_]: Async: FToFuture, T, U](f: T => F[U]) exte
             case Failure(FCancelled) =>
             case r                   => fiberCompletedCallback.invoke(r.toEither)
           }
-        // Now that the new fiber is running in the background
+        // Now that we're working on the received value, eagerly ask upstream to give us the next value
         pull(inlet)
       }
 
+      /**
+       * The computation fiber completed successfully, so we can finally push the result downstream
+       */
       private def fiberCompleted(result: U): Unit =
         push(outlet, result)
 
       def onPush(): Unit = {
         val in = grab(inlet)
         Option(fiber) match {
+          // Upstream produced data before we finished computing on the previous, so abandon the previous attempt
           case Some(f) =>
+            log.debug("Abandoning attempt")
             implicitly[FToFuture[F]]
               .apply(f.cancel.as(in))
               .onComplete(r => currentCancelledCallback.invoke(r.toEither))
+          // No background process to cancel, so immediately start working on the received value
           case _ =>
             handleNextValue(in)
         }

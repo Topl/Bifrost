@@ -16,7 +16,6 @@ import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.crypto.signing._
 import co.topl.interpreters.{
   ActorPoolUnsafeResource,
-  AkkaSecureStore,
   BlockHeightTree,
   BlockIdTree,
   InMemorySecureStore,
@@ -26,7 +25,6 @@ import co.topl.interpreters.{
 }
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.models._
 import co.topl.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
@@ -46,7 +44,6 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.net.InetSocketAddress
-import java.nio.file.Files
 import java.security.SecureRandom
 import java.time.Instant
 import java.util.UUID
@@ -69,15 +66,17 @@ object NodeApp
 
   def run: IO[Unit] =
     for {
-      _                <- Logger[F].info(show"Launching node with args=$args")
-      bigBangTimestamp <- Instant.now().plusSeconds(10).toEpochMilli.pure[F]
+      _ <- Logger[F].info(show"Launching node with args=$args")
+      // Values are hardcoded for now; other tickets/work will make these configurable
+      bigBangTimestamp <- Instant.now().plusSeconds(5).toEpochMilli.pure[F]
       localPeer = LocalPeer(InetSocketAddress.createUnresolved("localhost", 9085), (0, 0))
-      rpcHost = "localhost"
+      rpcHost = "0.0.0.0"
       rpcPort = 9084
       implicit0(networkPrefix: NetworkPrefix) = NetworkPrefix(1: Byte)
       stakerInitializers = PrivateTestnet.stakerInitializers(bigBangTimestamp, 1)
       implicit0(bigBangConfig: BigBang.Config) = PrivateTestnet.config(bigBangTimestamp, stakerInitializers)
       bigBangBlock = BigBang.block
+      _ <- Logger[F].info(show"Big Bang Block id=${bigBangBlock.headerV2.id.asTypedBytes}")
 
       // Initialize crypto resources
 
@@ -103,7 +102,7 @@ object NodeApp
       blockHeightTreeStore <- RefStore.Eval.make[F, Long, TypedIdentifier]()
       blockHeightTreeUnapplyStore <- RefStore.Eval.make[F, TypedIdentifier, Long]()
 
-      // Store the initial data
+      // Store the big bang data
       _ <- slotDataStore.put(bigBangBlock.headerV2.id, bigBangBlock.headerV2.slotData(Ed25519VRF.precomputed()))
       _ <- blockHeaderStore.put(bigBangBlock.headerV2.id, bigBangBlock.headerV2)
       _ <- blockBodyStore.put(
@@ -200,8 +199,7 @@ object NodeApp
         blockIdTree,
         boxStateStore.pure[F]
       )
-      transactionSyntaxValidation   <- TransactionSyntaxValidation.make[F]
-      transactionSemanticValidation <- TransactionSemanticValidation.make[F](transactionStore.getOrRaise, boxState)
+      transactionSyntaxValidation <- TransactionSyntaxValidation.make[F]
       transactionAuthorizationValidation <- TransactionAuthorizationValidation.make[F](
         blake2b256Resource,
         curve25519Resource,
@@ -230,6 +228,7 @@ object NodeApp
         ed25519VRFResource,
         kesProductResource
       )
+      // Finally, run the program
       _ <- Blockchain
         .run[F](
           clock,

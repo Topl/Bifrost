@@ -11,6 +11,13 @@ import cats.implicits._
  * value.
  */
 trait Iterative[F[_], E] {
+
+  /**
+   * Make the given value better.  If a better value can't be produced, return `never`.  This doesn't need to be a
+   * "drastic" improvement; any incremental improvement is valid (and generally preferred)
+   * @param current the current/latest value to be improved
+   * @return an improved value, if one can be made.  Otherwise, `never`
+   */
   def improve(current: E): F[E]
 }
 
@@ -25,10 +32,18 @@ object Iterative {
   ): F[() => F[E]] =
     for {
       initialValue <- init
-      stopQueue    <- Queue.bounded[F, Unit](1)
-      resultsQueue <- Queue.dropping[F, E](1)
-      _            <- resultsQueue.offer(initialValue)
+      // A queue which accepts a single signal from the outside indicating that the Iterative process should stop
+      stopQueue <- Queue.bounded[F, Unit](1)
+      // A queue which stores the "latest" result.  New results overwrite the previous.
+      resultsQueue <- Queue.circularBuffer[F, E](1)
+      // Store the provided initial value as the current best result.  If the consumer needs an immediate result,
+      // the initial value is returned.
+      _ <- resultsQueue.offer(initialValue)
+      // Launch a fiber in the background which executes the Iterative process
       fiber <- Async[F].start {
+        // Start from the initial value and recursively compute the next/improved value.  Once computed, the new
+        // value is stored in the resultsQueue, and a check is performed to see if `stopQueue` instructs us to
+        // exit the recursive loop
         initialValue.tailRecM(
           iterative
             .improve(_)
@@ -36,6 +51,9 @@ object Iterative {
             .flatMap(r => EitherT.fromOptionF(stopQueue.tryTake, r).as(r).value)
         )
       }
-    } yield () => stopQueue.offer(()) >> resultsQueue.take.flatTap(_ => fiber.cancel)
+    } yield {
+      // Now return a function which sends a stop signal and retrieves the current/best result
+      () => stopQueue.offer(()) >> resultsQueue.take.flatTap(_ => fiber.cancel)
+    }
 
 }

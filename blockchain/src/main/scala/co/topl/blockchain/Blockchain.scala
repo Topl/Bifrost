@@ -22,18 +22,19 @@ import co.topl.models._
 import co.topl.networking.blockchain._
 import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, LocalPeer}
 import co.topl.typeclasses.implicits._
-import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import BlockchainPeerHandler.monoidBlockchainPeerHandler
 import co.topl.minting.{BlockPacker, BlockProducer}
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.util.Random
 
 object Blockchain {
 
   /**
-   * A forever-running program which traverses epochs and the slots within the epochs
+   * A program which executes the blockchain protocol, including a P2P layer, RPC layer, and minter.
    */
-  def run[F[_]: Parallel: MonadThrow: Logger: Async: FToFuture](
+  def run[F[_]: Parallel: MonadThrow: Async: FToFuture](
     clock:                       ClockAlgebra[F],
     staker:                      Option[StakingAlgebra[F]],
     slotDataStore:               Store[F, TypedIdentifier, SlotData],
@@ -58,7 +59,8 @@ object Blockchain {
     ) => Flow[ByteString, ByteString, F[BlockchainPeerClient[F]]],
     rpcHost:         String,
     rpcPort:         Int
-  )(implicit system: ActorSystem[_], random: Random): F[Unit] =
+  )(implicit system: ActorSystem[_], random: Random): F[Unit] = {
+    implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromClass[F](Blockchain.getClass)
     for {
       (localChain, _localBlockAdoptionsSource) <- LocalChainBroadcaster.make(_localChain)
       localBlockAdoptionsSource <- _localBlockAdoptionsSource.toMat(BroadcastHub.sink)(Keep.right).liftTo[F]
@@ -128,7 +130,11 @@ object Blockchain {
           .flatMap(currentHead =>
             BlockProducer
               .make[F](
-                Source.single(currentHead).concat(localBlockAdoptionsSource.mapAsyncF(1)(slotDataStore.getOrRaise)),
+                Source
+                  .future(
+                    implicitly[FToFuture[F]].apply(clock.delayedUntilSlot(currentHead.slotId.slot).as(currentHead))
+                  )
+                  .concat(localBlockAdoptionsSource.mapAsyncF(1)(slotDataStore.getOrRaise)),
                 staker,
                 clock,
                 blockPacker
@@ -149,13 +155,15 @@ object Blockchain {
       mintedBlockStreamCompletionFuture =
         mintedBlockStream
           .tapAsyncF(1)(block => Logger[F].info(show"Minted header=${block.headerV2} body=${block.blockBodyV2}"))
-          .tapAsyncF(1)(block =>
+          .mapAsyncF(1)(block =>
             blockIdTree.associate(block.headerV2.id, block.headerV2.parentHeaderId) >>
-            ed25519VrfResource.use(implicit e => slotDataStore.put(block.headerV2.id, block.headerV2.slotData)) >>
             headerStore.put(block.headerV2.id, block.headerV2) >>
-            bodyStore.put(block.headerV2.id, block.blockBodyV2)
+            bodyStore.put(block.headerV2.id, block.blockBodyV2) >>
+            ed25519VrfResource
+              .use(implicit e => block.headerV2.slotData.pure[F])
+              .flatTap(slotDataStore.put(block.headerV2.id, _))
           )
-          .mapAsyncF(1)(block => ed25519VrfResource.use(implicit ed25519Vrf => block.headerV2.slotData.pure[F]))
+          .tapAsyncF(1)(slotData => Logger[F].info(show"Adopted blockId=${slotData.slotId.blockId}"))
           .map(Validated.Valid(_))
           .tapAsyncF(1)(localChain.adopt)
           .toMat(Sink.ignore)(Keep.right)
@@ -166,5 +174,6 @@ object Blockchain {
         p2pFiber.join
       )
     } yield ()
+  }
 
 }

@@ -2,19 +2,21 @@ package co.topl.minting
 
 import akka.NotUsed
 import akka.actor.typed.ActorSystem
-import akka.stream.{Materializer, OverflowStrategy}
+import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.Source
 import cats.data.{Chain, OptionT}
-import cats.implicits._
 import cats.effect._
+import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.catsakka._
-import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.minting.algebras.LeaderElectionMintingAlgebra.VrfHit
-import co.topl.typeclasses.implicits._
 import co.topl.minting.algebras.{BlockPackerAlgebra, BlockProducerAlgebra, StakingAlgebra}
 import co.topl.models._
+import co.topl.typeclasses.implicits._
+import org.typelevel.log4cats.slf4j.Slf4jLogger
+import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 
 import scala.collection.immutable.ListSet
 
@@ -40,6 +42,7 @@ object BlockProducer {
   )(implicit system: ActorSystem[_]): F[BlockProducerAlgebra[F]] =
     staker.address.map(stakerAddress =>
       new BlockProducerAlgebra[F] {
+        implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromClass[F](BlockProducer.getClass)
 
         val blocks: F[Source[BlockV2, NotUsed]] =
           Sync[F].delay(
@@ -53,10 +56,15 @@ object BlockProducer {
          */
         private def makeChild(stakerAddress: StakingAddresses.Operator)(parentSlotData: SlotData) =
           for {
-            nextHit   <- nextEligibility(parentSlotData)
+            // From the given parent block, when are we next eligible to produce a new block?
+            nextHit <- nextEligibility(parentSlotData)
+            _ <- Logger[F].debug(
+              show"Packing block for parentId=${parentSlotData.slotId.blockId} parentSlot=${parentSlotData.slotId.slot} eligibilitySlot=${nextHit.slot}"
+            )
+            // Assemble the transactions to be placed in our new block
             body      <- packBlock(parentSlotData.slotId.blockId, nextHit.slot)
             timestamp <- clock.currentTimestamp
-            blockMaker = prepareUnsignedBlock(stakerAddress)(parentSlotData, body, timestamp, nextHit)
+            blockMaker = prepareUnsignedBlock(parentSlotData, body, timestamp, nextHit)
             block <- OptionT(staker.certifyBlock(parentSlotData.slotId, nextHit.slot, blockMaker))
               .getOrRaise(new IllegalStateException("Unable to certify block"))
           } yield block
@@ -70,7 +78,9 @@ object BlockProducer {
 
         /**
          * Launch the block packer function, then delay the clock, then stop the block packer function and
-         * capture the result.
+         * capture the result.  The goal is to grant as much time as possible to the block packer function to produce
+         * the best possible block.
+         * @param untilSlot The slot at which the block packer function should be halted and a value extracted
          */
         private def packBlock(parentId: TypedIdentifier, untilSlot: Slot): F[BlockBodyV2.Full] =
           blockPacker
@@ -79,9 +89,10 @@ object BlockProducer {
             .productL(clock.delayedUntilSlot(untilSlot))
             .flatMap(_.apply())
 
+        /**
+         * After the block body has been constructed, prepare a Block Header for signing
+         */
         private def prepareUnsignedBlock(
-          stakerAddress: StakingAddresses.Operator
-        )(
           parentSlotData: SlotData,
           body:           BlockBodyV2.Full,
           timestamp:      Timestamp,
