@@ -1,8 +1,9 @@
 package co.topl.minting
 
 import cats.data.OptionT
+import cats.effect.Sync
 import cats.implicits._
-import cats.{Applicative, Monad}
+import cats.Applicative
 import co.topl.algebras.{ClockAlgebra, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
@@ -12,13 +13,14 @@ import co.topl.minting.algebras.LeaderElectionMintingAlgebra.VrfHit
 import co.topl.minting.algebras._
 import co.topl.models._
 import co.topl.typeclasses.implicits._
-import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
+import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 
 object Staking {
 
   object Eval {
 
-    def make[F[_]: Monad: Logger](
+    def make[F[_]: Sync](
       a:               StakingAddresses.Operator,
       leaderElection:  LeaderElectionMintingAlgebra[F],
       evolver:         OperationalKeysAlgebra[F],
@@ -28,11 +30,11 @@ object Staking {
       vrfProof:        VrfProofAlgebra[F],
       clock:           ClockAlgebra[F]
     ): StakingAlgebra[F] = new StakingAlgebra[F] {
+      implicit private val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromClass[F](Staking.getClass)
       val address: F[StakingAddresses.Operator] = a.pure[F]
 
       def elect(parent: SlotData, slot: Slot): F[Option[VrfHit]] =
         for {
-          _             <- Logger[F].debug(show"Attempting election at slot=$slot with parent=${parent.slotId.blockId}")
           slotsPerEpoch <- clock.slotsPerEpoch
           eta           <- etaCalculation.etaToBe(parent.slotId, slot)
           _ <- Applicative[F].whenA(slot % slotsPerEpoch === 0L)(
@@ -41,6 +43,13 @@ object Staking {
           maybeHit <- OptionT(consensusState.operatorRelativeStake(parent.slotId.blockId, slot)(a))
             .flatMapF(relativeStake => leaderElection.getHit(relativeStake, slot, slot - parent.slotId.slot, eta))
             .value
+          _ <- Logger[F].debug(
+            show"Eligibility at" +
+            show" slot=$slot" +
+            show" parentId=${parent.slotId.blockId}" +
+            show" parentSlot=${parent.slotId.slot}" +
+            show" eligible=${maybeHit.nonEmpty}"
+          )
         } yield maybeHit
 
       def certifyBlock(
