@@ -33,10 +33,10 @@ object BlockProducer {
    *                    when demanded.
    */
   def make[F[_]: Async: FToFuture: RunnableGraphToF](
-    parentHeaders:         SourceMatNotUsed[SlotData],
-    staker:                StakingAlgebra[F],
-    clock:                 ClockAlgebra[F],
-    blockPacker:           BlockPackerAlgebra[F]
+    parentHeaders:   SourceMatNotUsed[SlotData],
+    staker:          StakingAlgebra[F],
+    clock:           ClockAlgebra[F],
+    blockPacker:     BlockPackerAlgebra[F]
   )(implicit system: ActorSystem[_]): F[BlockProducerAlgebra[F]] =
     staker.address.map(stakerAddress =>
       new BlockProducerAlgebra[F] {
@@ -75,7 +75,7 @@ object BlockProducer {
         private def packBlock(parentId: TypedIdentifier, untilSlot: Slot): F[BlockBodyV2.Full] =
           blockPacker
             .improvePackedBlock(parentId)
-            .flatMap(Iterative.runActor(Chain.empty[Transaction].pure[F]))
+            .flatMap(Iterative.run(Chain.empty[Transaction].pure[F]))
             .productL(clock.delayedUntilSlot(untilSlot))
             .flatMap(_.apply())
 

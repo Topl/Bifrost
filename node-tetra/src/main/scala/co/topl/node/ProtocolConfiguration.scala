@@ -7,6 +7,9 @@ import co.topl.typeclasses.implicits._
 
 import scala.concurrent.duration._
 
+/**
+ * Note: These values will be made configurable in a future ticket
+ */
 object ProtocolConfiguration {
 
   val fEffective: Ratio = Ratio(15, 100)
