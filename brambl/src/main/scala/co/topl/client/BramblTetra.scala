@@ -79,7 +79,7 @@ object BramblTetra
             boxId = Box.Id(previousTransaction.id, polyIndex),
             proposition = previousProposition,
             proof = Proofs.Contextual.HeightLock(),
-            value = Box.Values.Poly(10_000L)
+            value = Box.Values.Poly(10000L)
           )
         ),
         outputs = Chain(
