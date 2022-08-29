@@ -1,30 +1,35 @@
 name: Bifrost_PR
 
 on:
-  pull_request:
-    branches: [dev, main, release-*, rc-*]
+  push:
+    branches: [BN-357-2071-create-automated-release-workflow]
 
 jobs:
-  sbt-build:
-    uses: ./.github/workflows/_sbt_build.yml
-    with:
-      target-os: >-
-        ["ubuntu-latest"]
-      java-versions: >-
-        ["graalvm-ce-java11@21.1.0"]
-      preserve-cache-between-runs: true
+  # sbt-build:
+  #   uses: ./.github/workflows/_sbt_build.yml
+  #   with:
+  #     target-os: >-
+  #       ["ubuntu-latest"]
+  #     java-versions: >-
+  #       ["graalvm-ce-java11@21.1.0"]
+  #     preserve-cache-between-runs: true
 
-  post-man-integration-tests:
-    uses: ./.github/workflows/_postman_integration_tests.yml
-    needs: sbt-build
-    with:
-      target-os: >-
-        ["ubuntu-latest"]
-      java-versions: >-
-        ["graalvm-ce-java11@21.1.0"]
-      preserve-cache-between-runs: true
+  # post-man-integration-tests:
+  #   uses: ./.github/workflows/_postman_integration_tests.yml
+  #   needs: sbt-build
+  #   with:
+  #     target-os: >-
+  #       ["ubuntu-latest"]
+  #     java-versions: >-
+  #       ["graalvm-ce-java11@21.1.0"]
+  #     preserve-cache-between-runs: true
 
-  publish-test-results:
-    uses: ./.github/workflows/_publish_test_results.yml
-    if: always()
-    needs: [post-man-integration-tests]
+  # publish-test-results:
+  #   uses: ./.github/workflows/_publish_test_results.yml
+  #   if: always()
+  #   needs: [post-man-integration-tests]
+
+  publish-docker-image:
+    uses: ./.github/workflows/_docker_publish.yml
+    with:
+      remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-dev/"

@@ -1,0 +1,34 @@
+name: Publish Docker Image
+
+on:
+  workflow_call:
+    inputs:
+      remote-repository:
+        description: 'Preserve project cache between new runs.'
+        default: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-dev/"
+        required: false
+        type: string
+
+jobs:
+  publish_docker_image:
+    name: Publish Docker Image
+    runs-on: ubuntu-latest
+    steps:
+      - id: 'auth'
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v0
+        with:
+          workload_identity_provider: ${{ secrets.GCP_OIDC_PROVIDER_NAME }}
+          service_account: ${{ secrets.GCP_OIDC_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Set up gcloud
+        uses: 'google-github-actions/setup-gcloud@v0'
+
+      - name: Checkout current branch
+        uses: actions/checkout@v2
+
+      - name: Stage Docker Image
+        run: sbt node/docker:publishLocal
+
+      - name: Tag image for remote registry
+        run: docker tag $(docker images bifrost-node --format "{{.ID}}") ${{ inputs.remote-repository }}bifrost-node:$(docker images bifrost-node --format "{{.Tag}}")
