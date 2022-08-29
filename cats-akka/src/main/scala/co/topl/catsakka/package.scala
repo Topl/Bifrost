@@ -9,7 +9,7 @@ import cats.~>
 
 import scala.concurrent.Future
 
-package object catsakka extends SourceOps with RunnableGraphOps with FlowOps {
+package object catsakka extends SourceOps with RunnableGraphOps with FlowOps with FOps {
 
   type FToFuture[F[_]] = F ~> Future
   type RunnableGraphToF[F[_]] = RunnableGraph ~> F
