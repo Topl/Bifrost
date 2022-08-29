@@ -48,13 +48,13 @@ object BlockProducer {
           Sync[F].delay(
             parentHeaders
               .buffer(1, OverflowStrategy.dropHead)
-              .via(AbandonerFlow(makeChild(stakerAddress)))
+              .via(AbandonerFlow(makeChild))
           )
 
         /**
          * Construct a new child Block of the given parent
          */
-        private def makeChild(stakerAddress: StakingAddresses.Operator)(parentSlotData: SlotData) =
+        private def makeChild(parentSlotData: SlotData) =
           for {
             // From the given parent block, when are we next eligible to produce a new block?
             nextHit <- nextEligibility(parentSlotData)

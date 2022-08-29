@@ -43,27 +43,17 @@ object BlockPacker {
               new Iterative[F, BlockBodyV2.Full] {
 
                 def improve(current: BlockBodyV2.Full): F[BlockBodyV2.Full] =
-                  Sync[F]
-                    .delay(System.currentTimeMillis())
-                    .flatMap(startTime =>
-                      // Dequeue the next transaction (or block forever)
-                      queue.take
-                        .flatMap { transaction =>
-                          // Attempt to stuff that transaction into our current block
-                          val fullBody = current.append(transaction)
-                          val body = ListSet.empty[TypedIdentifier] ++ fullBody.toList.map(_.id.asTypedBytes)
-                          // If it's valid, hooray.  If not, return the previous value
-                          validateBody(parentBlockId, body)
-                            .ifF(fullBody, current)
-                            .flatTap(_ =>
-                              Logger[F]
-                                .debug(
-                                  show"Block packing iteration for transactionId=${transaction.id.asTypedBytes} took ${System
-                                      .currentTimeMillis() - startTime}ms"
-                                )
-                            )
-                        }
-                    )
+                  // Dequeue the next transaction (or block forever)
+                  queue.take
+                    .flatMap { transaction =>
+                      // Attempt to stuff that transaction into our current block
+                      val fullBody = current.append(transaction)
+                      val body = ListSet.empty[TypedIdentifier] ++ fullBody.toList.map(_.id.asTypedBytes)
+                      // If it's valid, hooray.  If not, return the previous value
+                      validateBody(parentBlockId, body)
+                        .ifF(fullBody, current)
+                    }
+                    .logDuration("BlockPacker Iteration")
               }
             )
       } yield iterative
