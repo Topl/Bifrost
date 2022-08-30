@@ -6,6 +6,9 @@ on:
   workflow_dispatch:
 
 jobs:
+  validate-helm:
+    uses: ./.github/workflows/_validate_helm.yml
+
   sbt-build:
     uses: ./.github/workflows/_sbt_build.yml
     with:
