@@ -53,7 +53,7 @@ object Mempool {
       addTransactionWithDefaultExpiration = (transaction: Transaction) =>
         for {
           currentSlot <- clock.globalSlot
-          targetSlot = transaction.chronology.maximumSlot.min(currentSlot + defaultExpirationLimit)
+          targetSlot = transaction.schedule.maximumSlot.min(currentSlot + defaultExpirationLimit)
           _ <- addTransaction(transaction, targetSlot)
         } yield ()
       applyBlock = (state: State[F], blockId: TypedIdentifier) =>

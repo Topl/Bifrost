@@ -355,7 +355,7 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
     val unprovenTransaction = Transaction.Unproven(
       Chain(input.copy(proposition = proposition)),
       Chain.empty,
-      Transaction.Chronology(0L, 0L, Long.MaxValue),
+      Transaction.Schedule(0L, 0L, Long.MaxValue),
       None
     )
 
