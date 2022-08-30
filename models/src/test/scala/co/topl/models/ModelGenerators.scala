@@ -599,13 +599,13 @@ trait ModelGenerators {
       } yield Transaction.Unproven.Input(boxId, proposition, value)
     )
 
-  implicit val arbitraryTransactionChronology: Arbitrary[Transaction.Chronology] =
+  implicit val arbitraryTransactionSchedule: Arbitrary[Transaction.Schedule] =
     Arbitrary(
       for {
         creation    <- Gen.chooseNum[Long](0L, 100000L)
         minimumSlot <- Gen.chooseNum[Slot](0L, 100000L)
         maximumSlot <- Gen.chooseNum[Slot](0L, 100000L)
-      } yield Transaction.Chronology(creation, minimumSlot, maximumSlot)
+      } yield Transaction.Schedule(creation, minimumSlot, maximumSlot)
     )
 
   implicit val arbitraryUnprovenTransaction: Arbitrary[Transaction.Unproven] =
@@ -627,9 +627,9 @@ trait ModelGenerators {
                 .listOfN(count, arbitraryTransactionOutput.arbitrary)
                 .map(Chain.fromSeq)
             )
-        chronology <- arbitraryTransactionChronology.arbitrary
+        schedule <- arbitraryTransactionSchedule.arbitrary
         data = None
-      } yield Transaction.Unproven(inputs, outputs, chronology, data)
+      } yield Transaction.Unproven(inputs, outputs, schedule, data)
     )
 
   implicit val arbitraryTransaction: Arbitrary[Transaction] =
@@ -651,9 +651,9 @@ trait ModelGenerators {
                 .listOfN(count, arbitraryTransactionOutput.arbitrary)
                 .map(Chain.fromSeq)
             )
-        chronology <- arbitraryTransactionChronology.arbitrary
+        schedule <- arbitraryTransactionSchedule.arbitrary
         data = None
-      } yield Transaction(inputs, outputs, chronology, data)
+      } yield Transaction(inputs, outputs, schedule, data)
     )
 
   implicit val arbitrarySlotId: Arbitrary[SlotId] =

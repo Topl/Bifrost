@@ -35,7 +35,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
           Chain(
             Transaction.Output(address, Box.Values.Arbit(5), minting = true)
           ),
-          Transaction.Chronology(0, 0, Long.MaxValue),
+          Transaction.Schedule(0, 0, Long.MaxValue),
           None
         )
 
@@ -89,7 +89,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
             Transaction.Output(address, Box.Values.Arbit(3), minting = false),
             Transaction.Output(nonStakingFullAddress, Box.Values.Arbit(2), minting = false)
           ),
-          Transaction.Chronology(0, 0, Long.MaxValue),
+          Transaction.Schedule(0, 0, Long.MaxValue),
           None
         )
 
@@ -120,7 +120,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
             Transaction.Output(address, Box.Values.Arbit(1), minting = false),
             Transaction.Output(nonStakingFullAddress, Box.Values.Arbit(1), minting = false)
           ),
-          Transaction.Chronology(0, 0, Long.MaxValue),
+          Transaction.Schedule(0, 0, Long.MaxValue),
           None
         )
 
@@ -169,7 +169,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
               minting = true
             )
           ),
-          Transaction.Chronology(0, 0, Long.MaxValue),
+          Transaction.Schedule(0, 0, Long.MaxValue),
           None
         )
 
@@ -218,7 +218,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
             )
           ),
           Chain.empty,
-          Transaction.Chronology(0, 0, Long.MaxValue),
+          Transaction.Schedule(0, 0, Long.MaxValue),
           None
         )
 
