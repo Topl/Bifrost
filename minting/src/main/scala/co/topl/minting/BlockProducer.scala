@@ -57,7 +57,7 @@ object BlockProducer {
         private def makeChild(parentSlotData: SlotData) =
           for {
             // From the given parent block, when are we next eligible to produce a new block?
-            nextHit <- nextEligibility(parentSlotData)
+            nextHit <- nextEligibility(parentSlotData.slotId)
             _ <- Logger[F].debug(
               show"Packing block for parentId=${parentSlotData.slotId.blockId} parentSlot=${parentSlotData.slotId.slot} eligibilitySlot=${nextHit.slot}"
             )
@@ -72,9 +72,9 @@ object BlockProducer {
         /**
          * Determine the staker's next eligibility based on the given parent
          */
-        private def nextEligibility(parentSlotData: SlotData): F[VrfHit] =
-          (parentSlotData.slotId.slot + 1)
-            .tailRecM(testSlot => OptionT(staker.elect(parentSlotData, testSlot)).toRight(testSlot + 1).value)
+        private def nextEligibility(parentSlotId: SlotId): F[VrfHit] =
+          (parentSlotId.slot + 1)
+            .tailRecM(testSlot => OptionT(staker.elect(parentSlotId, testSlot)).toRight(testSlot + 1).value)
 
         /**
          * Launch the block packer function, then delay the clock, then stop the block packer function and
