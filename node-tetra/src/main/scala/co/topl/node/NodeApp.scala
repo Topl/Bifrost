@@ -9,15 +9,16 @@ import co.topl.catsakka._
 import cats.implicits._
 import co.topl.algebras.{ClockAlgebra, UnsafeResource}
 import ClockAlgebra.implicits._
+import cats.Applicative
 import co.topl.blockchain.{BigBang, Blockchain, PrivateTestnet, StakerInitializers}
 import co.topl.catsakka.IOAkkaApp
 import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.crypto.signing._
 import co.topl.interpreters.{
   ActorPoolUnsafeResource,
+  AkkaSecureStore,
   BlockHeightTree,
   BlockIdTree,
-  InMemorySecureStore,
   SchedulerClock,
   StatsInterpreter
 }
@@ -38,7 +39,7 @@ import co.topl.ledger.interpreters._
 import co.topl.minting.{LeaderElectionMinting, OperationalKeys, Staking, VrfProof}
 import co.topl.networking.p2p.LocalPeer
 import co.topl.numerics._
-import fs2.io.file.Files
+import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
@@ -63,9 +64,11 @@ object NodeApp
     Timeout(10.seconds)
 
   def run: IO[Unit] =
-    Files[F].tempDirectory.use(dataDir =>
+    (Files[F].tempDirectory, Files[F].tempDirectory).tupled.use { case (dataDir, stakingDir) =>
       for {
         _ <- Logger[F].info(show"Launching node with args=$args")
+        _ <- Logger[F].info(show"Using temporary dataDir=$dataDir")
+        _ <- Logger[F].info(show"Using temporary stakingDir=$stakingDir")
         // Values are hardcoded for now; other tickets/work will make these configurable
         bigBangTimestamp <- Instant.now().plusSeconds(5).toEpochMilli.pure[F]
         localPeer = LocalPeer(InetSocketAddress.createUnresolved("localhost", 9085), (0, 0))
@@ -199,6 +202,7 @@ object NodeApp
           transactionAuthorizationValidation
         )
         staking <- makeStaking(
+          stakingDir,
           bigBangBlock.headerV2,
           stakerInitializers.headOption.get,
           clock,
@@ -235,9 +239,10 @@ object NodeApp
             rpcPort
           )
       } yield ()
-    )
+    }
 
   private def makeStaking(
+    stakingDir:               Path,
     bigBangHeader:            BlockHeaderV2,
     initializer:              StakerInitializers.Operator,
     clock:                    ClockAlgebra[F],
@@ -249,8 +254,13 @@ object NodeApp
     kesProductResource:       UnsafeResource[F, KesProduct]
   ) =
     for {
-      secureStore <- InMemorySecureStore.Eval.make[F]
-      _           <- secureStore.write(UUID.randomUUID().toString, initializer.kesSK)
+      // Initialize a persistent secure store
+      secureStore <- AkkaSecureStore.Eval.make[F](stakingDir.toNioPath)
+      // Determine if a key has already been initialized
+      _ <- secureStore.list
+        .map(_.isEmpty)
+        // If uninitialized, generate a new key.  Otherwise, move on.
+        .ifM(secureStore.write(UUID.randomUUID().toString, initializer.kesSK), Applicative[F].unit)
       vrfProofConstruction <- VrfProof.Eval.make[F](
         initializer.vrfSK,
         clock,
