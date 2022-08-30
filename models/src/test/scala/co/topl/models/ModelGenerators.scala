@@ -690,6 +690,14 @@ trait ModelGenerators {
         .map(ListSet.empty[TypedIdentifier] ++ _)
     )
 
+  implicit val arbitraryBlock: Arbitrary[BlockV2] =
+    Arbitrary(
+      for {
+        header <- arbitraryHeader.arbitrary
+        body   <- arbitraryBody.arbitrary
+      } yield BlockV2(header, body)
+    )
+
   implicit val arbitraryEta: Arbitrary[Eta] =
     Arbitrary(etaGen)
 
