@@ -1,15 +1,16 @@
 package co.topl.db.leveldb
 
+import cats.Applicative
 import cats.data.OptionT
-import cats.effect.Sync
+import cats.effect.{Async, Sync}
 import cats.implicits._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.algebras.Store
 import co.topl.codecs.bytes.typeclasses.Persistable
+import fs2.io.file._
 import org.iq80.leveldb.{CompressionType, DB, Options}
 import scodec.bits.ByteVector
 
-import java.nio.file.{Files, Path}
 import java.util.InputMismatchException
 import scala.language.implicitConversions
 
@@ -53,7 +54,7 @@ object LevelDbStore {
   /**
    * Creates an instance of a DB from the given path
    */
-  def makeDb[F[_]: Sync](
+  def makeDb[F[_]: Async](
     baseDirectory:   Path,
     createIfMissing: Boolean = true,
     paranoidChecks:  Boolean = true,
@@ -69,10 +70,10 @@ object LevelDbStore {
     options.cacheSize(cacheSize)
     options.maxOpenFiles(maxOpenFiles)
     options.compressionType(compressionType)
+    Applicative[F].whenA(createIfMissing)(Files[F].createDirectories(baseDirectory)) >>
     Sync[F].blocking {
-      Files.createDirectories(baseDirectory)
       org.iq80.leveldb.impl.Iq80DBFactory.factory.open(
-        baseDirectory.toFile,
+        baseDirectory.toNioPath.toFile,
         options
       )
     }

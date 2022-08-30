@@ -4,7 +4,6 @@ import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import akka.stream.scaladsl.Source
 import akka.util.Timeout
-import cats.data.NonEmptySet
 import cats.effect.IO
 import co.topl.catsakka._
 import cats.implicits._
@@ -19,7 +18,6 @@ import co.topl.interpreters.{
   BlockHeightTree,
   BlockIdTree,
   InMemorySecureStore,
-  RefStore,
   SchedulerClock,
   StatsInterpreter
 }
@@ -40,6 +38,7 @@ import co.topl.ledger.interpreters._
 import co.topl.minting.{LeaderElectionMinting, OperationalKeys, Staking, VrfProof}
 import co.topl.networking.p2p.LocalPeer
 import co.topl.numerics._
+import fs2.io.file.Files
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
@@ -47,7 +46,6 @@ import java.net.InetSocketAddress
 import java.security.SecureRandom
 import java.time.Instant
 import java.util.UUID
-import scala.collection.immutable.ListSet
 import scala.concurrent.duration._
 import scala.util.Random
 
@@ -65,195 +63,179 @@ object NodeApp
     Timeout(10.seconds)
 
   def run: IO[Unit] =
-    for {
-      _ <- Logger[F].info(show"Launching node with args=$args")
-      // Values are hardcoded for now; other tickets/work will make these configurable
-      bigBangTimestamp <- Instant.now().plusSeconds(5).toEpochMilli.pure[F]
-      localPeer = LocalPeer(InetSocketAddress.createUnresolved("localhost", 9085), (0, 0))
-      rpcHost = "0.0.0.0"
-      rpcPort = 9084
-      implicit0(networkPrefix: NetworkPrefix) = NetworkPrefix(1: Byte)
-      stakerInitializers = PrivateTestnet.stakerInitializers(bigBangTimestamp, 1)
-      implicit0(bigBangConfig: BigBang.Config) = PrivateTestnet.config(bigBangTimestamp, stakerInitializers)
-      bigBangBlock = BigBang.block
-      _ <- Logger[F].info(show"Big Bang Block id=${bigBangBlock.headerV2.id.asTypedBytes}")
+    Files[F].tempDirectory.use(dataDir =>
+      for {
+        _ <- Logger[F].info(show"Launching node with args=$args")
+        // Values are hardcoded for now; other tickets/work will make these configurable
+        bigBangTimestamp <- Instant.now().plusSeconds(5).toEpochMilli.pure[F]
+        localPeer = LocalPeer(InetSocketAddress.createUnresolved("localhost", 9085), (0, 0))
+        rpcHost = "0.0.0.0"
+        rpcPort = 9084
+        implicit0(networkPrefix: NetworkPrefix) = NetworkPrefix(1: Byte)
+        stakerInitializers = PrivateTestnet.stakerInitializers(bigBangTimestamp, 1)
+        implicit0(bigBangConfig: BigBang.Config) = PrivateTestnet.config(bigBangTimestamp, stakerInitializers)
+        bigBangBlock = BigBang.block
+        _ <- Logger[F].info(show"Big Bang Block id=${bigBangBlock.headerV2.id.asTypedBytes}")
 
-      // Initialize crypto resources
+        // Initialize crypto resources
 
-      blake2b256Resource <- ActorPoolUnsafeResource.Eval.make[F, Blake2b256](new Blake2b256, _ => ())
-      blake2b512Resource <- ActorPoolUnsafeResource.Eval.make[F, Blake2b512](new Blake2b512, _ => ())
-      ed25519VRFResource <- ActorPoolUnsafeResource.Eval.make[F, Ed25519VRF](Ed25519VRF.precomputed(), _ => ())
-      kesProductResource <- ActorPoolUnsafeResource.Eval.make[F, KesProduct](new KesProduct, _ => ())
-      curve25519Resource <- ActorPoolUnsafeResource.Eval.make[F, Curve25519](new Curve25519, _ => ())
-      ed25519Resource    <- ActorPoolUnsafeResource.Eval.make[F, Ed25519](new Ed25519, _ => ())
-      extendedEd25519Resource <- ActorPoolUnsafeResource.Eval
-        .make[F, ExtendedEd25519](ExtendedEd25519.precomputed(), _ => ())
+        blake2b256Resource <- ActorPoolUnsafeResource.Eval.make[F, Blake2b256](new Blake2b256, _ => ())
+        blake2b512Resource <- ActorPoolUnsafeResource.Eval.make[F, Blake2b512](new Blake2b512, _ => ())
+        ed25519VRFResource <- ActorPoolUnsafeResource.Eval.make[F, Ed25519VRF](Ed25519VRF.precomputed(), _ => ())
+        kesProductResource <- ActorPoolUnsafeResource.Eval.make[F, KesProduct](new KesProduct, _ => ())
+        curve25519Resource <- ActorPoolUnsafeResource.Eval.make[F, Curve25519](new Curve25519, _ => ())
+        ed25519Resource    <- ActorPoolUnsafeResource.Eval.make[F, Ed25519](new Ed25519, _ => ())
+        extendedEd25519Resource <- ActorPoolUnsafeResource.Eval
+          .make[F, ExtendedEd25519](ExtendedEd25519.precomputed(), _ => ())
 
-      // Initialize the Stores
-      slotDataStore        <- RefStore.Eval.make[F, TypedIdentifier, SlotData]()
-      blockHeaderStore     <- RefStore.Eval.make[F, TypedIdentifier, BlockHeaderV2]()
-      blockBodyStore       <- RefStore.Eval.make[F, TypedIdentifier, BlockBodyV2]()
-      transactionStore     <- RefStore.Eval.make[F, TypedIdentifier, Transaction]()
-      boxStateStore        <- RefStore.Eval.make[F, TypedIdentifier, NonEmptySet[Short]]()
-      epochBoundariesStore <- RefStore.Eval.make[F, Long, TypedIdentifier]()
-      operatorStakesStore  <- RefStore.Eval.make[F, StakingAddresses.Operator, Int128]()
-      totalStakesStore     <- RefStore.Eval.make[F, Unit, Int128]()
-      registrationsStore   <- RefStore.Eval.make[F, StakingAddresses.Operator, Box.Values.Registrations.Operator]()
-      blockHeightTreeStore <- RefStore.Eval.make[F, Long, TypedIdentifier]()
-      blockHeightTreeUnapplyStore <- RefStore.Eval.make[F, TypedIdentifier, Long]()
+        dataStores <- DataStores.init[F](dataDir)(bigBangBlock)
 
-      // Store the big bang data
-      _ <- slotDataStore.put(bigBangBlock.headerV2.id, bigBangBlock.headerV2.slotData(Ed25519VRF.precomputed()))
-      _ <- blockHeaderStore.put(bigBangBlock.headerV2.id, bigBangBlock.headerV2)
-      _ <- blockBodyStore.put(
-        bigBangBlock.headerV2.id,
-        ListSet.empty ++ bigBangBlock.transactions.map(_.id.asTypedBytes).toList
-      )
-      _ <- bigBangBlock.transactions.traverseTap(transaction => transactionStore.put(transaction.id, transaction))
-      blockIdTree <- BlockIdTree.make[F]
-      _           <- blockIdTree.associate(bigBangBlock.headerV2.id, bigBangBlock.headerV2.parentHeaderId)
-      _           <- blockHeightTreeStore.put(0, bigBangBlock.headerV2.parentHeaderId)
-      _           <- totalStakesStore.put((), 0)
+        blockIdTree <- BlockIdTree.make[F]
+        _           <- blockIdTree.associate(bigBangBlock.headerV2.id, bigBangBlock.headerV2.parentHeaderId)
 
-      // Start supporting interpreters
-      blockHeightTree <- BlockHeightTree
-        .make[F](
-          blockHeightTreeStore,
-          bigBangBlock.headerV2.parentHeaderId,
-          slotDataStore,
-          blockHeightTreeUnapplyStore,
-          blockIdTree
+        // Start supporting interpreters
+        blockHeightTree <- BlockHeightTree
+          .make[F](
+            dataStores.blockHeightTree,
+            bigBangBlock.headerV2.parentHeaderId,
+            dataStores.slotData,
+            dataStores.blockHeightTreeUnapply,
+            blockIdTree
+          )
+        clock = SchedulerClock.Eval.make[F](
+          ProtocolConfiguration.SlotDuration,
+          ProtocolConfiguration.EpochLength,
+          Instant.ofEpochMilli(bigBangTimestamp)
         )
-      clock = SchedulerClock.Eval.make[F](
-        ProtocolConfiguration.SlotDuration,
-        ProtocolConfiguration.EpochLength,
-        Instant.ofEpochMilli(bigBangTimestamp)
-      )
-      etaCalculation <- EtaCalculation.Eval.make(
-        slotDataStore.getOrRaise,
-        clock,
-        bigBangBlock.headerV2.eligibilityCertificate.eta,
-        blake2b256Resource,
-        blake2b512Resource
-      )
-      exp   <- ExpInterpreter.make[F](10000, 38)
-      log1p <- Log1pInterpreter.make[F](10000, 8).flatMap(Log1pInterpreter.makeCached[F])
-      leaderElectionThreshold = LeaderElectionValidation.Eval
-        .make[F](ProtocolConfiguration.vrfConfig, blake2b512Resource, exp, log1p)
-      epochBoundariesState <- EpochBoundariesEventSourcedState.make[F](
-        clock,
-        bigBangBlock.headerV2.parentHeaderId.pure[F],
-        blockIdTree,
-        epochBoundariesStore.pure[F],
-        slotDataStore.getOrRaise
-      )
-      consensusDataState <- ConsensusDataEventSourcedState.make[F](
-        bigBangBlock.headerV2.parentHeaderId.pure[F],
-        blockIdTree,
-        ConsensusDataEventSourcedState
-          .ConsensusData(operatorStakesStore, totalStakesStore, registrationsStore)
-          .pure[F],
-        blockBodyStore.getOrRaise,
-        transactionStore.getOrRaise,
-        boxId =>
-          transactionStore.getOrRaise(boxId.transactionId).map(_.outputs.get(boxId.transactionOutputIndex.toLong).get)
-      )
-      consensusValidationState <- ConsensusValidationState
-        .make[F](bigBangBlock.headerV2.id, epochBoundariesState, consensusDataState, clock)
-      headerValidation <- BlockHeaderValidation.Eval
-        .make[F](
+        etaCalculation <- EtaCalculation.Eval.make(
+          dataStores.slotData.getOrRaise,
+          clock,
+          bigBangBlock.headerV2.eligibilityCertificate.eta,
+          blake2b256Resource,
+          blake2b512Resource
+        )
+        exp   <- ExpInterpreter.make[F](10000, 38)
+        log1p <- Log1pInterpreter.make[F](10000, 8).flatMap(Log1pInterpreter.makeCached[F])
+        leaderElectionThreshold = LeaderElectionValidation.Eval
+          .make[F](ProtocolConfiguration.vrfConfig, blake2b512Resource, exp, log1p)
+        epochBoundariesState <- EpochBoundariesEventSourcedState.make[F](
+          clock,
+          bigBangBlock.headerV2.parentHeaderId.pure[F],
+          blockIdTree,
+          dataStores.epochBoundaries.pure[F],
+          dataStores.slotData.getOrRaise
+        )
+        consensusDataState <- ConsensusDataEventSourcedState.make[F](
+          bigBangBlock.headerV2.parentHeaderId.pure[F],
+          blockIdTree,
+          ConsensusDataEventSourcedState
+            .ConsensusData(dataStores.operatorStakes, dataStores.activeStake, dataStores.registrations)
+            .pure[F],
+          dataStores.bodies.getOrRaise,
+          dataStores.transactions.getOrRaise,
+          boxId =>
+            dataStores.transactions
+              .getOrRaise(boxId.transactionId)
+              .map(_.outputs.get(boxId.transactionOutputIndex.toLong).get)
+        )
+        consensusValidationState <- ConsensusValidationState
+          .make[F](bigBangBlock.headerV2.id, epochBoundariesState, consensusDataState, clock)
+        headerValidation <- BlockHeaderValidation.Eval
+          .make[F](
+            etaCalculation,
+            consensusValidationState,
+            leaderElectionThreshold,
+            ed25519VRFResource,
+            kesProductResource,
+            ed25519Resource,
+            blake2b256Resource
+          )
+          .flatMap(BlockHeaderValidation.WithCache.make[F](_, dataStores.headers))
+        localChain <- LocalChain.Eval.make(
+          bigBangBlock.headerV2.slotData(Ed25519VRF.precomputed()),
+          ChainSelection
+            .orderT[F](
+              dataStores.slotData.getOrRaise,
+              blake2b512Resource,
+              ProtocolConfiguration.ChainSelectionKLookback,
+              ProtocolConfiguration.ChainSelectionSWindow
+            )
+        )
+        mempool <- Mempool.make[F](
+          bigBangBlock.headerV2.parentHeaderId.pure[F],
+          dataStores.bodies.getOrRaise,
+          dataStores.transactions.getOrRaise,
+          blockIdTree,
+          clock,
+          id => Logger[F].info(show"Expiring transaction id=$id"),
+          1000L,
+          1000L
+        )
+        implicit0(networkRandom: Random) = new Random(new SecureRandom())
+        boxState <- BoxState.make(
+          bigBangBlock.headerV2.parentHeaderId.pure[F],
+          dataStores.bodies.getOrRaise,
+          dataStores.transactions.getOrRaise,
+          blockIdTree,
+          dataStores.spendableBoxIds.pure[F]
+        )
+        transactionSyntaxValidation <- TransactionSyntaxValidation.make[F]
+        transactionAuthorizationValidation <- TransactionAuthorizationValidation.make[F](
+          blake2b256Resource,
+          curve25519Resource,
+          ed25519Resource,
+          extendedEd25519Resource,
+          dataStores.slotData.getOrRaise
+        )
+        bodySyntaxValidation <- BodySyntaxValidation
+          .make[F](dataStores.transactions.getOrRaise, transactionSyntaxValidation)
+        bodySemanticValidation <- BodySemanticValidation.make[F](
+          dataStores.transactions.getOrRaise,
+          boxState,
+          boxState => TransactionSemanticValidation.make[F](dataStores.transactions.getOrRaise, boxState)
+        )
+        bodyAuthorizationValidation <- BodyAuthorizationValidation.make[F](
+          dataStores.transactions.getOrRaise,
+          transactionAuthorizationValidation
+        )
+        staking <- makeStaking(
+          bigBangBlock.headerV2,
+          stakerInitializers.headOption.get,
+          clock,
           etaCalculation,
           consensusValidationState,
           leaderElectionThreshold,
-          ed25519VRFResource,
-          kesProductResource,
           ed25519Resource,
-          blake2b256Resource
-        )
-        .flatMap(BlockHeaderValidation.WithCache.make[F](_, blockHeaderStore))
-      localChain <- LocalChain.Eval.make(
-        bigBangBlock.headerV2.slotData(Ed25519VRF.precomputed()),
-        ChainSelection
-          .orderT[F](
-            slotDataStore.getOrRaise,
-            blake2b512Resource,
-            ProtocolConfiguration.ChainSelectionKLookback,
-            ProtocolConfiguration.ChainSelectionSWindow
-          )
-      )
-      mempool <- Mempool.make[F](
-        bigBangBlock.headerV2.parentHeaderId.pure[F],
-        blockBodyStore.getOrRaise,
-        transactionStore.getOrRaise,
-        blockIdTree,
-        clock,
-        id => Logger[F].info(show"Expiring transaction id=$id"),
-        1000L,
-        1000L
-      )
-      implicit0(networkRandom: Random) = new Random(new SecureRandom())
-      boxState <- BoxState.make(
-        bigBangBlock.headerV2.parentHeaderId.pure[F],
-        blockBodyStore.getOrRaise,
-        transactionStore.getOrRaise,
-        blockIdTree,
-        boxStateStore.pure[F]
-      )
-      transactionSyntaxValidation <- TransactionSyntaxValidation.make[F]
-      transactionAuthorizationValidation <- TransactionAuthorizationValidation.make[F](
-        blake2b256Resource,
-        curve25519Resource,
-        ed25519Resource,
-        extendedEd25519Resource,
-        slotDataStore.getOrRaise
-      )
-      bodySyntaxValidation <- BodySyntaxValidation.make[F](transactionStore.getOrRaise, transactionSyntaxValidation)
-      bodySemanticValidation <- BodySemanticValidation.make[F](
-        transactionStore.getOrRaise,
-        boxState,
-        boxState => TransactionSemanticValidation.make[F](transactionStore.getOrRaise, boxState)
-      )
-      bodyAuthorizationValidation <- BodyAuthorizationValidation.make[F](
-        transactionStore.getOrRaise,
-        transactionAuthorizationValidation
-      )
-      staking <- makeStaking(
-        bigBangBlock.headerV2,
-        stakerInitializers.headOption.get,
-        clock,
-        etaCalculation,
-        consensusValidationState,
-        leaderElectionThreshold,
-        ed25519Resource,
-        ed25519VRFResource,
-        kesProductResource
-      )
-      // Finally, run the program
-      _ <- Blockchain
-        .run[F](
-          clock,
-          staking.some,
-          slotDataStore,
-          blockHeaderStore,
-          blockBodyStore,
-          transactionStore,
-          localChain,
-          blockIdTree,
-          blockHeightTree,
-          headerValidation,
-          transactionSyntaxValidation,
-          bodySyntaxValidation,
-          bodySemanticValidation,
-          bodyAuthorizationValidation,
-          mempool,
           ed25519VRFResource,
-          localPeer,
-          Source.never,
-          (peer, flow) => flow,
-          rpcHost,
-          rpcPort
+          kesProductResource
         )
-    } yield ()
+        // Finally, run the program
+        _ <- Blockchain
+          .run[F](
+            clock,
+            staking.some,
+            dataStores.slotData,
+            dataStores.headers,
+            dataStores.bodies,
+            dataStores.transactions,
+            localChain,
+            blockIdTree,
+            blockHeightTree,
+            headerValidation,
+            transactionSyntaxValidation,
+            bodySyntaxValidation,
+            bodySemanticValidation,
+            bodyAuthorizationValidation,
+            mempool,
+            ed25519VRFResource,
+            localPeer,
+            Source.never,
+            (peer, flow) => flow,
+            rpcHost,
+            rpcPort
+          )
+      } yield ()
+    )
 
   private def makeStaking(
     bigBangHeader:            BlockHeaderV2,
@@ -310,4 +292,5 @@ object NodeApp
         clock
       )
     } yield staking
+
 }

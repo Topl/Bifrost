@@ -237,7 +237,7 @@ trait TetraScodecBoxCodecs {
   implicit val boxIdCodec: Codec[Box.Id] =
     (Codec[TypedIdentifier] :: Codec[Short]).as[Box.Id]
 
-  implicit val boxValueCode: Codec[Box.Value] =
+  implicit val boxValueCodec: Codec[Box.Value] =
     discriminated[Box.Value]
       .by(byteCodec)
       .typecase(0: Byte, boxValuesEmptyCodec)
