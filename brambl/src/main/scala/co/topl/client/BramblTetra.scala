@@ -89,7 +89,7 @@ object BramblTetra
             minting = false
           )
         ),
-        chronology = Transaction.Chronology(System.currentTimeMillis(), 0L, Long.MaxValue),
+        schedule = Transaction.Schedule(System.currentTimeMillis(), 0L, Long.MaxValue),
         data = none
       ).some.map(transaction => (transaction, Propositions.Contextual.HeightLock(20L), 0: Short) -> transaction)
     }

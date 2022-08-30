@@ -15,7 +15,7 @@ object ContainsTimestamp {
   trait Instances {
     implicit val blockHeaderV2ContainsTimestamp: ContainsTimestamp[BlockHeaderV2] = _.timestamp
     implicit val blockV1ContainsTimestamp: ContainsTimestamp[BlockV1] = _.timestamp
-    implicit val transactionContainsTimestamp: ContainsTimestamp[Transaction] = _.chronology.creation
+    implicit val transactionContainsTimestamp: ContainsTimestamp[Transaction] = _.schedule.creation
   }
 
   object instances extends Instances

@@ -519,7 +519,8 @@ lazy val minting = project
     algebras % "compile->compile;test->test",
     consensus,
     catsAkka,
-    ledger
+    ledger,
+    munitScalamock % "test->test"
   )
 
 lazy val networking = project

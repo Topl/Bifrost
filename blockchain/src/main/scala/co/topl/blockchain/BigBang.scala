@@ -45,7 +45,7 @@ object BigBang {
         Transaction(
           inputs = Chain.empty,
           outputs = config.outputs,
-          chronology = Transaction.Chronology(0L, Slot, Slot), // This transaction is only valid at the BigBang slot
+          schedule = Transaction.Schedule(0L, Slot, Slot), // This transaction is only valid at the BigBang slot
           data = None
         )
       )

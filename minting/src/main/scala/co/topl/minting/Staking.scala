@@ -33,21 +33,21 @@ object Staking {
       implicit private val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromClass[F](Staking.getClass)
       val address: F[StakingAddresses.Operator] = a.pure[F]
 
-      def elect(parent: SlotData, slot: Slot): F[Option[VrfHit]] =
+      def elect(parentSlotId: SlotId, slot: Slot): F[Option[VrfHit]] =
         for {
           slotsPerEpoch <- clock.slotsPerEpoch
-          eta           <- etaCalculation.etaToBe(parent.slotId, slot)
+          eta           <- etaCalculation.etaToBe(parentSlotId, slot)
           _ <- Applicative[F].whenA(slot % slotsPerEpoch === 0L)(
             vrfProof.precomputeForEpoch(slot / slotsPerEpoch, eta)
           )
-          maybeHit <- OptionT(consensusState.operatorRelativeStake(parent.slotId.blockId, slot)(a))
-            .flatMapF(relativeStake => leaderElection.getHit(relativeStake, slot, slot - parent.slotId.slot, eta))
+          maybeHit <- OptionT(consensusState.operatorRelativeStake(parentSlotId.blockId, slot)(a))
+            .flatMapF(relativeStake => leaderElection.getHit(relativeStake, slot, slot - parentSlotId.slot, eta))
             .value
           _ <- Logger[F].debug(
             show"Eligibility at" +
             show" slot=$slot" +
-            show" parentId=${parent.slotId.blockId}" +
-            show" parentSlot=${parent.slotId.slot}" +
+            show" parentId=${parentSlotId.blockId}" +
+            show" parentSlot=${parentSlotId.slot}" +
             show" eligible=${maybeHit.nonEmpty}"
           )
         } yield maybeHit

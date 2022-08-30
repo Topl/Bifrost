@@ -42,18 +42,29 @@ private class AbandonerFlowImpl[F[_]: Async: FToFuture, T, U](f: T => F[U]) exte
         super.preStart()
         mat = materializer
         ec = materializer.executionContext
-        currentCancelledCallback = getAsyncCallback {
-          case Left(e)  => failStage(e)
-          case Right(v) => handleNextValue(v)
-        }
         fiberStartedCallback = getAsyncCallback {
-          case Left(e)  => failStage(e)
-          case Right(v) => fiberStarted(v)
+          case Left(e) =>
+            log.error(e, "Fiber launch failed")
+            failStage(e)
+          case Right(v) =>
+            log.debug("Fiber launched successfully")
+            fiberStarted(v)
         }
         fiberCompletedCallback = getAsyncCallback {
-          case Left(e)  => failStage(e)
-          case Right(v) => fiberCompleted(v)
+          case Left(FCancelled) =>
+            log.debug("Fiber canceled")
+          case Left(e) =>
+            log.error(e, "Fiber failed")
+            failStage(e)
+          case Right(v) =>
+            log.debug("Fiber completed")
+            fiberCompleted(v)
         }
+      }
+
+      override def postStop(): Unit = {
+        super.postStop()
+        cancelCurrentFiber()
       }
 
       setHandlers(inlet, outlet, this)
@@ -61,12 +72,10 @@ private class AbandonerFlowImpl[F[_]: Async: FToFuture, T, U](f: T => F[U]) exte
       /**
        * Launch a fiber to process the value provided by upstream
        */
-      private def handleNextValue(nextValue: T): Unit = {
-        fiber = null
+      private def handleNextValue(nextValue: T): Unit =
         implicitly[FToFuture[F]]
           .apply(Async[F].start(f(nextValue)))
           .onComplete(r => fiberStartedCallback.invoke(r.toEither))
-      }
 
       /**
        * A computation fiber was successfully launched in the background
@@ -75,11 +84,7 @@ private class AbandonerFlowImpl[F[_]: Async: FToFuture, T, U](f: T => F[U]) exte
         fiber = f
         implicitly[FToFuture[F]]
           .apply(fiber.joinWith(Async[F].raiseError(FCancelled)))
-          .andThen {
-            // Ignore the Cancellation
-            case Failure(FCancelled) =>
-            case r                   => fiberCompletedCallback.invoke(r.toEither)
-          }
+          .onComplete(r => fiberCompletedCallback.invoke(r.toEither))
         // Now that we're working on the received value, eagerly ask upstream to give us the next value
         pull(inlet)
       }
@@ -87,26 +92,25 @@ private class AbandonerFlowImpl[F[_]: Async: FToFuture, T, U](f: T => F[U]) exte
       /**
        * The computation fiber completed successfully, so we can finally push the result downstream
        */
-      private def fiberCompleted(result: U): Unit =
+      private def fiberCompleted(result: U): Unit = {
         push(outlet, result)
+        fiber = null
+      }
 
       def onPush(): Unit = {
         val in = grab(inlet)
-        Option(fiber) match {
-          // Upstream produced data before we finished computing on the previous, so abandon the previous attempt
-          case Some(f) =>
-            log.debug("Abandoning attempt")
-            implicitly[FToFuture[F]]
-              .apply(f.cancel.as(in))
-              .onComplete(r => currentCancelledCallback.invoke(r.toEither))
-          // No background process to cancel, so immediately start working on the received value
-          case _ =>
-            handleNextValue(in)
-        }
+        cancelCurrentFiber()
+        handleNextValue(in)
       }
 
       def onPull(): Unit =
         if (!hasBeenPulled(inlet)) pull(inlet)
+
+      private def cancelCurrentFiber(): Unit =
+        Option(fiber).foreach { f =>
+          log.debug("Canceling fiber")
+          implicitly[FToFuture[F]].apply(f.cancel)
+        }
     }
 }
 

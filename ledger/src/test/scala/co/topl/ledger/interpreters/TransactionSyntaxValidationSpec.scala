@@ -63,7 +63,7 @@ class TransactionSyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEff
   }
 
   test("validate positive timestamp") {
-    PropF.forAllF(arbitraryTransaction.arbitrary.map(tx => tx.copy(chronology = tx.chronology.copy(creation = -1)))) {
+    PropF.forAllF(arbitraryTransaction.arbitrary.map(tx => tx.copy(schedule = tx.schedule.copy(creation = -1)))) {
       transaction: Transaction =>
         for {
           underTest <- TransactionSyntaxValidation.make[F]
@@ -232,7 +232,7 @@ class TransactionSyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEff
       Transaction(
         Chain(arbitraryTransactionInput.arbitrary.first.copy(proposition = proposition, proof = proof)),
         Chain.empty,
-        Transaction.Chronology(0L, 0L, Long.MaxValue),
+        Transaction.Schedule(0L, 0L, Long.MaxValue),
         None
       )
     PropF.forAllF { (transaction: Transaction, curveSk: SecretKeys.Curve25519, edSK: SecretKeys.Ed25519) =>

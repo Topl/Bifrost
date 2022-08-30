@@ -42,7 +42,7 @@ trait TetraSignableCodecs {
         .Unproven(
           t.inputs.map(i => Transaction.Unproven.Input(i.boxId, i.proposition, i.value)),
           t.outputs,
-          t.chronology,
+          t.schedule,
           t.data
         )
         .signableBytes
