@@ -126,6 +126,8 @@ object Blockchain {
         BlockPacker.makeBodyValidator(bodySyntaxValidation, bodySemanticValidation, bodyAuthorizationValidation)
       )
       mintedBlockStream <- staker.fold(Source.never[BlockV2].pure[F])(staker =>
+        // The BlockProducer needs a stream/Source of "parents" upon which it should build.  This stream is the
+        // concatenation of the current local head with the stream of local block adoptions
         localChain.head
           .flatMap(currentHead =>
             BlockProducer
