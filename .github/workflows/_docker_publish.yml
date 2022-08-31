@@ -13,6 +13,9 @@ jobs:
   publish_docker_image:
     name: Publish Docker Image
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v3
