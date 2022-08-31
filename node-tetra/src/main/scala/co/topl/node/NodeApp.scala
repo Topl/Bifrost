@@ -4,25 +4,16 @@ import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import akka.stream.scaladsl.Source
 import akka.util.Timeout
-import cats.data.NonEmptySet
 import cats.effect.IO
 import co.topl.catsakka._
 import cats.implicits._
-import co.topl.algebras.{ClockAlgebra, UnsafeResource}
+import co.topl.algebras._
 import ClockAlgebra.implicits._
-import co.topl.blockchain.{BigBang, Blockchain, PrivateTestnet, StakerInitializers}
+import co.topl.blockchain._
 import co.topl.catsakka.IOAkkaApp
-import co.topl.crypto.hash.{Blake2b256, Blake2b512}
+import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing._
-import co.topl.interpreters.{
-  ActorPoolUnsafeResource,
-  BlockHeightTree,
-  BlockIdTree,
-  InMemorySecureStore,
-  RefStore,
-  SchedulerClock,
-  StatsInterpreter
-}
+import co.topl.interpreters._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.models._
@@ -30,14 +21,11 @@ import co.topl.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
 import com.typesafe.config.ConfigFactory
 import co.topl.consensus._
-import co.topl.consensus.algebras.{
-  ConsensusValidationStateAlgebra,
-  EtaCalculationAlgebra,
-  LeaderElectionValidationAlgebra
-}
+import co.topl.consensus.algebras._
 import co.topl.consensus.interpreters._
+import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.interpreters._
-import co.topl.minting.{LeaderElectionMinting, OperationalKeys, Staking, VrfProof}
+import co.topl.minting._
 import co.topl.networking.p2p.LocalPeer
 import co.topl.numerics._
 import org.typelevel.log4cats.Logger
@@ -47,7 +35,6 @@ import java.net.InetSocketAddress
 import java.security.SecureRandom
 import java.time.Instant
 import java.util.UUID
-import scala.collection.immutable.ListSet
 import scala.concurrent.duration._
 import scala.util.Random
 
@@ -78,50 +65,20 @@ object NodeApp
       bigBangBlock = BigBang.block
       _ <- Logger[F].info(show"Big Bang Block id=${bigBangBlock.headerV2.id.asTypedBytes}")
 
-      // Initialize crypto resources
+      cryptoResources <- CryptoResources.make[F]
 
-      blake2b256Resource <- ActorPoolUnsafeResource.Eval.make[F, Blake2b256](new Blake2b256, _ => ())
-      blake2b512Resource <- ActorPoolUnsafeResource.Eval.make[F, Blake2b512](new Blake2b512, _ => ())
-      ed25519VRFResource <- ActorPoolUnsafeResource.Eval.make[F, Ed25519VRF](Ed25519VRF.precomputed(), _ => ())
-      kesProductResource <- ActorPoolUnsafeResource.Eval.make[F, KesProduct](new KesProduct, _ => ())
-      curve25519Resource <- ActorPoolUnsafeResource.Eval.make[F, Curve25519](new Curve25519, _ => ())
-      ed25519Resource    <- ActorPoolUnsafeResource.Eval.make[F, Ed25519](new Ed25519, _ => ())
-      extendedEd25519Resource <- ActorPoolUnsafeResource.Eval
-        .make[F, ExtendedEd25519](ExtendedEd25519.precomputed(), _ => ())
+      dataStores <- DataStores.init[F](bigBangBlock)
 
-      // Initialize the Stores
-      slotDataStore        <- RefStore.Eval.make[F, TypedIdentifier, SlotData]()
-      blockHeaderStore     <- RefStore.Eval.make[F, TypedIdentifier, BlockHeaderV2]()
-      blockBodyStore       <- RefStore.Eval.make[F, TypedIdentifier, BlockBodyV2]()
-      transactionStore     <- RefStore.Eval.make[F, TypedIdentifier, Transaction]()
-      boxStateStore        <- RefStore.Eval.make[F, TypedIdentifier, NonEmptySet[Short]]()
-      epochBoundariesStore <- RefStore.Eval.make[F, Long, TypedIdentifier]()
-      operatorStakesStore  <- RefStore.Eval.make[F, StakingAddresses.Operator, Int128]()
-      totalStakesStore     <- RefStore.Eval.make[F, Unit, Int128]()
-      registrationsStore   <- RefStore.Eval.make[F, StakingAddresses.Operator, Box.Values.Registrations.Operator]()
-      blockHeightTreeStore <- RefStore.Eval.make[F, Long, TypedIdentifier]()
-      blockHeightTreeUnapplyStore <- RefStore.Eval.make[F, TypedIdentifier, Long]()
-
-      // Store the big bang data
-      _ <- slotDataStore.put(bigBangBlock.headerV2.id, bigBangBlock.headerV2.slotData(Ed25519VRF.precomputed()))
-      _ <- blockHeaderStore.put(bigBangBlock.headerV2.id, bigBangBlock.headerV2)
-      _ <- blockBodyStore.put(
-        bigBangBlock.headerV2.id,
-        ListSet.empty ++ bigBangBlock.transactions.map(_.id.asTypedBytes).toList
-      )
-      _ <- bigBangBlock.transactions.traverseTap(transaction => transactionStore.put(transaction.id, transaction))
       blockIdTree <- BlockIdTree.make[F]
       _           <- blockIdTree.associate(bigBangBlock.headerV2.id, bigBangBlock.headerV2.parentHeaderId)
-      _           <- blockHeightTreeStore.put(0, bigBangBlock.headerV2.parentHeaderId)
-      _           <- totalStakesStore.put((), 0)
 
       // Start supporting interpreters
       blockHeightTree <- BlockHeightTree
         .make[F](
-          blockHeightTreeStore,
+          dataStores.blockHeightTree,
           bigBangBlock.headerV2.parentHeaderId,
-          slotDataStore,
-          blockHeightTreeUnapplyStore,
+          dataStores.slotData,
+          dataStores.blockHeightTreeUnapply,
           blockIdTree
         )
       clock = SchedulerClock.Eval.make[F](
@@ -130,61 +87,33 @@ object NodeApp
         Instant.ofEpochMilli(bigBangTimestamp)
       )
       etaCalculation <- EtaCalculation.Eval.make(
-        slotDataStore.getOrRaise,
+        dataStores.slotData.getOrRaise,
         clock,
         bigBangBlock.headerV2.eligibilityCertificate.eta,
-        blake2b256Resource,
-        blake2b512Resource
+        cryptoResources.blake2b256,
+        cryptoResources.blake2b512
       )
-      exp   <- ExpInterpreter.make[F](10000, 38)
-      log1p <- Log1pInterpreter.make[F](10000, 8).flatMap(Log1pInterpreter.makeCached[F])
-      leaderElectionThreshold = LeaderElectionValidation.Eval
-        .make[F](ProtocolConfiguration.vrfConfig, blake2b512Resource, exp, log1p)
-      epochBoundariesState <- EpochBoundariesEventSourcedState.make[F](
+      leaderElectionThreshold <- makeLeaderElectionThreshold(cryptoResources.blake2b512)
+      consensusValidationState <- makeConsensusValidationState(
         clock,
-        bigBangBlock.headerV2.parentHeaderId.pure[F],
-        blockIdTree,
-        epochBoundariesStore.pure[F],
-        slotDataStore.getOrRaise
+        dataStores,
+        bigBangBlock,
+        blockIdTree
       )
-      consensusDataState <- ConsensusDataEventSourcedState.make[F](
-        bigBangBlock.headerV2.parentHeaderId.pure[F],
-        blockIdTree,
-        ConsensusDataEventSourcedState
-          .ConsensusData(operatorStakesStore, totalStakesStore, registrationsStore)
-          .pure[F],
-        blockBodyStore.getOrRaise,
-        transactionStore.getOrRaise,
-        boxId =>
-          transactionStore.getOrRaise(boxId.transactionId).map(_.outputs.get(boxId.transactionOutputIndex.toLong).get)
-      )
-      consensusValidationState <- ConsensusValidationState
-        .make[F](bigBangBlock.headerV2.id, epochBoundariesState, consensusDataState, clock)
-      headerValidation <- BlockHeaderValidation.Eval
-        .make[F](
-          etaCalculation,
-          consensusValidationState,
-          leaderElectionThreshold,
-          ed25519VRFResource,
-          kesProductResource,
-          ed25519Resource,
-          blake2b256Resource
-        )
-        .flatMap(BlockHeaderValidation.WithCache.make[F](_, blockHeaderStore))
       localChain <- LocalChain.Eval.make(
         bigBangBlock.headerV2.slotData(Ed25519VRF.precomputed()),
         ChainSelection
           .orderT[F](
-            slotDataStore.getOrRaise,
-            blake2b512Resource,
+            dataStores.slotData.getOrRaise,
+            cryptoResources.blake2b512,
             ProtocolConfiguration.ChainSelectionKLookback,
             ProtocolConfiguration.ChainSelectionSWindow
           )
       )
       mempool <- Mempool.make[F](
         bigBangBlock.headerV2.parentHeaderId.pure[F],
-        blockBodyStore.getOrRaise,
-        transactionStore.getOrRaise,
+        dataStores.bodies.getOrRaise,
+        dataStores.transactions.getOrRaise,
         blockIdTree,
         clock,
         id => Logger[F].info(show"Expiring transaction id=$id"),
@@ -192,31 +121,6 @@ object NodeApp
         1000L
       )
       implicit0(networkRandom: Random) = new Random(new SecureRandom())
-      boxState <- BoxState.make(
-        bigBangBlock.headerV2.parentHeaderId.pure[F],
-        blockBodyStore.getOrRaise,
-        transactionStore.getOrRaise,
-        blockIdTree,
-        boxStateStore.pure[F]
-      )
-      transactionSyntaxValidation <- TransactionSyntaxValidation.make[F]
-      transactionAuthorizationValidation <- TransactionAuthorizationValidation.make[F](
-        blake2b256Resource,
-        curve25519Resource,
-        ed25519Resource,
-        extendedEd25519Resource,
-        slotDataStore.getOrRaise
-      )
-      bodySyntaxValidation <- BodySyntaxValidation.make[F](transactionStore.getOrRaise, transactionSyntaxValidation)
-      bodySemanticValidation <- BodySemanticValidation.make[F](
-        transactionStore.getOrRaise,
-        boxState,
-        boxState => TransactionSemanticValidation.make[F](transactionStore.getOrRaise, boxState)
-      )
-      bodyAuthorizationValidation <- BodyAuthorizationValidation.make[F](
-        transactionStore.getOrRaise,
-        transactionAuthorizationValidation
-      )
       staking <- makeStaking(
         bigBangBlock.headerV2,
         stakerInitializers.headOption.get,
@@ -224,29 +128,38 @@ object NodeApp
         etaCalculation,
         consensusValidationState,
         leaderElectionThreshold,
-        ed25519Resource,
-        ed25519VRFResource,
-        kesProductResource
+        cryptoResources.ed25519,
+        cryptoResources.ed25519VRF,
+        cryptoResources.kesProduct
+      )
+      validators <- Validators.make[F](
+        bigBangBlock.headerV2,
+        cryptoResources,
+        dataStores,
+        blockIdTree,
+        etaCalculation,
+        consensusValidationState,
+        leaderElectionThreshold
       )
       // Finally, run the program
       _ <- Blockchain
         .run[F](
           clock,
           staking.some,
-          slotDataStore,
-          blockHeaderStore,
-          blockBodyStore,
-          transactionStore,
+          dataStores.slotData,
+          dataStores.headers,
+          dataStores.bodies,
+          dataStores.transactions,
           localChain,
           blockIdTree,
           blockHeightTree,
-          headerValidation,
-          transactionSyntaxValidation,
-          bodySyntaxValidation,
-          bodySemanticValidation,
-          bodyAuthorizationValidation,
+          validators.header,
+          validators.transactionSyntax,
+          validators.bodySyntax,
+          validators.bodySemantics,
+          validators.bodyAuthorization,
           mempool,
-          ed25519VRFResource,
+          cryptoResources.ed25519VRF,
           localPeer,
           Source.never,
           (peer, flow) => flow,
@@ -310,4 +223,43 @@ object NodeApp
         clock
       )
     } yield staking
+
+  private def makeConsensusValidationState(
+    clock:        ClockAlgebra[F],
+    dataStores:   DataStores[F],
+    bigBangBlock: BlockV2.Full,
+    blockIdTree:  ParentChildTree[F, TypedIdentifier]
+  ) =
+    for {
+      epochBoundariesState <- EpochBoundariesEventSourcedState.make[F](
+        clock,
+        bigBangBlock.headerV2.parentHeaderId.pure[F],
+        blockIdTree,
+        dataStores.epochBoundaries.pure[F],
+        dataStores.slotData.getOrRaise
+      )
+      consensusDataState <- ConsensusDataEventSourcedState.make[F](
+        bigBangBlock.headerV2.parentHeaderId.pure[F],
+        blockIdTree,
+        ConsensusDataEventSourcedState
+          .ConsensusData(dataStores.operatorStakes, dataStores.activeStake, dataStores.registrations)
+          .pure[F],
+        dataStores.bodies.getOrRaise,
+        dataStores.transactions.getOrRaise,
+        boxId =>
+          dataStores.transactions
+            .getOrRaise(boxId.transactionId)
+            .map(_.outputs.get(boxId.transactionOutputIndex.toLong).get)
+      )
+      consensusValidationState <- ConsensusValidationState
+        .make[F](bigBangBlock.headerV2.id, epochBoundariesState, consensusDataState, clock)
+    } yield consensusValidationState
+
+  private def makeLeaderElectionThreshold(blake2b512Resource: UnsafeResource[F, Blake2b512]) =
+    for {
+      exp   <- ExpInterpreter.make[F](10000, 38)
+      log1p <- Log1pInterpreter.make[F](10000, 8).flatMap(Log1pInterpreter.makeCached[F])
+      leaderElectionThreshold = LeaderElectionValidation.Eval
+        .make[F](ProtocolConfiguration.vrfConfig, blake2b512Resource, exp, log1p)
+    } yield leaderElectionThreshold
 }
