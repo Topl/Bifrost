@@ -26,6 +26,9 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.GCP_OIDC_PROVIDER_NAME }}
           service_account: ${{ secrets.GCP_OIDC_SERVICE_ACCOUNT_EMAIL }}
+        
+      - name: Auth Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev
 
       - name: Set up gcloud
         uses: 'google-github-actions/setup-gcloud@v0'
