@@ -34,4 +34,10 @@ jobs:
         run: sbt node/docker:publishLocal
 
       - name: Tag image for remote registry
-        run: docker tag $(docker images bifrost-node --format "{{.ID}}") ${{ inputs.remote-repository }}bifrost-node:$(docker images bifrost-node --format "{{.Tag}}")
+        run: |
+          echo $(docker images bifrost-node --format "{{.ID}}")
+          $(docker images bifrost-node --format "{{.ID}}")
+          echo ${{ inputs.remote-repository }}bifrost-node:$(docker images bifrost-node --format "{{.Tag}}")
+          ${{ inputs.remote-repository }}bifrost-node:$(docker images bifrost-node --format "{{.Tag}}")
+          echo ${{ inputs.remote-repository }}
+          # docker tag $(docker images bifrost-node --format "{{.ID}}") ${{ inputs.remote-repository }}bifrost-node:$(docker images bifrost-node --format "{{.Tag}}")
