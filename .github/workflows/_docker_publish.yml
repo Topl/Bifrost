@@ -14,6 +14,9 @@ jobs:
     name: Publish Docker Image
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v3
+
       - id: 'auth'
         name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v0
@@ -23,9 +26,6 @@ jobs:
 
       - name: Set up gcloud
         uses: 'google-github-actions/setup-gcloud@v0'
-
-      - name: Checkout current branch
-        uses: actions/checkout@v2
 
       - name: Stage Docker Image
         run: sbt node/docker:publishLocal
