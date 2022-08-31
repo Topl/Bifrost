@@ -54,7 +54,7 @@ object BlockProducer {
         /**
          * Construct a new child Block of the given parent
          */
-        private def makeChild(parentSlotData: SlotData) =
+        private def makeChild(parentSlotData: SlotData): F[BlockV2] =
           for {
             // From the given parent block, when are we next eligible to produce a new block?
             nextHit <- nextEligibility(parentSlotData.slotId)
