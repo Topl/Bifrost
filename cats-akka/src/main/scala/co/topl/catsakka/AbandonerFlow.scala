@@ -1,6 +1,5 @@
 package co.topl.catsakka
 
-import cats.implicits._
 import akka.NotUsed
 import akka.stream.{Attributes, FlowShape, Inlet, Materializer, Outlet}
 import akka.stream.scaladsl.Flow
@@ -8,7 +7,6 @@ import akka.stream.stage.{AsyncCallback, GraphStage, GraphStageLogic, GraphStage
 import cats.effect.{Async, Fiber}
 
 import scala.concurrent.ExecutionContext
-import scala.util.Failure
 
 /**
  * A flow which applies a function `f` to each input element.  If the upstream produces faster than the function
@@ -31,8 +29,6 @@ private class AbandonerFlowImpl[F[_]: Async: FToFuture, T, U](f: T => F[U]) exte
       implicit private var mat: Materializer = _
       implicit private var ec: ExecutionContext = _
       private var fiber: Fiber[F, Throwable, U] = _
-      // Invoked when upstream produces faster than this Flow can process the previous result
-      private var currentCancelledCallback: AsyncCallback[Either[Throwable, T]] = _
       // Invoked after the Fiber has launched in the cats-effect runtime
       private var fiberStartedCallback: AsyncCallback[Either[Throwable, Fiber[F, Throwable, U]]] = _
       // Invoked when the currently running fiber completes
@@ -69,6 +65,15 @@ private class AbandonerFlowImpl[F[_]: Async: FToFuture, T, U](f: T => F[U]) exte
 
       setHandlers(inlet, outlet, this)
 
+      def onPush(): Unit = {
+        val in = grab(inlet)
+        cancelCurrentFiber()
+        handleNextValue(in)
+      }
+
+      def onPull(): Unit =
+        if (!hasBeenPulled(inlet)) pull(inlet)
+
       /**
        * Launch a fiber to process the value provided by upstream
        */
@@ -96,15 +101,6 @@ private class AbandonerFlowImpl[F[_]: Async: FToFuture, T, U](f: T => F[U]) exte
         push(outlet, result)
         fiber = null
       }
-
-      def onPush(): Unit = {
-        val in = grab(inlet)
-        cancelCurrentFiber()
-        handleNextValue(in)
-      }
-
-      def onPull(): Unit =
-        if (!hasBeenPulled(inlet)) pull(inlet)
 
       private def cancelCurrentFiber(): Unit =
         Option(fiber).foreach { f =>
