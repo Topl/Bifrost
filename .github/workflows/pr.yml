@@ -33,3 +33,4 @@ jobs:
     uses: ./.github/workflows/_docker_publish.yml
     with:
       remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-dev/"
+    secrets: inherit
