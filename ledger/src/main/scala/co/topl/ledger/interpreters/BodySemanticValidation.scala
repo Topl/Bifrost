@@ -1,6 +1,6 @@
 package co.topl.ledger.interpreters
 
-import cats.data.{NonEmptyChain, Validated, ValidatedNec}
+import cats.data.{Chain, NonEmptyChain, Validated, ValidatedNec}
 import cats.effect.Sync
 import cats.implicits._
 import co.topl.ledger.algebras._
@@ -10,9 +10,8 @@ import co.topl.models.{BlockBodyV2, Transaction, TypedIdentifier}
 object BodySemanticValidation {
 
   def make[F[_]: Sync](
-    fetchTransaction:                  TypedIdentifier => F[Transaction],
-    boxState:                          BoxStateAlgebra[F],
-    makeTransactionSemanticValidation: BoxStateAlgebra[F] => F[TransactionSemanticValidationAlgebra[F]]
+    fetchTransaction:              TypedIdentifier => F[Transaction],
+    transactionSemanticValidation: TransactionSemanticValidationAlgebra[F]
   ): F[BodySemanticValidationAlgebra[F]] =
     Sync[F].delay {
       new BodySemanticValidationAlgebra[F] {
@@ -22,12 +21,12 @@ object BodySemanticValidation {
          * the outputs of previous transactions in the block, but no two transactions may spend the same input.
          */
         def validate(
-          parentBlockId: TypedIdentifier
-        )(body:          BlockBodyV2): F[ValidatedNec[BodySemanticError, BlockBodyV2]] =
+          context: BodyValidationContext
+        )(body:    BlockBodyV2): F[ValidatedNec[BodySemanticError, BlockBodyV2]] =
           body.toList
-            .foldLeftM(AugmentedBoxState.StateAugmentation.empty.validNec[BodySemanticError]) {
-              case (Validated.Valid(augmentation), transactionId) =>
-                validateTransaction(parentBlockId)(augmentation)(transactionId)
+            .foldLeftM(Chain.empty[Transaction].validNec[BodySemanticError]) {
+              case (Validated.Valid(prefix), transactionId) =>
+                validateTransaction(context, prefix)(transactionId).map(_.map(prefix.append))
               case (invalid, _) => invalid.pure[F]
             }
             .map(_.as(body))
@@ -39,15 +38,19 @@ object BodySemanticValidation {
          * @return a ValidatedNec containing either errors or a _new_ StateAugmentation
          */
         private def validateTransaction(
-          blockId:      TypedIdentifier
-        )(augmentation: AugmentedBoxState.StateAugmentation)(transactionId: TypedIdentifier) =
+          context:       BodyValidationContext,
+          prefix:        Chain[Transaction]
+        )(transactionId: TypedIdentifier) =
           for {
-            augmentedBoxState     <- AugmentedBoxState.make(boxState)(augmentation)
-            transactionValidation <- makeTransactionSemanticValidation(augmentedBoxState)
-            transaction           <- fetchTransaction(transactionId)
-            validationResult      <- transactionValidation.validate(blockId)(transaction)
+            transaction <- fetchTransaction(transactionId)
+            transactionValidationContext = StaticTransactionValidationContext(
+              context.parentHeaderId,
+              prefix,
+              context.height,
+              context.slot
+            )
+            validationResult <- transactionSemanticValidation.validate(transactionValidationContext)(transaction)
           } yield validationResult
-            .as(augmentation.augment(transaction))
             .leftMap(errors =>
               NonEmptyChain[BodySemanticError](BodySemanticErrors.TransactionSemanticErrors(transaction, errors))
             )

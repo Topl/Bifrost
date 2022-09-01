@@ -59,6 +59,8 @@ object Validators {
         dataStores.spendableBoxIds.pure[F]
       )
       transactionSyntaxValidation <- TransactionSyntaxValidation.make[F]
+      transactionSemanticValidation <- TransactionSemanticValidation
+        .make[F](dataStores.transactions.getOrRaise, boxState)
       transactionAuthorizationValidation <- TransactionAuthorizationValidation.make[F](
         cryptoResources.blake2b256,
         cryptoResources.curve25519,
@@ -70,8 +72,7 @@ object Validators {
         .make[F](dataStores.transactions.getOrRaise, transactionSyntaxValidation)
       bodySemanticValidation <- BodySemanticValidation.make[F](
         dataStores.transactions.getOrRaise,
-        boxState,
-        boxState => TransactionSemanticValidation.make[F](dataStores.transactions.getOrRaise, boxState)
+        transactionSemanticValidation
       )
       bodyAuthorizationValidation <- BodyAuthorizationValidation.make[F](
         dataStores.transactions.getOrRaise,
