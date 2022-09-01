@@ -36,7 +36,7 @@ jobs:
       - name: Stage Docker Image
         run: sbt node/docker:publishLocal
 
-      - name: Tag and push image to remote registry 
+      - name: Tag and push image to remote registry
         run: |
           docker tag $(docker images toplprotocol/bifrost-node --format "{{.ID}}" | head -n 1) ${{ inputs.remote-repository }}bifrost-node:$(docker images toplprotocol/bifrost-node --format "{{.Tag}}" | head -n 1)
           docker push --all-tags ${{ inputs.remote-repository }}bifrost-node
