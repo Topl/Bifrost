@@ -38,5 +38,7 @@ jobs:
 
       - name: Tag and push image to remote registry 
         run: |
+          echo "Tagging with tag: $(docker images toplprotocol/bifrost-node --format '{{.Tag}}' | head -n 1)"
+          echo "All tags are: $(docker images toplprotocol/bifrost-node --format '{{.Tag}}')"
           docker tag $(docker images toplprotocol/bifrost-node --format "{{.ID}}" | head -n 1) ${{ inputs.remote-repository }}bifrost-node:$(docker images toplprotocol/bifrost-node --format "{{.Tag}}" | head -n 1)
-          docker push --all-tags ${{ inputs.remote-repository }}bifrost-node
+          # docker push --all-tags ${{ inputs.remote-repository }}bifrost-node
