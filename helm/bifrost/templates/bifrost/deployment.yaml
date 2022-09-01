@@ -22,7 +22,7 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
       - name: {{ .Chart.Name }}
-        image: {{ .Values.image }}
+        image: {{ .Values.image.name }}:{{ .Values.image.tag }}
         securityContext:
           {{- toYaml .Values.securityContext | nindent 10 }}
         command:

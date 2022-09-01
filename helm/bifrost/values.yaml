@@ -4,7 +4,9 @@
 
 name: bifrost-node
 
-image: ghcr.io/topl/bifrost-node:latest
+image:
+  name: ghcr.io/topl/bifrost-node
+  tag: latest
 
 replicas: 1
 
