@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "bifrost.fullname" . }}
+  labels:
+    {{- include "bifrost.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "bifrost.fullname" . }}
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      {{- include "bifrost.selectorLabels" . | nindent 6 }}
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        {{- include "bifrost.selectorLabels" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      - name: {{ .Chart.Name }}
+        image: {{ .Values.image.name }}:{{ .Values.image.tag }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+        command:
+          {{ range .Values.command }}
+            - {{ . }}
+          {{ end }}
+        args:
+          {{ range .Values.args }}
+            - {{ . }}
+          {{ end }}
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+        {{- if .Values.readinessProbe.enabled }}
+        readinessProbe:
+          httpGet:
+            port: {{ .Values.ports.rpc }}
+          initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+          timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+          periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+        {{- end }}
+        {{- if .Values.livenessProbe.enabled }}
+        livenessProbe:
+          httpGet:
+            port: {{ .Values.ports.rpc }}
+          initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+          timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+          periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+        {{- end }}
+        ports:
+        - containerPort: {{ .Values.ports.p2p }}
+        - containerPort: {{ .Values.ports.rpc }}
+        volumeMounts:
+        - name: {{ .Values.name }}-pv
+          mountPath: {{ .Values.volume.mountDirectory }}
+  volumeClaimTemplates:
+  - metadata:
+      name: {{ .Values.name }}-pv
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: {{ .Values.volume.storageClass }}
+      resources:
+        requests:
+          storage: {{ .Values.volume.storageSize }}
