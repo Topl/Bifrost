@@ -19,7 +19,7 @@ class LevelDbStoreSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
   ResourceFixture[Path](Resource.make(Files[F].createTempDirectory)(Files[F].deleteRecursively))
     .test("Save, Contains, Read, Delete") { testPath =>
       for {
-        dbUnderTest <- LevelDbStore.makeDb[F](testPath.toNioPath)
+        dbUnderTest <- LevelDbStore.makeDb[F](testPath)
         underTest   <- LevelDbStore.make[F, SpecKey, SpecValue](dbUnderTest)
         key = SpecKey("test1")
         keyArray = key.persistedBytes.toArray
@@ -49,7 +49,7 @@ class LevelDbStoreSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
   ResourceFixture[Path](Resource.make(Files[F].createTempDirectory)(Files[F].deleteRecursively))
     .test("Malformed data throws exceptions") { testPath =>
       for {
-        dbUnderTest <- LevelDbStore.makeDb[F](testPath.toNioPath)
+        dbUnderTest <- LevelDbStore.makeDb[F](testPath)
         underTest   <- LevelDbStore.make[F, SpecKey, SpecValue](dbUnderTest)
         key = SpecKey("test1")
         keyArray = key.persistedBytes.toArray
