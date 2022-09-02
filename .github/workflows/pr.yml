@@ -1,30 +1,12 @@
 name: Bifrost_PR
 
 on:
-  pull_request:
-    branches: [dev, main, release-*, rc-*, tetra]
+  push:
+    branches: [BN-606-tetra-main-publish-docker-workflow ]
 
 jobs:
-  sbt-build:
-    uses: ./.github/workflows/_sbt_build.yml
+  publish-docker-image:
+    uses: ./.github/workflows/_docker_publish.yml
     with:
-      target-os: >-
-        ["ubuntu-latest"]
-      java-versions: >-
-        ["11"]
-      preserve-cache-between-runs: true
-
-  post-man-integration-tests:
-    uses: ./.github/workflows/_postman_integration_tests.yml
-    needs: sbt-build
-    with:
-      target-os: >-
-        ["ubuntu-latest"]
-      java-versions: >-
-        ["11"]
-      preserve-cache-between-runs: true
-
-  publish-test-results:
-    uses: ./.github/workflows/_publish_test_results.yml
-    if: always()
-    needs: [post-man-integration-tests]
+      remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-dev/"
+    secrets: inherit
