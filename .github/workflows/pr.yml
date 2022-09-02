@@ -4,7 +4,7 @@ on:
   push:
     branches: [BN-357-2071-create-automated-release-workflow]
 
-jobs:
+jobs: 
   publish-docker-image:
     uses: ./.github/workflows/_docker_publish.yml
     with:
