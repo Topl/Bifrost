@@ -10,3 +10,4 @@ jobs:
     with:
       remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-dev/"
     secrets: inherit
+
