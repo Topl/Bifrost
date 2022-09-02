@@ -88,7 +88,8 @@ lazy val dockerSettings = Seq(
   dockerAliases := dockerAliases.value.flatMap { alias =>
     Seq(
       alias.withRegistryHost(Some("docker.io/toplprotocol")),
-      alias.withRegistryHost(Some("ghcr.io/topl"))
+      alias.withRegistryHost(Some("ghcr.io/topl")),
+      alias.withRegistryHost(Some("us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-dev"))
     )
   }
 )
