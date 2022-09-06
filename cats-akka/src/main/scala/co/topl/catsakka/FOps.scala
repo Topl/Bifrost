@@ -26,7 +26,7 @@ class FAClockOps[F[_], A](val fa: F[A]) extends AnyVal {
       .timed(fa)
       .flatMap { case (duration, result) =>
         Logger[F]
-          .info(show"$operationName duration=$duration")
+          .trace(show"$operationName duration=$duration")
           .as(result)
       }
 }
