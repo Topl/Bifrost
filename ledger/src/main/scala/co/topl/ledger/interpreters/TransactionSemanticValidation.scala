@@ -86,6 +86,9 @@ object TransactionSemanticValidation {
         (TransactionSemanticErrors.UnspendableBox(input.boxId): TransactionSemanticError).invalidNec[Unit].pure[F]
       )
 
+  /**
+   * Is this Transaction valid at the provided Slot?
+   */
   private def scheduleValidation[F[_]: Applicative](
     slot:     Slot
   )(schedule: Transaction.Schedule): F[ValidatedNec[TransactionSemanticError, Unit]] =

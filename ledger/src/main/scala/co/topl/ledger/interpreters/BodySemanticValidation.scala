@@ -35,7 +35,7 @@ object BodySemanticValidation {
          * Fetch the given transaction ID and (semantically) validate it in the context of the given block ID.
          * Transaction semantic validation uses the given augmented box state during validation.
          *
-         * @return a ValidatedNec containing either errors or a _new_ StateAugmentation
+         * @return a ValidatedNec containing either errors or the original Transaction
          */
         private def validateTransaction(
           context:       BodyValidationContext,
