@@ -1,7 +1,7 @@
-name: Docker Release
+name: Publish Docker Image
+
 on:
-  push:
-    tags: ["*"]
+  workflow_call:
 
 jobs:
   docker_release:

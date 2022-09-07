@@ -17,6 +17,33 @@ jobs:
       java-versions: >-
         ["graalvm-ce-java11@21.1.0"]
 
+  publish-docker-image-dev:
+    if: ${{ github.ref_name == 'dev' }}
+    uses: ./.github/workflows/_docker_publish.yml
+    needs: sbt-build
+    with:
+      remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-dev/"
+      local-docker-repo: "toplprotocol"
+      local-docker-image: "bifrost-node"
+    secrets: inherit
+
+  publish-docker-image-qa:
+    if: ${{ startsWith(github.ref_name, 'release-') }}
+    uses: ./.github/workflows/_docker_publish.yml
+    needs: sbt-build
+    with:
+      remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-qa/topl-artifacts-qa/"
+      local-docker-repo: "toplprotocol"
+      local-docker-image: "bifrost-node"
+    secrets: inherit
+
+  publish-docker-image-main:
+    # Execute if ref is a tag, and the format starts with v like v1.2.1.
+    if: ${{ startsWith(github.ref_name, 'v') && github.ref_type == 'tag' }}
+    uses: ./.github/workflows/_docker_publish_official.yml
+    needs: sbt-build
+    secrets: inherit
+
   sbt-integration-tests:
     uses: ./.github/workflows/_scala_integration_tests.yml
     needs: sbt-build
