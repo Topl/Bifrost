@@ -64,12 +64,6 @@ object TetraSuperDemo extends IOApp {
   private def makeClock(genesisTimestamp: Timestamp): ClockAlgebra[F] =
     SchedulerClock.Eval.make(SlotDuration, EpochLength, Instant.ofEpochMilli(genesisTimestamp))
 
-  private val statsDir = Paths.get(".bifrost", "stats")
-  Files.createDirectories(statsDir)
-
-  private def statsInterpreter =
-    StatsInterpreter.Eval.make[F](statsDir)
-
   // Program definition
 
   def run(args: List[String]): IO[ExitCode] = {
@@ -160,10 +154,6 @@ object TetraSuperDemo extends IOApp {
         operatorStakesStore  <- RefStore.Eval.make[F, StakingAddresses.Operator, Int128]()
         totalStakesStore     <- RefStore.Eval.make[F, Unit, Int128]()
         registrationsStore   <- RefStore.Eval.make[F, StakingAddresses.Operator, Box.Values.Registrations.Operator]()
-        _ <- parentChildTreeStore.put(
-          bigBangBlock.headerV2.id,
-          (bigBangBlock.headerV2.height, bigBangBlock.headerV2.parentHeaderId)
-        )
         _ <- slotDataStore.put(bigBangBlock.headerV2.id, bigBangBlock.headerV2.slotData(Ed25519VRF.precomputed()))
         _ <- blockHeaderStore.put(bigBangBlock.headerV2.id, bigBangBlock.headerV2)
         _ <- blockBodyStore.put(
@@ -171,7 +161,10 @@ object TetraSuperDemo extends IOApp {
           ListSet.empty ++ bigBangBlock.transactions.map(_.id.asTypedBytes).toList
         )
         _ <- bigBangBlock.transactions.traverseTap(transaction => transactionStore.put(transaction.id, transaction))
-        blockIdTree                 <- ParentChildTree.FromStore.make[F, TypedIdentifier](parentChildTreeStore)
+        blockIdTree <- ParentChildTree.FromStore
+          .make[F, TypedIdentifier](parentChildTreeStore, bigBangBlock.headerV2.parentHeaderId)
+          .flatTap(_.associate(bigBangBlock.headerV2.id, bigBangBlock.headerV2.parentHeaderId))
+
         blockHeightTreeStore        <- RefStore.Eval.make[F, Long, TypedIdentifier]()
         _                           <- blockHeightTreeStore.put(0, bigBangBlock.headerV2.parentHeaderId)
         _                           <- totalStakesStore.put((), 0)

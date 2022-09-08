@@ -20,13 +20,13 @@ class EventSourcedStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
       eventStore <- TestStore.make[F, TypedIdentifier, Tx]
       deltaStore <- TestStore.make[F, TypedIdentifier, LedgerUnapply]
       treeStore  <- TestStore.make[F, TypedIdentifier, (Long, TypedIdentifier)]
-      tree       <- ParentChildTree.FromStore.make(treeStore)
-      _ <- txData.traverse { case (txId, from, amount, to) => eventStore.put(txId, Tx(txId, (from, amount), to)) }
-      _ <- txAssociations.traverse { case (c, p) => tree.associate(c.asTxId, p.asTxId) }
-      ledgerStore <- TestStore.make[F, TypedIdentifier, Bytes]
       initialEventId = "-1".asTxId
-      _ <- ledgerStore.put(Ledger.Eval.CurrentEventIdId, initialEventId.allBytes)
-      ledger = Ledger.Eval.make[F](ledgerStore)
+      tree <- ParentChildTree.FromStore.make(treeStore, initialEventId)
+      _    <- txData.traverse { case (txId, from, amount, to) => eventStore.put(txId, Tx(txId, (from, amount), to)) }
+      _    <- txAssociations.traverse { case (c, p) => tree.associate(c.asTxId, p.asTxId) }
+      ledgerStore <- TestStore.make[F, TypedIdentifier, Bytes]
+      _           <- ledgerStore.put(Ledger.CurrentEventIdId, initialEventId.allBytes)
+      ledger = Ledger.make[F](ledgerStore)
       _ <- ledger.modifyBalanceOf("alice", _ => 100L.some.pure[F])
       eventTree <- EventSourcedState.OfTree
         .make[F, Ledger[F]](
@@ -78,40 +78,36 @@ trait Ledger[F[_]] {
 
 object Ledger {
 
-  object Eval {
-    val CurrentEventIdId = TypedBytes(-1: Byte, Bytes(-1: Byte))
+  val CurrentEventIdId = TypedBytes(-1: Byte, Bytes(-1: Byte))
 
-    def make[F[_]: MonadThrow](store: Store[F, TypedIdentifier, Bytes]): Ledger[F] = new Ledger[F] {
+  def make[F[_]: MonadThrow](store: Store[F, TypedIdentifier, Bytes]): Ledger[F] = new Ledger[F] {
 
-      def eventId: F[TypedIdentifier] =
-        OptionT(store.get(CurrentEventIdId)).foldF(
-          (new NoSuchElementException(CurrentEventIdId.show).raiseError[F, TypedIdentifier])
-        )(TypedBytes(_).pure[F])
+    def eventId: F[TypedIdentifier] =
+      store.getOrRaise(CurrentEventIdId).map(TypedBytes(_))
 
-      def setEventId(id: TypedIdentifier): F[Unit] =
-        store.put(CurrentEventIdId, id.allBytes)
+    def setEventId(id: TypedIdentifier): F[Unit] =
+      store.put(CurrentEventIdId, id.allBytes)
 
-      def balanceOf(name: String): F[Option[Long]] =
-        OptionT
-          .fromOption[F](Bytes.encodeUtf8(name).toOption)
-          .map(TypedBytes(1: Byte, _))
-          .flatMapF(store.get)
-          .map(_.toLong())
-          .value
+    def balanceOf(name: String): F[Option[Long]] =
+      OptionT
+        .fromOption[F](Bytes.encodeUtf8(name).toOption)
+        .map(TypedBytes(1: Byte, _))
+        .flatMapF(store.get)
+        .map(_.toLong())
+        .value
 
-      def modifyBalanceOf(name: String, f: Option[Long] => F[Option[Long]]): F[Unit] =
-        OptionT
-          .fromOption[F](Bytes.encodeUtf8(name).toOption)
-          .map(TypedBytes(1: Byte, _))
-          .getOrElseF(???)
-          .flatTap(key =>
-            OptionT(store.get(key))
-              .map(_.toLong())
-              .flatTransform(f)
-              .foldF(store.remove(key))(t => store.put(key, Bytes.fromLong(t)))
-          )
-          .void
-    }
+    def modifyBalanceOf(name: String, f: Option[Long] => F[Option[Long]]): F[Unit] =
+      OptionT
+        .fromOption[F](Bytes.encodeUtf8(name).toOption)
+        .map(TypedBytes(1: Byte, _))
+        .getOrElseF(???)
+        .flatTap(key =>
+          OptionT(store.get(key))
+            .map(_.toLong())
+            .flatTransform(f)
+            .foldF(store.remove(key))(t => store.put(key, Bytes.fromLong(t)))
+        )
+        .void
   }
 }
 
@@ -129,12 +125,12 @@ object LedgerTreeTestSupport {
   )
 
   val txAssociations = List(
-    "e1d1c1" -> "d1c1",
-    "d1c1"   -> "c1",
-    "c1"     -> "b",
-    "b"      -> "a",
     "a"      -> "-1",
-    "c2"     -> "b"
+    "b"      -> "a",
+    "c1"     -> "b",
+    "c2"     -> "b",
+    "d1c1"   -> "c1",
+    "e1d1c1" -> "d1c1"
   )
 
   case class LedgerUnapply(previousTxId: TypedIdentifier, senderPreviousBalance: Long, tx: Tx)
@@ -146,9 +142,5 @@ object LedgerTreeTestSupport {
 
   implicit class StringOps(string: String) {
     def asTxId: TypedIdentifier = TypedBytes(1: Byte, Bytes(string.getBytes()))
-  }
-
-  implicit class CatsIOOps[T](io: IO[T]) {
-    def value: T = io.unsafeRunSync()(cats.effect.unsafe.IORuntime.global)
   }
 }

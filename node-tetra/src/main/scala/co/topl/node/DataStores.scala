@@ -52,14 +52,6 @@ object DataStores {
       blockHeightTreeUnapplyStore <- makeDb[F, TypedIdentifier, Long](dataDir)("block-heights-unapply")
 
       // Store the big bang data
-      _ <- parentChildTree.put(
-        bigBangBlock.headerV2.parentHeaderId,
-        (bigBangBlock.headerV2.height - 1, TypedBytes(IdentifierTypes.Block.HeaderV2, Bytes.fill(32)(-1)))
-      )
-      _ <- parentChildTree.put(
-        bigBangBlock.headerV2.id,
-        (bigBangBlock.headerV2.height, bigBangBlock.headerV2.parentHeaderId)
-      )
       _ <- slotDataStore.put(bigBangBlock.headerV2.id, bigBangBlock.headerV2.slotData(Ed25519VRF.precomputed()))
       _ <- blockHeaderStore.put(bigBangBlock.headerV2.id, bigBangBlock.headerV2)
       _ <- blockBodyStore.put(

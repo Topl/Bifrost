@@ -113,16 +113,22 @@ object ParentChildTree {
    */
   object FromStore {
 
-    def make[F[_]: Async, T: Eq: Show](store: Store[F, T, (Long, T)]): F[ParentChildTree[F, T]] =
-      Async[F].delay(new Impl(store))
+    def make[F[_]: Async, T: Eq: Show](store: Store[F, T, (Long, T)], root: T): F[ParentChildTree[F, T]] =
+      Async[F].delay(new Impl(store, root))
 
-    private class Impl[F[_]: Async, T: Eq: Show](store: Store[F, T, (Long, T)]) extends ParentChildTree[F, T] {
-      def parentOf(t: T): F[Option[T]] = OptionT(store.get(t)).map(_._2).value
+    private class Impl[F[_]: Async, T: Eq: Show](store: Store[F, T, (Long, T)], root: T) extends ParentChildTree[F, T] {
+
+      def parentOf(t: T): F[Option[T]] =
+        if (t === root) none[T].pure[F]
+        else OptionT(store.get(t)).map(_._2).value
 
       def associate(child: T, parent: T): F[Unit] =
-        store.getOrRaise(parent).flatMap { case (height, _) => store.put(child, (height + 1, parent)) }
+        if (parent === root) store.put(child, (1, parent))
+        else store.getOrRaise(parent).flatMap { case (height, _) => store.put(child, (height + 1, parent)) }
 
-      def heightOf(t: T): F[Long] = store.getOrRaise(t).map(_._1)
+      def heightOf(t: T): F[Long] =
+        if (t === root) 0L.pure[F]
+        else store.getOrRaise(t).map(_._1)
 
       def findCommonAncestor(a: T, b: T): F[(NonEmptyChain[T], NonEmptyChain[T])] =
         if (a === b) (NonEmptyChain(a), NonEmptyChain(b)).pure[F]
