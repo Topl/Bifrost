@@ -23,6 +23,7 @@ object TransactionSyntaxValidation {
       distinctInputsValidation,
       maximumOutputsCountValidation,
       positiveTimestampValidation,
+      scheduleValidation,
       positiveOutputValuesValidation,
       sufficientFundsValidation,
       proofTypeValidation
@@ -70,6 +71,18 @@ object TransactionSyntaxValidation {
     transaction: Transaction
   ): ValidatedNec[TransactionSyntaxError, Unit] =
     Validated.condNec(transaction.timestamp >= 0, (), TransactionSyntaxErrors.InvalidTimestamp(transaction.timestamp))
+
+  /**
+   * Verify that the schedule of the timestamp contains valid minimum and maximum slot values
+   */
+  private[interpreters] def scheduleValidation(
+    transaction: Transaction
+  ): ValidatedNec[TransactionSyntaxError, Unit] =
+    Validated.condNec(
+      transaction.schedule.maximumSlot >= transaction.schedule.minimumSlot && transaction.schedule.maximumSlot >= 0,
+      (),
+      TransactionSyntaxErrors.InvalidSchedule(transaction.schedule)
+    )
 
   /**
    * Verify that each transaction output contains a positive quantity (where applicable)

@@ -17,6 +17,31 @@ import org.scalamock.munit.AsyncMockFactory
 class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
 
+  test("Invalid schedule+slot combination should fail") {
+    PropF.forAllF {
+      (blockId: TypedIdentifier, transactionA: Transaction, _transactionB: Transaction, input: Transaction.Input) =>
+        withMock {
+          val transactionB = _transactionB.copy(
+            inputs = Chain(
+              input.copy(
+                boxId = Box.Id(transactionA.id, 0)
+              )
+            ),
+            schedule = _transactionB.schedule.copy(minimumSlot = 0, maximumSlot = 4)
+          )
+          for {
+            fetchTransaction <- mockFunction[TypedIdentifier, F[Transaction]].pure[F]
+            boxState         <- mock[BoxStateAlgebra[F]].pure[F]
+            underTest        <- TransactionSemanticValidation.make[F](fetchTransaction, boxState)
+            _ <- underTest
+              .validate(StaticTransactionValidationContext(blockId, Chain.empty, 1, 5))(transactionB)
+              .map(_.toEither.swap.getOrElse(???).exists(_.isInstanceOf[TransactionSemanticErrors.UnsatisfiedSchedule]))
+              .assert
+          } yield ()
+        }
+    }
+  }
+
   test("Spending out-of-bounds index should fail") {
     PropF.forAllF {
       (blockId: TypedIdentifier, transactionA: Transaction, _transactionB: Transaction, input: Transaction.Input) =>
@@ -39,7 +64,9 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
               .returning(true.pure[F])
             underTest <- TransactionSemanticValidation.make[F](fetchTransaction, boxState)
             _ <- underTest
-              .validate(StaticTransactionValidationContext(blockId, Chain.empty, 1, 1))(transactionB)
+              .validate(StaticTransactionValidationContext(blockId, Chain.empty, 1, transactionB.schedule.minimumSlot))(
+                transactionB
+              )
               .map(_.toEither.swap.getOrElse(???).exists(_.isInstanceOf[TransactionSemanticErrors.UnspendableBox]))
               .assert
           } yield ()
@@ -82,7 +109,9 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
               .returning(true.pure[F])
             underTest <- TransactionSemanticValidation.make[F](fetchTransaction, boxState)
             result <- underTest
-              .validate(StaticTransactionValidationContext(blockId, Chain.empty, 1, 1))(transactionB)
+              .validate(StaticTransactionValidationContext(blockId, Chain.empty, 1, transactionB.schedule.minimumSlot))(
+                transactionB
+              )
             _ <- IO(
               if (transactionA.outputs.headOption.get.value =!= transactionB.inputs.headOption.get.value)
                 result.toEither.swap.getOrElse(???).exists(_.isInstanceOf[TransactionSemanticErrors.InputDataMismatch])
@@ -127,7 +156,9 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
               .anyNumberOfTimes()
               .returning(true.pure[F])
             underTest <- TransactionSemanticValidation.make[F](fetchTransaction, boxState)
-            result <- underTest.validate(StaticTransactionValidationContext(blockId, Chain.empty, 1, 1))(transactionB)
+            result <- underTest.validate(
+              StaticTransactionValidationContext(blockId, Chain.empty, 1, transactionB.schedule.minimumSlot)
+            )(transactionB)
             _ <- IO(
               result.toEither.swap.getOrElse(???).exists(_.isInstanceOf[TransactionSemanticErrors.InputDataMismatch])
             ).assert
@@ -172,7 +203,9 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
               .once()
               .returning(false.pure[F])
             underTest <- TransactionSemanticValidation.make[F](fetchTransaction, boxState)
-            result <- underTest.validate(StaticTransactionValidationContext(blockId, Chain.empty, 1, 1))(transactionB)
+            result <- underTest.validate(
+              StaticTransactionValidationContext(blockId, Chain.empty, 1, transactionB.schedule.minimumSlot)
+            )(transactionB)
             _ <- IO(
               result.toEither.swap.getOrElse(???).exists(_.isInstanceOf[TransactionSemanticErrors.UnspendableBox])
             ).assert

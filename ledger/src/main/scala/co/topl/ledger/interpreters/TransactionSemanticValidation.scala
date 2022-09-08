@@ -35,11 +35,11 @@ object TransactionSemanticValidation {
                 // Stop validating after the first error
                 .foldM(transaction.validNec[TransactionSemanticError]) {
                   case (Validated.Valid(_), input) =>
-                    EitherT(dataValidation(fetchTransaction)(input).map(_.toEither))
-                      .flatMapF(_ => spendableValidation(boxState)(context.parentHeaderId)(input).map(_.toEither))
-                      .flatMapF(_ => scheduleValidation[F](context.slot)(transaction.schedule).map(_.toEither))
-                      .toNestedValidatedNec
-                      .value
+                    (
+                      EitherT(scheduleValidation[F](context.slot)(transaction.schedule).map(_.toEither)) >>
+                      EitherT(dataValidation(fetchTransaction)(input).map(_.toEither)) >>
+                      EitherT(spendableValidation(boxState)(context.parentHeaderId)(input).map(_.toEither))
+                    ).toNestedValidatedNec.value
                       .map(_.leftMap(_.flatten).as(transaction))
                   case (invalid, _) => invalid.pure[F]
                 }
