@@ -35,7 +35,7 @@ class BoxStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
         val transaction2 = transaction2Base.copy(inputs = Chain(input.copy(boxId = outputBoxId)))
 
         for {
-          parentChildTree <- ParentChildTree.FromSemaphore.make[IO, TypedIdentifier]
+          parentChildTree <- ParentChildTree.FromRef.make[IO, TypedIdentifier]
           _               <- parentChildTree.associate(blockId1, blockId0)
           _               <- parentChildTree.associate(blockId2, blockId1)
           underTest <- BoxState.make[IO](

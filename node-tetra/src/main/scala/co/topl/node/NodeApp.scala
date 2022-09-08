@@ -74,8 +74,7 @@ object NodeApp
 
         dataStores <- DataStores.init[F](dataDir)(bigBangBlock)
 
-        blockIdTree <- BlockIdTree.make[F]
-        _           <- blockIdTree.associate(bigBangBlock.headerV2.id, bigBangBlock.headerV2.parentHeaderId)
+        blockIdTree <- ParentChildTree.FromStore.make[F, TypedIdentifier](dataStores.parentChildTree)
 
         // Start supporting interpreters
         blockHeightTree <- BlockHeightTree

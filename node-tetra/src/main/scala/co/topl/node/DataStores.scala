@@ -18,6 +18,7 @@ import fs2.io.file.Path
 import scala.collection.immutable.ListSet
 
 case class DataStores[F[_]](
+  parentChildTree:        Store[F, TypedIdentifier, (Long, TypedIdentifier)],
   slotData:               Store[F, TypedIdentifier, SlotData],
   headers:                Store[F, TypedIdentifier, BlockHeaderV2],
   bodies:                 Store[F, TypedIdentifier, BlockBodyV2],
@@ -35,6 +36,7 @@ object DataStores {
 
   def init[F[_]: Async](dataDir: Path)(bigBangBlock: BlockV2.Full): F[DataStores[F]] =
     for {
+      parentChildTree      <- makeDb[F, TypedIdentifier, (Long, TypedIdentifier)](dataDir)("parent-child-tree")
       slotDataStore        <- makeDb[F, TypedIdentifier, SlotData](dataDir)("slot-data")
       blockHeaderStore     <- makeDb[F, TypedIdentifier, BlockHeaderV2](dataDir)("block-headers")
       blockBodyStore       <- makeDb[F, TypedIdentifier, BlockBodyV2](dataDir)("block-bodies")
@@ -50,6 +52,14 @@ object DataStores {
       blockHeightTreeUnapplyStore <- makeDb[F, TypedIdentifier, Long](dataDir)("block-heights-unapply")
 
       // Store the big bang data
+      _ <- parentChildTree.put(
+        bigBangBlock.headerV2.parentHeaderId,
+        (bigBangBlock.headerV2.height - 1, TypedBytes(IdentifierTypes.Block.HeaderV2, Bytes.fill(32)(-1)))
+      )
+      _ <- parentChildTree.put(
+        bigBangBlock.headerV2.id,
+        (bigBangBlock.headerV2.height, bigBangBlock.headerV2.parentHeaderId)
+      )
       _ <- slotDataStore.put(bigBangBlock.headerV2.id, bigBangBlock.headerV2.slotData(Ed25519VRF.precomputed()))
       _ <- blockHeaderStore.put(bigBangBlock.headerV2.id, bigBangBlock.headerV2)
       _ <- blockBodyStore.put(
@@ -61,6 +71,7 @@ object DataStores {
       _ <- activeStakeStore.contains(()).ifM(Applicative[F].unit, activeStakeStore.put((), 0))
 
       dataStores = DataStores(
+        parentChildTree,
         slotDataStore,
         blockHeaderStore,
         blockBodyStore,

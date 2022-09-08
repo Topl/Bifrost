@@ -40,7 +40,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
         )
 
       for {
-        parentChildTree <- ParentChildTree.FromSemaphore.make[F, TypedIdentifier]
+        parentChildTree <- ParentChildTree.FromRef.make[F, TypedIdentifier]
         initialState <- (
           TestStore.make[F, StakingAddresses.Operator, Int128],
           TestStore.make[F, Unit, Int128],
@@ -174,7 +174,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
         )
 
       for {
-        parentChildTree <- ParentChildTree.FromSemaphore.make[F, TypedIdentifier]
+        parentChildTree <- ParentChildTree.FromRef.make[F, TypedIdentifier]
         initialState <- (
           TestStore.make[F, StakingAddresses.Operator, Int128],
           TestStore.make[F, Unit, Int128],

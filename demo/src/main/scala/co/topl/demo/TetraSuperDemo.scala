@@ -19,6 +19,7 @@ import co.topl.consensus._
 import co.topl.consensus.interpreters._
 import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.crypto.signing.{Curve25519, Ed25519, Ed25519VRF, ExtendedEd25519, KesProduct}
+import co.topl.eventtree.ParentChildTree
 import co.topl.interpreters._
 import co.topl.ledger.interpreters._
 import co.topl.models._
@@ -149,6 +150,7 @@ object TetraSuperDemo extends IOApp {
           show"Initializing node with genesis block id=${bigBangBlock.headerV2.id.asTypedBytes}" +
           show" and transactionIds=${bigBangBlock.transactions.map(_.id.asTypedBytes)}"
         )
+        parentChildTreeStore <- RefStore.Eval.make[F, TypedIdentifier, (Long, TypedIdentifier)]()
         slotDataStore        <- RefStore.Eval.make[F, TypedIdentifier, SlotData]()
         blockHeaderStore     <- RefStore.Eval.make[F, TypedIdentifier, BlockHeaderV2]()
         blockBodyStore       <- RefStore.Eval.make[F, TypedIdentifier, BlockBodyV2]()
@@ -158,6 +160,10 @@ object TetraSuperDemo extends IOApp {
         operatorStakesStore  <- RefStore.Eval.make[F, StakingAddresses.Operator, Int128]()
         totalStakesStore     <- RefStore.Eval.make[F, Unit, Int128]()
         registrationsStore   <- RefStore.Eval.make[F, StakingAddresses.Operator, Box.Values.Registrations.Operator]()
+        _ <- parentChildTreeStore.put(
+          bigBangBlock.headerV2.id,
+          (bigBangBlock.headerV2.height, bigBangBlock.headerV2.parentHeaderId)
+        )
         _ <- slotDataStore.put(bigBangBlock.headerV2.id, bigBangBlock.headerV2.slotData(Ed25519VRF.precomputed()))
         _ <- blockHeaderStore.put(bigBangBlock.headerV2.id, bigBangBlock.headerV2)
         _ <- blockBodyStore.put(
@@ -165,11 +171,10 @@ object TetraSuperDemo extends IOApp {
           ListSet.empty ++ bigBangBlock.transactions.map(_.id.asTypedBytes).toList
         )
         _ <- bigBangBlock.transactions.traverseTap(transaction => transactionStore.put(transaction.id, transaction))
-        blockIdTree          <- BlockIdTree.make[F]
-        _                    <- blockIdTree.associate(bigBangBlock.headerV2.id, bigBangBlock.headerV2.parentHeaderId)
-        blockHeightTreeStore <- RefStore.Eval.make[F, Long, TypedIdentifier]()
-        _                    <- blockHeightTreeStore.put(0, bigBangBlock.headerV2.parentHeaderId)
-        _                    <- totalStakesStore.put((), 0)
+        blockIdTree                 <- ParentChildTree.FromStore.make[F, TypedIdentifier](parentChildTreeStore)
+        blockHeightTreeStore        <- RefStore.Eval.make[F, Long, TypedIdentifier]()
+        _                           <- blockHeightTreeStore.put(0, bigBangBlock.headerV2.parentHeaderId)
+        _                           <- totalStakesStore.put((), 0)
         blockHeightTreeUnapplyStore <- RefStore.Eval.make[F, TypedIdentifier, Long]()
         blockHeightTree <- BlockHeightTree
           .make[F](
