@@ -20,6 +20,7 @@ spec:
       automountServiceAccountToken: false
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: {{ .Chart.Name }}
         image: {{ .Values.image.name }}:{{ .Values.image.tag }}
@@ -57,6 +58,11 @@ spec:
         volumeMounts:
         - name: {{ .Values.name }}-pv
           mountPath: {{ .Values.volume.mountDirectory }}
+        {{- if .Values.config.enabled }}
+        - name: {{ .Values.name }}-custom-config
+          mountpath: 
+        {{- end }}
+
   volumeClaimTemplates:
   - metadata:
       name: {{ .Values.name }}-pv
