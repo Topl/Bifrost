@@ -26,11 +26,12 @@ object BoxState {
    * Creates a BoxStateAlgebra interpreter that is backed by an event-sourced tree
    */
   def make[F[_]: Async](
-    currentBlockId:   F[TypedIdentifier],
-    fetchBlockBody:   TypedIdentifier => F[BlockBodyV2],
-    fetchTransaction: TypedIdentifier => F[Transaction],
-    parentChildTree:  ParentChildTree[F, TypedIdentifier],
-    initialState:     F[State[F]]
+    currentBlockId:      F[TypedIdentifier],
+    fetchBlockBody:      TypedIdentifier => F[BlockBodyV2],
+    fetchTransaction:    TypedIdentifier => F[Transaction],
+    parentChildTree:     ParentChildTree[F, TypedIdentifier],
+    currentEventChanged: TypedIdentifier => F[Unit],
+    initialState:        F[State[F]]
   ): F[BoxStateAlgebra[F]] =
     for {
       eventSourcedState <- EventSourcedState.OfTree.make[F, State[F]](
@@ -38,7 +39,8 @@ object BoxState {
         currentBlockId,
         applyEvent = applyBlock(fetchBlockBody, fetchTransaction),
         unapplyEvent = unapplyBlock(fetchBlockBody, fetchTransaction),
-        parentChildTree
+        parentChildTree,
+        currentEventChanged
       )
     } yield new BoxStateAlgebra[F] {
 

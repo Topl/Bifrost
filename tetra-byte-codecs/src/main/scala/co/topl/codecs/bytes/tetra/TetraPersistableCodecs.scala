@@ -60,6 +60,9 @@ trait TetraPersistableCodecs {
 
   implicit val persistableBoxValueOperatorRegistration: Persistable[Box.Values.Registrations.Operator] =
     Persistable.instanceFromCodec
+
+  implicit val persistableByte: Persistable[Byte] =
+    Persistable.instanceFromCodec
 }
 
 object TetraPersistableCodecs extends TetraPersistableCodecs

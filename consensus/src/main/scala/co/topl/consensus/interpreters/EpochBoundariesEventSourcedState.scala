@@ -22,11 +22,12 @@ object EpochBoundariesEventSourcedState {
   type EpochBoundaries[F[_]] = Store[F, Epoch, TypedIdentifier]
 
   def make[F[_]: Async](
-    clock:           ClockAlgebra[F],
-    currentBlockId:  F[TypedIdentifier],
-    parentChildTree: ParentChildTree[F, TypedIdentifier],
-    initialState:    F[EpochBoundaries[F]],
-    fetchSlotData:   TypedIdentifier => F[SlotData]
+    clock:               ClockAlgebra[F],
+    currentBlockId:      F[TypedIdentifier],
+    parentChildTree:     ParentChildTree[F, TypedIdentifier],
+    currentEventChanged: TypedIdentifier => F[Unit],
+    initialState:        F[EpochBoundaries[F]],
+    fetchSlotData:       TypedIdentifier => F[SlotData]
   ): F[EventSourcedState[F, EpochBoundaries[F]]] = {
     def applyBlock(state: EpochBoundaries[F], blockId: TypedIdentifier) =
       for {
@@ -50,7 +51,8 @@ object EpochBoundariesEventSourcedState {
       initialEventId = currentBlockId,
       applyEvent = applyBlock,
       unapplyEvent = unapplyBlock,
-      parentChildTree = parentChildTree
+      parentChildTree = parentChildTree,
+      currentEventChanged
     )
   }
 }

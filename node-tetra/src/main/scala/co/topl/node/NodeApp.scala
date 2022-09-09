@@ -73,19 +73,23 @@ object NodeApp
         cryptoResources <- CryptoResources.make[F]
 
         dataStores <- DataStores.init[F](dataDir)(bigBangBlock)
+        currentEventIdGetterSetters = new CurrentEventIdGetterSetters(dataStores.currentEventIds)
+
+        canonicalHeadId       <- currentEventIdGetterSetters.canonicalHead.get()
+        canonicalHeadSlotData <- dataStores.slotData.getOrRaise(canonicalHeadId)
 
         blockIdTree <- ParentChildTree.FromStore
           .make[F, TypedIdentifier](dataStores.parentChildTree, bigBangBlock.headerV2.parentHeaderId)
           .flatTap(_.associate(bigBangBlock.headerV2.id, bigBangBlock.headerV2.parentHeaderId))
 
-        // Start supporting interpreters
+        // Start the supporting interpreters
         blockHeightTree <- BlockHeightTree
           .make[F](
             dataStores.blockHeightTree,
-            bigBangBlock.headerV2.parentHeaderId,
+            currentEventIdGetterSetters.blockHeightTree.get(),
             dataStores.slotData,
-            dataStores.blockHeightTreeUnapply,
-            blockIdTree
+            blockIdTree,
+            currentEventIdGetterSetters.blockHeightTree.set
           )
         clock = SchedulerClock.Eval.make[F](
           ProtocolConfiguration.SlotDuration,
@@ -103,11 +107,12 @@ object NodeApp
         consensusValidationState <- makeConsensusValidationState(
           clock,
           dataStores,
+          currentEventIdGetterSetters,
           bigBangBlock,
           blockIdTree
         )
         localChain <- LocalChain.Eval.make(
-          bigBangBlock.headerV2.slotData(Ed25519VRF.precomputed()),
+          canonicalHeadSlotData,
           ChainSelection
             .orderT[F](
               dataStores.slotData.getOrRaise,
@@ -117,10 +122,11 @@ object NodeApp
             )
         )
         mempool <- Mempool.make[F](
-          bigBangBlock.headerV2.parentHeaderId.pure[F],
+          currentEventIdGetterSetters.mempool.get(),
           dataStores.bodies.getOrRaise,
           dataStores.transactions.getOrRaise,
           blockIdTree,
+          currentEventIdGetterSetters.mempool.set,
           clock,
           id => Logger[F].info(show"Expiring transaction id=$id"),
           1000L,
@@ -129,7 +135,7 @@ object NodeApp
         implicit0(networkRandom: Random) = new Random(new SecureRandom())
         staking <- makeStaking(
           stakingDir,
-          bigBangBlock.headerV2,
+          canonicalHeadSlotData,
           stakerInitializers.headOption.get,
           clock,
           etaCalculation,
@@ -140,9 +146,9 @@ object NodeApp
           cryptoResources.kesProduct
         )
         validators <- Validators.make[F](
-          bigBangBlock.headerV2,
           cryptoResources,
           dataStores,
+          currentEventIdGetterSetters,
           blockIdTree,
           etaCalculation,
           consensusValidationState,
@@ -178,7 +184,7 @@ object NodeApp
 
   private def makeStaking(
     stakingDir:               Path,
-    bigBangHeader:            BlockHeaderV2,
+    currentHead:              SlotData,
     initializer:              StakerInitializers.Operator,
     clock:                    ClockAlgebra[F],
     etaCalculation:           EtaCalculationAlgebra[F],
@@ -203,9 +209,9 @@ object NodeApp
         ed25519VRFResource,
         ProtocolConfiguration.vrfConfig
       )
-      initialSlot  <- clock.globalSlot.map(_.max(0L))
-      initialEpoch <- clock.epochOf(initialSlot)
-      _            <- vrfProofConstruction.precomputeForEpoch(initialEpoch, bigBangHeader.eligibilityCertificate.eta)
+      currentSlot  <- clock.globalSlot.map(_.max(0L))
+      currentEpoch <- clock.epochOf(currentSlot)
+      _            <- vrfProofConstruction.precomputeForEpoch(currentEpoch, currentHead.eta)
       operationalKeys <- OperationalKeys.FromSecureStore.make[F](
         secureStore = secureStore,
         clock = clock,
@@ -214,11 +220,11 @@ object NodeApp
         consensusValidationState,
         kesProductResource,
         ed25519Resource,
-        bigBangHeader.slotId,
+        currentHead.slotId,
         operationalPeriodLength = ProtocolConfiguration.OperationalPeriodLength,
-        activationOperationalPeriod = 0L,
+        activationOperationalPeriod = 0L, // TODO: Accept registration block as `make` parameter?
         initializer.stakingAddress,
-        initialSlot = 0L
+        initialSlot = currentSlot
       )
       staking = Staking.Eval.make(
         initializer.stakingAddress,
@@ -239,22 +245,25 @@ object NodeApp
     } yield staking
 
   private def makeConsensusValidationState(
-    clock:        ClockAlgebra[F],
-    dataStores:   DataStores[F],
-    bigBangBlock: BlockV2.Full,
-    blockIdTree:  ParentChildTree[F, TypedIdentifier]
+    clock:                       ClockAlgebra[F],
+    dataStores:                  DataStores[F],
+    currentEventIdGetterSetters: CurrentEventIdGetterSetters[F],
+    bigBangBlock:                BlockV2.Full,
+    blockIdTree:                 ParentChildTree[F, TypedIdentifier]
   ) =
     for {
       epochBoundariesState <- EpochBoundariesEventSourcedState.make[F](
         clock,
-        bigBangBlock.headerV2.parentHeaderId.pure[F],
+        currentEventIdGetterSetters.epochBoundaries.get(),
         blockIdTree,
+        currentEventIdGetterSetters.epochBoundaries.set,
         dataStores.epochBoundaries.pure[F],
         dataStores.slotData.getOrRaise
       )
       consensusDataState <- ConsensusDataEventSourcedState.make[F](
-        bigBangBlock.headerV2.parentHeaderId.pure[F],
+        currentEventIdGetterSetters.consensusData.get(),
         blockIdTree,
+        currentEventIdGetterSetters.consensusData.set,
         ConsensusDataEventSourcedState
           .ConsensusData(dataStores.operatorStakes, dataStores.activeStake, dataStores.registrations)
           .pure[F],

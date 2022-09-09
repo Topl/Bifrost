@@ -31,13 +31,13 @@ case class Validators[F[_]](
 object Validators {
 
   def make[F[_]: Async](
-    bigBangHeader:            BlockHeaderV2,
-    cryptoResources:          CryptoResources[F],
-    dataStores:               DataStores[F],
-    blockIdTree:              ParentChildTree[F, TypedIdentifier],
-    etaCalculation:           EtaCalculationAlgebra[F],
-    consensusValidationState: ConsensusValidationStateAlgebra[F],
-    leaderElectionThreshold:  LeaderElectionValidationAlgebra[F]
+    cryptoResources:             CryptoResources[F],
+    dataStores:                  DataStores[F],
+    currentEventIdGetterSetters: CurrentEventIdGetterSetters[F],
+    blockIdTree:                 ParentChildTree[F, TypedIdentifier],
+    etaCalculation:              EtaCalculationAlgebra[F],
+    consensusValidationState:    ConsensusValidationStateAlgebra[F],
+    leaderElectionThreshold:     LeaderElectionValidationAlgebra[F]
   ): F[Validators[F]] =
     for {
       headerValidation <- BlockHeaderValidation.Eval
@@ -52,10 +52,11 @@ object Validators {
         )
         .flatMap(BlockHeaderValidation.WithCache.make[F](_, dataStores.headers))
       boxState <- BoxState.make(
-        bigBangHeader.parentHeaderId.pure[F],
+        currentEventIdGetterSetters.boxState.get(),
         dataStores.bodies.getOrRaise,
         dataStores.transactions.getOrRaise,
         blockIdTree,
+        currentEventIdGetterSetters.boxState.set,
         dataStores.spendableBoxIds.pure[F]
       )
       transactionSyntaxValidation <- TransactionSyntaxValidation.make[F]

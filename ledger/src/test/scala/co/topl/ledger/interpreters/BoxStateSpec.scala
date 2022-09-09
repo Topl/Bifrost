@@ -1,5 +1,6 @@
 package co.topl.ledger.interpreters
 
+import cats.Applicative
 import cats.data.{Chain, NonEmptySet}
 import cats.effect.IO
 import co.topl.models.{Box, Transaction, TypedIdentifier}
@@ -49,6 +50,7 @@ class BoxStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
               transaction2.id.asTypedBytes -> transaction2.pure[IO]
             ),
             parentChildTree,
+            _ => IO.unit,
             TestStore.make[IO, TypedIdentifier, NonEmptySet[Short]].widen
           )
 

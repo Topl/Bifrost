@@ -27,6 +27,7 @@ object Mempool {
     fetchBlockBody:               TypedIdentifier => F[BlockBodyV2],
     fetchTransaction:             TypedIdentifier => F[Transaction],
     parentChildTree:              ParentChildTree[F, TypedIdentifier],
+    currentEventChanged:          TypedIdentifier => F[Unit],
     clock:                        ClockAlgebra[F],
     onExpiration:                 TypedIdentifier => F[Unit],
     defaultExpirationLimit:       Long,
@@ -92,7 +93,8 @@ object Mempool {
         currentBlockId,
         applyEvent = applyBlock,
         unapplyEvent = unapplyBlock,
-        parentChildTree
+        parentChildTree,
+        currentEventChanged
       )
     } yield new MempoolAlgebra[F] {
 

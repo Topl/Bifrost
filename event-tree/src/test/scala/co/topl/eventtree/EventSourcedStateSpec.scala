@@ -3,7 +3,7 @@ package co.topl.eventtree
 import cats.data.OptionT
 import cats.effect.{IO, Sync}
 import cats.implicits._
-import cats.{Functor, MonadThrow, Semigroupal}
+import cats.{Applicative, Functor, MonadThrow, Semigroupal}
 import co.topl.algebras.Store
 import co.topl.algebras.testInterpreters.TestStore
 import co.topl.models._
@@ -49,7 +49,8 @@ class EventSourcedStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
               _       <- ledger.modifyBalanceOf(unapply.tx.to, b => (b.getOrElse(0L) - unapply.tx.from._2).some.pure[F])
               _       <- ledger.setEventId(unapply.previousTxId)
             } yield ledger,
-          parentChildTree = tree
+          parentChildTree = tree,
+          _ => Applicative[F].unit
         )
       ledgerC1 <- eventTree.stateAt("c1".asTxId)
       _        <- ledgerC1.balanceOf("alice").map(_.get).assertEquals(75L)
