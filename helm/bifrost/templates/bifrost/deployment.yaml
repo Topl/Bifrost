@@ -18,6 +18,7 @@ spec:
         {{- include "bifrost.selectorLabels" . | nindent 8 }}
     spec:
       automountServiceAccountToken: false
+      setHostnameAsFQDN: true
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       subdomain: {{ include "bifrost.fullname" . }}-p2p
