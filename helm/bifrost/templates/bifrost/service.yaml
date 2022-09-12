@@ -25,7 +25,6 @@ spec:
   selector:
     {{- include "bifrost.selectorLabels" . | nindent 4 }}
   clusterIP: None
-  type: NodePort
   ports:
     - protocol: TCP
       name: p2p
