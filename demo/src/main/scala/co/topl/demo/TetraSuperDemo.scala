@@ -263,33 +263,25 @@ object TetraSuperDemo extends IOApp {
           transactionStore.getOrRaise,
           transactionAuthorizationValidation
         )
-        mintOpt <- OptionT
+        stakingOpt <- OptionT
           .whenF(mintingEnabled)(
-            DemoUtils.createMint[F](
+            DemoUtils.createStaking[F](
               bigBangBlock.headerV2,
               staker,
               clock,
               etaCalculation,
               consensusValidationState,
               leaderElectionThreshold,
-              localChain,
-              mempool,
-              blockHeaderStore,
-              transactionStore.getOrRaise,
-              bodySyntaxValidation,
-              bodySemanticValidation,
-              bodyAuthorizationValidation,
-              ed25519VRFResource,
-              kesProductResource,
               ed25519Resource,
-              statsInterpreter,
-              OperationalPeriodLength
+              ed25519VRFResource,
+              kesProductResource
             )
           )
           .value
         _ <- Blockchain
           .run[F](
-            mintOpt,
+            clock,
+            stakingOpt,
             slotDataStore,
             blockHeaderStore,
             blockBodyStore,
@@ -299,7 +291,6 @@ object TetraSuperDemo extends IOApp {
             blockHeightTree,
             cachedHeaderValidation,
             transactionSyntaxValidation,
-            transactionSemanticValidation,
             bodySyntaxValidation,
             bodySemanticValidation,
             bodyAuthorizationValidation,

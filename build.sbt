@@ -231,7 +231,6 @@ lazy val bifrost = project
     demo,
     tools,
     scripting,
-    eligibilitySimulator,
     genus,
     levelDbStore
   )
@@ -278,7 +277,18 @@ lazy val nodeTetra = project
   .settings(
     IntegrationTest / parallelExecution := false
   )
-  .dependsOn(catsAkka)
+  .dependsOn(
+    models % "compile->compile;test->test",
+    typeclasses,
+    consensus,
+    minting,
+    scripting,
+    commonInterpreters,
+    networking,
+    catsAkka,
+    toplGrpc,
+    blockchain
+  )
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
 lazy val common = project
@@ -508,7 +518,8 @@ lazy val minting = project
     algebras % "compile->compile;test->test",
     consensus,
     catsAkka,
-    ledger
+    ledger,
+    munitScalamock % "test->test"
   )
 
 lazy val networking = project
@@ -593,19 +604,11 @@ lazy val demo = project
   .settings(
     name := "demo",
     commonSettings,
-    assemblySettings("co.topl.demo.TetraDemo"),
-    Defaults.itSettings,
-    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
+    crossScalaVersions := Seq(scala213),
     Compile / run / mainClass := Some("co.topl.demo.TetraDemo"),
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.demo",
-    Docker / packageName := "bifrost-node",
-    dockerExposedPorts := Seq(9084, 9085),
-    dockerExposedVolumes += "/opt/docker/.bifrost",
-    dockerLabels ++= Map(
-      "bifrost.version" -> version.value
-    )
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.demo ++ Dependencies.catsEffect)
   .settings(scalamacrosParadiseSettings)
@@ -619,32 +622,6 @@ lazy val demo = project
     networking,
     catsAkka,
     toplGrpc,
-    blockchain
-  )
-  .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
-
-lazy val eligibilitySimulator: Project = project
-  .in(file("eligibility-simulator"))
-  .settings(
-    name := "eligibilitySimulator",
-    commonSettings,
-    assemblySettings("co.topl.simulator.eligibility.EligibilitySimulator"),
-    Defaults.itSettings,
-    crossScalaVersions := Seq(scala213), // don't care about cross-compiling applications
-    Compile / run / mainClass := Some("co.topl.simulator.eligibility.EligibilitySimulator"),
-    publish / skip := true,
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "co.topl.buildinfo.simulator.eligibility"
-  )
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.demo ++ Dependencies.catsEffect)
-  .settings(scalamacrosParadiseSettings)
-  .dependsOn(
-    models % "compile->compile;test->test",
-    typeclasses,
-    consensus,
-    minting,
-    commonInterpreters,
-    numerics,
     blockchain
   )
   .enablePlugins(BuildInfoPlugin)

@@ -11,7 +11,7 @@ trait StakingAlgebra[F[_]] {
 
   def address: F[StakingAddresses.Operator]
 
-  def elect(parent: BlockHeaderV2, slot: Slot): F[Option[VrfHit]]
+  def elect(parentSlotId: SlotId, slot: Slot): F[Option[VrfHit]]
 
   def certifyBlock(
     parentSlotId:         SlotId,

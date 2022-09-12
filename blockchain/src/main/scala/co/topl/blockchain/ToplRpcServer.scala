@@ -10,11 +10,7 @@ import co.topl.algebras.{Store, ToplRpc}
 import co.topl.catsakka.FToFuture
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.eventtree.EventSourcedState
-import co.topl.ledger.algebras.{
-  MempoolAlgebra,
-  TransactionSemanticValidationAlgebra,
-  TransactionSyntaxValidationAlgebra
-}
+import co.topl.ledger.algebras.{MempoolAlgebra, TransactionSyntaxValidationAlgebra}
 import co.topl.ledger.models._
 import co.topl.models.{BlockBodyV2, BlockHeaderV2, Transaction, TypedIdentifier}
 import org.typelevel.log4cats.Logger
@@ -48,7 +44,6 @@ object ToplRpcServer {
     transactionStore:    Store[F, TypedIdentifier, Transaction],
     mempool:             MempoolAlgebra[F],
     syntacticValidation: TransactionSyntaxValidationAlgebra[F],
-    semanticValidation:  TransactionSemanticValidationAlgebra[F],
     localChain:          LocalChainAlgebra[F],
     blockHeights:        EventSourcedState[F, Long => F[Option[TypedIdentifier]]]
   ): F[ToplRpc[F]] =
@@ -65,9 +60,6 @@ object ToplRpcServer {
                 .flatTap(_ =>
                   Logger[F].info(show"Transaction id=${transaction.id.asTypedBytes} is syntactically valid")
                 )
-                .flatMap(semanticValidateOrRaise)
-                .flatTap(_ => Logger[F].info(show"Transaction id=${transaction.id.asTypedBytes} is semantically valid"))
-                // TODO: Authorization Validation
                 .flatTap(processValidTransaction[F](transactionStore, mempool))
                 .void
             )
@@ -96,20 +88,6 @@ object ToplRpcServer {
             )
             .leftMap(_ =>
               new IllegalArgumentException(s"Syntactically invalid transaction id=${transaction.id.asTypedBytes}")
-            )
-            .rethrowT
-
-        private def semanticValidateOrRaise(transaction: Transaction) =
-          EitherT(
-            localChain.head.map(_.slotId.blockId).flatMap(semanticValidation.validate(_)(transaction)).map(_.toEither)
-          )
-            .leftSemiflatTap(errors =>
-              Logger[F].warn(
-                show"Received semantically invalid transaction id=${transaction.id.asTypedBytes} reasons=$errors"
-              )
-            )
-            .leftMap(_ =>
-              new IllegalArgumentException(show"Semantically invalid transaction id=${transaction.id.asTypedBytes}")
             )
             .rethrowT
       }

@@ -1,6 +1,5 @@
 package co.topl.demo
 
-import akka.actor.typed.ActorSystem
 import akka.util.Timeout
 import cats.Parallel
 import cats.effect.Async
@@ -10,73 +9,45 @@ import co.topl.algebras._
 import co.topl.blockchain.StakerInitializers
 import co.topl.catsakka.FToFuture
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus.algebras.{
   ConsensusValidationStateAlgebra,
   EtaCalculationAlgebra,
-  LeaderElectionValidationAlgebra,
-  LocalChainAlgebra
+  LeaderElectionValidationAlgebra
 }
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
-import co.topl.interpreters.{AkkaSecureStore, StatsInterpreter}
-import co.topl.ledger.algebras.{
-  BodyAuthorizationValidationAlgebra,
-  BodySemanticValidationAlgebra,
-  BodySyntaxValidationAlgebra,
-  MempoolAlgebra
-}
+import co.topl.interpreters.{InMemorySecureStore, StatsInterpreter}
 import co.topl.minting._
-import co.topl.minting.algebras.PerpetualBlockMintAlgebra
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.{Ratio, Sized}
+import co.topl.models.utility.Ratio
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 
-import java.nio.file.Files
 import java.util.UUID
 import scala.concurrent.duration._
-import scala.util.Random
 
 object DemoUtils {
 
-  def createMint[F[_]: Async: Parallel: FToFuture](
-    bigBangHeader:               BlockHeaderV2,
-    staker:                      StakerInitializers.Operator,
-    clock:                       ClockAlgebra[F],
-    etaCalculation:              EtaCalculationAlgebra[F],
-    consensusState:              ConsensusValidationStateAlgebra[F],
-    leaderElectionThreshold:     LeaderElectionValidationAlgebra[F],
-    localChain:                  LocalChainAlgebra[F],
-    mempool:                     MempoolAlgebra[F],
-    headerStore:                 Store[F, TypedIdentifier, BlockHeaderV2],
-    fetchTransaction:            TypedIdentifier => F[Transaction],
-    bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
-    bodySemanticValidation:      BodySemanticValidationAlgebra[F],
-    bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
-    ed25519VRFResource:          UnsafeResource[F, Ed25519VRF],
-    kesProductResource:          UnsafeResource[F, KesProduct],
-    ed25519Resource:             UnsafeResource[F, Ed25519],
-    statsInterpreter:            Stats[F],
-    operationalPeriodLength:     Long
-  )(implicit
-    logger:    Logger[F],
-    system:    ActorSystem[_],
-    timeout:   Timeout,
-    vrfConfig: VrfConfig
-  ): F[PerpetualBlockMintAlgebra[F]] =
+  def createStaking[F[_]: Async: Parallel: FToFuture: Logger](
+    bigBangHeader:            BlockHeaderV2,
+    initializer:              StakerInitializers.Operator,
+    clock:                    ClockAlgebra[F],
+    etaCalculation:           EtaCalculationAlgebra[F],
+    consensusValidationState: ConsensusValidationStateAlgebra[F],
+    leaderElectionThreshold:  LeaderElectionValidationAlgebra[F],
+    ed25519Resource:          UnsafeResource[F, Ed25519],
+    ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
+    kesProductResource:       UnsafeResource[F, KesProduct]
+  ) =
     for {
-      _            <- Logger[F].info(show"Initializing staker key idx=0 address=${staker.stakingAddress.show}")
-      stakerKeyDir <- Async[F].blocking(Files.createTempDirectory(show"TetraDemoStaker${staker.stakingAddress.show}"))
-      secureStore  <- AkkaSecureStore.Eval.make[F](stakerKeyDir)
-      _            <- secureStore.write(UUID.randomUUID().toString, staker.kesSK)
+      secureStore <- InMemorySecureStore.Eval.make[F]
+      _           <- secureStore.write(UUID.randomUUID().toString, initializer.kesSK)
       vrfProofConstruction <- VrfProof.Eval.make[F](
-        staker.vrfSK,
+        initializer.vrfSK,
         clock,
         leaderElectionThreshold,
         ed25519VRFResource,
-        vrfConfig
+        DemoConfig.vrfConfig
       )
       initialSlot  <- clock.globalSlot.map(_.max(0L))
       initialEpoch <- clock.epochOf(initialSlot)
@@ -86,54 +57,32 @@ object DemoUtils {
         clock = clock,
         vrfProof = vrfProofConstruction,
         etaCalculation,
-        consensusState,
+        consensusValidationState,
         kesProductResource,
         ed25519Resource,
         bigBangHeader.slotId,
-        operationalPeriodLength = operationalPeriodLength,
+        operationalPeriodLength = DemoConfig.OperationalPeriodLength,
         activationOperationalPeriod = 0L,
-        staker.stakingAddress,
-        initialSlot = initialSlot
+        initializer.stakingAddress,
+        initialSlot = 0L
       )
-      mint =
-        BlockMint.Eval.make(
-          Staking.Eval.make(
-            staker.stakingAddress,
-            LeaderElectionMinting.Eval.make(
-              staker.vrfVK,
-              leaderElectionThreshold,
-              vrfProofConstruction,
-              statsInterpreter = StatsInterpreter.Noop.make[F],
-              statsName = ""
-            ),
-            operationalKeys,
-            consensusState,
-            etaCalculation,
-            ed25519Resource,
-            vrfProofConstruction,
-            clock
-          ),
-          clock,
-          statsInterpreter
-        )
-      perpetual <- PerpetualBlockMint.InAkkaStream
-        .make(
-          clock,
-          mint,
-          localChain,
-          mempool,
-          headerStore,
-          fetchTransaction,
-          bodySyntaxValidation,
-          bodySemanticValidation,
-          bodyAuthorizationValidation
-        )
-    } yield perpetual
-
-  def computeStakers(count: Int, random: Random): List[StakerInitializers.Operator] =
-    List.fill(count) {
-      StakerInitializers.Operator(Sized.strictUnsafe(Bytes(random.nextBytes(32))), DemoConfig.KesKeyHeight)
-    }
+      staking = Staking.Eval.make(
+        initializer.stakingAddress,
+        LeaderElectionMinting.Eval.make(
+          initializer.vrfVK,
+          leaderElectionThreshold,
+          vrfProofConstruction,
+          statsInterpreter = StatsInterpreter.Noop.make[F],
+          statsName = ""
+        ),
+        operationalKeys,
+        consensusValidationState,
+        etaCalculation,
+        ed25519Resource,
+        vrfProofConstruction,
+        clock
+      )
+    } yield staking
 
   val loggerColors = List(
     Console.MAGENTA,
