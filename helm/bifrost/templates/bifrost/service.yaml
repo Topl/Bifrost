@@ -18,13 +18,14 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "bifrost.fullname" . }}-p2p-headless
+  name: {{ include "bifrost.fullname" . }}-p2p
   labels:
     {{- include "bifrost.labels" . | nindent 4}}
 spec:
   selector:
     {{- include "bifrost.selectorLabels" . | nindent 4 }}
   clusterIP: None
+  type: NodePort
   ports:
     - protocol: TCP
       name: p2p

@@ -20,6 +20,7 @@ spec:
       automountServiceAccountToken: false
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      subdomain: sd        
       containers:
       - name: {{ .Chart.Name }}
         image: {{ .Values.image.name }}:{{ .Values.image.tag }}
