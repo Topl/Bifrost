@@ -10,9 +10,12 @@ services:
 
   bifrost:
     image: toplprotocol/bifrost-node
-    command: --forge --debug -s test -c /mnt/local.conf
+    command: --forge --debug --disableAuth -s test -c /mnt/local.conf
     volumes:
       - ./ribn-testing.conf:/mnt/local.conf
+    ports:
+      - 9085:9085
+      - 9084:9084
 
   genus:
     image: toplprotocol/bifrost-node
