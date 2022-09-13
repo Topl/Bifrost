@@ -35,24 +35,14 @@ object ApplicationConfig {
     case class Data(directory: String)
     case class Staking(directory: String)
 
-    /**
-     * Settings for peer-to-peer networking
-     * @param bindingHost The host on the local machine to bind to
-     * @param bindingPort The port on the local machine to bind to
-     * @param publicHost The host to tell other peers if they want to reach you publicly
-     * @param publicPort The port to tell other peers if they want to reach you publicly
-     * @param knownPeers A comma-delimited list of addresses to connect to initially.
-     *                   Should be comma-delimited host:port
-     *                   i.e. 1.2.3.4:9085,5.6.7.8:9085
-     */
     case class P2P(
-      bindingHost: String,
-      bindingPort: Int,
-      publicHost:  String,
-      publicPort:  Int,
-      knownPeers:  List[DisconnectedPeer]
+      bindHost:   String,
+      bindPort:   Int,
+      publicHost: String,
+      publicPort: Int,
+      knownPeers: List[DisconnectedPeer]
     )
-    case class RPC(bindingHost: String, bindingPort: Int)
+    case class RPC(bindHost: String, bindPort: Int)
     case class Mempool(defaultExpirationSlots: Long, duplicateSpenderExpirationSlots: Long)
     sealed abstract class BigBang
 
@@ -96,11 +86,12 @@ object ApplicationConfig {
   def createTypesafeConfig(cmdArgs: Args): Config =
     NonEmptyChain(
       ConfigSource.fromConfig(ConfigFactory.systemEnvironmentOverrides()),
+      ConfigSource.resources("environment.conf"),
       ConfigSource.fromConfig(YamlConfig.loadResource("custom-config.yaml")),
       ConfigSource.default
     ).foldMapM(_.config()) match {
-      case Right(value) => value
-      case Left(e)      => throw new IllegalStateException(e.head.toString)
+      case Right(value) => value.resolve()
+      case Left(e)      => throw new IllegalStateException(e.toString)
     }
 
   def unsafe(cmdArgs: Args, config: Config): ApplicationConfig =

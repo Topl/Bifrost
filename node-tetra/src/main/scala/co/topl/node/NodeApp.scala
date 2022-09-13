@@ -7,7 +7,6 @@ import akka.util.Timeout
 import cats.effect.IO
 import co.topl.catsakka._
 import cats.implicits._
-import cats.data.NonEmptyChain
 import co.topl.algebras._
 import ClockAlgebra.implicits._
 import cats.Applicative
@@ -31,11 +30,9 @@ import co.topl.minting._
 import co.topl.networking.p2p.LocalPeer
 import co.topl.node
 import co.topl.numerics._
-import com.typesafe.config.ConfigFactory
 import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import pureconfig.ConfigSource
 import java.net.InetSocketAddress
 import java.security.SecureRandom
 import java.time.Instant
@@ -61,9 +58,8 @@ object NodeApp
     for {
       _ <- Logger[F].info(show"Launching node with args=$args")
       _ <- Logger[F].info(show"Node configuration=$appConfig")
-      // Values are hardcoded for now; other tickets/work will make these configurable
       localPeer = LocalPeer(
-        InetSocketAddress.createUnresolved(appConfig.bifrost.p2p.bindingHost, appConfig.bifrost.p2p.bindingPort),
+        InetSocketAddress.createUnresolved(appConfig.bifrost.p2p.bindHost, appConfig.bifrost.p2p.bindPort),
         (0, 0)
       )
       implicit0(networkPrefix: NetworkPrefix) = NetworkPrefix(1: Byte)
@@ -205,8 +201,8 @@ object NodeApp
             .flatMapConcat(_ => Source(appConfig.bifrost.p2p.knownPeers))
             .concat(Source.never),
           (peer, flow) => flow,
-          appConfig.bifrost.rpc.bindingHost,
-          appConfig.bifrost.rpc.bindingPort
+          appConfig.bifrost.rpc.bindHost,
+          appConfig.bifrost.rpc.bindPort
         )
     } yield ()
 
