@@ -167,8 +167,9 @@ object Dependencies {
     "com.lihaoyi" %% "mainargs" % "0.2.3"
   )
 
-  val fs2Core = "co.fs2" %% "fs2-core" % fs2Version
-  val fs2IO = "co.fs2"   %% "fs2-io"   % fs2Version
+  val fs2Core = "co.fs2"                   %% "fs2-core"   % fs2Version
+  val fs2IO = "co.fs2"                     %% "fs2-io"     % fs2Version
+  val pureConfig = "com.github.pureconfig" %% "pureconfig" % "0.17.1"
 
   val nodeDion: Seq[ModuleID] =
     Seq(
@@ -199,7 +200,8 @@ object Dependencies {
       catsSlf4j,
       akka("actor-typed"),
       fs2Core,
-      fs2IO
+      fs2IO,
+      pureConfig
     )
 
   lazy val algebras =
@@ -247,9 +249,9 @@ object Dependencies {
 
   lazy val gjallarhorn: Seq[ModuleID] =
     Seq(
-      "com.typesafe.akka"     %% "akka-cluster" % akkaVersion,
-      "com.typesafe.akka"     %% "akka-remote"  % akkaVersion,
-      "com.github.pureconfig" %% "pureconfig"   % "0.17.1"
+      "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
+      "com.typesafe.akka" %% "akka-remote"  % akkaVersion,
+      pureConfig
     ) ++
     allAkka ++
     test ++

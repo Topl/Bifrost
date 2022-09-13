@@ -15,21 +15,24 @@ import com.typesafe.config.Config
  * @tparam CmdArgs a type representing the arguments of your program
  * @tparam Guardian the actor type of the guardian actor
  */
-abstract class IOAkkaApp[CmdArgs, Guardian](
+abstract class IOAkkaApp[CmdArgs, AppConfig, Guardian](
   createArgs:   List[String] => CmdArgs,
   createConfig: CmdArgs => Config,
-  createSystem: (CmdArgs, Config) => ActorSystem[Guardian]
+  parseConfig:  (CmdArgs, Config) => AppConfig,
+  createSystem: (CmdArgs, AppConfig, Config) => ActorSystem[Guardian]
 ) {
 
   type F[A] = IO[A]
 
   private var _args: CmdArgs = _
   private var _config: Config = _
+  private var _appConfig: AppConfig = _
   private var _system: ActorSystem[Guardian] = _
   private var _ioApp: IOApp = _
   private var _ioRuntime: IORuntime = _
 
   implicit def args: CmdArgs = _args
+  implicit def appConfig: AppConfig = _appConfig
   implicit def config: Config = _config
   implicit def system: ActorSystem[Guardian] = _system
 
@@ -38,7 +41,8 @@ abstract class IOAkkaApp[CmdArgs, Guardian](
   final def main(args: Array[String]): Unit = {
     _args = createArgs(args.toList)
     _config = createConfig(_args)
-    _system = createSystem(_args, _config)
+    _appConfig = parseConfig(_args, _config)
+    _system = createSystem(_args, _appConfig, _config)
     _ioRuntime = AkkaCatsRuntime(_system).runtime
     _ioApp = new IOApp {
       override protected val runtime: IORuntime = _ioRuntime
