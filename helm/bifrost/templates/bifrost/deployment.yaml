@@ -5,7 +5,7 @@ metadata:
   labels:
     {{- include "bifrost.labels" . | nindent 4 }}
 spec:
-  serviceName: {{ include "bifrost.fullname" . }}
+  serviceName: {{ include "bifrost.fullname" . }}-p2p
   replicas: {{ .Values.replicas }}
   selector:
     matchLabels:
