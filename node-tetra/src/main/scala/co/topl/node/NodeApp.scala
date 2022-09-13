@@ -7,6 +7,7 @@ import akka.util.Timeout
 import cats.effect.IO
 import co.topl.catsakka._
 import cats.implicits._
+import cats.data.NonEmptyChain
 import co.topl.algebras._
 import ClockAlgebra.implicits._
 import cats.Applicative
@@ -35,7 +36,6 @@ import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import pureconfig.ConfigSource
-
 import java.net.InetSocketAddress
 import java.security.SecureRandom
 import java.time.Instant
@@ -46,11 +46,7 @@ import scala.util.Random
 object NodeApp
     extends IOAkkaApp[Args, ApplicationConfig, Nothing](
       createArgs = args => Args.parserArgs.constructOrThrow(args),
-      createConfig = args =>
-        (ConfigSource.fromConfig(ConfigFactory.systemEnvironmentOverrides()).config(), ConfigSource.default.config())
-          .mapN((envConf, baseConf) => envConf.withFallback(baseConf))
-          .toOption
-          .get,
+      createConfig = ApplicationConfig.createTypesafeConfig,
       parseConfig = (args, conf) => node.ApplicationConfig.unsafe(args, conf),
       createSystem = (_, _, conf) => ActorSystem[Nothing](Behaviors.empty, "BifrostTetra", conf)
     ) {
@@ -111,7 +107,13 @@ object NodeApp
           blockIdTree,
           currentEventIdGetterSetters.blockHeightTree.set
         )
-      bigBangProtocol = appConfig.bifrost.protocols("big-bang")
+      bigBangProtocol = appConfig.bifrost.protocols(0)
+      vrfConfig = VrfConfig(
+        bigBangProtocol.vrfLddCutoff,
+        bigBangProtocol.vrfPrecision,
+        bigBangProtocol.vrfBaselineDifficulty,
+        bigBangProtocol.vrfAmplitude
+      )
       clock = SchedulerClock.Eval.make[F](
         bigBangProtocol.slotDuration,
         bigBangProtocol.epochLength,
@@ -124,7 +126,7 @@ object NodeApp
         cryptoResources.blake2b256,
         cryptoResources.blake2b512
       )
-      leaderElectionThreshold <- makeLeaderElectionThreshold(cryptoResources.blake2b512)
+      leaderElectionThreshold <- makeLeaderElectionThreshold(cryptoResources.blake2b512, vrfConfig)
       consensusValidationState <- makeConsensusValidationState(
         clock,
         dataStores,
@@ -165,7 +167,8 @@ object NodeApp
         cryptoResources.ed25519,
         cryptoResources.ed25519VRF,
         cryptoResources.kesProduct,
-        bigBangProtocol
+        bigBangProtocol,
+        vrfConfig
       )
       validators <- Validators.make[F](
         cryptoResources,
@@ -218,7 +221,8 @@ object NodeApp
     ed25519Resource:          UnsafeResource[F, Ed25519],
     ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
     kesProductResource:       UnsafeResource[F, KesProduct],
-    protocol:                 ApplicationConfig.Bifrost.Protocol
+    protocol:                 ApplicationConfig.Bifrost.Protocol,
+    vrfConfig:                VrfConfig
   ) =
     for {
       // Initialize a persistent secure store
@@ -228,12 +232,6 @@ object NodeApp
         .map(_.isEmpty)
         // If uninitialized, generate a new key.  Otherwise, move on.
         .ifM(secureStore.write(UUID.randomUUID().toString, initializer.kesSK), Applicative[F].unit)
-      vrfConfig = VrfConfig(
-        protocol.vrfLddCutoff,
-        protocol.vrfPrecision,
-        protocol.vrfBaselineDifficulty,
-        protocol.vrfAmplitude
-      )
       vrfProofConstruction <- VrfProof.Eval.make[F](
         initializer.vrfSK,
         clock,
@@ -310,11 +308,11 @@ object NodeApp
         .make[F](bigBangBlock.headerV2.id, epochBoundariesState, consensusDataState, clock)
     } yield consensusValidationState
 
-  private def makeLeaderElectionThreshold(blake2b512Resource: UnsafeResource[F, Blake2b512]) =
+  private def makeLeaderElectionThreshold(blake2b512Resource: UnsafeResource[F, Blake2b512], vrfConfig: VrfConfig) =
     for {
       exp   <- ExpInterpreter.make[F](10000, 38)
       log1p <- Log1pInterpreter.make[F](10000, 8).flatMap(Log1pInterpreter.makeCached[F])
       leaderElectionThreshold = LeaderElectionValidation.Eval
-        .make[F](ProtocolConfiguration.vrfConfig, blake2b512Resource, exp, log1p)
+        .make[F](vrfConfig, blake2b512Resource, exp, log1p)
     } yield leaderElectionThreshold
 }
