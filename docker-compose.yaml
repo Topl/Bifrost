@@ -10,22 +10,24 @@ services:
 
   bifrost:
     image: toplprotocol/bifrost-node
-    command: --forge --debug --disableAuth -s test -c /mnt/local.conf
+    command: --forge --disableAuth -s test -c /mnt/local.conf
+    depends_on:
+      - mongo
     volumes:
       - ./ribn-testing.conf:/mnt/local.conf
     ports:
       - 9085:9085
       - 9084:9084
+    links:
+      - mongo
 
   genus:
     image: toplprotocol/bifrost-node
-    command: genus -m "mongodb://mongo" -p 8089 --disableAuth true
+    command: genus -m "mongodb://mongo" -p 8089 -w 8099 --disableAuth true
+    depends_on:
+      - mongo
     ports:
       - 8089:8089
-
-  envoy:
-    image: envoyproxy/envoy-dev
-    ports:
-      - 9089:9089
-    volumes:
-      - ./genus/src/main/resources/envoy-grpc-web.yaml:/etc/envoy/envoy.yaml
+      - 8099:8099
+    links:
+      - mongo

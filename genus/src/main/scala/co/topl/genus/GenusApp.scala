@@ -106,6 +106,7 @@ object GenusApp extends IOApp {
           HandleBlocksSubscription.make(blocksSubscription),
           settings.ip,
           settings.port,
+          settings.webPort,
           apiKey
         )
     } yield ExitCode.Success

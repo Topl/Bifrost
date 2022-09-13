@@ -210,6 +210,9 @@ object Dependencies {
     allAkka ++
     test
 
+  lazy val akkaHttpCors =
+    "ch.megard" %% "akka-http-cors" % "0.4.2"
+
   lazy val toplRpc: Seq[ModuleID] =
     scalaCollectionCompat ++
     scodec ++
@@ -289,7 +292,8 @@ object Dependencies {
   lazy val genus: Seq[ModuleID] =
     Seq(
       "com.lightbend.akka"   %% "akka-stream-alpakka-mongodb" % "3.0.4",
-      "com.thesamet.scalapb" %% "scalapb-runtime"             % scalapb.compiler.Version.scalapbVersion % "protobuf"
+      "com.thesamet.scalapb" %% "scalapb-runtime"             % scalapb.compiler.Version.scalapbVersion % "protobuf",
+      akkaHttpCors
     ) ++
     allAkka ++
     circe ++
