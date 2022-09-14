@@ -21,7 +21,7 @@ jobs:
   publish-docker-image-dev:
     if: ${{ github.ref_name == 'dev' }}
     uses: ./.github/workflows/_docker_publish.yml
-    # needs: sbt-build
+    needs: sbt-build
     with:
       remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-dev"
       registry-auth-location: "us-central1-docker.pkg.dev"
@@ -32,7 +32,7 @@ jobs:
   publish-docker-image-dev-tetra:
     if: ${{ github.ref_name == 'tetra' }}
     uses: ./.github/workflows/_docker_publish.yml
-    # needs: sbt-build
+    needs: sbt-build
     with:
       remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-dev"
       registry-auth-location: "us-central1-docker.pkg.dev"
@@ -44,7 +44,7 @@ jobs:
   publish-docker-image-qa:
     if: ${{ startsWith(github.ref_name, 'release-') }}
     uses: ./.github/workflows/_docker_publish.yml
-    # needs: sbt-build
+    needs: sbt-build
     with:
       remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-qa/topl-artifacts-qa"
       registry-auth-location: "us-central1-docker.pkg.dev"
