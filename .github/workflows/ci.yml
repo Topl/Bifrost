@@ -2,37 +2,44 @@ name: Bifrost_CI
 
 on:
   push:
-    branches: [dev, main, release-*, rc-*, tetra]
+    branches: [tetra-test-docker-workflow]
+    tags: ['*']
   workflow_dispatch:
 
 jobs:
-  sbt-build:
-    uses: ./.github/workflows/_sbt_build.yml
-    with:
-      target-os: >-
-        ["ubuntu-latest"]
-      java-versions: >-
-        ["11"]
+  validate-helm:
+    uses: ./.github/workflows/_validate_helm.yml
 
-  sbt-integration-tests:
-    uses: ./.github/workflows/_scala_integration_tests.yml
-    needs: sbt-build
+  publish-docker-image-dev:
+    if: ${{ github.ref_name == 'dev' }}
+    uses: ./.github/workflows/_docker_publish.yml
+    # needs: sbt-build
     with:
-      target-os: >-
-        ["ubuntu-latest"]
-      java-versions: >-
-        ["11"]
+      remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-dev"
+      registry-auth-location: "us-central1-docker.pkg.dev"
+      local-docker-repo: "toplprotocol"
+      local-docker-image: "bifrost-node"
+    secrets: inherit
 
-  post-man-integration-tests:
-    uses: ./.github/workflows/_postman_integration_tests.yml
-    needs: sbt-build
+  publish-docker-image-dev-tetra:
+    if: ${{ github.ref_name == 'tetra' }}
+    uses: ./.github/workflows/_docker_publish.yml
+    # needs: sbt-build
     with:
-      target-os: >-
-        ["ubuntu-latest"]
-      java-versions: >-
-        ["11"]
+      remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-dev"
+      registry-auth-location: "us-central1-docker.pkg.dev"
+      local-docker-repo: "toplprotocol"
+      local-docker-image: "bifrost-node-tetra"
+      scala-project: "node-tetra"
+    secrets: inherit
 
-  publish-test-results:
-    uses: ./.github/workflows/_publish_test_results.yml
-    if: always()
-    needs: [sbt-integration-tests, post-man-integration-tests]
+  publish-docker-image-qa:
+    if: ${{ startsWith(github.ref_name, 'release-') }}
+    uses: ./.github/workflows/_docker_publish.yml
+    # needs: sbt-build
+    with:
+      remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-qa/topl-artifacts-qa"
+      registry-auth-location: "us-central1-docker.pkg.dev"
+      local-docker-repo: "toplprotocol"
+      local-docker-image: "bifrost-node"
+    secrets: inherit
