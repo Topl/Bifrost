@@ -287,7 +287,8 @@ lazy val nodeTetra = project
     networking,
     catsAkka,
     toplGrpc,
-    blockchain
+    blockchain,
+    levelDbStore
   )
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 

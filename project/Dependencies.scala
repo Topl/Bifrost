@@ -197,7 +197,9 @@ object Dependencies {
   val nodeTetra: Seq[ModuleID] =
     cats ++ catsEffect ++ mainargs ++ logging ++ Seq(
       catsSlf4j,
-      akka("actor-typed")
+      akka("actor-typed"),
+      fs2Core,
+      fs2IO
     )
 
   lazy val algebras =
@@ -348,7 +350,7 @@ object Dependencies {
     cats ++
     catsEffect ++
     mUnitTest ++
-    Seq(fs2Core % Test, fs2IO % Test)
+    Seq(fs2Core, fs2IO)
 
   lazy val genus: Seq[ModuleID] =
     Seq(
