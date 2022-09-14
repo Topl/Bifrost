@@ -7,9 +7,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  validate-helm:
-    uses: ./.github/workflows/_validate_helm.yml
-
   publish-docker-image-dev:
     if: ${{ github.ref_name == 'dev' }}
     uses: ./.github/workflows/_docker_publish.yml
