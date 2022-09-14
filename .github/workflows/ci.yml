@@ -23,7 +23,7 @@ jobs:
     uses: ./.github/workflows/_docker_publish.yml
     needs: sbt-build
     with:
-      remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-dev/"
+      remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-dev"
       local-docker-repo: "toplprotocol"
       local-docker-image: "bifrost-node"
     secrets: inherit
@@ -33,7 +33,7 @@ jobs:
     uses: ./.github/workflows/_docker_publish.yml
     needs: sbt-build
     with:
-      remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-qa/topl-artifacts-qa/"
+      remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-qa/topl-artifacts-qa"
       local-docker-repo: "toplprotocol"
       local-docker-image: "bifrost-node"
     secrets: inherit
