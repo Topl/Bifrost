@@ -23,6 +23,11 @@ on:
         default: "bifrost-node"
         required: false
         type: string
+      scala-project:
+        description: 'Which Bifrost node project to use (node, node-tetra).'
+        default: "node"
+        required: false
+        type: string
 
 jobs:
   publish_docker_image:
@@ -51,7 +56,7 @@ jobs:
         run: gcloud auth configure-docker ${{ inputs.registry-auth-location }}
 
       - name: Stage Docker Image
-        run: sbt node/docker:publishLocal
+        run: sbt ${{ inputs.scala-project }}/docker:publishLocal
 
       - name: Tag and push image to remote registry
         run: |
