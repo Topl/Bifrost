@@ -8,6 +8,11 @@ on:
         default: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-dev/"
         required: false
         type: string
+      registry-auth-location:
+        description: 'Name of the GCP managed Artifact Registry.'
+        default: "us-central1-docker.pkg.dev"
+        required: false
+        type: string
       local-docker-repo:
         description: 'Name of the locally staged Docker image.'
         default: "toplprotocol"
@@ -43,7 +48,7 @@ jobs:
         uses: 'google-github-actions/setup-gcloud@v0'
 
       - name: Auth Artifact Registry
-        run: gcloud auth configure-docker ${{ inputs.remote-repository }}
+        run: gcloud auth configure-docker ${{ inputs.registry-auth-location }}
 
       - name: Stage Docker Image
         run: sbt node/docker:publishLocal
