@@ -15,10 +15,11 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scala.concurrent.duration._
 
 object BramblTetraMempoolReader
-    extends IOAkkaApp[Unit, Nothing](
+    extends IOAkkaApp[Unit, Unit, Nothing](
       _ => (),
       _ => ConfigFactory.load(),
-      (_, config) => ActorSystem[Nothing](Behaviors.empty, "BramblTetraMempoolReader", config)
+      (_, _) => (),
+      (_, _, config) => ActorSystem[Nothing](Behaviors.empty, "BramblTetraMempoolReader", config)
     ) {
 
   override def run: IO[Unit] =
