@@ -19,7 +19,7 @@ jobs:
     secrets: inherit
 
   publish-docker-image-dev-tetra:
-    if: ${{ github.ref_name == 'tetra' }}
+    if: ${{ github.ref_name == 'tetra-test-docker-workflow' }}
     uses: ./.github/workflows/_docker_publish.yml
     # needs: sbt-build
     with:
