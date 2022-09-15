@@ -55,6 +55,9 @@ trait TetraPersistableCodecs {
         Either.cond(bytes.length == 1 && bytes.head == (0: Byte), (), "Invalid Unit")
     }
 
+  implicit val persistableHeightIdTuple: Persistable[(Long, TypedIdentifier)] =
+    Persistable.instanceFromCodec((longCodec :: typedBytesCodec).as[(Long, TypedIdentifier)])
+
   implicit val persistableBoxValueOperatorRegistration: Persistable[Box.Values.Registrations.Operator] =
     Persistable.instanceFromCodec
 }

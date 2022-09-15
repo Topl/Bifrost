@@ -252,7 +252,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
             .anyNumberOfTimes()
             .returning(0L.pure[F])
           for {
-            tree <- ParentChildTree.FromSemaphore.make[F, TypedIdentifier]
+            tree <- ParentChildTree.FromRef.make[F, TypedIdentifier]
             _    <- tree.associate(blockIdA, ancestorBlockId)
             _    <- tree.associate(blockIdB, ancestorBlockId)
             underTest <- Mempool

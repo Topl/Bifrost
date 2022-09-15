@@ -39,7 +39,7 @@ class EpochBoundariesEventSourcedStateSpec extends CatsEffectSuite with ScalaChe
       for {
         clock <- mock[ClockAlgebra[F]].pure[F]
         currentBlockId = slotData.head.parentSlotId.blockId
-        parentChildTree <- ParentChildTree.FromSemaphore.make[F, TypedIdentifier]
+        parentChildTree <- ParentChildTree.FromRef.make[F, TypedIdentifier]
         initialState    <- TestStore.make[F, Epoch, TypedIdentifier]
         fetchSlotData = (id: TypedIdentifier) => slotData.find(_.slotId.blockId === id).get.pure[F]
 
@@ -72,7 +72,7 @@ class EpochBoundariesEventSourcedStateSpec extends CatsEffectSuite with ScalaChe
       for {
         clock <- mock[ClockAlgebra[F]].pure[F]
         currentBlockId = slotData.head.parentSlotId.blockId
-        parentChildTree <- ParentChildTree.FromSemaphore.make[F, TypedIdentifier]
+        parentChildTree <- ParentChildTree.FromRef.make[F, TypedIdentifier]
         initialState    <- TestStore.make[F, Epoch, TypedIdentifier]
         fetchSlotData = (id: TypedIdentifier) => slotData.find(_.slotId.blockId === id).get.pure[F]
 

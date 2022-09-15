@@ -8,87 +8,64 @@ import co.topl.algebras.Store
 import co.topl.algebras.testInterpreters.TestStore
 import co.topl.models._
 import co.topl.typeclasses.implicits._
-import org.scalamock.scalatest.MockFactory
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, EitherValues, OptionValues}
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 
-class EventSourcedStateSpec
-    extends AnyFlatSpec
-    with BeforeAndAfterAll
-    with MockFactory
-    with Matchers
-    with ScalaCheckPropertyChecks
-    with ScalaCheckDrivenPropertyChecks
-    with EitherValues
-    with OptionValues {
+class EventSourcedStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
 
   type F[A] = IO[A]
   import LedgerTreeTestSupport._
 
-  behavior of "EventSourcedState"
+  test("traverse events forwards and backwards to provide the correct state along a tree") {
+    for {
+      eventStore <- TestStore.make[F, TypedIdentifier, Tx]
+      deltaStore <- TestStore.make[F, TypedIdentifier, LedgerUnapply]
+      treeStore  <- TestStore.make[F, TypedIdentifier, (Long, TypedIdentifier)]
+      initialEventId = "-1".asTxId
+      tree <- ParentChildTree.FromStore.make(treeStore, initialEventId)
+      _    <- txData.traverse { case (txId, from, amount, to) => eventStore.put(txId, Tx(txId, (from, amount), to)) }
+      _    <- txAssociations.traverse { case (c, p) => tree.associate(c.asTxId, p.asTxId) }
+      ledgerStore <- TestStore.make[F, TypedIdentifier, Bytes]
+      _           <- ledgerStore.put(Ledger.CurrentEventIdId, initialEventId.allBytes)
+      ledger = Ledger.make[F](ledgerStore)
+      _ <- ledger.modifyBalanceOf("alice", _ => 100L.some.pure[F])
+      eventTree <- EventSourcedState.OfTree
+        .make[F, Ledger[F]](
+          initialState = Sync[F].delay(ledger),
+          initialEventId = Sync[F].delay(initialEventId),
+          applyEvent = (ledger, txId) =>
+            for {
+              tx              <- OptionT(eventStore.get(txId)).getOrElse(???)
+              previousBalance <- OptionT(ledger.balanceOf(tx.from._1)).getOrElse(???)
+              _               <- ledger.modifyBalanceOf(tx.from._1, b => (b.getOrElse(0L) - tx.from._2).some.pure[F])
+              _               <- ledger.modifyBalanceOf(tx.to, b => (b.getOrElse(0L) + tx.from._2).some.pure[F])
+              currentTxId     <- ledger.eventId
+              _               <- deltaStore.put(txId, LedgerUnapply(currentTxId, previousBalance, tx))
+              _               <- ledger.setEventId(tx.id)
+            } yield ledger,
+          unapplyEvent = (ledger, txId) =>
+            for {
+              unapply <- OptionT(deltaStore.get(txId)).getOrElse(???)
+              _       <- ledger.modifyBalanceOf(unapply.tx.from._1, _ => unapply.senderPreviousBalance.some.pure[F])
+              _       <- ledger.modifyBalanceOf(unapply.tx.to, b => (b.getOrElse(0L) - unapply.tx.from._2).some.pure[F])
+              _       <- ledger.setEventId(unapply.previousTxId)
+            } yield ledger,
+          parentChildTree = tree
+        )
+      ledgerC1 <- eventTree.stateAt("c1".asTxId)
+      _        <- ledgerC1.balanceOf("alice").map(_.get).assertEquals(75L)
+      _        <- ledgerC1.balanceOf("bob").map(_.get).assertEquals(15L)
+      _        <- ledgerC1.balanceOf("chelsea").map(_.get).assertEquals(10L)
 
-  it should "traverse events forwards and backwards to provide the correct state along a tree" in {
-    val eventStore = TestStore.make[F, TypedIdentifier, Tx].value
-    val deltaStore = TestStore.make[F, TypedIdentifier, LedgerUnapply].value
-    val tree = ParentChildTree.FromRef.make[F, TypedIdentifier].value
+      ledgerC2 <- eventTree.stateAt("c2".asTxId)
+      _        <- ledgerC2.balanceOf("alice").map(_.get).assertEquals(75L)
+      _        <- ledgerC2.balanceOf("bob").map(_.get).assertEquals(10L)
+      _        <- ledgerC2.balanceOf("chelsea").map(_.get).assertEquals(15L)
 
-    txData
-      .foldLeftM[F, Unit](()) { case (_, (txId, from, amount, to)) =>
-        eventStore.put(txId, Tx(txId, (from, amount), to))
-      }
-      .value
-
-    txAssociations.foldLeftM[F, Unit](()) { case (_, (c, p)) => tree.associate(c.asTxId, p.asTxId) }.value
-    val ledgerStore = TestStore.make[F, TypedIdentifier, Bytes].value
-    val initialEventId = "-1".asTxId
-
-    ledgerStore.put(Ledger.Eval.CurrentEventIdId, initialEventId.allBytes).value
-
-    val ledger = Ledger.Eval.make[F](ledgerStore)
-
-    ledger.modifyBalanceOf("alice", _ => 100L.some.pure[F]).value
-
-    val eventTree = EventSourcedState.OfTree
-      .make[F, Ledger[F]](
-        initialState = Sync[F].delay(ledger),
-        initialEventId = Sync[F].delay(initialEventId),
-        applyEvent = (ledger, txId) =>
-          for {
-            tx              <- OptionT(eventStore.get(txId)).getOrElse(???)
-            previousBalance <- OptionT(ledger.balanceOf(tx.from._1)).getOrElse(???)
-            _               <- ledger.modifyBalanceOf(tx.from._1, b => (b.getOrElse(0L) - tx.from._2).some.pure[F])
-            _               <- ledger.modifyBalanceOf(tx.to, b => (b.getOrElse(0L) + tx.from._2).some.pure[F])
-            currentTxId     <- ledger.eventId
-            _               <- deltaStore.put(txId, LedgerUnapply(currentTxId, previousBalance, tx))
-            _               <- ledger.setEventId(tx.id)
-          } yield ledger,
-        unapplyEvent = (ledger, txId) =>
-          for {
-            unapply <- OptionT(deltaStore.get(txId)).getOrElse(???)
-            _       <- ledger.modifyBalanceOf(unapply.tx.from._1, _ => unapply.senderPreviousBalance.some.pure[F])
-            _       <- ledger.modifyBalanceOf(unapply.tx.to, b => (b.getOrElse(0L) - unapply.tx.from._2).some.pure[F])
-            _       <- ledger.setEventId(unapply.previousTxId)
-          } yield ledger,
-        parentChildTree = tree
-      )
-      .value
-    val ledgerC1 = eventTree.stateAt("c1".asTxId).value
-
-    ledgerC1.balanceOf("alice").value.value shouldBe 75
-    ledgerC1.balanceOf("bob").value.value shouldBe 15
-    ledgerC1.balanceOf("chelsea").value.value shouldBe 10
-
-    val ledgerC2 = eventTree.stateAt("c2".asTxId).value
-    ledgerC2.balanceOf("alice").value.value shouldBe 75
-    ledgerC2.balanceOf("bob").value.value shouldBe 10
-    ledgerC2.balanceOf("chelsea").value.value shouldBe 15
-
-    val ledgerE1D1C1 = eventTree.stateAt("e1d1c1".asTxId).value
-    ledgerE1D1C1.balanceOf("alice").value.value shouldBe 80
-    ledgerE1D1C1.balanceOf("bob").value.value shouldBe 10
-    ledgerE1D1C1.balanceOf("chelsea").value.value shouldBe 10
+      ledgerE1D1C1 <- eventTree.stateAt("e1d1c1".asTxId)
+      _            <- ledgerE1D1C1.balanceOf("alice").map(_.get).assertEquals(80L)
+      _            <- ledgerE1D1C1.balanceOf("bob").map(_.get).assertEquals(10L)
+      _            <- ledgerE1D1C1.balanceOf("chelsea").map(_.get).assertEquals(10L)
+    } yield ()
   }
 }
 
@@ -101,40 +78,36 @@ trait Ledger[F[_]] {
 
 object Ledger {
 
-  object Eval {
-    val CurrentEventIdId = TypedBytes(-1: Byte, Bytes(-1: Byte))
+  val CurrentEventIdId = TypedBytes(-1: Byte, Bytes(-1: Byte))
 
-    def make[F[_]: MonadThrow](store: Store[F, TypedIdentifier, Bytes]): Ledger[F] = new Ledger[F] {
+  def make[F[_]: MonadThrow](store: Store[F, TypedIdentifier, Bytes]): Ledger[F] = new Ledger[F] {
 
-      def eventId: F[TypedIdentifier] =
-        OptionT(store.get(CurrentEventIdId)).foldF(
-          (new NoSuchElementException(CurrentEventIdId.show).raiseError[F, TypedIdentifier])
-        )(TypedBytes(_).pure[F])
+    def eventId: F[TypedIdentifier] =
+      store.getOrRaise(CurrentEventIdId).map(TypedBytes(_))
 
-      def setEventId(id: TypedIdentifier): F[Unit] =
-        store.put(CurrentEventIdId, id.allBytes)
+    def setEventId(id: TypedIdentifier): F[Unit] =
+      store.put(CurrentEventIdId, id.allBytes)
 
-      def balanceOf(name: String): F[Option[Long]] =
-        OptionT
-          .fromOption[F](Bytes.encodeUtf8(name).toOption)
-          .map(TypedBytes(1: Byte, _))
-          .flatMapF(store.get)
-          .map(_.toLong())
-          .value
+    def balanceOf(name: String): F[Option[Long]] =
+      OptionT
+        .fromOption[F](Bytes.encodeUtf8(name).toOption)
+        .map(TypedBytes(1: Byte, _))
+        .flatMapF(store.get)
+        .map(_.toLong())
+        .value
 
-      def modifyBalanceOf(name: String, f: Option[Long] => F[Option[Long]]): F[Unit] =
-        OptionT
-          .fromOption[F](Bytes.encodeUtf8(name).toOption)
-          .map(TypedBytes(1: Byte, _))
-          .getOrElseF(???)
-          .flatTap(key =>
-            OptionT(store.get(key))
-              .map(_.toLong())
-              .flatTransform(f)
-              .foldF(store.remove(key))(t => store.put(key, Bytes.fromLong(t)))
-          )
-          .void
-    }
+    def modifyBalanceOf(name: String, f: Option[Long] => F[Option[Long]]): F[Unit] =
+      OptionT
+        .fromOption[F](Bytes.encodeUtf8(name).toOption)
+        .map(TypedBytes(1: Byte, _))
+        .getOrElseF(???)
+        .flatTap(key =>
+          OptionT(store.get(key))
+            .map(_.toLong())
+            .flatTransform(f)
+            .foldF(store.remove(key))(t => store.put(key, Bytes.fromLong(t)))
+        )
+        .void
   }
 }
 
@@ -152,12 +125,12 @@ object LedgerTreeTestSupport {
   )
 
   val txAssociations = List(
-    "e1d1c1" -> "d1c1",
-    "d1c1"   -> "c1",
-    "c1"     -> "b",
-    "b"      -> "a",
     "a"      -> "-1",
-    "c2"     -> "b"
+    "b"      -> "a",
+    "c1"     -> "b",
+    "c2"     -> "b",
+    "d1c1"   -> "c1",
+    "e1d1c1" -> "d1c1"
   )
 
   case class LedgerUnapply(previousTxId: TypedIdentifier, senderPreviousBalance: Long, tx: Tx)
@@ -169,9 +142,5 @@ object LedgerTreeTestSupport {
 
   implicit class StringOps(string: String) {
     def asTxId: TypedIdentifier = TypedBytes(1: Byte, Bytes(string.getBytes()))
-  }
-
-  implicit class CatsIOOps[T](io: IO[T]) {
-    def value: T = io.unsafeRunSync()(cats.effect.unsafe.IORuntime.global)
   }
 }

@@ -1,10 +1,10 @@
 package co.topl.eventtree
 
 import cats._
-import cats.data._
+import cats.data.{NonEmptyChain, OptionT}
 import cats.effect._
-import cats.effect.std.Semaphore
 import cats.implicits._
+import co.topl.algebras.Store
 
 trait ParentChildTree[F[_], T] {
 
@@ -108,73 +108,42 @@ object ParentChildTree {
     }
   }
 
-  object FromSemaphore {
+  /**
+   * A ParentChildTree backed by a Store.  The Store maps a block ID to a tuple containing (its height, its parent ID).
+   */
+  object FromStore {
 
-    def make[F[_]: Async, T: Eq: Show]: F[ParentChildTree[F, T]] =
-      Semaphore[F](1)
-        .map(new Impl[F, T](_))
+    def make[F[_]: Async, T: Eq: Show](store: Store[F, T, (Long, T)], root: T): F[ParentChildTree[F, T]] =
+      Async[F].delay(new Impl(store, root))
 
-    private class Impl[F[_]: Sync, T: Eq: Show](semaphore: Semaphore[F]) extends ParentChildTree[F, T] {
-
-      private var data = Map.empty[T, T]
+    private class Impl[F[_]: Async, T: Eq: Show](store: Store[F, T, (Long, T)], root: T) extends ParentChildTree[F, T] {
 
       def parentOf(t: T): F[Option[T]] =
-        semaphore.permit.use(_ => parentOfUnsafe(t).pure[F])
-
-      private def parentOfUnsafe(t: T) = data.get(t)
+        if (t === root) none[T].pure[F]
+        else OptionT(store.get(t)).map(_._2).value
 
       def associate(child: T, parent: T): F[Unit] =
-        semaphore.permit.use(_ => (data = data.updated(child, parent)).pure[F])
+        if (parent === root) store.put(child, (1, parent))
+        else store.getOrRaise(parent).flatMap { case (height, _) => store.put(child, (height + 1, parent)) }
 
-      // TODO: Caching
       def heightOf(t: T): F[Long] =
-        semaphore.permit.use(_ => heightOfUnsafe(t))
-
-      private def heightOfUnsafe(t: T) =
-        (t, 0L)
-          .tailRecM { case (t, distance) =>
-            OptionT
-              .fromOption[F](parentOfUnsafe(t))
-              .fold[Either[(T, Long), (T, Long)]]((t, distance).asRight)(p => (p, distance + 1).asLeft)
-          }
-          .map(_._2)
-
-      private def prependWithParent(c: NonEmptyChain[T]): F[NonEmptyChain[T]] =
-        OptionT
-          .fromOption[F](parentOfUnsafe(c.head))
-          .foldF[NonEmptyChain[T]](MonadThrow[F].raiseError(new NoSuchElementException(c.head.show)))(
-            c.prepend(_).pure[F]
-          )
+        if (t === root) 0L.pure[F]
+        else store.getOrRaise(t).map(_._1)
 
       def findCommonAncestor(a: T, b: T): F[(NonEmptyChain[T], NonEmptyChain[T])] =
-        semaphore.permit.use(_ =>
-          Sync[F]
-            .delay(a === b)
-            .ifM(
-              Sync[F].delay((NonEmptyChain(a), NonEmptyChain(b))),
-              Sync[F].defer(
-                for {
-                  (aHeight, bHeight) <- (heightOfUnsafe(a), heightOfUnsafe(b)).tupled
-                  (aAtEqualHeight, bAtEqualHeight) <- Monad[F]
-                    .ifElseM(
-                      Sync[F].delay(aHeight === bHeight) -> Sync[F].delay((NonEmptyChain(a), NonEmptyChain(b))),
-                      Sync[F].delay(aHeight < bHeight) -> Sync[F].defer(
-                        traverseBackToHeight(NonEmptyChain(b), bHeight, aHeight)
-                          .map(NonEmptyChain(a) -> _._1)
-                      )
-                    )(
-                      Sync[F].defer(
-                        traverseBackToHeight(NonEmptyChain(a), aHeight, bHeight)
-                          .map(_._1 -> NonEmptyChain(b))
-                      )
-                    )
-                  (chainA, chainB) <- (aAtEqualHeight, bAtEqualHeight).iterateUntilM { case (aChain, bChain) =>
-                    (prependWithParent(aChain), prependWithParent(bChain)).tupled
-                  } { case (aChain, bChain) => aChain.head === bChain.head }
-                } yield (chainA, chainB)
-              )
-            )
-        )
+        if (a === b) (NonEmptyChain(a), NonEmptyChain(b)).pure[F]
+        else
+          for {
+            (aHeight, bHeight) <- (heightOf(a), heightOf(b)).tupled
+            (aAtEqualHeight, bAtEqualHeight) <-
+              if (aHeight === bHeight) (NonEmptyChain(a), NonEmptyChain(b)).pure[F]
+              else if (aHeight < bHeight)
+                traverseBackToHeight(NonEmptyChain(b), bHeight, aHeight).map(NonEmptyChain(a) -> _._1)
+              else traverseBackToHeight(NonEmptyChain(a), aHeight, bHeight).map(_._1 -> NonEmptyChain(b))
+            (chainA, chainB) <- (aAtEqualHeight, bAtEqualHeight).iterateUntilM { case (aChain, bChain) =>
+              (prependWithParent(aChain), prependWithParent(bChain)).tupled
+            } { case (aChain, bChain) => aChain.head === bChain.head }
+          } yield (chainA, chainB)
 
       private def traverseBackToHeight(
         collection:    NonEmptyChain[T],
@@ -187,6 +156,9 @@ object ParentChildTree {
               prependWithParent(chain).map(_ -> (height - 1))
             }(_._2 === targetHeight)
         )
+
+      private def prependWithParent(c: NonEmptyChain[T]): F[NonEmptyChain[T]] =
+        store.getOrRaise(c.head).map(_._2).map(c.prepend)
     }
   }
 }

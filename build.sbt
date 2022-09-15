@@ -381,7 +381,7 @@ lazy val eventTree = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.eventtree"
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.catsEffect)
+  .settings(libraryDependencies ++= Dependencies.eventTree)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, typeclasses, algebras % "compile->compile;test->test")
 

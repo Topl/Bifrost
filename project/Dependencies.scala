@@ -273,6 +273,9 @@ object Dependencies {
     cats ++
     test
 
+  lazy val eventTree: Seq[ModuleID] =
+    Dependencies.mUnitTest ++ Dependencies.catsEffect
+
   lazy val catsAkka: Seq[ModuleID] =
     cats ++ catsEffect ++ logging ++ Seq(akka("actor"), akka("actor-typed"), akka("stream"))
 
