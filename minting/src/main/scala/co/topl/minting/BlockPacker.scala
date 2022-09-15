@@ -9,6 +9,11 @@ import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.ledger.algebras._
+import co.topl.ledger.models.{
+  StaticBodyValidationContext,
+  StaticTransactionValidationContext,
+  TransactionValidationContext
+}
 import co.topl.minting.algebras.BlockPackerAlgebra
 import co.topl.models._
 import co.topl.typeclasses.implicits._
@@ -25,10 +30,10 @@ object BlockPacker {
   def make[F[_]: Async](
     mempool:          MempoolAlgebra[F],
     fetchTransaction: TypedIdentifier => F[Transaction],
-    validateBody:     (TypedIdentifier, BlockBodyV2) => F[Boolean]
+    validateBody:     TransactionValidationContext => F[Boolean]
   ): F[BlockPackerAlgebra[F]] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromClass[F](BlockPacker.getClass)
-    Sync[F].delay((parentBlockId: TypedIdentifier) =>
+    Sync[F].delay((parentBlockId: TypedIdentifier, height: Long, slot: Long) =>
       for {
         // Read all transaction IDs from the mempool
         mempoolTransactionIds <- mempool.read(parentBlockId)
@@ -50,8 +55,9 @@ object BlockPacker {
                       val fullBody = current.append(transaction)
                       val body = ListSet.empty[TypedIdentifier] ++ fullBody.toList.map(_.id.asTypedBytes)
                       // If it's valid, hooray.  If not, return the previous value
-                      validateBody(parentBlockId, body)
-                        .ifF(fullBody, current)
+                      val transactionValidationContext =
+                        StaticTransactionValidationContext(parentBlockId, fullBody, height, slot)
+                      validateBody(transactionValidationContext).ifF(fullBody, current)
                     }
                     .logDuration("BlockPacker Iteration")
               }
@@ -64,13 +70,27 @@ object BlockPacker {
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F]
-  ): (TypedIdentifier, BlockBodyV2) => F[Boolean] =
-    (parentId, proposedBody) =>
-      (
-        EitherT(bodySyntaxValidation.validate(proposedBody).map(_.toEither)).leftMap(_.toString) >>
-        EitherT(bodySemanticValidation.validate(parentId)(proposedBody).map(_.toEither)).leftMap(_.toString) >>
-        EitherT(bodyAuthorizationValidation.validate(parentId)(proposedBody).map(_.toEither)).leftMap(_.toString)
-      )
-        .leftSemiflatTap(error => Logger[F].debug(show"Block packer candidate is invalid.  reason=$error"))
-        .isRight
+  ): TransactionValidationContext => F[Boolean] = { transactionValidationContext =>
+    val proposedBody =
+      ListSet.empty[TypedIdentifier] ++ transactionValidationContext.prefix.map(_.id.asTypedBytes).toList
+    (
+      EitherT(bodySyntaxValidation.validate(proposedBody).map(_.toEither)).leftMap(_.toString) >>
+      EitherT(
+        bodySemanticValidation
+          .validate(
+            StaticBodyValidationContext(
+              transactionValidationContext.parentHeaderId,
+              transactionValidationContext.height,
+              transactionValidationContext.slot
+            )
+          )(proposedBody)
+          .map(_.toEither)
+      ).leftMap(_.toString) >>
+      EitherT(
+        bodyAuthorizationValidation.validate(transactionValidationContext.parentHeaderId)(proposedBody).map(_.toEither)
+      ).leftMap(_.toString)
+    )
+      .leftSemiflatTap(error => Logger[F].debug(show"Block packer candidate is invalid.  reason=$error"))
+      .isRight
+  }
 }

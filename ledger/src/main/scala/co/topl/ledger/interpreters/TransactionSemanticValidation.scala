@@ -3,7 +3,7 @@ package co.topl.ledger.interpreters
 import cats.data.{EitherT, NonEmptyChain, Validated, ValidatedNec}
 import cats.effect._
 import cats.implicits._
-import cats.{Functor, Monad}
+import cats.{Applicative, Functor, Monad}
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
 import co.topl.models._
@@ -24,19 +24,26 @@ object TransactionSemanticValidation {
          *  - for each input, the referenced output is still spendable
          */
         def validate(
-          parentBlockId: TypedIdentifier
-        )(transaction:   Transaction): F[ValidatedNec[TransactionSemanticError, Transaction]] =
-          transaction.inputs
-            // Stop validating after the first error
-            .foldM(transaction.validNec[TransactionSemanticError]) {
-              case (Validated.Valid(_), input) =>
-                EitherT(dataValidation(fetchTransaction)(input).map(_.toEither))
-                  .flatMapF(_ => spendableValidation(boxState)(parentBlockId)(input).map(_.toEither))
-                  .toNestedValidatedNec
-                  .value
-                  .map(_.leftMap(_.flatten).as(transaction))
-              case (invalid, _) => invalid.pure[F]
-            }
+          context:     TransactionValidationContext
+        )(transaction: Transaction): F[ValidatedNec[TransactionSemanticError, Transaction]] =
+          AugmentedBoxState
+            .make(boxState)(
+              context.prefix.foldLeft(AugmentedBoxState.StateAugmentation.empty)(_.augment(_))
+            )
+            .flatMap(boxState =>
+              transaction.inputs
+                // Stop validating after the first error
+                .foldM(transaction.validNec[TransactionSemanticError]) {
+                  case (Validated.Valid(_), input) =>
+                    (
+                      EitherT(scheduleValidation[F](context.slot)(transaction.schedule).map(_.toEither)) >>
+                      EitherT(dataValidation(fetchTransaction)(input).map(_.toEither)) >>
+                      EitherT(spendableValidation(boxState)(context.parentHeaderId)(input).map(_.toEither))
+                    ).toNestedValidatedNec.value
+                      .map(_.leftMap(_.flatten).as(transaction))
+                  case (invalid, _) => invalid.pure[F]
+                }
+            )
       }
     )
 
@@ -78,4 +85,19 @@ object TransactionSemanticValidation {
         ().validNec[TransactionSemanticError].pure[F],
         (TransactionSemanticErrors.UnspendableBox(input.boxId): TransactionSemanticError).invalidNec[Unit].pure[F]
       )
+
+  /**
+   * Is this Transaction valid at the provided Slot?
+   */
+  private def scheduleValidation[F[_]: Applicative](
+    slot:     Slot
+  )(schedule: Transaction.Schedule): F[ValidatedNec[TransactionSemanticError, Unit]] =
+    Validated
+      .condNec(
+        slot >= schedule.minimumSlot && slot <= schedule.maximumSlot,
+        (),
+        TransactionSemanticErrors.UnsatisfiedSchedule(slot, schedule): TransactionSemanticError
+      )
+      .pure[F]
+
 }
