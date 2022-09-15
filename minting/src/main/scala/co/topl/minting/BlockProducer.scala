@@ -62,7 +62,7 @@ object BlockProducer {
               show"Packing block for parentId=${parentSlotData.slotId.blockId} parentSlot=${parentSlotData.slotId.slot} eligibilitySlot=${nextHit.slot}"
             )
             // Assemble the transactions to be placed in our new block
-            body      <- packBlock(parentSlotData.slotId.blockId, nextHit.slot)
+            body      <- packBlock(parentSlotData.slotId.blockId, parentSlotData.height + 1, nextHit.slot)
             timestamp <- clock.currentTimestamp
             blockMaker = prepareUnsignedBlock(parentSlotData, body, timestamp, nextHit)
             block <- OptionT(staker.certifyBlock(parentSlotData.slotId, nextHit.slot, blockMaker))
@@ -82,9 +82,9 @@ object BlockProducer {
          * the best possible block.
          * @param untilSlot The slot at which the block packer function should be halted and a value extracted
          */
-        private def packBlock(parentId: TypedIdentifier, untilSlot: Slot): F[BlockBodyV2.Full] =
+        private def packBlock(parentId: TypedIdentifier, height: Long, untilSlot: Slot): F[BlockBodyV2.Full] =
           blockPacker
-            .improvePackedBlock(parentId)
+            .improvePackedBlock(parentId, height, untilSlot)
             .flatMap(Iterative.run(Chain.empty[Transaction].pure[F]))
             .productL(clock.delayedUntilSlot(untilSlot))
             .flatMap(_.apply())

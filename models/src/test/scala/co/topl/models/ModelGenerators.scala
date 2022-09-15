@@ -603,8 +603,8 @@ trait ModelGenerators {
     Arbitrary(
       for {
         creation    <- Gen.chooseNum[Long](0L, 100000L)
-        minimumSlot <- Gen.chooseNum[Slot](0L, 100000L)
-        maximumSlot <- Gen.chooseNum[Slot](0L, 100000L)
+        minimumSlot <- Gen.chooseNum[Slot](0L, 50000L)
+        maximumSlot <- Gen.chooseNum[Slot](minimumSlot, 100000L)
       } yield Transaction.Schedule(creation, minimumSlot, maximumSlot)
     )
 

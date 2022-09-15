@@ -33,6 +33,8 @@ object ToplRpcServer {
   implicit private val showTransactionSemanticError: Show[TransactionSemanticError] = {
     case TransactionSemanticErrors.InputDataMismatch(input) => show"InputDataMismatch(boxId=${input.boxId})"
     case TransactionSemanticErrors.UnspendableBox(boxId)    => show"UnspendableBox(boxId=$boxId)"
+    case TransactionSemanticErrors.UnsatisfiedSchedule(slot, schedule) =>
+      show"UnsatisfiedSchedule(slot=$slot, minimumSlot=${schedule.minimumSlot}, maximumSlot=${schedule.maximumSlot})"
   }
 
   /**

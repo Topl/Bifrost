@@ -11,5 +11,5 @@ trait BlockPackerAlgebra[F[_]] {
   /**
    * Constructs an `Iterative` which improves a given Block Body
    */
-  def improvePackedBlock(parentBlockId: TypedIdentifier): F[Iterative[F, BlockBodyV2.Full]]
+  def improvePackedBlock(parentBlockId: TypedIdentifier, height: Long, slot: Long): F[Iterative[F, BlockBodyV2.Full]]
 }
