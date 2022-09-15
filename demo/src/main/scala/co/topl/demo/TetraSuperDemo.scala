@@ -252,11 +252,8 @@ object TetraSuperDemo extends IOApp {
           slotDataStore.getOrRaise
         )
         bodySyntaxValidation <- BodySyntaxValidation.make[F](transactionStore.getOrRaise, transactionSyntaxValidation)
-        bodySemanticValidation <- BodySemanticValidation.make[F](
-          transactionStore.getOrRaise,
-          boxState,
-          boxState => TransactionSemanticValidation.make[F](transactionStore.getOrRaise, boxState)
-        )
+        bodySemanticValidation <- BodySemanticValidation
+          .make[F](transactionStore.getOrRaise, transactionSemanticValidation)
         bodyAuthorizationValidation <- BodyAuthorizationValidation.make[F](
           transactionStore.getOrRaise,
           transactionAuthorizationValidation
