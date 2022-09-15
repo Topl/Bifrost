@@ -10,6 +10,7 @@ import cats.implicits._
 import co.topl.algebras._
 import ClockAlgebra.implicits._
 import cats.Applicative
+import ch.qos.logback.classic.joran.JoranConfigurator
 import co.topl.blockchain._
 import co.topl.catsakka.IOAkkaApp
 import co.topl.crypto.hash.Blake2b512
@@ -28,11 +29,11 @@ import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.interpreters._
 import co.topl.minting._
 import co.topl.networking.p2p.LocalPeer
-import co.topl.node
 import co.topl.numerics._
 import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+
 import java.net.InetSocketAddress
 import java.security.SecureRandom
 import java.time.Instant
@@ -44,7 +45,7 @@ object NodeApp
     extends IOAkkaApp[Args, ApplicationConfig, Nothing](
       createArgs = args => Args.parserArgs.constructOrThrow(args),
       createConfig = ApplicationConfig.createTypesafeConfig,
-      parseConfig = (args, conf) => node.ApplicationConfig.unsafe(args, conf),
+      parseConfig = (args, conf) => ApplicationConfig.unsafe(args, conf),
       createSystem = (_, _, conf) => ActorSystem[Nothing](Behaviors.empty, "BifrostTetra", conf)
     ) {
 
@@ -56,6 +57,7 @@ object NodeApp
 
   def run: IO[Unit] =
     for {
+      _ <- LoggingUtils.initialize(args).pure[F]
       _ <- Logger[F].info(show"Launching node with args=$args")
       _ <- Logger[F].info(show"Node configuration=$appConfig")
       localPeer = LocalPeer(

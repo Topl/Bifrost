@@ -167,6 +167,11 @@ object Dependencies {
     "com.lihaoyi" %% "mainargs" % "0.2.3"
   )
 
+  val monocle = Seq(
+    "com.github.julien-truffaut" %% "monocle-core"  % "3.0.0-M6",
+    "com.github.julien-truffaut" %% "monocle-macro" % "3.0.0-M6"
+  )
+
   val fs2Core = "co.fs2"                   %% "fs2-core"   % fs2Version
   val fs2IO = "co.fs2"                     %% "fs2-io"     % fs2Version
   val pureConfig = "com.github.pureconfig" %% "pureconfig" % "0.17.1"
@@ -174,13 +179,12 @@ object Dependencies {
 
   val nodeDion: Seq[ModuleID] =
     Seq(
-      "com.typesafe.akka"          %% "akka-cluster"  % akkaVersion,
-      "com.typesafe.akka"          %% "akka-remote"   % akkaVersion,
-      "com.typesafe"                % "config"        % "1.4.2",
-      "net.jpountz.lz4"             % "lz4"           % "1.3.0",
-      "com.github.julien-truffaut" %% "monocle-core"  % "3.0.0-M6",
-      "com.github.julien-truffaut" %% "monocle-macro" % "3.0.0-M6"
+      "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
+      "com.typesafe.akka" %% "akka-remote"  % akkaVersion,
+      "com.typesafe"       % "config"       % "1.4.2",
+      "net.jpountz.lz4"    % "lz4"          % "1.3.0"
     ) ++
+    monocle ++
     levelDb ++
     logging ++
     test ++
@@ -197,7 +201,7 @@ object Dependencies {
     mainargs
 
   val nodeTetra: Seq[ModuleID] =
-    cats ++ catsEffect ++ mainargs ++ logging ++ Seq(
+    cats ++ catsEffect ++ mainargs ++ logging ++ monocle ++ Seq(
       catsSlf4j,
       akka("actor-typed"),
       fs2Core,
