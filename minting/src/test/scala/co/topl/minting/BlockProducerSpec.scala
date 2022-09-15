@@ -37,7 +37,7 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             blockPacker = mock[BlockPackerAlgebra[F]]
             underTest <- BlockProducer.make[F](source.mapMaterializedValue(_ => NotUsed), staker, clock, blockPacker)
             blocks    <- underTest.blocks
-            sub       <- blocks.toMat(TestSink[BlockV2])(Keep.right).liftTo[F]
+            sub       <- blocks.toMat(TestSink[BlockV2]()(system.toClassic))(Keep.right).liftTo[F]
             _ = sub.request(1)
             vrfHit = VrfHit(eligibilityCertificateGen.first, parentSlotData.slotId.slot + 1, ratioGen.first)
             _ = (staker.elect _)
@@ -53,7 +53,7 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             clockDeferment <- IO.deferred[Unit]
             _ = (clock.delayedUntilSlot(_)).expects(vrfHit.slot).once().returning(clockDeferment.get)
             _ = (() => clock.currentTimestamp).expects().once().returning(System.currentTimeMillis().pure[F])
-            _ = (blockPacker.improvePackedBlock(_)).expects(*).once().returning(IO.pure(_ => IO.never))
+            _ = (blockPacker.improvePackedBlock(_, _, _)).expects(*, *, *).once().returning(IO.pure(_ => IO.never))
             _ = pub.sendNext(parentSlotData)
             _ <- clockDeferment.complete(())
             next = sub.expectNext()
@@ -85,7 +85,7 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
               blockPacker = mock[BlockPackerAlgebra[F]]
               underTest <- BlockProducer.make[F](source.mapMaterializedValue(_ => NotUsed), staker, clock, blockPacker)
               blocks    <- underTest.blocks
-              sub       <- blocks.toMat(TestSink[BlockV2])(Keep.right).liftTo[F]
+              sub       <- blocks.toMat(TestSink[BlockV2]()(system.toClassic))(Keep.right).liftTo[F]
               // Setup the expectations for the first attempt
               // The first attempt comes up with a "distant" eligibility, which we trick the clock into seeming
               // like "forever".
@@ -103,8 +103,8 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
               _ = (clock
                 .delayedUntilSlot(_)).expects(vrfHit.slot).once().returning(IO.never)
               clockDeferment <- IO.deferred[Unit]
-              _ = (blockPacker.improvePackedBlock(_))
-                .expects(*)
+              _ = (blockPacker.improvePackedBlock(_, _, _))
+                .expects(*, *, *)
                 .once()
                 .returning(IO.pure(_ => IO.defer(clockDeferment.complete(())).void >> IO.never[BlockBodyV2.Full]))
 
@@ -130,7 +130,7 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
               clockDeferment2 <- IO.deferred[Unit]
               _ = (clock.delayedUntilSlot(_)).expects(vrfHit2.slot).once().returning(clockDeferment2.get)
               _ = (() => clock.currentTimestamp).expects().once().returning(System.currentTimeMillis().pure[F])
-              _ = (blockPacker.improvePackedBlock(_)).expects(*).once().returning(IO.pure(_ => IO.never))
+              _ = (blockPacker.improvePackedBlock(_, _, _)).expects(*, *, *).once().returning(IO.pure(_ => IO.never))
               _ = pub.sendNext(parentSlotData2)
               _ <- clockDeferment2.complete(())
               next = sub.expectNext()
