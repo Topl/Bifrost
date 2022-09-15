@@ -32,6 +32,7 @@ object ConsensusDataEventSourcedState {
   def make[F[_]: Async](
     currentBlockId:         F[TypedIdentifier],
     parentChildTree:        ParentChildTree[F, TypedIdentifier],
+    currentEventChanged:    TypedIdentifier => F[Unit],
     initialState:           F[ConsensusData[F]],
     fetchBlockBody:         TypedIdentifier => F[BlockBodyV2],
     fetchTransaction:       TypedIdentifier => F[Transaction],
@@ -42,7 +43,8 @@ object ConsensusDataEventSourcedState {
       initialEventId = currentBlockId,
       applyEvent = new ApplyBlock(fetchBlockBody, fetchTransaction, fetchTransactionOutput),
       unapplyEvent = new UnapplyBlock(fetchBlockBody, fetchTransaction, fetchTransactionOutput),
-      parentChildTree = parentChildTree
+      parentChildTree = parentChildTree,
+      currentEventChanged
     )
 
   private class ApplyBlock[F[_]: MonadThrow](

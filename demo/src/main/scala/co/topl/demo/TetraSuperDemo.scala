@@ -4,6 +4,7 @@ import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import akka.stream.scaladsl.{Flow, Keep, Source}
 import akka.util.ByteString
+import cats.Applicative
 import cats.data.{Store => _, _}
 import cats.effect.implicits._
 import cats.effect.kernel.Sync
@@ -32,7 +33,6 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.net.InetSocketAddress
-import java.nio.file.{Files, Paths}
 import java.security.SecureRandom
 import java.time.Instant
 import scala.collection.immutable.ListSet
@@ -165,17 +165,16 @@ object TetraSuperDemo extends IOApp {
           .make[F, TypedIdentifier](parentChildTreeStore, bigBangBlock.headerV2.parentHeaderId)
           .flatTap(_.associate(bigBangBlock.headerV2.id, bigBangBlock.headerV2.parentHeaderId))
 
-        blockHeightTreeStore        <- RefStore.Eval.make[F, Long, TypedIdentifier]()
-        _                           <- blockHeightTreeStore.put(0, bigBangBlock.headerV2.parentHeaderId)
-        _                           <- totalStakesStore.put((), 0)
-        blockHeightTreeUnapplyStore <- RefStore.Eval.make[F, TypedIdentifier, Long]()
+        blockHeightTreeStore <- RefStore.Eval.make[F, Long, TypedIdentifier]()
+        _                    <- blockHeightTreeStore.put(0, bigBangBlock.headerV2.parentHeaderId)
+        _                    <- totalStakesStore.put((), 0)
         blockHeightTree <- BlockHeightTree
           .make[F](
             blockHeightTreeStore,
-            bigBangBlock.headerV2.parentHeaderId,
+            bigBangBlock.headerV2.parentHeaderId.pure[F],
             slotDataStore,
-            blockHeightTreeUnapplyStore,
-            blockIdTree
+            blockIdTree,
+            _ => Applicative[F].unit
           )
         clock = makeClock(bigBangBlock.headerV2.timestamp)
         etaCalculation <- EtaCalculation.Eval.make(
@@ -193,12 +192,14 @@ object TetraSuperDemo extends IOApp {
           clock,
           bigBangBlock.headerV2.parentHeaderId.pure[F],
           blockIdTree,
+          _ => Applicative[F].unit,
           epochBoundariesStore.pure[F],
           slotDataStore.getOrRaise
         )
         consensusDataState <- ConsensusDataEventSourcedState.make[F](
           bigBangBlock.headerV2.parentHeaderId.pure[F],
           blockIdTree,
+          _ => Applicative[F].unit,
           ConsensusDataEventSourcedState
             .ConsensusData(operatorStakesStore, totalStakesStore, registrationsStore)
             .pure[F],
@@ -229,6 +230,7 @@ object TetraSuperDemo extends IOApp {
           blockBodyStore.getOrRaise,
           transactionStore.getOrRaise,
           blockIdTree,
+          _ => Applicative[F].unit,
           clock,
           id => Logger[F].info(show"Expiring transaction id=$id"),
           Long.MaxValue,
@@ -240,6 +242,7 @@ object TetraSuperDemo extends IOApp {
           blockBodyStore.getOrRaise,
           transactionStore.getOrRaise,
           blockIdTree,
+          _ => Applicative[F].unit,
           boxStateStore.pure[F]
         )
         transactionSyntaxValidation   <- TransactionSyntaxValidation.make[F]

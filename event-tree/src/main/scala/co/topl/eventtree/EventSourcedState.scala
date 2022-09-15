@@ -1,6 +1,5 @@
 package co.topl.eventtree
 
-import cats._
 import cats.data.Chain
 import cats.effect._
 import cats.effect.std.Semaphore
@@ -34,11 +33,12 @@ object EventSourcedState {
   object OfTree {
 
     def make[F[_]: Async, State](
-      initialState:    F[State],
-      initialEventId:  F[TypedIdentifier],
-      applyEvent:      (State, TypedIdentifier) => F[State],
-      unapplyEvent:    (State, TypedIdentifier) => F[State],
-      parentChildTree: ParentChildTree[F, TypedIdentifier]
+      initialState:        F[State],
+      initialEventId:      F[TypedIdentifier],
+      applyEvent:          (State, TypedIdentifier) => F[State],
+      unapplyEvent:        (State, TypedIdentifier) => F[State],
+      parentChildTree:     ParentChildTree[F, TypedIdentifier],
+      currentEventChanged: TypedIdentifier => F[Unit]
     ): F[EventSourcedState[F, State]] = for {
       semaphore         <- Semaphore[F](1)
       currentStateRef   <- initialState.flatMap(Ref.of[F, State])
@@ -49,16 +49,18 @@ object EventSourcedState {
       parentChildTree,
       semaphore,
       currentStateRef,
-      currentEventIdRef
+      currentEventIdRef,
+      currentEventChanged
     )
 
     private class Impl[F[_]: Async, State](
-      applyEvent:        (State, TypedIdentifier) => F[State],
-      unapplyEvent:      (State, TypedIdentifier) => F[State],
-      parentChildTree:   ParentChildTree[F, TypedIdentifier],
-      semaphore:         Semaphore[F],
-      currentStateRef:   Ref[F, State],
-      currentEventIdRef: Ref[F, TypedIdentifier]
+      applyEvent:          (State, TypedIdentifier) => F[State],
+      unapplyEvent:        (State, TypedIdentifier) => F[State],
+      parentChildTree:     ParentChildTree[F, TypedIdentifier],
+      semaphore:           Semaphore[F],
+      currentStateRef:     Ref[F, State],
+      currentEventIdRef:   Ref[F, TypedIdentifier],
+      currentEventChanged: TypedIdentifier => F[Unit]
     ) extends EventSourcedState[F, State] {
 
       def stateAt(eventId: TypedIdentifier): F[State] =
@@ -95,7 +97,11 @@ object EventSourcedState {
           for {
             newState <- unapplyEvent(state, eventId)
             nextEventId = eventIds.get(index - 1).getOrElse(newEventId)
-            _ <- (currentStateRef.set(newState), currentEventIdRef.set(nextEventId)).tupled
+            _ <- (
+              currentStateRef.set(newState),
+              currentEventIdRef.set(nextEventId),
+              currentEventChanged(nextEventId)
+            ).tupled
           } yield newState
         }
 
@@ -103,7 +109,7 @@ object EventSourcedState {
         eventIds.foldLeftM(currentState) { case (state, eventId) =>
           for {
             newState <- applyEvent(state, eventId)
-            _        <- (currentStateRef.set(newState), currentEventIdRef.set(eventId)).tupled
+            _ <- (currentStateRef.set(newState), currentEventIdRef.set(eventId), currentEventChanged(eventId)).tupled
           } yield newState
         }
     }

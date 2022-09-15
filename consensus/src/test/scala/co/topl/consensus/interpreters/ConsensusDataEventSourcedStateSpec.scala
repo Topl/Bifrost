@@ -1,5 +1,6 @@
 package co.topl.consensus.interpreters
 
+import cats.Applicative
 import cats.data.Chain
 import cats.effect.IO
 import cats.implicits._
@@ -54,6 +55,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
         underTest <- ConsensusDataEventSourcedState.make[F](
           bigBangParentId.pure[F],
           parentChildTree,
+          _ => Applicative[F].unit,
           initialState.pure[F],
           bodyStore.getOrRaise,
           transactionStore.getOrRaise,
@@ -190,6 +192,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
         underTest <- ConsensusDataEventSourcedState.make[F](
           bigBangParentId.pure[F],
           parentChildTree,
+          _ => Applicative[F].unit,
           initialState.pure[F],
           bodyStore.getOrRaise,
           transactionStore.getOrRaise,

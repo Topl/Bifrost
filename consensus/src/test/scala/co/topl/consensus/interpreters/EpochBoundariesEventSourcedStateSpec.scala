@@ -1,5 +1,6 @@
 package co.topl.consensus.interpreters
 
+import cats.Applicative
 import cats.data.Chain
 import cats.effect.IO
 import cats.implicits._
@@ -50,7 +51,14 @@ class EpochBoundariesEventSourcedStateSpec extends CatsEffectSuite with ScalaChe
         _ = (() => clock.slotsPerEpoch).expects().anyNumberOfTimes().returning(2L.pure[F])
 
         underTest <- EpochBoundariesEventSourcedState
-          .make[F](clock, currentBlockId.pure[F], parentChildTree, initialState.pure[F], fetchSlotData)
+          .make[F](
+            clock,
+            currentBlockId.pure[F],
+            parentChildTree,
+            _ => Applicative[F].unit,
+            initialState.pure[F],
+            fetchSlotData
+          )
 
         _ <- underTest.useStateAt(slotData.last.slotId.blockId)(state =>
           state.getOrRaise(0).assertEquals(slotData(1).slotId.blockId) >>
@@ -83,7 +91,14 @@ class EpochBoundariesEventSourcedStateSpec extends CatsEffectSuite with ScalaChe
         _ = (() => clock.slotsPerEpoch).expects().anyNumberOfTimes().returning(2L.pure[F])
 
         underTest <- EpochBoundariesEventSourcedState
-          .make[F](clock, currentBlockId.pure[F], parentChildTree, initialState.pure[F], fetchSlotData)
+          .make[F](
+            clock,
+            currentBlockId.pure[F],
+            parentChildTree,
+            _ => Applicative[F].unit,
+            initialState.pure[F],
+            fetchSlotData
+          )
 
         _ <- underTest.useStateAt(slotData.last.slotId.blockId)(state =>
           state.get(-1).assertEquals(None) >>
