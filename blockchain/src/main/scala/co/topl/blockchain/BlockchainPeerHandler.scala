@@ -19,6 +19,7 @@ import co.topl.ledger.models.{
   BodyAuthorizationError,
   BodySemanticError,
   BodySyntaxError,
+  StaticBodyValidationContext,
   TransactionSemanticError,
   TransactionSyntaxError
 }
@@ -270,7 +271,13 @@ object BlockchainPeerHandler {
                       _ <- EitherT.liftF(Logger[F].info(show"Validating semantics of body id=$blockId"))
                       _ <- EitherT(
                         bodySemanticValidation
-                          .validate(block.headerV2.parentHeaderId)(block.blockBodyV2)
+                          .validate(
+                            StaticBodyValidationContext(
+                              block.headerV2.parentHeaderId,
+                              block.headerV2.height,
+                              block.headerV2.slot
+                            )
+                          )(block.blockBodyV2)
                           .map(_.toEither.leftMap(_.show))
                       )
                       _ <- EitherT.liftF(Logger[F].info(show"Validating authorization of body id=$blockId"))
