@@ -126,19 +126,19 @@ object ApplicationConfig {
 
   private def argsToUserConfigs(cmdArgs: Args): Chain[ConfigObjectSource] =
     Chain
-      .fromSeq(cmdArgs.startup.config)
+      .fromSeq(cmdArgs.startup.config.reverse)
       .map(name =>
         if (name.startsWith("resource://")) {
+          if (name.endsWith(".yaml") || name.endsWith(".yml"))
+            ConfigSource.fromConfig(YamlConfig.loadResource(name))
+          else
+            ConfigSource.resources(name)
+        } else {
           val path = Paths.get(name)
           if (name.endsWith(".yaml") || name.endsWith(".yml"))
             ConfigSource.fromConfig(YamlConfig.load(path))
           else
             ConfigSource.file(path)
-        } else {
-          if (name.endsWith(".yaml") || name.endsWith(".yml"))
-            ConfigSource.fromConfig(YamlConfig.loadResource(name))
-          else
-            ConfigSource.resources(name)
         }
       )
 
