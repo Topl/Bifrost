@@ -40,6 +40,10 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             sub       <- blocks.toMat(TestSink[BlockV2]()(system.toClassic))(Keep.right).liftTo[F]
             _ = sub.request(1)
             vrfHit = VrfHit(eligibilityCertificateGen.first, parentSlotData.slotId.slot + 1, ratioGen.first)
+            _ = (() => clock.globalSlot)
+              .expects()
+              .once()
+              .returning(parentSlotData.slotId.slot.pure[F])
             _ = (staker.elect _)
               .expects(parentSlotData.slotId, parentSlotData.slotId.slot + 1)
               .once()
@@ -91,6 +95,10 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
               // like "forever".
               _ = sub.request(1)
               vrfHit = VrfHit(eligibilityCertificateGen.first, parentSlotData.slotId.slot + 2, ratioGen.first)
+              _ = (() => clock.globalSlot)
+                .expects()
+                .once()
+                .returning(parentSlotData.slotId.slot.pure[F])
               _ = (staker.elect _)
                 .expects(parentSlotData.slotId, parentSlotData.slotId.slot + 1)
                 .once()
@@ -119,6 +127,10 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
               // The second attempt is eligibile immediately after the new parent, and we instruct the clock
               // to signal immediately
               vrfHit2 = VrfHit(eligibilityCertificateGen.first, parentSlotData2.slotId.slot + 1, ratioGen.first)
+              _ = (() => clock.globalSlot)
+                .expects()
+                .once()
+                .returning(parentSlotData2.slotId.slot.pure[F])
               _ = (staker.elect _)
                 .expects(parentSlotData2.slotId, parentSlotData2.slotId.slot + 1)
                 .once()
