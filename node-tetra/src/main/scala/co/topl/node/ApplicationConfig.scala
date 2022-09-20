@@ -124,6 +124,9 @@ object ApplicationConfig {
       )
     )
 
+  /**
+   * Load user-defined configuration files from disk/resources
+   */
   private def argsToUserConfigs(cmdArgs: Args): Chain[ConfigObjectSource] =
     Chain
       .fromSeq(cmdArgs.startup.config.reverse)
@@ -142,6 +145,11 @@ object ApplicationConfig {
         }
       )
 
+  /**
+   * Construct an ApplicationConfig based on the given command-line arguments and a merged HOCON config.
+   *
+   * May throw exceptions.
+   */
   def unsafe(cmdArgs: Args, config: Config): ApplicationConfig = {
     val base = ConfigSource.fromConfig(config).loadOrThrow[ApplicationConfig]
     val genLens = GenLens[ApplicationConfig]
@@ -188,6 +196,10 @@ object ApplicationConfig {
 
   private val defaultConfigFieldMapping = ConfigFieldMapping(CamelCase, KebabCase)
 
+  /**
+   * Parses the given comma-delimited string of host:port combinations
+   * i.e. "1.2.3.4:9095,5.6.7.8:9095"
+   */
   private def parseKnownPeers(str: String): List[DisconnectedPeer] =
     str.split(',').toList.filterNot(_.isEmpty).map { addr =>
       val Array(host, portStr) = addr.split(':')
