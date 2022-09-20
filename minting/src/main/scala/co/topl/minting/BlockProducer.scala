@@ -74,7 +74,7 @@ object BlockProducer {
          */
         private def nextEligibility(parentSlotId: SlotId): F[VrfHit] =
           clock.globalSlot
-            .map(_ max (parentSlotId.slot + 1))
+            .map(_.max(parentSlotId.slot + 1))
             .flatMap(
               _.tailRecM(testSlot => OptionT(staker.elect(parentSlotId, testSlot)).toRight(testSlot + 1).value)
             )

@@ -1,5 +1,6 @@
 package co.topl.consensus
 
+import cats.Applicative
 import cats.data.Validated
 import cats.implicits._
 import cats.effect.IO
@@ -34,7 +35,7 @@ class LocalChainSpec
 
       val chainSelection: OrderT[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
 
-      val underTest = LocalChain.Eval.make[F](initialHead, chainSelection).unsafeRunSync()
+      val underTest = LocalChain.Eval.make[F](initialHead, chainSelection, _ => Applicative[F].unit).unsafeRunSync()
 
       underTest.head.unsafeRunSync() shouldBe initialHead
     }
@@ -47,7 +48,7 @@ class LocalChainSpec
 
       val chainSelection: OrderT[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
 
-      val underTest = LocalChain.Eval.make[F](initialHead, chainSelection).unsafeRunSync()
+      val underTest = LocalChain.Eval.make[F](initialHead, chainSelection, _ => Applicative[F].unit).unsafeRunSync()
 
       val newHead =
         SlotData(SlotId(2, TypedBytes(2: Byte, Bytes(2))), SlotId(1, TypedBytes(1: Byte, Bytes(0))), rho, eta, 1)
@@ -63,7 +64,7 @@ class LocalChainSpec
 
       val chainSelection: OrderT[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
 
-      val underTest = LocalChain.Eval.make[F](initialHead, chainSelection).unsafeRunSync()
+      val underTest = LocalChain.Eval.make[F](initialHead, chainSelection, _ => Applicative[F].unit).unsafeRunSync()
 
       val newHead =
         SlotData(SlotId(2, TypedBytes(2: Byte, Bytes(2))), SlotId(1, TypedBytes(1: Byte, Bytes(0))), rho, eta, 1)
