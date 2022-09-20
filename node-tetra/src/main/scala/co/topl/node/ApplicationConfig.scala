@@ -1,7 +1,7 @@
 package co.topl.node
 
 import cats.Show
-import cats.data.{Chain, NonEmptyChain}
+import cats.data.Chain
 import cats.implicits._
 import cats.kernel.Monoid
 import co.topl.models.Slot
@@ -147,16 +147,35 @@ object ApplicationConfig {
     val genLens = GenLens[ApplicationConfig]
     def createF[B](lens: Lens[ApplicationConfig, B])(value: B): ApplicationConfig => ApplicationConfig =
       (appConf: ApplicationConfig) => lens.replace(value)(appConf)
-    List[Option[ApplicationConfig => ApplicationConfig]](
-      cmdArgs.runtime.dataDir.map(createF(genLens(_.bifrost.data.directory))),
-      cmdArgs.runtime.stakingDir.map(createF(genLens(_.bifrost.staking.directory))),
-      cmdArgs.runtime.rpcBindHost.map(createF(genLens(_.bifrost.rpc.bindHost))),
-      cmdArgs.runtime.rpcBindPort.map(createF(genLens(_.bifrost.rpc.bindPort))),
-      cmdArgs.runtime.p2pBindHost.map(createF(genLens(_.bifrost.p2p.bindHost))),
-      cmdArgs.runtime.p2pBindPort.map(createF(genLens(_.bifrost.p2p.bindPort))),
-      cmdArgs.runtime.knownPeers.map(parseKnownPeers).map(createF(genLens(_.bifrost.p2p.knownPeers)))
-    ).flatten
-      .foldLeft(base) { case (appConf, f) => f(appConf) }
+    val simpleArgApplications =
+      List[Option[ApplicationConfig => ApplicationConfig]](
+        cmdArgs.runtime.dataDir.map(createF(genLens(_.bifrost.data.directory))),
+        cmdArgs.runtime.stakingDir.map(createF(genLens(_.bifrost.staking.directory))),
+        cmdArgs.runtime.rpcBindHost.map(createF(genLens(_.bifrost.rpc.bindHost))),
+        cmdArgs.runtime.rpcBindPort.map(createF(genLens(_.bifrost.rpc.bindPort))),
+        cmdArgs.runtime.p2pBindHost.map(createF(genLens(_.bifrost.p2p.bindHost))),
+        cmdArgs.runtime.p2pBindPort.map(createF(genLens(_.bifrost.p2p.bindPort))),
+        cmdArgs.runtime.knownPeers.map(parseKnownPeers).map(createF(genLens(_.bifrost.p2p.knownPeers)))
+      ).flatten
+        .foldLeft(base) { case (appConf, f) => f(appConf) }
+    if (
+      cmdArgs.runtime.testnetArgs.testnetTimestamp.nonEmpty ||
+      cmdArgs.runtime.testnetArgs.testnetStakerCount.nonEmpty ||
+      cmdArgs.runtime.testnetArgs.testnetStakerIndex.nonEmpty
+    ) {
+      val bigBangConfig =
+        simpleArgApplications.bifrost.bigBang match {
+          case p: Bifrost.BigBangs.Private =>
+            p.copy(
+              cmdArgs.runtime.testnetArgs.testnetTimestamp.getOrElse(p.timestamp),
+              cmdArgs.runtime.testnetArgs.testnetStakerCount.getOrElse(p.stakerCount),
+              cmdArgs.runtime.testnetArgs.testnetStakerIndex.orElse(p.localStakerIndex)
+            )
+        }
+      genLens(_.bifrost.bigBang).replace(bigBangConfig)(simpleArgApplications)
+    } else {
+      simpleArgApplications
+    }
   }
 
   implicit val ratioConfigReader: ConfigReader[Ratio] =

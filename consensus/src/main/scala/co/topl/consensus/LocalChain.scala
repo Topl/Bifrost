@@ -5,7 +5,7 @@ import cats.effect.Ref
 import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.consensus.algebras.LocalChainAlgebra
-import co.topl.models.SlotData
+import co.topl.models.{SlotData, TypedIdentifier}
 import co.topl.typeclasses.OrderT
 
 object LocalChain {
@@ -14,7 +14,8 @@ object LocalChain {
 
     def make[F[_]: Sync](
       initialHead:    SlotData,
-      chainSelection: OrderT[F, SlotData]
+      chainSelection: OrderT[F, SlotData],
+      onAdopted:      TypedIdentifier => F[Unit]
     ): F[LocalChainAlgebra[F]] =
       Ref
         .of[F, SlotData](initialHead)
@@ -25,7 +26,7 @@ object LocalChain {
               head.flatMap(chainSelection.compare(_, newHead).map(_ < 0))
 
             def adopt(newHead: Validated.Valid[SlotData]): F[Unit] =
-              headRef.update(_ => newHead.a)
+              Sync[F].uncancelable(_ => onAdopted(newHead.a.slotId.blockId) >> headRef.update(_ => newHead.a))
 
             val head: F[SlotData] =
               headRef.get

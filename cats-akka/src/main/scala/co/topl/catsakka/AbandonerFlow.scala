@@ -5,6 +5,7 @@ import akka.stream.{Attributes, FlowShape, Inlet, Materializer, Outlet}
 import akka.stream.scaladsl.Flow
 import akka.stream.stage.{AsyncCallback, GraphStage, GraphStageLogic, GraphStageLogicWithLogging, InHandler, OutHandler}
 import cats.effect.{Async, Fiber}
+import cats.implicits._
 
 import scala.concurrent.ExecutionContext
 
@@ -49,6 +50,7 @@ private class AbandonerFlowImpl[F[_]: Async: FToFuture, T, U](f: T => F[U]) exte
         fiberCompletedCallback = getAsyncCallback {
           case Left(FCancelled) =>
             log.debug("Fiber canceled")
+            handleNextValue()
           case Left(e) =>
             log.error(e, "Fiber failed")
             failStage(e)
@@ -66,21 +68,22 @@ private class AbandonerFlowImpl[F[_]: Async: FToFuture, T, U](f: T => F[U]) exte
       setHandlers(inlet, outlet, this)
 
       def onPush(): Unit = {
-        val in = grab(inlet)
         cancelCurrentFiber()
-        handleNextValue(in)
+        if (fiber == null) handleNextValue()
       }
 
       def onPull(): Unit =
-        if (!hasBeenPulled(inlet)) pull(inlet)
+        pullIfAvailable()
 
       /**
        * Launch a fiber to process the value provided by upstream
        */
-      private def handleNextValue(nextValue: T): Unit =
+      private def handleNextValue(): Unit = {
+        val fu: F[U] = f(grab(inlet))
         implicitly[FToFuture[F]]
-          .apply(Async[F].start(f(nextValue)))
+          .apply(Async[F].start(fu))
           .onComplete(r => fiberStartedCallback.invoke(r.toEither))
+      }
 
       /**
        * A computation fiber was successfully launched in the background
@@ -91,7 +94,7 @@ private class AbandonerFlowImpl[F[_]: Async: FToFuture, T, U](f: T => F[U]) exte
           .apply(fiber.joinWith(Async[F].raiseError(FCancelled)))
           .onComplete(r => fiberCompletedCallback.invoke(r.toEither))
         // Now that we're working on the received value, eagerly ask upstream to give us the next value
-        pull(inlet)
+        pullIfAvailable()
       }
 
       /**
@@ -107,6 +110,9 @@ private class AbandonerFlowImpl[F[_]: Async: FToFuture, T, U](f: T => F[U]) exte
           log.debug("Canceling fiber")
           implicitly[FToFuture[F]].apply(f.cancel)
         }
+
+      private def pullIfAvailable(): Unit =
+        if (!hasBeenPulled(inlet)) pull(inlet)
     }
 }
 

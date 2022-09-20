@@ -10,6 +10,7 @@ import cats.implicits._
 import co.topl.algebras._
 import ClockAlgebra.implicits._
 import cats.Applicative
+import cats.data.OptionT
 import ch.qos.logback.classic.joran.JoranConfigurator
 import co.topl.blockchain._
 import co.topl.catsakka.IOAkkaApp
@@ -91,6 +92,7 @@ object NodeApp
 
       canonicalHeadId       <- currentEventIdGetterSetters.canonicalHead.get()
       canonicalHeadSlotData <- dataStores.slotData.getOrRaise(canonicalHeadId)
+      _                     <- Logger[F].info(show"Canonical head id=$canonicalHeadId")
 
       blockIdTree <- ParentChildTree.FromStore
         .make[F, TypedIdentifier](dataStores.parentChildTree, bigBangBlock.headerV2.parentHeaderId)
@@ -140,7 +142,8 @@ object NodeApp
             cryptoResources.blake2b512,
             bigBangProtocol.chainSelectionKLookback,
             bigBangProtocol.chainSelectionSWindow
-          )
+          ),
+        currentEventIdGetterSetters.canonicalHead.set
       )
       mempool <- Mempool.make[F](
         currentEventIdGetterSetters.mempool.get(),
@@ -154,20 +157,25 @@ object NodeApp
         appConfig.bifrost.mempool.duplicateSpenderExpirationSlots
       )
       implicit0(networkRandom: Random) = new Random(new SecureRandom())
-      staking <- makeStaking(
-        stakingDir,
-        canonicalHeadSlotData,
-        stakerInitializers.headOption.get,
-        clock,
-        etaCalculation,
-        consensusValidationState,
-        leaderElectionThreshold,
-        cryptoResources.ed25519,
-        cryptoResources.ed25519VRF,
-        cryptoResources.kesProduct,
-        bigBangProtocol,
-        vrfConfig
-      )
+      staking <- OptionT
+        .fromOption[F](privateBigBang.localStakerIndex.flatMap(stakerInitializers.get(_)))
+        .semiflatMap(initializer =>
+          makeStaking(
+            stakingDir,
+            canonicalHeadSlotData,
+            initializer,
+            clock,
+            etaCalculation,
+            consensusValidationState,
+            leaderElectionThreshold,
+            cryptoResources.ed25519,
+            cryptoResources.ed25519VRF,
+            cryptoResources.kesProduct,
+            bigBangProtocol,
+            vrfConfig
+          )
+        )
+        .value
       validators <- Validators.make[F](
         cryptoResources,
         dataStores,
@@ -181,7 +189,7 @@ object NodeApp
       _ <- Blockchain
         .run[F](
           clock,
-          staking.some,
+          staking,
           dataStores.slotData,
           dataStores.headers,
           dataStores.bodies,

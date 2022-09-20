@@ -12,7 +12,8 @@ object Args {
   case class Startup(
     @arg(
       doc = "Zero or more config files (.conf, .json, .yaml) to apply to the node." +
-        "  Config files stack such that the last config file takes precedence."
+        "  Config files stack such that the last config file takes precedence." +
+        "  To specify an internal resource, prefix the value with \"resource://\"."
     )
     config: Seq[String] = Nil,
     @arg(
@@ -54,11 +55,31 @@ object Args {
     @arg(
       doc = "A comma-delimited list of host:port values to connect to at launch (i.e. 1.2.3.4:9084,5.6.7.8:9084)"
     )
-    knownPeers: Option[String] = None
+    knownPeers:  Option[String] = None,
+    testnetArgs: PrivateTestnetArgs
+  )
+
+  @main
+  case class PrivateTestnetArgs(
+    @arg(
+      doc = "A UTC Unix epoch timestamp (ms) to use when seeding a private testnet."
+    )
+    testnetTimestamp: Option[Long] = None,
+    @arg(
+      doc = "The number of stakers to initialize."
+    )
+    testnetStakerCount: Option[Int] = None,
+    @arg(
+      doc = "The index of the staker to launch."
+    )
+    testnetStakerIndex: Option[Int] = None
   )
 
   implicit val showArgs: Show[Args] =
     Show.fromToString
+
+  implicit val parserPrivateTestnetArgs: ParserForClass[PrivateTestnetArgs] =
+    ParserForClass[PrivateTestnetArgs]
 
   implicit val parserStartup: ParserForClass[Startup] =
     ParserForClass[Startup]

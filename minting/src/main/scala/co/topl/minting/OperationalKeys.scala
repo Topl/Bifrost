@@ -2,7 +2,7 @@ package co.topl.minting
 
 import cats._
 import cats.data._
-import cats.effect.Ref
+import cats.effect.{MonadCancelThrow, Ref}
 import cats.effect.kernel.Concurrent
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
@@ -86,7 +86,7 @@ object OperationalKeys {
         ref
       )
 
-    def make[F[_]: MonadError[*[_], Throwable]: Logger](
+    def make[F[_]: MonadCancelThrow: Logger](
       secureStore:                 SecureStore[F],
       clock:                       ClockAlgebra[F],
       vrfProof:                    VrfProofAlgebra[F],
@@ -100,35 +100,37 @@ object OperationalKeys {
       ref:                         Ref[F, (Long, Option[Map[Long, OperationalKeyOut]])]
     ): OperationalKeysAlgebra[F] = { (slot: Slot, parentSlotId: SlotId) =>
       val operationalPeriod = slot / operationalPeriodLength
-      ref.get.flatMap {
-        case (`operationalPeriod`, keysOpt) =>
-          keysOpt.flatMap(_.get(slot)).pure[F]
-        case _ =>
-          OptionT(consensusState.operatorRelativeStake(parentSlotId.blockId, slot)(address))
-            .flatMapF(relativeStake =>
-              consumeEvolvePersist(
-                (operationalPeriod - activationOperationalPeriod).toInt,
-                secureStore,
-                prepareOperationalPeriodKeys(
-                  _,
-                  slot,
-                  parentSlotId,
-                  operationalPeriodLength,
-                  relativeStake,
-                  clock,
-                  vrfProof,
-                  etaCalculation,
-                  kesProductResource,
-                  ed25519Resource
-                ),
-                kesProductResource
+      MonadCancelThrow[F].uncancelable(_ =>
+        ref.get.flatMap {
+          case (`operationalPeriod`, keysOpt) =>
+            keysOpt.flatMap(_.get(slot)).pure[F]
+          case _ =>
+            OptionT(consensusState.operatorRelativeStake(parentSlotId.blockId, slot)(address))
+              .flatMapF(relativeStake =>
+                consumeEvolvePersist(
+                  (operationalPeriod - activationOperationalPeriod).toInt,
+                  secureStore,
+                  prepareOperationalPeriodKeys(
+                    _,
+                    slot,
+                    parentSlotId,
+                    operationalPeriodLength,
+                    relativeStake,
+                    clock,
+                    vrfProof,
+                    etaCalculation,
+                    kesProductResource,
+                    ed25519Resource
+                  ),
+                  kesProductResource
+                )
               )
-            )
-            .semiflatTap(newKeys => ref.set(operationalPeriod -> newKeys.some))
-            .flatTapNone(ref.set(operationalPeriod -> None))
-            .subflatMap(_.get(slot))
-            .value
-      }
+              .semiflatTap(newKeys => ref.set(operationalPeriod -> newKeys.some))
+              .flatTapNone(ref.set(operationalPeriod -> None))
+              .subflatMap(_.get(slot))
+              .value
+        }
+      )
     }
 
     /**
@@ -136,38 +138,41 @@ object OperationalKeys {
      * If they key is behind the `currentOperationalPeriod`, it is first updated to the `currentOperationalPeriod`.  The
      * key for `timeStep + 1` is constructed and saved to disk.
      */
-    private def consumeEvolvePersist[F[_]: MonadError[*[_], Throwable]: Logger, T](
+    private def consumeEvolvePersist[F[_]: MonadCancelThrow: Logger, T](
       timeStep:           Int,
       secureStore:        SecureStore[F],
       use:                SecretKeys.KesProduct => F[T],
       kesProductResource: UnsafeResource[F, KesProduct]
-    ): F[Option[T]] = {
-      for {
-        fileName <- OptionT.liftF(secureStore.list.flatMap {
-          case Chain(fileName) => fileName.pure[F]
-          case _ =>
-            MonadError[F, Throwable].raiseError[String](
-              new IllegalStateException("SecureStore contained 0 or multiple keys")
+    ): F[Option[T]] =
+      MonadCancelThrow[F].uncancelable(_ =>
+        (
+          for {
+            fileName <- OptionT.liftF(secureStore.list.flatMap {
+              case Chain(fileName) => fileName.pure[F]
+              case _ =>
+                MonadError[F, Throwable].raiseError[String](
+                  new IllegalStateException("SecureStore contained 0 or multiple keys")
+                )
+            })
+            _       <- OptionT.liftF(Logger[F].info(show"Consuming key id=$fileName"))
+            diskKey <- OptionT(secureStore.consume[SecretKeys.KesProduct](fileName))
+            latest  <- OptionT.liftF(kesProductResource.use(_.getCurrentStep(diskKey).pure[F]))
+            currentPeriodKey <-
+              if (latest === timeStep) OptionT.pure[F](diskKey)
+              else OptionT.liftF(kesProductResource.use(_.update(diskKey, timeStep.toInt).pure[F]))
+            res <- OptionT.liftF(use(currentPeriodKey))
+            nextTimeStep = timeStep + 1
+            _       <- OptionT.liftF(Logger[F].info(show"Saving next key idx=$nextTimeStep"))
+            updated <- OptionT.liftF(kesProductResource.use(_.update(currentPeriodKey, nextTimeStep).pure[F]))
+            _ <- OptionT.liftF(
+              secureStore.write(
+                UUID.randomUUID().toString,
+                updated
+              )
             )
-        })
-        _       <- OptionT.liftF(Logger[F].info(show"Consuming key id=$fileName"))
-        diskKey <- OptionT(secureStore.consume[SecretKeys.KesProduct](fileName))
-        latest  <- OptionT.liftF(kesProductResource.use(_.getCurrentStep(diskKey).pure[F]))
-        currentPeriodKey <-
-          if (latest === timeStep) OptionT.pure[F](diskKey)
-          else OptionT.liftF(kesProductResource.use(_.update(diskKey, timeStep.toInt).pure[F]))
-        res <- OptionT.liftF(use(currentPeriodKey))
-        nextTimeStep = timeStep + 1
-        _       <- OptionT.liftF(Logger[F].info(show"Saving next key idx=$nextTimeStep"))
-        updated <- OptionT.liftF(kesProductResource.use(_.update(currentPeriodKey, nextTimeStep).pure[F]))
-        _ <- OptionT.liftF(
-          secureStore.write(
-            UUID.randomUUID().toString,
-            updated
-          )
-        )
-      } yield res
-    }.value
+          } yield res
+        ).value
+      )
 
     /**
      * Using some KES parent, construct the linear keys for the upcoming operational period.  A linear key is constructed

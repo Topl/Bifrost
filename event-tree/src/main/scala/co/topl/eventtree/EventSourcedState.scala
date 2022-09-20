@@ -94,23 +94,27 @@ object EventSourcedState {
         newEventId:   TypedIdentifier
       ): F[State] =
         eventIds.zipWithIndex.reverse.foldLeftM(currentState) { case (state, (eventId, index)) =>
-          for {
-            newState <- unapplyEvent(state, eventId)
-            nextEventId = eventIds.get(index - 1).getOrElse(newEventId)
-            _ <- (
-              currentStateRef.set(newState),
-              currentEventIdRef.set(nextEventId),
-              currentEventChanged(nextEventId)
-            ).tupled
-          } yield newState
+          Async[F].uncancelable(_ =>
+            for {
+              newState <- unapplyEvent(state, eventId)
+              nextEventId = eventIds.get(index - 1).getOrElse(newEventId)
+              _ <- (
+                currentStateRef.set(newState),
+                currentEventIdRef.set(nextEventId),
+                currentEventChanged(nextEventId)
+              ).tupled
+            } yield newState
+          )
         }
 
       private def applyEvents(eventIds: Chain[TypedIdentifier], currentState: State): F[State] =
         eventIds.foldLeftM(currentState) { case (state, eventId) =>
-          for {
-            newState <- applyEvent(state, eventId)
-            _ <- (currentStateRef.set(newState), currentEventIdRef.set(eventId), currentEventChanged(eventId)).tupled
-          } yield newState
+          Async[F].uncancelable(_ =>
+            for {
+              newState <- applyEvent(state, eventId)
+              _ <- (currentStateRef.set(newState), currentEventIdRef.set(eventId), currentEventChanged(eventId)).tupled
+            } yield newState
+          )
         }
     }
   }
