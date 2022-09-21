@@ -1,0 +1,31 @@
+# Before launching, be sure to update special-config.conf's bifrost.big-bang.timestamp to a new (future) value
+
+version: "3.7"
+
+services:
+  node1:
+    image: toplprotocol/bifrost-node-tetra
+    command: --config /mnt/special-config.conf --testnetStakerIndex 0
+    volumes:
+      - ./special-config.conf:/mnt/special-config.conf
+  node2:
+    image: toplprotocol/bifrost-node-tetra
+    command: --config /mnt/special-config.conf --testnetStakerIndex 1
+    volumes:
+      - ./special-config.conf:/mnt/special-config.conf
+    environment:
+      - BIFROST_P2P_KNOWN_PEERS=node1:9085
+  node3:
+    image: toplprotocol/bifrost-node-tetra
+    command: --config /mnt/special-config.conf --testnetStakerIndex 2
+    volumes:
+      - ./special-config.conf:/mnt/special-config.conf
+    environment:
+      - BIFROST_P2P_KNOWN_PEERS=node1:9085
+  node4:
+    image: toplprotocol/bifrost-node-tetra
+    command: --config /mnt/special-config.conf --testnetStakerIndex 3
+    volumes:
+      - ./special-config.conf:/mnt/special-config.conf
+    environment:
+      - BIFROST_P2P_KNOWN_PEERS=node1:9085,node3:9085

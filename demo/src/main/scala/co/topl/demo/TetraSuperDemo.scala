@@ -223,7 +223,8 @@ object TetraSuperDemo extends IOApp {
         localChain <- LocalChain.Eval.make(
           bigBangBlock.headerV2.slotData(Ed25519VRF.precomputed()),
           ChainSelection
-            .orderT[F](slotDataStore.getOrRaise, blake2b512Resource, ChainSelectionKLookback, ChainSelectionSWindow)
+            .orderT[F](slotDataStore.getOrRaise, blake2b512Resource, ChainSelectionKLookback, ChainSelectionSWindow),
+          _ => Applicative[F].unit
         )
         mempool <- Mempool.make[F](
           bigBangBlock.headerV2.parentHeaderId.pure[F],

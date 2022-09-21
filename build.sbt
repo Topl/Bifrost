@@ -291,6 +291,7 @@ lazy val nodeTetra = project
     levelDbStore
   )
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
+  .settings(scalamacrosParadiseSettings)
 
 lazy val common = project
   .in(file("common"))

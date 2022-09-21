@@ -73,8 +73,11 @@ object BlockProducer {
          * Determine the staker's next eligibility based on the given parent
          */
         private def nextEligibility(parentSlotId: SlotId): F[VrfHit] =
-          (parentSlotId.slot + 1)
-            .tailRecM(testSlot => OptionT(staker.elect(parentSlotId, testSlot)).toRight(testSlot + 1).value)
+          clock.globalSlot
+            .map(_.max(parentSlotId.slot + 1))
+            .flatMap(
+              _.tailRecM(testSlot => OptionT(staker.elect(parentSlotId, testSlot)).toRight(testSlot + 1).value)
+            )
 
         /**
          * Launch the block packer function, then delay the clock, then stop the block packer function and

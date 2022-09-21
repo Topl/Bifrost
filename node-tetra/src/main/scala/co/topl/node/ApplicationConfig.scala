@@ -1,26 +1,32 @@
 package co.topl.node
 
 import cats.Show
-import cats.data.NonEmptyChain
+import cats.data.Chain
 import cats.implicits._
 import cats.kernel.Monoid
 import co.topl.models.Slot
 import co.topl.models.utility.Ratio
 import co.topl.networking.p2p.DisconnectedPeer
 import com.typesafe.config.{Config, ConfigFactory}
+import monocle._
+import monocle.macros._
+import monocle.macros.syntax.lens._
 import pureconfig._
 import pureconfig.generic.ProductHint
 import pureconfig.generic.auto._
 import pureconfig.configurable._
 
 import java.net.InetSocketAddress
+import java.nio.file.Paths
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
+@Lenses
 case class ApplicationConfig(bifrost: ApplicationConfig.Bifrost)
 
 object ApplicationConfig {
 
+  @Lenses
   case class Bifrost(
     data:      Bifrost.Data,
     staking:   Bifrost.Staking,
@@ -32,9 +38,14 @@ object ApplicationConfig {
   )
 
   object Bifrost {
+
+    @Lenses
     case class Data(directory: String)
+
+    @Lenses
     case class Staking(directory: String)
 
+    @Lenses
     case class P2P(
       bindHost:   String,
       bindPort:   Int,
@@ -42,12 +53,17 @@ object ApplicationConfig {
       publicPort: Int,
       knownPeers: List[DisconnectedPeer]
     )
+
+    @Lenses
     case class RPC(bindHost: String, bindPort: Int)
+
+    @Lenses
     case class Mempool(defaultExpirationSlots: Long, duplicateSpenderExpirationSlots: Long)
     sealed abstract class BigBang
 
     object BigBangs {
 
+      @Lenses
       case class Private(
         timestamp:        Long = System.currentTimeMillis() + 5_000L,
         stakerCount:      Int,
@@ -55,6 +71,7 @@ object ApplicationConfig {
       ) extends BigBang
     }
 
+    @Lenses
     case class Protocol(
       fEffective:                 Ratio,
       vrfLddCutoff:               Int,
@@ -84,18 +101,90 @@ object ApplicationConfig {
     Monoid.instance(ConfigFactory.empty(), _ withFallback _)
 
   def createTypesafeConfig(cmdArgs: Args): Config =
-    NonEmptyChain(
-      ConfigSource.fromConfig(ConfigFactory.systemEnvironmentOverrides()),
-      ConfigSource.resources("environment.conf"),
-      ConfigSource.fromConfig(YamlConfig.loadResource("custom-config.yaml")),
-      ConfigSource.default
+    (
+      argsToDebugConfigs(cmdArgs) ++
+        Chain(ConfigSource.resources("environment.conf")) ++
+        argsToUserConfigs(cmdArgs) ++
+        Chain(
+          ConfigSource.fromConfig(YamlConfig.loadResource("custom-config.yaml")),
+          ConfigSource.default
+        )
     ).foldMapM(_.config()) match {
       case Right(value) => value.resolve()
       case Left(e)      => throw new IllegalStateException(e.toString)
     }
 
-  def unsafe(cmdArgs: Args, config: Config): ApplicationConfig =
-    ConfigSource.fromConfig(config).loadOrThrow[ApplicationConfig]
+  /**
+   * Allow the --debug argument to enable the `CONFIG_FORCE_` environment variable syntax from Typesafe Config
+   */
+  private def argsToDebugConfigs(cmdArgs: Args): Chain[ConfigObjectSource] =
+    Chain.fromOption(
+      Option.when(cmdArgs.startup.debug.value)(
+        ConfigSource.fromConfig(ConfigFactory.systemEnvironmentOverrides())
+      )
+    )
+
+  /**
+   * Load user-defined configuration files from disk/resources
+   */
+  private def argsToUserConfigs(cmdArgs: Args): Chain[ConfigObjectSource] =
+    Chain
+      .fromSeq(cmdArgs.startup.config.reverse)
+      .map(name =>
+        if (name.startsWith("resource://")) {
+          if (name.endsWith(".yaml") || name.endsWith(".yml"))
+            ConfigSource.fromConfig(YamlConfig.loadResource(name))
+          else
+            ConfigSource.resources(name)
+        } else {
+          val path = Paths.get(name)
+          if (name.endsWith(".yaml") || name.endsWith(".yml"))
+            ConfigSource.fromConfig(YamlConfig.load(path))
+          else
+            ConfigSource.file(path)
+        }
+      )
+
+  /**
+   * Construct an ApplicationConfig based on the given command-line arguments and a merged HOCON config.
+   *
+   * May throw exceptions.
+   */
+  def unsafe(cmdArgs: Args, config: Config): ApplicationConfig = {
+    val base = ConfigSource.fromConfig(config).loadOrThrow[ApplicationConfig]
+    val genLens = GenLens[ApplicationConfig]
+    def createF[B](lens: Lens[ApplicationConfig, B])(value: B): ApplicationConfig => ApplicationConfig =
+      (appConf: ApplicationConfig) => lens.replace(value)(appConf)
+    val simpleArgApplications =
+      List[Option[ApplicationConfig => ApplicationConfig]](
+        cmdArgs.runtime.dataDir.map(createF(genLens(_.bifrost.data.directory))),
+        cmdArgs.runtime.stakingDir.map(createF(genLens(_.bifrost.staking.directory))),
+        cmdArgs.runtime.rpcBindHost.map(createF(genLens(_.bifrost.rpc.bindHost))),
+        cmdArgs.runtime.rpcBindPort.map(createF(genLens(_.bifrost.rpc.bindPort))),
+        cmdArgs.runtime.p2pBindHost.map(createF(genLens(_.bifrost.p2p.bindHost))),
+        cmdArgs.runtime.p2pBindPort.map(createF(genLens(_.bifrost.p2p.bindPort))),
+        cmdArgs.runtime.knownPeers.map(parseKnownPeers).map(createF(genLens(_.bifrost.p2p.knownPeers)))
+      ).flatten
+        .foldLeft(base) { case (appConf, f) => f(appConf) }
+    if (
+      cmdArgs.runtime.testnetArgs.testnetTimestamp.nonEmpty ||
+      cmdArgs.runtime.testnetArgs.testnetStakerCount.nonEmpty ||
+      cmdArgs.runtime.testnetArgs.testnetStakerIndex.nonEmpty
+    ) {
+      val bigBangConfig =
+        simpleArgApplications.bifrost.bigBang match {
+          case p: Bifrost.BigBangs.Private =>
+            p.copy(
+              cmdArgs.runtime.testnetArgs.testnetTimestamp.getOrElse(p.timestamp),
+              cmdArgs.runtime.testnetArgs.testnetStakerCount.getOrElse(p.stakerCount),
+              cmdArgs.runtime.testnetArgs.testnetStakerIndex.orElse(p.localStakerIndex)
+            )
+        }
+      genLens(_.bifrost.bigBang).replace(bigBangConfig)(simpleArgApplications)
+    } else {
+      simpleArgApplications
+    }
+  }
 
   implicit val ratioConfigReader: ConfigReader[Ratio] =
     ConfigReader.fromNonEmptyStringTry { str =>
@@ -107,13 +196,20 @@ object ApplicationConfig {
 
   private val defaultConfigFieldMapping = ConfigFieldMapping(CamelCase, KebabCase)
 
+  /**
+   * Parses the given comma-delimited string of host:port combinations
+   * i.e. "1.2.3.4:9095,5.6.7.8:9095"
+   */
+  private def parseKnownPeers(str: String): List[DisconnectedPeer] =
+    str.split(',').toList.filterNot(_.isEmpty).map { addr =>
+      val Array(host, portStr) = addr.split(':')
+      DisconnectedPeer(InetSocketAddress.createUnresolved(host, portStr.toInt), (0, 0))
+    }
+
   implicit val knownPeersReader: ConfigReader[List[DisconnectedPeer]] =
     ConfigReader[String].emap(str =>
       Try(
-        str.split(',').toList.filterNot(_.isEmpty).map { addr =>
-          val Array(host, portStr) = addr.split(':')
-          DisconnectedPeer(InetSocketAddress.createUnresolved(host, portStr.toInt), (0, 0))
-        }
+        parseKnownPeers(str)
       ).toEither.leftMap(e => error.CannotConvert(str, "InetAddressList", e.getMessage))
     )
 
