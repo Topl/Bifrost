@@ -17,24 +17,12 @@ import co.topl.models.utility.Ratio
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 import scalacache.caffeine.CaffeineCache
-import scalacache.{CacheConfig, CacheKeyBuilder}
 
-import scala.collection.immutable.{LongMap, NumericRange}
+import scala.collection.immutable.NumericRange
 
 object VrfProof {
 
   object Eval {
-
-    implicit private val cacheConfig: CacheConfig = CacheConfig(cacheKeyBuilder = new CacheKeyBuilder {
-
-      def toCacheKey(parts: Seq[Any]): String =
-        parts.map {
-          case eta: Eta @unchecked => eta.data.show
-          case t                   => throw new MatchError(t)
-        }.mkString
-
-      def stringToCacheKey(key: String): String = key
-    })
 
     def make[F[_]: MonadError[*[_], Throwable]: Sync: Logger: Parallel](
       skVrf:                    SecretKeys.VrfEd25519,
@@ -43,7 +31,7 @@ object VrfProof {
       ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
       vrfConfig:                VrfConfig
     ): F[VrfProofAlgebra[F]] =
-      (CaffeineCache[F, Map[Long, Proofs.Knowledge.VrfEd25519]], CaffeineCache[F, Map[Long, Rho]]).mapN(
+      (CaffeineCache[F, Bytes, Map[Long, Proofs.Knowledge.VrfEd25519]], CaffeineCache[F, Bytes, Map[Long, Rho]]).mapN(
         (vrfProofsCache, rhosCache) =>
           new Impl[F](
             skVrf,
@@ -62,8 +50,8 @@ object VrfProof {
       leaderElectionValidation: LeaderElectionValidationAlgebra[F],
       ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
       vrfConfig:                VrfConfig,
-      vrfProofsCache:           CaffeineCache[F, Map[Long, Proofs.Knowledge.VrfEd25519]],
-      rhosCache:                CaffeineCache[F, Map[Long, Rho]]
+      vrfProofsCache:           CaffeineCache[F, Bytes, Map[Long, Proofs.Knowledge.VrfEd25519]],
+      rhosCache:                CaffeineCache[F, Bytes, Map[Long, Rho]]
     ) extends VrfProofAlgebra[F] {
 
       def precomputeForEpoch(epoch: Epoch, eta: Eta): F[Unit] =
@@ -82,14 +70,14 @@ object VrfProof {
             val rhoValues = vrfProofs.map { case (slot, proof) => slot -> ed.proofToHash(proof) }
             (vrfProofs -> rhoValues).pure[F]
           }
-          _ <- (vrfProofsCache.put(eta)(vrfProofs), rhosCache.put(eta)(rhoValues)).tupled
+          _ <- (vrfProofsCache.put(eta.data)(vrfProofs), rhosCache.put(eta.data)(rhoValues)).tupled
         } yield ()
 
       def proofForSlot(slot: Slot, eta: Eta): F[Proofs.Knowledge.VrfEd25519] =
-        OptionT(vrfProofsCache.get(eta))
+        OptionT(vrfProofsCache.get(eta.data))
           .orElseF(
             clock.epochOf(slot).flatMap(precomputeForEpoch(_, eta)) >>
-            vrfProofsCache.get(eta)
+            vrfProofsCache.get(eta.data)
           )
           .subflatMap(_.get(slot))
           .getOrElseF(
@@ -98,10 +86,10 @@ object VrfProof {
           )
 
       def rhoForSlot(slot: Slot, eta: Eta): F[Rho] =
-        OptionT(rhosCache.get(eta))
+        OptionT(rhosCache.get(eta.data))
           .orElseF(
             clock.epochOf(slot).flatMap(precomputeForEpoch(_, eta)) >>
-            rhosCache.get(eta)
+            rhosCache.get(eta.data)
           )
           .subflatMap(_.get(slot))
           .getOrElseF(
@@ -126,8 +114,8 @@ object VrfProof {
       ): F[Vector[Slot]] =
         for {
           rhosMap <-
-            OptionT(rhosCache.get(eta))
-              .orElseF(precomputeForEpoch(epoch, eta) >> rhosCache.get(eta))
+            OptionT(rhosCache.get(eta.data))
+              .orElseF(precomputeForEpoch(epoch, eta) >> rhosCache.get(eta.data))
               .getOrElseF(
                 new IllegalStateException(show"rhos were not precomputed for epoch=$epoch eta=$eta")
                   .raiseError[F, Map[Long, Rho]]

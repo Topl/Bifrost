@@ -127,7 +127,7 @@ object Dependencies {
   )
 
   val scalacache = Seq(
-    "com.github.cb372" %% "scalacache-caffeine" % "1.0.0-M4"
+    "com.github.cb372" %% "scalacache-caffeine" % "1.0.0-M6"
   )
 
   val simulacrum = Seq(
