@@ -1,6 +1,5 @@
 package co.topl.consensus
 
-import cats.MonadError
 import cats.data.NonEmptyChain
 import cats.effect.{Clock, Sync}
 import cats.implicits._
@@ -12,16 +11,13 @@ import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
-import scalacache._
 import scalacache.caffeine.CaffeineCache
 
 object EtaCalculation {
 
   object Eval {
 
-    implicit private val cacheConfig: CacheConfig = CacheConfig(cacheKeyBuilder[TypedIdentifier])
-
-    def make[F[_]: Clock: Sync: MonadError[*[_], Throwable]: Logger](
+    def make[F[_]: Clock: Sync: Logger](
       fetchSlotData:      TypedIdentifier => F[SlotData],
       clock:              ClockAlgebra[F],
       genesisEta:         Eta,
@@ -29,19 +25,19 @@ object EtaCalculation {
       blake2b512Resource: UnsafeResource[F, Blake2b512]
     ): F[EtaCalculationAlgebra[F]] =
       for {
-        implicit0(cache: CaffeineCache[F, Eta]) <- CaffeineCache[F, Eta]
-        slotsPerEpoch                           <- clock.slotsPerEpoch
+        implicit0(cache: CaffeineCache[F, Bytes, Eta]) <- CaffeineCache[F, Bytes, Eta]
+        slotsPerEpoch                                  <- clock.slotsPerEpoch
         impl = new Impl[F](fetchSlotData, clock, genesisEta, slotsPerEpoch, blake2b256Resource, blake2b512Resource)
       } yield impl
 
-    private class Impl[F[_]: Clock: Sync: MonadError[*[_], Throwable]: Logger](
+    private class Impl[F[_]: Clock: Sync: Logger](
       fetchSlotData:      TypedIdentifier => F[SlotData],
       clock:              ClockAlgebra[F],
       genesisEta:         Eta,
       slotsPerEpoch:      Long,
       blake2b256Resource: UnsafeResource[F, Blake2b256],
       blake2b512Resource: UnsafeResource[F, Blake2b512]
-    )(implicit cache:     CaffeineCache[F, Eta])
+    )(implicit cache:     CaffeineCache[F, Bytes, Eta])
         extends EtaCalculationAlgebra[F] {
 
       private val twoThirdsLength = slotsPerEpoch * 2 / 3
@@ -60,7 +56,7 @@ object EtaCalculation {
               // TODO: If childEpoch - parentEpoch > 1, destroy the node
               // OR: childSlot - parentSlot > slotsPerEpoch
               case (_, _, parentSlotData) =>
-                cache.cachingF(parentSlotId.blockId)(ttl = None)(
+                cache.cachingF(parentSlotId.blockId.allBytes)(ttl = None)(
                   locateTwoThirdsBest(parentSlotData)
                     .flatMap(calculate)
                     .flatTap(nextEta =>
@@ -91,7 +87,7 @@ object EtaCalculation {
        * @param twoThirdsBest The latest block header in some tine, but within the first 2/3 of the epoch
        */
       private def calculate(twoThirdsBest: SlotData): F[Eta] =
-        cache.cachingF(twoThirdsBest.slotId.blockId)(ttl = None)(
+        cache.cachingF(twoThirdsBest.slotId.blockId.allBytes)(ttl = None)(
           for {
             epoch      <- clock.epochOf(twoThirdsBest.slotId.slot)
             epochRange <- clock.epochRange(epoch)

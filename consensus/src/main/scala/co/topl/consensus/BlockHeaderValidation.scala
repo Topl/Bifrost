@@ -12,7 +12,6 @@ import co.topl.models._
 import co.topl.models.utility.Ratio
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
-import scalacache.CacheConfig
 import scalacache.caffeine.CaffeineCache
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
@@ -270,25 +269,23 @@ object BlockHeaderValidation {
 
   object WithCache {
 
-    implicit private val cacheConfig: CacheConfig = CacheConfig(cacheKeyBuilder[TypedIdentifier])
-
     def make[F[_]: MonadError[*[_], Throwable]: Sync](
       underlying:       BlockHeaderValidationAlgebra[F],
       blockHeaderStore: Store[F, TypedIdentifier, BlockHeaderV2]
     ): F[BlockHeaderValidationAlgebra[F]] =
-      CaffeineCache[F, TypedIdentifier].map(implicit cache =>
+      CaffeineCache[F, Bytes, TypedIdentifier].map(implicit cache =>
         new BlockHeaderValidationAlgebra[F] {
 
           def validate(
             child:  BlockHeaderV2,
             parent: BlockHeaderV2
           ): F[Either[BlockHeaderValidationFailure, BlockHeaderV2]] =
-            OptionT(scalacache.get[F, TypedIdentifier](child.id.asTypedBytes))
+            OptionT(cache.get(child.id.asTypedBytes.allBytes))
               .map(_ => child.asRight[BlockHeaderValidationFailure])
               .getOrElseF(
                 validateParent(parent)
                   .flatMapF(_ => underlying.validate(child, parent))
-                  .semiflatTap(h => scalacache.put(h.id.asTypedBytes)(h.id.asTypedBytes))
+                  .semiflatTap(h => cache.put(h.id.asTypedBytes.allBytes)(h.id.asTypedBytes))
                   .value
               )
 

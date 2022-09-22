@@ -68,7 +68,7 @@ object LeaderElectionValidation {
       }
 
     def makeCached[F[_]: Sync: Clock](alg: LeaderElectionValidationAlgebra[F]): F[LeaderElectionValidationAlgebra[F]] =
-      CaffeineCache[F, Ratio].map(cache =>
+      CaffeineCache[F, (Ratio, Slot), Ratio].map(cache =>
         new LeaderElectionValidationAlgebra[F] {
 
           override def getThreshold(relativeStake: Ratio, slotDiff: Slot): F[Ratio] =
