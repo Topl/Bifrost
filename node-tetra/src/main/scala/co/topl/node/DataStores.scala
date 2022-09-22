@@ -16,6 +16,7 @@ import co.topl.typeclasses.implicits._
 import fs2.io.file.Path
 
 import scala.collection.immutable.ListSet
+import co.topl.interpreters.CacheStore
 
 case class DataStores[F[_]](
   parentChildTree: Store[F, TypedIdentifier, (Long, TypedIdentifier)],
@@ -34,22 +35,66 @@ case class DataStores[F[_]](
 
 object DataStores {
 
-  def init[F[_]: Async](dataDir: Path)(bigBangBlock: BlockV2.Full): F[DataStores[F]] =
+  def init[F[_]: Async](appConfig: ApplicationConfig)(bigBangBlock: BlockV2.Full): F[DataStores[F]] =
     for {
-      parentChildTree      <- makeDb[F, TypedIdentifier, (Long, TypedIdentifier)](dataDir)("parent-child-tree")
-      currentEventIds      <- makeDb[F, Byte, TypedIdentifier](dataDir)("current-event-ids")
-      slotDataStore        <- makeDb[F, TypedIdentifier, SlotData](dataDir)("slot-data")
-      blockHeaderStore     <- makeDb[F, TypedIdentifier, BlockHeaderV2](dataDir)("block-headers")
-      blockBodyStore       <- makeDb[F, TypedIdentifier, BlockBodyV2](dataDir)("block-bodies")
-      transactionStore     <- makeDb[F, TypedIdentifier, Transaction](dataDir)("transactions")
-      spendableBoxIdsStore <- makeDb[F, TypedIdentifier, NonEmptySet[Short]](dataDir)("spendable-box-ids")
-      epochBoundariesStore <- makeDb[F, Long, TypedIdentifier](dataDir)("epoch-boundaries")
-      operatorStakesStore  <- makeDb[F, StakingAddresses.Operator, Int128](dataDir)("operator-stakes")
-      activeStakeStore     <- makeDb[F, Unit, Int128](dataDir)("active-stake")
-      registrationsStore <- makeDb[F, StakingAddresses.Operator, Box.Values.Registrations.Operator](dataDir)(
-        "registrations"
+      dataDir <- Path(appConfig.bifrost.data.directory).pure[F]
+      parentChildTree <- makeCachedDb[F, TypedIdentifier, Bytes, (Long, TypedIdentifier)](dataDir)(
+        "parent-child-tree",
+        appConfig.bifrost.cache.parentChildTree,
+        _.allBytes
       )
-      blockHeightTreeStore <- makeDb[F, Long, TypedIdentifier](dataDir)("block-heights")
+      currentEventIds <- makeDb[F, Byte, TypedIdentifier](dataDir)("current-event-ids")
+      slotDataStore <- makeCachedDb[F, TypedIdentifier, Bytes, SlotData](dataDir)(
+        "slot-data",
+        appConfig.bifrost.cache.slotData,
+        _.allBytes
+      )
+      blockHeaderStore <- makeCachedDb[F, TypedIdentifier, Bytes, BlockHeaderV2](dataDir)(
+        "block-headers",
+        appConfig.bifrost.cache.headers,
+        _.allBytes
+      )
+      blockBodyStore <- makeCachedDb[F, TypedIdentifier, Bytes, BlockBodyV2](dataDir)(
+        "block-bodies",
+        appConfig.bifrost.cache.bodies,
+        _.allBytes
+      )
+      transactionStore <- makeCachedDb[F, TypedIdentifier, Bytes, Transaction](dataDir)(
+        "transactions",
+        appConfig.bifrost.cache.transactions,
+        _.allBytes
+      )
+      spendableBoxIdsStore <- makeCachedDb[F, TypedIdentifier, Bytes, NonEmptySet[Short]](dataDir)(
+        "spendable-box-ids",
+        appConfig.bifrost.cache.spendableBoxIds,
+        _.allBytes
+      )
+      epochBoundariesStore <- makeCachedDb[F, Long, java.lang.Long, TypedIdentifier](dataDir)(
+        "epoch-boundaries",
+        appConfig.bifrost.cache.epochBoundaries,
+        Long.box
+      )
+      operatorStakesStore <- makeCachedDb[F, StakingAddresses.Operator, StakingAddresses.Operator, Int128](dataDir)(
+        "operator-stakes",
+        appConfig.bifrost.cache.operatorStakes,
+        identity
+      )
+      activeStakeStore <- makeDb[F, Unit, Int128](dataDir)("active-stake")
+      registrationsStore <- makeCachedDb[
+        F,
+        StakingAddresses.Operator,
+        StakingAddresses.Operator,
+        Box.Values.Registrations.Operator
+      ](dataDir)(
+        "registrations",
+        appConfig.bifrost.cache.registrations,
+        identity
+      )
+      blockHeightTreeStore <- makeCachedDb[F, Long, java.lang.Long, TypedIdentifier](dataDir)(
+        "block-heights",
+        appConfig.bifrost.cache.blockHeightTree,
+        Long.box
+      )
 
       // Store the big bang data
       _ <- currentEventIds
@@ -96,6 +141,18 @@ object DataStores {
     name:                                                                        String
   ): F[Store[F, Key, Value]] =
     LevelDbStore.makeDb[F](dataDir / name) >>= LevelDbStore.make[F, Key, Value]
+
+  private def makeCachedDb[F[_]: Async, Key: Persistable, CacheKey <: AnyRef, Value: Persistable](dataDir: Path)(
+    name:                                                                                                  String,
+    cacheConfig:  ApplicationConfig.Bifrost.Cache.CacheConfig,
+    makeCacheKey: Key => CacheKey
+  ): F[Store[F, Key, Value]] =
+    CacheStore.make[F, Key, CacheKey, Value](
+      makeDb[F, Key, Value](dataDir)(name),
+      makeCacheKey,
+      _.maximumSize(cacheConfig.maximumEntries),
+      cacheConfig.ttl
+    )
 
 }
 

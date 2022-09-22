@@ -34,7 +34,8 @@ object ApplicationConfig {
     rpc:       Bifrost.RPC,
     mempool:   Bifrost.Mempool,
     bigBang:   Bifrost.BigBang,
-    protocols: Map[Slot, Bifrost.Protocol]
+    protocols: Map[Slot, Bifrost.Protocol],
+    cache:     Bifrost.Cache
   )
 
   object Bifrost {
@@ -94,6 +95,26 @@ object ApplicationConfig {
 
       val operationalPeriodLength: Long =
         epochLength / operationalPeriodsPerEpoch
+    }
+
+    @Lenses
+    case class Cache(
+      parentChildTree: Cache.CacheConfig,
+      slotData:        Cache.CacheConfig,
+      headers:         Cache.CacheConfig,
+      bodies:          Cache.CacheConfig,
+      transactions:    Cache.CacheConfig,
+      spendableBoxIds: Cache.CacheConfig,
+      epochBoundaries: Cache.CacheConfig,
+      operatorStakes:  Cache.CacheConfig,
+      registrations:   Cache.CacheConfig,
+      blockHeightTree: Cache.CacheConfig
+    )
+
+    object Cache {
+
+      @Lenses
+      case class CacheConfig(maximumEntries: Long, ttl: Option[FiniteDuration])
     }
   }
 
