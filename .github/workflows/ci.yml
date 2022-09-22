@@ -38,7 +38,7 @@ jobs:
       registry-auth-location: "us-central1-docker.pkg.dev"
       local-docker-repo: "toplprotocol"
       local-docker-image: "bifrost-node-tetra"
-      scala-project: "node-tetra"
+      scala-project: "nodeTetra"
     secrets: inherit
 
   publish-docker-image-qa:
