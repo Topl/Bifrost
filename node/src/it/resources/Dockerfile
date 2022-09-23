@@ -8,7 +8,8 @@ RUN apt -y install \
             ca-certificates \
             curl \
             gnupg \
-            lsb-release
+            lsb-release \
+            wget
 
 # Docker install
 # See: https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository

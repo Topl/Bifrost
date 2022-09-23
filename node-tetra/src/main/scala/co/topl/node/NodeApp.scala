@@ -87,7 +87,7 @@ object NodeApp
 
       cryptoResources <- CryptoResources.make[F]
 
-      dataStores <- DataStores.init[F](dataDir)(bigBangBlock)
+      dataStores <- DataStores.init[F](appConfig)(bigBangBlock)
       currentEventIdGetterSetters = new CurrentEventIdGetterSetters(dataStores.currentEventIds)
 
       canonicalHeadId       <- currentEventIdGetterSetters.canonicalHead.get()

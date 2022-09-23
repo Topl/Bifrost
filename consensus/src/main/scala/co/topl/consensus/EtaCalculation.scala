@@ -57,12 +57,14 @@ object EtaCalculation {
               // OR: childSlot - parentSlot > slotsPerEpoch
               case (_, _, parentSlotData) =>
                 cache.cachingF(parentSlotId.blockId.allBytes)(ttl = None)(
-                  locateTwoThirdsBest(parentSlotData)
-                    .flatMap(calculate)
-                    .flatTap(nextEta =>
-                      Logger[F]
-                        .info(show"Caching child epoch's eta for parent id=${parentSlotId.blockId} nextEta=$nextEta")
-                    )
+                  Sync[F].defer(
+                    locateTwoThirdsBest(parentSlotData)
+                      .flatMap(calculate)
+                      .flatTap(nextEta =>
+                        Logger[F]
+                          .info(show"Caching child epoch's eta for parent id=${parentSlotId.blockId} nextEta=$nextEta")
+                      )
+                  )
                 )
             }
 
@@ -88,15 +90,17 @@ object EtaCalculation {
        */
       private def calculate(twoThirdsBest: SlotData): F[Eta] =
         cache.cachingF(twoThirdsBest.slotId.blockId.allBytes)(ttl = None)(
-          for {
-            epoch      <- clock.epochOf(twoThirdsBest.slotId.slot)
-            epochRange <- clock.epochRange(epoch)
-            epochData <- NonEmptyChain(twoThirdsBest).iterateUntilM(items =>
-              fetchSlotData(items.head.parentSlotId.blockId).map(items.prepend)
-            )(items => items.head.parentSlotId.slot < epochRange.start)
-            rhoValues = epochData.map(_.rho)
-            nextEta <- calculate(previousEta = twoThirdsBest.eta, epoch + 1, rhoValues)
-          } yield nextEta
+          Sync[F].defer(
+            for {
+              epoch      <- clock.epochOf(twoThirdsBest.slotId.slot)
+              epochRange <- clock.epochRange(epoch)
+              epochData <- NonEmptyChain(twoThirdsBest).iterateUntilM(items =>
+                fetchSlotData(items.head.parentSlotId.blockId).map(items.prepend)
+              )(items => items.head.parentSlotId.slot < epochRange.start)
+              rhoValues = epochData.map(_.rho)
+              nextEta <- calculate(previousEta = twoThirdsBest.eta, epoch + 1, rhoValues)
+            } yield nextEta
+          )
         )
 
       /**

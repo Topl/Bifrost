@@ -320,6 +320,7 @@ object Dependencies {
 
   lazy val commonInterpreters =
     test ++
+    mUnitTest ++
     Seq(
       akka("actor-typed"),
       akka("actor-testkit-typed") % Test,

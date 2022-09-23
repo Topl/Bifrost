@@ -470,7 +470,16 @@ lazy val commonInterpreters = project
   )
   .settings(libraryDependencies ++= Dependencies.commonInterpreters)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, algebras, typeclasses, byteCodecs, tetraByteCodecs, catsAkka, eventTree)
+  .dependsOn(
+    models,
+    algebras,
+    typeclasses,
+    byteCodecs,
+    tetraByteCodecs,
+    catsAkka,
+    eventTree,
+    munitScalamock % "test->test"
+  )
 
 lazy val consensus = project
   .in(file("consensus"))
@@ -610,7 +619,7 @@ lazy val demo = project
     Compile / run / mainClass := Some("co.topl.demo.TetraDemo"),
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "co.topl.buildinfo.demo",
+    buildInfoPackage := "co.topl.buildinfo.demo"
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.demo ++ Dependencies.catsEffect)
   .settings(scalamacrosParadiseSettings)
