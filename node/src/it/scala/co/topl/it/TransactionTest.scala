@@ -11,6 +11,7 @@ import co.topl.rpc.ToplRpc
 import co.topl.utils.Int128
 import co.topl.utils.StringDataTypes.Latin1Data
 import com.typesafe.config.ConfigFactory
+import io.circe.syntax._
 import org.scalatest._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
@@ -61,7 +62,7 @@ class TransactionTest
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    node = dockerSupport.createNode("bifrostTestNode", nodeGroupName)
+    node = dockerSupport.createNode("e2eTransactionBuildAndSubmitTestNode", nodeGroupName)
     node.reconfigure(nodeConfig)
     node.start()
     node.waitForStartup().futureValue(Timeout(30.seconds)).value
@@ -81,7 +82,7 @@ class TransactionTest
       verifyBalanceChange(addressB, 10, _.Balances.Polys) {
         verifyBalanceChange(addressC, 0, _.Balances.Polys) {
           sendAndAwaitPolyTransaction(
-            name = "tx-poly-a-to-b-10",
+            label = "tx-poly-a-to-b-10",
             sender = NonEmptyChain(addressA),
             recipients = NonEmptyChain((addressB, 10)),
             changeAddress = addressA
@@ -95,7 +96,7 @@ class TransactionTest
     verifyBalanceChange(addressA, -10, _.Balances.Polys) {
       verifyBalanceChange(keyD.publicImage.address, 10, _.Balances.Polys) {
         sendAndAwaitPolyTransaction(
-          name = "tx-poly-a-to-d-10",
+          label = "tx-poly-a-to-d-10",
           sender = NonEmptyChain(addressA),
           recipients = NonEmptyChain((keyD.publicImage.address, 10)),
           changeAddress = addressA
@@ -108,7 +109,7 @@ class TransactionTest
     verifyBalanceChange(keyD.publicImage.address, -10, _.Balances.Polys) {
       verifyBalanceChange(burnAddress, 10, _.Balances.Polys) {
         sendAndAwaitPolyTransaction(
-          name = "tx-poly-d-to-burn-10",
+          label = "tx-poly-d-to-burn-10",
           sender = NonEmptyChain(keyD.publicImage.address),
           recipients = NonEmptyChain((burnAddress, 10)),
           changeAddress = keyD.publicImage.address
@@ -122,7 +123,7 @@ class TransactionTest
       verifyBalanceChange(addressB, 10, _.Balances.Polys) {
         verifyBalanceChange(rewardsAddress, 5, _.Balances.Polys) {
           sendAndAwaitPolyTransaction(
-            name = "tx-poly-a-to-b-10-with-fee",
+            label = "tx-poly-a-to-b-10-with-fee",
             sender = NonEmptyChain(addressA),
             recipients = NonEmptyChain((addressB, 10)),
             changeAddress = addressA,
@@ -134,34 +135,80 @@ class TransactionTest
   }
 
   "Change from a poly transaction should go to the change address" in {
-    val addressCBalance = balancesFor(addressC).Balances.Polys
-    verifyBalanceChange(addressA, addressCBalance - 10, _.Balances.Polys) {
-      verifyBalanceChange(addressB, 10, _.Balances.Polys) {
-        sendAndAwaitPolyTransaction(
-          name = "tx-poly-c-to-b-10-with-change-address",
-          sender = NonEmptyChain(addressC),
-          recipients = NonEmptyChain((addressB, 10)),
-          changeAddress = addressA
-        )
-      }
-    }
+    val prev_bal: Map[String, Int128] = Map(
+      "a_poly" -> balancesFor(addressA).Balances.Polys,
+      "b_poly" -> balancesFor(addressB).Balances.Polys,
+      "c_poly" -> balancesFor(addressC).Balances.Polys
+    )
 
-    balancesFor(addressC).Balances.Polys shouldBe Int128(0)
+    val send_amount = 10
+    val change_amount = prev_bal("c_poly") - send_amount
 
     // Now return the polys back to addressC to allow subsequent tests to work
+    verifyBalanceChange(addressA, -change_amount, _.Balances.Polys) {
+      verifyBalanceChange(addressB, -send_amount, _.Balances.Polys) {
+        verifyBalanceChange(addressC, prev_bal("c_poly"), _.Balances.Polys) {
+          verifyBalanceChange(addressA, change_amount, _.Balances.Polys) {
+            verifyBalanceChange(addressB, send_amount, _.Balances.Polys) {
+              verifyBalanceChange(addressC, -prev_bal("c_poly"), _.Balances.Polys) {
+                sendAndAwaitPolyTransaction(
+                  label = s"tx-poly_send-c-to-b-with-a-change",
+                  tx_io_desc = Some(
+                    Map(
+                      "inputs" -> List(
+                        addressC -> prev_bal("c_poly")
+                      ),
+                      "outputs" -> List(
+                        addressB -> send_amount,
+                        addressA -> change_amount
+                      )
+                    )
+                  ),
+                  sender = NonEmptyChain(addressC),
+                  recipients = NonEmptyChain((addressB, send_amount)),
+                  changeAddress = addressA
+                )
+              }
+            }
+          }
 
-    sendAndAwaitPolyTransaction(
-      name = "tx-poly-c-to-b-10-with-change-address-revert1",
-      sender = NonEmptyChain(addressA),
-      recipients = NonEmptyChain((addressC, addressCBalance - 10)),
-      changeAddress = addressA
-    )
-    sendAndAwaitPolyTransaction(
-      name = "tx-poly-c-to-b-10-with-change-address-revert2",
-      sender = NonEmptyChain(addressB),
-      recipients = NonEmptyChain((addressC, 10)),
-      changeAddress = addressB
-    )
+          sendAndAwaitPolyTransaction(
+            label = s"tx-poly_refund-a-to-c",
+            tx_io_desc = Some(
+              Map(
+                "inputs" -> List(
+                  addressA -> (prev_bal("a_poly") + change_amount)
+                ),
+                "outputs" -> List(
+                  addressC -> change_amount,
+                  addressA -> prev_bal("a_poly")
+                )
+              )
+            ),
+            sender = NonEmptyChain(addressA),
+            recipients = NonEmptyChain((addressC, change_amount)),
+            changeAddress = addressA
+          )
+          sendAndAwaitPolyTransaction(
+            label = s"tx-poly_refund-b-to-c",
+            tx_io_desc = Some(
+              Map(
+                "inputs" -> List(
+                  addressB -> (prev_bal("b_poly") + send_amount)
+                ),
+                "outputs" -> List(
+                  addressC -> send_amount,
+                  addressB -> prev_bal("b_poly")
+                )
+              )
+            ),
+            sender = NonEmptyChain(addressB),
+            recipients = NonEmptyChain((addressC, send_amount)),
+            changeAddress = addressB
+          )
+        }
+      }
+    }
   }
 
   "Arbits can be sent from addressA to addressB" in {
@@ -169,7 +216,7 @@ class TransactionTest
       verifyBalanceChange(addressB, 10, _.Balances.Arbits) {
         verifyBalanceChange(addressC, 0, _.Balances.Arbits) {
           sendAndAwaitArbitTransaction(
-            name = "tx-arbit-a-to-b-10",
+            label = "tx-arbit-a-to-b-10",
             sender = NonEmptyChain(addressA),
             recipients = NonEmptyChain((addressB, 10)),
             changeAddress = addressA,
@@ -184,7 +231,7 @@ class TransactionTest
     verifyBalanceChange(addressA, -10, _.Balances.Arbits) {
       verifyBalanceChange(keyD.publicImage.address, 10, _.Balances.Arbits) {
         sendAndAwaitArbitTransaction(
-          name = "tx-arbit-a-to-d-10",
+          label = "tx-arbit-a-to-d-10",
           sender = NonEmptyChain(addressA),
           recipients = NonEmptyChain((keyD.publicImage.address, 10)),
           changeAddress = addressA,
@@ -197,7 +244,7 @@ class TransactionTest
   "Arbits can be sent from addressD to a burner address" in {
     // addressD currently has a 0-poly balance, so we need to give it some polys in order to pay the fee for the next transaction
     sendAndAwaitPolyTransaction(
-      name = "tx-poly-c-to-d-10-2",
+      label = "tx-poly-c-to-d-10-2",
       sender = NonEmptyChain(addressC),
       recipients = NonEmptyChain((keyD.publicImage.address, 10)),
       changeAddress = addressC
@@ -207,7 +254,7 @@ class TransactionTest
       verifyBalanceChange(keyD.publicImage.address, -10, _.Balances.Arbits) {
         verifyBalanceChange(burnAddress, 10, _.Balances.Arbits) {
           sendAndAwaitArbitTransaction(
-            name = "tx-arbit-d-to-burn-10",
+            label = "tx-arbit-d-to-burn-10",
             sender = NonEmptyChain(keyD.publicImage.address),
             recipients = NonEmptyChain((burnAddress, 10)),
             changeAddress = keyD.publicImage.address,
@@ -224,7 +271,7 @@ class TransactionTest
         verifyBalanceChange(addressB, 10, _.Balances.Arbits) {
           verifyBalanceChange(rewardsAddress, 5, _.Balances.Polys) {
             sendAndAwaitArbitTransaction(
-              name = "tx-arbit-a-to-b-10-with-fee",
+              label = "tx-arbit-a-to-b-10-with-fee",
               sender = NonEmptyChain(addressA),
               recipients = NonEmptyChain((addressB, 10)),
               changeAddress = addressA,
@@ -248,7 +295,7 @@ class TransactionTest
           _.Boxes.AssetBox.find(_.value.assetCode == assetCode).fold(0: Int128)(_.value.quantity)
         ) {
           sendAndAwaitAssetTransaction(
-            name = "tx-asset-c-to-a-10",
+            label = "tx-asset-c-to-a-10",
             sender = NonEmptyChain(addressC),
             recipients = NonEmptyChain((addressA, AssetValue(10, assetCode))),
             changeAddress = addressC,
@@ -263,7 +310,7 @@ class TransactionTest
 
   "Assets can be sent from addressA to addressB (non-minting)" in {
     sendAndAwaitAssetTransaction(
-      name = "tx-asset-a-to-b-10",
+      label = "tx-asset-a-to-b-10",
       sender = NonEmptyChain(addressA),
       recipients = NonEmptyChain((addressB, AssetValue(10, assetCode))),
       changeAddress = addressA,
@@ -287,7 +334,7 @@ class TransactionTest
       verifyBalanceChange(addressB, 10, _.Balances.Polys) {
         verifyBalanceChange(newRewardsAddress, 5, _.Balances.Polys) {
           sendAndAwaitPolyTransaction(
-            name = "forger-address-change",
+            label = "forger-address-change",
             sender = NonEmptyChain(addressA),
             recipients = NonEmptyChain((addressB, 10)),
             changeAddress = addressA,
@@ -301,23 +348,22 @@ class TransactionTest
     balancesFor(newRewardsAddress).Balances.Polys shouldBe Int128(5)
   }
 
-  private def awaitBlocks(node: BifrostDockerNode)(count: Int): Unit = {
-    val currentHeight =
-      node.run(ToplRpc.NodeView.Head.rpc)(ToplRpc.NodeView.Head.Params()).value.height
-
-    logger.info(s"Waiting $count blocks")
-    node.pollUntilHeight(currentHeight + count).futureValue(Timeout((count * 5).seconds)).value
-  }
-
   private def sendAndAwaitPolyTransaction(
-    name:          String,
+    label:         String,
+    tx_io_desc:    Option[Map[String, List[(Address, Int128)]]] = None,
     sender:        NonEmptyChain[Address],
     recipients:    NonEmptyChain[(Address, Int128)],
     changeAddress: Address,
     fee:           Int128 = 0
   ): Transaction.TX = {
-    logger.info(s"Creating $name")
-    val ToplRpc.Transaction.RawPolyTransfer.Response(rawTx, _) =
+    logger.info(s"Creating $label")
+    if (tx_io_desc.nonEmpty) {
+      logger.info(
+        s"\n inputs : List[(Address, Int128)] =\t ${tx_io_desc.get("inputs")}" +
+        s"\n outputs: List[(Address, Int128)] =\t ${tx_io_desc.get("outputs")}"
+      )
+    }
+    val unprovenTransactionFromBuilder =
       node
         .run(ToplRpc.Transaction.RawPolyTransfer.rpc)(
           ToplRpc.Transaction.RawPolyTransfer.Params(
@@ -330,23 +376,36 @@ class TransactionTest
             boxSelectionAlgorithm = BoxSelectionAlgorithms.All
           )
         )
-        .value
 
-    val signedTx = rawTx.copy(attestation = keyRing.generateAttestation(sender.iterator.toSet)(rawTx.messageToSign))
+    // should assert that my transaction matches the message to sign in their transaction
 
-    broadcastAndAwait(name, signedTx)
+    unprovenTransactionFromBuilder.toOption match {
+      case Some(res) =>
+        val signedTx =
+          res.rawTx.copy(attestation = keyRing.generateAttestation(sender.iterator.toSet)(res.rawTx.messageToSign))
+        println(s">>>>>>>>> sending transaction ${signedTx.asJson}")
+        broadcastAndAwait(label, signedTx)
+      case _ => throw new Exception(s"Failed to process tx label=$label")
+    }
   }
 
   private def sendAndAwaitArbitTransaction(
-    name:                 String,
+    label:                String,
+    tx_io_desc:           Option[Map[String, List[(Address, Int128)]]] = None,
     sender:               NonEmptyChain[Address],
     recipients:           NonEmptyChain[(Address, Int128)],
     changeAddress:        Address,
     consolidationAddress: Address,
     fee:                  Int128 = 0
   ): Transaction.TX = {
-    logger.info(s"Creating $name")
-    val ToplRpc.Transaction.RawArbitTransfer.Response(rawTx, _) =
+    logger.info(s"Creating $label")
+    if (tx_io_desc.nonEmpty) {
+      logger.info(
+        s"\n inputs : List[(Address, Int128)] =\t ${tx_io_desc.get("inputs")}" +
+        s"\n outputs: List[(Address, Int128)] =\t ${tx_io_desc.get("outputs")}"
+      )
+    }
+    val unprovenTransactionFromBuilder =
       node
         .run(ToplRpc.Transaction.RawArbitTransfer.rpc)(
           ToplRpc.Transaction.RawArbitTransfer.Params(
@@ -360,15 +419,21 @@ class TransactionTest
             boxSelectionAlgorithm = BoxSelectionAlgorithms.All
           )
         )
-        .value
 
-    val signedTx = rawTx.copy(attestation = keyRing.generateAttestation(sender.iterator.toSet)(rawTx.messageToSign))
+    // should assert that my transaction matches the message to sign in their transaction
 
-    broadcastAndAwait(name, signedTx)
+    unprovenTransactionFromBuilder.toOption match {
+      case Some(res) =>
+        val signedTx =
+          res.rawTx.copy(attestation = keyRing.generateAttestation(sender.iterator.toSet)(res.rawTx.messageToSign))
+        broadcastAndAwait(label, signedTx)
+      case _ => throw new Exception(s"Failed to process tx label=$label")
+    }
   }
 
   private def sendAndAwaitAssetTransaction(
-    name:                 String,
+    label:                String,
+    tx_io_desc:           Option[Map[String, List[(Address, Int128)]]] = None,
     sender:               NonEmptyChain[Address],
     recipients:           NonEmptyChain[(Address, AssetValue)],
     changeAddress:        Address,
@@ -376,8 +441,14 @@ class TransactionTest
     minting:              Boolean,
     fee:                  Int128 = 0
   ): Transaction.TX = {
-    logger.info(s"Creating $name")
-    val ToplRpc.Transaction.RawAssetTransfer.Response(rawTx, _) =
+    logger.info(s"Creating $label")
+    if (tx_io_desc.nonEmpty) {
+      logger.info(
+        s"\n inputs : List[(Address, Int128)] =\t ${tx_io_desc.get("inputs")}" +
+        s"\n outputs: List[(Address, Int128)] =\t ${tx_io_desc.get("outputs")}"
+      )
+    }
+    val unprovenTransactionFromBuilder =
       node
         .run(ToplRpc.Transaction.RawAssetTransfer.rpc)(
           ToplRpc.Transaction.RawAssetTransfer.Params(
@@ -392,11 +463,16 @@ class TransactionTest
             boxSelectionAlgorithm = BoxSelectionAlgorithms.All
           )
         )
-        .value
 
-    val signedTx = rawTx.copy(attestation = keyRing.generateAttestation(sender.iterator.toSet)(rawTx.messageToSign))
+    // should assert that my transaction matches the message to sign in their transaction
 
-    broadcastAndAwait(name, signedTx)
+    unprovenTransactionFromBuilder.toOption match {
+      case Some(res) =>
+        val signedTx =
+          res.rawTx.copy(attestation = keyRing.generateAttestation(sender.iterator.toSet)(res.rawTx.messageToSign))
+        broadcastAndAwait(label, signedTx)
+      case _ => throw new Exception(s"Failed to process tx label=$label")
+    }
   }
 
   private def broadcastAndAwait(name: String, signedTx: Transaction.TX): Transaction.TX = {
