@@ -82,12 +82,17 @@ class TransactionSyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEff
       val invalidTransaction1 = transaction.copy(schedule = transaction.schedule.copy(minimumSlot = 5, maximumSlot = 4))
       val invalidTransaction2 =
         transaction.copy(schedule = transaction.schedule.copy(minimumSlot = -5, maximumSlot = -1))
+      val invalidTransaction3 =
+        transaction.copy(schedule = transaction.schedule.copy(minimumSlot = -1, maximumSlot = 0))
+      val invalidTransaction4 =
+        transaction.copy(schedule = transaction.schedule.copy(minimumSlot = -1, maximumSlot = 1))
       for {
         underTest <- TransactionSyntaxValidation.make[F]
-        _ <- List(invalidTransaction1, invalidTransaction2).traverse(transaction =>
-          EitherT(underTest.validate(transaction).map(_.toEither)).swap
-            .exists(_.toList.contains(TransactionSyntaxErrors.InvalidSchedule(transaction.schedule)))
-            .assert
+        _ <- List(invalidTransaction1, invalidTransaction2, invalidTransaction3, invalidTransaction4).traverse(
+          transaction =>
+            EitherT(underTest.validate(transaction).map(_.toEither)).swap
+              .exists(_.toList.contains(TransactionSyntaxErrors.InvalidSchedule(transaction.schedule)))
+              .assert
         )
       } yield ()
     }
