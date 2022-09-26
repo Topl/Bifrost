@@ -79,7 +79,8 @@ object TransactionSyntaxValidation {
     transaction: Transaction
   ): ValidatedNec[TransactionSyntaxError, Unit] =
     Validated.condNec(
-      transaction.schedule.maximumSlot >= transaction.schedule.minimumSlot && transaction.schedule.maximumSlot >= 0,
+      transaction.schedule.maximumSlot >= transaction.schedule.minimumSlot &&
+      transaction.schedule.minimumSlot >= 0,
       (),
       TransactionSyntaxErrors.InvalidSchedule(transaction.schedule)
     )
