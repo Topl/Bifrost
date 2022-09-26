@@ -6,7 +6,7 @@ Applications of the network include:
 - Supply chain tracking and verification for ethically and sustainably produced agriculture and mineral products;
 - Interoperable carbon markets for nature-based and technology driven standards;
 - Inclusive finance and trade finance projects, especially in the Global South
- 
+
 Releases
 ----------
 Begin interacting with Topl protocol using the latest `bifrost-node` client available under [Releases](https://github.com/Topl/Project-Bifrost/releases/latest). 
@@ -61,7 +61,8 @@ Testing
 - To run unit tests
    1. Go to the project directory: `cd Bifrost`
    1. Type: `sbt test`
-      - NOTE: Using sbt to run tests using the Windows command line may error. Either use Intellij IDEA's test runner or run sbt in a Unix environment. Alternatively, if you have the Linux Subsystem for Windows enabled, you can just use bash.
+      - **NOTE 1**: Using sbt to run tests using the Windows command line may error. Either use Intellij IDEA's test runner or run sbt in a Unix environment. Alternatively, if you have the Linux Subsystem for Windows enabled, you can just use bash.
+      - **NOTE 2**: In some systems, the tests might fail with an `java.lang.OutOfMemoryError`. The solution to this problem is to give the JVM more heap space and sometimes stack space. This is done through the JVM parameters `-Xmx` and `-Xms`. These parameters are passed to sbt through the file `.jvmopts`. For example, if you want to give you JVM `4G` of heap space and `1G` of stack space, you need to create a file `.jvmopts` containing the following line: `-Xmx4G -Xms1G`. With this file in the project's root directory sbt will run with the right heap and stack size.
 - To publish a Docker image for local testing, type: 
    ```
    sbt node/docker:publishLocal
