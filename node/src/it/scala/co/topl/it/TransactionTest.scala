@@ -203,7 +203,7 @@ class TransactionTest
               )
             ),
             sender = NonEmptyChain(addressB),
-            recipients = NonEmptyChain((addressC, send_amount)),
+            recipients = NonEmptyChain((addressC, send_amount), (addressB, prev_bal("b_poly"))),
             changeAddress = addressB
           )
         }
