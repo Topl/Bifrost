@@ -786,6 +786,16 @@ lazy val genus = project
   .enablePlugins(AkkaGrpcPlugin)
   .dependsOn(common)
 
+lazy val genusServer = project
+  .in(file("genus-server"))
+  .settings(
+    name := "genus-server",
+    commonSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.genusServer",
+
+  )
+
 lazy val munitScalamock = project
   .in(file("munit-scalamock"))
   .settings(
