@@ -4,7 +4,9 @@ package co.topl.genus
  * This will be the Genus server.
  */
 object Main {
+
   def main(args: Array[String]): Unit = {
     println("Hello world!")
+    println(s"BuildInfo: ${co.topl.buildinfo.genusServer.BuildInfo.toString}")
   }
 }

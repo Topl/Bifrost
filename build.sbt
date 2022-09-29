@@ -788,12 +788,12 @@ lazy val genus = project
 
 lazy val genusServer = project
   .in(file("genus-server"))
+  .enablePlugins(BuildInfoPlugin)
   .settings(
     name := "genus-server",
     commonSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.genusServer",
-
   )
 
 lazy val munitScalamock = project
