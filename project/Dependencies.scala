@@ -377,7 +377,8 @@ object Dependencies {
     test
 
   lazy val genusServer: Seq[ModuleID] =
-    cats ++
+    Seq(catsSlf4j) ++
+      cats ++
       catsEffect ++
       mainargs ++
       test
