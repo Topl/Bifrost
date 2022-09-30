@@ -112,7 +112,7 @@ def assemblySettings(main: String) = Seq(
   assembly / mainClass := Some(main),
   assembly / test := {},
   assemblyJarName := s"bifrost-node-${version.value}.jar",
-  assembly / assemblyMergeStrategy ~= { old: ((String) => MergeStrategy) =>
+  assembly / assemblyMergeStrategy ~= { old: (String => MergeStrategy) =>
     {
       case ps if ps.endsWith(".SF")  => MergeStrategy.discard
       case ps if ps.endsWith(".DSA") => MergeStrategy.discard
@@ -794,6 +794,7 @@ lazy val genusServer = project
     commonSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.genusServer",
+    libraryDependencies ++= Dependencies.genusServer
   )
 
 lazy val munitScalamock = project

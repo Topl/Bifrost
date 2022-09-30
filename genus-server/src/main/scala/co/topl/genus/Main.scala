@@ -1,12 +1,15 @@
 package co.topl.genus
 
+import cats.effect._
+
 /**
  * This will be the Genus server.
  */
-object Main {
+object Main extends IOApp {
 
-  def main(args: Array[String]): Unit = {
+  def run(args: List[String]): IO[ExitCode] = {
     println("Hello world!")
-    println(s"BuildInfo: ${co.topl.buildinfo.genusServer.BuildInfo.toString}")
+    //println(s"BuildInfo: ${co.topl.buildinfo.genusServer.BuildInfo.toString}")
+    IO.pure(ExitCode.Success)
   }
 }
