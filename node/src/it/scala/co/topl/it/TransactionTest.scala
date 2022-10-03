@@ -135,11 +135,17 @@ class TransactionTest
   }
 
   "Change from a poly transaction should go to the change address" in {
+//    val prev_bal: Map[String, Int128] = Map(
+//      "a_poly" -> balancesFor(addressA).Balances.Polys,
+//      "b_poly" -> balancesFor(addressB).Balances.Polys,
+//      "c_poly" -> balancesFor(addressC).Balances.Polys
+//    )
     val prev_bal: Map[String, Int128] = Map(
       "a_poly" -> balancesFor(addressA).Balances.Polys,
       "b_poly" -> balancesFor(addressB).Balances.Polys,
       "c_poly" -> balancesFor(addressC).Balances.Polys
     )
+    println(s"\n >>>>>>>>>>>>>>>>>>>>>>>>> prev_bal: ${prev_bal}")
 
     val send_amount = 10
     val change_amount = prev_bal("c_poly") - send_amount
@@ -203,7 +209,7 @@ class TransactionTest
               )
             ),
             sender = NonEmptyChain(addressB),
-            recipients = NonEmptyChain((addressC, send_amount), (addressB, prev_bal("b_poly"))),
+            recipients = NonEmptyChain((addressC, send_amount)),
             changeAddress = addressB
           )
         }
