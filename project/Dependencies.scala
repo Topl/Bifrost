@@ -12,7 +12,7 @@ object Dependencies {
   val catsEffectVersion = "3.3.14"
   val fs2Version = "3.2.12"
 
-  val catsSlf4j =
+  val catsSlf4j: ModuleID =
     "org.typelevel" %% "log4cats-slf4j" % "2.4.0"
 
   val logging: Seq[ModuleID] = Seq(
@@ -377,10 +377,9 @@ object Dependencies {
     test
 
   lazy val genusServer: Seq[ModuleID] =
-    Seq(catsSlf4j) ++
-      cats ++
-      catsEffect ++
-      mainargs ++
+    cats ++ catsEffect ++ mainargs ++ logging ++ monocle ++ Seq(
+      catsSlf4j
+    ) ++
       test
 
   lazy val munitScalamock: Seq[sbt.ModuleID] =
