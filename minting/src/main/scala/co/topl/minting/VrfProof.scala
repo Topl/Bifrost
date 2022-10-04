@@ -44,7 +44,7 @@ object VrfProof {
           )
       )
 
-    private class Impl[F[_]: MonadError[*[_], Throwable]: Sync: Logger: Parallel](
+    private class Impl[F[_]: Sync: Logger: Parallel](
       skVrf:                    SecretKeys.VrfEd25519,
       clock:                    ClockAlgebra[F],
       leaderElectionValidation: LeaderElectionValidationAlgebra[F],
