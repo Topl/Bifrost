@@ -797,6 +797,16 @@ lazy val genusServer = project
     libraryDependencies ++= Dependencies.genusServer
   )
 
+lazy val genusLibrary = project
+  .in(file("genus-library"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "genus-library",
+    commonSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.genusLibrary"
+  )
+
 lazy val munitScalamock = project
   .in(file("munit-scalamock"))
   .settings(
