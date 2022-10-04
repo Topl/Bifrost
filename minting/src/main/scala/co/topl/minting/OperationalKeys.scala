@@ -2,8 +2,7 @@ package co.topl.minting
 
 import cats._
 import cats.data._
-import cats.effect.{MonadCancelThrow, Ref}
-import cats.effect.kernel.Concurrent
+import cats.effect.{Async, MonadCancelThrow, Ref, Sync}
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras._
@@ -33,7 +32,7 @@ object OperationalKeys {
      * @param activationOperationalPeriod The operational period number in which the staker becomes active
      * @param address The staker's address
      */
-    def make[F[_]: Concurrent: Logger](
+    def make[F[_]: Async: Parallel: Logger](
       secureStore:                 SecureStore[F],
       clock:                       ClockAlgebra[F],
       vrfProof:                    VrfProofAlgebra[F],
@@ -86,7 +85,7 @@ object OperationalKeys {
         ref
       )
 
-    def make[F[_]: MonadCancelThrow: Logger](
+    def make[F[_]: Sync: Parallel: Logger](
       secureStore:                 SecureStore[F],
       clock:                       ClockAlgebra[F],
       vrfProof:                    VrfProofAlgebra[F],
@@ -190,7 +189,7 @@ object OperationalKeys {
      *
      * @param parentSlotId Used for Eta lookup when determining ineligible VRF slots
      */
-    private def prepareOperationalPeriodKeys[F[_]: Monad: Logger](
+    private def prepareOperationalPeriodKeys[F[_]: Sync: Parallel: Logger](
       kesParent:               SecretKeys.KesProduct,
       fromSlot:                Slot,
       parentSlotId:            SlotId,
@@ -229,31 +228,42 @@ object OperationalKeys {
     /**
      * From some "parent" KES key, create several SKs for each slot in the given list of slots
      */
-    private def prepareOperationalPeriodKeys[F[_]: Monad](
+    private def prepareOperationalPeriodKeys[F[_]: Sync: Parallel](
       kesParent:          SecretKeys.KesProduct,
       slots:              Vector[Slot],
       kesProductResource: UnsafeResource[F, KesProduct],
       ed25519Resource:    UnsafeResource[F, Ed25519]
     ): F[Vector[OperationalKeyOut]] =
-      ed25519Resource
-        .use(ed =>
-          List.fill(slots.size)(ed.deriveKeyPairFromEntropy(Entropy.fromUuid(UUID.randomUUID()), None)).pure[F]
+      Sync[F]
+        .delay(List.fill(slots.size)(()))
+        .flatMap(
+          _.parTraverse(_ =>
+            ed25519Resource.use(ed =>
+              Sync[F].delay(
+                ed.deriveKeyPairFromEntropy(Entropy.fromUuid(UUID.randomUUID()), None)
+              )
+            )
+          )
         )
         .flatMap(children =>
-          kesProductResource.use { kesProductScheme =>
-            val parentVK = kesProductScheme.getVerificationKey(kesParent)
-            slots
-              .zip(children)
-              .map { case (slot, (childSK, childVK)) =>
-                val parentSignature =
-                  kesProductScheme.sign(
-                    kesParent,
-                    (childVK.bytes.data ++ Bytes(Longs.toByteArray(slot)))
+          kesProductResource
+            .use(r => Sync[F].delay(r.getVerificationKey(kesParent)))
+            .flatMap(parentVK =>
+              slots
+                .zip(children)
+                .parTraverse { case (slot, (childSK, childVK)) =>
+                  kesProductResource.use(kesProductScheme =>
+                    Sync[F].delay {
+                      val parentSignature =
+                        kesProductScheme.sign(
+                          kesParent,
+                          childVK.bytes.data ++ Bytes(Longs.toByteArray(slot))
+                        )
+                      OperationalKeyOut(slot, childSK, parentSignature, parentVK)
+                    }
                   )
-                OperationalKeyOut(slot, childSK, parentSignature, parentVK)
-              }
-              .pure[F]
-          }
+                }
+            )
         )
   }
 }
