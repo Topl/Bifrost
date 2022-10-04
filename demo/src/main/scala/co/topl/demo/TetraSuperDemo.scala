@@ -128,14 +128,15 @@ object TetraSuperDemo extends IOApp {
   ) =
     Sync[F].defer(
       for {
-        blake2b256Resource <- ActorPoolUnsafeResource.Eval.make[F, Blake2b256](new Blake2b256, _ => ())
-        blake2b512Resource <- ActorPoolUnsafeResource.Eval.make[F, Blake2b512](new Blake2b512, _ => ())
-        ed25519VRFResource <- ActorPoolUnsafeResource.Eval.make[F, Ed25519VRF](Ed25519VRF.precomputed(), _ => ())
-        kesProductResource <- ActorPoolUnsafeResource.Eval.make[F, KesProduct](new KesProduct, _ => ())
-        curve25519Resource <- ActorPoolUnsafeResource.Eval.make[F, Curve25519](new Curve25519, _ => ())
-        ed25519Resource    <- ActorPoolUnsafeResource.Eval.make[F, Ed25519](new Ed25519, _ => ())
-        extendedEd25519Resource <- ActorPoolUnsafeResource.Eval
-          .make[F, ExtendedEd25519](ExtendedEd25519.precomputed(), _ => ())
+        resourceMaxParallelism <- Sync[F].delay(Runtime.getRuntime.availableProcessors())
+        blake2b256Resource     <- CatsUnsafeResource.make[F, Blake2b256](new Blake2b256, resourceMaxParallelism)
+        blake2b512Resource     <- CatsUnsafeResource.make[F, Blake2b512](new Blake2b512, resourceMaxParallelism)
+        ed25519VRFResource <- CatsUnsafeResource.make[F, Ed25519VRF](Ed25519VRF.precomputed(), resourceMaxParallelism)
+        kesProductResource <- CatsUnsafeResource.make[F, KesProduct](new KesProduct, resourceMaxParallelism)
+        curve25519Resource <- CatsUnsafeResource.make[F, Curve25519](new Curve25519, resourceMaxParallelism)
+        ed25519Resource    <- CatsUnsafeResource.make[F, Ed25519](new Ed25519, resourceMaxParallelism)
+        extendedEd25519Resource <- CatsUnsafeResource
+          .make[F, ExtendedEd25519](ExtendedEd25519.precomputed(), resourceMaxParallelism)
         loggerColor = loggerColors(stakerIndex).toString
         implicit0(logger: Logger[F]) = Slf4jLogger
           .getLoggerFromName[F](s"node.${loggerColor}$stakerName${Console.RESET}")
