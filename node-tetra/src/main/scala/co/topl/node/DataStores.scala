@@ -13,10 +13,11 @@ import co.topl.crypto.signing.Ed25519VRF
 import co.topl.db.leveldb.LevelDbStore
 import co.topl.models._
 import co.topl.typeclasses.implicits._
-import fs2.io.file.Path
+import fs2.io.file.{Files, Path}
 
 import scala.collection.immutable.ListSet
 import co.topl.interpreters.CacheStore
+import org.typelevel.log4cats.Logger
 
 case class DataStores[F[_]](
   parentChildTree: Store[F, TypedIdentifier, (Long, TypedIdentifier)],
@@ -35,9 +36,11 @@ case class DataStores[F[_]](
 
 object DataStores {
 
-  def init[F[_]: Async](appConfig: ApplicationConfig)(bigBangBlock: BlockV2.Full): F[DataStores[F]] =
+  def init[F[_]: Async: Logger](appConfig: ApplicationConfig)(bigBangBlock: BlockV2.Full): F[DataStores[F]] =
     for {
-      dataDir <- Path(appConfig.bifrost.data.directory).pure[F]
+      dataDir <- (Path(appConfig.bifrost.data.directory) / bigBangBlock.headerV2.id.asTypedBytes.show).pure[F]
+      _       <- Files[F].createDirectories(dataDir)
+      _       <- Logger[F].info(show"Using dataDir=$dataDir")
       parentChildTree <- makeCachedDb[F, TypedIdentifier, Bytes, (Long, TypedIdentifier)](dataDir)(
         "parent-child-tree",
         appConfig.bifrost.cache.parentChildTree,
@@ -98,9 +101,10 @@ object DataStores {
 
       // Store the big bang data
       _ <- currentEventIds
-        .contains(0)
+        .contains(CurrentEventIdGetterSetters.Indices.CanonicalHead)
         .ifM(
-          Applicative[F].unit,
+          Logger[F].info("Data stores are already initialized") >> Applicative[F].unit,
+          Logger[F].info("Initializing data stores") >>
           currentEventIds.put(CurrentEventIdGetterSetters.Indices.CanonicalHead, bigBangBlock.headerV2.id) >>
           List(
             CurrentEventIdGetterSetters.Indices.ConsensusData,

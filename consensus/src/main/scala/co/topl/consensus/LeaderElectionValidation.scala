@@ -1,8 +1,7 @@
 package co.topl.consensus
 
-import cats.Monad
 import cats.implicits._
-import cats.effect.kernel.{Clock, Sync}
+import cats.effect.{Clock, Sync}
 import co.topl.algebras.{Exp, Log1p, UnsafeResource}
 import co.topl.codecs.bytes.typeclasses.Signable
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
@@ -29,7 +28,7 @@ object LeaderElectionValidation {
      */
     private val NormalizationConstant: BigInt = BigInt(2).pow(512)
 
-    def make[F[_]: Monad](
+    def make[F[_]: Sync](
       config:             VrfConfig,
       blake2b512Resource: UnsafeResource[F, Blake2b512],
       exp:                Exp[F],
@@ -58,13 +57,15 @@ object LeaderElectionValidation {
          * @param rho the randomness
          * @return true if elected slot leader and false otherwise
          */
-        def isSlotLeaderForThreshold(threshold: Ratio)(rho: Rho): F[Boolean] = blake2b512Resource.use {
-          implicit blake2b512 =>
-            val testRhoHash = Ed25519VRF.rhoToRhoTestHash(rho)
-            val testRhoHashBytes = testRhoHash.sizedBytes.data.toArray
-            val test = Ratio(BigInt(Array(0x00.toByte) ++ testRhoHashBytes), NormalizationConstant, BigInt(1))
-            (threshold > test).pure[F]
-        }
+        def isSlotLeaderForThreshold(threshold: Ratio)(rho: Rho): F[Boolean] =
+          blake2b512Resource.use(implicit blake2b512 =>
+            Sync[F].delay {
+              val testRhoHash = Ed25519VRF.rhoToRhoTestHash(rho)
+              val testRhoHashBytes = testRhoHash.sizedBytes.data.toArray
+              val test = Ratio(BigInt(Array(0x00.toByte) ++ testRhoHashBytes), NormalizationConstant, BigInt(1))
+              (threshold > test)
+            }
+          )
       }
 
     def makeCached[F[_]: Sync: Clock](alg: LeaderElectionValidationAlgebra[F]): F[LeaderElectionValidationAlgebra[F]] =
