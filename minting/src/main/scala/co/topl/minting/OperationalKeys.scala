@@ -159,6 +159,16 @@ object OperationalKeys {
             latest  <- OptionT.liftF(kesProductResource.use(_.getCurrentStep(diskKey).pure[F]))
             currentPeriodKey <-
               if (latest === timeStep) OptionT.pure[F](diskKey)
+              else if (latest > timeStep)
+                OptionT
+                  .none[F, SecretKeys.KesProduct]
+                  .flatTapNone(
+                    Logger[F].info(
+                      show"Persisted key timeStep=$latest is greater than current timeStep=$timeStep." +
+                      show"  Re-persisting original key."
+                    ) >>
+                    secureStore.write(fileName, diskKey)
+                  )
               else OptionT.liftF(kesProductResource.use(_.update(diskKey, timeStep.toInt).pure[F]))
             res <- OptionT.liftF(use(currentPeriodKey))
             nextTimeStep = timeStep + 1

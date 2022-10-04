@@ -104,10 +104,10 @@ object Blockchain {
         blockHeights,
         localChain,
         localBlockAdoptionsSource
-          .tapAsyncF(1)(id => Logger[F].info(show"Broadcasting block id=$id to peers"))
+          .tapAsyncF(1)(id => Logger[F].debug(show"Broadcasting block id=$id to peer"))
           .pure[F],
         localTransactionAdoptionsSource
-          .tapAsyncF(1)(id => Logger[F].info(show"Broadcasting transaction id=$id to peers"))
+          .tapAsyncF(1)(id => Logger[F].debug(show"Broadcasting transaction id=$id to peer"))
           .pure[F]
       )
       (p2pServer, p2pFiber) <- BlockchainNetwork
@@ -165,7 +165,11 @@ object Blockchain {
               .use(implicit e => block.headerV2.slotData.pure[F])
               .flatTap(slotDataStore.put(block.headerV2.id, _))
           )
-          .tapAsyncF(1)(slotData => Logger[F].info(show"Adopted blockId=${slotData.slotId.blockId}"))
+          .tapAsyncF(1)(slotData =>
+            Logger[F].info(
+              show"Adopted head block id=${slotData.slotId.blockId} height=${slotData.height} slot=${slotData.slotId.slot}"
+            )
+          )
           .map(Validated.Valid(_))
           .tapAsyncF(1)(localChain.adopt)
           .toMat(Sink.ignore)(Keep.right)
