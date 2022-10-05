@@ -380,11 +380,11 @@ object Dependencies {
     cats ++ catsEffect ++ mainargs ++ logging ++ monocle ++ Seq(
       catsSlf4j
     ) ++
-      test
+      mUnitTest
 
   lazy val genusLibrary: Seq[ModuleID] =
     logging ++
-      test
+      mUnitTest
 
   lazy val munitScalamock: Seq[sbt.ModuleID] =
     mUnitTest
