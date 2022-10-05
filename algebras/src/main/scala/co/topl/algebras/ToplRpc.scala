@@ -17,4 +17,6 @@ trait ToplRpc[F[_]] {
   def fetchTransaction(transactionId: TypedIdentifier): F[Option[Transaction]]
 
   def blockIdAtHeight(height: Long): F[Option[TypedIdentifier]]
+
+  def blockIdAtDepth(depth: Long): F[Option[TypedIdentifier]]
 }

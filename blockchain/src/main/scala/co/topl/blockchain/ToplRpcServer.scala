@@ -30,13 +30,6 @@ object ToplRpcServer {
 
   }
 
-  implicit private val showTransactionSemanticError: Show[TransactionSemanticError] = {
-    case TransactionSemanticErrors.InputDataMismatch(input) => show"InputDataMismatch(boxId=${input.boxId})"
-    case TransactionSemanticErrors.UnspendableBox(boxId)    => show"UnspendableBox(boxId=$boxId)"
-    case TransactionSemanticErrors.UnsatisfiedSchedule(slot, schedule) =>
-      show"UnsatisfiedSchedule(slot=$slot, minimumSlot=${schedule.minimumSlot}, maximumSlot=${schedule.maximumSlot})"
-  }
-
   /**
    * Interpreter which serves Topl RPC data using local blockchain interpreters
    */
@@ -60,7 +53,7 @@ object ToplRpcServer {
               Logger[F].info(show"Received RPC Transaction id=${transaction.id.asTypedBytes}") >>
               syntacticValidateOrRaise(transaction)
                 .flatTap(_ =>
-                  Logger[F].info(show"Transaction id=${transaction.id.asTypedBytes} is syntactically valid")
+                  Logger[F].debug(show"Transaction id=${transaction.id.asTypedBytes} is syntactically valid")
                 )
                 .flatTap(processValidTransaction[F](transactionStore, mempool))
                 .void
@@ -79,7 +72,24 @@ object ToplRpcServer {
           transactionStore.get(transactionId)
 
         def blockIdAtHeight(height: Long): F[Option[TypedIdentifier]] =
-          localChain.head.map(_.slotId.blockId).flatMap(blockHeights.useStateAt(_)(_.apply(height)))
+          for {
+            _    <- Async[F].raiseWhen(height < 1)(new IllegalArgumentException("Invalid height"))
+            head <- localChain.head
+            atHeight <-
+              if (head.height === height) head.slotId.blockId.some.pure[F]
+              else if (head.height < height) none.pure[F]
+              else blockHeights.useStateAt(head.slotId.blockId)(_.apply(height))
+          } yield atHeight
+
+        def blockIdAtDepth(depth: Long): F[Option[TypedIdentifier]] =
+          for {
+            _    <- Async[F].raiseWhen(depth < 0)(new IllegalArgumentException("Negative depth"))
+            head <- localChain.head
+            atDepth <-
+              if (depth === 0L) head.slotId.blockId.some.pure[F]
+              else if (depth > head.height) none.pure[F]
+              else blockHeights.useStateAt(head.slotId.blockId)(_.apply(head.height - depth))
+          } yield atDepth
 
         private def syntacticValidateOrRaise(transaction: Transaction) =
           EitherT(syntacticValidation.validate(transaction).map(_.toEither))
@@ -88,8 +98,12 @@ object ToplRpcServer {
                 show"Received syntactically invalid transaction id=${transaction.id.asTypedBytes} reasons=$errors"
               )
             )
-            .leftMap(_ =>
-              new IllegalArgumentException(s"Syntactically invalid transaction id=${transaction.id.asTypedBytes}")
+            .leftMap(errors =>
+              new IllegalArgumentException(
+                show"Syntactically invalid transaction" +
+                show" id=${transaction.id.asTypedBytes}" +
+                show" reasons=$errors"
+              )
             )
             .rethrowT
       }

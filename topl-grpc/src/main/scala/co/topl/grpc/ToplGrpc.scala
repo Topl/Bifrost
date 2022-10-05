@@ -143,6 +143,20 @@ object ToplGrpc {
               .semiflatMap(_.toF[F, bifrostModels.TypedIdentifier])
               .semiflatMap(EitherT.fromEither[F](_).leftMap(new IllegalArgumentException(_)).rethrowT)
               .value
+
+          def blockIdAtDepth(depth: Long): F[Option[TypedIdentifier]] =
+            OptionT(
+              Async[F]
+                .fromFuture(
+                  Async[F].delay(
+                    client.fetchBlockIdAtDepth(services.FetchBlockIdAtDepthReq(depth))
+                  )
+                )
+                .map(_.blockId)
+            )
+              .semiflatMap(_.toF[F, bifrostModels.TypedIdentifier])
+              .semiflatMap(EitherT.fromEither[F](_).leftMap(new IllegalArgumentException(_)).rethrowT)
+              .value
         }
       }
   }
@@ -275,6 +289,19 @@ object ToplGrpc {
             )
             .value
             .map(services.FetchBlockIdAtHeightRes(_))
+            .adaptErrorsToGrpc
+        )
+
+      def fetchBlockIdAtDepth(in: services.FetchBlockIdAtDepthReq): Future[services.FetchBlockIdAtDepthRes] =
+        implicitly[FToFuture[F]].apply(
+          OptionT(interpreter.blockIdAtDepth(in.depth))
+            .semiflatMap(id =>
+              EitherT(id.toF[F, models.BlockId])
+                .leftMap(e => new GrpcServiceException(Status.DATA_LOSS.withDescription(e)))
+                .rethrowT
+            )
+            .value
+            .map(services.FetchBlockIdAtDepthRes(_))
             .adaptErrorsToGrpc
         )
     }
