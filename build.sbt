@@ -804,7 +804,8 @@ lazy val genusLibrary = project
     name := "genus-library",
     commonSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "co.topl.buildinfo.genusLibrary"
+    buildInfoPackage := "co.topl.buildinfo.genusLibrary",
+    libraryDependencies ++= Dependencies.genusLibrary
   )
 
 lazy val munitScalamock = project
