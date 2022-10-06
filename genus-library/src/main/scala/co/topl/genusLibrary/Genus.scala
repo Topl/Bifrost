@@ -1,5 +1,6 @@
 package co.topl.genusLibrary
 
+import co.topl.genusLibrary.util.Log
 import com.typesafe.scalalogging.Logger
 
 import scala.util.{Success, Try}
@@ -15,20 +16,24 @@ class Genus {
 }
 
 object Genus {
-  private val logger = Logger(classOf[Genus])
+  private implicit val logger: Logger = Logger(classOf[Genus])
+
+  logger.info("Constructing Genus instance")
 
   /**
    * This variable refers to the running instance of Genus when it is defined.
    * Call the startup method to define it.
    */
-  val instance = Option.empty[Genus]
+  private val instance = Option.empty[Genus]
 
   /**
-   * This method must be called to start Genus before any other operations are allowed
+   * This method returns the active instance of Genus. If one does not exist, it is created.
    */
-  def startUp:Try[Genus] = {
-    this.synchronized {
-      Success(instance.get)
+  def getGenus:Try[Genus] = {
+    Log.debug("getGenus called: {}") {
+      this.synchronized {
+        instance.map(Success(_)).getOrElse(Try(new Genus))
+      }
     }
   }
 

@@ -1,5 +1,7 @@
 package co.topl.genusLibrary
 
+import co.topl.genusLibrary.util.Log
+
 /**
  * Base exception class for the Genus library.
  *

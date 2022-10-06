@@ -377,7 +377,12 @@ object Dependencies {
     test
 
   lazy val genusServer: Seq[ModuleID] =
-    cats ++ catsEffect ++ mainargs ++ logging ++ monocle ++ Seq(
+    cats ++
+      catsEffect ++
+      mainargs ++
+      logging ++
+      monocle ++
+      Seq(
       catsSlf4j
     ) ++
       mUnitTest

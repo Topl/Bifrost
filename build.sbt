@@ -795,7 +795,7 @@ lazy val genusServer = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.genusServer",
     libraryDependencies ++= Dependencies.genusServer
-  )
+  ).dependsOn(genusLibrary)
 
 lazy val genusLibrary = project
   .in(file("genus-library"))
