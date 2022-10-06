@@ -112,7 +112,7 @@ def assemblySettings(main: String) = Seq(
   assembly / mainClass := Some(main),
   assembly / test := {},
   assemblyJarName := s"bifrost-node-${version.value}.jar",
-  assembly / assemblyMergeStrategy ~= { old: ((String) => MergeStrategy) =>
+  assembly / assemblyMergeStrategy ~= { old: (String => MergeStrategy) =>
     {
       case ps if ps.endsWith(".SF")  => MergeStrategy.discard
       case ps if ps.endsWith(".DSA") => MergeStrategy.discard
@@ -785,6 +785,28 @@ lazy val genus = project
   )
   .enablePlugins(AkkaGrpcPlugin)
   .dependsOn(common)
+
+lazy val genusServer = project
+  .in(file("genus-server"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "genus-server",
+    commonSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.genusServer",
+    libraryDependencies ++= Dependencies.genusServer
+  )
+
+lazy val genusLibrary = project
+  .in(file("genus-library"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "genus-library",
+    commonSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.genusLibrary",
+    libraryDependencies ++= Dependencies.genusLibrary
+  )
 
 lazy val munitScalamock = project
   .in(file("munit-scalamock"))
