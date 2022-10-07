@@ -3,6 +3,8 @@ package co.topl.genusLibrary
 import co.topl.genusLibrary.util.Log
 import com.typesafe.scalalogging.Logger
 
+import scala.reflect.ClassTag.Nothing
+import scala.runtime.Nothing$
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -14,7 +16,7 @@ class Genus {
 
   private def shutDown(): Try[Unit] = {
     logger.info("Genus shutting down")
-    Success()
+    Success(())
   }
 }
 
