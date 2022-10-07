@@ -367,6 +367,11 @@ object Dependencies {
   lazy val genus: Seq[ModuleID] =
     Seq(
       "com.lightbend.akka" %% "akka-stream-alpakka-mongodb" % "3.0.4",
+      "com.orientechnologies" % "orientdb-core" % "3.2.10",
+      "com.orientechnologies" % "orientdb-server" % "3.2.10",
+      "com.orientechnologies" % "orientdb-client" % "3.2.10",
+      "com.orientechnologies" % "orientdb-tools" % "3.2.10",
+      "com.googlecode.concurrentlinkedhashmap" % "concurrentlinkedhashmap-lru" % "1.4.2",
       scalaPb
     ) ++
     allAkka ++
