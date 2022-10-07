@@ -13,9 +13,11 @@ import scala.util.{Failure, Success, Try}
  */
 class Genus {
   import Genus.logger
+  private var orientDB = OrientDBFacade()
 
   private def shutDown(): Try[Unit] = {
     logger.info("Genus shutting down")
+    orientDB.shutdown()
     Success(())
   }
 }
