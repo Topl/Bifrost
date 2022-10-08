@@ -5,14 +5,17 @@ import com.typesafe.scalalogging.Logger
 import scala.util.{Failure, Try}
 
 /**
- * Log, at info level, the result of an expression like this:
- * {{{
- *   Log.info("f returned {}") {
- *     f(oneArg, anotherArg)
- *   }
- * }}}
+ * Defs to make logging compatible with functional programming style
  */
 object Log {
+  /**
+   * Log, at info level, the result of an expression like this:
+   * {{{
+   *   Log.info("f returned {}") {
+   *     f(oneArg, anotherArg)
+   *   }
+   * }}}
+   */
   def info[T](message: String)( body: => T)(implicit logger: Logger): T = {
     val result:T = body
     logger.info(message, result)
@@ -33,18 +36,18 @@ object Log {
     result
   }
 
-  /**
-   * Log the given Try if it is a Failure
-   *
-   * @param message the message to log
-   * @param t The Try that will be logged if it is a Failure
-   * @tparam T The type of the Try
-   * @return the Try
-   */
-  def ifFailure[T](message: String)(t: Try[T])(implicit logger: Logger): Try[T] = {
-    t.recoverWith(f => {
-      logger.error(message, f)
-      Failure(f)
-    })
+  implicit class TryLogging[T](t: Try[T]) {
+    /**
+     * Log the given Try if it is a Failure
+     *
+     * @param message the message to log
+     * @return the Try
+     */
+    def logIfFailure(message: String)(implicit logger: Logger): Try[T] = {
+      t.recoverWith(f => {
+        logger.error(message, f)
+        Failure(f)
+      })
+    }
   }
 }

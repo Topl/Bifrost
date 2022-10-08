@@ -6,6 +6,7 @@ import com.typesafe.scalalogging.Logger
 import scala.reflect.ClassTag.Nothing
 import scala.runtime.Nothing$
 import scala.util.{Failure, Success, Try}
+import Log._
 
 /**
  * This is the main class of Genus. It captures blocks in an OrientDB database and provides ways to index and query the
@@ -46,7 +47,7 @@ object Genus {
         instance.map(Success(_)).getOrElse(Try{
           instance = Some(new Genus)
           instance.get
-        })
+        }.logIfFailure("Failed to create Genus instance"))
       }
     }
   }
