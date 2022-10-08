@@ -12,7 +12,8 @@ import java.io.File
 class OrientDBFacade {
   import OrientDBFacade._
 
-  var dbDirectory = new File("genus")
+  var dbDirectory = new File("genus_db")
+  private var RootPassword = "ae9fdaiwbfb9vu=vvau2#"
 
   setupOrientDBEnvironment()
   logger.info("Starting OrientDB")
@@ -37,7 +38,7 @@ class OrientDBFacade {
   private def setupOrientDBEnvironment(): Unit = {
     ensureDirectoryExists(dbDirectory)
     System.setProperty("ORIENTDB_HOME", dbDirectory.getAbsolutePath)
-
+    System.setProperty("ORIENTDB_ROOT_PASSWORD", RootPassword)
   }
 }
 
