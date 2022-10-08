@@ -11,7 +11,7 @@ import java.io.File
 class OrientDBFacade {
   import OrientDBFacade.logger
 
-  private var DbDirectoryName = "genus"
+  var dbDirectory = new File("genus")
 
   setupOrientDBEnvironment()
   logger.info("Starting OrientDB")
@@ -31,13 +31,12 @@ class OrientDBFacade {
   }
 
   private def ensureGenusDirectoryExists(): Unit = {
-    var file = new File(DbDirectoryName)
-    if (!file.isDirectory) {
-      if (file.exists)
-        throw GenusException(s"${file.getAbsolutePath} exists but is not a directory.")
-      else if (!file.mkdir())
-        throw GenusException(s"Failed to create directory ${file.getAbsolutePath}")
-    }
+    if (!dbDirectory.isDirectory)
+      if (dbDirectory.exists)
+        throw GenusException(s"${dbDirectory.getAbsolutePath} exists but is not a directory.")
+      else if (!dbDirectory.mkdir())
+        throw GenusException(s"Failed to create directory ${dbDirectory.getAbsolutePath}")
+    else logger.debug("Using existing Genus database directory {}", dbDirectory.getAbsolutePath)
   }
 }
 
