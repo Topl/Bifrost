@@ -1,6 +1,7 @@
 package co.topl.genusLibrary
 
 import com.orientechnologies.orient.server.OServerMain
+import com.orientechnologies.orient.server.config.OServerConfiguration
 import com.typesafe.scalalogging.Logger
 
 import java.io.File
@@ -16,6 +17,8 @@ class OrientDBFacade {
   setupOrientDBEnvironment()
   logger.info("Starting OrientDB")
   private var server = OServerMain.create(true)  // true argument request shutdown of server on exit.
+  server.startup() // Use the default OrientDB server configuration
+  server.activate()
 
   /**
    * Shut down the OrientDB server.
@@ -26,8 +29,15 @@ class OrientDBFacade {
     server.shutdown()
   }
 
+  private val HardcodedConfig =
+    """
+      |
+      |""".stripMargin
+
   private def setupOrientDBEnvironment(): Unit = {
     ensureDirectoryExists(dbDirectory)
+    System.setProperty("ORIENTDB_HOME", dbDirectory.getAbsolutePath)
+
   }
 }
 
