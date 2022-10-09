@@ -1,6 +1,6 @@
 package co.topl.it
 
-import cats.data.NonEmptyChain
+import cats.data.{EitherT, NonEmptyChain}
 import co.topl.attestation._
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.it.util._
@@ -58,6 +58,7 @@ class TransactionTest
   private def addressB: Address = addresses(1)
   private def addressC: Address = addresses(2)
   private def rewardsAddress: Address = addresses.last
+  private def rewardsAddress2: Address = addresses(3)
   private var keyD: PrivateKeyCurve25519 = _
 
   override def beforeAll(): Unit = {
@@ -135,11 +136,6 @@ class TransactionTest
   }
 
   "Change from a poly transaction should go to the change address" in {
-//    val prev_bal: Map[String, Int128] = Map(
-//      "a_poly" -> balancesFor(addressA).Balances.Polys,
-//      "b_poly" -> balancesFor(addressB).Balances.Polys,
-//      "c_poly" -> balancesFor(addressC).Balances.Polys
-//    )
     val prev_bal: Map[String, Int128] = Map(
       "a_poly" -> balancesFor(addressA).Balances.Polys,
       "b_poly" -> balancesFor(addressB).Balances.Polys,
@@ -150,10 +146,9 @@ class TransactionTest
     val send_amount = 10
     val change_amount = prev_bal("c_poly") - send_amount
 
-    // Now return the polys back to addressC to allow subsequent tests to work
-    verifyBalanceChange(addressA, -change_amount, _.Balances.Polys) {
-      verifyBalanceChange(addressB, -send_amount, _.Balances.Polys) {
-        verifyBalanceChange(addressC, prev_bal("c_poly"), _.Balances.Polys) {
+    verifyBalanceChange(addressA, 0, _.Balances.Polys) {
+      verifyBalanceChange(addressB, 0, _.Balances.Polys) {
+        verifyBalanceChange(addressC, 0, _.Balances.Polys) {
           verifyBalanceChange(addressA, change_amount, _.Balances.Polys) {
             verifyBalanceChange(addressB, send_amount, _.Balances.Polys) {
               verifyBalanceChange(addressC, -prev_bal("c_poly"), _.Balances.Polys) {
@@ -331,27 +326,28 @@ class TransactionTest
   }
 
   "Fees are sent to the proper address after a forger address update" in {
-    val newRewardsAddress =
-      node.run(ToplRpc.Admin.GenerateKeyfile.rpc)(ToplRpc.Admin.GenerateKeyfile.Params("rewards")).value.address
 
-    node.run(ToplRpc.Admin.UpdateRewardsAddress.rpc)(ToplRpc.Admin.UpdateRewardsAddress.Params(newRewardsAddress)).value
+    val spend = 10
+    val fee = 5
 
-    verifyBalanceChange(addressA, -15, _.Balances.Polys) {
-      verifyBalanceChange(addressB, 10, _.Balances.Polys) {
-        verifyBalanceChange(newRewardsAddress, 5, _.Balances.Polys) {
-          sendAndAwaitPolyTransaction(
-            label = "forger-address-change",
-            sender = NonEmptyChain(addressA),
-            recipients = NonEmptyChain((addressB, 10)),
-            changeAddress = addressA,
-            fee = 5
-          )
+    for {
+      _ <- node.run(ToplRpc.Admin.StopForging.rpc)(ToplRpc.Admin.StopForging.Params())
+      _ <- node.run(ToplRpc.Admin.UpdateRewardsAddress.rpc)(ToplRpc.Admin.UpdateRewardsAddress.Params(rewardsAddress2))
+      _ <- node.run(ToplRpc.Admin.StartForging.rpc)(ToplRpc.Admin.StartForging.Params())
+      result <- Right(verifyBalanceChange(addressA, -(spend + fee), _.Balances.Polys) {
+        verifyBalanceChange(addressB, spend, _.Balances.Polys) {
+          verifyBalanceChange(rewardsAddress2, fee, _.Balances.Polys) {
+            sendAndAwaitPolyTransaction(
+              label = "forger-address-change",
+              sender = NonEmptyChain(addressA),
+              recipients = NonEmptyChain((addressB, spend)),
+              changeAddress = addressA,
+              fee = fee
+            )
+          }
         }
-      }
-    }
-
-    // Double-check the rewards balance
-    balancesFor(newRewardsAddress).Balances.Polys shouldBe Int128(5)
+      })
+    } yield result
   }
 
   private def sendAndAwaitPolyTransaction(

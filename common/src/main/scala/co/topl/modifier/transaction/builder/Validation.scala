@@ -9,8 +9,8 @@ import co.topl.utils.Int128
 object Validation {
 
   def validateNonEmptyPolyInputNonces(
-    polyInputs: Set[Box.Nonce]
-  ): Either[BuildTransferFailure, Set[Box.Nonce]] =
+    polyInputs: List[Box.Nonce]
+  ): Either[BuildTransferFailure, List[Box.Nonce]] =
     Either.cond(polyInputs.nonEmpty, polyInputs, BuildTransferFailures.EmptyPolyInputs)
 
   def validateNonEmptyOutputAddresses(

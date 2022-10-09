@@ -37,9 +37,9 @@ class BuildUnsignedPolyTransferSpec
       PolyBox(
         addressB.evidence,
         2630159458189048846L,
-        SimpleValue(BigInt(60))
+        SimpleValue(BigInt(40))
       ),
-      ArbitBox(
+      PolyBox(
         addressB.evidence,
         3107467157757088833L,
         SimpleValue(BigInt(40))
