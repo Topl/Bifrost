@@ -1,8 +1,7 @@
 package co.topl.modifier.transaction.builder
 
 import co.topl.attestation.{Address, Evidence, PublicKeyPropositionCurve25519}
-import co.topl.modifier.box.{ArbitBox, PolyBox, SimpleValue}
-import co.topl.modifier.transaction.PolyTransfer
+import co.topl.modifier.box.{PolyBox, SimpleValue}
 import co.topl.modifier.transaction.builder.Generators._
 import co.topl.utils.encode.Base16
 import co.topl.utils.{CommonGenerators, Int128}
@@ -11,9 +10,6 @@ import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-
-import java.time.Instant
-import scala.collection.immutable.ListMap
 
 class BuildUnsignedPolyTransferSpec
     extends AnyFlatSpec
@@ -70,12 +66,9 @@ class BuildUnsignedPolyTransferSpec
       None
     )
 
-    val result = TransferBuilder
+    TransferBuilder
       .buildUnsignedPolyTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
-
-    result.map(println)
-
-    result.isRight shouldBe true
+      .isRight shouldBe true
 
   }
 

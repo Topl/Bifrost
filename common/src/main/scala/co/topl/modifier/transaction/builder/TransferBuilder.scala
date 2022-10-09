@@ -55,12 +55,6 @@ object TransferBuilder {
 
     val outputs = (polyChangeOutput :: request.to.map(x => x._1 -> SimpleValue(x._2))).toIndexedSeq
 
-    println(
-      s"\n >>>>>>>>>>>>>>>>> buidlingUnsignedPolyTransfer \n inputs: $inputs \n inputBoxes: $inputBoxes " +
-      s"\n outputs: $outputs \n fee: ${request.fee} \n request: ${request} \n polyChangeOutput: $polyChangeOutput " +
-      s"\n changeAmount: $changeAmount \n polysOwed: $polysOwed \n polyFunds: $polyFunds"
-    )
-
     val polyTransfer =
       PolyTransfer[P](
         inputs,
