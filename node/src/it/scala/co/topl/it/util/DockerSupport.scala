@@ -1,6 +1,7 @@
 package co.topl.it.util
 
 import akka.actor.ActorSystem
+import co.topl.buildinfo.bifrost.BuildInfo
 import co.topl.utils.Logging
 import com.spotify.docker.client.DockerClient
 import com.spotify.docker.client.messages.{ContainerConfig, HostConfig, NetworkConfig, NetworkCreation}
