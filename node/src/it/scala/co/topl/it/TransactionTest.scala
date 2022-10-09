@@ -141,7 +141,6 @@ class TransactionTest
       "b_poly" -> balancesFor(addressB).Balances.Polys,
       "c_poly" -> balancesFor(addressC).Balances.Polys
     )
-    println(s"\n >>>>>>>>>>>>>>>>>>>>>>>>> prev_bal: ${prev_bal}")
 
     val send_amount = 10
     val change_amount = prev_bal("c_poly") - send_amount
@@ -385,7 +384,6 @@ class TransactionTest
       case Some(res) =>
         val signedTx =
           res.rawTx.copy(attestation = keyRing.generateAttestation(sender.iterator.toSet)(res.rawTx.messageToSign))
-        println(s">>>>>>>>> sending transaction ${signedTx.asJson}")
         broadcastAndAwait(label, signedTx)
       case _ => throw new Exception(s"Failed to process tx label=$label")
     }

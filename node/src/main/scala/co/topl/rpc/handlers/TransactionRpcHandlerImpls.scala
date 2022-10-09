@@ -60,12 +60,7 @@ class TransactionRpcHandlerImpls(
           .leftMap(failure => new Error(failure.show))
           .leftMap[RpcError](ToplRpcErrors.transactionValidationException(_))
           .toEitherT[Future]
-        messageToSign = {
-          println(
-            s"\n >>>>>>>>>>>>>>>>> Newly created transaction from RPC: \n${transfer.asJson} from params: ${params}"
-          )
-          transfer.messageToSign.encodeAsBase58
-        }
+        messageToSign = transfer.messageToSign.encodeAsBase58
       } yield ToplRpc.Transaction.RawPolyTransfer.Response(transfer, messageToSign.show)
 
   override val broadcastTx: ToplRpc.Transaction.BroadcastTx.rpc.ServerHandler =

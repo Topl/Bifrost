@@ -72,13 +72,13 @@ class DockerSupport(dockerClient: DockerClient)(implicit system: ActorSystem) ex
   }
 
   def close(): Unit =
-//    nodeCache
-//      .map(_.containerId)
-//      .foreach(containerId => dockerClient.removeContainer(containerId, DockerClient.RemoveContainerParam.forceKill))
+    nodeCache
+      .map(_.containerId)
+      .foreach(containerId => dockerClient.removeContainer(containerId, DockerClient.RemoveContainerParam.forceKill))
 
-    networkCache
-      .map(_.id())
-      .foreach(dockerClient.removeNetwork)
+  networkCache
+    .map(_.id())
+    .foreach(dockerClient.removeNetwork)
 }
 
 object DockerSupport {
