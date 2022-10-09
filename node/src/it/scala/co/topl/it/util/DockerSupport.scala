@@ -1,7 +1,6 @@
 package co.topl.it.util
 
 import akka.actor.ActorSystem
-import co.topl.buildinfo.bifrost.BuildInfo
 import co.topl.utils.Logging
 import com.spotify.docker.client.DockerClient
 import com.spotify.docker.client.messages.{ContainerConfig, HostConfig, NetworkConfig, NetworkCreation}
@@ -71,14 +70,14 @@ class DockerSupport(dockerClient: DockerClient)(implicit system: ActorSystem) ex
       .build()
   }
 
-  def close(): Unit =
+  def close(): Unit = {
     nodeCache
       .map(_.containerId)
       .foreach(containerId => dockerClient.removeContainer(containerId, DockerClient.RemoveContainerParam.forceKill))
-
-  networkCache
-    .map(_.id())
-    .foreach(dockerClient.removeNetwork)
+    networkCache
+      .map(_.id())
+      .foreach(dockerClient.removeNetwork)
+  }
 }
 
 object DockerSupport {
