@@ -3,6 +3,7 @@ package co.topl.modifier.transaction.validation
 import cats.data.NonEmptyChain
 import cats.scalatest.{ValidatedMatchers, ValidatedNecMatchers}
 import co.topl.attestation.{Address, Proposition, PublicKeyPropositionCurve25519, PublicKeyPropositionEd25519}
+import co.topl.codecs.json._
 import co.topl.consensus.GenesisProvider
 import co.topl.modifier.box._
 import co.topl.modifier.transaction._
@@ -12,7 +13,8 @@ import co.topl.nodeView.{NodeViewTestHelpers, ValidTransactionGenerators}
 import co.topl.utils.GeneratorOps.GeneratorOps
 import co.topl.utils.NetworkType.PrivateTestnet
 import co.topl.utils.StringDataTypes.Latin1Data
-import co.topl.utils.{InMemoryKeyRingTestHelper, Int128, NetworkType, TestSettings}
+import co.topl.utils.{InMemoryKeyRingTestHelper, Int128, NetworkType}
+import io.circe.{parser, ParsingFailure}
 import org.scalatest.EitherValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
@@ -293,6 +295,160 @@ class TransactionValidationSpec
         tx.syntacticValidation should haveInvalidC[SyntacticValidationFailure](DataTooLong)
       }
     }
+  }
+
+  property("Improperly formatted Json transaction should fail validation") {
+    val jsonTx =
+      """
+        |{
+        |	"txType": "ArbitTransfer",
+        |	"timestamp": 1618158572915,
+        |	"signatures": {},
+        |	"newBoxes": [
+        |		{
+        |			"nonce": "403810454164527817",
+        |			"id": "H8prBRHWdpwRGsHa1h3RycBywr3h1tGw1rGh1LWM1kH7",
+        |			"evidence": "QpFhbVa8ziDsDgEYN8tMHBici2sdQVeGRwuH2Uyqywgm",
+        |			"type": "PolyBox",
+        |			"value": {
+        |				"type": "Simple",
+        |				"quantity": "10000000"
+        |			}
+        |		}
+        |	],
+        |	"data": null,
+        |	"from": [
+        |		[
+        |			"AU9dn9YhqL1YWxfemMfS97zjVXR6G9QX74XRq1jVLtP3snQtuuVk",
+        |			"632651921866009156"
+        |		],
+        |		[
+        |			"AU9Xs4B5HnsTiYGb7D71CCxg5mYhaQv1WH3ptfiGbV4LUGb87W54",
+        |			"-1022347197045362381"
+        |		],
+        |		[
+        |			"AUA3RmKwr39nVQFFTV1BQFELbFhJQVWfFDdS5YDx7r1om5UCbqef",
+        |			"-3442597734742762895"
+        |		],
+        |		[
+        |			"AU9avKWiVVPKyU9LoMqDpduS4knoLDMdPEK54qKDNBpdnAMwQZcS",
+        |			"-9159076465667901239"
+        |		],
+        |		[
+        |			"AUAvJqLKc8Un3C6bC4aj8WgHZo74vamvX8Kdm6MhtdXgw51cGfix",
+        |			"-2738345987285926199"
+        |		],
+        |		[
+        |			"AU9sKKy7MN7U9G6QeasZUMTirD6SeGQx8Sngmb9jmDgNB2EzA3rq",
+        |			"6192622283292330446"
+        |		],
+        |		[
+        |			"AU9upSwu8MtmQz6EBMuv34bJ4G8i6Aw64xxRShJ3kpZRec5Ucp9Q",
+        |			"5211780637118315406"
+        |		],
+        |		[
+        |			"AUANVY6RqbJtTnQS1AFTQBjXMFYDknhV8NEixHFLmeZynMxVbp64",
+        |			"-7028078984054333839"
+        |		],
+        |		[
+        |			"AU9NkZmX5Pch2kUA28GUtv9m4bNaLNtKLoFXphcAAc9PUQXinXRm",
+        |			"-2082354150813152515"
+        |		],
+        |		[
+        |			"AUAbSWQxzfoCN4FizrKKf6E1qCSRffHhjrvo2v7L6q8xFZ7pxKqh",
+        |			"-1063807144321497201"
+        |		],
+        |		[
+        |			"AU9dn9YhqL1YWxfemMfS97zjVXR6G9QX74XRq1jVLtP3snQtuuVk",
+        |			"-276484983974921900"
+        |		],
+        |		[
+        |			"AU9Xs4B5HnsTiYGb7D71CCxg5mYhaQv1WH3ptfiGbV4LUGb87W54",
+        |			"7750101586306631723"
+        |		],
+        |		[
+        |			"AUA3RmKwr39nVQFFTV1BQFELbFhJQVWfFDdS5YDx7r1om5UCbqef",
+        |			"2630159458189048846"
+        |		],
+        |		[
+        |			"AU9avKWiVVPKyU9LoMqDpduS4knoLDMdPEK54qKDNBpdnAMwQZcS",
+        |			"4767595726154610060"
+        |		],
+        |		[
+        |			"AUAvJqLKc8Un3C6bC4aj8WgHZo74vamvX8Kdm6MhtdXgw51cGfix",
+        |			"640575933084298873"
+        |		],
+        |		[
+        |			"AU9sKKy7MN7U9G6QeasZUMTirD6SeGQx8Sngmb9jmDgNB2EzA3rq",
+        |			"-7183361756457193850"
+        |		],
+        |		[
+        |			"AU9upSwu8MtmQz6EBMuv34bJ4G8i6Aw64xxRShJ3kpZRec5Ucp9Q",
+        |			"2554848147682096396"
+        |		],
+        |		[
+        |			"AUANVY6RqbJtTnQS1AFTQBjXMFYDknhV8NEixHFLmeZynMxVbp64",
+        |			"4537410223110818381"
+        |		],
+        |		[
+        |			"AU9NkZmX5Pch2kUA28GUtv9m4bNaLNtKLoFXphcAAc9PUQXinXRm",
+        |			"7969292424973020400"
+        |		],
+        |		[
+        |			"AUAbSWQxzfoCN4FizrKKf6E1qCSRffHhjrvo2v7L6q8xFZ7pxKqh",
+        |			"6247990739483366931"
+        |		]
+        |	],
+        |	"minting": false,
+        |	"txId": "riWxuUYrewehokDP2cpdYpEVkLGUeH4NAFq4XTKcJeS9",
+        |	"boxesToRemove": [
+        |		"HAkHigK5gLyf7h6sXrr6TXeN2e2kGuWn5eLe53muGBrD",
+        |		"FsmB4iF7br4QGt36pt5FGgZimh1dmBATu1q5ZMfDsRkW",
+        |		"pr64bcWrWDJyjBCJ2JCDj6LzcK3sgmU82UdfNvSQXrE",
+        |		"CtLGQcnpqVdoirGQNt6EJhQYPohaeNsc7ZmDcPVP4seV",
+        |		"EkQrVxwgAmHJrzgY5kJyAvqH36DjkBFa4cPGGE31tY6y",
+        |		"5Wq9cayFkbA2WzMVugWtm4kpLoYn5QTMkvpyNh9jCDBY",
+        |		"5AGsGd6Bo4oqpbpmiV7yC4m4Xr4137e9qsMaQwtTcA6f",
+        |		"JHtMQxsuNMG7GKjMMeBmthN2KJGMjNDwMFJKWEjY96K",
+        |		"BoHnq1ty92dzDzR4RA9jBanYsHDZe1dhgvGCq3Fp7mmA",
+        |		"6WNzwZvp9KqwtJxYZyPkcTM9z8d1oBuNUWh1zwwcWm3v",
+        |		"FMmpdsgGqUFcj4vzjcKbr3xDbA7xvrWo7zFoFcjPmiza",
+        |		"2wpjkgSnzApcVFFcTRhTM36yWNPuf8GzvD7CbBmzycNX",
+        |		"5yPYYxjGJHUABatCShQ8F5sZ63J8eJ5KJxEcbV1b6edv",
+        |		"DYW6Hr7NmHTWGFZFQkBEBNEmh4g3BkRCp6a7RfnrxfSv",
+        |		"3vp93QXc2rpBRUKWVNYKo8DEMSqcCv4b26aXTbHZr18z",
+        |		"82BfegxGxMwgggnUuSUCUvRCw5TdejtE2Huo56pd8y7H",
+        |		"Buuk5MAvQSt4VVh6jmFPu9dYCiogL42cr5viVm71Zzaf",
+        |		"6icLMsiptwyFaZ1x8DgEH7RQR1Z85MLRwqWbA5EQpvhP",
+        |		"CmL5HPFXfhz5ZNbdEaYbpPFuckDoadXa1tato6UKbcrA",
+        |		"3XETRxrJ1nD5njiFYu8XUVKGaEkdhPdaw4H9RSEYQGJ8"
+        |	],
+        |	"fee": "10000000",
+        |	"to": [
+        |		[
+        |			"AUA3RmKwr39nVQFFTV1BQFELbFhJQVWfFDdS5YDx7r1om5UCbqef",
+        |			{
+        |				"type": "Simple",
+        |				"quantity": "10000000"
+        |			}
+        |		]
+        |	],
+        |	"propositionType": "PublicKeyCurve25519"
+        |}
+        |""".stripMargin
+
+    val txResult = for {
+      tx      <- parser.parse(jsonTx)
+      arbitTx <- tx.as[Transaction.TX]
+      result <- arbitTx.syntacticValidation
+        .leftMap(e => ParsingFailure(s"Parsing failed due to syntactic error=${e.toString}", new Exception(e.toString)))
+        .toEither
+    } yield result
+
+    // not ideal but I am unsure how best to wrap the syntactic validation into a parsing failure so
+    // that the specific errors could be checked for here.
+    txResult.isLeft shouldBe true
+
   }
 
   private def signTx(
