@@ -3,12 +3,10 @@ package co.topl.rpc
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
-import co.topl.attestation.Address
 import co.topl.modifier.ModifierId
 import co.topl.modifier.NodeViewModifier.ModifierTypeId
 import co.topl.modifier.block.Block
 import co.topl.modifier.transaction.Transaction
-import co.topl.nodeView.state.StateReader
 import co.topl.nodeView.{NodeViewHolderInterface, ReadableNodeView}
 import io.circe.Encoder
 
