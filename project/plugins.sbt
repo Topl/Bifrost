@@ -13,12 +13,12 @@ Seq(
   "pl.project13.scala"      % "sbt-jmh"                   % "0.4.3",
   "org.scalameta"           % "sbt-scalafmt"              % "2.4.6",
   "ch.epfl.scala"           % "sbt-scalafix"              % "0.10.1",
-  "org.wartremover"         % "sbt-wartremover"           % "3.0.5",
+  "org.wartremover"         % "sbt-wartremover"           % "3.0.6",
   "com.github.sbt"          % "sbt-native-packager"       % "1.9.11",
   "com.eed3si9n"            % "sbt-buildinfo"             % "0.11.0",
   "com.github.sbt"          % "sbt-ci-release"            % "1.5.10",
   "net.bzzt"                % "sbt-reproducible-builds"   % "0.30",
-  "com.lightbend.akka.grpc" % "sbt-akka-grpc"             % "2.1.5"
+  "com.lightbend.akka.grpc" % "sbt-akka-grpc"             % "2.1.6"
 ).map(addSbtPlugin)
 
 // See: https://github.com/sbt/sbt/issues/6997
