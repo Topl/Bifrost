@@ -49,3 +49,4 @@ docker/*.jar
 /project/project/project/metals.sbt
 
 .jvmopts
+.sbtopts

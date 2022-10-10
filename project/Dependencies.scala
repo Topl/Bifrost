@@ -2,15 +2,15 @@ import sbt._
 
 object Dependencies {
 
-  val akkaVersion = "2.6.19"
-  val akkaHttpVersion = "10.2.9"
+  val akkaVersion = "2.6.20"
+  val akkaHttpVersion = "10.2.10"
   val circeVersion = "0.14.2"
-  val kamonVersion = "2.5.6"
+  val kamonVersion = "2.5.8"
   val graalVersion = "21.3.3"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.8.0"
   val catsEffectVersion = "3.3.14"
-  val logback = "1.3.3"
+  val logback = "1.4.0"
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.4.0"
@@ -88,7 +88,7 @@ object Dependencies {
   )
 
   val shapeless = Seq(
-    "com.chuusai" %% "shapeless" % "2.3.9"
+    "com.chuusai" %% "shapeless" % "2.3.10"
   )
 
   val monitoring = Seq(
@@ -123,7 +123,7 @@ object Dependencies {
 
   val externalCrypto = Seq(
     "org.whispersystems" % "curve25519-java" % "0.5.0",
-    "org.bouncycastle"   % "bcprov-jdk18on"  % "1.71"
+    "org.bouncycastle"   % "bcprov-jdk18on"  % "1.71.1"
   )
 
   val mongoDb: Seq[ModuleID] =
@@ -137,9 +137,9 @@ object Dependencies {
   )
 
   val scodec = Seq(
-    "org.scodec" %% "scodec-core" % "1.11.9",
+    "org.scodec" %% "scodec-core" % "1.11.10",
     "org.scodec" %% "scodec-bits" % "1.1.34",
-    "org.scodec" %% "scodec-cats" % "1.1.0"
+    "org.scodec" %% "scodec-cats" % "1.2.0"
   )
 
   val fleam = Seq(
