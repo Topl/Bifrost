@@ -5,31 +5,31 @@ import co.topl.attestation.Address
 import co.topl.attestation.implicits._
 import co.topl.models.{BoxReference, DionAddress}
 import co.topl.modifier.box.{AssetCode, Box}
-import co.topl.modifier.transaction.builder.BoxSet
+import co.topl.modifier.transaction.builder.BoxMap
 import co.topl.utils.Int128
 
 import scala.language.implicitConversions
 
-class BoxSetOps(private val value: BoxSet) extends AnyVal {
+class BoxSetOps(private val value: BoxMap) extends AnyVal {
 
   import BoxSetOps._
 
   def toBoxReferences: Either[BoxSetOps.ToBoxReferencesFailure, Set[BoxReference]] =
     for {
       polyReferences <-
-        value.polys.toList.traverse[Either[BoxSetOps.ToBoxReferencesFailure, *], (DionAddress, Box.Nonce)](poly =>
+        value.polys.traverse[Either[BoxSetOps.ToBoxReferencesFailure, *], (DionAddress, Box.Nonce)](poly =>
           poly._1.toDionAddress
             .map(addr => addr -> poly._2.nonce)
             .leftMap(_ => ToBoxReferencesFailures.InvalidAddress(poly._1): ToBoxReferencesFailure)
         )
       arbitReferences <-
-        value.arbits.toList.traverse[Either[BoxSetOps.ToBoxReferencesFailure, *], (DionAddress, Box.Nonce)](arbit =>
+        value.arbits.traverse[Either[BoxSetOps.ToBoxReferencesFailure, *], (DionAddress, Box.Nonce)](arbit =>
           arbit._1.toDionAddress
             .map(addr => addr -> arbit._2.nonce)
             .leftMap(_ => ToBoxReferencesFailures.InvalidAddress(arbit._1): ToBoxReferencesFailure)
         )
       assetReferences <-
-        value.assets.toList.traverse[Either[BoxSetOps.ToBoxReferencesFailure, *], (DionAddress, Box.Nonce)](asset =>
+        value.assets.traverse[Either[BoxSetOps.ToBoxReferencesFailure, *], (DionAddress, Box.Nonce)](asset =>
           asset._1.toDionAddress
             .map(addr => addr -> asset._2.nonce)
             .leftMap(_ => ToBoxReferencesFailures.InvalidAddress(asset._1): ToBoxReferencesFailure)
@@ -46,11 +46,11 @@ class BoxSetOps(private val value: BoxSet) extends AnyVal {
       .map(value => value.assetCode -> value.quantity)
       .toMap
 
-  def polyNonces: Set[Box.Nonce] = value.polys.map(_._2.nonce)
+  def polyNonces: List[Box.Nonce] = value.polys.map(_._2.nonce)
 
-  def arbitNonces: Set[Box.Nonce] = value.arbits.map(_._2.nonce)
+  def arbitNonces: List[Box.Nonce] = value.arbits.map(_._2.nonce)
 
-  def assetNonces: Set[Box.Nonce] = value.assets.map(_._2.nonce)
+  def assetNonces: List[Box.Nonce] = value.assets.map(_._2.nonce)
 }
 
 object BoxSetOps {
@@ -61,7 +61,7 @@ object BoxSetOps {
   }
 
   trait ToBoxSetOps {
-    implicit def boxSetOpsFromBoxSet(value: BoxSet): BoxSetOps = new BoxSetOps(value)
+    implicit def boxSetOpsFromBoxSet(value: BoxMap): BoxSetOps = new BoxSetOps(value)
   }
 
   trait Implicits extends ToBoxSetOps
