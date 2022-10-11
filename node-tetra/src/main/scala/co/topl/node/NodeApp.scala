@@ -78,9 +78,6 @@ object NodeApp
       bigBangBlock = BigBang.block
       _ <- Logger[F].info(show"Big Bang Block id=${bigBangBlock.headerV2.id.asTypedBytes}")
 
-      dataDir = Path(appConfig.bifrost.data.directory) / bigBangBlock.headerV2.id.asTypedBytes.show
-      _ <- Files[F].createDirectories(dataDir)
-      _ <- Logger[F].info(show"Using dataDir=$dataDir")
       stakingDir = Path(appConfig.bifrost.staking.directory) / bigBangBlock.headerV2.id.asTypedBytes.show
       _ <- Files[F].createDirectories(stakingDir)
       _ <- Logger[F].info(show"Using stakingDir=$stakingDir")
@@ -118,6 +115,9 @@ object NodeApp
         bigBangProtocol.slotDuration,
         bigBangProtocol.epochLength,
         Instant.ofEpochMilli(bigBangBlock.headerV2.timestamp)
+      )
+      _ <- clock.globalSlot.flatMap(globalSlot =>
+        Logger[F].info(show"globalSlot=$globalSlot canonicalHeadSlot=${canonicalHeadSlotData.slotId.slot}")
       )
       etaCalculation <- EtaCalculation.Eval.make(
         dataStores.slotData.getOrRaise,
@@ -206,9 +206,13 @@ object NodeApp
           cryptoResources.ed25519VRF,
           localPeer,
           Source
-            .single(())
-            .mapAsyncF(1)(_ => clock.delayedUntilSlot(canonicalHeadSlotData.slotId.slot))
-            .flatMapConcat(_ => Source(appConfig.bifrost.p2p.knownPeers))
+            .futureSource(
+              implicitly[FToFuture[F]].apply(
+                clock
+                  .delayedUntilSlot(canonicalHeadSlotData.slotId.slot)
+                  .as(Source(appConfig.bifrost.p2p.knownPeers))
+              )
+            )
             .concat(Source.never),
           (peer, flow) => flow,
           appConfig.bifrost.rpc.bindHost,

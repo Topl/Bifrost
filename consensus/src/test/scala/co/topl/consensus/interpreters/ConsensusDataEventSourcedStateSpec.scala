@@ -88,8 +88,24 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
             )
           ),
           Chain(
+            Transaction.Output(address, Box.Values.Arbit(4), minting = false),
+            Transaction.Output(nonStakingFullAddress, Box.Values.Arbit(1), minting = false)
+          ),
+          Transaction.Schedule(0, 0, Long.MaxValue),
+          None
+        )
+        transaction3 = Transaction(
+          Chain(
+            Transaction.Input(
+              Box.Id(transaction2.id, 0),
+              Propositions.Contextual.HeightLock(0),
+              Proofs.Undefined,
+              Box.Values.Arbit(4)
+            )
+          ),
+          Chain(
             Transaction.Output(address, Box.Values.Arbit(3), minting = false),
-            Transaction.Output(nonStakingFullAddress, Box.Values.Arbit(2), minting = false)
+            Transaction.Output(nonStakingFullAddress, Box.Values.Arbit(1), minting = false)
           ),
           Transaction.Schedule(0, 0, Long.MaxValue),
           None
@@ -97,8 +113,9 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
 
         blockId2 = arbitraryTypedIdentifier.arbitrary.first
         _ <- parentChildTree.associate(blockId2, bigBangId)
-        _ <- bodyStore.put(blockId2, ListSet(transaction2.id.asTypedBytes))
+        _ <- bodyStore.put(blockId2, ListSet(transaction2.id.asTypedBytes, transaction3.id.asTypedBytes))
         _ <- transactionStore.put(transaction2.id, transaction2)
+        _ <- transactionStore.put(transaction3.id, transaction3)
 
         _ <- underTest.useStateAt(blockId2)(state =>
           state.totalActiveStake.getOrRaise(()).assertEquals(3: Int128) >>
@@ -109,13 +126,19 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
 
         // Spend the 2 Arbits from the non-operator
         // And create 1 Arbit for the operator and 1 Arbit for the non-operator
-        transaction3 = Transaction(
+        transaction4 = Transaction(
           Chain(
             Transaction.Input(
               Box.Id(transaction2.id, 1),
               Propositions.Contextual.HeightLock(0),
               Proofs.Undefined,
-              Box.Values.Arbit(2)
+              Box.Values.Arbit(1)
+            ),
+            Transaction.Input(
+              Box.Id(transaction3.id, 1),
+              Propositions.Contextual.HeightLock(0),
+              Proofs.Undefined,
+              Box.Values.Arbit(1)
             )
           ),
           Chain(
@@ -128,8 +151,8 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
 
         blockId3 = arbitraryTypedIdentifier.arbitrary.first
         _ <- parentChildTree.associate(blockId3, blockId2)
-        _ <- bodyStore.put(blockId3, ListSet(transaction3.id.asTypedBytes))
-        _ <- transactionStore.put(transaction3.id, transaction3)
+        _ <- bodyStore.put(blockId3, ListSet(transaction4.id.asTypedBytes))
+        _ <- transactionStore.put(transaction4.id, transaction4)
 
         _ <- underTest.useStateAt(blockId3)(state =>
           state.totalActiveStake.getOrRaise(()).assertEquals(4: Int128) >>

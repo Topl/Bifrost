@@ -49,12 +49,13 @@ object BlockProducer {
             parentHeaders
               .buffer(1, OverflowStrategy.dropHead)
               .via(AbandonerFlow(makeChild))
+              .collect { case Some(block) => block }
           )
 
         /**
          * Construct a new child Block of the given parent
          */
-        private def makeChild(parentSlotData: SlotData): F[BlockV2] =
+        private def makeChild(parentSlotData: SlotData): F[Option[BlockV2]] =
           for {
             // From the given parent block, when are we next eligible to produce a new block?
             nextHit <- nextEligibility(parentSlotData.slotId)
@@ -65,9 +66,11 @@ object BlockProducer {
             body      <- packBlock(parentSlotData.slotId.blockId, parentSlotData.height + 1, nextHit.slot)
             timestamp <- clock.currentTimestamp
             blockMaker = prepareUnsignedBlock(parentSlotData, body, timestamp, nextHit)
-            block <- OptionT(staker.certifyBlock(parentSlotData.slotId, nextHit.slot, blockMaker))
-              .getOrRaise(new IllegalStateException("Unable to certify block"))
-          } yield block
+            // Despite being eligible, there may not have a corresponding linear KES key if, for example, the node
+            // restarts in the middle of an operational period.  The node must wait until the next operational period
+            // to have a set of corresponding linear keys to work with
+            maybeBlock <- staker.certifyBlock(parentSlotData.slotId, nextHit.slot, blockMaker)
+          } yield maybeBlock
 
         /**
          * Determine the staker's next eligibility based on the given parent
