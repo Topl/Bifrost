@@ -1,10 +1,12 @@
 package co.topl.genusLibrary
 
 import java.io.{File, FileOutputStream}
+import java.nio.file.Files
 
 class OrientDBFacadeTest extends munit.FunSuite {
+  val testDir: File = Files.createTempDirectory("ODbF").toFile
   def randomFile(): File = {
-    new File("TF" + Math.random().toString)
+    new File(testDir, "TF" + Math.random().toString)
   }
 
   test("ensureDirectoryExists - It does") {

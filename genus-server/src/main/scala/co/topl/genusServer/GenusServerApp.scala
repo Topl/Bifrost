@@ -1,7 +1,6 @@
 package co.topl.genusServer
 
 import cats.effect._
-import cats.effect.unsafe.implicits.global
 import co.topl.genusLibrary.Genus
 import org.typelevel.log4cats._
 import org.typelevel.log4cats.slf4j._
@@ -21,5 +20,9 @@ object GenusServerApp extends IOApp {
     } yield ExitCode.Success
 
   def doIt(args: List[String]): IO[Unit] =
-    IO(Genus.getGenus)
+    IO {
+      Genus.getGenus
+      // Code to run gRPC services goes here
+      Genus.shutDown()
+    }
 }

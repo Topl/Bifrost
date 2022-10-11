@@ -5,7 +5,7 @@ import com.typesafe.scalalogging.Logger
 import scala.util.{Failure, Try}
 
 /**
- * Defs to make logging compatible with functional programming style
+ * Functions to make logging compatible with functional programming style
  */
 object Log {
   /**
@@ -30,7 +30,7 @@ object Log {
  *   }
  * }}}
  */
-  def debug [T](message: String)( body: => T)(implicit logger: Logger): T = {
+  def debug[T](message: String)( body: => T)(implicit logger: Logger): T = {
     val result:T = body
     logger.debug (message, result)
     result

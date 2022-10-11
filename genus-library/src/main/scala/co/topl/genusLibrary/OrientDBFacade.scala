@@ -1,7 +1,6 @@
 package co.topl.genusLibrary
 
 import com.orientechnologies.orient.server.OServerMain
-import com.orientechnologies.orient.server.config.OServerConfiguration
 import com.typesafe.scalalogging.Logger
 
 import java.io.File
@@ -12,12 +11,13 @@ import java.io.File
 class OrientDBFacade {
   import OrientDBFacade._
 
-  var dbDirectory = new File("genus_db")
-  private var RootPassword = "ae9fdaiwbfb9vu=vvau2#"
+  // TODO This information will be moved to externalized configuration
+  val dbDirectory = new File("genus_db")
+  private val RootPwd = "ae9FdaIwBfb9vu=VvaU2#"
 
   setupOrientDBEnvironment()
   logger.info("Starting OrientDB")
-  private var server = OServerMain.create(true)  // true argument request shutdown of server on exit.
+  private val server = OServerMain.create(true) // true argument request shutdown of server on exit.
   server.startup() // Use the default OrientDB server configuration
   server.activate()
 
@@ -30,15 +30,10 @@ class OrientDBFacade {
     server.shutdown()
   }
 
-  private val HardcodedConfig =
-    """
-      |
-      |""".stripMargin
-
   private def setupOrientDBEnvironment(): Unit = {
     ensureDirectoryExists(dbDirectory)
     System.setProperty("ORIENTDB_HOME", dbDirectory.getAbsolutePath)
-    System.setProperty("ORIENTDB_ROOT_PASSWORD", RootPassword)
+    System.setProperty("ORIENTDB_ROOT_PASSWORD", RootPwd)
   }
 }
 
