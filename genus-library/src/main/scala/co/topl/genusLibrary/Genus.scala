@@ -4,7 +4,7 @@ import co.topl.genusLibrary.util.Log
 import co.topl.genusLibrary.util.Log._
 import com.typesafe.scalalogging.Logger
 
-import scala.util.Try
+import scala.util.{Success, Try}
 
 /**
  * This is the main class of Genus. It captures blocks in an OrientDB database and provides ways to index and query the
@@ -22,25 +22,33 @@ class Genus {
 }
 
 object Genus {
-  private implicit val logger: Logger = Logger(classOf[Genus])
+  implicit private val logger: Logger = Logger(classOf[Genus])
 
   /**
-   * This variable refers to the running instance of Genus.
+   * This variable refers to the running instance of Genus. It is an option so that we can call getGenus and shutDown in
+   * any order any number of times.
    */
-  private lazy val instance = new Genus
+  private var instance = Option.empty[Genus]
 
   /**
    * This method returns the active instance of Genus. If one does not exist, it is created.
    */
-  def getGenus:Try[Genus] = {
+  def getGenus: Try[Genus] =
     Log.debug("getGenus called: {}") {
-      Try(instance)
-        .logIfFailure("Failed to create Genus instance")
+      Try {
+        this.synchronized {
+          instance.getOrElse(() => instance = Some(new Genus))
+          instance.get
+        }
+      }.logIfFailure("Failed to create Genus instance")
     }
-  }
 
   def shutDown(): Try[Unit] = {
     logger.info("shutDown() called")
-    instance.shutDown()
+    synchronized {
+      val result = instance.map(_.shutDown()).getOrElse(Success(()))
+      instance = None
+      result
+    }
   }
 }

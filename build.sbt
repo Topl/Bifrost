@@ -232,7 +232,9 @@ lazy val bifrost = project
     tools,
     scripting,
     genus,
-    levelDbStore
+    levelDbStore,
+    genusLibrary,
+    genusServer
   )
 
 lazy val node = project
@@ -792,6 +794,7 @@ lazy val genusServer = project
   .settings(
     name := "genus-server",
     commonSettings,
+    crossScalaVersions := Seq(scala213),
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.genusServer",
     libraryDependencies ++= Dependencies.genusServer
@@ -803,6 +806,7 @@ lazy val genusLibrary = project
   .settings(
     name := "genus-library",
     commonSettings,
+    crossScalaVersions := Seq(scala213),
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.genusLibrary",
     libraryDependencies ++= Dependencies.genusLibrary

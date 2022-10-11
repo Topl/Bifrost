@@ -26,9 +26,8 @@ class OrientDBFacade {
    *
    * @return true if the server was running and got shut down
    */
-  def shutdown(): Boolean = {
+  def shutdown(): Boolean =
     server.shutdown()
-  }
 
   private def setupOrientDBEnvironment(): Unit = {
     ensureDirectoryExists(dbDirectory)
@@ -38,7 +37,7 @@ class OrientDBFacade {
 }
 
 object OrientDBFacade {
-  private implicit val logger: Logger = Logger(classOf[Genus])
+  implicit private val logger: Logger = Logger(classOf[Genus])
 
   /**
    * Create an instance of OrientDBFacade
@@ -47,12 +46,11 @@ object OrientDBFacade {
    */
   def apply(): OrientDBFacade = new OrientDBFacade()
 
-  private[genusLibrary] def ensureDirectoryExists(directory: File): Unit = {
+  private[genusLibrary] def ensureDirectoryExists(directory: File): Unit =
     if (!directory.isDirectory)
       if (directory.exists)
         throw GenusException(s"${directory.getAbsolutePath} exists but is not a directory.")
       else if (!directory.mkdir())
         throw GenusException(s"Failed to create directory ${directory.getAbsolutePath}")
       else logger.debug("Using existing directory {}", directory.getAbsolutePath)
-  }
 }

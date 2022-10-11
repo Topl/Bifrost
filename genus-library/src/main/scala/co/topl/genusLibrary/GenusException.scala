@@ -13,6 +13,7 @@ import co.topl.genusLibrary.util.Log
 class GenusException(message: String, cause: Throwable) extends RuntimeException(message, cause) {}
 
 object GenusException {
+
   /**
    * Create a GenusException
    *
