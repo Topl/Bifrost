@@ -15,7 +15,7 @@ object Dependencies {
   val catsSlf4j: ModuleID =
     "org.typelevel" %% "log4cats-slf4j" % "2.4.0"
 
-  val  logging: Seq[ModuleID] = Seq(
+  val logging: Seq[ModuleID] = Seq(
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.5",
     "ch.qos.logback"              % "logback-classic" % "1.2.11",
     "ch.qos.logback"              % "logback-core"    % "1.2.11",
@@ -364,27 +364,48 @@ object Dependencies {
     mUnitTest ++
     Seq(fs2Core, fs2IO)
 
+  lazy val orientDb: Seq[ModuleID] = {
+    val orientDbVersion = "3.2.10"
+    Seq(
+      "com.orientechnologies"                  % "orientdb-core"               % orientDbVersion,
+      "com.orientechnologies"                  % "orientdb-server"             % orientDbVersion,
+      "com.orientechnologies"                  % "orientdb-client"             % orientDbVersion,
+      "com.orientechnologies"                  % "orientdb-tools"              % orientDbVersion,
+      "com.googlecode.concurrentlinkedhashmap" % "concurrentlinkedhashmap-lru" % "1.4.2",
+      "org.lz4"                                % "lz4-java"                    % "1.8.0"
+      // Add jna
+    )
+  }
+
   lazy val genus: Seq[ModuleID] =
     Seq(
-      "com.lightbend.akka" %% "akka-stream-alpakka-mongodb" % "3.0.4",
+      "com.lightbend.akka"                    %% "akka-stream-alpakka-mongodb" % "3.0.4",
+      "com.googlecode.concurrentlinkedhashmap" % "concurrentlinkedhashmap-lru" % "1.4.2",
       scalaPb
     ) ++
     allAkka ++
     circe ++
     cats ++
     mainargs ++
+    orientDb ++
     ficus ++
     test
 
   lazy val genusServer: Seq[ModuleID] =
-    cats ++ catsEffect ++ mainargs ++ logging ++ monocle ++ Seq(
+    cats ++
+    catsEffect ++
+    mainargs ++
+    logging ++
+    monocle ++
+    Seq(
       catsSlf4j
     ) ++
-      mUnitTest
+    mUnitTest
 
   lazy val genusLibrary: Seq[ModuleID] =
     logging ++
-      mUnitTest
+    orientDb ++
+    mUnitTest
 
   lazy val munitScalamock: Seq[sbt.ModuleID] =
     mUnitTest
