@@ -15,7 +15,7 @@ object Dependencies {
   val catsSlf4j: ModuleID =
     "org.typelevel" %% "log4cats-slf4j" % "2.4.0"
 
-  val  logging: Seq[ModuleID] = Seq(
+  val logging: Seq[ModuleID] = Seq(
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.5",
     "ch.qos.logback"              % "logback-classic" % "1.2.11",
     "ch.qos.logback"              % "logback-core"    % "1.2.11",
@@ -210,6 +210,15 @@ object Dependencies {
       circeYaml
     )
 
+  val networkDelayer: Seq[ModuleID] =
+    cats ++ catsEffect ++ mainargs ++ logging ++ Seq(
+      catsSlf4j,
+      fs2Core,
+      fs2IO,
+      pureConfig,
+      circeYaml
+    )
+
   lazy val algebras: Seq[sbt.ModuleID] =
     test ++
     catsEffect.map(_ % Test) ++
@@ -227,6 +236,15 @@ object Dependencies {
     test ++
     mongoDb ++
     Seq(akka("actor-typed"))
+
+  val commonApplication: Seq[ModuleID] =
+    cats ++ catsEffect ++ mainargs ++ logging ++ monocle ++
+    simulacrum ++ Seq(
+      catsSlf4j,
+      akka("actor-typed"),
+      pureConfig,
+      circeYaml
+    )
 
   lazy val chainProgram: Seq[ModuleID] =
     scalaCollectionCompat ++
@@ -380,11 +398,11 @@ object Dependencies {
     cats ++ catsEffect ++ mainargs ++ logging ++ monocle ++ Seq(
       catsSlf4j
     ) ++
-      mUnitTest
+    mUnitTest
 
   lazy val genusLibrary: Seq[ModuleID] =
     logging ++
-      mUnitTest
+    mUnitTest
 
   lazy val munitScalamock: Seq[sbt.ModuleID] =
     mUnitTest

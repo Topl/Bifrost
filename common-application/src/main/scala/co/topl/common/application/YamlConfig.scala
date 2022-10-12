@@ -1,4 +1,4 @@
-package co.topl.node
+package co.topl.common.application
 
 import com.typesafe.config.{Config, ConfigFactory}
 

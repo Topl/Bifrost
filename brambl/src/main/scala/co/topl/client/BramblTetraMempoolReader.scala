@@ -5,7 +5,7 @@ import akka.actor.typed.scaladsl.Behaviors
 import cats.effect.{Async, IO, Sync}
 import cats.implicits._
 import co.topl.algebras.ToplRpc
-import co.topl.catsakka._
+import co.topl.common.application.IOAkkaApp
 import co.topl.grpc.ToplGrpc
 import co.topl.typeclasses.implicits._
 import com.typesafe.config.ConfigFactory

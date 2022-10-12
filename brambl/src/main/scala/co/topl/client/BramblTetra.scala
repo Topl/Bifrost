@@ -10,6 +10,7 @@ import cats.implicits._
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.common.application.IOAkkaApp
 import co.topl.grpc.ToplGrpc
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bytesLength
