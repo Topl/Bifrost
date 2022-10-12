@@ -285,6 +285,13 @@ trait ModelsJsonCodecs {
         "proofType" -> "Script.JS".asJson,
         "args"      -> io.circe.parser.parse(serializedArgs).getOrElse(serializedArgs.asJson)
       )
+    case _ =>
+
+      /**
+       * It would fail on the following inputs: HashLock(_, _), KesProduct(_, _, _), KesSum(_, _, _), Not(_), RequiredBoxState(), VrfEd25519(_)
+       * TODO: ask if raising an error here is fine, never happen, or should we define specific encoders for the above items
+       */
+      Json.Null
   }
 
   implicit val proofsKnowledgeCurve25519Decoder: Decoder[Proofs.Knowledge.Curve25519] = deriveDecoder
