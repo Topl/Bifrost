@@ -29,6 +29,7 @@ classes
 keyfiles/
 ldb_main
 ldb_undo
+genus_db
 
 # for temporary experiments
 sheet.scala
