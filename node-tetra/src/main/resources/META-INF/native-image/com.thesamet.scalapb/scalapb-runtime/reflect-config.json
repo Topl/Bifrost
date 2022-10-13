@@ -1,0 +1,12 @@
+[
+    {
+        "allDeclaredMethods" : true,
+        "allPublicMethods" : true,
+        "name" : "com.google.protobuf.any.Any"
+    }
+,
+    {
+        "name" : "scalapb.GeneratedMessage"
+    }
+
+]

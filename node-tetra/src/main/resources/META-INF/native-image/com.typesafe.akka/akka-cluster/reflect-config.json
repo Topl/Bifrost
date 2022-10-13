@@ -1,0 +1,145 @@
+[
+    {
+        "methods" : [
+            {
+                "name" : "<init>",
+                "parameterTypes" : [
+                    "scala.collection.immutable.IndexedSeq",
+                    "akka.cluster.JoinConfigCompatChecker"
+                ]
+            }
+        ],
+        "name" : "akka.cluster.JoinSeedNodeProcess"
+    }
+,
+    {
+        "methods" : [
+            {
+                "name" : "<init>",
+                "parameterTypes" : [
+                    "scala.collection.immutable.IndexedSeq",
+                    "akka.cluster.JoinConfigCompatChecker"
+                ]
+            }
+        ],
+        "name" : "akka.cluster.FirstSeedNodeProcess"
+    }
+,
+    {
+        "allDeclaredConstructors" : true,
+        "allPublicMethods" : true,
+        "name" : "akka.cluster.ClusterActorRefProvider"
+    }
+,
+    {
+        "name" : "akka.cluster.ClusterCoreDaemon"
+    }
+,
+    {
+        "name" : "akka.cluster.ClusterCoreSupervisor"
+    }
+,
+    {
+        "name" : "akka.cluster.ClusterDaemon"
+    }
+,
+    {
+        "methods" : [
+            {
+                "name" : "<init>",
+                "parameterTypes" : []
+            }
+        ],
+        "name" : "akka.cluster.ClusterDomainEventPublisher"
+    }
+,
+    {
+        "methods" : [
+            {
+                "name" : "<init>",
+                "parameterTypes" : [
+                    "scala.Function0"
+                ]
+            }
+        ],
+        "name" : "akka.cluster.ClusterHeartbeatReceiver"
+    }
+,
+    {
+        "name" : "akka.cluster.ClusterHeartbeatSender"
+    }
+,
+    {
+        "name" : "akka.cluster.ClusterReadView$$anon$1"
+    }
+,
+    {
+        "allDeclaredConstructors" : true,
+        "allDeclaredFields" : true,
+        "name" : "akka.cluster.ClusterRemoteWatcher"
+    }
+,
+    {
+        "methods" : [
+            {
+                "name" : "<init>",
+                "parameterTypes" : []
+            }
+        ],
+        "name" : "akka.cluster.CoordinatedShutdownLeave"
+    }
+,
+    {
+        "name" : "akka.cluster.CrossDcHeartbeatSender"
+    }
+,
+    {
+        "methods" : [
+            {
+                "name" : "<init>",
+                "parameterTypes" : []
+            }
+        ],
+        "name" : "akka.cluster.JoinConfigCompatCheckCluster"
+    }
+,
+    {
+        "allDeclaredConstructors" : true,
+        "allDeclaredFields" : true,
+        "name" : "akka.cluster.AutoDown"
+    }
+,
+    {
+        "name" : "akka.cluster.AutoDownBase"
+    }
+,
+    {
+        "methods" : [
+            {
+                "name" : "<init>",
+                "parameterTypes" : [
+                    "akka.actor.ActorSystem"
+                ]
+            }
+        ],
+        "name" : "akka.cluster.AutoDowning"
+    }
+,
+    {
+        "methods" : [
+            {
+                "name" : "<init>",
+                "parameterTypes" : [
+                    "akka.actor.ActorSystem"
+                ]
+            }
+        ],
+        "name" : "akka.cluster.NoDowning"
+    }
+,
+    {
+        "allDeclaredConstructors" : true,
+        "name" : "akka.cluster.sbr.SplitBrainResolverProvider"
+    }
+
+]

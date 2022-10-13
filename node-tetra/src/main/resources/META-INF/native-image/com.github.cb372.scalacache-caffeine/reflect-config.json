@@ -1,0 +1,14 @@
+[
+  {
+    "name": "com.github.benmanes.caffeine.cache.SSMS",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "com.github.benmanes.caffeine.cache.PSMS",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "allDeclaredConstructors": true
+  }
+]

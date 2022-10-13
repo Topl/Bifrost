@@ -1,0 +1,182 @@
+[
+    {
+        "allDeclaredFields" : true,
+        "allPublicConstructors" : true,
+        "allPublicMethods" : true,
+        "name" : "io.cloudstate.proxy.autoscaler.KubernetesDeploymentScaler$Metadata"
+    }
+,
+    {
+        "allDeclaredFields" : true,
+        "allPublicConstructors" : true,
+        "allPublicMethods" : true,
+        "name" : "io.cloudstate.proxy.autoscaler.KubernetesDeploymentScaler$ScaleSpec"
+    }
+,
+    {
+        "allDeclaredFields" : true,
+        "allPublicConstructors" : true,
+        "allPublicMethods" : true,
+        "name" : "io.cloudstate.proxy.autoscaler.KubernetesDeploymentScaler$ScaleStatus"
+    }
+,
+    {
+        "allDeclaredFields" : true,
+        "allPublicConstructors" : true,
+        "allPublicMethods" : true,
+        "name" : "io.cloudstate.proxy.autoscaler.KubernetesDeploymentScaler$Scale"
+    }
+,
+    {
+        "allDeclaredFields" : true,
+        "allPublicConstructors" : true,
+        "allPublicMethods" : true,
+        "name" : "io.cloudstate.proxy.autoscaler.KubernetesDeploymentScaler$DeploymentCondition"
+    }
+,
+    {
+        "allDeclaredFields" : true,
+        "allPublicConstructors" : true,
+        "allPublicMethods" : true,
+        "name" : "io.cloudstate.proxy.autoscaler.KubernetesDeploymentScaler$DeploymentStatus"
+    }
+,
+    {
+        "allDeclaredFields" : true,
+        "allPublicConstructors" : true,
+        "allPublicMethods" : true,
+        "name" : "io.cloudstate.proxy.autoscaler.KubernetesDeploymentScaler$DeploymentSpec"
+    }
+,
+    {
+        "allDeclaredFields" : true,
+        "allPublicConstructors" : true,
+        "allPublicMethods" : true,
+        "name" : "io.cloudstate.proxy.autoscaler.KubernetesDeploymentScaler$Deployment"
+    }
+,
+    {
+        "allDeclaredFields" : true,
+        "allPublicConstructors" : true,
+        "allPublicMethods" : true,
+        "name" : "io.cloudstate.proxy.autoscaler.KubernetesDeploymentScaler$DeploymentList"
+    }
+,
+    {
+        "allDeclaredFields" : true,
+        "name" : "io.cloudstate.proxy.eventsourced.EventSourcedEntitySupervisor"
+    }
+,
+    {
+        "allDeclaredConstructors" : true,
+        "allDeclaredFields" : true,
+        "name" : "io.cloudstate.proxy.eventsourced.InMemSnapshotStore"
+    }
+,
+    {
+        "allDeclaredConstructors" : true,
+        "name" : "io.cloudstate.proxy.valueentity.store.InMemoryStore"
+    }
+,
+    {
+        "name" : "io.cloudstate.proxy.Warmup"
+    }
+,
+    {
+        "allDeclaredFields" : true,
+        "name" : "io.cloudstate.proxy.autoscaler.Autoscaler"
+    }
+,
+    {
+        "name" : "io.cloudstate.proxy.autoscaler.NoScaler"
+    }
+,
+    {
+        "methods" : [
+            {
+                "name" : "<init>",
+                "parameterTypes" : [
+                    "akka.actor.ActorSystem"
+                ]
+            }
+        ],
+        "name" : "io.cloudstate.proxy.HealthCheckReady"
+    }
+,
+    {
+        "methods" : [
+            {
+                "name" : "<init>",
+                "parameterTypes" : [
+                    "akka.actor.ActorSystem"
+                ]
+            }
+        ],
+        "name" : "io.cloudstate.proxy.HealthCheckLive"
+    }
+,
+    {
+        "name" : "io.cloudstate.proxy.crdt.Vote"
+    }
+,
+    {
+        "allPublicMethods" : true,
+        "name" : "io.cloudstate.proxy.entity.UserFunctionCommand"
+    }
+,
+    {
+        "allPublicMethods" : true,
+        "name" : "io.cloudstate.proxy.entity.EntityCommand"
+    }
+,
+    {
+        "allPublicMethods" : true,
+        "name" : "io.cloudstate.proxy.entity.UserFunctionReply"
+    }
+,
+    {
+        "allPublicMethods" : true,
+        "name" : "io.cloudstate.proxy.autoscaler.Stable"
+    }
+,
+    {
+        "allPublicMethods" : true,
+        "name" : "io.cloudstate.proxy.autoscaler.Upgrading"
+    }
+,
+    {
+        "allPublicMethods" : true,
+        "name" : "io.cloudstate.proxy.autoscaler.ScalingUp"
+    }
+,
+    {
+        "allPublicMethods" : true,
+        "name" : "io.cloudstate.proxy.autoscaler.ScalingDown"
+    }
+,
+    {
+        "methods" : [
+            {
+                "name" : "<init>",
+                "parameterTypes" : [
+                    "akka.actor.ExtendedActorSystem",
+                    "com.typesafe.config.Config"
+                ]
+            }
+        ],
+        "name" : "akka.persistence.cloudstate.InmemReadJournal"
+    }
+,
+    {
+        "methods" : [
+            {
+                "name" : "<init>",
+                "parameterTypes" : [
+                    "akka.actor.typed.ActorSystem"
+                ]
+            }
+        ],
+        "name" : "io.cloudstate.proxy.eventing.InMemoryProjectionSupport"
+    }
+
+]

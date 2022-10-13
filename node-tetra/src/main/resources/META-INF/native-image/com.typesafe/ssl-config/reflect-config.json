@@ -1,0 +1,7 @@
+[
+    {
+        "allDeclaredConstructors" : true,
+        "name" : "com.typesafe.sslconfig.ssl.NoopHostnameVerifier"
+    }
+
+]

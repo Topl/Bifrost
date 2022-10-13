@@ -1,0 +1,28 @@
+[
+  {
+    "fields": [
+      {
+        "name": "MODULE$"
+      }
+    ],
+    "name": "scala.concurrent.Future$InternalCallbackExecutor$"
+  },
+  {
+    "name": "scala.Int",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "scala.Long",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "scala.Boolean",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "allDeclaredConstructors": true
+  }
+]

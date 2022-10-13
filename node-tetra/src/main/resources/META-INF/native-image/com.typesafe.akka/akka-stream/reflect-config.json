@@ -1,0 +1,27 @@
+[
+  {
+    "allDeclaredFields": true,
+    "name": "akka.stream.impl.ActorRefSinkActor"
+  },
+  {
+    "name": "akka.stream.impl.StreamSupervisor"
+  },
+  {
+    "fields": [
+      {
+        "name": "MODULE$"
+      }
+    ],
+    "name": "akka.stream.SystemMaterializer$"
+  },
+  {
+    "allDeclaredFields": true,
+    "name": "akka.stream.impl.fusing.ActorGraphInterpreter"
+  },
+  {
+    "name": "akka.stream.serialization.StreamRefSerializer",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "allDeclaredConstructors": true
+  }
+]

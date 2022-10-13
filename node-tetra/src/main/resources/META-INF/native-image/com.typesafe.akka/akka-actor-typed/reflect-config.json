@@ -1,0 +1,30 @@
+[
+  {
+    "fields": [
+      {
+        "name": "MODULE$"
+      }
+    ],
+    "name": "akka.actor.typed.internal.adapter.ActorSystemAdapter$LoadTypedExtensions$"
+  },
+  {
+    "fields": [
+      {
+        "name": "MODULE$"
+      }
+    ],
+    "name": "akka.actor.typed.receptionist.Receptionist$"
+  },
+  {
+    "name": "akka.actor.typed.internal.MiscMessageSerializer",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "akka.actor.typed.internal.receptionist.ServiceKeySerializer",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "allDeclaredConstructors": true
+  }
+]

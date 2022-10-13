@@ -1,0 +1,24 @@
+[
+    {
+        "name" : "io.grpc.internal.DnsNameResolverProvider"
+    }
+,
+    {
+        "methods" : [
+            {
+                "name" : "<init>",
+                "parameterTypes" : []
+            }
+        ],
+        "name" : "io.grpc.internal.JndiResourceResolverFactory"
+    }
+,
+    {
+        "name" : "io.grpc.internal.PickFirstLoadBalancerProvider"
+    }
+,
+    {
+        "name" : "io.grpc.util.SecretRoundRobinLoadBalancerProvider$Provider"
+    }
+
+]

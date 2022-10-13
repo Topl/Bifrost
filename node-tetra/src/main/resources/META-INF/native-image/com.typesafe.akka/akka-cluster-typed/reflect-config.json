@@ -1,0 +1,21 @@
+[
+    {
+        "methods" : [
+            {
+                "name" : "<init>",
+                "parameterTypes" : []
+            }
+        ],
+        "name" : "akka.cluster.typed.internal.receptionist.ClusterReceptionistConfigCompatChecker"
+    }
+,
+    {
+        "fields" : [
+            {
+                "name" : "MODULE$"
+            }
+        ],
+        "name" : "akka.cluster.typed.internal.receptionist.ClusterReceptionist$"
+    }
+
+]

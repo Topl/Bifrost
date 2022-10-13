@@ -1,0 +1,16 @@
+[
+    {
+        "name" : "akka.persistence.journal.AsyncWriteJournal$Resequencer"
+    }
+,
+    {
+        "allDeclaredConstructors" : true,
+        "allDeclaredFields" : true,
+        "name" : "akka.persistence.journal.inmem.InmemJournal"
+    }
+,
+    {
+        "name" : "akka.persistence.RecoveryPermitter"
+    }
+
+]

@@ -127,7 +127,6 @@ object ApplicationConfig {
         Chain(ConfigSource.resources("environment.conf")) ++
         argsToUserConfigs(cmdArgs) ++
         Chain(
-          ConfigSource.fromConfig(YamlConfig.loadResource("custom-config.yaml")),
           ConfigSource.default
         )
     ).foldMapM(_.config()) match {

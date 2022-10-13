@@ -1,0 +1,25 @@
+[
+    {
+        "methods" : [
+            {
+                "name" : "<init>",
+                "parameterTypes" : [
+                    "com.typesafe.config.Config",
+                    "akka.event.EventStream"
+                ]
+            }
+        ],
+        "name" : "akka.remote.PhiAccrualFailureDetector"
+    }
+,
+    {
+        "allDeclaredConstructors" : true,
+        "allDeclaredFields" : true,
+        "name" : "akka.remote.RemoteActorRefProvider$RemotingTerminator"
+    }
+,
+    {
+        "name" : "akka.remote.RemoteWatcher"
+    }
+
+]

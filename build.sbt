@@ -290,8 +290,65 @@ lazy val nodeTetra = project
     blockchain,
     levelDbStore
   )
-  .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
+  .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin, GraalVMNativeImagePlugin)
   .settings(scalamacrosParadiseSettings)
+  .settings(
+    graalVMNativeImageGraalVersion := Some("22.2.0"),
+    graalVMNativeImageOptions ++= Seq(
+      "--add-opens=java.base/java.nio=ALL-UNNAMED",
+      "--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED",
+      "--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED",
+      "--initialize-at-build-time=org.slf4j.LoggerFactory,ch.qos.logback",
+      "--initialize-at-build-time=io.grpc.netty.shaded.io.netty.util.internal.logging.LocationAwareSlf4JLogger",
+      "-H:ReflectionConfigurationFiles=/opt/graalvm/stage/resources/reflection-config.json",
+      "-H:ResourceConfigurationFiles=/opt/graalvm/stage/resources/resource-config.json",
+      "-H:DynamicProxyConfigurationFiles=/opt/graalvm/stage/resources/proxy-config.json",
+      "-H:IncludeResources=.+\\.conf",
+      "-H:IncludeResources=.+\\.properties",
+      "-H:IncludeResources=.+\\.xml",
+      "--no-fallback",
+      "--shared"
+    ) ++ Seq(
+      "--initialize-at-run-time" +
+        Seq(
+          "com.typesafe.config.impl.ConfigImpl",
+          "com.typesafe.config.impl.ConfigImpl$EnvVariablesHolder",
+          "com.typesafe.config.impl.ConfigImpl$SystemPropertiesHolder",
+          "com.typesafe.config.impl.ConfigImpl$LoaderCacheHolder",
+          "akka.actor.ActorCell",
+          "com.typesafe.sslconfig.ssl.tracing.TracingSSLContext",
+          "io.grpc.netty.shaded.io.netty.handler.codec.http2",
+          "io.grpc.netty.shaded.io.netty.handler.codec.http",
+          "io.grpc.netty.shaded.io.netty.handler.codec.http.websocketx.WebSocket00FrameEncoder",
+          "io.grpc.netty.shaded.io.netty.handler.ssl.util.ThreadLocalInsecureRandom",
+          "io.grpc.netty.shaded.io.netty.handler.ssl.ConscryptAlpnSslEngine",
+          "io.grpc.netty.shaded.io.netty.handler.ssl.JettyNpnSslEngine",
+          "io.grpc.netty.shaded.io.netty.handler.ssl.ReferenceCountedOpenSslEngine",
+          "io.grpc.netty.shaded.io.netty.handler.ssl.JdkNpnApplicationProtocolNegotiator",
+          "io.grpc.netty.shaded.io.netty.handler.ssl.ReferenceCountedOpenSslServerContext",
+          "io.grpc.netty.shaded.io.netty.handler.ssl.ReferenceCountedOpenSslClientContext",
+          "io.grpc.netty.shaded.io.netty.handler.ssl.util.BouncyCastleSelfSignedCertGenerator",
+          "io.grpc.netty.shaded.io.netty.handler.ssl.ReferenceCountedOpenSslContext",
+          "io.grpc.netty.shaded.io.netty.channel.socket.nio.NioSocketChannel",
+          "io.netty",
+          "io.grpc.netty.shaded.io.netty.buffer",
+          "io.grpc.netty.shaded.io.netty.channel",
+          "io.grpc.netty.shaded.io.netty.util",
+          "io.grpc.netty.shaded.io.netty.util.concurrent",
+          "io.grpc.netty.shaded.io.netty.util.internal",
+          "io.grpc.netty.shaded.io.netty.util.internal.logging"
+        ).mkString("=", ",", "")
+    )
+
+  )
+
+lazy val hocon2json = project
+  .in(file("hocon2json"))
+  .settings(
+    name := "hocon2json",
+    commonSettings,
+    libraryDependencies ++= Seq(Dependencies.fs2IO, "com.typesafe" % "config" % "1.4.2") ++ Dependencies.catsEffect
+  )
 
 lazy val common = project
   .in(file("common"))
@@ -795,7 +852,8 @@ lazy val genusServer = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.genusServer",
     libraryDependencies ++= Dependencies.genusServer
-  ).dependsOn(genusLibrary)
+  )
+  .dependsOn(genusLibrary)
 
 lazy val genusLibrary = project
   .in(file("genus-library"))

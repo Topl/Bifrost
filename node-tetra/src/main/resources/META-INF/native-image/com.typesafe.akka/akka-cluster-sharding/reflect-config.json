@@ -1,0 +1,42 @@
+[
+    {
+        "name" : "akka.cluster.sharding.ClusterShardingGuardian"
+    }
+,
+    {
+        "allDeclaredFields" : true,
+        "name" : "akka.cluster.sharding.DDataShardCoordinator"
+    }
+,
+    {
+        "methods" : [
+            {
+                "name" : "<init>",
+                "parameterTypes" : []
+            }
+        ],
+        "name" : "akka.cluster.sharding.JoinConfigCompatCheckSharding"
+    }
+,
+    {
+        "allDeclaredFields" : true,
+        "name" : "akka.cluster.sharding.Shard"
+    }
+,
+    {
+        "name" : "akka.cluster.sharding.ShardCoordinator"
+    }
+,
+    {
+        "name" : "akka.cluster.sharding.ShardCoordinator$RebalanceWorker"
+    }
+,
+    {
+        "name" : "akka.cluster.sharding.ShardRegion"
+    }
+,
+    {
+        "name" : "akka.cluster.sharding.ShardRegion$HandOffStopper"
+    }
+
+]

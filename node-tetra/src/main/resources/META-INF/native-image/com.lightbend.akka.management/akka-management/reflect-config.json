@@ -1,0 +1,14 @@
+[
+    {
+        "methods" : [
+            {
+                "name" : "<init>",
+                "parameterTypes" : [
+                    "akka.actor.ExtendedActorSystem"
+                ]
+            }
+        ],
+        "name" : "akka.management.HealthCheckRoutes"
+    }
+
+]

@@ -1,0 +1,8 @@
+[
+  {
+    "name": "akka.http.impl.engine.client.PoolMasterActor",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "allDeclaredConstructors": true
+  }
+]

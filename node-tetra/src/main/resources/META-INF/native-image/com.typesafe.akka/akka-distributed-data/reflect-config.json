@@ -1,0 +1,6 @@
+[
+    {
+        "name" : "akka.cluster.ddata.Replicator"
+    }
+
+]

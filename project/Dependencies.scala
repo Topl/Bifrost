@@ -207,7 +207,8 @@ object Dependencies {
       fs2Core,
       fs2IO,
       pureConfig,
-      circeYaml
+      circeYaml,
+      "com.google.cloud" % "native-image-support" % "0.14.1"
     )
 
   lazy val algebras: Seq[sbt.ModuleID] =
