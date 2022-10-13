@@ -86,14 +86,14 @@ object BramblTetra
         ),
         outputs = Chain(
           Transaction.Output(
-            address(Propositions.Contextual.HeightLock(20L)),
+            address(Propositions.Contextual.HeightLock(1L)),
             Box.Values.Poly(10000L),
             minting = false
           )
         ),
-        schedule = Transaction.Schedule(System.currentTimeMillis(), 0L, Long.MaxValue),
+        schedule = Transaction.Schedule(System.currentTimeMillis(), 1L, Long.MaxValue),
         data = none
-      ).some.map(transaction => (transaction, Propositions.Contextual.HeightLock(20L), 0: Short) -> transaction)
+      ).some.map(transaction => (transaction, Propositions.Contextual.HeightLock(0L), 0: Short) -> transaction)
     }
 
   private def address(proposition: Proposition) =

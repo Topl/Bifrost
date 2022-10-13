@@ -13,6 +13,9 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.concurrent.duration._
 
+/**
+ * An application  which intercepts TCP connections and induces bandwidth and latency throttling.
+ */
 object NetworkDelayer
     extends IOBaseApp[Args, ApplicationConfig](
       createArgs = args => Args.parserArgs.constructOrThrow(args),
@@ -36,15 +39,17 @@ object NetworkDelayer
    * to the route configuration's destination.  The configuration's throttle is also applied to the connection.
    */
   private def serverForRoute(route: ApplicationConfig.Route): F[Unit] =
-    for {
-      serverStream   <- buildServerStream(route)
-      clientResource <- buildClientResource(route)
-      _ <- Logger[F].info(s"Serving at binding=${route.bindHost}:${route.bindPort} with throttle=${route.throttle}")
-      _ <- serverStream
-        .mapAsync(1)(handleSocket(route)(clientResource))
-        .compile
-        .drain
-    } yield ()
+    (
+      for {
+        serverStream   <- buildServerStream(route)
+        clientResource <- buildClientResource(route)
+        _ <- Logger[F].info(s"Serving at binding=${route.bindHost}:${route.bindPort} with throttle=${route.throttle}")
+        _ <- serverStream
+          .mapAsync(1)(handleSocket(route)(clientResource))
+          .compile
+          .drain
+      } yield ()
+    ).handleErrorWith(Logger[F].error(_)(s"Connection failed at binding=${route.bindHost}:${route.bindPort}"))
 
   /**
    * Validate the route settings for the local binding, and bind the port to return a stream of inbound connections

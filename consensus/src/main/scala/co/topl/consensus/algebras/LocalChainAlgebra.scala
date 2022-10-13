@@ -9,7 +9,7 @@ import co.topl.models.SlotData
 trait LocalChainAlgebra[F[_]] {
 
   /**
-   * Indicates if the provided "head" results in a better chain than the current local chain.
+   * Indicates if the provided "newHead" results in a better chain than the current local chain.
    *
    * The `newHead` _can_ be invalid.  (For example, the block needs to have the proper syntax,
    * but it may not necessarily need to be validated for consensus and ledger purposes)
