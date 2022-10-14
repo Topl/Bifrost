@@ -69,6 +69,7 @@ object Blockchain {
       clientHandler =
         List(
           BlockchainPeerHandler.ChainSynchronizer.make[F](
+            clock,
             localChain,
             headerValidation,
             bodySyntaxValidation,
