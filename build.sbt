@@ -306,8 +306,8 @@ lazy val nodeTetra = project
       "-H:IncludeResources=.+\\.conf",
       "-H:IncludeResources=.+\\.properties",
       "-H:IncludeResources=.+\\.xml",
-      "--no-fallback",
-      "--shared"
+      "--no-fallback"/*,
+      "--shared"*/
     ) ++ Seq(
       "--initialize-at-run-time" +
         Seq(

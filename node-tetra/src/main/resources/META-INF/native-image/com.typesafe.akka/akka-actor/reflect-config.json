@@ -348,5 +348,35 @@
     "allDeclaredFields": true,
     "allDeclaredClasses": true,
     "allDeclaredConstructors": true
+  },
+  {
+    "name": "akka.io.TcpOutgoingConnection",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "akka.io.DnsExt",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "akka.io.InetAddressDnsProvider",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "akka.io.SimpleDnsManager",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "akka.io.InetAddressDnsResolver",
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "allDeclaredConstructors": true
   }
 ]

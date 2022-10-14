@@ -96,7 +96,21 @@ class _HomePageState extends State<HomePage> {
 launchNodeViaLibrary(int arg) {
   final lib = ffi.DynamicLibrary.open("lib/library/bifrost-node-tetra.so");
   final library = NativeLibrary(lib);
-  final args = <String>["bifrost", "--p2pBindHost", "0.0.0.0"];
+  final args = <String>[
+    "bifrost",
+    // "--rpcBindPort",
+    // "9075",
+    // "--p2pBindPort",
+    // "9074",
+    // "--knownPeers",
+    // "localhost:9085",
+    // "--testnetStakerIndex",
+    // "-1",
+    // "--dataDir",
+    // "/tmp/bifrost2",
+    // "--testnetTimestamp",
+    // "1665759074134"
+  ];
   final List<ffi.Pointer<ffi.Char>> argPointers =
       args.map((s) => s.toNativeUtf8().cast<ffi.Char>()).toList();
   final ffi.Pointer<ffi.Pointer<ffi.Char>> pointerPointer =
