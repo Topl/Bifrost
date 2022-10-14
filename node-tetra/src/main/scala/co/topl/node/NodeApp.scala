@@ -11,9 +11,7 @@ import co.topl.algebras._
 import ClockAlgebra.implicits._
 import cats.Applicative
 import cats.data.OptionT
-import ch.qos.logback.classic.joran.JoranConfigurator
 import co.topl.blockchain._
-import co.topl.catsakka.IOAkkaApp
 import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing._
 import co.topl.interpreters._
@@ -22,6 +20,7 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.models._
 import co.topl.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
+import co.topl.common.application.{IOAkkaApp, IOBaseApp}
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
 import co.topl.consensus.algebras._
@@ -45,7 +44,7 @@ import scala.util.Random
 object NodeApp
     extends IOAkkaApp[Args, ApplicationConfig, Nothing](
       createArgs = args => Args.parserArgs.constructOrThrow(args),
-      createConfig = ApplicationConfig.createTypesafeConfig,
+      createConfig = IOBaseApp.createTypesafeConfig,
       parseConfig = (args, conf) => ApplicationConfig.unsafe(args, conf),
       createSystem = (_, _, conf) => ActorSystem[Nothing](Behaviors.empty, "BifrostTetra", conf)
     ) {

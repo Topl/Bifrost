@@ -210,6 +210,15 @@ object Dependencies {
       circeYaml
     )
 
+  val networkDelayer: Seq[ModuleID] =
+    cats ++ catsEffect ++ mainargs ++ logging ++ Seq(
+      catsSlf4j,
+      fs2Core,
+      fs2IO,
+      pureConfig,
+      circeYaml
+    )
+
   lazy val algebras: Seq[sbt.ModuleID] =
     test ++
     catsEffect.map(_ % Test) ++
@@ -227,6 +236,15 @@ object Dependencies {
     test ++
     mongoDb ++
     Seq(akka("actor-typed"))
+
+  val commonApplication: Seq[ModuleID] =
+    cats ++ catsEffect ++ mainargs ++ logging ++ monocle ++
+    simulacrum ++ Seq(
+      catsSlf4j,
+      akka("actor-typed"),
+      pureConfig,
+      circeYaml
+    )
 
   lazy val chainProgram: Seq[ModuleID] =
     scalaCollectionCompat ++
