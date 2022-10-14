@@ -1,6 +1,7 @@
 package co.topl.genusLibrary
 
-import java.io.{File, FileOutputStream}
+import java.io.{File, FileInputStream, FileOutputStream}
+import java.nio.charset.Charset
 import java.nio.file.Files
 
 class OrientDBFacadeTest extends munit.FunSuite {
@@ -31,5 +32,24 @@ class OrientDBFacadeTest extends munit.FunSuite {
       OrientDBFacade.ensureDirectoryExists(dir)
     }
     assert(dir.delete(), s"Failed to delete test file $dir")
+  }
+
+  test("setupOrientDBEnvironment") {
+    val dir = randomFile()
+    val pwdFilePath = OrientDBFacade.passwordFile(dir)
+    assert(!pwdFilePath.exists(), "Password file should not exist yet")
+    val facade = OrientDBFacade.setupOrientDBEnvironment(dir)
+    assert(facade.isSuccess, "setupOrientDBEnvironment should have succeeded")
+    assert(pwdFilePath.exists(), s"There must be a file named ${pwdFilePath.getAbsolutePath}")
+    val buffer: Array[Byte] = Array.ofDim(pwdFilePath.length().toInt)
+    val inputStream = new FileInputStream(pwdFilePath)
+    val byteCount = inputStream.read(buffer)
+    inputStream.close()
+    val expectedPassword = new String(buffer, 0, byteCount, Charset.forName("UTF-8"))
+    assertEquals(
+      OrientDBFacade.rootPassword(pwdFilePath).get,
+      expectedPassword,
+      "Password read by test is different than the one returned by rootPassword"
+    )
   }
 }
