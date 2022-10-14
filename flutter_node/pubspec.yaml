@@ -1,0 +1,39 @@
+name: flutter_node
+description: A new Flutter project.
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=2.19.0-255.2.beta <3.0.0'
+dependencies:
+  flutter:
+    sdk: flutter
+  ffi: ^2.0.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  ffigen: ^7.1.0
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
+
+ffigen:
+  output: 'lib/bifrost-node-bindings.dart'
+  headers:
+    entry-points:
+      - 'lib/library/bifrost-node-tetra.h'
+      - 'lib/library/graal_isolate.h'
+  structs:
+    rename:
+      # Removes prefix underscores
+      # from all structures.
+      '__(.*)': '$1'
+    member-rename:
+      '.*': # Matches any struct.
+        # Removes prefix underscores
+        # from members.
+        '__(.*)': '$1'
