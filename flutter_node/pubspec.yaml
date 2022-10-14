@@ -1,5 +1,5 @@
 name: flutter_node
-description: A new Flutter project.
+description: Embeds the Bifrost Node inside of a Flutter application.
 
 publish_to: 'none'
 

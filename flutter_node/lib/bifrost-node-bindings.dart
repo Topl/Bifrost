@@ -141,20 +141,6 @@ class NativeLibrary {
       _graal_detach_all_threads_and_tear_down_isolatePtr
           .asFunction<int Function(ffi.Pointer<graal_isolatethread_t1>)>();
 
-  void run_node(
-    ffi.Pointer<graal_isolatethread_t1> arg0,
-  ) {
-    return _run_node(
-      arg0,
-    );
-  }
-
-  late final _run_nodePtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(ffi.Pointer<graal_isolatethread_t1>)>>('run_node');
-  late final _run_node = _run_nodePtr
-      .asFunction<void Function(ffi.Pointer<graal_isolatethread_t1>)>();
-
   int run_main(
     int argc,
     ffi.Pointer<ffi.Pointer<ffi.Char>> argv,

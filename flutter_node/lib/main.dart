@@ -8,48 +8,32 @@ import 'dart:ffi' as ffi;
 import 'package:flutter_node/bifrost-node-bindings.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const BifrostApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class BifrostApp extends StatelessWidget {
+  const BifrostApp({super.key});
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Protocol Node',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const HomePage(title: 'Protocol Node'),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+class HomePage extends StatefulWidget {
+  const HomePage({super.key, required this.title});
   final String title;
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-launchNodeViaLibrary(int arg) {
-  final lib = ffi.DynamicLibrary.open("lib/library/bifrost-node-tetra.so");
-  final library = NativeLibrary(lib);
-  final args = <String>["bifrost", "--p2pBindHost", "0.0.0.0"];
-  final List<ffi.Pointer<ffi.Char>> argPointers =
-      args.map((s) => s.toNativeUtf8().cast<ffi.Char>()).toList();
-  final ffi.Pointer<ffi.Pointer<ffi.Char>> pointerPointer =
-      malloc.allocate(args.length);
-  for (int i = 0; i < args.length; i++) {
-    pointerPointer[i] = argPointers[i];
-  }
-  print("Running node");
-  library.run_main(args.length, pointerPointer);
-  print("Run complete");
-}
-
-class _MyHomePageState extends State<MyHomePage> {
+class _HomePageState extends State<HomePage> {
   bool _starting = false;
   bool _running = false;
 
@@ -70,22 +54,7 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title),
       ),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: _running
-              ? <Widget>[
-                  const Text(
-                    'Node is running',
-                  )
-                ]
-              : <Widget>[
-                  TextButton(
-                      onPressed: () => _runNode(),
-                      child: const Text(
-                        'Start node',
-                      )),
-                ],
-        ),
+        child: _body(context),
       ),
     );
   }
@@ -105,7 +74,7 @@ class _MyHomePageState extends State<MyHomePage> {
     } else if (!_running) {
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
+        children: const <Widget>[
           Text(
             'Node is starting',
           )
@@ -114,7 +83,7 @@ class _MyHomePageState extends State<MyHomePage> {
     } else {
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
+        children: const <Widget>[
           Text(
             'Node is running',
           )
@@ -122,4 +91,20 @@ class _MyHomePageState extends State<MyHomePage> {
       );
     }
   }
+}
+
+launchNodeViaLibrary(int arg) {
+  final lib = ffi.DynamicLibrary.open("lib/library/bifrost-node-tetra.so");
+  final library = NativeLibrary(lib);
+  final args = <String>["bifrost", "--p2pBindHost", "0.0.0.0"];
+  final List<ffi.Pointer<ffi.Char>> argPointers =
+      args.map((s) => s.toNativeUtf8().cast<ffi.Char>()).toList();
+  final ffi.Pointer<ffi.Pointer<ffi.Char>> pointerPointer =
+      malloc.allocate(args.length);
+  for (int i = 0; i < args.length; i++) {
+    pointerPointer[i] = argPointers[i];
+  }
+  print("Running node");
+  library.run_main(args.length, pointerPointer);
+  print("Run complete");
 }

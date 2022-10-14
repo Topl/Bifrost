@@ -339,7 +339,6 @@ lazy val nodeTetra = project
           "io.grpc.netty.shaded.io.netty.util.internal.logging"
         ).mkString("=", ",", "")
     )
-
   )
 
 lazy val hocon2json = project

@@ -1,23 +1,21 @@
 [
-    {
-        "fields" : [
-            {
-                "name" : "head"
-            }
-        ],
-        "name" : "org.agrona.concurrent.AbstractConcurrentArrayQueueConsumer"
-    }
-,
-    {
-        "fields" : [
-            {
-                "name" : "sharedHeadCache"
-            },
-            {
-                "name" : "tail"
-            }
-        ],
-        "name" : "org.agrona.concurrent.AbstractConcurrentArrayQueueProducer"
-    }
-
+  {
+    "fields": [
+      {
+        "name": "head"
+      }
+    ],
+    "name": "org.agrona.concurrent.AbstractConcurrentArrayQueueConsumer"
+  },
+  {
+    "fields": [
+      {
+        "name": "sharedHeadCache"
+      },
+      {
+        "name": "tail"
+      }
+    ],
+    "name": "org.agrona.concurrent.AbstractConcurrentArrayQueueProducer"
+  }
 ]
