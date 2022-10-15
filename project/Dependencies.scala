@@ -128,7 +128,7 @@ object Dependencies {
 
   val mongoDb: Seq[ModuleID] =
     Seq(
-      "org.mongodb.scala" %% "mongo-scala-driver" % "4.7.1"
+      "org.mongodb.scala" %% "mongo-scala-driver" % "4.7.2"
     )
 
   val levelDb = Seq(
