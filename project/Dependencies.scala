@@ -13,7 +13,7 @@ object Dependencies {
   val logback = "1.4.0"
 
   val catsSlf4j =
-    "org.typelevel" %% "log4cats-slf4j" % "2.4.0"
+    "org.typelevel" %% "log4cats-slf4j" % "2.5.0"
 
   val logging = Seq(
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.5",
