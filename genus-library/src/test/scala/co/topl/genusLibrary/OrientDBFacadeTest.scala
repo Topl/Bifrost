@@ -51,5 +51,7 @@ class OrientDBFacadeTest extends munit.FunSuite {
       expectedPassword,
       "Password read by test is different than the one returned by rootPassword"
     )
+    val dbServerConfigFile = new File(new File(dir, "config"), "orientdb-server-config.xml")
+    assert(dbServerConfigFile.isFile, "The DB server config file should have been created.")
   }
 }
