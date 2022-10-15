@@ -13,13 +13,14 @@ import scala.collection.mutable
 /**
  * This is a class to hide the details of interacting with OrientDB.
  */
-class OrientDBFacade() {
+class OrientDBFacade(dir: File) {
 
   import OrientDBFacade._
 
-  logger.info("Starting OrientDB")
+  private val configFile = serverConfigFile(dir)
+  logger.info("Starting OrientDB with DB server config file {}", configFile.getAbsolutePath)
   private val server = OServerMain.create(true) // true argument request shutdown of server on exit.
-  server.startup() // Use the default OrientDB server configuration
+  server.startup(configFile)
   server.activate()
 
   /**
@@ -44,8 +45,9 @@ object OrientDBFacade {
    * @return the new instance
    */
   def apply(orientDbDirectory: String = "./genus_db"): OrientDBFacade = {
-    setupOrientDBEnvironment(new File(orientDbDirectory)).recover(e => throw e)
-    new OrientDBFacade
+    val dir = new File(orientDbDirectory)
+    setupOrientDBEnvironment(dir).recover(e => throw e)
+    new OrientDBFacade(dir)
   }
 
   private[genusLibrary] def ensureDirectoryExists(directory: File): Unit =
@@ -72,7 +74,8 @@ object OrientDBFacade {
         val dir = configDirectory(dbDirectory)
         ensureDirectoryExists(dir)
         writeDefaultDbServerConfigFile(file)
-      }
+      } else
+        logger.info("Found existing DB server config file {}", file.getAbsolutePath)
     }.logIfFailure("Error accessing or creating DB server configuration file")
   }
 
@@ -216,7 +219,7 @@ object OrientDBFacade {
     |                            <entry name="http.cache:default" value="Cache-Control: max-age=120"/>
     |                        </parameters>
     |                    </command>
-    |                    <command pattern="GET|gephi/*" implementation="com.orientechnologies.orient.graph.server.command.OServerCommandGetGephi"/>
+    |                    <!-- <command pattern="GET|gephi/*" implementation="com.orientechnologies.orient.graph.server.command.OServerCommandGetGephi"/> -->
     |                </commands>
     |            </listener>
     |        </listeners>
@@ -246,7 +249,7 @@ object OrientDBFacade {
     |    </properties>
     |</orient-server>""".stripMargin
   def writeDefaultDbServerConfigFile(file: File): Unit = {
-    val outputWriter = new BufferedWriter(new FileWriter(file))
+    val outputWriter = new BufferedWriter(new FileWriter(file, charsetUtf8))
     try {
       outputWriter.write(defaultDbServerConfig)
     } finally outputWriter.close()
