@@ -37,10 +37,10 @@ object Genus {
     Log.debug("getGenus called: {}") {
       Try {
         this.synchronized {
-          instance.getOrElse(() => instance = Some(new Genus))
-          instance.get
+          instance = Some(instance.getOrElse(new Genus))
         }
       }.logIfFailure("Failed to create Genus instance")
+        .map(_ => instance.get)
     }
 
   def shutDown(): Try[Unit] = {
