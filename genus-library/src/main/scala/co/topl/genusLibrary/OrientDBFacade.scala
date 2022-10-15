@@ -67,7 +67,6 @@ object OrientDBFacade {
       .flatMap(_ => ensureDbServerConfigFileExists(dbDirectory))
   }
 
-
   def ensureDbServerConfigFileExists(dbDirectory: File): Try[Unit] = {
     Try {
       val file = serverConfigFile(dbDirectory)
