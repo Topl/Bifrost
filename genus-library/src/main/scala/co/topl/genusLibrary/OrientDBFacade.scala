@@ -2,6 +2,7 @@ package co.topl.genusLibrary
 
 import com.orientechnologies.orient.server.OServerMain
 import com.typesafe.scalalogging.Logger
+import org.apache.commons.io.IOUtil
 
 import java.io.{File, FileInputStream, FileOutputStream}
 import java.nio.charset.Charset
@@ -9,6 +10,7 @@ import scala.util.{Random, Success, Try}
 import util.Log._
 
 import scala.collection.mutable
+import scala.io.Source
 
 /**
  * This is a class to hide the details of interacting with OrientDB.
@@ -36,6 +38,7 @@ object OrientDBFacade {
 
   private val charsetUtf8: Charset = Charset.forName("UTF-8")
   private val passwdLength = 22
+  private val dbConfigFileName = "orientdb-server-config.xml"
 
   /**
    * Create an instance of OrientDBFacade
@@ -61,9 +64,32 @@ object OrientDBFacade {
     rootPassword(passwordFile(dbDirectory))
       .logIfFailure("Failed to read password")
       .map(password => System.setProperty("ORIENTDB_ROOT_PASSWORD", password))
+      .flatMap(_ => ensureDbServerConfigFileExists(dbDirectory))
   }
 
-  private[genusLibrary] def passwordFile(dir: File) = new File(dir,"root_pwd")
+
+  def ensureDbServerConfigFileExists(dbDirectory: File): Try[Unit] = {
+    Try {
+      val file = serverConfigFile(dbDirectory)
+      if (!file.isFile) {
+        val dir = configDirectory(dbDirectory)
+        ensureDirectoryExists(dir)
+        val inputStream = getClass.getResourceAsStream(dbConfigFileName)
+        try {
+          val outputStream = new FileOutputStream(file)
+          try {
+            IOUtil.copy(inputStream, outputStream)
+          } finally outputStream.close()
+        } finally inputStream.close()
+      }
+    }.logIfFailure("Error accessing or creating DB server configuration file")
+  }
+
+  private def serverConfigFile(dbDirectory: File): File = new File(configDirectory(dbDirectory), "orientdb-server-config.xml")
+
+  private def configDirectory(dbDirectory: File): File = new File(dbDirectory, "config")
+
+  private[genusLibrary] def passwordFile(dir: File) = new File(dir, "root_pwd")
 
   /**
    * Read the database root password from a file. If the file does not exist then create the file with a random

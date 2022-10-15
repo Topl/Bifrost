@@ -403,6 +403,9 @@ object Dependencies {
     mUnitTest
 
   lazy val genusLibrary: Seq[ModuleID] =
+    Seq(
+      "commons-io" % "commons-io" % "20030203.000550"
+    ) ++
     logging ++
     orientDb ++
     mUnitTest
