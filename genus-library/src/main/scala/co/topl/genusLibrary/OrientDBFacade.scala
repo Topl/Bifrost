@@ -103,11 +103,11 @@ object OrientDBFacade {
     val outputStream = new FileOutputStream(file)
     try {
       val pwdBuilder = new mutable.StringBuilder
-      1 to passwdLength foreach {
+      1 to passwdLength foreach { _ =>
         pwdBuilder += Random.nextPrintableChar()
       }
       val bytes = pwdBuilder.toString().getBytes(charsetUtf8)
-      logger.info("writing {} bytes to password file", bytes.length)
+      logger.debug("writing {} bytes to password file", bytes.length)
       outputStream.write(bytes)
     } finally
       outputStream.close()
