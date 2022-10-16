@@ -23,11 +23,10 @@ object GenusServerApp extends IOApp {
 
   def doIt(@unused args: List[String]): IO[Unit] =
     IO {
-      try {
+      try
         Genus.getGenus
         // Code to run gRPC services goes here
-      } finally {
+      finally
         Genus.shutDown()
-      }
     }
 }

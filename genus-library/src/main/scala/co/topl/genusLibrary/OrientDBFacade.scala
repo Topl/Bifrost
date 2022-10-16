@@ -67,7 +67,7 @@ object OrientDBFacade {
       .flatMap(_ => ensureDbServerConfigFileExists(dbDirectory))
   }
 
-  def ensureDbServerConfigFileExists(dbDirectory: File): Try[Unit] = {
+  def ensureDbServerConfigFileExists(dbDirectory: File): Try[Unit] =
     Try {
       val file = serverConfigFile(dbDirectory)
       if (!file.isFile) {
@@ -77,10 +77,9 @@ object OrientDBFacade {
       } else
         logger.info("Found existing DB server config file {}", file.getAbsolutePath)
     }.logIfFailure("Error accessing or creating DB server configuration file")
-  }
 
   private val defaultDbServerConfig =
-  """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
     |<!--
     |   ~ /*
     |   ~  *  Copyright 2014 Orient Technologies LTD (info(at)orientechnologies.com)
@@ -128,11 +127,12 @@ object OrientDBFacade {
     |        <entry name="plugin.dynamic" value="false"/>
     |    </properties>
     |</orient-server>""".stripMargin
+
   def writeDefaultDbServerConfigFile(file: File): Unit = {
     val outputWriter = new BufferedWriter(new FileWriter(file, charsetUtf8))
-    try {
+    try
       outputWriter.write(defaultDbServerConfig)
-    } finally outputWriter.close()
+    finally outputWriter.close()
   }
 
   private def serverConfigFile(dbDirectory: File): File = new File(configDirectory(dbDirectory), dbConfigFileName)
