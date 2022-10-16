@@ -1,13 +1,11 @@
 package co.topl.node
 
 import cats.Show
-import cats.data.Chain
 import cats.implicits._
-import cats.kernel.Monoid
 import co.topl.models.Slot
 import co.topl.models.utility.Ratio
 import co.topl.networking.p2p.DisconnectedPeer
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
 import monocle._
 import monocle.macros._
 import monocle.macros.syntax.lens._
@@ -17,7 +15,6 @@ import pureconfig.generic.auto._
 import pureconfig.configurable._
 
 import java.net.InetSocketAddress
-import java.nio.file.Paths
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
@@ -117,54 +114,6 @@ object ApplicationConfig {
       case class CacheConfig(maximumEntries: Long, ttl: Option[FiniteDuration])
     }
   }
-
-  implicit private val monoidConfig: Monoid[Config] =
-    Monoid.instance(ConfigFactory.empty(), _ withFallback _)
-
-  def createTypesafeConfig(cmdArgs: Args): Config =
-    (
-      argsToDebugConfigs(cmdArgs) ++
-        Chain(ConfigSource.resources("environment.conf")) ++
-        argsToUserConfigs(cmdArgs) ++
-        Chain(
-          ConfigSource.fromConfig(YamlConfig.loadResource("custom-config.yaml")),
-          ConfigSource.default
-        )
-    ).foldMapM(_.config()) match {
-      case Right(value) => value.resolve()
-      case Left(e)      => throw new IllegalStateException(e.toString)
-    }
-
-  /**
-   * Allow the --debug argument to enable the `CONFIG_FORCE_` environment variable syntax from Typesafe Config
-   */
-  private def argsToDebugConfigs(cmdArgs: Args): Chain[ConfigObjectSource] =
-    Chain.fromOption(
-      Option.when(cmdArgs.startup.debug.value)(
-        ConfigSource.fromConfig(ConfigFactory.systemEnvironmentOverrides())
-      )
-    )
-
-  /**
-   * Load user-defined configuration files from disk/resources
-   */
-  private def argsToUserConfigs(cmdArgs: Args): Chain[ConfigObjectSource] =
-    Chain
-      .fromSeq(cmdArgs.startup.config.reverse)
-      .map(name =>
-        if (name.startsWith("resource://")) {
-          if (name.endsWith(".yaml") || name.endsWith(".yml"))
-            ConfigSource.fromConfig(YamlConfig.loadResource(name))
-          else
-            ConfigSource.resources(name)
-        } else {
-          val path = Paths.get(name)
-          if (name.endsWith(".yaml") || name.endsWith(".yml"))
-            ConfigSource.fromConfig(YamlConfig.load(path))
-          else
-            ConfigSource.file(path)
-        }
-      )
 
   /**
    * Construct an ApplicationConfig based on the given command-line arguments and a merged HOCON config.

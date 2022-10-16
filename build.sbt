@@ -108,6 +108,11 @@ lazy val dionNodeDockerSettings =
     Docker / packageName := "bifrost-node"
   )
 
+lazy val networkDelayerDockerSettings =
+  dockerSettings ++ Seq(
+    Docker / packageName := "network-delayer"
+  )
+
 def assemblySettings(main: String) = Seq(
   assembly / mainClass := Some(main),
   assembly / test := {},
@@ -234,6 +239,8 @@ lazy val bifrost = project
     scripting,
     genus,
     levelDbStore,
+    commonApplication,
+    networkDelayer,
     genusLibrary,
     genusServer
   )
@@ -291,10 +298,35 @@ lazy val nodeTetra = project
     catsAkka,
     toplGrpc,
     blockchain,
-    levelDbStore
+    levelDbStore,
+    commonApplication
   )
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .settings(scalamacrosParadiseSettings)
+
+lazy val networkDelayer = project
+  .in(file("network-delayer"))
+  .settings(
+    name := "network-delayer",
+    commonSettings,
+    assemblySettings("co.topl.networkdelayer.NetworkDelayer"),
+    assemblyJarName := s"network-delayer-${version.value}.jar",
+    networkDelayerDockerSettings,
+    Defaults.itSettings,
+    crossScalaVersions := Seq(scala213),
+    Compile / mainClass := Some("co.topl.networkdelayer.NetworkDelayer"),
+    publish / skip := true,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.networkdelayer",
+    libraryDependencies ++= Dependencies.networkDelayer
+  )
+  .configs(IntegrationTest)
+  .settings(
+    IntegrationTest / parallelExecution := false
+  )
+  .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(catsAkka, commonApplication)
 
 lazy val common = project
   .in(file("common"))
@@ -305,6 +337,17 @@ lazy val common = project
     libraryDependencies ++= Dependencies.common
   )
   .dependsOn(crypto, typeclasses, models % "compile->compile;test->test")
+  .settings(scalamacrosParadiseSettings)
+
+lazy val commonApplication = project
+  .in(file("common-application"))
+  .settings(
+    name := "common-application",
+    commonSettings,
+    publishSettings,
+    libraryDependencies ++= Dependencies.commonApplication
+  )
+  .dependsOn(catsAkka)
   .settings(scalamacrosParadiseSettings)
 
 //lazy val chainProgram = project
@@ -330,7 +373,16 @@ lazy val brambl = project
     buildInfoPackage := "co.topl.buildinfo.brambl"
   )
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(toplRpc, common, typeclasses, models % "compile->compile;test->test", scripting, tetraByteCodecs, toplGrpc)
+  .dependsOn(
+    toplRpc,
+    common,
+    typeclasses,
+    models % "compile->compile;test->test",
+    scripting,
+    tetraByteCodecs,
+    toplGrpc,
+    commonApplication
+  )
 
 lazy val akkaHttpRpc = project
   .in(file("akka-http-rpc"))

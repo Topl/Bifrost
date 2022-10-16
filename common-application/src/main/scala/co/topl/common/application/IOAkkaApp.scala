@@ -1,8 +1,8 @@
-package co.topl.catsakka
+package co.topl.common.application
 
 import akka.actor.typed.ActorSystem
 import cats.effect._
-import cats.effect.unsafe.IORuntime
+import co.topl.catsakka.AkkaCatsRuntime
 import com.typesafe.config.Config
 
 /**
@@ -20,35 +20,16 @@ abstract class IOAkkaApp[CmdArgs, AppConfig, Guardian](
   createConfig: CmdArgs => Config,
   parseConfig:  (CmdArgs, Config) => AppConfig,
   createSystem: (CmdArgs, AppConfig, Config) => ActorSystem[Guardian]
-) {
+) extends IOBaseApp[CmdArgs, AppConfig](createArgs, createConfig, parseConfig) {
 
-  type F[A] = IO[A]
+  protected[application] var _system: ActorSystem[Guardian] = _
 
-  private var _args: CmdArgs = _
-  private var _config: Config = _
-  private var _appConfig: AppConfig = _
-  private var _system: ActorSystem[Guardian] = _
-  private var _ioApp: IOApp = _
-  private var _ioRuntime: IORuntime = _
-
-  implicit def args: CmdArgs = _args
-  implicit def appConfig: AppConfig = _appConfig
-  implicit def config: Config = _config
   implicit def system: ActorSystem[Guardian] = _system
 
   def run: IO[Unit]
 
-  final def main(args: Array[String]): Unit = {
-    _args = createArgs(args.toList)
-    _config = createConfig(_args)
-    _appConfig = parseConfig(_args, _config)
-    _system = createSystem(_args, _appConfig, _config)
+  override protected def initRuntime(): Unit = {
+    _system = createSystem(args, appConfig, config)
     _ioRuntime = AkkaCatsRuntime(_system).runtime
-    _ioApp = new IOApp {
-      override protected val runtime: IORuntime = _ioRuntime
-      def run(args: List[String]): IO[ExitCode] =
-        IOAkkaApp.this.run.as(ExitCode.Success)
-    }
-    _ioApp.main(Array.empty)
   }
 }

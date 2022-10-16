@@ -7,7 +7,8 @@ import cats.effect.Async
 import cats.effect.kernel.Sync
 import cats.implicits._
 import cats.{Applicative, Monad, MonadThrow, Monoid, Parallel, Show}
-import co.topl.algebras.{Store, StoreReader}
+import co.topl.algebras.ClockAlgebra.implicits.ClockOps
+import co.topl.algebras.{ClockAlgebra, Store, StoreReader}
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
@@ -27,6 +28,7 @@ import co.topl.models._
 import co.topl.networking.blockchain._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.concurrent.duration._
 
@@ -57,7 +59,8 @@ object BlockchainPeerHandler {
    */
   object ChainSynchronizer {
 
-    def make[F[_]: Async: Parallel: FToFuture: RunnableGraphToF: Logger](
+    def make[F[_]: Async: Parallel: FToFuture: RunnableGraphToF](
+      clock:                       ClockAlgebra[F],
       localChain:                  LocalChainAlgebra[F],
       headerValidation:            BlockHeaderValidationAlgebra[F],
       bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
@@ -71,6 +74,10 @@ object BlockchainPeerHandler {
     )(implicit mat:                Materializer): BlockchainPeerHandlerAlgebra[F] =
       (client: BlockchainPeerClient[F]) =>
         for {
+          remotePeer <- client.remotePeer
+          implicit0(logger: Logger[F]) = Slf4jLogger
+            .getLoggerFromClass[F](this.getClass)
+            .withModifiedString(value => show"peer=${remotePeer.remoteAddress} $value")
           _adoptions <- client.remotePeerAdoptions
           adoptions  <- _adoptions.withCancel[F]
           _fetchAndValidateMissingHeaders = fetchAndValidateMissingHeaders(
@@ -96,16 +103,18 @@ object BlockchainPeerHandler {
                 .ifM(
                   ifTrue = Logger[F].debug(show"Ignoring already-known block header id=$id"),
                   ifFalse = for {
-                    _        <- Logger[F].info(show"Fetching remote SlotData id=$id")
-                    slotData <- OptionT(client.getRemoteSlotData(id)).getOrNoSuchElement(id)
+                    fetch <- (
+                      (id: TypedIdentifier) =>
+                        Logger[F].info(show"Fetching remote SlotData id=$id") >>
+                        OptionT(client.getRemoteSlotData(id)).getOrNoSuchElement(id)
+                    ).pure[F]
+                    slotData <- fetch(id)
                     // Fetch missing SlotData from the remote peer
                     tine: NonEmptyChain[SlotData] <- buildTine[F, SlotData](
                       slotDataStore,
-                      id => OptionT(client.getRemoteSlotData(id)).getOrNoSuchElement(id.show),
+                      fetch,
                       (_, data) => data.parentSlotId.blockId.pure[F]
-                    )(
-                      (slotData.slotId.blockId, slotData)
-                    )
+                    )((slotData.slotId.blockId, slotData))
                     _ <- Logger[F].debug(show"Retrieved remote tine length=${tine.length}")
                     // We necessarily need to save Slot Data in the store prior to performing chain "preference"
                     _ <- tine.traverse(slotData =>
@@ -113,9 +122,7 @@ object BlockchainPeerHandler {
                         show"Associating child=${slotData.slotId.blockId} to parent=${slotData.parentSlotId.blockId}"
                       ) >>
                       blockIdTree.associate(slotData.slotId.blockId, slotData.parentSlotId.blockId) >>
-                      Logger[F].debug(
-                        show"Storing SlotData id=${slotData.slotId.blockId}"
-                      ) >>
+                      Logger[F].debug(show"Storing SlotData id=${slotData.slotId.blockId}") >>
                       slotDataStore.put(slotData.slotId.blockId, slotData)
                     )
                     _ <-
@@ -127,8 +134,24 @@ object BlockchainPeerHandler {
                           ifTrue = for {
                             _ <- Logger[F]
                               .debug(show"Remote tine (head id=$id) appears to be better than the local chain")
-                            _ <- _fetchAndValidateMissingHeaders(id)
-                            _ <- _fetchAndValidateMissingBodies(id)
+                            // The remote tine may be large, extending beyond 2 epochs.  Header validation relies on
+                            // block bodies (lagging by 2 epochs), so group the tine by epoch step through each
+                            // group.
+                            epochBoundaries <- tine
+                              .foldLeftM(Chain.empty[SlotId]) { case (boundaries, slotData) =>
+                                boundaries.initLast.fold(Chain(slotData.slotId).pure[F]) { case (init, last) =>
+                                  (clock.epochOf(slotData.slotId.slot), clock.epochOf(last.slot))
+                                    .mapN((epoch, parentEpoch) =>
+                                      if (epoch > parentEpoch) boundaries.append(slotData.slotId)
+                                      else init.append(slotData.slotId)
+                                    )
+                                }
+                              }
+                              .map(_.map(_.blockId))
+                            _ <- epochBoundaries
+                              .traverseTap(id =>
+                                _fetchAndValidateMissingHeaders(id) >> _fetchAndValidateMissingBodies(id)
+                              )
                             _ <-
                               // After fetching and validating all of the data, re-run the chain preference process
                               localChain

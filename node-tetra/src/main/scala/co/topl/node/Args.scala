@@ -1,6 +1,7 @@
 package co.topl.node
 
 import cats.Show
+import co.topl.common.application.{ContainsDebugFlag, ContainsUserConfigs}
 import mainargs._
 
 @main
@@ -89,4 +90,10 @@ object Args {
 
   implicit val parserArgs: ParserForClass[Args] =
     ParserForClass[Args]
+
+  implicit val argsContainsUserConfigs: ContainsUserConfigs[Args] =
+    _.startup.config.toList
+
+  implicit val argsContainsDebugFlag: ContainsDebugFlag[Args] =
+    _.startup.debug.value
 }
