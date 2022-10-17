@@ -1,4 +1,4 @@
-package co.topl.genusLibrary.util
+package co.topl.typeclasses
 
 import com.typesafe.scalalogging.Logger
 

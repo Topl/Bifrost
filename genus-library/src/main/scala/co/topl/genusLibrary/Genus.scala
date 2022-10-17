@@ -1,7 +1,7 @@
 package co.topl.genusLibrary
 
-import co.topl.genusLibrary.util.Log
-import co.topl.genusLibrary.util.Log._
+import co.topl.typeclasses.Log._
+import co.topl.typeclasses.Log
 import com.typesafe.scalalogging.Logger
 
 import scala.util.{Success, Try}

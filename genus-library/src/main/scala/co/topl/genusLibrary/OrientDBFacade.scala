@@ -6,7 +6,7 @@ import com.typesafe.scalalogging.Logger
 import java.io.{BufferedWriter, File, FileInputStream, FileOutputStream, FileWriter}
 import java.nio.charset.Charset
 import scala.util.{Random, Success, Try}
-import util.Log._
+import co.topl.typeclasses.Log._
 
 import scala.collection.mutable
 

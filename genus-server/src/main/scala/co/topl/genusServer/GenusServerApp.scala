@@ -25,7 +25,7 @@ object GenusServerApp extends IOApp {
     IO {
       try
         Genus.getGenus
-        // Code to run gRPC services goes here
+        // TODO Code to run gRPC services goes here
       finally
         Genus.shutDown()
     }

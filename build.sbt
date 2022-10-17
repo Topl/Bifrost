@@ -494,7 +494,9 @@ lazy val typeclasses: Project = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.typeclasses"
   )
-  .settings(libraryDependencies ++= Dependencies.test)
+  .settings(
+    libraryDependencies ++= Dependencies.test ++ Dependencies.logging
+  )
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test", crypto, tetraByteCodecs, jsonCodecs)
 
@@ -863,7 +865,7 @@ lazy val genusLibrary = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.genusLibrary",
     libraryDependencies ++= Dependencies.genusLibrary
-  )
+  ).dependsOn(typeclasses)
 
 lazy val munitScalamock = project
   .in(file("munit-scalamock"))
