@@ -8,6 +8,7 @@ class GenusExceptionTest extends munit.FunSuite {
     val exception = GenusException(msg)
     assertEquals(exception.getMessage, msg, "message should be correct")
   }
+
   test("GenusExceptionWithCause") {
     val exception = GenusException(msg, cause)
     assertEquals(exception.getMessage, msg, "message should be correct")

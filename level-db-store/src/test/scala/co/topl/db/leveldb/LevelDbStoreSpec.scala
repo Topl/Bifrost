@@ -9,6 +9,7 @@ import scodec.{codecs, Codec}
 import fs2.io.file.{Files, Path}
 import java.util.InputMismatchException
 
+//noinspection ScalaStyle
 class LevelDbStoreSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
 
   type F[A] = IO[A]
@@ -43,6 +44,7 @@ class LevelDbStoreSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
         _ <- underTest.contains(key).assertEquals(false)
         // Verify directly that it no longer exists
         _ <- IO.blocking(dbUnderTest.get(keyArray)).assertEquals(null)
+        _ = dbUnderTest.close()
       } yield ()
     }
 
@@ -56,6 +58,7 @@ class LevelDbStoreSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
         _ <- IO.blocking(dbUnderTest.put(keyArray, Array[Byte](1, 2, 3, 4)))
         _ <- underTest.contains(key).assertEquals(true)
         _ <- interceptIO[InputMismatchException](underTest.get(key))
+        _ = dbUnderTest.close()
       } yield ()
     }
 
