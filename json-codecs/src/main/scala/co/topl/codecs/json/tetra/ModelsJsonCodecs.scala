@@ -497,7 +497,7 @@ trait ModelsJsonCodecs {
         "inputs"   -> tx.inputs.asJson,
         "outputs"  -> tx.outputs.asJson,
         "schedule" -> tx.schedule.asJson,
-        "data"     -> tx.data.map(_.data).asJson
+        "data"     -> tx.data.asJson
       )
 
   implicit def transactionJsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[Transaction] =
@@ -515,7 +515,7 @@ trait ModelsJsonCodecs {
         "inputs"   -> tx.inputs.asJson,
         "outputs"  -> tx.outputs.asJson,
         "schedule" -> tx.schedule.asJson,
-        "data"     -> tx.data.map(_.data).asJson
+        "data"     -> tx.data.asJson
       )
 
   implicit val unprovenTransactionJsonDecoder: Decoder[Transaction.Unproven] =

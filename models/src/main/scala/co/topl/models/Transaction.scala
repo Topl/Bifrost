@@ -1,8 +1,6 @@
 package co.topl.models
 
 import cats.data.Chain
-import co.topl.models.utility.StringDataTypes.Latin1Data
-import co.topl.models.utility.{Lengths, Sized}
 
 case class Transaction(
   inputs:   Chain[Transaction.Input],
@@ -13,7 +11,8 @@ case class Transaction(
 
 object Transaction {
 
-  type Data = Sized.Max[Latin1Data, Lengths.`127`.type]
+  type Data = Bytes
+  val maxDataLength = 15360
 
   case class Input(
     boxId:       Box.Id,

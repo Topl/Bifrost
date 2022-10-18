@@ -139,15 +139,11 @@ trait TransactionRpcParamsEncoders extends SharedCodecs {
   implicit val unprovenPolyTransferParamsEncoder: Encoder[ToplRpc.Transaction.UnprovenPolyTransfer.Params] =
     t =>
       Json.obj(
-        "senders"       -> t.senders.asJson,
-        "recipients"    -> t.recipients.asJson,
-        "fee"           -> t.fee.asJson,
-        "changeAddress" -> t.changeAddress.asJson,
-        "data" -> t.data.asJson(
-          Encoder.encodeOption[TetraTransaction.Data](
-            sizedMaxEncoder[co.topl.models.utility.StringDataTypes.Latin1Data, Lengths.`127`.type]
-          )
-        ),
+        "senders"               -> t.senders.asJson,
+        "recipients"            -> t.recipients.asJson,
+        "fee"                   -> t.fee.asJson,
+        "changeAddress"         -> t.changeAddress.asJson,
+        "data"                  -> t.data.asJson,
         "boxSelectionAlgorithm" -> t.boxSelectionAlgorithm.asJson
       )
 

@@ -364,7 +364,7 @@ class TetraTransactionOps(private val transaction: Transaction) extends AnyVal {
       }
       .getOrElse(Int128(0))
 
-  private def getData: Option[Latin1Data] = transaction.data.map(d => Latin1Data.fromData(d.data.bytes))
+  private def getData: Option[Latin1Data] = transaction.data.map(d => Latin1Data.fromData(d.toArray))
 
   // TODO
   private def getFeeOutput: (Address, SimpleValue) = ???
