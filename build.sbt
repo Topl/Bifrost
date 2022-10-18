@@ -582,7 +582,8 @@ lazy val minting = project
     consensus,
     catsAkka,
     ledger,
-    munitScalamock % "test->test"
+    munitScalamock % "test->test",
+    commonInterpreters % "test->test"
   )
 
 lazy val networking = project

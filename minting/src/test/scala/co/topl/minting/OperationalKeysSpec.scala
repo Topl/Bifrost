@@ -2,14 +2,16 @@ package co.topl.minting
 
 import cats.Applicative
 import cats.data.Chain
+import cats.effect.IO.asyncForIO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import co.topl.algebras.testInterpreters.NoOpLogger
-import co.topl.algebras.{ClockAlgebra, SecureStore, UnsafeResource}
+import co.topl.algebras.{ClockAlgebra, SecureStore}
 import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.consensus.algebras.{ConsensusValidationStateAlgebra, EtaCalculationAlgebra}
 import co.topl.crypto.signing.{Ed25519, KesProduct}
-import co.topl.minting.algebras.{OperationalKeyOut, VrfProofAlgebra}
+import co.topl.interpreters.CatsUnsafeResource
+import co.topl.minting.algebras.{OperationalKeysAlgebra, VrfProofAlgebra}
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility.Ratio
@@ -48,8 +50,8 @@ class OperationalKeysSpec
       val vrfProof = mock[VrfProofAlgebra[F]]
       val etaCalculation = mock[EtaCalculationAlgebra[F]]
       val consensusState = mock[ConsensusValidationStateAlgebra[F]]
-      val kesProductResource = mock[UnsafeResource[F, KesProduct]]
-      val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
+      val kesProductResourceF = CatsUnsafeResource.make(new KesProduct, 1)
+      val ed25519ResourceF = CatsUnsafeResource.make(new Ed25519, 1)
       val parentSlotId = SlotId(10L, TypedBytes(1: Byte, Bytes.fill(32)(0: Byte)))
       val operationalPeriodLength = 30L
       val activationOperationalPeriod = 0L
@@ -97,48 +99,28 @@ class OperationalKeysSpec
         .once()
         .returning(Ratio.One.some.pure[F])
 
-      (kesProductResource
-        .use[Int](_: Function1[KesProduct, F[Int]]))
-        .expects(*)
-        .anyNumberOfTimes()
-        .onCall { f: Function1[KesProduct, F[Int]] => f(kesProduct) }
+      val operationalKeysAlgebraF =
+        for {
+          kesProductResource <- kesProductResourceF
+          ed25519Resource    <- ed25519ResourceF
+          keysAlgebra <-
+            OperationalKeys.FromSecureStore.make[F](
+              secureStore,
+              clock,
+              vrfProof,
+              etaCalculation,
+              consensusState,
+              kesProductResource,
+              ed25519Resource,
+              parentSlotId,
+              operationalPeriodLength,
+              activationOperationalPeriod,
+              address,
+              0L
+            )
+        } yield keysAlgebra
 
-      (kesProductResource
-        .use[SecretKeys.KesProduct](_: Function1[KesProduct, F[SecretKeys.KesProduct]]))
-        .expects(*)
-        .anyNumberOfTimes()
-        .onCall { f: Function1[KesProduct, F[SecretKeys.KesProduct]] => f(kesProduct) }
-
-      (kesProductResource
-        .use[Vector[OperationalKeyOut]](_: Function1[KesProduct, F[Vector[OperationalKeyOut]]]))
-        .expects(*)
-        .anyNumberOfTimes()
-        .onCall { f: Function1[KesProduct, F[Vector[OperationalKeyOut]]] => f(kesProduct) }
-
-      (ed25519Resource
-        .use[List[(SecretKeys.Ed25519, VerificationKeys.Ed25519)]](
-          _: Function1[Ed25519, F[List[(SecretKeys.Ed25519, VerificationKeys.Ed25519)]]]
-        ))
-        .expects(*)
-        .anyNumberOfTimes()
-        .onCall { f: Function1[Ed25519, F[List[(SecretKeys.Ed25519, VerificationKeys.Ed25519)]]] => f(ed25519) }
-
-      val underTest = OperationalKeys.FromSecureStore
-        .make[F](
-          secureStore,
-          clock,
-          vrfProof,
-          etaCalculation,
-          consensusState,
-          kesProductResource,
-          ed25519Resource,
-          parentSlotId,
-          operationalPeriodLength,
-          activationOperationalPeriod,
-          address,
-          0L
-        )
-        .unsafeRunSync()
+      val underTest: OperationalKeysAlgebra[F] = operationalKeysAlgebraF.unsafeRunSync()
 
       ineligibilities.foreach { i =>
         val out = underTest.operationalKeyForSlot(i, parentSlotId).unsafeRunSync()
@@ -166,8 +148,8 @@ class OperationalKeysSpec
       val vrfProof = mock[VrfProofAlgebra[F]]
       val etaCalculation = mock[EtaCalculationAlgebra[F]]
       val consensusState = mock[ConsensusValidationStateAlgebra[F]]
-      val kesProductResource = mock[UnsafeResource[F, KesProduct]]
-      val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
+      val kesProductResourceF = CatsUnsafeResource.make(new KesProduct, 1)
+      val ed25519ResourceF = CatsUnsafeResource.make(new Ed25519, 1)
       val parentSlotId = SlotId(10L, TypedBytes(1: Byte, Bytes.fill(32)(0: Byte)))
       val operationalPeriodLength = 30L
       val activationOperationalPeriod = 0L
@@ -213,48 +195,28 @@ class OperationalKeysSpec
         .twice()
         .returning(Ratio.One.some.pure[F])
 
-      (kesProductResource
-        .use[Int](_: Function1[KesProduct, F[Int]]))
-        .expects(*)
-        .anyNumberOfTimes()
-        .onCall { f: Function1[KesProduct, F[Int]] => f(kesProduct) }
+      val operationalKeysAlgebraF =
+        for {
+          kesProductResource <- kesProductResourceF
+          ed25519Resource    <- ed25519ResourceF
+          keysAlgebra <-
+            OperationalKeys.FromSecureStore.make[F](
+              secureStore,
+              clock,
+              vrfProof,
+              etaCalculation,
+              consensusState,
+              kesProductResource,
+              ed25519Resource,
+              parentSlotId,
+              operationalPeriodLength,
+              activationOperationalPeriod,
+              address,
+              0L
+            )
+        } yield keysAlgebra
 
-      (kesProductResource
-        .use[SecretKeys.KesProduct](_: Function1[KesProduct, F[SecretKeys.KesProduct]]))
-        .expects(*)
-        .anyNumberOfTimes()
-        .onCall { f: Function1[KesProduct, F[SecretKeys.KesProduct]] => f(kesProduct) }
-
-      (kesProductResource
-        .use[Vector[OperationalKeyOut]](_: Function1[KesProduct, F[Vector[OperationalKeyOut]]]))
-        .expects(*)
-        .anyNumberOfTimes()
-        .onCall { f: Function1[KesProduct, F[Vector[OperationalKeyOut]]] => f(kesProduct) }
-
-      (ed25519Resource
-        .use[List[(SecretKeys.Ed25519, VerificationKeys.Ed25519)]](
-          _: Function1[Ed25519, F[List[(SecretKeys.Ed25519, VerificationKeys.Ed25519)]]]
-        ))
-        .expects(*)
-        .anyNumberOfTimes()
-        .onCall { f: Function1[Ed25519, F[List[(SecretKeys.Ed25519, VerificationKeys.Ed25519)]]] => f(ed25519) }
-
-      val underTest = OperationalKeys.FromSecureStore
-        .make[F](
-          secureStore,
-          clock,
-          vrfProof,
-          etaCalculation,
-          consensusState,
-          kesProductResource,
-          ed25519Resource,
-          parentSlotId,
-          operationalPeriodLength,
-          activationOperationalPeriod,
-          address,
-          0L
-        )
-        .unsafeRunSync()
+      val underTest: OperationalKeysAlgebra[F] = operationalKeysAlgebraF.unsafeRunSync()
 
       (() => secureStore.list)
         .expects()
