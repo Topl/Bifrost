@@ -1,0 +1,12 @@
+apiVersion: v2
+name: bifrost-consensus-testnet
+description: A Helm chart for Kubernetes
+
+type: application
+
+version: 0.1.0
+
+appVersion: "1.16.0"
+
+#TODO: Find a better icon.
+icon: https://uploads-ssl.webflow.com/60f98f46d44e675abb7e66ea/611c4d83ed3df101fd221875_topl_basew.svg

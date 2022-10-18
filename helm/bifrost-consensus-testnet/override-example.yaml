@@ -1,0 +1,36 @@
+shared-config:
+  bifrost:
+    big-bang:
+      staker-count: 2
+    protocols:
+      0:
+        slot-duration: 250 milli
+
+configs:
+  producer0:
+    bifrost:
+      big-bang:
+        local-staker-index: 0
+    throttle:
+      latency: 20 milli
+      downloadBytesPerSecond: 500000
+      uploadBytesPerSecond: 500000
+  producer1:
+    bifrost:
+      big-bang:
+        local-staker-index: 1
+    throttle:
+      latency: 20 milli
+      downloadBytesPerSecond: 500000
+      uploadBytesPerSecond: 500000
+  relay0:
+    bifrost:
+      big-bang:
+        local-staker-index: -1
+    peers:
+      - producer0
+      - producer1
+    throttle:
+      latency: 20 milli
+      downloadBytesPerSecond: 500000
+      uploadBytesPerSecond: 500000
