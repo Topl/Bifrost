@@ -32,7 +32,7 @@ data:
     {{- toYaml $value | nindent 4 }}
   peers.yaml: |
     {{- $knownPeersString := "" -}}
-    {{ range $index, $peer := $value.peers }}
+    {{ range $index, $peer := $value.topology.egress }}
         {{- if $index }}{{ $knownPeersString = print $knownPeersString "," }}{{ end -}}
     {{ $knownPeersString = print $knownPeersString "localhost:"}}
     {{ $knownPeersString = print $knownPeersString (add 9100 $index)}}
@@ -47,22 +47,22 @@ data:
         bind-port: {{ $Values.service.ports.p2p }}
         destination-host: localhost
         destination-port: 9083
-        {{ if $value.throttle }}
+        {{ if $value.topology.ingress.throttle }}
         throttle:
-          latency: {{ $value.throttle.latency }}
-          download-bytes-per-second: {{ $value.throttle.downloadBytesPerSecond }}
-          upload-bytes-per-second: {{ $value.throttle.uploadBytesPerSecond }}
+          latency: {{ $value.topology.ingress.throttle.latency }}
+          download-bytes-per-second: {{ $value.topology.ingress.throttle.downloadBytesPerSecond }}
+          upload-bytes-per-second: {{ $value.topology.ingress.throttle.uploadBytesPerSecond }}
         {{ end }}
-    {{ range $index, $peer := $value.peers }}
+    {{ range $index, $egress := $value.topology.egress }}
       - bind-host: localhost
         bind-port: {{ add 9100 $index }}
-        destination-host: {{ $fullname }}-p2p-{{ $peer }}.{{ $Release.Name }}.svc.cluster.local
+        destination-host: {{ $fullname }}-p2p-{{ $egress.peer }}.{{ $Release.Name }}.svc.cluster.local
         destination-port: {{ $Values.service.ports.p2p }}
-        {{ if $value.throttle }}
+        {{ if $egress.throttle }}
         throttle:
-          latency: {{ $value.throttle.latency }}
-          download-bytes-per-second: {{ $value.throttle.downloadBytesPerSecond }}
-          upload-bytes-per-second: {{ $value.throttle.uploadBytesPerSecond }}
+          latency: {{ $egress.throttle.latency }}
+          download-bytes-per-second: {{ $egress.throttle.downloadBytesPerSecond }}
+          upload-bytes-per-second: {{ $egress.throttle.uploadBytesPerSecond }}
         {{ end }}
     {{ end }}
 
