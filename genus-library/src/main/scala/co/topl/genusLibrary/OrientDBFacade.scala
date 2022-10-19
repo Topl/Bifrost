@@ -7,6 +7,7 @@ import java.io.{BufferedWriter, File, FileInputStream, FileOutputStream, FileWri
 import java.nio.charset.Charset
 import scala.util.{Random, Success, Try}
 import co.topl.typeclasses.Log._
+import com.tinkerpop.blueprints.impls.orient.OrientGraph
 
 import scala.collection.mutable
 
@@ -19,17 +20,22 @@ class OrientDBFacade(dir: File) {
 
   private val configFile = serverConfigFile(dir)
   logger.info("Starting OrientDB with DB server config file {}", configFile.getAbsolutePath)
-  private val server = OServerMain.create(true) // true argument request shutdown of server on exit.
-  server.startup(configFile)
-  server.activate()
+
+  private def fileToPlocalUrl(dir: File): String = {
+    "plocal:" + dir.getAbsolutePath
+  }
+
+  val graph: OrientGraph = new OrientGraph(fileToPlocalUrl(dir))
 
   /**
    * Shut down the OrientDB server.
    *
    * @return true if the server was running and got shut down
    */
-  def shutdown(): Boolean =
-    server.shutdown()
+  def shutdown(): Boolean = {
+    graph.shutdown()
+    true
+  }
 }
 
 object OrientDBFacade {
