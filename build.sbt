@@ -618,6 +618,28 @@ lazy val networking = project
     ledger
   )
 
+lazy val transactionGenerator = project
+  .in(file("transaction-generator"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "transaction-generator",
+    commonSettings,
+    crossScalaVersions := Seq(scala213),
+    publishSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.transactiongenerator"
+  )
+  .settings(libraryDependencies ++= Dependencies.transactionGenerator)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(
+    models % "compile->compile;test->test",
+    typeclasses,
+    crypto,
+    byteCodecs,
+    tetraByteCodecs,
+    munitScalamock
+  )
+
 lazy val ledger = project
   .in(file("ledger"))
   .enablePlugins(BuildInfoPlugin)
