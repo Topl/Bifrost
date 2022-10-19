@@ -50,8 +50,6 @@ class OperationalKeysSpec
       val vrfProof = mock[VrfProofAlgebra[F]]
       val etaCalculation = mock[EtaCalculationAlgebra[F]]
       val consensusState = mock[ConsensusValidationStateAlgebra[F]]
-      val kesProductResourceF = CatsUnsafeResource.make(new KesProduct, 1)
-      val ed25519ResourceF = CatsUnsafeResource.make(new Ed25519, 1)
       val parentSlotId = SlotId(10L, TypedBytes(1: Byte, Bytes.fill(32)(0: Byte)))
       val operationalPeriodLength = 30L
       val activationOperationalPeriod = 0L
@@ -101,8 +99,8 @@ class OperationalKeysSpec
 
       val operationalKeysAlgebraF =
         for {
-          kesProductResource <- kesProductResourceF
-          ed25519Resource    <- ed25519ResourceF
+          kesProductResource <- CatsUnsafeResource.make(new KesProduct, 1)
+          ed25519Resource    <- CatsUnsafeResource.make(new Ed25519, 1)
           keysAlgebra <-
             OperationalKeys.FromSecureStore.make[F](
               secureStore,
@@ -148,8 +146,6 @@ class OperationalKeysSpec
       val vrfProof = mock[VrfProofAlgebra[F]]
       val etaCalculation = mock[EtaCalculationAlgebra[F]]
       val consensusState = mock[ConsensusValidationStateAlgebra[F]]
-      val kesProductResourceF = CatsUnsafeResource.make(new KesProduct, 1)
-      val ed25519ResourceF = CatsUnsafeResource.make(new Ed25519, 1)
       val parentSlotId = SlotId(10L, TypedBytes(1: Byte, Bytes.fill(32)(0: Byte)))
       val operationalPeriodLength = 30L
       val activationOperationalPeriod = 0L
@@ -197,8 +193,8 @@ class OperationalKeysSpec
 
       val operationalKeysAlgebraF =
         for {
-          kesProductResource <- kesProductResourceF
-          ed25519Resource    <- ed25519ResourceF
+          kesProductResource <- CatsUnsafeResource.make(new KesProduct, 1)
+          ed25519Resource    <- CatsUnsafeResource.make(new Ed25519, 1)
           keysAlgebra <-
             OperationalKeys.FromSecureStore.make[F](
               secureStore,
