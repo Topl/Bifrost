@@ -5,6 +5,8 @@ import co.topl.genusLibrary.Genus
 import org.typelevel.log4cats._
 import org.typelevel.log4cats.slf4j._
 
+import scala.annotation.unused
+
 /**
  * This will be the Genus server.
  */
@@ -19,10 +21,12 @@ object GenusServerApp extends IOApp {
       // println(s"BuildInfo: ${co.topl.buildinfo.genusServer.BuildInfo.toString}")
     } yield ExitCode.Success
 
-  def doIt(args: List[String]): IO[Unit] =
+  def doIt(@unused args: List[String]): IO[Unit] =
     IO {
-      Genus.getGenus
-      // Code to run gRPC services goes here
-      Genus.shutDown()
+      try
+        Genus.getGenus
+      // TODO Code to run gRPC services goes here
+      finally
+        Genus.shutDown()
     }
 }

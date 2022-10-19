@@ -172,7 +172,8 @@ lazy val commonScalacOptions = Seq(
   "-language:postfixOps",
   "-unchecked",
   "-Xlint:",
-  "-Ywarn-unused:-implicits,-privates"
+  "-Ywarn-unused:-implicits,-privates",
+  "-Yrangepos"
 )
 
 javaOptions ++= Seq(
@@ -239,7 +240,9 @@ lazy val bifrost = project
     genus,
     levelDbStore,
     commonApplication,
-    networkDelayer
+    networkDelayer,
+    genusLibrary,
+    genusServer
   )
 
 lazy val node = project
@@ -491,7 +494,9 @@ lazy val typeclasses: Project = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.typeclasses"
   )
-  .settings(libraryDependencies ++= Dependencies.test)
+  .settings(
+    libraryDependencies ++= Dependencies.test ++ Dependencies.logging
+  )
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test", crypto, tetraByteCodecs, jsonCodecs)
 
@@ -844,6 +849,7 @@ lazy val genusServer = project
   .settings(
     name := "genus-server",
     commonSettings,
+    crossScalaVersions := Seq(scala213),
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.genusServer",
     libraryDependencies ++= Dependencies.genusServer
@@ -855,10 +861,11 @@ lazy val genusLibrary = project
   .settings(
     name := "genus-library",
     commonSettings,
+    crossScalaVersions := Seq(scala213),
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.genusLibrary",
     libraryDependencies ++= Dependencies.genusLibrary
-  )
+  ).dependsOn(typeclasses)
 
 lazy val munitScalamock = project
   .in(file("munit-scalamock"))
