@@ -295,7 +295,7 @@ class TransactionSyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEff
   }
 
   test("validate data-length transaction") {
-    val invalidData = Bytes.fill(Transaction.maxDataLength)(1)
+    val invalidData = Bytes.fill(Transaction.MaxDataLength + 1)(1)
     PropF.forAllF(arbitraryTransaction.arbitrary.map(_.copy(data = Some(invalidData)))) { transaction: Transaction =>
       for {
         underTest <- TransactionSyntaxValidation.make[F]

@@ -253,8 +253,7 @@ object TransactionSyntaxValidation {
 
   private[interpreters] def dataLengthValidation(transaction: Transaction): ValidatedNec[TransactionSyntaxError, Unit] =
     Validated.condNec(
-      transaction.data.isEmpty ||
-      transaction.data.exists(_.length < Transaction.maxDataLength),
+      transaction.data.forall(_.length <= Transaction.MaxDataLength),
       (),
       TransactionSyntaxErrors.InvalidDataLength
     )

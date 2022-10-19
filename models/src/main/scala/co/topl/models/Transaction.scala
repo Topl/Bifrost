@@ -12,7 +12,7 @@ case class Transaction(
 object Transaction {
 
   type Data = Bytes
-  val maxDataLength = 15360
+  val MaxDataLength = 15360
 
   case class Input(
     boxId:       Box.Id,
