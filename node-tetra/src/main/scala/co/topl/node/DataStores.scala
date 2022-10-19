@@ -144,7 +144,7 @@ object DataStores {
   private def makeDb[F[_]: Async, Key: Persistable, Value: Persistable](dataDir: Path)(
     name:                                                                        String
   ): F[Store[F, Key, Value]] =
-    LevelDbStore.makeDb[F](dataDir / name) >>= LevelDbStore.make[F, Key, Value]
+    LevelDbStore.makeDb[F](dataDir / name).use(LevelDbStore.make[F, Key, Value])
 
   private def makeCachedDb[F[_]: Async, Key: Persistable, CacheKey <: AnyRef, Value: Persistable](dataDir: Path)(
     name:                                                                                                  String,
