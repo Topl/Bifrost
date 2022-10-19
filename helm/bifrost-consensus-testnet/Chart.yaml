@@ -1,6 +1,6 @@
 apiVersion: v2
 name: bifrost-consensus-testnet
-description: A Helm chart for Kubernetes
+description: Launches a private testnet using configurable nodes and artificial throttling.
 
 type: application
 
