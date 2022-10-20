@@ -1,12 +1,13 @@
 package co.topl.genusLibrary
 
+import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.tinkerpop.blueprints.impls.orient.{OrientEdgeType, OrientGraphNoTx, OrientVertexType}
 
 /**
  * Metadata describing the schema used for the Genus graph in OrientDB
  */
-class GenusGraphMetadata (val session: OrientGraphNoTx) {
+class GenusGraphMetadata(val session: OrientGraphNoTx) {
   import GenusGraphMetadata._
 
   val addressVertexType: OrientVertexType = session.createVertexType("Address")
@@ -35,12 +36,7 @@ class GenusGraphMetadata (val session: OrientGraphNoTx) {
       .setReadonly(true)
       .setNotNull(true)
       .setRegexp(TypedEvidenceRegex)
-    session.createIndex(
-      "base58Address",
-      classOf[Vertex],
-      new Parameter("type", "UNIQUE"),
-      new Parameter("class", addressVertexType.getName)
-    )
+    addressVertexType.createIndex("addressIndex", INDEX_TYPE.UNIQUE, "base58Address")
   }
 
   def configureBlockHeaderVertexType(): Unit = {
@@ -49,12 +45,7 @@ class GenusGraphMetadata (val session: OrientGraphNoTx) {
       .setMandatory(true)
       .setReadonly(true)
       .setNotNull(true)
-    session.createIndex(
-      "blockId",
-      classOf[Vertex],
-      new Parameter("type", "UNIQUE"),
-      new Parameter("class", blockHeaderVertexType.getName)
-    )
+    blockHeaderVertexType.createIndex("blockHeaderIndex", INDEX_TYPE.UNIQUE, "blockId")
 
     blockHeaderVertexType
       .createProperty("parentHeaderId", OType.INTEGER)
