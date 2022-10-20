@@ -1,8 +1,10 @@
 package co.topl.genusLibrary
 
 import co.topl.typeclasses.Log._
+import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.sql.OCommandSQL
-import com.tinkerpop.blueprints.impls.orient.{OrientGraph, OrientGraphFactory, OrientVertexType}
+import com.tinkerpop.blueprints.{Parameter, Vertex}
+import com.tinkerpop.blueprints.impls.orient.{OrientEdgeType, OrientGraph, OrientGraphFactory, OrientVertexType}
 import com.typesafe.scalalogging.Logger
 
 import java.io.{File, FileInputStream, FileOutputStream}
@@ -31,11 +33,34 @@ class OrientDBFacade(dir: File, password: String) {
       logger.info("Configuring Schema")
       new {
         val addressVertexType: OrientVertexType = session.createVertexType("Address")
-        val addressStateVertexType: OrientVertexType = session.createVertexType("AddressState")
+        configureAddressVertexType()
+
+        val boxStateVertexType: OrientVertexType = session.createVertexType("BoxState")
         val blockHeaderVertexType: OrientVertexType = session.createVertexType("BlockHeader")
         val blockBodyVertexType: OrientVertexType = session.createVertexType("BlockBody")
         val boxVertexType: OrientVertexType = session.createVertexType("Box")
         val transactionVertexType: OrientVertexType = session.createVertexType("Transaction")
+
+        val currentBoxStateEdgeType: OrientEdgeType = session.createEdgeType("CurrentBoxState")
+        val prevToNextBoxStateEdgeType: OrientEdgeType = session.createEdgeType("PrevToNext")
+        val stateToBoxEdgeType: OrientEdgeType = session.createEdgeType("StateToBox")
+        val inputEdgeType: OrientEdgeType = session.createEdgeType("Input")
+        val outputEdgeType: OrientEdgeType = session.createEdgeType("Output")
+
+        private def configureAddressVertexType() = {
+          addressVertexType
+            .createProperty("base58Address", OType.STRING)
+            .setMandatory(true)
+            .setReadonly(true)
+            .setNotNull(true)
+            .setRegexp("^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{33,46}$")
+          session.createIndex(
+            "base58Address",
+            classOf[Vertex],
+            new Parameter("type", "UNIQUE"),
+            new Parameter("class", addressVertexType.getName)
+          )
+        }
       }
     } finally
       session.shutdown()
