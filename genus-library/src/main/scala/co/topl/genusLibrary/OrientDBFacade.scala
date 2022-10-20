@@ -3,14 +3,15 @@ package co.topl.genusLibrary
 import co.topl.typeclasses.Log._
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.sql.OCommandSQL
+import com.tinkerpop.blueprints.impls.orient.{OrientEdgeType, OrientGraphFactory, OrientVertexType}
 import com.tinkerpop.blueprints.{Parameter, Vertex}
-import com.tinkerpop.blueprints.impls.orient.{OrientEdgeType, OrientGraph, OrientGraphFactory, OrientVertexType}
 import com.typesafe.scalalogging.Logger
 
 import java.io.{File, FileInputStream, FileOutputStream}
 import java.nio.charset.Charset
+import scala.annotation.unused
 import scala.collection.mutable
-import scala.util.{Failure, Random, Success, Try}
+import scala.util.{Random, Success, Try}
 
 /**
  * This is a class to hide the details of interacting with OrientDB.
@@ -23,6 +24,7 @@ class OrientDBFacade(dir: File, password: String) {
   logger.debug("creating graph factory")
   private val factory = new OrientGraphFactory(fileToPlocalUrl(dir), dbUserName, password)
 
+  @unused
   private val schemaMetadata = initializeDatabase(factory, password)
 
   private def initializeDatabase(factory: OrientGraphFactory, password: String) = {
@@ -36,6 +38,8 @@ class OrientDBFacade(dir: File, password: String) {
         configureAddressVertexType()
 
         val boxStateVertexType: OrientVertexType = session.createVertexType("BoxState")
+        // box states have no properties to configure
+
         val blockHeaderVertexType: OrientVertexType = session.createVertexType("BlockHeader")
         val blockBodyVertexType: OrientVertexType = session.createVertexType("BlockBody")
         val boxVertexType: OrientVertexType = session.createVertexType("Box")
@@ -53,7 +57,7 @@ class OrientDBFacade(dir: File, password: String) {
             .setMandatory(true)
             .setReadonly(true)
             .setNotNull(true)
-            .setRegexp("^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{33,46}$")
+            .setRegexp(TypedEvidenceRegex)
           session.createIndex(
             "base58Address",
             classOf[Vertex],
@@ -85,6 +89,8 @@ object OrientDBFacade {
 
   private val charsetUtf8: Charset = Charset.forName("UTF-8")
   private val passwdLength = 30
+
+  private val TypedEvidenceRegex = "^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{33,46}$"
 
   /**
    * Create an instance of OrientDBFacade
