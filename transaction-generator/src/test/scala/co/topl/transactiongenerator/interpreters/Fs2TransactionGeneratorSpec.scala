@@ -17,7 +17,7 @@ class Fs2TransactionGeneratorSpec extends CatsEffectSuite {
         Chain.empty,
         Chain(
           Transaction.Output(
-            Fs2TransactionGenerator.simpleFullAddress(Fs2TransactionGenerator.HeightLockZeroSpendingAddress),
+            Fs2TransactionGenerator.simpleFullAddress(Fs2TransactionGenerator.HeightLockOneSpendingAddress),
             Box.Values.Poly(Sized.maxUnsafe(BigInt(1000000))),
             minting = false
           )

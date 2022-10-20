@@ -637,7 +637,10 @@ lazy val transactionGenerator = project
     crypto,
     byteCodecs,
     tetraByteCodecs,
-    munitScalamock
+    munitScalamock,
+    algebras,
+    toplGrpc,
+    commonApplication
   )
 
 lazy val ledger = project
