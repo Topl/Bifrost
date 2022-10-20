@@ -41,6 +41,8 @@ class OrientDBFacade(dir: File, password: String) {
         // box states have no properties to configure
 
         val blockHeaderVertexType: OrientVertexType = session.createVertexType("BlockHeader")
+        configureBlockHeaderVertexType()
+
         val blockBodyVertexType: OrientVertexType = session.createVertexType("BlockBody")
         val boxVertexType: OrientVertexType = session.createVertexType("Box")
         val transactionVertexType: OrientVertexType = session.createVertexType("Transaction")
@@ -51,7 +53,7 @@ class OrientDBFacade(dir: File, password: String) {
         val inputEdgeType: OrientEdgeType = session.createEdgeType("Input")
         val outputEdgeType: OrientEdgeType = session.createEdgeType("Output")
 
-        private def configureAddressVertexType() = {
+        private def configureAddressVertexType(): Unit = {
           addressVertexType
             .createProperty("base58Address", OType.STRING)
             .setMandatory(true)
@@ -65,6 +67,47 @@ class OrientDBFacade(dir: File, password: String) {
             new Parameter("class", addressVertexType.getName)
           )
         }
+
+        def configureBlockHeaderVertexType(): Unit = {
+          blockHeaderVertexType
+            .createProperty("blockId", OType.INTEGER)
+            .setMandatory(true)
+            .setReadonly(true)
+            .setNotNull(true)
+          session.createIndex(
+            "blockId",
+            classOf[Vertex],
+            new Parameter("type", "UNIQUE"),
+            new Parameter("class", blockHeaderVertexType.getName)
+          )
+
+          blockHeaderVertexType
+            .createProperty("parentHeaderId", OType.INTEGER)
+            .setMandatory(false)
+            .setReadonly(true)
+            .setNotNull(true)
+
+          blockHeaderVertexType
+            .createProperty("parentSlot", OType.LONG)
+            .setMandatory(false)
+            .setReadonly(true)
+            .setNotNull(true)
+
+          blockHeaderVertexType
+            .createProperty("txRoot", OType.BINARY) // 32 Bytes
+            .setMandatory(false)
+            .setReadonly(true)
+            .setNotNull(false)
+
+          blockHeaderVertexType
+            .createProperty("bloomFilter", OType.BINARY) // 256 Bytes
+            .setMandatory(false)
+            .setReadonly(true)
+            .setNotNull(false)
+
+          blockHeaderVertexType
+        }
+
       }
     } finally
       session.shutdown()
