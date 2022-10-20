@@ -2,7 +2,7 @@ package co.topl.genusLibrary
 
 import co.topl.typeclasses.Log._
 import com.orientechnologies.orient.core.sql.OCommandSQL
-import com.tinkerpop.blueprints.impls.orient.{OrientGraph, OrientGraphFactory}
+import com.tinkerpop.blueprints.impls.orient.{OrientGraph, OrientGraphFactory, OrientVertexType}
 import com.typesafe.scalalogging.Logger
 
 import java.io.{File, FileInputStream, FileOutputStream}
@@ -18,18 +18,25 @@ class OrientDBFacade(dir: File, password: String) {
   logger.info("Starting OrientDB with DB server")
   private val dbUserName = "admin"
 
-//  val graph: OrientGraph = new OrientGraph(fileToPlocalUrl(dir))
-  logger.info("creating graph factory with default password")
-  private val factory = new OrientGraphFactory(fileToPlocalUrl(dir), dbUserName, "admin")
+  logger.debug("creating graph factory")
+  private val factory = new OrientGraphFactory(fileToPlocalUrl(dir), dbUserName, password)
 
-  changeDbPassword(factory, password)
+  private val schemaMetadata = initializeDatabase(factory, password)
 
-  def changeDbPassword(factory: OrientGraphFactory, password: String): Unit = {
-    logger.info("Changing password")
+  private def initializeDatabase(factory: OrientGraphFactory, password: String) = {
     val session = factory.getNoTx
     try {
+      logger.info("Changing password")
       session.command(new OCommandSQL(s"UPDATE OUser SET password='$password' WHERE name='$dbUserName'")).execute()
-      logger.info("Changed default password")
+      logger.info("Configuring Schema")
+      new {
+        val addressVertexType: OrientVertexType = session.createVertexType("Address")
+        val addressStateVertexType: OrientVertexType = session.createVertexType("AddressState")
+        val blockHeaderVertexType: OrientVertexType = session.createVertexType("BlockHeader")
+        val blockBodyVertexType: OrientVertexType = session.createVertexType("BlockBody")
+        val boxVertexType: OrientVertexType = session.createVertexType("Box")
+        val transactionVertexType: OrientVertexType = session.createVertexType("Transaction")
+      }
     } finally
       session.shutdown()
   }
@@ -125,8 +132,7 @@ object OrientDBFacade {
       1 to passwdLength foreach { _ =>
         pwdBuilder += Random.nextPrintableChar()
       }
-      val bytes = pwdBuilder.toString().replaceAll("'",""
-      ).getBytes(charsetUtf8)
+      val bytes = pwdBuilder.toString().replaceAll("'", "").getBytes(charsetUtf8)
       logger.debug("writing {} bytes to password file", bytes.length)
       outputStream.write(bytes)
     } finally
