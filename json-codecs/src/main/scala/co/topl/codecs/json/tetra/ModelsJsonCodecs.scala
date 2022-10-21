@@ -497,7 +497,7 @@ trait ModelsJsonCodecs {
         "inputs"   -> tx.inputs.asJson,
         "outputs"  -> tx.outputs.asJson,
         "schedule" -> tx.schedule.asJson,
-        "data"     -> tx.data.map(_.data).asJson
+        "data"     -> tx.data.asJson
       )
 
   implicit def transactionJsonDecoder(implicit networkPrefix: NetworkPrefix): Decoder[Transaction] =
@@ -506,7 +506,7 @@ trait ModelsJsonCodecs {
         inputs   <- hcursor.downField("inputs").as[Chain[Transaction.Input]]
         outputs  <- hcursor.downField("outputs").as[Chain[Transaction.Output]]
         schedule <- hcursor.downField("schedule").as[Transaction.Schedule]
-        data     <- hcursor.downField("data").as[Option[Transaction.Data]]
+        data     <- hcursor.downField("data").as[Option[Transaction.DataTetra]]
       } yield Transaction(inputs, outputs, schedule, data)
 
   implicit val unprovenTransactionJsonEncoder: Encoder[Transaction.Unproven] =
@@ -515,7 +515,7 @@ trait ModelsJsonCodecs {
         "inputs"   -> tx.inputs.asJson,
         "outputs"  -> tx.outputs.asJson,
         "schedule" -> tx.schedule.asJson,
-        "data"     -> tx.data.map(_.data).asJson
+        "data"     -> tx.data.asJson
       )
 
   implicit val unprovenTransactionJsonDecoder: Decoder[Transaction.Unproven] =
@@ -524,7 +524,7 @@ trait ModelsJsonCodecs {
         inputs   <- hcursor.downField("inputs").as[Chain[Transaction.Unproven.Input]]
         outputs  <- hcursor.downField("outputs").as[Chain[Transaction.Output]]
         schedule <- hcursor.downField("schedule").as[Transaction.Schedule]
-        data     <- hcursor.downField("data").as[Option[Transaction.Data]]
+        data     <- hcursor.downField("data").as[Option[Transaction.DataTetra]]
       } yield Transaction.Unproven(inputs, outputs, schedule, data)
 
 }

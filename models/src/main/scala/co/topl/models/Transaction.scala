@@ -8,12 +8,16 @@ case class Transaction(
   inputs:   Chain[Transaction.Input],
   outputs:  Chain[Transaction.Output],
   schedule: Transaction.Schedule,
-  data:     Option[Transaction.Data]
+  data:     Option[Transaction.DataTetra]
 )
 
 object Transaction {
 
+  // Used by Dion protocol
   type Data = Sized.Max[Latin1Data, Lengths.`127`.type]
+  // Used by Tetra Protocol
+  type DataTetra = Bytes
+  val MaxDataLength = 15360
 
   case class Input(
     boxId:       Box.Id,
@@ -35,7 +39,7 @@ object Transaction {
     inputs:   Chain[Transaction.Unproven.Input],
     outputs:  Chain[Transaction.Output],
     schedule: Schedule,
-    data:     Option[Transaction.Data]
+    data:     Option[Transaction.DataTetra]
   )
 
   object Unproven {

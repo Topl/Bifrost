@@ -8,7 +8,7 @@ import co.topl.ledger.models._
 import co.topl.models.ModelGenerators._
 import co.topl.models.utility.HasLength.instances.bigIntLength
 import co.topl.models.utility.Sized
-import co.topl.models.{Box, Proof, Proofs, Proposition, Propositions, SecretKeys, Transaction}
+import co.topl.models.{Box, Bytes, Proof, Proofs, Proposition, Propositions, SecretKeys, Transaction}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.Gen
 import org.scalacheck.effect.PropF
@@ -290,6 +290,36 @@ class TransactionSyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEff
         _ <- testTransaction(transaction4)
         _ <- testTransaction(transaction5)
         _ <- testTransaction(transaction6)
+      } yield ()
+    }
+  }
+
+  test("validate data-length transaction") {
+    val invalidData = Bytes.fill(Transaction.MaxDataLength + 1)(1)
+    PropF.forAllF(arbitraryTransaction.arbitrary.map(_.copy(data = Some(invalidData)))) { transaction: Transaction =>
+      for {
+        underTest <- TransactionSyntaxValidation.make[F]
+        result    <- underTest.validate(transaction)
+        _ <- EitherT
+          .fromEither[F](result.toEither)
+          .swap
+          .exists(_.toList.contains(TransactionSyntaxErrors.InvalidDataLength))
+          .assert
+      } yield ()
+    }
+  }
+
+  test("validate data-length transaction, valid edge MaxDataLength") {
+    val invalidData = Bytes.fill(Transaction.MaxDataLength)(1)
+    PropF.forAllF(arbitraryTransaction.arbitrary.map(_.copy(data = Some(invalidData)))) { transaction: Transaction =>
+      for {
+        underTest <- TransactionSyntaxValidation.make[F]
+        result    <- underTest.validate(transaction)
+        _ <- EitherT
+          .fromEither[F](result.toEither)
+          .swap
+          .exists(_.toList.contains(TransactionSyntaxErrors.InvalidDataLength))
+          .assertEquals(false)
       } yield ()
     }
   }
