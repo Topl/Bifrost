@@ -71,9 +71,9 @@ case class Property(name: String, propertyType: OType)
  *
  * @param name The name of the index
  * @param indexType the type of index @see [[INDEX_TYPE.UNIQUE]], [[INDEX_TYPE.NOTUNIQUE]], ...
- * @param propertyName The names of the properties whose values are used to construct index entries.
+ * @param propertyNames The names of the properties whose values are used to construct index entries.
  */
-case class Index(name: String, indexType: INDEX_TYPE, propertyName: String *)
+case class Index(name: String, indexType: INDEX_TYPE, propertyNames: String *)
 
 class DecodeHelper(properties: Map[String, AnyRef]) {
   def apply[T](name: String): T = properties(name).asInstanceOf[T]

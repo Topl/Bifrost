@@ -7,27 +7,27 @@ import com.tinkerpop.blueprints.impls.orient.{OrientEdgeType, OrientGraphNoTx, O
 /**
  * Metadata describing the schema used for the Genus graph in OrientDB
  */
-class GenusGraphMetadata(val session: OrientGraphNoTx) {
+class GenusGraphMetadata(val graphNoTx: OrientGraphNoTx) {
   import GenusGraphMetadata._
 
-  val addressVertexType: OrientVertexType = session.createVertexType("Address")
+  val addressVertexType: OrientVertexType = graphNoTx.createVertexType("Address")
   configureAddressVertexType()
 
-  val boxStateVertexType: OrientVertexType = session.createVertexType("BoxState")
+  val boxStateVertexType: OrientVertexType = graphNoTx.createVertexType("BoxState")
   // box states have no properties to configure
 
-  val blockHeaderVertexType: OrientVertexType = session.createVertexType("BlockHeader")
+  val blockHeaderVertexType: OrientVertexType = graphNoTx.createVertexType("BlockHeader")
   configureBlockHeaderVertexType()
 
-  val blockBodyVertexType: OrientVertexType = session.createVertexType("BlockBody")
-  val boxVertexType: OrientVertexType = session.createVertexType("Box")
-  val transactionVertexType: OrientVertexType = session.createVertexType("Transaction")
+  val blockBodyVertexType: OrientVertexType = graphNoTx.createVertexType("BlockBody")
+  val boxVertexType: OrientVertexType = graphNoTx.createVertexType("Box")
+  val transactionVertexType: OrientVertexType = graphNoTx.createVertexType("Transaction")
 
-  val currentBoxStateEdgeType: OrientEdgeType = session.createEdgeType("CurrentBoxState")
-  val prevToNextBoxStateEdgeType: OrientEdgeType = session.createEdgeType("PrevToNext")
-  val stateToBoxEdgeType: OrientEdgeType = session.createEdgeType("StateToBox")
-  val inputEdgeType: OrientEdgeType = session.createEdgeType("Input")
-  val outputEdgeType: OrientEdgeType = session.createEdgeType("Output")
+  val currentBoxStateEdgeType: OrientEdgeType = graphNoTx.createEdgeType("CurrentBoxState")
+  val prevToNextBoxStateEdgeType: OrientEdgeType = graphNoTx.createEdgeType("PrevToNext")
+  val stateToBoxEdgeType: OrientEdgeType = graphNoTx.createEdgeType("StateToBox")
+  val inputEdgeType: OrientEdgeType = graphNoTx.createEdgeType("Input")
+  val outputEdgeType: OrientEdgeType = graphNoTx.createEdgeType("Output")
 
   private def configureAddressVertexType(): Unit = {
     addressVertexType
@@ -72,9 +72,22 @@ class GenusGraphMetadata(val session: OrientGraphNoTx) {
       .setNotNull(false)
 
   }
+
+  def ensureVertexSchemaInitialized(vertexSchema: VertexSchema[_]): OrientVertexType = {
+    Option(graphNoTx.getVertexType(vertexSchema.name)).getOrElse{
+      val vertexType = graphNoTx.createVertexType(vertexSchema.name)
+      vertexSchema.properties.foreach(property => vertexType.createProperty(property.name, property.propertyType))
+      vertexSchema.indices.foreach(index => vertexType.createIndex(index.name, index.indexType, index.propertyNames: _*))
+      vertexType
+    }
+  }
 }
 
 object GenusGraphMetadata {
+  /**
+   * Regular expression for the base58 representation of typed evidence.
+   */
   private val TypedEvidenceRegex = "^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{33,46}$"
+
 
 }
