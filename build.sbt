@@ -758,7 +758,8 @@ lazy val toplGrpc = project
     commonSettings,
     libraryDependencies ++= Dependencies.toplGrpc
   )
-  .enablePlugins(AkkaGrpcPlugin)
+//  .enablePlugins(AkkaGrpcPlugin, Fs2Grpc) // didn't work
+  .enablePlugins(Fs2Grpc)
   .dependsOn(
     models % "compile->compile;test->test",
     byteCodecs,
