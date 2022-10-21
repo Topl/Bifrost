@@ -11,7 +11,7 @@ object MultiToplRpc {
 
   /**
    * Constructs an interpreter of `ToplRpc` that delegates requests to a collection
-   * of sub-interpreters.
+   * of sub-interpreters.  The delegate is chosen at random.
    * @param delegates a collection of ToplRpc interpreters
    * @tparam F an F-type constructor
    * @tparam G a collection type

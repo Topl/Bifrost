@@ -4,7 +4,7 @@ import cats.data.Chain
 import cats.effect._
 import cats.effect.std.{Queue, Random}
 import cats.implicits._
-import cats.{Applicative, Parallel}
+import cats.Applicative
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
@@ -21,27 +21,38 @@ object Fs2TransactionGenerator {
    * updating the local wallet along the way.
    * @param wallet An initial wallet containing an initial set of spendable UTxOs
    */
-  def make[F[_]: Async: Parallel](wallet: Wallet): F[TransactionGenerator[F, Stream[F, *]]] =
-    for {
-      implicit0(random: Random[F]) <- Random.javaSecuritySecureRandom
-    } yield new TransactionGenerator[F, Stream[F, *]] {
+  def make[F[_]: Async: Random](wallet: Wallet): F[TransactionGenerator[F, Stream[F, *]]] =
+    Sync[F].delay(
+      new TransactionGenerator[F, Stream[F, *]] {
 
-      def generateTransactions: F[Stream[F, Transaction]] =
-        Queue.unbounded[F, Wallet].flatTap(_.offer(wallet)).map { queue =>
-          Stream
-            .fromQueueUnterminated(queue)
-            .parEvalMapUnordered(Runtime.getRuntime.availableProcessors())(nextTransactionOf[F])
-            .evalMap { case (transaction, wallet) =>
-              Sync[F]
-                .delay(
-                  if (wallet.spendableBoxes.size > 10) WalletSplitter.split(wallet, 2)
-                  else Vector(wallet)
-                )
-                .flatTap(_.traverse(queue.offer))
-                .as(transaction)
+        private val parallelism = Runtime.getRuntime.availableProcessors()
+
+        def generateTransactions: F[Stream[F, Transaction]] =
+          Queue
+            // Create a queue of wallets to process.  The queue is "recursive" in that processing a wallet
+            // will subsequently enqueue at least one new wallet after processing.
+            .unbounded[F, Wallet]
+            .flatTap(_.offer(wallet))
+            .map { queue =>
+              Stream
+                .fromQueueUnterminated(queue)
+                .parEvalMapUnordered(parallelism)(nextTransactionOf[F])
+                .evalMap { case (transaction, wallet) =>
+                  // Now that we've processed the old wallet, determine if the new wallet is big
+                  // enough to split in half.
+                  Sync[F]
+                    .delay(
+                      if (wallet.spendableBoxes.size > 10) WalletSplitter.split(wallet, 2)
+                      else Vector(wallet)
+                    )
+                    // Enqueue the updated wallet(s)
+                    .flatTap(_.traverse(queue.offer))
+                    // And return the transaction
+                    .as(transaction)
+                }
             }
-        }
-    }
+      }
+    )
 
   /**
    * Given a _current_ wallet, produce a new Transaction and new Wallet.  The generated transaction

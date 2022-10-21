@@ -2,6 +2,7 @@ package co.topl.transactiongenerator.interpreters
 
 import cats.data.Chain
 import cats.effect.IO
+import cats.effect.std.Random
 import cats.implicits._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.{Box, Transaction}
@@ -26,9 +27,10 @@ class Fs2TransactionGeneratorSpec extends CatsEffectSuite {
         None
       ).pure[F]
       wallet = applyTransaction(emptyWallet)(seedTransaction)
-      underTest <- Fs2TransactionGenerator.make[F](wallet)
-      stream    <- underTest.generateTransactions
-      result    <- stream.take(500).compile.toList
+      implicit0(random: Random[F]) <- Random.javaSecuritySecureRandom[F]
+      underTest                    <- Fs2TransactionGenerator.make[F](wallet)
+      stream                       <- underTest.generateTransactions
+      result                       <- stream.take(500).compile.toList
       _ = assert(result.length === 500)
     } yield ()
   }

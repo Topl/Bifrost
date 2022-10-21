@@ -66,13 +66,15 @@ object ToplRpcWalletInitializer {
         .getOrRaise(new IllegalStateException("Unknown Canonical Head Block"))
       stream =
         if (bigBangId != headId)
-          Stream(bigBang) ++ Stream
+          Stream(bigBang) ++
+          Stream
             .range(2, head.height)
             .evalMap(height =>
               OptionT(toplRpc.blockIdAtHeight(height))
                 .flatMapF(toplRpc.fetchBlockHeader)
                 .getOrRaise(new IllegalStateException("Block not found at height"))
-            ) ++ Stream(head)
+            ) ++
+          Stream(head)
         else Stream(head)
     } yield stream
 
