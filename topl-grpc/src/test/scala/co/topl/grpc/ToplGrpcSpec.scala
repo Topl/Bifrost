@@ -18,13 +18,9 @@ import io.grpc.Status
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
-import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
-
-  implicit private val logger =
-    Slf4jLogger.getLoggerFromClass[F](this.getClass)
 
   test("A transaction can be broadcast") {
     PropF.forAllF { (transaction: bifrostModels.Transaction) =>
