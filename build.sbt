@@ -219,6 +219,7 @@ lazy val bifrost = project
     akkaHttpRpc,
     typeclasses,
     toplRpc,
+    toplGrpc,
     crypto,
     catsAkka,
     brambl,
@@ -758,8 +759,10 @@ lazy val toplGrpc = project
     commonSettings,
     libraryDependencies ++= Dependencies.toplGrpc
   )
-//  .enablePlugins(AkkaGrpcPlugin, Fs2Grpc) // didn't work
   .enablePlugins(Fs2Grpc)
+  .settings(
+    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage
+  )
   .dependsOn(
     models % "compile->compile;test->test",
     byteCodecs,
