@@ -17,7 +17,7 @@ class Fs2TransactionGeneratorSpec extends CatsEffectSuite {
         Chain.empty,
         Chain(
           Transaction.Output(
-            Fs2TransactionGenerator.simpleFullAddress(Fs2TransactionGenerator.HeightLockOneSpendingAddress),
+            simpleFullAddress(HeightLockOneSpendingAddress),
             Box.Values.Poly(Sized.maxUnsafe(BigInt(1000000))),
             minting = false
           )
@@ -25,11 +25,11 @@ class Fs2TransactionGeneratorSpec extends CatsEffectSuite {
         Transaction.Schedule(0, 0, 0),
         None
       ).pure[F]
-      wallet = ToplRpcWalletInitializer.applyTransaction(ToplRpcWalletInitializer.emptyWallet)(seedTransaction)
+      wallet = applyTransaction(emptyWallet)(seedTransaction)
       underTest <- Fs2TransactionGenerator.make[F](wallet)
       stream    <- underTest.generateTransactions
-      result    <- stream.take(50000).compile.toList
-      _ = assert(result.length === 50000)
+      result    <- stream.take(500).compile.toList
+      _ = assert(result.length === 500)
     } yield ()
   }
 }

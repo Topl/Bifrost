@@ -4,7 +4,7 @@ import cats.data.OptionT
 import cats.effect.Async
 import cats.implicits._
 import co.topl.algebras.ToplRpc
-import co.topl.models.{Box, Transaction}
+import co.topl.models._
 import co.topl.transactiongenerator.algebras.WalletInitializer
 import co.topl.transactiongenerator.models.Wallet
 import fs2._
@@ -32,18 +32,19 @@ object ToplRpcWalletInitializer {
   /**
    * Emits a stream of transactions, starting from the big-bang block and moving forward
    */
-  private def transactionStream[F[_]: Async](toplRpc: ToplRpc[F]) =
+  private def transactionStream[F[_]: Async](toplRpc: ToplRpc[F]): F[Stream[F, Transaction]] =
     for {
       headersStream <- blockStream(toplRpc)
       stream = headersStream.flatMap(header =>
         Stream
           .eval(
             OptionT(toplRpc.fetchBlockBody(header.id))
-              .getOrRaise(new IllegalStateException)
+              .getOrRaise(new IllegalStateException("Block body not found"))
               .map(_.toList)
               .flatMap(
                 _.traverse(transactionId =>
-                  OptionT(toplRpc.fetchTransaction(transactionId)).getOrRaise(new IllegalStateException)
+                  OptionT(toplRpc.fetchTransaction(transactionId))
+                    .getOrRaise(new IllegalStateException("Transaction not found"))
                 )
               )
           )
@@ -54,12 +55,15 @@ object ToplRpcWalletInitializer {
   /**
    * Start from the big-bang block, and emit a stream of forward-traversing block headers
    */
-  private def blockStream[F[_]: Async](toplRpc: ToplRpc[F]) =
+  private def blockStream[F[_]: Async](toplRpc: ToplRpc[F]): F[Stream[F, BlockHeaderV2]] =
     for {
-      bigBangId <- OptionT(toplRpc.blockIdAtHeight(1)).getOrRaise(new IllegalStateException())
-      bigBang   <- OptionT(toplRpc.fetchBlockHeader(bigBangId)).getOrRaise(new IllegalStateException())
-      headId    <- OptionT(toplRpc.blockIdAtDepth(0)).getOrRaise(new IllegalStateException())
-      head      <- OptionT(toplRpc.fetchBlockHeader(headId)).getOrRaise(new IllegalStateException())
+      bigBangId <- OptionT(toplRpc.blockIdAtHeight(1))
+        .getOrRaise(new IllegalStateException("Unknown Big Bang ID"))
+      bigBang <- OptionT(toplRpc.fetchBlockHeader(bigBangId))
+        .getOrRaise(new IllegalStateException("Unknown Big Bang Block"))
+      headId <- OptionT(toplRpc.blockIdAtDepth(0)).getOrRaise(new IllegalStateException("Unknown Canonical Head ID"))
+      head <- OptionT(toplRpc.fetchBlockHeader(headId))
+        .getOrRaise(new IllegalStateException("Unknown Canonical Head Block"))
       stream =
         if (bigBangId != headId)
           Stream(bigBang) ++ Stream
@@ -67,32 +71,9 @@ object ToplRpcWalletInitializer {
             .evalMap(height =>
               OptionT(toplRpc.blockIdAtHeight(height))
                 .flatMapF(toplRpc.fetchBlockHeader)
-                .getOrRaise(new IllegalStateException)
+                .getOrRaise(new IllegalStateException("Block not found at height"))
             ) ++ Stream(head)
         else Stream(head)
     } yield stream
 
-  /**
-   * Incorporate a Transaction into a Wallet by removing spent outputs and including new outputs.
-   */
-  private[interpreters] def applyTransaction(wallet: Wallet)(transaction: Transaction): Wallet = {
-    val spentBoxIds = transaction.inputs.map(_.boxId).toIterable
-    val transactionId = transaction.id.asTypedBytes
-    val newBoxes = transaction.outputs.zipWithIndex.collect {
-      case (output, index) if wallet.propositions.contains(output.address.spendingAddress.typedEvidence) =>
-        val boxId = Box.Id(transactionId, index.toShort)
-        val box = Box(output.address.spendingAddress.typedEvidence, output.value)
-        (boxId, box)
-    }.toIterable
-    wallet.copy(spendableBoxIds = wallet.spendableBoxIds -- spentBoxIds ++ newBoxes)
-  }
-
-  private[interpreters] val emptyWallet: Wallet =
-    Wallet(
-      Map.empty,
-      Map(
-        Fs2TransactionGenerator.HeightLockOneSpendingAddress.typedEvidence ->
-        Fs2TransactionGenerator.HeightLockOneProposition
-      )
-    )
 }

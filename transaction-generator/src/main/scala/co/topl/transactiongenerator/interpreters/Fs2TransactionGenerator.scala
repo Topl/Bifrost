@@ -2,13 +2,11 @@ package co.topl.transactiongenerator.interpreters
 
 import cats.data.Chain
 import cats.effect._
-import cats.effect.std.Random
+import cats.effect.std.{Queue, Random}
 import cats.implicits._
-import cats.Parallel
-import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
+import cats.{Applicative, Parallel}
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances.{bigIntLength, bytesLength, latin1DataLength}
+import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.transactiongenerator.algebras.TransactionGenerator
@@ -17,9 +15,6 @@ import co.topl.typeclasses.implicits._
 import fs2._
 
 object Fs2TransactionGenerator {
-
-  val HeightLockOneProposition: Proposition = Propositions.Contextual.HeightLock(1)
-  val HeightLockOneSpendingAddress: SpendingAddress = HeightLockOneProposition.spendingAddress
 
   /**
    * Interprets TransactionGenerator using a given `Wallet` and FS2.  Emits a never-ending stream of Transactions,
@@ -32,21 +27,20 @@ object Fs2TransactionGenerator {
     } yield new TransactionGenerator[F, Stream[F, *]] {
 
       def generateTransactions: F[Stream[F, Transaction]] =
-        Sync[F].delay(
+        Queue.unbounded[F, Wallet].flatTap(_.offer(wallet)).map { queue =>
           Stream
-            .unfoldEval[F, Vector[Wallet], Vector[Transaction]](Vector(wallet))(wallets =>
-              // In the current implementation, wallets grow in size and never shrink.  Once a wallet grows too large,
-              // split it into two separate wallets and run them in parallel
-              wallets
-                .flatMap(wallet =>
-                  if (wallet.spendableBoxIds.size > 10) WalletSplitter.split(wallet, 2)
+            .fromQueueUnterminated(queue)
+            .parEvalMapUnordered(Runtime.getRuntime.availableProcessors())(nextTransactionOf[F])
+            .evalMap { case (transaction, wallet) =>
+              Sync[F]
+                .delay(
+                  if (wallet.spendableBoxes.size > 10) WalletSplitter.split(wallet, 2)
                   else Vector(wallet)
                 )
-                .parTraverse(nextTransactionOf[F])
-                .map(results => (results.map(_._1), results.map(_._2)).some)
-            )
-            .flatMap(Stream.iterable)
-        )
+                .flatTap(_.traverse(queue.offer))
+                .as(transaction)
+            }
+        }
     }
 
   /**
@@ -55,63 +49,64 @@ object Fs2TransactionGenerator {
    */
   private def nextTransactionOf[F[_]: Async: Random](wallet: Wallet): F[(Transaction, Wallet)] =
     for {
-      (inputBoxId, inputBox) <- wallet.spendableBoxIds.toList
-        .maxBy(_._2.value.asInstanceOf[Box.Values.Poly].quantity.data)
-        .pure[F]
-      inputProposition = wallet.propositions(inputBox.evidence)
-      polyBoxValue = inputBox.value.asInstanceOf[Box.Values.Poly]
-      outputs =
-        if (polyBoxValue.quantity.data > 1) {
-          val quantityOutput0 = polyBoxValue.quantity.data / 2
-          val output0 = Transaction.Output(
-            simpleFullAddress(HeightLockOneSpendingAddress),
-            Box.Values.Poly(Sized.maxUnsafe(quantityOutput0)),
-            minting = false
-          )
-          val output1 = Transaction.Output(
-            simpleFullAddress(HeightLockOneSpendingAddress),
-            Box.Values.Poly(Sized.maxUnsafe(polyBoxValue.quantity.data - quantityOutput0)),
-            minting = false
-          )
-          Chain(output0, output1)
-        } else {
-          Chain(
-            Transaction.Output(
-              simpleFullAddress(HeightLockOneSpendingAddress),
-              polyBoxValue,
-              minting = false
-            )
-          )
-        }
+      (inputBoxId, inputBox) <- pickInput[F](wallet)
+      inputs = Chain(Transaction.Unproven.Input(inputBoxId, wallet.propositions(inputBox.evidence), inputBox.value))
+      outputs   <- createOutputs[F](inputBox)
       timestamp <- Async[F].realTimeInstant
       schedule = Transaction.Schedule(timestamp.toEpochMilli, 0, Long.MaxValue)
-      dataBytes <- Array.fill[Byte](100)(3).pure[F]
+      data <- createData[F]
       unprovenTransaction: Transaction.Unproven = Transaction.Unproven(
-        Chain(Transaction.Unproven.Input(inputBoxId, inputProposition, inputBox.value)),
+        inputs,
         outputs,
         schedule,
-        Some(Sized.maxUnsafe(Latin1Data.fromData(dataBytes)))
+        Some(data)
       )
       transaction = unprovenTransaction.prove {
         case HeightLockOneProposition => Proofs.Contextual.HeightLock()
-        case _                        => throw new MatchError()
+        case p                        => throw new MatchError(p)
       }
-      newWallet = wallet.copy(
-        spendableBoxIds = wallet.spendableBoxIds.removed(inputBoxId) ++ transaction.outputs
-          .mapWithIndex((output, index) =>
-            Box.Id(transaction.id, index.toShort) -> Box(output.address.spendingAddress.typedEvidence, output.value)
-          )
-          .toIterable,
-        propositions = wallet.propositions.updated(HeightLockOneProposition.typedEvidence, HeightLockOneProposition)
-      )
-    } yield (transaction, newWallet)
+      updatedWallet = applyTransaction(wallet)(transaction)
+    } yield (transaction, updatedWallet)
 
-  private[interpreters] def simpleFullAddress(spendingAddress: SpendingAddress): FullAddress =
-    FullAddress(
-      NetworkPrefix(0),
-      spendingAddress,
-      StakingAddresses.NonStaking,
-      Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes.fill(64)(0: Byte)))
-    )
+  /**
+   * Selects a spendable box from the wallet
+   */
+  private def pickInput[F[_]: Applicative](wallet: Wallet): F[(Box.Id, Box)] =
+    wallet.spendableBoxes.toList
+      .maxBy(_._2.value.asInstanceOf[Box.Values.Poly].quantity.data)
+      .pure[F]
+
+  /**
+   * Constructs two outputs from the given input box.  The two outputs will split the input box in half.
+   */
+  private def createOutputs[F[_]: Applicative](inputBox: Box): F[Chain[Transaction.Output]] = {
+    val polyBoxValue = inputBox.value.asInstanceOf[Box.Values.Poly]
+    if (polyBoxValue.quantity.data > 1) {
+      val quantityOutput0 = polyBoxValue.quantity.data / 2
+      val output0 = Transaction.Output(
+        simpleFullAddress(HeightLockOneSpendingAddress),
+        Box.Values.Poly(Sized.maxUnsafe(quantityOutput0)),
+        minting = false
+      )
+      val output1 = Transaction.Output(
+        simpleFullAddress(HeightLockOneSpendingAddress),
+        Box.Values.Poly(Sized.maxUnsafe(polyBoxValue.quantity.data - quantityOutput0)),
+        minting = false
+      )
+      Chain(output0, output1)
+    } else {
+      Chain(
+        Transaction.Output(
+          simpleFullAddress(HeightLockOneSpendingAddress),
+          polyBoxValue,
+          minting = false
+        )
+      )
+    }
+  }
+    .pure[F]
+
+  private def createData[F[_]: Applicative]: F[Transaction.Data] =
+    (Sized.maxUnsafe(Latin1Data.fromData(Array.fill[Byte](100)(3))): Transaction.Data).pure[F]
 
 }

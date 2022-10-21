@@ -40,18 +40,10 @@ object TransactionGeneratorApp
       client <- MultiToplRpc.make(clients)
       // Assemble a base wallet of available UTxOs
       wallet <- ToplRpcWalletInitializer.make[F](client).flatMap(_.initialize)
-      // Split the base wallet into multiple wallets to enable parallel participants
-      wallets = WalletSplitter.split(wallet, Runtime.getRuntime.availableProcessors())
-      // Combine all wallets into a stream of transactions
-      transactionStream =
-        Stream
-          .iterable(wallets)
-          .evalMap(Fs2TransactionGenerator.make[F])
-          .evalMap(_.generateTransactions)
-          .parJoinUnbounded
+      // Produce a stream of Transactions from the base wallet
+      transactionStream <- Fs2TransactionGenerator.make[F](wallet).flatMap(_.generateTransactions)
       // Broadcast the transactions
       _ <- transactionStream
-        .groupWithin()
         // Send 1 transaction per _this_ duration
         .metered(500.milli)
         // Broadcast+log the transaction
