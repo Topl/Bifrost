@@ -640,7 +640,8 @@ lazy val transactionGenerator = project
     munitScalamock,
     algebras,
     toplGrpc,
-    commonApplication
+    commonApplication,
+    commonInterpreters
   )
 
 lazy val ledger = project

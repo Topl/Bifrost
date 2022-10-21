@@ -25,10 +25,11 @@ class Fs2TransactionGeneratorSpec extends CatsEffectSuite {
         Transaction.Schedule(0, 0, 0),
         None
       ).pure[F]
-      underTest <- Fs2TransactionGenerator.make[F](seedTransaction)
+      wallet = ToplRpcWalletInitializer.applyTransaction(ToplRpcWalletInitializer.emptyWallet)(seedTransaction)
+      underTest <- Fs2TransactionGenerator.make[F](wallet)
       stream    <- underTest.generateTransactions
-      result    <- stream.take(500).compile.toList
-      _ = assert(result.length === 500)
+      result    <- stream.take(50000).compile.toList
+      _ = assert(result.length === 50000)
     } yield ()
   }
 }

@@ -13,8 +13,10 @@ import co.topl.grpc.services._
 import co.topl.models.TypedIdentifier
 import co.topl.{models => bifrostModels}
 import io.grpc.Status
-
+import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
+import scala.concurrent.duration._
 import scala.concurrent.Future
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 object ToplGrpc {
 
@@ -30,7 +32,9 @@ object ToplGrpc {
       systemProvider:           ClassicActorSystemProvider
     ): F[ToplRpc[F]] =
       Async[F].delay {
-        val client = services.ToplGrpcClient(GrpcClientSettings.connectToServiceAt(host, port).withTls(tls))
+        val client = services.ToplGrpcClient(
+          GrpcClientSettings.connectToServiceAt(host, port).withDeadline(5.seconds).withTls(tls)
+        )
         new ToplRpc[F] {
           def broadcastTransaction(transaction: bifrostModels.Transaction): F[Unit] =
             Async[F]
@@ -45,8 +49,6 @@ object ToplGrpc {
                   )
               )
               .void
-
-          client.fetchBlockHeader().addHeader("key", "value").invoke(services.FetchBlockHeaderReq())
 
           def currentMempool(): F[Set[bifrostModels.TypedIdentifier]] =
             Async[F]
@@ -171,7 +173,9 @@ object ToplGrpc {
      */
     def serve[F[_]: Async: FToFuture](host: String, port: Int, interpreter: ToplRpc[F])(implicit
       systemProvider:                       ClassicActorSystemProvider
-    ): Resource[F, Http.ServerBinding] =
+    ): Resource[F, Http.ServerBinding] = {
+      implicit val logger: SelfAwareStructuredLogger[F] =
+        Slf4jLogger.getLoggerFromClass[F](this.getClass)
       Resource.make(
         Async[F].fromFuture(
           Async[F].delay(
@@ -181,8 +185,10 @@ object ToplGrpc {
           )
         )
       )(binding => Async[F].fromFuture(Async[F].delay(binding.unbind())).void)
+    }
 
-    private[grpc] class GrpcServerImpl[F[_]: MonadThrow: FToFuture](interpreter: ToplRpc[F]) extends services.ToplGrpc {
+    private[grpc] class GrpcServerImpl[F[_]: MonadThrow: FToFuture: Logger](interpreter: ToplRpc[F])
+        extends services.ToplGrpc {
 
       def broadcastTransaction(in: services.BroadcastTransactionReq): Future[services.BroadcastTransactionRes] =
         implicitly[FToFuture[F]].apply(
@@ -255,6 +261,7 @@ object ToplGrpc {
                 .value
                 .map(services.FetchBlockBodyRes(_))
             )
+            .logServerErrors
             .adaptErrorsToGrpc
         )
 
@@ -276,6 +283,7 @@ object ToplGrpc {
                 .value
                 .map(services.FetchTransactionRes(_))
             )
+            .logServerErrors
             .adaptErrorsToGrpc
         )
 
@@ -289,6 +297,7 @@ object ToplGrpc {
             )
             .value
             .map(services.FetchBlockIdAtHeightRes(_))
+            .logServerErrors
             .adaptErrorsToGrpc
         )
 
@@ -302,6 +311,7 @@ object ToplGrpc {
             )
             .value
             .map(services.FetchBlockIdAtDepthRes(_))
+            .logServerErrors
             .adaptErrorsToGrpc
         )
     }
