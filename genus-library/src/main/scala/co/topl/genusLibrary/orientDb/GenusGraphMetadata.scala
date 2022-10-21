@@ -11,8 +11,7 @@ import com.tinkerpop.blueprints.impls.orient.{OrientEdgeType, OrientGraphNoTx, O
 class GenusGraphMetadata(val graphNoTx: OrientGraphNoTx) {
   import GenusGraphMetadata._
 
-  val addressVertexType: OrientVertexType = graphNoTx.createVertexType("Address")
-  configureAddressVertexType()
+  val addressVertexType: OrientVertexType = ensureVertexSchemaInitialized(addressVertexSchema)
 
   val boxStateVertexType: OrientVertexType = graphNoTx.createVertexType("BoxState")
   // box states have no properties to configure
@@ -80,13 +79,18 @@ object GenusGraphMetadata {
    */
   private val TypedEvidenceRegex = "^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{33,46}$"
 
-  // TODO: Rework these schemas to use data model classes generated from protobuf definitions rather than those in the models project.
+  import OrientDbTyped.Instances._
+
+  // TODO: Rework to use data model classes generated from protobuf definitions rather than those in the models project.
   private val addressVertexSchema: VertexSchema[TypedEvidence] =
     VertexSchema.create(
       "Address",
       GraphDataEncoder[TypedEvidence]
         .withProperty("typePrefix", t => t.typePrefix)
-        .withProperty()
+        .withProperty("evidence", t => t.evidence.data)
+        .withIndex("addressIndex", INDEX_TYPE.UNIQUE, "typePrefix", "evidence"),
+      v =>
+        TypedEvidence(v("typePrefix"), v("evidence"))
     )
 
 

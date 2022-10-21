@@ -424,7 +424,8 @@ object Dependencies {
   lazy val genusLibrary: Seq[ModuleID] =
     logging ++
     orientDb ++
-    mUnitTest
+    mUnitTest ++
+    simulacrum
 
   lazy val munitScalamock: Seq[sbt.ModuleID] =
     mUnitTest

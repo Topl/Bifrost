@@ -861,6 +861,7 @@ lazy val genusLibrary = project
   .settings(
     name := "genus-library",
     commonSettings,
+    scalamacrosParadiseSettings,
     crossScalaVersions := Seq(scala213),
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.genusLibrary",

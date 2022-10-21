@@ -2,6 +2,7 @@ package co.topl.genusLibrary.orientDb
 
 import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
 import com.orientechnologies.orient.core.metadata.schema.{OClass, OType}
+import scodec.bits.ByteVector
 
 /**
  * Describe how data from a scala class will be stored in an OrientDB vertex.
@@ -112,8 +113,10 @@ case class GraphDataEncoder[T] private (
   /**
    * Describe an index on the vertex or edge.
    *
-   * @param index The index description
-   * @return
+   * @param name The name of the index
+   * @param indexType The type of index (INDEX_TYPE.UNIQUE, INDEX_TYPE.NOTUNIQUE, ...)
+   * @param propertyNames the names of the properties whose values will be included in the index.
+   * @return the updated GraphDataEncoder
    */
   def withIndex(name: String, indexType: INDEX_TYPE, propertyNames: String*): GraphDataEncoder[T] =
     copy(
@@ -144,6 +147,8 @@ object OrientDbTyped {
     implicit val booleanOrientDbTyped: OrientDbTyped[java.lang.Boolean] = create(OType.BOOLEAN)
     implicit val shortOrientDbTyped: OrientDbTyped[java.lang.Short] = create(OType.SHORT)
     implicit val longOrientDbTyped: OrientDbTyped[java.lang.Long] = create(OType.LONG)
+    implicit val byteOrientDbTyped: OrientDbTyped[java.lang.Byte] = create(OType.BYTE)
+    implicit val bytesOrientDbTyped: OrientDbTyped[ByteVector] = create(OType.BINARY)
 
     implicit def optionalOrientDbTyped[T: OrientDbTyped]: OrientDbTyped[Option[T]] =
       create(implicitly[OrientDbTyped[T]].oType)
