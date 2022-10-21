@@ -1,7 +1,8 @@
 package co.topl.genusLibrary.orientDb
 
 import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
-import com.orientechnologies.orient.core.metadata.schema.{OClass, OType}
+import com.orientechnologies.orient.core.metadata.schema.{OClass, OPropertyAbstractDelegate, OType}
+import com.tinkerpop.blueprints.impls.orient.OrientVertexType
 import scodec.bits.ByteVector
 
 /**
@@ -100,10 +101,15 @@ case class GraphDataEncoder[T] private (
    *
    * @param name The name of the property
    * @param extract a function to extract the value of the property from an instance of T
+   * @param propertyAttributeSetter A function to set the attributes of the property
    * @tparam V The type of value that the property will have
    * @return an updated copy of the GraphDataEncoder
    */
-  def withProperty[V <: AnyRef: OrientDbTyped](name: String, extract: T => V): GraphDataEncoder[T] =
+  def withProperty[V <: AnyRef: OrientDbTyped](
+    name:                    String,
+    extract:                 T => V,
+    propertyAttributeSetter: OPropertyAbstractDelegate => Unit = f => ()
+  ): GraphDataEncoder[T] =
     copy(
       t => encode(t).updated(name, extract(t)),
       properties.incl(Property(name, OrientDbTyped[V].oType)),

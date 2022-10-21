@@ -86,21 +86,10 @@ object GenusGraphMetadata {
     VertexSchema.create(
       "Address",
       GraphDataEncoder[TypedEvidence]
-        .withProperty("typePrefix", t => t.typePrefix)
-        .withProperty("evidence", t => t.evidence.data)
+        .withProperty("typePrefix", _.typePrefix, _.setMandatory(true).setReadonly(true).setNotNull(true))
+        .withProperty("evidence", _.evidence.data, _.setMandatory(true).setReadonly(true).setNotNull(true))
         .withIndex("addressIndex", INDEX_TYPE.UNIQUE, "typePrefix", "evidence"),
       v =>
         TypedEvidence(v("typePrefix"), v("evidence"))
     )
-
-
-//  private def configureAddressVertexType(): Unit = {
-//    addressVertexType
-//      .createProperty("base58Address", OType.STRING)
-//      .setMandatory(true)
-//      .setReadonly(true)
-//      .setNotNull(true)
-//      .setRegexp(TypedEvidenceRegex)
-//    addressVertexType.createIndex("addressIndex", INDEX_TYPE.UNIQUE, "base58Address")
-//  }
 }
