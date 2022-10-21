@@ -1,5 +1,7 @@
 package co.topl.genusLibrary
 
+import co.topl.genusLibrary.orientDb.OrientDBFacade
+
 import java.io.{File, FileInputStream, FileOutputStream}
 import java.nio.charset.Charset
 import java.nio.file.Files

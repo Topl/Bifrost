@@ -1,5 +1,6 @@
-package co.topl.genusLibrary
+package co.topl.genusLibrary.orientDb
 
+import co.topl.genusLibrary.{Genus, GenusException}
 import co.topl.typeclasses.Log._
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.tinkerpop.blueprints.impls.orient.{OrientGraphFactory, OrientGraphNoTx}

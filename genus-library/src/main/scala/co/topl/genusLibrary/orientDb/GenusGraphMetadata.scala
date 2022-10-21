@@ -1,4 +1,4 @@
-package co.topl.genusLibrary
+package co.topl.genusLibrary.orientDb
 
 import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
 import com.orientechnologies.orient.core.metadata.schema.OType
