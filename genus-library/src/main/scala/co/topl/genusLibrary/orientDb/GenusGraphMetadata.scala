@@ -1,5 +1,6 @@
 package co.topl.genusLibrary.orientDb
 
+import co.topl.models.TypedEvidence
 import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.tinkerpop.blueprints.impls.orient.{OrientEdgeType, OrientGraphNoTx, OrientVertexType}
@@ -28,16 +29,6 @@ class GenusGraphMetadata(val graphNoTx: OrientGraphNoTx) {
   val stateToBoxEdgeType: OrientEdgeType = graphNoTx.createEdgeType("StateToBox")
   val inputEdgeType: OrientEdgeType = graphNoTx.createEdgeType("Input")
   val outputEdgeType: OrientEdgeType = graphNoTx.createEdgeType("Output")
-
-  private def configureAddressVertexType(): Unit = {
-    addressVertexType
-      .createProperty("base58Address", OType.STRING)
-      .setMandatory(true)
-      .setReadonly(true)
-      .setNotNull(true)
-      .setRegexp(TypedEvidenceRegex)
-    addressVertexType.createIndex("addressIndex", INDEX_TYPE.UNIQUE, "base58Address")
-  }
 
   def configureBlockHeaderVertexType(): Unit = {
     blockHeaderVertexType
@@ -89,5 +80,23 @@ object GenusGraphMetadata {
    */
   private val TypedEvidenceRegex = "^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{33,46}$"
 
+  // TODO: Rework these schemas to use data model classes generated from protobuf definitions rather than those in the models project.
+  private val addressVertexSchema: VertexSchema[TypedEvidence] =
+    VertexSchema.create(
+      "Address",
+      GraphDataEncoder[TypedEvidence]
+        .withProperty("typePrefix", t => t.typePrefix)
+        .withProperty()
+    )
 
+
+//  private def configureAddressVertexType(): Unit = {
+//    addressVertexType
+//      .createProperty("base58Address", OType.STRING)
+//      .setMandatory(true)
+//      .setReadonly(true)
+//      .setNotNull(true)
+//      .setRegexp(TypedEvidenceRegex)
+//    addressVertexType.createIndex("addressIndex", INDEX_TYPE.UNIQUE, "base58Address")
+//  }
 }

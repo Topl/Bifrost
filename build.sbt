@@ -865,7 +865,7 @@ lazy val genusLibrary = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.genusLibrary",
     libraryDependencies ++= Dependencies.genusLibrary
-  ).dependsOn(typeclasses)
+  ).dependsOn(typeclasses, models)
 
 lazy val munitScalamock = project
   .in(file("munit-scalamock"))

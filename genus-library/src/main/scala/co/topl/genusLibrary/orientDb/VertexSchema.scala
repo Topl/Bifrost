@@ -7,6 +7,7 @@ import com.orientechnologies.orient.core.metadata.schema.{OClass, OType}
  * Describe how data from a scala class will be stored in an OrientDB vertex.
  */
 trait VertexSchema[T] {
+
   /**
    * The name of the vertex class
    */
@@ -58,7 +59,6 @@ object VertexSchema {
   }
 }
 
-
 /**
  * Represents an individual piece of data that will be stored in a class of vertices
  * @param name The name of the property
@@ -73,29 +73,54 @@ case class Property(name: String, propertyType: OType)
  * @param indexType the type of index @see [[INDEX_TYPE.UNIQUE]], [[INDEX_TYPE.NOTUNIQUE]], ...
  * @param propertyNames The names of the properties whose values are used to construct index entries.
  */
-case class Index(name: String, indexType: INDEX_TYPE, propertyNames: String *)
+case class Index(name: String, indexType: INDEX_TYPE, propertyNames: String*)
 
 class DecodeHelper(properties: Map[String, AnyRef]) {
   def apply[T](name: String): T = properties(name).asInstanceOf[T]
 }
 
+/**
+ * Describes how instances of a Scala class will be represented as a type of Vertex or edge with properties
+ *
+ * @param encode A function that extracts data from the object and returns a map of values that can be used as the
+ *               vertex's or node's property values.
+ * @param properties Describes the properties that will be stores in the vertexes or edgens.
+ * @param indices Describes the indexes that will be on the type of  vertex or edge.
+ * @tparam T the Scala class whose instances are to be represented.
+ */
 case class GraphDataEncoder[T] private (
-                                         encode:     T => Map[String, AnyRef],
-                                         properties: Set[Property],
-                                         indices:    Set[Index]
-                                       ) {
+  encode:     T => Map[String, AnyRef],
+  properties: Set[Property],
+  indices:    Set[Index]
+) {
 
-  def withProperty[V <: AnyRef: OrientDbTyped](
-                                                   name:    String,
-                                                   extract: T => V,
-                                                   indices: Set[(String, OClass.INDEX_TYPE)] = Set.empty
-                                                 ): GraphDataEncoder[T] =
+  /**
+   * Describe a property of the vertex or edge
+   *
+   * @param name The name of the property
+   * @param extract a function to extract the value of the property from an instance of T
+   * @tparam V The type of value that the property will have
+   * @return an updated copy of the GraphDataEncoder
+   */
+  def withProperty[V <: AnyRef: OrientDbTyped](name: String, extract: T => V): GraphDataEncoder[T] =
     copy(
       t => encode(t).updated(name, extract(t)),
       properties.incl(Property(name, OrientDbTyped[V].oType)),
-      this.indices ++ indices.map { case (iName, iType) => Index(iName, iType, name) }
+      this.indices
     )
 
+  /**
+   * Describe an index on the vertex or edge.
+   *
+   * @param index The index description
+   * @return
+   */
+  def withIndex(name: String, indexType: INDEX_TYPE, propertyNames: String*): GraphDataEncoder[T] =
+    copy(
+      encode,
+      properties,
+      this.indices + Index(name, indexType, propertyNames: _*)
+    )
 }
 
 object GraphDataEncoder {
