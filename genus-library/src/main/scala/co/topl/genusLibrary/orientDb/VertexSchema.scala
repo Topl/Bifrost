@@ -1,8 +1,8 @@
 package co.topl.genusLibrary.orientDb
 
+import co.topl.models.TypedIdentifier
 import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
 import com.orientechnologies.orient.core.metadata.schema.{OClass, OPropertyAbstractDelegate, OType}
-import com.tinkerpop.blueprints.impls.orient.OrientVertexType
 import scodec.bits.ByteVector
 
 /**
@@ -66,7 +66,7 @@ object VertexSchema {
  * @param name The name of the property
  * @param propertyType The datatype of the property
  */
-case class Property(name: String, propertyType: OType)
+case class Property(name: String, propertyType: OType, propertyAttributeSetter: OPropertyAbstractDelegate => Unit = f => ())
 
 /**
  * Describe an index on vertices of a class
@@ -86,7 +86,7 @@ class DecodeHelper(properties: Map[String, AnyRef]) {
  *
  * @param encode A function that extracts data from the object and returns a map of values that can be used as the
  *               vertex's or node's property values.
- * @param properties Describes the properties that will be stores in the vertexes or edgens.
+ * @param properties Describes the properties that will be stores in the vertexes or edges.
  * @param indices Describes the indexes that will be on the type of  vertex or edge.
  * @tparam T the Scala class whose instances are to be represented.
  */
@@ -108,11 +108,11 @@ case class GraphDataEncoder[T] private (
   def withProperty[V <: AnyRef: OrientDbTyped](
     name:                    String,
     extract:                 T => V,
-    propertyAttributeSetter: OPropertyAbstractDelegate => Unit = f => ()
+    propertyAttributeSetter: OPropertyAbstractDelegate => Unit = _ => ()
   ): GraphDataEncoder[T] =
     copy(
       t => encode(t).updated(name, extract(t)),
-      properties.incl(Property(name, OrientDbTyped[V].oType)),
+      properties.incl(Property(name, OrientDbTyped[V].oType, propertyAttributeSetter)),
       this.indices
     )
 
@@ -155,6 +155,9 @@ object OrientDbTyped {
     implicit val longOrientDbTyped: OrientDbTyped[java.lang.Long] = create(OType.LONG)
     implicit val byteOrientDbTyped: OrientDbTyped[java.lang.Byte] = create(OType.BYTE)
     implicit val bytesOrientDbTyped: OrientDbTyped[ByteVector] = create(OType.BINARY)
+    implicit val typedIdentifierOrientDbTyped: OrientDbTyped[TypedIdentifier] = create(OType.BINARY)
+    implicit val typeByteArrayOrientDbTypes: OrientDbTyped[Array[Byte]] = create(OType.BINARY)
+    //implicit val anyOrientDbTyped: OrientDbTyped[Any] = create(OType.ANY)
 
     implicit def optionalOrientDbTyped[T: OrientDbTyped]: OrientDbTyped[Option[T]] =
       create(implicitly[OrientDbTyped[T]].oType)

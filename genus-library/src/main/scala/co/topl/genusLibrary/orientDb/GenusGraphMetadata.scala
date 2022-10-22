@@ -1,9 +1,10 @@
 package co.topl.genusLibrary.orientDb
 
-import co.topl.models.TypedEvidence
+import co.topl.codecs.bytes.tetra.TetraIdentifiableInstances
+import co.topl.models._
 import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
-import com.orientechnologies.orient.core.metadata.schema.OType
 import com.tinkerpop.blueprints.impls.orient.{OrientEdgeType, OrientGraphNoTx, OrientVertexType}
+import scodec.bits.ByteVector
 
 /**
  * Metadata describing the schema used for the Genus graph in OrientDB
@@ -12,12 +13,9 @@ class GenusGraphMetadata(val graphNoTx: OrientGraphNoTx) {
   import GenusGraphMetadata._
 
   val addressVertexType: OrientVertexType = ensureVertexSchemaInitialized(addressVertexSchema)
+  val boxStateVertexType: OrientVertexType = ensureVertexSchemaInitialized(boxStateSchema)
 
-  val boxStateVertexType: OrientVertexType = graphNoTx.createVertexType("BoxState")
-  // box states have no properties to configure
-
-  val blockHeaderVertexType: OrientVertexType = graphNoTx.createVertexType("BlockHeader")
-  configureBlockHeaderVertexType()
+  val blockHeaderVertexType: OrientVertexType = ensureVertexSchemaInitialized(blockHeaderSchema)
 
   val blockBodyVertexType: OrientVertexType = graphNoTx.createVertexType("BlockBody")
   val boxVertexType: OrientVertexType = graphNoTx.createVertexType("Box")
@@ -29,51 +27,25 @@ class GenusGraphMetadata(val graphNoTx: OrientGraphNoTx) {
   val inputEdgeType: OrientEdgeType = graphNoTx.createEdgeType("Input")
   val outputEdgeType: OrientEdgeType = graphNoTx.createEdgeType("Output")
 
-  def configureBlockHeaderVertexType(): Unit = {
-    blockHeaderVertexType
-      .createProperty("blockId", OType.INTEGER)
-      .setMandatory(true)
-      .setReadonly(true)
-      .setNotNull(true)
-    blockHeaderVertexType.createIndex("blockHeaderIndex", INDEX_TYPE.UNIQUE, "blockId")
-
-    blockHeaderVertexType
-      .createProperty("parentHeaderId", OType.INTEGER)
-      .setMandatory(false)
-      .setReadonly(true)
-      .setNotNull(true)
-
-    blockHeaderVertexType
-      .createProperty("parentSlot", OType.LONG)
-      .setMandatory(false)
-      .setReadonly(true)
-      .setNotNull(true)
-
-    blockHeaderVertexType
-      .createProperty("txRoot", OType.BINARY) // 32 Bytes
-      .setMandatory(false)
-      .setReadonly(true)
-      .setNotNull(false)
-
-    blockHeaderVertexType
-      .createProperty("bloomFilter", OType.BINARY) // 256 Bytes
-      .setMandatory(false)
-      .setReadonly(true)
-      .setNotNull(false)
-
-  }
-
-  def ensureVertexSchemaInitialized(vertexSchema: VertexSchema[_]): OrientVertexType = {
-    Option(graphNoTx.getVertexType(vertexSchema.name)).getOrElse{
+  def ensureVertexSchemaInitialized(vertexSchema: VertexSchema[_]): OrientVertexType =
+    Option(graphNoTx.getVertexType(vertexSchema.name)).getOrElse {
       val vertexType = graphNoTx.createVertexType(vertexSchema.name)
-      vertexSchema.properties.foreach(property => vertexType.createProperty(property.name, property.propertyType))
-      vertexSchema.indices.foreach(index => vertexType.createIndex(index.name, index.indexType, index.propertyNames: _*))
+      vertexSchema.properties.foreach(property =>
+        property.propertyAttributeSetter({
+          val vertexProperty = vertexType.createProperty(property.name, property.propertyType)
+          vertexProperty.setReadonly(true).setMandatory(true)
+          vertexProperty
+        })
+      )
+      vertexSchema.indices.foreach(index =>
+        vertexType.createIndex(index.name, index.indexType, index.propertyNames: _*)
+      )
       vertexType
     }
-  }
 }
 
 object GenusGraphMetadata {
+
   /**
    * Regular expression for the base58 representation of typed evidence.
    */
@@ -89,7 +61,77 @@ object GenusGraphMetadata {
         .withProperty("typePrefix", _.typePrefix, _.setMandatory(true).setReadonly(true).setNotNull(true))
         .withProperty("evidence", _.evidence.data, _.setMandatory(true).setReadonly(true).setNotNull(true))
         .withIndex("addressIndex", INDEX_TYPE.UNIQUE, "typePrefix", "evidence"),
-      v =>
-        TypedEvidence(v("typePrefix"), v("evidence"))
+      v => TypedEvidence(v("typePrefix"), v("evidence"))
     )
+
+  // Box state vertexes have no properties, just links to boxes.
+  private val boxStateSchema: VertexSchema[Unit] =
+    VertexSchema.create(
+      "boxState",
+      GraphDataEncoder[Unit],
+      v => ()
+    )
+
+  private val blockHeaderSchema: VertexSchema[BlockHeaderV2] = {
+    // TODO this needs to change when we switch to models from protobufs, because that is just 32 bytes
+    def blockHeaderIdToByteArray(id: (Byte, ByteVector)): Array[Byte] = {
+      val a: Array[Byte] = Array(1 + id._2.size)
+      a(0) = id._1
+      id._2.copyToArray(a, 1)
+      a
+    }
+    // No need for a byteArrayToBlockHeaderId because it is computed rather than stored.
+
+    def eligibilityCertificateToByteArray(eligibilityCertificate: EligibilityCertificate): Array[Byte] = ???
+    def byteArrayToEligibilityCertificate(a: Array[Byte]): EligibilityCertificate = ???
+
+    def operationalCertificateToByteArray(eligibilityCertificate: OperationalCertificate): Array[Byte] = ???
+    def byteArrayToOperationalCertificate(a: Array[Byte]): OperationalCertificate = ???
+
+    def stakingAddressOperatorToByteArray(eligibilityCertificate: StakingAddresses.Operator): Array[Byte] = ???
+    def byteArrayToStakingAddressOperator(a: Array[Byte]): StakingAddresses.Operator = ???
+
+    VertexSchema.create(
+      "BlockHeader",
+      GraphDataEncoder[BlockHeaderV2]
+        .withProperty(
+          "blockId",
+          b => blockHeaderIdToByteArray(TetraIdentifiableInstances.identifiableBlockHeaderV2.idOf(b)),
+          _.setNotNull(true)
+        )
+        .withProperty("parentHeaderId", _.parentHeaderId, _.setNotNull(true))
+        .withProperty("parentSlot", _.parentSlot, _.setMandatory(false))
+        .withProperty("txRoot", _.txRoot.data.toArray, _.setMandatory(false))
+        .withProperty("bloomFilter", _.bloomFilter.data.toArray, _.setMandatory(false))
+        .withProperty("timestamp", _.timestamp, _.setNotNull(true))
+        .withProperty("height", _.height, _.setNotNull(true))
+        .withProperty("slot", _.slot, _.setNotNull(true))
+        .withProperty(
+          "eligibilityCertificate",
+          e => eligibilityCertificateToByteArray(e.eligibilityCertificate),
+          _.setNotNull(true)
+        )
+        .withProperty(
+          "operationalCertificate",
+          o => operationalCertificateToByteArray(o.operationalCertificate),
+          _.setNotNull(true)
+        )
+        .withProperty("metadata", _.metadata.map(_.data.bytes).orNull, _.setNotNull(false))
+        .withProperty("address", s => stakingAddressOperatorToByteArray(s.address), _.setNotNull(true))
+        .withIndex("blockHeaderIndex", INDEX_TYPE.UNIQUE, "blockId"),
+      v => BlockHeaderV2(
+        v("parentHeaderId"),
+        v("parentSlot"),
+        v("txRoot"),
+        v("bloomFilter"),
+        v("timestamp"),
+        v("height"),
+        v("slot"),
+        v("eligibilityCertificate"),
+        v("operationalCertificate"),
+        v("metadata"),
+        v("address")
+      )
+    )
+  }
 }
