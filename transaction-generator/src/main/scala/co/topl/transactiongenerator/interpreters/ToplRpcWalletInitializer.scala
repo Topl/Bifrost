@@ -37,18 +37,15 @@ object ToplRpcWalletInitializer {
       headersStream <- blockStream(toplRpc)
       stream = headersStream.flatMap(header =>
         Stream
-          .eval(
+          .evals(
             OptionT(toplRpc.fetchBlockBody(header.id))
               .getOrRaise(new IllegalStateException("Block body not found"))
               .map(_.toList)
-              .flatMap(
-                _.traverse(transactionId =>
-                  OptionT(toplRpc.fetchTransaction(transactionId))
-                    .getOrRaise(new IllegalStateException("Transaction not found"))
-                )
-              )
           )
-          .flatMap(Stream.iterable)
+          .parEvalMap(4)(transactionId =>
+            OptionT(toplRpc.fetchTransaction(transactionId))
+              .getOrRaise(new IllegalStateException("Transaction not found"))
+          )
       )
     } yield stream
 

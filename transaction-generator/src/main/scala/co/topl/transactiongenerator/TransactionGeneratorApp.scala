@@ -51,7 +51,7 @@ object TransactionGeneratorApp
         .metered(500.milli)
         // Broadcast+log the transaction
         .evalTap(transaction =>
-          Logger[F].info(show"Broadcasting transaction id=${transaction.id.asTypedBytes}") >>
+          Logger[F].debug(show"Broadcasting transaction id=${transaction.id.asTypedBytes}") >>
           client.broadcastTransaction(transaction) >>
           Logger[F].info(show"Broadcasted transaction id=${transaction.id.asTypedBytes}")
         )
