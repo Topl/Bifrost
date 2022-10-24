@@ -46,7 +46,7 @@ object Log {
      * @return the Try
      */
     def logIfFailure(message: => String)(implicit logger: Logger): Try[T] =
-      t.recoverWith { f =>
+      t.recoverWith { case f =>
         logger.error(message, f)
         Failure(f)
       }
