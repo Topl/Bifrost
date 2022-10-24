@@ -58,7 +58,11 @@ object GenusGraphMetadata {
     VertexSchema.create(
       "Address",
       GraphDataEncoder[TypedEvidence]
-        .withProperty("typePrefix", _.typePrefix, _.setMandatory(true).setReadonly(true).setNotNull(true))
+        .withProperty(
+          "typePrefix",
+          p => java.lang.Byte.valueOf(p.typePrefix),
+          _.setMandatory(true).setReadonly(true).setNotNull(true)
+        )
         .withProperty("evidence", _.evidence.data, _.setMandatory(true).setReadonly(true).setNotNull(true))
         .withIndex("addressIndex", INDEX_TYPE.UNIQUE, "typePrefix", "evidence"),
       v => TypedEvidence(v("typePrefix"), v("evidence"))
@@ -74,10 +78,15 @@ object GenusGraphMetadata {
 
   private val blockHeaderSchema: VertexSchema[BlockHeaderV2] = {
     // TODO this needs to change when we switch to models from protobufs, because that is just 32 bytes
-    def blockHeaderIdToByteArray(id: (Byte, ByteVector)): Array[Byte] = {
-      val a: Array[Byte] = Array(1 + id._2.size)
+    def typedBytesToByteArray(t: TypedIdentifier): Array[Byte] =
+      typesBytesTupleToByteArray((t.typePrefix, t.dataBytes.toArray))
+    def byteArrayToTypedBytes(a: Array[Byte]): TypedEvidence =
+      ???
+
+    def typesBytesTupleToByteArray(id: (Byte, Array[Byte])): Array[Byte] = {
+      val a: Array[Byte] = new Array(1 + id._2.length)
       a(0) = id._1
-      id._2.copyToArray(a, 1)
+      Array.copy(id._2, 0, a, 1, id._2.length)
       a
     }
     // No need for a byteArrayToBlockHeaderId because it is computed rather than stored.
@@ -96,16 +105,19 @@ object GenusGraphMetadata {
       GraphDataEncoder[BlockHeaderV2]
         .withProperty(
           "blockId",
-          b => blockHeaderIdToByteArray(TetraIdentifiableInstances.identifiableBlockHeaderV2.idOf(b)),
+          b => {
+            val (typePrefix, bytes) = TetraIdentifiableInstances.identifiableBlockHeaderV2.idOf(b)
+            typesBytesTupleToByteArray((typePrefix, bytes.toArray))
+          },
           _.setNotNull(true)
-        )
-        .withProperty("parentHeaderId", _.parentHeaderId, _.setNotNull(true))
-        .withProperty("parentSlot", _.parentSlot, _.setMandatory(false))
+        )(byteArrayOrientDbTypes)
+        .withProperty("parentHeaderId", p => typedBytesToByteArray(p.parentHeaderId), _.setNotNull(true))
+        .withProperty("parentSlot", l => java.lang.Long.valueOf(l.parentSlot), _.setMandatory(false))
         .withProperty("txRoot", _.txRoot.data.toArray, _.setMandatory(false))
         .withProperty("bloomFilter", _.bloomFilter.data.toArray, _.setMandatory(false))
-        .withProperty("timestamp", _.timestamp, _.setNotNull(true))
-        .withProperty("height", _.height, _.setNotNull(true))
-        .withProperty("slot", _.slot, _.setNotNull(true))
+        .withProperty("timestamp", ts => java.lang.Long.valueOf(ts.timestamp), _.setNotNull(true))
+        .withProperty("height", ht => java.lang.Long.valueOf(ht.height), _.setNotNull(true))
+        .withProperty("slot", s => java.lang.Long.valueOf(s.slot), _.setNotNull(true))
         .withProperty(
           "eligibilityCertificate",
           e => eligibilityCertificateToByteArray(e.eligibilityCertificate),
@@ -119,19 +131,20 @@ object GenusGraphMetadata {
         .withProperty("metadata", _.metadata.map(_.data.bytes).orNull, _.setNotNull(false))
         .withProperty("address", s => stakingAddressOperatorToByteArray(s.address), _.setNotNull(true))
         .withIndex("blockHeaderIndex", INDEX_TYPE.UNIQUE, "blockId"),
-      v => BlockHeaderV2(
-        v("parentHeaderId"),
-        v("parentSlot"),
-        v("txRoot"),
-        v("bloomFilter"),
-        v("timestamp"),
-        v("height"),
-        v("slot"),
-        v("eligibilityCertificate"),
-        v("operationalCertificate"),
-        v("metadata"),
-        v("address")
-      )
+      v =>
+        BlockHeaderV2(
+          v("parentHeaderId"),
+          v("parentSlot"),
+          v("txRoot"),
+          v("bloomFilter"),
+          v("timestamp"),
+          v("height"),
+          v("slot"),
+          v("eligibilityCertificate"),
+          v("operationalCertificate"),
+          v("metadata"),
+          v("address")
+        )
     )
   }
 }
