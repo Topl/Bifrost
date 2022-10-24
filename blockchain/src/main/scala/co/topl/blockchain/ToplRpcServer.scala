@@ -27,7 +27,9 @@ object ToplRpcServer {
       show"NonPositiveOutputValue(value=${outputValue.toString})"
     case TransactionSyntaxErrors.InsufficientInputFunds(_, _) => "InsufficientInputFunds"
     case TransactionSyntaxErrors.InvalidProofType(_, _)       => "InvalidProofType"
-
+    case TransactionSyntaxErrors.InvalidSchedule(s) =>
+      show"InvalidSchedule(creation=${s.creation},maximumSlot=${s.maximumSlot},minimumSlot=${s.minimumSlot})"
+    case TransactionSyntaxErrors.InvalidDataLength => "InvalidDataLength"
   }
 
   /**

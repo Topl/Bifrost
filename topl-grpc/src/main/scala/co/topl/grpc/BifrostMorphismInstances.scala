@@ -1150,7 +1150,7 @@ trait TransactionBifrostMorphismInstances {
           schedule <- EitherT
             .fromOption[F](protoTransaction.schedule, "Missing schedule")
             .flatMapF(_.toF[F, bifrostModels.Transaction.Schedule])
-          data <- protoTransaction.data.traverse(v => EitherT(v.toF[F, bifrostModels.Transaction.Data]))
+          data <- protoTransaction.data.traverse(v => EitherT(v.toF[F, bifrostModels.Transaction.DataTetra]))
         } yield bifrostModels.Transaction(inputs, outputs, schedule, data)
       )
         .flatMap(_.value)

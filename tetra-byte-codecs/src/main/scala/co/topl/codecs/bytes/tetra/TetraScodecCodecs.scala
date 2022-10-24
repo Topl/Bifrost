@@ -423,7 +423,7 @@ trait TetraScodecTransactionCodecs {
       Codec[Chain[Transaction.Input]] ::
         Codec[Chain[Transaction.Output]] ::
         Codec[Transaction.Schedule] ::
-        Codec[Option[Transaction.Data]]
+        Codec[Option[Transaction.DataTetra]]
     ).as[Transaction]
 
   implicit val unprovenTransactionCodec: Codec[Transaction.Unproven] =
@@ -431,7 +431,7 @@ trait TetraScodecTransactionCodecs {
       Codec[Chain[Transaction.Unproven.Input]] ::
         Codec[Chain[Transaction.Output]] ::
         Codec[Transaction.Schedule] ::
-        Codec[Option[Transaction.Data]]
+        Codec[Option[Transaction.DataTetra]]
     ).as[Transaction.Unproven]
 }
 

@@ -26,7 +26,8 @@ object TransactionSyntaxValidation {
       scheduleValidation,
       positiveOutputValuesValidation,
       sufficientFundsValidation,
-      proofTypeValidation
+      proofTypeValidation,
+      dataLengthValidation
     )
 
   /**
@@ -249,5 +250,12 @@ object TransactionSyntaxValidation {
           proof,
           _ => (TransactionSyntaxErrors.InvalidProofType(proposition, proof): TransactionSyntaxError).invalidNec[Unit]
         )
+
+  private[interpreters] def dataLengthValidation(transaction: Transaction): ValidatedNec[TransactionSyntaxError, Unit] =
+    Validated.condNec(
+      transaction.data.forall(_.length <= Transaction.MaxDataLength),
+      (),
+      TransactionSyntaxErrors.InvalidDataLength
+    )
 
 }
