@@ -63,7 +63,7 @@ object GenusGraphMetadata {
           p => java.lang.Byte.valueOf(p.typePrefix),
           _.setMandatory(true).setReadonly(true).setNotNull(true)
         )
-        .withProperty("evidence", _.evidence.data, _.setMandatory(true).setReadonly(true).setNotNull(true))
+        .withProperty("evidence", _.evidence.data.toArray, _.setMandatory(true).setReadonly(true).setNotNull(true))(byteArrayOrientDbTypes)
         .withIndex("addressIndex", INDEX_TYPE.UNIQUE, "typePrefix", "evidence"),
       v => TypedEvidence(v("typePrefix"), v("evidence"))
     )
@@ -76,30 +76,30 @@ object GenusGraphMetadata {
       v => ()
     )
 
-  private val blockHeaderSchema: VertexSchema[BlockHeaderV2] = {
-    // TODO this needs to change when we switch to models from protobufs, because that is just 32 bytes
-    def typedBytesToByteArray(t: TypedIdentifier): Array[Byte] =
-      typesBytesTupleToByteArray((t.typePrefix, t.dataBytes.toArray))
-    def byteArrayToTypedBytes(a: Array[Byte]): TypedEvidence =
-      ???
+  // TODO this needs to change when we switch to models from protobufs, because that is just 32 bytes
+  def typedBytesToByteArray(t: TypedIdentifier): Array[Byte] =
+    typesBytesTupleToByteArray((t.typePrefix, t.dataBytes.toArray))
 
-    def typesBytesTupleToByteArray(id: (Byte, Array[Byte])): Array[Byte] = {
-      val a: Array[Byte] = new Array(1 + id._2.length)
-      a(0) = id._1
-      Array.copy(id._2, 0, a, 1, id._2.length)
-      a
-    }
-    // No need for a byteArrayToBlockHeaderId because it is computed rather than stored.
+  def byteArrayToTypedBytes(a: Array[Byte]): TypedEvidence =
+    ???
 
-    def eligibilityCertificateToByteArray(eligibilityCertificate: EligibilityCertificate): Array[Byte] = ???
-    def byteArrayToEligibilityCertificate(a: Array[Byte]): EligibilityCertificate = ???
+  def typesBytesTupleToByteArray(id: (Byte, Array[Byte])): Array[Byte] = {
+    val a: Array[Byte] = new Array(1 + id._2.length)
+    a(0) = id._1
+    Array.copy(id._2, 0, a, 1, id._2.length)
+    a
+  }
+  // No need for a byteArrayToBlockHeaderId because it is computed rather than stored.
 
-    def operationalCertificateToByteArray(eligibilityCertificate: OperationalCertificate): Array[Byte] = ???
-    def byteArrayToOperationalCertificate(a: Array[Byte]): OperationalCertificate = ???
+  def eligibilityCertificateToByteArray(eligibilityCertificate: EligibilityCertificate): Array[Byte] = ???
+  def byteArrayToEligibilityCertificate(a: Array[Byte]): EligibilityCertificate = ???
+  def operationalCertificateToByteArray(eligibilityCertificate: OperationalCertificate): Array[Byte] = ???
+  def byteArrayToOperationalCertificate(a: Array[Byte]): OperationalCertificate = ???
 
-    def stakingAddressOperatorToByteArray(eligibilityCertificate: StakingAddresses.Operator): Array[Byte] = ???
-    def byteArrayToStakingAddressOperator(a: Array[Byte]): StakingAddresses.Operator = ???
+  def stakingAddressOperatorToByteArray(eligibilityCertificate: StakingAddresses.Operator): Array[Byte] = ???
+  def byteArrayToStakingAddressOperator(a: Array[Byte]): StakingAddresses.Operator = ???
 
+  private val blockHeaderSchema: VertexSchema[BlockHeaderV2] =
     VertexSchema.create(
       "BlockHeader",
       GraphDataEncoder[BlockHeaderV2]
@@ -111,25 +111,29 @@ object GenusGraphMetadata {
           },
           _.setNotNull(true)
         )(byteArrayOrientDbTypes)
-        .withProperty("parentHeaderId", p => typedBytesToByteArray(p.parentHeaderId), _.setNotNull(true))
-        .withProperty("parentSlot", l => java.lang.Long.valueOf(l.parentSlot), _.setMandatory(false))
-        .withProperty("txRoot", _.txRoot.data.toArray, _.setMandatory(false))
-        .withProperty("bloomFilter", _.bloomFilter.data.toArray, _.setMandatory(false))
-        .withProperty("timestamp", ts => java.lang.Long.valueOf(ts.timestamp), _.setNotNull(true))
-        .withProperty("height", ht => java.lang.Long.valueOf(ht.height), _.setNotNull(true))
-        .withProperty("slot", s => java.lang.Long.valueOf(s.slot), _.setNotNull(true))
+        .withProperty("parentHeaderId", p => typedBytesToByteArray(p.parentHeaderId), _.setNotNull(true))(
+          byteArrayOrientDbTypes
+        )
+        .withProperty("parentSlot", l => java.lang.Long.valueOf(l.parentSlot), _.setMandatory(false))(longOrientDbTyped)
+        .withProperty("txRoot", _.txRoot.data.toArray, _.setMandatory(false))(byteArrayOrientDbTypes)
+        .withProperty("bloomFilter", _.bloomFilter.data.toArray, _.setMandatory(false))(byteArrayOrientDbTypes)
+        .withProperty("timestamp", ts => java.lang.Long.valueOf(ts.timestamp), _.setNotNull(true))(longOrientDbTyped)
+        .withProperty("height", ht => java.lang.Long.valueOf(ht.height), _.setNotNull(true))(longOrientDbTyped)
+        .withProperty("slot", s => java.lang.Long.valueOf(s.slot), _.setNotNull(true))(longOrientDbTyped)
         .withProperty(
           "eligibilityCertificate",
           e => eligibilityCertificateToByteArray(e.eligibilityCertificate),
           _.setNotNull(true)
-        )
+        )(byteArrayOrientDbTypes)
         .withProperty(
           "operationalCertificate",
           o => operationalCertificateToByteArray(o.operationalCertificate),
           _.setNotNull(true)
+        )(byteArrayOrientDbTypes)
+        .withProperty("metadata", _.metadata.map(_.data.bytes).orNull, _.setNotNull(false))(byteArrayOrientDbTypes)
+        .withProperty("address", s => stakingAddressOperatorToByteArray(s.address), _.setNotNull(true))(
+          byteArrayOrientDbTypes
         )
-        .withProperty("metadata", _.metadata.map(_.data.bytes).orNull, _.setNotNull(false))
-        .withProperty("address", s => stakingAddressOperatorToByteArray(s.address), _.setNotNull(true))
         .withIndex("blockHeaderIndex", INDEX_TYPE.UNIQUE, "blockId"),
       v =>
         BlockHeaderV2(
@@ -146,5 +150,4 @@ object GenusGraphMetadata {
           v("address")
         )
     )
-  }
 }
