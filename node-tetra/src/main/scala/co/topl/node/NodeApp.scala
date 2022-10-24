@@ -83,139 +83,144 @@ object NodeApp
 
       cryptoResources <- CryptoResources.make[F]
 
-      dataStores <- DataStores.init[F](appConfig)(bigBangBlock)
-      currentEventIdGetterSetters = new CurrentEventIdGetterSetters(dataStores.currentEventIds)
+      _ <- DataStores
+        .init[F](appConfig)(bigBangBlock)
+        .use(dataStores =>
+          for {
+            currentEventIdGetterSetters <- (new CurrentEventIdGetterSetters(dataStores.currentEventIds)).pure[F]
 
-      canonicalHeadId       <- currentEventIdGetterSetters.canonicalHead.get()
-      canonicalHeadSlotData <- dataStores.slotData.getOrRaise(canonicalHeadId)
-      _                     <- Logger[F].info(show"Canonical head id=$canonicalHeadId")
+            canonicalHeadId       <- currentEventIdGetterSetters.canonicalHead.get()
+            canonicalHeadSlotData <- dataStores.slotData.getOrRaise(canonicalHeadId)
+            _                     <- Logger[F].info(show"Canonical head id=$canonicalHeadId")
 
-      blockIdTree <- ParentChildTree.FromStore
-        .make[F, TypedIdentifier](dataStores.parentChildTree, bigBangBlock.headerV2.parentHeaderId)
-        .flatTap(_.associate(bigBangBlock.headerV2.id, bigBangBlock.headerV2.parentHeaderId))
+            blockIdTree <- ParentChildTree.FromStore
+              .make[F, TypedIdentifier](dataStores.parentChildTree, bigBangBlock.headerV2.parentHeaderId)
+              .flatTap(_.associate(bigBangBlock.headerV2.id, bigBangBlock.headerV2.parentHeaderId))
 
-      // Start the supporting interpreters
-      blockHeightTree <- BlockHeightTree
-        .make[F](
-          dataStores.blockHeightTree,
-          currentEventIdGetterSetters.blockHeightTree.get(),
-          dataStores.slotData,
-          blockIdTree,
-          currentEventIdGetterSetters.blockHeightTree.set
-        )
-      bigBangProtocol = appConfig.bifrost.protocols(0)
-      vrfConfig = VrfConfig(
-        bigBangProtocol.vrfLddCutoff,
-        bigBangProtocol.vrfPrecision,
-        bigBangProtocol.vrfBaselineDifficulty,
-        bigBangProtocol.vrfAmplitude
-      )
-      clock = SchedulerClock.Eval.make[F](
-        bigBangProtocol.slotDuration,
-        bigBangProtocol.epochLength,
-        Instant.ofEpochMilli(bigBangBlock.headerV2.timestamp)
-      )
-      _ <- clock.globalSlot.flatMap(globalSlot =>
-        Logger[F].info(show"globalSlot=$globalSlot canonicalHeadSlot=${canonicalHeadSlotData.slotId.slot}")
-      )
-      etaCalculation <- EtaCalculation.Eval.make(
-        dataStores.slotData.getOrRaise,
-        clock,
-        bigBangBlock.headerV2.eligibilityCertificate.eta,
-        cryptoResources.blake2b256,
-        cryptoResources.blake2b512
-      )
-      leaderElectionThreshold <- makeLeaderElectionThreshold(cryptoResources.blake2b512, vrfConfig)
-      consensusValidationState <- makeConsensusValidationState(
-        clock,
-        dataStores,
-        currentEventIdGetterSetters,
-        bigBangBlock,
-        blockIdTree
-      )
-      localChain <- LocalChain.Eval.make(
-        canonicalHeadSlotData,
-        ChainSelection
-          .orderT[F](
-            dataStores.slotData.getOrRaise,
-            cryptoResources.blake2b512,
-            bigBangProtocol.chainSelectionKLookback,
-            bigBangProtocol.chainSelectionSWindow
-          ),
-        currentEventIdGetterSetters.canonicalHead.set
-      )
-      mempool <- Mempool.make[F](
-        currentEventIdGetterSetters.mempool.get(),
-        dataStores.bodies.getOrRaise,
-        dataStores.transactions.getOrRaise,
-        blockIdTree,
-        currentEventIdGetterSetters.mempool.set,
-        clock,
-        id => Logger[F].info(show"Expiring transaction id=$id"),
-        appConfig.bifrost.mempool.defaultExpirationSlots,
-        appConfig.bifrost.mempool.duplicateSpenderExpirationSlots
-      )
-      implicit0(networkRandom: Random) = new Random(new SecureRandom())
-      staking <- OptionT
-        .fromOption[F](privateBigBang.localStakerIndex.flatMap(stakerInitializers.get(_)))
-        .semiflatMap(initializer =>
-          makeStaking(
-            stakingDir,
-            canonicalHeadSlotData,
-            initializer,
-            clock,
-            etaCalculation,
-            consensusValidationState,
-            leaderElectionThreshold,
-            cryptoResources.ed25519,
-            cryptoResources.ed25519VRF,
-            cryptoResources.kesProduct,
-            bigBangProtocol,
-            vrfConfig
-          )
-        )
-        .value
-      validators <- Validators.make[F](
-        cryptoResources,
-        dataStores,
-        currentEventIdGetterSetters,
-        blockIdTree,
-        etaCalculation,
-        consensusValidationState,
-        leaderElectionThreshold
-      )
-      // Finally, run the program
-      _ <- Blockchain
-        .run[F](
-          clock,
-          staking,
-          dataStores.slotData,
-          dataStores.headers,
-          dataStores.bodies,
-          dataStores.transactions,
-          localChain,
-          blockIdTree,
-          blockHeightTree,
-          validators.header,
-          validators.transactionSyntax,
-          validators.bodySyntax,
-          validators.bodySemantics,
-          validators.bodyAuthorization,
-          mempool,
-          cryptoResources.ed25519VRF,
-          localPeer,
-          Source
-            .futureSource(
-              implicitly[FToFuture[F]].apply(
-                clock
-                  .delayedUntilSlot(canonicalHeadSlotData.slotId.slot)
-                  .as(Source(appConfig.bifrost.p2p.knownPeers))
+            // Start the supporting interpreters
+            blockHeightTree <- BlockHeightTree
+              .make[F](
+                dataStores.blockHeightTree,
+                currentEventIdGetterSetters.blockHeightTree.get(),
+                dataStores.slotData,
+                blockIdTree,
+                currentEventIdGetterSetters.blockHeightTree.set
               )
+            bigBangProtocol = appConfig.bifrost.protocols(0)
+            vrfConfig = VrfConfig(
+              bigBangProtocol.vrfLddCutoff,
+              bigBangProtocol.vrfPrecision,
+              bigBangProtocol.vrfBaselineDifficulty,
+              bigBangProtocol.vrfAmplitude
             )
-            .concat(Source.never),
-          (peer, flow) => flow,
-          appConfig.bifrost.rpc.bindHost,
-          appConfig.bifrost.rpc.bindPort
+            clock = SchedulerClock.Eval.make[F](
+              bigBangProtocol.slotDuration,
+              bigBangProtocol.epochLength,
+              Instant.ofEpochMilli(bigBangBlock.headerV2.timestamp)
+            )
+            _ <- clock.globalSlot.flatMap(globalSlot =>
+              Logger[F].info(show"globalSlot=$globalSlot canonicalHeadSlot=${canonicalHeadSlotData.slotId.slot}")
+            )
+            etaCalculation <- EtaCalculation.Eval.make(
+              dataStores.slotData.getOrRaise,
+              clock,
+              bigBangBlock.headerV2.eligibilityCertificate.eta,
+              cryptoResources.blake2b256,
+              cryptoResources.blake2b512
+            )
+            leaderElectionThreshold <- makeLeaderElectionThreshold(cryptoResources.blake2b512, vrfConfig)
+            consensusValidationState <- makeConsensusValidationState(
+              clock,
+              dataStores,
+              currentEventIdGetterSetters,
+              bigBangBlock,
+              blockIdTree
+            )
+            localChain <- LocalChain.Eval.make(
+              canonicalHeadSlotData,
+              ChainSelection
+                .orderT[F](
+                  dataStores.slotData.getOrRaise,
+                  cryptoResources.blake2b512,
+                  bigBangProtocol.chainSelectionKLookback,
+                  bigBangProtocol.chainSelectionSWindow
+                ),
+              currentEventIdGetterSetters.canonicalHead.set
+            )
+            mempool <- Mempool.make[F](
+              currentEventIdGetterSetters.mempool.get(),
+              dataStores.bodies.getOrRaise,
+              dataStores.transactions.getOrRaise,
+              blockIdTree,
+              currentEventIdGetterSetters.mempool.set,
+              clock,
+              id => Logger[F].info(show"Expiring transaction id=$id"),
+              appConfig.bifrost.mempool.defaultExpirationSlots,
+              appConfig.bifrost.mempool.duplicateSpenderExpirationSlots
+            )
+            implicit0(networkRandom: Random) = new Random(new SecureRandom())
+            staking <- OptionT
+              .fromOption[F](privateBigBang.localStakerIndex.flatMap(stakerInitializers.get(_)))
+              .semiflatMap(initializer =>
+                makeStaking(
+                  stakingDir,
+                  canonicalHeadSlotData,
+                  initializer,
+                  clock,
+                  etaCalculation,
+                  consensusValidationState,
+                  leaderElectionThreshold,
+                  cryptoResources.ed25519,
+                  cryptoResources.ed25519VRF,
+                  cryptoResources.kesProduct,
+                  bigBangProtocol,
+                  vrfConfig
+                )
+              )
+              .value
+            validators <- Validators.make[F](
+              cryptoResources,
+              dataStores,
+              currentEventIdGetterSetters,
+              blockIdTree,
+              etaCalculation,
+              consensusValidationState,
+              leaderElectionThreshold
+            )
+            // Finally, run the program
+            _ <- Blockchain
+              .run[F](
+                clock,
+                staking,
+                dataStores.slotData,
+                dataStores.headers,
+                dataStores.bodies,
+                dataStores.transactions,
+                localChain,
+                blockIdTree,
+                blockHeightTree,
+                validators.header,
+                validators.transactionSyntax,
+                validators.bodySyntax,
+                validators.bodySemantics,
+                validators.bodyAuthorization,
+                mempool,
+                cryptoResources.ed25519VRF,
+                localPeer,
+                Source
+                  .futureSource(
+                    implicitly[FToFuture[F]].apply(
+                      clock
+                        .delayedUntilSlot(canonicalHeadSlotData.slotId.slot)
+                        .as(Source(appConfig.bifrost.p2p.knownPeers))
+                    )
+                  )
+                  .concat(Source.never),
+                (peer, flow) => flow,
+                appConfig.bifrost.rpc.bindHost,
+                appConfig.bifrost.rpc.bindPort
+              )
+          } yield ()
         )
     } yield ()
 
