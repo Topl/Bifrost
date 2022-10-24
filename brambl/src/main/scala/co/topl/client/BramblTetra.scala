@@ -34,17 +34,23 @@ object BramblTetra
   override def run: IO[Unit] =
     for {
       implicit0(random: Random[F]) <- Random.scalaUtilRandom[F]
-      rpcClient1                   <- ToplGrpc.Client.make[F]("localhost", 9084, tls = false).use(Async[F].delay(_))
-      logger1                      <- Slf4jLogger.fromName[F]("Brambl@localhost")
-      clientLoggerPairs = Array((rpcClient1, logger1))
-      genesisTransactionId <- OptionT(rpcClient1.blockIdAtHeight(1)).getOrElse(???)
-      genesisBody          <- OptionT(rpcClient1.fetchBlockBody(genesisTransactionId)).getOrElse(???)
-      genesisTransaction   <- OptionT(rpcClient1.fetchTransaction(genesisBody.head)).getOrElse(???)
-      source = infiniteTransactionsSource(
-        genesisTransaction,
-        Propositions.Contextual.HeightLock(1L),
-        findPolyOutputIndex(genesisTransaction)
-      )
+      (source, clientLoggerPairs) <- ToplGrpc.Client
+        .make[F]("localhost", 9084, tls = false)
+        .use(rpcClient1 =>
+          for {
+            logger1 <- Slf4jLogger.fromName[F]("Brambl@localhost")
+            clientLoggerPairs = Array((rpcClient1, logger1))
+            genesisTransactionId <- OptionT(rpcClient1.blockIdAtHeight(1)).getOrElse(???)
+            genesisBody          <- OptionT(rpcClient1.fetchBlockBody(genesisTransactionId)).getOrElse(???)
+            genesisTransaction   <- OptionT(rpcClient1.fetchTransaction(genesisBody.head)).getOrElse(???)
+            source = infiniteTransactionsSource(
+              genesisTransaction,
+              Propositions.Contextual.HeightLock(1L),
+              findPolyOutputIndex(genesisTransaction)
+            )
+          } yield (source, clientLoggerPairs)
+        )
+
       _ <-
         Async[F].fromFuture(
           source

@@ -25,8 +25,7 @@ object BramblTetraMempoolReader
   override def run: IO[Unit] =
     ToplGrpc.Client
       .make[F]("localhost", 9084, tls = false)
-      .use(Async[F].delay(_))
-      .flatMap(implicit rpcClient =>
+      .use(implicit client =>
         Slf4jLogger
           .fromName[F]("Brambl@localhost:9084")
           .flatMap(implicit logger => infiniteMempool(1500.milli))
