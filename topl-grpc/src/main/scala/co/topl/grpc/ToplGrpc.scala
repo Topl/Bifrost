@@ -10,7 +10,7 @@ import co.topl.models.TypedIdentifier
 import co.topl.{models => bifrostModels}
 import fs2.grpc.syntax.all._
 import io.grpc.netty.shaded.io.grpc.netty.{NettyChannelBuilder, NettyServerBuilder}
-import io.grpc.{Metadata, Server, ServerServiceDefinition, Status}
+import io.grpc.{Metadata, Server, Status}
 import java.net.InetSocketAddress
 
 object ToplGrpc {
@@ -23,7 +23,7 @@ object ToplGrpc {
      * @param port Bifrost node port
      * @param tls Should the connection use TLS?
      */
-    def make[F[_]: Async](host: String, port: Int, tls: Boolean): F[ToplRpc[F]] = {
+    def make[F[_]: Async](host: String, port: Int, tls: Boolean): Resource[F, ToplRpc[F]] = {
       Eval
         .now(NettyChannelBuilder.forAddress(host, port))
         .flatMap(ncb =>
@@ -153,7 +153,6 @@ object ToplGrpc {
                 .value
           }
         )
-        .use(client => Async[F].delay(client))
     }
   }
 
@@ -165,25 +164,18 @@ object ToplGrpc {
      * @param port The port to bind
      * @param interpreter The interpreter which fulfills the data requests
      */
-    def serve[F[_]: Async](host: String, port: Int, interpreter: ToplRpc[F]): Resource[F, Server] = {
-
-      def run(serverServiceDefinition: ServerServiceDefinition): F[Server] =
-        NettyServerBuilder
-          .forAddress(new InetSocketAddress(host, port))
-          .addService(serverServiceDefinition)
-          .resource[F]
-          .map(_.start())
-          .use(s => Async[F].delay(s))
-
-      Resource
-        .make {
-          ToplGrpcFs2Grpc
-            .bindServiceResource(
-              new GrpcServerImpl(interpreter)
-            )
-            .use(run)
-        }(server => Async[F].delay(server.shutdown().awaitTermination()))
-    }
+    def serve[F[_]: Async](host: String, port: Int, interpreter: ToplRpc[F]): Resource[F, Server] =
+      ToplGrpcFs2Grpc
+        .bindServiceResource(
+          new GrpcServerImpl(interpreter)
+        )
+        .flatMap { serverServiceDefinition =>
+          NettyServerBuilder
+            .forAddress(new InetSocketAddress(host, port))
+            .addService(serverServiceDefinition)
+            .resourceWithShutdown[F](server => Async[F].delay(server.shutdown().awaitTermination()))
+            .map(_.start())
+        }
 
     private[grpc] class GrpcServerImpl[F[_]: MonadThrow](interpreter: ToplRpc[F])
         extends services.ToplGrpcFs2Grpc[F, Metadata] {
