@@ -152,7 +152,8 @@ object ToplGrpc {
                 .semiflatMap(EitherT.fromEither[F](_).leftMap(new IllegalArgumentException(_)).rethrowT)
                 .value
           }
-        ).use(client => Async[F].delay(client))
+        )
+        .use(client => Async[F].delay(client))
     }
   }
 
