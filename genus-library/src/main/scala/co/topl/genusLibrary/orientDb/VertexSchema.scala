@@ -154,7 +154,6 @@ object OrientDbTyped {
     implicit val shortOrientDbTyped: OrientDbTyped[java.lang.Short] = create(OType.SHORT)
     implicit val longOrientDbTyped: OrientDbTyped[java.lang.Long] = create(OType.LONG)
     implicit val byteOrientDbTyped: OrientDbTyped[java.lang.Byte] = create(OType.BYTE)
-    implicit val bytesOrientDbTyped: OrientDbTyped[ByteVector] = create(OType.BINARY)
     implicit val byteArrayOrientDbTypes: OrientDbTyped[Array[Byte]] = create(OType.BINARY)
 
     implicit def optionalOrientDbTyped[T: OrientDbTyped]: OrientDbTyped[Option[T]] =
