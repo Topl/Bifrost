@@ -54,6 +54,16 @@ object GenusGraphMetadata {
   import OrientDbTyped.Instances._
 
   // TODO: Rework to use data model classes generated from protobuf definitions rather than those in the models project.
+
+  /////////////////////////////////////////////////////////////////////////////////
+  //                                                                             //
+  // The following Vals are schemas for nodes and edges.                         //
+  //                                                                             //
+  /////////////////////////////////////////////////////////////////////////////////
+
+  /**
+   * Schema for Address nodes
+   */
   private val addressVertexSchema: VertexSchema[TypedEvidence] =
     VertexSchema.create(
       "Address",
@@ -68,36 +78,17 @@ object GenusGraphMetadata {
       v => TypedEvidence(v("typePrefix"), v("evidence"))
     )
 
-  // Box state vertexes have no properties, just links to boxes.
+  /**
+   * Schema for TxO state vertexes
+   * <p>
+   *   Txo state vertexes have no properties, just links to boxes.
+   */
   private val boxStateSchema: VertexSchema[Unit] =
     VertexSchema.create(
       "boxState",
       GraphDataEncoder[Unit],
       v => ()
     )
-
-  // TODO this needs to change when we switch to models from protobufs, because that is just 32 bytes
-  def typedBytesToByteArray(t: TypedIdentifier): Array[Byte] =
-    typesBytesTupleToByteArray((t.typePrefix, t.dataBytes.toArray))
-
-  def byteArrayToTypedBytes(a: Array[Byte]): TypedEvidence =
-    ???
-
-  def typesBytesTupleToByteArray(id: (Byte, Array[Byte])): Array[Byte] = {
-    val a: Array[Byte] = new Array(1 + id._2.length)
-    a(0) = id._1
-    Array.copy(id._2, 0, a, 1, id._2.length)
-    a
-  }
-  // No need for a byteArrayToBlockHeaderId because it is computed rather than stored.
-
-  def eligibilityCertificateToByteArray(eligibilityCertificate: EligibilityCertificate): Array[Byte] = ???
-  def byteArrayToEligibilityCertificate(a: Array[Byte]): EligibilityCertificate = ???
-  def operationalCertificateToByteArray(eligibilityCertificate: OperationalCertificate): Array[Byte] = ???
-  def byteArrayToOperationalCertificate(a: Array[Byte]): OperationalCertificate = ???
-
-  def stakingAddressOperatorToByteArray(eligibilityCertificate: StakingAddresses.Operator): Array[Byte] = ???
-  def byteArrayToStakingAddressOperator(a: Array[Byte]): StakingAddresses.Operator = ???
 
   private val blockHeaderSchema: VertexSchema[BlockHeaderV2] =
     VertexSchema.create(
@@ -107,7 +98,7 @@ object GenusGraphMetadata {
           "blockId",
           b => {
             val (typePrefix, bytes) = TetraIdentifiableInstances.identifiableBlockHeaderV2.idOf(b)
-            typesBytesTupleToByteArray((typePrefix, bytes.toArray))
+            typedBytesTupleToByteArray((typePrefix, bytes.toArray))
           },
           _.setNotNull(true)
         )(byteArrayOrientDbTypes)
@@ -137,7 +128,7 @@ object GenusGraphMetadata {
         .withIndex("blockHeaderIndex", INDEX_TYPE.UNIQUE, "blockId"),
       v =>
         BlockHeaderV2(
-          v("parentHeaderId"),
+          byteArrayToTypedBytes(v("parentHeaderId")),
           v("parentSlot"),
           v("txRoot"),
           v("bloomFilter"),
@@ -150,4 +141,36 @@ object GenusGraphMetadata {
           v("address")
         )
     )
+
+
+  // TODO this needs to change when we switch to models from protobufs
+  def typedBytesToByteArray(t: TypedIdentifier): Array[Byte] =
+    typedBytesTupleToByteArray((t.typePrefix, t.dataBytes.toArray))
+
+  def byteArrayToTypedBytes(a: Array[Byte]): TypedBytes = {
+    val tuple = byteArrayToTypedBytesTuple(a)
+    TypedBytes(tuple._1, Bytes(tuple._2))
+  }
+
+  def byteArrayToTypedBytesTuple(a: Array[Byte]): (TypePrefix, Array[TypePrefix]) = (a(0), a.drop(1))
+
+  def typedBytesTupleToByteArray(id: (TypePrefix, Array[Byte])): Array[Byte] = {
+    val a: Array[Byte] = new Array(1 + id._2.length)
+    a(0) = id._1
+    Array.copy(id._2, 0, a, 1, id._2.length)
+    a
+  }
+
+  // No need for a byteArrayToBlockHeaderId because it is computed rather than stored.
+  def eligibilityCertificateToByteArray(eligibilityCertificate: EligibilityCertificate): Array[Byte] = ???
+
+  def byteArrayToEligibilityCertificate(a: Array[Byte]): EligibilityCertificate = ???
+
+  def operationalCertificateToByteArray(eligibilityCertificate: OperationalCertificate): Array[Byte] = ???
+
+  def byteArrayToOperationalCertificate(a: Array[Byte]): OperationalCertificate = ???
+
+  def stakingAddressOperatorToByteArray(eligibilityCertificate: StakingAddresses.Operator): Array[Byte] = ???
+
+  def byteArrayToStakingAddressOperator(a: Array[Byte]): StakingAddresses.Operator = ???
 }
