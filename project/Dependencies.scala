@@ -324,6 +324,9 @@ object Dependencies {
       Dependencies.akka("stream-testkit") % Test
     ) ++ fleam
 
+  lazy val transactionGenerator: Seq[ModuleID] =
+    Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Seq(Dependencies.fs2Core)
+
   lazy val ledger: Seq[ModuleID] =
     Dependencies.mUnitTest ++ Dependencies.catsEffect
 

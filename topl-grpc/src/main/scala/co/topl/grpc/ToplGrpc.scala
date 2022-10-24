@@ -46,8 +46,6 @@ object ToplGrpc {
               )
               .void
 
-          client.fetchBlockHeader().addHeader("key", "value").invoke(services.FetchBlockHeaderReq())
-
           def currentMempool(): F[Set[bifrostModels.TypedIdentifier]] =
             Async[F]
               .fromFuture(

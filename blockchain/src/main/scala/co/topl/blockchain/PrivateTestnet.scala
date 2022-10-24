@@ -51,7 +51,7 @@ object PrivateTestnet {
               StakingAddresses.NonStaking,
               Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes.fill(64)(0: Byte)))
             ),
-            Box.Values.Poly(10_000),
+            Box.Values.Poly(10_000_000),
             minting = true
           )
         )
