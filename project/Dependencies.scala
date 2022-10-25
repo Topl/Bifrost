@@ -372,8 +372,10 @@ object Dependencies {
     "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
 
   lazy val toplGrpc: Seq[ModuleID] =
-    Seq(scalaPb) ++
-    allAkka ++
+    Seq(
+      scalaPb,
+      "io.grpc" % "grpc-netty-shaded" % scalapb.compiler.Version.grpcJavaVersion
+    ) ++
     cats ++
     catsEffect ++
     mUnitTest

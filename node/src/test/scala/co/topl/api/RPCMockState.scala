@@ -50,7 +50,7 @@ trait RPCMockState
 
   implicit val timeout: Timeout = Timeout(10.seconds)
 
-  implicit protected val routeTestTimeout: RouteTestTimeout = RouteTestTimeout(5.seconds)
+  implicit protected val routeTestTimeout: RouteTestTimeout = RouteTestTimeout(10.seconds)
 
   protected def blockchainGen: Byte => Gen[GenesisHeadChain] =
     (length: Byte) =>
