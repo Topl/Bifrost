@@ -120,5 +120,4 @@ object Fs2TransactionGenerator {
   private def createData[F[_]: Applicative]: F[Transaction.DataTetra] =
     Bytes(Array.fill(100)(3: Byte)).pure[F]
 
-
 }
