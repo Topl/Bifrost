@@ -169,13 +169,13 @@ object ToplGrpc {
         .bindServiceResource(
           new GrpcServerImpl(interpreter)
         )
-        .flatMap { serverServiceDefinition =>
+        .flatMap(serverServiceDefinition =>
           NettyServerBuilder
             .forAddress(new InetSocketAddress(host, port))
             .addService(serverServiceDefinition)
-            .resourceWithShutdown[F](server => Async[F].delay(server.shutdown().awaitTermination()))
-            .map(_.start())
-        }
+            .resource[F]
+            .evalMap(server => Async[F].delay(server.start()))
+        )
 
     private[grpc] class GrpcServerImpl[F[_]: MonadThrow](interpreter: ToplRpc[F])
         extends services.ToplGrpcFs2Grpc[F, Metadata] {
@@ -191,7 +191,7 @@ object ToplGrpc {
               .asException()
           )
           .rethrowT
-          .map(interpreter.broadcastTransaction)
+          .flatMap(interpreter.broadcastTransaction)
           .as(services.BroadcastTransactionRes())
           .adaptErrorsToGrpc
 

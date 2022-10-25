@@ -347,6 +347,7 @@ lazy val commonApplication = project
     name := "common-application",
     commonSettings,
     publishSettings,
+    crossScalaVersions := Seq(scala213),
     libraryDependencies ++= Dependencies.commonApplication
   )
   .dependsOn(catsAkka)
@@ -382,8 +383,7 @@ lazy val brambl = project
     models % "compile->compile;test->test",
     scripting,
     tetraByteCodecs,
-    toplGrpc,
-    commonApplication
+    toplGrpc
   )
 
 lazy val akkaHttpRpc = project

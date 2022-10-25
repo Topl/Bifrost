@@ -8,7 +8,6 @@ import cats.Applicative
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
-import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.transactiongenerator.algebras.TransactionGenerator
 import co.topl.transactiongenerator.models.Wallet
 import co.topl.typeclasses.implicits._
@@ -118,6 +117,6 @@ object Fs2TransactionGenerator {
     .pure[F]
 
   private def createData[F[_]: Applicative]: F[Transaction.DataTetra] =
-    Bytes(Array.fill(100)(3: Byte)).pure[F]
+    (Bytes.fill(100)(3: Byte): Transaction.DataTetra).pure[F]
 
 }
