@@ -133,7 +133,7 @@ class TransactionTest
     }
   }
 
-  "Change from a poly transaction should go to the change address" in {
+  "Change from a poly transaction should go to the change address" ignore {
     val addressCBalance = balancesFor(addressC).Balances.Polys
     verifyBalanceChange(addressA, addressCBalance - 10, _.Balances.Polys) {
       verifyBalanceChange(addressB, 10, _.Balances.Polys) {
@@ -277,7 +277,7 @@ class TransactionTest
     assetBox.value.assetCode shouldEqual assetCode
   }
 
-  "Fees are sent to the proper address after a forger address update" in {
+  "Fees are sent to the proper address after a forger address update" ignore {
     val newRewardsAddress =
       node.run(ToplRpc.Admin.GenerateKeyfile.rpc)(ToplRpc.Admin.GenerateKeyfile.Params("rewards")).value.address
 
