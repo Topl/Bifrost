@@ -3,15 +3,16 @@ package co.topl.consensus
 import cats.effect._
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
-import co.topl.algebras.UnsafeResource
+import co.topl.algebras.{ClockAlgebra, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus.algebras._
 import co.topl.crypto.generation.KeyInitializer
+import co.topl.crypto.generation.KeyInitializer.Instances.ed25519Initializer
 import co.topl.crypto.hash.{blake2b256, Blake2b256, Blake2b512}
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
-import co.topl.crypto.generation.KeyInitializer.Instances.ed25519Initializer
+import co.topl.models.Box.Values.Registrations.Operator
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
@@ -77,20 +78,44 @@ class BlockHeaderValidationSpec
       )
       .unsafeRunSync()
 
+  private def createDummyClockAlgebra(child: BlockHeaderV2) = {
+    val clock: ClockAlgebra[F] = mock[ClockAlgebra[F]]
+    (() => clock.globalSlot)
+      .expects()
+      .once()
+      .returning(child.slot.pure[F])
+
+    (clock
+      .timestampToSlot(_: Timestamp))
+      .expects(*)
+      .once()
+      .returning(child.slot.pure[F])
+
+    (() => clock.forwardBiasedSlotWindow)
+      .expects()
+      .once()
+      .returning(1L.pure[F])
+
+    clock
+  }
+
   it should "invalidate blocks with non-forward slot" in {
-    forAll(genValid(u => u.copy(slot = 0L))) { case (parent, child, registration, eta, relativeStake) =>
+    forAll(genValid(u => u.copy(slot = 0L))) { case (parent, child, _: Operator, _: Eta, _: Ratio) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
+      val clockAlgebra = createDummyClockAlgebra(child)
       val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
       val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
+
       val underTest =
         BlockHeaderValidation.Eval
           .make[F](
             etaInterpreter,
             consensusValidationState,
             leaderElectionInterpreter,
+            clockAlgebra,
             ed25519VRFResource,
             kesProductResource,
             ed25519Resource,
@@ -104,9 +129,10 @@ class BlockHeaderValidationSpec
   }
 
   it should "invalidate blocks with non-forward timestamp" in {
-    forAll(genValid(u => u.copy(timestamp = 0L))) { case (parent, child, registration, eta, relativeStake) =>
+    forAll(genValid(u => u.copy(timestamp = 0L))) { case (parent, child, _: Operator, _: Eta, _: Ratio) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
+      val clockAlgebra = createDummyClockAlgebra(child)
       val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
@@ -117,6 +143,7 @@ class BlockHeaderValidationSpec
             etaInterpreter,
             consensusValidationState,
             leaderElectionInterpreter,
+            clockAlgebra,
             ed25519VRFResource,
             kesProductResource,
             ed25519Resource,
@@ -131,9 +158,10 @@ class BlockHeaderValidationSpec
 
   it should "invalidate blocks with parent-header mismatch" in {
     forAll(genValid(u => u.copy(parentHeaderId = TypedBytes(1: Byte, Bytes.fill(32)(0: Byte))))) {
-      case (parent, child, registration, eta, relativeStake) =>
+      case (parent, child, _: Operator, _: Eta, _: Ratio) =>
         val etaInterpreter = mock[EtaCalculationAlgebra[F]]
         val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
+        val clockAlgebra = createDummyClockAlgebra(child)
         val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
         val kesProductResource = mock[UnsafeResource[F, KesProduct]]
         val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
@@ -144,6 +172,7 @@ class BlockHeaderValidationSpec
               etaInterpreter,
               consensusValidationState,
               leaderElectionInterpreter,
+              clockAlgebra,
               ed25519VRFResource,
               kesProductResource,
               ed25519Resource,
@@ -153,6 +182,116 @@ class BlockHeaderValidationSpec
 
         underTest.validate(child, parent).unsafeRunSync().left.value shouldBe BlockHeaderValidationFailures
           .ParentMismatch(child.parentHeaderId, parent.id)
+    }
+  }
+
+  it should "invalidate blocks with incorrect timestamp for slot" in {
+    val generator =
+      for {
+        slotError <- Gen.chooseNum[Long](Int.MinValue, Int.MaxValue).suchThat(_ != 0)
+        (parent, child, _: Operator, _: Eta, _: Ratio) <- genValid()
+      } yield (parent, child, slotError)
+
+    forAll(generator) { case (parent, child, slotError) =>
+      val etaInterpreter = mock[EtaCalculationAlgebra[F]]
+      val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
+      val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
+      val kesProductResource = mock[UnsafeResource[F, KesProduct]]
+      val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
+      val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
+
+      val clockAlgebra = mock[ClockAlgebra[F]]
+      (() => clockAlgebra.globalSlot)
+        .expects()
+        .once()
+        .returning(child.slot.pure[F])
+
+      (clockAlgebra
+        .timestampToSlot(_: Timestamp))
+        .expects(child.timestamp)
+        .once()
+        .returning((child.slot + slotError).pure[F]) // return incorrect slot for child block
+
+      (() => clockAlgebra.forwardBiasedSlotWindow)
+        .expects()
+        .once()
+        .returning(1L.pure[F])
+
+      val underTest =
+        BlockHeaderValidation.Eval
+          .make[F](
+            etaInterpreter,
+            consensusValidationState,
+            leaderElectionInterpreter,
+            clockAlgebra,
+            ed25519VRFResource,
+            kesProductResource,
+            ed25519Resource,
+            blake2b256Resource
+          )
+          .unsafeRunSync()
+
+      underTest.validate(child, parent).unsafeRunSync().left.value shouldBe BlockHeaderValidationFailures
+        .TimestampSlotMismatch(child.slot, child.timestamp)
+    }
+  }
+
+  // TODO do we need to care about long overflow if (forwardWindowBias + global slot) > Long.MaxValue?
+  it should "invalidate block if slot is greater than current global slot + forward biased slot window" in {
+    val generator =
+      for {
+        globalSlot        <- Gen.chooseNum[Long](1, Int.MaxValue)
+        parentSlot        <- Gen.const[Long](globalSlot - 1)
+        forwardSlotWindow <- Gen.chooseNum[Long](1, Int.MaxValue)
+        biasValue         <- Gen.chooseNum[Long](1, Int.MaxValue)
+        slotFromFuture    <- Gen.chooseNum[Long](globalSlot + forwardSlotWindow + biasValue, Long.MaxValue)
+        (parent, child, _: Operator, _: Eta, _: Ratio) <- genValid(
+          childHeader => childHeader.copy(slot = slotFromFuture),
+          parentSlot = parentSlot
+        )
+      } yield (parent, child, forwardSlotWindow, globalSlot)
+
+    forAll(generator) { case (parent, child, forwardWindowBias, globalSlot) =>
+      val etaInterpreter = mock[EtaCalculationAlgebra[F]]
+      val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
+      val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
+      val kesProductResource = mock[UnsafeResource[F, KesProduct]]
+      val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
+      val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
+
+      val clockAlgebra = mock[ClockAlgebra[F]]
+      (() => clockAlgebra.globalSlot)
+        .expects()
+        .once()
+        .returning(globalSlot.pure[F])
+
+      (clockAlgebra
+        .timestampToSlot(_: Timestamp))
+        .expects(child.timestamp)
+        .once()
+        .returning(child.slot.pure[F])
+
+      (() => clockAlgebra.forwardBiasedSlotWindow)
+        .expects()
+        .once()
+        .returning(forwardWindowBias.pure[F])
+
+      val underTest =
+        BlockHeaderValidation.Eval
+          .make[F](
+            etaInterpreter,
+            consensusValidationState,
+            leaderElectionInterpreter,
+            clockAlgebra,
+            ed25519VRFResource,
+            kesProductResource,
+            ed25519Resource,
+            blake2b256Resource
+          )
+          .unsafeRunSync()
+
+      underTest.validate(child, parent).unsafeRunSync().left.value shouldBe BlockHeaderValidationFailures
+        .SlotBeyondForwardBiasedSlotWindow(globalSlot, child.slot)
     }
   }
 
@@ -178,6 +317,7 @@ class BlockHeaderValidationSpec
     ) { case ((parent, child), eta) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
+      val clockAlgebra = createDummyClockAlgebra(child)
       val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
@@ -188,6 +328,7 @@ class BlockHeaderValidationSpec
             etaInterpreter,
             consensusValidationState,
             leaderElectionInterpreter,
+            clockAlgebra,
             ed25519VRFResource,
             kesProductResource,
             ed25519Resource,
@@ -223,9 +364,10 @@ class BlockHeaderValidationSpec
   }
 
   it should "invalidate blocks with a syntactically incorrect KES certificate" in {
-    forAll(genValid()) { case (parent, child, registration, eta, relativeStake) =>
+    forAll(genValid()) { case (parent, child, _: Operator, eta, _: Ratio) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
+      val clockAlgebra = createDummyClockAlgebra(child)
       val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
@@ -236,6 +378,7 @@ class BlockHeaderValidationSpec
             etaInterpreter,
             consensusValidationState,
             leaderElectionInterpreter,
+            clockAlgebra,
             ed25519VRFResource,
             kesProductResource,
             ed25519Resource,
@@ -289,9 +432,10 @@ class BlockHeaderValidationSpec
       genValid(u =>
         u.copy(address = u.address.copy(vk = VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes.fill(32)(0: Byte)))))
       )
-    ) { case (parent, child, registration, eta, relativeStake) =>
+    ) { case (parent, child, registration, eta, _: Ratio) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
+      val clockAlgebra = createDummyClockAlgebra(child)
       val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
@@ -302,6 +446,7 @@ class BlockHeaderValidationSpec
             etaInterpreter,
             consensusValidationState,
             leaderElectionInterpreter,
+            clockAlgebra,
             ed25519VRFResource,
             kesProductResource,
             ed25519Resource,
@@ -360,9 +505,10 @@ class BlockHeaderValidationSpec
   }
 
   it should "invalidate blocks with an insufficient VRF threshold" in {
-    forAll(genValid()) { case (parent, child, registration, eta, relativeStake) =>
+    forAll(genValid()) { case (parent, child, registration, eta, _: Ratio) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
+      val clockAlgebra = createDummyClockAlgebra(child)
       val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
@@ -373,6 +519,7 @@ class BlockHeaderValidationSpec
             etaInterpreter,
             consensusValidationState,
             leaderElectionInterpreter,
+            clockAlgebra,
             ed25519VRFResource,
             kesProductResource,
             ed25519Resource,
@@ -440,6 +587,7 @@ class BlockHeaderValidationSpec
     forAll(genValid()) { case (parent, child, registration, eta, relativeStake) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
+      val clockAlgebra = createDummyClockAlgebra(child)
       val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
@@ -450,6 +598,7 @@ class BlockHeaderValidationSpec
             etaInterpreter,
             consensusValidationState,
             leaderElectionInterpreter,
+            clockAlgebra,
             ed25519VRFResource,
             kesProductResource,
             ed25519Resource,
@@ -563,10 +712,11 @@ class BlockHeaderValidationSpec
   }
 
   private def genValid(
-    preSign: BlockHeaderV2.Unsigned => BlockHeaderV2.Unsigned = identity
+    preSign:    BlockHeaderV2.Unsigned => BlockHeaderV2.Unsigned = identity,
+    parentSlot: Slot = 5000L
   ): Gen[(BlockHeaderV2, BlockHeaderV2, Box.Values.Registrations.Operator, Eta, Ratio)] =
     for {
-      parent <- headerGen(slotGen = Gen.const[Long](5000))
+      parent <- headerGen(slotGen = Gen.const[Long](parentSlot))
       (txRoot, bloomFilter, eta) <- genSizedStrictBytes[Lengths.`32`.type]().flatMap(txRoot =>
         genSizedStrictBytes[Lengths.`256`.type]()
           .flatMap(bloomFilter => etaGen.map(nonce => (txRoot, bloomFilter, nonce)))
@@ -652,7 +802,7 @@ object BlockHeaderValidationSpec {
   def validAddress(paymentSK: SecretKeys.Ed25519, poolVK: VerificationKeys.Ed25519)(implicit
     ed25519:                  Ed25519
   ): StakingAddresses.Operator = {
-    val paymentVerificationKey = ed25519.getVerificationKey(paymentSK)
+    ed25519.getVerificationKey(paymentSK)
     StakingAddresses.Operator(poolVK)
   }
 }

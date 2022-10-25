@@ -62,7 +62,7 @@ object TetraSuperDemo extends IOApp {
   type F[A] = IO[A]
 
   private def makeClock(genesisTimestamp: Timestamp): ClockAlgebra[F] =
-    SchedulerClock.Eval.make(SlotDuration, EpochLength, Instant.ofEpochMilli(genesisTimestamp))
+    SchedulerClock.Eval.make(SlotDuration, EpochLength, Instant.ofEpochMilli(genesisTimestamp), ForwardBiasedSlotWindow)
 
   // Program definition
 
@@ -215,6 +215,7 @@ object TetraSuperDemo extends IOApp {
           etaCalculation,
           consensusValidationState,
           leaderElectionThreshold,
+          clock,
           ed25519VRFResource,
           kesProductResource,
           ed25519Resource,

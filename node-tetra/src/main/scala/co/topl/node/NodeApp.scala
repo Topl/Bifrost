@@ -116,7 +116,8 @@ object NodeApp
             clock = SchedulerClock.Eval.make[F](
               bigBangProtocol.slotDuration,
               bigBangProtocol.epochLength,
-              Instant.ofEpochMilli(bigBangBlock.headerV2.timestamp)
+              Instant.ofEpochMilli(bigBangBlock.headerV2.timestamp),
+              bigBangProtocol.forwardBiasedSlotWindow
             )
             _ <- clock.globalSlot.flatMap(globalSlot =>
               Logger[F].info(show"globalSlot=$globalSlot canonicalHeadSlot=${canonicalHeadSlotData.slotId.slot}")
@@ -185,7 +186,8 @@ object NodeApp
               blockIdTree,
               etaCalculation,
               consensusValidationState,
-              leaderElectionThreshold
+              leaderElectionThreshold,
+              clock
             )
             // Finally, run the program
             _ <- Blockchain
