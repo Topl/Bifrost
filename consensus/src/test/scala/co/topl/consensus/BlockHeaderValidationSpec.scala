@@ -103,7 +103,7 @@ class BlockHeaderValidationSpec
     forAll(genValid(u => u.copy(slot = 0L))) { case (parent, child, _: Operator, _: Eta, _: Ratio) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
-      val clockAlgebra = createDummyClockAlgebra(child)
+      val clockAlgebra = mock[ClockAlgebra[F]]
       val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
@@ -132,7 +132,7 @@ class BlockHeaderValidationSpec
     forAll(genValid(u => u.copy(timestamp = 0L))) { case (parent, child, _: Operator, _: Eta, _: Ratio) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
-      val clockAlgebra = createDummyClockAlgebra(child)
+      val clockAlgebra = mock[ClockAlgebra[F]]
       val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
@@ -161,7 +161,7 @@ class BlockHeaderValidationSpec
       case (parent, child, _: Operator, _: Eta, _: Ratio) =>
         val etaInterpreter = mock[EtaCalculationAlgebra[F]]
         val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
-        val clockAlgebra = createDummyClockAlgebra(child)
+        val clockAlgebra = mock[ClockAlgebra[F]]
         val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
         val kesProductResource = mock[UnsafeResource[F, KesProduct]]
         val ed25519Resource = mock[UnsafeResource[F, Ed25519]]

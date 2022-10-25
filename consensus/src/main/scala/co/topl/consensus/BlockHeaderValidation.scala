@@ -66,7 +66,8 @@ object BlockHeaderValidation {
         parent: BlockHeaderV2
       ): F[Either[BlockHeaderValidationFailure, BlockHeaderV2]] = {
         for {
-          _         <- EitherT(statelessVerification(child, parent))
+          _         <- statelessVerification(child, parent)
+          _         <- EitherT(timeSlotVerification(child))
           _         <- vrfVerification(child)
           _         <- kesVerification(child)
           _         <- registrationVerification(child)
@@ -77,20 +78,10 @@ object BlockHeaderValidation {
       }.value
 
       private[consensus] def statelessVerification(child: BlockHeaderV2, parent: BlockHeaderV2) =
-        for {
-          globalSlot              <- clockAlgebra.globalSlot
-          childSlotFromTimestamp  <- clockAlgebra.timestampToSlot(child.timestamp)
-          forwardBiasedSlotWindow <- clockAlgebra.forwardBiasedSlotWindow
-        } yield Either
-          .right[BlockHeaderValidationFailure, BlockHeaderV2](child)
+        EitherT
+          .pure[F, BlockHeaderValidationFailure](child)
           .ensure(BlockHeaderValidationFailures.NonForwardSlot(child.slot, parent.slot))(child =>
             child.slot > parent.slot
-          )
-          .ensureOr(child => BlockHeaderValidationFailures.TimestampSlotMismatch(child.slot, child.timestamp))(child =>
-            childSlotFromTimestamp === child.slot
-          )
-          .ensureOr(child => BlockHeaderValidationFailures.SlotBeyondForwardBiasedSlotWindow(globalSlot, child.slot))(
-            child => child.slot < globalSlot + forwardBiasedSlotWindow
           )
           .ensureOr(child => BlockHeaderValidationFailures.NonForwardTimestamp(child.timestamp, parent.timestamp))(
             child => child.timestamp > parent.timestamp
@@ -100,6 +91,20 @@ object BlockHeaderValidation {
           )
           .ensureOr(child => BlockHeaderValidationFailures.NonForwardHeight(child.height, parent.height))(
             _.height === parent.height + 1
+          )
+
+      private[consensus] def timeSlotVerification(header: BlockHeaderV2) =
+        for {
+          globalSlot              <- clockAlgebra.globalSlot
+          childSlotFromTimestamp  <- clockAlgebra.timestampToSlot(header.timestamp)
+          forwardBiasedSlotWindow <- clockAlgebra.forwardBiasedSlotWindow
+        } yield Either
+          .right[BlockHeaderValidationFailure, BlockHeaderV2](header)
+          .ensureOr(child => BlockHeaderValidationFailures.TimestampSlotMismatch(child.slot, child.timestamp))(child =>
+            childSlotFromTimestamp === child.slot
+          )
+          .ensureOr(child => BlockHeaderValidationFailures.SlotBeyondForwardBiasedSlotWindow(globalSlot, child.slot))(
+            child => child.slot < globalSlot + forwardBiasedSlotWindow
           )
 
       /**
