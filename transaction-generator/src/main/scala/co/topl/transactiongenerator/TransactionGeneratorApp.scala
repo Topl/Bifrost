@@ -39,33 +39,37 @@ object TransactionGeneratorApp
       implicit0(random: Random[F]) <- Random.javaSecuritySecureRandom[F]
       // Initialize gRPC Clients
       _ <- Logger[F].info(show"Initializing clients=$ClientAddresses")
-      clients <- ClientAddresses.traverse { case (host, port) =>
-        ToplGrpc.Client.make[F](host, port, tls = false)
-      }
-      // Turn the list of clients into a single client (round-robin)
-      client <- MultiToplRpc.make(clients)
-      // Assemble a base wallet of available UTxOs
-      _      <- Logger[F].info(show"Initializing wallet")
-      wallet <- ToplRpcWalletInitializer.make[F](client).flatMap(_.initialize)
-      _      <- Logger[F].info(show"Initialized wallet with spendableBoxCount=${wallet.spendableBoxes.size}")
-      // Produce a stream of Transactions from the base wallet
-      _ <- Logger[F].info(show"Generating and broadcasting transactions at tps=$TargetTransactionsPerSecond")
-      transactionStream <- Fs2TransactionGenerator.make[F](wallet).flatMap(_.generateTransactions)
-      // Broadcast the transactions
-      _ <- transactionStream
-        // Send 1 transaction per _this_ duration
-        .metered((1_000_000_000 / TargetTransactionsPerSecond).nanos)
-        // Broadcast+log the transaction
-        .evalTap(transaction =>
-          Logger[F].debug(show"Broadcasting transaction id=${transaction.id.asTypedBytes}") >>
-          client.broadcastTransaction(transaction) >>
-          Logger[F].info(show"Broadcasted transaction id=${transaction.id.asTypedBytes}")
-        )
-        .onError { case e =>
-          Stream.eval(Logger[F].error(e)("Stream failed"))
+      _ <- ClientAddresses
+        .traverse { case (host, port) =>
+          ToplGrpc.Client.make[F](host, port, tls = false)
         }
-        .compile
-        .drain
+        .use { clients =>
+          for {
+            // Turn the list of clients into a single client (round-robin)
+            client <- MultiToplRpc.make(clients)
+            // Assemble a base wallet of available UTxOs
+            _      <- Logger[F].info(show"Initializing wallet")
+            wallet <- ToplRpcWalletInitializer.make[F](client).flatMap(_.initialize)
+            _      <- Logger[F].info(show"Initialized wallet with spendableBoxCount=${wallet.spendableBoxes.size}")
+            // Produce a stream of Transactions from the base wallet
+            _ <- Logger[F].info(show"Generating and broadcasting transactions at tps=$TargetTransactionsPerSecond")
+            transactionStream <- Fs2TransactionGenerator.make[F](wallet).flatMap(_.generateTransactions)
+            // Broadcast the transactions
+            _ <- transactionStream
+              // Send 1 transaction per _this_ duration
+              .metered((1_000_000_000 / TargetTransactionsPerSecond).nanos)
+              // Broadcast+log the transaction
+              .evalTap(transaction =>
+                Logger[F].debug(show"Broadcasting transaction id=${transaction.id.asTypedBytes}") >>
+                client.broadcastTransaction(transaction) >>
+                Logger[F].info(show"Broadcasted transaction id=${transaction.id.asTypedBytes}")
+              )
+              .onError { case e =>
+                Stream.eval(Logger[F].error(e)("Stream failed"))
+              }
+              .compile
+              .drain
+          } yield ()
+        }
     } yield ()
-
 }

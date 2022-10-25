@@ -243,7 +243,8 @@ lazy val bifrost = project
     commonApplication,
     networkDelayer,
     genusLibrary,
-    genusServer
+    genusServer,
+    transactionGenerator
   )
 
 lazy val node = project

@@ -117,7 +117,8 @@ object Fs2TransactionGenerator {
   }
     .pure[F]
 
-  private def createData[F[_]: Applicative]: F[Transaction.Data] =
-    (Sized.maxUnsafe(Latin1Data.fromData(Array.fill[Byte](100)(3))): Transaction.Data).pure[F]
+  private def createData[F[_]: Applicative]: F[Transaction.DataTetra] =
+    Bytes(Array.fill(100)(3: Byte)).pure[F]
+
 
 }
