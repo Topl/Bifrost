@@ -27,6 +27,8 @@ import BlockchainPeerHandler.monoidBlockchainPeerHandler
 import co.topl.minting.{BlockPacker, BlockProducer}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
+import scala.jdk.CollectionConverters._
+
 import scala.util.Random
 
 object Blockchain {
@@ -176,7 +178,7 @@ object Blockchain {
           .toMat(Sink.ignore)(Keep.right)
           .liftTo[F]
       _ <- rpcServer.use(binding =>
-        Logger[F].info(s"RPC Server bound at ${binding.localAddress}") >>
+        Logger[F].info(s"RPC Server bound at ${binding.getListenSockets.asScala.toList.mkString(",")}") >>
         Async[F].fromFuture(mintedBlockStreamCompletionFuture) >>
         p2pFiber.join
       )

@@ -219,6 +219,7 @@ lazy val bifrost = project
     akkaHttpRpc,
     typeclasses,
     toplRpc,
+    toplGrpc,
     crypto,
     catsAkka,
     brambl,
@@ -588,7 +589,7 @@ lazy val minting = project
     consensus,
     catsAkka,
     ledger,
-    munitScalamock % "test->test",
+    munitScalamock     % "test->test",
     commonInterpreters % "test->test"
   )
 
@@ -754,12 +755,13 @@ lazy val toplRpc = project
 
 lazy val toplGrpc = project
   .in(file("topl-grpc"))
+  .enablePlugins(Fs2Grpc)
   .settings(
     name := "topl-grpc",
     commonSettings,
-    libraryDependencies ++= Dependencies.toplGrpc
+    libraryDependencies ++= Dependencies.toplGrpc,
+    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage
   )
-  .enablePlugins(AkkaGrpcPlugin)
   .dependsOn(
     models % "compile->compile;test->test",
     byteCodecs,
@@ -868,7 +870,9 @@ lazy val genus = project
     scalamacrosParadiseSettings,
     libraryDependencies ++= Dependencies.genus
   )
-  .enablePlugins(AkkaGrpcPlugin)
+  .enablePlugins(
+    AkkaGrpcPlugin
+  )
   .dependsOn(common)
 
 lazy val genusServer = project
@@ -881,7 +885,8 @@ lazy val genusServer = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.genusServer",
     libraryDependencies ++= Dependencies.genusServer
-  ).dependsOn(genusLibrary)
+  )
+  .dependsOn(genusLibrary)
 
 lazy val genusLibrary = project
   .in(file("genus-library"))
@@ -893,7 +898,8 @@ lazy val genusLibrary = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.genusLibrary",
     libraryDependencies ++= Dependencies.genusLibrary
-  ).dependsOn(typeclasses)
+  )
+  .dependsOn(typeclasses)
 
 lazy val munitScalamock = project
   .in(file("munit-scalamock"))

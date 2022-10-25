@@ -1,12 +1,10 @@
 package co.topl
 
-import akka.grpc.GrpcServiceException
 import cats.ApplicativeThrow
 import cats.implicits._
 import com.google.protobuf.ByteString
-import io.grpc.Status
+import io.grpc.{Status, StatusException}
 import scodec.bits.ByteVector
-
 import scala.language.implicitConversions
 
 package object grpc extends Isomorphism.Ops with BifrostMorphismInstances {
@@ -19,19 +17,15 @@ package object grpc extends Isomorphism.Ops with BifrostMorphismInstances {
 
   implicit class ThrowableAdapter(throwable: Throwable) {
 
-    def asGrpcException: GrpcServiceException =
+    def asGrpcException: StatusException =
       throwable match {
-        case e: GrpcServiceException => e
+        case e: StatusException => e
         case i: IllegalArgumentException =>
-          new GrpcServiceException(
-            Status.INVALID_ARGUMENT.withDescription(i.getMessage)
-          )
+          Status.INVALID_ARGUMENT.withDescription(i.getMessage).asException()
         case e: NotImplementedError =>
-          new GrpcServiceException(
-            Status.UNIMPLEMENTED.withDescription(e.getMessage)
-          )
+          Status.UNIMPLEMENTED.withDescription(e.getMessage).asException()
         case e =>
-          new GrpcServiceException(Status.fromThrowable(e))
+          Status.fromThrowable(e).asException()
       }
   }
 
