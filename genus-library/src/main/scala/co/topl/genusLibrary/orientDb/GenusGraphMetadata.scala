@@ -3,10 +3,11 @@ package co.topl.genusLibrary.orientDb
 import co.topl.codecs.bytes.tetra.TetraIdentifiableInstances
 import co.topl.models.Proofs.Knowledge.VrfEd25519
 import co.topl.models._
+import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.Lengths._
+import co.topl.models.utility.{Length, Sized}
 import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
 import com.tinkerpop.blueprints.impls.orient.{OrientEdgeType, OrientGraphNoTx, OrientVertexType}
-import shapeless.Sized
 
 /**
  * Metadata describing the schema used for the Genus graph in OrientDB
@@ -147,7 +148,7 @@ object GenusGraphMetadata {
     )
 
   // TODO this needs to change when we switch to models from protobufs
-  val evidenceLength = 32 // Is there a better way to capture this?
+  private val evidenceLength: Length = implicitly[Evidence.Length]
 
   def typedBytesToByteArray(t: TypedIdentifier): Array[Byte] =
     typedBytesTupleToByteArray((t.typePrefix, t.dataBytes.toArray))
@@ -171,17 +172,25 @@ object GenusGraphMetadata {
     val etaLength = 32 // is there a better way to capture this?
     val vrfSigLength = implicitly[Proofs.Knowledge.VrfEd25519.Length].value
     val vkVRFLength = implicitly[VerificationKeys.VrfEd25519.Length].value
-    val serializedLength = vrfSigLength + vkVRFLength + evidenceLength + etaLength
+    val serializedLength = vrfSigLength + vkVRFLength + evidenceLength.value + etaLength
     val a = new Array[Byte](serializedLength)
-    Array.copy(eligibilityCertificate.vrfSig, 0, a, 0, implicitly[Proofs.Knowledge.VrfEd25519.Length].value)
+    Array.copy(eligibilityCertificate.vrfSig, 0, a, 0, vrfSigLength)
     Array.copy(eligibilityCertificate.vkVRF, 0, a, vrfSigLength, vkVRFLength)
-    /* =================================== */
+    Array.copy(eligibilityCertificate.thresholdEvidence, 0, a, vrfSigLength + vkVRFLength, evidenceLength.value)
+    Array.copy(eligibilityCertificate.eta, 0, a, vrfSigLength + vkVRFLength + evidenceLength, etaLength)
     a
   }
 
-  def byteArrayToEligibilityCertificate(a: Array[Byte]): EligibilityCertificate = ???
+  def byteArrayToEligibilityCertificate(a: Array[Byte]): EligibilityCertificate = {
 
-  def operationalCertificateToByteArray(eligibilityCertificate: OperationalCertificate): Array[Byte] = ???
+    val bytes: Bytes = Bytes(a)
+
+    val evidence: Evidence = Sized.strictUnsafe(bytes)//(evidenceLength)
+
+    // ============ //
+  }
+
+  def operationalCertificateToByteArray(operationalCertificate: OperationalCertificate): Array[Byte] = ???
 
   def byteArrayToOperationalCertificate(a: Array[Byte]): OperationalCertificate = ???
 

@@ -14,7 +14,11 @@ package object models {
   type Bytes = ByteVector
   val Bytes = ByteVector
   type Eta = Sized.Strict[Bytes, Lengths.`32`.type]
-  type Evidence = Sized.Strict[Bytes, Lengths.`32`.type]
+  type Evidence = Sized.Strict[Bytes, Evidence.Length]
+
+  object Evidence {
+    type Length = Lengths.`32`.type
+  }
 
   case class TypedEvidence(typePrefix: TypePrefix, evidence: Evidence) {
     def allBytes: Bytes = typePrefix +: evidence.data
