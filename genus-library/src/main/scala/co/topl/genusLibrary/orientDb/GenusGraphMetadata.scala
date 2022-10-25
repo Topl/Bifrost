@@ -1,10 +1,12 @@
 package co.topl.genusLibrary.orientDb
 
 import co.topl.codecs.bytes.tetra.TetraIdentifiableInstances
+import co.topl.models.Proofs.Knowledge.VrfEd25519
 import co.topl.models._
+import co.topl.models.utility.Lengths._
 import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
 import com.tinkerpop.blueprints.impls.orient.{OrientEdgeType, OrientGraphNoTx, OrientVertexType}
-import scodec.bits.ByteVector
+import shapeless.Sized
 
 /**
  * Metadata describing the schema used for the Genus graph in OrientDB
@@ -73,7 +75,9 @@ object GenusGraphMetadata {
           p => java.lang.Byte.valueOf(p.typePrefix),
           _.setMandatory(true).setReadonly(true).setNotNull(true)
         )
-        .withProperty("evidence", _.evidence.data.toArray, _.setMandatory(true).setReadonly(true).setNotNull(true))(byteArrayOrientDbTypes)
+        .withProperty("evidence", _.evidence.data.toArray, _.setMandatory(true).setReadonly(true).setNotNull(true))(
+          byteArrayOrientDbTypes
+        )
         .withIndex("addressIndex", INDEX_TYPE.UNIQUE, "typePrefix", "evidence"),
       v => TypedEvidence(v("typePrefix"), v("evidence"))
     )
@@ -142,8 +146,9 @@ object GenusGraphMetadata {
         )
     )
 
-
   // TODO this needs to change when we switch to models from protobufs
+  val evidenceLength = 32 // Is there a better way to capture this?
+
   def typedBytesToByteArray(t: TypedIdentifier): Array[Byte] =
     typedBytesTupleToByteArray((t.typePrefix, t.dataBytes.toArray))
 
@@ -162,7 +167,17 @@ object GenusGraphMetadata {
   }
 
   // No need for a byteArrayToBlockHeaderId because it is computed rather than stored.
-  def eligibilityCertificateToByteArray(eligibilityCertificate: EligibilityCertificate): Array[Byte] = ???
+  def eligibilityCertificateToByteArray(eligibilityCertificate: EligibilityCertificate): Array[Byte] = {
+    val etaLength = 32 // is there a better way to capture this?
+    val vrfSigLength = implicitly[Proofs.Knowledge.VrfEd25519.Length].value
+    val vkVRFLength = implicitly[VerificationKeys.VrfEd25519.Length].value
+    val serializedLength = vrfSigLength + vkVRFLength + evidenceLength + etaLength
+    val a = new Array[Byte](serializedLength)
+    Array.copy(eligibilityCertificate.vrfSig, 0, a, 0, implicitly[Proofs.Knowledge.VrfEd25519.Length].value)
+    Array.copy(eligibilityCertificate.vkVRF, 0, a, vrfSigLength, vkVRFLength)
+    /* =================================== */
+    a
+  }
 
   def byteArrayToEligibilityCertificate(a: Array[Byte]): EligibilityCertificate = ???
 
