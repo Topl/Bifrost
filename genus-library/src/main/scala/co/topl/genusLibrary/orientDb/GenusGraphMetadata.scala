@@ -1,7 +1,6 @@
 package co.topl.genusLibrary.orientDb
 
 import co.topl.codecs.bytes.tetra.TetraIdentifiableInstances
-import co.topl.models.Proofs.Knowledge.VrfEd25519
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.Lengths._
@@ -148,7 +147,6 @@ object GenusGraphMetadata {
     )
 
   // TODO this needs to change when we switch to models from protobufs
-  private val evidenceLength: Length = implicitly[Evidence.Length]
 
   def typedBytesToByteArray(t: TypedIdentifier): Array[Byte] =
     typedBytesTupleToByteArray((t.typePrefix, t.dataBytes.toArray))
@@ -167,11 +165,13 @@ object GenusGraphMetadata {
     a
   }
 
+  private val evidenceLength: Length = implicitly[Evidence.Length]
+  private val etaLength = implicitly[Eta.Length].value
+  private val vrfSigLength = implicitly[Proofs.Knowledge.VrfEd25519.Length].value
+  private val vkVRFLength = implicitly[VerificationKeys.VrfEd25519.Length].value
+
   // No need for a byteArrayToBlockHeaderId because it is computed rather than stored.
   def eligibilityCertificateToByteArray(eligibilityCertificate: EligibilityCertificate): Array[Byte] = {
-    val etaLength = 32 // is there a better way to capture this?
-    val vrfSigLength = implicitly[Proofs.Knowledge.VrfEd25519.Length].value
-    val vkVRFLength = implicitly[VerificationKeys.VrfEd25519.Length].value
     val serializedLength = vrfSigLength + vkVRFLength + evidenceLength.value + etaLength
     val a = new Array[Byte](serializedLength)
     Array.copy(eligibilityCertificate.vrfSig, 0, a, 0, vrfSigLength)
@@ -182,12 +182,25 @@ object GenusGraphMetadata {
   }
 
   def byteArrayToEligibilityCertificate(a: Array[Byte]): EligibilityCertificate = {
+    val vrfSigArray = copyArraySlice(a, 0, vrfSigLength)
+    val vrfSig = Proofs.Knowledge.VrfEd25519(Sized.strictUnsafe(Bytes(vrfSigArray)))
 
-    val bytes: Bytes = Bytes(a)
+    val vkVRFArray = copyArraySlice(a, vrfSigLength, vkVRFLength)
+    val vkVRF = VerificationKeys.VrfEd25519(Sized.strictUnsafe(Bytes(vkVRFArray)))
 
-    val evidence: Evidence = Sized.strictUnsafe(bytes)//(evidenceLength)
+    val evidenceArray = copyArraySlice(a, vrfSigLength + vkVRFLength, evidenceLength.value)
+    val thresholdEvidence: Evidence = Sized.strictUnsafe(Bytes(evidenceArray))
 
-    // ============ //
+    val etaArray = copyArraySlice(a, vrfSigLength + vkVRFLength + evidenceLength.value, etaLength)
+    val eta: Eta = Sized.strictUnsafe(Bytes(etaArray))
+
+    EligibilityCertificate(vrfSig, vkVRF, thresholdEvidence, eta)
+  }
+
+  def copyArraySlice(fromArray: Array[Byte], offset: Int, length: Int): Array[Byte] = {
+    val toArray = new Array[Byte](length)
+    Array.copy(fromArray, offset, toArray, 0, length)
+    toArray
   }
 
   def operationalCertificateToByteArray(operationalCertificate: OperationalCertificate): Array[Byte] = ???
