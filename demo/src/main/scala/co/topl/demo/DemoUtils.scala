@@ -110,6 +110,7 @@ object DemoConfig {
   val ChainSelectionKLookback: Long = 50
   val SlotDuration: FiniteDuration = 100.milli
   val OperationalPeriodsPerEpoch: Long = 2L
+  val ForwardBiasedSlotWindow: Slot = 50L
 
   val ChainSelectionSWindow: Long =
     (Ratio(ChainSelectionKLookback, 4L) * fEffective.inverse).round.toLong

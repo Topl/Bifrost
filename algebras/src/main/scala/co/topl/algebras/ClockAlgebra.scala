@@ -18,6 +18,8 @@ trait ClockAlgebra[F[_]] {
   def currentEpoch: F[Epoch]
   def globalSlot: F[Slot]
   def currentTimestamp: F[Timestamp]
+  def forwardBiasedSlotWindow: F[Slot]
+  def timestampToSlot(timestamp:       Timestamp): F[Slot]
   def delayedUntilSlot(slot:           Slot): F[Unit]
   def delayedUntilTimestamp(timestamp: Timestamp): F[Unit]
 }

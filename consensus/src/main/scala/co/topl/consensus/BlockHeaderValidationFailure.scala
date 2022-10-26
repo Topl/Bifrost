@@ -12,6 +12,10 @@ object BlockHeaderValidationFailures {
 
   case class NonForwardHeight(height: Long, parentHeight: Long) extends BlockHeaderValidationFailure
 
+  case class TimestampSlotMismatch(blockSlot: Slot, timestamp: Timestamp) extends BlockHeaderValidationFailure
+
+  case class SlotBeyondForwardBiasedSlotWindow(globalSlot: Slot, blockSlot: Slot) extends BlockHeaderValidationFailure
+
   case class ParentMismatch(expectedParentId: TypedIdentifier, parentId: TypedIdentifier)
       extends BlockHeaderValidationFailure
 

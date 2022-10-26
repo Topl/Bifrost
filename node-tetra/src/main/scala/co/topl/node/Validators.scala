@@ -2,6 +2,7 @@ package co.topl.node
 
 import cats.effect.Async
 import cats.implicits._
+import co.topl.algebras.ClockAlgebra
 import co.topl.consensus.BlockHeaderValidation
 import co.topl.consensus.algebras.{
   BlockHeaderValidationAlgebra,
@@ -37,7 +38,8 @@ object Validators {
     blockIdTree:                 ParentChildTree[F, TypedIdentifier],
     etaCalculation:              EtaCalculationAlgebra[F],
     consensusValidationState:    ConsensusValidationStateAlgebra[F],
-    leaderElectionThreshold:     LeaderElectionValidationAlgebra[F]
+    leaderElectionThreshold:     LeaderElectionValidationAlgebra[F],
+    clockAlgebra:                ClockAlgebra[F]
   ): F[Validators[F]] =
     for {
       headerValidation <- BlockHeaderValidation.Eval
@@ -45,6 +47,7 @@ object Validators {
           etaCalculation,
           consensusValidationState,
           leaderElectionThreshold,
+          clockAlgebra,
           cryptoResources.ed25519VRF,
           cryptoResources.kesProduct,
           cryptoResources.ed25519,
