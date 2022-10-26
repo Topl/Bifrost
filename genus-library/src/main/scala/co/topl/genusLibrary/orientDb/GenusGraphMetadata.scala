@@ -1,12 +1,19 @@
 package co.topl.genusLibrary.orientDb
 
 import co.topl.codecs.bytes.tetra.TetraIdentifiableInstances
+import co.topl.genusLibrary.GenusException
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.{Length, Sized}
 import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
 import com.tinkerpop.blueprints.impls.orient.{OrientEdgeType, OrientGraphNoTx, OrientVertexType}
+import io.github.vigoo.desert._
+import io.github.vigoo.desert.codecs._
+import io.github.vigoo.desert.syntax._
+
+import java.io.ByteArrayOutputStream
+import java.nio.ByteBuffer
 
 /**
  * Metadata describing the schema used for the Genus graph in OrientDB
@@ -195,10 +202,10 @@ object GenusGraphMetadata {
 
   def byteArrayToEligibilityCertificate(a: Array[Byte]): EligibilityCertificate = {
     val vrfSigArray = copyArraySlice(a, 0, vrfSigLength)
-    val vrfSig = Proofs.Knowledge.VrfEd25519(Sized.strictUnsafe(Bytes(vrfSigArray)))
+    val vrfSig: Proofs.Knowledge.VrfEd25519 = Proofs.Knowledge.VrfEd25519(Sized.strictUnsafe(Bytes(vrfSigArray)))
 
     val vkVRFArray = copyArraySlice(a, vrfSigLength, vkVRFLength)
-    val vkVRF = VerificationKeys.VrfEd25519(Sized.strictUnsafe(Bytes(vkVRFArray)))
+    val vkVRF: VerificationKeys.VrfEd25519 = VerificationKeys.VrfEd25519(Sized.strictUnsafe(Bytes(vkVRFArray)))
 
     val evidenceArray = copyArraySlice(a, vrfSigLength + vkVRFLength, evidenceLength.value)
     val thresholdEvidence: Evidence = Sized.strictUnsafe(Bytes(evidenceArray))
@@ -215,28 +222,28 @@ object GenusGraphMetadata {
     toArray
   }
 
-  private val parentVKLength = implicitly[VerificationKeys.KesProduct.Length].value
-  private val parentSignatureLength = implicitly[Proofs.Knowledge.KesProduct.DigestLength].value
-  private val childVKLength = implicitly[VerificationKeys.Ed25519.Length].value
-  private val childSignatureLength = implicitly[Proofs.Knowledge.Ed25519.Length].value
+  // This desert codec for serializing is here rather than with the definition of OperationalCertificate because
+  // This serializion library should only be used within Genus.
+  // Serialization libraries must not be relied on elsewhere because we need interoperability between implementations
+  // of bifrost nodes and SDKs across different programming languages.
+  implicit val desertCodec: BinaryCodec[OperationalCertificate] = BinaryCodec.derive()
 
-  def operationalCertificateToByteArray(operationalCertificate: OperationalCertificate): Array[Byte] = {
-    val serializedLength = parentVKLength + parentSignatureLength + childVKLength + childSignatureLength
-    val a = new Array[Byte](serializedLength)
-    Array.copy(operationalCertificate.parentVK, 0, a, 0, parentVKLength)
-    Array.copy(operationalCertificate.parentSignature, 0, a, parentVKLength, parentSignatureLength)
-    Array.copy(operationalCertificate.childVK, 0, a, parentVKLength + parentSignatureLength, childVKLength)
-    Array.copy(
-      operationalCertificate.childSignature,
-      0,
-      a,
-      parentVKLength + parentSignatureLength + childVKLength,
-      childSignatureLength
-    )
-    a
-  }
+  def operationalCertificateToByteArray(operationalCertificate: OperationalCertificate): Array[Byte] =
+    serializeToArray(operationalCertificate) match {
+      case Right(a) => a
+      case Left(err) =>
+        throw new GenusException(s"Error while serializing an operational certificate ${err.message}", err.cause.orNull)
+    }
 
-  def byteArrayToOperationalCertificate(a: Array[Byte]): OperationalCertificate = ???
+  def byteArrayToOperationalCertificate(a: Array[Byte]): OperationalCertificate =
+    deserializeFromArray[OperationalCertificate](a) match {
+      case Right(oc) => oc
+      case Left(err) =>
+        throw new GenusException(
+          s"Error while deserializing an operational certificate: ${err.message}",
+          err.cause.orNull
+        )
+    }
 
   def stakingAddressOperatorToByteArray(eligibilityCertificate: StakingAddresses.Operator): Array[Byte] = ???
 
