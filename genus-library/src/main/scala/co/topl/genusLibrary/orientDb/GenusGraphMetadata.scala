@@ -176,8 +176,8 @@ object GenusGraphMetadata {
     val a = new Array[Byte](serializedLength)
     Array.copy(eligibilityCertificate.vrfSig, 0, a, 0, vrfSigLength)
     Array.copy(eligibilityCertificate.vkVRF, 0, a, vrfSigLength, vkVRFLength)
-    Array.copy(eligibilityCertificate.thresholdEvidence, 0, a, vrfSigLength + vkVRFLength, evidenceLength.value)
-    Array.copy(eligibilityCertificate.eta, 0, a, vrfSigLength + vkVRFLength + evidenceLength, etaLength)
+    Array.copy(eligibilityCertificate.thresholdEvidence.data.toArray, 0, a, vrfSigLength + vkVRFLength, evidenceLength.value)
+    Array.copy(eligibilityCertificate.eta.data.toArray, 0, a, vrfSigLength + vkVRFLength + evidenceLength.value, etaLength)
     a
   }
 
