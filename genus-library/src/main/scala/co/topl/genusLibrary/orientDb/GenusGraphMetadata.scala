@@ -176,8 +176,20 @@ object GenusGraphMetadata {
     val a = new Array[Byte](serializedLength)
     Array.copy(eligibilityCertificate.vrfSig, 0, a, 0, vrfSigLength)
     Array.copy(eligibilityCertificate.vkVRF, 0, a, vrfSigLength, vkVRFLength)
-    Array.copy(eligibilityCertificate.thresholdEvidence.data.toArray, 0, a, vrfSigLength + vkVRFLength, evidenceLength.value)
-    Array.copy(eligibilityCertificate.eta.data.toArray, 0, a, vrfSigLength + vkVRFLength + evidenceLength.value, etaLength)
+    Array.copy(
+      eligibilityCertificate.thresholdEvidence.data.toArray,
+      0,
+      a,
+      vrfSigLength + vkVRFLength,
+      evidenceLength.value
+    )
+    Array.copy(
+      eligibilityCertificate.eta.data.toArray,
+      0,
+      a,
+      vrfSigLength + vkVRFLength + evidenceLength.value,
+      etaLength
+    )
     a
   }
 
@@ -203,7 +215,26 @@ object GenusGraphMetadata {
     toArray
   }
 
-  def operationalCertificateToByteArray(operationalCertificate: OperationalCertificate): Array[Byte] = ???
+  private val parentVKLength = implicitly[VerificationKeys.KesProduct.Length].value
+  private val parentSignatureLength = implicitly[Proofs.Knowledge.KesProduct.DigestLength].value
+  private val childVKLength = implicitly[VerificationKeys.Ed25519.Length].value
+  private val childSignatureLength = implicitly[Proofs.Knowledge.Ed25519.Length].value
+
+  def operationalCertificateToByteArray(operationalCertificate: OperationalCertificate): Array[Byte] = {
+    val serializedLength = parentVKLength + parentSignatureLength + childVKLength + childSignatureLength
+    val a = new Array[Byte](serializedLength)
+    Array.copy(operationalCertificate.parentVK, 0, a, 0, parentVKLength)
+    Array.copy(operationalCertificate.parentSignature, 0, a, parentVKLength, parentSignatureLength)
+    Array.copy(operationalCertificate.childVK, 0, a, parentVKLength + parentSignatureLength, childVKLength)
+    Array.copy(
+      operationalCertificate.childSignature,
+      0,
+      a,
+      parentVKLength + parentSignatureLength + childVKLength,
+      childSignatureLength
+    )
+    a
+  }
 
   def byteArrayToOperationalCertificate(a: Array[Byte]): OperationalCertificate = ???
 
