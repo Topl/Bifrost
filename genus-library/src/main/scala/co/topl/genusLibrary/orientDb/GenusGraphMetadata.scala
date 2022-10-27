@@ -22,7 +22,7 @@ package co.topl.genusLibrary.orientDb {
 
     val blockHeaderVertexType: OrientVertexType = ensureVertexSchemaInitialized(blockHeaderSchema)
 
-    val blockBodyVertexType: OrientVertexType = graphNoTx.createVertexType("BlockBody")
+    val blockBodyVertexType: OrientVertexType = ensureVertexSchemaInitialized(blockBodySchema)
     val boxVertexType: OrientVertexType = graphNoTx.createVertexType("Box")
     val transactionVertexType: OrientVertexType = graphNoTx.createVertexType("Transaction")
 
@@ -94,7 +94,7 @@ package co.topl.genusLibrary.orientDb {
       VertexSchema.create(
         "boxState",
         GraphDataEncoder[Unit],
-        v => ()
+        _ => ()
       )
 
     private val blockHeaderSchema: VertexSchema[BlockHeaderV2] =
@@ -151,7 +151,21 @@ package co.topl.genusLibrary.orientDb {
           )
       )
 
+    private val blockBodySchema: VertexSchema[BlockBodyV2] =
+      VertexSchema.create(
+        "BlockBody",
+        GraphDataEncoder[BlockBodyV2]
+          .withProperty("transactionIds", t => blockBodyV2ToByteArray(t), _ => {})(byteArrayOrientDbTypes),
+        // There is no index needed for block bodies. They are accessed thru links from block headers and transactions
+        v => byteArrayToBlockBodyV2(v("transactionIds"))
+      )
+
     // TODO this needs to change when we switch to models from proto-buffers
+    def byteArrayToBlockBodyV2(a: Array[Byte]): BlockBodyV2 =
+      decodeFromByteArray(a, TetraScodecCodecs.blockBodyV2Codec, "BlockBodyV2")
+
+    def blockBodyV2ToByteArray(blockBody: BlockBodyV2): Array[Byte] =
+      encodeToByteArray(blockBody, TetraScodecCodecs.blockBodyV2Codec, "BlockBodyV2")
 
     def typedBytesToByteArray(t: TypedIdentifier): Array[Byte] =
       typedBytesTupleToByteArray((t.typePrefix, t.dataBytes.toArray))
