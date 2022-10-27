@@ -422,9 +422,6 @@ object Dependencies {
     mUnitTest
 
   lazy val genusLibrary: Seq[ModuleID] = {
-    Seq(
-      "io.github.vigoo" %% "desert-core" % "0.2.0"
-    ) ++
     logging ++
     orientDb ++
     mUnitTest ++
