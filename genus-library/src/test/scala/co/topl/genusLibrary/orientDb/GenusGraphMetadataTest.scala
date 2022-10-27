@@ -84,21 +84,21 @@ class GenusGraphMetadataTest extends munit.FunSuite {
       "Round trip serialization of StakingAddress operator"
     )
   }
-//
-//  test("BlockBodyV2 round-trip Serialization") {
-//    val evidenceLength = implicitly[Evidence.Length].value
-//
-//    val blockBodyV2 = (0 to 3).foldLeft(ListSet.empty[TypedIdentifier]) {
-//      case (transactions, _) =>
-//        val byteArray = Random.nextBytes(evidenceLength)
-//        val transactionId = TypedBytes(IdentifierTypes.Block.BodyV2, Bytes(byteArray))
-//        transactions + transactionId
-//    }
-//
-//    assertEquals(
-//      byteArrayToBlockBodyV2(blockBodyV2ToByteArray(blockBodyV2)).toSeq,
-//      blockBodyV2.toSeq,
-//      "Round trip serialization of BlockBodyV2"
-//    )
-//  }
+
+  test("BlockBodyV2 round-trip Serialization") {
+    val evidenceLength = implicitly[Evidence.Length].value
+
+    val blockBodyV2 = (0 to 3).foldLeft(ListSet.empty[TypedIdentifier]) {
+      case (transactions, _) =>
+        val byteArray = Random.nextBytes(evidenceLength)
+        val transactionId = TypedBytes(IdentifierTypes.Block.BodyV2, Bytes(byteArray))
+        transactions + transactionId
+    }
+
+    assertEquals(
+      byteArrayToBlockBodyV2(blockBodyV2ToByteArray(blockBodyV2)).toSeq,
+      blockBodyV2.toSeq,
+      "Round trip serialization of BlockBodyV2"
+    )
+  }
 }
