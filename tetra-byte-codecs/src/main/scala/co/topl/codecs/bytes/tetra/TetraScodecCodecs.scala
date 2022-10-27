@@ -104,7 +104,7 @@ trait TetraScodecPrimitiveCodecs {
     )
 
   implicit val networkPrefixCodec: Codec[NetworkPrefix] =
-    Codec[Byte].xmap(NetworkPrefix, _.value)
+    Codec[Byte].xmap(NetworkPrefix(_), _.value)
 
   implicit val typedEvidenceCodec: Codec[TypedEvidence] =
     (Codec[TypePrefix] :: Codec[Evidence]).as[TypedEvidence]
@@ -113,7 +113,7 @@ trait TetraScodecPrimitiveCodecs {
     Codec[TypedEvidence].as[SpendingAddress] // TODO: Checksum
 
   implicit val rhoCodec: Codec[Rho] =
-    Codec[Sized.Strict[Bytes, Lengths.`64`.type]].xmap(Rho, _.sizedBytes)
+    Codec[Sized.Strict[Bytes, Lengths.`64`.type]].xmap(Rho(_), _.sizedBytes)
 }
 
 trait TetraScodecCryptoCodecs {
