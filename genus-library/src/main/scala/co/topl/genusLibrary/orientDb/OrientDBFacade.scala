@@ -29,6 +29,7 @@ class OrientDBFacade(dir: File, password: String) {
   private def initializeDatabase(factory: OrientGraphFactory, password: String) = {
     val session: OrientGraphNoTx = factory.getNoTx
     try {
+      session.setUseLightweightEdges(true)
       logger.info("Changing password")
       session.command(new OCommandSQL(s"UPDATE OUser SET password='$password' WHERE name='$dbUserName'")).execute()
       logger.info("Configuring Schema")
