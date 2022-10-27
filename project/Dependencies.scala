@@ -324,6 +324,9 @@ object Dependencies {
       Dependencies.akka("stream-testkit") % Test
     ) ++ fleam
 
+  lazy val transactionGenerator: Seq[ModuleID] =
+    Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Seq(Dependencies.fs2Core)
+
   lazy val ledger: Seq[ModuleID] =
     Dependencies.mUnitTest ++ Dependencies.catsEffect
 
@@ -369,8 +372,10 @@ object Dependencies {
     "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
 
   lazy val toplGrpc: Seq[ModuleID] =
-    Seq(scalaPb) ++
-    allAkka ++
+    Seq(
+      scalaPb,
+      "io.grpc" % "grpc-netty-shaded" % scalapb.compiler.Version.grpcJavaVersion
+    ) ++
     cats ++
     catsEffect ++
     mUnitTest

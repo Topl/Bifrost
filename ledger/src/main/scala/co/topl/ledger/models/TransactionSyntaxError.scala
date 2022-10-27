@@ -16,4 +16,5 @@ object TransactionSyntaxErrors {
   case class InsufficientInputFunds[V <: Box.Value](inputs: Chain[V], outputs: Chain[V]) extends TransactionSyntaxError
 
   case class InvalidProofType(proposition: Proposition, proof: Proof) extends TransactionSyntaxError
+  case object InvalidDataLength extends TransactionSyntaxError
 }

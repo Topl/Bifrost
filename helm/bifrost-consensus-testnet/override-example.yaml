@@ -1,0 +1,61 @@
+# These settings will apply to the configurations of all nodes.
+shared-config:
+  # Define custom application.conf overrides
+  bifrost:
+    big-bang:
+      staker-count: 2
+    protocols:
+      0:
+        slot-duration: 250 milli
+
+# Define an entry for each node you wish to launch in the cluster
+configs:
+  # Name the node
+  producer0:
+    # Define custom application.conf overrides
+    bifrost:
+      big-bang:
+        local-staker-index: 0
+    # Define the network topology of this node
+    topology:
+      # Applies to all connections received by this node
+      ingress:
+        # The amount of throttling to impose on the local node's portion of the connection
+        throttle:
+          latency: 10 milli
+          downloadBytesPerSecond: 500000
+          uploadBytesPerSecond: 500000
+  producer1:
+    bifrost:
+      big-bang:
+        local-staker-index: 1
+    topology:
+      ingress:
+        throttle:
+          latency: 10 milli
+          downloadBytesPerSecond: 500000
+          uploadBytesPerSecond: 500000
+  relay0:
+    bifrost:
+      big-bang:
+        local-staker-index: -1
+    topology:
+      ingress:
+        throttle:
+          latency: 10 milli
+          downloadBytesPerSecond: 500000
+          uploadBytesPerSecond: 500000
+      # Outbound connections are defined here
+      egress:
+          # The name of the peer
+        - peer: producer0
+          # The amount of throttling to impose on the local node's portion of the connection
+          throttle:
+            latency: 10 milli
+            downloadBytesPerSecond: 500000
+            uploadBytesPerSecond: 500000
+        - peer: producer1
+          throttle:
+            latency: 10 milli
+            downloadBytesPerSecond: 500000
+            uploadBytesPerSecond: 500000

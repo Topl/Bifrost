@@ -78,6 +78,7 @@ object ApplicationConfig {
       vrfAmplitude:               Ratio,
       chainSelectionKLookback:    Long,
       slotDuration:               FiniteDuration,
+      forwardBiasedSlotWindow:    Slot,
       operationalPeriodsPerEpoch: Long,
       kesKeyHours:                Int,
       kesKeyMinutes:              Int

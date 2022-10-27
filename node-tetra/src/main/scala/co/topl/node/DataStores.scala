@@ -1,8 +1,8 @@
 package co.topl.node
 
-import cats.{Applicative, MonadThrow}
+import cats.{Applicative, Monad, MonadThrow}
 import cats.data.NonEmptySet
-import cats.effect.Async
+import cats.effect.{Async, Resource}
 import cats.implicits._
 import co.topl.algebras.Store
 import co.topl.codecs.bytes.typeclasses.Persistable
@@ -36,11 +36,13 @@ case class DataStores[F[_]](
 
 object DataStores {
 
-  def init[F[_]: Async: Logger](appConfig: ApplicationConfig)(bigBangBlock: BlockV2.Full): F[DataStores[F]] =
+  def init[F[_]: Async: Logger](appConfig: ApplicationConfig)(bigBangBlock: BlockV2.Full): Resource[F, DataStores[F]] =
     for {
-      dataDir <- (Path(appConfig.bifrost.data.directory) / bigBangBlock.headerV2.id.asTypedBytes.show).pure[F]
-      _       <- Files[F].createDirectories(dataDir)
-      _       <- Logger[F].info(show"Using dataDir=$dataDir")
+      dataDir <- Resource.pure[F, Path](
+        Path(appConfig.bifrost.data.directory) / bigBangBlock.headerV2.id.asTypedBytes.show
+      )
+      _ <- Resource.eval(Files[F].createDirectories(dataDir))
+      _ <- Resource.eval(Logger[F].info(show"Using dataDir=$dataDir"))
       parentChildTree <- makeCachedDb[F, TypedIdentifier, Bytes, (Long, TypedIdentifier)](dataDir)(
         "parent-child-tree",
         appConfig.bifrost.cache.parentChildTree,
@@ -99,31 +101,6 @@ object DataStores {
         Long.box
       )
 
-      // Store the big bang data
-      _ <- currentEventIds
-        .contains(CurrentEventIdGetterSetters.Indices.CanonicalHead)
-        .ifM(
-          Logger[F].info("Data stores are already initialized") >> Applicative[F].unit,
-          Logger[F].info("Initializing data stores") >>
-          currentEventIds.put(CurrentEventIdGetterSetters.Indices.CanonicalHead, bigBangBlock.headerV2.id) >>
-          List(
-            CurrentEventIdGetterSetters.Indices.ConsensusData,
-            CurrentEventIdGetterSetters.Indices.EpochBoundaries,
-            CurrentEventIdGetterSetters.Indices.BlockHeightTree,
-            CurrentEventIdGetterSetters.Indices.BoxState,
-            CurrentEventIdGetterSetters.Indices.Mempool
-          ).traverseTap(currentEventIds.put(_, bigBangBlock.headerV2.parentHeaderId)).void
-        )
-      _ <- slotDataStore.put(bigBangBlock.headerV2.id, bigBangBlock.headerV2.slotData(Ed25519VRF.precomputed()))
-      _ <- blockHeaderStore.put(bigBangBlock.headerV2.id, bigBangBlock.headerV2)
-      _ <- blockBodyStore.put(
-        bigBangBlock.headerV2.id,
-        ListSet.empty ++ bigBangBlock.transactions.map(_.id.asTypedBytes).toList
-      )
-      _ <- bigBangBlock.transactions.traverseTap(transaction => transactionStore.put(transaction.id, transaction))
-      _ <- blockHeightTreeStore.put(0, bigBangBlock.headerV2.parentHeaderId)
-      _ <- activeStakeStore.contains(()).ifM(Applicative[F].unit, activeStakeStore.put((), 0))
-
       dataStores = DataStores(
         parentChildTree,
         currentEventIds,
@@ -138,25 +115,61 @@ object DataStores {
         registrationsStore,
         blockHeightTreeStore
       )
-
+      _ <- Resource.eval(initialize(dataStores, bigBangBlock))
     } yield dataStores
 
   private def makeDb[F[_]: Async, Key: Persistable, Value: Persistable](dataDir: Path)(
     name:                                                                        String
-  ): F[Store[F, Key, Value]] =
-    LevelDbStore.makeDb[F](dataDir / name) >>= LevelDbStore.make[F, Key, Value]
+  ): Resource[F, Store[F, Key, Value]] =
+    LevelDbStore.makeDb[F](dataDir / name).evalMap(LevelDbStore.make[F, Key, Value])
 
   private def makeCachedDb[F[_]: Async, Key: Persistable, CacheKey <: AnyRef, Value: Persistable](dataDir: Path)(
     name:                                                                                                  String,
     cacheConfig:  ApplicationConfig.Bifrost.Cache.CacheConfig,
     makeCacheKey: Key => CacheKey
-  ): F[Store[F, Key, Value]] =
-    CacheStore.make[F, Key, CacheKey, Value](
-      makeDb[F, Key, Value](dataDir)(name),
-      makeCacheKey,
-      _.maximumSize(cacheConfig.maximumEntries),
-      cacheConfig.ttl
-    )
+  ): Resource[F, Store[F, Key, Value]] =
+    makeDb[F, Key, Value](dataDir)(name)
+      .evalMap(underlying =>
+        CacheStore.make[F, Key, CacheKey, Value](
+          underlying.pure[F],
+          makeCacheKey,
+          _.maximumSize(cacheConfig.maximumEntries),
+          cacheConfig.ttl
+        )
+      )
+
+  private def initialize[F[_]: Monad: Logger](dataStores: DataStores[F], bigBangBlock: BlockV2.Full): F[Unit] =
+    for {
+      // Store the big bang data
+      _ <- dataStores.currentEventIds
+        .contains(CurrentEventIdGetterSetters.Indices.CanonicalHead)
+        .ifM(
+          Logger[F].info("Data stores are already initialized") >> Applicative[F].unit,
+          Logger[F].info("Initializing data stores") >>
+          dataStores.currentEventIds.put(CurrentEventIdGetterSetters.Indices.CanonicalHead, bigBangBlock.headerV2.id) >>
+          List(
+            CurrentEventIdGetterSetters.Indices.ConsensusData,
+            CurrentEventIdGetterSetters.Indices.EpochBoundaries,
+            CurrentEventIdGetterSetters.Indices.BlockHeightTree,
+            CurrentEventIdGetterSetters.Indices.BoxState,
+            CurrentEventIdGetterSetters.Indices.Mempool
+          ).traverseTap(dataStores.currentEventIds.put(_, bigBangBlock.headerV2.parentHeaderId)).void
+        )
+      _ <- dataStores.slotData.put(
+        bigBangBlock.headerV2.id,
+        bigBangBlock.headerV2.slotData(Ed25519VRF.precomputed())
+      )
+      _ <- dataStores.headers.put(bigBangBlock.headerV2.id, bigBangBlock.headerV2)
+      _ <- dataStores.bodies.put(
+        bigBangBlock.headerV2.id,
+        ListSet.empty ++ bigBangBlock.transactions.map(_.id.asTypedBytes).toList
+      )
+      _ <- bigBangBlock.transactions.traverseTap(transaction =>
+        dataStores.transactions.put(transaction.id, transaction)
+      )
+      _ <- dataStores.blockHeightTree.put(0, bigBangBlock.headerV2.parentHeaderId)
+      _ <- dataStores.activeStake.contains(()).ifM(Applicative[F].unit, dataStores.activeStake.put((), 0))
+    } yield ()
 
 }
 

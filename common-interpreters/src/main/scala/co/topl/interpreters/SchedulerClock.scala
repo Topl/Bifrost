@@ -15,29 +15,34 @@ object SchedulerClock {
   object Eval {
 
     def make[F[_]: Monad: Async](
-      _slotLength:    FiniteDuration,
-      _slotsPerEpoch: Long,
-      genesisTime:    Instant
+      _slotLength:              FiniteDuration,
+      _slotsPerEpoch:           Long,
+      genesisTime:              Instant,
+      _forwardBiasedSlotWindow: Slot
     ): ClockAlgebra[F] =
       new ClockAlgebra[F] {
         private val startTime = genesisTime.toEpochMilli
 
-        val slotLength: F[FiniteDuration] = _slotLength.pure[F]
+        override val slotLength: F[FiniteDuration] = _slotLength.pure[F]
 
-        val slotsPerEpoch: F[Epoch] = _slotsPerEpoch.pure[F]
+        override val slotsPerEpoch: F[Epoch] = _slotsPerEpoch.pure[F]
 
-        def currentTimestamp: F[Timestamp] = Sync[F].delay(System.currentTimeMillis())
+        override def currentTimestamp: F[Timestamp] = Sync[F].delay(System.currentTimeMillis())
 
-        def globalSlot: F[Slot] =
-          currentTimestamp.map(currentTimestamp => (currentTimestamp - startTime) / _slotLength.toMillis)
+        override def timestampToSlot(timestamp: Timestamp): F[Slot] =
+          ((timestamp - startTime) / _slotLength.toMillis).pure[F]
 
-        def currentEpoch: F[Epoch] =
+        override val forwardBiasedSlotWindow: F[Slot] = _forwardBiasedSlotWindow.pure[F]
+
+        override def globalSlot: F[Slot] = currentTimestamp.flatMap(timestampToSlot)
+
+        override def currentEpoch: F[Epoch] =
           (globalSlot, slotsPerEpoch).mapN(_ / _)
 
-        def delayedUntilSlot(slot: Slot): F[Unit] =
+        override def delayedUntilSlot(slot: Slot): F[Unit] =
           globalSlot.map(currentSlot => (slot - currentSlot) * _slotLength).flatMap(delayedFor)
 
-        def delayedUntilTimestamp(timestamp: Timestamp): F[Unit] =
+        override def delayedUntilTimestamp(timestamp: Timestamp): F[Unit] =
           currentTimestamp.map(now => (timestamp - now).milli).flatMap(delayedFor)
 
         private def delayedFor(duration: FiniteDuration): F[Unit] =

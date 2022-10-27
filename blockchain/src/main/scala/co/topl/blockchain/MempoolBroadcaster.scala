@@ -14,7 +14,7 @@ object MempoolBroadcaster {
     materializer:                Materializer
   ): F[(MempoolAlgebra[F], SourceMatNotUsed[TypedIdentifier])] =
     Async[F]
-      .delay(Source.backpressuredQueue[F, TypedIdentifier]().preMaterialize())
+      .delay(Source.dropHeadQueue[F, TypedIdentifier](size = 64).preMaterialize())
       .map { case ((offer, _), source) =>
         val interpreter = new MempoolAlgebra[F] {
           def read(blockId: TypedIdentifier): F[Set[TypedIdentifier]] = mempool.read(blockId)

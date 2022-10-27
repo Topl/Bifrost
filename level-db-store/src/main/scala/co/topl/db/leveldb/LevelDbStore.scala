@@ -2,7 +2,7 @@ package co.topl.db.leveldb
 
 import cats.Applicative
 import cats.data.OptionT
-import cats.effect.{Async, Sync}
+import cats.effect.{Async, Resource, Sync}
 import cats.implicits._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.algebras.Store
@@ -62,7 +62,7 @@ object LevelDbStore {
     cacheSize:       Long = 0,
     maxOpenFiles:    Int = 10,
     compressionType: CompressionType = CompressionType.SNAPPY
-  ): F[DB] = {
+  ): Resource[F, DB] = {
     val options = new Options
     options.createIfMissing(createIfMissing)
     options.paranoidChecks(paranoidChecks)
@@ -70,12 +70,16 @@ object LevelDbStore {
     options.cacheSize(cacheSize)
     options.maxOpenFiles(maxOpenFiles)
     options.compressionType(compressionType)
-    Applicative[F].whenA(createIfMissing)(Files[F].createDirectories(baseDirectory)) >>
-    Sync[F].blocking {
-      org.iq80.leveldb.impl.Iq80DBFactory.factory.open(
-        baseDirectory.toNioPath.toFile,
-        options
-      )
-    }
+
+    val dbF =
+      Applicative[F].whenA(createIfMissing)(Files[F].createDirectories(baseDirectory)) >>
+      Sync[F].blocking {
+        org.iq80.leveldb.impl.Iq80DBFactory.factory.open(
+          baseDirectory.toNioPath.toFile,
+          options
+        )
+      }
+
+    Resource.fromAutoCloseable(dbF)
   }
 }

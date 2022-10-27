@@ -4,7 +4,7 @@ import cats._
 import cats.data._
 import cats.effect.kernel.Sync
 import cats.implicits._
-import co.topl.algebras.{Store, UnsafeResource}
+import co.topl.algebras.{ClockAlgebra, Store, UnsafeResource}
 import co.topl.consensus.algebras._
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
@@ -15,6 +15,7 @@ import com.google.common.primitives.Longs
 import scalacache.caffeine.CaffeineCache
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
+
 import scala.language.implicitConversions
 
 /**
@@ -30,6 +31,7 @@ object BlockHeaderValidation {
       etaInterpreter:           EtaCalculationAlgebra[F],
       consensusValidationState: ConsensusValidationStateAlgebra[F],
       leaderElection:           LeaderElectionValidationAlgebra[F],
+      clockAlgebra:             ClockAlgebra[F],
       ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
       kesProductResource:       UnsafeResource[F, KesProduct],
       ed25519Resource:          UnsafeResource[F, Ed25519],
@@ -40,6 +42,7 @@ object BlockHeaderValidation {
           etaInterpreter,
           consensusValidationState,
           leaderElection,
+          clockAlgebra,
           ed25519VRFResource,
           kesProductResource,
           ed25519Resource,
@@ -51,6 +54,7 @@ object BlockHeaderValidation {
       etaInterpreter:           EtaCalculationAlgebra[F],
       consensusValidationState: ConsensusValidationStateAlgebra[F],
       leaderElection:           LeaderElectionValidationAlgebra[F],
+      clockAlgebra:             ClockAlgebra[F],
       ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
       kesProductResource:       UnsafeResource[F, KesProduct],
       ed25519Resource:          UnsafeResource[F, Ed25519],
@@ -63,6 +67,7 @@ object BlockHeaderValidation {
       ): F[Either[BlockHeaderValidationFailure, BlockHeaderV2]] = {
         for {
           _         <- statelessVerification(child, parent)
+          _         <- EitherT(timeSlotVerification(child))
           _         <- vrfVerification(child)
           _         <- kesVerification(child)
           _         <- registrationVerification(child)
@@ -86,6 +91,20 @@ object BlockHeaderValidation {
           )
           .ensureOr(child => BlockHeaderValidationFailures.NonForwardHeight(child.height, parent.height))(
             _.height === parent.height + 1
+          )
+
+      private[consensus] def timeSlotVerification(header: BlockHeaderV2) =
+        for {
+          globalSlot              <- clockAlgebra.globalSlot
+          childSlotFromTimestamp  <- clockAlgebra.timestampToSlot(header.timestamp)
+          forwardBiasedSlotWindow <- clockAlgebra.forwardBiasedSlotWindow
+        } yield Either
+          .right[BlockHeaderValidationFailure, BlockHeaderV2](header)
+          .ensureOr(child => BlockHeaderValidationFailures.TimestampSlotMismatch(child.slot, child.timestamp))(child =>
+            childSlotFromTimestamp === child.slot
+          )
+          .ensureOr(child => BlockHeaderValidationFailures.SlotBeyondForwardBiasedSlotWindow(globalSlot, child.slot))(
+            child => child.slot < globalSlot + forwardBiasedSlotWindow
           )
 
       /**
