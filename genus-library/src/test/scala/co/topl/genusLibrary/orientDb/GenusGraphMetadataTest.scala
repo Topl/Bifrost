@@ -43,6 +43,8 @@ class GenusGraphMetadataTest extends munit.FunSuite {
     eta = eta
   )
 
+  val stakingAddressOperator = StakingAddresses.Operator(VerificationKeys.Ed25519(zeroBytes(Lengths.`32`)))
+
   test("typedBytes Serialization") {
     val byteArray = Random.nextBytes(TypedBytesLength)
     assertEquals(
@@ -71,6 +73,14 @@ class GenusGraphMetadataTest extends munit.FunSuite {
       byteArrayToOperationalCertificate(operationalCertificateToByteArray(operationalCertificate)),
       operationalCertificate,
       "Round trip serialization of OperationalCertificate"
+    )
+  }
+
+  test("StakingAddress Operator Serialization") {
+    assertEquals(
+      byteArrayToStakingAddressOperator(stakingAddressOperatorToByteArray(stakingAddressOperator)),
+      stakingAddressOperator,
+      "Round trip serialization of StakingAddress operator"
     )
   }
 }

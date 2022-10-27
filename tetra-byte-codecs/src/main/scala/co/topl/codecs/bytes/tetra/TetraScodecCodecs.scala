@@ -25,6 +25,9 @@ trait TetraScodecCodecs
     with TetraScodecTransactionCodecs
     with TetraScodecBlockCodecs
 
+/**
+ * Use this object or the package object to access all of the codecs from outside of this package.
+ */
 object TetraScodecCodecs extends TetraScodecCodecs
 
 trait TetraScodecPrimitiveCodecs {
@@ -101,7 +104,7 @@ trait TetraScodecPrimitiveCodecs {
     )
 
   implicit val networkPrefixCodec: Codec[NetworkPrefix] =
-    Codec[Byte].xmap(NetworkPrefix(_), _.value)
+    Codec[Byte].xmap(NetworkPrefix, _.value)
 
   implicit val typedEvidenceCodec: Codec[TypedEvidence] =
     (Codec[TypePrefix] :: Codec[Evidence]).as[TypedEvidence]
@@ -110,7 +113,7 @@ trait TetraScodecPrimitiveCodecs {
     Codec[TypedEvidence].as[SpendingAddress] // TODO: Checksum
 
   implicit val rhoCodec: Codec[Rho] =
-    Codec[Sized.Strict[Bytes, Lengths.`64`.type]].xmap(Rho(_), _.sizedBytes)
+    Codec[Sized.Strict[Bytes, Lengths.`64`.type]].xmap(Rho, _.sizedBytes)
 }
 
 trait TetraScodecCryptoCodecs {
@@ -271,17 +274,17 @@ trait TetraScodecPropositionCodecs {
 
   implicit val propositionsCompositionalThresholdCodec: Codec[Propositions.Compositional.Threshold] =
     Codec
-      .lazily((Codec[Int](intCodec) :: Codec[ListSet[Proposition]]))
+      .lazily(Codec[Int](intCodec) :: Codec[ListSet[Proposition]])
       .as[Propositions.Compositional.Threshold]
 
   implicit val propositionsCompositionalAndCodec: Codec[Propositions.Compositional.And] =
     Codec
-      .lazily((Codec[Proposition] :: Codec[Proposition]))
+      .lazily(Codec[Proposition] :: Codec[Proposition])
       .as[Propositions.Compositional.And]
 
   implicit val propositionsCompositionalOrCodec: Codec[Propositions.Compositional.Or] =
     Codec
-      .lazily((Codec[Proposition] :: Codec[Proposition]))
+      .lazily(Codec[Proposition] :: Codec[Proposition])
       .as[Propositions.Compositional.Or]
 
   implicit val propositionsCompositionalNotCodec: Codec[Propositions.Compositional.Not] =

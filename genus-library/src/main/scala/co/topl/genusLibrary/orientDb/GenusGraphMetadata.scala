@@ -1,13 +1,13 @@
 package co.topl.genusLibrary.orientDb {
 
-  import co.topl.codecs.bytes.tetra.{TetraIdentifiableInstances, TetraScodecBlockCodecs, TetraScodecCodecs}
+  import co.topl.codecs.bytes.tetra.{TetraIdentifiableInstances, TetraScodecCodecs}
   import co.topl.genusLibrary.GenusException
   import co.topl.models._
-  import co.topl.models.utility.HasLength.instances.bytesLength
+  import co.topl.models.utility.Length
   import co.topl.models.utility.Lengths._
-  import co.topl.models.utility.{Length, Sized}
   import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
   import com.tinkerpop.blueprints.impls.orient.{OrientEdgeType, OrientGraphNoTx, OrientVertexType}
+  import scodec.Codec
   import scodec.bits.BitVector
 
   /**
@@ -151,7 +151,7 @@ package co.topl.genusLibrary.orientDb {
           )
       )
 
-    // TODO this needs to change when we switch to models from protobufs
+    // TODO this needs to change when we switch to models from proto-buffers
 
     def typedBytesToByteArray(t: TypedIdentifier): Array[Byte] =
       typedBytesTupleToByteArray((t.typePrefix, t.dataBytes.toArray))
@@ -170,51 +170,41 @@ package co.topl.genusLibrary.orientDb {
       a
     }
 
+    private def encodeToByteArray[T <: java.io.Serializable](objct: T, codec: Codec[T], typeName: String): Array[Byte] =
+      codec
+        .encode(objct)
+        .mapErr(err => throw GenusException(s"Error encoding $typeName: ${err.messageWithContext}"))
+        .require
+        .toByteArray
+
+    private def decodeFromByteArray[T <: java.io.Serializable](a: Array[Byte], codec: Codec[T], typeName: String): T =
+      codec
+        .decode(BitVector(a))
+        .mapErr { err =>
+          throw GenusException(s"Error decoding $typeName: ${err.messageWithContext}")
+        }
+        .require
+        .value
+
     val evidenceLength: Length = implicitly[Evidence.Length]
-    private val etaLength = implicitly[Eta.Length].value
-    private val vrfSigLength = implicitly[Proofs.Knowledge.VrfEd25519.Length].value
-    private val vkVRFLength = implicitly[VerificationKeys.VrfEd25519.Length].value
 
     // No need for a byteArrayToBlockHeaderId because it is computed rather than stored.
     def eligibilityCertificateToByteArray(eligibilityCertificate: EligibilityCertificate): Array[Byte] =
-      TetraScodecCodecs.eligibilityCertificateCodec
-        .encode(eligibilityCertificate)
-        .mapErr { err =>
-          throw GenusException(s"Error encoding an EligibilityCertificate: ${err.messageWithContext}")
-        }
-        .require
-        .toByteArray
-
+      encodeToByteArray(eligibilityCertificate, TetraScodecCodecs.eligibilityCertificateCodec, "EligibilityCertificate")
 
     def byteArrayToEligibilityCertificate(a: Array[Byte]): EligibilityCertificate =
-      TetraScodecCodecs.eligibilityCertificateCodec
-        .decode(BitVector(a))
-        .mapErr { err =>
-          throw GenusException(s"Error decoding an EligibilityCertificate: ${err.messageWithContext}")
-        }
-        .require
-        .value
+      decodeFromByteArray(a, TetraScodecCodecs.eligibilityCertificateCodec, "EligibilityCertificate")
 
     def operationalCertificateToByteArray(operationalCertificate: OperationalCertificate): Array[Byte] =
-      TetraScodecCodecs.operationalCertificateCodec
-        .encode(operationalCertificate)
-        .mapErr { err =>
-          throw GenusException(s"Error encoding an OperationalCertificate: ${err.messageWithContext}")
-        }
-        .require
-        .toByteArray
+      encodeToByteArray(operationalCertificate, TetraScodecCodecs.operationalCertificateCodec, "OperationalCertificate")
 
     def byteArrayToOperationalCertificate(a: Array[Byte]): OperationalCertificate =
-      TetraScodecCodecs.operationalCertificateCodec
-        .decode(BitVector(a))
-        .mapErr { err =>
-          throw GenusException(s"Error decoding an OperationalCertificate: ${err.messageWithContext}")
-        }
-        .require
-        .value
+      decodeFromByteArray(a, TetraScodecCodecs.operationalCertificateCodec, "OperationalCertificate")
 
-    def stakingAddressOperatorToByteArray(eligibilityCertificate: StakingAddresses.Operator): Array[Byte] = ???
+    def stakingAddressOperatorToByteArray(operator: StakingAddresses.Operator): Array[Byte] =
+      encodeToByteArray(operator, TetraScodecCodecs.stakingAddressesOperatorCodec, "Operator")
 
-    def byteArrayToStakingAddressOperator(a: Array[Byte]): StakingAddresses.Operator = ???
+    def byteArrayToStakingAddressOperator(a: Array[Byte]): StakingAddresses.Operator =
+      decodeFromByteArray(a, TetraScodecCodecs.stakingAddressesOperatorCodec, "Operator")
   }
 }
