@@ -18,17 +18,15 @@ package co.topl.genusLibrary.orientDb {
     import GenusGraphMetadata._
 
     val addressVertexType: OrientVertexType = ensureVertexSchemaInitialized(addressVertexSchema)
-    val boxStateVertexType: OrientVertexType = ensureVertexSchemaInitialized(boxStateSchema)
-
+    val addressStateVertexType: OrientVertexType = ensureVertexSchemaInitialized(addressStateSchema)
     val blockHeaderVertexType: OrientVertexType = ensureVertexSchemaInitialized(blockHeaderSchema)
-
     val blockBodyVertexType: OrientVertexType = ensureVertexSchemaInitialized(blockBodySchema)
-    val boxVertexType: OrientVertexType = graphNoTx.createVertexType("Box")
+    val txoStateVertexType: OrientVertexType = ensureVertexSchemaInitialized(txoStateSchema)
     val transactionVertexType: OrientVertexType = graphNoTx.createVertexType("Transaction")
 
-    val currentBoxStateEdgeType: OrientEdgeType = graphNoTx.createEdgeType("CurrentBoxState")
-    val prevToNextBoxStateEdgeType: OrientEdgeType = graphNoTx.createEdgeType("PrevToNext")
-    val stateToBoxEdgeType: OrientEdgeType = graphNoTx.createEdgeType("StateToBox")
+    val currentAddressStateEdgeType: OrientEdgeType = graphNoTx.createEdgeType("CurrentAddressState")
+    val prevToNextAddressStateEdgeType: OrientEdgeType = graphNoTx.createEdgeType("PrevToNextAddressState")
+    val addressStateToTxoStateEdgeType: OrientEdgeType = graphNoTx.createEdgeType("AddressStateToTxoState")
     val inputEdgeType: OrientEdgeType = graphNoTx.createEdgeType("Input")
     val outputEdgeType: OrientEdgeType = graphNoTx.createEdgeType("Output")
 
@@ -88,11 +86,11 @@ package co.topl.genusLibrary.orientDb {
     /**
      * Schema for TxO state vertexes
      * <p>
-     * Txo state vertexes have no properties, just links to boxes.
+     * address state vertexes have no properties, just links to txoStates.
      */
-    private val boxStateSchema: VertexSchema[Unit] =
+    private val addressStateSchema: VertexSchema[Unit] =
       VertexSchema.create(
-        "boxState",
+        "AddressState",
         GraphDataEncoder[Unit],
         _ => ()
       )
@@ -131,7 +129,7 @@ package co.topl.genusLibrary.orientDb {
             _.setNotNull(true)
           )(byteArrayOrientDbTypes)
           .withProperty("metadata", _.metadata.map(_.data.bytes).orNull, _.setNotNull(false))(byteArrayOrientDbTypes)
-          .withProperty("address", s => stakingAddressOperatorToByteArray(s.address), _.setNotNull(true))(
+          .withProperty("StakingAddress", s => stakingAddressOperatorToByteArray(s.address), _.setNotNull(true))(
             byteArrayOrientDbTypes
           )
           .withIndex("blockHeaderIndex", INDEX_TYPE.UNIQUE, "blockId"),
@@ -144,10 +142,10 @@ package co.topl.genusLibrary.orientDb {
             v("timestamp"),
             v("height"),
             v("slot"),
-            v("eligibilityCertificate"),
-            v("operationalCertificate"),
+            byteArrayToEligibilityCertificate(v("eligibilityCertificate")),
+            byteArrayToOperationalCertificate(v("operationalCertificate")),
             v("metadata"),
-            v("address")
+            byteArrayToStakingAddressOperator(v("StakingAddress"))
           )
       )
 
@@ -160,7 +158,38 @@ package co.topl.genusLibrary.orientDb {
         v => byteArrayToBlockBodyV2(v("transactionIds"))
       )
 
+    private val transactionSchema: VertexSchema[Transaction] =
+      VertexSchema.create(
+        name = "Transaction",
+        GraphDataEncoder[Transaction]
+          .withProperty(
+            "transactionId",
+            t => {
+              val (typePrefix, bytes) = TetraIdentifiableInstances.transactionIdentifiable.idOf(t)
+              typedBytesTupleToByteArray((typePrefix, bytes.toArray))
+            },
+            _.setNotNull(true))(byteArrayOrientDbTypes)
+          .withProperty("transaction", transactionToByteArray, _.setNotNull(true))(byteArrayOrientDbTypes)
+          .withIndex("transactionIdIndex", INDEX_TYPE.UNIQUE, "transactionId"),
+        // transactionID is not stored in a transaction, but computed
+        v => byteArrayToTransaction(v("transaction"))
+      )
+
+    private val txoStateSchema: VertexSchema[Box] =
+      VertexSchema.create(
+        "TxoState",
+        GraphDataEncoder[Box],
+        v=> v("")
+      )
+
+
     // TODO this needs to change when we switch to models from proto-buffers
+    def transactionToByteArray(transaction: Transaction): Array[Byte] =
+      encodeToByteArray(transaction, TetraScodecCodecs.transactionCodec, "Transaction")
+
+    def byteArrayToTransaction(a: Array[Byte]): Transaction =
+      decodeFromByteArray(a, TetraScodecCodecs.transactionCodec, "Transaction")
+
     def byteArrayToBlockBodyV2(a: Array[Byte]): BlockBodyV2 =
       decodeFromByteArray(a, TetraScodecCodecs.blockBodyV2Codec, "BlockBodyV2")
 
