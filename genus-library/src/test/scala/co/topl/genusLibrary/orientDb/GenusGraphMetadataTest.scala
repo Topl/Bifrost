@@ -1,5 +1,6 @@
 package co.topl.genusLibrary.orientDb
 
+import cats.data.Chain
 import co.topl.crypto.hash.Blake2b256
 import co.topl.models._
 import co.topl.models.utility._
@@ -81,10 +82,8 @@ class GenusGraphMetadataTest extends munit.FunSuite {
   }
 
   test("BlockBodyV2 round-trip Serialization") {
-    val evidenceLength = implicitly[Evidence.Length].value
-
     val blockBodyV2 = (0 to 3).foldLeft(ListSet.empty[TypedIdentifier]) { case (transactions, _) =>
-      val byteArray = Random.nextBytes(evidenceLength)
+      val byteArray = Random.nextBytes(evidenceLength.value)
       val transactionId = TypedBytes(IdentifierTypes.Block.BodyV2, Bytes(byteArray))
       transactions + transactionId
     }
@@ -93,6 +92,20 @@ class GenusGraphMetadataTest extends munit.FunSuite {
       byteArrayToBlockBodyV2(blockBodyV2ToByteArray(blockBodyV2)).toSeq,
       blockBodyV2.toSeq,
       "Round trip serialization of BlockBodyV2"
+    )
+  }
+
+  test("Transaction round-trip serialization") {
+    val transaction = Transaction(
+      inputs = Chain.empty,
+      outputs = Chain.empty,
+      schedule = Transaction.Schedule(0L, 100L, 1000L),
+      data = None
+    )
+    assertEquals(
+      byteArrayToTransaction(transactionToByteArray(transaction)),
+      transaction,
+      "Round-Trop Transaction serialization"
     )
   }
 }
