@@ -44,7 +44,8 @@ class GenusGraphMetadataTest extends munit.FunSuite {
     eta = eta
   )
 
-  private val stakingAddressOperator: StakingAddresses.Operator = StakingAddresses.Operator(VerificationKeys.Ed25519(zeroBytes(Lengths.`32`)))
+  private val stakingAddressOperator: StakingAddresses.Operator =
+    StakingAddresses.Operator(VerificationKeys.Ed25519(zeroBytes(Lengths.`32`)))
 
   test("typedBytes Serialization") {
     val byteArray = Random.nextBytes(TypedBytesLength)
@@ -56,12 +57,6 @@ class GenusGraphMetadataTest extends munit.FunSuite {
   }
 
   test("EligibilityCertificate Serialization") {
-    val serializedLength: Int =
-      implicitly[Evidence.Length].value +
-      implicitly[Eta.Length].value +
-      implicitly[Proofs.Knowledge.VrfEd25519.Length].value +
-      implicitly[VerificationKeys.VrfEd25519.Length].value
-    val byteArray = Random.nextBytes(serializedLength)
     assertEquals(
       byteArrayToEligibilityCertificate(eligibilityCertificateToByteArray(eligibilityCertificate)),
       eligibilityCertificate,
@@ -88,11 +83,10 @@ class GenusGraphMetadataTest extends munit.FunSuite {
   test("BlockBodyV2 round-trip Serialization") {
     val evidenceLength = implicitly[Evidence.Length].value
 
-    val blockBodyV2 = (0 to 3).foldLeft(ListSet.empty[TypedIdentifier]) {
-      case (transactions, _) =>
-        val byteArray = Random.nextBytes(evidenceLength)
-        val transactionId = TypedBytes(IdentifierTypes.Block.BodyV2, Bytes(byteArray))
-        transactions + transactionId
+    val blockBodyV2 = (0 to 3).foldLeft(ListSet.empty[TypedIdentifier]) { case (transactions, _) =>
+      val byteArray = Random.nextBytes(evidenceLength)
+      val transactionId = TypedBytes(IdentifierTypes.Block.BodyV2, Bytes(byteArray))
+      transactions + transactionId
     }
 
     assertEquals(
