@@ -1,13 +1,15 @@
 package co.topl.genusLibrary
 
+import co.topl.genusLibrary
 import co.topl.models.Box
 
+//noinspection ScalaFileName
 object TxoState extends Enumeration {
   type TxoState = Value
 
-  val Spent = Value
-  val Unspent = Value
-  val Pending = Value
+  val Spent: genusLibrary.TxoState.Value = Value
+  val Unspent: genusLibrary.TxoState.Value = Value
+  val Pending: genusLibrary.TxoState.Value = Value
 }
 
 import TxoState._
