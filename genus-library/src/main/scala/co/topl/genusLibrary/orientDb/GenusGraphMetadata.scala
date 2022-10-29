@@ -2,6 +2,7 @@ package co.topl.genusLibrary.orientDb {
 
   import co.topl.codecs.bytes.tetra.{TetraIdentifiableInstances, TetraScodecCodecs}
   import co.topl.genusLibrary.GenusException
+  import co.topl.genusLibrary.TxoState.TxoState
   import co.topl.models._
   import co.topl.models.utility.Length
   import co.topl.models.utility.Lengths._
@@ -175,10 +176,10 @@ package co.topl.genusLibrary.orientDb {
         v => byteArrayToTransaction(v("transaction"))
       )
 
-    private val txoStateSchema: VertexSchema[Box] =
+    private val txoStateSchema: VertexSchema[TxoState] =
       VertexSchema.create(
         "TxoState",
-        GraphDataEncoder[Box],
+        GraphDataEncoder[TxoState],
         v=> v("")
       )
 
