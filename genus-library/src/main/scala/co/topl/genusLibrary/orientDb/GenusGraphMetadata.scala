@@ -1,8 +1,7 @@
 package co.topl.genusLibrary.orientDb {
 
   import co.topl.codecs.bytes.tetra.{TetraIdentifiableInstances, TetraScodecCodecs}
-  import co.topl.genusLibrary.GenusException
-  import co.topl.genusLibrary.TxoState.TxoState
+  import co.topl.genusLibrary.{GenusException, Txo}
   import co.topl.models._
   import co.topl.models.utility.Length
   import co.topl.models.utility.Lengths._
@@ -22,7 +21,7 @@ package co.topl.genusLibrary.orientDb {
     val addressStateVertexType: OrientVertexType = ensureVertexSchemaInitialized(addressStateSchema)
     val blockHeaderVertexType: OrientVertexType = ensureVertexSchemaInitialized(blockHeaderSchema)
     val blockBodyVertexType: OrientVertexType = ensureVertexSchemaInitialized(blockBodySchema)
-    val txoStateVertexType: OrientVertexType = ensureVertexSchemaInitialized(txoStateSchema)
+    val txoVertexType: OrientVertexType = ensureVertexSchemaInitialized(txoSchema)
     val transactionVertexType: OrientVertexType = graphNoTx.createVertexType("Transaction")
 
     val currentAddressStateEdgeType: OrientEdgeType = graphNoTx.createEdgeType("CurrentAddressState")
@@ -169,20 +168,27 @@ package co.topl.genusLibrary.orientDb {
               val (typePrefix, bytes) = TetraIdentifiableInstances.transactionIdentifiable.idOf(t)
               typedBytesTupleToByteArray((typePrefix, bytes.toArray))
             },
-            _.setNotNull(true))(byteArrayOrientDbTypes)
+            _.setNotNull(true)
+          )(byteArrayOrientDbTypes)
           .withProperty("transaction", transactionToByteArray, _.setNotNull(true))(byteArrayOrientDbTypes)
           .withIndex("transactionIdIndex", INDEX_TYPE.UNIQUE, "transactionId"),
         // transactionID is not stored in a transaction, but computed
         v => byteArrayToTransaction(v("transaction"))
       )
 
-    private val txoStateSchema: VertexSchema[TxoState] =
+    private val txoSchema: VertexSchema[Txo] =
       VertexSchema.create(
         "TxoState",
-        GraphDataEncoder[TxoState],
-        v=> v("")
+        GraphDataEncoder[Txo]
+          .withProperty("transactionId")
+          .withProperty("transactionOutputIndex")
+          .withProperty("assetLabel")
+          .withProperty("box")
+          .withIndex("boxId", INDEX_TYPE.UNIQUE, "transactionId", "transactionOutputIndex")
+          .withIndex("assetLabel", INDEX_TYPE.NOTUNIQUE, "assetLabel")
+        ,
+        v => v("")
       )
-
 
     // TODO this needs to change when we switch to models from proto-buffers
     def transactionToByteArray(transaction: Transaction): Array[Byte] =
