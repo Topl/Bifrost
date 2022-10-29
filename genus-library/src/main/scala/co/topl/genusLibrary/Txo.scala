@@ -1,7 +1,7 @@
 package co.topl.genusLibrary
 
 import co.topl.genusLibrary
-import co.topl.models.Box
+import co.topl.models.{Box, SpendingAddress}
 
 //noinspection ScalaFileName
 object TxoState extends Enumeration {
@@ -18,6 +18,6 @@ import TxoState._
  * The contents of this file should be generated from protobuf specs, but it is not yet.
  *
  * @param box the Box that represents the TxO
- * @param status The status of the box
+ * @param state The status of the box
  */
-case class Txo(box: Box, status: TxoState)
+case class Txo(box: Box, state: TxoState, id: Box.Id, address: Option[SpendingAddress]) {}
