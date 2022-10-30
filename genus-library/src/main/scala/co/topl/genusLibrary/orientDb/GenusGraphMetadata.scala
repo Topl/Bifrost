@@ -180,10 +180,10 @@ package co.topl.genusLibrary.orientDb {
       VertexSchema.create(
         "TxoState",
         GraphDataEncoder[Txo]
-          .withProperty("transactionId")
-          .withProperty("transactionOutputIndex")
-          .withProperty("assetLabel")
-          .withProperty("box")
+//          .withProperty("transactionId")
+//          .withProperty("transactionOutputIndex")
+//          .withProperty("assetLabel")
+//          .withProperty("box")
           .withIndex("boxId", INDEX_TYPE.UNIQUE, "transactionId", "transactionOutputIndex")
           .withIndex("assetLabel", INDEX_TYPE.NOTUNIQUE, "assetLabel")
         ,
