@@ -36,7 +36,7 @@ case class Txo(box: Box, state: TxoState, id: Box.Id, address: Option[SpendingAd
     case Poly(quantity) => Some(quantity)
     case Arbit(quantity) => Some(quantity)
     case AssetV1(quantity, _, _, _) => Some(quantity)
-    case v:_ => unsupported(v)
+    case v: AnyRef => unsupported(v)
   }
 
   /**
@@ -55,23 +55,22 @@ case class Txo(box: Box, state: TxoState, id: Box.Id, address: Option[SpendingAd
     case Empty => "EMPTY"
     case Poly(_) => "LVL"
     case Arbit(_) => "TOPL"
-    case AssetV1(_, assetCode, -, _) =>
+    case AssetV1(_, assetCode, _, _) =>
       assetCode.version.toHexString + "|" + Base58.encode(assetCode.issuer.typedEvidence.allBytes.toArray)
-    case v:_ => unsupported(v)
+    case v: AnyRef => unsupported(v)
   }
 
   def securityRoot: Option[Array[Byte]] = box.value match {
     case Empty | Poly(_) | Arbit(_) => None
     case AssetV1(_, _, securityRoot, _) => Some(securityRoot.data.toArray)
-    case v:_ => unsupported(v)
+    case v: AnyRef => unsupported(v)
   }
 
   def metadata: Option[Array[Byte]] = box.value match {
     case Empty | Poly(_) | Arbit(_) => None
     case AssetV1(_, _, _, metadata) => metadata.map(m => m.data.bytes)
-    case v: _ => unsupported(v)
+    case v: AnyRef => unsupported(v)
   }
-
 }
 
 object Txo {
