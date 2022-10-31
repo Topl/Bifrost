@@ -80,7 +80,7 @@ class TxoTest extends munit.FunSuite {
     assertEquals(quantity, txo.quantity.get, "Txo quantity should match")
     val expectedAssetLabel =
       assetVersion.toHexString + "|" + Base58.encode(issuingAddress.typedEvidence.allBytes.toArray)
-    assertEquals(txo.assetLabel, expectedAssetLabel, "Asset label should be as expected")
+    assertEquals(txo.assetLabel, expectedAssetLabel, "Asset label should be as expected.")
     assert(txo.securityRoot.isDefined, "A security root should be present")
     assertEquals(txo.securityRoot.get.toSeq, securityRoot.data.toArray.toSeq, "securityRoot should be as expected")
     assert(txo.metadata.isDefined, "Metadata should be present")
