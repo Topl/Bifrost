@@ -42,7 +42,9 @@ class LocalChainSynchronizationTraversalSpec extends CatsEffectSuite with ScalaC
 
       adoptions = Source(Seq(slot_C, slot_F).map(_.slotId.blockId))
 
-      stream <- LocalChainSynchronizationTraversal.make[F](slot_A.slotId.blockId, adoptions, parentChildTree).headChanges
+      stream <- LocalChainSynchronizationTraversal
+        .make[F](slot_A.slotId.blockId, adoptions, parentChildTree)
+        .headChanges
 
       expected = List(
         Applied(slot_B.slotId.blockId),
