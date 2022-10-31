@@ -291,6 +291,7 @@ lazy val nodeTetra = project
   )
   .dependsOn(
     models % "compile->compile;test->test",
+    common % "compile->compile;test->test",
     typeclasses,
     consensus,
     minting,

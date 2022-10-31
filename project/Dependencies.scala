@@ -200,15 +200,22 @@ object Dependencies {
     monitoring ++
     mainargs
 
-  val nodeTetra: Seq[ModuleID] =
-    cats ++ catsEffect ++ mainargs ++ logging ++ monocle ++ Seq(
+  val nodeTetra: Seq[ModuleID] = {
+    Seq(
       catsSlf4j,
       akka("actor-typed"),
       fs2Core,
       fs2IO,
       pureConfig,
       circeYaml
-    )
+    ) ++
+    cats ++
+    catsEffect ++
+    mainargs ++
+    logging ++
+    monocle ++
+    it
+  }
 
   val networkDelayer: Seq[ModuleID] =
     cats ++ catsEffect ++ mainargs ++ logging ++ Seq(
