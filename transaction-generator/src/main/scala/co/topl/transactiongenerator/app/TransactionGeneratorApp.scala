@@ -39,8 +39,8 @@ object TransactionGeneratorApp
       // Initialize gRPC Clients
       clientAddresses <- parseClientAddresses
       _               <- Logger[F].info(show"Initializing clients=$clientAddresses")
-      clients = clientAddresses.traverse { case (host, port) =>
-        ToplGrpc.Client.make[F](host, port, tls = false)
+      clients = clientAddresses.traverse { case (host, port, useTls) =>
+        ToplGrpc.Client.make[F](host, port, tls = useTls)
       }
       // Turn the list of clients into a single client (randomly chosen per-call)
       _ <- clients
@@ -78,16 +78,29 @@ object TransactionGeneratorApp
         )
     } yield ()
 
-  private def parseClientAddresses: F[NonEmptyChain[(String, Int)]] =
+  /**
+   * Parse the RPC addresses from configuration.
+   * If the address starts with "https://", TLS will be enabled on the connection.
+   * If the address starts with "http://", TLS will be disabled on the connection.
+   * If the address starts with neither, TLS will be enabled on the connection.
+   */
+  private def parseClientAddresses: F[NonEmptyChain[(String, Int, Boolean)]] =
     IO.fromEither(
       NonEmptyChain
         .fromSeq(appConfig.transactionGenerator.rpc.clients)
         .toRight[Exception](new IllegalArgumentException("No RPC clients specified"))
-        .flatMap(_.traverse(_.split(':').toList match {
-          case host :: port :: Nil =>
-            port.toIntOption.toRight(new IllegalArgumentException("Invalid RPC port provided")).map((host, _))
-          case _ => Left(new IllegalArgumentException("Invalid RPC config provided"))
-        }))
+        .flatMap(_.traverse { string =>
+          val (withoutProtocol: String, useTls: Boolean) =
+            if (string.startsWith("http://")) (string.drop(7), false)
+            else if (string.startsWith("https://")) (string.drop(8), true)
+            else (string, true)
+
+          withoutProtocol.split(':').toList match {
+            case host :: port :: Nil =>
+              port.toIntOption.toRight(new IllegalArgumentException("Invalid RPC port provided")).map((host, _, useTls))
+            case _ => Left(new IllegalArgumentException("Invalid RPC config provided"))
+          }
+        })
     )
 
   /**
