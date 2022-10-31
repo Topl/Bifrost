@@ -39,7 +39,7 @@ class LocalChainBroadcasterSpec
     }
   }
 
-  implicit val system: ActorSystem = ActorSystem("MempoolBroadcasterSpec")
+  implicit val system: ActorSystem = ActorSystem("LocalChainBroadcasterSpec")
 
   override def afterAll(): Unit = {
     super.afterAll()
