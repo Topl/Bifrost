@@ -1,8 +1,7 @@
 package co.topl
 
-import co.topl.models.utility.StringDataTypes.Latin1Data
-import co.topl.models.utility.{Lengths, Sized}
 import co.topl.models.utility.HasLength.instances._
+import co.topl.models.utility.{Lengths, Sized}
 import io.estatico.newtype.macros.{newsubtype, newtype}
 import io.estatico.newtype.ops._
 import scodec.bits.ByteVector
@@ -29,7 +28,10 @@ package object models {
   }
 
   object TypedEvidence {
-    val empty: TypedEvidence = TypedEvidence(0: Byte, Sized.strictUnsafe(Bytes(Array.fill(32)(0: Byte))))
+    val typedEvidenceLength = 32
+
+    val empty: TypedEvidence =
+      TypedEvidence(0: Byte, Sized.strictUnsafe(Bytes(Array.fill(typedEvidenceLength)(0: Byte))))
 
     def fromAllBytes(bytes: Bytes): TypedEvidence = new TypedEvidence(bytes.head, Sized.strictUnsafe(bytes.tail))
   }

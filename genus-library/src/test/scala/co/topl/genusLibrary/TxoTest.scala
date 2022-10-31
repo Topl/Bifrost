@@ -1,6 +1,5 @@
 package co.topl.genusLibrary
 
-import co.topl.crypto.utils.Hex
 import co.topl.models.Box.Values.AssetV1.Code
 import co.topl.models.Box.Values.{Arbit, AssetV1, Empty, Poly}
 import co.topl.models._
@@ -22,7 +21,7 @@ class TxoTest extends munit.FunSuite {
     val txo = Txo(
       Box(randomEvidence, Empty),
       TxoState.Unspent,
-      Box.Id(TypedBytes(Bytes(Random.nextBytes(evidenceLength + 1))), 2),
+      Box.Id(TypedBytes(Bytes(Random.nextBytes(TypedEvidence.typedEvidenceLength))), 2),
       None
     )
 
@@ -36,8 +35,8 @@ class TxoTest extends munit.FunSuite {
     val quantity: Int128 = 10_000_000L
     val txo = Txo(
       Box(randomEvidence, Poly(quantity)),
-      TxoState.Unspent,
-      Box.Id(TypedBytes(Bytes(Random.nextBytes(evidenceLength + 1))), 2),
+      TxoState.Spent,
+      Box.Id(TypedBytes(Bytes(Random.nextBytes(TypedEvidence.typedEvidenceLength))), 2),
       Some(SpendingAddress(randomEvidence))
     )
 
@@ -51,8 +50,8 @@ class TxoTest extends munit.FunSuite {
     val quantity: Int128 = 19_000_000L
     val txo = Txo(
       Box(randomEvidence, Arbit(quantity)),
-      TxoState.Unspent,
-      Box.Id(TypedBytes(Bytes(Random.nextBytes(evidenceLength + 1))), 2),
+      TxoState.Pending,
+      Box.Id(TypedBytes(Bytes(Random.nextBytes(TypedEvidence.typedEvidenceLength))), 2),
       Some(SpendingAddress(randomEvidence))
     )
 
@@ -74,7 +73,7 @@ class TxoTest extends munit.FunSuite {
     val txo = Txo(
       Box(randomEvidence, AssetV1(quantity, code, securityRoot, Some(metadata))),
       TxoState.Unspent,
-      Box.Id(TypedBytes(Bytes(Random.nextBytes(evidenceLength + 1))), 2),
+      Box.Id(TypedBytes(Bytes(Random.nextBytes(TypedEvidence.typedEvidenceLength))), 2),
       Some(SpendingAddress(randomEvidence))
     )
 
