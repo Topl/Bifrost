@@ -30,6 +30,8 @@ package object models {
 
   object TypedEvidence {
     val empty: TypedEvidence = TypedEvidence(0: Byte, Sized.strictUnsafe(Bytes(Array.fill(32)(0: Byte))))
+
+    def fromAllBytes(bytes: Bytes): TypedEvidence = new TypedEvidence(bytes.head, Sized.strictUnsafe(bytes.tail))
   }
 
   type TypePrefix = Byte

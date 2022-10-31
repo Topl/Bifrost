@@ -1,7 +1,7 @@
 package co.topl.genusLibrary.orientDb {
 
   import co.topl.codecs.bytes.tetra.{TetraIdentifiableInstances, TetraScodecCodecs}
-  import co.topl.genusLibrary.{GenusException, Txo}
+  import co.topl.genusLibrary.{GenusException, Txo, TxoState}
   import co.topl.models._
   import co.topl.models.utility.Length
   import co.topl.models.utility.Lengths._
@@ -180,17 +180,42 @@ package co.topl.genusLibrary.orientDb {
       VertexSchema.create(
         "TxoState",
         GraphDataEncoder[Txo]
-//          .withProperty("transactionId")
-//          .withProperty("transactionOutputIndex")
-//          .withProperty("assetLabel")
-//          .withProperty("box")
+          .withProperty("transactionId", _.id.transactionId.dataBytes.toArray, _.setNotNull(true))(
+            byteArrayOrientDbTypes
+          )
+          .withProperty(
+            "transactionOutputIndex",
+            txo => java.lang.Short.valueOf(txo.id.transactionOutputIndex),
+            _.setNotNull(true)
+          )(shortOrientDbTyped)
+          .withProperty("assetLabel", _.assetLabel, _.setNotNull(true))(stringOrientDbTyped)
+          .withProperty("box", txo => boxToByteArray(txo.box))(byteArrayOrientDbTypes)
+          .withProperty("state", _.state.toString)(stringOrientDbTyped)
+          .withProperty(
+            "spendingAddress",
+            _.address.map(addr => addr.typedEvidence.allBytes.toArray).orNull,
+            _.setNotNull(false)
+          )(byteArrayOrientDbTypes)
           .withIndex("boxId", INDEX_TYPE.UNIQUE, "transactionId", "transactionOutputIndex")
-          .withIndex("assetLabel", INDEX_TYPE.NOTUNIQUE, "assetLabel")
-        ,
-        v => v("")
+          .withIndex("assetLabel", INDEX_TYPE.NOTUNIQUE, "assetLabel"),
+        v => {
+          val transactionIdBytes: Array[Byte] = v("transactionId")
+          Txo(
+            byteArrayToBox(v("box")),
+            TxoState.withName(v("state")),
+            Box.Id(TypedBytes(Bytes(transactionIdBytes)), v("transactionOutputIndex").asInstanceOf[Short]),
+            Option(SpendingAddress(TypedEvidence.fromAllBytes(Bytes(v("spendingAddress").asInstanceOf[Array[Byte]]))))
+          )
+        }
       )
 
     // TODO this needs to change when we switch to models from proto-buffers
+    def boxToByteArray(box: Box): Array[Byte] =
+      encodeToByteArray(box, TetraScodecCodecs.boxCodec, "Box")
+
+    def byteArrayToBox(a: Array[Byte]): Box =
+      decodeFromByteArray(a, TetraScodecCodecs.boxCodec, "Box")
+
     def transactionToByteArray(transaction: Transaction): Array[Byte] =
       encodeToByteArray(transaction, TetraScodecCodecs.transactionCodec, "Transaction")
 
