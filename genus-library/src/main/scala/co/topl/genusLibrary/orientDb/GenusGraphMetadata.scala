@@ -17,6 +17,11 @@ package co.topl.genusLibrary.orientDb {
 
     import GenusGraphMetadata._
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // The following fields describe the vertexes and edges that make up the data model.  They will be used by other
+    // classes, so they are public
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     val addressVertexType: OrientVertexType = ensureVertexSchemaInitialized(addressVertexSchema)
     val addressStateVertexType: OrientVertexType = ensureVertexSchemaInitialized(addressStateSchema)
     val blockHeaderVertexType: OrientVertexType = ensureVertexSchemaInitialized(blockHeaderSchema)

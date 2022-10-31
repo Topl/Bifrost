@@ -10,9 +10,7 @@ import com.typesafe.scalalogging.Logger
 object TxoState extends Enumeration {
   type TxoState = Value
 
-  val Spent: genusLibrary.TxoState.Value = Value
-  val Unspent: genusLibrary.TxoState.Value = Value
-  val Pending: genusLibrary.TxoState.Value = Value
+  val Spent, Unspent, Pending: genusLibrary.TxoState.Value = Value
 }
 
 import co.topl.genusLibrary.TxoState._

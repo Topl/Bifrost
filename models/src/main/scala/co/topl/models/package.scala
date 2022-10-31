@@ -12,7 +12,7 @@ import scala.language.implicitConversions
 package object models {
   type Bytes = ByteVector
   val Bytes: ByteVector.type = ByteVector
-  type Eta = Sized.Strict[Bytes, Lengths.`32`.type]
+  type Eta = Sized.Strict[Bytes, Eta.Length]
   type Evidence = Sized.Strict[Bytes, Evidence.Length]
 
   object Evidence {
