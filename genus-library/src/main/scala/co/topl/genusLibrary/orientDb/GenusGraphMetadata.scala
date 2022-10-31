@@ -22,7 +22,7 @@ package co.topl.genusLibrary.orientDb {
     val blockHeaderVertexType: OrientVertexType = ensureVertexSchemaInitialized(blockHeaderSchema)
     val blockBodyVertexType: OrientVertexType = ensureVertexSchemaInitialized(blockBodySchema)
     val txoVertexType: OrientVertexType = ensureVertexSchemaInitialized(txoSchema)
-    val transactionVertexType: OrientVertexType = graphNoTx.createVertexType("Transaction")
+    val transactionVertexType: OrientVertexType = ensureVertexSchemaInitialized(transactionSchema)
 
     val currentAddressStateEdgeType: OrientEdgeType = graphNoTx.createEdgeType("CurrentAddressState")
     val prevToNextAddressStateEdgeType: OrientEdgeType = graphNoTx.createEdgeType("PrevToNextAddressState")
@@ -48,19 +48,13 @@ package co.topl.genusLibrary.orientDb {
   }
 
   object GenusGraphMetadata {
-
-    /**
-     * Regular expression for the base58 representation of typed evidence.
-     */
-    private val TypedEvidenceRegex = "^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{33,46}$"
-
     import OrientDbTyped.Instances._
 
     // TODO: Rework to use model classes generated from protobuf definitions rather than those in the models project.
 
     /////////////////////////////////////////////////////////////////////////////////
     //                                                                             //
-    // The following Vals are schemas for nodes and edges.                         //
+    // The following fields are schemas for nodes and edges.                         //
     //                                                                             //
     /////////////////////////////////////////////////////////////////////////////////
 
@@ -193,7 +187,7 @@ package co.topl.genusLibrary.orientDb {
           .withProperty("state", _.state.toString)(stringOrientDbTyped)
           .withProperty(
             "spendingAddress",
-            _.address.map(addr => addr.typedEvidence.allBytes.toArray).orNull,
+            _.address.map(address => address.typedEvidence.allBytes.toArray).orNull,
             _.setNotNull(false)
           )(byteArrayOrientDbTypes)
           .withIndex("boxId", INDEX_TYPE.UNIQUE, "transactionId", "transactionOutputIndex")
@@ -245,9 +239,13 @@ package co.topl.genusLibrary.orientDb {
       a
     }
 
-    private def encodeToByteArray[T <: java.io.Serializable](objct: T, codec: Codec[T], typeName: String): Array[Byte] =
+    private def encodeToByteArray[T <: java.io.Serializable](
+      scalaObject: T,
+      codec:       Codec[T],
+      typeName:    String
+    ): Array[Byte] =
       codec
-        .encode(objct)
+        .encode(scalaObject)
         .mapErr(err => throw GenusException(s"Error encoding $typeName: ${err.messageWithContext}"))
         .require
         .toByteArray
