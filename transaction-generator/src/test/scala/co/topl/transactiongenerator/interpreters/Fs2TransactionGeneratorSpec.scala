@@ -28,7 +28,7 @@ class Fs2TransactionGeneratorSpec extends CatsEffectSuite {
       ).pure[F]
       wallet = applyTransaction(emptyWallet)(seedTransaction)
       implicit0(random: Random[F]) <- Random.javaSecuritySecureRandom[F]
-      underTest                    <- Fs2TransactionGenerator.make[F](wallet)
+      underTest                    <- Fs2TransactionGenerator.make[F](wallet, 1, 10, 100)
       stream                       <- underTest.generateTransactions
       result                       <- stream.take(500).compile.toList
       _ = assert(result.length === 500)

@@ -64,13 +64,16 @@ object IOBaseApp {
 
   def createTypesafeConfig[Args: ContainsUserConfigs: ContainsDebugFlag](cmdArgs: Args): Config =
     (
-      argsToDebugConfigs(cmdArgs) ++
-        Chain(ConfigSource.resources("environment.conf")) ++
-        argsToUserConfigs(cmdArgs) ++
+      argsToDebugConfigs(cmdArgs).map(_.config()) ++
         Chain(
-          ConfigSource.default
-        )
-    ).foldMapM(_.config()) match {
+          ConfigSource
+            .resources("environment.conf")
+            .config()
+            .orElse(ConfigSource.empty.config())
+        ) ++
+        argsToUserConfigs(cmdArgs).map(_.config()) ++
+        Chain(ConfigSource.default).map(_.config())
+    ).combineAll match {
       case Right(value) => value.resolve()
       case Left(e)      => throw new IllegalStateException(e.toString)
     }

@@ -20,11 +20,14 @@ object Fs2TransactionGenerator {
    * updating the local wallet along the way.
    * @param wallet An initial wallet containing an initial set of spendable UTxOs
    */
-  def make[F[_]: Async: Random](wallet: Wallet): F[TransactionGenerator[F, Stream[F, *]]] =
+  def make[F[_]: Async: Random](
+    wallet:                Wallet,
+    parallelism:           Int,
+    maxWalletSize:         Int,
+    transactionDataLength: Int
+  ): F[TransactionGenerator[F, Stream[F, *]]] =
     Sync[F].delay(
       new TransactionGenerator[F, Stream[F, *]] {
-
-        private val parallelism = Runtime.getRuntime.availableProcessors()
 
         def generateTransactions: F[Stream[F, Transaction]] =
           Queue
@@ -35,13 +38,13 @@ object Fs2TransactionGenerator {
             .map { queue =>
               Stream
                 .fromQueueUnterminated(queue)
-                .parEvalMapUnordered(parallelism)(nextTransactionOf[F])
+                .parEvalMapUnordered(parallelism)(nextTransactionOf[F](_, transactionDataLength))
                 .evalMap { case (transaction, wallet) =>
                   // Now that we've processed the old wallet, determine if the new wallet is big
                   // enough to split in half.
                   Sync[F]
                     .delay(
-                      if (wallet.spendableBoxes.size > 10) WalletSplitter.split(wallet, 2)
+                      if (wallet.spendableBoxes.size > maxWalletSize) WalletSplitter.split(wallet, 2)
                       else Vector(wallet)
                     )
                     // Enqueue the updated wallet(s)
@@ -57,14 +60,17 @@ object Fs2TransactionGenerator {
    * Given a _current_ wallet, produce a new Transaction and new Wallet.  The generated transaction
    * will spend a random input from the wallet and produce two new outputs
    */
-  private def nextTransactionOf[F[_]: Async: Random](wallet: Wallet): F[(Transaction, Wallet)] =
+  private def nextTransactionOf[F[_]: Async: Random](
+    wallet:                Wallet,
+    transactionDataLength: Int
+  ): F[(Transaction, Wallet)] =
     for {
       (inputBoxId, inputBox) <- pickInput[F](wallet)
       inputs = Chain(Transaction.Unproven.Input(inputBoxId, wallet.propositions(inputBox.evidence), inputBox.value))
       outputs   <- createOutputs[F](inputBox)
       timestamp <- Async[F].realTimeInstant
       schedule = Transaction.Schedule(timestamp.toEpochMilli, 0, Long.MaxValue)
-      data <- createData[F]
+      data <- createData[F](transactionDataLength: Int)
       unprovenTransaction: Transaction.Unproven = Transaction.Unproven(
         inputs,
         outputs,
@@ -116,7 +122,7 @@ object Fs2TransactionGenerator {
   }
     .pure[F]
 
-  private def createData[F[_]: Applicative]: F[Transaction.DataTetra] =
-    (Bytes.fill(100)(3: Byte): Transaction.DataTetra).pure[F]
+  private def createData[F[_]: Applicative: Random](transactionDataLength: Int): F[Transaction.DataTetra] =
+    Random[F].nextBytes(transactionDataLength).map(Bytes(_))
 
 }
