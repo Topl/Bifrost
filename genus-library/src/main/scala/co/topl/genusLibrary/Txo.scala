@@ -26,17 +26,17 @@ import co.topl.genusLibrary.TxoState._
 case class Txo(box: Box, state: TxoState, id: Box.Id, address: Option[SpendingAddress]) {
   import Txo._
 
-  private def unsupported[T](v: Box.Value):T = throw GenusException(s"Encountered unsupported type of box value: $v")
+  private def unsupported[T](v: Box.Value): T = throw GenusException(s"Encountered unsupported type of box value: $v")
 
   /**
    * Get the quantity in this TxO. Not all types of TxOs have a quantity.
    */
   def quantity: Option[Int128] = box.value match {
-    case Empty => None
-    case Poly(quantity) => Some(quantity)
-    case Arbit(quantity) => Some(quantity)
+    case Empty                      => None
+    case Poly(quantity)             => Some(quantity)
+    case Arbit(quantity)            => Some(quantity)
     case AssetV1(quantity, _, _, _) => Some(quantity)
-    case v: AnyRef => unsupported(v)
+    case v: AnyRef                  => unsupported(v)
   }
 
   /**
@@ -52,8 +52,8 @@ case class Txo(box: Box, state: TxoState, id: Box.Id, address: Option[SpendingAd
    * </ul>
    */
   def assetLabel: String = box.value match {
-    case Empty => "EMPTY"
-    case Poly(_) => "LVL"
+    case Empty    => "EMPTY"
+    case Poly(_)  => "LVL"
     case Arbit(_) => "TOPL"
     case AssetV1(_, assetCode, _, _) =>
       assetCode.version.toHexString + "|" + Base58.encode(assetCode.issuer.typedEvidence.allBytes.toArray)
@@ -61,15 +61,15 @@ case class Txo(box: Box, state: TxoState, id: Box.Id, address: Option[SpendingAd
   }
 
   def securityRoot: Option[Array[Byte]] = box.value match {
-    case Empty | Poly(_) | Arbit(_) => None
+    case Empty | Poly(_) | Arbit(_)     => None
     case AssetV1(_, _, securityRoot, _) => Some(securityRoot.data.toArray)
-    case v: AnyRef => unsupported(v)
+    case v: AnyRef                      => unsupported(v)
   }
 
   def metadata: Option[Array[Byte]] = box.value match {
     case Empty | Poly(_) | Arbit(_) => None
     case AssetV1(_, _, _, metadata) => metadata.map(m => m.data.bytes)
-    case v: AnyRef => unsupported(v)
+    case v: AnyRef                  => unsupported(v)
   }
 }
 

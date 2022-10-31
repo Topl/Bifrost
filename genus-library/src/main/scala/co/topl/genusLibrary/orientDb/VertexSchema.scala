@@ -66,7 +66,11 @@ object VertexSchema {
  * @param name The name of the property
  * @param propertyType The datatype of the property
  */
-case class Property(name: String, propertyType: OType, propertyAttributeSetter: OPropertyAbstractDelegate => Unit = f => ())
+case class Property(
+  name:                    String,
+  propertyType:            OType,
+  propertyAttributeSetter: OPropertyAbstractDelegate => Unit = f => ()
+)
 
 /**
  * Describe an index on vertices of a class
