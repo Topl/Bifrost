@@ -4,14 +4,14 @@ import akka.actor.ActorSystem
 import akka.stream.scaladsl.Source
 import cats.effect.IO
 import cats.implicits._
-import co.topl.algebras.CanonicalHeadTraversalSteps.{Applied, Unapplied}
+import co.topl.algebras.SynchronizationTraversalSteps.{Applied, Unapplied}
 import co.topl.eventtree.ParentChildTree
 import co.topl.models.ModelGenerators._
 import co.topl.models.TypedIdentifier
 import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 
-class LocalChainHeadTraversalSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
+class LocalChainSynchronizationTraversalSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
 
   type F[A] = IO[A]
 
@@ -42,7 +42,7 @@ class LocalChainHeadTraversalSpec extends CatsEffectSuite with ScalaCheckEffectS
 
       adoptions = Source(Seq(slot_C, slot_F).map(_.slotId.blockId))
 
-      stream <- LocalChainHeadTraversal.make[F](slot_A.slotId.blockId, adoptions, parentChildTree).headChanges
+      stream <- LocalChainSynchronizationTraversal.make[F](slot_A.slotId.blockId, adoptions, parentChildTree).headChanges
 
       expected = List(
         Applied(slot_B.slotId.blockId),

@@ -3,7 +3,7 @@ package co.topl.blockchain
 import akka.stream.Materializer
 import akka.stream.scaladsl.Sink
 import cats.effect.Async
-import co.topl.algebras.{CanonicalHeadTraversal, CanonicalHeadTraversalStep, CanonicalHeadTraversalSteps}
+import co.topl.algebras.{SynchronizationTraversal, SynchronizationTraversalStep, SynchronizationTraversalSteps}
 import co.topl.catsakka.SourceMatNotUsed
 import co.topl.eventtree.ParentChildTree
 import co.topl.models.TypedIdentifier
@@ -16,7 +16,7 @@ import fs2.interop.reactivestreams._
  * previous block adoption. The adoption may take place in an entirely different tine, so this traversal takes care of
  * indicating which blocks should be unapplied, and which blocks should be applied
  */
-object LocalChainHeadTraversal {
+object LocalChainSynchronizationTraversal {
 
   def make[F[_]: Async](
     currentHead:     TypedIdentifier,
@@ -24,10 +24,10 @@ object LocalChainHeadTraversal {
     parentChildTree: ParentChildTree[F, TypedIdentifier]
   )(implicit
     m: Materializer
-  ): CanonicalHeadTraversal[F, Stream[F, CanonicalHeadTraversalStep]] = {
+  ): SynchronizationTraversal[F, Stream[F, SynchronizationTraversalStep]] = {
 
-    val pullSteps: Pipe[F, TypedIdentifier, CanonicalHeadTraversalStep] = {
-      def go(s: Stream[F, TypedIdentifier], currentHead: TypedIdentifier): Pull[F, CanonicalHeadTraversalStep, Unit] =
+    val pullSteps: Pipe[F, TypedIdentifier, SynchronizationTraversalStep] = {
+      def go(s: Stream[F, TypedIdentifier], currentHead: TypedIdentifier): Pull[F, SynchronizationTraversalStep, Unit] =
         s.pull.uncons.flatMap {
           case Some((chunk, tlStream)) =>
             chunk.head match {
@@ -35,8 +35,8 @@ object LocalChainHeadTraversal {
                 Pull
                   .eval(parentChildTree.findCommonAncestor(currentHead, newHead))
                   .map { case (unapplyChain, applyChain) =>
-                    unapplyChain.tail.map(CanonicalHeadTraversalSteps.Unapplied) ++
-                    applyChain.tail.map(CanonicalHeadTraversalSteps.Applied)
+                    unapplyChain.tail.map(SynchronizationTraversalSteps.Unapplied) ++
+                    applyChain.tail.map(SynchronizationTraversalSteps.Applied)
                   }
                   .map(Chunk.chain)
                   .flatMap(steps =>
@@ -52,8 +52,8 @@ object LocalChainHeadTraversal {
       in => go(in, currentHead).stream
     }
 
-    new CanonicalHeadTraversal[F, Stream[F, CanonicalHeadTraversalStep]] {
-      def headChanges: F[Stream[F, CanonicalHeadTraversalStep]] =
+    new SynchronizationTraversal[F, Stream[F, SynchronizationTraversalStep]] {
+      def headChanges: F[Stream[F, SynchronizationTraversalStep]] =
         Async[F].delay {
           adoptionsStream
             .runWith(Sink.asPublisher[TypedIdentifier](fanout = false))
