@@ -96,7 +96,7 @@ class GenusGraphMetadataTest extends munit.FunSuite {
   }
 
   test("Transaction round-trip serialization") {
-    //noinspection ScalaStyle
+    // noinspection ScalaStyle
     val transaction = Transaction(
       inputs = Chain.empty,
       outputs = Chain.empty,
