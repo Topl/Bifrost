@@ -304,7 +304,9 @@ object Dependencies {
     Dependencies.mUnitTest ++ Dependencies.catsEffect
 
   lazy val catsAkka: Seq[ModuleID] =
-    cats ++ catsEffect ++ logging ++ Seq(akka("actor"), akka("actor-typed"), akka("stream"))
+    cats ++ catsEffect ++ logging ++
+      Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++
+      Seq(fs2Core, fs2IO, fs2ReactiveStreams)
 
   lazy val models: Seq[ModuleID] =
     cats ++ simulacrum ++ newType ++ scodec
@@ -335,7 +337,7 @@ object Dependencies {
     Dependencies.mUnitTest ++ Dependencies.catsEffect ++ logging ++ Seq(
       akka("stream"),
       akka("stream-testkit") % Test
-    ) ++ Seq(fs2Core, fs2IO, fs2ReactiveStreams)
+    ) ++ Seq(fs2Core)
 
   lazy val demo: Seq[ModuleID] =
     Seq(akka("actor"), akka("actor-typed"), akka("stream"), akkaHttp("http2-support")) ++ logging

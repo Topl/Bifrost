@@ -1,14 +1,10 @@
 package co.topl.blockchain
 
-import akka.stream.Materializer
-import akka.stream.scaladsl.Sink
 import cats.effect.Async
 import co.topl.algebras.{SynchronizationTraversal, SynchronizationTraversalStep, SynchronizationTraversalSteps}
-import co.topl.catsakka.SourceMatNotUsed
 import co.topl.eventtree.ParentChildTree
 import co.topl.models.TypedIdentifier
 import fs2.{Chunk, Pipe, Pull, Stream}
-import fs2.interop.reactivestreams._
 
 /**
  * Transform a stream of local block adoptions into a stream of head traversal steps. The input stream
@@ -18,13 +14,13 @@ import fs2.interop.reactivestreams._
  */
 object LocalChainSynchronizationTraversal {
 
+  type S[T[_], O] = Stream[T, O]
+
   def make[F[_]: Async](
     currentHead:     TypedIdentifier,
-    adoptionsStream: SourceMatNotUsed[TypedIdentifier],
+    adoptionsStream: Stream[F, TypedIdentifier],
     parentChildTree: ParentChildTree[F, TypedIdentifier]
-  )(implicit
-    m: Materializer
-  ): SynchronizationTraversal[F, Stream[F, SynchronizationTraversalStep]] = {
+  ): SynchronizationTraversal[F, SynchronizationTraversalStep, S] = {
 
     val pullSteps: Pipe[F, TypedIdentifier, SynchronizationTraversalStep] = {
       def go(s: Stream[F, TypedIdentifier], currentHead: TypedIdentifier): Pull[F, SynchronizationTraversalStep, Unit] =
@@ -51,15 +47,11 @@ object LocalChainSynchronizationTraversal {
         }
       in => go(in, currentHead).stream
     }
-
-    new SynchronizationTraversal[F, Stream[F, SynchronizationTraversalStep]] {
-      def headChanges: F[Stream[F, SynchronizationTraversalStep]] =
-        Async[F].delay {
-          adoptionsStream
-            .runWith(Sink.asPublisher[TypedIdentifier](fanout = false))
-            .toStreamBuffered(bufferSize = 1)
-            .through(pullSteps)
-        }
+    new SynchronizationTraversal[F, SynchronizationTraversalStep, S] {
+      override def headChanges: F[Stream[F, SynchronizationTraversalStep]] =
+        Async[F].delay(
+          adoptionsStream.through(pullSteps)
+        )
     }
   }
 }
