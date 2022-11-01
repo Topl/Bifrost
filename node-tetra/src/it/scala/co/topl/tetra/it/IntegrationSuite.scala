@@ -14,11 +14,9 @@ trait IntegrationSuite extends BeforeAndAfterAll with Logging with ScalaFutures 
 
   implicit val dockerClient: DefaultDockerClient = DefaultDockerClient.fromEnv().build()
 
-  implicit val dockerSupport: DockerSupport = new DockerSupport(dockerClient)
+  val dockerSupport: DockerSupport = new DockerSupport(dockerClient)
 
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(2.seconds)
-
-  implicit val networkPrefix: NetworkPrefix = NetworkType.PrivateTestnet.netPrefix
 
   override def beforeAll(): Unit =
     log.debug("Starting integration test")

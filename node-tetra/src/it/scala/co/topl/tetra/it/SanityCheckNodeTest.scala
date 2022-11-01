@@ -4,12 +4,10 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import co.topl.grpc.ToplGrpc
 import co.topl.tetra.it.util._
-import org.scalatest.EitherValues
-import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
 
-class SanityCheckNodeTest extends AnyFreeSpec with Matchers with IntegrationSuite with ScalaFutures with EitherValues {
+class SanityCheckNodeTest extends AnyFreeSpec with Matchers with IntegrationSuite {
 
   "A single node is successfully started, id of the genesis block is available through RPC" in {
     val node: BifrostDockerTetraNode =
