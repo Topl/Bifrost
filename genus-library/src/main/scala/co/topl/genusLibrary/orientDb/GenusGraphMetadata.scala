@@ -29,11 +29,22 @@ package co.topl.genusLibrary.orientDb {
     val txoVertexType: OrientVertexType = ensureVertexSchemaInitialized(txoSchema)
     val transactionVertexType: OrientVertexType = ensureVertexSchemaInitialized(transactionSchema)
 
-    val currentAddressStateEdgeType: OrientEdgeType = graphNoTx.createEdgeType("CurrentAddressState")
-    val prevToNextAddressStateEdgeType: OrientEdgeType = graphNoTx.createEdgeType("PrevToNextAddressState")
-    val addressStateToTxoStateEdgeType: OrientEdgeType = graphNoTx.createEdgeType("AddressStateToTxoState")
-    val inputEdgeType: OrientEdgeType = graphNoTx.createEdgeType("Input")
-    val outputEdgeType: OrientEdgeType = graphNoTx.createEdgeType("Output")
+    val currentAddressStateEdgeType: OrientEdgeType = ensureEdgeSchemaInitialized(EdgeSchema("CurrentAddressState"))
+
+    val prevToNextAddressStateEdgeType: OrientEdgeType = ensureEdgeSchemaInitialized(
+      EdgeSchema("PrevToNextAddressState")
+    )
+
+    val addressStateToTxoStateEdgeType: OrientEdgeType = ensureEdgeSchemaInitialized(
+      EdgeSchema("AddressStateToTxoState")
+    )
+    val inputEdgeType: OrientEdgeType = ensureEdgeSchemaInitialized(EdgeSchema("Input"))
+    val outputEdgeType: OrientEdgeType = ensureEdgeSchemaInitialized(EdgeSchema("Output"))
+
+    def ensureEdgeSchemaInitialized(edgeSchema: EdgeSchema): OrientEdgeType =
+      Option(graphNoTx.getEdgeType(edgeSchema.name)).getOrElse {
+        graphNoTx.createEdgeType(edgeSchema.name)
+      }
 
     def ensureVertexSchemaInitialized(vertexSchema: VertexSchema[_]): OrientVertexType =
       Option(graphNoTx.getVertexType(vertexSchema.name)).getOrElse {
