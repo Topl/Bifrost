@@ -30,9 +30,11 @@ package co.topl.genusLibrary.orientDb {
     val transactionVertexType: OrientVertexType = ensureVertexSchemaInitialized(transactionSchema)
 
     val currentAddressStateEdgeType: OrientEdgeType = ensureEdgeSchemaInitialized(EdgeSchema("CurrentAddressState"))
+
     val prevToNextAddressStateEdgeType: OrientEdgeType = ensureEdgeSchemaInitialized(
       EdgeSchema("PrevToNextAddressState")
     )
+
     val addressStateToTxoStateEdgeType: OrientEdgeType = ensureEdgeSchemaInitialized(
       EdgeSchema("AddressStateToTxoState")
     )
