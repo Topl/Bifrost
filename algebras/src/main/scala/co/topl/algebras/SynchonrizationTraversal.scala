@@ -6,7 +6,7 @@ import co.topl.models.TypedIdentifier
  * Emits a stream of canonical head traversal steps. As blocks are adopted by the node, the steps taken to reach it from
  * the previous adoption are emitted in this stream.
  */
-trait SynchronizationTraversal[F[_], O, Stream[_[_], _]] {
+trait SynchronizationTraversal[F[_], O, Stream[*[_], _]] {
   def headChanges: F[Stream[F, O]]
 }
 

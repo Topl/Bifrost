@@ -14,13 +14,11 @@ import fs2.{Chunk, Pipe, Pull, Stream}
  */
 object LocalChainSynchronizationTraversal {
 
-  type S[T[_], O] = Stream[T, O]
-
   def make[F[_]: Async](
     currentHead:     TypedIdentifier,
     adoptionsStream: Stream[F, TypedIdentifier],
     parentChildTree: ParentChildTree[F, TypedIdentifier]
-  ): SynchronizationTraversal[F, SynchronizationTraversalStep, S] = {
+  ): SynchronizationTraversal[F, SynchronizationTraversalStep, Stream] = {
 
     val pullSteps: Pipe[F, TypedIdentifier, SynchronizationTraversalStep] = {
       def go(s: Stream[F, TypedIdentifier], currentHead: TypedIdentifier): Pull[F, SynchronizationTraversalStep, Unit] =
@@ -47,7 +45,7 @@ object LocalChainSynchronizationTraversal {
         }
       in => go(in, currentHead).stream
     }
-    new SynchronizationTraversal[F, SynchronizationTraversalStep, S] {
+    new SynchronizationTraversal[F, SynchronizationTraversalStep, Stream] {
       override def headChanges: F[Stream[F, SynchronizationTraversalStep]] =
         Async[F].delay(
           adoptionsStream.through(pullSteps)
