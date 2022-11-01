@@ -894,12 +894,13 @@ lazy val genusLibrary = project
   .settings(
     name := "genus-library",
     commonSettings,
+    scalamacrosParadiseSettings,
     crossScalaVersions := Seq(scala213),
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.genusLibrary",
     libraryDependencies ++= Dependencies.genusLibrary
   )
-  .dependsOn(typeclasses)
+  .dependsOn(typeclasses, models, tetraByteCodecs)
 
 lazy val munitScalamock = project
   .in(file("munit-scalamock"))
