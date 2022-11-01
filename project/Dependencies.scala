@@ -172,10 +172,11 @@ object Dependencies {
     "com.github.julien-truffaut" %% "monocle-macro" % "3.0.0-M6"
   )
 
-  val fs2Core = "co.fs2"                   %% "fs2-core"   % fs2Version
-  val fs2IO = "co.fs2"                     %% "fs2-io"     % fs2Version
-  val pureConfig = "com.github.pureconfig" %% "pureconfig" % "0.17.1"
-  val circeYaml = "io.circe"               %% "circe-yaml" % "0.14.1"
+  val fs2Core = "co.fs2"                   %% "fs2-core"    % fs2Version
+  val fs2IO = "co.fs2"                     %% "fs2-io"      % fs2Version
+  val pureConfig = "com.github.pureconfig" %% "pureconfig"  % "0.17.1"
+  val circeYaml = "io.circe"               %% "circe-yaml"  % "0.14.1"
+  val kubernetes = "io.kubernetes"          % "client-java" % "16.0.1"
 
   val nodeDion: Seq[ModuleID] =
     Seq(
@@ -215,8 +216,17 @@ object Dependencies {
       catsSlf4j,
       fs2Core,
       fs2IO,
+      pureConfig
+    )
+
+  val testnetSimulationOrchestator: Seq[ModuleID] =
+    cats ++ catsEffect ++ mainargs ++ logging ++ Seq(
+      catsSlf4j,
+      fs2Core,
+      fs2IO,
       pureConfig,
-      circeYaml
+      kubernetes,
+      "com.google.cloud" % "google-cloud-storage" % "2.14.0"
     )
 
   lazy val algebras: Seq[sbt.ModuleID] =

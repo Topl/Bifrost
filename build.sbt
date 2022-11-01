@@ -113,6 +113,11 @@ lazy val networkDelayerDockerSettings =
     Docker / packageName := "network-delayer"
   )
 
+lazy val testnetSimulationOrchestratorDockerSettings =
+  dockerSettings ++ Seq(
+    Docker / packageName := "testnet-simulation-orchestrator"
+  )
+
 def assemblySettings(main: String) = Seq(
   assembly / mainClass := Some(main),
   assembly / test := {},
@@ -244,7 +249,8 @@ lazy val bifrost = project
     networkDelayer,
     genusLibrary,
     genusServer,
-    transactionGenerator
+    transactionGenerator,
+    testnetSimulationOrchestrator
   )
 
 lazy val node = project
@@ -329,6 +335,26 @@ lazy val networkDelayer = project
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(catsAkka, commonApplication)
+
+lazy val testnetSimulationOrchestrator = project
+  .in(file("testnet-simulation-orchestrator"))
+  .settings(
+    name := "testnet-simulation-orchestrator",
+    commonSettings,
+    assemblySettings("co.topl.testnetsimulationorchestator.Orchestrator"),
+    assemblyJarName := s"testnet-simulation-orchestrator-${version.value}.jar",
+    testnetSimulationOrchestratorDockerSettings,
+    Defaults.itSettings,
+    crossScalaVersions := Seq(scala213),
+    Compile / mainClass := Some("co.topl.testnetsimulationorchestator.Orchestrator"),
+    publish / skip := true,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.testnetsimulationorchestator",
+    libraryDependencies ++= Dependencies.testnetSimulationOrchestator
+  )
+  .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(commonApplication, transactionGenerator)
 
 lazy val common = project
   .in(file("common"))
