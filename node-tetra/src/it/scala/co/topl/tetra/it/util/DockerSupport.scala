@@ -2,16 +2,16 @@ package co.topl.tetra.it.util
 
 import co.topl.buildinfo.node.BuildInfo
 import co.topl.tetra.it.util.DockerSupport._
-import co.topl.utils.Logging
 import com.spotify.docker.client.DockerClient
 import com.spotify.docker.client.messages.{ContainerConfig, HostConfig, NetworkConfig, NetworkCreation}
 import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions}
+import com.typesafe.scalalogging.StrictLogging
 
 import java.nio.file.{Files, Path, Paths}
 import java.util.Comparator
 import scala.jdk.CollectionConverters._
 
-class DockerSupport(dockerClient: DockerClient) extends Logging {
+class DockerSupport(dockerClient: DockerClient) extends StrictLogging {
 
   private var nodeCache: Set[BifrostDockerTetraNode] = Set.empty
 
