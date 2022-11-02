@@ -172,10 +172,11 @@ object Dependencies {
     "com.github.julien-truffaut" %% "monocle-macro" % "3.0.0-M6"
   )
 
-  val fs2Core = "co.fs2"                   %% "fs2-core"   % fs2Version
-  val fs2IO = "co.fs2"                     %% "fs2-io"     % fs2Version
-  val pureConfig = "com.github.pureconfig" %% "pureconfig" % "0.17.1"
-  val circeYaml = "io.circe"               %% "circe-yaml" % "0.14.1"
+  val fs2Core = "co.fs2"                   %% "fs2-core"             % fs2Version
+  val fs2IO = "co.fs2"                     %% "fs2-io"               % fs2Version
+  val fs2ReactiveStreams = "co.fs2"        %% "fs2-reactive-streams" % fs2Version
+  val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.1"
+  val circeYaml = "io.circe"               %% "circe-yaml"           % "0.14.1"
 
   val nodeDion: Seq[ModuleID] =
     Seq(
@@ -303,7 +304,9 @@ object Dependencies {
     Dependencies.mUnitTest ++ Dependencies.catsEffect
 
   lazy val catsAkka: Seq[ModuleID] =
-    cats ++ catsEffect ++ logging ++ Seq(akka("actor"), akka("actor-typed"), akka("stream"))
+    cats ++ catsEffect ++ logging ++
+      Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++
+      Seq(fs2Core, fs2IO, fs2ReactiveStreams)
 
   lazy val models: Seq[ModuleID] =
     cats ++ simulacrum ++ newType ++ scodec
@@ -334,7 +337,7 @@ object Dependencies {
     Dependencies.mUnitTest ++ Dependencies.catsEffect ++ logging ++ Seq(
       akka("stream"),
       akka("stream-testkit") % Test
-    )
+    ) ++ Seq(fs2Core)
 
   lazy val demo: Seq[ModuleID] =
     Seq(akka("actor"), akka("actor-typed"), akka("stream"), akkaHttp("http2-support")) ++ logging
