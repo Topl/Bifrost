@@ -18,7 +18,7 @@ object LocalChainSynchronizationTraversal {
     currentHead:     TypedIdentifier,
     adoptionsStream: Stream[F, TypedIdentifier],
     parentChildTree: ParentChildTree[F, TypedIdentifier]
-  ): SynchronizationTraversal[F, SynchronizationTraversalStep, Stream] = {
+  ): SynchronizationTraversal[F, Stream[F, *]] = {
 
     val pullSteps: Pipe[F, TypedIdentifier, SynchronizationTraversalStep] = {
       def go(s: Stream[F, TypedIdentifier], currentHead: TypedIdentifier): Pull[F, SynchronizationTraversalStep, Unit] =
@@ -45,7 +45,8 @@ object LocalChainSynchronizationTraversal {
         }
       in => go(in, currentHead).stream
     }
-    new SynchronizationTraversal[F, SynchronizationTraversalStep, Stream] {
+
+    new SynchronizationTraversal[F, Stream[F, *]] {
       override def headChanges: F[Stream[F, SynchronizationTraversalStep]] =
         Async[F].delay(
           adoptionsStream.through(pullSteps)
