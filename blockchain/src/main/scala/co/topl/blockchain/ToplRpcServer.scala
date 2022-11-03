@@ -1,8 +1,5 @@
 package co.topl.blockchain
 
-import akka.NotUsed
-import akka.stream.Materializer
-import akka.stream.scaladsl.Source
 import cats.{Monad, Show}
 import cats.data.EitherT
 import cats.implicits._
@@ -10,8 +7,6 @@ import cats.effect.Async
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.algebras.{Store, SynchronizationTraversalStep, ToplRpc}
-//import co.topl.catsakka.FToFuture
-import co.topl.catsakka._
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.{MempoolAlgebra, TransactionSyntaxValidationAlgebra}
@@ -49,8 +44,8 @@ object ToplRpcServer {
     localChain:                LocalChainAlgebra[F],
     blockHeights:              EventSourcedState[F, Long => F[Option[TypedIdentifier]]],
     blockIdTree:               ParentChildTree[F, TypedIdentifier],
-    localBlockAdoptionsSource: Source[TypedIdentifier, NotUsed]
-  )(implicit mat:              Materializer): F[ToplRpc[F, Stream[F, *]]] =
+    localBlockAdoptionsStream: Stream[F, TypedIdentifier]
+  ): F[ToplRpc[F, Stream[F, *]]] =
     Async[F].delay {
       new ToplRpc[F, Stream[F, *]] {
 
@@ -100,17 +95,18 @@ object ToplRpcServer {
               else blockHeights.useStateAt(head.slotId.blockId)(_.apply(head.height - depth))
           } yield atDepth
 
-        def synchronizationTraversal(currentHead: TypedIdentifier): F[Stream[F, SynchronizationTraversalStep]] =
-          for {
-            fs2Stream <- localBlockAdoptionsSource.asFS2Stream[F]
-            syncTraversalSteps <- LocalChainSynchronizationTraversal
-              .make[F](
-                currentHead,
-                fs2Stream,
-                blockIdTree
-              )
-              .headChanges
-          } yield syncTraversalSteps
+        def synchronizationTraversal(): F[Stream[F, SynchronizationTraversalStep]] =
+          localChain.head
+            .map(_.slotId.blockId)
+            .flatMap { currentHead =>
+              LocalChainSynchronizationTraversal
+                .make[F](
+                  currentHead,
+                  localBlockAdoptionsStream,
+                  blockIdTree
+                )
+                .headChanges
+            }
 
         private def syntacticValidateOrRaise(transaction: Transaction) =
           EitherT(syntacticValidation.validate(transaction).map(_.toEither))

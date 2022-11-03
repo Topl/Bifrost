@@ -153,57 +153,50 @@ object ToplGrpc {
                 .semiflatMap(EitherT.fromEither[F](_).leftMap(new IllegalArgumentException(_)).rethrowT)
                 .value
 
-            def synchronizationTraversal(
-              currentHead: bifrostModels.TypedIdentifier
-            ): F[Stream[F, SynchronizationTraversalStep]] =
-              EitherT(currentHead.toF[F, models.BlockId])
-                .leftMap(new IllegalArgumentException(_))
-                .rethrowT
-                .flatMap { blockId =>
-                  Async[F].delay {
-                    client
-                      .synchronizationTraversal(
-                        services.SynchronizationTraversalReq(blockId.some),
-                        new Metadata()
-                      )
-                      .evalMap[F, SynchronizationTraversalStep] { r =>
-                        r.status match {
+            def synchronizationTraversal(): F[Stream[F, SynchronizationTraversalStep]] =
+              Async[F].delay {
+                client
+                  .synchronizationTraversal(
+                    services.SynchronizationTraversalReq(),
+                    new Metadata()
+                  )
+                  .evalMap[F, SynchronizationTraversalStep] { r =>
+                    r.status match {
 
-                          case SynchronizationTraversalRes.Status.Empty =>
+                      case SynchronizationTraversalRes.Status.Empty =>
+                        EitherT
+                          .fromOptionF(Option.empty[bifrostModels.TypedIdentifier].pure[F], "empty")
+                          .leftMap(new IllegalArgumentException(_))
+                          .rethrowT
+                          // This Applied is not reachable
+                          .map(SynchronizationTraversalSteps.Applied)
+
+                      case SynchronizationTraversalRes.Status.Applied(value) =>
+                        value
+                          .toF[F, bifrostModels.TypedIdentifier]
+                          .flatMap(
                             EitherT
-                              .fromOptionF(Option.empty[bifrostModels.TypedIdentifier].pure[F], "empty")
+                              .fromEither[F](_)
                               .leftMap(new IllegalArgumentException(_))
                               .rethrowT
-                              // This Applied is not reachable
-                              .map(SynchronizationTraversalSteps.Applied)
+                          )
+                          .map(SynchronizationTraversalSteps.Applied)
 
-                          case SynchronizationTraversalRes.Status.Applied(value) =>
-                            value
-                              .toF[F, bifrostModels.TypedIdentifier]
-                              .flatMap(
-                                EitherT
-                                  .fromEither[F](_)
-                                  .leftMap(new IllegalArgumentException(_))
-                                  .rethrowT
-                              )
-                              .map(SynchronizationTraversalSteps.Applied)
-
-                          case SynchronizationTraversalRes.Status.Unapplied(value) =>
-                            value
-                              .toF[F, bifrostModels.TypedIdentifier]
-                              .flatMap(
-                                EitherT
-                                  .fromEither[F](_)
-                                  .leftMap(new IllegalArgumentException(_))
-                                  .rethrowT
-                              )
-                              .map(SynchronizationTraversalSteps.Unapplied)
-                        }
-                      }
+                      case SynchronizationTraversalRes.Status.Unapplied(value) =>
+                        value
+                          .toF[F, bifrostModels.TypedIdentifier]
+                          .flatMap(
+                            EitherT
+                              .fromEither[F](_)
+                              .leftMap(new IllegalArgumentException(_))
+                              .rethrowT
+                          )
+                          .map(SynchronizationTraversalSteps.Unapplied)
+                    }
                   }
-                }
+              }
 
-          } // new ToplRpc
+          }
         )
     }
   }
@@ -361,17 +354,14 @@ object ToplGrpc {
         in:  SynchronizationTraversalReq,
         ctx: Metadata
       ): Stream[F, SynchronizationTraversalRes] =
-        Stream.eval {
-          in.head
-            .toRight("Missing blockId")
-            .toEitherT[F]
-            .flatMapF(_.toF[F, bifrostModels.TypedIdentifier])
-            .leftMap(_ => Status.INVALID_ARGUMENT.withDescription("Invalid Block ID").asException())
-            .rethrowT
-            .flatMap(interpreter.synchronizationTraversal)
-            .map(_.through(pipeSteps))
-            .adaptErrorsToGrpc
-        }.flatten
+        Stream
+          .eval(
+            interpreter
+              .synchronizationTraversal()
+              .map(_.through(pipeSteps))
+              .adaptErrorsToGrpc
+          )
+          .flatten
 
     }
   }

@@ -1,8 +1,6 @@
 package co.topl.blockchain
 
 import akka.actor.ActorSystem
-import akka.NotUsed
-import akka.stream.scaladsl.Source
 import akka.testkit.{TestKit, TestKitBase}
 import cats.effect.IO
 import cats.implicits._
@@ -17,6 +15,7 @@ import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import fs2.Stream
 
 class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory with TestKitBase {
 
@@ -64,7 +63,7 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             localChain,
             blockHeights,
             mock[ParentChildTree[F, TypedIdentifier]],
-            Source.fromIterator(() => Iterator.empty[TypedIdentifier])
+            Stream.empty
           )
           _ <- underTest.blockIdAtHeight(canonicalHead.height).assertEquals(canonicalHead.slotId.blockId.some)
         } yield ()
@@ -84,7 +83,7 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             localChain,
             blockHeights,
             mock[ParentChildTree[F, TypedIdentifier]],
-            Source.fromIterator(() => Iterator.empty[TypedIdentifier])
+            Stream.empty
           )
           _ <- underTest.blockIdAtHeight(canonicalHead.height + 1).assertEquals(None)
         } yield ()
@@ -103,7 +102,7 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             localChain,
             blockHeights,
             mock[ParentChildTree[F, TypedIdentifier]],
-            Source.fromIterator(() => Iterator.empty[TypedIdentifier])
+            Stream.empty
           )
           _ <- interceptIO[IllegalArgumentException](underTest.blockIdAtHeight(0))
           _ <- interceptIO[IllegalArgumentException](underTest.blockIdAtHeight(-1))
@@ -171,9 +170,8 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
     localChain:          LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]],
     blockHeights: EventSourcedState[F, Long => F[Option[TypedIdentifier]]] =
       mock[EventSourcedState[F, Long => F[Option[TypedIdentifier]]]],
-    blockIdTree: ParentChildTree[F, TypedIdentifier] = mock[ParentChildTree[F, TypedIdentifier]],
-    localBlockAdoptionsSource: Source[TypedIdentifier, NotUsed] =
-      Source.fromIterator(() => Iterator.empty[TypedIdentifier])
+    blockIdTree:               ParentChildTree[F, TypedIdentifier] = mock[ParentChildTree[F, TypedIdentifier]],
+    localBlockAdoptionsStream: Stream[F, TypedIdentifier] = Stream.empty
   ) =
     ToplRpcServer
       .make[F](
@@ -185,7 +183,7 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
         localChain,
         blockHeights,
         blockIdTree,
-        localBlockAdoptionsSource
+        localBlockAdoptionsStream
       )
 
   override def afterAll(): Unit = {

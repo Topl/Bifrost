@@ -23,5 +23,5 @@ trait ToplRpc[F[_], S[_]] {
 
   def blockIdAtDepth(depth: Long): F[Option[TypedIdentifier]]
 
-  def synchronizationTraversal(currentHead: TypedIdentifier): F[S[SynchronizationTraversalStep]]
+  def synchronizationTraversal(): F[S[SynchronizationTraversalStep]]
 }

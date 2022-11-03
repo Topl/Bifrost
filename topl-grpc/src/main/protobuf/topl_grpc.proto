@@ -110,10 +110,7 @@ message FetchBlockIdAtDepthRes {
 }
 
 // Request type for SynchronizationTraversal
-message SynchronizationTraversalReq {
-  // Head point in the chain to traverse till
-  co.topl.grpc.models.BlockId head = 1;
-}
+message SynchronizationTraversalReq {}
 
 // Response type for SynchronizationTraversal
 message SynchronizationTraversalRes {

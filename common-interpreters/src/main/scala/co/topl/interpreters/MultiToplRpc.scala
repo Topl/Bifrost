@@ -52,7 +52,7 @@ object MultiToplRpc {
       def blockIdAtDepth(depth: Long): F[Option[TypedIdentifier]] =
         randomDelegate.flatMap(_.blockIdAtDepth(depth))
 
-      override def synchronizationTraversal(currentHead: TypedIdentifier): F[Stream[F, SynchronizationTraversalStep]] =
-        randomDelegate.flatMap(_.synchronizationTraversal(currentHead))
+      override def synchronizationTraversal(): F[Stream[F, SynchronizationTraversalStep]] =
+        randomDelegate.flatMap(_.synchronizationTraversal())
     }
 }
