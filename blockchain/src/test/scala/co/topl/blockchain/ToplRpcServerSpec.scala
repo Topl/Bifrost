@@ -1,11 +1,14 @@
 package co.topl.blockchain
 
+import akka.actor.ActorSystem
+import akka.NotUsed
+import akka.stream.scaladsl.Source
+import akka.testkit.{TestKit, TestKitBase}
 import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.Store
-import co.topl.catsakka._
 import co.topl.consensus.algebras.LocalChainAlgebra
-import co.topl.eventtree.EventSourcedState
+import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.{MempoolAlgebra, TransactionSyntaxValidationAlgebra}
 import co.topl.models.ModelGenerators._
 import co.topl.models.{BlockBodyV2, BlockHeaderV2, SlotData, Transaction, TypedIdentifier}
@@ -15,10 +18,12 @@ import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
-class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
+class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory with TestKitBase {
 
   implicit private val logger: Logger[F] =
     Slf4jLogger.getLoggerFromClass[F](this.getClass)
+
+  implicit val system = ActorSystem("ToplRpcServerSpec")
 
   type F[A] = IO[A]
 
@@ -57,7 +62,9 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             mock[MempoolAlgebra[F]],
             mock[TransactionSyntaxValidationAlgebra[F]],
             localChain,
-            blockHeights
+            blockHeights,
+            mock[ParentChildTree[F, TypedIdentifier]],
+            Source.fromIterator(() => Iterator.empty[TypedIdentifier])
           )
           _ <- underTest.blockIdAtHeight(canonicalHead.height).assertEquals(canonicalHead.slotId.blockId.some)
         } yield ()
@@ -75,7 +82,9 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             mock[MempoolAlgebra[F]],
             mock[TransactionSyntaxValidationAlgebra[F]],
             localChain,
-            blockHeights
+            blockHeights,
+            mock[ParentChildTree[F, TypedIdentifier]],
+            Source.fromIterator(() => Iterator.empty[TypedIdentifier])
           )
           _ <- underTest.blockIdAtHeight(canonicalHead.height + 1).assertEquals(None)
         } yield ()
@@ -92,7 +101,9 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             mock[MempoolAlgebra[F]],
             mock[TransactionSyntaxValidationAlgebra[F]],
             localChain,
-            blockHeights
+            blockHeights,
+            mock[ParentChildTree[F, TypedIdentifier]],
+            Source.fromIterator(() => Iterator.empty[TypedIdentifier])
           )
           _ <- interceptIO[IllegalArgumentException](underTest.blockIdAtHeight(0))
           _ <- interceptIO[IllegalArgumentException](underTest.blockIdAtHeight(-1))
@@ -159,8 +170,26 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
     syntacticValidation: TransactionSyntaxValidationAlgebra[F] = mock[TransactionSyntaxValidationAlgebra[F]],
     localChain:          LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]],
     blockHeights: EventSourcedState[F, Long => F[Option[TypedIdentifier]]] =
-      mock[EventSourcedState[F, Long => F[Option[TypedIdentifier]]]]
+      mock[EventSourcedState[F, Long => F[Option[TypedIdentifier]]]],
+    blockIdTree: ParentChildTree[F, TypedIdentifier] = mock[ParentChildTree[F, TypedIdentifier]],
+    localBlockAdoptionsSource: Source[TypedIdentifier, NotUsed] =
+      Source.fromIterator(() => Iterator.empty[TypedIdentifier])
   ) =
     ToplRpcServer
-      .make[F](headerStore, bodyStore, transactionStore, mempool, syntacticValidation, localChain, blockHeights)
+      .make[F](
+        headerStore,
+        bodyStore,
+        transactionStore,
+        mempool,
+        syntacticValidation,
+        localChain,
+        blockHeights,
+        blockIdTree,
+        localBlockAdoptionsSource
+      )
+
+  override def afterAll(): Unit = {
+    super.afterAll()
+    TestKit.shutdownActorSystem(system)
+  }
 }

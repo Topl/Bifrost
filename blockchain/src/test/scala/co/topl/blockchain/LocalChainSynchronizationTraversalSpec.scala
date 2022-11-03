@@ -3,7 +3,6 @@ package co.topl.blockchain
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Source
 import cats.effect.IO
-import cats.implicits._
 import co.topl.algebras.SynchronizationTraversalSteps.{Applied, Unapplied}
 import co.topl.eventtree.ParentChildTree
 import co.topl.models.ModelGenerators._
@@ -16,6 +15,7 @@ import co.topl.catsakka._
 class LocalChainSynchronizationTraversalSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
 
   type F[A] = IO[A]
+  implicit val system: ActorSystem = ActorSystem("LocalChainHeadTraversalSpec")
 
   test("Canonical Head Steps Block IDs should be produced in a stream whenever they are adopted locally") {
 
@@ -56,10 +56,7 @@ class LocalChainSynchronizationTraversalSpec extends CatsEffectSuite with ScalaC
 
         } yield ()
     }
-
   }
-
-  implicit val system: ActorSystem = ActorSystem("LocalChainHeadTraversalSpec")
 
   override def afterAll(): Unit =
     super.afterAll()

@@ -19,7 +19,7 @@ object ToplRpcWalletInitializer {
    * applicable UTxOs in the wallet.
    */
   def make[F[_]: Async](
-    toplRpc:                     ToplRpc[F],
+    toplRpc:                     ToplRpc[F, Stream[F, *]],
     fetchHeaderParallelism:      Int,
     fetchBodyParallelism:        Int,
     fetchTransactionParallelism: Int
@@ -43,7 +43,7 @@ object ToplRpcWalletInitializer {
    * Emits a stream of transactions, starting from the big-bang block and moving forward
    */
   private def transactionStream[F[_]: Async](
-    toplRpc:                     ToplRpc[F],
+    toplRpc:                     ToplRpc[F, Stream[F, *]],
     fetchHeaderParallelism:      Int,
     fetchBodyParallelism:        Int,
     fetchTransactionParallelism: Int
@@ -66,8 +66,8 @@ object ToplRpcWalletInitializer {
   /**
    * Start from the big-bang block, and emit a stream of forward-traversing block IDs
    */
-  private def blockIdStream[F[_]: Async](
-    toplRpc:                ToplRpc[F],
+  private def blockIdStream[F[_]: Async, S[_]](
+    toplRpc:                ToplRpc[F, S],
     fetchHeaderParallelism: Int
   ): F[Stream[F, TypedIdentifier]] =
     for {

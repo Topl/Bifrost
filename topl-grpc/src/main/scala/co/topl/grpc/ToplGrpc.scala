@@ -4,11 +4,12 @@ import cats.{Eval, MonadThrow, Now}
 import cats.data.{EitherT, OptionT}
 import cats.effect.kernel.{Async, Resource}
 import cats.implicits._
-import co.topl.algebras.ToplRpc
+import co.topl.algebras.{SynchronizationTraversalStep, SynchronizationTraversalSteps, ToplRpc}
 import co.topl.grpc.services._
 import co.topl.models.TypedIdentifier
 import co.topl.{models => bifrostModels}
 import fs2.grpc.syntax.all._
+import fs2.{Pipe, Stream}
 import io.grpc.netty.shaded.io.grpc.netty.{NettyChannelBuilder, NettyServerBuilder}
 import io.grpc.{Metadata, Server, Status}
 import java.net.InetSocketAddress
@@ -23,7 +24,7 @@ object ToplGrpc {
      * @param port Bifrost node port
      * @param tls Should the connection use TLS?
      */
-    def make[F[_]: Async](host: String, port: Int, tls: Boolean): Resource[F, ToplRpc[F]] = {
+    def make[F[_]: Async](host: String, port: Int, tls: Boolean): Resource[F, ToplRpc[F, Stream[F, *]]] = {
       Eval
         .now(NettyChannelBuilder.forAddress(host, port))
         .flatMap(ncb =>
@@ -38,7 +39,7 @@ object ToplGrpc {
         .resource[F]
         .flatMap(ToplGrpcFs2Grpc.stubResource[F])
         .map(client =>
-          new ToplRpc[F] {
+          new ToplRpc[F, Stream[F, *]] {
 
             def broadcastTransaction(transaction: bifrostModels.Transaction): F[Unit] =
               EitherT(transaction.toF[F, models.Transaction])
@@ -151,7 +152,58 @@ object ToplGrpc {
                 .semiflatMap(_.toF[F, bifrostModels.TypedIdentifier])
                 .semiflatMap(EitherT.fromEither[F](_).leftMap(new IllegalArgumentException(_)).rethrowT)
                 .value
-          }
+
+            def synchronizationTraversal(
+              currentHead: bifrostModels.TypedIdentifier
+            ): F[Stream[F, SynchronizationTraversalStep]] =
+              EitherT(currentHead.toF[F, models.BlockId])
+                .leftMap(new IllegalArgumentException(_))
+                .rethrowT
+                .flatMap { blockId =>
+                  Async[F].delay {
+                    client
+                      .synchronizationTraversal(
+                        services.SynchronizationTraversalReq(blockId.some),
+                        new Metadata()
+                      )
+                      .evalMap[F, SynchronizationTraversalStep] { r =>
+                        r.status match {
+
+                          case SynchronizationTraversalRes.Status.Empty =>
+                            EitherT
+                              .fromOptionF(Option.empty[bifrostModels.TypedIdentifier].pure[F], "empty")
+                              .leftMap(new IllegalArgumentException(_))
+                              .rethrowT
+                              // This Applied is not reachable
+                              .map(SynchronizationTraversalSteps.Applied)
+
+                          case SynchronizationTraversalRes.Status.Applied(value) =>
+                            value
+                              .toF[F, bifrostModels.TypedIdentifier]
+                              .flatMap(
+                                EitherT
+                                  .fromEither[F](_)
+                                  .leftMap(new IllegalArgumentException(_))
+                                  .rethrowT
+                              )
+                              .map(SynchronizationTraversalSteps.Applied)
+
+                          case SynchronizationTraversalRes.Status.Unapplied(value) =>
+                            value
+                              .toF[F, bifrostModels.TypedIdentifier]
+                              .flatMap(
+                                EitherT
+                                  .fromEither[F](_)
+                                  .leftMap(new IllegalArgumentException(_))
+                                  .rethrowT
+                              )
+                              .map(SynchronizationTraversalSteps.Unapplied)
+                        }
+                      }
+                  }
+                }
+
+          } // new ToplRpc
         )
     }
   }
@@ -164,7 +216,7 @@ object ToplGrpc {
      * @param port The port to bind
      * @param interpreter The interpreter which fulfills the data requests
      */
-    def serve[F[_]: Async](host: String, port: Int, interpreter: ToplRpc[F]): Resource[F, Server] =
+    def serve[F[_]: Async, S[_]](host: String, port: Int, interpreter: ToplRpc[F, Stream[F, *]]): Resource[F, Server] =
       ToplGrpcFs2Grpc
         .bindServiceResource(
           new GrpcServerImpl(interpreter)
@@ -177,7 +229,7 @@ object ToplGrpc {
             .evalMap(server => Async[F].delay(server.start()))
         )
 
-    private[grpc] class GrpcServerImpl[F[_]: MonadThrow](interpreter: ToplRpc[F])
+    private[grpc] class GrpcServerImpl[F[_]: MonadThrow, S[_]](interpreter: ToplRpc[F, Stream[F, *]])
         extends services.ToplGrpcFs2Grpc[F, Metadata] {
 
       def broadcastTransaction(in: BroadcastTransactionReq, ctx: Metadata): F[BroadcastTransactionRes] =
@@ -286,6 +338,41 @@ object ToplGrpc {
           .value
           .map(services.FetchBlockIdAtDepthRes(_))
           .adaptErrorsToGrpc
+
+      private def pipeSteps: Pipe[F, SynchronizationTraversalStep, SynchronizationTraversalRes] = { in =>
+        in.evalMap {
+          case SynchronizationTraversalSteps.Applied(blockId) =>
+            EitherT(blockId.toF[F, models.BlockId])
+              .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
+              .rethrowT
+              .map(services.SynchronizationTraversalRes.Status.Applied)
+              .map(services.SynchronizationTraversalRes(_))
+
+          case SynchronizationTraversalSteps.Unapplied(blockId) =>
+            EitherT(blockId.toF[F, models.BlockId])
+              .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
+              .rethrowT
+              .map(services.SynchronizationTraversalRes.Status.Unapplied)
+              .map(services.SynchronizationTraversalRes(_))
+        }
+      }
+
+      def synchronizationTraversal(
+        in:  SynchronizationTraversalReq,
+        ctx: Metadata
+      ): Stream[F, SynchronizationTraversalRes] =
+        Stream.eval {
+          in.head
+            .toRight("Missing blockId")
+            .toEitherT[F]
+            .flatMapF(_.toF[F, bifrostModels.TypedIdentifier])
+            .leftMap(_ => Status.INVALID_ARGUMENT.withDescription("Invalid Block ID").asException())
+            .rethrowT
+            .flatMap(interpreter.synchronizationTraversal)
+            .map(_.through(pipeSteps))
+            .adaptErrorsToGrpc
+        }.flatten
+
     }
   }
 }

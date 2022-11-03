@@ -5,7 +5,7 @@ import co.topl.models.{BlockBodyV2, BlockHeaderV2, Transaction, TypedIdentifier}
 /**
  * An interaction layer intended for users/clients of a blockchain node.
  */
-trait ToplRpc[F[_]] {
+trait ToplRpc[F[_], S[_]] {
   def broadcastTransaction(transaction: Transaction): F[Unit]
 
   def currentMempool(): F[Set[TypedIdentifier]]
@@ -19,4 +19,6 @@ trait ToplRpc[F[_]] {
   def blockIdAtHeight(height: Long): F[Option[TypedIdentifier]]
 
   def blockIdAtDepth(depth: Long): F[Option[TypedIdentifier]]
+
+  def synchronizationTraversal(currentHead: TypedIdentifier): F[S[SynchronizationTraversalStep]]
 }

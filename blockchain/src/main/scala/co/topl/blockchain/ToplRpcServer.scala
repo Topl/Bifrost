@@ -1,20 +1,25 @@
 package co.topl.blockchain
 
+import akka.NotUsed
+import akka.stream.Materializer
+import akka.stream.scaladsl.Source
 import cats.{Monad, Show}
 import cats.data.EitherT
 import cats.implicits._
 import cats.effect.Async
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.algebras.{Store, ToplRpc}
-import co.topl.catsakka.FToFuture
+import co.topl.algebras.{Store, SynchronizationTraversalStep, ToplRpc}
+//import co.topl.catsakka.FToFuture
+import co.topl.catsakka._
 import co.topl.consensus.algebras.LocalChainAlgebra
-import co.topl.eventtree.EventSourcedState
+import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.{MempoolAlgebra, TransactionSyntaxValidationAlgebra}
 import co.topl.ledger.models._
 import co.topl.models.{BlockBodyV2, BlockHeaderV2, Transaction, TypedIdentifier}
 import org.typelevel.log4cats.Logger
 import co.topl.typeclasses.implicits._
+import fs2.Stream
 
 object ToplRpcServer {
 
@@ -35,17 +40,19 @@ object ToplRpcServer {
   /**
    * Interpreter which serves Topl RPC data using local blockchain interpreters
    */
-  def make[F[_]: Async: Logger: FToFuture](
-    headerStore:         Store[F, TypedIdentifier, BlockHeaderV2],
-    bodyStore:           Store[F, TypedIdentifier, BlockBodyV2],
-    transactionStore:    Store[F, TypedIdentifier, Transaction],
-    mempool:             MempoolAlgebra[F],
-    syntacticValidation: TransactionSyntaxValidationAlgebra[F],
-    localChain:          LocalChainAlgebra[F],
-    blockHeights:        EventSourcedState[F, Long => F[Option[TypedIdentifier]]]
-  ): F[ToplRpc[F]] =
+  def make[F[_]: Async: Logger](
+    headerStore:               Store[F, TypedIdentifier, BlockHeaderV2],
+    bodyStore:                 Store[F, TypedIdentifier, BlockBodyV2],
+    transactionStore:          Store[F, TypedIdentifier, Transaction],
+    mempool:                   MempoolAlgebra[F],
+    syntacticValidation:       TransactionSyntaxValidationAlgebra[F],
+    localChain:                LocalChainAlgebra[F],
+    blockHeights:              EventSourcedState[F, Long => F[Option[TypedIdentifier]]],
+    blockIdTree:               ParentChildTree[F, TypedIdentifier],
+    localBlockAdoptionsSource: Source[TypedIdentifier, NotUsed]
+  )(implicit mat:              Materializer): F[ToplRpc[F, Stream[F, *]]] =
     Async[F].delay {
-      new ToplRpc[F] {
+      new ToplRpc[F, Stream[F, *]] {
 
         def broadcastTransaction(transaction: Transaction): F[Unit] =
           transactionStore
@@ -92,6 +99,18 @@ object ToplRpcServer {
               else if (depth > head.height) none.pure[F]
               else blockHeights.useStateAt(head.slotId.blockId)(_.apply(head.height - depth))
           } yield atDepth
+
+        def synchronizationTraversal(currentHead: TypedIdentifier): F[Stream[F, SynchronizationTraversalStep]] =
+          for {
+            fs2Stream <- localBlockAdoptionsSource.asFS2Stream[F]
+            syncTraversalSteps <- LocalChainSynchronizationTraversal
+              .make[F](
+                currentHead,
+                fs2Stream,
+                blockIdTree
+              )
+              .headChanges
+          } yield syncTraversalSteps
 
         private def syntacticValidateOrRaise(transaction: Transaction) =
           EitherT(syntacticValidation.validate(transaction).map(_.toEither))
