@@ -287,9 +287,9 @@ trait BinaryTree[+A] {
    * (**) Find the Nth element in a binary tree using pre/in/post/level order traversals.
    * By convention, the first element in the tree is element 0.
    */
-  def nthPreorder(n: Int): A = toSeqPreorder(n)
-  def nthInorder(n: Int): A = toSeqInorder(n)
-  def nthPostorder(n: Int): A = toSeqPostorder(n)
+  def nthPreorder(n:   Int): A = toSeqPreorder(n)
+  def nthInorder(n:    Int): A = toSeqInorder(n)
+  def nthPostorder(n:  Int): A = toSeqPostorder(n)
   def nthLevelorder(n: Int): A = toSeqLevelorder(n)
 
 }
