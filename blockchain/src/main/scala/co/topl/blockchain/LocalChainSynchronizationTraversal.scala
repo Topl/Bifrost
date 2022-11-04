@@ -22,24 +22,16 @@ object LocalChainSynchronizationTraversal {
 
     val pullSteps: Pipe[F, TypedIdentifier, SynchronizationTraversalStep] = {
       def go(s: Stream[F, TypedIdentifier], currentHead: TypedIdentifier): Pull[F, SynchronizationTraversalStep, Unit] =
-        s.pull.uncons.flatMap {
-          case Some((chunk, tlStream)) =>
-            chunk.head match {
-              case Some(newHead) =>
-                Pull
-                  .eval(parentChildTree.findCommonAncestor(currentHead, newHead))
-                  .map { case (unapplyChain, applyChain) =>
-                    unapplyChain.tail.map(SynchronizationTraversalSteps.Unapplied) ++
-                    applyChain.tail.map(SynchronizationTraversalSteps.Applied)
-                  }
-                  .map(Chunk.chain)
-                  .flatMap(steps =>
-                    Pull.output(steps) >>
-                    go(Stream.chunk(chunk.drop(1)) ++ tlStream, newHead)
-                  )
-              case None =>
-                Pull.done
-            }
+        s.pull.uncons1.flatMap {
+          case Some((head, tlStream)) =>
+            Pull
+              .eval(parentChildTree.findCommonAncestor(currentHead, head))
+              .map { case (unapplyChain, applyChain) =>
+                unapplyChain.tail.map(SynchronizationTraversalSteps.Unapplied) ++
+                applyChain.tail.map(SynchronizationTraversalSteps.Applied)
+              }
+              .map(Chunk.chain)
+              .flatMap(steps => Pull.output(steps) >> go(tlStream, head))
           case None =>
             Pull.done
         }

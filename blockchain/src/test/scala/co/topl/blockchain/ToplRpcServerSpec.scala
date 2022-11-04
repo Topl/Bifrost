@@ -3,9 +3,8 @@ package co.topl.blockchain
 import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.Store
-import co.topl.catsakka._
 import co.topl.consensus.algebras.LocalChainAlgebra
-import co.topl.eventtree.EventSourcedState
+import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.{MempoolAlgebra, TransactionSyntaxValidationAlgebra}
 import co.topl.models.ModelGenerators._
 import co.topl.models.{BlockBodyV2, BlockHeaderV2, SlotData, Transaction, TypedIdentifier}
@@ -14,6 +13,7 @@ import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import fs2.Stream
 
 class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
@@ -57,7 +57,9 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             mock[MempoolAlgebra[F]],
             mock[TransactionSyntaxValidationAlgebra[F]],
             localChain,
-            blockHeights
+            blockHeights,
+            mock[ParentChildTree[F, TypedIdentifier]],
+            Stream.empty
           )
           _ <- underTest.blockIdAtHeight(canonicalHead.height).assertEquals(canonicalHead.slotId.blockId.some)
         } yield ()
@@ -75,7 +77,9 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             mock[MempoolAlgebra[F]],
             mock[TransactionSyntaxValidationAlgebra[F]],
             localChain,
-            blockHeights
+            blockHeights,
+            mock[ParentChildTree[F, TypedIdentifier]],
+            Stream.empty
           )
           _ <- underTest.blockIdAtHeight(canonicalHead.height + 1).assertEquals(None)
         } yield ()
@@ -92,7 +96,9 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             mock[MempoolAlgebra[F]],
             mock[TransactionSyntaxValidationAlgebra[F]],
             localChain,
-            blockHeights
+            blockHeights,
+            mock[ParentChildTree[F, TypedIdentifier]],
+            Stream.empty
           )
           _ <- interceptIO[IllegalArgumentException](underTest.blockIdAtHeight(0))
           _ <- interceptIO[IllegalArgumentException](underTest.blockIdAtHeight(-1))
@@ -151,6 +157,41 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
     }
   }
 
+  test("Fetch Adoptions Stream Rpc Synchronization Traversal") {
+    import cats.data.NonEmptyChain
+    import co.topl.algebras.SynchronizationTraversalSteps
+
+    PropF.forAllF { (slotHead: SlotData, slotA: SlotData, slotB: SlotData) =>
+      withMock {
+        for {
+          localChain <- mock[LocalChainAlgebra[F]].pure[F]
+          _ = (() => localChain.head).expects().once().returning(slotHead.pure[F])
+          parentChildTree <- mock[ParentChildTree[F, TypedIdentifier]].pure[F]
+          _ = (
+            (
+              a,
+              b
+            ) => parentChildTree.findCommonAncestor(a, b)
+          ).expects(slotHead.slotId.blockId, slotA.slotId.blockId)
+            .once()
+            .returning(
+              (NonEmptyChain.one(slotA.slotId.blockId), NonEmptyChain(slotA.slotId.blockId, slotB.slotId.blockId))
+                .pure[F]
+            )
+          underTest <- createServer(
+            localChain = localChain,
+            blockIdTree = parentChildTree,
+            localBlockAdoptionsStream = Stream.eval(slotA.slotId.blockId.pure[F])
+          )
+          stream <- underTest.synchronizationTraversal()
+          // find common ancestor is inclusive, and synchronizationTraversal tail results
+          expected = SynchronizationTraversalSteps.Applied(slotB.slotId.blockId)
+          _ <- stream.compile.toList.map(_.contains(expected)).assert
+        } yield ()
+      }
+    }
+  }
+
   private def createServer(
     headerStore:         Store[F, TypedIdentifier, BlockHeaderV2] = mock[Store[F, TypedIdentifier, BlockHeaderV2]],
     bodyStore:           Store[F, TypedIdentifier, BlockBodyV2] = mock[Store[F, TypedIdentifier, BlockBodyV2]],
@@ -159,8 +200,20 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
     syntacticValidation: TransactionSyntaxValidationAlgebra[F] = mock[TransactionSyntaxValidationAlgebra[F]],
     localChain:          LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]],
     blockHeights: EventSourcedState[F, Long => F[Option[TypedIdentifier]]] =
-      mock[EventSourcedState[F, Long => F[Option[TypedIdentifier]]]]
+      mock[EventSourcedState[F, Long => F[Option[TypedIdentifier]]]],
+    blockIdTree:               ParentChildTree[F, TypedIdentifier] = mock[ParentChildTree[F, TypedIdentifier]],
+    localBlockAdoptionsStream: Stream[F, TypedIdentifier] = Stream.empty
   ) =
     ToplRpcServer
-      .make[F](headerStore, bodyStore, transactionStore, mempool, syntacticValidation, localChain, blockHeights)
+      .make[F](
+        headerStore,
+        bodyStore,
+        transactionStore,
+        mempool,
+        syntacticValidation,
+        localChain,
+        blockHeights,
+        blockIdTree,
+        localBlockAdoptionsStream
+      )
 }

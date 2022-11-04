@@ -1,9 +1,6 @@
 package co.topl.blockchain
 
-import akka.actor.ActorSystem
-import akka.stream.scaladsl.Source
 import cats.effect.IO
-import cats.implicits._
 import co.topl.algebras.SynchronizationTraversalSteps.{Applied, Unapplied}
 import co.topl.eventtree.ParentChildTree
 import co.topl.models.ModelGenerators._
@@ -11,7 +8,7 @@ import co.topl.models.{SlotData, TypedIdentifier}
 import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
-import co.topl.catsakka._
+import fs2.{Chunk, Stream}
 
 class LocalChainSynchronizationTraversalSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
 
@@ -37,7 +34,7 @@ class LocalChainSynchronizationTraversalSpec extends CatsEffectSuite with ScalaC
           _ <- parentChildTree.associate(slot_E.slotId.blockId, slot_D.slotId.blockId)
           _ <- parentChildTree.associate(slot_F.slotId.blockId, slot_E.slotId.blockId)
 
-          adoptions <- Source(Seq(slot_C, slot_F).map(_.slotId.blockId)).asFS2Stream[F]
+          adoptions = Stream.chunk(Chunk(slot_C.slotId.blockId, slot_F.slotId.blockId))
 
           stream <- LocalChainSynchronizationTraversal
             .make[F](slot_A.slotId.blockId, adoptions, parentChildTree)
@@ -56,10 +53,7 @@ class LocalChainSynchronizationTraversalSpec extends CatsEffectSuite with ScalaC
 
         } yield ()
     }
-
   }
-
-  implicit val system: ActorSystem = ActorSystem("LocalChainHeadTraversalSpec")
 
   override def afterAll(): Unit =
     super.afterAll()

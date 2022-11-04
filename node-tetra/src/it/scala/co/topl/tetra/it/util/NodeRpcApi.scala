@@ -9,6 +9,7 @@ import co.topl.grpc.ToplGrpc
 import co.topl.tetra.it.util.NodeRpcApi.{rpcWaitAttempts, rpcWaitSleepMs}
 import com.spotify.docker.client.DockerClient
 import org.slf4j.{Logger, LoggerFactory}
+import fs2.Stream
 
 case class NodeRpcApi(host: String, rpcPort: Int) {
   val logger: Logger = LoggerFactory.getLogger(this.toString)
@@ -24,7 +25,7 @@ case class NodeRpcApi(host: String, rpcPort: Int) {
     logger.info(s"RPC is started and run for host $host")
   }
 
-  private def waitRpcIO(rpc: ToplRpc[IO]): IO[Unit] = {
+  private def waitRpcIO(rpc: ToplRpc[IO, Stream[IO, *]]): IO[Unit] = {
     var remainingAttempts = rpcWaitAttempts
 
     def sleepWithCounter = IO {

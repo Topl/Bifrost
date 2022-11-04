@@ -4,8 +4,9 @@ import cats.Foldable
 import cats.effect.Async
 import cats.effect.std.Random
 import cats.implicits._
-import co.topl.algebras.ToplRpc
+import co.topl.algebras.{SynchronizationTraversalStep, ToplRpc}
 import co.topl.models.{BlockBodyV2, BlockHeaderV2, Transaction, TypedIdentifier}
+import fs2.Stream
 
 object MultiToplRpc {
 
@@ -17,15 +18,15 @@ object MultiToplRpc {
    * @tparam G a collection type
    * @return a ToplRpc interpreter
    */
-  def make[F[_]: Async, G[_]: Foldable](delegates: G[ToplRpc[F]]): F[ToplRpc[F]] =
+  def make[F[_]: Async, G[_]: Foldable](delegates: G[ToplRpc[F, Stream[F, *]]]): F[ToplRpc[F, Stream[F, *]]] =
     for {
       implicit0(random: Random[F]) <- Random.javaSecuritySecureRandom[F]
-    } yield new ToplRpc[F] {
+    } yield new ToplRpc[F, Stream[F, *]] {
 
       private val delegatesArray =
         delegates.toIterable.toArray
 
-      private def randomDelegate: F[ToplRpc[F]] =
+      private def randomDelegate: F[ToplRpc[F, Stream[F, *]]] =
         Random[F]
           .nextIntBounded(delegatesArray.length)
           .map(delegatesArray(_))
@@ -50,5 +51,8 @@ object MultiToplRpc {
 
       def blockIdAtDepth(depth: Long): F[Option[TypedIdentifier]] =
         randomDelegate.flatMap(_.blockIdAtDepth(depth))
+
+      override def synchronizationTraversal(): F[Stream[F, SynchronizationTraversalStep]] =
+        randomDelegate.flatMap(_.synchronizationTraversal())
     }
 }
