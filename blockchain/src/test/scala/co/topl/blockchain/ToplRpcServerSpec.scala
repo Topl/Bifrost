@@ -1,7 +1,5 @@
 package co.topl.blockchain
 
-import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestKitBase}
 import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.Store
@@ -17,12 +15,10 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import fs2.Stream
 
-class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory with TestKitBase {
+class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   implicit private val logger: Logger[F] =
     Slf4jLogger.getLoggerFromClass[F](this.getClass)
-
-  implicit val system = ActorSystem("ToplRpcServerSpec")
 
   type F[A] = IO[A]
 
@@ -161,6 +157,41 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
     }
   }
 
+  test("Fetch Adoptions Stream Rpc Synchronization Traversal") {
+    import cats.data.NonEmptyChain
+    import co.topl.algebras.SynchronizationTraversalSteps
+
+    PropF.forAllF { (slotHead: SlotData, slotA: SlotData, slotB: SlotData) =>
+      withMock {
+        for {
+          localChain <- mock[LocalChainAlgebra[F]].pure[F]
+          _ = (() => localChain.head).expects().once().returning(slotHead.pure[F])
+          parentChildTree <- mock[ParentChildTree[F, TypedIdentifier]].pure[F]
+          _ = (
+            (
+              a,
+              b
+            ) => parentChildTree.findCommonAncestor(a, b)
+          ).expects(slotHead.slotId.blockId, slotA.slotId.blockId)
+            .once()
+            .returning(
+              (NonEmptyChain.one(slotA.slotId.blockId), NonEmptyChain(slotA.slotId.blockId, slotB.slotId.blockId))
+                .pure[F]
+            )
+          underTest <- createServer(
+            localChain = localChain,
+            blockIdTree = parentChildTree,
+            localBlockAdoptionsStream = Stream.eval(slotA.slotId.blockId.pure[F])
+          )
+          stream <- underTest.synchronizationTraversal()
+          // find common ancestor is inclusive, and synchronizationTraversal tail results
+          expected = SynchronizationTraversalSteps.Applied(slotB.slotId.blockId)
+          _ <- stream.compile.toList.map(_.contains(expected)).assert
+        } yield ()
+      }
+    }
+  }
+
   private def createServer(
     headerStore:         Store[F, TypedIdentifier, BlockHeaderV2] = mock[Store[F, TypedIdentifier, BlockHeaderV2]],
     bodyStore:           Store[F, TypedIdentifier, BlockBodyV2] = mock[Store[F, TypedIdentifier, BlockBodyV2]],
@@ -185,9 +216,4 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
         blockIdTree,
         localBlockAdoptionsStream
       )
-
-  override def afterAll(): Unit = {
-    super.afterAll()
-    TestKit.shutdownActorSystem(system)
-  }
 }
