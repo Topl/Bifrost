@@ -40,12 +40,12 @@ object BlockPacker {
         _                     <- Logger[F].debug(show"Block packing candidates=${mempoolTransactionIds.toList}")
         // The transactions that come out of the mempool arrive in no particular order
         unsortedTransactions <- mempoolTransactionIds.toList.traverse(fetchTransaction)
-        transactions = orderTransactions(unsortedTransactions)
+        sortedTransactions = orderTransactions(unsortedTransactions)
         iterative <-
           // Enqueue all of the transactions (in no particular order, which is terrible for performance and accuracy)
           Queue
             .unbounded[F, Transaction]
-            .flatTap(queue => transactions.traverse(queue.offer))
+            .flatTap(queue => sortedTransactions.traverse(queue.offer))
             .map(queue =>
               new Iterative[F, BlockBodyV2.Full] {
 
