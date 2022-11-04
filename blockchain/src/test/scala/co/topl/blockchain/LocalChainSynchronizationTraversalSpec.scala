@@ -34,7 +34,7 @@ class LocalChainSynchronizationTraversalSpec extends CatsEffectSuite with ScalaC
           _ <- parentChildTree.associate(slot_E.slotId.blockId, slot_D.slotId.blockId)
           _ <- parentChildTree.associate(slot_F.slotId.blockId, slot_E.slotId.blockId)
 
-          adoptions = Stream.chunk(Chunk(slot_C.slotId.blockId, slot_D.slotId.blockId))
+          adoptions = Stream.chunk(Chunk(slot_C.slotId.blockId, slot_F.slotId.blockId))
 
           stream <- LocalChainSynchronizationTraversal
             .make[F](slot_A.slotId.blockId, adoptions, parentChildTree)
