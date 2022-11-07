@@ -68,16 +68,7 @@ jobs:
       java-versions: >-
         ["11"]
 
-  post-man-integration-tests:
-    uses: ./.github/workflows/_postman_integration_tests.yml
-    needs: sbt-build
-    with:
-      target-os: >-
-        ["ubuntu-latest"]
-      java-versions: >-
-        ["11"]
-
   publish-test-results:
     uses: ./.github/workflows/_publish_test_results.yml
     if: always()
-    needs: [sbt-integration-tests, post-man-integration-tests]
+    needs: [sbt-integration-tests]

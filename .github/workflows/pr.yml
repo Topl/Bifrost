@@ -17,8 +17,8 @@ jobs:
         ["11"]
       preserve-cache-between-runs: true
 
-  post-man-integration-tests:
-    uses: ./.github/workflows/_postman_integration_tests.yml
+  sbt-integration-tests:
+    uses: ./.github/workflows/_scala_integration_tests.yml
     needs: sbt-build
     with:
       target-os: >-
@@ -30,4 +30,4 @@ jobs:
   publish-test-results:
     uses: ./.github/workflows/_publish_test_results.yml
     if: always()
-    needs: [post-man-integration-tests]
+    needs: [sbt-integration-tests]
