@@ -3,8 +3,6 @@ package co.topl.credential
 import co.topl.crypto.signing.{Ed25519, ExtendedEd25519}
 import co.topl.models.{Propositions, SecretKeys, Transaction}
 
-import scala.language.implicitConversions
-
 /**
  * Reveal inputs to produce a Credential
  */

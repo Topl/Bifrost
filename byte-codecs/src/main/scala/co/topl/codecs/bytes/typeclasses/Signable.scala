@@ -4,8 +4,6 @@ import scodec.{Attempt, Encoder}
 import scodec.bits.ByteVector
 import simulacrum.typeclass
 
-import scala.language.implicitConversions
-
 /**
  * Typeclass for encoding a value into its byte representation for signing routines.
  *

@@ -1,6 +1,6 @@
 package co.topl.algebras
 
-import cats.{ApplicativeThrow, Functor, MonadThrow, Show}
+import cats.{Functor, MonadThrow, Show}
 import cats.implicits._
 import cats.data.OptionT
 

@@ -34,16 +34,13 @@ trait KeyManagementJsonCodecs {
         mac        <- c.downField("crypto").downField("mac").as[Base58Data]
         salt       <- c.downField("crypto").downField("kdfSalt").as[Base58Data]
         iv         <- c.downField("crypto").downField("cipherParams").downField("iv").as[Base58Data]
-      } yield {
-        implicit val netPrefix: NetworkPrefix = address.networkPrefix
-        KeyfileCurve25519(
-          address,
-          cipherText.encodeAsBytes,
-          mac.encodeAsBytes,
-          salt.encodeAsBytes,
-          iv.encodeAsBytes
-        )
-      }
+      } yield KeyfileCurve25519(
+        address,
+        cipherText.encodeAsBytes,
+        mac.encodeAsBytes,
+        salt.encodeAsBytes,
+        iv.encodeAsBytes
+      )
 
   implicit val keyfileEd25519JsonEncoder: Encoder[KeyfileEd25519] = { kf: KeyfileEd25519 =>
     Map(
@@ -67,10 +64,7 @@ trait KeyManagementJsonCodecs {
         mac        <- c.downField("crypto").downField("mac").as[Base58Data]
         salt       <- c.downField("crypto").downField("kdfSalt").as[Base58Data]
         iv         <- c.downField("crypto").downField("cipherParams").downField("iv").as[Base58Data]
-      } yield {
-        implicit val netPrefix: NetworkPrefix = address.networkPrefix
-        KeyfileEd25519(address, cipherText.encodeAsBytes, mac.encodeAsBytes, salt.encodeAsBytes, iv.encodeAsBytes)
-      }
+      } yield KeyfileEd25519(address, cipherText.encodeAsBytes, mac.encodeAsBytes, salt.encodeAsBytes, iv.encodeAsBytes)
 
   implicit def keyfileJsonEncoder[KF <: Keyfile[_]]: Encoder[KF] = {
     case kfc: KeyfileCurve25519 => keyfileCurve25519JsonEncoder(kfc)

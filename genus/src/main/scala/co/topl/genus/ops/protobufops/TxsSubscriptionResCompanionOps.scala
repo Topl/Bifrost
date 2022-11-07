@@ -4,7 +4,7 @@ import cats.implicits._
 import cats.Functor
 import co.topl.genus.algebras.SubscriptionService.{CreateSubscriptionFailure, CreateSubscriptionFailures}
 import co.topl.genus.services.transactions_subscription.TxsSubscriptionRes
-import co.topl.genus.services.transactions_subscription.TxsSubscriptionRes.Failure.{messageCompanion, Reason}
+import co.topl.genus.services.transactions_subscription.TxsSubscriptionRes.Failure.Reason
 import co.topl.genus.types.Transaction
 
 import scala.language.implicitConversions

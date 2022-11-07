@@ -3,7 +3,7 @@ package co.topl.attestation.ops
 import cats.implicits._
 import co.topl.attestation.Address
 import co.topl.attestation.ops.EvidenceOps.ToTypedEvidenceFailure
-import co.topl.models.{NetworkPrefix, SpendingAddress}
+import co.topl.models.SpendingAddress
 import co.topl.attestation.ops.EvidenceOps.implicits._
 
 import scala.language.implicitConversions

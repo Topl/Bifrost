@@ -4,7 +4,7 @@ import co.topl.codecs.bytes.tetra.TetraSignableCodecs
 import co.topl.codecs.bytes.typeclasses.Signable
 import co.topl.crypto.hash.Blake2b256
 import co.topl.models._
-import scodec.{Attempt, Codec, Encoder}
+import scodec.{Attempt, Encoder}
 
 import scala.util.Try
 

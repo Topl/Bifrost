@@ -1,8 +1,6 @@
 package co.topl.crypto.signing
 
-import co.topl.crypto.generation.{Bip32Index, Bip32Indexes, EntropyToSeed, Pbkdf2Sha512}
-import co.topl.crypto.generation.mnemonic.Entropy
-import co.topl.models.SecretKeys.ExtendedEd25519.Length
+import co.topl.crypto.generation.{Bip32Index, Bip32Indexes}
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.{Lengths, Sized}
@@ -10,7 +8,6 @@ import org.bouncycastle.crypto.digests.SHA512Digest
 import org.bouncycastle.crypto.macs.HMac
 import org.bouncycastle.crypto.params.KeyParameter
 
-import java.nio.charset.StandardCharsets
 import java.nio.{ByteBuffer, ByteOrder}
 
 class ExtendedEd25519

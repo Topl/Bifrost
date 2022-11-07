@@ -4,8 +4,7 @@ import co.topl.attestation._
 import co.topl.codecs.binary.scodecs.attestation._
 import co.topl.codecs.binary.scodecs.modifier.box._
 import co.topl.codecs.binary.scodecs.valuetypes._
-import co.topl.modifier.box.Box.Nonce
-import co.topl.modifier.box.{SimpleValue, TokenValueHolder}
+import co.topl.modifier.box.SimpleValue
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
 import co.topl.utils.Identifiable
 import scodec.codecs.{byte, discriminated}

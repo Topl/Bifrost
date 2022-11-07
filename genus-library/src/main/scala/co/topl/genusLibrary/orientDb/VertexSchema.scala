@@ -1,9 +1,7 @@
 package co.topl.genusLibrary.orientDb
 
-import co.topl.models.TypedIdentifier
 import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
 import com.orientechnologies.orient.core.metadata.schema.{OClass, OPropertyAbstractDelegate, OType}
-import scodec.bits.ByteVector
 
 /**
  * Describe how data from a scala class will be stored in an OrientDB vertex.

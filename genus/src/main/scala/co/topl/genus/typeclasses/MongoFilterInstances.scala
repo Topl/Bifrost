@@ -1,8 +1,6 @@
 package co.topl.genus.typeclasses
 
 import co.topl.genus.filters._
-import co.topl.genus.types.BlockHeight
-import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.Filters
 
 trait MongoFilterInstances {

@@ -10,8 +10,6 @@ import co.topl.modifier.transaction._
 import co.topl.utils.NetworkType.NetworkPrefix
 import simulacrum._
 
-import scala.language.implicitConversions
-
 @typeclass trait SyntacticallyValidatable[T] {
 
   /**

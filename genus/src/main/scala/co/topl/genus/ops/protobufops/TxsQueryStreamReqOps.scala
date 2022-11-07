@@ -3,7 +3,6 @@ package co.topl.genus.ops.protobufops
 import co.topl.genus.algebras.QueryService.QueryRequest
 import co.topl.genus.filters.TransactionFilter
 import co.topl.genus.services.transactions_query.{TransactionSorting, TxsQueryStreamReq}
-import org.mongodb.scala.bson.conversions.Bson
 
 import scala.language.implicitConversions
 

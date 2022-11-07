@@ -2,7 +2,7 @@ package co.topl.modifier.ops
 
 import cats.implicits._
 import co.topl.attestation.Address
-import co.topl.models.{Box, Bytes, FullAddress, SpendingAddress, Transaction}
+import co.topl.models.{Box, Bytes, FullAddress, Transaction}
 import co.topl.models.utility.HasLength.instances.{bigIntLength, bytesLength, latin1DataLength}
 import co.topl.models.utility.{Lengths, Sized}
 import co.topl.modifier.box.AssetValue
@@ -33,16 +33,11 @@ class AssetValueOps(private val assetValue: AssetValue) extends AnyVal {
           .leftMap(error => ToAssetOutputFailures.InvalidQuantity(assetValue.quantity, error))
       issuer <-
         assetValue.assetCode.issuer.toSpendingAddress
-          .leftMap[ToAssetOutputFailure](error =>
-            ToAssetOutputFailures.InvalidIssuerAddress(assetValue.assetCode.issuer)
-          )
+          .leftMap[ToAssetOutputFailure](_ => ToAssetOutputFailures.InvalidIssuerAddress(assetValue.assetCode.issuer))
       shortName <-
         Sized
           .max[Latin1Data, Lengths.`8`.type](Latin1Data.fromData(assetValue.assetCode.shortName.value))
-          .leftMap[ToAssetOutputFailure](error =>
-            ToAssetOutputFailures.InvalidShortName(assetValue.assetCode.shortName)
-          )
-      assetCode = Box.Values.AssetV1.Code(assetValue.assetCode.version, issuer, shortName)
+          .leftMap[ToAssetOutputFailure](_ => ToAssetOutputFailures.InvalidShortName(assetValue.assetCode.shortName))
       assetCode <-
         assetValue.assetCode.toTetraAssetCode
           .leftMap {

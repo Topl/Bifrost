@@ -157,7 +157,8 @@ lazy val scalamacrosParadiseSettings =
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, v)) if v >= 13 =>
           Seq(
-            "-Ymacro-annotations"
+            "-Ymacro-annotations",
+            "-Xlint:unused"
           )
         case _ =>
           Nil
@@ -166,11 +167,11 @@ lazy val scalamacrosParadiseSettings =
   )
 
 lazy val commonScalacOptions = Seq(
-  "-deprecation",
-  "-feature",
-  "-language:higherKinds",
+  "-deprecation", // Emit warning and location for usages of deprecated APIs.
+  "-feature", // Emit warning and location for usages of features that should be imported explicitly.
+  "-language:higherKinds", // Allow higher-kinded types
   "-language:postfixOps",
-  "-unchecked",
+  "-unchecked", // Enable additional warnings where generated code depends on assumptions.
   "-Xlint:",
   "-Ywarn-unused:-implicits,-privates",
   "-Yrangepos"

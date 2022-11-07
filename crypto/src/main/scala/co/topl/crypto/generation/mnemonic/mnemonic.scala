@@ -1,8 +1,5 @@
 package co.topl.crypto.generation
 
-import scala.language.implicitConversions
-import scala.math.BigInt
-
 /**
  * A mnemonic represents a set of random entropy that can be used to derive a private key or other type of value.
  * This implementation follows a combination of BIP-0039 and SLIP-0023.

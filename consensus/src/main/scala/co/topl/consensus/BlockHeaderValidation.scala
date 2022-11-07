@@ -16,8 +16,6 @@ import scalacache.caffeine.CaffeineCache
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 
-import scala.language.implicitConversions
-
 /**
  * Interpreters for the ConsensusValidationAlgebra
  */

@@ -9,7 +9,6 @@ import co.topl.modifier.box._
 import co.topl.modifier.implicits._
 import co.topl.modifier.ops.AssetCodeOps.ToTetraAssetCodeFailures
 import co.topl.modifier.transaction.builder.Validation._
-import co.topl.modifier.transaction.builder.ops.BoxSetOps.ToBoxReferencesFailures
 import co.topl.modifier.transaction.builder.ops.implicits._
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer}
 import co.topl.modifier.{BoxReader, ProgramId}

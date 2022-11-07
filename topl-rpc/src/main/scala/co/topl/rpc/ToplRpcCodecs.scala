@@ -119,7 +119,6 @@ trait NodeViewRpcParamsEncoders {
 }
 
 trait TransactionRpcParamsEncoders extends SharedCodecs {
-  import co.topl.codecs.json.tetra.instances._
 
   implicit val transactionRawAssetTransferParamsEncoder: Encoder[ToplRpc.Transaction.RawAssetTransfer.Params] =
     deriveEncoder
@@ -543,6 +542,7 @@ trait TransactionRpcParamsDecoders extends SharedCodecs {
   implicit def transactionUnprovenPolyTransferParamsDecoder(implicit
     networkPrefix: NetworkPrefix
   ): Decoder[ToplRpc.Transaction.UnprovenPolyTransfer.Params] = {
+    // compiler warning is never used? TODO
     implicit val tetraNetworkPrefix: TetraNetworkPrefix = TetraNetworkPrefix(networkPrefix)
     deriveDecoder
   }
@@ -550,6 +550,7 @@ trait TransactionRpcParamsDecoders extends SharedCodecs {
   implicit def transactionUnprovenArbitTransferParamsDecoder(implicit
     networkPrefix: NetworkPrefix
   ): Decoder[ToplRpc.Transaction.UnprovenArbitTransfer.Params] = {
+    // compiler warning is never used? TODO
     implicit val tetraNetworkPrefix: TetraNetworkPrefix = TetraNetworkPrefix(networkPrefix)
     deriveDecoder
   }
@@ -557,6 +558,7 @@ trait TransactionRpcParamsDecoders extends SharedCodecs {
   implicit def transactionUnprovenAssetTransferParamsDecoder(implicit
     networkPrefix: NetworkPrefix
   ): Decoder[ToplRpc.Transaction.UnprovenAssetTransfer.Params] = {
+    // compiler warning is never used? TODO
     implicit val tetraNetworkPrefix: TetraNetworkPrefix = TetraNetworkPrefix(networkPrefix)
     deriveDecoder
   }
@@ -569,6 +571,7 @@ trait TransactionRpcParamsDecoders extends SharedCodecs {
   implicit def transactionBroadcastTetraTransferParamsDecoder(implicit
     networkPrefix: NetworkPrefix
   ): Decoder[ToplRpc.Transaction.BroadcastTetraTransfer.Params] = {
+    // compiler warning is never used? TODO
     implicit val tetraNetworkPrefix: TetraNetworkPrefix = TetraNetworkPrefix(networkPrefix)
     deriveDecoder
   }

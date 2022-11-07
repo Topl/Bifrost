@@ -13,11 +13,11 @@ import co.topl.genus.interpreters.services._
 import co.topl.genus.programs.GenusProgram
 import co.topl.genus.settings._
 import co.topl.genus.typeclasses.implicits._
-import co.topl.genus.ops.implicits._
+
 import co.topl.utils.StringDataTypes.Base58Data
 import com.typesafe.config.ConfigFactory
 import mainargs.ParserForClass
-import org.mongodb.scala.{Document, MongoClient}
+import org.mongodb.scala.MongoClient
 
 import java.io.File
 import scala.concurrent.ExecutionContext

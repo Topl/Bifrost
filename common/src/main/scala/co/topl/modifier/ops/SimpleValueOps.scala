@@ -3,7 +3,7 @@ package co.topl.modifier.ops
 import cats.implicits._
 import co.topl.models.utility.HasLength.instances.bigIntLength
 import co.topl.models.utility.{Lengths, Sized}
-import co.topl.models.{Box => TetraBox, FullAddress, SpendingAddress, Transaction}
+import co.topl.models.{Box => TetraBox, FullAddress, Transaction}
 import co.topl.modifier.box.SimpleValue
 
 import scala.language.implicitConversions

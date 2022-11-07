@@ -16,7 +16,6 @@ import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing._
 import co.topl.interpreters._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.codecs.bytes.tetra.instances._
 import co.topl.models._
 import co.topl.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._

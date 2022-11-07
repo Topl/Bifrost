@@ -15,7 +15,6 @@ import co.topl.utils.mongodb.DocumentDecoder
 import co.topl.utils.mongodb.codecs._
 import co.topl.utils.mongodb.models.BlockDataModel
 import org.mongodb.scala.bson.conversions.Bson
-import org.mongodb.scala.{Document, MongoCollection}
 import co.topl.genus.ops.implicits._
 
 import scala.concurrent.duration.DurationInt

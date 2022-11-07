@@ -11,7 +11,7 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import simulacrum._
 
 import scala.collection.compat.immutable.LazyList
-import scala.language.implicitConversions
+
 import scala.util.{Failure, Success, Try}
 
 @typeclass trait SemanticallyValidatable[T] {

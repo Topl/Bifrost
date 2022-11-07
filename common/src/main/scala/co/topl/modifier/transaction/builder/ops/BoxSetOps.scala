@@ -9,8 +9,6 @@ import scala.language.implicitConversions
 
 class BoxSetOps(private val value: BoxSet) extends AnyVal {
 
-  import BoxSetOps._
-
   def polySum: Int128 = value.polys.map(_._2.value.quantity).sum
 
   def arbitSum: Int128 = value.arbits.map(_._2.value.quantity).sum

@@ -2,8 +2,6 @@ package co.topl.models.utility
 
 import co.topl.models.utility.BinaryTree.{Empty, Leaf, Node}
 
-import scala.language.postfixOps
-
 /**
  * AMS 2021: Modified for use with MMM construction, ported from: https://gist.github.com/dholbrook/2967371
  * All credit and praise goes to: https://gist.github.com/dholbrook

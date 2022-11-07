@@ -1,7 +1,7 @@
 package co.topl.ledger.interpreters
 
 import cats.data.{NonEmptySet, OptionT}
-import cats.effect.{Async, Sync}
+import cats.effect.Async
 import cats.implicits._
 import cats.{Applicative, MonadThrow}
 import co.topl.algebras.Store

@@ -12,7 +12,7 @@ import co.topl.crypto.PublicKey
 import co.topl.crypto.hash.blake2b256
 import co.topl.crypto.signing.{Curve25519, Ed25519}
 import co.topl.utils.NetworkType.NetworkPrefix
-import co.topl.utils.StringDataTypes.{Base16Data, DataEncodingValidationFailure}
+import co.topl.utils.StringDataTypes.DataEncodingValidationFailure
 import co.topl.utils.encode.Base16
 import co.topl.utils.{Identifiable, Identifier}
 import com.google.common.primitives.Ints

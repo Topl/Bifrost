@@ -1,6 +1,5 @@
 package co.topl.modifier.transaction.builder
 
-import cats.{Foldable, Traverse}
 import cats.implicits._
 import co.topl.attestation.Address
 import co.topl.modifier.box.{AssetBox, AssetCode, Box}

@@ -18,7 +18,7 @@ import co.topl.ledger.algebras.{
   TransactionSyntaxValidationAlgebra
 }
 import co.topl.ledger.interpreters._
-import co.topl.models.{BlockHeaderV2, TypedIdentifier}
+import co.topl.models.TypedIdentifier
 import co.topl.typeclasses.implicits._
 
 case class Validators[F[_]](
