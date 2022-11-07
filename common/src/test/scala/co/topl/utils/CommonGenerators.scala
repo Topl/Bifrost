@@ -14,7 +14,6 @@ import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.{Lengths, Sized}
 import co.topl.modifier.{ModifierId, ProgramId}
 import co.topl.modifier.block.{Block, BloomFilter}
-import co.topl.modifier.block.PersistentNodeViewModifier.PNVMVersion
 import co.topl.modifier.box.Box.Nonce
 import co.topl.modifier.box._
 import co.topl.modifier.transaction._
@@ -23,7 +22,6 @@ import io.circe.Json
 import io.circe.syntax._
 import org.scalacheck.rng.Seed
 import org.scalacheck.{Arbitrary, Gen}
-import org.scalatest.Suite
 
 import java.nio.charset.StandardCharsets
 import scala.collection.SortedSet

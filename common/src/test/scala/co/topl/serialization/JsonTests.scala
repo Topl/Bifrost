@@ -9,7 +9,7 @@ import co.topl.attestation.keyManagement.{
   KeyfileEd25519Companion
 }
 import co.topl.codecs._
-import co.topl.modifier.{ModifierId, ProgramId}
+import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
 import co.topl.modifier.box._
 import co.topl.modifier.transaction.Transaction

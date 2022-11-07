@@ -1,10 +1,9 @@
 package co.topl.credential
 
-import KeyFile.Encryption.MACMismatch
 import co.topl.credential.KeyFile.Encryption.MACMismatch
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.Sized
-import co.topl.models.{Bytes, Evidence, TypedEvidence}
+import co.topl.models.{Bytes, TypedEvidence}
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec

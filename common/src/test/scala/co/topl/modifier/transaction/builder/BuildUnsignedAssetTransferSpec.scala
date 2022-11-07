@@ -1,9 +1,7 @@
 package co.topl.modifier.transaction.builder
 
-import cats.data.Chain
-import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
+import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.modifier.box.{AssetBox, AssetCode, AssetValue}
-import co.topl.modifier.{BoxReader, ProgramId}
 import co.topl.utils.CommonGenerators
 import co.topl.utils.StringDataTypes.Latin1Data
 import org.scalacheck.Gen

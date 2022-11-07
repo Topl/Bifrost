@@ -1,7 +1,7 @@
 package co.topl.genus.typeclasses.mongofilter
 
 import co.topl.genus.typeclasses.MongoFilter
-import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.Arbitrary
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks

@@ -20,7 +20,6 @@ import org.scalatest.EitherValues
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import co.topl.genus.ops.implicits._
 import co.topl.genus.types.BlockHeight
 
 import scala.concurrent.duration.DurationInt

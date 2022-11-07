@@ -9,7 +9,6 @@ import co.topl.attestation.implicits._
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
 import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.client.Provider.PrivateTestNet
-import co.topl.codecs._
 import co.topl.modifier.box.{AssetCode, AssetValue}
 import co.topl.modifier.transaction.builder.BoxSelectionAlgorithms
 import co.topl.rpc.ToplRpc

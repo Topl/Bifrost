@@ -1,12 +1,7 @@
 package co.topl.modifier.transaction.builder
 
-import cats.implicits._
-import cats.data.NonEmptyChain
-import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
-import co.topl.modifier.box.{PolyBox, SimpleValue}
-import co.topl.modifier.{BoxReader, ProgramId}
+import co.topl.attestation.PublicKeyPropositionCurve25519
 import co.topl.utils.{CommonGenerators, Int128}
-import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec

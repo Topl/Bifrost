@@ -1,6 +1,6 @@
 package co.topl.modifier.transaction.ops
 
-import co.topl.models.{Box => TetraBox, FullAddress, ModelGenerators, SpendingAddress, Transaction}
+import co.topl.models.{Box => TetraBox, FullAddress, ModelGenerators, Transaction}
 import co.topl.modifier.box.SimpleValue
 import co.topl.modifier.implicits._
 import co.topl.utils.{CommonGenerators, Int128}

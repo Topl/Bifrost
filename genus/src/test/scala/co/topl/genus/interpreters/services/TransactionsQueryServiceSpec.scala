@@ -10,7 +10,7 @@ import co.topl.genus.interpreters.{MockChainHeight, MockMongoStore}
 import co.topl.genus.ops.EitherTSourceOps.implicits._
 import co.topl.genus.services.transactions_query.TransactionSorting
 import co.topl.genus.typeclasses.implicits._
-import co.topl.genus.types.{BlockHeight, Transaction}
+import co.topl.genus.types.Transaction
 import co.topl.utils.mongodb.codecs._
 import co.topl.utils.mongodb.implicits._
 import co.topl.utils.mongodb.models.{BlockSummaryDataModel, ConfirmedTransactionDataModel}

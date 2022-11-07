@@ -7,7 +7,6 @@ import co.topl.codecs.binary.scodecs.modifier.transaction.transactionCodec
 import co.topl.codecs.binary.scodecs.valuetypes._
 import co.topl.modifier.ModifierId
 import co.topl.modifier.block.{Block, BlockBody, BlockHeader, BloomFilter}
-import co.topl.modifier.transaction.Transaction
 import scodec.{Codec, Err}
 import shapeless.{::, HList, HNil}
 import co.topl.codecs.binary.scodecs.ops.implicits._

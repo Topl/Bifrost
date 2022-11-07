@@ -85,7 +85,7 @@ class CredentialSpec
         val andProof =
           andCredential.proof
 
-        val transaction = unprovenTransaction.prove(_ => andProof)
+        unprovenTransaction.prove(_ => andProof)
       }
     }
   }
@@ -101,7 +101,7 @@ class CredentialSpec
 
         orCredential.proposition shouldBe orProposition
 
-        val orProof = orCredential.proof
+        orCredential.proof
       }
     }
   }
@@ -127,7 +127,7 @@ class CredentialSpec
 
           val thresholdProof = thresholdCredential.proof
 
-          val transaction = unprovenTransaction.prove(_ => thresholdProof)
+          unprovenTransaction.prove(_ => thresholdProof)
         }
     }
   }
@@ -163,7 +163,7 @@ class CredentialSpec
           val andProof =
             andCredential.proof
 
-          val transaction = unprovenTransaction.prove(_ => andProof)
+          unprovenTransaction.prove(_ => andProof)
         }
     }
   }

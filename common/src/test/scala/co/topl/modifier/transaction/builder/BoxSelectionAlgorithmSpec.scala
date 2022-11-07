@@ -1,6 +1,6 @@
 package co.topl.modifier.transaction.builder
 
-import co.topl.modifier.transaction.builder.TransferRequests.{ArbitTransferRequest, PolyTransferRequest}
+import co.topl.modifier.transaction.builder.TransferRequests.ArbitTransferRequest
 import co.topl.utils.CommonGenerators
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
@@ -48,7 +48,7 @@ class BoxSelectionAlgorithmSpec
         val polyBoxes = (firstPolyBox :: otherPolyBoxes).map(address -> _)
         val arbitBoxes = (firstArbitBox :: otherArbitBoxes).map(address -> _)
         val tokenBoxes = BoxSet(arbitBoxes.toSet, polyBoxes.toSet, Set.empty)
-        val request = ArbitTransferRequest(List(address), List(address -> 100), address, address, 0, None)
+        ArbitTransferRequest(List(address), List(address -> 100), address, address, 0, None)
         val algorithm = BoxSelectionAlgorithms.Specific(List(firstPolyBox.id, firstArbitBox.id))
 
         val result = BoxSelectionAlgorithm.pickBoxes(algorithm, tokenBoxes, 0, 0, Map.empty)
