@@ -1,7 +1,6 @@
 import sbt.Keys.{homepage, organization, test}
 import sbtassembly.MergeStrategy
 
-val scala212 = "2.12.16"
 val scala213 = "2.13.8"
 
 inThisBuild(
@@ -26,15 +25,6 @@ enablePlugins(ReproducibleBuildsPlugin, ReproducibleBuildsAssemblyPlugin)
 lazy val commonSettings = Seq(
   sonatypeCredentialHost := "s01.oss.sonatype.org",
   scalacOptions ++= commonScalacOptions,
-  // Enable PartialUnification in Scala 2.12.  Scala 2.13 fixes this by default
-  scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, v)) if v <= 12 =>
-      Seq(
-        "-Ypartial-unification"
-      )
-    case _ =>
-      Nil
-  }),
   semanticdbEnabled := true, // enable SemanticDB for Scalafix
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
 //  wartremoverErrors := Warts.unsafe, // settings for wartremover
@@ -45,7 +35,7 @@ lazy val commonSettings = Seq(
       case _                       => sourceDir / "scala-2.12-"
     }
   },
-  crossScalaVersions := Seq(scala212, scala213),
+  crossScalaVersions := Seq(scala213),
   Test / testOptions ++= Seq(
     Tests.Argument(TestFrameworks.ScalaCheck, "-verbosity", "2"),
     Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-oDGG", "-u", "target/test-reports")
@@ -148,16 +138,6 @@ def assemblySettings(main: String) = Seq(
 
 lazy val scalamacrosParadiseSettings =
   Seq(
-    libraryDependencies ++= {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, v)) if v <= 12 =>
-          Seq(
-            compilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
-          )
-        case _ =>
-          Nil
-      }
-    },
     scalacOptions ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, v)) if v >= 13 =>
@@ -176,7 +156,6 @@ lazy val commonScalacOptions = Seq(
   "-language:higherKinds",
   "-language:postfixOps",
   "-unchecked",
-  "-Xlint:",
   "-Ywarn-unused:-implicits,-privates",
   "-Yrangepos"
 )
@@ -218,16 +197,16 @@ lazy val bifrost = project
   )
   .configs(IntegrationTest)
   .aggregate(
-    node,
+//    node,
     nodeTetra,
-    common,
-    akkaHttpRpc,
+//    common,
+//    akkaHttpRpc,
     typeclasses,
-    toplRpc,
+//    toplRpc,
     toplGrpc,
     crypto,
     catsAkka,
-    brambl,
+//    brambl,
     models,
     numerics,
     eventTree,
@@ -241,9 +220,8 @@ lazy val bifrost = project
     ledger,
     blockchain,
     demo,
-    tools,
-    scripting,
-    genus,
+//    tools,
+//    genus,
     levelDbStore,
     commonApplication,
     networkDelayer,
@@ -261,7 +239,7 @@ lazy val node = project
     assemblySettings("co.topl.BifrostApp"),
     dionNodeDockerSettings,
     Defaults.itSettings,
-    crossScalaVersions := Seq(scala213), // The `monocle` library does not support Scala 2.12
+    crossScalaVersions := Seq(scala213),
     Compile / mainClass := Some("co.topl.BifrostApp"),
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
@@ -300,7 +278,6 @@ lazy val nodeTetra = project
     typeclasses,
     consensus,
     minting,
-    scripting,
     commonInterpreters,
     networking,
     catsAkka,
@@ -407,7 +384,6 @@ lazy val brambl = project
     common,
     typeclasses,
     models % "compile->compile;test->test",
-    scripting,
     tetraByteCodecs,
     toplGrpc
   )
@@ -715,7 +691,6 @@ lazy val blockchain = project
     munitScalamock % "test->test",
     consensus,
     minting,
-    scripting,
     commonInterpreters,
     networking,
     catsAkka,
@@ -740,7 +715,6 @@ lazy val demo = project
     typeclasses,
     consensus,
     minting,
-    scripting,
     commonInterpreters,
     networking,
     catsAkka,
@@ -748,22 +722,6 @@ lazy val demo = project
     blockchain
   )
   .enablePlugins(BuildInfoPlugin)
-
-lazy val scripting: Project = project
-  .in(file("scripting"))
-  .enablePlugins(BuildInfoPlugin)
-  .settings(
-    name := "scripting",
-    commonSettings,
-    publishSettings,
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "co.topl.buildinfo.scripting"
-  )
-  .settings(
-    libraryDependencies ++= Dependencies.graal ++ Dependencies.catsEffect ++ Dependencies.circe ++ Dependencies.simulacrum
-  )
-  .settings(libraryDependencies ++= Dependencies.test)
-  .settings(scalamacrosParadiseSettings)
 
 lazy val toplRpc = project
   .in(file("topl-rpc"))
