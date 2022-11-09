@@ -26,9 +26,7 @@ import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import BlockchainPeerHandler.monoidBlockchainPeerHandler
 import co.topl.minting.{BlockPacker, BlockProducer}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-
 import scala.jdk.CollectionConverters._
-
 import scala.util.Random
 
 object Blockchain {
@@ -64,7 +62,12 @@ object Blockchain {
   )(implicit system: ActorSystem[_], random: Random): F[Unit] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromClass[F](Blockchain.getClass)
     for {
-      (localChain, _localBlockAdoptionsSource) <- LocalChainBroadcaster.make(_localChain)
+      (
+        localChain,
+        _localBlockAdoptionsSource,
+        _localBlockAdoptionsRpcServerStream,
+        _localBlockAdoptionsP2PServerStream // TODO unused stream, changes in BN-690-Re-imlementLocalChainBroadCaster_v2
+      )                         <- LocalChainBroadcaster.make(_localChain)
       localBlockAdoptionsSource <- _localBlockAdoptionsSource.toMat(BroadcastHub.sink)(Keep.right).liftTo[F]
       (mempool, _localTransactionAdoptionsSource) <- MempoolBroadcaster.make(_mempool)
       localTransactionAdoptionsSource <- _localTransactionAdoptionsSource.toMat(BroadcastHub.sink)(Keep.right).liftTo[F]
@@ -139,6 +142,7 @@ object Blockchain {
                   .future(
                     implicitly[FToFuture[F]].apply(clock.delayedUntilSlot(currentHead.slotId.slot).as(currentHead))
                   )
+                  // Next Step, replace this Akka source for a Fs2 Stream BN-690
                   .concat(localBlockAdoptionsSource.mapAsyncF(1)(slotDataStore.getOrRaise)),
                 staker,
                 clock,
@@ -147,7 +151,7 @@ object Blockchain {
           )
           .flatMap(_.blocks)
       )
-      localBlockAdoptionsStream <- localBlockAdoptionsSource.asFS2Stream[F]
+
       rpcInterpreter <- ToplRpcServer.make(
         headerStore,
         bodyStore,
@@ -157,7 +161,7 @@ object Blockchain {
         localChain,
         blockHeights,
         blockIdTree,
-        localBlockAdoptionsStream
+        _localBlockAdoptionsRpcServerStream
       )
       rpcServer = ToplGrpc.Server.serve(rpcHost, rpcPort, rpcInterpreter)
       mintedBlockStreamCompletionFuture =

@@ -28,7 +28,7 @@ class LocalChainBroadcasterSpec
         for {
           delegate <- mock[LocalChainAlgebra[F]].pure[F]
           _ = (delegate.adopt _).expects(Validated.Valid(slotData)).once().returning(IO.unit)
-          (underTest, source) <- LocalChainBroadcaster.make(delegate)
+          (underTest, source, _, _) <- LocalChainBroadcaster.make(delegate)
           sub = source.runWith(TestSink.probe)
           _ = sub.request(1)
           _ <- underTest.adopt(Validated.Valid(slotData))
