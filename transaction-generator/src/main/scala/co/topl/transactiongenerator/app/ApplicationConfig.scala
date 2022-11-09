@@ -10,19 +10,19 @@ import scala.concurrent.duration.FiniteDuration
 
 @Lenses
 case class ApplicationConfig(
-                              transactionGenerator: ApplicationConfig.TransactionGenerator
-                            )
+  transactionGenerator: ApplicationConfig.TransactionGenerator
+)
 
 object ApplicationConfig {
 
   @Lenses
   case class TransactionGenerator(
-                                   rpc:         TransactionGenerator.Rpc,
-                                   generator:   TransactionGenerator.Generator,
-                                   broadcaster: TransactionGenerator.Broadcaster,
-                                   mempool:     TransactionGenerator.Mempool,
-                                   parallelism: TransactionGenerator.Parallelism
-                                 )
+    rpc:         TransactionGenerator.Rpc,
+    generator:   TransactionGenerator.Generator,
+    broadcaster: TransactionGenerator.Broadcaster,
+    mempool:     TransactionGenerator.Mempool,
+    parallelism: TransactionGenerator.Parallelism
+  )
 
   object TransactionGenerator {
 
