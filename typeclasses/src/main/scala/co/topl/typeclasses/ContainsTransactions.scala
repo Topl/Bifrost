@@ -1,7 +1,6 @@
 package co.topl.typeclasses
 
 import cats.Foldable
-import cats.data.Chain
 import cats.implicits._
 import co.topl.codecs.bytes.tetra.TetraIdentifiableInstances._
 import co.topl.codecs.bytes.typeclasses.Identifiable.ops._
@@ -14,8 +13,8 @@ import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.{Lengths, Sized}
 import co.topl.models.{BlockV1, BloomFilter, Bytes, Transaction}
+import co.topl.typeclasses.IdentityOps._
 import simulacrum.{op, typeclass}
-import co.topl.typeclasses.implicits._
 
 /**
  * Satisfies that T contains transactions
@@ -24,8 +23,8 @@ import co.topl.typeclasses.implicits._
   @op("transactions") def transactionsOf(t: T): Seq[Transaction]
 
   @op("merkleTree") def merkleTreeOf(t: T): Sized.Strict[Bytes, Lengths.`32`.type] = {
-    val rootHash =
-      MerkleTree[Blake2b, Digest32](transactionsOf(t).map(tx => LeafData(tx.id.asTypedBytes.allBytes.toArray))).rootHash.bytes
+    val leafs = transactionsOf(t).map(tx => LeafData(tx.id.asTypedBytes.allBytes.toArray))
+    val rootHash = MerkleTree[Blake2b, Digest32](leafs).rootHash.bytes
     Sized.strictUnsafe[Bytes, Lengths.`32`.type](Bytes(rootHash))
   }
 
