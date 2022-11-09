@@ -147,7 +147,6 @@ object Blockchain {
           )
           .flatMap(_.blocks)
       )
-      localBlockAdoptionsStream <- localBlockAdoptionsSource.asFS2Stream[F]
       rpcInterpreter <- ToplRpcServer.make(
         headerStore,
         bodyStore,
@@ -157,7 +156,7 @@ object Blockchain {
         localChain,
         blockHeights,
         blockIdTree,
-        localBlockAdoptionsStream
+        localBlockAdoptionsSource.asFS2Stream[F]
       )
       rpcServer = ToplGrpc.Server.serve(rpcHost, rpcPort, rpcInterpreter)
       mintedBlockStreamCompletionFuture =

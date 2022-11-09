@@ -10,6 +10,7 @@ import cats.kernel.Monoid
 import cats.{Applicative, Functor, MonadThrow}
 
 import fs2.interop.reactivestreams._
+import fs2._
 
 import scala.language.implicitConversions
 
@@ -84,12 +85,16 @@ class SourceCatsOps[T, Mat](val source: Source[T, Mat]) extends AnyVal {
    *  Akka streams to FS2 Stream
    *  @see [[fs2.interop.reactivestreams.fromPublisher]]
    */
-  def asFS2Stream[F[_]: Async](implicit materializer: Materializer): F[fs2.Stream[F, T]] =
-    Async[F].delay {
-      source
-        .runWith(Sink.asPublisher[T](fanout = false))
-        .toStreamBuffered(bufferSize = 1)
-    }
+  def asFS2Stream[F[_]: Async](implicit materializer: Materializer): Stream[F, T] =
+    Stream
+      .eval(
+        Async[F].delay(
+          source
+            .runWith(Sink.asPublisher[T](fanout = false))
+            .toStreamBuffered[F](bufferSize = 1)
+        )
+      )
+      .flatten
 
 }
 
