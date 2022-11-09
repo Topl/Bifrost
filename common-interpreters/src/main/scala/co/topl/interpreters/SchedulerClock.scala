@@ -8,6 +8,7 @@ import co.topl.algebras.ClockAlgebra
 import co.topl.models.{Epoch, Slot, Timestamp}
 
 import java.time.Instant
+import scala.collection.immutable.NumericRange
 import scala.concurrent.duration._
 
 object SchedulerClock {
@@ -31,6 +32,13 @@ object SchedulerClock {
 
         override def timestampToSlot(timestamp: Timestamp): F[Slot] =
           ((timestamp - startTime) / _slotLength.toMillis).pure[F]
+
+        override def slotToTimestamps(slot: Slot): F[NumericRange.Inclusive[Long]] =
+          Sync[F].delay {
+            val startTimestamp = startTime + (slot * _slotLength.toMillis)
+            val endTimestamp = startTimestamp + (_slotLength.toMillis - 1)
+            NumericRange.inclusive(startTimestamp, endTimestamp, 1L)
+          }
 
         override val forwardBiasedSlotWindow: F[Slot] = _forwardBiasedSlotWindow.pure[F]
 
