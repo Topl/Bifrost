@@ -45,7 +45,7 @@ case class NodeRpcApi(host: String, rpcPort: Int) {
 }
 
 object NodeRpcApi {
-  val rpcWaitAttempts = 15
+  val rpcWaitAttempts = 30
   val rpcWaitSleepMs = 1000
 
   def apply(node: BifrostDockerTetraNode)(implicit dockerClient: DockerClient): NodeRpcApi = {
