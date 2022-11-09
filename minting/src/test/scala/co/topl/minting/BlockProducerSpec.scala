@@ -19,6 +19,7 @@ import co.topl.algebras.ClockAlgebra
 import co.topl.minting.algebras.LeaderElectionMintingAlgebra.VrfHit
 import co.topl.minting.algebras.{BlockPackerAlgebra, StakingAlgebra}
 
+import scala.collection.immutable.NumericRange
 import scala.concurrent.Future
 
 class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
@@ -56,7 +57,8 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
               )
             clockDeferment <- IO.deferred[Unit]
             _ = (clock.delayedUntilSlot(_)).expects(vrfHit.slot).once().returning(clockDeferment.get)
-            _ = (() => clock.currentTimestamp).expects().once().returning(System.currentTimeMillis().pure[F])
+            _ = (clock
+              .slotToTimestamps(_)).expects(vrfHit.slot).once().returning(NumericRange.inclusive(50L, 99L, 1L).pure[F])
             _ = (blockPacker.improvePackedBlock(_, _, _)).expects(*, *, *).once().returning(IO.pure(_ => IO.never))
             _ = pub.sendNext(parentSlotData)
             _ <- clockDeferment.complete(())
@@ -141,7 +143,11 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
                 .returning(outputBlock.some.pure[F])
               clockDeferment2 <- IO.deferred[Unit]
               _ = (clock.delayedUntilSlot(_)).expects(vrfHit2.slot).once().returning(clockDeferment2.get)
-              _ = (() => clock.currentTimestamp).expects().once().returning(System.currentTimeMillis().pure[F])
+              _ = (clock
+                .slotToTimestamps(_))
+                .expects(vrfHit2.slot)
+                .once()
+                .returning(NumericRange.inclusive(50L, 99L, 1L).pure[F])
               _ = (blockPacker.improvePackedBlock(_, _, _)).expects(*, *, *).once().returning(IO.pure(_ => IO.never))
               _ = pub.sendNext(parentSlotData2)
               _ <- clockDeferment2.complete(())
