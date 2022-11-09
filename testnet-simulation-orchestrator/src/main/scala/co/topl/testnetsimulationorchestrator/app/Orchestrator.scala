@@ -1,6 +1,5 @@
 package co.topl.testnetsimulationorchestrator.app
 
-import cats.Applicative
 import cats.data.OptionT
 import cats.effect._
 import cats.implicits._
@@ -8,14 +7,13 @@ import co.topl.algebras.{SynchronizationTraversalSteps, ToplRpc}
 import co.topl.common.application.IOBaseApp
 import co.topl.grpc.ToplGrpc
 import co.topl.models.TypedIdentifier
+import co.topl.testnetsimulationorchestrator.algebras.DataPublisher
 import co.topl.testnetsimulationorchestrator.interpreters.{GcpCsvDataPublisher, K8sSimulationController}
 import co.topl.testnetsimulationorchestrator.models.{AdoptionDatum, BlockDatum, TransactionDatum}
 import co.topl.typeclasses.implicits._
 import fs2._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import _root_.io.grpc.StatusRuntimeException
-import co.topl.testnetsimulationorchestrator.algebras.DataPublisher
 
 import scala.concurrent.duration._
 
@@ -46,17 +44,27 @@ object Orchestrator
       .resource[F](appConfig.simulationOrchestrator.kubernetes.namespace)
       // In addition, run the "terminate" operation to tear down the k8s namespace regardless of the outcome of the simulation
       .flatMap(c => Resource.onFinalize(c.terminate))
-      .flatMap(_ =>
+      .productR(
         (
           GcpCsvDataPublisher.make[F](
             appConfig.simulationOrchestrator.publish.bucket,
             s"${appConfig.simulationOrchestrator.publish.filePrefix}${System.currentTimeMillis()}/"
           ),
           appConfig.simulationOrchestrator.nodes
-            .traverse(n => ToplGrpc.Client.make[F](n.host, n.port, tls = false).map(n.name -> _))
+            .parTraverse(n =>
+              ToplGrpc.Client
+                .make[F](n.host, n.port, tls = false)
+                .evalTap(awaitNodeReady(n.name, _))
+                .tupleLeft(n.name)
+            )
             .map(_.toMap)
         ).tupled
       )
+
+  private def awaitNodeReady(name: String, client: ToplRpc[F, Stream[F, *]]) =
+    Logger[F].info(show"Awaiting readiness of node=$name") >>
+    Stream.retry(client.blockIdAtHeight(1), 250.milli, identity, 200).compile.drain >>
+    Logger[F].info(show"Node node=$name is ready")
 
   private def runSimulation: F[Unit] =
     resources.use { case (publisher, nodes) =>
@@ -66,7 +74,7 @@ object Orchestrator
           for {
             _          <- Logger[F].info(show"Fetching adoptions+headers from node=$name")
             baseStream <- client.synchronizationTraversal()
-            stream = retryStream(baseStream, 100).collect { case SynchronizationTraversalSteps.Applied(id) => id }
+            stream = baseStream.collect { case SynchronizationTraversalSteps.Applied(id) => id }
             headers <- stream
               .zip(Stream.repeatEval(Async[F].defer(Async[F].realTimeInstant)))
               .evalMap { case (id, adoptionTimestamp) =>
@@ -142,22 +150,6 @@ object Orchestrator
 
         // Simulation complete :)
       } yield ()
-    }
-
-  /**
-   * Recover/retry the given stream in the event of a gRPC connection error.  This is primarily needed at startup
-   * because the Orchestrator launches long before the individual Nodes bind the RPC servers.  The Orchestrator will
-   * retry the connection over-and-over until successful.
-   * @param base the base stream to retry
-   * @param remainingAttempts the number of remaining attempts
-   */
-  private def retryStream[O](base: Stream[F, O], remainingAttempts: Int): Stream[F, O] =
-    base.recoverWith {
-      case _: StatusRuntimeException if remainingAttempts > 0 =>
-        Stream.eval(
-          Logger[F].error("Connection failed.  Retrying.") >>
-          Async[F].delayBy(Applicative[F].unit, 1.seconds)
-        ) >> retryStream(base, remainingAttempts - 1)
     }
 
 }
