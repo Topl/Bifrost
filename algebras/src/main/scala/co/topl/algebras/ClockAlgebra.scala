@@ -20,6 +20,7 @@ trait ClockAlgebra[F[_]] {
   def currentTimestamp: F[Timestamp]
   def forwardBiasedSlotWindow: F[Slot]
   def timestampToSlot(timestamp:       Timestamp): F[Slot]
+  def slotToTimestamps(slot:           Slot): F[NumericRange.Inclusive[Timestamp]]
   def delayedUntilSlot(slot:           Slot): F[Unit]
   def delayedUntilTimestamp(timestamp: Timestamp): F[Unit]
 }
