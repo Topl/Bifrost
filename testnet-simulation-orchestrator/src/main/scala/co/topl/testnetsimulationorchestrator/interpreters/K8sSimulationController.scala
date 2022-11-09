@@ -5,6 +5,7 @@ import cats.effect.{Async, Deferred, Resource, Sync}
 import cats.implicits._
 import co.topl.testnetsimulationorchestrator.algebras.SimulationController
 import io.kubernetes.client.openapi.apis.CoreV1Api
+import io.kubernetes.client.openapi.models.V1Status
 import io.kubernetes.client.openapi.{ApiCallback, ApiException, Configuration}
 import io.kubernetes.client.util.Config
 
@@ -14,15 +15,12 @@ object K8sSimulationController {
 
   def resource[F[_]: Async](namespace: String): Resource[F, SimulationController[F]] =
     Resource
-      .make(
-        Sync[F].delay(Config.defaultClient())
-      )(_ => ().pure[F])
-      .evalTap(c => Sync[F].delay(Configuration.setDefaultApiClient(c)))
-      .as(new CoreV1Api())
+      .eval(Sync[F].delay(Config.fromCluster()))
+      .map(new CoreV1Api(_))
       .map(api =>
         new SimulationController[F] {
 
-          def terminate: F[Unit] = withCallback(
+          def terminate: F[Unit] = withCallback[V1Status](
             api.deleteNamespaceAsync(namespace, null, null, null, null, null, null, _)
           ).void
 

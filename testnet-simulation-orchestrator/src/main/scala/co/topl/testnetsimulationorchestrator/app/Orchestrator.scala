@@ -1,8 +1,10 @@
 package co.topl.testnetsimulationorchestrator.app
 
+import cats.Applicative
 import cats.data.OptionT
 import cats.effect._
 import cats.implicits._
+import co.topl.algebras.SynchronizationTraversalSteps
 import co.topl.common.application.IOBaseApp
 import co.topl.grpc.ToplGrpc
 import co.topl.models.TypedIdentifier
@@ -10,6 +12,10 @@ import co.topl.testnetsimulationorchestrator.interpreters.{GcpCsvDataPublisher, 
 import co.topl.testnetsimulationorchestrator.models.{AdoptionDatum, BlockDatum, TransactionDatum}
 import co.topl.typeclasses.implicits._
 import fs2._
+import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
+import _root_.io.grpc.StatusRuntimeException
+import scala.concurrent.duration._
 
 object Orchestrator
     extends IOBaseApp[Args, ApplicationConfig](
@@ -18,7 +24,18 @@ object Orchestrator
       parseConfig = (args, conf) => ApplicationConfig.unsafe(args, conf)
     ) {
 
+  implicit private val logger: Logger[F] =
+    Slf4jLogger.getLoggerFromClass[F](this.getClass)
+
   def run: IO[Unit] =
+    for {
+      _ <- Logger[F].info("Launching Testnet Simulation Orchestrator")
+      _ <- Logger[F].info(show"args=$args")
+      _ <- Logger[F].info(show"config=$appConfig")
+      _ <- runSimulation
+    } yield ()
+
+  private def runSimulation: F[Unit] =
     // Allocate the K8sSimulationController resource first
     K8sSimulationController
       .resource[F](appConfig.simulationOrchestrator.kubernetes.namespace)
@@ -40,9 +57,11 @@ object Orchestrator
           // Listen to the block adoptions of all nodes.
           nodeBlockAdoptions <- nodes.toList.parTraverse { case (name, client) =>
             for {
-              stream <- (??? : Stream[F, TypedIdentifier]).pure[F]
+              _          <- Logger[F].info(show"Fetching adoptions+headers from node=$name")
+              baseStream <- client.synchronizationTraversal()
+              stream = retryStream(baseStream, 100).collect { case SynchronizationTraversalSteps.Applied(id) => id }
               headers <- stream
-                .zip(Stream.repeatEval(Async[F].realTimeInstant))
+                .zip(Stream.repeatEval(Async[F].defer(Async[F].realTimeInstant)))
                 .evalMap { case (id, adoptionTimestamp) =>
                   OptionT(client.fetchBlockHeader(id))
                     .getOrRaise(new NoSuchElementException(id.show))
@@ -52,11 +71,13 @@ object Orchestrator
                 .takeWhile(_._3.height <= appConfig.simulationOrchestrator.scenario.targetHeight)
                 .compile
                 .toVector
+              _ <- Logger[F].info(show"Finished fetching adoptions+headers from node=$name")
             } yield (name -> headers)
           }
 
           // Once we have all of the adoptions, publish them
           _ <- nodeBlockAdoptions.parTraverse { case (node, adoptions) =>
+            Logger[F].info(show"Publishing adoptions for node=$node") >>
             publisher.publishAdoptions(Stream.iterable(adoptions).map(a => AdoptionDatum(a._1, a._2)), node)
           }
 
@@ -65,10 +86,11 @@ object Orchestrator
           // the node that adopted first.
           blockAssignments = nodeBlockAdoptions
             .flatMap { case (node, adoptions) => adoptions.map { case (id, _, header) => (node, id, header) } }
-            .groupBy(_._1)
+            .groupBy(_._2)
             .values
             .map(_.head)
             .toList
+            .sortBy(_._3.height)
 
           // Similarly, multiple nodes adopt the same block (body) which would result in duplicate transaction IDs
           // in a flattened stream.  Furthermore, two different block bodies may overlap on some of the Transaction IDs.
@@ -76,6 +98,7 @@ object Orchestrator
           // the collection lazily in the block "publish" stream
           transactionAssignmentsRef <- IO.ref(Map.empty[TypedIdentifier, String])
 
+          _ <- Logger[F].info("Fetching block bodies")
           // Assemble a stream of BlockDatum by using the list of blockAssignments, fetching the body, and converting into
           // a BlockDatum
           blockDatumStream = Stream
@@ -92,6 +115,7 @@ object Orchestrator
             .map(_._2)
 
           // Publish the block data results
+          _ <- Logger[F].info("Publishing blocks")
           _ <- publisher.publishBlocks(blockDatumStream)
 
           // Now that the block data has been published, the side-effecting operations to assign transactions
@@ -106,10 +130,21 @@ object Orchestrator
                 .map(TransactionDatum(_))
           }
 
+          _ <- Logger[F].info("Fetching and publishing block bodies")
           // Now publish the transaction results
           _ <- publisher.publishTransactions(transactionDatumStream)
 
           // Simulation complete :)
         } yield ()
       }
+
+  private def retryStream[O](base: Stream[F, O], remainingAttempts: Int): Stream[F, O] =
+    base.recoverWith {
+      case _: StatusRuntimeException if remainingAttempts > 0 =>
+        Stream.eval(
+          Logger[F].error("Connection failed.  Retrying.") >>
+          Async[F].delayBy(Applicative[F].unit, 1.seconds)
+        ) >> retryStream(base, remainingAttempts - 1)
+    }
+
 }

@@ -17,7 +17,11 @@ object GcpCsvDataPublisher {
 
   def make[F[_]: Async](bucket: String, filePrefix: String): Resource[F, DataPublisher[F, Stream[F, *]]] =
     Resource
-      .eval(Async[F].delay(StorageOptions.getDefaultInstance.getService))
+      .eval(
+        Async[F].delay(
+          StorageOptions.getUnauthenticatedInstance.getService
+        )
+      )
       .map(storage =>
         new DataPublisher[F, Stream[F, *]] {
 
@@ -33,7 +37,7 @@ object GcpCsvDataPublisher {
           private def publish[Datum](fileName: String, headers: Seq[String])(
             datumToRow:                        Datum => Seq[String]
           )(results:                           Stream[F, Datum]) =
-            upload(s"$filePrefix/$fileName.csv")(
+            upload(s"$filePrefix$fileName.csv")(
               Stream(headers.mkString("", ",", "\n"))
                 .flatMap(header => Stream.chunk(Chunk.array(header.getBytes(StandardCharsets.UTF_8)))) ++
               results
@@ -44,14 +48,12 @@ object GcpCsvDataPublisher {
             )
 
           private def upload(fileName: String)(stream: Stream[F, Byte]): F[Unit] =
-            Resource
-              .fromAutoCloseable(
-                Async[F].delay(
-                  storage.create(BlobInfo.newBuilder(bucket, fileName).setContentType("text/csv").build()).writer()
+            stream.chunkAll.compile.toList
+              .map(_.head.toByteBuffer.array())
+              .flatMap(bytes =>
+                Async[F].blocking(
+                  storage.create(BlobInfo.newBuilder(bucket, fileName).setContentType("text/csv").build(), bytes)
                 )
-              )
-              .use(write =>
-                stream.chunkN(1024).evalMap(chunk => Async[F].blocking(write.write(chunk.toByteBuffer))).compile.drain
               )
         }
       )
@@ -93,6 +95,7 @@ object GcpCsvDataPublisher {
       datum.headerV2.txRoot.data.toBase58,
       datum.headerV2.bloomFilter.data.toBase58,
       datum.headerV2.timestamp.show,
+      datum.headerV2.height.show,
       datum.headerV2.slot.show,
       datum.headerV2.eligibilityCertificate.immutableBytes.toBase58,
       datum.headerV2.operationalCertificate.immutableBytes.toBase58,
