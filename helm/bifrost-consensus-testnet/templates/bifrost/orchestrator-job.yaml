@@ -1,0 +1,35 @@
+{{ $bigBangTimestamp := default (now | unixEpoch  | mul 1000 | add (default (len $.Values.configs | mul 15000) .Values.bigBang.delayMs)) .Values.bigBang.timestamp }}
+{{ $fullname := include "bifrost.fullname" . }}
+{{ $labels := include "bifrost.labels" . }}
+{{ $selectorLabels := include "bifrost.selectorLabels" . }}
+{{ $Values := .Values }}
+{{ $Release := .Release }}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ $fullname }}-config-orchestrator-job
+  labels:
+    {{ $labels | nindent 4 }}
+spec:
+  containers:
+    - name: testnet-simulation-orchestrator
+      image: {{ $Values.orchestratorImage.name }}:{{ $Values.orchestratorImage.tag }}
+      securityContext:
+        {{- toYaml $Values.securityContext | nindent 12 }}
+      args:
+        - --config
+        - /etc/config/orchestrator.yaml
+      resources:
+        limits:
+          cpu: 1500m
+          memory: 1500Mi
+        requests:
+          cpu: 100m
+          memory: 1500Mi
+      volumeMounts:
+        - name: config-map
+          mountPath: /etc/config
+  volumes:
+    - name: config-map
+      configMap:
+        name: {{ $fullname }}-config-orchestrator

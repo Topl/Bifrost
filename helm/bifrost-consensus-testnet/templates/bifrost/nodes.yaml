@@ -32,10 +32,12 @@ data:
     {{- toYaml $value | nindent 4 }}
   peers.yaml: |
     {{- $knownPeersString := "" -}}
+    {{ if $value.topology }}
     {{ range $index, $peer := $value.topology.egress }}
         {{- if $index }}{{ $knownPeersString = print $knownPeersString "," }}{{ end -}}
     {{ $knownPeersString = print $knownPeersString "localhost:"}}
     {{ $knownPeersString = print $knownPeersString (add 9100 $index)}}
+    {{ end }}
     {{ end }}
     {{ $knownPeersString = nospace $knownPeersString }}
     bifrost:
@@ -47,12 +49,17 @@ data:
         bind-port: {{ $Values.service.ports.p2p }}
         destination-host: localhost
         destination-port: 9083
+        {{ if $value.topology }}
+        {{ if $value.topology.ingress }}
         {{ if $value.topology.ingress.throttle }}
         throttle:
           latency: {{ $value.topology.ingress.throttle.latency }}
           download-bytes-per-second: {{ $value.topology.ingress.throttle.downloadBytesPerSecond }}
           upload-bytes-per-second: {{ $value.topology.ingress.throttle.uploadBytesPerSecond }}
         {{ end }}
+        {{ end }}
+        {{ end }}
+    {{ if $value.topology }}
     {{ range $index, $egress := $value.topology.egress }}
       - bind-host: localhost
         bind-port: {{ add 9100 $index }}
@@ -64,6 +71,7 @@ data:
           download-bytes-per-second: {{ $egress.throttle.downloadBytesPerSecond }}
           upload-bytes-per-second: {{ $egress.throttle.uploadBytesPerSecond }}
         {{ end }}
+    {{ end }}
     {{ end }}
 
 ---
@@ -173,7 +181,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ $fullname }}-{{ $nodeName }}
+  name: {{ $fullname }}-rpc-{{ $nodeName }}
   labels:
     {{- $labels | nindent 4}}
 spec:

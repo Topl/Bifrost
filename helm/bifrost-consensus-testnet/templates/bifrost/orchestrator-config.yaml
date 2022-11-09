@@ -1,0 +1,28 @@
+{{ $bigBangTimestamp := default (now | unixEpoch  | mul 1000 | add (default (len $.Values.configs | mul 15000) .Values.bigBang.delayMs)) .Values.bigBang.timestamp }}
+{{ $fullname := include "bifrost.fullname" . }}
+{{ $labels := include "bifrost.labels" . }}
+{{ $selectorLabels := include "bifrost.selectorLabels" . }}
+{{ $Values := .Values }}
+{{ $Release := .Release }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-config-orchestrator
+  labels:
+    {{ $labels | nindent 4 }}
+data:
+  orchestrator.yaml: |
+    simulation-orchestrator:
+      kubernetes:
+        namespace: {{ .Release.Namespace }}
+      scenario:
+        target-height: {{ $Values.scenario.targetHeight }}
+      publish:
+        bucket: {{ $Values.results.bucket }}
+        file-prefix: {{ $Values.results.prefix }}{{ .Release.Name }}/
+      nodes:
+        {{ range $nodeName, $value :=  $.Values.configs }}
+        - name: {{ $nodeName }}
+          host: {{ $fullname }}-rpc-{{ $nodeName }}.{{ $Release.Name }}.svc.cluster.local
+          port: 9084
+        {{ end }}
