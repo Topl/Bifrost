@@ -64,7 +64,7 @@ object BlockProducer {
             )
             // Assemble the transactions to be placed in our new block
             body      <- packBlock(parentSlotData.slotId.blockId, parentSlotData.height + 1, nextHit.slot)
-            timestamp <- clock.currentTimestamp
+            timestamp <- clock.slotToTimestamps(nextHit.slot).map(_.last)
             blockMaker = prepareUnsignedBlock(parentSlotData, body, timestamp, nextHit)
             // Despite being eligible, there may not have a corresponding linear KES key if, for example, the node
             // restarts in the middle of an operational period.  The node must wait until the next operational period
