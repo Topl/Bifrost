@@ -1,13 +1,15 @@
 package co.topl.catsakka
 
 import akka.NotUsed
-import akka.stream.scaladsl.{Keep, Source}
+import akka.stream.scaladsl.{Keep, Sink, Source}
 import akka.stream.{BoundedSourceQueue, KillSwitches, Materializer, OverflowStrategy, QueueOfferResult}
 import cats.effect.Async
-import cats.effect.kernel.{MonadCancel, Sync}
+import cats.effect.kernel.Sync
 import cats.implicits._
 import cats.kernel.Monoid
 import cats.{Applicative, Functor, MonadThrow}
+
+import fs2.interop.reactivestreams._
 
 import scala.language.implicitConversions
 
@@ -77,6 +79,18 @@ class SourceCatsOps[T, Mat](val source: Source[T, Mat]) extends AnyVal {
       .flatMap { case ((mat, killSwitch), source) =>
         Async[F].onCancel(source.mapMaterializedValue(_ => mat).pure[F], Sync[F].delay(killSwitch.shutdown()))
       }
+
+  /**
+   *  Akka streams to FS2 Stream
+   *  @see [[fs2.interop.reactivestreams.fromPublisher]]
+   */
+  def asFS2Stream[F[_]: Async](implicit materializer: Materializer): F[fs2.Stream[F, T]] =
+    Async[F].delay {
+      source
+        .runWith(Sink.asPublisher[T](fanout = false))
+        .toStreamBuffered(bufferSize = 1)
+    }
+
 }
 
 class BoundedSourceQueueOps[T](val queue: BoundedSourceQueue[T]) extends AnyVal {

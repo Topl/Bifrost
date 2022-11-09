@@ -27,6 +27,9 @@ service ToplGrpc {
   // retrieve the Block ID associated with a depth, according to the node's canonical chain
   rpc FetchBlockIdAtDepth (FetchBlockIdAtDepthReq) returns (FetchBlockIdAtDepthRes);
 
+  // retrieve a stream of changes to the canonical head of the chain.
+  rpc SynchronizationTraversal (SynchronizationTraversalReq) returns (stream SynchronizationTraversalRes);
+
 }
 
 // Request type for BroadcastTransaction
@@ -104,4 +107,15 @@ message FetchBlockIdAtDepthReq {
 message FetchBlockIdAtDepthRes {
   // The Block ID associated with the requested depth.  None/null if not found.
   optional co.topl.grpc.models.BlockId blockId = 1;
+}
+
+// Request type for SynchronizationTraversal
+message SynchronizationTraversalReq {}
+
+// Response type for SynchronizationTraversal
+message SynchronizationTraversalRes {
+  oneof status {
+    co.topl.grpc.models.BlockId applied = 1;
+    co.topl.grpc.models.BlockId unapplied = 2;
+  }
 }

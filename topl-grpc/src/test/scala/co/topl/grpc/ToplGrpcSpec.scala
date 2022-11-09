@@ -16,6 +16,7 @@ import io.grpc.{Metadata, Status, StatusException}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
+import fs2.Stream
 
 class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
@@ -23,8 +24,8 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
   test("A transaction can be broadcast") {
     PropF.forAllF { (transaction: bifrostModels.Transaction) =>
       withMock {
-        val interpreter = mock[ToplRpc[F]]
-        val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+        val interpreter = mock[ToplRpc[F, Stream[F, *]]]
+        val underTest = new ToplGrpc.Server.GrpcServerImpl[F, Stream[F, *]](interpreter)
 
         (interpreter.broadcastTransaction _)
           .expects(transaction)
@@ -44,8 +45,8 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
     PropF.forAllF { (header: bifrostModels.BlockHeaderV2) =>
       val headerId = header.id.asTypedBytes
       withMock {
-        val interpreter = mock[ToplRpc[F]]
-        val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+        val interpreter = mock[ToplRpc[F, Stream[F, *]]]
+        val underTest = new ToplGrpc.Server.GrpcServerImpl[F, Stream[F, *]](interpreter)
 
         (interpreter.fetchBlockHeader _)
           .expects(headerId)
@@ -65,8 +66,8 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
 
   test("An invalid block header ID is rejected") {
     withMock {
-      val interpreter = mock[ToplRpc[F]]
-      val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+      val interpreter = mock[ToplRpc[F, Stream[F, *]]]
+      val underTest = new ToplGrpc.Server.GrpcServerImpl[F, Stream[F, *]](interpreter)
 
       for {
         e <- interceptIO[StatusException](
@@ -84,8 +85,8 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
     PropF.forAllF { (_id: bifrostModels.TypedIdentifier, body: bifrostModels.BlockBodyV2) =>
       val id = bifrostModels.TypedBytes(bifrostModels.IdentifierTypes.Block.HeaderV2, _id.dataBytes)
       withMock {
-        val interpreter = mock[ToplRpc[F]]
-        val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+        val interpreter = mock[ToplRpc[F, Stream[F, *]]]
+        val underTest = new ToplGrpc.Server.GrpcServerImpl[F, Stream[F, *]](interpreter)
 
         (interpreter.fetchBlockBody _)
           .expects(id)
@@ -106,8 +107,8 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
 
   test("An invalid block body ID is rejected") {
     withMock {
-      val interpreter = mock[ToplRpc[F]]
-      val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+      val interpreter = mock[ToplRpc[F, Stream[F, *]]]
+      val underTest = new ToplGrpc.Server.GrpcServerImpl[F, Stream[F, *]](interpreter)
 
       for {
         e <- interceptIO[StatusException](
@@ -122,8 +123,8 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
     PropF.forAllF { (transaction: bifrostModels.Transaction) =>
       val transactionId = transaction.id.asTypedBytes
       withMock {
-        val interpreter = mock[ToplRpc[F]]
-        val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+        val interpreter = mock[ToplRpc[F, Stream[F, *]]]
+        val underTest = new ToplGrpc.Server.GrpcServerImpl[F, Stream[F, *]](interpreter)
 
         (interpreter.fetchTransaction _)
           .expects(transactionId)
@@ -144,8 +145,8 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
 
   test("An invalid transaction ID is rejected") {
     withMock {
-      val interpreter = mock[ToplRpc[F]]
-      val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+      val interpreter = mock[ToplRpc[F, Stream[F, *]]]
+      val underTest = new ToplGrpc.Server.GrpcServerImpl[F, Stream[F, *]](interpreter)
 
       for {
         e <- interceptIO[StatusException](
@@ -160,8 +161,8 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
     PropF.forAllF { (height: Long, header: bifrostModels.BlockHeaderV2) =>
       val blockId = header.id.asTypedBytes
       withMock {
-        val interpreter = mock[ToplRpc[F]]
-        val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+        val interpreter = mock[ToplRpc[F, Stream[F, *]]]
+        val underTest = new ToplGrpc.Server.GrpcServerImpl[F, Stream[F, *]](interpreter)
 
         (interpreter.blockIdAtHeight _)
           .expects(height)

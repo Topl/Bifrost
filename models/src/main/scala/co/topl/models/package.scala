@@ -1,8 +1,7 @@
 package co.topl
 
-import co.topl.models.utility.StringDataTypes.Latin1Data
-import co.topl.models.utility.{Lengths, Sized}
 import co.topl.models.utility.HasLength.instances._
+import co.topl.models.utility.{Lengths, Sized}
 import io.estatico.newtype.macros.{newsubtype, newtype}
 import io.estatico.newtype.ops._
 import scodec.bits.ByteVector
@@ -12,16 +11,29 @@ import scala.language.implicitConversions
 
 package object models {
   type Bytes = ByteVector
-  val Bytes = ByteVector
-  type Eta = Sized.Strict[Bytes, Lengths.`32`.type]
-  type Evidence = Sized.Strict[Bytes, Lengths.`32`.type]
+  val Bytes: ByteVector.type = ByteVector
+  type Eta = Sized.Strict[Bytes, Eta.Length]
+  type Evidence = Sized.Strict[Bytes, Evidence.Length]
+
+  object Evidence {
+    type Length = Lengths.`32`.type
+  }
+
+  object Eta {
+    type Length = Lengths.`32`.type
+  }
 
   case class TypedEvidence(typePrefix: TypePrefix, evidence: Evidence) {
     def allBytes: Bytes = typePrefix +: evidence.data
   }
 
   object TypedEvidence {
-    val empty: TypedEvidence = TypedEvidence(0: Byte, Sized.strictUnsafe(Bytes(Array.fill(32)(0: Byte))))
+    val typedEvidenceLength = 32
+
+    val empty: TypedEvidence =
+      TypedEvidence(0: Byte, Sized.strictUnsafe(Bytes(Array.fill(typedEvidenceLength)(0: Byte))))
+
+    def fromAllBytes(bytes: Bytes): TypedEvidence = new TypedEvidence(bytes.head, Sized.strictUnsafe(bytes.tail))
   }
 
   type TypePrefix = Byte

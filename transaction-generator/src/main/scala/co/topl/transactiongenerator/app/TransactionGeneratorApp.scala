@@ -106,7 +106,11 @@ object TransactionGeneratorApp
   /**
    * Broadcasts each transaction from the input stream
    */
-  private def runBroadcastStream(transactionStream: Stream[F, Transaction], client: ToplRpc[F], targetTps: Double) =
+  private def runBroadcastStream(
+    transactionStream: Stream[F, Transaction],
+    client:            ToplRpc[F, Stream[F, *]],
+    targetTps:         Double
+  ) =
     transactionStream
       // Send 1 transaction per _this_ duration
       .metered((1_000_000_000d / targetTps).nanos)
@@ -128,7 +132,7 @@ object TransactionGeneratorApp
   /**
    * Periodically poll and log the state of the mempool.
    */
-  private def runMempoolStream(client: ToplRpc[F], period: FiniteDuration) =
+  private def runMempoolStream(client: ToplRpc[F, Stream[F, *]], period: FiniteDuration) =
     Stream
       .awakeEvery[F](period)
       .evalMap(_ => client.currentMempool())

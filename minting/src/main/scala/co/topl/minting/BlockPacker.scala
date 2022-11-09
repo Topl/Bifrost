@@ -38,12 +38,14 @@ object BlockPacker {
         // Read all transaction IDs from the mempool
         mempoolTransactionIds <- mempool.read(parentBlockId)
         _                     <- Logger[F].debug(show"Block packing candidates=${mempoolTransactionIds.toList}")
-        transactions          <- mempoolTransactionIds.toList.traverse(fetchTransaction)
-        iterative             <-
+        // The transactions that come out of the mempool arrive in no particular order
+        unsortedTransactions <- mempoolTransactionIds.toList.traverse(fetchTransaction)
+        sortedTransactions = orderTransactions(unsortedTransactions)
+        iterative <-
           // Enqueue all of the transactions (in no particular order, which is terrible for performance and accuracy)
           Queue
             .unbounded[F, Transaction]
-            .flatTap(queue => transactions.traverse(queue.offer))
+            .flatTap(queue => sortedTransactions.traverse(queue.offer))
             .map(queue =>
               new Iterative[F, BlockBodyV2.Full] {
 
@@ -65,6 +67,14 @@ object BlockPacker {
       } yield iterative
     )
   }
+
+  /**
+   * A naive mechanism to pre-sort the Transactions that are attempted into a block.  The pre-sort attempts to
+   * decrease the odds of wasting an attempt on a double-spend Transaction.
+   */
+  private def orderTransactions(transactions: List[Transaction]): List[Transaction] =
+    // TODO: This may introduce an attack vector in which an adversary may spam 0-timestamp Transactions
+    transactions.sortBy(_.schedule.creation)
 
   def makeBodyValidator[F[_]: Monad: Logger](
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],

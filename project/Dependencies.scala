@@ -172,11 +172,12 @@ object Dependencies {
     "com.github.julien-truffaut" %% "monocle-macro" % "3.0.0-M6"
   )
 
-  val fs2Core = "co.fs2"                   %% "fs2-core"    % fs2Version
-  val fs2IO = "co.fs2"                     %% "fs2-io"      % fs2Version
-  val pureConfig = "com.github.pureconfig" %% "pureconfig"  % "0.17.1"
-  val circeYaml = "io.circe"               %% "circe-yaml"  % "0.14.1"
-  val kubernetes = "io.kubernetes"          % "client-java" % "16.0.1"
+  val fs2Core = "co.fs2"                   %% "fs2-core"             % fs2Version
+  val fs2IO = "co.fs2"                     %% "fs2-io"               % fs2Version
+  val fs2ReactiveStreams = "co.fs2"        %% "fs2-reactive-streams" % fs2Version
+  val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.1"
+  val circeYaml = "io.circe"               %% "circe-yaml"           % "0.14.1"
+  val kubernetes = "io.kubernetes"          % "client-java"          % "16.0.1"
 
   val nodeDion: Seq[ModuleID] =
     Seq(
@@ -202,14 +203,20 @@ object Dependencies {
     mainargs
 
   val nodeTetra: Seq[ModuleID] =
-    cats ++ catsEffect ++ mainargs ++ logging ++ monocle ++ Seq(
+    Seq(
       catsSlf4j,
       akka("actor-typed"),
       fs2Core,
       fs2IO,
       pureConfig,
       circeYaml
-    )
+    ) ++
+      cats ++
+      catsEffect ++
+      mainargs ++
+      logging ++
+      monocle ++
+      it
 
   val networkDelayer: Seq[ModuleID] =
     cats ++ catsEffect ++ mainargs ++ logging ++ Seq(
@@ -313,7 +320,9 @@ object Dependencies {
     Dependencies.mUnitTest ++ Dependencies.catsEffect
 
   lazy val catsAkka: Seq[ModuleID] =
-    cats ++ catsEffect ++ logging ++ Seq(akka("actor"), akka("actor-typed"), akka("stream"))
+    cats ++ catsEffect ++ logging ++
+    Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++
+    Seq(fs2Core, fs2IO, fs2ReactiveStreams)
 
   lazy val models: Seq[ModuleID] =
     cats ++ simulacrum ++ newType ++ scodec
@@ -344,7 +353,7 @@ object Dependencies {
     Dependencies.mUnitTest ++ Dependencies.catsEffect ++ logging ++ Seq(
       akka("stream"),
       akka("stream-testkit") % Test
-    )
+    ) ++ Seq(fs2Core)
 
   lazy val demo: Seq[ModuleID] =
     Seq(akka("actor"), akka("actor-typed"), akka("stream"), akkaHttp("http2-support")) ++ logging
@@ -404,6 +413,7 @@ object Dependencies {
       "com.orientechnologies"                  % "orientdb-server"             % orientDbVersion,
       "com.orientechnologies"                  % "orientdb-client"             % orientDbVersion,
       "com.orientechnologies"                  % "orientdb-tools"              % orientDbVersion,
+      "com.orientechnologies"                  % "orientdb-graphdb"            % orientDbVersion,
       "com.googlecode.concurrentlinkedhashmap" % "concurrentlinkedhashmap-lru" % "1.4.2",
       "org.lz4"                                % "lz4-java"                    % "1.8.0"
       // Add jna
@@ -437,8 +447,9 @@ object Dependencies {
 
   lazy val genusLibrary: Seq[ModuleID] =
     logging ++
-    orientDb ++
-    mUnitTest
+      orientDb ++
+      mUnitTest ++
+      simulacrum
 
   lazy val munitScalamock: Seq[sbt.ModuleID] =
     mUnitTest
