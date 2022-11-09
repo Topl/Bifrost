@@ -1,7 +1,5 @@
-{{ $bigBangTimestamp := default (now | unixEpoch  | mul 1000 | add (default (len $.Values.configs | mul 15000) .Values.bigBang.delayMs)) .Values.bigBang.timestamp }}
 {{ $fullname := include "bifrost.fullname" . }}
 {{ $labels := include "bifrost.labels" . }}
-{{ $selectorLabels := include "bifrost.selectorLabels" . }}
 {{ $Values := .Values }}
 {{ $Release := .Release }}
 apiVersion: v1
