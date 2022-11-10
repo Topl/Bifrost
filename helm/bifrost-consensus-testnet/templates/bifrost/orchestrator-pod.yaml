@@ -5,15 +5,22 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: {{ $fullname }}-config-orchestrator-job
+  name: {{ $fullname }}-orchestrator
   labels:
     {{ $labels | nindent 4 }}
 spec:
+  automountServiceAccountToken: false
+  securityContext:
+    {{- toYaml $Values.podSecurityContext | nindent 4 }}
   containers:
     - name: testnet-simulation-orchestrator
-      image: {{ $Values.orchestratorImage.name }}:{{ $Values.orchestratorImage.tag }}
       securityContext:
-        {{- toYaml $Values.securityContext | nindent 12 }}
+        capabilities:
+          drop:
+            - ALL
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+      image: {{ $Values.orchestratorImage.name }}:{{ $Values.orchestratorImage.tag }}
       args:
         - --config
         - /etc/config/orchestrator.yaml
