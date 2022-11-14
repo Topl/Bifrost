@@ -151,7 +151,7 @@ lazy val commonScalacOptions = Seq(
   "-language:higherKinds",
   "-language:postfixOps",
   "-unchecked",
-  "-Ywarn-unused:-implicits,-privates",
+  "-Ywarn-unused:-implicits,-privates,_",
   "-Yrangepos"
 )
 
