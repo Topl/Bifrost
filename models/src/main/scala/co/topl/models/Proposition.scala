@@ -3,7 +3,6 @@ package co.topl.models
 import cats.data.NonEmptyChain
 
 import scala.collection.immutable.ListSet
-import scala.language.implicitConversions
 
 /**
  * Encodes the "spending logic" of a Box.  Roughly translates to a function `(Proof, Blockchain Context) => Boolean`
