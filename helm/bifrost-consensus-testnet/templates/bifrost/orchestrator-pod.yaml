@@ -9,7 +9,7 @@ metadata:
   labels:
     {{ $labels | nindent 4 }}
 spec:
-  automountServiceAccountToken: false
+  automountServiceAccountToken: true
   securityContext:
     {{- toYaml $Values.podSecurityContext | nindent 4 }}
   containers:
