@@ -40,10 +40,10 @@ trait TetraImmutableCodecs {
     ImmutableCodec.fromScodecCodec
 
   implicit val transactionStableCodec: ImmutableCodec[Transaction] =
-    ImmutableCodec.fromScodecCodec
+    ImmutableCodec.fromScodecCodec // TODO replace with fromScodecCodecSized
 
   implicit val unprovenTransactionStableCodec: ImmutableCodec[Transaction.Unproven] =
-    ImmutableCodec.fromScodecCodec
+    ImmutableCodec.fromScodecCodec // TODO replace with fromScodecCodecSized
 
   implicit val curve25519VKImmutableCodec: ImmutableCodec[VerificationKeys.Curve25519] =
     ImmutableCodec.fromScodecCodec

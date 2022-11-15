@@ -24,6 +24,16 @@ object ImmutableCodec {
       def immutableBytes(value: T): ByteVector = encoder.immutableBytes(value)
       def fromImmutableBytes(bytes: ByteVector): Either[String, T] = decoder.fromImmutableBytes(bytes)
     }
+
+  def fromScodecCodecSized[T: Codec]: ImmutableCodec[T] =
+    new ImmutableCodec[T] {
+      private val encoder = ImmutableEncoder.fromScodecEncoderSized[T]
+      private val decoder = ImmutableDecoder.fromScodecDecoderSized[T]
+
+      def immutableBytes(value: T): ByteVector = encoder.immutableBytes(value)
+
+      def fromImmutableBytes(bytes: ByteVector): Either[String, T] = decoder.fromImmutableBytes(bytes)
+    }
 }
 
 @typeclass trait ImmutableEncoder[T] {
@@ -38,11 +48,24 @@ object ImmutableCodec {
 
 object ImmutableEncoder {
 
+  val MaxLength = 15360
+
   def fromScodecEncoder[T: Encoder]: ImmutableEncoder[T] =
     t =>
       Encoder[T].encode(t) match {
         case Attempt.Successful(value) => value.toByteVector
         case Attempt.Failure(cause)    => throw new IllegalArgumentException(cause.messageWithContext)
+      }
+
+  def fromScodecEncoderSized[T: Encoder]: ImmutableEncoder[T] =
+    t =>
+      Encoder[T].encode(t) match {
+        case Attempt.Successful(value) =>
+          val res = value.toByteVector
+          if (res.size < MaxLength) res
+          else throw new IllegalArgumentException(scodec.Err("Upper bound size exceeded").message)
+
+        case Attempt.Failure(cause) => throw new IllegalArgumentException(cause.messageWithContext)
       }
 }
 
@@ -60,8 +83,19 @@ object ImmutableEncoder {
 
 object ImmutableDecoder {
 
+  val MaxLength = 15360
+
   def fromScodecDecoder[T: Decoder]: ImmutableDecoder[T] =
     t => Decoder[T].decodeValue(t.toBitVector).toEither.leftMap(e => e.messageWithContext)
+
+  def fromScodecDecoderSized[T: Decoder]: ImmutableDecoder[T] =
+    t => {
+      val bitVector = t.toBitVector
+      if (bitVector.size > MaxLength)
+        Attempt.failure[T](scodec.Err("Upper bound size exceeded")).toEither.leftMap(e => e.messageWithContext)
+      else
+        Decoder[T].decodeValue(bitVector).toEither.leftMap(e => e.messageWithContext)
+    }
 
   class BytesImmutableDecoderOps(private val bytes: ByteVector) extends AnyVal {
 
