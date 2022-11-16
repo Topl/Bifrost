@@ -251,11 +251,22 @@ object TransactionSyntaxValidation {
           _ => (TransactionSyntaxErrors.InvalidProofType(proposition, proof): TransactionSyntaxError).invalidNec[Unit]
         )
 
-  private[interpreters] def dataLengthValidation(transaction: Transaction): ValidatedNec[TransactionSyntaxError, Unit] =
+  /**
+   * DataLengthValidation validates approved transaction data length, includes proofs
+   * @param transaction transaction
+   * @return
+   */
+  private[interpreters] def dataLengthValidation(
+    transaction: Transaction
+  ): ValidatedNec[TransactionSyntaxError, Unit] = {
+    // TODO Ask, What we should import to call "transaction.immutableBytes"
+    // TODO Ask, if we should validate approved/unapproved txs length
+    import co.topl.codecs.bytes.tetra.TetraImmutableCodecs.transactionStableCodec
     Validated.condNec(
-      transaction.data.forall(_.length <= Transaction.MaxDataLength),
+      transactionStableCodec.immutableBytes(transaction).size <= Transaction.MaxDataLength,
       (),
       TransactionSyntaxErrors.InvalidDataLength
     )
+  }
 
 }

@@ -13,8 +13,11 @@ import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.Gen
 import org.scalacheck.effect.PropF
 import co.topl.typeclasses.implicits._
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
 
 class TransactionSyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
+  override def munitTimeout = new FiniteDuration(1, TimeUnit.MINUTES)
 
   type F[A] = IO[A]
 
@@ -305,21 +308,6 @@ class TransactionSyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEff
           .swap
           .exists(_.toList.contains(TransactionSyntaxErrors.InvalidDataLength))
           .assert
-      } yield ()
-    }
-  }
-
-  test("validate data-length transaction, valid edge MaxDataLength") {
-    val invalidData = Bytes.fill(Transaction.MaxDataLength)(1)
-    PropF.forAllF(arbitraryTransaction.arbitrary.map(_.copy(data = Some(invalidData)))) { transaction: Transaction =>
-      for {
-        underTest <- TransactionSyntaxValidation.make[F]
-        result    <- underTest.validate(transaction)
-        _ <- EitherT
-          .fromEither[F](result.toEither)
-          .swap
-          .exists(_.toList.contains(TransactionSyntaxErrors.InvalidDataLength))
-          .assertEquals(false)
       } yield ()
     }
   }
