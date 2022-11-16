@@ -2,7 +2,6 @@ package co.topl.crypto.utils
 
 import cats.Eq
 import co.topl.crypto.generation.mnemonic.Entropy
-import co.topl.models.Bytes
 import org.scalacheck.Arbitrary
 
 trait EntropySupport {
