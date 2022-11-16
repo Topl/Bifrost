@@ -4,7 +4,6 @@ import co.topl.crypto.accumulators.merkle.{Leaf, MerkleTree}
 import co.topl.crypto.hash.digest.{Digest, Digest32}
 import co.topl.crypto.hash.implicits._
 import co.topl.crypto.hash.{Blake2b, Hash}
-import co.topl.crypto.utils.Generators._
 import co.topl.crypto.utils.randomBytes
 import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
