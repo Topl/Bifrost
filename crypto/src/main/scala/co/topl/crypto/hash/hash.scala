@@ -2,8 +2,6 @@ package co.topl.crypto
 
 import co.topl.crypto.hash.digest._
 
-import scala.language.implicitConversions
-
 /* Forked from https://github.com/input-output-hk/scrypto */
 
 package object hash {
