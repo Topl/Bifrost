@@ -2,8 +2,6 @@ package co.topl.models.utility
 
 import co.topl.models.utility.BinaryTree.{Empty, Leaf, Node}
 
-import scala.language.postfixOps
-
 /**
  * AMS 2021: Modified for use with MMM construction, ported from: https://gist.github.com/dholbrook/2967371
  * All credit and praise goes to: https://gist.github.com/dholbrook
@@ -224,7 +222,7 @@ trait BinaryTree[+A] {
    * P02
    * (*) Count the number of nodes in a binary tree.
    */
-  def size: Int = fold(0)((sum, v) => sum + 1)
+  def size: Int = fold(0)((sum, _) => sum + 1)
 
   /**
    * P03
@@ -233,7 +231,7 @@ trait BinaryTree[+A] {
    */
   def height: Int = {
     def loop(t: BinaryTree[A]): Int = t match {
-      case l: Leaf[A] => 1
+      case _: Leaf[A] => 1
       case n: Node[A] => Seq(loop(n.left.get), loop(n.right.get)).max + 1
       case _          => 0
     }
@@ -247,7 +245,7 @@ trait BinaryTree[+A] {
   def leafCount: Int = {
     @tailrec
     def loop(t: List[BinaryTree[A]], z: Int): Int = t match {
-      case (l: Leaf[A]) :: tl => loop(tl, z + 1)
+      case (_: Leaf[A]) :: tl => loop(tl, z + 1)
       case (n: Node[A]) :: tl => loop(n.left.get :: n.right.get :: tl, z)
       case _ :: tl            => loop(tl, z)
       case _                  => z
