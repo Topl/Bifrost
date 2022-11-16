@@ -20,7 +20,7 @@ object NetworkDelayer
     extends IOBaseApp[Args, ApplicationConfig](
       createArgs = args => Args.parserArgs.constructOrThrow(args),
       createConfig = IOBaseApp.createTypesafeConfig,
-      parseConfig = (_, conf) => ApplicationConfig.unsafe(conf)
+      parseConfig = (_: Args, conf) => ApplicationConfig.unsafe(conf)
     ) {
 
   implicit private val logger: Logger[F] =
