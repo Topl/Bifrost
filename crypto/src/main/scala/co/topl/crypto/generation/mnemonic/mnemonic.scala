@@ -1,6 +1,5 @@
 package co.topl.crypto.generation
 
-import scala.language.implicitConversions
 import scala.math.BigInt
 
 /**
