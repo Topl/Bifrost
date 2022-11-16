@@ -1,7 +1,7 @@
 package co.topl.genusLibrary.interpreter
 
 import cats.data.{Chain, EitherT}
-import cats.effect.kernel.Sync
+import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.algebras.ToplRpc
 import co.topl.genusLibrary.algebras.{BlockFetcherAlgebra, ServiceResponse}
@@ -10,7 +10,7 @@ import co.topl.models.{BlockBodyV2, BlockHeaderV2, BlockV2, Transaction, TypedId
 
 import scala.collection.immutable.ListSet
 
-class NodeBlockFetcher[F[_]: Sync](toplRpc: ToplRpc[F, Any]) extends BlockFetcherAlgebra[F] {
+class NodeBlockFetcher[F[_]: Async](toplRpc: ToplRpc[F, Any]) extends BlockFetcherAlgebra[F] {
 
   // TODO: TSDK-186 | Do calls concurrently.
   override def fetch(height: Long): ServiceResponse[F, Option[BlockV2.Full]] = toplRpc.blockIdAtHeight(height) flatMap {
