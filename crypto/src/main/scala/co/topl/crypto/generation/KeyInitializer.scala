@@ -6,7 +6,7 @@ import co.topl.crypto.generation.mnemonic.{Entropy, EntropyFailure, Language}
 import co.topl.crypto.signing._
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.{Lengths, Sized}
+import co.topl.models.utility.Sized
 import scodec.bits.BitVector
 import simulacrum.typeclass
 
