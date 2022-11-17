@@ -46,7 +46,7 @@ class NodeBlockFetcher[F[_]: Async](toplRpc: ToplRpc[F, Any]) extends BlockFetch
         .map(maybeTransaction => (typedIdentifier, maybeTransaction))
     ) map { e =>
       e.foldLeft(Chain.empty[Transaction].asRight[ListSet[TypedIdentifier]]) {
-        case (Right(transactions), (_, Some(transaction)))     => transactions.+:(transaction).asRight
+        case (Right(transactions), (_, Some(transaction)))     => (transactions :+ transaction).asRight
         case (Right(_), (typedIdentifier, None))               => ListSet(typedIdentifier).asLeft
         case (nonExistentTransactions @ Left(_), (_, Some(_))) => nonExistentTransactions
         case (Left(nonExistentTransactions), (typedIdentifier, None)) =>

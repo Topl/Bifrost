@@ -16,6 +16,7 @@ import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
+import co.topl.typeclasses.implicits._
 
 import scala.collection.immutable.ListSet
 
@@ -36,11 +37,10 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
           .returning(Option.empty[TypedIdentifier].pure[F])
           .once()
 
-        val result = nodeBlockFetcher fetch height
-
-        result map { actualResult =>
-          assertEquals(actualResult, None.asRight)
-        }
+        assertIO(
+          nodeBlockFetcher fetch height,
+          None.asRight
+        )
 
       }
     }
@@ -62,11 +62,10 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
           .returning(Option.empty[BlockHeaderV2].pure[F])
           .once()
 
-        val result = nodeBlockFetcher fetch height
-
-        result map { actualResult =>
-          assertEquals(actualResult, NoBlockHeaderFoundOnNodeFailure(blockId).asLeft)
-        }
+        assertIO(
+          nodeBlockFetcher fetch height,
+          NoBlockHeaderFoundOnNodeFailure(blockId).asLeft
+        )
 
       }
     }
@@ -80,12 +79,12 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
 
         (toplRpc.blockIdAtHeight _)
           .expects(height)
-          .returning(Option(blockId).pure[F])
+          .returning(blockId.some.pure[F])
           .once()
 
         (toplRpc.fetchBlockHeader _)
           .expects(blockId)
-          .returning(Option(blockHeader).pure[F])
+          .returning(blockHeader.some.pure[F])
           .once()
 
         (toplRpc.fetchBlockBody _)
@@ -93,11 +92,10 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
           .returning(Option.empty[BlockBodyV2].pure[F])
           .once()
 
-        val result = nodeBlockFetcher fetch height
-
-        result map { actualResult =>
-          assertEquals(actualResult, NoBlockBodyFoundOnNodeFailure(blockId).asLeft)
-        }
+        assertIO(
+          nodeBlockFetcher fetch height,
+          NoBlockBodyFoundOnNodeFailure(blockId).asLeft
+        )
 
       }
     }
@@ -120,28 +118,28 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
 
           (toplRpc.blockIdAtHeight _)
             .expects(height)
-            .returning(Option(blockId).pure[F])
+            .returning(blockId.some.pure[F])
             .once()
 
           (toplRpc.fetchBlockHeader _)
             .expects(blockId)
-            .returning(Option(blockHeader).pure[F])
+            .returning(blockHeader.some.pure[F])
             .once()
 
           (toplRpc.fetchBlockBody _)
             .expects(blockId)
-            .returning(Option(blockBody).pure[F])
+            .returning(blockBody.some.pure[F])
             .once()
 
           (toplRpc.fetchTransaction _)
             .expects(transactionId)
             .returning(Option.empty[Transaction].pure[F])
+            .once()
 
-          val result = nodeBlockFetcher fetch height
-
-          result map { actualResult =>
-            assertEquals(actualResult, NonExistentTransactionsFailure(ListSet(transactionId)).asLeft)
-          }
+          assertIO(
+            nodeBlockFetcher fetch height,
+            NonExistentTransactionsFailure(ListSet(transactionId)).asLeft
+          )
 
         }
     }
@@ -188,23 +186,22 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
           (toplRpc.fetchTransaction _)
             .expects(transactionId_01)
             .returning(transaction_01.some.pure[F])
+            .once()
 
           (toplRpc.fetchTransaction _)
             .expects(transactionId_02)
             .returning(Option.empty[Transaction].pure[F])
+            .once()
 
           (toplRpc.fetchTransaction _)
             .expects(transactionId_03)
             .returning(Option.empty[Transaction].pure[F])
+            .once()
 
-          val result = nodeBlockFetcher fetch height
-
-          result map { actualResult =>
-            assertEquals(
-              actualResult,
-              NonExistentTransactionsFailure(ListSet(transactionId_02, transactionId_03)).asLeft
-            )
-          }
+          assertIO(
+            nodeBlockFetcher fetch height,
+            NonExistentTransactionsFailure(ListSet(transactionId_02, transactionId_03)).asLeft
+          )
 
         }
     }
@@ -249,23 +246,22 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
           (toplRpc.fetchTransaction _)
             .expects(transactionId_01)
             .returning(Option.empty[Transaction].pure[F])
+            .once()
 
           (toplRpc.fetchTransaction _)
             .expects(transactionId_02)
             .returning(Option.empty[Transaction].pure[F])
+            .once()
 
           (toplRpc.fetchTransaction _)
             .expects(transactionId_03)
             .returning(Option.empty[Transaction].pure[F])
+            .once()
 
-          val result = nodeBlockFetcher fetch height
-
-          result map { actualResult =>
-            assertEquals(
-              actualResult,
-              NonExistentTransactionsFailure(ListSet(transactionId_01, transactionId_02, transactionId_03)).asLeft
-            )
-          }
+          assertIO(
+            nodeBlockFetcher fetch height,
+            NonExistentTransactionsFailure(ListSet(transactionId_01, transactionId_02, transactionId_03)).asLeft
+          )
 
         }
     }
@@ -274,19 +270,20 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
   test(
     "On a block with a header and three transactions, a Right of the full block body should be returned"
   ) {
-    PropF.forAllF { //  TODO remove comment for Nacho, only 8 properties are allowed
+    PropF.forAllF {
       (
-//        height:           Long, TODO remove comment for Nacho, I removed the height
-        blockId:          TypedIdentifier,
-        blockHeader:      BlockHeaderV2,
-        transactionId_01: TypedIdentifier,
-        transactionId_02: TypedIdentifier,
-        transactionId_03: TypedIdentifier,
-        transaction_01:   Transaction,
-        transaction_02:   Transaction,
-        transaction_03:   Transaction
+        height:         Long,
+        blockId:        TypedIdentifier,
+        blockHeader:    BlockHeaderV2,
+        transaction_01: Transaction,
+        transaction_02: Transaction,
+        transaction_03: Transaction
       ) =>
         withMock {
+
+          val transactionId_01: TypedIdentifier = transaction_01.id.asTypedBytes
+          val transactionId_02: TypedIdentifier = transaction_02.id.asTypedBytes
+          val transactionId_03: TypedIdentifier = transaction_03.id.asTypedBytes
 
           val blockBody: BlockBodyV2 = ListSet(
             transactionId_01,
@@ -295,7 +292,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
           )
 
           (toplRpc.blockIdAtHeight _)
-            .expects(0L)
+            .expects(height)
             .returning(blockId.some.pure[F])
             .once()
 
@@ -312,22 +309,22 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
           (toplRpc.fetchTransaction _)
             .expects(transactionId_01)
             .returning(transaction_01.some.pure[F])
+            .once()
 
           (toplRpc.fetchTransaction _)
             .expects(transactionId_02)
             .returning(transaction_02.some.pure[F])
+            .once()
 
           (toplRpc.fetchTransaction _)
             .expects(transactionId_03)
             .returning(transaction_03.some.pure[F])
+            .once()
 
-          for {
-            _ <- assertIO(
-              nodeBlockFetcher.fetch(0L),
-              // TODO remove comment for Nacho, foldLeft on Right is creating a reversed list
-              Option(BlockV2.Full(blockHeader, Chain(transaction_03, transaction_02, transaction_01))).asRight
-            )
-          } yield ()
+          assertIO(
+            nodeBlockFetcher fetch height,
+            BlockV2.Full(blockHeader, Chain(transaction_01, transaction_02, transaction_03)).some.asRight
+          )
 
         }
     }
