@@ -7,6 +7,8 @@ import co.topl.ledger.algebras._
 import co.topl.ledger.models._
 import co.topl.models.{Box, Proof, Proofs, Proposition, Propositions, Transaction}
 import co.topl.typeclasses.implicits._
+import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.codecs.bytes.tetra.instances._
 
 object TransactionSyntaxValidation {
 
@@ -253,20 +255,17 @@ object TransactionSyntaxValidation {
 
   /**
    * DataLengthValidation validates approved transaction data length, includes proofs
+   * TODO Ask, if we should include proofs lengths
    * @param transaction transaction
    * @return
    */
   private[interpreters] def dataLengthValidation(
     transaction: Transaction
-  ): ValidatedNec[TransactionSyntaxError, Unit] = {
-    // TODO Ask, What we should import to call "transaction.immutableBytes"
-    // TODO Ask, if we should validate approved/unapproved txs length
-    import co.topl.codecs.bytes.tetra.TetraImmutableCodecs.transactionStableCodec
+  ): ValidatedNec[TransactionSyntaxError, Unit] =
     Validated.condNec(
-      transactionStableCodec.immutableBytes(transaction).size <= Transaction.MaxDataLength,
+      transaction.immutableBytes.size <= Transaction.MaxDataLength,
       (),
       TransactionSyntaxErrors.InvalidDataLength
     )
-  }
 
 }
