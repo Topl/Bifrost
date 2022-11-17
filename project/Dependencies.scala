@@ -9,7 +9,7 @@ object Dependencies {
   val graalVersion = "21.3.3"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.8.0"
-  val catsEffectVersion = "3.3.14"
+  val catsEffectVersion = "3.4.0"
   val logback = "1.4.0"
 
   val catsSlf4j =
