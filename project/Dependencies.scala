@@ -8,7 +8,7 @@ object Dependencies {
   val kamonVersion = "2.5.8"
   val graalVersion = "21.3.3"
   val simulacrumVersion = "1.0.1"
-  val catsCoreVersion = "2.8.0"
+  val catsCoreVersion = "2.9.0"
   val catsEffectVersion = "3.3.14"
   val logback = "1.4.0"
 
