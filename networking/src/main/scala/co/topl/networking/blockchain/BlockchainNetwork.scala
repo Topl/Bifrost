@@ -60,9 +60,9 @@ object BlockchainNetwork {
       _ <- Spawn[F].start(
         peerTerminations
           .mapAsyncF(1) {
-            case PeerConnectionChanges.ConnectionClosed(peer, Some(error)) =>
+            case PeerConnectionChanges.ConnectionClosed(_, Some(error)) =>
               Logger[F].error(error)("Peer connection terminated with error")
-            case PeerConnectionChanges.ConnectionClosed(peer, _) =>
+            case PeerConnectionChanges.ConnectionClosed(_, _) =>
               Logger[F].info("Peer connection terminated normally")
           }
           .toMat(Sink.ignore)(Keep.right)

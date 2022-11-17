@@ -55,7 +55,6 @@ object BlockPacker {
                     .flatMap { transaction =>
                       // Attempt to stuff that transaction into our current block
                       val fullBody = current.append(transaction)
-                      val body = ListSet.empty[TypedIdentifier] ++ fullBody.toList.map(_.id.asTypedBytes)
                       // If it's valid, hooray.  If not, return the previous value
                       val transactionValidationContext =
                         StaticTransactionValidationContext(parentBlockId, fullBody, height, slot)
