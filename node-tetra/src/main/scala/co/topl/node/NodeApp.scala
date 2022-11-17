@@ -19,7 +19,6 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.models._
 import co.topl.typeclasses.implicits._
-import co.topl.codecs.bytes.tetra.instances._
 import co.topl.common.application.{IOAkkaApp, IOBaseApp}
 import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
@@ -218,7 +217,7 @@ object NodeApp
                     )
                   )
                   .concat(Source.never),
-                (peer, flow) => flow,
+                (_, flow) => flow,
                 appConfig.bifrost.rpc.bindHost,
                 appConfig.bifrost.rpc.bindPort
               )
