@@ -11,7 +11,7 @@ Seq(
   "io.kamon"                % "sbt-kanela-runner"         % "2.0.14",
   "com.github.cb372"        % "sbt-explicit-dependencies" % "0.2.16",
   "pl.project13.scala"      % "sbt-jmh"                   % "0.4.3",
-  "org.scalameta"           % "sbt-scalafmt"              % "2.4.6",
+  "org.scalameta"           % "sbt-scalafmt"              % "2.5.0",
   "ch.epfl.scala"           % "sbt-scalafix"              % "0.10.1",
   "org.wartremover"         % "sbt-wartremover"           % "3.0.6",
   "com.github.sbt"          % "sbt-native-packager"       % "1.9.11",
