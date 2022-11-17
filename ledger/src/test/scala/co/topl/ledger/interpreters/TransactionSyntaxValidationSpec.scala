@@ -256,7 +256,7 @@ class TransactionSyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEff
         Transaction.Schedule(0L, 0L, Long.MaxValue),
         None
       )
-    PropF.forAllF { (transaction: Transaction, curveSk: SecretKeys.Curve25519, edSK: SecretKeys.Ed25519) =>
+    PropF.forAllF { (curveSk: SecretKeys.Curve25519, edSK: SecretKeys.Ed25519) =>
       val transaction1 =
         createTestTransaction(curveSk.vk.asProposition, arbitraryProofsKnowledgeEd25519.arbitrary.first)
       val transaction2 =
