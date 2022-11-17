@@ -2,8 +2,7 @@ package co.topl.typeclasses
 
 import co.topl.codecs.bytes.typeclasses.Identifiable
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.codecs.bytes.tetra.instances._
-import co.topl.models.{SlotId, TypedBytes}
+import co.topl.models.SlotId
 import simulacrum._
 import IdentityOps._
 
