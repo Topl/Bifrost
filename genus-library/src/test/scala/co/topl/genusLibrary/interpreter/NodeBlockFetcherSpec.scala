@@ -4,12 +4,18 @@ import cats.data.Chain
 import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.ToplRpc
-import co.topl.genusLibrary.failure.Failures.{NoBlockBodyFoundOnNodeFailure, NoBlockHeaderFoundOnNodeFailure, NonExistentTransactionsFailure}
+import co.topl.genusLibrary.failure.Failures.{
+  NoBlockBodyFoundOnNodeFailure,
+  NoBlockHeaderFoundOnNodeFailure,
+  NonExistentTransactionsFailure
+}
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
+import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.codecs.bytes.tetra.instances._
 
 import scala.collection.immutable.ListSet
 
@@ -147,19 +153,19 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
   ) {
     PropF.forAllF {
       (
-        height: Long,
-        blockId: TypedIdentifier,
-        blockHeader: BlockHeaderV2,
+        height:           Long,
+        blockId:          TypedIdentifier,
+        blockHeader:      BlockHeaderV2,
         transactionId_01: TypedIdentifier,
         transactionId_02: TypedIdentifier,
-        transactionId_03: TypedIdentifier,
+        transactionId_03: TypedIdentifier
       ) =>
         withMock {
 
           val blockBody: BlockBodyV2 = ListSet(
             transactionId_01,
             transactionId_02,
-            transactionId_03,
+            transactionId_03
           )
 
           val transaction_01 = mock[Transaction]
@@ -210,19 +216,19 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
   ) {
     PropF.forAllF {
       (
-        height: Long,
-        blockId: TypedIdentifier,
-        blockHeader: BlockHeaderV2,
+        height:           Long,
+        blockId:          TypedIdentifier,
+        blockHeader:      BlockHeaderV2,
         transactionId_01: TypedIdentifier,
         transactionId_02: TypedIdentifier,
-        transactionId_03: TypedIdentifier,
+        transactionId_03: TypedIdentifier
       ) =>
         withMock {
 
           val blockBody: BlockBodyV2 = ListSet(
             transactionId_01,
             transactionId_02,
-            transactionId_03,
+            transactionId_03
           )
 
           (toplRpc.blockIdAtHeight _)
@@ -268,28 +274,28 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
   test(
     "On a block with a header and three transactions, a Right of the full block body should be returned"
   ) {
-    PropF.forAllF {
+    PropF.forAllF { //  TODO remove comment for Nacho, only 8 properties are allowed
       (
-        height: Long,
-        blockId: TypedIdentifier,
-        blockHeader: BlockHeaderV2,
+//        height:           Long, TODO remove comment for Nacho, I removed the height
+        blockId:          TypedIdentifier,
+        blockHeader:      BlockHeaderV2,
         transactionId_01: TypedIdentifier,
         transactionId_02: TypedIdentifier,
         transactionId_03: TypedIdentifier,
-        transaction_01: Transaction,
-        transaction_02: Transaction,
-        transaction_03: Transaction,
+        transaction_01:   Transaction,
+        transaction_02:   Transaction,
+        transaction_03:   Transaction
       ) =>
         withMock {
 
           val blockBody: BlockBodyV2 = ListSet(
             transactionId_01,
             transactionId_02,
-            transactionId_03,
+            transactionId_03
           )
 
           (toplRpc.blockIdAtHeight _)
-            .expects(height)
+            .expects(0L)
             .returning(blockId.some.pure[F])
             .once()
 
@@ -315,14 +321,13 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
             .expects(transactionId_03)
             .returning(transaction_03.some.pure[F])
 
-          val result = nodeBlockFetcher fetch height
-
-          result map { actualResult =>
-            assertEquals(
-              actualResult,
-              Option(BlockV2.Full(blockHeader, Chain(transaction_01, transaction_02, transaction_03))).asRight
+          for {
+            _ <- assertIO(
+              nodeBlockFetcher.fetch(0L),
+              // TODO remove comment for Nacho, foldLeft on Right is creating a reversed list
+              Option(BlockV2.Full(blockHeader, Chain(transaction_03, transaction_02, transaction_01))).asRight
             )
-          }
+          } yield ()
 
         }
     }

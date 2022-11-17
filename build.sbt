@@ -860,7 +860,7 @@ lazy val genusLibrary = project
   )
   .dependsOn(
     typeclasses,
-    models,
+    models % "compile->compile;test->test",
     tetraByteCodecs,
     toplGrpc,
     munitScalamock % "test->test",
