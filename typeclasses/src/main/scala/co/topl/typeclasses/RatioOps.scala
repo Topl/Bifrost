@@ -2,7 +2,6 @@ package co.topl.typeclasses
 
 import co.topl.models.utility.Ratio
 
-import scala.language.implicitConversions
 import scala.math.BigInt
 
 object RatioOps {

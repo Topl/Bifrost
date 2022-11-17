@@ -12,7 +12,6 @@ import org.iq80.leveldb.{CompressionType, DB, Options}
 import scodec.bits.ByteVector
 
 import java.util.InputMismatchException
-import scala.language.implicitConversions
 
 /**
  * A `Store` interpreter which is backed by LevelDB.  Keys and Values must have a Persistable typeclass instance available.
