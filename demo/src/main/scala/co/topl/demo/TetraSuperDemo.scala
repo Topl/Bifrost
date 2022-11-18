@@ -222,6 +222,7 @@ object TetraSuperDemo extends IOApp {
           blake2b256Resource
         )
         cachedHeaderValidation <- BlockHeaderValidation.WithCache.make[F](underlyingHeaderValidation, blockHeaderStore)
+        headerToBodyValidation <- BlockHeaderToBodyValidation.Eval.make[F]()
         localChain <- LocalChain.Eval.make(
           bigBangBlock.headerV2.slotData(Ed25519VRF.precomputed()),
           ChainSelection
@@ -291,6 +292,7 @@ object TetraSuperDemo extends IOApp {
             blockIdTree,
             blockHeightTree,
             cachedHeaderValidation,
+            headerToBodyValidation,
             transactionSyntaxValidation,
             bodySyntaxValidation,
             bodySemanticValidation,
