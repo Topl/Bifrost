@@ -110,7 +110,7 @@ object BlockProducer {
                 BlockHeaderV2.Unsigned(
                   parentHeaderId = parentSlotData.slotId.blockId,
                   parentSlot = parentSlotData.slotId.slot,
-                  txRoot = body.merkleTree,
+                  txRoot = body.merkleTreeRootHash,
                   bloomFilter = body.bloomFilter,
                   timestamp = timestamp,
                   height = parentSlotData.height + 1,

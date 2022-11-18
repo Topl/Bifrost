@@ -4,31 +4,31 @@ import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import akka.stream.scaladsl.Source
 import akka.util.Timeout
-import cats.effect.IO
-import co.topl.catsakka._
-import cats.implicits._
-import co.topl.algebras._
-import ClockAlgebra.implicits._
 import cats.Applicative
 import cats.data.OptionT
+import cats.effect.IO
+import cats.implicits._
+import co.topl.algebras.ClockAlgebra.implicits._
+import co.topl.algebras._
 import co.topl.blockchain._
-import co.topl.crypto.hash.Blake2b512
-import co.topl.crypto.signing._
-import co.topl.interpreters._
-import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.models._
-import co.topl.typeclasses.implicits._
+import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.common.application.{IOAkkaApp, IOBaseApp}
-import co.topl.consensus.LeaderElectionValidation.VrfConfig
 import co.topl.consensus._
 import co.topl.consensus.algebras._
+import co.topl.consensus.interpreters.LeaderElectionValidation.VrfConfig
 import co.topl.consensus.interpreters._
+import co.topl.crypto.hash.Blake2b512
+import co.topl.crypto.signing._
 import co.topl.eventtree.ParentChildTree
+import co.topl.interpreters._
 import co.topl.ledger.interpreters._
 import co.topl.minting._
-import co.topl.networking.p2p.LocalPeer
+import co.topl.models._
+import co.topl.networking.p2p.{ConnectedPeer, LocalPeer}
 import co.topl.numerics._
+import co.topl.typeclasses.implicits._
 import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -201,6 +201,7 @@ object NodeApp
                 blockIdTree,
                 blockHeightTree,
                 validators.header,
+                validators.headerToBody,
                 validators.transactionSyntax,
                 validators.bodySyntax,
                 validators.bodySemantics,
@@ -217,7 +218,7 @@ object NodeApp
                     )
                   )
                   .concat(Source.never),
-                (_, flow) => flow,
+                (_: ConnectedPeer, flow) => flow,
                 appConfig.bifrost.rpc.bindHost,
                 appConfig.bifrost.rpc.bindPort
               )

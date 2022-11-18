@@ -60,7 +60,7 @@ object BigBang {
       BlockHeaderV2(
         parentHeaderId = ParentId,
         parentSlot = ParentSlot,
-        txRoot = transactions.merkleTree,
+        txRoot = transactions.merkleTreeRootHash,
         bloomFilter = transactions.bloomFilter,
         timestamp = config.timestamp,
         height = Height,

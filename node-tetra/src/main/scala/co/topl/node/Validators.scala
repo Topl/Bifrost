@@ -3,13 +3,14 @@ package co.topl.node
 import cats.effect.Async
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
-import co.topl.consensus.BlockHeaderValidation
 import co.topl.consensus.algebras.{
+  BlockHeaderToBodyValidationAlgebra,
   BlockHeaderValidationAlgebra,
   ConsensusValidationStateAlgebra,
   EtaCalculationAlgebra,
   LeaderElectionValidationAlgebra
 }
+import co.topl.consensus.interpreters.{BlockHeaderToBodyValidation, BlockHeaderValidation}
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras.{
   BodyAuthorizationValidationAlgebra,
@@ -23,6 +24,7 @@ import co.topl.typeclasses.implicits._
 
 case class Validators[F[_]](
   header:            BlockHeaderValidationAlgebra[F],
+  headerToBody:      BlockHeaderToBodyValidationAlgebra[F],
   transactionSyntax: TransactionSyntaxValidationAlgebra[F],
   bodySyntax:        BodySyntaxValidationAlgebra[F],
   bodySemantics:     BodySemanticValidationAlgebra[F],
@@ -54,6 +56,7 @@ object Validators {
           cryptoResources.blake2b256
         )
         .flatMap(BlockHeaderValidation.WithCache.make[F](_, dataStores.headers))
+      headerToBody <- BlockHeaderToBodyValidation.Eval.make()
       boxState <- BoxState.make(
         currentEventIdGetterSetters.boxState.get(),
         dataStores.bodies.getOrRaise,
@@ -84,6 +87,7 @@ object Validators {
       )
     } yield Validators(
       headerValidation,
+      headerToBody,
       transactionSyntaxValidation,
       bodySyntaxValidation,
       bodySemanticValidation,
