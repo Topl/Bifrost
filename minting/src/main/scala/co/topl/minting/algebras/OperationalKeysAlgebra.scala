@@ -1,6 +1,6 @@
 package co.topl.minting.algebras
 
-import co.topl.models.{Eta, Proofs, SecretKeys, Slot, SlotId, VerificationKeys}
+import co.topl.models.{Proofs, SecretKeys, Slot, SlotId, VerificationKeys}
 
 /**
  * A KeyEvolverAlgebra is responsible for encapsulating a key locally and emitting an evolved version of
