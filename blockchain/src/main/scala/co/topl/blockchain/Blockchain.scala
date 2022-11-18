@@ -12,7 +12,7 @@ import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.BlockHeaderV2Ops
-import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LocalChainAlgebra}
+import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, BlockHeaderValidationAlgebra, LocalChainAlgebra}
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.grpc.ToplGrpc
@@ -28,7 +28,6 @@ import co.topl.minting.{BlockPacker, BlockProducer}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.jdk.CollectionConverters._
-
 import scala.util.Random
 
 object Blockchain {
@@ -47,6 +46,7 @@ object Blockchain {
     blockIdTree:                 ParentChildTree[F, TypedIdentifier],
     blockHeights:                EventSourcedState[F, Long => F[Option[TypedIdentifier]]],
     headerValidation:            BlockHeaderValidationAlgebra[F],
+    blockHeaderToBodyValidation: BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxValidationAlgebra[F],
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
@@ -74,6 +74,7 @@ object Blockchain {
             clock,
             localChain,
             headerValidation,
+            blockHeaderToBodyValidation,
             bodySyntaxValidation,
             bodySemanticValidation,
             bodyAuthorizationValidation,

@@ -9,7 +9,7 @@ import co.topl.algebras._
 import co.topl.blockchain.StakerInitializers
 import co.topl.catsakka.FToFuture
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.consensus.LeaderElectionValidation.VrfConfig
+import co.topl.consensus.interpreters.LeaderElectionValidation.VrfConfig
 import co.topl.consensus.algebras.{
   ConsensusValidationStateAlgebra,
   EtaCalculationAlgebra,
