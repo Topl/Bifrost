@@ -46,7 +46,7 @@ object ContainsTransactionIds {
 @typeclass trait ContainsTransactions[T] {
   @op("transactions") def transactionsOf(t: T): Seq[Transaction]
 
-  @op("bloomFilter") def bloomFilterOf(t: T): BloomFilter =
+  @op("bloomFilter") def bloomFilterOf(@annotation.nowarn t: T): BloomFilter =
     // TODO
     Sized.strictUnsafe[Bytes, Lengths.`256`.type](Bytes(Array.fill[Byte](256)(1)))
 }
