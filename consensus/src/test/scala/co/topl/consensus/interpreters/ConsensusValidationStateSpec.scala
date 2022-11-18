@@ -7,7 +7,7 @@ import co.topl.algebras.testInterpreters.TestStore
 import co.topl.consensus.interpreters.EpochBoundariesEventSourcedState.EpochBoundaries
 import co.topl.eventtree.EventSourcedState
 import co.topl.models.utility.Ratio
-import co.topl.models.{Box, Epoch, Int128, StakingAddress, StakingAddresses, TypedIdentifier}
+import co.topl.models.{Box, Epoch, Int128, StakingAddresses, TypedIdentifier}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory

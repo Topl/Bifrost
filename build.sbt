@@ -858,7 +858,13 @@ lazy val genusLibrary = project
     buildInfoPackage := "co.topl.buildinfo.genusLibrary",
     libraryDependencies ++= Dependencies.genusLibrary
   )
-  .dependsOn(typeclasses, models, tetraByteCodecs)
+  .dependsOn(
+    typeclasses,
+    models % "compile->compile;test->test",
+    tetraByteCodecs,
+    toplGrpc,
+    munitScalamock % "test->test",
+  )
 
 lazy val munitScalamock = project
   .in(file("munit-scalamock"))

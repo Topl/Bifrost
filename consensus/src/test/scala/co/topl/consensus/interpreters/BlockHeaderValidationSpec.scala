@@ -1,4 +1,4 @@
-package co.topl.consensus
+package co.topl.consensus.interpreters
 
 import cats.effect._
 import cats.effect.unsafe.implicits.global
@@ -6,8 +6,9 @@ import cats.implicits._
 import co.topl.algebras.{ClockAlgebra, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.consensus.LeaderElectionValidation.VrfConfig
+import co.topl.consensus.BlockHeaderValidationFailures
 import co.topl.consensus.algebras._
+import co.topl.consensus.interpreters.LeaderElectionValidation.VrfConfig
 import co.topl.crypto.generation.KeyInitializer
 import co.topl.crypto.generation.KeyInitializer.Instances.ed25519Initializer
 import co.topl.crypto.hash.{blake2b256, Blake2b256, Blake2b512}

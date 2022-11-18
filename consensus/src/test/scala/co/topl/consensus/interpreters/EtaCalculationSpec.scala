@@ -1,4 +1,4 @@
-package co.topl.consensus
+package co.topl.consensus.interpreters
 
 import cats.data.NonEmptyChain
 import cats.effect.IO
@@ -6,6 +6,11 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import co.topl.algebras.testInterpreters.NoOpLogger
 import co.topl.algebras.{ClockAlgebra, UnsafeResource}
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.consensus.BlockHeaderV2Ops
+import co.topl.crypto.generation.KeyInitializer
+import co.topl.crypto.generation.KeyInitializer.Instances.vrfInitializer
 import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models.ModelGenerators._
@@ -18,10 +23,6 @@ import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.crypto.generation.KeyInitializer
-import co.topl.crypto.generation.KeyInitializer.Instances.vrfInitializer
 
 class EtaCalculationSpec
     extends AnyFlatSpec

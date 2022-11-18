@@ -1,7 +1,7 @@
 package co.topl.networking.multiplexer
 
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
+import akka.stream.scaladsl.{Keep, Sink, Source}
 import akka.stream.testkit.scaladsl.{TestSink, TestSource}
 import akka.testkit.TestKitBase
 import akka.util.ByteString

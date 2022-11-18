@@ -1,4 +1,4 @@
-package co.topl.consensus
+package co.topl.consensus.interpreters
 
 import cats.data.NonEmptyChain
 import cats.effect.{Clock, Sync}
