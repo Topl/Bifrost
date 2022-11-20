@@ -10,7 +10,7 @@ object Dependencies {
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.8.0"
   val catsEffectVersion = "3.3.14"
-  val logback = "1.4.0"
+  val logback = "1.4.5"
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.4.0"
