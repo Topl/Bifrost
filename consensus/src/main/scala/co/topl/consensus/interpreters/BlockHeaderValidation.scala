@@ -17,8 +17,6 @@ import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
 import scalacache.caffeine.CaffeineCache
 
-import scala.language.implicitConversions
-
 /**
  * Interpreters for the ConsensusValidationAlgebra
  */
