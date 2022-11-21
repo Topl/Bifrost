@@ -29,7 +29,7 @@ object ApplicationConfig {
     case class Kubernetes(namespace: String)
 
     @Lenses
-    case class Scenario(targetHeight: Long)
+    case class Scenario(targetHeight: Long, transactionsPerSecond: Double)
 
     @Lenses
     case class Node(name: String, host: String, port: Int)

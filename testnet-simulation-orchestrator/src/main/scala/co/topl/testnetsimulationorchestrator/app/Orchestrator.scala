@@ -2,19 +2,25 @@ package co.topl.testnetsimulationorchestrator.app
 
 import cats.data.OptionT
 import cats.effect._
+import cats.effect.std.Random
 import cats.implicits._
 import co.topl.algebras.{SynchronizationTraversalSteps, ToplRpc}
 import co.topl.common.application.IOBaseApp
 import co.topl.grpc.ToplGrpc
+import co.topl.interpreters.MultiToplRpc
 import co.topl.models.{BlockHeaderV2, TypedIdentifier}
 import co.topl.testnetsimulationorchestrator.algebras.DataPublisher
 import co.topl.testnetsimulationorchestrator.interpreters.{GcpCsvDataPublisher, K8sSimulationController}
 import co.topl.testnetsimulationorchestrator.models.{AdoptionDatum, BlockDatum, TransactionDatum}
+import co.topl.transactiongenerator.interpreters.{Fs2TransactionGenerator, ToplRpcWalletInitializer}
 import co.topl.typeclasses.implicits._
 import fs2._
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.typeclasses.implicits._
 
 import scala.concurrent.duration._
 
@@ -48,7 +54,12 @@ object Orchestrator
     K8sSimulationController
       .resource[F](appConfig.simulationOrchestrator.kubernetes.namespace)
       // In addition, run the "terminate" operation to tear down the k8s namespace regardless of the outcome of the simulation
-      .flatMap(c => Resource.onFinalize(c.terminate))
+      .flatMap(c =>
+        Resource.onFinalize(
+          Logger[F].info("Terminating testnet") >>
+          c.terminate
+        )
+      )
       .productR(
         (
           GcpCsvDataPublisher.make[F](
@@ -74,8 +85,12 @@ object Orchestrator
   private def runSimulation: F[Unit] =
     resources.use { case (publisher, nodes) =>
       for {
+        // Launch the background fiber which broadcasts Transactions to all nodes
+        transactionBroadcasterFiber <- transactionBroadcaster(nodes)
         // Listen to the block adoptions of all nodes.
         nodeHeaderAdoptions <- fetchHeaderAdoptions(nodes)
+        // Now that the chain has reached the target height, we can stop broadcasting the transactions
+        _ <- transactionBroadcasterFiber.cancel
 
         // Once we have all of the adoptions, publish them
         _ <- nodeHeaderAdoptions.parTraverse { case (node, adoptions) =>
@@ -176,4 +191,49 @@ object Orchestrator
         assignTransactionsStream.compile.lastOrError
       ).parTupled
     } yield transactionAssignments
+
+  /**
+   * Creates a background-running Fiber which generates and broadcasts transactions to the nodes until the Fiber is canceled.
+   */
+  private def transactionBroadcaster(nodes: NodeRpcs): IO[Fiber[IO, Throwable, Unit]] =
+    for {
+      // Assemble a base wallet of available UTxOs
+      _                            <- Logger[F].info(show"Initializing wallet")
+      implicit0(random: Random[F]) <- Random.javaSecuritySecureRandom[F]
+      // Combine the Node RPCs into one interface
+      client <- MultiToplRpc.make[F, List](nodes.values.toList)
+      wallet <- ToplRpcWalletInitializer
+        // Parallelism value = 1, because the testnet launches from genesis so this process should be instant
+        .make[F](client, 1, 1, 1)
+        .flatMap(_.initialize)
+      _ <- Logger[F].info(show"Initialized wallet with spendableBoxCount=${wallet.spendableBoxes.size}")
+      // Produce a stream of Transactions from the base wallet
+      targetTps = appConfig.simulationOrchestrator.scenario.transactionsPerSecond
+      _ <- Logger[F].info(show"Generating and broadcasting transactions at tps=$targetTps")
+      transactionStream <- Fs2TransactionGenerator
+        .make[F](
+          wallet,
+          Runtime.getRuntime.availableProcessors(),
+          20,
+          500
+        )
+        .flatMap(_.generateTransactions)
+      // Build the stream
+      runStreamF = transactionStream
+        // Send 1 transaction per _this_ duration
+        .metered((1_000_000_000d / targetTps).nanos)
+        // Broadcast+log the transaction
+        .evalTap(transaction =>
+          Logger[F].debug(show"Broadcasting transaction id=${transaction.id.asTypedBytes}") >>
+          client.broadcastTransaction(transaction) >>
+          Logger[F].info(show"Broadcasted transaction id=${transaction.id.asTypedBytes}")
+        )
+        .onError { case e =>
+          Stream.eval(Logger[F].error(e)("Stream failed"))
+        }
+        .compile
+        .drain
+      // Start the fiber
+      fiber <- Spawn[F].start(runStreamF)
+    } yield fiber
 }

@@ -15,6 +15,7 @@ data:
         namespace: {{ .Release.Namespace }}
       scenario:
         target-height: {{ $Values.scenario.targetHeight }}
+        transactions-per-second: {{ $Values.scenario.transactionsPerSecond }}
       publish:
         bucket: {{ $Values.results.bucket }}
         file-prefix: {{ $Values.results.prefix }}{{ .Release.Name }}/

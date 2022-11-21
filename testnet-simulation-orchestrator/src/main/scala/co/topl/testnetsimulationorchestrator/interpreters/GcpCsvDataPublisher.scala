@@ -64,15 +64,15 @@ object GcpCsvDataPublisher {
     "id",
     "parentId",
     "parentSlot",
-    "txRoot",
-    "bloomFilter",
     "timestamp",
     "height",
     "slot",
+    "address",
+    "txRoot",
+    "bloomFilter",
     "eligibilityCertificate",
     "operationalCertificate",
     "metadata",
-    "address",
     "transactions"
   )
 
@@ -92,16 +92,16 @@ object GcpCsvDataPublisher {
       datum.headerV2.id.asTypedBytes.show,
       datum.headerV2.parentHeaderId.show,
       datum.headerV2.parentSlot.show,
-      datum.headerV2.txRoot.data.toBase58,
-      datum.headerV2.bloomFilter.data.toBase58,
       datum.headerV2.timestamp.show,
       datum.headerV2.height.show,
       datum.headerV2.slot.show,
+      datum.headerV2.address.immutableBytes.toBase58,
+      datum.headerV2.txRoot.data.toBase58,
+      datum.headerV2.bloomFilter.data.toBase58,
       datum.headerV2.eligibilityCertificate.immutableBytes.toBase58,
       datum.headerV2.operationalCertificate.immutableBytes.toBase58,
       datum.headerV2.metadata.fold("")(_.data.value),
-      datum.headerV2.address.immutableBytes.toBase58,
-      datum.bodyV2.mkString(";")
+      datum.bodyV2.map(_.show).mkString(";")
     )
 
   private def transactionDatumToRow(datum: TransactionDatum) =
@@ -142,6 +142,7 @@ object GcpCsvDataPublisher {
         datum.transaction.schedule.creation,
         datum.transaction.schedule.minimumSlot,
         datum.transaction.schedule.maximumSlot
-      ).mkString(":")
+      ).mkString(":"),
+      datum.transaction.data.fold(0L)(_.length).toString
     )
 }
