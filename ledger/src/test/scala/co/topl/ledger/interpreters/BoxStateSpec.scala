@@ -1,6 +1,5 @@
 package co.topl.ledger.interpreters
 
-import cats.Applicative
 import cats.data.{Chain, NonEmptySet}
 import cats.effect.IO
 import co.topl.models.{Box, Transaction, TypedIdentifier}

@@ -3,8 +3,6 @@ package co.topl.crypto.generation.mnemonic
 import cats.implicits._
 import co.topl.crypto.generation.mnemonic.Language._
 import co.topl.crypto.utils.Generators
-import org.scalacheck.Gen
-import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}

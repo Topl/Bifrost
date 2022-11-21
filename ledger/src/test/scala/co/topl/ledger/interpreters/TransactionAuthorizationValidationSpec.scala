@@ -310,7 +310,7 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
             Propositions.Contextual.HeightLock(height),
             _ => Proofs.Contextual.HeightLock()
           ).pure[F]
-          fetchSlotData = (blockId: TypedIdentifier) => slotData.pure[F]
+          fetchSlotData = (_: TypedIdentifier) => slotData.pure[F]
           underTest <- makeValidation(fetchSlotData = fetchSlotData)
           _         <- underTest.validate(blockId)(transaction).map(_.isValid == (slotData.height >= height)).assert
         } yield ()

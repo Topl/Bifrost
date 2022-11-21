@@ -8,9 +8,6 @@ import co.topl.models._
 import co.topl.transactiongenerator.algebras.WalletInitializer
 import co.topl.transactiongenerator.models.Wallet
 import fs2._
-import co.topl.typeclasses.implicits._
-import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
 
 object ToplRpcWalletInitializer {
 

@@ -1,11 +1,14 @@
-package co.topl.consensus
+package co.topl.consensus.interpreters
 
 import cats._
 import cats.data._
 import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.algebras.{ClockAlgebra, Store, UnsafeResource}
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras._
+import co.topl.consensus.{BlockHeaderValidationFailure, BlockHeaderValidationFailures}
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.models._
@@ -13,10 +16,6 @@ import co.topl.models.utility.Ratio
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
 import scalacache.caffeine.CaffeineCache
-import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
-
-import scala.language.implicitConversions
 
 /**
  * Interpreters for the ConsensusValidationAlgebra
@@ -24,8 +23,6 @@ import scala.language.implicitConversions
 object BlockHeaderValidation {
 
   object Eval {
-
-    // TODO: Validate incoming blocks are not past the *global* slot
 
     def make[F[_]: Monad: Sync](
       etaInterpreter:           EtaCalculationAlgebra[F],

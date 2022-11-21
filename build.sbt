@@ -154,7 +154,7 @@ lazy val commonScalacOptions = Seq(
   "-language:higherKinds",
   "-language:postfixOps",
   "-unchecked",
-  "-Ywarn-unused:-implicits,-privates",
+  "-Ywarn-unused:-implicits,-privates,_",
   "-Yrangepos"
 )
 
@@ -882,7 +882,13 @@ lazy val genusLibrary = project
     buildInfoPackage := "co.topl.buildinfo.genusLibrary",
     libraryDependencies ++= Dependencies.genusLibrary
   )
-  .dependsOn(typeclasses, models, tetraByteCodecs)
+  .dependsOn(
+    typeclasses,
+    models % "compile->compile;test->test",
+    tetraByteCodecs,
+    toplGrpc,
+    munitScalamock % "test->test",
+  )
 
 lazy val munitScalamock = project
   .in(file("munit-scalamock"))

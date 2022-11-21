@@ -22,7 +22,6 @@ import co.topl.genusLibrary.TxoState._
  * @param state The status of the box
  */
 case class Txo(box: Box, state: TxoState, id: Box.Id, address: Option[SpendingAddress]) {
-  import Txo._
 
   private def unsupported[T](v: Box.Value): T = throw GenusException(s"Encountered unsupported type of box value: $v")
 

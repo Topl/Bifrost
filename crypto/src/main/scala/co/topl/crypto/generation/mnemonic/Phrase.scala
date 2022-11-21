@@ -2,7 +2,6 @@ package co.topl.crypto.generation.mnemonic
 
 import cats.implicits._
 import co.topl.crypto.generation.mnemonic.Language.LanguageWordList
-import co.topl.crypto.generation.mnemonic.PhraseFailures.InvalidWordLength
 import co.topl.crypto.hash.sha256
 
 /**

@@ -7,7 +7,6 @@ import co.topl.crypto.hash.digest.implicits._
 import co.topl.models.Bytes
 
 import scala.annotation.tailrec
-import scala.collection.mutable
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 

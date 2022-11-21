@@ -1,7 +1,6 @@
 package co.topl.crypto.hash
 
 import cats.data.{Validated, ValidatedNec}
-import cats.{Eq, Show}
 import io.estatico.newtype.macros.newtype
 import io.estatico.newtype.ops._
 import simulacrum.typeclass
