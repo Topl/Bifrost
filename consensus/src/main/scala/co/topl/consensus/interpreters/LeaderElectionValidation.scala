@@ -1,7 +1,7 @@
-package co.topl.consensus
+package co.topl.consensus.interpreters
 
-import cats.implicits._
 import cats.effect.{Clock, Sync}
+import cats.implicits._
 import co.topl.algebras.{Exp, Log1p, UnsafeResource}
 import co.topl.codecs.bytes.typeclasses.Signable
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra

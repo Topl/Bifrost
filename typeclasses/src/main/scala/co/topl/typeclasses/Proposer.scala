@@ -3,7 +3,6 @@ package co.topl.typeclasses
 import co.topl.models.{Proposition, Propositions, VerificationKey, VerificationKeys}
 
 import scala.collection.immutable.ListSet
-import scala.language.implicitConversions
 
 /**
  * Reveal inputs to produce a Proposition

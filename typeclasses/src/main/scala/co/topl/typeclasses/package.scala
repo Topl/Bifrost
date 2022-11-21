@@ -17,6 +17,8 @@ package object typeclasses {
       with ContainsTimestamp.ToContainsTimestampOps
       with ContainsTransactions.Instances
       with ContainsTransactions.ToContainsTransactionsOps
+      with ContainsTransactionIds.Instances
+      with ContainsTransactionIds.ToContainsTransactionIdsOps
       with RatioOps.Implicits
       with ContainsVerificationKey.Instances
       with ContainsVerificationKey.ToContainsVerificationKeyOps

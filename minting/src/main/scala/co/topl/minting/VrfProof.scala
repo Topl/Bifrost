@@ -7,9 +7,9 @@ import cats.{MonadError, Parallel}
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras.{ClockAlgebra, UnsafeResource}
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.consensus.LeaderElectionValidation
-import co.topl.consensus.LeaderElectionValidation.VrfConfig
+import co.topl.consensus.interpreters.LeaderElectionValidation.VrfConfig
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
+import co.topl.consensus.interpreters.LeaderElectionValidation
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.algebras.VrfProofAlgebra
 import co.topl.models._

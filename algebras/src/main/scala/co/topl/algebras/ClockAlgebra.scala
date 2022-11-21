@@ -6,7 +6,6 @@ import co.topl.models.{Epoch, Slot, Timestamp}
 
 import scala.collection.immutable.NumericRange
 import scala.concurrent.duration.FiniteDuration
-import scala.language.implicitConversions
 
 /**
  * Provides global slot, epoch, and timing operations

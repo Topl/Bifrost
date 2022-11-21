@@ -5,7 +5,6 @@ import akka.stream.{Attributes, FlowShape, Inlet, Materializer, Outlet}
 import akka.stream.scaladsl.Flow
 import akka.stream.stage.{AsyncCallback, GraphStage, GraphStageLogic, GraphStageLogicWithLogging, InHandler, OutHandler}
 import cats.effect.{Async, Fiber}
-import cats.implicits._
 
 import scala.concurrent.ExecutionContext
 

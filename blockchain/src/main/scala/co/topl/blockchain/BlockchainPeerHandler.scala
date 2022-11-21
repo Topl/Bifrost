@@ -12,8 +12,8 @@ import co.topl.algebras.{ClockAlgebra, Store, StoreReader}
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.consensus.BlockHeaderValidationFailure
-import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LocalChainAlgebra}
+import co.topl.consensus.{BlockHeaderToBodyValidationFailure, BlockHeaderValidationFailure}
+import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, BlockHeaderValidationAlgebra, LocalChainAlgebra}
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
 import co.topl.ledger.models.{
@@ -63,6 +63,7 @@ object BlockchainPeerHandler {
       clock:                       ClockAlgebra[F],
       localChain:                  LocalChainAlgebra[F],
       headerValidation:            BlockHeaderValidationAlgebra[F],
+      headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
       bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
       bodySemanticValidation:      BodySemanticValidationAlgebra[F],
       bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
@@ -88,6 +89,7 @@ object BlockchainPeerHandler {
           ) _
           _fetchAndValidateMissingBodies = fetchAndValidateMissingBodies(
             client,
+            headerToBodyValidation,
             bodySyntaxValidation,
             bodySemanticValidation,
             bodyAuthorizationValidation,
@@ -188,6 +190,9 @@ object BlockchainPeerHandler {
     implicit private val showBodyAuthorizationError: Show[BodyAuthorizationError] =
       Show.fromToString
 
+    implicit private val showHeaderToBodyError: Show[BlockHeaderToBodyValidationFailure] =
+      Show.fromToString
+
     /**
      * Fetches each missing header block from the remote peer, starting with the given `from`.  The search first determines
      * the sequence of missing header IDs by comparing IDs known in the SlotDataStore with IDs known in the HeaderStore.
@@ -237,6 +242,7 @@ object BlockchainPeerHandler {
      */
     private def fetchAndValidateMissingBodies[F[_]: Async: FToFuture: RunnableGraphToF: Logger](
       client:                      BlockchainPeerClient[F],
+      headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
       bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
       bodySemanticValidation:      BodySemanticValidationAlgebra[F],
       bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
@@ -274,16 +280,14 @@ object BlockchainPeerHandler {
                 .map((blockId, body, _))
             }
             .tapAsyncF(1) { case (blockId, body, _) =>
-              Logger[F].debug(show"Saving body id=$blockId") >>
-              bodyStore.put(blockId, body)
-            }
-            .tapAsyncF(1) { case (blockId, body, _) =>
               headerStore
                 .getOrRaise(blockId)
                 .map(header => BlockV2(header, body))
                 .flatMap(block =>
                   (
                     for {
+                      _ <- EitherT.liftF(Logger[F].debug(show"Validating header to body consistency for id=$blockId"))
+                      _ <- EitherT(headerToBodyValidation.validate(block)).leftMap(e => e.show)
                       _ <- EitherT.liftF(Logger[F].debug(show"Validating syntax of body id=$blockId"))
                       _ <- EitherT(
                         bodySyntaxValidation
@@ -311,9 +315,13 @@ object BlockchainPeerHandler {
                     } yield ()
                   )
                     .leftSemiflatTap(e => Logger[F].warn(show"Received invalid block body id=$blockId errors=$e"))
-                    .leftMap(e => new IllegalArgumentException(e))
+                    .leftMap((e: String) => new IllegalArgumentException(e))
                     .rethrowT
                 )
+            }
+            .tapAsyncF(1) { case (blockId, body, _) =>
+              Logger[F].debug(show"Saving body id=$blockId") >>
+              bodyStore.put(blockId, body)
             }
             .toMat(Sink.ignore)(Keep.right)
             .liftFutureTo[F]

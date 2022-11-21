@@ -5,8 +5,6 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.crypto.signing.{Curve25519, Ed25519, ExtendedEd25519}
 import co.topl.models._
 
-import scala.language.implicitConversions
-
 @simulacrum.typeclass
 trait Prover[ProofInput] {
 

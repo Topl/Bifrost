@@ -8,7 +8,6 @@ import co.topl.networking.p2p.DisconnectedPeer
 import com.typesafe.config.Config
 import monocle._
 import monocle.macros._
-import monocle.macros.syntax.lens._
 import pureconfig._
 import pureconfig.generic.ProductHint
 import pureconfig.generic.auto._

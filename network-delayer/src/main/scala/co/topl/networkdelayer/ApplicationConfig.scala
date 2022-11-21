@@ -25,7 +25,7 @@ object ApplicationConfig {
     case class Throttle(latency: FiniteDuration, downloadBytesPerSecond: Long, uploadBytesPerSecond: Long)
   }
 
-  def unsafe(args: Args, config: Config): ApplicationConfig =
+  def unsafe(config: Config): ApplicationConfig =
     ConfigSource.fromConfig(config).loadOrThrow[ApplicationConfig]
 
   implicit val showApplicationConfig: Show[ApplicationConfig] =

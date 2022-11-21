@@ -14,12 +14,10 @@ import co.topl.interpreters._
 import co.topl.models._
 import co.topl.transactiongenerator.interpreters._
 import co.topl.typeclasses.implicits._
-import com.typesafe.config.ConfigFactory
 import fs2._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
-import scala.collection.immutable.ListSet
 import scala.concurrent.duration._
 
 object TransactionGeneratorApp

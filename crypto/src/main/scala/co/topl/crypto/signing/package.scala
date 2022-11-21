@@ -2,7 +2,6 @@ package co.topl.crypto
 
 import io.estatico.newtype.macros.newtype
 
-import java.security.SecureRandom
 import scala.language.implicitConversions
 
 package object signing {

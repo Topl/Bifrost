@@ -15,7 +15,7 @@ class TxoTest extends munit.FunSuite {
   private val evidenceLength = 32
 
   private def randomEvidence =
-    TypedEvidence(Random.nextInt.asInstanceOf[Byte], Sized.strictUnsafe(Bytes(Random.nextBytes(evidenceLength))))
+    TypedEvidence(Random.nextInt().asInstanceOf[Byte], Sized.strictUnsafe(Bytes(Random.nextBytes(evidenceLength))))
 
   test("empty TxO") {
     val txo = Txo(
