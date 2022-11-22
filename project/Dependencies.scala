@@ -201,7 +201,7 @@ object Dependencies {
     monitoring ++
     mainargs
 
-  val nodeTetra: Seq[ModuleID] = {
+  val nodeTetra: Seq[ModuleID] =
     Seq(
       catsSlf4j,
       akka("actor-typed"),
@@ -216,7 +216,6 @@ object Dependencies {
     logging ++
     monocle ++
     it
-  }
 
   val networkDelayer: Seq[ModuleID] =
     cats ++ catsEffect ++ mainargs ++ logging ++ Seq(
@@ -312,8 +311,8 @@ object Dependencies {
 
   lazy val catsAkka: Seq[ModuleID] =
     cats ++ catsEffect ++ logging ++
-      Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++
-      Seq(fs2Core, fs2IO, fs2ReactiveStreams)
+    Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++
+    Seq(fs2Core, fs2IO, fs2ReactiveStreams)
 
   lazy val models: Seq[ModuleID] =
     cats ++ simulacrum ++ newType ++ scodec
@@ -350,12 +349,9 @@ object Dependencies {
     Seq(akka("actor"), akka("actor-typed"), akka("stream"), akkaHttp("http2-support")) ++ logging
 
   lazy val commonInterpreters: Seq[sbt.ModuleID] =
-    test ++
     mUnitTest ++
     Seq(
-      akka("actor-typed"),
-      akka("actor-testkit-typed") % Test,
-      catsSlf4j                   % "test"
+      catsSlf4j % "test"
     ) ++
     cats ++
     catsEffect ++
@@ -436,12 +432,11 @@ object Dependencies {
     ) ++
     mUnitTest
 
-  lazy val genusLibrary: Seq[ModuleID] = {
+  lazy val genusLibrary: Seq[ModuleID] =
     logging ++
     orientDb ++
     mUnitTest ++
     simulacrum
-  }
 
   lazy val munitScalamock: Seq[sbt.ModuleID] =
     mUnitTest
