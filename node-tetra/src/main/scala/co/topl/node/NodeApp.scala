@@ -30,6 +30,7 @@ import co.topl.networking.p2p.{ConnectedPeer, LocalPeer}
 import co.topl.numerics._
 import co.topl.typeclasses.implicits._
 import fs2.io.file.{Files, Path}
+import kamon.Kamon
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
@@ -45,7 +46,8 @@ object NodeApp
       createArgs = args => Args.parserArgs.constructOrThrow(args),
       createConfig = IOBaseApp.createTypesafeConfig,
       parseConfig = (args, conf) => ApplicationConfig.unsafe(args, conf),
-      createSystem = (_, _, conf) => ActorSystem[Nothing](Behaviors.empty, "BifrostTetra", conf)
+      createSystem = (_, _, conf) => ActorSystem[Nothing](Behaviors.empty, "BifrostTetra", conf),
+      preInitFunction = config => if (config.kamon.enable) Kamon.init()
     ) {
 
   implicit private val logger: Logger[F] =

@@ -5,7 +5,7 @@ object Dependencies {
   val akkaVersion = "2.6.19"
   val akkaHttpVersion = "10.2.9"
   val circeVersion = "0.14.2"
-  val kamonVersion = "2.5.6"
+  val kamonVersion = "2.5.12"
   val graalVersion = "21.3.3"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.8.0"
@@ -105,10 +105,11 @@ object Dependencies {
   )
 
   val monitoring: Seq[ModuleID] = Seq(
-    "io.kamon" %% "kamon-core"     % kamonVersion,
-    "io.kamon" %% "kamon-bundle"   % kamonVersion % Runtime,
-    "io.kamon" %% "kamon-influxdb" % kamonVersion % Runtime,
-    "io.kamon" %% "kamon-zipkin"   % kamonVersion % Runtime
+    "io.kamon" %% "kamon-core"      % kamonVersion,
+    "io.kamon" %% "kamon-cats-io-3" % kamonVersion,
+    "io.kamon" %% "kamon-bundle"    % kamonVersion % Runtime,
+    "io.kamon" %% "kamon-influxdb"  % kamonVersion % Runtime,
+    "io.kamon" %% "kamon-zipkin"    % kamonVersion % Runtime
   )
 
   val graal: Seq[ModuleID] = Seq(
@@ -215,6 +216,7 @@ object Dependencies {
     mainargs ++
     logging ++
     monocle ++
+    monitoring ++
     it
   }
 
