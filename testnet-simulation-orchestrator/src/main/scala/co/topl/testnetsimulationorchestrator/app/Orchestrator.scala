@@ -13,7 +13,6 @@ import co.topl.testnetsimulationorchestrator.algebras.DataPublisher
 import co.topl.testnetsimulationorchestrator.interpreters.{GcpCsvDataPublisher, K8sSimulationController}
 import co.topl.testnetsimulationorchestrator.models.{AdoptionDatum, BlockDatum, TransactionDatum}
 import co.topl.transactiongenerator.interpreters.{Fs2TransactionGenerator, ToplRpcWalletInitializer}
-import co.topl.typeclasses.implicits._
 import fs2._
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger

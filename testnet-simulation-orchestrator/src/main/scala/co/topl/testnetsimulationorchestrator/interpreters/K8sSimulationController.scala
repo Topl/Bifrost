@@ -6,7 +6,7 @@ import cats.implicits._
 import co.topl.testnetsimulationorchestrator.algebras.SimulationController
 import io.kubernetes.client.openapi.apis.CoreV1Api
 import io.kubernetes.client.openapi.models.V1Status
-import io.kubernetes.client.openapi.{ApiCallback, ApiException, Configuration}
+import io.kubernetes.client.openapi.{ApiCallback, ApiException}
 import io.kubernetes.client.util.Config
 
 import java.util

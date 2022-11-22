@@ -6,8 +6,6 @@ import monocle.macros.Lenses
 import pureconfig.ConfigSource
 import pureconfig.generic.auto._
 
-import scala.concurrent.duration.FiniteDuration
-
 @Lenses
 case class ApplicationConfig(
   simulationOrchestrator: ApplicationConfig.SimulationOrchestrator
