@@ -30,7 +30,9 @@ object Orchestrator
       parseConfig = (args, conf) => ApplicationConfig.unsafe(args, conf)
     ) {
 
-  private type NodeRpcs = Map[String, ToplRpc[F, Stream[F, *]]]
+  private type NodeName = String
+
+  private type NodeRpcs = Map[NodeName, ToplRpc[F, Stream[F, *]]]
 
   private type Publisher = DataPublisher[F, Stream[F, *]]
 
@@ -76,7 +78,7 @@ object Orchestrator
         ).tupled
       )
 
-  private def awaitNodeReady(name: String, client: ToplRpc[F, Stream[F, *]]) =
+  private def awaitNodeReady(name: NodeName, client: ToplRpc[F, Stream[F, *]]) =
     Logger[F].info(show"Awaiting readiness of node=$name") >>
     Stream.retry(client.blockIdAtHeight(1), 250.milli, identity, 200).compile.drain >>
     Logger[F].info(show"Node node=$name is ready")
@@ -126,7 +128,9 @@ object Orchestrator
    * Listen to the streams of block ID adoptions from all nodes in parallel.  Simultaneously, fetch each corresponding
    * header to determine its height, which is then used to determine when to stop.
    */
-  private def fetchHeaderAdoptions(nodes: NodeRpcs): F[List[(String, Vector[(TypedIdentifier, Long, BlockHeaderV2)])]] =
+  private def fetchHeaderAdoptions(
+    nodes: NodeRpcs
+  ): F[List[(NodeName, Vector[(TypedIdentifier, Long, BlockHeaderV2)])]] =
     nodes.toList.parTraverse { case (name, client) =>
       for {
         _          <- Logger[F].info(show"Fetching adoptions+headers from node=$name")
@@ -148,8 +152,8 @@ object Orchestrator
     }
 
   private def assignBlocksToNodes(
-    nodeBlockAdoptions: List[(String, Vector[(TypedIdentifier, Long, BlockHeaderV2)])]
-  ): F[List[(String, TypedIdentifier, BlockHeaderV2)]] =
+    nodeBlockAdoptions: List[(NodeName, Vector[(TypedIdentifier, Long, BlockHeaderV2)])]
+  ): F[List[(NodeName, TypedIdentifier, BlockHeaderV2)]] =
     Sync[F].delay(
       nodeBlockAdoptions
         .flatMap { case (node, adoptions) => adoptions.map { case (id, _, header) => (node, id, header) } }
@@ -161,16 +165,16 @@ object Orchestrator
     )
 
   private def publishBlockBodiesAndAssignTransactions(publisher: Publisher, nodes: NodeRpcs)(
-    blockAssignments:                                            List[(String, TypedIdentifier, BlockHeaderV2)]
-  ) =
+    blockAssignments:                                            List[(NodeName, TypedIdentifier, BlockHeaderV2)]
+  ): F[Map[TypedIdentifier, NodeName]] =
     for {
       // Create a topic which is expected to contain two subscribers
-      blockDatumTopic <- Topic[F, (String, BlockDatum)]
+      blockDatumTopic <- Topic[F, (NodeName, BlockDatum)]
       // Assemble a stream of BlockDatum by using the list of blockAssignments, fetching the body, and converting into
       // a BlockDatum
       blockDatumSourceStream = Stream
         .iterable(blockAssignments)
-        .parEvalMap[F, (String, BlockDatum)](Runtime.getRuntime.availableProcessors()) { case (node, id, header) =>
+        .parEvalMap[F, (NodeName, BlockDatum)](Runtime.getRuntime.availableProcessors()) { case (node, id, header) =>
           OptionT(nodes(node).fetchBlockBody(id))
             .getOrRaise(new NoSuchElementException(show"Block Body not found id=$id"))
             .map(body => node -> BlockDatum(header, body))
@@ -179,7 +183,7 @@ object Orchestrator
       assignTransactionsStream =
         blockDatumTopic
           .subscribe(128)
-          .fold(Map.empty[TypedIdentifier, String]) { case (assignments, (node, datum)) =>
+          .fold(Map.empty[TypedIdentifier, NodeName]) { case (assignments, (node, datum)) =>
             assignments ++ datum.bodyV2.toList.tupleRight(node)
           }
       // Publish the block data results

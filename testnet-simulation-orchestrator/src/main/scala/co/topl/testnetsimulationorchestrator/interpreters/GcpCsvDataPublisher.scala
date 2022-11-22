@@ -34,11 +34,15 @@ object GcpCsvDataPublisher {
           def publishTransactions(results: Stream[F, TransactionDatum]): F[Unit] =
             publish[TransactionDatum]("transactions", TransactionsCsvColumns)(transactionDatumToRow)(results)
 
-          private def publish[Datum](fileName: String, headers: Seq[String])(
+          // TODO: The Orchestrator may generate Transactions that never find their way into blocks (under poor network
+          //  conditions, for example).  Information about Transactions that haven't been included in blocks
+          //  could be useful for analysis.
+
+          private def publish[Datum](fileName: String, csvHeaders: Seq[String])(
             datumToRow:                        Datum => Seq[String]
           )(results:                           Stream[F, Datum]) =
             upload(s"$filePrefix$fileName.csv")(
-              Stream(headers.mkString("", ",", "\n"))
+              Stream(csvHeaders.mkString("", ",", "\n"))
                 .flatMap(header => Stream.chunk(Chunk.array(header.getBytes(StandardCharsets.UTF_8)))) ++
               results
                 .map(datumToRow)
@@ -52,6 +56,8 @@ object GcpCsvDataPublisher {
               .map(_.head.toByteBuffer.array())
               .flatMap(bytes =>
                 Async[F].blocking(
+                  // TODO: Stream this data to GCP.  Not currently streamed because of error when streaming to
+                  //  GCP (potentially because of unauthenticated service).  If results are lost, look here!
                   storage.create(BlobInfo.newBuilder(bucket, fileName).setContentType("text/csv").build(), bytes)
                 )
               )
@@ -120,9 +126,9 @@ object GcpCsvDataPublisher {
               case v: Box.Values.AssetV1 => s"As(${v.quantity.data})"
               case _                     => s"O"
             }
-          ).mkString(";")
+          ).mkString(":")
         )
-        .mkString_(":"),
+        .mkString_(";"),
       datum.transaction.outputs
         .map(output =>
           List(
@@ -135,9 +141,9 @@ object GcpCsvDataPublisher {
               case _                     => s"O"
             },
             output.minting.show
-          ).mkString(";")
+          ).mkString(":")
         )
-        .mkString_(":"),
+        .mkString_(";"),
       List(
         datum.transaction.schedule.creation,
         datum.transaction.schedule.minimumSlot,
