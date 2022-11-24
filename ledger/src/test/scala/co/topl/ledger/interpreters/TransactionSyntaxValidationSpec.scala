@@ -328,16 +328,19 @@ class TransactionSyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEff
             // tx Generated size smaller, remove data a create using edge sizes
             for {
               // create data with size -> tx + data = MaxDataLength
-              data <- Bytes.fill(Transaction.MaxDataLength - (currentSize + 2))(1).pure[F]
+              diff <- (Transaction.MaxDataLength - currentSize - 2).pure[F]
+              data <- Bytes.fill(diff)(1).pure[F]
               txWithEdgeSize = txWithNoneData.copy(data = Some(data))
-              _ <- txWithEdgeSize.immutableBytes.size.pure[F].assertEquals(Transaction.MaxDataLength.toLong)
 
               result <- underTest.validate(txWithEdgeSize)
               _ <- EitherT
                 .fromEither[F](result.toEither)
                 .swap
                 .exists(_.toList.contains(TransactionSyntaxErrors.InvalidDataLength))
-                .assertEquals(false)
+                .assertEquals(
+                  expected = false,
+                  clue = s"Size should be ${Transaction.MaxDataLength} and was {$txWithEdgeSize.immutableBytes.size}"
+                )
             } yield ()
           )
           .merge
