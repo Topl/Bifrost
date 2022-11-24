@@ -255,7 +255,8 @@ object TransactionSyntaxValidation {
 
   /**
    * DataLengthValidation validates approved transaction data length, includes proofs
-   * TODO Ask, if we should include proofs lengths
+   * TODO should we include proofs lengths?:
+   * @see [[https://topl.atlassian.net/browse/BN-708]]
    * @param transaction transaction
    * @return
    */

@@ -297,7 +297,7 @@ class TransactionSyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEff
     }
   }
 
-  test("validate data-length transaction") {
+  test("Invalid data-length transaction > MaxDataLength ") {
     val invalidData = Bytes.fill(Transaction.MaxDataLength + 1)(1)
     PropF.forAllF(arbitraryTransaction.arbitrary.map(_.copy(data = Some(invalidData)))) { transaction: Transaction =>
       for {
@@ -308,6 +308,39 @@ class TransactionSyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEff
           .swap
           .exists(_.toList.contains(TransactionSyntaxErrors.InvalidDataLength))
           .assert
+      } yield ()
+    }
+  }
+
+  test(s"Valid data-length transaction with edge MaxDataLength") {
+    import co.topl.codecs.bytes.typeclasses.implicits._
+    import co.topl.codecs.bytes.tetra.instances._
+    PropF.forAllF(arbitraryTransaction.arbitrary) { transaction: Transaction =>
+      for {
+        underTest <- TransactionSyntaxValidation.make[F]
+        txWithNoneData = transaction.copy(data = None)
+        currentSize = txWithNoneData.immutableBytes.size
+        _ <- Either
+          .cond(
+            currentSize > Transaction.MaxDataLength,
+            // tx Generated size is bigger that Max Data Length, skip
+            Applicative[F].unit,
+            // tx Generated size smaller, remove data a create using edge sizes
+            for {
+              // create data with size -> tx + data = MaxDataLength
+              data <- Bytes.fill(Transaction.MaxDataLength - (currentSize + 2))(1).pure[F]
+              txWithEdgeSize = txWithNoneData.copy(data = Some(data))
+              _ <- txWithEdgeSize.immutableBytes.size.pure[F].assertEquals(Transaction.MaxDataLength.toLong)
+
+              result <- underTest.validate(txWithEdgeSize)
+              _ <- EitherT
+                .fromEither[F](result.toEither)
+                .swap
+                .exists(_.toList.contains(TransactionSyntaxErrors.InvalidDataLength))
+                .assertEquals(false)
+            } yield ()
+          )
+          .merge
       } yield ()
     }
   }
