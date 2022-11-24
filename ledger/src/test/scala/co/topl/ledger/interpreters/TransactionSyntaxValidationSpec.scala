@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 
 class TransactionSyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
-  override def munitTimeout = new FiniteDuration(1, TimeUnit.MINUTES)
+  override def munitTimeout = new FiniteDuration(2, TimeUnit.MINUTES)
 
   type F[A] = IO[A]
 
