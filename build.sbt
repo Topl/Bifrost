@@ -265,7 +265,8 @@ lazy val nodeTetra = project
   )
   .configs(IntegrationTest)
   .settings(
-    IntegrationTest / parallelExecution := false
+    IntegrationTest / parallelExecution := false,
+    classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat //required for correct loading https://github.com/kamon-io/sbt-kanela-runner
   )
   .dependsOn(
     models % "compile->compile;test->test",
