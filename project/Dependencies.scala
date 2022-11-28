@@ -361,12 +361,9 @@ object Dependencies {
     Seq(akka("actor"), akka("actor-typed"), akka("stream"), akkaHttp("http2-support")) ++ logging
 
   lazy val commonInterpreters: Seq[sbt.ModuleID] =
-    test ++
     mUnitTest ++
     Seq(
-      akka("actor-typed"),
-      akka("actor-testkit-typed") % Test,
-      catsSlf4j                   % "test"
+      catsSlf4j % "test"
     ) ++
     cats ++
     catsEffect ++
