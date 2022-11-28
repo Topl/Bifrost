@@ -8,6 +8,7 @@ import cats.implicits._
 import co.topl.catsakka._
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.models.{SlotData, TypedIdentifier}
+import fs2.concurrent.Topic
 
 object LocalChainBroadcaster {
 
@@ -18,7 +19,8 @@ object LocalChainBroadcaster {
    * @return a tuple (interpreter, adoptionsSource)
    */
   def make[F[_]: Async](
-    localChain:            LocalChainAlgebra[F]
+    localChain:            LocalChainAlgebra[F],
+    adoptionsTopic:        Topic[F, TypedIdentifier]
   )(implicit materializer: Materializer): F[(LocalChainAlgebra[F], SourceMatNotUsed[TypedIdentifier])] =
     Async[F]
       .delay(Source.backpressuredQueue[F, TypedIdentifier]().preMaterialize())
@@ -27,7 +29,8 @@ object LocalChainBroadcaster {
           def isWorseThan(newHead: SlotData): F[Boolean] = localChain.isWorseThan(newHead)
 
           def adopt(newHead: Validated.Valid[SlotData]): F[Unit] =
-            localChain.adopt(newHead) >> offer(newHead.a.slotId.blockId)
+            localChain.adopt(newHead) >> offer(newHead.a.slotId.blockId) >>
+            adoptionsTopic.publish1(newHead.a.slotId.blockId).map(_.leftMap(_ => ())).map(_.merge)
 
           def head: F[SlotData] = localChain.head
         }

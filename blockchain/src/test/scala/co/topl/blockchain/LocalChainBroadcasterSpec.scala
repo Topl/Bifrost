@@ -8,8 +8,9 @@ import cats.effect.IO
 import cats.implicits._
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.models.ModelGenerators._
-import co.topl.models.SlotData
+import co.topl.models.{SlotData, TypedIdentifier}
 import co.topl.typeclasses.implicits._
+import fs2.concurrent.Topic
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
@@ -28,7 +29,9 @@ class LocalChainBroadcasterSpec
         for {
           delegate <- mock[LocalChainAlgebra[F]].pure[F]
           _ = (delegate.adopt _).expects(Validated.Valid(slotData)).once().returning(IO.unit)
-          (underTest, source) <- LocalChainBroadcaster.make(delegate)
+          adoptionsTopic <- mock[Topic[F, TypedIdentifier]].pure[F]
+          _ = (adoptionsTopic.publish1 _).expects(slotData.slotId.blockId).once().returning(Right(()).pure[F])
+          (underTest, source) <- LocalChainBroadcaster.make(delegate, adoptionsTopic)
           sub = source.runWith(TestSink.probe)
           _ = sub.request(1)
           _ <- underTest.adopt(Validated.Valid(slotData))
