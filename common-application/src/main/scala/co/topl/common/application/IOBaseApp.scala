@@ -16,14 +16,15 @@ import java.nio.file.Paths
  * IO program before cleaning up.
  * @param createArgs a function which turns stringified command-line args into a structured type
  * @param createConfig a function which creates a HOCON config using the parsed command-line args
- * @param createSystem a function which creates an ActorSystem using the parsed args and config
+ * @param parseConfig a function which create application config for given command line arguments and config
+ * @param preInitFunction a function which could be run before init runtime
  * @tparam CmdArgs a type representing the arguments of your program
- * @tparam Guardian the actor type of the guardian actor
  */
 abstract class IOBaseApp[CmdArgs, AppConfig](
-  createArgs:   List[String] => CmdArgs,
-  createConfig: CmdArgs => Config,
-  parseConfig:  (CmdArgs, Config) => AppConfig
+  createArgs:      List[String] => CmdArgs,
+  createConfig:    CmdArgs => Config,
+  parseConfig:     (CmdArgs, Config) => AppConfig,
+  preInitFunction: AppConfig => Unit = (_: AppConfig) => ()
 ) {
 
   type F[A] = IO[A]
@@ -47,6 +48,7 @@ abstract class IOBaseApp[CmdArgs, AppConfig](
     _args = createArgs(args.toList)
     _config = createConfig(_args)
     _appConfig = parseConfig(_args, _config)
+    preInitFunction(_appConfig)
     initRuntime()
     _ioApp = new IOApp {
       override protected val runtime: IORuntime = _ioRuntime
