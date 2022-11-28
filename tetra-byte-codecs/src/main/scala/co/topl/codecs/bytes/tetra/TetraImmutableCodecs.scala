@@ -98,11 +98,15 @@ trait TetraImmutableCodecs {
     : ImmutableCodec[Propositions.Contextual.RequiredTransactionIO] =
     ImmutableCodec.fromScodecCodec
 
+  implicit val propositionImmutableCodec: ImmutableCodec[Proposition] = ImmutableCodec.fromScodecCodec
+
   implicit val kesSumProofStableCodec: ImmutableCodec[Proofs.Knowledge.KesSum] =
     ImmutableCodec.fromScodecCodec
 
   implicit val kesProductProofStableCodec: ImmutableCodec[Proofs.Knowledge.KesProduct] =
     ImmutableCodec.fromScodecCodec
+
+  implicit val proofImmutableCodec: ImmutableCodec[Proof] = ImmutableCodec.fromScodecCodec
 
   implicit val poolRegistrationBoxImmutableCodec: ImmutableCodec[Box.Values.Registrations.Operator] =
     ImmutableCodec.fromScodecCodec

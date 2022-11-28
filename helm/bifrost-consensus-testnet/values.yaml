@@ -10,12 +10,23 @@ delayerImage:
   name: localhost:32000/topl/network-delayer
   tag: latest
 
+orchestratorImage:
+  name: localhost:32000/topl/testnet-simulation-orchestrator
+  tag: latest
+
 bigBang:
   timestamp:
   delayMs:
 
 shared-config: {}
 configs: {}
+
+results:
+  bucket:
+  prefix: /simulation/results/
+
+scenario:
+  targetHeight: 30
 
 resources:
   limits:

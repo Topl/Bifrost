@@ -178,6 +178,7 @@ object Dependencies {
   val fs2ReactiveStreams = "co.fs2"        %% "fs2-reactive-streams" % fs2Version
   val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.1"
   val circeYaml = "io.circe"               %% "circe-yaml"           % "0.14.1"
+  val kubernetes = "io.kubernetes"          % "client-java"          % "16.0.1"
 
   val nodeDion: Seq[ModuleID] =
     Seq(
@@ -202,7 +203,7 @@ object Dependencies {
     monitoring ++
     mainargs
 
-  val nodeTetra: Seq[ModuleID] = {
+  val nodeTetra: Seq[ModuleID] =
     Seq(
       catsSlf4j,
       akka("actor-typed"),
@@ -218,15 +219,23 @@ object Dependencies {
     monocle ++
     monitoring ++
     it
-  }
 
   val networkDelayer: Seq[ModuleID] =
     cats ++ catsEffect ++ mainargs ++ logging ++ Seq(
       catsSlf4j,
       fs2Core,
       fs2IO,
+      pureConfig
+    )
+
+  val testnetSimulationOrchestator: Seq[ModuleID] =
+    cats ++ catsEffect ++ mainargs ++ logging ++ Seq(
+      catsSlf4j,
+      fs2Core,
+      fs2IO,
       pureConfig,
-      circeYaml
+      kubernetes,
+      "com.google.cloud" % "google-cloud-storage" % "2.14.0"
     )
 
   lazy val algebras: Seq[sbt.ModuleID] =
@@ -314,8 +323,8 @@ object Dependencies {
 
   lazy val catsAkka: Seq[ModuleID] =
     cats ++ catsEffect ++ logging ++
-      Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++
-      Seq(fs2Core, fs2IO, fs2ReactiveStreams)
+    Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++
+    Seq(fs2Core, fs2IO, fs2ReactiveStreams)
 
   lazy val models: Seq[ModuleID] =
     cats ++ simulacrum ++ newType ++ scodec
@@ -438,12 +447,11 @@ object Dependencies {
     ) ++
     mUnitTest
 
-  lazy val genusLibrary: Seq[ModuleID] = {
+  lazy val genusLibrary: Seq[ModuleID] =
     logging ++
     orientDb ++
     mUnitTest ++
     simulacrum
-  }
 
   lazy val munitScalamock: Seq[sbt.ModuleID] =
     mUnitTest

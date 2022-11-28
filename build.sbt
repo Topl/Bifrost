@@ -18,8 +18,6 @@ inThisBuild(
   )
 )
 
-Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
-
 enablePlugins(ReproducibleBuildsPlugin, ReproducibleBuildsAssemblyPlugin)
 
 lazy val commonSettings = Seq(
@@ -101,6 +99,11 @@ lazy val dionNodeDockerSettings =
 lazy val networkDelayerDockerSettings =
   dockerSettings ++ Seq(
     Docker / packageName := "network-delayer"
+  )
+
+lazy val testnetSimulationOrchestratorDockerSettings =
+  dockerSettings ++ Seq(
+    Docker / packageName := "testnet-simulation-orchestrator"
   )
 
 def assemblySettings(main: String) = Seq(
@@ -222,7 +225,8 @@ lazy val bifrost = project
     networkDelayer,
     genusLibrary,
     genusServer,
-    transactionGenerator
+    transactionGenerator,
+    testnetSimulationOrchestrator
   )
 
 lazy val node = project
@@ -307,6 +311,26 @@ lazy val networkDelayer = project
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(catsAkka, commonApplication)
+
+lazy val testnetSimulationOrchestrator = project
+  .in(file("testnet-simulation-orchestrator"))
+  .settings(
+    name := "testnet-simulation-orchestrator",
+    commonSettings,
+    assemblySettings("co.topl.testnetsimulationorchestrator.app.Orchestrator"),
+    assemblyJarName := s"testnet-simulation-orchestrator-${version.value}.jar",
+    testnetSimulationOrchestratorDockerSettings,
+    Defaults.itSettings,
+    crossScalaVersions := Seq(scala213),
+    Compile / mainClass := Some("co.topl.testnetsimulationorchestrator.app.Orchestrator"),
+    publish / skip := true,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.testnetsimulationorchestator",
+    libraryDependencies ++= Dependencies.testnetSimulationOrchestator
+  )
+  .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(commonApplication, transactionGenerator)
 
 lazy val common = project
   .in(file("common"))
