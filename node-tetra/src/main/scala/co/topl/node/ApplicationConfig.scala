@@ -18,7 +18,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
 @Lenses
-case class ApplicationConfig(bifrost: ApplicationConfig.Bifrost)
+case class ApplicationConfig(bifrost: ApplicationConfig.Bifrost, kamon: ApplicationConfig.Kamon)
 
 object ApplicationConfig {
 
@@ -194,4 +194,6 @@ object ApplicationConfig {
 
   implicit val showApplicationConfig: Show[ApplicationConfig] =
     Show.fromToString
+
+  case class Kamon(enable: Boolean)
 }
