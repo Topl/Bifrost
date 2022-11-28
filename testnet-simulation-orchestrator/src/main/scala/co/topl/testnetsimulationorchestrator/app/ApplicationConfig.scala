@@ -6,8 +6,6 @@ import monocle.macros.Lenses
 import pureconfig.ConfigSource
 import pureconfig.generic.auto._
 
-import scala.concurrent.duration.FiniteDuration
-
 @Lenses
 case class ApplicationConfig(
   simulationOrchestrator: ApplicationConfig.SimulationOrchestrator
@@ -29,7 +27,7 @@ object ApplicationConfig {
     case class Kubernetes(namespace: String)
 
     @Lenses
-    case class Scenario(targetHeight: Long)
+    case class Scenario(targetHeight: Long, transactionsPerSecond: Double)
 
     @Lenses
     case class Node(name: String, host: String, port: Int)

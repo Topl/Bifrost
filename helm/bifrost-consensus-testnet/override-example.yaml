@@ -9,6 +9,8 @@ results:
 scenario:
   # The height that must be reached by each node in the scenario
   targetHeight: 30
+  # The number of transactions to generate and broadcast per second.  Transactions are broadcasted to nodes at random.
+  transactionsPerSecond: 2.5
 
 # These settings will apply to the configurations of all nodes.
 shared-config:
