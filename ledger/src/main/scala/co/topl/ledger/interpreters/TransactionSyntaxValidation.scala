@@ -7,6 +7,8 @@ import co.topl.ledger.algebras._
 import co.topl.ledger.models._
 import co.topl.models.{Box, Proof, Proofs, Proposition, Propositions, Transaction}
 import co.topl.typeclasses.implicits._
+import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.codecs.bytes.tetra.instances._
 
 object TransactionSyntaxValidation {
 
@@ -251,9 +253,18 @@ object TransactionSyntaxValidation {
           _ => (TransactionSyntaxErrors.InvalidProofType(proposition, proof): TransactionSyntaxError).invalidNec[Unit]
         )
 
-  private[interpreters] def dataLengthValidation(transaction: Transaction): ValidatedNec[TransactionSyntaxError, Unit] =
+  /**
+   * DataLengthValidation validates approved transaction data length, includes proofs
+   * TODO should we include proofs lengths?:
+   * @see [[https://topl.atlassian.net/browse/BN-708]]
+   * @param transaction transaction
+   * @return
+   */
+  private[interpreters] def dataLengthValidation(
+    transaction: Transaction
+  ): ValidatedNec[TransactionSyntaxError, Unit] =
     Validated.condNec(
-      transaction.data.forall(_.length <= Transaction.MaxDataLength),
+      transaction.immutableBytes.size <= Transaction.MaxDataLength,
       (),
       TransactionSyntaxErrors.InvalidDataLength
     )

@@ -13,8 +13,11 @@ import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.Gen
 import org.scalacheck.effect.PropF
 import co.topl.typeclasses.implicits._
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
 
 class TransactionSyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
+  override def munitTimeout = new FiniteDuration(2, TimeUnit.MINUTES)
 
   type F[A] = IO[A]
 
@@ -294,7 +297,7 @@ class TransactionSyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEff
     }
   }
 
-  test("validate data-length transaction") {
+  test("Invalid data-length transaction > MaxDataLength ") {
     val invalidData = Bytes.fill(Transaction.MaxDataLength + 1)(1)
     PropF.forAllF(arbitraryTransaction.arbitrary.map(_.copy(data = Some(invalidData)))) { transaction: Transaction =>
       for {
@@ -309,17 +312,38 @@ class TransactionSyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEff
     }
   }
 
-  test("validate data-length transaction, valid edge MaxDataLength") {
-    val invalidData = Bytes.fill(Transaction.MaxDataLength)(1)
-    PropF.forAllF(arbitraryTransaction.arbitrary.map(_.copy(data = Some(invalidData)))) { transaction: Transaction =>
+  test(s"Valid data-length transaction with edge MaxDataLength") {
+    import co.topl.codecs.bytes.typeclasses.implicits._
+    import co.topl.codecs.bytes.tetra.instances._
+    PropF.forAllF(arbitraryTransaction.arbitrary) { transaction: Transaction =>
       for {
         underTest <- TransactionSyntaxValidation.make[F]
-        result    <- underTest.validate(transaction)
-        _ <- EitherT
-          .fromEither[F](result.toEither)
-          .swap
-          .exists(_.toList.contains(TransactionSyntaxErrors.InvalidDataLength))
-          .assertEquals(false)
+        txWithNoneData = transaction.copy(data = None)
+        currentSize = txWithNoneData.immutableBytes.size
+        _ <- Either
+          .cond(
+            currentSize > Transaction.MaxDataLength,
+            // tx Generated size is bigger that Max Data Length, skip
+            Applicative[F].unit,
+            // tx Generated size smaller, remove data a create using edge sizes
+            for {
+              // create data with size -> tx + data = MaxDataLength
+              diff <- (Transaction.MaxDataLength - currentSize - 2).pure[F]
+              data <- Bytes.fill(diff)(1).pure[F]
+              txWithEdgeSize = txWithNoneData.copy(data = Some(data))
+
+              result <- underTest.validate(txWithEdgeSize)
+              _ <- EitherT
+                .fromEither[F](result.toEither)
+                .swap
+                .exists(_.toList.contains(TransactionSyntaxErrors.InvalidDataLength))
+                .assertEquals(
+                  expected = false,
+                  clue = s"Size should be ${Transaction.MaxDataLength} and was {$txWithEdgeSize.immutableBytes.size}"
+                )
+            } yield ()
+          )
+          .merge
       } yield ()
     }
   }
