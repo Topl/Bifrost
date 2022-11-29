@@ -4,35 +4,35 @@ object Dependencies {
 
   val akkaVersion = "2.6.20"
   val akkaHttpVersion = "10.2.10"
-  val circeVersion = "0.14.2"
-  val kamonVersion = "2.5.8"
-  val graalVersion = "21.3.3"
+  val circeVersion = "0.14.3"
+  val kamonVersion = "2.5.12"
+  val graalVersion = "21.3.4"
   val simulacrumVersion = "1.0.1"
-  val catsCoreVersion = "2.8.0"
-  val catsEffectVersion = "3.3.14"
-  val logback = "1.4.0"
+  val catsCoreVersion = "2.9.0"
+  val catsEffectVersion = "3.4.1"
+  val logback = "1.4.5"
 
   val catsSlf4j =
-    "org.typelevel" %% "log4cats-slf4j" % "2.4.0"
+    "org.typelevel" %% "log4cats-slf4j" % "2.5.0"
 
   val logging = Seq(
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.5",
     "ch.qos.logback"              % "logback-classic" % logback,
     "ch.qos.logback"              % "logback-core"    % logback,
-    "org.slf4j"                   % "slf4j-api"       % "2.0.0",
+    "org.slf4j"                   % "slf4j-api"       % "2.0.4",
     catsSlf4j
   )
 
   val test = Seq(
-    "org.scalatest"      %% "scalatest"                     % "3.2.13"  % "test",
-    "org.scalactic"      %% "scalactic"                     % "3.2.13"  % "test",
+    "org.scalatest"      %% "scalatest"                     % "3.2.14"  % "test",
+    "org.scalactic"      %% "scalactic"                     % "3.2.14"  % "test",
     "org.scalacheck"     %% "scalacheck"                    % "1.16.0"  % "test",
     "org.scalatestplus"  %% "scalacheck-1-14"               % "3.2.2.0" % "test",
     "com.spotify"         % "docker-client"                 % "8.16.0"  % "test",
     "org.asynchttpclient" % "async-http-client"             % "2.12.3"  % "test",
     "org.scalamock"      %% "scalamock"                     % "5.2.0"   % "test",
     "com.ironcorelabs"   %% "cats-scalatest"                % "3.1.1"   % "test",
-    "org.typelevel"      %% "cats-effect-testing-scalatest" % "1.4.0"   % "test"
+    "org.typelevel"      %% "cats-effect-testing-scalatest" % "1.5.0"   % "test"
   )
 
   val it = Seq(
@@ -106,7 +106,7 @@ object Dependencies {
 
   val cats = Seq(
     "org.typelevel" %% "cats-core" % catsCoreVersion,
-    "org.typelevel" %% "mouse"     % "1.1.0"
+    "org.typelevel" %% "mouse"     % "1.2.1"
   )
 
   val catsEffect = Seq(
@@ -123,12 +123,12 @@ object Dependencies {
 
   val externalCrypto = Seq(
     "org.whispersystems" % "curve25519-java" % "0.5.0",
-    "org.bouncycastle"   % "bcprov-jdk18on"  % "1.71.1"
+    "org.bouncycastle"   % "bcprov-jdk18on"  % "1.72"
   )
 
   val mongoDb: Seq[ModuleID] =
     Seq(
-      "org.mongodb.scala" %% "mongo-scala-driver" % "4.7.1"
+      "org.mongodb.scala" %% "mongo-scala-driver" % "4.7.2"
     )
 
   val levelDb = Seq(
@@ -147,7 +147,7 @@ object Dependencies {
   )
 
   val mainargs = Seq(
-    "com.lihaoyi" %% "mainargs" % "0.2.3"
+    "com.lihaoyi" %% "mainargs" % "0.3.0"
   )
 
   val node: Seq[ModuleID] =
