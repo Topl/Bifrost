@@ -25,8 +25,8 @@ import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import BlockchainPeerHandler.monoidBlockchainPeerHandler
 import co.topl.minting.{BlockPacker, BlockProducer}
+import fs2.concurrent.Topic
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-
 import scala.jdk.CollectionConverters._
 import scala.util.Random
 
@@ -64,7 +64,10 @@ object Blockchain {
   )(implicit system: ActorSystem[_], random: Random): F[Unit] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromClass[F](Blockchain.getClass)
     for {
-      (localChain, _localBlockAdoptionsSource) <- LocalChainBroadcaster.make(_localChain)
+      adoptionsTopic                           <- Topic[F, TypedIdentifier]
+      (localChain, _localBlockAdoptionsSource) <- LocalChainBroadcaster.make(_localChain, adoptionsTopic)
+      // todo check if queue is not blocked, should we try with subscribeAwait which return a Resource?
+      toplRpcAdoptionConsumer   <- Async[F].delay(adoptionsTopic.subscribe(maxQueued = Int.MaxValue))
       localBlockAdoptionsSource <- _localBlockAdoptionsSource.toMat(BroadcastHub.sink)(Keep.right).liftTo[F]
       (mempool, _localTransactionAdoptionsSource) <- MempoolBroadcaster.make(_mempool)
       localTransactionAdoptionsSource <- _localTransactionAdoptionsSource.toMat(BroadcastHub.sink)(Keep.right).liftTo[F]
@@ -157,7 +160,7 @@ object Blockchain {
         localChain,
         blockHeights,
         blockIdTree,
-        localBlockAdoptionsSource.asFS2Stream[F]
+        toplRpcAdoptionConsumer
       )
       rpcServer = ToplGrpc.Server.serve(rpcHost, rpcPort, rpcInterpreter)
       mintedBlockStreamCompletionFuture =
