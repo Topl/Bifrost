@@ -28,6 +28,13 @@ object LocalChainBroadcaster {
         val interpreter = new LocalChainAlgebra[F] {
           def isWorseThan(newHead: SlotData): F[Boolean] = localChain.isWorseThan(newHead)
 
+          /**
+           * TODO adoptionsTopic.publish1:
+           * This operation does not complete until after the given element has been enqued on all subscribers,
+           * which means that if any subscriber is at its maxQueued limit,
+           * publish1 will semantically block until that subscriber consumes an element.
+           * Check Blockchain:toplRpcAdoptionConsumer: maxQueued
+           */
           def adopt(newHead: Validated.Valid[SlotData]): F[Unit] =
             localChain.adopt(newHead) >> offer(newHead.a.slotId.blockId) >>
             adoptionsTopic.publish1(newHead.a.slotId.blockId).map(_.leftMap(_ => ())).map(_.merge)
