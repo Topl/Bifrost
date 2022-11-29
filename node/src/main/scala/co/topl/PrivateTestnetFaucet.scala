@@ -3,39 +3,45 @@ package co.topl
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.HttpMethods
 import cats.data.NonEmptyChain
-import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
+import cats.implicits._
+import co.topl.akkahttprpc.RequestModifier
+import co.topl.akkahttprpc.implicits.client.rpcToClient
+import co.topl.attestation.implicits._
 import co.topl.attestation.keyManagement.{KeyRing, KeyfileCurve25519, KeyfileCurve25519Companion, PrivateKeyCurve25519}
+import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
 import co.topl.modifier.transaction.builder.BoxSelectionAlgorithms
 import co.topl.rpc.ToplRpc
 import co.topl.rpc.ToplRpc.Transaction.RawPolyTransfer
-import co.topl.utils.NetworkType
 import co.topl.rpc.implicits.client._
-import co.topl.utils.StringDataTypes.Base58Data
-import co.topl.akkahttprpc.implicits.client.rpcToClient
-
-import scala.util.Success
-import co.topl.attestation.implicits._
 import co.topl.utils.IdiomaticScalaTransition.implicits._
-import cats.implicits._
-import co.topl.akkahttprpc.RequestModifier
+import co.topl.utils.NetworkType.NetworkPrefix
+import co.topl.utils.StringDataTypes.Base58Data
+import co.topl.utils.{Logging, NetworkType}
 
-import scala.concurrent.duration._
 import scala.concurrent.Await
+import scala.concurrent.duration._
+import scala.util.Success
 
-object RibnTestingTransaction {
-  implicit val networkPrefix = NetworkType.PrivateTestnet.netPrefix
+/**
+ * A simple application which serves as a "faucet" for a private blockchain testnet.  A private testnet is launched with
+ * funds available at pre-seeded addresses.  This utility creates a Transaction which spends those funds and moves a
+ * requested quantity to a requested address. It then broadcasts the transaction to a requested node (via json-rpc).
+ */
+object PrivateTestnetFaucet extends Logging {
+  implicit val networkPrefix: NetworkPrefix = NetworkType.PrivateTestnet.netPrefix
 
   def run(args: List[String]): Unit = {
     val recipientAddress = Base58Data.unsafe(args(0)).decodeAddress.getOrThrow()
-    val recipientAmount = args(1).toLong
+    val quantity = args(1).toLong
     val nodeUri = args.lift(2).getOrElse("http://bifrost:9085")
+    val seed = args.lift(3).getOrElse("test")
 
     implicit val requestModifier: RequestModifier = RequestModifier(
       _.withMethod(HttpMethods.POST)
         .withUri(nodeUri)
     )
 
-    println(s"Sending seed transaction to $recipientAddress with amount $recipientAmount")
+    log.info(s"Sending faucet transaction to recipient=$recipientAddress with quantity=$quantity")
 
     implicit val system: ActorSystem = ActorSystem("RibnTestingTransaction")
     import system.dispatcher
@@ -44,24 +50,20 @@ object RibnTestingTransaction {
       KeyfileCurve25519Companion
 
     val keyRing = KeyRing.empty[PrivateKeyCurve25519, KeyfileCurve25519]()
-    val Success(keys) = keyRing.generateNewKeyPairs(10, Some("test"))
+    val Success(keys) = keyRing.generateNewKeyPairs(10, Some(seed))
 
     val key = keys.head
 
     val params: RawPolyTransfer.Params = ToplRpc.Transaction.RawPolyTransfer.Params(
-      propositionType =
-        PublicKeyPropositionCurve25519.typeString, // required fixed string for now, exciting possibilities in the future!
-      sender =
-        NonEmptyChain(key.publicImage.address), // Set of addresses whose state you want to use for the transaction
-      recipients = NonEmptyChain(
-        (recipientAddress, args(1).toLong)
-      ), // Chain of (Recipients, Value) tuples that represent the output boxes
-      fee = 0, // fee to be paid to the network for the transaction (unit is nanoPoly)
-      changeAddress = key.publicImage.address, // who will get ALL the change from the transaction?
+      propositionType = PublicKeyPropositionCurve25519.typeString,
+      sender = NonEmptyChain(key.publicImage.address),
+      recipients = NonEmptyChain((recipientAddress, args(1).toLong)),
+      fee = 0,
+      changeAddress = key.publicImage.address,
       data = None,
       boxSelectionAlgorithm = BoxSelectionAlgorithms.All
     )
-    val response = for {
+    val broadcastFuture = for {
       rawTx <- ToplRpc.Transaction.RawPolyTransfer.rpc(params).map(_.rawTx)
       signTx = {
         val msg2Sign = rawTx.messageToSign
@@ -72,7 +74,9 @@ object RibnTestingTransaction {
       broadcastTx <- ToplRpc.Transaction.BroadcastTx.rpc(ToplRpc.Transaction.BroadcastTx.Params(signTx))
     } yield broadcastTx
 
-    println(Await.result(response.value, 20.seconds))
+    val broadcastResult = Await.result(broadcastFuture.value, 20.seconds)
+
+    log.info(broadcastResult.toString)
 
     system.terminate()
   }
