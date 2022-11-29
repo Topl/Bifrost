@@ -29,6 +29,8 @@ final case class StartupOptions(
   ip: Option[String] = None,
   @arg(short = 'p')
   port: Option[Int] = None,
+  @arg(short = 'w')
+  webPort: Option[Int] = None,
   @arg
   disableAuth: Option[Boolean] = None,
   @arg

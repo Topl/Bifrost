@@ -1,0 +1,33 @@
+version: "3.7"
+
+services:
+
+  mongo:
+    image: mongo
+    volumes:
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    command: --replSet "bifrost"
+
+  bifrost:
+    image: toplprotocol/bifrost-node
+    command: --forge --disableAuth -s test -c /mnt/local.conf
+    depends_on:
+      - mongo
+    volumes:
+      - ./ribn-testing.conf:/mnt/local.conf
+    ports:
+      - 9085:9085
+      - 9084:9084
+    links:
+      - mongo
+
+  genus:
+    image: toplprotocol/bifrost-node
+    command: genus -m "mongodb://mongo" -p 8089 -w 8099 --disableAuth true
+    depends_on:
+      - mongo
+    ports:
+      - 8089:8089
+      - 8099:8099
+    links:
+      - mongo
