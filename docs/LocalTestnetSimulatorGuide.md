@@ -11,7 +11,7 @@ Instructions for running a testnet simulation in a local environment.
 ### Bifrost
 1. Clone https://github.com/Topl/Bifrost and checkout branch `tetra`.
 1. Modify `build.sbt`.  Search for `dockerAliases := dockerAliases.value.flatMap` and add an entry `alias.withRegistryHost(Some("localhost:32000/topl"))` to the list.
-1. Run `sbt Docker / publishLocal` from the command line.
+1. Run `sbt "Docker / publishLocal"` from the command line.
 1. Run `docker push localhost:32000/topl/network-delayer && docker push localhost:32000/topl/bifrost-node-tetra && docker push localhost:32000/topl/testnet-simulation-orchestrator`.
 
 ## Run Simulation
