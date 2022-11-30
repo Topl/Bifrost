@@ -8,10 +8,10 @@ Instructions for running a testnet simulation in a local environment.
 1. Install [SBT](https://www.scala-sbt.org/download.html).
 
 NOTE: Java and SBT can be installed using [SDKMAN](https://sdkman.io/install)
-1. From terminal: `curl -s "https://get.sdkman.io" | bash`
-1. From terminal: `source "$HOME/.sdkman/bin/sdkman-init.sh"`
-1. From terminal: `sdk install java 11.0.17-tem`
-1. From terminal: `sdk install sbt 1.7.3`
+1. Run `curl -s "https://get.sdkman.io" | bash`
+1. Run `source "$HOME/.sdkman/bin/sdkman-init.sh"`
+1. Run `sdk install java 11.0.17-tem`
+1. Run `sdk install sbt 1.7.3`
 
 ### Kubernetes
 1. Install [Microk8s](https://microk8s.io/docs/install-alternatives).
@@ -19,9 +19,10 @@ NOTE: Java and SBT can be installed using [SDKMAN](https://sdkman.io/install)
 
 ### Bifrost
 1. Clone https://github.com/Topl/Bifrost and checkout branch `tetra`.
-1. Modify `build.sbt`.  Search for `dockerAliases := dockerAliases.value.flatMap` and add an entry `alias.withRegistryHost(Some("localhost:32000/topl"))` to the list.
 1. Run `sbt "Docker / publishLocal"` from the command line.
-1. Run `docker push localhost:32000/topl/network-delayer && docker push localhost:32000/topl/bifrost-node-tetra && docker push localhost:32000/topl/testnet-simulation-orchestrator`.
+1. Run `docker tag toplprotocol/network-delayer localhost:32000/topl/network-delayer && docker push localhost:32000/topl/network-delayer`
+1. Run `docker tag toplprotocol/bifrost-node-tetra localhost:32000/topl/bifrost-node-tetra && docker push localhost:32000/topl/bifrost-node-tetra`
+1. Run `docker tag toplprotocol/testnet-simulation-orchestrator localhost:32000/topl/testnet-simulation-orchestrator && docker push localhost:32000/topl/testnet-simulation-orchestrator`.
 
 ## Run Simulation
 1. Open terminal.  `cd {bifrost repository}/helm`
