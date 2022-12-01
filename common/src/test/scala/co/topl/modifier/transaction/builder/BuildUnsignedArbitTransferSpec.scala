@@ -15,7 +15,9 @@ class BuildUnsignedArbitTransferSpec
     with ScalaCheckDrivenPropertyChecks
     with EitherValues {
 
-  "buildUnsignedArbitTransfer" should "return invalid if not enough funds for fee" in {
+  behavior of "buildUnsignedArbitTransfer"
+
+  it should "return invalid if not enough funds for fee" in {
     forAll(polyBoxesGen, arbitBoxesGen, addressGen, addressGen) { (polyBoxes, arbitBoxes, sender, recipient) =>
       val existingPolys = boxesAmount(polyBoxes)
       val fee = existingPolys + 100000

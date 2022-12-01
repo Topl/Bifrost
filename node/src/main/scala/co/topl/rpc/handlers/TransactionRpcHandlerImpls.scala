@@ -6,6 +6,7 @@ import co.topl.akkahttprpc.{CustomError, RpcError, ThrowableData}
 import co.topl.attestation._
 import co.topl.codecs._
 import co.topl.modifier.ProgramId
+import co.topl.modifier.ops.implicits._
 import co.topl.modifier.transaction.builder.{BuildTransferFailure, TransferBuilder, TransferRequests}
 import co.topl.modifier.transaction.validation.implicits._
 import co.topl.modifier.transaction.{ArbitTransfer, AssetTransfer, PolyTransfer, Transaction}
@@ -15,7 +16,6 @@ import co.topl.rpc.{ToplRpc, ToplRpcErrors}
 import co.topl.utils.NetworkType.NetworkPrefix
 import co.topl.utils.implicits._
 import io.circe.Encoder
-import co.topl.modifier.ops.implicits._
 
 import scala.concurrent.Future
 

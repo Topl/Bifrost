@@ -23,7 +23,7 @@ class BootstrapFromGenesisTest
   val initialForgeTarget: Int128 = 1500
   val newNodeForgeDuration: FiniteDuration = 10.seconds
   val targetBlockTime: FiniteDuration = 250.milli
-  val syncWindow: FiniteDuration = 60.seconds
+  val syncWindow: FiniteDuration = 300.seconds
   val seed: String = "BootstrapFromGenesisTest" + System.currentTimeMillis()
 
   "A new node can sync its genesis block with an old node" in {
@@ -50,7 +50,7 @@ class BootstrapFromGenesisTest
              |        }
              |      }
              |    ]
-             |bifrost.network.syncInterval = 500ms
+             |bifrost.network.syncInterval = 250ms
              |bifrost.network.syncIntervalStable = 500ms
              |bifrost.network.maxChainCacheDepth = ${initialForgeTarget + 1}
              |bifrost.network.maxModifiersCacheSize = 1024
@@ -111,6 +111,14 @@ class BootstrapFromGenesisTest
 
     oldNode.run(ToplRpc.Admin.StopForging.rpc)(ToplRpc.Admin.StopForging.Params()).value
     newNode.run(ToplRpc.Admin.StopForging.rpc)(ToplRpc.Admin.StopForging.Params()).value
+
+    val oldNodeHeadBeforeSync =
+      oldNode.run(ToplRpc.NodeView.Head.rpc)(ToplRpc.NodeView.Head.Params()).value
+    logger.info(s"Old node height=${oldNodeHeadBeforeSync.height} bestBlockId=${oldNodeHeadBeforeSync.bestBlockId}")
+
+    val newNodeHeadBeforeSync =
+      newNode.run(ToplRpc.NodeView.Head.rpc)(ToplRpc.NodeView.Head.Params()).value
+    logger.info(s"New node height=${newNodeHeadBeforeSync.height} bestBlockId=${newNodeHeadBeforeSync.bestBlockId}")
 
     logger.info(s"Waiting $syncWindow for the nodes to sync")
 

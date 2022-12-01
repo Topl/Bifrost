@@ -263,6 +263,13 @@ trait ModelsJsonCodecs {
       Json.obj(
         "proofType" -> "Contextual.RequiredTransactionIO".asJson
       )
+    case _ =>
+      /**
+       * It would fail on the following inputs: HashLock(_, _), KesProduct(_, _, _), KesSum(_, _, _), Not(_), RequiredBoxState(), VrfEd25519(_)
+       * It may lead to odd behavior for users who hit this when decoding,
+       * but only Dion users would hit this, and these Propositions aren't supported in Dion anyway.
+       */
+      Json.Null
   }
 
   implicit val proofsKnowledgeCurve25519Decoder: Decoder[Proofs.Knowledge.Curve25519] = deriveDecoder
