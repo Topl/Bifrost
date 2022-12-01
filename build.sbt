@@ -747,14 +747,14 @@ lazy val toplGrpc = project
     commonSettings,
     libraryDependencies ++= Dependencies.toplGrpc,
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
-    remoteProtoFilesFlag := false,
+    remoteProtoFilesFlag := true,
     remoteProtoFiles :=
       Def.taskDyn {
         Def.ifS(remoteProtoFilesFlag)(
           Def.task {
             import scala.sys.process._
             streams.value.log.info("Downloading proto files from remote repository into local resources directory...")
-            val externalResources = "https://github.com/Topl/protobuf-specs/tree/main/protobuf/"
+            val externalResources = "https://raw.githubusercontent.com/Topl/protobuf-specs/main/protobuf/"
             val protoFilesNode =
               List("bifrost_rpc", "node_config", "signable")
                 .map(_.concat(".proto"))
