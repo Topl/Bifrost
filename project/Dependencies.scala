@@ -174,11 +174,6 @@ object Dependencies {
     monitoring ++
     mainargs
 
-  lazy val algebras =
-    test ++
-    catsEffect.map(_ % Test) ++
-    Seq(catsSlf4j % Test)
-
   lazy val common: Seq[ModuleID] =
     Seq(
       "org.typelevel" %% "simulacrum" % simulacrumVersion
@@ -248,37 +243,8 @@ object Dependencies {
     cats ++
     test
 
-  lazy val catsAkka: Seq[ModuleID] =
-    cats ++ catsEffect ++ logging ++ Seq(akka("actor"), akka("actor-typed"), akka("stream"))
-
   lazy val models: Seq[ModuleID] =
     cats ++ simulacrum ++ newType ++ scodec
-
-  lazy val consensus: Seq[ModuleID] =
-    externalCrypto ++ Seq(akka("actor-typed")) ++ catsEffect ++ logging ++ scalacache
-
-  lazy val minting: Seq[ModuleID] =
-    Dependencies.test ++ Dependencies.catsEffect ++ Seq(Dependencies.akka("stream"))
-
-  lazy val networking: Seq[ModuleID] =
-    Dependencies.test ++ Dependencies.catsEffect ++ Seq(
-      Dependencies.akka("stream"),
-      Dependencies.akka("stream-testkit") % Test
-    ) ++ fleam
-
-  lazy val demo: Seq[ModuleID] =
-    Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++ logging
-
-  lazy val commonInterpreters =
-    Dependencies.test ++
-    Seq(
-      akka("actor-typed"),
-      akka("actor-testkit-typed") % Test,
-      Dependencies.catsSlf4j      % "test"
-    ) ++
-    Dependencies.cats ++
-    Dependencies.catsEffect ++
-    Dependencies.scalacache
 
   lazy val loadTesting: Seq[ModuleID] =
     Seq(
