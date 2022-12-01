@@ -270,7 +270,7 @@ lazy val nodeTetra = project
   .configs(IntegrationTest)
   .settings(
     IntegrationTest / parallelExecution := false,
-    classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat //required for correct loading https://github.com/kamon-io/sbt-kanela-runner
+    classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat // required for correct loading https://github.com/kamon-io/sbt-kanela-runner
   )
   .dependsOn(
     models % "compile->compile;test->test",
@@ -736,6 +736,9 @@ lazy val toplRpc = project
   )
   .dependsOn(akkaHttpRpc, common, jsonCodecs)
 
+lazy val remoteProtoFiles = taskKey[Unit]("Download proto files from remote repository into local resources directory")
+lazy val remoteProtoFilesFlag = taskKey[Boolean]("Download proto files Flag")
+
 lazy val toplGrpc = project
   .in(file("topl-grpc"))
   .enablePlugins(Fs2Grpc)
@@ -743,7 +746,47 @@ lazy val toplGrpc = project
     name := "topl-grpc",
     commonSettings,
     libraryDependencies ++= Dependencies.toplGrpc,
-    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage
+    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
+    remoteProtoFilesFlag := false,
+    remoteProtoFiles :=
+      Def.taskDyn {
+        Def.ifS(remoteProtoFilesFlag)(
+          Def.task {
+            import scala.sys.process._
+            streams.value.log.info("Downloading proto files from remote repository into local resources directory...")
+            val externalResources = "https://github.com/Topl/protobuf-specs/tree/main/protobuf/"
+            val protoFilesNode =
+              List("bifrost_rpc", "node_config", "signable")
+                .map(_.concat(".proto"))
+                .map("node/".concat)
+            val protoFilesModels =
+              List(
+                "address",
+                "block",
+                "box",
+                "certificate",
+                "common",
+                "proof",
+                "proposition",
+                "transaction",
+                "verification_key"
+              )
+                .map(_.concat(".proto"))
+                .map("models/".concat)
+            val protoFilesGenus =
+              List("genus_models", "genus_rpc")
+                .map(_.concat(".proto"))
+                .map("genus/".concat)
+            val resources = (Compile / sourceDirectory).value / "protobufExternal"
+            (protoFilesNode ++ protoFilesModels ++ protoFilesGenus).foreach { protoFile =>
+              url(s"$externalResources/$protoFile") #> (resources / protoFile) !
+            }
+          }
+        )(
+          Def.task(streams.value.log.info("Downloading proto files disabled from external sources."))
+        )
+      }.value,
+    Compile / compile := ((Compile / compile) dependsOn remoteProtoFiles).value
   )
   .dependsOn(
     models % "compile->compile;test->test",
@@ -888,7 +931,7 @@ lazy val genusLibrary = project
     models % "compile->compile;test->test",
     tetraByteCodecs,
     toplGrpc,
-    munitScalamock % "test->test",
+    munitScalamock % "test->test"
   )
 
 lazy val munitScalamock = project
