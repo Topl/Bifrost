@@ -18,6 +18,8 @@ inThisBuild(
   )
 )
 
+Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
+
 enablePlugins(ReproducibleBuildsPlugin, ReproducibleBuildsAssemblyPlugin)
 
 lazy val commonSettings = Seq(
