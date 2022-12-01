@@ -101,6 +101,7 @@ object BifrostApp extends Logging {
   def main(args: Array[String]): Unit = args.headOption.getOrElse("") match {
     case "export" => Exporter.main(args.tail)
     case "genus"  => GenusApp.main(args.tail)
+    case "faucet" => PrivateTestnetFaucet.run(args.tail.toList)
     case _        => startNode(args)
   }
 

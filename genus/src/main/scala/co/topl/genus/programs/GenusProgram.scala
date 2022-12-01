@@ -1,9 +1,10 @@
 package co.topl.genus.programs
 
 import akka.actor.ActorSystem
-import akka.grpc.scaladsl.{ServerReflection, ServiceHandler}
+import akka.event.Logging
+import akka.grpc.scaladsl.{ServerReflection, ServiceHandler, WebHandler}
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.server.Directive0
+import akka.http.scaladsl.server.{Directive0, Directives, Route}
 import akka.http.scaladsl.server.Directives.{handle, optionalHeaderValueByName, pass, reject}
 import cats.effect.kernel.Async
 import cats.implicits._
@@ -17,6 +18,7 @@ import co.topl.utils.StringDataTypes.Base58Data
 import co.topl.utils.implicits._
 
 import scala.concurrent.Future
+import scala.util.{Failure, Success}
 
 object GenusProgram {
 
@@ -42,28 +44,41 @@ object GenusProgram {
     blocksSubHandler:   BlocksSubscription,
     ip:                 String,
     port:               Int,
+    webPort:            Int,
     apiKeyHash:         Option[Base58Data]
   )(implicit system:    ActorSystem): F[Unit] =
     for {
-      handlers <-
-        ServiceHandler
-          .concatOrNotFound(
-            TransactionsQueryHandler.partial(txQueryHandler),
-            TransactionsSubscriptionHandler.partial(txSubHandler),
-            BlocksQueryHandler.partial(blocksQueryHandler),
-            BlocksSubscriptionHandler.partial(blocksSubHandler),
-            ServerReflection.partial(
-              List(TransactionsQuery, BlocksQuery, TransactionsSubscription, BlocksSubscription)
-            )
-          )
-          .pure[F]
+      subHandlers <- List(
+        TransactionsQueryHandler.partial(txQueryHandler),
+        TransactionsSubscriptionHandler.partial(txSubHandler),
+        BlocksQueryHandler.partial(blocksQueryHandler),
+        BlocksSubscriptionHandler.partial(blocksSubHandler),
+        ServerReflection.partial(
+          List(TransactionsQuery, BlocksQuery, TransactionsSubscription, BlocksSubscription)
+        )
+      ).pure[F]
       binding <-
         Async[F].fromFuture(
           Async[F].delay(
-            Http(system).newServerAt(ip, port).bind(useAuth(apiKeyHash)(handle(handlers)))
+            Http(system)
+              .newServerAt(ip, port)
+              .bind(
+                useAuth(apiKeyHash)(handle(ServiceHandler.concatOrNotFound(subHandlers: _*)))
+              )
           )
         )
-      _ <- Async[F].delay(println(s"Genus server running: $binding"))
+      _ <- Async[F].delay(println(s"Genus gRPC server running: $binding"))
+      webBinding <-
+        Async[F].fromFuture(
+          Async[F].delay(
+            Http(system)
+              .newServerAt(ip, webPort)
+              .bind(
+                useAuth(apiKeyHash)(handle(WebHandler.grpcWebHandler(subHandlers: _*)))
+              )
+          )
+        )
+      _ <- Async[F].delay(println(s"Genus gRPC-web server running: $webBinding"))
       // run indefinitely
       _ <- Async[F].never[Unit]
     } yield ()
