@@ -941,22 +941,18 @@ trait BoxBifrostMorphismInstances {
     Isomorphism(
       _.map(v =>
         for {
-// TODO version is not needed any more in Bitfrost models
-//          version       <- EitherT.rightT[F, String](v.version.toInt)
           issuerAddress <- EitherT(v.issuer.toF[F, models.SpendingAddress])
           shortName     <- EitherT(v.shortName.toF[F, ByteString])
         } yield models.AssetV1BoxValue.Code(issuerAddress.some, shortName)
       ).flatMap(_.value),
       _.map(v =>
         for {
-//          version <- EitherT.cond[F](v.version <= Byte.MaxValue, v.version.toByte, "Invalid version")
           issuerAddress <- v.issuerAddress
             .toRight("Missing issuerAddress")
             .toEitherT[F]
             .flatMapF(_.toF[F, bifrostModels.SpendingAddress])
           shortName <- EitherT(v.shortName.toF[F, bifrostModels.Box.Values.AssetV1.Code.ShortName])
-          // TODO: which is uint32 representation of V1 Asset, (1 was version)
-        } yield bifrostModels.Box.Values.AssetV1.Code(1.toByte, issuerAddress, shortName)
+        } yield bifrostModels.Box.Values.AssetV1.Code(issuerAddress, shortName)
       ).flatMap(_.value)
     )
 

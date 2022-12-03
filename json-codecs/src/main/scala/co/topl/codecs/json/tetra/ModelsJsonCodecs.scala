@@ -323,7 +323,6 @@ trait ModelsJsonCodecs {
   implicit val assetCodeEncoder: Encoder[Box.Values.AssetV1.Code] =
     t =>
       Json.obj(
-        "version"   -> t.version.asJson,
         "issuer"    -> t.issuer.asJson,
         "shortName" -> t.shortName.data.value.asJson
       )
@@ -331,13 +330,12 @@ trait ModelsJsonCodecs {
   implicit val assetCodeDecoder: Decoder[Box.Values.AssetV1.Code] =
     hcursor =>
       for {
-        version   <- hcursor.downField("version").as[Byte]
         issuer    <- hcursor.downField("issuer").as[SpendingAddress]
         shortName <- hcursor.downField("shortName").as[Latin1Data]
         validLengthShortName <- Sized
           .max[Latin1Data, Lengths.`8`.type](shortName)
           .leftMap(failure => DecodingFailure(failure.toString, hcursor.history :+ CursorOp.Field("shortName")))
-      } yield Box.Values.AssetV1.Code(version, issuer, validLengthShortName)
+      } yield Box.Values.AssetV1.Code(issuer, validLengthShortName)
 
   implicit val assetBoxValueEncoder: Encoder[Box.Values.AssetV1] =
     t =>
