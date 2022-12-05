@@ -13,6 +13,8 @@ object Dependencies {
   val fs2Version = "3.5-1c0be5c"
   val logback = "1.4.5"
 
+  val protobufSpecsHash = "e48b7bf2de03e263bd263f1c586baa2334fbcefb"
+
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.5.0"
 
