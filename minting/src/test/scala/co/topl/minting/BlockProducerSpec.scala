@@ -49,7 +49,8 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
               .expects(parentSlotData.slotId, parentSlotData.slotId.slot + 1)
               .once()
               .returning(vrfHit.some.pure[F])
-            _ = (staker.certifyBlock(_, _, _))
+            _ = (staker
+              .certifyBlock(_, _, _))
               .expects(parentSlotData.slotId, vrfHit.slot, *)
               .once()
               .returning(
@@ -58,7 +59,10 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             clockDeferment <- IO.deferred[Unit]
             _ = (clock.delayedUntilSlot(_)).expects(vrfHit.slot).once().returning(clockDeferment.get)
             _ = (clock
-              .slotToTimestamps(_)).expects(vrfHit.slot).once().returning(NumericRange.inclusive(50L, 99L, 1L).pure[F])
+              .slotToTimestamps(_))
+              .expects(vrfHit.slot)
+              .once()
+              .returning(NumericRange.inclusive(50L, 99L, 1L).pure[F])
             _ = (blockPacker.improvePackedBlock(_, _, _)).expects(*, *, *).once().returning(IO.pure(_ => IO.never))
             _ = pub.sendNext(parentSlotData)
             _ <- clockDeferment.complete(())
@@ -111,9 +115,13 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
                 .returning(vrfHit.some.pure[F])
               // In this particular case, we're using a "clockDeferment" as more of a signal that the clock was requested
               _ = (clock
-                .delayedUntilSlot(_)).expects(vrfHit.slot).once().returning(IO.never)
+                .delayedUntilSlot(_))
+                .expects(vrfHit.slot)
+                .once()
+                .returning(IO.never)
               clockDeferment <- IO.deferred[Unit]
-              _ = (blockPacker.improvePackedBlock(_, _, _))
+              _ = (blockPacker
+                .improvePackedBlock(_, _, _))
                 .expects(*, *, *)
                 .once()
                 .returning(IO.pure(_ => IO.defer(clockDeferment.complete(())).void >> IO.never[BlockBodyV2.Full]))
@@ -137,7 +145,8 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
                 .expects(parentSlotData2.slotId, parentSlotData2.slotId.slot + 1)
                 .once()
                 .returning(vrfHit2.some.pure[F])
-              _ = (staker.certifyBlock(_, _, _))
+              _ = (staker
+                .certifyBlock(_, _, _))
                 .expects(parentSlotData2.slotId, vrfHit2.slot, *)
                 .once()
                 .returning(outputBlock.some.pure[F])

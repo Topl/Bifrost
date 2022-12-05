@@ -136,7 +136,7 @@ class TransferTransactionSemanticallyValidatable[T <: TokenValueHolder, P <: Pro
     tx.syntacticValidation.toEither.leftMap(SyntacticSemanticValidationFailure).toValidatedNec
 
   private[transaction] def txSpecificValidation(tx: TransferTransaction[T, P])(
-    txOutput:                                       Int128,
+    expectedTxOutputSum:                            Int128,
     sumOfPolyInputs:                                Int128
   ): ValidatedNec[SemanticValidationFailure, TransferTransaction[T, P]] =
     tx match {
@@ -148,9 +148,9 @@ class TransferTransactionSemanticallyValidatable[T <: TokenValueHolder, P <: Pro
         tx.validNec[SemanticValidationFailure]
       case _: PolyTransfer[_] =>
         Validated.condNec(
-          sumOfPolyInputs - tx.fee == txOutput,
+          sumOfPolyInputs - tx.fee == expectedTxOutputSum,
           tx,
-          InputOutputUnequal(sumOfPolyInputs, txOutput, tx.fee, tx.minting)
+          InputOutputUnequal(sumOfPolyInputs, expectedTxOutputSum, tx.fee, tx.minting)
         )
       case _ =>
         /*  This case enforces that the poly input balance must equal the poly output balance
@@ -173,9 +173,10 @@ class TransferTransactionSemanticallyValidatable[T <: TokenValueHolder, P <: Pro
 
   private[transaction] def accessibleFundsValidation(tx: TransferTransaction[T, P])(
     inputBoxes:                                          List[(BoxUnlocker[P, Proof[P]], Option[Box[_]])],
-    txOutput:                                            Int128,
+    expectedTxOutputSum:                                 Int128,
     sumOfPolyInputs:                                     Int128
   ): ValidatedNec[SemanticValidationFailure, TransferTransaction[T, P]] =
+    // check that unlockers can be generated successfully generated for each input
     takeWhileInclusive(
       inputBoxes
         .to(LazyList)
@@ -189,28 +190,30 @@ class TransferTransactionSemanticallyValidatable[T <: TokenValueHolder, P <: Pro
           case _ =>
             Left(BoxNotFound)
         }
-    )(_.isRight)
+    )(_.isRight) // if all inputs success then we need to enforce arithmetic constraints across the entire transaction
       .foldLeft(Right(0): Either[SemanticValidationFailure, Int128]) { case (a, b) =>
         a.flatMap(i => b.map(i1 => i + i1))
       }
-      .flatMap {
-        // a normal transfer will fall in this case
-        case sum if txOutput == sum - tx.fee =>
-          Right(tx)
+      .flatMap { b =>
+        b match {
+          // a normal transfer will fall in this case
+          case actualSum if expectedTxOutputSum == actualSum - tx.fee =>
+            Right(tx)
 
-        // a minting transaction (of either Arbit, Polys, or Assets) will fall in this case
-        case _ if tx.minting =>
-          Right(tx)
+          // a minting transaction (of either Arbit, Polys, or Assets) will fall in this case
+          case _ if tx.minting =>
+            Right(tx)
 
-        case sum if !tx.minting && txOutput != sum - tx.fee =>
-          Left(
-            InputOutputUnequal(
-              sumOfPolyInputs,
-              txOutput,
-              tx.fee,
-              tx.minting
+          case sum if !tx.minting && expectedTxOutputSum != sum - tx.fee =>
+            Left(
+              InputOutputUnequal(
+                sumOfPolyInputs,
+                expectedTxOutputSum,
+                tx.fee,
+                tx.minting
+              )
             )
-          )
+        }
       }
       .toValidatedNec
 }

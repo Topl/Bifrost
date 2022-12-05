@@ -2,12 +2,12 @@ package co.topl.modifier.transaction.builder.ops
 
 import co.topl.attestation.Address
 import co.topl.modifier.box.{AssetCode, Box}
-import co.topl.modifier.transaction.builder.BoxSet
+import co.topl.modifier.transaction.builder.BoxMap
 import co.topl.utils.Int128
 
 import scala.language.implicitConversions
 
-class BoxSetOps(private val value: BoxSet) extends AnyVal {
+class BoxSetOps(private val value: BoxMap) extends AnyVal {
 
   import BoxSetOps._
 
@@ -21,11 +21,11 @@ class BoxSetOps(private val value: BoxSet) extends AnyVal {
       .map(value => value.assetCode -> value.quantity)
       .toMap
 
-  def polyNonces: Set[Box.Nonce] = value.polys.map(_._2.nonce)
+  def polyNonces: List[Box.Nonce] = value.polys.map(_._2.nonce)
 
-  def arbitNonces: Set[Box.Nonce] = value.arbits.map(_._2.nonce)
+  def arbitNonces: List[Box.Nonce] = value.arbits.map(_._2.nonce)
 
-  def assetNonces: Set[Box.Nonce] = value.assets.map(_._2.nonce)
+  def assetNonces: List[Box.Nonce] = value.assets.map(_._2.nonce)
 }
 
 object BoxSetOps {
@@ -36,7 +36,7 @@ object BoxSetOps {
   }
 
   trait ToBoxSetOps {
-    implicit def boxSetOpsFromBoxSet(value: BoxSet): BoxSetOps = new BoxSetOps(value)
+    implicit def boxSetOpsFromBoxSet(value: BoxMap): BoxSetOps = new BoxSetOps(value)
   }
 
   trait Implicits extends ToBoxSetOps

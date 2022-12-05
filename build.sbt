@@ -1,7 +1,7 @@
 import sbt.Keys.{homepage, organization, test}
 import sbtassembly.MergeStrategy
 
-val scala213 = "2.13.8"
+val scala213 = "2.13.10"
 
 inThisBuild(
   List(
@@ -17,6 +17,8 @@ inThisBuild(
     testFrameworks += TestFrameworks.MUnit
   )
 )
+
+Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
 enablePlugins(ReproducibleBuildsPlugin, ReproducibleBuildsAssemblyPlugin)
 

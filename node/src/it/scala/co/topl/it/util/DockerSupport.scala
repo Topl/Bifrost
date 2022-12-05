@@ -79,7 +79,6 @@ class DockerSupport(dockerClient: DockerClient)(implicit system: ActorSystem) ex
       .map(_.id())
       .foreach(dockerClient.removeNetwork)
   }
-
 }
 
 object DockerSupport {

@@ -28,11 +28,11 @@ object BoxSelectionAlgorithm {
    */
   def pickBoxes(
     algorithm:    BoxSelectionAlgorithm,
-    boxes:        BoxSet,
+    boxes:        BoxMap,
     polysNeeded:  Int128,
     arbitsNeeded: Int128,
     assetsNeeded: Map[AssetCode, Int128]
-  ): BoxSet =
+  ): BoxMap =
     algorithm match {
       case BoxSelectionAlgorithms.All =>
         all(boxes, arbitsNeeded, assetsNeeded)
@@ -44,44 +44,44 @@ object BoxSelectionAlgorithm {
         specific(boxes, ids)
     }
 
-  private def all(from: BoxSet, arbitsNeeded: Int128, assetsNeeded: Map[AssetCode, Int128]): BoxSet =
+  private def all(from: BoxMap, arbitsNeeded: Int128, assetsNeeded: Map[AssetCode, Int128]): BoxMap =
     from.copy(
       assets = from.assets.filter(box => assetsNeeded.contains(box._2.value.assetCode)),
-      arbits = (arbitsNeeded > 0).option(from.arbits).toSet.flatten
+      arbits = (arbitsNeeded > 0).option(from.arbits).toSet.flatten.toList
     )
 
   private def orderedByValue(
-    from:         BoxSet,
+    from:         BoxMap,
     polysNeeded:  Int128,
     arbitsNeeded: Int128,
     assetsNeeded: Map[AssetCode, Int128],
     orderBy:      TokenValueHolder => Int128
-  ): BoxSet =
-    BoxSet(
+  ): BoxMap =
+    BoxMap(
       takeBoxesUntilQuantity[SimpleValue, ArbitBox](
         arbitsNeeded,
-        from.arbits.toList.sortBy(box => orderBy(box._2.value))
-      ).toSet,
+        from.arbits.sortBy(box => orderBy(box._2.value))
+      ).distinct,
       takeBoxesUntilQuantity[SimpleValue, PolyBox](
         polysNeeded,
-        from.polys.toList.sortBy(box => orderBy(box._2.value))
-      ).toSet,
+        from.polys.sortBy(box => orderBy(box._2.value))
+      ).distinct,
       assetsNeeded
         .map { case (assetCode, quantity) =>
           takeBoxesUntilQuantity[AssetValue, AssetBox](
             quantity,
             from.assets
               .filter(_._2.value.assetCode == assetCode)
-              .toList
               .sortBy(box => orderBy(box._2.value))
           )
         }
         .toSet
         .flatten
+        .toList
     )
 
-  private def specific(from: BoxSet, ids: List[BoxId]): BoxSet =
-    BoxSet(
+  private def specific(from: BoxMap, ids: List[BoxId]): BoxMap =
+    BoxMap(
       from.arbits.filter(box => ids.contains(box._2.id)),
       from.polys.filter(box => ids.contains(box._2.id)),
       from.assets.filter(box => ids.contains(box._2.id))
