@@ -1084,8 +1084,8 @@ trait TransactionBifrostMorphismInstances {
         for {
           address <- EitherT(output.address.toF[F, models.FullAddress])
           value   <- EitherT(output.value.toF[F, models.BoxValue])
-          minting = false // TODO minting was removed
-        } yield models.Transaction.UnspentOutput(address.some, value)
+          minting = output.minting
+        } yield models.Transaction.UnspentOutput(address.some, value, minting)
       )
         .flatMap(_.value),
       _.map(output =>
@@ -1095,7 +1095,7 @@ trait TransactionBifrostMorphismInstances {
             .toEitherT[F]
             .flatMapF(_.toF[F, bifrostModels.FullAddress])
           value <- EitherT(output.value.toF[F, bifrostModels.Box.Value])
-          minting = false // TODO output.minting
+          minting = output.minting
         } yield bifrostModels.Transaction.Output(address, value, minting)
       ).flatMap(_.value)
     )
