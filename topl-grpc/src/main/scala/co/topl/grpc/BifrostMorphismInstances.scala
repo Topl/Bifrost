@@ -9,6 +9,7 @@ import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{HasLength, Lengths, Sized}
 import co.topl.{models => bifrostModels}
 import com.google.protobuf.ByteString
+import co.topl.proto.models
 
 import scala.collection.immutable.ListSet
 
@@ -940,20 +941,18 @@ trait BoxBifrostMorphismInstances {
     Isomorphism(
       _.map(v =>
         for {
-          version       <- EitherT.rightT[F, String](v.version.toInt)
           issuerAddress <- EitherT(v.issuer.toF[F, models.SpendingAddress])
           shortName     <- EitherT(v.shortName.toF[F, ByteString])
-        } yield models.AssetV1BoxValue.Code(version, issuerAddress.some, shortName)
+        } yield models.AssetV1BoxValue.Code(issuerAddress.some, shortName)
       ).flatMap(_.value),
       _.map(v =>
         for {
-          version <- EitherT.cond[F](v.version <= Byte.MaxValue, v.version.toByte, "Invalid version")
           issuerAddress <- v.issuerAddress
             .toRight("Missing issuerAddress")
             .toEitherT[F]
             .flatMapF(_.toF[F, bifrostModels.SpendingAddress])
           shortName <- EitherT(v.shortName.toF[F, bifrostModels.Box.Values.AssetV1.Code.ShortName])
-        } yield bifrostModels.Box.Values.AssetV1.Code(version, issuerAddress, shortName)
+        } yield bifrostModels.Box.Values.AssetV1.Code(issuerAddress, shortName)
       ).flatMap(_.value)
     )
 
@@ -1079,14 +1078,14 @@ trait TransactionBifrostMorphismInstances {
     )
 
   implicit def transactionOutputIsomorphism[F[_]: Monad]
-    : Isomorphism[F, bifrostModels.Transaction.Output, models.Transaction.Output] =
+    : Isomorphism[F, bifrostModels.Transaction.Output, models.Transaction.UnspentOutput] =
     Isomorphism(
       _.map(output =>
         for {
           address <- EitherT(output.address.toF[F, models.FullAddress])
           value   <- EitherT(output.value.toF[F, models.BoxValue])
           minting = output.minting
-        } yield models.Transaction.Output(address.some, value, minting)
+        } yield models.Transaction.UnspentOutput(address.some, value, minting)
       )
         .flatMap(_.value),
       _.map(output =>
@@ -1123,7 +1122,7 @@ trait TransactionBifrostMorphismInstances {
           )
           outputs <- EitherT(
             transaction.outputs.toList
-              .traverse(_.toF[F, models.Transaction.Output])
+              .traverse(_.toF[F, models.Transaction.UnspentOutput])
               .map(_.sequence)
           )
           schedule <- EitherT(
@@ -1213,13 +1212,13 @@ trait CertificateBifrostMorphismInstances {
             .toRight("Missing vrfSig")
             .toEitherT[F]
             .flatMapF(_.toF[F, bifrostModels.Proofs.Knowledge.VrfEd25519])
-          vkVRF <- a.vkVRF
+          vrfVK <- a.vrfVK // a.vkVRF
             .toRight("Missing vkVRF")
             .toEitherT[F]
             .flatMapF(_.toF[F, bifrostModels.VerificationKeys.VrfEd25519])
           thresholdEvidence <- EitherT(a.thresholdEvidence.toF[F, bifrostModels.Evidence])
           eta               <- EitherT(a.eta.toF[F, bifrostModels.Eta])
-        } yield bifrostModels.EligibilityCertificate(vrfSig, vkVRF, thresholdEvidence, eta)
+        } yield bifrostModels.EligibilityCertificate(vrfSig, vrfVK, thresholdEvidence, eta)
       ).flatMap(_.value)
     )
 }

@@ -42,19 +42,17 @@ case class Txo(box: Box, state: TxoState, id: Box.Id, address: Option[SpendingAd
    * <li>for Empty boxes this will be "EMPTY"</li>
    * <li>for Poly boxes this will be "LVL"</li>
    * <li>for Arbit boxes this will be "TOPL"</li>
-   * <li>for AssetV1 boxes that will be <i>version</i>|<i>address</i>, where <i>version</i> is the hex value of the
-   *     version byte and <i>address</i> is the base58 encoded address.
+   * <li>for AssetV1 boxes this will be the base58 encoded address.
    * <li>for TAM2 boxes (not implemented yet) will be <i>group</i>:<i>series</i>, where <i>group</i> is the base58
    *     encoded id of the group constructor and <i>series</i> is the base58 encoded id of the series constructor.</li>
    * </ul>
    */
   def assetLabel: String = box.value match {
-    case Empty    => "EMPTY"
-    case Poly(_)  => "LVL"
-    case Arbit(_) => "TOPL"
-    case AssetV1(_, assetCode, _, _) =>
-      assetCode.version.toHexString + "|" + Base58.encode(assetCode.issuer.typedEvidence.allBytes.toArray)
-    case v: AnyRef => unsupported(v)
+    case Empty                       => "EMPTY"
+    case Poly(_)                     => "LVL"
+    case Arbit(_)                    => "TOPL"
+    case AssetV1(_, assetCode, _, _) => Base58.encode(assetCode.issuer.typedEvidence.allBytes.toArray)
+    case v: AnyRef                   => unsupported(v)
   }
 
   def securityRoot: Option[Array[Byte]] = box.value match {

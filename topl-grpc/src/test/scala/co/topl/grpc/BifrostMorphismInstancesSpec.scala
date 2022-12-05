@@ -8,6 +8,7 @@ import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.Arbitrary
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
+import co.topl.proto.models
 
 class BifrostMorphismInstancesSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
