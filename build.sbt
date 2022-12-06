@@ -1,7 +1,7 @@
 import sbt.Keys.{homepage, organization, test}
 import sbtassembly.MergeStrategy
 
-val scala213 = "2.13.8"
+val scala213 = "2.13.10"
 
 inThisBuild(
   List(
@@ -17,6 +17,8 @@ inThisBuild(
     testFrameworks += TestFrameworks.MUnit
   )
 )
+
+Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
 enablePlugins(ReproducibleBuildsPlugin, ReproducibleBuildsAssemblyPlugin)
 
@@ -736,6 +738,10 @@ lazy val toplRpc = project
   )
   .dependsOn(akkaHttpRpc, common, jsonCodecs)
 
+// A task (meant to be run before compile) which ensures that the protobuf-specs git submodule is up-to-date
+// The protobuf specifications are defined in a remote repository and are downloaded locally for compilation.
+lazy val updateSubmodulesTask = TaskKey[Unit]("updateSubmodules", "Update git submodules")
+
 lazy val toplGrpc = project
   .in(file("topl-grpc"))
   .enablePlugins(Fs2Grpc)
@@ -743,7 +749,13 @@ lazy val toplGrpc = project
     name := "topl-grpc",
     commonSettings,
     libraryDependencies ++= Dependencies.toplGrpc,
-    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage
+    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
+    updateSubmodulesTask := {
+      import sys.process._
+      Process.apply(Seq("git", "submodule", "add", "-f", "git@github.com:Topl/protobuf-specs.git", "./topl-grpc/src/main/protobuf")).!
+      Process.apply(Seq("git", "checkout", Dependencies.protobufSpecsHash), Some(new File("./topl-grpc/src/main/protobuf"))).!
+    },
+    (Compile / compile) := (Compile / compile).dependsOn(updateSubmodulesTask).value
   )
   .dependsOn(
     models % "compile->compile;test->test",

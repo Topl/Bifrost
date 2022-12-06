@@ -64,7 +64,6 @@ trait EqInstances {
 
   implicit val assetCodeEq: Eq[Box.Values.AssetV1.Code] =
     (a, b) =>
-      a.version === b.version &&
       a.issuer === b.issuer &&
       a.shortName === b.shortName
 

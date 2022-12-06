@@ -36,7 +36,7 @@ object TransferBuilder {
   ): Either[BuildTransferFailure, PolyTransfer[P]] = {
     val polysOwed = request.to.map(_._2).sum
 
-    val inputBoxes: BoxSet = pickPolyAndArbitBoxesFromState(request.from, polysOwed, 0, boxSelection, boxReader)
+    val inputBoxes: BoxMap = pickPolyAndArbitBoxesFromState(request.from, polysOwed, 0, boxSelection, boxReader)
 
     val outputAddresses = request.to.map(_._1)
 
@@ -329,7 +329,7 @@ object TransferBuilder {
     assetsNeeded: Map[AssetCode, Int128],
     boxAlgorithm: BoxSelectionAlgorithm,
     state:        BoxReader[ProgramId, Address]
-  ): BoxSet = {
+  ): BoxMap = {
     val boxesFromState =
       addresses
         .flatMap(addr =>
@@ -338,10 +338,10 @@ object TransferBuilder {
             .getOrElse(List())
             .map(addr -> _)
         )
-        .foldLeft(BoxSet.empty) {
-          case (boxes, (addr, box: PolyBox))  => boxes.copy(polys = boxes.polys + (addr -> box))
-          case (boxes, (addr, box: ArbitBox)) => boxes.copy(arbits = boxes.arbits + (addr -> box))
-          case (boxes, (addr, box: AssetBox)) => boxes.copy(assets = boxes.assets + (addr -> box))
+        .foldLeft(BoxMap.empty) {
+          case (boxes, (addr, box: PolyBox))  => boxes.copy(polys = (boxes.polys :+ (addr -> box)).distinct)
+          case (boxes, (addr, box: ArbitBox)) => boxes.copy(arbits = (boxes.arbits :+ (addr -> box)).distinct)
+          case (boxes, (addr, box: AssetBox)) => boxes.copy(assets = (boxes.assets :+ (addr -> box)).distinct)
           case (boxes, _)                     => boxes
         }
 
@@ -363,7 +363,7 @@ object TransferBuilder {
     arbitsNeeded: Int128,
     boxSelection: BoxSelectionAlgorithm,
     state:        BoxReader[ProgramId, Address]
-  ): BoxSet =
+  ): BoxMap =
     pickBoxesFromState(addresses, polysNeeded, arbitsNeeded, Map.empty, boxSelection, state)
 
   /**

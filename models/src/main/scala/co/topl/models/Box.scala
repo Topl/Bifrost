@@ -24,7 +24,7 @@ object Box {
     ) extends Value
 
     object AssetV1 {
-      case class Code(version: Byte, issuer: SpendingAddress, shortName: Code.ShortName)
+      case class Code(issuer: SpendingAddress, shortName: Code.ShortName)
 
       object Code {
         type ShortName = Sized.Max[Latin1Data, Lengths.`8`.type]

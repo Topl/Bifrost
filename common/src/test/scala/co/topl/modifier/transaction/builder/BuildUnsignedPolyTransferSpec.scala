@@ -1,18 +1,15 @@
 package co.topl.modifier.transaction.builder
 
-import cats.implicits._
-import cats.data.NonEmptyChain
-import co.topl.attestation.{Address, PublicKeyPropositionCurve25519}
+import co.topl.attestation.{Address, Evidence, PublicKeyPropositionCurve25519}
 import co.topl.modifier.box.{PolyBox, SimpleValue}
-import co.topl.modifier.{BoxReader, ProgramId}
+import co.topl.modifier.transaction.builder.Generators._
+import co.topl.utils.encode.Base16
 import co.topl.utils.{CommonGenerators, Int128}
-import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import co.topl.modifier.transaction.builder.Generators._
 
 class BuildUnsignedPolyTransferSpec
     extends AnyFlatSpec
@@ -23,6 +20,57 @@ class BuildUnsignedPolyTransferSpec
     with EitherValues {
 
   behavior of "buildUnsignedPolyTransfer"
+
+  it should "construct an expected transaction given a fixed input" in {
+    val addressB = Address(
+      Evidence(Base16.decode("01b2f6eea5ede8c91af2d7228c29bd0586e0502107cba19a8df9c9f21ddee3d529").toOption.get)
+    )
+    val addressC = Address(
+      Evidence(Base16.decode("011c45ee2f221526357aa59e943ae83ed6db0809413426e75c325de39b849a36ba").toOption.get)
+    )
+
+    val polyBoxes = Seq(
+      PolyBox(
+        addressB.evidence,
+        2630159458189048846L,
+        SimpleValue(BigInt(40))
+      ),
+      PolyBox(
+        addressB.evidence,
+        3107467157757088833L,
+        SimpleValue(BigInt(40))
+      ),
+      PolyBox(
+        addressB.evidence,
+        -4026852029385248121L,
+        SimpleValue(BigInt(10))
+      ),
+      PolyBox(
+        addressB.evidence,
+        697302988258087177L,
+        SimpleValue(BigInt(20))
+      )
+    )
+
+    val fee = 0
+
+    val polysToSend = 10
+
+    val boxReader = MockBoxReader.fromSeq(addressB -> polyBoxes)
+
+    val request = TransferRequests.PolyTransferRequest(
+      List(addressB),
+      List(addressC -> polysToSend),
+      addressB,
+      fee,
+      None
+    )
+
+    TransferBuilder
+      .buildUnsignedPolyTransfer[PublicKeyPropositionCurve25519](boxReader, request, BoxSelectionAlgorithms.All)
+      .isRight shouldBe true
+
+  }
 
   it should "return invalid if not enough funds for fee" in {
     forAll(polyBoxesGen, addressGen, addressGen) { (polyBoxes, sender, recipient) =>

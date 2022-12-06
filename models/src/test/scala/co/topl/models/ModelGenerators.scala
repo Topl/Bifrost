@@ -334,10 +334,9 @@ trait ModelGenerators {
   implicit val arbitraryAssetCode: Arbitrary[Box.Values.AssetV1.Code] =
     Arbitrary(
       for {
-        version   <- byteGen
         issuer    <- arbitrarySpendingAddress.arbitrary
         shortName <- latin1DataGen.map(data => Latin1Data.unsafe(data.value.take(8)))
-        code = Box.Values.AssetV1.Code(version, issuer, Sized.maxUnsafe(shortName))
+        code = Box.Values.AssetV1.Code(issuer, Sized.maxUnsafe(shortName))
       } yield code
     )
 

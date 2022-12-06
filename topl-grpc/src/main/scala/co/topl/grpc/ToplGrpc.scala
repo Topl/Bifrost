@@ -5,7 +5,7 @@ import cats.data.{EitherT, OptionT}
 import cats.effect.kernel.{Async, Resource}
 import cats.implicits._
 import co.topl.algebras.{SynchronizationTraversalStep, SynchronizationTraversalSteps, ToplRpc}
-import co.topl.grpc.services._
+import co.topl.proto.services._
 import co.topl.models.TypedIdentifier
 import co.topl.{models => bifrostModels}
 import fs2.grpc.syntax.all._
@@ -13,6 +13,7 @@ import fs2.{Pipe, Stream}
 import io.grpc.netty.shaded.io.grpc.netty.{NettyChannelBuilder, NettyServerBuilder}
 import io.grpc.{Metadata, Server, Status}
 import java.net.InetSocketAddress
+import co.topl.proto.models
 
 object ToplGrpc {
 
@@ -37,7 +38,7 @@ object ToplGrpc {
         )
         .value
         .resource[F]
-        .flatMap(ToplGrpcFs2Grpc.stubResource[F])
+        .flatMap(NodeRpcFs2Grpc.stubResource[F])
         .map(client =>
           new ToplRpc[F, Stream[F, *]] {
 
@@ -47,7 +48,7 @@ object ToplGrpc {
                 .rethrowT
                 .flatMap(protoTransaction =>
                   client.broadcastTransaction(
-                    services.BroadcastTransactionReq(protoTransaction.some),
+                    BroadcastTransactionReq(protoTransaction.some),
                     new Metadata()
                   )
                 )
@@ -56,7 +57,7 @@ object ToplGrpc {
             def currentMempool(): F[Set[bifrostModels.TypedIdentifier]] =
               client
                 .currentMempool(
-                  services.CurrentMempoolReq(),
+                  CurrentMempoolReq(),
                   new Metadata()
                 )
                 .flatMap(p =>
@@ -77,7 +78,7 @@ object ToplGrpc {
                   .rethrowT
                   .flatMap(blockId =>
                     client.fetchBlockHeader(
-                      services.FetchBlockHeaderReq(blockId.some),
+                      FetchBlockHeaderReq(blockId.some),
                       new Metadata()
                     )
                   )
@@ -97,7 +98,7 @@ object ToplGrpc {
                   .rethrowT
                   .flatMap(blockId =>
                     client.fetchBlockBody(
-                      services.FetchBlockBodyReq(blockId.some),
+                      FetchBlockBodyReq(blockId.some),
                       new Metadata()
                     )
                   )
@@ -117,7 +118,7 @@ object ToplGrpc {
                   .rethrowT
                   .flatMap(transactionId =>
                     client.fetchTransaction(
-                      services.FetchTransactionReq(transactionId.some),
+                      FetchTransactionReq(transactionId.some),
                       new Metadata()
                     )
                   )
@@ -134,7 +135,7 @@ object ToplGrpc {
               OptionT(
                 client
                   .fetchBlockIdAtHeight(
-                    services.FetchBlockIdAtHeightReq(height),
+                    FetchBlockIdAtHeightReq(height),
                     new Metadata()
                   )
                   .map(_.blockId)
@@ -146,7 +147,7 @@ object ToplGrpc {
             def blockIdAtDepth(depth: Long): F[Option[TypedIdentifier]] =
               OptionT(
                 client
-                  .fetchBlockIdAtDepth(services.FetchBlockIdAtDepthReq(depth), new Metadata())
+                  .fetchBlockIdAtDepth(FetchBlockIdAtDepthReq(depth), new Metadata())
                   .map(_.blockId)
               )
                 .semiflatMap(_.toF[F, bifrostModels.TypedIdentifier])
@@ -157,7 +158,7 @@ object ToplGrpc {
               Async[F].delay {
                 client
                   .synchronizationTraversal(
-                    services.SynchronizationTraversalReq(),
+                    SynchronizationTraversalReq(),
                     new Metadata()
                   )
                   .evalMap[F, SynchronizationTraversalStep] { r =>
@@ -210,7 +211,7 @@ object ToplGrpc {
      * @param interpreter The interpreter which fulfills the data requests
      */
     def serve[F[_]: Async, S[_]](host: String, port: Int, interpreter: ToplRpc[F, Stream[F, *]]): Resource[F, Server] =
-      ToplGrpcFs2Grpc
+      NodeRpcFs2Grpc
         .bindServiceResource(
           new GrpcServerImpl(interpreter)
         )
@@ -223,7 +224,7 @@ object ToplGrpc {
         )
 
     private[grpc] class GrpcServerImpl[F[_]: MonadThrow, S[_]](interpreter: ToplRpc[F, Stream[F, *]])
-        extends services.ToplGrpcFs2Grpc[F, Metadata] {
+        extends NodeRpcFs2Grpc[F, Metadata] {
 
       def broadcastTransaction(in: BroadcastTransactionReq, ctx: Metadata): F[BroadcastTransactionRes] =
         in.transaction
@@ -237,7 +238,7 @@ object ToplGrpc {
           )
           .rethrowT
           .flatMap(interpreter.broadcastTransaction)
-          .as(services.BroadcastTransactionRes())
+          .as(BroadcastTransactionRes())
           .adaptErrorsToGrpc
 
       def currentMempool(in: CurrentMempoolReq, ctx: Metadata): F[CurrentMempoolRes] =
@@ -268,7 +269,7 @@ object ToplGrpc {
                   .rethrowT
               )
               .value
-              .map(services.FetchBlockHeaderRes(_))
+              .map(FetchBlockHeaderRes(_))
           )
           .adaptErrorsToGrpc
 
@@ -287,7 +288,7 @@ object ToplGrpc {
                   .rethrowT
               )
               .value
-              .map(services.FetchBlockBodyRes(_))
+              .map(FetchBlockBodyRes(_))
           )
           .adaptErrorsToGrpc
 
@@ -306,7 +307,7 @@ object ToplGrpc {
                   .rethrowT
               )
               .value
-              .map(services.FetchTransactionRes(_))
+              .map(FetchTransactionRes(_))
           )
           .adaptErrorsToGrpc
 
@@ -318,7 +319,7 @@ object ToplGrpc {
               .rethrowT
           )
           .value
-          .map(services.FetchBlockIdAtHeightRes(_))
+          .map(FetchBlockIdAtHeightRes(_))
           .adaptErrorsToGrpc
 
       def fetchBlockIdAtDepth(in: FetchBlockIdAtDepthReq, ctx: Metadata): F[FetchBlockIdAtDepthRes] =
@@ -329,7 +330,7 @@ object ToplGrpc {
               .rethrowT
           )
           .value
-          .map(services.FetchBlockIdAtDepthRes(_))
+          .map(FetchBlockIdAtDepthRes(_))
           .adaptErrorsToGrpc
 
       private def pipeSteps: Pipe[F, SynchronizationTraversalStep, SynchronizationTraversalRes] = { in =>
@@ -338,15 +339,15 @@ object ToplGrpc {
             EitherT(blockId.toF[F, models.BlockId])
               .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
               .rethrowT
-              .map(services.SynchronizationTraversalRes.Status.Applied)
-              .map(services.SynchronizationTraversalRes(_))
+              .map(SynchronizationTraversalRes.Status.Applied)
+              .map(SynchronizationTraversalRes(_))
 
           case SynchronizationTraversalSteps.Unapplied(blockId) =>
             EitherT(blockId.toF[F, models.BlockId])
               .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
               .rethrowT
-              .map(services.SynchronizationTraversalRes.Status.Unapplied)
-              .map(services.SynchronizationTraversalRes(_))
+              .map(SynchronizationTraversalRes.Status.Unapplied)
+              .map(SynchronizationTraversalRes(_))
         }
       }
 

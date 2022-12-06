@@ -69,7 +69,12 @@ object Blockchain {
       // todo check if queue is not blocked, should we try with subscribeAwait which return a Resource?
       toplRpcAdoptionConsumer   <- Async[F].delay(adoptionsTopic.subscribe(maxQueued = Int.MaxValue))
       localBlockAdoptionsSource <- _localBlockAdoptionsSource.toMat(BroadcastHub.sink)(Keep.right).liftTo[F]
-      (mempool, _localTransactionAdoptionsSource) <- MempoolBroadcaster.make(_mempool)
+      transactionAdoptionsTopic <- Topic[F, TypedIdentifier]
+      mempool                   <- MempoolBroadcaster.make(_mempool, transactionAdoptionsTopic)
+      mempoolTransactionAdoptionConsumer <- Async[F].delay(
+        transactionAdoptionsTopic.subscribe(maxQueued = Int.MaxValue)
+      )
+      _localTransactionAdoptionsSource <- mempoolTransactionAdoptionConsumer.toAkkaSource
       localTransactionAdoptionsSource <- _localTransactionAdoptionsSource.toMat(BroadcastHub.sink)(Keep.right).liftTo[F]
       clientHandler =
         List(

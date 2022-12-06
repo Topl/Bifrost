@@ -7,7 +7,8 @@ import cats.implicits._
 import co.topl.algebras.ToplRpc
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.grpc.services._
+import co.topl.proto.services._
+import co.topl.proto.models
 import co.topl.models.ModelGenerators._
 import co.topl.typeclasses.implicits._
 import co.topl.{models => bifrostModels}
