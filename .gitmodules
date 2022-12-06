@@ -1,3 +1,3 @@
 [submodule "topl-grpc/src/main/protobuf"]
 	path = topl-grpc/src/main/protobuf
-	url = git@github.com:Topl/protobuf-specs.git
+	url = https://github.com/Topl/protobuf-specs
