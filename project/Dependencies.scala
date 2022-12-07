@@ -66,7 +66,7 @@ object Dependencies {
   )
 
   val scalaCollectionCompat = Seq(
-    "org.scala-lang.modules" %% "scala-collection-compat" % "2.8.1"
+    "org.scala-lang.modules" %% "scala-collection-compat" % "2.9.0"
   )
 
   val circe = Seq(
