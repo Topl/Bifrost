@@ -62,7 +62,7 @@ object Dependencies {
 
   val network = Seq(
     "org.bitlet"  % "weupnp"      % "0.1.4",
-    "commons-net" % "commons-net" % "3.8.0"
+    "commons-net" % "commons-net" % "3.9.0"
   )
 
   val scalaCollectionCompat = Seq(
