@@ -1,8 +1,8 @@
 package co.topl.genusLibrary
 
 import co.topl.genusLibrary.orientDb.OrientDBFacade
-import co.topl.typeclasses.Log._
 import co.topl.typeclasses.Log
+import co.topl.typeclasses.Log._
 import com.typesafe.scalalogging.Logger
 
 import scala.util.{Success, Try}

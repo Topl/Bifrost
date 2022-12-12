@@ -1,15 +1,21 @@
 package co.topl.genusLibrary.orientDb
 
+import cats.effect.kernel.Async
+import cats.implicits._
+import co.topl.genusLibrary.orientDb.wrapper.OrientBatchGraph
 import co.topl.genusLibrary.{Genus, GenusException}
 import co.topl.typeclasses.Log._
 import com.orientechnologies.orient.core.sql.OCommandSQL
-import com.tinkerpop.blueprints.impls.orient.{OrientGraphFactory, OrientGraphNoTx}
+import com.tinkerpop.blueprints.Vertex
+import com.tinkerpop.blueprints.impls.orient.{OrientGraph, OrientGraphFactory, OrientGraphNoTx, OrientVertexType}
+import com.tinkerpop.blueprints.util.wrappers.batch.{BatchGraph, VertexIDType}
 import com.typesafe.scalalogging.Logger
 
 import java.io.{File, FileInputStream, FileOutputStream}
 import java.nio.charset.Charset
 import scala.annotation.unused
 import scala.collection.mutable
+import scala.jdk.javaapi.CollectionConverters.asScala
 import scala.util.{Random, Success, Try}
 
 /**
@@ -26,16 +32,61 @@ class OrientDBFacade(dir: File, password: String) {
   @unused
   private val graphMetadata = initializeDatabase(factory, password)
 
+  def getBatchGraph: OrientBatchGraph = new OrientBatchGraph(graphMetadata.graph)
+
+  type VertexTypeName = String
+  type PropertyKey = String
+  type PropertyQuery = (PropertyKey, AnyRef)
+
+  // TODO Unify VertexTypeName and PropertyKey with VertexSchema (VertexSchema.BlockHeader.BlockId)
+  def getVertex[F[_] : Async](
+                   vertexTypeName: VertexTypeName,
+                   filterKey: PropertyKey,
+                   filterValue: AnyRef
+                 ): F[Option[Vertex]] =
+    getVertex(vertexTypeName, Set((filterKey, filterValue)))
+
+  def getVertex[F[_] : Async](
+                   vertexTypeName: VertexTypeName,
+                   propertiesFilter: Set[PropertyQuery]
+                 ): F[Option[Vertex]] =
+    getVertices(vertexTypeName, propertiesFilter)
+      .map(_.headOption)
+
+  def getVertices[F[_] : Async](
+                 vertexTypeName: VertexTypeName,
+                 filterKey: PropertyKey,
+                 filterValue: AnyRef
+               ): F[Iterable[Vertex]] =
+    getVertices(vertexTypeName, Set((filterKey, filterValue)))
+
+  def getVertices[F[_] : Async](
+    vertexTypeName:   VertexTypeName,
+    propertiesFilter: Set[PropertyQuery]
+  ): F[Iterable[Vertex]] = {
+    val (keys, values) = propertiesFilter.foldLeft((List.empty[PropertyKey], List.empty[Object])) {
+      case ((keys, values), (currentKey, currentValue)) => (currentKey :: keys, currentValue :: values)
+    }
+    asScala(
+      graphMetadata.graphNoTx.getVertices(vertexTypeName, keys.toArray, values.toArray)
+    )
+      .pure[F]
+  }
+
   private def initializeDatabase(factory: OrientGraphFactory, password: String) = {
-    val session: OrientGraphNoTx = factory.getNoTx
+    val sessionNoTx: OrientGraphNoTx = factory.getNoTx
+    val session: OrientGraph = factory.getTx
+
     try {
-      session.setUseLightweightEdges(true)
+      sessionNoTx.setUseLightweightEdges(true)
       logger.info("Changing password")
-      session.command(new OCommandSQL(s"UPDATE OUser SET password='$password' WHERE name='$dbUserName'")).execute()
+      sessionNoTx.command(new OCommandSQL(s"UPDATE OUser SET password='$password' WHERE name='$dbUserName'")).execute()
       logger.info("Configuring Schema")
-      new GenusGraphMetadata(session)
-    } finally
+      new GenusGraphMetadata(session, sessionNoTx)
+    } finally {
+      sessionNoTx.shutdown()
       session.shutdown()
+    }
   }
 
   private def fileToPlocalUrl(dir: File): String =

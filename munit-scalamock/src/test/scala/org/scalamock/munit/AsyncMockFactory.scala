@@ -15,6 +15,12 @@ trait AsyncMockFactory extends MockContext with Mock with MockFunctions with Mat
 
   implicit val _factory = this
 
+
+  def withMock[Res](test: => Res): Res = {
+    import cats.effect.unsafe.implicits.global
+    withMock(IO.pure(test)).unsafeRunSync()
+  }
+
   def withMock[Res](test: => IO[Res]): IO[Res] = {
     if (expectationContext == null) {
       // we don't reset expectations for the first test case to allow

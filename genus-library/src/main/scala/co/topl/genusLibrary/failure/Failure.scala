@@ -14,6 +14,10 @@ object Failures {
         s"Block doesn't have a previous header vertex. blockId=[$blockId] parentHeaderId=[$parentHeaderId]"
       )
 
+  case class MissingInputVerticesFailure(inputs: Set[Set[(String, AnyRef)]]) extends Failure(
+    s"One or more input vertices are missing. QueryParameters=$inputs"
+  )
+
   case class NoBlockHeaderFoundOnNodeFailure(blockId: TypedIdentifier)
       extends Failure(s"Block header wasn't found. BlockId=[$blockId]")
 
