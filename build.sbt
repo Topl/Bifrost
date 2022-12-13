@@ -207,7 +207,8 @@ lazy val bifrost = project
     crypto,
     catsAkka,
 //    brambl,
-    models,
+    models, // TODO remove BN-714 PR v2
+    protobuf,
     numerics,
     eventTree,
     algebras,
@@ -272,7 +273,7 @@ lazy val nodeTetra = project
   .configs(IntegrationTest)
   .settings(
     IntegrationTest / parallelExecution := false,
-    classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat //required for correct loading https://github.com/kamon-io/sbt-kanela-runner
+    classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat // required for correct loading https://github.com/kamon-io/sbt-kanela-runner
   )
   .dependsOn(
     models % "compile->compile;test->test",
@@ -401,6 +402,7 @@ lazy val akkaHttpRpc = project
     buildInfoPackage := "co.topl.buildinfo.akkahttprpc"
   )
 
+// TODO remve BN-714 , PR v2
 lazy val models = project
   .in(file("models"))
   .enablePlugins(BuildInfoPlugin)
@@ -416,6 +418,36 @@ lazy val models = project
     libraryDependencies ++= Dependencies.models
   )
   .settings(libraryDependencies ++= Dependencies.test)
+
+// A task (meant to be run before compile) which ensures that the protobuf-specs git submodule is up-to-date
+// The protobuf specifications are defined in a remote repository and are downloaded locally for compilation.
+lazy val updateSubmodulesTask = TaskKey[Unit]("updateSubmodules", "Update git submodules")
+
+lazy val protobuf = project
+  .in(file("protobuf"))
+  .enablePlugins(BuildInfoPlugin, Fs2Grpc)
+  .settings(
+    name := "protobuf",
+    commonSettings,
+    publishSettings,
+    scalamacrosParadiseSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.protobuf",
+    libraryDependencies ++= Dependencies.protobuf ++ Dependencies.test,
+    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
+    updateSubmodulesTask := {
+      import sys.process._
+      Process
+        .apply(
+          Seq("git", "submodule", "add", "-f", "git@github.com:Topl/protobuf-specs.git", "./protobuf/src/main/protobuf")
+        )
+        .!
+      Process
+        .apply(Seq("git", "checkout", Dependencies.protobufSpecsHash), Some(new File("./protobuf/src/main/protobuf")))
+        .!
+    },
+    (Compile / compile) := (Compile / compile).dependsOn(updateSubmodulesTask).value
+  )
 
 lazy val numerics = project
   .in(file("numerics"))
@@ -738,27 +770,16 @@ lazy val toplRpc = project
   )
   .dependsOn(akkaHttpRpc, common, jsonCodecs)
 
-// A task (meant to be run before compile) which ensures that the protobuf-specs git submodule is up-to-date
-// The protobuf specifications are defined in a remote repository and are downloaded locally for compilation.
-lazy val updateSubmodulesTask = TaskKey[Unit]("updateSubmodules", "Update git submodules")
-
 lazy val toplGrpc = project
   .in(file("topl-grpc"))
-  .enablePlugins(Fs2Grpc)
   .settings(
     name := "topl-grpc",
     commonSettings,
-    libraryDependencies ++= Dependencies.toplGrpc,
-    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
-    updateSubmodulesTask := {
-      import sys.process._
-      Process.apply(Seq("git", "submodule", "add", "-f", "git@github.com:Topl/protobuf-specs.git", "./topl-grpc/src/main/protobuf")).!
-      Process.apply(Seq("git", "checkout", Dependencies.protobufSpecsHash), Some(new File("./topl-grpc/src/main/protobuf"))).!
-    },
-    (Compile / compile) := (Compile / compile).dependsOn(updateSubmodulesTask).value
+    libraryDependencies ++= Dependencies.toplGrpc
   )
   .dependsOn(
     models % "compile->compile;test->test",
+    protobuf,
     byteCodecs,
     tetraByteCodecs,
     algebras,
@@ -900,7 +921,7 @@ lazy val genusLibrary = project
     models % "compile->compile;test->test",
     tetraByteCodecs,
     toplGrpc,
-    munitScalamock % "test->test",
+    munitScalamock % "test->test"
   )
 
 lazy val munitScalamock = project

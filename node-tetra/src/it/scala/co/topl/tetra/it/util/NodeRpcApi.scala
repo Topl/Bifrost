@@ -3,7 +3,6 @@ package co.topl.tetra.it.util
 import cats.Monad
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.implicits.catsSyntaxApplicativeError
 import co.topl.algebras.ToplRpc
 import co.topl.grpc.ToplGrpc
 import co.topl.tetra.it.util.NodeRpcApi.{rpcWaitAttempts, rpcWaitSleepMs}
