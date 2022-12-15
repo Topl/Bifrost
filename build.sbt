@@ -754,14 +754,17 @@ lazy val toplGrpc = project
       import sys.process._
       require(
         Process(
-          Seq("git", "submodule", "add", "-f", "https://github.com/Topl/protobuf-specs", "./topl-grpc/src/main/protobuf")
+          Seq("git", "submodule", "init")
         ).! == 0
       )
       require(
         Process(
-          Seq("git", "checkout", Dependencies.protobufSpecsHash),
-          Some(new File("./topl-grpc/src/main/protobuf")
-          )
+          Seq("git", "submodule", "foreach", "'git pull'")
+        ).! == 0
+      )
+      require(
+        Process(
+          Seq("git", "submodule", "update")
         ).! == 0
       )
     },
