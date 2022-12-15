@@ -752,21 +752,10 @@ lazy val toplGrpc = project
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
     updateSubmodulesTask := {
       import sys.process._
-      require(
-        Process(
-          Seq("git", "submodule", "init")
-        ).! == 0
-      )
-      require(
-        Process(
-          Seq("git", "submodule", "foreach", "'git pull'")
-        ).! == 0
-      )
-      require(
-        Process(
-          Seq("git", "submodule", "update")
-        ).! == 0
-      )
+      require(Process(Seq("git", "submodule", "init")).! == 0)
+      require(Process(Seq("git", "submodule", "foreach", "'git pull'")).! == 0)
+      require(Process(Seq("git", "submodule", "update")).! == 0)
+      require(Process.apply(Seq("git", "checkout", Dependencies.protobufSpecsHash), Some(new File("./topl-grpc/src/main/protobuf"))).! == 0)
     },
     (Compile / compile) := (Compile / compile).dependsOn(updateSubmodulesTask).value
   )
