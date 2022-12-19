@@ -7,7 +7,7 @@ import org.scalatest.{BeforeAndAfterAll, EitherValues, OptionValues}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-import ModelGenerators._
+import co.topl.ModelGenerators._
 
 class ProposerSpec
     extends AnyFlatSpec

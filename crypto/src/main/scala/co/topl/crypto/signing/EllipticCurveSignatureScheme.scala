@@ -2,15 +2,15 @@ package co.topl.crypto.signing
 
 import co.topl.crypto.generation.EntropyToSeed
 import co.topl.crypto.generation.mnemonic.Entropy
-import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.{Length, Sized}
-import co.topl.models.{Bytes, Proof, SecretKey, VerificationKey}
-
+import co.topl.protobuf.utility.HasLength.instances.bytesLength
+import co.topl.protobuf.utility.{Length, Sized}
+import co.topl.protobuf.Bytes
+import co.topl.proto.models.{Proof, VerificationKey, Proposition}
 import java.security.SecureRandom
 
 /* Forked from https://github.com/input-output-hk/scrypto */
 
-abstract class EllipticCurveSignatureScheme[SK <: SecretKey, VK <: VerificationKey, SIG <: Proof, SeedLength <: Length](
+abstract class EllipticCurveSignatureScheme[SK <: Proposition, VK <: VerificationKey, SIG <: Proof, SeedLength <: Length](
   implicit seedLength: SeedLength
 ) {
 

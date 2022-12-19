@@ -2,8 +2,12 @@ package co.topl.typeclasses
 
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.crypto.signing.{Curve25519, Ed25519, ExtendedEd25519}
+import co.topl.crypto.signing.Ed25519
 import co.topl.models._
+import co.topl.models.utility.Sized
+import co.topl.proto.models.{PropositionKnowledgeEd25519, VerificationKeyEd25519}
+import com.google.protobuf.ByteString
+import co.topl.models.utility.HasLength.instances.bytesLength
 
 @simulacrum.typeclass
 trait Prover[ProofInput] {
@@ -21,19 +25,20 @@ object Prover {
 
   trait Instances {
 
-    implicit val curve25519Proves: Prover[(SecretKeys.Curve25519, Transaction.Unproven)] =
-      (t: (SecretKeys.Curve25519, Transaction.Unproven)) => Curve25519.instance.sign(t._1, t._2.signableBytes)
-
+    // TODO in PR BN-714 v3, we should stop depending typeclasses on models, and move to proto Models
     implicit def ed25519Proves(implicit
       ed: Ed25519
     ): Prover[(SecretKeys.Ed25519, Transaction.Unproven)] =
-      (t: (SecretKeys.Ed25519, Transaction.Unproven)) => ed.sign(t._1, t._2.signableBytes)
-
-    implicit def extendedEd25519Proves(implicit
-      extendedEd: ExtendedEd25519
-    ): Prover[(SecretKeys.ExtendedEd25519, Transaction.Unproven)] =
-      (t: (SecretKeys.ExtendedEd25519, Transaction.Unproven)) => extendedEd.sign(t._1, t._2.signableBytes)
-
+      (t: (SecretKeys.Ed25519, Transaction.Unproven)) => {
+        val privateKey: PropositionKnowledgeEd25519 =
+          PropositionKnowledgeEd25519.of(Some(
+            VerificationKeyEd25519.of(
+              ByteString.copyFrom(t._1.bytes.data.toArray)
+            )
+          ))
+        val proofKnowledgeEd2551 = ed.sign(privateKey, t._2.signableBytes)
+        Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(proofKnowledgeEd2551.value.toByteArray)))
+      }
   }
 
   object instances extends Instances

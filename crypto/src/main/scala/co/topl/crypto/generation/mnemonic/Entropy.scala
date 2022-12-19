@@ -3,7 +3,7 @@ package co.topl.crypto.generation.mnemonic
 import cats.implicits._
 import co.topl.crypto.generation.mnemonic.EntropyFailures.InvalidByteSize
 import co.topl.crypto.generation.mnemonic.Language.LanguageWordList
-import co.topl.models.Bytes
+import co.topl.protobuf.Bytes
 
 import java.util.UUID
 

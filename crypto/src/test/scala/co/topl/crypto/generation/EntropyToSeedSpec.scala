@@ -3,8 +3,8 @@ package co.topl.crypto.generation
 import cats.scalatest.EitherValues
 import co.topl.crypto.generation.mnemonic.{Entropy, EntropyTestVectorHelper}
 import co.topl.crypto.utils.{Hex, TestVector}
-import co.topl.models.Bytes
-import co.topl.models.utility.Lengths
+import co.topl.protobuf.Bytes
+import co.topl.protobuf.utility.Lengths
 import io.circe.generic.semiauto.deriveDecoder
 import io.circe.{Decoder, HCursor}
 import org.scalatest.matchers.should.Matchers

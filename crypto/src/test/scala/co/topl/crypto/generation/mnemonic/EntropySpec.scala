@@ -10,7 +10,7 @@ import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import co.topl.crypto.utils.EntropySupport._
 import org.scalatest.EitherValues
-import co.topl.models.Bytes
+import co.topl.protobuf.Bytes
 
 class EntropySpec
     extends AnyPropSpec

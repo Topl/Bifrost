@@ -1,7 +1,7 @@
 package co.topl.crypto.utils
 
 import co.topl.crypto.generation.mnemonic.{MnemonicSize, MnemonicSizes}
-import co.topl.models.Bytes
+import co.topl.protobuf.Bytes
 import org.scalacheck.{Arbitrary, Gen}
 
 object Generators {

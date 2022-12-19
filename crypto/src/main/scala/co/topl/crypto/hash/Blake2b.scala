@@ -1,9 +1,9 @@
 package co.topl.crypto.hash
 
 import co.topl.crypto.hash.digest.Digest
-import co.topl.models.Bytes
-import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.{Lengths, Sized}
+import co.topl.protobuf.Bytes
+import co.topl.protobuf.utility.HasLength.instances.bytesLength
+import co.topl.protobuf.utility.{Lengths, Sized}
 import org.bouncycastle.crypto.digests.Blake2bDigest
 
 abstract class Blake2bHash[D: Digest] extends Hash[Blake2b, D] {

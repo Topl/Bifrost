@@ -1,8 +1,8 @@
 package co.topl.crypto.utils
 
-import co.topl.models.Bytes
-import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.{Length, Sized}
+import co.topl.protobuf.Bytes
+import co.topl.protobuf.utility.HasLength.instances.bytesLength
+import co.topl.protobuf.utility.{Length, Sized}
 
 object Hex {
 

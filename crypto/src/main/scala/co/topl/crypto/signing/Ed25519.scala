@@ -1,15 +1,16 @@
 package co.topl.crypto.signing
 
-import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.Sized
-import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
+import co.topl.protobuf.utility.Sized
+import co.topl.protobuf.{Bytes, Ed25519Sized}
+import co.topl.proto.models.{ProofKnowledgeEd25519, PropositionKnowledgeEd25519, VerificationKeyEd25519}
+import com.google.protobuf.ByteString
 
 class Ed25519
     extends EllipticCurveSignatureScheme[
-      SecretKeys.Ed25519,
-      VerificationKeys.Ed25519,
-      Proofs.Knowledge.Ed25519,
-      SecretKeys.Ed25519.Length
+      PropositionKnowledgeEd25519,
+      VerificationKeyEd25519,
+      ProofKnowledgeEd25519,
+      Ed25519Sized.Length
     ] {
   private val impl = new eddsa.Ed25519
   impl.precompute()
@@ -18,17 +19,26 @@ class Ed25519
   override val KeyLength: Int = impl.SECRET_KEY_SIZE
 
   override def deriveKeyPairFromSeed(
-    seed: Sized.Strict[Bytes, SecretKeys.Ed25519.Length]
-  ): (SecretKeys.Ed25519, VerificationKeys.Ed25519) = {
-    val secretKey = SecretKeys.Ed25519(Sized.strictUnsafe(Bytes(seed.data.toArray)))
+    seed: Sized.Strict[Bytes, Ed25519Sized.Length]
+  ): (PropositionKnowledgeEd25519, VerificationKeyEd25519) = {
+    val secretKey = PropositionKnowledgeEd25519.of(
+      Some(
+        VerificationKeyEd25519.of(
+          ByteString.copyFrom(
+            Ed25519Sized.verificationKeyEd25519(seed.data.toArray)
+          )
+        )
+      )
+    )
+
     val verificationKey = getVerificationKey(secretKey)
     secretKey -> verificationKey
   }
 
-  override def sign(privateKey: SecretKeys.Ed25519, message: Bytes): Proofs.Knowledge.Ed25519 = {
+  override def sign(privateKey: PropositionKnowledgeEd25519, message: Bytes): ProofKnowledgeEd25519 = {
     val sig = new Array[Byte](impl.SIGNATURE_SIZE)
     impl.sign(
-      privateKey.bytes.data.toArray,
+      privateKey.getKey.value.toByteArray,
       0,
       message.toArray,
       0,
@@ -37,16 +47,20 @@ class Ed25519
       0
     )
 
-    Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(sig)))
+    ProofKnowledgeEd25519.of(
+      ByteString.copyFrom(
+        Ed25519Sized.proofEd25519(sig)
+      )
+    )
   }
 
   override def verify(
-    signature: Proofs.Knowledge.Ed25519,
+    signature: ProofKnowledgeEd25519,
     message:   Bytes,
-    publicKey: VerificationKeys.Ed25519
+    publicKey: VerificationKeyEd25519
   ): Boolean = {
-    val sigByteArray = signature.bytes.data.toArray
-    val vkByteArray = publicKey.bytes.data.toArray
+    val sigByteArray = signature.value.toByteArray
+    val vkByteArray = publicKey.value.toByteArray
     val msgByteArray = message.toArray
 
     sigByteArray.length == impl.SIGNATURE_SIZE &&
@@ -62,10 +76,15 @@ class Ed25519
     )
   }
 
-  override def getVerificationKey(secretKey: SecretKeys.Ed25519): VerificationKeys.Ed25519 = {
+  override def getVerificationKey(secretKey: PropositionKnowledgeEd25519): VerificationKeyEd25519 = {
     val pkBytes = new Array[Byte](impl.PUBLIC_KEY_SIZE)
-    impl.generatePublicKey(secretKey.bytes.data.toArray, 0, pkBytes, 0)
-    VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(pkBytes)))
+    impl.generatePublicKey(secretKey.getKey.value.toByteArray, 0, pkBytes, 0)
+    VerificationKeyEd25519.of(
+      ByteString.copyFrom(
+        Ed25519Sized.verificationKeyEd25519(pkBytes)
+      )
+    )
+
   }
 }
 

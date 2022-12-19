@@ -2,9 +2,9 @@ package co.topl.crypto.generation
 
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing.Password
-import co.topl.models.Bytes
-import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.{Length, Sized}
+import co.topl.protobuf.Bytes
+import co.topl.protobuf.utility.HasLength.instances._
+import co.topl.protobuf.utility.{Length, Sized}
 import org.bouncycastle.crypto.digests.SHA512Digest
 import org.bouncycastle.crypto.generators.PKCS5S2ParametersGenerator
 import org.bouncycastle.crypto.params.KeyParameter

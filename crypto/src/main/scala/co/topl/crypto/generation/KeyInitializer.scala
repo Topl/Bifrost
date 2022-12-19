@@ -4,12 +4,13 @@ import cats.implicits._
 import co.topl.crypto.generation.InitializationFailures.InvalidSizeByteLength
 import co.topl.crypto.generation.mnemonic.{Entropy, EntropyFailure, Language}
 import co.topl.crypto.signing._
-import co.topl.models._
-import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.Sized
+import co.topl.proto.models.{PropositionKnowledgeEd25519, VerificationKeyEd25519}
+import co.topl.protobuf._
+import co.topl.protobuf.utility.HasLength.instances._
+import co.topl.protobuf.utility.Sized
+import com.google.protobuf.ByteString
 import scodec.bits.BitVector
 import simulacrum.typeclass
-
 import java.util.UUID
 
 @typeclass trait KeyInitializer[SK] {
@@ -61,76 +62,28 @@ object KeyInitializer {
 
   trait Instances {
 
-    implicit def curve25519Initializer(implicit curve25519: Curve25519): KeyInitializer[SecretKeys.Curve25519] =
-      new KeyInitializer[SecretKeys.Curve25519] {
+    implicit def ed25519Initializer(implicit ed25519: Ed25519): KeyInitializer[PropositionKnowledgeEd25519] =
+      new KeyInitializer[PropositionKnowledgeEd25519] {
 
-        override def random(): SecretKeys.Curve25519 =
+        override def random(): PropositionKnowledgeEd25519 =
           fromEntropy(Entropy.fromUuid(UUID.randomUUID()), password = Some(""))
 
-        override def fromEntropy(entropy: Entropy, password: Option[Password]): SecretKeys.Curve25519 =
-          curve25519.deriveKeyPairFromEntropy(entropy, password)._1
-
-        override def fromBytes(bytes: Bytes): Either[InvalidSizeByteLength, SecretKeys.Curve25519] =
-          Sized
-            .strict[Bytes, SecretKeys.Curve25519.Length](bytes)
-            .map(SecretKeys.Curve25519(_))
-            .leftMap(InitializationFailures.InvalidSizeByteLength)
-      }
-
-    implicit def ed25519Initializer(implicit ed25519: Ed25519): KeyInitializer[SecretKeys.Ed25519] =
-      new KeyInitializer[SecretKeys.Ed25519] {
-
-        override def random(): SecretKeys.Ed25519 =
-          fromEntropy(Entropy.fromUuid(UUID.randomUUID()), password = Some(""))
-
-        override def fromEntropy(entropy: Entropy, password: Option[Password]): SecretKeys.Ed25519 =
+        override def fromEntropy(entropy: Entropy, password: Option[Password]): PropositionKnowledgeEd25519 =
           ed25519.deriveKeyPairFromEntropy(entropy, password)._1
 
-        override def fromBytes(bytes: Bytes): Either[InvalidSizeByteLength, SecretKeys.Ed25519] =
+        override def fromBytes(bytes: Bytes): Either[InvalidSizeByteLength, PropositionKnowledgeEd25519] =
           Sized
-            .strict[Bytes, SecretKeys.Ed25519.Length](bytes)
-            .map(SecretKeys.Ed25519(_))
+            .strict[Bytes, Ed25519Sized.Length](bytes)
+            .map(sized =>
+              PropositionKnowledgeEd25519.of(
+                Some(
+                  VerificationKeyEd25519.of(
+                    ByteString.copyFrom(sized.data.toArray)
+                  )
+                )
+              )
+            )
             .leftMap(InitializationFailures.InvalidSizeByteLength)
-
-      }
-
-    implicit def vrfInitializer(implicit ed25519VRF: Ed25519VRF): KeyInitializer[SecretKeys.VrfEd25519] =
-      new KeyInitializer[SecretKeys.VrfEd25519] {
-
-        def random(): SecretKeys.VrfEd25519 =
-          fromEntropy(Entropy.fromUuid(UUID.randomUUID()), password = Some(""))
-
-        def fromEntropy(entropy: Entropy, password: Option[Password]): SecretKeys.VrfEd25519 =
-          ed25519VRF.deriveKeyPairFromEntropy(entropy, password)._1
-
-        override def fromBytes(bytes: Bytes): Either[InvalidSizeByteLength, SecretKeys.VrfEd25519] =
-          Sized
-            .strict[Bytes, SecretKeys.VrfEd25519.Length](bytes)
-            .map(SecretKeys.VrfEd25519(_))
-            .leftMap(InitializationFailures.InvalidSizeByteLength)
-      }
-
-    implicit def extendedEd25519Initializer(implicit
-      extendedEd25519: ExtendedEd25519
-    ): KeyInitializer[SecretKeys.ExtendedEd25519] =
-      new KeyInitializer[SecretKeys.ExtendedEd25519] {
-
-        def random(): SecretKeys.ExtendedEd25519 =
-          fromEntropy(Entropy.fromUuid(UUID.randomUUID()), password = Some(""))
-
-        def fromEntropy(entropy: Entropy, password: Option[Password]): SecretKeys.ExtendedEd25519 =
-          extendedEd25519.deriveKeyPairFromEntropy(entropy, password)._1
-
-        def fromBytes(bytes: Bytes): Either[InitializationFailure, SecretKeys.ExtendedEd25519] = for {
-          _ <- Either.cond(bytes.length == 96, bytes, InitializationFailures.InvalidByteLength)
-          left = bytes.slice(0, 32)
-          right = bytes.slice(32, 64)
-          chainCode = bytes.slice(64, 96)
-        } yield SecretKeys.ExtendedEd25519(
-          Sized.strictUnsafe(left),
-          Sized.strictUnsafe(right),
-          Sized.strictUnsafe(chainCode)
-        )
 
       }
   }

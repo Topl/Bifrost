@@ -5,7 +5,7 @@ import co.topl.codecs.bytes.typeclasses.ImmutableCodec
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.crypto.hash.Blake2b256
 import co.topl.models._
-import co.topl.models.utility.Ratio
+import co.topl.models.utility.{Lengths, Ratio, Sized}
 import simulacrum.{op, typeclass}
 
 @typeclass trait ContainsEvidence[T] {
@@ -15,7 +15,14 @@ import simulacrum.{op, typeclass}
 object ContainsEvidence {
 
   def fromImmutableCodec[T: ImmutableCodec](prefix: Byte): ContainsEvidence[T] =
-    (t: T) => TypedEvidence(prefix, new Blake2b256().hash(t.immutableBytes))
+    (t: T) => {
+      // TODO in PR BN-714 v3, we should stop depending typeclasses on models, and move to proto Models
+      // found:   co.topl.protobuf.utility.Sized.Strict[scodec.bits.ByteVector,co.topl.protobuf.utility.Lengths.32.type]
+      // require: co.topl.models.utility.Sized.Strict[scodec.bits.ByteVector,co.topl.models.utility.Lengths.32.type]
+      // this is a safe cast, Strict type is the same
+      TypedEvidence(prefix, new Blake2b256().hash(t.immutableBytes).asInstanceOf[co.topl.models.utility.Sized.Strict[scodec.bits.ByteVector,co.topl.models.utility.Lengths.`32`.type]])
+
+    }
 
   object TypePrefixes {
     final val VerificationKeysCurve25519: Byte = 1

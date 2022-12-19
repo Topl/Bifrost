@@ -22,8 +22,6 @@ package object typeclasses {
       with RatioOps.Implicits
       with ContainsVerificationKey.Instances
       with ContainsVerificationKey.ToContainsVerificationKeyOps
-      with Evolves.Instances
-      with Evolves.ToEvolvesOps
       with Proposer.Instances
       with Proposer.Implicits
       with Proposer.ToProposerOps

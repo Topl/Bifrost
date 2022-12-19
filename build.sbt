@@ -486,12 +486,10 @@ lazy val byteCodecs = project
     commonSettings,
     publishSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "co.topl.buildinfo.codecs.bytes"
+    buildInfoPackage := "co.topl.buildinfo.codecs.bytes",
+    libraryDependencies ++= Dependencies.byteCodecs,
+    scalamacrosParadiseSettings
   )
-  .settings(
-    libraryDependencies ++= Dependencies.byteCodecs
-  )
-  .settings(scalamacrosParadiseSettings)
 
 lazy val tetraByteCodecs = project
   .in(file("tetra-byte-codecs"))
@@ -505,7 +503,11 @@ lazy val tetraByteCodecs = project
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.guava)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models % "compile->compile;test->test", byteCodecs % "compile->compile;test->test", crypto)
+  .dependsOn(
+    models % "compile->compile;test->test",
+    byteCodecs % "compile->compile;test->test",
+    crypto
+  )
 
 lazy val jsonCodecs = project
   .in(file("json-codecs"))
@@ -839,7 +841,10 @@ lazy val crypto = project
     buildInfoPackage := "co.topl.buildinfo.crypto",
     libraryDependencies ++= Dependencies.crypto
   )
-  .dependsOn(models % "compile->compile;test->test")
+  .dependsOn(
+//    models % "compile->compile;test->test",
+    protobuf % "compile->compile;test->test"
+  )
 
 lazy val catsAkka = project
   .in(file("cats-akka"))

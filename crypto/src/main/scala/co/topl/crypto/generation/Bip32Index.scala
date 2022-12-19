@@ -1,9 +1,9 @@
 package co.topl.crypto.generation
 
 import co.topl.crypto.generation.Bip32Indexes.{HardenedIndex, SoftIndex}
-import co.topl.models.Bytes
-import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.{Lengths, Sized}
+import co.topl.protobuf.Bytes
+import co.topl.protobuf.utility.HasLength.instances._
+import co.topl.protobuf.utility.{Lengths, Sized}
 
 import java.nio.{ByteBuffer, ByteOrder}
 

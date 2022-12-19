@@ -4,7 +4,7 @@ import co.topl.crypto.accumulators.{LeafData, Side}
 import co.topl.crypto.hash.Hash
 import co.topl.crypto.hash.digest.Digest
 import co.topl.crypto.hash.digest.implicits._
-import co.topl.models.Bytes
+import co.topl.protobuf.Bytes
 
 import scala.annotation.tailrec
 

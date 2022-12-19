@@ -1,7 +1,7 @@
 package co.topl.typeclasses
 
 import co.topl.crypto.signing.{Curve25519, Ed25519, ExtendedEd25519}
-import co.topl.models.ModelGenerators._
+import co.topl.ModelGenerators._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.models._
