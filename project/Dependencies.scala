@@ -329,7 +329,11 @@ object Dependencies {
     Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++
     Seq(fs2Core, fs2IO, fs2ReactiveStreams)
 
+  // TODO remove BN-714, PR v2
   lazy val models: Seq[ModuleID] =
+    cats ++ simulacrum ++ newType ++ scodec
+
+  lazy val protobuf: Seq[ModuleID] =
     cats ++ simulacrum ++ newType ++ scodec
 
   lazy val consensus: Seq[ModuleID] =
