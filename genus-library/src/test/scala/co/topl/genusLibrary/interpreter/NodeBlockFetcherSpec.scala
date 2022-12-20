@@ -16,6 +16,7 @@ import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
+import co.topl.genusLibrary.model.{BlockData, HeightData}
 import co.topl.typeclasses.implicits._
 
 import scala.collection.immutable.ListSet
@@ -39,7 +40,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
 
         assertIO(
           nodeBlockFetcher fetch height,
-          None.asRight
+          HeightData(height = height, blockData = None).asRight
         )
 
       }
@@ -59,7 +60,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
 
         (toplRpc.fetchBlockHeader _)
           .expects(blockId)
-          .returning(Option.empty[BlockHeader].pure[F])
+          .returning(Option.empty[BlockHeaderV2].pure[F])
           .once()
 
         assertIO(
@@ -74,7 +75,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
   test(
     "On a block without a body, a Left of NoBlockBodyFoundOnNodeFailure should be returned"
   ) {
-    PropF.forAllF { (height: Long, blockId: TypedIdentifier, blockHeader: BlockHeader) =>
+    PropF.forAllF { (height: Long, blockId: TypedIdentifier, blockHeader: BlockHeaderV2) =>
       withMock {
 
         (toplRpc.blockIdAtHeight _)
@@ -89,7 +90,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
 
         (toplRpc.fetchBlockBody _)
           .expects(blockId)
-          .returning(Option.empty[BlockBody].pure[F])
+          .returning(Option.empty[BlockBodyV2].pure[F])
           .once()
 
         assertIO(
@@ -109,12 +110,12 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
       (
         height:        Long,
         blockId:       TypedIdentifier,
-        blockHeader:   BlockHeader,
+        blockHeader:   BlockHeaderV2,
         transactionId: TypedIdentifier
       ) =>
         withMock {
 
-          val blockBody: BlockBody = ListSet(transactionId)
+          val blockBody: BlockBodyV2 = ListSet(transactionId)
 
           (toplRpc.blockIdAtHeight _)
             .expects(height)
@@ -153,14 +154,14 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
       (
         height:           Long,
         blockId:          TypedIdentifier,
-        blockHeader:      BlockHeader,
+        blockHeader:      BlockHeaderV2,
         transactionId_01: TypedIdentifier,
         transactionId_02: TypedIdentifier,
         transactionId_03: TypedIdentifier
       ) =>
         withMock {
 
-          val blockBody: BlockBody = ListSet(
+          val blockBody: BlockBodyV2 = ListSet(
             transactionId_01,
             transactionId_02,
             transactionId_03
@@ -215,14 +216,14 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
       (
         height:           Long,
         blockId:          TypedIdentifier,
-        blockHeader:      BlockHeader,
+        blockHeader:      BlockHeaderV2,
         transactionId_01: TypedIdentifier,
         transactionId_02: TypedIdentifier,
         transactionId_03: TypedIdentifier
       ) =>
         withMock {
 
-          val blockBody: BlockBody = ListSet(
+          val blockBody: BlockBodyV2 = ListSet(
             transactionId_01,
             transactionId_02,
             transactionId_03
@@ -274,7 +275,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
       (
         height:         Long,
         blockId:        TypedIdentifier,
-        blockHeader:    BlockHeader,
+        blockHeader:    BlockHeaderV2,
         transaction_01: Transaction,
         transaction_02: Transaction,
         transaction_03: Transaction
@@ -285,7 +286,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
           val transactionId_02: TypedIdentifier = transaction_02.id.asTypedBytes
           val transactionId_03: TypedIdentifier = transaction_03.id.asTypedBytes
 
-          val blockBody: BlockBody = ListSet(
+          val blockBody: BlockBodyV2 = ListSet(
             transactionId_01,
             transactionId_02,
             transactionId_03
@@ -323,7 +324,14 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
 
           assertIO(
             nodeBlockFetcher fetch height,
-            Block.Full(blockHeader, Chain(transaction_01, transaction_02, transaction_03)).some.asRight
+            HeightData(
+              height = height,
+              blockData = BlockData(
+                header = blockHeader,
+                body = blockBody,
+                transactions = Chain(transaction_01, transaction_02, transaction_03)
+              ).some
+            ).asRight
           )
 
         }

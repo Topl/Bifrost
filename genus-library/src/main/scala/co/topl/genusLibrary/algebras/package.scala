@@ -15,6 +15,4 @@ package object algebras {
    */
   type ServiceResponse[F[_], T] = F[Either[Failure, T]]
   type StoreResponse[F[_], T] = ServiceResponse[F, T]
-
-  type SequenceResponse[F[_], G[_], T] = F[G[Either[Failure, T]]]
 }

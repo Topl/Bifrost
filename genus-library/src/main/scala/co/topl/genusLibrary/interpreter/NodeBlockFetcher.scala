@@ -4,30 +4,29 @@ import cats.data.{Chain, EitherT}
 import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.algebras.ToplRpc
-import co.topl.genusLibrary.algebras.{BlockFetcherAlgebra, SequenceResponse, ServiceResponse}
+import co.topl.genusLibrary.algebras.{BlockFetcherAlgebra, ServiceResponse}
 import co.topl.genusLibrary.failure.{Failure, Failures}
-import co.topl.genusLibrary.model.BlockData
+import co.topl.genusLibrary.model.{BlockData, HeightData}
 import co.topl.models.{BlockBodyV2, BlockHeaderV2, Transaction, TypedIdentifier}
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.immutable.ListSet
-import fs2.Stream
 
-class NodeBlockFetcher[F[_]: Async](toplRpc: ToplRpc[F, Any]) extends BlockFetcherAlgebra[F, Stream[F, *]] {
+class NodeBlockFetcher[F[_]: Async](toplRpc: ToplRpc[F, Any]) extends BlockFetcherAlgebra[F] with LazyLogging {
 
-  override def fetch(height: Long): SequenceResponse[F, Stream[F, *], Option[BlockData]] = Async[F].delay {
-    Stream
-      // Range from given height to "positive infinity". If height is one, then the range would be [1, 2, 3, ...]
-      .range(height, Long.MaxValue)
-      .covary[F]
-      // Map each height to a block id. Range ends up being [blockId_01, blockId02, blockId03, ...]
-      .evalMap(toplRpc.blockIdAtHeight)
-      .evalMap {
+  override def fetch(height: Long): ServiceResponse[F, HeightData] =
+    toplRpc
+      .blockIdAtHeight(height)
+      .flatMap {
         case Some(blockId) =>
           val insertableBlock: F[Either[Failure, BlockData]] = fetch(blockId)
-          insertableBlock.map(_.map(_.some))
-        case None => Option.empty[BlockData].asRight[Failure].pure[F]
+          insertableBlock.map(_.map(blockData => HeightData(height = height, blockData = blockData.some)))
+        case None =>
+          HeightData(
+            height = height,
+            blockData = Option.empty[BlockData]
+          ).asRight[Failure].pure[F]
       }
-  }
 
   // TODO: TSDK-186 | Do calls concurrently.
   def fetch(blockId: TypedIdentifier): ServiceResponse[F, BlockData] = (
