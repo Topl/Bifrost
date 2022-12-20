@@ -316,7 +316,6 @@ lazy val protobuf = project
   .settings(
     name := "protobuf",
     commonSettings,
-    publishSettings,
     scalamacrosParadiseSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.protobuf",
