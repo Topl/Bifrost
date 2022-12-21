@@ -30,7 +30,7 @@ securityContext:
   allowPrivilegeEscalation: false
   capabilities:
     drop:
-      - ALL
+    - ALL
 
 args: # Refer to CLI: https://github.com/Topl/Bifrost#command-line-reference
 # args: ['--seed', 'test', '--forge']
@@ -42,6 +42,11 @@ command:
 service:
   enabled: true
   type: ClusterIP
+  p2p:
+    annotations: {external-dns.alpha.kubernetes.io/hostname: p2p.tetra.admirable-dev.com}
+  tcp:
+    annotations: {external-dns.alpha.kubernetes.io/hostname: tetra.admirable-dev.com}
+
   ports:
     p2p: 9084
     rpc: 9085
@@ -57,13 +62,13 @@ volume:
   storageSize: 10Gi
 
 livenessProbe:
-  enabled: true
+  enabled: false
   initialDelaySeconds: 30
   timeoutSeconds: 30
   periodSeconds: 60 # Perform check every x seconds.
 
 readinessProbe:
-  enabled: true
+  enabled: false
   initialDelaySeconds: 30
   timeoutSeconds: 30
   periodSeconds: 60 # Perform check every x seconds.

@@ -3,6 +3,10 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "bifrost.fullname" . }}
+  annotations:
+  {- range $key, $value := .Values.server.service.tcp.annotations }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
   labels:
     {{- include "bifrost.labels" . | nindent 4}}
 spec:
@@ -19,6 +23,10 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "bifrost.fullname" . }}-p2p
+  annotations:
+  {- range $key, $value := .Values.server.service.p2p.annotations }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
   labels:
     {{- include "bifrost.labels" . | nindent 4}}
 spec:
