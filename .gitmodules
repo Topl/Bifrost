@@ -1,3 +1,0 @@
-[submodule "protobuf/src/main/protobuf"]
-	path = protobuf/src/main/protobuf
-	url = https://github.com/Topl/protobuf-specs
