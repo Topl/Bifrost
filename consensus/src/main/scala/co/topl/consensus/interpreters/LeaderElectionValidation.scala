@@ -1,6 +1,6 @@
 package co.topl.consensus.interpreters
 
-import cats.effect.{Clock, Sync}
+import cats.effect.Sync
 import cats.implicits._
 import co.topl.algebras.{Exp, Log1p, UnsafeResource}
 import co.topl.codecs.bytes.typeclasses.Signable
@@ -68,7 +68,7 @@ object LeaderElectionValidation {
           )
       }
 
-    def makeCached[F[_]: Sync: Clock](alg: LeaderElectionValidationAlgebra[F]): F[LeaderElectionValidationAlgebra[F]] =
+    def makeCached[F[_]: Sync](alg: LeaderElectionValidationAlgebra[F]): F[LeaderElectionValidationAlgebra[F]] =
       CaffeineCache[F, (Ratio, Slot), Ratio].map(cache =>
         new LeaderElectionValidationAlgebra[F] {
 

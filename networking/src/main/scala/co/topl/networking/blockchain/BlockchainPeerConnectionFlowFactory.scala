@@ -8,7 +8,7 @@ import cats.effect.Async
 import cats.implicits._
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.models.{BlockBodyV2, BlockHeaderV2, SlotData, Transaction, TypedIdentifier}
+import co.topl.models.{BlockBody, BlockHeader, SlotData, Transaction, TypedIdentifier}
 import co.topl.networking.TypedProtocolSetFactory.implicits._
 import co.topl.networking._
 import co.topl.networking.blockchain.NetworkTypeTags._
@@ -105,8 +105,8 @@ object BlockchainPeerConnectionFlowFactory {
           val remotePeerAdoptions: F[Source[TypedIdentifier, NotUsed]] = remoteBlockIdsSource.pure[F]
           val remoteTransactionNotifications: F[Source[TypedIdentifier, NotUsed]] = remoteTransactionIdsSource.pure[F]
           def getRemoteSlotData(id: TypedIdentifier): F[Option[SlotData]] = slotDataReceivedCallback(id)
-          def getRemoteHeader(id: TypedIdentifier): F[Option[BlockHeaderV2]] = headerReceivedCallback(id)
-          def getRemoteBody(id: TypedIdentifier): F[Option[BlockBodyV2]] = bodyReceivedCallback(id)
+          def getRemoteHeader(id: TypedIdentifier): F[Option[BlockHeader]] = headerReceivedCallback(id)
+          def getRemoteBody(id: TypedIdentifier): F[Option[BlockBody]] = bodyReceivedCallback(id)
           def getRemoteTransaction(id: TypedIdentifier): F[Option[Transaction]] = transactionReceivedCallback(id)
           def getRemoteBlockIdAtHeight(
             height:       Long,

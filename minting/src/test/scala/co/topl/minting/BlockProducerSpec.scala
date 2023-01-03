@@ -9,7 +9,7 @@ import cats.implicits._
 import cats.~>
 import co.topl.catsakka._
 import co.topl.models.ModelGenerators._
-import co.topl.models.{BlockBodyV2, BlockV2, SlotData, StakingAddresses}
+import co.topl.models.{Block, BlockBody, SlotData, StakingAddresses}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
@@ -28,7 +28,7 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
   ResourceFixture(AkkaCatsRuntime.systemResource[F, Nothing](ActorSystem(Behaviors.empty, "BlockProducerSpec")))
     .test("Produce a block when eligible") { implicit system =>
       implicit val _ioToFuture: IO ~> Future = ioToFuture(systemToRuntime(system))
-      PropF.forAllF { (parentSlotData: SlotData, stakingAddress: StakingAddresses.Operator, outputBlock: BlockV2) =>
+      PropF.forAllF { (parentSlotData: SlotData, stakingAddress: StakingAddresses.Operator, outputBlock: Block) =>
         withMock {
           for {
             (pub, source) <- Sync[F].delay(TestSource.probe[SlotData](system.toClassic).preMaterialize())
@@ -38,7 +38,7 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             blockPacker = mock[BlockPackerAlgebra[F]]
             underTest <- BlockProducer.make[F](source.mapMaterializedValue(_ => NotUsed), staker, clock, blockPacker)
             blocks    <- underTest.blocks
-            sub       <- blocks.toMat(TestSink[BlockV2]()(system.toClassic))(Keep.right).liftTo[F]
+            sub       <- blocks.toMat(TestSink[Block]()(system.toClassic))(Keep.right).liftTo[F]
             _ = sub.request(1)
             vrfHit = VrfHit(eligibilityCertificateGen.first, parentSlotData.slotId.slot + 1, ratioGen.first)
             _ = (() => clock.globalSlot)
@@ -84,7 +84,7 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
           parentSlotData:  SlotData,
           parentSlotData2: SlotData,
           stakingAddress:  StakingAddresses.Operator,
-          outputBlock:     BlockV2
+          outputBlock:     Block
         ) =>
           withMock {
             for {
@@ -95,7 +95,7 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
               blockPacker = mock[BlockPackerAlgebra[F]]
               underTest <- BlockProducer.make[F](source.mapMaterializedValue(_ => NotUsed), staker, clock, blockPacker)
               blocks    <- underTest.blocks
-              sub       <- blocks.toMat(TestSink[BlockV2]()(system.toClassic))(Keep.right).liftTo[F]
+              sub       <- blocks.toMat(TestSink[Block]()(system.toClassic))(Keep.right).liftTo[F]
               // Setup the expectations for the first attempt
               // The first attempt comes up with a "distant" eligibility, which we trick the clock into seeming
               // like "forever".
@@ -124,7 +124,7 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
                 .improvePackedBlock(_, _, _))
                 .expects(*, *, *)
                 .once()
-                .returning(IO.pure(_ => IO.defer(clockDeferment.complete(())).void >> IO.never[BlockBodyV2.Full]))
+                .returning(IO.pure(_ => IO.defer(clockDeferment.complete(())).void >> IO.never[BlockBody.Full]))
 
               // Send the first "parent"
               _ = pub.sendNext(parentSlotData)

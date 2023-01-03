@@ -1,19 +1,19 @@
 package co.topl.codecs.bytes.tetra
 
 import co.topl.codecs.bytes.typeclasses._
-import co.topl.models.{BlockHeaderV2, SpendingAddress, StakingAddress, Transaction}
+import co.topl.models.{BlockHeader, SpendingAddress, StakingAddress, Transaction}
 
 trait TetraSignableCodecs {
 
   import TetraImmutableCodecs._
   import co.topl.codecs.bytes.typeclasses.implicits._
 
-  implicit val signableUnsignedBlockHeaderV2: Signable[BlockHeaderV2.Unsigned] =
+  implicit val signableUnsignedBlockHeader: Signable[BlockHeader.Unsigned] =
     _.immutableBytes
 
-  implicit val signableBlockHeaderV2: Signable[BlockHeaderV2] =
+  implicit val signableBlockHeader: Signable[BlockHeader] =
     t =>
-      BlockHeaderV2
+      BlockHeader
         .Unsigned(
           t.parentHeaderId,
           t.parentSlot,
@@ -23,7 +23,7 @@ trait TetraSignableCodecs {
           t.height,
           t.slot,
           t.eligibilityCertificate,
-          BlockHeaderV2.Unsigned.PartialOperationalCertificate(
+          BlockHeader.Unsigned.PartialOperationalCertificate(
             t.operationalCertificate.parentVK,
             t.operationalCertificate.parentSignature,
             t.operationalCertificate.childVK

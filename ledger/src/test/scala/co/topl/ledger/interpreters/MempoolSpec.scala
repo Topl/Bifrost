@@ -9,7 +9,7 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.eventtree.ParentChildTree
 import co.topl.models.ModelGenerators._
-import co.topl.models.{BlockBodyV2, Slot, Transaction, TypedIdentifier}
+import co.topl.models.{BlockBody, Slot, Transaction, TypedIdentifier}
 import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.{Gen, Test}
@@ -105,7 +105,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
           underTest <- Mempool
             .make[F](
               currentBlockId.pure[F],
-              mockFunction[TypedIdentifier, F[BlockBodyV2]],
+              mockFunction[TypedIdentifier, F[BlockBody]],
               fetchTransaction,
               mock[ParentChildTree[F, TypedIdentifier]],
               _ => Applicative[F].unit,
@@ -149,7 +149,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
             Mempool
               .make[F](
                 currentBlockId.pure[F],
-                mockFunction[TypedIdentifier, F[BlockBodyV2]],
+                mockFunction[TypedIdentifier, F[BlockBody]],
                 fetchTransaction,
                 mock[ParentChildTree[F, TypedIdentifier]],
                 _ => Applicative[F].unit,
@@ -198,7 +198,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
             Mempool
               .make[F](
                 currentBlockId.pure[F],
-                mockFunction[TypedIdentifier, F[BlockBodyV2]],
+                mockFunction[TypedIdentifier, F[BlockBody]],
                 fetchTransaction,
                 mock[ParentChildTree[F, TypedIdentifier]],
                 _ => Applicative[F].unit,

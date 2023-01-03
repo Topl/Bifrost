@@ -47,9 +47,9 @@ object BlockPacker {
             .unbounded[F, Transaction]
             .flatTap(queue => sortedTransactions.traverse(queue.offer))
             .map(queue =>
-              new Iterative[F, BlockBodyV2.Full] {
+              new Iterative[F, BlockBody.Full] {
 
-                def improve(current: BlockBodyV2.Full): F[BlockBodyV2.Full] =
+                def improve(current: BlockBody.Full): F[BlockBody.Full] =
                   // Dequeue the next transaction (or block forever)
                   queue.take
                     .flatMap { transaction =>

@@ -79,7 +79,7 @@ class BlockHeaderValidationSpec
       )
       .unsafeRunSync()
 
-  private def createDummyClockAlgebra(child: BlockHeaderV2) = {
+  private def createDummyClockAlgebra(child: BlockHeader) = {
     val clock: ClockAlgebra[F] = mock[ClockAlgebra[F]]
     (() => clock.globalSlot)
       .expects()
@@ -339,7 +339,7 @@ class BlockHeaderValidationSpec
 
       (etaInterpreter
         .etaToBe(_: SlotId, _: Slot))
-        .expects(parent.slotId, child.slot)
+        .expects(SlotId(parent.slot, parent.id), child.slot)
         .anyNumberOfTimes()
         // This epoch nonce does not satisfy the generated VRF certificate
         .returning(eta.pure[F])
@@ -392,7 +392,7 @@ class BlockHeaderValidationSpec
 
       (etaInterpreter
         .etaToBe(_: SlotId, _: Slot))
-        .expects(parent.slotId, badBlock.slot)
+        .expects(SlotId(parent.slot, parent.id), badBlock.slot)
         .anyNumberOfTimes()
         .returning(eta.pure[F])
 
@@ -463,7 +463,7 @@ class BlockHeaderValidationSpec
 
       (etaInterpreter
         .etaToBe(_: SlotId, _: Slot))
-        .expects(parent.slotId, child.slot)
+        .expects(SlotId(parent.slot, parent.id), child.slot)
         .anyNumberOfTimes()
         .returning(eta.pure[F])
 
@@ -536,7 +536,7 @@ class BlockHeaderValidationSpec
 
       (etaInterpreter
         .etaToBe(_: SlotId, _: Slot))
-        .expects(parent.slotId, child.slot)
+        .expects(SlotId(parent.slot, parent.id), child.slot)
         .anyNumberOfTimes()
         .returning(eta.pure[F])
 
@@ -615,7 +615,7 @@ class BlockHeaderValidationSpec
 
       (etaInterpreter
         .etaToBe(_: SlotId, _: Slot))
-        .expects(parent.slotId, child.slot)
+        .expects(SlotId(parent.slot, parent.id), child.slot)
         .anyNumberOfTimes()
         .returning(eta.pure[F])
 
@@ -696,15 +696,15 @@ class BlockHeaderValidationSpec
 
   private def withPartialOperationalCertificate(
     slot:      Slot,
-    unsignedF: BlockHeaderV2.Unsigned.PartialOperationalCertificate => BlockHeaderV2.Unsigned,
+    unsignedF: BlockHeader.Unsigned.PartialOperationalCertificate => BlockHeader.Unsigned,
     parentSK:  SecretKeys.KesProduct
-  ): (BlockHeaderV2.Unsigned, SecretKeys.Ed25519) = {
+  ): (BlockHeader.Unsigned, SecretKeys.Ed25519) = {
     val linearSK = KeyInitializer[SecretKeys.Ed25519].random()
     val linearVK = ed25519.getVerificationKey(linearSK)
 
     val message = linearVK.bytes.data ++ Bytes(Longs.toByteArray(slot))
     val parentSignature = kesProduct.sign(parentSK, message)
-    val partialCertificate = BlockHeaderV2.Unsigned.PartialOperationalCertificate(
+    val partialCertificate = BlockHeader.Unsigned.PartialOperationalCertificate(
       kesProduct.getVerificationKey(parentSK),
       parentSignature,
       linearVK
@@ -713,9 +713,9 @@ class BlockHeaderValidationSpec
   }
 
   private def genValid(
-    preSign:    BlockHeaderV2.Unsigned => BlockHeaderV2.Unsigned = identity,
+    preSign:    BlockHeader.Unsigned => BlockHeader.Unsigned = identity,
     parentSlot: Slot = 5000L
-  ): Gen[(BlockHeaderV2, BlockHeaderV2, Box.Values.Registrations.Operator, Eta, Ratio)] =
+  ): Gen[(BlockHeader, BlockHeader, Box.Values.Registrations.Operator, Eta, Ratio)] =
     for {
       parent <- headerGen(slotGen = Gen.const[Long](parentSlot))
       (txRoot, bloomFilter, eta) <- genSizedStrictBytes[Lengths.`32`.type]().flatMap(txRoot =>
@@ -741,7 +741,7 @@ class BlockHeaderValidationSpec
         withPartialOperationalCertificate(
           slot,
           partial =>
-            BlockHeaderV2.Unsigned(
+            BlockHeader.Unsigned(
               parentHeaderId = parent.id,
               parentSlot = parent.slot,
               txRoot = txRoot,
@@ -769,7 +769,7 @@ class BlockHeaderValidationSpec
         )
 
       val child =
-        BlockHeaderV2(
+        BlockHeader(
           parentHeaderId = unsigned.parentHeaderId,
           parentSlot = unsigned.parentSlot,
           txRoot = unsigned.txRoot,

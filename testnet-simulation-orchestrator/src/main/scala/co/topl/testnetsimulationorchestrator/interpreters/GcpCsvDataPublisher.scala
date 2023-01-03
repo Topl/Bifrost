@@ -95,19 +95,19 @@ object GcpCsvDataPublisher {
 
   private def blockDatumToRow(datum: BlockDatum): List[String] =
     List(
-      datum.headerV2.id.asTypedBytes.show,
-      datum.headerV2.parentHeaderId.show,
-      datum.headerV2.parentSlot.show,
-      datum.headerV2.timestamp.show,
-      datum.headerV2.height.show,
-      datum.headerV2.slot.show,
-      datum.headerV2.address.immutableBytes.toBase58,
-      datum.headerV2.txRoot.data.toBase58,
-      datum.headerV2.bloomFilter.data.toBase58,
-      datum.headerV2.eligibilityCertificate.immutableBytes.toBase58,
-      datum.headerV2.operationalCertificate.immutableBytes.toBase58,
-      datum.headerV2.metadata.fold("")(_.data.value),
-      datum.bodyV2.map(_.show).mkString(";")
+      datum.header.id.asTypedBytes.show,
+      datum.header.parentHeaderId.show,
+      datum.header.parentSlot.show,
+      datum.header.timestamp.show,
+      datum.header.height.show,
+      datum.header.slot.show,
+      datum.header.address.immutableBytes.toBase58,
+      datum.header.txRoot.data.toBase58,
+      datum.header.bloomFilter.data.toBase58,
+      datum.header.eligibilityCertificate.immutableBytes.toBase58,
+      datum.header.operationalCertificate.immutableBytes.toBase58,
+      datum.header.metadata.fold("")(_.data.value),
+      datum.body.map(_.show).mkString(";")
     )
 
   private def transactionDatumToRow(datum: TransactionDatum) =

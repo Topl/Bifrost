@@ -8,12 +8,13 @@ import co.topl.ledger.models._
 import co.topl.models.ModelGenerators._
 import co.topl.models.utility.HasLength.instances.bigIntLength
 import co.topl.models.utility.Sized
-import co.topl.models.{Box, Bytes, Proof, Proofs, Proposition, Propositions, SecretKeys, Transaction}
+import co.topl.models._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.Gen
 import org.scalacheck.effect.PropF
-import co.topl.typeclasses.implicits._
+
 import java.util.concurrent.TimeUnit
+import scala.collection.immutable.ListSet
 import scala.concurrent.duration.FiniteDuration
 
 class TransactionSyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
@@ -259,41 +260,42 @@ class TransactionSyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEff
         Transaction.Schedule(0L, 0L, Long.MaxValue),
         None
       )
-    PropF.forAllF { (curveSk: SecretKeys.Curve25519, edSK: SecretKeys.Ed25519) =>
-      val transaction1 =
-        createTestTransaction(curveSk.vk.asProposition, arbitraryProofsKnowledgeEd25519.arbitrary.first)
-      val transaction2 =
-        createTestTransaction(edSK.vk.asProposition, arbitraryProofsKnowledgeCurve25519.arbitrary.first)
-      val transaction3 = createTestTransaction(
-        curveSk.vk.asProposition and edSK.vk.asProposition,
-        Proofs.Compositional.And(arbitraryProofsKnowledgeCurve25519.arbitrary.first, Proofs.Undefined)
-      )
-      val transaction4 = createTestTransaction(
-        curveSk.vk.asProposition or edSK.vk.asProposition,
-        Proofs.Compositional.Or(arbitraryProofsKnowledgeEd25519.arbitrary.first, Proofs.Undefined)
-      )
-      val transaction5 = createTestTransaction(
-        List(curveSk.vk.asProposition, edSK.vk.asProposition).threshold(2),
-        Proofs.Compositional
-          .Or(arbitraryProofsKnowledgeEd25519.arbitrary.first, arbitraryProofsKnowledgeCurve25519.arbitrary.first)
-      )
-      val transaction6 = createTestTransaction(
-        Propositions.Compositional.Not(curveSk.vk.asProposition),
-        Proofs.Compositional.Not(arbitraryProofsKnowledgeEd25519.arbitrary.first)
-      )
-      for {
-        underTest <- TransactionSyntaxValidation.make[F]
-        testTransaction = (transaction: Transaction) =>
-          EitherT(underTest.validate(transaction).map(_.toEither)).swap
-            .exists(_.toList.exists(_.isInstanceOf[TransactionSyntaxErrors.InvalidProofType]))
-            .assert
-        _ <- testTransaction(transaction1)
-        _ <- testTransaction(transaction2)
-        _ <- testTransaction(transaction3)
-        _ <- testTransaction(transaction4)
-        _ <- testTransaction(transaction5)
-        _ <- testTransaction(transaction6)
-      } yield ()
+    PropF.forAllF {
+      (curveProposition: Propositions.Knowledge.Curve25519, edProposition: Propositions.Knowledge.Ed25519) =>
+        val transaction1 =
+          createTestTransaction(curveProposition, arbitraryProofsKnowledgeEd25519.arbitrary.first)
+        val transaction2 =
+          createTestTransaction(edProposition, arbitraryProofsKnowledgeCurve25519.arbitrary.first)
+        val transaction3 = createTestTransaction(
+          Propositions.Compositional.And(curveProposition, edProposition),
+          Proofs.Compositional.And(arbitraryProofsKnowledgeCurve25519.arbitrary.first, Proofs.Undefined)
+        )
+        val transaction4 = createTestTransaction(
+          Propositions.Compositional.Or(curveProposition, edProposition),
+          Proofs.Compositional.Or(arbitraryProofsKnowledgeEd25519.arbitrary.first, Proofs.Undefined)
+        )
+        val transaction5 = createTestTransaction(
+          Propositions.Compositional.Threshold(2, ListSet(curveProposition, edProposition)),
+          Proofs.Compositional
+            .Or(arbitraryProofsKnowledgeEd25519.arbitrary.first, arbitraryProofsKnowledgeCurve25519.arbitrary.first)
+        )
+        val transaction6 = createTestTransaction(
+          Propositions.Compositional.Not(curveProposition),
+          Proofs.Compositional.Not(arbitraryProofsKnowledgeEd25519.arbitrary.first)
+        )
+        for {
+          underTest <- TransactionSyntaxValidation.make[F]
+          testTransaction = (transaction: Transaction) =>
+            EitherT(underTest.validate(transaction).map(_.toEither)).swap
+              .exists(_.toList.exists(_.isInstanceOf[TransactionSyntaxErrors.InvalidProofType]))
+              .assert
+          _ <- testTransaction(transaction1)
+          _ <- testTransaction(transaction2)
+          _ <- testTransaction(transaction3)
+          _ <- testTransaction(transaction4)
+          _ <- testTransaction(transaction5)
+          _ <- testTransaction(transaction6)
+        } yield ()
     }
   }
 

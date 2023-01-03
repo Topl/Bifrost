@@ -15,13 +15,15 @@ import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 
+import scala.collection.immutable.ListSet
+
 class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
 
   test("Propositions.Knowledge.Curve25519 Authorization") {
     PropF.forAllF { (blockId: TypedIdentifier, sk: SecretKeys.Curve25519) =>
       withMock {
-        val proposition = sk.vk.asProposition
+        val proposition = Propositions.Knowledge.Curve25519(Curve25519.instance.getVerificationKey(sk))
 
         val transaction = createTestTransaction(
           proposition,
@@ -40,7 +42,7 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
   test("Propositions.Knowledge.Ed25519 Authorization") {
     PropF.forAllF { (blockId: TypedIdentifier, sk: SecretKeys.Ed25519) =>
       withMock {
-        val proposition = sk.vk.asProposition
+        val proposition = Propositions.Knowledge.Ed25519(Ed25519.instance.getVerificationKey(sk))
 
         val transaction = createTestTransaction(
           proposition,
@@ -59,7 +61,7 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
   test("Propositions.Knowledge.ExtendedEd25519 Authorization") {
     PropF.forAllF { (blockId: TypedIdentifier, sk: SecretKeys.ExtendedEd25519) =>
       withMock {
-        val proposition = sk.vk.asProposition
+        val proposition = Propositions.Knowledge.ExtendedEd25519(ExtendedEd25519.precomputed().getVerificationKey(sk))
 
         val transaction = createTestTransaction(
           proposition,
@@ -99,9 +101,9 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
   test("Propositions.Compositional.And Authorization") {
     PropF.forAllF { (blockId: TypedIdentifier, sk: SecretKeys.Ed25519, sk2: SecretKeys.Ed25519) =>
       withMock {
-        val propositionA = sk.vk.asProposition
-        val propositionB = sk2.vk.asProposition
-        val proposition = propositionA.and(propositionB)
+        val propositionA = Propositions.Knowledge.Ed25519(Ed25519.instance.getVerificationKey(sk))
+        val propositionB = Propositions.Knowledge.Ed25519(Ed25519.instance.getVerificationKey(sk2))
+        val proposition = Propositions.Compositional.And(propositionA, propositionB)
 
         val transaction = createTestTransaction(
           proposition,
@@ -134,9 +136,9 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
   test("Propositions.Compositional.Or Authorization") {
     PropF.forAllF { (blockId: TypedIdentifier, sk: SecretKeys.Ed25519, sk2: SecretKeys.Ed25519) =>
       withMock {
-        val propositionA = sk.vk.asProposition
-        val propositionB = sk2.vk.asProposition
-        val proposition = propositionA.or(propositionB)
+        val propositionA = Propositions.Knowledge.Ed25519(Ed25519.instance.getVerificationKey(sk))
+        val propositionB = Propositions.Knowledge.Ed25519(Ed25519.instance.getVerificationKey(sk2))
+        val proposition = Propositions.Compositional.Or(propositionA, propositionB)
 
         val transaction1 = createTestTransaction(
           proposition,
@@ -190,10 +192,10 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
     PropF.forAllF {
       (blockId: TypedIdentifier, sk: SecretKeys.Ed25519, sk2: SecretKeys.Ed25519, sk3: SecretKeys.Ed25519) =>
         withMock {
-          val propositionA = sk.vk.asProposition
-          val propositionB = sk2.vk.asProposition
-          val propositionC = sk3.vk.asProposition
-          val proposition = List(propositionA, propositionB, propositionC).threshold(2)
+          val propositionA = Propositions.Knowledge.Ed25519(Ed25519.instance.getVerificationKey(sk))
+          val propositionB = Propositions.Knowledge.Ed25519(Ed25519.instance.getVerificationKey(sk2))
+          val propositionC = Propositions.Knowledge.Ed25519(Ed25519.instance.getVerificationKey(sk3))
+          val proposition = Propositions.Compositional.Threshold(2, ListSet(propositionA, propositionB, propositionC))
 
           val transaction1 = createTestTransaction(
             proposition,
@@ -285,8 +287,8 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
   test("Propositions.Compositional.Not Authorization") {
     PropF.forAllF { (blockId: TypedIdentifier, sk: SecretKeys.Ed25519) =>
       withMock {
-        val propositionA = sk.vk.asProposition
-        val proposition = propositionA.not
+        val propositionA = Propositions.Knowledge.Ed25519(Ed25519.instance.getVerificationKey(sk))
+        val proposition = Propositions.Compositional.Not(propositionA)
 
         val badTransaction = createTestTransaction(
           proposition,

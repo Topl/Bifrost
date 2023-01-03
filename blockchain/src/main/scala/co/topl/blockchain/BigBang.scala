@@ -39,7 +39,7 @@ object BigBang {
   /**
    * Constructs a full block using the given Big Bang Configuration
    */
-  def block(implicit config: Config): BlockV2.Full = {
+  def block(implicit config: Config): Block.Full = {
     val transactions: Chain[Transaction] =
       Chain(
         Transaction(
@@ -57,7 +57,7 @@ object BigBang {
       )
 
     val header =
-      BlockHeaderV2(
+      BlockHeader(
         parentHeaderId = ParentId,
         parentSlot = ParentSlot,
         txRoot = transactions.merkleTreeRootHash,
@@ -72,7 +72,7 @@ object BigBang {
           VerificationKeys.Ed25519(zeroBytes(Lengths.`32`))
         )
       )
-    BlockV2.Full(header, transactions)
+    Block.Full(header, transactions)
   }
 
   val ParentId: TypedIdentifier = TypedBytes(IdentifierTypes.Block.HeaderV2, Bytes(Array.fill[Byte](32)(0)))

@@ -1229,7 +1229,7 @@ trait BlockBifrostMorphismInstances {
     with AddressBifrostMorphismInstances
     with CertificateBifrostMorphismInstances =>
 
-  implicit def headerIsomorphism[F[_]: Monad]: Isomorphism[F, bifrostModels.BlockHeaderV2, models.BlockHeader] =
+  implicit def headerIsomorphism[F[_]: Monad]: Isomorphism[F, bifrostModels.BlockHeader, models.BlockHeader] =
     Isomorphism(
       _.map(header =>
         for {
@@ -1272,12 +1272,12 @@ trait BlockBifrostMorphismInstances {
             .toEitherT[F]
             .flatMapF(_.toF[F, bifrostModels.OperationalCertificate])
           metadata <- protoHeader.metadata.traverse(metadata =>
-            EitherT(metadata.toF[F, bifrostModels.BlockHeaderV2.Metadata])
+            EitherT(metadata.toF[F, bifrostModels.BlockHeader.Metadata])
           )
           address <- EitherT
             .fromEither[F](protoHeader.address.toRight("missing address"))
             .flatMapF(_.toF[F, bifrostModels.StakingAddresses.Operator])
-        } yield bifrostModels.BlockHeaderV2(
+        } yield bifrostModels.BlockHeader(
           parentHeaderId,
           protoHeader.parentSlot,
           txRoot,
@@ -1294,7 +1294,7 @@ trait BlockBifrostMorphismInstances {
         .flatMap(_.value)
     )
 
-  implicit def bodyIsomorphism[F[_]: Monad]: Isomorphism[F, bifrostModels.BlockBodyV2, models.BlockBody] =
+  implicit def bodyIsomorphism[F[_]: Monad]: Isomorphism[F, bifrostModels.BlockBody, models.BlockBody] =
     Isomorphism(
       _.map(body =>
         for {

@@ -43,7 +43,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
   }
 
   test("A block header can be retrieved") {
-    PropF.forAllF { (header: bifrostModels.BlockHeaderV2) =>
+    PropF.forAllF { (header: bifrostModels.BlockHeader) =>
       val headerId = header.id.asTypedBytes
       withMock {
         val interpreter = mock[ToplRpc[F, Stream[F, *]]]
@@ -58,7 +58,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
           protoId <- EitherT(headerId.toF[F, models.BlockId]).getOrElse(???)
           res     <- underTest.fetchBlockHeader(FetchBlockHeaderReq(protoId.some), new Metadata())
           protoHeader = res.header.get
-          _header <- EitherT(protoHeader.toF[F, bifrostModels.BlockHeaderV2]).getOrElse(???)
+          _header <- EitherT(protoHeader.toF[F, bifrostModels.BlockHeader]).getOrElse(???)
           _ = assert(_header == header)
         } yield ()
       }
@@ -83,7 +83,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
   }
 
   test("A block body can be retrieved") {
-    PropF.forAllF { (_id: bifrostModels.TypedIdentifier, body: bifrostModels.BlockBodyV2) =>
+    PropF.forAllF { (_id: bifrostModels.TypedIdentifier, body: bifrostModels.BlockBody) =>
       val id = bifrostModels.TypedBytes(bifrostModels.IdentifierTypes.Block.HeaderV2, _id.dataBytes)
       withMock {
         val interpreter = mock[ToplRpc[F, Stream[F, *]]]
@@ -99,7 +99,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
           res     <- underTest.fetchBlockBody(FetchBlockBodyReq(protoId.some), new Metadata())
 
           protoBody = res.body.get
-          _body <- EitherT(protoBody.toF[F, bifrostModels.BlockBodyV2]).getOrElse(???)
+          _body <- EitherT(protoBody.toF[F, bifrostModels.BlockBody]).getOrElse(???)
           _ = assert(_body == body)
         } yield ()
       }
@@ -159,7 +159,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
   }
 
   test("The block ID at a height can be retrieved") {
-    PropF.forAllF { (height: Long, header: bifrostModels.BlockHeaderV2) =>
+    PropF.forAllF { (height: Long, header: bifrostModels.BlockHeader) =>
       val blockId = header.id.asTypedBytes
       withMock {
         val interpreter = mock[ToplRpc[F, Stream[F, *]]]

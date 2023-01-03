@@ -71,7 +71,7 @@ object ToplGrpc {
                     .rethrowT
                 )
 
-            def fetchBlockHeader(blockId: bifrostModels.TypedIdentifier): F[Option[bifrostModels.BlockHeaderV2]] =
+            def fetchBlockHeader(blockId: bifrostModels.TypedIdentifier): F[Option[bifrostModels.BlockHeader]] =
               OptionT(
                 EitherT(blockId.toF[F, models.BlockId])
                   .leftMap(new IllegalArgumentException(_))
@@ -85,13 +85,13 @@ object ToplGrpc {
                   .map(_.header)
               )
                 .semiflatMap(protoHeader =>
-                  EitherT(protoHeader.toF[F, bifrostModels.BlockHeaderV2])
+                  EitherT(protoHeader.toF[F, bifrostModels.BlockHeader])
                     .leftMap(new IllegalArgumentException(_))
                     .rethrowT
                 )
                 .value
 
-            def fetchBlockBody(blockId: bifrostModels.TypedIdentifier): F[Option[bifrostModels.BlockBodyV2]] =
+            def fetchBlockBody(blockId: bifrostModels.TypedIdentifier): F[Option[bifrostModels.BlockBody]] =
               OptionT(
                 EitherT(blockId.toF[F, models.BlockId])
                   .leftMap(new IllegalArgumentException(_))
@@ -105,7 +105,7 @@ object ToplGrpc {
                   .map(_.body)
               )
                 .semiflatMap(protoBody =>
-                  EitherT(protoBody.toF[F, bifrostModels.BlockBodyV2])
+                  EitherT(protoBody.toF[F, bifrostModels.BlockBody])
                     .leftMap(new IllegalArgumentException(_))
                     .rethrowT
                 )

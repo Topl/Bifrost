@@ -1,6 +1,5 @@
 package co.topl.consensus.interpreters
 
-import cats._
 import cats.data._
 import cats.effect.kernel.Sync
 import cats.implicits._
@@ -24,7 +23,7 @@ object BlockHeaderValidation {
 
   object Eval {
 
-    def make[F[_]: Monad: Sync](
+    def make[F[_]: Sync](
       etaInterpreter:           EtaCalculationAlgebra[F],
       consensusValidationState: ConsensusValidationStateAlgebra[F],
       leaderElection:           LeaderElectionValidationAlgebra[F],
@@ -47,7 +46,7 @@ object BlockHeaderValidation {
         )
       )
 
-    private class Impl[F[_]: Monad: Sync](
+    private class Impl[F[_]: Sync](
       etaInterpreter:           EtaCalculationAlgebra[F],
       consensusValidationState: ConsensusValidationStateAlgebra[F],
       leaderElection:           LeaderElectionValidationAlgebra[F],
@@ -59,9 +58,9 @@ object BlockHeaderValidation {
     ) extends BlockHeaderValidationAlgebra[F] {
 
       def validate(
-        child:  BlockHeaderV2,
-        parent: BlockHeaderV2
-      ): F[Either[BlockHeaderValidationFailure, BlockHeaderV2]] = {
+        child:  BlockHeader,
+        parent: BlockHeader
+      ): F[Either[BlockHeaderValidationFailure, BlockHeader]] = {
         for {
           _         <- statelessVerification(child, parent)
           _         <- EitherT(timeSlotVerification(child))
@@ -74,7 +73,7 @@ object BlockHeaderValidation {
         } yield child
       }.value
 
-      private[consensus] def statelessVerification(child: BlockHeaderV2, parent: BlockHeaderV2) =
+      private[consensus] def statelessVerification(child: BlockHeader, parent: BlockHeader) =
         EitherT
           .pure[F, BlockHeaderValidationFailure](child)
           .ensure(BlockHeaderValidationFailures.NonForwardSlot(child.slot, parent.slot))(child =>
@@ -90,13 +89,13 @@ object BlockHeaderValidation {
             _.height === parent.height + 1
           )
 
-      private[consensus] def timeSlotVerification(header: BlockHeaderV2) =
+      private[consensus] def timeSlotVerification(header: BlockHeader) =
         for {
           globalSlot              <- clockAlgebra.globalSlot
           childSlotFromTimestamp  <- clockAlgebra.timestampToSlot(header.timestamp)
           forwardBiasedSlotWindow <- clockAlgebra.forwardBiasedSlotWindow
         } yield Either
-          .right[BlockHeaderValidationFailure, BlockHeaderV2](header)
+          .right[BlockHeaderValidationFailure, BlockHeader](header)
           .ensureOr(child => BlockHeaderValidationFailures.TimestampSlotMismatch(child.slot, child.timestamp))(child =>
             childSlotFromTimestamp === child.slot
           )
@@ -108,8 +107,8 @@ object BlockHeaderValidation {
        * Verifies the given block's VRF certificate syntactic integrity for a particular stateful nonce
        */
       private[consensus] def vrfVerification(
-        header: BlockHeaderV2
-      ): EitherT[F, BlockHeaderValidationFailure, BlockHeaderV2] =
+        header: BlockHeader
+      ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
         EitherT
           .liftF(etaInterpreter.etaToBe(header.parentSlotId, header.slot))
           .flatMap(expectedEta =>
@@ -149,8 +148,8 @@ object BlockHeaderValidation {
        * Certificate's block signature
        */
       private[consensus] def kesVerification(
-        header: BlockHeaderV2
-      ): EitherT[F, BlockHeaderValidationFailure, BlockHeaderV2] =
+        header: BlockHeader
+      ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
         EitherT(
           kesProductResource
             .use(kesProduct =>
@@ -194,7 +193,7 @@ object BlockHeaderValidation {
                     // Otherwise, return a Left(InvalidBlockProof)
                     (BlockHeaderValidationFailures.InvalidBlockProof(
                       header.operationalCertificate
-                    ): BlockHeaderValidationFailure).asLeft[BlockHeaderV2]
+                    ): BlockHeaderValidationFailure).asLeft[BlockHeader]
                   }
                 )
             )
@@ -203,7 +202,7 @@ object BlockHeaderValidation {
       /**
        * Determines the VRF threshold for the given child
        */
-      private def vrfThresholdFor(child: BlockHeaderV2, parent: BlockHeaderV2): F[Ratio] =
+      private def vrfThresholdFor(child: BlockHeader, parent: BlockHeader): F[Ratio] =
         consensusValidationState
           .operatorRelativeStake(child.id, child.slot)(child.address)
           .flatMap(relativeStake =>
@@ -217,9 +216,9 @@ object BlockHeaderValidation {
        * Verify that the threshold evidence stamped on the block matches the threshold generated using local state
        */
       private[consensus] def vrfThresholdVerification(
-        header:    BlockHeaderV2,
+        header:    BlockHeader,
         threshold: Ratio
-      ): EitherT[F, BlockHeaderValidationFailure, BlockHeaderV2] =
+      ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
         EitherT.cond(
           header.eligibilityCertificate.thresholdEvidence === threshold.typedEvidence.evidence,
           header,
@@ -230,9 +229,9 @@ object BlockHeaderValidation {
        * Verify that the block's staker is eligible using their relative stake distribution
        */
       private[consensus] def eligibilityVerification(
-        header:    BlockHeaderV2,
+        header:    BlockHeader,
         threshold: Ratio
-      ): EitherT[F, BlockHeaderValidationFailure, BlockHeaderV2] =
+      ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
         EitherT
           .liftF(
             ed25519VRFResource
@@ -256,8 +255,8 @@ object BlockHeaderValidation {
        * (the staker's vrfVK concatenated with the staker's poolVK).
        */
       private[consensus] def registrationVerification(
-        header: BlockHeaderV2
-      ): EitherT[F, BlockHeaderValidationFailure, BlockHeaderV2] =
+        header: BlockHeader
+      ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
         OptionT(consensusValidationState.operatorRegistration(header.id, header.slot)(header.address))
           .map(_.vrfCommitment)
           .toRight(BlockHeaderValidationFailures.Unregistered(header.address): BlockHeaderValidationFailure)
@@ -285,17 +284,17 @@ object BlockHeaderValidation {
 
   object WithCache {
 
-    def make[F[_]: MonadError[*[_], Throwable]: Sync](
+    def make[F[_]: Sync](
       underlying:       BlockHeaderValidationAlgebra[F],
-      blockHeaderStore: Store[F, TypedIdentifier, BlockHeaderV2]
+      blockHeaderStore: Store[F, TypedIdentifier, BlockHeader]
     ): F[BlockHeaderValidationAlgebra[F]] =
       CaffeineCache[F, Bytes, TypedIdentifier].map(implicit cache =>
         new BlockHeaderValidationAlgebra[F] {
 
           def validate(
-            child:  BlockHeaderV2,
-            parent: BlockHeaderV2
-          ): F[Either[BlockHeaderValidationFailure, BlockHeaderV2]] =
+            child:  BlockHeader,
+            parent: BlockHeader
+          ): F[Either[BlockHeaderValidationFailure, BlockHeader]] =
             OptionT(cache.get(child.id.asTypedBytes.allBytes))
               .map(_ => child.asRight[BlockHeaderValidationFailure])
               .getOrElseF(
@@ -305,7 +304,7 @@ object BlockHeaderValidation {
                   .value
               )
 
-          private def validateParent(parent: BlockHeaderV2): EitherT[F, BlockHeaderValidationFailure, BlockHeaderV2] =
+          private def validateParent(parent: BlockHeader): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
             if (parent.parentSlot < 0)
               // TODO: Is this a security concern?
               // Could an adversary just "claim" the parentSlot is -1 to circumvent validation?
@@ -315,7 +314,7 @@ object BlockHeaderValidation {
                 OptionT(blockHeaderStore.get(parent.parentHeaderId))
                   .getOrElseF(
                     new IllegalStateException(s"Non-existent block header id=${parent.parentHeaderId}")
-                      .raiseError[F, BlockHeaderV2]
+                      .raiseError[F, BlockHeader]
                   )
                   .flatMap(grandParent => Sync[F].defer(validate(parent, grandParent)))
               )

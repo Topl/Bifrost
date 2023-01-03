@@ -24,10 +24,10 @@ trait TetraPersistableCodecs {
   implicit val persistableSlotData: Persistable[SlotData] =
     Persistable.instanceFromCodec
 
-  implicit val persistableBlockHeader: Persistable[BlockHeaderV2] =
+  implicit val persistableBlockHeader: Persistable[BlockHeader] =
     Persistable.instanceFromCodec
 
-  implicit val persistableBlockBody: Persistable[BlockBodyV2] =
+  implicit val persistableBlockBody: Persistable[BlockBody] =
     Persistable.instanceFromCodec
 
   implicit val persistableTransaction: Persistable[Transaction] =

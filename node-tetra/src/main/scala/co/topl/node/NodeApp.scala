@@ -73,9 +73,9 @@ object NodeApp
         stakerInitializers
       )
       bigBangBlock = BigBang.block
-      _ <- Resource.eval(Logger[F].info(show"Big Bang Block id=${bigBangBlock.headerV2.id.asTypedBytes}"))
+      _ <- Resource.eval(Logger[F].info(show"Big Bang Block id=${bigBangBlock.header.id.asTypedBytes}"))
 
-      stakingDir = Path(appConfig.bifrost.staking.directory) / bigBangBlock.headerV2.id.asTypedBytes.show
+      stakingDir = Path(appConfig.bifrost.staking.directory) / bigBangBlock.header.id.asTypedBytes.show
       _ <- Resource.eval(Files[F].createDirectories(stakingDir))
       _ <- Resource.eval(Logger[F].info(show"Using stakingDir=$stakingDir"))
 
@@ -90,8 +90,8 @@ object NodeApp
 
       blockIdTree <- Resource.eval(
         ParentChildTree.FromStore
-          .make[F, TypedIdentifier](dataStores.parentChildTree, bigBangBlock.headerV2.parentHeaderId)
-          .flatTap(_.associate(bigBangBlock.headerV2.id, bigBangBlock.headerV2.parentHeaderId))
+          .make[F, TypedIdentifier](dataStores.parentChildTree, bigBangBlock.header.parentHeaderId)
+          .flatTap(_.associate(bigBangBlock.header.id, bigBangBlock.header.parentHeaderId))
       )
 
       // Start the supporting interpreters
@@ -115,7 +115,7 @@ object NodeApp
       clock = SchedulerClock.Eval.make[F](
         bigBangProtocol.slotDuration,
         bigBangProtocol.epochLength,
-        Instant.ofEpochMilli(bigBangBlock.headerV2.timestamp),
+        Instant.ofEpochMilli(bigBangBlock.header.timestamp),
         bigBangProtocol.forwardBiasedSlotWindow
       )
       _ <- Resource.eval(
@@ -127,7 +127,7 @@ object NodeApp
         EtaCalculation.Eval.make(
           dataStores.slotData.getOrRaise,
           clock,
-          bigBangBlock.headerV2.eligibilityCertificate.eta,
+          bigBangBlock.header.eligibilityCertificate.eta,
           cryptoResources.blake2b256,
           cryptoResources.blake2b512
         )
@@ -308,7 +308,7 @@ object NodeApp
     clock:                       ClockAlgebra[F],
     dataStores:                  DataStores[F],
     currentEventIdGetterSetters: CurrentEventIdGetterSetters[F],
-    bigBangBlock:                BlockV2.Full,
+    bigBangBlock:                Block.Full,
     blockIdTree:                 ParentChildTree[F, TypedIdentifier]
   ) =
     for {
@@ -335,7 +335,7 @@ object NodeApp
             .map(_.outputs.get(boxId.transactionOutputIndex.toLong).get)
       )
       consensusValidationState <- ConsensusValidationState
-        .make[F](bigBangBlock.headerV2.id, epochBoundariesState, consensusDataState, clock)
+        .make[F](bigBangBlock.header.id, epochBoundariesState, consensusDataState, clock)
     } yield consensusValidationState
 
   private def makeLeaderElectionThreshold(blake2b512Resource: UnsafeResource[F, Blake2b512], vrfConfig: VrfConfig) =

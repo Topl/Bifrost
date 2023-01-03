@@ -40,12 +40,12 @@ trait BlockchainPeerClient[F[_]] {
   /**
    * A Lookup to retrieve a remote block header by ID
    */
-  def getRemoteHeader(id: TypedIdentifier): F[Option[BlockHeaderV2]]
+  def getRemoteHeader(id: TypedIdentifier): F[Option[BlockHeader]]
 
   /**
    * A Lookup to retrieve a remot block body by ID
    */
-  def getRemoteBody(id: TypedIdentifier): F[Option[BlockBodyV2]]
+  def getRemoteBody(id: TypedIdentifier): F[Option[BlockBody]]
 
   /**
    * A lookup to retrieve a remote transaction by ID
