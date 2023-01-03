@@ -13,7 +13,12 @@ object Dependencies {
   val fs2Version = "3.5-1c0be5c"
   val logback = "1.4.5"
 
+  // used by github submodule, which will be replaced by Maven repository (jitpack)
   val protobufSpecsHash = "e48b7bf2de03e263bd263f1c586baa2334fbcefb"
+  // used by jitpack resolver: branch BN-718-crypto-models-SNAPSHOT
+  private val protobufSpecs = Seq(
+    "com.github.Topl" % "protobuf-specs" % "1513586a"
+  )
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.5.0"
@@ -319,6 +324,7 @@ object Dependencies {
     cats ++
     simulacrum ++
     cats ++
+    protobufSpecs ++
     test
 
   lazy val eventTree: Seq[ModuleID] =
