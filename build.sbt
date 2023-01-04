@@ -44,7 +44,8 @@ lazy val commonSettings = Seq(
     "Typesafe Repository" at "https://repo.typesafe.com/typesafe/releases/",
     "Sonatype Staging" at "https://s01.oss.sonatype.org/content/repositories/staging",
     "Sonatype Snapshots" at "https://s01.oss.sonatype.org/content/repositories/snapshots/",
-    "Bintray" at "https://jcenter.bintray.com/"
+    "Bintray" at "https://jcenter.bintray.com/",
+    "jitpack" at "https://jitpack.io"
   ),
   addCompilerPlugin("org.typelevel" % "kind-projector"     % "0.13.2" cross CrossVersion.full),
   addCompilerPlugin("com.olegpy"   %% "better-monadic-for" % "0.3.1"),

@@ -1,9 +1,11 @@
 package co.topl
 
 import cats.Order
-import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models._
 import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.crypto.signing.Ed25519VRF
+import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.Sized
 
 package object consensus {
 
@@ -22,7 +24,7 @@ package object consensus {
       SlotData(
         SlotId(blockHeader.slot, blockHeader.id),
         blockHeader.parentSlotId,
-        ed25519VRF.proofToHash(blockHeader.eligibilityCertificate.vrfSig),
+        Rho(Sized.strictUnsafe(ed25519VRF.proofToHash(blockHeader.eligibilityCertificate.vrfSig.bytes.data))),
         blockHeader.eligibilityCertificate.eta,
         blockHeader.height
       )

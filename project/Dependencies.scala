@@ -183,6 +183,9 @@ object Dependencies {
   val circeYaml = "io.circe"               %% "circe-yaml"           % "0.14.1"
   val kubernetes = "io.kubernetes"          % "client-java"          % "16.0.1"
 
+  val bramblScCrypto =
+    "com.github.Topl" % "BramblSc" % "8f4389b"
+
   val nodeDion: Seq[ModuleID] =
     Seq(
       "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
@@ -319,7 +322,8 @@ object Dependencies {
     cats ++
     simulacrum ++
     cats ++
-    test
+    test ++
+    Seq(bramblScCrypto)
 
   lazy val eventTree: Seq[ModuleID] =
     Dependencies.mUnitTest ++ Dependencies.catsEffect

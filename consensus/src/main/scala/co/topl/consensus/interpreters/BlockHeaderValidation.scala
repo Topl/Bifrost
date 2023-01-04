@@ -8,10 +8,12 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras._
 import co.topl.consensus.{BlockHeaderValidationFailure, BlockHeaderValidationFailures}
+import co.topl.crypto.signing.{Ed25519VRF, KesProduct}
 import co.topl.crypto.hash.Blake2b256
-import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
+import co.topl.crypto.signing.Ed25519
 import co.topl.models._
-import co.topl.models.utility.Ratio
+import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.{Ratio, Sized}
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
 import scalacache.caffeine.CaffeineCache
@@ -125,9 +127,9 @@ object BlockHeaderValidation {
                     .use { implicit ed25519vrf =>
                       ed25519vrf
                         .verify(
-                          header.eligibilityCertificate.vrfSig,
+                          header.eligibilityCertificate.vrfSig.bytes.data,
                           LeaderElectionValidation.VrfArgument(expectedEta, header.slot).signableBytes,
-                          header.eligibilityCertificate.vkVRF
+                          header.eligibilityCertificate.vkVRF.bytes.data
                         )
                         .pure[F]
                     }
@@ -178,9 +180,9 @@ object BlockHeaderValidation {
                   // Use the ed25519 instance to verify the childSignature against the header's bytes
                   ed25519
                     .verify(
-                      header.operationalCertificate.childSignature,
+                      header.operationalCertificate.childSignature.bytes.data,
                       header.signableBytes,
-                      header.operationalCertificate.childVK
+                      header.operationalCertificate.childVK.bytes.data
                     )
                     .pure[F]
                 )
@@ -236,8 +238,9 @@ object BlockHeaderValidation {
           .liftF(
             ed25519VRFResource
               .use { implicit ed25519Vrf =>
-                ed25519Vrf.proofToHash(header.eligibilityCertificate.vrfSig).pure[F]
+                ed25519Vrf.proofToHash(header.eligibilityCertificate.vrfSig.bytes.data).pure[F]
               }
+              .map(rhoBytes => Rho(Sized.strictUnsafe(rhoBytes)))
               .flatMap(leaderElection.isSlotLeaderForThreshold(threshold))
           )
           .ensure(
@@ -265,9 +268,7 @@ object BlockHeaderValidation {
               message <- blake2b256Resource
                 .use(_.hash(header.eligibilityCertificate.vkVRF.bytes.data, header.address.vk.bytes.data).pure[F])
               isValid <- kesProductResource
-                .use(p =>
-                  p.verify(commitment, message.data, header.operationalCertificate.parentVK.copy(step = 0)).pure[F]
-                )
+                .use(p => p.verify(commitment, message, header.operationalCertificate.parentVK.copy(step = 0)).pure[F])
             } yield Either.cond(
               isValid,
               header,

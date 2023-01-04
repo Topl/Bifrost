@@ -51,9 +51,11 @@ object BigBang {
       )
 
     val eta: Eta =
-      new Blake2b256().hash(
-        config.etaPrefix +:
-        transactions.map(_.immutableBytes).toList: _*
+      Sized.strictUnsafe(
+        new Blake2b256().hash(
+          config.etaPrefix +:
+          transactions.map(_.immutableBytes).toList: _*
+        )
       )
 
     val header =
