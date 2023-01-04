@@ -964,7 +964,7 @@ trait BoxBifrostMorphismInstances {
           quantity     <- EitherT(v.quantity.toF[F, models.Int128])
           assetCode    <- EitherT(v.assetCode.toF[F, models.AssetV1BoxValue.Code])
           securityRoot <- EitherT(v.securityRoot.toF[F, ByteString])
-          metadata     <- v.metadata.traverse(v => EitherT(v.toF[F, ByteString]))
+          metadata     <- v.metadata.fold(EitherT.pure[F, String](ByteString.EMPTY))(v => EitherT(v.toF[F, ByteString]))
         } yield models.AssetV1BoxValue(quantity.some, assetCode.some, securityRoot, metadata)
       ).flatMap(_.value),
       _.map(v =>
@@ -975,7 +975,9 @@ trait BoxBifrostMorphismInstances {
             .toEitherT[F]
             .flatMapF(_.toF[F, bifrostModels.Box.Values.AssetV1.Code])
           securityRoot <- EitherT(v.securityRoot.toF[F, bifrostModels.Box.Values.AssetV1.SecurityRoot])
-          metadata     <- v.metadata.map(_.toF[F, bifrostModels.Box.Values.AssetV1.Metadata]).traverse(EitherT(_))
+          metadata <-
+            if (v.metadata.isEmpty) EitherT.pure[F, String](none[bifrostModels.Box.Values.AssetV1.Metadata])
+            else EitherT(v.metadata.toF[F, bifrostModels.Box.Values.AssetV1.Metadata]).map(_.some)
         } yield bifrostModels.Box.Values.AssetV1(quantity, assetCode, securityRoot, metadata)
       ).flatMap(_.value)
     )
@@ -1128,7 +1130,7 @@ trait TransactionBifrostMorphismInstances {
           schedule <- EitherT(
             transaction.schedule.toF[F, models.Transaction.Schedule]
           )
-          data <- transaction.data.traverse(v => EitherT(v.toF[F, ByteString]))
+          data <- transaction.data.fold(EitherT.pure[F, String](ByteString.EMPTY))(v => EitherT(v.toF[F, ByteString]))
         } yield models.Transaction(inputs, outputs, schedule.some, data)
       )
         .flatMap(_.value),
@@ -1149,7 +1151,9 @@ trait TransactionBifrostMorphismInstances {
           schedule <- EitherT
             .fromOption[F](protoTransaction.schedule, "Missing schedule")
             .flatMapF(_.toF[F, bifrostModels.Transaction.Schedule])
-          data <- protoTransaction.data.traverse(v => EitherT(v.toF[F, bifrostModels.Transaction.DataTetra]))
+          data <-
+            if (protoTransaction.data.isEmpty) EitherT.pure[F, String](none[bifrostModels.Transaction.DataTetra])
+            else EitherT(protoTransaction.data.toF[F, bifrostModels.Transaction.DataTetra]).map(_.some)
         } yield bifrostModels.Transaction(inputs, outputs, schedule, data)
       )
         .flatMap(_.value)
@@ -1237,7 +1241,9 @@ trait BlockBifrostMorphismInstances {
           parentHeaderId         <- EitherT(header.parentHeaderId.toF[F, models.BlockId])
           eligibilityCertificate <- EitherT(header.eligibilityCertificate.toF[F, models.EligibilityCertificate])
           operationalCertificate <- EitherT(header.operationalCertificate.toF[F, models.OperationalCertificate])
-          metadata               <- header.metadata.traverse(v => EitherT(v.toF[F, ByteString]))
+          metadata <- header.metadata.fold(EitherT.pure[F, String](ByteString.EMPTY))(v =>
+            EitherT(v.toF[F, ByteString])
+          )
         } yield models
           .BlockHeader(
             parentHeaderId.some,
@@ -1271,9 +1277,9 @@ trait BlockBifrostMorphismInstances {
             .toRight("Missing operationalCertificate")
             .toEitherT[F]
             .flatMapF(_.toF[F, bifrostModels.OperationalCertificate])
-          metadata <- protoHeader.metadata.traverse(metadata =>
-            EitherT(metadata.toF[F, bifrostModels.BlockHeaderV2.Metadata])
-          )
+          metadata <-
+            if (protoHeader.metadata.isEmpty) EitherT.pure[F, String](none[bifrostModels.BlockHeaderV2.Metadata])
+            else EitherT(protoHeader.metadata.toF[F, bifrostModels.BlockHeaderV2.Metadata]).map(_.some)
           address <- EitherT
             .fromEither[F](protoHeader.address.toRight("missing address"))
             .flatMapF(_.toF[F, bifrostModels.StakingAddresses.Operator])
@@ -1311,4 +1317,3 @@ trait BlockBifrostMorphismInstances {
     )
 
 }
-// Hello :)

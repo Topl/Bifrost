@@ -178,7 +178,6 @@ lazy val bifrost = project
     crypto,
     catsAkka,
     models, // TODO remove BN-714 PR v2
-    protobuf,
     numerics,
     eventTree,
     algebras,
@@ -306,35 +305,6 @@ lazy val models = project
     libraryDependencies ++= Dependencies.models
   )
   .settings(libraryDependencies ++= Dependencies.test)
-
-// A task (meant to be run before compile) which ensures that the protobuf-specs git submodule is up-to-date
-// The protobuf specifications are defined in a remote repository and are downloaded locally for compilation.
-lazy val updateSubmodulesTask = TaskKey[Unit]("updateSubmodules", "Update git submodules")
-
-lazy val protobuf = project
-  .in(file("protobuf"))
-  .enablePlugins(BuildInfoPlugin, Fs2Grpc)
-  .settings(
-    name := "protobuf",
-    commonSettings,
-    scalamacrosParadiseSettings,
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "co.topl.buildinfo.protobuf",
-    libraryDependencies ++= Dependencies.protobuf ++ Dependencies.test,
-    scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
-    updateSubmodulesTask := {
-      import sys.process._
-      Process
-        .apply(
-          Seq("git", "submodule", "add", "-f", "git@github.com:Topl/protobuf-specs.git", "./protobuf/src/main/protobuf")
-        )
-        .!
-      Process
-        .apply(Seq("git", "checkout", Dependencies.protobufSpecsHash), Some(new File("./protobuf/src/main/protobuf")))
-        .!
-    },
-    (Compile / compile) := (Compile / compile).dependsOn(updateSubmodulesTask).value
-  )
 
 lazy val numerics = project
   .in(file("numerics"))
@@ -599,7 +569,6 @@ lazy val toplGrpc = project
   )
   .dependsOn(
     models % "compile->compile;test->test",
-    protobuf,
     byteCodecs,
     tetraByteCodecs,
     algebras,
