@@ -8,7 +8,7 @@ import co.topl.algebras.Store
 import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.consensus.BlockHeaderV2Ops
+import co.topl.consensus.BlockHeaderOps
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.db.leveldb.LevelDbStore
 import co.topl.models._
@@ -23,8 +23,8 @@ case class DataStores[F[_]](
   parentChildTree: Store[F, TypedIdentifier, (Long, TypedIdentifier)],
   currentEventIds: Store[F, Byte, TypedIdentifier],
   slotData:        Store[F, TypedIdentifier, SlotData],
-  headers:         Store[F, TypedIdentifier, BlockHeaderV2],
-  bodies:          Store[F, TypedIdentifier, BlockBodyV2],
+  headers:         Store[F, TypedIdentifier, BlockHeader],
+  bodies:          Store[F, TypedIdentifier, BlockBody],
   transactions:    Store[F, TypedIdentifier, Transaction],
   spendableBoxIds: Store[F, TypedIdentifier, NonEmptySet[Short]],
   epochBoundaries: Store[F, Long, TypedIdentifier],
@@ -36,10 +36,10 @@ case class DataStores[F[_]](
 
 object DataStores {
 
-  def init[F[_]: Async: Logger](appConfig: ApplicationConfig)(bigBangBlock: BlockV2.Full): Resource[F, DataStores[F]] =
+  def init[F[_]: Async: Logger](appConfig: ApplicationConfig)(bigBangBlock: Block.Full): Resource[F, DataStores[F]] =
     for {
       dataDir <- Resource.pure[F, Path](
-        Path(appConfig.bifrost.data.directory) / bigBangBlock.headerV2.id.asTypedBytes.show
+        Path(appConfig.bifrost.data.directory) / bigBangBlock.header.id.asTypedBytes.show
       )
       _ <- Resource.eval(Files[F].createDirectories(dataDir))
       _ <- Resource.eval(Logger[F].info(show"Using dataDir=$dataDir"))
@@ -54,12 +54,12 @@ object DataStores {
         appConfig.bifrost.cache.slotData,
         _.allBytes
       )
-      blockHeaderStore <- makeCachedDb[F, TypedIdentifier, Bytes, BlockHeaderV2](dataDir)(
+      blockHeaderStore <- makeCachedDb[F, TypedIdentifier, Bytes, BlockHeader](dataDir)(
         "block-headers",
         appConfig.bifrost.cache.headers,
         _.allBytes
       )
-      blockBodyStore <- makeCachedDb[F, TypedIdentifier, Bytes, BlockBodyV2](dataDir)(
+      blockBodyStore <- makeCachedDb[F, TypedIdentifier, Bytes, BlockBody](dataDir)(
         "block-bodies",
         appConfig.bifrost.cache.bodies,
         _.allBytes
@@ -138,7 +138,7 @@ object DataStores {
         )
       )
 
-  private def initialize[F[_]: Monad: Logger](dataStores: DataStores[F], bigBangBlock: BlockV2.Full): F[Unit] =
+  private def initialize[F[_]: Monad: Logger](dataStores: DataStores[F], bigBangBlock: Block.Full): F[Unit] =
     for {
       // Store the big bang data
       _ <- dataStores.currentEventIds
@@ -146,28 +146,28 @@ object DataStores {
         .ifM(
           Logger[F].info("Data stores are already initialized") >> Applicative[F].unit,
           Logger[F].info("Initializing data stores") >>
-          dataStores.currentEventIds.put(CurrentEventIdGetterSetters.Indices.CanonicalHead, bigBangBlock.headerV2.id) >>
+          dataStores.currentEventIds.put(CurrentEventIdGetterSetters.Indices.CanonicalHead, bigBangBlock.header.id) >>
           List(
             CurrentEventIdGetterSetters.Indices.ConsensusData,
             CurrentEventIdGetterSetters.Indices.EpochBoundaries,
             CurrentEventIdGetterSetters.Indices.BlockHeightTree,
             CurrentEventIdGetterSetters.Indices.BoxState,
             CurrentEventIdGetterSetters.Indices.Mempool
-          ).traverseTap(dataStores.currentEventIds.put(_, bigBangBlock.headerV2.parentHeaderId)).void
+          ).traverseTap(dataStores.currentEventIds.put(_, bigBangBlock.header.parentHeaderId)).void
         )
       _ <- dataStores.slotData.put(
-        bigBangBlock.headerV2.id,
-        bigBangBlock.headerV2.slotData(Ed25519VRF.precomputed())
+        bigBangBlock.header.id,
+        bigBangBlock.header.slotData(Ed25519VRF.precomputed())
       )
-      _ <- dataStores.headers.put(bigBangBlock.headerV2.id, bigBangBlock.headerV2)
+      _ <- dataStores.headers.put(bigBangBlock.header.id, bigBangBlock.header)
       _ <- dataStores.bodies.put(
-        bigBangBlock.headerV2.id,
+        bigBangBlock.header.id,
         ListSet.empty ++ bigBangBlock.transactions.map(_.id.asTypedBytes).toList
       )
       _ <- bigBangBlock.transactions.traverseTap(transaction =>
         dataStores.transactions.put(transaction.id, transaction)
       )
-      _ <- dataStores.blockHeightTree.put(0, bigBangBlock.headerV2.parentHeaderId)
+      _ <- dataStores.blockHeightTree.put(0, bigBangBlock.header.parentHeaderId)
       _ <- dataStores.activeStake.contains(()).ifM(Applicative[F].unit, dataStores.activeStake.put((), 0))
     } yield ()
 

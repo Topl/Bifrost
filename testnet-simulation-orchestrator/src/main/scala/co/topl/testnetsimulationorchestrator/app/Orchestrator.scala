@@ -8,7 +8,7 @@ import co.topl.algebras.{SynchronizationTraversalSteps, ToplRpc}
 import co.topl.common.application.IOBaseApp
 import co.topl.grpc.ToplGrpc
 import co.topl.interpreters.MultiToplRpc
-import co.topl.models.{BlockHeaderV2, TypedIdentifier}
+import co.topl.models.{BlockHeader, TypedIdentifier}
 import co.topl.testnetsimulationorchestrator.algebras.DataPublisher
 import co.topl.testnetsimulationorchestrator.interpreters.{GcpCsvDataPublisher, K8sSimulationController}
 import co.topl.testnetsimulationorchestrator.models.{AdoptionDatum, BlockDatum, TransactionDatum}
@@ -130,7 +130,7 @@ object Orchestrator
    */
   private def fetchHeaderAdoptions(
     nodes: NodeRpcs
-  ): F[List[(NodeName, Vector[(TypedIdentifier, Long, BlockHeaderV2)])]] =
+  ): F[List[(NodeName, Vector[(TypedIdentifier, Long, BlockHeader)])]] =
     nodes.toList.parTraverse { case (name, client) =>
       for {
         _          <- Logger[F].info(show"Fetching adoptions+headers from node=$name")
@@ -152,8 +152,8 @@ object Orchestrator
     }
 
   private def assignBlocksToNodes(
-    nodeBlockAdoptions: List[(NodeName, Vector[(TypedIdentifier, Long, BlockHeaderV2)])]
-  ): F[List[(NodeName, TypedIdentifier, BlockHeaderV2)]] =
+    nodeBlockAdoptions: List[(NodeName, Vector[(TypedIdentifier, Long, BlockHeader)])]
+  ): F[List[(NodeName, TypedIdentifier, BlockHeader)]] =
     Sync[F].delay(
       nodeBlockAdoptions
         .flatMap { case (node, adoptions) => adoptions.map { case (id, _, header) => (node, id, header) } }
@@ -165,7 +165,7 @@ object Orchestrator
     )
 
   private def publishBlockBodiesAndAssignTransactions(publisher: Publisher, nodes: NodeRpcs)(
-    blockAssignments:                                            List[(NodeName, TypedIdentifier, BlockHeaderV2)]
+    blockAssignments:                                            List[(NodeName, TypedIdentifier, BlockHeader)]
   ): F[Map[TypedIdentifier, NodeName]] =
     for {
       // Create a topic which is expected to contain two subscribers
@@ -184,7 +184,7 @@ object Orchestrator
         blockDatumTopic
           .subscribe(128)
           .fold(Map.empty[TypedIdentifier, NodeName]) { case (assignments, (node, datum)) =>
-            assignments ++ datum.bodyV2.toList.tupleRight(node)
+            assignments ++ datum.body.toList.tupleRight(node)
           }
       // Publish the block data results
       _ <- Logger[F].info("Fetching block bodies, publishing blocks, and assigning transactions (in parallel)")

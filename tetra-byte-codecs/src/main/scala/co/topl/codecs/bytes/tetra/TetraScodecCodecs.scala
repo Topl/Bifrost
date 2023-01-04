@@ -452,11 +452,11 @@ trait TetraScodecBlockCodecs {
     (vkKesProductCodec :: proofSignatureKesProductCodec :: vkEd25519Codec :: proofSignatureEd25519Codec)
       .as[OperationalCertificate]
 
-  implicit val partialOperationalCertificateCodec: Codec[BlockHeaderV2.Unsigned.PartialOperationalCertificate] =
+  implicit val partialOperationalCertificateCodec: Codec[BlockHeader.Unsigned.PartialOperationalCertificate] =
     (vkKesProductCodec :: proofSignatureKesProductCodec :: vkEd25519Codec)
-      .as[BlockHeaderV2.Unsigned.PartialOperationalCertificate]
+      .as[BlockHeader.Unsigned.PartialOperationalCertificate]
 
-  implicit val blockHeaderV2Codec: Codec[BlockHeaderV2] =
+  implicit val blockHeaderCodec: Codec[BlockHeader] =
     (
       typedBytesCodec ::
         longCodec ::
@@ -469,7 +469,7 @@ trait TetraScodecBlockCodecs {
         operationalCertificateCodec ::
         optionCodec(maxSizedCodec[Latin1Data, Lengths.`32`.type]) ::
         stakingAddressesOperatorCodec
-    ).as[BlockHeaderV2]
+    ).as[BlockHeader]
 
   implicit val slotIdCodec: Codec[SlotId] =
     (Codec[Slot](uLongCodec) :: Codec[TypedIdentifier]).as[SlotId]
@@ -477,7 +477,7 @@ trait TetraScodecBlockCodecs {
   implicit val slotDataCodec: Codec[SlotData] =
     (Codec[SlotId] :: Codec[SlotId] :: Codec[Rho] :: Codec[Eta] :: Codec[Long](uLongCodec)).as[SlotData]
 
-  implicit val unsignedBlockHeaderV2Codec: Codec[BlockHeaderV2.Unsigned] =
+  implicit val unsignedBlockHeaderCodec: Codec[BlockHeader.Unsigned] =
     (
       typedBytesCodec ::
         longCodec ::
@@ -490,8 +490,8 @@ trait TetraScodecBlockCodecs {
         partialOperationalCertificateCodec ::
         optionCodec(maxSizedCodec[Latin1Data, Lengths.`32`.type]) ::
         stakingAddressesOperatorCodec
-    ).as[BlockHeaderV2.Unsigned]
+    ).as[BlockHeader.Unsigned]
 
-  implicit val blockBodyV2Codec: Codec[BlockBodyV2] = listSetCodec[TypedIdentifier]
+  implicit val blockBodyCodec: Codec[BlockBody] = listSetCodec[TypedIdentifier]
 
 }

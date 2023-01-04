@@ -105,14 +105,14 @@ package co.topl.genusLibrary.orientDb {
         _ => ()
       )
 
-    private val blockHeaderSchema: VertexSchema[BlockHeaderV2] =
+    private val blockHeaderSchema: VertexSchema[BlockHeader] =
       VertexSchema.create(
         "BlockHeader",
-        GraphDataEncoder[BlockHeaderV2]
+        GraphDataEncoder[BlockHeader]
           .withProperty(
             "blockId",
             b => {
-              val (typePrefix, bytes) = TetraIdentifiableInstances.identifiableBlockHeaderV2.idOf(b)
+              val (typePrefix, bytes) = TetraIdentifiableInstances.identifiableBlockHeader.idOf(b)
               typedBytesTupleToByteArray((typePrefix, bytes.toArray))
             },
             _.setNotNull(true)
@@ -144,7 +144,7 @@ package co.topl.genusLibrary.orientDb {
           )
           .withIndex("blockHeaderIndex", INDEX_TYPE.UNIQUE, "blockId"),
         v =>
-          BlockHeaderV2(
+          BlockHeader(
             byteArrayToTypedBytes(v("parentHeaderId")),
             v("parentSlot"),
             v("txRoot"),
@@ -159,13 +159,13 @@ package co.topl.genusLibrary.orientDb {
           )
       )
 
-    private val blockBodySchema: VertexSchema[BlockBodyV2] =
+    private val blockBodySchema: VertexSchema[BlockBody] =
       VertexSchema.create(
         "BlockBody",
-        GraphDataEncoder[BlockBodyV2]
-          .withProperty("transactionIds", t => blockBodyV2ToByteArray(t), _ => {})(byteArrayOrientDbTypes),
+        GraphDataEncoder[BlockBody]
+          .withProperty("transactionIds", t => blockBodyToByteArray(t), _ => {})(byteArrayOrientDbTypes),
         // There is no index needed for block bodies. They are accessed thru links from block headers and transactions
-        v => byteArrayToBlockBodyV2(v("transactionIds"))
+        v => byteArrayToBlockBody(v("transactionIds"))
       )
 
     private val transactionSchema: VertexSchema[Transaction] =
@@ -232,11 +232,11 @@ package co.topl.genusLibrary.orientDb {
     def byteArrayToTransaction(a: Array[Byte]): Transaction =
       decodeFromByteArray(a, TetraScodecCodecs.transactionCodec, "Transaction")
 
-    def byteArrayToBlockBodyV2(a: Array[Byte]): BlockBodyV2 =
-      decodeFromByteArray(a, TetraScodecCodecs.blockBodyV2Codec, "BlockBodyV2")
+    def byteArrayToBlockBody(a: Array[Byte]): BlockBody =
+      decodeFromByteArray(a, TetraScodecCodecs.blockBodyCodec, "BlockBody")
 
-    def blockBodyV2ToByteArray(blockBody: BlockBodyV2): Array[Byte] =
-      encodeToByteArray(blockBody, TetraScodecCodecs.blockBodyV2Codec, "BlockBodyV2")
+    def blockBodyToByteArray(blockBody: BlockBody): Array[Byte] =
+      encodeToByteArray(blockBody, TetraScodecCodecs.blockBodyCodec, "BlockBody")
 
     def typedBytesToByteArray(t: TypedIdentifier): Array[Byte] =
       typedBytesTupleToByteArray((t.typePrefix, t.dataBytes.toArray))

@@ -1,7 +1,7 @@
 package co.topl.consensus.interpreters
 
 import cats.data.NonEmptyChain
-import cats.effect.{Clock, Sync}
+import cats.effect.Sync
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras.{ClockAlgebra, UnsafeResource}
@@ -17,7 +17,7 @@ object EtaCalculation {
 
   object Eval {
 
-    def make[F[_]: Clock: Sync: Logger](
+    def make[F[_]: Sync: Logger](
       fetchSlotData:      TypedIdentifier => F[SlotData],
       clock:              ClockAlgebra[F],
       genesisEta:         Eta,
@@ -30,7 +30,7 @@ object EtaCalculation {
         impl = new Impl[F](fetchSlotData, clock, genesisEta, slotsPerEpoch, blake2b256Resource, blake2b512Resource)
       } yield impl
 
-    private class Impl[F[_]: Clock: Sync: Logger](
+    private class Impl[F[_]: Sync: Logger](
       fetchSlotData:      TypedIdentifier => F[SlotData],
       clock:              ClockAlgebra[F],
       genesisEta:         Eta,

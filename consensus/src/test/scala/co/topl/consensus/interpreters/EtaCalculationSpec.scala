@@ -8,7 +8,7 @@ import co.topl.algebras.testInterpreters.NoOpLogger
 import co.topl.algebras.{ClockAlgebra, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.consensus.BlockHeaderV2Ops
+import co.topl.consensus.BlockHeaderOps
 import co.topl.crypto.generation.KeyInitializer
 import co.topl.crypto.generation.KeyInitializer.Instances.vrfInitializer
 import co.topl.crypto.hash.{Blake2b256, Blake2b512}
@@ -80,7 +80,7 @@ class EtaCalculationSpec
       slot -> signature
     }
 
-    val blocks: List[BlockHeaderV2] =
+    val blocks: List[BlockHeader] =
       bigBangHeader ::
       LazyList
         .unfold(List(bigBangHeader)) {
@@ -119,7 +119,7 @@ class EtaCalculationSpec
       .onCall { f: Function1[Blake2b512, F[NonEmptyChain[RhoNonceHash]]] => f(blake2b512) }
 
     val actual =
-      underTest.etaToBe(blocks.last.slotId, 16L).unsafeRunSync()
+      underTest.etaToBe(SlotId(blocks.last.slot, blocks.last.id), 16L).unsafeRunSync()
 
     val expected =
       EtaCalculationSpec.expectedEta(
@@ -173,7 +173,7 @@ class EtaCalculationSpec
       .onCall { f: Function1[Blake2b512, F[NonEmptyChain[RhoNonceHash]]] => f(blake2b512) }
 
     val actual =
-      underTest.etaToBe(bigBangHeader.slotId, 16L).unsafeRunSync()
+      underTest.etaToBe(SlotId(bigBangHeader.slot, bigBangHeader.id), 16L).unsafeRunSync()
 
     val expected =
       EtaCalculationSpec.expectedEta(

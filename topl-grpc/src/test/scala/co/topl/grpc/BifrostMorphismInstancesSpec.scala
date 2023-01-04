@@ -14,11 +14,11 @@ class BifrostMorphismInstancesSpec extends CatsEffectSuite with ScalaCheckEffect
   type F[A] = IO[A]
 
   test("BlockHeader Morphism") {
-    testIsomorphism[bifrostModels.BlockHeaderV2, models.BlockHeader]
+    testIsomorphism[bifrostModels.BlockHeader, models.BlockHeader]
   }
 
   test("BlockBody Morphism") {
-    testIsomorphism[bifrostModels.BlockBodyV2, models.BlockBody]
+    testIsomorphism[bifrostModels.BlockBody, models.BlockBody]
   }
 
   test("Proof Morphism") {

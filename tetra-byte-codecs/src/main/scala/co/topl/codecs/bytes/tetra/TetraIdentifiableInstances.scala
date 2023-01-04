@@ -8,8 +8,8 @@ import co.topl.models._
 
 trait TetraIdentifiableInstances {
 
-  implicit val identifiableBlockHeaderV2: Identifiable[BlockHeaderV2] =
-    (header: BlockHeaderV2) => {
+  implicit val identifiableBlockHeader: Identifiable[BlockHeader] =
+    (header: BlockHeader) => {
       val bytes =
         header.parentHeaderId.allBytes ++ header.txRoot.data ++ header.bloomFilter.data ++ Bytes(
           BigInt(header.timestamp).toByteArray

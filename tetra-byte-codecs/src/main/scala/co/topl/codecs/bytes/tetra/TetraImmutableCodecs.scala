@@ -2,7 +2,7 @@ package co.topl.codecs.bytes.tetra
 
 import co.topl.codecs.bytes.scodecs.valuetypes.{intCodec, longCodec}
 import co.topl.codecs.bytes.typeclasses.ImmutableCodec
-import co.topl.models.BlockHeaderV2.Unsigned.PartialOperationalCertificate
+import co.topl.models.BlockHeader.Unsigned.PartialOperationalCertificate
 import co.topl.models._
 import co.topl.models.utility.Ratio
 
@@ -36,7 +36,7 @@ trait TetraImmutableCodecs {
   implicit val partialOperationalCertificateStableCodec: ImmutableCodec[PartialOperationalCertificate] =
     ImmutableCodec.fromScodecCodec
 
-  implicit val unsignedHeaderV2StableCodec: ImmutableCodec[BlockHeaderV2.Unsigned] =
+  implicit val unsignedHeaderV2StableCodec: ImmutableCodec[BlockHeader.Unsigned] =
     ImmutableCodec.fromScodecCodec
 
   implicit val transactionStableCodec: ImmutableCodec[Transaction] =

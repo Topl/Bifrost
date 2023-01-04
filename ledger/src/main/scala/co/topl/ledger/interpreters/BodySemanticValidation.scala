@@ -5,7 +5,7 @@ import cats.effect.Sync
 import cats.implicits._
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
-import co.topl.models.{BlockBodyV2, Transaction, TypedIdentifier}
+import co.topl.models.{BlockBody, Transaction, TypedIdentifier}
 
 object BodySemanticValidation {
 
@@ -22,7 +22,7 @@ object BodySemanticValidation {
          */
         def validate(
           context: BodyValidationContext
-        )(body:    BlockBodyV2): F[ValidatedNec[BodySemanticError, BlockBodyV2]] =
+        )(body:    BlockBody): F[ValidatedNec[BodySemanticError, BlockBody]] =
           body.toList
             .foldLeftM(Chain.empty[Transaction].validNec[BodySemanticError]) {
               case (Validated.Valid(prefix), transactionId) =>

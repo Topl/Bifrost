@@ -1,6 +1,6 @@
 package co.topl.algebras
 
-import co.topl.models.{BlockBodyV2, BlockHeaderV2, Transaction, TypedIdentifier}
+import co.topl.models.{BlockBody, BlockHeader, Transaction, TypedIdentifier}
 
 /**
  * Topl Rpc
@@ -13,9 +13,9 @@ trait ToplRpc[F[_], S[_]] {
 
   def currentMempool(): F[Set[TypedIdentifier]]
 
-  def fetchBlockHeader(blockId: TypedIdentifier): F[Option[BlockHeaderV2]]
+  def fetchBlockHeader(blockId: TypedIdentifier): F[Option[BlockHeader]]
 
-  def fetchBlockBody(blockId: TypedIdentifier): F[Option[BlockBodyV2]]
+  def fetchBlockBody(blockId: TypedIdentifier): F[Option[BlockBody]]
 
   def fetchTransaction(transactionId: TypedIdentifier): F[Option[Transaction]]
 

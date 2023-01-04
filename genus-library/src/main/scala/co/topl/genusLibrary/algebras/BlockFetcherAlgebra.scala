@@ -1,6 +1,6 @@
 package co.topl.genusLibrary.algebras
 
-import co.topl.models.BlockV2
+import co.topl.models.Block
 
 /**
  * Fetcher of blocks on the chain.
@@ -13,6 +13,6 @@ trait BlockFetcherAlgebra[F[_]] {
    * @param height The height to lookup
    * @return the full block
    */
-  def fetch(height: Long): ServiceResponse[F, Option[BlockV2.Full]]
+  def fetch(height: Long): ServiceResponse[F, Option[Block.Full]]
 
 }

@@ -146,12 +146,12 @@ trait ModelGenerators {
       offset      <- Gen.long
     } yield SecretKeys.KesProduct(superTree, subTree, nextSubSeed, signature, offset)
 
-  def partialOperationalCertificateGen: Gen[BlockHeaderV2.Unsigned.PartialOperationalCertificate] =
+  def partialOperationalCertificateGen: Gen[BlockHeader.Unsigned.PartialOperationalCertificate] =
     for {
       parentVK        <- kesVKGen
       parentSignature <- kesProductProofGen
       childVK         <- ed25519VkGen
-    } yield BlockHeaderV2.Unsigned.PartialOperationalCertificate(parentVK, parentSignature, childVK)
+    } yield BlockHeader.Unsigned.PartialOperationalCertificate(parentVK, parentSignature, childVK)
 
   def operationalCertificateGen: Gen[OperationalCertificate] =
     for {
@@ -179,12 +179,12 @@ trait ModelGenerators {
     heightGen:                 Gen[Long] = Gen.chooseNum(0L, 20L),
     slotGen:                   Gen[Slot] = Gen.chooseNum(0L, 50L),
     eligibilityCertificateGen: Gen[EligibilityCertificate] = eligibilityCertificateGen,
-    partialOperationalCertificateGen: Gen[BlockHeaderV2.Unsigned.PartialOperationalCertificate] =
+    partialOperationalCertificateGen: Gen[BlockHeader.Unsigned.PartialOperationalCertificate] =
       partialOperationalCertificateGen,
     metadataGen: Gen[Option[Sized.Max[Latin1Data, Lengths.`32`.type]]] =
       Gen.option(latin1DataGen.map(Sized.maxUnsafe[Latin1Data, Lengths.`32`.type](_))),
     addressGen: Gen[StakingAddresses.Operator] = operatorStakingAddressGen
-  ): Gen[BlockHeaderV2.Unsigned] =
+  ): Gen[BlockHeader.Unsigned] =
     for {
       parentHeaderID <- parentHeaderIdGen
       parentSlot     <- parentSlotGen
@@ -197,7 +197,7 @@ trait ModelGenerators {
       kesCertificate <- partialOperationalCertificateGen
       metadata       <- metadataGen
       address        <- addressGen
-    } yield BlockHeaderV2.Unsigned(
+    } yield BlockHeader.Unsigned(
       parentHeaderID,
       parentSlot,
       txRoot,
@@ -225,7 +225,7 @@ trait ModelGenerators {
     metadataGen: Gen[Option[Sized.Max[Latin1Data, Lengths.`32`.type]]] =
       Gen.option(latin1DataGen.map(Sized.maxUnsafe[Latin1Data, Lengths.`32`.type](_))),
     addressGen: Gen[StakingAddresses.Operator] = operatorStakingAddressGen
-  ): Gen[BlockHeaderV2] =
+  ): Gen[BlockHeader] =
     for {
       parentHeaderID <- parentHeaderIdGen
       parentSlot     <- parentSlotGen
@@ -238,7 +238,7 @@ trait ModelGenerators {
       kesCertificate <- operationalCertificateGen
       metadata       <- metadataGen
       address        <- addressGen
-    } yield BlockHeaderV2(
+    } yield BlockHeader(
       parentHeaderID,
       parentSlot,
       txRoot,
@@ -678,22 +678,22 @@ trait ModelGenerators {
       } yield SlotData(slotId, parentSlotId, rho, eta, height)
     )
 
-  implicit val arbitraryHeader: Arbitrary[BlockHeaderV2] =
+  implicit val arbitraryHeader: Arbitrary[BlockHeader] =
     Arbitrary(headerGen())
 
-  implicit val arbitraryBody: Arbitrary[BlockBodyV2] =
+  implicit val arbitraryBody: Arbitrary[BlockBody] =
     Arbitrary(
       Gen
         .listOf(arbitraryTypedIdentifier.arbitrary.map(id => TypedBytes(IdentifierTypes.Transaction, id.dataBytes)))
         .map(ListSet.empty[TypedIdentifier] ++ _)
     )
 
-  implicit val arbitraryBlock: Arbitrary[BlockV2] =
+  implicit val arbitraryBlock: Arbitrary[Block] =
     Arbitrary(
       for {
         header <- arbitraryHeader.arbitrary
         body   <- arbitraryBody.arbitrary
-      } yield BlockV2(header, body)
+      } yield Block(header, body)
     )
 
   implicit val arbitraryEta: Arbitrary[Eta] =

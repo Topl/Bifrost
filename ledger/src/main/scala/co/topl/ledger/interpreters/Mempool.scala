@@ -22,9 +22,9 @@ object Mempool {
    *                                     that it double-spends a Box
    * @return
    */
-  def make[F[_]: Async: Spawn](
+  def make[F[_]: Async](
     currentBlockId:               F[TypedIdentifier],
-    fetchBlockBody:               TypedIdentifier => F[BlockBodyV2],
+    fetchBlockBody:               TypedIdentifier => F[BlockBody],
     fetchTransaction:             TypedIdentifier => F[Transaction],
     parentChildTree:              ParentChildTree[F, TypedIdentifier],
     currentEventChanged:          TypedIdentifier => F[Unit],

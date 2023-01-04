@@ -1,6 +1,6 @@
 package co.topl.genusLibrary.algebras
 
-import co.topl.models.BlockV2
+import co.topl.models.Block
 
 /**
  * Inserter of blocks to the chain in the data store.
@@ -13,6 +13,6 @@ trait BlockInserterAlgebra[F[_]] {
    * @param block the block to be inserted in the data store.
    * @return Unit
    */
-  def insert(block: BlockV2.Full): StoreResponse[F, Unit]
+  def insert(block: Block.Full): StoreResponse[F, Unit]
 
 }

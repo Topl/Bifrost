@@ -153,21 +153,21 @@ class TetraScodecCodecsSpec extends CodecSpec {
     ModelGenerators.eligibilityCertificateGen
   )
 
-  codecBehavior[BlockHeaderV2.Unsigned.PartialOperationalCertificate](
-    "BlockHeaderV2.Unsigned.PartialOperationalCertificate",
+  codecBehavior[BlockHeader.Unsigned.PartialOperationalCertificate](
+    "BlockHeader.Unsigned.PartialOperationalCertificate",
     TetraScodecCodecs.partialOperationalCertificateCodec,
     ModelGenerators.partialOperationalCertificateGen
   )
 
   codecBehavior[StakingAddress]()
 
-  codecBehavior[BlockHeaderV2.Unsigned](
-    "BlockHeaderV2.Unsigned",
-    TetraScodecCodecs.unsignedBlockHeaderV2Codec,
+  codecBehavior[BlockHeader.Unsigned](
+    "BlockHeader.Unsigned",
+    TetraScodecCodecs.unsignedBlockHeaderCodec,
     ModelGenerators.unsignedHeaderGen()
   )
 
-  codecBehavior[BlockHeaderV2]()
+  codecBehavior[BlockHeader]()
 
   codecBehavior[TypedEvidence](
     "TypedEvidence",

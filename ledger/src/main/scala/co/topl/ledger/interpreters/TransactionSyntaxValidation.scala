@@ -73,7 +73,11 @@ object TransactionSyntaxValidation {
   private[interpreters] def positiveTimestampValidation(
     transaction: Transaction
   ): ValidatedNec[TransactionSyntaxError, Unit] =
-    Validated.condNec(transaction.timestamp >= 0, (), TransactionSyntaxErrors.InvalidTimestamp(transaction.timestamp))
+    Validated.condNec(
+      transaction.schedule.creation >= 0,
+      (),
+      TransactionSyntaxErrors.InvalidTimestamp(transaction.schedule.creation)
+    )
 
   /**
    * Verify that the schedule of the timestamp contains valid minimum and maximum slot values

@@ -46,9 +46,9 @@ class BlockchainClientSpec
 
           def getRemoteSlotData(id: TypedIdentifier): F[Option[SlotData]] = ???
 
-          def getRemoteHeader(id: TypedIdentifier): F[Option[BlockHeaderV2]] = ???
+          def getRemoteHeader(id: TypedIdentifier): F[Option[BlockHeader]] = ???
 
-          def getRemoteBody(id: TypedIdentifier): F[Option[BlockBodyV2]] = ???
+          def getRemoteBody(id: TypedIdentifier): F[Option[BlockBody]] = ???
 
           def getRemoteTransaction(id: TypedIdentifier): F[Option[Transaction]] = ???
 
