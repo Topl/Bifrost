@@ -75,7 +75,7 @@ object BlockchainNetwork {
       _           <- Logger[F].info(s"Bound P2P at host=$host port=$bindPort")
     } yield (p2pServer, clientFiber)
 
-  private def handleNetworkClients[F[_]: Parallel: Async: Concurrent: Logger: FToFuture](
+  private def handleNetworkClients[F[_]: Parallel: Async: Logger: FToFuture](
     clients:         Source[BlockchainPeerClient[F], _],
     clientHandler:   BlockchainPeerHandlerAlgebra[F]
   )(implicit system: ActorSystem[_]): F[Fiber[F, Throwable, Unit]] =

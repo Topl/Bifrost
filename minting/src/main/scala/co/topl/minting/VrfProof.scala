@@ -3,7 +3,7 @@ package co.topl.minting
 import cats.data.OptionT
 import cats.effect.Sync
 import cats.implicits._
-import cats.{MonadError, Parallel}
+import cats.Parallel
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras.{ClockAlgebra, UnsafeResource}
 import co.topl.codecs.bytes.typeclasses.implicits._
@@ -24,7 +24,7 @@ object VrfProof {
 
   object Eval {
 
-    def make[F[_]: MonadError[*[_], Throwable]: Sync: Logger: Parallel](
+    def make[F[_]: Sync: Logger: Parallel](
       skVrf:                    SecretKeys.VrfEd25519,
       clock:                    ClockAlgebra[F],
       leaderElectionValidation: LeaderElectionValidationAlgebra[F],

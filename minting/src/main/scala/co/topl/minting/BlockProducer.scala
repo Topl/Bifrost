@@ -34,7 +34,7 @@ object BlockProducer {
    *                    should immediately start constructing a result once created, and it should emit its best attempt
    *                    when demanded.
    */
-  def make[F[_]: Async: FToFuture: RunnableGraphToF](
+  def make[F[_]: Async: FToFuture](
     parentHeaders:   SourceMatNotUsed[SlotData],
     staker:          StakingAlgebra[F],
     clock:           ClockAlgebra[F],
@@ -44,7 +44,7 @@ object BlockProducer {
       new BlockProducerAlgebra[F] {
         implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromClass[F](BlockProducer.getClass)
 
-        val blocks: F[Source[BlockV2, NotUsed]] =
+        val blocks: F[Source[Block, NotUsed]] =
           Sync[F].delay(
             parentHeaders
               .buffer(1, OverflowStrategy.dropHead)
@@ -55,7 +55,7 @@ object BlockProducer {
         /**
          * Construct a new child Block of the given parent
          */
-        private def makeChild(parentSlotData: SlotData): F[Option[BlockV2]] =
+        private def makeChild(parentSlotData: SlotData): F[Option[Block]] =
           for {
             // From the given parent block, when are we next eligible to produce a new block?
             nextHit <- nextEligibility(parentSlotData.slotId)
@@ -88,7 +88,7 @@ object BlockProducer {
          * the best possible block.
          * @param untilSlot The slot at which the block packer function should be halted and a value extracted
          */
-        private def packBlock(parentId: TypedIdentifier, height: Long, untilSlot: Slot): F[BlockBodyV2.Full] =
+        private def packBlock(parentId: TypedIdentifier, height: Long, untilSlot: Slot): F[BlockBody.Full] =
           blockPacker
             .improvePackedBlock(parentId, height, untilSlot)
             .flatMap(Iterative.run(Chain.empty[Transaction].pure[F]))
@@ -100,14 +100,14 @@ object BlockProducer {
          */
         private def prepareUnsignedBlock(
           parentSlotData: SlotData,
-          body:           BlockBodyV2.Full,
+          body:           BlockBody.Full,
           timestamp:      Timestamp,
           nextHit:        VrfHit
-        ): BlockHeaderV2.Unsigned.PartialOperationalCertificate => BlockV2.Unsigned =
-          (partialOperationalCertificate: BlockHeaderV2.Unsigned.PartialOperationalCertificate) =>
-            BlockV2
+        ): BlockHeader.Unsigned.PartialOperationalCertificate => Block.Unsigned =
+          (partialOperationalCertificate: BlockHeader.Unsigned.PartialOperationalCertificate) =>
+            Block
               .Unsigned(
-                BlockHeaderV2.Unsigned(
+                BlockHeader.Unsigned(
                   parentHeaderId = parentSlotData.slotId.blockId,
                   parentSlot = parentSlotData.slotId.slot,
                   txRoot = body.merkleTreeRootHash,

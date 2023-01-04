@@ -4,22 +4,8 @@ import cats.data.Chain
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{Lengths, Sized}
 
-// id = hash(blockBytes)
-case class BlockV1(
-  parentId:     TypedIdentifier,
-  timestamp:    Timestamp,
-  generatorBox: Box,
-  publicKey:    Bytes,
-  signature:    Bytes,
-  height:       Long,
-  difficulty:   Long,
-  txRoot:       TxRoot,
-  bloomFilter:  BloomFilter,
-  transactions: Seq[Transaction]
-)
-
 // id = hash(headerBytes) INCLUDING kesCertificate proofs
-case class BlockHeaderV2(
+case class BlockHeader(
   parentHeaderId:         TypedIdentifier,
   parentSlot:             Slot,
   txRoot:                 TxRoot,
@@ -30,13 +16,13 @@ case class BlockHeaderV2(
   eligibilityCertificate: EligibilityCertificate,
   operationalCertificate: OperationalCertificate,
   // TODO: Discussion on mint signatures
-  metadata: Option[BlockHeaderV2.Metadata],
+  metadata: Option[BlockHeader.Metadata],
   address:  StakingAddresses.Operator
 ) {
   def parentSlotId: SlotId = SlotId(parentSlot, parentHeaderId)
 }
 
-object BlockHeaderV2 {
+object BlockHeader {
 
   type Metadata = Sized.Max[Latin1Data, Lengths.`32`.type]
 
@@ -65,18 +51,18 @@ object BlockHeaderV2 {
 }
 
 // This is a synthetic type, and is not "identifiable"
-case class BlockV2(headerV2: BlockHeaderV2, blockBodyV2: BlockBodyV2)
+case class Block(header: BlockHeader, body: BlockBody)
 
-object BlockBodyV2 {
+object BlockBody {
   type Full = Chain[Transaction]
 }
 
-object BlockV2 {
+object Block {
 
   case class Unsigned(
-    unsignedHeader: BlockHeaderV2.Unsigned,
-    body:           BlockBodyV2
+    unsignedHeader: BlockHeader.Unsigned,
+    body:           BlockBody
   )
 
-  case class Full(headerV2: BlockHeaderV2, transactions: BlockBodyV2.Full)
+  case class Full(header: BlockHeader, transactions: BlockBody.Full)
 }

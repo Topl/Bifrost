@@ -48,7 +48,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
           TestStore.make[F, StakingAddresses.Operator, Box.Values.Registrations.Operator]
         ).mapN(ConsensusDataEventSourcedState.ConsensusData[F])
         _                <- initialState.totalActiveStake.put((), 0)
-        bodyStore        <- TestStore.make[F, TypedIdentifier, BlockBodyV2]
+        bodyStore        <- TestStore.make[F, TypedIdentifier, BlockBody]
         transactionStore <- TestStore.make[F, TypedIdentifier, Transaction]
         fetchTransactionOutput = (boxId: Box.Id) =>
           transactionStore.getOrRaise(boxId.transactionId).map(_.outputs.get(boxId.transactionOutputIndex).get)
@@ -208,7 +208,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
           ConsensusDataEventSourcedState.ConsensusData[F](operatorStakes, totalActiveStake, registrations)
         )
         _                <- initialState.totalActiveStake.put((), 0)
-        bodyStore        <- TestStore.make[F, TypedIdentifier, BlockBodyV2]
+        bodyStore        <- TestStore.make[F, TypedIdentifier, BlockBody]
         transactionStore <- TestStore.make[F, TypedIdentifier, Transaction]
         fetchTransactionOutput = (boxId: Box.Id) =>
           transactionStore.getOrRaise(boxId.transactionId).map(_.outputs.get(boxId.transactionOutputIndex).get)

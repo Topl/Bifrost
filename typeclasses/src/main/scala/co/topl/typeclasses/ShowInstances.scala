@@ -42,7 +42,7 @@ trait ShowInstances {
 
   import IdentityOps._
 
-  implicit val showBlockHeaderV2: Show[BlockHeaderV2] =
+  implicit val showBlockHeader: Show[BlockHeader] =
     header =>
       show"BlockHeader(id=${header.id.asTypedBytes}" +
       show" parentId=${header.parentHeaderId}" +

@@ -31,7 +31,7 @@ object ContainsTransactionIds {
   trait Instances {
     implicit val typedIdentifiersAsTxIds: ContainsTransactionIds[Seq[TypedIdentifier]] = identity
 
-    implicit val blockBody: ContainsTransactionIds[BlockBodyV2] = body => body.toSeq
+    implicit val blockBody: ContainsTransactionIds[BlockBody] = body => body.toSeq
 
     implicit def containsTxToContainTxsId[G: ContainsTransactions]: ContainsTransactionIds[G] = txs =>
       implicitly[ContainsTransactions[G]].transactionsOf(txs).map(_.id.asTypedBytes)
@@ -60,7 +60,6 @@ object ContainsTransactions {
     implicit def transactionsFoldableContainsTransactions[G[_]: Foldable]: ContainsTransactions[G[Transaction]] =
       t => t.toIterable.toSeq
 
-    implicit val blockV1ContainsTransactions: ContainsTransactions[BlockV1] = _.transactions
   }
 
   object Instances extends Instances

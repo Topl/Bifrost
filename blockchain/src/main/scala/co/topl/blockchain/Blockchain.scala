@@ -6,12 +6,12 @@ import akka.util.ByteString
 import cats.data.{OptionT, Validated}
 import cats.effect._
 import cats.implicits._
-import cats.{MonadThrow, Parallel}
+import cats.Parallel
 import co.topl.algebras.{ClockAlgebra, Store, UnsafeResource}
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.consensus.BlockHeaderV2Ops
+import co.topl.consensus.BlockHeaderOps
 import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, BlockHeaderValidationAlgebra, LocalChainAlgebra}
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
@@ -35,12 +35,12 @@ object Blockchain {
   /**
    * A program which executes the blockchain protocol, including a P2P layer, RPC layer, and minter.
    */
-  def run[F[_]: Parallel: MonadThrow: Async: FToFuture](
+  def run[F[_]: Parallel: Async: FToFuture](
     clock:                       ClockAlgebra[F],
     staker:                      Option[StakingAlgebra[F]],
     slotDataStore:               Store[F, TypedIdentifier, SlotData],
-    headerStore:                 Store[F, TypedIdentifier, BlockHeaderV2],
-    bodyStore:                   Store[F, TypedIdentifier, BlockBodyV2],
+    headerStore:                 Store[F, TypedIdentifier, BlockHeader],
+    bodyStore:                   Store[F, TypedIdentifier, BlockBody],
     transactionStore:            Store[F, TypedIdentifier, Transaction],
     _localChain:                 LocalChainAlgebra[F],
     blockIdTree:                 ParentChildTree[F, TypedIdentifier],
@@ -137,7 +137,7 @@ object Blockchain {
         transactionStore.getOrRaise,
         BlockPacker.makeBodyValidator(bodySyntaxValidation, bodySemanticValidation, bodyAuthorizationValidation)
       )
-      mintedBlockStream <- staker.fold(Source.never[BlockV2].pure[F])(staker =>
+      mintedBlockStream <- staker.fold(Source.never[Block].pure[F])(staker =>
         // The BlockProducer needs a stream/Source of "parents" upon which it should build.  This stream is the
         // concatenation of the current local head with the stream of local block adoptions
         localChain.head
@@ -170,14 +170,14 @@ object Blockchain {
       rpcServer = ToplGrpc.Server.serve(rpcHost, rpcPort, rpcInterpreter)
       mintedBlockStreamCompletionFuture =
         mintedBlockStream
-          .tapAsyncF(1)(block => Logger[F].info(show"Minted header=${block.headerV2} body=${block.blockBodyV2}"))
+          .tapAsyncF(1)(block => Logger[F].info(show"Minted header=${block.header} body=${block.body}"))
           .mapAsyncF(1)(block =>
-            blockIdTree.associate(block.headerV2.id, block.headerV2.parentHeaderId) >>
-            headerStore.put(block.headerV2.id, block.headerV2) >>
-            bodyStore.put(block.headerV2.id, block.blockBodyV2) >>
+            blockIdTree.associate(block.header.id, block.header.parentHeaderId) >>
+            headerStore.put(block.header.id, block.header) >>
+            bodyStore.put(block.header.id, block.body) >>
             ed25519VrfResource
-              .use(implicit e => block.headerV2.slotData.pure[F])
-              .flatTap(slotDataStore.put(block.headerV2.id, _))
+              .use(implicit e => block.header.slotData.pure[F])
+              .flatTap(slotDataStore.put(block.header.id, _))
           )
           .tapAsyncF(1)(slotData =>
             Logger[F].info(

@@ -55,11 +55,11 @@ object Staking {
       def certifyBlock(
         parentSlotId:         SlotId,
         slot:                 Slot,
-        unsignedBlockBuilder: BlockHeaderV2.Unsigned.PartialOperationalCertificate => BlockV2.Unsigned
-      ): F[Option[BlockV2]] =
+        unsignedBlockBuilder: BlockHeader.Unsigned.PartialOperationalCertificate => Block.Unsigned
+      ): F[Option[Block]] =
         OptionT(evolver.operationalKeyForSlot(slot, parentSlotId)).semiflatMap { operationalKeyOut =>
           ed25519Resource.use { ed25519 =>
-            val partialCertificate = BlockHeaderV2.Unsigned.PartialOperationalCertificate(
+            val partialCertificate = BlockHeader.Unsigned.PartialOperationalCertificate(
               operationalKeyOut.parentVK,
               operationalKeyOut.parentSignature,
               ed25519.getVerificationKey(operationalKeyOut.childSK)
@@ -71,7 +71,7 @@ object Staking {
               ed25519.getVerificationKey(operationalKeyOut.childSK),
               ed25519.sign(operationalKeyOut.childSK, unsignedBlock.unsignedHeader.signableBytes)
             )
-            val header = BlockHeaderV2(
+            val header = BlockHeader(
               unsignedBlock.unsignedHeader.parentHeaderId,
               unsignedBlock.unsignedHeader.parentSlot,
               unsignedBlock.unsignedHeader.txRoot,
@@ -84,7 +84,7 @@ object Staking {
               unsignedBlock.unsignedHeader.metadata,
               unsignedBlock.unsignedHeader.address
             )
-            BlockV2(
+            Block(
               header,
               unsignedBlock.body
             ).pure[F]
