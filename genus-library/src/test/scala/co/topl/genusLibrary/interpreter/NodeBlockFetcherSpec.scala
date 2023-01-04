@@ -60,7 +60,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
 
         (toplRpc.fetchBlockHeader _)
           .expects(blockId)
-          .returning(Option.empty[BlockHeaderV2].pure[F])
+          .returning(Option.empty[BlockHeader].pure[F])
           .once()
 
         assertIO(
@@ -75,7 +75,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
   test(
     "On a block without a body, a Left of NoBlockBodyFoundOnNodeFailure should be returned"
   ) {
-    PropF.forAllF { (height: Long, blockId: TypedIdentifier, blockHeader: BlockHeaderV2) =>
+    PropF.forAllF { (height: Long, blockId: TypedIdentifier, blockHeader: BlockHeader) =>
       withMock {
 
         (toplRpc.blockIdAtHeight _)
@@ -90,7 +90,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
 
         (toplRpc.fetchBlockBody _)
           .expects(blockId)
-          .returning(Option.empty[BlockBodyV2].pure[F])
+          .returning(Option.empty[BlockBody].pure[F])
           .once()
 
         assertIO(
@@ -110,12 +110,12 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
       (
         height:        Long,
         blockId:       TypedIdentifier,
-        blockHeader:   BlockHeaderV2,
+        blockHeader:   BlockHeader,
         transactionId: TypedIdentifier
       ) =>
         withMock {
 
-          val blockBody: BlockBodyV2 = ListSet(transactionId)
+          val blockBody: BlockBody = ListSet(transactionId)
 
           (toplRpc.blockIdAtHeight _)
             .expects(height)
@@ -154,14 +154,14 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
       (
         height:           Long,
         blockId:          TypedIdentifier,
-        blockHeader:      BlockHeaderV2,
+        blockHeader:      BlockHeader,
         transactionId_01: TypedIdentifier,
         transactionId_02: TypedIdentifier,
         transactionId_03: TypedIdentifier
       ) =>
         withMock {
 
-          val blockBody: BlockBodyV2 = ListSet(
+          val blockBody: BlockBody = ListSet(
             transactionId_01,
             transactionId_02,
             transactionId_03
@@ -216,14 +216,14 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
       (
         height:           Long,
         blockId:          TypedIdentifier,
-        blockHeader:      BlockHeaderV2,
+        blockHeader:      BlockHeader,
         transactionId_01: TypedIdentifier,
         transactionId_02: TypedIdentifier,
         transactionId_03: TypedIdentifier
       ) =>
         withMock {
 
-          val blockBody: BlockBodyV2 = ListSet(
+          val blockBody: BlockBody = ListSet(
             transactionId_01,
             transactionId_02,
             transactionId_03
@@ -275,7 +275,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
       (
         height:         Long,
         blockId:        TypedIdentifier,
-        blockHeader:    BlockHeaderV2,
+        blockHeader:    BlockHeader,
         transaction_01: Transaction,
         transaction_02: Transaction,
         transaction_03: Transaction
@@ -286,7 +286,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
           val transactionId_02: TypedIdentifier = transaction_02.id.asTypedBytes
           val transactionId_03: TypedIdentifier = transaction_03.id.asTypedBytes
 
-          val blockBody: BlockBodyV2 = ListSet(
+          val blockBody: BlockBody = ListSet(
             transactionId_01,
             transactionId_02,
             transactionId_03

@@ -7,7 +7,7 @@ import co.topl.algebras.ToplRpc
 import co.topl.genusLibrary.algebras.{BlockFetcherAlgebra, ServiceResponse}
 import co.topl.genusLibrary.failure.{Failure, Failures}
 import co.topl.genusLibrary.model.{BlockData, HeightData}
-import co.topl.models.{BlockBodyV2, BlockHeaderV2, Transaction, TypedIdentifier}
+import co.topl.models.{BlockBody, BlockHeader, Transaction, TypedIdentifier}
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.immutable.ListSet
@@ -37,12 +37,12 @@ class NodeBlockFetcher[F[_]: Async](toplRpc: ToplRpc[F, Any]) extends BlockFetch
     } yield BlockData(header, body, transactions)
   ).value
 
-  private def fetchBlockHeader(blockId: TypedIdentifier): ServiceResponse[F, BlockHeaderV2] =
+  private def fetchBlockHeader(blockId: TypedIdentifier): ServiceResponse[F, BlockHeader] =
     toplRpc
       .fetchBlockHeader(blockId)
       .map(_.toRight[Failure](Failures.NoBlockHeaderFoundOnNodeFailure(blockId)))
 
-  private def fetchBlockBody(blockId: TypedIdentifier): ServiceResponse[F, BlockBodyV2] =
+  private def fetchBlockBody(blockId: TypedIdentifier): ServiceResponse[F, BlockBody] =
     toplRpc
       .fetchBlockBody(blockId)
       .map(_.toRight[Failure](Failures.NoBlockBodyFoundOnNodeFailure(blockId)))
@@ -51,7 +51,7 @@ class NodeBlockFetcher[F[_]: Async](toplRpc: ToplRpc[F, Any]) extends BlockFetch
    * If all transactions were retrieved correctly, then all transactions are returned.
    * If one or more transactions is missing, then a failure listing all missing transactions is returned.
    */
-  private def fetchTransactions(body: BlockBodyV2): ServiceResponse[F, Chain[Transaction]] =
+  private def fetchTransactions(body: BlockBody): ServiceResponse[F, Chain[Transaction]] =
     body.toList.traverse(typedIdentifier =>
       toplRpc
         .fetchTransaction(typedIdentifier)
