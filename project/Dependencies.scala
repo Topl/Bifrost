@@ -13,7 +13,8 @@ object Dependencies {
   val fs2Version = "3.5-1c0be5c"
   val logback = "1.4.5"
 
-  val protobufSpecsHash = "e48b7bf2de03e263bd263f1c586baa2334fbcefb"
+  val protobufSpecs =
+    "com.github.Topl" % "protobuf-specs" % "aefb7254"
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.5.0"
@@ -333,9 +334,6 @@ object Dependencies {
   lazy val models: Seq[ModuleID] =
     cats ++ simulacrum ++ newType ++ scodec
 
-  lazy val protobuf: Seq[ModuleID] =
-    cats ++ simulacrum ++ newType ++ scodec
-
   lazy val consensus: Seq[ModuleID] =
     Dependencies.mUnitTest ++ externalCrypto ++ Seq(akka("actor-typed")) ++ catsEffect ++ logging ++ scalacache
 
@@ -403,7 +401,8 @@ object Dependencies {
     ) ++
     cats ++
     catsEffect ++
-    mUnitTest
+    mUnitTest ++
+    Seq(protobufSpecs)
 
   lazy val levelDbStore: Seq[ModuleID] =
     levelDb ++
