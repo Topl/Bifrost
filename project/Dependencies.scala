@@ -185,7 +185,7 @@ object Dependencies {
   val kubernetes = "io.kubernetes"          % "client-java"          % "16.0.1"
 
   val bramblScCrypto =
-    "com.github.Topl" % "BramblSc" % "8f4389b"
+    "com.github.Topl" % "BramblSc" % "9034b442"
 
   val nodeDion: Seq[ModuleID] =
     Seq(
