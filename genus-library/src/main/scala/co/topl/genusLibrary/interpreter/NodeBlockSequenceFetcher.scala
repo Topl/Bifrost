@@ -1,7 +1,6 @@
 package co.topl.genusLibrary.interpreter
 
 import cats.effect.kernel.Async
-import cats.implicits.catsSyntaxOptionId
 import cats.implicits._
 import co.topl.genusLibrary.algebras.{BlockFetcherAlgebra, BlockSequenceFetcherAlgebra}
 import co.topl.genusLibrary.model.{BlockData, HeightData}
@@ -27,8 +26,8 @@ class NodeBlockSequenceFetcher[F[_]: Async](blockFetcher: BlockFetcherAlgebra[F]
         case Right(HeightData(height, None)) =>
           logger info s"No block found. Height=[$height]"
           None
-        case Right(HeightData(_, Some(blockData))) =>
-          blockData some
+        case Right(HeightData(_, blockData)) =>
+          blockData
       }
   }
 
