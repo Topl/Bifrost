@@ -19,8 +19,9 @@ class NodeBlockFetcher[F[_]: Async](toplRpc: ToplRpc[F, Any]) extends BlockFetch
       .blockIdAtHeight(height)
       .flatMap {
         case Some(blockId) =>
-          fetch(blockId)
-            .map(_.map(blockData => HeightData(height = height, blockData = blockData.some)))
+          EitherT(fetch(blockId))
+            .map(blockData => HeightData(height = height, blockData = blockData.some))
+            .value
         case None =>
           HeightData(
             height = height,
