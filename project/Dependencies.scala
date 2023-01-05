@@ -222,6 +222,7 @@ object Dependencies {
     )
 
   lazy val algebras: Seq[sbt.ModuleID] =
+    circe ++
     test ++
     catsEffect.map(_ % Test) ++
     Seq(catsSlf4j % Test)
@@ -270,6 +271,7 @@ object Dependencies {
   lazy val benchmarking: Seq[ModuleID] = Seq()
 
   lazy val crypto: Seq[ModuleID] =
+    circe ++
     scodec ++
     externalCrypto ++
     cats ++
