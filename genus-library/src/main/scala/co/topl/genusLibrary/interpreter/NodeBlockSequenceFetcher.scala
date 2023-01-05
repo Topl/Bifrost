@@ -6,8 +6,9 @@ import co.topl.genusLibrary.algebras.{BlockFetcherAlgebra, BlockSequenceFetcherA
 import co.topl.genusLibrary.model.{BlockData, HeightData}
 import com.typesafe.scalalogging.LazyLogging
 import fs2.Stream
+import org.typelevel.log4cats.Logger
 
-class NodeBlockSequenceFetcher[F[_]: Async](blockFetcher: BlockFetcherAlgebra[F])
+class NodeBlockSequenceFetcher[F[_]: Async: Logger](blockFetcher: BlockFetcherAlgebra[F])
     extends BlockSequenceFetcherAlgebra[F, Stream[F, *]]
     with LazyLogging {
 
@@ -19,15 +20,17 @@ class NodeBlockSequenceFetcher[F[_]: Async](blockFetcher: BlockFetcherAlgebra[F]
       .range(startHeight, endHeight)
       .covary[F]
       .evalMap(blockFetcher.fetch)
-      .mapFilter {
+      .evalMapFilter {
         case Left(ex) =>
-          logger error s"Unexpected error while fetching block. Error=[$ex]"
-          None
+          Logger[F]
+            .error(s"Unexpected error while fetching block. Error=[$ex]")
+            .as(Option.empty[BlockData])
         case Right(HeightData(height, None)) =>
-          logger info s"No block found. Height=[$height]"
-          None
+          Logger[F]
+            .info(s"No block found. Height=[$height]")
+            .as(Option.empty[BlockData])
         case Right(HeightData(_, blockData)) =>
-          blockData
+          blockData.pure[F]
       }
   }
 
