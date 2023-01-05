@@ -44,21 +44,21 @@ object ConnectionLeaderFlow {
         val localValueBytes = intToBytestring(localValue).toArray
         val localValueEvidence = new Blake2b256().hash(Bytes(localValueBytes))
         evidenceFlow(
-          localValueEvidence,
+          Sized.strictUnsafe(localValueEvidence),
           remoteEvidence => {
-            if (remoteEvidence == localValueEvidence)
+            if (remoteEvidence.data == localValueEvidence)
               throw new IllegalStateException("Remote party selected the same int value")
             intFlow(
               localValue,
               remoteInt => {
                 val remoteValueBytes = intToBytestring(remoteInt).toArray
-                val remoteValueEvidence = new Blake2b256().hash(Bytes(remoteValueBytes))
-                if (remoteEvidence != remoteValueEvidence)
+                val remoteValueHash = new Blake2b256().hash(Bytes(remoteValueBytes))
+                if (remoteEvidence.data != remoteValueHash)
                   throw new IllegalStateException("Remote evidence did not match remote value")
                 val connectionLeader =
                   if (
-                    BigInt(new Blake2b256().hash(Bytes(localValueBytes ++ remoteValueBytes)).data.toArray) >
-                    BigInt(new Blake2b256().hash(Bytes(remoteValueBytes ++ localValueBytes)).data.toArray)
+                    BigInt(new Blake2b256().hash(Bytes(localValueBytes ++ remoteValueBytes)).toArray) >
+                    BigInt(new Blake2b256().hash(Bytes(remoteValueBytes ++ localValueBytes)).toArray)
                   )
                     ConnectionLeaders.Local
                   else ConnectionLeaders.Remote

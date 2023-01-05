@@ -1,21 +1,15 @@
 package co.topl.crypto.signing
 
-import cats.implicits._
 import co.topl.crypto.generation.mnemonic.Entropy
-import co.topl.crypto.utils.EntropySupport._
 import co.topl.crypto.utils.{Hex, TestVector}
-import co.topl.crypto.utils.Hex.implicits._
+import co.topl.crypto.utils.Generators.arbitraryEntropy
 import co.topl.models.ModelGenerators.arbitraryBytes
-import co.topl.models.utility.{Lengths, Sized}
-import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
 import io.circe.generic.semiauto.deriveDecoder
 import io.circe.{Decoder, HCursor}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-
-import java.nio.charset.StandardCharsets
-import co.topl.models.utility.HasLength.instances._
+import scodec.bits.ByteVector
 
 /**
  * Reference -https://github.com/Topl/reference_crypto/tree/main/specs/crypto/signing/VRF-Ed25519-Sha512-TAI
@@ -30,8 +24,8 @@ import co.topl.models.utility.HasLength.instances._
 class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
 
   property("with Ed25519VRF, signed message should be verifiable with appropriate public key") {
-    forAll { (entropy1: Entropy, entropy2: Entropy, message1: Bytes, message2: Bytes) =>
-      whenever((entropy1 =!= entropy2) && !(message1 == message2)) {
+    forAll { (entropy1: Entropy, entropy2: Entropy, message1: ByteVector, message2: ByteVector) =>
+      whenever((entropy1 != entropy2) && !(message1 == message2)) {
         val ed25519vrf = new Ed25519VRF
         val (sk1, vk1) = ed25519vrf.deriveKeyPairFromEntropy(entropy1, None)
         val (_, vk2) = ed25519vrf.deriveKeyPairFromEntropy(entropy2, None)
@@ -45,11 +39,11 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
   }
 
   property("with Ed25519VRF, keyPairs generated with the same seed should be the same") {
-    forAll { seedBytes: Entropy =>
-      whenever(seedBytes.value.length != 0) {
+    forAll { seedByteVector: Entropy =>
+      whenever(seedByteVector.value.length != 0) {
         val ed25519vrf = new Ed25519VRF
-        val keyPair1 = ed25519vrf.deriveKeyPairFromEntropy(seedBytes, None)
-        val keyPair2 = ed25519vrf.deriveKeyPairFromEntropy(seedBytes, None)
+        val keyPair1 = ed25519vrf.deriveKeyPairFromEntropy(seedByteVector, None)
+        val keyPair2 = ed25519vrf.deriveKeyPairFromEntropy(seedByteVector, None)
 
         keyPair1._1 === keyPair2._1 shouldBe true
         keyPair1._2 === keyPair2._2 shouldBe true
@@ -58,12 +52,12 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
   }
 
   property("Topl specific seed generation mechanism should generate a fixed secret key given an entropy and password") {
-    val e = Entropy(Bytes("topl".getBytes(StandardCharsets.UTF_8)))
+    val e = Entropy(ByteVector.encodeUtf8("topl").toOption.get)
     val p = "topl"
     val specOutSK =
-      SecretKeys.VrfEd25519("d8f0ad4d22ec1a143905af150e87c7f0dadd13749ef56fbd1bb380c37bc18cf8".unsafeStrictBytes)
+      ByteVector(Hex.decode("d8f0ad4d22ec1a143905af150e87c7f0dadd13749ef56fbd1bb380c37bc18cf8"))
     val specOutVK =
-      VerificationKeys.VrfEd25519("8ecfec14ce183dd6e747724993a9ae30328058fd85fa1e3c6f996b61bb164fa8".unsafeStrictBytes)
+      ByteVector(Hex.decode("8ecfec14ce183dd6e747724993a9ae30328058fd85fa1e3c6f996b61bb164fa8"))
 
     val underTest = new Ed25519VRF
     val (sk, vk) = underTest.deriveKeyPairFromEntropy(e, Some(p))
@@ -87,12 +81,15 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
   }
 
   object VrfEd25519SpecHelper {
-    case class SpecInputs(secretKey: SecretKeys.VrfEd25519, message: Bytes)
+    case class SpecInputs(secretKey: ByteVector, message: ByteVector)
 
+    /**
+     * @param beta length = 64
+     */
     case class SpecOutputs(
-      verificationKey: VerificationKeys.VrfEd25519,
-      pi:              Proofs.Knowledge.VrfEd25519,
-      beta:            Sized.Strict[Bytes, Lengths.`64`.type]
+      verificationKey: ByteVector,
+      pi:              ByteVector,
+      beta:            ByteVector
     )
 
     case class VrfEd25519TestVector(description: String, inputs: SpecInputs, outputs: SpecOutputs) extends TestVector
@@ -102,8 +99,8 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
         sk <- c
           .downField("secretKey")
           .as[String]
-          .map(b => SecretKeys.VrfEd25519(Sized.strictUnsafe(Bytes(Hex.decode(b)))))
-        msg <- c.downField("message").as[String].map(b => Bytes(Hex.decode(b)))
+          .map(b => ByteVector(Hex.decode(b)))
+        msg <- c.downField("message").as[String].map(b => ByteVector(Hex.decode(b)))
       } yield SpecInputs(sk, msg)
 
     implicit val outputsDecoder: Decoder[SpecOutputs] = (c: HCursor) =>
@@ -111,15 +108,15 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
         vk <- c
           .downField("verificationKey")
           .as[String]
-          .map(b => VerificationKeys.VrfEd25519(Sized.strictUnsafe(Bytes(Hex.decode(b)))))
+          .map(b => ByteVector(Hex.decode(b)))
         pi <- c
           .downField("pi")
           .as[String]
-          .map(b => Proofs.Knowledge.VrfEd25519(Sized.strictUnsafe(Bytes(Hex.decode(b)))))
+          .map(b => ByteVector(Hex.decode(b)))
         beta <- c
           .downField("beta")
           .as[String]
-          .map(b => Sized.strictUnsafe[Bytes, Lengths.`64`.type](Bytes(Hex.decode(b))))
+          .map(b => ByteVector(Hex.decode(b)))
       } yield SpecOutputs(vk, pi, beta)
 
     implicit val testVectorDecoder: Decoder[VrfEd25519TestVector] = deriveDecoder[VrfEd25519TestVector]

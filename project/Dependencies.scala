@@ -140,8 +140,7 @@ object Dependencies {
   )
 
   val externalCrypto: Seq[ModuleID] = Seq(
-    "org.whispersystems" % "curve25519-java" % "0.5.0",
-    "org.bouncycastle"   % "bcprov-jdk18on"  % "1.72"
+    "org.bouncycastle" % "bcprov-jdk18on" % "1.72"
   )
 
   val mongoDb: Seq[ModuleID] =
@@ -184,28 +183,8 @@ object Dependencies {
   val circeYaml = "io.circe"               %% "circe-yaml"           % "0.14.1"
   val kubernetes = "io.kubernetes"          % "client-java"          % "16.0.1"
 
-  val nodeDion: Seq[ModuleID] =
-    Seq(
-      "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
-      "com.typesafe.akka" %% "akka-remote"  % akkaVersion,
-      "com.typesafe"       % "config"       % "1.4.2",
-      "net.jpountz.lz4"    % "lz4"          % "1.3.0"
-    ) ++
-    monocle ++
-    levelDb ++
-    logging ++
-    test ++
-    mongoDb ++
-    it ++
-    allAkka ++
-    network ++
-    circe ++
-    guava ++
-    ficus ++
-    shapeless ++
-    newType ++
-    monitoring ++
-    mainargs
+  val bramblScCrypto =
+    "com.github.Topl" % "BramblSc" % "v2.0.3"
 
   val nodeTetra: Seq[ModuleID] =
     Seq(
@@ -243,6 +222,7 @@ object Dependencies {
     )
 
   lazy val algebras: Seq[sbt.ModuleID] =
+    circe ++
     test ++
     catsEffect.map(_ % Test) ++
     Seq(catsSlf4j % Test)
@@ -269,12 +249,6 @@ object Dependencies {
       circeYaml
     )
 
-  lazy val chainProgram: Seq[ModuleID] =
-    scalaCollectionCompat ++
-    circe ++
-    test ++
-    graal
-
   lazy val brambl: Seq[ModuleID] =
     test ++ scodec ++ simulacrum ++ Seq(akkaHttp("http2-support"))
 
@@ -294,33 +268,15 @@ object Dependencies {
     circe ++
     test
 
-  lazy val gjallarhorn: Seq[ModuleID] =
-    Seq(
-      "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
-      "com.typesafe.akka" %% "akka-remote"  % akkaVersion,
-      pureConfig
-    ) ++
-    allAkka ++
-    test ++
-    circe ++
-    logging ++
-    guava ++
-    ficus ++
-    shapeless ++
-    newType ++
-    it
-
   lazy val benchmarking: Seq[ModuleID] = Seq()
 
   lazy val crypto: Seq[ModuleID] =
-    scodec ++
-    newType ++
     circe ++
+    scodec ++
     externalCrypto ++
     cats ++
-    simulacrum ++
-    cats ++
-    test
+    test ++
+    Seq(bramblScCrypto)
 
   lazy val eventTree: Seq[ModuleID] =
     Dependencies.mUnitTest ++ Dependencies.catsEffect
@@ -361,9 +317,6 @@ object Dependencies {
       akka("stream"),
       akka("stream-testkit") % Test
     ) ++ Seq(fs2Core)
-
-  lazy val demo: Seq[ModuleID] =
-    Seq(akka("actor"), akka("actor-typed"), akka("stream"), akkaHttp("http2-support")) ++ logging
 
   lazy val commonInterpreters: Seq[sbt.ModuleID] =
     mUnitTest ++

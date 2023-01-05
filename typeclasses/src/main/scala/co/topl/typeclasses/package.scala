@@ -10,8 +10,6 @@ package object typeclasses {
       with ContainsTransactionIds.Instances
       with ContainsTransactionIds.ToContainsTransactionIdsOps
       with RatioOps.Implicits
-      with ContainsVerificationKey.Instances
-      with ContainsVerificationKey.ToContainsVerificationKeyOps
       with ShowInstances
       with EqInstances
       with SpendingAddressable.Instances

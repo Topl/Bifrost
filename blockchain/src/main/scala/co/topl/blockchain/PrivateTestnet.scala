@@ -29,7 +29,7 @@ object PrivateTestnet {
           blake2b256.hash(Bytes.fromLong(timestamp) ++ Bytes.fromInt(index))
         )
       )
-      .map(StakerInitializers.Operator(_, (9, 9)))
+      .map(bytes => StakerInitializers.Operator(Sized.strictUnsafe(bytes), (9, 9)))
   }
 
   /**

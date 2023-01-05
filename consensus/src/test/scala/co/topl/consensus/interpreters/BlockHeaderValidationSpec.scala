@@ -9,10 +9,9 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.BlockHeaderValidationFailures
 import co.topl.consensus.algebras._
 import co.topl.consensus.interpreters.LeaderElectionValidation.VrfConfig
-import co.topl.crypto.generation.KeyInitializer
-import co.topl.crypto.generation.KeyInitializer.Instances.ed25519Initializer
+import co.topl.crypto.signing._
+import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.hash.{blake2b256, Blake2b256, Blake2b512}
-import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.models.Box.Values.Registrations.Operator
 import co.topl.models.ModelGenerators._
 import co.topl.models._
@@ -29,6 +28,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
+import java.util.UUID
 import scala.util.Random
 
 class BlockHeaderValidationSpec
@@ -667,15 +667,21 @@ class BlockHeaderValidationSpec
     parentSlot:           Slot
   ): (EligibilityCertificate, Slot) = {
     def proof(slot: Slot) =
-      ed25519Vrf.sign(
-        skVrf,
-        LeaderElectionValidation
-          .VrfArgument(eta, slot)
-          .signableBytes
+      Proofs.Knowledge.VrfEd25519(
+        Sized.strictUnsafe(
+          ed25519Vrf.sign(
+            skVrf.bytes.data,
+            LeaderElectionValidation
+              .VrfArgument(eta, slot)
+              .signableBytes
+          )
+        )
       )
 
     def isLeader(threshold: Ratio, testProof: Proofs.Knowledge.VrfEd25519) =
-      thresholdInterpreter.isSlotLeaderForThreshold(threshold)(ed25519Vrf.proofToHash(testProof)).unsafeRunSync()
+      thresholdInterpreter
+        .isSlotLeaderForThreshold(threshold)(Rho(Sized.strictUnsafe(ed25519Vrf.proofToHash(testProof.bytes.data))))
+        .unsafeRunSync()
     var slot = parentSlot + 1
     var testProof = proof(slot)
     var threshold = thresholdInterpreter.getThreshold(relativeStake, slot).unsafeRunSync()
@@ -686,7 +692,7 @@ class BlockHeaderValidationSpec
     }
     val cert = EligibilityCertificate(
       testProof,
-      ed25519Vrf.getVerificationKey(skVrf),
+      VerificationKeys.VrfEd25519(Sized.strictUnsafe(ed25519Vrf.getVerificationKey(skVrf.bytes.data))),
       threshold.typedEvidence.evidence,
       eta
     )
@@ -699,17 +705,17 @@ class BlockHeaderValidationSpec
     unsignedF: BlockHeader.Unsigned.PartialOperationalCertificate => BlockHeader.Unsigned,
     parentSK:  SecretKeys.KesProduct
   ): (BlockHeader.Unsigned, SecretKeys.Ed25519) = {
-    val linearSK = KeyInitializer[SecretKeys.Ed25519].random()
-    val linearVK = ed25519.getVerificationKey(linearSK)
+    val (linearSKBytes, linearVKBytes) =
+      Ed25519.instance.deriveKeyPairFromEntropy(Entropy.fromUuid(UUID.randomUUID()), None)
 
-    val message = linearVK.bytes.data ++ Bytes(Longs.toByteArray(slot))
+    val message = linearVKBytes ++ Bytes(Longs.toByteArray(slot))
     val parentSignature = kesProduct.sign(parentSK, message)
     val partialCertificate = BlockHeader.Unsigned.PartialOperationalCertificate(
       kesProduct.getVerificationKey(parentSK),
       parentSignature,
-      linearVK
+      VerificationKeys.Ed25519(Sized.strictUnsafe(linearVKBytes))
     )
-    unsignedF(partialCertificate) -> linearSK
+    unsignedF(partialCertificate) -> SecretKeys.Ed25519(Sized.strictUnsafe(linearSKBytes))
   }
 
   private def genValid(
@@ -722,17 +728,23 @@ class BlockHeaderValidationSpec
         genSizedStrictBytes[Lengths.`256`.type]()
           .flatMap(bloomFilter => etaGen.map(nonce => (txRoot, bloomFilter, nonce)))
       )
-      relativeStake <- relativeStakeGen
-      vrfSecret     <- Gen.const(KeyInitializer.Instances.vrfInitializer.random())
+      relativeStake       <- relativeStakeGen
+      (vrfSecretBytes, _) <- Gen.const(Ed25519VRF.precomputed().generateRandom)
     } yield {
 
       val (kesSK0, _) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (9, 9), 0L)
 
-      val poolVK = ed25519.getVerificationKey(KeyInitializer[SecretKeys.Ed25519].random())
+      val poolVK = arbitraryEd25519VK.arbitrary.first
 
-      val registration = validRegistration(ed25519Vrf.getVerificationKey(vrfSecret), poolVK, kesSK0)
+      val vrfSecret = SecretKeys.VrfEd25519(Sized.strictUnsafe(vrfSecretBytes))
 
-      val address = validAddress(KeyInitializer[SecretKeys.Ed25519].random(), poolVK)
+      val registration = validRegistration(
+        VerificationKeys.VrfEd25519(Sized.strictUnsafe(ed25519Vrf.getVerificationKey(vrfSecretBytes))),
+        poolVK,
+        kesSK0
+      )
+
+      val address = StakingAddresses.Operator(poolVK)
 
       val (eligibilityCert, slot) =
         validEligibilityCertificate(vrfSecret, leaderElectionInterpreter, eta, relativeStake, parent.slot)
@@ -765,7 +777,7 @@ class BlockHeaderValidationSpec
           unsigned.partialOperationalCertificate.parentVK,
           unsigned.partialOperationalCertificate.parentSignature,
           unsigned.partialOperationalCertificate.childVK,
-          ed25519.sign(linearSK, unsigned.signableBytes)
+          Proofs.Knowledge.Ed25519(Sized.strictUnsafe(ed25519.sign(linearSK.bytes.data, unsigned.signableBytes)))
         )
 
       val child =
@@ -798,12 +810,5 @@ object BlockHeaderValidationSpec {
   )(implicit kesProduct: KesProduct): Box.Values.Registrations.Operator = {
     val commitmentMessage = Bytes(blake2b256.hash((vkVrf.bytes.data ++ poolVK.bytes.data).toArray).value)
     Box.Values.Registrations.Operator(kesProduct.sign(skKes, commitmentMessage))
-  }
-
-  def validAddress(paymentSK: SecretKeys.Ed25519, poolVK: VerificationKeys.Ed25519)(implicit
-    ed25519:                  Ed25519
-  ): StakingAddresses.Operator = {
-    ed25519.getVerificationKey(paymentSK)
-    StakingAddresses.Operator(poolVK)
   }
 }

@@ -9,13 +9,13 @@ import co.topl.algebras.{ClockAlgebra, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.BlockHeaderOps
-import co.topl.crypto.generation.KeyInitializer
-import co.topl.crypto.generation.KeyInitializer.Instances.vrfInitializer
-import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.crypto.signing.Ed25519VRF
+import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.models.ModelGenerators._
 import co.topl.models.Proofs.Knowledge
 import co.topl.models._
+import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.Sized
 import co.topl.typeclasses.implicits._
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
@@ -67,7 +67,7 @@ class EtaCalculationSpec
         )
         .unsafeRunSync()
     val epoch = 0L
-    val skVrf = KeyInitializer[SecretKeys.VrfEd25519].random()
+    val (skVrf, _) = ed25519Vrf.generateRandom
     val args: List[(Slot, Knowledge.VrfEd25519)] = List.tabulate(8) { offset =>
       val slot = offset.toLong + 1
       val signature =
@@ -77,7 +77,7 @@ class EtaCalculationSpec
             .VrfArgument(bigBangHeader.eligibilityCertificate.eta, slot)
             .signableBytes
         )
-      slot -> signature
+      slot -> Proofs.Knowledge.VrfEd25519(Sized.strictUnsafe(signature))
     }
 
     val blocks: List[BlockHeader] =
@@ -125,7 +125,10 @@ class EtaCalculationSpec
       EtaCalculationSpec.expectedEta(
         bigBangHeader.eligibilityCertificate.eta,
         epoch + 1,
-        blocks.map(_.eligibilityCertificate.vrfSig).map(ed25519Vrf.proofToHash)
+        blocks
+          .map(_.eligibilityCertificate.vrfSig.bytes.data)
+          .map(ed25519Vrf.proofToHash)
+          .map(bytes => Rho(Sized.strictUnsafe(bytes)))
       )
 
     actual shouldBe expected
@@ -179,7 +182,7 @@ class EtaCalculationSpec
       EtaCalculationSpec.expectedEta(
         bigBangHeader.eligibilityCertificate.eta,
         epoch + 1,
-        List(ed25519Vrf.proofToHash(bigBangHeader.eligibilityCertificate.vrfSig))
+        List(Rho(Sized.strictUnsafe(ed25519Vrf.proofToHash(bigBangHeader.eligibilityCertificate.vrfSig.bytes.data))))
       )
 
     actual shouldBe expected
@@ -194,8 +197,8 @@ object EtaCalculationSpec {
   private[consensus] def expectedEta(previousEta: Eta, epoch: Epoch, rhoValues: List[Rho]): Eta = {
     val messages: List[Bytes] =
       List(previousEta.data) ++ List(Bytes(BigInt(epoch).toByteArray)) ++ rhoValues
-        .map(Ed25519VRF.rhoToRhoNonceHash)
         .map(_.sizedBytes.data)
-    blake2b256.hash(Bytes.concat(messages))
+        .map(Ed25519VRF.rhoToRhoNonceHash)
+    Sized.strictUnsafe(blake2b256.hash(Bytes.concat(messages)))
   }
 }

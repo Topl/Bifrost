@@ -12,7 +12,8 @@ import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing._
 import co.topl.minting.algebras._
 import co.topl.models._
-import co.topl.models.utility.Ratio
+import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.{Ratio, Sized}
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
 import org.typelevel.log4cats.Logger
@@ -257,9 +258,14 @@ object OperationalKeys {
                       val parentSignature =
                         kesProductScheme.sign(
                           kesParent,
-                          childVK.bytes.data ++ Bytes(Longs.toByteArray(slot))
+                          childVK ++ Bytes(Longs.toByteArray(slot))
                         )
-                      OperationalKeyOut(slot, childSK, parentSignature, parentVK)
+                      OperationalKeyOut(
+                        slot,
+                        SecretKeys.Ed25519(Sized.strictUnsafe(childSK)),
+                        parentSignature,
+                        parentVK
+                      )
                     }
                   )
                 }

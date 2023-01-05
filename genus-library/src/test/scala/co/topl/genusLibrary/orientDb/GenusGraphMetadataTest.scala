@@ -36,7 +36,7 @@ class GenusGraphMetadataTest extends munit.FunSuite {
   def zeroBytes[L <: Length](implicit l: L): Sized.Strict[Bytes, L] =
     Sized.strictUnsafe[Bytes, L](Bytes(Array.fill(l.value)(0: Byte)))
 
-  private val eta: Eta = new Blake2b256().hash(Bytes(Random.nextBytes(TypedBytesLength)))
+  private val eta: Eta = Sized.strictUnsafe(new Blake2b256().hash(Bytes(Random.nextBytes(TypedBytesLength))))
 
   private val eligibilityCertificate = EligibilityCertificate(
     Proofs.Knowledge.VrfEd25519(zeroBytes(Lengths.`80`)),

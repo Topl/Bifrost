@@ -13,7 +13,8 @@ import co.topl.consensus.interpreters.LeaderElectionValidation
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.algebras.VrfProofAlgebra
 import co.topl.models._
-import co.topl.models.utility.Ratio
+import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.{Ratio, Sized}
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 import scalacache.caffeine.CaffeineCache
@@ -67,7 +68,9 @@ object VrfProof {
                 )
               }.toMap
 
-            val rhoValues = vrfProofs.map { case (slot, proof) => slot -> ed.proofToHash(proof) }
+            val rhoValues = vrfProofs.map { case (slot, proof) =>
+              slot -> Rho(Sized.strictUnsafe(ed.proofToHash(proof.bytes.data)))
+            }
             (vrfProofs -> rhoValues).pure[F]
           }
           _ <- (vrfProofsCache.put(eta.data)(vrfProofs), rhosCache.put(eta.data)(rhoValues)).tupled
@@ -101,9 +104,13 @@ object VrfProof {
         arg:        LeaderElectionValidation.VrfArgument,
         ed25519VRF: Ed25519VRF
       ): Proofs.Knowledge.VrfEd25519 =
-        ed25519VRF.sign(
-          skVrf,
-          arg.signableBytes
+        Proofs.Knowledge.VrfEd25519(
+          Sized.strictUnsafe(
+            ed25519VRF.sign(
+              skVrf.bytes.data,
+              arg.signableBytes
+            )
+          )
         )
 
       def ineligibleSlots(

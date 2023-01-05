@@ -9,7 +9,7 @@ import co.topl.algebras.testInterpreters.NoOpLogger
 import co.topl.algebras.{ClockAlgebra, SecureStore}
 import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.consensus.algebras.{ConsensusValidationStateAlgebra, EtaCalculationAlgebra}
-import co.topl.crypto.signing.{Ed25519, KesProduct}
+import co.topl.crypto.signing._
 import co.topl.interpreters.CatsUnsafeResource
 import co.topl.minting.algebras.{OperationalKeysAlgebra, VrfProofAlgebra}
 import co.topl.models.ModelGenerators._
@@ -132,7 +132,7 @@ class OperationalKeysSpec
         kesProduct
           .verify(
             out.parentSignature,
-            ed25519.getVerificationKey(out.childSK).bytes.data ++ Bytes(Longs.toByteArray(i)),
+            ed25519.getVerificationKey(out.childSK.bytes.data) ++ Bytes(Longs.toByteArray(i)),
             vk
           )
       }
@@ -238,7 +238,7 @@ class OperationalKeysSpec
         kesProduct
           .verify(
             out.parentSignature,
-            ed25519.getVerificationKey(out.childSK).bytes.data ++ Bytes(Longs.toByteArray(i)),
+            ed25519.getVerificationKey(out.childSK.bytes.data) ++ Bytes(Longs.toByteArray(i)),
             vk.copy(step = 1)
           )
       }
