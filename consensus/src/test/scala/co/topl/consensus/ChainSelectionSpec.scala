@@ -4,8 +4,8 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import co.topl.algebras.UnsafeResource
-import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing.Ed25519VRF
+import co.topl.crypto.hash.Blake2b512
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
@@ -128,7 +128,7 @@ class ChainSelectionSpec
     val List(rhoX, rhoY) =
       List
         .tabulate(2)(i => Rho(Sized.strictUnsafe[Bytes, Lengths.`64`.type](Bytes(Array.fill[Byte](64)(i.toByte)))))
-        .sortBy(r => BigInt(Ed25519VRF.rhoToRhoTestHash(r).sizedBytes.data.toArray))
+        .sortBy(r => BigInt(Ed25519VRF.rhoToRhoTestHash(r.sizedBytes.data).toArray))
 
     val xSegment = {
       val base = LazyList

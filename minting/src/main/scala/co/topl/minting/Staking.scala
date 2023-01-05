@@ -12,6 +12,8 @@ import co.topl.crypto.signing.Ed25519
 import co.topl.minting.algebras.LeaderElectionMintingAlgebra.VrfHit
 import co.topl.minting.algebras._
 import co.topl.models._
+import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.Sized
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
@@ -62,14 +64,20 @@ object Staking {
             val partialCertificate = BlockHeader.Unsigned.PartialOperationalCertificate(
               operationalKeyOut.parentVK,
               operationalKeyOut.parentSignature,
-              ed25519.getVerificationKey(operationalKeyOut.childSK)
+              VerificationKeys.Ed25519(
+                Sized.strictUnsafe(ed25519.getVerificationKey(operationalKeyOut.childSK.bytes.data))
+              )
             )
             val unsignedBlock = unsignedBlockBuilder(partialCertificate)
             val operationalCertificate = OperationalCertificate(
               operationalKeyOut.parentVK,
               operationalKeyOut.parentSignature,
-              ed25519.getVerificationKey(operationalKeyOut.childSK),
-              ed25519.sign(operationalKeyOut.childSK, unsignedBlock.unsignedHeader.signableBytes)
+              partialCertificate.childVK,
+              Proofs.Knowledge.Ed25519(
+                Sized.strictUnsafe(
+                  ed25519.sign(operationalKeyOut.childSK.bytes.data, unsignedBlock.unsignedHeader.signableBytes)
+                )
+              )
             )
             val header = BlockHeader(
               unsignedBlock.unsignedHeader.parentHeaderId,

@@ -33,7 +33,7 @@ class ContainsEvidenceSpec
       val evidence = underTest.typedEvidenceOf(data)
 
       evidence.typePrefix shouldBe prefix
-      evidence.evidence shouldBe new Blake2b256().hash(data.immutableBytes)
+      evidence.evidence.data shouldBe new Blake2b256().hash(data.immutableBytes)
     }
   }
 }

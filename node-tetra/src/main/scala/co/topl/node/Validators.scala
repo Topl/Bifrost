@@ -70,9 +70,7 @@ object Validators {
         .make[F](dataStores.transactions.getOrRaise, boxState)
       transactionAuthorizationValidation <- TransactionAuthorizationValidation.make[F](
         cryptoResources.blake2b256,
-        cryptoResources.curve25519,
         cryptoResources.ed25519,
-        cryptoResources.extendedEd25519,
         dataStores.slotData.getOrRaise
       )
       bodySyntaxValidation <- BodySyntaxValidation

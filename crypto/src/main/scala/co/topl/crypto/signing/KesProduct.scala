@@ -6,16 +6,9 @@ import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
 import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
 
-class KesProduct
-    extends ProductComposition
-    with KeyEvolvingSignatureScheme[
-      SecretKeys.KesProduct,
-      VerificationKeys.KesProduct,
-      Proofs.Knowledge.KesProduct,
-      (Int, Int)
-    ] {
+class KesProduct extends ProductComposition {
 
-  override def createKeyPair(
+  def createKeyPair(
     seed:   Bytes,
     height: (Int, Int),
     offset: Long
@@ -38,7 +31,7 @@ class KesProduct
     )
   }
 
-  override def sign(privateKey: SecretKeys.KesProduct, message: Bytes): Knowledge.KesProduct = {
+  def sign(privateKey: SecretKeys.KesProduct, message: Bytes): Knowledge.KesProduct = {
     val prodSig = sign(unpackSecret(privateKey), message.toArray)
 
     Proofs.Knowledge.KesProduct(
@@ -56,7 +49,7 @@ class KesProduct
     )
   }
 
-  override def verify(
+  def verify(
     signature: Knowledge.KesProduct,
     message:   Bytes,
     verifyKey: VerificationKeys.KesProduct
@@ -79,7 +72,7 @@ class KesProduct
     verify(prodSig, message.toArray, sumVk)
   }
 
-  override def update(privateKey: SecretKeys.KesProduct, steps: Int): SecretKeys.KesProduct = {
+  def update(privateKey: SecretKeys.KesProduct, steps: Int): SecretKeys.KesProduct = {
     val sk = updateKey(unpackSecret(privateKey), steps)
 
     SecretKeys.KesProduct(
@@ -95,13 +88,13 @@ class KesProduct
     )
   }
 
-  override def getCurrentStep(privateKay: SecretKeys.KesProduct): Int = getKeyTime(unpackSecret(privateKay))
+  def getCurrentStep(privateKay: SecretKeys.KesProduct): Int = getKeyTime(unpackSecret(privateKay))
 
-  override def getMaxStep(privateKey: SecretKeys.KesProduct): Int = exp(
+  def getMaxStep(privateKey: SecretKeys.KesProduct): Int = exp(
     getTreeHeight(privateKey.superTree) + getTreeHeight(privateKey.subTree)
   )
 
-  override def getVerificationKey(privateKey: SecretKeys.KesProduct): VerificationKeys.KesProduct = {
+  def getVerificationKey(privateKey: SecretKeys.KesProduct): VerificationKeys.KesProduct = {
     val vk = generateVerificationKey(unpackSecret(privateKey))
     VerificationKeys.KesProduct(Sized.strictUnsafe(Bytes(vk._1)), vk._2)
   }

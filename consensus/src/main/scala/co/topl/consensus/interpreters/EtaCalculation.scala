@@ -6,9 +6,11 @@ import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras.{ClockAlgebra, UnsafeResource}
 import co.topl.consensus.algebras.EtaCalculationAlgebra
-import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.crypto.signing.Ed25519VRF
+import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.models._
+import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.Sized
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 import scalacache.caffeine.CaffeineCache
@@ -115,7 +117,8 @@ object EtaCalculation {
           show"Calculating new eta.  previousEta=$previousEta epoch=$epoch rhoValues=[${rhoValues.length}]{${rhoValues.head}..${rhoValues.last}}"
         ) >>
           blake2b512Resource
-            .use(implicit blake2b512 => rhoValues.map(Ed25519VRF.rhoToRhoNonceHash).pure[F])
+            .use(implicit blake2b512 => rhoValues.map(_.sizedBytes.data).map(Ed25519VRF.rhoToRhoNonceHash).pure[F])
+            .map(_.map(nonceHashBytes => RhoNonceHash(Sized.strictUnsafe(nonceHashBytes))))
             .flatMap(calculateFromNonceHashValues(previousEta, epoch, _)))
           .flatTap(nextEta =>
             Logger[F].info(
@@ -131,12 +134,14 @@ object EtaCalculation {
         epoch:              Epoch,
         rhoNonceHashValues: NonEmptyChain[RhoNonceHash]
       ): F[Eta] =
-        blake2b256Resource.use(
-          _.hash(
-            Bytes
-              .concat(EtaCalculationArgs(previousEta, epoch, rhoNonceHashValues.toIterable).digestMessages)
-          ).pure[F]
-        )
+        blake2b256Resource
+          .use(
+            _.hash(
+              Bytes
+                .concat(EtaCalculationArgs(previousEta, epoch, rhoNonceHashValues.toIterable).digestMessages)
+            ).pure[F]
+          )
+          .map(Sized.strictUnsafe(_): Eta)
     }
 
   }

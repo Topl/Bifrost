@@ -4,8 +4,8 @@ import cats._
 import cats.data._
 import cats.implicits._
 import co.topl.algebras.UnsafeResource
-import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing.Ed25519VRF
+import co.topl.crypto.hash.Blake2b512
 import co.topl.models._
 import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._
@@ -27,7 +27,7 @@ object ChainSelection {
     val rhoTestHashOrder =
       Order.reverse(
         Order.by[NonEmptyChain[SlotData], BigInt](h =>
-          BigInt(Ed25519VRF.rhoToRhoTestHash(h.last.rho).sizedBytes.data.toArray)
+          BigInt(Ed25519VRF.rhoToRhoTestHash(h.last.rho.sizedBytes.data).toArray)
         )
       )
 

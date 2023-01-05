@@ -8,7 +8,7 @@ import co.topl.algebras.UnsafeResource
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.crypto.hash.Blake2b256
-import co.topl.crypto.signing.{Curve25519, Ed25519, ExtendedEd25519}
+import co.topl.crypto.signing.Ed25519
 import co.topl.ledger.algebras.TransactionAuthorizationValidationAlgebra
 import co.topl.ledger.models.{TransactionAuthorizationError, TransactionAuthorizationErrors}
 import co.topl.models._
@@ -21,22 +21,18 @@ import co.topl.typeclasses.implicits._
 object TransactionAuthorizationValidation {
 
   def make[F[_]: Sync](
-    blake2b256Resource:      UnsafeResource[F, Blake2b256],
-    curve25519Resource:      UnsafeResource[F, Curve25519],
-    ed25519Resource:         UnsafeResource[F, Ed25519],
-    extendedEd25519Resource: UnsafeResource[F, ExtendedEd25519],
-    fetchSlotData:           TypedIdentifier => F[SlotData]
+    blake2b256Resource: UnsafeResource[F, Blake2b256],
+    ed25519Resource:    UnsafeResource[F, Ed25519],
+    fetchSlotData:      TypedIdentifier => F[SlotData]
   ): F[TransactionAuthorizationValidationAlgebra[F]] =
     Sync[F].delay(
-      new Impl(blake2b256Resource, curve25519Resource, ed25519Resource, extendedEd25519Resource, fetchSlotData)
+      new Impl(blake2b256Resource, ed25519Resource, fetchSlotData)
     )
 
   private class Impl[F[_]: Sync](
-    blake2b256Resource:      UnsafeResource[F, Blake2b256],
-    curve25519Resource:      UnsafeResource[F, Curve25519],
-    ed25519Resource:         UnsafeResource[F, Ed25519],
-    extendedEd25519Resource: UnsafeResource[F, ExtendedEd25519],
-    fetchSlotData:           TypedIdentifier => F[SlotData]
+    blake2b256Resource: UnsafeResource[F, Blake2b256],
+    ed25519Resource:    UnsafeResource[F, Ed25519],
+    fetchSlotData:      TypedIdentifier => F[SlotData]
   ) extends TransactionAuthorizationValidationAlgebra[F] {
 
     /**
@@ -61,12 +57,8 @@ object TransactionAuthorizationValidation {
         case (proposition: Propositions.PermanentlyLocked.type, proof) =>
           validatePermanentlyLocked(proposition, proof)
 
-        case (proposition: Propositions.Knowledge.Curve25519, proof: Proofs.Knowledge.Curve25519) =>
-          validateKnowledgeCurve25519(transaction)(proposition, proof)
         case (proposition: Propositions.Knowledge.Ed25519, proof: Proofs.Knowledge.Ed25519) =>
           validateKnowledgeEd25519(transaction)(proposition, proof)
-        case (proposition: Propositions.Knowledge.ExtendedEd25519, proof: Proofs.Knowledge.Ed25519) =>
-          validateKnowledgeExtendedEd25519(transaction)(proposition, proof)
         case (proposition: Propositions.Knowledge.HashLock, proof: Proofs.Knowledge.HashLock) =>
           validateKnowledgeHashLock(proposition, proof)
 
@@ -98,36 +90,12 @@ object TransactionAuthorizationValidation {
         .invalidNec[Unit]
         .pure[F]
 
-    private def validateKnowledgeCurve25519(transaction: Transaction)(
-      proposition:                                       Propositions.Knowledge.Curve25519,
-      proof:                                             Proofs.Knowledge.Curve25519
-    ): F[ValidatedNec[TransactionAuthorizationError, Unit]] =
-      curve25519Resource
-        .use(_.verify(proof, transaction.signableBytes, proposition.key).pure[F])
-        .ifM(
-          ().validNec[TransactionAuthorizationError].pure[F],
-          (TransactionAuthorizationErrors
-            .Permanent(proposition, proof): TransactionAuthorizationError).invalidNec[Unit].pure[F]
-        )
-
     private def validateKnowledgeEd25519(transaction: Transaction)(
       proposition:                                    Propositions.Knowledge.Ed25519,
       proof:                                          Proofs.Knowledge.Ed25519
     ): F[ValidatedNec[TransactionAuthorizationError, Unit]] =
       ed25519Resource
-        .use(_.verify(proof, transaction.signableBytes, proposition.key).pure[F])
-        .ifM(
-          ().validNec[TransactionAuthorizationError].pure[F],
-          (TransactionAuthorizationErrors
-            .Permanent(proposition, proof): TransactionAuthorizationError).invalidNec[Unit].pure[F]
-        )
-
-    private def validateKnowledgeExtendedEd25519(transaction: Transaction)(
-      proposition:                                            Propositions.Knowledge.ExtendedEd25519,
-      proof:                                                  Proofs.Knowledge.Ed25519
-    ): F[ValidatedNec[TransactionAuthorizationError, Unit]] =
-      extendedEd25519Resource
-        .use(_.verify(proof, transaction.signableBytes, proposition.key).pure[F])
+        .use(_.verify(proof.bytes.data, transaction.signableBytes, proposition.key.bytes.data).pure[F])
         .ifM(
           ().validNec[TransactionAuthorizationError].pure[F],
           (TransactionAuthorizationErrors
@@ -142,9 +110,9 @@ object TransactionAuthorizationValidation {
         .use(_.hash(proof.value).pure[F])
         .map(hashed =>
           Validated.condNec(
-            hashed.data === proposition.valueDigest.data,
+            hashed === proposition.valueDigest.data,
             (),
-            (TransactionAuthorizationErrors.Permanent(proposition, proof): TransactionAuthorizationError)
+            TransactionAuthorizationErrors.Permanent(proposition, proof): TransactionAuthorizationError
           )
         )
 
