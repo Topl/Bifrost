@@ -596,7 +596,6 @@ lazy val crypto = project
   .settings(
     name := "crypto",
     commonSettings,
-    scalamacrosParadiseSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.crypto",
     libraryDependencies ++= Dependencies.crypto
