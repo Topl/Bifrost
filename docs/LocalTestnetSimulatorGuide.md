@@ -2,9 +2,10 @@
 Instructions for running a testnet simulation in a local environment.
 
 ## Installation
+As a pre-requisite, please follow the [Development Setup](./DevelopmentSetup.md) guide.
 
-### Development Setup
-1. See [Development Setup](./DevelopmentSetup.md).
+Additionally, a [convenience script](./scripts/test_setup.sh) is provided which will run the following steps automatically.  We highly recommend reading the contents of the script before running it.  Otherwise, the directions below will suffice.
+The convenience script can be run by typing `./docs/scripts/test_steup.sh` from the command line (from the repository root).
 
 ### Kubernetes
 1. Install [Microk8s](https://microk8s.io/docs/install-alternatives).
