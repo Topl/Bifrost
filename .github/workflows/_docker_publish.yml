@@ -24,7 +24,7 @@ on:
         required: false
         type: string
       scala-project:
-        description: 'Which Bifrost node project to use (node, nodeTetra).'
+        description: 'Which Bifrost node project to use.'
         default: "node"
         required: false
         type: string

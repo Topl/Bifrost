@@ -14,7 +14,7 @@ Otherwise, the directions below will suffice.
 ### Bifrost
 1. Run `sbt "Docker / publishLocal"` from the command line.
 1. Run `docker tag toplprotocol/network-delayer localhost:32000/topl/network-delayer && docker push localhost:32000/topl/network-delayer`
-1. Run `docker tag toplprotocol/bifrost-node-tetra localhost:32000/topl/bifrost-node-tetra && docker push localhost:32000/topl/bifrost-node-tetra`
+1. Run `docker tag toplprotocol/bifrost-node localhost:32000/topl/bifrost-node && docker push localhost:32000/topl/bifrost-node`
 1. Run `docker tag toplprotocol/testnet-simulation-orchestrator localhost:32000/topl/testnet-simulation-orchestrator && docker push localhost:32000/topl/testnet-simulation-orchestrator`.
 
 ## Run Simulation

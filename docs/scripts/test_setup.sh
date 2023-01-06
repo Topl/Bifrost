@@ -25,6 +25,6 @@ sudo runuser -l $USER -c 'cd ~/Bifrost/ && source "$HOME/.sdkman/bin/sdkman-init
 
 sudo runuser -l $USER -c 'docker tag toplprotocol/network-delayer localhost:32000/topl/network-delayer && docker push localhost:32000/topl/network-delayer'
 
-sudo runuser -l $USER -c 'docker tag toplprotocol/bifrost-node-tetra localhost:32000/topl/bifrost-node-tetra && docker push localhost:32000/topl/bifrost-node-tetra'
+sudo runuser -l $USER -c 'docker tag toplprotocol/bifrost-node localhost:32000/topl/bifrost-node && docker push localhost:32000/topl/bifrost-node'
 
 sudo runuser -l $USER -c 'docker tag toplprotocol/testnet-simulation-orchestrator localhost:32000/topl/testnet-simulation-orchestrator && docker push localhost:32000/topl/testnet-simulation-orchestrator'
