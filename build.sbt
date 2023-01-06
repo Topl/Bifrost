@@ -66,11 +66,11 @@ lazy val dockerSettings = Seq(
   }
 )
 
-lazy val tetraNodeDockerSettings =
+lazy val nodeDockerSettings =
   dockerSettings ++ Seq(
     dockerExposedPorts := Seq(9084, 9085),
     dockerExposedVolumes += "/opt/docker/.bifrost",
-    Docker / packageName := "bifrost-node-tetra"
+    Docker / packageName := "bifrost-node"
   )
 
 lazy val networkDelayerDockerSettings =
@@ -172,7 +172,7 @@ lazy val bifrost = project
   )
   .configs(IntegrationTest)
   .aggregate(
-    nodeTetra,
+    node,
     typeclasses,
     toplGrpc,
     crypto,
@@ -198,21 +198,21 @@ lazy val bifrost = project
     testnetSimulationOrchestrator
   )
 
-lazy val nodeTetra = project
-  .in(file("node-tetra"))
+lazy val node = project
+  .in(file("node"))
   .settings(
-    name := "bifrost-node-tetra",
+    name := "bifrost-node",
     commonSettings,
     assemblySettings("co.topl.node.NodeApp"),
-    assemblyJarName := s"bifrost-node-tetra-${version.value}.jar",
-    tetraNodeDockerSettings,
+    assemblyJarName := s"bifrost-node-${version.value}.jar",
+    nodeDockerSettings,
     Defaults.itSettings,
     crossScalaVersions := Seq(scala213),
     Compile / mainClass := Some("co.topl.node.NodeApp"),
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.node",
-    libraryDependencies ++= Dependencies.nodeTetra
+    libraryDependencies ++= Dependencies.node
   )
   .configs(IntegrationTest)
   .settings(

@@ -132,8 +132,8 @@ object DockerSupport {
   val configDirectory = "/opt/docker/config"
   val configFileName = "testConfig.conf"
 
-  val bifrostImage: String = s"toplprotocol/bifrost-node-tetra:${BuildInfo.version}"
-  val networkNamePrefix: String = "bifrost-it-tetra"
+  val bifrostImage: String = s"toplprotocol/bifrost-node:${BuildInfo.version}"
+  val networkNamePrefix: String = "bifrost-it"
 
   val rpcPortKeyPath = "bifrost.rpc.bind-port"
   val rpcPort = "9084"

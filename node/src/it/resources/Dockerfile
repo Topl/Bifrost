@@ -39,4 +39,4 @@ COPY . /bifrost
 
 RUN sbt compile
 
-ENTRYPOINT sbt nodeTetra/docker:publishLocal nodeTetra/it:test
+ENTRYPOINT sbt node/docker:publishLocal node/it:test

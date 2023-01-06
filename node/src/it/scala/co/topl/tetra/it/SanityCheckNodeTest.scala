@@ -11,7 +11,7 @@ class SanityCheckNodeTest extends AnyFreeSpec with Matchers with IntegrationSuit
 
   "A single node is successfully started, id of the genesis block is available through RPC" in {
     val node: BifrostDockerTetraNode =
-      dockerSupport.createNode("node-tetra", "SingleNodeTest")
+      dockerSupport.createNode("node", "SingleNodeTest")
 
     node.start()
     node.waitForRpcStartUp()

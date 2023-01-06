@@ -186,7 +186,7 @@ object Dependencies {
   val bramblScCrypto =
     "com.github.Topl" % "BramblSc" % "v2.0.3"
 
-  val nodeTetra: Seq[ModuleID] =
+  val node: Seq[ModuleID] =
     Seq(
       catsSlf4j,
       akka("actor-typed"),
