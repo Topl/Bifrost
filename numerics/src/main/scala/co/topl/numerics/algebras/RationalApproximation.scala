@@ -1,4 +1,4 @@
-package co.topl.algebras
+package co.topl.numerics.algebras
 
 import co.topl.models.utility.Ratio
 

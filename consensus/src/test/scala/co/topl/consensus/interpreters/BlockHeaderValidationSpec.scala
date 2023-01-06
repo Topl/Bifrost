@@ -18,7 +18,7 @@ import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.{Lengths, Ratio, Sized}
-import co.topl.numerics.{ExpInterpreter, Log1pInterpreter}
+import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
 import org.scalacheck.Gen

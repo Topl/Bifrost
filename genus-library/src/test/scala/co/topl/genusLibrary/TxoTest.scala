@@ -7,7 +7,7 @@ import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{Base58, Sized}
-import co.topl.typeclasses.implicits._
+import co.topl.numerics.implicits._
 
 import scala.util.Random
 
