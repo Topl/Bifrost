@@ -16,6 +16,7 @@ import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
+import co.topl.genusLibrary.model.{BlockData, HeightData}
 import co.topl.typeclasses.implicits._
 
 import scala.collection.immutable.ListSet
@@ -39,7 +40,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
 
         assertIO(
           nodeBlockFetcher fetch height,
-          None.asRight
+          HeightData(height = height, blockData = None).asRight
         )
 
       }
@@ -323,7 +324,14 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
 
           assertIO(
             nodeBlockFetcher fetch height,
-            Block.Full(blockHeader, Chain(transaction_01, transaction_02, transaction_03)).some.asRight
+            HeightData(
+              height = height,
+              blockData = BlockData(
+                header = blockHeader,
+                body = blockBody,
+                transactions = Chain(transaction_01, transaction_02, transaction_03)
+              ).some
+            ).asRight
           )
 
         }
