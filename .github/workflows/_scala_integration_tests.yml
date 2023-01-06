@@ -61,7 +61,7 @@ jobs:
       - name: Integration Tests
         run: >
           IMAGE_ID=$(docker build -q -f node/src/it/resources/Dockerfile .)
-          && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd)/node/target/it-reports:/bifrost/node-tetra/target/it-reports -v ~/.cache:/root/.cache -v ~/.ivy2/cache:/root/.ivy2/cache $IMAGE_ID sbt node/docker:publishLocal node/it:test
+          && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd)/node/target/it-reports:/bifrost/node/target/it-reports -v ~/.cache:/root/.cache -v ~/.ivy2/cache:/root/.ivy2/cache $IMAGE_ID sbt node/docker:publishLocal node/it:test
           && docker image rm -f $IMAGE_ID
 
       # Upload JUnit test results as an artifact so that we can publish a test report in our workflow.
