@@ -1,11 +1,11 @@
-package co.topl.numerics
+package co.topl.numerics.interpreters
 
 import cats.Monad
-import cats.effect.kernel.{Clock, Sync}
+import cats.effect.kernel.Sync
 import cats.implicits._
-import co.topl.algebras.Log1p
 import co.topl.models.utility._
-import co.topl.typeclasses.implicits._
+import co.topl.numerics.algebras.Log1p
+import co.topl.numerics.implicits._
 import scalacache.caffeine.CaffeineCache
 
 object Log1pInterpreter extends LentzMethod {
@@ -14,7 +14,7 @@ object Log1pInterpreter extends LentzMethod {
     override def evaluate(x: Ratio): F[Ratio] = Log1pInterpreter.log1p(x, max_iterations, precision)._1.pure[F]
   }.pure[F]
 
-  def makeCached[F[_]: Sync: Clock](log1p: Log1p[F]): F[Log1p[F]] =
+  def makeCached[F[_]: Sync](log1p: Log1p[F]): F[Log1p[F]] =
     CaffeineCache[F, Ratio, Ratio].map(cache =>
       (x: Ratio) => cache.cachingF(x)(ttl = None)(Sync[F].defer(log1p.evaluate(x)))
     )

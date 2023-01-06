@@ -12,6 +12,7 @@ import co.topl.consensus.BlockHeaderOps
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.db.leveldb.LevelDbStore
 import co.topl.models._
+import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
 import fs2.io.file.{Files, Path}
 

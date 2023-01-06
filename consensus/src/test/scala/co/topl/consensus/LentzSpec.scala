@@ -6,10 +6,10 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import co.topl.models.utility.Ratio
-import co.topl.numerics._
+import co.topl.numerics.implicits._
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import co.topl.typeclasses.implicits._
+import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter, RationalApproximationInterpreter}
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 

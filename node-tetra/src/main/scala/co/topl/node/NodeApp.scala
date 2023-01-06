@@ -27,7 +27,7 @@ import co.topl.minting._
 import co.topl.minting.algebras.StakingAlgebra
 import co.topl.models._
 import co.topl.networking.p2p.{ConnectedPeer, LocalPeer}
-import co.topl.numerics._
+import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
 import fs2.io.file.{Files, Path}
 import kamon.Kamon

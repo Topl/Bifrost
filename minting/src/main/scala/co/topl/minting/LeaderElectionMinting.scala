@@ -8,6 +8,7 @@ import co.topl.minting.algebras.LeaderElectionMintingAlgebra.VrfHit
 import co.topl.minting.algebras.{LeaderElectionMintingAlgebra, VrfProofAlgebra}
 import co.topl.models._
 import co.topl.models.utility.Ratio
+import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
 import io.circe.Json
 import io.circe.syntax._

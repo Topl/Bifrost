@@ -11,7 +11,7 @@ import co.topl.models.{Box, Epoch, Int128, StakingAddresses, TypedIdentifier}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
-import co.topl.typeclasses.implicits._
+import co.topl.numerics.implicits._
 import co.topl.models.ModelGenerators._
 
 class ConsensusValidationStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {

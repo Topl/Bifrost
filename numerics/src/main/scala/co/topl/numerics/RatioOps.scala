@@ -1,8 +1,6 @@
-package co.topl.typeclasses
+package co.topl.numerics
 
 import co.topl.models.utility.Ratio
-
-import scala.math.BigInt
 
 object RatioOps {
 

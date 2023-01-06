@@ -1,10 +1,10 @@
-package co.topl.numerics
+package co.topl.numerics.interpreters
 
 import cats.Monad
 import cats.implicits._
-import co.topl.algebras.Exp
 import co.topl.models.utility._
-import co.topl.typeclasses.implicits._
+import co.topl.numerics.algebras.Exp
+import co.topl.numerics.implicits._
 
 object ExpInterpreter extends LentzMethod {
 

@@ -1,4 +1,4 @@
-package co.topl.typeclasses
+package co.topl.numerics
 
 import co.topl.models.Int128
 import co.topl.models.utility.HasLength.instances.bigIntLength

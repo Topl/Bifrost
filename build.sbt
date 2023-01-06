@@ -317,7 +317,7 @@ lazy val numerics = project
   )
   .settings(scalamacrosParadiseSettings)
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.scalacache)
-  .dependsOn(algebras, typeclasses, models)
+  .dependsOn(models)
 
 lazy val eventTree = project
   .in(file("event-tree"))
@@ -644,7 +644,8 @@ lazy val genusLibrary = project
     models % "compile->compile;test->test",
     tetraByteCodecs,
     toplGrpc,
-    munitScalamock % "test->test"
+    munitScalamock % "test->test",
+    numerics % "test->compile"
   )
 
 lazy val munitScalamock = project
