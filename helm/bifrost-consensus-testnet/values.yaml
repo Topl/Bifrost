@@ -2,8 +2,8 @@ name: bifrost-consensus-testnet
 
 image:
 #  name: bifrost-node-tetra
-#  name: ghcr.io/topl/bifrost-node-tetra
-  name: localhost:32000/topl/bifrost-node-tetra
+#  name: ghcr.io/topl/bifrost-node
+  name: localhost:32000/topl/bifrost-node
   tag: latest
 
 delayerImage:
