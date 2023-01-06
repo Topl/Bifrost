@@ -27,6 +27,10 @@ We apply the following rules:
 - `MINOR` index is incremented on soft-forks and may include breaking API changes (to any module within the Bifrost monorepo) or significant feature improvements being newly introduced 
 - `PATCH` index is used for non-breaking changes and bug fixes
 
+Development
+-------------------
+Developers can reference the [Development Setup](./docs/DevelopmentSetup.md) guide for the setup procedure.
+
 Installation
 -------------------
 Check out our [Installation instructions](https://github.com/Topl/Bifrost/wiki/Install-and-Build) for step-by-step
