@@ -37,7 +37,7 @@ object ConsensusDataEventSourcedState {
     fetchBlockBody:         TypedIdentifier => F[BlockBody],
     fetchTransaction:       TypedIdentifier => F[Transaction],
     fetchTransactionOutput: Box.Id => F[Transaction.Output]
-  ): F[EventSourcedState[F, ConsensusData[F]]] =
+  ): F[EventSourcedState[F, ConsensusData[F], TypedIdentifier]] =
     EventSourcedState.OfTree.make(
       initialState = initialState,
       initialEventId = currentBlockId,

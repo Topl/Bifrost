@@ -44,7 +44,7 @@ object Blockchain {
     transactionStore:            Store[F, TypedIdentifier, Transaction],
     _localChain:                 LocalChainAlgebra[F],
     blockIdTree:                 ParentChildTree[F, TypedIdentifier],
-    blockHeights:                EventSourcedState[F, Long => F[Option[TypedIdentifier]]],
+    blockHeights:                EventSourcedState[F, Long => F[Option[TypedIdentifier]], TypedIdentifier],
     headerValidation:            BlockHeaderValidationAlgebra[F],
     blockHeaderToBodyValidation: BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxValidationAlgebra[F],

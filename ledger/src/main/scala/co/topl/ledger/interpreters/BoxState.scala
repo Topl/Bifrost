@@ -34,7 +34,7 @@ object BoxState {
     initialState:        F[State[F]]
   ): F[BoxStateAlgebra[F]] =
     for {
-      eventSourcedState <- EventSourcedState.OfTree.make[F, State[F]](
+      eventSourcedState <- EventSourcedState.OfTree.make[F, State[F], TypedIdentifier](
         initialState,
         currentBlockId,
         applyEvent = applyBlock(fetchBlockBody, fetchTransaction),
