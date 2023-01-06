@@ -1,8 +1,12 @@
 package co.topl.genusLibrary.orientDb
 
+import cats.effect.Async
+import cats.implicits._
+import co.topl.genusLibrary.orientDb.wrapper.GraphTxWrapper
 import co.topl.genusLibrary.{Genus, GenusException}
 import co.topl.typeclasses.Log._
 import com.orientechnologies.orient.core.sql.OCommandSQL
+import com.tinkerpop.blueprints.Vertex
 import com.tinkerpop.blueprints.impls.orient.{OrientGraphFactory, OrientGraphNoTx}
 import com.typesafe.scalalogging.Logger
 
@@ -10,6 +14,7 @@ import java.io.{File, FileInputStream, FileOutputStream}
 import java.nio.charset.Charset
 import scala.annotation.unused
 import scala.collection.mutable
+import scala.jdk.javaapi.CollectionConverters.asScala
 import scala.util.{Random, Success, Try}
 
 /**
@@ -25,6 +30,49 @@ class OrientDBFacade(dir: File, password: String) {
 
   @unused
   private val graphMetadata = initializeDatabase(factory, password)
+
+  def getGraph: GraphTxWrapper = new GraphTxWrapper(factory.getTx)
+
+  def getGraphNoTx: OrientGraphNoTx = factory.getNoTx
+
+  type VertexTypeName = String
+  type PropertyKey = String
+  type PropertyQuery = (PropertyKey, AnyRef)
+
+  // TODO Unify VertexTypeName and PropertyKey with VertexSchema (VertexSchema.BlockHeader.BlockId)
+  def getVertex[F[_]: Async](
+    vertexTypeName: VertexTypeName,
+    filterKey:      PropertyKey,
+    filterValue:    AnyRef
+  ): F[Option[Vertex]] =
+    getVertex(vertexTypeName, Set((filterKey, filterValue)))
+
+  def getVertex[F[_]: Async](
+    vertexTypeName:   VertexTypeName,
+    propertiesFilter: Set[PropertyQuery]
+  ): F[Option[Vertex]] =
+    getVertices(vertexTypeName, propertiesFilter)
+      .map(_.headOption)
+
+  def getVertices[F[_]: Async](
+    vertexTypeName: VertexTypeName,
+    filterKey:      PropertyKey,
+    filterValue:    AnyRef
+  ): F[Iterable[Vertex]] =
+    getVertices(vertexTypeName, Set((filterKey, filterValue)))
+
+  def getVertices[F[_]: Async](
+    vertexTypeName:   VertexTypeName,
+    propertiesFilter: Set[PropertyQuery]
+  ): F[Iterable[Vertex]] = {
+    val (keys, values) = propertiesFilter.foldLeft((List.empty[PropertyKey], List.empty[Object])) {
+      case ((keys, values), (currentKey, currentValue)) => (currentKey :: keys, currentValue :: values)
+    }
+    asScala(
+      graphMetadata.graphNoTx.getVertices(vertexTypeName, keys.toArray, values.toArray)
+    )
+      .pure[F]
+  }
 
   private def initializeDatabase(factory: OrientGraphFactory, password: String) = {
     val session: OrientGraphNoTx = factory.getNoTx
