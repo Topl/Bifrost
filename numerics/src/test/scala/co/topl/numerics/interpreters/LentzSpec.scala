@@ -1,17 +1,14 @@
-package co.topl.consensus
+package co.topl.numerics.interpreters
 
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
+import co.topl.models.utility.Ratio
+import co.topl.numerics.implicits._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import co.topl.models.utility.Ratio
-import co.topl.numerics.implicits._
-import cats.effect.IO
-import cats.effect.unsafe.implicits.global
-import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter, RationalApproximationInterpreter}
-import org.typelevel.log4cats.Logger
-import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 class LentzSpec
     extends AnyFlatSpec
@@ -22,7 +19,6 @@ class LentzSpec
   behavior of "Lentz Threshold Calculation"
 
   type F[A] = IO[A]
-  implicit private val logger: Logger[F] = Slf4jLogger.getLogger[F]
 
   it should "calculate to desired precision" in {
     val maxIter = 10000
@@ -30,8 +26,10 @@ class LentzSpec
     val exp = ExpInterpreter.make[F](maxIter, precision).unsafeRunSync()
     val rationalApprox = RationalApproximationInterpreter.make[F](100000, maxIter).unsafeRunSync()
     val log1p = Log1pInterpreter.make[F](maxIter, precision).unsafeRunSync()
-    def printUnsafe(any: Any): Unit =
-      Logger[F].debug(any.toString).unsafeRunSync()
+    def printUnsafe(any: Any): Unit = {
+      // To debug-log this test, uncomment below
+      // println(any.toString)
+    }
 
     def time[R](block: => R): R = {
       val t0 = System.nanoTime()
