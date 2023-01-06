@@ -1,7 +1,7 @@
-package co.topl.numerics
+package co.topl.numerics.interpreters
 
 import co.topl.models.utility.Ratio
-import co.topl.typeclasses.implicits._
+import co.topl.numerics.implicits._
 
 trait LentzMethod {
 

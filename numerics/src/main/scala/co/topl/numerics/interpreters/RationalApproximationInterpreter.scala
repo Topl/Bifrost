@@ -1,10 +1,10 @@
-package co.topl.numerics
+package co.topl.numerics.interpreters
 
 import cats.Monad
 import cats.implicits._
-import co.topl.algebras.RationalApproximation
 import co.topl.models.utility.Ratio
-import co.topl.typeclasses.implicits._
+import co.topl.numerics.algebras.RationalApproximation
+import co.topl.numerics.implicits._
 
 object RationalApproximationInterpreter {
 

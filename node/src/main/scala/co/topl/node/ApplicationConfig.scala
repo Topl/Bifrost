@@ -5,6 +5,7 @@ import cats.implicits._
 import co.topl.models.Slot
 import co.topl.models.utility.Ratio
 import co.topl.networking.p2p.DisconnectedPeer
+import co.topl.numerics.implicits._
 import com.typesafe.config.Config
 import monocle._
 import monocle.macros._
@@ -82,7 +83,6 @@ object ApplicationConfig {
       kesKeyHours:                Int,
       kesKeyMinutes:              Int
     ) {
-      import co.topl.typeclasses.implicits._
 
       val chainSelectionSWindow: Long =
         (Ratio(chainSelectionKLookback, 4L) * fEffective.inverse).round.toLong
