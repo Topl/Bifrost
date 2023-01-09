@@ -6,6 +6,7 @@ import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras._
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.models._
+import co.topl.typeclasses.implicits._
 
 /**
  * An EventSourcedState which operates on an `EpochBoundaries`.
@@ -28,7 +29,7 @@ object EpochBoundariesEventSourcedState {
     currentEventChanged: TypedIdentifier => F[Unit],
     initialState:        F[EpochBoundaries[F]],
     fetchSlotData:       TypedIdentifier => F[SlotData]
-  ): F[EventSourcedState[F, EpochBoundaries[F]]] = {
+  ): F[EventSourcedState[F, EpochBoundaries[F], TypedIdentifier]] = {
     def applyBlock(state: EpochBoundaries[F], blockId: TypedIdentifier) =
       for {
         slotData <- fetchSlotData(blockId)

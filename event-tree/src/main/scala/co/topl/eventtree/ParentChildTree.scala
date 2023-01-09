@@ -4,7 +4,6 @@ import cats._
 import cats.data.{NonEmptyChain, OptionT}
 import cats.effect._
 import cats.implicits._
-import co.topl.algebras.Store
 
 trait ParentChildTree[F[_], T] {
 
@@ -111,24 +110,35 @@ object ParentChildTree {
   /**
    * A ParentChildTree backed by a Store.  The Store maps a block ID to a tuple containing (its height, its parent ID).
    */
-  object FromStore {
+  object FromReadWrite {
 
-    def make[F[_]: Async, T: Eq: Show](store: Store[F, T, (Long, T)], root: T): F[ParentChildTree[F, T]] =
-      Async[F].delay(new Impl(store, root))
+    def make[F[_]: Async, T: Eq: Show](
+      read:  T => F[Option[(Long, T)]],
+      write: (T, (Long, T)) => F[Unit],
+      root:  T
+    ): F[ParentChildTree[F, T]] =
+      Async[F].delay(new Impl(read, write, root))
 
-    private class Impl[F[_]: Async, T: Eq: Show](store: Store[F, T, (Long, T)], root: T) extends ParentChildTree[F, T] {
+    private class Impl[F[_]: Async, T: Eq: Show](
+      read:  T => F[Option[(Long, T)]],
+      write: (T, (Long, T)) => F[Unit],
+      root:  T
+    ) extends ParentChildTree[F, T] {
+
+      private def readOrRaise(id: T) =
+        OptionT(read(id)).getOrElseF(Async[F].raiseError(new NoSuchElementException(show"Element not found. id=$id")))
 
       def parentOf(t: T): F[Option[T]] =
         if (t === root) none[T].pure[F]
-        else OptionT(store.get(t)).map(_._2).value
+        else OptionT(read(t)).map(_._2).value
 
       def associate(child: T, parent: T): F[Unit] =
-        if (parent === root) store.put(child, (1, parent))
-        else store.getOrRaise(parent).flatMap { case (height, _) => store.put(child, (height + 1, parent)) }
+        if (parent === root) write(child, (1, parent))
+        else readOrRaise(parent).flatMap { case (height, _) => write(child, (height + 1, parent)) }
 
       def heightOf(t: T): F[Long] =
         if (t === root) 0L.pure[F]
-        else store.getOrRaise(t).map(_._1)
+        else readOrRaise(t).map(_._1)
 
       def findCommonAncestor(a: T, b: T): F[(NonEmptyChain[T], NonEmptyChain[T])] =
         if (a === b) (NonEmptyChain(a), NonEmptyChain(b)).pure[F]
@@ -158,7 +168,7 @@ object ParentChildTree {
         )
 
       private def prependWithParent(c: NonEmptyChain[T]): F[NonEmptyChain[T]] =
-        store.getOrRaise(c.head).map(_._2).map(c.prepend)
+        readOrRaise(c.head).map(_._2).map(c.prepend)
     }
   }
 }

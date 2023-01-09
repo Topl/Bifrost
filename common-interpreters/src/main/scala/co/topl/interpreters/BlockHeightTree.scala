@@ -17,9 +17,9 @@ object BlockHeightTree {
     slotDataStore:       StoreReader[F, TypedIdentifier, SlotData],
     blockTree:           ParentChildTree[F, TypedIdentifier],
     currentEventChanged: TypedIdentifier => F[Unit]
-  ): F[EventSourcedState[F, State[F]]] = {
+  ): F[EventSourcedState[F, State[F], TypedIdentifier]] = {
     val heightStore = slotDataStore.mapRead[TypedIdentifier, Long](identity, _.height)
-    EventSourcedState.OfTree.make[F, State[F]](
+    EventSourcedState.OfTree.make[F, State[F], TypedIdentifier](
       Async[F].delay(store.get),
       initialEventId = initialEventId,
       (state, id) => heightStore.getOrRaise(id).flatTap(store.put(_, id)).as(state),

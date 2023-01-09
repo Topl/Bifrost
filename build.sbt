@@ -331,7 +331,7 @@ lazy val eventTree = project
   )
   .settings(libraryDependencies ++= Dependencies.eventTree)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, typeclasses, algebras % "compile->compile;test->test")
+  .dependsOn(algebras % "compile->test")
 
 lazy val byteCodecs = project
   .in(file("byte-codecs"))

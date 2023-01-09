@@ -40,7 +40,7 @@ class ConsensusValidationStateSpec extends CatsEffectSuite with ScalaCheckEffect
             _ <- consensusData.totalActiveStake.put((), 5)
             epochBoundaryEventSourcedState = new EventSourcedState[F, EpochBoundariesEventSourcedState.EpochBoundaries[
               F
-            ]] {
+            ], TypedIdentifier] {
               def stateAt(eventId: TypedIdentifier): F[EpochBoundaries[F]] = ???
 
               def useStateAt[U](eventId: TypedIdentifier)(f: EpochBoundaries[F] => F[U]): F[U] = {
@@ -48,7 +48,9 @@ class ConsensusValidationStateSpec extends CatsEffectSuite with ScalaCheckEffect
                 f(boundaryStore)
               }
             }
-            consensusDataEventSourcedState = new EventSourcedState[F, ConsensusDataEventSourcedState.ConsensusData[F]] {
+            consensusDataEventSourcedState = new EventSourcedState[F, ConsensusDataEventSourcedState.ConsensusData[
+              F
+            ], TypedIdentifier] {
               def stateAt(eventId: TypedIdentifier): F[ConsensusDataEventSourcedState.ConsensusData[F]] = ???
 
               def useStateAt[U](
@@ -99,7 +101,7 @@ class ConsensusValidationStateSpec extends CatsEffectSuite with ScalaCheckEffect
             _ <- consensusData.registrations.put(address, registration)
             epochBoundaryEventSourcedState = new EventSourcedState[F, EpochBoundariesEventSourcedState.EpochBoundaries[
               F
-            ]] {
+            ], TypedIdentifier] {
               def stateAt(eventId: TypedIdentifier): F[EpochBoundaries[F]] = ???
 
               def useStateAt[U](eventId: TypedIdentifier)(f: EpochBoundaries[F] => F[U]): F[U] = {
@@ -107,7 +109,9 @@ class ConsensusValidationStateSpec extends CatsEffectSuite with ScalaCheckEffect
                 f(boundaryStore)
               }
             }
-            consensusDataEventSourcedState = new EventSourcedState[F, ConsensusDataEventSourcedState.ConsensusData[F]] {
+            consensusDataEventSourcedState = new EventSourcedState[F, ConsensusDataEventSourcedState.ConsensusData[
+              F
+            ], TypedIdentifier] {
               def stateAt(eventId: TypedIdentifier): F[ConsensusDataEventSourcedState.ConsensusData[F]] = ???
 
               def useStateAt[U](
@@ -155,7 +159,7 @@ class ConsensusValidationStateSpec extends CatsEffectSuite with ScalaCheckEffect
             _ <- consensusData.totalActiveStake.put((), 5)
             epochBoundaryEventSourcedState = new EventSourcedState[F, EpochBoundariesEventSourcedState.EpochBoundaries[
               F
-            ]] {
+            ], TypedIdentifier] {
               def stateAt(eventId: TypedIdentifier): F[EpochBoundaries[F]] = ???
 
               def useStateAt[U](eventId: TypedIdentifier)(f: EpochBoundaries[F] => F[U]): F[U] = {
@@ -163,7 +167,9 @@ class ConsensusValidationStateSpec extends CatsEffectSuite with ScalaCheckEffect
                 f(boundaryStore)
               }
             }
-            consensusDataEventSourcedState = new EventSourcedState[F, ConsensusDataEventSourcedState.ConsensusData[F]] {
+            consensusDataEventSourcedState = new EventSourcedState[F, ConsensusDataEventSourcedState.ConsensusData[
+              F
+            ], TypedIdentifier] {
               def stateAt(eventId: TypedIdentifier): F[ConsensusDataEventSourcedState.ConsensusData[F]] = ???
 
               def useStateAt[U](
@@ -211,7 +217,7 @@ class ConsensusValidationStateSpec extends CatsEffectSuite with ScalaCheckEffect
             _ <- consensusData.registrations.put(address, registration)
             epochBoundaryEventSourcedState = new EventSourcedState[F, EpochBoundariesEventSourcedState.EpochBoundaries[
               F
-            ]] {
+            ], TypedIdentifier] {
               def stateAt(eventId: TypedIdentifier): F[EpochBoundaries[F]] = ???
 
               def useStateAt[U](eventId: TypedIdentifier)(f: EpochBoundaries[F] => F[U]): F[U] = {
@@ -219,7 +225,9 @@ class ConsensusValidationStateSpec extends CatsEffectSuite with ScalaCheckEffect
                 f(boundaryStore)
               }
             }
-            consensusDataEventSourcedState = new EventSourcedState[F, ConsensusDataEventSourcedState.ConsensusData[F]] {
+            consensusDataEventSourcedState = new EventSourcedState[F, ConsensusDataEventSourcedState.ConsensusData[
+              F
+            ], TypedIdentifier] {
               def stateAt(eventId: TypedIdentifier): F[ConsensusDataEventSourcedState.ConsensusData[F]] = ???
 
               def useStateAt[U](

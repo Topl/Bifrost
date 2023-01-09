@@ -1,28 +1,27 @@
 package co.topl.eventtree
 
+import cats.Eq
 import cats.data.Chain
 import cats.effect._
 import cats.effect.std.Semaphore
 import cats.implicits._
-import co.topl.models._
-import co.topl.typeclasses.implicits._
 
 /**
  * Derives/computes/retrieves the State at some eventId
  */
-trait EventSourcedState[F[_], State] {
+trait EventSourcedState[F[_], State, Id] {
 
   /**
    * Produces a State at the given Event ID
    */
-  def stateAt(eventId: TypedIdentifier): F[State]
+  def stateAt(eventId: Id): F[State]
 
   /**
    * Produces a State at the given Event ID and applies the given function to the State.
    *
    * This method is intended to provide thread safety to States that are internally unsafe
    */
-  def useStateAt[U](eventId: TypedIdentifier)(f: State => F[U]): F[U]
+  def useStateAt[U](eventId: Id)(f: State => F[U]): F[U]
 }
 
 object EventSourcedState {
@@ -32,18 +31,18 @@ object EventSourcedState {
    */
   object OfTree {
 
-    def make[F[_]: Async, State](
+    def make[F[_]: Async, State, Id: Eq](
       initialState:        F[State],
-      initialEventId:      F[TypedIdentifier],
-      applyEvent:          (State, TypedIdentifier) => F[State],
-      unapplyEvent:        (State, TypedIdentifier) => F[State],
-      parentChildTree:     ParentChildTree[F, TypedIdentifier],
-      currentEventChanged: TypedIdentifier => F[Unit]
-    ): F[EventSourcedState[F, State]] = for {
+      initialEventId:      F[Id],
+      applyEvent:          (State, Id) => F[State],
+      unapplyEvent:        (State, Id) => F[State],
+      parentChildTree:     ParentChildTree[F, Id],
+      currentEventChanged: Id => F[Unit]
+    ): F[EventSourcedState[F, State, Id]] = for {
       semaphore         <- Semaphore[F](1)
       currentStateRef   <- initialState.flatMap(Ref.of[F, State])
-      currentEventIdRef <- initialEventId.flatMap(Ref.of[F, TypedIdentifier])
-    } yield new Impl[F, State](
+      currentEventIdRef <- initialEventId.flatMap(Ref.of[F, Id])
+    } yield new Impl[F, State, Id](
       applyEvent,
       unapplyEvent,
       parentChildTree,
@@ -53,20 +52,20 @@ object EventSourcedState {
       currentEventChanged
     )
 
-    private class Impl[F[_]: Async, State](
-      applyEvent:          (State, TypedIdentifier) => F[State],
-      unapplyEvent:        (State, TypedIdentifier) => F[State],
-      parentChildTree:     ParentChildTree[F, TypedIdentifier],
+    private class Impl[F[_]: Async, State, Id: Eq](
+      applyEvent:          (State, Id) => F[State],
+      unapplyEvent:        (State, Id) => F[State],
+      parentChildTree:     ParentChildTree[F, Id],
       semaphore:           Semaphore[F],
       currentStateRef:     Ref[F, State],
-      currentEventIdRef:   Ref[F, TypedIdentifier],
-      currentEventChanged: TypedIdentifier => F[Unit]
-    ) extends EventSourcedState[F, State] {
+      currentEventIdRef:   Ref[F, Id],
+      currentEventChanged: Id => F[Unit]
+    ) extends EventSourcedState[F, State, Id] {
 
-      def stateAt(eventId: TypedIdentifier): F[State] =
+      def stateAt(eventId: Id): F[State] =
         useStateAt(eventId)(_.pure[F])
 
-      override def useStateAt[U](eventId: TypedIdentifier)(f: State => F[U]): F[U] =
+      override def useStateAt[U](eventId: Id)(f: State => F[U]): F[U] =
         semaphore.permit.use(_ =>
           for {
             currentEventId <- currentEventIdRef.get
@@ -89,9 +88,9 @@ object EventSourcedState {
         )
 
       private def unapplyEvents(
-        eventIds:     Chain[TypedIdentifier],
+        eventIds:     Chain[Id],
         currentState: State,
-        newEventId:   TypedIdentifier
+        newEventId:   Id
       ): F[State] =
         eventIds.zipWithIndex.reverse.foldLeftM(currentState) { case (state, (eventId, index)) =>
           Async[F].uncancelable(_ =>
@@ -107,7 +106,7 @@ object EventSourcedState {
           )
         }
 
-      private def applyEvents(eventIds: Chain[TypedIdentifier], currentState: State): F[State] =
+      private def applyEvents(eventIds: Chain[Id], currentState: State): F[State] =
         eventIds.foldLeftM(currentState) { case (state, eventId) =>
           Async[F].uncancelable(_ =>
             for {

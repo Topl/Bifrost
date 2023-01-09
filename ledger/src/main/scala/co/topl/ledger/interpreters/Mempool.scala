@@ -88,7 +88,7 @@ object Mempool {
           .map(_.toList)
           .flatMap(_.traverse(fetchTransaction(_).flatMap(addTransactionWithDefaultExpiration)))
           .as(state)
-      eventSourcedState <- EventSourcedState.OfTree.make[F, State[F]](
+      eventSourcedState <- EventSourcedState.OfTree.make[F, State[F], TypedIdentifier](
         state.pure[F],
         currentBlockId,
         applyEvent = applyBlock,

@@ -90,8 +90,12 @@ object NodeApp
       _                     <- Resource.eval(Logger[F].info(show"Canonical head id=$canonicalHeadId"))
 
       blockIdTree <- Resource.eval(
-        ParentChildTree.FromStore
-          .make[F, TypedIdentifier](dataStores.parentChildTree, bigBangBlock.header.parentHeaderId)
+        ParentChildTree.FromReadWrite
+          .make[F, TypedIdentifier](
+            dataStores.parentChildTree.get,
+            dataStores.parentChildTree.put,
+            bigBangBlock.header.parentHeaderId
+          )
           .flatTap(_.associate(bigBangBlock.header.id, bigBangBlock.header.parentHeaderId))
       )
 
