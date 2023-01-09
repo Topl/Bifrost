@@ -40,6 +40,15 @@ class OrientDBFacade(dir: File, password: String) {
   type PropertyQuery = (PropertyKey, AnyRef)
 
   // TODO Unify VertexTypeName and PropertyKey with VertexSchema (VertexSchema.BlockHeader.BlockId)
+  /**
+   * Get single vertex filtered by only one field
+   *
+   * @param vertexTypeName Vertex class
+   * @param filterKey Vertex key to filter by
+   * @param filterValue Vertex value of given key to filter by
+   * @tparam F the effect-ful context to retrieve the value in
+   * @return Optional Vertex
+   */
   def getVertex[F[_]: Async](
     vertexTypeName: VertexTypeName,
     filterKey:      PropertyKey,
@@ -47,6 +56,14 @@ class OrientDBFacade(dir: File, password: String) {
   ): F[Option[Vertex]] =
     getVertex(vertexTypeName, Set((filterKey, filterValue)))
 
+  /**
+   * Get single vertex filtered by multiple properties
+   *
+   * @param vertexTypeName   Vertex class
+   * @param propertiesFilter Vertex properties to filter by
+   * @tparam F the effect-ful context to retrieve the value in
+   * @return Optional Vertex
+   */
   def getVertex[F[_]: Async](
     vertexTypeName:   VertexTypeName,
     propertiesFilter: Set[PropertyQuery]
@@ -54,6 +71,15 @@ class OrientDBFacade(dir: File, password: String) {
     getVertices(vertexTypeName, propertiesFilter)
       .map(_.headOption)
 
+  /**
+   * Get vertices filtered by only one field
+   *
+   * @param vertexTypeName Vertices class
+   * @param filterKey      Vertices key to filter by
+   * @param filterValue    Vertices value of given key to filter by
+   * @tparam F the effect-ful context to retrieve the value in
+   * @return Vertices
+   */
   def getVertices[F[_]: Async](
     vertexTypeName: VertexTypeName,
     filterKey:      PropertyKey,
@@ -61,6 +87,14 @@ class OrientDBFacade(dir: File, password: String) {
   ): F[Iterable[Vertex]] =
     getVertices(vertexTypeName, Set((filterKey, filterValue)))
 
+  /**
+   * Get vertices filtered by multiple properties
+   *
+   * @param vertexTypeName   Vertex class
+   * @param propertiesFilter Vertices properties to filter by
+   * @tparam F the effect-ful context to retrieve the value in
+   * @return Vertices
+   */
   def getVertices[F[_]: Async](
     vertexTypeName:   VertexTypeName,
     propertiesFilter: Set[PropertyQuery]
