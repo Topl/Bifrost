@@ -12,14 +12,20 @@ import co.topl.crypto.signing.{Ed25519VRF, KesProduct}
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.Ed25519
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.consensus.models.BlockHeader
+import co.topl.models.utility.HasLength.instances.{arrayLength, bytesLength}
 import co.topl.models.utility.{Ratio, Sized}
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
 import scalacache.caffeine.CaffeineCache
+import scodec.bits.ByteVector
 
 /**
  * Interpreters for the ConsensusValidationAlgebra
+ */
+
+/**
+ * TODO, continue working in this Validaton, creating PR from Here
  */
 object BlockHeaderValidation {
 
@@ -84,7 +90,7 @@ object BlockHeaderValidation {
           .ensureOr(child => BlockHeaderValidationFailures.NonForwardTimestamp(child.timestamp, parent.timestamp))(
             child => child.timestamp > parent.timestamp
           )
-          .ensureOr(child => BlockHeaderValidationFailures.ParentMismatch(child.parentHeaderId, parent.id))(
+          .ensureOr(child => BlockHeaderValidationFailures.ParentMismatch(TypedBytes.headerFromProtobufString(child.parentHeaderId), parent.id))(
             _.parentHeaderId === parent.id
           )
           .ensureOr(child => BlockHeaderValidationFailures.NonForwardHeight(child.height, parent.height))(
@@ -112,14 +118,15 @@ object BlockHeaderValidation {
         header: BlockHeader
       ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
         EitherT
-          .liftF(etaInterpreter.etaToBe(header.parentSlotId, header.slot))
-          .flatMap(expectedEta =>
+          .liftF(etaInterpreter.etaToBe(SlotId(header.parentSlot, TypedBytes.headerFromProtobufString(header.parentHeaderId)), header.slot))
+          .flatMap(expectedEta => {
+            val eta = Sized.strictUnsafe[ByteVector, Eta.Length](header.eligibilityCertificate.map(_.eta.toByteArray).map(ByteVector(_)).getOrElse(ByteVector.empty))
             EitherT
               .cond[F](
-                header.eligibilityCertificate.eta === expectedEta,
+                eta === expectedEta,
                 header,
                 BlockHeaderValidationFailures
-                  .InvalidEligibilityCertificateEta(header.eligibilityCertificate.eta, expectedEta)
+                  .InvalidEligibilityCertificateEta(eta, expectedEta)
               )
               .flatMap(_ =>
                 EitherT(
@@ -127,9 +134,9 @@ object BlockHeaderValidation {
                     .use { implicit ed25519vrf =>
                       ed25519vrf
                         .verify(
-                          header.eligibilityCertificate.vrfSig.bytes.data,
+                          ByteVector(header.eligibilityCertificate.flatMap(_.vrfSig).map(_.value.toByteArray).getOrElse(Array.empty)),
                           LeaderElectionValidation.VrfArgument(expectedEta, header.slot).signableBytes,
-                          header.eligibilityCertificate.vkVRF.bytes.data
+                          ByteVector(header.eligibilityCertificate.flatMap(_.vrfVK).map(_.value.toByteArray).getOrElse(Array.empty))
                         )
                         .pure[F]
                     }
@@ -138,12 +145,18 @@ object BlockHeaderValidation {
                         _,
                         header,
                         BlockHeaderValidationFailures
-                          .InvalidEligibilityCertificateProof(header.eligibilityCertificate.vrfSig)
+                          .InvalidEligibilityCertificateProof(
+                            Proofs.Knowledge.VrfEd25519(
+                              Sized.strictUnsafe[ByteVector, Proofs.Knowledge.VrfEd25519.Length](
+                                ByteVector(header.eligibilityCertificate.flatMap(_.vrfSig).map(_.value.toByteArray).getOrElse(Array.empty))
+                              )
+                            )
+                          )
                       )
                     )
                 )
               )
-          )
+          })
 
       /**
        * Verifies the given block's Operational Certificate's parent -> linear commitment, and the Operational

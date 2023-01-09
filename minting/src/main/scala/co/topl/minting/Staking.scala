@@ -79,21 +79,21 @@ object Staking {
                 )
               )
             )
-            val header = BlockHeader(
-              unsignedBlock.unsignedHeader.parentHeaderId,
+            val consensusHeader = co.topl.consensus.models.BlockHeader(
+              com.google.protobuf.ByteString.copyFrom(unsignedBlock.unsignedHeader.parentHeaderId.dataBytes.toArray),
               unsignedBlock.unsignedHeader.parentSlot,
-              unsignedBlock.unsignedHeader.txRoot,
-              unsignedBlock.unsignedHeader.bloomFilter,
+              com.google.protobuf.ByteString.copyFrom(unsignedBlock.unsignedHeader.txRoot.data.toArray),
+              com.google.protobuf.ByteString.copyFrom(unsignedBlock.unsignedHeader.bloomFilter.data.toArray),
               unsignedBlock.unsignedHeader.timestamp,
               unsignedBlock.unsignedHeader.height,
               unsignedBlock.unsignedHeader.slot,
-              unsignedBlock.unsignedHeader.eligibilityCertificate,
-              operationalCertificate,
-              unsignedBlock.unsignedHeader.metadata,
-              unsignedBlock.unsignedHeader.address
+              None, // TODO we should replace eligibilityCertificate, from protoSpecs Some(unsignedBlock.unsignedHeader.eligibilityCertificate),
+              None,// TODO we should replace operationalCertificate, from protoSpecs,
+              com.google.protobuf.ByteString.copyFrom(unsignedBlock.unsignedHeader.metadata.map(_.data.bytes).getOrElse(Array.empty[Byte])), // TODO, ask, why metadate is mandatory now?
+              com.google.protobuf.ByteString.copyFrom(unsignedBlock.unsignedHeader.address.vk.bytes.data.toArray)
             )
             Block(
-              header,
+              consensusHeader,
               unsignedBlock.body
             ).pure[F]
           }

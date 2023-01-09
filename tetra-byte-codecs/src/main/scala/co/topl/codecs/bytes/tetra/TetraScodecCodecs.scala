@@ -7,11 +7,12 @@ import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility._
+import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader}
 import scodec.codecs.{discriminated, lazily}
 import scodec.{Attempt, Codec, Err}
 import shapeless.{::, HList, HNil}
-
 import scala.collection.immutable.ListSet
+import scodec.bits.BitVector
 
 trait TetraScodecCodecs
     extends TetraScodecPrimitiveCodecs
@@ -114,6 +115,26 @@ trait TetraScodecPrimitiveCodecs {
 
   implicit val rhoCodec: Codec[Rho] =
     Codec[Sized.Strict[Bytes, Lengths.`64`.type]].xmap(Rho(_), _.sizedBytes)
+
+  // TODO check with Sean, this implicit
+  implicit val protobufByteStringCodec: Codec[com.google.protobuf.ByteString] =
+  Codec(
+    byteString => Attempt.fromTry[BitVector](scala.util.Try(BitVector(byteString.toByteArray))),
+    bitVector => Codec.decode[com.google.protobuf.ByteString](bitVector)
+  )
+
+  implicit val fieldCodec: Codec[scalapb.UnknownFieldSet.Field] =
+    (seqCodec(longCodec) ::
+      seqCodec(longCodec) ::
+      seqCodec(intCodec) ::
+      seqCodec(protobufByteStringCodec)
+      ).as[scalapb.UnknownFieldSet.Field]
+
+  implicit val fieldsCodec: Codec[Map[Int, scalapb.UnknownFieldSet.Field]] =
+    mapCodec[Int, scalapb.UnknownFieldSet.Field](intCodec, fieldCodec)
+
+  implicit val unknownFieldSetCodec: Codec[scalapb.UnknownFieldSet] =
+    (fieldsCodec).as[scalapb.UnknownFieldSet]
 }
 
 trait TetraScodecCryptoCodecs {
@@ -152,6 +173,9 @@ trait TetraScodecVerificationKeyCodecs {
     strictSizedBytesCodec[VerificationKeys.Ed25519.Length]
       .as[VerificationKeys.Ed25519]
 
+  implicit val consensusVkEd25519Codec: Codec[co.topl.crypto.models.VerificationKeyEd25519] =
+    (protobufByteStringCodec :: unknownFieldSetCodec).as[co.topl.crypto.models.VerificationKeyEd25519]
+
   implicit val vkExtendedEd25519Codec: Codec[VerificationKeys.ExtendedEd25519] =
     (vkEd25519Codec :: strictSizedBytesCodec[SecretKeys.ExtendedEd25519.ChainCodeLength])
       .as[VerificationKeys.ExtendedEd25519]
@@ -160,6 +184,9 @@ trait TetraScodecVerificationKeyCodecs {
     strictSizedBytesCodec[VerificationKeys.VrfEd25519.Length]
       .as[VerificationKeys.VrfEd25519]
 
+  implicit val consensusVkVrfCodec: Codec[co.topl.consensus.models.VerificationKeyVrfEd25519] =
+    (protobufByteStringCodec :: unknownFieldSetCodec).as[co.topl.consensus.models.VerificationKeyVrfEd25519]
+
   implicit val vkKesSumCodec: Codec[VerificationKeys.KesSum] =
     (strictSizedBytesCodec[VerificationKeys.KesSum.Length] :: intCodec)
       .as[VerificationKeys.KesSum]
@@ -167,6 +194,13 @@ trait TetraScodecVerificationKeyCodecs {
   implicit val vkKesProductCodec: Codec[VerificationKeys.KesProduct] =
     (strictSizedBytesCodec[VerificationKeys.KesProduct.Length] :: intCodec)
       .as[VerificationKeys.KesProduct]
+
+  implicit val consensusVkKesProductCodec: Codec[co.topl.consensus.models.VerificationKeyKesProduct] =
+    (
+      protobufByteStringCodec ::
+        intCodec :: // step
+        unknownFieldSetCodec
+      ).as[co.topl.consensus.models.VerificationKeyKesProduct]
 }
 
 trait TetraScodecAddressCodecs {
@@ -343,18 +377,40 @@ trait TetraScodecProofCodecs {
   implicit val proofSignatureEd25519Codec: Codec[Proofs.Knowledge.Ed25519] =
     strictSizedBytesCodec[Proofs.Knowledge.Ed25519.Length].as[Proofs.Knowledge.Ed25519]
 
+  implicit val consensusProofSignatureEd25519Codec: Codec[co.topl.crypto.models.SignatureEd25519] =
+    (protobufByteStringCodec :: unknownFieldSetCodec).as[co.topl.crypto.models.SignatureEd25519]
+
   implicit val proofSignatureVrfCodec: Codec[Proofs.Knowledge.VrfEd25519] =
     strictSizedBytesCodec[Proofs.Knowledge.VrfEd25519.Length].as[Proofs.Knowledge.VrfEd25519]
+
+  implicit val consensusSignatureVrfEd25519Codec: Codec[co.topl.consensus.models.SignatureVrfEd25519] =
+    (protobufByteStringCodec :: unknownFieldSetCodec).as[co.topl.consensus.models.SignatureVrfEd25519]
 
   implicit val proofSignatureKesSumCodec: Codec[Proofs.Knowledge.KesSum] =
     (vkEd25519Codec :: proofSignatureEd25519Codec :: vectorCodec[
       Sized.Strict[Bytes, Proofs.Knowledge.KesSum.DigestLength]
     ]).as[Proofs.Knowledge.KesSum]
 
+  implicit val consensusProofSignatureKesSumCodec: Codec[co.topl.consensus.models.SignatureKesSum] =
+    (
+      optionCodec(consensusVkEd25519Codec) ::
+      optionCodec(consensusProofSignatureEd25519Codec) ::
+      seqCodec(protobufByteStringCodec) :: // witness
+      unknownFieldSetCodec
+    ).as[co.topl.consensus.models.SignatureKesSum]
+
   implicit val proofSignatureKesProductCodec: Codec[Proofs.Knowledge.KesProduct] =
     (proofSignatureKesSumCodec :: proofSignatureKesSumCodec :: strictSizedBytesCodec[
       Proofs.Knowledge.KesProduct.DigestLength
     ]).as[Proofs.Knowledge.KesProduct]
+
+  implicit val consensusProofSignatureKesProductCodec: Codec[co.topl.consensus.models.SignatureKesProduct] =
+    (
+      optionCodec(consensusProofSignatureKesSumCodec) :: // super
+      optionCodec(consensusProofSignatureKesSumCodec) :: // sub
+      protobufByteStringCodec :: // subRoot
+      unknownFieldSetCodec
+    ).as[co.topl.consensus.models.SignatureKesProduct]
 
   implicit val proofsKnowledgeHashLockCodec: Codec[Proofs.Knowledge.HashLock] =
     byteVectorCodec.as[Proofs.Knowledge.HashLock]
@@ -448,9 +504,25 @@ trait TetraScodecBlockCodecs {
     (proofSignatureVrfCodec :: vkVrfCodec :: Codec[Evidence] :: Codec[Eta])
       .as[EligibilityCertificate]
 
+  implicit val consensusEligibilityCertificateCodec: Codec[co.topl.consensus.models.EligibilityCertificate] =
+    (optionCodec(consensusSignatureVrfEd25519Codec) ::
+      optionCodec(consensusVkVrfCodec) ::
+      protobufByteStringCodec :: //thresholdEvidence
+      protobufByteStringCodec :: //eta
+      unknownFieldSetCodec
+      ).as[co.topl.consensus.models.EligibilityCertificate]
+
   implicit val operationalCertificateCodec: Codec[OperationalCertificate] =
     (vkKesProductCodec :: proofSignatureKesProductCodec :: vkEd25519Codec :: proofSignatureEd25519Codec)
       .as[OperationalCertificate]
+
+  implicit val consensusOperationalCertificateCodec: Codec[co.topl.consensus.models.OperationalCertificate] =
+    (optionCodec(consensusVkKesProductCodec) ::
+      optionCodec(consensusProofSignatureKesProductCodec) ::
+      optionCodec(consensusVkEd25519Codec) ::
+      optionCodec(consensusProofSignatureEd25519Codec) ::
+      unknownFieldSetCodec
+      ).as[co.topl.consensus.models.OperationalCertificate]
 
   implicit val partialOperationalCertificateCodec: Codec[BlockHeader.Unsigned.PartialOperationalCertificate] =
     (vkKesProductCodec :: proofSignatureKesProductCodec :: vkEd25519Codec)
@@ -470,6 +542,21 @@ trait TetraScodecBlockCodecs {
         optionCodec(maxSizedCodec[Latin1Data, Lengths.`32`.type]) ::
         stakingAddressesOperatorCodec
     ).as[BlockHeader]
+
+  implicit val consensesBlockHeaderCodec: Codec[ConsensusBlockHeader] = (
+    protobufByteStringCodec :: // parentHeaderId
+      longCodec :: // parentSlot
+      protobufByteStringCodec :: // txRoot
+      protobufByteStringCodec :: // bloomFilter
+      longCodec :: // timestamp
+      longCodec :: // height
+      longCodec :: // slot
+      optionCodec(consensusEligibilityCertificateCodec) ::
+      optionCodec(consensusOperationalCertificateCodec) ::
+      protobufByteStringCodec :: // metadata
+      protobufByteStringCodec :: // address
+      unknownFieldSetCodec
+  ).as[ConsensusBlockHeader]
 
   implicit val slotIdCodec: Codec[SlotId] =
     (Codec[Slot](uLongCodec) :: Codec[TypedIdentifier]).as[SlotId]

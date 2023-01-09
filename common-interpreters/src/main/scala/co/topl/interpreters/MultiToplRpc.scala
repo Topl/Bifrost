@@ -6,6 +6,7 @@ import cats.effect.std.Random
 import cats.implicits._
 import co.topl.algebras.{SynchronizationTraversalStep, ToplRpc}
 import co.topl.models.{BlockBody, BlockHeader, Transaction, TypedIdentifier}
+import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
 import fs2.Stream
 
 object MultiToplRpc {
@@ -37,7 +38,7 @@ object MultiToplRpc {
       def currentMempool(): F[Set[TypedIdentifier]] =
         randomDelegate.flatMap(_.currentMempool())
 
-      def fetchBlockHeader(blockId: TypedIdentifier): F[Option[BlockHeader]] =
+      def fetchBlockHeader(blockId: TypedIdentifier): F[Option[ConsensusBlockHeader]] =
         randomDelegate.flatMap(_.fetchBlockHeader(blockId))
 
       def fetchBlockBody(blockId: TypedIdentifier): F[Option[BlockBody]] =

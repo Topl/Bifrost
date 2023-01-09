@@ -6,6 +6,7 @@ import akka.stream.scaladsl.Source
 import cats._
 import co.topl.algebras.Store
 import co.topl.models.{BlockBody, BlockHeader, SlotData, Transaction, TypedIdentifier}
+import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
 import cats.implicits._
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.eventtree.EventSourcedState
@@ -17,7 +18,7 @@ trait BlockchainPeerServer[F[_]] {
   def localBlockAdoptions: F[Source[TypedIdentifier, NotUsed]]
   def localTransactionNotifications: F[Source[TypedIdentifier, NotUsed]]
   def getLocalSlotData(id:          TypedIdentifier): F[Option[SlotData]]
-  def getLocalHeader(id:            TypedIdentifier): F[Option[BlockHeader]]
+  def getLocalHeader(id:            TypedIdentifier): F[Option[ConsensusBlockHeader]]
   def getLocalBody(id:              TypedIdentifier): F[Option[BlockBody]]
   def getLocalTransaction(id:       TypedIdentifier): F[Option[Transaction]]
   def getLocalBlockAtHeight(height: Long): F[Option[TypedIdentifier]]
@@ -29,7 +30,7 @@ object BlockchainPeerServer {
 
     def make[F[_]: Monad](
       slotDataStore:                Store[F, TypedIdentifier, SlotData],
-      headerStore:                  Store[F, TypedIdentifier, BlockHeader],
+      headerStore:                  Store[F, TypedIdentifier, ConsensusBlockHeader],
       bodyStore:                    Store[F, TypedIdentifier, BlockBody],
       transactionStore:             Store[F, TypedIdentifier, Transaction],
       blockHeights:                 EventSourcedState[F, Long => F[Option[TypedIdentifier]]],
@@ -47,7 +48,7 @@ object BlockchainPeerServer {
 
         def getLocalSlotData(id: TypedIdentifier): F[Option[SlotData]] = slotDataStore.get(id)
 
-        def getLocalHeader(id: TypedIdentifier): F[Option[BlockHeader]] = headerStore.get(id)
+        def getLocalHeader(id: TypedIdentifier): F[Option[ConsensusBlockHeader]] = headerStore.get(id)
 
         def getLocalBody(id: TypedIdentifier): F[Option[BlockBody]] = bodyStore.get(id)
 

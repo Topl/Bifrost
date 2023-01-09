@@ -9,9 +9,10 @@ import com.google.cloud.storage._
 import co.topl.typeclasses.implicits._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.models.Box
-
+import co.topl.models.{Box, IdentifierTypes, TypedBytes}
+import co.topl.typeclasses.ContainsEvidence.TypePrefixes
 import java.nio.charset.StandardCharsets
+import scodec.bits.ByteVector
 
 object GcpCsvDataPublisher {
 
@@ -93,20 +94,24 @@ object GcpCsvDataPublisher {
   private def adoptionDatumToRow(datum: AdoptionDatum) =
     List(datum.blockId.show, datum.timestamp.show)
 
+  /**
+   * TODO Implement immutableBytes in TetraIdentifiableInstances, see  TODO Qeustion about implementation
+   */
+
   private def blockDatumToRow(datum: BlockDatum): List[String] =
     List(
       datum.header.id.asTypedBytes.show,
-      datum.header.parentHeaderId.show,
+      TypedBytes(IdentifierTypes.Block.HeaderV2, ByteVector(datum.header.parentHeaderId.toByteArray)).show,
       datum.header.parentSlot.show,
       datum.header.timestamp.show,
       datum.header.height.show,
       datum.header.slot.show,
-      datum.header.address.immutableBytes.toBase58,
-      datum.header.txRoot.data.toBase58,
-      datum.header.bloomFilter.data.toBase58,
-      datum.header.eligibilityCertificate.immutableBytes.toBase58,
-      datum.header.operationalCertificate.immutableBytes.toBase58,
-      datum.header.metadata.fold("")(_.data.value),
+      ByteVector(datum.header.address.toByteArray).toBase58,
+      ByteVector(datum.header.txRoot.toByteArray).toBase58,
+      ByteVector(datum.header.bloomFilter.toByteArray).toBase58,
+//      datum.header.eligibilityCertificate.immutableBytes.toBase58,
+//      datum.header.operationalCertificate.immutableBytes.toBase58,
+//      datum.header.metadata.fold("")(_.data.value),
       datum.body.map(_.show).mkString(";")
     )
 

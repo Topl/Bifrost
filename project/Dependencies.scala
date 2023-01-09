@@ -14,7 +14,7 @@ object Dependencies {
   val logback = "1.4.5"
 
   val protobufSpecs =
-    "com.github.Topl" % "protobuf-specs" % "aefb7254"
+    "com.github.Topl" % "protobuf-specs" % "fed857c"
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.5.0"
@@ -223,6 +223,7 @@ object Dependencies {
 
   lazy val algebras: Seq[sbt.ModuleID] =
     circe ++
+    Seq(protobufSpecs) ++
     test ++
     catsEffect.map(_ % Test) ++
     Seq(catsSlf4j % Test)
@@ -288,7 +289,7 @@ object Dependencies {
 
   // TODO remove BN-714, PR v2
   lazy val models: Seq[ModuleID] =
-    cats ++ simulacrum ++ newType ++ scodec
+    cats ++ simulacrum ++ newType ++ scodec ++ Seq(protobufSpecs)
 
   lazy val consensus: Seq[ModuleID] =
     Dependencies.mUnitTest ++ externalCrypto ++ Seq(akka("actor-typed")) ++ catsEffect ++ logging ++ scalacache

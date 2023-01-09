@@ -1,6 +1,7 @@
 package co.topl.algebras
 
 import co.topl.models.{BlockBody, BlockHeader, Transaction, TypedIdentifier}
+import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
 
 /**
  * Topl Rpc
@@ -13,7 +14,7 @@ trait ToplRpc[F[_], S[_]] {
 
   def currentMempool(): F[Set[TypedIdentifier]]
 
-  def fetchBlockHeader(blockId: TypedIdentifier): F[Option[BlockHeader]]
+  def fetchBlockHeader(blockId: TypedIdentifier): F[Option[ConsensusBlockHeader]]
 
   def fetchBlockBody(blockId: TypedIdentifier): F[Option[BlockBody]]
 

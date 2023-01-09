@@ -1,11 +1,11 @@
 package co.topl
 
+import co.topl
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.{Lengths, Sized}
 import io.estatico.newtype.macros.{newsubtype, newtype}
 import io.estatico.newtype.ops._
 import scodec.bits.ByteVector
-
 import scala.collection.immutable.ListSet
 import scala.language.implicitConversions
 
@@ -65,5 +65,8 @@ package object models {
 
     def apply(prefix: TypePrefix, dataBytes: Bytes): TypedBytes =
       (prefix +: dataBytes).coerce
+
+    def headerFromProtobufString(bytesString: com.google.protobuf.ByteString): topl.models.TypedIdentifier =
+      TypedBytes(IdentifierTypes.Block.HeaderV2, ByteVector(bytesString.toByteArray))
   }
 }

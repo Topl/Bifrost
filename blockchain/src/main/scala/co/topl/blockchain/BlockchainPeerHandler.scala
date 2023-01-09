@@ -25,6 +25,7 @@ import co.topl.ledger.models.{
   TransactionSyntaxError
 }
 import co.topl.models._
+import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
 import co.topl.networking.blockchain._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
@@ -68,7 +69,7 @@ object BlockchainPeerHandler {
       bodySemanticValidation:      BodySemanticValidationAlgebra[F],
       bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
       slotDataStore:               Store[F, TypedIdentifier, SlotData],
-      headerStore:                 Store[F, TypedIdentifier, BlockHeader],
+      headerStore:                 Store[F, TypedIdentifier, ConsensusBlockHeader],
       bodyStore:                   Store[F, TypedIdentifier, BlockBody],
       transactionStore:            Store[F, TypedIdentifier, Transaction],
       blockIdTree:                 ParentChildTree[F, TypedIdentifier]
@@ -202,7 +203,7 @@ object BlockchainPeerHandler {
       client:           BlockchainPeerClient[F],
       headerValidation: BlockHeaderValidationAlgebra[F],
       slotDataStore:    Store[F, TypedIdentifier, SlotData],
-      headerStore:      Store[F, TypedIdentifier, BlockHeader]
+      headerStore:      Store[F, TypedIdentifier, ConsensusBlockHeader]
     )(from:             TypedIdentifier) =
       determineMissingValues(
         headerStore.contains,
@@ -222,7 +223,9 @@ object BlockchainPeerHandler {
               Logger[F].debug(show"Validating remote header id=$blockId")
             }
             .tapAsyncF(1) { case (blockId, header) =>
-              EitherT(headerStore.getOrRaise(header.parentHeaderId).flatMap(headerValidation.validate(header, _)))
+              EitherT(headerStore.getOrRaise(TypedBytes.headerFromProtobufString(header.parentHeaderId))
+                .flatMap(headerValidation.validate(header, _))
+              )
                 .leftSemiflatTap(error => Logger[F].warn(show"Received invalid block header id=$blockId error=$error"))
                 .leftMap(error => new IllegalArgumentException(error.show))
                 .rethrowT >>
@@ -247,7 +250,7 @@ object BlockchainPeerHandler {
       bodySemanticValidation:      BodySemanticValidationAlgebra[F],
       bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
       slotDataStore:               Store[F, TypedIdentifier, SlotData],
-      headerStore:                 Store[F, TypedIdentifier, BlockHeader],
+      headerStore:                 Store[F, TypedIdentifier, ConsensusBlockHeader],
       bodyStore:                   Store[F, TypedIdentifier, BlockBody],
       transactionStore:            Store[F, TypedIdentifier, Transaction]
     )(from:                        TypedIdentifier) =

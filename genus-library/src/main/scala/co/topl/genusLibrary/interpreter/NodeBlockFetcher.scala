@@ -8,6 +8,7 @@ import co.topl.genusLibrary.algebras.BlockFetcherAlgebra
 import co.topl.genusLibrary.failure.{Failure, Failures}
 import co.topl.genusLibrary.model.{BlockData, HeightData}
 import co.topl.models.{BlockBody, BlockHeader, Transaction, TypedIdentifier}
+import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.immutable.ListSet
@@ -38,7 +39,7 @@ class NodeBlockFetcher[F[_]: Async](toplRpc: ToplRpc[F, Any]) extends BlockFetch
     } yield BlockData(header, body, transactions)
   ).value
 
-  private def fetchBlockHeader(blockId: TypedIdentifier): F[Either[Failure, BlockHeader]] =
+  private def fetchBlockHeader(blockId: TypedIdentifier): F[Either[Failure, ConsensusBlockHeader]] =
     toplRpc
       .fetchBlockHeader(blockId)
       .map(_.toRight[Failure](Failures.NoBlockHeaderFoundOnNodeFailure(blockId)))

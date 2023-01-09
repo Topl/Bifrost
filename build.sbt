@@ -356,7 +356,7 @@ lazy val tetraByteCodecs = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.codecs.bytes.tetra"
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.guava)
+  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.guava ++ Seq(Dependencies.protobufSpecs))
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test", byteCodecs % "compile->compile;test->test", crypto)
 

@@ -7,6 +7,7 @@ import cats.data.OptionT
 import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.models._
+import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
 import co.topl.models.utility.Ratio
 import co.topl.networking.p2p.ConnectedPeer
 import co.topl.typeclasses.implicits._
@@ -40,7 +41,7 @@ trait BlockchainPeerClient[F[_]] {
   /**
    * A Lookup to retrieve a remote block header by ID
    */
-  def getRemoteHeader(id: TypedIdentifier): F[Option[BlockHeader]]
+  def getRemoteHeader(id: TypedIdentifier): F[Option[ConsensusBlockHeader]]
 
   /**
    * A Lookup to retrieve a remot block body by ID

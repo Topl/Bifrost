@@ -12,6 +12,7 @@ import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.{MempoolAlgebra, TransactionSyntaxValidationAlgebra}
 import co.topl.ledger.models._
 import co.topl.models.{BlockBody, BlockHeader, Transaction, TypedIdentifier}
+import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
 import org.typelevel.log4cats.Logger
 import co.topl.typeclasses.implicits._
 import fs2.Stream
@@ -36,7 +37,7 @@ object ToplRpcServer {
    * Interpreter which serves Topl RPC data using local blockchain interpreters
    */
   def make[F[_]: Async: Logger](
-    headerStore:               Store[F, TypedIdentifier, BlockHeader],
+    headerStore:               Store[F, TypedIdentifier, ConsensusBlockHeader],
     bodyStore:                 Store[F, TypedIdentifier, BlockBody],
     transactionStore:          Store[F, TypedIdentifier, Transaction],
     mempool:                   MempoolAlgebra[F],
@@ -66,7 +67,7 @@ object ToplRpcServer {
         def currentMempool(): F[Set[TypedIdentifier]] =
           localChain.head.map(_.slotId.blockId).flatMap(mempool.read)
 
-        def fetchBlockHeader(blockId: TypedIdentifier): F[Option[BlockHeader]] =
+        def fetchBlockHeader(blockId: TypedIdentifier): F[Option[ConsensusBlockHeader]] =
           headerStore.get(blockId)
 
         def fetchBlockBody(blockId: TypedIdentifier): F[Option[BlockBody]] =

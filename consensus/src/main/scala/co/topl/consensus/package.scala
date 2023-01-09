@@ -6,6 +6,7 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.Sized
+import scodec.bits.ByteVector
 
 package object consensus {
 
@@ -26,6 +27,37 @@ package object consensus {
         blockHeader.parentSlotId,
         Rho(Sized.strictUnsafe(ed25519VRF.proofToHash(blockHeader.eligibilityCertificate.vrfSig.bytes.data))),
         blockHeader.eligibilityCertificate.eta,
+        blockHeader.height
+      )
+  }
+
+  implicit class ConsensusBlockHeaderOps(blockHeader: co.topl.consensus.models.BlockHeader) {
+
+    import co.topl.codecs.bytes.tetra.TetraIdentifiableInstances._
+    import co.topl.typeclasses.implicits._
+
+
+    def slotData(implicit ed25519VRF: Ed25519VRF): SlotData =
+      SlotData(
+        SlotId(blockHeader.slot, blockHeader.id),
+        SlotId(blockHeader.parentSlot, TypedBytes.headerFromProtobufString(blockHeader.parentHeaderId)),
+        Rho(
+          Sized.strictUnsafe(
+            ed25519VRF.proofToHash(
+              blockHeader.eligibilityCertificate
+                .flatMap(_.vrfSig)
+                .map(_.value.toByteArray)
+                .map(ByteVector(_))
+                .getOrElse(ByteVector.empty)
+            )
+          )
+        ),
+        Sized.strictUnsafe(
+          blockHeader.eligibilityCertificate
+            .map(_.eta.toByteArray)
+            .map(ByteVector(_))
+            .getOrElse(ByteVector.empty)
+        ),
         blockHeader.height
       )
   }

@@ -8,6 +8,7 @@ import cats.effect.IO
 import cats.implicits._
 import co.topl.catsakka._
 import co.topl.models._
+import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
 import co.topl.networking.p2p.ConnectedPeer
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
@@ -46,7 +47,7 @@ class BlockchainClientSpec
 
           def getRemoteSlotData(id: TypedIdentifier): F[Option[SlotData]] = ???
 
-          def getRemoteHeader(id: TypedIdentifier): F[Option[BlockHeader]] = ???
+          def getRemoteHeader(id: TypedIdentifier): F[Option[ConsensusBlockHeader]] = ???
 
           def getRemoteBody(id: TypedIdentifier): F[Option[BlockBody]] = ???
 

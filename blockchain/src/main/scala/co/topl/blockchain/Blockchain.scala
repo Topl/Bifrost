@@ -18,6 +18,7 @@ import co.topl.grpc.ToplGrpc
 import co.topl.ledger.algebras._
 import co.topl.minting.algebras.StakingAlgebra
 import co.topl.models._
+import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader}
 import co.topl.networking.blockchain._
 import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, LocalPeer}
 import co.topl.typeclasses.implicits._
@@ -29,6 +30,7 @@ import fs2.concurrent.Topic
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scala.jdk.CollectionConverters._
 import scala.util.Random
+import scodec.bits.ByteVector
 
 object Blockchain {
 
@@ -39,7 +41,7 @@ object Blockchain {
     clock:                       ClockAlgebra[F],
     staker:                      Option[StakingAlgebra[F]],
     slotDataStore:               Store[F, TypedIdentifier, SlotData],
-    headerStore:                 Store[F, TypedIdentifier, BlockHeader],
+    headerStore:                 Store[F, TypedIdentifier, ConsensusBlockHeader],
     bodyStore:                   Store[F, TypedIdentifier, BlockBody],
     transactionStore:            Store[F, TypedIdentifier, Transaction],
     _localChain:                 LocalChainAlgebra[F],
@@ -172,7 +174,7 @@ object Blockchain {
         mintedBlockStream
           .tapAsyncF(1)(block => Logger[F].info(show"Minted header=${block.header} body=${block.body}"))
           .mapAsyncF(1)(block =>
-            blockIdTree.associate(block.header.id, block.header.parentHeaderId) >>
+            blockIdTree.associate(block.header.id, TypedBytes.headerFromProtobufString(block.header.parentHeaderId)) >>
             headerStore.put(block.header.id, block.header) >>
             bodyStore.put(block.header.id, block.body) >>
             ed25519VrfResource

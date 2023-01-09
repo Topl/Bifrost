@@ -3,6 +3,7 @@ package co.topl.codecs.bytes.tetra
 import co.topl.codecs.bytes.typeclasses.Transmittable
 import co.topl.models.utility.Ratio
 import co.topl.models._
+import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
 
 import scala.collection.immutable.ListSet
 
@@ -15,6 +16,7 @@ trait TetraTransmittableCodecs {
   implicit val typedIdentifierTransmittable: Transmittable[TypedBytes] = Transmittable.instanceFromCodec
   implicit val typedIdentifierListSetTransmittable: Transmittable[ListSet[TypedBytes]] = Transmittable.instanceFromCodec
   implicit val blockHeaderTransmittable: Transmittable[BlockHeader] = Transmittable.instanceFromCodec
+  implicit val consensusBlockHeaderTransmittable: Transmittable[ConsensusBlockHeader] = Transmittable.instanceFromCodec
   implicit val slotDataTransmittable: Transmittable[SlotData] = Transmittable.instanceFromCodec
   implicit val transactionTransmittable: Transmittable[Transaction] = Transmittable.instanceFromCodec
 

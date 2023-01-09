@@ -237,6 +237,19 @@ trait CommonBifrostMorphismInstances {
       )
     )
 
+  // TODO remove when this PR is merged : https://github.com/Topl/protobuf-specs/pull/21/files
+  def blockIdHeaderIsomorphism[F[_] : Monad]: Isomorphism[F, bifrostModels.TypedIdentifier, ByteString] =
+    Isomorphism(
+      _.map(v => ByteString.copyFrom(v.dataBytes.toArray).asRight[String]),
+      _.map(v =>
+        Either.cond(
+          v.length == 32,
+          bifrostModels.TypedBytes(bifrostModels.IdentifierTypes.Block.HeaderV2, scodec.bits.ByteVector(v.toArray)),
+          "Invalid ID length"
+        )
+      )
+    )
+
 }
 
 trait PropositionBifrostMorphismInstances {

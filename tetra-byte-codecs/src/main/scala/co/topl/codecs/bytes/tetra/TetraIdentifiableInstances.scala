@@ -5,6 +5,8 @@ import co.topl.codecs.bytes.typeclasses.Identifiable
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.crypto.hash.Blake2b256
 import co.topl.models._
+import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader}
+import scodec.bits.ByteVector
 
 trait TetraIdentifiableInstances {
 
@@ -21,6 +23,24 @@ trait TetraIdentifiableInstances {
         Bytes(header.metadata.fold(Array.emptyByteArray)(_.data.bytes)) ++
         header.address.immutableBytes
 
+      (IdentifierTypes.Block.HeaderV2, new Blake2b256().hash(bytes))
+    }
+
+  implicit val identifiableConsensusBlockHeader: Identifiable[ConsensusBlockHeader] =
+    (header: ConsensusBlockHeader) => {
+      val bytes =
+        ByteVector(header.parentHeaderId.toByteArray) ++
+          ByteVector(header.txRoot.toByteArray) ++
+          ByteVector(header.bloomFilter.toByteArray) ++ Bytes(
+          BigInt(header.timestamp).toByteArray
+        ) ++
+          Bytes(BigInt(header.height).toByteArray) ++
+          Bytes(BigInt(header.slot).toByteArray)
+//      ++ TODO, : Ask Sean, should we create the representation of Inmutablebyte of all protobubspcsModels?
+//          header.eligibilityCertificate.immutableBytes ++
+//          header.operationalCertificate.immutableBytes ++
+//          Bytes(header.metadata.fold(Array.emptyByteArray)(_.data.bytes)) ++
+//          header.address.immutableBytes
       (IdentifierTypes.Block.HeaderV2, new Blake2b256().hash(bytes))
     }
 

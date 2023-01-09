@@ -6,7 +6,10 @@ import co.topl.consensus.BlockHeaderToBodyValidationFailure
 import co.topl.consensus.BlockHeaderToBodyValidationFailure.IncorrectTxRoot
 import co.topl.consensus.algebras.BlockHeaderToBodyValidationAlgebra
 import co.topl.models.Block
+import co.topl.models.utility.Sized
+import co.topl.models.utility.HasLength.instances._
 import co.topl.typeclasses.implicits._
+import scodec.bits.ByteVector
 
 object BlockHeaderToBodyValidation {
 
@@ -24,10 +27,10 @@ object BlockHeaderToBodyValidation {
       val bodyMerkleTxRoot = block.body.merkleTreeRootHash
       val headerMerkleTxRoot = block.header.txRoot
 
-      if (bodyMerkleTxRoot === headerMerkleTxRoot) {
+      if (bodyMerkleTxRoot === Sized.strictUnsafe(ByteVector(headerMerkleTxRoot.toByteArray))) {
         Right(block)
       } else {
-        Left(IncorrectTxRoot(headerMerkleTxRoot, bodyMerkleTxRoot))
+        Left(IncorrectTxRoot(Sized.strictUnsafe(ByteVector(headerMerkleTxRoot.toByteArray)), bodyMerkleTxRoot))
       }
     }
 

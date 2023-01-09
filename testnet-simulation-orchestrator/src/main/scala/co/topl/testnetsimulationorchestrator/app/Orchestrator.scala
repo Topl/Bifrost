@@ -9,6 +9,7 @@ import co.topl.common.application.IOBaseApp
 import co.topl.grpc.ToplGrpc
 import co.topl.interpreters.MultiToplRpc
 import co.topl.models.{BlockHeader, TypedIdentifier}
+import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
 import co.topl.testnetsimulationorchestrator.algebras.DataPublisher
 import co.topl.testnetsimulationorchestrator.interpreters.{GcpCsvDataPublisher, K8sSimulationController}
 import co.topl.testnetsimulationorchestrator.models.{AdoptionDatum, BlockDatum, TransactionDatum}
@@ -130,7 +131,7 @@ object Orchestrator
    */
   private def fetchHeaderAdoptions(
     nodes: NodeRpcs
-  ): F[List[(NodeName, Vector[(TypedIdentifier, Long, BlockHeader)])]] =
+  ): F[List[(NodeName, Vector[(TypedIdentifier, Long, ConsensusBlockHeader)])]] =
     nodes.toList.parTraverse { case (name, client) =>
       for {
         _          <- Logger[F].info(show"Fetching adoptions+headers from node=$name")
@@ -152,8 +153,8 @@ object Orchestrator
     }
 
   private def assignBlocksToNodes(
-    nodeBlockAdoptions: List[(NodeName, Vector[(TypedIdentifier, Long, BlockHeader)])]
-  ): F[List[(NodeName, TypedIdentifier, BlockHeader)]] =
+    nodeBlockAdoptions: List[(NodeName, Vector[(TypedIdentifier, Long, ConsensusBlockHeader)])]
+  ): F[List[(NodeName, TypedIdentifier, ConsensusBlockHeader)]] =
     Sync[F].delay(
       nodeBlockAdoptions
         .flatMap { case (node, adoptions) => adoptions.map { case (id, _, header) => (node, id, header) } }
@@ -165,7 +166,7 @@ object Orchestrator
     )
 
   private def publishBlockBodiesAndAssignTransactions(publisher: Publisher, nodes: NodeRpcs)(
-    blockAssignments:                                            List[(NodeName, TypedIdentifier, BlockHeader)]
+    blockAssignments:                                            List[(NodeName, TypedIdentifier, ConsensusBlockHeader)]
   ): F[Map[TypedIdentifier, NodeName]] =
     for {
       // Create a topic which is expected to contain two subscribers
