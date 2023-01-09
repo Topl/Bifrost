@@ -3,14 +3,15 @@ package co.topl.node
 import cats.effect.Async
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
+import co.topl.blockchain.algebras.BlockHeaderToBodyValidationAlgebra
+import co.topl.blockchain.interpreters.BlockHeaderToBodyValidation
 import co.topl.consensus.algebras.{
-  BlockHeaderToBodyValidationAlgebra,
   BlockHeaderValidationAlgebra,
   ConsensusValidationStateAlgebra,
   EtaCalculationAlgebra,
   LeaderElectionValidationAlgebra
 }
-import co.topl.consensus.interpreters.{BlockHeaderToBodyValidation, BlockHeaderValidation}
+import co.topl.consensus.interpreters.BlockHeaderValidation
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras.{
   BodyAuthorizationValidationAlgebra,
@@ -44,7 +45,7 @@ object Validators {
     clockAlgebra:                ClockAlgebra[F]
   ): F[Validators[F]] =
     for {
-      headerValidation <- BlockHeaderValidation.Eval
+      headerValidation <- BlockHeaderValidation
         .make[F](
           etaCalculation,
           consensusValidationState,
@@ -56,7 +57,7 @@ object Validators {
           cryptoResources.blake2b256
         )
         .flatMap(BlockHeaderValidation.WithCache.make[F](_, dataStores.headers))
-      headerToBody <- BlockHeaderToBodyValidation.Eval.make()
+      headerToBody <- BlockHeaderToBodyValidation.make()
       boxState <- BoxState.make(
         currentEventIdGetterSetters.boxState.get(),
         dataStores.bodies.getOrRaise,

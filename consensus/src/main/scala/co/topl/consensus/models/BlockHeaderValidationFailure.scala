@@ -1,4 +1,4 @@
-package co.topl.consensus
+package co.topl.consensus.models
 
 import co.topl.models._
 import co.topl.models.utility.Ratio

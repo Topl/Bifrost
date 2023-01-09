@@ -1,6 +1,6 @@
-package co.topl.typeclasses
+package co.topl.consensus.algebras
 
-trait OrderT[F[_], A] {
+trait ChainSelectionAlgebra[F[_], A] {
 
   /**
    * Compare values `x` and `y`.  If `x` is "better" than `y`, some value > 0 is returned.  If `x` and `y` are equal,

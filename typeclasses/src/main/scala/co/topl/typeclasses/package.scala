@@ -13,8 +13,6 @@ package object typeclasses {
       with EqInstances
       with SpendingAddressable.Instances
       with SpendingAddressable.ToSpendingAddressableOps
-      with Prepend.Instances
-      with NonEmpty.Instances
       with TransactionOps.Instances
       with IdentityOps
 }

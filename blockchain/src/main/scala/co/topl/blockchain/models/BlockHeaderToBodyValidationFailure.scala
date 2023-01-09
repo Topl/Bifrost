@@ -1,4 +1,4 @@
-package co.topl.consensus
+package co.topl.blockchain.models
 
 import co.topl.models.TxRoot
 

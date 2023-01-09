@@ -1,6 +1,6 @@
-package co.topl.consensus.algebras
+package co.topl.blockchain.algebras
 
-import co.topl.consensus.BlockHeaderToBodyValidationFailure
+import co.topl.blockchain.models.BlockHeaderToBodyValidationFailure
 import co.topl.models.Block
 
 trait BlockHeaderToBodyValidationAlgebra[F[_]] {
