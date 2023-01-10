@@ -97,28 +97,28 @@ class OperationalKeyMakerSpec
         .once()
         .returning(Ratio.One.some.pure[F])
 
-      val operationalKeysAlgebraF =
+      val keyMakerF =
         for {
           kesProductResource <- CatsUnsafeResource.make(new KesProduct, 1)
           ed25519Resource    <- CatsUnsafeResource.make(new Ed25519, 1)
-          keysAlgebra <-
-            OperationalKeyMaker.FromSecureStore.make[F](
+          keyMaker <-
+            OperationalKeyMaker.make[F](
+              0L,
+              parentSlotId,
+              operationalPeriodLength,
+              activationOperationalPeriod,
+              address,
               secureStore,
               clock,
               vrfProof,
               etaCalculation,
               consensusState,
               kesProductResource,
-              ed25519Resource,
-              parentSlotId,
-              operationalPeriodLength,
-              activationOperationalPeriod,
-              address,
-              0L
+              ed25519Resource
             )
-        } yield keysAlgebra
+        } yield keyMaker
 
-      val underTest: OperationalKeyMakerAlgebra[F] = operationalKeysAlgebraF.unsafeRunSync()
+      val underTest: OperationalKeyMakerAlgebra[F] = keyMakerF.unsafeRunSync()
 
       ineligibilities.foreach { i =>
         val out = underTest.operationalKeyForSlot(i, parentSlotId).unsafeRunSync()
@@ -191,28 +191,28 @@ class OperationalKeyMakerSpec
         .twice()
         .returning(Ratio.One.some.pure[F])
 
-      val operationalKeysAlgebraF =
+      val keyMakerAlgebraF =
         for {
           kesProductResource <- CatsUnsafeResource.make(new KesProduct, 1)
           ed25519Resource    <- CatsUnsafeResource.make(new Ed25519, 1)
-          keysAlgebra <-
-            OperationalKeyMaker.FromSecureStore.make[F](
+          keyMaker <-
+            OperationalKeyMaker.make[F](
+              0L,
+              parentSlotId,
+              operationalPeriodLength,
+              activationOperationalPeriod,
+              address,
               secureStore,
               clock,
               vrfProof,
               etaCalculation,
               consensusState,
               kesProductResource,
-              ed25519Resource,
-              parentSlotId,
-              operationalPeriodLength,
-              activationOperationalPeriod,
-              address,
-              0L
+              ed25519Resource
             )
-        } yield keysAlgebra
+        } yield keyMaker
 
-      val underTest: OperationalKeyMakerAlgebra[F] = operationalKeysAlgebraF.unsafeRunSync()
+      val underTest: OperationalKeyMakerAlgebra[F] = keyMakerAlgebraF.unsafeRunSync()
 
       (() => secureStore.list)
         .expects()

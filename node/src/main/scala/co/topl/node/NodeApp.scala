@@ -277,19 +277,19 @@ object NodeApp
           currentSlot  <- clock.globalSlot.map(_.max(0L))
           currentEpoch <- clock.epochOf(currentSlot)
           _            <- vrfCalculator.precomputeForEpoch(currentEpoch, currentHead.eta)
-          operationalKeys <- OperationalKeyMaker.FromSecureStore.make[F](
-            secureStore = secureStore,
-            clock = clock,
-            vrfProof = vrfCalculator,
-            etaCalculation,
-            consensusValidationState,
-            kesProductResource,
-            ed25519Resource,
+          operationalKeys <- OperationalKeyMaker.make[F](
+            initialSlot = currentSlot,
             currentHead.slotId,
             operationalPeriodLength = protocol.operationalPeriodLength,
             activationOperationalPeriod = 0L, // TODO: Accept registration block as `make` parameter?
             initializer.stakingAddress,
-            initialSlot = currentSlot
+            secureStore = secureStore,
+            clock = clock,
+            vrfCalculator = vrfCalculator,
+            etaCalculation,
+            consensusValidationState,
+            kesProductResource,
+            ed25519Resource
           )
           staking = Staking.make(
             initializer.stakingAddress,

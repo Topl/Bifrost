@@ -1,7 +1,6 @@
 package co.topl.minting.interpreters
 
 import akka.NotUsed
-import akka.actor.typed.ActorSystem
 import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.Source
 import cats.data.{Chain, OptionT}
@@ -35,93 +34,101 @@ object BlockProducer {
    *                    when demanded.
    */
   def make[F[_]: Async: FToFuture](
-    parentHeaders:   SourceMatNotUsed[SlotData],
-    staker:          StakingAlgebra[F],
-    clock:           ClockAlgebra[F],
-    blockPacker:     BlockPackerAlgebra[F]
-  )(implicit system: ActorSystem[_]): F[BlockProducerAlgebra[F]] =
-    staker.address.map(stakerAddress =>
-      new BlockProducerAlgebra[F] {
-        implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromClass[F](BlockProducer.getClass)
+    parentHeaders: SourceMatNotUsed[SlotData],
+    staker:        StakingAlgebra[F],
+    clock:         ClockAlgebra[F],
+    blockPacker:   BlockPackerAlgebra[F]
+  ): F[BlockProducerAlgebra[F]] =
+    staker.address.map(new Impl[F](_, parentHeaders, staker, clock, blockPacker))
 
-        val blocks: F[Source[Block, NotUsed]] =
-          Sync[F].delay(
-            parentHeaders
-              .buffer(1, OverflowStrategy.dropHead)
-              .via(AbandonerFlow(makeChild))
-              .collect { case Some(block) => block }
+  private class Impl[F[_]: Async: FToFuture](
+    stakerAddress: StakingAddresses.Operator,
+    parentHeaders: SourceMatNotUsed[SlotData],
+    staker:        StakingAlgebra[F],
+    clock:         ClockAlgebra[F],
+    blockPacker:   BlockPackerAlgebra[F]
+  ) extends BlockProducerAlgebra[F] {
+    implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromClass[F](BlockProducer.getClass)
+
+    val blocks: F[Source[Block, NotUsed]] =
+      Sync[F].delay(
+        parentHeaders
+          .buffer(1, OverflowStrategy.dropHead)
+          .via(AbandonerFlow(makeChild))
+          .collect { case Some(block) => block }
+      )
+
+    /**
+     * Construct a new child Block of the given parent
+     */
+    private def makeChild(parentSlotData: SlotData): F[Option[Block]] =
+      for {
+        // From the given parent block, when are we next eligible to produce a new block?
+        nextHit <- nextEligibility(parentSlotData.slotId)
+        _ <- Logger[F].debug(
+          show"Packing block for parentId=${parentSlotData.slotId.blockId} parentSlot=${parentSlotData.slotId.slot} eligibilitySlot=${nextHit.slot}"
+        )
+        // Assemble the transactions to be placed in our new block
+        body      <- packBlock(parentSlotData.slotId.blockId, parentSlotData.height + 1, nextHit.slot)
+        timestamp <- clock.slotToTimestamps(nextHit.slot).map(_.last)
+        blockMaker = prepareUnsignedBlock(parentSlotData, body, timestamp, nextHit)
+        // Despite being eligible, there may not have a corresponding linear KES key if, for example, the node
+        // restarts in the middle of an operational period.  The node must wait until the next operational period
+        // to have a set of corresponding linear keys to work with
+        maybeBlock <- staker.certifyBlock(parentSlotData.slotId, nextHit.slot, blockMaker)
+      } yield maybeBlock
+
+    /**
+     * Determine the staker's next eligibility based on the given parent
+     */
+    private def nextEligibility(parentSlotId: SlotId): F[VrfHit] =
+      clock.globalSlot
+        .map(_.max(parentSlotId.slot + 1))
+        .flatMap(
+          _.tailRecM(testSlot => OptionT(staker.elect(parentSlotId, testSlot)).toRight(testSlot + 1).value)
+        )
+
+    /**
+     * Launch the block packer function, then delay the clock, then stop the block packer function and
+     * capture the result.  The goal is to grant as much time as possible to the block packer function to produce
+     * the best possible block.
+     *
+     * @param untilSlot The slot at which the block packer function should be halted and a value extracted
+     */
+    private def packBlock(parentId: TypedIdentifier, height: Long, untilSlot: Slot): F[BlockBody.Full] =
+      blockPacker
+        .improvePackedBlock(parentId, height, untilSlot)
+        .flatMap(Iterative.run(Chain.empty[Transaction].pure[F]))
+        .productL(clock.delayedUntilSlot(untilSlot))
+        .flatMap(_.apply())
+
+    /**
+     * After the block body has been constructed, prepare a Block Header for signing
+     */
+    private def prepareUnsignedBlock(
+      parentSlotData: SlotData,
+      body:           BlockBody.Full,
+      timestamp:      Timestamp,
+      nextHit:        VrfHit
+    ): BlockHeader.Unsigned.PartialOperationalCertificate => Block.Unsigned =
+      (partialOperationalCertificate: BlockHeader.Unsigned.PartialOperationalCertificate) =>
+        Block
+          .Unsigned(
+            BlockHeader.Unsigned(
+              parentHeaderId = parentSlotData.slotId.blockId,
+              parentSlot = parentSlotData.slotId.slot,
+              txRoot = body.merkleTreeRootHash,
+              bloomFilter = body.bloomFilter,
+              timestamp = timestamp,
+              height = parentSlotData.height + 1,
+              slot = nextHit.slot,
+              eligibilityCertificate = nextHit.cert,
+              partialOperationalCertificate = partialOperationalCertificate,
+              metadata = None,
+              address = stakerAddress
+            ),
+            ListSet.empty[TypedIdentifier] ++ body.map(_.id.asTypedBytes).toList
           )
+  }
 
-        /**
-         * Construct a new child Block of the given parent
-         */
-        private def makeChild(parentSlotData: SlotData): F[Option[Block]] =
-          for {
-            // From the given parent block, when are we next eligible to produce a new block?
-            nextHit <- nextEligibility(parentSlotData.slotId)
-            _ <- Logger[F].debug(
-              show"Packing block for parentId=${parentSlotData.slotId.blockId} parentSlot=${parentSlotData.slotId.slot} eligibilitySlot=${nextHit.slot}"
-            )
-            // Assemble the transactions to be placed in our new block
-            body      <- packBlock(parentSlotData.slotId.blockId, parentSlotData.height + 1, nextHit.slot)
-            timestamp <- clock.slotToTimestamps(nextHit.slot).map(_.last)
-            blockMaker = prepareUnsignedBlock(parentSlotData, body, timestamp, nextHit)
-            // Despite being eligible, there may not have a corresponding linear KES key if, for example, the node
-            // restarts in the middle of an operational period.  The node must wait until the next operational period
-            // to have a set of corresponding linear keys to work with
-            maybeBlock <- staker.certifyBlock(parentSlotData.slotId, nextHit.slot, blockMaker)
-          } yield maybeBlock
-
-        /**
-         * Determine the staker's next eligibility based on the given parent
-         */
-        private def nextEligibility(parentSlotId: SlotId): F[VrfHit] =
-          clock.globalSlot
-            .map(_.max(parentSlotId.slot + 1))
-            .flatMap(
-              _.tailRecM(testSlot => OptionT(staker.elect(parentSlotId, testSlot)).toRight(testSlot + 1).value)
-            )
-
-        /**
-         * Launch the block packer function, then delay the clock, then stop the block packer function and
-         * capture the result.  The goal is to grant as much time as possible to the block packer function to produce
-         * the best possible block.
-         * @param untilSlot The slot at which the block packer function should be halted and a value extracted
-         */
-        private def packBlock(parentId: TypedIdentifier, height: Long, untilSlot: Slot): F[BlockBody.Full] =
-          blockPacker
-            .improvePackedBlock(parentId, height, untilSlot)
-            .flatMap(Iterative.run(Chain.empty[Transaction].pure[F]))
-            .productL(clock.delayedUntilSlot(untilSlot))
-            .flatMap(_.apply())
-
-        /**
-         * After the block body has been constructed, prepare a Block Header for signing
-         */
-        private def prepareUnsignedBlock(
-          parentSlotData: SlotData,
-          body:           BlockBody.Full,
-          timestamp:      Timestamp,
-          nextHit:        VrfHit
-        ): BlockHeader.Unsigned.PartialOperationalCertificate => Block.Unsigned =
-          (partialOperationalCertificate: BlockHeader.Unsigned.PartialOperationalCertificate) =>
-            Block
-              .Unsigned(
-                BlockHeader.Unsigned(
-                  parentHeaderId = parentSlotData.slotId.blockId,
-                  parentSlot = parentSlotData.slotId.slot,
-                  txRoot = body.merkleTreeRootHash,
-                  bloomFilter = body.bloomFilter,
-                  timestamp = timestamp,
-                  height = parentSlotData.height + 1,
-                  slot = nextHit.slot,
-                  eligibilityCertificate = nextHit.cert,
-                  partialOperationalCertificate = partialOperationalCertificate,
-                  metadata = None,
-                  address = stakerAddress
-                ),
-                ListSet.empty[TypedIdentifier] ++ body.map(_.id.asTypedBytes).toList
-              )
-      }
-    )
 }
