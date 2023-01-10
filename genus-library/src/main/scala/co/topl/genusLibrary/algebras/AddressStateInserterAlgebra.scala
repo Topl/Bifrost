@@ -4,13 +4,14 @@ import co.topl.genusLibrary.failure.Failure
 import co.topl.genusLibrary.model.BlockData
 
 /**
- * Inserter of block bodies to the chain in the data store.
+ * Inserter of address states to the chain in the data store.
+ *
  * @tparam F the effect-ful context to retrieve the value in
  */
-trait BodyInserter[F[_]] {
+trait AddressStateInserterAlgebra[F[_]] {
 
   /**
-   * Inserts block body to the chain in the data store
+   * Inserts address state to the chain in the data store
    *
    * @param block the full block data for context reasons
    * @return unit

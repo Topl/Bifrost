@@ -62,6 +62,15 @@ trait Mediator[F[_]] {
    * @param graph  graph in which to commit transaction
    * @return Unit
    */
-  def afterBoxInserted(txo: Txo, block: BlockData, graph: GraphTxWrapper): F[Either[Failure, Unit]]
+  def afterTxoInserted(txo: Txo, block: BlockData, graph: GraphTxWrapper): F[Either[Failure, Unit]]
+
+  /**
+   * Mediate after insertion of address state. Commits DB transaction.
+   *
+   * @param block the full block data for context reasons
+   * @param graph in which to commit transaction
+   * @return Unit
+   */
+  def afterAddressStateInserted(block: BlockData, graph: GraphTxWrapper): F[Either[Failure, Unit]]
 
 }

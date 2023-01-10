@@ -31,9 +31,9 @@ class OrientDBFacade(dir: File, password: String) {
   @unused
   private val graphMetadata = initializeDatabase(factory, password)
 
-  def getGraph: GraphTxWrapper = new GraphTxWrapper(factory.getTx)
+  private[genusLibrary] def getGraph: GraphTxWrapper = new GraphTxWrapper(factory.getTx)
 
-  def getGraphNoTx: OrientGraphNoTx = factory.getNoTx
+  private[genusLibrary] def getGraphNoTx: OrientGraphNoTx = factory.getNoTx
 
   type VertexTypeName = String
   type PropertyKey = String
@@ -49,7 +49,7 @@ class OrientDBFacade(dir: File, password: String) {
    * @tparam F the effect-ful context to retrieve the value in
    * @return Optional Vertex
    */
-  def getVertex[F[_]: Async](
+  private[genusLibrary] def getVertex[F[_]: Async](
     vertexTypeName: VertexTypeName,
     filterKey:      PropertyKey,
     filterValue:    AnyRef
@@ -64,7 +64,7 @@ class OrientDBFacade(dir: File, password: String) {
    * @tparam F the effect-ful context to retrieve the value in
    * @return Optional Vertex
    */
-  def getVertex[F[_]: Async](
+  private[genusLibrary] def getVertex[F[_]: Async](
     vertexTypeName:   VertexTypeName,
     propertiesFilter: Set[PropertyQuery]
   ): F[Option[Vertex]] =
@@ -80,7 +80,7 @@ class OrientDBFacade(dir: File, password: String) {
    * @tparam F the effect-ful context to retrieve the value in
    * @return Vertices
    */
-  def getVertices[F[_]: Async](
+  private[genusLibrary] def getVertices[F[_]: Async](
     vertexTypeName: VertexTypeName,
     filterKey:      PropertyKey,
     filterValue:    AnyRef
@@ -95,7 +95,7 @@ class OrientDBFacade(dir: File, password: String) {
    * @tparam F the effect-ful context to retrieve the value in
    * @return Vertices
    */
-  def getVertices[F[_]: Async](
+  private[genusLibrary] def getVertices[F[_]: Async](
     vertexTypeName:   VertexTypeName,
     propertiesFilter: Set[PropertyQuery]
   ): F[Iterable[Vertex]] = {
