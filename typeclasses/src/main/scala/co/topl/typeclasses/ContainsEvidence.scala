@@ -18,6 +18,14 @@ object ContainsEvidence {
   def fromImmutableCodec[T: ImmutableCodec](prefix: Byte): ContainsEvidence[T] =
     (t: T) => TypedEvidence(prefix, Sized.strictUnsafe(new Blake2b256().hash(t.immutableBytes)))
 
+  /**
+   * // TODO Ask Sean, how to create a good Ratio Evidence Pattern for ProtobufByteString
+   * @param bytesString
+   * @return
+   */
+  def ratioEvidenceFromProtobufString(bytesString: com.google.protobuf.ByteString): TypedEvidence =
+    TypedEvidence(TypePrefixes.Ratio, Sized.strictUnsafe(new Blake2b256().hash(Bytes(bytesString.toByteArray))))
+
   object TypePrefixes {
     final val VerificationKeysCurve25519: Byte = 1
     final val VerificationKeysEd25519: Byte = 2
@@ -123,6 +131,7 @@ object ContainsEvidence {
       case t: Propositions.Knowledge.HashLock               => commitRevealContainsEvidence.typedEvidenceOf(t)
       case t: Propositions.Contextual.RequiredTransactionIO => requiredInputBoxStateContainsEvidence.typedEvidenceOf(t)
     }
+
   }
 
   trait Instances extends VerificationKeyInstances with PropositionInstances {

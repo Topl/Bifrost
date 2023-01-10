@@ -33,6 +33,31 @@ trait TetraSignableCodecs {
         )
         .signableBytes
 
+  implicit val signableUnsignedConsensusBlockHeader: Signable[BlockHeader.UnsignedConsensus] =
+    _.immutableBytes
+
+  implicit val signableBlockConsensusHeader: Signable[co.topl.consensus.models.BlockHeader] =
+    t =>
+      BlockHeader
+        .UnsignedConsensus(
+          t.parentHeaderId,
+          t.parentSlot,
+          t.txRoot,
+          t.bloomFilter,
+          t.timestamp,
+          t.height,
+          t.slot,
+          t.eligibilityCertificate,
+          BlockHeader.UnsignedConsensus.PartialOperationalCertificate(
+            t.operationalCertificate.map(_.getParentVK),
+            t.operationalCertificate.flatMap(_.parentSignature),
+            t.operationalCertificate.flatMap(_.childVK)
+          ),
+          t.metadata,
+          t.address
+        )
+        .signableBytes
+
   implicit val signableUnprovenTransaction: Signable[Transaction.Unproven] =
     _.immutableBytes
 

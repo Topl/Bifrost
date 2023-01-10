@@ -21,7 +21,9 @@ object BlockHeaderValidationFailures {
 
   case class InvalidVrfThreshold(threshold: Ratio) extends BlockHeaderValidationFailure
 
-  case class IneligibleCertificate(threshold: Ratio, eligibilityCertificate: EligibilityCertificate)
+  case object EmptyEligibilityCertificate extends BlockHeaderValidationFailure
+
+  case class IneligibleCertificate(threshold: Ratio, eligibilityCertificate: co.topl.consensus.models.EligibilityCertificate)
       extends BlockHeaderValidationFailure
 
   case class InvalidEligibilityCertificateEta(claimedEta: Eta, actualEta: Eta) extends BlockHeaderValidationFailure
@@ -31,16 +33,18 @@ object BlockHeaderValidationFailures {
   case class InvalidEligibilityCertificateNonceProof(proof: Proofs.Knowledge.VrfEd25519)
       extends BlockHeaderValidationFailure
 
-  case class InvalidOperationalParentSignature(operationalCertificate: OperationalCertificate)
+  case class InvalidOperationalParentSignature(operationalCertificate: co.topl.consensus.models.OperationalCertificate)
       extends BlockHeaderValidationFailure
 
-  case class InvalidBlockProof(operationalCertificate: OperationalCertificate) extends BlockHeaderValidationFailure
+  case object EmptyOperationalCertificate extends BlockHeaderValidationFailure
+
+  case class InvalidBlockProof(operationalCertificate: co.topl.consensus.models.OperationalCertificate) extends BlockHeaderValidationFailure
 
   case class Unregistered(address: StakingAddress) extends BlockHeaderValidationFailure
 
   case class RegistrationCommitmentMismatch(
-    vrfCommitment: Proofs.Knowledge.KesProduct,
-    vrfVK:         VerificationKeys.VrfEd25519,
+    vrfCommitment: co.topl.consensus.models.SignatureKesProduct,
+    vrfVK:         co.topl.consensus.models.VerificationKeyVrfEd25519,
     poolVK:        VerificationKeys.Ed25519
   ) extends BlockHeaderValidationFailure
 

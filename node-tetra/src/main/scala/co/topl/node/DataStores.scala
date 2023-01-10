@@ -23,7 +23,7 @@ case class DataStores[F[_]](
   parentChildTree: Store[F, TypedIdentifier, (Long, TypedIdentifier)],
   currentEventIds: Store[F, Byte, TypedIdentifier],
   slotData:        Store[F, TypedIdentifier, SlotData],
-  headers:         Store[F, TypedIdentifier, BlockHeader],
+  headers:         Store[F, TypedIdentifier, co.topl.consensus.models.BlockHeader],
   bodies:          Store[F, TypedIdentifier, BlockBody],
   transactions:    Store[F, TypedIdentifier, Transaction],
   spendableBoxIds: Store[F, TypedIdentifier, NonEmptySet[Short]],
@@ -54,7 +54,7 @@ object DataStores {
         appConfig.bifrost.cache.slotData,
         _.allBytes
       )
-      blockHeaderStore <- makeCachedDb[F, TypedIdentifier, Bytes, BlockHeader](dataDir)(
+      blockHeaderStore <- makeCachedDb[F, TypedIdentifier, Bytes, co.topl.consensus.models.BlockHeader](dataDir)(
         "block-headers",
         appConfig.bifrost.cache.headers,
         _.allBytes
@@ -159,7 +159,7 @@ object DataStores {
         bigBangBlock.header.id,
         bigBangBlock.header.slotData(Ed25519VRF.precomputed())
       )
-      _ <- dataStores.headers.put(bigBangBlock.header.id, bigBangBlock.header)
+      _ <- dataStores.headers.put(bigBangBlock.header.id, bigBangBlock.toFullConsensus.header)
       _ <- dataStores.bodies.put(
         bigBangBlock.header.id,
         ListSet.empty ++ bigBangBlock.transactions.map(_.id.asTypedBytes).toList

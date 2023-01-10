@@ -39,6 +39,9 @@ trait TetraImmutableCodecs {
   implicit val unsignedHeaderV2StableCodec: ImmutableCodec[BlockHeader.Unsigned] =
     ImmutableCodec.fromScodecCodec
 
+  implicit val unsignedHeaderConsensusCodec: ImmutableCodec[BlockHeader.UnsignedConsensus] =
+    ImmutableCodec.fromScodecCodec
+
   implicit val transactionStableCodec: ImmutableCodec[Transaction] =
     ImmutableCodec.fromScodecCodec
 

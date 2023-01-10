@@ -50,25 +50,25 @@ class KesProduct extends ProductComposition {
   }
 
   def verify(
-    signature: Knowledge.KesProduct,
+    signature: co.topl.consensus.models.SignatureKesProduct,
     message:   Bytes,
-    verifyKey: VerificationKeys.KesProduct
+    verifyKey: co.topl.consensus.models.VerificationKeyKesProduct
   ): Boolean = {
     val prodSig = (
       (
-        signature.superSignature.verificationKey.bytes.data.toArray,
-        signature.superSignature.signature.bytes.data.toArray,
-        signature.superSignature.witness.map(_.data.toArray)
+        signature.getSuperSignature.verificationKey.map(_.value.toByteArray).getOrElse(Array.empty),
+        signature.getSuperSignature.getSignature.value.toByteArray,
+        signature.getSuperSignature.witness.map(_.toByteArray).toVector
       ),
       (
-        signature.subSignature.verificationKey.bytes.data.toArray,
-        signature.subSignature.signature.bytes.data.toArray,
-        signature.subSignature.witness.map(_.data.toArray)
+        signature.getSubSignature.verificationKey.map(_.value.toByteArray).getOrElse(Array.empty),
+        signature.getSubSignature.getSignature.value.toByteArray,
+        signature.getSubSignature.witness.map(_.toByteArray).toVector
       ),
-      signature.subRoot.data.toArray
+      signature.subRoot.toByteArray
     )
 
-    val sumVk = (verifyKey.bytes.data.toArray, verifyKey.step)
+    val sumVk = (verifyKey.value.toByteArray, verifyKey.step)
     verify(prodSig, message.toArray, sumVk)
   }
 

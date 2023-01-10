@@ -27,6 +27,9 @@ trait TetraPersistableCodecs {
   implicit val persistableBlockHeader: Persistable[BlockHeader] =
     Persistable.instanceFromCodec
 
+  implicit val persistableBlockConsensusHeader: Persistable[co.topl.consensus.models.BlockHeader] =
+    Persistable.instanceFromCodec
+
   implicit val persistableBlockBody: Persistable[BlockBody] =
     Persistable.instanceFromCodec
 

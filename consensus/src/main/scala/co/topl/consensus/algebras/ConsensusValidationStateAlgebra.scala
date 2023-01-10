@@ -34,6 +34,6 @@ trait ConsensusValidationStateAlgebra[F[_]] {
    */
   def operatorRegistration(currentBlockId: TypedIdentifier, slot: Slot)(
     address:                               StakingAddresses.Operator
-  ): F[Option[Box.Values.Registrations.Operator]]
+  ): F[Option[Box.Values.Registrations.Operator]] // TODO this algebra should return new OperatorNewModel
 
 }

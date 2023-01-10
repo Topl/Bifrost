@@ -302,7 +302,7 @@ object BlockchainPeerHandler {
                         bodySemanticValidation
                           .validate(
                             StaticBodyValidationContext(
-                              block.header.parentHeaderId,
+                              TypedBytes.headerFromProtobufString(block.header.parentHeaderId),
                               block.header.height,
                               block.header.slot
                             )
@@ -312,7 +312,7 @@ object BlockchainPeerHandler {
                       _ <- EitherT.liftF(Logger[F].debug(show"Validating authorization of body id=$blockId"))
                       _ <- EitherT(
                         bodyAuthorizationValidation
-                          .validate(block.header.parentHeaderId)(block.body)
+                          .validate(TypedBytes.headerFromProtobufString(block.header.parentHeaderId))(block.body)
                           .map(_.toEither.leftMap(_.show))
                       )
                     } yield ()

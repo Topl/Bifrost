@@ -44,7 +44,61 @@ object Box {
        *                      signer: the operational key (KES parentSK at timestep=0)
        *                      message: Hash(vrfVK | poolVK)
        */
-      case class Operator(vrfCommitment: Proofs.Knowledge.KesProduct) extends Registration
+      case class Operator(vrfCommitment: Proofs.Knowledge.KesProduct) extends Registration {
+
+        /**
+         * TODO remove this conversion, when the old model is raplaces
+         * @return
+         */
+        def toConsensusModel: OperatorNewModel =
+          OperatorNewModel(
+            co.topl.consensus.models.SignatureKesProduct(
+              superSignature = Option(
+                co.topl.consensus.models.SignatureKesSum(
+                  verificationKey = Some(
+                    co.topl.crypto.models.VerificationKeyEd25519(
+                      com.google.protobuf.ByteString
+                        .copyFrom(this.vrfCommitment.superSignature.verificationKey.bytes.data.toArray)
+                    )
+                  ),
+                  signature = Some(
+                    co.topl.crypto.models.SignatureEd25519(
+                      com.google.protobuf.ByteString
+                        .copyFrom(this.vrfCommitment.superSignature.signature.bytes.data.toArray)
+                    )
+                  ),
+                  witness = this.vrfCommitment.superSignature.witness.map(w =>
+                    com.google.protobuf.ByteString.copyFrom(w.data.toArray)
+                  ),
+                  unknownFields = scalapb.UnknownFieldSet.empty
+                )
+              ),
+              subSignature = Option(
+                co.topl.consensus.models.SignatureKesSum(
+                  verificationKey = Some(
+                    co.topl.crypto.models.VerificationKeyEd25519(
+                      com.google.protobuf.ByteString
+                        .copyFrom(this.vrfCommitment.subSignature.verificationKey.bytes.data.toArray)
+                    )
+                  ),
+                  signature = Some(
+                    co.topl.crypto.models.SignatureEd25519(
+                      com.google.protobuf.ByteString
+                        .copyFrom(this.vrfCommitment.subSignature.signature.bytes.data.toArray)
+                    )
+                  ),
+                  witness = this.vrfCommitment.subSignature.witness.map(w =>
+                    com.google.protobuf.ByteString.copyFrom(w.data.toArray)
+                  ),
+                  unknownFields = scalapb.UnknownFieldSet.empty
+                )
+              ),
+              subRoot = com.google.protobuf.ByteString.copyFrom(this.vrfCommitment.subRoot.data.toArray),
+              unknownFields = scalapb.UnknownFieldSet.empty
+            )
+          )
+      }
+      case class OperatorNewModel(vrfCommitment: co.topl.consensus.models.SignatureKesProduct) extends Registration
 
       /**
        * Represents the registration of someone intending to delegate their stake to a stake pool operator.  Owners

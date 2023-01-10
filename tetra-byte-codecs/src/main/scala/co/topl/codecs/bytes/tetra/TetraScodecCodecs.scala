@@ -528,6 +528,14 @@ trait TetraScodecBlockCodecs {
     (vkKesProductCodec :: proofSignatureKesProductCodec :: vkEd25519Codec)
       .as[BlockHeader.Unsigned.PartialOperationalCertificate]
 
+  implicit val partialOperationalCertificateConsensusCodec: Codec[BlockHeader.UnsignedConsensus.PartialOperationalCertificate] =
+    (optionCodec(consensusVkKesProductCodec) ::
+      optionCodec(consensusProofSignatureKesProductCodec) ::
+      optionCodec(consensusVkEd25519Codec)
+      )
+      .as[BlockHeader.UnsignedConsensus.PartialOperationalCertificate]
+
+
   implicit val blockHeaderCodec: Codec[BlockHeader] =
     (
       typedBytesCodec ::
@@ -543,7 +551,7 @@ trait TetraScodecBlockCodecs {
         stakingAddressesOperatorCodec
     ).as[BlockHeader]
 
-  implicit val consensesBlockHeaderCodec: Codec[ConsensusBlockHeader] = (
+  implicit val consensusBlockHeaderCodec: Codec[ConsensusBlockHeader] = (
     protobufByteStringCodec :: // parentHeaderId
       longCodec :: // parentSlot
       protobufByteStringCodec :: // txRoot
@@ -578,6 +586,21 @@ trait TetraScodecBlockCodecs {
         optionCodec(maxSizedCodec[Latin1Data, Lengths.`32`.type]) ::
         stakingAddressesOperatorCodec
     ).as[BlockHeader.Unsigned]
+
+  implicit val unsignedConsensusBlockHeaderCodec: Codec[BlockHeader.UnsignedConsensus] =
+    (
+      protobufByteStringCodec ::
+        longCodec ::
+        protobufByteStringCodec ::
+        protobufByteStringCodec ::
+        longCodec ::
+        longCodec ::
+        longCodec ::
+        optionCodec(consensusEligibilityCertificateCodec) ::
+        partialOperationalCertificateConsensusCodec ::
+        protobufByteStringCodec ::
+        protobufByteStringCodec
+      ).as[BlockHeader.UnsignedConsensus]
 
   implicit val blockBodyCodec: Codec[BlockBody] = listSetCodec[TypedIdentifier]
 
