@@ -1,11 +1,12 @@
 package co.topl.minting.algebras
 
+import co.topl.minting.models.VrfHit
 import co.topl.models._
 import co.topl.models.utility.Ratio
 
 import scala.collection.immutable.NumericRange
 
-trait VrfProofAlgebra[F[_]] {
+trait VrfCalculatorAlgebra[F[_]] {
   def precomputeForEpoch(epoch: Epoch, eta: Eta): F[Unit]
 
   def rhoForSlot(slot: Slot, eta: Eta): F[Rho]
@@ -22,4 +23,11 @@ trait VrfProofAlgebra[F[_]] {
     inRange:       Option[NumericRange.Exclusive[Long]],
     relativeStake: Ratio
   ): F[Vector[Slot]]
+
+  def getHit(
+    relativeStake: Ratio,
+    slot:          Slot,
+    slotDiff:      Long,
+    eta:           Eta
+  ): F[Option[VrfHit]]
 }

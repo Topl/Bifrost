@@ -7,8 +7,7 @@ import co.topl.algebras.{ClockAlgebra, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras._
-import co.topl.consensus.interpreters.LeaderElectionValidation.VrfConfig
-import co.topl.consensus.models.BlockHeaderValidationFailures
+import co.topl.consensus.models._
 import co.topl.crypto.signing._
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.hash.{blake2b256, Blake2b256, Blake2b512}
@@ -669,12 +668,7 @@ class BlockHeaderValidationSpec
     def proof(slot: Slot) =
       Proofs.Knowledge.VrfEd25519(
         Sized.strictUnsafe(
-          ed25519Vrf.sign(
-            skVrf.bytes.data,
-            LeaderElectionValidation
-              .VrfArgument(eta, slot)
-              .signableBytes
-          )
+          ed25519Vrf.sign(skVrf.bytes.data, VrfArgument(eta, slot).signableBytes)
         )
       )
 

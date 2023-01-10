@@ -1,6 +1,6 @@
 package co.topl.minting.algebras
 
-import co.topl.minting.algebras.LeaderElectionMintingAlgebra.VrfHit
+import co.topl.minting.models.VrfHit
 import co.topl.models._
 
 /**

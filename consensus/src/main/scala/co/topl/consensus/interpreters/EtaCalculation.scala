@@ -142,12 +142,11 @@ object EtaCalculation {
         .map(Sized.strictUnsafe(_): Eta)
   }
 
-}
+  private case class EtaCalculationArgs(previousEta: Eta, epoch: Epoch, rhoNonceHashValues: Iterable[RhoNonceHash]) {
 
-private case class EtaCalculationArgs(previousEta: Eta, epoch: Epoch, rhoNonceHashValues: Iterable[RhoNonceHash]) {
-
-  def digestMessages: List[Bytes] =
-    List(previousEta.data) ++
-    List(Bytes(BigInt(epoch).toByteArray)) ++
-    rhoNonceHashValues.map(_.sizedBytes.data)
+    def digestMessages: List[Bytes] =
+      List(previousEta.data) ++
+      List(Bytes(BigInt(epoch).toByteArray)) ++
+      rhoNonceHashValues.map(_.sizedBytes.data)
+  }
 }

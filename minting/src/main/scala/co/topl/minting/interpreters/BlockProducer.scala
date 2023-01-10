@@ -1,4 +1,4 @@
-package co.topl.minting
+package co.topl.minting.interpreters
 
 import akka.NotUsed
 import akka.actor.typed.ActorSystem
@@ -11,8 +11,8 @@ import co.topl.algebras.ClockAlgebra
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.minting.algebras.LeaderElectionMintingAlgebra.VrfHit
 import co.topl.minting.algebras.{BlockPackerAlgebra, BlockProducerAlgebra, StakingAlgebra}
+import co.topl.minting.models.VrfHit
 import co.topl.models._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.slf4j.Slf4jLogger

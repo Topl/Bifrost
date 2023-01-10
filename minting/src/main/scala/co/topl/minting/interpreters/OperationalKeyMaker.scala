@@ -1,4 +1,4 @@
-package co.topl.minting
+package co.topl.minting.interpreters
 
 import cats._
 import cats.data._
@@ -11,6 +11,7 @@ import co.topl.consensus.algebras.{ConsensusValidationStateAlgebra, EtaCalculati
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing._
 import co.topl.minting.algebras._
+import co.topl.minting.models.OperationalKeyOut
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.{Ratio, Sized}
@@ -20,7 +21,7 @@ import org.typelevel.log4cats.Logger
 
 import java.util.UUID
 
-object OperationalKeys {
+object OperationalKeyMaker {
 
   object FromSecureStore {
 
@@ -36,7 +37,7 @@ object OperationalKeys {
     def make[F[_]: Async: Parallel: Logger](
       secureStore:                 SecureStore[F],
       clock:                       ClockAlgebra[F],
-      vrfProof:                    VrfProofAlgebra[F],
+      vrfProof:                    VrfCalculatorAlgebra[F],
       etaCalculation:              EtaCalculationAlgebra[F],
       consensusState:              ConsensusValidationStateAlgebra[F],
       kesProductResource:          UnsafeResource[F, KesProduct],
@@ -46,7 +47,7 @@ object OperationalKeys {
       activationOperationalPeriod: Long,
       address:                     StakingAddresses.Operator,
       initialSlot:                 Slot
-    ): F[OperationalKeysAlgebra[F]] =
+    ): F[OperationalKeyMakerAlgebra[F]] =
       for {
         initialOperationalPeriod <- (initialSlot / operationalPeriodLength).pure[F]
         initialKeysOpt <-
@@ -89,7 +90,7 @@ object OperationalKeys {
     def make[F[_]: Sync: Parallel: Logger](
       secureStore:                 SecureStore[F],
       clock:                       ClockAlgebra[F],
-      vrfProof:                    VrfProofAlgebra[F],
+      vrfProof:                    VrfCalculatorAlgebra[F],
       etaCalculation:              EtaCalculationAlgebra[F],
       consensusState:              ConsensusValidationStateAlgebra[F],
       kesProductResource:          UnsafeResource[F, KesProduct],
@@ -98,7 +99,7 @@ object OperationalKeys {
       activationOperationalPeriod: Long,
       address:                     StakingAddresses.Operator,
       ref:                         Ref[F, (Long, Option[Map[Long, OperationalKeyOut]])]
-    ): OperationalKeysAlgebra[F] = { (slot: Slot, parentSlotId: SlotId) =>
+    ): OperationalKeyMakerAlgebra[F] = { (slot: Slot, parentSlotId: SlotId) =>
       val operationalPeriod = slot / operationalPeriodLength
       MonadCancelThrow[F].uncancelable(_ =>
         ref.get.flatMap {
@@ -197,7 +198,7 @@ object OperationalKeys {
       operationalPeriodLength: Long,
       relativeStake:           Ratio,
       clock:                   ClockAlgebra[F],
-      vrfProof:                VrfProofAlgebra[F],
+      vrfProof:                VrfCalculatorAlgebra[F],
       etaCalculation:          EtaCalculationAlgebra[F],
       kesProductResource:      UnsafeResource[F, KesProduct],
       ed25519Resource:         UnsafeResource[F, Ed25519]
@@ -262,6 +263,7 @@ object OperationalKeys {
                         )
                       OperationalKeyOut(
                         slot,
+                        VerificationKeys.Ed25519(Sized.strictUnsafe(childVK)),
                         SecretKeys.Ed25519(Sized.strictUnsafe(childSK)),
                         parentSignature,
                         parentVK

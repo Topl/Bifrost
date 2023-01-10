@@ -1,4 +1,4 @@
-package co.topl.minting
+package co.topl.minting.interpreters
 
 import cats.Applicative
 import cats.data.Chain
@@ -11,7 +11,7 @@ import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.consensus.algebras.{ConsensusValidationStateAlgebra, EtaCalculationAlgebra}
 import co.topl.crypto.signing._
 import co.topl.interpreters.CatsUnsafeResource
-import co.topl.minting.algebras.{OperationalKeysAlgebra, VrfProofAlgebra}
+import co.topl.minting.algebras.{OperationalKeyMakerAlgebra, VrfCalculatorAlgebra}
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility.Ratio
@@ -26,7 +26,7 @@ import org.typelevel.log4cats.Logger
 import scala.collection.immutable.NumericRange
 import scala.util.Random
 
-class OperationalKeysSpec
+class OperationalKeyMakerSpec
     extends AnyFlatSpec
     with ScalaCheckDrivenPropertyChecks
     with Matchers
@@ -47,7 +47,7 @@ class OperationalKeysSpec
     forAll { (eta: Eta, address: StakingAddresses.Operator) =>
       val secureStore = mock[SecureStore[F]]
       val clock = mock[ClockAlgebra[F]]
-      val vrfProof = mock[VrfProofAlgebra[F]]
+      val vrfProof = mock[VrfCalculatorAlgebra[F]]
       val etaCalculation = mock[EtaCalculationAlgebra[F]]
       val consensusState = mock[ConsensusValidationStateAlgebra[F]]
       val parentSlotId = SlotId(10L, TypedBytes(1: Byte, Bytes.fill(32)(0: Byte)))
@@ -102,7 +102,7 @@ class OperationalKeysSpec
           kesProductResource <- CatsUnsafeResource.make(new KesProduct, 1)
           ed25519Resource    <- CatsUnsafeResource.make(new Ed25519, 1)
           keysAlgebra <-
-            OperationalKeys.FromSecureStore.make[F](
+            OperationalKeyMaker.FromSecureStore.make[F](
               secureStore,
               clock,
               vrfProof,
@@ -118,7 +118,7 @@ class OperationalKeysSpec
             )
         } yield keysAlgebra
 
-      val underTest: OperationalKeysAlgebra[F] = operationalKeysAlgebraF.unsafeRunSync()
+      val underTest: OperationalKeyMakerAlgebra[F] = operationalKeysAlgebraF.unsafeRunSync()
 
       ineligibilities.foreach { i =>
         val out = underTest.operationalKeyForSlot(i, parentSlotId).unsafeRunSync()
@@ -143,7 +143,7 @@ class OperationalKeysSpec
     forAll { (eta: Eta, address: StakingAddresses.Operator) =>
       val secureStore = mock[SecureStore[F]]
       val clock = mock[ClockAlgebra[F]]
-      val vrfProof = mock[VrfProofAlgebra[F]]
+      val vrfProof = mock[VrfCalculatorAlgebra[F]]
       val etaCalculation = mock[EtaCalculationAlgebra[F]]
       val consensusState = mock[ConsensusValidationStateAlgebra[F]]
       val parentSlotId = SlotId(10L, TypedBytes(1: Byte, Bytes.fill(32)(0: Byte)))
@@ -196,7 +196,7 @@ class OperationalKeysSpec
           kesProductResource <- CatsUnsafeResource.make(new KesProduct, 1)
           ed25519Resource    <- CatsUnsafeResource.make(new Ed25519, 1)
           keysAlgebra <-
-            OperationalKeys.FromSecureStore.make[F](
+            OperationalKeyMaker.FromSecureStore.make[F](
               secureStore,
               clock,
               vrfProof,
@@ -212,7 +212,7 @@ class OperationalKeysSpec
             )
         } yield keysAlgebra
 
-      val underTest: OperationalKeysAlgebra[F] = operationalKeysAlgebraF.unsafeRunSync()
+      val underTest: OperationalKeyMakerAlgebra[F] = operationalKeysAlgebraF.unsafeRunSync()
 
       (() => secureStore.list)
         .expects()
