@@ -13,7 +13,6 @@ import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.common.application.{IOAkkaApp, IOBaseApp}
-import co.topl.consensus._
 import co.topl.consensus.algebras._
 import co.topl.consensus.interpreters.LeaderElectionValidation.VrfConfig
 import co.topl.consensus.interpreters._
@@ -129,7 +128,7 @@ object NodeApp
         )
       )
       etaCalculation <- Resource.eval(
-        EtaCalculation.Eval.make(
+        EtaCalculation.make(
           dataStores.slotData.getOrRaise,
           clock,
           bigBangBlock.header.eligibilityCertificate.eta,
@@ -148,10 +147,10 @@ object NodeApp
         )
       )
       localChain <- Resource.eval(
-        LocalChain.Eval.make(
+        LocalChain.make(
           canonicalHeadSlotData,
           ChainSelection
-            .orderT[F](
+            .make[F](
               dataStores.slotData.getOrRaise,
               cryptoResources.blake2b512,
               bigBangProtocol.chainSelectionKLookback,
@@ -347,7 +346,7 @@ object NodeApp
     for {
       exp   <- ExpInterpreter.make[F](10000, 38)
       log1p <- Log1pInterpreter.make[F](10000, 8).flatMap(Log1pInterpreter.makeCached[F])
-      leaderElectionThreshold = LeaderElectionValidation.Eval
+      leaderElectionThreshold = LeaderElectionValidation
         .make[F](vrfConfig, blake2b512Resource, exp, log1p)
     } yield leaderElectionThreshold
 }

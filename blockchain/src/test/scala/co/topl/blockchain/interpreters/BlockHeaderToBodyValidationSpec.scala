@@ -1,7 +1,7 @@
-package co.topl.consensus.interpreters
+package co.topl.blockchain.interpreters
 
 import cats.effect.IO
-import co.topl.consensus.BlockHeaderToBodyValidationFailure.IncorrectTxRoot
+import co.topl.blockchain.models.BlockHeaderToBodyValidationFailure.IncorrectTxRoot
 import co.topl.models.Block
 import co.topl.models.ModelGenerators._
 import co.topl.typeclasses.implicits._
@@ -17,7 +17,7 @@ class BlockHeaderToBodyValidationSpec extends CatsEffectSuite with ScalaCheckEff
     PropF.forAllF { block: Block =>
       withMock {
         for {
-          underTest <- BlockHeaderToBodyValidation.Eval.make[F]()
+          underTest <- BlockHeaderToBodyValidation.make[F]()
           result    <- underTest.validate(block)
           _         <- IO(result.left.exists(_.isInstanceOf[IncorrectTxRoot])).assert
         } yield ()
@@ -31,7 +31,7 @@ class BlockHeaderToBodyValidationSpec extends CatsEffectSuite with ScalaCheckEff
       val correctBlock = block.copy(header = block.header.copy(txRoot = merkleRootHash))
       withMock {
         for {
-          underTest <- BlockHeaderToBodyValidation.Eval.make[F]()
+          underTest <- BlockHeaderToBodyValidation.make[F]()
           result    <- underTest.validate(correctBlock)
           _         <- IO(result.exists(_ == correctBlock)).assert
         } yield ()

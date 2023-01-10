@@ -1,15 +1,14 @@
-package co.topl.consensus
+package co.topl.consensus.interpreters
 
 import cats.Applicative
 import cats.data.Validated
-import cats.implicits._
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import co.topl.crypto.signing.Ed25519VRF
+import cats.implicits._
+import co.topl.consensus.algebras.ChainSelectionAlgebra
 import co.topl.models.ModelGenerators._
-import co.topl.models.utility.Lengths
 import co.topl.models._
-import co.topl.typeclasses.OrderT
+import co.topl.models.utility.Lengths
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
@@ -26,16 +25,14 @@ class LocalChainSpec
 
   type F[A] = IO[A]
 
-  implicit private val ed25519Vrf: Ed25519VRF = Ed25519VRF.precomputed()
-
   it should "store the head of the local canonical tine" in {
     forAll(genSizedStrictBytes[Lengths.`64`.type]().map(Rho(_)), etaGen) { (rho, eta) =>
       val initialHead =
         SlotData(SlotId(1, TypedBytes(1: Byte, Bytes(1))), SlotId(0, TypedBytes(0: Byte, Bytes(0))), rho, eta, 0)
 
-      val chainSelection: OrderT[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
+      val chainSelection: ChainSelectionAlgebra[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
 
-      val underTest = LocalChain.Eval.make[F](initialHead, chainSelection, _ => Applicative[F].unit).unsafeRunSync()
+      val underTest = LocalChain.make[F](initialHead, chainSelection, _ => Applicative[F].unit).unsafeRunSync()
 
       underTest.head.unsafeRunSync() shouldBe initialHead
     }
@@ -46,9 +43,9 @@ class LocalChainSpec
       val initialHead =
         SlotData(SlotId(1, TypedBytes(1: Byte, Bytes(1))), SlotId(0, TypedBytes(0: Byte, Bytes(0))), rho, eta, 0)
 
-      val chainSelection: OrderT[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
+      val chainSelection: ChainSelectionAlgebra[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
 
-      val underTest = LocalChain.Eval.make[F](initialHead, chainSelection, _ => Applicative[F].unit).unsafeRunSync()
+      val underTest = LocalChain.make[F](initialHead, chainSelection, _ => Applicative[F].unit).unsafeRunSync()
 
       val newHead =
         SlotData(SlotId(2, TypedBytes(2: Byte, Bytes(2))), SlotId(1, TypedBytes(1: Byte, Bytes(0))), rho, eta, 1)
@@ -62,9 +59,9 @@ class LocalChainSpec
       val initialHead =
         SlotData(SlotId(1, TypedBytes(1: Byte, Bytes(1))), SlotId(0, TypedBytes(0: Byte, Bytes(0))), rho, eta, 0)
 
-      val chainSelection: OrderT[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
+      val chainSelection: ChainSelectionAlgebra[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
 
-      val underTest = LocalChain.Eval.make[F](initialHead, chainSelection, _ => Applicative[F].unit).unsafeRunSync()
+      val underTest = LocalChain.make[F](initialHead, chainSelection, _ => Applicative[F].unit).unsafeRunSync()
 
       val newHead =
         SlotData(SlotId(2, TypedBytes(2: Byte, Bytes(2))), SlotId(1, TypedBytes(1: Byte, Bytes(0))), rho, eta, 1)

@@ -1,7 +1,7 @@
 package co.topl.consensus.algebras
 
+import co.topl.consensus.models.BlockHeaderValidationFailure
 import co.topl.models.BlockHeader
-import co.topl.consensus.BlockHeaderValidationFailure
 
 trait BlockHeaderValidationAlgebra[F[_]] {
 

@@ -57,7 +57,7 @@ class EtaCalculationSpec
     val fetchSlotData = mockFunction[TypedIdentifier, F[SlotData]]
 
     val underTest =
-      EtaCalculation.Eval
+      EtaCalculation
         .make[F](
           fetchSlotData,
           clock,
@@ -147,7 +147,7 @@ class EtaCalculationSpec
       .returning(15L.pure[F])
 
     val underTest =
-      EtaCalculation.Eval
+      EtaCalculation
         .make[F](
           fetchSlotData,
           clock,

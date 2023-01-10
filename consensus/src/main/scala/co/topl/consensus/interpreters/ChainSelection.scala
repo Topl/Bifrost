@@ -1,13 +1,13 @@
-package co.topl.consensus
+package co.topl.consensus.interpreters
 
 import cats._
 import cats.data._
 import cats.implicits._
 import co.topl.algebras.UnsafeResource
-import co.topl.crypto.signing.Ed25519VRF
+import co.topl.consensus.algebras.ChainSelectionAlgebra
 import co.topl.crypto.hash.Blake2b512
+import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models._
-import co.topl.typeclasses._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 
@@ -17,6 +17,9 @@ import scala.annotation.tailrec
  * Provides functionality for deterministically choosing the "better" of two tines (segments of blocks)
  */
 object ChainSelection {
+
+  import NonEmpty.instances._
+  import Prepend.instances._
 
   /**
    * The normal ordering to use between tines with a recent common ancestor
@@ -41,22 +44,23 @@ object ChainSelection {
    * @param kLookback The number of blocks in the backward-moving window of blocks for longest-chain rule
    * @param sWindow The number of slots of the forward-moving window of blocks for chain-density rule
    */
-  def orderT[F[_]: Monad: Logger](
+  def make[F[_]: Monad: Logger](
     fetchSlotData:      TypedIdentifier => F[SlotData],
     blake2b512Resource: UnsafeResource[F, Blake2b512],
     kLookback:          Long,
     sWindow:            Long
-  ): OrderT[F, SlotData] = new ChainSelectionOrderT[F](fetchSlotData, blake2b512Resource, kLookback, sWindow)
+  ): ChainSelectionAlgebra[F, SlotData] =
+    new ChainSelectionImpl[F](fetchSlotData, blake2b512Resource, kLookback, sWindow)
 
   /**
    * Implementation of OrderT which provides F[_]-context-based ordering to SlotData (block headers)
    */
-  private class ChainSelectionOrderT[F[_]: Monad: Logger](
+  private class ChainSelectionImpl[F[_]: Monad: Logger](
     fetchSlotData:      TypedIdentifier => F[SlotData],
     blake2b512Resource: UnsafeResource[F, Blake2b512],
     kLookback:          Long,
     sWindow:            Long
-  ) extends OrderT[F, SlotData] {
+  ) extends ChainSelectionAlgebra[F, SlotData] {
 
     override def compare(x: SlotData, y: SlotData): F[Int] =
       if (x === y) 0.pure[F]
@@ -211,4 +215,64 @@ object ChainSelection {
       }
     }
   }
+
+  implicit private class OrderSupport[T](order: Order[T]) {
+
+    def tiebreakWith(other: Order[T]): Order[T] =
+      Order.whenEqual(order, other)
+  }
+}
+
+/**
+ * Typeclass indicating something is non-empty
+ */
+private trait NonEmpty[F[_]] {
+  def head[A](c: F[A]): A
+}
+
+private object NonEmpty {
+
+  def apply[F[_]: NonEmpty]: NonEmpty[F] = implicitly
+
+  trait Instances {
+
+    implicit val nonEmptyChainNonEmpty: NonEmpty[NonEmptyChain] =
+      new NonEmpty[NonEmptyChain] {
+        def head[A](c: NonEmptyChain[A]): A = c.head
+      }
+
+    implicit val nonEmptyVectorNonEmpty: NonEmpty[NonEmptyVector] =
+      new NonEmpty[NonEmptyVector] {
+        def head[A](c: NonEmptyVector[A]): A = c.head
+      }
+  }
+
+  object instances extends Instances
+}
+
+/**
+ * Typeclass indicating that something can prepend elements
+ */
+private trait Prepend[F[_]] {
+  def prepend[A](a: A, c: F[A]): F[A]
+}
+
+private object Prepend {
+
+  def apply[F[_]: Prepend]: Prepend[F] = implicitly
+
+  trait Instances {
+
+    implicit val nonEmptyChainPrepend: Prepend[NonEmptyChain] =
+      new Prepend[NonEmptyChain] {
+        def prepend[A](a: A, c: NonEmptyChain[A]): NonEmptyChain[A] = c.prepend(a)
+      }
+
+    implicit val nonEmptyVectorPrepend: Prepend[NonEmptyVector] =
+      new Prepend[NonEmptyVector] {
+        def prepend[A](a: A, c: NonEmptyVector[A]): NonEmptyVector[A] = c.prepend(a)
+      }
+  }
+
+  object instances extends Instances
 }
