@@ -752,6 +752,7 @@ lazy val toplGrpc = project
     scalapbCodeGeneratorOptions += CodeGeneratorOption.FlatPackage,
     updateSubmodulesTask := {
       import sys.process._
+      Process.apply(Seq("git", "submodule", "init")).!
       Process.apply(Seq("git", "submodule", "add", "-f", "git@github.com:Topl/protobuf-specs.git", "./topl-grpc/src/main/protobuf")).!
       Process.apply(Seq("git", "checkout", Dependencies.protobufSpecsHash), Some(new File("./topl-grpc/src/main/protobuf"))).!
     },
