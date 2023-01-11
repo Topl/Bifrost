@@ -1,6 +1,7 @@
 name: Maven Central Release
 on:
   release:
+    branch: [dion]
     types: [released]
 
 jobs:

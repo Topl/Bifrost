@@ -2,7 +2,7 @@ name: Bifrost_CI
 
 on:
   push:
-    branches: [dev, main, release-*, rc-*, dion]
+    branches: [ dion ]
     tags: ['*']
   workflow_dispatch:
 
@@ -29,20 +29,8 @@ jobs:
       local-docker-image: "bifrost-node"
     secrets: inherit
 
-  publish-docker-image-dev-tetra:
-    if: ${{ github.ref_name == 'tetra' }}
-    uses: ./.github/workflows/_docker_publish.yml
-    needs: sbt-build
-    with:
-      remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-dev"
-      registry-auth-location: "us-central1-docker.pkg.dev"
-      local-docker-repo: "toplprotocol"
-      local-docker-image: "bifrost-node-tetra"
-      scala-project: "node-tetra"
-    secrets: inherit
-
   publish-docker-image-qa:
-    if: ${{ startsWith(github.ref_name, 'release-') }}
+    if: ${{ startsWith(github.ref_name, 'release-v1') }}
     uses: ./.github/workflows/_docker_publish.yml
     needs: sbt-build
     with:
@@ -54,7 +42,7 @@ jobs:
 
   publish-docker-image-main:
     # Execute if ref is a tag, and the format starts with v like v1.2.1.
-    if: ${{ startsWith(github.ref_name, 'v') && github.ref_type == 'tag' }}
+    if: ${{ startsWith(github.ref_name, 'v1') && github.ref_type == 'tag' }}
     uses: ./.github/workflows/_docker_publish_official.yml
     needs: sbt-build
     secrets: inherit

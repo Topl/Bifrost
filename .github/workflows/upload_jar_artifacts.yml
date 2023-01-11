@@ -1,7 +1,7 @@
 name: Upload Artifacts
 on:
   push:
-    branches: [main]
+    branches: [dion]
     tags: ["*"]
 jobs:
   build_artifact:
