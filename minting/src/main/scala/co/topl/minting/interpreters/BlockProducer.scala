@@ -48,7 +48,8 @@ object BlockProducer {
     clock:         ClockAlgebra[F],
     blockPacker:   BlockPackerAlgebra[F]
   ) extends BlockProducerAlgebra[F] {
-    implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromClass[F](BlockProducer.getClass)
+    implicit val logger: SelfAwareStructuredLogger[F] =
+      Slf4jLogger.getLoggerFromClass[F](BlockProducer.getClass)
 
     val blocks: F[Source[Block, NotUsed]] =
       Sync[F].delay(
@@ -76,6 +77,10 @@ object BlockProducer {
         // restarts in the middle of an operational period.  The node must wait until the next operational period
         // to have a set of corresponding linear keys to work with
         maybeBlock <- staker.certifyBlock(parentSlotData.slotId, nextHit.slot, blockMaker)
+        _ <- OptionT
+          .fromOption[F](maybeBlock)
+          .semiflatTap(block => Logger[F].info(show"Minted header=${block.header} body=${block.body}"))
+          .value
       } yield maybeBlock
 
     /**

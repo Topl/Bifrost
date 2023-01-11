@@ -1,12 +1,12 @@
 package co.topl.blockchain
 
 import akka.stream.Materializer
-import akka.stream.scaladsl.{Keep, Sink, Source}
 import cats.data._
 import cats.effect.Async
 import cats.effect.kernel.Sync
 import cats.implicits._
 import cats.{Applicative, Monad, MonadThrow, Monoid, Parallel, Show}
+import fs2._
 import co.topl.algebras.ClockAlgebra.implicits.ClockOps
 import co.topl.algebras.{ClockAlgebra, Store, StoreReader}
 import co.topl.blockchain.algebras.BlockHeaderToBodyValidationAlgebra
@@ -61,7 +61,7 @@ object BlockchainPeerHandler {
    */
   object ChainSynchronizer {
 
-    def make[F[_]: Async: FToFuture: RunnableGraphToF](
+    def make[F[_]: Async](
       clock:                       ClockAlgebra[F],
       localChain:                  LocalChainAlgebra[F],
       headerValidation:            BlockHeaderValidationAlgebra[F],
@@ -77,12 +77,8 @@ object BlockchainPeerHandler {
     )(implicit mat:                Materializer): BlockchainPeerHandlerAlgebra[F] =
       (client: BlockchainPeerClient[F]) =>
         for {
-          remotePeer <- client.remotePeer
-          implicit0(logger: Logger[F]) = Slf4jLogger
-            .getLoggerFromClass[F](this.getClass)
-            .withModifiedString(value => show"peer=${remotePeer.remoteAddress} $value")
-          _adoptions <- client.remotePeerAdoptions
-          adoptions  <- _adoptions.withCancel[F]
+          implicit0(logger: Logger[F]) <- createPeerLogger[F](client)("P2P.ChainSync")
+          adoptions                    <- client.remotePeerAdoptions.flatMap(_.withCancel).map(_.asFS2Stream)
           _fetchAndValidateMissingHeaders = fetchAndValidateMissingHeaders(
             client,
             headerValidation,
@@ -101,7 +97,7 @@ object BlockchainPeerHandler {
             transactionStore
           ) _
           _ <- adoptions
-            .mapAsyncF(1) { id =>
+            .evalMap(id =>
               slotDataStore
                 .contains(id)
                 .ifM(
@@ -163,10 +159,7 @@ object BlockchainPeerHandler {
                                 .ifM(
                                   ifTrue =
                                     // And finally, adopt the remote peer's tine
-                                    localChain.adopt(Validated.Valid(tine.last)) >>
-                                    Logger[F].info(
-                                      show"Adopted head block id=${tine.last.slotId.blockId} height=${tine.last.height} slot=${tine.last.slotId.slot}"
-                                    ),
+                                    localChain.adopt(Validated.Valid(tine.last)),
                                   ifFalse = Logger[F].debug(show"Ignoring weaker (or equal) block header id=$id")
                                 )
                           } yield (),
@@ -175,9 +168,9 @@ object BlockchainPeerHandler {
                         )
                   } yield ()
                 )
-            }
-            .toMat(Sink.ignore)(Keep.right)
-            .liftFutureTo[F]
+            )
+            .compile
+            .drain
         } yield ()
 
     implicit private val showBlockHeaderValidationFailure: Show[BlockHeaderValidationFailure] =
@@ -200,7 +193,7 @@ object BlockchainPeerHandler {
      * the sequence of missing header IDs by comparing IDs known in the SlotDataStore with IDs known in the HeaderStore.
      * Once the list of missing IDs is assembled, the headers are requested from the remote peer and validated in-order
      */
-    private[blockchain] def fetchAndValidateMissingHeaders[F[_]: Async: FToFuture: RunnableGraphToF: Logger](
+    private[blockchain] def fetchAndValidateMissingHeaders[F[_]: Async: Logger](
       client:           BlockchainPeerClient[F],
       headerValidation: BlockHeaderValidationAlgebra[F],
       slotDataStore:    Store[F, TypedIdentifier, SlotData],
@@ -211,29 +204,30 @@ object BlockchainPeerHandler {
         slotDataStore.getOrRaise(_).map(_.parentSlotId.blockId)
       )(from)
         .flatMap(missingHeaders =>
-          Source
-            .fromIterator(() => missingHeaders.iterator)
-            .tapAsyncF(1)(blockId => Logger[F].info(show"Fetching remote header id=$blockId"))
-            .mapAsyncF(1)(blockId =>
-              OptionT(client.getRemoteHeader(blockId))
-                .filter(_.id.asTypedBytes === blockId)
-                .getOrNoSuchElement(blockId.show)
-                .tupleLeft(blockId)
+          Stream
+            .foldable(missingHeaders)
+            .evalMap(blockId =>
+              for {
+                _      <- Logger[F].info(show"Fetching remote header id=$blockId")
+                header <- OptionT(client.getRemoteHeader(blockId)).getOrNoSuchElement(blockId.show)
+                _ <- MonadThrow[F].raiseWhen(header.id.asTypedBytes =!= blockId)(
+                  new IllegalArgumentException("Claimed block ID did not match provided header")
+                )
+                _ <- Logger[F].debug(show"Validating remote header id=$blockId")
+                _ <- EitherT(
+                  headerStore.getOrRaise(header.parentHeaderId).flatMap(headerValidation.validate(header, _))
+                )
+                  .leftSemiflatTap(error =>
+                    Logger[F].warn(show"Received invalid block header id=$blockId error=$error")
+                  )
+                  .leftMap(error => new IllegalArgumentException(error.show))
+                  .rethrowT
+                _ <- Logger[F].debug(show"Saving header id=$blockId")
+                _ <- headerStore.put(blockId, header)
+              } yield ()
             )
-            .tapAsyncF(1) { case (blockId, _) =>
-              Logger[F].debug(show"Validating remote header id=$blockId")
-            }
-            .tapAsyncF(1) { case (blockId, header) =>
-              EitherT(headerStore.getOrRaise(header.parentHeaderId).flatMap(headerValidation.validate(header, _)))
-                .leftSemiflatTap(error => Logger[F].warn(show"Received invalid block header id=$blockId error=$error"))
-                .leftMap(error => new IllegalArgumentException(error.show))
-                .rethrowT >>
-              Logger[F].debug(show"Saving header id=$blockId") >>
-              headerStore.put(blockId, header)
-            }
-            .toMat(Sink.ignore)(Keep.right)
-            .liftFutureTo[F]
-            .void
+            .compile
+            .drain
         )
 
     /**
@@ -242,7 +236,7 @@ object BlockchainPeerHandler {
      * Once the list of missing IDs is assembled, the bodies (and any locally missing transactions) are requested from
      * the remote peer and validated in-order.
      */
-    private def fetchAndValidateMissingBodies[F[_]: Async: FToFuture: RunnableGraphToF: Logger](
+    private def fetchAndValidateMissingBodies[F[_]: Async: Logger](
       client:                      BlockchainPeerClient[F],
       headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
       bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
@@ -258,55 +252,50 @@ object BlockchainPeerHandler {
         slotDataStore.getOrRaise(_).map(_.parentSlotId.blockId)
       )(from)
         .flatMap(missingBodyIds =>
-          Source
-            .fromIterator(() => missingBodyIds.iterator)
-            .tapAsyncF(1)(blockId => Logger[F].info(show"Fetching remote body id=$blockId"))
-            .mapAsyncF(1)(blockId =>
-              OptionT(client.getRemoteBody(blockId)) // TODO: Verify against Header#txRoot
-                .getOrNoSuchElement(blockId.show)
-                .tupleLeft(blockId)
-            )
-            .mapAsyncF(1) { case (blockId, body) =>
-              body.toList
-                .traverse(transactionId =>
-                  OptionT(transactionStore.get(transactionId))
-                    .getOrElseF(
-                      Logger[F].info(show"Fetching remote transaction id=$transactionId") >>
-                      OptionT(client.getRemoteTransaction(transactionId))
-                        .filter(_.id.asTypedBytes === transactionId)
-                        .getOrNoSuchElement(transactionId.show)
-                        .flatTap(_ => Logger[F].debug(show"Saving transaction id=$transactionId"))
-                        .flatTap(transaction => transactionStore.put(transactionId, transaction))
-                    )
-                )
-                .map((blockId, body, _))
-            }
-            .tapAsyncF(1) { case (blockId, body, _) =>
-              headerStore
-                .getOrRaise(blockId)
-                .map(header => Block(header, body))
-                .flatMap(block =>
+          Stream
+            .foldable(missingBodyIds)
+            .evalMap(blockId =>
+              for {
+                _      <- Logger[F].info(show"Fetching remote body id=$blockId")
+                header <- headerStore.getOrRaise(blockId)
+                body   <- OptionT(client.getRemoteBody(blockId)).getOrNoSuchElement(blockId.show)
+                block = Block(header, body)
+                _ <- Stream
+                  .iterable(body)
+                  .evalMap(transactionId =>
+                    transactionStore
+                      .contains(transactionId)
+                      .ifM(
+                        Applicative[F].unit,
+                        for {
+                          _ <- Logger[F].info(show"Fetching remote transaction id=$transactionId")
+                          transaction <- OptionT(client.getRemoteTransaction(transactionId))
+                            .getOrNoSuchElement(transactionId.show)
+                          _ <- MonadThrow[F].raiseWhen(transaction.id.asTypedBytes =!= transactionId)(
+                            new IllegalArgumentException("Claimed transaction ID did not match provided transaction")
+                          )
+                          _ <- Logger[F].debug(show"Saving transaction id=$transactionId")
+                          _ <- transactionStore.put(transactionId, transaction)
+                        } yield ()
+                      )
+                  )
+                  .compile
+                  .drain
+                _ <-
                   (
                     for {
                       _ <- EitherT.liftF(Logger[F].debug(show"Validating header to body consistency for id=$blockId"))
                       _ <- EitherT(headerToBodyValidation.validate(block)).leftMap(e => e.show)
                       _ <- EitherT.liftF(Logger[F].debug(show"Validating syntax of body id=$blockId"))
-                      _ <- EitherT(
-                        bodySyntaxValidation
-                          .validate(block.body)
-                          .map(_.toEither.leftMap(_.show))
-                      )
+                      _ <- EitherT(bodySyntaxValidation.validate(block.body).map(_.toEither.leftMap(_.show)))
                       _ <- EitherT.liftF(Logger[F].debug(show"Validating semantics of body id=$blockId"))
+                      validationContext = StaticBodyValidationContext(
+                        block.header.parentHeaderId,
+                        block.header.height,
+                        block.header.slot
+                      )
                       _ <- EitherT(
-                        bodySemanticValidation
-                          .validate(
-                            StaticBodyValidationContext(
-                              block.header.parentHeaderId,
-                              block.header.height,
-                              block.header.slot
-                            )
-                          )(block.body)
-                          .map(_.toEither.leftMap(_.show))
+                        bodySemanticValidation.validate(validationContext)(block.body).map(_.toEither.leftMap(_.show))
                       )
                       _ <- EitherT.liftF(Logger[F].debug(show"Validating authorization of body id=$blockId"))
                       _ <- EitherT(
@@ -319,14 +308,12 @@ object BlockchainPeerHandler {
                     .leftSemiflatTap(e => Logger[F].warn(show"Received invalid block body id=$blockId errors=$e"))
                     .leftMap((e: String) => new IllegalArgumentException(e))
                     .rethrowT
-                )
-            }
-            .tapAsyncF(1) { case (blockId, body, _) =>
-              Logger[F].debug(show"Saving body id=$blockId") >>
-              bodyStore.put(blockId, body)
-            }
-            .toMat(Sink.ignore)(Keep.right)
-            .liftFutureTo[F]
+                _ <- Logger[F].debug(show"Saving body id=$blockId")
+                _ <- bodyStore.put(blockId, body)
+              } yield ()
+            )
+            .compile
+            .drain
         )
 
     /**
@@ -393,53 +380,55 @@ object BlockchainPeerHandler {
     implicit private val showTransactionSemanticError: Show[TransactionSemanticError] =
       Show.fromToString
 
-    def make[F[_]: Async: RunnableGraphToF: Logger](
+    def make[F[_]: Async](
       transactionSyntaxValidation: TransactionSyntaxValidationAlgebra[F],
       transactionStore:            Store[F, TypedIdentifier, Transaction],
       mempool:                     MempoolAlgebra[F]
     )(implicit materializer:       Materializer): BlockchainPeerHandlerAlgebra[F] =
       (client: BlockchainPeerClient[F]) =>
-        client.remoteTransactionNotifications
-          .flatMap(_.withCancel[F])
-          .flatMap(source =>
-            source.asFS2Stream
-              .evalMap(id =>
-                for {
-                  _             <- Logger[F].debug(show"Received transaction notification from remote peer id=$id")
-                  alreadyExists <- transactionStore.contains(id)
-                  _ <-
-                    if (alreadyExists)
-                      Logger[F].debug(show"Ignoring already known remote transaction id=$id")
-                    else {
-                      for {
-                        _           <- Logger[F].info(show"Fetching remote transaction id=$id")
-                        transaction <- OptionT(client.getRemoteTransaction(id)).getOrNoSuchElement(id.show)
-                        _ <- MonadThrow[F].raiseWhen(transaction.id.asTypedBytes =!= id)(
-                          new IllegalArgumentException(
-                            s"Remote peer provided transaction that did not match its claimed ID"
-                          )
-                        )
-                        _ <- EitherT(transactionSyntaxValidation.validate(transaction).map(_.toEither))
-                          .leftSemiflatMap(errors =>
-                            Logger[F].warn(
-                              show"Received syntactically invalid transaction id=$id errors=$errors"
-                            )
-                          )
-                          .leftMap(errors => new IllegalArgumentException(errors.show))
-                          .rethrowT
-                        _ <- Logger[F].debug(show"Transaction id=$id is syntactically valid")
-                        _ <- Logger[F].debug(show"Inserting transaction id=$id into Store")
-                        _ <- transactionStore.put(id, transaction)
-                        _ <- Logger[F].info(show"Inserting transaction id=$id into Mempool")
-                        _ <- mempool.add(id)
-                      } yield ()
-                    }
-                } yield ()
+        createPeerLogger[F](client)("P2P.MempoolSync").flatMap(implicit logger =>
+          client.remoteTransactionNotifications
+            .flatMap(_.withCancel[F])
+            .flatMap(source =>
+              source.asFS2Stream
+                .evalMap(processTransactionId[F](transactionSyntaxValidation, transactionStore, mempool)(client))
+                .compile
+                .drain
+            )
+            .void
+        )
+
+    private def processTransactionId[F[_]: Async: Logger](
+      transactionSyntaxValidation: TransactionSyntaxValidationAlgebra[F],
+      transactionStore:            Store[F, TypedIdentifier, Transaction],
+      mempool:                     MempoolAlgebra[F]
+    )(client:                      BlockchainPeerClient[F])(id: TypedIdentifier) =
+      for {
+        _             <- Logger[F].debug(show"Received transaction notification from remote peer id=$id")
+        alreadyExists <- transactionStore.contains(id)
+        _ <-
+          if (alreadyExists)
+            Logger[F].debug(show"Ignoring already known remote transaction id=$id")
+          else {
+            for {
+              _           <- Logger[F].info(show"Fetching remote transaction id=$id")
+              transaction <- OptionT(client.getRemoteTransaction(id)).getOrNoSuchElement(id.show)
+              _ <- MonadThrow[F].raiseWhen(transaction.id.asTypedBytes =!= id)(
+                new IllegalArgumentException(s"Claimed transaction ID did not match provided transaction")
               )
-              .compile
-              .drain
-          )
-          .void
+              _ <- EitherT(transactionSyntaxValidation.validate(transaction).map(_.toEither))
+                .leftSemiflatMap(errors =>
+                  Logger[F].warn(show"Received syntactically invalid transaction id=$id errors=$errors")
+                )
+                .leftMap(errors => new IllegalArgumentException(errors.show))
+                .rethrowT
+              _ <- Logger[F].debug(show"Transaction id=$id is syntactically valid")
+              _ <- Logger[F].debug(show"Inserting transaction id=$id into Mempool and Store")
+              _ <- transactionStore.put(id, transaction)
+              _ <- mempool.add(id)
+            } yield ()
+          }
+      } yield ()
   }
 
   /**
@@ -448,32 +437,29 @@ object BlockchainPeerHandler {
    */
   object CommonAncestorSearch {
 
-    def make[F[_]: Async: FToFuture: RunnableGraphToF: Logger](
+    def make[F[_]: Async](
       getLocalBlockIdAtHeight: Long => F[TypedIdentifier],
       currentHeight:           () => F[Long],
       slotDataStore:           StoreReader[F, TypedIdentifier, SlotData]
-    )(implicit mat:            Materializer): BlockchainPeerHandlerAlgebra[F] =
+    ): BlockchainPeerHandlerAlgebra[F] =
       (client: BlockchainPeerClient[F]) =>
-        Source
-          .tick(0.seconds, 10.seconds, ())
-          .withCancel[F]
-          .flatMap(
-            _.tapAsyncF(1)(_ =>
-              traceAndLogCommonAncestor(getLocalBlockIdAtHeight, currentHeight, slotDataStore)(client)
-            )
-              .toMat(Sink.ignore)(Keep.right)
-              .liftFutureTo[F]
+        createPeerLogger[F](client)("P2P.CommonAncestorTrace")
+          .flatMap(implicit logger =>
+            Stream
+              .awakeEvery[F](10.seconds)
+              .evalMap(_ => traceAndLogCommonAncestor(getLocalBlockIdAtHeight, currentHeight, slotDataStore)(client))
+              .compile
+              .drain
           )
-          .void
 
     private def traceAndLogCommonAncestor[F[_]: Sync: Logger](
       getLocalBlockIdAtHeight: Long => F[TypedIdentifier],
       currentHeight:           () => F[Long],
       slotDataStore:           StoreReader[F, TypedIdentifier, SlotData]
     )(client:                  BlockchainPeerClient[F]) =
-      client.remotePeer
-        .flatMap(peer =>
-          Logger[F].debug(show"Starting common ancestor trace with remote=${peer.remoteAddress}") >>
+      Sync[F]
+        .defer(
+          Logger[F].debug(show"Starting common ancestor trace") >>
           client
             .findCommonAncestor(getLocalBlockIdAtHeight, currentHeight)
             .flatTap(ancestor =>
@@ -481,7 +467,7 @@ object BlockchainPeerHandler {
                 .getOrNoSuchElement(ancestor)
                 .flatMap(slotData =>
                   Logger[F].info(
-                    show"Traced remote=${peer.remoteAddress} common ancestor to" +
+                    show"Traced common ancestor to" +
                     show" id=$ancestor" +
                     show" height=${slotData.height}" +
                     show" slot=${slotData.slotId.slot}"
@@ -500,4 +486,12 @@ object BlockchainPeerHandler {
     def getOrNoSuchElement(id: Any)(implicit M: MonadThrow[F]): F[T] =
       optionT.toRight(new NoSuchElementException(id.toString)).rethrowT
   }
+
+  private def createPeerLogger[F[_]: Sync](client: BlockchainPeerClient[F])(processName: String) =
+    client.remotePeer.map(remotePeer =>
+      Slf4jLogger
+        .getLoggerFromName[F](processName)
+        .withModifiedString(value => show"peer=${remotePeer.remoteAddress} $value")
+    )
+
 }

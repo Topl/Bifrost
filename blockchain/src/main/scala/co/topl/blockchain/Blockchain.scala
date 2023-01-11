@@ -135,6 +135,7 @@ object Blockchain {
               BlockPacker.make[F](
                 mempool,
                 transactionStore.getOrRaise,
+                transactionStore.contains,
                 BlockPacker.makeBodyValidator(bodySyntaxValidation, bodySemanticValidation, bodyAuthorizationValidation)
               )
             )
@@ -156,12 +157,7 @@ object Blockchain {
                     Stream
                       .eval(
                         BlockProducer
-                          .make[F](
-                            adoptionsSource,
-                            staker,
-                            clock,
-                            blockPacker
-                          )
+                          .make[F](adoptionsSource, staker, clock, blockPacker)
                           .flatMap(_.blocks)
                       )
                       .flatMap(_.asFS2Stream)
@@ -183,7 +179,6 @@ object Blockchain {
             rpcServer <- ToplGrpc.Server.serve(rpcHost, rpcPort, rpcInterpreter)
             mintedBlockStreamCompletionF =
               mintedBlockStream
-                .evalTap(block => Logger[F].info(show"Minted header=${block.header} body=${block.body}"))
                 .evalMap(block =>
                   blockIdTree.associate(block.header.id, block.header.parentHeaderId) >>
                   headerStore.put(block.header.id, block.header) >>
@@ -191,11 +186,6 @@ object Blockchain {
                   ed25519VrfResource
                     .use(implicit e => block.header.slotData.pure[F])
                     .flatTap(slotDataStore.put(block.header.id, _))
-                )
-                .evalTap(slotData =>
-                  Logger[F].info(
-                    show"Adopted head block id=${slotData.slotId.blockId} height=${slotData.height} slot=${slotData.slotId.slot}"
-                  )
                 )
                 .map(Validated.Valid(_))
                 .evalTap(localChain.adopt)
