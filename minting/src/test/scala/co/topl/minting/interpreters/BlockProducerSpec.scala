@@ -1,23 +1,23 @@
-package co.topl.minting
+package co.topl.minting.interpreters
 
 import akka.NotUsed
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.scaladsl.adapter._
+import akka.stream.scaladsl.Keep
 import akka.stream.testkit.scaladsl.{TestSink, TestSource}
 import cats.effect.{IO, Sync}
 import cats.implicits._
 import cats.~>
+import co.topl.algebras.ClockAlgebra
 import co.topl.catsakka._
+import co.topl.minting.algebras.{BlockPackerAlgebra, StakingAlgebra}
+import co.topl.minting.models._
 import co.topl.models.ModelGenerators._
 import co.topl.models.{Block, BlockBody, SlotData, StakingAddresses}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
-import akka.actor.typed.scaladsl.adapter._
-import akka.stream.scaladsl.Keep
-import co.topl.algebras.ClockAlgebra
-import co.topl.minting.algebras.LeaderElectionMintingAlgebra.VrfHit
-import co.topl.minting.algebras.{BlockPackerAlgebra, StakingAlgebra}
 
 import scala.collection.immutable.NumericRange
 import scala.concurrent.Future

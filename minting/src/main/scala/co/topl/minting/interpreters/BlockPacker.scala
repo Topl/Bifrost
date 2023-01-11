@@ -1,4 +1,4 @@
-package co.topl.minting
+package co.topl.minting.interpreters
 
 import cats.Monad
 import cats.data.EitherT
@@ -17,8 +17,8 @@ import co.topl.ledger.models.{
 import co.topl.minting.algebras.BlockPackerAlgebra
 import co.topl.models._
 import co.topl.typeclasses.implicits._
-import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 
 import scala.collection.immutable.ListSet
 
