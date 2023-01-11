@@ -1,6 +1,6 @@
 package co.topl.genusLibrary.orientDb
 
-import cats.effect.Async
+import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.genusLibrary.orientDb.wrapper.GraphTxWrapper
 import co.topl.genusLibrary.{Genus, GenusException}
@@ -31,7 +31,8 @@ class OrientDBFacade(dir: File, password: String) {
   @unused
   private val graphMetadata = initializeDatabase(factory, password)
 
-  private[genusLibrary] def getGraph: GraphTxWrapper = new GraphTxWrapper(factory.getTx)
+  private[genusLibrary] def getGraph[F[_]: Async]: GraphTxWrapper[F] =
+    new GraphTxWrapper[F](factory.getTx)
 
   private[genusLibrary] def getGraphNoTx: OrientGraphNoTx = factory.getNoTx
 

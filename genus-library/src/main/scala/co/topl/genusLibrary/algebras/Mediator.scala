@@ -17,12 +17,11 @@ trait Mediator[F[_]] {
   /**
    * Mediate after insertion of header. Commits DB transaction.
    *
-   * @param header inserted block header
    * @param block the full block data for context reasons
    * @param graph graph in which to commit transaction
    * @return Unit
    */
-  def afterHeaderInserted(header: BlockHeader, block: BlockData, graph: GraphTxWrapper): F[Either[Failure, Unit]]
+  def afterHeaderInserted(block: BlockData, graph: GraphTxWrapper[F]): F[Either[Failure, Unit]]
 
   /**
    * Mediate after insertion of body. Commits DB transaction.
@@ -32,7 +31,7 @@ trait Mediator[F[_]] {
    * @param graph  graph in which to commit transaction
    * @return Unit
    */
-  def afterBodyInserted(body: BlockBody, block: BlockData, graph: GraphTxWrapper): F[Either[Failure, Unit]]
+  def afterBodyInserted(body: BlockBody, block: BlockData, graph: GraphTxWrapper[F]): F[Either[Failure, Unit]]
 
   /**
    * Mediate after insertion of transaction. Commits DB transaction.
@@ -42,7 +41,7 @@ trait Mediator[F[_]] {
    * @param graph  graph in which to commit transaction
    * @return Unit
    */
-  def afterTxInserted(transaction: Transaction, block: BlockData, graph: GraphTxWrapper): F[Either[Failure, Unit]]
+  def afterTxInserted(transaction: Transaction, block: BlockData, graph: GraphTxWrapper[F]): F[Either[Failure, Unit]]
 
   /**
    * Mediate after insertion of address. Commits DB transaction.
@@ -52,7 +51,7 @@ trait Mediator[F[_]] {
    * @param graph  graph in which to commit transaction
    * @return Unit
    */
-  def afterAddressInserted(address: TypedEvidence, block: BlockData, graph: GraphTxWrapper): F[Either[Failure, Unit]]
+  def afterAddressInserted(address: TypedEvidence, block: BlockData, graph: GraphTxWrapper[F]): F[Either[Failure, Unit]]
 
   /**
    * Mediate after insertion of transaction output. Commits DB transaction.
@@ -62,7 +61,7 @@ trait Mediator[F[_]] {
    * @param graph  graph in which to commit transaction
    * @return Unit
    */
-  def afterTxoInserted(txo: Txo, block: BlockData, graph: GraphTxWrapper): F[Either[Failure, Unit]]
+  def afterTxoInserted(txo: Txo, block: BlockData, graph: GraphTxWrapper[F]): F[Either[Failure, Unit]]
 
   /**
    * Mediate after insertion of address state. Commits DB transaction.
@@ -71,6 +70,6 @@ trait Mediator[F[_]] {
    * @param graph in which to commit transaction
    * @return Unit
    */
-  def afterAddressStateInserted(block: BlockData, graph: GraphTxWrapper): F[Either[Failure, Unit]]
+  def afterAddressStateInserted(block: BlockData, graph: GraphTxWrapper[F]): F[Either[Failure, Unit]]
 
 }
