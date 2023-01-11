@@ -2,7 +2,6 @@ package co.topl.node
 
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
-import akka.stream.scaladsl.Source
 import cats.Applicative
 import cats.effect.{IO, Resource}
 import cats.implicits._
@@ -25,9 +24,10 @@ import co.topl.ledger.interpreters._
 import co.topl.minting.algebras.StakingAlgebra
 import co.topl.minting.interpreters.{OperationalKeyMaker, Staking, VrfCalculator}
 import co.topl.models._
-import co.topl.networking.p2p.{ConnectedPeer, LocalPeer}
+import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, LocalPeer}
 import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
+import fs2._
 import fs2.io.file.{Files, Path}
 import kamon.Kamon
 import org.typelevel.log4cats.Logger
@@ -225,15 +225,9 @@ object NodeApp
             mempool,
             cryptoResources.ed25519VRF,
             localPeer,
-            Source
-              .futureSource(
-                implicitly[FToFuture[F]].apply(
-                  clock
-                    .delayedUntilSlot(canonicalHeadSlotData.slotId.slot)
-                    .as(Source(appConfig.bifrost.p2p.knownPeers))
-                )
-              )
-              .concat(Source.never),
+            Stream.eval(clock.delayedUntilSlot(canonicalHeadSlotData.slotId.slot)) >>
+            Stream.iterable[F, DisconnectedPeer](appConfig.bifrost.p2p.knownPeers) ++
+            Stream.never[F],
             (_: ConnectedPeer, flow) => flow,
             appConfig.bifrost.rpc.bindHost,
             appConfig.bifrost.rpc.bindPort

@@ -4,7 +4,7 @@ import akka.event.Logging
 import akka.stream.scaladsl.RunnableGraph
 import akka.stream.{Attributes, Materializer}
 import cats.arrow.FunctionK
-import cats.effect.kernel.{Async, Sync}
+import cats.effect.kernel.{Async, Resource, Sync}
 import cats.~>
 
 import scala.concurrent.Future
@@ -28,6 +28,9 @@ class RunnableGraphSupport[Mat](val runnableGraph: RunnableGraph[Mat]) extends A
 
   def liftTo[F[_]: RunnableGraph ~> *[_]]: F[Mat] =
     implicitly[RunnableGraph ~> F].apply(runnableGraph)
+
+  def resource[F[_]: Sync: RunnableGraph ~> *[_]]: Resource[F, Mat] =
+    Resource.make(Sync[F].defer(liftTo))(_ => Sync[F].unit)
 
   def withLogAttributes: RunnableGraph[Mat] =
     runnableGraph.withAttributes(Attributes.logLevels(onElement = Logging.InfoLevel, onFinish = Logging.InfoLevel))
