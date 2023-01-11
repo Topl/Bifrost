@@ -1,10 +1,8 @@
 package co.topl.networking.blockchain
 
-import akka.NotUsed
-import akka.stream.Materializer
-import akka.stream.scaladsl.{Flow, Source}
+import akka.stream.scaladsl.Flow
 import akka.util.ByteString
-import cats.effect.Async
+import cats.effect.{Async, Resource}
 import cats.implicits._
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
@@ -15,6 +13,7 @@ import co.topl.networking.blockchain.NetworkTypeTags._
 import co.topl.networking.p2p.{ConnectedPeer, ConnectionLeader}
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
+import fs2._
 
 /**
  * Produces a function which accepts a (connectedPeer, connectionLeader) and emits an Akka Stream Flow.  The flow performs
@@ -25,25 +24,25 @@ import org.typelevel.log4cats.Logger
  */
 object BlockchainPeerConnectionFlowFactory {
 
-  def make[F[_]: Async: Logger: FToFuture](peerServer: BlockchainPeerServer[F])(implicit
-    materializer:                                      Materializer
-  ): (ConnectedPeer, ConnectionLeader) => F[Flow[ByteString, ByteString, BlockchainPeerClient[F]]] =
+  def make[F[_]: Async: Logger: FToFuture](
+    peerServer: BlockchainPeerServer[F]
+  ): (ConnectedPeer, ConnectionLeader) => Resource[F, Flow[ByteString, ByteString, BlockchainPeerClient[F]]] =
     createFactory(peerServer).multiplexed
 
-  private[blockchain] def createFactory[F[_]: Async: Logger: FToFuture](protocolServer: BlockchainPeerServer[F])(
-    implicit materializer:                                                              Materializer
+  private[blockchain] def createFactory[F[_]: Async: Logger](
+    protocolServer: BlockchainPeerServer[F]
   ): TypedProtocolSetFactory[F, BlockchainPeerClient[F]] = {
     val blockAdoptionRecipF =
       TypedProtocolSetFactory.CommonProtocols.notificationReciprocated(
         BlockchainProtocols.BlockAdoption,
-        protocolServer.localBlockAdoptions,
+        Stream.eval(protocolServer.localBlockAdoptions).flatten,
         1: Byte,
         2: Byte
       )
     val transactionNotificationRecipF =
       TypedProtocolSetFactory.CommonProtocols.notificationReciprocated(
         BlockchainProtocols.TransactionBroadcasts,
-        protocolServer.localTransactionNotifications,
+        Stream.eval(protocolServer.localTransactionNotifications).flatten,
         3: Byte,
         4: Byte
       )
@@ -102,8 +101,8 @@ object BlockchainPeerConnectionFlowFactory {
         (idAtHeightTypedSubHandlers, heightIdReceivedCallback)     <- idAtHeightRecipF.ap(connectionLeader.pure[F])
         blockchainProtocolClient = new BlockchainPeerClient[F] {
           val remotePeer: F[ConnectedPeer] = connectedPeer.pure[F]
-          val remotePeerAdoptions: F[Source[TypedIdentifier, NotUsed]] = remoteBlockIdsSource.pure[F]
-          val remoteTransactionNotifications: F[Source[TypedIdentifier, NotUsed]] = remoteTransactionIdsSource.pure[F]
+          val remotePeerAdoptions: F[Stream[F, TypedIdentifier]] = remoteBlockIdsSource.pure[F]
+          val remoteTransactionNotifications: F[Stream[F, TypedIdentifier]] = remoteTransactionIdsSource.pure[F]
           def getRemoteSlotData(id: TypedIdentifier): F[Option[SlotData]] = slotDataReceivedCallback(id)
           def getRemoteHeader(id: TypedIdentifier): F[Option[BlockHeader]] = headerReceivedCallback(id)
           def getRemoteBody(id: TypedIdentifier): F[Option[BlockBody]] = bodyReceivedCallback(id)

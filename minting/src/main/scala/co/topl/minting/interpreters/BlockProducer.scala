@@ -48,6 +48,7 @@ object BlockProducer {
     clock:         ClockAlgebra[F],
     blockPacker:   BlockPackerAlgebra[F]
   ) extends BlockProducerAlgebra[F] {
+
     implicit val logger: SelfAwareStructuredLogger[F] =
       Slf4jLogger.getLoggerFromClass[F](BlockProducer.getClass)
 

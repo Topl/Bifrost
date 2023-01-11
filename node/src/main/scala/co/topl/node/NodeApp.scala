@@ -204,35 +204,33 @@ object NodeApp
         )
       )
       // Finally, run the program
-      _ <- Resource.eval(
-        Blockchain
-          .run[F](
-            clock,
-            staking,
-            dataStores.slotData,
-            dataStores.headers,
-            dataStores.bodies,
-            dataStores.transactions,
-            localChain,
-            blockIdTree,
-            blockHeightTree,
-            validators.header,
-            validators.headerToBody,
-            validators.transactionSyntax,
-            validators.bodySyntax,
-            validators.bodySemantics,
-            validators.bodyAuthorization,
-            mempool,
-            cryptoResources.ed25519VRF,
-            localPeer,
-            Stream.eval(clock.delayedUntilSlot(canonicalHeadSlotData.slotId.slot)) >>
-            Stream.iterable[F, DisconnectedPeer](appConfig.bifrost.p2p.knownPeers) ++
-            Stream.never[F],
-            (_: ConnectedPeer, flow) => flow,
-            appConfig.bifrost.rpc.bindHost,
-            appConfig.bifrost.rpc.bindPort
-          )
-      )
+      _ <- Blockchain
+        .make[F](
+          clock,
+          staking,
+          dataStores.slotData,
+          dataStores.headers,
+          dataStores.bodies,
+          dataStores.transactions,
+          localChain,
+          blockIdTree,
+          blockHeightTree,
+          validators.header,
+          validators.headerToBody,
+          validators.transactionSyntax,
+          validators.bodySyntax,
+          validators.bodySemantics,
+          validators.bodyAuthorization,
+          mempool,
+          cryptoResources.ed25519VRF,
+          localPeer,
+          Stream.eval(clock.delayedUntilSlot(canonicalHeadSlotData.slotId.slot)) >>
+          Stream.iterable[F, DisconnectedPeer](appConfig.bifrost.p2p.knownPeers) ++
+          Stream.never[F],
+          (_: ConnectedPeer, flow) => flow,
+          appConfig.bifrost.rpc.bindHost,
+          appConfig.bifrost.rpc.bindPort
+        )
     } yield ()
 
   private def makeStaking(

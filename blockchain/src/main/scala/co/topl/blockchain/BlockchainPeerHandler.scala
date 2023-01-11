@@ -11,7 +11,6 @@ import co.topl.algebras.ClockAlgebra.implicits.ClockOps
 import co.topl.algebras.{ClockAlgebra, Store, StoreReader}
 import co.topl.blockchain.algebras.BlockHeaderToBodyValidationAlgebra
 import co.topl.blockchain.models.BlockHeaderToBodyValidationFailure
-import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LocalChainAlgebra}
@@ -74,11 +73,11 @@ object BlockchainPeerHandler {
       bodyStore:                   Store[F, TypedIdentifier, BlockBody],
       transactionStore:            Store[F, TypedIdentifier, Transaction],
       blockIdTree:                 ParentChildTree[F, TypedIdentifier]
-    )(implicit mat:                Materializer): BlockchainPeerHandlerAlgebra[F] =
+    ): BlockchainPeerHandlerAlgebra[F] =
       (client: BlockchainPeerClient[F]) =>
         for {
           implicit0(logger: Logger[F]) <- createPeerLogger[F](client)("P2P.ChainSync")
-          adoptions                    <- client.remotePeerAdoptions.flatMap(_.withCancel).map(_.asFS2Stream)
+          adoptions                    <- client.remotePeerAdoptions
           _fetchAndValidateMissingHeaders = fetchAndValidateMissingHeaders(
             client,
             headerValidation,
@@ -388,9 +387,8 @@ object BlockchainPeerHandler {
       (client: BlockchainPeerClient[F]) =>
         createPeerLogger[F](client)("P2P.MempoolSync").flatMap(implicit logger =>
           client.remoteTransactionNotifications
-            .flatMap(_.withCancel[F])
             .flatMap(source =>
-              source.asFS2Stream
+              source
                 .evalMap(processTransactionId[F](transactionSyntaxValidation, transactionStore, mempool)(client))
                 .compile
                 .drain

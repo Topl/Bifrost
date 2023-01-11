@@ -1,15 +1,14 @@
 package co.topl.networking
 
 import akka.NotUsed
-import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
-import akka.stream.{Materializer, OverflowStrategy}
+import akka.stream.scaladsl.{Flow, Sink}
 import akka.util.ByteString
 import cats.data.{EitherT, NonEmptyChain, OptionT}
-import cats.effect.Async
 import cats.effect.kernel.Sync
 import cats.effect.std.Queue
+import cats.effect.{Async, Deferred, Resource}
 import cats.implicits._
-import cats.{Applicative, MonadThrow, Show}
+import cats.{MonadThrow, Show}
 import co.topl.catsakka._
 import co.topl.codecs.bytes.typeclasses.Transmittable
 import co.topl.networking.blockchain.NetworkTypeTags._
@@ -18,10 +17,9 @@ import co.topl.networking.multiplexer._
 import co.topl.networking.p2p.{ConnectedPeer, ConnectionLeader, ConnectionLeaders}
 import co.topl.networking.typedprotocols.TypedProtocol.CommonStates
 import co.topl.networking.typedprotocols._
+import fs2._
 import org.typelevel.log4cats.Logger
 import scodec.bits.ByteVector
-
-import scala.concurrent.Promise
 
 /**
  * Helper for transforming a collection of Typed Sub Handlers into a multiplexed akka stream Flow
@@ -51,7 +49,7 @@ object TypedProtocolSetFactory {
       def multiplexed(
         connectedPeer:    ConnectedPeer,
         connectionLeader: ConnectionLeader
-      ): F[Flow[ByteString, ByteString, Client]] =
+      ): Resource[F, Flow[ByteString, ByteString, Client]] =
         multiplexerHandlersIn(connectedPeer, connectionLeader).map { case (subHandlers, client) =>
           Multiplexer(subHandlers, client)
         }
@@ -59,9 +57,9 @@ object TypedProtocolSetFactory {
       private def multiplexerHandlersIn(
         connectedPeer:    ConnectedPeer,
         connectionLeader: ConnectionLeader
-      ): F[(NonEmptyChain[SubHandler], Client)] =
-        factory
-          .protocolsForPeer(connectedPeer, connectionLeader)
+      ): Resource[F, (NonEmptyChain[SubHandler], Client)] =
+        Resource
+          .eval(factory.protocolsForPeer(connectedPeer, connectionLeader))
           .flatMap { case (typedProtocolSet, client) =>
             typedProtocolSet
               .traverse { multiplexedSubHandler =>
@@ -69,14 +67,17 @@ object TypedProtocolSetFactory {
                   multiplexedSubHandler.asInstanceOf[TypedSubHandler[F, multiplexedSubHandler.InState]]
                 val s = sh.initialState.asInstanceOf[Any]
                 implicit val ct: NetworkTypeTag[Any] = sh.initialStateNetworkTypeTag.asInstanceOf[NetworkTypeTag[Any]]
-                sh.instance
-                  .applier(s)
-                  .map(applier =>
-                    SubHandler(
-                      multiplexedSubHandler.sessionId,
-                      handlerSink(multiplexedSubHandler, applier, multiplexedSubHandler.sessionId),
-                      handlerSource(multiplexedSubHandler, applier, multiplexedSubHandler.sessionId)
-                    )
+                Resource
+                  .eval(sh.instance.applier(s))
+                  .flatMap(applier =>
+                    handlerSource(multiplexedSubHandler, applier, multiplexedSubHandler.sessionId).toAkkaSource
+                      .map(
+                        SubHandler(
+                          multiplexedSubHandler.sessionId,
+                          handlerSink(multiplexedSubHandler, applier, multiplexedSubHandler.sessionId),
+                          _
+                        )
+                      )
                   )
               }
               .tupleRight(client)
@@ -111,9 +112,9 @@ object TypedProtocolSetFactory {
         multiplexedSubHandler: TypedSubHandler[F, _],
         applier:               TypedProtocolInstance[F]#MessageApplier,
         protocolInstanceId:    Byte
-      ): Source[ByteString, _] =
+      ): Stream[F, ByteString] =
         multiplexedSubHandler.outboundMessages
-          .mapAsyncF(1)(outboundMessage =>
+          .evalMap(outboundMessage =>
             EitherT(
               applier
                 .apply(outboundMessage.data, multiplexedSubHandler.instance.localParty)(
@@ -125,7 +126,9 @@ object TypedProtocolSetFactory {
               .rethrowT
               .as(outboundMessage)
           )
-          .log(s"Sending outbound message in protocolInstanceId=$protocolInstanceId", o => o.data)
+          .evalTap(o =>
+            Logger[F].debug(s"Sending outbound message in protocolInstanceId=$protocolInstanceId. ${o.data}")
+          )
           .map { o =>
             val (prefix, byteVector) =
               multiplexedSubHandler.codec.encode(o.data)(o.networkTypeTag.asInstanceOf[NetworkTypeTag[Any]]) match {
@@ -134,7 +137,7 @@ object TypedProtocolSetFactory {
               }
             prefix -> ByteString(byteVector.toArray)
           }
-          .via(MessageSerializerFramer())
+          .map((MessageSerializerFramer.function _).tupled)
 
     }
   }
@@ -143,28 +146,26 @@ object TypedProtocolSetFactory {
 
   object CommonProtocols {
 
-    def notificationReciprocated[F[_]: Async: Logger: FToFuture, T: Show: Transmittable](
+    def notificationReciprocated[F[_]: Async: Logger, T: Show: Transmittable](
       protocol:      NotificationProtocol[T],
-      notifications: F[Source[T, NotUsed]],
+      notifications: Stream[F, T],
       byteA:         Byte,
       byteB:         Byte
     )(implicit
-      materializer: Materializer,
       tPushTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Push[T]]
-    ): F[ConnectionLeader => (NonEmptyChain[TypedSubHandler[F, CommonStates.None.type]], Source[T, NotUsed])] =
+    ): F[ConnectionLeader => (NonEmptyChain[TypedSubHandler[F, CommonStates.None.type]], Stream[F, T])] =
       (notificationServer[F, T](protocol, notifications), notificationClient[F, T](protocol)).tupled
         .map { case (f1, (f2, source)) =>
           (connectionLeader: ConnectionLeader) =>
             (ReciprocatedTypedSubHandler(f1, f2, byteA, byteB).handlers(connectionLeader), source)
         }
 
-    def requestResponseReciprocated[F[_]: Async: Logger: FToFuture, Query: Transmittable, T: Transmittable](
+    def requestResponseReciprocated[F[_]: Async: Logger, Query: Transmittable, T: Transmittable](
       protocol: RequestResponseProtocol[Query, T],
       fetch:    Query => F[Option[T]],
       byteA:    Byte,
       byteB:    Byte
     )(implicit
-      materializer:     Materializer,
       queryGetTypeTag:  NetworkTypeTag[TypedProtocol.CommonMessages.Get[Query]],
       tResponseTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Response[T]]
     ): F[
@@ -176,17 +177,17 @@ object TypedProtocolSetFactory {
             (ReciprocatedTypedSubHandler(f1, f2, byteA, byteB).handlers(connectionLeader), callback)
         }
 
-    def notificationServer[F[_]: Async: Logger: FToFuture, T: Show: Transmittable](
+    def notificationServer[F[_]: Async: Logger, T: Show: Transmittable](
       protocol:      NotificationProtocol[T],
-      notifications: F[Source[T, NotUsed]]
+      notifications: Stream[F, T]
     )(implicit
       tPushTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Push[T]]
     ): F[Byte => TypedSubHandler[F, CommonStates.None.type]] =
       for {
-        clientSignalPromise <- Sync[F].delay(Promise[Unit]())
+        clientSignalPromise <- Deferred[F, Unit]
         protocolInstance <- Sync[F].delay {
           val transitions =
-            new protocol.StateTransitionsServer[F](() => Sync[F].delay(clientSignalPromise.success(())).void)
+            new protocol.StateTransitionsServer[F](() => clientSignalPromise.complete(()).void)
           import transitions._
           TypedProtocolInstance(Parties.A)
             .withTransition(startNoneBusy)
@@ -204,39 +205,36 @@ object TypedProtocolSetFactory {
             sessionId,
             instance = protocolInstance,
             initialState = TypedProtocol.CommonStates.None,
-            outboundMessages = Source
-              .lazyFutureSource(() => implicitly[FToFuture[F]].apply(notifications))
-              .buffer(1, OverflowStrategy.dropHead)
-              .zip(Source.repeat(()).mapAsync(1)(_ => clientSignalPromise.future))
+            outboundMessages = notifications
+              .dropOldest(1)
+              .zip(Stream.repeatEval(clientSignalPromise.get))
               .map(_._1)
-              .tapAsyncF(1)(data => Logger[F].debug(show"Notifying peer of data=$data"))
+              .evalTap(data => Logger[F].debug(show"Notifying peer of data=$data"))
               .map(TypedProtocol.CommonMessages.Push(_))
               .map(OutboundMessage(_)),
             codec = multiplexerCodec
           )
       )
 
-    def notificationClient[F[_]: Async: Logger: FToFuture, T: Show: Transmittable](
+    def notificationClient[F[_]: Async: Logger, T: Show: Transmittable](
       protocol: NotificationProtocol[T]
     )(implicit
-      materializer: Materializer,
       tPushTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Push[T]]
-    ): F[(Byte => TypedSubHandler[F, CommonStates.None.type], Source[T, NotUsed])] =
+    ): F[(Byte => TypedSubHandler[F, CommonStates.None.type], Stream[F, T])] =
       for {
-        (((offerF, completeF), demandSignal), source) <-
-          Sync[F].delay(
-            Source
-              .dropHeadQueue[F, T](8)
-              .tapAsyncF(1)(data => Logger[F].debug(show"Remote peer sent notification data=$data"))
-              // A Notification Client must send a `Start` message to the server before it will start
-              // pushing notifications. We can signal this message to the server once the returned Source here requests
-              // data for the first time
-              .viaMat(OnFirstDemandFlow[T])(Keep.both)
-              .preMaterialize()
-          )
+        demandSignal <- Deferred[F, Unit]
+        queue        <- Queue.circularBuffer[F, T](8)
+        stream =
+          // A Notification Client must send a `Start` message to the server before it will start
+          // pushing notifications. We can signal this message to the server once the returned Source here requests
+          // data for the first time
+          Stream.eval(demandSignal.complete(())) >>
+          Stream
+            .fromQueueUnterminated(queue)
+            .evalTap(data => Logger[F].debug(show"Remote peer sent notification data=$data"))
         instance <- Sync[F].delay {
           val transitions =
-            new protocol.StateTransitionsClient[F](update => offerF(update))
+            new protocol.StateTransitionsClient[F](update => queue.offer(update))
           import transitions._
           TypedProtocolInstance(Parties.B)
             .withTransition(startNoneBusy)
@@ -253,37 +251,23 @@ object TypedProtocolSetFactory {
             sessionId,
             instance,
             TypedProtocol.CommonStates.None,
-            Source
-              .future(demandSignal)
-              .map(_ => OutboundMessage(TypedProtocol.CommonMessages.Start))
-              .concat(Source.never)
-              .alsoTo(
-                Sink.onComplete(res => implicitly[FToFuture[F]].apply(completeF(res.failed.toOption)))
-              ),
+            Stream.eval(demandSignal.get.as(OutboundMessage(TypedProtocol.CommonMessages.Start))) ++
+            Stream.never[F],
             multiplexerCodec
           )
-      } yield (
-        subHandler,
-        source
-          .alsoTo(
-            Sink.onComplete(res => implicitly[FToFuture[F]].apply(completeF(res.failed.toOption)))
-          )
-          .mapMaterializedValue(_ => NotUsed)
-      )
+      } yield (subHandler, stream)
 
-    def requestResponseServer[F[_]: Async: FToFuture, Query: Transmittable, T: Transmittable](
+    def requestResponseServer[F[_]: Async, Query: Transmittable, T: Transmittable](
       protocol: RequestResponseProtocol[Query, T],
       fetch:    Query => F[Option[T]]
     )(implicit
-      materializer:     Materializer,
       queryGetTypeTag:  NetworkTypeTag[TypedProtocol.CommonMessages.Get[Query]],
       tResponseTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Response[T]]
     ): F[Byte => TypedSubHandler[F, CommonStates.None.type]] =
       for {
-        ((offerResponse, completeResponse), responseSource) <- Sync[F].delay(
-          Source.backpressuredQueue[F, Option[T]](1).preMaterialize()
-        )
-        transitions = new protocol.ServerStateTransitions[F](fetch(_).flatMap(offerResponse))
+        queue <- Queue.bounded[F, Option[T]](1)
+        stream = Stream.fromQueueUnterminated(queue)
+        transitions = new protocol.ServerStateTransitions[F](fetch(_).flatMap(queue.offer))
         instance = {
           import transitions._
           TypedProtocolInstance(Parties.A)
@@ -303,35 +287,29 @@ object TypedProtocolSetFactory {
           sessionId,
           instance,
           TypedProtocol.CommonStates.None,
-          Source
-            .single(OutboundMessage(TypedProtocol.CommonMessages.Start))
-            .concat(responseSource.map(TypedProtocol.CommonMessages.Response(_)).map(OutboundMessage(_)))
-            .alsoTo(
-              Sink.onComplete(res => implicitly[FToFuture[F]].apply(completeResponse(res.failed.toOption)))
-            ),
+          Stream(OutboundMessage(TypedProtocol.CommonMessages.Start)) ++
+          stream.map(TypedProtocol.CommonMessages.Response(_)).map(OutboundMessage(_)),
           multiplexerCodec
         )
 
-    def requestResponseClient[F[_]: Async: FToFuture: Logger, Query: Transmittable, T: Transmittable](
+    def requestResponseClient[F[_]: Async: Logger, Query: Transmittable, T: Transmittable](
       protocol: RequestResponseProtocol[Query, T]
     )(implicit
-      materializer:     Materializer,
       queryGetTypeTag:  NetworkTypeTag[TypedProtocol.CommonMessages.Get[Query]],
       tResponseTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Response[T]]
     ): F[(Byte => TypedSubHandler[F, CommonStates.None.type], Query => F[Option[T]])] =
       for {
-        responsePromisesQueue <- Sync[F].defer(Queue.bounded[F, Promise[Option[T]]](2))
-        serverSentStartPromise = Promise[Unit]()
+        responsePromisesQueue  <- Sync[F].defer(Queue.bounded[F, Deferred[F, Option[T]]](2))
+        serverSentStartPromise <- Deferred[F, Unit]
         transitions =
           new protocol.ClientStateTransitions[F](
             r =>
               OptionT(responsePromisesQueue.tryTake).foldF(
                 MonadThrow[F].raiseError(new IllegalStateException("Unexpected response from server")).void
-              )(_.success(r).pure[F].void),
+              )(_.complete(r).void),
             () =>
-              Sync[F].delay(serverSentStartPromise.success(())) >> Logger[F].debug(
-                s"Server is accepting request-response requests of type=${tResponseTypeTag.name}"
-              )
+              serverSentStartPromise.complete(()) >>
+              Logger[F].debug(s"Server is accepting request-response requests of type=${tResponseTypeTag.name}")
           )
         instance = {
           import transitions._
@@ -341,18 +319,15 @@ object TypedProtocolSetFactory {
             .withTransition(responseBusyIdle)
             .withTransition(doneIdleDone)
         }
-        ((offerOutbound, completeOutbound), outboundSource) =
-          Source
-            .backpressuredQueue[F, OutboundMessage](1)
-            .preMaterialize()
+        queue <- Queue.bounded[F, OutboundMessage](1)
+        stream = Stream.fromQueueUnterminated(queue)
         clientCallback = (query: Query) =>
-          Sync[F]
-            .delay(Promise[Option[T]]())
-            .flatMap(promise =>
+          Deferred[F, Option[T]]
+            .flatMap(deferred =>
               responsePromisesQueue
-                .offer(promise)
-                .flatTap(_ => offerOutbound(OutboundMessage(TypedProtocol.CommonMessages.Get(query))))
-                .productR(Async[F].fromFuture(promise.future.pure[F]))
+                .offer(deferred)
+                .flatTap(_ => queue.offer(OutboundMessage(TypedProtocol.CommonMessages.Get(query))))
+                .productR(deferred.get)
             )
         multiplexerCodec = MultiplexerCodecBuilder()
           .withCodec[TypedProtocol.CommonMessages.Start.type](1: Byte)
@@ -365,23 +340,7 @@ object TypedProtocolSetFactory {
             sessionId,
             instance,
             TypedProtocol.CommonStates.None,
-            Source
-              .future(serverSentStartPromise.future)
-              .flatMapConcat(_ => outboundSource)
-              .alsoTo(
-                Sink
-                  .onComplete(res =>
-                    implicitly[FToFuture[F]].apply(
-                      completeOutbound(res.failed.toOption) >> {
-                        def f: F[Unit] = OptionT(responsePromisesQueue.tryTake)
-                          .map(_.failure(res.failed.toOption.getOrElse(new IllegalStateException("Done early"))))
-                          .isEmpty
-                          .ifM(Applicative[F].unit, f)
-                        f
-                      }
-                    )
-                  )
-              ),
+            Stream.eval(serverSentStartPromise.get) >> stream,
             multiplexerCodec
           )
       } yield (subHandler, clientCallback)
@@ -411,7 +370,7 @@ case class TypedSubHandler[F[_], InitialState: NetworkTypeTag](
   sessionId:        Byte,
   instance:         TypedProtocolInstance[F],
   initialState:     InitialState,
-  outboundMessages: Source[OutboundMessage, _],
+  outboundMessages: Stream[F, OutboundMessage],
   codec:            MultiplexerCodec
 ) {
   type InState = InitialState
@@ -442,16 +401,12 @@ case class ReciprocatedTypedSubHandler[F[_], InitialState: NetworkTypeTag](
   byteB:          Byte
 ) {
 
-  def handlers(
-    connectionLeader: ConnectionLeader
-  ): NonEmptyChain[TypedSubHandler[F, InitialState]] =
+  def handlers(connectionLeader: ConnectionLeader): NonEmptyChain[TypedSubHandler[F, InitialState]] =
     NonEmptyChain(serverHandler(connectionLeader), clientHandler(connectionLeader))
 
-  def serverHandler(connectionLeader: ConnectionLeader): TypedSubHandler[F, InitialState] = serverHandlerF(
-    if (connectionLeader == ConnectionLeaders.Local) byteA else byteB
-  )
+  def serverHandler(connectionLeader: ConnectionLeader): TypedSubHandler[F, InitialState] =
+    serverHandlerF(if (connectionLeader == ConnectionLeaders.Local) byteA else byteB)
 
-  def clientHandler(connectionLeader: ConnectionLeader): TypedSubHandler[F, InitialState] = clientHandlerF(
-    if (connectionLeader == ConnectionLeaders.Local) byteB else byteA
-  )
+  def clientHandler(connectionLeader: ConnectionLeader): TypedSubHandler[F, InitialState] =
+    clientHandlerF(if (connectionLeader == ConnectionLeaders.Local) byteB else byteA)
 }

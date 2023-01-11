@@ -1,11 +1,8 @@
 package co.topl.blockchain
 
-import akka.stream.Materializer
-import akka.stream.scaladsl.Source
 import cats.data.{EitherT, Validated}
 import cats.effect.kernel.Async
 import cats.implicits._
-import co.topl.catsakka._
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.models.{SlotData, TypedIdentifier}
 import fs2.concurrent.Topic

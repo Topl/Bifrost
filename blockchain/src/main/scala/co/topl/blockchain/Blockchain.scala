@@ -36,7 +36,7 @@ object Blockchain {
   /**
    * A program which executes the blockchain protocol, including a P2P layer, RPC layer, and minter.
    */
-  def run[F[_]: Parallel: Async: FToFuture: RunnableGraphToF](
+  def make[F[_]: Parallel: Async: FToFuture](
     clock:                       ClockAlgebra[F],
     staker:                      Option[StakingAlgebra[F]],
     slotDataStore:               Store[F, TypedIdentifier, SlotData],
@@ -62,143 +62,138 @@ object Blockchain {
     ) => Flow[ByteString, ByteString, F[BlockchainPeerClient[F]]],
     rpcHost:         String,
     rpcPort:         Int
-  )(implicit system: ActorSystem[_], random: Random): F[Unit] = {
+  )(implicit system: ActorSystem[_], random: Random): Resource[F, Unit] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromClass[F](Blockchain.getClass)
     for {
-      (localChain, blockAdoptionsTopic)    <- LocalChainBroadcaster.make(_localChain)
-      (mempool, transactionAdoptionsTopic) <- MempoolBroadcaster.make(_mempool)
-      _ <- (blockAdoptionsTopic.toAkkaBroadcastSource, transactionAdoptionsTopic.toAkkaBroadcastSource).tupled.flatMap {
-        case (blockAdoptionsSource, transactionAdoptionsSource) =>
-          for {
-            clientHandler <- Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
-              List(
-                BlockchainPeerHandler.ChainSynchronizer.make[F](
-                  clock,
-                  localChain,
-                  headerValidation,
-                  blockHeaderToBodyValidation,
-                  bodySyntaxValidation,
-                  bodySemanticValidation,
-                  bodyAuthorizationValidation,
-                  slotDataStore,
-                  headerStore,
-                  bodyStore,
-                  transactionStore,
-                  blockIdTree
-                ),
-                BlockchainPeerHandler.FetchMempool.make(
-                  transactionSyntaxValidation,
-                  transactionStore,
-                  mempool
-                ),
-                BlockchainPeerHandler.CommonAncestorSearch.make(
-                  id =>
-                    OptionT(
-                      localChain.head
-                        .map(_.slotId.blockId)
-                        .flatMap(blockHeights.useStateAt(_)(_.apply(id)))
-                    ).toRight(new IllegalStateException("Unable to determine block height tree")).rethrowT,
-                  () => localChain.head.map(_.height),
-                  slotDataStore
+      (localChain, blockAdoptionsTopic)    <- Resource.eval(LocalChainBroadcaster.make(_localChain))
+      (mempool, transactionAdoptionsTopic) <- Resource.eval(MempoolBroadcaster.make(_mempool))
+      clientHandler <- Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
+        List(
+          BlockchainPeerHandler.ChainSynchronizer.make[F](
+            clock,
+            localChain,
+            headerValidation,
+            blockHeaderToBodyValidation,
+            bodySyntaxValidation,
+            bodySemanticValidation,
+            bodyAuthorizationValidation,
+            slotDataStore,
+            headerStore,
+            bodyStore,
+            transactionStore,
+            blockIdTree
+          ),
+          BlockchainPeerHandler.FetchMempool.make(
+            transactionSyntaxValidation,
+            transactionStore,
+            mempool
+          ),
+          BlockchainPeerHandler.CommonAncestorSearch.make(
+            id =>
+              OptionT(
+                localChain.head
+                  .map(_.slotId.blockId)
+                  .flatMap(blockHeights.useStateAt(_)(_.apply(id)))
+              ).toRight(new IllegalStateException("Unable to determine block height tree")).rethrowT,
+            () => localChain.head.map(_.height),
+            slotDataStore
+          )
+        ).combineAll
+      )
+      peerServer <- Resource.eval(
+        BlockchainPeerServer.FromStores.make(
+          slotDataStore,
+          headerStore,
+          bodyStore,
+          transactionStore,
+          blockHeights,
+          localChain,
+          blockAdoptionsTopic.subscribeUnbounded
+            .evalTap(id => Logger[F].debug(show"Broadcasting block id=$id to peer"))
+            .pure[F],
+          transactionAdoptionsTopic.subscribeUnbounded
+            .evalTap(id => Logger[F].debug(show"Broadcasting transaction id=$id to peer"))
+            .pure[F]
+        )
+      )
+      (p2pServer, p2pFiber) <- remotePeers.toAkkaSource.evalMap(remotePeersSource =>
+        BlockchainNetwork
+          .make[F](
+            localPeer.localAddress.getHostName,
+            localPeer.localAddress.getPort,
+            localPeer,
+            remotePeersSource,
+            clientHandler,
+            peerServer,
+            peerFlowModifier
+          )
+      )
+      blockPacker <- Resource.eval(
+        BlockPacker.make[F](
+          mempool,
+          transactionStore.getOrRaise,
+          transactionStore.contains,
+          BlockPacker.makeBodyValidator(bodySyntaxValidation, bodySemanticValidation, bodyAuthorizationValidation)
+        )
+      )
+      mintedBlockStream =
+        staker.fold[Stream[F, Block]](Stream.never[F])(staker =>
+          // The BlockProducer needs a stream/Source of "parents" upon which it should build.  This stream is the
+          // concatenation of the current local head with the stream of local block adoptions
+          Stream
+            .eval(localChain.head)
+            .flatMap(currentHead =>
+              Stream.resource(
+                (
+                  Stream.eval(clock.delayedUntilSlot(currentHead.slotId.slot).as(currentHead))
+                  ++ blockAdoptionsTopic.subscribeDropOldest(1).evalMap(slotDataStore.getOrRaise)
+                ).toAkkaSource
+              )
+            )
+            .flatMap(adoptionsSource =>
+              Stream
+                .eval(
+                  BlockProducer
+                    .make[F](adoptionsSource, staker, clock, blockPacker)
+                    .flatMap(_.blocks)
                 )
-              ).combineAll
+                .flatMap(_.asFS2Stream)
             )
-            peerServer <- Resource.eval(
-              BlockchainPeerServer.FromStores.make(
-                slotDataStore,
-                headerStore,
-                bodyStore,
-                transactionStore,
-                blockHeights,
-                localChain,
-                blockAdoptionsSource
-                  .tapAsyncF(1)(id => Logger[F].debug(show"Broadcasting block id=$id to peer"))
-                  .pure[F],
-                transactionAdoptionsSource
-                  .tapAsyncF(1)(id => Logger[F].debug(show"Broadcasting transaction id=$id to peer"))
-                  .pure[F]
-              )
-            )
-            (p2pServer, p2pFiber) <- remotePeers.toAkkaSource.evalMap(remotePeersSource =>
-              BlockchainNetwork
-                .make[F](
-                  localPeer.localAddress.getHostName,
-                  localPeer.localAddress.getPort,
-                  localPeer,
-                  remotePeersSource,
-                  clientHandler,
-                  peerServer,
-                  peerFlowModifier
-                )
-            )
-            blockPacker <- Resource.eval(
-              BlockPacker.make[F](
-                mempool,
-                transactionStore.getOrRaise,
-                transactionStore.contains,
-                BlockPacker.makeBodyValidator(bodySyntaxValidation, bodySemanticValidation, bodyAuthorizationValidation)
-              )
-            )
-            mintedBlockStream =
-              staker.fold[Stream[F, Block]](Stream.never[F])(staker =>
-                // The BlockProducer needs a stream/Source of "parents" upon which it should build.  This stream is the
-                // concatenation of the current local head with the stream of local block adoptions
-                Stream
-                  .eval(localChain.head)
-                  .flatMap(currentHead =>
-                    Stream.resource(
-                      (
-                        Stream.eval(clock.delayedUntilSlot(currentHead.slotId.slot).as(currentHead))
-                        ++ blockAdoptionsTopic.subscribeDropOldest(1).evalMap(slotDataStore.getOrRaise)
-                      ).toAkkaSource
-                    )
-                  )
-                  .flatMap(adoptionsSource =>
-                    Stream
-                      .eval(
-                        BlockProducer
-                          .make[F](adoptionsSource, staker, clock, blockPacker)
-                          .flatMap(_.blocks)
-                      )
-                      .flatMap(_.asFS2Stream)
-                  )
-              )
-            rpcInterpreter <- Resource.eval(
-              ToplRpcServer.make(
-                headerStore,
-                bodyStore,
-                transactionStore,
-                mempool,
-                transactionSyntaxValidation,
-                localChain,
-                blockHeights,
-                blockIdTree,
-                blockAdoptionsTopic.subscribeDropOldest(10)
-              )
-            )
-            rpcServer <- ToplGrpc.Server.serve(rpcHost, rpcPort, rpcInterpreter)
-            mintedBlockStreamCompletionF =
-              mintedBlockStream
-                .evalMap(block =>
-                  blockIdTree.associate(block.header.id, block.header.parentHeaderId) >>
-                  headerStore.put(block.header.id, block.header) >>
-                  bodyStore.put(block.header.id, block.body) >>
-                  ed25519VrfResource
-                    .use(implicit e => block.header.slotData.pure[F])
-                    .flatTap(slotDataStore.put(block.header.id, _))
-                )
-                .map(Validated.Valid(_))
-                .evalTap(localChain.adopt)
-                .compile
-                .drain
-            _ <-
-              Resource.eval(
-                Logger[F].info(s"RPC Server bound at ${rpcServer.getListenSockets.asScala.toList.mkString(",")}")
-              )
-            _ <- Resource.eval(mintedBlockStreamCompletionF)
-            _ <- Resource.eval(p2pFiber.joinWithUnit)
-          } yield ()
-      }.use_
+        )
+      rpcInterpreter <- Resource.eval(
+        ToplRpcServer.make(
+          headerStore,
+          bodyStore,
+          transactionStore,
+          mempool,
+          transactionSyntaxValidation,
+          localChain,
+          blockHeights,
+          blockIdTree,
+          blockAdoptionsTopic.subscribeDropOldest(10)
+        )
+      )
+      rpcServer <- ToplGrpc.Server.serve(rpcHost, rpcPort, rpcInterpreter)
+      mintedBlockStreamCompletionF =
+        mintedBlockStream
+          .evalMap(block =>
+            blockIdTree.associate(block.header.id, block.header.parentHeaderId) >>
+            headerStore.put(block.header.id, block.header) >>
+            bodyStore.put(block.header.id, block.body) >>
+            ed25519VrfResource
+              .use(implicit e => block.header.slotData.pure[F])
+              .flatTap(slotDataStore.put(block.header.id, _))
+          )
+          .map(Validated.Valid(_))
+          .evalTap(localChain.adopt)
+          .compile
+          .drain
+      _ <-
+        Resource.eval(
+          Logger[F].info(s"RPC Server bound at ${rpcServer.getListenSockets.asScala.toList.mkString(",")}")
+        )
+      _ <- Resource.eval(mintedBlockStreamCompletionF)
+      _ <- Resource.eval(p2pFiber.joinWithUnit)
     } yield ()
   }
 

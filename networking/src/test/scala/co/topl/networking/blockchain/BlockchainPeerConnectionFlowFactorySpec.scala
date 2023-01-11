@@ -1,17 +1,15 @@
 package co.topl.networking.blockchain
 
-import akka.actor.ActorSystem
-import akka.stream.scaladsl.Source
-import akka.testkit.TestKit
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import cats.implicits._
-import co.topl.catsakka._
 import co.topl.models.TypedIdentifier
 import co.topl.networking.NetworkGen._
 import co.topl.networking.p2p.{ConnectedPeer, ConnectionLeader}
+import fs2._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 import org.typelevel.log4cats.Logger
@@ -20,8 +18,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scala.collection.immutable.SortedSet
 
 class BlockchainPeerConnectionFlowFactorySpec
-    extends TestKit(ActorSystem("BlockchainPeerConnectionFlowFactorySpec"))
-    with AnyFlatSpecLike
+    extends AnyFlatSpec
     with BeforeAndAfterAll
     with MockFactory
     with Matchers
@@ -42,12 +39,12 @@ class BlockchainPeerConnectionFlowFactorySpec
       (() => server.localBlockAdoptions)
         .expects()
         .once()
-        .returning(Source.never[TypedIdentifier].pure[F])
+        .returning(Stream.never[F].pure[F]: F[Stream[F, TypedIdentifier]])
 
       (() => server.localTransactionNotifications)
         .expects()
         .once()
-        .returning(Source.never[TypedIdentifier].pure[F])
+        .returning(Stream.never[F].pure[F]: F[Stream[F, TypedIdentifier]])
 
       val factory = BlockchainPeerConnectionFlowFactory.createFactory[F](server)
 

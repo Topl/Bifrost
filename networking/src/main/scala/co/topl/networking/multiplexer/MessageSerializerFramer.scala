@@ -13,7 +13,8 @@ object MessageSerializerFramer {
 
   def apply(): Flow[(Byte, ByteString), ByteString, NotUsed] =
     Flow[(Byte, ByteString)]
-      .map { case (typeByte, data) =>
-        ByteString(typeByte) ++ intToBytestring(data.length) ++ data
-      }
+      .map((function _).tupled)
+
+  def function(typeByte: Byte, data: ByteString): ByteString =
+    ByteString(typeByte) ++ intToBytestring(data.length) ++ data
 }
