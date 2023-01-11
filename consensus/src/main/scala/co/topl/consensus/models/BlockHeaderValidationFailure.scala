@@ -23,14 +23,17 @@ object BlockHeaderValidationFailures {
 
   case object EmptyEligibilityCertificate extends BlockHeaderValidationFailure
 
-  case class IneligibleCertificate(threshold: Ratio, eligibilityCertificate: co.topl.consensus.models.EligibilityCertificate)
-      extends BlockHeaderValidationFailure
+  case class IneligibleCertificate(
+    threshold:              Ratio,
+    eligibilityCertificate: co.topl.consensus.models.EligibilityCertificate
+  ) extends BlockHeaderValidationFailure
 
   case class InvalidEligibilityCertificateEta(claimedEta: Eta, actualEta: Eta) extends BlockHeaderValidationFailure
 
-  case class InvalidEligibilityCertificateProof(proof: Proofs.Knowledge.VrfEd25519) extends BlockHeaderValidationFailure
+  case class InvalidEligibilityCertificateProof(proof: co.topl.consensus.models.SignatureVrfEd25519)
+      extends BlockHeaderValidationFailure
 
-  case class InvalidEligibilityCertificateNonceProof(proof: Proofs.Knowledge.VrfEd25519)
+  case class InvalidEligibilityCertificateNonceProof(proof: co.topl.consensus.models.SignatureVrfEd25519)
       extends BlockHeaderValidationFailure
 
   case class InvalidOperationalParentSignature(operationalCertificate: co.topl.consensus.models.OperationalCertificate)
@@ -38,7 +41,8 @@ object BlockHeaderValidationFailures {
 
   case object EmptyOperationalCertificate extends BlockHeaderValidationFailure
 
-  case class InvalidBlockProof(operationalCertificate: co.topl.consensus.models.OperationalCertificate) extends BlockHeaderValidationFailure
+  case class InvalidBlockProof(operationalCertificate: co.topl.consensus.models.OperationalCertificate)
+      extends BlockHeaderValidationFailure
 
   case class Unregistered(address: StakingAddress) extends BlockHeaderValidationFailure
 

@@ -69,7 +69,7 @@ object Staking {
               )
             )
             val unsignedBlock = unsignedBlockBuilder(partialCertificate)
-            val operationalCertificate = OperationalCertificate(
+            OperationalCertificate(
               operationalKeyOut.parentVK,
               operationalKeyOut.parentSignature,
               partialCertificate.childVK,
@@ -88,8 +88,10 @@ object Staking {
               unsignedBlock.unsignedHeader.height,
               unsignedBlock.unsignedHeader.slot,
               None, // TODO we should replace eligibilityCertificate, from protoSpecs Some(unsignedBlock.unsignedHeader.eligibilityCertificate),
-              None,// TODO we should replace operationalCertificate, from protoSpecs,
-              com.google.protobuf.ByteString.copyFrom(unsignedBlock.unsignedHeader.metadata.map(_.data.bytes).getOrElse(Array.empty[Byte])), // TODO, ask, why metadate is mandatory now?
+              None, // TODO we should replace operationalCertificate, from protoSpecs,
+              com.google.protobuf.ByteString.copyFrom(
+                unsignedBlock.unsignedHeader.metadata.map(_.data.bytes).getOrElse(Array.empty[Byte])
+              ), // TODO, ask, why metadate is mandatory now?
               com.google.protobuf.ByteString.copyFrom(unsignedBlock.unsignedHeader.address.vk.bytes.data.toArray)
             )
             Block(

@@ -5,7 +5,7 @@ import cats.effect.Async
 import cats.effect.std.Random
 import cats.implicits._
 import co.topl.algebras.{SynchronizationTraversalStep, ToplRpc}
-import co.topl.models.{BlockBody, BlockHeader, Transaction, TypedIdentifier}
+import co.topl.models.{BlockBody, Transaction, TypedIdentifier}
 import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
 import fs2.Stream
 

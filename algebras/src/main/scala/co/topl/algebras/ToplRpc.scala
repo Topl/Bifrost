@@ -1,6 +1,6 @@
 package co.topl.algebras
 
-import co.topl.models.{BlockBody, BlockHeader, Transaction, TypedIdentifier}
+import co.topl.models.{BlockBody, Transaction, TypedIdentifier}
 import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
 
 /**

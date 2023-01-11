@@ -7,7 +7,7 @@ import co.topl.algebras.ToplRpc
 import co.topl.genusLibrary.algebras.BlockFetcherAlgebra
 import co.topl.genusLibrary.failure.{Failure, Failures}
 import co.topl.genusLibrary.model.{BlockData, HeightData}
-import co.topl.models.{BlockBody, BlockHeader, Transaction, TypedIdentifier}
+import co.topl.models.{BlockBody, Transaction, TypedIdentifier}
 import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
 import com.typesafe.scalalogging.LazyLogging
 

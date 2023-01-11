@@ -11,7 +11,6 @@ import co.topl.algebras.{ClockAlgebra, Store, UnsafeResource}
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.consensus.BlockHeaderOps
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LocalChainAlgebra}
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.grpc.ToplGrpc
@@ -31,7 +30,6 @@ import fs2.concurrent.Topic
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scala.jdk.CollectionConverters._
 import scala.util.Random
-import scodec.bits.ByteVector
 
 object Blockchain {
 

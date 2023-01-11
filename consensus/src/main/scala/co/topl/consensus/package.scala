@@ -29,7 +29,6 @@ package object consensus {
     import co.topl.codecs.bytes.tetra.TetraIdentifiableInstances._
     import co.topl.typeclasses.implicits._
 
-
     def slotData(implicit ed25519VRF: Ed25519VRF): SlotData =
       SlotData(
         SlotId(blockHeader.slot, blockHeader.id),

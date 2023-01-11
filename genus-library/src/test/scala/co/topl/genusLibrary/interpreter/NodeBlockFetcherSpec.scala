@@ -60,7 +60,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
 
         (toplRpc.fetchBlockHeader _)
           .expects(blockId)
-          .returning(Option.empty[BlockHeader].pure[F])
+          .returning(Option.empty[co.topl.consensus.models.BlockHeader].pure[F])
           .once()
 
         assertIO(
@@ -75,7 +75,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
   test(
     "On a block without a body, a Left of NoBlockBodyFoundOnNodeFailure should be returned"
   ) {
-    PropF.forAllF { (height: Long, blockId: TypedIdentifier, blockHeader: BlockHeader) =>
+    PropF.forAllF { (height: Long, blockId: TypedIdentifier, blockHeader: co.topl.consensus.models.BlockHeader) =>
       withMock {
 
         (toplRpc.blockIdAtHeight _)
@@ -110,7 +110,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
       (
         height:        Long,
         blockId:       TypedIdentifier,
-        blockHeader:   BlockHeader,
+        blockHeader:   co.topl.consensus.models.BlockHeader,
         transactionId: TypedIdentifier
       ) =>
         withMock {
@@ -154,7 +154,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
       (
         height:           Long,
         blockId:          TypedIdentifier,
-        blockHeader:      BlockHeader,
+        blockHeader:      co.topl.consensus.models.BlockHeader,
         transactionId_01: TypedIdentifier,
         transactionId_02: TypedIdentifier,
         transactionId_03: TypedIdentifier
@@ -216,7 +216,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
       (
         height:           Long,
         blockId:          TypedIdentifier,
-        blockHeader:      BlockHeader,
+        blockHeader:      co.topl.consensus.models.BlockHeader,
         transactionId_01: TypedIdentifier,
         transactionId_02: TypedIdentifier,
         transactionId_03: TypedIdentifier
@@ -275,7 +275,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
       (
         height:         Long,
         blockId:        TypedIdentifier,
-        blockHeader:    BlockHeader,
+        blockHeader:    co.topl.consensus.models.BlockHeader,
         transaction_01: Transaction,
         transaction_02: Transaction,
         transaction_03: Transaction

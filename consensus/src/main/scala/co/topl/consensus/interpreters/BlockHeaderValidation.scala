@@ -154,13 +154,7 @@ object BlockHeaderValidation {
                           _,
                           header,
                           BlockHeaderValidationFailures
-                            .InvalidEligibilityCertificateProof(
-                              Proofs.Knowledge.VrfEd25519(
-                                Sized.strictUnsafe[ByteVector, Proofs.Knowledge.VrfEd25519.Length](
-                                  ByteVector(eligibilityCertificate.getVrfSig.toByteArray)
-                                )
-                              )
-                            )
+                            .InvalidEligibilityCertificateProof(eligibilityCertificate.getVrfSig)
                         )
                       )
                   )

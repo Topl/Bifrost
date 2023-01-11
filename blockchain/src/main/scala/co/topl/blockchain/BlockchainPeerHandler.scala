@@ -225,8 +225,10 @@ object BlockchainPeerHandler {
               Logger[F].debug(show"Validating remote header id=$blockId")
             }
             .tapAsyncF(1) { case (blockId, header) =>
-              EitherT(headerStore.getOrRaise(TypedBytes.headerFromProtobufString(header.parentHeaderId))
-                .flatMap(headerValidation.validate(header, _))
+              EitherT(
+                headerStore
+                  .getOrRaise(TypedBytes.headerFromProtobufString(header.parentHeaderId))
+                  .flatMap(headerValidation.validate(header, _))
               )
                 .leftSemiflatTap(error => Logger[F].warn(show"Received invalid block header id=$blockId error=$error"))
                 .leftMap(error => new IllegalArgumentException(error.show))

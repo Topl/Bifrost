@@ -39,7 +39,7 @@ object NetworkTypeTags {
 
   // ASK Sean, how tags are being used? is reflection time givven a class name
   implicit val commonMessagesResponseConsunsesBlockHeaderNetworkTypeTag
-  : NetworkTypeTag[TypedProtocol.CommonMessages.Response[co.topl.consensus.models.BlockHeader]] =
+    : NetworkTypeTag[TypedProtocol.CommonMessages.Response[co.topl.consensus.models.BlockHeader]] =
     NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[BlockHeader]")
 
   implicit val commonMessagesResponseBlockBodyNetworkTypeTag

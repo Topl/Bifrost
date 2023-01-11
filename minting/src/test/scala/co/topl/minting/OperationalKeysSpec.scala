@@ -14,7 +14,7 @@ import co.topl.interpreters.CatsUnsafeResource
 import co.topl.minting.algebras.{OperationalKeysAlgebra, VrfProofAlgebra}
 import co.topl.models.ModelGenerators._
 import co.topl.models._
-import co.topl.models.utility.Ratio
+import co.topl.models.utility.{Ratio, ReplaceModelUtil}
 import com.google.common.primitives.Longs
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -22,7 +22,6 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.{EitherValues, OptionValues}
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import org.typelevel.log4cats.Logger
-
 import scala.collection.immutable.NumericRange
 import scala.util.Random
 
@@ -131,9 +130,9 @@ class OperationalKeysSpec
         out.parentVK shouldBe vk
         kesProduct
           .verify(
-            out.parentSignature,
+            ReplaceModelUtil.signatureKesProduct(out.parentSignature),
             ed25519.getVerificationKey(out.childSK.bytes.data) ++ Bytes(Longs.toByteArray(i)),
-            vk
+            ReplaceModelUtil.verificationKeyKesProduct(vk)
           )
       }
     }
@@ -237,9 +236,9 @@ class OperationalKeysSpec
         out.parentVK shouldBe vk.copy(step = 1)
         kesProduct
           .verify(
-            out.parentSignature,
+            ReplaceModelUtil.signatureKesProduct(out.parentSignature),
             ed25519.getVerificationKey(out.childSK.bytes.data) ++ Bytes(Longs.toByteArray(i)),
-            vk.copy(step = 1)
+            ReplaceModelUtil.verificationKeyKesProduct(vk.copy(step = 1))
           )
       }
     }

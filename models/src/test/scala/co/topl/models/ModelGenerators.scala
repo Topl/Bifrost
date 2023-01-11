@@ -211,6 +211,49 @@ trait ModelGenerators {
       address
     )
 
+  def headerConsensusGen(
+    parentHeaderIdGen: Gen[TypedIdentifier] =
+      genSizedStrictBytes[Lengths.`32`.type]().map(sized => TypedBytes(IdentifierTypes.Block.HeaderV2, sized.data)),
+    parentSlotGen:             Gen[Slot] = Gen.chooseNum(0L, 50L),
+    txRootGen:                 Gen[TxRoot] = genSizedStrictBytes[Lengths.`32`.type](),
+    bloomFilterGen:            Gen[BloomFilter] = genSizedStrictBytes[Lengths.`256`.type](),
+    timestampGen:              Gen[Timestamp] = Gen.chooseNum(0L, 50L),
+    heightGen:                 Gen[Long] = Gen.chooseNum(0L, 20L),
+    slotGen:                   Gen[Slot] = Gen.chooseNum(0L, 50L),
+    eligibilityCertificateGen: Gen[EligibilityCertificate] = eligibilityCertificateGen,
+    operationalCertificateGen: Gen[OperationalCertificate] = operationalCertificateGen,
+    metadataGen: Gen[Option[Sized.Max[Latin1Data, Lengths.`32`.type]]] =
+      Gen.option(latin1DataGen.map(Sized.maxUnsafe[Latin1Data, Lengths.`32`.type](_))),
+    addressGen: Gen[StakingAddresses.Operator] = operatorStakingAddressGen
+  ): Gen[co.topl.consensus.models.BlockHeader] =
+    for {
+      parentHeaderID <- parentHeaderIdGen
+      parentSlot     <- parentSlotGen
+      txRoot         <- txRootGen
+      bloomFilter    <- bloomFilterGen
+      timestamp      <- timestampGen
+      height         <- heightGen
+      slot           <- slotGen
+      vrfCertificate <- eligibilityCertificateGen
+      kesCertificate <- operationalCertificateGen
+      metadata       <- metadataGen
+      address        <- addressGen
+    } yield co.topl.consensus.models.BlockHeader(
+      com.google.protobuf.ByteString.copyFrom(parentHeaderID.dataBytes.toArray),
+      parentSlot,
+      com.google.protobuf.ByteString.copyFrom(txRoot.data.toArray),
+      com.google.protobuf.ByteString.copyFrom(bloomFilter.data.toArray),
+      timestamp,
+      height,
+      slot,
+      Some(ReplaceModelUtil.eligibilityCertificate(vrfCertificate)),
+      Some(ReplaceModelUtil.operationalCertificate(kesCertificate)),
+      metadata
+        .map(md => com.google.protobuf.ByteString.copyFrom(md.data.bytes))
+        .getOrElse(com.google.protobuf.ByteString.EMPTY),
+      com.google.protobuf.ByteString.copyFrom(address.vk.bytes.data.toArray)
+    )
+
   def headerGen(
     parentHeaderIdGen: Gen[TypedIdentifier] =
       genSizedStrictBytes[Lengths.`32`.type]().map(sized => TypedBytes(IdentifierTypes.Block.HeaderV2, sized.data)),
@@ -681,6 +724,9 @@ trait ModelGenerators {
   implicit val arbitraryHeader: Arbitrary[BlockHeader] =
     Arbitrary(headerGen())
 
+  implicit val arbitraryConsensusHeader: Arbitrary[co.topl.consensus.models.BlockHeader] =
+    Arbitrary(headerConsensusGen())
+
   implicit val arbitraryBody: Arbitrary[BlockBody] =
     Arbitrary(
       Gen
@@ -691,7 +737,7 @@ trait ModelGenerators {
   implicit val arbitraryBlock: Arbitrary[Block] =
     Arbitrary(
       for {
-        header <- arbitraryHeader.arbitrary
+        header <- arbitraryConsensusHeader.arbitrary
         body   <- arbitraryBody.arbitrary
       } yield Block(header, body)
     )

@@ -238,7 +238,7 @@ trait CommonBifrostMorphismInstances {
     )
 
   // TODO remove when this PR is merged : https://github.com/Topl/protobuf-specs/pull/21/files
-  def blockIdHeaderIsomorphism[F[_] : Monad]: Isomorphism[F, bifrostModels.TypedIdentifier, ByteString] =
+  def blockIdHeaderIsomorphism[F[_]: Monad]: Isomorphism[F, bifrostModels.TypedIdentifier, ByteString] =
     Isomorphism(
       _.map(v => ByteString.copyFrom(v.dataBytes.toArray).asRight[String]),
       _.map(v =>

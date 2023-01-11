@@ -10,7 +10,6 @@ import co.topl.typeclasses.implicits._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.models.{Box, IdentifierTypes, TypedBytes}
-import co.topl.typeclasses.ContainsEvidence.TypePrefixes
 import java.nio.charset.StandardCharsets
 import scodec.bits.ByteVector
 

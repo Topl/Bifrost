@@ -30,12 +30,12 @@ trait TetraIdentifiableInstances {
     (header: ConsensusBlockHeader) => {
       val bytes =
         ByteVector(header.parentHeaderId.toByteArray) ++
-          ByteVector(header.txRoot.toByteArray) ++
-          ByteVector(header.bloomFilter.toByteArray) ++ Bytes(
+        ByteVector(header.txRoot.toByteArray) ++
+        ByteVector(header.bloomFilter.toByteArray) ++ Bytes(
           BigInt(header.timestamp).toByteArray
         ) ++
-          Bytes(BigInt(header.height).toByteArray) ++
-          Bytes(BigInt(header.slot).toByteArray)
+        Bytes(BigInt(header.height).toByteArray) ++
+        Bytes(BigInt(header.slot).toByteArray)
 //      ++ TODO, : Ask Sean, should we create the representation of Inmutablebyte of all protobubspcsModels?
 //          header.eligibilityCertificate.immutableBytes ++
 //          header.operationalCertificate.immutableBytes ++

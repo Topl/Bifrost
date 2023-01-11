@@ -92,51 +92,7 @@ object Block {
   case class Full(header: BlockHeader, transactions: BlockBody.Full) {
 
     // intermediate model to switch protobuf-spsc models, remove after that, todo move more functions to ReplaceModelUtil
-    def consensusHeader = co.topl.consensus.models.BlockHeader(
-      parentHeaderId = com.google.protobuf.ByteString.copyFrom(header.parentHeaderId.dataBytes.toArray),
-      parentSlot = header.parentSlot,
-      txRoot = com.google.protobuf.ByteString.copyFrom(header.txRoot.data.toArray),
-      bloomFilter = com.google.protobuf.ByteString.copyFrom(header.bloomFilter.data.toArray),
-      timestamp = header.timestamp,
-      height = header.height,
-      slot = header.slot,
-      eligibilityCertificate = Some(
-        co.topl.consensus.models.EligibilityCertificate(
-          vrfSig = Some(
-            co.topl.consensus.models.SignatureVrfEd25519(
-              value =
-                com.google.protobuf.ByteString.copyFrom(this.header.eligibilityCertificate.vrfSig.bytes.data.toArray),
-              unknownFields = scalapb.UnknownFieldSet.empty
-            )
-          )
-        )
-      ),
-      operationalCertificate = Some(
-        co.topl.consensus.models.OperationalCertificate(
-          parentVK = Some(
-            co.topl.consensus.models.VerificationKeyKesProduct(
-              value = com.google.protobuf.ByteString.copyFrom(this.header.operationalCertificate.parentVK.bytes.data.toArray),
-              step = this.header.operationalCertificate.parentVK.step,
-              unknownFields = scalapb.UnknownFieldSet.empty
-            )
-          ),
-          parentSignature = Some(ReplaceModelUtil.signatureKesProduct(header.operationalCertificate.parentSignature)),
-          childVK = Some(co.topl.crypto.models.VerificationKeyEd25519(
-            value = com.google.protobuf.ByteString.copyFrom(header.operationalCertificate.childVK.bytes.data.toArray),
-            unknownFields = scalapb.UnknownFieldSet.empty
-          )),
-          childSignature = Some(co.topl.crypto.models.SignatureEd25519(
-            value = com.google.protobuf.ByteString.copyFrom(header.operationalCertificate.childSignature.bytes.data.toArray),
-            unknownFields = scalapb.UnknownFieldSet.empty
-          )),
-          unknownFields = scalapb.UnknownFieldSet.empty
-        )
-      ),
-      metadata = com.google.protobuf.ByteString.copyFrom(header.metadata.map(_.data.bytes).getOrElse(Array.empty)),
-      address = com.google.protobuf.ByteString.copyFrom(header.address.vk.bytes.data.toArray),
-      unknownFields = scalapb.UnknownFieldSet.empty
-    )
-    def toFullConsensus: FullConsensus = FullConsensus(consensusHeader, transactions)
+    def toFullConsensus: FullConsensus = FullConsensus(ReplaceModelUtil.consensusHeader(header), transactions)
   }
   case class FullConsensus(header: co.topl.consensus.models.BlockHeader, transactions: BlockBody.Full)
 }

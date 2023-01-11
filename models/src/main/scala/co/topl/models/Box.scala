@@ -1,7 +1,7 @@
 package co.topl.models
 
 import co.topl.models.utility.StringDataTypes.Latin1Data
-import co.topl.models.utility.{Lengths, Sized}
+import co.topl.models.utility.{Lengths, ReplaceModelUtil, Sized}
 
 case class Box(evidence: TypedEvidence, value: Box.Value)
 
@@ -47,56 +47,13 @@ object Box {
       case class Operator(vrfCommitment: Proofs.Knowledge.KesProduct) extends Registration {
 
         /**
-         * TODO remove this conversion, when the old model is raplaces
+         * TODO remove this conversion, when the old model is raplaced
          * @return
          */
-        def toConsensusModel: OperatorNewModel =
-          OperatorNewModel(
-            co.topl.consensus.models.SignatureKesProduct(
-              superSignature = Option(
-                co.topl.consensus.models.SignatureKesSum(
-                  verificationKey = Some(
-                    co.topl.crypto.models.VerificationKeyEd25519(
-                      com.google.protobuf.ByteString
-                        .copyFrom(this.vrfCommitment.superSignature.verificationKey.bytes.data.toArray)
-                    )
-                  ),
-                  signature = Some(
-                    co.topl.crypto.models.SignatureEd25519(
-                      com.google.protobuf.ByteString
-                        .copyFrom(this.vrfCommitment.superSignature.signature.bytes.data.toArray)
-                    )
-                  ),
-                  witness = this.vrfCommitment.superSignature.witness.map(w =>
-                    com.google.protobuf.ByteString.copyFrom(w.data.toArray)
-                  ),
-                  unknownFields = scalapb.UnknownFieldSet.empty
-                )
-              ),
-              subSignature = Option(
-                co.topl.consensus.models.SignatureKesSum(
-                  verificationKey = Some(
-                    co.topl.crypto.models.VerificationKeyEd25519(
-                      com.google.protobuf.ByteString
-                        .copyFrom(this.vrfCommitment.subSignature.verificationKey.bytes.data.toArray)
-                    )
-                  ),
-                  signature = Some(
-                    co.topl.crypto.models.SignatureEd25519(
-                      com.google.protobuf.ByteString
-                        .copyFrom(this.vrfCommitment.subSignature.signature.bytes.data.toArray)
-                    )
-                  ),
-                  witness = this.vrfCommitment.subSignature.witness.map(w =>
-                    com.google.protobuf.ByteString.copyFrom(w.data.toArray)
-                  ),
-                  unknownFields = scalapb.UnknownFieldSet.empty
-                )
-              ),
-              subRoot = com.google.protobuf.ByteString.copyFrom(this.vrfCommitment.subRoot.data.toArray),
-              unknownFields = scalapb.UnknownFieldSet.empty
-            )
-          )
+        def toConsensusModel: OperatorNewModel = OperatorNewModel(
+          ReplaceModelUtil.signatureKesProduct(vrfCommitment)
+        )
+
       }
       case class OperatorNewModel(vrfCommitment: co.topl.consensus.models.SignatureKesProduct) extends Registration
 
