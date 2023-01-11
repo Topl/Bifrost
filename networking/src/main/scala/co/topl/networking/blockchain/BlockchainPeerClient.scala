@@ -10,6 +10,7 @@ import co.topl.models._
 import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
 import co.topl.models.utility.Ratio
 import co.topl.networking.p2p.ConnectedPeer
+import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 

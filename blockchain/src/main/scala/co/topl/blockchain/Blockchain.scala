@@ -12,7 +12,7 @@ import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.BlockHeaderOps
-import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, BlockHeaderValidationAlgebra, LocalChainAlgebra}
+import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LocalChainAlgebra}
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.grpc.ToplGrpc
 import co.topl.ledger.algebras._
@@ -24,6 +24,7 @@ import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, LocalPeer}
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import BlockchainPeerHandler.monoidBlockchainPeerHandler
+import co.topl.blockchain.algebras.BlockHeaderToBodyValidationAlgebra
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.{BlockPacker, BlockProducer}
 import fs2.concurrent.Topic
@@ -46,7 +47,7 @@ object Blockchain {
     transactionStore:            Store[F, TypedIdentifier, Transaction],
     _localChain:                 LocalChainAlgebra[F],
     blockIdTree:                 ParentChildTree[F, TypedIdentifier],
-    blockHeights:                EventSourcedState[F, Long => F[Option[TypedIdentifier]]],
+    blockHeights:                EventSourcedState[F, Long => F[Option[TypedIdentifier]], TypedIdentifier],
     headerValidation:            BlockHeaderValidationAlgebra[F],
     blockHeaderToBodyValidation: BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxValidationAlgebra[F],

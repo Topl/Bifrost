@@ -43,7 +43,7 @@ object ToplRpcServer {
     mempool:                   MempoolAlgebra[F],
     syntacticValidation:       TransactionSyntaxValidationAlgebra[F],
     localChain:                LocalChainAlgebra[F],
-    blockHeights:              EventSourcedState[F, Long => F[Option[TypedIdentifier]]],
+    blockHeights:              EventSourcedState[F, Long => F[Option[TypedIdentifier]], TypedIdentifier],
     blockIdTree:               ParentChildTree[F, TypedIdentifier],
     localBlockAdoptionsStream: Stream[F, TypedIdentifier]
   ): F[ToplRpc[F, Stream[F, *]]] =

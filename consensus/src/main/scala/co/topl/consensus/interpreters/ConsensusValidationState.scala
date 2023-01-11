@@ -17,10 +17,14 @@ object ConsensusValidationState {
    * EventSourcecdState.  Requests for blocks at the tip of the chain will return data from 2 epochs before that block.
    */
   def make[F[_]: MonadThrow](
-    genesisBlockId:                 TypedIdentifier,
-    epochBoundaryEventSourcedState: EventSourcedState[F, EpochBoundariesEventSourcedState.EpochBoundaries[F]],
-    consensusDataEventSourcedState: EventSourcedState[F, ConsensusDataEventSourcedState.ConsensusData[F]],
-    clock:                          ClockAlgebra[F]
+    genesisBlockId: TypedIdentifier,
+    epochBoundaryEventSourcedState: EventSourcedState[F, EpochBoundariesEventSourcedState.EpochBoundaries[
+      F
+    ], TypedIdentifier],
+    consensusDataEventSourcedState: EventSourcedState[F, ConsensusDataEventSourcedState.ConsensusData[
+      F
+    ], TypedIdentifier],
+    clock: ClockAlgebra[F]
   ): F[ConsensusValidationStateAlgebra[F]] =
     Applicative[F].pure {
       new ConsensusValidationStateAlgebra[F] {

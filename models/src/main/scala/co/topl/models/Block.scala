@@ -91,7 +91,7 @@ object Block {
   // TODO remove it after switch protobuf-spsc models
   case class Full(header: BlockHeader, transactions: BlockBody.Full) {
 
-    // intermediate model to switch protobuf-spsc models, remove after that
+    // intermediate model to switch protobuf-spsc models, remove after that, todo move more functions to ReplaceModelUtil
     def consensusHeader = co.topl.consensus.models.BlockHeader(
       parentHeaderId = com.google.protobuf.ByteString.copyFrom(header.parentHeaderId.dataBytes.toArray),
       parentSlot = header.parentSlot,

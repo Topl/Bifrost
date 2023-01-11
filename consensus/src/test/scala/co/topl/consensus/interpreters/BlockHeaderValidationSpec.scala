@@ -6,9 +6,9 @@ import cats.implicits._
 import co.topl.algebras.{ClockAlgebra, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.consensus.BlockHeaderValidationFailures
 import co.topl.consensus.algebras._
 import co.topl.consensus.interpreters.LeaderElectionValidation.VrfConfig
+import co.topl.consensus.models.BlockHeaderValidationFailures
 import co.topl.crypto.signing._
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.hash.{blake2b256, Blake2b256, Blake2b512}
@@ -18,7 +18,7 @@ import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.{Lengths, Ratio, Sized}
-import co.topl.numerics.{ExpInterpreter, Log1pInterpreter}
+import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
 import org.scalacheck.Gen
@@ -66,9 +66,9 @@ class BlockHeaderValidationSpec
   private val log1pCached = Log1pInterpreter.makeCached[F](log1pInterpreter).unsafeRunSync()
 
   private val leaderElectionInterpreter =
-    LeaderElectionValidation.Eval
+    LeaderElectionValidation
       .makeCached[F](
-        LeaderElectionValidation.Eval.make[F](
+        LeaderElectionValidation.make[F](
           VrfConfig(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5)),
           new UnsafeResource[F, Blake2b512] {
             def use[Res](f: Blake2b512 => F[Res]): F[Res] = f(blake2b512)
@@ -111,7 +111,7 @@ class BlockHeaderValidationSpec
       val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
 
       val underTest =
-        BlockHeaderValidation.Eval
+        BlockHeaderValidation
           .make[F](
             etaInterpreter,
             consensusValidationState,
@@ -139,7 +139,7 @@ class BlockHeaderValidationSpec
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
       val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
       val underTest =
-        BlockHeaderValidation.Eval
+        BlockHeaderValidation
           .make[F](
             etaInterpreter,
             consensusValidationState,
@@ -168,7 +168,7 @@ class BlockHeaderValidationSpec
         val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
         val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
         val underTest =
-          BlockHeaderValidation.Eval
+          BlockHeaderValidation
             .make[F](
               etaInterpreter,
               consensusValidationState,
@@ -219,7 +219,7 @@ class BlockHeaderValidationSpec
         .returning(1L.pure[F])
 
       val underTest =
-        BlockHeaderValidation.Eval
+        BlockHeaderValidation
           .make[F](
             etaInterpreter,
             consensusValidationState,
@@ -278,7 +278,7 @@ class BlockHeaderValidationSpec
         .returning(forwardWindowBias.pure[F])
 
       val underTest =
-        BlockHeaderValidation.Eval
+        BlockHeaderValidation
           .make[F](
             etaInterpreter,
             consensusValidationState,
@@ -324,7 +324,7 @@ class BlockHeaderValidationSpec
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
       val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
       val underTest =
-        BlockHeaderValidation.Eval
+        BlockHeaderValidation
           .make[F](
             etaInterpreter,
             consensusValidationState,
@@ -374,7 +374,7 @@ class BlockHeaderValidationSpec
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
       val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
       val underTest =
-        BlockHeaderValidation.Eval
+        BlockHeaderValidation
           .make[F](
             etaInterpreter,
             consensusValidationState,
@@ -442,7 +442,7 @@ class BlockHeaderValidationSpec
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
       val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
       val underTest =
-        BlockHeaderValidation.Eval
+        BlockHeaderValidation
           .make[F](
             etaInterpreter,
             consensusValidationState,
@@ -515,7 +515,7 @@ class BlockHeaderValidationSpec
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
       val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
       val underTest =
-        BlockHeaderValidation.Eval
+        BlockHeaderValidation
           .make[F](
             etaInterpreter,
             consensusValidationState,
@@ -594,7 +594,7 @@ class BlockHeaderValidationSpec
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
       val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
       val underTest =
-        BlockHeaderValidation.Eval
+        BlockHeaderValidation
           .make[F](
             etaInterpreter,
             consensusValidationState,
