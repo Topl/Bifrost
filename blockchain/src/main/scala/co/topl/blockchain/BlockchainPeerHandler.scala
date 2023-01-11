@@ -393,7 +393,7 @@ object BlockchainPeerHandler {
     implicit private val showTransactionSemanticError: Show[TransactionSemanticError] =
       Show.fromToString
 
-    def make[F[_]: Async: FToFuture: RunnableGraphToF: Logger](
+    def make[F[_]: Async: RunnableGraphToF: Logger](
       transactionSyntaxValidation: TransactionSyntaxValidationAlgebra[F],
       transactionStore:            Store[F, TypedIdentifier, Transaction],
       mempool:                     MempoolAlgebra[F]
@@ -402,46 +402,42 @@ object BlockchainPeerHandler {
         client.remoteTransactionNotifications
           .flatMap(_.withCancel[F])
           .flatMap(source =>
-            Async[F].fromFuture(
-              source
-                .tapAsyncF(1)(id => Logger[F].debug(show"Received transaction notification from remote peer id=$id"))
-                .mapAsyncF(1)(id => transactionStore.contains(id).tupleLeft(id))
-                .tapAsyncF(1) {
-                  case (id, true) =>
-                    Logger[F].debug(show"Ignoring already known remote transaction id=$id")
-                  case (id, false) =>
-                    Logger[F].info(show"Fetching remote transaction id=$id")
-                }
-                .collect { case (id, false) => id }
-                .mapAsyncF(1)(id => OptionT(client.getRemoteTransaction(id)).getOrNoSuchElement(id.show))
-                .mapAsyncF(1)(transaction =>
-                  EitherT(transactionSyntaxValidation.validate(transaction).map(_.toEither))
-                    .semiflatTap(transaction =>
-                      Logger[F].debug(show"Transaction id=${transaction.id.asTypedBytes} is syntactically valid")
-                    )
-                    .leftSemiflatMap(errors =>
-                      Logger[F].warn(
-                        show"Received syntactically invalid transaction id=${transaction.id.asTypedBytes} errors=$errors"
-                      )
-                    )
-                    .value
-                )
-                .collect { case Right(transaction) => transaction }
-                .tapAsyncF(1)(transaction =>
-                  Logger[F]
-                    .debug(show"Inserting transaction id=${transaction.id.asTypedBytes} into Store")
-                )
-                .tapAsyncF(1)(transaction => transactionStore.put(transaction.id, transaction))
-                .tapAsyncF(1)(transaction =>
-                  Logger[F]
-                    .info(
-                      show"Inserting transaction id=${transaction.id.asTypedBytes} into Mempool"
-                    )
-                )
-                .tapAsyncF(1)(transaction => mempool.add(transaction.id))
-                .toMat(Sink.ignore)(Keep.right)
-                .liftTo[F]
-            )
+            source.asFS2Stream
+              .evalMap(id =>
+                for {
+                  _             <- Logger[F].debug(show"Received transaction notification from remote peer id=$id")
+                  alreadyExists <- transactionStore.contains(id)
+                  _ <-
+                    if (alreadyExists)
+                      Logger[F].debug(show"Ignoring already known remote transaction id=$id")
+                    else {
+                      for {
+                        _           <- Logger[F].info(show"Fetching remote transaction id=$id")
+                        transaction <- OptionT(client.getRemoteTransaction(id)).getOrNoSuchElement(id.show)
+                        _ <- MonadThrow[F].raiseWhen(transaction.id.asTypedBytes =!= id)(
+                          new IllegalArgumentException(
+                            s"Remote peer provided transaction that did not match its claimed ID"
+                          )
+                        )
+                        _ <- EitherT(transactionSyntaxValidation.validate(transaction).map(_.toEither))
+                          .leftSemiflatMap(errors =>
+                            Logger[F].warn(
+                              show"Received syntactically invalid transaction id=$id errors=$errors"
+                            )
+                          )
+                          .leftMap(errors => new IllegalArgumentException(errors.show))
+                          .rethrowT
+                        _ <- Logger[F].debug(show"Transaction id=$id is syntactically valid")
+                        _ <- Logger[F].debug(show"Inserting transaction id=$id into Store")
+                        _ <- transactionStore.put(id, transaction)
+                        _ <- Logger[F].info(show"Inserting transaction id=$id into Mempool")
+                        _ <- mempool.add(id)
+                      } yield ()
+                    }
+                } yield ()
+              )
+              .compile
+              .drain
           )
           .void
   }
