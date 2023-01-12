@@ -6,10 +6,12 @@ import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.models.ModelGenerators._
 import co.topl.models.TypedIdentifier
 import co.topl.typeclasses.implicits._
+import fs2._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
-import fs2._
+
+import scala.concurrent.duration._
 
 class MempoolBroadcasterSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
@@ -21,13 +23,14 @@ class MempoolBroadcasterSpec extends CatsEffectSuite with ScalaCheckEffectSuite 
         for {
           delegate <- mock[MempoolAlgebra[F]].pure[F]
           _ = (delegate.add _).expects(transactionId).once().returning(IO.unit)
-          (underTest, txsAdoptionsTopic) <- MempoolBroadcaster.make(delegate)
-          i <- txsAdoptionsTopic.subscribeUnbounded
-            .concurrently(Stream.eval(underTest.add(transactionId)))
-            .head
-            .compile
-            .lastOrError
-          _ = IO(i === transactionId).assert
+          id <- MempoolBroadcaster
+            .make(delegate)
+            .flatMap { case (underTest, adoptionsTopic) =>
+              adoptionsTopic.subscribeAwaitUnbounded
+                .map(_.concurrently(Stream.eval(underTest.add(transactionId))))
+            }
+            .use(_.head.interruptAfter(3.seconds).compile.lastOrError)
+          _ = IO(id === transactionId).assert
         } yield ()
       }
     }

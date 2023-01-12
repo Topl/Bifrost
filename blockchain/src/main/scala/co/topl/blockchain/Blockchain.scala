@@ -65,8 +65,8 @@ object Blockchain {
   )(implicit system: ActorSystem[_], random: Random): Resource[F, Unit] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromClass[F](Blockchain.getClass)
     for {
-      (localChain, blockAdoptionsTopic)    <- Resource.eval(LocalChainBroadcaster.make(_localChain))
-      (mempool, transactionAdoptionsTopic) <- Resource.eval(MempoolBroadcaster.make(_mempool))
+      (localChain, blockAdoptionsTopic)    <- LocalChainBroadcaster.make(_localChain)
+      (mempool, transactionAdoptionsTopic) <- MempoolBroadcaster.make(_mempool)
       clientHandler <- Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
         List(
           BlockchainPeerHandler.ChainSynchronizer.make[F](

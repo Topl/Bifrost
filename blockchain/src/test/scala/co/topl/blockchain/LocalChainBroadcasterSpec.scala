@@ -2,7 +2,6 @@ package co.topl.blockchain
 
 import cats.data.Validated
 import cats.effect.IO
-import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.models.ModelGenerators._
@@ -24,19 +23,14 @@ class LocalChainBroadcasterSpec extends CatsEffectSuite with ScalaCheckEffectSui
       withMock {
         for {
           delegate <- mock[LocalChainAlgebra[F]].pure[F]
-          _ = (delegate.adopt _).expects(*).once().returning(IO.unit)
-          (underTest, adoptionsTopic) <- LocalChainBroadcaster.make(delegate)
-          id <- adoptionsTopic.subscribeUnbounded
-            .concurrently(
-              Stream.eval(
-                underTest.adopt(Validated.Valid(slotData)) >> Sync[F].delay(
-                  adoptionsTopic.close.unsafeRunAndForget()
-                )
-              )
-            )
-            .timeout(3.seconds)
-            .compile
-            .lastOrError
+          _ = (delegate.adopt _).expects(Validated.Valid(slotData)).once().returning(IO.unit)
+          id <- LocalChainBroadcaster
+            .make(delegate)
+            .flatMap { case (underTest, adoptionsTopic) =>
+              adoptionsTopic.subscribeAwaitUnbounded
+                .map(_.concurrently(Stream.eval(underTest.adopt(Validated.Valid(slotData)))))
+            }
+            .use(_.head.interruptAfter(3.seconds).compile.lastOrError)
           _ = IO(id === slotData.slotId.blockId).assert
         } yield ()
       }

@@ -1,7 +1,7 @@
 package co.topl.catsakka
 
 import akka.NotUsed
-import akka.stream.scaladsl.{BroadcastHub, Keep, Source}
+import akka.stream.scaladsl.Source
 import cats.effect.Async
 import cats.effect.kernel.Resource
 import cats.effect.std.Queue

@@ -1,6 +1,7 @@
 package co.topl.blockchain
 
 import cats.data.{EitherT, Validated}
+import cats.effect.Resource
 import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.consensus.algebras.LocalChainAlgebra
@@ -15,8 +16,11 @@ object LocalChainBroadcaster {
    * @param localChain a delegate interpreter
    * @return a tuple (interpreter, adoptionsSource)
    */
-  def make[F[_]: Async](localChain: LocalChainAlgebra[F]): F[(LocalChainAlgebra[F], Topic[F, TypedIdentifier])] =
-    Topic[F, TypedIdentifier]
+  def make[F[_]: Async](
+    localChain: LocalChainAlgebra[F]
+  ): Resource[F, (LocalChainAlgebra[F], Topic[F, TypedIdentifier])] =
+    Resource
+      .make(Topic[F, TypedIdentifier])(_.close.void)
       .map { topic =>
         val interpreter = new LocalChainAlgebra[F] {
           def isWorseThan(newHead: SlotData): F[Boolean] = localChain.isWorseThan(newHead)

@@ -137,7 +137,7 @@ object TypedProtocolSetFactory {
               }
             prefix -> ByteString(byteVector.toArray)
           }
-          .map((MessageSerializerFramer.function _).tupled)
+          .map(MessageSerializerFramer.functionTupled)
 
     }
   }
