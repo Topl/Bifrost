@@ -5,10 +5,10 @@ import akka.stream.scaladsl.{Flow, Sink}
 import akka.util.ByteString
 import cats.data.{EitherT, NonEmptyChain, OptionT}
 import cats.effect.kernel.Sync
-import cats.effect.std.Queue
+import cats.effect.std.{Queue, Semaphore}
 import cats.effect.{Async, Deferred, Resource}
 import cats.implicits._
-import cats.{MonadThrow, Show}
+import cats.{Applicative, MonadThrow, Show}
 import co.topl.catsakka._
 import co.topl.codecs.bytes.typeclasses.Transmittable
 import co.topl.networking.blockchain.NetworkTypeTags._
@@ -20,6 +20,9 @@ import co.topl.networking.typedprotocols._
 import fs2._
 import org.typelevel.log4cats.Logger
 import scodec.bits.ByteVector
+
+import scala.concurrent.duration._
+import java.util.concurrent.TimeoutException
 
 /**
  * Helper for transforming a collection of Typed Sub Handlers into a multiplexed akka stream Flow
@@ -205,13 +208,12 @@ object TypedProtocolSetFactory {
             sessionId,
             instance = protocolInstance,
             initialState = TypedProtocol.CommonStates.None,
-            outboundMessages = notifications
-              .dropOldest(1)
-              .zip(Stream.repeatEval(clientSignalPromise.get))
-              .map(_._1)
-              .evalTap(data => Logger[F].debug(show"Notifying peer of data=$data"))
-              .map(TypedProtocol.CommonMessages.Push(_))
-              .map(OutboundMessage(_)),
+            outboundMessages = Stream.eval(clientSignalPromise.get) >>
+              notifications
+                .dropOldest(64)
+                .evalTap(data => Logger[F].debug(show"Notifying peer of data=$data"))
+                .map(TypedProtocol.CommonMessages.Push(_))
+                .map(OutboundMessage(_)),
             codec = multiplexerCodec
           )
       )
@@ -222,19 +224,19 @@ object TypedProtocolSetFactory {
       tPushTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Push[T]]
     ): F[(Byte => TypedSubHandler[F, CommonStates.None.type], Stream[F, T])] =
       for {
-        demandSignal <- Deferred[F, Unit]
-        queue        <- Queue.circularBuffer[F, T](8)
+        startSignal <- Deferred[F, OutboundMessage]
+        queue       <- Queue.circularBuffer[F, T](64)
         stream =
           // A Notification Client must send a `Start` message to the server before it will start
           // pushing notifications. We can signal this message to the server once the returned Source here requests
           // data for the first time
-          Stream.eval(demandSignal.complete(())) >>
+          Stream.eval(startSignal.complete(OutboundMessage(TypedProtocol.CommonMessages.Start))) >>
           Stream
             .fromQueueUnterminated(queue)
             .evalTap(data => Logger[F].debug(show"Remote peer sent notification data=$data"))
         instance <- Sync[F].delay {
           val transitions =
-            new protocol.StateTransitionsClient[F](update => queue.offer(update))
+            new protocol.StateTransitionsClient[F](queue.offer)
           import transitions._
           TypedProtocolInstance(Parties.B)
             .withTransition(startNoneBusy)
@@ -251,8 +253,7 @@ object TypedProtocolSetFactory {
             sessionId,
             instance,
             TypedProtocol.CommonStates.None,
-            Stream.eval(demandSignal.get.as(OutboundMessage(TypedProtocol.CommonMessages.Start))) ++
-            Stream.never[F],
+            Stream.eval(startSignal.get) ++ Stream.never[F],
             multiplexerCodec
           )
       } yield (subHandler, stream)
@@ -267,7 +268,18 @@ object TypedProtocolSetFactory {
       for {
         queue <- Queue.bounded[F, Option[T]](1)
         stream = Stream.fromQueueUnterminated(queue)
-        transitions = new protocol.ServerStateTransitions[F](fetch(_).flatMap(queue.offer))
+        transitions = new protocol.ServerStateTransitions[F](
+          fetch(_)
+            .flatMap(queue.tryOffer)
+            .flatMap(wasAccepted =>
+              Applicative[F].whenA(!wasAccepted)(
+                MonadThrow[F]
+                  .raiseError(
+                    new IllegalStateException("Remote peer has not accepted previous RequestResponse offer yet")
+                  )
+              )
+            )
+        )
         instance = {
           import transitions._
           TypedProtocolInstance(Parties.A)
@@ -299,8 +311,9 @@ object TypedProtocolSetFactory {
       tResponseTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Response[T]]
     ): F[(Byte => TypedSubHandler[F, CommonStates.None.type], Query => F[Option[T]])] =
       for {
-        responsePromisesQueue  <- Sync[F].defer(Queue.bounded[F, Deferred[F, Option[T]]](2))
+        responsePromisesQueue  <- Sync[F].defer(Queue.bounded[F, Deferred[F, Option[T]]](1))
         serverSentStartPromise <- Deferred[F, Unit]
+        requestPermit          <- Semaphore[F](1).map(_.permit)
         transitions =
           new protocol.ClientStateTransitions[F](
             r =>
@@ -322,13 +335,22 @@ object TypedProtocolSetFactory {
         queue <- Queue.bounded[F, OutboundMessage](1)
         stream = Stream.fromQueueUnterminated(queue)
         clientCallback = (query: Query) =>
-          Deferred[F, Option[T]]
-            .flatMap(deferred =>
-              responsePromisesQueue
-                .offer(deferred)
-                .flatTap(_ => queue.offer(OutboundMessage(TypedProtocol.CommonMessages.Get(query))))
-                .productR(deferred.get)
-            )
+          requestPermit.use(_ =>
+            for {
+              deferred <- Deferred[F, Option[T]]
+              _        <- responsePromisesQueue.offer(deferred)
+              _        <- queue.offer(OutboundMessage(TypedProtocol.CommonMessages.Get(query)))
+              result <- EitherT(
+                Async[F].race(
+                  Async[F].delayBy(
+                    Async[F].delay(new TimeoutException(s"RequestResponse failed for query=$query")),
+                    5.seconds
+                  ),
+                  deferred.get
+                )
+              ).rethrowT
+            } yield result
+          )
         multiplexerCodec = MultiplexerCodecBuilder()
           .withCodec[TypedProtocol.CommonMessages.Start.type](1: Byte)
           .withCodec[TypedProtocol.CommonMessages.Done.type](2: Byte)
@@ -378,10 +400,12 @@ case class TypedSubHandler[F[_], InitialState: NetworkTypeTag](
 }
 
 case class TypedProtocolTransitionFailureException(message: Any, reason: TypedProtocolTransitionFailure)
-    extends Exception {
+    extends Exception(s"TypedProtocolTransitionFailureException(message=$message, reason=$reason)") {
 
   override def toString: String =
     s"TypedProtocolTransitionFailureException(message=$message, reason=$reason)"
+
+  override def getMessage: String = toString
 }
 
 /**

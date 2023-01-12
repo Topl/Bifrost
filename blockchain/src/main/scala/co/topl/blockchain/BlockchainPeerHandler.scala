@@ -1,6 +1,5 @@
 package co.topl.blockchain
 
-import akka.stream.Materializer
 import cats.data._
 import cats.effect.Async
 import cats.effect.kernel.Sync
@@ -383,7 +382,7 @@ object BlockchainPeerHandler {
       transactionSyntaxValidation: TransactionSyntaxValidationAlgebra[F],
       transactionStore:            Store[F, TypedIdentifier, Transaction],
       mempool:                     MempoolAlgebra[F]
-    )(implicit materializer:       Materializer): BlockchainPeerHandlerAlgebra[F] =
+    ): BlockchainPeerHandlerAlgebra[F] =
       (client: BlockchainPeerClient[F]) =>
         createPeerLogger[F](client)("P2P.MempoolSync").flatMap(implicit logger =>
           client.remoteTransactionNotifications
