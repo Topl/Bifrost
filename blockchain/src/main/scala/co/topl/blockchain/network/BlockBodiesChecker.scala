@@ -9,6 +9,8 @@ import co.topl.blockchain.network.PeersManager.PeersManagerActor
 import co.topl.blockchain.network.ReputationAggregator.ReputationAggregatorActor
 import co.topl.models.{Bytes, TypedIdentifier}
 
+import scala.reflect.ClassTag
+
 object BlockBodiesChecker {
   sealed trait Message
 
@@ -40,15 +42,15 @@ object BlockBodiesChecker {
   implicit val orderTypedIdentifier: Order[TypedIdentifier] =
     Order.by[TypedIdentifier, Bytes](_.allBytes)(Order.from[Bytes]((a, b) => a.compare(b)))
 
-  def getFsm[F[_]: Concurrent]: Fsm[F, State[F], Message, Response[F]] = Fsm {
+  def getFsm[F[_]: Concurrent](implicit ct: ClassTag[F[_]]): Fsm[F, State[F], Message, Response[F]] = Fsm {
     case (state, Message.BestHeaders(validHeadersProposal)) => acceptNewHeadersProposal(state, validHeadersProposal)
     case (state, Message.DownloadedBlocks(blocks))          => downloadedBlocks(state, blocks)
-    case (state, Message.SetPeerManager(peerManager))       => setPeerManager(state, peerManager)
+    case (state, peerManager: Message.SetPeerManager[F])    => setPeerManager(state, peerManager.peerManagerActor)
   }
 
   def makeActor[F[_]: Concurrent](
     reputationAggregatorActor: ReputationAggregatorActor[F]
-  ): Resource[F, BlockBodiesCheckerActor[F]] = {
+  )(implicit ct:               ClassTag[F[_]]): Resource[F, BlockBodiesCheckerActor[F]] = {
     val initialState = State[F](
       None,
       reputationAggregatorActor,
@@ -69,7 +71,10 @@ object BlockBodiesChecker {
     val newQuickAccessBlocks = blockToDownload
       .map { blocks =>
         val newQuickAccessBlocks: Map[TypedIdentifier, Either[BlockGettingError, NotVerifiedBlock]] =
-          quickAccessBlocks ++ blocks.map(id => id -> Left("New Block"))
+          quickAccessBlocks ++ blocks
+            .map(id => id -> Left[BlockGettingError, NotVerifiedBlock](BlockGettingError(id, "New Block")))
+            .toChain
+            .toList
         state.peersManager.foreach(_.sendNoWait(PeersManager.Message.BlockDownloadRequest(proposal.source, blocks)))
         newQuickAccessBlocks
       }
@@ -90,7 +95,7 @@ object BlockBodiesChecker {
     val quickAccessBlocks: Map[TypedIdentifier, ErrorOrBlock] =
       state.quickAccessBlocks ++
       downloadedBlocks.map(pb => pb.id -> Right(pb)).toList ++
-      failedBlocks.map(pb => pb.id -> Left(pb))
+      failedBlocks.map(pb => pb.id -> Left(pb)).toList
 
     val fullyDownloadedChains =
       state.headerChainCandidates.filter(candidate => candidate.headers.forall(quickAccessBlocks.contains))

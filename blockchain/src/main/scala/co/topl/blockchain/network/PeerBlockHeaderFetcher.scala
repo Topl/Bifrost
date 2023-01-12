@@ -20,7 +20,7 @@ object PeerBlockHeaderFetcher {
   type Response[F[_]] = State[F]
   type PeerBlockHeaderFetcherActor[F[_]] = Actor[F, Message, Response[F]]
 
-  def getFsm[F[_]: Concurrent]: Fsm[F, State[F], Message, Response[F]] = {
+  def getFsm[F[_]: Concurrent]: Fsm[F, State[F], Message, Response[F]] = Fsm {
     case (state, Message.StartActor) => startActor(state)
     case (state, Message.StopActor)  => stopActor(state)
   }

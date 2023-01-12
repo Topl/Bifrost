@@ -27,7 +27,7 @@ object PeersManager {
   case class State[F[_]](
     networkAlgebra:       NetworkAlgebra[F],
     reputationAggregator: ReputationAggregatorActor[F],
-    peers:                Map[HostId, PeerActor[F]],
+    peers:                Map[HostId, (PeerActor[F], F[Unit])],
     blockHeadersChecker:  BlockHeadersCheckerActor[F],
     blockBodiesChecker:   BlockBodiesCheckerActor[F]
   )
@@ -51,7 +51,7 @@ object PeersManager {
       PeersManager.State(
         networkAlgebra,
         reputationAggregatorActor,
-        Map.empty[HostId, PeerActor[F]],
+        Map.empty[HostId, (PeerActor[F], F[Unit])],
         blockHeadersChecker,
         blockBodiesChecker
       )
@@ -62,19 +62,19 @@ object PeersManager {
     state:     State[F],
     newStatus: UpdatePeerStatus
   ): F[(State[F], Response[F])] = {
-    def getOrBuildPeer: F[PeerActor[F]] = state.peers.get(newStatus.hostId).pure.flatMap {
+    def getOrBuildPeer: F[(PeerActor[F], F[Unit])] = state.peers.get(newStatus.hostId).pure.flatMap {
       case Some(peer) => peer.pure
       case None =>
         state.networkAlgebra
           .makePeer(newStatus.hostId, state.reputationAggregator, state.blockHeadersChecker, state.blockBodiesChecker)
           .allocated
-          .map(_._1) // any way to link that resource to THIS actor resource?
+
     }
 
     for {
-      peerActor: PeerActor[F] <- getOrBuildPeer
+      (peerActor: PeerActor[F], finalizer) <- getOrBuildPeer
       _ = peerActor.sendNoWait(UpdateState(newStatus.newState))
-      updatedPeers: Map[HostId, PeerActor[F]] = state.peers + (newStatus.hostId -> peerActor)
+      updatedPeers: Map[HostId, (PeerActor[F], F[Unit])] = state.peers + (newStatus.hostId -> (peerActor, finalizer))
       newState = state.copy(peers = updatedPeers)
     } yield (newState, newState)
   }
@@ -86,12 +86,12 @@ object PeersManager {
   ): F[(State[F], Response[F])] =
     state.peers.get(requestedHostId) match {
       case Some(peer) =>
-        peer.sendNoWait(Peer.Message.DownloadBlocksRequest(blocks))
+        peer._1.sendNoWait(Peer.Message.DownloadBlocksRequest(blocks))
         (state, state).pure[F]
       case None => ???
     }
 
   private def finalizeActor[F[_]: Applicative](currentState: State[F]): F[Unit] =
-    currentState.peers.values.foreach(_.sendNoWait(UpdateState(PeerState.Cold))).pure
+    currentState.peers.values.foreach(_._1.sendNoWait(UpdateState(PeerState.Cold))).pure
 
 }

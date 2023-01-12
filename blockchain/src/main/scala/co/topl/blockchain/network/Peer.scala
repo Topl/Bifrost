@@ -82,9 +82,6 @@ object Peer {
     (state, state).pure[F]
 
   private def processMessageForWarmState[F[_]: Applicative](state: State[F], message: Message) =
-    (state, state).pure[F]
-
-  private def processMessageForWarmState[F[_]: Applicative](state: State[F], message: Message) =
     message match {
       case UpdateState(PeerState.Banned) => stopHotPeer(state)
       case UpdateState(PeerState.Cold)   => stopHotPeer(state)

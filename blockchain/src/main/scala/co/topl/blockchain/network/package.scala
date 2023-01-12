@@ -1,7 +1,6 @@
 package co.topl.blockchain
 
 import cats.data.NonEmptyChain
-import cats.effect.IO
 import co.topl.models.TypedIdentifier
 import co.topl.proto.models.FullBlockBody
 
