@@ -1,11 +1,11 @@
 package co.topl.networking.typedprotocols
 
-import cats.Monad
 import cats.data.{Chain, EitherT}
-import cats.effect.Concurrent
-import cats.effect.std.Semaphore
+import cats.effect.Resource
+import cats.effect.kernel.{Async, Sync}
+import cats.effect.std.Queue
 import cats.implicits._
-import co.topl.networking.{NetworkTypeTag, Party}
+import co.topl.networking.{NetworkTypeTag, Parties, Party}
 
 /**
  * Captures the domain of state transitions for some typed protocol.  The domain is used by an "applier" to handle
@@ -15,10 +15,8 @@ import co.topl.networking.{NetworkTypeTag, Party}
  *                    captured and stored for later comparison
  */
 case class TypedProtocolInstance[F[_]] private (
-  localParty: Party,
-  private val transitions: Chain[
-    (StateTransition[F, _, _, _], NetworkTypeTag[_], NetworkTypeTag[_], NetworkTypeTag[_], StateAgency[_])
-  ]
+  localParty:              Party,
+  private val transitions: Chain[WrappedStateTransition[F]]
 ) {
 
   /**
@@ -29,7 +27,7 @@ case class TypedProtocolInstance[F[_]] private (
   ): TypedProtocolInstance[F] =
     copy(transitions =
       transitions.append(
-        (
+        WrappedStateTransition(
           transition,
           implicitly[NetworkTypeTag[Message]],
           implicitly[NetworkTypeTag[InState]],
@@ -45,20 +43,20 @@ case class TypedProtocolInstance[F[_]] private (
     currentState:               Any,
     currentStateNetworkTypeTag: NetworkTypeTag[_]
   )(implicit
-    monadF:         Monad[F],
+    syncF:          Sync[F],
     messageTypeTag: NetworkTypeTag[Message]
   ): F[Either[TypedProtocolTransitionFailure, (Any, NetworkTypeTag[Any])]] =
     EitherT
       .fromOption[F](
-        transitions.find { case (_, messageNetworkTypeTag, inStateNetworkTypeTag, _, _) =>
+        transitions.find { case WrappedStateTransition(_, messageNetworkTypeTag, inStateNetworkTypeTag, _, _) =>
           messageTypeTag == messageNetworkTypeTag && inStateNetworkTypeTag == currentStateNetworkTypeTag
         },
         IllegalMessageState(message, currentState)
       )
       .ensure(MessageSenderNotAgent(sender): TypedProtocolTransitionFailure) { handler =>
-        handler._5.asInstanceOf[StateAgency[Any]].agent.contains(sender)
+        handler.stateAgency.asInstanceOf[StateAgency[Any]].agent.contains(sender)
       }
-      .semiflatMap { case (transition, _, _, outStateNetworkTypeTag, _) =>
+      .semiflatMap { case WrappedStateTransition(transition, _, _, outStateNetworkTypeTag, _) =>
         transition
           .asInstanceOf[StateTransition[F, Message, Any, Any]](
             message,
@@ -75,37 +73,68 @@ case class TypedProtocolInstance[F[_]] private (
    * @param initialState The initial state of the protocol
    */
   def applier[S: NetworkTypeTag](
-    initialState:         S
-  )(implicit concurrentF: Concurrent[F]): F[MessageApplier] =
-    Semaphore[F](1)
-      .map(semaphore =>
-        new MessageApplier {
-          private var state: Any = initialState
-          private var typeTag: NetworkTypeTag[_] = implicitly[NetworkTypeTag[S]]
-
-          def apply[Message: NetworkTypeTag](
-            message: Message,
-            sender:  Party
-          ): F[Either[TypedProtocolTransitionFailure, Any]] =
-            semaphore.permit.use(_ =>
-              (for {
-                (newState, newTypeTag) <- EitherT(applyMessage[Message](message, sender, state, typeTag))
-                _ = state = newState
-                _ = typeTag = newTypeTag
-              } yield newState).value
-            )
-        }
-      )
+    initialState:    S
+  )(implicit asyncF: Async[F]): Resource[F, MessageApplier] =
+    (
+      Resource.eval(Queue.unbounded[F, (Any, NetworkTypeTag[_])]),
+      Resource.eval(Queue.unbounded[F, (Any, NetworkTypeTag[_])])
+    ).tupled
+      .flatMap { case (aQueue, bQueue) =>
+        var state: Any = initialState
+        var typeTag: NetworkTypeTag[_] = implicitly[NetworkTypeTag[S]]
+        Async[F]
+          .background(
+            Sync[F]
+              .delay(
+                transitions
+                  .find(_.inStateTypeTag == typeTag)
+                  .get
+                  .stateAgency
+                  .agent
+                  .get
+              )
+              .flatMap { party =>
+                val queue =
+                  party match {
+                    case Parties.A => aQueue
+                    case Parties.B => bQueue
+                  }
+                queue.take.flatMap { case (nextMessage, nextTypeTag) =>
+                  EitherT(
+                    applyMessage(nextMessage, party, state, typeTag)(
+                      implicitly,
+                      nextTypeTag.asInstanceOf[NetworkTypeTag[Any]]
+                    )
+                  )
+                    .semiflatMap { case (newState, newTypeTag) =>
+                      Sync[F]
+                        .delay {
+                          state = newState
+                          typeTag = newTypeTag
+                        }
+                        .as(newState)
+                    }
+                    .leftMap(e => new IllegalStateException(e.toString)) // TODO
+                    .rethrowT
+                }
+              }
+              .foreverM
+          )
+          .as(new MessageApplier {
+            def apply[Message: NetworkTypeTag](message: Message, sender: Party): F[Unit] =
+              sender match {
+                case Parties.A => aQueue.offer((message, implicitly[NetworkTypeTag[Message]]))
+                case Parties.B => bQueue.offer((message, implicitly[NetworkTypeTag[Message]]))
+              }
+          })
+      }
 
   /**
    * Encapsulates an internal mutable protocol state and applies inbound messages to it, if possible.
    */
   trait MessageApplier {
 
-    def apply[Message: NetworkTypeTag](
-      message: Message,
-      sender:  Party
-    ): F[Either[TypedProtocolTransitionFailure, Any]]
+    def apply[Message: NetworkTypeTag](message: Message, sender: Party): F[Unit]
   }
 
 }
@@ -113,6 +142,14 @@ case class TypedProtocolInstance[F[_]] private (
 object TypedProtocolInstance {
   def apply[F[_]](localParty: Party): TypedProtocolInstance[F] = TypedProtocolInstance[F](localParty, Chain.empty)
 }
+
+case class WrappedStateTransition[F[_]](
+  transition:      StateTransition[F, _, _, _],
+  messageTypeTag:  NetworkTypeTag[_],
+  inStateTypeTag:  NetworkTypeTag[_],
+  outStateTypeTag: NetworkTypeTag[_],
+  stateAgency:     StateAgency[_]
+)
 
 sealed trait TypedProtocolTransitionFailure
 

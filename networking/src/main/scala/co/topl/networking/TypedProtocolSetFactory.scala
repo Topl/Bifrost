@@ -21,8 +21,8 @@ import fs2._
 import org.typelevel.log4cats.Logger
 import scodec.bits.ByteVector
 
-import scala.concurrent.duration._
 import java.util.concurrent.TimeoutException
+import scala.concurrent.duration._
 
 /**
  * Helper for transforming a collection of Typed Sub Handlers into a multiplexed akka stream Flow
@@ -70,8 +70,8 @@ object TypedProtocolSetFactory {
                   multiplexedSubHandler.asInstanceOf[TypedSubHandler[F, multiplexedSubHandler.InState]]
                 val s = sh.initialState.asInstanceOf[Any]
                 implicit val ct: NetworkTypeTag[Any] = sh.initialStateNetworkTypeTag.asInstanceOf[NetworkTypeTag[Any]]
-                Resource
-                  .eval(sh.instance.applier(s))
+                sh.instance
+                  .applier(s)
                   .flatMap(applier =>
                     handlerSource(multiplexedSubHandler, applier, multiplexedSubHandler.sessionId).toAkkaSource
                       .map(
@@ -99,15 +99,10 @@ object TypedProtocolSetFactory {
             }
           }
           .log(s"Received inbound message in protocolInstanceId=$protocolInstanceId", _._1)
-          .mapAsyncF(1) { case (decodedData, networkTypeTag) =>
-            EitherT(
-              applier.apply(decodedData, multiplexedSubHandler.instance.localParty.opposite)(
-                networkTypeTag.asInstanceOf[NetworkTypeTag[Any]]
-              )
+          .mapAsyncF(16) { case (decodedData, networkTypeTag) =>
+            applier.apply(decodedData, multiplexedSubHandler.instance.localParty.opposite)(
+              networkTypeTag.asInstanceOf[NetworkTypeTag[Any]]
             )
-              .leftMap(error => TypedProtocolTransitionFailureException(decodedData, error))
-              .leftSemiflatTap(error => Logger[F].error(error)("Failed to apply inbound message"))
-              .rethrowT
           }
           .to(Sink.ignore)
 
@@ -117,16 +112,11 @@ object TypedProtocolSetFactory {
         protocolInstanceId:    Byte
       ): Stream[F, ByteString] =
         multiplexedSubHandler.outboundMessages
-          .evalMap(outboundMessage =>
-            EitherT(
-              applier
-                .apply(outboundMessage.data, multiplexedSubHandler.instance.localParty)(
-                  outboundMessage.networkTypeTag.asInstanceOf[NetworkTypeTag[Any]]
-                )
-            )
-              .leftMap(error => TypedProtocolTransitionFailureException(outboundMessage.data, error))
-              .leftSemiflatTap(error => Logger[F].error(error)("Failed to apply outbound message"))
-              .rethrowT
+          .parEvalMap(16)(outboundMessage =>
+            applier
+              .apply(outboundMessage.data, multiplexedSubHandler.instance.localParty)(
+                outboundMessage.networkTypeTag.asInstanceOf[NetworkTypeTag[Any]]
+              )
               .as(outboundMessage)
           )
           .evalTap(o =>
