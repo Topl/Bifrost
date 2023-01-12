@@ -1,5 +1,6 @@
 package co.topl.testnetsimulationorchestrator.app
 
+import cats.Applicative
 import cats.data.OptionT
 import cats.effect._
 import cats.effect.std.Random
@@ -80,7 +81,23 @@ object Orchestrator
 
   private def awaitNodeReady(name: NodeName, client: ToplRpc[F, Stream[F, *]]) =
     Logger[F].info(show"Awaiting readiness of node=$name") >>
-    Stream.retry(client.blockIdAtHeight(1), 250.milli, identity, 200).compile.drain >>
+    Stream
+      .retry(
+        client
+          .blockIdAtHeight(1)
+          .map(_.get)
+          .flatMap(client.fetchBlockHeader)
+          .map(_.get.timestamp)
+          .flatMap(bigBangTimestamp => Async[F].realTimeInstant.map(bigBangTimestamp - _.toEpochMilli).map(_.milli))
+          .flatMap(durationUntilBigBang =>
+            Applicative[F].whenA(durationUntilBigBang.toMillis > 0)(Async[F].sleep(durationUntilBigBang))
+          ),
+        250.milli,
+        identity,
+        200
+      )
+      .compile
+      .drain >>
     Logger[F].info(show"Node node=$name is ready")
 
   private def runSimulation: F[Unit] =
