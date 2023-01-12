@@ -14,7 +14,7 @@ object Dependencies {
   val logback = "1.4.5"
 
   val protobufSpecs =
-    "com.github.Topl" % "protobuf-specs" % "fed857c"
+    "com.github.Topl" % "protobuf-specs" % "fed857c" // TODO update this
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.5.0"

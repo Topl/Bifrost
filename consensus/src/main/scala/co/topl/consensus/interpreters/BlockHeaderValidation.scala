@@ -7,12 +7,11 @@ import co.topl.algebras.{ClockAlgebra, Store, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras._
-import co.topl.consensus.models.{BlockHeaderValidationFailure, BlockHeaderValidationFailures, VrfArgument}
+import co.topl.consensus.models.{BlockHeaderValidationFailure, BlockHeaderValidationFailures, SignatureKesProduct, SignatureVrfEd25519, VerificationKeyKesProduct, VrfArgument, BlockHeader => ConsensusBlockHeader}
 import co.topl.crypto.signing.{Ed25519VRF, KesProduct}
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.Ed25519
 import co.topl.models._
-import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader}
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.{Ratio, Sized}
 import co.topl.typeclasses.ContainsEvidence
@@ -120,7 +119,7 @@ object BlockHeaderValidation {
             header.slot
           )
         )
-        .flatMap { expectedEta =>
+        .flatMap { expectedEta => // TODO, create for comprehension, and create validation for empty vrfSig, and vrfVK
           EitherT
             .fromOptionF(
               header.eligibilityCertificate.pure[F],
@@ -143,9 +142,9 @@ object BlockHeaderValidation {
                       .use { implicit ed25519vrf =>
                         ed25519vrf
                           .verify(
-                            ByteVector(eligibilityCertificate.getVrfSig.toByteArray),
+                            ByteVector(eligibilityCertificate.vrfSig.map(_.value.toByteArray).getOrElse(Array.empty)),
                             VrfArgument(expectedEta, header.slot).signableBytes,
-                            ByteVector(eligibilityCertificate.getVrfVK.toByteArray)
+                            ByteVector(eligibilityCertificate.vrfVK.map(_.value.toByteArray).getOrElse(Array.empty))
                           )
                           .pure[F]
                       }
@@ -154,7 +153,7 @@ object BlockHeaderValidation {
                           _,
                           header,
                           BlockHeaderValidationFailures
-                            .InvalidEligibilityCertificateProof(eligibilityCertificate.getVrfSig)
+                            .InvalidEligibilityCertificateProof(eligibilityCertificate.vrfSig.getOrElse(SignatureVrfEd25519.defaultInstance))
                         )
                       )
                   )
@@ -180,9 +179,9 @@ object BlockHeaderValidation {
               .use(kesProduct =>
                 kesProduct
                   .verify(
-                    operationalCertificate.getParentSignature,
-                    Bytes(operationalCertificate.getChildVK.toByteArray) ++ Bytes(Longs.toByteArray(header.slot)),
-                    operationalCertificate.getParentVK
+                    operationalCertificate.parentSignature.getOrElse(SignatureKesProduct.defaultInstance),
+                    Bytes(operationalCertificate.childVK.map(_.value.toByteArray).getOrElse(Array.empty)) ++ Bytes(Longs.toByteArray(header.slot)),
+                    operationalCertificate.parentVK.getOrElse(VerificationKeyKesProduct.defaultInstance)
                   )
                   .pure[F]
               )
@@ -203,9 +202,9 @@ object BlockHeaderValidation {
                     // Use the ed25519 instance to verify the childSignature against the header's bytes
                     ed25519
                       .verify(
-                        Bytes(operationalCertificate.getChildSignature.toByteArray),
+                        Bytes(operationalCertificate.childSignature.map(_.toByteArray).getOrElse(Array.empty)),
                         header.signableBytes,
-                        Bytes(operationalCertificate.getChildVK.toByteArray)
+                        Bytes(operationalCertificate.childVK.map(_.toByteArray).getOrElse(Array.empty))
                       )
                       .pure[F]
                   )

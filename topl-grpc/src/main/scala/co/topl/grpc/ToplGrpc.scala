@@ -5,6 +5,7 @@ import cats.data.{EitherT, OptionT}
 import cats.effect.kernel.{Async, Resource}
 import cats.implicits._
 import co.topl.algebras.{SynchronizationTraversalStep, ToplRpc}
+import co.topl.models.TypedBytes
 import com.google.protobuf.ByteString
 //import co.topl.proto.services._
 import co.topl.node.services._
@@ -133,19 +134,13 @@ object ToplGrpc {
 //                )
 //                .value
 
-            def blockIdAtHeight(height: Long): F[Option[TypedIdentifier]] = ???
-//            def blockIdAtHeight(height: Long): F[Option[TypedIdentifier]] =
-//              OptionT(
-//                client
-//                  .fetchBlockIdAtHeight(
-//                    FetchBlockIdAtHeightReq(height),
-//                    new Metadata()
-//                  )
-//                  .map(_.blockId)
-//              )
-//                .semiflatMap(_.toF[F, bifrostModels.TypedIdentifier])
-//                .semiflatMap(EitherT.fromEither[F](_).leftMap(new IllegalArgumentException(_)).rethrowT)
-//                .value
+            def blockIdAtHeight(height: Long): F[Option[TypedIdentifier]] =
+              client
+                .fetchBlockIdAtHeight(
+                  FetchBlockIdAtHeightReq(height),
+                  new Metadata()
+                )
+                .map(res => TypedBytes.headerFromProtobufString(res.blockId).some)
 
             def blockIdAtDepth(depth: Long): F[Option[TypedIdentifier]] = ???
 //            def blockIdAtDepth(depth: Long): F[Option[TypedIdentifier]] =
@@ -315,17 +310,16 @@ object ToplGrpc {
 //          )
 //          .adaptErrorsToGrpc
 
-      def fetchBlockIdAtHeight(in: FetchBlockIdAtHeightReq, ctx: Metadata): F[FetchBlockIdAtHeightRes] = ???
-//      def fetchBlockIdAtHeight(in: FetchBlockIdAtHeightReq, ctx: Metadata): F[FetchBlockIdAtHeightRes] =
-//        OptionT(interpreter.blockIdAtHeight(in.height))
-//          .semiflatMap(id =>
-//            EitherT(id.toF[F, models.BlockId])
-//              .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
-//              .rethrowT
-//          )
-//          .value
-//          .map(FetchBlockIdAtHeightRes(_))
-//          .adaptErrorsToGrpc
+      def fetchBlockIdAtHeight(in: FetchBlockIdAtHeightReq, ctx: Metadata): F[FetchBlockIdAtHeightRes] =
+        OptionT(interpreter.blockIdAtHeight(in.height))
+          .semiflatMap(id =>
+            EitherT(id.toF[F, models.BlockId])
+              .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
+              .rethrowT
+          )
+          .semiflatMap(blockId => FetchBlockIdAtHeightRes(blockId.value).pure[F])
+          .getOrRaise(Status.DATA_LOSS.withDescription("blockIdAtHeight not Found").asException())
+          .adaptErrorsToGrpc
 
       def fetchBlockIdAtDepth(in: FetchBlockIdAtDepthReq, ctx: Metadata): F[FetchBlockIdAtDepthRes] = ???
 //      def fetchBlockIdAtDepth(in: FetchBlockIdAtDepthReq, ctx: Metadata): F[FetchBlockIdAtDepthRes] =

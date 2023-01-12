@@ -362,7 +362,6 @@ class BlockHeaderValidationSpec
     }
   }
 
-  // TODO: Fix this test, talk with Sean
   it should "invalidate blocks with a syntactically incorrect KES certificate" in {
     forAll(genValid()) { case (parent, child, _: Operator, eta, _: Ratio) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
@@ -423,8 +422,7 @@ class BlockHeaderValidationSpec
         .validate(badBlock, parent)
         .unsafeRunSync()
         .left
-        .value shouldBe a[BlockHeaderValidationFailures.InvalidEligibilityCertificateProof]
-    // TODO Why I had to change InvalidBlockProof, ask?
+        .value shouldBe a[BlockHeaderValidationFailures.InvalidBlockProof]
     }
   }
 
@@ -589,6 +587,7 @@ class BlockHeaderValidationSpec
     }
   }
 
+  // TODO: Fix this test, talk with Sean
   ignore should "validate valid blocks" in {
     forAll(genValid()) { case (parent, child, registration, eta, relativeStake) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]

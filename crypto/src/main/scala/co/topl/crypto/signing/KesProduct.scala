@@ -49,21 +49,22 @@ class KesProduct extends ProductComposition {
     )
   }
 
-  def verify(
+  def  verify(
     signature: co.topl.consensus.models.SignatureKesProduct,
     message:   Bytes,
     verifyKey: co.topl.consensus.models.VerificationKeyKesProduct
   ): Boolean = {
     val prodSig = (
       (
-        signature.getSuperSignature.getVerificationKey.toByteArray,
-        signature.getSuperSignature.getSignature.value.toByteArray,
-        signature.getSuperSignature.witness.toVector.map(_.toByteArray)
+        // Don't do this signature.getSuperSignature.getVerificationKey.toByteArray, fails unit testing
+        signature.getSuperSignature.verificationKey.map(_.value.toByteArray).getOrElse(Array.empty),
+        signature.getSuperSignature.signature.map(_.value.toByteArray).getOrElse(Array.empty),
+        signature.getSuperSignature.witness.map(_.toByteArray).toVector
       ),
       (
-        signature.getSubSignature.getVerificationKey.toByteArray,
-        signature.getSubSignature.getSignature.value.toByteArray,
-        signature.getSubSignature.witness.toVector.map(_.toByteArray)
+        signature.getSubSignature.verificationKey.map(_.value.toByteArray).getOrElse(Array.empty),
+        signature.getSubSignature.signature.map(_.value.toByteArray).getOrElse(Array.empty),
+        signature.getSubSignature.witness.map(_.toByteArray).toVector
       ),
       signature.subRoot.toByteArray
     )

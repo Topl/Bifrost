@@ -9,6 +9,7 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.node.services._
 import co.topl.proto.models
 import co.topl.models.ModelGenerators._
+import co.topl.models.TypedBytes
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import io.grpc.{Metadata, Status, StatusException}
@@ -55,9 +56,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
         for {
           protoId <- EitherT(headerId.toF[F, models.BlockId]).getOrElse(???)
           res     <- underTest.fetchBlockHeader(FetchBlockHeaderReq(protoId.value), new Metadata())
-          protoHeader = res.header.get
-//          _header <- EitherT(protoHeader.toF[F, bifrostModels.BlockHeader]).getOrElse(???)
-          _ = assert(protoHeader == header)
+          _ = assert(res.header.get == header)
         } yield ()
       }
     }
@@ -80,7 +79,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
     }
   }
 
-  // TODO Fix this test, when ToplGrpc is finish method by method: only fetchBlockHeader is done
+  // TODO Fix this test, when ToplGrpc is finish method by method
 //  test("A block body can be retrieved") {
 //    PropF.forAllF { (_id: bifrostModels.TypedIdentifier, body: bifrostModels.BlockBody) =>
 //      val id = bifrostModels.TypedBytes(bifrostModels.IdentifierTypes.Block.HeaderV2, _id.dataBytes)
@@ -157,26 +156,24 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
 //    }
 //  }
 //
-//  test("The block ID at a height can be retrieved") {
-//    PropF.forAllF { (height: Long, header: bifrostModels.BlockHeader) =>
-//      val blockId = header.id.asTypedBytes
-//      withMock {
-//        val interpreter = mock[ToplRpc[F, Stream[F, *]]]
-//        val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
-//
-//        (interpreter.blockIdAtHeight _)
-//          .expects(height)
-//          .once()
-//          .returning(blockId.some.pure[F])
-//
-//        for {
-//          res <- underTest.fetchBlockIdAtHeight(FetchBlockIdAtHeightReq(height), new Metadata())
-//
-//          proto = res.blockId.get
-//          _id <- EitherT(proto.toF[F, bifrostModels.TypedIdentifier]).getOrElse(???)
-//          _ = assert(blockId == _id)
-//        } yield ()
-//      }
-//    }
-//  }
+  test("The block ID at a height can be retrieved") {
+    PropF.forAllF { (height: Long, header: co.topl.consensus.models.BlockHeader) =>
+      val blockId = header.id.asTypedBytes
+      withMock {
+        val interpreter = mock[ToplRpc[F, Stream[F, *]]]
+        val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+
+        (interpreter.blockIdAtHeight _)
+          .expects(height)
+          .once()
+          .returning(blockId.some.pure[F])
+
+        for {
+          res <- underTest.fetchBlockIdAtHeight(FetchBlockIdAtHeightReq(height), new Metadata())
+          proto = TypedBytes.headerFromProtobufString(res.blockId)
+          _ = assert(blockId == proto)
+        } yield ()
+      }
+    }
+  }
 }
