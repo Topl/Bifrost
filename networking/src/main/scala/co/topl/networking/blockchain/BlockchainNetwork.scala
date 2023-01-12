@@ -37,9 +37,18 @@ object BlockchainNetwork {
           peerFlowModifier(
             connectedPeer,
             ConnectionLeaderFlow(leader =>
-              Flow.futureFlow(
-                implicitly[FToFuture[F]].apply(connectionFlowFactory(connectedPeer, leader))
-              )
+              Flow
+                .fromMaterializer((_, _) =>
+                  Flow.futureFlow(
+                    implicitly[FToFuture[F]].apply(
+                      connectionFlowFactory(connectedPeer, leader).allocated
+                        .map { case (flow, finalizers) =>
+                          flow.alsoTo(Sink.onComplete(_ => implicitly[FToFuture[F]].apply(finalizers)))
+                        }
+                    )
+                  )
+                )
+                .mapMaterializedValue(_.flatten)
             )
               .mapMaterializedValue(f => Async[F].fromFuture(f.flatten.pure[F]))
           )
