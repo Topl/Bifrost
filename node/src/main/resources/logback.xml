@@ -1,8 +1,6 @@
 <configuration debug="false">
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-        <!-- encoders are by default assigned the type
-             ch.qos.logback.classic.encoder.PatternLayoutEncoder -->
         <encoder>
             <pattern>%d{HH:mm:ss.SSS}| %-5level %logger{36} - %msg%n</pattern>
         </encoder>
@@ -11,7 +9,9 @@
     <appender name="ASYNC" class="ch.qos.logback.classic.AsyncAppender">
         <appender-ref ref="STDOUT" />
     </appender>
-    <logger name="akka" level="INFO" />
+
+    <logger name="co.topl" level="INFO" />
+
     <root level="INFO">
         <appender-ref ref="STDOUT" />
     </root>

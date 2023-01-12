@@ -5,6 +5,7 @@ import co.topl.crypto.hash.Blake2b256
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility._
+import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
 
 object PrivateTestnet {
@@ -29,7 +30,7 @@ object PrivateTestnet {
           blake2b256.hash(Bytes.fromLong(timestamp) ++ Bytes.fromInt(index))
         )
       )
-      .map(StakerInitializers.Operator(_, (9, 9)))
+      .map(bytes => StakerInitializers.Operator(Sized.strictUnsafe(bytes), (9, 9)))
   }
 
   /**

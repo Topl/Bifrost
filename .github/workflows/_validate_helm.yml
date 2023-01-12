@@ -16,6 +16,9 @@ jobs:
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 # Need full history to update last modified time.
+          submodules: true
 
       - name: Run Checkov action
         id: checkov

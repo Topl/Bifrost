@@ -7,44 +7,33 @@ import co.topl.algebras.UnsafeResource
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.crypto.hash.Blake2b256
-import co.topl.crypto.signing.{Curve25519, Ed25519, ExtendedEd25519}
+import co.topl.crypto.signing._
 import co.topl.models.ModelGenerators._
 import co.topl.models._
+import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.Sized
 import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 
+import scala.collection.immutable.ListSet
+
 class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
-
-  test("Propositions.Knowledge.Curve25519 Authorization") {
-    PropF.forAllF { (blockId: TypedIdentifier, sk: SecretKeys.Curve25519) =>
-      withMock {
-        val proposition = sk.vk.asProposition
-
-        val transaction = createTestTransaction(
-          proposition,
-          unprovenTransaction => Curve25519.instance.sign(sk, unprovenTransaction.signableBytes)
-        )
-
-        for {
-          curve25519Resource <- staticUnsafeResource(Curve25519.instance).pure[F]
-          underTest          <- makeValidation(curve25519Resource = curve25519Resource)
-          _                  <- underTest.validate(blockId)(transaction).map(_.isValid).assert
-        } yield ()
-      }
-    }
-  }
 
   test("Propositions.Knowledge.Ed25519 Authorization") {
     PropF.forAllF { (blockId: TypedIdentifier, sk: SecretKeys.Ed25519) =>
       withMock {
-        val proposition = sk.vk.asProposition
+        val vk = VerificationKeys.Ed25519(Sized.strictUnsafe(Ed25519.instance.getVerificationKey(sk.bytes.data)))
+        val proposition = Propositions.Knowledge.Ed25519(vk)
 
         val transaction = createTestTransaction(
           proposition,
-          unprovenTransaction => Ed25519.instance.sign(sk, unprovenTransaction.signableBytes)
+          unprovenTransaction =>
+            Proofs.Knowledge.Ed25519(
+              Sized.strictUnsafe(Ed25519.instance.sign(sk.bytes.data, unprovenTransaction.signableBytes))
+            )
         )
 
         for {
@@ -56,31 +45,12 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
     }
   }
 
-  test("Propositions.Knowledge.ExtendedEd25519 Authorization") {
-    PropF.forAllF { (blockId: TypedIdentifier, sk: SecretKeys.ExtendedEd25519) =>
-      withMock {
-        val proposition = sk.vk.asProposition
-
-        val transaction = createTestTransaction(
-          proposition,
-          unprovenTransaction => ExtendedEd25519.precomputed().sign(sk, unprovenTransaction.signableBytes)
-        )
-
-        for {
-          extendedEd25519Resource <- staticUnsafeResource(ExtendedEd25519.precomputed()).pure[F]
-          underTest               <- makeValidation(extendedEd25519Resource = extendedEd25519Resource)
-          _                       <- underTest.validate(blockId)(transaction).map(_.isValid).assert
-        } yield ()
-      }
-    }
-  }
-
   test("Propositions.Knowledge.HashLock Authorization") {
     PropF.forAllF { (blockId: TypedIdentifier, password: Bytes) =>
       withMock {
         val blake2b256 = new Blake2b256()
 
-        val proposition = Propositions.Knowledge.HashLock(blake2b256.hash(password))
+        val proposition = Propositions.Knowledge.HashLock(Sized.strictUnsafe(blake2b256.hash(password)))
 
         val transaction = createTestTransaction(
           proposition,
@@ -99,16 +69,22 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
   test("Propositions.Compositional.And Authorization") {
     PropF.forAllF { (blockId: TypedIdentifier, sk: SecretKeys.Ed25519, sk2: SecretKeys.Ed25519) =>
       withMock {
-        val propositionA = sk.vk.asProposition
-        val propositionB = sk2.vk.asProposition
-        val proposition = propositionA.and(propositionB)
+        val vk = VerificationKeys.Ed25519(Sized.strictUnsafe(Ed25519.instance.getVerificationKey(sk.bytes.data)))
+        val vk2 = VerificationKeys.Ed25519(Sized.strictUnsafe(Ed25519.instance.getVerificationKey(sk2.bytes.data)))
+        val propositionA = Propositions.Knowledge.Ed25519(vk)
+        val propositionB = Propositions.Knowledge.Ed25519(vk2)
+        val proposition = Propositions.Compositional.And(propositionA, propositionB)
 
         val transaction = createTestTransaction(
           proposition,
           unprovenTransaction =>
             Proofs.Compositional.And(
-              Ed25519.instance.sign(sk, unprovenTransaction.signableBytes),
-              Ed25519.instance.sign(sk2, unprovenTransaction.signableBytes)
+              Proofs.Knowledge.Ed25519(
+                Sized.strictUnsafe(Ed25519.instance.sign(sk.bytes.data, unprovenTransaction.signableBytes))
+              ),
+              Proofs.Knowledge.Ed25519(
+                Sized.strictUnsafe(Ed25519.instance.sign(sk2.bytes.data, unprovenTransaction.signableBytes))
+              )
             )
         )
 
@@ -116,7 +92,9 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
           proposition,
           unprovenTransaction =>
             Proofs.Compositional.And(
-              Ed25519.instance.sign(sk, unprovenTransaction.signableBytes),
+              Proofs.Knowledge.Ed25519(
+                Sized.strictUnsafe(Ed25519.instance.sign(sk.bytes.data, unprovenTransaction.signableBytes))
+              ),
               Proofs.Undefined
             )
         )
@@ -134,16 +112,22 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
   test("Propositions.Compositional.Or Authorization") {
     PropF.forAllF { (blockId: TypedIdentifier, sk: SecretKeys.Ed25519, sk2: SecretKeys.Ed25519) =>
       withMock {
-        val propositionA = sk.vk.asProposition
-        val propositionB = sk2.vk.asProposition
-        val proposition = propositionA.or(propositionB)
+        val vk = VerificationKeys.Ed25519(Sized.strictUnsafe(Ed25519.instance.getVerificationKey(sk.bytes.data)))
+        val vk2 = VerificationKeys.Ed25519(Sized.strictUnsafe(Ed25519.instance.getVerificationKey(sk2.bytes.data)))
+        val propositionA = Propositions.Knowledge.Ed25519(vk)
+        val propositionB = Propositions.Knowledge.Ed25519(vk2)
+        val proposition = Propositions.Compositional.Or(propositionA, propositionB)
 
         val transaction1 = createTestTransaction(
           proposition,
           unprovenTransaction =>
             Proofs.Compositional.Or(
-              Ed25519.instance.sign(sk, unprovenTransaction.signableBytes),
-              Ed25519.instance.sign(sk2, unprovenTransaction.signableBytes)
+              Proofs.Knowledge.Ed25519(
+                Sized.strictUnsafe(Ed25519.instance.sign(sk.bytes.data, unprovenTransaction.signableBytes))
+              ),
+              Proofs.Knowledge.Ed25519(
+                Sized.strictUnsafe(Ed25519.instance.sign(sk2.bytes.data, unprovenTransaction.signableBytes))
+              )
             )
         )
 
@@ -151,7 +135,9 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
           proposition,
           unprovenTransaction =>
             Proofs.Compositional.Or(
-              Ed25519.instance.sign(sk, unprovenTransaction.signableBytes),
+              Proofs.Knowledge.Ed25519(
+                Sized.strictUnsafe(Ed25519.instance.sign(sk.bytes.data, unprovenTransaction.signableBytes))
+              ),
               Proofs.Undefined
             )
         )
@@ -161,7 +147,9 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
           unprovenTransaction =>
             Proofs.Compositional.Or(
               Proofs.Undefined,
-              Ed25519.instance.sign(sk2, unprovenTransaction.signableBytes)
+              Proofs.Knowledge.Ed25519(
+                Sized.strictUnsafe(Ed25519.instance.sign(sk2.bytes.data, unprovenTransaction.signableBytes))
+              )
             )
         )
 
@@ -190,19 +178,28 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
     PropF.forAllF {
       (blockId: TypedIdentifier, sk: SecretKeys.Ed25519, sk2: SecretKeys.Ed25519, sk3: SecretKeys.Ed25519) =>
         withMock {
-          val propositionA = sk.vk.asProposition
-          val propositionB = sk2.vk.asProposition
-          val propositionC = sk3.vk.asProposition
-          val proposition = List(propositionA, propositionB, propositionC).threshold(2)
+          val vk = VerificationKeys.Ed25519(Sized.strictUnsafe(Ed25519.instance.getVerificationKey(sk.bytes.data)))
+          val vk2 = VerificationKeys.Ed25519(Sized.strictUnsafe(Ed25519.instance.getVerificationKey(sk2.bytes.data)))
+          val vk3 = VerificationKeys.Ed25519(Sized.strictUnsafe(Ed25519.instance.getVerificationKey(sk3.bytes.data)))
+          val propositionA = Propositions.Knowledge.Ed25519(vk)
+          val propositionB = Propositions.Knowledge.Ed25519(vk2)
+          val propositionC = Propositions.Knowledge.Ed25519(vk3)
+          val proposition = Propositions.Compositional.Threshold(2, ListSet(propositionA, propositionB, propositionC))
 
           val transaction1 = createTestTransaction(
             proposition,
             unprovenTransaction =>
               Proofs.Compositional.Threshold(
                 List(
-                  Ed25519.instance.sign(sk, unprovenTransaction.signableBytes),
-                  Ed25519.instance.sign(sk2, unprovenTransaction.signableBytes),
-                  Ed25519.instance.sign(sk3, unprovenTransaction.signableBytes)
+                  Proofs.Knowledge.Ed25519(
+                    Sized.strictUnsafe(Ed25519.instance.sign(sk.bytes.data, unprovenTransaction.signableBytes))
+                  ),
+                  Proofs.Knowledge.Ed25519(
+                    Sized.strictUnsafe(Ed25519.instance.sign(sk2.bytes.data, unprovenTransaction.signableBytes))
+                  ),
+                  Proofs.Knowledge.Ed25519(
+                    Sized.strictUnsafe(Ed25519.instance.sign(sk3.bytes.data, unprovenTransaction.signableBytes))
+                  )
                 )
               )
           )
@@ -213,8 +210,12 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
               Proofs.Compositional.Threshold(
                 List(
                   Proofs.Undefined,
-                  Ed25519.instance.sign(sk2, unprovenTransaction.signableBytes),
-                  Ed25519.instance.sign(sk3, unprovenTransaction.signableBytes)
+                  Proofs.Knowledge.Ed25519(
+                    Sized.strictUnsafe(Ed25519.instance.sign(sk2.bytes.data, unprovenTransaction.signableBytes))
+                  ),
+                  Proofs.Knowledge.Ed25519(
+                    Sized.strictUnsafe(Ed25519.instance.sign(sk3.bytes.data, unprovenTransaction.signableBytes))
+                  )
                 )
               )
           )
@@ -224,9 +225,13 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
             unprovenTransaction =>
               Proofs.Compositional.Threshold(
                 List(
-                  Ed25519.instance.sign(sk, unprovenTransaction.signableBytes),
+                  Proofs.Knowledge.Ed25519(
+                    Sized.strictUnsafe(Ed25519.instance.sign(sk.bytes.data, unprovenTransaction.signableBytes))
+                  ),
                   Proofs.Undefined,
-                  Ed25519.instance.sign(sk3, unprovenTransaction.signableBytes)
+                  Proofs.Knowledge.Ed25519(
+                    Sized.strictUnsafe(Ed25519.instance.sign(sk3.bytes.data, unprovenTransaction.signableBytes))
+                  )
                 )
               )
           )
@@ -236,8 +241,12 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
             unprovenTransaction =>
               Proofs.Compositional.Threshold(
                 List(
-                  Ed25519.instance.sign(sk, unprovenTransaction.signableBytes),
-                  Ed25519.instance.sign(sk2, unprovenTransaction.signableBytes),
+                  Proofs.Knowledge.Ed25519(
+                    Sized.strictUnsafe(Ed25519.instance.sign(sk.bytes.data, unprovenTransaction.signableBytes))
+                  ),
+                  Proofs.Knowledge.Ed25519(
+                    Sized.strictUnsafe(Ed25519.instance.sign(sk2.bytes.data, unprovenTransaction.signableBytes))
+                  ),
                   Proofs.Undefined
                 )
               )
@@ -261,10 +270,11 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
             unprovenTransaction =>
               Proofs.Compositional.Threshold(
                 List(
-                  Ed25519.instance.sign(sk2, unprovenTransaction.signableBytes),
-                  Ed25519.instance.sign(sk, unprovenTransaction.signableBytes),
-                  Ed25519.instance.sign(sk3, unprovenTransaction.signableBytes)
+                  Ed25519.instance.sign(sk2.bytes.data, unprovenTransaction.signableBytes),
+                  Ed25519.instance.sign(sk.bytes.data, unprovenTransaction.signableBytes),
+                  Ed25519.instance.sign(sk3.bytes.data, unprovenTransaction.signableBytes)
                 )
+                  .map(bytes => Proofs.Knowledge.Ed25519(Sized.strictUnsafe(bytes)))
               )
           )
 
@@ -285,12 +295,18 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
   test("Propositions.Compositional.Not Authorization") {
     PropF.forAllF { (blockId: TypedIdentifier, sk: SecretKeys.Ed25519) =>
       withMock {
-        val propositionA = sk.vk.asProposition
-        val proposition = propositionA.not
+        val vk = VerificationKeys.Ed25519(Sized.strictUnsafe(Ed25519.instance.getVerificationKey(sk.bytes.data)))
+        val propositionA = Propositions.Knowledge.Ed25519(vk)
+        val proposition = Propositions.Compositional.Not(propositionA)
 
         val badTransaction = createTestTransaction(
           proposition,
-          unprovenTransaction => Proofs.Compositional.Not(Ed25519.instance.sign(sk, unprovenTransaction.signableBytes))
+          unprovenTransaction =>
+            Proofs.Compositional.Not(
+              Proofs.Knowledge.Ed25519(
+                Sized.strictUnsafe(Ed25519.instance.sign(sk.bytes.data, unprovenTransaction.signableBytes))
+              )
+            )
         )
 
         for {
@@ -336,17 +352,13 @@ class TransactionAuthorizationValidationSpec extends CatsEffectSuite with ScalaC
   }
 
   private def makeValidation(
-    blake2b256Resource:      UnsafeResource[F, Blake2b256] = mock[UnsafeResource[F, Blake2b256]],
-    curve25519Resource:      UnsafeResource[F, Curve25519] = mock[UnsafeResource[F, Curve25519]],
-    ed25519Resource:         UnsafeResource[F, Ed25519] = mock[UnsafeResource[F, Ed25519]],
-    extendedEd25519Resource: UnsafeResource[F, ExtendedEd25519] = mock[UnsafeResource[F, ExtendedEd25519]],
-    fetchSlotData:           TypedIdentifier => F[SlotData] = mockFunction[TypedIdentifier, F[SlotData]]
+    blake2b256Resource: UnsafeResource[F, Blake2b256] = mock[UnsafeResource[F, Blake2b256]],
+    ed25519Resource:    UnsafeResource[F, Ed25519] = mock[UnsafeResource[F, Ed25519]],
+    fetchSlotData:      TypedIdentifier => F[SlotData] = mockFunction[TypedIdentifier, F[SlotData]]
   ) =
     TransactionAuthorizationValidation.make[F](
       blake2b256Resource,
-      curve25519Resource,
       ed25519Resource,
-      extendedEd25519Resource,
       fetchSlotData
     )
 

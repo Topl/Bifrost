@@ -8,8 +8,8 @@ import co.topl.models._
 
 trait TetraIdentifiableInstances {
 
-  implicit val identifiableBlockHeaderV2: Identifiable[BlockHeaderV2] =
-    (header: BlockHeaderV2) => {
+  implicit val identifiableBlockHeader: Identifiable[BlockHeader] =
+    (header: BlockHeader) => {
       val bytes =
         header.parentHeaderId.allBytes ++ header.txRoot.data ++ header.bloomFilter.data ++ Bytes(
           BigInt(header.timestamp).toByteArray
@@ -21,7 +21,7 @@ trait TetraIdentifiableInstances {
         Bytes(header.metadata.fold(Array.emptyByteArray)(_.data.bytes)) ++
         header.address.immutableBytes
 
-      (IdentifierTypes.Block.HeaderV2, new Blake2b256().hash(bytes).data)
+      (IdentifierTypes.Block.HeaderV2, new Blake2b256().hash(bytes))
     }
 
   implicit val transactionIdentifiable: Identifiable[Transaction] =
@@ -36,7 +36,7 @@ trait TetraIdentifiableInstances {
           )
           .immutableBytes
       val hash = new Blake2b256().hash(bytes)
-      (IdentifierTypes.Transaction, hash.data)
+      (IdentifierTypes.Transaction, hash)
     }
 }
 

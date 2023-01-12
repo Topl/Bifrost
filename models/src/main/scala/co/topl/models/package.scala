@@ -54,7 +54,7 @@ package object models {
 
   case class SlotId(slot: Slot, blockId: TypedIdentifier)
 
-  type BlockBodyV2 = ListSet[TypedIdentifier]
+  type BlockBody = ListSet[TypedIdentifier]
 
   @newtype case class TypedBytes(allBytes: Bytes) {
     def typePrefix: TypePrefix = allBytes.head

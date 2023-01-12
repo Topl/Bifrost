@@ -11,7 +11,7 @@ import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.{MempoolAlgebra, TransactionSyntaxValidationAlgebra}
 import co.topl.ledger.models._
-import co.topl.models.{BlockBodyV2, BlockHeaderV2, Transaction, TypedIdentifier}
+import co.topl.models.{BlockBody, BlockHeader, Transaction, TypedIdentifier}
 import org.typelevel.log4cats.Logger
 import co.topl.typeclasses.implicits._
 import fs2.Stream
@@ -36,13 +36,13 @@ object ToplRpcServer {
    * Interpreter which serves Topl RPC data using local blockchain interpreters
    */
   def make[F[_]: Async: Logger](
-    headerStore:               Store[F, TypedIdentifier, BlockHeaderV2],
-    bodyStore:                 Store[F, TypedIdentifier, BlockBodyV2],
+    headerStore:               Store[F, TypedIdentifier, BlockHeader],
+    bodyStore:                 Store[F, TypedIdentifier, BlockBody],
     transactionStore:          Store[F, TypedIdentifier, Transaction],
     mempool:                   MempoolAlgebra[F],
     syntacticValidation:       TransactionSyntaxValidationAlgebra[F],
     localChain:                LocalChainAlgebra[F],
-    blockHeights:              EventSourcedState[F, Long => F[Option[TypedIdentifier]]],
+    blockHeights:              EventSourcedState[F, Long => F[Option[TypedIdentifier]], TypedIdentifier],
     blockIdTree:               ParentChildTree[F, TypedIdentifier],
     localBlockAdoptionsStream: Stream[F, TypedIdentifier]
   ): F[ToplRpc[F, Stream[F, *]]] =
@@ -66,10 +66,10 @@ object ToplRpcServer {
         def currentMempool(): F[Set[TypedIdentifier]] =
           localChain.head.map(_.slotId.blockId).flatMap(mempool.read)
 
-        def fetchBlockHeader(blockId: TypedIdentifier): F[Option[BlockHeaderV2]] =
+        def fetchBlockHeader(blockId: TypedIdentifier): F[Option[BlockHeader]] =
           headerStore.get(blockId)
 
-        def fetchBlockBody(blockId: TypedIdentifier): F[Option[BlockBodyV2]] =
+        def fetchBlockBody(blockId: TypedIdentifier): F[Option[BlockBody]] =
           bodyStore.get(blockId)
 
         def fetchTransaction(transactionId: TypedIdentifier): F[Option[Transaction]] =

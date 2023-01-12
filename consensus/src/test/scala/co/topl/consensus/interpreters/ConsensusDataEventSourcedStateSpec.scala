@@ -10,6 +10,7 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.eventtree.ParentChildTree
 import co.topl.models.ModelGenerators._
 import co.topl.models._
+import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
@@ -48,7 +49,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
           TestStore.make[F, StakingAddresses.Operator, Box.Values.Registrations.Operator]
         ).mapN(ConsensusDataEventSourcedState.ConsensusData[F])
         _                <- initialState.totalActiveStake.put((), 0)
-        bodyStore        <- TestStore.make[F, TypedIdentifier, BlockBodyV2]
+        bodyStore        <- TestStore.make[F, TypedIdentifier, BlockBody]
         transactionStore <- TestStore.make[F, TypedIdentifier, Transaction]
         fetchTransactionOutput = (boxId: Box.Id) =>
           transactionStore.getOrRaise(boxId.transactionId).map(_.outputs.get(boxId.transactionOutputIndex).get)
@@ -208,7 +209,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
           ConsensusDataEventSourcedState.ConsensusData[F](operatorStakes, totalActiveStake, registrations)
         )
         _                <- initialState.totalActiveStake.put((), 0)
-        bodyStore        <- TestStore.make[F, TypedIdentifier, BlockBodyV2]
+        bodyStore        <- TestStore.make[F, TypedIdentifier, BlockBody]
         transactionStore <- TestStore.make[F, TypedIdentifier, Transaction]
         fetchTransactionOutput = (boxId: Box.Id) =>
           transactionStore.getOrRaise(boxId.transactionId).map(_.outputs.get(boxId.transactionOutputIndex).get)

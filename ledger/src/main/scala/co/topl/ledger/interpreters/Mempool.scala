@@ -22,9 +22,9 @@ object Mempool {
    *                                     that it double-spends a Box
    * @return
    */
-  def make[F[_]: Async: Spawn](
+  def make[F[_]: Async](
     currentBlockId:               F[TypedIdentifier],
-    fetchBlockBody:               TypedIdentifier => F[BlockBodyV2],
+    fetchBlockBody:               TypedIdentifier => F[BlockBody],
     fetchTransaction:             TypedIdentifier => F[Transaction],
     parentChildTree:              ParentChildTree[F, TypedIdentifier],
     currentEventChanged:          TypedIdentifier => F[Unit],
@@ -88,7 +88,7 @@ object Mempool {
           .map(_.toList)
           .flatMap(_.traverse(fetchTransaction(_).flatMap(addTransactionWithDefaultExpiration)))
           .as(state)
-      eventSourcedState <- EventSourcedState.OfTree.make[F, State[F]](
+      eventSourcedState <- EventSourcedState.OfTree.make[F, State[F], TypedIdentifier](
         state.pure[F],
         currentBlockId,
         applyEvent = applyBlock,

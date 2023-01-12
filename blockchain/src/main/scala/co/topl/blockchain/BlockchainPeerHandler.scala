@@ -9,11 +9,13 @@ import cats.implicits._
 import cats.{Applicative, Monad, MonadThrow, Monoid, Parallel, Show}
 import co.topl.algebras.ClockAlgebra.implicits.ClockOps
 import co.topl.algebras.{ClockAlgebra, Store, StoreReader}
+import co.topl.blockchain.algebras.BlockHeaderToBodyValidationAlgebra
+import co.topl.blockchain.models.BlockHeaderToBodyValidationFailure
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.consensus.{BlockHeaderToBodyValidationFailure, BlockHeaderValidationFailure}
-import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, BlockHeaderValidationAlgebra, LocalChainAlgebra}
+import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LocalChainAlgebra}
+import co.topl.consensus.models.BlockHeaderValidationFailure
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
 import co.topl.ledger.models.{
@@ -59,7 +61,7 @@ object BlockchainPeerHandler {
    */
   object ChainSynchronizer {
 
-    def make[F[_]: Async: Parallel: FToFuture: RunnableGraphToF](
+    def make[F[_]: Async: FToFuture: RunnableGraphToF](
       clock:                       ClockAlgebra[F],
       localChain:                  LocalChainAlgebra[F],
       headerValidation:            BlockHeaderValidationAlgebra[F],
@@ -68,8 +70,8 @@ object BlockchainPeerHandler {
       bodySemanticValidation:      BodySemanticValidationAlgebra[F],
       bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
       slotDataStore:               Store[F, TypedIdentifier, SlotData],
-      headerStore:                 Store[F, TypedIdentifier, BlockHeaderV2],
-      bodyStore:                   Store[F, TypedIdentifier, BlockBodyV2],
+      headerStore:                 Store[F, TypedIdentifier, BlockHeader],
+      bodyStore:                   Store[F, TypedIdentifier, BlockBody],
       transactionStore:            Store[F, TypedIdentifier, Transaction],
       blockIdTree:                 ParentChildTree[F, TypedIdentifier]
     )(implicit mat:                Materializer): BlockchainPeerHandlerAlgebra[F] =
@@ -202,7 +204,7 @@ object BlockchainPeerHandler {
       client:           BlockchainPeerClient[F],
       headerValidation: BlockHeaderValidationAlgebra[F],
       slotDataStore:    Store[F, TypedIdentifier, SlotData],
-      headerStore:      Store[F, TypedIdentifier, BlockHeaderV2]
+      headerStore:      Store[F, TypedIdentifier, BlockHeader]
     )(from:             TypedIdentifier) =
       determineMissingValues(
         headerStore.contains,
@@ -247,8 +249,8 @@ object BlockchainPeerHandler {
       bodySemanticValidation:      BodySemanticValidationAlgebra[F],
       bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
       slotDataStore:               Store[F, TypedIdentifier, SlotData],
-      headerStore:                 Store[F, TypedIdentifier, BlockHeaderV2],
-      bodyStore:                   Store[F, TypedIdentifier, BlockBodyV2],
+      headerStore:                 Store[F, TypedIdentifier, BlockHeader],
+      bodyStore:                   Store[F, TypedIdentifier, BlockBody],
       transactionStore:            Store[F, TypedIdentifier, Transaction]
     )(from:                        TypedIdentifier) =
       determineMissingValues(
@@ -282,7 +284,7 @@ object BlockchainPeerHandler {
             .tapAsyncF(1) { case (blockId, body, _) =>
               headerStore
                 .getOrRaise(blockId)
-                .map(header => BlockV2(header, body))
+                .map(header => Block(header, body))
                 .flatMap(block =>
                   (
                     for {
@@ -291,7 +293,7 @@ object BlockchainPeerHandler {
                       _ <- EitherT.liftF(Logger[F].debug(show"Validating syntax of body id=$blockId"))
                       _ <- EitherT(
                         bodySyntaxValidation
-                          .validate(block.blockBodyV2)
+                          .validate(block.body)
                           .map(_.toEither.leftMap(_.show))
                       )
                       _ <- EitherT.liftF(Logger[F].debug(show"Validating semantics of body id=$blockId"))
@@ -299,17 +301,17 @@ object BlockchainPeerHandler {
                         bodySemanticValidation
                           .validate(
                             StaticBodyValidationContext(
-                              block.headerV2.parentHeaderId,
-                              block.headerV2.height,
-                              block.headerV2.slot
+                              block.header.parentHeaderId,
+                              block.header.height,
+                              block.header.slot
                             )
-                          )(block.blockBodyV2)
+                          )(block.body)
                           .map(_.toEither.leftMap(_.show))
                       )
                       _ <- EitherT.liftF(Logger[F].debug(show"Validating authorization of body id=$blockId"))
                       _ <- EitherT(
                         bodyAuthorizationValidation
-                          .validate(block.headerV2.parentHeaderId)(block.blockBodyV2)
+                          .validate(block.header.parentHeaderId)(block.body)
                           .map(_.toEither.leftMap(_.show))
                       )
                     } yield ()

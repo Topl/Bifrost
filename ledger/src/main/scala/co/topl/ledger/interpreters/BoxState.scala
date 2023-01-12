@@ -9,7 +9,7 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.BoxStateAlgebra
-import co.topl.models.{BlockBodyV2, Box, Transaction, TypedIdentifier}
+import co.topl.models.{BlockBody, Box, Transaction, TypedIdentifier}
 import co.topl.typeclasses.implicits._
 
 import scala.collection.immutable.SortedSet
@@ -27,14 +27,14 @@ object BoxState {
    */
   def make[F[_]: Async](
     currentBlockId:      F[TypedIdentifier],
-    fetchBlockBody:      TypedIdentifier => F[BlockBodyV2],
+    fetchBlockBody:      TypedIdentifier => F[BlockBody],
     fetchTransaction:    TypedIdentifier => F[Transaction],
     parentChildTree:     ParentChildTree[F, TypedIdentifier],
     currentEventChanged: TypedIdentifier => F[Unit],
     initialState:        F[State[F]]
   ): F[BoxStateAlgebra[F]] =
     for {
-      eventSourcedState <- EventSourcedState.OfTree.make[F, State[F]](
+      eventSourcedState <- EventSourcedState.OfTree.make[F, State[F], TypedIdentifier](
         initialState,
         currentBlockId,
         applyEvent = applyBlock(fetchBlockBody, fetchTransaction),
@@ -58,7 +58,7 @@ object BoxState {
    *   - Each output is added to the state
    */
   private def applyBlock[F[_]: MonadThrow](
-    fetchBlockBody:   TypedIdentifier => F[BlockBodyV2],
+    fetchBlockBody:   TypedIdentifier => F[BlockBody],
     fetchTransaction: TypedIdentifier => F[Transaction]
   )(state:            State[F], blockId: TypedIdentifier): F[State[F]] =
     for {
@@ -89,7 +89,7 @@ object BoxState {
    *   - Each input is added to the state
    */
   private def unapplyBlock[F[_]: MonadThrow](
-    fetchBlockBody:   TypedIdentifier => F[BlockBodyV2],
+    fetchBlockBody:   TypedIdentifier => F[BlockBody],
     fetchTransaction: TypedIdentifier => F[Transaction]
   )(state:            State[F], blockId: TypedIdentifier): F[State[F]] =
     for {

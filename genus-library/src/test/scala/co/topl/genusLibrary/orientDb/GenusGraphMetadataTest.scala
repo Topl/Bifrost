@@ -36,7 +36,7 @@ class GenusGraphMetadataTest extends munit.FunSuite {
   def zeroBytes[L <: Length](implicit l: L): Sized.Strict[Bytes, L] =
     Sized.strictUnsafe[Bytes, L](Bytes(Array.fill(l.value)(0: Byte)))
 
-  private val eta: Eta = new Blake2b256().hash(Bytes(Random.nextBytes(TypedBytesLength)))
+  private val eta: Eta = Sized.strictUnsafe(new Blake2b256().hash(Bytes(Random.nextBytes(TypedBytesLength))))
 
   private val eligibilityCertificate = EligibilityCertificate(
     Proofs.Knowledge.VrfEd25519(zeroBytes(Lengths.`80`)),
@@ -81,17 +81,17 @@ class GenusGraphMetadataTest extends munit.FunSuite {
     )
   }
 
-  test("BlockBodyV2 round-trip Serialization") {
-    val blockBodyV2 = (0 to 3).foldLeft(ListSet.empty[TypedIdentifier]) { case (transactions, _) =>
+  test("BlockBody round-trip Serialization") {
+    val blockBody = (0 to 3).foldLeft(ListSet.empty[TypedIdentifier]) { case (transactions, _) =>
       val byteArray = Random.nextBytes(evidenceLength.value)
       val transactionId = TypedBytes(IdentifierTypes.Block.BodyV2, Bytes(byteArray))
       transactions + transactionId
     }
 
     assertEquals(
-      byteArrayToBlockBodyV2(blockBodyV2ToByteArray(blockBodyV2)).toSeq,
-      blockBodyV2.toSeq,
-      "Round trip serialization of BlockBodyV2"
+      byteArrayToBlockBody(blockBodyToByteArray(blockBody)).toSeq,
+      blockBody.toSeq,
+      "Round trip serialization of BlockBody"
     )
   }
 

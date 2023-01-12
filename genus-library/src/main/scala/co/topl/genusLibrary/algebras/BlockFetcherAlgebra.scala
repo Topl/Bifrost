@@ -1,6 +1,7 @@
 package co.topl.genusLibrary.algebras
 
-import co.topl.models.BlockV2
+import co.topl.genusLibrary.failure.Failure
+import co.topl.genusLibrary.model.HeightData
 
 /**
  * Fetcher of blocks on the chain.
@@ -13,6 +14,7 @@ trait BlockFetcherAlgebra[F[_]] {
    * @param height The height to lookup
    * @return the full block
    */
-  def fetch(height: Long): ServiceResponse[F, Option[BlockV2.Full]]
+  // TODO: TSDK-216 | Create protobuf files
+  def fetch(height: Long): F[Either[Failure, HeightData]]
 
 }

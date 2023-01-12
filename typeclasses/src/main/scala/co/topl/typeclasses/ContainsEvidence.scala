@@ -5,7 +5,8 @@ import co.topl.codecs.bytes.typeclasses.ImmutableCodec
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.crypto.hash.Blake2b256
 import co.topl.models._
-import co.topl.models.utility.Ratio
+import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.{Ratio, Sized}
 import simulacrum.{op, typeclass}
 
 @typeclass trait ContainsEvidence[T] {
@@ -15,7 +16,7 @@ import simulacrum.{op, typeclass}
 object ContainsEvidence {
 
   def fromImmutableCodec[T: ImmutableCodec](prefix: Byte): ContainsEvidence[T] =
-    (t: T) => TypedEvidence(prefix, new Blake2b256().hash(t.immutableBytes))
+    (t: T) => TypedEvidence(prefix, Sized.strictUnsafe(new Blake2b256().hash(t.immutableBytes)))
 
   object TypePrefixes {
     final val VerificationKeysCurve25519: Byte = 1

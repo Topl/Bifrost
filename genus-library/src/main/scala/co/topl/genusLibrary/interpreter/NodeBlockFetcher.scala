@@ -4,33 +4,46 @@ import cats.data.{Chain, EitherT}
 import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.algebras.ToplRpc
-import co.topl.genusLibrary.algebras.{BlockFetcherAlgebra, ServiceResponse}
+import co.topl.genusLibrary.algebras.BlockFetcherAlgebra
 import co.topl.genusLibrary.failure.{Failure, Failures}
-import co.topl.models.{BlockBodyV2, BlockHeaderV2, BlockV2, Transaction, TypedIdentifier}
+import co.topl.genusLibrary.model.{BlockData, HeightData}
+import co.topl.models.{BlockBody, BlockHeader, Transaction, TypedIdentifier}
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.immutable.ListSet
 
-class NodeBlockFetcher[F[_]: Async](toplRpc: ToplRpc[F, Any]) extends BlockFetcherAlgebra[F] {
+class NodeBlockFetcher[F[_]: Async](toplRpc: ToplRpc[F, Any]) extends BlockFetcherAlgebra[F] with LazyLogging {
+
+  override def fetch(height: Long): F[Either[Failure, HeightData]] =
+    toplRpc
+      .blockIdAtHeight(height)
+      .flatMap {
+        case Some(blockId) =>
+          EitherT(fetch(blockId))
+            .map(blockData => HeightData(height = height, blockData = blockData.some))
+            .value
+        case None =>
+          HeightData(
+            height = height,
+            blockData = Option.empty[BlockData]
+          ).asRight[Failure].pure[F]
+      }
 
   // TODO: TSDK-186 | Do calls concurrently.
-  override def fetch(height: Long): ServiceResponse[F, Option[BlockV2.Full]] = toplRpc.blockIdAtHeight(height) flatMap {
-    case None => Option.empty[BlockV2.Full].asRight[Failure].pure[F]
-    case Some(blockId) =>
-      (
-        for {
-          header       <- EitherT(fetchBlockHeader(blockId))
-          body         <- EitherT(fetchBlockBody(blockId))
-          transactions <- EitherT(fetchTransactions(body))
-        } yield Option(BlockV2.Full(header, transactions))
-      ).value
-  }
+  def fetch(blockId: TypedIdentifier): F[Either[Failure, BlockData]] = (
+    for {
+      header       <- EitherT(fetchBlockHeader(blockId))
+      body         <- EitherT(fetchBlockBody(blockId))
+      transactions <- EitherT(fetchTransactions(body))
+    } yield BlockData(header, body, transactions)
+  ).value
 
-  private def fetchBlockHeader(blockId: TypedIdentifier): ServiceResponse[F, BlockHeaderV2] =
+  private def fetchBlockHeader(blockId: TypedIdentifier): F[Either[Failure, BlockHeader]] =
     toplRpc
       .fetchBlockHeader(blockId)
       .map(_.toRight[Failure](Failures.NoBlockHeaderFoundOnNodeFailure(blockId)))
 
-  private def fetchBlockBody(blockId: TypedIdentifier): ServiceResponse[F, BlockBodyV2] =
+  private def fetchBlockBody(blockId: TypedIdentifier): F[Either[Failure, BlockBody]] =
     toplRpc
       .fetchBlockBody(blockId)
       .map(_.toRight[Failure](Failures.NoBlockBodyFoundOnNodeFailure(blockId)))
@@ -39,7 +52,7 @@ class NodeBlockFetcher[F[_]: Async](toplRpc: ToplRpc[F, Any]) extends BlockFetch
    * If all transactions were retrieved correctly, then all transactions are returned.
    * If one or more transactions is missing, then a failure listing all missing transactions is returned.
    */
-  private def fetchTransactions(body: BlockBodyV2): ServiceResponse[F, Chain[Transaction]] =
+  private def fetchTransactions(body: BlockBody): F[Either[Failure, Chain[Transaction]]] =
     body.toList.traverse(typedIdentifier =>
       toplRpc
         .fetchTransaction(typedIdentifier)

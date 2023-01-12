@@ -7,7 +7,7 @@ import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{Base58, Sized}
-import co.topl.typeclasses.implicits._
+import co.topl.numerics.implicits._
 
 import scala.util.Random
 
@@ -64,8 +64,7 @@ class TxoTest extends munit.FunSuite {
   test("AssetV1 TxO") {
     val quantity: Int128 = 19_099_000L
     val issuingAddress = SpendingAddress(randomEvidence)
-    val assetVersion: Byte = 1
-    val code = Code(assetVersion, issuingAddress, Sized.maxUnsafe(Latin1Data("foo"))(latin1DataLength, `8`))
+    val code = Code(issuingAddress, Sized.maxUnsafe(Latin1Data("foo"))(latin1DataLength, `8`))
     val securityRootLength = 32
     val securityRoot = Sized.strictUnsafe(Bytes(Random.nextBytes(securityRootLength)))(bytesLength, `32`)
     val metadata: Box.Values.AssetV1.Metadata =
@@ -78,8 +77,7 @@ class TxoTest extends munit.FunSuite {
     )
 
     assertEquals(quantity, txo.quantity.get, "Txo quantity should match")
-    val expectedAssetLabel =
-      assetVersion.toHexString + "|" + Base58.encode(issuingAddress.typedEvidence.allBytes.toArray)
+    val expectedAssetLabel = Base58.encode(issuingAddress.typedEvidence.allBytes.toArray)
     assertEquals(txo.assetLabel, expectedAssetLabel, "Asset label should be as expected.")
     assert(txo.securityRoot.isDefined, "A security root should be present")
     assertEquals(txo.securityRoot.get.toSeq, securityRoot.data.toArray.toSeq, "securityRoot should be as expected")

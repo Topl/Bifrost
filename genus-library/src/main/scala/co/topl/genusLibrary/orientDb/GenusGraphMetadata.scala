@@ -77,7 +77,7 @@ package co.topl.genusLibrary.orientDb {
     /**
      * Schema for Address nodes
      */
-    private val addressVertexSchema: VertexSchema[TypedEvidence] =
+    implicit private[genusLibrary] val addressVertexSchema: VertexSchema[TypedEvidence] =
       VertexSchema.create(
         "Address",
         GraphDataEncoder[TypedEvidence]
@@ -98,21 +98,21 @@ package co.topl.genusLibrary.orientDb {
      * <p>
      * address state vertexes have no properties, just links to txoStates.
      */
-    private val addressStateSchema: VertexSchema[Unit] =
+    implicit private[genusLibrary] val addressStateSchema: VertexSchema[Unit] =
       VertexSchema.create(
         "AddressState",
         GraphDataEncoder[Unit],
         _ => ()
       )
 
-    private val blockHeaderSchema: VertexSchema[BlockHeaderV2] =
+    implicit private[genusLibrary] val blockHeaderSchema: VertexSchema[BlockHeader] =
       VertexSchema.create(
         "BlockHeader",
-        GraphDataEncoder[BlockHeaderV2]
+        GraphDataEncoder[BlockHeader]
           .withProperty(
             "blockId",
             b => {
-              val (typePrefix, bytes) = TetraIdentifiableInstances.identifiableBlockHeaderV2.idOf(b)
+              val (typePrefix, bytes) = TetraIdentifiableInstances.identifiableBlockHeader.idOf(b)
               typedBytesTupleToByteArray((typePrefix, bytes.toArray))
             },
             _.setNotNull(true)
@@ -144,7 +144,7 @@ package co.topl.genusLibrary.orientDb {
           )
           .withIndex("blockHeaderIndex", INDEX_TYPE.UNIQUE, "blockId"),
         v =>
-          BlockHeaderV2(
+          BlockHeader(
             byteArrayToTypedBytes(v("parentHeaderId")),
             v("parentSlot"),
             v("txRoot"),
@@ -159,16 +159,16 @@ package co.topl.genusLibrary.orientDb {
           )
       )
 
-    private val blockBodySchema: VertexSchema[BlockBodyV2] =
+    implicit private[genusLibrary] val blockBodySchema: VertexSchema[BlockBody] =
       VertexSchema.create(
         "BlockBody",
-        GraphDataEncoder[BlockBodyV2]
-          .withProperty("transactionIds", t => blockBodyV2ToByteArray(t), _ => {})(byteArrayOrientDbTypes),
+        GraphDataEncoder[BlockBody]
+          .withProperty("transactionIds", t => blockBodyToByteArray(t), _ => {})(byteArrayOrientDbTypes),
         // There is no index needed for block bodies. They are accessed thru links from block headers and transactions
-        v => byteArrayToBlockBodyV2(v("transactionIds"))
+        v => byteArrayToBlockBody(v("transactionIds"))
       )
 
-    private val transactionSchema: VertexSchema[Transaction] =
+    implicit private[genusLibrary] val transactionSchema: VertexSchema[Transaction] =
       VertexSchema.create(
         name = "Transaction",
         GraphDataEncoder[Transaction]
@@ -186,7 +186,7 @@ package co.topl.genusLibrary.orientDb {
         v => byteArrayToTransaction(v("transaction"))
       )
 
-    private val txoSchema: VertexSchema[Txo] =
+    implicit private[genusLibrary] val txoSchema: VertexSchema[Txo] =
       VertexSchema.create(
         "TxoState",
         GraphDataEncoder[Txo]
@@ -232,11 +232,11 @@ package co.topl.genusLibrary.orientDb {
     def byteArrayToTransaction(a: Array[Byte]): Transaction =
       decodeFromByteArray(a, TetraScodecCodecs.transactionCodec, "Transaction")
 
-    def byteArrayToBlockBodyV2(a: Array[Byte]): BlockBodyV2 =
-      decodeFromByteArray(a, TetraScodecCodecs.blockBodyV2Codec, "BlockBodyV2")
+    def byteArrayToBlockBody(a: Array[Byte]): BlockBody =
+      decodeFromByteArray(a, TetraScodecCodecs.blockBodyCodec, "BlockBody")
 
-    def blockBodyV2ToByteArray(blockBody: BlockBodyV2): Array[Byte] =
-      encodeToByteArray(blockBody, TetraScodecCodecs.blockBodyV2Codec, "BlockBodyV2")
+    def blockBodyToByteArray(blockBody: BlockBody): Array[Byte] =
+      encodeToByteArray(blockBody, TetraScodecCodecs.blockBodyCodec, "BlockBody")
 
     def typedBytesToByteArray(t: TypedIdentifier): Array[Byte] =
       typedBytesTupleToByteArray((t.typePrefix, t.dataBytes.toArray))

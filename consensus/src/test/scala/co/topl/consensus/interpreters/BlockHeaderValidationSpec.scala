@@ -6,20 +6,18 @@ import cats.implicits._
 import co.topl.algebras.{ClockAlgebra, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.consensus.BlockHeaderValidationFailures
 import co.topl.consensus.algebras._
-import co.topl.consensus.interpreters.LeaderElectionValidation.VrfConfig
-import co.topl.crypto.generation.KeyInitializer
-import co.topl.crypto.generation.KeyInitializer.Instances.ed25519Initializer
+import co.topl.consensus.models._
+import co.topl.crypto.signing._
+import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.hash.{blake2b256, Blake2b256, Blake2b512}
-import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.models.Box.Values.Registrations.Operator
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.{Lengths, Ratio, Sized}
-import co.topl.numerics.{ExpInterpreter, Log1pInterpreter}
+import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
 import org.scalacheck.Gen
@@ -29,6 +27,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
+import java.util.UUID
 import scala.util.Random
 
 class BlockHeaderValidationSpec
@@ -66,9 +65,9 @@ class BlockHeaderValidationSpec
   private val log1pCached = Log1pInterpreter.makeCached[F](log1pInterpreter).unsafeRunSync()
 
   private val leaderElectionInterpreter =
-    LeaderElectionValidation.Eval
+    LeaderElectionValidation
       .makeCached[F](
-        LeaderElectionValidation.Eval.make[F](
+        LeaderElectionValidation.make[F](
           VrfConfig(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5)),
           new UnsafeResource[F, Blake2b512] {
             def use[Res](f: Blake2b512 => F[Res]): F[Res] = f(blake2b512)
@@ -79,7 +78,7 @@ class BlockHeaderValidationSpec
       )
       .unsafeRunSync()
 
-  private def createDummyClockAlgebra(child: BlockHeaderV2) = {
+  private def createDummyClockAlgebra(child: BlockHeader) = {
     val clock: ClockAlgebra[F] = mock[ClockAlgebra[F]]
     (() => clock.globalSlot)
       .expects()
@@ -111,7 +110,7 @@ class BlockHeaderValidationSpec
       val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
 
       val underTest =
-        BlockHeaderValidation.Eval
+        BlockHeaderValidation
           .make[F](
             etaInterpreter,
             consensusValidationState,
@@ -139,7 +138,7 @@ class BlockHeaderValidationSpec
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
       val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
       val underTest =
-        BlockHeaderValidation.Eval
+        BlockHeaderValidation
           .make[F](
             etaInterpreter,
             consensusValidationState,
@@ -168,7 +167,7 @@ class BlockHeaderValidationSpec
         val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
         val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
         val underTest =
-          BlockHeaderValidation.Eval
+          BlockHeaderValidation
             .make[F](
               etaInterpreter,
               consensusValidationState,
@@ -219,7 +218,7 @@ class BlockHeaderValidationSpec
         .returning(1L.pure[F])
 
       val underTest =
-        BlockHeaderValidation.Eval
+        BlockHeaderValidation
           .make[F](
             etaInterpreter,
             consensusValidationState,
@@ -278,7 +277,7 @@ class BlockHeaderValidationSpec
         .returning(forwardWindowBias.pure[F])
 
       val underTest =
-        BlockHeaderValidation.Eval
+        BlockHeaderValidation
           .make[F](
             etaInterpreter,
             consensusValidationState,
@@ -324,7 +323,7 @@ class BlockHeaderValidationSpec
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
       val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
       val underTest =
-        BlockHeaderValidation.Eval
+        BlockHeaderValidation
           .make[F](
             etaInterpreter,
             consensusValidationState,
@@ -339,7 +338,7 @@ class BlockHeaderValidationSpec
 
       (etaInterpreter
         .etaToBe(_: SlotId, _: Slot))
-        .expects(parent.slotId, child.slot)
+        .expects(SlotId(parent.slot, parent.id), child.slot)
         .anyNumberOfTimes()
         // This epoch nonce does not satisfy the generated VRF certificate
         .returning(eta.pure[F])
@@ -374,7 +373,7 @@ class BlockHeaderValidationSpec
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
       val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
       val underTest =
-        BlockHeaderValidation.Eval
+        BlockHeaderValidation
           .make[F](
             etaInterpreter,
             consensusValidationState,
@@ -392,7 +391,7 @@ class BlockHeaderValidationSpec
 
       (etaInterpreter
         .etaToBe(_: SlotId, _: Slot))
-        .expects(parent.slotId, badBlock.slot)
+        .expects(SlotId(parent.slot, parent.id), badBlock.slot)
         .anyNumberOfTimes()
         .returning(eta.pure[F])
 
@@ -442,7 +441,7 @@ class BlockHeaderValidationSpec
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
       val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
       val underTest =
-        BlockHeaderValidation.Eval
+        BlockHeaderValidation
           .make[F](
             etaInterpreter,
             consensusValidationState,
@@ -463,7 +462,7 @@ class BlockHeaderValidationSpec
 
       (etaInterpreter
         .etaToBe(_: SlotId, _: Slot))
-        .expects(parent.slotId, child.slot)
+        .expects(SlotId(parent.slot, parent.id), child.slot)
         .anyNumberOfTimes()
         .returning(eta.pure[F])
 
@@ -515,7 +514,7 @@ class BlockHeaderValidationSpec
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
       val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
       val underTest =
-        BlockHeaderValidation.Eval
+        BlockHeaderValidation
           .make[F](
             etaInterpreter,
             consensusValidationState,
@@ -536,7 +535,7 @@ class BlockHeaderValidationSpec
 
       (etaInterpreter
         .etaToBe(_: SlotId, _: Slot))
-        .expects(parent.slotId, child.slot)
+        .expects(SlotId(parent.slot, parent.id), child.slot)
         .anyNumberOfTimes()
         .returning(eta.pure[F])
 
@@ -594,7 +593,7 @@ class BlockHeaderValidationSpec
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
       val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
       val underTest =
-        BlockHeaderValidation.Eval
+        BlockHeaderValidation
           .make[F](
             etaInterpreter,
             consensusValidationState,
@@ -615,7 +614,7 @@ class BlockHeaderValidationSpec
 
       (etaInterpreter
         .etaToBe(_: SlotId, _: Slot))
-        .expects(parent.slotId, child.slot)
+        .expects(SlotId(parent.slot, parent.id), child.slot)
         .anyNumberOfTimes()
         .returning(eta.pure[F])
 
@@ -667,15 +666,16 @@ class BlockHeaderValidationSpec
     parentSlot:           Slot
   ): (EligibilityCertificate, Slot) = {
     def proof(slot: Slot) =
-      ed25519Vrf.sign(
-        skVrf,
-        LeaderElectionValidation
-          .VrfArgument(eta, slot)
-          .signableBytes
+      Proofs.Knowledge.VrfEd25519(
+        Sized.strictUnsafe(
+          ed25519Vrf.sign(skVrf.bytes.data, VrfArgument(eta, slot).signableBytes)
+        )
       )
 
     def isLeader(threshold: Ratio, testProof: Proofs.Knowledge.VrfEd25519) =
-      thresholdInterpreter.isSlotLeaderForThreshold(threshold)(ed25519Vrf.proofToHash(testProof)).unsafeRunSync()
+      thresholdInterpreter
+        .isSlotLeaderForThreshold(threshold)(Rho(Sized.strictUnsafe(ed25519Vrf.proofToHash(testProof.bytes.data))))
+        .unsafeRunSync()
     var slot = parentSlot + 1
     var testProof = proof(slot)
     var threshold = thresholdInterpreter.getThreshold(relativeStake, slot).unsafeRunSync()
@@ -686,7 +686,7 @@ class BlockHeaderValidationSpec
     }
     val cert = EligibilityCertificate(
       testProof,
-      ed25519Vrf.getVerificationKey(skVrf),
+      VerificationKeys.VrfEd25519(Sized.strictUnsafe(ed25519Vrf.getVerificationKey(skVrf.bytes.data))),
       threshold.typedEvidence.evidence,
       eta
     )
@@ -696,43 +696,49 @@ class BlockHeaderValidationSpec
 
   private def withPartialOperationalCertificate(
     slot:      Slot,
-    unsignedF: BlockHeaderV2.Unsigned.PartialOperationalCertificate => BlockHeaderV2.Unsigned,
+    unsignedF: BlockHeader.Unsigned.PartialOperationalCertificate => BlockHeader.Unsigned,
     parentSK:  SecretKeys.KesProduct
-  ): (BlockHeaderV2.Unsigned, SecretKeys.Ed25519) = {
-    val linearSK = KeyInitializer[SecretKeys.Ed25519].random()
-    val linearVK = ed25519.getVerificationKey(linearSK)
+  ): (BlockHeader.Unsigned, SecretKeys.Ed25519) = {
+    val (linearSKBytes, linearVKBytes) =
+      Ed25519.instance.deriveKeyPairFromEntropy(Entropy.fromUuid(UUID.randomUUID()), None)
 
-    val message = linearVK.bytes.data ++ Bytes(Longs.toByteArray(slot))
+    val message = linearVKBytes ++ Bytes(Longs.toByteArray(slot))
     val parentSignature = kesProduct.sign(parentSK, message)
-    val partialCertificate = BlockHeaderV2.Unsigned.PartialOperationalCertificate(
+    val partialCertificate = BlockHeader.Unsigned.PartialOperationalCertificate(
       kesProduct.getVerificationKey(parentSK),
       parentSignature,
-      linearVK
+      VerificationKeys.Ed25519(Sized.strictUnsafe(linearVKBytes))
     )
-    unsignedF(partialCertificate) -> linearSK
+    unsignedF(partialCertificate) -> SecretKeys.Ed25519(Sized.strictUnsafe(linearSKBytes))
   }
 
   private def genValid(
-    preSign:    BlockHeaderV2.Unsigned => BlockHeaderV2.Unsigned = identity,
+    preSign:    BlockHeader.Unsigned => BlockHeader.Unsigned = identity,
     parentSlot: Slot = 5000L
-  ): Gen[(BlockHeaderV2, BlockHeaderV2, Box.Values.Registrations.Operator, Eta, Ratio)] =
+  ): Gen[(BlockHeader, BlockHeader, Box.Values.Registrations.Operator, Eta, Ratio)] =
     for {
       parent <- headerGen(slotGen = Gen.const[Long](parentSlot))
       (txRoot, bloomFilter, eta) <- genSizedStrictBytes[Lengths.`32`.type]().flatMap(txRoot =>
         genSizedStrictBytes[Lengths.`256`.type]()
           .flatMap(bloomFilter => etaGen.map(nonce => (txRoot, bloomFilter, nonce)))
       )
-      relativeStake <- relativeStakeGen
-      vrfSecret     <- Gen.const(KeyInitializer.Instances.vrfInitializer.random())
+      relativeStake       <- relativeStakeGen
+      (vrfSecretBytes, _) <- Gen.const(Ed25519VRF.precomputed().generateRandom)
     } yield {
 
       val (kesSK0, _) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (9, 9), 0L)
 
-      val poolVK = ed25519.getVerificationKey(KeyInitializer[SecretKeys.Ed25519].random())
+      val poolVK = arbitraryEd25519VK.arbitrary.first
 
-      val registration = validRegistration(ed25519Vrf.getVerificationKey(vrfSecret), poolVK, kesSK0)
+      val vrfSecret = SecretKeys.VrfEd25519(Sized.strictUnsafe(vrfSecretBytes))
 
-      val address = validAddress(KeyInitializer[SecretKeys.Ed25519].random(), poolVK)
+      val registration = validRegistration(
+        VerificationKeys.VrfEd25519(Sized.strictUnsafe(ed25519Vrf.getVerificationKey(vrfSecretBytes))),
+        poolVK,
+        kesSK0
+      )
+
+      val address = StakingAddresses.Operator(poolVK)
 
       val (eligibilityCert, slot) =
         validEligibilityCertificate(vrfSecret, leaderElectionInterpreter, eta, relativeStake, parent.slot)
@@ -741,7 +747,7 @@ class BlockHeaderValidationSpec
         withPartialOperationalCertificate(
           slot,
           partial =>
-            BlockHeaderV2.Unsigned(
+            BlockHeader.Unsigned(
               parentHeaderId = parent.id,
               parentSlot = parent.slot,
               txRoot = txRoot,
@@ -765,11 +771,11 @@ class BlockHeaderValidationSpec
           unsigned.partialOperationalCertificate.parentVK,
           unsigned.partialOperationalCertificate.parentSignature,
           unsigned.partialOperationalCertificate.childVK,
-          ed25519.sign(linearSK, unsigned.signableBytes)
+          Proofs.Knowledge.Ed25519(Sized.strictUnsafe(ed25519.sign(linearSK.bytes.data, unsigned.signableBytes)))
         )
 
       val child =
-        BlockHeaderV2(
+        BlockHeader(
           parentHeaderId = unsigned.parentHeaderId,
           parentSlot = unsigned.parentSlot,
           txRoot = unsigned.txRoot,
@@ -798,12 +804,5 @@ object BlockHeaderValidationSpec {
   )(implicit kesProduct: KesProduct): Box.Values.Registrations.Operator = {
     val commitmentMessage = Bytes(blake2b256.hash((vkVrf.bytes.data ++ poolVK.bytes.data).toArray).value)
     Box.Values.Registrations.Operator(kesProduct.sign(skKes, commitmentMessage))
-  }
-
-  def validAddress(paymentSK: SecretKeys.Ed25519, poolVK: VerificationKeys.Ed25519)(implicit
-    ed25519:                  Ed25519
-  ): StakingAddresses.Operator = {
-    ed25519.getVerificationKey(paymentSK)
-    StakingAddresses.Operator(poolVK)
   }
 }

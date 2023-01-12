@@ -34,10 +34,10 @@ object ConsensusDataEventSourcedState {
     parentChildTree:        ParentChildTree[F, TypedIdentifier],
     currentEventChanged:    TypedIdentifier => F[Unit],
     initialState:           F[ConsensusData[F]],
-    fetchBlockBody:         TypedIdentifier => F[BlockBodyV2],
+    fetchBlockBody:         TypedIdentifier => F[BlockBody],
     fetchTransaction:       TypedIdentifier => F[Transaction],
     fetchTransactionOutput: Box.Id => F[Transaction.Output]
-  ): F[EventSourcedState[F, ConsensusData[F]]] =
+  ): F[EventSourcedState[F, ConsensusData[F], TypedIdentifier]] =
     EventSourcedState.OfTree.make(
       initialState = initialState,
       initialEventId = currentBlockId,
@@ -48,7 +48,7 @@ object ConsensusDataEventSourcedState {
     )
 
   private class ApplyBlock[F[_]: MonadThrow](
-    fetchBlockBody:         TypedIdentifier => F[BlockBodyV2],
+    fetchBlockBody:         TypedIdentifier => F[BlockBody],
     fetchTransaction:       TypedIdentifier => F[Transaction],
     fetchTransactionOutput: Box.Id => F[Transaction.Output]
   ) extends ((ConsensusData[F], TypedIdentifier) => F[ConsensusData[F]]) {
@@ -125,7 +125,7 @@ object ConsensusDataEventSourcedState {
   }
 
   private class UnapplyBlock[F[_]: MonadThrow](
-    fetchBlockBody:         TypedIdentifier => F[BlockBodyV2],
+    fetchBlockBody:         TypedIdentifier => F[BlockBody],
     fetchTransaction:       TypedIdentifier => F[Transaction],
     fetchTransactionOutput: Box.Id => F[Transaction.Output]
   ) extends ((ConsensusData[F], TypedIdentifier) => F[ConsensusData[F]]) {

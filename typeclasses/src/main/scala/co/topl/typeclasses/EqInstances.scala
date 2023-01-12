@@ -33,10 +33,10 @@ trait EqInstances {
   implicit val spendingAddressEq: Eq[SpendingAddress] =
     (a, b) => a.typedEvidence === b.typedEvidence
 
-  implicit val blockV2Eq: Eq[BlockV2] =
+  implicit val blockEq: Eq[Block] =
     Eq.fromUniversalEquals
 
-  implicit val blockHeaderV2Eq: Eq[BlockHeaderV2] =
+  implicit val blockHeaderEq: Eq[BlockHeader] =
     Eq.fromUniversalEquals
 
   implicit val slotIdEq: Eq[SlotId] =
@@ -64,7 +64,6 @@ trait EqInstances {
 
   implicit val assetCodeEq: Eq[Box.Values.AssetV1.Code] =
     (a, b) =>
-      a.version === b.version &&
       a.issuer === b.issuer &&
       a.shortName === b.shortName
 

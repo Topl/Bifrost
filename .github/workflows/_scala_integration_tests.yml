@@ -32,6 +32,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0 # Need full history to update last modified time.
+          submodules: true
 
       - name: git-restore-mtime
         uses: chetan/git-restore-mtime-action@v1
@@ -59,8 +60,8 @@ jobs:
 
       - name: Integration Tests
         run: >
-          IMAGE_ID=$(docker build -q -f node-tetra/src/it/resources/Dockerfile .)
-          && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd)/node-tetra/target/it-reports:/bifrost/node-tetra/target/it-reports -v ~/.cache:/root/.cache -v ~/.ivy2/cache:/root/.ivy2/cache $IMAGE_ID sbt nodeTetra/docker:publishLocal nodeTetra/it:test
+          IMAGE_ID=$(docker build -q -f node/src/it/resources/Dockerfile .)
+          && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd)/node/target/it-reports:/bifrost/node/target/it-reports -v ~/.cache:/root/.cache -v ~/.ivy2/cache:/root/.ivy2/cache $IMAGE_ID sbt node/docker:publishLocal node/it:test
           && docker image rm -f $IMAGE_ID
 
       # Upload JUnit test results as an artifact so that we can publish a test report in our workflow.
@@ -70,7 +71,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: Scala Integration Test Results (${{ matrix.os }})
-          path: node-tetra/target/it-reports/*.xml
+          path: node/target/it-reports/*.xml
 
       - name: Cleanup before cache
         shell: bash

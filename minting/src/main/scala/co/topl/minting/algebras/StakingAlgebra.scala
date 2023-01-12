@@ -1,6 +1,6 @@
 package co.topl.minting.algebras
 
-import co.topl.minting.algebras.LeaderElectionMintingAlgebra.VrfHit
+import co.topl.minting.models.VrfHit
 import co.topl.models._
 
 /**
@@ -16,6 +16,6 @@ trait StakingAlgebra[F[_]] {
   def certifyBlock(
     parentSlotId:         SlotId,
     slot:                 Slot,
-    unsignedBlockBuilder: BlockHeaderV2.Unsigned.PartialOperationalCertificate => BlockV2.Unsigned
-  ): F[Option[BlockV2]]
+    unsignedBlockBuilder: BlockHeader.Unsigned.PartialOperationalCertificate => Block.Unsigned
+  ): F[Option[Block]]
 }

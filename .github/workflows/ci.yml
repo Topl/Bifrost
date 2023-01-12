@@ -37,8 +37,8 @@ jobs:
       remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-dev"
       registry-auth-location: "us-central1-docker.pkg.dev"
       local-docker-repo: "toplprotocol"
-      local-docker-image: "bifrost-node-tetra"
-      scala-project: "nodeTetra"
+      local-docker-image: "bifrost-node"
+      scala-project: "node"
     secrets: inherit
 
   publish-docker-image-qa:

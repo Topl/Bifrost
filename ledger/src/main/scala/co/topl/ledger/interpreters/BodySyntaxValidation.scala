@@ -31,7 +31,7 @@ object BodySyntaxValidation {
         /**
          * Syntactically validates each of the transactions in the given block.
          */
-        def validate(body: BlockBodyV2): F[ValidatedNec[BodySyntaxError, BlockBodyV2]] =
+        def validate(body: BlockBody): F[ValidatedNec[BodySyntaxError, BlockBody]] =
           for {
             transactions            <- body.toList.traverse(fetchTransaction)
             validatedDistinctInputs <- validateDistinctInputs(transactions).pure[F]

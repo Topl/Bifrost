@@ -2,24 +2,28 @@ import sbt._
 
 object Dependencies {
 
-  val akkaVersion = "2.6.19"
-  val akkaHttpVersion = "10.2.9"
-  val circeVersion = "0.14.2"
+  val akkaVersion = "2.6.20"
+  val akkaHttpVersion = "10.2.10"
+  val circeVersion = "0.14.3"
   val kamonVersion = "2.5.12"
-  val graalVersion = "21.3.3"
+  val graalVersion = "21.3.4"
   val simulacrumVersion = "1.0.1"
-  val catsCoreVersion = "2.8.0"
-  val catsEffectVersion = "3.3.14"
-  val fs2Version = "3.2.12"
+  val catsCoreVersion = "2.9.0"
+  val catsEffectVersion = "3.4.1"
+  val fs2Version = "3.5-1c0be5c"
+  val logback = "1.4.5"
 
-  val catsSlf4j: ModuleID =
-    "org.typelevel" %% "log4cats-slf4j" % "2.4.0"
+  val protobufSpecs =
+    "com.github.Topl" % "protobuf-specs" % "aefb7254"
+
+  val catsSlf4j =
+    "org.typelevel" %% "log4cats-slf4j" % "2.5.0"
 
   val logging: Seq[ModuleID] = Seq(
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.5",
-    "ch.qos.logback"              % "logback-classic" % "1.2.11",
-    "ch.qos.logback"              % "logback-core"    % "1.2.11",
-    "org.slf4j"                   % "slf4j-api"       % "1.7.36",
+    "ch.qos.logback"              % "logback-classic" % logback,
+    "ch.qos.logback"              % "logback-core"    % logback,
+    "org.slf4j"                   % "slf4j-api"       % "2.0.4",
     catsSlf4j
   )
 
@@ -100,8 +104,8 @@ object Dependencies {
     "com.iheart" %% "ficus" % "1.5.2"
   )
 
-  val shapeless: Seq[ModuleID] = Seq(
-    "com.chuusai" %% "shapeless" % "2.3.9"
+  val shapeless = Seq(
+    "com.chuusai" %% "shapeless" % "2.3.10"
   )
 
   val monitoring: Seq[ModuleID] = Seq(
@@ -120,7 +124,7 @@ object Dependencies {
 
   val cats: Seq[ModuleID] = Seq(
     "org.typelevel" %% "cats-core" % catsCoreVersion,
-    "org.typelevel" %% "mouse"     % "1.1.0"
+    "org.typelevel" %% "mouse"     % "1.2.1"
   )
 
   val catsEffect: Seq[ModuleID] = Seq(
@@ -136,13 +140,12 @@ object Dependencies {
   )
 
   val externalCrypto: Seq[ModuleID] = Seq(
-    "org.whispersystems" % "curve25519-java" % "0.5.0",
-    "org.bouncycastle"   % "bcprov-jdk18on"  % "1.71"
+    "org.bouncycastle" % "bcprov-jdk18on" % "1.72"
   )
 
   val mongoDb: Seq[ModuleID] =
     Seq(
-      "org.mongodb.scala" %% "mongo-scala-driver" % "4.7.1"
+      "org.mongodb.scala" %% "mongo-scala-driver" % "4.7.2"
     )
 
   val levelDb: Seq[ModuleID] = Seq(
@@ -150,10 +153,10 @@ object Dependencies {
     "org.iq80.leveldb" % "leveldb"        % "0.12"
   )
 
-  val scodec: Seq[ModuleID] = Seq(
-    "org.scodec" %% "scodec-core" % "1.11.9",
+  val scodec = Seq(
+    "org.scodec" %% "scodec-core" % "1.11.10",
     "org.scodec" %% "scodec-bits" % "1.1.34",
-    "org.scodec" %% "scodec-cats" % "1.1.0"
+    "org.scodec" %% "scodec-cats" % "1.2.0"
   )
 
   val scodecCats: Seq[ModuleID] = Seq(
@@ -164,8 +167,8 @@ object Dependencies {
     "com.nike.fleam" %% "fleam" % "7.0.0"
   )
 
-  val mainargs: Seq[ModuleID] = Seq(
-    "com.lihaoyi" %% "mainargs" % "0.2.3"
+  val mainargs = Seq(
+    "com.lihaoyi" %% "mainargs" % "0.3.0"
   )
 
   val monocle: Seq[ModuleID] = Seq(
@@ -180,30 +183,10 @@ object Dependencies {
   val circeYaml = "io.circe"               %% "circe-yaml"           % "0.14.1"
   val kubernetes = "io.kubernetes"          % "client-java"          % "16.0.1"
 
-  val nodeDion: Seq[ModuleID] =
-    Seq(
-      "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
-      "com.typesafe.akka" %% "akka-remote"  % akkaVersion,
-      "com.typesafe"       % "config"       % "1.4.2",
-      "net.jpountz.lz4"    % "lz4"          % "1.3.0"
-    ) ++
-    monocle ++
-    levelDb ++
-    logging ++
-    test ++
-    mongoDb ++
-    it ++
-    allAkka ++
-    network ++
-    circe ++
-    guava ++
-    ficus ++
-    shapeless ++
-    newType ++
-    monitoring ++
-    mainargs
+  val bramblScCrypto =
+    "com.github.Topl" % "BramblSc" % "v2.0.3"
 
-  val nodeTetra: Seq[ModuleID] =
+  val node: Seq[ModuleID] =
     Seq(
       catsSlf4j,
       akka("actor-typed"),
@@ -239,6 +222,7 @@ object Dependencies {
     )
 
   lazy val algebras: Seq[sbt.ModuleID] =
+    circe ++
     test ++
     catsEffect.map(_ % Test) ++
     Seq(catsSlf4j % Test)
@@ -265,12 +249,6 @@ object Dependencies {
       circeYaml
     )
 
-  lazy val chainProgram: Seq[ModuleID] =
-    scalaCollectionCompat ++
-    circe ++
-    test ++
-    graal
-
   lazy val brambl: Seq[ModuleID] =
     test ++ scodec ++ simulacrum ++ Seq(akkaHttp("http2-support"))
 
@@ -290,33 +268,15 @@ object Dependencies {
     circe ++
     test
 
-  lazy val gjallarhorn: Seq[ModuleID] =
-    Seq(
-      "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
-      "com.typesafe.akka" %% "akka-remote"  % akkaVersion,
-      pureConfig
-    ) ++
-    allAkka ++
-    test ++
-    circe ++
-    logging ++
-    guava ++
-    ficus ++
-    shapeless ++
-    newType ++
-    it
-
   lazy val benchmarking: Seq[ModuleID] = Seq()
 
   lazy val crypto: Seq[ModuleID] =
-    scodec ++
-    newType ++
     circe ++
+    scodec ++
     externalCrypto ++
     cats ++
-    simulacrum ++
-    cats ++
-    test
+    test ++
+    Seq(bramblScCrypto)
 
   lazy val eventTree: Seq[ModuleID] =
     Dependencies.mUnitTest ++ Dependencies.catsEffect
@@ -326,6 +286,7 @@ object Dependencies {
     Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++
     Seq(fs2Core, fs2IO, fs2ReactiveStreams)
 
+  // TODO remove BN-714, PR v2
   lazy val models: Seq[ModuleID] =
     cats ++ simulacrum ++ newType ++ scodec
 
@@ -356,9 +317,6 @@ object Dependencies {
       akka("stream"),
       akka("stream-testkit") % Test
     ) ++ Seq(fs2Core)
-
-  lazy val demo: Seq[ModuleID] =
-    Seq(akka("actor"), akka("actor-typed"), akka("stream"), akkaHttp("http2-support")) ++ logging
 
   lazy val commonInterpreters: Seq[sbt.ModuleID] =
     mUnitTest ++
@@ -396,7 +354,8 @@ object Dependencies {
     ) ++
     cats ++
     catsEffect ++
-    mUnitTest
+    mUnitTest ++
+    Seq(protobufSpecs)
 
   lazy val levelDbStore: Seq[ModuleID] =
     levelDb ++

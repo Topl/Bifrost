@@ -8,16 +8,17 @@ import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.Arbitrary
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
+import co.topl.proto.models
 
 class BifrostMorphismInstancesSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
 
   test("BlockHeader Morphism") {
-    testIsomorphism[bifrostModels.BlockHeaderV2, models.BlockHeader]
+    testIsomorphism[bifrostModels.BlockHeader, models.BlockHeader]
   }
 
   test("BlockBody Morphism") {
-    testIsomorphism[bifrostModels.BlockBodyV2, models.BlockBody]
+    testIsomorphism[bifrostModels.BlockBody, models.BlockBody]
   }
 
   test("Proof Morphism") {
