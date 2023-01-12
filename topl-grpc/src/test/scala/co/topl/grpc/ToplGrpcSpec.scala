@@ -176,4 +176,6 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
       }
     }
   }
+
+  // TODO: fetchBlockIdAtDepth has no unit testing
 }

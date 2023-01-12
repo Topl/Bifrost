@@ -142,16 +142,10 @@ object ToplGrpc {
                 )
                 .map(res => TypedBytes.headerFromProtobufString(res.blockId).some)
 
-            def blockIdAtDepth(depth: Long): F[Option[TypedIdentifier]] = ???
-//            def blockIdAtDepth(depth: Long): F[Option[TypedIdentifier]] =
-//              OptionT(
-//                client
-//                  .fetchBlockIdAtDepth(FetchBlockIdAtDepthReq(depth), new Metadata())
-//                  .map(_.blockId)
-//              )
-//                .semiflatMap(_.toF[F, bifrostModels.TypedIdentifier])
-//                .semiflatMap(EitherT.fromEither[F](_).leftMap(new IllegalArgumentException(_)).rethrowT)
-//                .value
+            def blockIdAtDepth(depth: Long): F[Option[TypedIdentifier]] =
+              client
+                .fetchBlockIdAtDepth(FetchBlockIdAtDepthReq(depth), new Metadata())
+                .map(res => TypedBytes.headerFromProtobufString(res.blockId).some)
 
             def synchronizationTraversal(): F[Stream[F, SynchronizationTraversalStep]] = ???
 //            def synchronizationTraversal(): F[Stream[F, SynchronizationTraversalStep]] =
@@ -321,17 +315,16 @@ object ToplGrpc {
           .getOrRaise(Status.DATA_LOSS.withDescription("blockIdAtHeight not Found").asException())
           .adaptErrorsToGrpc
 
-      def fetchBlockIdAtDepth(in: FetchBlockIdAtDepthReq, ctx: Metadata): F[FetchBlockIdAtDepthRes] = ???
-//      def fetchBlockIdAtDepth(in: FetchBlockIdAtDepthReq, ctx: Metadata): F[FetchBlockIdAtDepthRes] =
-//        OptionT(interpreter.blockIdAtDepth(in.depth))
-//          .semiflatMap(id =>
-//            EitherT(id.toF[F, models.BlockId])
-//              .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
-//              .rethrowT
-//          )
-//          .value
-//          .map(FetchBlockIdAtDepthRes(_))
-//          .adaptErrorsToGrpc
+      def fetchBlockIdAtDepth(in: FetchBlockIdAtDepthReq, ctx: Metadata): F[FetchBlockIdAtDepthRes] =
+        OptionT(interpreter.blockIdAtDepth(in.depth))
+          .semiflatMap(id =>
+            EitherT(id.toF[F, models.BlockId])
+              .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
+              .rethrowT
+          )
+          .semiflatMap(blockId => FetchBlockIdAtDepthRes(blockId.value).pure[F])
+          .getOrRaise(Status.DATA_LOSS.withDescription("blockIdAtDepth not Found").asException())
+          .adaptErrorsToGrpc
 
 //      private def pipeSteps: Pipe[F, SynchronizationTraversalStep, SynchronizationTraversalRes] = { in =>
 //        in.evalMap {

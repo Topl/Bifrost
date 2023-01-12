@@ -49,7 +49,7 @@ class KesProduct extends ProductComposition {
     )
   }
 
-  def  verify(
+  def verify(
     signature: co.topl.consensus.models.SignatureKesProduct,
     message:   Bytes,
     verifyKey: co.topl.consensus.models.VerificationKeyKesProduct
@@ -58,6 +58,7 @@ class KesProduct extends ProductComposition {
       (
         // Don't do this signature.getSuperSignature.getVerificationKey.toByteArray, fails unit testing
         signature.getSuperSignature.verificationKey.map(_.value.toByteArray).getOrElse(Array.empty),
+//        signature.getSuperSignature.getVerificationKey.toByteArray,
         signature.getSuperSignature.signature.map(_.value.toByteArray).getOrElse(Array.empty),
         signature.getSuperSignature.witness.map(_.toByteArray).toVector
       ),

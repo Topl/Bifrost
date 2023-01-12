@@ -7,7 +7,15 @@ import co.topl.algebras.{ClockAlgebra, Store, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras._
-import co.topl.consensus.models.{BlockHeaderValidationFailure, BlockHeaderValidationFailures, SignatureKesProduct, SignatureVrfEd25519, VerificationKeyKesProduct, VrfArgument, BlockHeader => ConsensusBlockHeader}
+import co.topl.consensus.models.{
+  BlockHeader => ConsensusBlockHeader,
+  BlockHeaderValidationFailure,
+  BlockHeaderValidationFailures,
+  SignatureKesProduct,
+  SignatureVrfEd25519,
+  VerificationKeyKesProduct,
+  VrfArgument
+}
 import co.topl.crypto.signing.{Ed25519VRF, KesProduct}
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.Ed25519
@@ -153,7 +161,9 @@ object BlockHeaderValidation {
                           _,
                           header,
                           BlockHeaderValidationFailures
-                            .InvalidEligibilityCertificateProof(eligibilityCertificate.vrfSig.getOrElse(SignatureVrfEd25519.defaultInstance))
+                            .InvalidEligibilityCertificateProof(
+                              eligibilityCertificate.vrfSig.getOrElse(SignatureVrfEd25519.defaultInstance)
+                            )
                         )
                       )
                   )
@@ -180,7 +190,9 @@ object BlockHeaderValidation {
                 kesProduct
                   .verify(
                     operationalCertificate.parentSignature.getOrElse(SignatureKesProduct.defaultInstance),
-                    Bytes(operationalCertificate.childVK.map(_.value.toByteArray).getOrElse(Array.empty)) ++ Bytes(Longs.toByteArray(header.slot)),
+                    Bytes(operationalCertificate.childVK.map(_.value.toByteArray).getOrElse(Array.empty)) ++ Bytes(
+                      Longs.toByteArray(header.slot)
+                    ),
                     operationalCertificate.parentVK.getOrElse(VerificationKeyKesProduct.defaultInstance)
                   )
                   .pure[F]
