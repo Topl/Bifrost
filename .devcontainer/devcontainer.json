@@ -6,7 +6,7 @@
 	"customizations": {
 		"vscode": {
 			"extensions": [
-                "scala-lang.scala",
+				"scala-lang.scala",
 				"scalameta.metals",
 				"zxh404.vscode-proto3",
 				"ms-azuretools.vscode-docker"
