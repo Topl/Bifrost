@@ -394,7 +394,7 @@ case class TypedProtocolTransitionFailureException(message: Any, reason: TypedPr
  * @param byteB The session ID byte of the client when the local node is the connection leader, or the ID byte of the
  *              server when the remote node is the connection leader
  */
-case class ReciprocatedTypedSubHandler[F[_], InitialState: NetworkTypeTag](
+case class ReciprocatedTypedSubHandler[F[_], InitialState](
   serverHandlerF: Byte => TypedSubHandler[F, InitialState],
   clientHandlerF: Byte => TypedSubHandler[F, InitialState],
   byteA:          Byte,
