@@ -14,7 +14,7 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.common.application.{IOAkkaApp, IOBaseApp}
 import co.topl.consensus.algebras._
-import co.topl.consensus.interpreters.LeaderElectionValidation.VrfConfig
+import co.topl.consensus.models.VrfConfig
 import co.topl.consensus.interpreters._
 import co.topl.crypto.signing.{Ed25519VRF, KesProduct}
 import co.topl.crypto.hash.Blake2b512
@@ -22,8 +22,8 @@ import co.topl.crypto.signing._
 import co.topl.eventtree.ParentChildTree
 import co.topl.interpreters._
 import co.topl.ledger.interpreters._
-import co.topl.minting._
 import co.topl.minting.algebras.StakingAlgebra
+import co.topl.minting.interpreters.{OperationalKeyMaker, Staking, VrfCalculator}
 import co.topl.models._
 import co.topl.networking.p2p.{ConnectedPeer, LocalPeer}
 import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
@@ -265,44 +265,39 @@ object NodeApp
             .map(_.isEmpty)
             // If uninitialized, generate a new key.  Otherwise, move on.
             .ifM(secureStore.write(UUID.randomUUID().toString, initializer.kesSK), Applicative[F].unit)
-          vrfProofConstruction <- VrfProof.Eval.make[F](
+          vrfCalculator <- VrfCalculator.make[F](
+            initializer.vrfVK,
             initializer.vrfSK,
             clock,
             leaderElectionThreshold,
             ed25519VRFResource,
-            vrfConfig
+            vrfConfig,
+            leaderElectionThreshold
           )
           currentSlot  <- clock.globalSlot.map(_.max(0L))
           currentEpoch <- clock.epochOf(currentSlot)
-          _            <- vrfProofConstruction.precomputeForEpoch(currentEpoch, currentHead.eta)
-          operationalKeys <- OperationalKeys.FromSecureStore.make[F](
-            secureStore = secureStore,
-            clock = clock,
-            vrfProof = vrfProofConstruction,
-            etaCalculation,
-            consensusValidationState,
-            kesProductResource,
-            ed25519Resource,
+          _            <- vrfCalculator.precomputeForEpoch(currentEpoch, currentHead.eta)
+          operationalKeys <- OperationalKeyMaker.make[F](
+            initialSlot = currentSlot,
             currentHead.slotId,
             operationalPeriodLength = protocol.operationalPeriodLength,
             activationOperationalPeriod = 0L, // TODO: Accept registration block as `make` parameter?
             initializer.stakingAddress,
-            initialSlot = currentSlot
+            secureStore = secureStore,
+            clock = clock,
+            vrfCalculator = vrfCalculator,
+            etaCalculation,
+            consensusValidationState,
+            kesProductResource,
+            ed25519Resource
           )
-          staking = Staking.Eval.make(
+          staking = Staking.make(
             initializer.stakingAddress,
-            LeaderElectionMinting.Eval.make(
-              initializer.vrfVK,
-              leaderElectionThreshold,
-              vrfProofConstruction,
-              statsInterpreter = StatsInterpreter.Noop.make[F],
-              statsName = ""
-            ),
             operationalKeys,
             consensusValidationState,
             etaCalculation,
             ed25519Resource,
-            vrfProofConstruction,
+            vrfCalculator,
             clock
           )
         } yield staking

@@ -9,6 +9,7 @@ import co.topl.algebras.{ClockAlgebra, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.BlockHeaderOps
+import co.topl.consensus.models.VrfArgument
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.models.ModelGenerators._
@@ -73,9 +74,7 @@ class EtaCalculationSpec
       val signature =
         ed25519Vrf.sign(
           skVrf,
-          LeaderElectionValidation
-            .VrfArgument(bigBangHeader.eligibilityCertificate.eta, slot)
-            .signableBytes
+          VrfArgument(bigBangHeader.eligibilityCertificate.eta, slot).signableBytes
         )
       slot -> Proofs.Knowledge.VrfEd25519(Sized.strictUnsafe(signature))
     }

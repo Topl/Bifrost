@@ -1,7 +1,7 @@
 package co.topl.genusLibrary.algebras
 
 import co.topl.genusLibrary.failure.Failure
-import co.topl.models.Block
+import co.topl.genusLibrary.model.BlockData
 
 /**
  * Inserter of blocks to the chain in the data store.
@@ -14,6 +14,6 @@ trait BlockInserterAlgebra[F[_]] {
    * @param block the block to be inserted in the data store.
    * @return Unit
    */
-  def insert(block: Block.Full): F[Either[Failure, Unit]]
+  def insert(block: BlockData): F[Either[Failure, Unit]]
 
 }

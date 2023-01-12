@@ -3,8 +3,8 @@ package co.topl.consensus.interpreters
 import cats.effect.Sync
 import cats.implicits._
 import co.topl.algebras.UnsafeResource
-import co.topl.codecs.bytes.typeclasses.Signable
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
+import co.topl.consensus.models.VrfConfig
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.crypto.hash.Blake2b512
 import co.topl.models._
@@ -14,13 +14,6 @@ import co.topl.numerics.implicits._
 import scalacache.caffeine.CaffeineCache
 
 object LeaderElectionValidation {
-
-  case class VrfConfig(lddCutoff: Int, precision: Int, baselineDifficulty: Ratio, amplitude: Ratio)
-
-  case class VrfArgument(eta: Eta, slot: Slot)
-
-  implicit val signableVrfArgument: Signable[VrfArgument] =
-    arg => arg.eta.data ++ Bytes(BigInt(arg.slot).toByteArray)
 
   /**
    * Normalization constant for test nonce hash evaluation based on 512 byte hash function output

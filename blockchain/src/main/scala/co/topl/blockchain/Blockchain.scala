@@ -25,7 +25,7 @@ import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import BlockchainPeerHandler.monoidBlockchainPeerHandler
 import co.topl.blockchain.algebras.BlockHeaderToBodyValidationAlgebra
 import co.topl.crypto.signing.Ed25519VRF
-import co.topl.minting.{BlockPacker, BlockProducer}
+import co.topl.minting.interpreters.{BlockPacker, BlockProducer}
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scala.jdk.CollectionConverters._

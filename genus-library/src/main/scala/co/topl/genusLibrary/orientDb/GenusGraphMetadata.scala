@@ -77,7 +77,7 @@ package co.topl.genusLibrary.orientDb {
     /**
      * Schema for Address nodes
      */
-    private val addressVertexSchema: VertexSchema[TypedEvidence] =
+    implicit private[genusLibrary] val addressVertexSchema: VertexSchema[TypedEvidence] =
       VertexSchema.create(
         "Address",
         GraphDataEncoder[TypedEvidence]
@@ -98,14 +98,14 @@ package co.topl.genusLibrary.orientDb {
      * <p>
      * address state vertexes have no properties, just links to txoStates.
      */
-    private val addressStateSchema: VertexSchema[Unit] =
+    implicit private[genusLibrary] val addressStateSchema: VertexSchema[Unit] =
       VertexSchema.create(
         "AddressState",
         GraphDataEncoder[Unit],
         _ => ()
       )
 
-    private val blockHeaderSchema: VertexSchema[BlockHeader] =
+    implicit private[genusLibrary] val blockHeaderSchema: VertexSchema[BlockHeader] =
       VertexSchema.create(
         "BlockHeader",
         GraphDataEncoder[BlockHeader]
@@ -159,7 +159,7 @@ package co.topl.genusLibrary.orientDb {
           )
       )
 
-    private val blockBodySchema: VertexSchema[BlockBody] =
+    implicit private[genusLibrary] val blockBodySchema: VertexSchema[BlockBody] =
       VertexSchema.create(
         "BlockBody",
         GraphDataEncoder[BlockBody]
@@ -168,7 +168,7 @@ package co.topl.genusLibrary.orientDb {
         v => byteArrayToBlockBody(v("transactionIds"))
       )
 
-    private val transactionSchema: VertexSchema[Transaction] =
+    implicit private[genusLibrary] val transactionSchema: VertexSchema[Transaction] =
       VertexSchema.create(
         name = "Transaction",
         GraphDataEncoder[Transaction]
@@ -186,7 +186,7 @@ package co.topl.genusLibrary.orientDb {
         v => byteArrayToTransaction(v("transaction"))
       )
 
-    private val txoSchema: VertexSchema[Txo] =
+    implicit private[genusLibrary] val txoSchema: VertexSchema[Txo] =
       VertexSchema.create(
         "TxoState",
         GraphDataEncoder[Txo]

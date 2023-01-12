@@ -7,7 +7,7 @@ import co.topl.algebras.{ClockAlgebra, Store, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras._
-import co.topl.consensus.models.{BlockHeaderValidationFailure, BlockHeaderValidationFailures}
+import co.topl.consensus.models.{BlockHeaderValidationFailure, BlockHeaderValidationFailures, VrfArgument}
 import co.topl.crypto.signing.{Ed25519VRF, KesProduct}
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.Ed25519
@@ -144,7 +144,7 @@ object BlockHeaderValidation {
                         ed25519vrf
                           .verify(
                             ByteVector(eligibilityCertificate.getVrfSig.toByteArray),
-                            LeaderElectionValidation.VrfArgument(expectedEta, header.slot).signableBytes,
+                            VrfArgument(expectedEta, header.slot).signableBytes,
                             ByteVector(eligibilityCertificate.getVrfVK.toByteArray)
                           )
                           .pure[F]
@@ -203,7 +203,7 @@ object BlockHeaderValidation {
                     // Use the ed25519 instance to verify the childSignature against the header's bytes
                     ed25519
                       .verify(
-                        Bytes(operationalCertificate.getChildSignature.value.toByteArray),
+                        Bytes(operationalCertificate.getChildSignature.toByteArray),
                         header.signableBytes,
                         Bytes(operationalCertificate.getChildVK.toByteArray)
                       )
@@ -275,7 +275,7 @@ object BlockHeaderValidation {
                 .use { implicit ed25519Vrf =>
                   ed25519Vrf
                     .proofToHash(
-                      Bytes(eligibilityCertificate.vrfSig.map(_.value.toByteArray).getOrElse(Array.empty))
+                      Bytes(eligibilityCertificate.getVrfSig.toByteArray)
                     )
                     .pure[F]
                 }

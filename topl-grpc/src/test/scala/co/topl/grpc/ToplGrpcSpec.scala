@@ -1,6 +1,5 @@
 package co.topl.grpc
 
-import cats.Applicative
 import cats.data.EitherT
 import cats.effect.IO
 import cats.implicits._
@@ -11,7 +10,6 @@ import co.topl.node.services._
 import co.topl.proto.models
 import co.topl.models.ModelGenerators._
 import co.topl.typeclasses.implicits._
-import co.topl.{models => bifrostModels}
 import com.google.protobuf.ByteString
 import io.grpc.{Metadata, Status, StatusException}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}

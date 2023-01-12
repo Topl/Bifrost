@@ -37,8 +37,7 @@ package object consensus {
           Sized.strictUnsafe(
             ed25519VRF.proofToHash(
               blockHeader.eligibilityCertificate
-                .flatMap(_.vrfSig)
-                .map(_.value.toByteArray)
+                .map(_.getVrfSig.toByteArray)
                 .map(ByteVector(_))
                 .getOrElse(ByteVector.empty)
             )

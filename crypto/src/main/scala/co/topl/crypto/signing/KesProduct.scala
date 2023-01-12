@@ -56,14 +56,14 @@ class KesProduct extends ProductComposition {
   ): Boolean = {
     val prodSig = (
       (
-        signature.getSuperSignature.verificationKey.map(_.value.toByteArray).getOrElse(Array.empty),
+        signature.getSuperSignature.getVerificationKey.toByteArray,
         signature.getSuperSignature.getSignature.value.toByteArray,
-        signature.getSuperSignature.witness.map(_.toByteArray).toVector
+        signature.getSuperSignature.witness.toVector.map(_.toByteArray)
       ),
       (
-        signature.getSubSignature.verificationKey.map(_.value.toByteArray).getOrElse(Array.empty),
+        signature.getSubSignature.getVerificationKey.toByteArray,
         signature.getSubSignature.getSignature.value.toByteArray,
-        signature.getSubSignature.witness.map(_.toByteArray).toVector
+        signature.getSubSignature.witness.toVector.map(_.toByteArray)
       ),
       signature.subRoot.toByteArray
     )
