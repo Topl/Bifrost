@@ -125,18 +125,16 @@ object Blockchain {
             .pure[F]
         )
       )
-      (p2pServer, p2pFiber) <- remotePeers.toAkkaSource.evalMap(remotePeersSource =>
-        BlockchainNetwork
-          .make[F](
-            localPeer.localAddress.getHostName,
-            localPeer.localAddress.getPort,
-            localPeer,
-            remotePeersSource,
-            clientHandler,
-            peerServer,
-            peerFlowModifier
-          )
-      )
+      _ <- BlockchainNetwork
+        .make[F](
+          localPeer.localAddress.getHostName,
+          localPeer.localAddress.getPort,
+          localPeer,
+          remotePeers,
+          clientHandler,
+          peerServer,
+          peerFlowModifier
+        )
       blockPacker <- Resource.eval(
         BlockPacker.make[F](
           mempool,
@@ -202,7 +200,6 @@ object Blockchain {
           Logger[F].info(s"RPC Server bound at ${rpcServer.getListenSockets.asScala.toList.mkString(",")}")
         )
       _ <- Resource.eval(mintedBlockStreamCompletionF)
-      _ <- Resource.eval(p2pFiber.joinWithUnit)
     } yield ()
   }
 

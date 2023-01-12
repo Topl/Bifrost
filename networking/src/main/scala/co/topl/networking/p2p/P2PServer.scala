@@ -1,7 +1,6 @@
 package co.topl.networking.p2p
 
-import akka.NotUsed
-import akka.stream.scaladsl.Source
+import fs2.concurrent.Topic
 
 import java.net.InetSocketAddress
 
@@ -9,8 +8,7 @@ import java.net.InetSocketAddress
  * Captures the notion of serving peers in a decentralized network
  */
 trait P2PServer[F[_], Client] {
-  def stop(): F[Unit]
-  def peerChanges: F[Source[PeerConnectionChange[Client], NotUsed]]
+  def peerChanges: F[Topic[F, PeerConnectionChange[Client]]]
   def localAddress: F[InetSocketAddress]
 
 }

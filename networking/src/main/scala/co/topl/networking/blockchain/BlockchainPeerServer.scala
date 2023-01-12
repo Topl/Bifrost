@@ -39,10 +39,10 @@ object BlockchainPeerServer {
       new BlockchainPeerServer[F] {
 
         def localBlockAdoptions: F[Stream[F, TypedIdentifier]] =
-          locallyAdoptedBlockIds.map(_.dropOldest(1))
+          locallyAdoptedBlockIds.map(_.dropOldest(8))
 
         def localTransactionNotifications: F[Stream[F, TypedIdentifier]] =
-          locallyAdoptedTransactionIds.map(_.dropOldest(5))
+          locallyAdoptedTransactionIds.map(_.dropOldest(16))
 
         def getLocalSlotData(id: TypedIdentifier): F[Option[SlotData]] = slotDataStore.get(id)
 
