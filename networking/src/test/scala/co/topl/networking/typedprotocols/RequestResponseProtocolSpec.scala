@@ -1,7 +1,6 @@
 package co.topl.networking.typedprotocols
 
-import cats.Applicative
-import cats.effect.IO
+import cats.effect.{Deferred, IO}
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import co.topl.networking.{NetworkTypeTag, Parties}
@@ -41,26 +40,31 @@ class RequestResponseProtocolSpec
         .withTransition(doneIdleDone)
     }
 
-    val applier = instance.applier(TypedProtocol.CommonStates.None).unsafeRunSync()
+    instance
+      .applier(TypedProtocol.CommonStates.None)
+      .use { applier =>
+        for {
+          _ <- applier(TypedProtocol.CommonMessages.Start, Parties.A)
 
-    val computation =
-      for {
-        _ <- applier(TypedProtocol.CommonMessages.Start, Parties.A).map(_.value)
-        _ = handlerF.expects(*).once().returning(Applicative[F].unit)
-        _ <- applier(TypedProtocol.CommonMessages.Get("foo"), Parties.B).map(_.value)
-        _ = handlerF.expects(*).never()
-        _ <- applier(TypedProtocol.CommonMessages.Response(none[Int]), Parties.A).map(_.value)
-        _ = handlerF.expects(*).once().returning(Applicative[F].unit)
-        _ <- applier(TypedProtocol.CommonMessages.Get("foo"), Parties.B).map(_.value)
-        _ = handlerF.expects(*).never()
-        _          <- applier(TypedProtocol.CommonMessages.Response(none[Int]), Parties.A).map(_.value)
-        finalState <- applier(TypedProtocol.CommonMessages.Done, Parties.B).map(_.value)
-      } yield finalState
+          d1 <- Deferred[F, Unit]
+          _ = handlerF.expects(*).once().returning(d1.complete(()).void)
+          _ <- applier(TypedProtocol.CommonMessages.Get("foo"), Parties.B)
+          _ <- d1.get
 
-    val finalState = computation.unsafeRunSync()
+          _ = handlerF.expects(*).never()
+          _ <- applier(TypedProtocol.CommonMessages.Response(none[Int]), Parties.A)
 
-    finalState shouldBe TypedProtocol.CommonStates.Done
+          d2 <- Deferred[F, Unit]
+          _ = handlerF.expects(*).once().returning(d2.complete(()).void)
+          _ <- applier(TypedProtocol.CommonMessages.Get("foo"), Parties.B)
+          _ <- d2.get
 
+          _ = handlerF.expects(*).never()
+          _ <- applier(TypedProtocol.CommonMessages.Response(none[Int]), Parties.A)
+          _ <- applier(TypedProtocol.CommonMessages.Done, Parties.B)
+        } yield ()
+      }
+      .unsafeRunSync()
   }
 
 }

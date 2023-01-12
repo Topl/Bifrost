@@ -67,6 +67,15 @@ object Blockchain {
     for {
       (localChain, blockAdoptionsTopic)    <- LocalChainBroadcaster.make(_localChain)
       (mempool, transactionAdoptionsTopic) <- MempoolBroadcaster.make(_mempool)
+      _ <-
+        Async[F].background(
+          blockAdoptionsTopic.subscribeUnbounded
+            .evalMap(id => bodyStore.getOrRaise(id))
+            .flatMap(Stream.iterable(_))
+            .through(transactionAdoptionsTopic.publish)
+            .compile
+            .drain
+        )
       clientHandler <- Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
         List(
           BlockchainPeerHandler.ChainSynchronizer.make[F](

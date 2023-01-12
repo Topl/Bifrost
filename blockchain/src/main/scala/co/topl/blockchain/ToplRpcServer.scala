@@ -133,9 +133,9 @@ object ToplRpcServer {
     transactionStore: Store[F, TypedIdentifier, Transaction],
     mempool:          MempoolAlgebra[F]
   )(transaction:      Transaction) =
-    Logger[F].info(show"Inserting Transaction id=${transaction.id.asTypedBytes} into transaction store") >>
+    Logger[F].debug(show"Inserting Transaction id=${transaction.id.asTypedBytes} into transaction store") >>
     transactionStore.put(transaction.id, transaction) >>
-    Logger[F].info(show"Inserting Transaction id=${transaction.id.asTypedBytes} into mempool") >>
+    Logger[F].debug(show"Inserting Transaction id=${transaction.id.asTypedBytes} into mempool") >>
     mempool.add(transaction.id) >>
     Logger[F].info(show"Processed Transaction id=${transaction.id.asTypedBytes} from RPC")
 

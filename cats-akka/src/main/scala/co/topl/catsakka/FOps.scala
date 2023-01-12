@@ -8,7 +8,7 @@ import scala.language.implicitConversions
 
 trait FOps {
 
-  implicit def faAsFAClockOps[F[_]: Monad: Clock: Logger, A](fa: F[A]): FAClockOps[F, A] =
+  implicit def faAsFAClockOps[F[_], A](fa: F[A]): FAClockOps[F, A] =
     new FAClockOps(fa)
 }
 

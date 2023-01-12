@@ -1,11 +1,11 @@
 package co.topl.networking.typedprotocols
 
-import cats.data.{Chain, EitherT}
+import cats.data.{Chain, EitherT, OptionT}
 import cats.effect.Resource
 import cats.effect.kernel.{Async, Sync}
 import cats.effect.std.Queue
 import cats.implicits._
-import co.topl.networking.{NetworkTypeTag, Parties, Party}
+import co.topl.networking._
 
 /**
  * Captures the domain of state transitions for some typed protocol.  The domain is used by an "applier" to handle
@@ -68,66 +68,73 @@ case class TypedProtocolInstance[F[_]] private (
       .value
 
   /**
-   * Produces an "Applier" which is an object which receives messages of "Any" type and attempts to apply them to the
-   * current protocol state.
+   * Produces an "Applier" which enqueues each message.  A background fiber processes these queues in the background
+   * depending on the current "agent".
    * @param initialState The initial state of the protocol
    */
-  def applier[S: NetworkTypeTag](
-    initialState:    S
-  )(implicit asyncF: Async[F]): Resource[F, MessageApplier] =
-    (
-      Resource.eval(Queue.unbounded[F, (Any, NetworkTypeTag[_])]),
-      Resource.eval(Queue.unbounded[F, (Any, NetworkTypeTag[_])])
-    ).tupled
-      .flatMap { case (aQueue, bQueue) =>
-        var state: Any = initialState
-        var typeTag: NetworkTypeTag[_] = implicitly[NetworkTypeTag[S]]
-        Async[F]
-          .background(
-            Sync[F]
-              .delay(
-                transitions
-                  .find(_.inStateTypeTag == typeTag)
-                  .get
-                  .stateAgency
-                  .agent
-                  .get
-              )
-              .flatMap { party =>
-                val queue =
-                  party match {
-                    case Parties.A => aQueue
-                    case Parties.B => bQueue
-                  }
-                queue.take.flatMap { case (nextMessage, nextTypeTag) =>
-                  EitherT(
-                    applyMessage(nextMessage, party, state, typeTag)(
-                      implicitly,
-                      nextTypeTag.asInstanceOf[NetworkTypeTag[Any]]
-                    )
-                  )
-                    .semiflatMap { case (newState, newTypeTag) =>
-                      Sync[F]
-                        .delay {
-                          state = newState
-                          typeTag = newTypeTag
-                        }
-                        .as(newState)
-                    }
-                    .leftMap(e => new IllegalStateException(e.toString)) // TODO
-                    .rethrowT
-                }
-              }
-              .foreverM
-          )
-          .as(new MessageApplier {
-            def apply[Message: NetworkTypeTag](message: Message, sender: Party): F[Unit] =
-              sender match {
-                case Parties.A => aQueue.offer((message, implicitly[NetworkTypeTag[Message]]))
-                case Parties.B => bQueue.offer((message, implicitly[NetworkTypeTag[Message]]))
-              }
-          })
+  def applier[S: NetworkTypeTag](initialState: S)(implicit asyncF: Async[F]): Resource[F, MessageApplier] =
+    for {
+      aQueue <- Resource.eval(Queue.unbounded[F, (Any, NetworkTypeTag[_])])
+      bQueue <- Resource.eval(Queue.unbounded[F, (Any, NetworkTypeTag[_])])
+      _      <- Async[F].background(backgroundProcessor(initialState)(aQueue, bQueue))
+    } yield new MessageApplier {
+
+      def apply[Message: NetworkTypeTag](message: Message, sender: Party): F[Unit] = {
+        val queue =
+          sender match {
+            case Parties.A => aQueue
+            case Parties.B => bQueue
+          }
+        queue.offer((message, implicitly[NetworkTypeTag[Message]]))
       }
+    }
+
+  /**
+   * A forever(ish)-running process which reads from each of the given message queues (depending on the current agent),
+   * processes the message, updates the state, and continues.  The process exits when reaching a state that defines
+   * no agent (or when cancelled)
+   * @param initialState The initial state of the protocol
+   * @param aQueue A queue of tuples (message, tag) sent by party A
+   * @param bQueue A queue of tuples (message, tag) sent by party B
+   */
+  private def backgroundProcessor[S: NetworkTypeTag](
+    initialState: S
+  )(aQueue:       Queue[F, (Any, NetworkTypeTag[_])], bQueue: Queue[F, (Any, NetworkTypeTag[_])])(implicit
+    asyncF:       Async[F]
+  ) = {
+    var state: Any = initialState
+    var typeTag: NetworkTypeTag[_] = implicitly[NetworkTypeTag[S]]
+    OptionT(
+      OptionT(Sync[F].delay(transitions.find(_.inStateTypeTag == typeTag)))
+        .getOrRaise(new IllegalStateException("Unable to find transition matching current state tag"))
+        .map(_.stateAgency.agent)
+    )
+      .semiflatTap { party =>
+        val queue =
+          party match {
+            case Parties.A => aQueue
+            case Parties.B => bQueue
+          }
+        queue.take.flatMap { case (nextMessage, nextTypeTag) =>
+          EitherT(
+            applyMessage(nextMessage, party, state, typeTag)(
+              implicitly,
+              nextTypeTag.asInstanceOf[NetworkTypeTag[Any]]
+            )
+          )
+            .leftMap(TypedProtocolTransitionFailureException(nextMessage, _))
+            .rethrowT
+            .map { case (newState, newTypeTag) =>
+              state = newState
+              typeTag = newTypeTag
+              newState
+            }
+        }
+      }
+      .isDefined
+      .iterateWhile(identity)
+      .void
+  }
 
   /**
    * Encapsulates an internal mutable protocol state and applies inbound messages to it, if possible.
