@@ -5,6 +5,7 @@ import cats.effect.Resource
 import cats.effect.kernel.Concurrent
 import cats.implicits.catsSyntaxApplicativeId
 import cats.{Applicative, Order}
+import co.topl.blockchain.actor.{Actor, Fsm}
 import co.topl.blockchain.network.PeersManager.PeersManagerActor
 import co.topl.blockchain.network.ReputationAggregator.ReputationAggregatorActor
 import co.topl.models.{Bytes, TypedIdentifier}
@@ -16,8 +17,8 @@ object BlockBodiesChecker {
 
   object Message {
     case class SetPeerManager[F[_]](peerManagerActor: PeersManagerActor[F]) extends Message
-    case class BestHeaders(validHeadersProposal: HeadersCandidate) extends Message
-    case class DownloadedBlocks(data: NonEmptyChain[ErrorOrBlock]) extends Message
+    case class HeadersProposal(validHeadersProposal: HeadersCandidate) extends Message
+    case class DownloadedBlocks(data: NonEmptyChain[QuasiBlock]) extends Message
   }
 
   case class State[F[_]](
@@ -33,7 +34,7 @@ object BlockBodiesChecker {
     // cache for downloaded/working blocks.
     // TODO shall be cleaned by some way. All blocks from pre-previous epoch for example?
     // None -- block is requested to download TODO change to case class?
-    quickAccessBlocks: Map[TypedIdentifier, ErrorOrBlock]
+    quickAccessBlocks: Map[TypedIdentifier, QuasiBlock]
   )
 
   type Response[F[_]] = State[F]
@@ -43,9 +44,9 @@ object BlockBodiesChecker {
     Order.by[TypedIdentifier, Bytes](_.allBytes)(Order.from[Bytes]((a, b) => a.compare(b)))
 
   def getFsm[F[_]: Concurrent](implicit ct: ClassTag[F[_]]): Fsm[F, State[F], Message, Response[F]] = Fsm {
-    case (state, Message.BestHeaders(validHeadersProposal)) => acceptNewHeadersProposal(state, validHeadersProposal)
-    case (state, Message.DownloadedBlocks(blocks))          => downloadedBlocks(state, blocks)
-    case (state, peerManager: Message.SetPeerManager[F])    => setPeerManager(state, peerManager.peerManagerActor)
+    case (state, Message.HeadersProposal(validHeadersProposal)) => acceptNewHeadersProposal(state, validHeadersProposal)
+    case (state, Message.DownloadedBlocks(blocks))              => downloadedBlocks(state, blocks)
+    case (state, peerManager: Message.SetPeerManager[F])        => setPeerManager(state, peerManager.peerManagerActor)
   }
 
   def makeActor[F[_]: Concurrent](
@@ -55,30 +56,32 @@ object BlockBodiesChecker {
       None,
       reputationAggregatorActor,
       Seq.empty[HeadersCandidate],
-      Map.empty[TypedIdentifier, ErrorOrBlock]
+      Map.empty[TypedIdentifier, QuasiBlock]
     )
     Actor.make(initialState, getFsm[F])
   }
 
   private def acceptNewHeadersProposal[F[_]: Applicative](state: State[F], proposal: HeadersCandidate) = {
-    val newCandidates = state.headerChainCandidates :+ proposal
+    val newCandidates: Seq[HeadersCandidate] = state.headerChainCandidates :+ proposal
 
     val quickAccessBlocks = state.quickAccessBlocks
 
-    val blockToDownload =
+    val blocksToDownload =
       NonEmptyChain.fromSeq((proposal.headers.toNes.toSortedSet -- quickAccessBlocks.keys.toSet).toList)
 
-    val newQuickAccessBlocks = blockToDownload
-      .map { blocks =>
-        val newQuickAccessBlocks: Map[TypedIdentifier, Either[BlockGettingError, NotVerifiedBlock]] =
-          quickAccessBlocks ++ blocks
-            .map(id => id -> Left[BlockGettingError, NotVerifiedBlock](BlockGettingError(id, "New Block")))
-            .toChain
-            .toList
-        state.peersManager.foreach(_.sendNoWait(PeersManager.Message.BlockDownloadRequest(proposal.source, blocks)))
-        newQuickAccessBlocks
-      }
-      .getOrElse(state.quickAccessBlocks)
+    val newQuickAccessBlocks =
+      blocksToDownload
+        .map { blocksHeaders: NonEmptyChain[TypedIdentifier] =>
+          val newQuickAccessBlocks: Map[TypedIdentifier, QuasiBlock] =
+            quickAccessBlocks ++
+            blocksHeaders
+              .map(id => id -> QuasiBlock.HeaderOnly(proposal.source, id))
+              .toChain
+              .toList
+          state.peersManager.foreach(_.sendNoWait(PeersManager.Message.BlockDownloadRequest(proposal.source, blocksHeaders)))
+          newQuickAccessBlocks
+        }
+        .getOrElse(state.quickAccessBlocks)
 
     val newState = state.copy(headerChainCandidates = newCandidates, quickAccessBlocks = newQuickAccessBlocks)
     (newState, newState).pure[F]
@@ -86,16 +89,16 @@ object BlockBodiesChecker {
 
   private def downloadedBlocks[F[_]: Applicative](
     state:     State[F],
-    newBlocks: NonEmptyChain[ErrorOrBlock]
+    newBlocks: NonEmptyChain[QuasiBlock]
   ) = {
-    val downloadedBlocks = newBlocks.collect { case Right(block) => block }
+    val downloadedBlocks = newBlocks.collect { case block: QuasiBlock.NotVerifiedBlock => block }
     // processing failed to download blocks? ban candidate chain?
-    val failedBlocks = newBlocks.collect { case Left(error) => error }
+    val failedBlocks = newBlocks.collect { case error: QuasiBlock.BlockGettingError => error }
 
-    val quickAccessBlocks: Map[TypedIdentifier, ErrorOrBlock] =
+    val quickAccessBlocks: Map[TypedIdentifier, QuasiBlock] =
       state.quickAccessBlocks ++
-      downloadedBlocks.map(pb => pb.id -> Right(pb)).toList ++
-      failedBlocks.map(pb => pb.id -> Left(pb)).toList
+      downloadedBlocks.map(pb => pb.id -> pb).toList ++
+      failedBlocks.map(pb => pb.id -> pb).toList
 
     val fullyDownloadedChains =
       state.headerChainCandidates.filter(candidate => candidate.headers.forall(quickAccessBlocks.contains))

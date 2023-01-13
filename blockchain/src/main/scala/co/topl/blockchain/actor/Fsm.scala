@@ -1,11 +1,7 @@
-package co.topl.blockchain.network
+package co.topl.blockchain.actor
 
-import cats.implicits
-import cats.syntax._
-import cats.{Applicative, Functor, Id}
-import cats.Functor
 import cats.implicits._
-import cats._
+import cats.{Applicative, Functor, Id}
 
 /** F[_] - Effect S - State I - Input O - Output
  */

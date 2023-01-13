@@ -1,10 +1,10 @@
-package co.topl.blockchain.network
+package co.topl.blockchain.actor
 
+import cats.effect._
 import cats.effect.std.Queue
 import cats.effect.syntax.all._
-import cats.effect._
 import cats.syntax.all._
-import co.topl.blockchain.network.Actor.ActorId
+import co.topl.blockchain.actor.Actor.ActorId
 import fs2.Stream
 import fs2.concurrent.SignallingRef
 
@@ -38,12 +38,38 @@ trait Actor[F[_], I, O] {
    */
   def send(msg: I): F[O]
 
+  /**
+   * Create and bind new actor to the current actor, new actor will be gracefully shutdown,
+   * i.e. his finalize function will be called, if current actor will be finished
+   * @param actorCreator function for new child actor creation
+   * @tparam I2 type of input parameter for child actor
+   * @tparam O2 type of output parameter for child actor
+   * @return allocated and bound actor
+   */
   def acquireActor[I2, O2](actorCreator: () => Resource[F, Actor[F, I2, O2]]): F[Actor[F, I2, O2]]
 
+  /**
+   * Unbound actor, i.e. child actor finalizer no longer will be called if current actor will be shutdown
+   * @param actor actor to move
+   * @tparam I2 type of input parameter for child actor
+   * @tparam O2 type of output parameter for child actor
+   * @return finalizer for moved actor
+   */
   def moveActor[I2, O2](actor: Actor[F, I2, O2]): F[Unit]
 
   type FinalizeFiber = Fiber[F, Throwable, Unit]
-  def removeActor[I2, O2](actor: Actor[F, I2, O2])(implicit t: Temporal[F]): F[FinalizeFiber]
+
+  /**
+   * Try to shutdown child actor by calling finalize function for that actor if incoming messages queue is empty.
+   * Calling that function does not prevent to receive new incoming messages
+   * to child actor, thus actor will not shutdown if new messages rate is equal or more processing message rate
+   * @param actor actor to release
+   * @param t type class for supporting Temporal functionality
+   * @tparam I2 type of input parameter for child actor
+   * @tparam O2 type of output parameter for child actor
+   * @return fin
+   */
+  def releaseActor[I2, O2](actor: Actor[F, I2, O2])(implicit t: Temporal[F]): F[FinalizeFiber]
 
   def !(input: I): F[Unit] = sendNoWait(input)
 }
@@ -122,7 +148,7 @@ object Actor {
           } yield finalizer
         }
 
-        override def removeActor[I2, O2](actor: Actor[F, I2, O2])(implicit t: Temporal[F]): F[FinalizeFiber] =
+        override def releaseActor[I2, O2](actor: Actor[F, I2, O2])(implicit t: Temporal[F]): F[FinalizeFiber] =
           actor.gracefulShutdown(moveActor(actor))
       }
       _ <- actorRef.complete(actor).toResource

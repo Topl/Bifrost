@@ -4,7 +4,7 @@ import cats.Applicative
 import cats.data.NonEmptyChain
 import cats.effect.{Concurrent, Resource}
 import cats.implicits.catsSyntaxApplicativeId
-import co.topl.blockchain.network
+import co.topl.blockchain.actor.{Actor, Fsm}
 import co.topl.blockchain.network.BlockBodiesChecker.BlockBodiesCheckerActor
 import co.topl.models.TypedIdentifier
 
@@ -37,7 +37,7 @@ object PeerBlockBodyFetcher {
 
   private def downloadBlocks[F[_]: Applicative](state: State[F], blocksToDownload: NonEmptyChain[TypedIdentifier]): F[(State[F], Response[F])] = {
     // download blocks in background mode
-    val downloadedBlocks: NonEmptyChain[ErrorOrBlock] = ???
+    val downloadedBlocks: NonEmptyChain[QuasiBlock] = ???
     state.blockBodiesChecker.sendNoWait(BlockBodiesChecker.Message.DownloadedBlocks(downloadedBlocks))
     (state, state).pure[F]
   }

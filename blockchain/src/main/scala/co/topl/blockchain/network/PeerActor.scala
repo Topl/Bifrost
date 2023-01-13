@@ -4,6 +4,7 @@ import cats.Applicative
 import cats.data.NonEmptyChain
 import cats.effect.{Concurrent, Resource}
 import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxApply}
+import co.topl.blockchain.actor.{Actor, Fsm}
 import co.topl.blockchain.network.BlockBodiesChecker.BlockBodiesCheckerActor
 import co.topl.blockchain.network.BlockHeadersChecker.BlockHeadersCheckerActor
 import co.topl.blockchain.network.PeerActor.Message.UpdateState

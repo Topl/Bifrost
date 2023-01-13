@@ -3,6 +3,7 @@ package co.topl.blockchain.network
 import cats.Applicative
 import cats.effect.{Concurrent, Resource}
 import cats.implicits.catsSyntaxApplicativeId
+import co.topl.blockchain.actor.{Actor, Fsm}
 import co.topl.blockchain.network.PeersManager.PeersManagerActor
 import co.topl.blockchain.network.ReputationAggregator.Message.{SetPeerManager, UpdatePeerReputation}
 

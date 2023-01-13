@@ -4,6 +4,7 @@ import cats.Applicative
 import cats.data.NonEmptyChain
 import cats.effect.{Concurrent, Resource, Temporal}
 import cats.implicits.{catsSyntaxApplicativeId, toFlatMapOps, toFunctorOps}
+import co.topl.blockchain.actor.{Actor, Fsm}
 import co.topl.blockchain.network.BlockBodiesChecker.BlockBodiesCheckerActor
 import co.topl.blockchain.network.BlockHeadersChecker.BlockHeadersCheckerActor
 import co.topl.blockchain.network.PeerActor.Message.UpdateState
@@ -74,7 +75,7 @@ object PeersManager {
             PeerActor.makeActor(hostId, state.reputationAggregator, state.blockHeadersChecker, state.blockBodiesChecker)
           ).map(Some(_))
         case (false, Some(actorToShutdown)) =>
-          thisActor.removeActor(actorToShutdown).map(_ => None)
+          thisActor.releaseActor(actorToShutdown).map(_ => None)
         case _ => peer.actorOpt.pure[F]
       }
 

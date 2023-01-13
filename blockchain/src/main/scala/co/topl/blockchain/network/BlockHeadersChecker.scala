@@ -5,6 +5,7 @@ import cats.data.NonEmptyChain
 import cats.effect.Resource
 import cats.effect.kernel.Concurrent
 import cats.implicits.catsSyntaxApplicativeId
+import co.topl.blockchain.actor.{Actor, Fsm}
 import co.topl.blockchain.network.BlockBodiesChecker.BlockBodiesCheckerActor
 import co.topl.blockchain.network.BlockHeadersChecker.Message.{RemoteHeaderChain, RemoveHeadersFromHostId}
 import co.topl.blockchain.network.ReputationAggregator.ReputationAggregatorActor
@@ -65,7 +66,7 @@ object BlockHeadersChecker {
             ReputationAggregator.Message.UpdatePeerReputation(candidateHostId, 1)
           ) // 1 as example here
           state.blockBodyFetcher.sendNoWait(
-            BlockBodiesChecker.Message.BestHeaders(HeadersCandidate(candidateHostId, candidateChain))
+            BlockBodiesChecker.Message.HeadersProposal(HeadersCandidate(candidateHostId, candidateChain))
           )
           Some((candidateHostId, candidateChain))
         } else {

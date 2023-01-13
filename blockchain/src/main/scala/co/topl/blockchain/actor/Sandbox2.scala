@@ -1,4 +1,4 @@
-package co.topl.blockchain.network
+package co.topl.blockchain.actor
 
 import cats.effect.{IO, IOApp, Resource}
 import cats.implicits.catsSyntaxApplicativeId
@@ -31,7 +31,7 @@ object Sandbox2 extends IOApp.Simple {
         _ <- (if (counter == 5) particularActor = createdActor).pure[IO]
         _ <- (if (counter == 6) actor.moveActor(particularActor) else ().pure[IO])
         _ <- (if (counter == 7) particularActor = createdActor).pure[IO]
-        _ <- (if (counter == 8) actor.removeActor(particularActor) else ().pure[IO])
+        _ <- (if (counter == 8) actor.releaseActor(particularActor) else ().pure[IO])
       } yield (newState, newCounter)
     }
 
