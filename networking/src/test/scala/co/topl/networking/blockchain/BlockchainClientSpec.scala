@@ -49,7 +49,7 @@ class BlockchainClientSpec
 
           def getRemoteHeader(id: TypedIdentifier): F[Option[ConsensusBlockHeader]] = ???
 
-          def getRemoteBody(id: TypedIdentifier): F[Option[BlockBody]] = ???
+          def getRemoteBody(id: TypedIdentifier): F[Option[co.topl.node.models.BlockBody]] = ???
 
           def getRemoteTransaction(id: TypedIdentifier): F[Option[Transaction]] = ???
 

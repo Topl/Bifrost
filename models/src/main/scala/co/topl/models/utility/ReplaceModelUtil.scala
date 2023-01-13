@@ -7,7 +7,9 @@ import com.google.protobuf.ByteString
  */
 object ReplaceModelUtil {
 
-  def ioTransaction32(typedIdentifier: co.topl.models.TypedIdentifier):co.topl.brambl.models.Identifier.IoTransaction32 =
+  def ioTransaction32(
+    typedIdentifier: co.topl.models.TypedIdentifier
+  ): co.topl.brambl.models.Identifier.IoTransaction32 =
     co.topl.brambl.models.Identifier.IoTransaction32(
       Some(
         co.topl.brambl.models.Evidence.Sized32.of(

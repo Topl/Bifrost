@@ -21,8 +21,10 @@ object BodyAuthorizationValidation {
          */
         def validate(
           parentBlockId: TypedIdentifier
-        )(body:          co.topl.node.models.BlockBody): F[ValidatedNec[BodyAuthorizationError, co.topl.node.models.BlockBody]] =
-          body.transactionIds.map(TypedBytes.ioTx32).toList
+        )(body: co.topl.node.models.BlockBody): F[ValidatedNec[BodyAuthorizationError, co.topl.node.models.BlockBody]] =
+          body.transactionIds
+            .map(TypedBytes.ioTx32)
+            .toList
             .foldMapM(transactionId =>
               for {
                 transaction      <- fetchTransaction(transactionId)

@@ -10,11 +10,11 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.eventtree.ParentChildTree
 import co.topl.models.ModelGenerators._
 import co.topl.models._
+import co.topl.models.utility.ReplaceModelUtil
 import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
-
 import scala.collection.immutable.ListSet
 
 class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
@@ -49,7 +49,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
           TestStore.make[F, StakingAddresses.Operator, Box.Values.Registrations.Operator]
         ).mapN(ConsensusDataEventSourcedState.ConsensusData[F])
         _                <- initialState.totalActiveStake.put((), 0)
-        bodyStore        <- TestStore.make[F, TypedIdentifier, BlockBody]
+        bodyStore        <- TestStore.make[F, TypedIdentifier, co.topl.node.models.BlockBody]
         transactionStore <- TestStore.make[F, TypedIdentifier, Transaction]
         fetchTransactionOutput = (boxId: Box.Id) =>
           transactionStore.getOrRaise(boxId.transactionId).map(_.outputs.get(boxId.transactionOutputIndex).get)
@@ -64,7 +64,11 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
         )
 
         _ <- parentChildTree.associate(bigBangId, bigBangParentId)
-        _ <- bodyStore.put(bigBangId, ListSet(bigBangBlockTransaction.id.asTypedBytes))
+        _ <- bodyStore.put(
+          bigBangId,
+          co.topl.node.models
+            .BlockBody(ListSet(bigBangBlockTransaction.id.asTypedBytes).toSeq.map(ReplaceModelUtil.ioTransaction32))
+        )
         _ <- transactionStore.put(bigBangBlockTransaction.id, bigBangBlockTransaction)
 
         // Start from 0 Arbits
@@ -114,7 +118,14 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
 
         blockId2 = arbitraryTypedIdentifier.arbitrary.first
         _ <- parentChildTree.associate(blockId2, bigBangId)
-        _ <- bodyStore.put(blockId2, ListSet(transaction2.id.asTypedBytes, transaction3.id.asTypedBytes))
+        _ <- bodyStore.put(
+          blockId2,
+          co.topl.node.models.BlockBody(
+            ListSet(transaction2.id.asTypedBytes, transaction3.id.asTypedBytes)
+              .map(ReplaceModelUtil.ioTransaction32)
+              .toSeq
+          )
+        )
         _ <- transactionStore.put(transaction2.id, transaction2)
         _ <- transactionStore.put(transaction3.id, transaction3)
 
@@ -152,7 +163,11 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
 
         blockId3 = arbitraryTypedIdentifier.arbitrary.first
         _ <- parentChildTree.associate(blockId3, blockId2)
-        _ <- bodyStore.put(blockId3, ListSet(transaction4.id.asTypedBytes))
+        _ <- bodyStore.put(
+          blockId3,
+          co.topl.node.models
+            .BlockBody(ListSet(transaction4.id.asTypedBytes).map(ReplaceModelUtil.ioTransaction32).toSeq)
+        )
         _ <- transactionStore.put(transaction4.id, transaction4)
 
         _ <- underTest.useStateAt(blockId3)(state =>
@@ -209,7 +224,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
           ConsensusDataEventSourcedState.ConsensusData[F](operatorStakes, totalActiveStake, registrations)
         )
         _                <- initialState.totalActiveStake.put((), 0)
-        bodyStore        <- TestStore.make[F, TypedIdentifier, BlockBody]
+        bodyStore        <- TestStore.make[F, TypedIdentifier, co.topl.node.models.BlockBody]
         transactionStore <- TestStore.make[F, TypedIdentifier, Transaction]
         fetchTransactionOutput = (boxId: Box.Id) =>
           transactionStore.getOrRaise(boxId.transactionId).map(_.outputs.get(boxId.transactionOutputIndex).get)
@@ -224,7 +239,11 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
         )
 
         _ <- parentChildTree.associate(bigBangId, bigBangParentId)
-        _ <- bodyStore.put(bigBangId, ListSet(bigBangBlockTransaction.id.asTypedBytes))
+        _ <- bodyStore.put(
+          bigBangId,
+          co.topl.node.models
+            .BlockBody(ListSet(bigBangBlockTransaction.id.asTypedBytes).map(ReplaceModelUtil.ioTransaction32).toSeq)
+        )
         _ <- transactionStore.put(bigBangBlockTransaction.id, bigBangBlockTransaction)
 
         _ <- underTest.useStateAt(bigBangId)(state =>
@@ -251,7 +270,11 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
 
         blockId2 = arbitraryTypedIdentifier.arbitrary.first
         _ <- parentChildTree.associate(blockId2, bigBangId)
-        _ <- bodyStore.put(blockId2, ListSet(transaction2.id.asTypedBytes))
+        _ <- bodyStore.put(
+          blockId2,
+          co.topl.node.models
+            .BlockBody(ListSet(transaction2.id.asTypedBytes).map(ReplaceModelUtil.ioTransaction32).toSeq)
+        )
         _ <- transactionStore.put(transaction2.id, transaction2)
 
         _ <- underTest.useStateAt(blockId2)(state =>

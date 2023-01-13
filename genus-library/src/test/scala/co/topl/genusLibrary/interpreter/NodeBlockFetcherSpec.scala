@@ -141,7 +141,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
 
           assertIO(
             nodeBlockFetcher fetch height,
-            NonExistentTransactionsFailure(ListSet(transactionId)).asLeft
+            NonExistentTransactionsFailure(ListSet(co.topl.models.TypedBytes.ioTx32(transactionId))).asLeft
           )
 
         }
@@ -205,7 +205,12 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
 
           assertIO(
             nodeBlockFetcher fetch height,
-            NonExistentTransactionsFailure(ListSet(transactionId_02, transactionId_03)).asLeft
+            NonExistentTransactionsFailure(
+              ListSet(
+                co.topl.models.TypedBytes.ioTx32(transactionId_02),
+                co.topl.models.TypedBytes.ioTx32(transactionId_03)
+              )
+            ).asLeft
           )
 
         }
@@ -267,7 +272,13 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
 
           assertIO(
             nodeBlockFetcher fetch height,
-            NonExistentTransactionsFailure(ListSet(transactionId_01, transactionId_02, transactionId_03)).asLeft
+            NonExistentTransactionsFailure(
+              ListSet(
+                co.topl.models.TypedBytes.ioTx32(transactionId_01),
+                co.topl.models.TypedBytes.ioTx32(transactionId_02),
+                co.topl.models.TypedBytes.ioTx32(transactionId_03)
+              )
+            ).asLeft
           )
 
         }

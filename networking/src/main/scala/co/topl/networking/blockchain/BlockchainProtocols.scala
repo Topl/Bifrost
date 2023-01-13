@@ -3,8 +3,6 @@ package co.topl.networking.blockchain
 import co.topl.models._
 import co.topl.networking.typedprotocols.{NotificationProtocol, RequestResponseProtocol}
 
-import scala.collection.immutable.ListSet
-
 /**
  * Defines the various Typed Protocols which are used for the purposes of exchanging blockchain data between
  * two participating nodes.

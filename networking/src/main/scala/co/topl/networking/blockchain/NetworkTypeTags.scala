@@ -48,7 +48,7 @@ object NetworkTypeTags {
     NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[BlockBody]")
 
   implicit val commonMessagesResponseNodeBlockBodyNetworkTypeTag
-  : NetworkTypeTag[TypedProtocol.CommonMessages.Response[co.topl.node.models.BlockBody]] =
+    : NetworkTypeTag[TypedProtocol.CommonMessages.Response[co.topl.node.models.BlockBody]] =
     NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[BlockBody]")
 
   implicit val commonMessagesResponseTransactionNetworkTypeTag

@@ -1,6 +1,5 @@
 package co.topl.codecs.bytes.tetra
 
-import co.topl.brambl.models.Identifier.IoTransaction32
 import co.topl.codecs.bytes.typeclasses.Transmittable
 import co.topl.models.utility.Ratio
 import co.topl.models._

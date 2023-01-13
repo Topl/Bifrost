@@ -739,7 +739,7 @@ trait ModelGenerators {
     Arbitrary(
       for {
         header <- arbitraryConsensusHeader.arbitrary
-        body   <-  co.topl.models.generators.node.ModelGenerators.arbitraryNodeBody.arbitrary
+        body   <- co.topl.models.generators.node.ModelGenerators.arbitraryNodeBody.arbitrary
       } yield Block(header, body)
     )
 

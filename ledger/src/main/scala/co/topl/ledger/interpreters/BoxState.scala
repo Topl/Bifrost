@@ -9,7 +9,7 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.BoxStateAlgebra
-import co.topl.models.{BlockBody, Box, Transaction, TypedBytes, TypedIdentifier}
+import co.topl.models.{Box, Transaction, TypedBytes, TypedIdentifier}
 import co.topl.typeclasses.implicits._
 import scala.collection.immutable.SortedSet
 

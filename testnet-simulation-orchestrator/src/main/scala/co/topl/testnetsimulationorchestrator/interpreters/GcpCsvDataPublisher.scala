@@ -107,7 +107,7 @@ object GcpCsvDataPublisher {
       datum.header.slot.show,
       ByteVector(datum.header.address.toByteArray).toBase58,
       ByteVector(datum.header.txRoot.toByteArray).toBase58,
-      ByteVector(datum.header.bloomFilter.toByteArray).toBase58,
+      ByteVector(datum.header.bloomFilter.toByteArray).toBase58
 //      datum.header.eligibilityCertificate.immutableBytes.toBase58,
 //      datum.header.operationalCertificate.immutableBytes.toBase58,
 //      datum.header.metadata.fold("")(_.data.value),

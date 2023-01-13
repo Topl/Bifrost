@@ -10,8 +10,7 @@ trait ModelGenerators {
     Arbitrary(
       for {
         ioTx32 <- Gen.listOf(arbitraryIoTransaction32.arbitrary)
-      }yield BlockBody.of(ioTx32)
-
+      } yield BlockBody.of(ioTx32)
     )
 
 }

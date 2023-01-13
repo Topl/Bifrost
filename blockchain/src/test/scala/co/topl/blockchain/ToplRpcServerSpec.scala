@@ -7,7 +7,7 @@ import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.{MempoolAlgebra, TransactionSyntaxValidationAlgebra}
 import co.topl.models.ModelGenerators._
-import co.topl.models.{BlockBody, SlotData, Transaction, TypedIdentifier}
+import co.topl.models.{SlotData, Transaction, TypedIdentifier}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
@@ -52,7 +52,7 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
           blockHeights = mock[EventSourcedState[F, Long => F[Option[TypedIdentifier]], TypedIdentifier]]
           underTest <- ToplRpcServer.make[F](
             mock[Store[F, TypedIdentifier, co.topl.consensus.models.BlockHeader]],
-            mock[Store[F, TypedIdentifier, BlockBody]],
+            mock[Store[F, TypedIdentifier, co.topl.node.models.BlockBody]],
             mock[Store[F, TypedIdentifier, Transaction]],
             mock[MempoolAlgebra[F]],
             mock[TransactionSyntaxValidationAlgebra[F]],
@@ -72,7 +72,7 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
           blockHeights = mock[EventSourcedState[F, Long => F[Option[TypedIdentifier]], TypedIdentifier]]
           underTest <- ToplRpcServer.make[F](
             mock[Store[F, TypedIdentifier, co.topl.consensus.models.BlockHeader]],
-            mock[Store[F, TypedIdentifier, BlockBody]],
+            mock[Store[F, TypedIdentifier, co.topl.node.models.BlockBody]],
             mock[Store[F, TypedIdentifier, Transaction]],
             mock[MempoolAlgebra[F]],
             mock[TransactionSyntaxValidationAlgebra[F]],
@@ -91,7 +91,7 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
           blockHeights = mock[EventSourcedState[F, Long => F[Option[TypedIdentifier]], TypedIdentifier]]
           underTest <- ToplRpcServer.make[F](
             mock[Store[F, TypedIdentifier, co.topl.consensus.models.BlockHeader]],
-            mock[Store[F, TypedIdentifier, BlockBody]],
+            mock[Store[F, TypedIdentifier, co.topl.node.models.BlockBody]],
             mock[Store[F, TypedIdentifier, Transaction]],
             mock[MempoolAlgebra[F]],
             mock[TransactionSyntaxValidationAlgebra[F]],
@@ -195,7 +195,8 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
   private def createServer(
     headerStore: Store[F, TypedIdentifier, co.topl.consensus.models.BlockHeader] =
       mock[Store[F, TypedIdentifier, co.topl.consensus.models.BlockHeader]],
-    bodyStore:           Store[F, TypedIdentifier, BlockBody] = mock[Store[F, TypedIdentifier, BlockBody]],
+    bodyStore: Store[F, TypedIdentifier, co.topl.node.models.BlockBody] =
+      mock[Store[F, TypedIdentifier, co.topl.node.models.BlockBody]],
     transactionStore:    Store[F, TypedIdentifier, Transaction] = mock[Store[F, TypedIdentifier, Transaction]],
     mempool:             MempoolAlgebra[F] = mock[MempoolAlgebra[F]],
     syntacticValidation: TransactionSyntaxValidationAlgebra[F] = mock[TransactionSyntaxValidationAlgebra[F]],

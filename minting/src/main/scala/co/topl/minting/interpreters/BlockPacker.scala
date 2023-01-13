@@ -9,7 +9,11 @@ import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.ledger.algebras._
-import co.topl.ledger.models.{StaticBodyValidationContext, StaticTransactionValidationContext, TransactionValidationContext}
+import co.topl.ledger.models.{
+  StaticBodyValidationContext,
+  StaticTransactionValidationContext,
+  TransactionValidationContext
+}
 import co.topl.minting.algebras.BlockPackerAlgebra
 import co.topl.models._
 import co.topl.models.utility.ReplaceModelUtil
@@ -93,7 +97,9 @@ object BlockPacker {
           .map(_.toEither)
       ).leftMap(_.toString) >>
       EitherT(
-        bodyAuthorizationValidation.validate(transactionValidationContext.parentHeaderId)(proposedNodeBody).map(_.toEither)
+        bodyAuthorizationValidation
+          .validate(transactionValidationContext.parentHeaderId)(proposedNodeBody)
+          .map(_.toEither)
       ).leftMap(_.toString)
     )
       .leftSemiflatTap(error => Logger[F].debug(show"Block packer candidate is invalid.  reason=$error"))

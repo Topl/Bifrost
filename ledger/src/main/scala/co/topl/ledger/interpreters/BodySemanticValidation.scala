@@ -23,7 +23,9 @@ object BodySemanticValidation {
         def validate(
           context: BodyValidationContext
         )(body:    co.topl.node.models.BlockBody): F[ValidatedNec[BodySemanticError, co.topl.node.models.BlockBody]] =
-          body.transactionIds.map(TypedBytes.ioTx32).toList
+          body.transactionIds
+            .map(TypedBytes.ioTx32)
+            .toList
             .foldLeftM(Chain.empty[Transaction].validNec[BodySemanticError]) {
               case (Validated.Valid(prefix), transactionId) =>
                 validateTransaction(context, prefix)(transactionId).map(_.map(prefix.append))

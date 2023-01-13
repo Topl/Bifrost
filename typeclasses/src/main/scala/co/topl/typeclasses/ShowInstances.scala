@@ -54,15 +54,14 @@ trait ShowInstances {
   implicit val showConsensusBlockHeader: Show[co.topl.consensus.models.BlockHeader] =
     header =>
       show"BlockHeader(id=${header.id.asTypedBytes}" +
-        show" parentId=${TypedBytes.headerFromProtobufString(header.parentHeaderId)}" +
-        show" height=${header.height}" +
-        show" slot=${header.slot}" +
-        show" timestamp=${Instant.ofEpochMilli(header.timestamp).toString})" +
-        show" address=${co.topl.models.StakingAddresses.operatorFromProtoString(header.address).show}"
+      show" parentId=${TypedBytes.headerFromProtobufString(header.parentHeaderId)}" +
+      show" height=${header.height}" +
+      show" slot=${header.slot}" +
+      show" timestamp=${Instant.ofEpochMilli(header.timestamp).toString})" +
+      show" address=${co.topl.models.StakingAddresses.operatorFromProtoString(header.address).show}"
 
   implicit val showNodeBlockBody: Show[co.topl.node.models.BlockBody] =
-    body =>
-      show"${body.transactionIds.map(TypedBytes.ioTx32)}"
+    body => show"${body.transactionIds.map(TypedBytes.ioTx32)}"
 
   implicit val showInetSocketAddress: Show[InetSocketAddress] =
     address => s"${address.getHostName}:${address.getPort}"

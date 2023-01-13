@@ -1,7 +1,7 @@
 package co.topl.genusLibrary.model
 
 import co.topl.models.BlockBody
-import co.topl.node.models.{BlockBody => NodeBlockBody }  // TODO remove rename, after remove models
+import co.topl.node.models.{BlockBody => NodeBlockBody} // TODO remove rename, after remove models
 import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
 
 /**

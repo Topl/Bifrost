@@ -8,7 +8,7 @@ import cats.effect.Async
 import cats.implicits._
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.models.{BlockBody, SlotData, Transaction, TypedIdentifier}
+import co.topl.models.{SlotData, Transaction, TypedIdentifier}
 import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
 import co.topl.node.models.{BlockBody => NodeBlockBody} // TODO remove rename, after remove models
 import co.topl.networking.TypedProtocolSetFactory.implicits._
