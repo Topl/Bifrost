@@ -1,10 +1,10 @@
 package co.topl.blockchain.network
 
-import cats.effect.Resource
+import cats.effect.{Resource, Temporal}
 import cats.effect.kernel.Concurrent
 import co.topl.blockchain.network.BlockBodiesChecker.BlockBodiesCheckerActor
 import co.topl.blockchain.network.BlockHeadersChecker.BlockHeadersCheckerActor
-import co.topl.blockchain.network.Peer.PeerActor
+import co.topl.blockchain.network.PeerActor.PeerActor
 import co.topl.blockchain.network.PeersManager.PeersManagerActor
 import co.topl.blockchain.network.ReputationAggregator.ReputationAggregatorActor
 
@@ -35,7 +35,7 @@ trait NetworkAlgebra[F[_]] {
   ): Resource[F, BlockBodiesCheckerActor[F]]
 }
 
-class NetworkAlgebraImpl[F[_]: Concurrent] extends NetworkAlgebra[F] {
+class NetworkAlgebraImpl[F[_]: Concurrent: Temporal] extends NetworkAlgebra[F] {
 
   override def makePeerManger(
     networkAlgebra:            NetworkAlgebra[F],
@@ -51,7 +51,7 @@ class NetworkAlgebraImpl[F[_]: Concurrent] extends NetworkAlgebra[F] {
     blockHeaderChecker:   BlockHeadersCheckerActor[F],
     blockBodiesChecker:   BlockBodiesCheckerActor[F]
   ): Resource[F, PeerActor[F]] =
-    Peer.makeActor(hostId, reputationAggregator, blockHeaderChecker, blockBodiesChecker)
+    PeerActor.makeActor(hostId, reputationAggregator, blockHeaderChecker, blockBodiesChecker)
 
   override def makeReputationAggregation: Resource[F, ReputationAggregatorActor[F]] = ReputationAggregator.makeActor
 

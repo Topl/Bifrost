@@ -14,6 +14,7 @@ object PeerBlockBodyFetcher {
   object Message {
     case class DownloadBlocks(blocks: NonEmptyChain[TypedIdentifier]) extends Message
     case object StopActor extends Message
+    case object StartActor extends Message
   }
 
   case class State[F[_]](hostId: HostId, blockBodiesChecker: BlockBodiesCheckerActor[F])

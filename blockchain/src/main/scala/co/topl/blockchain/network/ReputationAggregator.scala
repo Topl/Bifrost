@@ -4,7 +4,6 @@ import cats.Applicative
 import cats.effect.{Concurrent, Resource}
 import cats.implicits.catsSyntaxApplicativeId
 import co.topl.blockchain.network.PeersManager.PeersManagerActor
-import co.topl.blockchain.network.PeerState.PeerState
 import co.topl.blockchain.network.ReputationAggregator.Message.{SetPeerManager, UpdatePeerReputation}
 
 import scala.collection.immutable.TreeMap

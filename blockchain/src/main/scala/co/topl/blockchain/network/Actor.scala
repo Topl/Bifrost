@@ -1,16 +1,14 @@
 package co.topl.blockchain.network
 
-import cats.syntax.all._
 import cats.effect.std.Queue
-import cats.effect.{Concurrent, Deferred, Fiber, Ref, Resource, Temporal}
 import cats.effect.syntax.all._
+import cats.effect._
+import cats.syntax.all._
 import co.topl.blockchain.network.Actor.ActorId
 import fs2.Stream
-import co.topl.blockchain.network.Fsm
 import fs2.concurrent.SignallingRef
 
 import scala.collection.immutable.ListMap
-import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 trait Actor[F[_], I, O] {
