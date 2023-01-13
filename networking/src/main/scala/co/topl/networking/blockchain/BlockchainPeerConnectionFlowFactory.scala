@@ -10,6 +10,7 @@ import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.models.{BlockBody, SlotData, Transaction, TypedIdentifier}
 import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
+import co.topl.node.models.{BlockBody => NodeBlockBody} // TODO remove rename, after remove models
 import co.topl.networking.TypedProtocolSetFactory.implicits._
 import co.topl.networking._
 import co.topl.networking.blockchain.NetworkTypeTags._
@@ -107,7 +108,7 @@ object BlockchainPeerConnectionFlowFactory {
           val remoteTransactionNotifications: F[Source[TypedIdentifier, NotUsed]] = remoteTransactionIdsSource.pure[F]
           def getRemoteSlotData(id: TypedIdentifier): F[Option[SlotData]] = slotDataReceivedCallback(id)
           def getRemoteHeader(id: TypedIdentifier): F[Option[ConsensusBlockHeader]] = headerReceivedCallback(id)
-          def getRemoteBody(id: TypedIdentifier): F[Option[BlockBody]] = bodyReceivedCallback(id)
+          def getRemoteBody(id: TypedIdentifier): F[Option[NodeBlockBody]] = bodyReceivedCallback(id)
           def getRemoteTransaction(id: TypedIdentifier): F[Option[Transaction]] = transactionReceivedCallback(id)
           def getRemoteBlockIdAtHeight(
             height:       Long,

@@ -75,7 +75,7 @@ object BlockHeader {
 
 // This is a synthetic type, and is not "identifiable"
 case class BlockOld(header: BlockHeader, body: BlockBody) // TODO Remove
-case class Block(header: co.topl.consensus.models.BlockHeader, body: BlockBody)
+case class Block(header: co.topl.consensus.models.BlockHeader, body: co.topl.node.models.BlockBody)
 
 object BlockBody {
   type Full = Chain[Transaction]

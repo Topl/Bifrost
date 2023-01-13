@@ -51,11 +51,11 @@ object ToplRpcWalletInitializer {
         .parEvalMap(fetchBodyParallelism)(blockId =>
           OptionT(toplRpc.fetchBlockBody(blockId))
             .getOrRaise(new IllegalStateException("Block body not found"))
-            .map(_.toList)
+            .map(_.transactionIds)
         )
         .flatMap(Stream.iterable)
         .parEvalMap(fetchTransactionParallelism)(transactionId =>
-          OptionT(toplRpc.fetchTransaction(transactionId))
+          OptionT(toplRpc.fetchTransaction(co.topl.models.TypedBytes.ioTx32(transactionId)))
             .getOrRaise(new IllegalStateException("Transaction not found"))
         )
     } yield stream

@@ -38,7 +38,7 @@ object BlockchainProtocols {
    *
    * This protocol runs a server and client in parallel for each connection.
    */
-  object Body extends RequestResponseProtocol[TypedBytes, ListSet[TypedBytes]]
+  object Body extends RequestResponseProtocol[TypedBytes, co.topl.node.models.BlockBody]
 
   /**
    * Request a Transaction by Transaction ID

@@ -80,6 +80,9 @@ object HasLength {
 
   trait Instances {
 
+    implicit def byteStringLength: HasLength[com.google.protobuf.ByteString] =
+      _.size()
+
     implicit def bytesLength: HasLength[Bytes] =
       _.length.toInt
 

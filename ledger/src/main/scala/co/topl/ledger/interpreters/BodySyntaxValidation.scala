@@ -31,9 +31,9 @@ object BodySyntaxValidation {
         /**
          * Syntactically validates each of the transactions in the given block.
          */
-        def validate(body: BlockBody): F[ValidatedNec[BodySyntaxError, BlockBody]] =
+        def validate(body: co.topl.node.models.BlockBody): F[ValidatedNec[BodySyntaxError, co.topl.node.models.BlockBody]] =
           for {
-            transactions            <- body.toList.traverse(fetchTransaction)
+            transactions            <- body.transactionIds.map(TypedBytes.ioTx32).toList.traverse(fetchTransaction)
             validatedDistinctInputs <- validateDistinctInputs(transactions).pure[F]
             validatedTransactions   <- transactions.foldMapM(validateTransaction)
           } yield validatedTransactions.combine(validatedDistinctInputs).as(body)

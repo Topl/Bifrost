@@ -10,6 +10,7 @@ import co.topl.genusLibrary.failure.Failures.{
   NonExistentTransactionsFailure
 }
 import co.topl.models.ModelGenerators._
+import co.topl.models.generators.brambl.ModelGenerators._
 import co.topl.models._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
@@ -90,7 +91,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
 
         (toplRpc.fetchBlockBody _)
           .expects(blockId)
-          .returning(Option.empty[BlockBody].pure[F])
+          .returning(Option.empty[co.topl.node.models.BlockBody].pure[F])
           .once()
 
         assertIO(
@@ -111,11 +112,12 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
         height:        Long,
         blockId:       TypedIdentifier,
         blockHeader:   co.topl.consensus.models.BlockHeader,
-        transactionId: TypedIdentifier
+        transactionId: co.topl.brambl.models.Identifier.IoTransaction32
       ) =>
         withMock {
 
-          val blockBody: BlockBody = ListSet(transactionId)
+          val blockBody: co.topl.node.models.BlockBody =
+            co.topl.node.models.BlockBody.of(Seq(transactionId))
 
           (toplRpc.blockIdAtHeight _)
             .expects(height)
@@ -133,7 +135,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
             .once()
 
           (toplRpc.fetchTransaction _)
-            .expects(transactionId)
+            .expects(co.topl.models.TypedBytes.ioTx32(transactionId))
             .returning(Option.empty[Transaction].pure[F])
             .once()
 
@@ -155,16 +157,18 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
         height:           Long,
         blockId:          TypedIdentifier,
         blockHeader:      co.topl.consensus.models.BlockHeader,
-        transactionId_01: TypedIdentifier,
-        transactionId_02: TypedIdentifier,
-        transactionId_03: TypedIdentifier
+        transactionId_01: co.topl.brambl.models.Identifier.IoTransaction32,
+        transactionId_02: co.topl.brambl.models.Identifier.IoTransaction32,
+        transactionId_03: co.topl.brambl.models.Identifier.IoTransaction32
       ) =>
         withMock {
 
-          val blockBody: BlockBody = ListSet(
-            transactionId_01,
-            transactionId_02,
-            transactionId_03
+          val blockBody: co.topl.node.models.BlockBody = co.topl.node.models.BlockBody.of(
+            Seq(
+              transactionId_01,
+              transactionId_02,
+              transactionId_03
+            )
           )
 
           val transaction_01 = mock[Transaction]
@@ -185,17 +189,17 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
             .once()
 
           (toplRpc.fetchTransaction _)
-            .expects(transactionId_01)
+            .expects(co.topl.models.TypedBytes.ioTx32(transactionId_01))
             .returning(transaction_01.some.pure[F])
             .once()
 
           (toplRpc.fetchTransaction _)
-            .expects(transactionId_02)
+            .expects(co.topl.models.TypedBytes.ioTx32(transactionId_02))
             .returning(Option.empty[Transaction].pure[F])
             .once()
 
           (toplRpc.fetchTransaction _)
-            .expects(transactionId_03)
+            .expects(co.topl.models.TypedBytes.ioTx32(transactionId_03))
             .returning(Option.empty[Transaction].pure[F])
             .once()
 
@@ -217,16 +221,18 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
         height:           Long,
         blockId:          TypedIdentifier,
         blockHeader:      co.topl.consensus.models.BlockHeader,
-        transactionId_01: TypedIdentifier,
-        transactionId_02: TypedIdentifier,
-        transactionId_03: TypedIdentifier
+        transactionId_01: co.topl.brambl.models.Identifier.IoTransaction32,
+        transactionId_02: co.topl.brambl.models.Identifier.IoTransaction32,
+        transactionId_03: co.topl.brambl.models.Identifier.IoTransaction32
       ) =>
         withMock {
 
-          val blockBody: BlockBody = ListSet(
-            transactionId_01,
-            transactionId_02,
-            transactionId_03
+          val blockBody: co.topl.node.models.BlockBody = co.topl.node.models.BlockBody.of(
+            Seq(
+              transactionId_01,
+              transactionId_02,
+              transactionId_03
+            )
           )
 
           (toplRpc.blockIdAtHeight _)
@@ -245,17 +251,17 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
             .once()
 
           (toplRpc.fetchTransaction _)
-            .expects(transactionId_01)
+            .expects(co.topl.models.TypedBytes.ioTx32(transactionId_01))
             .returning(Option.empty[Transaction].pure[F])
             .once()
 
           (toplRpc.fetchTransaction _)
-            .expects(transactionId_02)
+            .expects(co.topl.models.TypedBytes.ioTx32(transactionId_02))
             .returning(Option.empty[Transaction].pure[F])
             .once()
 
           (toplRpc.fetchTransaction _)
-            .expects(transactionId_03)
+            .expects(co.topl.models.TypedBytes.ioTx32(transactionId_03))
             .returning(Option.empty[Transaction].pure[F])
             .once()
 
@@ -286,10 +292,24 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
           val transactionId_02: TypedIdentifier = transaction_02.id.asTypedBytes
           val transactionId_03: TypedIdentifier = transaction_03.id.asTypedBytes
 
-          val blockBody: BlockBody = ListSet(
-            transactionId_01,
-            transactionId_02,
-            transactionId_03
+          // TODO move and rename in case we need to translate this model in other place
+          def aux(tx: TypedIdentifier): co.topl.brambl.models.Identifier.IoTransaction32 =
+            co.topl.brambl.models.Identifier.IoTransaction32.of(
+              Some(
+                co.topl.brambl.models.Evidence.Sized32.of(
+                  Some(
+                    quivr.models.Digest.Digest32.of(com.google.protobuf.ByteString.copyFrom(tx.dataBytes.toArray))
+                  )
+                )
+              )
+            )
+
+          val blockBody: co.topl.node.models.BlockBody = co.topl.node.models.BlockBody.of(
+            Seq(
+              aux(transactionId_01),
+              aux(transactionId_02),
+              aux(transactionId_03)
+            )
           )
 
           (toplRpc.blockIdAtHeight _)

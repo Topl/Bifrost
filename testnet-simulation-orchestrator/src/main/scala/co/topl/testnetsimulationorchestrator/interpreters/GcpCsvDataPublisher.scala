@@ -111,7 +111,7 @@ object GcpCsvDataPublisher {
 //      datum.header.eligibilityCertificate.immutableBytes.toBase58,
 //      datum.header.operationalCertificate.immutableBytes.toBase58,
 //      datum.header.metadata.fold("")(_.data.value),
-      datum.body.map(_.show).mkString(";")
+//      datum.body.transactionIds.map(_.show).mkString(";")
     )
 
   private def transactionDatumToRow(datum: TransactionDatum) =

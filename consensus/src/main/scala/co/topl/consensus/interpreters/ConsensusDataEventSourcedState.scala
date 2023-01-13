@@ -34,7 +34,7 @@ object ConsensusDataEventSourcedState {
     parentChildTree:        ParentChildTree[F, TypedIdentifier],
     currentEventChanged:    TypedIdentifier => F[Unit],
     initialState:           F[ConsensusData[F]],
-    fetchBlockBody:         TypedIdentifier => F[BlockBody],
+    fetchBlockBody:         TypedIdentifier => F[co.topl.node.models.BlockBody],
     fetchTransaction:       TypedIdentifier => F[Transaction],
     fetchTransactionOutput: Box.Id => F[Transaction.Output]
   ): F[EventSourcedState[F, ConsensusData[F], TypedIdentifier]] =
@@ -48,7 +48,7 @@ object ConsensusDataEventSourcedState {
     )
 
   private class ApplyBlock[F[_]: MonadThrow](
-    fetchBlockBody:         TypedIdentifier => F[BlockBody],
+    fetchBlockBody:         TypedIdentifier => F[co.topl.node.models.BlockBody],
     fetchTransaction:       TypedIdentifier => F[Transaction],
     fetchTransactionOutput: Box.Id => F[Transaction.Output]
   ) extends ((ConsensusData[F], TypedIdentifier) => F[ConsensusData[F]]) {
@@ -56,7 +56,7 @@ object ConsensusDataEventSourcedState {
     def apply(state: ConsensusData[F], blockId: TypedIdentifier): F[ConsensusData[F]] =
       for {
         body                <- fetchBlockBody(blockId)
-        transactions        <- body.toList.traverse(fetchTransaction)
+        transactions        <- body.transactionIds.map(TypedBytes.ioTx32).toList.traverse(fetchTransaction)
         stakeChanges        <- transactions.foldMapM(calculateStakeChanges)
         registrationChanges <- transactions.foldMapM(calculateRegistrationChanges)
         previousTotalStake  <- state.totalActiveStake.getOrRaise(())
@@ -125,7 +125,7 @@ object ConsensusDataEventSourcedState {
   }
 
   private class UnapplyBlock[F[_]: MonadThrow](
-    fetchBlockBody:         TypedIdentifier => F[BlockBody],
+    fetchBlockBody:         TypedIdentifier => F[co.topl.node.models.BlockBody],
     fetchTransaction:       TypedIdentifier => F[Transaction],
     fetchTransactionOutput: Box.Id => F[Transaction.Output]
   ) extends ((ConsensusData[F], TypedIdentifier) => F[ConsensusData[F]]) {
@@ -133,7 +133,7 @@ object ConsensusDataEventSourcedState {
     def apply(state: ConsensusData[F], blockId: TypedIdentifier): F[ConsensusData[F]] =
       for {
         body                <- fetchBlockBody(blockId)
-        transactions        <- body.toList.reverse.traverse(fetchTransaction)
+        transactions        <- body.transactionIds.map(TypedBytes.ioTx32).toList.reverse.traverse(fetchTransaction)
         stakeChanges        <- transactions.foldMapM(calculateStakeChanges)
         registrationChanges <- transactions.foldMapM(calculateRegistrationChanges)
         previousTotalStake  <- state.totalActiveStake.getOrRaise(())

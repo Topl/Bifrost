@@ -74,5 +74,11 @@ package object models {
      */
     def headerFromProtobufString(bytesString: com.google.protobuf.ByteString): topl.models.TypedIdentifier =
       TypedBytes(IdentifierTypes.Block.HeaderV2, ByteVector(bytesString.toByteArray))
+
+    def ioTx32(ioTx32: co.topl.brambl.models.Identifier.IoTransaction32): topl.models.TypedIdentifier =
+      TypedBytes.apply(
+        co.topl.models.IdentifierTypes.Transaction,
+        ByteVector(ioTx32.evidence.flatMap(_.digest.map(_.value)).map(_.toByteArray).getOrElse(Array.empty))
+      )
   }
 }

@@ -7,6 +7,24 @@ import com.google.protobuf.ByteString
  */
 object ReplaceModelUtil {
 
+  def ioTransaction32(typedIdentifier: co.topl.models.TypedIdentifier):co.topl.brambl.models.Identifier.IoTransaction32 =
+    co.topl.brambl.models.Identifier.IoTransaction32(
+      Some(
+        co.topl.brambl.models.Evidence.Sized32.of(
+          Some(
+            quivr.models.Digest.Digest32
+              .of(com.google.protobuf.ByteString.copyFrom(typedIdentifier.dataBytes.toArray))
+          )
+        )
+      )
+    )
+
+  def nodeBlock(blockBody: co.topl.models.BlockBody): co.topl.node.models.BlockBody =
+    co.topl.node.models.BlockBody(
+      transactionIds = blockBody.toSeq.map(ioTransaction32),
+      unknownFields = scalapb.UnknownFieldSet.empty
+    )
+
   def consensusHeader(header: co.topl.models.BlockHeader): co.topl.consensus.models.BlockHeader =
     co.topl.consensus.models.BlockHeader(
       parentHeaderId = ByteString.copyFrom(header.parentHeaderId.dataBytes.toArray),

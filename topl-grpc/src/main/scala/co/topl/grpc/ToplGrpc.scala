@@ -91,26 +91,19 @@ object ToplGrpc {
                   .map(_.header)
               ).value
 
-            def fetchBlockBody(blockId: bifrostModels.TypedIdentifier): F[Option[bifrostModels.BlockBody]] = ???
-//            def fetchBlockBody(blockId: bifrostModels.TypedIdentifier): F[Option[bifrostModels.BlockBody]] =
-//              OptionT(
-//                EitherT(blockId.toF[F, models.BlockId])
-//                  .leftMap(new IllegalArgumentException(_))
-//                  .rethrowT
-//                  .flatMap(blockId =>
-//                    client.fetchBlockBody(
-//                      FetchBlockBodyReq(blockId.some),
-//                      new Metadata()
-//                    )
-//                  )
-//                  .map(_.body)
-//              )
-//                .semiflatMap(protoBody =>
-//                  EitherT(protoBody.toF[F, bifrostModels.BlockBody])
-//                    .leftMap(new IllegalArgumentException(_))
-//                    .rethrowT
-//                )
-//                .value
+            def fetchBlockBody(blockId: bifrostModels.TypedIdentifier): F[Option[co.topl.node.models.BlockBody]] =
+              OptionT(
+                EitherT(blockId.dataBytes.toF[F, ByteString])
+                  .leftMap(new IllegalArgumentException(_))
+                  .rethrowT
+                  .flatMap(blockId =>
+                    client.fetchBlockBody(
+                      FetchBlockBodyReq(blockId),
+                      new Metadata()
+                    )
+                  )
+                  .map(_.body)
+              ).value
 
             def fetchTransaction(transactionId: bifrostModels.TypedIdentifier): F[Option[bifrostModels.Transaction]] =
               ???
@@ -254,7 +247,9 @@ object ToplGrpc {
         in.blockId
           .asRight[String]
           .toEitherT[F]
-          .flatMapF(_.toF[F, bifrostModels.TypedIdentifier](implicitly, blockIdHeaderIsomorphism[F].baMorphism))
+          .flatMapF(
+            _.toF[F, bifrostModels.TypedIdentifier](implicitly, blockIdHeaderIsomorphism[F].baMorphism)
+          ) // TODO replace this model with block id
           .leftMap(_ => Status.INVALID_ARGUMENT.withDescription("Invalid Block ID").asException())
           .rethrowT
           .flatMap(id =>
@@ -264,25 +259,20 @@ object ToplGrpc {
           )
           .adaptErrorsToGrpc
 
-      def fetchBlockBody(in: FetchBlockBodyReq, ctx: Metadata): F[FetchBlockBodyRes] = ???
-//      def fetchBlockBody(in: FetchBlockBodyReq, ctx: Metadata): F[FetchBlockBodyRes] =
-//        in.blockId
-//          .toRight("Missing blockId")
-//          .toEitherT[F]
-//          .flatMapF(_.toF[F, bifrostModels.TypedIdentifier])
-//          .leftMap(_ => Status.INVALID_ARGUMENT.withDescription("Invalid Block ID").asException())
-//          .rethrowT
-//          .flatMap(id =>
-//            OptionT(interpreter.fetchBlockBody(id))
-//              .semiflatMap(body =>
-//                EitherT(body.toF[F, models.BlockBody])
-//                  .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
-//                  .rethrowT
-//              )
-//              .value
-//              .map(FetchBlockBodyRes(_))
-//          )
-//          .adaptErrorsToGrpc
+      def fetchBlockBody(in: FetchBlockBodyReq, ctx: Metadata): F[FetchBlockBodyRes] =
+        in.blockId
+          .asRight[String]
+          .toEitherT[F]
+          .flatMapF(
+            _.toF[F, bifrostModels.TypedIdentifier](implicitly, blockIdHeaderIsomorphism[F].baMorphism)
+          ) // TODO replace this model with block id
+          .leftMap(_ => Status.INVALID_ARGUMENT.withDescription("Invalid Block ID").asException())
+          .rethrowT
+          .flatMap(id =>
+            OptionT(interpreter.fetchBlockBody(id)).value
+              .map(FetchBlockBodyRes(_))
+          )
+          .adaptErrorsToGrpc
 
       def fetchTransaction(in: FetchTransactionReq, ctx: Metadata): F[FetchTransactionRes] = ???
 //      def fetchTransaction(in: FetchTransactionReq, ctx: Metadata): F[FetchTransactionRes] =

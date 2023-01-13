@@ -185,7 +185,7 @@ object Orchestrator
         blockDatumTopic
           .subscribe(128)
           .fold(Map.empty[TypedIdentifier, NodeName]) { case (assignments, (node, datum)) =>
-            assignments ++ datum.body.toList.tupleRight(node)
+            assignments ++ datum.body.transactionIds.map(co.topl.models.TypedBytes.ioTx32).tupleRight(node)
           }
       // Publish the block data results
       _ <- Logger[F].info("Fetching block bodies, publishing blocks, and assigning transactions (in parallel)")

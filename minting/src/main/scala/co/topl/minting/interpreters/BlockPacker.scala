@@ -9,17 +9,13 @@ import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.ledger.algebras._
-import co.topl.ledger.models.{
-  StaticBodyValidationContext,
-  StaticTransactionValidationContext,
-  TransactionValidationContext
-}
+import co.topl.ledger.models.{StaticBodyValidationContext, StaticTransactionValidationContext, TransactionValidationContext}
 import co.topl.minting.algebras.BlockPackerAlgebra
 import co.topl.models._
+import co.topl.models.utility.ReplaceModelUtil
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
-
 import scala.collection.immutable.ListSet
 
 /**
@@ -82,8 +78,9 @@ object BlockPacker {
   ): TransactionValidationContext => F[Boolean] = { transactionValidationContext =>
     val proposedBody =
       ListSet.empty[TypedIdentifier] ++ transactionValidationContext.prefix.map(_.id.asTypedBytes).toList
+    val proposedNodeBody = ReplaceModelUtil.nodeBlock(proposedBody)
     (
-      EitherT(bodySyntaxValidation.validate(proposedBody).map(_.toEither)).leftMap(_.toString) >>
+      EitherT(bodySyntaxValidation.validate(proposedNodeBody).map(_.toEither)).leftMap(_.toString) >>
       EitherT(
         bodySemanticValidation
           .validate(
@@ -92,11 +89,11 @@ object BlockPacker {
               transactionValidationContext.height,
               transactionValidationContext.slot
             )
-          )(proposedBody)
+          )(proposedNodeBody)
           .map(_.toEither)
       ).leftMap(_.toString) >>
       EitherT(
-        bodyAuthorizationValidation.validate(transactionValidationContext.parentHeaderId)(proposedBody).map(_.toEither)
+        bodyAuthorizationValidation.validate(transactionValidationContext.parentHeaderId)(proposedNodeBody).map(_.toEither)
       ).leftMap(_.toString)
     )
       .leftSemiflatTap(error => Logger[F].debug(show"Block packer candidate is invalid.  reason=$error"))

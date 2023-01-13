@@ -33,6 +33,8 @@ object ContainsTransactionIds {
 
     implicit val blockBody: ContainsTransactionIds[BlockBody] = body => body.toSeq
 
+    implicit val blockNodeBody: ContainsTransactionIds[co.topl.node.models.BlockBody] = body => body.transactionIds.map(TypedBytes.ioTx32)
+
     implicit def containsTxToContainTxsId[G: ContainsTransactions]: ContainsTransactionIds[G] = txs =>
       implicitly[ContainsTransactions[G]].transactionsOf(txs).map(_.id.asTypedBytes)
   }

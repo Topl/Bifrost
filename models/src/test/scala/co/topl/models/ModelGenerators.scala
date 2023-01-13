@@ -724,6 +724,7 @@ trait ModelGenerators {
   implicit val arbitraryHeader: Arbitrary[BlockHeader] =
     Arbitrary(headerGen())
 
+  // TODO it should live in generators.consensus.ModelGenerator
   implicit val arbitraryConsensusHeader: Arbitrary[co.topl.consensus.models.BlockHeader] =
     Arbitrary(headerConsensusGen())
 
@@ -738,7 +739,7 @@ trait ModelGenerators {
     Arbitrary(
       for {
         header <- arbitraryConsensusHeader.arbitrary
-        body   <- arbitraryBody.arbitrary
+        body   <-  co.topl.models.generators.node.ModelGenerators.arbitraryNodeBody.arbitrary
       } yield Block(header, body)
     )
 

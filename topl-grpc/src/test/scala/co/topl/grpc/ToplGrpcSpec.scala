@@ -10,6 +10,7 @@ import co.topl.node.services._
 import co.topl.proto.models
 import co.topl.models.ModelGenerators._
 import co.topl.models.TypedBytes
+import co.topl.models.generators.node.ModelGenerators.arbitraryNodeBody
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import io.grpc.{Metadata, Status, StatusException}
@@ -79,31 +80,29 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
     }
   }
 
-  // TODO Fix this test, when ToplGrpc is finish method by method
-//  test("A block body can be retrieved") {
-//    PropF.forAllF { (_id: bifrostModels.TypedIdentifier, body: bifrostModels.BlockBody) =>
-//      val id = bifrostModels.TypedBytes(bifrostModels.IdentifierTypes.Block.HeaderV2, _id.dataBytes)
-//      withMock {
-//        val interpreter = mock[ToplRpc[F, Stream[F, *]]]
-//        val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
-//
-//        (interpreter.fetchBlockBody _)
-//          .expects(id)
-//          .once()
-//          .returning(body.some.pure[F])
-//
-//        for {
-//          protoId <- EitherT(id.toF[F, models.BlockId]).getOrElse(???)
-//          res     <- underTest.fetchBlockBody(FetchBlockBodyReq(protoId.some), new Metadata())
-//
-//          protoBody = res.body.get
-//          _body <- EitherT(protoBody.toF[F, bifrostModels.BlockBody]).getOrElse(???)
-//          _ = assert(_body == body)
-//        } yield ()
-//      }
-//    }
-//  }
-//
+  test("A block body can be retrieved") {
+    PropF.forAllF { (_id: co.topl.models.TypedIdentifier, body: co.topl.node.models.BlockBody) =>
+      val id = co.topl.models.TypedBytes(co.topl.models.IdentifierTypes.Block.HeaderV2, _id.dataBytes)
+      withMock {
+        val interpreter = mock[ToplRpc[F, Stream[F, *]]]
+        val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+
+        (interpreter.fetchBlockBody _)
+          .expects(id)
+          .once()
+          .returning(body.some.pure[F])
+
+        for {
+          protoId <- EitherT(id.toF[F, models.BlockId]).getOrElse(???)
+          res     <- underTest.fetchBlockBody(FetchBlockBodyReq(protoId.value), new Metadata())
+
+          protoBody = res.body.get
+          _ = assert(protoBody == body)
+        } yield ()
+      }
+    }
+  }
+
 //  test("An invalid block body ID is rejected") {
 //    withMock {
 //      val interpreter = mock[ToplRpc[F, Stream[F, *]]]

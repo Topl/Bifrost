@@ -11,7 +11,8 @@ import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.{MempoolAlgebra, TransactionSyntaxValidationAlgebra}
 import co.topl.ledger.models._
-import co.topl.models.{BlockBody, Transaction, TypedIdentifier}
+import co.topl.models.{Transaction, TypedIdentifier}
+import co.topl.node.models.{BlockBody => NodeBlockBody} // TODO remove rename, after remove models
 import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
 import org.typelevel.log4cats.Logger
 import co.topl.typeclasses.implicits._
@@ -38,7 +39,7 @@ object ToplRpcServer {
    */
   def make[F[_]: Async: Logger](
     headerStore:               Store[F, TypedIdentifier, ConsensusBlockHeader],
-    bodyStore:                 Store[F, TypedIdentifier, BlockBody],
+    bodyStore:                 Store[F, TypedIdentifier, NodeBlockBody],
     transactionStore:          Store[F, TypedIdentifier, Transaction],
     mempool:                   MempoolAlgebra[F],
     syntacticValidation:       TransactionSyntaxValidationAlgebra[F],
@@ -70,7 +71,7 @@ object ToplRpcServer {
         def fetchBlockHeader(blockId: TypedIdentifier): F[Option[ConsensusBlockHeader]] =
           headerStore.get(blockId)
 
-        def fetchBlockBody(blockId: TypedIdentifier): F[Option[BlockBody]] =
+        def fetchBlockBody(blockId: TypedIdentifier): F[Option[NodeBlockBody]] =
           bodyStore.get(blockId)
 
         def fetchTransaction(transactionId: TypedIdentifier): F[Option[Transaction]] =

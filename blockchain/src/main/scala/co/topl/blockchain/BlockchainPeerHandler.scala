@@ -28,6 +28,7 @@ import co.topl.ledger.models.{
 }
 import co.topl.models._
 import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
+import co.topl.node.models.{BlockBody => NodeBlockBody} // TODO remove rename, after remove models
 import co.topl.networking.blockchain._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
@@ -72,7 +73,7 @@ object BlockchainPeerHandler {
       bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
       slotDataStore:               Store[F, TypedIdentifier, SlotData],
       headerStore:                 Store[F, TypedIdentifier, ConsensusBlockHeader],
-      bodyStore:                   Store[F, TypedIdentifier, BlockBody],
+      bodyStore:                   Store[F, TypedIdentifier, NodeBlockBody],
       transactionStore:            Store[F, TypedIdentifier, Transaction],
       blockIdTree:                 ParentChildTree[F, TypedIdentifier]
     )(implicit mat:                Materializer): BlockchainPeerHandlerAlgebra[F] =
@@ -255,7 +256,7 @@ object BlockchainPeerHandler {
       bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
       slotDataStore:               Store[F, TypedIdentifier, SlotData],
       headerStore:                 Store[F, TypedIdentifier, ConsensusBlockHeader],
-      bodyStore:                   Store[F, TypedIdentifier, BlockBody],
+      bodyStore:                   Store[F, TypedIdentifier, NodeBlockBody],
       transactionStore:            Store[F, TypedIdentifier, Transaction]
     )(from:                        TypedIdentifier) =
       determineMissingValues(
@@ -272,16 +273,16 @@ object BlockchainPeerHandler {
                 .tupleLeft(blockId)
             )
             .mapAsyncF(1) { case (blockId, body) =>
-              body.toList
+              body.transactionIds
                 .traverse(transactionId =>
-                  OptionT(transactionStore.get(transactionId))
+                  OptionT(transactionStore.get(TypedBytes.ioTx32(transactionId)))
                     .getOrElseF(
-                      Logger[F].info(show"Fetching remote transaction id=$transactionId") >>
-                      OptionT(client.getRemoteTransaction(transactionId))
-                        .filter(_.id.asTypedBytes === transactionId)
-                        .getOrNoSuchElement(transactionId.show)
-                        .flatTap(_ => Logger[F].debug(show"Saving transaction id=$transactionId"))
-                        .flatTap(transaction => transactionStore.put(transactionId, transaction))
+                      Logger[F].info(show"Fetching remote transaction id=${TypedBytes.ioTx32(transactionId)}") >>
+                      OptionT(client.getRemoteTransaction(TypedBytes.ioTx32(transactionId)))
+                        .filter(_.id.asTypedBytes === TypedBytes.ioTx32(transactionId))
+                        .getOrNoSuchElement(TypedBytes.ioTx32(transactionId).show)
+                        .flatTap(_ => Logger[F].debug(show"Saving transaction id=${TypedBytes.ioTx32(transactionId)}"))
+                        .flatTap(transaction => transactionStore.put(TypedBytes.ioTx32(transactionId), transaction))
                     )
                 )
                 .map((blockId, body, _))

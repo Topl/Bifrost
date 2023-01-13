@@ -15,9 +15,9 @@ import co.topl.models._
 import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
 import fs2.io.file.{Files, Path}
-
 import scala.collection.immutable.ListSet
 import co.topl.interpreters.CacheStore
+import co.topl.models.utility.ReplaceModelUtil
 import org.typelevel.log4cats.Logger
 
 case class DataStores[F[_]](
@@ -25,7 +25,7 @@ case class DataStores[F[_]](
   currentEventIds: Store[F, Byte, TypedIdentifier],
   slotData:        Store[F, TypedIdentifier, SlotData],
   headers:         Store[F, TypedIdentifier, co.topl.consensus.models.BlockHeader],
-  bodies:          Store[F, TypedIdentifier, BlockBody],
+  bodies:          Store[F, TypedIdentifier, co.topl.node.models.BlockBody],
   transactions:    Store[F, TypedIdentifier, Transaction],
   spendableBoxIds: Store[F, TypedIdentifier, NonEmptySet[Short]],
   epochBoundaries: Store[F, Long, TypedIdentifier],
@@ -60,7 +60,7 @@ object DataStores {
         appConfig.bifrost.cache.headers,
         _.allBytes
       )
-      blockBodyStore <- makeCachedDb[F, TypedIdentifier, Bytes, BlockBody](dataDir)(
+      blockBodyStore <- makeCachedDb[F, TypedIdentifier, Bytes, co.topl.node.models.BlockBody](dataDir)(
         "block-bodies",
         appConfig.bifrost.cache.bodies,
         _.allBytes
@@ -163,7 +163,12 @@ object DataStores {
       _ <- dataStores.headers.put(bigBangBlock.header.id, bigBangBlock.toFullConsensus.header)
       _ <- dataStores.bodies.put(
         bigBangBlock.header.id,
-        ListSet.empty ++ bigBangBlock.transactions.map(_.id.asTypedBytes).toList
+        co.topl.node.models.BlockBody(
+          (ListSet.empty ++ bigBangBlock.transactions
+            .map(_.id.asTypedBytes)
+            .toList
+            .map(ReplaceModelUtil.ioTransaction32)).toSeq
+        )
       )
       _ <- bigBangBlock.transactions.traverseTap(transaction =>
         dataStores.transactions.put(transaction.id, transaction)

@@ -87,7 +87,8 @@ object Staking {
             unsignedBlock.unsignedHeader.metadata,
             unsignedBlock.unsignedHeader.address
           )
-          block = Block(ReplaceModelUtil.consensusHeader(header), unsignedBlock.body)
+          // TODO use new models instead of Replace Model util
+          block = Block(ReplaceModelUtil.consensusHeader(header), ReplaceModelUtil.nodeBlock(unsignedBlock.body))
         } yield block
       }.value
   }

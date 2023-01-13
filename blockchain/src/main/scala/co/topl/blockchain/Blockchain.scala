@@ -18,6 +18,7 @@ import co.topl.ledger.algebras._
 import co.topl.minting.algebras.StakingAlgebra
 import co.topl.models._
 import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader}
+import co.topl.node.models.{BlockBody => NodeBlockBody}
 import co.topl.networking.blockchain._
 import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, LocalPeer}
 import co.topl.typeclasses.implicits._
@@ -41,7 +42,7 @@ object Blockchain {
     staker:                      Option[StakingAlgebra[F]],
     slotDataStore:               Store[F, TypedIdentifier, SlotData],
     headerStore:                 Store[F, TypedIdentifier, ConsensusBlockHeader],
-    bodyStore:                   Store[F, TypedIdentifier, BlockBody],
+    bodyStore:                   Store[F, TypedIdentifier, NodeBlockBody],
     transactionStore:            Store[F, TypedIdentifier, Transaction],
     _localChain:                 LocalChainAlgebra[F],
     blockIdTree:                 ParentChildTree[F, TypedIdentifier],
