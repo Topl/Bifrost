@@ -16,14 +16,7 @@ import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LocalChainAlgeb
 import co.topl.consensus.models.BlockHeaderValidationFailure
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
-import co.topl.ledger.models.{
-  BodyAuthorizationError,
-  BodySemanticError,
-  BodySyntaxError,
-  StaticBodyValidationContext,
-  TransactionSemanticError,
-  TransactionSyntaxError
-}
+import co.topl.ledger.models._
 import co.topl.models._
 import co.topl.networking.blockchain._
 import co.topl.typeclasses.implicits._
@@ -75,7 +68,7 @@ object BlockchainPeerHandler {
     ): BlockchainPeerHandlerAlgebra[F] =
       (client: BlockchainPeerClient[F]) =>
         for {
-          implicit0(logger: Logger[F]) <- createPeerLogger[F](client)("P2P.ChainSync")
+          implicit0(logger: Logger[F]) <- createPeerLogger[F](client)("Bifrost.P2P.ChainSync")
           adoptions                    <- client.remotePeerAdoptions
           _fetchAndValidateMissingHeaders = fetchAndValidateMissingHeaders(
             client,
@@ -204,7 +197,7 @@ object BlockchainPeerHandler {
         .flatMap(missingHeaders =>
           Stream
             .foldable[F, NonEmptyChain, TypedIdentifier](missingHeaders)
-            .parEvalMap(16)(blockId =>
+            .parEvalMapUnbounded(blockId =>
               for {
                 _      <- Logger[F].info(show"Fetching remote header id=$blockId")
                 header <- OptionT(client.getRemoteHeader(blockId)).getOrNoSuchElement(blockId.show)
@@ -262,7 +255,7 @@ object BlockchainPeerHandler {
                 body <- OptionT(client.getRemoteBody(blockId)).getOrNoSuchElement(blockId.show)
                 _ <- Stream
                   .iterable[F, TypedIdentifier](body)
-                  .parEvalMapUnordered(16)(transactionId =>
+                  .parEvalMapUnorderedUnbounded(transactionId =>
                     transactionStore
                       .contains(transactionId)
                       .ifM(
@@ -375,16 +368,13 @@ object BlockchainPeerHandler {
     implicit private val showTransactionSyntaxError: Show[TransactionSyntaxError] =
       Show.fromToString
 
-    implicit private val showTransactionSemanticError: Show[TransactionSemanticError] =
-      Show.fromToString
-
     def make[F[_]: Async](
       transactionSyntaxValidation: TransactionSyntaxValidationAlgebra[F],
       transactionStore:            Store[F, TypedIdentifier, Transaction],
       mempool:                     MempoolAlgebra[F]
     ): BlockchainPeerHandlerAlgebra[F] =
       (client: BlockchainPeerClient[F]) =>
-        createPeerLogger[F](client)("P2P.MempoolSync").flatMap(implicit logger =>
+        createPeerLogger[F](client)("Bifrost.P2P.MempoolSync").flatMap(implicit logger =>
           client.remoteTransactionNotifications
             .flatMap(source =>
               source
@@ -442,7 +432,7 @@ object BlockchainPeerHandler {
       slotDataStore:           StoreReader[F, TypedIdentifier, SlotData]
     ): BlockchainPeerHandlerAlgebra[F] =
       (client: BlockchainPeerClient[F]) =>
-        createPeerLogger[F](client)("P2P.CommonAncestorTrace")
+        createPeerLogger[F](client)("Bifrost.P2P.CommonAncestorTrace")
           .flatMap(implicit logger =>
             Stream
               .fixedDelay[F](10.seconds)
@@ -489,8 +479,7 @@ object BlockchainPeerHandler {
   private def createPeerLogger[F[_]: Sync](client: BlockchainPeerClient[F])(processName: String) =
     client.remotePeer.map(remotePeer =>
       Slf4jLogger
-        .getLoggerFromName[F](processName)
-        .withModifiedString(value => show"peer=${remotePeer.remoteAddress} $value")
+        .getLoggerFromName[F](s"$processName [${remotePeer.remoteAddress}]")
     )
 
 }

@@ -99,7 +99,7 @@ object TypedProtocolSetFactory {
             }
           }
           .log(s"Received inbound message in protocolInstanceId=$protocolInstanceId", _._1)
-          .mapAsyncF(16) { case (decodedData, networkTypeTag) =>
+          .mapAsyncF(1) { case (decodedData, networkTypeTag) =>
             applier.apply(decodedData, multiplexedSubHandler.instance.localParty.opposite)(
               networkTypeTag.asInstanceOf[NetworkTypeTag[Any]]
             )
@@ -112,7 +112,7 @@ object TypedProtocolSetFactory {
         protocolInstanceId:    Byte
       ): Stream[F, ByteString] =
         multiplexedSubHandler.outboundMessages
-          .parEvalMap(16)(outboundMessage =>
+          .evalMap(outboundMessage =>
             applier
               .apply(outboundMessage.data, multiplexedSubHandler.instance.localParty)(
                 outboundMessage.networkTypeTag.asInstanceOf[NetworkTypeTag[Any]]

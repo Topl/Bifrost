@@ -63,7 +63,7 @@ object Blockchain {
     rpcHost:         String,
     rpcPort:         Int
   )(implicit system: ActorSystem[_], random: Random): Resource[F, Unit] = {
-    implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromClass[F](Blockchain.getClass)
+    implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
     for {
       (localChain, blockAdoptionsTopic)    <- LocalChainBroadcaster.make(_localChain)
       (mempool, transactionAdoptionsTopic) <- MempoolBroadcaster.make(_mempool)

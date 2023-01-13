@@ -50,14 +50,14 @@ object ToplRpcServer {
     Async[F].delay {
       new ToplRpc[F, Stream[F, *]] {
         implicit private val logger: SelfAwareStructuredLogger[F] =
-          Slf4jLogger.getLoggerFromClass[F](ToplRpcServer.getClass)
+          Slf4jLogger.getLoggerFromName[F]("Bifrost.RPC.Server")
 
         def broadcastTransaction(transaction: Transaction): F[Unit] =
           transactionStore
             .contains(transaction.id)
             .ifM(
               Logger[F].info(show"Received duplicate transaction id=${transaction.id.asTypedBytes}"),
-              Logger[F].info(show"Received RPC Transaction id=${transaction.id.asTypedBytes}") >>
+              Logger[F].debug(show"Received RPC Transaction id=${transaction.id.asTypedBytes}") >>
               syntacticValidateOrRaise(transaction)
                 .flatTap(_ =>
                   Logger[F].debug(show"Transaction id=${transaction.id.asTypedBytes} is syntactically valid")

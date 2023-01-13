@@ -11,12 +11,13 @@ import co.topl.networking.p2p._
 import co.topl.typeclasses.implicits._
 import fs2._
 import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.util.Random
 
 object BlockchainNetwork {
 
-  def make[F[_]: Async: Parallel: Logger: FToFuture](
+  def make[F[_]: Async: Parallel: FToFuture](
     host:          String,
     bindPort:      Int,
     localPeer:     LocalPeer,
@@ -32,7 +33,8 @@ object BlockchainNetwork {
     random: Random
   ): Resource[F, P2PServer[F, BlockchainPeerClient[F]]] =
     for {
-      connectionFlowFactory <- Resource.eval(BlockchainPeerConnectionFlowFactory.make[F](server).pure[F])
+      implicit0(logger: Logger[F]) <- Resource.eval(Slf4jLogger.getLoggerFromName("Bifrost.P2P").pure[F])
+      connectionFlowFactory        <- Resource.eval(BlockchainPeerConnectionFlowFactory.make[F](server).pure[F])
       peerHandlerFlow =
         (connectedPeer: ConnectedPeer) =>
           peerFlowModifier(

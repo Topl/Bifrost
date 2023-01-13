@@ -2,6 +2,7 @@ package co.topl.consensus.interpreters
 
 import cats._
 import cats.data._
+import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.algebras.UnsafeResource
 import co.topl.consensus.algebras.ChainSelectionAlgebra
@@ -10,6 +11,7 @@ import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.annotation.tailrec
 
@@ -44,7 +46,7 @@ object ChainSelection {
    * @param kLookback The number of blocks in the backward-moving window of blocks for longest-chain rule
    * @param sWindow The number of slots of the forward-moving window of blocks for chain-density rule
    */
-  def make[F[_]: Monad: Logger](
+  def make[F[_]: Sync](
     fetchSlotData:      TypedIdentifier => F[SlotData],
     blake2b512Resource: UnsafeResource[F, Blake2b512],
     kLookback:          Long,
@@ -55,12 +57,15 @@ object ChainSelection {
   /**
    * Implementation of OrderT which provides F[_]-context-based ordering to SlotData (block headers)
    */
-  private class ChainSelectionImpl[F[_]: Monad: Logger](
+  private class ChainSelectionImpl[F[_]: Sync](
     fetchSlotData:      TypedIdentifier => F[SlotData],
     blake2b512Resource: UnsafeResource[F, Blake2b512],
     kLookback:          Long,
     sWindow:            Long
   ) extends ChainSelectionAlgebra[F, SlotData] {
+
+    implicit private val logger: Logger[F] =
+      Slf4jLogger.getLoggerFromName("Bifrost.ChainSelection")
 
     override def compare(x: SlotData, y: SlotData): F[Int] =
       if (x === y) 0.pure[F]

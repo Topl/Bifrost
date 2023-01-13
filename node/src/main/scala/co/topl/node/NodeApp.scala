@@ -44,12 +44,12 @@ object NodeApp
       createArgs = args => Args.parserArgs.constructOrThrow(args),
       createConfig = IOBaseApp.createTypesafeConfig,
       parseConfig = (args, conf) => ApplicationConfig.unsafe(args, conf),
-      createSystem = (_, _, conf) => ActorSystem[Nothing](Behaviors.empty, "BifrostTetra", conf),
+      createSystem = (_, _, conf) => ActorSystem[Nothing](Behaviors.empty, "Bifrost", conf),
       preInitFunction = config => if (config.kamon.enable) Kamon.init()
     ) {
 
   implicit private val logger: Logger[F] =
-    Slf4jLogger.getLoggerFromClass[F](this.getClass)
+    Slf4jLogger.getLoggerFromName[F]("Bifrost.Node")
 
   def run: IO[Unit] = applicationResource.use_
 

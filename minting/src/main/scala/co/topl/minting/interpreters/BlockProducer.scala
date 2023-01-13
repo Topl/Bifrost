@@ -50,7 +50,7 @@ object BlockProducer {
   ) extends BlockProducerAlgebra[F] {
 
     implicit val logger: SelfAwareStructuredLogger[F] =
-      Slf4jLogger.getLoggerFromClass[F](BlockProducer.getClass)
+      Slf4jLogger.getLoggerFromName[F]("Bifrost.BlockProducer")
 
     val blocks: F[Source[Block, NotUsed]] =
       Sync[F].delay(

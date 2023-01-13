@@ -74,8 +74,8 @@ case class TypedProtocolInstance[F[_]] private (
    */
   def applier[S: NetworkTypeTag](initialState: S)(implicit asyncF: Async[F]): Resource[F, MessageApplier] =
     for {
-      aQueue <- Resource.eval(Queue.unbounded[F, (Any, NetworkTypeTag[_])])
-      bQueue <- Resource.eval(Queue.unbounded[F, (Any, NetworkTypeTag[_])])
+      aQueue <- Resource.eval(Queue.bounded[F, (Any, NetworkTypeTag[_])](16))
+      bQueue <- Resource.eval(Queue.bounded[F, (Any, NetworkTypeTag[_])](16))
       _      <- Async[F].background(backgroundProcessor(initialState)(aQueue, bQueue))
     } yield new MessageApplier {
 
