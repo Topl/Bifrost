@@ -3,20 +3,20 @@ package co.topl.networking.blockchain
 import akka.actor.typed.ActorSystem
 import akka.stream.scaladsl.{Flow, Sink}
 import akka.util.ByteString
+import cats.Parallel
 import cats.effect._
 import cats.implicits._
 import co.topl.catsakka._
 import co.topl.networking.p2p._
 import co.topl.typeclasses.implicits._
 import fs2._
-import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
 
 import scala.util.Random
 
 object BlockchainNetwork {
 
-  def make[F[_]: Async: Logger: FToFuture](
+  def make[F[_]: Async: Parallel: Logger: FToFuture](
     host:          String,
     bindPort:      Int,
     localPeer:     LocalPeer,
@@ -64,51 +64,47 @@ object BlockchainNetwork {
           peerHandlerFlow
         )
       }
-      peerChangesTopic <- Resource.make(Topic[F, PeerConnectionChange[BlockchainPeerClient[F]]])(_.close.void)
+      peerChangesTopic <- Resource.eval(p2pServer.peerChanges)
       _ <- Async[F].background(
-        p2pServer.peerChanges.map(_.subscribeUnbounded.through(peerChangesTopic.publish).compile.drain)
+        peerChangesTopic.subscribeUnbounded
+          .collect { case c: PeerConnectionChanges.ConnectionClosed => c }
+          .evalMap {
+            case PeerConnectionChanges.ConnectionClosed(_, Some(error)) =>
+              Logger[F].error(error)("Peer connection terminated with error")
+            case PeerConnectionChanges.ConnectionClosed(_, _) =>
+              Logger[F].info("Peer connection terminated normally")
+          }
+          .compile
+          .drain
       )
-      _ <- peerChangesTopic.subscribeAwaitUnbounded
-        .flatMap(changes =>
-          Async[F].background(
-            changes
-              .collect { case c: PeerConnectionChanges.ConnectionClosed => c }
-              .evalMap {
-                case PeerConnectionChanges.ConnectionClosed(_, Some(error)) =>
-                  Logger[F].error(error)("Peer connection terminated with error")
-                case PeerConnectionChanges.ConnectionClosed(_, _) =>
-                  Logger[F].info("Peer connection terminated normally")
-              }
-              .compile
-              .drain
-          )
-        )
-      peerClients <-
-        peerChangesTopic.subscribeAwaitUnbounded.map(
-          _.collect { case PeerConnectionChanges.ConnectionEstablished(_, client) => client }
-        )
+      peerClients = peerChangesTopic.subscribeUnbounded.collect {
+        case PeerConnectionChanges.ConnectionEstablished(_, client) => client
+      }
       _ <- handleNetworkClients(peerClients, clientHandler)
       _ <- Resource.eval(Logger[F].info(s"Bound P2P at host=$host port=$bindPort"))
     } yield p2pServer
 
-  private def handleNetworkClients[F[_]: Async: Logger: FToFuture](
+  private def handleNetworkClients[F[_]: Async: Parallel: Logger](
     clients:       Stream[F, BlockchainPeerClient[F]],
     clientHandler: BlockchainPeerHandlerAlgebra[F]
   ) =
     Async[F]
       .background(
         clients
-          .parEvalMapUnbounded(client =>
-            clientHandler
-              .usePeer(client)
-              .handleErrorWith(t =>
-                client.remotePeer
-                  .flatMap(peer => Logger[F].error(t)(show"Client connection to remote=${peer.remoteAddress} failed"))
-                  .void
-              )
+          .evalMap(client =>
+            Async[F].start(
+              clientHandler
+                .usePeer(client)
+                .handleErrorWith(t =>
+                  client.remotePeer
+                    .flatMap(peer => Logger[F].error(t)(show"Client connection to remote=${peer.remoteAddress} failed"))
+                    .void
+                )
+            )
           )
           .compile
-          .drain
+          .toList
+          .flatMap(_.parTraverse(_.joinWithUnit))
       )
 
 }
