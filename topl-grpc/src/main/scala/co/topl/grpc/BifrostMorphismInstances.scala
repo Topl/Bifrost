@@ -250,6 +250,32 @@ trait CommonBifrostMorphismInstances {
       )
     )
 
+  implicit def ioTransaction32Isomorphism[F[_]: Monad]
+    : Isomorphism[F, bifrostModels.TypedIdentifier, co.topl.brambl.models.Identifier.IoTransaction32] =
+    Isomorphism(
+      _.map(v =>
+        co.topl.brambl.models.Identifier
+          .IoTransaction32(
+            Some(
+              co.topl.brambl.models.Evidence.Sized32(
+                Some(quivr.models.Digest.Digest32(value = com.google.protobuf.ByteString.copyFrom(v.dataBytes.toArray)))
+              )
+            )
+          )
+          .asRight[String]
+      ),
+      _.map(v =>
+        Either.cond(
+          v.evidence.flatMap(_.digest).map(_.value).map(_.size()).getOrElse(0) == 32,
+          bifrostModels.TypedBytes(
+            bifrostModels.IdentifierTypes.Transaction,
+            scodec.bits.ByteVector(v.evidence.flatMap(_.digest).map(_.value).map(_.toByteArray).getOrElse(Array.empty))
+          ),
+          "Invalid ID length"
+        )
+      )
+    )
+
 }
 
 trait PropositionBifrostMorphismInstances {

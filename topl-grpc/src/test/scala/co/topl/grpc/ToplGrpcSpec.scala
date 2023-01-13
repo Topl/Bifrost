@@ -103,20 +103,20 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
     }
   }
 
-//  test("An invalid block body ID is rejected") {
-//    withMock {
-//      val interpreter = mock[ToplRpc[F, Stream[F, *]]]
-//      val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
-//
-//      for {
-//        e <- interceptIO[StatusException](
-//          underTest.fetchBlockBody(FetchBlockBodyReq(models.BlockId(ByteString.EMPTY).some), new Metadata())
-//        )
-//        _ = assert(e.getStatus.getCode == Status.Code.INVALID_ARGUMENT)
-//      } yield ()
-//    }
-//  }
-//
+  test("An invalid block body ID is rejected") {
+    withMock {
+      val interpreter = mock[ToplRpc[F, Stream[F, *]]]
+      val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+
+      for {
+        e <- interceptIO[StatusException](
+          underTest.fetchBlockBody(FetchBlockBodyReq(ByteString.EMPTY), new Metadata())
+        )
+        _ = assert(e.getStatus.getCode == Status.Code.INVALID_ARGUMENT)
+      } yield ()
+    }
+  }
+
 //  test("A transaction can be retrieved") {
 //    PropF.forAllF { (transaction: bifrostModels.Transaction) =>
 //      val transactionId = transaction.id.asTypedBytes
@@ -177,4 +177,5 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
   }
 
   // TODO: fetchBlockIdAtDepth has no unit testing
+  // TODO: currentMempool has no unit testing
 }

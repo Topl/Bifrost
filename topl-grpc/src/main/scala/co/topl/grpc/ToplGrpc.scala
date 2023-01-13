@@ -4,9 +4,10 @@ import cats.{Eval, MonadThrow, Now}
 import cats.data.{EitherT, OptionT}
 import cats.effect.kernel.{Async, Resource}
 import cats.implicits._
-import co.topl.algebras.{SynchronizationTraversalStep, ToplRpc}
+import co.topl.algebras.{SynchronizationTraversalStep, SynchronizationTraversalSteps, ToplRpc}
 import co.topl.models.TypedBytes
 import com.google.protobuf.ByteString
+import fs2.Pipe
 //import co.topl.proto.services._
 import co.topl.node.services._
 import co.topl.models.TypedIdentifier
@@ -57,23 +58,22 @@ object ToplGrpc {
                 )
                 .void
 
-            def currentMempool(): F[Set[bifrostModels.TypedIdentifier]] = ???
-//            def currentMempool(): F[Set[bifrostModels.TypedIdentifier]] =
-//              client
-//                .currentMempool(
-//                  CurrentMempoolReq(),
-//                  new Metadata()
-//                )
-//                .flatMap(p =>
-//                  EitherT(
-//                    p.transactionIds.toList
-//                      .traverse(_.toF[F, bifrostModels.TypedIdentifier])
-//                      .map(_.sequence)
-//                  )
-//                    .map(_.toSet)
-//                    .leftMap(errors => new IllegalArgumentException(show"Invalid Transaction bytes. reason=$errors"))
-//                    .rethrowT
-//                )
+            def currentMempool(): F[Set[bifrostModels.TypedIdentifier]] =
+              client
+                .currentMempool(
+                  CurrentMempoolReq(),
+                  new Metadata()
+                )
+                .flatMap(p =>
+                  EitherT(
+                    p.transactionIds.toList
+                      .traverse(_.toF[F, bifrostModels.TypedIdentifier])
+                      .map(_.sequence)
+                  )
+                    .map(_.toSet)
+                    .leftMap(errors => new IllegalArgumentException(show"Invalid Transaction bytes. reason=$errors"))
+                    .rethrowT
+                )
 
             def fetchBlockHeader(
               blockId: bifrostModels.TypedIdentifier
@@ -140,49 +140,48 @@ object ToplGrpc {
                 .fetchBlockIdAtDepth(FetchBlockIdAtDepthReq(depth), new Metadata())
                 .map(res => TypedBytes.headerFromProtobufString(res.blockId).some)
 
-            def synchronizationTraversal(): F[Stream[F, SynchronizationTraversalStep]] = ???
-//            def synchronizationTraversal(): F[Stream[F, SynchronizationTraversalStep]] =
-//              Async[F].delay {
-//                client
-//                  .synchronizationTraversal(
-//                    SynchronizationTraversalReq(),
-//                    new Metadata()
-//                  )
-//                  .evalMap[F, SynchronizationTraversalStep] { r =>
-//                    r.status match {
-//
-//                      case SynchronizationTraversalRes.Status.Empty =>
-//                        EitherT
-//                          .fromOptionF(Option.empty[bifrostModels.TypedIdentifier].pure[F], "empty")
-//                          .leftMap(new IllegalArgumentException(_))
-//                          .rethrowT
-//                          // This Applied is not reachable
-//                          .map(SynchronizationTraversalSteps.Applied)
-//
-//                      case SynchronizationTraversalRes.Status.Applied(value) =>
-//                        value
-//                          .toF[F, bifrostModels.TypedIdentifier]
-//                          .flatMap(
-//                            EitherT
-//                              .fromEither[F](_)
-//                              .leftMap(new IllegalArgumentException(_))
-//                              .rethrowT
-//                          )
-//                          .map(SynchronizationTraversalSteps.Applied)
-//
-//                      case SynchronizationTraversalRes.Status.Unapplied(value) =>
-//                        value
-//                          .toF[F, bifrostModels.TypedIdentifier]
-//                          .flatMap(
-//                            EitherT
-//                              .fromEither[F](_)
-//                              .leftMap(new IllegalArgumentException(_))
-//                              .rethrowT
-//                          )
-//                          .map(SynchronizationTraversalSteps.Unapplied)
-//                    }
-//                  }
-//              }
+            def synchronizationTraversal(): F[Stream[F, SynchronizationTraversalStep]] =
+              Async[F].delay {
+                client
+                  .synchronizationTraversal(
+                    SynchronizationTraversalReq(),
+                    new Metadata()
+                  )
+                  .evalMap[F, SynchronizationTraversalStep] { r =>
+                    r.status match {
+
+                      case SynchronizationTraversalRes.Status.Empty =>
+                        EitherT
+                          .fromOptionF(Option.empty[bifrostModels.TypedIdentifier].pure[F], "empty")
+                          .leftMap(new IllegalArgumentException(_))
+                          .rethrowT
+                          // This Applied is not reachable
+                          .map(SynchronizationTraversalSteps.Applied)
+
+                      case SynchronizationTraversalRes.Status.Applied(value) =>
+                        value
+                          .toF[F, bifrostModels.TypedIdentifier](implicitly, blockIdHeaderIsomorphism[F].baMorphism)
+                          .flatMap(
+                            EitherT
+                              .fromEither[F](_)
+                              .leftMap(new IllegalArgumentException(_))
+                              .rethrowT
+                          )
+                          .map(SynchronizationTraversalSteps.Applied)
+
+                      case SynchronizationTraversalRes.Status.Unapplied(value) =>
+                        value
+                          .toF[F, bifrostModels.TypedIdentifier](implicitly, blockIdHeaderIsomorphism[F].baMorphism)
+                          .flatMap(
+                            EitherT
+                              .fromEither[F](_)
+                              .leftMap(new IllegalArgumentException(_))
+                              .rethrowT
+                          )
+                          .map(SynchronizationTraversalSteps.Unapplied)
+                    }
+                  }
+              }
 
           }
         )
@@ -229,19 +228,18 @@ object ToplGrpc {
 //          .as(BroadcastTransactionRes())
 //          .adaptErrorsToGrpc
 
-      def currentMempool(in: CurrentMempoolReq, ctx: Metadata): F[CurrentMempoolRes] = ???
-//      def currentMempool(in: CurrentMempoolReq, ctx: Metadata): F[CurrentMempoolRes] =
-//        interpreter
-//          .currentMempool()
-//          .flatMap(ids =>
-//            EitherT(
-//              ids.toList.traverse(_.toF[F, models.TransactionId]).map(_.sequence)
-//            )
-//              .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
-//              .rethrowT
-//          )
-//          .map(CurrentMempoolRes(_))
-//          .adaptErrorsToGrpc
+      def currentMempool(in: CurrentMempoolReq, ctx: Metadata): F[CurrentMempoolRes] =
+        interpreter
+          .currentMempool()
+          .flatMap(ids =>
+            EitherT(
+              ids.toList.traverse(_.toF[F, co.topl.brambl.models.Identifier.IoTransaction32]).map(_.sequence)
+            )
+              .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
+              .rethrowT
+          )
+          .map(CurrentMempoolRes(_))
+          .adaptErrorsToGrpc
 
       def fetchBlockHeader(in: FetchBlockHeaderReq, ctx: Metadata): F[FetchBlockHeaderRes] =
         in.blockId
@@ -316,40 +314,36 @@ object ToplGrpc {
           .getOrRaise(Status.DATA_LOSS.withDescription("blockIdAtDepth not Found").asException())
           .adaptErrorsToGrpc
 
-//      private def pipeSteps: Pipe[F, SynchronizationTraversalStep, SynchronizationTraversalRes] = { in =>
-//        in.evalMap {
-//          case SynchronizationTraversalSteps.Applied(blockId) =>
-//            EitherT(blockId.toF[F, models.BlockId])
-//              .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
-//              .rethrowT
-//              .map(SynchronizationTraversalRes.Status.Applied)
-//              .map(SynchronizationTraversalRes(_))
-//
-//          case SynchronizationTraversalSteps.Unapplied(blockId) =>
-//            EitherT(blockId.toF[F, models.BlockId])
-//              .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
-//              .rethrowT
-//              .map(SynchronizationTraversalRes.Status.Unapplied)
-//              .map(SynchronizationTraversalRes(_))
-//        }
-//      }
+      private def pipeSteps: Pipe[F, SynchronizationTraversalStep, SynchronizationTraversalRes] = { in =>
+        in.evalMap {
+          case SynchronizationTraversalSteps.Applied(blockId) =>
+            EitherT(blockId.dataBytes.toF[F, com.google.protobuf.ByteString])
+              .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
+              .rethrowT
+              .map(SynchronizationTraversalRes.Status.Applied)
+              .map(SynchronizationTraversalRes(_))
+
+          case SynchronizationTraversalSteps.Unapplied(blockId) =>
+            EitherT(blockId.dataBytes.toF[F, com.google.protobuf.ByteString])
+              .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
+              .rethrowT
+              .map(SynchronizationTraversalRes.Status.Unapplied)
+              .map(SynchronizationTraversalRes(_))
+        }
+      }
 
       def synchronizationTraversal(
         in:  SynchronizationTraversalReq,
         ctx: Metadata
-      ): Stream[F, SynchronizationTraversalRes] = ???
-//      def synchronizationTraversal(
-//        in:  SynchronizationTraversalReq,
-//        ctx: Metadata
-//      ): Stream[F, SynchronizationTraversalRes] =
-//        Stream
-//          .eval(
-//            interpreter
-//              .synchronizationTraversal()
-//              .map(_.through(pipeSteps))
-//              .adaptErrorsToGrpc
-//          )
-//          .flatten
+      ): Stream[F, SynchronizationTraversalRes] =
+        Stream
+          .eval(
+            interpreter
+              .synchronizationTraversal()
+              .map(_.through(pipeSteps))
+              .adaptErrorsToGrpc
+          )
+          .flatten
     }
   }
 }
