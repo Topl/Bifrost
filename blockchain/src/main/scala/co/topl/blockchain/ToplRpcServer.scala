@@ -14,9 +14,10 @@ import co.topl.ledger.models._
 import co.topl.models.{Transaction, TypedIdentifier}
 import co.topl.node.models.{BlockBody => NodeBlockBody} // TODO remove rename, after remove models
 import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
-import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import co.topl.typeclasses.implicits._
 import fs2.Stream
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 object ToplRpcServer {
 
@@ -37,7 +38,7 @@ object ToplRpcServer {
   /**
    * Interpreter which serves Topl RPC data using local blockchain interpreters
    */
-  def make[F[_]: Async: Logger](
+  def make[F[_]: Async](
     headerStore:               Store[F, TypedIdentifier, ConsensusBlockHeader],
     bodyStore:                 Store[F, TypedIdentifier, NodeBlockBody],
     transactionStore:          Store[F, TypedIdentifier, Transaction],
@@ -50,6 +51,8 @@ object ToplRpcServer {
   ): F[ToplRpc[F, Stream[F, *]]] =
     Async[F].delay {
       new ToplRpc[F, Stream[F, *]] {
+        implicit private val logger: SelfAwareStructuredLogger[F] =
+          Slf4jLogger.getLoggerFromClass[F](ToplRpcServer.getClass)
 
         def broadcastTransaction(transaction: Transaction): F[Unit] =
           transactionStore

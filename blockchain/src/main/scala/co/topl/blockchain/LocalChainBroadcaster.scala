@@ -1,11 +1,9 @@
 package co.topl.blockchain
 
-import akka.stream.Materializer
-import akka.stream.scaladsl.Source
-import cats.data.Validated
+import cats.data.{EitherT, Validated}
+import cats.effect.Resource
 import cats.effect.kernel.Async
 import cats.implicits._
-import co.topl.catsakka._
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.models.{SlotData, TypedIdentifier}
 import fs2.concurrent.Topic
@@ -19,12 +17,11 @@ object LocalChainBroadcaster {
    * @return a tuple (interpreter, adoptionsSource)
    */
   def make[F[_]: Async](
-    localChain:            LocalChainAlgebra[F],
-    adoptionsTopic:        Topic[F, TypedIdentifier]
-  )(implicit materializer: Materializer): F[(LocalChainAlgebra[F], SourceMatNotUsed[TypedIdentifier])] =
-    Async[F]
-      .delay(Source.backpressuredQueue[F, TypedIdentifier]().preMaterialize())
-      .map { case ((offer, _), source) =>
+    localChain: LocalChainAlgebra[F]
+  ): Resource[F, (LocalChainAlgebra[F], Topic[F, TypedIdentifier])] =
+    Resource
+      .make(Topic[F, TypedIdentifier])(_.close.void)
+      .map { topic =>
         val interpreter = new LocalChainAlgebra[F] {
           def isWorseThan(newHead: SlotData): F[Boolean] = localChain.isWorseThan(newHead)
 
@@ -36,13 +33,15 @@ object LocalChainBroadcaster {
            * Check Blockchain:toplRpcAdoptionConsumer: maxQueued
            */
           def adopt(newHead: Validated.Valid[SlotData]): F[Unit] =
-            localChain.adopt(newHead) >> offer(newHead.a.slotId.blockId) >>
-            adoptionsTopic.publish1(newHead.a.slotId.blockId).map(_.leftMap(_ => ())).map(_.merge)
+            localChain.adopt(newHead) >>
+            EitherT(topic.publish1(newHead.a.slotId.blockId))
+              .leftMap(_ => new IllegalStateException("LocalChainBroadcaster topic unexpectedly closed"))
+              .rethrowT
 
           def head: F[SlotData] = localChain.head
         }
 
-        (interpreter, source)
+        (interpreter, topic)
       }
 
 }

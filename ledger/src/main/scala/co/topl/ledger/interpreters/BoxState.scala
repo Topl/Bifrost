@@ -97,9 +97,8 @@ object BoxState {
       _ <- transactions.traverse(transaction =>
         state.remove(transaction.id) >>
         transaction.inputs.traverse(input =>
-          state
-            .getOrRaise(input.boxId.transactionId)
-            .map(_.add(input.boxId.transactionOutputIndex))
+          OptionT(state.get(input.boxId.transactionId))
+            .fold(NonEmptySet.one(input.boxId.transactionOutputIndex))(_.add(input.boxId.transactionOutputIndex))
             .flatMap(state.put(input.boxId.transactionId, _))
         )
       )

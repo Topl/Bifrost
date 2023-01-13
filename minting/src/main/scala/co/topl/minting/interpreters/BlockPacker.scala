@@ -28,44 +28,63 @@ import scala.collection.immutable.ListSet
 object BlockPacker {
 
   def make[F[_]: Async](
-    mempool:          MempoolAlgebra[F],
-    fetchTransaction: TypedIdentifier => F[Transaction],
-    validateBody:     TransactionValidationContext => F[Boolean]
-  ): F[BlockPackerAlgebra[F]] = {
-    implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromClass[F](BlockPacker.getClass)
-    Sync[F].delay((parentBlockId: TypedIdentifier, height: Long, slot: Long) =>
-      for {
-        // Read all transaction IDs from the mempool
-        mempoolTransactionIds <- mempool.read(parentBlockId)
-        _                     <- Logger[F].debug(show"Block packing candidates=${mempoolTransactionIds.toList}")
-        // The transactions that come out of the mempool arrive in no particular order
-        unsortedTransactions <- mempoolTransactionIds.toList.traverse(fetchTransaction)
-        sortedTransactions = orderTransactions(unsortedTransactions)
-        iterative <-
-          // Enqueue all of the transactions (in no particular order, which is terrible for performance and accuracy)
-          Queue
-            .unbounded[F, Transaction]
-            .flatTap(queue => sortedTransactions.traverse(queue.offer))
-            .map(queue =>
-              new Iterative[F, BlockBody.Full] {
+    mempool:                  MempoolAlgebra[F],
+    fetchTransaction:         TypedIdentifier => F[Transaction],
+    transactionExistsLocally: TypedIdentifier => F[Boolean],
+    validateBody:             TransactionValidationContext => F[Boolean]
+  ): F[BlockPackerAlgebra[F]] =
+    Sync[F].delay {
 
-                def improve(current: BlockBody.Full): F[BlockBody.Full] =
-                  // Dequeue the next transaction (or block forever)
-                  queue.take
-                    .flatMap { transaction =>
-                      // Attempt to stuff that transaction into our current block
-                      val fullBody = current.append(transaction)
-                      // If it's valid, hooray.  If not, return the previous value
-                      val transactionValidationContext =
-                        StaticTransactionValidationContext(parentBlockId, fullBody, height, slot)
-                      validateBody(transactionValidationContext).ifF(fullBody, current)
-                    }
-                    .logDuration("BlockPacker Iteration")
-              }
+      new BlockPackerAlgebra[F] {
+        implicit private val logger: SelfAwareStructuredLogger[F] =
+          Slf4jLogger.getLoggerFromClass[F](BlockPacker.getClass)
+
+        def improvePackedBlock(
+          parentBlockId: TypedIdentifier,
+          height:        Epoch,
+          slot:          Epoch
+        ): F[Iterative[F, BlockBody.Full]] =
+          for {
+            // Read all transaction IDs from the mempool
+            mempoolTransactionIds <- mempool.read(parentBlockId)
+            _                     <- Logger[F].debug(show"Block packing candidates=${mempoolTransactionIds.toList}")
+            // The transactions that come out of the mempool arrive in no particular order
+            unsortedTransactions <- mempoolTransactionIds.toList.traverse(fetchTransaction)
+            // Not all transactions in the mempool may have a complete parent graph (yet), so filter out any "orphans"
+            transactionsWithLocalParents <- unsortedTransactions.traverseFilter(transaction =>
+              transaction.inputs
+                .map(_.boxId.transactionId)
+                .toList
+                .distinct
+                .forallM(transactionExistsLocally)
+                .map(Option.when(_)(transaction))
             )
-      } yield iterative
-    )
-  }
+            sortedTransactions = orderTransactions(transactionsWithLocalParents)
+            iterative <-
+              // Enqueue all of the transactions (in no particular order, which is terrible for performance and accuracy)
+              Queue
+                .unbounded[F, Transaction]
+                .flatTap(queue => sortedTransactions.traverse(queue.offer))
+                .map(queue =>
+                  new Iterative[F, BlockBody.Full] {
+
+                    def improve(current: BlockBody.Full): F[BlockBody.Full] =
+                      // Dequeue the next transaction (or block forever)
+                      queue.take
+                        .flatMap { transaction =>
+                          // Attempt to stuff that transaction into our current block
+                          val fullBody = current.append(transaction)
+                          // If it's valid, hooray.  If not, return the previous value
+                          val transactionValidationContext =
+                            StaticTransactionValidationContext(parentBlockId, fullBody, height, slot)
+                          validateBody(transactionValidationContext).ifF(fullBody, current)
+                        }
+                        .logDuration("BlockPacker Iteration")
+                  }
+                )
+          } yield iterative
+      }
+    }
 
   /**
    * A naive mechanism to pre-sort the Transactions that are attempted into a block.  The pre-sort attempts to

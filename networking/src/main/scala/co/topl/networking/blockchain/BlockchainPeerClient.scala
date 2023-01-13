@@ -1,7 +1,5 @@
 package co.topl.networking.blockchain
 
-import akka.NotUsed
-import akka.stream.scaladsl.Source
 import cats._
 import cats.data.OptionT
 import cats.effect.kernel.Sync
@@ -13,6 +11,7 @@ import co.topl.models.utility.Ratio
 import co.topl.networking.p2p.ConnectedPeer
 import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
+import fs2.Stream
 import org.typelevel.log4cats.Logger
 
 /**
@@ -28,12 +27,12 @@ trait BlockchainPeerClient[F[_]] {
   /**
    * A Source of block IDs that were adopted by the remote node
    */
-  def remotePeerAdoptions: F[Source[TypedIdentifier, NotUsed]]
+  def remotePeerAdoptions: F[Stream[F, TypedIdentifier]]
 
   /**
    * A Source of transaction IDs that were observed by the remote node
    */
-  def remoteTransactionNotifications: F[Source[TypedIdentifier, NotUsed]]
+  def remoteTransactionNotifications: F[Stream[F, TypedIdentifier]]
 
   /**
    * A Lookup to retrieve a remote SlotData by ID
