@@ -40,17 +40,17 @@ class ActorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMoc
       )
 
     case class Ping()
-    case class Pong()
+    case class Pong(c: Long)
     case class State[F[_], I, O](resourceCounter: Ref[F, Long])
 
     def pingFsm[F[_]: Concurrent](thisActor: Actor[F, Ping, Pong]): Fsm[F, State[F, Ping, Pong], Ping, Pong] =
       Fsm { case (state, Ping()) =>
         thisActor.acquireActor(makeChildActor(state.resourceCounter)).flatMap(a => a.send(())) >>
-        (state, Pong()).pure[F]
+          state.resourceCounter.get.map(c => (state, Pong(c)))
       }
 
     PropF.forAllF { seed: Int =>
-      val count: Long = Math.abs(seed) % 10
+      val count: Long = Math.abs(seed % 10)
       for {
         ref <- Ref.of[F, Long](1)
         _ <- Actor

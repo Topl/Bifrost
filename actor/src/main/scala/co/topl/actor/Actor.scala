@@ -1,5 +1,6 @@
 package co.topl.actor
 
+import cats.Applicative
 import cats.effect._
 import cats.effect.std.Queue
 import cats.effect.syntax.all._
@@ -98,35 +99,32 @@ object Actor {
     finalize:     S => F[Unit]
   ): Resource[F, Actor[F, I, O]] =
     for {
-      actorRef       <- Deferred[F, Actor[F, I, O]].toResource
-      mailbox        <- Queue.unbounded[F, (I, Deferred[F, O])].toResource
-      isDeadRef      <- Ref.of[F, Boolean](false).toResource
-      acquiredActors <- Ref.of[F, ListMap[ActorId, F[Unit]]](ListMap.empty).toResource
-      _ <- Stream
-        .eval((Ref.of[F, S](initialState), actorRef.get).tupled)
-        .flatMap { case (ref, actorRef) =>
+      actorRef  <- Deferred[F, Actor[F, I, O]].toResource
+      mailbox   <- Queue.unbounded[F, Option[(I, Deferred[F, O])]].toResource
+      isDeadRef <- Resource.make(Ref.of[F, Boolean](false))(_.set(true))
+      acquiredActors <-
+        Resource.make(Ref.of[F, ListMap[ActorId, F[Unit]]](ListMap.empty))(_.get.flatMap(_.values.toList.sequence).void)
+      stateRef <- Resource.make(Ref.of[F, S](initialState))(_.get.flatMap(finalize))
+      processOutcome <- Stream
+        .eval(actorRef.get)
+        .flatMap { actorRef =>
           val fsm = createFsm(actorRef)
           Stream
-            .fromQueueUnterminated(mailbox, 1)
+            .fromQueueNoneTerminated(mailbox, 1)
             .evalScan(initialState) { case (state, (input, replyTo)) =>
               fsm
                 .run(state, input)
                 .flatMap { case (newState, output) =>
-                  ref.set(newState) *>
+                  stateRef.set(newState) *>
                   replyTo.complete(output).as(newState)
                 }
             }
-            .onFinalize(
-                (isDeadRef.set(true) *>
-                  acquiredActors.get.flatMap(map => map.values.reduceOption(_ *> _).getOrElse(().pure[F])) *>
-                  ref.get.flatMap(finalize)).uncancelable
-            )
-
         }
         .compile
         .drain
         .background
 
+      _ <- Resource.onFinalize(mailbox.offer(none) *> processOutcome.flatMap(_.embed(Applicative[F].unit)))
 
       throwIfDead = isDeadRef.get.flatMap(Concurrent[F].raiseWhen(_)(ActorDeadException("Actor is dead")))
       actor = new Actor[F, I, O] {
@@ -135,10 +133,10 @@ object Actor {
         override def mailboxSize: F[Int] = mailbox.size
 
         override def sendNoWait(input: I): F[Unit] =
-          throwIfDead *> Deferred[F, O].flatMap(mailbox.offer(input, _)).void
+          throwIfDead *> Deferred[F, O].flatMap(promise => mailbox.offer((input, promise).some)).void
 
         override def send(msg: I): F[O] =
-          throwIfDead *> Deferred[F, O].flatMap(promise => mailbox.offer(msg, promise) *> promise.get)
+          throwIfDead *> Deferred[F, O].flatMap(promise => mailbox.offer((msg, promise).some) *> promise.get)
 
         override def acquireActor[I2, O2](actorCreator: () => Resource[F, Actor[F, I2, O2]]): F[Actor[F, I2, O2]] =
           for {
@@ -150,7 +148,7 @@ object Actor {
           val actorId = actor.id
           for {
             finalizer <- acquiredActors.get.flatMap(_.getOrElse(actorId, ().pure[F]))
-            _         <- acquiredActors.update(map => map - actor.id)
+            _         <- acquiredActors.update(map => map - actorId)
           } yield finalizer
         }
 
