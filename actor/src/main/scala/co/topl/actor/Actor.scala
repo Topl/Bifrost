@@ -117,15 +117,15 @@ object Actor {
                 }
             }
             .onFinalize(
-              ().pure[F].map(_ => println("FIN0")) *>
-              (isDeadRef.set(true) *>
-              acquiredActors.get.flatMap(map => map.values.reduceOption(_ *> _).getOrElse(().pure[F])) *>
-              ref.get.flatMap(finalize)).uncancelable
+                (isDeadRef.set(true) *>
+                  acquiredActors.get.flatMap(map => map.values.reduceOption(_ *> _).getOrElse(().pure[F])) *>
+                  ref.get.flatMap(finalize)).uncancelable
             )
+
         }
         .compile
         .drain
-        .background.onFinalize(().pure[F].map(_ => println("FIN")))
+        .background
 
 
       throwIfDead = isDeadRef.get.flatMap(Concurrent[F].raiseWhen(_)(ActorDeadException("Actor is dead")))
@@ -189,6 +189,12 @@ object Actor {
 
   implicit class ActorOps[F[_]: Concurrent: Temporal, I, O](actor: Actor[F, I, O]) {
 
+    /**
+     * Try to shutdown actor by using given shutdownFunction after attemptTimeout time and every attemptTimeout after
+     * @param shutdownFunction function for shutdown actor
+     * @param attemptTimeout timeout between attempts
+     * @return fiber for shutdown attempt
+     */
     def gracefulShutdown(
       shutdownFunction: F[Unit],
       attemptTimeout:   FiniteDuration = 1 second
