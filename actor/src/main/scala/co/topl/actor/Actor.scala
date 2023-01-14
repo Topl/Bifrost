@@ -117,16 +117,15 @@ object Actor {
                 }
             }
             .onFinalize(
-              ().pure.map(_ => println("finalizing")) *>
+              ().pure[F].map(_ => println("FIN0")) *>
               (isDeadRef.set(true) *>
               acquiredActors.get.flatMap(map => map.values.reduceOption(_ *> _).getOrElse(().pure[F])) *>
               ref.get.flatMap(finalize)).uncancelable
             )
         }
-        .onFinalize(().pure.map(_ => println("finalizingQ2")))
         .compile
         .drain
-        .background
+        .background.onFinalize(().pure[F].map(_ => println("FIN")))
 
 
       throwIfDead = isDeadRef.get.flatMap(Concurrent[F].raiseWhen(_)(ActorDeadException("Actor is dead")))
