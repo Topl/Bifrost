@@ -13,7 +13,7 @@ Seq(
   "pl.project13.scala"      % "sbt-jmh"                   % "0.4.3",
   "org.scalameta"           % "sbt-scalafmt"              % "2.5.0",
   "ch.epfl.scala"           % "sbt-scalafix"              % "0.10.4",
-  "org.wartremover"         % "sbt-wartremover"           % "3.0.7",
+  "org.wartremover"         % "sbt-wartremover"           % "3.0.9",
   "com.github.sbt"          % "sbt-native-packager"       % "1.9.11",
   "com.eed3si9n"            % "sbt-buildinfo"             % "0.11.0",
   "com.github.sbt"          % "sbt-ci-release"            % "1.5.11",
