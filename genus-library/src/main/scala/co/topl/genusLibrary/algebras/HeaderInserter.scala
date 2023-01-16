@@ -1,5 +1,6 @@
 package co.topl.genusLibrary.algebras
 
+import co.topl.genusLibrary.failure.Failure
 import co.topl.genusLibrary.model.BlockData
 
 /**
@@ -14,6 +15,6 @@ trait HeaderInserter[F[_]] {
    * @param block  the full block data for context reasons
    * @return unit
    */
-  def insert(block: BlockData): F[Unit]
+  def insert(block: BlockData): F[Either[Failure, Unit]]
 
 }

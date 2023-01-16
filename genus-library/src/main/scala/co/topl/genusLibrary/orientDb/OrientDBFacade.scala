@@ -31,7 +31,7 @@ class OrientDBFacade(dir: File, password: String) {
   @unused
   private val graphMetadata = initializeDatabase(factory, password)
 
-  private[genusLibrary] def getGraph[F[_]: Async]: GraphTxDAO[F] =
+  private[genusLibrary] def getGraph[F[_]: Async: org.typelevel.log4cats.Logger]: GraphTxDAO[F] =
     new GraphTxDAO[F](
       new GraphTxWrapper(factory.getTx)
     )

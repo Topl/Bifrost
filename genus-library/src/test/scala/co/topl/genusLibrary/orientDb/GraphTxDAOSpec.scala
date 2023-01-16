@@ -6,11 +6,14 @@ import co.topl.genusLibrary.failure.{Failure, Failures}
 import co.topl.genusLibrary.orientDb.wrapper.{GraphTxWrapper, WrappedEdge, WrappedVertex}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
+import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.collection.immutable
-import scala.collection.immutable.ListSet
 
 class GraphTxDAOSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
+
+  implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
 
   type F[A] = IO[A]
 
@@ -21,9 +24,16 @@ class GraphTxDAOSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
   test("On a transaction with a failing function return, no methods on the graph are executed") {
     withMock {
 
-      val request = Failures.NonExistentTransactionsFailure(ListSet.empty).asLeft[Any].pure[F]
+      val leftFailure = mock[Failure].asLeft[Any]
 
-      graphTxDao.withEffectfulTransaction(request)
+      val request = leftFailure.pure[F]
+
+      val response = graphTxDao.withEffectfulTransaction(_ => request)
+
+      assertIO(
+        response,
+        leftFailure
+      )
 
     }
   }
@@ -33,16 +43,26 @@ class GraphTxDAOSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
 
       val request = 2.asRight[Failure].pure[F]
 
-      (wrappedGraph.commit _)
-        .expects()
-        .throws(new RuntimeException())
+      inSequence {
 
-      (wrappedGraph.rollback _)
-        .expects()
-        .returns(())
-        .once()
+        val ex = new RuntimeException()
 
-      graphTxDao.withEffectfulTransaction(request)
+        (wrappedGraph.commit _)
+          .expects()
+          .throws(ex)
+
+        (wrappedGraph.rollback _)
+          .expects()
+          .returns(())
+          .once()
+
+        val response = graphTxDao.withEffectfulTransaction(_ => request)
+
+        assertIO(
+          response,
+          Failures.OrientCommitException(ex).asLeft
+        )
+      }
 
     }
   }
@@ -57,7 +77,12 @@ class GraphTxDAOSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
         .returns(())
         .once()
 
-      graphTxDao.withEffectfulTransaction(request)
+      val response = graphTxDao.withEffectfulTransaction(_ => request)
+
+      assertIO(
+        response,
+        2.asRight
+      )
 
     }
   }
