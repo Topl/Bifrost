@@ -1,11 +1,12 @@
 package co.topl.genusLibrary.failure
 
+import cats.implicits._
 import co.topl.models.TypedIdentifier
 import scodec.bits.ByteVector
 
 import scala.collection.immutable.ListSet
 
-sealed abstract class Failure(message: String, exception: Option[Exception] = None)
+abstract class Failure(message: String, exception: Option[RuntimeException] = None)
 
 object Failures {
 
@@ -22,4 +23,8 @@ object Failures {
 
   case class NonExistentTransactionsFailure(transactions: ListSet[TypedIdentifier])
       extends Failure(s"Transactions weren't found. Transactions=[$transactions]")
+
+  case class OrientCommitException(ex: RuntimeException)
+      extends Failure("There was an error while committing Orient Transaction", ex.some)
+
 }
