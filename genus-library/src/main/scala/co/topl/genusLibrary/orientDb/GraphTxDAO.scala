@@ -16,12 +16,12 @@ class GraphTxDAO[F[_]: Async: Logger](wrappedGraph: GraphTxWrapper) {
   /**
    * Commits graph at the end of a function process if it ran successfully
    *
-   * @param transactionalFun function process wrapped in an effect-ful context that should be run inside a transaction
+   * @param transactional transactional process wrapped in an effect-ful context that should be run inside a transaction
    */
   def withEffectfulTransaction[T <: Any](
-    transactionalFun: GraphTxDAO[F] => F[Either[Failure, T]]
+    transactional: F[Either[Failure, T]]
   ): F[Either[Failure, T]] =
-    transactionalFun(this) flatMap withTransaction
+    transactional flatMap withTransaction
 
   /**
    * Vertex creator under the given graph on instantiation

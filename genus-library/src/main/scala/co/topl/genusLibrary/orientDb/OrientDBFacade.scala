@@ -20,7 +20,7 @@ import scala.util.{Random, Success, Try}
 /**
  * This is a class to hide the details of interacting with OrientDB.
  */
-class OrientDBFacade(dir: File, password: String) {
+private[genusLibrary] class OrientDBFacade(dir: File, password: String) extends DBFacade {
   import OrientDBFacade._
   logger.info("Starting OrientDB with DB server")
   private val dbUserName = "admin"
@@ -31,74 +31,35 @@ class OrientDBFacade(dir: File, password: String) {
   @unused
   private val graphMetadata = initializeDatabase(factory, password)
 
-  private[genusLibrary] def getGraph[F[_]: Async: org.typelevel.log4cats.Logger]: GraphTxDAO[F] =
+  override def getGraph[F[_]: Async: org.typelevel.log4cats.Logger]: GraphTxDAO[F] =
     new GraphTxDAO[F](
       new GraphTxWrapper(factory.getTx)
     )
 
-  private[genusLibrary] def getGraphNoTx: OrientGraphNoTx = factory.getNoTx
+  override def getGraphNoTx: OrientGraphNoTx = factory.getNoTx
 
-  type VertexTypeName = String
-  type PropertyKey = String
-  type PropertyQuery = (PropertyKey, AnyRef)
-
-  // TODO Unify VertexTypeName and PropertyKey with VertexSchema (VertexSchema.BlockHeader.BlockId)
-  /**
-   * Get single vertex filtered by only one field
-   *
-   * @param vertexTypeName Vertex class
-   * @param filterKey Vertex key to filter by
-   * @param filterValue Vertex value of given key to filter by
-   * @tparam F the effect-ful context to retrieve the value in
-   * @return Optional Vertex
-   */
-  private[genusLibrary] def getVertex[F[_]: Async](
+  override def getVertex[F[_]: Async](
     vertexTypeName: VertexTypeName,
     filterKey:      PropertyKey,
     filterValue:    AnyRef
   ): F[Option[Vertex]] =
     getVertex(vertexTypeName, Set((filterKey, filterValue)))
 
-  /**
-   * Get single vertex filtered by multiple properties
-   *
-   * @param vertexTypeName   Vertex class
-   * @param propertiesFilter Vertex properties to filter by
-   * @tparam F the effect-ful context to retrieve the value in
-   * @return Optional Vertex
-   */
-  private[genusLibrary] def getVertex[F[_]: Async](
+  override def getVertex[F[_]: Async](
     vertexTypeName:   VertexTypeName,
     propertiesFilter: Set[PropertyQuery]
   ): F[Option[Vertex]] =
     getVertices(vertexTypeName, propertiesFilter)
       .map(_.headOption)
 
-  /**
-   * Get vertices filtered by only one field
-   *
-   * @param vertexTypeName Vertices class
-   * @param filterKey      Vertices key to filter by
-   * @param filterValue    Vertices value of given key to filter by
-   * @tparam F the effect-ful context to retrieve the value in
-   * @return Vertices
-   */
-  private[genusLibrary] def getVertices[F[_]: Async](
+  override def getVertices[F[_]: Async](
     vertexTypeName: VertexTypeName,
     filterKey:      PropertyKey,
     filterValue:    AnyRef
   ): F[Iterable[Vertex]] =
     getVertices(vertexTypeName, Set((filterKey, filterValue)))
 
-  /**
-   * Get vertices filtered by multiple properties
-   *
-   * @param vertexTypeName   Vertex class
-   * @param propertiesFilter Vertices properties to filter by
-   * @tparam F the effect-ful context to retrieve the value in
-   * @return Vertices
-   */
-  private[genusLibrary] def getVertices[F[_]: Async](
+  override def getVertices[F[_]: Async](
     vertexTypeName:   VertexTypeName,
     propertiesFilter: Set[PropertyQuery]
   ): F[Iterable[Vertex]] = {
@@ -126,11 +87,6 @@ class OrientDBFacade(dir: File, password: String) {
   private def fileToPlocalUrl(dir: File): String =
     "plocal:" + dir.getAbsolutePath
 
-  /**
-   * Shut down the OrientDB server.
-   *
-   * @return true if the server was running and got shut down
-   */
   def shutdown(): Boolean =
     Try {
       factory.close()
