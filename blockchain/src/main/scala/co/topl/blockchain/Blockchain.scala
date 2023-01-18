@@ -24,9 +24,11 @@ import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import BlockchainPeerHandler.monoidBlockchainPeerHandler
 import co.topl.blockchain.algebras.BlockHeaderToBodyValidationAlgebra
+import co.topl.blockchain.interpreters.BlockchainPeerServer
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.interpreters.{BlockPacker, BlockProducer}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+
 import scala.jdk.CollectionConverters._
 import scala.util.Random
 import fs2._
@@ -100,23 +102,18 @@ object Blockchain {
           )
         ).combineAll
       )
-      peerServer <- Resource.eval(
-        BlockchainPeerServer.FromStores.make(
-          slotDataStore,
-          headerStore,
-          bodyStore,
-          transactionStore,
-          blockHeights,
-          localChain,
-          blockAdoptionsTopic.subscribeUnbounded
-            .evalTap(id => Logger[F].debug(show"Broadcasting block id=$id to peer"))
-            .pure[F],
-          transactionAdoptionsTopic.subscribeUnbounded
-            .evalTap(id => Logger[F].debug(show"Broadcasting transaction id=$id to peer"))
-            .pure[F]
-        )
-      )
-      (p2pServer, p2pFiber) <- remotePeers.toAkkaSource.evalMap(remotePeersSource =>
+      peerServerF = BlockchainPeerServer.make(
+        slotDataStore.get,
+        headerStore.get,
+        bodyStore.get,
+        transactionStore.get,
+        blockHeights,
+        localChain,
+        mempool,
+        blockAdoptionsTopic,
+        transactionAdoptionsTopic
+      ) _
+      (_, p2pFiber) <- remotePeers.toAkkaSource.evalMap(remotePeersSource =>
         BlockchainNetwork
           .make[F](
             localPeer.localAddress.getHostName,
@@ -124,7 +121,7 @@ object Blockchain {
             localPeer,
             remotePeersSource,
             clientHandler,
-            peerServer,
+            peerServerF,
             peerFlowModifier
           )
       )

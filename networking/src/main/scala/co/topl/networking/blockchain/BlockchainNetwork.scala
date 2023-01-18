@@ -21,7 +21,7 @@ object BlockchainNetwork {
     localPeer:     LocalPeer,
     remotePeers:   Source[DisconnectedPeer, _],
     clientHandler: BlockchainPeerHandlerAlgebra[F],
-    server:        BlockchainPeerServer[F],
+    serverF:       ConnectedPeer => Resource[F, BlockchainPeerServerAlgebra[F]],
     peerFlowModifier: (
       ConnectedPeer,
       Flow[ByteString, ByteString, F[BlockchainPeerClient[F]]]
@@ -31,7 +31,7 @@ object BlockchainNetwork {
     random: Random
   ): F[(P2PServer[F, BlockchainPeerClient[F]], Fiber[F, Throwable, Unit])] =
     for {
-      connectionFlowFactory <- BlockchainPeerConnectionFlowFactory.make[F](server).pure[F]
+      connectionFlowFactory <- BlockchainPeerConnectionFlowFactory.make[F](serverF).pure[F]
       peerHandlerFlow =
         (connectedPeer: ConnectedPeer) =>
           peerFlowModifier(
