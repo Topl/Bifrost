@@ -4,7 +4,7 @@ import cats.data.Chain
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{Lengths, Sized}
 
-case class Transaction(
+case class Transaction( // TODO it should be deleted and use
   inputs:   Chain[Transaction.Input],
   outputs:  Chain[Transaction.Output],
   schedule: Transaction.Schedule,
@@ -35,19 +35,35 @@ object Transaction {
    */
   case class Schedule(creation: Timestamp, minimumSlot: Slot, maximumSlot: Slot)
 
-  case class Unproven(
+  case class Unproven( // TODO Remove after full model replacement
     inputs:   Chain[Transaction.Unproven.Input],
     outputs:  Chain[Transaction.Output],
     schedule: Schedule,
     data:     Option[Transaction.DataTetra]
   )
 
+  case class UnprovenProto(
+    inputs:   Chain[Transaction.Unproven.InputProto],
+    outputs:  Chain[co.topl.proto.models.Transaction.UnspentOutput],
+    schedule: Option[co.topl.proto.models.Transaction.Schedule],
+    data:     com.google.protobuf.ByteString
+  )
+
   object Unproven {
 
-    case class Input(
+    case class Input( // TODO Remove after full model replacement
       boxId:       Box.Id,
       proposition: Proposition,
       value:       Box.Value
+    )
+
+    /**
+     * Proof is not included
+     */
+    case class InputProto(
+      boxId:       Option[co.topl.proto.models.Box.Id],
+      proposition: co.topl.proto.models.Proposition,
+      value:       co.topl.proto.models.BoxValue
     )
   }
 

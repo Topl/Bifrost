@@ -112,6 +112,13 @@ object TransactionGeneratorApp
     transactionStream
       // Send 1 transaction per _this_ duration
       .metered((1_000_000_000d / targetTps).nanos)
+      // TODO model should change to new protobuf specs and not use Isomorphism
+      .map(transaction =>
+        co.topl.grpc.transactionIsomorphism[cats.Id]
+        .abMorphism
+        .aToB(transaction.pure[cats.Id])
+        .toOption
+        .getOrElse(throw new RuntimeException("transactionIsomorphism")))
       // Broadcast+log the transaction
       .evalTap(transaction =>
         Logger[F].debug(show"Broadcasting transaction id=${transaction.id.asTypedBytes}") >>

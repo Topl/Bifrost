@@ -1,6 +1,6 @@
 package co.topl.algebras
 
-import co.topl.models.{Transaction, TypedIdentifier}
+import co.topl.models.TypedIdentifier
 
 /**
  * Topl Rpc
@@ -9,7 +9,7 @@ import co.topl.models.{Transaction, TypedIdentifier}
  * @tparam S Canonical head changes Synchronization Traversal Container, Ex: Stream, Seq
  */
 trait ToplRpc[F[_], S[_]] {
-  def broadcastTransaction(transaction: Transaction): F[Unit]
+  def broadcastTransaction(transaction: co.topl.proto.models.Transaction): F[Unit]
 
   def currentMempool(): F[Set[TypedIdentifier]]
 
@@ -17,7 +17,7 @@ trait ToplRpc[F[_], S[_]] {
 
   def fetchBlockBody(blockId: TypedIdentifier): F[Option[co.topl.node.models.BlockBody]]
 
-  def fetchTransaction(transactionId: TypedIdentifier): F[Option[Transaction]]
+  def fetchTransaction(transactionId: TypedIdentifier): F[Option[co.topl.proto.models.Transaction]]
 
   def blockIdAtHeight(height: Long): F[Option[TypedIdentifier]]
 

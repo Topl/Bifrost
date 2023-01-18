@@ -1,8 +1,8 @@
 package co.topl.genusLibrary.model
 
-import co.topl.models.BlockBody
-import co.topl.node.models.{BlockBody => NodeBlockBody} // TODO remove rename, after remove models
-import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
+import cats.data.Chain
+import co.topl.node.models.BlockBody
+import co.topl.consensus.models.BlockHeader
 
 /**
  * Data structure that encapsulates relation between a possible block data and its height.
@@ -21,7 +21,7 @@ case class HeightData(
  * @param transactions block transactions
  */
 case class BlockData(
-  header:       ConsensusBlockHeader,
-  body:         NodeBlockBody,
-  transactions: BlockBody.Full
+  header:       BlockHeader,
+  body:         BlockBody,
+  transactions: Chain[co.topl.proto.models.Transaction] // TODO use Block.Full after model replacement
 )

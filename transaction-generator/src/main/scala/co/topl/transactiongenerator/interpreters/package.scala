@@ -26,15 +26,32 @@ package object interpreters {
   /**
    * Incorporate a Transaction into a Wallet by removing spent outputs and including new outputs.
    */
-  def applyTransaction(wallet: Wallet)(transaction: Transaction): Wallet = {
-    val spentBoxIds = transaction.inputs.map(_.boxId).toIterable
+  def applyTransaction(wallet: Wallet)(transaction: co.topl.proto.models.Transaction): Wallet = {
+    // TODO Wallet spentBoxIds model should change to new protobuf specs and not use boxIdIsomorphism
+    val spentBoxIds =  transaction.inputs.flatMap(_.boxId).map(boxId => co.topl.grpc.boxIdIsomorphism[cats.Id].baMorphism.aToB(boxId))
+      .map(_.toEitherT[cats.Id]).map(_.bimap(_ => Option.empty[Box.Id], _.some)).map(_.value).flatMap(_.toOption).flatten
+
+//    val spentBoxIds = transaction.inputs.flatMap(_.boxId).map(Box.Id.fromBoxIdProto)
     val transactionId = transaction.id.asTypedBytes
     val newBoxes = transaction.outputs.zipWithIndex.collect {
-      case (output, index) if wallet.propositions.contains(output.address.spendingAddress.typedEvidence) =>
+      case (output, index)
+          if wallet.propositions.contains(
+            output.address
+              .flatMap(fullAddress =>
+                // TODO Wallet spendingAddress model should change to new protobuf specs and not use boxIdIsomorphism
+                co.topl.grpc.spendingAddressIsorphism[Option].baMorphism.aToB(fullAddress.spendingAddress).flatMap(_.toOption).map(_.typedEvidence)
+              )
+              .getOrElse(TypedEvidence.empty)
+          ) =>
         val boxId = Box.Id(transactionId, index.toShort)
-        val box = Box(output.address.spendingAddress.typedEvidence, output.value)
+        val box =
+          Box(
+            // TODO Wallet spendingAddress model should change to new protobuf specs and not use boxIdIsomorphism
+            co.topl.grpc.spendingAddressIsorphism[Option].baMorphism.aToB(output.address.flatMap(_.spendingAddress)).flatMap(_.toOption).map(_.typedEvidence).getOrElse(TypedEvidence.empty),
+            co.topl.grpc.boxValueIsomorphism[cats.Id].baMorphism.aToB(output.value).getOrElse(Box.Values.Empty)
+        )
         (boxId, box)
-    }.toIterable
+    }
     wallet.copy(spendableBoxes = wallet.spendableBoxes -- spentBoxIds ++ newBoxes)
   }
 

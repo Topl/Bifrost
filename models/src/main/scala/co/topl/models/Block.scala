@@ -78,6 +78,7 @@ case class BlockOld(header: BlockHeader, body: BlockBody) // TODO Remove
 case class Block(header: co.topl.consensus.models.BlockHeader, body: co.topl.node.models.BlockBody)
 
 object BlockBody {
+  // TODO: current com.topl.model, we should replce for use new ProtoModel: co.topl.proto.models;, wich will eventually chain to Brambl's IoTransaction
   type Full = Chain[Transaction]
 }
 

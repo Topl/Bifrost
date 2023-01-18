@@ -8,7 +8,6 @@ import co.topl.algebras.{SynchronizationTraversalStep, SynchronizationTraversalS
 import co.topl.models.TypedBytes
 import com.google.protobuf.ByteString
 import fs2.Pipe
-//import co.topl.proto.services._
 import co.topl.node.services._
 import co.topl.models.TypedIdentifier
 import co.topl.{models => bifrostModels}
@@ -46,15 +45,11 @@ object ToplGrpc {
         .map(client =>
           new ToplRpc[F, Stream[F, *]] {
 
-            def broadcastTransaction(transaction: bifrostModels.Transaction): F[Unit] =
-              EitherT(transaction.toF[F, models.Transaction])
-                .leftMap(new IllegalArgumentException(_))
-                .rethrowT
-                .flatMap(protoTransaction =>
-                  client.broadcastTransaction(
-                    BroadcastTransactionReq(protoTransaction.some),
-                    new Metadata()
-                  )
+            def broadcastTransaction(transaction: co.topl.proto.models.Transaction): F[Unit] =
+              client
+                .broadcastTransaction(
+                  BroadcastTransactionReq(transaction.some),
+                  new Metadata()
                 )
                 .void
 
@@ -105,27 +100,19 @@ object ToplGrpc {
                   .map(_.body)
               ).value
 
-            def fetchTransaction(transactionId: bifrostModels.TypedIdentifier): F[Option[bifrostModels.Transaction]] =
-              ???
-//            def fetchTransaction(transactionId: bifrostModels.TypedIdentifier): F[Option[bifrostModels.Transaction]] =
-//              OptionT(
-//                EitherT(transactionId.toF[F, models.TransactionId])
-//                  .leftMap(new IllegalArgumentException(_))
-//                  .rethrowT
-//                  .flatMap(transactionId =>
-//                    client.fetchTransaction(
-//                      FetchTransactionReq(transactionId.some),
-//                      new Metadata()
-//                    )
-//                  )
-//                  .map(_.transaction)
-//              )
-//                .semiflatMap(protoTransaction =>
-//                  EitherT(protoTransaction.toF[F, bifrostModels.Transaction])
-//                    .leftMap(new IllegalArgumentException(_))
-//                    .rethrowT
-//                )
-//                .value
+            def fetchTransaction(
+              transactionId: bifrostModels.TypedIdentifier
+            ): F[Option[co.topl.proto.models.Transaction]] =
+              EitherT(transactionId.toF[F, co.topl.brambl.models.Identifier.IoTransaction32])
+                .leftMap(new IllegalArgumentException(_))
+                .rethrowT
+                .flatMap(transactionId =>
+                  client.fetchTransaction(
+                    FetchTransactionReq(transactionId.some),
+                    new Metadata()
+                  )
+                )
+                .map(_.transaction)
 
             def blockIdAtHeight(height: Long): F[Option[TypedIdentifier]] =
               client
@@ -272,25 +259,23 @@ object ToplGrpc {
           )
           .adaptErrorsToGrpc
 
-      def fetchTransaction(in: FetchTransactionReq, ctx: Metadata): F[FetchTransactionRes] = ???
-//      def fetchTransaction(in: FetchTransactionReq, ctx: Metadata): F[FetchTransactionRes] =
-//        in.transactionId
-//          .toRight("Missing transactionId")
-//          .toEitherT[F]
-//          .flatMapF(_.toF[F, bifrostModels.TypedIdentifier])
-//          .leftMap(e => Status.INVALID_ARGUMENT.withDescription(e).asException())
-//          .rethrowT
-//          .flatMap(id =>
-//            OptionT(interpreter.fetchTransaction(id))
-//              .semiflatMap(transaction =>
-//                EitherT(transaction.toF[F, models.Transaction])
-//                  .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
-//                  .rethrowT
-//              )
-//              .value
-//              .map(FetchTransactionRes(_))
-//          )
-//          .adaptErrorsToGrpc
+      /**
+       * TODO: Replace with Brambl's IoTransaction
+       * @see  https://github.com/Topl/protobuf-specs/blob/main/node/services/bifrost_rpc.proto#L89
+       * @param in
+       * @param ctx
+       * @return
+       */
+      def fetchTransaction(in: FetchTransactionReq, ctx: Metadata): F[FetchTransactionRes] =
+        in.transactionId
+          .toRight("Missing transactionId")
+          .toEitherT[F]
+          .flatMapF(_.toF[F, bifrostModels.TypedIdentifier])
+          .leftMap(e => Status.INVALID_ARGUMENT.withDescription(e).asException())
+          .rethrowT
+          .flatMap(interpreter.fetchTransaction)
+          .map(FetchTransactionRes(_))
+          .adaptErrorsToGrpc
 
       def fetchBlockIdAtHeight(in: FetchBlockIdAtHeightReq, ctx: Metadata): F[FetchBlockIdAtHeightRes] =
         OptionT(interpreter.blockIdAtHeight(in.height))

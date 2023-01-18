@@ -1,5 +1,6 @@
 package co.topl.codecs.bytes.tetra
 
+import cats.data.Chain
 import co.topl.codecs.bytes.tetra.TetraImmutableCodecs._
 import co.topl.codecs.bytes.typeclasses.Identifiable
 import co.topl.codecs.bytes.typeclasses.implicits._
@@ -51,6 +52,21 @@ trait TetraIdentifiableInstances {
           .Unproven(
             transaction.inputs.map(i => Transaction.Unproven.Input(i.boxId, i.proposition, i.value)),
             transaction.outputs,
+            transaction.schedule,
+            transaction.data
+          )
+          .immutableBytes
+      val hash = new Blake2b256().hash(bytes)
+      (IdentifierTypes.Transaction, hash)
+    }
+
+  implicit val transactionProtoIdentifiable: Identifiable[co.topl.proto.models.Transaction] =
+    transaction => {
+      val bytes =
+        Transaction
+          .UnprovenProto(
+            inputs = Chain.fromSeq(transaction.inputs.map(i => Transaction.Unproven.InputProto(i.boxId, i.proposition, i.value))),
+            outputs = Chain.fromSeq(transaction.outputs),
             transaction.schedule,
             transaction.data
           )

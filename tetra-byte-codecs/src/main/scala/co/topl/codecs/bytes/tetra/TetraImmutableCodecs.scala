@@ -48,6 +48,9 @@ trait TetraImmutableCodecs {
   implicit val unprovenTransactionStableCodec: ImmutableCodec[Transaction.Unproven] =
     ImmutableCodec.fromScodecCodec
 
+  implicit val unprovenProtoTransactionStableCodec: ImmutableCodec[Transaction.UnprovenProto] =
+    ImmutableCodec.fromScodecCodec
+
   implicit val curve25519VKImmutableCodec: ImmutableCodec[VerificationKeys.Curve25519] =
     ImmutableCodec.fromScodecCodec
 

@@ -81,7 +81,10 @@ object Fs2TransactionGenerator {
         case HeightLockOneProposition => Proofs.Contextual.HeightLock()
         case p                        => throw new MatchError(p)
       }
-      updatedWallet = applyTransaction(wallet)(transaction)
+      // TODO Wallet spendingAddress model should change to new protobuf specs and not use Isomorphism
+      protoTransaction = co.topl.grpc.transactionIsomorphism[cats.Id].abMorphism.aToB(transaction.pure[cats.Id])
+        .toOption.getOrElse(throw new RuntimeException("transactionIsomorphism"))
+      updatedWallet = applyTransaction(wallet)(protoTransaction)
     } yield (transaction, updatedWallet)
 
   /**

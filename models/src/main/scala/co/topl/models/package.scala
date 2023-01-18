@@ -66,12 +66,6 @@ package object models {
     def apply(prefix: TypePrefix, dataBytes: Bytes): TypedBytes =
       (prefix +: dataBytes).coerce
 
-    /**
-     * TODO: Ask Sean, Which is the best way to create byteString -> TypedIdentifier, maybe a type class?
-     * the requiment should be, given a bytestring, methods for  TypedIdentifierHeader, TypedIdentifierTxs,...
-     * @param bytesString
-     * @return
-     */
     def headerFromProtobufString(bytesString: com.google.protobuf.ByteString): topl.models.TypedIdentifier =
       TypedBytes(IdentifierTypes.Block.HeaderV2, ByteVector(bytesString.toByteArray))
 
@@ -79,6 +73,12 @@ package object models {
       TypedBytes.apply(
         co.topl.models.IdentifierTypes.Transaction,
         ByteVector(ioTx32.evidence.flatMap(_.digest.map(_.value)).map(_.toByteArray).getOrElse(Array.empty))
+      )
+
+    def boxId(boxId:co.topl.proto.models.Box.Id): topl.models.TypedIdentifier =
+      TypedBytes.apply(
+        co.topl.models.IdentifierTypes.Transaction,
+        ByteVector(boxId.transactionId.map(_.value.toByteArray).getOrElse(Array.empty))
       )
   }
 }

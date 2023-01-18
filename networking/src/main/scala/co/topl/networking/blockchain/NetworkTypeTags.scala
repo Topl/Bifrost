@@ -55,6 +55,10 @@ object NetworkTypeTags {
     : NetworkTypeTag[TypedProtocol.CommonMessages.Response[Transaction]] =
     NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[Transaction]")
 
+  implicit val commonMessagesResponseTransactionProtoNetworkTypeTag
+  : NetworkTypeTag[TypedProtocol.CommonMessages.Response[co.topl.proto.models.Transaction]] =
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[Transaction]")
+
   implicit val commonMessagesResponseTypedIdentifierNetworkTypeTag
     : NetworkTypeTag[TypedProtocol.CommonMessages.Response[TypedIdentifier]] =
     NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[TypedIdentifier]")

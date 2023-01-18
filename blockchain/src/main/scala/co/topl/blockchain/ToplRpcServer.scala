@@ -14,6 +14,7 @@ import co.topl.ledger.models._
 import co.topl.models.{Transaction, TypedIdentifier}
 import co.topl.node.models.{BlockBody => NodeBlockBody} // TODO remove rename, after remove models
 import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
+import co.topl.proto.models.{Transaction => ProtoTransaction}
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import co.topl.typeclasses.implicits._
 import fs2.Stream
@@ -41,7 +42,7 @@ object ToplRpcServer {
   def make[F[_]: Async](
     headerStore:               Store[F, TypedIdentifier, ConsensusBlockHeader],
     bodyStore:                 Store[F, TypedIdentifier, NodeBlockBody],
-    transactionStore:          Store[F, TypedIdentifier, Transaction],
+    transactionStore:          Store[F, TypedIdentifier, Transaction], // TODO change Transaction to new Model
     mempool:                   MempoolAlgebra[F],
     syntacticValidation:       TransactionSyntaxValidationAlgebra[F],
     localChain:                LocalChainAlgebra[F],
@@ -54,13 +55,21 @@ object ToplRpcServer {
         implicit private val logger: SelfAwareStructuredLogger[F] =
           Slf4jLogger.getLoggerFromClass[F](ToplRpcServer.getClass)
 
-        def broadcastTransaction(transaction: Transaction): F[Unit] =
+        def broadcastTransaction(transaction: ProtoTransaction): F[Unit] =
           transactionStore
             .contains(transaction.id)
             .ifM(
               Logger[F].info(show"Received duplicate transaction id=${transaction.id.asTypedBytes}"),
               Logger[F].info(show"Received RPC Transaction id=${transaction.id.asTypedBytes}") >>
-              syntacticValidateOrRaise(transaction)
+              syntacticValidateOrRaise(
+                co.topl.grpc
+                  .transactionIsomorphism[cats.Id]
+                  // TODO model should change to new protobuf specs and not use Isomorphism
+                  .baMorphism
+                  .aToB(transaction.pure[cats.Id])
+                  .toOption
+                  .getOrElse(throw new RuntimeException("transactionIsomorphism"))
+              )
                 .flatTap(_ =>
                   Logger[F].debug(show"Transaction id=${transaction.id.asTypedBytes} is syntactically valid")
                 )
@@ -77,8 +86,14 @@ object ToplRpcServer {
         def fetchBlockBody(blockId: TypedIdentifier): F[Option[NodeBlockBody]] =
           bodyStore.get(blockId)
 
-        def fetchTransaction(transactionId: TypedIdentifier): F[Option[Transaction]] =
+        def fetchTransaction(transactionId: TypedIdentifier): F[Option[co.topl.proto.models.Transaction]] =
           transactionStore.get(transactionId)
+            .map(transaction => co.topl.grpc
+              .transactionIsomorphism[Option]
+              // TODO model should change to new protobuf specs and not use Isomorphism, change the store
+              .abMorphism
+              .aToB(transaction)
+              .flatMap(_.toOption))
 
         def blockIdAtHeight(height: Long): F[Option[TypedIdentifier]] =
           for {

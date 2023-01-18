@@ -5,9 +5,10 @@ import cats.effect.Async
 import cats.effect.std.Random
 import cats.implicits._
 import co.topl.algebras.{SynchronizationTraversalStep, ToplRpc}
-import co.topl.models.{Transaction, TypedIdentifier}
+import co.topl.models.TypedIdentifier
 import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
 import co.topl.node.models.BlockBody // TODO remove rename, after remove models
+import co.topl.proto.models.{Transaction => ProtoTransaction} // TODO remove rename, after remove models
 import fs2.Stream
 
 object MultiToplRpc {
@@ -33,7 +34,7 @@ object MultiToplRpc {
           .nextIntBounded(delegatesArray.length)
           .map(delegatesArray(_))
 
-      def broadcastTransaction(transaction: Transaction): F[Unit] =
+      def broadcastTransaction(transaction: ProtoTransaction): F[Unit] =
         randomDelegate.flatMap(_.broadcastTransaction(transaction))
 
       def currentMempool(): F[Set[TypedIdentifier]] =
@@ -45,7 +46,7 @@ object MultiToplRpc {
       def fetchBlockBody(blockId: TypedIdentifier): F[Option[BlockBody]] =
         randomDelegate.flatMap(_.fetchBlockBody(blockId))
 
-      def fetchTransaction(transactionId: TypedIdentifier): F[Option[Transaction]] =
+      def fetchTransaction(transactionId: TypedIdentifier): F[Option[ProtoTransaction]] =
         randomDelegate.flatMap(_.fetchTransaction(transactionId))
 
       def blockIdAtHeight(height: Long): F[Option[TypedIdentifier]] =

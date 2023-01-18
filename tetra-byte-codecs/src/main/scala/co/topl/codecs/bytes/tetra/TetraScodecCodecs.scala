@@ -104,14 +104,27 @@ trait TetraScodecPrimitiveCodecs {
       }
     )
 
+  implicit val int128ProtoCodec: Codec[co.topl.proto.models.Int128] =
+    (protobufByteStringCodec :: unknownFieldSetCodec).as[co.topl.proto.models.Int128]
+
   implicit val networkPrefixCodec: Codec[NetworkPrefix] =
     Codec[Byte].xmap(NetworkPrefix(_), _.value)
+
+  implicit val networkPrefixProtoCodec: Codec[co.topl.proto.models.NetworkPrefix] =
+    intCodec.xmap(co.topl.proto.models.NetworkPrefix(_), _.value)
 
   implicit val typedEvidenceCodec: Codec[TypedEvidence] =
     (Codec[TypePrefix] :: Codec[Evidence]).as[TypedEvidence]
 
+  implicit val typedEvidenceProtoCodec: Codec[co.topl.proto.models.TypedEvidence] =
+    (intCodec :: Codec[com.google.protobuf.ByteString] :: unknownFieldSetCodec).as[co.topl.proto.models.TypedEvidence]
+
   implicit val spendingAddressCodec: Codec[SpendingAddress] =
     Codec[TypedEvidence].as[SpendingAddress] // TODO: Checksum
+
+  implicit val spendingAddressProtoCodec: Codec[co.topl.proto.models.SpendingAddress] =
+    (optionCodec[co.topl.proto.models.TypedEvidence] :: unknownFieldSetCodec)
+      .as[co.topl.proto.models.SpendingAddress] // TODO: Checksum like old model?
 
   implicit val rhoCodec: Codec[Rho] =
     Codec[Sized.Strict[Bytes, Lengths.`64`.type]].xmap(Rho(_), _.sizedBytes)
@@ -164,13 +177,22 @@ trait TetraScodecCryptoCodecs {
 trait TetraScodecVerificationKeyCodecs {
   self: TetraScodecPrimitiveCodecs =>
 
+  // TODO Remove after full model replacement
   implicit val vkCurve25519Codec: Codec[VerificationKeys.Curve25519] =
     strictSizedBytesCodec[VerificationKeys.Curve25519.Length]
       .as[VerificationKeys.Curve25519]
 
+  implicit val vkCurve25519ProtoCodec: Codec[co.topl.proto.models.VerificationKeyCurve25519] =
+    (protobufByteStringCodec :: unknownFieldSetCodec)
+      .as[co.topl.proto.models.VerificationKeyCurve25519]
+
   implicit val vkEd25519Codec: Codec[VerificationKeys.Ed25519] =
     strictSizedBytesCodec[VerificationKeys.Ed25519.Length]
       .as[VerificationKeys.Ed25519]
+
+  implicit val vkEd25519ProtoCodec: Codec[co.topl.proto.models.VerificationKeyEd25519] =
+    (protobufByteStringCodec :: unknownFieldSetCodec)
+      .as[co.topl.proto.models.VerificationKeyEd25519]
 
   implicit val consensusVkEd25519Codec: Codec[co.topl.crypto.models.VerificationKeyEd25519] =
     (protobufByteStringCodec :: unknownFieldSetCodec).as[co.topl.crypto.models.VerificationKeyEd25519]
@@ -205,11 +227,19 @@ trait TetraScodecVerificationKeyCodecs {
 trait TetraScodecAddressCodecs {
   self: TetraScodecPrimitiveCodecs with TetraScodecVerificationKeyCodecs =>
 
+  // TODO Remove after full model replacement
   implicit val stakingAddressesOperatorCodec: Codec[StakingAddresses.Operator] =
     vkEd25519Codec.as[StakingAddresses.Operator]
 
+  implicit val stakingAddressesOperatorProtoCodec: Codec[co.topl.proto.models.StakingAddressOperator] =
+    (optionCodec(vkEd25519ProtoCodec) :: unknownFieldSetCodec).as[co.topl.proto.models.StakingAddressOperator]
+
+  // TODO Remove after full model replacement
   implicit val stakingAddressesNonStakingCodec: Codec[StakingAddresses.NonStaking.type] =
     emptyCodec(StakingAddresses.NonStaking)
+
+  implicit val stakingAddressesNonStakingProtoCodec: Codec[co.topl.proto.models.StakingAddressNonStaking] =
+    unknownFieldSetCodec.as[co.topl.proto.models.StakingAddressNonStaking]
 
   implicit val stakingAddressCodec: Codec[StakingAddress] =
     discriminated[StakingAddress]
@@ -217,10 +247,24 @@ trait TetraScodecAddressCodecs {
       .typecase(0: Byte, stakingAddressesOperatorCodec)
       .typecase(1: Byte, stakingAddressesNonStakingCodec)
 
+  // TODO Ask help how to create a codec with Protobuf Sealed
+  implicit val stakingAddressProtoCodec: Codec[co.topl.proto.models.StakingAddress] =
+    discriminated[co.topl.proto.models.StakingAddress]
+      .by(byteCodec)
+      .typecase(0: Byte, stakingAddressesOperatorProtoCodec)
+      .typecase(1: Byte, stakingAddressesNonStakingProtoCodec)
+
   implicit val fullAddressCodec: Codec[FullAddress] =
     (Codec[NetworkPrefix] :: Codec[SpendingAddress] :: Codec[StakingAddress] :: Codec[Proofs.Knowledge.Ed25519])
       .as[FullAddress]
 
+  implicit val fullAddressProtoCodec: Codec[co.topl.proto.models.FullAddress] =
+    (optionCodec[co.topl.proto.models.NetworkPrefix] ::
+      optionCodec[co.topl.proto.models.SpendingAddress] ::
+      Codec[co.topl.proto.models.StakingAddress] ::
+      optionCodec[co.topl.proto.models.ProofKnowledgeEd25519] ::
+      unknownFieldSetCodec)
+      .as[co.topl.proto.models.FullAddress]
 }
 
 trait TetraScodecSecretKeyCodecs {
@@ -253,25 +297,67 @@ trait TetraScodecSecretKeyCodecs {
 trait TetraScodecBoxCodecs {
   self: TetraScodecPrimitiveCodecs with TetraScodecProofCodecs =>
 
+  // TODO Remove after full model replacement
   implicit val boxValuesEmptyCodec: Codec[Box.Values.Empty.type] =
     emptyCodec(Box.Values.Empty)
 
+  implicit val boxValuesEmptyProtoCodec: Codec[co.topl.proto.models.EmptyBoxValue] =
+    unknownFieldSetCodec.as[co.topl.proto.models.EmptyBoxValue]
+
+  // TODO Remove after full model replacement
   implicit val boxValuesPolyCodec: Codec[Box.Values.Poly] =
     int128Codec.as[Box.Values.Poly]
 
+  implicit val boxValuesPolyProtoCodec: Codec[co.topl.proto.models.PolyBoxValue] =
+    (optionCodec(int128ProtoCodec) :: unknownFieldSetCodec).as[co.topl.proto.models.PolyBoxValue]
+
+  // TODO Remove after full model replacement
   implicit val boxValuesArbitCodec: Codec[Box.Values.Arbit] =
     int128Codec.as[Box.Values.Arbit]
 
+  implicit val boxValuesArbitProtoCodec: Codec[co.topl.proto.models.ArbitBoxValue] =
+    (optionCodec(int128ProtoCodec) :: unknownFieldSetCodec).as[co.topl.proto.models.ArbitBoxValue]
+
+  // TODO Remove after full model replacement
   implicit val boxValuesAssetCodec: Codec[Box.Values.AssetV1] =
     (Codec[Int128] :: Codec[Box.Values.AssetV1.Code] :: Codec[Sized.Strict[Bytes, Lengths.`32`.type]] :: Codec[Option[
       Sized.Max[Latin1Data, Lengths.`127`.type]
     ]]).as[Box.Values.AssetV1]
 
+  implicit val boxValuesAssetCodeProtoCodec: Codec[co.topl.proto.models.AssetV1BoxValue.Code] =
+    (optionCodec(spendingAddressProtoCodec) :: protobufByteStringCodec :: unknownFieldSetCodec)
+      .as[co.topl.proto.models.AssetV1BoxValue.Code]
+
+  implicit val boxValuesAssetProtoCodec: Codec[co.topl.proto.models.AssetV1BoxValue] =
+    (optionCodec(int128ProtoCodec) ::
+      optionCodec(boxValuesAssetCodeProtoCodec) ::
+      protobufByteStringCodec :: // security root
+      protobufByteStringCodec :: // metadata
+      unknownFieldSetCodec).as[co.topl.proto.models.AssetV1BoxValue]
+
   implicit val boxValuesPoolRegistrationCodec: Codec[Box.Values.Registrations.Operator] =
     Codec[Proofs.Knowledge.KesProduct].as[Box.Values.Registrations.Operator]
 
+  implicit val boxValuesPoolRegistrationProtoCodec: Codec[co.topl.proto.models.OperatorRegistrationBoxValue] =
+    (optionCodec(proofSignatureKesProductProtoCodec) :: unknownFieldSetCodec)
+      .as[co.topl.proto.models.OperatorRegistrationBoxValue]
+
+  // TODO Remove after full model replacement
   implicit val boxIdCodec: Codec[Box.Id] =
     (Codec[TypedIdentifier] :: Codec[Short]).as[Box.Id]
+
+  implicit val transactionIdIdProtoCodec: Codec[co.topl.proto.models.TransactionId] =
+    (
+      protobufByteStringCodec ::
+        unknownFieldSetCodec
+    ).as[co.topl.proto.models.TransactionId]
+
+  implicit val boxIdProtoCodec: Codec[co.topl.proto.models.Box.Id] =
+    (
+      optionCodec(transactionIdIdProtoCodec) ::
+        intCodec ::
+        unknownFieldSetCodec
+    ).as[co.topl.proto.models.Box.Id]
 
   implicit val boxValueCodec: Codec[Box.Value] =
     discriminated[Box.Value]
@@ -281,6 +367,16 @@ trait TetraScodecBoxCodecs {
       .typecase(2: Byte, boxValuesArbitCodec)
       .typecase(3: Byte, boxValuesAssetCodec)
       .typecase(4: Byte, boxValuesPoolRegistrationCodec)
+
+  // TODO Ask how we can create this scodec
+  implicit val boxValueProtoCodec: Codec[co.topl.proto.models.BoxValue] =
+    discriminated[co.topl.proto.models.BoxValue]
+      .by(byteCodec)
+      .typecase(0: Byte, boxValuesEmptyProtoCodec)
+      .typecase(1: Byte, boxValuesPolyProtoCodec)
+      .typecase(2: Byte, boxValuesArbitProtoCodec)
+      .typecase(3: Byte, boxValuesAssetProtoCodec)
+      .typecase(4: Byte, boxValuesPoolRegistrationProtoCodec)
 
   implicit val boxCodec: Codec[Box] =
     (Codec[TypedEvidence] :: Codec[Box.Value]).as[Box]
@@ -293,38 +389,83 @@ trait TetraScodecPropositionCodecs {
   implicit val propositionPermanentlyLockedCodec: Codec[Propositions.PermanentlyLocked.type] =
     emptyCodec(Propositions.PermanentlyLocked)
 
+  implicit val propositionPermanentlyLockedProtoCodec: Codec[co.topl.proto.models.PropositionPermanentlyLocked] =
+    (unknownFieldSetCodec).as[co.topl.proto.models.PropositionPermanentlyLocked]
+
   implicit val propositionsKnowledgeCurve25519Codec: Codec[Propositions.Knowledge.Curve25519] =
     Codec[VerificationKeys.Curve25519].as[Propositions.Knowledge.Curve25519]
+
+  implicit val propositionsKnowledgeCurve25519ProtoCodec: Codec[co.topl.proto.models.PropositionKnowledgeCurve25519] =
+    (optionCodec[co.topl.proto.models.VerificationKeyCurve25519] :: unknownFieldSetCodec)
+      .as[co.topl.proto.models.PropositionKnowledgeCurve25519]
 
   implicit val propositionsKnowledgeEd25519Codec: Codec[Propositions.Knowledge.Ed25519] =
     Codec[VerificationKeys.Ed25519].as[Propositions.Knowledge.Ed25519]
 
+  implicit val propositionsKnowledgeEd25519ProtoCodec: Codec[co.topl.proto.models.PropositionKnowledgeEd25519] =
+    (optionCodec[co.topl.proto.models.VerificationKeyEd25519] :: unknownFieldSetCodec)
+      .as[co.topl.proto.models.PropositionKnowledgeEd25519]
+
   implicit val propositionsKnowledgeExtendedEd25519Codec: Codec[Propositions.Knowledge.ExtendedEd25519] =
     Codec[VerificationKeys.ExtendedEd25519].as[Propositions.Knowledge.ExtendedEd25519]
 
+  implicit val propositionsKnowledgeExtendedEd25519ProtoCodec
+    : Codec[co.topl.proto.models.PropositionKnowledgeExtendedEd25519] =
+    (optionCodec[co.topl.proto.models.VerificationKeyExtendedEd25519] :: unknownFieldSetCodec)
+      .as[co.topl.proto.models.PropositionKnowledgeExtendedEd25519]
+
   implicit val propositionsKnowledgeHashLockCodec: Codec[Propositions.Knowledge.HashLock] =
     Codec[Digest32].as[Propositions.Knowledge.HashLock]
+
+  implicit val propositionsKnowledgeHashLockProtoCodec: Codec[co.topl.proto.models.PropositionKnowledgeHashLock] =
+    (protobufByteStringCodec :: unknownFieldSetCodec).as[co.topl.proto.models.PropositionKnowledgeHashLock]
 
   implicit val propositionsCompositionalThresholdCodec: Codec[Propositions.Compositional.Threshold] =
     Codec
       .lazily(Codec[Int](intCodec) :: Codec[ListSet[Proposition]])
       .as[Propositions.Compositional.Threshold]
 
+  implicit val propositionsCompositionalThresholdProtoCodec
+    : Codec[co.topl.proto.models.PropositionCompositionalThreshold] =
+    Codec
+      .lazily(Codec[Int](intCodec) :: Codec[Seq[co.topl.proto.models.Proposition]] :: unknownFieldSetCodec)
+      .as[co.topl.proto.models.PropositionCompositionalThreshold]
+
   implicit val propositionsCompositionalAndCodec: Codec[Propositions.Compositional.And] =
     Codec
       .lazily(Codec[Proposition] :: Codec[Proposition])
       .as[Propositions.Compositional.And]
+
+  implicit val propositionsCompositionalAndProtoCodec: Codec[co.topl.proto.models.PropositionCompositionalAnd] =
+    Codec
+      .lazily(
+        Codec[co.topl.proto.models.Proposition] :: Codec[co.topl.proto.models.Proposition] :: unknownFieldSetCodec
+      )
+      .as[co.topl.proto.models.PropositionCompositionalAnd]
 
   implicit val propositionsCompositionalOrCodec: Codec[Propositions.Compositional.Or] =
     Codec
       .lazily(Codec[Proposition] :: Codec[Proposition])
       .as[Propositions.Compositional.Or]
 
+  implicit val propositionsCompositionalOrProtoCodec: Codec[co.topl.proto.models.PropositionCompositionalOr] =
+    Codec
+      .lazily(
+        Codec[co.topl.proto.models.Proposition] :: Codec[co.topl.proto.models.Proposition] :: unknownFieldSetCodec
+      )
+      .as[co.topl.proto.models.PropositionCompositionalOr]
+
   implicit val propositionsCompositionalNotCodec: Codec[Propositions.Compositional.Not] =
     Codec.lazily(Codec[Proposition]).as[Propositions.Compositional.Not]
 
+  implicit val propositionsCompositionalNotProtoCodec: Codec[co.topl.proto.models.PropositionCompositionalNot] =
+    Codec.lazily(Codec[co.topl.proto.models.Proposition] :: unknownFieldSetCodec).as[co.topl.proto.models.PropositionCompositionalNot]
+
   implicit val propositionsContextualHeightLockCodec: Codec[Propositions.Contextual.HeightLock] =
     uLongCodec.as[Propositions.Contextual.HeightLock]
+
+  implicit val propositionsContextualHeightLockProtoCodec: Codec[co.topl.proto.models.PropositionContextualHeightLock] =
+    (uLongCodec :: unknownFieldSetCodec).as[co.topl.proto.models.PropositionContextualHeightLock]
 
   implicit val boxLocationCodec: Codec[BoxLocation] =
     discriminated[BoxLocation]
@@ -332,16 +473,32 @@ trait TetraScodecPropositionCodecs {
       .typecase(0: Byte, shortCodec.as[BoxLocations.Input])
       .typecase(1: Byte, shortCodec.as[BoxLocations.Output])
 
+  implicit val boxLocationProtoCodec: Codec[co.topl.proto.models.BoxLocation] = ???
+
   implicit val propositionsContextualRequiredTransactionIORequirementCodec
     : Codec[Propositions.Contextual.RequiredTransactionIO.Requirement] =
     Codec.lazily(
       (Codec[Box] :: Codec[BoxLocation]).as[Propositions.Contextual.RequiredTransactionIO.Requirement]
     )
 
+  implicit val propositionsContextualRequiredTransactionIORequirementProtoCodec
+    : Codec[co.topl.proto.models.PropositionContextualRequiredTransactionIO.Requirement] =
+    Codec.lazily(
+      (optionCodec[co.topl.proto.models.Box] :: optionCodec[co.topl.proto.models.BoxLocation] :: unknownFieldSetCodec)
+        .as[co.topl.proto.models.PropositionContextualRequiredTransactionIO.Requirement]
+    )
+
   implicit val propositionsContextualRequiredTransactionIOCodec: Codec[Propositions.Contextual.RequiredTransactionIO] =
     Codec.lazily(
       Codec[NonEmptyChain[Propositions.Contextual.RequiredTransactionIO.Requirement]]
         .as[Propositions.Contextual.RequiredTransactionIO]
+    )
+
+  implicit val propositionsContextualRequiredTransactionIOProtoCodec
+    : Codec[co.topl.proto.models.PropositionContextualRequiredTransactionIO] =
+    Codec.lazily(
+      (Codec[Seq[co.topl.proto.models.PropositionContextualRequiredTransactionIO.Requirement]] :: unknownFieldSetCodec)
+        .as[co.topl.proto.models.PropositionContextualRequiredTransactionIO]
     )
 
   implicit val propositionCodec: Codec[Proposition] =
@@ -362,84 +519,180 @@ trait TetraScodecPropositionCodecs {
         propositionsContextualRequiredTransactionIOCodec
       )
 
+  implicit val propositionProtoCodec: Codec[co.topl.proto.models.Proposition] =
+    discriminated[co.topl.proto.models.Proposition]
+      .by(byteCodec)
+      .typecase[co.topl.proto.models.PropositionPermanentlyLocked](0: Byte, propositionPermanentlyLockedProtoCodec)
+      .typecase[co.topl.proto.models.PropositionKnowledgeCurve25519](1: Byte, propositionsKnowledgeCurve25519ProtoCodec)
+      .typecase[co.topl.proto.models.PropositionKnowledgeEd25519](2: Byte, propositionsKnowledgeEd25519ProtoCodec)
+      .typecase[co.topl.proto.models.PropositionKnowledgeExtendedEd25519](
+        3: Byte,
+        propositionsKnowledgeExtendedEd25519ProtoCodec
+      )
+      .typecase[co.topl.proto.models.PropositionKnowledgeHashLock](4: Byte, propositionsKnowledgeHashLockProtoCodec)
+      .typecase[co.topl.proto.models.PropositionCompositionalThreshold](
+        5: Byte,
+        propositionsCompositionalThresholdProtoCodec
+      )
+      .typecase[co.topl.proto.models.PropositionCompositionalAnd](6: Byte, propositionsCompositionalAndProtoCodec)
+      .typecase[co.topl.proto.models.PropositionCompositionalOr](7: Byte, propositionsCompositionalOrProtoCodec)
+      .typecase[co.topl.proto.models.PropositionCompositionalNot](8: Byte, propositionsCompositionalNotProtoCodec)
+      .typecase[co.topl.proto.models.PropositionContextualHeightLock](
+        9: Byte,
+        propositionsContextualHeightLockProtoCodec
+      )
+      .typecase[co.topl.proto.models.PropositionContextualRequiredTransactionIO](
+        10: Byte,
+        propositionsContextualRequiredTransactionIOProtoCodec
+      )
+
 }
 
 trait TetraScodecProofCodecs {
   self: TetraScodecPrimitiveCodecs with TetraScodecVerificationKeyCodecs =>
 
+  // TODO Remove after full model replacement
   implicit val proofsUndefinedCodec: Codec[Proofs.Undefined.type] =
     emptyCodec(Proofs.Undefined)
 
+  implicit val proofsUndefinedProtoCodec: Codec[co.topl.proto.models.ProofUndefined] =
+    (unknownFieldSetCodec).as[co.topl.proto.models.ProofUndefined]
+
+  // TODO Remove after full model replacement
   implicit val proofSignatureCurve25519: Codec[Proofs.Knowledge.Curve25519] =
     strictSizedBytesCodec[Proofs.Knowledge.Curve25519.Length].as[Proofs.Knowledge.Curve25519]
 
+  implicit val proofSignatureCurve25519ProtoCodec: Codec[co.topl.proto.models.ProofKnowledgeCurve25519] =
+    (protobufByteStringCodec :: unknownFieldSetCodec).as[co.topl.proto.models.ProofKnowledgeCurve25519]
+
+  // TODO Remove after full model replacement
   implicit val proofSignatureEd25519Codec: Codec[Proofs.Knowledge.Ed25519] =
     strictSizedBytesCodec[Proofs.Knowledge.Ed25519.Length].as[Proofs.Knowledge.Ed25519]
+
+  implicit val proofSignatureEd25519ProtoCodec: Codec[co.topl.proto.models.ProofKnowledgeEd25519] =
+    (protobufByteStringCodec :: unknownFieldSetCodec).as[co.topl.proto.models.ProofKnowledgeEd25519]
 
   implicit val consensusProofSignatureEd25519Codec: Codec[co.topl.crypto.models.SignatureEd25519] =
     (protobufByteStringCodec :: unknownFieldSetCodec).as[co.topl.crypto.models.SignatureEd25519]
 
+  // TODO Remove after full model replacement
   implicit val proofSignatureVrfCodec: Codec[Proofs.Knowledge.VrfEd25519] =
     strictSizedBytesCodec[Proofs.Knowledge.VrfEd25519.Length].as[Proofs.Knowledge.VrfEd25519]
+
+  implicit val proofSignatureVrfProtoCodec: Codec[co.topl.proto.models.ProofKnowledgeVrfEd25519] =
+    (protobufByteStringCodec :: unknownFieldSetCodec).as[co.topl.proto.models.ProofKnowledgeVrfEd25519]
 
   implicit val consensusSignatureVrfEd25519Codec: Codec[co.topl.consensus.models.SignatureVrfEd25519] =
     (protobufByteStringCodec :: unknownFieldSetCodec).as[co.topl.consensus.models.SignatureVrfEd25519]
 
+  // TODO Remove after full model replacement
   implicit val proofSignatureKesSumCodec: Codec[Proofs.Knowledge.KesSum] =
     (vkEd25519Codec :: proofSignatureEd25519Codec :: vectorCodec[
       Sized.Strict[Bytes, Proofs.Knowledge.KesSum.DigestLength]
     ]).as[Proofs.Knowledge.KesSum]
 
+  implicit val proofSignatureKesSumProtoCodec: Codec[co.topl.proto.models.ProofKnowledgeKesSum] =
+    (optionCodec(vkEd25519ProtoCodec) ::
+      optionCodec(proofSignatureEd25519ProtoCodec) ::
+      seqCodec(protobufByteStringCodec) :: // witness
+      unknownFieldSetCodec
+    ).as[co.topl.proto.models.ProofKnowledgeKesSum]
+
   implicit val consensusProofSignatureKesSumCodec: Codec[co.topl.consensus.models.SignatureKesSum] =
     (
       optionCodec(consensusVkEd25519Codec) ::
         optionCodec(consensusProofSignatureEd25519Codec) ::
-        seqCodec(protobufByteStringCodec) :: // witness
+        seqCodec(protobufByteStringCodec) ::
         unknownFieldSetCodec
     ).as[co.topl.consensus.models.SignatureKesSum]
 
+  // TODO Remove after full model replacement
   implicit val proofSignatureKesProductCodec: Codec[Proofs.Knowledge.KesProduct] =
     (proofSignatureKesSumCodec :: proofSignatureKesSumCodec :: strictSizedBytesCodec[
       Proofs.Knowledge.KesProduct.DigestLength
     ]).as[Proofs.Knowledge.KesProduct]
 
+  implicit val proofSignatureKesProductProtoCodec: Codec[co.topl.proto.models.ProofKnowledgeKesProduct] =
+    (optionCodec(proofSignatureKesSumProtoCodec) ::
+      optionCodec(proofSignatureKesSumProtoCodec) ::
+      protobufByteStringCodec :: // subRoot
+      unknownFieldSetCodec
+    ).as[co.topl.proto.models.ProofKnowledgeKesProduct]
+
   implicit val consensusProofSignatureKesProductCodec: Codec[co.topl.consensus.models.SignatureKesProduct] =
     (
-      optionCodec(consensusProofSignatureKesSumCodec) :: // super
-        optionCodec(consensusProofSignatureKesSumCodec) :: // sub
-        protobufByteStringCodec :: // subRoot
+      optionCodec(consensusProofSignatureKesSumCodec) ::
+        optionCodec(consensusProofSignatureKesSumCodec) ::
+        protobufByteStringCodec ::
         unknownFieldSetCodec
     ).as[co.topl.consensus.models.SignatureKesProduct]
 
+  // TODO Remove after full model replacement
   implicit val proofsKnowledgeHashLockCodec: Codec[Proofs.Knowledge.HashLock] =
     byteVectorCodec.as[Proofs.Knowledge.HashLock]
 
+  implicit val proofsKnowledgeHashLockProtoCodec: Codec[co.topl.proto.models.ProofKnowledgeHashLock] =
+    (protobufByteStringCodec :: unknownFieldSetCodec).as[co.topl.proto.models.ProofKnowledgeHashLock]
+
+  // TODO Remove after full model replacement
   implicit val proofsCompositionalThresholdCodec: Codec[Proofs.Compositional.Threshold] =
     Codec
       .lazily(Codec[List[Proof]])
       .as[Proofs.Compositional.Threshold]
 
+  implicit val proofsCompositionalThresholdProtoCodec: Codec[co.topl.proto.models.ProofCompositionalThreshold] =
+    Codec
+      .lazily(Codec[Seq[co.topl.proto.models.Proof]] :: unknownFieldSetCodec)
+      .as[co.topl.proto.models.ProofCompositionalThreshold]
+
+  // TODO Remove after full model replacement
   implicit val proofsCompositionalAndCodec: Codec[Proofs.Compositional.And] =
     Codec
       .lazily(Codec[Proof] :: Codec[Proof])
       .as[Proofs.Compositional.And]
 
+  implicit val proofsCompositionalAndProtoCodec: Codec[co.topl.proto.models.ProofCompositionalAnd] =
+    Codec
+      .lazily(Codec[co.topl.proto.models.Proof] :: Codec[co.topl.proto.models.Proof] :: unknownFieldSetCodec)
+      .as[co.topl.proto.models.ProofCompositionalAnd]
+
+  // TODO Remove after full model replacement
   implicit val proofsCompositionalOrCodec: Codec[Proofs.Compositional.Or] =
     Codec
       .lazily(Codec[Proof] :: Codec[Proof])
       .as[Proofs.Compositional.Or]
 
+  implicit val proofsCompositionalOrProtoCodec: Codec[co.topl.proto.models.ProofCompositionalOr] =
+    Codec
+      .lazily(Codec[co.topl.proto.models.Proof] :: Codec[co.topl.proto.models.Proof] :: unknownFieldSetCodec)
+      .as[co.topl.proto.models.ProofCompositionalOr]
+
+  // TODO Remove after full model replacement
   implicit val proofsCompositionalNotCodec: Codec[Proofs.Compositional.Not] =
     Codec
       .lazily(Codec[Proof])
       .as[Proofs.Compositional.Not]
 
+  implicit val proofsCompositionalNotProtoCodec: Codec[co.topl.proto.models.ProofCompositionalNot] =
+    Codec
+      .lazily(Codec[co.topl.proto.models.Proof] :: unknownFieldSetCodec)
+      .as[co.topl.proto.models.ProofCompositionalNot]
+
+  // TODO Remove after full model replacement
   implicit val proofsContextualHeightLockCodec: Codec[Proofs.Contextual.HeightLock] =
     emptyCodec(Proofs.Contextual.HeightLock())
 
+  implicit val proofsContextualHeightLockProtoCodec: Codec[co.topl.proto.models.ProofContextualHeightLock] =
+    (unknownFieldSetCodec).as[co.topl.proto.models.ProofContextualHeightLock]
+
+  // TODO Remove after full model replacement
   implicit val proofsContextualRequiredTransactionIOCodec: Codec[Proofs.Contextual.RequiredTransactionIO] =
     emptyCodec(Proofs.Contextual.RequiredTransactionIO())
 
+  implicit val proofsContextualRequiredTransactionIOProtoCodec: Codec[co.topl.proto.models.ProofContextualRequiredTransactionIO] =
+    (unknownFieldSetCodec).as[co.topl.proto.models.ProofContextualRequiredTransactionIO]
+
+  // TODO Remove after full model replacement
   implicit val proofCodec: Codec[Proof] =
     discriminated[Proof]
       .by(byteCodec)
@@ -456,6 +709,23 @@ trait TetraScodecProofCodecs {
       .typecase(10: Byte, proofsCompositionalNotCodec)
       .typecase(11: Byte, proofsContextualHeightLockCodec)
       .typecase(12: Byte, proofsContextualRequiredTransactionIOCodec)
+
+  implicit val proofProtoCodec: Codec[co.topl.proto.models.Proof] =
+    discriminated[co.topl.proto.models.Proof]
+      .by(byteCodec)
+      .typecase(0: Byte, proofsUndefinedProtoCodec)
+      .typecase(1: Byte, proofSignatureCurve25519ProtoCodec)
+      .typecase(2: Byte, proofSignatureEd25519ProtoCodec)
+      .typecase(3: Byte, proofSignatureVrfProtoCodec)
+      .typecase(4: Byte, proofSignatureKesSumProtoCodec)
+      .typecase(5: Byte, proofSignatureKesProductProtoCodec)
+      .typecase(6: Byte, proofsKnowledgeHashLockProtoCodec)
+      .typecase(7: Byte, proofsCompositionalThresholdProtoCodec)
+      .typecase(8: Byte, proofsCompositionalAndProtoCodec)
+      .typecase(9: Byte, proofsCompositionalOrProtoCodec)
+      .typecase(10: Byte, proofsCompositionalNotProtoCodec)
+      .typecase(11: Byte, proofsContextualHeightLockProtoCodec)
+      .typecase(12: Byte, proofsContextualRequiredTransactionIOProtoCodec)
 }
 
 trait TetraScodecTransactionCodecs {
@@ -465,17 +735,33 @@ trait TetraScodecTransactionCodecs {
     with TetraScodecProofCodecs
     with TetraScodecBoxCodecs =>
 
+  // TODO Remove after full model replacement
   implicit val transactionInputCodec: Codec[Transaction.Input] =
     (Codec[Box.Id] :: Codec[Proposition] :: Codec[Proof] :: Codec[Box.Value]).as[Transaction.Input]
 
+  // TODO Remove after full model replacement
   implicit val coinOutputCodec: Codec[Transaction.Output] =
     (Codec[FullAddress] :: Codec[Box.Value] :: Codec[Boolean])
       .as[Transaction.Output]
 
+  implicit val coinOutputProtoCodec: Codec[co.topl.proto.models.Transaction.UnspentOutput] =
+    (optionCodec[co.topl.proto.models.FullAddress] ::
+      Codec[co.topl.proto.models.BoxValue] ::
+      Codec[Boolean] ::
+      Codec[com.google.protobuf.ByteString] ::
+      unknownFieldSetCodec)
+      .as[co.topl.proto.models.Transaction.UnspentOutput]
+
+  // TODO Remove after full model replacement
   implicit val transactionScheduleCodec: Codec[Transaction.Schedule] =
     (Codec[Timestamp](uLongCodec) :: Codec[Slot](uLongCodec) :: Codec[Slot](uLongCodec))
       .as[Transaction.Schedule]
 
+  implicit val transactionScheduleProtoCodec: Codec[co.topl.proto.models.Transaction.Schedule] =
+    (Codec[Timestamp](uLongCodec) :: Codec[Slot](uLongCodec) :: Codec[Slot](uLongCodec) :: unknownFieldSetCodec)
+      .as[co.topl.proto.models.Transaction.Schedule]
+
+  // TODO Remove after full model replacement
   implicit val transactionCodec: Codec[Transaction] =
     (
       Codec[Chain[Transaction.Input]] ::
@@ -484,6 +770,25 @@ trait TetraScodecTransactionCodecs {
         Codec[Option[Transaction.DataTetra]]
     ).as[Transaction]
 
+  implicit val transactionInputProtoCodec: Codec[co.topl.proto.models.Transaction.Input] =
+    (
+      optionCodec[co.topl.proto.models.Box.Id] ::
+        Codec[co.topl.proto.models.Proposition] ::
+        Codec[co.topl.proto.models.Proof] ::
+        Codec[co.topl.proto.models.BoxValue] ::
+        unknownFieldSetCodec
+      ).as[co.topl.proto.models.Transaction.Input]
+
+  implicit val transactionProtoCodec: Codec[co.topl.proto.models.Transaction] =
+    (
+      Codec[Seq[co.topl.proto.models.Transaction.Input]] ::
+        Codec[Seq[co.topl.proto.models.Transaction.UnspentOutput]] ::
+        optionCodec[co.topl.proto.models.Transaction.Schedule] ::
+        protobufByteStringCodec ::
+        unknownFieldSetCodec
+      ).as[co.topl.proto.models.Transaction]
+
+  // TODO Remove after full model replacement
   implicit val unprovenTransactionCodec: Codec[Transaction.Unproven] =
     (
       Codec[Chain[Transaction.Unproven.Input]] ::
@@ -491,6 +796,21 @@ trait TetraScodecTransactionCodecs {
         Codec[Transaction.Schedule] ::
         Codec[Option[Transaction.DataTetra]]
     ).as[Transaction.Unproven]
+
+  implicit val unprovenInputTransactionProtoCodec: Codec[Transaction.Unproven.InputProto] =
+    (
+      optionCodec[co.topl.proto.models.Box.Id] ::
+        Codec[co.topl.proto.models.Proposition] ::
+        Codec[co.topl.proto.models.BoxValue]
+    ).as[Transaction.Unproven.InputProto]
+
+  implicit val unprovenTransactionProtoCodec: Codec[Transaction.UnprovenProto] =
+    (
+      Codec[Chain[Transaction.Unproven.InputProto]] ::
+        Codec[Chain[co.topl.proto.models.Transaction.UnspentOutput]] ::
+        optionCodec[co.topl.proto.models.Transaction.Schedule] ::
+        protobufByteStringCodec
+    ).as[Transaction.UnprovenProto]
 }
 
 trait TetraScodecBlockCodecs {

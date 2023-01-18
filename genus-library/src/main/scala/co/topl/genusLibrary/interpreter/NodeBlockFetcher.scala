@@ -7,7 +7,7 @@ import co.topl.algebras.ToplRpc
 import co.topl.genusLibrary.algebras.BlockFetcherAlgebra
 import co.topl.genusLibrary.failure.{Failure, Failures}
 import co.topl.genusLibrary.model.{BlockData, HeightData}
-import co.topl.models.{Transaction, TypedIdentifier}
+import co.topl.models.TypedIdentifier
 import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader}
 import co.topl.node.models.{BlockBody => NodeBlockBody}
 import com.typesafe.scalalogging.LazyLogging
@@ -53,19 +53,19 @@ class NodeBlockFetcher[F[_]: Async](toplRpc: ToplRpc[F, Any]) extends BlockFetch
    * If all transactions were retrieved correctly, then all transactions are returned.
    * If one or more transactions is missing, then a failure listing all missing transactions is returned.
    */
-  private def fetchTransactions(body: NodeBlockBody): F[Either[Failure, Chain[Transaction]]] =
+  private def fetchTransactions(body: NodeBlockBody): F[Either[Failure, Chain[co.topl.proto.models.Transaction]]] =
     body.transactionIds.toList.traverse(ioTx32 =>
       toplRpc
         .fetchTransaction(co.topl.models.TypedBytes.ioTx32(ioTx32))
         .map(maybeTransaction => (ioTx32, maybeTransaction))
     ) map { e =>
-      e.foldLeft(Chain.empty[Transaction].asRight[ListSet[TypedIdentifier]]) {
+      e.foldLeft(Chain.empty[co.topl.proto.models.Transaction].asRight[ListSet[TypedIdentifier]]) {
         case (Right(transactions), (_, Some(transaction))) => (transactions :+ transaction).asRight
         case (Right(_), (ioTx32, None))                    => ListSet(co.topl.models.TypedBytes.ioTx32(ioTx32)).asLeft
         case (nonExistentTransactions @ Left(_), (_, Some(_))) => nonExistentTransactions
         case (Left(nonExistentTransactions), (ioTx32, None)) =>
           Left(nonExistentTransactions + co.topl.models.TypedBytes.ioTx32(ioTx32))
       }
-    } map [Either[Failure, Chain[Transaction]]] (_.left.map(Failures.NonExistentTransactionsFailure))
+    } map [Either[Failure, Chain[co.topl.proto.models.Transaction]]] (_.left.map(Failures.NonExistentTransactionsFailure))
 
 }

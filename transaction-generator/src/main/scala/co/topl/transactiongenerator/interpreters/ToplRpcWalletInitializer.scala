@@ -44,7 +44,7 @@ object ToplRpcWalletInitializer {
     fetchHeaderParallelism:      Int,
     fetchBodyParallelism:        Int,
     fetchTransactionParallelism: Int
-  ): F[Stream[F, Transaction]] =
+  ): F[Stream[F, co.topl.proto.models.Transaction]] =
     for {
       blockIds <- blockIdStream(toplRpc, fetchHeaderParallelism)
       stream = blockIds

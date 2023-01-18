@@ -5,6 +5,7 @@ import co.topl.models.utility.Ratio
 import co.topl.models._
 import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader}
 import co.topl.node.models.{BlockBody => NodeBlockBody}
+import co.topl.proto.models.{Transaction => ProtoTransaction}
 import scala.collection.immutable.ListSet
 
 trait TetraTransmittableCodecs {
@@ -20,6 +21,7 @@ trait TetraTransmittableCodecs {
   implicit val consensusBlockHeaderTransmittable: Transmittable[ConsensusBlockHeader] = Transmittable.instanceFromCodec
   implicit val slotDataTransmittable: Transmittable[SlotData] = Transmittable.instanceFromCodec
   implicit val transactionTransmittable: Transmittable[Transaction] = Transmittable.instanceFromCodec
+  implicit val transactionProtoTransmittable: Transmittable[ProtoTransaction] = Transmittable.instanceFromCodec
 
   implicit val eligibilityCertificateTransmittable: Transmittable[EligibilityCertificate] =
     Transmittable.instanceFromCodec
