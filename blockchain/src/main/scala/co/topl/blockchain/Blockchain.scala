@@ -142,9 +142,16 @@ object Blockchain {
             .flatMap(currentHead =>
               Stream.resource(
                 (
-                  Stream.eval(clock.delayedUntilSlot(currentHead.slotId.slot).as(currentHead))
-                  ++ blockAdoptionsTopic.subscribeDropOldest(1).evalMap(slotDataStore.getOrRaise)
-                ).toAkkaSource
+                  Stream
+                    .eval(clock.delayedUntilSlot(currentHead.slotId.slot).as(currentHead))
+                    .append(
+                      Stream
+                        .resource(DroppingTopic(blockAdoptionsTopic, 1).flatMap(_.subscribeAwaitUnbounded))
+                        .flatten
+                        .evalMap(slotDataStore.getOrRaise)
+                    )
+                  )
+                  .toAkkaSource
               )
             )
             .flatMap(adoptionsSource =>
@@ -157,19 +164,21 @@ object Blockchain {
                 .flatMap(_.asFS2Stream)
             )
         )
-      rpcInterpreter <- Resource.eval(
-        ToplRpcServer.make(
-          headerStore,
-          bodyStore,
-          transactionStore,
-          mempool,
-          transactionSyntaxValidation,
-          localChain,
-          blockHeights,
-          blockIdTree,
-          blockAdoptionsTopic.subscribeDropOldest(10)
+      rpcInterpreter <- DroppingTopic(blockAdoptionsTopic, 10)
+        .flatMap(_.subscribeAwaitUnbounded)
+        .evalMap(
+          ToplRpcServer.make(
+            headerStore,
+            bodyStore,
+            transactionStore,
+            mempool,
+            transactionSyntaxValidation,
+            localChain,
+            blockHeights,
+            blockIdTree,
+            _
+          )
         )
-      )
       rpcServer <- ToplGrpc.Server.serve(rpcHost, rpcPort, rpcInterpreter)
       mintedBlockStreamCompletionF =
         mintedBlockStream

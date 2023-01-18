@@ -2,7 +2,7 @@ package co.topl.blockchain.interpreters
 
 import cats.effect.{Async, Resource}
 import cats.implicits._
-import co.topl.catsakka._
+import co.topl.catsakka.DroppingTopic
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.eventtree.EventSourcedState
 import co.topl.ledger.algebras.MempoolAlgebra
@@ -18,21 +18,29 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 object BlockchainPeerServer {
 
   def make[F[_]: Async](
-    fetchSlotData:     TypedIdentifier => F[Option[SlotData]],
-    fetchHeader:       TypedIdentifier => F[Option[BlockHeader]],
-    fetchBody:         TypedIdentifier => F[Option[BlockBody]],
-    fetchTransaction:  TypedIdentifier => F[Option[Transaction]],
-    blockHeights:      EventSourcedState[F, Long => F[Option[TypedIdentifier]], TypedIdentifier],
-    localChain:        LocalChainAlgebra[F],
-    mempool:           MempoolAlgebra[F],
-    newBlockIds:       Topic[F, TypedIdentifier],
-    newTransactionIds: Topic[F, TypedIdentifier]
-  )(peer:              ConnectedPeer): Resource[F, BlockchainPeerServerAlgebra[F]] =
-    (newBlockIds.subscribeAwaitUnbounded, newTransactionIds.subscribeAwaitUnbounded)
+    fetchSlotData:           TypedIdentifier => F[Option[SlotData]],
+    fetchHeader:             TypedIdentifier => F[Option[BlockHeader]],
+    fetchBody:               TypedIdentifier => F[Option[BlockBody]],
+    fetchTransaction:        TypedIdentifier => F[Option[Transaction]],
+    blockHeights:            EventSourcedState[F, Long => F[Option[TypedIdentifier]], TypedIdentifier],
+    localChain:              LocalChainAlgebra[F],
+    mempool:                 MempoolAlgebra[F],
+    newBlockIds:             Topic[F, TypedIdentifier],
+    newTransactionIds:       Topic[F, TypedIdentifier],
+    blockIdBufferSize:       Int = 8,
+    transactionIdBufferSize: Int = 64
+  )(peer:                    ConnectedPeer): Resource[F, BlockchainPeerServerAlgebra[F]] =
+    (
+      DroppingTopic(newBlockIds, blockIdBufferSize).flatMap(_.subscribeAwaitUnbounded),
+      DroppingTopic(newTransactionIds, transactionIdBufferSize).flatMap(_.subscribeAwaitUnbounded)
+    )
       .mapN((newBlockIds, newTransactionIds) =>
         new BlockchainPeerServerAlgebra[F] {
 
-          implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass(this.getClass)
+          implicit private val logger: Logger[F] =
+            Slf4jLogger
+              .getLoggerFromName[F]("P2P.BlockchainPeerServer")
+              .withModifiedString(value => show"peer=${peer.remoteAddress} $value")
 
           /**
            * Serves a stream containing the current head ID plus a stream of block IDs adopted in the local chain.
@@ -42,7 +50,6 @@ object BlockchainPeerServer {
               Stream
                 .eval(localChain.head.map(_.slotId.blockId))
                 .append(newBlockIds)
-                .dropOldest(4)
                 .evalTap(id => Logger[F].debug(show"Broadcasting block id=$id to peer"))
             )
 
@@ -56,7 +63,6 @@ object BlockchainPeerServer {
                 .eval(localChain.head.map(_.slotId.blockId).flatMap(mempool.read))
                 .flatMap(Stream.iterable)
                 .append(newTransactionIds)
-                .dropOldest(128)
                 .evalTap(id => Logger[F].debug(show"Broadcasting transaction id=$id to peer"))
             )
 
