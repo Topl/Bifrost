@@ -36,12 +36,11 @@ trait TetraIdentifiableInstances {
           BigInt(header.timestamp).toByteArray
         ) ++
         Bytes(BigInt(header.height).toByteArray) ++
-        Bytes(BigInt(header.slot).toByteArray)
-//      ++ TODO, : Ask Sean, should we create the representation of Inmutablebyte of all protobubspcsModels?
-//          header.eligibilityCertificate.immutableBytes ++
-//          header.operationalCertificate.immutableBytes ++
-//          Bytes(header.metadata.fold(Array.emptyByteArray)(_.data.bytes)) ++
-//          header.address.immutableBytes
+        Bytes(BigInt(header.slot).toByteArray) ++
+        header.eligibilityCertificate.map(_.immutableBytes).getOrElse(Bytes.empty) ++
+        header.operationalCertificate.map(_.immutableBytes).getOrElse(Bytes.empty) ++
+        Bytes(header.metadata.toByteArray) ++
+        header.address.immutableBytes
       (IdentifierTypes.Block.HeaderV2, new Blake2b256().hash(bytes))
     }
 

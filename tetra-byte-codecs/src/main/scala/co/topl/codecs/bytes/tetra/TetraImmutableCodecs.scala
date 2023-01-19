@@ -33,7 +33,13 @@ trait TetraImmutableCodecs {
   implicit val eligibilityCertificateStableCodec: ImmutableCodec[EligibilityCertificate] =
     ImmutableCodec.fromScodecCodec
 
+  implicit val eligibilityCertificateConsensusCodec: ImmutableCodec[co.topl.consensus.models.EligibilityCertificate] =
+    ImmutableCodec.fromScodecCodec
+
   implicit val operationalCertificateStableCodec: ImmutableCodec[OperationalCertificate] =
+    ImmutableCodec.fromScodecCodec
+
+  implicit val operationalCertificateConsensusCodec: ImmutableCodec[co.topl.consensus.models.OperationalCertificate] =
     ImmutableCodec.fromScodecCodec
 
   implicit val partialOperationalCertificateStableCodec: ImmutableCodec[PartialOperationalCertificate] =

@@ -107,11 +107,11 @@ object GcpCsvDataPublisher {
       datum.header.slot.show,
       ByteVector(datum.header.address.toByteArray).toBase58,
       ByteVector(datum.header.txRoot.toByteArray).toBase58,
-      ByteVector(datum.header.bloomFilter.toByteArray).toBase58
-//      datum.header.eligibilityCertificate.immutableBytes.toBase58,
-//      datum.header.operationalCertificate.immutableBytes.toBase58,
-//      datum.header.metadata.fold("")(_.data.value),
-//      datum.body.transactionIds.map(_.show).mkString(";")
+      ByteVector(datum.header.bloomFilter.toByteArray).toBase58,
+      datum.header.eligibilityCertificate.map(_.immutableBytes).getOrElse(ByteVector.empty).toBase58,
+      datum.header.operationalCertificate.map(_.immutableBytes).getOrElse(ByteVector.empty).toBase58,
+      datum.header.metadata.toString,
+      datum.body.transactionIds.map(TypedBytes.ioTx32).map(_.show).mkString(";")
     )
 
   private def transactionDatumToRow(datum: TransactionDatum) =
