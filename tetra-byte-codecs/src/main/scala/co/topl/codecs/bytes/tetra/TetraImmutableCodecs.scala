@@ -12,6 +12,9 @@ trait TetraImmutableCodecs {
   implicit val typedBytesImmutableCodec: ImmutableCodec[TypedBytes] =
     ImmutableCodec.fromScodecCodec
 
+  implicit val byteStringImmutableCodec: ImmutableCodec[com.google.protobuf.ByteString] =
+    ImmutableCodec.fromScodecCodec
+
   implicit val ratioStableCodec: ImmutableCodec[Ratio] =
     ImmutableCodec.fromScodecCodec
 
@@ -45,7 +48,23 @@ trait TetraImmutableCodecs {
   implicit val transactionStableCodec: ImmutableCodec[Transaction] =
     ImmutableCodec.fromScodecCodec
 
+  implicit val transactionInputProtoStableCodec: ImmutableCodec[co.topl.proto.models.Transaction.Input] =
+    ImmutableCodec.fromScodecCodec
+
+  implicit val transactionUnspentOutputProtoStableCodec
+    : ImmutableCodec[co.topl.proto.models.Transaction.UnspentOutput] =
+    ImmutableCodec.fromScodecCodec
+
+  implicit val transactionScheduleProtoStableCodec: ImmutableCodec[co.topl.proto.models.Transaction.Schedule] =
+    ImmutableCodec.fromScodecCodec
+
+  implicit val transactionProtoStableCodec: ImmutableCodec[co.topl.proto.models.Transaction] =
+    ImmutableCodec.fromScodecCodec
+
   implicit val unprovenTransactionStableCodec: ImmutableCodec[Transaction.Unproven] =
+    ImmutableCodec.fromScodecCodec
+
+  implicit val unprovenInputProtoTransactionStableCodec: ImmutableCodec[Transaction.Unproven.InputProto] =
     ImmutableCodec.fromScodecCodec
 
   implicit val unprovenProtoTransactionStableCodec: ImmutableCodec[Transaction.UnprovenProto] =
@@ -97,7 +116,12 @@ trait TetraImmutableCodecs {
   implicit val propositionCompositionalNotImmutableCodec: ImmutableCodec[Propositions.Compositional.Not] =
     ImmutableCodec.fromScodecCodec
 
+  // TODO Remove after full model replacement
   implicit val propositionContextualHeightLockImmutableCodec: ImmutableCodec[Propositions.Contextual.HeightLock] =
+    ImmutableCodec.fromScodecCodec
+
+  implicit val propositionContextualHeightLockImmutableProtoCodec
+    : ImmutableCodec[co.topl.proto.models.PropositionContextualHeightLock] =
     ImmutableCodec.fromScodecCodec
 
   implicit val propositionContextualRequiredTransactionIOImmutableCodec

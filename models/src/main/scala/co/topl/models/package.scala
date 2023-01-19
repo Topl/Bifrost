@@ -75,7 +75,7 @@ package object models {
         ByteVector(ioTx32.evidence.flatMap(_.digest.map(_.value)).map(_.toByteArray).getOrElse(Array.empty))
       )
 
-    def boxId(boxId:co.topl.proto.models.Box.Id): topl.models.TypedIdentifier =
+    def boxId(boxId: co.topl.proto.models.Box.Id): topl.models.TypedIdentifier =
       TypedBytes.apply(
         co.topl.models.IdentifierTypes.Transaction,
         ByteVector(boxId.transactionId.map(_.value.toByteArray).getOrElse(Array.empty))

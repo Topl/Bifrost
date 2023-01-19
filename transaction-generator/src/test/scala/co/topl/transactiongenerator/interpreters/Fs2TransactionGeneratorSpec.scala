@@ -1,31 +1,31 @@
 package co.topl.transactiongenerator.interpreters
 
-import cats.data.Chain
 import cats.effect.IO
 import cats.effect.std.Random
 import cats.implicits._
-import co.topl.models.utility.HasLength.instances._
-import co.topl.models.{Box, Transaction}
-import co.topl.models.utility.Sized
 import munit.CatsEffectSuite
+import com.google.protobuf.ByteString
 
 class Fs2TransactionGeneratorSpec extends CatsEffectSuite {
   type F[A] = IO[A]
 
   test("Produces a stream of transactions") {
     for {
-      seedTransaction <- Transaction(
-        Chain.empty,
-        Chain(
-          Transaction.Output(
-            simpleFullAddress(HeightLockOneSpendingAddress),
-            Box.Values.Poly(Sized.maxUnsafe(BigInt(1000000))),
-            minting = false
-          )
-        ),
-        Transaction.Schedule(0, 0, 0),
-        None
-      ).pure[F]
+      seedTransaction <- co.topl.proto.models
+        .Transaction(
+          Seq.empty,
+          Seq(
+            co.topl.proto.models.Transaction.UnspentOutput(
+              address = simpleFullAddressProto(HeightLockOneSpendingAddressProto).some,
+              value = co.topl.proto.models.PolyBoxValue
+                .of(co.topl.proto.models.Int128.of(ByteString.copyFrom(BigInt(1000000).toByteArray)).some),
+              minting = false
+              // metadata = ByteString.EMPTY
+            )
+          ),
+          co.topl.proto.models.Transaction.Schedule.of(0, 0, 0).some
+        )
+        .pure[F]
       wallet = applyTransaction(emptyWallet)(seedTransaction)
       implicit0(random: Random[F]) <- Random.javaSecuritySecureRandom[F]
       underTest                    <- Fs2TransactionGenerator.make[F](wallet, 1, 10, 100)

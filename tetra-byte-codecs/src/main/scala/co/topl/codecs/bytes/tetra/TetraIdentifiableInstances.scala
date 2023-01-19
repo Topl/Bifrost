@@ -65,7 +65,9 @@ trait TetraIdentifiableInstances {
       val bytes =
         Transaction
           .UnprovenProto(
-            inputs = Chain.fromSeq(transaction.inputs.map(i => Transaction.Unproven.InputProto(i.boxId, i.proposition, i.value))),
+            inputs = Chain.fromSeq(
+              transaction.inputs.map(i => Transaction.Unproven.InputProto(i.boxId, i.proposition, i.value))
+            ),
             outputs = Chain.fromSeq(transaction.outputs),
             transaction.schedule,
             transaction.data

@@ -87,13 +87,16 @@ object ToplRpcServer {
           bodyStore.get(blockId)
 
         def fetchTransaction(transactionId: TypedIdentifier): F[Option[co.topl.proto.models.Transaction]] =
-          transactionStore.get(transactionId)
-            .map(transaction => co.topl.grpc
-              .transactionIsomorphism[Option]
-              // TODO model should change to new protobuf specs and not use Isomorphism, change the store
-              .abMorphism
-              .aToB(transaction)
-              .flatMap(_.toOption))
+          transactionStore
+            .get(transactionId)
+            .map(transaction =>
+              co.topl.grpc
+                .transactionIsomorphism[Option]
+                // TODO model should change to new protobuf specs and not use Isomorphism, change the store
+                .abMorphism
+                .aToB(transaction)
+                .flatMap(_.toOption)
+            )
 
         def blockIdAtHeight(height: Long): F[Option[TypedIdentifier]] =
           for {

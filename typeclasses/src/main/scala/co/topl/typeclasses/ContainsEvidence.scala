@@ -112,6 +112,10 @@ object ContainsEvidence {
     implicit val heightLockContainsEvidence: ContainsEvidence[Propositions.Contextual.HeightLock] =
       fromImmutableCodec(TypePrefixes.PropositionsContextualHeightLock)
 
+    implicit val heightLockContainsEvidenceProto
+      : ContainsEvidence[co.topl.proto.models.PropositionContextualHeightLock] =
+      fromImmutableCodec(TypePrefixes.PropositionsContextualHeightLock)
+
     implicit val requiredInputBoxStateContainsEvidence
       : ContainsEvidence[Propositions.Contextual.RequiredTransactionIO] =
       fromImmutableCodec(TypePrefixes.PropositionsContextualRequiredTransactionIO)

@@ -11,6 +11,7 @@ import co.topl.genusLibrary.failure.Failures.{
 }
 import co.topl.models.ModelGenerators._
 import co.topl.models.generators.brambl.ModelGenerators._
+import co.topl.models.generators.models.ModelGenerators.arbitraryTransaction
 import co.topl.models._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
@@ -19,7 +20,6 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.genusLibrary.model.{BlockData, HeightData}
 import co.topl.typeclasses.implicits._
-
 import scala.collection.immutable.ListSet
 
 class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
@@ -136,7 +136,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
 
           (toplRpc.fetchTransaction _)
             .expects(co.topl.models.TypedBytes.ioTx32(transactionId))
-            .returning(Option.empty[Transaction].pure[F])
+            .returning(Option.empty[co.topl.proto.models.Transaction].pure[F])
             .once()
 
           assertIO(
@@ -159,7 +159,8 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
         blockHeader:      co.topl.consensus.models.BlockHeader,
         transactionId_01: co.topl.brambl.models.Identifier.IoTransaction32,
         transactionId_02: co.topl.brambl.models.Identifier.IoTransaction32,
-        transactionId_03: co.topl.brambl.models.Identifier.IoTransaction32
+        transactionId_03: co.topl.brambl.models.Identifier.IoTransaction32,
+        transaction_01:   co.topl.proto.models.Transaction
       ) =>
         withMock {
 
@@ -171,7 +172,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
             )
           )
 
-          val transaction_01 = mock[Transaction]
+//          val transaction_01 = mock[co.topl.proto.models.Transaction]
 
           (toplRpc.blockIdAtHeight _)
             .expects(height)
@@ -195,12 +196,12 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
 
           (toplRpc.fetchTransaction _)
             .expects(co.topl.models.TypedBytes.ioTx32(transactionId_02))
-            .returning(Option.empty[Transaction].pure[F])
+            .returning(Option.empty[co.topl.proto.models.Transaction].pure[F])
             .once()
 
           (toplRpc.fetchTransaction _)
             .expects(co.topl.models.TypedBytes.ioTx32(transactionId_03))
-            .returning(Option.empty[Transaction].pure[F])
+            .returning(Option.empty[co.topl.proto.models.Transaction].pure[F])
             .once()
 
           assertIO(
@@ -257,17 +258,17 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
 
           (toplRpc.fetchTransaction _)
             .expects(co.topl.models.TypedBytes.ioTx32(transactionId_01))
-            .returning(Option.empty[Transaction].pure[F])
+            .returning(Option.empty[co.topl.proto.models.Transaction].pure[F])
             .once()
 
           (toplRpc.fetchTransaction _)
             .expects(co.topl.models.TypedBytes.ioTx32(transactionId_02))
-            .returning(Option.empty[Transaction].pure[F])
+            .returning(Option.empty[co.topl.proto.models.Transaction].pure[F])
             .once()
 
           (toplRpc.fetchTransaction _)
             .expects(co.topl.models.TypedBytes.ioTx32(transactionId_03))
-            .returning(Option.empty[Transaction].pure[F])
+            .returning(Option.empty[co.topl.proto.models.Transaction].pure[F])
             .once()
 
           assertIO(
@@ -293,9 +294,9 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
         height:         Long,
         blockId:        TypedIdentifier,
         blockHeader:    co.topl.consensus.models.BlockHeader,
-        transaction_01: Transaction,
-        transaction_02: Transaction,
-        transaction_03: Transaction
+        transaction_01: co.topl.proto.models.Transaction,
+        transaction_02: co.topl.proto.models.Transaction,
+        transaction_03: co.topl.proto.models.Transaction
       ) =>
         withMock {
 

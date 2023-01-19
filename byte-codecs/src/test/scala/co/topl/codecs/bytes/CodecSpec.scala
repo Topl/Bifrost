@@ -21,6 +21,14 @@ trait CodecSpec extends AnyFlatSpec with Matchers with EqMatcher with EitherValu
 
     it should "be able to decode an encoded value" in {
       forAll(generator) { value =>
+        if (name == "ProtoInt128") {
+          println(" codec.encode(value)")
+          println(codec.encode(value))
+        }
+        if (name == "ProtoInt128") {
+          println(" decode.encode(value)")
+          println(codec.decode(codec.encode(value).toEither.value))
+        }
         val encodedValue = codec.encode(value).toEither.value
 
         val decodedValue = codec.decode(encodedValue).toEither.value.value

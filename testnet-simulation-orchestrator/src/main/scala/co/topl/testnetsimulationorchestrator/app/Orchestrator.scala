@@ -131,8 +131,14 @@ object Orchestrator
           .parEvalMap[F, TransactionDatum](Runtime.getRuntime.availableProcessors()) { case (transactionId, node) =>
             OptionT(nodes(node).fetchTransaction(transactionId))
               // TODO TransactionDatum model should change to new protobuf specs and not use Isomorphism
-              .map(transaction => co.topl.grpc.transactionIsomorphism[cats.Id].baMorphism.aToB(transaction.pure[cats.Id])
-                .toOption.getOrElse(throw new RuntimeException("transactionIsomorphism")))
+              .map(transaction =>
+                co.topl.grpc
+                  .transactionIsomorphism[cats.Id]
+                  .baMorphism
+                  .aToB(transaction.pure[cats.Id])
+                  .toOption
+                  .getOrElse(throw new RuntimeException("transactionIsomorphism"))
+              )
               .getOrRaise(new NoSuchElementException(show"Transaction not found id=$transactionId"))
               .map(TransactionDatum(_))
           }
@@ -248,11 +254,13 @@ object Orchestrator
         .metered((1_000_000_000d / targetTps).nanos)
         // TODO model should change to new protobuf specs and not use Isomorphism
         .map(transaction =>
-          co.topl.grpc.transactionIsomorphism[cats.Id]
+          co.topl.grpc
+            .transactionIsomorphism[cats.Id]
             .abMorphism
             .aToB(transaction.pure[cats.Id])
             .toOption
-            .getOrElse(throw new RuntimeException("transactionIsomorphism")))
+            .getOrElse(throw new RuntimeException("transactionIsomorphism"))
+        )
         // Broadcast+log the transaction
         .evalTap(transaction =>
           Logger[F].debug(show"Broadcasting transaction id=${transaction.id.asTypedBytes}") >>

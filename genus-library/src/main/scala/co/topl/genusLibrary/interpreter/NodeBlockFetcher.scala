@@ -66,6 +66,8 @@ class NodeBlockFetcher[F[_]: Async](toplRpc: ToplRpc[F, Any]) extends BlockFetch
         case (Left(nonExistentTransactions), (ioTx32, None)) =>
           Left(nonExistentTransactions + co.topl.models.TypedBytes.ioTx32(ioTx32))
       }
-    } map [Either[Failure, Chain[co.topl.proto.models.Transaction]]] (_.left.map(Failures.NonExistentTransactionsFailure))
+    } map [Either[Failure, Chain[co.topl.proto.models.Transaction]]] (_.left.map(
+      Failures.NonExistentTransactionsFailure
+    ))
 
 }
