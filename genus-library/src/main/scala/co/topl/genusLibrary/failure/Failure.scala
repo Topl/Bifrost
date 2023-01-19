@@ -20,6 +20,11 @@ object Failures {
         s"Block doesn't have a previous header vertex. Previous blockId=[$blockId]"
       )
 
+  case class NoCurrentBodyVertexFailure(transactions: ByteVector)
+      extends Failure(
+        s"Block doesn't have a transactions vertex. transactions=[$transactions]"
+      )
+
   case class NoBlockHeaderFoundOnNodeFailure(blockId: TypedIdentifier)
       extends Failure(s"Block header wasn't found. BlockId=[$blockId]")
 

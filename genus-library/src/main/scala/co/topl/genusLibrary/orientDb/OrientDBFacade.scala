@@ -2,11 +2,10 @@ package co.topl.genusLibrary.orientDb
 
 import cats.effect.kernel.Async
 import cats.implicits._
-import co.topl.genusLibrary.orientDb.wrapper.GraphTxWrapper
+import co.topl.genusLibrary.orientDb.wrapper.{GraphTxWrapper, WrappedVertex}
 import co.topl.genusLibrary.{Genus, GenusException}
 import co.topl.typeclasses.Log._
 import com.orientechnologies.orient.core.sql.OCommandSQL
-import com.tinkerpop.blueprints.Vertex
 import com.tinkerpop.blueprints.impls.orient.{OrientGraphFactory, OrientGraphNoTx}
 import com.typesafe.scalalogging.Logger
 
@@ -38,38 +37,38 @@ private[genusLibrary] class OrientDBFacade(dir: File, password: String) extends 
 
   override def getGraphNoTx: OrientGraphNoTx = factory.getNoTx
 
-  override def getVertex[F[_]: Async](
+  override def getVertexByField[F[_]: Async](
     vertexTypeName: VertexTypeName,
     filterKey:      PropertyKey,
     filterValue:    AnyRef
-  ): F[Option[Vertex]] =
-    getVertex(vertexTypeName, Set((filterKey, filterValue)))
+  ): F[Option[WrappedVertex]] =
+    getVertexByFields(vertexTypeName, Set((filterKey, filterValue)))
 
-  override def getVertex[F[_]: Async](
+  override def getVertexByFields[F[_]: Async](
     vertexTypeName:   VertexTypeName,
     propertiesFilter: Set[PropertyQuery]
-  ): F[Option[Vertex]] =
-    getVertices(vertexTypeName, propertiesFilter)
+  ): F[Option[WrappedVertex]] =
+    getVerticesByFields(vertexTypeName, propertiesFilter)
       .map(_.headOption)
 
-  override def getVertices[F[_]: Async](
+  override def getVerticesByField[F[_]: Async](
     vertexTypeName: VertexTypeName,
     filterKey:      PropertyKey,
     filterValue:    AnyRef
-  ): F[Iterable[Vertex]] =
-    getVertices(vertexTypeName, Set((filterKey, filterValue)))
+  ): F[Iterable[WrappedVertex]] =
+    getVerticesByFields(vertexTypeName, Set((filterKey, filterValue)))
 
-  override def getVertices[F[_]: Async](
+  override def getVerticesByFields[F[_]: Async](
     vertexTypeName:   VertexTypeName,
     propertiesFilter: Set[PropertyQuery]
-  ): F[Iterable[Vertex]] = {
+  ): F[Iterable[WrappedVertex]] = Async[F].delay {
     val (keys, values) = propertiesFilter.foldLeft((List.empty[PropertyKey], List.empty[Object])) {
       case ((keys, values), (currentKey, currentValue)) => (currentKey :: keys, currentValue :: values)
     }
     asScala(
       graphMetadata.graphNoTx.getVertices(vertexTypeName, keys.toArray, values.toArray)
     )
-      .pure[F]
+      .map(new WrappedVertex(_))
   }
 
   private def initializeDatabase(factory: OrientGraphFactory, password: String) = {

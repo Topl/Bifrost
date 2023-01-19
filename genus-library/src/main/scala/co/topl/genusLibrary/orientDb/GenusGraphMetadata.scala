@@ -1,6 +1,7 @@
 package co.topl.genusLibrary.orientDb {
 
   import co.topl.codecs.bytes.tetra.{TetraIdentifiableInstances, TetraScodecCodecs}
+  import co.topl.genusLibrary.utils.BlockUtils
   import co.topl.genusLibrary.{GenusException, Txo, TxoState}
   import co.topl.models._
   import co.topl.models.utility.Length
@@ -63,9 +64,10 @@ package co.topl.genusLibrary.orientDb {
       }
   }
 
-  object GenusGraphMetadata {
+  object GenusGraphMetadata extends BlockUtils {
     import OrientDbTyped.Instances._
 
+    // TODO: TSDK-274 Move util methods to BlockUtils
     // TODO: Rework to use model classes generated from protobuf definitions rather than those in the models project.
 
     /////////////////////////////////////////////////////////////////////////////////
@@ -111,10 +113,7 @@ package co.topl.genusLibrary.orientDb {
         GraphDataEncoder[BlockHeader]
           .withProperty(
             "blockId",
-            b => {
-              val (typePrefix, bytes) = TetraIdentifiableInstances.identifiableBlockHeader.idOf(b)
-              typedBytesTupleToByteArray((typePrefix, bytes.toArray))
-            },
+            b => getBlockId(b),
             _.setNotNull(true)
           )(byteArrayOrientDbTypes)
           .withProperty("parentHeaderId", p => typedBytesToByteArray(p.parentHeaderId), _.setNotNull(true))(
@@ -235,9 +234,6 @@ package co.topl.genusLibrary.orientDb {
     def byteArrayToBlockBody(a: Array[Byte]): BlockBody =
       decodeFromByteArray(a, TetraScodecCodecs.blockBodyCodec, "BlockBody")
 
-    def blockBodyToByteArray(blockBody: BlockBody): Array[Byte] =
-      encodeToByteArray(blockBody, TetraScodecCodecs.blockBodyCodec, "BlockBody")
-
     def typedBytesToByteArray(t: TypedIdentifier): Array[Byte] =
       typedBytesTupleToByteArray((t.typePrefix, t.dataBytes.toArray))
 
@@ -247,24 +243,6 @@ package co.topl.genusLibrary.orientDb {
     }
 
     def byteArrayToTypedBytesTuple(a: Array[Byte]): (TypePrefix, Array[TypePrefix]) = (a(0), a.drop(1))
-
-    def typedBytesTupleToByteArray(id: (TypePrefix, Array[Byte])): Array[Byte] = {
-      val a: Array[Byte] = new Array(1 + id._2.length)
-      a(0) = id._1
-      Array.copy(id._2, 0, a, 1, id._2.length)
-      a
-    }
-
-    private def encodeToByteArray[T <: java.io.Serializable](
-      scalaObject: T,
-      codec:       Codec[T],
-      typeName:    String
-    ): Array[Byte] =
-      codec
-        .encode(scalaObject)
-        .mapErr(err => throw GenusException(s"Error encoding $typeName: ${err.messageWithContext}"))
-        .require
-        .toByteArray
 
     private def decodeFromByteArray[T <: java.io.Serializable](a: Array[Byte], codec: Codec[T], typeName: String): T =
       codec
