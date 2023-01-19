@@ -1,8 +1,5 @@
 package co.topl.minting.interpreters
 
-import akka.NotUsed
-import akka.stream.OverflowStrategy
-import akka.stream.scaladsl.Source
 import cats.data.{Chain, OptionT}
 import cats.effect._
 import cats.implicits._
@@ -16,6 +13,8 @@ import co.topl.models._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
+
+import fs2._
 
 import scala.collection.immutable.ListSet
 
@@ -34,7 +33,7 @@ object BlockProducer {
    *                    when demanded.
    */
   def make[F[_]: Async: FToFuture](
-    parentHeaders: SourceMatNotUsed[SlotData],
+    parentHeaders: Stream[F, SlotData],
     staker:        StakingAlgebra[F],
     clock:         ClockAlgebra[F],
     blockPacker:   BlockPackerAlgebra[F]
@@ -43,7 +42,7 @@ object BlockProducer {
 
   private class Impl[F[_]: Async: FToFuture](
     stakerAddress: StakingAddresses.Operator,
-    parentHeaders: SourceMatNotUsed[SlotData],
+    parentHeaders: Stream[F, SlotData],
     staker:        StakingAlgebra[F],
     clock:         ClockAlgebra[F],
     blockPacker:   BlockPackerAlgebra[F]
@@ -52,11 +51,10 @@ object BlockProducer {
     implicit val logger: SelfAwareStructuredLogger[F] =
       Slf4jLogger.getLoggerFromClass[F](BlockProducer.getClass)
 
-    val blocks: F[Source[Block, NotUsed]] =
+    val blocks: F[Stream[F, Block]] =
       Sync[F].delay(
         parentHeaders
-          .buffer(1, OverflowStrategy.dropHead)
-          .via(AbandonerFlow(makeChild))
+          .through(AbandonerPipe(makeChild))
           .collect { case Some(block) => block }
       )
 
@@ -64,25 +62,31 @@ object BlockProducer {
      * Construct a new child Block of the given parent
      */
     private def makeChild(parentSlotData: SlotData): F[Option[Block]] =
-      for {
-        // From the given parent block, when are we next eligible to produce a new block?
-        nextHit <- nextEligibility(parentSlotData.slotId)
-        _ <- Logger[F].debug(
-          show"Packing block for parentId=${parentSlotData.slotId.blockId} parentSlot=${parentSlotData.slotId.slot} eligibilitySlot=${nextHit.slot}"
-        )
-        // Assemble the transactions to be placed in our new block
-        body      <- packBlock(parentSlotData.slotId.blockId, parentSlotData.height + 1, nextHit.slot)
-        timestamp <- clock.slotToTimestamps(nextHit.slot).map(_.last)
-        blockMaker = prepareUnsignedBlock(parentSlotData, body, timestamp, nextHit)
-        // Despite being eligible, there may not have a corresponding linear KES key if, for example, the node
-        // restarts in the middle of an operational period.  The node must wait until the next operational period
-        // to have a set of corresponding linear keys to work with
-        maybeBlock <- staker.certifyBlock(parentSlotData.slotId, nextHit.slot, blockMaker)
-        _ <- OptionT
-          .fromOption[F](maybeBlock)
-          .semiflatTap(block => Logger[F].info(show"Minted header=${block.header} body=${block.body}"))
-          .value
-      } yield maybeBlock
+      Async[F].onCancel(
+        for {
+          // From the given parent block, when are we next eligible to produce a new block?
+          nextHit <- nextEligibility(parentSlotData.slotId)
+          _ <- Logger[F].debug(
+            show"Packing block for" +
+            show" parentId=${parentSlotData.slotId.blockId}" +
+            show" parentSlot=${parentSlotData.slotId.slot}" +
+            show" eligibilitySlot=${nextHit.slot}"
+          )
+          // Assemble the transactions to be placed in our new block
+          body      <- packBlock(parentSlotData.slotId.blockId, parentSlotData.height + 1, nextHit.slot)
+          timestamp <- clock.slotToTimestamps(nextHit.slot).map(_.last)
+          blockMaker = prepareUnsignedBlock(parentSlotData, body, timestamp, nextHit)
+          // Despite being eligible, there may not have a corresponding linear KES key if, for example, the node
+          // restarts in the middle of an operational period.  The node must wait until the next operational period
+          // to have a set of corresponding linear keys to work with
+          maybeBlock <- staker.certifyBlock(parentSlotData.slotId, nextHit.slot, blockMaker)
+          _ <- OptionT
+            .fromOption[F](maybeBlock)
+            .semiflatTap(block => Logger[F].info(show"Minted header=${block.header} body=${block.body}"))
+            .value
+        } yield maybeBlock,
+        Async[F].defer(Logger[F].info(show"Abandoned block attempt on parentId=${parentSlotData.slotId.blockId}"))
+      )
 
     /**
      * Determine the staker's next eligibility based on the given parent
