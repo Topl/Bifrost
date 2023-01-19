@@ -28,7 +28,7 @@ class GraphTxDAOSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
 
       val request = leftFailure.pure[F]
 
-      val response = graphTxDao.withEffectfulTransaction(_ => request)
+      val response = graphTxDao.withEffectfulTransaction(request)
 
       assertIO(
         response,
@@ -56,7 +56,7 @@ class GraphTxDAOSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
           .returns(())
           .once()
 
-        val response = graphTxDao.withEffectfulTransaction(_ => request)
+        val response = graphTxDao.withEffectfulTransaction(request)
 
         assertIO(
           response,
@@ -77,7 +77,7 @@ class GraphTxDAOSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
         .returns(())
         .once()
 
-      val response = graphTxDao.withEffectfulTransaction(_ => request)
+      val response = graphTxDao.withEffectfulTransaction(request)
 
       assertIO(
         response,
