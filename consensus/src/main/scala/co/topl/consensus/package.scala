@@ -24,6 +24,10 @@ package object consensus {
       )
   }
 
+  /**
+   * TODO
+   * @param blockHeader helper for SlotData
+   */
   implicit class ConsensusBlockHeaderOps(blockHeader: co.topl.consensus.models.BlockHeader) {
 
     import co.topl.codecs.bytes.tetra.TetraIdentifiableInstances._

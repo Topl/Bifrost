@@ -164,15 +164,13 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
       ) =>
         withMock {
 
-          val blockBody: co.topl.node.models.BlockBody = co.topl.node.models.BlockBody.of(
+          val blockBody = co.topl.node.models.BlockBody.of(
             Seq(
               transactionId_01,
               transactionId_02,
               transactionId_03
             )
           )
-
-//          val transaction_01 = mock[co.topl.proto.models.Transaction]
 
           (toplRpc.blockIdAtHeight _)
             .expects(height)

@@ -199,21 +199,14 @@ object ToplGrpc {
     private[grpc] class GrpcServerImpl[F[_]: MonadThrow](interpreter: ToplRpc[F, Stream[F, *]])
         extends NodeRpcFs2Grpc[F, Metadata] {
 
-      def broadcastTransaction(in: BroadcastTransactionReq, ctx: Metadata): F[BroadcastTransactionRes] = ???
-//      def broadcastTransaction(in: BroadcastTransactionReq, ctx: Metadata): F[BroadcastTransactionRes] =
-//        in.transaction
-//          .toRight("Missing transaction")
-//          .toEitherT[F]
-//          .flatMapF(_.toF[F, bifrostModels.Transaction])
-//          .leftMap(err =>
-//            Status.INVALID_ARGUMENT
-//              .withDescription(s"Invalid Transaction bytes. reason=$err")
-//              .asException()
-//          )
-//          .rethrowT
-//          .flatMap(interpreter.broadcastTransaction)
-//          .as(BroadcastTransactionRes())
-//          .adaptErrorsToGrpc
+      def broadcastTransaction(in: BroadcastTransactionReq, ctx: Metadata): F[BroadcastTransactionRes] =
+        in.transaction
+          .toRight("Missing transaction")
+          .toEitherT[F]
+          .map(interpreter.broadcastTransaction)
+          .value
+          .as(BroadcastTransactionRes())
+          .adaptErrorsToGrpc
 
       def currentMempool(in: CurrentMempoolReq, ctx: Metadata): F[CurrentMempoolRes] =
         interpreter
