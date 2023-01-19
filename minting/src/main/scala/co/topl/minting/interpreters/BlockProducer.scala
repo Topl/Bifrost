@@ -48,7 +48,7 @@ object BlockProducer {
     blockPacker:   BlockPackerAlgebra[F]
   ) extends BlockProducerAlgebra[F] {
 
-    implicit val logger: SelfAwareStructuredLogger[F] =
+    implicit private val logger: SelfAwareStructuredLogger[F] =
       Slf4jLogger.getLoggerFromClass[F](BlockProducer.getClass)
 
     val blocks: F[Stream[F, Block]] =

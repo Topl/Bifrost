@@ -1,7 +1,8 @@
 package co.topl.catsakka
 
-import cats.data.OptionT
+import cats.data.EitherT
 import cats.effect.Async
+import cats.effect.kernel.Sync
 import cats.effect.std.Queue
 import cats.implicits._
 import fs2._
@@ -13,31 +14,32 @@ object AbandonerPipe {
    * produces a new value before the function `f` completes, then the `f` is cancelled and a new attempt is made on the
    * new upstream value.
    * @param f a function to evaluate.  May be cancelled.
-   * @tparam T input type
+   * @tparam I input type
    * @tparam O output type
    */
-  def apply[F[_]: Async, T, O](f: T => F[O]): Pipe[F, T, O] = {
-    def nextOut(current: T, nextIn: => F[Option[T]]): F[Option[O]] =
-      Async[F]
-        .race(f(current), nextIn)
-        .flatMap {
-          case Left(o)           => o.some.pure[F]
-          case Right(Some(next)) => nextOut(next, nextIn)
-          case Right(None)       => none[O].pure[F]
-        }
+  def apply[F[_]: Async, I, O](f: I => F[O]): Pipe[F, I, O] = {
+
+    /**
+     * Starts a race between:
+     *   - Dequeining next element from upstream
+     *   - Processing current element against `f`
+     * If upstream produces a new value first, then the current processing is cancelled.
+     * If the `f` function completes first, it returns its value
+     * @param current The current (most recent) value from upstream
+     * @param nextIn an effect which reads the next element from upstream, possibly waiting indefinitely
+     */
+    def nextOut(current: I, nextIn: => F[I]): F[O] =
+      EitherT(Async[F].race(nextIn, f(current)))
+        .valueOrF(nextOut(_, nextIn))
 
     in =>
       Stream
-        .eval(Queue.circularBuffer[F, Option[T]](1))
-        .flatMap { queue =>
+        .eval(Queue.unbounded[F, I])
+        .flatMap(queue =>
           Stream
-            .unfoldEval(queue)(queue =>
-              OptionT(queue.take)
-                .semiflatMap(nextOut(_, queue.take).tupleRight(queue))
-                .value
-            )
-            .unNoneTerminate
-            .concurrently(in.enqueueNoneTerminated(queue))
-        }
+            .constant[F, Unit](())
+            .evalMap(_ => queue.take.flatMap(nextOut(_, Sync[F].defer(queue.take))))
+            .mergeHaltR(in.enqueueUnterminated(queue))
+        )
   }
 }
