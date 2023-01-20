@@ -4,7 +4,7 @@ import cats.effect.kernel.Async
 import co.topl.genusLibrary.orientDb.wrapper.WrappedVertex
 import com.tinkerpop.blueprints.impls.orient.OrientGraphNoTx
 
-private[genusLibrary] trait DBFacade {
+private[genusLibrary] trait StoreFacade {
 
   type VertexTypeName = String
 

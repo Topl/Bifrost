@@ -6,7 +6,7 @@ import cats.implicits._
 import co.topl.genusLibrary.algebras.Mediator
 import co.topl.genusLibrary.failure.{Failure, Failures}
 import co.topl.genusLibrary.model.BlockData
-import co.topl.genusLibrary.orientDb.DBFacade
+import co.topl.genusLibrary.orientDb.StoreFacade
 import co.topl.genusLibrary.orientDb.GenusGraphMetadata._
 import co.topl.genusLibrary.utils.BlockUtils
 import co.topl.models.{BlockBody, BlockHeader}
@@ -14,15 +14,22 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scodec.bits.ByteVector
 
+/**
+ * Implementation of the Mediator. After each element insertion, the mediation should take place on the Store.
+ * For more information, refer to the Mediator trait.
+ * @param storeFacade Facade to interact with the store
+ * @param blockUtils Utils to retrieve different values from a block
+ * @tparam F the effect-ful context to retrieve the value in
+ */
 abstract class GraphMediator[F[_]: Async](
-  dbFacade:   DBFacade,
-  blockUtils: BlockUtils
+  storeFacade: StoreFacade,
+  blockUtils:  BlockUtils
 ) extends Mediator[F] {
 
   implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
 
   override def afterHeaderInserted(block: BlockData): F[Either[Failure, Unit]] = {
-    val graph = dbFacade.getGraph
+    val graph = storeFacade.getGraph
     graph.withEffectfulTransaction {
       (
         for {
@@ -57,7 +64,7 @@ abstract class GraphMediator[F[_]: Async](
 
   private def fetchCurrentHeaderVertex(header: BlockHeader) = {
     val blockId = blockUtils.getBlockId(header)
-    dbFacade
+    storeFacade
       .getVertexByField[F](
         blockHeaderSchema.name,
         "blockId",
@@ -72,7 +79,7 @@ abstract class GraphMediator[F[_]: Async](
 
   private def fetchPreviousHeaderVertex(header: BlockHeader) = {
     val blockId = blockUtils.getParentBlockId(header)
-    dbFacade
+    storeFacade
       .getVertexByField[F](
         blockHeaderSchema.name,
         "blockId",
@@ -87,7 +94,7 @@ abstract class GraphMediator[F[_]: Async](
 
   private def fetchBodyVertex(body: BlockBody) = {
     val transactions = blockUtils.blockBodyToByteArray(body)
-    dbFacade
+    storeFacade
       .getVertexByField[F](
         blockBodySchema.name,
         "transactionIds",

@@ -19,7 +19,7 @@ import scala.util.{Random, Success, Try}
 /**
  * This is a class to hide the details of interacting with OrientDB.
  */
-private[genusLibrary] class OrientDBFacade(dir: File, password: String) extends DBFacade {
+private[genusLibrary] class OrientDBFacade(dir: File, password: String) extends StoreFacade {
   import OrientDBFacade._
   logger.info("Starting OrientDB with DB server")
   private val dbUserName = "admin"

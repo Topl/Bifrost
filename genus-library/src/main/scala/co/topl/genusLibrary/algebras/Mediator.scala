@@ -6,6 +6,7 @@ import co.topl.genusLibrary.model.BlockData
 import co.topl.models.{BlockBody, Transaction}
 import co.topl.proto.models.TypedEvidence
 
+// TODO: TSDK-278 | Split into multiple traits
 /**
  * Mediator of content inserted to a data store. Based on the Mediator software design pattern.
  * For more information, refer to <a href="https://en.wikipedia.org/wiki/Mediator_pattern">Mediator pattern</a>

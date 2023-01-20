@@ -8,7 +8,7 @@ import co.topl.genusLibrary.failure.{Failure, Failures}
 import co.topl.genusLibrary.model.BlockData
 import co.topl.genusLibrary.orientDb.GenusGraphMetadata.{blockBodySchema, blockHeaderSchema}
 import co.topl.genusLibrary.orientDb.wrapper.{WrappedEdge, WrappedVertex}
-import co.topl.genusLibrary.orientDb.{DBFacade, GraphTxDAO}
+import co.topl.genusLibrary.orientDb.{GraphTxDAO, StoreFacade}
 import co.topl.genusLibrary.utils.BlockUtils
 import co.topl.models.ModelGenerators._
 import co.topl.models.{BlockBody, BlockHeader, Transaction}
@@ -28,7 +28,7 @@ class GraphMediatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
 
   implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
 
-  private val dbFacade = mock[DBFacade]
+  private val dbFacade = mock[StoreFacade]
   private val blockUtils = mock[BlockUtils]
 
   private val graphMediator = new GraphMediator[F](dbFacade, blockUtils) {
