@@ -82,7 +82,7 @@ class GraphTxDAO[F[_]: Async: Logger](wrappedGraph: GraphTxWrapper) {
     transactionalFun match {
       case Left(ex) =>
         Logger[F]
-          .error(s"Something went wrong with the transaction function, won't commit. Error=[$ex]")
+          .error(s"Something went wrong with the processed transaction, won't commit. Error=[$ex]")
           .as(ex.asLeft)
       case Right(value) =>
         Logger[F].info("Committing transaction") >>
