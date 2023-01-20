@@ -15,8 +15,6 @@ trait HeaderInserter[F[_]] {
    * @param block  the full block data for context reasons
    * @return unit
    */
-  def insert(
-    block: BlockData
-  ): F[Either[Failure, Unit]]
+  def insert(block: BlockData): F[Either[Failure, Unit]]
 
 }
