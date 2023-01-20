@@ -29,7 +29,11 @@ object ReplaceModelUtil {
 
   def consensusHeader(header: co.topl.models.BlockHeader): co.topl.consensus.models.BlockHeader =
     co.topl.consensus.models.BlockHeader(
-      parentHeaderId = ByteString.copyFrom(header.parentHeaderId.dataBytes.toArray),
+      parentHeaderId = Some(
+        co.topl.consensus.models.BlockId(
+          ByteString.copyFrom(header.parentHeaderId.dataBytes.toArray)
+        )
+      ),
       parentSlot = header.parentSlot,
       txRoot = ByteString.copyFrom(header.txRoot.data.toArray),
       bloomFilter = ByteString.copyFrom(header.bloomFilter.data.toArray),

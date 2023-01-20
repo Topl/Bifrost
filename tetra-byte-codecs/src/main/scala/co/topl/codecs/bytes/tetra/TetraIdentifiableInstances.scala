@@ -30,7 +30,7 @@ trait TetraIdentifiableInstances {
   implicit val identifiableConsensusBlockHeader: Identifiable[ConsensusBlockHeader] =
     (header: ConsensusBlockHeader) => {
       val bytes =
-        ByteVector(header.parentHeaderId.toByteArray) ++
+        ByteVector(header.parentHeaderId.map(_.value.toByteArray).getOrElse(Array.empty)) ++
         ByteVector(header.txRoot.toByteArray) ++
         ByteVector(header.bloomFilter.toByteArray) ++ Bytes(
           BigInt(header.timestamp).toByteArray

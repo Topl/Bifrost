@@ -66,8 +66,12 @@ package object models {
     def apply(prefix: TypePrefix, dataBytes: Bytes): TypedBytes =
       (prefix +: dataBytes).coerce
 
-    def headerFromProtobufString(bytesString: com.google.protobuf.ByteString): topl.models.TypedIdentifier =
-      TypedBytes(IdentifierTypes.Block.HeaderV2, ByteVector(bytesString.toByteArray))
+    def headerFromBlockId(blockId: Option[co.topl.consensus.models.BlockId]): topl.models.TypedIdentifier =
+      blockId
+        .map(_.value.toByteArray)
+        .map(ByteVector(_))
+        .map(byteVector => TypedBytes(IdentifierTypes.Block.HeaderV2, byteVector))
+        .getOrElse(TypedBytes(IdentifierTypes.Block.HeaderV2, ByteVector.empty))
 
     def ioTx32(ioTx32: co.topl.brambl.models.Identifier.IoTransaction32): topl.models.TypedIdentifier =
       TypedBytes.apply(

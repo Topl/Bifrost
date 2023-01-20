@@ -882,8 +882,14 @@ trait TetraScodecBlockCodecs {
         stakingAddressesOperatorCodec
     ).as[BlockHeader]
 
+  implicit val consensusBlockIdCodec: Codec[co.topl.consensus.models.BlockId] =
+    (
+      protobufByteStringCodec ::
+        unknownFieldSetCodec
+    ).as[co.topl.consensus.models.BlockId]
+
   implicit val consensusBlockHeaderCodec: Codec[ConsensusBlockHeader] = (
-    protobufByteStringCodec :: // parentHeaderId
+    optionCodec(consensusBlockIdCodec) :: // parentHeaderId
       longCodec :: // parentSlot
       protobufByteStringCodec :: // txRoot
       protobufByteStringCodec :: // bloomFilter
@@ -920,7 +926,7 @@ trait TetraScodecBlockCodecs {
 
   implicit val unsignedConsensusBlockHeaderCodec: Codec[BlockHeader.UnsignedConsensus] =
     (
-      protobufByteStringCodec ::
+      optionCodec(consensusBlockIdCodec) ::
         longCodec ::
         protobufByteStringCodec ::
         protobufByteStringCodec ::

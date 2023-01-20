@@ -13,8 +13,8 @@ object Dependencies {
   val fs2Version = "3.5-1c0be5c"
   val logback = "1.4.5"
 
-  val protobufSpecs =
-    "com.github.Topl" % "protobuf-specs" % "fed857c" // TODO update this
+  // Reference https://github.com/Topl/protobuf-specs/pull/23 2023-01-16T16:34:43Z
+  val protobufSpecs = "com.github.Topl" % "protobuf-specs" % "87dcd9d"
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.5.0"

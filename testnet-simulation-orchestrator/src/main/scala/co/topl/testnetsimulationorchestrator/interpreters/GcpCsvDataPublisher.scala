@@ -9,7 +9,7 @@ import com.google.cloud.storage._
 import co.topl.typeclasses.implicits._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.models.{Box, IdentifierTypes, TypedBytes}
+import co.topl.models.{Box, TypedBytes}
 import java.nio.charset.StandardCharsets
 import scodec.bits.ByteVector
 
@@ -100,7 +100,7 @@ object GcpCsvDataPublisher {
   private def blockDatumToRow(datum: BlockDatum): List[String] =
     List(
       datum.header.id.asTypedBytes.show,
-      TypedBytes(IdentifierTypes.Block.HeaderV2, ByteVector(datum.header.parentHeaderId.toByteArray)).show,
+      TypedBytes.headerFromBlockId(datum.header.parentHeaderId).show,
       datum.header.parentSlot.show,
       datum.header.timestamp.show,
       datum.header.height.show,

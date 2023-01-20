@@ -50,7 +50,7 @@ object BlockHeader {
   }
 
   case class UnsignedConsensus(
-    parentHeaderId:                com.google.protobuf.ByteString,
+    parentHeaderId:                Option[co.topl.consensus.models.BlockId],
     parentSlot:                    Slot,
     txRoot:                        com.google.protobuf.ByteString,
     bloomFilter:                   com.google.protobuf.ByteString,

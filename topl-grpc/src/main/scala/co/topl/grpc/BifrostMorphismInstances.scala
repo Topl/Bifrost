@@ -237,14 +237,30 @@ trait CommonBifrostMorphismInstances {
       )
     )
 
-  // TODO remove when this PR is merged : https://github.com/Topl/protobuf-specs/pull/21/files
-  def blockIdHeaderIsomorphism[F[_]: Monad]: Isomorphism[F, bifrostModels.TypedIdentifier, ByteString] =
+  def blockIdByteStringHeaderIsomorphism[F[_]: Monad]: Isomorphism[F, bifrostModels.TypedIdentifier, ByteString] =
     Isomorphism(
-      _.map(v => ByteString.copyFrom(v.dataBytes.toArray).asRight[String]),
-      _.map(v =>
+      _.map(typedIdentifier => ByteString.copyFrom(typedIdentifier.dataBytes.toArray).asRight[String]),
+      _.map(byteString =>
         Either.cond(
-          v.length == 32,
-          bifrostModels.TypedBytes(bifrostModels.IdentifierTypes.Block.HeaderV2, scodec.bits.ByteVector(v.toArray)),
+          byteString.length == 32,
+          bifrostModels
+            .TypedBytes(bifrostModels.IdentifierTypes.Block.HeaderV2, scodec.bits.ByteVector(byteString.toArray)),
+          "Invalid ID length"
+        )
+      )
+    )
+
+  implicit def blockIdHeaderIsomorphism[F[_]: Monad]
+    : Isomorphism[F, bifrostModels.TypedIdentifier, co.topl.consensus.models.BlockId] =
+    Isomorphism(
+      _.map(typedIdentifier =>
+        co.topl.consensus.models.BlockId(ByteString.copyFrom(typedIdentifier.dataBytes.toArray)).asRight[String]
+      ),
+      _.map(blockId =>
+        Either.cond(
+          blockId.value.size() == 32,
+          bifrostModels
+            .TypedBytes(bifrostModels.IdentifierTypes.Block.HeaderV2, scodec.bits.ByteVector(blockId.value.toArray)),
           "Invalid ID length"
         )
       )

@@ -178,7 +178,7 @@ object Blockchain {
       mintedBlockStreamCompletionF =
         mintedBlockStream
           .evalMap(block =>
-            blockIdTree.associate(block.header.id, TypedBytes.headerFromProtobufString(block.header.parentHeaderId)) >>
+            blockIdTree.associate(block.header.id, TypedBytes.headerFromBlockId(block.header.parentHeaderId)) >>
             headerStore.put(block.header.id, block.header) >>
             bodyStore.put(block.header.id, block.body) >>
             ed25519VrfResource

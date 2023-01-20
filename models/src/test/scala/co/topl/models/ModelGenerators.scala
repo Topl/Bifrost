@@ -211,7 +211,7 @@ trait ModelGenerators {
       address
     )
 
-  def headerConsensusGen(
+  def headerConsensusGen( // TODO move this Gen
     parentHeaderIdGen: Gen[TypedIdentifier] =
       genSizedStrictBytes[Lengths.`32`.type]().map(sized => TypedBytes(IdentifierTypes.Block.HeaderV2, sized.data)),
     parentSlotGen:             Gen[Slot] = Gen.chooseNum(0L, 50L),
@@ -239,7 +239,7 @@ trait ModelGenerators {
       metadata       <- metadataGen
       address        <- addressGen
     } yield co.topl.consensus.models.BlockHeader(
-      com.google.protobuf.ByteString.copyFrom(parentHeaderID.dataBytes.toArray),
+      Some(co.topl.consensus.models.BlockId(com.google.protobuf.ByteString.copyFrom(parentHeaderID.dataBytes.toArray))),
       parentSlot,
       com.google.protobuf.ByteString.copyFrom(txRoot.data.toArray),
       com.google.protobuf.ByteString.copyFrom(bloomFilter.data.toArray),

@@ -94,8 +94,8 @@ object BlockHeaderValidation {
         )
         .ensureOr(child =>
           BlockHeaderValidationFailures
-            .ParentMismatch(TypedBytes.headerFromProtobufString(child.parentHeaderId), parent.id)
-        )(id => TypedBytes.headerFromProtobufString(id.parentHeaderId) === parent.id)
+            .ParentMismatch(TypedBytes.headerFromBlockId(child.parentHeaderId), parent.id)
+        )(id => TypedBytes.headerFromBlockId(id.parentHeaderId) === parent.id)
         .ensureOr(child => BlockHeaderValidationFailures.NonForwardHeight(child.height, parent.height))(
           _.height === parent.height + 1
         )
@@ -123,7 +123,7 @@ object BlockHeaderValidation {
       EitherT
         .liftF(
           etaInterpreter.etaToBe(
-            SlotId(header.parentSlot, TypedBytes.headerFromProtobufString(header.parentHeaderId)),
+            SlotId(header.parentSlot, TypedBytes.headerFromBlockId(header.parentHeaderId)),
             header.slot
           )
         )
@@ -383,7 +383,7 @@ object BlockHeaderValidation {
               EitherT.pure[F, BlockHeaderValidationFailure](parent)
             else
               EitherT(
-                OptionT(blockHeaderStore.get(TypedBytes.headerFromProtobufString(parent.parentHeaderId)))
+                OptionT(blockHeaderStore.get(TypedBytes.headerFromBlockId(parent.parentHeaderId)))
                   .getOrElseF(
                     new IllegalStateException(s"Non-existent block header id=${parent.parentHeaderId}")
                       .raiseError[F, ConsensusBlockHeader]

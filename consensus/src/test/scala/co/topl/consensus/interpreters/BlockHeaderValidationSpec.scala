@@ -180,7 +180,7 @@ class BlockHeaderValidationSpec
             .unsafeRunSync()
 
         underTest.validate(child, parent).unsafeRunSync().left.value shouldBe BlockHeaderValidationFailures
-          .ParentMismatch(TypedBytes.headerFromProtobufString(child.parentHeaderId), parent.id)
+          .ParentMismatch(TypedBytes.headerFromBlockId(child.parentHeaderId), parent.id)
     }
   }
 

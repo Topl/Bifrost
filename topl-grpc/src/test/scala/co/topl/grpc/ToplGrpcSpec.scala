@@ -8,7 +8,7 @@ import co.topl.algebras.ToplRpc
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.node.services._
-import co.topl.proto.models
+import co.topl.consensus.models.BlockId
 import co.topl.models.ModelGenerators._
 import co.topl.models.TypedBytes
 import co.topl.models.generators.node.ModelGenerators.arbitraryNodeBody
@@ -56,8 +56,8 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
           .returning(header.some.pure[F])
 
         for {
-          protoId <- EitherT(headerId.toF[F, models.BlockId]).getOrElse(???)
-          res     <- underTest.fetchBlockHeader(FetchBlockHeaderReq(protoId.value), new Metadata())
+          protoId <- EitherT(headerId.toF[F, BlockId]).getOrElse(???)
+          res     <- underTest.fetchBlockHeader(FetchBlockHeaderReq(protoId.some), new Metadata())
           _ = assert(res.header.get == header)
         } yield ()
       }
@@ -72,7 +72,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
       for {
         e <- interceptIO[StatusException](
           underTest.fetchBlockHeader(
-            FetchBlockHeaderReq(models.BlockId(ByteString.EMPTY).value),
+            FetchBlockHeaderReq(BlockId(ByteString.EMPTY).some),
             new Metadata()
           )
         )
@@ -94,8 +94,8 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
           .returning(body.some.pure[F])
 
         for {
-          protoId <- EitherT(id.toF[F, models.BlockId]).getOrElse(???)
-          res     <- underTest.fetchBlockBody(FetchBlockBodyReq(protoId.value), new Metadata())
+          protoId <- EitherT(id.toF[F, BlockId]).getOrElse(???)
+          res     <- underTest.fetchBlockBody(FetchBlockBodyReq(protoId.some), new Metadata())
 
           protoBody = res.body.get
           _ = assert(protoBody == body)
@@ -111,7 +111,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
 
       for {
         e <- interceptIO[StatusException](
-          underTest.fetchBlockBody(FetchBlockBodyReq(ByteString.EMPTY), new Metadata())
+          underTest.fetchBlockBody(FetchBlockBodyReq(None), new Metadata())
         )
         _ = assert(e.getStatus.getCode == Status.Code.INVALID_ARGUMENT)
       } yield ()
@@ -171,7 +171,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
 
         for {
           res <- underTest.fetchBlockIdAtHeight(FetchBlockIdAtHeightReq(height), new Metadata())
-          proto = TypedBytes.headerFromProtobufString(res.blockId)
+          proto = TypedBytes.headerFromBlockId(res.blockId)
           _ = assert(blockId == proto)
         } yield ()
       }

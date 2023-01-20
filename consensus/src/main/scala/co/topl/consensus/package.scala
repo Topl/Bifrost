@@ -36,7 +36,7 @@ package object consensus {
     def slotData(implicit ed25519VRF: Ed25519VRF): SlotData =
       SlotData(
         SlotId(blockHeader.slot, blockHeader.id),
-        SlotId(blockHeader.parentSlot, TypedBytes.headerFromProtobufString(blockHeader.parentHeaderId)),
+        SlotId(blockHeader.parentSlot, TypedBytes.headerFromBlockId(blockHeader.parentHeaderId)),
         Rho(
           Sized.strictUnsafe(
             ed25519VRF.proofToHash(
