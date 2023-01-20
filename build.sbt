@@ -656,6 +656,6 @@ lazy val munitScalamock = project
     libraryDependencies ++= Dependencies.munitScalamock
   )
 
-addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; +test; it:compile")
-addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; +test; it:compile")
-addCommandAlias("checkPRTestQuick", s"; scalafixAll --check; scalafmtCheckAll; testQuick; it:compile")
+addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; coverage; +test; it:compile; coverageAggregate")
+addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; coverage; +test; it:compile; coverageAggregate")
+addCommandAlias("checkPRTestQuick", s"; scalafixAll --check; scalafmtCheckAll; coverage; testQuick; it:compile; coverageAggregate")
