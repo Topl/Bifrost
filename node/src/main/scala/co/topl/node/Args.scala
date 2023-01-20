@@ -4,6 +4,8 @@ import cats.Show
 import co.topl.common.application.{ContainsDebugFlag, ContainsUserConfigs}
 import mainargs._
 
+// $COVERAGE-OFF$
+
 @main
 case class Args(startup: Args.Startup, runtime: Args.Runtime)
 
@@ -97,3 +99,4 @@ object Args {
   implicit val argsContainsDebugFlag: ContainsDebugFlag[Args] =
     _.startup.debug.value
 }
+// $COVERAGE-ON$
