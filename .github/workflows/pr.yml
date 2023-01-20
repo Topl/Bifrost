@@ -31,7 +31,3 @@ jobs:
     uses: ./.github/workflows/_publish_test_results.yml
     if: always()
     needs: [sbt-integration-tests]
-
-  sonarqube-scan:
-    uses: ./.github/workflows/_sonarqube_scan.yml
-    needs: sbt-build

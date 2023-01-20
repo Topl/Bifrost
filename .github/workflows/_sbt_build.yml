@@ -73,6 +73,12 @@ jobs:
       - name: Compile and Test
         run: sbt checkPRTestQuick
 
+      - name: SonarCloud Scan
+        uses: sonarsource/sonarcloud-github-action@v1.8
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: 98381a55f2879dc320a80378e9d45b61f5b8f319
+
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v3
