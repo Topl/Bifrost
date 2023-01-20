@@ -57,8 +57,8 @@ package object userpool {
    * @return a future which contains the attestation map
    */
   def signFor(address: Address, keys: ActorRef[KeysActor.Command])(message: Array[Byte])(implicit
-    timeout:           Timeout,
-    materializer:      Materializer
+    timeout:      Timeout,
+    materializer: Materializer
   ): Future[ListMap[PublicKeyPropositionCurve25519, SignatureCurve25519]] =
     Source
       .single(message)
@@ -77,9 +77,9 @@ package object userpool {
    * @return a flow which takes in a list of addresses as input and outputs looping user behaviors
    */
   def createUsersFlow(actions: NonEmptyList[Action], keys: ActorRef[KeysActor.Command])(implicit
-    actorSystem:               ActorSystem,
-    networkPrefix:             NetworkPrefix,
-    requestModifier:           RequestModifier
+    actorSystem:     ActorSystem,
+    networkPrefix:   NetworkPrefix,
+    requestModifier: RequestModifier
   ): Flow[List[Address], List[(Address, Behavior[NotUsed])], NotUsed] =
     Flow[List[Address]]
       .map(users =>

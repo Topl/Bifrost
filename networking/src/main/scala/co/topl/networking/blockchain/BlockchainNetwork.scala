@@ -76,8 +76,8 @@ object BlockchainNetwork {
     } yield (p2pServer, clientFiber)
 
   private def handleNetworkClients[F[_]: Parallel: Async: Concurrent: Logger: FToFuture](
-    clients:         Source[BlockchainPeerClient[F], _],
-    clientHandler:   BlockchainClientHandler[F]
+    clients:       Source[BlockchainPeerClient[F], _],
+    clientHandler: BlockchainClientHandler[F]
   )(implicit system: ActorSystem[_]): F[Fiber[F, Throwable, Unit]] =
     Spawn[F].start(
       Async[F]

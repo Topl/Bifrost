@@ -25,7 +25,7 @@ import scala.language.implicitConversions
    * @return either a non-empty listt of SyntacticValidationFailures, or the given value T
    */
   def syntacticValidation(t: T)(implicit
-    networkPrefix:           NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): ValidatedNec[SyntacticValidationFailure, T]
 
   /**
@@ -46,7 +46,7 @@ trait SyntacticallyValidatableInstances {
 
     new SyntacticallyValidatable[PolyTransfer[P]] {
       override def syntacticValidation(t: PolyTransfer[P])(implicit
-        networkPrefix:                    NetworkPrefix
+        networkPrefix: NetworkPrefix
       ): ValidatedNec[SyntacticValidationFailure, PolyTransfer[P]] =
         delegate.syntacticValidation(t).map(_ => t)
 
@@ -64,7 +64,7 @@ trait SyntacticallyValidatableInstances {
 
     new SyntacticallyValidatable[ArbitTransfer[P]] {
       override def syntacticValidation(t: ArbitTransfer[P])(implicit
-        networkPrefix:                    NetworkPrefix
+        networkPrefix: NetworkPrefix
       ): ValidatedNec[SyntacticValidationFailure, ArbitTransfer[P]] =
         delegate.syntacticValidation(t).map(_ => t)
 
@@ -82,7 +82,7 @@ trait SyntacticallyValidatableInstances {
 
     new SyntacticallyValidatable[AssetTransfer[P]] {
       override def syntacticValidation(t: AssetTransfer[P])(implicit
-        networkPrefix:                    NetworkPrefix
+        networkPrefix: NetworkPrefix
       ): ValidatedNec[SyntacticValidationFailure, AssetTransfer[P]] =
         delegate.syntacticValidation(t).map(_ => t)
 
@@ -101,7 +101,7 @@ trait SyntacticallyValidatableInstances {
     new SyntacticallyValidatable[Transaction[T, P]] {
 
       override def syntacticValidation(
-        t:                      Transaction[T, P]
+        t: Transaction[T, P]
       )(implicit networkPrefix: NetworkPrefix): ValidatedNec[SyntacticValidationFailure, Transaction[T, P]] =
         t match {
           case transaction: TransferTransaction[TokenValueHolder, P] =>
@@ -130,7 +130,7 @@ class TransferTransactionSyntacticallyValidatable[T <: TokenValueHolder, P <: Pr
   implicit private val txSemigroup: Semigroup[TransferTransaction[T, P]] = (_, b) => b
 
   def syntacticValidation(tx: TransferTransaction[T, P])(implicit
-    networkPrefix:            NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): ValidatedNec[SyntacticValidationFailure, TransferTransaction[T, P]] =
     rawSyntacticValidation(tx).combine(attestationValidation(tx))
 
@@ -208,7 +208,7 @@ class TransferTransactionSyntacticallyValidatable[T <: TokenValueHolder, P <: Pr
   }
 
   private[transaction] def mintingIssuersValidation(tx: TransferTransaction[T, P])(implicit
-    networkPrefix:                                      NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): ValidatedNec[SyntacticValidationFailure, TransferTransaction[T, P]] =
     tx match {
       case _: AssetTransfer[_] if tx.minting =>
@@ -228,7 +228,7 @@ class TransferTransactionSyntacticallyValidatable[T <: TokenValueHolder, P <: Pr
     }
 
   private[transaction] def attestationValidation(tx: TransferTransaction[T, P])(implicit
-    networkPrefix:                                   NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): ValidatedNec[SyntacticValidationFailure, TransferTransaction[T, P]] =
     propositionSatisfiedValidation(tx)
       .combine(propositionEvidenceMatchValidation(tx))

@@ -14,7 +14,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll with InMemoryKeyRingTestHelp
   self: Suite =>
 
   def nodeViewValidChainTestInputs(
-    lengthOfChain:              Byte
+    lengthOfChain: Byte
   )(implicit protocolVersioner: ProtocolVersioner): TestIn = {
     val balancePerParticipant = Int.MaxValue
     val initialDifficulty = Long.MaxValue
@@ -65,7 +65,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll with InMemoryKeyRingTestHelp
   }
 
   def nodeViewGenesisOnlyTestInputs(
-    genesis:                    NxtConsensus.Genesis
+    genesis: NxtConsensus.Genesis
   )(implicit protocolVersioner: ProtocolVersioner): TestIn = {
     val historyComponents = generateHistory(genesis)
     val stateComponents = generateState(genesis.block)
@@ -85,7 +85,7 @@ trait NodeViewTestHelpers extends BeforeAndAfterAll with InMemoryKeyRingTestHelp
   }
 
   def generateState(genesisBlock: Block)(implicit
-    networkPrefix:                NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): NodeViewTestHelpers.AccessibleState = {
     val tbrStore = InMemoryKeyValueStore.empty
     val pbrStore = InMemoryKeyValueStore.empty

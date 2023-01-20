@@ -33,7 +33,7 @@ import scala.util.{Success, Try}
 class History(
   private[history] val storage: Storage,
   tineProcessor:                TineProcessor
-)(implicit networkPrefix:       NetworkPrefix, protocolVersioner: ProtocolVersioner)
+)(implicit networkPrefix: NetworkPrefix, protocolVersioner: ProtocolVersioner)
     extends GenericHistory[Block, BifrostSyncInfo, History]
     with AutoCloseable
     with Logging {
@@ -571,7 +571,7 @@ object History extends Logging {
   val GenesisParentId: ModifierId = ModifierId.genesisParentId
 
   def readOrGenerate(
-    settings:               AppSettings
+    settings: AppSettings
   )(implicit networkPrefix: NetworkPrefix, protocolVersioner: ProtocolVersioner): History = {
     val storage = {
 
@@ -594,7 +594,7 @@ object History extends Logging {
     apply(settings, storage)
   }
 
-  def apply(settings:  AppSettings, storage: Storage)(implicit
+  def apply(settings: AppSettings, storage: Storage)(implicit
     networkPrefix:     NetworkPrefix,
     protocolVersioner: ProtocolVersioner
   ): History = {

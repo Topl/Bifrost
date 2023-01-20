@@ -38,7 +38,7 @@ object EtaCalculation {
       slotsPerEpoch:      Long,
       blake2b256Resource: UnsafeResource[F, Blake2b256],
       blake2b512Resource: UnsafeResource[F, Blake2b512]
-    )(implicit cache:     CaffeineCache[F, Bytes, Eta])
+    )(implicit cache: CaffeineCache[F, Bytes, Eta])
         extends EtaCalculationAlgebra[F] {
 
       private val twoThirdsLength = slotsPerEpoch * 2 / 3

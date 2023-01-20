@@ -17,9 +17,9 @@ object AkkaSchedulerClock {
   object Eval {
 
     def make[F[_]: Monad: Async](
-      _slotLength:     FiniteDuration,
-      _slotsPerEpoch:  Long,
-      genesisTime:     Instant
+      _slotLength:    FiniteDuration,
+      _slotsPerEpoch: Long,
+      genesisTime:    Instant
     )(implicit system: ActorSystem[_]): ClockAlgebra[F] =
       new ClockAlgebra[F] {
 

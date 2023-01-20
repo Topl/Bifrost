@@ -17,17 +17,17 @@ import scala.util.{Failure, Success, Try}
  * @param context - ActorRef context
  */
 case class GjallarhornOfflineApiRoute(
-  settings:             RPCApiSettings,
-  applicationSettings:  ApplicationSettings,
-  keyManagerRef:        ActorRef,
-  walletManagerRef:     ActorRef
+  settings:            RPCApiSettings,
+  applicationSettings: ApplicationSettings,
+  keyManagerRef:       ActorRef,
+  walletManagerRef:    ActorRef
 )(implicit val context: ActorRefFactory)
     extends ApiRoute {
 
   // Establish the expected network prefix for addresses
   implicit val netPrefix: NetworkPrefix = networkPrefix
 
-  //The namespace for the endpoints defined in handlers
+  // The namespace for the endpoints defined in handlers
   val namespace: Namespace = WalletNamespace
 
   // partial function for identifying local method handlers exposed by the api
@@ -36,7 +36,7 @@ case class GjallarhornOfflineApiRoute(
       createRawTransaction(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_signTx" => signTx(params.head, id)
 
-    //Get information about state
+    // Get information about state
     case (method, params, id) if method == s"${namespace.name}_balances"        => balances(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_getWalletBoxes"  => getWalletBoxes(id)
     case (method, params, id) if method == s"${namespace.name}_getCurrentState" => getCurrentState(params.head, id)
@@ -260,7 +260,7 @@ case class GjallarhornOfflineApiRoute(
       data              <- p.get[Option[String]]("data")
     } yield {
 
-      //TODO: what should assetCode version be?
+      // TODO: what should assetCode version be?
       val assetCode = Try(AssetCode(1.toByte, issuer, shortName)) match {
         case Success(code) => code
         case Failure(ex)   => throw new Exception(s"Unable to generate asset code: $ex")
@@ -658,15 +658,15 @@ object GjallarhornOfflineApiRoute {
    * @param newValue the new value for the given setting
    */
   def updateConfigFile(settingName: String, oldValue: String, newValue: String): Unit = {
-    //grab config file to write to
-    //TODO: should this path be hardcoded?
+    // grab config file to write to
+    // TODO: should this path be hardcoded?
     val path = "gjallarhorn/src/main/resources/application.conf"
     val configFile: File = new File(path)
     if (!configFile.exists()) {
       throw new Error(s"The config file: $path does not exist!")
     }
 
-    //find line that defines settingName and edit it so that it is set to the new value
+    // find line that defines settingName and edit it so that it is set to the new value
     var lines: Array[String] = Array.empty
     val reader = new BufferedReader(new FileReader(configFile))
     var line: String = ""

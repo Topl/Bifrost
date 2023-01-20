@@ -42,7 +42,7 @@ object BlockchainClientHandler {
       blockHeights:     EventSourcedState[F, TypedIdentifier, Long => F[Option[TypedIdentifier]]],
       localChain:       LocalChainAlgebra[F],
       slotDataStore:    StoreReader[F, TypedIdentifier, SlotData]
-    )(implicit system:  ActorSystem[_]): F[BlockchainClientHandler[F]] =
+    )(implicit system: ActorSystem[_]): F[BlockchainClientHandler[F]] =
       Sync[F].delay(
         (
           client =>
@@ -137,7 +137,7 @@ object BlockchainClientHandler {
       bodyStore:        Store[F, TypedIdentifier, BlockBodyV2],
       transactionStore: Store[F, TypedIdentifier, Transaction],
       blockIdTree:      ParentChildTree[F, TypedIdentifier]
-    )(id:               TypedIdentifier) =
+    )(id: TypedIdentifier) =
       for {
         _ <-
           client.remotePeer.flatMap(peer =>
@@ -168,7 +168,7 @@ object BlockchainClientHandler {
       client:      BlockchainPeerClient[F],
       headerStore: Store[F, TypedIdentifier, BlockHeaderV2],
       blockIdTree: ParentChildTree[F, TypedIdentifier]
-    )(id:          TypedIdentifier) =
+    )(id: TypedIdentifier) =
       OptionT(headerStore.get(id))
         .orElse(
           OptionT
@@ -204,7 +204,7 @@ object BlockchainClientHandler {
     private def fetchBody[F[_]: Async: Concurrent: Logger: FToFuture](
       client:    BlockchainPeerClient[F],
       bodyStore: Store[F, TypedIdentifier, BlockBodyV2]
-    )(id:        TypedIdentifier) =
+    )(id: TypedIdentifier) =
       OptionT(bodyStore.get(id))
         .orElse(
           OptionT

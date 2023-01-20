@@ -43,7 +43,7 @@ object GenusProgram {
     ip:                 String,
     port:               Int,
     apiKeyHash:         Option[Base58Data]
-  )(implicit system:    ActorSystem): F[Unit] =
+  )(implicit system: ActorSystem): F[Unit] =
     for {
       handlers <-
         ServiceHandler

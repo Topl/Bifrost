@@ -39,7 +39,7 @@ case class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem, 
     )
 
   def run[Params: Encoder, Result: Decoder](rpc: Rpc[Params, Result])(
-    params:                                      Params
+    params: Params
   )(implicit
     futureAwaiter: Future[Either[RpcClientFailure, Result]] => Either[RpcClientFailure, Result]
   ): Either[RpcClientFailure, Result] =
@@ -56,7 +56,7 @@ case class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem, 
     ).value
 
   def pollUntilHeight(targetHeight: Int128, period: FiniteDuration = 200.milli)(implicit
-    scheduler:                      Scheduler
+    scheduler: Scheduler
   ): Future[Either[RpcError, Done]] =
     Source
       .tick(Duration.Zero, period, {})
@@ -68,7 +68,7 @@ case class NodeRpcApi(host: String, rpcPort: Int)(implicit system: ActorSystem, 
       .runWith(Sink.head)
 
   def pollForTransaction(transactionId: ModifierId, timeout: FiniteDuration = 20.seconds)(implicit
-    scheduler:                          Scheduler
+    scheduler: Scheduler
   ): EitherT[Future, RpcClientFailure, TransactionById.Response] =
     Retry(
       () => ToplRpc.NodeView.TransactionById.rpc.call.apply(ToplRpc.NodeView.TransactionById.Params(transactionId)),

@@ -16,13 +16,13 @@ abstract class TransferTransaction[
   +T <: TokenValueHolder,
   P <: Proposition
 ](
-  val from:                        IndexedSeq[(Address, Box.Nonce)],
-  val to:                          IndexedSeq[(Address, T)],
-  val attestation:                 ListMap[P, Proof[P]],
-  val fee:                         Int128,
-  val timestamp:                   Long,
-  val data:                        Option[Latin1Data],
-  val minting:                     Boolean
+  val from:        IndexedSeq[(Address, Box.Nonce)],
+  val to:          IndexedSeq[(Address, T)],
+  val attestation: ListMap[P, Proof[P]],
+  val fee:         Int128,
+  val timestamp:   Long,
+  val data:        Option[Latin1Data],
+  val minting:     Boolean
 )(implicit val evidenceProducerEv: EvidenceProducer[P], identifiableEv: Identifiable[P])
     extends Transaction[TokenValueHolder, P] {
 

@@ -56,15 +56,15 @@ object Credential {
     case class Ed25519(
       sk:                  SecretKeys.Ed25519,
       unprovenTransaction: Transaction.Unproven
-    )(implicit ed25519:    co.topl.crypto.signing.Ed25519)
+    )(implicit ed25519: co.topl.crypto.signing.Ed25519)
         extends Credential {
       val proposition: Proposition = sk.vk.asProposition
       def prove(currentProof: Proof): Proof = (sk, unprovenTransaction).asProof
     }
 
     case class ExtendedEd25519(
-      sk:                       SecretKeys.ExtendedEd25519,
-      unprovenTransaction:      Transaction.Unproven
+      sk:                  SecretKeys.ExtendedEd25519,
+      unprovenTransaction: Transaction.Unproven
     )(implicit extendedEd25519: co.topl.crypto.signing.ExtendedEd25519)
         extends Credential {
       val proposition: Proposition = sk.vk.asProposition

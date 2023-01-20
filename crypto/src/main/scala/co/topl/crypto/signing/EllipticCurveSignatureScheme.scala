@@ -18,7 +18,7 @@ abstract class EllipticCurveSignatureScheme[SK <: SecretKey, VK <: VerificationK
   val KeyLength: Int
 
   def createKeyPair(entropy: Entropy, password: Option[Password])(implicit
-    entropyToSeed:           EntropyToSeed[SeedLength] = EntropyToSeed.instances.pbkdf2Sha512[SeedLength]
+    entropyToSeed: EntropyToSeed[SeedLength] = EntropyToSeed.instances.pbkdf2Sha512[SeedLength]
   ): (SK, VK) = {
     val seed = entropyToSeed.toSeed(entropy, password)
     createKeyPair(seed)

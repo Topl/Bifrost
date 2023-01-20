@@ -8,7 +8,7 @@ import scala.language.implicitConversions
 package object util {
 
   implicit def nodeToRpcApi(
-    node:            BifrostDockerNode
+    node: BifrostDockerNode
   )(implicit system: ActorSystem, dockerClient: DockerClient): NodeRpcApi =
     NodeRpcApi(node)
 

@@ -26,7 +26,7 @@ class DionTransactionOpsSpec
     with ScalaCheckDrivenPropertyChecks {
 
   private def inputGen(
-    fromPublicKeys:         List[PublicKey]
+    fromPublicKeys: List[PublicKey]
   )(implicit networkPrefix: NetworkPrefix): Gen[List[(Address, Box.Nonce)]] =
     Gen
       .listOfN(fromPublicKeys.length, Gen.long)
@@ -41,7 +41,7 @@ class DionTransactionOpsSpec
       .map(list => ListMap(list: _*))
 
   def txGen(
-    fromPublicKeys:         List[PublicKey]
+    fromPublicKeys: List[PublicKey]
   )(implicit networkPrefix: NetworkPrefix): Gen[PolyTransfer[PublicKeyPropositionEd25519]] =
     polyTransferEd25519Gen.flatMap(transfer =>
       Gen

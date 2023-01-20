@@ -78,7 +78,7 @@ object AppSettings extends Logging with SettingsReaders {
         log.info(userConfigFileOpt.toString + " " + networkConfigFileOpt.toString)
         log.warn("No custom setting specified, using default configuration")
         None
-      //ConfigFactory.load()
+      // ConfigFactory.load()
     }
   }
 

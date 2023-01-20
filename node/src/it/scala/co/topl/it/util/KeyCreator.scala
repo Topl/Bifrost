@@ -12,7 +12,7 @@ object KeyCreator extends Logging {
   def randomString(length: Int): String = scala.util.Random.alphanumeric.take(length).mkString
 
   def generateKeys(num: Int, seed: Option[String], pass: => String, dir: String)(implicit
-    networkPrefix:      NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): Try[Set[(Address, String)]] =
     // generate a new random key pair and save to disk
     KeyRing

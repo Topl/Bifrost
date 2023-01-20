@@ -27,10 +27,10 @@ import scala.util.{Failure, Success, Try}
  * @param tcpManager a reference to the manager actor for the Tcp IO extension
  */
 class NetworkController(
-  settings:              AppSettings,
-  peerManagerRef:        ActorRef,
-  appContext:            AppContext,
-  tcpManager:            ActorRef
+  settings:       AppSettings,
+  peerManagerRef: ActorRef,
+  appContext:     AppContext,
+  tcpManager:     ActorRef
 )(implicit timeProvider: TimeProvider)
     extends Actor
     with Logging {
@@ -608,10 +608,10 @@ object NetworkController {
 object NetworkControllerRef {
 
   def props(
-    settings:              AppSettings,
-    peerManagerRef:        ActorRef,
-    appContext:            AppContext,
-    tcpManager:            ActorRef
+    settings:       AppSettings,
+    peerManagerRef: ActorRef,
+    appContext:     AppContext,
+    tcpManager:     ActorRef
   )(implicit timeProvider: TimeProvider): Props =
     Props(new NetworkController(settings, peerManagerRef, appContext, tcpManager))
 }

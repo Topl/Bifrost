@@ -27,12 +27,12 @@ import org.typelevel.log4cats.Logger
 object BlockchainPeerConnectionFlowFactory {
 
   def make[F[_]: Async: Logger: FToFuture](peerServer: BlockchainPeerServer[F])(implicit
-    materializer:                                      Materializer
+    materializer: Materializer
   ): (ConnectedPeer, ConnectionLeader) => F[Flow[ByteString, ByteString, BlockchainPeerClient[F]]] =
     createFactory(peerServer).multiplexed
 
   private[blockchain] def createFactory[F[_]: Async: Logger: FToFuture](protocolServer: BlockchainPeerServer[F])(
-    implicit materializer:                                                              Materializer
+    implicit materializer: Materializer
   ): TypedProtocolSetFactory[F, BlockchainPeerClient[F]] = {
     val blockAdoptionRecipF =
       TypedProtocolSetFactory.CommonProtocols.notificationReciprocated(
@@ -85,8 +85,8 @@ object BlockchainPeerConnectionFlowFactory {
         blockchainProtocolClient = new BlockchainPeerClient[F] {
           val remotePeer: F[ConnectedPeer] = connectedPeer.pure[F]
           val remotePeerAdoptions: F[Source[TypedIdentifier, NotUsed]] = remoteBlockIdsSource.pure[F]
-          def getRemoteHeader(id: TypedIdentifier): F[Option[BlockHeaderV2]] = headerReceivedCallback(id)
-          def getRemoteBody(id: TypedIdentifier): F[Option[BlockBodyV2]] = bodyReceivedCallback(id)
+          def getRemoteHeader(id:      TypedIdentifier): F[Option[BlockHeaderV2]] = headerReceivedCallback(id)
+          def getRemoteBody(id:        TypedIdentifier): F[Option[BlockBodyV2]] = bodyReceivedCallback(id)
           def getRemoteTransaction(id: TypedIdentifier): F[Option[Transaction]] = transactionReceivedCallback(id)
           def getRemoteBlockIdAtHeight(
             height:       Long,

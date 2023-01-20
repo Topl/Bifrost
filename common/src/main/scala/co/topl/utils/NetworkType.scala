@@ -15,7 +15,7 @@ object NetworkType {
 
   lazy val all: Seq[NetworkType] = Seq(Mainnet, ValhallaTestnet, HelTestnet, PrivateTestnet)
 
-  def pickNetworkType(name: String): Option[NetworkType] = all.find(_.verboseName == name)
+  def pickNetworkType(name:          String): Option[NetworkType] = all.find(_.verboseName == name)
   def pickNetworkType(networkPrefix: NetworkPrefix): Option[NetworkType] = all.find(_.netPrefix == networkPrefix)
 
   case object Mainnet extends NetworkType("toplnet", 1.toByte)

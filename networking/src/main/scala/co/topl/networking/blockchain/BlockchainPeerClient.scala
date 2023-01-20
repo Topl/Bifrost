@@ -56,7 +56,7 @@ trait BlockchainPeerClient[F[_]] {
   def findCommonAncestor(
     getLocalBlockIdAtHeight: Long => F[TypedIdentifier],
     currentHeight:           () => F[Long]
-  )(implicit syncF:          Sync[F], loggerF: Logger[F]): F[TypedIdentifier] =
+  )(implicit syncF: Sync[F], loggerF: Logger[F]): F[TypedIdentifier] =
     Sync[F]
       .defer(
         for {
@@ -85,7 +85,7 @@ trait BlockchainPeerClient[F[_]] {
     getLocal:          Long => F[T],
     getRemote:         (Long, Option[T]) => F[Option[T]],
     searchSpaceTarget: Ratio
-  )(implicit monadF:   Monad[F], loggerF: Logger[F]): (Long, Long) => F[Option[T]] = {
+  )(implicit monadF: Monad[F], loggerF: Logger[F]): (Long, Long) => F[Option[T]] = {
     lazy val f: (Long, Long, Option[T]) => F[Option[T]] = (min, max, ifNone) =>
       Logger[F].debug(show"Recursing common ancestor search in bounds=($min, $max)") >>
       (min === max)

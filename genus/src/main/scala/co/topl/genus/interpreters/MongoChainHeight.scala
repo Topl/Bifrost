@@ -38,12 +38,12 @@ object MongoChainHeight {
    * @return a new instance of [[ChainHeight]]
    */
   def make[F[_]: Async: *[_] ~> Future](store: MongoStore[F])(implicit
-    materializer:                              Materializer,
-    executionContext:                          ExecutionContext
+    materializer:     Materializer,
+    executionContext: ExecutionContext
   ): ChainHeight[F] = new Impl[F](store)
 
   private class Impl[F[_]: Async: *[_] ~> Future](store: MongoStore[F])(implicit
-    materializer:                                        Materializer
+    materializer: Materializer
   ) extends ChainHeight[F] {
 
     // asks the tracker for the current chain height

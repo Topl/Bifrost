@@ -13,7 +13,7 @@ import scala.language.implicitConversions
 class QueryServiceOps[F[_], T](private val value: QueryService[F, T]) extends AnyVal {
 
   def queryAsList[Filter: MongoFilter: WithMaxBlockHeight, Sort: MongoSort](
-    request:         QueryRequest[Filter, Sort]
+    request: QueryRequest[Filter, Sort]
   )(implicit asyncF: Async[F], materializer: Materializer): EitherT[F, QueryFailure, List[T]] =
     for {
       querySource <- value.query(request)

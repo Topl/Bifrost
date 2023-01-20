@@ -44,7 +44,7 @@ object CredentialIO {
     implicit class TOps[T](t: T) {
 
       def save[F[_]](
-        password:                  Password
+        password: Password
       )(implicit containsEvidence: ContainsEvidence[T], codec: Persistable[T], credentialIO: CredentialIO[F]): F[Unit] =
         credentialIO.write(t.typedEvidence, Bytes(t.persistedBytes), password)
     }

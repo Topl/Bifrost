@@ -36,7 +36,7 @@ import scala.util.Random
 object ConnectionLeaderFlow {
 
   def apply[Mat](
-    f:               ConnectionLeader => Flow[ByteString, ByteString, Mat]
+    f: ConnectionLeader => Flow[ByteString, ByteString, Mat]
   )(implicit random: Random): Flow[ByteString, ByteString, Future[Mat]] =
     Flow
       .fromMaterializer { (_, _) =>

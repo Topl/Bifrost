@@ -41,7 +41,7 @@ case class BoxState(
   protected val storage:                 KeyValueStore,
   private[state] val tokenBoxRegistry:   TokenBoxRegistry,
   private[state] val programBoxRegistry: ProgramBoxRegistry
-)(implicit networkPrefix:                NetworkPrefix)
+)(implicit networkPrefix: NetworkPrefix)
     extends MinimalBoxState[Block, BoxState]
     with StoreInterface
     with Logging
@@ -250,7 +250,7 @@ case class BoxState(
    * @return
    */
   def semanticValidate(transaction: Transaction.TX)(implicit
-    networkPrefix:                  NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): ValidatedNec[SemanticValidationFailure, Transaction.TX] =
     transaction.semanticValidation(getReader)
 }
@@ -295,10 +295,10 @@ object BoxState extends Logging {
   }
 
   def apply(
-    settings:               AppSettings,
-    storage:                KeyValueStore,
-    tokenBoxRegistry:       TokenBoxRegistry,
-    programBoxRegistry:     ProgramBoxRegistry
+    settings:           AppSettings,
+    storage:            KeyValueStore,
+    tokenBoxRegistry:   TokenBoxRegistry,
+    programBoxRegistry: ProgramBoxRegistry
   )(implicit networkPrefix: NetworkPrefix): BoxState = {
     val version: ModifierId =
       storage

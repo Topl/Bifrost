@@ -120,9 +120,9 @@ object PeerSynchronizer {
 object PeerSynchronizerRef {
 
   def props(
-    networkControllerRef:  ActorRef,
-    peerManager:           ActorRef,
-    settings:              AppSettings
+    networkControllerRef: ActorRef,
+    peerManager:          ActorRef,
+    settings:             AppSettings
   )(implicit timeProvider: TimeProvider): Props =
     Props(new PeerSynchronizer(networkControllerRef, peerManager, settings))
 

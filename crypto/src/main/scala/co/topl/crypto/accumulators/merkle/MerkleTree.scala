@@ -16,7 +16,7 @@ import scala.collection.mutable
 class MerkleTree[H, D: Digest](
   topNode:           Option[Node[D]],
   elementsHashIndex: Map[Bytes, Int]
-)(implicit h:        Hash[H, D]) {
+)(implicit h: Hash[H, D]) {
 
   private lazy val emptyRootHash: D = Digest[D].empty
 

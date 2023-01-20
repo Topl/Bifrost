@@ -127,8 +127,8 @@ object NxtLeaderElection {
    * @return an eligible box if one is found
    */
   private[consensus] def getEligibleBox(
-    hitForBox:          ArbitBox => BigInt,
-    thresholdForBox:    ArbitBox => BigInt
+    hitForBox:       ArbitBox => BigInt,
+    thresholdForBox: ArbitBox => BigInt
   )(arbitBoxesIterator: Iterator[ArbitBox]): Either[IneligibilityReason, ArbitBox] =
     // This is ugly iterable/procedural code, but the goal is lazy traversal to avoid fetching all boxes for
     // all addresses when we're only looking for the _first_ valid candidate

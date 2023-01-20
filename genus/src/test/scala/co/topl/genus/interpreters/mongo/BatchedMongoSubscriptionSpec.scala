@@ -121,7 +121,7 @@ object BatchedMongoSubscriptionSpec {
    * @return a future containing a list of elements emitted by the source
    */
   def sourceIOToList[T, Mat](
-    sourceIO:           IO[Source[T, Mat]]
+    sourceIO: IO[Source[T, Mat]]
   )(implicit ioRuntime: IORuntime, materializer: Materializer, executionContext: ExecutionContext): Future[List[T]] =
     sourceIO
       .map(source => source.runWith(Sink.seq[T]))

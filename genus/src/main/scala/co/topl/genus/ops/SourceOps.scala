@@ -19,7 +19,7 @@ final class SourceOps[T, Mat](val source: Source[T, Mat]) {
    *         does not complete before the given timeout
    */
   def collectWithTimeout[F[_]: Async: MonadThrow](timeout: FiniteDuration)(implicit
-    materializer:                                          Materializer
+    materializer: Materializer
   ): F[Seq[T]] =
     Async[F].fromFuture(
       MonadThrow[F]

@@ -62,8 +62,8 @@ trait RpcDirectives {
     }
 
   def rpcRoute[RpcParams: Decoder, SuccessResult: Encoder](
-    method:                    String,
-    handler:                   Rpc.ServerHandler[RpcParams, SuccessResult]
+    method:  String,
+    handler: Rpc.ServerHandler[RpcParams, SuccessResult]
   )(implicit throwableEncoder: Encoder[ThrowableData]): Route =
     rpcContextWithParams[RpcParams](method).tapply { case (context, params) =>
       implicit val c: RpcContext = context
@@ -77,7 +77,7 @@ trait RpcDirectives {
     }
 
   def rpcContextWithParams[RpcParams: Decoder](
-    method:                    String
+    method: String
   )(implicit throwableEncoder: Encoder[ThrowableData]): Directive[(RpcContext, RpcParams)] =
     rpcContext.flatMap(ctx => filterRpcMethod(method)(ctx).tmap(_ => ctx)).flatMap { implicit ctx =>
       rpcParameters[RpcParams].map((ctx, _))
@@ -90,7 +90,7 @@ trait RpcDirectives {
     complete(rawRpcResponse)
 
   def completeRpc(
-    error:               RpcError
+    error: RpcError
   )(implicit rpcContext: RpcContext, throwableEncoder: Encoder[ThrowableData]): StandardRoute =
     completeRpc(rpcErrorToFailureResponse(rpcContext, error))
 
@@ -124,7 +124,7 @@ trait RpcDirectives {
       )
 
   private def rpcErrorToFailureResponseUnknownContext(
-    error:                     RpcError
+    error: RpcError
   )(implicit throwableEncoder: Encoder[ThrowableData]): FailureRpcResponse =
     FailureRpcResponse(
       UUID.randomUUID().toString,
@@ -133,7 +133,7 @@ trait RpcDirectives {
     )
 
   private def rpcErrorToFailureResponse(request: RpcContext, error: RpcError)(implicit
-    throwableEncoder:                            Encoder[ThrowableData]
+    throwableEncoder: Encoder[ThrowableData]
   ): FailureRpcResponse =
     FailureRpcResponse(
       request.id,

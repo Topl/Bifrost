@@ -656,16 +656,16 @@ object BlockHeaderValidationSpec {
   // Note: These methods are in the companion object because `digest.Digest32#value` conflicts with a ScalaTest member
 
   def validRegistration(
-    vkVrf:               VerificationKeys.VrfEd25519,
-    poolVK:              VerificationKeys.Ed25519,
-    skKes:               SecretKeys.KesProduct
+    vkVrf:  VerificationKeys.VrfEd25519,
+    poolVK: VerificationKeys.Ed25519,
+    skKes:  SecretKeys.KesProduct
   )(implicit kesProduct: KesProduct): Box.Values.TaktikosRegistration = {
     val commitmentMessage = Bytes(blake2b256.hash((vkVrf.bytes.data ++ poolVK.bytes.data).toArray).value)
     Box.Values.TaktikosRegistration(kesProduct.sign(skKes, commitmentMessage))
   }
 
   def validAddress(paymentSK: SecretKeys.Ed25519, poolVK: VerificationKeys.Ed25519)(implicit
-    ed25519:                  Ed25519
+    ed25519: Ed25519
   ): TaktikosAddress = {
     val paymentVerificationKey = ed25519.getVerificationKey(paymentSK)
     TaktikosAddress(

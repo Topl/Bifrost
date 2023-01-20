@@ -90,12 +90,12 @@ case class CustomError(code: Int, message: String, data: Json = Json.Null) exten
 object CustomError {
 
   def fromThrowable(throwable: Throwable)(implicit
-    throwableEncoder:          Encoder[ThrowableData]
+    throwableEncoder: Encoder[ThrowableData]
   ): CustomError =
     CustomError(-32099, "Unknown server error", ThrowableData(throwable).asJson)
 
   def fromThrowable(code: Int, message: String, throwable: Throwable)(implicit
-    throwableEncoder:     Encoder[ThrowableData]
+    throwableEncoder: Encoder[ThrowableData]
   ): CustomError =
     CustomError(code, message, ThrowableData(throwable).asJson)
 }

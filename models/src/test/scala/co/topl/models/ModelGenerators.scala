@@ -234,7 +234,7 @@ trait ModelGenerators {
   def byteGen: Gen[Byte] = Gen.choose[Byte](Byte.MinValue, Byte.MaxValue)
 
   def genSizedMaxBytes[L <: Length](
-    byteGen:    Gen[Byte] = Gen.choose[Byte](0, 32)
+    byteGen: Gen[Byte] = Gen.choose[Byte](0, 32)
   )(implicit l: L): Gen[Sized.Max[Bytes, L]] =
     Gen
       .containerOfN[Array, Byte](l.value, byteGen)
@@ -242,7 +242,7 @@ trait ModelGenerators {
       .map(Sized.max[Bytes, L](_).toOption.get)
 
   def genSizedStrictBytes[L <: Length](
-    byteGen:    Gen[Byte] = Gen.choose[Byte](0, 32)
+    byteGen: Gen[Byte] = Gen.choose[Byte](0, 32)
   )(implicit l: L): Gen[Sized.Strict[Bytes, L]] =
     Gen
       .containerOfN[Array, Byte](l.value, byteGen)
