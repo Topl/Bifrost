@@ -1,7 +1,7 @@
 package co.topl.testnetsimulationorchestrator.app
 
 import cats.Applicative
-import cats.data.OptionT
+import cats.data.{EitherT, OptionT}
 import cats.effect._
 import cats.effect.std.Random
 import cats.implicits._
@@ -22,7 +22,6 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.typeclasses.implicits._
-
 import scala.concurrent.duration._
 
 object Orchestrator
@@ -131,13 +130,13 @@ object Orchestrator
           .parEvalMap[F, TransactionDatum](Runtime.getRuntime.availableProcessors()) { case (transactionId, node) =>
             OptionT(nodes(node).fetchTransaction(transactionId))
               // TODO TransactionDatum model should change to new protobuf specs and not use Isomorphism
-              .map(transaction =>
+              .flatMapF(transaction =>
                 co.topl.grpc
-                  .transactionIsomorphism[cats.Id]
+                  .transactionIsomorphism[F]
                   .baMorphism
-                  .aToB(transaction.pure[cats.Id])
-                  .toOption
-                  .getOrElse(throw new RuntimeException("transactionIsomorphism"))
+                  .aToB(transaction.pure[F])
+                  .map(_.toOption)
+                  .orRaise(new RuntimeException("transactionIsomorphism"))
               )
               .getOrRaise(new NoSuchElementException(show"Transaction not found id=$transactionId"))
               .map(TransactionDatum(_))
@@ -253,13 +252,9 @@ object Orchestrator
         // Send 1 transaction per _this_ duration
         .metered((1_000_000_000d / targetTps).nanos)
         // TODO model should change to new protobuf specs and not use Isomorphism
-        .map(transaction =>
-          co.topl.grpc
-            .transactionIsomorphism[cats.Id]
-            .abMorphism
-            .aToB(transaction.pure[cats.Id])
-            .toOption
-            .getOrElse(throw new RuntimeException("transactionIsomorphism"))
+        .evalMap(transaction =>
+          EitherT(co.topl.grpc.transactionIsomorphism[F].abMorphism.aToB(transaction.pure[F]))
+            .getOrRaise(new RuntimeException("transactionIsomorphism"))
         )
         // Broadcast+log the transaction
         .evalTap(transaction =>

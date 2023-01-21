@@ -57,25 +57,22 @@ object ToplRpcServer {
           Slf4jLogger.getLoggerFromClass[F](ToplRpcServer.getClass)
 
         def broadcastTransaction(transaction: Transaction): F[Unit] =
-          transactionStore
-            .contains(transaction.id)
-            .ifM(
-              Logger[F].info(show"Received duplicate transaction id=${transaction.id.asTypedBytes}"),
-              Logger[F].info(show"Received RPC Transaction id=${transaction.id.asTypedBytes}") >>
-              syntacticValidateOrRaise(
-                co.topl.grpc
-                  .transactionIsomorphism[cats.Id]
-                  // TODO model should change to new protobuf specs and not use Isomorphism
-                  .baMorphism
-                  .aToB(transaction.pure[cats.Id])
-                  .toOption
-                  .getOrElse(throw new RuntimeException("transactionIsomorphism"))
-              )
-                .flatTap(_ =>
-                  Logger[F].debug(show"Transaction id=${transaction.id.asTypedBytes} is syntactically valid")
+          // TODO model should change to new protobuf specs and not use Isomorphism
+          EitherT(co.topl.grpc.transactionIsomorphism[F].baMorphism.aToB(transaction.pure[F]))
+            .getOrRaise(new RuntimeException("transactionIsomorphism"))
+            .map(transactionOldModel =>
+              transactionStore
+                .contains(transaction.id)
+                .ifM(
+                  Logger[F].info(show"Received duplicate transaction id=${transaction.id.asTypedBytes}"),
+                  Logger[F].info(show"Received RPC Transaction id=${transaction.id.asTypedBytes}") >>
+                  syntacticValidateOrRaise(transactionOldModel)
+                    .flatTap(_ =>
+                      Logger[F].debug(show"Transaction id=${transaction.id.asTypedBytes} is syntactically valid")
+                    )
+                    .flatTap(processValidTransaction[F](transactionStore, mempool))
+                    .void
                 )
-                .flatTap(processValidTransaction[F](transactionStore, mempool))
-                .void
             )
 
         def currentMempool(): F[Set[TypedIdentifier]] =
