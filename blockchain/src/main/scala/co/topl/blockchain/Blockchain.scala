@@ -16,9 +16,10 @@ import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.grpc.ToplGrpc
 import co.topl.ledger.algebras._
 import co.topl.minting.algebras.StakingAlgebra
-import co.topl.models._
-import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader}
-import co.topl.node.models.{BlockBody => NodeBlockBody}
+import co.topl.{models => legacyModels}
+import legacyModels._
+import co.topl.consensus.models.BlockHeader
+import co.topl.node.models.BlockBody
 import co.topl.networking.blockchain._
 import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, LocalPeer}
 import co.topl.typeclasses.implicits._
@@ -41,8 +42,8 @@ object Blockchain {
     clock:                       ClockAlgebra[F],
     staker:                      Option[StakingAlgebra[F]],
     slotDataStore:               Store[F, TypedIdentifier, SlotData],
-    headerStore:                 Store[F, TypedIdentifier, ConsensusBlockHeader],
-    bodyStore:                   Store[F, TypedIdentifier, NodeBlockBody],
+    headerStore:                 Store[F, TypedIdentifier, BlockHeader],
+    bodyStore:                   Store[F, TypedIdentifier, BlockBody],
     transactionStore:            Store[F, TypedIdentifier, Transaction],
     _localChain:                 LocalChainAlgebra[F],
     blockIdTree:                 ParentChildTree[F, TypedIdentifier],

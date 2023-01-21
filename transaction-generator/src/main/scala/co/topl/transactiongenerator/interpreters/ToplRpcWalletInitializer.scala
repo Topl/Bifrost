@@ -4,7 +4,9 @@ import cats.data.OptionT
 import cats.effect.Async
 import cats.implicits._
 import co.topl.algebras.ToplRpc
-import co.topl.models._
+import co.topl.proto.models.Transaction
+import co.topl.{models => legacyModels}
+import legacyModels.{TypedBytes, TypedIdentifier}
 import co.topl.transactiongenerator.algebras.WalletInitializer
 import co.topl.transactiongenerator.models.Wallet
 import fs2._
@@ -44,7 +46,7 @@ object ToplRpcWalletInitializer {
     fetchHeaderParallelism:      Int,
     fetchBodyParallelism:        Int,
     fetchTransactionParallelism: Int
-  ): F[Stream[F, co.topl.proto.models.Transaction]] =
+  ): F[Stream[F, Transaction]] =
     for {
       blockIds <- blockIdStream(toplRpc, fetchHeaderParallelism)
       stream = blockIds
@@ -55,7 +57,7 @@ object ToplRpcWalletInitializer {
         )
         .flatMap(Stream.iterable)
         .parEvalMap(fetchTransactionParallelism)(transactionId =>
-          OptionT(toplRpc.fetchTransaction(co.topl.models.TypedBytes.ioTx32(transactionId)))
+          OptionT(toplRpc.fetchTransaction(TypedBytes.ioTx32(transactionId)))
             .getOrRaise(new IllegalStateException("Transaction not found"))
         )
     } yield stream

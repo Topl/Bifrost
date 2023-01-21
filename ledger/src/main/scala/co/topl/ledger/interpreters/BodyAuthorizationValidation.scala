@@ -5,7 +5,9 @@ import cats.effect.Sync
 import cats.implicits._
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
-import co.topl.models.{Transaction, TypedBytes, TypedIdentifier}
+import co.topl.{models => legacyModels}
+import legacyModels.{Transaction, TypedBytes, TypedIdentifier}
+import co.topl.node.models.BlockBody
 
 object BodyAuthorizationValidation {
 
@@ -21,7 +23,7 @@ object BodyAuthorizationValidation {
          */
         def validate(
           parentBlockId: TypedIdentifier
-        )(body: co.topl.node.models.BlockBody): F[ValidatedNec[BodyAuthorizationError, co.topl.node.models.BlockBody]] =
+        )(body:          BlockBody): F[ValidatedNec[BodyAuthorizationError, BlockBody]] =
           body.transactionIds
             .map(TypedBytes.ioTx32)
             .toList

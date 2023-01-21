@@ -11,12 +11,14 @@ import co.topl.consensus.models._
 import co.topl.crypto.signing._
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.hash.{blake2b256, Blake2b256, Blake2b512}
-import co.topl.models.Box.Values.Registrations.Operator
-import co.topl.models.ModelGenerators._
-import co.topl.models._
-import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.Lengths._
-import co.topl.models.utility.{Lengths, Ratio, ReplaceModelUtil, Sized}
+import co.topl.{models => legacyModels}
+import legacyModels._
+import legacyModels.Box.Values.Registrations.Operator
+import legacyModels.ModelGenerators._
+import legacyModels.utility.HasLength.instances._
+import legacyModels.utility.Lengths._
+import legacyModels.utility.{Lengths, Ratio, ReplaceModelUtil, Sized}
+import co.topl.consensus.models.BlockHeader
 import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
@@ -77,7 +79,7 @@ class BlockHeaderValidationSpec
       )
       .unsafeRunSync()
 
-  private def createDummyClockAlgebra(child: co.topl.consensus.models.BlockHeader) = {
+  private def createDummyClockAlgebra(child: BlockHeader) = {
     val clock: ClockAlgebra[F] = mock[ClockAlgebra[F]]
     (() => clock.globalSlot)
       .expects()

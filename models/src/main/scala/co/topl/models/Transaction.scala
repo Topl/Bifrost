@@ -4,7 +4,7 @@ import cats.data.Chain
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{Lengths, Sized}
 
-case class Transaction( // TODO it should be deleted and use
+case class Transaction( // TODO it should be deleted and use import co.topl.proto.models.Transaction
   inputs:   Chain[Transaction.Input],
   outputs:  Chain[Transaction.Output],
   schedule: Transaction.Schedule,

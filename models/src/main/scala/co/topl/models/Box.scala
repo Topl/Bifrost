@@ -2,6 +2,7 @@ package co.topl.models
 
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{Lengths, ReplaceModelUtil, Sized}
+import co.topl.consensus.models.SignatureKesProduct
 
 case class Box(evidence: TypedEvidence, value: Box.Value)
 
@@ -55,7 +56,7 @@ object Box {
         )
 
       }
-      case class OperatorNewModel(vrfCommitment: co.topl.consensus.models.SignatureKesProduct) extends Registration
+      case class OperatorNewModel(vrfCommitment: SignatureKesProduct) extends Registration
 
       /**
        * Represents the registration of someone intending to delegate their stake to a stake pool operator.  Owners

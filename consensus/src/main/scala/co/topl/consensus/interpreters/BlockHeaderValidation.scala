@@ -8,7 +8,7 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.{
-  BlockHeader => ConsensusBlockHeader,
+  BlockHeader,
   BlockHeaderValidationFailure,
   BlockHeaderValidationFailures,
   SignatureKesProduct,
@@ -19,7 +19,8 @@ import co.topl.consensus.models.{
 import co.topl.crypto.signing.{Ed25519VRF, KesProduct}
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.Ed25519
-import co.topl.models._
+import co.topl.{models => legacyModels}
+import legacyModels._
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.{Ratio, Sized}
 import co.topl.typeclasses.ContainsEvidence
@@ -68,9 +69,9 @@ object BlockHeaderValidation {
   ) extends BlockHeaderValidationAlgebra[F] {
 
     def validate(
-      child:  ConsensusBlockHeader,
-      parent: ConsensusBlockHeader
-    ): F[Either[BlockHeaderValidationFailure, ConsensusBlockHeader]] = {
+      child:  BlockHeader,
+      parent: BlockHeader
+    ): F[Either[BlockHeaderValidationFailure, BlockHeader]] = {
       for {
         _         <- statelessVerification(child, parent)
         _         <- EitherT(timeSlotVerification(child))
@@ -83,7 +84,7 @@ object BlockHeaderValidation {
       } yield child
     }.value
 
-    private[consensus] def statelessVerification(child: ConsensusBlockHeader, parent: ConsensusBlockHeader) =
+    private[consensus] def statelessVerification(child: BlockHeader, parent: BlockHeader) =
       EitherT
         .pure[F, BlockHeaderValidationFailure](child)
         .ensure(BlockHeaderValidationFailures.NonForwardSlot(child.slot, parent.slot))(child =>
@@ -100,13 +101,13 @@ object BlockHeaderValidation {
           _.height === parent.height + 1
         )
 
-    private[consensus] def timeSlotVerification(header: ConsensusBlockHeader) =
+    private[consensus] def timeSlotVerification(header: BlockHeader) =
       for {
         globalSlot              <- clockAlgebra.globalSlot
         childSlotFromTimestamp  <- clockAlgebra.timestampToSlot(header.timestamp)
         forwardBiasedSlotWindow <- clockAlgebra.forwardBiasedSlotWindow
       } yield Either
-        .right[BlockHeaderValidationFailure, ConsensusBlockHeader](header)
+        .right[BlockHeaderValidationFailure, BlockHeader](header)
         .ensureOr(child => BlockHeaderValidationFailures.TimestampSlotMismatch(child.slot, child.timestamp))(child =>
           childSlotFromTimestamp === child.slot
         )
@@ -118,8 +119,8 @@ object BlockHeaderValidation {
      * Verifies the given block's VRF certificate syntactic integrity for a particular stateful nonce
      */
     private[consensus] def vrfVerification(
-      header: ConsensusBlockHeader
-    ): EitherT[F, BlockHeaderValidationFailure, ConsensusBlockHeader] =
+      header: BlockHeader
+    ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
       EitherT
         .liftF(
           etaInterpreter.etaToBe(
@@ -176,8 +177,8 @@ object BlockHeaderValidation {
      * Certificate's block signature
      */
     private[consensus] def kesVerification(
-      header: ConsensusBlockHeader
-    ): EitherT[F, BlockHeaderValidationFailure, ConsensusBlockHeader] =
+      header: BlockHeader
+    ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
       EitherT
         .fromOptionF(
           header.operationalCertificate.pure[F],
@@ -229,7 +230,7 @@ object BlockHeaderValidation {
                       // Otherwise, return a Left(InvalidBlockProof)
                       (BlockHeaderValidationFailures.InvalidBlockProof(
                         operationalCertificate
-                      ): BlockHeaderValidationFailure).asLeft[ConsensusBlockHeader]
+                      ): BlockHeaderValidationFailure).asLeft[BlockHeader]
                     }
                   )
               )
@@ -239,7 +240,7 @@ object BlockHeaderValidation {
     /**
      * Determines the VRF threshold for the given child
      */
-    private def vrfThresholdFor(child: ConsensusBlockHeader, parent: ConsensusBlockHeader): F[Ratio] =
+    private def vrfThresholdFor(child: BlockHeader, parent: BlockHeader): F[Ratio] =
       consensusValidationState
         .operatorRelativeStake(child.id, child.slot)(StakingAddresses.operatorFromProtoString(child.address))
         .flatMap(relativeStake =>
@@ -253,9 +254,9 @@ object BlockHeaderValidation {
      * Verify that the threshold evidence stamped on the block matches the threshold generated using local state
      */
     private[consensus] def vrfThresholdVerification(
-      header:    ConsensusBlockHeader,
+      header:    BlockHeader,
       threshold: Ratio
-    ): EitherT[F, BlockHeaderValidationFailure, ConsensusBlockHeader] =
+    ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
       for {
         eligibilityCertificate <- EitherT.fromOptionF(
           header.eligibilityCertificate.pure[F],
@@ -274,9 +275,9 @@ object BlockHeaderValidation {
      * Verify that the block's staker is eligible using their relative stake distribution
      */
     private[consensus] def eligibilityVerification(
-      header:    ConsensusBlockHeader,
+      header:    BlockHeader,
       threshold: Ratio
-    ): EitherT[F, BlockHeaderValidationFailure, ConsensusBlockHeader] =
+    ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
       EitherT
         .fromOptionF(header.eligibilityCertificate.pure[F], BlockHeaderValidationFailures.EmptyEligibilityCertificate)
         .flatMap { eligibilityCertificate =>
@@ -309,8 +310,8 @@ object BlockHeaderValidation {
      * (the staker's vrfVK concatenated with the staker's poolVK).
      */
     private[consensus] def registrationVerification(
-      header: ConsensusBlockHeader
-    ): EitherT[F, BlockHeaderValidationFailure, ConsensusBlockHeader] =
+      header: BlockHeader
+    ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
       (for {
         eligibilityCertificate <- EitherT.fromOptionF(
           header.eligibilityCertificate.pure[F],
@@ -356,15 +357,15 @@ object BlockHeaderValidation {
 
     def make[F[_]: Sync](
       underlying:       BlockHeaderValidationAlgebra[F],
-      blockHeaderStore: Store[F, TypedIdentifier, ConsensusBlockHeader]
+      blockHeaderStore: Store[F, TypedIdentifier, BlockHeader]
     ): F[BlockHeaderValidationAlgebra[F]] =
       CaffeineCache[F, Bytes, TypedIdentifier].map(implicit cache =>
         new BlockHeaderValidationAlgebra[F] {
 
           def validate(
-            child:  ConsensusBlockHeader,
-            parent: ConsensusBlockHeader
-          ): F[Either[BlockHeaderValidationFailure, ConsensusBlockHeader]] =
+            child:  BlockHeader,
+            parent: BlockHeader
+          ): F[Either[BlockHeaderValidationFailure, BlockHeader]] =
             OptionT(cache.get(child.id.asTypedBytes.allBytes))
               .map(_ => child.asRight[BlockHeaderValidationFailure])
               .getOrElseF(
@@ -375,8 +376,8 @@ object BlockHeaderValidation {
               )
 
           private def validateParent(
-            parent: ConsensusBlockHeader
-          ): EitherT[F, BlockHeaderValidationFailure, ConsensusBlockHeader] =
+            parent: BlockHeader
+          ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
             if (parent.parentSlot < 0)
               // TODO: Is this a security concern?
               // Could an adversary just "claim" the parentSlot is -1 to circumvent validation?
@@ -386,7 +387,7 @@ object BlockHeaderValidation {
                 OptionT(blockHeaderStore.get(TypedBytes.headerFromBlockId(parent.parentHeaderId)))
                   .getOrElseF(
                     new IllegalStateException(s"Non-existent block header id=${parent.parentHeaderId}")
-                      .raiseError[F, ConsensusBlockHeader]
+                      .raiseError[F, BlockHeader]
                   )
                   .flatMap(grandParent => Sync[F].defer(validate(parent, grandParent)))
               )

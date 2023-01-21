@@ -8,9 +8,11 @@ import co.topl.algebras.ClockAlgebra
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.eventtree.ParentChildTree
-import co.topl.models.ModelGenerators._
-import co.topl.models.utility.ReplaceModelUtil
-import co.topl.models.{Slot, Transaction, TypedIdentifier}
+import co.topl.{models => legacyModels}
+import legacyModels.ModelGenerators._
+import legacyModels.utility.ReplaceModelUtil
+import legacyModels.{Slot, Transaction, TypedIdentifier}
+import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.{Gen, Test}
@@ -39,17 +41,16 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
         val transactions = bodies.flatMap(_._2).toList.map(t => t.id.asTypedBytes -> t).toMap.updated(newTx.id, newTx)
         val fetchBody =
           (id: TypedIdentifier) =>
-            co.topl.node.models
-              .BlockBody(
-                ListSet
-                  .from(
-                    bodiesMap(id)
-                      .map(_.id: TypedIdentifier)
-                      .map(ReplaceModelUtil.ioTransaction32)
-                      .toIterable
-                  )
-                  .toSeq
-              )
+            BlockBody(
+              ListSet
+                .from(
+                  bodiesMap(id)
+                    .map(_.id: TypedIdentifier)
+                    .map(ReplaceModelUtil.ioTransaction32)
+                    .toIterable
+                )
+                .toSeq
+            )
               .pure[F] // TODO removeModel Util
         val fetchTransaction = (id: TypedIdentifier) => transactions(id).pure[F]
         val clock = mock[ClockAlgebra[F]]
@@ -117,7 +118,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
           underTest <- Mempool
             .make[F](
               currentBlockId.pure[F],
-              mockFunction[TypedIdentifier, F[co.topl.node.models.BlockBody]],
+              mockFunction[TypedIdentifier, F[BlockBody]],
               fetchTransaction,
               mock[ParentChildTree[F, TypedIdentifier]],
               _ => Applicative[F].unit,
@@ -161,7 +162,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
             Mempool
               .make[F](
                 currentBlockId.pure[F],
-                mockFunction[TypedIdentifier, F[co.topl.node.models.BlockBody]],
+                mockFunction[TypedIdentifier, F[BlockBody]],
                 fetchTransaction,
                 mock[ParentChildTree[F, TypedIdentifier]],
                 _ => Applicative[F].unit,
@@ -210,7 +211,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
             Mempool
               .make[F](
                 currentBlockId.pure[F],
-                mockFunction[TypedIdentifier, F[co.topl.node.models.BlockBody]],
+                mockFunction[TypedIdentifier, F[BlockBody]],
                 fetchTransaction,
                 mock[ParentChildTree[F, TypedIdentifier]],
                 _ => Applicative[F].unit,
@@ -260,8 +261,8 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
               transactionBId -> transactionB
             )
 
-          val fetchBody = (id: TypedIdentifier) =>
-            co.topl.node.models.BlockBody(bodies(id).toSeq.map(ReplaceModelUtil.ioTransaction32)).pure[F]
+          val fetchBody =
+            (id: TypedIdentifier) => BlockBody(bodies(id).toSeq.map(ReplaceModelUtil.ioTransaction32)).pure[F]
           val fetchTransaction = (id: TypedIdentifier) => transactions(id).pure[F]
           val clock = mock[ClockAlgebra[F]]
           (() => clock.globalSlot)

@@ -6,7 +6,9 @@ import cats.implicits._
 import cats.{MonadThrow, Monoid}
 import co.topl.algebras._
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
-import co.topl.models._
+import co.topl.{models => legacyModels}
+import legacyModels._
+import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import co.topl.models.utility.HasLength.instances.bigIntLength
 import co.topl.models.utility.Sized
@@ -34,7 +36,7 @@ object ConsensusDataEventSourcedState {
     parentChildTree:        ParentChildTree[F, TypedIdentifier],
     currentEventChanged:    TypedIdentifier => F[Unit],
     initialState:           F[ConsensusData[F]],
-    fetchBlockBody:         TypedIdentifier => F[co.topl.node.models.BlockBody],
+    fetchBlockBody:         TypedIdentifier => F[BlockBody],
     fetchTransaction:       TypedIdentifier => F[Transaction],
     fetchTransactionOutput: Box.Id => F[Transaction.Output]
   ): F[EventSourcedState[F, ConsensusData[F], TypedIdentifier]] =
@@ -48,7 +50,7 @@ object ConsensusDataEventSourcedState {
     )
 
   private class ApplyBlock[F[_]: MonadThrow](
-    fetchBlockBody:         TypedIdentifier => F[co.topl.node.models.BlockBody],
+    fetchBlockBody:         TypedIdentifier => F[BlockBody],
     fetchTransaction:       TypedIdentifier => F[Transaction],
     fetchTransactionOutput: Box.Id => F[Transaction.Output]
   ) extends ((ConsensusData[F], TypedIdentifier) => F[ConsensusData[F]]) {
@@ -125,7 +127,7 @@ object ConsensusDataEventSourcedState {
   }
 
   private class UnapplyBlock[F[_]: MonadThrow](
-    fetchBlockBody:         TypedIdentifier => F[co.topl.node.models.BlockBody],
+    fetchBlockBody:         TypedIdentifier => F[BlockBody],
     fetchTransaction:       TypedIdentifier => F[Transaction],
     fetchTransactionOutput: Box.Id => F[Transaction.Output]
   ) extends ((ConsensusData[F], TypedIdentifier) => F[ConsensusData[F]]) {

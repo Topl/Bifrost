@@ -11,10 +11,11 @@ import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.{MempoolAlgebra, TransactionSyntaxValidationAlgebra}
 import co.topl.ledger.models._
-import co.topl.models.{Transaction, TypedIdentifier}
-import co.topl.node.models.{BlockBody => NodeBlockBody} // TODO remove rename, after remove models
-import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
-import co.topl.proto.models.{Transaction => ProtoTransaction}
+import co.topl.{models => legacyModels}
+import legacyModels.{Transaction => LTransaction, TypedIdentifier}
+import co.topl.node.models.BlockBody
+import co.topl.consensus.models.BlockHeader
+import co.topl.proto.models.Transaction
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import co.topl.typeclasses.implicits._
 import fs2.Stream
@@ -40,9 +41,9 @@ object ToplRpcServer {
    * Interpreter which serves Topl RPC data using local blockchain interpreters
    */
   def make[F[_]: Async](
-    headerStore:               Store[F, TypedIdentifier, ConsensusBlockHeader],
-    bodyStore:                 Store[F, TypedIdentifier, NodeBlockBody],
-    transactionStore:          Store[F, TypedIdentifier, Transaction], // TODO change Transaction to new Model
+    headerStore:               Store[F, TypedIdentifier, BlockHeader],
+    bodyStore:                 Store[F, TypedIdentifier, BlockBody],
+    transactionStore:          Store[F, TypedIdentifier, LTransaction], // TODO change Transaction to new Model
     mempool:                   MempoolAlgebra[F],
     syntacticValidation:       TransactionSyntaxValidationAlgebra[F],
     localChain:                LocalChainAlgebra[F],
@@ -55,7 +56,7 @@ object ToplRpcServer {
         implicit private val logger: SelfAwareStructuredLogger[F] =
           Slf4jLogger.getLoggerFromClass[F](ToplRpcServer.getClass)
 
-        def broadcastTransaction(transaction: ProtoTransaction): F[Unit] =
+        def broadcastTransaction(transaction: Transaction): F[Unit] =
           transactionStore
             .contains(transaction.id)
             .ifM(
@@ -80,13 +81,13 @@ object ToplRpcServer {
         def currentMempool(): F[Set[TypedIdentifier]] =
           localChain.head.map(_.slotId.blockId).flatMap(mempool.read)
 
-        def fetchBlockHeader(blockId: TypedIdentifier): F[Option[ConsensusBlockHeader]] =
+        def fetchBlockHeader(blockId: TypedIdentifier): F[Option[BlockHeader]] =
           headerStore.get(blockId)
 
-        def fetchBlockBody(blockId: TypedIdentifier): F[Option[NodeBlockBody]] =
+        def fetchBlockBody(blockId: TypedIdentifier): F[Option[BlockBody]] =
           bodyStore.get(blockId)
 
-        def fetchTransaction(transactionId: TypedIdentifier): F[Option[co.topl.proto.models.Transaction]] =
+        def fetchTransaction(transactionId: TypedIdentifier): F[Option[Transaction]] =
           transactionStore
             .get(transactionId)
             .map(transaction =>
@@ -131,7 +132,7 @@ object ToplRpcServer {
                 .headChanges
             }
 
-        private def syntacticValidateOrRaise(transaction: Transaction) =
+        private def syntacticValidateOrRaise(transaction: LTransaction) =
           EitherT(syntacticValidation.validate(transaction).map(_.toEither))
             .leftSemiflatTap(errors =>
               Logger[F].warn(
@@ -150,9 +151,9 @@ object ToplRpcServer {
     }
 
   private def processValidTransaction[F[_]: Monad: Logger](
-    transactionStore: Store[F, TypedIdentifier, Transaction],
+    transactionStore: Store[F, TypedIdentifier, LTransaction],
     mempool:          MempoolAlgebra[F]
-  )(transaction:      Transaction) =
+  )(transaction:      LTransaction) =
     Logger[F].info(show"Inserting Transaction id=${transaction.id.asTypedBytes} into transaction store") >>
     transactionStore.put(transaction.id, transaction) >>
     Logger[F].info(show"Inserting Transaction id=${transaction.id.asTypedBytes} into mempool") >>

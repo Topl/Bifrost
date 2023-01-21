@@ -15,18 +15,14 @@ trait ModelGenerators {
     Arbitrary(Gen.const(scalapb.UnknownFieldSet.empty))
 
   implicit val arbitraryByteString: Arbitrary[ByteString] =
-//    Arbitrary(implicitly[Arbitrary[Array[Byte]]].arbitrary.map(ByteString.copyFrom))
     Arbitrary(Arbitrary.arbByte.arbitrary.map(b => Array(b)).map(ByteString.copyFrom))
 
   val arbitraryPositiveInt128: Arbitrary[Int128] =
     Arbitrary(
       for {
         value <- arbitraryByteString.arbitrary
-//        u <- arbitraryUnknownFieldSet.arbitrary
       } yield Int128(value, scalapb.UnknownFieldSet.empty)
     )
-//    Arbitrary(Gen.posNum[Long].map(BigInt(_)).map(l => Int128.of(ByteString.copyFrom(l.toByteArray))))
-//    Arbitrary(Arbitrary.arbBigInt.arbitrary.map(l => Int128.of(ByteString.copyFrom(l.toByteArray))))
 
   implicit val arbitraryTransactionId: Arbitrary[TransactionId] =
     Arbitrary(

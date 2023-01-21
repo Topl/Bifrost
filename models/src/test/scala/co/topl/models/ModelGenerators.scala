@@ -211,7 +211,7 @@ trait ModelGenerators {
       address
     )
 
-  def headerConsensusGen( // TODO move this Gen
+  def headerConsensusGen( // TODO move this the specific consensus model package genertor, and rename headerGen
     parentHeaderIdGen: Gen[TypedIdentifier] =
       genSizedStrictBytes[Lengths.`32`.type]().map(sized => TypedBytes(IdentifierTypes.Block.HeaderV2, sized.data)),
     parentSlotGen:             Gen[Slot] = Gen.chooseNum(0L, 50L),

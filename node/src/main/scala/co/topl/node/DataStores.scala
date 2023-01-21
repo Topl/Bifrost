@@ -11,22 +11,25 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.BlockHeaderOps
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.db.leveldb.LevelDbStore
-import co.topl.models._
+import co.topl.{models => legacyModels}
+import legacyModels._
+import legacyModels.utility.ReplaceModelUtil
+import co.topl.consensus.models.BlockHeader
+import co.topl.node.models.BlockBody
 import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
+import co.topl.interpreters.CacheStore
 import fs2.io.file.{Files, Path}
 import scala.collection.immutable.ListSet
-import co.topl.interpreters.CacheStore
-import co.topl.models.utility.ReplaceModelUtil
 import org.typelevel.log4cats.Logger
 
 case class DataStores[F[_]](
   parentChildTree: Store[F, TypedIdentifier, (Long, TypedIdentifier)],
   currentEventIds: Store[F, Byte, TypedIdentifier],
   slotData:        Store[F, TypedIdentifier, SlotData],
-  headers:         Store[F, TypedIdentifier, co.topl.consensus.models.BlockHeader],
-  bodies:          Store[F, TypedIdentifier, co.topl.node.models.BlockBody],
-  transactions:    Store[F, TypedIdentifier, Transaction],
+  headers:         Store[F, TypedIdentifier, BlockHeader],
+  bodies:          Store[F, TypedIdentifier, BlockBody],
+  transactions:    Store[F, TypedIdentifier, Transaction], // TODO replace old Transaction model
   spendableBoxIds: Store[F, TypedIdentifier, NonEmptySet[Short]],
   epochBoundaries: Store[F, Long, TypedIdentifier],
   operatorStakes:  Store[F, StakingAddresses.Operator, Int128],
@@ -55,12 +58,12 @@ object DataStores {
         appConfig.bifrost.cache.slotData,
         _.allBytes
       )
-      blockHeaderStore <- makeCachedDb[F, TypedIdentifier, Bytes, co.topl.consensus.models.BlockHeader](dataDir)(
+      blockHeaderStore <- makeCachedDb[F, TypedIdentifier, Bytes, BlockHeader](dataDir)(
         "block-headers",
         appConfig.bifrost.cache.headers,
         _.allBytes
       )
-      blockBodyStore <- makeCachedDb[F, TypedIdentifier, Bytes, co.topl.node.models.BlockBody](dataDir)(
+      blockBodyStore <- makeCachedDb[F, TypedIdentifier, Bytes, BlockBody](dataDir)(
         "block-bodies",
         appConfig.bifrost.cache.bodies,
         _.allBytes
@@ -163,7 +166,7 @@ object DataStores {
       _ <- dataStores.headers.put(bigBangBlock.header.id, bigBangBlock.toFullConsensus.header)
       _ <- dataStores.bodies.put(
         bigBangBlock.header.id,
-        co.topl.node.models.BlockBody(
+        BlockBody(
           (ListSet.empty ++ bigBangBlock.transactions
             .map(_.id.asTypedBytes)
             .toList

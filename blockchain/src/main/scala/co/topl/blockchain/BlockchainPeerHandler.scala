@@ -24,9 +24,10 @@ import co.topl.ledger.models.{
   TransactionSemanticError,
   TransactionSyntaxError
 }
-import co.topl.models._
-import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
-import co.topl.node.models.{BlockBody => NodeBlockBody} // TODO remove rename, after remove models
+import co.topl.{models => legacyModels}
+import legacyModels._
+import co.topl.consensus.models.BlockHeader
+import co.topl.node.models.BlockBody
 import co.topl.networking.blockchain._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
@@ -70,8 +71,8 @@ object BlockchainPeerHandler {
       bodySemanticValidation:      BodySemanticValidationAlgebra[F],
       bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
       slotDataStore:               Store[F, TypedIdentifier, SlotData],
-      headerStore:                 Store[F, TypedIdentifier, ConsensusBlockHeader],
-      bodyStore:                   Store[F, TypedIdentifier, NodeBlockBody],
+      headerStore:                 Store[F, TypedIdentifier, BlockHeader],
+      bodyStore:                   Store[F, TypedIdentifier, BlockBody],
       transactionStore:            Store[F, TypedIdentifier, Transaction],
       blockIdTree:                 ParentChildTree[F, TypedIdentifier]
     ): BlockchainPeerHandlerAlgebra[F] =
@@ -197,7 +198,7 @@ object BlockchainPeerHandler {
       client:           BlockchainPeerClient[F],
       headerValidation: BlockHeaderValidationAlgebra[F],
       slotDataStore:    Store[F, TypedIdentifier, SlotData],
-      headerStore:      Store[F, TypedIdentifier, ConsensusBlockHeader]
+      headerStore:      Store[F, TypedIdentifier, BlockHeader]
     )(from:             TypedIdentifier) =
       determineMissingValues(
         headerStore.contains,
@@ -245,8 +246,8 @@ object BlockchainPeerHandler {
       bodySemanticValidation:      BodySemanticValidationAlgebra[F],
       bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
       slotDataStore:               Store[F, TypedIdentifier, SlotData],
-      headerStore:                 Store[F, TypedIdentifier, ConsensusBlockHeader],
-      bodyStore:                   Store[F, TypedIdentifier, NodeBlockBody],
+      headerStore:                 Store[F, TypedIdentifier, BlockHeader],
+      bodyStore:                   Store[F, TypedIdentifier, BlockBody],
       transactionStore:            Store[F, TypedIdentifier, Transaction]
     )(from:                        TypedIdentifier) =
       determineMissingValues(

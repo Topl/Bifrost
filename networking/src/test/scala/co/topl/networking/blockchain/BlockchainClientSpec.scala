@@ -3,8 +3,10 @@ package co.topl.networking.blockchain
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
-import co.topl.models._
-import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
+import co.topl.{models => legacyModels}
+import legacyModels.{Bytes, SlotData, Transaction, TypedBytes, TypedIdentifier}
+import co.topl.consensus.models.BlockHeader
+import co.topl.node.models.BlockBody
 import co.topl.networking.p2p.ConnectedPeer
 import fs2._
 import org.scalacheck.Gen
@@ -43,9 +45,9 @@ class BlockchainClientSpec
 
           def getRemoteSlotData(id: TypedIdentifier): F[Option[SlotData]] = ???
 
-          def getRemoteHeader(id: TypedIdentifier): F[Option[ConsensusBlockHeader]] = ???
+          def getRemoteHeader(id: TypedIdentifier): F[Option[BlockHeader]] = ???
 
-          def getRemoteBody(id: TypedIdentifier): F[Option[co.topl.node.models.BlockBody]] = ???
+          def getRemoteBody(id: TypedIdentifier): F[Option[BlockBody]] = ???
 
           def getRemoteTransaction(id: TypedIdentifier): F[Option[Transaction]] = ???
 

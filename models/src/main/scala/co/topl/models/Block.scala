@@ -3,6 +3,7 @@ package co.topl.models
 import cats.data.Chain
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{Lengths, ReplaceModelUtil, Sized}
+import com.google.protobuf.ByteString
 
 // id = hash(headerBytes) INCLUDING kesCertificate proofs
 case class BlockHeader(
@@ -52,15 +53,15 @@ object BlockHeader {
   case class UnsignedConsensus(
     parentHeaderId:                Option[co.topl.consensus.models.BlockId],
     parentSlot:                    Slot,
-    txRoot:                        com.google.protobuf.ByteString,
-    bloomFilter:                   com.google.protobuf.ByteString,
+    txRoot:                        ByteString,
+    bloomFilter:                   ByteString,
     timestamp:                     Timestamp,
     height:                        Long,
     slot:                          Slot,
     eligibilityCertificate:        Option[co.topl.consensus.models.EligibilityCertificate],
     partialOperationalCertificate: UnsignedConsensus.PartialOperationalCertificate,
-    metadata:                      com.google.protobuf.ByteString,
-    address:                       com.google.protobuf.ByteString
+    metadata:                      ByteString,
+    address:                       ByteString
   )
 
   object UnsignedConsensus {

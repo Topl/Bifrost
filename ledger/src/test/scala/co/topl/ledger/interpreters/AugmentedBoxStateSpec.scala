@@ -7,9 +7,11 @@ import co.topl.algebras.testInterpreters.TestStore
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.eventtree.ParentChildTree
-import co.topl.models.ModelGenerators._
-import co.topl.models.utility.ReplaceModelUtil
-import co.topl.models.{Box, Transaction, TypedIdentifier}
+import co.topl.{models => legacyModels}
+import legacyModels.ModelGenerators._
+import legacyModels.utility.ReplaceModelUtil
+import legacyModels.{Box, Transaction, TypedIdentifier}
+import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
@@ -40,12 +42,11 @@ class AugmentedBoxStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
             blockId0.pure[IO],
             Map(
               blockId1 ->
-              co.topl.node.models
-                .BlockBody(
-                  ListSet(transaction1.id.asTypedBytes, transaction2.id.asTypedBytes)
-                    .map(ReplaceModelUtil.ioTransaction32)
-                    .toSeq
-                )
+              BlockBody(
+                ListSet(transaction1.id.asTypedBytes, transaction2.id.asTypedBytes)
+                  .map(ReplaceModelUtil.ioTransaction32)
+                  .toSeq
+              )
                 .pure[IO]
             ).apply(_),
             Map(

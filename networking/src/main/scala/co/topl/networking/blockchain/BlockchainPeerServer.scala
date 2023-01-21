@@ -3,9 +3,10 @@ package co.topl.networking.blockchain
 import cats.effect.Async
 import co.topl.algebras.Store
 import co.topl.catsakka._
-import co.topl.models.{SlotData, Transaction, TypedIdentifier}
-import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader} // TODO remove rename, after remove models
-import co.topl.node.models.{BlockBody => NodeBlockBody} // TODO remove rename, after remove models
+import co.topl.{models => legacyModels}
+import legacyModels.{SlotData, Transaction, TypedIdentifier}
+import co.topl.consensus.models.BlockHeader
+import co.topl.node.models.BlockBody
 import cats.implicits._
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.eventtree.EventSourcedState
@@ -18,8 +19,8 @@ trait BlockchainPeerServer[F[_]] {
   def localBlockAdoptions: F[Stream[F, TypedIdentifier]]
   def localTransactionNotifications: F[Stream[F, TypedIdentifier]]
   def getLocalSlotData(id:          TypedIdentifier): F[Option[SlotData]]
-  def getLocalHeader(id:            TypedIdentifier): F[Option[ConsensusBlockHeader]]
-  def getLocalBody(id:              TypedIdentifier): F[Option[NodeBlockBody]]
+  def getLocalHeader(id:            TypedIdentifier): F[Option[BlockHeader]]
+  def getLocalBody(id:              TypedIdentifier): F[Option[BlockBody]]
   def getLocalTransaction(id:       TypedIdentifier): F[Option[Transaction]]
   def getLocalBlockAtHeight(height: Long): F[Option[TypedIdentifier]]
 }
@@ -30,8 +31,8 @@ object BlockchainPeerServer {
 
     def make[F[_]: Async](
       slotDataStore:                Store[F, TypedIdentifier, SlotData],
-      headerStore:                  Store[F, TypedIdentifier, ConsensusBlockHeader],
-      bodyStore:                    Store[F, TypedIdentifier, NodeBlockBody],
+      headerStore:                  Store[F, TypedIdentifier, BlockHeader],
+      bodyStore:                    Store[F, TypedIdentifier, BlockBody],
       transactionStore:             Store[F, TypedIdentifier, Transaction],
       blockHeights:                 EventSourcedState[F, Long => F[Option[TypedIdentifier]], TypedIdentifier],
       localChain:                   LocalChainAlgebra[F],
@@ -48,9 +49,9 @@ object BlockchainPeerServer {
 
         def getLocalSlotData(id: TypedIdentifier): F[Option[SlotData]] = slotDataStore.get(id)
 
-        def getLocalHeader(id: TypedIdentifier): F[Option[ConsensusBlockHeader]] = headerStore.get(id)
+        def getLocalHeader(id: TypedIdentifier): F[Option[BlockHeader]] = headerStore.get(id)
 
-        def getLocalBody(id: TypedIdentifier): F[Option[NodeBlockBody]] = bodyStore.get(id)
+        def getLocalBody(id: TypedIdentifier): F[Option[BlockBody]] = bodyStore.get(id)
 
         def getLocalTransaction(id: TypedIdentifier): F[Option[Transaction]] = transactionStore.get(id)
 

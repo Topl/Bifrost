@@ -1,10 +1,12 @@
 package co.topl.crypto.signing
 
 import co.topl.crypto.signing.kes.ProductComposition
-import co.topl.models.Proofs.Knowledge
-import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.Sized
-import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
+import co.topl.{models => legacyModels}
+import legacyModels.Proofs.Knowledge
+import legacyModels.utility.HasLength.instances._
+import legacyModels.utility.Sized
+import legacyModels.{Bytes, Proofs, SecretKeys, VerificationKeys}
+import co.topl.consensus.models.{SignatureKesProduct, VerificationKeyKesProduct}
 
 class KesProduct extends ProductComposition {
 
@@ -50,15 +52,13 @@ class KesProduct extends ProductComposition {
   }
 
   def verify(
-    signature: co.topl.consensus.models.SignatureKesProduct,
+    signature: SignatureKesProduct,
     message:   Bytes,
-    verifyKey: co.topl.consensus.models.VerificationKeyKesProduct
+    verifyKey: VerificationKeyKesProduct
   ): Boolean = {
     val prodSig = (
       (
-        // Don't do this signature.getSuperSignature.getVerificationKey.toByteArray, fails unit testing
         signature.getSuperSignature.verificationKey.map(_.value.toByteArray).getOrElse(Array.empty),
-//        signature.getSuperSignature.getVerificationKey.toByteArray,
         signature.getSuperSignature.signature.map(_.value.toByteArray).getOrElse(Array.empty),
         signature.getSuperSignature.witness.map(_.toByteArray).toVector
       ),

@@ -1,7 +1,7 @@
 package co.topl.consensus.algebras
 
 import co.topl.consensus.models.BlockHeaderValidationFailure
-import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader}
+import co.topl.consensus.models.BlockHeader
 
 trait BlockHeaderValidationAlgebra[F[_]] {
 
@@ -9,7 +9,7 @@ trait BlockHeaderValidationAlgebra[F[_]] {
    * Indicates if the claimed child is a valid descendent of the parent
    */
   def validate(
-    child:  ConsensusBlockHeader,
-    parent: ConsensusBlockHeader
-  ): F[Either[BlockHeaderValidationFailure, ConsensusBlockHeader]]
+    child:  BlockHeader,
+    parent: BlockHeader
+  ): F[Either[BlockHeaderValidationFailure, BlockHeader]]
 }

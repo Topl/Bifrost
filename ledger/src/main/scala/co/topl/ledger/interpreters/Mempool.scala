@@ -8,7 +8,9 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.MempoolAlgebra
-import co.topl.models._
+import co.topl.{models => legacyModels}
+import legacyModels._
+import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 
 // TODO: Non-minting nodes?
@@ -24,7 +26,7 @@ object Mempool {
    */
   def make[F[_]: Async](
     currentBlockId:               F[TypedIdentifier],
-    fetchBlockBody:               TypedIdentifier => F[co.topl.node.models.BlockBody],
+    fetchBlockBody:               TypedIdentifier => F[BlockBody],
     fetchTransaction:             TypedIdentifier => F[Transaction],
     parentChildTree:              ParentChildTree[F, TypedIdentifier],
     currentEventChanged:          TypedIdentifier => F[Unit],

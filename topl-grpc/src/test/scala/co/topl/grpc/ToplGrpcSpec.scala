@@ -5,12 +5,17 @@ import cats.data.EitherT
 import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.ToplRpc
+import co.topl.brambl.models.Identifier.IoTransaction32
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.node.services._
+import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.BlockId
-import co.topl.models.ModelGenerators._
-import co.topl.models.TypedBytes
+import co.topl.node.models.BlockBody
+import co.topl.proto.models.Transaction
+import co.topl.{models => legacyModels}
+import legacyModels.ModelGenerators._
+import legacyModels.{IdentifierTypes, TypedBytes, TypedIdentifier}
 import co.topl.models.generators.node.ModelGenerators.arbitraryNodeBody
 import co.topl.models.generators.models.ModelGenerators.arbitraryTransaction
 import co.topl.typeclasses.implicits._
@@ -25,7 +30,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
   type F[A] = IO[A]
 
   test("A transaction can be broadcast") {
-    PropF.forAllF { (transaction: co.topl.proto.models.Transaction) =>
+    PropF.forAllF { (transaction: Transaction) =>
       withMock {
         val interpreter = mock[ToplRpc[F, Stream[F, *]]]
         val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
@@ -44,7 +49,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
   }
 
   test("A block header can be retrieved") {
-    PropF.forAllF { (header: co.topl.consensus.models.BlockHeader) =>
+    PropF.forAllF { (header: BlockHeader) =>
       val headerId = header.id.asTypedBytes
       withMock {
         val interpreter = mock[ToplRpc[F, Stream[F, *]]]
@@ -82,8 +87,8 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
   }
 
   test("A block body can be retrieved") {
-    PropF.forAllF { (_id: co.topl.models.TypedIdentifier, body: co.topl.node.models.BlockBody) =>
-      val id = co.topl.models.TypedBytes(co.topl.models.IdentifierTypes.Block.HeaderV2, _id.dataBytes)
+    PropF.forAllF { (_id: TypedIdentifier, body: BlockBody) =>
+      val id = TypedBytes(IdentifierTypes.Block.HeaderV2, _id.dataBytes)
       withMock {
         val interpreter = mock[ToplRpc[F, Stream[F, *]]]
         val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
@@ -119,7 +124,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
   }
 
   test("A transaction can be retrieved") {
-    PropF.forAllF { (transaction: co.topl.proto.models.Transaction) =>
+    PropF.forAllF { (transaction: Transaction) =>
       val transactionId = transaction.id.asTypedBytes
       withMock {
         val interpreter = mock[ToplRpc[F, Stream[F, *]]]
@@ -132,7 +137,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
 
         for {
 
-          ioTx32 <- EitherT(transactionId.toF[F, co.topl.brambl.models.Identifier.IoTransaction32]).getOrElse(???)
+          ioTx32 <- EitherT(transactionId.toF[F, IoTransaction32]).getOrElse(???)
           res    <- underTest.fetchTransaction(FetchTransactionReq(ioTx32.some), new Metadata())
           _ = assert(transaction == res.transaction.get)
         } yield ()
@@ -148,7 +153,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
       for {
         e <- interceptIO[StatusException](
           underTest.fetchTransaction(
-            FetchTransactionReq(co.topl.brambl.models.Identifier.IoTransaction32.of(None).some),
+            FetchTransactionReq(IoTransaction32.of(None).some),
             new Metadata()
           )
         )
@@ -158,7 +163,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
   }
 
   test("The block ID at a height can be retrieved") {
-    PropF.forAllF { (height: Long, header: co.topl.consensus.models.BlockHeader) =>
+    PropF.forAllF { (height: Long, header: BlockHeader) =>
       val blockId = header.id.asTypedBytes
       withMock {
         val interpreter = mock[ToplRpc[F, Stream[F, *]]]

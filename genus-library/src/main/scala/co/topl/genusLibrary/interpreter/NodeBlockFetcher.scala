@@ -7,9 +7,11 @@ import co.topl.algebras.ToplRpc
 import co.topl.genusLibrary.algebras.BlockFetcherAlgebra
 import co.topl.genusLibrary.failure.{Failure, Failures}
 import co.topl.genusLibrary.model.{BlockData, HeightData}
-import co.topl.models.TypedIdentifier
-import co.topl.consensus.models.{BlockHeader => ConsensusBlockHeader}
-import co.topl.node.models.{BlockBody => NodeBlockBody}
+import co.topl.{models => legacyModels}
+import legacyModels.TypedIdentifier
+import co.topl.consensus.models.BlockHeader
+import co.topl.node.models.BlockBody
+import co.topl.proto.models.Transaction
 import com.typesafe.scalalogging.LazyLogging
 import scala.collection.immutable.ListSet
 
@@ -39,12 +41,12 @@ class NodeBlockFetcher[F[_]: Async](toplRpc: ToplRpc[F, Any]) extends BlockFetch
     } yield BlockData(header, body, transactions)
   ).value
 
-  private def fetchBlockHeader(blockId: TypedIdentifier): F[Either[Failure, ConsensusBlockHeader]] =
+  private def fetchBlockHeader(blockId: TypedIdentifier): F[Either[Failure, BlockHeader]] =
     toplRpc
       .fetchBlockHeader(blockId)
       .map(_.toRight[Failure](Failures.NoBlockHeaderFoundOnNodeFailure(blockId)))
 
-  private def fetchBlockBody(blockId: TypedIdentifier): F[Either[Failure, NodeBlockBody]] =
+  private def fetchBlockBody(blockId: TypedIdentifier): F[Either[Failure, BlockBody]] =
     toplRpc
       .fetchBlockBody(blockId)
       .map(_.toRight[Failure](Failures.NoBlockBodyFoundOnNodeFailure(blockId)))
@@ -53,7 +55,7 @@ class NodeBlockFetcher[F[_]: Async](toplRpc: ToplRpc[F, Any]) extends BlockFetch
    * If all transactions were retrieved correctly, then all transactions are returned.
    * If one or more transactions is missing, then a failure listing all missing transactions is returned.
    */
-  private def fetchTransactions(body: NodeBlockBody): F[Either[Failure, Chain[co.topl.proto.models.Transaction]]] =
+  private def fetchTransactions(body: BlockBody): F[Either[Failure, Chain[Transaction]]] =
     body.transactionIds.toList.traverse(ioTx32 =>
       toplRpc
         .fetchTransaction(co.topl.models.TypedBytes.ioTx32(ioTx32))
