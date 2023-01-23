@@ -8,7 +8,7 @@ import co.topl.genusLibrary.failure.Failure
 import co.topl.genusLibrary.model.BlockData
 import co.topl.genusLibrary.orientDb.GenusGraphMetadata.blockHeaderSchema
 import co.topl.genusLibrary.orientDb.wrapper.WrappedVertex
-import co.topl.genusLibrary.orientDb.{DBFacade, GraphTxDAO, VertexSchema}
+import co.topl.genusLibrary.orientDb.{GraphTxDAO, StoreFacade, VertexSchema}
 import co.topl.consensus.models.BlockHeader
 import co.topl.models.ModelGenerators._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -27,7 +27,7 @@ class GraphHeaderInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite
 
   implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
 
-  private val orientDB = mock[DBFacade]
+  private val orientDB = mock[StoreFacade]
   private val mediator = mock[MediatorMock]
 
   val graphHeaderInserter = new GraphHeaderInserter[F](orientDB, mediator)

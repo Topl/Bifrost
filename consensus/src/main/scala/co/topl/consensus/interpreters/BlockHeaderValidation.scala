@@ -215,9 +215,9 @@ object BlockHeaderValidation {
                     // Use the ed25519 instance to verify the childSignature against the header's bytes
                     ed25519
                       .verify(
-                        Bytes(operationalCertificate.childSignature.map(_.toByteArray).getOrElse(Array.empty)),
+                        Bytes(operationalCertificate.childSignature.map(_.value.toByteArray).getOrElse(Array.empty)),
                         header.signableBytes,
-                        Bytes(operationalCertificate.childVK.map(_.toByteArray).getOrElse(Array.empty))
+                        Bytes(operationalCertificate.childVK.map(_.value.toByteArray).getOrElse(Array.empty))
                       )
                       .pure[F]
                   )
@@ -287,7 +287,7 @@ object BlockHeaderValidation {
                 .use { implicit ed25519Vrf =>
                   ed25519Vrf
                     .proofToHash(
-                      Bytes(eligibilityCertificate.getVrfSig.toByteArray)
+                      Bytes(eligibilityCertificate.vrfSig.map(_.value.toByteArray).getOrElse(Array.empty))
                     )
                     .pure[F]
                 }
@@ -332,7 +332,7 @@ object BlockHeaderValidation {
                 message <- blake2b256Resource
                   .use(
                     _.hash(
-                      Bytes(eligibilityCertificate.getVrfVK.toByteArray),
+                      Bytes(eligibilityCertificate.vrfVK.map(_.value.toByteArray).getOrElse(Array.empty)),
                       StakingAddresses.operatorFromProtoString(header.address).vk.bytes.data
                     ).pure[F]
                   )

@@ -2,13 +2,16 @@ package co.topl.genusLibrary.orientDb
 
 import cats.data.Chain
 import cats.implicits.catsSyntaxOptionId
+import co.topl.brambl.models.Evidence
+import co.topl.brambl.models.Identifier.IoTransaction32
 import co.topl.crypto.hash.Blake2b256
 import co.topl.{models => legacyModels}
 import legacyModels.utility._
 import co.topl.consensus.models._
 import co.topl.crypto.models._
+import co.topl.node.models.BlockBody
 import com.google.protobuf.ByteString
-import scala.collection.immutable.ListSet
+import quivr.models.Digest.Digest32
 import scala.util.Random
 
 class GenusGraphMetadataTest extends munit.FunSuite {
@@ -69,16 +72,18 @@ class GenusGraphMetadataTest extends munit.FunSuite {
   }
 
   test("BlockBody round-trip Serialization") {
-    val blockBody = (0 to 3).foldLeft(ListSet.empty[legacyModels.TypedIdentifier]) { case (transactions, _) =>
+    val transactions = (0 to 3).foldLeft(Seq.empty[IoTransaction32]) { case (transactions, _) =>
       val byteArray = Random.nextBytes(evidenceLength.value)
       val transactionId =
-        legacyModels.TypedBytes(legacyModels.IdentifierTypes.Block.BodyV2, legacyModels.Bytes(byteArray))
-      transactions + transactionId
+        IoTransaction32.of(Some(Evidence.Sized32.of(Some(Digest32.of(ByteString.copyFrom(byteArray))))))
+
+      transactions :+ transactionId
     }
+    val blockBody = BlockBody.of(transactions)
 
     assertEquals(
-      byteArrayToBlockBody(blockBodyToByteArray(blockBody)).toSeq,
-      blockBody.toSeq,
+      byteArrayToBlockBody(blockBodyToByteArray(blockBody)),
+      blockBody,
       "Round trip serialization of BlockBody"
     )
   }

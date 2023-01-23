@@ -240,6 +240,7 @@ lazy val networkDelayer = project
   .settings(
     name := "network-delayer",
     commonSettings,
+    coverageEnabled := false,
     assemblySettings("co.topl.networkdelayer.NetworkDelayer"),
     assemblyJarName := s"network-delayer-${version.value}.jar",
     networkDelayerDockerSettings,
@@ -264,6 +265,7 @@ lazy val testnetSimulationOrchestrator = project
   .settings(
     name := "testnet-simulation-orchestrator",
     commonSettings,
+    coverageEnabled := false,
     assemblySettings("co.topl.testnetsimulationorchestrator.app.Orchestrator"),
     assemblyJarName := s"testnet-simulation-orchestrator-${version.value}.jar",
     testnetSimulationOrchestratorDockerSettings,
@@ -494,6 +496,7 @@ lazy val transactionGenerator = project
   .settings(
     name := "transaction-generator",
     commonSettings,
+    coverageEnabled := false,
     crossScalaVersions := Seq(scala213),
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.transactiongenerator"

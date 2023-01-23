@@ -2,8 +2,10 @@ package co.topl.genusLibrary.orientDb {
 
   import cats.implicits.catsSyntaxOptionId
   import co.topl.codecs.bytes.tetra.{TetraIdentifiableInstances, TetraScodecCodecs}
+  import co.topl.genusLibrary.utils.BlockUtils
   import co.topl.genusLibrary.{GenusException, Txo, TxoState}
   import co.topl.consensus.models.BlockHeader
+  import co.topl.node.models.BlockBody
   import co.topl.{models => legacyModels}
   import legacyModels._
   import com.google.protobuf.ByteString
@@ -65,9 +67,10 @@ package co.topl.genusLibrary.orientDb {
       }
   }
 
-  object GenusGraphMetadata {
+  object GenusGraphMetadata extends BlockUtils {
     import OrientDbTyped.Instances._
 
+    // TODO: TSDK-274 Move util methods to BlockUtils
     // TODO: Rework to use model classes generated from protobuf definitions rather than those in the models project.
 
     /////////////////////////////////////////////////////////////////////////////////
@@ -113,10 +116,7 @@ package co.topl.genusLibrary.orientDb {
         GraphDataEncoder[BlockHeader]
           .withProperty(
             "blockId",
-            blockHeader => {
-              val (typePrefix, bytes) = TetraIdentifiableInstances.identifiableConsensusBlockHeader.idOf(blockHeader)
-              typedBytesTupleToByteArray((typePrefix, bytes.toArray))
-            },
+            b => getBlockId(b),
             _.setNotNull(true)
           )(byteArrayOrientDbTypes)
           .withProperty(
@@ -238,11 +238,13 @@ package co.topl.genusLibrary.orientDb {
     def byteArrayToTransaction(a: Array[Byte]): Transaction =
       decodeFromByteArray(a, TetraScodecCodecs.transactionCodec, "Transaction")
 
-    def byteArrayToBlockBody(a: Array[Byte]): BlockBody =
-      decodeFromByteArray(a, TetraScodecCodecs.blockBodyCodec, "BlockBody")
-
-    def blockBodyToByteArray(blockBody: BlockBody): Array[Byte] =
-      encodeToByteArray(blockBody, TetraScodecCodecs.blockBodyCodec, "BlockBody")
+    /**
+     * TODO this is a question related to the previous TODO note, this need to change?
+     * it does it mean, if we want to convert Array[Byte] -> Protobuf
+     * should we do this path: Array[Byte] -> Scodec -> Protobuf
+     * should we do this path: Protobuf -> Scodec -> Array[Byte]
+     */
+    def byteArrayToBlockBody(a: Array[Byte]): BlockBody = BlockBody.parseFrom(a)
 
     def typedBytesToByteArray(t: TypedIdentifier): Array[Byte] =
       typedBytesTupleToByteArray((t.typePrefix, t.dataBytes.toArray))
@@ -253,24 +255,6 @@ package co.topl.genusLibrary.orientDb {
     }
 
     def byteArrayToTypedBytesTuple(a: Array[Byte]): (TypePrefix, Array[TypePrefix]) = (a(0), a.drop(1))
-
-    def typedBytesTupleToByteArray(id: (TypePrefix, Array[Byte])): Array[Byte] = {
-      val a: Array[Byte] = new Array(1 + id._2.length)
-      a(0) = id._1
-      Array.copy(id._2, 0, a, 1, id._2.length)
-      a
-    }
-
-    private def encodeToByteArray[T <: java.io.Serializable](
-      scalaObject: T,
-      codec:       Codec[T],
-      typeName:    String
-    ): Array[Byte] =
-      codec
-        .encode(scalaObject)
-        .mapErr(err => throw GenusException(s"Error encoding $typeName: ${err.messageWithContext}"))
-        .require
-        .toByteArray
 
     private def decodeFromByteArray[T <: java.io.Serializable](a: Array[Byte], codec: Codec[T], typeName: String): T =
       codec

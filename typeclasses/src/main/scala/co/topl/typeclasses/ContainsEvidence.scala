@@ -19,12 +19,13 @@ object ContainsEvidence {
     (t: T) => TypedEvidence(prefix, Sized.strictUnsafe(new Blake2b256().hash(t.immutableBytes)))
 
   /**
-   * // TODO Ask Sean, how to create a good Ratio Evidence Pattern for ProtobufByteString
-   * @param bytesString
-   * @return
+   * Ratio Evidence From ProtobufString
+   * @see https://github.com/Topl/protobuf-specs/blob/main/consensus/models/eligibility_certificate.proto#L14
+   * @param bytesString Example, Hash of the operator's threshold, with routine = blake2b256 and length = 32
+   * @return Ratio Typed Evidennce
    */
   def ratioEvidenceFromProtobufString(bytesString: com.google.protobuf.ByteString): TypedEvidence =
-    TypedEvidence(TypePrefixes.Ratio, Sized.strictUnsafe(new Blake2b256().hash(Bytes(bytesString.toByteArray))))
+    TypedEvidence(TypePrefixes.Ratio, Sized.strictUnsafe(Bytes(bytesString.toByteArray)))
 
   object TypePrefixes {
     final val VerificationKeysCurve25519: Byte = 1

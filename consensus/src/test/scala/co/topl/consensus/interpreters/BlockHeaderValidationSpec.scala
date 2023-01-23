@@ -440,8 +440,7 @@ class BlockHeaderValidationSpec
     }
   }
 
-  // TODo fix this test
-  ignore should "invalidate blocks with a semantically incorrect registration verification" in {
+  it should "invalidate blocks with a semantically incorrect registration verification" in {
     forAll(
       genValid(u =>
         u.copy(
@@ -520,7 +519,7 @@ class BlockHeaderValidationSpec
     }
   }
 
-  ignore should "invalidate blocks with an insufficient VRF threshold" in {
+  it should "invalidate blocks with an insufficient VRF threshold" in {
     forAll(genValid()) { case (parent, child, registration, eta, _: Ratio) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
@@ -600,7 +599,7 @@ class BlockHeaderValidationSpec
   }
 
   // TODO: Fix this test, talk with Sean
-  ignore should "validate valid blocks" in {
+  it should "validate valid blocks" in {
     forAll(genValid()) { case (parent, child, registration, eta, relativeStake) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
@@ -675,7 +674,7 @@ class BlockHeaderValidationSpec
     }
   }
 
-  private def validEligibilityCertificateNew(
+  private def validEligibilityCertificate(
     skVrf:                SecretKeys.VrfEd25519, // TODO ask which is the new model for this
     thresholdInterpreter: LeaderElectionValidationAlgebra[F],
     eta:                  Eta,
@@ -763,7 +762,7 @@ class BlockHeaderValidationSpec
       val address = ByteString.copyFrom(StakingAddresses.Operator(poolVK).vk.bytes.data.toArray)
 
       val (eligibilityCertificate, slot) =
-        validEligibilityCertificateNew(vrfSecret, leaderElectionInterpreter, eta, relativeStake, parent.slot)
+        validEligibilityCertificate(vrfSecret, leaderElectionInterpreter, eta, relativeStake, parent.slot)
 
       val (unsignedOriginal, linearSK) =
         withPartialOperationalCertificate(

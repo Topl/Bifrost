@@ -18,6 +18,7 @@ import java.net.InetSocketAddress
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
+// $COVERAGE-OFF$
 @Lenses
 case class ApplicationConfig(bifrost: ApplicationConfig.Bifrost, kamon: ApplicationConfig.Kamon)
 
@@ -197,3 +198,4 @@ object ApplicationConfig {
 
   case class Kamon(enable: Boolean)
 }
+// $COVERAGE-ON$

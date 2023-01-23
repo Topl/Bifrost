@@ -1,10 +1,10 @@
 package co.topl.genusLibrary.orientDb
 
 import cats.effect.kernel.Async
-import com.tinkerpop.blueprints.Vertex
+import co.topl.genusLibrary.orientDb.wrapper.WrappedVertex
 import com.tinkerpop.blueprints.impls.orient.OrientGraphNoTx
 
-private[genusLibrary] trait DBFacade {
+private[genusLibrary] trait StoreFacade {
 
   type VertexTypeName = String
 
@@ -32,11 +32,11 @@ private[genusLibrary] trait DBFacade {
    * @tparam F the effect-ful context to retrieve the value in
    * @return Optional Vertex
    */
-  def getVertex[F[_]: Async](
+  def getVertexByField[F[_]: Async](
     vertexTypeName: VertexTypeName,
     filterKey:      PropertyKey,
     filterValue:    AnyRef
-  ): F[Option[Vertex]]
+  ): F[Option[WrappedVertex]]
 
   /**
    * Get single vertex filtered by multiple properties
@@ -46,10 +46,10 @@ private[genusLibrary] trait DBFacade {
    * @tparam F the effect-ful context to retrieve the value in
    * @return Optional Vertex
    */
-  def getVertex[F[_]: Async](
+  def getVertexByFields[F[_]: Async](
     vertexTypeName:   VertexTypeName,
     propertiesFilter: Set[PropertyQuery]
-  ): F[Option[Vertex]]
+  ): F[Option[WrappedVertex]]
 
   /**
    * Get vertices filtered by only one field
@@ -60,11 +60,11 @@ private[genusLibrary] trait DBFacade {
    * @tparam F the effect-ful context to retrieve the value in
    * @return Vertices
    */
-  def getVertices[F[_]: Async](
+  def getVerticesByField[F[_]: Async](
     vertexTypeName: VertexTypeName,
     filterKey:      PropertyKey,
     filterValue:    AnyRef
-  ): F[Iterable[Vertex]]
+  ): F[Iterable[WrappedVertex]]
 
   /**
    * Get vertices filtered by multiple properties
@@ -74,8 +74,8 @@ private[genusLibrary] trait DBFacade {
    * @tparam F the effect-ful context to retrieve the value in
    * @return Vertices
    */
-  def getVertices[F[_]: Async](
+  def getVerticesByFields[F[_]: Async](
     vertexTypeName:   VertexTypeName,
     propertiesFilter: Set[PropertyQuery]
-  ): F[Iterable[Vertex]]
+  ): F[Iterable[WrappedVertex]]
 }
