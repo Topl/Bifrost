@@ -208,7 +208,8 @@ trait TetraScodecVerificationKeyCodecs {
       .as[VerificationKeys.VrfEd25519]
 
   implicit val consensusVkVrfCodec: Codec[co.topl.consensus.models.VerificationKeyVrfEd25519] =
-    (protobufByteStringCodec :: unknownFieldSetCodec).as[co.topl.consensus.models.VerificationKeyVrfEd25519]
+    (protobufByteStringCodec :: emptyCodec(scalapb.UnknownFieldSet.empty))
+      .as[co.topl.consensus.models.VerificationKeyVrfEd25519]
 
   implicit val vkKesSumCodec: Codec[VerificationKeys.KesSum] =
     (strictSizedBytesCodec[VerificationKeys.KesSum.Length] :: intCodec)
@@ -599,7 +600,8 @@ trait TetraScodecProofCodecs {
     (protobufByteStringCodec :: unknownFieldSetCodec).as[co.topl.proto.models.ProofKnowledgeVrfEd25519]
 
   implicit val consensusSignatureVrfEd25519Codec: Codec[co.topl.consensus.models.SignatureVrfEd25519] =
-    (protobufByteStringCodec :: unknownFieldSetCodec).as[co.topl.consensus.models.SignatureVrfEd25519]
+    (protobufByteStringCodec :: emptyCodec(scalapb.UnknownFieldSet.empty))
+      .as[co.topl.consensus.models.SignatureVrfEd25519]
 
   // TODO Remove after full model replacement
   implicit val proofSignatureKesSumCodec: Codec[Proofs.Knowledge.KesSum] =
@@ -843,7 +845,8 @@ trait TetraScodecBlockCodecs {
       optionCodec(consensusVkVrfCodec) ::
       protobufByteStringCodec :: // thresholdEvidence
       protobufByteStringCodec :: // eta
-      unknownFieldSetCodec).as[co.topl.consensus.models.EligibilityCertificate]
+      emptyCodec(scalapb.UnknownFieldSet.empty))
+      .as[co.topl.consensus.models.EligibilityCertificate]
 
   implicit val operationalCertificateCodec: Codec[OperationalCertificate] =
     (vkKesProductCodec :: proofSignatureKesProductCodec :: vkEd25519Codec :: proofSignatureEd25519Codec)

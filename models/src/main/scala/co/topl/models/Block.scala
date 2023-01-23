@@ -27,7 +27,7 @@ object BlockHeader {
 
   type Metadata = Sized.Max[Latin1Data, Lengths.`32`.type]
 
-  case class Unsigned(
+  case class Unsigned( // TODO rename to legacyUnsigned
     parentHeaderId:                TypedIdentifier,
     parentSlot:                    Slot,
     txRoot:                        TxRoot,
@@ -41,7 +41,7 @@ object BlockHeader {
     address:                       StakingAddresses.Operator
   )
 
-  object Unsigned {
+  object Unsigned { // TODO rename to legacyUnsigned
 
     case class PartialOperationalCertificate(
       parentVK:        VerificationKeys.KesProduct,
@@ -50,7 +50,7 @@ object BlockHeader {
     )
   }
 
-  case class UnsignedConsensus(
+  case class UnsignedConsensus( // TODO rename Unsigned
     parentHeaderId:                Option[co.topl.consensus.models.BlockId],
     parentSlot:                    Slot,
     txRoot:                        ByteString,
@@ -64,7 +64,7 @@ object BlockHeader {
     address:                       ByteString
   )
 
-  object UnsignedConsensus {
+  object UnsignedConsensus { // TODO rename Unsigned
 
     case class PartialOperationalCertificate(
       parentVK:        Option[co.topl.consensus.models.VerificationKeyKesProduct],

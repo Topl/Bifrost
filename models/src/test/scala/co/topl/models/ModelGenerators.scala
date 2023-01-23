@@ -211,7 +211,7 @@ trait ModelGenerators {
       address
     )
 
-  def headerConsensusGen( // TODO move this the specific consensus model package genertor, and rename headerGen
+  def headerConsensusGen( // TODO move this the specific consensus model package generator, and rename headerGen
     parentHeaderIdGen: Gen[TypedIdentifier] =
       genSizedStrictBytes[Lengths.`32`.type]().map(sized => TypedBytes(IdentifierTypes.Block.HeaderV2, sized.data)),
     parentSlotGen:             Gen[Slot] = Gen.chooseNum(0L, 50L),
@@ -224,7 +224,8 @@ trait ModelGenerators {
     operationalCertificateGen: Gen[OperationalCertificate] = operationalCertificateGen,
     metadataGen: Gen[Option[Sized.Max[Latin1Data, Lengths.`32`.type]]] =
       Gen.option(latin1DataGen.map(Sized.maxUnsafe[Latin1Data, Lengths.`32`.type](_))),
-    addressGen: Gen[StakingAddresses.Operator] = operatorStakingAddressGen
+    addressGen: Gen[StakingAddresses.Operator] =
+      operatorStakingAddressGen // TODO Generator for new model, and remove replace model util
   ): Gen[co.topl.consensus.models.BlockHeader] =
     for {
       parentHeaderID <- parentHeaderIdGen
@@ -246,8 +247,12 @@ trait ModelGenerators {
       timestamp,
       height,
       slot,
-      Some(ReplaceModelUtil.eligibilityCertificate(vrfCertificate)),
-      Some(ReplaceModelUtil.operationalCertificate(kesCertificate)),
+      Some(
+        ReplaceModelUtil.eligibilityCertificate(vrfCertificate)
+      ), // TODO Generator for new model, and remove replace model util
+      Some(
+        ReplaceModelUtil.operationalCertificate(kesCertificate)
+      ), // TODO Generator for new model, and remove replace model util
       metadata
         .map(md => com.google.protobuf.ByteString.copyFrom(md.data.bytes))
         .getOrElse(com.google.protobuf.ByteString.EMPTY),

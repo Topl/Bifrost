@@ -1,19 +1,20 @@
 package co.topl.codecs.bytes.tetra
 
 import co.topl.codecs.bytes.typeclasses._
-import co.topl.models.{BlockHeader, SpendingAddress, StakingAddress, Transaction}
+import co.topl.{models => legacyModels}
+import co.topl.consensus.models.BlockHeader
 
 trait TetraSignableCodecs {
 
   import TetraImmutableCodecs._
   import co.topl.codecs.bytes.typeclasses.implicits._
 
-  implicit val signableUnsignedBlockHeader: Signable[BlockHeader.Unsigned] =
+  implicit val signableUnsignedBlockHeader: Signable[legacyModels.BlockHeader.Unsigned] =
     _.immutableBytes
 
-  implicit val signableBlockHeader: Signable[BlockHeader] =
+  implicit val signableBlockHeader: Signable[legacyModels.BlockHeader] =
     t =>
-      BlockHeader
+      legacyModels.BlockHeader
         .Unsigned(
           t.parentHeaderId,
           t.parentSlot,
@@ -23,7 +24,7 @@ trait TetraSignableCodecs {
           t.height,
           t.slot,
           t.eligibilityCertificate,
-          BlockHeader.Unsigned.PartialOperationalCertificate(
+          legacyModels.BlockHeader.Unsigned.PartialOperationalCertificate(
             t.operationalCertificate.parentVK,
             t.operationalCertificate.parentSignature,
             t.operationalCertificate.childVK
@@ -33,12 +34,12 @@ trait TetraSignableCodecs {
         )
         .signableBytes
 
-  implicit val signableUnsignedConsensusBlockHeader: Signable[BlockHeader.UnsignedConsensus] =
+  implicit val signableUnsignedConsensusBlockHeader: Signable[legacyModels.BlockHeader.UnsignedConsensus] =
     _.immutableBytes
 
-  implicit val signableBlockConsensusHeader: Signable[co.topl.consensus.models.BlockHeader] =
+  implicit val signableBlockConsensusHeader: Signable[BlockHeader] =
     t =>
-      BlockHeader
+      legacyModels.BlockHeader
         .UnsignedConsensus(
           t.parentHeaderId,
           t.parentSlot,
@@ -48,7 +49,7 @@ trait TetraSignableCodecs {
           t.height,
           t.slot,
           t.eligibilityCertificate,
-          BlockHeader.UnsignedConsensus.PartialOperationalCertificate(
+          legacyModels.BlockHeader.UnsignedConsensus.PartialOperationalCertificate(
             t.operationalCertificate.map(_.getParentVK),
             t.operationalCertificate.flatMap(_.parentSignature),
             t.operationalCertificate.flatMap(_.childVK)
@@ -58,21 +59,21 @@ trait TetraSignableCodecs {
         )
         .signableBytes
 
-  implicit val signableUnprovenTransaction: Signable[Transaction.Unproven] =
+  implicit val signableUnprovenTransaction: Signable[legacyModels.Transaction.Unproven] =
     _.immutableBytes
 
-  implicit val signableTransaction: Signable[Transaction] =
+  implicit val signableTransaction: Signable[legacyModels.Transaction] =
     t =>
-      Transaction
+      legacyModels.Transaction
         .Unproven(
-          t.inputs.map(i => Transaction.Unproven.Input(i.boxId, i.proposition, i.value)),
+          t.inputs.map(i => legacyModels.Transaction.Unproven.Input(i.boxId, i.proposition, i.value)),
           t.outputs,
           t.schedule,
           t.data
         )
         .signableBytes
 
-  implicit val signableAddressCommitment: Signable[(SpendingAddress, StakingAddress)] = {
+  implicit val signableAddressCommitment: Signable[(legacyModels.SpendingAddress, legacyModels.StakingAddress)] = {
     case (spendingAddress, stakingAddress) =>
       spendingAddress.immutableBytes ++ stakingAddress.immutableBytes
   }

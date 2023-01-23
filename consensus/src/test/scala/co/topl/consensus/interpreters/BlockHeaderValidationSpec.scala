@@ -13,15 +13,18 @@ import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.hash.{blake2b256, Blake2b256, Blake2b512}
 import co.topl.{models => legacyModels}
 import legacyModels._
+import legacyModels.SlotId
 import legacyModels.Box.Values.Registrations.Operator
 import legacyModels.ModelGenerators._
 import legacyModels.utility.HasLength.instances._
 import legacyModels.utility.Lengths._
 import legacyModels.utility.{Lengths, Ratio, ReplaceModelUtil, Sized}
 import co.topl.consensus.models.BlockHeader
+import co.topl.crypto.models.{SignatureEd25519, VerificationKeyEd25519}
 import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
+import com.google.protobuf.ByteString
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
@@ -158,31 +161,40 @@ class BlockHeaderValidationSpec
   }
 
   it should "invalidate blocks with parent-header mismatch" in {
-    forAll(genValid(u => u.copy(parentHeaderId = TypedBytes(1: Byte, Bytes.fill(32)(0: Byte))))) {
-      case (parent, child, _: Operator, _: Eta, _: Ratio) =>
-        val etaInterpreter = mock[EtaCalculationAlgebra[F]]
-        val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
-        val clockAlgebra = mock[ClockAlgebra[F]]
-        val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
-        val kesProductResource = mock[UnsafeResource[F, KesProduct]]
-        val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
-        val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
-        val underTest =
-          BlockHeaderValidation
-            .make[F](
-              etaInterpreter,
-              consensusValidationState,
-              leaderElectionInterpreter,
-              clockAlgebra,
-              ed25519VRFResource,
-              kesProductResource,
-              ed25519Resource,
-              blake2b256Resource
+    forAll(
+      genValid(u =>
+        u.copy(
+          parentHeaderId = BlockId
+            .of(
+              ByteString.copyFrom(TypedBytes(1: Byte, Bytes.fill(32)(0: Byte)).dataBytes.toArray)
             )
-            .unsafeRunSync()
+            .some
+        )
+      )
+    ) { case (parent, child, _: Operator, _: Eta, _: Ratio) =>
+      val etaInterpreter = mock[EtaCalculationAlgebra[F]]
+      val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
+      val clockAlgebra = mock[ClockAlgebra[F]]
+      val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
+      val kesProductResource = mock[UnsafeResource[F, KesProduct]]
+      val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
+      val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
+      val underTest =
+        BlockHeaderValidation
+          .make[F](
+            etaInterpreter,
+            consensusValidationState,
+            leaderElectionInterpreter,
+            clockAlgebra,
+            ed25519VRFResource,
+            kesProductResource,
+            ed25519Resource,
+            blake2b256Resource
+          )
+          .unsafeRunSync()
 
-        underTest.validate(child, parent).unsafeRunSync().left.value shouldBe BlockHeaderValidationFailures
-          .ParentMismatch(TypedBytes.headerFromBlockId(child.parentHeaderId), parent.id)
+      underTest.validate(child, parent).unsafeRunSync().left.value shouldBe BlockHeaderValidationFailures
+        .ParentMismatch(TypedBytes.headerFromBlockId(child.parentHeaderId), parent.id)
     }
   }
 
@@ -338,8 +350,8 @@ class BlockHeaderValidationSpec
           .unsafeRunSync()
 
       (etaInterpreter
-        .etaToBe(_: co.topl.models.SlotId, _: Slot))
-        .expects(co.topl.models.SlotId(parent.slot, parent.id), child.slot)
+        .etaToBe(_: SlotId, _: Slot))
+        .expects(SlotId(parent.slot, parent.id), child.slot)
         .anyNumberOfTimes()
         // This epoch nonce does not satisfy the generated VRF certificate
         .returning(eta.pure[F])
@@ -391,8 +403,8 @@ class BlockHeaderValidationSpec
       val badBlock = child.copy(timestamp = child.timestamp + 1)
 
       (etaInterpreter
-        .etaToBe(_: co.topl.models.SlotId, _: Slot))
-        .expects(co.topl.models.SlotId(parent.slot, parent.id), badBlock.slot)
+        .etaToBe(_: SlotId, _: Slot))
+        .expects(SlotId(parent.slot, parent.id), badBlock.slot)
         .anyNumberOfTimes()
         .returning(eta.pure[F])
 
@@ -428,11 +440,13 @@ class BlockHeaderValidationSpec
     }
   }
 
-  // TODO: Fix this test, talk with Sean
+  // TODo fix this test
   ignore should "invalidate blocks with a semantically incorrect registration verification" in {
     forAll(
       genValid(u =>
-        u.copy(address = u.address.copy(vk = VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes.fill(32)(0: Byte)))))
+        u.copy(
+          address = ByteString.copyFrom(Bytes.fill(32)(0: Byte).toArray)
+        )
       )
     ) { case (parent, child, registration, eta, _: Ratio) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
@@ -463,8 +477,8 @@ class BlockHeaderValidationSpec
         .returning(registration.some.pure[F])
 
       (etaInterpreter
-        .etaToBe(_: co.topl.models.SlotId, _: Slot))
-        .expects(co.topl.models.SlotId(parent.slot, parent.id), child.slot)
+        .etaToBe(_: SlotId, _: Slot))
+        .expects(SlotId(parent.slot, parent.id), child.slot)
         .anyNumberOfTimes()
         .returning(eta.pure[F])
 
@@ -502,12 +516,10 @@ class BlockHeaderValidationSpec
         .validate(child, parent)
         .unsafeRunSync()
         .left
-        .value shouldBe a[BlockHeaderValidationFailures.InvalidEligibilityCertificateProof]
-    // TODO Why I had to change RegistrationCommitmentMismatch, ask?
+        .value shouldBe a[BlockHeaderValidationFailures.RegistrationCommitmentMismatch]
     }
   }
 
-  // TODO: Fix this test, talk with Sean
   ignore should "invalidate blocks with an insufficient VRF threshold" in {
     forAll(genValid()) { case (parent, child, registration, eta, _: Ratio) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
@@ -538,8 +550,8 @@ class BlockHeaderValidationSpec
         .returning(registration.some.pure[F])
 
       (etaInterpreter
-        .etaToBe(_: co.topl.models.SlotId, _: Slot))
-        .expects(co.topl.models.SlotId(parent.slot, parent.id), child.slot)
+        .etaToBe(_: SlotId, _: Slot))
+        .expects(SlotId(parent.slot, parent.id), child.slot)
         .anyNumberOfTimes()
         .returning(eta.pure[F])
 
@@ -583,9 +595,7 @@ class BlockHeaderValidationSpec
         .validate(child, parent)
         .unsafeRunSync()
         .left
-        .value shouldBe a[BlockHeaderValidationFailures.InvalidEligibilityCertificateProof]
-    // TODO ask Sean, why I had to change this, where is configured the invalid threshold is this test
-//        .value shouldBe a[BlockHeaderValidationFailures.InvalidVrfThreshold]
+        .value shouldBe a[BlockHeaderValidationFailures.InvalidVrfThreshold]
     }
   }
 
@@ -620,8 +630,8 @@ class BlockHeaderValidationSpec
         .returning(registration.some.pure[F])
 
       (etaInterpreter
-        .etaToBe(_: co.topl.models.SlotId, _: Slot))
-        .expects(co.topl.models.SlotId(parent.slot, parent.id), child.slot)
+        .etaToBe(_: SlotId, _: Slot))
+        .expects(SlotId(parent.slot, parent.id), child.slot)
         .anyNumberOfTimes()
         .returning(eta.pure[F])
 
@@ -665,24 +675,27 @@ class BlockHeaderValidationSpec
     }
   }
 
-  private def validEligibilityCertificate(
-    skVrf:                SecretKeys.VrfEd25519,
+  private def validEligibilityCertificateNew(
+    skVrf:                SecretKeys.VrfEd25519, // TODO ask which is the new model for this
     thresholdInterpreter: LeaderElectionValidationAlgebra[F],
     eta:                  Eta,
     relativeStake:        Ratio,
     parentSlot:           Slot
-  ): (co.topl.models.EligibilityCertificate, co.topl.models.Slot) = {
+  ): (co.topl.consensus.models.EligibilityCertificate, Slot) = {
     def proof(slot: Slot) =
-      Proofs.Knowledge.VrfEd25519(
-        Sized.strictUnsafe(
-          ed25519Vrf.sign(skVrf.bytes.data, VrfArgument(eta, slot).signableBytes)
+      SignatureVrfEd25519.of(
+        ByteString.copyFrom(
+          ed25519Vrf.sign(skVrf.bytes.data, VrfArgument(eta, slot).signableBytes).toArray
         )
       )
 
-    def isLeader(threshold: Ratio, testProof: Proofs.Knowledge.VrfEd25519) =
+    def isLeader(threshold: Ratio, testProof: SignatureVrfEd25519) =
       thresholdInterpreter
-        .isSlotLeaderForThreshold(threshold)(Rho(Sized.strictUnsafe(ed25519Vrf.proofToHash(testProof.bytes.data))))
+        .isSlotLeaderForThreshold(threshold)(
+          Rho(Sized.strictUnsafe(ed25519Vrf.proofToHash(Bytes(testProof.value.toByteArray))))
+        )
         .unsafeRunSync()
+
     var slot = parentSlot + 1
     var testProof = proof(slot)
     var threshold = thresholdInterpreter.getThreshold(relativeStake, slot).unsafeRunSync()
@@ -691,46 +704,45 @@ class BlockHeaderValidationSpec
       testProof = proof(slot)
       threshold = thresholdInterpreter.getThreshold(relativeStake, slot).unsafeRunSync()
     }
-    val cert = co.topl.models.EligibilityCertificate(
-      testProof,
-      VerificationKeys.VrfEd25519(Sized.strictUnsafe(ed25519Vrf.getVerificationKey(skVrf.bytes.data))),
-      threshold.typedEvidence.evidence,
-      eta
+    val cert = co.topl.consensus.models.EligibilityCertificate(
+      testProof.some,
+      VerificationKeyVrfEd25519.of(ByteString.copyFrom(ed25519Vrf.getVerificationKey(skVrf.bytes.data).toArray)).some,
+      ByteString.copyFrom(threshold.typedEvidence.evidence.data.toArray),
+      ByteString.copyFrom(eta.data.toArray)
     )
 
     cert -> slot
   }
 
-  private def withPartialOperationalCertificate(
-    slot:      Slot,
-    unsignedF: co.topl.models.BlockHeader.Unsigned.PartialOperationalCertificate => co.topl.models.BlockHeader.Unsigned,
-    parentSK:  SecretKeys.KesProduct
-  ): (co.topl.models.BlockHeader.Unsigned, SecretKeys.Ed25519) = {
+  private def withPartialOperationalCertificate( // new models, remove the other and rename this
+    slot: Slot,
+    unsignedF: legacyModels.BlockHeader.UnsignedConsensus.PartialOperationalCertificate => legacyModels.BlockHeader.UnsignedConsensus,
+    parentSK: SecretKeys.KesProduct
+  ): (legacyModels.BlockHeader.UnsignedConsensus, SecretKeys.Ed25519) = {
     val (linearSKBytes, linearVKBytes) =
       Ed25519.instance.deriveKeyPairFromEntropy(Entropy.fromUuid(UUID.randomUUID()), None)
 
     val message = linearVKBytes ++ Bytes(Longs.toByteArray(slot))
-    val parentSignature = kesProduct.sign(parentSK, message)
-    val partialCertificate = co.topl.models.BlockHeader.Unsigned.PartialOperationalCertificate(
-      kesProduct.getVerificationKey(parentSK),
-      parentSignature,
-      VerificationKeys.Ed25519(Sized.strictUnsafe(linearVKBytes))
+    val parentSignatureLegacy = kesProduct.sign(parentSK, message) // TODO, it should return new Models
+    val parentSignature = ReplaceModelUtil.signatureKesProduct(parentSignatureLegacy)
+    val kesProductVerificationKey = kesProduct.getVerificationKey(parentSK) // TODO, it should return new Models
+    val partialCertificate = legacyModels.BlockHeader.UnsignedConsensus.PartialOperationalCertificate(
+      Some(
+        VerificationKeyKesProduct.of(
+          ByteString.copyFrom(kesProductVerificationKey.bytes.data.toArray),
+          kesProductVerificationKey.step
+        )
+      ),
+      parentSignature.some,
+      co.topl.crypto.models.VerificationKeyEd25519.of(ByteString.copyFrom(linearVKBytes.toArray)).some
     )
     unsignedF(partialCertificate) -> SecretKeys.Ed25519(Sized.strictUnsafe(linearSKBytes))
   }
 
   private def genValid(
-    preSign:    co.topl.models.BlockHeader.Unsigned => co.topl.models.BlockHeader.Unsigned = identity,
+    preSign:    legacyModels.BlockHeader.UnsignedConsensus => legacyModels.BlockHeader.UnsignedConsensus = identity,
     parentSlot: Slot = 5000L
-  ): Gen[
-    (
-      co.topl.consensus.models.BlockHeader,
-      co.topl.consensus.models.BlockHeader,
-      Box.Values.Registrations.Operator,
-      Eta,
-      Ratio
-    )
-  ] =
+  ): Gen[(BlockHeader, BlockHeader, Box.Values.Registrations.Operator, Eta, Ratio)] =
     for {
       parent              <- headerConsensusGen(slotGen = Gen.const[Long](parentSlot))
       txRoot              <- genSizedStrictBytes[Lengths.`32`.type]()
@@ -739,57 +751,53 @@ class BlockHeaderValidationSpec
       relativeStake       <- relativeStakeGen
       (vrfSecretBytes, _) <- Gen.const(Ed25519VRF.precomputed().generateRandom)
     } yield {
-
       val (kesSK0, _) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (9, 9), 0L)
-
       val poolVK = arbitraryEd25519VK.arbitrary.first
-
       val vrfSecret = SecretKeys.VrfEd25519(Sized.strictUnsafe(vrfSecretBytes))
 
-      val registration = validRegistration(
-        VerificationKeys.VrfEd25519(Sized.strictUnsafe(ed25519Vrf.getVerificationKey(vrfSecretBytes))),
-        poolVK,
+      val registration = validRegistrationNew(
+        VerificationKeyVrfEd25519.of(ByteString.copyFrom(ed25519Vrf.getVerificationKey(vrfSecretBytes).toArray)),
+        VerificationKeyEd25519.of(ByteString.copyFrom(poolVK.bytes.data.toArray)),
         kesSK0
       )
+      val address = ByteString.copyFrom(StakingAddresses.Operator(poolVK).vk.bytes.data.toArray)
 
-      val address = StakingAddresses.Operator(poolVK)
-
-      val (eligibilityCert, slot) =
-        validEligibilityCertificate(vrfSecret, leaderElectionInterpreter, eta, relativeStake, parent.slot)
+      val (eligibilityCertificate, slot) =
+        validEligibilityCertificateNew(vrfSecret, leaderElectionInterpreter, eta, relativeStake, parent.slot)
 
       val (unsignedOriginal, linearSK) =
         withPartialOperationalCertificate(
           slot,
           partial =>
-            co.topl.models.BlockHeader.Unsigned(
-              parentHeaderId = parent.id,
+            legacyModels.BlockHeader.UnsignedConsensus(
+              parentHeaderId = BlockId.of(ByteString.copyFrom(parent.id._2.toArray)).some,
               parentSlot = parent.slot,
-              txRoot = txRoot,
-              bloomFilter = bloomFilter,
+              txRoot = ByteString.copyFrom(txRoot.data.toArray),
+              bloomFilter = ByteString.copyFrom(bloomFilter.data.toArray),
               timestamp = System.currentTimeMillis(),
               height = parent.height + 1,
               slot = slot,
-              eligibilityCertificate = eligibilityCert,
+              eligibilityCertificate = eligibilityCertificate.some,
               partialOperationalCertificate = partial,
-              metadata = None,
+              metadata = ByteString.EMPTY,
               address = address
             ),
           kesSK0
         )
-
-      val unsigned =
-        preSign(unsignedOriginal)
+      val unsigned = preSign(unsignedOriginal)
 
       val operationalCertificate =
-        co.topl.models.OperationalCertificate(
+        co.topl.consensus.models.OperationalCertificate(
           unsigned.partialOperationalCertificate.parentVK,
           unsigned.partialOperationalCertificate.parentSignature,
           unsigned.partialOperationalCertificate.childVK,
-          Proofs.Knowledge.Ed25519(Sized.strictUnsafe(ed25519.sign(linearSK.bytes.data, unsigned.signableBytes)))
+          SignatureEd25519
+            .of(ByteString.copyFrom(ed25519.sign(linearSK.bytes.data, unsigned.signableBytes).toArray))
+            .some
         )
 
       val child =
-        co.topl.models.BlockHeader(
+        BlockHeader(
           parentHeaderId = unsigned.parentHeaderId,
           parentSlot = unsigned.parentSlot,
           txRoot = unsigned.txRoot,
@@ -798,25 +806,24 @@ class BlockHeaderValidationSpec
           height = unsigned.height,
           slot = unsigned.slot,
           eligibilityCertificate = unsigned.eligibilityCertificate,
-          operationalCertificate = operationalCertificate,
+          operationalCertificate = operationalCertificate.some,
           metadata = unsigned.metadata,
           address = unsigned.address
         )
-      (parent, ReplaceModelUtil.consensusHeader(child), registration, eta, relativeStake)
-    }
 
+      (parent, child, registration, eta, relativeStake)
+    }
 }
 
 object BlockHeaderValidationSpec {
 
   // Note: These methods are in the companion object because `digest.Digest32#value` conflicts with a ScalaTest member
-
-  def validRegistration(
-    vkVrf:               VerificationKeys.VrfEd25519,
-    poolVK:              VerificationKeys.Ed25519,
+  def validRegistrationNew(
+    vkVrf:               VerificationKeyVrfEd25519,
+    poolVK:              VerificationKeyEd25519,
     skKes:               SecretKeys.KesProduct
   )(implicit kesProduct: KesProduct): Box.Values.Registrations.Operator = {
-    val commitmentMessage = Bytes(blake2b256.hash((vkVrf.bytes.data ++ poolVK.bytes.data).toArray).value)
+    val commitmentMessage = Bytes(blake2b256.hash((vkVrf.value.toByteArray ++ poolVK.value.toByteArray)).value)
     Box.Values.Registrations.Operator(kesProduct.sign(skKes, commitmentMessage))
   }
 }

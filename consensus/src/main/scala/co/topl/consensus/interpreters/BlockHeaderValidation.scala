@@ -96,7 +96,7 @@ object BlockHeaderValidation {
         .ensureOr(child =>
           BlockHeaderValidationFailures
             .ParentMismatch(TypedBytes.headerFromBlockId(child.parentHeaderId), parent.id)
-        )(id => TypedBytes.headerFromBlockId(id.parentHeaderId) === parent.id)
+        )(child => TypedBytes.headerFromBlockId(child.parentHeaderId) === parent.id)
         .ensureOr(child => BlockHeaderValidationFailures.NonForwardHeight(child.height, parent.height))(
           _.height === parent.height + 1
         )

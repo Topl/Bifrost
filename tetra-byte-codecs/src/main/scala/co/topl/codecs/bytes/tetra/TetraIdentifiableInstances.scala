@@ -16,9 +16,10 @@ trait TetraIdentifiableInstances {
   implicit val identifiableBlockHeader: Identifiable[legacyModels.BlockHeader] =
     (header: legacyModels.BlockHeader) => {
       val bytes =
-        header.parentHeaderId.allBytes ++ header.txRoot.data ++ header.bloomFilter.data ++ Bytes(
-          BigInt(header.timestamp).toByteArray
-        ) ++
+        header.parentHeaderId.allBytes ++
+        header.txRoot.data ++
+        header.bloomFilter.data ++
+        Bytes(BigInt(header.timestamp).toByteArray) ++
         Bytes(BigInt(header.height).toByteArray) ++
         Bytes(BigInt(header.slot).toByteArray) ++
         header.eligibilityCertificate.immutableBytes ++
@@ -32,7 +33,7 @@ trait TetraIdentifiableInstances {
   implicit val identifiableConsensusBlockHeader: Identifiable[BlockHeader] =
     (header: BlockHeader) => {
       val bytes =
-        ByteVector(header.parentHeaderId.map(_.value.toByteArray).getOrElse(Array.empty)) ++
+        TypedBytes.headerFromBlockId(header.parentHeaderId).allBytes ++
         ByteVector(header.txRoot.toByteArray) ++
         ByteVector(header.bloomFilter.toByteArray) ++ Bytes(
           BigInt(header.timestamp).toByteArray
