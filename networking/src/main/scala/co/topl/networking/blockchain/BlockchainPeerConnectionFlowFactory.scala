@@ -25,24 +25,27 @@ import fs2._
 object BlockchainPeerConnectionFlowFactory {
 
   def make[F[_]: Async: Logger: FToFuture](
-    peerServer: BlockchainPeerServer[F]
+    peerServerF: ConnectedPeer => Resource[F, BlockchainPeerServerAlgebra[F]]
   ): (ConnectedPeer, ConnectionLeader) => Resource[F, Flow[ByteString, ByteString, BlockchainPeerClient[F]]] =
-    createFactory(peerServer).multiplexed
+    (peer, leader) =>
+      peerServerF(peer)
+        .map(server => createFactory(server))
+        .flatMap(_.multiplexed(peer, leader))
 
   private[blockchain] def createFactory[F[_]: Async: Logger](
-    protocolServer: BlockchainPeerServer[F]
+    protocolServer: BlockchainPeerServerAlgebra[F]
   ): TypedProtocolSetFactory[F, BlockchainPeerClient[F]] = {
     val blockAdoptionRecipF =
       TypedProtocolSetFactory.CommonProtocols.notificationReciprocated(
         BlockchainProtocols.BlockAdoption,
-        Stream.eval(protocolServer.localBlockAdoptions).flatten,
+        Stream.force(protocolServer.localBlockAdoptions),
         1: Byte,
         2: Byte
       )
     val transactionNotificationRecipF =
       TypedProtocolSetFactory.CommonProtocols.notificationReciprocated(
         BlockchainProtocols.TransactionBroadcasts,
-        Stream.eval(protocolServer.localTransactionNotifications).flatten,
+        Stream.force(protocolServer.localTransactionNotifications),
         3: Byte,
         4: Byte
       )
