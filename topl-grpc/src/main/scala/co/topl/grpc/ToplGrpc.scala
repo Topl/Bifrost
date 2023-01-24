@@ -141,11 +141,9 @@ object ToplGrpc {
                           // This Applied is not reachable
                           .map(SynchronizationTraversalSteps.Applied)
 
-                      // TODO: Ask if Response should return BlockId instead of bytes
-                      // https://github.com/Topl/protobuf-specs/blob/main/node/services/bifrost_rpc.proto#L128
                       case SynchronizationTraversalRes.Status.Applied(value) =>
                         value
-                          .toF[F, TypedIdentifier](implicitly, blockIdByteStringHeaderIsomorphism[F].baMorphism)
+                          .toF[F, TypedIdentifier](implicitly, blockIdHeaderIsomorphism[F].baMorphism)
                           .flatMap(
                             EitherT
                               .fromEither[F](_)
@@ -154,11 +152,9 @@ object ToplGrpc {
                           )
                           .map(SynchronizationTraversalSteps.Applied)
 
-                      // TODO: Ask if Response should return BlockId instead of bytes
-                      // https://github.com/Topl/protobuf-specs/blob/main/node/services/bifrost_rpc.proto#L128
                       case SynchronizationTraversalRes.Status.Unapplied(value) =>
                         value
-                          .toF[F, TypedIdentifier](implicitly, blockIdByteStringHeaderIsomorphism[F].baMorphism)
+                          .toF[F, TypedIdentifier](implicitly, blockIdHeaderIsomorphism[F].baMorphism)
                           .flatMap(
                             EitherT
                               .fromEither[F](_)
@@ -291,14 +287,14 @@ object ToplGrpc {
       private def pipeSteps: Pipe[F, SynchronizationTraversalStep, SynchronizationTraversalRes] = { in =>
         in.evalMap {
           case SynchronizationTraversalSteps.Applied(blockId) =>
-            EitherT(blockId.dataBytes.toF[F, com.google.protobuf.ByteString])
+            EitherT(blockId.toF[F, BlockId])
               .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
               .rethrowT
               .map(SynchronizationTraversalRes.Status.Applied)
               .map(SynchronizationTraversalRes(_))
 
           case SynchronizationTraversalSteps.Unapplied(blockId) =>
-            EitherT(blockId.dataBytes.toF[F, com.google.protobuf.ByteString])
+            EitherT(blockId.toF[F, BlockId])
               .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
               .rethrowT
               .map(SynchronizationTraversalRes.Status.Unapplied)
