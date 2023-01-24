@@ -7,7 +7,6 @@ import co.topl.models.utility.Ratio
 import scala.collection.immutable.NumericRange
 
 trait VrfCalculatorAlgebra[F[_]] {
-  def precomputeForEpoch(epoch: Epoch, eta: Eta): F[Unit]
 
   def rhoForSlot(slot: Slot, eta: Eta): F[Rho]
 

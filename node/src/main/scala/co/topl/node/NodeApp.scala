@@ -268,7 +268,11 @@ object NodeApp
           )
           currentSlot  <- clock.globalSlot.map(_.max(0L))
           currentEpoch <- clock.epochOf(currentSlot)
-          _            <- vrfCalculator.precomputeForEpoch(currentEpoch, currentHead.eta)
+
+          // TODO this behaviour is correct if rhoForSlot is responsible of save proofs in cache
+          _ <- vrfCalculator.proofForSlot(currentEpoch, currentHead.eta).void
+          _ <- vrfCalculator.rhoForSlot(currentEpoch, currentHead.eta).void
+
           operationalKeys <- OperationalKeyMaker.make[F](
             initialSlot = currentSlot,
             currentHead.slotId,

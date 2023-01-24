@@ -37,7 +37,9 @@ object Staking {
         slotsPerEpoch <- clock.slotsPerEpoch
         eta           <- etaCalculation.etaToBe(parentSlotId, slot)
         _ <- Applicative[F].whenA(slot % slotsPerEpoch === 0L)(
-          vrfCalculator.precomputeForEpoch(slot / slotsPerEpoch, eta)
+          //  This behaviour is correct if rhoForSlot is responsible of save proofs in cache
+          vrfCalculator.proofForSlot(slot / slotsPerEpoch, eta) >>
+          vrfCalculator.rhoForSlot(slot / slotsPerEpoch, eta)
         )
         maybeHit <- OptionT(consensusState.operatorRelativeStake(parentSlotId.blockId, slot)(a))
           .flatMapF(relativeStake => vrfCalculator.getHit(relativeStake, slot, slot - parentSlotId.slot, eta))

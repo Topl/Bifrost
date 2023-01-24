@@ -60,33 +60,27 @@ object VrfCalculator {
     rhosCache:                CaffeineCache[F, Bytes, Map[Long, Rho]]
   ) extends VrfCalculatorAlgebra[F] {
 
-    def precomputeForEpoch(epoch: Epoch, eta: Eta): F[Unit] =
-      for {
-        _        <- Logger[F].info(show"Precomputing VRF Proofs and Rho values for epoch=$epoch eta=$eta")
-        boundary <- clock.epochRange(epoch)
-        (vrfProofs, rhoValues) <- ed25519VRFResource.use { implicit ed =>
-          val vrfProofs =
-            boundary.map { slot =>
-              slot -> compute(
-                VrfArgument(eta, slot),
-                ed
-              )
-            }.toMap
-
-          val rhoValues = vrfProofs.map { case (slot, proof) =>
-            slot -> Rho(Sized.strictUnsafe(ed.proofToHash(proof.bytes.data)))
-          }
-          (vrfProofs -> rhoValues).pure[F]
-        }
-        _ <- (vrfProofsCache.put(eta.data)(vrfProofs), rhosCache.put(eta.data)(rhoValues)).tupled
-      } yield ()
-
     def proofForSlot(slot: Slot, eta: Eta): F[Proofs.Knowledge.VrfEd25519] =
       OptionT(vrfProofsCache.get(eta.data))
-        .orElseF(
-          clock.epochOf(slot).flatMap(precomputeForEpoch(_, eta)) >>
-          vrfProofsCache.get(eta.data)
-        )
+        .orElseF {
+          for {
+            epoch    <- clock.epochOf(slot)
+            _        <- Logger[F].info(show"Computing VRF Proofs values for epoch=$epoch eta=$eta")
+            boundary <- clock.epochRange(epoch)
+            vrfProofs <- ed25519VRFResource.use { implicit ed =>
+              boundary
+                .map { slot =>
+                  slot -> compute(
+                    VrfArgument(eta, slot),
+                    ed
+                  )
+                }
+                .toMap
+                .pure[F]
+            }
+            _ <- vrfProofsCache.put(eta.data)(vrfProofs)
+          } yield vrfProofs.some // TODO: Ask why the previous implementation Get from cache again if the values was already there.
+        }
         .subflatMap(_.get(slot))
         .getOrElseF(
           new IllegalStateException(show"proof was not precomputed for slot=$slot eta=$eta")
@@ -96,14 +90,36 @@ object VrfCalculator {
     def rhoForSlot(slot: Slot, eta: Eta): F[Rho] =
       OptionT(rhosCache.get(eta.data))
         .orElseF(
-          clock.epochOf(slot).flatMap(precomputeForEpoch(_, eta)) >>
-          rhosCache.get(eta.data)
+          clock
+            .epochOf(slot)
+            .flatMap(getAndPutRhoForSlotEta(_, eta))
         )
         .subflatMap(_.get(slot))
         .getOrElseF(
           new IllegalStateException(show"rho was not precomputed for slot=$slot eta=$eta")
             .raiseError[F, Rho]
         )
+
+    private def getAndPutRhoForSlotEta(epoch: Epoch, eta: Eta): F[Option[Map[Slot, Rho]]] =
+      for {
+        _        <- Logger[F].info(show"Precomputing Rho values for epoch=$epoch eta=$eta")
+        boundary <- clock.epochRange(epoch)
+        rhoValues <- ed25519VRFResource.use { implicit ed =>
+          boundary
+            .map { slot =>
+              slot -> compute(
+                VrfArgument(eta, slot),
+                ed
+              )
+            }
+            .toMap
+            .map { case (slot, proof) =>
+              slot -> Rho(Sized.strictUnsafe(ed.proofToHash(proof.bytes.data)))
+            }
+            .pure[F]
+        }
+        _ <- rhosCache.put(eta.data)(rhoValues) // TODO: Ask rhoForSlot is responsible of save proofs in cache?
+      } yield rhoValues.some // TODO: Ask why the previous implementation Get from cache again if the values was already there.
 
     private def compute(
       arg:        VrfArgument,
@@ -127,7 +143,9 @@ object VrfCalculator {
       for {
         rhosMap <-
           OptionT(rhosCache.get(eta.data))
-            .orElseF(precomputeForEpoch(epoch, eta) >> rhosCache.get(eta.data))
+            .orElseF(
+              getAndPutRhoForSlotEta(epoch, eta)
+            ) // TODO: Ask why the previous implementation Get from cache again if the values was already there.
             .getOrElseF(
               new IllegalStateException(show"rhos were not precomputed for epoch=$epoch eta=$eta")
                 .raiseError[F, Map[Long, Rho]]
