@@ -558,7 +558,7 @@ lazy val blockchain = project
     consensus,
     minting,
     commonInterpreters,
-    networking,
+    networking % "compile->compile;test->test",
     catsAkka,
     toplGrpc
   )

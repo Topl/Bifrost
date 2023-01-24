@@ -34,7 +34,7 @@ class BlockchainPeerConnectionFlowFactorySpec
   it should "produce 10 typed protocols" in {
 
     forAll { (connectedPeer: ConnectedPeer, connectionLeader: ConnectionLeader) =>
-      val server = mock[BlockchainPeerServer[F]]
+      val server = mock[BlockchainPeerServerAlgebra[F]]
 
       (() => server.localBlockAdoptions)
         .expects()

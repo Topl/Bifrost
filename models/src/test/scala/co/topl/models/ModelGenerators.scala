@@ -211,50 +211,6 @@ trait ModelGenerators {
       address
     )
 
-//  def headerConsensusGen( // TODO move this the specific consensus model package generator, and rename headerGen
-//    parentHeaderIdGen: Gen[TypedIdentifier] =
-//      genSizedStrictBytes[Lengths.`32`.type]().map(sized => TypedBytes(IdentifierTypes.Block.HeaderV2, sized.data)),
-//    parentSlotGen:             Gen[Slot] = Gen.chooseNum(0L, 50L),
-//    txRootGen:                 Gen[TxRoot] = genSizedStrictBytes[Lengths.`32`.type](),
-//    bloomFilterGen:            Gen[BloomFilter] = genSizedStrictBytes[Lengths.`256`.type](),
-//    timestampGen:              Gen[Timestamp] = Gen.chooseNum(0L, 50L),
-//    heightGen:                 Gen[Long] = Gen.chooseNum(0L, 20L),
-//    slotGen:                   Gen[Slot] = Gen.chooseNum(0L, 50L),
-//    eligibilityCertificateGen: Gen[co.topl.consensus.models.EligibilityCertificate] = co.topl.models.generators.consensus.ModelGenerators.arbitraryEligibilityCertificate.arbitrary, //eligibilityCertificateGen,
-//    operationalCertificateGen: Gen[co.topl.consensus.models.OperationalCertificate] = co.topl.models.generators.consensus.ModelGenerators.arbitraryOperationalCertificate.arbitrary, //,// operationalCertificateGen,
-//    metadataGen: Gen[Option[Sized.Max[Latin1Data, Lengths.`32`.type]]] =
-//      Gen.option(latin1DataGen.map(Sized.maxUnsafe[Latin1Data, Lengths.`32`.type](_))),
-//    addressGen: Gen[StakingAddresses.Operator] =
-//      operatorStakingAddressGen // TODO Generator for new model, and remove replace model util
-//  ): Gen[co.topl.consensus.models.BlockHeader] =
-//    for {
-//      parentHeaderID <- parentHeaderIdGen
-//      parentSlot     <- parentSlotGen
-//      txRoot         <- txRootGen
-//      bloomFilter    <- bloomFilterGen
-//      timestamp      <- timestampGen
-//      height         <- heightGen
-//      slot           <- slotGen
-//      vrfCertificate <- eligibilityCertificateGen
-//      kesCertificate <-  operationalCertificateGen
-//      metadata       <- metadataGen
-//      address        <- addressGen
-//    } yield co.topl.consensus.models.BlockHeader(
-//      Some(co.topl.consensus.models.BlockId(com.google.protobuf.ByteString.copyFrom(parentHeaderID.dataBytes.toArray))),
-//      parentSlot,
-//      com.google.protobuf.ByteString.copyFrom(txRoot.data.toArray),
-//      com.google.protobuf.ByteString.copyFrom(bloomFilter.data.toArray),
-//      timestamp,
-//      height,
-//      slot,
-//      Some(vrfCertificate),
-//      Some(kesCertificate),
-//      metadata
-//        .map(md => com.google.protobuf.ByteString.copyFrom(md.data.bytes))
-//        .getOrElse(com.google.protobuf.ByteString.EMPTY),
-//      com.google.protobuf.ByteString.copyFrom(address.vk.bytes.data.toArray)
-//    )
-
   def headerGen(
     parentHeaderIdGen: Gen[TypedIdentifier] =
       genSizedStrictBytes[Lengths.`32`.type]().map(sized => TypedBytes(IdentifierTypes.Block.HeaderV2, sized.data)),
