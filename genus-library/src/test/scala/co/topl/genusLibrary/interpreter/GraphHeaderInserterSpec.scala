@@ -10,7 +10,7 @@ import co.topl.genusLibrary.orientDb.GenusGraphMetadata.blockHeaderSchema
 import co.topl.genusLibrary.orientDb.wrapper.WrappedVertex
 import co.topl.genusLibrary.orientDb.{GraphTxDAO, StoreFacade, VertexSchema}
 import co.topl.consensus.models.BlockHeader
-import co.topl.models.ModelGenerators._
+import co.topl.models.generators.consensus.ModelGenerators._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory

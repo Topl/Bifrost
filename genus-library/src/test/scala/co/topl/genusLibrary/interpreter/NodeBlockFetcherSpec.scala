@@ -13,6 +13,7 @@ import co.topl.{models => legacyModels}
 import legacyModels.ModelGenerators._
 import legacyModels.generators.brambl.ModelGenerators._
 import legacyModels.generators.models.ModelGenerators.arbitraryTransaction
+import legacyModels.generators.consensus.ModelGenerators.arbitraryHeader
 import legacyModels._
 import co.topl.consensus.models.BlockHeader
 import co.topl.node.models.BlockBody

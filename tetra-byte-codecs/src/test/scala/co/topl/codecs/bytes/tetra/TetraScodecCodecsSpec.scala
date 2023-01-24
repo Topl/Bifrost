@@ -42,7 +42,7 @@ class TetraScodecCodecsSpec extends CodecSpec {
   codecBehavior[com.google.protobuf.ByteString](
     "ProtoByteString",
     TetraScodecCodecs.protobufByteStringCodec,
-    co.topl.models.generators.models.ModelGenerators.arbitraryByteString.arbitrary
+    co.topl.models.generators.common.ModelGenerators.arbitraryByteString.arbitrary
   )
 
   codecBehavior[co.topl.proto.models.Int128](

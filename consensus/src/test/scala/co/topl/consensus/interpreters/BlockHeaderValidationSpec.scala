@@ -11,15 +11,18 @@ import co.topl.consensus.models._
 import co.topl.crypto.signing._
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.hash.{blake2b256, Blake2b256, Blake2b512}
+import co.topl.models.ModelGenerators.GenHelper
+import co.topl.models.generators.common.ModelGenerators.genSizedStrictByteString
 import co.topl.{models => legacyModels}
 import legacyModels._
 import legacyModels.SlotId
 import legacyModels.Box.Values.Registrations.Operator
-import legacyModels.ModelGenerators._
+//import legacyModels.ModelGenerators._
 import legacyModels.utility.HasLength.instances._
 import legacyModels.utility.Lengths._
 import legacyModels.utility.{Lengths, Ratio, ReplaceModelUtil, Sized}
 import co.topl.consensus.models.BlockHeader
+import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.crypto.models.{SignatureEd25519, VerificationKeyEd25519}
 import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
@@ -310,23 +313,23 @@ class BlockHeaderValidationSpec
 
   it should "invalidate blocks with syntactically incorrect VRF certificate for a particular nonce" in {
     forAll(
-      headerConsensusGen(
+      headerGen(
         slotGen = Gen.chooseNum(0L, 50L),
         timestampGen = Gen.chooseNum(0L, 50L),
         heightGen = Gen.const(1L)
       ).flatMap(parent =>
         // The child block has a generated VRF Certificate (generated test/nonce proofs), meaning the proofs will not
         // match the epoch nonce `[1]` used in the test body
-        headerConsensusGen(
+        headerGen(
           slotGen = Gen.chooseNum(51L, 100L),
           timestampGen = Gen.chooseNum(51L, 100L),
           parentSlotGen = Gen.const(parent.slot),
-          parentHeaderIdGen = Gen.const(parent.id),
+          parentHeaderIdGen = Gen.const(parent.id).map(a => BlockId.of(ByteString.copyFrom(a._2.toArray))),
           heightGen = Gen.const(2L)
         )
           .map(parent -> _)
       ),
-      etaGen
+      co.topl.models.ModelGenerators.etaGen // TODO replace with new model
     ) { case ((parent, child), eta) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
@@ -675,7 +678,7 @@ class BlockHeaderValidationSpec
   }
 
   private def validEligibilityCertificate(
-    skVrf:                SecretKeys.VrfEd25519, // TODO ask which is the new model for this
+    skVrf:                SecretKeys.VrfEd25519, // TODO Move this Secret inside crypto Modules
     thresholdInterpreter: LeaderElectionValidationAlgebra[F],
     eta:                  Eta,
     relativeStake:        Ratio,
@@ -743,15 +746,15 @@ class BlockHeaderValidationSpec
     parentSlot: Slot = 5000L
   ): Gen[(BlockHeader, BlockHeader, Box.Values.Registrations.Operator, Eta, Ratio)] =
     for {
-      parent              <- headerConsensusGen(slotGen = Gen.const[Long](parentSlot))
-      txRoot              <- genSizedStrictBytes[Lengths.`32`.type]()
-      bloomFilter         <- genSizedStrictBytes[Lengths.`256`.type]()
-      eta                 <- etaGen
-      relativeStake       <- relativeStakeGen
+      parent      <- headerGen(slotGen = Gen.const[Long](parentSlot))
+      txRoot      <- genSizedStrictByteString[Lengths.`32`.type]()
+      bloomFilter <- genSizedStrictByteString[Lengths.`256`.type]()
+      eta <- co.topl.models.ModelGenerators.etaGen // TODO replace model when validEligibilityCertificate is replaced
+      relativeStake       <- co.topl.models.ModelGenerators.relativeStakeGen
       (vrfSecretBytes, _) <- Gen.const(Ed25519VRF.precomputed().generateRandom)
     } yield {
       val (kesSK0, _) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (9, 9), 0L)
-      val poolVK = arbitraryEd25519VK.arbitrary.first
+      val poolVK = co.topl.models.ModelGenerators.arbitraryEd25519VK.arbitrary.first
       val vrfSecret = SecretKeys.VrfEd25519(Sized.strictUnsafe(vrfSecretBytes))
 
       val registration = validRegistrationNew(
@@ -771,8 +774,8 @@ class BlockHeaderValidationSpec
             legacyModels.BlockHeader.UnsignedConsensus(
               parentHeaderId = BlockId.of(ByteString.copyFrom(parent.id._2.toArray)).some,
               parentSlot = parent.slot,
-              txRoot = ByteString.copyFrom(txRoot.data.toArray),
-              bloomFilter = ByteString.copyFrom(bloomFilter.data.toArray),
+              txRoot = txRoot.data,
+              bloomFilter = bloomFilter.data,
               timestamp = System.currentTimeMillis(),
               height = parent.height + 1,
               slot = slot,

@@ -18,6 +18,7 @@ import legacyModels.ModelGenerators._
 import legacyModels.{IdentifierTypes, TypedBytes, TypedIdentifier}
 import co.topl.models.generators.node.ModelGenerators.arbitraryNodeBody
 import co.topl.models.generators.models.ModelGenerators.arbitraryTransaction
+import co.topl.models.generators.consensus.ModelGenerators.arbitraryHeader
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import io.grpc.{Metadata, Status, StatusException}

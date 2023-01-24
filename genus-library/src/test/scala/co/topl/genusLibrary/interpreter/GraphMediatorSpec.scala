@@ -10,12 +10,12 @@ import co.topl.genusLibrary.orientDb.GenusGraphMetadata.{blockBodySchema, blockH
 import co.topl.genusLibrary.orientDb.wrapper.{WrappedEdge, WrappedVertex}
 import co.topl.genusLibrary.orientDb.{GraphTxDAO, StoreFacade}
 import co.topl.genusLibrary.utils.BlockUtils
-import co.topl.models.ModelGenerators._
 import co.topl.{models => legacyModels}
 import legacyModels.Transaction
 import co.topl.consensus.models.BlockHeader
 import co.topl.node.models.BlockBody
 import legacyModels.generators.node.ModelGenerators.arbitraryNodeBody
+import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.proto.models.TypedEvidence
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF

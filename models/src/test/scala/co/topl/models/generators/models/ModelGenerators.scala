@@ -1,7 +1,7 @@
 package co.topl.models.generators.models
 
 import co.topl.proto.models._
-import com.google.protobuf.ByteString
+import co.topl.models.generators.common.ModelGenerators._
 import org.scalacheck.{Arbitrary, Gen}
 
 /**
@@ -13,9 +13,6 @@ trait ModelGenerators {
 
   implicit val arbitraryUnknownFieldSet: Arbitrary[scalapb.UnknownFieldSet] =
     Arbitrary(Gen.const(scalapb.UnknownFieldSet.empty))
-
-  implicit val arbitraryByteString: Arbitrary[ByteString] =
-    Arbitrary(Arbitrary.arbByte.arbitrary.map(b => Array(b)).map(ByteString.copyFrom))
 
   val arbitraryPositiveInt128: Arbitrary[Int128] =
     Arbitrary(
