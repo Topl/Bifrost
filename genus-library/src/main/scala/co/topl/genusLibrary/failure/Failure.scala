@@ -10,9 +10,19 @@ abstract class Failure(message: String, exception: Option[RuntimeException] = No
 
 object Failures {
 
-  case class NoPreviousHeaderVertexFailure(blockId: (Byte, ByteVector), parentHeaderId: TypedIdentifier)
+  case class NoCurrentHeaderVertexFailure(blockId: ByteVector)
       extends Failure(
-        s"Block doesn't have a previous header vertex. blockId=[$blockId] parentHeaderId=[$parentHeaderId]"
+        s"Block doesn't have a header vertex. blockId=[$blockId]"
+      )
+
+  case class NoPreviousHeaderVertexFailure(blockId: ByteVector)
+      extends Failure(
+        s"Block doesn't have a previous header vertex. Previous blockId=[$blockId]"
+      )
+
+  case class NoCurrentBodyVertexFailure(transactions: ByteVector)
+      extends Failure(
+        s"Block doesn't have a transactions vertex. transactions=[$transactions]"
       )
 
   case class NoBlockHeaderFoundOnNodeFailure(blockId: TypedIdentifier)
