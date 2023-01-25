@@ -148,7 +148,7 @@ object Blockchain {
                   .evalTap(head => clock.delayedUntilSlot(head.slotId.slot))
                   .append(
                     Stream
-                      .eval(DroppingTopic(blockAdoptionsTopic, 10))
+                      .resource(DroppingTopic(blockAdoptionsTopic, 10))
                       .flatMap(_.subscribeUnbounded)
                       .evalMap(slotDataStore.getOrRaise)
                   ),
