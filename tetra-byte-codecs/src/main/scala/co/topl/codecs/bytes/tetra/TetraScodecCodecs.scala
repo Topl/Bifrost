@@ -9,13 +9,12 @@ import legacyModels.utility.HasLength.instances._
 import legacyModels.utility.StringDataTypes.Latin1Data
 import legacyModels.utility._
 import co.topl.proto.{models => protoModels}
-import co.topl.crypto.{models => criptoModels}
+import co.topl.crypto.{models => cryptoModels}
 import co.topl.consensus.{models => consensusModels}
 import scodec.codecs.{discriminated, lazily}
-import scodec.{Attempt, Codec, DecodeResult, Decoder, Encoder, Err}
+import scodec.{Attempt, Codec, Err}
 import shapeless.{::, HList, HNil}
 import scala.collection.immutable.ListSet
-import scodec.bits.BitVector
 import com.google.protobuf.ByteString
 
 trait TetraScodecCodecs
@@ -108,23 +107,11 @@ trait TetraScodecPrimitiveCodecs {
       }
     )
 
-  val unknownFieldSetEncoder: Encoder[scalapb.UnknownFieldSet] =
-    Encoder(_ => Attempt.successful(BitVector.empty))
-
-  val unknownFieldSetDecoder: Decoder[scalapb.UnknownFieldSet] =
-    Decoder(_ => Attempt.successful(DecodeResult(scalapb.UnknownFieldSet.empty, BitVector.empty)))
-
   implicit val unknownFieldSetCodec: Codec[scalapb.UnknownFieldSet] =
-    Codec[scalapb.UnknownFieldSet](unknownFieldSetEncoder, unknownFieldSetDecoder)
-
-  val protobufByteStringEncoder: Encoder[ByteString] =
-    Encoder(byteString => Attempt.successful(BitVector(byteString.toByteArray)))
-
-  val protobufByteStringDecoder: Decoder[ByteString] =
-    Decoder(bitVector => Attempt.successful(DecodeResult(ByteString.copyFrom(bitVector.toByteArray), BitVector.empty)))
+    emptyCodec(scalapb.UnknownFieldSet.empty)
 
   implicit val protobufByteStringCodec: Codec[ByteString] =
-    Codec[ByteString](protobufByteStringEncoder, protobufByteStringDecoder)
+    Codec[Array[Byte]].xmapc(ByteString.copyFrom)(_.toByteArray)
 
   implicit val int128ProtoCodec: Codec[protoModels.Int128] =
     (protobufByteStringCodec :: unknownFieldSetCodec).as[protoModels.Int128]
@@ -198,8 +185,8 @@ trait TetraScodecVerificationKeyCodecs {
     (protobufByteStringCodec :: unknownFieldSetCodec)
       .as[protoModels.VerificationKeyEd25519]
 
-  implicit val criptoVkEd25519Codec: Codec[criptoModels.VerificationKeyEd25519] =
-    (protobufByteStringCodec :: unknownFieldSetCodec).as[criptoModels.VerificationKeyEd25519]
+  implicit val criptoVkEd25519Codec: Codec[cryptoModels.VerificationKeyEd25519] =
+    (protobufByteStringCodec :: unknownFieldSetCodec).as[cryptoModels.VerificationKeyEd25519]
 
   implicit val vkExtendedEd25519Codec: Codec[VerificationKeys.ExtendedEd25519] =
     (vkEd25519Codec :: strictSizedBytesCodec[SecretKeys.ExtendedEd25519.ChainCodeLength])
@@ -589,8 +576,8 @@ trait TetraScodecProofCodecs {
   implicit val proofSignatureEd25519ProtoCodec: Codec[protoModels.ProofKnowledgeEd25519] =
     (protobufByteStringCodec :: unknownFieldSetCodec).as[protoModels.ProofKnowledgeEd25519]
 
-  implicit val consensusProofSignatureEd25519Codec: Codec[criptoModels.SignatureEd25519] =
-    (protobufByteStringCodec :: unknownFieldSetCodec).as[criptoModels.SignatureEd25519]
+  implicit val consensusProofSignatureEd25519Codec: Codec[cryptoModels.SignatureEd25519] =
+    (protobufByteStringCodec :: unknownFieldSetCodec).as[cryptoModels.SignatureEd25519]
 
   // TODO Remove after full model replacement
   implicit val proofSignatureVrfCodec: Codec[Proofs.Knowledge.VrfEd25519] =

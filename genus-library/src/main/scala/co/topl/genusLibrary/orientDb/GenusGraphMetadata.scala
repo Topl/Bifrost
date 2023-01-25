@@ -238,12 +238,6 @@ package co.topl.genusLibrary.orientDb {
     def byteArrayToTransaction(a: Array[Byte]): Transaction =
       decodeFromByteArray(a, TetraScodecCodecs.transactionCodec, "Transaction")
 
-    /**
-     * TODO this is a question related to the previous TODO note, this need to change?
-     * it does it mean, if we want to convert Array[Byte] -> Protobuf
-     * should we do this path: Array[Byte] -> Scodec -> Protobuf
-     * should we do this path: Protobuf -> Scodec -> Array[Byte]
-     */
     def byteArrayToBlockBody(a: Array[Byte]): BlockBody = BlockBody.parseFrom(a)
 
     def typedBytesToByteArray(t: TypedIdentifier): Array[Byte] =

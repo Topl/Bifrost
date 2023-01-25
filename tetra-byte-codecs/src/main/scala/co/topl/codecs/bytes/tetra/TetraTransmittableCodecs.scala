@@ -17,7 +17,7 @@ trait TetraTransmittableCodecs {
   implicit val ratioTransmittable: Transmittable[Ratio] = Transmittable.instanceFromCodec
   implicit val typedIdentifierTransmittable: Transmittable[TypedBytes] = Transmittable.instanceFromCodec
   implicit val typedIdentifierListSetTransmittable: Transmittable[ListSet[TypedBytes]] = Transmittable.instanceFromCodec
-  implicit val NodeBlockBodyTransmittable: Transmittable[nodeModels.BlockBody] = Transmittable.instanceFromCodec
+  implicit val nodeBlockBodyTransmittable: Transmittable[nodeModels.BlockBody] = Transmittable.instanceFromCodec
   implicit val blockHeaderTransmittable: Transmittable[BlockHeader] = Transmittable.instanceFromCodec
 
   implicit val consensusBlockHeaderTransmittable: Transmittable[consensusModels.BlockHeader] =

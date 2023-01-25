@@ -51,6 +51,9 @@ class KesProduct extends ProductComposition {
     )
   }
 
+  /**
+   * Throws: NoSuchElementException – if any signatures or vks are empty.
+   */
   def verify(
     signature: SignatureKesProduct,
     message:   Bytes,
@@ -58,13 +61,13 @@ class KesProduct extends ProductComposition {
   ): Boolean = {
     val prodSig = (
       (
-        signature.getSuperSignature.verificationKey.map(_.value.toByteArray).getOrElse(Array.empty),
-        signature.getSuperSignature.signature.map(_.value.toByteArray).getOrElse(Array.empty),
+        signature.getSuperSignature.verificationKey.map(_.value.toByteArray).get,
+        signature.getSuperSignature.signature.map(_.value.toByteArray).get,
         signature.getSuperSignature.witness.map(_.toByteArray).toVector
       ),
       (
-        signature.getSubSignature.verificationKey.map(_.value.toByteArray).getOrElse(Array.empty),
-        signature.getSubSignature.signature.map(_.value.toByteArray).getOrElse(Array.empty),
+        signature.getSubSignature.verificationKey.map(_.value.toByteArray).get,
+        signature.getSubSignature.signature.map(_.value.toByteArray).get,
         signature.getSubSignature.witness.map(_.toByteArray).toVector
       ),
       signature.subRoot.toByteArray

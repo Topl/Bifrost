@@ -13,7 +13,7 @@ trait ModelGenerators {
   def verificationKeyEd25519Gen: Gen[VerificationKeyEd25519] =
     genSizedStrictByteString[Lengths.`32`.type]().map(s => VerificationKeyEd25519.of(s.data))
 
-  def SecretKeyEd25519Gen: Gen[SecretKeyEd25519] =
+  def secretKeyEd25519Gen: Gen[SecretKeyEd25519] =
     genSizedStrictByteString[Lengths.`32`.type]().map(s => SecretKeyEd25519.of(s.data))
 
   def signatureEd25519Gen: Gen[SignatureEd25519] =

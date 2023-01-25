@@ -23,8 +23,7 @@ object ReplaceModelUtil {
 
   def nodeBlock(blockBody: co.topl.models.BlockBody): co.topl.node.models.BlockBody =
     co.topl.node.models.BlockBody(
-      transactionIds = blockBody.toSeq.map(ioTransaction32),
-      unknownFields = scalapb.UnknownFieldSet.empty
+      transactionIds = blockBody.toSeq.map(ioTransaction32)
     )
 
   def consensusHeader(header: co.topl.models.BlockHeader): co.topl.consensus.models.BlockHeader =
@@ -43,8 +42,7 @@ object ReplaceModelUtil {
       eligibilityCertificate = Some(ReplaceModelUtil.eligibilityCertificate(header.eligibilityCertificate)),
       operationalCertificate = Some(ReplaceModelUtil.operationalCertificate(header.operationalCertificate)),
       metadata = ByteString.copyFrom(header.metadata.map(_.data.bytes).getOrElse(Array.empty)),
-      address = ByteString.copyFrom(header.address.vk.bytes.data.toArray),
-      unknownFields = scalapb.UnknownFieldSet.empty
+      address = ByteString.copyFrom(header.address.vk.bytes.data.toArray)
     )
 
   def operationalCertificate(
@@ -55,17 +53,14 @@ object ReplaceModelUtil {
       parentSignature = Some(signatureKesProduct(operationalCertificate.parentSignature)),
       childVK = Some(
         co.topl.crypto.models.VerificationKeyEd25519(
-          value = ByteString.copyFrom(operationalCertificate.childVK.bytes.data.toArray),
-          unknownFields = scalapb.UnknownFieldSet.empty
+          value = ByteString.copyFrom(operationalCertificate.childVK.bytes.data.toArray)
         )
       ),
       childSignature = Some(
         co.topl.crypto.models.SignatureEd25519(
-          value = ByteString.copyFrom(operationalCertificate.childSignature.bytes.data.toArray),
-          unknownFields = scalapb.UnknownFieldSet.empty
+          value = ByteString.copyFrom(operationalCertificate.childSignature.bytes.data.toArray)
         )
-      ),
-      unknownFields = scalapb.UnknownFieldSet.empty
+      )
     )
 
   def eligibilityCertificate(
@@ -74,19 +69,16 @@ object ReplaceModelUtil {
     co.topl.consensus.models.EligibilityCertificate(
       vrfSig = Some(
         co.topl.consensus.models.SignatureVrfEd25519(
-          value = ByteString.copyFrom(eligibilityCertificate.vrfSig.bytes.data.toArray),
-          unknownFields = scalapb.UnknownFieldSet.empty
+          value = ByteString.copyFrom(eligibilityCertificate.vrfSig.bytes.data.toArray)
         )
       ),
       vrfVK = Some(
         co.topl.consensus.models.VerificationKeyVrfEd25519(
-          value = ByteString.copyFrom(eligibilityCertificate.vkVRF.bytes.data.toArray),
-          unknownFields = scalapb.UnknownFieldSet.empty
+          value = ByteString.copyFrom(eligibilityCertificate.vkVRF.bytes.data.toArray)
         )
       ),
       thresholdEvidence = ByteString.copyFrom(eligibilityCertificate.thresholdEvidence.data.toArray),
-      eta = ByteString.copyFrom(eligibilityCertificate.eta.data.toArray),
-      unknownFields = scalapb.UnknownFieldSet.empty
+      eta = ByteString.copyFrom(eligibilityCertificate.eta.data.toArray)
     )
 
   def verificationKeyKesProduct(
@@ -94,8 +86,7 @@ object ReplaceModelUtil {
   ): co.topl.consensus.models.VerificationKeyKesProduct =
     co.topl.consensus.models.VerificationKeyKesProduct(
       value = ByteString.copyFrom(vk.bytes.data.toArray),
-      step = vk.step,
-      unknownFields = scalapb.UnknownFieldSet.empty
+      step = vk.step
     )
 
   def signatureKesProduct(
@@ -116,8 +107,7 @@ object ReplaceModelUtil {
                 .copyFrom(kesProduct.superSignature.signature.bytes.data.toArray)
             )
           ),
-          witness = kesProduct.superSignature.witness.map(w => ByteString.copyFrom(w.data.toArray)),
-          unknownFields = scalapb.UnknownFieldSet.empty
+          witness = kesProduct.superSignature.witness.map(w => ByteString.copyFrom(w.data.toArray))
         )
       ),
       subSignature = Some(
@@ -134,12 +124,10 @@ object ReplaceModelUtil {
                 .copyFrom(kesProduct.subSignature.signature.bytes.data.toArray)
             )
           ),
-          witness = kesProduct.subSignature.witness.map(w => ByteString.copyFrom(w.data.toArray)),
-          unknownFields = scalapb.UnknownFieldSet.empty
+          witness = kesProduct.subSignature.witness.map(w => ByteString.copyFrom(w.data.toArray))
         )
       ),
-      subRoot = ByteString.copyFrom(kesProduct.subRoot.data.toArray),
-      unknownFields = scalapb.UnknownFieldSet.empty
+      subRoot = ByteString.copyFrom(kesProduct.subRoot.data.toArray)
     )
 
 }
