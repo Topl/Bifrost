@@ -22,7 +22,7 @@ object Brambl {
    * @return if successful, the address will be returned and the key is now available in the keyring
    */
   def importCurve25519JsonToKeyRing(keyfile: Json, password: String, keyRing: KeyRing_PK25519)(implicit
-    networkPrefix:                           NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): Either[RpcClientFailure, Address] =
     keyfile.as[KeyfileCurve25519] match {
       case Left(_) => Left(RpcErrorFailure(CustomError(7091, "Failed to decode JSON key")))
@@ -41,7 +41,7 @@ object Brambl {
    * @return if successful, the addresses will be returned and the key is now available in the keyring
    */
   def importMultipleCurve25519JsonToKeyRing(keyfilePasswordPairs: Seq[(Json, String)], keyRing: KeyRing_PK25519)(
-    implicit networkPrefix:                                       NetworkPrefix
+    implicit networkPrefix: NetworkPrefix
   ): Seq[Either[RpcClientFailure, Address]] =
     keyfilePasswordPairs.map { case (keyfile, password) =>
       importCurve25519JsonToKeyRing(keyfile, password, keyRing)
@@ -53,7 +53,7 @@ object Brambl {
    * @return
    */
   def generateNewCurve25519Keyfile(password: String, keyRing: KeyRing_PK25519)(implicit
-    networkPrefix:                           NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): Either[RpcClientFailure, KeyfileCurve25519] =
     keyRing.generateNewKeyPairs() match {
       case Failure(_) => Left(RpcErrorFailure(CustomError(7091, "Error occurred during key creation")))
@@ -71,7 +71,7 @@ object Brambl {
    * @return
    */
   def generateMultipleNewCurve25519Keyfile(passwords: Seq[String], keyRing: KeyRing_PK25519)(implicit
-    networkPrefix:                                    NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): Seq[Either[RpcClientFailure, KeyfileCurve25519]] =
     passwords.map { password =>
       generateNewCurve25519Keyfile(password, keyRing)
@@ -86,7 +86,7 @@ object Brambl {
   def signTransaction[P <: Proposition: EvidenceProducer: Identifiable, TX <: Transaction[_, P]](
     addresses:   Set[Address],
     transaction: TX
-  )(f:           Address => Array[Byte] => ListMap[P, Proof[P]]): Either[RpcClientFailure, Transaction.TX] = {
+  )(f: Address => Array[Byte] => ListMap[P, Proof[P]]): Either[RpcClientFailure, Transaction.TX] = {
 
     val msg2Sign = transaction.messageToSign
     val signFunc = (addr: Address) => f(addr)(msg2Sign)

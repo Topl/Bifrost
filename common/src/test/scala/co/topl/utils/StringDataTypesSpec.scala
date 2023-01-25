@@ -92,7 +92,7 @@ class StringDataTypesSpec extends AnyFlatSpec with ScalaCheckDrivenPropertyCheck
 
   // https://www.ascii-code.com/
   private def isValidLatin1Char(c: Char): Boolean = (c >= 0 && c <= 127) || (c >= 159 && c <= 255)
-  private def isValidLatin1(str: String): Boolean = str.forall(isValidLatin1Char)
+  private def isValidLatin1(str:   String): Boolean = str.forall(isValidLatin1Char)
 
   private def isValidBase16(str: String): Boolean =
     str.forall(x => (x >= '0' && x <= '9') || (x >= 'a' && x <= 'f') || (x >= 'A' && x <= 'F')) && str.length % 2 == 0

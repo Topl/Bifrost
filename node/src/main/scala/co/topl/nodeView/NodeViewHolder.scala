@@ -184,9 +184,9 @@ object NodeViewHolder {
    * @return A Behavior that is uninitialized
    */
   private def uninitialized(cacheSize: Int)(implicit
-    networkPrefix:                     NetworkPrefix,
-    timeProvider:                      TimeProvider,
-    protocolVersioner:                 ProtocolVersioner
+    networkPrefix:     NetworkPrefix,
+    timeProvider:      TimeProvider,
+    protocolVersioner: ProtocolVersioner
   ): Behavior[ReceivableMessage] =
     Behaviors.withStash(UninitializedStashSize)(stash =>
       Behaviors.receivePartial {
@@ -289,7 +289,7 @@ object NodeViewHolder {
    * Note: Insertions into the cache will trigger tests against the predicate
    */
   private def popBlock(cache: ActorRef[SortedCache.ReceivableMessage[Block]], nodeView: NodeView)(implicit
-    context:                  ActorContext[ReceivableMessage]
+    context: ActorContext[ReceivableMessage]
   ): Unit =
     cache.tell(
       SortedCache.ReceivableMessages.Pop(
@@ -330,8 +330,8 @@ object NodeViewHolderInterface {
  * A NodeViewHolderInterface that communicates with a NodeViewHolder actor
  */
 class ActorNodeViewHolderInterface(actorRef: ActorRef[NodeViewHolder.ReceivableMessage])(implicit
-  system:                                    ActorSystem[_],
-  timeout:                                   Timeout
+  system:  ActorSystem[_],
+  timeout: Timeout
 ) extends NodeViewHolderInterface {
 
   import akka.actor.typed.scaladsl.AskPattern._

@@ -22,8 +22,8 @@ object ActorPoolUnsafeResource {
   object Eval {
 
     def make[F[_]: Async: FToFuture, T](init: => T, cleanup: T => Unit)(implicit
-      system:                                 ActorSystem[_],
-      askTimeout:                             Timeout
+      system:     ActorSystem[_],
+      askTimeout: Timeout
     ): F[UnsafeResource[F, T]] =
       Sync[F].delay {
         implicit val scheduler: Scheduler = system.scheduler
@@ -130,7 +130,7 @@ object CatsActor {
       Async[F].fromFuture(Async[F].delay(ref.ask(messageF)))
 
     def askMWithStatus[F[_]: Async, Res](
-      messageF:         ActorRef[StatusReply[Res]] => T
+      messageF: ActorRef[StatusReply[Res]] => T
     )(implicit timeout: Timeout, scheduler: Scheduler): F[Res] =
       Async[F].fromFuture(Async[F].delay(ref.askWithStatus(messageF)))
   }

@@ -83,9 +83,9 @@ object Heimdall {
    * handle any traffic yet.  Heimdall delays creating the rest of the actors until the NodeViewHolder is ready.
    */
   private def awaitingNodeViewReady(
-    settings:              AppSettings,
-    appContext:            AppContext,
-    state:                 NodeViewInitializingState
+    settings:   AppSettings,
+    appContext: AppContext,
+    state:      NodeViewInitializingState
   )(implicit timeProvider: TimeProvider, protocolVersioner: ProtocolVersioner): Behavior[ReceivableMessage] =
     Behaviors.receivePartial {
       case (context, ReceivableMessages.NodeViewHolderReady) =>
@@ -105,9 +105,9 @@ object Heimdall {
     }
 
   private def awaitingNetworkControllerReady(
-    settings:              AppSettings,
-    appContext:            AppContext,
-    state:                 NetworkControllerInitializingState
+    settings:   AppSettings,
+    appContext: AppContext,
+    state:      NetworkControllerInitializingState
   )(implicit timeProvider: TimeProvider): Behavior[ReceivableMessage] =
     Behaviors.receivePartial { case (context, ReceivableMessages.NetworkControllerReady) =>
       context.log.info(
@@ -378,7 +378,7 @@ object Heimdall {
     keyManagerRef:     CActorRef,
     forgerRef:         ActorRef[Forger.ReceivableMessage],
     nodeViewHolderRef: ActorRef[NodeViewHolder.ReceivableMessage]
-  )(implicit system:   ActorSystem[_]): HttpService = {
+  )(implicit system: ActorSystem[_]): HttpService = {
     import system.executionContext
 
     implicit val networkPrefix: NetworkPrefix =

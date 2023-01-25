@@ -39,7 +39,7 @@ object KeyfileCurve25519Companion extends KeyfileCompanion[PrivateKeyCurve25519,
    * @return
    */
   def encryptSecretSafe(secretKey: PrivateKeyCurve25519, password: Latin1Data)(implicit
-    networkPrefix:                 NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): KeyfileCurve25519 = {
     // get random bytes to obfuscate the cipher
     val salt = randomBytes(32)
@@ -59,7 +59,7 @@ object KeyfileCurve25519Companion extends KeyfileCompanion[PrivateKeyCurve25519,
   }
 
   def decryptSecretSafe(encryptedKeyFile: KeyfileCurve25519, password: Latin1Data)(implicit
-    networkPrefix:                        NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): Try[PrivateKeyCurve25519] = Try {
     val derivedKey = getDerivedKey(password, encryptedKeyFile.salt)
     val calcMAC = getMAC(derivedKey, encryptedKeyFile.cipherText)
@@ -93,7 +93,7 @@ object KeyfileCurve25519Companion extends KeyfileCompanion[PrivateKeyCurve25519,
    * @return
    */
   def readFile(
-    filename:               String
+    filename: String
   )(implicit networkPrefix: NetworkPrefix): KeyfileCurve25519 = {
     // read data from disk
     val src = scala.io.Source.fromFile(filename)

@@ -27,7 +27,7 @@ import scala.util.{Failure, Success, Try}
    * @return either a non-empty listt of SemanticValidationFailures, or the given value T
    */
   def semanticValidation(t: T, boxReader: BoxReader[ProgramId, Address])(implicit
-    networkPrefix:          NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): ValidatedNec[SemanticValidationFailure, T]
 
 }
@@ -41,7 +41,7 @@ trait SemanticallyValidatableInstances {
 
     new SemanticallyValidatable[PolyTransfer[P]] {
       override def semanticValidation(t: PolyTransfer[P], boxReader: BoxReader[ProgramId, Address])(implicit
-        networkPrefix:                   NetworkPrefix
+        networkPrefix: NetworkPrefix
       ): ValidatedNec[SemanticValidationFailure, PolyTransfer[P]] =
         delegate.semanticValidation(t, boxReader).map(_ => t)
     }
@@ -55,7 +55,7 @@ trait SemanticallyValidatableInstances {
 
     new SemanticallyValidatable[ArbitTransfer[P]] {
       override def semanticValidation(t: ArbitTransfer[P], boxReader: BoxReader[ProgramId, Address])(implicit
-        networkPrefix:                   NetworkPrefix
+        networkPrefix: NetworkPrefix
       ): ValidatedNec[SemanticValidationFailure, ArbitTransfer[P]] =
         delegate.semanticValidation(t, boxReader).map(_ => t)
     }
@@ -68,7 +68,7 @@ trait SemanticallyValidatableInstances {
 
     new SemanticallyValidatable[AssetTransfer[P]] {
       override def semanticValidation(t: AssetTransfer[P], boxReader: BoxReader[ProgramId, Address])(implicit
-        networkPrefix:                   NetworkPrefix
+        networkPrefix: NetworkPrefix
       ): ValidatedNec[SemanticValidationFailure, AssetTransfer[P]] =
         delegate.semanticValidation(t, boxReader).map(_ => t)
     }
@@ -82,8 +82,8 @@ trait SemanticallyValidatableInstances {
     new SemanticallyValidatable[Transaction[T, P]] {
 
       override def semanticValidation(
-        t:                      Transaction[T, P],
-        boxReader:              BoxReader[ProgramId, Address]
+        t:         Transaction[T, P],
+        boxReader: BoxReader[ProgramId, Address]
       )(implicit networkPrefix: NetworkPrefix): ValidatedNec[SemanticValidationFailure, Transaction[T, P]] =
         t match {
           case transaction: TransferTransaction[TokenValueHolder, P] =>
@@ -108,7 +108,7 @@ class TransferTransactionSemanticallyValidatable[T <: TokenValueHolder, P <: Pro
    * @return a success or failure denoting the result of this check
    */
   def semanticValidation(tx: TransferTransaction[T, P], boxReader: BoxReader[ProgramId, Address])(implicit
-    networkPrefix:           NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): ValidatedNec[SemanticValidationFailure, TransferTransaction[T, P]] = {
     import tx._
     // compute transaction values used for validation
@@ -131,13 +131,13 @@ class TransferTransactionSemanticallyValidatable[T <: TokenValueHolder, P <: Pro
   }
 
   private[transaction] def syntacticSemanticValidation(tx: TransferTransaction[T, P])(implicit
-    networkPrefix:                                         NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): ValidatedNec[SemanticValidationFailure, TransferTransaction[T, P]] =
     tx.syntacticValidation.toEither.leftMap(SyntacticSemanticValidationFailure).toValidatedNec
 
   private[transaction] def txSpecificValidation(tx: TransferTransaction[T, P])(
-    expectedTxOutputSum:                            Int128,
-    sumOfPolyInputs:                                Int128
+    expectedTxOutputSum: Int128,
+    sumOfPolyInputs:     Int128
   ): ValidatedNec[SemanticValidationFailure, TransferTransaction[T, P]] =
     tx match {
       case _: PolyTransfer[_] if tx.minting =>
@@ -172,9 +172,9 @@ class TransferTransactionSemanticallyValidatable[T <: TokenValueHolder, P <: Pro
     }
 
   private[transaction] def accessibleFundsValidation(tx: TransferTransaction[T, P])(
-    inputBoxes:                                          List[(BoxUnlocker[P, Proof[P]], Option[Box[_]])],
-    expectedTxOutputSum:                                 Int128,
-    sumOfPolyInputs:                                     Int128
+    inputBoxes:          List[(BoxUnlocker[P, Proof[P]], Option[Box[_]])],
+    expectedTxOutputSum: Int128,
+    sumOfPolyInputs:     Int128
   ): ValidatedNec[SemanticValidationFailure, TransferTransaction[T, P]] =
     // check that unlockers can be generated successfully generated for each input
     takeWhileInclusive(

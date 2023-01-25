@@ -33,7 +33,7 @@ class ExtendedEd25519
    * @return
    */
   override def createKeyPair(entropy: Entropy, password: Option[Password])(implicit
-    entropyToSeed:                    EntropyToSeed[Length]
+    entropyToSeed: EntropyToSeed[Length]
   ): (SecretKeys.ExtendedEd25519, VerificationKeys.ExtendedEd25519) = {
     val seed = EntropyToSeed.instances.pbkdf2Sha512[SecretKeys.ExtendedEd25519.Length].toSeed(entropy, password)
     createKeyPair(seed)
@@ -276,7 +276,7 @@ object ExtendedEd25519 {
   }
 
   def entropyToSeed(
-    entropy:  Entropy
+    entropy: Entropy
   )(password: Password = ""): Sized.Strict[Bytes, SecretKeys.ExtendedEd25519.Length] = {
     val kdf = new Pbkdf2Sha512()
     Sized.strictUnsafe(

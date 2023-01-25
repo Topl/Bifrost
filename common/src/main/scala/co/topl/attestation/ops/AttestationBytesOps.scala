@@ -22,7 +22,7 @@ class AttestationBytesOps(private val value: Array[Byte]) extends AnyVal {
       .andThen(_ => parseValidation(value))
 
   private[attestation] def networkPrefixValidation(bytes: Array[Byte])(implicit
-    networkPrefix:                                        NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): ValidatedNec[AddressValidationError, NetworkPrefix] =
     bytes.headOption
       .toValidNec(AddressValidationErrors.InvalidAddress)

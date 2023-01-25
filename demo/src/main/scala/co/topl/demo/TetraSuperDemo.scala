@@ -148,7 +148,7 @@ object TetraSuperDemo extends IOApp {
     ed25519VRFResource:      UnsafeResource[F, Ed25519VRF],
     kesProductResource:      UnsafeResource[F, KesProduct],
     ed25519Resource:         UnsafeResource[F, Ed25519]
-  )(implicit logger:         Logger[F]): F[PerpetualBlockMintAlgebra[F]] =
+  )(implicit logger: Logger[F]): F[PerpetualBlockMintAlgebra[F]] =
     for {
       _            <- Logger[F].info(show"Initializing staker key idx=0 address=${staker.address}")
       stakerKeyDir <- IO.blocking(Files.createTempDirectory(show"TetraDemoStaker${staker.address}"))

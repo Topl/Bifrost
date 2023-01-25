@@ -105,11 +105,11 @@ object SendPolysAction {
    * @return a `SendPolysAction` value
    */
   def apply(
-    polysToSend:           Int,
-    fee:                   Int,
-    successOutput:         String,
-    failureOutput:         String,
-    broadcastOutput:       String
+    polysToSend:     Int,
+    fee:             Int,
+    successOutput:   String,
+    failureOutput:   String,
+    broadcastOutput: String
   )(implicit materializer: Materializer): SendPolysAction =
     new SendPolysAction(
       polysToSend,

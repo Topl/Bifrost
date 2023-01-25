@@ -46,9 +46,9 @@ object MemPoolAuditor {
   }
 
   def apply(
-    nodeViewHolderRef:      ActorRef[NodeViewHolder.ReceivableMessage],
-    networkControllerRef:   CActorRef,
-    settings:               AppSettings
+    nodeViewHolderRef:    ActorRef[NodeViewHolder.ReceivableMessage],
+    networkControllerRef: CActorRef,
+    settings:             AppSettings
   )(implicit networkPrefix: NetworkPrefix, timeProvider: TimeProvider): Behavior[ReceivableMessage] = {
     val backoff =
       SupervisorStrategy.restartWithBackoff(minBackoff = 1.seconds, maxBackoff = 30.seconds, randomFactor = 0.1)
@@ -76,7 +76,7 @@ private class MemPoolAuditorBehaviors(
   nodeViewHolderRef:    ActorRef[NodeViewHolder.ReceivableMessage],
   networkControllerRef: CActorRef,
   settings:             AppSettings
-)(implicit context:     ActorContext[MemPoolAuditor.ReceivableMessage], timeProvider: TimeProvider) {
+)(implicit context: ActorContext[MemPoolAuditor.ReceivableMessage], timeProvider: TimeProvider) {
   import MemPoolAuditor._
   implicit private val log: Logger = context.log
   implicit private val orderTransactions: Ordering[Transaction.TX] = Ordering.by(_.id)
@@ -129,7 +129,7 @@ private class MemPoolAuditorBehaviors(
    */
   private def splitIds(
     validatedIndex: TreeSet[Transaction.TX]
-  )(nodeView:       ReadableNodeView)(implicit timeProvider: TimeProvider): ReceivableMessages.CleanupDecision = {
+  )(nodeView: ReadableNodeView)(implicit timeProvider: TimeProvider): ReceivableMessages.CleanupDecision = {
     val (valid, invalid) =
       nodeView.memPool
         .take(Int.MaxValue)(-_.dateAdded)

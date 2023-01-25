@@ -10,7 +10,7 @@ import co.topl.utils.NetworkType.NetworkPrefix
 import io.circe._
 
 class ToplRpcServer(handlers: ToplRpcHandlers, appContext: AppContext)(implicit
-  throwableEncoder:           Encoder[ThrowableData]
+  throwableEncoder: Encoder[ThrowableData]
 ) extends RpcDirectives
     with ToplRpcServerCodecs {
 

@@ -108,7 +108,7 @@ object SendAssetsAction {
    * @param materializer an Akka stream materializer
    */
   def apply(numAssetsToMint: Int, fee: Int, successOutput: String, failureOutput: String, broadcastOutput: String)(
-    implicit materializer:   Materializer
+    implicit materializer: Materializer
   ): SendAssetsAction =
     new SendAssetsAction(
       numAssetsToMint,

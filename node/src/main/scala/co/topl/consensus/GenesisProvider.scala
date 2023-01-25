@@ -42,7 +42,7 @@ class GenesisProvider(genesisBlockVersion: Byte, nodeAddresses: Set[Address]) {
   }
 
   private def fromJsonGenesisProvider(strategy: FromBlockJson)(implicit
-    networkPrefix:                              NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): Either[GenesisProvider.Failure, NxtConsensus.Genesis] = for {
     src <- Either
       .fromTry(Try(scala.io.Source.fromResource(strategy.genesisFile)))
@@ -69,7 +69,7 @@ class GenesisProvider(genesisBlockVersion: Byte, nodeAddresses: Set[Address]) {
   } yield NxtConsensus.Genesis(validBlock, NxtConsensus.State(stakeAmounts.sum, 0L))
 
   private def fromGeneratedProvider(
-    strategy:               Generation
+    strategy: Generation
   )(implicit networkPrefix: NetworkPrefix): NxtConsensus.Genesis =
     GenesisProvider.construct(
       nodeAddresses,

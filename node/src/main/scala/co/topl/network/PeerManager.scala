@@ -14,7 +14,7 @@ import scala.util.Random
  * Must be singleton
  */
 class PeerManager(settings: AppSettings, optSelfExternalAddress: Option[InetSocketAddress])(implicit
-  timeProvider:             TimeProvider
+  timeProvider: TimeProvider
 ) extends Actor
     with Logging {
 
@@ -190,6 +190,6 @@ object PeerManagerRef {
   def props(
     settings:               AppSettings,
     optSelfExternalAddress: Option[InetSocketAddress]
-  )(implicit timeProvider:  TimeProvider): Props =
+  )(implicit timeProvider: TimeProvider): Props =
     Props(new PeerManager(settings, optSelfExternalAddress))
 }

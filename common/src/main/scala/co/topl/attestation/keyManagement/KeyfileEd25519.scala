@@ -34,7 +34,7 @@ object KeyfileEd25519Companion extends KeyfileCompanion[PrivateKeyEd25519, Keyfi
    * @return
    */
   def encryptSecretSafe(secretKey: PrivateKeyEd25519, password: Latin1Data)(implicit
-    networkPrefix:                 NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): KeyfileEd25519 = {
     // get random bytes to obfuscate the cipher
     val salt = randomBytes(32)
@@ -54,7 +54,7 @@ object KeyfileEd25519Companion extends KeyfileCompanion[PrivateKeyEd25519, Keyfi
   }
 
   def decryptSecretSafe(encryptedKeyFile: KeyfileEd25519, password: Latin1Data)(implicit
-    networkPrefix:                        NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): Try[PrivateKeyEd25519] = Try {
     val derivedKey = getDerivedKey(password, encryptedKeyFile.salt)
     val calcMAC = getMAC(derivedKey, encryptedKeyFile.cipherText)
@@ -88,7 +88,7 @@ object KeyfileEd25519Companion extends KeyfileCompanion[PrivateKeyEd25519, Keyfi
    * @return
    */
   def readFile(
-    filename:               String
+    filename: String
   )(implicit networkPrefix: NetworkPrefix): KeyfileEd25519 = {
     // read data from disk
     val src = scala.io.Source.fromFile(filename)

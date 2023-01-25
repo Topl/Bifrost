@@ -17,8 +17,8 @@ import co.topl.models.Bytes
 import java.nio.file.{Files, Path, Paths, StandardOpenOption}
 
 class AkkaSecureStore[F[_]: Async](actorRef: ActorRef[AkkaSecureStoreActor.ReceivableMessage])(implicit
-  system:                                    ActorSystem[_],
-  timeout:                                   Timeout
+  system:  ActorSystem[_],
+  timeout: Timeout
 ) extends SecureStore[F] {
 
   def write[A: Persistable](name: String, data: A): F[Unit] =

@@ -18,7 +18,7 @@ object TransactionTracker {
   case class TransactionConfirmed(txId: ModifierId, seconds: Int) extends TransactionResult
   case class TransactionUnconfirmed(txId: ModifierId) extends TransactionResult
 
-  def apply(wait:    Int, txId: ModifierId)(implicit
+  def apply(wait: Int, txId: ModifierId)(implicit
     networkPrefix:   NetworkPrefix,
     actorSystem:     ActorSystem,
     requestModifier: RequestModifier,

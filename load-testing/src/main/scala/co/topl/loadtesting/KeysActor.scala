@@ -46,7 +46,7 @@ object KeysActor {
    * @return an actor behavior
    */
   private def withState(
-    k:                  KeyRing[PrivateKeyCurve25519, KeyfileCurve25519]
+    k: KeyRing[PrivateKeyCurve25519, KeyfileCurve25519]
   )(implicit netPrefix: NetworkPrefix, materializer: Materializer): Behavior[Command] =
     Behaviors.receiveMessage {
       case GenerateKeyPairs(seed, num, replyTo) =>

@@ -16,7 +16,7 @@ import scala.concurrent.Future
 object HandleBlocksQuery {
 
   def make[F[_]: Async: Monad: *[_] ~> Future](
-    queries:         QueryService[F, Block]
+    queries: QueryService[F, Block]
   )(implicit system: ActorSystem): BlocksQuery =
     new BlocksQuery {
 

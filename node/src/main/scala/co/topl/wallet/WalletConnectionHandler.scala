@@ -32,7 +32,7 @@ import scala.util.{Failure, Success}
  */
 class WalletConnectionHandler[
   PMOD <: PersistentNodeViewModifier
-](settings:      RPCApiSettings, appContext: AppContext)(implicit
+](settings: RPCApiSettings, appContext: AppContext)(implicit
   networkPrefix: NetworkPrefix
 ) extends Actor
     with Logging {
@@ -247,7 +247,7 @@ object WalletConnectionHandlerRef {
 
   def apply[
     PMOD <: PersistentNodeViewModifier
-  ](name:   String, settings: AppSettings, appContext: AppContext)(implicit
+  ](name: String, settings: AppSettings, appContext: AppContext)(implicit
     system: ActorSystem
   ): ActorRef =
     system.actorOf(props[PMOD](settings, appContext), name)

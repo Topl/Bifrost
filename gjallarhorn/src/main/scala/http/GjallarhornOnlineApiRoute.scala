@@ -15,27 +15,27 @@ import scala.util.{Failure, Success, Try}
  * @param system - ActorSystem used to select and create actors
  */
 case class GjallarhornOnlineApiRoute(
-  settings:             RPCApiSettings,
-  applicationSettings:  ApplicationSettings,
-  keyManager:           ActorRef,
-  walletManager:        ActorRef,
-  requests:             Requests
+  settings:            RPCApiSettings,
+  applicationSettings: ApplicationSettings,
+  keyManager:          ActorRef,
+  walletManager:       ActorRef,
+  requests:            Requests
 )(implicit val context: ActorRefFactory, system: ActorSystem)
     extends ApiRoute
     with Logging {
 
-  //Requests manager used to send requests to Bifrost
+  // Requests manager used to send requests to Bifrost
   private var requestsManager: Option[ActorRef] = None
 
   // Establish the expected network prefix for addresses
   implicit val networkPrefix: NetworkPrefix = _root_.keymanager.networkPrefix
 
-  //The namespace for the endpoints defined in handlers
+  // The namespace for the endpoints defined in handlers
   val namespace: Namespace = OnlineWalletNamespace
 
   // partial function for identifying local method handlers exposed by the api
   val handlers: PartialFunction[(String, Vector[Json], String), Future[Json]] = {
-    case (method, params, id) if method == s"${namespace.name}_connectToBifrost"      => connectToBifrost(params.head, id)
+    case (method, params, id) if method == s"${namespace.name}_connectToBifrost" => connectToBifrost(params.head, id)
     case (method, params, id) if method == s"${namespace.name}_disconnectFromBifrost" => disconnectFromBifrost(id)
     case (method, params, id) if method == s"${namespace.name}_getConnection"         => getConnection(id)
 
@@ -136,10 +136,10 @@ case class GjallarhornOnlineApiRoute(
   private def disconnectFromBifrost(id: String): Future[Json] = {
     var responseMsg = "Disconnected!"
 
-    //tell walletManager to disconnect from bifrost
+    // tell walletManager to disconnect from bifrost
     walletManager ! DisconnectFromBifrost
 
-    //Set requestsManager to None
+    // Set requestsManager to None
     requestsManager match {
       case Some(actor) =>
         requestsManager = None
@@ -147,7 +147,7 @@ case class GjallarhornOnlineApiRoute(
       case None => responseMsg = "Already disconnected from Bifrost"
     }
 
-    //tell requests that it's in offline mode
+    // tell requests that it's in offline mode
     requests.switchOnlineStatus(requestsManager)
 
     log.info(s"${Console.MAGENTA}Gjallarhorn has been disconnected from Bifrost.${Console.RESET}")
@@ -189,7 +189,7 @@ case class GjallarhornOnlineApiRoute(
       issuer    <- (params \\ "issuer").head.as[Address]
       shortName <- (params \\ "shortName").head.as[String]
     } yield
-    //TODO: what should assetCode version be?
+    // TODO: what should assetCode version be?
     Try(AssetCode(1.toByte, issuer, shortName)) match {
       case Success(assetCode) =>
         val recipients: IndexedSeq[(Address, AssetValue)] =

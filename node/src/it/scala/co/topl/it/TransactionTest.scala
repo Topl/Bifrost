@@ -532,7 +532,7 @@ class TransactionTest
    * @return A wrapped test/Unit
    */
   private def verifyBalanceChange(address: Address, delta: Int128, f: ToplRpc.NodeView.Balances.Entry => Int128)(
-    test:                                  => Any
+    test: => Any
   ) = {
     val initialBalances = balancesFor(address)
     val _ = test

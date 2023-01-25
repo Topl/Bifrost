@@ -16,7 +16,7 @@ import scala.concurrent.Future
 object HandleTransactionsSubscription {
 
   def make[F[_]: Async: Monad: *[_] ~> Future](
-    subscriptions:   SubscriptionService[F, Transaction]
+    subscriptions: SubscriptionService[F, Transaction]
   )(implicit system: ActorSystem): TransactionsSubscription =
     (in: CreateTxsSubscriptionReq) =>
       Source

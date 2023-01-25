@@ -90,8 +90,8 @@ object Forger {
    * If this node is running a private or local network, verify that a rewards address is set
    */
   private def checkPrivateForging(fetchKeyView: () => Future[KeyView])(implicit
-    ec:                                         ExecutionContext,
-    networkPrefix:                              NetworkPrefix
+    ec:            ExecutionContext,
+    networkPrefix: NetworkPrefix
   ): Future[Done] =
     if (PrivateTestnet.netPrefix == networkPrefix) {
       fetchKeyView().flatMap {

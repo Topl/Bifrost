@@ -16,7 +16,7 @@ import scala.concurrent.Future
 object HandleTransactionsQuery {
 
   def make[F[_]: Async: *[_] ~> Future](
-    queries:         QueryService[F, Transaction]
+    queries: QueryService[F, Transaction]
   )(implicit system: ActorSystem): TransactionsQuery =
     new TransactionsQuery {
 

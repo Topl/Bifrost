@@ -30,7 +30,7 @@ trait KeyfileCompanion[S <: Secret, KF <: Keyfile[S]] {
   def encryptSecretSafe(secret: S, password: Latin1Data)(implicit networkPrefix: NetworkPrefix): KF
 
   def encryptSecret(secretKey: S, password: String)(implicit
-    networkPrefix:             NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): KF = Latin1Data.validated(password) match {
     case Valid(str)      => encryptSecretSafe(secretKey, str)
     case Invalid(errors) => throw new Error(s"Password is not Latin-1 encoded: $errors")
@@ -46,7 +46,7 @@ trait KeyfileCompanion[S <: Secret, KF <: Keyfile[S]] {
   def decryptSecretSafe(keyfile: KF, password: Latin1Data)(implicit networkPrefix: NetworkPrefix): Try[S]
 
   def decryptSecret(keyfile: KF, password: String)(implicit
-    networkPrefix:           NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): Try[S] = Latin1Data.validated(password) match {
     case Valid(str)      => decryptSecretSafe(keyfile, str)
     case Invalid(errors) => Failure(new Error(s"Password is not Latin-1 encoded: $errors"))
@@ -61,7 +61,7 @@ trait KeyfileCompanion[S <: Secret, KF <: Keyfile[S]] {
    * @return
    */
   def saveToDiskSafe(dir: String, password: Latin1Data, secretKey: S)(implicit
-    networkPrefix:        NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): Try[Unit] = Try {
     // encrypt secret using password
     val kf = encryptSecretSafe(secretKey, password)
@@ -74,7 +74,7 @@ trait KeyfileCompanion[S <: Secret, KF <: Keyfile[S]] {
   }
 
   def saveToDisk(dir: String, password: String, secretKey: S)(implicit
-    networkPrefix:    NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): Try[Unit] =
     Latin1Data.validated(password).map(saveToDiskSafe(dir, _, secretKey)) match {
       case Valid(success)  => success

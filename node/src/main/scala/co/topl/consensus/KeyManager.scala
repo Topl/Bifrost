@@ -77,10 +77,10 @@ class KeyManager(settings: AppSettings)(implicit networkPrefix: NetworkPrefix) e
    * @return a try which results in a ForgerView of the current addresses and rewards address
    */
   private def generateInitialAddresses(
-    keyRing:                   KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
-    rewardAddress:             Option[Address]
+    keyRing:       KeyRing[PrivateKeyCurve25519, KeyfileCurve25519],
+    rewardAddress: Option[Address]
   )(addressGenerationSettings: AddressGenerationSettings)(implicit
-    networkPrefix:             NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): Try[StartupKeyView] = {
     def addKeys(numberOfAddresses: Int, addressSeedOpt: Option[String]): Try[StartupKeyView] =
       keyRing

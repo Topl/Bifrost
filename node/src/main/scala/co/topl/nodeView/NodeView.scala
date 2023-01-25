@@ -63,9 +63,9 @@ case class NodeView(
   protected val log: Logger = LoggerFactory.getLogger(this.getClass)
 
   protected[nodeView] def updateMemPool(
-    blocksRemoved:          Seq[Block],
-    blocksApplied:          Seq[Block],
-    memPool:                MemoryPool[Transaction.TX, MemPool]
+    blocksRemoved: Seq[Block],
+    blocksApplied: Seq[Block],
+    memPool:       MemoryPool[Transaction.TX, MemPool]
   )(implicit networkPrefix: NetworkPrefix, timeProvider: TimeProvider): MemPool = {
     // drop the first two transactions, since these are the reward transactions and invalid
     val rolledBackTxs = blocksRemoved.flatMap(_.transactions.drop(2))
@@ -391,15 +391,15 @@ trait NodeViewTransactionOps {
   self: NodeView =>
 
   def withTransactions(transactions: Iterable[Transaction.TX])(implicit
-    networkPrefix:                   NetworkPrefix,
-    timeProvider:                    TimeProvider,
-    system:                          ActorSystem[_]
+    networkPrefix: NetworkPrefix,
+    timeProvider:  TimeProvider,
+    system:        ActorSystem[_]
   ): Writer[List[Any], NodeView] =
     transactions.foldLeft(Writer(Nil: List[Any], self)) { case (writer, tx) => writer.flatMap(_.withTransaction(tx)) }
 
   def withTransaction(tx: Transaction.TX)(implicit
-    networkPrefix:        NetworkPrefix,
-    timeProvider:         TimeProvider
+    networkPrefix: NetworkPrefix,
+    timeProvider:  TimeProvider
   ): Writer[List[Any], NodeView] =
     tx.syntacticValidation.toEither match {
       case Right(_) =>

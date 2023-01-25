@@ -246,7 +246,7 @@ object KeyRing {
   def empty[
     S <: Secret,
     KF <: Keyfile[S]
-  ](path:             Option[String] = None)(implicit
+  ](path: Option[String] = None)(implicit
     networkPrefix:    NetworkPrefix,
     secretGenerator:  SecretGenerator[S],
     keyfileCompanion: KeyfileCompanion[S, KF]

@@ -98,8 +98,8 @@ object Program {
    */
   // noinspection ScalaStyle
   def execute(stateBoxes: Seq[StateBox], codeBoxes: Seq[CodeBox], methodName: String)(
-    party:                PublicKeyPropositionCurve25519
-  )(args:                 JsonObject): Try[Json] =
+    party: PublicKeyPropositionCurve25519
+  )(args: JsonObject): Try[Json] =
     Try {
       val chainProgramInterface = createProgramInterface(codeBoxes)
 

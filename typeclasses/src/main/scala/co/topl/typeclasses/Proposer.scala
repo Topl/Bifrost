@@ -26,7 +26,7 @@ object Proposer {
 
     implicit class CompositionalOps(p: Proposition) {
       def and(other: Proposition): Propositions.Compositional.And = Propositions.Compositional.And(p, other)
-      def or(other: Proposition): Propositions.Compositional.Or = Propositions.Compositional.Or(p, other)
+      def or(other:  Proposition): Propositions.Compositional.Or = Propositions.Compositional.Or(p, other)
     }
 
     implicit class IterableOps(props: Iterable[Proposition]) {

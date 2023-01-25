@@ -19,7 +19,7 @@ class SyncTracker(
   context:         ActorContext,
   networkSettings: NetworkSettings,
   timeProvider:    TimeProvider
-)(implicit ec:     ExecutionContext)
+)(implicit ec: ExecutionContext)
     extends Logging {
 
   import co.topl.utils.TimeProvider.Time

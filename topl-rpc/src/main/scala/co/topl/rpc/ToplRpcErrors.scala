@@ -19,7 +19,7 @@ object ToplRpcErrors {
   val InvalidHeightRange: CustomError = CustomError(-32009, "Invalid height range")
 
   def FailedToGenerateAssetCode(throwable: Throwable)(implicit
-    throwableEncoder:                      Encoder[ThrowableData]
+    throwableEncoder: Encoder[ThrowableData]
   ): CustomError =
     CustomError.fromThrowable(-32001, "Failed to generate asset code", throwable)
   val InvalidNetworkSpecified: CustomError = CustomError(-32002, "Invalid network specified")
@@ -28,7 +28,7 @@ object ToplRpcErrors {
     CustomError(-32003, "Unsupported Operation", Map("reason" -> reason).asJson)
 
   def transactionValidationException(throwable: Throwable)(implicit
-    throwableEncoder:                           Encoder[ThrowableData]
+    throwableEncoder: Encoder[ThrowableData]
   ): CustomError =
     CustomError.fromThrowable(-32004, "Could not validate transaction", throwable)
 

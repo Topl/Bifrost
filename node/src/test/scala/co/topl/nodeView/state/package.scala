@@ -47,7 +47,7 @@ package object state {
    * USE WITH EXTREME CAUTION!!
    */
   def directlyAddTBRStorage(version: ModifierId, boxes: Seq[TokenBox[TokenValueHolder]], state: BoxState)(implicit
-    networkPrefix:                   NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): Unit = {
 
     /** Manually manipulate state */

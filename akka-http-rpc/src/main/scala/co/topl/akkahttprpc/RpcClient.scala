@@ -17,7 +17,7 @@ import scala.util.Success
 
 class RpcClient[Params, SuccessResponse](val rpc: Rpc[Params, SuccessResponse]) extends AnyVal {
 
-  def apply(params:         Params)(implicit
+  def apply(params: Params)(implicit
     paramsEncoder:          Encoder[Params],
     successResponseDecoder: Decoder[SuccessResponse],
     requestModifier:        RequestModifier,
@@ -35,7 +35,7 @@ class RpcClient[Params, SuccessResponse](val rpc: Rpc[Params, SuccessResponse]) 
     params => sendRequest(asRequest(params)(paramsEncoder, requestModifier)).flatMap(handleResponse(_))
 
   private[akkahttprpc] def asRequest(
-    params:                 Params
+    params: Params
   )(implicit paramsEncoder: Encoder[Params], requestModifier: RequestModifier): HttpRequest =
     requestModifier.f(
       HttpRequest(
@@ -53,7 +53,7 @@ class RpcClient[Params, SuccessResponse](val rpc: Rpc[Params, SuccessResponse]) 
     )
 
   private[akkahttprpc] def sendRequest(
-    request:         HttpRequest
+    request: HttpRequest
   )(implicit system: ActorSystem, ec: ExecutionContext): EitherT[Future, RpcClientFailure, HttpResponse] =
     EitherT(
       Http()
@@ -63,9 +63,9 @@ class RpcClient[Params, SuccessResponse](val rpc: Rpc[Params, SuccessResponse]) 
       .leftMap(HttpExceptionFailure.apply)
 
   private[akkahttprpc] def handleResponse(r: HttpResponse)(implicit
-    successResponseDecoder:                  Decoder[SuccessResponse],
-    system:                                  ActorSystem,
-    ec:                                      ExecutionContext
+    successResponseDecoder: Decoder[SuccessResponse],
+    system:                 ActorSystem,
+    ec:                     ExecutionContext
   ): EitherT[Future, RpcClientFailure, SuccessResponse] =
     r.status match {
       case StatusCodes.OK =>

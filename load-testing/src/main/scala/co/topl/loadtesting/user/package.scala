@@ -117,7 +117,7 @@ package object user {
    * @param ec the current asynchronous execution context
    * @return the result of the transaction wrapped as a future
    */
-  def trackTx(txId:  ModifierId)(implicit
+  def trackTx(txId: ModifierId)(implicit
     networkPrefix:   NetworkPrefix,
     actorSystem:     ActorSystem,
     requestModifier: RequestModifier,
@@ -149,7 +149,7 @@ package object user {
    * @param materializer an Akka stream materializer
    */
   def onTxBroadcast(outputPath: String)(txId: ModifierId, timestamp: LocalDateTime)(implicit
-    materializer:               Materializer
+    materializer: Materializer
   ): Unit =
     // log broadcasted TX to CSV file
     Source.single((txId, timestamp)).to(toCsvSink(outputPath)).run()

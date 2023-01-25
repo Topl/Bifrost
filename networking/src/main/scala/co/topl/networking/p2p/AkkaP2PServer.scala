@@ -25,11 +25,11 @@ import scala.util.Random
 object AkkaP2PServer {
 
   def make[F[_]: Async: Logger: FToFuture, Client](
-    host:            String,
-    port:            Int,
-    localPeer:       LocalPeer,
-    remotePeers:     Source[DisconnectedPeer, _],
-    peerHandler:     ConnectedPeer => F[Flow[ByteString, ByteString, F[Client]]]
+    host:        String,
+    port:        Int,
+    localPeer:   LocalPeer,
+    remotePeers: Source[DisconnectedPeer, _],
+    peerHandler: ConnectedPeer => F[Flow[ByteString, ByteString, F[Client]]]
   )(implicit system: ActorSystem): F[P2PServer[F, Client]] = {
     def localAddress_ = localPeer.localAddress
     import system.dispatcher
@@ -110,7 +110,7 @@ object AkkaP2PServer {
     offerConnectionChange:       PeerConnectionChange[Client] => F[Unit],
     peerHandlerFlowWithRemovalF: ConnectedPeer => Flow[ByteString, ByteString, Future[F[Client]]],
     addPeersSink:                Sink[(ConnectedPeer, F[Client]), NotUsed]
-  )(implicit system:             ActorSystem, ec: ExecutionContext) =
+  )(implicit system: ActorSystem, ec: ExecutionContext) =
     Tcp()
       .bind(host, port)
       .tapAsyncF(1)(conn =>
@@ -131,7 +131,7 @@ object AkkaP2PServer {
     offerConnectionChange:       PeerConnectionChange[Client] => F[Unit],
     peerHandlerFlowWithRemovalF: ConnectedPeer => Flow[ByteString, ByteString, Future[F[Client]]],
     addPeersSink:                Sink[(ConnectedPeer, F[Client]), NotUsed]
-  )(implicit system:             ActorSystem, ec: ExecutionContext) =
+  )(implicit system: ActorSystem, ec: ExecutionContext) =
     remotePeers
       .filterNot(_.remoteAddress == localPeer.localAddress)
       .tapAsyncF(1)(disconnectedPeer =>

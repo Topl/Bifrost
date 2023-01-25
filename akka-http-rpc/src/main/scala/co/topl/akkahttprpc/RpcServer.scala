@@ -13,9 +13,9 @@ object RpcServer {
     def route: Route = rpcRoutes(this)
 
     def append[Params, SuccessResponse](rpc: Rpc[Params, SuccessResponse])(handler: rpc.ServerHandler)(implicit
-      paramsDecoder:                         Decoder[Params],
-      successResponseEncoder:                Encoder[SuccessResponse],
-      throwableEncoder:                      Encoder[ThrowableData]
+      paramsDecoder:          Decoder[Params],
+      successResponseEncoder: Encoder[SuccessResponse],
+      throwableEncoder:       Encoder[ThrowableData]
     ): Builder =
       copy(handlers = handlers ++ (rpc.method +: rpc.aliases).map { name =>
         name -> Builder.BuilderHandler(handler, paramsDecoder, successResponseEncoder, throwableEncoder)

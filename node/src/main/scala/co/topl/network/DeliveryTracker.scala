@@ -79,7 +79,7 @@ class DeliveryTracker(nvsRef: ActorRef, context: ActorContext, networkSettings: 
    * @return `true` if number of checks was not exceed, `false` otherwise
    */
   def onStillWaiting(peerOpt: Option[ConnectedPeer], typeId: ModifierTypeId, id: ModifierId)(implicit
-    ec:                       ExecutionContext
+    ec: ExecutionContext
   ): Try[Boolean] = tryWithLogging[Boolean] {
 
     val checks = requested(id).checks + 1
@@ -115,7 +115,7 @@ class DeliveryTracker(nvsRef: ActorRef, context: ActorContext, networkSettings: 
 
   /** Set status of modifier with id `id` to `Requested` */
   def setRequested(id: ModifierId, typeId: ModifierTypeId, supplierOpt: Option[ConnectedPeer], checksDone: Int = 0)(
-    implicit ec:       ExecutionContext
+    implicit ec: ExecutionContext
   ): Unit =
     tryWithLogging {
       require(isCorrectTransition(status(id), Requested), s"Illegal status transition: ${status(id)} -> Requested")
@@ -125,7 +125,7 @@ class DeliveryTracker(nvsRef: ActorRef, context: ActorContext, networkSettings: 
     }
 
   def setRequested(ids: Seq[ModifierId], typeId: ModifierTypeId, cp: Option[ConnectedPeer])(implicit
-    ec:                 ExecutionContext
+    ec: ExecutionContext
   ): Unit = ids.foreach(setRequested(_, typeId, cp))
 
   /**

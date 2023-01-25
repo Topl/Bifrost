@@ -66,9 +66,9 @@ package object handlers {
 
   private[handlers] def readFromNodeViewHolder[T](
     nodeViewHolderInterface: NodeViewHolderInterface
-  )(f:                       ReadableNodeView => T)(implicit
-    throwableEncoder:        Encoder[ThrowableData],
-    executionContext:        ExecutionContext
+  )(f: ReadableNodeView => T)(implicit
+    throwableEncoder: Encoder[ThrowableData],
+    executionContext: ExecutionContext
   ): EitherT[Future, RpcError, T] =
     nodeViewHolderInterface
       .withNodeView(f)

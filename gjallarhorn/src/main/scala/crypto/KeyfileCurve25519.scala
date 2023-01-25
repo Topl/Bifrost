@@ -32,7 +32,7 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
    *  @return
    */
   def encryptSecret(secretKey: PrivateKeyCurve25519, password: String)(implicit
-    networkPrefix:             NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): KeyfileCurve25519 = {
     // get random bytes to obfuscate the cipher
     val salt = randomBytes(32)
@@ -59,7 +59,7 @@ object KeyfileCurve25519 extends KeyfileCompanion[PrivateKeyCurve25519, KeyfileC
    *  @return
    */
   def decryptSecret(encryptedKeyFile: KeyfileCurve25519, password: String)(implicit
-    networkPrefix:                    NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): Try[PrivateKeyCurve25519] = Try {
     val derivedKey = KeyfileCurve25519.getDerivedKey(password, encryptedKeyFile.salt)
     val calcMAC = KeyfileCurve25519.getMAC(derivedKey, encryptedKeyFile.cipherText)

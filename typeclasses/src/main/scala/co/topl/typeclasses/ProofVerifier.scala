@@ -28,7 +28,7 @@ object ProofVerifier {
     implicit class ProofOps(proof: Proof) {
 
       def satisfies[F[_]](
-        proposition:      Proposition
+        proposition: Proposition
       )(implicit context: VerificationContext[F], ev: ProofVerifier[F]): F[Boolean] =
         ev.verifyWith(proposition, proof, context)
     }
@@ -36,7 +36,7 @@ object ProofVerifier {
     implicit class PropositionOps(proposition: Proposition) {
 
       def isSatisfiedBy[F[_]](
-        proof:            Proof
+        proof: Proof
       )(implicit context: VerificationContext[F], ev: ProofVerifier[F]): F[Boolean] =
         ev.verifyWith(proposition, proof, context)
     }
