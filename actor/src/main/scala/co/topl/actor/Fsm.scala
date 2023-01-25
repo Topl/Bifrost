@@ -1,7 +1,6 @@
 package co.topl.actor
 
-import cats.implicits._
-import cats.{Applicative, Functor, Id}
+import cats.Applicative
 
 /**
  * Internal state for actor
@@ -14,6 +13,7 @@ import cats.{Applicative, Functor, Id}
 case class Fsm[F[_], S, I, O](run: (S, I) => F[(S, O)])
 
 object Fsm {
-  def pure[F[_] : Applicative, S, I, O](run: (S, I) => (S, O)): Fsm[F, S, I, O] =
+
+  def pure[F[_]: Applicative, S, I, O](run: (S, I) => (S, O)): Fsm[F, S, I, O] =
     Fsm { case (s, in) => Applicative[F].pure(run(s, in)) }
 }

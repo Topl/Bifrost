@@ -181,6 +181,7 @@ lazy val bifrost = project
     numerics,
     eventTree,
     algebras,
+    actor,
     commonInterpreters,
     minting,
     networking,
