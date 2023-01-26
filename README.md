@@ -19,10 +19,10 @@ We apply the following rules to our MAJOR.MINOR.PATCH versions:
 - `MINOR` index captures soft-forks, and may include breaking API changes (to any module within the Bifrost monorepo) or significant new feature introductions
 - `PATCH` index indicates non-breaking changes and bug fixes
 
-Installation
+Getting Started
 -------------------
 Please read our [Installation instructions](https://github.com/Topl/Bifrost/wiki/Install-and-Build) for a step-by-step
-guide to running a Bifrost node. At this time, **we officially support the use of a Debian-based distributions such as Ubuntu only**. While other platforms may function with additional effort, our documentation does not explicitly consider these targets.
+guide to installing and running a Bifrost node. At this time, **we officially support the use of a Debian-based distributions such as Ubuntu only**. While other platforms may function with additional effort, our documentation does not explicitly consider these targets.
 
 Command Line Reference
 ----------
