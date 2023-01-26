@@ -1,20 +1,21 @@
 package co.topl.grpc
 
-import cats.{Eval, MonadThrow, Now}
 import cats.data.{EitherT, OptionT}
 import cats.effect.kernel.{Async, Resource}
 import cats.implicits._
+import cats.{Eval, MonadThrow, Now}
 import co.topl.algebras.{SynchronizationTraversalStep, SynchronizationTraversalSteps, ToplRpc}
-import co.topl.models.TypedBytes
-import fs2.Pipe
+import co.topl.brambl.models.Identifier.IoTransaction32
+import co.topl.consensus.models._
+import co.topl.models.{TypedBytes, TypedIdentifier}
+import co.topl.node.models.BlockBody
 import co.topl.node.services._
-import co.topl.models.TypedIdentifier
+import co.topl.proto.models.Transaction
+import fs2.{Pipe, Stream}
 import fs2.grpc.syntax.all._
-import fs2.Stream
 import io.grpc.netty.shaded.io.grpc.netty.{NettyChannelBuilder, NettyServerBuilder}
 import io.grpc.{Metadata, Server, Status}
 import java.net.InetSocketAddress
-import co.topl.consensus.models._
 
 object ToplGrpc {
 
@@ -70,7 +71,7 @@ object ToplGrpc {
 
             def fetchBlockHeader(
               blockId: TypedIdentifier
-            ): F[Option[co.topl.consensus.models.BlockHeader]] =
+            ): F[Option[BlockHeader]] =
               OptionT(
                 EitherT(blockId.toF[F, BlockId])
                   .leftMap(new IllegalArgumentException(_))
@@ -84,7 +85,7 @@ object ToplGrpc {
                   .map(_.header)
               ).value
 
-            def fetchBlockBody(blockId: TypedIdentifier): F[Option[co.topl.node.models.BlockBody]] =
+            def fetchBlockBody(blockId: TypedIdentifier): F[Option[BlockBody]] =
               OptionT(
                 EitherT(blockId.toF[F, BlockId])
                   .leftMap(new IllegalArgumentException(_))
@@ -100,8 +101,8 @@ object ToplGrpc {
 
             def fetchTransaction(
               transactionId: TypedIdentifier
-            ): F[Option[co.topl.proto.models.Transaction]] =
-              EitherT(transactionId.toF[F, co.topl.brambl.models.Identifier.IoTransaction32])
+            ): F[Option[Transaction]] =
+              EitherT(transactionId.toF[F, IoTransaction32])
                 .leftMap(new IllegalArgumentException(_))
                 .rethrowT
                 .flatMap(transactionId =>
@@ -209,7 +210,7 @@ object ToplGrpc {
           .currentMempool()
           .flatMap(ids =>
             EitherT(
-              ids.toList.traverse(_.toF[F, co.topl.brambl.models.Identifier.IoTransaction32]).map(_.sequence)
+              ids.toList.traverse(_.toF[F, IoTransaction32]).map(_.sequence)
             )
               .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
               .rethrowT

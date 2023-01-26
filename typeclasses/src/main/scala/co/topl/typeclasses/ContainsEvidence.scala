@@ -7,6 +7,7 @@ import co.topl.crypto.hash.Blake2b256
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.{Ratio, Sized}
+import com.google.protobuf.ByteString
 import simulacrum.{op, typeclass}
 
 @typeclass trait ContainsEvidence[T] {
@@ -24,7 +25,7 @@ object ContainsEvidence {
    * @param bytesString Example, Hash of the operator's threshold, with routine = blake2b256 and length = 32
    * @return Ratio Typed Evidennce
    */
-  def ratioEvidenceFromProtobufString(bytesString: com.google.protobuf.ByteString): TypedEvidence =
+  def ratioEvidenceFromProtobufString(bytesString: ByteString): TypedEvidence =
     TypedEvidence(TypePrefixes.Ratio, Sized.strictUnsafe(Bytes(bytesString.toByteArray)))
 
   object TypePrefixes {

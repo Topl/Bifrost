@@ -1,14 +1,16 @@
 package co.topl.transactiongenerator
 
 import cats.implicits._
-import co.topl.models._
-import co.topl.transactiongenerator.models.Wallet
-import co.topl.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.Sized
+import co.topl.{models => legacyModels}
+import legacyModels._
+import legacyModels.utility.HasLength.instances.bytesLength
+import legacyModels.utility.Sized
+import co.topl.proto.{models => protoModels}
 import co.topl.proto.models.PropositionContextualHeightLock
+import co.topl.transactiongenerator.models.Wallet
+import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 
 package object interpreters {
@@ -16,16 +18,16 @@ package object interpreters {
   val HeightLockOneProposition: Proposition = Propositions.Contextual.HeightLock(1)
 
   val HeightLockOnePropositionProto: PropositionContextualHeightLock =
-    co.topl.proto.models.PropositionContextualHeightLock(1)
+    protoModels.PropositionContextualHeightLock(1)
 
   val HeightLockOneSpendingAddress: SpendingAddress = HeightLockOneProposition.spendingAddress
 
-  val HeightLockOneSpendingAddressProto: co.topl.proto.models.SpendingAddress = {
+  val HeightLockOneSpendingAddressProto: protoModels.SpendingAddress = {
     // See SpendingAddressable TODO on SpendingAddressable trait
     val typedEvidence = HeightLockOnePropositionProto.spendingAddress.typedEvidence
-    co.topl.proto.models.SpendingAddress.of(
+    protoModels.SpendingAddress.of(
       Some(
-        co.topl.proto.models
+        protoModels
           .TypedEvidence(typedEvidence.typePrefix.toInt, ByteString.copyFrom(typedEvidence.evidence.data.toArray))
       )
     )
@@ -43,7 +45,7 @@ package object interpreters {
   /**
    * Incorporate a Transaction into a Wallet by removing spent outputs and including new outputs.
    */
-  def applyTransaction(wallet: Wallet)(transaction: co.topl.proto.models.Transaction): Wallet = {
+  def applyTransaction(wallet: Wallet)(transaction: protoModels.Transaction): Wallet = {
     // TODO Wallet spentBoxIds model should change to new protobuf specs and not use boxIdIsomorphism
     val spentBoxIds = transaction.inputs
       .flatMap(_.boxId)
@@ -54,7 +56,6 @@ package object interpreters {
       .flatMap(_.toOption)
       .flatten
 
-//    val spentBoxIds = transaction.inputs.flatMap(_.boxId).map(Box.Id.fromBoxIdProto)
     val transactionId = transaction.id.asTypedBytes
     val newBoxes = transaction.outputs.zipWithIndex.collect {
       case (output, index)
@@ -97,11 +98,11 @@ package object interpreters {
       Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes.fill(64)(0: Byte)))
     )
 
-  def simpleFullAddressProto(spendingAddress: co.topl.proto.models.SpendingAddress): co.topl.proto.models.FullAddress =
-    co.topl.proto.models.FullAddress(
-      co.topl.proto.models.NetworkPrefix(0).some,
+  def simpleFullAddressProto(spendingAddress: protoModels.SpendingAddress): protoModels.FullAddress =
+    protoModels.FullAddress(
+      protoModels.NetworkPrefix(0).some,
       spendingAddress.some,
-      co.topl.proto.models.StakingAddressNonStaking.of(),
-      co.topl.proto.models.ProofKnowledgeEd25519.of(ByteString.copyFrom(Bytes.fill(64)(0: Byte).toArray)).some
+      protoModels.StakingAddressNonStaking.of(),
+      protoModels.ProofKnowledgeEd25519.of(ByteString.copyFrom(Bytes.fill(64)(0: Byte).toArray)).some
     )
 }

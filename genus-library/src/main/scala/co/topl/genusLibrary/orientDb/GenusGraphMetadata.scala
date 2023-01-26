@@ -2,12 +2,11 @@ package co.topl.genusLibrary.orientDb {
 
   import cats.implicits.catsSyntaxOptionId
   import co.topl.codecs.bytes.tetra.{TetraIdentifiableInstances, TetraScodecCodecs}
+  import co.topl.consensus.models.{BlockHeader, BlockId, EligibilityCertificate, OperationalCertificate}
   import co.topl.genusLibrary.utils.BlockUtils
   import co.topl.genusLibrary.{GenusException, Txo, TxoState}
-  import co.topl.consensus.models.BlockHeader
+  import co.topl.models._
   import co.topl.node.models.BlockBody
-  import co.topl.{models => legacyModels}
-  import legacyModels._
   import com.google.protobuf.ByteString
   import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
   import com.tinkerpop.blueprints.impls.orient.{OrientEdgeType, OrientGraphNoTx, OrientVertexType}
@@ -150,8 +149,8 @@ package co.topl.genusLibrary.orientDb {
           )
           .withIndex("blockHeaderIndex", INDEX_TYPE.UNIQUE, "blockId"),
         v =>
-          co.topl.consensus.models.BlockHeader(
-            co.topl.consensus.models.BlockId(ByteString.copyFrom(v("parentHeaderId"): Array[Byte])).some,
+          BlockHeader(
+            BlockId(ByteString.copyFrom(v("parentHeaderId"): Array[Byte])).some,
             v("parentSlot"),
             v("txRoot"),
             v("bloomFilter"),
@@ -262,19 +261,19 @@ package co.topl.genusLibrary.orientDb {
     // TODO discuss implementation about decoder and encoder
     // No need for a byteArrayToBlockHeaderId because it is computed rather than stored.
     def eligibilityCertificateToByteArray(
-      eligibilityCertificate: co.topl.consensus.models.EligibilityCertificate
+      eligibilityCertificate: EligibilityCertificate
     ): Array[Byte] =
       eligibilityCertificate.toByteArray
 
-    def byteArrayToEligibilityCertificate(a: Array[Byte]): co.topl.consensus.models.EligibilityCertificate =
-      co.topl.consensus.models.EligibilityCertificate.parseFrom(a)
+    def byteArrayToEligibilityCertificate(a: Array[Byte]): EligibilityCertificate =
+      EligibilityCertificate.parseFrom(a)
 
     def operationalCertificateToByteArray(
-      operationalCertificate: co.topl.consensus.models.OperationalCertificate
+      operationalCertificate: OperationalCertificate
     ): Array[Byte] =
       operationalCertificate.toByteArray
 
-    def byteArrayToOperationalCertificate(a: Array[Byte]): co.topl.consensus.models.OperationalCertificate =
-      co.topl.consensus.models.OperationalCertificate.parseFrom(a)
+    def byteArrayToOperationalCertificate(a: Array[Byte]): OperationalCertificate =
+      OperationalCertificate.parseFrom(a)
   }
 }
