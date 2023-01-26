@@ -67,15 +67,11 @@ object ReplaceModelUtil {
     eligibilityCertificate: co.topl.models.EligibilityCertificate
   ): co.topl.consensus.models.EligibilityCertificate =
     co.topl.consensus.models.EligibilityCertificate(
-      vrfSig = Some(
-        co.topl.consensus.models.SignatureVrfEd25519(
-          value = ByteString.copyFrom(eligibilityCertificate.vrfSig.bytes.data.toArray)
-        )
+      vrfSig = co.topl.consensus.models.SignatureVrfEd25519(
+        value = ByteString.copyFrom(eligibilityCertificate.vrfSig.bytes.data.toArray)
       ),
-      vrfVK = Some(
-        co.topl.consensus.models.VerificationKeyVrfEd25519(
-          value = ByteString.copyFrom(eligibilityCertificate.vkVRF.bytes.data.toArray)
-        )
+      vrfVK = co.topl.consensus.models.VerificationKeyVrfEd25519(
+        value = ByteString.copyFrom(eligibilityCertificate.vkVRF.bytes.data.toArray)
       ),
       thresholdEvidence = ByteString.copyFrom(eligibilityCertificate.thresholdEvidence.data.toArray),
       eta = ByteString.copyFrom(eligibilityCertificate.eta.data.toArray)

@@ -828,8 +828,8 @@ trait TetraScodecBlockCodecs {
       .as[EligibilityCertificate]
 
   implicit val consensusEligibilityCertificateCodec: Codec[consensusModels.EligibilityCertificate] =
-    (optionCodec(consensusSignatureVrfEd25519Codec) ::
-      optionCodec(consensusVkVrfCodec) ::
+    (consensusSignatureVrfEd25519Codec ::
+      consensusVkVrfCodec ::
       protobufByteStringCodec :: // thresholdEvidence
       protobufByteStringCodec :: // eta
       emptyCodec(scalapb.UnknownFieldSet.empty))

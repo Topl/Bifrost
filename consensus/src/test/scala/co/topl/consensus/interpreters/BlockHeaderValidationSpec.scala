@@ -707,8 +707,8 @@ class BlockHeaderValidationSpec
       threshold = thresholdInterpreter.getThreshold(relativeStake, slot).unsafeRunSync()
     }
     val cert = co.topl.consensus.models.EligibilityCertificate(
-      testProof.some,
-      VerificationKeyVrfEd25519.of(ByteString.copyFrom(ed25519Vrf.getVerificationKey(skVrf.bytes.data).toArray)).some,
+      testProof,
+      VerificationKeyVrfEd25519.of(ByteString.copyFrom(ed25519Vrf.getVerificationKey(skVrf.bytes.data).toArray)),
       ByteString.copyFrom(threshold.typedEvidence.evidence.data.toArray),
       ByteString.copyFrom(eta.data.toArray)
     )

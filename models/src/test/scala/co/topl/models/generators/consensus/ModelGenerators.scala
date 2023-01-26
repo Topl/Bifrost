@@ -61,8 +61,8 @@ trait ModelGenerators {
         thresholdEvidence         <- thresholdEvidenceGen
         eta                       <- etaGen
       } yield EligibilityCertificate.of(
-        signatureVrfEd25519.some,
-        verificationKeyVrfEd25519.some,
+        signatureVrfEd25519,
+        verificationKeyVrfEd25519,
         thresholdEvidence.data,
         eta.data
       )

@@ -9,6 +9,7 @@ import co.topl.{models => legacyModels}
 import legacyModels.utility._
 import co.topl.consensus.models._
 import co.topl.crypto.models._
+import co.topl.models.VerificationKeys
 import co.topl.node.models.BlockBody
 import com.google.protobuf.ByteString
 import quivr.models.Digest.Digest32
@@ -31,8 +32,8 @@ class GenusGraphMetadataTest extends munit.FunSuite {
 
   test("EligibilityCertificate Serialization") {
     val eligibilityCertificate = EligibilityCertificate(
-      vrfSig = Some(SignatureVrfEd25519.of(ByteString.copyFrom(Array.fill(Lengths.`80`.value)(0: Byte)))),
-      vrfVK = Some(VerificationKeyVrfEd25519.of(ByteString.copyFrom(Array.fill(Lengths.`80`.value)(0: Byte)))),
+      vrfSig = SignatureVrfEd25519.of(ByteString.copyFrom(Array.fill(Lengths.`80`.value)(0: Byte))),
+      vrfVK = VerificationKeyVrfEd25519.of(ByteString.copyFrom(Array.fill(Lengths.`32`.value)(0: Byte))),
       thresholdEvidence = ByteString.copyFrom(Array.fill[Byte](evidenceLength.value)(0)),
       eta = ByteString.copyFrom(new Blake2b256().hash(legacyModels.Bytes(Random.nextBytes(TypedBytesLength))).toArray)
     )

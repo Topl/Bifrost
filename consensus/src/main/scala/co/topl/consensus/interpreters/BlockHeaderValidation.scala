@@ -12,7 +12,6 @@ import co.topl.consensus.models.{
   BlockHeaderValidationFailure,
   BlockHeaderValidationFailures,
   SignatureKesProduct,
-  SignatureVrfEd25519,
   VerificationKeyKesProduct,
   VrfArgument
 }
@@ -151,9 +150,9 @@ object BlockHeaderValidation {
                       .use { implicit ed25519vrf =>
                         ed25519vrf
                           .verify(
-                            ByteVector(eligibilityCertificate.vrfSig.map(_.value.toByteArray).getOrElse(Array.empty)),
+                            ByteVector(eligibilityCertificate.vrfSig.value.toByteArray),
                             VrfArgument(expectedEta, header.slot).signableBytes,
-                            ByteVector(eligibilityCertificate.vrfVK.map(_.value.toByteArray).getOrElse(Array.empty))
+                            ByteVector(eligibilityCertificate.vrfVK.value.toByteArray)
                           )
                           .pure[F]
                       }
@@ -163,7 +162,7 @@ object BlockHeaderValidation {
                           header,
                           BlockHeaderValidationFailures
                             .InvalidEligibilityCertificateProof(
-                              eligibilityCertificate.vrfSig.getOrElse(SignatureVrfEd25519.defaultInstance)
+                              eligibilityCertificate.vrfSig
                             )
                         )
                       )
@@ -287,7 +286,7 @@ object BlockHeaderValidation {
                 .use { implicit ed25519Vrf =>
                   ed25519Vrf
                     .proofToHash(
-                      Bytes(eligibilityCertificate.vrfSig.map(_.value.toByteArray).getOrElse(Array.empty))
+                      Bytes(eligibilityCertificate.vrfSig.value.toByteArray)
                     )
                     .pure[F]
                 }
@@ -332,19 +331,21 @@ object BlockHeaderValidation {
                 message <- blake2b256Resource
                   .use(
                     _.hash(
-                      Bytes(eligibilityCertificate.vrfVK.map(_.value.toByteArray).getOrElse(Array.empty)),
+                      Bytes(eligibilityCertificate.vrfVK.value.toByteArray),
                       StakingAddresses.operatorFromProtoString(header.address).vk.bytes.data
                     ).pure[F]
                   )
                 isValid <- kesProductResource
-                  .use(p => p.verify(commitment, message, operationalCertificate.getParentVK.copy(step = 0)).pure[F])
+                  .use(p =>
+                    p.verify(commitment, message, operationalCertificate.getParentVK.copy(step = 0)).pure[F]
+                  ) // TODO get ParentVK could fail
               } yield Either.cond(
                 isValid,
                 header,
                 BlockHeaderValidationFailures
                   .RegistrationCommitmentMismatch(
                     commitment,
-                    eligibilityCertificate.getVrfVK,
+                    eligibilityCertificate.vrfVK,
                     address.vk
                   )
               )
