@@ -40,7 +40,7 @@ object Blockchain {
    */
   def make[F[_]: Parallel: Async: FToFuture](
     clock:                       ClockAlgebra[F],
-    staker:                      Option[StakingAlgebra[F]],
+    stakerOpt:                   Option[StakingAlgebra[F]],
     slotDataStore:               Store[F, TypedIdentifier, SlotData],
     headerStore:                 Store[F, TypedIdentifier, BlockHeader],
     bodyStore:                   Store[F, TypedIdentifier, BlockBody],
@@ -125,45 +125,40 @@ object Blockchain {
             peerFlowModifier
           )
       )
-      blockPacker <- Resource.eval(
-        BlockPacker.make[F](
-          mempool,
-          transactionStore.getOrRaise,
-          transactionStore.contains,
-          BlockPacker.makeBodyValidator(bodySyntaxValidation, bodySemanticValidation, bodyAuthorizationValidation)
-        )
-      )
       mintedBlockStream =
-        staker.fold[Stream[F, Block]](Stream.never[F])(staker =>
-          // The BlockProducer needs a stream/Source of "parents" upon which it should build.  This stream is the
-          // concatenation of the current local head with the stream of local block adoptions
-          Stream
-            .eval(localChain.head)
-            .flatMap(currentHead =>
-              Stream.resource(
-                (
-                  Stream
-                    .eval(clock.delayedUntilSlot(currentHead.slotId.slot).as(currentHead))
-                    .append(
-                      Stream
-                        .resource(DroppingTopic(blockAdoptionsTopic, 1).flatMap(_.subscribeAwaitUnbounded))
-                        .flatten
-                        .evalMap(slotDataStore.getOrRaise)
-                    )
-                  )
-                  .toAkkaSource
+        for {
+          staker <- Stream.fromOption[F](stakerOpt)
+          blockPacker <- Stream.eval(
+            BlockPacker
+              .make[F](
+                mempool,
+                transactionStore.getOrRaise,
+                transactionStore.contains,
+                BlockPacker
+                  .makeBodyValidator(bodySyntaxValidation, bodySemanticValidation, bodyAuthorizationValidation)
               )
-            )
-            .flatMap(adoptionsSource =>
-              Stream
-                .eval(
-                  BlockProducer
-                    .make[F](adoptionsSource, staker, clock, blockPacker)
-                    .flatMap(_.blocks)
-                )
-                .flatMap(_.asFS2Stream)
-            )
-        )
+          )
+          blockProducer <- Stream.eval(
+            BlockProducer
+              .make[F](
+                // The BlockProducer needs a stream/Source of "parents" upon which it should build.  This stream is the
+                // concatenation of the current local head with the stream of local block adoptions
+                Stream
+                  .eval(Sync[F].defer(localChain.head))
+                  .evalTap(head => clock.delayedUntilSlot(head.slotId.slot))
+                  .append(
+                    Stream
+                      .resource(DroppingTopic(blockAdoptionsTopic, 10))
+                      .flatMap(_.subscribeUnbounded)
+                      .evalMap(slotDataStore.getOrRaise)
+                  ),
+                staker,
+                clock,
+                blockPacker
+              )
+          )
+          block <- Stream.force(blockProducer.blocks)
+        } yield block
       rpcInterpreter <- DroppingTopic(blockAdoptionsTopic, 10)
         .flatMap(_.subscribeAwaitUnbounded)
         .evalMap(
@@ -179,13 +174,18 @@ object Blockchain {
             _
           )
         )
-      rpcServer <- ToplGrpc.Server.serve(rpcHost, rpcPort, rpcInterpreter)
-      mintedBlockStreamCompletionF =
+      _ <-
+        ToplGrpc.Server
+          .serve(rpcHost, rpcPort, rpcInterpreter)
+          .evalTap(rpcServer =>
+            Logger[F].info(s"RPC Server bound at ${rpcServer.getListenSockets.asScala.toList.mkString(",")}")
+          )
+      _ <- Async[F].background(
         mintedBlockStream
           .evalMap(block =>
-            blockIdTree.associate(block.header.id, block.header.parentHeaderId) >>
-            headerStore.put(block.header.id, block.header) >>
-            bodyStore.put(block.header.id, block.body) >>
+            blockIdTree.associate(block.header.id, block.header.parentHeaderId) &>
+            headerStore.put(block.header.id, block.header) &>
+            bodyStore.put(block.header.id, block.body) &>
             ed25519VrfResource
               .use(implicit e => block.header.slotData.pure[F])
               .flatTap(slotDataStore.put(block.header.id, _))
@@ -194,11 +194,7 @@ object Blockchain {
           .evalTap(localChain.adopt)
           .compile
           .drain
-      _ <-
-        Resource.eval(
-          Logger[F].info(s"RPC Server bound at ${rpcServer.getListenSockets.asScala.toList.mkString(",")}")
-        )
-      _ <- Resource.eval(mintedBlockStreamCompletionF)
+      )
       _ <- Resource.eval(p2pFiber.joinWithUnit)
     } yield ()
   }

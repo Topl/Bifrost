@@ -299,11 +299,7 @@ object Dependencies {
     Dependencies.mUnitTest ++ externalCrypto ++ Seq(akka("actor-typed")) ++ catsEffect ++ logging ++ scalacache
 
   lazy val minting: Seq[ModuleID] =
-    Dependencies.mUnitTest ++ Dependencies.test ++ Dependencies.catsEffect ++
-    Seq(
-      Dependencies.akka("stream"),
-      Dependencies.akka("stream-testkit") % Test
-    )
+    Dependencies.mUnitTest ++ Dependencies.test ++ Dependencies.catsEffect
 
   lazy val networking: Seq[ModuleID] =
     Dependencies.test ++ Dependencies.catsEffect ++ Seq(
