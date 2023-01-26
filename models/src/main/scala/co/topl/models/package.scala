@@ -3,6 +3,7 @@ package co.topl
 import co.topl
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.{Lengths, Sized}
+import com.google.protobuf.ByteString
 import io.estatico.newtype.macros.{newsubtype, newtype}
 import io.estatico.newtype.ops._
 import scodec.bits.ByteVector
@@ -10,10 +11,14 @@ import scala.collection.immutable.ListSet
 import scala.language.implicitConversions
 
 package object models {
+
   type Bytes = ByteVector
   val Bytes: ByteVector.type = ByteVector
   type Eta = Sized.Strict[Bytes, Eta.Length]
   type Evidence = Sized.Strict[Bytes, Evidence.Length]
+
+  implicit def byteStringAsByteVector(byteString: ByteString): ByteVector = ByteVector(byteString.toByteArray)
+  implicit def byteVectorAsByteString(byteVector: ByteVector): ByteString = ByteString.copyFrom(byteVector.toArray)
 
   object Evidence {
     type Length = Lengths.`32`.type
