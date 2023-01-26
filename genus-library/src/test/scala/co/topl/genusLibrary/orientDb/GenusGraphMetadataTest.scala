@@ -9,7 +9,6 @@ import co.topl.{models => legacyModels}
 import legacyModels.utility._
 import co.topl.consensus.models._
 import co.topl.crypto.models._
-import co.topl.models.VerificationKeys
 import co.topl.node.models.BlockBody
 import com.google.protobuf.ByteString
 import quivr.models.Digest.Digest32
