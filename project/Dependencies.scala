@@ -13,8 +13,8 @@ object Dependencies {
   val fs2Version = "3.5-1c0be5c"
   val logback = "1.4.5"
 
-  // Reference https://github.com/Topl/protobuf-specs/commit/573d649656ac00b70803e9381b71347c837d75f4 2023-01-23T15:37:30Z
-  val protobufSpecs = "com.github.Topl" % "protobuf-specs" % "BN-817-protoc-gen-validate-eligibility-certificate-34e760790c-1"
+  // Reference https://github.com/Topl/protobuf-specs/commit/21ac57de06a3602e8bf2800d8a37e8a5889b4318
+  val protobufSpecs = "com.github.Topl" % "protobuf-specs" % "21ac57d"
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.5.0"
