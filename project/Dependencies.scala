@@ -5,7 +5,7 @@ object Dependencies {
   val akkaVersion = "2.6.20"
   val akkaHttpVersion = "10.2.10"
   val circeVersion = "0.14.3"
-  val kamonVersion = "2.5.12"
+  val kamonVersion = "2.6.0"
   val graalVersion = "21.3.4"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.9.0"
