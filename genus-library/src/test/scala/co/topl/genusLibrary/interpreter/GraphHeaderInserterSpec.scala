@@ -3,7 +3,7 @@ package co.topl.genusLibrary.interpreter
 import cats.effect.IO
 import cats.effect.kernel.Async
 import cats.implicits._
-import co.topl.genusLibrary.algebras.Mediator
+import co.topl.genusLibrary.algebras.mediator.HeaderMediatorAlgebra
 import co.topl.genusLibrary.failure.Failure
 import co.topl.genusLibrary.model.BlockData
 import co.topl.genusLibrary.orientDb.GenusGraphMetadata.blockHeaderSchema
@@ -21,14 +21,14 @@ class GraphHeaderInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite
 
   type F[A] = IO[A]
 
-  private trait MediatorMock extends Mediator[F]
+  private trait HeaderMediatorMock extends HeaderMediatorAlgebra[F]
 
   private class GraphTxDAOMock extends GraphTxDAO[F](null)
 
   implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
 
   private val orientDB = mock[StoreFacade]
-  private val mediator = mock[MediatorMock]
+  private val mediator = mock[HeaderMediatorMock]
 
   val graphHeaderInserter = new GraphHeaderInserter[F](orientDB, mediator)
 
@@ -93,7 +93,7 @@ class GraphHeaderInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite
           .returns((blockHeader, wrappedVertex).asRight[Failure].pure[F])
           .once()
 
-        (mediator.afterHeaderInserted _)
+        (mediator.mediate _)
           .expects(blockData)
           .returns(mediatorResponse.pure[F])
           .once
@@ -135,7 +135,7 @@ class GraphHeaderInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite
           .returns((blockHeader, wrappedVertex).asRight[Failure].pure[F])
           .once()
 
-        (mediator.afterHeaderInserted _)
+        (mediator.mediate _)
           .expects(blockData)
           .returns(mediatorResponse.pure[F])
           .once
