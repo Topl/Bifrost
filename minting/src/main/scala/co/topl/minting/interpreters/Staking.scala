@@ -4,6 +4,7 @@ import cats.Applicative
 import cats.data.OptionT
 import cats.effect.Sync
 import cats.implicits._
+import co.topl.algebras.ClockAlgebra.implicits.ClockOps
 import co.topl.algebras.{ClockAlgebra, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
@@ -34,10 +35,11 @@ object Staking {
 
     def elect(parentSlotId: SlotId, slot: Slot): F[Option[VrfHit]] =
       for {
-        slotsPerEpoch <- clock.slotsPerEpoch
+        epochOf       <- clock.epochOf(slot)
+        epochBoundary <- clock.epochBoundary(slot)
         eta           <- etaCalculation.etaToBe(parentSlotId, slot)
-        _ <- Applicative[F].whenA(slot % slotsPerEpoch === 0L)(
-          vrfCalculator.precomputeForEpoch(slot / slotsPerEpoch, eta)
+        _ <- Applicative[F].whenA(epochBoundary === 0L)(
+          vrfCalculator.precomputeForEpoch(epochOf, eta)
         )
         maybeHit <- OptionT(consensusState.operatorRelativeStake(parentSlotId.blockId, slot)(a))
           .flatMapF(relativeStake => vrfCalculator.getHit(relativeStake, slot, slot - parentSlotId.slot, eta))
