@@ -1,9 +1,8 @@
-package co.topl.genusLibrary.interpreter
+package co.topl.genusLibrary.interpreter.mediator
 
 import cats.effect.IO
 import cats.effect.kernel.Async
 import cats.implicits._
-import co.topl.genusLibrary.Txo
 import co.topl.genusLibrary.failure.{Failure, Failures}
 import co.topl.genusLibrary.model.BlockData
 import co.topl.genusLibrary.orientDb.GenusGraphMetadata.{blockBodySchema, blockHeaderSchema}
@@ -11,8 +10,7 @@ import co.topl.genusLibrary.orientDb.wrapper.{WrappedEdge, WrappedVertex}
 import co.topl.genusLibrary.orientDb.{GraphTxDAO, StoreFacade}
 import co.topl.genusLibrary.utils.BlockUtils
 import co.topl.models.ModelGenerators._
-import co.topl.models.{BlockBody, BlockHeader, Transaction}
-import co.topl.proto.models.TypedEvidence
+import co.topl.models.{BlockBody, BlockHeader}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
@@ -20,7 +18,7 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scodec.bits.ByteVector
 
-class GraphMediatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
+class GraphHeaderMediatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
 
@@ -31,13 +29,7 @@ class GraphMediatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
   private val dbFacade = mock[StoreFacade]
   private val blockUtils = mock[BlockUtils]
 
-  private val graphMediator = new GraphMediator[F](dbFacade, blockUtils) {
-    override def afterBodyInserted(body: BlockBody, block: BlockData): F[Either[Failure, Unit]] = ???
-    override def afterTxInserted(transaction: Transaction, block: BlockData): F[Either[Failure, Unit]] = ???
-    override def afterAddressInserted(address: TypedEvidence, block: BlockData): F[Either[Failure, Unit]] = ???
-    override def afterTxoInserted(txo: Txo, block: BlockData): F[Either[Failure, Unit]] = ???
-    override def afterAddressStateInserted(block: BlockData): F[Either[Failure, Unit]] = ???
-  }
+  private val headerMediator = new GraphHeaderMediator[F](dbFacade, blockUtils)
 
   test("On no current header vertex, a NoCurrentHeaderVertexFailure should be returned") {
 
@@ -74,7 +66,7 @@ class GraphMediatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             .once()
 
           assertIO(
-            graphMediator.afterHeaderInserted(BlockData(header = header, body = null, transactions = null)),
+            headerMediator.mediate(BlockData(header = header, body = null, transactions = null)),
             leftFailure
           )
         }
@@ -130,7 +122,7 @@ class GraphMediatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             .once()
 
           assertIO(
-            graphMediator.afterHeaderInserted(BlockData(header = header, body = null, transactions = null)),
+            headerMediator.mediate(BlockData(header = header, body = null, transactions = null)),
             leftFailure
           )
         }
@@ -200,7 +192,7 @@ class GraphMediatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             .once()
 
           assertIO(
-            graphMediator.afterHeaderInserted(BlockData(header = header, body = body, transactions = null)),
+            headerMediator.mediate(BlockData(header = header, body = body, transactions = null)),
             leftFailure
           )
         }
@@ -290,7 +282,7 @@ class GraphMediatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             .once()
 
           assertIO(
-            graphMediator.afterHeaderInserted(BlockData(header = header, body = body, transactions = null)),
+            headerMediator.mediate(BlockData(header = header, body = body, transactions = null)),
             leftFailure
           )
         }
@@ -375,7 +367,7 @@ class GraphMediatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             .once()
 
           assertIO(
-            graphMediator.afterHeaderInserted(BlockData(header = header, body = body, transactions = null)),
+            headerMediator.mediate(BlockData(header = header, body = body, transactions = null)),
             ().asRight[Failure]
           )
         }
