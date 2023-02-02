@@ -15,7 +15,7 @@ import co.topl.proto.models
 import scala.collection.immutable.ListSet
 
 trait BifrostMorphismInstances
-  extends PrimitiveBifrostMorphismInstances
+    extends PrimitiveBifrostMorphismInstances
     with VerificationKeyBifrostMorphismInstances
     with CommonBifrostMorphismInstances
     with PropositionBifrostMorphismInstances
@@ -53,30 +53,30 @@ trait PrimitiveBifrostMorphismInstances {
     )
 
   implicit def fromSizedStrictMorphism[F[_]: Monad, A: HasLength, B, L <: bifrostModels.utility.Length](implicit
-                                                                                                        subMorphism: Morphism[F, A, B],
-                                                                                                        l:           L
-                                                                                                       ): Morphism[F, bifrostModels.utility.Sized.Strict[A, L], B] =
+    subMorphism: Morphism[F, A, B],
+    l:           L
+  ): Morphism[F, bifrostModels.utility.Sized.Strict[A, L], B] =
     _.map(_.data).to[B]
 
   implicit def toSizedStrictMorphism[F[_]: Monad, A, B: HasLength, L <: bifrostModels.utility.Length](implicit
-                                                                                                      subMorphism: Morphism[F, A, B],
-                                                                                                      l:           L
-                                                                                                     ): Morphism[F, A, bifrostModels.utility.Sized.Strict[B, L]] =
+    subMorphism: Morphism[F, A, B],
+    l:           L
+  ): Morphism[F, A, bifrostModels.utility.Sized.Strict[B, L]] =
     fa =>
       EitherT(fa.to[B])
         .subflatMap(Sized.strict[B, L](_).leftMap(_ => "Invalid length"))
         .value
 
   implicit def fromSizedMaxMorphism[F[_]: Monad, A: HasLength, B, L <: bifrostModels.utility.Length](implicit
-                                                                                                     subMorphism: Morphism[F, A, B],
-                                                                                                     l:           L
-                                                                                                    ): Morphism[F, bifrostModels.utility.Sized.Max[A, L], B] =
+    subMorphism: Morphism[F, A, B],
+    l:           L
+  ): Morphism[F, bifrostModels.utility.Sized.Max[A, L], B] =
     _.map(_.data).to[B]
 
   implicit def toSizedMaxMorphism[F[_]: Monad, A, B: HasLength, L <: bifrostModels.utility.Length](implicit
-                                                                                                   subMorphism: Morphism[F, A, B],
-                                                                                                   l:           L
-                                                                                                  ): Morphism[F, A, bifrostModels.utility.Sized.Max[B, L]] =
+    subMorphism: Morphism[F, A, B],
+    l:           L
+  ): Morphism[F, A, bifrostModels.utility.Sized.Max[B, L]] =
     fa =>
       EitherT(fa.to[B])
         .subflatMap(Sized.max[B, L](_).leftMap(_ => "Invalid length"))
@@ -88,7 +88,7 @@ trait VerificationKeyBifrostMorphismInstances {
   self: PrimitiveBifrostMorphismInstances =>
 
   implicit def verificationKeysCurve25519Isomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.VerificationKeys.Curve25519, models.VerificationKeyCurve25519] =
+    : Isomorphism[F, bifrostModels.VerificationKeys.Curve25519, models.VerificationKeyCurve25519] =
     utility.Isomorphism(
       _.map(p =>
         for {
@@ -105,7 +105,7 @@ trait VerificationKeyBifrostMorphismInstances {
     )
 
   implicit def verificationKeysEd25519Isomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.VerificationKeys.Ed25519, models.VerificationKeyEd25519] =
+    : Isomorphism[F, bifrostModels.VerificationKeys.Ed25519, models.VerificationKeyEd25519] =
     utility.Isomorphism(
       _.map(p =>
         for {
@@ -122,7 +122,7 @@ trait VerificationKeyBifrostMorphismInstances {
     )
 
   implicit def verificationKeysExtendedEd25519Isomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.VerificationKeys.ExtendedEd25519, models.VerificationKeyExtendedEd25519] =
+    : Isomorphism[F, bifrostModels.VerificationKeys.ExtendedEd25519, models.VerificationKeyExtendedEd25519] =
     utility.Isomorphism(
       _.map(p =>
         for {
@@ -142,7 +142,7 @@ trait VerificationKeyBifrostMorphismInstances {
     )
 
   implicit def verificationKeysVrfEd25519Isomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.VerificationKeys.VrfEd25519, models.VerificationKeyVrfEd25519] =
+    : Isomorphism[F, bifrostModels.VerificationKeys.VrfEd25519, models.VerificationKeyVrfEd25519] =
     utility.Isomorphism(
       _.map(p =>
         for {
@@ -159,7 +159,7 @@ trait VerificationKeyBifrostMorphismInstances {
     )
 
   implicit def verificationKeysKesProductIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.VerificationKeys.KesProduct, models.VerificationKeyKesProduct] =
+    : Isomorphism[F, bifrostModels.VerificationKeys.KesProduct, models.VerificationKeyKesProduct] =
     utility.Isomorphism(
       _.map(p =>
         for {
@@ -183,7 +183,7 @@ trait CommonBifrostMorphismInstances {
   self: PrimitiveBifrostMorphismInstances =>
 
   implicit def networkPrefixIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.NetworkPrefix, models.NetworkPrefix] =
+    : Isomorphism[F, bifrostModels.NetworkPrefix, models.NetworkPrefix] =
     Isomorphism(
       _.map(prefix => models.NetworkPrefix(prefix.value.toInt).asRight[String]),
       _.map(prefix =>
@@ -197,7 +197,7 @@ trait CommonBifrostMorphismInstances {
     )
 
   implicit def typedEvidenceIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.TypedEvidence, models.TypedEvidence] =
+    : Isomorphism[F, bifrostModels.TypedEvidence, models.TypedEvidence] =
     Isomorphism(
       _.map(p =>
         for {
@@ -214,7 +214,7 @@ trait CommonBifrostMorphismInstances {
     )
 
   implicit def transactionIdIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.TypedIdentifier, models.TransactionId] =
+    : Isomorphism[F, bifrostModels.TypedIdentifier, models.TransactionId] =
     Isomorphism(
       _.map(v => models.TransactionId(v.dataBytes).asRight[String]),
       _.map(v =>
@@ -252,7 +252,7 @@ trait CommonBifrostMorphismInstances {
     )
 
   implicit def blockIdHeaderIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.TypedIdentifier, co.topl.consensus.models.BlockId] =
+    : Isomorphism[F, bifrostModels.TypedIdentifier, co.topl.consensus.models.BlockId] =
     Isomorphism(
       _.map(typedIdentifier =>
         co.topl.consensus.models.BlockId(ByteString.copyFrom(typedIdentifier.dataBytes.toArray)).asRight[String]
@@ -268,7 +268,7 @@ trait CommonBifrostMorphismInstances {
     )
 
   implicit def ioTransaction32Isomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.TypedIdentifier, co.topl.brambl.models.Identifier.IoTransaction32] =
+    : Isomorphism[F, bifrostModels.TypedIdentifier, co.topl.brambl.models.Identifier.IoTransaction32] =
     Isomorphism(
       _.map(v =>
         co.topl.brambl.models.Identifier
@@ -302,11 +302,11 @@ trait PropositionBifrostMorphismInstances {
     with BoxBifrostMorphismInstances =>
 
   implicit def permanentlyLockedPropositionIsomorphism[F[_]: Functor]
-  : Isomorphism[F, bifrostModels.Propositions.PermanentlyLocked.type, models.PropositionPermanentlyLocked] =
+    : Isomorphism[F, bifrostModels.Propositions.PermanentlyLocked.type, models.PropositionPermanentlyLocked] =
     Isomorphism.constant(bifrostModels.Propositions.PermanentlyLocked, models.PropositionPermanentlyLocked())
 
   implicit def curve25519PropositionIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Propositions.Knowledge.Curve25519, models.PropositionKnowledgeCurve25519] =
+    : Isomorphism[F, bifrostModels.Propositions.Knowledge.Curve25519, models.PropositionKnowledgeCurve25519] =
     Isomorphism(
       fa =>
         EitherT(fa.map(_.key).to[models.VerificationKeyCurve25519])
@@ -324,7 +324,7 @@ trait PropositionBifrostMorphismInstances {
     )
 
   implicit def ed25519PropositionIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Propositions.Knowledge.Ed25519, models.PropositionKnowledgeEd25519] =
+    : Isomorphism[F, bifrostModels.Propositions.Knowledge.Ed25519, models.PropositionKnowledgeEd25519] =
     Isomorphism(
       fa =>
         EitherT(fa.map(_.key).to[models.VerificationKeyEd25519])
@@ -342,7 +342,7 @@ trait PropositionBifrostMorphismInstances {
     )
 
   implicit def extendedEd25519PropositionIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Propositions.Knowledge.ExtendedEd25519, models.PropositionKnowledgeExtendedEd25519] =
+    : Isomorphism[F, bifrostModels.Propositions.Knowledge.ExtendedEd25519, models.PropositionKnowledgeExtendedEd25519] =
     Isomorphism(
       fa =>
         EitherT(fa.map(_.key).to[models.VerificationKeyExtendedEd25519])
@@ -360,7 +360,7 @@ trait PropositionBifrostMorphismInstances {
     )
 
   implicit def hashLockPropositionIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Propositions.Knowledge.HashLock, models.PropositionKnowledgeHashLock] =
+    : Isomorphism[F, bifrostModels.Propositions.Knowledge.HashLock, models.PropositionKnowledgeHashLock] =
     Isomorphism(
       fa =>
         EitherT(fa.map(_.valueDigest).to[ByteString])
@@ -373,7 +373,7 @@ trait PropositionBifrostMorphismInstances {
     )
 
   implicit def andPropositionIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Propositions.Compositional.And, models.PropositionCompositionalAnd] =
+    : Isomorphism[F, bifrostModels.Propositions.Compositional.And, models.PropositionCompositionalAnd] =
     utility.Isomorphism(
       _.map(v =>
         for {
@@ -390,7 +390,7 @@ trait PropositionBifrostMorphismInstances {
     )
 
   implicit def orPropositionIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Propositions.Compositional.Or, models.PropositionCompositionalOr] =
+    : Isomorphism[F, bifrostModels.Propositions.Compositional.Or, models.PropositionCompositionalOr] =
     utility.Isomorphism(
       _.map(v =>
         for {
@@ -407,7 +407,7 @@ trait PropositionBifrostMorphismInstances {
     )
 
   implicit def thresholdPropositionIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Propositions.Compositional.Threshold, models.PropositionCompositionalThreshold] =
+    : Isomorphism[F, bifrostModels.Propositions.Compositional.Threshold, models.PropositionCompositionalThreshold] =
     Isomorphism(
       _.map(v =>
         for {
@@ -424,7 +424,7 @@ trait PropositionBifrostMorphismInstances {
     )
 
   implicit def notPropositionIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Propositions.Compositional.Not, models.PropositionCompositionalNot] =
+    : Isomorphism[F, bifrostModels.Propositions.Compositional.Not, models.PropositionCompositionalNot] =
     utility.Isomorphism(
       _.map(v =>
         for {
@@ -439,14 +439,14 @@ trait PropositionBifrostMorphismInstances {
     )
 
   implicit def heightLockPropositionIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Propositions.Contextual.HeightLock, models.PropositionContextualHeightLock] =
+    : Isomorphism[F, bifrostModels.Propositions.Contextual.HeightLock, models.PropositionContextualHeightLock] =
     Isomorphism(
       _.map(v => models.PropositionContextualHeightLock(v.height).asRight[String]),
       _.map(v => bifrostModels.Propositions.Contextual.HeightLock(v.height).asRight[String])
     )
 
   implicit def boxLocationPropositionIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.BoxLocation, models.BoxLocation] =
+    : Isomorphism[F, bifrostModels.BoxLocation, models.BoxLocation] =
     Isomorphism(
       _.map {
         case bifrostModels.BoxLocations.Input(index) =>
@@ -579,14 +579,14 @@ trait ProofBifrostMorphismInstances {
     with VerificationKeyBifrostMorphismInstances =>
 
   implicit def proofsUndefinedIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Proofs.Undefined.type, models.ProofUndefined] =
+    : Isomorphism[F, bifrostModels.Proofs.Undefined.type, models.ProofUndefined] =
     Isomorphism(
       _.as(models.ProofUndefined().asRight[String]),
       _.as(bifrostModels.Proofs.Undefined.asRight[String])
     )
 
   implicit def proofsKnowledgeCurve25519Isomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Proofs.Knowledge.Curve25519, models.ProofKnowledgeCurve25519] =
+    : Isomorphism[F, bifrostModels.Proofs.Knowledge.Curve25519, models.ProofKnowledgeCurve25519] =
     utility.Isomorphism(
       _.map(p => models.ProofKnowledgeCurve25519(p.bytes.data).asRight[String]),
       _.flatMap(p =>
@@ -597,7 +597,7 @@ trait ProofBifrostMorphismInstances {
     )
 
   implicit def proofsKnowledgeEd25519Isomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Proofs.Knowledge.Ed25519, models.ProofKnowledgeEd25519] =
+    : Isomorphism[F, bifrostModels.Proofs.Knowledge.Ed25519, models.ProofKnowledgeEd25519] =
     utility.Isomorphism(
       _.map(p => models.ProofKnowledgeEd25519(p.bytes.data).asRight[String]),
       _.flatMap(p =>
@@ -608,7 +608,7 @@ trait ProofBifrostMorphismInstances {
     )
 
   implicit def proofsKnowledgeVrfEd25519Isomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Proofs.Knowledge.VrfEd25519, models.ProofKnowledgeVrfEd25519] =
+    : Isomorphism[F, bifrostModels.Proofs.Knowledge.VrfEd25519, models.ProofKnowledgeVrfEd25519] =
     utility.Isomorphism(
       _.map(p => models.ProofKnowledgeVrfEd25519(p.bytes.data).asRight[String]),
       _.flatMap(p =>
@@ -619,7 +619,7 @@ trait ProofBifrostMorphismInstances {
     )
 
   implicit def proofsKnowledgeKesSumIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Proofs.Knowledge.KesSum, models.ProofKnowledgeKesSum] =
+    : Isomorphism[F, bifrostModels.Proofs.Knowledge.KesSum, models.ProofKnowledgeKesSum] =
     utility.Isomorphism(
       _.map(p =>
         for {
@@ -648,7 +648,7 @@ trait ProofBifrostMorphismInstances {
     )
 
   implicit def proofsKnowledgeKesProductIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Proofs.Knowledge.KesProduct, models.ProofKnowledgeKesProduct] =
+    : Isomorphism[F, bifrostModels.Proofs.Knowledge.KesProduct, models.ProofKnowledgeKesProduct] =
     utility.Isomorphism(
       _.map(p =>
         for {
@@ -673,7 +673,7 @@ trait ProofBifrostMorphismInstances {
     )
 
   implicit def proofsKnowledgeHashLockIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Proofs.Knowledge.HashLock, models.ProofKnowledgeHashLock] =
+    : Isomorphism[F, bifrostModels.Proofs.Knowledge.HashLock, models.ProofKnowledgeHashLock] =
     utility.Isomorphism(
       _.map(p =>
         for {
@@ -688,7 +688,7 @@ trait ProofBifrostMorphismInstances {
     )
 
   implicit def proofsCompositionalAndIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Proofs.Compositional.And, models.ProofCompositionalAnd] =
+    : Isomorphism[F, bifrostModels.Proofs.Compositional.And, models.ProofCompositionalAnd] =
     utility.Isomorphism(
       _.map(p =>
         for {
@@ -705,7 +705,7 @@ trait ProofBifrostMorphismInstances {
     )
 
   implicit def proofsCompositionalOrIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Proofs.Compositional.Or, models.ProofCompositionalOr] =
+    : Isomorphism[F, bifrostModels.Proofs.Compositional.Or, models.ProofCompositionalOr] =
     utility.Isomorphism(
       _.map(p =>
         for {
@@ -722,7 +722,7 @@ trait ProofBifrostMorphismInstances {
     )
 
   implicit def proofsCompositionalThresholdIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Proofs.Compositional.Threshold, models.ProofCompositionalThreshold] =
+    : Isomorphism[F, bifrostModels.Proofs.Compositional.Threshold, models.ProofCompositionalThreshold] =
     utility.Isomorphism(
       _.map(p =>
         for {
@@ -745,7 +745,7 @@ trait ProofBifrostMorphismInstances {
     )
 
   implicit def proofsCompositionalNotIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Proofs.Compositional.Not, models.ProofCompositionalNot] =
+    : Isomorphism[F, bifrostModels.Proofs.Compositional.Not, models.ProofCompositionalNot] =
     utility.Isomorphism(
       _.map(p =>
         for {
@@ -760,7 +760,7 @@ trait ProofBifrostMorphismInstances {
     )
 
   implicit def proofsContextualHeightLockIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Proofs.Contextual.HeightLock, models.ProofContextualHeightLock] =
+    : Isomorphism[F, bifrostModels.Proofs.Contextual.HeightLock, models.ProofContextualHeightLock] =
     Isomorphism(
       _.as(models.ProofContextualHeightLock().asRight[String]),
       _.as(bifrostModels.Proofs.Contextual.HeightLock().asRight[String])
@@ -846,7 +846,7 @@ trait AddressBifrostMorphismInstances {
     with ProofBifrostMorphismInstances =>
 
   implicit def spendingAddressIsorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.SpendingAddress, models.SpendingAddress] =
+    : Isomorphism[F, bifrostModels.SpendingAddress, models.SpendingAddress] =
     utility.Isomorphism(
       _.map(p =>
         for {
@@ -864,7 +864,7 @@ trait AddressBifrostMorphismInstances {
     )
 
   implicit def stakingAddressOperatorIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.StakingAddresses.Operator, models.StakingAddressOperator] =
+    : Isomorphism[F, bifrostModels.StakingAddresses.Operator, models.StakingAddressOperator] =
     utility.Isomorphism(
       _.map(p =>
         for {
@@ -879,14 +879,14 @@ trait AddressBifrostMorphismInstances {
     )
 
   implicit def stakingAddressNonStakingIsorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.StakingAddresses.NonStaking.type, models.StakingAddressNonStaking] =
+    : Isomorphism[F, bifrostModels.StakingAddresses.NonStaking.type, models.StakingAddressNonStaking] =
     Isomorphism(
       _.as(models.StakingAddressNonStaking().asRight[String]),
       _.as(bifrostModels.StakingAddresses.NonStaking.asRight[String])
     )
 
   implicit def stakingAddressIsorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.StakingAddress, models.StakingAddress] =
+    : Isomorphism[F, bifrostModels.StakingAddress, models.StakingAddress] =
     utility.Isomorphism(
       _.map {
         case bifrostModels.StakingAddresses.NonStaking =>
@@ -963,11 +963,11 @@ trait BoxBifrostMorphismInstances {
     )
 
   implicit def boxValueEmptyIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Box.Values.Empty.type, models.EmptyBoxValue] =
+    : Isomorphism[F, bifrostModels.Box.Values.Empty.type, models.EmptyBoxValue] =
     Isomorphism.constant(bifrostModels.Box.Values.Empty, models.EmptyBoxValue())
 
   implicit def boxValuePolyIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Box.Values.Poly, models.PolyBoxValue] =
+    : Isomorphism[F, bifrostModels.Box.Values.Poly, models.PolyBoxValue] =
     Isomorphism(
       fa => EitherT(fa.map(_.quantity).to[models.Int128]).map(_.some).map(models.PolyBoxValue(_)).value,
       _.map(
@@ -980,7 +980,7 @@ trait BoxBifrostMorphismInstances {
     )
 
   implicit def boxValueArbitIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Box.Values.Arbit, models.ArbitBoxValue] =
+    : Isomorphism[F, bifrostModels.Box.Values.Arbit, models.ArbitBoxValue] =
     Isomorphism(
       fa => EitherT(fa.map(_.quantity).to[models.Int128]).map(_.some).map(models.ArbitBoxValue(_)).value,
       _.map(
@@ -993,7 +993,7 @@ trait BoxBifrostMorphismInstances {
     )
 
   implicit def boxValueAssetCodeIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Box.Values.AssetV1.Code, models.AssetV1BoxValue.Code] =
+    : Isomorphism[F, bifrostModels.Box.Values.AssetV1.Code, models.AssetV1BoxValue.Code] =
     utility.Isomorphism(
       _.map(v =>
         for {
@@ -1013,7 +1013,7 @@ trait BoxBifrostMorphismInstances {
     )
 
   implicit def boxValueAssetIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Box.Values.AssetV1, models.AssetV1BoxValue] =
+    : Isomorphism[F, bifrostModels.Box.Values.AssetV1, models.AssetV1BoxValue] =
     utility.Isomorphism(
       _.map(v =>
         for {
@@ -1039,7 +1039,7 @@ trait BoxBifrostMorphismInstances {
     )
 
   implicit def boxValueOperatorRegistrationIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Box.Values.Registrations.Operator, models.OperatorRegistrationBoxValue] =
+    : Isomorphism[F, bifrostModels.Box.Values.Registrations.Operator, models.OperatorRegistrationBoxValue] =
     Isomorphism(
       fa =>
         EitherT(fa.map(_.vrfCommitment).to[models.ProofKnowledgeKesProduct])
@@ -1113,7 +1113,7 @@ trait TransactionBifrostMorphismInstances {
     with BoxBifrostMorphismInstances =>
 
   implicit def transactionInputIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Transaction.Input, models.Transaction.Input] =
+    : Isomorphism[F, bifrostModels.Transaction.Input, models.Transaction.Input] =
     Isomorphism(
       _.map(input =>
         for {
@@ -1136,7 +1136,7 @@ trait TransactionBifrostMorphismInstances {
     )
 
   implicit def transactionOutputIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Transaction.Output, models.Transaction.UnspentOutput] =
+    : Isomorphism[F, bifrostModels.Transaction.Output, models.Transaction.UnspentOutput] =
     utility.Isomorphism(
       _.map(output =>
         for {
@@ -1159,7 +1159,7 @@ trait TransactionBifrostMorphismInstances {
     )
 
   implicit def transactionScheduleIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.Transaction.Schedule, models.Transaction.Schedule] =
+    : Isomorphism[F, bifrostModels.Transaction.Schedule, models.Transaction.Schedule] =
     Isomorphism(
       _.map(input => models.Transaction.Schedule(input.creation, input.minimumSlot, input.maximumSlot).asRight[String]),
       _.map(protoInput =>
@@ -1223,7 +1223,7 @@ trait CertificateBifrostMorphismInstances {
     with ProofBifrostMorphismInstances =>
 
   implicit def operationalCertificateIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.OperationalCertificate, models.OperationalCertificate] =
+    : Isomorphism[F, bifrostModels.OperationalCertificate, models.OperationalCertificate] =
     utility.Isomorphism(
       _.map(a =>
         for {
@@ -1256,7 +1256,7 @@ trait CertificateBifrostMorphismInstances {
     )
 
   implicit def eligibilityCertificateIsomorphism[F[_]: Monad]
-  : Isomorphism[F, bifrostModels.EligibilityCertificate, models.EligibilityCertificate] =
+    : Isomorphism[F, bifrostModels.EligibilityCertificate, models.EligibilityCertificate] =
     utility.Isomorphism(
       _.map(a =>
         for {

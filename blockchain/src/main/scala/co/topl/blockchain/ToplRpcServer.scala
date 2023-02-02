@@ -4,6 +4,7 @@ import cats.{Monad, Show}
 import cats.data.EitherT
 import cats.implicits._
 import cats.effect.Async
+import cats.effect.kernel.Sync
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.algebras.{Store, SynchronizationTraversalStep, ToplRpc}
@@ -58,26 +59,27 @@ object ToplRpcServer {
 
         def broadcastTransaction(transaction: Transaction): F[Unit] =
           // TODO model should change to new protobuf specs and not use Isomorphism
-          EitherT(co.topl.models.utility.transactionIsomorphism[F].baMorphism.aToB(transaction.pure[F]))
-            .leftMap(error =>
-              //
-              new IllegalArgumentException(error)
-            )
+          EitherT(
+            co.topl.models.utility
+              .transactionIsomorphism[F]
+              .baMorphism
+              .aToB(Sync[F].delay(transaction))
+          )
+            .leftMap(new IllegalArgumentException(_))
             .rethrowT
-            .map(transactionOldModel =>
+            .flatMap { transaction =>
+              val id = transaction.id.asTypedBytes
               transactionStore
-                .contains(transaction.id)
+                .contains(id)
                 .ifM(
-                  Logger[F].info(show"Received duplicate transaction id=${transaction.id.asTypedBytes}"),
-                  Logger[F].info(show"Received RPC Transaction id=${transaction.id.asTypedBytes}") >>
-                  syntacticValidateOrRaise(transactionOldModel)
-                    .flatTap(_ =>
-                      Logger[F].debug(show"Transaction id=${transaction.id.asTypedBytes} is syntactically valid")
-                    )
+                  Logger[F].info(show"Received duplicate transaction id=$id"),
+                  Logger[F].info(show"Received RPC Transaction id=$id") >>
+                  syntacticValidateOrRaise(transaction)
+                    .flatTap(_ => Logger[F].debug(show"Transaction id=$id is syntactically valid"))
                     .flatTap(processValidTransaction[F](transactionStore, mempool))
                     .void
                 )
-            )
+            }
 
         def currentMempool(): F[Set[TypedIdentifier]] =
           localChain.head.map(_.slotId.blockId).flatMap(mempool.read)

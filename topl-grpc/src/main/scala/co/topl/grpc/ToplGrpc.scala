@@ -201,9 +201,10 @@ object ToplGrpc {
         in.transaction
           .toRight("Missing transaction")
           .toEitherT[F]
-          .map(interpreter.broadcastTransaction)
-          .value
+          .semiflatMap(interpreter.broadcastTransaction)
+          .leftMap(new IllegalArgumentException(_))
           .as(BroadcastTransactionRes())
+          .rethrowT
           .adaptErrorsToGrpc
 
       def currentMempool(in: CurrentMempoolReq, ctx: Metadata): F[CurrentMempoolRes] =
