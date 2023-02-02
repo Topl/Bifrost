@@ -161,16 +161,17 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
           blockIdTree
         )
       )
+      chainSelectionAlgebra = ChainSelection
+        .make[F](
+          dataStores.slotData.getOrRaise,
+          cryptoResources.blake2b512,
+          bigBangProtocol.chainSelectionKLookback,
+          bigBangProtocol.chainSelectionSWindow
+        )
       localChain <- Resource.eval(
         LocalChain.make(
           canonicalHeadSlotData,
-          ChainSelection
-            .make[F](
-              dataStores.slotData.getOrRaise,
-              cryptoResources.blake2b512,
-              bigBangProtocol.chainSelectionKLookback,
-              bigBangProtocol.chainSelectionSWindow
-            ),
+          chainSelectionAlgebra,
           currentEventIdGetterSetters.canonicalHead.set
         )
       )
@@ -226,6 +227,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
           dataStores.bodies,
           dataStores.transactions,
           localChain,
+          chainSelectionAlgebra,
           blockIdTree,
           blockHeightTree,
           validators.header,
@@ -241,7 +243,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
           Stream.iterable[F, DisconnectedPeer](appConfig.bifrost.p2p.knownPeers) ++
           Stream.never[F],
           appConfig.bifrost.rpc.bindHost,
-          appConfig.bifrost.rpc.bindPort
+          appConfig.bifrost.rpc.bindPort,
+          appConfig.bifrost.p2p.experimental.getOrElse(false)
         )
     } yield ()
 

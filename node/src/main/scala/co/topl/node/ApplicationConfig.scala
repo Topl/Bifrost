@@ -45,11 +45,12 @@ object ApplicationConfig {
 
     @Lenses
     case class P2P(
-      bindHost:   String,
-      bindPort:   Int,
-      publicHost: String,
-      publicPort: Int,
-      knownPeers: List[DisconnectedPeer]
+      bindHost:     String,
+      bindPort:     Int,
+      publicHost:   String,
+      publicPort:   Int,
+      knownPeers:   List[DisconnectedPeer],
+      experimental: Option[Boolean]
     )
 
     @Lenses

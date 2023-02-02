@@ -8,10 +8,10 @@ import cats.{Applicative, Monad, MonadThrow, Monoid, Parallel, Show}
 import fs2._
 import co.topl.algebras.ClockAlgebra.implicits.ClockOps
 import co.topl.algebras.{ClockAlgebra, Store, StoreReader}
-import co.topl.blockchain.algebras.BlockHeaderToBodyValidationAlgebra
-import co.topl.blockchain.models.BlockHeaderToBodyValidationFailure
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.consensus.algebras.BlockHeaderToBodyValidationAlgebra
+import co.topl.consensus.models.BlockHeaderToBodyValidationFailure
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LocalChainAlgebra}
 import co.topl.consensus.models.{BlockHeader, BlockHeaderValidationFailure, SlotData, SlotId}
 import co.topl.eventtree.ParentChildTree
