@@ -1,12 +1,13 @@
 package co.topl.genusLibrary.orientDb
 
+import co.topl.consensus.models.BlockHeader
 import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.genusLibrary.failure.{Failure, Failures}
 import co.topl.genusLibrary.orientDb.GenusGraphMetadata._
 import co.topl.genusLibrary.orientDb.wrapper.WrappedVertex
 import co.topl.genusLibrary.utils.BlockUtils
-import co.topl.models.{BlockBody, BlockHeader}
+import co.topl.node.models.BlockBody
 import org.typelevel.log4cats.Logger
 import scodec.bits.ByteVector
 

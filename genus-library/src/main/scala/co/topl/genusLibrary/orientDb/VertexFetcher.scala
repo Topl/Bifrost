@@ -1,8 +1,9 @@
 package co.topl.genusLibrary.orientDb
 
+import co.topl.consensus.models.BlockHeader
 import co.topl.genusLibrary.failure.Failure
 import co.topl.genusLibrary.orientDb.wrapper.WrappedVertex
-import co.topl.models.{BlockBody, BlockHeader}
+import co.topl.node.models.BlockBody
 
 /**
  * Vertex finder on the stored Ledger
