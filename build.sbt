@@ -181,6 +181,7 @@ lazy val bifrost = project
     numerics,
     eventTree,
     algebras,
+    actor,
     commonInterpreters,
     minting,
     networking,
@@ -390,6 +391,20 @@ lazy val algebras = project
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, crypto, tetraByteCodecs)
 
+lazy val actor = project
+  .in(file("actor"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "actor",
+    commonSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.actor"
+  )
+  .settings(libraryDependencies ++= Dependencies.actor)
+  .dependsOn(
+    munitScalamock % "test->test"
+  )
+
 lazy val commonInterpreters = project
   .in(file("common-interpreters"))
   .enablePlugins(BuildInfoPlugin)
@@ -487,7 +502,8 @@ lazy val networking = project
     commonInterpreters,
     catsAkka,
     eventTree,
-    ledger
+    ledger,
+    actor
   )
 
 lazy val transactionGenerator = project

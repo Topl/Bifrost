@@ -37,6 +37,7 @@ object ClockAlgebra {
       def epochRange(epoch: Epoch): F[EpochBoundary] =
         clock.slotsPerEpoch.map(slotsPerEpoch => (epoch * slotsPerEpoch) to (((epoch + 1) * slotsPerEpoch) - 1))
 
+      def isEpochStart(slot: Slot): F[Boolean] = clock.slotsPerEpoch.map(numberOfSlots => slot % numberOfSlots === 0L)
     }
   }
 

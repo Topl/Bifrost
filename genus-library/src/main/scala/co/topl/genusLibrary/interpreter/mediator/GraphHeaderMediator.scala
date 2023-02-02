@@ -1,13 +1,13 @@
-package co.topl.genusLibrary.interpreter
+package co.topl.genusLibrary.interpreter.mediator
 
 import cats.data.EitherT
 import cats.effect.kernel.Async
 import cats.implicits._
-import co.topl.genusLibrary.algebras.Mediator
+import co.topl.genusLibrary.algebras.mediator.HeaderMediatorAlgebra
 import co.topl.genusLibrary.failure.{Failure, Failures}
 import co.topl.genusLibrary.model.BlockData
-import co.topl.genusLibrary.orientDb.StoreFacade
 import co.topl.genusLibrary.orientDb.GenusGraphMetadata._
+import co.topl.genusLibrary.orientDb.StoreFacade
 import co.topl.genusLibrary.utils.BlockUtils
 import co.topl.models.{BlockBody, BlockHeader}
 import org.typelevel.log4cats.Logger
@@ -15,20 +15,20 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scodec.bits.ByteVector
 
 /**
- * Implementation of the Mediator. After each element insertion, the mediation should take place on the Store.
- * For more information, refer to the Mediator trait.
+ * Implementation of the Header Mediator. After each element insertion, the mediation should take place on the Store.
+ * For more information, refer to the HeaderMediatorAlgebra trait.
  * @param storeFacade Facade to interact with the store
  * @param blockUtils Utils to retrieve different values from a block
  * @tparam F the effect-ful context to retrieve the value in
  */
-abstract class GraphMediator[F[_]: Async](
+class GraphHeaderMediator[F[_]: Async](
   storeFacade: StoreFacade,
   blockUtils:  BlockUtils
-) extends Mediator[F] {
+) extends HeaderMediatorAlgebra[F] {
 
   implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
 
-  override def afterHeaderInserted(block: BlockData): F[Either[Failure, Unit]] = {
+  override def mediate(block: BlockData): F[Either[Failure, Unit]] = {
     val graph = storeFacade.getGraph
     graph.withEffectfulTransaction {
       (

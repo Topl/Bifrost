@@ -186,6 +186,9 @@ object Dependencies {
   val bramblScCrypto =
     "com.github.Topl" % "BramblSc" % "v2.0.3"
 
+  val catsAll: Seq[ModuleID] = cats ++ catsEffect ++ Seq(catsSlf4j)
+  val fs2All: Seq[ModuleID] = catsAll ++ Seq(fs2Core, fs2IO)
+
   val node: Seq[ModuleID] =
     Seq(
       catsSlf4j,
@@ -220,6 +223,8 @@ object Dependencies {
       kubernetes,
       "com.google.cloud" % "google-cloud-storage" % "2.14.0"
     )
+
+  lazy val actor: Seq[sbt.ModuleID] = fs2All
 
   lazy val algebras: Seq[sbt.ModuleID] =
     circe ++
@@ -294,11 +299,7 @@ object Dependencies {
     Dependencies.mUnitTest ++ externalCrypto ++ Seq(akka("actor-typed")) ++ catsEffect ++ logging ++ scalacache
 
   lazy val minting: Seq[ModuleID] =
-    Dependencies.mUnitTest ++ Dependencies.test ++ Dependencies.catsEffect ++
-    Seq(
-      Dependencies.akka("stream"),
-      Dependencies.akka("stream-testkit") % Test
-    )
+    Dependencies.mUnitTest ++ Dependencies.test ++ Dependencies.catsEffect
 
   lazy val networking: Seq[ModuleID] =
     Dependencies.test ++ Dependencies.catsEffect ++ Seq(
