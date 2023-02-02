@@ -6,7 +6,8 @@ import cats.implicits._
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
 import co.topl.{models => legacyModels}
-import legacyModels.{Transaction, TypedBytes, TypedIdentifier}
+import co.topl.models.utility._
+import legacyModels.{Transaction, TypedIdentifier}
 import co.topl.node.models.BlockBody
 
 object BodyAuthorizationValidation {
@@ -25,7 +26,7 @@ object BodyAuthorizationValidation {
           parentBlockId: TypedIdentifier
         )(body:          BlockBody): F[ValidatedNec[BodyAuthorizationError, BlockBody]] =
           body.transactionIds
-            .map(TypedBytes.ioTx32)
+            .map(t => t: TypedIdentifier)
             .toList
             .foldMapM(transactionId =>
               for {

@@ -9,7 +9,9 @@ import com.google.cloud.storage._
 import co.topl.typeclasses.implicits._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.models.{Box, TypedBytes}
+import co.topl.models.{Box, TypedIdentifier}
+import co.topl.models.utility._
+
 import java.nio.charset.StandardCharsets
 import scodec.bits.ByteVector
 
@@ -100,18 +102,18 @@ object GcpCsvDataPublisher {
   private def blockDatumToRow(datum: BlockDatum): List[String] =
     List(
       datum.header.id.asTypedBytes.show,
-      TypedBytes.headerFromBlockId(datum.header.parentHeaderId).show,
+      (datum.header.parentHeaderId.get: TypedIdentifier).show,
       datum.header.parentSlot.show,
       datum.header.timestamp.show,
       datum.header.height.show,
       datum.header.slot.show,
-      ByteVector(datum.header.address.toByteArray).toBase58,
-      ByteVector(datum.header.txRoot.toByteArray).toBase58,
-      ByteVector(datum.header.bloomFilter.toByteArray).toBase58,
+      (datum.header.address: ByteVector).toBase58,
+      (datum.header.txRoot: ByteVector).toBase58,
+      (datum.header.bloomFilter: ByteVector).toBase58,
       datum.header.eligibilityCertificate.map(_.immutableBytes).getOrElse(ByteVector.empty).toBase58,
       datum.header.operationalCertificate.map(_.immutableBytes).getOrElse(ByteVector.empty).toBase58,
       datum.header.metadata.toString,
-      datum.body.transactionIds.map(TypedBytes.ioTx32).map(_.show).mkString(";")
+      datum.body.transactionIds.map(t => t: TypedIdentifier).map(_.show).mkString(";")
     )
 
   private def transactionDatumToRow(datum: TransactionDatum) =

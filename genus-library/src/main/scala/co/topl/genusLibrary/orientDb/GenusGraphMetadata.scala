@@ -6,6 +6,7 @@ package co.topl.genusLibrary.orientDb {
   import co.topl.genusLibrary.utils.BlockUtils
   import co.topl.genusLibrary.{GenusException, Txo, TxoState}
   import co.topl.models._
+  import co.topl.models.utility._
   import co.topl.node.models.BlockBody
   import com.google.protobuf.ByteString
   import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
@@ -120,7 +121,7 @@ package co.topl.genusLibrary.orientDb {
           )(byteArrayOrientDbTypes)
           .withProperty(
             "parentHeaderId",
-            p => typedBytesToByteArray(TypedBytes.headerFromBlockId(p.parentHeaderId)),
+            p => typedBytesToByteArray(p.parentHeaderId.get),
             _.setNotNull(true)
           )(
             byteArrayOrientDbTypes

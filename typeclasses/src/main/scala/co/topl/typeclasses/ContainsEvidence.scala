@@ -6,7 +6,7 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.crypto.hash.Blake2b256
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.{Ratio, Sized}
+import co.topl.models.utility._
 import com.google.protobuf.ByteString
 import simulacrum.{op, typeclass}
 
@@ -26,7 +26,7 @@ object ContainsEvidence {
    * @return Ratio Typed Evidennce
    */
   def ratioEvidenceFromProtobufString(bytesString: ByteString): TypedEvidence =
-    TypedEvidence(TypePrefixes.Ratio, Sized.strictUnsafe(Bytes(bytesString.toByteArray)))
+    TypedEvidence(TypePrefixes.Ratio, Sized.strictUnsafe(bytesString))
 
   object TypePrefixes {
     final val VerificationKeysCurve25519: Byte = 1

@@ -1,6 +1,5 @@
 package co.topl
 
-import co.topl
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.{Lengths, Sized}
 import io.estatico.newtype.macros.{newsubtype, newtype}
@@ -66,33 +65,5 @@ package object models {
 
     def apply(prefix: TypePrefix, dataBytes: Bytes): TypedBytes =
       (prefix +: dataBytes).coerce
-
-    /**
-     * Throws: NoSuchElementException – if any blockId is empty.
-     */
-    def headerFromBlockId(blockId: Option[co.topl.consensus.models.BlockId]): topl.models.TypedIdentifier =
-      blockId
-        .map(_.value.toByteArray)
-        .map(ByteVector(_))
-        .map(byteVector => TypedBytes(IdentifierTypes.Block.HeaderV2, byteVector))
-        .get
-
-    /**
-     * Throws: NoSuchElementException – if evidence, digest are empty.
-     */
-    def ioTx32(ioTx32: co.topl.brambl.models.Identifier.IoTransaction32): topl.models.TypedIdentifier =
-      TypedBytes.apply(
-        co.topl.models.IdentifierTypes.Transaction,
-        ByteVector(ioTx32.evidence.flatMap(_.digest.map(_.value)).map(_.toByteArray).get)
-      )
-
-    /**
-     * Throws: NoSuchElementException – if transactionId is empty.
-     */
-    def boxId(boxId: co.topl.proto.models.Box.Id): topl.models.TypedIdentifier =
-      TypedBytes.apply(
-        co.topl.models.IdentifierTypes.Transaction,
-        ByteVector(boxId.transactionId.map(_.value.toByteArray).get)
-      )
   }
 }

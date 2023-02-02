@@ -7,6 +7,7 @@ import cats.{MonadThrow, Monoid}
 import co.topl.algebras._
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.{models => legacyModels}
+import co.topl.models.utility._
 import legacyModels._
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
@@ -58,7 +59,7 @@ object ConsensusDataEventSourcedState {
     def apply(state: ConsensusData[F], blockId: TypedIdentifier): F[ConsensusData[F]] =
       for {
         body                <- fetchBlockBody(blockId)
-        transactions        <- body.transactionIds.map(TypedBytes.ioTx32).toList.traverse(fetchTransaction)
+        transactions        <- body.transactionIds.map(t => t: TypedIdentifier).toList.traverse(fetchTransaction)
         stakeChanges        <- transactions.foldMapM(calculateStakeChanges)
         registrationChanges <- transactions.foldMapM(calculateRegistrationChanges)
         previousTotalStake  <- state.totalActiveStake.getOrRaise(())
@@ -134,9 +135,9 @@ object ConsensusDataEventSourcedState {
 
     def apply(state: ConsensusData[F], blockId: TypedIdentifier): F[ConsensusData[F]] =
       for {
-        body                <- fetchBlockBody(blockId)
-        transactions        <- body.transactionIds.map(TypedBytes.ioTx32).toList.reverse.traverse(fetchTransaction)
-        stakeChanges        <- transactions.foldMapM(calculateStakeChanges)
+        body         <- fetchBlockBody(blockId)
+        transactions <- body.transactionIds.map(t => t: TypedIdentifier).toList.reverse.traverse(fetchTransaction)
+        stakeChanges <- transactions.foldMapM(calculateStakeChanges)
         registrationChanges <- transactions.foldMapM(calculateRegistrationChanges)
         previousTotalStake  <- state.totalActiveStake.getOrRaise(())
         newTotalStake = stakeChanges.map(_.delta).append(previousTotalStake.data).sumAll

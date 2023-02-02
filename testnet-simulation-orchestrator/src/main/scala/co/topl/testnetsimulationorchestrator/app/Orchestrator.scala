@@ -10,6 +10,7 @@ import co.topl.common.application.IOBaseApp
 import co.topl.grpc.ToplGrpc
 import co.topl.interpreters.MultiToplRpc
 import co.topl.models.TypedIdentifier
+import co.topl.models.utility._
 import co.topl.consensus.models.BlockHeader
 import co.topl.testnetsimulationorchestrator.algebras.DataPublisher
 import co.topl.testnetsimulationorchestrator.interpreters.{GcpCsvDataPublisher, K8sSimulationController}
@@ -210,7 +211,7 @@ object Orchestrator
         blockDatumTopic
           .subscribe(128)
           .fold(Map.empty[TypedIdentifier, NodeName]) { case (assignments, (node, datum)) =>
-            assignments ++ datum.body.transactionIds.map(co.topl.models.TypedBytes.ioTx32).tupleRight(node)
+            assignments ++ datum.body.transactionIds.map(t => t: TypedIdentifier).tupleRight(node)
           }
       // Publish the block data results
       _ <- Logger[F].info("Fetching block bodies, publishing blocks, and assigning transactions (in parallel)")

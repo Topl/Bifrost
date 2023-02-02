@@ -6,7 +6,7 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.Identifiable
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.models._
-import co.topl.models.utility.{Length, Sized}
+import co.topl.models.utility._
 
 import java.net.InetSocketAddress
 import java.time.Instant
@@ -54,14 +54,14 @@ trait ShowInstances {
   implicit val showConsensusBlockHeader: Show[co.topl.consensus.models.BlockHeader] =
     header =>
       show"BlockHeader(id=${header.id.asTypedBytes}" +
-      show" parentId=${TypedBytes.headerFromBlockId(header.parentHeaderId)}" +
+      show" parentId=${(header.parentHeaderId.get: TypedIdentifier)}" +
       show" height=${header.height}" +
       show" slot=${header.slot}" +
       show" timestamp=${Instant.ofEpochMilli(header.timestamp).toString})" +
       show" address=${co.topl.models.StakingAddresses.operatorFromProtoString(header.address).show}"
 
   implicit val showNodeBlockBody: Show[co.topl.node.models.BlockBody] =
-    body => show"${body.transactionIds.map(TypedBytes.ioTx32)}"
+    body => show"${body.transactionIds.map(t => t: TypedIdentifier)}"
 
   implicit val showInetSocketAddress: Show[InetSocketAddress] =
     address => s"${address.getHostName}:${address.getPort}"

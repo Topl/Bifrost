@@ -178,7 +178,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
 
         for {
           res <- underTest.fetchBlockIdAtHeight(FetchBlockIdAtHeightReq(height), new Metadata())
-          proto = TypedBytes.headerFromBlockId(res.blockId)
+          proto = res.blockId.get: TypedIdentifier
           _ = assert(blockId == proto)
         } yield ()
       }

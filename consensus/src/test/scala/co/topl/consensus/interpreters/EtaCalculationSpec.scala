@@ -4,7 +4,6 @@ import cats.data.NonEmptyChain
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
-import co.topl.algebras.testInterpreters.NoOpLogger
 import co.topl.algebras.{ClockAlgebra, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
@@ -36,13 +35,8 @@ class EtaCalculationSpec
 
   type F[A] = IO[A]
 
-  implicit private val logger: NoOpLogger[F] = new NoOpLogger[F]
-
   implicit private val ed25519Vrf: Ed25519VRF =
     Ed25519VRF.precomputed()
-
-  private val blake2b256 = new Blake2b256
-  private val blake2b512 = new Blake2b512
 
   it should "compute the eta for an epoch" in {
     val clock = mock[ClockAlgebra[F]]
@@ -109,13 +103,13 @@ class EtaCalculationSpec
       .use[NonEmptyChain[RhoNonceHash]](_: Function1[Blake2b256, F[NonEmptyChain[RhoNonceHash]]]))
       .expects(*)
       .anyNumberOfTimes()
-      .onCall { f: Function1[Blake2b256, F[NonEmptyChain[RhoNonceHash]]] => f(blake2b256) }
+      .onCall { f: Function1[Blake2b256, F[NonEmptyChain[RhoNonceHash]]] => f(new Blake2b256) }
 
     (blake2b512Resource
       .use[NonEmptyChain[RhoNonceHash]](_: Function1[Blake2b512, F[NonEmptyChain[RhoNonceHash]]]))
       .expects(*)
       .anyNumberOfTimes()
-      .onCall { f: Function1[Blake2b512, F[NonEmptyChain[RhoNonceHash]]] => f(blake2b512) }
+      .onCall { f: Function1[Blake2b512, F[NonEmptyChain[RhoNonceHash]]] => f(new Blake2b512) }
 
     val actual =
       underTest.etaToBe(SlotId(blocks.last.slot, blocks.last.id), 16L).unsafeRunSync()
@@ -166,13 +160,13 @@ class EtaCalculationSpec
       .use[NonEmptyChain[RhoNonceHash]](_: Function1[Blake2b256, F[NonEmptyChain[RhoNonceHash]]]))
       .expects(*)
       .anyNumberOfTimes()
-      .onCall { f: Function1[Blake2b256, F[NonEmptyChain[RhoNonceHash]]] => f(blake2b256) }
+      .onCall { f: Function1[Blake2b256, F[NonEmptyChain[RhoNonceHash]]] => f(new Blake2b256) }
 
     (blake2b512Resource
       .use[NonEmptyChain[RhoNonceHash]](_: Function1[Blake2b512, F[NonEmptyChain[RhoNonceHash]]]))
       .expects(*)
       .anyNumberOfTimes()
-      .onCall { f: Function1[Blake2b512, F[NonEmptyChain[RhoNonceHash]]] => f(blake2b512) }
+      .onCall { f: Function1[Blake2b512, F[NonEmptyChain[RhoNonceHash]]] => f(new Blake2b512) }
 
     val actual =
       underTest.etaToBe(SlotId(bigBangHeader.slot, bigBangHeader.id), 16L).unsafeRunSync()
@@ -190,10 +184,9 @@ class EtaCalculationSpec
 
 object EtaCalculationSpec {
 
-  implicit private val blake2b256: Blake2b256 = new Blake2b256
-  implicit private val blake2b512: Blake2b512 = new Blake2b512
-
   private[consensus] def expectedEta(previousEta: Eta, epoch: Epoch, rhoValues: List[Rho]): Eta = {
+    implicit val blake2b256: Blake2b256 = new Blake2b256
+    implicit val blake2b512: Blake2b512 = new Blake2b512
     val messages: List[Bytes] =
       List(previousEta.data) ++ List(Bytes(BigInt(epoch).toByteArray)) ++ rhoValues
         .map(_.sizedBytes.data)

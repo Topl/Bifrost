@@ -10,7 +10,7 @@ import co.topl.consensus.algebras._
 import co.topl.consensus.models._
 import co.topl.crypto.signing._
 import co.topl.crypto.generation.mnemonic.Entropy
-import co.topl.crypto.hash.{blake2b256, Blake2b256, Blake2b512}
+import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.common.ModelGenerators.genSizedStrictByteString
 import co.topl.{models => legacyModels}
@@ -20,7 +20,7 @@ import legacyModels.Box.Values.Registrations.Operator
 //import legacyModels.ModelGenerators._
 import legacyModels.utility.HasLength.instances._
 import legacyModels.utility.Lengths._
-import legacyModels.utility.{Lengths, Ratio, ReplaceModelUtil, Sized}
+import legacyModels.utility._
 import co.topl.consensus.models.BlockHeader
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.crypto.models.{SignatureEd25519, VerificationKeyEd25519}
@@ -196,7 +196,7 @@ class BlockHeaderValidationSpec
           .unsafeRunSync()
 
       underTest.validate(child, parent).unsafeRunSync().left.value shouldBe BlockHeaderValidationFailures
-        .ParentMismatch(TypedBytes.headerFromBlockId(child.parentHeaderId), parent.id)
+        .ParentMismatch(child.parentHeaderId.get, parent.id)
     }
   }
 
@@ -693,7 +693,7 @@ class BlockHeaderValidationSpec
     def isLeader(threshold: Ratio, testProof: SignatureVrfEd25519) =
       thresholdInterpreter
         .isSlotLeaderForThreshold(threshold)(
-          Rho(Sized.strictUnsafe(ed25519Vrf.proofToHash(Bytes(testProof.value.toByteArray))))
+          Rho(Sized.strictUnsafe(ed25519Vrf.proofToHash(testProof.value)))
         )
         .unsafeRunSync()
 
@@ -822,7 +822,7 @@ object BlockHeaderValidationSpec {
     poolVK:              VerificationKeyEd25519,
     skKes:               SecretKeys.KesProduct
   )(implicit kesProduct: KesProduct): Box.Values.Registrations.Operator = {
-    val commitmentMessage = Bytes(blake2b256.hash((vkVrf.value.toByteArray ++ poolVK.value.toByteArray)).value)
+    val commitmentMessage = new Blake2b256().hash(vkVrf.value.concat(poolVK.value))
     Box.Values.Registrations.Operator(kesProduct.sign(skKes, commitmentMessage))
   }
 }

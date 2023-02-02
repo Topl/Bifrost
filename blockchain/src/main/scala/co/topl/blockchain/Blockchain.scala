@@ -17,6 +17,7 @@ import co.topl.grpc.ToplGrpc
 import co.topl.ledger.algebras._
 import co.topl.minting.algebras.StakingAlgebra
 import co.topl.{models => legacyModels}
+import co.topl.models.utility._
 import legacyModels._
 import co.topl.consensus.models.BlockHeader
 import co.topl.node.models.BlockBody
@@ -185,7 +186,7 @@ object Blockchain {
       _ <- Async[F].background(
         mintedBlockStream
           .evalMap(block =>
-            blockIdTree.associate(block.header.id, TypedBytes.headerFromBlockId(block.header.parentHeaderId)) &>
+            blockIdTree.associate(block.header.id, block.header.parentHeaderId.get) &>
             headerStore.put(block.header.id, block.header) &>
             bodyStore.put(block.header.id, block.body) &>
             ed25519VrfResource

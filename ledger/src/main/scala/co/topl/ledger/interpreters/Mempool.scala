@@ -9,6 +9,7 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.{models => legacyModels}
+import co.topl.models.utility._
 import legacyModels._
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
@@ -61,7 +62,7 @@ object Mempool {
         } yield ()
       applyBlock = (state: State[F], blockId: TypedIdentifier) =>
         for {
-          blockBody         <- fetchBlockBody(blockId).map(_.transactionIds.map(TypedBytes.ioTx32).toList)
+          blockBody         <- fetchBlockBody(blockId).map(_.transactionIds.map(t => t: TypedIdentifier).toList)
           blockTransactions <- blockBody.traverse(fetchTransaction)
           blockInputIds = blockTransactions.flatMap(_.inputs.map(_.boxId).toList).toSet
           currentEntries <- state.get
@@ -87,7 +88,7 @@ object Mempool {
         } yield state
       unapplyBlock = (state: State[F], blockId: TypedIdentifier) =>
         fetchBlockBody(blockId)
-          .map(_.transactionIds.map(TypedBytes.ioTx32).toList)
+          .map(_.transactionIds.map(t => t: TypedIdentifier).toList)
           .flatMap(_.traverse(fetchTransaction(_).flatMap(addTransactionWithDefaultExpiration)))
           .as(state)
       eventSourcedState <- EventSourcedState.OfTree.make[F, State[F], TypedIdentifier](

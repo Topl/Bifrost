@@ -11,7 +11,7 @@ import scodec.Codec
 trait BlockUtils {
 
   def getParentBlockId(header: BlockHeader): Array[Byte] =
-    header.parentHeaderId.map(_.value.toByteArray).getOrElse(Array.empty)
+    header.parentHeaderId.get.value.toByteArray
 
   def getBlockId(header: BlockHeader): Array[Byte] = {
     val (typePrefix, bytes) = TetraIdentifiableInstances.identifiableConsensusBlockHeader.idOf(header)

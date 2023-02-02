@@ -7,21 +7,14 @@ import co.topl.algebras.{ClockAlgebra, Store, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras._
-import co.topl.consensus.models.{
-  BlockHeader,
-  BlockHeaderValidationFailure,
-  BlockHeaderValidationFailures,
-  SignatureKesProduct,
-  VerificationKeyKesProduct,
-  VrfArgument
-}
+import co.topl.consensus.models.{BlockHeader, BlockHeaderValidationFailure, BlockHeaderValidationFailures, VrfArgument}
 import co.topl.crypto.signing.{Ed25519VRF, KesProduct}
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.Ed25519
 import co.topl.{models => legacyModels}
 import legacyModels._
 import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.{Ratio, Sized}
+import co.topl.models.utility._
 import co.topl.typeclasses.ContainsEvidence
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
@@ -92,10 +85,9 @@ object BlockHeaderValidation {
         .ensureOr(child => BlockHeaderValidationFailures.NonForwardTimestamp(child.timestamp, parent.timestamp))(
           child => child.timestamp > parent.timestamp
         )
-        .ensureOr(child =>
-          BlockHeaderValidationFailures
-            .ParentMismatch(TypedBytes.headerFromBlockId(child.parentHeaderId), parent.id)
-        )(child => TypedBytes.headerFromBlockId(child.parentHeaderId) === parent.id)
+        .ensureOr(child => BlockHeaderValidationFailures.ParentMismatch(child.parentHeaderId.get, parent.id))(child =>
+          (child.parentHeaderId.get: TypedIdentifier) === parent.id
+        )
         .ensureOr(child => BlockHeaderValidationFailures.NonForwardHeight(child.height, parent.height))(
           _.height === parent.height + 1
         )
@@ -123,7 +115,7 @@ object BlockHeaderValidation {
       EitherT
         .liftF(
           etaInterpreter.etaToBe(
-            SlotId(header.parentSlot, TypedBytes.headerFromBlockId(header.parentHeaderId)),
+            SlotId(header.parentSlot, header.parentHeaderId.get),
             header.slot
           )
         )
@@ -134,9 +126,7 @@ object BlockHeaderValidation {
               BlockHeaderValidationFailures.EmptyEligibilityCertificate
             )
             .flatMap { eligibilityCertificate =>
-              val eta = Sized.strictUnsafe[ByteVector, Eta.Length](
-                ByteVector(eligibilityCertificate.eta.toByteArray)
-              )
+              val eta = Sized.strictUnsafe[ByteVector, Eta.Length](eligibilityCertificate.eta)
               EitherT
                 .cond[F](
                   eta === expectedEta,
@@ -150,9 +140,9 @@ object BlockHeaderValidation {
                       .use { implicit ed25519vrf =>
                         ed25519vrf
                           .verify(
-                            ByteVector(eligibilityCertificate.vrfSig.value.toByteArray),
+                            eligibilityCertificate.vrfSig.value,
                             VrfArgument(expectedEta, header.slot).signableBytes,
-                            ByteVector(eligibilityCertificate.vrfVK.value.toByteArray)
+                            eligibilityCertificate.vrfVK.value
                           )
                           .pure[F]
                       }
@@ -189,11 +179,9 @@ object BlockHeaderValidation {
               .use(kesProduct =>
                 kesProduct
                   .verify(
-                    operationalCertificate.parentSignature.getOrElse(SignatureKesProduct.defaultInstance),
-                    Bytes(operationalCertificate.childVK.map(_.value.toByteArray).getOrElse(Array.empty)) ++ Bytes(
-                      Longs.toByteArray(header.slot)
-                    ),
-                    operationalCertificate.parentVK.getOrElse(VerificationKeyKesProduct.defaultInstance)
+                    operationalCertificate.parentSignature.get,
+                    (operationalCertificate.childVK.get.value: Bytes) ++ Bytes(Longs.toByteArray(header.slot)),
+                    operationalCertificate.parentVK.get
                   )
                   .pure[F]
               )
@@ -214,9 +202,9 @@ object BlockHeaderValidation {
                     // Use the ed25519 instance to verify the childSignature against the header's bytes
                     ed25519
                       .verify(
-                        Bytes(operationalCertificate.childSignature.map(_.value.toByteArray).getOrElse(Array.empty)),
+                        operationalCertificate.childSignature.get.value,
                         header.signableBytes,
-                        Bytes(operationalCertificate.childVK.map(_.value.toByteArray).getOrElse(Array.empty))
+                        operationalCertificate.childVK.get.value
                       )
                       .pure[F]
                   )
@@ -285,9 +273,7 @@ object BlockHeaderValidation {
               ed25519VRFResource
                 .use { implicit ed25519Vrf =>
                   ed25519Vrf
-                    .proofToHash(
-                      Bytes(eligibilityCertificate.vrfSig.value.toByteArray)
-                    )
+                    .proofToHash(eligibilityCertificate.vrfSig.value)
                     .pure[F]
                 }
                 .map(rhoBytes => Rho(Sized.strictUnsafe(rhoBytes)))
@@ -331,7 +317,7 @@ object BlockHeaderValidation {
                 message <- blake2b256Resource
                   .use(
                     _.hash(
-                      Bytes(eligibilityCertificate.vrfVK.value.toByteArray),
+                      eligibilityCertificate.vrfVK.value,
                       StakingAddresses.operatorFromProtoString(header.address).vk.bytes.data
                     ).pure[F]
                   )
@@ -385,7 +371,7 @@ object BlockHeaderValidation {
               EitherT.pure[F, BlockHeaderValidationFailure](parent)
             else
               EitherT(
-                OptionT(blockHeaderStore.get(TypedBytes.headerFromBlockId(parent.parentHeaderId)))
+                OptionT(blockHeaderStore.get(parent.parentHeaderId.get))
                   .getOrElseF(
                     new IllegalStateException(s"Non-existent block header id=${parent.parentHeaderId}")
                       .raiseError[F, BlockHeader]

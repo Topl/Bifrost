@@ -7,7 +7,7 @@ import cats.{Eval, MonadThrow, Now}
 import co.topl.algebras.{SynchronizationTraversalStep, SynchronizationTraversalSteps, ToplRpc}
 import co.topl.brambl.models.Identifier.IoTransaction32
 import co.topl.consensus.models._
-import co.topl.models.{TypedBytes, TypedIdentifier}
+import co.topl.models.TypedIdentifier
 import co.topl.models.utility._
 import co.topl.node.models.BlockBody
 import co.topl.node.services._
@@ -115,15 +115,15 @@ object ToplGrpc {
               OptionT(
                 client
                   .fetchBlockIdAtHeight(FetchBlockIdAtHeightReq(height), new Metadata())
-                  .map(res => TypedBytes.headerFromBlockId(res.blockId).some)
-              ).value
+                  .map(_.blockId)
+              ).map(t => t: TypedIdentifier).value
 
             def blockIdAtDepth(depth: Long): F[Option[TypedIdentifier]] =
               OptionT(
                 client
                   .fetchBlockIdAtDepth(FetchBlockIdAtDepthReq(depth), new Metadata())
-                  .map(res => TypedBytes.headerFromBlockId(res.blockId).some)
-              ).value
+                  .map(_.blockId)
+              ).map(t => t: TypedIdentifier).value
 
             def synchronizationTraversal(): F[Stream[F, SynchronizationTraversalStep]] =
               Async[F].delay {

@@ -10,6 +10,7 @@ import co.topl.genusLibrary.failure.Failures.{
   NonExistentTransactionsFailure
 }
 import co.topl.{models => legacyModels}
+import co.topl.models.utility._
 import legacyModels.ModelGenerators._
 import legacyModels.generators.brambl.ModelGenerators._
 import legacyModels.generators.models.ModelGenerators.arbitraryTransaction
@@ -140,13 +141,13 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
             .once()
 
           (toplRpc.fetchTransaction _)
-            .expects(TypedBytes.ioTx32(transactionId))
+            .expects(transactionId: TypedIdentifier)
             .returning(Option.empty[Transaction].pure[F])
             .once()
 
           assertIO(
             nodeBlockFetcher fetch height,
-            NonExistentTransactionsFailure(ListSet(TypedBytes.ioTx32(transactionId))).asLeft
+            NonExistentTransactionsFailure(ListSet(transactionId)).asLeft
           )
 
         }
@@ -193,17 +194,17 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
             .once()
 
           (toplRpc.fetchTransaction _)
-            .expects(TypedBytes.ioTx32(transactionId_01))
+            .expects(transactionId_01: TypedIdentifier)
             .returning(transaction_01.some.pure[F])
             .once()
 
           (toplRpc.fetchTransaction _)
-            .expects(TypedBytes.ioTx32(transactionId_02))
+            .expects(transactionId_02: TypedIdentifier)
             .returning(Option.empty[Transaction].pure[F])
             .once()
 
           (toplRpc.fetchTransaction _)
-            .expects(TypedBytes.ioTx32(transactionId_03))
+            .expects(transactionId_03: TypedIdentifier)
             .returning(Option.empty[Transaction].pure[F])
             .once()
 
@@ -211,8 +212,8 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
             nodeBlockFetcher fetch height,
             NonExistentTransactionsFailure(
               ListSet(
-                TypedBytes.ioTx32(transactionId_02),
-                TypedBytes.ioTx32(transactionId_03)
+                transactionId_02,
+                transactionId_03
               )
             ).asLeft
           )
@@ -260,17 +261,17 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
             .once()
 
           (toplRpc.fetchTransaction _)
-            .expects(TypedBytes.ioTx32(transactionId_01))
+            .expects(transactionId_01: TypedIdentifier)
             .returning(Option.empty[Transaction].pure[F])
             .once()
 
           (toplRpc.fetchTransaction _)
-            .expects(TypedBytes.ioTx32(transactionId_02))
+            .expects(transactionId_02: TypedIdentifier)
             .returning(Option.empty[Transaction].pure[F])
             .once()
 
           (toplRpc.fetchTransaction _)
-            .expects(TypedBytes.ioTx32(transactionId_03))
+            .expects(transactionId_03: TypedIdentifier)
             .returning(Option.empty[Transaction].pure[F])
             .once()
 
@@ -278,9 +279,9 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
             nodeBlockFetcher fetch height,
             NonExistentTransactionsFailure(
               ListSet(
-                TypedBytes.ioTx32(transactionId_01),
-                TypedBytes.ioTx32(transactionId_02),
-                TypedBytes.ioTx32(transactionId_03)
+                transactionId_01,
+                transactionId_02,
+                transactionId_03
               )
             ).asLeft
           )
