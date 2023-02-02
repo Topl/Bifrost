@@ -146,16 +146,17 @@ object NodeApp
           blockIdTree
         )
       )
+      chainSelectionAlgebra = ChainSelection
+        .make[F](
+          dataStores.slotData.getOrRaise,
+          cryptoResources.blake2b512,
+          bigBangProtocol.chainSelectionKLookback,
+          bigBangProtocol.chainSelectionSWindow
+        )
       localChain <- Resource.eval(
         LocalChain.make(
           canonicalHeadSlotData,
-          ChainSelection
-            .make[F](
-              dataStores.slotData.getOrRaise,
-              cryptoResources.blake2b512,
-              bigBangProtocol.chainSelectionKLookback,
-              bigBangProtocol.chainSelectionSWindow
-            ),
+          chainSelectionAlgebra,
           currentEventIdGetterSetters.canonicalHead.set
         )
       )
@@ -213,6 +214,7 @@ object NodeApp
           dataStores.bodies,
           dataStores.transactions,
           localChain,
+          chainSelectionAlgebra,
           blockIdTree,
           blockHeightTree,
           validators.header,

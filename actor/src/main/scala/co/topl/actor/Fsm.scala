@@ -2,6 +2,8 @@ package co.topl.actor
 
 import cats.Applicative
 
+import scala.reflect.ClassTag
+
 /**
  * Internal state for actor
  * @param run function to reach next state

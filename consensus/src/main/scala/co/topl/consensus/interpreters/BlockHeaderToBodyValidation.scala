@@ -1,10 +1,10 @@
-package co.topl.blockchain.interpreters
+package co.topl.consensus.interpreters
 
 import cats.effect.kernel.Sync
 import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxEq}
-import co.topl.blockchain.algebras.BlockHeaderToBodyValidationAlgebra
-import co.topl.blockchain.models.BlockHeaderToBodyValidationFailure
-import BlockHeaderToBodyValidationFailure.IncorrectTxRoot
+import co.topl.consensus.algebras.BlockHeaderToBodyValidationAlgebra
+import co.topl.consensus.models.BlockHeaderToBodyValidationFailure
+import co.topl.consensus.models.BlockHeaderToBodyValidationFailure.IncorrectTxRoot
 import co.topl.models.Block
 import co.topl.typeclasses.implicits._
 

@@ -12,7 +12,7 @@ import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.BlockHeaderOps
-import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LocalChainAlgebra}
+import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, BlockHeaderValidationAlgebra, ChainSelectionAlgebra, LocalChainAlgebra}
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.grpc.ToplGrpc
 import co.topl.ledger.algebras._
@@ -23,10 +23,10 @@ import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, LocalPeer}
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import BlockchainPeerHandler.monoidBlockchainPeerHandler
-import co.topl.blockchain.algebras.BlockHeaderToBodyValidationAlgebra
 import co.topl.blockchain.interpreters.BlockchainPeerServer
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.interpreters.{BlockPacker, BlockProducer}
+import co.topl.networking.fsnetwork.PeerHandlerBridgeAlgebra
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.jdk.CollectionConverters._
@@ -46,6 +46,7 @@ object Blockchain {
     bodyStore:                   Store[F, TypedIdentifier, BlockBody],
     transactionStore:            Store[F, TypedIdentifier, Transaction],
     _localChain:                 LocalChainAlgebra[F],
+    chainSelectionAlgebra: ChainSelectionAlgebra[F, SlotData],
     blockIdTree:                 ParentChildTree[F, TypedIdentifier],
     blockHeights:                EventSourcedState[F, Long => F[Option[TypedIdentifier]], TypedIdentifier],
     headerValidation:            BlockHeaderValidationAlgebra[F],
@@ -69,22 +70,36 @@ object Blockchain {
     for {
       (localChain, blockAdoptionsTopic)    <- LocalChainBroadcaster.make(_localChain)
       (mempool, transactionAdoptionsTopic) <- MempoolBroadcaster.make(_mempool)
+      chainSync = BlockchainPeerHandler.ChainSynchronizer.make[F](
+        clock,
+        localChain,
+        headerValidation,
+        blockHeaderToBodyValidation,
+        bodySyntaxValidation,
+        bodySemanticValidation,
+        bodyAuthorizationValidation,
+        slotDataStore,
+        headerStore,
+        bodyStore,
+        transactionStore,
+        blockIdTree
+      )
+      fs2Network <- PeerHandlerBridgeAlgebra.make(
+        localChain,
+        chainSelectionAlgebra,
+        headerValidation,
+        blockHeaderToBodyValidation,
+        bodySyntaxValidation,
+        bodySemanticValidation,
+        bodyAuthorizationValidation,
+        slotDataStore,
+        headerStore,
+        bodyStore,
+        transactionStore,
+        blockIdTree)
       clientHandler <- Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
         List(
-          BlockchainPeerHandler.ChainSynchronizer.make[F](
-            clock,
-            localChain,
-            headerValidation,
-            blockHeaderToBodyValidation,
-            bodySyntaxValidation,
-            bodySemanticValidation,
-            bodyAuthorizationValidation,
-            slotDataStore,
-            headerStore,
-            bodyStore,
-            transactionStore,
-            blockIdTree
-          ),
+          fs2Network,
           BlockchainPeerHandler.FetchMempool.make(
             transactionSyntaxValidation,
             transactionStore,

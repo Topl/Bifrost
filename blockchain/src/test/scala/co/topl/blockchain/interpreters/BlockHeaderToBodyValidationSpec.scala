@@ -1,7 +1,8 @@
 package co.topl.blockchain.interpreters
 
 import cats.effect.IO
-import co.topl.blockchain.models.BlockHeaderToBodyValidationFailure.IncorrectTxRoot
+import co.topl.consensus.models.BlockHeaderToBodyValidationFailure.IncorrectTxRoot
+import co.topl.consensus.interpreters.BlockHeaderToBodyValidation
 import co.topl.models.Block
 import co.topl.models.ModelGenerators._
 import co.topl.typeclasses.implicits._

@@ -3,15 +3,8 @@ package co.topl.node
 import cats.effect.Async
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
-import co.topl.blockchain.algebras.BlockHeaderToBodyValidationAlgebra
-import co.topl.blockchain.interpreters.BlockHeaderToBodyValidation
-import co.topl.consensus.algebras.{
-  BlockHeaderValidationAlgebra,
-  ConsensusValidationStateAlgebra,
-  EtaCalculationAlgebra,
-  LeaderElectionValidationAlgebra
-}
-import co.topl.consensus.interpreters.BlockHeaderValidation
+import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, BlockHeaderValidationAlgebra, ConsensusValidationStateAlgebra, EtaCalculationAlgebra, LeaderElectionValidationAlgebra}
+import co.topl.consensus.interpreters.{BlockHeaderToBodyValidation, BlockHeaderValidation}
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras.{
   BodyAuthorizationValidationAlgebra,
