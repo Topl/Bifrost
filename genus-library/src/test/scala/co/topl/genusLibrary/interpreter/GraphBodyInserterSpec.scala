@@ -3,47 +3,47 @@ package co.topl.genusLibrary.interpreter
 import cats.effect.IO
 import cats.effect.kernel.Async
 import cats.implicits._
-import co.topl.genusLibrary.algebras.mediator.HeaderMediatorAlgebra
+import co.topl.genusLibrary.algebras.mediator.BodyMediatorAlgebra
 import co.topl.genusLibrary.failure.Failure
 import co.topl.genusLibrary.model.BlockData
-import co.topl.genusLibrary.orientDb.GenusGraphMetadata.blockHeaderSchema
+import co.topl.genusLibrary.orientDb.GenusGraphMetadata.blockBodySchema
 import co.topl.genusLibrary.orientDb.wrapper.WrappedVertex
 import co.topl.genusLibrary.orientDb.{GraphTxDAO, StoreFacade, VertexSchema}
-import co.topl.consensus.models.BlockHeader
-import co.topl.models.generators.consensus.ModelGenerators._
+import co.topl.node.models.BlockBody
+import co.topl.models.generators.node.ModelGenerators.arbitraryNodeBody
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
-class GraphHeaderInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
+class GraphBodyInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
 
-  private trait HeaderMediatorMock extends HeaderMediatorAlgebra[F]
+  private trait BodyMediatorMock extends BodyMediatorAlgebra[F]
 
   private class GraphTxDAOMock extends GraphTxDAO[F](null)
 
   implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
 
   private val orientDB = mock[StoreFacade]
-  private val mediator = mock[HeaderMediatorMock]
+  private val bodyMediator = mock[BodyMediatorMock]
 
-  val graphHeaderInserter = new GraphHeaderInserter[F](orientDB, mediator)
+  val graphBodyInserter = new GraphBodyInserter[F](orientDB, bodyMediator)
 
   test("On failure to effect transaction, the mediator is not called and the DAO response is returned") {
-    PropF.forAllF { blockHeader: BlockHeader =>
+    PropF.forAllF { blockBody: BlockBody =>
       withMock {
-        val blockData = BlockData(blockHeader, null, null)
+        val blockData = BlockData(null, blockBody, null)
         val graphTxDao = mock[GraphTxDAOMock]
         val wrappedVertex = mock[WrappedVertex]
         val failureLeft = mock[Failure].asLeft[Unit]
 
         (graphTxDao
-          .createVertex(_: BlockHeader)(_: VertexSchema[BlockHeader]))
-          .expects(blockHeader, blockHeaderSchema)
-          .returns((blockHeader, wrappedVertex))
+          .createVertex(_: BlockBody)(_: VertexSchema[BlockBody]))
+          .expects(blockBody, blockBodySchema)
+          .returns((blockBody, wrappedVertex))
           .once()
 
         (orientDB
@@ -57,7 +57,7 @@ class GraphHeaderInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite
           .returns(failureLeft.pure[F])
           .once()
 
-        val response = graphHeaderInserter.insert(blockData)
+        val response = graphBodyInserter.insert(blockData)
 
         assertIO(
           response,
@@ -68,18 +68,18 @@ class GraphHeaderInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite
   }
 
   test("On success to effect transaction and successful mediator call, the successful mediator response is returned") {
-    PropF.forAllF { blockHeader: BlockHeader =>
+    PropF.forAllF { blockBody: BlockBody =>
       withMock {
 
-        val blockData = BlockData(blockHeader, null, null)
+        val blockData = BlockData(null, blockBody, null)
         val graphTxDao = mock[GraphTxDAOMock]
         val wrappedVertex = mock[WrappedVertex]
         val mediatorResponse = ().asRight[Failure]
 
         (graphTxDao
-          .createVertex(_: BlockHeader)(_: VertexSchema[BlockHeader]))
-          .expects(blockHeader, blockHeaderSchema)
-          .returns((blockHeader, wrappedVertex))
+          .createVertex(_: BlockBody)(_: VertexSchema[BlockBody]))
+          .expects(blockBody, blockBodySchema)
+          .returns((blockBody, wrappedVertex))
           .once()
 
         (orientDB
@@ -88,17 +88,17 @@ class GraphHeaderInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite
           .returns(graphTxDao)
           .once()
 
-        (graphTxDao.withEffectfulTransaction[(BlockHeader, WrappedVertex)] _)
+        (graphTxDao.withEffectfulTransaction[(BlockBody, WrappedVertex)] _)
           .expects(*)
-          .returns((blockHeader, wrappedVertex).asRight[Failure].pure[F])
+          .returns((blockBody, wrappedVertex).asRight[Failure].pure[F])
           .once()
 
-        (mediator.mediate _)
+        (bodyMediator.mediate _)
           .expects(blockData)
           .returns(mediatorResponse.pure[F])
           .once()
 
-        val response = graphHeaderInserter.insert(blockData)
+        val response = graphBodyInserter.insert(blockData)
 
         assertIO(
           response,
@@ -110,18 +110,18 @@ class GraphHeaderInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite
   }
 
   test("On success to effect transaction and failing mediator call, the failing mediator response is returned") {
-    PropF.forAllF { blockHeader: BlockHeader =>
+    PropF.forAllF { blockBody: BlockBody =>
       withMock {
 
-        val blockData = BlockData(blockHeader, null, null)
+        val blockData = BlockData(null, blockBody, null)
         val graphTxDao = mock[GraphTxDAOMock]
         val wrappedVertex = mock[WrappedVertex]
         val mediatorResponse = mock[Failure].asLeft[Unit]
 
         (graphTxDao
-          .createVertex(_: BlockHeader)(_: VertexSchema[BlockHeader]))
-          .expects(blockHeader, blockHeaderSchema)
-          .returns((blockHeader, wrappedVertex))
+          .createVertex(_: BlockBody)(_: VertexSchema[BlockBody]))
+          .expects(blockBody, blockBodySchema)
+          .returns((blockBody, wrappedVertex))
           .once()
 
         (orientDB
@@ -130,17 +130,17 @@ class GraphHeaderInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite
           .returns(graphTxDao)
           .once()
 
-        (graphTxDao.withEffectfulTransaction[(BlockHeader, WrappedVertex)] _)
+        (graphTxDao.withEffectfulTransaction[(BlockBody, WrappedVertex)] _)
           .expects(*)
-          .returns((blockHeader, wrappedVertex).asRight[Failure].pure[F])
+          .returns((blockBody, wrappedVertex).asRight[Failure].pure[F])
           .once()
 
-        (mediator.mediate _)
+        (bodyMediator.mediate _)
           .expects(blockData)
           .returns(mediatorResponse.pure[F])
           .once()
 
-        val response = graphHeaderInserter.insert(blockData)
+        val response = graphBodyInserter.insert(blockData)
 
         assertIO(
           response,
