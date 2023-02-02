@@ -33,7 +33,7 @@ object VrfCalculator {
     vrfConfig:                VrfConfig,
     thresholdInterpreter:     LeaderElectionValidationAlgebra[F]
   ): F[VrfCalculatorAlgebra[F]] =
-    (CaffeineCache[F, Bytes, Map[Long, Proofs.Knowledge.VrfEd25519]], CaffeineCache[F, Bytes, Map[Long, Rho]]).mapN(
+    (CaffeineCache[F, (Bytes, Long), Proofs.Knowledge.VrfEd25519], CaffeineCache[F, (Bytes, Long), Rho]).mapN(
       (vrfProofsCache, rhosCache) =>
         new Impl[F](
           vkVrf,
@@ -56,12 +56,16 @@ object VrfCalculator {
     ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
     vrfConfig:                VrfConfig,
     thresholdInterpreter:     LeaderElectionValidationAlgebra[F],
-    vrfProofsCache:           CaffeineCache[F, Bytes, Map[Long, Proofs.Knowledge.VrfEd25519]],
-    rhosCache:                CaffeineCache[F, Bytes, Map[Long, Rho]]
+    vrfProofsCache:           CaffeineCache[F, (Bytes, Long), Proofs.Knowledge.VrfEd25519],
+    rhosCache:                CaffeineCache[F, (Bytes, Long), Rho]
   ) extends VrfCalculatorAlgebra[F] {
 
+    /**
+     * proofForSlot
+     * Previous Implementation updates both caches, in this case only vrfProofsCache is updated, TODO should we?
+     */
     def proofForSlot(slot: Slot, eta: Eta): F[Proofs.Knowledge.VrfEd25519] =
-      OptionT(vrfProofsCache.get(eta.data))
+      OptionT(vrfProofsCache.get((eta.data, slot)))
         .orElseF {
           for {
             epoch    <- clock.epochOf(slot)
@@ -70,56 +74,46 @@ object VrfCalculator {
             vrfProofs <- ed25519VRFResource.use { implicit ed =>
               boundary
                 .map { slot =>
-                  slot -> compute(
-                    VrfArgument(eta, slot),
-                    ed
-                  )
+                  val vrfProof = compute(VrfArgument(eta, slot), ed)
+                  vrfProofsCache.put((eta.data, slot))(vrfProof)
+                  (slot, vrfProof)
                 }
-                .toMap
                 .pure[F]
             }
-            _ <- vrfProofsCache.put(eta.data)(vrfProofs)
-          } yield vrfProofs.some // TODO: Ask why the previous implementation Get from cache again if the values was already there.
+          } yield vrfProofs.find(_._1 == slot).map(_._2)
         }
-        .subflatMap(_.get(slot))
         .getOrElseF(
           new IllegalStateException(show"proof was not precomputed for slot=$slot eta=$eta")
             .raiseError[F, Proofs.Knowledge.VrfEd25519]
         )
 
+    /**
+     * proofForSlot
+     * Previous Implementation updates both caches, in this case only rhosCache is updated, TODO should we?
+     */
     def rhoForSlot(slot: Slot, eta: Eta): F[Rho] =
-      OptionT(rhosCache.get(eta.data))
+      OptionT(rhosCache.get((eta.data, slot)))
         .orElseF(
-          clock
-            .epochOf(slot)
-            .flatMap(getAndPutRhoForSlotEta(_, eta))
+          for {
+            epoch    <- clock.epochOf(slot)
+            _        <- Logger[F].info(show"Precomputing Rho values for epoch=$epoch eta=$eta")
+            boundary <- clock.epochRange(epoch)
+            rhoValues <- ed25519VRFResource.use { implicit ed =>
+              boundary
+                .map(slot => slot -> compute(VrfArgument(eta, slot), ed))
+                .map { case (slot, proof) =>
+                  val rho = Rho(Sized.strictUnsafe(ed.proofToHash(proof.bytes.data)))
+                  rhosCache.put((eta.data, slot))(rho)
+                  slot -> rho
+                }
+                .pure[F]
+            }
+          } yield rhoValues.find(_._1 == slot).map(_._2)
         )
-        .subflatMap(_.get(slot))
         .getOrElseF(
           new IllegalStateException(show"rho was not precomputed for slot=$slot eta=$eta")
             .raiseError[F, Rho]
         )
-
-    private def getAndPutRhoForSlotEta(epoch: Epoch, eta: Eta): F[Option[Map[Slot, Rho]]] =
-      for {
-        _        <- Logger[F].info(show"Precomputing Rho values for epoch=$epoch eta=$eta")
-        boundary <- clock.epochRange(epoch)
-        rhoValues <- ed25519VRFResource.use { implicit ed =>
-          boundary
-            .map { slot =>
-              slot -> compute(
-                VrfArgument(eta, slot),
-                ed
-              )
-            }
-            .toMap
-            .map { case (slot, proof) =>
-              slot -> Rho(Sized.strictUnsafe(ed.proofToHash(proof.bytes.data)))
-            }
-            .pure[F]
-        }
-        _ <- rhosCache.put(eta.data)(rhoValues) // TODO: Ask rhoForSlot is responsible of save proofs in cache?
-      } yield rhoValues.some // TODO: Ask why the previous implementation Get from cache again if the values was already there.
 
     private def compute(
       arg:        VrfArgument,
@@ -134,6 +128,10 @@ object VrfCalculator {
         )
       )
 
+    /**
+     * ineligibleSlots
+     * Previous Implementation updates both caches, in this case only rhosCache
+     */
     def ineligibleSlots(
       epoch:         Epoch,
       eta:           Eta,
@@ -141,16 +139,19 @@ object VrfCalculator {
       relativeStake: Ratio
     ): F[Vector[Slot]] =
       for {
-        rhosMap <-
-          OptionT(rhosCache.get(eta.data))
-            .orElseF(
-              getAndPutRhoForSlotEta(epoch, eta)
-            ) // TODO: Ask why the previous implementation Get from cache again if the values was already there.
-            .getOrElseF(
-              new IllegalStateException(show"rhos were not precomputed for epoch=$epoch eta=$eta")
-                .raiseError[F, Map[Long, Rho]]
-            )
-        rhosList = rhosMap.toList
+        boundary <- clock.epochRange(epoch)
+        rhosList <- ed25519VRFResource.use { implicit ed =>
+          boundary
+            .map(slot => slot -> compute(VrfArgument(eta, slot), ed))
+            .map { case (slot, proof) =>
+              val rho = Rho(Sized.strictUnsafe(ed.proofToHash(proof.bytes.data)))
+              rhosCache.put((eta.data, slot))(rho)
+              slot -> rho
+            }
+            .toList
+            .pure[F]
+        }
+
         rhos = inRange.fold(rhosList)(r => rhosList.filter(l1 => r.contains(l1._1)))
         threshold <- leaderElectionValidation.getThreshold(relativeStake, vrfConfig.lddCutoff)
         leaderCalculations <- rhos.parTraverse { case (slot, rho) =>

@@ -5,7 +5,6 @@ import akka.actor.typed.scaladsl.Behaviors
 import cats.Applicative
 import cats.effect.{IO, Resource}
 import cats.implicits._
-import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras._
 import co.topl.blockchain._
 import co.topl.catsakka._
@@ -266,12 +265,7 @@ object NodeApp
             vrfConfig,
             leaderElectionThreshold
           )
-          currentSlot  <- clock.globalSlot.map(_.max(0L))
-          currentEpoch <- clock.epochOf(currentSlot)
-
-          // TODO this behaviour is correct if rhoForSlot is responsible of save proofs in cache
-          _ <- vrfCalculator.proofForSlot(currentEpoch, currentHead.eta).void
-          _ <- vrfCalculator.rhoForSlot(currentEpoch, currentHead.eta).void
+          currentSlot <- clock.globalSlot.map(_.max(0L))
 
           operationalKeys <- OperationalKeyMaker.make[F](
             initialSlot = currentSlot,
@@ -293,8 +287,7 @@ object NodeApp
             consensusValidationState,
             etaCalculation,
             ed25519Resource,
-            vrfCalculator,
-            clock
+            vrfCalculator
           )
         } yield staking
       )
