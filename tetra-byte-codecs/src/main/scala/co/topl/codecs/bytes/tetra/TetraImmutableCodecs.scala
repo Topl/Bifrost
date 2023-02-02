@@ -45,6 +45,9 @@ trait TetraImmutableCodecs {
   implicit val partialOperationalCertificateStableCodec: ImmutableCodec[PartialOperationalCertificate] =
     ImmutableCodec.fromScodecCodec
 
+  implicit val headerImmutableCodec: ImmutableCodec[co.topl.consensus.models.BlockHeader] =
+    ImmutableCodec.fromScodecCodec
+
   implicit val unsignedHeaderV2StableCodec: ImmutableCodec[BlockHeader.Unsigned] =
     ImmutableCodec.fromScodecCodec
 

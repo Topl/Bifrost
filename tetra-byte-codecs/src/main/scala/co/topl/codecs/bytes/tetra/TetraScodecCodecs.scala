@@ -145,7 +145,7 @@ trait TetraScodecCryptoCodecs {
 
   implicit val kesBinaryTreeCodec: Codec[KesBinaryTree] = {
     val kesBinaryTreeEmptyCodec: Codec[KesBinaryTree.Empty] =
-      Codec[Unit].xmapc(_ => KesBinaryTree.Empty())(_ => ()).as[KesBinaryTree.Empty]
+      emptyCodec(KesBinaryTree.Empty())
 
     val kesBinaryTreeLeafCodec: Codec[KesBinaryTree.SigningLeaf] =
       (arrayCodec[Byte] :: arrayCodec[Byte])
@@ -185,7 +185,7 @@ trait TetraScodecVerificationKeyCodecs {
     (protobufByteStringCodec :: unknownFieldSetCodec)
       .as[protoModels.VerificationKeyEd25519]
 
-  implicit val criptoVkEd25519Codec: Codec[cryptoModels.VerificationKeyEd25519] =
+  implicit val cryptoVkEd25519Codec: Codec[cryptoModels.VerificationKeyEd25519] =
     (protobufByteStringCodec :: unknownFieldSetCodec).as[cryptoModels.VerificationKeyEd25519]
 
   implicit val vkExtendedEd25519Codec: Codec[VerificationKeys.ExtendedEd25519] =
@@ -604,7 +604,7 @@ trait TetraScodecProofCodecs {
 
   implicit val consensusProofSignatureKesSumCodec: Codec[consensusModels.SignatureKesSum] =
     (
-      optionCodec(criptoVkEd25519Codec) ::
+      optionCodec(cryptoVkEd25519Codec) ::
         optionCodec(consensusProofSignatureEd25519Codec) ::
         seqCodec(protobufByteStringCodec) ::
         unknownFieldSetCodec
@@ -842,7 +842,7 @@ trait TetraScodecBlockCodecs {
   implicit val consensusOperationalCertificateCodec: Codec[consensusModels.OperationalCertificate] =
     (optionCodec(consensusVkKesProductCodec) ::
       optionCodec(consensusProofSignatureKesProductCodec) ::
-      optionCodec(criptoVkEd25519Codec) ::
+      optionCodec(cryptoVkEd25519Codec) ::
       optionCodec(consensusProofSignatureEd25519Codec) ::
       unknownFieldSetCodec).as[consensusModels.OperationalCertificate]
 
@@ -853,9 +853,9 @@ trait TetraScodecBlockCodecs {
 
   implicit val partialOperationalCertificateConsensusCodec
     : Codec[legacyModels.BlockHeader.UnsignedConsensus.PartialOperationalCertificate] =
-    (optionCodec(consensusVkKesProductCodec) ::
-      optionCodec(consensusProofSignatureKesProductCodec) ::
-      optionCodec(criptoVkEd25519Codec))
+    (consensusVkKesProductCodec ::
+      consensusProofSignatureKesProductCodec ::
+      cryptoVkEd25519Codec)
       .as[legacyModels.BlockHeader.UnsignedConsensus.PartialOperationalCertificate]
 
   implicit val blockHeaderCodec: Codec[legacyModels.BlockHeader] =
@@ -917,14 +917,14 @@ trait TetraScodecBlockCodecs {
 
   implicit val unsignedConsensusBlockHeaderCodec: Codec[legacyModels.BlockHeader.UnsignedConsensus] =
     (
-      optionCodec(consensusBlockIdCodec) ::
+      consensusBlockIdCodec ::
         longCodec ::
         protobufByteStringCodec ::
         protobufByteStringCodec ::
         longCodec ::
         longCodec ::
         longCodec ::
-        optionCodec(consensusEligibilityCertificateCodec) ::
+        consensusEligibilityCertificateCodec ::
         partialOperationalCertificateConsensusCodec ::
         protobufByteStringCodec ::
         protobufByteStringCodec

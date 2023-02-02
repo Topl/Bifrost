@@ -49,7 +49,7 @@ package object interpreters {
     // TODO Wallet spentBoxIds model should change to new protobuf specs and not use boxIdIsomorphism
     val spentBoxIds = transaction.inputs
       .flatMap(_.boxId)
-      .map(boxId => co.topl.grpc.boxIdIsomorphism[cats.Id].baMorphism.aToB(boxId))
+      .map(boxId => co.topl.models.utility.boxIdIsomorphism[cats.Id].baMorphism.aToB(boxId))
       .map(_.toEitherT[cats.Id])
       .map(_.bimap(_ => Option.empty[Box.Id], _.some))
       .map(_.value)
@@ -63,7 +63,7 @@ package object interpreters {
             output.address
               .flatMap(fullAddress =>
                 // TODO Wallet spendingAddress model should change to new protobuf specs and not use boxIdIsomorphism
-                co.topl.grpc
+                co.topl.models.utility
                   .spendingAddressIsorphism[Option]
                   .baMorphism
                   .aToB(fullAddress.spendingAddress)
@@ -76,14 +76,18 @@ package object interpreters {
         val box =
           Box(
             // TODO Wallet spendingAddress model should change to new protobuf specs and not use boxIdIsomorphism
-            co.topl.grpc
+            co.topl.models.utility
               .spendingAddressIsorphism[Option]
               .baMorphism
               .aToB(output.address.flatMap(_.spendingAddress))
               .flatMap(_.toOption)
               .map(_.typedEvidence)
               .getOrElse(TypedEvidence.empty),
-            co.topl.grpc.boxValueIsomorphism[cats.Id].baMorphism.aToB(output.value).getOrElse(Box.Values.Empty)
+            co.topl.models.utility
+              .boxValueIsomorphism[cats.Id]
+              .baMorphism
+              .aToB(output.value)
+              .getOrElse(Box.Values.Empty)
           )
         (boxId, box)
     }

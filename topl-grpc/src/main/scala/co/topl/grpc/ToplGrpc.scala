@@ -8,6 +8,7 @@ import co.topl.algebras.{SynchronizationTraversalStep, SynchronizationTraversalS
 import co.topl.brambl.models.Identifier.IoTransaction32
 import co.topl.consensus.models._
 import co.topl.models.{TypedBytes, TypedIdentifier}
+import co.topl.models.utility._
 import co.topl.node.models.BlockBody
 import co.topl.node.services._
 import co.topl.proto.models.Transaction

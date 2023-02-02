@@ -2,62 +2,65 @@ package co.topl.codecs.bytes.tetra
 
 import co.topl.codecs.bytes.typeclasses._
 import co.topl.{models => legacyModels}
-import co.topl.consensus.models.BlockHeader
+import co.topl.consensus.models.{BlockHeader, BlockId}
+import co.topl.crypto.models.VerificationKeyEd25519
+import co.topl.models.utility._
+import com.google.protobuf.ByteString
 
 trait TetraSignableCodecs {
 
   import TetraImmutableCodecs._
   import co.topl.codecs.bytes.typeclasses.implicits._
 
-  implicit val signableUnsignedBlockHeader: Signable[legacyModels.BlockHeader.Unsigned] =
+  implicit val signableUnsignedConsensusBlockHeader: Signable[legacyModels.BlockHeader.UnsignedConsensus] =
     _.immutableBytes
 
-  implicit val signableBlockHeader: Signable[legacyModels.BlockHeader] =
+  implicit val signableUnsignedBlockHeader: Signable[legacyModels.BlockHeader.Unsigned] =
     t =>
       legacyModels.BlockHeader
-        .Unsigned(
-          t.parentHeaderId,
+        .UnsignedConsensus(
+          BlockId(t.parentHeaderId.dataBytes),
           t.parentSlot,
-          t.txRoot,
-          t.bloomFilter,
+          t.txRoot.data,
+          t.bloomFilter.data,
           t.timestamp,
           t.height,
           t.slot,
-          t.eligibilityCertificate,
-          legacyModels.BlockHeader.Unsigned.PartialOperationalCertificate(
-            t.operationalCertificate.parentVK,
-            t.operationalCertificate.parentSignature,
-            t.operationalCertificate.childVK
+          ReplaceModelUtil.eligibilityCertificate(t.eligibilityCertificate),
+          legacyModels.BlockHeader.UnsignedConsensus.PartialOperationalCertificate(
+            ReplaceModelUtil.verificationKeyKesProduct(t.partialOperationalCertificate.parentVK),
+            ReplaceModelUtil.signatureKesProduct(t.partialOperationalCertificate.parentSignature),
+            VerificationKeyEd25519(t.partialOperationalCertificate.childVK.bytes.data)
           ),
-          t.metadata,
-          t.address
+          t.metadata.fold(ByteString.EMPTY)(m => ByteString.copyFrom(m.data.bytes)),
+          t.address.vk.bytes.data
         )
         .signableBytes
-
-  implicit val signableUnsignedConsensusBlockHeader: Signable[legacyModels.BlockHeader.UnsignedConsensus] =
-    _.immutableBytes
 
   implicit val signableBlockConsensusHeader: Signable[BlockHeader] =
     t =>
       legacyModels.BlockHeader
         .UnsignedConsensus(
-          t.parentHeaderId,
+          t.parentHeaderId.get,
           t.parentSlot,
           t.txRoot,
           t.bloomFilter,
           t.timestamp,
           t.height,
           t.slot,
-          t.eligibilityCertificate,
+          t.eligibilityCertificate.get,
           legacyModels.BlockHeader.UnsignedConsensus.PartialOperationalCertificate(
-            t.operationalCertificate.map(_.getParentVK),
-            t.operationalCertificate.flatMap(_.parentSignature),
-            t.operationalCertificate.flatMap(_.childVK)
+            t.operationalCertificate.get.parentVK.get,
+            t.operationalCertificate.get.parentSignature.get,
+            t.operationalCertificate.get.childVK.get
           ),
           t.metadata,
           t.address
         )
         .signableBytes
+
+  implicit val signableBlockHeader: Signable[legacyModels.BlockHeader] =
+    t => ReplaceModelUtil.consensusHeader(t).signableBytes
 
   implicit val signableUnprovenTransaction: Signable[legacyModels.Transaction.Unproven] =
     _.immutableBytes

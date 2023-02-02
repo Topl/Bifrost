@@ -83,7 +83,7 @@ object Fs2TransactionGenerator {
       }
       // TODO Wallet spendingAddress model should change to new protobuf specs and not use Isomorphism
       protoTransaction <-
-        EitherT(co.topl.grpc.transactionIsomorphism[F].abMorphism.aToB(transaction.pure[F]))
+        EitherT(co.topl.models.utility.transactionIsomorphism[F].abMorphism.aToB(transaction.pure[F]))
           .getOrRaise(new RuntimeException("transactionIsomorphism"))
       updatedWallet = applyTransaction(wallet)(protoTransaction)
     } yield (transaction, updatedWallet)

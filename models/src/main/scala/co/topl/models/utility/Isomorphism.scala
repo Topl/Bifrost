@@ -1,7 +1,7 @@
-package co.topl.grpc
+package co.topl.models.utility
 
-import cats.{Applicative, Functor}
 import cats.implicits._
+import cats.{Applicative, Functor}
 
 /**
  * Represents a fallible morphism between two types, A and B.

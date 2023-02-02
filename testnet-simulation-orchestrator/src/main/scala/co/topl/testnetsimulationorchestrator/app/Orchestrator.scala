@@ -131,7 +131,7 @@ object Orchestrator
             OptionT(nodes(node).fetchTransaction(transactionId))
               // TODO TransactionDatum model should change to new protobuf specs and not use Isomorphism
               .flatMapF(transaction =>
-                co.topl.grpc
+                co.topl.models.utility
                   .transactionIsomorphism[F]
                   .baMorphism
                   .aToB(transaction.pure[F])
@@ -253,8 +253,9 @@ object Orchestrator
         .metered((1_000_000_000d / targetTps).nanos)
         // TODO model should change to new protobuf specs and not use Isomorphism
         .evalMap(transaction =>
-          EitherT(co.topl.grpc.transactionIsomorphism[F].abMorphism.aToB(transaction.pure[F]))
-            .getOrRaise(new RuntimeException("transactionIsomorphism"))
+          EitherT(co.topl.models.utility.transactionIsomorphism[F].abMorphism.aToB(transaction.pure[F]))
+            .leftMap(new IllegalArgumentException(_))
+            .rethrowT
         )
         // Broadcast+log the transaction
         .evalTap(transaction =>

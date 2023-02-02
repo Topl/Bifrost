@@ -171,7 +171,6 @@ class BlockHeaderValidationSpec
             .of(
               ByteString.copyFrom(TypedBytes(1: Byte, Bytes.fill(32)(0: Byte)).dataBytes.toArray)
             )
-            .some
         )
       )
     ) { case (parent, child, _: Operator, _: Eta, _: Ratio) =>
@@ -729,14 +728,12 @@ class BlockHeaderValidationSpec
     val parentSignature = ReplaceModelUtil.signatureKesProduct(parentSignatureLegacy)
     val kesProductVerificationKey = kesProduct.getVerificationKey(parentSK) // TODO, it should return new Models
     val partialCertificate = legacyModels.BlockHeader.UnsignedConsensus.PartialOperationalCertificate(
-      Some(
-        VerificationKeyKesProduct.of(
-          ByteString.copyFrom(kesProductVerificationKey.bytes.data.toArray),
-          kesProductVerificationKey.step
-        )
+      VerificationKeyKesProduct.of(
+        ByteString.copyFrom(kesProductVerificationKey.bytes.data.toArray),
+        kesProductVerificationKey.step
       ),
-      parentSignature.some,
-      co.topl.crypto.models.VerificationKeyEd25519.of(ByteString.copyFrom(linearVKBytes.toArray)).some
+      parentSignature,
+      co.topl.crypto.models.VerificationKeyEd25519.of(ByteString.copyFrom(linearVKBytes.toArray))
     )
     unsignedF(partialCertificate) -> SecretKeys.Ed25519(Sized.strictUnsafe(linearSKBytes))
   }
@@ -772,14 +769,14 @@ class BlockHeaderValidationSpec
           slot,
           partial =>
             legacyModels.BlockHeader.UnsignedConsensus(
-              parentHeaderId = BlockId.of(ByteString.copyFrom(parent.id._2.toArray)).some,
+              parentHeaderId = BlockId.of(ByteString.copyFrom(parent.id._2.toArray)),
               parentSlot = parent.slot,
               txRoot = txRoot.data,
               bloomFilter = bloomFilter.data,
               timestamp = System.currentTimeMillis(),
               height = parent.height + 1,
               slot = slot,
-              eligibilityCertificate = eligibilityCertificate.some,
+              eligibilityCertificate = eligibilityCertificate,
               partialOperationalCertificate = partial,
               metadata = ByteString.EMPTY,
               address = address
@@ -790,9 +787,9 @@ class BlockHeaderValidationSpec
 
       val operationalCertificate =
         co.topl.consensus.models.OperationalCertificate(
-          unsigned.partialOperationalCertificate.parentVK,
-          unsigned.partialOperationalCertificate.parentSignature,
-          unsigned.partialOperationalCertificate.childVK,
+          unsigned.partialOperationalCertificate.parentVK.some,
+          unsigned.partialOperationalCertificate.parentSignature.some,
+          unsigned.partialOperationalCertificate.childVK.some,
           SignatureEd25519
             .of(ByteString.copyFrom(ed25519.sign(linearSK.bytes.data, unsigned.signableBytes).toArray))
             .some
@@ -800,14 +797,14 @@ class BlockHeaderValidationSpec
 
       val child =
         BlockHeader(
-          parentHeaderId = unsigned.parentHeaderId,
+          parentHeaderId = unsigned.parentHeaderId.some,
           parentSlot = unsigned.parentSlot,
           txRoot = unsigned.txRoot,
           bloomFilter = unsigned.bloomFilter,
           timestamp = unsigned.timestamp,
           height = unsigned.height,
           slot = unsigned.slot,
-          eligibilityCertificate = unsigned.eligibilityCertificate,
+          eligibilityCertificate = unsigned.eligibilityCertificate.some,
           operationalCertificate = operationalCertificate.some,
           metadata = unsigned.metadata,
           address = unsigned.address

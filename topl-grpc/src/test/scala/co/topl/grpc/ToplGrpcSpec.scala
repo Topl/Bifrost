@@ -14,6 +14,7 @@ import co.topl.consensus.models.BlockId
 import co.topl.node.models.BlockBody
 import co.topl.proto.models.Transaction
 import co.topl.{models => legacyModels}
+import co.topl.models.utility._
 import legacyModels.ModelGenerators._
 import legacyModels.{IdentifierTypes, TypedBytes, TypedIdentifier}
 import co.topl.models.generators.node.ModelGenerators.arbitraryNodeBody

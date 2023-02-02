@@ -114,7 +114,7 @@ object TransactionGeneratorApp
       .metered((1_000_000_000d / targetTps).nanos)
       // TODO model should change to new protobuf specs and not use Isomorphism
       .evalMap(transaction =>
-        EitherT(co.topl.grpc.transactionIsomorphism[F].abMorphism.aToB(transaction.pure[F]))
+        EitherT(co.topl.models.utility.transactionIsomorphism[F].abMorphism.aToB(transaction.pure[F]))
           .getOrRaise(new RuntimeException("transactionIsomorphism"))
       )
       // Broadcast+log the transaction

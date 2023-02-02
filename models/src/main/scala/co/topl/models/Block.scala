@@ -51,14 +51,14 @@ object BlockHeader {
   }
 
   case class UnsignedConsensus( // TODO rename Unsigned
-    parentHeaderId:                Option[co.topl.consensus.models.BlockId],
+    parentHeaderId:                co.topl.consensus.models.BlockId,
     parentSlot:                    Slot,
     txRoot:                        ByteString,
     bloomFilter:                   ByteString,
     timestamp:                     Timestamp,
     height:                        Long,
     slot:                          Slot,
-    eligibilityCertificate:        Option[co.topl.consensus.models.EligibilityCertificate],
+    eligibilityCertificate:        co.topl.consensus.models.EligibilityCertificate,
     partialOperationalCertificate: UnsignedConsensus.PartialOperationalCertificate,
     metadata:                      ByteString,
     address:                       ByteString
@@ -67,9 +67,9 @@ object BlockHeader {
   object UnsignedConsensus { // TODO rename Unsigned
 
     case class PartialOperationalCertificate(
-      parentVK:        Option[co.topl.consensus.models.VerificationKeyKesProduct],
-      parentSignature: Option[co.topl.consensus.models.SignatureKesProduct],
-      childVK:         Option[co.topl.crypto.models.VerificationKeyEd25519]
+      parentVK:        co.topl.consensus.models.VerificationKeyKesProduct,
+      parentSignature: co.topl.consensus.models.SignatureKesProduct,
+      childVK:         co.topl.crypto.models.VerificationKeyEd25519
     )
   }
 }

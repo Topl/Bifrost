@@ -58,8 +58,12 @@ object ToplRpcServer {
 
         def broadcastTransaction(transaction: Transaction): F[Unit] =
           // TODO model should change to new protobuf specs and not use Isomorphism
-          EitherT(co.topl.grpc.transactionIsomorphism[F].baMorphism.aToB(transaction.pure[F]))
-            .getOrRaise(new RuntimeException("transactionIsomorphism"))
+          EitherT(co.topl.models.utility.transactionIsomorphism[F].baMorphism.aToB(transaction.pure[F]))
+            .leftMap(error =>
+              //
+              new IllegalArgumentException(error)
+            )
+            .rethrowT
             .map(transactionOldModel =>
               transactionStore
                 .contains(transaction.id)
@@ -88,7 +92,7 @@ object ToplRpcServer {
           transactionStore
             .get(transactionId)
             .map(transaction =>
-              co.topl.grpc
+              co.topl.models.utility
                 .transactionIsomorphism[Option]
                 // TODO model should change to new protobuf specs and not use Isomorphism, change the store
                 .abMorphism
