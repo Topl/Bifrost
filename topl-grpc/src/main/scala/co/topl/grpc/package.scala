@@ -2,11 +2,7 @@ package co.topl
 
 import cats.ApplicativeThrow
 import cats.implicits._
-import com.google.protobuf.ByteString
 import io.grpc.{Status, StatusException}
-import scodec.bits.ByteVector
-
-import scala.language.implicitConversions
 
 package object grpc {
 
