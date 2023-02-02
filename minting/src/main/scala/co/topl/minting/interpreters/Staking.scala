@@ -35,10 +35,10 @@ object Staking {
 
     def elect(parentSlotId: SlotId, slot: Slot): F[Option[VrfHit]] =
       for {
-        epochOf       <- clock.epochOf(slot)
-        epochBoundary <- clock.epochBoundary(slot)
-        eta           <- etaCalculation.etaToBe(parentSlotId, slot)
-        _ <- Applicative[F].whenA(epochBoundary === 0L)(
+        epochOf    <- clock.epochOf(slot)
+        epochStart <- clock.isEpochStart(slot)
+        eta        <- etaCalculation.etaToBe(parentSlotId, slot)
+        _ <- Applicative[F].whenA(epochStart)(
           vrfCalculator.precomputeForEpoch(epochOf, eta)
         )
         maybeHit <- OptionT(consensusState.operatorRelativeStake(parentSlotId.blockId, slot)(a))
