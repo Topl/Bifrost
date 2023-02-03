@@ -1,7 +1,7 @@
 package co.topl.testnetsimulationorchestrator.app
 
 import cats.Applicative
-import cats.data.OptionT
+import cats.data.{EitherT, OptionT}
 import cats.effect._
 import cats.effect.std.Random
 import cats.implicits._
@@ -9,7 +9,9 @@ import co.topl.algebras.{SynchronizationTraversalSteps, ToplRpc}
 import co.topl.common.application.IOBaseApp
 import co.topl.grpc.ToplGrpc
 import co.topl.interpreters.MultiToplRpc
-import co.topl.models.{BlockHeader, TypedIdentifier}
+import co.topl.models.TypedIdentifier
+import co.topl.models.utility._
+import co.topl.consensus.models.BlockHeader
 import co.topl.testnetsimulationorchestrator.algebras.DataPublisher
 import co.topl.testnetsimulationorchestrator.interpreters.{GcpCsvDataPublisher, K8sSimulationController}
 import co.topl.testnetsimulationorchestrator.models.{AdoptionDatum, BlockDatum, TransactionDatum}
@@ -21,7 +23,6 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.typeclasses.implicits._
-
 import scala.concurrent.duration._
 
 object Orchestrator
@@ -129,6 +130,15 @@ object Orchestrator
           .iterable(transactionAssignments.toList)
           .parEvalMap[F, TransactionDatum](Runtime.getRuntime.availableProcessors()) { case (transactionId, node) =>
             OptionT(nodes(node).fetchTransaction(transactionId))
+              // TODO TransactionDatum model should change to new protobuf specs and not use Isomorphism
+              .flatMapF(transaction =>
+                co.topl.models.utility
+                  .transactionIsomorphism[F]
+                  .baMorphism
+                  .aToB(transaction.pure[F])
+                  .map(_.toOption)
+                  .orRaise(new RuntimeException("transactionIsomorphism"))
+              )
               .getOrRaise(new NoSuchElementException(show"Transaction not found id=$transactionId"))
               .map(TransactionDatum(_))
           }
@@ -201,7 +211,7 @@ object Orchestrator
         blockDatumTopic
           .subscribe(128)
           .fold(Map.empty[TypedIdentifier, NodeName]) { case (assignments, (node, datum)) =>
-            assignments ++ datum.body.toList.tupleRight(node)
+            assignments ++ datum.body.transactionIds.map(t => t: TypedIdentifier).tupleRight(node)
           }
       // Publish the block data results
       _ <- Logger[F].info("Fetching block bodies, publishing blocks, and assigning transactions (in parallel)")
@@ -242,6 +252,12 @@ object Orchestrator
       runStreamF = transactionStream
         // Send 1 transaction per _this_ duration
         .metered((1_000_000_000d / targetTps).nanos)
+        // TODO model should change to new protobuf specs and not use Isomorphism
+        .evalMap(transaction =>
+          EitherT(co.topl.models.utility.transactionIsomorphism[F].abMorphism.aToB(transaction.pure[F]))
+            .leftMap(new IllegalArgumentException(_))
+            .rethrowT
+        )
         // Broadcast+log the transaction
         .evalTap(transaction =>
           Logger[F].debug(show"Broadcasting transaction id=${transaction.id.asTypedBytes}") >>

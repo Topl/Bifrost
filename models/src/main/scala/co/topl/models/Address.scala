@@ -1,5 +1,9 @@
 package co.topl.models
 
+import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.Sized
+import com.google.protobuf.ByteString
+
 case class FullAddress(
   networkPrefix:   NetworkPrefix,
   spendingAddress: SpendingAddress,
@@ -16,4 +20,11 @@ object StakingAddresses {
   // TODO
 //  case class Delegating(vk: VerificationKeys.Ed25519) extends StakingAddress
   case object NonStaking extends StakingAddress
+
+  def operatorFromProtoString(address: ByteString): Operator =
+    Operator(
+      VerificationKeys.Ed25519(
+        Sized.strictUnsafe[Bytes, VerificationKeys.Ed25519.Length](Bytes(address.toByteArray))
+      )
+    )
 }

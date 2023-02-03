@@ -1,10 +1,12 @@
 package co.topl.crypto.signing
 
 import co.topl.crypto.signing.kes.ProductComposition
-import co.topl.models.Proofs.Knowledge
-import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.Sized
-import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
+import co.topl.{models => legacyModels}
+import legacyModels.Proofs.Knowledge
+import legacyModels.utility.HasLength.instances._
+import legacyModels.utility.Sized
+import legacyModels.{Bytes, Proofs, SecretKeys, VerificationKeys}
+import co.topl.consensus.models.{SignatureKesProduct, VerificationKeyKesProduct}
 
 class KesProduct extends ProductComposition {
 
@@ -49,26 +51,29 @@ class KesProduct extends ProductComposition {
     )
   }
 
+  /**
+   * Throws: NoSuchElementException – if any signatures or vks are empty.
+   */
   def verify(
-    signature: Knowledge.KesProduct,
+    signature: SignatureKesProduct,
     message:   Bytes,
-    verifyKey: VerificationKeys.KesProduct
+    verifyKey: VerificationKeyKesProduct
   ): Boolean = {
     val prodSig = (
       (
-        signature.superSignature.verificationKey.bytes.data.toArray,
-        signature.superSignature.signature.bytes.data.toArray,
-        signature.superSignature.witness.map(_.data.toArray)
+        signature.getSuperSignature.verificationKey.get.value.toByteArray,
+        signature.getSuperSignature.signature.get.value.toByteArray,
+        signature.getSuperSignature.witness.map(_.toByteArray).toVector
       ),
       (
-        signature.subSignature.verificationKey.bytes.data.toArray,
-        signature.subSignature.signature.bytes.data.toArray,
-        signature.subSignature.witness.map(_.data.toArray)
+        signature.getSubSignature.verificationKey.get.value.toByteArray,
+        signature.getSubSignature.signature.get.value.toByteArray,
+        signature.getSubSignature.witness.map(_.toByteArray).toVector
       ),
-      signature.subRoot.data.toArray
+      signature.subRoot.toByteArray
     )
 
-    val sumVk = (verifyKey.bytes.data.toArray, verifyKey.step)
+    val sumVk = (verifyKey.value.toByteArray, verifyKey.step)
     verify(prodSig, message.toArray, sumVk)
   }
 

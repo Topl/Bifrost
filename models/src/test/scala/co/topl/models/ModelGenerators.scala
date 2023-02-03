@@ -691,8 +691,8 @@ trait ModelGenerators {
   implicit val arbitraryBlock: Arbitrary[Block] =
     Arbitrary(
       for {
-        header <- arbitraryHeader.arbitrary
-        body   <- arbitraryBody.arbitrary
+        header <- co.topl.models.generators.consensus.ModelGenerators.arbitraryHeader.arbitrary
+        body   <- co.topl.models.generators.node.ModelGenerators.arbitraryNodeBody.arbitrary
       } yield Block(header, body)
     )
 

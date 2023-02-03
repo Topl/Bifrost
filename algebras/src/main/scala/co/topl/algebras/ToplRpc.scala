@@ -1,6 +1,9 @@
 package co.topl.algebras
 
-import co.topl.models.{BlockBody, BlockHeader, Transaction, TypedIdentifier}
+import co.topl.models.TypedIdentifier
+import co.topl.proto.models.Transaction
+import co.topl.consensus.models.BlockHeader
+import co.topl.node.models.BlockBody
 
 /**
  * Topl Rpc

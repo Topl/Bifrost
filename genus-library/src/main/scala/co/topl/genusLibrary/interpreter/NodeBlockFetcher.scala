@@ -7,9 +7,13 @@ import co.topl.algebras.ToplRpc
 import co.topl.genusLibrary.algebras.BlockFetcherAlgebra
 import co.topl.genusLibrary.failure.{Failure, Failures}
 import co.topl.genusLibrary.model.{BlockData, HeightData}
-import co.topl.models.{BlockBody, BlockHeader, Transaction, TypedIdentifier}
+import co.topl.{models => legacyModels}
+import co.topl.models.utility._
+import legacyModels.TypedIdentifier
+import co.topl.consensus.models.BlockHeader
+import co.topl.node.models.BlockBody
+import co.topl.proto.models.Transaction
 import com.typesafe.scalalogging.LazyLogging
-
 import scala.collection.immutable.ListSet
 
 class NodeBlockFetcher[F[_]: Async](toplRpc: ToplRpc[F, Any]) extends BlockFetcherAlgebra[F] with LazyLogging {
@@ -53,18 +57,20 @@ class NodeBlockFetcher[F[_]: Async](toplRpc: ToplRpc[F, Any]) extends BlockFetch
    * If one or more transactions is missing, then a failure listing all missing transactions is returned.
    */
   private def fetchTransactions(body: BlockBody): F[Either[Failure, Chain[Transaction]]] =
-    body.toList.traverse(typedIdentifier =>
+    body.transactionIds.toList.traverse(ioTx32 =>
       toplRpc
-        .fetchTransaction(typedIdentifier)
-        .map(maybeTransaction => (typedIdentifier, maybeTransaction))
+        .fetchTransaction(ioTx32)
+        .map(maybeTransaction => (ioTx32, maybeTransaction))
     ) map { e =>
-      e.foldLeft(Chain.empty[Transaction].asRight[ListSet[TypedIdentifier]]) {
+      e.foldLeft(Chain.empty[co.topl.proto.models.Transaction].asRight[ListSet[TypedIdentifier]]) {
         case (Right(transactions), (_, Some(transaction)))     => (transactions :+ transaction).asRight
-        case (Right(_), (typedIdentifier, None))               => ListSet(typedIdentifier).asLeft
+        case (Right(_), (ioTx32, None))                        => ListSet((ioTx32: TypedIdentifier)).asLeft
         case (nonExistentTransactions @ Left(_), (_, Some(_))) => nonExistentTransactions
-        case (Left(nonExistentTransactions), (typedIdentifier, None)) =>
-          Left(nonExistentTransactions + typedIdentifier)
+        case (Left(nonExistentTransactions), (ioTx32, None)) =>
+          Left(nonExistentTransactions + ioTx32)
       }
-    } map [Either[Failure, Chain[Transaction]]] (_.left.map(Failures.NonExistentTransactionsFailure))
+    } map [Either[Failure, Chain[co.topl.proto.models.Transaction]]] (_.left.map(
+      Failures.NonExistentTransactionsFailure
+    ))
 
 }

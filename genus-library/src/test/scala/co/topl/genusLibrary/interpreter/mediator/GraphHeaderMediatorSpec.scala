@@ -3,14 +3,16 @@ package co.topl.genusLibrary.interpreter.mediator
 import cats.effect.IO
 import cats.effect.kernel.Async
 import cats.implicits._
+import co.topl.consensus.models.BlockHeader
 import co.topl.genusLibrary.failure.{Failure, Failures}
 import co.topl.genusLibrary.model.BlockData
 import co.topl.genusLibrary.orientDb.GenusGraphMetadata.{blockBodySchema, blockHeaderSchema}
 import co.topl.genusLibrary.orientDb.wrapper.{WrappedEdge, WrappedVertex}
 import co.topl.genusLibrary.orientDb.{GraphTxDAO, StoreFacade}
 import co.topl.genusLibrary.utils.BlockUtils
-import co.topl.models.ModelGenerators._
-import co.topl.models.{BlockBody, BlockHeader}
+import co.topl.models.generators.consensus.ModelGenerators._
+import co.topl.models.generators.node.ModelGenerators.arbitraryNodeBody
+import co.topl.node.models.BlockBody
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory

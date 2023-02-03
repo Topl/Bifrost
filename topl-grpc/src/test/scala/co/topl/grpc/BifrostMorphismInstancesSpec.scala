@@ -3,6 +3,7 @@ package co.topl.grpc
 import cats.data.EitherT
 import cats.effect.IO
 import co.topl.models.ModelGenerators._
+import co.topl.models.utility._
 import co.topl.{models => bifrostModels}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.Arbitrary

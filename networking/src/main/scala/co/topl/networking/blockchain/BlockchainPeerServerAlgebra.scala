@@ -1,6 +1,8 @@
 package co.topl.networking.blockchain
 
-import co.topl.models.{BlockBody, BlockHeader, SlotData, Transaction, TypedIdentifier}
+import co.topl.consensus.models.BlockHeader
+import co.topl.node.models.BlockBody
+import co.topl.models.{SlotData, Transaction, TypedIdentifier}
 import fs2._
 
 /**

@@ -1,9 +1,10 @@
 package co.topl.networking.blockchain
 
-import co.topl.models._
+import co.topl.consensus.models.BlockHeader
+import co.topl.{models => legacyModels}
+import legacyModels.{SlotData, Transaction, TypedBytes}
 import co.topl.networking.typedprotocols.{NotificationProtocol, RequestResponseProtocol}
-
-import scala.collection.immutable.ListSet
+import co.topl.node.models.BlockBody
 
 /**
  * Defines the various Typed Protocols which are used for the purposes of exchanging blockchain data between
@@ -24,35 +25,35 @@ object BlockchainProtocols {
    *
    * This protocol runs a server and client in parallel for each connection.
    */
-  object SlotData extends RequestResponseProtocol[TypedBytes, co.topl.models.SlotData]
+  object SlotData extends RequestResponseProtocol[TypedBytes, SlotData]
 
   /**
    * Request a Header by Block ID
    *
    * This protocol runs a server and client in parallel for each connection.
    */
-  object Header extends RequestResponseProtocol[TypedBytes, co.topl.models.BlockHeader]
+  object Header extends RequestResponseProtocol[TypedBytes, BlockHeader]
 
   /**
    * Request a list of Transaction IDs by Block ID
    *
    * This protocol runs a server and client in parallel for each connection.
    */
-  object Body extends RequestResponseProtocol[TypedBytes, ListSet[TypedBytes]]
+  object Body extends RequestResponseProtocol[TypedBytes, BlockBody]
 
   /**
    * Request a Transaction by Transaction ID
    *
    * This protocol runs a server and client in parallel for each connection.
    */
-  object Transaction extends RequestResponseProtocol[TypedBytes, co.topl.models.Transaction]
+  object Transaction extends RequestResponseProtocol[TypedBytes, Transaction]
 
   /**
    * Request the Block ID at some height.  The request also includes the client node's Block ID at the given height.
    *
    * This protocol runs a server and client in parallel for each connection.
    */
-  object BlockIdAtHeight extends RequestResponseProtocol[(Long, Option[TypedBytes]), co.topl.models.TypedBytes]
+  object BlockIdAtHeight extends RequestResponseProtocol[(Long, Option[TypedBytes]), TypedBytes]
 
   /**
    * Notifies a client node every time the server adopts a new Block

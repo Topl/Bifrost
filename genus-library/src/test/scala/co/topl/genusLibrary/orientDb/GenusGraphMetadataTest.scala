@@ -1,52 +1,24 @@
 package co.topl.genusLibrary.orientDb
 
 import cats.data.Chain
+import cats.implicits.catsSyntaxOptionId
+import co.topl.brambl.models.Evidence
+import co.topl.brambl.models.Identifier.IoTransaction32
 import co.topl.crypto.hash.Blake2b256
-import co.topl.models._
-import co.topl.models.utility._
-import co.topl.models.utility.HasLength.instances.bytesLength
-
-import scala.collection.immutable.ListSet
+import co.topl.{models => legacyModels}
+import legacyModels.utility._
+import co.topl.consensus.models._
+import co.topl.crypto.models._
+import co.topl.node.models.BlockBody
+import com.google.protobuf.ByteString
+import quivr.models.Digest.Digest32
 import scala.util.Random
 
 class GenusGraphMetadataTest extends munit.FunSuite {
   import GenusGraphMetadata._
 
+  private val evidenceLength: Length = implicitly[legacyModels.Evidence.Length]
   private val TypedBytesLength = 33
-
-  private val operationalCertificate: OperationalCertificate = OperationalCertificate(
-    VerificationKeys.KesProduct(zeroBytes(Lengths.`32`), 0),
-    Proofs.Knowledge.KesProduct(
-      Proofs.Knowledge.KesSum(
-        VerificationKeys.Ed25519(zeroBytes(Lengths.`32`)),
-        Proofs.Knowledge.Ed25519(zeroBytes(Lengths.`64`)),
-        Vector.empty
-      ),
-      Proofs.Knowledge.KesSum(
-        VerificationKeys.Ed25519(zeroBytes(Lengths.`32`)),
-        Proofs.Knowledge.Ed25519(zeroBytes(Lengths.`64`)),
-        Vector.empty
-      ),
-      zeroBytes(Lengths.`32`)
-    ),
-    VerificationKeys.Ed25519(zeroBytes(Lengths.`32`)),
-    Proofs.Knowledge.Ed25519(zeroBytes(Lengths.`64`))
-  )
-
-  def zeroBytes[L <: Length](implicit l: L): Sized.Strict[Bytes, L] =
-    Sized.strictUnsafe[Bytes, L](Bytes(Array.fill(l.value)(0: Byte)))
-
-  private val eta: Eta = Sized.strictUnsafe(new Blake2b256().hash(Bytes(Random.nextBytes(TypedBytesLength))))
-
-  private val eligibilityCertificate = EligibilityCertificate(
-    Proofs.Knowledge.VrfEd25519(zeroBytes(Lengths.`80`)),
-    VerificationKeys.VrfEd25519(VerificationKeys.Ed25519(zeroBytes[VerificationKeys.VrfEd25519.Length]).bytes),
-    thresholdEvidence = Sized.strictUnsafe(Bytes(Array.fill[Byte](evidenceLength.value)(0))),
-    eta = eta
-  )
-
-  private val stakingAddressOperator: StakingAddresses.Operator =
-    StakingAddresses.Operator(VerificationKeys.Ed25519(zeroBytes(Lengths.`32`)))
 
   test("typedBytes Serialization") {
     val byteArray = Random.nextBytes(TypedBytesLength)
@@ -58,6 +30,13 @@ class GenusGraphMetadataTest extends munit.FunSuite {
   }
 
   test("EligibilityCertificate Serialization") {
+    val eligibilityCertificate = EligibilityCertificate(
+      vrfSig = SignatureVrfEd25519.of(ByteString.copyFrom(Array.fill(Lengths.`80`.value)(0: Byte))),
+      vrfVK = VerificationKeyVrfEd25519.of(ByteString.copyFrom(Array.fill(Lengths.`32`.value)(0: Byte))),
+      thresholdEvidence = ByteString.copyFrom(Array.fill[Byte](evidenceLength.value)(0)),
+      eta = ByteString.copyFrom(new Blake2b256().hash(legacyModels.Bytes(Random.nextBytes(TypedBytesLength))).toArray)
+    )
+
     assertEquals(
       byteArrayToEligibilityCertificate(eligibilityCertificateToByteArray(eligibilityCertificate)),
       eligibilityCertificate,
@@ -66,6 +45,25 @@ class GenusGraphMetadataTest extends munit.FunSuite {
   }
 
   test("OperationalCertificate Serialization") {
+    val operationalCertificate = OperationalCertificate(
+      VerificationKeyKesProduct.of(ByteString.EMPTY, step = 0).some,
+      SignatureKesProduct(
+        SignatureKesSum(
+          VerificationKeyEd25519.of(ByteString.EMPTY).some,
+          SignatureEd25519(ByteString.EMPTY).some,
+          Seq.empty
+        ).some,
+        SignatureKesSum(
+          VerificationKeyEd25519.of(ByteString.EMPTY).some,
+          SignatureEd25519.of(ByteString.EMPTY).some,
+          Seq.empty
+        ).some,
+        ByteString.EMPTY
+      ).some,
+      VerificationKeyEd25519.of(ByteString.EMPTY).some,
+      SignatureEd25519(ByteString.EMPTY).some
+    )
+
     assertEquals(
       byteArrayToOperationalCertificate(operationalCertificateToByteArray(operationalCertificate)),
       operationalCertificate,
@@ -73,34 +71,29 @@ class GenusGraphMetadataTest extends munit.FunSuite {
     )
   }
 
-  test("StakingAddress Operator Serialization") {
-    assertEquals(
-      byteArrayToStakingAddressOperator(stakingAddressOperatorToByteArray(stakingAddressOperator)),
-      stakingAddressOperator,
-      "Round trip serialization of StakingAddress operator"
-    )
-  }
-
   test("BlockBody round-trip Serialization") {
-    val blockBody = (0 to 3).foldLeft(ListSet.empty[TypedIdentifier]) { case (transactions, _) =>
+    val transactions = (0 to 3).foldLeft(Seq.empty[IoTransaction32]) { case (transactions, _) =>
       val byteArray = Random.nextBytes(evidenceLength.value)
-      val transactionId = TypedBytes(IdentifierTypes.Block.BodyV2, Bytes(byteArray))
-      transactions + transactionId
+      val transactionId =
+        IoTransaction32.of(Some(Evidence.Sized32.of(Some(Digest32.of(ByteString.copyFrom(byteArray))))))
+
+      transactions :+ transactionId
     }
+    val blockBody = BlockBody.of(transactions)
 
     assertEquals(
-      byteArrayToBlockBody(blockBodyToByteArray(blockBody)).toSeq,
-      blockBody.toSeq,
+      byteArrayToBlockBody(blockBodyToByteArray(blockBody)),
+      blockBody,
       "Round trip serialization of BlockBody"
     )
   }
 
   test("Transaction round-trip serialization") {
     // noinspection ScalaStyle
-    val transaction = Transaction(
+    val transaction = legacyModels.Transaction(
       inputs = Chain.empty,
       outputs = Chain.empty,
-      schedule = Transaction.Schedule(0L, 100L, 1000L),
+      schedule = legacyModels.Transaction.Schedule(0L, 100L, 1000L),
       data = None
     )
     assertEquals(

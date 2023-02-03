@@ -14,7 +14,7 @@ import co.topl.minting.algebras._
 import co.topl.minting.models.VrfHit
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.Sized
+import co.topl.models.utility.{ReplaceModelUtil, Sized}
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
@@ -89,7 +89,8 @@ object Staking {
             unsignedBlock.unsignedHeader.metadata,
             unsignedBlock.unsignedHeader.address
           )
-          block = Block(header, unsignedBlock.body)
+          // TODO use new models instead of Replace Model util
+          block = Block(ReplaceModelUtil.consensusHeader(header), ReplaceModelUtil.nodeBlock(unsignedBlock.body))
         } yield block
       }.value
   }

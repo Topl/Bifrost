@@ -1,11 +1,14 @@
 package co.topl.genusLibrary.orientDb {
 
+  import cats.implicits.catsSyntaxOptionId
   import co.topl.codecs.bytes.tetra.{TetraIdentifiableInstances, TetraScodecCodecs}
+  import co.topl.consensus.models.{BlockHeader, BlockId, EligibilityCertificate, OperationalCertificate}
   import co.topl.genusLibrary.utils.BlockUtils
   import co.topl.genusLibrary.{GenusException, Txo, TxoState}
   import co.topl.models._
-  import co.topl.models.utility.Length
-  import co.topl.models.utility.Lengths._
+  import co.topl.models.utility._
+  import co.topl.node.models.BlockBody
+  import com.google.protobuf.ByteString
   import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
   import com.tinkerpop.blueprints.impls.orient.{OrientEdgeType, OrientGraphNoTx, OrientVertexType}
   import scodec.Codec
@@ -116,45 +119,49 @@ package co.topl.genusLibrary.orientDb {
             b => getBlockId(b),
             _.setNotNull(true)
           )(byteArrayOrientDbTypes)
-          .withProperty("parentHeaderId", p => typedBytesToByteArray(p.parentHeaderId), _.setNotNull(true))(
+          .withProperty(
+            "parentHeaderId",
+            p => typedBytesToByteArray(p.parentHeaderId.get),
+            _.setNotNull(true)
+          )(
             byteArrayOrientDbTypes
           )
           .withProperty("parentSlot", l => java.lang.Long.valueOf(l.parentSlot), _.setMandatory(false))(
             longOrientDbTyped
           )
-          .withProperty("txRoot", _.txRoot.data.toArray, _.setMandatory(false))(byteArrayOrientDbTypes)
-          .withProperty("bloomFilter", _.bloomFilter.data.toArray, _.setMandatory(false))(byteArrayOrientDbTypes)
+          .withProperty("txRoot", _.txRoot.toByteArray, _.setMandatory(false))(byteArrayOrientDbTypes)
+          .withProperty("bloomFilter", _.bloomFilter.toByteArray, _.setMandatory(false))(byteArrayOrientDbTypes)
           .withProperty("timestamp", ts => java.lang.Long.valueOf(ts.timestamp), _.setNotNull(true))(longOrientDbTyped)
           .withProperty("height", ht => java.lang.Long.valueOf(ht.height), _.setNotNull(true))(longOrientDbTyped)
           .withProperty("slot", s => java.lang.Long.valueOf(s.slot), _.setNotNull(true))(longOrientDbTyped)
           .withProperty(
             "eligibilityCertificate",
-            e => eligibilityCertificateToByteArray(e.eligibilityCertificate),
+            e => e.eligibilityCertificate.map(eligibilityCertificateToByteArray).getOrElse(Array.empty[Byte]),
             _.setNotNull(true)
           )(byteArrayOrientDbTypes)
           .withProperty(
             "operationalCertificate",
-            o => operationalCertificateToByteArray(o.operationalCertificate),
+            o => o.operationalCertificate.map(operationalCertificateToByteArray).getOrElse(Array.empty[Byte]),
             _.setNotNull(true)
           )(byteArrayOrientDbTypes)
-          .withProperty("metadata", _.metadata.map(_.data.bytes).orNull, _.setNotNull(false))(byteArrayOrientDbTypes)
-          .withProperty("StakingAddress", s => stakingAddressOperatorToByteArray(s.address), _.setNotNull(true))(
+          .withProperty("metadata", _.metadata.toByteArray, _.setNotNull(false))(byteArrayOrientDbTypes)
+          .withProperty("StakingAddress", _.address.toByteArray, _.setNotNull(true))(
             byteArrayOrientDbTypes
           )
           .withIndex("blockHeaderIndex", INDEX_TYPE.UNIQUE, "blockId"),
         v =>
           BlockHeader(
-            byteArrayToTypedBytes(v("parentHeaderId")),
+            BlockId(ByteString.copyFrom(v("parentHeaderId"): Array[Byte])).some,
             v("parentSlot"),
             v("txRoot"),
             v("bloomFilter"),
             v("timestamp"),
             v("height"),
             v("slot"),
-            byteArrayToEligibilityCertificate(v("eligibilityCertificate")),
-            byteArrayToOperationalCertificate(v("operationalCertificate")),
+            byteArrayToEligibilityCertificate(v("eligibilityCertificate")).some,
+            byteArrayToOperationalCertificate(v("operationalCertificate")).some,
             v("metadata"),
-            byteArrayToStakingAddressOperator(v("StakingAddress"))
+            v("StakingAddress")
           )
       )
 
@@ -231,8 +238,7 @@ package co.topl.genusLibrary.orientDb {
     def byteArrayToTransaction(a: Array[Byte]): Transaction =
       decodeFromByteArray(a, TetraScodecCodecs.transactionCodec, "Transaction")
 
-    def byteArrayToBlockBody(a: Array[Byte]): BlockBody =
-      decodeFromByteArray(a, TetraScodecCodecs.blockBodyCodec, "BlockBody")
+    def byteArrayToBlockBody(a: Array[Byte]): BlockBody = BlockBody.parseFrom(a)
 
     def typedBytesToByteArray(t: TypedIdentifier): Array[Byte] =
       typedBytesTupleToByteArray((t.typePrefix, t.dataBytes.toArray))
@@ -253,25 +259,22 @@ package co.topl.genusLibrary.orientDb {
         .require
         .value
 
-    val evidenceLength: Length = implicitly[Evidence.Length]
-
+    // TODO discuss implementation about decoder and encoder
     // No need for a byteArrayToBlockHeaderId because it is computed rather than stored.
-    def eligibilityCertificateToByteArray(eligibilityCertificate: EligibilityCertificate): Array[Byte] =
-      encodeToByteArray(eligibilityCertificate, TetraScodecCodecs.eligibilityCertificateCodec, "EligibilityCertificate")
+    def eligibilityCertificateToByteArray(
+      eligibilityCertificate: EligibilityCertificate
+    ): Array[Byte] =
+      eligibilityCertificate.toByteArray
 
     def byteArrayToEligibilityCertificate(a: Array[Byte]): EligibilityCertificate =
-      decodeFromByteArray(a, TetraScodecCodecs.eligibilityCertificateCodec, "EligibilityCertificate")
+      EligibilityCertificate.parseFrom(a)
 
-    def operationalCertificateToByteArray(operationalCertificate: OperationalCertificate): Array[Byte] =
-      encodeToByteArray(operationalCertificate, TetraScodecCodecs.operationalCertificateCodec, "OperationalCertificate")
+    def operationalCertificateToByteArray(
+      operationalCertificate: OperationalCertificate
+    ): Array[Byte] =
+      operationalCertificate.toByteArray
 
     def byteArrayToOperationalCertificate(a: Array[Byte]): OperationalCertificate =
-      decodeFromByteArray(a, TetraScodecCodecs.operationalCertificateCodec, "OperationalCertificate")
-
-    def stakingAddressOperatorToByteArray(operator: StakingAddresses.Operator): Array[Byte] =
-      encodeToByteArray(operator, TetraScodecCodecs.stakingAddressesOperatorCodec, "Operator")
-
-    def byteArrayToStakingAddressOperator(a: Array[Byte]): StakingAddresses.Operator =
-      decodeFromByteArray(a, TetraScodecCodecs.stakingAddressesOperatorCodec, "Operator")
+      OperationalCertificate.parseFrom(a)
   }
 }

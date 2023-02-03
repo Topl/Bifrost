@@ -1,6 +1,6 @@
 package co.topl.transactiongenerator.interpreters
 
-import cats.data.Chain
+import cats.data.{Chain, EitherT}
 import cats.effect._
 import cats.effect.std.{Queue, Random}
 import cats.implicits._
@@ -81,7 +81,11 @@ object Fs2TransactionGenerator {
         case HeightLockOneProposition => Proofs.Contextual.HeightLock()
         case p                        => throw new MatchError(p)
       }
-      updatedWallet = applyTransaction(wallet)(transaction)
+      // TODO Wallet spendingAddress model should change to new protobuf specs and not use Isomorphism
+      protoTransaction <-
+        EitherT(co.topl.models.utility.transactionIsomorphism[F].abMorphism.aToB(transaction.pure[F]))
+          .getOrRaise(new RuntimeException("transactionIsomorphism"))
+      updatedWallet = applyTransaction(wallet)(protoTransaction)
     } yield (transaction, updatedWallet)
 
   /**

@@ -1,19 +1,22 @@
 package co.topl.grpc
 
-import cats.{Eval, MonadThrow, Now}
 import cats.data.{EitherT, OptionT}
 import cats.effect.kernel.{Async, Resource}
 import cats.implicits._
+import cats.{Eval, MonadThrow, Now}
 import co.topl.algebras.{SynchronizationTraversalStep, SynchronizationTraversalSteps, ToplRpc}
-import co.topl.proto.services._
+import co.topl.brambl.models.Identifier.IoTransaction32
+import co.topl.consensus.models._
 import co.topl.models.TypedIdentifier
-import co.topl.{models => bifrostModels}
-import fs2.grpc.syntax.all._
+import co.topl.models.utility._
+import co.topl.node.models.BlockBody
+import co.topl.node.services._
+import co.topl.proto.models.Transaction
 import fs2.{Pipe, Stream}
+import fs2.grpc.syntax.all._
 import io.grpc.netty.shaded.io.grpc.netty.{NettyChannelBuilder, NettyServerBuilder}
 import io.grpc.{Metadata, Server, Status}
 import java.net.InetSocketAddress
-import co.topl.proto.models
 
 object ToplGrpc {
 
@@ -42,19 +45,15 @@ object ToplGrpc {
         .map(client =>
           new ToplRpc[F, Stream[F, *]] {
 
-            def broadcastTransaction(transaction: bifrostModels.Transaction): F[Unit] =
-              EitherT(transaction.toF[F, models.Transaction])
-                .leftMap(new IllegalArgumentException(_))
-                .rethrowT
-                .flatMap(protoTransaction =>
-                  client.broadcastTransaction(
-                    BroadcastTransactionReq(protoTransaction.some),
-                    new Metadata()
-                  )
+            def broadcastTransaction(transaction: co.topl.proto.models.Transaction): F[Unit] =
+              client
+                .broadcastTransaction(
+                  BroadcastTransactionReq(transaction.some),
+                  new Metadata()
                 )
                 .void
 
-            def currentMempool(): F[Set[bifrostModels.TypedIdentifier]] =
+            def currentMempool(): F[Set[TypedIdentifier]] =
               client
                 .currentMempool(
                   CurrentMempoolReq(),
@@ -63,7 +62,7 @@ object ToplGrpc {
                 .flatMap(p =>
                   EitherT(
                     p.transactionIds.toList
-                      .traverse(_.toF[F, bifrostModels.TypedIdentifier])
+                      .traverse(_.toF[F, TypedIdentifier])
                       .map(_.sequence)
                   )
                     .map(_.toSet)
@@ -71,9 +70,11 @@ object ToplGrpc {
                     .rethrowT
                 )
 
-            def fetchBlockHeader(blockId: bifrostModels.TypedIdentifier): F[Option[bifrostModels.BlockHeader]] =
+            def fetchBlockHeader(
+              blockId: TypedIdentifier
+            ): F[Option[BlockHeader]] =
               OptionT(
-                EitherT(blockId.toF[F, models.BlockId])
+                EitherT(blockId.toF[F, BlockId])
                   .leftMap(new IllegalArgumentException(_))
                   .rethrowT
                   .flatMap(blockId =>
@@ -83,17 +84,11 @@ object ToplGrpc {
                     )
                   )
                   .map(_.header)
-              )
-                .semiflatMap(protoHeader =>
-                  EitherT(protoHeader.toF[F, bifrostModels.BlockHeader])
-                    .leftMap(new IllegalArgumentException(_))
-                    .rethrowT
-                )
-                .value
+              ).value
 
-            def fetchBlockBody(blockId: bifrostModels.TypedIdentifier): F[Option[bifrostModels.BlockBody]] =
+            def fetchBlockBody(blockId: TypedIdentifier): F[Option[BlockBody]] =
               OptionT(
-                EitherT(blockId.toF[F, models.BlockId])
+                EitherT(blockId.toF[F, BlockId])
                   .leftMap(new IllegalArgumentException(_))
                   .rethrowT
                   .flatMap(blockId =>
@@ -103,56 +98,32 @@ object ToplGrpc {
                     )
                   )
                   .map(_.body)
-              )
-                .semiflatMap(protoBody =>
-                  EitherT(protoBody.toF[F, bifrostModels.BlockBody])
-                    .leftMap(new IllegalArgumentException(_))
-                    .rethrowT
-                )
-                .value
+              ).value
 
-            def fetchTransaction(transactionId: bifrostModels.TypedIdentifier): F[Option[bifrostModels.Transaction]] =
-              OptionT(
-                EitherT(transactionId.toF[F, models.TransactionId])
-                  .leftMap(new IllegalArgumentException(_))
-                  .rethrowT
-                  .flatMap(transactionId =>
-                    client.fetchTransaction(
-                      FetchTransactionReq(transactionId.some),
-                      new Metadata()
-                    )
-                  )
-                  .map(_.transaction)
-              )
-                .semiflatMap(protoTransaction =>
-                  EitherT(protoTransaction.toF[F, bifrostModels.Transaction])
-                    .leftMap(new IllegalArgumentException(_))
-                    .rethrowT
+            def fetchTransaction(
+              transactionId: TypedIdentifier
+            ): F[Option[Transaction]] =
+              EitherT(transactionId.toF[F, IoTransaction32])
+                .leftMap(new IllegalArgumentException(_))
+                .rethrowT
+                .flatMap(transactionId =>
+                  client.fetchTransaction(FetchTransactionReq(transactionId.some), new Metadata())
                 )
-                .value
+                .map(_.transaction)
 
             def blockIdAtHeight(height: Long): F[Option[TypedIdentifier]] =
               OptionT(
                 client
-                  .fetchBlockIdAtHeight(
-                    FetchBlockIdAtHeightReq(height),
-                    new Metadata()
-                  )
+                  .fetchBlockIdAtHeight(FetchBlockIdAtHeightReq(height), new Metadata())
                   .map(_.blockId)
-              )
-                .semiflatMap(_.toF[F, bifrostModels.TypedIdentifier])
-                .semiflatMap(EitherT.fromEither[F](_).leftMap(new IllegalArgumentException(_)).rethrowT)
-                .value
+              ).map(t => t: TypedIdentifier).value
 
             def blockIdAtDepth(depth: Long): F[Option[TypedIdentifier]] =
               OptionT(
                 client
                   .fetchBlockIdAtDepth(FetchBlockIdAtDepthReq(depth), new Metadata())
                   .map(_.blockId)
-              )
-                .semiflatMap(_.toF[F, bifrostModels.TypedIdentifier])
-                .semiflatMap(EitherT.fromEither[F](_).leftMap(new IllegalArgumentException(_)).rethrowT)
-                .value
+              ).map(t => t: TypedIdentifier).value
 
             def synchronizationTraversal(): F[Stream[F, SynchronizationTraversalStep]] =
               Async[F].delay {
@@ -166,7 +137,7 @@ object ToplGrpc {
 
                       case SynchronizationTraversalRes.Status.Empty =>
                         EitherT
-                          .fromOptionF(Option.empty[bifrostModels.TypedIdentifier].pure[F], "empty")
+                          .fromOptionF(Option.empty[TypedIdentifier].pure[F], "empty")
                           .leftMap(new IllegalArgumentException(_))
                           .rethrowT
                           // This Applied is not reachable
@@ -174,7 +145,7 @@ object ToplGrpc {
 
                       case SynchronizationTraversalRes.Status.Applied(value) =>
                         value
-                          .toF[F, bifrostModels.TypedIdentifier]
+                          .toF[F, TypedIdentifier](implicitly, blockIdHeaderIsomorphism[F].baMorphism)
                           .flatMap(
                             EitherT
                               .fromEither[F](_)
@@ -185,7 +156,7 @@ object ToplGrpc {
 
                       case SynchronizationTraversalRes.Status.Unapplied(value) =>
                         value
-                          .toF[F, bifrostModels.TypedIdentifier]
+                          .toF[F, TypedIdentifier](implicitly, blockIdHeaderIsomorphism[F].baMorphism)
                           .flatMap(
                             EitherT
                               .fromEither[F](_)
@@ -223,22 +194,17 @@ object ToplGrpc {
             .evalMap(server => Async[F].delay(server.start()))
         )
 
-    private[grpc] class GrpcServerImpl[F[_]: MonadThrow, S[_]](interpreter: ToplRpc[F, Stream[F, *]])
+    private[grpc] class GrpcServerImpl[F[_]: MonadThrow](interpreter: ToplRpc[F, Stream[F, *]])
         extends NodeRpcFs2Grpc[F, Metadata] {
 
       def broadcastTransaction(in: BroadcastTransactionReq, ctx: Metadata): F[BroadcastTransactionRes] =
         in.transaction
           .toRight("Missing transaction")
           .toEitherT[F]
-          .flatMapF(_.toF[F, bifrostModels.Transaction])
-          .leftMap(err =>
-            Status.INVALID_ARGUMENT
-              .withDescription(s"Invalid Transaction bytes. reason=$err")
-              .asException()
-          )
-          .rethrowT
-          .flatMap(interpreter.broadcastTransaction)
+          .semiflatMap(interpreter.broadcastTransaction)
+          .leftMap(new IllegalArgumentException(_))
           .as(BroadcastTransactionRes())
+          .rethrowT
           .adaptErrorsToGrpc
 
       def currentMempool(in: CurrentMempoolReq, ctx: Metadata): F[CurrentMempoolRes] =
@@ -246,7 +212,7 @@ object ToplGrpc {
           .currentMempool()
           .flatMap(ids =>
             EitherT(
-              ids.toList.traverse(_.toF[F, models.TransactionId]).map(_.sequence)
+              ids.toList.traverse(_.toF[F, IoTransaction32]).map(_.sequence)
             )
               .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
               .rethrowT
@@ -256,94 +222,82 @@ object ToplGrpc {
 
       def fetchBlockHeader(in: FetchBlockHeaderReq, ctx: Metadata): F[FetchBlockHeaderRes] =
         in.blockId
-          .toRight("Missing blockId")
+          .toRight("Missing Block ID")
           .toEitherT[F]
-          .flatMapF(_.toF[F, bifrostModels.TypedIdentifier])
+          .flatMapF(_.toF[F, TypedIdentifier])
           .leftMap(_ => Status.INVALID_ARGUMENT.withDescription("Invalid Block ID").asException())
           .rethrowT
           .flatMap(id =>
-            OptionT(interpreter.fetchBlockHeader(id))
-              .semiflatMap(header =>
-                EitherT(header.toF[F, models.BlockHeader])
-                  .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
-                  .rethrowT
-              )
-              .value
+            interpreter
+              .fetchBlockHeader(id)
               .map(FetchBlockHeaderRes(_))
           )
           .adaptErrorsToGrpc
 
       def fetchBlockBody(in: FetchBlockBodyReq, ctx: Metadata): F[FetchBlockBodyRes] =
         in.blockId
-          .toRight("Missing blockId")
+          .toRight("Missing Block ID")
           .toEitherT[F]
-          .flatMapF(_.toF[F, bifrostModels.TypedIdentifier])
+          .flatMapF(_.toF[F, TypedIdentifier])
           .leftMap(_ => Status.INVALID_ARGUMENT.withDescription("Invalid Block ID").asException())
           .rethrowT
           .flatMap(id =>
-            OptionT(interpreter.fetchBlockBody(id))
-              .semiflatMap(body =>
-                EitherT(body.toF[F, models.BlockBody])
-                  .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
-                  .rethrowT
-              )
-              .value
+            OptionT(interpreter.fetchBlockBody(id)).value
               .map(FetchBlockBodyRes(_))
           )
           .adaptErrorsToGrpc
 
+      /**
+       * TODO: Replace with Brambl's IoTransaction
+       * @see  https://github.com/Topl/protobuf-specs/blob/main/node/services/bifrost_rpc.proto#L89
+       * @param in
+       * @param ctx
+       * @return
+       */
       def fetchTransaction(in: FetchTransactionReq, ctx: Metadata): F[FetchTransactionRes] =
         in.transactionId
           .toRight("Missing transactionId")
           .toEitherT[F]
-          .flatMapF(_.toF[F, bifrostModels.TypedIdentifier])
+          .flatMapF(_.toF[F, TypedIdentifier])
           .leftMap(e => Status.INVALID_ARGUMENT.withDescription(e).asException())
           .rethrowT
-          .flatMap(id =>
-            OptionT(interpreter.fetchTransaction(id))
-              .semiflatMap(transaction =>
-                EitherT(transaction.toF[F, models.Transaction])
-                  .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
-                  .rethrowT
-              )
-              .value
-              .map(FetchTransactionRes(_))
-          )
+          .flatMap(interpreter.fetchTransaction)
+          .map(FetchTransactionRes(_))
           .adaptErrorsToGrpc
 
       def fetchBlockIdAtHeight(in: FetchBlockIdAtHeightReq, ctx: Metadata): F[FetchBlockIdAtHeightRes] =
         OptionT(interpreter.blockIdAtHeight(in.height))
           .semiflatMap(id =>
-            EitherT(id.toF[F, models.BlockId])
+            EitherT(id.toF[F, BlockId])
               .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
               .rethrowT
           )
-          .value
-          .map(FetchBlockIdAtHeightRes(_))
+          .semiflatMap(blockId => FetchBlockIdAtHeightRes(blockId.some).pure[F])
+          .getOrRaise(Status.DATA_LOSS.withDescription("blockIdAtHeight not Found").asException())
           .adaptErrorsToGrpc
 
       def fetchBlockIdAtDepth(in: FetchBlockIdAtDepthReq, ctx: Metadata): F[FetchBlockIdAtDepthRes] =
         OptionT(interpreter.blockIdAtDepth(in.depth))
           .semiflatMap(id =>
-            EitherT(id.toF[F, models.BlockId])
+            EitherT(id.toF[F, BlockId])
               .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
               .rethrowT
           )
-          .value
-          .map(FetchBlockIdAtDepthRes(_))
+          .semiflatMap(blockId => FetchBlockIdAtDepthRes(blockId.some).pure[F])
+          .getOrRaise(Status.DATA_LOSS.withDescription("blockIdAtDepth not Found").asException())
           .adaptErrorsToGrpc
 
       private def pipeSteps: Pipe[F, SynchronizationTraversalStep, SynchronizationTraversalRes] = { in =>
         in.evalMap {
           case SynchronizationTraversalSteps.Applied(blockId) =>
-            EitherT(blockId.toF[F, models.BlockId])
+            EitherT(blockId.toF[F, BlockId])
               .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
               .rethrowT
               .map(SynchronizationTraversalRes.Status.Applied)
               .map(SynchronizationTraversalRes(_))
 
           case SynchronizationTraversalSteps.Unapplied(blockId) =>
-            EitherT(blockId.toF[F, models.BlockId])
+            EitherT(blockId.toF[F, BlockId])
               .leftMap(e => Status.DATA_LOSS.withDescription(e).asException())
               .rethrowT
               .map(SynchronizationTraversalRes.Status.Unapplied)
@@ -363,7 +317,6 @@ object ToplGrpc {
               .adaptErrorsToGrpc
           )
           .flatten
-
     }
   }
 }

@@ -7,7 +7,12 @@ import co.topl.ledger.algebras.MempoolAlgebra
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
 import co.topl.models.ModelGenerators._
-import co.topl.models._
+import co.topl.{models => legacyModels}
+import legacyModels._
+import co.topl.consensus.models.BlockHeader
+import co.topl.node.models.BlockBody
+import co.topl.models.generators.node.ModelGenerators.arbitraryNodeBody
+import co.topl.models.generators.consensus.ModelGenerators.arbitraryHeader
 import fs2._
 import fs2.concurrent.Topic
 import org.scalacheck.effect.PropF

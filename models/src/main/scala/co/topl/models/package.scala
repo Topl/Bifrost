@@ -5,11 +5,11 @@ import co.topl.models.utility.{Lengths, Sized}
 import io.estatico.newtype.macros.{newsubtype, newtype}
 import io.estatico.newtype.ops._
 import scodec.bits.ByteVector
-
 import scala.collection.immutable.ListSet
 import scala.language.implicitConversions
 
 package object models {
+
   type Bytes = ByteVector
   val Bytes: ByteVector.type = ByteVector
   type Eta = Sized.Strict[Bytes, Eta.Length]

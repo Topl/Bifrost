@@ -5,7 +5,11 @@ import cats.effect.Async
 import cats.effect.std.Random
 import cats.implicits._
 import co.topl.algebras.{SynchronizationTraversalStep, ToplRpc}
-import co.topl.models.{BlockBody, BlockHeader, Transaction, TypedIdentifier}
+import co.topl.{models => legacyModels}
+import legacyModels.TypedIdentifier
+import co.topl.consensus.models.BlockHeader
+import co.topl.node.models.BlockBody
+import co.topl.proto.models.Transaction
 import fs2.Stream
 
 object MultiToplRpc {

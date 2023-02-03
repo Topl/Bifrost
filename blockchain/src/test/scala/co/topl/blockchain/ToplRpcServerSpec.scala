@@ -4,10 +4,13 @@ import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.Store
 import co.topl.consensus.algebras.LocalChainAlgebra
+import co.topl.consensus.models.BlockHeader
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.{MempoolAlgebra, TransactionSyntaxValidationAlgebra}
 import co.topl.models.ModelGenerators._
-import co.topl.models.{BlockBody, BlockHeader, SlotData, Transaction, TypedIdentifier}
+import co.topl.node.models.BlockBody
+import co.topl.{models => legacyModels}
+import legacyModels.{SlotData, Transaction, TypedIdentifier}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory

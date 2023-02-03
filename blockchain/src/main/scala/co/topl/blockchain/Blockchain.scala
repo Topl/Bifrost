@@ -11,13 +11,16 @@ import co.topl.algebras.{ClockAlgebra, Store, UnsafeResource}
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.consensus.BlockHeaderOps
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LocalChainAlgebra}
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.grpc.ToplGrpc
 import co.topl.ledger.algebras._
 import co.topl.minting.algebras.StakingAlgebra
-import co.topl.models._
+import co.topl.{models => legacyModels}
+import co.topl.models.utility._
+import legacyModels._
+import co.topl.consensus.models.BlockHeader
+import co.topl.node.models.BlockBody
 import co.topl.networking.blockchain._
 import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, LocalPeer}
 import co.topl.typeclasses.implicits._
@@ -183,7 +186,7 @@ object Blockchain {
       _ <- Async[F].background(
         mintedBlockStream
           .evalMap(block =>
-            blockIdTree.associate(block.header.id, block.header.parentHeaderId) &>
+            blockIdTree.associate(block.header.id, block.header.parentHeaderId.get) &>
             headerStore.put(block.header.id, block.header) &>
             bodyStore.put(block.header.id, block.body) &>
             ed25519VrfResource

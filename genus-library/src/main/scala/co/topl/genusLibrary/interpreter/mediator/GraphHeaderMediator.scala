@@ -9,7 +9,8 @@ import co.topl.genusLibrary.model.BlockData
 import co.topl.genusLibrary.orientDb.GenusGraphMetadata._
 import co.topl.genusLibrary.orientDb.StoreFacade
 import co.topl.genusLibrary.utils.BlockUtils
-import co.topl.models.{BlockBody, BlockHeader}
+import co.topl.consensus.models.BlockHeader
+import co.topl.node.models.BlockBody
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scodec.bits.ByteVector

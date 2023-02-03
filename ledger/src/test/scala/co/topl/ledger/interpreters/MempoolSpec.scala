@@ -8,14 +8,16 @@ import co.topl.algebras.ClockAlgebra
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.eventtree.ParentChildTree
-import co.topl.models.ModelGenerators._
-import co.topl.models.{BlockBody, Slot, Transaction, TypedIdentifier}
+import co.topl.{models => legacyModels}
+import legacyModels.ModelGenerators._
+import legacyModels.utility.ReplaceModelUtil
+import legacyModels.{Slot, Transaction, TypedIdentifier}
+import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.{Gen, Test}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
-
 import scala.collection.immutable.ListSet
 import scala.concurrent.duration._
 
@@ -38,7 +40,18 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
         val bodiesMap = bodies.toList.toMap
         val transactions = bodies.flatMap(_._2).toList.map(t => t.id.asTypedBytes -> t).toMap.updated(newTx.id, newTx)
         val fetchBody =
-          (id: TypedIdentifier) => ListSet.from(bodiesMap(id).map(_.id: TypedIdentifier).toIterable).pure[F]
+          (id: TypedIdentifier) =>
+            BlockBody(
+              ListSet
+                .from(
+                  bodiesMap(id)
+                    .map(_.id: TypedIdentifier)
+                    .map(ReplaceModelUtil.ioTransaction32)
+                    .toIterable
+                )
+                .toSeq
+            )
+              .pure[F] // TODO removeModel Util
         val fetchTransaction = (id: TypedIdentifier) => transactions(id).pure[F]
         val clock = mock[ClockAlgebra[F]]
         (() => clock.globalSlot)
@@ -248,7 +261,8 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
               transactionBId -> transactionB
             )
 
-          val fetchBody = (id: TypedIdentifier) => bodies(id).pure[F]
+          val fetchBody =
+            (id: TypedIdentifier) => BlockBody(bodies(id).toSeq.map(ReplaceModelUtil.ioTransaction32)).pure[F]
           val fetchTransaction = (id: TypedIdentifier) => transactions(id).pure[F]
           val clock = mock[ClockAlgebra[F]]
           (() => clock.globalSlot)

@@ -1,7 +1,9 @@
 package co.topl.consensus.models
 
-import co.topl.models._
-import co.topl.models.utility.Ratio
+import co.topl.{models => legacyModels}
+import legacyModels.{Eta, Slot, StakingAddress, Timestamp, TypedIdentifier, VerificationKeys}
+import legacyModels.utility.Ratio
+import co.topl.consensus.models._
 
 sealed abstract class BlockHeaderValidationFailure
 
@@ -21,26 +23,31 @@ object BlockHeaderValidationFailures {
 
   case class InvalidVrfThreshold(threshold: Ratio) extends BlockHeaderValidationFailure
 
-  case class IneligibleCertificate(threshold: Ratio, eligibilityCertificate: EligibilityCertificate)
-      extends BlockHeaderValidationFailure
+  case object EmptyEligibilityCertificate extends BlockHeaderValidationFailure
+
+  case class IneligibleCertificate(
+    threshold:              Ratio,
+    eligibilityCertificate: EligibilityCertificate
+  ) extends BlockHeaderValidationFailure
 
   case class InvalidEligibilityCertificateEta(claimedEta: Eta, actualEta: Eta) extends BlockHeaderValidationFailure
 
-  case class InvalidEligibilityCertificateProof(proof: Proofs.Knowledge.VrfEd25519) extends BlockHeaderValidationFailure
+  case class InvalidEligibilityCertificateProof(proof: SignatureVrfEd25519) extends BlockHeaderValidationFailure
 
-  case class InvalidEligibilityCertificateNonceProof(proof: Proofs.Knowledge.VrfEd25519)
-      extends BlockHeaderValidationFailure
+  case class InvalidEligibilityCertificateNonceProof(proof: SignatureVrfEd25519) extends BlockHeaderValidationFailure
 
   case class InvalidOperationalParentSignature(operationalCertificate: OperationalCertificate)
       extends BlockHeaderValidationFailure
+
+  case object EmptyOperationalCertificate extends BlockHeaderValidationFailure
 
   case class InvalidBlockProof(operationalCertificate: OperationalCertificate) extends BlockHeaderValidationFailure
 
   case class Unregistered(address: StakingAddress) extends BlockHeaderValidationFailure
 
   case class RegistrationCommitmentMismatch(
-    vrfCommitment: Proofs.Knowledge.KesProduct,
-    vrfVK:         VerificationKeys.VrfEd25519,
+    vrfCommitment: SignatureKesProduct,
+    vrfVK:         VerificationKeyVrfEd25519,
     poolVK:        VerificationKeys.Ed25519
   ) extends BlockHeaderValidationFailure
 
