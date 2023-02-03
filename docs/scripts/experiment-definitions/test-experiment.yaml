@@ -1,0 +1,21 @@
+# an experiment file consists of several sections that describe different aspects of the experiment
+# every entry must be a list, to allow for parameter sweeps; if the data is itself a list, it must be enclosed
+# in another list, e.g. [[1, 2, 3]] instead of [1, 2, 3]
+
+# all entries in a list will be combined into a cartesian product, e.g. [1, 2] and [3, 4] will result in
+# [1, 3], [1, 4], [2, 3], [2, 4]
+
+# the first section describes the topology of the network
+"num_producers": [ 2 ]  # note that the number of producers is implicitly equal to the number of stakers
+"num_relays": [ 0 ]
+"topology_type": [ "custom" ]  # one of ring, star, small world, erdos renyi, clique, or custom
+  # if topology_type is custom, you can specify the topology as a list of directed edge 5-tuples
+  # each tuple is [from, to, latency, download, upload], and you may specify -1 for any value to indicate "no limit"
+  # node label indices start at 0, and the first num_producers nodes are producers, and the next num_relays are relays
+"custom_edges": [ [ [0, 1, -1, -1, -1], [1, 0, -1, -1, -1] ] ]
+
+# the second section describes cluster-level settings
+"transaction_rate": [ 2.5 ]  # number of transactions to inject per second
+"slot_interval": [ 0.25 ]  # time between eligibility tests in seconds
+"maximum_time": [ 3600 ]  # the experiment should time out after this many seconds
+"maximum_depth": [ 30 ]  # the experiment should time out after this many blocks are adopted
