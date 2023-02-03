@@ -179,9 +179,9 @@ object BlockHeaderValidation {
               .use(kesProduct =>
                 kesProduct
                   .verify(
-                    operationalCertificate.parentSignature.get,
-                    (operationalCertificate.childVK.get.value: Bytes) ++ Bytes(Longs.toByteArray(header.slot)),
-                    operationalCertificate.parentVK.get
+                    operationalCertificate.parentSignature,
+                    (operationalCertificate.childVK.value: Bytes) ++ Bytes(Longs.toByteArray(header.slot)),
+                    operationalCertificate.parentVK
                   )
                   .pure[F]
               )
@@ -202,9 +202,9 @@ object BlockHeaderValidation {
                     // Use the ed25519 instance to verify the childSignature against the header's bytes
                     ed25519
                       .verify(
-                        operationalCertificate.childSignature.get.value,
+                        operationalCertificate.childSignature.value,
                         header.signableBytes,
-                        operationalCertificate.childVK.get.value
+                        operationalCertificate.childVK.value
                       )
                       .pure[F]
                   )
@@ -323,7 +323,7 @@ object BlockHeaderValidation {
                   )
                 isValid <- kesProductResource
                   .use(p =>
-                    p.verify(commitment, message, operationalCertificate.getParentVK.copy(step = 0)).pure[F]
+                    p.verify(commitment, message, operationalCertificate.parentVK.copy(step = 0)).pure[F]
                   ) // TODO get ParentVK could fail
               } yield Either.cond(
                 isValid,

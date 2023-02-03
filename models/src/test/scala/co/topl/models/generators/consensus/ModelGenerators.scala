@@ -1,6 +1,5 @@
 package co.topl.models.generators.consensus
 
-import cats.implicits.catsSyntaxOptionId
 import co.topl.consensus.models._
 import co.topl.models.generators.common.ModelGenerators._
 import co.topl.models.generators.crypto.ModelGenerators._
@@ -30,8 +29,8 @@ trait ModelGenerators {
         signature       <- signatureEd25519Gen
         witness         <- Gen.nonEmptyContainerOf[Seq, Sized.Strict[ByteString, Lengths.`32`.type]](witnessGen)
       } yield SignatureKesSum.of(
-        verificationKey.some,
-        signature.some,
+        verificationKey,
+        signature,
         witness.map(_.data)
       )
     )
@@ -43,8 +42,8 @@ trait ModelGenerators {
         subSignature   <- signatureKesSumArbitrary.arbitrary
         subRoot        <- genSizedStrictByteString[Lengths.`32`.type]()
       } yield SignatureKesProduct.of(
-        superSignature.some,
-        subSignature.some,
+        superSignature,
+        subSignature,
         subRoot.data
       )
     )
@@ -87,10 +86,10 @@ trait ModelGenerators {
         childVK         <- verificationKeyEd25519Gen
         childSignature  <- signatureEd25519Gen
       } yield OperationalCertificate.of(
-        parentVk.some,
-        parentSignature.some,
-        childVK.some,
-        childSignature.some
+        parentVk,
+        parentSignature,
+        childVK,
+        childSignature
       )
     )
 

@@ -1,7 +1,6 @@
 package co.topl.genusLibrary.orientDb
 
 import cats.data.Chain
-import cats.implicits.catsSyntaxOptionId
 import co.topl.brambl.models.Evidence
 import co.topl.brambl.models.Identifier.IoTransaction32
 import co.topl.crypto.hash.Blake2b256
@@ -19,6 +18,7 @@ class GenusGraphMetadataTest extends munit.FunSuite {
 
   private val evidenceLength: Length = implicitly[legacyModels.Evidence.Length]
   private val TypedBytesLength = 33
+  private val byteStringLength32 = ByteString.copyFrom(Array.fill(Lengths.`32`.value)(0: Byte))
 
   test("typedBytes Serialization") {
     val byteArray = Random.nextBytes(TypedBytesLength)
@@ -32,7 +32,7 @@ class GenusGraphMetadataTest extends munit.FunSuite {
   test("EligibilityCertificate Serialization") {
     val eligibilityCertificate = EligibilityCertificate(
       vrfSig = SignatureVrfEd25519.of(ByteString.copyFrom(Array.fill(Lengths.`80`.value)(0: Byte))),
-      vrfVK = VerificationKeyVrfEd25519.of(ByteString.copyFrom(Array.fill(Lengths.`32`.value)(0: Byte))),
+      vrfVK = VerificationKeyVrfEd25519.of(byteStringLength32),
       thresholdEvidence = ByteString.copyFrom(Array.fill[Byte](evidenceLength.value)(0)),
       eta = ByteString.copyFrom(new Blake2b256().hash(legacyModels.Bytes(Random.nextBytes(TypedBytesLength))).toArray)
     )
@@ -46,22 +46,22 @@ class GenusGraphMetadataTest extends munit.FunSuite {
 
   test("OperationalCertificate Serialization") {
     val operationalCertificate = OperationalCertificate(
-      VerificationKeyKesProduct.of(ByteString.EMPTY, step = 0).some,
+      VerificationKeyKesProduct.of(byteStringLength32, step = 0),
       SignatureKesProduct(
         SignatureKesSum(
-          VerificationKeyEd25519.of(ByteString.EMPTY).some,
-          SignatureEd25519(ByteString.EMPTY).some,
-          Seq.empty
-        ).some,
+          VerificationKeyEd25519.of(ByteString.EMPTY),
+          SignatureEd25519(ByteString.EMPTY),
+          witness = Seq.empty
+        ),
         SignatureKesSum(
-          VerificationKeyEd25519.of(ByteString.EMPTY).some,
-          SignatureEd25519.of(ByteString.EMPTY).some,
-          Seq.empty
-        ).some,
-        ByteString.EMPTY
-      ).some,
-      VerificationKeyEd25519.of(ByteString.EMPTY).some,
-      SignatureEd25519(ByteString.EMPTY).some
+          VerificationKeyEd25519.of(ByteString.EMPTY),
+          SignatureEd25519.of(ByteString.EMPTY),
+          witness = Seq.empty
+        ),
+        subRoot = byteStringLength32
+      ),
+      VerificationKeyEd25519.of(ByteString.EMPTY),
+      SignatureEd25519(ByteString.EMPTY)
     )
 
     assertEquals(

@@ -49,17 +49,13 @@ object ReplaceModelUtil {
     operationalCertificate: co.topl.models.OperationalCertificate
   ): co.topl.consensus.models.OperationalCertificate =
     co.topl.consensus.models.OperationalCertificate(
-      parentVK = Some(verificationKeyKesProduct(operationalCertificate.parentVK)),
-      parentSignature = Some(signatureKesProduct(operationalCertificate.parentSignature)),
-      childVK = Some(
-        co.topl.crypto.models.VerificationKeyEd25519(
-          value = ByteString.copyFrom(operationalCertificate.childVK.bytes.data.toArray)
-        )
+      parentVK = verificationKeyKesProduct(operationalCertificate.parentVK),
+      parentSignature = signatureKesProduct(operationalCertificate.parentSignature),
+      childVK = co.topl.crypto.models.VerificationKeyEd25519(
+        value = ByteString.copyFrom(operationalCertificate.childVK.bytes.data.toArray)
       ),
-      childSignature = Some(
-        co.topl.crypto.models.SignatureEd25519(
-          value = ByteString.copyFrom(operationalCertificate.childSignature.bytes.data.toArray)
-        )
+      childSignature = co.topl.crypto.models.SignatureEd25519(
+        value = ByteString.copyFrom(operationalCertificate.childSignature.bytes.data.toArray)
       )
     )
 
@@ -89,39 +85,27 @@ object ReplaceModelUtil {
     kesProduct: co.topl.models.Proofs.Knowledge.KesProduct
   ): co.topl.consensus.models.SignatureKesProduct =
     co.topl.consensus.models.SignatureKesProduct(
-      superSignature = Some(
-        co.topl.consensus.models.SignatureKesSum(
-          verificationKey = Some(
-            co.topl.crypto.models.VerificationKeyEd25519(
-              ByteString
-                .copyFrom(kesProduct.superSignature.verificationKey.bytes.data.toArray)
-            )
-          ),
-          signature = Some(
-            co.topl.crypto.models.SignatureEd25519(
-              ByteString
-                .copyFrom(kesProduct.superSignature.signature.bytes.data.toArray)
-            )
-          ),
-          witness = kesProduct.superSignature.witness.map(w => ByteString.copyFrom(w.data.toArray))
-        )
+      superSignature = co.topl.consensus.models.SignatureKesSum(
+        verificationKey = co.topl.crypto.models.VerificationKeyEd25519(
+          ByteString
+            .copyFrom(kesProduct.superSignature.verificationKey.bytes.data.toArray)
+        ),
+        signature = co.topl.crypto.models.SignatureEd25519(
+          ByteString
+            .copyFrom(kesProduct.superSignature.signature.bytes.data.toArray)
+        ),
+        witness = kesProduct.superSignature.witness.map(w => ByteString.copyFrom(w.data.toArray))
       ),
-      subSignature = Some(
-        co.topl.consensus.models.SignatureKesSum(
-          verificationKey = Some(
-            co.topl.crypto.models.VerificationKeyEd25519(
-              ByteString
-                .copyFrom(kesProduct.subSignature.verificationKey.bytes.data.toArray)
-            )
-          ),
-          signature = Some(
-            co.topl.crypto.models.SignatureEd25519(
-              ByteString
-                .copyFrom(kesProduct.subSignature.signature.bytes.data.toArray)
-            )
-          ),
-          witness = kesProduct.subSignature.witness.map(w => ByteString.copyFrom(w.data.toArray))
-        )
+      subSignature = co.topl.consensus.models.SignatureKesSum(
+        verificationKey = co.topl.crypto.models.VerificationKeyEd25519(
+          ByteString
+            .copyFrom(kesProduct.subSignature.verificationKey.bytes.data.toArray)
+        ),
+        signature = co.topl.crypto.models.SignatureEd25519(
+          ByteString
+            .copyFrom(kesProduct.subSignature.signature.bytes.data.toArray)
+        ),
+        witness = kesProduct.subSignature.witness.map(w => ByteString.copyFrom(w.data.toArray))
       ),
       subRoot = ByteString.copyFrom(kesProduct.subRoot.data.toArray)
     )
