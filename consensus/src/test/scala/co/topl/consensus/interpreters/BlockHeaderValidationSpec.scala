@@ -787,12 +787,11 @@ class BlockHeaderValidationSpec
 
       val operationalCertificate =
         co.topl.consensus.models.OperationalCertificate(
-          unsigned.partialOperationalCertificate.parentVK.some,
-          unsigned.partialOperationalCertificate.parentSignature.some,
-          unsigned.partialOperationalCertificate.childVK.some,
+          unsigned.partialOperationalCertificate.parentVK,
+          unsigned.partialOperationalCertificate.parentSignature,
+          unsigned.partialOperationalCertificate.childVK,
           SignatureEd25519
             .of(ByteString.copyFrom(ed25519.sign(linearSK.bytes.data, unsigned.signableBytes).toArray))
-            .some
         )
 
       val child =

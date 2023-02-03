@@ -604,8 +604,8 @@ trait TetraScodecProofCodecs {
 
   implicit val consensusProofSignatureKesSumCodec: Codec[consensusModels.SignatureKesSum] =
     (
-      optionCodec(cryptoVkEd25519Codec) ::
-        optionCodec(consensusProofSignatureEd25519Codec) ::
+      cryptoVkEd25519Codec ::
+        consensusProofSignatureEd25519Codec ::
         seqCodec(protobufByteStringCodec) ::
         unknownFieldSetCodec
     ).as[consensusModels.SignatureKesSum]
@@ -624,8 +624,8 @@ trait TetraScodecProofCodecs {
 
   implicit val consensusProofSignatureKesProductCodec: Codec[consensusModels.SignatureKesProduct] =
     (
-      optionCodec(consensusProofSignatureKesSumCodec) ::
-        optionCodec(consensusProofSignatureKesSumCodec) ::
+      consensusProofSignatureKesSumCodec ::
+        consensusProofSignatureKesSumCodec ::
         protobufByteStringCodec ::
         unknownFieldSetCodec
     ).as[consensusModels.SignatureKesProduct]
@@ -840,10 +840,10 @@ trait TetraScodecBlockCodecs {
       .as[OperationalCertificate]
 
   implicit val consensusOperationalCertificateCodec: Codec[consensusModels.OperationalCertificate] =
-    (optionCodec(consensusVkKesProductCodec) ::
-      optionCodec(consensusProofSignatureKesProductCodec) ::
-      optionCodec(cryptoVkEd25519Codec) ::
-      optionCodec(consensusProofSignatureEd25519Codec) ::
+    (consensusVkKesProductCodec ::
+      consensusProofSignatureKesProductCodec ::
+      cryptoVkEd25519Codec ::
+      consensusProofSignatureEd25519Codec ::
       unknownFieldSetCodec).as[consensusModels.OperationalCertificate]
 
   implicit val partialOperationalCertificateCodec

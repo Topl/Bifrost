@@ -50,9 +50,9 @@ trait TetraSignableCodecs {
           t.slot,
           t.eligibilityCertificate.get,
           legacyModels.BlockHeader.UnsignedConsensus.PartialOperationalCertificate(
-            t.operationalCertificate.get.parentVK.get,
-            t.operationalCertificate.get.parentSignature.get,
-            t.operationalCertificate.get.childVK.get
+            t.operationalCertificate.get.parentVK,
+            t.operationalCertificate.get.parentSignature,
+            t.operationalCertificate.get.childVK
           ),
           t.metadata,
           t.address
