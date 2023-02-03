@@ -159,18 +159,16 @@ object NodeApp
           currentEventIdGetterSetters.canonicalHead.set
         )
       )
-      mempool <- Resource.eval(
-        Mempool.make[F](
-          currentEventIdGetterSetters.mempool.get(),
-          dataStores.bodies.getOrRaise,
-          dataStores.transactions.getOrRaise,
-          blockIdTree,
-          currentEventIdGetterSetters.mempool.set,
-          clock,
-          id => Logger[F].info(show"Expiring transaction id=$id"),
-          appConfig.bifrost.mempool.defaultExpirationSlots,
-          appConfig.bifrost.mempool.duplicateSpenderExpirationSlots
-        )
+      mempool <- Mempool.make[F](
+        currentEventIdGetterSetters.mempool.get(),
+        dataStores.bodies.getOrRaise,
+        dataStores.transactions.getOrRaise,
+        blockIdTree,
+        currentEventIdGetterSetters.mempool.set,
+        clock,
+        id => Logger[F].info(show"Expiring transaction id=$id"),
+        appConfig.bifrost.mempool.defaultExpirationSlots,
+        appConfig.bifrost.mempool.duplicateSpenderExpirationSlots
       )
       implicit0(networkRandom: Random) = new Random(new SecureRandom())
       staking <- privateBigBang.localStakerIndex
