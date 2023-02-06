@@ -3,6 +3,8 @@ on:
   release:
     types: [prereleased]
 jobs:
+  validate-helm:
+    uses: ./.github/workflows/_validate_helm.yml
   sbt-build:
     uses: ./.github/workflows/_sbt_build.yml
     with:
@@ -11,7 +13,7 @@ jobs:
     uses: ./.github/workflows/_docker_publish_official.yml
     needs: [sbt-build]
   build-artifact:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: checkout current branch (full)
         uses: actions/checkout@v2
@@ -22,7 +24,7 @@ jobs:
       - name: setup-scala
         uses: olafurpg/setup-scala@v10
 
-      - name: assemble fat JAR
+      - name: assemble full JAR
         run: sbt node/assembly
 
       - name: find JAR

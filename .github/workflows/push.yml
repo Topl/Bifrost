@@ -5,19 +5,8 @@ on:
     branches: [main, dev, release-*]
 
 jobs:
-  validate-helm:
-    uses: ./.github/workflows/_validate_helm.yml
-
-  sbt-build:
-    uses: ./.github/workflows/_sbt_build.yml
-    with:
-      preserve-cache-between-runs: true
-      run-checks: false
-
   publish-docker-images-unofficial:
     uses: ./.github/workflows/_docker_publish_unofficial.yml
-    needs: [sbt-build]
     with:
-      remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-dev"
-      registry-auth-location: "us-central1-docker.pkg.dev"
+      remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-${GITHUB_REF_NAME}"
     secrets: inherit
