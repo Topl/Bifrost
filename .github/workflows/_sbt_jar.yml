@@ -21,7 +21,7 @@ on:
 
 jobs:
   build:
-    name: Scala Build
+    name: Assemble JAR
     strategy:
       matrix:
         os: ${{fromJson(inputs.target-os)}}

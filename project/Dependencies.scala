@@ -110,10 +110,7 @@ object Dependencies {
 
   val monitoring: Seq[ModuleID] = Seq(
     "io.kamon" %% "kamon-core"      % kamonVersion,
-    "io.kamon" %% "kamon-cats-io-3" % kamonVersion,
-    "io.kamon" %% "kamon-bundle"    % kamonVersion % Runtime,
-    "io.kamon" %% "kamon-influxdb"  % kamonVersion % Runtime,
-    "io.kamon" %% "kamon-zipkin"    % kamonVersion % Runtime
+    "io.kamon" %% "kamon-cats-io-3" % kamonVersion
   )
 
   val graal: Seq[ModuleID] = Seq(
