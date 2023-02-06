@@ -196,7 +196,7 @@ class BlockHeaderValidationSpec
           .unsafeRunSync()
 
       underTest.validate(child, parent).unsafeRunSync().left.value shouldBe BlockHeaderValidationFailures
-        .ParentMismatch(child.parentHeaderId.get, parent.id)
+        .ParentMismatch(child.parentHeaderId, parent.id)
     }
   }
 
@@ -796,15 +796,15 @@ class BlockHeaderValidationSpec
 
       val child =
         BlockHeader(
-          parentHeaderId = unsigned.parentHeaderId.some,
+          parentHeaderId = unsigned.parentHeaderId,
           parentSlot = unsigned.parentSlot,
           txRoot = unsigned.txRoot,
           bloomFilter = unsigned.bloomFilter,
           timestamp = unsigned.timestamp,
           height = unsigned.height,
           slot = unsigned.slot,
-          eligibilityCertificate = unsigned.eligibilityCertificate.some,
-          operationalCertificate = operationalCertificate.some,
+          eligibilityCertificate = unsigned.eligibilityCertificate,
+          operationalCertificate = operationalCertificate,
           metadata = unsigned.metadata,
           address = unsigned.address
         )

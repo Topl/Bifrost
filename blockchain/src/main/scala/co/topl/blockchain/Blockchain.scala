@@ -186,7 +186,7 @@ object Blockchain {
       _ <- Async[F].background(
         mintedBlockStream
           .evalMap(block =>
-            blockIdTree.associate(block.header.id, block.header.parentHeaderId.get) &>
+            blockIdTree.associate(block.header.id, block.header.parentHeaderId) &>
             headerStore.put(block.header.id, block.header) &>
             bodyStore.put(block.header.id, block.body) &>
             ed25519VrfResource

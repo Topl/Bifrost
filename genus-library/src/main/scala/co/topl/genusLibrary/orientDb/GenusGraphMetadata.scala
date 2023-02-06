@@ -1,6 +1,5 @@
 package co.topl.genusLibrary.orientDb {
 
-  import cats.implicits.catsSyntaxOptionId
   import co.topl.codecs.bytes.tetra.{TetraIdentifiableInstances, TetraScodecCodecs}
   import co.topl.consensus.models.{BlockHeader, BlockId, EligibilityCertificate, OperationalCertificate}
   import co.topl.genusLibrary.utils.BlockUtils
@@ -121,7 +120,7 @@ package co.topl.genusLibrary.orientDb {
           )(byteArrayOrientDbTypes)
           .withProperty(
             "parentHeaderId",
-            p => typedBytesToByteArray(p.parentHeaderId.get),
+            p => typedBytesToByteArray(p.parentHeaderId),
             _.setNotNull(true)
           )(
             byteArrayOrientDbTypes
@@ -136,12 +135,12 @@ package co.topl.genusLibrary.orientDb {
           .withProperty("slot", s => java.lang.Long.valueOf(s.slot), _.setNotNull(true))(longOrientDbTyped)
           .withProperty(
             "eligibilityCertificate",
-            e => e.eligibilityCertificate.map(eligibilityCertificateToByteArray).getOrElse(Array.empty[Byte]),
+            e => eligibilityCertificateToByteArray(e.eligibilityCertificate),
             _.setNotNull(true)
           )(byteArrayOrientDbTypes)
           .withProperty(
             "operationalCertificate",
-            o => o.operationalCertificate.map(operationalCertificateToByteArray).getOrElse(Array.empty[Byte]),
+            o => operationalCertificateToByteArray(o.operationalCertificate),
             _.setNotNull(true)
           )(byteArrayOrientDbTypes)
           .withProperty("metadata", _.metadata.toByteArray, _.setNotNull(false))(byteArrayOrientDbTypes)
@@ -151,15 +150,15 @@ package co.topl.genusLibrary.orientDb {
           .withIndex("blockHeaderIndex", INDEX_TYPE.UNIQUE, "blockId"),
         v =>
           BlockHeader(
-            BlockId(ByteString.copyFrom(v("parentHeaderId"): Array[Byte])).some,
+            BlockId(ByteString.copyFrom(v("parentHeaderId"): Array[Byte])),
             v("parentSlot"),
             v("txRoot"),
             v("bloomFilter"),
             v("timestamp"),
             v("height"),
             v("slot"),
-            byteArrayToEligibilityCertificate(v("eligibilityCertificate")).some,
-            byteArrayToOperationalCertificate(v("operationalCertificate")).some,
+            byteArrayToEligibilityCertificate(v("eligibilityCertificate")),
+            byteArrayToOperationalCertificate(v("operationalCertificate")),
             v("metadata"),
             v("StakingAddress")
           )

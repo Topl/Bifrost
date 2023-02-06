@@ -880,15 +880,15 @@ trait TetraScodecBlockCodecs {
     ).as[consensusModels.BlockId]
 
   implicit val consensusBlockHeaderCodec: Codec[consensusModels.BlockHeader] = (
-    optionCodec(consensusBlockIdCodec) :: // parentHeaderId
+    consensusBlockIdCodec :: // parentHeaderId
       longCodec :: // parentSlot
       protobufByteStringCodec :: // txRoot
       protobufByteStringCodec :: // bloomFilter
       longCodec :: // timestamp
       longCodec :: // height
       longCodec :: // slot
-      optionCodec(consensusEligibilityCertificateCodec) ::
-      optionCodec(consensusOperationalCertificateCodec) ::
+      consensusEligibilityCertificateCodec ::
+      consensusOperationalCertificateCodec ::
       protobufByteStringCodec :: // metadata
       protobufByteStringCodec :: // address
       unknownFieldSetCodec

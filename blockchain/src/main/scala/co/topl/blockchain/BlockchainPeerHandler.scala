@@ -218,7 +218,7 @@ object BlockchainPeerHandler {
                 _ <- Logger[F].debug(show"Validating remote header id=$blockId")
                 _ <- EitherT(
                   headerStore
-                    .getOrRaise(header.parentHeaderId.get)
+                    .getOrRaise(header.parentHeaderId)
                     .flatMap(headerValidation.validate(header, _))
                 )
                   .leftSemiflatTap(error =>
@@ -295,7 +295,7 @@ object BlockchainPeerHandler {
                       _ <- EitherT(bodySyntaxValidation.validate(block.body).map(_.toEither.leftMap(_.show)))
                       _ <- EitherT.liftF(Logger[F].debug(show"Validating semantics of body id=$blockId"))
                       validationContext = StaticBodyValidationContext(
-                        block.header.parentHeaderId.get,
+                        block.header.parentHeaderId,
                         block.header.height,
                         block.header.slot
                       )
@@ -305,7 +305,7 @@ object BlockchainPeerHandler {
                       _ <- EitherT.liftF(Logger[F].debug(show"Validating authorization of body id=$blockId"))
                       _ <- EitherT(
                         bodyAuthorizationValidation
-                          .validate(block.header.parentHeaderId.get)(block.body)
+                          .validate(block.header.parentHeaderId)(block.body)
                           .map(_.toEither.leftMap(_.show))
                       )
                     } yield ()

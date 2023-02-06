@@ -28,10 +28,8 @@ object ReplaceModelUtil {
 
   def consensusHeader(header: co.topl.models.BlockHeader): co.topl.consensus.models.BlockHeader =
     co.topl.consensus.models.BlockHeader(
-      parentHeaderId = Some(
-        co.topl.consensus.models.BlockId(
-          ByteString.copyFrom(header.parentHeaderId.dataBytes.toArray)
-        )
+      parentHeaderId = co.topl.consensus.models.BlockId(
+        ByteString.copyFrom(header.parentHeaderId.dataBytes.toArray)
       ),
       parentSlot = header.parentSlot,
       txRoot = ByteString.copyFrom(header.txRoot.data.toArray),
@@ -39,8 +37,8 @@ object ReplaceModelUtil {
       timestamp = header.timestamp,
       height = header.height,
       slot = header.slot,
-      eligibilityCertificate = Some(ReplaceModelUtil.eligibilityCertificate(header.eligibilityCertificate)),
-      operationalCertificate = Some(ReplaceModelUtil.operationalCertificate(header.operationalCertificate)),
+      eligibilityCertificate = ReplaceModelUtil.eligibilityCertificate(header.eligibilityCertificate),
+      operationalCertificate = ReplaceModelUtil.operationalCertificate(header.operationalCertificate),
       metadata = ByteString.copyFrom(header.metadata.map(_.data.bytes).getOrElse(Array.empty)),
       address = ByteString.copyFrom(header.address.vk.bytes.data.toArray)
     )
