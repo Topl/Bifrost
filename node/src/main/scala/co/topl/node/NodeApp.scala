@@ -5,7 +5,6 @@ import akka.actor.typed.scaladsl.Behaviors
 import cats.Applicative
 import cats.effect.{IO, Resource}
 import cats.implicits._
-import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras._
 import co.topl.blockchain._
 import co.topl.catsakka._
@@ -264,9 +263,8 @@ object NodeApp
             vrfConfig,
             leaderElectionThreshold
           )
-          currentSlot  <- clock.globalSlot.map(_.max(0L))
-          currentEpoch <- clock.epochOf(currentSlot)
-          _            <- vrfCalculator.precomputeForEpoch(currentEpoch, currentHead.eta)
+          currentSlot <- clock.globalSlot.map(_.max(0L))
+
           operationalKeys <- OperationalKeyMaker.make[F](
             initialSlot = currentSlot,
             currentHead.slotId,
@@ -287,8 +285,7 @@ object NodeApp
             consensusValidationState,
             etaCalculation,
             ed25519Resource,
-            vrfCalculator,
-            clock
+            vrfCalculator
           )
         } yield staking
       )

@@ -1,11 +1,9 @@
 package co.topl.minting.interpreters
 
-import cats.Applicative
 import cats.data.OptionT
 import cats.effect.Sync
 import cats.implicits._
-import co.topl.algebras.ClockAlgebra.implicits.ClockOps
-import co.topl.algebras.{ClockAlgebra, UnsafeResource}
+import co.topl.algebras.UnsafeResource
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras.{ConsensusValidationStateAlgebra, EtaCalculationAlgebra}
@@ -27,20 +25,14 @@ object Staking {
     consensusState:      ConsensusValidationStateAlgebra[F],
     etaCalculation:      EtaCalculationAlgebra[F],
     ed25519Resource:     UnsafeResource[F, Ed25519],
-    vrfCalculator:       VrfCalculatorAlgebra[F],
-    clock:               ClockAlgebra[F]
+    vrfCalculator:       VrfCalculatorAlgebra[F]
   ): StakingAlgebra[F] = new StakingAlgebra[F] {
     implicit private val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromClass[F](Staking.getClass)
     val address: F[StakingAddresses.Operator] = a.pure[F]
 
     def elect(parentSlotId: SlotId, slot: Slot): F[Option[VrfHit]] =
       for {
-        epochOf    <- clock.epochOf(slot)
-        epochStart <- clock.isEpochStart(slot)
-        eta        <- etaCalculation.etaToBe(parentSlotId, slot)
-        _ <- Applicative[F].whenA(epochStart)(
-          vrfCalculator.precomputeForEpoch(epochOf, eta)
-        )
+        eta <- etaCalculation.etaToBe(parentSlotId, slot)
         maybeHit <- OptionT(consensusState.operatorRelativeStake(parentSlotId.blockId, slot)(a))
           .flatMapF(relativeStake => vrfCalculator.getHit(relativeStake, slot, slot - parentSlotId.slot, eta))
           .value
