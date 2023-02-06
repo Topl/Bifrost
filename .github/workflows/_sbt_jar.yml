@@ -76,8 +76,9 @@ jobs:
       - name: Upload JAR
         uses: actions/upload-artifact@v3
         with:
-          name: Node JAR (Java ${{ matrix.java }})
-          path: target/*.jar
+          name: jar
+          path: node/target/scala-2.13/*.jar
+          if-no-files-found: error
       
       - name: Cleanup before cache
         shell: bash

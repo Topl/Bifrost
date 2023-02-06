@@ -32,12 +32,13 @@ jobs:
     steps:
       - name: Download Artifacts
         uses: actions/download-artifact@v3
+        with:
+          name: jar
 
       - name: find JAR
-        run: echo "JAR=$(find . -maxdepth 1 -name "*.jar")" >> $GITHUB_ENV
+        run: echo "JAR=$(find ./jar -maxdepth 1 -name "*.jar")" >> $GITHUB_ENV
 
       - name: generate MD5 checksum
-        working-directory: ./node/target/scala-2.13
         run: md5sum ${{ env.JAR }} > "${{ env.JAR }}.md5"
 
       - name: create release
