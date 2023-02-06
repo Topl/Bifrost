@@ -65,9 +65,11 @@ object VrfCalculator {
 
     def rhoForSlot(slot: Slot, eta: Eta): F[Rho] =
       rhosCache.cachingF((eta.data, slot))(ttl = None)(
-        ed25519VRFResource.use(ed =>
-          proofForSlot(slot, eta).map(proof => Rho(Sized.strictUnsafe(ed.proofToHash(proof.bytes.data))))
-        )
+        for {
+          proof          <- proofForSlot(slot, eta)
+          proofHashBytes <- ed25519VRFResource.use(_.proofToHash(proof.bytes.data).pure[F])
+          rho = Rho(Sized.strictUnsafe(proofHashBytes))
+        } yield rho
       )
 
     private def compute(
