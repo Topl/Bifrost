@@ -181,7 +181,7 @@ object Dependencies {
   val fs2ReactiveStreams = "co.fs2"        %% "fs2-reactive-streams" % fs2Version
   val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.1"
   val circeYaml = "io.circe"               %% "circe-yaml"           % "0.14.1"
-  val kubernetes = "io.kubernetes"          % "client-java"          % "16.0.1"
+  val kubernetes = "io.kubernetes"          % "client-java"          % "16.0.3"
 
   val bramblScCrypto =
     "com.github.Topl" % "BramblSc" % "v2.0.3"
