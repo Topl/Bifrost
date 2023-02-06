@@ -21,5 +21,4 @@ jobs:
 
   publish-test-results:
     uses: ./.github/workflows/_publish_test_results.yml
-    if: always()
     needs: [sbt-build, sbt-integration-tests]

@@ -5,12 +5,12 @@ on:
     inputs:
       target-os:
         description: 'List of operating systems to build on.'
-        default: 'ubuntu-latest'
+        default: "['ubuntu-latest']"
         required: false
         type: string
       java-versions:
         description: 'List of Java versions to target.'
-        default: '11'
+        default: "['11']"
         required: false
         type: string
       preserve-cache-between-runs:
