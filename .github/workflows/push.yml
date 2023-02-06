@@ -8,5 +8,9 @@ jobs:
   publish-docker-images-unofficial:
     uses: ./.github/workflows/_docker_publish_unofficial.yml
     with:
+      # Use the branch name to determine the "folder" in which the Docker images should be published.
+      # If this was a push to "main", the path would include `topl-artifacts-main`
+      # If this was a push to "dev", the path would include `topl-artifacts-dev`
+      # If this was a push to "release-2.0", the path would include `topl-artifacts-2.0`
       remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-${GITHUB_REF_NAME}"
     secrets: inherit
