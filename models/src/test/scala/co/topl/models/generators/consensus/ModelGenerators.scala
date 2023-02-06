@@ -122,15 +122,15 @@ trait ModelGenerators {
       metadata       <- metadataGen
       address        <- addressGen
     } yield BlockHeader(
-      Some(parentHeaderID),
+      parentHeaderID,
       parentSlot,
       txRoot,
       bloomFilter,
       timestamp,
       height,
       slot,
-      Some(vrfCertificate),
-      Some(kesCertificate),
+      vrfCertificate,
+      kesCertificate,
       metadata,
       address
     )

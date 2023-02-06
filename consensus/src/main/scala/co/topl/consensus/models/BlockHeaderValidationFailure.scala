@@ -23,8 +23,6 @@ object BlockHeaderValidationFailures {
 
   case class InvalidVrfThreshold(threshold: Ratio) extends BlockHeaderValidationFailure
 
-  case object EmptyEligibilityCertificate extends BlockHeaderValidationFailure
-
   case class IneligibleCertificate(
     threshold:              Ratio,
     eligibilityCertificate: EligibilityCertificate
@@ -38,8 +36,6 @@ object BlockHeaderValidationFailures {
 
   case class InvalidOperationalParentSignature(operationalCertificate: OperationalCertificate)
       extends BlockHeaderValidationFailure
-
-  case object EmptyOperationalCertificate extends BlockHeaderValidationFailure
 
   case class InvalidBlockProof(operationalCertificate: OperationalCertificate) extends BlockHeaderValidationFailure
 

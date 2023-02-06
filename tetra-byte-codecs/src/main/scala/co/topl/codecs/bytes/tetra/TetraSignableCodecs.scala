@@ -41,18 +41,18 @@ trait TetraSignableCodecs {
     t =>
       legacyModels.BlockHeader
         .UnsignedConsensus(
-          t.parentHeaderId.get,
+          t.parentHeaderId,
           t.parentSlot,
           t.txRoot,
           t.bloomFilter,
           t.timestamp,
           t.height,
           t.slot,
-          t.eligibilityCertificate.get,
+          t.eligibilityCertificate,
           legacyModels.BlockHeader.UnsignedConsensus.PartialOperationalCertificate(
-            t.operationalCertificate.get.parentVK,
-            t.operationalCertificate.get.parentSignature,
-            t.operationalCertificate.get.childVK
+            t.operationalCertificate.parentVK,
+            t.operationalCertificate.parentSignature,
+            t.operationalCertificate.childVK
           ),
           t.metadata,
           t.address

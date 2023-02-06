@@ -102,7 +102,7 @@ object GcpCsvDataPublisher {
   private def blockDatumToRow(datum: BlockDatum): List[String] =
     List(
       datum.header.id.asTypedBytes.show,
-      (datum.header.parentHeaderId.get: TypedIdentifier).show,
+      (datum.header.parentHeaderId: TypedIdentifier).show,
       datum.header.parentSlot.show,
       datum.header.timestamp.show,
       datum.header.height.show,
@@ -110,8 +110,8 @@ object GcpCsvDataPublisher {
       (datum.header.address: ByteVector).toBase58,
       (datum.header.txRoot: ByteVector).toBase58,
       (datum.header.bloomFilter: ByteVector).toBase58,
-      datum.header.eligibilityCertificate.map(_.immutableBytes).getOrElse(ByteVector.empty).toBase58,
-      datum.header.operationalCertificate.map(_.immutableBytes).getOrElse(ByteVector.empty).toBase58,
+      datum.header.eligibilityCertificate.immutableBytes.toBase58,
+      datum.header.operationalCertificate.immutableBytes.toBase58,
       datum.header.metadata.toString,
       datum.body.transactionIds.map(t => t: TypedIdentifier).map(_.show).mkString(";")
     )

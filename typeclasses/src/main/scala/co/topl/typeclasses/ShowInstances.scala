@@ -54,7 +54,7 @@ trait ShowInstances {
   implicit val showConsensusBlockHeader: Show[co.topl.consensus.models.BlockHeader] =
     header =>
       show"BlockHeader(id=${header.id.asTypedBytes}" +
-      show" parentId=${(header.parentHeaderId.get: TypedIdentifier)}" +
+      show" parentId=${(header.parentHeaderId: TypedIdentifier)}" +
       show" height=${header.height}" +
       show" slot=${header.slot}" +
       show" timestamp=${Instant.ofEpochMilli(header.timestamp).toString})" +
