@@ -19,7 +19,7 @@ Seq(
   "com.github.sbt"          % "sbt-ci-release"            % "1.5.11",
   "net.bzzt"                % "sbt-reproducible-builds"   % "0.30",
   "com.lightbend.akka.grpc" % "sbt-akka-grpc"             % "2.1.6",
-  "org.typelevel"           % "sbt-fs2-grpc"              % "2.4.12"
+  "org.typelevel"           % "sbt-fs2-grpc"              % "2.5.9"
 ).map(addSbtPlugin)
 
 // See: https://github.com/sbt/sbt/issues/6997
