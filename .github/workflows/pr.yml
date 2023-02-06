@@ -14,7 +14,13 @@ jobs:
       preserve-cache-between-runs: true
 
   sbt-integration-tests:
-    uses: ./.github/workflows/_scala_integration_tests.yml
+    uses: ./.github/workflows/_sbt_integration_tests.yml
+    needs: [sbt-build]
+    with:
+      preserve-cache-between-runs: true
+
+  sbt-jar:
+    uses: ./.github/workflows/_sbt_jar.yml
     needs: [sbt-build]
     with:
       preserve-cache-between-runs: true

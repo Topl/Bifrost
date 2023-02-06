@@ -1,4 +1,4 @@
-name: Publish Docker Image (Official)
+name: Publish Docker Image (Public)
 
 on:
   workflow_call:

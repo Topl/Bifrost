@@ -1,4 +1,4 @@
-name: Scala Build
+name: Scala Assemble JAR
 
 on:
   workflow_call:
@@ -71,17 +71,13 @@ jobs:
         uses: chetan/git-restore-mtime-action@v1
 
       - name: Compile
-        run: sbt Test/compile
+        run: sbt node/assembly
 
-      - name: Tests and Checks
-        run: sbt checkPRTestQuick
-
-      - name: Upload Test Results
-        if: always()
+      - name: Upload JAR
         uses: actions/upload-artifact@v3
         with:
-          name: Test Results (Java ${{ matrix.java }})
-          path: target/test-reports/*.xml
+          name: Node JAR (Java ${{ matrix.java }})
+          path: target/*.jar
       
       - name: Cleanup before cache
         shell: bash

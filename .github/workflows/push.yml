@@ -5,8 +5,20 @@ on:
     branches: [main, dev, release-*]
 
 jobs:
+  validate-helm:
+    uses: ./.github/workflows/_validate_helm.yml
+  sbt-build:
+    uses: ./.github/workflows/_sbt_build.yml
+    with:
+      preserve-cache-between-runs: true
+  sbt-integration-tests:
+    uses: ./.github/workflows/_sbt_integration_tests.yml
+    needs: [sbt-build]
+    with:
+      preserve-cache-between-runs: true
   publish-docker-images-unofficial:
-    uses: ./.github/workflows/_docker_publish_unofficial.yml
+    uses: ./.github/workflows/_docker_publish_private.yml
+    needs: [sbt-build, sbt-integration-tests]
     with:
       # Use the branch name to determine the "folder" in which the Docker images should be published.
       # If this was a push to "main", the path would include `topl-artifacts-main`
