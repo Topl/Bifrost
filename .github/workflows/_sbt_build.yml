@@ -18,11 +18,6 @@ on:
         default: false
         required: false
         type: boolean
-      run-checks:
-        description: 'Run unit tests and publish results.'
-        default: true
-        required: false
-        type: boolean
 
 jobs:
   build:
@@ -79,11 +74,9 @@ jobs:
         run: sbt Test/compile
 
       - name: Tests and Checks
-        if: ${{ inputs.run-checks }}
         run: sbt checkPRTestQuick
 
       - name: Upload Test Results
-        if: ${{ inputs.run-checks }}
         uses: actions/upload-artifact@v3
         with:
           name: Test Results (Java ${{ matrix.java }})
