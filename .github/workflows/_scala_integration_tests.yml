@@ -59,10 +59,7 @@ jobs:
           restore-keys: ${{ inputs.preserve-cache-between-runs && format('{0}-project-{1}-', runner.os, github.base_ref) || format('{0}-project-{1}-{2}', runner.os, github.base_ref, github.run_number) }}
 
       - name: Integration Tests
-        run: >
-          IMAGE_ID=$(docker build -q -f node/src/it/resources/Dockerfile .)
-          && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd)/node/target/it-reports:/bifrost/node/target/it-reports -v ~/.cache:/root/.cache -v ~/.ivy2/cache:/root/.ivy2/cache $IMAGE_ID sbt node/docker:publishLocal node/it:test
-          && docker image rm -f $IMAGE_ID
+        run: sbt ";node/Docker/publishLocal;node/IntegrationTest/test"
 
       # Upload JUnit test results as an artifact so that we can publish a test report in our workflow.
       # Artifacts can be found on the summary page for each individual workflow run.
