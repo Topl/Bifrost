@@ -2,7 +2,7 @@ name: Bifrost_CI
 
 on:
   push:
-    branches: [dev, main, release-*, rc-*, tetra]
+    branches: [dev, main, release-*, rc-*]
     tags: ['*']
   workflow_dispatch:
 
@@ -18,19 +18,8 @@ jobs:
       java-versions: >-
         ["11"]
 
-  publish-docker-image-dev:
+  publish-docker-image-dev-node:
     if: ${{ github.ref_name == 'dev' }}
-    uses: ./.github/workflows/_docker_publish.yml
-    needs: sbt-build
-    with:
-      remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-dev"
-      registry-auth-location: "us-central1-docker.pkg.dev"
-      local-docker-repo: "toplprotocol"
-      local-docker-image: "bifrost-node"
-    secrets: inherit
-
-  publish-docker-image-dev-tetra:
-    if: ${{ github.ref_name == 'tetra' }}
     uses: ./.github/workflows/_docker_publish.yml
     needs: sbt-build
     with:
@@ -41,7 +30,31 @@ jobs:
       scala-project: "node"
     secrets: inherit
 
-  publish-docker-image-qa:
+  publish-docker-image-dev-testnet-orchestrator:
+    if: ${{ github.ref_name == 'dev' }}
+    uses: ./.github/workflows/_docker_publish.yml
+    needs: sbt-build
+    with:
+      remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-dev"
+      registry-auth-location: "us-central1-docker.pkg.dev"
+      local-docker-repo: "toplprotocol"
+      local-docker-image: "testnet-simulation-orchestrator"
+      scala-project: "testnetSimulationOrchestrator"
+    secrets: inherit
+
+  publish-docker-image-dev-network-delayer:
+    if: ${{ github.ref_name == 'dev' }}
+    uses: ./.github/workflows/_docker_publish.yml
+    needs: sbt-build
+    with:
+      remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-dev"
+      registry-auth-location: "us-central1-docker.pkg.dev"
+      local-docker-repo: "toplprotocol"
+      local-docker-image: "network-delayer"
+      scala-project: "networkDelayer"
+    secrets: inherit
+
+  publish-docker-image-qa-node:
     if: ${{ startsWith(github.ref_name, 'release-') }}
     uses: ./.github/workflows/_docker_publish.yml
     needs: sbt-build
@@ -50,6 +63,31 @@ jobs:
       registry-auth-location: "us-central1-docker.pkg.dev"
       local-docker-repo: "toplprotocol"
       local-docker-image: "bifrost-node"
+      scala-project: "node"
+    secrets: inherit
+
+  publish-docker-image-qa-testnet-orchestrator:
+    if: ${{ startsWith(github.ref_name, 'release-') }}
+    uses: ./.github/workflows/_docker_publish.yml
+    needs: sbt-build
+    with:
+      remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-qa/topl-artifacts-qa"
+      registry-auth-location: "us-central1-docker.pkg.dev"
+      local-docker-repo: "toplprotocol"
+      local-docker-image: "testnet-simulation-orchestrator"
+      scala-project: "testnetSimulationOrchestrator"
+    secrets: inherit
+
+  publish-docker-image-qa-network-delayer:
+    if: ${{ startsWith(github.ref_name, 'release-') }}
+    uses: ./.github/workflows/_docker_publish.yml
+    needs: sbt-build
+    with:
+      remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-qa/topl-artifacts-qa"
+      registry-auth-location: "us-central1-docker.pkg.dev"
+      local-docker-repo: "toplprotocol"
+      local-docker-image: "network-delayer"
+      scala-project: "networkDelayer"
     secrets: inherit
 
   publish-docker-image-main:

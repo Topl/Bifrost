@@ -2,7 +2,7 @@ name: Bifrost_PR
 
 on:
   pull_request:
-    branches: [dev, main, release-*, rc-*, tetra]
+    branches: [dev, main, release-*, rc-*]
 
 jobs:
   validate-helm:
