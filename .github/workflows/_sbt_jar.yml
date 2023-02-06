@@ -76,7 +76,7 @@ jobs:
       - name: Upload JAR
         uses: actions/upload-artifact@v3
         with:
-          name: jar
+          name: Bifrost Node Jar (${{ matrix.java }})
           path: node/target/scala-2.13/*.jar
           if-no-files-found: error
       

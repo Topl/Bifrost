@@ -33,13 +33,15 @@ jobs:
       - name: Download Artifacts
         uses: actions/download-artifact@v3
         with:
-          name: jar
+          name: Bifrost Node Jar (11)
 
       - name: find JAR
-        run: echo "JAR=$(find ./jar -maxdepth 1 -name "*.jar")" >> $GITHUB_ENV
+        run: echo "JAR_LOCATION=$(find . -maxdepth 1 -name "*.jar")" >> $GITHUB_ENV
 
       - name: generate MD5 checksum
-        run: md5sum ${{ env.JAR }} > "${{ env.JAR }}.md5"
+        run: |
+          echo "MD5_LOCATION=$(basename ${{ env.JAR_LOCATION }}).md5" >> $GITHUB_ENV
+          md5sum ${{ env.JAR_LOCATION }} > ${{ MD5_LOCATION }}
 
       - name: create release
         uses: softprops/action-gh-release@v1
@@ -47,8 +49,8 @@ jobs:
           draft: true
           fail_on_unmatched_files: true
           files: |
-            ${{ env.JAR }}
-            ${{ env.JAR }}.md5
+            ${{ env.JAR_LOCATION }}
+            ${{ env.MD5_LOCATION }}
 
       - name: upload MD5 artifact
         uses: actions/upload-release-asset@v1
