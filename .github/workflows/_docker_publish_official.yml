@@ -1,4 +1,4 @@
-name: Publish Docker Image
+name: Publish Docker Image (Official)
 
 on:
   workflow_call:
@@ -30,4 +30,4 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push images to registries
-        run: sbt node/docker:publish
+        run: sbt Docker/publish

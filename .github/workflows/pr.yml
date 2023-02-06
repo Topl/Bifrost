@@ -1,8 +1,8 @@
-name: Bifrost_PR
+name: Pull Request
 
 on:
   pull_request:
-    branches: [dev, main, release-*, rc-*]
+    branches: [main, dev, release-*]
 
 jobs:
   validate-helm:
@@ -11,23 +11,15 @@ jobs:
   sbt-build:
     uses: ./.github/workflows/_sbt_build.yml
     with:
-      target-os: >-
-        ["ubuntu-latest"]
-      java-versions: >-
-        ["11"]
       preserve-cache-between-runs: true
 
   sbt-integration-tests:
     uses: ./.github/workflows/_scala_integration_tests.yml
-    needs: sbt-build
+    needs: [sbt-build]
     with:
-      target-os: >-
-        ["ubuntu-latest"]
-      java-versions: >-
-        ["11"]
       preserve-cache-between-runs: true
 
   publish-test-results:
     uses: ./.github/workflows/_publish_test_results.yml
     if: always()
-    needs: [sbt-integration-tests]
+    needs: [sbt-build, sbt-integration-tests]
