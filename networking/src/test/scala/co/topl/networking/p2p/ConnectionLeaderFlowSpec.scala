@@ -52,13 +52,11 @@ class ConnectionLeaderFlowSpec
         BigInt(
           new Blake2b256()
             .hash(Bytes(intToBytestring(expectedPublishedInt).toArray ++ intToBytestring(remoteInt).toArray))
-            .data
             .toArray
         ) >
         BigInt(
           new Blake2b256()
             .hash(Bytes(intToBytestring(remoteInt).toArray ++ intToBytestring(expectedPublishedInt).toArray))
-            .data
             .toArray
         )
       ) ConnectionLeaders.Local
@@ -75,8 +73,8 @@ class ConnectionLeaderFlowSpec
 
     sub.request(1)
     val evidence: Evidence = Sized.strictUnsafe(Bytes(sub.expectNext().toArray))
-    evidence shouldBe expectedPublishedEvidence
-    pub.sendNext(ByteString(remoteIntEvidence.data.toArray))
+    evidence.data shouldBe expectedPublishedEvidence
+    pub.sendNext(ByteString(remoteIntEvidence.toArray))
 
     sub.request(1)
     bytestringToInt(sub.expectNext()) shouldBe expectedPublishedInt

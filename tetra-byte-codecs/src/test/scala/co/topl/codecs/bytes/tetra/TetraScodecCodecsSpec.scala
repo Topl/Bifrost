@@ -2,21 +2,15 @@ package co.topl.codecs.bytes.tetra
 
 import cats.{Eq, Show}
 import co.topl.codecs.bytes.CodecSpec
-import co.topl.models.{
-  BlockHeaderV2,
-  EligibilityCertificate,
-  Int128,
-  ModelGenerators,
-  Proofs,
-  SecretKeys,
-  TaktikosAddress,
-  VerificationKeys
-}
-import co.topl.models.utility.{KesBinaryTree, Ratio}
 import co.topl.models.utility.StringDataTypes.Latin1Data
+import co.topl.models.utility.{KesBinaryTree, Ratio}
+import co.topl.models._
 import org.scalacheck.Gen
 
 class TetraScodecCodecsSpec extends CodecSpec {
+
+  import ModelGenerators._
+  import TetraScodecCodecs._
 
   implicit def defaultShow[T]: Show[T] = Show.fromToString
   implicit def defaultEq[T]: Eq[T] = Eq.fromUniversalEquals
@@ -43,6 +37,18 @@ class TetraScodecCodecsSpec extends CodecSpec {
     "Int128",
     TetraScodecCodecs.int128Codec,
     ModelGenerators.arbitraryInt128.arbitrary
+  )
+
+  codecBehavior[com.google.protobuf.ByteString](
+    "ProtoByteString",
+    TetraScodecCodecs.protobufByteStringCodec,
+    co.topl.models.generators.common.ModelGenerators.arbitraryByteString.arbitrary
+  )
+
+  codecBehavior[co.topl.proto.models.Int128](
+    "ProtoInt128",
+    TetraScodecCodecs.int128ProtoCodec,
+    co.topl.models.generators.models.ModelGenerators.arbitraryPositiveInt128.arbitrary
   )
 
   codecBehavior[KesBinaryTree](
@@ -159,27 +165,43 @@ class TetraScodecCodecsSpec extends CodecSpec {
     ModelGenerators.eligibilityCertificateGen
   )
 
-  codecBehavior[BlockHeaderV2.Unsigned.PartialOperationalCertificate](
-    "BlockHeaderV2.Unsigned.PartialOperationalCertificate",
+  codecBehavior[BlockHeader.Unsigned.PartialOperationalCertificate](
+    "BlockHeader.Unsigned.PartialOperationalCertificate",
     TetraScodecCodecs.partialOperationalCertificateCodec,
     ModelGenerators.partialOperationalCertificateGen
   )
 
-  codecBehavior[TaktikosAddress](
-    "TaktikosAddress",
-    TetraScodecCodecs.taktikosAddressCodec,
-    ModelGenerators.taktikosAddressGen
-  )
+  codecBehavior[StakingAddress]()
 
-  codecBehavior[BlockHeaderV2.Unsigned](
-    "BlockHeaderV2.Unsigned",
-    TetraScodecCodecs.unsignedBlockHeaderV2Codec,
+  codecBehavior[BlockHeader.Unsigned](
+    "BlockHeader.Unsigned",
+    TetraScodecCodecs.unsignedBlockHeaderCodec,
     ModelGenerators.unsignedHeaderGen()
   )
 
-  codecBehavior[BlockHeaderV2](
-    "BlockHeaderV2",
-    TetraScodecCodecs.blockHeaderV2Codec,
-    ModelGenerators.headerGen()
+  codecBehavior[BlockHeader]()
+
+  codecBehavior[TypedEvidence](
+    "TypedEvidence",
+    TetraScodecCodecs.typedEvidenceCodec,
+    ModelGenerators.typedEvidenceGen
   )
+
+  codecBehavior[co.topl.proto.models.TypedEvidence](
+    "TypedEvidenceProto",
+    TetraScodecCodecs.typedEvidenceProtoCodec,
+    co.topl.models.generators.models.ModelGenerators.typedEvidenceGen
+  )
+
+  codecBehavior[SpendingAddress]()
+
+  codecBehavior[Proposition]()
+
+  codecBehavior[Proof]()
+
+  codecBehavior[Box]()
+
+  codecBehavior[Transaction]()
+
+  codecBehavior[Transaction.Unproven]()
 }

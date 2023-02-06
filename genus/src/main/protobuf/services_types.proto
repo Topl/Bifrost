@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package co.topl.genus.services;
-
-message Paging {
-  uint32 page_number = 1;
-  uint32 page_size = 2;
-}

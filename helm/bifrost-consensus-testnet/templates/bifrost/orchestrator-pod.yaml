@@ -1,0 +1,40 @@
+{{ $fullname := include "bifrost.fullname" . }}
+{{ $labels := include "bifrost.labels" . }}
+{{ $Values := .Values }}
+{{ $Release := .Release }}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ $fullname }}-orchestrator
+  labels:
+    {{ $labels | nindent 4 }}
+spec:
+  automountServiceAccountToken: true
+  securityContext:
+    {{- toYaml $Values.podSecurityContext | nindent 4 }}
+  containers:
+    - name: testnet-simulation-orchestrator
+      securityContext:
+        capabilities:
+          drop:
+            - ALL
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+      image: {{ $Values.orchestratorImage.name }}:{{ $Values.orchestratorImage.tag }}
+      args:
+        - --config
+        - /etc/config/orchestrator.yaml
+      resources:
+        limits:
+          cpu: 1500m
+          memory: 1500Mi
+        requests:
+          cpu: 100m
+          memory: 1500Mi
+      volumeMounts:
+        - name: config-map
+          mountPath: /etc/config
+  volumes:
+    - name: config-map
+      configMap:
+        name: {{ $fullname }}-config-orchestrator

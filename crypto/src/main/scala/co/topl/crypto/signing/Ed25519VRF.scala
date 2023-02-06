@@ -1,64 +1,74 @@
 package co.topl.crypto.signing
 
+import co.topl.crypto.generation.EntropyToSeed
+import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing.eddsa.ECVRF25519
-import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.Sized
-import co.topl.models._
+import scodec.bits.ByteVector
 
-import java.nio.charset.StandardCharsets
+import java.security.SecureRandom
 
-class Ed25519VRF
-    extends EllipticCurveSignatureScheme[
-      SecretKeys.VrfEd25519,
-      VerificationKeys.VrfEd25519,
-      Proofs.Knowledge.VrfEd25519,
-      SecretKeys.VrfEd25519.Length
-    ] {
+class Ed25519VRF {
 
   private val impl = new ECVRF25519
   impl.precompute()
 
-  override val SignatureLength: Int = impl.SIGNATURE_SIZE
-  override val KeyLength: Int = impl.SECRET_KEY_SIZE
-
-  override def createKeyPair(
-    seed: Sized.Strict[Bytes, SecretKeys.VrfEd25519.Length]
-  ): (SecretKeys.VrfEd25519, VerificationKeys.VrfEd25519) = {
-    val sk = new Array[Byte](impl.SECRET_KEY_SIZE)
-    val pk = new Array[Byte](impl.PUBLIC_KEY_SIZE)
-
-    val random = defaultRandom(Some(Seed(seed.data.toArray)))
-
-    impl.generatePrivateKey(random, sk)
-    impl.generatePublicKey(sk, 0, pk, 0)
-    (SecretKeys.VrfEd25519(Sized.strictUnsafe(Bytes(sk))), VerificationKeys.VrfEd25519(Sized.strictUnsafe(Bytes(pk))))
+  def generateRandom: (ByteVector, ByteVector) = {
+    val random = SecureRandom.getInstance("SHA1PRNG")
+    val seed = random.generateSeed(32)
+    random.nextBytes(seed) // updating random seed per https://howtodoinjava.com/java8/secure-random-number-generation/
+    deriveKeyPairFromSeed(ByteVector(seed))
   }
 
-  override def sign(privateKey: SecretKeys.VrfEd25519, message: Bytes): Proofs.Knowledge.VrfEd25519 =
-    Proofs.Knowledge.VrfEd25519(
-      Sized.strictUnsafe(
-        Bytes(
-          impl.vrfProof(privateKey.bytes.data.toArray, message.toArray)
-        )
-      )
+  def deriveKeyPairFromEntropy(entropy: Entropy, password: Option[String])(implicit
+    entropyToSeed:                      EntropyToSeed = EntropyToSeed.instances.pbkdf2Sha512(32)
+  ): (ByteVector, ByteVector) = {
+    val seed = entropyToSeed.toSeed(entropy, password)
+    deriveKeyPairFromSeed(seed)
+  }
+
+  /**
+   * @param seed length = 32
+   */
+  def deriveKeyPairFromSeed(seed: ByteVector): (ByteVector, ByteVector) =
+    seed -> getVerificationKey(seed)
+
+  /**
+   * @param privateKey length = 32
+   * @return length = 80
+   */
+  def sign(privateKey: ByteVector, message: ByteVector): ByteVector =
+    ByteVector(
+      impl.vrfProof(privateKey.toArray, message.toArray)
     )
 
-  override def verify(
-    signature: Proofs.Knowledge.VrfEd25519,
-    message:   Bytes,
-    publicKey: VerificationKeys.VrfEd25519
+  /**
+   * @param signature length = 80
+   * @param publicKey length = 32
+   */
+  def verify(
+    signature: ByteVector,
+    message:   ByteVector,
+    publicKey: ByteVector
   ): Boolean =
-    impl.vrfVerify(publicKey.bytes.data.toArray, message.toArray, signature.bytes.data.toArray)
+    impl.vrfVerify(publicKey.toArray, message.toArray, signature.toArray)
 
-  def getVerificationKey(secretKey: SecretKeys.VrfEd25519): VerificationKeys.VrfEd25519 = {
-    val pkBytes = new Array[Byte](impl.PUBLIC_KEY_SIZE)
-    impl.generatePublicKey(secretKey.bytes.data.toArray, 0, pkBytes, 0)
-    VerificationKeys.VrfEd25519(Sized.strictUnsafe(Bytes(pkBytes)))
+  /**
+   * @param secretKey length = 32
+   * @return length = 32
+   */
+  def getVerificationKey(secretKey: ByteVector): ByteVector = {
+    val pkByteVector = new Array[Byte](impl.PUBLIC_KEY_SIZE)
+    impl.generatePublicKey(secretKey.toArray, 0, pkByteVector, 0)
+    ByteVector(pkByteVector)
   }
 
-  def proofToHash(signature: Proofs.Knowledge.VrfEd25519): Rho =
-    Rho(Sized.strictUnsafe(Bytes(impl.vrfProofToHash(signature.bytes.data.toArray))))
+  /**
+   * @param signature length = 80
+   * @return length = 64
+   */
+  def proofToHash(signature: ByteVector): ByteVector =
+    ByteVector(impl.vrfProofToHash(signature.toArray))
 
 }
 
@@ -67,19 +77,23 @@ object Ed25519VRF {
   def precomputed(): Ed25519VRF =
     new Ed25519VRF
 
-  private val TestStringBytes =
-    Bytes("TEST".getBytes(StandardCharsets.UTF_8))
+  private val TestStringByteVector =
+    ByteVector.encodeUtf8("TEST").toOption.get
 
-  private val NonceStringBytes =
-    Bytes("NONCE".getBytes(StandardCharsets.UTF_8))
+  private val NonceStringByteVector =
+    ByteVector.encodeUtf8("NONCE").toOption.get
 
-  def rhoToRhoTestHash(rho: Rho)(implicit blake2b512: Blake2b512): RhoTestHash =
-    RhoTestHash(
-      blake2b512.hash(rho.sizedBytes.data ++ TestStringBytes)
-    )
+  /**
+   * @param rho length = 64
+   * @return length = 64
+   */
+  def rhoToRhoTestHash(rho: ByteVector)(implicit blake2b512: Blake2b512): ByteVector =
+    blake2b512.hash(rho ++ TestStringByteVector)
 
-  def rhoToRhoNonceHash(rho: Rho)(implicit blake2b512: Blake2b512): RhoNonceHash =
-    RhoNonceHash(
-      blake2b512.hash(rho.sizedBytes.data ++ NonceStringBytes)
-    )
+  /**
+   * @param rho length = 64
+   * @return length = 64
+   */
+  def rhoToRhoNonceHash(rho: ByteVector)(implicit blake2b512: Blake2b512): ByteVector =
+    blake2b512.hash(rho ++ NonceStringByteVector)
 }

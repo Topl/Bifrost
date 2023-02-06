@@ -1,17 +1,17 @@
 package co.topl.networking.blockchain
 
-import akka.NotUsed
-import akka.actor.ActorSystem
-import akka.stream.scaladsl.Source
-import akka.testkit.TestKit
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import cats.implicits._
-import co.topl.catsakka._
-import co.topl.models._
+import co.topl.{models => legacyModels}
+import legacyModels.{Bytes, SlotData, Transaction, TypedBytes, TypedIdentifier}
+import co.topl.consensus.models.BlockHeader
+import co.topl.node.models.BlockBody
 import co.topl.networking.p2p.ConnectedPeer
+import fs2._
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, EitherValues}
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
@@ -19,8 +19,7 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 class BlockchainClientSpec
-    extends TestKit(ActorSystem("BlockchainClientSpec"))
-    with AnyFlatSpecLike
+    extends AnyFlatSpec
     with BeforeAndAfterAll
     with MockFactory
     with Matchers
@@ -40,11 +39,15 @@ class BlockchainClientSpec
         val client = new BlockchainPeerClient[F] {
           def remotePeer: F[ConnectedPeer] = ???
 
-          def remotePeerAdoptions: F[Source[TypedIdentifier, NotUsed]] = ???
+          def remotePeerAdoptions: F[Stream[F, TypedIdentifier]] = ???
 
-          def getRemoteHeader(id: TypedIdentifier): F[Option[BlockHeaderV2]] = ???
+          def remoteTransactionNotifications: F[Stream[F, TypedIdentifier]] = ???
 
-          def getRemoteBody(id: TypedIdentifier): F[Option[BlockBodyV2]] = ???
+          def getRemoteSlotData(id: TypedIdentifier): F[Option[SlotData]] = ???
+
+          def getRemoteHeader(id: TypedIdentifier): F[Option[BlockHeader]] = ???
+
+          def getRemoteBody(id: TypedIdentifier): F[Option[BlockBody]] = ???
 
           def getRemoteTransaction(id: TypedIdentifier): F[Option[Transaction]] = ???
 

@@ -20,8 +20,8 @@ object BlockchainNetwork {
     bindPort:      Int,
     localPeer:     LocalPeer,
     remotePeers:   Source[DisconnectedPeer, _],
-    clientHandler: BlockchainClientHandler[F],
-    server:        BlockchainPeerServer[F],
+    clientHandler: BlockchainPeerHandlerAlgebra[F],
+    serverF:       ConnectedPeer => Resource[F, BlockchainPeerServerAlgebra[F]],
     peerFlowModifier: (
       ConnectedPeer,
       Flow[ByteString, ByteString, F[BlockchainPeerClient[F]]]
@@ -31,15 +31,24 @@ object BlockchainNetwork {
     random: Random
   ): F[(P2PServer[F, BlockchainPeerClient[F]], Fiber[F, Throwable, Unit])] =
     for {
-      connectionFlowFactory <- BlockchainPeerConnectionFlowFactory.make[F](server).pure[F]
+      connectionFlowFactory <- BlockchainPeerConnectionFlowFactory.make[F](serverF).pure[F]
       peerHandlerFlow =
         (connectedPeer: ConnectedPeer) =>
           peerFlowModifier(
             connectedPeer,
             ConnectionLeaderFlow(leader =>
-              Flow.futureFlow(
-                implicitly[FToFuture[F]].apply(connectionFlowFactory(connectedPeer, leader))
-              )
+              Flow
+                .fromMaterializer((_, _) =>
+                  Flow.futureFlow(
+                    implicitly[FToFuture[F]].apply(
+                      connectionFlowFactory(connectedPeer, leader).allocated
+                        .map { case (flow, finalizers) =>
+                          flow.alsoTo(Sink.onComplete(_ => implicitly[FToFuture[F]].apply(finalizers)))
+                        }
+                    )
+                  )
+                )
+                .mapMaterializedValue(_.flatten)
             )
               .mapMaterializedValue(f => Async[F].fromFuture(f.flatten.pure[F]))
           )
@@ -60,9 +69,9 @@ object BlockchainNetwork {
       _ <- Spawn[F].start(
         peerTerminations
           .mapAsyncF(1) {
-            case PeerConnectionChanges.ConnectionClosed(peer, Some(error)) =>
+            case PeerConnectionChanges.ConnectionClosed(_, Some(error)) =>
               Logger[F].error(error)("Peer connection terminated with error")
-            case PeerConnectionChanges.ConnectionClosed(peer, _) =>
+            case PeerConnectionChanges.ConnectionClosed(_, _) =>
               Logger[F].info("Peer connection terminated normally")
           }
           .toMat(Sink.ignore)(Keep.right)
@@ -72,12 +81,12 @@ object BlockchainNetwork {
         client
       }
       clientFiber <- handleNetworkClients(peerClients, clientHandler)
-      _           <- Logger[F].info(s"Bound P2P at host=localhost port=$bindPort")
+      _           <- Logger[F].info(s"Bound P2P at host=$host port=$bindPort")
     } yield (p2pServer, clientFiber)
 
-  private def handleNetworkClients[F[_]: Parallel: Async: Concurrent: Logger: FToFuture](
+  private def handleNetworkClients[F[_]: Parallel: Async: Logger: FToFuture](
     clients:         Source[BlockchainPeerClient[F], _],
-    clientHandler:   BlockchainClientHandler[F]
+    clientHandler:   BlockchainPeerHandlerAlgebra[F]
   )(implicit system: ActorSystem[_]): F[Fiber[F, Throwable, Unit]] =
     Spawn[F].start(
       Async[F]
@@ -86,7 +95,7 @@ object BlockchainNetwork {
             .mapAsyncF(1)(client =>
               Spawn[F].start(
                 clientHandler
-                  .useClient(client)
+                  .usePeer(client)
                   .handleErrorWith(t =>
                     client.remotePeer
                       .flatMap(peer =>

@@ -4,9 +4,10 @@ import akka.event.Logging
 import akka.stream.scaladsl.RunnableGraph
 import akka.stream.{Attributes, Materializer}
 import cats.arrow.FunctionK
-import cats.effect.kernel.Sync
+import cats.effect.kernel.{Async, Resource, Sync}
 import cats.~>
 
+import scala.concurrent.Future
 import scala.language.implicitConversions
 
 trait RunnableGraphOps {
@@ -16,6 +17,11 @@ trait RunnableGraphOps {
 
   implicit def runnableGraphAsRunnableGraphSupport[Mat](runnableGraph: RunnableGraph[Mat]): RunnableGraphSupport[Mat] =
     new RunnableGraphSupport[Mat](runnableGraph)
+
+  implicit def runnableGraphFutureAsRunnableGraphSupport[Mat](
+    runnableGraph: RunnableGraph[Future[Mat]]
+  ): RunnableGraphFutureSupport[Mat] =
+    new RunnableGraphFutureSupport[Mat](runnableGraph)
 }
 
 class RunnableGraphSupport[Mat](val runnableGraph: RunnableGraph[Mat]) extends AnyVal {
@@ -23,6 +29,15 @@ class RunnableGraphSupport[Mat](val runnableGraph: RunnableGraph[Mat]) extends A
   def liftTo[F[_]: RunnableGraph ~> *[_]]: F[Mat] =
     implicitly[RunnableGraph ~> F].apply(runnableGraph)
 
+  def resource[F[_]: Sync: RunnableGraph ~> *[_]]: Resource[F, Mat] =
+    Resource.make(Sync[F].defer(liftTo))(_ => Sync[F].unit)
+
   def withLogAttributes: RunnableGraph[Mat] =
     runnableGraph.withAttributes(Attributes.logLevels(onElement = Logging.InfoLevel, onFinish = Logging.InfoLevel))
+}
+
+class RunnableGraphFutureSupport[Mat](val runnableGraph: RunnableGraph[Future[Mat]]) extends AnyVal {
+
+  def liftFutureTo[F[_]: Async: RunnableGraph ~> *[_]]: F[Mat] =
+    Async[F].fromFuture(implicitly[RunnableGraph ~> F].apply(runnableGraph))
 }

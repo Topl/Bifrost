@@ -34,7 +34,9 @@ class LatencySpec
   import co.topl.networking.typedprotocols.example.Latency._
   implicit private val logger: Logger[F] = Slf4jLogger.getLogger[F]
 
-  it should "play ping pong" in {
+  // NOTE: This test is disabled because the implementation is just an example.  The implementation necessarily
+  // involves "sleeping" which increases the duration of the test run.
+  ignore should "play ping pong" in {
 
     val executorA = TypedProtocol[F](Parties.A)
     val executorB = TypedProtocol[F](Parties.B)

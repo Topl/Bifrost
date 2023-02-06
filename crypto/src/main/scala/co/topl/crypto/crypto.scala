@@ -1,36 +1,18 @@
 package co.topl
 
-import cats.Eq
-import co.topl.crypto.hash.digest
-import io.estatico.newtype.macros.newtype
-
-import scala.language.implicitConversions
+import java.security.SecureRandom
 
 package object crypto {
 
-  // todo: deprecatee
-  @newtype
-  case class Signature(value: Array[Byte])
+  def defaultRandom: SecureRandom = defaultRandom(None)
 
-  @newtype
-  case class PrivateKey(value: Array[Byte])
+  def defaultRandom(seed: Option[Array[Byte]]): SecureRandom = {
+    val random = SecureRandom.getInstance("SHA1PRNG")
+    seed.foreach(random.setSeed)
 
-  object PrivateKey {
-
-    trait Instances {
-      implicit val eqPrivateKey: Eq[PrivateKey] = _.value sameElements _.value
-    }
+    random.nextBytes(
+      Array(0: Byte)
+    ) // updating random seed per https://howtodoinjava.com/java8/secure-random-number-generation/
+    random
   }
-
-  @newtype
-  case class PublicKey(value: Array[Byte])
-
-  trait Implicits
-      extends digest.Instances
-      with digest.Digest.ToDigestOps
-      with hash.Instances
-      with PrivateKey.Instances
-      with catsinstances.Implicits
-
-  object implicits extends Implicits
 }

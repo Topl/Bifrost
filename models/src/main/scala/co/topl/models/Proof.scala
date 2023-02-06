@@ -7,9 +7,9 @@ sealed trait Proof
 object Proofs {
 
   /**
-   * A proof which always verifies to `false`
+   * A proof which acts as a placeholder
    */
-  case object False extends Proof
+  case object Undefined extends Proof
 
   object Knowledge {
     case class Curve25519(bytes: Sized.Strict[Bytes, Curve25519.Length]) extends Proof
@@ -50,7 +50,10 @@ object Proofs {
       type DigestLength = Lengths.`32`.type
     }
 
-    case class HashLock(salt: Digest32, value: Byte) extends Proof
+    /**
+     * This is not a zero-knowledge proof-of-knowledge
+     */
+    case class HashLock(value: Bytes) extends Proof
   }
 
   object Compositional {
@@ -62,15 +65,6 @@ object Proofs {
 
   object Contextual {
     case class HeightLock() extends Proof
-    case class RequiredBoxState() extends Proof
-  }
-
-//  object Example {
-//    case class EnumeratedInput(value: Int) extends Proof
-//
-//  }
-
-  object Script {
-    case class JS(serializedArgs: String) extends Proof
+    case class RequiredTransactionIO() extends Proof
   }
 }

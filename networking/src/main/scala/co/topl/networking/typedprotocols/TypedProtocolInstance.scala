@@ -39,7 +39,7 @@ case class TypedProtocolInstance[F[_]] private (
       )
     )
 
-  private def applyMessage[Message: NetworkTypeTag](
+  private def applyMessage[Message](
     message:                    Message,
     sender:                     Party,
     currentState:               Any,

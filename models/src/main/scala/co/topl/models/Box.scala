@@ -1,44 +1,76 @@
 package co.topl.models
 
 import co.topl.models.utility.StringDataTypes.Latin1Data
-import co.topl.models.utility.{Lengths, Sized}
+import co.topl.models.utility.{Lengths, ReplaceModelUtil, Sized}
+import co.topl.consensus.models.SignatureKesProduct
 
-import scala.util.Random
-
-case class Box[V <: Box.Value](evidence: TypedEvidence, nonce: BoxNonce, value: V)
+case class Box(evidence: TypedEvidence, value: Box.Value)
 
 object Box {
+
+  case class Id(transactionId: TypedIdentifier, transactionOutputIndex: Short)
+
   sealed abstract class Value
 
   object Values {
     case object Empty extends Value
-    case class Poly(value: Int128) extends Value
-    case class Arbit(value: Int128) extends Value
+    case class Poly(quantity: Int128) extends Value
+    case class Arbit(quantity: Int128) extends Value
 
-    case class Asset(
+    case class AssetV1(
       quantity:     Int128,
-      assetCode:    Asset.Code,
-      securityRoot: Bytes,
-      metadata:     Option[Sized.Max[Latin1Data, Lengths.`127`.type]]
+      assetCode:    AssetV1.Code,
+      securityRoot: AssetV1.SecurityRoot,
+      metadata:     Option[AssetV1.Metadata]
     ) extends Value
 
-    object Asset {
-      case class Code(version: Byte, issuer: DionAddress, shortName: Sized.Max[Latin1Data, Lengths.`8`.type])
+    object AssetV1 {
+      case class Code(issuer: SpendingAddress, shortName: Code.ShortName)
+
+      object Code {
+        type ShortName = Sized.Max[Latin1Data, Lengths.`8`.type]
+      }
+
+      type SecurityRoot = Sized.Strict[Bytes, Lengths.`32`.type]
+      type Metadata = Sized.Max[Latin1Data, Lengths.`127`.type]
     }
 
-    /**
-     * @param commitment message: Hash(vrfVK | poolVK), SK: 0th timestep of the KES
-     */
-    case class TaktikosRegistration(commitment: Proofs.Knowledge.KesProduct) extends Value
+    sealed abstract class Registration extends Value
+
+    object Registrations {
+
+      /**
+       * Represents the registration of a stake pool operator.  Stake pool operators mint the actual blocks.
+       * @param vrfCommitment A commitment  to the VRF.
+       *                      signer: the operational key (KES parentSK at timestep=0)
+       *                      message: Hash(vrfVK | poolVK)
+       */
+      case class Operator(vrfCommitment: Proofs.Knowledge.KesProduct) extends Registration {
+
+        /**
+         * TODO remove this conversion, when the old model is raplaced
+         * @return
+         */
+        def toConsensusModel: OperatorNewModel = OperatorNewModel(
+          ReplaceModelUtil.signatureKesProduct(vrfCommitment)
+        )
+
+      }
+      case class OperatorNewModel(vrfCommitment: SignatureKesProduct) extends Registration
+
+      /**
+       * Represents the registration of someone intending to delegate their stake to a stake pool operator.  Owners
+       * of these boxes do not produce blocks directly; they instead allow a stake pool operator to use their stake
+       * to increase the likelihood of eligibility.  Delegaters receive rewards for delegation.
+       *
+       * NOTE: Delegation is currently not enabled
+       *
+       * @param poolAddress The address of the pool to which the user is delegating
+       * @param rewardsAddress The address of rewards
+       */
+//      case class Delegating(poolAddress: StakingAddress, rewardsAddress: StakingAddress) extends Registration
+    }
   }
 
-  def apply(coinOutput: Transaction.CoinOutput): Box[_] = coinOutput match {
-    case Transaction.PolyOutput(dionAddress, value) =>
-      Box(dionAddress.typedEvidence, Random.nextLong(), Box.Values.Poly(value))
-    case Transaction.ArbitOutput(dionAddress, value) =>
-      Box(dionAddress.typedEvidence, Random.nextLong(), Box.Values.Arbit(value))
-    case Transaction.AssetOutput(dionAddress, value) => Box(dionAddress.typedEvidence, Random.nextLong(), value)
-  }
-
-  val empty: Box[Box.Values.Empty.type] = Box(TypedEvidence.empty, 0, Box.Values.Empty)
+  val empty: Box = Box(TypedEvidence.empty, Box.Values.Empty)
 }

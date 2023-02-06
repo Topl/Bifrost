@@ -2,9 +2,10 @@ package co.topl.typeclasses
 
 import cats.Eq
 import cats.implicits._
-import co.topl.crypto.mnemonic.Entropy
+import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.models._
 import co.topl.models.utility.Sized
+import co.topl.models.utility.StringDataTypes.Latin1Data
 
 trait EqInstances {
 
@@ -23,10 +24,19 @@ trait EqInstances {
   implicit def sizedStrictEq[T: Eq, L]: Eq[Sized.Strict[T, L]] =
     (a, b) => a.data === b.data
 
-  implicit val blockV2Eq: Eq[BlockV2] =
+  implicit val latin1DataEq: Eq[Latin1Data] =
+    (a, b) => a.value === b.value
+
+  implicit val typedEvidenceEq: Eq[TypedEvidence] =
+    (a, b) => a.typePrefix === b.typePrefix && a.evidence === b.evidence
+
+  implicit val spendingAddressEq: Eq[SpendingAddress] =
+    (a, b) => a.typedEvidence === b.typedEvidence
+
+  implicit val blockEq: Eq[Block] =
     Eq.fromUniversalEquals
 
-  implicit val blockHeaderV2Eq: Eq[BlockHeaderV2] =
+  implicit val blockHeaderEq: Eq[BlockHeader] =
     Eq.fromUniversalEquals
 
   implicit val slotIdEq: Eq[SlotId] =
@@ -51,4 +61,53 @@ trait EqInstances {
       a.rho === b.rho &&
       a.eta === b.eta &&
       a.height === b.height
+
+  implicit val assetCodeEq: Eq[Box.Values.AssetV1.Code] =
+    (a, b) =>
+      a.issuer === b.issuer &&
+      a.shortName === b.shortName
+
+  implicit val ed25519ProofEq: Eq[Proofs.Knowledge.Ed25519] =
+    (a, b) => a.bytes === b.bytes
+
+  implicit val ed25519VKEq: Eq[VerificationKeys.Ed25519] =
+    (a, b) => a.bytes === b.bytes
+
+  implicit val kesSumProofEq: Eq[Proofs.Knowledge.KesSum] =
+    (a, b) => a.signature === b.signature && a.verificationKey === b.verificationKey && a.witness === b.witness
+
+  implicit val kesProductProofEq: Eq[Proofs.Knowledge.KesProduct] =
+    (a, b) =>
+      a.superSignature === b.superSignature &&
+      a.subSignature === b.subSignature &&
+      a.subRoot === b.subRoot
+
+  implicit val emptyBoxValueEq: Eq[Box.Values.Empty.type] =
+    Eq.allEqual
+
+  implicit val polyBoxValueEq: Eq[Box.Values.Poly] =
+    (a, b) => a.quantity === b.quantity
+
+  implicit val arbitBoxValueEq: Eq[Box.Values.Arbit] =
+    (a, b) => a.quantity === b.quantity
+
+  implicit val assetBoxValueEq: Eq[Box.Values.AssetV1] =
+    (a, b) =>
+      a.quantity === b.quantity &&
+      a.assetCode === b.assetCode &&
+      a.securityRoot === b.securityRoot &&
+      a.metadata === b.metadata
+
+  implicit val operatorRegistrationBoxValueEq: Eq[Box.Values.Registrations.Operator] =
+    (a, b) => a.vrfCommitment === b.vrfCommitment
+
+  implicit val boxValueEq: Eq[Box.Value] = {
+    case (a: Box.Values.Empty.type, b: Box.Values.Empty.type) => emptyBoxValueEq.eqv(a, b)
+    case (a: Box.Values.Poly, b: Box.Values.Poly)             => polyBoxValueEq.eqv(a, b)
+    case (a: Box.Values.Arbit, b: Box.Values.Arbit)           => arbitBoxValueEq.eqv(a, b)
+    case (a: Box.Values.AssetV1, b: Box.Values.AssetV1)       => assetBoxValueEq.eqv(a, b)
+    case (a: Box.Values.Registrations.Operator, b: Box.Values.Registrations.Operator) =>
+      operatorRegistrationBoxValueEq.eqv(a, b)
+    case _ => false
+  }
 }

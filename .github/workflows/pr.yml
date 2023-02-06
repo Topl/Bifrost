@@ -2,7 +2,7 @@ name: Bifrost_PR
 
 on:
   pull_request:
-    branches: [dev, main, release-*, rc-*]
+    branches: [dev, main, release-*, rc-*, tetra]
 
 jobs:
   validate-helm:
@@ -14,20 +14,20 @@ jobs:
       target-os: >-
         ["ubuntu-latest"]
       java-versions: >-
-        ["graalvm-ce-java11@21.1.0"]
+        ["11"]
       preserve-cache-between-runs: true
 
-  post-man-integration-tests:
-    uses: ./.github/workflows/_postman_integration_tests.yml
+  sbt-integration-tests:
+    uses: ./.github/workflows/_scala_integration_tests.yml
     needs: sbt-build
     with:
       target-os: >-
         ["ubuntu-latest"]
       java-versions: >-
-        ["graalvm-ce-java11@21.1.0"]
+        ["11"]
       preserve-cache-between-runs: true
 
   publish-test-results:
     uses: ./.github/workflows/_publish_test_results.yml
     if: always()
-    needs: [post-man-integration-tests]
+    needs: [sbt-integration-tests]
