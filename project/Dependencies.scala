@@ -367,7 +367,7 @@ object Dependencies {
     Seq(fs2Core, fs2IO)
 
   lazy val orientDb: Seq[ModuleID] = {
-    val orientDbVersion = "3.2.10"
+    val orientDbVersion = "3.2.15"
     Seq(
       "com.orientechnologies"                  % "orientdb-core"               % orientDbVersion,
       "com.orientechnologies"                  % "orientdb-server"             % orientDbVersion,
