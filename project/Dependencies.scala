@@ -184,7 +184,7 @@ object Dependencies {
   val kubernetes = "io.kubernetes"          % "client-java"          % "16.0.1"
 
   val bramblScCrypto =
-    "com.github.Topl" % "BramblSc" % "v2.0.3"
+    "com.github.Topl" % "BramblSc" % "2.0.3"
 
   val catsAll: Seq[ModuleID] = cats ++ catsEffect ++ Seq(catsSlf4j)
   val fs2All: Seq[ModuleID] = catsAll ++ Seq(fs2Core, fs2IO)
