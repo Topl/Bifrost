@@ -2,10 +2,6 @@ name: Release
 
 on:
   push:
-    branches:
-      - 'main'
-      - 'dev'
-      - 'release-**'
     tags:
       - "v**"
 
@@ -36,20 +32,22 @@ jobs:
         with:
           name: Bifrost Node Jar (11)
 
-      - name: find JAR
+      - name: Find JAR
         run: echo "JAR_LOCATION=$(find . -maxdepth 1 -name "*.jar")" >> $GITHUB_ENV
 
-      - name: generate MD5 checksum
-        run: |
-          echo "MD5_LOCATION=$(basename ${{ env.JAR_LOCATION }}).md5" >> $GITHUB_ENV
-          md5sum ${{ env.JAR_LOCATION }} > ${{ MD5_LOCATION }}
+      - name: Set MD5 Location
+        run: echo "MD5_LOCATION=$(basename ${{ env.JAR_LOCATION }}).md5" >> $GITHUB_ENV
 
-      - name: generate SHA256 checksum
-        run: |
-          echo "SHA256_LOCATION=$(basename ${{ env.JAR_LOCATION }}).sha256" >> $GITHUB_ENV
-          sha256sum ${{ env.JAR_LOCATION }} > ${{ SHA256_LOCATION }}
+      - name: Set SHA256 Location
+        run: echo "SHA256_LOCATION=$(basename ${{ env.JAR_LOCATION }}).sha256" >> $GITHUB_ENV
 
-      - name: create release
+      - name: Generate MD5 Checksum
+        run: md5sum ${{ env.JAR_LOCATION }} > ${{ env.MD5_LOCATION }}
+
+      - name: Generate SHA256 Checksum
+        run: sha256sum ${{ env.JAR_LOCATION }} > ${{ env.SHA256_LOCATION }}
+
+      - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           draft: true
