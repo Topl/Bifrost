@@ -43,6 +43,11 @@ jobs:
           echo "MD5_LOCATION=$(basename ${{ env.JAR_LOCATION }}).md5" >> $GITHUB_ENV
           md5sum ${{ env.JAR_LOCATION }} > ${{ MD5_LOCATION }}
 
+      - name: generate SHA256 checksum
+        run: |
+          echo "SHA256_LOCATION=$(basename ${{ env.JAR_LOCATION }}).sha256" >> $GITHUB_ENV
+          sha256sum ${{ env.JAR_LOCATION }} > ${{ SHA256_LOCATION }}
+
       - name: create release
         uses: softprops/action-gh-release@v1
         with:
@@ -51,13 +56,4 @@ jobs:
           files: |
             ${{ env.JAR_LOCATION }}
             ${{ env.MD5_LOCATION }}
-
-      - name: upload MD5 artifact
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: $(basename ${{ env.JAR }}).md5
-          asset_name: $(basename ${{ env.JAR }}).md5
-          asset_content_type: text/plain
+            ${{ env.SHA256_LOCATION }}
