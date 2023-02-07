@@ -7,7 +7,13 @@ import co.topl.algebras.{ClockAlgebra, Store, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras._
-import co.topl.consensus.models.{BlockHeader, BlockHeaderValidationFailure, BlockHeaderValidationFailures, VrfArgument}
+import co.topl.consensus.models.{
+  BlockHeader,
+  BlockHeaderValidationFailure,
+  BlockHeaderValidationFailures,
+  SlotId,
+  VrfArgument
+}
 import co.topl.crypto.signing.{Ed25519VRF, KesProduct}
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.Ed25519
@@ -115,7 +121,7 @@ object BlockHeaderValidation {
       EitherT
         .liftF(
           etaInterpreter.etaToBe(
-            SlotId(header.parentSlot, header.parentHeaderId),
+            SlotId.of(header.parentSlot, header.parentHeaderId),
             header.slot
           )
         )

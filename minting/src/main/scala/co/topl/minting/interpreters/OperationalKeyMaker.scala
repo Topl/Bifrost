@@ -14,7 +14,8 @@ import co.topl.minting.algebras._
 import co.topl.minting.models.OperationalKeyOut
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.{Ratio, Sized}
+import co.topl.models.utility._
+import co.topl.consensus.models.SlotId
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
 import org.typelevel.log4cats.Logger
@@ -64,7 +65,7 @@ object OperationalKeyMaker {
         stateRef
       )
       initialKeysOpt <-
-        OptionT(consensusState.operatorRelativeStake(parentSlotId.blockId, initialSlot)(address))
+        OptionT(consensusState.operatorRelativeStake(parentSlotId.blockId: TypedIdentifier, initialSlot)(address))
           .flatMapF(relativeStake =>
             impl.consumeEvolvePersist(
               (initialOperationalPeriod - activationOperationalPeriod).toInt,

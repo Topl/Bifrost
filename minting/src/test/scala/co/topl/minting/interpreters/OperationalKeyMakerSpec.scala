@@ -15,7 +15,9 @@ import co.topl.minting.algebras.{OperationalKeyMakerAlgebra, VrfCalculatorAlgebr
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility.{Ratio, ReplaceModelUtil}
+import co.topl.consensus.models.{BlockId, SlotId}
 import com.google.common.primitives.Longs
+import com.google.protobuf.ByteString
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -49,7 +51,8 @@ class OperationalKeyMakerSpec
       val vrfProof = mock[VrfCalculatorAlgebra[F]]
       val etaCalculation = mock[EtaCalculationAlgebra[F]]
       val consensusState = mock[ConsensusValidationStateAlgebra[F]]
-      val parentSlotId = SlotId(10L, TypedBytes(1: Byte, Bytes.fill(32)(0: Byte)))
+//      val parentSlotId = SlotId(10L, TypedBytes(1: Byte, Bytes.fill(32)(0: Byte)):BlockId) // remove
+      val parentSlotId = SlotId(10L, BlockId.of(ByteString.copyFrom(Array.fill(32)(0: Byte))))
       val operationalPeriodLength = 30L
       val activationOperationalPeriod = 0L
       val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L)
@@ -145,7 +148,8 @@ class OperationalKeyMakerSpec
       val vrfProof = mock[VrfCalculatorAlgebra[F]]
       val etaCalculation = mock[EtaCalculationAlgebra[F]]
       val consensusState = mock[ConsensusValidationStateAlgebra[F]]
-      val parentSlotId = SlotId(10L, TypedBytes(1: Byte, Bytes.fill(32)(0: Byte)))
+//      val parentSlotId = SlotId(10L, TypedBytes(1: Byte, Bytes.fill(32)(0: Byte))) // remove
+      val parentSlotId = SlotId(10L, BlockId.of(ByteString.copyFrom(Array.fill(32)(0: Byte))))
       val operationalPeriodLength = 30L
       val activationOperationalPeriod = 0L
       val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L)

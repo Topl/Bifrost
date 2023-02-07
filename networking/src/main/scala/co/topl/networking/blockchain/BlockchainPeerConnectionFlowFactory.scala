@@ -7,8 +7,8 @@ import cats.implicits._
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.{models => legacyModels}
-import legacyModels.{SlotData, Transaction, TypedIdentifier}
-import co.topl.consensus.models.BlockHeader
+import legacyModels.{Transaction, TypedIdentifier}
+import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.node.models.BlockBody
 import co.topl.networking.TypedProtocolSetFactory.implicits._
 import co.topl.networking._

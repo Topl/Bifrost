@@ -1,8 +1,8 @@
 package co.topl.networking.blockchain
 
-import co.topl.consensus.models.BlockHeader
+import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.{models => legacyModels}
-import legacyModels.{SlotData, Transaction, TypedBytes}
+import legacyModels.{Transaction, TypedBytes}
 import co.topl.networking.typedprotocols.{NotificationProtocol, RequestResponseProtocol}
 import co.topl.node.models.BlockBody
 

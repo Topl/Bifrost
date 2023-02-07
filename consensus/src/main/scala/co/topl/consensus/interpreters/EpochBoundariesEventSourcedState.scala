@@ -4,8 +4,10 @@ import cats.effect.Async
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras._
+import co.topl.consensus.models.SlotData
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.models._
+import co.topl.models.utility._
 import co.topl.typeclasses.implicits._
 
 /**
@@ -43,7 +45,7 @@ object EpochBoundariesEventSourcedState {
         epoch       <- clock.epochOf(slotData.slotId.slot)
         parentEpoch <- clock.epochOf(slotData.parentSlotId.slot)
         _ <-
-          if (epoch === parentEpoch) state.put(epoch, slotData.parentSlotId.blockId)
+          if (epoch === parentEpoch) state.put(epoch, slotData.parentSlotId.blockId: TypedIdentifier)
           else state.remove(epoch).as(state)
       } yield state
 

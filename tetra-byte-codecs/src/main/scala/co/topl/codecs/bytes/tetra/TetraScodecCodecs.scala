@@ -894,11 +894,26 @@ trait TetraScodecBlockCodecs {
       unknownFieldSetCodec
   ).as[consensusModels.BlockHeader]
 
+  // TODO Remove after full model replacement
   implicit val slotIdCodec: Codec[SlotId] =
     (Codec[Slot](uLongCodec) :: Codec[TypedIdentifier]).as[SlotId]
 
-  implicit val slotDataCodec: Codec[SlotData] =
-    (Codec[SlotId] :: Codec[SlotId] :: Codec[Rho] :: Codec[Eta] :: Codec[Long](uLongCodec)).as[SlotData]
+  implicit val consensusSlotIdCodec: Codec[consensusModels.SlotId] =
+    (Codec[Slot](uLongCodec) ::
+      consensusBlockIdCodec ::
+      unknownFieldSetCodec).as[consensusModels.SlotId]
+
+  // TODO Remove after full model replacement
+  implicit val slotDataCodec: Codec[SlotDataLegacy] =
+    (Codec[SlotId] :: Codec[SlotId] :: Codec[Rho] :: Codec[Eta] :: Codec[Long](uLongCodec)).as[SlotDataLegacy]
+
+  implicit val consensusSlotDataCodec: Codec[consensusModels.SlotData] =
+    (consensusSlotIdCodec ::
+      consensusSlotIdCodec ::
+      protobufByteStringCodec :: // rho
+      protobufByteStringCodec :: // eta
+      Codec[Long](uLongCodec) :: // height
+      unknownFieldSetCodec).as[consensusModels.SlotData]
 
   implicit val unsignedBlockHeaderCodec: Codec[legacyModels.BlockHeader.Unsigned] =
     (

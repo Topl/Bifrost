@@ -8,7 +8,9 @@ import co.topl.catsakka._
 import co.topl.minting.algebras.{BlockPackerAlgebra, StakingAlgebra}
 import co.topl.minting.models._
 import co.topl.models.ModelGenerators._
-import co.topl.models.{Block, SlotData, StakingAddresses}
+import co.topl.models.generators.consensus.ModelGenerators.arbitrarySlotData
+import co.topl.models.{Block, StakingAddresses}
+import co.topl.consensus.models.SlotData
 import fs2._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF

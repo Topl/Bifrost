@@ -5,6 +5,7 @@ import co.topl.models.utility._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.consensus.{models => consensusModels}
 
 package object consensus {
 
@@ -13,8 +14,9 @@ package object consensus {
     import co.topl.codecs.bytes.tetra.TetraIdentifiableInstances._
     import co.topl.typeclasses.implicits._
 
-    def slotData(implicit ed25519VRF: Ed25519VRF): SlotData =
-      SlotData(
+    // TODO Remove after full model replacement
+    def slotData(implicit ed25519VRF: Ed25519VRF): SlotDataLegacy =
+      SlotDataLegacy(
         SlotId(blockHeader.slot, blockHeader.id),
         blockHeader.parentSlotId,
         Rho(Sized.strictUnsafe(ed25519VRF.proofToHash(blockHeader.eligibilityCertificate.vrfSig.bytes.data))),
@@ -27,13 +29,13 @@ package object consensus {
    * TODO
    * @param blockHeader helper for SlotData
    */
-  implicit class ConsensusBlockHeaderOps(blockHeader: co.topl.consensus.models.BlockHeader) {
+  implicit class ConsensusBlockHeaderOps(blockHeader: consensusModels.BlockHeader) {
 
     import co.topl.codecs.bytes.tetra.TetraIdentifiableInstances._
     import co.topl.typeclasses.implicits._
 
-    def slotData(implicit ed25519VRF: Ed25519VRF): SlotData =
-      SlotData(
+    def slotData(implicit ed25519VRF: Ed25519VRF): SlotDataLegacy =
+      SlotDataLegacy(
         SlotId(blockHeader.slot, blockHeader.id),
         SlotId(blockHeader.parentSlot, blockHeader.parentHeaderId),
         Rho(

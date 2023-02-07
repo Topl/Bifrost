@@ -13,7 +13,7 @@ import co.topl.blockchain.models.BlockHeaderToBodyValidationFailure
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LocalChainAlgebra}
-import co.topl.consensus.models.BlockHeaderValidationFailure
+import co.topl.consensus.models.{BlockHeader, BlockHeaderValidationFailure, SlotData, SlotId}
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
 import co.topl.ledger.models.{
@@ -27,13 +27,11 @@ import co.topl.ledger.models.{
 import co.topl.{models => legacyModels}
 import co.topl.models.utility._
 import legacyModels._
-import co.topl.consensus.models.BlockHeader
 import co.topl.node.models.BlockBody
 import co.topl.networking.blockchain._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-
 import scala.concurrent.duration._
 
 /**
@@ -115,8 +113,8 @@ object BlockchainPeerHandler {
                     tine: NonEmptyChain[SlotData] <- buildTine[F, SlotData](
                       slotDataStore,
                       fetch,
-                      (_, data) => data.parentSlotId.blockId.pure[F]
-                    )((slotData.slotId.blockId, slotData))
+                      (_, data) => (data.parentSlotId.blockId: TypedIdentifier).pure[F]
+                    )((slotData.slotId.blockId: TypedIdentifier, slotData))
                     _ <- Logger[F].debug(show"Retrieved remote tine length=${tine.length}")
                     // We necessarily need to save Slot Data in the store prior to performing chain "preference"
                     _ <- tine.traverse(slotData =>
@@ -203,7 +201,7 @@ object BlockchainPeerHandler {
     )(from:             TypedIdentifier) =
       determineMissingValues(
         headerStore.contains,
-        slotDataStore.getOrRaise(_).map(_.parentSlotId.blockId)
+        slotDataStore.getOrRaise(_).map(_.parentSlotId.blockId: TypedIdentifier)
       )(from)
         .flatMap(missingHeaders =>
           Stream
@@ -253,7 +251,7 @@ object BlockchainPeerHandler {
     )(from:                        TypedIdentifier) =
       determineMissingValues(
         bodyStore.contains,
-        slotDataStore.getOrRaise(_).map(_.parentSlotId.blockId)
+        slotDataStore.getOrRaise(_).map(_.parentSlotId.blockId: TypedIdentifier)
       )(from)
         .flatMap(missingBodyIds =>
           Stream

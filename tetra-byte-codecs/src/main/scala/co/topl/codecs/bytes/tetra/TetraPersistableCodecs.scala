@@ -4,6 +4,7 @@ import cats.data.{NonEmptyChain, NonEmptySet}
 import co.topl.codecs.bytes.scodecs._
 import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.models._
+import co.topl.consensus.{models => consensusModels}
 import scodec.bits.ByteVector
 
 trait TetraPersistableCodecs {
@@ -21,13 +22,16 @@ trait TetraPersistableCodecs {
   implicit val persistableTypedIdentifier: Persistable[TypedIdentifier] =
     Persistable.instanceFromCodec
 
-  implicit val persistableSlotData: Persistable[SlotData] =
+  implicit val persistableSlotData: Persistable[SlotDataLegacy] =
+    Persistable.instanceFromCodec
+
+  implicit val persistableConsensusSlotData: Persistable[consensusModels.SlotData] =
     Persistable.instanceFromCodec
 
   implicit val persistableBlockHeader: Persistable[BlockHeader] =
     Persistable.instanceFromCodec
 
-  implicit val persistableBlockConsensusHeader: Persistable[co.topl.consensus.models.BlockHeader] =
+  implicit val persistableBlockConsensusHeader: Persistable[consensusModels.BlockHeader] =
     Persistable.instanceFromCodec
 
   implicit val persistableBlockBody: Persistable[BlockBody] =

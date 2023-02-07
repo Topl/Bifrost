@@ -10,6 +10,8 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.minting.algebras.{BlockPackerAlgebra, BlockProducerAlgebra, StakingAlgebra}
 import co.topl.minting.models.VrfHit
 import co.topl.models._
+import co.topl.models.utility._
+import co.topl.consensus.models.{SlotData, SlotId}
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
@@ -73,7 +75,7 @@ object BlockProducer {
             show" eligibilitySlot=${nextHit.slot}"
           )
           // Assemble the transactions to be placed in our new block
-          body      <- packBlock(parentSlotData.slotId.blockId, parentSlotData.height + 1, nextHit.slot)
+          body <- packBlock(parentSlotData.slotId.blockId: TypedIdentifier, parentSlotData.height + 1, nextHit.slot)
           timestamp <- clock.slotToTimestamps(nextHit.slot).map(_.last)
           blockMaker = prepareUnsignedBlock(parentSlotData, body, timestamp, nextHit)
           // Despite being eligible, there may not have a corresponding linear KES key if, for example, the node
