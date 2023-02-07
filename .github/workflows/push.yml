@@ -6,7 +6,7 @@ on:
       - 'main'
       - 'dev'
       - 'release-**'
-      - 'BN-804-push-destination'
+      # - 'BN-804-remote-repository-destination'
 
 jobs:
   validate-helm:
