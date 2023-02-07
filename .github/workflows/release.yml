@@ -3,8 +3,9 @@ name: Release
 on:
   push:
     branches:
-      - "main"
-      - "release/**"
+      - 'main'
+      - 'dev'
+      - 'release-**'
     tags:
       - "v**"
 
