@@ -1,16 +1,16 @@
-name: Postman Integration Tests
+name: Scala Assemble JAR
 
 on:
   workflow_call:
     inputs:
       target-os:
         description: 'List of operating systems to build on.'
-        default: 'ubuntu-latest'
+        default: "['ubuntu-latest']"
         required: false
         type: string
       java-versions:
         description: 'List of Java versions to target.'
-        default: '11'
+        default: "['11']"
         required: false
         type: string
       preserve-cache-between-runs:
@@ -20,8 +20,8 @@ on:
         type: boolean
 
 jobs:
-  postman_integration_tests:
-    name: Postman Integration Tests
+  build:
+    name: Assemble JAR
     strategy:
       matrix:
         os: ${{fromJson(inputs.target-os)}}
@@ -29,10 +29,22 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0 # Need full history to update last modified time.
           submodules: true
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: ${{ matrix.java }}
+
+      - name: Setup SBT
+        run: |
+          mkdir -p $HOME/bin/sbt
+          set -eux && curl --fail --silent --location --retry 3 https://github.com/sbt/sbt/releases/download/v1.7.1/sbt-1.7.1.tgz | gunzip | tar x -C $HOME/bin/sbt
+          echo "$HOME/bin/sbt" >> $GITHUB_PATH
 
       - name: Cache sbt
         uses: actions/cache@v3
@@ -58,21 +70,16 @@ jobs:
       - name: git-restore-mtime
         uses: chetan/git-restore-mtime-action@v1
 
-      - name: Stage Docker Image
-        run: sbt bifrost/docker:stage
+      - name: Compile
+        run: sbt node/assembly
 
-      - name: Integration Tests
-        run: docker-compose -f ./node/src/it/resources/postman-tests/docker-compose.yml up --exit-code-from postman
-
-      # Upload JUnit test results as an artifact so that we can publish a test report in our workflow.
-      # Artifacts can be found on the summary page for each individual workflow run.
-      - name: Upload Test Results
-        if: always()
+      - name: Upload JAR
         uses: actions/upload-artifact@v3
         with:
-          name: Postman Integration Test Results (${{ matrix.os }})
-          path: node/src/it/resources/postman-tests/target/test-results/*.xml
-
+          name: Bifrost Node Jar (${{ matrix.java }})
+          path: node/target/scala-2.13/*.jar
+          if-no-files-found: error
+      
       - name: Cleanup before cache
         shell: bash
         run: |

@@ -5,12 +5,12 @@ on:
     inputs:
       target-os:
         description: 'List of operating systems to build on.'
-        default: 'ubuntu-latest'
+        default: "['ubuntu-latest']"
         required: false
         type: string
       java-versions:
         description: 'List of Java versions to target.'
-        default: '11'
+        default: "['11']"
         required: false
         type: string
       preserve-cache-between-runs:
@@ -29,7 +29,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0 # Need full history to update last modified time.
           submodules: true
@@ -70,7 +70,10 @@ jobs:
       - name: git-restore-mtime
         uses: chetan/git-restore-mtime-action@v1
 
-      - name: Compile and Test
+      - name: Compile
+        run: sbt Test/compile
+
+      - name: Tests and Checks
         run: sbt checkPRTestQuick
 
       - name: Upload Test Results

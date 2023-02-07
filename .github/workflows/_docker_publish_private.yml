@@ -1,4 +1,4 @@
-name: Publish Docker Image
+name: Publish Docker Images (Private)
 
 on:
   workflow_call:
@@ -13,25 +13,10 @@ on:
         default: "us-central1-docker.pkg.dev"
         required: false
         type: string
-      local-docker-repo:
-        description: 'Name of the locally staged Docker image.'
-        default: "toplprotocol"
-        required: false
-        type: string
-      local-docker-image:
-        description: 'Name of the locally staged Docker image.'
-        default: "bifrost-node"
-        required: false
-        type: string
-      scala-project:
-        description: 'Which Bifrost node project to use.'
-        default: "node"
-        required: false
-        type: string
 
 jobs:
-  publish_docker_image:
-    name: Publish Docker Image
+  publish_docker_images:
+    name: Publish Docker Images
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -57,9 +42,13 @@ jobs:
         run: gcloud auth configure-docker ${{ inputs.registry-auth-location }}
 
       - name: Stage Docker Image
-        run: sbt ${{ inputs.scala-project }}/docker:publishLocal
+        run: sbt Docker/publishLocal
 
       - name: Tag and push image to remote registry
         run: |
-          docker tag $(docker images ${{ inputs.local-docker-repo }}/${{ inputs.local-docker-image }} --format "{{.ID}}" | head -n 1) ${{ inputs.remote-repository }}/${{ inputs.local-docker-image }}:$(docker images ${{ inputs.local-docker-repo }}/${{ inputs.local-docker-image }} --format "{{.Tag}}" | head -n 1)
-          docker push --all-tags ${{ inputs.remote-repository }}/${{ inputs.local-docker-image }}
+          docker tag $(docker images toplprotocol/bifrost-node --format "{{.ID}}" | head -n 1) ${{ inputs.remote-repository }}/bifrost-node:$(docker images toplprotocol/bifrost-node --format "{{.Tag}}" | head -n 1)
+          docker tag $(docker images toplprotocol/testnet-simulation-orchestrator --format "{{.ID}}" | head -n 1) ${{ inputs.remote-repository }}/testnet-simulation-orchestrator:$(docker images toplprotocol/testnet-simulation-orchestrator --format "{{.Tag}}" | head -n 1)
+          docker tag $(docker images toplprotocol/network-delayer --format "{{.ID}}" | head -n 1) ${{ inputs.remote-repository }}/network-delayer:$(docker images toplprotocol/network-delayer --format "{{.Tag}}" | head -n 1)
+          docker push --all-tags ${{ inputs.remote-repository }}/bifrost-node
+          docker push --all-tags ${{ inputs.remote-repository }}/testnet-simulation-orchestrator
+          docker push --all-tags ${{ inputs.remote-repository }}/network-delayer
