@@ -24,8 +24,22 @@ trait ShowInstances {
   implicit def showSizedBytes[Data: Show, L <: Length](implicit l: L): Show[Sized.Strict[Data, L]] =
     sized => show"[${l.value}](${sized.data})"
 
+  implicit val showIoTransaction32Id: Show[co.topl.brambl.models.Identifier.IoTransaction32] =
+    t => show"t_${t.evidence.flatMap(_.digest).fold(Bytes.empty)(t => t.value: Bytes)}"
+
+  implicit val showBlockId: Show[co.topl.consensus.models.BlockId] =
+    b => show"b_${b.value: Bytes}"
+
   implicit val showTypedIdentifier: Show[TypedIdentifier] =
-    showBytes.contramap[TypedIdentifier](_.allBytes)
+    id =>
+      id.typePrefix match {
+        case IdentifierTypes.Block.HeaderV2 =>
+          show"b_${id.dataBytes}"
+        case IdentifierTypes.Transaction =>
+          show"t_${id.dataBytes}"
+        case p =>
+          show"c${p}_${id.dataBytes}"
+      }
 
   implicit val showSlotId: Show[SlotId] =
     slotID => show"{${slotID.slot},${slotID.blockId}}"

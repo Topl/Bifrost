@@ -267,14 +267,14 @@ object BlockchainPeerHandler {
                       .ifM(
                         Applicative[F].unit,
                         for {
-                          _ <- Logger[F].info(show"Fetching remote transaction id=${(transactionId: TypedIdentifier)}")
+                          _ <- Logger[F].info(show"Fetching remote transaction id=$transactionId")
                           transaction <- OptionT(client.getRemoteTransaction(transactionId))
-                            .getOrNoSuchElement((transactionId: TypedIdentifier).show)
+                            .getOrNoSuchElement(transactionId.show)
                           _ <- MonadThrow[F]
                             .raiseWhen(transaction.id.asTypedBytes =!= transactionId)(
                               new IllegalArgumentException("Claimed transaction ID did not match provided transaction")
                             )
-                          _ <- Logger[F].debug(show"Saving transaction id=$${TypedBytes.ioTx32(transactionId)}")
+                          _ <- Logger[F].debug(show"Saving transaction id=$transactionId")
                           _ <- transactionStore.put(transactionId, transaction)
                         } yield ()
                       )
@@ -486,7 +486,7 @@ object BlockchainPeerHandler {
   private def createPeerLogger[F[_]: Sync](client: BlockchainPeerClient[F])(processName: String) =
     client.remotePeer.map(remotePeer =>
       Slf4jLogger
-        .getLoggerFromName[F](s"$processName [${remotePeer.remoteAddress}]")
+        .getLoggerFromName[F](show"$processName [${remotePeer.remoteAddress}]")
     )
 
 }
