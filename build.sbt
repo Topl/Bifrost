@@ -125,7 +125,11 @@ lazy val commonScalacOptions = Seq(
 )
 
 javaOptions ++= Seq(
-  "-XX:+ExitOnOutOfMemoryError"
+  // Force the JVM to exit the first time it encounters an OOM error.  By default, it might not exit.
+  "-XX:+ExitOnOutOfMemoryError",
+  // Disables the shared memory space for JVM stats, thus preventing external processes from viewing memory/CPU stats.
+  // Disabled to prevent a potential security threat
+  "-XX:+PerfDisableSharedMem"
 )
 
 connectInput / run := true
