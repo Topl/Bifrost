@@ -4,8 +4,11 @@ import cats._
 import cats.data.OptionT
 import cats.effect.kernel.Sync
 import cats.implicits._
-import co.topl.models._
-import co.topl.models.utility.Ratio
+import co.topl.{models => legacyModels}
+import legacyModels._
+import legacyModels.utility.Ratio
+import co.topl.consensus.models.BlockHeader
+import co.topl.node.models.BlockBody
 import co.topl.networking.p2p.ConnectedPeer
 import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._

@@ -11,22 +11,27 @@ import co.topl.algebras.{ClockAlgebra, Store, UnsafeResource}
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.consensus.BlockHeaderOps
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LocalChainAlgebra}
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.grpc.ToplGrpc
 import co.topl.ledger.algebras._
 import co.topl.minting.algebras.StakingAlgebra
-import co.topl.models._
+import co.topl.{models => legacyModels}
+import co.topl.models.utility._
+import legacyModels._
+import co.topl.consensus.models.BlockHeader
+import co.topl.node.models.BlockBody
 import co.topl.networking.blockchain._
 import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, LocalPeer}
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import BlockchainPeerHandler.monoidBlockchainPeerHandler
 import co.topl.blockchain.algebras.BlockHeaderToBodyValidationAlgebra
+import co.topl.blockchain.interpreters.BlockchainPeerServer
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.interpreters.{BlockPacker, BlockProducer}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+
 import scala.jdk.CollectionConverters._
 import scala.util.Random
 import fs2._
@@ -38,7 +43,7 @@ object Blockchain {
    */
   def make[F[_]: Parallel: Async: FToFuture](
     clock:                       ClockAlgebra[F],
-    staker:                      Option[StakingAlgebra[F]],
+    stakerOpt:                   Option[StakingAlgebra[F]],
     slotDataStore:               Store[F, TypedIdentifier, SlotData],
     headerStore:                 Store[F, TypedIdentifier, BlockHeader],
     bodyStore:                   Store[F, TypedIdentifier, BlockBody],
@@ -71,7 +76,8 @@ object Blockchain {
         Async[F].background(
           blockAdoptionsTopic.subscribeUnbounded
             .evalMap(id => bodyStore.getOrRaise(id))
-            .flatMap(Stream.iterable(_))
+            .flatMap(b => Stream.iterable(b.transactionIds))
+            .map(t => t: TypedIdentifier)
             .through(transactionAdoptionsTopic.publish)
             .compile
             .drain
@@ -109,22 +115,17 @@ object Blockchain {
           )
         ).combineAll
       )
-      peerServer <- Resource.eval(
-        BlockchainPeerServer.FromStores.make(
-          slotDataStore,
-          headerStore,
-          bodyStore,
-          transactionStore,
-          blockHeights,
-          localChain,
-          blockAdoptionsTopic.subscribeUnbounded
-            .evalTap(id => Logger[F].debug(show"Broadcasting block id=$id to peer"))
-            .pure[F],
-          transactionAdoptionsTopic.subscribeUnbounded
-            .evalTap(id => Logger[F].debug(show"Broadcasting transaction id=$id to peer"))
-            .pure[F]
-        )
-      )
+      peerServerF = BlockchainPeerServer.make(
+        slotDataStore.get,
+        headerStore.get,
+        bodyStore.get,
+        transactionStore.get,
+        blockHeights,
+        localChain,
+        mempool,
+        blockAdoptionsTopic,
+        transactionAdoptionsTopic
+      ) _
       _ <- BlockchainNetwork
         .make[F](
           localPeer.localAddress.getHostName,
@@ -132,61 +133,69 @@ object Blockchain {
           localPeer,
           remotePeers,
           clientHandler,
-          peerServer,
+          peerServerF,
           peerFlowModifier
         )
-      blockPacker <- Resource.eval(
-        BlockPacker.make[F](
-          mempool,
-          transactionStore.getOrRaise,
-          transactionStore.contains,
-          BlockPacker.makeBodyValidator(bodySyntaxValidation, bodySemanticValidation, bodyAuthorizationValidation)
-        )
-      )
       mintedBlockStream =
-        staker.fold[Stream[F, Block]](Stream.never[F])(staker =>
-          // The BlockProducer needs a stream/Source of "parents" upon which it should build.  This stream is the
-          // concatenation of the current local head with the stream of local block adoptions
-          Stream
-            .eval(localChain.head)
-            .flatMap(currentHead =>
-              Stream.resource(
-                (
-                  Stream.eval(clock.delayedUntilSlot(currentHead.slotId.slot).as(currentHead))
-                  ++ blockAdoptionsTopic.subscribeDropOldest(1).evalMap(slotDataStore.getOrRaise)
-                ).toAkkaSource
+        for {
+          staker <- Stream.fromOption[F](stakerOpt)
+          blockPacker <- Stream.eval(
+            BlockPacker
+              .make[F](
+                mempool,
+                transactionStore.getOrRaise,
+                transactionStore.contains,
+                BlockPacker
+                  .makeBodyValidator(bodySyntaxValidation, bodySemanticValidation, bodyAuthorizationValidation)
               )
-            )
-            .flatMap(adoptionsSource =>
-              Stream
-                .eval(
-                  BlockProducer
-                    .make[F](adoptionsSource, staker, clock, blockPacker)
-                    .flatMap(_.blocks)
-                )
-                .flatMap(_.asFS2Stream)
-            )
+          )
+          blockProducer <- Stream.eval(
+            BlockProducer
+              .make[F](
+                // The BlockProducer needs a stream/Source of "parents" upon which it should build.  This stream is the
+                // concatenation of the current local head with the stream of local block adoptions
+                Stream
+                  .eval(Sync[F].defer(localChain.head))
+                  .evalTap(head => clock.delayedUntilSlot(head.slotId.slot))
+                  .append(
+                    Stream
+                      .resource(DroppingTopic(blockAdoptionsTopic, 10))
+                      .flatMap(_.subscribeUnbounded)
+                      .evalMap(slotDataStore.getOrRaise)
+                  ),
+                staker,
+                clock,
+                blockPacker
+              )
+          )
+          block <- Stream.force(blockProducer.blocks)
+        } yield block
+      rpcInterpreter <- DroppingTopic(blockAdoptionsTopic, 10)
+        .flatMap(_.subscribeAwaitUnbounded)
+        .evalMap(
+          ToplRpcServer.make(
+            headerStore,
+            bodyStore,
+            transactionStore,
+            mempool,
+            transactionSyntaxValidation,
+            localChain,
+            blockHeights,
+            blockIdTree,
+            _
+          )
         )
-      rpcInterpreter <- Resource.eval(
-        ToplRpcServer.make(
-          headerStore,
-          bodyStore,
-          transactionStore,
-          mempool,
-          transactionSyntaxValidation,
-          localChain,
-          blockHeights,
-          blockIdTree,
-          blockAdoptionsTopic.subscribeDropOldest(10)
+      _ <- ToplGrpc.Server
+        .serve(rpcHost, rpcPort, rpcInterpreter)
+        .evalTap(rpcServer =>
+          Logger[F].info(s"RPC Server bound at ${rpcServer.getListenSockets.asScala.toList.mkString(",")}")
         )
-      )
-      rpcServer <- ToplGrpc.Server.serve(rpcHost, rpcPort, rpcInterpreter)
-      mintedBlockStreamCompletionF =
+      _ <- Async[F].background(
         mintedBlockStream
           .evalMap(block =>
-            blockIdTree.associate(block.header.id, block.header.parentHeaderId) >>
-            headerStore.put(block.header.id, block.header) >>
-            bodyStore.put(block.header.id, block.body) >>
+            blockIdTree.associate(block.header.id, block.header.parentHeaderId) &>
+            headerStore.put(block.header.id, block.header) &>
+            bodyStore.put(block.header.id, block.body) &>
             ed25519VrfResource
               .use(implicit e => block.header.slotData.pure[F])
               .flatTap(slotDataStore.put(block.header.id, _))
@@ -195,11 +204,7 @@ object Blockchain {
           .evalTap(localChain.adopt)
           .compile
           .drain
-      _ <-
-        Resource.eval(
-          Logger[F].info(s"RPC Server bound at ${rpcServer.getListenSockets.asScala.toList.mkString(",")}")
-        )
-      _ <- Resource.eval(mintedBlockStreamCompletionF)
+      )
     } yield ()
   }
 

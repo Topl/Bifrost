@@ -7,12 +7,14 @@ import co.topl.algebras.testInterpreters.TestStore
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.eventtree.ParentChildTree
-import co.topl.models.ModelGenerators._
-import co.topl.models.{Box, Transaction, TypedIdentifier}
+import co.topl.{models => legacyModels}
+import legacyModels.ModelGenerators._
+import legacyModels.utility.ReplaceModelUtil
+import legacyModels.{Box, Transaction, TypedIdentifier}
+import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
-
 import scala.collection.immutable.ListSet
 
 class AugmentedBoxStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
@@ -39,8 +41,14 @@ class AugmentedBoxStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
           boxState <- BoxState.make[IO](
             blockId0.pure[IO],
             Map(
-              blockId1 -> ListSet(transaction1.id.asTypedBytes, transaction2.id.asTypedBytes).pure[IO]
-            ).apply _,
+              blockId1 ->
+              BlockBody(
+                ListSet(transaction1.id.asTypedBytes, transaction2.id.asTypedBytes)
+                  .map(ReplaceModelUtil.ioTransaction32)
+                  .toSeq
+              )
+                .pure[IO]
+            ).apply(_),
             Map(
               transaction1.id.asTypedBytes -> transaction1.pure[IO],
               transaction2.id.asTypedBytes -> transaction2.pure[IO]

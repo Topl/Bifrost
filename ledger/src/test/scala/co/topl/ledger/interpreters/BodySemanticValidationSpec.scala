@@ -8,12 +8,12 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.ledger.algebras.TransactionSemanticValidationAlgebra
 import co.topl.ledger.models._
 import co.topl.models.ModelGenerators._
+import co.topl.models.utility.ReplaceModelUtil
 import co.topl.models.{Slot, Transaction, TypedIdentifier}
 import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
-
 import scala.collection.immutable.ListSet
 
 class BodySemanticValidationSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
@@ -39,8 +39,10 @@ class BodySemanticValidationSpec extends CatsEffectSuite with ScalaCheckEffectSu
                   .InputDataMismatch(input): TransactionSemanticError).invalidNec[Transaction].pure[F]
               )
             underTest <- BodySemanticValidation.make[F](fetchTransaction, transactionSemanticValidation)
-            result    <- underTest.validate(StaticBodyValidationContext(parentBlockId, height, slot))(body)
-            _         <- IO(result.isInvalid).assert
+            result <- underTest.validate(StaticBodyValidationContext(parentBlockId, height, slot))(
+              ReplaceModelUtil.nodeBlock(body)
+            ) // TODO removeModel Util
+            _ <- IO(result.isInvalid).assert
           } yield ()
         }
     }
@@ -85,8 +87,10 @@ class BodySemanticValidationSpec extends CatsEffectSuite with ScalaCheckEffectSu
               .never() // TransactionB should fail before reaching transaction semantic validation
             underTest <- BodySemanticValidation
               .make[F](fetchTransaction, transactionSemanticValidation)
-            result <- underTest.validate(StaticBodyValidationContext(parentBlockId, height, slot))(body)
-            _      <- IO(result.isInvalid).assert
+            result <- underTest.validate(StaticBodyValidationContext(parentBlockId, height, slot))(
+              ReplaceModelUtil.nodeBlock(body)
+            ) // TODO removeModel Util
+            _ <- IO(result.isInvalid).assert
           } yield ()
         }
     }

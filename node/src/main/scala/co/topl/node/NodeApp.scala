@@ -5,7 +5,6 @@ import akka.actor.typed.scaladsl.Behaviors
 import cats.Applicative
 import cats.effect.{IO, Resource}
 import cats.implicits._
-import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras._
 import co.topl.blockchain._
 import co.topl.catsakka._
@@ -159,18 +158,16 @@ object NodeApp
           currentEventIdGetterSetters.canonicalHead.set
         )
       )
-      mempool <- Resource.eval(
-        Mempool.make[F](
-          currentEventIdGetterSetters.mempool.get(),
-          dataStores.bodies.getOrRaise,
-          dataStores.transactions.getOrRaise,
-          blockIdTree,
-          currentEventIdGetterSetters.mempool.set,
-          clock,
-          id => Logger[F].info(show"Expiring transaction id=$id"),
-          appConfig.bifrost.mempool.defaultExpirationSlots,
-          appConfig.bifrost.mempool.duplicateSpenderExpirationSlots
-        )
+      mempool <- Mempool.make[F](
+        currentEventIdGetterSetters.mempool.get(),
+        dataStores.bodies.getOrRaise,
+        dataStores.transactions.getOrRaise,
+        blockIdTree,
+        currentEventIdGetterSetters.mempool.set,
+        clock,
+        id => Logger[F].info(show"Expiring transaction id=$id"),
+        appConfig.bifrost.mempool.defaultExpirationSlots,
+        appConfig.bifrost.mempool.duplicateSpenderExpirationSlots
       )
       implicit0(networkRandom: Random) = new Random(new SecureRandom())
       staking <- privateBigBang.localStakerIndex
@@ -266,9 +263,8 @@ object NodeApp
             vrfConfig,
             leaderElectionThreshold
           )
-          currentSlot  <- clock.globalSlot.map(_.max(0L))
-          currentEpoch <- clock.epochOf(currentSlot)
-          _            <- vrfCalculator.precomputeForEpoch(currentEpoch, currentHead.eta)
+          currentSlot <- clock.globalSlot.map(_.max(0L))
+
           operationalKeys <- OperationalKeyMaker.make[F](
             initialSlot = currentSlot,
             currentHead.slotId,
@@ -289,8 +285,7 @@ object NodeApp
             consensusValidationState,
             etaCalculation,
             ed25519Resource,
-            vrfCalculator,
-            clock
+            vrfCalculator
           )
         } yield staking
       )

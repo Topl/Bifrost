@@ -5,7 +5,10 @@ import cats.effect.Sync
 import cats.implicits._
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
-import co.topl.models.{BlockBody, Transaction, TypedIdentifier}
+import co.topl.models.utility._
+import co.topl.{models => legacyModels}
+import legacyModels.{Transaction, TypedIdentifier}
+import co.topl.node.models.BlockBody
 
 object BodySemanticValidation {
 
@@ -20,10 +23,10 @@ object BodySemanticValidation {
          * Semantically validates each of the transactions in the given block.  The given transactions _may_ spend
          * the outputs of previous transactions in the block, but no two transactions may spend the same input.
          */
-        def validate(
-          context: BodyValidationContext
-        )(body:    BlockBody): F[ValidatedNec[BodySemanticError, BlockBody]] =
-          body.toList
+        def validate(context: BodyValidationContext)(body: BlockBody): F[ValidatedNec[BodySemanticError, BlockBody]] =
+          body.transactionIds
+            .map(t => t: TypedIdentifier)
+            .toList
             .foldLeftM(Chain.empty[Transaction].validNec[BodySemanticError]) {
               case (Validated.Valid(prefix), transactionId) =>
                 validateTransaction(context, prefix)(transactionId).map(_.map(prefix.append))

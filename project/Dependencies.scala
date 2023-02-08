@@ -3,18 +3,17 @@ import sbt._
 object Dependencies {
 
   val akkaVersion = "2.6.20"
-  val akkaHttpVersion = "10.2.10"
   val circeVersion = "0.14.3"
   val kamonVersion = "2.5.12"
-  val graalVersion = "21.3.4"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.9.0"
   val catsEffectVersion = "3.4.1"
   val fs2Version = "3.5-1c0be5c"
   val logback = "1.4.5"
+  val orientDbVersion = "3.2.15"
 
-  val protobufSpecs =
-    "com.github.Topl" % "protobuf-specs" % "aefb7254"
+  // Reference https://github.com/Topl/protobuf-specs/pull/30
+  val protobufSpecs = "com.github.Topl" % "protobuf-specs" % "948dc20"
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.5.0"
@@ -50,41 +49,12 @@ object Dependencies {
   ) ++ scalamock
 
   val it: Seq[ModuleID] = Seq(
-    "org.scalatest"     %% "scalatest"           % "3.2.12"        % "it",
-    "com.spotify"        % "docker-client"       % "8.16.0"        % "it",
-    "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion     % "it",
-    "com.typesafe.akka" %% "akka-http-testkit"   % akkaHttpVersion % "it"
+    "org.scalatest" %% "scalatest"     % "3.2.12" % "it",
+    "com.spotify"    % "docker-client" % "8.16.0" % "it"
   )
 
   def akka(name: String): ModuleID =
     "com.typesafe.akka" %% s"akka-$name" % akkaVersion
-
-  def akkaHttp(name: String): ModuleID =
-    "com.typesafe.akka" %% s"akka-$name" % akkaHttpVersion
-
-  val allAkka: Seq[ModuleID] = Seq(
-    "com.typesafe.akka" %% "akka-actor"               % akkaVersion,
-    "com.typesafe.akka" %% "akka-actor-typed"         % akkaVersion,
-    "com.typesafe.akka" %% "akka-stream"              % akkaVersion,
-    "com.typesafe.akka" %% "akka-stream-typed"        % akkaVersion,
-    "com.typesafe.akka" %% "akka-http"                % akkaHttpVersion,
-    "com.typesafe.akka" %% "akka-http-core"           % akkaHttpVersion,
-    "com.typesafe.akka" %% "akka-discovery"           % akkaVersion,
-    "com.typesafe.akka" %% "akka-slf4j"               % akkaVersion,
-    "com.typesafe.akka" %% "akka-testkit"             % akkaVersion     % Test,
-    "com.typesafe.akka" %% "akka-actor-testkit-typed" % akkaVersion     % Test,
-    "com.typesafe.akka" %% "akka-stream-testkit"      % akkaVersion     % Test,
-    "com.typesafe.akka" %% "akka-http-testkit"        % akkaHttpVersion % Test
-  )
-
-  val network: Seq[ModuleID] = Seq(
-    "org.bitlet"  % "weupnp"      % "0.1.4",
-    "commons-net" % "commons-net" % "3.8.0"
-  )
-
-  val scalaCollectionCompat: Seq[ModuleID] = Seq(
-    "org.scala-lang.modules" %% "scala-collection-compat" % "2.8.1"
-  )
 
   val circe: Seq[ModuleID] = Seq(
     "io.circe" %% "circe-core"    % circeVersion,
@@ -96,30 +66,9 @@ object Dependencies {
     "io.estatico" %% "newtype" % "0.4.4"
   )
 
-  val guava: Seq[ModuleID] = Seq(
-    "com.google.guava" % "guava" % "31.1-jre"
-  )
-
-  val ficus: Seq[ModuleID] = Seq(
-    "com.iheart" %% "ficus" % "1.5.2"
-  )
-
-  val shapeless = Seq(
-    "com.chuusai" %% "shapeless" % "2.3.10"
-  )
-
   val monitoring: Seq[ModuleID] = Seq(
     "io.kamon" %% "kamon-core"      % kamonVersion,
-    "io.kamon" %% "kamon-cats-io-3" % kamonVersion,
-    "io.kamon" %% "kamon-bundle"    % kamonVersion % Runtime,
-    "io.kamon" %% "kamon-influxdb"  % kamonVersion % Runtime,
-    "io.kamon" %% "kamon-zipkin"    % kamonVersion % Runtime
-  )
-
-  val graal: Seq[ModuleID] = Seq(
-    "org.graalvm.sdk"     % "graal-sdk"   % graalVersion,
-    "org.graalvm.js"      % "js"          % graalVersion,
-    "org.graalvm.truffle" % "truffle-api" % graalVersion
+    "io.kamon" %% "kamon-cats-io-3" % kamonVersion
   )
 
   val cats: Seq[ModuleID] = Seq(
@@ -143,11 +92,6 @@ object Dependencies {
     "org.bouncycastle" % "bcprov-jdk18on" % "1.72"
   )
 
-  val mongoDb: Seq[ModuleID] =
-    Seq(
-      "org.mongodb.scala" %% "mongo-scala-driver" % "4.7.2"
-    )
-
   val levelDb: Seq[ModuleID] = Seq(
     "org.ethereum"     % "leveldbjni-all" % "1.18.3",
     "org.iq80.leveldb" % "leveldb"        % "0.12"
@@ -157,14 +101,6 @@ object Dependencies {
     "org.scodec" %% "scodec-core" % "1.11.10",
     "org.scodec" %% "scodec-bits" % "1.1.34",
     "org.scodec" %% "scodec-cats" % "1.2.0"
-  )
-
-  val scodecCats: Seq[ModuleID] = Seq(
-    "org.scodec" %% "scodec-cats" % "1.1.0"
-  )
-
-  val fleam: Seq[ModuleID] = Seq(
-    "com.nike.fleam" %% "fleam" % "7.0.0"
   )
 
   val mainargs = Seq(
@@ -179,12 +115,14 @@ object Dependencies {
   val fs2Core = "co.fs2"                   %% "fs2-core"             % fs2Version
   val fs2IO = "co.fs2"                     %% "fs2-io"               % fs2Version
   val fs2ReactiveStreams = "co.fs2"        %% "fs2-reactive-streams" % fs2Version
-  val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.1"
-  val circeYaml = "io.circe"               %% "circe-yaml"           % "0.14.1"
-  val kubernetes = "io.kubernetes"          % "client-java"          % "16.0.1"
+  val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.2"
+  val circeYaml = "io.circe"               %% "circe-yaml"           % "0.14.2"
+  val kubernetes = "io.kubernetes"          % "client-java"          % "17.0.1"
 
-  val bramblScCrypto =
-    "com.github.Topl" % "BramblSc" % "v2.0.3"
+  val bramblScCrypto = "com.github.Topl" % "BramblSc" % "v2.0.3"
+
+  val catsAll: Seq[ModuleID] = cats ++ catsEffect ++ Seq(catsSlf4j)
+  val fs2All: Seq[ModuleID] = catsAll ++ Seq(fs2Core, fs2IO)
 
   val node: Seq[ModuleID] =
     Seq(
@@ -218,27 +156,17 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.14.0"
+      "com.google.cloud" % "google-cloud-storage" % "2.17.2"
     )
+
+  lazy val actor: Seq[sbt.ModuleID] = fs2All
 
   lazy val algebras: Seq[sbt.ModuleID] =
     circe ++
+    Seq(protobufSpecs) ++
     test ++
     catsEffect.map(_ % Test) ++
     Seq(catsSlf4j % Test)
-
-  lazy val common: Seq[ModuleID] =
-    Seq(
-      "org.typelevel" %% "simulacrum" % simulacrumVersion
-    ) ++
-    scalaCollectionCompat ++
-    logging ++
-    scodec ++
-    circe ++
-    simulacrum ++
-    test ++
-    mongoDb ++
-    Seq(akka("actor-typed"))
 
   val commonApplication: Seq[ModuleID] =
     cats ++ catsEffect ++ mainargs ++ logging ++ monocle ++
@@ -249,34 +177,13 @@ object Dependencies {
       circeYaml
     )
 
-  lazy val brambl: Seq[ModuleID] =
-    test ++ scodec ++ simulacrum ++ Seq(akkaHttp("http2-support"))
-
-  lazy val akkaHttpRpc: Seq[ModuleID] =
-    Seq(
-      "de.heikoseeberger" %% "akka-http-circe" % "1.39.2",
-      "io.circe"          %% "circe-optics"    % "0.14.1"
-    ) ++
-    scalaCollectionCompat ++
-    circe ++
-    allAkka ++
-    test
-
-  lazy val toplRpc: Seq[ModuleID] =
-    scalaCollectionCompat ++
-    scodec ++
-    circe ++
-    test
-
-  lazy val benchmarking: Seq[ModuleID] = Seq()
-
   lazy val crypto: Seq[ModuleID] =
-    circe ++
     scodec ++
     externalCrypto ++
     cats ++
     test ++
-    Seq(bramblScCrypto)
+    Seq(bramblScCrypto) ++
+    circe.map(_ % Test)
 
   lazy val eventTree: Seq[ModuleID] =
     Dependencies.mUnitTest ++ Dependencies.catsEffect
@@ -288,23 +195,19 @@ object Dependencies {
 
   // TODO remove BN-714, PR v2
   lazy val models: Seq[ModuleID] =
-    cats ++ simulacrum ++ newType ++ scodec
+    cats ++ simulacrum ++ newType ++ scodec ++ Seq(protobufSpecs)
 
   lazy val consensus: Seq[ModuleID] =
     Dependencies.mUnitTest ++ externalCrypto ++ Seq(akka("actor-typed")) ++ catsEffect ++ logging ++ scalacache
 
   lazy val minting: Seq[ModuleID] =
-    Dependencies.mUnitTest ++ Dependencies.test ++ Dependencies.catsEffect ++
-    Seq(
-      Dependencies.akka("stream"),
-      Dependencies.akka("stream-testkit") % Test
-    )
+    Dependencies.mUnitTest ++ Dependencies.test ++ Dependencies.catsEffect
 
   lazy val networking: Seq[ModuleID] =
     Dependencies.test ++ Dependencies.catsEffect ++ Seq(
       Dependencies.akka("stream"),
       Dependencies.akka("stream-testkit") % Test
-    ) ++ fleam
+    )
 
   lazy val transactionGenerator: Seq[ModuleID] =
     Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Seq(Dependencies.fs2Core)
@@ -334,28 +237,14 @@ object Dependencies {
     cats ++
     Seq(akka("actor"))
 
-  lazy val loadTesting: Seq[ModuleID] =
-    Seq(
-      "com.lihaoyi"    %% "mainargs" % "0.2.3",
-      "com.nike.fleam" %% "fleam"    % "7.0.0"
-    ) ++
-    fleam ++
-    allAkka ++
-    circe ++
-    mainargs
-
-  lazy val scalaPb =
-    "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
-
   lazy val toplGrpc: Seq[ModuleID] =
-    Seq(
-      scalaPb,
-      "io.grpc" % "grpc-netty-shaded" % scalapb.compiler.Version.grpcJavaVersion
-    ) ++
     cats ++
     catsEffect ++
     mUnitTest ++
-    Seq(protobufSpecs)
+    Seq(
+      protobufSpecs,
+      "io.grpc" % "grpc-netty-shaded" % "1.52.1"
+    )
 
   lazy val levelDbStore: Seq[ModuleID] =
     levelDb ++
@@ -364,8 +253,7 @@ object Dependencies {
     mUnitTest ++
     Seq(fs2Core, fs2IO)
 
-  lazy val orientDb: Seq[ModuleID] = {
-    val orientDbVersion = "3.2.10"
+  lazy val orientDb: Seq[ModuleID] =
     Seq(
       "com.orientechnologies"                  % "orientdb-core"               % orientDbVersion,
       "com.orientechnologies"                  % "orientdb-server"             % orientDbVersion,
@@ -376,21 +264,6 @@ object Dependencies {
       "org.lz4"                                % "lz4-java"                    % "1.8.0"
       // Add jna
     )
-  }
-
-  lazy val genus: Seq[ModuleID] =
-    Seq(
-      "com.lightbend.akka"                    %% "akka-stream-alpakka-mongodb" % "3.0.4",
-      "com.googlecode.concurrentlinkedhashmap" % "concurrentlinkedhashmap-lru" % "1.4.2",
-      scalaPb
-    ) ++
-    allAkka ++
-    circe ++
-    cats ++
-    mainargs ++
-    orientDb ++
-    ficus ++
-    test
 
   lazy val genusServer: Seq[ModuleID] =
     cats ++

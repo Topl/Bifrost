@@ -71,12 +71,18 @@ case class TypedProtocolInstance[F[_]] private (
    * Produces an "Applier" which enqueues each message.  A background fiber processes these queues in the background
    * depending on the current "agent".
    * @param initialState The initial state of the protocol
+   * @param onComplete A callback function to be invoked when either the Typed Protocol completes normally (Agent=None)
+   *                   or the Typed Protocol fails with an error.
    */
-  def applier[S: NetworkTypeTag](initialState: S)(implicit asyncF: Async[F]): Resource[F, MessageApplier] =
+  def applier[S: NetworkTypeTag](
+    initialState: S
+  )(onComplete:   Either[Throwable, Unit] => F[Unit])(implicit asyncF: Async[F]): Resource[F, MessageApplier] =
     for {
       aQueue <- Resource.eval(Queue.bounded[F, (Any, NetworkTypeTag[_])](16))
       bQueue <- Resource.eval(Queue.bounded[F, (Any, NetworkTypeTag[_])](16))
-      _      <- Async[F].background(backgroundProcessor(initialState)(aQueue, bQueue))
+      _ <- Async[F].background(
+        backgroundProcessor(initialState)(aQueue, bQueue).attempt.flatTap(onComplete)
+      )
     } yield new MessageApplier {
 
       def apply[Message: NetworkTypeTag](message: Message, sender: Party): F[Unit] = {

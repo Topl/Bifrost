@@ -2,18 +2,9 @@ package co.topl
 
 import cats.ApplicativeThrow
 import cats.implicits._
-import com.google.protobuf.ByteString
 import io.grpc.{Status, StatusException}
-import scodec.bits.ByteVector
-import scala.language.implicitConversions
 
-package object grpc extends Isomorphism.Ops with BifrostMorphismInstances {
-
-  implicit def byteStringToByteVector(byteString: ByteString): ByteVector =
-    ByteVector(byteString.asReadOnlyByteBuffer())
-
-  implicit def byteVectorToByteString(byteVector: ByteVector): ByteString =
-    ByteString.copyFrom(byteVector.toByteBuffer)
+package object grpc {
 
   implicit class ThrowableAdapter(throwable: Throwable) {
 

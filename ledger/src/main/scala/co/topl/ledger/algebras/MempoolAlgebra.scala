@@ -1,6 +1,7 @@
 package co.topl.ledger.algebras
 
-import co.topl.models.TypedIdentifier
+import co.topl.{models => legacyModels}
+import legacyModels.TypedIdentifier
 
 trait MempoolAlgebra[F[_]] {
 

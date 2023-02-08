@@ -23,7 +23,7 @@ object BlockchainNetwork {
     localPeer:     LocalPeer,
     remotePeers:   Stream[F, DisconnectedPeer],
     clientHandler: BlockchainPeerHandlerAlgebra[F],
-    server:        BlockchainPeerServer[F],
+    serverF:       ConnectedPeer => Resource[F, BlockchainPeerServerAlgebra[F]],
     peerFlowModifier: (
       ConnectedPeer,
       Flow[ByteString, ByteString, F[BlockchainPeerClient[F]]]
@@ -34,7 +34,7 @@ object BlockchainNetwork {
   ): Resource[F, P2PServer[F, BlockchainPeerClient[F]]] =
     for {
       implicit0(logger: Logger[F]) <- Resource.eval(Slf4jLogger.getLoggerFromName("Bifrost.P2P").pure[F])
-      connectionFlowFactory        <- Resource.eval(BlockchainPeerConnectionFlowFactory.make[F](server).pure[F])
+      connectionFlowFactory = BlockchainPeerConnectionFlowFactory.make[F](serverF)
       peerHandlerFlow =
         (connectedPeer: ConnectedPeer) =>
           peerFlowModifier(

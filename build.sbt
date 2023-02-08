@@ -104,25 +104,14 @@ def assemblySettings(main: String) = Seq(
       case x if x.contains("google/protobuf")          => MergeStrategy.last
       case x                                           => old(x)
     }
-  },
-  assembly / assemblyExcludedJars := {
-    val cp = (assembly / fullClasspath).value
-    cp filter { el => el.data.getName == "ValkyrieInstrument-1.0.jar" }
   }
 )
 
 lazy val scalamacrosParadiseSettings =
   Seq(
-    scalacOptions ++= {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, v)) if v >= 13 =>
-          Seq(
-            "-Ymacro-annotations"
-          )
-        case _ =>
-          Nil
-      }
-    }
+    scalacOptions ++= Seq(
+      "-Ymacro-annotations"
+    )
   )
 
 lazy val commonScalacOptions = Seq(
@@ -136,7 +125,6 @@ lazy val commonScalacOptions = Seq(
 )
 
 javaOptions ++= Seq(
-  "-Xbootclasspath/a:ValkyrieInstrument-1.0.jar",
   // from https://groups.google.com/d/msg/akka-user/9s4Yl7aEz3E/zfxmdc0cGQAJ
   "-XX:+UseG1GC",
   "-XX:+UseNUMA",
@@ -181,6 +169,7 @@ lazy val bifrost = project
     numerics,
     eventTree,
     algebras,
+    actor,
     commonInterpreters,
     minting,
     networking,
@@ -240,6 +229,7 @@ lazy val networkDelayer = project
   .settings(
     name := "network-delayer",
     commonSettings,
+    coverageEnabled := false,
     assemblySettings("co.topl.networkdelayer.NetworkDelayer"),
     assemblyJarName := s"network-delayer-${version.value}.jar",
     networkDelayerDockerSettings,
@@ -264,6 +254,7 @@ lazy val testnetSimulationOrchestrator = project
   .settings(
     name := "testnet-simulation-orchestrator",
     commonSettings,
+    coverageEnabled := false,
     assemblySettings("co.topl.testnetsimulationorchestrator.app.Orchestrator"),
     assemblyJarName := s"testnet-simulation-orchestrator-${version.value}.jar",
     testnetSimulationOrchestratorDockerSettings,
@@ -356,7 +347,7 @@ lazy val tetraByteCodecs = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.codecs.bytes.tetra"
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.guava)
+  .settings(libraryDependencies ++= Dependencies.test ++ Seq(Dependencies.protobufSpecs))
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test", byteCodecs % "compile->compile;test->test", crypto)
 
@@ -387,6 +378,20 @@ lazy val algebras = project
   .settings(libraryDependencies ++= Dependencies.algebras)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models, crypto, tetraByteCodecs)
+
+lazy val actor = project
+  .in(file("actor"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "actor",
+    commonSettings,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.actor"
+  )
+  .settings(libraryDependencies ++= Dependencies.actor)
+  .dependsOn(
+    munitScalamock % "test->test"
+  )
 
 lazy val commonInterpreters = project
   .in(file("common-interpreters"))
@@ -485,7 +490,8 @@ lazy val networking = project
     commonInterpreters,
     catsAkka,
     eventTree,
-    ledger
+    ledger,
+    actor
   )
 
 lazy val transactionGenerator = project
@@ -494,6 +500,7 @@ lazy val transactionGenerator = project
   .settings(
     name := "transaction-generator",
     commonSettings,
+    coverageEnabled := false,
     crossScalaVersions := Seq(scala213),
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.transactiongenerator"
@@ -555,7 +562,7 @@ lazy val blockchain = project
     consensus,
     minting,
     commonInterpreters,
-    networking,
+    networking % "compile->compile;test->test",
     catsAkka,
     toplGrpc
   )
@@ -645,7 +652,7 @@ lazy val genusLibrary = project
     tetraByteCodecs,
     toplGrpc,
     munitScalamock % "test->test",
-    numerics % "test->compile"
+    numerics       % "test->compile"
   )
 
 lazy val munitScalamock = project

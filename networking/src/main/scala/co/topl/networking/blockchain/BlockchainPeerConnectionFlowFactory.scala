@@ -6,8 +6,10 @@ import cats.effect.{Async, Resource}
 import cats.implicits._
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.models.{BlockBody, BlockHeader, SlotData, Transaction, TypedIdentifier}
-import co.topl.networking.TypedProtocolSetFactory.implicits._
+import co.topl.{models => legacyModels}
+import legacyModels.{SlotData, Transaction, TypedIdentifier}
+import co.topl.consensus.models.BlockHeader
+import co.topl.node.models.BlockBody
 import co.topl.networking._
 import co.topl.networking.blockchain.NetworkTypeTags._
 import co.topl.networking.p2p.{ConnectedPeer, ConnectionLeader}
@@ -25,24 +27,27 @@ import fs2._
 object BlockchainPeerConnectionFlowFactory {
 
   def make[F[_]: Async: Logger: FToFuture](
-    peerServer: BlockchainPeerServer[F]
+    peerServerF: ConnectedPeer => Resource[F, BlockchainPeerServerAlgebra[F]]
   ): (ConnectedPeer, ConnectionLeader) => Resource[F, Flow[ByteString, ByteString, BlockchainPeerClient[F]]] =
-    createFactory(peerServer).multiplexed
+    (peer, leader) =>
+      peerServerF(peer)
+        .map(server => createFactory(server))
+        .flatMap(TypedProtocolSetFactory.multiplexed(_)(peer, leader))
 
   private[blockchain] def createFactory[F[_]: Async: Logger](
-    protocolServer: BlockchainPeerServer[F]
+    protocolServer: BlockchainPeerServerAlgebra[F]
   ): TypedProtocolSetFactory[F, BlockchainPeerClient[F]] = {
     val blockAdoptionRecipF =
       TypedProtocolSetFactory.CommonProtocols.notificationReciprocated(
         BlockchainProtocols.BlockAdoption,
-        Stream.eval(protocolServer.localBlockAdoptions).flatten,
+        Stream.force(protocolServer.localBlockAdoptions),
         1: Byte,
         2: Byte
       )
     val transactionNotificationRecipF =
       TypedProtocolSetFactory.CommonProtocols.notificationReciprocated(
         BlockchainProtocols.TransactionBroadcasts,
-        Stream.eval(protocolServer.localTransactionNotifications).flatten,
+        Stream.force(protocolServer.localTransactionNotifications),
         3: Byte,
         4: Byte
       )

@@ -1,5 +1,6 @@
 package co.topl.networking.typedprotocols
 
+import cats.Applicative
 import cats.effect.{Deferred, IO}
 import cats.effect.unsafe.implicits.global
 import co.topl.networking.{NetworkTypeTag, Parties}
@@ -39,7 +40,7 @@ class NotificationProtocolSpec
         .withTransition(doneBusyDone)
     }
     instance
-      .applier(TypedProtocol.CommonStates.None)
+      .applier(TypedProtocol.CommonStates.None)(_ => Applicative[F].unit)
       .use { applier =>
         for {
           _ <- applier(TypedProtocol.CommonMessages.Start, Parties.B)

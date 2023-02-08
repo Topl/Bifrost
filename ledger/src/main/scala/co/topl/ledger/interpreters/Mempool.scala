@@ -1,14 +1,19 @@
 package co.topl.ledger.interpreters
 
+import cats.{Applicative, MonadThrow}
+import cats.data.OptionT
 import cats.effect.kernel.Spawn
-import cats.effect.{Async, Fiber, Ref, Sync}
+import cats.effect.{Async, Deferred, Fiber, Ref, Resource, Sync}
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.MempoolAlgebra
-import co.topl.models._
+import co.topl.{models => legacyModels}
+import co.topl.models.utility._
+import legacyModels._
+import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 
 // TODO: Non-minting nodes?
@@ -32,9 +37,11 @@ object Mempool {
     onExpiration:                 TypedIdentifier => F[Unit],
     defaultExpirationLimit:       Long,
     duplicateSpenderSlotLifetime: Long
-  ): F[MempoolAlgebra[F]] =
+  ): Resource[F, MempoolAlgebra[F]] =
     for {
-      state <- Ref.of(Map.empty[TypedIdentifier, MempoolEntry[F]])
+      state <- Resource.make(Ref.of(Map.empty[TypedIdentifier, MempoolEntry[F]]))(
+        _.get.flatMap(_.values.toList.traverse(_.expirationFiber.cancel).void)
+      )
       // A function which inserts a transaction into the mempool and schedules its expiration using a Fiber
       addTransaction = (transaction: Transaction, expirationSlot: Slot) =>
         for {
@@ -59,7 +66,7 @@ object Mempool {
         } yield ()
       applyBlock = (state: State[F], blockId: TypedIdentifier) =>
         for {
-          blockBody         <- fetchBlockBody(blockId).map(_.toList)
+          blockBody         <- fetchBlockBody(blockId).map(_.transactionIds.map(t => t: TypedIdentifier).toList)
           blockTransactions <- blockBody.traverse(fetchTransaction)
           blockInputIds = blockTransactions.flatMap(_.inputs.map(_.boxId).toList).toSet
           currentEntries <- state.get
@@ -85,27 +92,49 @@ object Mempool {
         } yield state
       unapplyBlock = (state: State[F], blockId: TypedIdentifier) =>
         fetchBlockBody(blockId)
-          .map(_.toList)
+          .map(_.transactionIds.map(t => t: TypedIdentifier).toList)
           .flatMap(_.traverse(fetchTransaction(_).flatMap(addTransactionWithDefaultExpiration)))
           .as(state)
-      eventSourcedState <- EventSourcedState.OfTree.make[F, State[F], TypedIdentifier](
-        state.pure[F],
-        currentBlockId,
-        applyEvent = applyBlock,
-        unapplyEvent = unapplyBlock,
-        parentChildTree,
-        currentEventChanged
+      eventSourcedState <- Resource.eval(
+        EventSourcedState.OfTree.make[F, State[F], TypedIdentifier](
+          state.pure[F],
+          currentBlockId,
+          applyEvent = applyBlock,
+          unapplyEvent = unapplyBlock,
+          parentChildTree,
+          currentEventChanged
+        )
       )
+      finalizing <- Resource.make(Deferred[F, Unit])(_.complete(()).void)
     } yield new MempoolAlgebra[F] {
 
       def read(blockId: TypedIdentifier): F[Set[TypedIdentifier]] =
-        eventSourcedState.stateAt(blockId).flatMap(_.get).map(_.keySet)
+        whenNotTerminated(
+          eventSourcedState.stateAt(blockId).flatMap(_.get).map(_.keySet)
+        )
 
       // TODO: Check for double-spends along current canonical chain?
       def add(transactionId: TypedIdentifier): F[Unit] =
-        fetchTransaction(transactionId).flatMap(addTransactionWithDefaultExpiration)
+        whenNotTerminated(
+          fetchTransaction(transactionId).flatMap(addTransactionWithDefaultExpiration)
+        )
 
       def remove(transactionId: TypedIdentifier): F[Unit] =
-        state.update(_ - transactionId)
+        whenNotTerminated(
+          state
+            .getAndUpdate(_ - transactionId)
+            .flatTap(entries =>
+              OptionT.fromOption[F](entries.get(transactionId)).foldF(Applicative[F].unit)(_.expirationFiber.cancel)
+            )
+            .void
+        )
+
+      /**
+       * Verifies that the mempool is not terminated/finalizing before running the provided action.  If the mempool
+       * is terminated, the call will immediately fail
+       */
+      private def whenNotTerminated[T](f: => F[T]): F[T] =
+        OptionT(finalizing.tryGet)
+          .foldF(f)(_ => MonadThrow[F].raiseError(new IllegalStateException("Mempool Terminated")))
     }
 }

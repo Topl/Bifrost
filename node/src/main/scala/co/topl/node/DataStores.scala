@@ -11,13 +11,16 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.BlockHeaderOps
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.db.leveldb.LevelDbStore
-import co.topl.models._
+import co.topl.{models => legacyModels}
+import legacyModels._
+import legacyModels.utility.ReplaceModelUtil
+import co.topl.consensus.models.BlockHeader
+import co.topl.node.models.BlockBody
 import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
-import fs2.io.file.{Files, Path}
-
-import scala.collection.immutable.ListSet
 import co.topl.interpreters.CacheStore
+import fs2.io.file.{Files, Path}
+import scala.collection.immutable.ListSet
 import org.typelevel.log4cats.Logger
 
 case class DataStores[F[_]](
@@ -26,7 +29,7 @@ case class DataStores[F[_]](
   slotData:        Store[F, TypedIdentifier, SlotData],
   headers:         Store[F, TypedIdentifier, BlockHeader],
   bodies:          Store[F, TypedIdentifier, BlockBody],
-  transactions:    Store[F, TypedIdentifier, Transaction],
+  transactions:    Store[F, TypedIdentifier, Transaction], // TODO replace old Transaction model
   spendableBoxIds: Store[F, TypedIdentifier, NonEmptySet[Short]],
   epochBoundaries: Store[F, Long, TypedIdentifier],
   operatorStakes:  Store[F, StakingAddresses.Operator, Int128],
@@ -160,10 +163,15 @@ object DataStores {
         bigBangBlock.header.id,
         bigBangBlock.header.slotData(Ed25519VRF.precomputed())
       )
-      _ <- dataStores.headers.put(bigBangBlock.header.id, bigBangBlock.header)
+      _ <- dataStores.headers.put(bigBangBlock.header.id, bigBangBlock.toFullConsensus.header)
       _ <- dataStores.bodies.put(
         bigBangBlock.header.id,
-        ListSet.empty ++ bigBangBlock.transactions.map(_.id.asTypedBytes).toList
+        BlockBody(
+          (ListSet.empty ++ bigBangBlock.transactions
+            .map(_.id.asTypedBytes)
+            .toList
+            .map(ReplaceModelUtil.ioTransaction32)).toSeq
+        )
       )
       _ <- bigBangBlock.transactions.traverseTap(transaction =>
         dataStores.transactions.put(transaction.id, transaction)

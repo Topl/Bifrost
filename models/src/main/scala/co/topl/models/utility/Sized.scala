@@ -2,6 +2,7 @@ package co.topl.models.utility
 
 import co.topl.models.{Bytes, TypedBytes}
 import co.topl.models.utility.StringDataTypes.Latin1Data
+import com.google.protobuf.ByteString
 
 object Sized {
 
@@ -79,6 +80,9 @@ trait HasLength[T] {
 object HasLength {
 
   trait Instances {
+
+    implicit def byteStringLength: HasLength[ByteString] =
+      _.size()
 
     implicit def bytesLength: HasLength[Bytes] =
       _.length.toInt

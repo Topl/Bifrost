@@ -12,7 +12,7 @@ import co.topl.typeclasses.implicits._
 import cats.implicits._
 import co.topl.algebras.testInterpreters.TestStore
 import co.topl.eventtree.ParentChildTree
-
+import co.topl.models.utility.ReplaceModelUtil
 import scala.collection.immutable.ListSet
 
 class BoxStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
@@ -41,8 +41,12 @@ class BoxStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
           underTest <- BoxState.make[IO](
             blockId0.pure[IO],
             Map(
-              blockId1 -> ListSet(transaction1.id.asTypedBytes).pure[IO],
-              blockId2 -> ListSet(transaction2.id.asTypedBytes).pure[IO]
+              blockId1 -> co.topl.node.models
+                .BlockBody(ListSet(transaction1.id.asTypedBytes).map(ReplaceModelUtil.ioTransaction32).toSeq)
+                .pure[IO],
+              blockId2 -> co.topl.node.models
+                .BlockBody(ListSet(transaction2.id.asTypedBytes).map(ReplaceModelUtil.ioTransaction32).toSeq)
+                .pure[IO]
             ).apply _,
             Map(
               transaction1.id.asTypedBytes -> transaction1.pure[IO],

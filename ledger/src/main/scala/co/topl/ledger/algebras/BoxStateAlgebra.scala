@@ -1,6 +1,7 @@
 package co.topl.ledger.algebras
 
-import co.topl.models.{Box, TypedIdentifier}
+import co.topl.{models => legacyModels}
+import legacyModels.{Box, TypedIdentifier}
 
 trait BoxStateAlgebra[F[_]] {
 

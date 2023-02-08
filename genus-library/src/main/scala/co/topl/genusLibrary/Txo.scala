@@ -2,7 +2,6 @@ package co.topl.genusLibrary
 
 import co.topl.genusLibrary
 import co.topl.models.Box.Values.{Arbit, AssetV1, Empty, Poly}
-import co.topl.models.utility.Base58
 import co.topl.models.{Box, Int128, SpendingAddress}
 import com.typesafe.scalalogging.Logger
 
@@ -51,7 +50,7 @@ case class Txo(box: Box, state: TxoState, id: Box.Id, address: Option[SpendingAd
     case Empty                       => "EMPTY"
     case Poly(_)                     => "LVL"
     case Arbit(_)                    => "TOPL"
-    case AssetV1(_, assetCode, _, _) => Base58.encode(assetCode.issuer.typedEvidence.allBytes.toArray)
+    case AssetV1(_, assetCode, _, _) => assetCode.issuer.typedEvidence.allBytes.toBase58
     case v: AnyRef                   => unsupported(v)
   }
 

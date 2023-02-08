@@ -6,7 +6,8 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.crypto.hash.Blake2b256
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.{Ratio, Sized}
+import co.topl.models.utility._
+import com.google.protobuf.ByteString
 import simulacrum.{op, typeclass}
 
 @typeclass trait ContainsEvidence[T] {
@@ -17,6 +18,15 @@ object ContainsEvidence {
 
   def fromImmutableCodec[T: ImmutableCodec](prefix: Byte): ContainsEvidence[T] =
     (t: T) => TypedEvidence(prefix, Sized.strictUnsafe(new Blake2b256().hash(t.immutableBytes)))
+
+  /**
+   * Ratio Evidence From ProtobufString
+   * @see https://github.com/Topl/protobuf-specs/blob/main/consensus/models/eligibility_certificate.proto#L14
+   * @param bytesString Example, Hash of the operator's threshold, with routine = blake2b256 and length = 32
+   * @return Ratio Typed Evidennce
+   */
+  def ratioEvidenceFromProtobufString(bytesString: ByteString): TypedEvidence =
+    TypedEvidence(TypePrefixes.Ratio, Sized.strictUnsafe(bytesString))
 
   object TypePrefixes {
     final val VerificationKeysCurve25519: Byte = 1
@@ -104,6 +114,10 @@ object ContainsEvidence {
     implicit val heightLockContainsEvidence: ContainsEvidence[Propositions.Contextual.HeightLock] =
       fromImmutableCodec(TypePrefixes.PropositionsContextualHeightLock)
 
+    implicit val heightLockContainsEvidenceProto
+      : ContainsEvidence[co.topl.proto.models.PropositionContextualHeightLock] =
+      fromImmutableCodec(TypePrefixes.PropositionsContextualHeightLock)
+
     implicit val requiredInputBoxStateContainsEvidence
       : ContainsEvidence[Propositions.Contextual.RequiredTransactionIO] =
       fromImmutableCodec(TypePrefixes.PropositionsContextualRequiredTransactionIO)
@@ -123,6 +137,7 @@ object ContainsEvidence {
       case t: Propositions.Knowledge.HashLock               => commitRevealContainsEvidence.typedEvidenceOf(t)
       case t: Propositions.Contextual.RequiredTransactionIO => requiredInputBoxStateContainsEvidence.typedEvidenceOf(t)
     }
+
   }
 
   trait Instances extends VerificationKeyInstances with PropositionInstances {

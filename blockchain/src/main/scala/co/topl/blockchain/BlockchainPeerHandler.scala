@@ -17,7 +17,11 @@ import co.topl.consensus.models.BlockHeaderValidationFailure
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
-import co.topl.models._
+import co.topl.{models => legacyModels}
+import co.topl.models.utility._
+import legacyModels._
+import co.topl.consensus.models.BlockHeader
+import co.topl.node.models.BlockBody
 import co.topl.networking.blockchain._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
@@ -210,7 +214,9 @@ object BlockchainPeerHandler {
               for {
                 _ <- Logger[F].debug(show"Validating remote header id=$blockId")
                 _ <- EitherT(
-                  headerStore.getOrRaise(header.parentHeaderId).flatMap(headerValidation.validate(header, _))
+                  headerStore
+                    .getOrRaise(header.parentHeaderId)
+                    .flatMap(headerValidation.validate(header, _))
                 )
                   .leftSemiflatTap(error =>
                     Logger[F].warn(show"Received invalid block header id=$blockId error=$error")
@@ -254,20 +260,21 @@ object BlockchainPeerHandler {
                 _    <- Logger[F].info(show"Fetching remote body id=$blockId")
                 body <- OptionT(client.getRemoteBody(blockId)).getOrNoSuchElement(blockId.show)
                 _ <- Stream
-                  .iterable[F, TypedIdentifier](body)
+                  .iterable(body.transactionIds)
                   .parEvalMapUnorderedUnbounded(transactionId =>
                     transactionStore
                       .contains(transactionId)
                       .ifM(
                         Applicative[F].unit,
                         for {
-                          _ <- Logger[F].info(show"Fetching remote transaction id=$transactionId")
+                          _ <- Logger[F].info(show"Fetching remote transaction id=${(transactionId: TypedIdentifier)}")
                           transaction <- OptionT(client.getRemoteTransaction(transactionId))
-                            .getOrNoSuchElement(transactionId.show)
-                          _ <- MonadThrow[F].raiseWhen(transaction.id.asTypedBytes =!= transactionId)(
-                            new IllegalArgumentException("Claimed transaction ID did not match provided transaction")
-                          )
-                          _ <- Logger[F].debug(show"Saving transaction id=$transactionId")
+                            .getOrNoSuchElement((transactionId: TypedIdentifier).show)
+                          _ <- MonadThrow[F]
+                            .raiseWhen(transaction.id.asTypedBytes =!= transactionId)(
+                              new IllegalArgumentException("Claimed transaction ID did not match provided transaction")
+                            )
+                          _ <- Logger[F].debug(show"Saving transaction id=$${TypedBytes.ioTx32(transactionId)}")
                           _ <- transactionStore.put(transactionId, transaction)
                         } yield ()
                       )

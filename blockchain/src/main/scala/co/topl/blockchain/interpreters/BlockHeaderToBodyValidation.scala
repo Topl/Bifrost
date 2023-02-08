@@ -7,6 +7,8 @@ import co.topl.blockchain.models.BlockHeaderToBodyValidationFailure
 import BlockHeaderToBodyValidationFailure.IncorrectTxRoot
 import co.topl.models.Block
 import co.topl.typeclasses.implicits._
+import co.topl.models.utility._
+import co.topl.models.utility.HasLength.instances._
 
 object BlockHeaderToBodyValidation {
 
@@ -22,10 +24,10 @@ object BlockHeaderToBodyValidation {
     val bodyMerkleTxRoot = block.body.merkleTreeRootHash
     val headerMerkleTxRoot = block.header.txRoot
 
-    if (bodyMerkleTxRoot === headerMerkleTxRoot) {
+    if (bodyMerkleTxRoot === Sized.strictUnsafe(headerMerkleTxRoot)) {
       Right(block)
     } else {
-      Left(IncorrectTxRoot(headerMerkleTxRoot, bodyMerkleTxRoot))
+      Left(IncorrectTxRoot(Sized.strictUnsafe(headerMerkleTxRoot), bodyMerkleTxRoot))
     }
   }
 

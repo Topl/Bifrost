@@ -6,7 +6,7 @@ import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.StringDataTypes.Latin1Data
-import co.topl.models.utility.{Base58, Sized}
+import co.topl.models.utility.Sized
 import co.topl.numerics.implicits._
 
 import scala.util.Random
@@ -77,7 +77,7 @@ class TxoTest extends munit.FunSuite {
     )
 
     assertEquals(quantity, txo.quantity.get, "Txo quantity should match")
-    val expectedAssetLabel = Base58.encode(issuingAddress.typedEvidence.allBytes.toArray)
+    val expectedAssetLabel = issuingAddress.typedEvidence.allBytes.toBase58
     assertEquals(txo.assetLabel, expectedAssetLabel, "Asset label should be as expected.")
     assert(txo.securityRoot.isDefined, "A security root should be present")
     assertEquals(txo.securityRoot.get.toSeq, securityRoot.data.toArray.toSeq, "securityRoot should be as expected")

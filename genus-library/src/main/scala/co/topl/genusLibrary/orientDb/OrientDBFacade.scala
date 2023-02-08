@@ -1,12 +1,11 @@
 package co.topl.genusLibrary.orientDb
 
-import cats.effect.Async
+import cats.effect.kernel.Async
 import cats.implicits._
-import co.topl.genusLibrary.orientDb.wrapper.GraphTxWrapper
+import co.topl.genusLibrary.orientDb.wrapper.{GraphTxWrapper, WrappedVertex}
 import co.topl.genusLibrary.{Genus, GenusException}
 import co.topl.typeclasses.Log._
 import com.orientechnologies.orient.core.sql.OCommandSQL
-import com.tinkerpop.blueprints.Vertex
 import com.tinkerpop.blueprints.impls.orient.{OrientGraphFactory, OrientGraphNoTx}
 import com.typesafe.scalalogging.Logger
 
@@ -20,7 +19,7 @@ import scala.util.{Random, Success, Try}
 /**
  * This is a class to hide the details of interacting with OrientDB.
  */
-class OrientDBFacade(dir: File, password: String) {
+private[genusLibrary] class OrientDBFacade(dir: File, password: String) extends StoreFacade {
   import OrientDBFacade._
   logger.info("Starting OrientDB with DB server")
   private val dbUserName = "admin"
@@ -31,81 +30,45 @@ class OrientDBFacade(dir: File, password: String) {
   @unused
   private val graphMetadata = initializeDatabase(factory, password)
 
-  private[genusLibrary] def getGraph: GraphTxWrapper = new GraphTxWrapper(factory.getTx)
+  override def getGraph[F[_]: Async: org.typelevel.log4cats.Logger]: GraphTxDAO[F] =
+    new GraphTxDAO[F](
+      new GraphTxWrapper(factory.getTx)
+    )
 
-  private[genusLibrary] def getGraphNoTx: OrientGraphNoTx = factory.getNoTx
+  override def getGraphNoTx: OrientGraphNoTx = factory.getNoTx
 
-  type VertexTypeName = String
-  type PropertyKey = String
-  type PropertyQuery = (PropertyKey, AnyRef)
-
-  // TODO Unify VertexTypeName and PropertyKey with VertexSchema (VertexSchema.BlockHeader.BlockId)
-  /**
-   * Get single vertex filtered by only one field
-   *
-   * @param vertexTypeName Vertex class
-   * @param filterKey Vertex key to filter by
-   * @param filterValue Vertex value of given key to filter by
-   * @tparam F the effect-ful context to retrieve the value in
-   * @return Optional Vertex
-   */
-  private[genusLibrary] def getVertex[F[_]: Async](
+  override def getVertexByField[F[_]: Async](
     vertexTypeName: VertexTypeName,
     filterKey:      PropertyKey,
     filterValue:    AnyRef
-  ): F[Option[Vertex]] =
-    getVertex(vertexTypeName, Set((filterKey, filterValue)))
+  ): F[Option[WrappedVertex]] =
+    getVertexByFields(vertexTypeName, Set((filterKey, filterValue)))
 
-  /**
-   * Get single vertex filtered by multiple properties
-   *
-   * @param vertexTypeName   Vertex class
-   * @param propertiesFilter Vertex properties to filter by
-   * @tparam F the effect-ful context to retrieve the value in
-   * @return Optional Vertex
-   */
-  private[genusLibrary] def getVertex[F[_]: Async](
+  override def getVertexByFields[F[_]: Async](
     vertexTypeName:   VertexTypeName,
     propertiesFilter: Set[PropertyQuery]
-  ): F[Option[Vertex]] =
-    getVertices(vertexTypeName, propertiesFilter)
+  ): F[Option[WrappedVertex]] =
+    getVerticesByFields(vertexTypeName, propertiesFilter)
       .map(_.headOption)
 
-  /**
-   * Get vertices filtered by only one field
-   *
-   * @param vertexTypeName Vertices class
-   * @param filterKey      Vertices key to filter by
-   * @param filterValue    Vertices value of given key to filter by
-   * @tparam F the effect-ful context to retrieve the value in
-   * @return Vertices
-   */
-  private[genusLibrary] def getVertices[F[_]: Async](
+  override def getVerticesByField[F[_]: Async](
     vertexTypeName: VertexTypeName,
     filterKey:      PropertyKey,
     filterValue:    AnyRef
-  ): F[Iterable[Vertex]] =
-    getVertices(vertexTypeName, Set((filterKey, filterValue)))
+  ): F[Iterable[WrappedVertex]] =
+    getVerticesByFields(vertexTypeName, Set((filterKey, filterValue)))
 
-  /**
-   * Get vertices filtered by multiple properties
-   *
-   * @param vertexTypeName   Vertex class
-   * @param propertiesFilter Vertices properties to filter by
-   * @tparam F the effect-ful context to retrieve the value in
-   * @return Vertices
-   */
-  private[genusLibrary] def getVertices[F[_]: Async](
+  override def getVerticesByFields[F[_]: Async](
     vertexTypeName:   VertexTypeName,
     propertiesFilter: Set[PropertyQuery]
-  ): F[Iterable[Vertex]] = {
+  ): F[Iterable[WrappedVertex]] = Async[F].delay {
     val (keys, values) = propertiesFilter.foldLeft((List.empty[PropertyKey], List.empty[Object])) {
       case ((keys, values), (currentKey, currentValue)) => (currentKey :: keys, currentValue :: values)
     }
     asScala(
       graphMetadata.graphNoTx.getVertices(vertexTypeName, keys.toArray, values.toArray)
     )
-      .pure[F]
+      .map(new WrappedVertex(_))
   }
 
   private def initializeDatabase(factory: OrientGraphFactory, password: String) = {
@@ -123,11 +86,6 @@ class OrientDBFacade(dir: File, password: String) {
   private def fileToPlocalUrl(dir: File): String =
     "plocal:" + dir.getAbsolutePath
 
-  /**
-   * Shut down the OrientDB server.
-   *
-   * @return true if the server was running and got shut down
-   */
   def shutdown(): Boolean =
     Try {
       factory.close()
