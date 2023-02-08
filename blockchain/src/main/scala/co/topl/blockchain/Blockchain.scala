@@ -1,8 +1,6 @@
 package co.topl.blockchain
 
 import akka.actor.typed.ActorSystem
-import akka.stream.scaladsl.Flow
-import akka.util.ByteString
 import cats.data.{OptionT, Validated}
 import cats.effect._
 import cats.implicits._
@@ -61,13 +59,9 @@ object Blockchain {
     ed25519VrfResource:          UnsafeResource[F, Ed25519VRF],
     localPeer:                   LocalPeer,
     remotePeers:                 Stream[F, DisconnectedPeer],
-    peerFlowModifier: (
-      ConnectedPeer,
-      Flow[ByteString, ByteString, F[BlockchainPeerClient[F]]]
-    ) => Flow[ByteString, ByteString, F[BlockchainPeerClient[F]]],
-    rpcHost:         String,
-    rpcPort:         Int
-  )(implicit system: ActorSystem[_], random: Random): Resource[F, Unit] = {
+    rpcHost:                     String,
+    rpcPort:                     Int
+  )(implicit system:             ActorSystem[_], random: Random): Resource[F, Unit] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
     for {
       (localChain, blockAdoptionsTopic)    <- LocalChainBroadcaster.make(_localChain)
@@ -133,8 +127,7 @@ object Blockchain {
           localPeer,
           remotePeers,
           clientHandler,
-          peerServerF,
-          peerFlowModifier
+          peerServerF
         )
       rpcInterpreter <- DroppingTopic(blockAdoptionsTopic, 10)
         .flatMap(_.subscribeAwaitUnbounded)

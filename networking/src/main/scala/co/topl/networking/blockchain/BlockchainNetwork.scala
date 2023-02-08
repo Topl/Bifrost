@@ -2,7 +2,6 @@ package co.topl.networking.blockchain
 
 import akka.actor.typed.ActorSystem
 import akka.stream.scaladsl.{Flow, Sink}
-import akka.util.ByteString
 import cats.Parallel
 import cats.effect._
 import cats.implicits._
@@ -23,11 +22,7 @@ object BlockchainNetwork {
     localPeer:     LocalPeer,
     remotePeers:   Stream[F, DisconnectedPeer],
     clientHandler: BlockchainPeerHandlerAlgebra[F],
-    serverF:       ConnectedPeer => Resource[F, BlockchainPeerServerAlgebra[F]],
-    peerFlowModifier: (
-      ConnectedPeer,
-      Flow[ByteString, ByteString, F[BlockchainPeerClient[F]]]
-    ) => Flow[ByteString, ByteString, F[BlockchainPeerClient[F]]]
+    serverF:       ConnectedPeer => Resource[F, BlockchainPeerServerAlgebra[F]]
   )(implicit
     system: ActorSystem[_],
     random: Random
@@ -37,24 +32,21 @@ object BlockchainNetwork {
       connectionFlowFactory = BlockchainPeerConnectionFlowFactory.make[F](serverF)
       peerHandlerFlow =
         (connectedPeer: ConnectedPeer) =>
-          peerFlowModifier(
-            connectedPeer,
-            ConnectionLeaderFlow(leader =>
-              Flow
-                .fromMaterializer((_, _) =>
-                  Flow.futureFlow(
-                    implicitly[FToFuture[F]].apply(
-                      connectionFlowFactory(connectedPeer, leader).allocated
-                        .map { case (flow, finalizers) =>
-                          flow.alsoTo(Sink.onComplete(_ => implicitly[FToFuture[F]].apply(finalizers)))
-                        }
-                    )
+          ConnectionLeaderFlow(leader =>
+            Flow
+              .fromMaterializer((_, _) =>
+                Flow.futureFlow(
+                  implicitly[FToFuture[F]].apply(
+                    connectionFlowFactory(connectedPeer, leader).allocated
+                      .map { case (flow, finalizers) =>
+                        flow.alsoTo(Sink.onComplete(_ => implicitly[FToFuture[F]].apply(finalizers)))
+                      }
                   )
                 )
-                .mapMaterializedValue(_.flatten)
-            )
-              .mapMaterializedValue(f => Async[F].fromFuture(f.flatten.pure[F]))
+              )
+              .mapMaterializedValue(_.flatten)
           )
+            .mapMaterializedValue(f => Async[F].fromFuture(f.flatten.pure[F]))
             .pure[F]
       p2pServer <- {
         implicit val classicSystem = system.classicSystem

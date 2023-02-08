@@ -23,7 +23,7 @@ import co.topl.ledger.interpreters._
 import co.topl.minting.algebras.StakingAlgebra
 import co.topl.minting.interpreters.{OperationalKeyMaker, Staking, VrfCalculator}
 import co.topl.models._
-import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, LocalPeer}
+import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer}
 import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
 import fs2._
@@ -224,7 +224,6 @@ object NodeApp
           Stream.eval(clock.delayedUntilSlot(canonicalHeadSlotData.slotId.slot)) >>
           Stream.iterable[F, DisconnectedPeer](appConfig.bifrost.p2p.knownPeers) ++
           Stream.never[F],
-          (_: ConnectedPeer, flow) => flow,
           appConfig.bifrost.rpc.bindHost,
           appConfig.bifrost.rpc.bindPort
         )
