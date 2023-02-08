@@ -141,6 +141,10 @@ outputStrategy := Some(StdoutOutput)
 connectInput / run := true
 outputStrategy := Some(StdoutOutput)
 
+javaOptions ++= Seq(
+  "-XX:+ExitOnOutOfMemoryError"
+)
+
 def versionFmt(out: sbtdynver.GitDescribeOutput): String = {
   val dirtySuffix = out.dirtySuffix.dropPlus.mkString("-", "")
   if (out.isCleanAfterTag) out.ref.dropPrefix + dirtySuffix // no commit info if clean after tag
