@@ -3,9 +3,3 @@
 
 # Force LF endings for shell scripts.
 *.sh text eol=lf
-
-# swagger
-src/main/resources/swagger-ui/* linguist-vendored
-
-# Bifrost model diagrams
-docs/* linguist-documentation
