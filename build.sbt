@@ -104,25 +104,14 @@ def assemblySettings(main: String) = Seq(
       case x if x.contains("google/protobuf")          => MergeStrategy.last
       case x                                           => old(x)
     }
-  },
-  assembly / assemblyExcludedJars := {
-    val cp = (assembly / fullClasspath).value
-    cp filter { el => el.data.getName == "ValkyrieInstrument-1.0.jar" }
   }
 )
 
 lazy val scalamacrosParadiseSettings =
   Seq(
-    scalacOptions ++= {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, v)) if v >= 13 =>
-          Seq(
-            "-Ymacro-annotations"
-          )
-        case _ =>
-          Nil
-      }
-    }
+    scalacOptions ++= Seq(
+      "-Ymacro-annotations"
+    )
   )
 
 lazy val commonScalacOptions = Seq(
@@ -136,7 +125,6 @@ lazy val commonScalacOptions = Seq(
 )
 
 javaOptions ++= Seq(
-  "-Xbootclasspath/a:ValkyrieInstrument-1.0.jar",
   // from https://groups.google.com/d/msg/akka-user/9s4Yl7aEz3E/zfxmdc0cGQAJ
   "-XX:+UseG1GC",
   "-XX:+UseNUMA",
@@ -664,7 +652,7 @@ lazy val genusLibrary = project
     tetraByteCodecs,
     toplGrpc,
     munitScalamock % "test->test",
-    numerics % "test->compile"
+    numerics       % "test->compile"
   )
 
 lazy val munitScalamock = project
