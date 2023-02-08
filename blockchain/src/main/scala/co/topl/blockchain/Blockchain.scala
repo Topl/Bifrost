@@ -20,7 +20,7 @@ import legacyModels._
 import co.topl.consensus.models.BlockHeader
 import co.topl.node.models.BlockBody
 import co.topl.networking.blockchain._
-import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, LocalPeer}
+import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer}
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import BlockchainPeerHandler.monoidBlockchainPeerHandler
