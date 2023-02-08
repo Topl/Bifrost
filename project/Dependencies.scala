@@ -10,7 +10,7 @@ object Dependencies {
   val catsEffectVersion = "3.4.1"
   val fs2Version = "3.5-1c0be5c"
   val logback = "1.4.5"
-  val orientDbVersion = "3.2.15"
+  val orientDbVersion = "3.2.16"
 
   // Reference https://github.com/Topl/protobuf-specs/pull/30
   val protobufSpecs = "com.github.Topl" % "protobuf-specs" % "948dc20"
