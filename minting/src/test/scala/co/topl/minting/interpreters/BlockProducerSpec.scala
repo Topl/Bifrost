@@ -4,7 +4,6 @@ import cats.effect.std.Queue
 import cats.effect.{Async, IO}
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
-import co.topl.catsakka._
 import co.topl.minting.algebras.{BlockPackerAlgebra, StakingAlgebra}
 import co.topl.minting.models._
 import co.topl.models.ModelGenerators._
