@@ -4,7 +4,7 @@ import cats.Show
 import cats.implicits._
 import co.topl.models.Slot
 import co.topl.models.utility.Ratio
-import co.topl.networking.p2p.DisconnectedPeer
+import co.topl.networking.p2p.{DisconnectedPeer, RemoteAddress}
 import co.topl.numerics.implicits._
 import com.typesafe.config.Config
 import monocle._
@@ -14,7 +14,6 @@ import pureconfig.generic.ProductHint
 import pureconfig.generic.auto._
 import pureconfig.configurable._
 
-import java.net.InetSocketAddress
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
@@ -174,7 +173,7 @@ object ApplicationConfig {
   private def parseKnownPeers(str: String): List[DisconnectedPeer] =
     str.split(',').toList.filterNot(_.isEmpty).map { addr =>
       val Array(host, portStr) = addr.split(':')
-      DisconnectedPeer(InetSocketAddress.createUnresolved(host, portStr.toInt), (0, 0))
+      DisconnectedPeer(RemoteAddress(host, portStr.toInt), (0, 0))
     }
 
   implicit val knownPeersReader: ConfigReader[List[DisconnectedPeer]] =

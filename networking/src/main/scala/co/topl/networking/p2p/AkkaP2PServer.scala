@@ -59,7 +59,7 @@ object AkkaP2PServer {
       def peerChanges: F[Topic[F, PeerConnectionChange[Client]]] =
         topic.pure[F]
 
-      val localAddress: F[InetSocketAddress] =
+      val localAddress: F[RemoteAddress] =
         localPeer.localAddress.pure[F]
     }
   }
@@ -85,17 +85,22 @@ object AkkaP2PServer {
     addConnectionChange:         PeerConnectionChange[Client] => F[Unit],
     peerHandlerFlowWithRemovalF: ConnectedPeer => Flow[ByteString, ByteString, Future[F[Client]]],
     addConnectedPeer:            (ConnectedPeer, F[Client]) => F[Unit]
-  )(implicit system:             ActorSystem, ec: ExecutionContext) =
+  )(implicit system:             ActorSystem, ec: ExecutionContext): Resource[F, Unit] =
     Resource
       .make(
         Tcp()
           .bind(host, port)
           .tapAsyncF(1)(conn =>
             Logger[F].info(s"Inbound peer connection from address=${conn.remoteAddress}") *>
-            addConnectionChange(PeerConnectionChanges.InboundConnectionInitializing(conn.remoteAddress))
+            addConnectionChange(
+              PeerConnectionChanges.InboundConnectionInitializing(
+                RemoteAddress(conn.remoteAddress.getHostString, conn.remoteAddress.getPort)
+              )
+            )
           )
           .mapAsync(1) { conn =>
-            val connectedPeer = ConnectedPeer(conn.remoteAddress, (0, 0))
+            val connectedPeer =
+              ConnectedPeer(RemoteAddress(conn.remoteAddress.getHostString, conn.remoteAddress.getPort), (0, 0))
             conn.handleWith(peerHandlerFlowWithRemovalF(connectedPeer)).tupleLeft(connectedPeer)
           }
           .tapAsyncF(1)((addConnectedPeer.apply _).tupled)
@@ -116,7 +121,7 @@ object AkkaP2PServer {
     offerConnectionChange:       PeerConnectionChange[Client] => F[Unit],
     peerHandlerFlowWithRemovalF: ConnectedPeer => Flow[ByteString, ByteString, Future[F[Client]]],
     addPeer:                     (ConnectedPeer, F[Client]) => F[Unit]
-  )(implicit system:             ActorSystem) =
+  )(implicit system:             ActorSystem): Resource[F, F[Outcome[F, Throwable, Unit]]] =
     Async[F].background(
       remotePeers
         .filterNot(_.remoteAddress == localPeer.localAddress)
@@ -130,7 +135,10 @@ object AkkaP2PServer {
             Async[F]
               .fromFuture(
                 Tcp()
-                  .outgoingConnection(connectedPeer.remoteAddress)
+                  .outgoingConnection(
+                    InetSocketAddress
+                      .createUnresolved(connectedPeer.remoteAddress.host, connectedPeer.remoteAddress.port)
+                  )
                   .joinMat(
                     Flow[ByteString].viaMat(peerHandlerFlowWithRemovalF(connectedPeer))(Keep.right)
                   )(Keep.right)
@@ -141,6 +149,6 @@ object AkkaP2PServer {
         )
         .compile
         .toList
-        .flatMap(_.parTraverse(_.joinWithUnit))
+        .flatMap(_.parTraverse(_.joinWithUnit).void)
     )
 }

@@ -7,7 +7,6 @@ import cats.effect._
 import cats.implicits._
 import co.topl.catsakka._
 import co.topl.networking.p2p._
-import co.topl.typeclasses.implicits._
 import fs2._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -49,7 +48,7 @@ object BlockchainNetwork {
             .mapMaterializedValue(f => Async[F].fromFuture(f.flatten.pure[F]))
             .pure[F]
       p2pServer <- {
-        implicit val classicSystem = system.classicSystem
+        implicit val classicSystem: akka.actor.ActorSystem = system.classicSystem
         AkkaP2PServer.make[F, BlockchainPeerClient[F]](
           host,
           bindPort,

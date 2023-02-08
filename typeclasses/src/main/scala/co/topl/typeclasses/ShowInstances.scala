@@ -8,7 +8,6 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.models._
 import co.topl.models.utility._
 
-import java.net.InetSocketAddress
 import java.time.Instant
 
 trait ShowInstances {
@@ -62,9 +61,6 @@ trait ShowInstances {
 
   implicit val showNodeBlockBody: Show[co.topl.node.models.BlockBody] =
     body => show"${body.transactionIds.map(t => t: TypedIdentifier)}"
-
-  implicit val showInetSocketAddress: Show[InetSocketAddress] =
-    address => s"${address.getHostName}:${address.getPort}"
 
   implicit val showBoxId: Show[Box.Id] =
     boxId => show"${boxId.transactionId}.outputs[${boxId.transactionOutputIndex}]"

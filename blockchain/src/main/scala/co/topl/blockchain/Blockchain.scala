@@ -122,8 +122,8 @@ object Blockchain {
       ) _
       _ <- BlockchainNetwork
         .make[F](
-          localPeer.localAddress.getHostName,
-          localPeer.localAddress.getPort,
+          localPeer.localAddress.host,
+          localPeer.localAddress.port,
           localPeer,
           remotePeers,
           clientHandler,

@@ -22,7 +22,7 @@ import co.topl.ledger.interpreters._
 import co.topl.minting.algebras.StakingAlgebra
 import co.topl.minting.interpreters.{OperationalKeyMaker, Staking, VrfCalculator}
 import co.topl.models._
-import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer}
+import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer, RemoteAddress}
 import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
 import fs2._
@@ -31,7 +31,6 @@ import kamon.Kamon
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
-import java.net.InetSocketAddress
 import java.security.SecureRandom
 import java.time.Instant
 import java.util.UUID
@@ -57,7 +56,7 @@ object NodeApp
       _ <- Resource.eval(Logger[F].info(show"Launching node with args=$args"))
       _ <- Resource.eval(Logger[F].info(show"Node configuration=$appConfig"))
       localPeer = LocalPeer(
-        InetSocketAddress.createUnresolved(appConfig.bifrost.p2p.bindHost, appConfig.bifrost.p2p.bindPort),
+        RemoteAddress(appConfig.bifrost.p2p.bindHost, appConfig.bifrost.p2p.bindPort),
         (0, 0)
       )
       implicit0(networkPrefix: NetworkPrefix) = NetworkPrefix(1: Byte)
