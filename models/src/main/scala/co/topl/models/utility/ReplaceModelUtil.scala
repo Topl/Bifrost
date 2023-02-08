@@ -11,13 +11,9 @@ object ReplaceModelUtil {
     typedIdentifier: co.topl.models.TypedIdentifier
   ): co.topl.brambl.models.Identifier.IoTransaction32 =
     co.topl.brambl.models.Identifier.IoTransaction32(
-      Some(
-        co.topl.brambl.models.Evidence.Sized32.of(
-          Some(
-            quivr.models.Digest.Digest32
-              .of(com.google.protobuf.ByteString.copyFrom(typedIdentifier.dataBytes.toArray))
-          )
-        )
+      co.topl.brambl.models.Evidence.Sized32.of(
+        quivr.models.Digest.Digest32
+          .of(ByteString.copyFrom(typedIdentifier.dataBytes.toArray))
       )
     )
 

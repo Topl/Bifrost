@@ -12,8 +12,8 @@ object Dependencies {
   val logback = "1.4.5"
   val orientDbVersion = "3.2.15"
 
-  // Reference https://github.com/Topl/protobuf-specs/pull/30
-  val protobufSpecs = "com.github.Topl" % "protobuf-specs" % "948dc20"
+  // Reference https://github.com/Topl/protobuf-specs/pull/34
+  val protobufSpecs = "com.github.Topl" % "protobuf-specs" % "53c5f3a"
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.5.0"

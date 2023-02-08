@@ -45,10 +45,10 @@ object ToplGrpc {
         .map(client =>
           new ToplRpc[F, Stream[F, *]] {
 
-            def broadcastTransaction(transaction: co.topl.proto.models.Transaction): F[Unit] =
+            def broadcastTransaction(transaction: Transaction): F[Unit] =
               client
                 .broadcastTransaction(
-                  BroadcastTransactionReq(transaction.some),
+                  BroadcastTransactionReq(transaction),
                   new Metadata()
                 )
                 .void
@@ -79,7 +79,7 @@ object ToplGrpc {
                   .rethrowT
                   .flatMap(blockId =>
                     client.fetchBlockHeader(
-                      FetchBlockHeaderReq(blockId.some),
+                      FetchBlockHeaderReq(blockId),
                       new Metadata()
                     )
                   )
@@ -93,7 +93,7 @@ object ToplGrpc {
                   .rethrowT
                   .flatMap(blockId =>
                     client.fetchBlockBody(
-                      FetchBlockBodyReq(blockId.some),
+                      FetchBlockBodyReq(blockId),
                       new Metadata()
                     )
                   )
@@ -106,9 +106,7 @@ object ToplGrpc {
               EitherT(transactionId.toF[F, IoTransaction32])
                 .leftMap(new IllegalArgumentException(_))
                 .rethrowT
-                .flatMap(transactionId =>
-                  client.fetchTransaction(FetchTransactionReq(transactionId.some), new Metadata())
-                )
+                .flatMap(transactionId => client.fetchTransaction(FetchTransactionReq(transactionId), new Metadata()))
                 .map(_.transaction)
 
             def blockIdAtHeight(height: Long): F[Option[TypedIdentifier]] =
@@ -199,7 +197,7 @@ object ToplGrpc {
 
       def broadcastTransaction(in: BroadcastTransactionReq, ctx: Metadata): F[BroadcastTransactionRes] =
         in.transaction
-          .toRight("Missing transaction")
+          .asRight[String]
           .toEitherT[F]
           .semiflatMap(interpreter.broadcastTransaction)
           .leftMap(new IllegalArgumentException(_))
@@ -222,7 +220,7 @@ object ToplGrpc {
 
       def fetchBlockHeader(in: FetchBlockHeaderReq, ctx: Metadata): F[FetchBlockHeaderRes] =
         in.blockId
-          .toRight("Missing Block ID")
+          .asRight[String]
           .toEitherT[F]
           .flatMapF(_.toF[F, TypedIdentifier])
           .leftMap(_ => Status.INVALID_ARGUMENT.withDescription("Invalid Block ID").asException())
@@ -236,7 +234,7 @@ object ToplGrpc {
 
       def fetchBlockBody(in: FetchBlockBodyReq, ctx: Metadata): F[FetchBlockBodyRes] =
         in.blockId
-          .toRight("Missing Block ID")
+          .asRight[String]
           .toEitherT[F]
           .flatMapF(_.toF[F, TypedIdentifier])
           .leftMap(_ => Status.INVALID_ARGUMENT.withDescription("Invalid Block ID").asException())
@@ -256,7 +254,7 @@ object ToplGrpc {
        */
       def fetchTransaction(in: FetchTransactionReq, ctx: Metadata): F[FetchTransactionRes] =
         in.transactionId
-          .toRight("Missing transactionId")
+          .asRight[String]
           .toEitherT[F]
           .flatMapF(_.toF[F, TypedIdentifier])
           .leftMap(e => Status.INVALID_ARGUMENT.withDescription(e).asException())
