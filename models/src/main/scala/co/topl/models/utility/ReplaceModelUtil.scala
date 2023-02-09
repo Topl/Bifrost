@@ -47,10 +47,10 @@ object ReplaceModelUtil {
     co.topl.consensus.models.OperationalCertificate(
       parentVK = verificationKeyKesProduct(operationalCertificate.parentVK),
       parentSignature = signatureKesProduct(operationalCertificate.parentSignature),
-      childVK = co.topl.crypto.models.VerificationKeyEd25519(
+      childVK = co.topl.consensus.models.VerificationKeyEd25519(
         value = ByteString.copyFrom(operationalCertificate.childVK.bytes.data.toArray)
       ),
-      childSignature = co.topl.crypto.models.SignatureEd25519(
+      childSignature = co.topl.consensus.models.SignatureEd25519(
         value = ByteString.copyFrom(operationalCertificate.childSignature.bytes.data.toArray)
       )
     )
@@ -82,22 +82,22 @@ object ReplaceModelUtil {
   ): co.topl.consensus.models.SignatureKesProduct =
     co.topl.consensus.models.SignatureKesProduct(
       superSignature = co.topl.consensus.models.SignatureKesSum(
-        verificationKey = co.topl.crypto.models.VerificationKeyEd25519(
+        verificationKey = co.topl.consensus.models.VerificationKeyEd25519(
           ByteString
             .copyFrom(kesProduct.superSignature.verificationKey.bytes.data.toArray)
         ),
-        signature = co.topl.crypto.models.SignatureEd25519(
+        signature = co.topl.consensus.models.SignatureEd25519(
           ByteString
             .copyFrom(kesProduct.superSignature.signature.bytes.data.toArray)
         ),
         witness = kesProduct.superSignature.witness.map(w => ByteString.copyFrom(w.data.toArray))
       ),
       subSignature = co.topl.consensus.models.SignatureKesSum(
-        verificationKey = co.topl.crypto.models.VerificationKeyEd25519(
+        verificationKey = co.topl.consensus.models.VerificationKeyEd25519(
           ByteString
             .copyFrom(kesProduct.subSignature.verificationKey.bytes.data.toArray)
         ),
-        signature = co.topl.crypto.models.SignatureEd25519(
+        signature = co.topl.consensus.models.SignatureEd25519(
           ByteString
             .copyFrom(kesProduct.subSignature.signature.bytes.data.toArray)
         ),
