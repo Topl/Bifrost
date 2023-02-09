@@ -16,6 +16,7 @@ data:
       scenario:
         target-height: {{ $Values.scenario.targetHeight }}
         transactions-per-second: {{ $Values.scenario.transactionsPerSecond }}
+        timeout: {{ $Values.scenario.timeout }}
       publish:
         bucket: {{ $Values.results.bucket }}
         file-prefix: {{ $Values.results.prefix }}{{ .Release.Name }}/

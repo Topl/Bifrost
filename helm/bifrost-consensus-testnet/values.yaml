@@ -28,6 +28,7 @@ results:
 scenario:
   targetHeight: 30
   transactionsPerSecond: 2.0
+  timeout: 10 minutes
 
 resources:
   limits:
