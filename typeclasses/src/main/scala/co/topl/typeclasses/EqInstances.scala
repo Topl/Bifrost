@@ -18,8 +18,7 @@ trait EqInstances {
   implicit val bytesEq: Eq[Bytes] =
     (a, b) => a === b
 
-  implicit val bytesStringEq: Eq[ByteString] =
-    (a, b) => ByteString.unsignedLexicographicalComparator().compare(a, b) === 0
+  implicit val bytesStringEq: Eq[ByteString] = Eq.fromUniversalEquals
 
   implicit val typedBytesEq: Eq[TypedBytes] =
     (a, b) => a.allBytes === b.allBytes
