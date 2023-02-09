@@ -14,7 +14,7 @@ import co.topl.db.leveldb.LevelDbStore
 import co.topl.{models => legacyModels}
 import legacyModels._
 import legacyModels.utility.ReplaceModelUtil
-import co.topl.consensus.models.BlockHeader
+import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.node.models.BlockBody
 import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
@@ -161,7 +161,9 @@ object DataStores {
         )
       _ <- dataStores.slotData.put(
         bigBangBlock.header.id,
-        bigBangBlock.header.slotData(Ed25519VRF.precomputed())
+        ReplaceModelUtil.slotDataFromLegacy(
+          bigBangBlock.header.slotData(Ed25519VRF.precomputed())
+        ) // TODO bigBangBlock should be Block.FullConsensus, then remove replace model util
       )
       _ <- dataStores.headers.put(bigBangBlock.header.id, bigBangBlock.toFullConsensus.header)
       _ <- dataStores.bodies.put(

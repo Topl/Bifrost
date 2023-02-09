@@ -7,6 +7,7 @@ import cats.implicits._
 import co.topl.algebras.UnsafeResource
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.consensus.models.SlotData
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.Ed25519
 import co.topl.ledger.algebras.TransactionAuthorizationValidationAlgebra

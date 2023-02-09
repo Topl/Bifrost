@@ -4,8 +4,8 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import co.topl.{models => legacyModels}
-import legacyModels.{Bytes, SlotData, Transaction, TypedBytes, TypedIdentifier}
-import co.topl.consensus.models.BlockHeader
+import legacyModels.{Bytes, Transaction, TypedBytes, TypedIdentifier}
+import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.node.models.BlockBody
 import co.topl.networking.p2p.ConnectedPeer
 import fs2._

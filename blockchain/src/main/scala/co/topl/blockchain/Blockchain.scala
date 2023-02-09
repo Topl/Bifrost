@@ -19,7 +19,7 @@ import co.topl.minting.algebras.StakingAlgebra
 import co.topl.{models => legacyModels}
 import co.topl.models.utility._
 import legacyModels._
-import co.topl.consensus.models.BlockHeader
+import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.node.models.BlockBody
 import co.topl.networking.blockchain._
 import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, LocalPeer}
@@ -31,7 +31,6 @@ import co.topl.blockchain.interpreters.BlockchainPeerServer
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.interpreters.{BlockPacker, BlockProducer}
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-
 import scala.jdk.CollectionConverters._
 import scala.util.Random
 import fs2._
@@ -191,6 +190,7 @@ object Blockchain {
             bodyStore.put(block.header.id, block.body) &>
             ed25519VrfResource
               .use(implicit e => block.header.slotData.pure[F])
+              .map(ReplaceModelUtil.slotDataFromLegacy)
               .flatTap(slotDataStore.put(block.header.id, _))
           )
           .map(Validated.Valid(_))

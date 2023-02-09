@@ -8,7 +8,8 @@ import co.topl.eventtree.EventSourcedState
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.{models => legacyModels}
 import legacyModels._
-import co.topl.consensus.models.BlockHeader
+import legacyModels.utility._
+import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import co.topl.networking.blockchain.BlockchainPeerServerAlgebra
@@ -51,7 +52,7 @@ object BlockchainPeerServer {
           def localBlockAdoptions: F[Stream[F, TypedIdentifier]] =
             Async[F].delay(
               Stream
-                .eval(localChain.head.map(_.slotId.blockId))
+                .eval(localChain.head.map(_.slotId.blockId: TypedIdentifier))
                 .append(newBlockIds)
                 .evalTap(id => Logger[F].debug(show"Broadcasting block id=$id to peer"))
             )
@@ -63,7 +64,7 @@ object BlockchainPeerServer {
           def localTransactionNotifications: F[Stream[F, TypedIdentifier]] =
             Async[F].delay(
               Stream
-                .eval(localChain.head.map(_.slotId.blockId).flatMap(mempool.read))
+                .eval(localChain.head.map(_.slotId.blockId: TypedIdentifier).flatMap(mempool.read))
                 .flatMap(Stream.iterable)
                 .append(newTransactionIds)
                 .evalTap(id => Logger[F].debug(show"Broadcasting transaction id=$id to peer"))

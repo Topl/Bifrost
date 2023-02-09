@@ -7,7 +7,7 @@ import cats.implicits._
 import co.topl.{models => legacyModels}
 import legacyModels._
 import legacyModels.utility.Ratio
-import co.topl.consensus.models.BlockHeader
+import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.node.models.BlockBody
 import co.topl.networking.p2p.ConnectedPeer
 import co.topl.numerics.implicits._

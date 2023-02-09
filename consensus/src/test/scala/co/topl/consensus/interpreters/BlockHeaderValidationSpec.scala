@@ -15,13 +15,11 @@ import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.common.ModelGenerators.genSizedStrictByteString
 import co.topl.{models => legacyModels}
 import legacyModels._
-import legacyModels.SlotId
 import legacyModels.Box.Values.Registrations.Operator
-//import legacyModels.ModelGenerators._
 import legacyModels.utility.HasLength.instances._
 import legacyModels.utility.Lengths._
 import legacyModels.utility._
-import co.topl.consensus.models.BlockHeader
+import co.topl.consensus.models.{BlockHeader, SlotId}
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.crypto.models.{SignatureEd25519, VerificationKeyEd25519}
 import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
@@ -353,7 +351,7 @@ class BlockHeaderValidationSpec
 
       (etaInterpreter
         .etaToBe(_: SlotId, _: Slot))
-        .expects(SlotId(parent.slot, parent.id), child.slot)
+        .expects(SlotId(parent.slot, BlockId.of(parent.id._2)), child.slot)
         .anyNumberOfTimes()
         // This epoch nonce does not satisfy the generated VRF certificate
         .returning(eta.pure[F])
@@ -406,7 +404,7 @@ class BlockHeaderValidationSpec
 
       (etaInterpreter
         .etaToBe(_: SlotId, _: Slot))
-        .expects(SlotId(parent.slot, parent.id), badBlock.slot)
+        .expects(SlotId(parent.slot, BlockId.of(parent.id._2)), badBlock.slot)
         .anyNumberOfTimes()
         .returning(eta.pure[F])
 
@@ -479,7 +477,7 @@ class BlockHeaderValidationSpec
 
       (etaInterpreter
         .etaToBe(_: SlotId, _: Slot))
-        .expects(SlotId(parent.slot, parent.id), child.slot)
+        .expects(SlotId(parent.slot, BlockId.of(parent.id._2)), child.slot)
         .anyNumberOfTimes()
         .returning(eta.pure[F])
 
@@ -552,7 +550,7 @@ class BlockHeaderValidationSpec
 
       (etaInterpreter
         .etaToBe(_: SlotId, _: Slot))
-        .expects(SlotId(parent.slot, parent.id), child.slot)
+        .expects(SlotId(parent.slot, BlockId.of(parent.id._2)), child.slot)
         .anyNumberOfTimes()
         .returning(eta.pure[F])
 
@@ -632,7 +630,7 @@ class BlockHeaderValidationSpec
 
       (etaInterpreter
         .etaToBe(_: SlotId, _: Slot))
-        .expects(SlotId(parent.slot, parent.id), child.slot)
+        .expects(SlotId(parent.slot, BlockId.of(parent.id._2)), child.slot)
         .anyNumberOfTimes()
         .returning(eta.pure[F])
 

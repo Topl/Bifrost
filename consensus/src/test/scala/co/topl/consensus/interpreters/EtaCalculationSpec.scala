@@ -8,15 +8,16 @@ import co.topl.algebras.{ClockAlgebra, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.BlockHeaderOps
-import co.topl.consensus.models.VrfArgument
+import co.topl.consensus.models.{BlockId, SlotData, SlotId, VrfArgument}
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.models.ModelGenerators._
 import co.topl.models.Proofs.Knowledge
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.Sized
+import co.topl.models.utility.{ReplaceModelUtil, Sized}
 import co.topl.typeclasses.implicits._
+import com.google.protobuf.ByteString
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
@@ -95,7 +96,11 @@ class EtaCalculationSpec
     fetchSlotData
       .expects(*)
       .onCall((id: TypedIdentifier) =>
-        blocks.find(b => byteByteVectorTupleAsTypedBytes(b.id) eqv id).get.slotData.pure[F]
+        ReplaceModelUtil
+          .slotDataFromLegacy(
+            blocks.find(b => byteByteVectorTupleAsTypedBytes(b.id) eqv id).get.slotData
+          )
+          .pure[F]
       )
       .anyNumberOfTimes()
 
@@ -112,7 +117,9 @@ class EtaCalculationSpec
       .onCall { f: Function1[Blake2b512, F[NonEmptyChain[RhoNonceHash]]] => f(new Blake2b512) }
 
     val actual =
-      underTest.etaToBe(SlotId(blocks.last.slot, blocks.last.id), 16L).unsafeRunSync()
+      underTest
+        .etaToBe(SlotId(blocks.last.slot, BlockId.of(ByteString.copyFrom(blocks.last.id._2.toArray))), 16L)
+        .unsafeRunSync()
 
     val expected =
       EtaCalculationSpec.expectedEta(
@@ -154,7 +161,7 @@ class EtaCalculationSpec
     fetchSlotData
       .expects(byteByteVectorTupleAsTypedBytes(bigBangHeader.id))
       .once()
-      .returning(bigBangHeader.slotData.pure[F])
+      .returning(ReplaceModelUtil.slotDataFromLegacy(bigBangHeader.slotData).pure[F])
 
     (blake2b256Resource
       .use[NonEmptyChain[RhoNonceHash]](_: Function1[Blake2b256, F[NonEmptyChain[RhoNonceHash]]]))
@@ -169,7 +176,9 @@ class EtaCalculationSpec
       .onCall { f: Function1[Blake2b512, F[NonEmptyChain[RhoNonceHash]]] => f(new Blake2b512) }
 
     val actual =
-      underTest.etaToBe(SlotId(bigBangHeader.slot, bigBangHeader.id), 16L).unsafeRunSync()
+      underTest
+        .etaToBe(SlotId(bigBangHeader.slot, BlockId.of(ByteString.copyFrom(bigBangHeader.id._2.toArray))), 16L)
+        .unsafeRunSync()
 
     val expected =
       EtaCalculationSpec.expectedEta(

@@ -11,6 +11,9 @@ import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.{Lengths, Sized}
+import co.topl.consensus.models.{BlockId, SlotData, SlotId}
+import co.topl.models.generators.common.ModelGenerators.genSizedStrictByteString
+import com.google.protobuf.ByteString
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
@@ -42,7 +45,7 @@ class ChainSelectionSpec
   // TODO: Use generators to account for edge cases
 
   it should "return 0 for equal tines" in {
-    val slotData = createSlotData(10, SlotId(9, TypedBytes(1: Byte, Bytes(Array[Byte](9)))), height = 4)
+    val slotData = createSlotData(10, SlotId(9, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(9).toArray))), height = 4)
 
     val orderT =
       ChainSelection
@@ -52,7 +55,8 @@ class ChainSelectionSpec
   }
 
   it should "use longest-chain rule for tines shorter than the kLookback parameter" in {
-    val grandAncestor = createSlotData(9, SlotId(8, TypedBytes(1: Byte, Bytes(Array[Byte](9)))), height = 4)
+    val grandAncestor =
+      createSlotData(9, SlotId(8, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(9).toArray))), height = 4)
     val ancestor = createSlotData(10, grandAncestor.slotId, grandAncestor.height + 1)
     val xSegment = LazyList
       .unfold(ancestor)(previous =>
@@ -76,7 +80,7 @@ class ChainSelectionSpec
     fetchSlotData
       .expects(*)
       .anyNumberOfTimes()
-      .onCall((id: TypedIdentifier) => allBlocks(id).pure[F])
+      .onCall((id: TypedIdentifier) => allBlocks(BlockId.of(ByteString.copyFrom(id.dataBytes.toArray))).pure[F])
 
     val orderT = ChainSelection.make[F](fetchSlotData, blake2b512Resource, kLookback = 100, sWindow = 1)
 
@@ -84,7 +88,8 @@ class ChainSelectionSpec
   }
 
   it should "use lowest-slot rule for equal length tines shorter than the kLookback parameter" in {
-    val grandAncestor = createSlotData(9, SlotId(8, TypedBytes(1: Byte, Bytes(Array[Byte](9)))), height = 4)
+    val grandAncestor =
+      createSlotData(9, SlotId(8, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(9).toArray))), height = 4)
     val ancestor = createSlotData(10, grandAncestor.slotId, grandAncestor.height + 1)
     val xSegment = LazyList
       .unfold(ancestor)(previous =>
@@ -114,7 +119,7 @@ class ChainSelectionSpec
     fetchSlotData
       .expects(*)
       .anyNumberOfTimes()
-      .onCall((id: TypedIdentifier) => allBlocks(id).pure[F])
+      .onCall((id: TypedIdentifier) => allBlocks(BlockId.of(ByteString.copyFrom(id.dataBytes.toArray))).pure[F])
 
     val orderT = ChainSelection.make[F](fetchSlotData, blake2b512Resource, kLookback = 100, sWindow = 1)
 
@@ -122,7 +127,8 @@ class ChainSelectionSpec
   }
 
   it should "use lowest-rho-test-hash rule for equal length tines with equal best slot shorter than the kLookback parameter" in {
-    val grandAncestor = createSlotData(9, SlotId(8, TypedBytes(1: Byte, Bytes(Array[Byte](9)))), height = 4)
+    val grandAncestor =
+      createSlotData(9, SlotId(8, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(9).toArray))), height = 4)
     val ancestor = createSlotData(10, grandAncestor.slotId, grandAncestor.height + 1)
 
     val List(rhoX, rhoY) =
@@ -173,7 +179,7 @@ class ChainSelectionSpec
     fetchSlotData
       .expects(*)
       .anyNumberOfTimes()
-      .onCall((id: TypedIdentifier) => allBlocks(id).pure[F])
+      .onCall((id: TypedIdentifier) => allBlocks(BlockId.of(ByteString.copyFrom(id.dataBytes.toArray))).pure[F])
 
     val orderT = ChainSelection.make[F](fetchSlotData, blake2b512Resource, kLookback = 100, sWindow = 1)
 
@@ -181,7 +187,8 @@ class ChainSelectionSpec
   }
 
   it should "use chain-density rule for tines longer than the kLookback parameter" in {
-    val grandAncestor = createSlotData(9, SlotId(8, TypedBytes(1: Byte, Bytes(Array[Byte](9)))), height = 4)
+    val grandAncestor =
+      createSlotData(9, SlotId(8, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(9).toArray))), height = 4)
     val ancestor = createSlotData(10, grandAncestor.slotId, grandAncestor.height + 1)
     val xSegment = LazyList
       .unfold(ancestor)(previous =>
@@ -206,7 +213,7 @@ class ChainSelectionSpec
     fetchSlotData
       .expects(*)
       .anyNumberOfTimes()
-      .onCall((id: TypedIdentifier) => allBlocks(id).pure[F])
+      .onCall((id: TypedIdentifier) => allBlocks(BlockId.of(ByteString.copyFrom(id.dataBytes.toArray))).pure[F])
 
     val orderT = ChainSelection.make[F](fetchSlotData, blake2b512Resource, kLookback = 10, sWindow = 20)
 
@@ -220,10 +227,10 @@ class ChainSelectionSpec
     rho:          Rho = Rho(Sized.strictUnsafe(Bytes(Array.fill[Byte](64)(0))))
   ): SlotData =
     SlotData(
-      SlotId(slot, TypedBytes(1: Byte, genSizedStrictBytes[Lengths.`32`.type]().first.data)),
+      SlotId(slot, BlockId.of(genSizedStrictByteString[Lengths.`32`.type]().first.data)),
       parentSlotId = parentSlotId,
-      rho = rho,
-      eta = Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0))),
+      rho = ByteString.copyFrom(rho.sizedBytes.data.toArray),
+      eta = ByteString.copyFrom(Array.fill[Byte](32)(0)),
       height = height
     )
 
