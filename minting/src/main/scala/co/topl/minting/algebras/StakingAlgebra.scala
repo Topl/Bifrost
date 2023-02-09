@@ -9,27 +9,10 @@ import co.topl.models._
  */
 trait StakingAlgebra[F[_]] {
 
-  /**
-   * TODO add documentation https://topl.atlassian.net/browse/BN-845
-   * @return
-   */
   def address: F[StakingAddresses.Operator]
 
-  /**
-   * TODO add documentation https://topl.atlassian.net/browse/BN-845
-   * @param parentSlotId
-   * @param slot
-   * @return
-   */
   def elect(parentSlotId: SlotId, slot: Slot): F[Option[VrfHit]]
 
-  /**
-   * TODO add documentation https://topl.atlassian.net/browse/BN-845
-   * @param parentSlotId
-   * @param slot
-   * @param unsignedBlockBuilder
-   * @return
-   */
   def certifyBlock(
     parentSlotId:         SlotId,
     slot:                 Slot,
