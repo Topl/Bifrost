@@ -1,0 +1,3 @@
+bifrost:
+  rpc:
+    bind-port: 9084

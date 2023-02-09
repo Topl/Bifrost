@@ -1,42 +1,52 @@
 package co.topl
 
-import cats.implicits._
-import cats.{Order, Show}
+import co.topl.models._
+import co.topl.models.utility._
+import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.crypto.signing.Ed25519VRF
-import co.topl.models.{BlockHeaderV2, SlotData}
-import scalacache.CacheKeyBuilder
+import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.consensus.{models => consensusModels}
 
 package object consensus {
 
-  implicit class OrderSupport[T](order: Order[T]) {
-
-    def tiebreakWith(other: Order[T]): Order[T] =
-      Order.whenEqual(order, other)
-  }
-
-  def cacheKeyBuilder[T: Show]: CacheKeyBuilder = new CacheKeyBuilder {
-
-    def toCacheKey(parts: Seq[Any]): String =
-      parts.map {
-        case s: T @unchecked => s.show
-        case s               => throw new MatchError(s)
-      }.mkString
-
-    def stringToCacheKey(key: String): String = key
-  }
-
-  implicit class BlockHeaderV2Ops(blockHeaderV2: BlockHeaderV2) {
+  implicit class BlockHeaderOps(blockHeader: BlockHeader) {
 
     import co.topl.codecs.bytes.tetra.TetraIdentifiableInstances._
     import co.topl.typeclasses.implicits._
 
-    def slotData(implicit ed25519VRF: Ed25519VRF): SlotData =
-      SlotData(
-        blockHeaderV2.slotId,
-        blockHeaderV2.parentSlotId,
-        ed25519VRF.proofToHash(blockHeaderV2.eligibilityCertificate.vrfSig),
-        blockHeaderV2.eligibilityCertificate.eta,
-        blockHeaderV2.height
+    // TODO Remove after full model replacement
+    def slotData(implicit ed25519VRF: Ed25519VRF): SlotDataLegacy =
+      SlotDataLegacy(
+        SlotId(blockHeader.slot, blockHeader.id),
+        blockHeader.parentSlotId,
+        Rho(Sized.strictUnsafe(ed25519VRF.proofToHash(blockHeader.eligibilityCertificate.vrfSig.bytes.data))),
+        blockHeader.eligibilityCertificate.eta,
+        blockHeader.height
+      )
+  }
+
+  /**
+   * TODO
+   * @param blockHeader helper for SlotData
+   */
+  implicit class ConsensusBlockHeaderOps(blockHeader: consensusModels.BlockHeader) {
+
+    import co.topl.codecs.bytes.tetra.TetraIdentifiableInstances._
+    import co.topl.typeclasses.implicits._
+
+    def slotData(implicit ed25519VRF: Ed25519VRF): SlotDataLegacy =
+      SlotDataLegacy(
+        SlotId(blockHeader.slot, blockHeader.id),
+        SlotId(blockHeader.parentSlot, blockHeader.parentHeaderId),
+        Rho(
+          Sized.strictUnsafe(
+            ed25519VRF.proofToHash(
+              blockHeader.eligibilityCertificate.vrfSig.value
+            )
+          )
+        ),
+        Sized.strictUnsafe(blockHeader.eligibilityCertificate.eta),
+        blockHeader.height
       )
   }
 }

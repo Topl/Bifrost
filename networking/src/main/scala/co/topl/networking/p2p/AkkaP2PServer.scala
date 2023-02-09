@@ -2,7 +2,6 @@ package co.topl.networking.p2p
 
 import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.stream._
 import akka.stream.scaladsl._
 import akka.util.ByteString
 import cats._
@@ -13,9 +12,7 @@ import co.topl.catsakka._
 import org.typelevel.log4cats.Logger
 
 import java.net.InetSocketAddress
-import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Random
 
 /**
  * Interprets P2PServer[F, Client] using akka-stream. Binds to the requested host/port to accept incoming connections,
@@ -89,7 +86,7 @@ object AkkaP2PServer {
       }
       .to(Sink.ignore)
 
-  private def makePeerHandlerFlowWithRemovalF[F[_]: Monad: FToFuture, Client](
+  private def makePeerHandlerFlowWithRemovalF[F[_]: FToFuture, Client](
     peerHandler:           ConnectedPeer => F[Flow[ByteString, ByteString, F[Client]]],
     offerConnectionChange: PeerConnectionChange[Client] => F[Unit]
   ) =

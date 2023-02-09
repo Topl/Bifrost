@@ -10,6 +10,9 @@
 .vscode/
 out/
 *.iml
+.jvmopts
+.sbtopts
+localVersion.sbt
 
 # scala build folders
 target
@@ -29,18 +32,7 @@ classes
 keyfiles/
 ldb_main
 ldb_undo
-
-# for temporary experiments
-sheet.scala
-examples/src/main/scala/examples/sigmastate/
-examples/lib/
-dumps/
-local/
-local.conf
-localVersion.sbt
-
-# monitoring persistent data files
-monit/data/
+genus_db
 
 # docker
 docker/*.jar

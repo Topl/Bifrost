@@ -31,6 +31,6 @@ object StatsInterpreter {
   object Noop {
 
     def make[F[_]: Applicative]: Stats[F] =
-      (statName: String, data: Json) => Applicative[F].unit
+      (_: String, _: Json) => Applicative[F].unit
   }
 }

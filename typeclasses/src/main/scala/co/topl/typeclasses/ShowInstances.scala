@@ -6,8 +6,9 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.Identifiable
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.models._
-import co.topl.models.utility.{Length, Sized}
-
+import co.topl.models.utility._
+import co.topl.consensus.{models => consensusModels}
+import com.google.protobuf.ByteString
 import java.net.InetSocketAddress
 import java.time.Instant
 
@@ -22,6 +23,9 @@ trait ShowInstances {
   implicit val showBytes: Show[Bytes] =
     bytes => bytes.toBase58
 
+  implicit val showByteString: Show[ByteString] =
+    bytes => bytes.toBase58
+
   implicit def showSizedBytes[Data: Show, L <: Length](implicit l: L): Show[Sized.Strict[Data, L]] =
     sized => show"[${l.value}](${sized.data})"
 
@@ -31,25 +35,49 @@ trait ShowInstances {
   implicit val showSlotId: Show[SlotId] =
     slotID => show"{${slotID.slot},${slotID.blockId}}"
 
+  implicit val showConsensusBlockId: Show[consensusModels.BlockId] =
+    showBytes.contramap[consensusModels.BlockId](_.value)
+
+  implicit val showConsensusSlotId: Show[consensusModels.SlotId] =
+    slotID => show"{${slotID.slot},${slotID.blockId}}"
+
   implicit val showRho: Show[Rho] =
     _.sizedBytes.show
 
-  implicit val showTaktikosAddress: Show[TaktikosAddress] =
-    showBytes.contramap[TaktikosAddress](_.immutableBytes)
+  implicit val showStakingAddressesOperator: Show[StakingAddresses.Operator] =
+    showBytes.contramap[StakingAddresses.Operator](_.immutableBytes)
+
+  implicit val showStakingAddress: Show[StakingAddress] =
+    showBytes.contramap[StakingAddress](_.immutableBytes)
 
   import IdentityOps._
 
-  implicit val showBlockHeaderV2: Show[BlockHeaderV2] =
+  implicit val showBlockHeader: Show[BlockHeader] =
     header =>
       show"BlockHeader(id=${header.id.asTypedBytes}" +
       show" parentId=${header.parentHeaderId}" +
       show" height=${header.height}" +
       show" slot=${header.slot}" +
       show" timestamp=${Instant.ofEpochMilli(header.timestamp).toString})" +
-      show" address=${header.address}"
+      show" address=${header.address: StakingAddress}"
+
+  implicit val showConsensusBlockHeader: Show[consensusModels.BlockHeader] =
+    header =>
+      show"BlockHeader(id=${header.id.asTypedBytes}" +
+      show" parentId=${(header.parentHeaderId: TypedIdentifier)}" +
+      show" height=${header.height}" +
+      show" slot=${header.slot}" +
+      show" timestamp=${Instant.ofEpochMilli(header.timestamp).toString})" +
+      show" address=${co.topl.models.StakingAddresses.operatorFromProtoString(header.address).show}"
+
+  implicit val showNodeBlockBody: Show[co.topl.node.models.BlockBody] =
+    body => show"${body.transactionIds.map(t => t: TypedIdentifier)}"
 
   implicit val showInetSocketAddress: Show[InetSocketAddress] =
     address => s"${address.getHostName}:${address.getPort}"
+
+  implicit val showBoxId: Show[Box.Id] =
+    boxId => show"${boxId.transactionId}.outputs[${boxId.transactionOutputIndex}]"
 }
 
 object ShowInstances extends ShowInstances

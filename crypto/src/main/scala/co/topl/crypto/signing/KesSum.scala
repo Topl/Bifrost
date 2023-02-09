@@ -5,17 +5,15 @@ import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.{KesBinaryTree, Sized}
 import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
 
-class KesSum
-    extends SumComposition
-    with KeyEvolvingSignatureScheme[SecretKeys.KesSum, VerificationKeys.KesSum, Proofs.Knowledge.KesSum, Int] {
+class KesSum extends SumComposition {
 
-  override def createKeyPair(seed: Bytes, height: Int, offset: Long): (SecretKeys.KesSum, VerificationKeys.KesSum) = {
+  def createKeyPair(seed: Bytes, height: Int, offset: Long): (SecretKeys.KesSum, VerificationKeys.KesSum) = {
     val sk: KesBinaryTree = generateSecretKey(seed.toArray, height)
     val pk: (Array[Byte], Int) = generateVerificationKey(sk)
     (SecretKeys.KesSum(sk, offset), VerificationKeys.KesSum(Sized.strictUnsafe(Bytes(pk._1)), pk._2))
   }
 
-  override def sign(privateKey: SecretKeys.KesSum, message: Bytes): Proofs.Knowledge.KesSum = {
+  def sign(privateKey: SecretKeys.KesSum, message: Bytes): Proofs.Knowledge.KesSum = {
     val sumSig = sign(privateKey.tree, message.toArray)
     Proofs.Knowledge.KesSum(
       VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(sumSig._1))),
@@ -24,7 +22,7 @@ class KesSum
     )
   }
 
-  override def verify(
+  def verify(
     signature: Proofs.Knowledge.KesSum,
     message:   Bytes,
     verifyKey: VerificationKeys.KesSum
@@ -39,14 +37,14 @@ class KesSum
     verify(sumSig, message.toArray, sumVk)
   }
 
-  override def update(privateKey: SecretKeys.KesSum, steps: Int): SecretKeys.KesSum =
+  def update(privateKey: SecretKeys.KesSum, steps: Int): SecretKeys.KesSum =
     privateKey.copy(tree = updateKey(privateKey.tree, steps))
 
-  override def getCurrentStep(privateKay: SecretKeys.KesSum): Int = getKeyTime(privateKay.tree)
+  def getCurrentStep(privateKay: SecretKeys.KesSum): Int = getKeyTime(privateKay.tree)
 
-  override def getMaxStep(privateKay: SecretKeys.KesSum): Int = exp(getTreeHeight(privateKay.tree))
+  def getMaxStep(privateKay: SecretKeys.KesSum): Int = exp(getTreeHeight(privateKay.tree))
 
-  override def getVerificationKey(privateKey: SecretKeys.KesSum): VerificationKeys.KesSum = {
+  def getVerificationKey(privateKey: SecretKeys.KesSum): VerificationKeys.KesSum = {
     val vk = generateVerificationKey(privateKey.tree)
     VerificationKeys.KesSum(Sized.strictUnsafe(Bytes(vk._1)), vk._2)
   }

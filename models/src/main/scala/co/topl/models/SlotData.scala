@@ -5,4 +5,4 @@ package co.topl.models
  * selection, eta, and VRF/eligibility verification.  A Block Header includes an operational certificate which
  * unnecessarily consumes memory.
  */
-case class SlotData(slotId: SlotId, parentSlotId: SlotId, rho: Rho, eta: Eta, height: Long)
+case class SlotDataLegacy(slotId: SlotId, parentSlotId: SlotId, rho: Rho, eta: Eta, height: Long)

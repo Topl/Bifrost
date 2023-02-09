@@ -1,0 +1,33 @@
+name: Pull Request
+
+on:
+  pull_request:
+    branches:
+      - 'main'
+      - 'dev'
+      - 'release-**'
+
+jobs:
+  validate-helm:
+    uses: ./.github/workflows/_validate_helm.yml
+
+  sbt-build:
+    uses: ./.github/workflows/_sbt_build.yml
+    with:
+      preserve-cache-between-runs: true
+
+  sbt-integration-tests:
+    uses: ./.github/workflows/_sbt_integration_tests.yml
+    needs: [sbt-build]
+    with:
+      preserve-cache-between-runs: true
+
+  sbt-jar:
+    uses: ./.github/workflows/_sbt_jar.yml
+    needs: [sbt-build]
+    with:
+      preserve-cache-between-runs: true
+
+  publish-test-results:
+    uses: ./.github/workflows/_publish_test_results.yml
+    needs: [sbt-build, sbt-integration-tests]

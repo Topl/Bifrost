@@ -1,41 +1,33 @@
 package co.topl.interpreters
 
-import cats.MonadThrow
-import cats.data.OptionT
 import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.algebras.{Store, StoreReader}
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
-import co.topl.models.{SlotData, TypedIdentifier}
+import co.topl.models.TypedIdentifier
+import co.topl.consensus.models.SlotData
 import co.topl.typeclasses.implicits._
 
 object BlockHeightTree {
 
-  type State[F[_]] = (Long => F[Option[TypedIdentifier]])
+  type State[F[_]] = Long => F[Option[TypedIdentifier]]
 
   def make[F[_]: Async](
-    store:          Store[F, Long, TypedIdentifier],
-    initialEventId: TypedIdentifier,
-    slotDataStore:  StoreReader[F, TypedIdentifier, SlotData],
-    unapplyStore:   Store[F, TypedIdentifier, Long],
-    blockTree:      ParentChildTree[F, TypedIdentifier]
-  ): F[EventSourcedState[F, TypedIdentifier, State[F]]] = {
+    store:               Store[F, Long, TypedIdentifier],
+    initialEventId:      F[TypedIdentifier],
+    slotDataStore:       StoreReader[F, TypedIdentifier, SlotData],
+    blockTree:           ParentChildTree[F, TypedIdentifier],
+    currentEventChanged: TypedIdentifier => F[Unit]
+  ): F[EventSourcedState[F, State[F], TypedIdentifier]] = {
     val heightStore = slotDataStore.mapRead[TypedIdentifier, Long](identity, _.height)
-    val getHeight = heightOf[F](heightStore) _
-    EventSourcedState.OfTree.make[F, TypedIdentifier, State[F], Long](
+    EventSourcedState.OfTree.make[F, State[F], TypedIdentifier](
       Async[F].delay(store.get),
-      initialEventId = initialEventId.pure[F],
-      (id, _) => getHeight(id),
-      (state, id) => getHeight(id).flatTap(store.put(_, id)).as(state),
-      (state, height) => store.remove(height).as(state),
-      slotDataStore.mapRead(identity, _.slotId.blockId),
-      unapplyStore,
-      blockTree
+      initialEventId = initialEventId,
+      (state, id) => heightStore.getOrRaise(id).flatTap(store.put(_, id)).as(state),
+      (state, id) => heightStore.getOrRaise(id).flatTap(store.remove).as(state),
+      blockTree,
+      currentEventChanged
     )
   }
-
-  private def heightOf[F[_]: MonadThrow](store: StoreReader[F, TypedIdentifier, Long])(id: TypedIdentifier) =
-    OptionT(store.get(id))
-      .getOrElseF(MonadThrow[F].raiseError(new IllegalStateException(show"Local slot data not found id=$id")))
 
 }

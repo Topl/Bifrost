@@ -1,17 +1,28 @@
 package co.topl.models
 
-import cats.data.NonEmptyChain
-import co.topl.models.Transaction.{ArbitOutput, AssetOutput, PolyOutput}
+import cats.data.{Chain, NonEmptyChain, NonEmptyList}
+import co.topl.models.Propositions.Contextual.RequiredTransactionIO
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.StringDataTypes.Latin1Data
-import co.topl.models.utility.{KesBinaryTree, Length, Lengths, Ratio, Sized}
-import org.scalacheck.{Arbitrary, Gen}
+import co.topl.models.utility._
 import org.scalacheck.rng.Seed
+import org.scalacheck.{Arbitrary, Gen}
 
-import scala.collection.immutable.ListMap
+import scala.collection.immutable.ListSet
 
 trait ModelGenerators {
+
+  def nonEmptyChainOf[T](gen: => Gen[T]): Gen[NonEmptyChain[T]] =
+    for {
+      tail <- Gen.listOf(gen)
+    } yield NonEmptyChain.fromNonEmptyList(NonEmptyList(gen.first, tail))
+
+  /**
+   * Similar to Gen.nonEmptyListOf, but without the bug associated with:https://github.com/typelevel/scalacheck/issues/372
+   */
+  def nonEmptyListOf[T](gen: => Gen[T]): Gen[List[T]] =
+    nonEmptyChainOf(gen).map(_.toNonEmptyList.toList)
 
   def etaGen: Gen[Eta] =
     genSizedStrictBytes[Lengths.`32`.type]()
@@ -37,6 +48,15 @@ trait ModelGenerators {
 
   def proofVrfEd25519Gen: Gen[Proofs.Knowledge.VrfEd25519] =
     genSizedStrictBytes[Lengths.`80`.type]().map(Proofs.Knowledge.VrfEd25519(_))
+
+  def typedEvidenceGen: Gen[TypedEvidence] =
+    for {
+      prefix   <- byteGen
+      evidence <- genSizedStrictBytes[Lengths.`32`.type]()
+    } yield TypedEvidence(prefix, evidence)
+
+  def networkPrefixGen: Gen[NetworkPrefix] =
+    byteGen.map(NetworkPrefix(_))
 
   def eligibilityCertificateGen: Gen[EligibilityCertificate] =
     for {
@@ -76,6 +96,13 @@ trait ModelGenerators {
 
   def ed25519ProofGen: Gen[Proofs.Knowledge.Ed25519] =
     genSizedStrictBytes[Proofs.Knowledge.Ed25519.Length]().map(Proofs.Knowledge.Ed25519(_))
+
+  def kesProductProofGen: Gen[Proofs.Knowledge.KesProduct] =
+    for {
+      superSignature <- kesSumProofGen
+      subSignature   <- kesSumProofGen
+      subRoot        <- genSizedStrictBytes[Lengths.`32`.type]()
+    } yield Proofs.Knowledge.KesProduct(superSignature, subSignature, subRoot)
 
   def kesVKGen: Gen[VerificationKeys.KesProduct] =
     for {
@@ -119,19 +146,12 @@ trait ModelGenerators {
       offset      <- Gen.long
     } yield SecretKeys.KesProduct(superTree, subTree, nextSubSeed, signature, offset)
 
-  def kesProductProofGen: Gen[Proofs.Knowledge.KesProduct] =
-    for {
-      superSignature <- kesSumProofGen
-      subSignature   <- kesSumProofGen
-      subRoot        <- genSizedStrictBytes[Lengths.`32`.type]()
-    } yield Proofs.Knowledge.KesProduct(superSignature, subSignature, subRoot)
-
-  def partialOperationalCertificateGen: Gen[BlockHeaderV2.Unsigned.PartialOperationalCertificate] =
+  def partialOperationalCertificateGen: Gen[BlockHeader.Unsigned.PartialOperationalCertificate] =
     for {
       parentVK        <- kesVKGen
       parentSignature <- kesProductProofGen
       childVK         <- ed25519VkGen
-    } yield BlockHeaderV2.Unsigned.PartialOperationalCertificate(parentVK, parentSignature, childVK)
+    } yield BlockHeader.Unsigned.PartialOperationalCertificate(parentVK, parentSignature, childVK)
 
   def operationalCertificateGen: Gen[OperationalCertificate] =
     for {
@@ -141,12 +161,13 @@ trait ModelGenerators {
       childSignature  <- ed25519ProofGen
     } yield OperationalCertificate(parentVK, parentSignature, childVK, childSignature)
 
-  def taktikosAddressGen: Gen[TaktikosAddress] =
+  def operatorStakingAddressGen: Gen[StakingAddresses.Operator] =
     for {
-      paymentVKEvidence <- genSizedStrictBytes[Lengths.`32`.type]()
-      poolVK            <- ed25519VkGen
-      signature         <- ed25519ProofGen
-    } yield TaktikosAddress(paymentVKEvidence, poolVK, signature)
+      poolVK <- ed25519VkGen
+    } yield StakingAddresses.Operator(poolVK)
+
+  def stakingAddressGen: Gen[StakingAddress] =
+    operatorStakingAddressGen
 
   def unsignedHeaderGen(
     parentHeaderIdGen: Gen[TypedIdentifier] =
@@ -158,12 +179,12 @@ trait ModelGenerators {
     heightGen:                 Gen[Long] = Gen.chooseNum(0L, 20L),
     slotGen:                   Gen[Slot] = Gen.chooseNum(0L, 50L),
     eligibilityCertificateGen: Gen[EligibilityCertificate] = eligibilityCertificateGen,
-    partialOperationalCertificateGen: Gen[BlockHeaderV2.Unsigned.PartialOperationalCertificate] =
+    partialOperationalCertificateGen: Gen[BlockHeader.Unsigned.PartialOperationalCertificate] =
       partialOperationalCertificateGen,
     metadataGen: Gen[Option[Sized.Max[Latin1Data, Lengths.`32`.type]]] =
       Gen.option(latin1DataGen.map(Sized.maxUnsafe[Latin1Data, Lengths.`32`.type](_))),
-    addressGen: Gen[TaktikosAddress] = taktikosAddressGen
-  ): Gen[BlockHeaderV2.Unsigned] =
+    addressGen: Gen[StakingAddresses.Operator] = operatorStakingAddressGen
+  ): Gen[BlockHeader.Unsigned] =
     for {
       parentHeaderID <- parentHeaderIdGen
       parentSlot     <- parentSlotGen
@@ -176,7 +197,7 @@ trait ModelGenerators {
       kesCertificate <- partialOperationalCertificateGen
       metadata       <- metadataGen
       address        <- addressGen
-    } yield BlockHeaderV2.Unsigned(
+    } yield BlockHeader.Unsigned(
       parentHeaderID,
       parentSlot,
       txRoot,
@@ -203,8 +224,8 @@ trait ModelGenerators {
     operationalCertificateGen: Gen[OperationalCertificate] = operationalCertificateGen,
     metadataGen: Gen[Option[Sized.Max[Latin1Data, Lengths.`32`.type]]] =
       Gen.option(latin1DataGen.map(Sized.maxUnsafe[Latin1Data, Lengths.`32`.type](_))),
-    addressGen: Gen[TaktikosAddress] = taktikosAddressGen
-  ): Gen[BlockHeaderV2] =
+    addressGen: Gen[StakingAddresses.Operator] = operatorStakingAddressGen
+  ): Gen[BlockHeader] =
     for {
       parentHeaderID <- parentHeaderIdGen
       parentSlot     <- parentSlotGen
@@ -217,7 +238,7 @@ trait ModelGenerators {
       kesCertificate <- operationalCertificateGen
       metadata       <- metadataGen
       address        <- addressGen
-    } yield BlockHeaderV2(
+    } yield BlockHeader(
       parentHeaderID,
       parentSlot,
       txRoot,
@@ -287,112 +308,402 @@ trait ModelGenerators {
       } yield SecretKeys.ExtendedEd25519(l, r, c)
     )
 
-  implicit def arbitraryDionAddress: Arbitrary[DionAddress] =
+  implicit def arbitrarySpendingAddress: Arbitrary[SpendingAddress] =
     Arbitrary(
       for {
-        typePrefix <- Gen.chooseNum[Byte](0, Byte.MaxValue)
-        evidence   <- genSizedStrictBytes[Lengths.`32`.type]()
-      } yield DionAddress(NetworkPrefix(1: Byte), TypedEvidence(typePrefix, evidence))
+        typedEvidence <- typedEvidenceGen
+      } yield SpendingAddress(typedEvidence)
+    )
+
+  implicit val arbitraryFullAddress: Arbitrary[FullAddress] =
+    Arbitrary(
+      for {
+        prefix   <- networkPrefixGen
+        spending <- arbitrarySpendingAddress.arbitrary
+        staking  <- stakingAddressGen
+        binding  <- arbitraryProofsKnowledgeEd25519.arbitrary
+      } yield FullAddress(prefix, spending, staking, binding)
     )
 
   implicit val arbitraryInt128: Arbitrary[Int128] =
     Arbitrary(Gen.long.map(BigInt(_)).map(Sized.maxUnsafe[BigInt, Lengths.`128`.type](_)))
 
-  implicit val arbitraryAssetCode: Arbitrary[Box.Values.Asset.Code] =
+  val arbitraryPositiveInt128: Arbitrary[Int128] =
+    Arbitrary(Gen.posNum[Long].map(BigInt(_)).map(Sized.maxUnsafe[BigInt, Lengths.`128`.type](_)))
+
+  implicit val arbitraryAssetCode: Arbitrary[Box.Values.AssetV1.Code] =
     Arbitrary(
       for {
-        version   <- byteGen
-        issuer    <- arbitraryDionAddress.arbitrary
+        issuer    <- arbitrarySpendingAddress.arbitrary
         shortName <- latin1DataGen.map(data => Latin1Data.unsafe(data.value.take(8)))
-        code = Box.Values.Asset.Code(version, issuer, Sized.maxUnsafe(shortName))
+        code = Box.Values.AssetV1.Code(issuer, Sized.maxUnsafe(shortName))
       } yield code
     )
 
-  implicit val arbitraryAssetBox: Arbitrary[Box.Values.Asset] =
+  implicit val arbitraryAssetBox: Arbitrary[Box.Values.AssetV1] =
     Arbitrary(
       for {
-        quantity <- arbitraryInt128.arbitrary
+        quantity <- arbitraryPositiveInt128.arbitrary
         code     <- arbitraryAssetCode.arbitrary
-        root     <- genSizedStrictBytes[Lengths.`32`.type]().map(_.data)
+        root     <- genSizedStrictBytes[Lengths.`32`.type]()
         metadata <-
           Gen.option(
             latin1DataGen
               .map(data => Latin1Data.unsafe(data.value.take(127)))
               .map(data => Sized.maxUnsafe[Latin1Data, Lengths.`127`.type](data))
           )
-        box = Box.Values.Asset(quantity, code, root, metadata)
+        box = Box.Values.AssetV1(quantity, code, root, metadata)
       } yield box
     )
 
-  implicit val arbitraryPolyOutput: Arbitrary[PolyOutput] =
+  implicit val arbitraryPolyBox: Arbitrary[Box.Values.Poly] =
+    Arbitrary(arbitraryPositiveInt128.arbitrary.map(Box.Values.Poly))
+
+  implicit val arbitraryArbitBox: Arbitrary[Box.Values.Arbit] =
+    Arbitrary(arbitraryPositiveInt128.arbitrary.map(Box.Values.Arbit))
+
+  implicit val arbitraryRegistrationOperatorBox: Arbitrary[Box.Values.Registrations.Operator] =
+    Arbitrary(arbitraryProofsKnowledgeKesProduct.arbitrary.map(Box.Values.Registrations.Operator))
+
+  implicit val arbitraryBoxValue: Arbitrary[Box.Value] =
     Arbitrary(
-      arbitraryDionAddress.arbitrary.flatMap(a => arbitraryInt128.arbitrary.map(v => Transaction.PolyOutput(a, v)))
+      Gen.oneOf(
+        Gen.const(Box.Values.Empty),
+        arbitraryPolyBox.arbitrary,
+        arbitraryArbitBox.arbitrary,
+        arbitraryAssetBox.arbitrary
+      )
     )
 
-  implicit val arbitraryArbitOutput: Arbitrary[ArbitOutput] =
-    Arbitrary(
-      arbitraryDionAddress.arbitrary.flatMap(a => arbitraryInt128.arbitrary.map(v => Transaction.ArbitOutput(a, v)))
-    )
-
-  implicit val arbitraryAssetOutput: Arbitrary[AssetOutput] =
+  implicit val arbitraryBox: Arbitrary[Box] =
     Arbitrary(
       for {
-        address <- arbitraryDionAddress.arbitrary
-        value   <- arbitraryAssetBox.arbitrary
-      } yield AssetOutput(address, value)
+        evidence <- typedEvidenceGen
+        value    <- arbitraryBoxValue.arbitrary
+      } yield Box(evidence, value)
+    )
+
+  implicit val arbitraryTransactionOutput: Arbitrary[Transaction.Output] =
+    Arbitrary(
+      for {
+        address <- arbitraryFullAddress.arbitrary
+        value   <- arbitraryBoxValue.arbitrary
+        minting <- Gen.prob(0.05)
+      } yield Transaction.Output(address, value, minting)
+    )
+
+  implicit val arbitraryPropositionsPermanentlyLocked: Arbitrary[Propositions.PermanentlyLocked.type] =
+    Arbitrary(Gen.const(Propositions.PermanentlyLocked))
+
+  implicit val arbitraryPropositionsKnowledgeCurve25519: Arbitrary[Propositions.Knowledge.Curve25519] =
+    Arbitrary(arbitraryCurve25519VK.arbitrary.map(Propositions.Knowledge.Curve25519))
+
+  implicit val arbitraryPropositionsKnowledgeEd25519: Arbitrary[Propositions.Knowledge.Ed25519] =
+    Arbitrary(arbitraryEd25519VK.arbitrary.map(Propositions.Knowledge.Ed25519))
+
+  implicit val arbitraryPropositionsKnowledgeExtendedEd25519: Arbitrary[Propositions.Knowledge.ExtendedEd25519] =
+    Arbitrary(arbitraryExtendedEd25519VK.arbitrary.map(Propositions.Knowledge.ExtendedEd25519))
+
+  implicit def arbitraryStrictSizedBytes[L <: Length](implicit l: L): Arbitrary[Sized.Strict[Bytes, L]] =
+    Arbitrary(genSizedStrictBytes[L]())
+
+  implicit val arbitraryPropositionsKnowledgeHashLock: Arbitrary[Propositions.Knowledge.HashLock] =
+    Arbitrary(implicitly[Arbitrary[Digest32]].arbitrary.map(Propositions.Knowledge.HashLock))
+
+  implicit val arbitraryPropositionsCompositionalThreshold: Arbitrary[Propositions.Compositional.Threshold] =
+    Arbitrary(
+      Gen
+        .chooseNum[Int](1, 5)
+        .flatMap(threshold =>
+          Gen
+            .containerOfN[ListSet, Proposition](threshold + 1, Gen.delay(arbitraryProposition.arbitrary))
+            .map(propositions => Propositions.Compositional.Threshold(threshold, propositions))
+        )
+    )
+
+  implicit val arbitraryPropositionsCompositionalAnd: Arbitrary[Propositions.Compositional.And] =
+    Arbitrary(
+      for {
+        a <- Gen.delay(arbitraryProposition.arbitrary)
+        b <- Gen.delay(arbitraryProposition.arbitrary)
+      } yield Propositions.Compositional.And(a, b)
+    )
+
+  implicit val arbitraryPropositionsCompositionalOr: Arbitrary[Propositions.Compositional.Or] =
+    Arbitrary(
+      for {
+        a <- Gen.delay(arbitraryProposition.arbitrary)
+        b <- Gen.delay(arbitraryProposition.arbitrary)
+      } yield Propositions.Compositional.Or(a, b)
+    )
+
+  implicit val arbitraryPropositionsCompositionalNot: Arbitrary[Propositions.Compositional.Not] =
+    Arbitrary(Gen.delay(arbitraryProposition.arbitrary).map(Propositions.Compositional.Not))
+
+  implicit val arbitraryPropositionsContextualHeightLock: Arbitrary[Propositions.Contextual.HeightLock] =
+    Arbitrary(Gen.posNum[Long].map(Propositions.Contextual.HeightLock))
+
+  implicit val arbitraryBoxLocation: Arbitrary[BoxLocation] =
+    Arbitrary(Gen.posNum[Short].flatMap(index => Gen.oneOf(BoxLocations.Input(index), BoxLocations.Output(index))))
+
+  implicit val arbitraryPropositionsContextualRequiredTransactionIORequirement
+    : Arbitrary[RequiredTransactionIO.Requirement] =
+    Arbitrary(
+      for {
+        box      <- arbitraryBox.arbitrary
+        location <- arbitraryBoxLocation.arbitrary
+      } yield Propositions.Contextual.RequiredTransactionIO.Requirement(box, location)
+    )
+
+  implicit val arbitraryPropositionsContextualRequiredTransactionIO
+    : Arbitrary[Propositions.Contextual.RequiredTransactionIO] =
+    Arbitrary(
+      nonEmptyChainOf(arbitraryPropositionsContextualRequiredTransactionIORequirement.arbitrary)
+        .map(Propositions.Contextual.RequiredTransactionIO(_))
+    )
+
+  implicit val arbitraryTypedIdentifier: Arbitrary[TypedIdentifier] =
+    Arbitrary(
+      for {
+        byte <- byteGen
+        data <- genSizedStrictBytes[Lengths.`32`.type]().map(_.data)
+      } yield TypedBytes(byte, data)
+    )
+
+  implicit val arbitraryProposition: Arbitrary[Proposition] =
+    Arbitrary(
+      Gen.oneOf(
+        implicitly[Arbitrary[Propositions.PermanentlyLocked.type]].arbitrary,
+        implicitly[Arbitrary[Propositions.Knowledge.Curve25519]].arbitrary,
+        implicitly[Arbitrary[Propositions.Knowledge.Ed25519]].arbitrary,
+        implicitly[Arbitrary[Propositions.Knowledge.ExtendedEd25519]].arbitrary,
+        implicitly[Arbitrary[Propositions.Knowledge.HashLock]].arbitrary,
+        implicitly[Arbitrary[Propositions.Compositional.Threshold]].arbitrary,
+        implicitly[Arbitrary[Propositions.Compositional.And]].arbitrary,
+        implicitly[Arbitrary[Propositions.Compositional.Or]].arbitrary,
+        implicitly[Arbitrary[Propositions.Compositional.Not]].arbitrary,
+        implicitly[Arbitrary[Propositions.Contextual.HeightLock]].arbitrary,
+        implicitly[Arbitrary[Propositions.Contextual.RequiredTransactionIO]].arbitrary
+      )
+    )
+
+  implicit val arbitraryProofsFalse: Arbitrary[Proofs.Undefined.type] =
+    Arbitrary(Gen.const(Proofs.Undefined))
+
+  implicit val arbitraryProofsKnowledgeCurve25519: Arbitrary[Proofs.Knowledge.Curve25519] =
+    Arbitrary(curve25519ProofGen)
+
+  implicit val arbitraryProofsKnowledgeEd25519: Arbitrary[Proofs.Knowledge.Ed25519] =
+    Arbitrary(ed25519ProofGen)
+
+  implicit val arbitraryProofsKnowledgeVrfEd25519: Arbitrary[Proofs.Knowledge.VrfEd25519] =
+    Arbitrary(proofVrfEd25519Gen)
+
+  implicit val arbitraryProofsKnowledgeKesSum: Arbitrary[Proofs.Knowledge.KesSum] =
+    Arbitrary(kesSumProofGen)
+
+  implicit val arbitraryProofsKnowledgeKesProduct: Arbitrary[Proofs.Knowledge.KesProduct] =
+    Arbitrary(kesProductProofGen)
+
+  implicit val arbitraryProofsKnowledgeHashLock: Arbitrary[Proofs.Knowledge.HashLock] =
+    Arbitrary(
+      for {
+        value <- arbitraryBytes.arbitrary
+      } yield Proofs.Knowledge.HashLock(value)
+    )
+
+  implicit val arbitraryProofsCompositionalThreshold: Arbitrary[Proofs.Compositional.Threshold] =
+    Arbitrary(
+      Gen
+        .chooseNum[Int](1, 4)
+        .flatMap(count => Gen.listOfN(count, Gen.delay(arbitraryProof.arbitrary)))
+        .map(Proofs.Compositional.Threshold)
+    )
+
+  implicit val arbitraryProofsCompositionalAnd: Arbitrary[Proofs.Compositional.And] =
+    Arbitrary(
+      for {
+        a <- Gen.delay(arbitraryProof.arbitrary)
+        b <- Gen.delay(arbitraryProof.arbitrary)
+      } yield Proofs.Compositional.And(a, b)
+    )
+
+  implicit val arbitraryProofsCompositionalOr: Arbitrary[Proofs.Compositional.Or] =
+    Arbitrary(
+      for {
+        a <- Gen.delay(arbitraryProof.arbitrary)
+        b <- Gen.delay(arbitraryProof.arbitrary)
+      } yield Proofs.Compositional.Or(a, b)
+    )
+
+  implicit val arbitraryProofsCompositionalNot: Arbitrary[Proofs.Compositional.Not] =
+    Arbitrary(
+      Gen.delay(arbitraryProof.arbitrary).map(Proofs.Compositional.Not)
+    )
+
+  implicit val arbitraryProofsContextualHeightLock: Arbitrary[Proofs.Contextual.HeightLock] =
+    Arbitrary(
+      Gen.const(Proofs.Contextual.HeightLock())
+    )
+
+  implicit val arbitraryProofsContextualRequiredTransactionIO: Arbitrary[Proofs.Contextual.RequiredTransactionIO] =
+    Arbitrary(
+      Gen.const(Proofs.Contextual.RequiredTransactionIO())
+    )
+
+  implicit val arbitraryProof: Arbitrary[Proof] =
+    Arbitrary(
+      Gen.oneOf(
+        arbitraryProofsFalse.arbitrary,
+        arbitraryProofsKnowledgeCurve25519.arbitrary,
+        arbitraryProofsKnowledgeEd25519.arbitrary,
+        arbitraryProofsKnowledgeVrfEd25519.arbitrary,
+        arbitraryProofsKnowledgeHashLock.arbitrary,
+        arbitraryProofsCompositionalThreshold.arbitrary,
+        arbitraryProofsCompositionalAnd.arbitrary,
+        arbitraryProofsCompositionalOr.arbitrary,
+        arbitraryProofsCompositionalNot.arbitrary,
+        arbitraryProofsContextualHeightLock.arbitrary,
+        arbitraryProofsContextualRequiredTransactionIO.arbitrary
+      )
+    )
+
+  implicit val arbitraryBoxId: Arbitrary[Box.Id] =
+    Arbitrary(
+      for {
+        transactionId <- arbitraryTypedIdentifier.arbitrary.map(id =>
+          TypedBytes(IdentifierTypes.Transaction, id.dataBytes)
+        )
+        transactionOutputIndex <- Gen.posNum[Short]
+      } yield Box.Id(transactionId, transactionOutputIndex)
+    )
+
+  implicit val arbitraryTransactionInput: Arbitrary[Transaction.Input] =
+    Arbitrary(
+      for {
+        boxId       <- arbitraryBoxId.arbitrary
+        proposition <- arbitraryProposition.arbitrary
+        proof       <- arbitraryProof.arbitrary
+        value       <- arbitraryBoxValue.arbitrary
+      } yield Transaction.Input(boxId, proposition, proof, value)
+    )
+
+  implicit val arbitraryTransactionUnprovenInput: Arbitrary[Transaction.Unproven.Input] =
+    Arbitrary(
+      for {
+        boxId       <- arbitraryBoxId.arbitrary
+        proposition <- arbitraryProposition.arbitrary
+        value       <- arbitraryBoxValue.arbitrary
+      } yield Transaction.Unproven.Input(boxId, proposition, value)
+    )
+
+  implicit val arbitraryTransactionSchedule: Arbitrary[Transaction.Schedule] =
+    Arbitrary(
+      for {
+        creation    <- Gen.chooseNum[Long](0L, 100000L)
+        minimumSlot <- Gen.chooseNum[Slot](0L, 50000L)
+        maximumSlot <- Gen.chooseNum[Slot](minimumSlot, 100000L)
+      } yield Transaction.Schedule(creation, minimumSlot, maximumSlot)
     )
 
   implicit val arbitraryUnprovenTransaction: Arbitrary[Transaction.Unproven] =
     Arbitrary(
       for {
-        inputs <- Gen.nonEmptyContainerOf[List, BoxReference](
-          arbitraryDionAddress.arbitrary.flatMap(a => Gen.long.map(l => (a, l)))
-        )
-        feeOutput   <- Gen.option(arbitraryPolyOutput.arbitrary)
-        coinOutputs <- Gen.nonEmptyListOf(arbitraryPolyOutput.arbitrary).map(NonEmptyChain.fromSeq(_).get)
-        fee         <- arbitraryInt128.arbitrary
-        timestamp   <- Gen.chooseNum[Long](0L, 100000L)
+        inputs <-
+          Gen
+            .chooseNum[Int](1, 10)
+            .flatMap(count =>
+              Gen
+                .listOfN(count, arbitraryTransactionUnprovenInput.arbitrary)
+                .map(Chain.fromSeq)
+            )
+        outputs <-
+          Gen
+            .chooseNum[Int](1, 10)
+            .flatMap(count =>
+              Gen
+                .listOfN(count, arbitraryTransactionOutput.arbitrary)
+                .map(Chain.fromSeq)
+            )
+        schedule <- arbitraryTransactionSchedule.arbitrary
         data = None
-        minting = false
-      } yield Transaction.Unproven(inputs, feeOutput, coinOutputs, fee, timestamp, data, minting)
+      } yield Transaction.Unproven(inputs, outputs, schedule, data)
     )
 
   implicit val arbitraryTransaction: Arbitrary[Transaction] =
     Arbitrary(
       for {
-        unprovenTx <- arbitraryUnprovenTransaction.arbitrary
-        provenInputs <-
+        inputs <-
           Gen
-            .listOfN(
-              unprovenTx.inputs.length,
+            .chooseNum[Int](1, 4)
+            .flatMap(count =>
               Gen
-                .zip(
-                  genSizedStrictBytes[VerificationKeys.Ed25519.Length]()
-                    .map(x => Propositions.Knowledge.Ed25519(VerificationKeys.Ed25519(x)): Proposition),
-                  genSizedStrictBytes[Proofs.Knowledge.Ed25519.Length]().map(x => Proofs.Knowledge.Ed25519(x): Proof)
-                )
+                .listOfN(count, arbitraryTransactionInput.arbitrary)
+                .map(Chain.fromSeq)
             )
-            .map(pairs => unprovenTx.inputs.zip(pairs))
-        tx = Transaction(
-          inputs = ListMap(provenInputs: _*),
-          feeOutput = unprovenTx.feeOutput,
-          coinOutputs = unprovenTx.coinOutputs,
-          fee = unprovenTx.fee,
-          timestamp = unprovenTx.timestamp,
-          data = unprovenTx.data,
-          minting = unprovenTx.minting
-        )
-      } yield tx
+        outputs <-
+          Gen
+            .chooseNum[Int](1, 4)
+            .flatMap(count =>
+              Gen
+                .listOfN(count, arbitraryTransactionOutput.arbitrary)
+                .map(Chain.fromSeq)
+            )
+        schedule <- arbitraryTransactionSchedule.arbitrary
+        data = None
+      } yield Transaction(inputs, outputs, schedule, data)
     )
 
-  implicit val arbitraryHeader: Arbitrary[BlockHeaderV2] =
+  implicit val arbitrarySlotId: Arbitrary[SlotId] =
+    Arbitrary(
+      for {
+        slot    <- Gen.posNum[Long]
+        blockId <- arbitraryTypedIdentifier.arbitrary
+      } yield SlotId(slot, blockId)
+    )
+
+  implicit val arbitraryRho: Arbitrary[Rho] =
+    Arbitrary(
+      genSizedStrictBytes[Lengths.`64`.type]().map(Rho(_))
+    )
+
+  implicit val arbitrarySlotData: Arbitrary[SlotDataLegacy] =
+    Arbitrary(
+      for {
+        slotId       <- arbitrarySlotId.arbitrary
+        parentSlotId <- arbitrarySlotId.arbitrary
+        rho          <- arbitraryRho.arbitrary
+        eta          <- etaGen
+        height       <- Gen.posNum[Long]
+      } yield SlotDataLegacy(slotId, parentSlotId, rho, eta, height)
+    )
+
+  implicit val arbitraryHeader: Arbitrary[BlockHeader] =
     Arbitrary(headerGen())
+
+  implicit val arbitraryBody: Arbitrary[BlockBody] =
+    Arbitrary(
+      Gen
+        .listOf(arbitraryTypedIdentifier.arbitrary.map(id => TypedBytes(IdentifierTypes.Transaction, id.dataBytes)))
+        .map(ListSet.empty[TypedIdentifier] ++ _)
+    )
+
+  implicit val arbitraryBlock: Arbitrary[Block] =
+    Arbitrary(
+      for {
+        header <- co.topl.models.generators.consensus.ModelGenerators.arbitraryHeader.arbitrary
+        body   <- co.topl.models.generators.node.ModelGenerators.arbitraryNodeBody.arbitrary
+      } yield Block(header, body)
+    )
 
   implicit val arbitraryEta: Arbitrary[Eta] =
     Arbitrary(etaGen)
 
-  implicit val arbitraryTaktikosAddress: Arbitrary[TaktikosAddress] =
-    Arbitrary(taktikosAddressGen)
+  implicit val arbitraryOperatorStakingAddress: Arbitrary[StakingAddresses.Operator] =
+    Arbitrary(operatorStakingAddressGen)
+
+  implicit val arbitraryStakingAddress: Arbitrary[StakingAddress] =
+    Arbitrary(stakingAddressGen)
 
   implicit class GenHelper[T](gen: Gen[T]) {
     def first: T = gen.pureApply(Gen.Parameters.default, Seed.random())

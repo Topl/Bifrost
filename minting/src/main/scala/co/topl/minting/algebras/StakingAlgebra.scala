@@ -1,7 +1,8 @@
 package co.topl.minting.algebras
 
-import co.topl.minting.algebras.LeaderElectionMintingAlgebra.VrfHit
+import co.topl.minting.models.VrfHit
 import co.topl.models._
+import co.topl.consensus.models.SlotId
 
 /**
  * Staking means participating in the blockchain network.  A staker uses their funds to provide elgibility certificates.
@@ -9,13 +10,13 @@ import co.topl.models._
  */
 trait StakingAlgebra[F[_]] {
 
-  def address: F[TaktikosAddress]
+  def address: F[StakingAddresses.Operator]
 
-  def elect(parent: BlockHeaderV2, slot: Slot): F[Option[VrfHit]]
+  def elect(parentSlotId: SlotId, slot: Slot): F[Option[VrfHit]]
 
   def certifyBlock(
     parentSlotId:         SlotId,
     slot:                 Slot,
-    unsignedBlockBuilder: BlockHeaderV2.Unsigned.PartialOperationalCertificate => BlockV2.Unsigned
-  ): F[Option[BlockV2]]
+    unsignedBlockBuilder: BlockHeader.Unsigned.PartialOperationalCertificate => Block.Unsigned
+  ): F[Option[Block]]
 }

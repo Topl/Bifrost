@@ -1,6 +1,6 @@
 package co.topl.networking.multiplexer
 
-import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.stream.scaladsl.{Sink, Source}
 import akka.util.ByteString
 
 /**

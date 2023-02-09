@@ -12,8 +12,8 @@ import akka.util.ByteString
 object MessageSerializerFramer {
 
   def apply(): Flow[(Byte, ByteString), ByteString, NotUsed] =
-    Flow[(Byte, ByteString)]
-      .map { case (typeByte, data) =>
-        ByteString(typeByte) ++ intToBytestring(data.length) ++ data
-      }
+    Flow[(Byte, ByteString)].map(functionTupled)
+
+  val functionTupled: Function1[(Byte, ByteString), ByteString] =
+    t => ByteString(t._1) ++ intToBytestring(t._2.length) ++ t._2
 }

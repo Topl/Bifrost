@@ -1,0 +1,215 @@
+{{ $bigBangTimestamp := default (now | unixEpoch  | mul 1000 | add (default (len $.Values.configs | mul 15000) .Values.bigBang.delayMs)) .Values.bigBang.timestamp }}
+{{ $fullname := include "bifrost.fullname" . }}
+{{ $labels := include "bifrost.labels" . }}
+{{ $selectorLabels := include "bifrost.selectorLabels" . }}
+{{ $Values := .Values }}
+{{ $Release := .Release }}
+{{ range $nodeName, $value :=  $.Values.configs }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-config-{{ $nodeName }}
+  labels:
+    {{ $labels | nindent 4 }}
+data:
+  shared.yaml: |
+    bifrost:
+      big-bang:
+        timestamp: {{ $bigBangTimestamp }}
+      data:
+        directory: /opt/docker/.bifrost/data
+      staking:
+        directory: /opt/docker/.bifrost/staking
+      p2p:
+        bind-host: localhost
+        bind-port: 9083
+      rpc:
+        bind-host: 0.0.0.0
+        bind-port: {{ $Values.service.ports.rpc }}
+  shared-user.yaml: |
+    {{- index $Values "shared-config" | toYaml | nindent 4}}
+  node.yaml: |
+    {{- toYaml $value | nindent 4 }}
+  peers.yaml: |
+    {{- $knownPeersString := "" -}}
+    {{ if $value.topology }}
+    {{ range $index, $peer := $value.topology.egress }}
+        {{- if $index }}{{ $knownPeersString = print $knownPeersString "," }}{{ end -}}
+    {{ $knownPeersString = print $knownPeersString "localhost:"}}
+    {{ $knownPeersString = print $knownPeersString (add 9100 $index)}}
+    {{ end }}
+    {{ end }}
+    {{ $knownPeersString = nospace $knownPeersString }}
+    bifrost:
+      p2p:
+        known-peers: "{{ $knownPeersString }}"
+  delayer.yaml: |
+    routes:
+      - bind-host: 0.0.0.0
+        bind-port: {{ $Values.service.ports.p2p }}
+        destination-host: localhost
+        destination-port: 9083
+        {{ if $value.topology }}
+        {{ if $value.topology.ingress }}
+        {{ if $value.topology.ingress.throttle }}
+        throttle:
+          latency: {{ $value.topology.ingress.throttle.latency }}
+          download-bytes-per-second: {{ $value.topology.ingress.throttle.downloadBytesPerSecond }}
+          upload-bytes-per-second: {{ $value.topology.ingress.throttle.uploadBytesPerSecond }}
+        {{ end }}
+        {{ end }}
+        {{ end }}
+    {{ if $value.topology }}
+    {{ range $index, $egress := $value.topology.egress }}
+      - bind-host: localhost
+        bind-port: {{ add 9100 $index }}
+        destination-host: {{ $fullname }}-p2p-{{ $egress.peer }}.{{ $Release.Name }}.svc.cluster.local
+        destination-port: {{ $Values.service.ports.p2p }}
+        {{ if $egress.throttle }}
+        throttle:
+          latency: {{ $egress.throttle.latency }}
+          download-bytes-per-second: {{ $egress.throttle.downloadBytesPerSecond }}
+          upload-bytes-per-second: {{ $egress.throttle.uploadBytesPerSecond }}
+        {{ end }}
+    {{ end }}
+    {{ end }}
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $fullname }}-{{ $nodeName }}
+  labels:
+    {{ $labels | nindent 4 }}
+spec:
+  serviceName: {{ $fullname }}-{{ $nodeName }}
+  replicas: 1
+  selector:
+    matchLabels:
+      node-name: {{ $nodeName }}
+      {{- $selectorLabels | nindent 6 }}
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        node-name: {{ $nodeName }}
+        {{- $selectorLabels | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml $Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: node
+          image: {{ $Values.image.name }}:{{ $Values.image.tag }}
+          securityContext:
+            {{- toYaml $Values.securityContext | nindent 12 }}
+          command:
+          {{ range $Values.command }}
+            - {{ . }}
+          {{ end }}
+          args:
+            - --config
+            - /etc/config/shared.yaml
+            - --config
+            - /etc/config/shared-user.yaml
+            - --config
+            - /etc/config/node.yaml
+            - --config
+            - /etc/config/peers.yaml
+          resources:
+          {{- toYaml $Values.resources | nindent 12 }}
+        {{- if $Values.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              port: {{ $Values.service.ports.rpc }}
+            initialDelaySeconds: {{ $Values.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ $Values.readinessProbe.timeoutSeconds }}
+            periodSeconds: {{ $Values.readinessProbe.periodSeconds }}
+        {{- end }}
+        {{- if $Values.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              port: {{ $Values.service.ports.rpc }}
+            initialDelaySeconds: {{ $Values.livenessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ $Values.livenessProbe.timeoutSeconds }}
+            periodSeconds: {{ $Values.livenessProbe.periodSeconds }}
+        {{- end }}
+          ports:
+            - containerPort: {{ $Values.service.ports.rpc }}
+          volumeMounts:
+            - name: {{ $Values.name }}-pv-{{$nodeName}}
+              mountPath: {{ $Values.volume.mountDirectory }}
+            - name: config-map
+              mountPath: /etc/config
+        - name: network-delayer
+          image: {{ $Values.delayerImage.name }}:{{ $Values.delayerImage.tag }}
+          securityContext:
+            {{- toYaml $Values.securityContext | nindent 12 }}
+          args:
+            - --config
+            - /etc/config/delayer.yaml
+          resources:
+            limits:
+              cpu: 500m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          ports:
+            - containerPort: {{ $Values.service.ports.p2p }}
+            {{- range $index, $peer := $value.peers }}
+            - containerPort: {{ add 9100 $index }}
+            {{ end }}
+          volumeMounts:
+            - name: config-map
+              mountPath: /etc/config
+      volumes:
+        - name: config-map
+          configMap:
+            name: {{ $fullname }}-config-{{ $nodeName }}
+  volumeClaimTemplates:
+    - metadata:
+        name: {{ $Values.name }}-pv-{{$nodeName}}
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: {{ $Values.volume.storageClass }}
+        resources:
+          requests:
+            storage: {{ $Values.volume.storageSize }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-rpc-{{ $nodeName }}
+  labels:
+    {{- $labels | nindent 4}}
+spec:
+  selector:
+    node-name: {{ $nodeName }}
+    {{- $selectorLabels | nindent 4 }}
+  type: {{ $Values.service.type }}
+  ports:
+    - protocol: TCP
+      name: rpc
+      port: {{ $Values.service.ports.rpc }}
+      targetPort: {{ $Values.service.ports.rpc }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-p2p-{{ $nodeName }}
+  labels:
+    {{- $labels | nindent 4}}
+spec:
+  selector:
+    node-name: {{ $nodeName }}
+    {{- $selectorLabels | nindent 4 }}
+  type: {{ $Values.service.type }}
+  ports:
+    - protocol: TCP
+      name: p2p
+      port: {{ $Values.service.ports.p2p }}
+      targetPort: {{ $Values.service.ports.p2p }}
+---
+{{ end }}

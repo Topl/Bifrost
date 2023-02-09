@@ -1,15 +1,18 @@
 package co.topl.networking.blockchain
 
-import akka.NotUsed
-import akka.stream.scaladsl.Source
 import cats._
 import cats.data.OptionT
 import cats.effect.kernel.Sync
 import cats.implicits._
-import co.topl.models._
-import co.topl.models.utility.Ratio
+import co.topl.{models => legacyModels}
+import legacyModels._
+import legacyModels.utility.Ratio
+import co.topl.consensus.models.{BlockHeader, SlotData}
+import co.topl.node.models.BlockBody
 import co.topl.networking.p2p.ConnectedPeer
+import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
+import fs2.Stream
 import org.typelevel.log4cats.Logger
 
 /**
@@ -25,17 +28,27 @@ trait BlockchainPeerClient[F[_]] {
   /**
    * A Source of block IDs that were adopted by the remote node
    */
-  def remotePeerAdoptions: F[Source[TypedIdentifier, NotUsed]]
+  def remotePeerAdoptions: F[Stream[F, TypedIdentifier]]
+
+  /**
+   * A Source of transaction IDs that were observed by the remote node
+   */
+  def remoteTransactionNotifications: F[Stream[F, TypedIdentifier]]
+
+  /**
+   * A Lookup to retrieve a remote SlotData by ID
+   */
+  def getRemoteSlotData(id: TypedIdentifier): F[Option[SlotData]]
 
   /**
    * A Lookup to retrieve a remote block header by ID
    */
-  def getRemoteHeader(id: TypedIdentifier): F[Option[BlockHeaderV2]]
+  def getRemoteHeader(id: TypedIdentifier): F[Option[BlockHeader]]
 
   /**
    * A Lookup to retrieve a remot block body by ID
    */
-  def getRemoteBody(id: TypedIdentifier): F[Option[BlockBodyV2]]
+  def getRemoteBody(id: TypedIdentifier): F[Option[BlockBody]]
 
   /**
    * A lookup to retrieve a remote transaction by ID

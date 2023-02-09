@@ -6,7 +6,6 @@ import co.topl.models.{Epoch, Slot, Timestamp}
 
 import scala.collection.immutable.NumericRange
 import scala.concurrent.duration.FiniteDuration
-import scala.language.implicitConversions
 
 /**
  * Provides global slot, epoch, and timing operations
@@ -18,6 +17,9 @@ trait ClockAlgebra[F[_]] {
   def currentEpoch: F[Epoch]
   def globalSlot: F[Slot]
   def currentTimestamp: F[Timestamp]
+  def forwardBiasedSlotWindow: F[Slot]
+  def timestampToSlot(timestamp:       Timestamp): F[Slot]
+  def slotToTimestamps(slot:           Slot): F[NumericRange.Inclusive[Timestamp]]
   def delayedUntilSlot(slot:           Slot): F[Unit]
   def delayedUntilTimestamp(timestamp: Timestamp): F[Unit]
 }
@@ -35,6 +37,7 @@ object ClockAlgebra {
       def epochRange(epoch: Epoch): F[EpochBoundary] =
         clock.slotsPerEpoch.map(slotsPerEpoch => (epoch * slotsPerEpoch) to (((epoch + 1) * slotsPerEpoch) - 1))
 
+      def isEpochStart(slot: Slot): F[Boolean] = clock.slotsPerEpoch.map(numberOfSlots => slot % numberOfSlots === 0L)
     }
   }
 

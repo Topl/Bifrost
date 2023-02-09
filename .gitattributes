@@ -1,6 +1,5 @@
+# Automatic end of line normalization. Normalize to LF on check in.
+* text=auto
 
-# swagger
-src/main/resources/swagger-ui/* linguist-vendored
-
-# Bifrost model diagrams
-docs/* linguist-documentation
+# Force LF endings for shell scripts.
+*.sh text eol=lf
