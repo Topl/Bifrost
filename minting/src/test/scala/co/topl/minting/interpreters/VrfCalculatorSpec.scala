@@ -29,8 +29,7 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
         clock = null,
         leaderElectionValidation = null,
         ed25519Resource,
-        vrfConfig = null,
-        thresholdInterpreter = null
+        vrfConfig = null
       )
 
       slot = 10L
@@ -55,8 +54,7 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
         clock = null,
         leaderElectionValidation = null,
         ed25519Resource,
-        vrfConfig = null,
-        thresholdInterpreter = null
+        vrfConfig = null
       )
 
       slot = 10L
@@ -105,8 +103,7 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
           clock,
           leaderElectionValidation,
           ed25519Resource,
-          vrfConfig,
-          thresholdInterpreter = null
+          vrfConfig
         )
 
         expectedSlot: Vector[Slot] = Vector(10, 11, 12, 13, 14, 15, 16, 17, 18, 19)
@@ -149,8 +146,7 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
           clock,
           leaderElectionValidation,
           ed25519Resource,
-          vrfConfig,
-          thresholdInterpreter = null
+          vrfConfig
         )
 
         _ <- vrfCalculator.ineligibleSlots(epoch, eta, inRange = None, relativeStake).assertEquals(Vector.empty[Slot])
@@ -171,14 +167,14 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
       val vkVrf = VerificationKeys.VrfEd25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0))))
       val skVrf = SecretKeys.VrfEd25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0))))
 
-      val thresholdInterpreter = mock[LeaderElectionValidationAlgebra[F]]
+      val leaderElectionValidation = mock[LeaderElectionValidationAlgebra[F]]
 
-      (thresholdInterpreter.getThreshold _)
+      (leaderElectionValidation.getThreshold _)
         .expects(relativeStake, slotDiff)
         .once()
         .returning(Ratio.One.pure[F])
 
-      (thresholdInterpreter
+      (leaderElectionValidation
         .isSlotLeaderForThreshold(_: Ratio)(_: Rho))
         .expects(relativeStake, *)
         .once()
@@ -190,10 +186,9 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
           vkVrf,
           skVrf,
           clock = null,
-          leaderElectionValidation = null,
+          leaderElectionValidation,
           ed25519Resource,
-          vrfConfig,
-          thresholdInterpreter
+          vrfConfig
         )
 
         testProof <- vrfCalculator.proofForSlot(slot, eta)

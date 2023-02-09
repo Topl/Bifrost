@@ -28,8 +28,7 @@ object VrfCalculator {
     clock:                    ClockAlgebra[F],
     leaderElectionValidation: LeaderElectionValidationAlgebra[F],
     ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
-    vrfConfig:                VrfConfig,
-    thresholdInterpreter:     LeaderElectionValidationAlgebra[F]
+    vrfConfig:                VrfConfig
   ): F[VrfCalculatorAlgebra[F]] =
     (CaffeineCache[F, (Bytes, Long), Proofs.Knowledge.VrfEd25519], CaffeineCache[F, (Bytes, Long), Rho]).mapN(
       (vrfProofsCache, rhosCache) =>
@@ -40,7 +39,6 @@ object VrfCalculator {
           leaderElectionValidation,
           ed25519VRFResource,
           vrfConfig,
-          thresholdInterpreter,
           vrfProofsCache,
           rhosCache
         )
@@ -53,7 +51,6 @@ object VrfCalculator {
     leaderElectionValidation: LeaderElectionValidationAlgebra[F],
     ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
     vrfConfig:                VrfConfig,
-    thresholdInterpreter:     LeaderElectionValidationAlgebra[F],
     vrfProofsCache:           CaffeineCache[F, (Bytes, Long), Proofs.Knowledge.VrfEd25519],
     rhosCache:                CaffeineCache[F, (Bytes, Long), Rho]
   ) extends VrfCalculatorAlgebra[F] {
@@ -108,12 +105,12 @@ object VrfCalculator {
 
     def getHit(relativeStake: Ratio, slot: Slot, slotDiff: Long, eta: Eta): F[Option[VrfHit]] =
       (
-        thresholdInterpreter.getThreshold(relativeStake, slotDiff),
+        leaderElectionValidation.getThreshold(relativeStake, slotDiff),
         proofForSlot(slot, eta),
         rhoForSlot(slot, eta)
       ).tupled
         .flatMap { case (threshold, testProof, rho) =>
-          thresholdInterpreter
+          leaderElectionValidation
             .isSlotLeaderForThreshold(threshold)(rho)
             .map(isLeader =>
               Option.when(isLeader)(
