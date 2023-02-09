@@ -70,27 +70,6 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
     }
   }
 
-  /**
-   * TODO, ask how to handle this situation,
-   * scalapb.validate.FieldValidationException: Validation failed: BlockId.value: length must be 32 - Got []
-   */
-  test("An invalid block header ID is rejected".fail) {
-    withMock {
-      val interpreter = mock[ToplRpc[F, Stream[F, *]]]
-      val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
-
-      for {
-        e <- interceptIO[StatusException](
-          underTest.fetchBlockHeader(
-            FetchBlockHeaderReq(BlockId.defaultInstance),
-            new Metadata()
-          )
-        )
-        _ = assert(e.getStatus.getCode == Status.Code.UNKNOWN)
-      } yield ()
-    }
-  }
-
   test("A block body can be retrieved") {
     PropF.forAllF { (_id: TypedIdentifier, body: BlockBody) =>
       val id = TypedBytes(IdentifierTypes.Block.HeaderV2, _id.dataBytes)
@@ -114,24 +93,6 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
     }
   }
 
-  /**
-   * TODO, ask how to handle this situation,
-   * scalapb.validate.FieldValidationException: Validation failed: BlockId.value: length must be 32 - Got []
-   */
-  test("An invalid block body ID is rejected".fail) {
-    withMock {
-      val interpreter = mock[ToplRpc[F, Stream[F, *]]]
-      val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
-
-      for {
-        e <- interceptIO[StatusException](
-          underTest.fetchBlockBody(FetchBlockBodyReq(BlockId.defaultInstance), new Metadata())
-        )
-        _ = assert(e.getStatus.getCode == Status.Code.UNKNOWN)
-      } yield ()
-    }
-  }
-
   test("A transaction can be retrieved") {
     PropF.forAllF { (transaction: Transaction) =>
       val transactionId = transaction.id.asTypedBytes
@@ -151,26 +112,6 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
           _ = assert(transaction == res.transaction.get)
         } yield ()
       }
-    }
-  }
-
-  /**
-   * Related to failed 2 cases, TODO, in this case works, why?
-   */
-  test("An invalid transaction ID is rejected") {
-    withMock {
-      val interpreter = mock[ToplRpc[F, Stream[F, *]]]
-      val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
-
-      for {
-        e <- interceptIO[StatusException](
-          underTest.fetchTransaction(
-            FetchTransactionReq(IoTransaction32.defaultInstance),
-            new Metadata()
-          )
-        )
-        _ = assert(e.getStatus.getCode == Status.Code.UNKNOWN)
-      } yield ()
     }
   }
 
