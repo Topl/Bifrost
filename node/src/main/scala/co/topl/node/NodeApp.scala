@@ -260,8 +260,7 @@ object NodeApp
             clock,
             leaderElectionThreshold,
             ed25519VRFResource,
-            vrfConfig,
-            leaderElectionThreshold
+            vrfConfig
           )
           currentSlot <- clock.globalSlot.map(_.max(0L))
 

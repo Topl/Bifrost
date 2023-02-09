@@ -8,8 +8,20 @@ import scala.collection.immutable.NumericRange
 
 trait VrfCalculatorAlgebra[F[_]] {
 
+  /**
+   * TODO add documentation https://topl.atlassian.net/browse/BN-845
+   * @param slot
+   * @param eta
+   * @return
+   */
   def rhoForSlot(slot: Slot, eta: Eta): F[Rho]
 
+  /**
+   * TODO add documentation https://topl.atlassian.net/browse/BN-845
+   * @param slot
+   * @param eta
+   * @return
+   */
   def proofForSlot(slot: Slot, eta: Eta): F[Proofs.Knowledge.VrfEd25519]
 
   /**
@@ -23,6 +35,15 @@ trait VrfCalculatorAlgebra[F[_]] {
     relativeStake: Ratio
   ): F[Vector[Slot]]
 
+  /**
+   * TODO: Move getHit to Staking Algebra: https://topl.atlassian.net/browse/BN-846
+   * TODO add documentation https://topl.atlassian.net/browse/BN-845
+   * @param relativeStake
+   * @param slot
+   * @param slotDiff
+   * @param eta
+   * @return
+   */
   def getHit(
     relativeStake: Ratio,
     slot:          Slot,
