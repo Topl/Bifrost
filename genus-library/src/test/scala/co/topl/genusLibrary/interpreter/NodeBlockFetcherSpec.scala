@@ -4,6 +4,7 @@ import cats.data.Chain
 import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.ToplRpc
+import co.topl.brambl.models.Identifier.IoTransaction32
 import co.topl.genusLibrary.failure.Failures.{
   NoBlockBodyFoundOnNodeFailure,
   NoBlockHeaderFoundOnNodeFailure,
@@ -18,7 +19,6 @@ import legacyModels.generators.consensus.ModelGenerators.arbitraryHeader
 import legacyModels._
 import co.topl.consensus.models.BlockHeader
 import co.topl.node.models.BlockBody
-import co.topl.brambl.models.Identifier.IoTransaction32
 import co.topl.proto.models.Transaction
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
@@ -27,6 +27,7 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.genusLibrary.model.{BlockData, HeightData}
 import co.topl.typeclasses.implicits._
+import com.google.protobuf.ByteString
 import scala.collection.immutable.ListSet
 
 class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
@@ -311,12 +312,8 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
           // TODO move and rename in case we need to translate this model in other place
           def aux(tx: TypedIdentifier): IoTransaction32 =
             IoTransaction32.of(
-              Some(
-                co.topl.brambl.models.Evidence.Sized32.of(
-                  Some(
-                    quivr.models.Digest.Digest32.of(com.google.protobuf.ByteString.copyFrom(tx.dataBytes.toArray))
-                  )
-                )
+              co.topl.brambl.models.Evidence.Sized32.of(
+                quivr.models.Digest.Digest32.of(ByteString.copyFrom(tx.dataBytes.toArray))
               )
             )
 

@@ -10,28 +10,28 @@ trait ModelGenerators {
     Arbitrary(
       for {
         d32 <- arbitraryDigest32.arbitrary
-      } yield Evidence.Sized32.of(Some(d32))
+      } yield Evidence.Sized32.of(d32)
     )
 
   implicit val arbitraryEvidence64: Arbitrary[Evidence.Sized64] =
     Arbitrary(
       for {
         d64 <- arbitraryDigest64.arbitrary
-      } yield Evidence.Sized64.of(Some(d64))
+      } yield Evidence.Sized64.of(d64)
     )
 
   implicit val arbitraryIoTransaction32: Arbitrary[Identifier.IoTransaction32] =
     Arbitrary(
       for {
         ev <- arbitraryEvidence32.arbitrary
-      } yield Identifier.IoTransaction32.of(Some(ev))
+      } yield Identifier.IoTransaction32.of(ev)
     )
 
   implicit val arbitraryIoTransaction64: Arbitrary[Identifier.IoTransaction64] =
     Arbitrary(
       for {
         ev <- arbitraryEvidence64.arbitrary
-      } yield Identifier.IoTransaction64.of(Some(ev))
+      } yield Identifier.IoTransaction64.of(ev)
     )
 
 }
