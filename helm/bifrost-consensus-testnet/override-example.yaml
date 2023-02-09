@@ -11,6 +11,10 @@ scenario:
   targetHeight: 30
   # The number of transactions to generate and broadcast per second.  Transactions are broadcasted to nodes at random.
   transactionsPerSecond: 2.5
+  # The maximum length of time to wait for an individual node to reach the target height.  If a node fails to reach
+  # the target height within this time, the scenario will still pass, but a log message will be presented
+  # indicating that it was terminated early.
+  timeout: 10 minutes
 
 # These settings will apply to the configurations of all nodes.
 shared-config:

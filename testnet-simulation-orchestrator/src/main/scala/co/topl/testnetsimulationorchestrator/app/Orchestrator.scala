@@ -172,6 +172,11 @@ object Orchestrator
           }
           // Stop listening once a node adopts a block at the target height.
           .takeWhile(_._3.height <= appConfig.simulationOrchestrator.scenario.targetHeight)
+          .mergeHaltBoth(
+            Stream.sleep[F](appConfig.simulationOrchestrator.scenario.timeout) >> Stream.exec(
+              Logger[F].warn(show"node=$name timed out.  Simulation results may be incomplete for this node.")
+            )
+          )
           .compile
           .toVector
         _ <- Logger[F].info(show"Finished fetching adoptions+headers from node=$name")
