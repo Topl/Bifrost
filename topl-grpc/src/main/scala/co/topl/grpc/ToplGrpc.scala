@@ -196,13 +196,9 @@ object ToplGrpc {
         extends NodeRpcFs2Grpc[F, Metadata] {
 
       def broadcastTransaction(in: BroadcastTransactionReq, ctx: Metadata): F[BroadcastTransactionRes] =
-        in.transaction
-          .asRight[String]
-          .toEitherT[F]
-          .semiflatMap(interpreter.broadcastTransaction)
-          .leftMap(new IllegalArgumentException(_))
+        interpreter
+          .broadcastTransaction(in.transaction)
           .as(BroadcastTransactionRes())
-          .rethrowT
           .adaptErrorsToGrpc
 
       def currentMempool(in: CurrentMempoolReq, ctx: Metadata): F[CurrentMempoolRes] =
