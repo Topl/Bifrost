@@ -20,6 +20,7 @@ jobs:
   publish-docker-images-official:
     uses: ./.github/workflows/_docker_publish_public.yml
     needs: [sbt-build, sbt-integration-tests]
+    secrets: inherit
   build-jar:
     uses: ./.github/workflows/_sbt_jar.yml
     needs: [sbt-build, sbt-integration-tests]
