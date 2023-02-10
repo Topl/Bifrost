@@ -93,6 +93,9 @@ object ApplicationConfig {
 
       val operationalPeriodLength: Long =
         epochLength / operationalPeriodsPerEpoch
+
+      val vrfCacheTtl: Long =
+        operationalPeriodLength * 4
     }
 
     @Lenses

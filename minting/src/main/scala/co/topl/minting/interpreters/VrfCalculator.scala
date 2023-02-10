@@ -19,6 +19,7 @@ import co.topl.typeclasses.implicits._
 import scalacache.caffeine.CaffeineCache
 
 import scala.collection.immutable.NumericRange
+import scala.concurrent.duration._
 
 object VrfCalculator {
 
@@ -28,7 +29,8 @@ object VrfCalculator {
     clock:                    ClockAlgebra[F],
     leaderElectionValidation: LeaderElectionValidationAlgebra[F],
     ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
-    vrfConfig:                VrfConfig
+    vrfConfig:                VrfConfig,
+    vrfCacheTtl:              Long
   ): F[VrfCalculatorAlgebra[F]] =
     (CaffeineCache[F, (Bytes, Long), Proofs.Knowledge.VrfEd25519], CaffeineCache[F, (Bytes, Long), Rho]).mapN(
       (vrfProofsCache, rhosCache) =>
@@ -40,7 +42,8 @@ object VrfCalculator {
           ed25519VRFResource,
           vrfConfig,
           vrfProofsCache,
-          rhosCache
+          rhosCache,
+          vrfCacheTtl
         )
     )
 
@@ -52,16 +55,17 @@ object VrfCalculator {
     ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
     vrfConfig:                VrfConfig,
     vrfProofsCache:           CaffeineCache[F, (Bytes, Long), Proofs.Knowledge.VrfEd25519],
-    rhosCache:                CaffeineCache[F, (Bytes, Long), Rho]
+    rhosCache:                CaffeineCache[F, (Bytes, Long), Rho],
+    vrfCacheTtl:              Long
   ) extends VrfCalculatorAlgebra[F] {
 
     def proofForSlot(slot: Slot, eta: Eta): F[Proofs.Knowledge.VrfEd25519] =
-      vrfProofsCache.cachingF((eta.data, slot))(ttl = None)(
+      vrfProofsCache.cachingF((eta.data, slot))(ttl = vrfCacheTtl.millis.some)(
         ed25519VRFResource.use(compute(VrfArgument(eta, slot), _))
       )
 
     def rhoForSlot(slot: Slot, eta: Eta): F[Rho] =
-      rhosCache.cachingF((eta.data, slot))(ttl = None)(
+      rhosCache.cachingF((eta.data, slot))(ttl = vrfCacheTtl.millis.some)(
         for {
           proof          <- proofForSlot(slot, eta)
           proofHashBytes <- ed25519VRFResource.use(_.proofToHash(proof.bytes.data).pure[F])

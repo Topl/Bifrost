@@ -20,6 +20,10 @@ import scodec.bits._
 class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
 
+  // test the cache implementation is not possible in the current implementation,
+  // Time to live is not used on testing for both vrfProofs and rhos caches
+  val vrfCacheTtl = 0L
+
   test("proofForSlot: fixed input") {
     for {
       ed25519Resource <- CatsUnsafeResource.make(new Ed25519VRF, 1)
@@ -29,7 +33,8 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
         clock = null,
         leaderElectionValidation = null,
         ed25519Resource,
-        vrfConfig = null
+        vrfConfig = null,
+        vrfCacheTtl
       )
 
       slot = 10L
@@ -54,7 +59,8 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
         clock = null,
         leaderElectionValidation = null,
         ed25519Resource,
-        vrfConfig = null
+        vrfConfig = null,
+        vrfCacheTtl
       )
 
       slot = 10L
@@ -103,7 +109,8 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
           clock,
           leaderElectionValidation,
           ed25519Resource,
-          vrfConfig
+          vrfConfig,
+          vrfCacheTtl
         )
 
         expectedSlot: Vector[Slot] = Vector(10, 11, 12, 13, 14, 15, 16, 17, 18, 19)
@@ -146,7 +153,8 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
           clock,
           leaderElectionValidation,
           ed25519Resource,
-          vrfConfig
+          vrfConfig,
+          vrfCacheTtl
         )
 
         _ <- vrfCalculator.ineligibleSlots(epoch, eta, inRange = None, relativeStake).assertEquals(Vector.empty[Slot])
@@ -188,7 +196,8 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
           clock = null,
           leaderElectionValidation,
           ed25519Resource,
-          vrfConfig
+          vrfConfig,
+          vrfCacheTtl
         )
 
         testProof <- vrfCalculator.proofForSlot(slot, eta)
