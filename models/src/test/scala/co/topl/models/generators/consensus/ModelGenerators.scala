@@ -2,7 +2,6 @@ package co.topl.models.generators.consensus
 
 import co.topl.consensus.models._
 import co.topl.models.generators.common.ModelGenerators._
-import co.topl.models.generators.crypto.ModelGenerators._
 import co.topl.models.utility.{Lengths, Sized}
 import com.google.protobuf.ByteString
 import org.scalacheck.{Arbitrary, Gen}
@@ -24,6 +23,15 @@ trait ModelGenerators {
 
   def witnessGen: Gen[Sized.Strict[ByteString, Lengths.`32`.type]] =
     genSizedStrictByteString[Lengths.`32`.type]()
+
+  def verificationKeyEd25519Gen: Gen[VerificationKeyEd25519] =
+    genSizedStrictByteString[Lengths.`32`.type]().map(s => VerificationKeyEd25519.of(s.data))
+
+  def secretKeyEd25519Gen: Gen[SecretKeyEd25519] =
+    genSizedStrictByteString[Lengths.`32`.type]().map(s => SecretKeyEd25519.of(s.data))
+
+  def signatureEd25519Gen: Gen[SignatureEd25519] =
+    genSizedStrictByteString[Lengths.`64`.type]().map(s => SignatureEd25519.of(s.data))
 
   implicit val signatureKesSumArbitrary: Arbitrary[SignatureKesSum] =
     Arbitrary(
