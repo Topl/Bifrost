@@ -9,7 +9,6 @@ import legacyModels.utility.HasLength.instances._
 import legacyModels.utility.StringDataTypes.Latin1Data
 import legacyModels.utility._
 import co.topl.proto.{models => protoModels}
-import co.topl.crypto.{models => cryptoModels}
 import co.topl.consensus.{models => consensusModels}
 import scodec.codecs.{discriminated, lazily}
 import scodec.{Attempt, Codec, Err}
@@ -185,8 +184,8 @@ trait TetraScodecVerificationKeyCodecs {
     (protobufByteStringCodec :: unknownFieldSetCodec)
       .as[protoModels.VerificationKeyEd25519]
 
-  implicit val cryptoVkEd25519Codec: Codec[cryptoModels.VerificationKeyEd25519] =
-    (protobufByteStringCodec :: unknownFieldSetCodec).as[cryptoModels.VerificationKeyEd25519]
+  implicit val cryptoVkEd25519Codec: Codec[consensusModels.VerificationKeyEd25519] =
+    (protobufByteStringCodec :: unknownFieldSetCodec).as[consensusModels.VerificationKeyEd25519]
 
   implicit val vkExtendedEd25519Codec: Codec[VerificationKeys.ExtendedEd25519] =
     (vkEd25519Codec :: strictSizedBytesCodec[SecretKeys.ExtendedEd25519.ChainCodeLength])
@@ -576,8 +575,8 @@ trait TetraScodecProofCodecs {
   implicit val proofSignatureEd25519ProtoCodec: Codec[protoModels.ProofKnowledgeEd25519] =
     (protobufByteStringCodec :: unknownFieldSetCodec).as[protoModels.ProofKnowledgeEd25519]
 
-  implicit val consensusProofSignatureEd25519Codec: Codec[cryptoModels.SignatureEd25519] =
-    (protobufByteStringCodec :: unknownFieldSetCodec).as[cryptoModels.SignatureEd25519]
+  implicit val consensusProofSignatureEd25519Codec: Codec[consensusModels.SignatureEd25519] =
+    (protobufByteStringCodec :: unknownFieldSetCodec).as[consensusModels.SignatureEd25519]
 
   // TODO Remove after full model replacement
   implicit val proofSignatureVrfCodec: Codec[Proofs.Knowledge.VrfEd25519] =
@@ -894,11 +893,26 @@ trait TetraScodecBlockCodecs {
       unknownFieldSetCodec
   ).as[consensusModels.BlockHeader]
 
+  // TODO Remove after full model replacement
   implicit val slotIdCodec: Codec[SlotId] =
     (Codec[Slot](uLongCodec) :: Codec[TypedIdentifier]).as[SlotId]
 
-  implicit val slotDataCodec: Codec[SlotData] =
-    (Codec[SlotId] :: Codec[SlotId] :: Codec[Rho] :: Codec[Eta] :: Codec[Long](uLongCodec)).as[SlotData]
+  implicit val consensusSlotIdCodec: Codec[consensusModels.SlotId] =
+    (Codec[Slot](uLongCodec) ::
+      consensusBlockIdCodec ::
+      unknownFieldSetCodec).as[consensusModels.SlotId]
+
+  // TODO Remove after full model replacement
+  implicit val slotDataCodec: Codec[SlotDataLegacy] =
+    (Codec[SlotId] :: Codec[SlotId] :: Codec[Rho] :: Codec[Eta] :: Codec[Long](uLongCodec)).as[SlotDataLegacy]
+
+  implicit val consensusSlotDataCodec: Codec[consensusModels.SlotData] =
+    (consensusSlotIdCodec ::
+      consensusSlotIdCodec ::
+      protobufByteStringCodec :: // rho
+      protobufByteStringCodec :: // eta
+      Codec[Long](uLongCodec) :: // height
+      unknownFieldSetCodec).as[consensusModels.SlotData]
 
   implicit val unsignedBlockHeaderCodec: Codec[legacyModels.BlockHeader.Unsigned] =
     (

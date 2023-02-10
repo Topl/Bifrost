@@ -1,6 +1,7 @@
 package co.topl.networking.blockchain
 
-import co.topl.models.{BlockBody, BlockHeader, SlotData, Transaction, TypedIdentifier}
+import co.topl.consensus.models.SlotData
+import co.topl.models.{BlockBody, BlockHeader, Transaction, TypedIdentifier}
 import co.topl.networking.NetworkTypeTag
 import co.topl.networking.typedprotocols.TypedProtocol
 

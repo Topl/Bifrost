@@ -13,6 +13,7 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.common.application.{IOAkkaApp, IOBaseApp}
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.VrfConfig
+import co.topl.consensus.models.SlotData
 import co.topl.consensus.interpreters._
 import co.topl.crypto.signing.{Ed25519VRF, KesProduct}
 import co.topl.crypto.hash.Blake2b512

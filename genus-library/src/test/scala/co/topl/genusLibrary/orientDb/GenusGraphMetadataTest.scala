@@ -7,7 +7,8 @@ import co.topl.crypto.hash.Blake2b256
 import co.topl.{models => legacyModels}
 import legacyModels.utility._
 import co.topl.consensus.models._
-import co.topl.crypto.models._
+import co.topl.models.ModelGenerators.GenHelper
+import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.node.models.BlockBody
 import com.google.protobuf.ByteString
 import quivr.models.Digest.Digest32
@@ -31,9 +32,9 @@ class GenusGraphMetadataTest extends munit.FunSuite {
 
   test("EligibilityCertificate Serialization") {
     val eligibilityCertificate = EligibilityCertificate(
-      vrfSig = SignatureVrfEd25519.of(ByteString.copyFrom(Array.fill(Lengths.`80`.value)(0: Byte))),
-      vrfVK = VerificationKeyVrfEd25519.of(byteStringLength32),
-      thresholdEvidence = ByteString.copyFrom(Array.fill[Byte](evidenceLength.value)(0)),
+      vrfSig = signatureVrfEd25519Gen.first,
+      vrfVK = vkVrfEd25519Gen.first,
+      thresholdEvidence = thresholdEvidenceGen.first.data,
       eta = ByteString.copyFrom(new Blake2b256().hash(legacyModels.Bytes(Random.nextBytes(TypedBytesLength))).toArray)
     )
 
@@ -49,19 +50,19 @@ class GenusGraphMetadataTest extends munit.FunSuite {
       VerificationKeyKesProduct.of(byteStringLength32, step = 0),
       SignatureKesProduct(
         SignatureKesSum(
-          VerificationKeyEd25519.of(ByteString.EMPTY),
-          SignatureEd25519(ByteString.EMPTY),
+          verificationKeyEd25519Gen.first,
+          signatureEd25519Gen.first,
           witness = Seq.empty
         ),
         SignatureKesSum(
-          VerificationKeyEd25519.of(ByteString.EMPTY),
-          SignatureEd25519.of(ByteString.EMPTY),
+          verificationKeyEd25519Gen.first,
+          signatureEd25519Gen.first,
           witness = Seq.empty
         ),
         subRoot = byteStringLength32
       ),
-      VerificationKeyEd25519.of(ByteString.EMPTY),
-      SignatureEd25519(ByteString.EMPTY)
+      verificationKeyEd25519Gen.first,
+      signatureEd25519Gen.first
     )
 
     assertEquals(
@@ -75,7 +76,7 @@ class GenusGraphMetadataTest extends munit.FunSuite {
     val transactions = (0 to 3).foldLeft(Seq.empty[IoTransaction32]) { case (transactions, _) =>
       val byteArray = Random.nextBytes(evidenceLength.value)
       val transactionId =
-        IoTransaction32.of(Some(Evidence.Sized32.of(Some(Digest32.of(ByteString.copyFrom(byteArray))))))
+        IoTransaction32.of(Evidence.Sized32.of(Digest32.of(ByteString.copyFrom(byteArray))))
 
       transactions :+ transactionId
     }

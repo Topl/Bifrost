@@ -4,7 +4,8 @@ import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.algebras.{Store, StoreReader}
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
-import co.topl.models.{SlotData, TypedIdentifier}
+import co.topl.models.TypedIdentifier
+import co.topl.consensus.models.SlotData
 import co.topl.typeclasses.implicits._
 
 object BlockHeightTree {

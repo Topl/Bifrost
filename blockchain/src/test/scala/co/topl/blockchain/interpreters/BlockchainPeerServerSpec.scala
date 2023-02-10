@@ -9,10 +9,11 @@ import org.scalamock.munit.AsyncMockFactory
 import co.topl.models.ModelGenerators._
 import co.topl.{models => legacyModels}
 import legacyModels._
-import co.topl.consensus.models.BlockHeader
+import legacyModels.utility._
+import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.node.models.BlockBody
 import co.topl.models.generators.node.ModelGenerators.arbitraryNodeBody
-import co.topl.models.generators.consensus.ModelGenerators.arbitraryHeader
+import co.topl.models.generators.consensus.ModelGenerators.{arbitraryHeader, arbitrarySlotData}
 import fs2._
 import fs2.concurrent.Topic
 import org.scalacheck.effect.PropF
@@ -32,10 +33,12 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
     PropF.forAllF { slotData: SlotData =>
       withMock {
         val f = mockFunction[TypedIdentifier, F[Option[SlotData]]]
-        (f.expects(slotData.slotId.blockId).once().returning(slotData.some.pure[F]))
+        (f.expects(slotData.slotId.blockId: TypedIdentifier).once().returning(slotData.some.pure[F]))
         for {
           _ <- makeServer(fetchSlotData = f)
-            .use(underTest => underTest.getLocalSlotData(slotData.slotId.blockId).assertEquals(slotData.some))
+            .use(underTest =>
+              underTest.getLocalSlotData(slotData.slotId.blockId: TypedIdentifier).assertEquals(slotData.some)
+            )
         } yield ()
       }
     }
@@ -90,7 +93,7 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
           .useStateAt[Option[TypedIdentifier]](_: TypedIdentifier)(
             _: (Long => F[Option[TypedIdentifier]]) => F[Option[TypedIdentifier]]
           ))
-          .expects(head.slotId.blockId, *)
+          .expects(head.slotId.blockId: TypedIdentifier, *)
           .once()
           .returning(resultId.some.pure[F])
         for {
@@ -112,7 +115,7 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
             publisher = Stream(adoptionA, adoptionB, adoptionC).through(topic.publish)
             result <- makeServer(localChain = localChain, newBlockIds = topic.pure[F])
               .use(server => Stream.force(server.localBlockAdoptions).concurrently(publisher).compile.toList)
-            _ <- IO(result).assertEquals(List(head.slotId.blockId, adoptionA, adoptionB, adoptionC))
+            _ <- IO(result).assertEquals(List(head.slotId.blockId: TypedIdentifier, adoptionA, adoptionB, adoptionC))
           } yield ()
         }
     }
@@ -132,7 +135,7 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
         withMock {
           val currentMempoolSet: Set[TypedIdentifier] = ListSet(mempoolTxA, mempoolTxB, mempoolTxC)
           val mempool = mock[MempoolAlgebra[F]]
-          (mempool.read _).expects(head.slotId.blockId).once().returning(currentMempoolSet.pure[F])
+          (mempool.read _).expects(head.slotId.blockId: TypedIdentifier).once().returning(currentMempoolSet.pure[F])
           val localChain = mock[LocalChainAlgebra[F]]
           (() => localChain.head).expects().once().returning(head.pure[F])
           for {

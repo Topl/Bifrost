@@ -3,9 +3,12 @@ package co.topl.typeclasses
 import cats.Eq
 import cats.implicits._
 import co.topl.crypto.generation.mnemonic.Entropy
-import co.topl.models._
-import co.topl.models.utility.Sized
-import co.topl.models.utility.StringDataTypes.Latin1Data
+import co.topl.{models => legacyModels}
+import legacyModels._
+import legacyModels.utility.Sized
+import legacyModels.utility.StringDataTypes.Latin1Data
+import co.topl.consensus.{models => consensusModels}
+import com.google.protobuf.ByteString
 
 trait EqInstances {
 
@@ -14,6 +17,8 @@ trait EqInstances {
 
   implicit val bytesEq: Eq[Bytes] =
     (a, b) => a === b
+
+  implicit val bytesStringEq: Eq[ByteString] = Eq.fromUniversalEquals
 
   implicit val typedBytesEq: Eq[TypedBytes] =
     (a, b) => a.allBytes === b.allBytes
@@ -39,7 +44,14 @@ trait EqInstances {
   implicit val blockHeaderEq: Eq[BlockHeader] =
     Eq.fromUniversalEquals
 
+  // TODO Remove after full model replacement
   implicit val slotIdEq: Eq[SlotId] =
+    (a, b) => a.slot === b.slot && a.blockId === b.blockId
+
+  implicit val consensusBlockIdEq: Eq[consensusModels.BlockId] =
+    (a, b) => a.value === b.value
+
+  implicit val consensusSlotIdEq: Eq[consensusModels.SlotId] =
     (a, b) => a.slot === b.slot && a.blockId === b.blockId
 
   implicit val entropyEq: Eq[Entropy] =
@@ -54,7 +66,16 @@ trait EqInstances {
   implicit val rhoEq: Eq[Rho] =
     (a, b) => a.sizedBytes === b.sizedBytes
 
-  implicit val slotDataEq: Eq[SlotData] =
+  // TODO Remove after full model replacement
+  implicit val slotDataEq: Eq[SlotDataLegacy] =
+    (a, b) =>
+      a.slotId === b.slotId &&
+      a.parentSlotId === b.parentSlotId &&
+      a.rho === b.rho &&
+      a.eta === b.eta &&
+      a.height === b.height
+
+  implicit val consensusSlotDataEq: Eq[consensusModels.SlotData] =
     (a, b) =>
       a.slotId === b.slotId &&
       a.parentSlotId === b.parentSlotId &&

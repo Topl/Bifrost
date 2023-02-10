@@ -8,7 +8,10 @@ import co.topl.algebras.ClockAlgebra
 import co.topl.algebras.testInterpreters.TestStore
 import co.topl.eventtree.ParentChildTree
 import co.topl.models.ModelGenerators._
+import co.topl.models.generators.consensus.ModelGenerators.arbitrarySlotData
 import co.topl.models._
+import co.topl.models.utility._
+import co.topl.consensus.models.SlotData
 import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
@@ -42,10 +45,11 @@ class EpochBoundariesEventSourcedStateSpec extends CatsEffectSuite with ScalaChe
         currentBlockId = slotData.head.parentSlotId.blockId
         parentChildTree <- ParentChildTree.FromRef.make[F, TypedIdentifier]
         initialState    <- TestStore.make[F, Epoch, TypedIdentifier]
-        fetchSlotData = (id: TypedIdentifier) => slotData.find(_.slotId.blockId === id).get.pure[F]
+        fetchSlotData = (id: TypedIdentifier) =>
+          slotData.find(slotData => (slotData.slotId.blockId: TypedIdentifier) === id).get.pure[F]
 
         _ <- slotData.traverse(slotDatum =>
-          parentChildTree.associate(slotDatum.slotId.blockId, slotDatum.parentSlotId.blockId)
+          parentChildTree.associate(slotDatum.slotId.blockId: TypedIdentifier, slotDatum.parentSlotId.blockId)
         )
 
         _ = (() => clock.slotsPerEpoch).expects().anyNumberOfTimes().returning(2L.pure[F])
@@ -53,7 +57,7 @@ class EpochBoundariesEventSourcedStateSpec extends CatsEffectSuite with ScalaChe
         underTest <- EpochBoundariesEventSourcedState
           .make[F](
             clock,
-            currentBlockId.pure[F],
+            (currentBlockId: TypedIdentifier).pure[F],
             parentChildTree,
             _ => Applicative[F].unit,
             initialState.pure[F],
@@ -61,11 +65,11 @@ class EpochBoundariesEventSourcedStateSpec extends CatsEffectSuite with ScalaChe
           )
 
         _ <- underTest.useStateAt(slotData.last.slotId.blockId)(state =>
-          state.getOrRaise(0).assertEquals(slotData(1).slotId.blockId) >>
-          state.getOrRaise(1).assertEquals(slotData(3).slotId.blockId) >>
-          state.getOrRaise(2).assertEquals(slotData(5).slotId.blockId) >>
-          state.getOrRaise(3).assertEquals(slotData(7).slotId.blockId) >>
-          state.getOrRaise(4).assertEquals(slotData(9).slotId.blockId)
+          state.getOrRaise(0).assertEquals(slotData(1).slotId.blockId: TypedIdentifier) >>
+          state.getOrRaise(1).assertEquals(slotData(3).slotId.blockId: TypedIdentifier) >>
+          state.getOrRaise(2).assertEquals(slotData(5).slotId.blockId: TypedIdentifier) >>
+          state.getOrRaise(3).assertEquals(slotData(7).slotId.blockId: TypedIdentifier) >>
+          state.getOrRaise(4).assertEquals(slotData(9).slotId.blockId: TypedIdentifier)
         )
 
       } yield ()
@@ -79,10 +83,11 @@ class EpochBoundariesEventSourcedStateSpec extends CatsEffectSuite with ScalaChe
 
       for {
         clock <- mock[ClockAlgebra[F]].pure[F]
-        currentBlockId = slotData.head.parentSlotId.blockId
+        currentBlockId = slotData.head.parentSlotId.blockId: TypedIdentifier
         parentChildTree <- ParentChildTree.FromRef.make[F, TypedIdentifier]
         initialState    <- TestStore.make[F, Epoch, TypedIdentifier]
-        fetchSlotData = (id: TypedIdentifier) => slotData.find(_.slotId.blockId === id).get.pure[F]
+        fetchSlotData = (id: TypedIdentifier) =>
+          slotData.find(slotData => (slotData.slotId.blockId: TypedIdentifier) === id).get.pure[F]
 
         _ <- slotData.traverse(slotDatum =>
           parentChildTree.associate(slotDatum.slotId.blockId, slotDatum.parentSlotId.blockId)

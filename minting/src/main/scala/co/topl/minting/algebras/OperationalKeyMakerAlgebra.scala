@@ -1,7 +1,8 @@
 package co.topl.minting.algebras
 
 import co.topl.minting.models.OperationalKeyOut
-import co.topl.models.{Slot, SlotId}
+import co.topl.models.Slot
+import co.topl.consensus.models.SlotId
 
 /**
  * A KeyEvolverAlgebra is responsible for encapsulating a key locally and emitting an evolved version of

@@ -22,7 +22,8 @@ trait TetraTransmittableCodecs {
 
   implicit val consensusBlockHeaderTransmittable: Transmittable[consensusModels.BlockHeader] =
     Transmittable.instanceFromCodec
-  implicit val slotDataTransmittable: Transmittable[SlotData] = Transmittable.instanceFromCodec
+  implicit val slotDataTransmittable: Transmittable[SlotDataLegacy] = Transmittable.instanceFromCodec
+  implicit val consensusSlotDataTransmittable: Transmittable[consensusModels.SlotData] = Transmittable.instanceFromCodec
   implicit val transactionTransmittable: Transmittable[Transaction] = Transmittable.instanceFromCodec
   implicit val transactionProtoTransmittable: Transmittable[protoModels.Transaction] = Transmittable.instanceFromCodec
 

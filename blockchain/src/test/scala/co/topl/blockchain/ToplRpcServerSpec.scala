@@ -4,13 +4,15 @@ import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.Store
 import co.topl.consensus.algebras.LocalChainAlgebra
-import co.topl.consensus.models.BlockHeader
+import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.{MempoolAlgebra, TransactionSyntaxValidationAlgebra}
 import co.topl.models.ModelGenerators._
+import co.topl.models.generators.consensus.ModelGenerators.arbitrarySlotData
+import co.topl.models.utility._
 import co.topl.node.models.BlockBody
 import co.topl.{models => legacyModels}
-import legacyModels.{SlotData, Transaction, TypedIdentifier}
+import legacyModels.{Transaction, TypedIdentifier}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
@@ -38,7 +40,7 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             .useStateAt[Option[TypedIdentifier]](_: TypedIdentifier)(
               _: (Long => F[Option[TypedIdentifier]]) => F[Option[TypedIdentifier]]
             ))
-            .expects(canonicalHead.slotId.blockId, *)
+            .expects(canonicalHead.slotId.blockId: TypedIdentifier, *)
             .once()
             .onCall { case (_, _) =>
               targetBlockId.some.pure[F]
@@ -64,7 +66,9 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             mock[ParentChildTree[F, TypedIdentifier]],
             Stream.empty
           )
-          _ <- underTest.blockIdAtHeight(canonicalHead.height).assertEquals(canonicalHead.slotId.blockId.some)
+          _ <- underTest
+            .blockIdAtHeight(canonicalHead.height)
+            .assertEquals((canonicalHead.slotId.blockId: TypedIdentifier).some)
         } yield ()
       } >>
       // Test where requested height is greater than canonical head height
@@ -123,7 +127,7 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             .useStateAt[Option[TypedIdentifier]](_: TypedIdentifier)(
               _: (Long => F[Option[TypedIdentifier]]) => F[Option[TypedIdentifier]]
             ))
-            .expects(canonicalHead.slotId.blockId, *)
+            .expects(canonicalHead.slotId.blockId: TypedIdentifier, *)
             .once()
             .onCall { case (_, _) =>
               targetBlockId.some.pure[F]
@@ -138,7 +142,7 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
           localChain <- mock[LocalChainAlgebra[F]].pure[F]
           _ = (() => localChain.head).expects().once().returning(canonicalHead.pure[F])
           underTest <- createServer(localChain = localChain)
-          _         <- underTest.blockIdAtDepth(0).assertEquals(canonicalHead.slotId.blockId.some)
+          _         <- underTest.blockIdAtDepth(0).assertEquals((canonicalHead.slotId.blockId: TypedIdentifier).some)
         } yield ()
       } >>
       // Test where requested depth is greater than chain height
@@ -175,16 +179,19 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
               a,
               b
             ) => parentChildTree.findCommonAncestor(a, b)
-          ).expects(slotHead.slotId.blockId, slotA.slotId.blockId)
+          ).expects(slotHead.slotId.blockId: TypedIdentifier, slotA.slotId.blockId: TypedIdentifier)
             .once()
             .returning(
-              (NonEmptyChain.one(slotA.slotId.blockId), NonEmptyChain(slotA.slotId.blockId, slotB.slotId.blockId))
+              (
+                NonEmptyChain.one(slotA.slotId.blockId: TypedIdentifier),
+                NonEmptyChain(slotA.slotId.blockId: TypedIdentifier, slotB.slotId.blockId: TypedIdentifier)
+              )
                 .pure[F]
             )
           underTest <- createServer(
             localChain = localChain,
             blockIdTree = parentChildTree,
-            localBlockAdoptionsStream = Stream.eval(slotA.slotId.blockId.pure[F])
+            localBlockAdoptionsStream = Stream.eval((slotA.slotId.blockId: TypedIdentifier).pure[F])
           )
           stream <- underTest.synchronizationTraversal()
           // find common ancestor is inclusive, and synchronizationTraversal tail results

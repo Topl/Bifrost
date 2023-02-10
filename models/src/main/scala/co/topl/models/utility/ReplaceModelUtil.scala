@@ -1,6 +1,8 @@
 package co.topl.models.utility
 
+import co.topl.models.TypedIdentifier
 import com.google.protobuf.ByteString
+import co.topl.models.utility._
 
 /**
  * Delete this file when replacement job is done
@@ -11,13 +13,9 @@ object ReplaceModelUtil {
     typedIdentifier: co.topl.models.TypedIdentifier
   ): co.topl.brambl.models.Identifier.IoTransaction32 =
     co.topl.brambl.models.Identifier.IoTransaction32(
-      Some(
-        co.topl.brambl.models.Evidence.Sized32.of(
-          Some(
-            quivr.models.Digest.Digest32
-              .of(com.google.protobuf.ByteString.copyFrom(typedIdentifier.dataBytes.toArray))
-          )
-        )
+      co.topl.brambl.models.Evidence.Sized32.of(
+        quivr.models.Digest.Digest32
+          .of(ByteString.copyFrom(typedIdentifier.dataBytes.toArray))
       )
     )
 
@@ -49,10 +47,10 @@ object ReplaceModelUtil {
     co.topl.consensus.models.OperationalCertificate(
       parentVK = verificationKeyKesProduct(operationalCertificate.parentVK),
       parentSignature = signatureKesProduct(operationalCertificate.parentSignature),
-      childVK = co.topl.crypto.models.VerificationKeyEd25519(
+      childVK = co.topl.consensus.models.VerificationKeyEd25519(
         value = ByteString.copyFrom(operationalCertificate.childVK.bytes.data.toArray)
       ),
-      childSignature = co.topl.crypto.models.SignatureEd25519(
+      childSignature = co.topl.consensus.models.SignatureEd25519(
         value = ByteString.copyFrom(operationalCertificate.childSignature.bytes.data.toArray)
       )
     )
@@ -84,28 +82,53 @@ object ReplaceModelUtil {
   ): co.topl.consensus.models.SignatureKesProduct =
     co.topl.consensus.models.SignatureKesProduct(
       superSignature = co.topl.consensus.models.SignatureKesSum(
-        verificationKey = co.topl.crypto.models.VerificationKeyEd25519(
+        verificationKey = co.topl.consensus.models.VerificationKeyEd25519(
           ByteString
             .copyFrom(kesProduct.superSignature.verificationKey.bytes.data.toArray)
         ),
-        signature = co.topl.crypto.models.SignatureEd25519(
+        signature = co.topl.consensus.models.SignatureEd25519(
           ByteString
             .copyFrom(kesProduct.superSignature.signature.bytes.data.toArray)
         ),
         witness = kesProduct.superSignature.witness.map(w => ByteString.copyFrom(w.data.toArray))
       ),
       subSignature = co.topl.consensus.models.SignatureKesSum(
-        verificationKey = co.topl.crypto.models.VerificationKeyEd25519(
+        verificationKey = co.topl.consensus.models.VerificationKeyEd25519(
           ByteString
             .copyFrom(kesProduct.subSignature.verificationKey.bytes.data.toArray)
         ),
-        signature = co.topl.crypto.models.SignatureEd25519(
+        signature = co.topl.consensus.models.SignatureEd25519(
           ByteString
             .copyFrom(kesProduct.subSignature.signature.bytes.data.toArray)
         ),
         witness = kesProduct.subSignature.witness.map(w => ByteString.copyFrom(w.data.toArray))
       ),
       subRoot = ByteString.copyFrom(kesProduct.subRoot.data.toArray)
+    )
+
+  def slotIdToLegacy(slotId: co.topl.consensus.models.SlotId): co.topl.models.SlotId =
+    co.topl.models.SlotId(
+      slot = slotId.slot,
+      blockId = slotId.blockId: TypedIdentifier
+    )
+
+  def slotDataFromLegacy(slotDataLegacy: co.topl.models.SlotDataLegacy): co.topl.consensus.models.SlotData =
+    co.topl.consensus.models.SlotData.of(
+      slotId = co.topl.consensus.models.SlotId.of(
+        slot = slotDataLegacy.slotId.slot,
+        blockId = co.topl.consensus.models.BlockId.of(
+          value = slotDataLegacy.slotId.blockId.dataBytes
+        )
+      ),
+      parentSlotId = co.topl.consensus.models.SlotId.of(
+        slot = slotDataLegacy.parentSlotId.slot,
+        blockId = co.topl.consensus.models.BlockId.of(
+          value = slotDataLegacy.parentSlotId.blockId.dataBytes
+        )
+      ),
+      rho = slotDataLegacy.rho.sizedBytes.data,
+      height = slotDataLegacy.height,
+      eta = slotDataLegacy.eta.data
     )
 
 }

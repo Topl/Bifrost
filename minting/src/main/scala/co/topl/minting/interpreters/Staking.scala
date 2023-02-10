@@ -13,6 +13,8 @@ import co.topl.minting.models.VrfHit
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.{ReplaceModelUtil, Sized}
+import co.topl.models.utility._
+import co.topl.consensus.models.SlotId
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
@@ -33,7 +35,7 @@ object Staking {
     def elect(parentSlotId: SlotId, slot: Slot): F[Option[VrfHit]] =
       for {
         eta <- etaCalculation.etaToBe(parentSlotId, slot)
-        maybeHit <- OptionT(consensusState.operatorRelativeStake(parentSlotId.blockId, slot)(a))
+        maybeHit <- OptionT(consensusState.operatorRelativeStake(parentSlotId.blockId: TypedIdentifier, slot)(a))
           .flatMapF(relativeStake => vrfCalculator.getHit(relativeStake, slot, slot - parentSlotId.slot, eta))
           .value
         _ <- Logger[F].debug(
