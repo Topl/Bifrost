@@ -243,7 +243,7 @@ object Dependencies {
     mUnitTest ++
     Seq(
       protobufSpecs,
-      "io.grpc" % "grpc-netty-shaded" % "1.52.1"
+      "io.grpc" % "grpc-netty-shaded" % "1.53.0"
     )
 
   lazy val levelDbStore: Seq[ModuleID] =
