@@ -258,7 +258,7 @@ object BlockchainPeerHandler {
                 _    <- Logger[F].info(show"Fetching remote body id=$blockId")
                 body <- OptionT(client.getRemoteBody(blockId)).getOrNoSuchElement(blockId.show)
                 _ <- Stream
-                  .iterable(body.transactionIds)
+                  .iterable[F, co.topl.brambl.models.Identifier.IoTransaction32](body.transactionIds)
                   .parEvalMapUnordered(16)(transactionId =>
                     transactionStore
                       .contains(transactionId)
