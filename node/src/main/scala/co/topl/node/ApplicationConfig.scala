@@ -94,7 +94,7 @@ object ApplicationConfig {
       val operationalPeriodLength: Long =
         epochLength / operationalPeriodsPerEpoch
 
-      val vrfCacheTtl: Long =
+      val vrfCacheSize: Long =
         operationalPeriodLength * 4
     }
 

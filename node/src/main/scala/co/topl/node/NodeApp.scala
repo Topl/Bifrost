@@ -262,7 +262,7 @@ object NodeApp
             leaderElectionThreshold,
             ed25519VRFResource,
             vrfConfig,
-            protocol.vrfCacheTtl
+            protocol.vrfCacheSize
           )
           currentSlot <- clock.globalSlot.map(_.max(0L))
 
