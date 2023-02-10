@@ -21,7 +21,6 @@ import legacyModels.utility.Lengths._
 import legacyModels.utility._
 import co.topl.consensus.models.{BlockHeader, SlotId}
 import co.topl.models.generators.consensus.ModelGenerators._
-import co.topl.crypto.models.{SignatureEd25519, VerificationKeyEd25519}
 import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
@@ -731,7 +730,7 @@ class BlockHeaderValidationSpec
         kesProductVerificationKey.step
       ),
       parentSignature,
-      co.topl.crypto.models.VerificationKeyEd25519.of(ByteString.copyFrom(linearVKBytes.toArray))
+      VerificationKeyEd25519.of(ByteString.copyFrom(linearVKBytes.toArray))
     )
     unsignedF(partialCertificate) -> SecretKeys.Ed25519(Sized.strictUnsafe(linearSKBytes))
   }
