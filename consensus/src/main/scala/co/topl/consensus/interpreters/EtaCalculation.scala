@@ -7,10 +7,11 @@ import cats.{MonadThrow, Parallel}
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras.{ClockAlgebra, UnsafeResource}
 import co.topl.consensus.algebras.EtaCalculationAlgebra
-import co.topl.consensus.models.EtaCalculationArgs
+import co.topl.consensus.models.{EtaCalculationArgs, SlotData, SlotId}
 import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models._
+import co.topl.models.utility._
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.Sized
 import co.topl.typeclasses.implicits._
@@ -65,7 +66,7 @@ object EtaCalculation {
           childEpoch     <- clock.epochOf(childSlot)
           parentSlotData <- fetchSlotData(parentSlotId.blockId)
           eta <-
-            if (parentEpoch === childEpoch) parentSlotData.eta.pure[F]
+            if (parentEpoch === childEpoch) Sized.strictUnsafe[Bytes, Eta.Length](parentSlotData.eta).pure[F]
             else if (childEpoch - parentEpoch > 1) emptyEpochDetected(parentEpoch - 1)
             else locateTwoThirdsBest(parentSlotData).flatMap(calculate)
         } yield eta
@@ -87,7 +88,7 @@ object EtaCalculation {
      * @param twoThirdsBest The latest block header in some tine, but within the first 2/3 of the epoch
      */
     private def calculate(twoThirdsBest: SlotData): F[Eta] =
-      cache.cachingF(twoThirdsBest.slotId.blockId.allBytes)(ttl = None)(
+      cache.cachingF((twoThirdsBest.slotId.blockId: TypedIdentifier).allBytes)(ttl = None)(
         Sync[F].defer(
           for {
             epoch      <- clock.epochOf(twoThirdsBest.slotId.slot)
@@ -95,8 +96,12 @@ object EtaCalculation {
             epochData <- NonEmptyChain(twoThirdsBest).iterateUntilM(items =>
               fetchSlotData(items.head.parentSlotId.blockId).map(items.prepend)
             )(items => items.head.parentSlotId.slot < epochRange.start)
-            rhoValues = epochData.map(_.rho)
-            nextEta <- calculate(previousEta = twoThirdsBest.eta, epoch + 1, rhoValues)
+            rhoValues = epochData.map(slotData => Rho(Sized.strictUnsafe(slotData.rho)))
+            nextEta <- calculate(
+              previousEta = Sized.strictUnsafe[Bytes, Eta.Length](twoThirdsBest.eta),
+              epoch = epoch + 1,
+              rhoValues = rhoValues
+            )
           } yield nextEta
         )
       )

@@ -12,6 +12,8 @@ import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.Sized
+import co.topl.consensus.models.SlotData
+import co.topl.models.generators.consensus.ModelGenerators.arbitrarySlotData
 import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF

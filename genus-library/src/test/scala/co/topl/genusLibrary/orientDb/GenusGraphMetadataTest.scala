@@ -75,7 +75,7 @@ class GenusGraphMetadataTest extends munit.FunSuite {
     val transactions = (0 to 3).foldLeft(Seq.empty[IoTransaction32]) { case (transactions, _) =>
       val byteArray = Random.nextBytes(evidenceLength.value)
       val transactionId =
-        IoTransaction32.of(Some(Evidence.Sized32.of(Some(Digest32.of(ByteString.copyFrom(byteArray))))))
+        IoTransaction32.of(Evidence.Sized32.of(Digest32.of(ByteString.copyFrom(byteArray))))
 
       transactions :+ transactionId
     }

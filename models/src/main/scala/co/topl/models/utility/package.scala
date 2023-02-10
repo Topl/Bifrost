@@ -17,5 +17,5 @@ package object utility extends Isomorphism.Ops with BifrostMorphismInstances {
     TypedBytes(IdentifierTypes.Block.HeaderV2, blockId.value)
 
   implicit def ioTx32IdAsTypedBytes(id: co.topl.brambl.models.Identifier.IoTransaction32): TypedIdentifier =
-    TypedBytes(IdentifierTypes.Transaction, id.evidence.get.digest.get.value)
+    TypedBytes(IdentifierTypes.Transaction, id.evidence.digest.value)
 }

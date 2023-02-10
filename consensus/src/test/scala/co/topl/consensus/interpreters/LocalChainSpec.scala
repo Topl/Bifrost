@@ -6,14 +6,17 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import co.topl.consensus.algebras.ChainSelectionAlgebra
-import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility.Lengths
+import co.topl.consensus.models.{BlockId, SlotData, SlotId}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import com.google.protobuf.ByteString
+import co.topl.models.generators.common.ModelGenerators.genSizedStrictByteString
+import co.topl.models.generators.consensus.ModelGenerators.etaGen
 
 class LocalChainSpec
     extends AnyFlatSpec
@@ -26,9 +29,15 @@ class LocalChainSpec
   type F[A] = IO[A]
 
   it should "store the head of the local canonical tine" in {
-    forAll(genSizedStrictBytes[Lengths.`64`.type]().map(Rho(_)), etaGen) { (rho, eta) =>
+    forAll(genSizedStrictByteString[Lengths.`64`.type](), etaGen) { (rho, eta) =>
       val initialHead =
-        SlotData(SlotId(1, TypedBytes(1: Byte, Bytes(1))), SlotId(0, TypedBytes(0: Byte, Bytes(0))), rho, eta, 0)
+        SlotData(
+          SlotId.of(1, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(1).toArray))),
+          SlotId.of(0, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(0).toArray))),
+          rho.data,
+          eta.data,
+          0
+        )
 
       val chainSelection: ChainSelectionAlgebra[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
 
@@ -39,32 +48,56 @@ class LocalChainSpec
   }
 
   it should "indicate when a new tine is worse than the local chain" in {
-    forAll(genSizedStrictBytes[Lengths.`64`.type]().map(Rho(_)), etaGen) { (rho, eta) =>
+    forAll(genSizedStrictByteString[Lengths.`64`.type](), etaGen) { (rho, eta) =>
       val initialHead =
-        SlotData(SlotId(1, TypedBytes(1: Byte, Bytes(1))), SlotId(0, TypedBytes(0: Byte, Bytes(0))), rho, eta, 0)
+        SlotData(
+          SlotId.of(1, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(1).toArray))),
+          SlotId.of(0, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(0).toArray))),
+          rho.data,
+          eta.data,
+          0
+        )
 
       val chainSelection: ChainSelectionAlgebra[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
 
       val underTest = LocalChain.make[F](initialHead, chainSelection, _ => Applicative[F].unit).unsafeRunSync()
 
       val newHead =
-        SlotData(SlotId(2, TypedBytes(2: Byte, Bytes(2))), SlotId(1, TypedBytes(1: Byte, Bytes(0))), rho, eta, 1)
+        SlotData(
+          SlotId.of(2, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(2).toArray))),
+          SlotId.of(1, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(0).toArray))),
+          rho.data,
+          eta.data,
+          1
+        )
 
       underTest.isWorseThan(newHead).unsafeRunSync() shouldBe true
     }
   }
 
   it should "adopt a new tine when instructed" in {
-    forAll(genSizedStrictBytes[Lengths.`64`.type]().map(Rho(_)), etaGen) { (rho, eta) =>
+    forAll(genSizedStrictByteString[Lengths.`64`.type](), etaGen) { (rho, eta) =>
       val initialHead =
-        SlotData(SlotId(1, TypedBytes(1: Byte, Bytes(1))), SlotId(0, TypedBytes(0: Byte, Bytes(0))), rho, eta, 0)
+        SlotData(
+          SlotId.of(1, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(1).toArray))),
+          SlotId.of(0, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(0).toArray))),
+          rho.data,
+          eta.data,
+          0
+        )
 
       val chainSelection: ChainSelectionAlgebra[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
 
       val underTest = LocalChain.make[F](initialHead, chainSelection, _ => Applicative[F].unit).unsafeRunSync()
 
       val newHead =
-        SlotData(SlotId(2, TypedBytes(2: Byte, Bytes(2))), SlotId(1, TypedBytes(1: Byte, Bytes(0))), rho, eta, 1)
+        SlotData(
+          SlotId.of(2, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(2).toArray))),
+          SlotId.of(1, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(0).toArray))),
+          rho.data,
+          eta.data,
+          1
+        )
 
       underTest.head.unsafeRunSync() shouldBe initialHead
 

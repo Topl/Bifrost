@@ -5,7 +5,9 @@ import cats.effect.Ref
 import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.consensus.algebras.{ChainSelectionAlgebra, LocalChainAlgebra}
-import co.topl.models.{SlotData, TypedIdentifier}
+import co.topl.consensus.models.SlotData
+import co.topl.models.TypedIdentifier
+import co.topl.models.utility._
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}

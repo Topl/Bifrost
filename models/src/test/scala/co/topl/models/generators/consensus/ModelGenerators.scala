@@ -15,6 +15,9 @@ trait ModelGenerators {
   def etaGen: Gen[Sized.Strict[ByteString, Lengths.`32`.type]] =
     genSizedStrictByteString[Lengths.`32`.type]()
 
+  def rhoGen: Gen[Sized.Strict[ByteString, Lengths.`64`.type]] =
+    genSizedStrictByteString[Lengths.`64`.type]()
+
   // Signatures
   def signatureVrfEd25519Gen: Gen[SignatureVrfEd25519] =
     genSizedStrictByteString[Lengths.`80`.type]().map(s => SignatureVrfEd25519.of(s.data))
@@ -136,6 +139,25 @@ trait ModelGenerators {
     )
 
   implicit val arbitraryHeader: Arbitrary[BlockHeader] = Arbitrary(headerGen())
+
+  implicit val arbitrarySlotId: Arbitrary[SlotId] =
+    Arbitrary(
+      for {
+        slot    <- Gen.posNum[Long]
+        blockId <- blockIdGen
+      } yield SlotId.of(slot, blockId)
+    )
+
+  implicit val arbitrarySlotData: Arbitrary[SlotData] =
+    Arbitrary(
+      for {
+        slotId       <- arbitrarySlotId.arbitrary
+        parentSlotId <- arbitrarySlotId.arbitrary
+        rho          <- rhoGen
+        eta          <- etaGen
+        height       <- Gen.posNum[Long]
+      } yield SlotData.of(slotId, parentSlotId, rho.data, eta.data, height)
+    )
 
 }
 object ModelGenerators extends ModelGenerators

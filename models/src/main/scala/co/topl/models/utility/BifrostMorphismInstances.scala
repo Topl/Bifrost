@@ -229,26 +229,7 @@ trait CommonBifrostMorphismInstances {
   implicit def blockIdIsomorphism[F[_]: Monad]: Isomorphism[F, bifrostModels.TypedIdentifier, models.BlockId] =
     Isomorphism(
       _.map(v => models.BlockId(v.dataBytes).asRight[String]),
-      _.map(v =>
-        Either.cond(
-          v.value.length == 32,
-          bifrostModels.TypedBytes(bifrostModels.IdentifierTypes.Block.HeaderV2, v.value),
-          "Invalid ID length"
-        )
-      )
-    )
-
-  def blockIdByteStringHeaderIsomorphism[F[_]: Monad]: Isomorphism[F, bifrostModels.TypedIdentifier, ByteString] =
-    Isomorphism(
-      _.map(typedIdentifier => ByteString.copyFrom(typedIdentifier.dataBytes.toArray).asRight[String]),
-      _.map(byteString =>
-        Either.cond(
-          byteString.length == 32,
-          bifrostModels
-            .TypedBytes(bifrostModels.IdentifierTypes.Block.HeaderV2, scodec.bits.ByteVector(byteString.toArray)),
-          "Invalid ID length"
-        )
-      )
+      _.map(v => bifrostModels.TypedBytes(bifrostModels.IdentifierTypes.Block.HeaderV2, v.value).asRight[String])
     )
 
   implicit def blockIdHeaderIsomorphism[F[_]: Monad]
@@ -258,12 +239,9 @@ trait CommonBifrostMorphismInstances {
         co.topl.consensus.models.BlockId(ByteString.copyFrom(typedIdentifier.dataBytes.toArray)).asRight[String]
       ),
       _.map(blockId =>
-        Either.cond(
-          blockId.value.size() == 32,
-          bifrostModels
-            .TypedBytes(bifrostModels.IdentifierTypes.Block.HeaderV2, scodec.bits.ByteVector(blockId.value.toArray)),
-          "Invalid ID length"
-        )
+        bifrostModels
+          .TypedBytes(bifrostModels.IdentifierTypes.Block.HeaderV2, scodec.bits.ByteVector(blockId.value.toArray))
+          .asRight[String]
       )
     )
 
@@ -271,25 +249,21 @@ trait CommonBifrostMorphismInstances {
     : Isomorphism[F, bifrostModels.TypedIdentifier, co.topl.brambl.models.Identifier.IoTransaction32] =
     Isomorphism(
       _.map(v =>
-        co.topl.brambl.models.Identifier
-          .IoTransaction32(
-            Some(
-              co.topl.brambl.models.Evidence.Sized32(
-                Some(quivr.models.Digest.Digest32(value = com.google.protobuf.ByteString.copyFrom(v.dataBytes.toArray)))
-              )
+        co.topl.brambl.models.Identifier.IoTransaction32
+          .of(
+            co.topl.brambl.models.Evidence.Sized32(
+              quivr.models.Digest.Digest32(value = ByteString.copyFrom(v.dataBytes.toArray))
             )
           )
           .asRight[String]
       ),
       _.map(v =>
-        Either.cond(
-          v.evidence.flatMap(_.digest).map(_.value).map(_.size()).getOrElse(0) == 32,
-          bifrostModels.TypedBytes(
+        bifrostModels
+          .TypedBytes(
             bifrostModels.IdentifierTypes.Transaction,
-            scodec.bits.ByteVector(v.evidence.flatMap(_.digest).map(_.value).map(_.toByteArray).getOrElse(Array.empty))
-          ),
-          "Invalid ID length"
-        )
+            scodec.bits.ByteVector(v.evidence.digest.value.toByteArray)
+          )
+          .asRight[String]
       )
     )
 

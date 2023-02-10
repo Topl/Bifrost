@@ -8,6 +8,8 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.models._
 import co.topl.models.utility._
 
+import co.topl.consensus.{models => consensusModels}
+import com.google.protobuf.ByteString
 import java.time.Instant
 
 trait ShowInstances {
@@ -21,11 +23,14 @@ trait ShowInstances {
   implicit val showBytes: Show[Bytes] =
     bytes => bytes.toBase58
 
+  implicit val showByteString: Show[ByteString] =
+    bytes => bytes.toBase58
+
   implicit def showSizedBytes[Data: Show, L <: Length](implicit l: L): Show[Sized.Strict[Data, L]] =
     sized => show"[${l.value}](${sized.data})"
 
   implicit val showIoTransaction32Id: Show[co.topl.brambl.models.Identifier.IoTransaction32] =
-    t => show"t_${t.evidence.flatMap(_.digest).fold(Bytes.empty)(t => t.value: Bytes)}"
+    t => show"t_${t.evidence.digest.value: Bytes}"
 
   implicit val showBlockId: Show[co.topl.consensus.models.BlockId] =
     b => show"b_${b.value: Bytes}"
@@ -42,6 +47,9 @@ trait ShowInstances {
       }
 
   implicit val showSlotId: Show[SlotId] =
+    slotID => show"{${slotID.slot},${slotID.blockId}}"
+
+  implicit val showConsensusSlotId: Show[consensusModels.SlotId] =
     slotID => show"{${slotID.slot},${slotID.blockId}}"
 
   implicit val showRho: Show[Rho] =
@@ -64,7 +72,7 @@ trait ShowInstances {
       show" timestamp=${Instant.ofEpochMilli(header.timestamp).toString})" +
       show" address=${header.address: StakingAddress}"
 
-  implicit val showConsensusBlockHeader: Show[co.topl.consensus.models.BlockHeader] =
+  implicit val showConsensusBlockHeader: Show[consensusModels.BlockHeader] =
     header =>
       show"BlockHeader(id=${header.id.asTypedBytes}" +
       show" parentId=${(header.parentHeaderId: TypedIdentifier)}" +

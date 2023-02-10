@@ -9,6 +9,8 @@ import co.topl.consensus.algebras.ChainSelectionAlgebra
 import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models._
+import co.topl.models.utility._
+import co.topl.consensus.models.SlotData
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -31,9 +33,7 @@ object ChainSelection {
     val slotOrder = Order.by[NonEmptyChain[SlotData], Slot](-_.last.slotId.slot)
     val rhoTestHashOrder =
       Order.reverse(
-        Order.by[NonEmptyChain[SlotData], BigInt](h =>
-          BigInt(Ed25519VRF.rhoToRhoTestHash(h.last.rho.sizedBytes.data).toArray)
-        )
+        Order.by[NonEmptyChain[SlotData], BigInt](h => BigInt(Ed25519VRF.rhoToRhoTestHash(h.last.rho).toArray))
       )
 
     lengthOrder

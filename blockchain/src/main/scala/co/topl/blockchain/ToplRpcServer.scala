@@ -14,6 +14,7 @@ import co.topl.ledger.algebras.{MempoolAlgebra, TransactionSyntaxValidationAlgeb
 import co.topl.ledger.models._
 import co.topl.{models => legacyModels}
 import legacyModels.{Transaction => LTransaction, TypedIdentifier}
+import legacyModels.utility._
 import co.topl.node.models.BlockBody
 import co.topl.consensus.models.BlockHeader
 import co.topl.proto.models.Transaction
@@ -82,7 +83,7 @@ object ToplRpcServer {
             }
 
         def currentMempool(): F[Set[TypedIdentifier]] =
-          localChain.head.map(_.slotId.blockId).flatMap(mempool.read)
+          localChain.head.map(_.slotId.blockId).flatMap(blockId => mempool.read(blockId: TypedIdentifier))
 
         def fetchBlockHeader(blockId: TypedIdentifier): F[Option[BlockHeader]] =
           headerStore.get(blockId)
@@ -107,7 +108,7 @@ object ToplRpcServer {
             _    <- Async[F].raiseWhen(height < 1)(new IllegalArgumentException("Invalid height"))
             head <- localChain.head
             atHeight <-
-              if (head.height === height) head.slotId.blockId.some.pure[F]
+              if (head.height === height) (head.slotId.blockId: TypedIdentifier).some.pure[F]
               else if (head.height < height) none.pure[F]
               else blockHeights.useStateAt(head.slotId.blockId)(_.apply(height))
           } yield atHeight
@@ -117,7 +118,7 @@ object ToplRpcServer {
             _    <- Async[F].raiseWhen(depth < 0)(new IllegalArgumentException("Negative depth"))
             head <- localChain.head
             atDepth <-
-              if (depth === 0L) head.slotId.blockId.some.pure[F]
+              if (depth === 0L) (head.slotId.blockId: TypedIdentifier).some.pure[F]
               else if (depth > head.height) none.pure[F]
               else blockHeights.useStateAt(head.slotId.blockId)(_.apply(head.height - depth))
           } yield atDepth
