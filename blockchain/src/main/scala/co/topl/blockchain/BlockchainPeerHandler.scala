@@ -199,7 +199,7 @@ object BlockchainPeerHandler {
         .flatMap(missingHeaders =>
           Stream
             .foldable[F, NonEmptyChain, TypedIdentifier](missingHeaders)
-            .parEvalMapUnbounded(blockId =>
+            .parEvalMap(16)(blockId =>
               for {
                 _      <- Logger[F].info(show"Fetching remote header id=$blockId")
                 header <- OptionT(client.getRemoteHeader(blockId)).getOrNoSuchElement(blockId.show)
@@ -259,7 +259,7 @@ object BlockchainPeerHandler {
                 body <- OptionT(client.getRemoteBody(blockId)).getOrNoSuchElement(blockId.show)
                 _ <- Stream
                   .iterable(body.transactionIds)
-                  .parEvalMapUnorderedUnbounded(transactionId =>
+                  .parEvalMapUnordered(16)(transactionId =>
                     transactionStore
                       .contains(transactionId)
                       .ifM(
