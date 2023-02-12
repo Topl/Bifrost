@@ -91,9 +91,11 @@ def job_to_config(job: dict) -> dict:
         raise FileNotFoundError(f"Could not find template file at {template_path.absolute()}")
     with template_path.open('r') as f:
         output_config: dict = yaml.safe_load(f)
-    if "scenario" in output_config and "randomSeed" in output_config["scenario"]:
-        seed = output_config["scenario"]["randomSeed"]
+    if "scenario/randomSeed" in job:
+        default_seed = False
+        seed = job["scenario/randomSeed"]  # this has to come from the JOB, not the template, so it can iterate
     else:
+        default_seed = True
         seed = 0
 
     # now let's set up the topology
@@ -111,8 +113,14 @@ def job_to_config(job: dict) -> dict:
             case "ring":
                 topology = networkx.cycle_graph(num_nodes)
             case "small world":
+                if default_seed:
+                    print("WARNING: Using default seed for small world topology; please provide a scenario/randomSeed "
+                          "parameter to ensure reproducibility.")
                 topology = networkx.watts_strogatz_graph(num_nodes, 4, 0.1, seed=seed)
             case "erdos renyi":
+                if default_seed:
+                    print("WARNING: Using default seed for small world topology; please provide a scenario/randomSeed "
+                          "parameter to ensure reproducibility.")
                 topology = networkx.erdos_renyi_graph(num_nodes, 0.4, seed=seed)
             case "custom":
                 assert "_topology_edges" in job, "Custom topology requires _topology_edges to be defined"
@@ -159,9 +167,6 @@ def job_to_config(job: dict) -> dict:
     #   the shared-config section dictates protocol parameters
     #   the configs section dictates the node configurations
 
-    # debug
-    print(yaml.safe_dump(output_config))
-
     # now, let's go through each entry and see if there is a path in the template file for that entry
     for key, value in job.items():
         # skip the keys that start with an underscore, as those are for internal use
@@ -182,6 +187,7 @@ def job_to_config(job: dict) -> dict:
     # now, we need to convert from the graph to the topology format
     if "_topology_type" in job:
         topology_dict = dict()
+        output_config.pop("configs", None)  # remove the configs section, as we will be replacing it
 
         # we need to write the topology
         num_producers, num_relays = job["_num_producers"], job["_num_relays"]
@@ -212,39 +218,46 @@ def job_to_config(job: dict) -> dict:
             node_map[curr_node] = "relay" + str(each_relay)
             curr_node += 1
 
-            # now, let's go through all the out-edges to set the egress
-            # this is very specific to the current config format, so we will need to change this if we change it later
-            for each_edge in topology.out_edges:
-                # we also need to see the stats for this edge
-                source, target = each_edge
-                edge_stats = topology.get_edge_data(source, target)
+        # now, let's go through all the out-edges to set the egress
+        # this is very specific to the current config format, so we will need to change this if we change it later
+        for each_edge in topology.out_edges:
+            # we also need to see the stats for this edge
+            source, target = each_edge
+            edge_stats = topology.get_edge_data(source, target)
 
-                def _edge_stats_to_throttle(edge_stats: dict) -> dict:
-                    throttle = dict()
-                    if "download" in edge_stats and edge_stats["download"] != -1:
-                        egress_dict["throttle"]["downloadBytesPerSecond"] = edge_stats["download"] // 2
-                    if "upload" in edge_stats and edge_stats["upload"] != -1:
-                        egress_dict["throttle"]["uploadBytesPerSecond"] = edge_stats["upload"] // 2
-                    if "latency" in edge_stats and edge_stats["latency"] != -1:
-                        egress_dict["throttle"]["latency"] = str(edge_stats["latency"] // 2) + " milli"
-                    return throttle
+            def _edge_stats_to_throttle(edge_stats: dict) -> dict:
+                throttle = dict()
+                if "download" in edge_stats and edge_stats["download"] != -1:
+                    egress_dict["throttle"]["downloadBytesPerSecond"] = edge_stats["download"] // 2
+                if "upload" in edge_stats and edge_stats["upload"] != -1:
+                    egress_dict["throttle"]["uploadBytesPerSecond"] = edge_stats["upload"] // 2
+                if "latency" in edge_stats and edge_stats["latency"] != -1:
+                    egress_dict["throttle"]["latency"] = str(edge_stats["latency"] // 2) + " milli"
+                return throttle
 
-                # every egress edge is a list of dicts, with each dict containing "peer" and (optionally) "throttle"
-                # note that we divide limits by 2, because they are added symmetrically on the ingress too
-                egress_dict = {"peer": node_map[target], "throttle": dict()}
-                throttle_dict = _edge_stats_to_throttle(edge_stats)
-                if len(throttle_dict) > 0:
-                    egress_dict["throttle"] = throttle_dict
-                topology_dict[node_map[source]]["topology"]["egress"].append(egress_dict)
+            # every egress edge is a list of dicts, with each dict containing "peer" and (optionally) "throttle"
+            # note that we divide limits by 2, because they are added symmetrically on the ingress too
+            egress_dict = {"peer": node_map[target]}
+            throttle_dict = _edge_stats_to_throttle(edge_stats)
+            if len(throttle_dict) > 0:
+                egress_dict["throttle"] = throttle_dict
+            topology_dict[node_map[source]]["topology"]["egress"].append(egress_dict)
 
-                # every ingress edge is a single optional dict for "throttle", which  is applied to all ingress
-                throttle_dict = _edge_stats_to_throttle(edge_stats)
-                if len(throttle_dict) > 0:
-                    ingress_dict = {"throttle": throttle_dict}
-                    topology_dict[node_map[target]]["topology"]["ingress"] = ingress_dict
+            # every ingress edge is a single optional dict for "throttle", which  is applied to all ingress
+            throttle_dict = _edge_stats_to_throttle(edge_stats)
+            if len(throttle_dict) > 0:
+                ingress_dict = {"throttle": throttle_dict}
+                topology_dict[node_map[target]]["topology"]["ingress"] = ingress_dict
 
-            # now, we need to add the topology to the config
-            output_config["configs"] = topology_dict
+        # remove empty ingress and egress from each node
+        for each_node in topology_dict.values():
+            if len(each_node["topology"]["ingress"]) == 0:
+                each_node["topology"].pop("ingress", None)
+            if len(each_node["topology"]["egress"]) == 0:
+                each_node["topology"].pop("egress", None)
+
+        # now, we need to add the topology to the config
+        output_config["configs"] = topology_dict
 
     return output_config
 
