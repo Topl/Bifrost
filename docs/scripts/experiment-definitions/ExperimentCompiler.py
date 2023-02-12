@@ -80,39 +80,61 @@ def job_to_config(job: dict) -> dict:
     # we take the job format, which comes from the generator, and adapt it to the config format
     output_config = dict()
 
-    num_nodes = job["_num_producers"] + job["_num_relays"]
-    match job["_topology_type"]:
-        case "clique":
-            topology = networkx.complete_graph(num_nodes)
-        case "star":
-            topology = networkx.star_graph(num_nodes - 1)  # star graph has +1 node in networkx
-        case "ring":
-            topology = networkx.cycle_graph(num_nodes)
-        case "small world":
-            topology = networkx.watts_strogatz_graph(num_nodes, 4, 0.1)
-        case "erdos renyi":
-            topology = networkx.erdos_renyi_graph(num_nodes, 0.4)
-        case "custom":
-            assert "_topology_edges" in job, "Custom topology requires _topology_edges to be defined"
-            topology = networkx.DiGraph()
-            topology.add_nodes_from(range(num_nodes))
-            edge_attributes = dict()
-            for each_edge in job["_topology_edges"]:
-                topology.add_edge(each_edge[0], each_edge[1])
-                edge_attributes[(each_edge[0], each_edge[1])] = dict()
-                edge_attributes[(each_edge[0], each_edge[1])]["latency"] = each_edge[2]
-                edge_attributes[(each_edge[0], each_edge[1])]["download"] = each_edge[3]
-                edge_attributes[(each_edge[0], each_edge[1])]["upload"] = each_edge[4]
-            networkx.set_edge_attributes(topology, edge_attributes)
+    # let's load the template config file
+    assert "_template" in job, "No template file provided, but this is required. " \
+                               "Please add a '_template' key to the experiment file with the path to the template file."
+    if job["_template"][0] == '/':
+        template_path = pathlib.Path(job["_template"])  # absolute path
+    else:
+        template_path = pathlib.Path(__file__).parent / job["_template"]  # relative path
+    if not template_path.exists():
+        raise FileNotFoundError(f"Could not find template file at {template_path.absolute()}")
+    with template_path.open('r') as f:
+        output_config: dict = yaml.safe_load(f)
+    if "scenario" in output_config and "randomSeed" in output_config["scenario"]:
+        seed = output_config["scenario"]["randomSeed"]
+    else:
+        seed = 0
 
-        case _:
-            raise ValueError(f"Unknown topology type: {job['topology']}")
+    # now let's set up the topology
+    if "_topology_type" in job:
+        if "_num_producers" not in job:
+            job["_num_producers"] = 0
+        if "_num_relays" not in job:
+            job["_num_relays"] = 0
+        num_nodes = job["_num_producers"] + job["_num_relays"]
+        match job["_topology_type"]:
+            case "clique":
+                topology = networkx.complete_graph(num_nodes)
+            case "star":
+                topology = networkx.star_graph(num_nodes - 1)  # star graph has +1 node in networkx
+            case "ring":
+                topology = networkx.cycle_graph(num_nodes)
+            case "small world":
+                topology = networkx.watts_strogatz_graph(num_nodes, 4, 0.1, seed=seed)
+            case "erdos renyi":
+                topology = networkx.erdos_renyi_graph(num_nodes, 0.4, seed=seed)
+            case "custom":
+                assert "_topology_edges" in job, "Custom topology requires _topology_edges to be defined"
+                topology = networkx.DiGraph()
+                topology.add_nodes_from(range(num_nodes))
+                edge_attributes = dict()
+                for each_edge in job["_topology_edges"]:
+                    topology.add_edge(each_edge[0], each_edge[1])
+                    edge_attributes[(each_edge[0], each_edge[1])] = dict()
+                    edge_attributes[(each_edge[0], each_edge[1])]["latency"] = each_edge[2]
+                    edge_attributes[(each_edge[0], each_edge[1])]["download"] = each_edge[3]
+                    edge_attributes[(each_edge[0], each_edge[1])]["upload"] = each_edge[4]
+                networkx.set_edge_attributes(topology, edge_attributes)
 
-    # ensure the topology is a DiGraph, which we will use for other topology-based checks
-    topology = networkx.DiGraph(topology)
+            case _:
+                raise ValueError(f"Unknown topology type: {job['topology']}")
 
-    # we are temporarily ignoring all topology checks, but those will go here
-    # NYI
+        # ensure the topology is a DiGraph, which we will use for other topology-based checks
+        topology = networkx.DiGraph(topology)
+
+        # we are temporarily ignoring all topology checks, but those will go here
+        # NYI
 
     def _smart_split(s: str) -> list:
         # after we split the string, numeric values will be converted to int or float to match YAML assumptions
@@ -136,18 +158,6 @@ def job_to_config(job: dict) -> dict:
     #   the scenario section dictates experiment parameters
     #   the shared-config section dictates protocol parameters
     #   the configs section dictates the node configurations
-
-    # let's load the template config file
-    assert "_template" in job, "No template file provided, but this is required. " \
-                               "Please add a '_template' key to the experiment file with the path to the template file."
-    if job["_template"][0] == '/':
-        template_path = pathlib.Path(job["_template"])  # absolute path
-    else:
-        template_path = pathlib.Path(__file__).parent / job["_template"]  # relative path
-    if not template_path.exists():
-        raise FileNotFoundError(f"Could not find template file at {template_path.absolute()}")
-    with template_path.open('r') as f:
-        output_config: dict = yaml.safe_load(f)
 
     # debug
     print(yaml.safe_dump(output_config))
