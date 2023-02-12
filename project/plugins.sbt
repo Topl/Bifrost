@@ -4,7 +4,7 @@ logLevel := Level.Error
 addDependencyTreePlugin
 
 Seq(
-  "com.eed3si9n"            % "sbt-assembly"              % "2.0.0",
+  "com.eed3si9n"            % "sbt-assembly"              % "2.1.1",
   "org.scalastyle"         %% "scalastyle-sbt-plugin"     % "1.0.0",
   "org.scoverage"           % "sbt-scoverage"             % "2.0.6",
   "com.github.sbt"          % "sbt-release"               % "1.1.0",
