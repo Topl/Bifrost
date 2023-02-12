@@ -13,6 +13,8 @@ scenario:
   transactionsPerSecond: 1
   # the maximum timeout in wall clock time to reach the target height, in seconds
   scenarioTimeout: 1
+  # set the starting random seed, if deterministic behavior is desired
+  randomSeed: 0
 
 # These settings will apply to the configurations of all nodes.
 shared-config:
