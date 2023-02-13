@@ -1,8 +1,8 @@
 name: bifrost-consensus-testnet
 
 image:
-#  name: bifrost-node
-#  name: ghcr.io/topl/bifrost-node
+  #  name: bifrost-node
+  #  name: ghcr.io/topl/bifrost-node
   name: localhost:32000/topl/bifrost-node
   tag: latest
 
@@ -78,3 +78,10 @@ readinessProbe:
   initialDelaySeconds: 30
   timeoutSeconds: 30
   periodSeconds: 60
+
+serviceAccount:
+  create: true
+  name: bifrost-orchestrator-account
+
+rbac:
+  create: true
