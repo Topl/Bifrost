@@ -16,11 +16,14 @@ import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.{Ratio, Sized}
 import co.topl.typeclasses.implicits._
+import com.github.benmanes.caffeine.cache.Caffeine
 import scalacache.caffeine.CaffeineCache
-
 import scala.collection.immutable.NumericRange
+import scalacache.Entry
 
 object VrfCalculator {
+
+  private def caffeineCacheBuilder(vrfCacheSize: Long) = Caffeine.newBuilder.maximumSize(vrfCacheSize)
 
   def make[F[_]: Sync: Parallel](
     vkVrf:                    VerificationKeys.VrfEd25519,
@@ -28,21 +31,28 @@ object VrfCalculator {
     clock:                    ClockAlgebra[F],
     leaderElectionValidation: LeaderElectionValidationAlgebra[F],
     ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
-    vrfConfig:                VrfConfig
+    vrfConfig:                VrfConfig,
+    vrfCacheSize:             Long
   ): F[VrfCalculatorAlgebra[F]] =
-    (CaffeineCache[F, (Bytes, Long), Proofs.Knowledge.VrfEd25519], CaffeineCache[F, (Bytes, Long), Rho]).mapN(
-      (vrfProofsCache, rhosCache) =>
-        new Impl[F](
-          vkVrf,
-          skVrf,
-          clock,
-          leaderElectionValidation,
-          ed25519VRFResource,
-          vrfConfig,
-          vrfProofsCache,
-          rhosCache
+    for {
+      vrfProofsCache <- Sync[F].delay(
+        CaffeineCache(caffeineCacheBuilder(vrfCacheSize).build[(Bytes, Long), Entry[Proofs.Knowledge.VrfEd25519]]())
+      )
+      rhosCache <-
+        Sync[F].delay(
+          CaffeineCache(caffeineCacheBuilder(vrfCacheSize).build[(Bytes, Long), Entry[Rho]]())
         )
-    )
+      impl = new Impl[F](
+        vkVrf,
+        skVrf,
+        clock,
+        leaderElectionValidation,
+        ed25519VRFResource,
+        vrfConfig,
+        vrfProofsCache,
+        rhosCache
+      )
+    } yield impl
 
   private class Impl[F[_]: Sync: Parallel](
     vkVrf:                    VerificationKeys.VrfEd25519,
