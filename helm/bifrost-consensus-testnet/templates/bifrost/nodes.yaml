@@ -151,11 +151,11 @@ spec:
             - /etc/config/delayer.yaml
           resources:
             limits:
-              cpu: 500m
-              memory: 256Mi
+              cpu: 800m
+              memory: 384Mi
             requests:
-              cpu: 100m
-              memory: 256Mi
+              cpu: 200m
+              memory: 384Mi
           ports:
             - containerPort: {{ $Values.service.ports.p2p }}
             {{- range $index, $peer := $value.peers }}

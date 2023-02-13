@@ -34,7 +34,7 @@ object BlockProducer {
    *                    should immediately start constructing a result once created, and it should emit its best attempt
    *                    when demanded.
    */
-  def make[F[_]: Async: FToFuture](
+  def make[F[_]: Async](
     parentHeaders: Stream[F, SlotData],
     staker:        StakingAlgebra[F],
     clock:         ClockAlgebra[F],
@@ -42,7 +42,7 @@ object BlockProducer {
   ): F[BlockProducerAlgebra[F]] =
     staker.address.map(new Impl[F](_, parentHeaders, staker, clock, blockPacker))
 
-  private class Impl[F[_]: Async: FToFuture](
+  private class Impl[F[_]: Async](
     stakerAddress: StakingAddresses.Operator,
     parentHeaders: Stream[F, SlotData],
     staker:        StakingAlgebra[F],
@@ -51,7 +51,7 @@ object BlockProducer {
   ) extends BlockProducerAlgebra[F] {
 
     implicit private val logger: SelfAwareStructuredLogger[F] =
-      Slf4jLogger.getLoggerFromClass[F](BlockProducer.getClass)
+      Slf4jLogger.getLoggerFromName[F]("Bifrost.BlockProducer")
 
     val blocks: F[Stream[F, Block]] =
       Sync[F].delay(

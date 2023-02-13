@@ -56,7 +56,7 @@ object ToplRpcServer {
     Async[F].delay {
       new ToplRpc[F, Stream[F, *]] {
         implicit private val logger: SelfAwareStructuredLogger[F] =
-          Slf4jLogger.getLoggerFromClass[F](ToplRpcServer.getClass)
+          Slf4jLogger.getLoggerFromName[F]("Bifrost.RPC.Server")
 
         def broadcastTransaction(transaction: Transaction): F[Unit] =
           // TODO model should change to new protobuf specs and not use Isomorphism
@@ -74,7 +74,7 @@ object ToplRpcServer {
                 .contains(id)
                 .ifM(
                   Logger[F].info(show"Received duplicate transaction id=$id"),
-                  Logger[F].info(show"Received RPC Transaction id=$id") >>
+                  Logger[F].debug(show"Received RPC Transaction id=$id") >>
                   syntacticValidateOrRaise(transaction)
                     .flatTap(_ => Logger[F].debug(show"Transaction id=$id is syntactically valid"))
                     .flatTap(processValidTransaction[F](transactionStore, mempool))
@@ -158,9 +158,9 @@ object ToplRpcServer {
     transactionStore: Store[F, TypedIdentifier, LTransaction],
     mempool:          MempoolAlgebra[F]
   )(transaction:      LTransaction) =
-    Logger[F].info(show"Inserting Transaction id=${transaction.id.asTypedBytes} into transaction store") >>
+    Logger[F].debug(show"Inserting Transaction id=${transaction.id.asTypedBytes} into transaction store") >>
     transactionStore.put(transaction.id, transaction) >>
-    Logger[F].info(show"Inserting Transaction id=${transaction.id.asTypedBytes} into mempool") >>
+    Logger[F].debug(show"Inserting Transaction id=${transaction.id.asTypedBytes} into mempool") >>
     mempool.add(transaction.id) >>
     Logger[F].info(show"Processed Transaction id=${transaction.id.asTypedBytes} from RPC")
 
