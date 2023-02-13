@@ -3,6 +3,9 @@ package co.topl.models
 import cats.data.Chain
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{Lengths, ReplaceModelUtil, Sized}
+import co.topl.{models => legacyModels}
+import legacyModels.SlotId
+import co.topl.consensus.models._
 import com.google.protobuf.ByteString
 
 // id = hash(headerBytes) INCLUDING kesCertificate proofs
@@ -14,8 +17,8 @@ case class BlockHeader(
   timestamp:              Timestamp,
   height:                 Long,
   slot:                   Slot,
-  eligibilityCertificate: EligibilityCertificate,
-  operationalCertificate: OperationalCertificate,
+  eligibilityCertificate: legacyModels.EligibilityCertificate,
+  operationalCertificate: legacyModels.OperationalCertificate,
   // TODO: Discussion on mint signatures
   metadata: Option[BlockHeader.Metadata],
   address:  StakingAddresses.Operator
@@ -35,7 +38,7 @@ object BlockHeader {
     timestamp:                     Timestamp,
     height:                        Long,
     slot:                          Slot,
-    eligibilityCertificate:        EligibilityCertificate,
+    eligibilityCertificate:        legacyModels.EligibilityCertificate,
     partialOperationalCertificate: Unsigned.PartialOperationalCertificate,
     metadata:                      Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
     address:                       StakingAddresses.Operator
@@ -51,14 +54,14 @@ object BlockHeader {
   }
 
   case class UnsignedConsensus( // TODO rename Unsigned
-    parentHeaderId:                co.topl.consensus.models.BlockId,
+    parentHeaderId:                BlockId,
     parentSlot:                    Slot,
     txRoot:                        ByteString,
     bloomFilter:                   ByteString,
     timestamp:                     Timestamp,
     height:                        Long,
     slot:                          Slot,
-    eligibilityCertificate:        co.topl.consensus.models.EligibilityCertificate,
+    eligibilityCertificate:        EligibilityCertificate,
     partialOperationalCertificate: UnsignedConsensus.PartialOperationalCertificate,
     metadata:                      ByteString,
     address:                       ByteString
@@ -67,15 +70,14 @@ object BlockHeader {
   object UnsignedConsensus { // TODO rename Unsigned
 
     case class PartialOperationalCertificate(
-      parentVK:        co.topl.consensus.models.VerificationKeyKesProduct,
-      parentSignature: co.topl.consensus.models.SignatureKesProduct,
-      childVK:         co.topl.crypto.models.VerificationKeyEd25519
+      parentVK:        VerificationKeyKesProduct,
+      parentSignature: SignatureKesProduct,
+      childVK:         VerificationKeyEd25519
     )
   }
 }
 
 // This is a synthetic type, and is not "identifiable"
-case class BlockOld(header: BlockHeader, body: BlockBody) // TODO Remove
 case class Block(header: co.topl.consensus.models.BlockHeader, body: co.topl.node.models.BlockBody)
 
 object BlockBody {
