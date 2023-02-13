@@ -3,12 +3,12 @@ import sbt._
 object Dependencies {
 
   val akkaVersion = "2.6.20"
-  val circeVersion = "0.14.3"
+  val circeVersion = "0.14.4"
   val kamonVersion = "2.5.12"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.9.0"
   val catsEffectVersion = "3.4.1"
-  val fs2Version = "3.6.0"
+  val fs2Version = "3.6.1"
   val logback = "1.4.5"
   val orientDbVersion = "3.2.16"
 
@@ -243,7 +243,7 @@ object Dependencies {
     mUnitTest ++
     Seq(
       protobufSpecs,
-      "io.grpc" % "grpc-netty-shaded" % "1.52.1"
+      "io.grpc" % "grpc-netty-shaded" % "1.53.0"
     )
 
   lazy val levelDbStore: Seq[ModuleID] =
