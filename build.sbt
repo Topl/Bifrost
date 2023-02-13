@@ -54,7 +54,7 @@ lazy val commonSettings = Seq(
 
 lazy val dockerSettings = Seq(
   dockerBaseImage := "eclipse-temurin:11-jre",
-  dockerUpdateLatest := true,
+  dockerUpdateLatest := sys.env.get("DOCKER_PUBLISH_LATEST_TAG").fold(true)(_.toBoolean),
   dockerLabels ++= Map(
     "bifrost.version" -> version.value
   ),

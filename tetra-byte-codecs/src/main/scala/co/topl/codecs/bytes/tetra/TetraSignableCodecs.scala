@@ -2,8 +2,7 @@ package co.topl.codecs.bytes.tetra
 
 import co.topl.codecs.bytes.typeclasses._
 import co.topl.{models => legacyModels}
-import co.topl.consensus.models.{BlockHeader, BlockId}
-import co.topl.crypto.models.VerificationKeyEd25519
+import co.topl.consensus.models.{BlockHeader, BlockId, VerificationKeyEd25519}
 import co.topl.models.utility._
 import com.google.protobuf.ByteString
 

@@ -10,14 +10,14 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout current branch
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
           submodules: true
-      - uses: olafurpg/setup-scala@v10
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -30,4 +30,4 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push images to registries
-        run: sbt Docker/publish
+        run: DOCKER_PUBLISH_LATEST_TAG=false sbt node/Docker/publish
