@@ -1,14 +1,12 @@
 package co.topl.networking
 
-import co.topl.networking.p2p.{ConnectedPeer, ConnectionLeader, ConnectionLeaders}
+import co.topl.networking.p2p.{ConnectedPeer, ConnectionLeader, ConnectionLeaders, RemoteAddress}
 import org.scalacheck.{Arbitrary, Gen}
-
-import java.net.InetSocketAddress
 
 trait NetworkGen {
 
-  implicit val arbitraryInetSocketAddress: Arbitrary[InetSocketAddress] =
-    Arbitrary(Gen.chooseNum[Int](0, 65535).map(port => InetSocketAddress.createUnresolved("localhost", port)))
+  implicit val arbitraryRemoteAddress: Arbitrary[RemoteAddress] =
+    Arbitrary(Gen.chooseNum[Int](0, 65535).map(port => RemoteAddress("localhost", port)))
 
   implicit val arbitraryCoordinate: Arbitrary[(Double, Double)] =
     Arbitrary(
@@ -21,7 +19,7 @@ trait NetworkGen {
   implicit val arbitraryConnectedPeer: Arbitrary[ConnectedPeer] =
     Arbitrary(
       for {
-        address    <- arbitraryInetSocketAddress.arbitrary
+        address    <- arbitraryRemoteAddress.arbitrary
         coordinate <- arbitraryCoordinate.arbitrary
       } yield ConnectedPeer(address, coordinate)
     )

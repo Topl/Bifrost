@@ -7,9 +7,9 @@ import co.topl.codecs.bytes.typeclasses.Identifiable
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.models._
 import co.topl.models.utility._
+
 import co.topl.consensus.{models => consensusModels}
 import com.google.protobuf.ByteString
-import java.net.InetSocketAddress
 import java.time.Instant
 
 trait ShowInstances {
@@ -29,14 +29,25 @@ trait ShowInstances {
   implicit def showSizedBytes[Data: Show, L <: Length](implicit l: L): Show[Sized.Strict[Data, L]] =
     sized => show"[${l.value}](${sized.data})"
 
+  implicit val showIoTransaction32Id: Show[co.topl.brambl.models.Identifier.IoTransaction32] =
+    t => show"t_${t.evidence.digest.value: Bytes}"
+
+  implicit val showBlockId: Show[co.topl.consensus.models.BlockId] =
+    b => show"b_${b.value: Bytes}"
+
   implicit val showTypedIdentifier: Show[TypedIdentifier] =
-    showBytes.contramap[TypedIdentifier](_.allBytes)
+    id =>
+      id.typePrefix match {
+        case IdentifierTypes.Block.HeaderV2 =>
+          show"b_${id.dataBytes}"
+        case IdentifierTypes.Transaction =>
+          show"t_${id.dataBytes}"
+        case p =>
+          show"c${p}_${id.dataBytes}"
+      }
 
   implicit val showSlotId: Show[SlotId] =
     slotID => show"{${slotID.slot},${slotID.blockId}}"
-
-  implicit val showConsensusBlockId: Show[consensusModels.BlockId] =
-    showBytes.contramap[consensusModels.BlockId](_.value)
 
   implicit val showConsensusSlotId: Show[consensusModels.SlotId] =
     slotID => show"{${slotID.slot},${slotID.blockId}}"
@@ -72,9 +83,6 @@ trait ShowInstances {
 
   implicit val showNodeBlockBody: Show[co.topl.node.models.BlockBody] =
     body => show"${body.transactionIds.map(t => t: TypedIdentifier)}"
-
-  implicit val showInetSocketAddress: Show[InetSocketAddress] =
-    address => s"${address.getHostName}:${address.getPort}"
 
   implicit val showBoxId: Show[Box.Id] =
     boxId => show"${boxId.transactionId}.outputs[${boxId.transactionOutputIndex}]"

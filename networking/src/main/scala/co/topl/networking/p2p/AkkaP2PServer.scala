@@ -1,15 +1,16 @@
 package co.topl.networking.p2p
 
-import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.scaladsl._
 import akka.util.ByteString
-import cats._
+import cats.Parallel
+import cats.data.EitherT
 import cats.effect._
-import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.catsakka._
 import org.typelevel.log4cats.Logger
+import fs2._
+import fs2.concurrent.Topic
 
 import java.net.InetSocketAddress
 import scala.concurrent.{ExecutionContext, Future}
@@ -21,74 +22,51 @@ import scala.concurrent.{ExecutionContext, Future}
  */
 object AkkaP2PServer {
 
-  def make[F[_]: Async: Logger: FToFuture, Client](
+  def make[F[_]: Async: Parallel: Logger: FToFuture, Client](
     host:            String,
     port:            Int,
     localPeer:       LocalPeer,
-    remotePeers:     Source[DisconnectedPeer, _],
+    remotePeers:     Stream[F, DisconnectedPeer],
     peerHandler:     ConnectedPeer => F[Flow[ByteString, ByteString, F[Client]]]
-  )(implicit system: ActorSystem): F[P2PServer[F, Client]] = {
-    def localAddress_ = localPeer.localAddress
+  )(implicit system: ActorSystem): Resource[F, P2PServer[F, Client]] = {
     import system.dispatcher
     for {
-      ((offerConnectionChange, completeConnectionChanges), connectionChangesSource) <- Source
-        .backpressuredQueue[F, PeerConnectionChange[Client]](128)
-        .toMat(BroadcastHub.sink)(Keep.both)
-        .liftTo[F]
-      addPeersSink = makeAddPeersSink(offerConnectionChange)
-      peerHandlerFlowWithRemovalF = makePeerHandlerFlowWithRemovalF(peerHandler, offerConnectionChange)
-      serverBindingRunnableGraph = makeServerBindingRunnableGraph(
+      topic <- Resource.make(Topic[F, PeerConnectionChange[Client]])(_.close.void)
+      addConnectionChange =
+        (change: PeerConnectionChange[Client]) =>
+          EitherT(topic.publish1(change)).leftMap(_ => new IllegalStateException("Topic closed")).rethrowT
+      addConnectedPeer =
+        (connectedPeer: ConnectedPeer, clientF: F[Client]) =>
+          clientF.flatMap(c => addConnectionChange(PeerConnectionChanges.ConnectionEstablished(connectedPeer, c)))
+      peerHandlerFlowWithRemovalF = makePeerHandlerFlowWithRemovalF(peerHandler, addConnectionChange)
+      _ <- outboundConnectionsProcess(
+        localPeer,
+        remotePeers,
+        addConnectionChange,
+        peerHandlerFlowWithRemovalF,
+        addConnectedPeer
+      )
+      _ <- inboundConnectionsProcess(
         host,
         port,
-        offerConnectionChange,
+        addConnectionChange,
         peerHandlerFlowWithRemovalF,
-        addPeersSink
+        addConnectedPeer
       )
-      outboundConnectionsRunnableGraph =
-        makeOutboundConnectionsRunnableGraph(
-          localPeer,
-          remotePeers,
-          offerConnectionChange,
-          peerHandlerFlowWithRemovalF,
-          addPeersSink
-        )
-      (serverBindingFuture, serverBindingCompletionFuture) <- serverBindingRunnableGraph.liftTo[F]
-      serverBinding                                        <- Async[F].fromFuture(serverBindingFuture.pure[F])
-      remoteConnectionsCompletionFuture                    <- outboundConnectionsRunnableGraph.liftTo[F]
-      _                                                    <- Logger[F].info("P2P Server Running")
+      _ <- Resource.eval(Logger[F].info("P2P Server Running"))
     } yield new P2PServer[F, Client] {
-      def stop(): F[Unit] =
-        Async[F]
-          .fromFuture(
-            Sync[F].delay(
-              (serverBinding.unbind() >> serverBinding.whenUnbound >> serverBindingCompletionFuture)
-                .zip(remoteConnectionsCompletionFuture)
-            )
-          )
-          .void
 
-      def peerChanges: F[Source[PeerConnectionChange[Client], NotUsed]] =
-        connectionChangesSource.pure[F]
+      def peerChanges: F[Topic[F, PeerConnectionChange[Client]]] =
+        topic.pure[F]
 
-      val localAddress: F[InetSocketAddress] =
-        localAddress_.pure[F]
+      val localAddress: F[RemoteAddress] =
+        localPeer.localAddress.pure[F]
     }
   }
 
-  private def makeAddPeersSink[F[_]: Monad: FToFuture, Client](
-    offerConnectionChange: PeerConnectionChange[Client] => F[Unit]
-  ) =
-    Flow[(ConnectedPeer, F[Client])]
-      .tapAsyncF(1) { case (connectedPeer, clientF) =>
-        clientF
-          .map(PeerConnectionChanges.ConnectionEstablished(connectedPeer, _))
-          .flatMap(offerConnectionChange)
-      }
-      .to(Sink.ignore)
-
   private def makePeerHandlerFlowWithRemovalF[F[_]: FToFuture, Client](
-    peerHandler:           ConnectedPeer => F[Flow[ByteString, ByteString, F[Client]]],
-    offerConnectionChange: PeerConnectionChange[Client] => F[Unit]
+    peerHandler:         ConnectedPeer => F[Flow[ByteString, ByteString, F[Client]]],
+    addConnectionChange: PeerConnectionChange[Client] => F[Unit]
   ) =
     (connectedPeer: ConnectedPeer) =>
       Flow
@@ -96,58 +74,81 @@ object AkkaP2PServer {
         .alsoTo(
           Sink.onComplete[ByteString](result =>
             implicitly[FToFuture[F]].apply(
-              offerConnectionChange(PeerConnectionChanges.ConnectionClosed(connectedPeer, result.failed.toOption))
+              addConnectionChange(PeerConnectionChanges.ConnectionClosed(connectedPeer, result.failed.toOption))
             )
           )
         )
 
-  private def makeServerBindingRunnableGraph[F[_]: Monad: Logger: FToFuture, Client](
+  private def inboundConnectionsProcess[F[_]: Async: Logger: FToFuture, Client](
     host:                        String,
     port:                        Int,
-    offerConnectionChange:       PeerConnectionChange[Client] => F[Unit],
+    addConnectionChange:         PeerConnectionChange[Client] => F[Unit],
     peerHandlerFlowWithRemovalF: ConnectedPeer => Flow[ByteString, ByteString, Future[F[Client]]],
-    addPeersSink:                Sink[(ConnectedPeer, F[Client]), NotUsed]
-  )(implicit system:             ActorSystem, ec: ExecutionContext) =
-    Tcp()
-      .bind(host, port)
-      .tapAsyncF(1)(conn =>
-        Logger[F].info(s"Inbound peer connection from address=${conn.remoteAddress}") *>
-        offerConnectionChange(PeerConnectionChanges.InboundConnectionInitializing(conn.remoteAddress))
-      )
-      .mapAsync(1) { conn =>
-        val connectedPeer = ConnectedPeer(conn.remoteAddress, (0, 0))
-        conn.handleWith(peerHandlerFlowWithRemovalF(connectedPeer)).tupleLeft(connectedPeer)
-      }
-      .alsoTo(addPeersSink)
-      .toMat(Sink.ignore)(Keep.both)
-      .withLogAttributes
-
-  private def makeOutboundConnectionsRunnableGraph[F[_]: Async: FToFuture: Logger, Client](
-    localPeer:                   LocalPeer,
-    remotePeers:                 Source[DisconnectedPeer, _],
-    offerConnectionChange:       PeerConnectionChange[Client] => F[Unit],
-    peerHandlerFlowWithRemovalF: ConnectedPeer => Flow[ByteString, ByteString, Future[F[Client]]],
-    addPeersSink:                Sink[(ConnectedPeer, F[Client]), NotUsed]
-  )(implicit system:             ActorSystem, ec: ExecutionContext) =
-    remotePeers
-      .filterNot(_.remoteAddress == localPeer.localAddress)
-      .tapAsyncF(1)(disconnectedPeer =>
-        Logger[F].info(s"Initializing outbound peer connection to address=${disconnectedPeer.remoteAddress}") *>
-        offerConnectionChange(PeerConnectionChanges.OutboundConnectionInitializing(disconnectedPeer.remoteAddress))
-      )
-      .map(disconnected => ConnectedPeer(disconnected.remoteAddress, disconnected.coordinate))
-      .mapAsyncF(1)(connectedPeer =>
+    addConnectedPeer:            (ConnectedPeer, F[Client]) => F[Unit]
+  )(implicit system:             ActorSystem, ec: ExecutionContext): Resource[F, Unit] =
+    Resource
+      .make(
         Tcp()
-          .outgoingConnection(connectedPeer.remoteAddress)
-          .joinMat(
-            Flow[ByteString]
-              .viaMat(peerHandlerFlowWithRemovalF(connectedPeer))(Keep.right)
-          )((_, r) => r.tupleLeft(connectedPeer))
+          .bind(host, port)
+          .tapAsyncF(1)(conn =>
+            Logger[F].info(s"Inbound peer connection from address=${conn.remoteAddress}") *>
+            addConnectionChange(
+              PeerConnectionChanges.InboundConnectionInitializing(
+                RemoteAddress(conn.remoteAddress.getHostString, conn.remoteAddress.getPort)
+              )
+            )
+          )
+          .mapAsync(1) { conn =>
+            val connectedPeer =
+              ConnectedPeer(RemoteAddress(conn.remoteAddress.getHostString, conn.remoteAddress.getPort), (0, 0))
+            conn.handleWith(peerHandlerFlowWithRemovalF(connectedPeer)).tupleLeft(connectedPeer)
+          }
+          .tapAsyncF(1)((addConnectedPeer.apply _).tupled)
+          .toMat(Sink.ignore)(Keep.both)
+          .withLogAttributes
           .liftTo[F]
-          .flatMap(future => Async[F].fromFuture(future.pure[F]))
-      )
-      .alsoTo(addPeersSink)
-      .toMat(Sink.ignore)(Keep.right)
-      .withLogAttributes
-      .mapMaterializedValue(_.void)
+          .flatMap(f => Async[F].fromFuture(Async[F].delay(f._1)).tupleRight(f._2))
+      ) { case (binding, completionFuture) =>
+        Async[F].fromFuture(Async[F].delay(binding.unbind())) >> Async[F]
+          .fromFuture(Async[F].delay(completionFuture))
+          .void
+      }
+      .void
+
+  private def outboundConnectionsProcess[F[_]: Async: Parallel: Logger, Client](
+    localPeer:                   LocalPeer,
+    remotePeers:                 Stream[F, DisconnectedPeer],
+    offerConnectionChange:       PeerConnectionChange[Client] => F[Unit],
+    peerHandlerFlowWithRemovalF: ConnectedPeer => Flow[ByteString, ByteString, Future[F[Client]]],
+    addPeer:                     (ConnectedPeer, F[Client]) => F[Unit]
+  )(implicit system:             ActorSystem): Resource[F, F[Outcome[F, Throwable, Unit]]] =
+    Async[F].background(
+      remotePeers
+        .filterNot(_.remoteAddress == localPeer.localAddress)
+        .evalTap(disconnectedPeer =>
+          Logger[F].info(s"Initializing outbound peer connection to address=${disconnectedPeer.remoteAddress}") *>
+          offerConnectionChange(PeerConnectionChanges.OutboundConnectionInitializing(disconnectedPeer.remoteAddress))
+        )
+        .map(disconnected => ConnectedPeer(disconnected.remoteAddress, disconnected.coordinate))
+        .evalMap(connectedPeer =>
+          Async[F].start(
+            Async[F]
+              .fromFuture(
+                Tcp()
+                  .outgoingConnection(
+                    InetSocketAddress
+                      .createUnresolved(connectedPeer.remoteAddress.host, connectedPeer.remoteAddress.port)
+                  )
+                  .joinMat(
+                    Flow[ByteString].viaMat(peerHandlerFlowWithRemovalF(connectedPeer))(Keep.right)
+                  )(Keep.right)
+                  .liftTo[F]
+              )
+              .flatMap(addPeer(connectedPeer, _))
+          )
+        )
+        .compile
+        .toList
+        .flatMap(_.parTraverse(_.joinWithUnit).void)
+    )
 }
