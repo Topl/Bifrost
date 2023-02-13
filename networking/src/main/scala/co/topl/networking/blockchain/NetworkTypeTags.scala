@@ -1,6 +1,7 @@
 package co.topl.networking.blockchain
 
-import co.topl.models.{BlockBody, BlockHeader, SlotData, Transaction, TypedIdentifier}
+import co.topl.consensus.models.SlotData
+import co.topl.models.{BlockBody, BlockHeader, Transaction, TypedIdentifier}
 import co.topl.networking.NetworkTypeTag
 import co.topl.networking.typedprotocols.TypedProtocol
 
@@ -33,16 +34,30 @@ object NetworkTypeTags {
     : NetworkTypeTag[TypedProtocol.CommonMessages.Response[SlotData]] =
     NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[SlotData]")
 
+  // TODO Remove after replace models
   implicit val commonMessagesResponseBlockHeaderNetworkTypeTag
     : NetworkTypeTag[TypedProtocol.CommonMessages.Response[BlockHeader]] =
     NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[BlockHeader]")
 
+  implicit val commonMessagesResponseConsunsesBlockHeaderNetworkTypeTag
+    : NetworkTypeTag[TypedProtocol.CommonMessages.Response[co.topl.consensus.models.BlockHeader]] =
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[BlockHeader]")
+
+  // TODO Remove after replace models
   implicit val commonMessagesResponseBlockBodyNetworkTypeTag
     : NetworkTypeTag[TypedProtocol.CommonMessages.Response[BlockBody]] =
     NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[BlockBody]")
 
+  implicit val commonMessagesResponseNodeBlockBodyNetworkTypeTag
+    : NetworkTypeTag[TypedProtocol.CommonMessages.Response[co.topl.node.models.BlockBody]] =
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[BlockBody]")
+
   implicit val commonMessagesResponseTransactionNetworkTypeTag
     : NetworkTypeTag[TypedProtocol.CommonMessages.Response[Transaction]] =
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[Transaction]")
+
+  implicit val commonMessagesResponseTransactionProtoNetworkTypeTag
+    : NetworkTypeTag[TypedProtocol.CommonMessages.Response[co.topl.proto.models.Transaction]] =
     NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[Transaction]")
 
   implicit val commonMessagesResponseTypedIdentifierNetworkTypeTag

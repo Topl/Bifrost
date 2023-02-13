@@ -6,8 +6,10 @@ import cats.effect.{Async, Resource}
 import cats.implicits._
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.models.{BlockBody, BlockHeader, SlotData, Transaction, TypedIdentifier}
-import co.topl.networking.TypedProtocolSetFactory.implicits._
+import co.topl.{models => legacyModels}
+import legacyModels.{Transaction, TypedIdentifier}
+import co.topl.consensus.models.{BlockHeader, SlotData}
+import co.topl.node.models.BlockBody
 import co.topl.networking._
 import co.topl.networking.blockchain.NetworkTypeTags._
 import co.topl.networking.p2p.{ConnectedPeer, ConnectionLeader}
@@ -30,7 +32,7 @@ object BlockchainPeerConnectionFlowFactory {
     (peer, leader) =>
       peerServerF(peer)
         .map(server => createFactory(server))
-        .flatMap(_.multiplexed(peer, leader))
+        .flatMap(TypedProtocolSetFactory.multiplexed(_)(peer, leader))
 
   private[blockchain] def createFactory[F[_]: Async: Logger](
     protocolServer: BlockchainPeerServerAlgebra[F]

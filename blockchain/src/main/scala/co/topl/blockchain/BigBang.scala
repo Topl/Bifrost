@@ -39,7 +39,7 @@ object BigBang {
   /**
    * Constructs a full block using the given Big Bang Configuration
    */
-  def block(implicit config: Config): Block.Full = {
+  def block(implicit config: Config): Block.Full = { // TODO move to Block.FullConsensus
     val transactions: Chain[Transaction] =
       Chain(
         Transaction(

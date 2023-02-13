@@ -3,6 +3,7 @@ package co.topl.crypto.signing
 import co.topl.crypto.utils.Generators.{genBytesWithBoundedSize, genRandomlySizedBytes}
 import co.topl.crypto.utils.Hex.implicits._
 import co.topl.crypto.utils.KesTestHelper
+import co.topl.models.utility.ReplaceModelUtil
 import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
 import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
@@ -30,9 +31,21 @@ class KesProductSpec
         val (_, vk2) = kesProduct.createKeyPair(seed2, (supHeight, subHeight), 0)
         val sig = kesProduct.sign(sk1, message1)
 
-        kesProduct.verify(sig, message1, vk1) shouldBe true
-        kesProduct.verify(sig, message1, vk2) shouldBe false
-        kesProduct.verify(sig, message2, vk1) shouldBe false
+        kesProduct.verify(
+          ReplaceModelUtil.signatureKesProduct(sig),
+          message1,
+          ReplaceModelUtil.verificationKeyKesProduct(vk1)
+        ) shouldBe true
+        kesProduct.verify(
+          ReplaceModelUtil.signatureKesProduct(sig),
+          message1,
+          ReplaceModelUtil.verificationKeyKesProduct(vk2)
+        ) shouldBe false
+        kesProduct.verify(
+          ReplaceModelUtil.signatureKesProduct(sig),
+          message2,
+          ReplaceModelUtil.verificationKeyKesProduct(vk1)
+        ) shouldBe false
       }
     }
   }
@@ -330,10 +343,26 @@ class KesProductSpec
     sig_1 shouldBe specOut_sig_1
     sig_2 shouldBe specOut_sig_2
     sig_3 shouldBe specOut_sig_3
-    kesProduct.verify(sig_0, specIn_msg, vk) shouldBe true
-    kesProduct.verify(sig_1, specIn_msg, vk_1) shouldBe true
-    kesProduct.verify(sig_2, specIn_msg, vk_2) shouldBe true
-    kesProduct.verify(sig_3, specIn_msg, vk_3) shouldBe true
+    kesProduct.verify(
+      ReplaceModelUtil.signatureKesProduct(sig_0),
+      specIn_msg,
+      ReplaceModelUtil.verificationKeyKesProduct(vk)
+    ) shouldBe true
+    kesProduct.verify(
+      ReplaceModelUtil.signatureKesProduct(sig_1),
+      specIn_msg,
+      ReplaceModelUtil.verificationKeyKesProduct(vk_1)
+    ) shouldBe true
+    kesProduct.verify(
+      ReplaceModelUtil.signatureKesProduct(sig_2),
+      specIn_msg,
+      ReplaceModelUtil.verificationKeyKesProduct(vk_2)
+    ) shouldBe true
+    kesProduct.verify(
+      ReplaceModelUtil.signatureKesProduct(sig_3),
+      specIn_msg,
+      ReplaceModelUtil.verificationKeyKesProduct(vk_3)
+    ) shouldBe true
   }
 
   it should "Test Vector - 2 - Generate and verify a specified product composition signature at t = [0, 2, 4, 6] using a provided seed, message, and heights of the two trees" in {
@@ -457,10 +486,26 @@ class KesProductSpec
     sig_1 shouldBe specOut_sig_1
     sig_2 shouldBe specOut_sig_2
     sig_3 shouldBe specOut_sig_3
-    kesProduct.verify(sig_0, specIn_msg, vk) shouldBe true
-    kesProduct.verify(sig_1, specIn_msg, vk_1) shouldBe true
-    kesProduct.verify(sig_2, specIn_msg, vk_2) shouldBe true
-    kesProduct.verify(sig_3, specIn_msg, vk_3) shouldBe true
+    kesProduct.verify(
+      ReplaceModelUtil.signatureKesProduct(sig_0),
+      specIn_msg,
+      ReplaceModelUtil.verificationKeyKesProduct(vk)
+    ) shouldBe true
+    kesProduct.verify(
+      ReplaceModelUtil.signatureKesProduct(sig_1),
+      specIn_msg,
+      ReplaceModelUtil.verificationKeyKesProduct(vk_1)
+    ) shouldBe true
+    kesProduct.verify(
+      ReplaceModelUtil.signatureKesProduct(sig_2),
+      specIn_msg,
+      ReplaceModelUtil.verificationKeyKesProduct(vk_2)
+    ) shouldBe true
+    kesProduct.verify(
+      ReplaceModelUtil.signatureKesProduct(sig_3),
+      specIn_msg,
+      ReplaceModelUtil.verificationKeyKesProduct(vk_3)
+    ) shouldBe true
   }
 
   it should "Test Vector - 3 - Generate and verify a specified product composition signature at t = [1, 3, 5, 7] using a provided seed, message, and heights of the two trees" in {
@@ -587,10 +632,26 @@ class KesProductSpec
     sig_1 shouldBe specOut_sig_1
     sig_2 shouldBe specOut_sig_2
     sig_3 shouldBe specOut_sig_3
-    kesProduct.verify(sig_0, specIn_msg, vk_0) shouldBe true
-    kesProduct.verify(sig_1, specIn_msg, vk_1) shouldBe true
-    kesProduct.verify(sig_2, specIn_msg, vk_2) shouldBe true
-    kesProduct.verify(sig_3, specIn_msg, vk_3) shouldBe true
+    kesProduct.verify(
+      ReplaceModelUtil.signatureKesProduct(sig_0),
+      specIn_msg,
+      ReplaceModelUtil.verificationKeyKesProduct(vk_0)
+    ) shouldBe true
+    kesProduct.verify(
+      ReplaceModelUtil.signatureKesProduct(sig_1),
+      specIn_msg,
+      ReplaceModelUtil.verificationKeyKesProduct(vk_1)
+    ) shouldBe true
+    kesProduct.verify(
+      ReplaceModelUtil.signatureKesProduct(sig_2),
+      specIn_msg,
+      ReplaceModelUtil.verificationKeyKesProduct(vk_2)
+    ) shouldBe true
+    kesProduct.verify(
+      ReplaceModelUtil.signatureKesProduct(sig_3),
+      specIn_msg,
+      ReplaceModelUtil.verificationKeyKesProduct(vk_3)
+    ) shouldBe true
   }
 
   it should "Test Vector - 4 - Generate and verify a specified product composition signature at t = [0, 5, 10, 15] using a provided seed, message, and heights of the two trees" in {
@@ -718,10 +779,26 @@ class KesProductSpec
     sig_1 shouldBe specOut_sig_1
     sig_2 shouldBe specOut_sig_2
     sig_3 shouldBe specOut_sig_3
-    kesProduct.verify(sig_0, specIn_msg, vk) shouldBe true
-    kesProduct.verify(sig_1, specIn_msg, vk_1) shouldBe true
-    kesProduct.verify(sig_2, specIn_msg, vk_2) shouldBe true
-    kesProduct.verify(sig_3, specIn_msg, vk_3) shouldBe true
+    kesProduct.verify(
+      ReplaceModelUtil.signatureKesProduct(sig_0),
+      specIn_msg,
+      ReplaceModelUtil.verificationKeyKesProduct(vk)
+    ) shouldBe true
+    kesProduct.verify(
+      ReplaceModelUtil.signatureKesProduct(sig_1),
+      specIn_msg,
+      ReplaceModelUtil.verificationKeyKesProduct(vk_1)
+    ) shouldBe true
+    kesProduct.verify(
+      ReplaceModelUtil.signatureKesProduct(sig_2),
+      specIn_msg,
+      ReplaceModelUtil.verificationKeyKesProduct(vk_2)
+    ) shouldBe true
+    kesProduct.verify(
+      ReplaceModelUtil.signatureKesProduct(sig_3),
+      specIn_msg,
+      ReplaceModelUtil.verificationKeyKesProduct(vk_3)
+    ) shouldBe true
   }
 
   it should "Test Vector - 5 - Generate and verify a specified product composition signature at t = [0, 21, 42, 63] using a provided seed, message, and heights of the two trees" in {
@@ -857,10 +934,25 @@ class KesProductSpec
     sig_1 shouldBe specOut_sig_1
     sig_2 shouldBe specOut_sig_2
     sig_3 shouldBe specOut_sig_3
-    kesProduct.verify(sig_0, specIn_msg, vk) shouldBe true
-    kesProduct.verify(sig_1, specIn_msg, vk_1) shouldBe true
-    kesProduct.verify(sig_2, specIn_msg, vk_2) shouldBe true
-    kesProduct.verify(sig_3, specIn_msg, vk_3) shouldBe true
+    kesProduct.verify(
+      ReplaceModelUtil.signatureKesProduct(sig_0),
+      specIn_msg,
+      ReplaceModelUtil.verificationKeyKesProduct(vk)
+    ) shouldBe true
+    kesProduct.verify(
+      ReplaceModelUtil.signatureKesProduct(sig_1),
+      specIn_msg,
+      ReplaceModelUtil.verificationKeyKesProduct(vk_1)
+    ) shouldBe true
+    kesProduct.verify(
+      ReplaceModelUtil.signatureKesProduct(sig_2),
+      specIn_msg,
+      ReplaceModelUtil.verificationKeyKesProduct(vk_2)
+    ) shouldBe true
+    kesProduct.verify(
+      ReplaceModelUtil.signatureKesProduct(sig_3),
+      specIn_msg,
+      ReplaceModelUtil.verificationKeyKesProduct(vk_3)
+    ) shouldBe true
   }
-
 }

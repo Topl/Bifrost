@@ -7,16 +7,25 @@ import co.topl.algebras.{ClockAlgebra, Store, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras._
-import co.topl.consensus.models.{BlockHeaderValidationFailure, BlockHeaderValidationFailures, VrfArgument}
+import co.topl.consensus.models.{
+  BlockHeader,
+  BlockHeaderValidationFailure,
+  BlockHeaderValidationFailures,
+  SlotId,
+  VrfArgument
+}
 import co.topl.crypto.signing.{Ed25519VRF, KesProduct}
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.Ed25519
-import co.topl.models._
+import co.topl.{models => legacyModels}
+import legacyModels._
 import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.{Ratio, Sized}
+import co.topl.models.utility._
+import co.topl.typeclasses.ContainsEvidence
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
 import scalacache.caffeine.CaffeineCache
+import scodec.bits.ByteVector
 
 /**
  * Interpreters for the ConsensusValidationAlgebra
@@ -82,8 +91,8 @@ object BlockHeaderValidation {
         .ensureOr(child => BlockHeaderValidationFailures.NonForwardTimestamp(child.timestamp, parent.timestamp))(
           child => child.timestamp > parent.timestamp
         )
-        .ensureOr(child => BlockHeaderValidationFailures.ParentMismatch(child.parentHeaderId, parent.id))(
-          _.parentHeaderId === parent.id
+        .ensureOr(child => BlockHeaderValidationFailures.ParentMismatch(child.parentHeaderId, parent.id))(child =>
+          (child.parentHeaderId: TypedIdentifier) === parent.id
         )
         .ensureOr(child => BlockHeaderValidationFailures.NonForwardHeight(child.height, parent.height))(
           _.height === parent.height + 1
@@ -110,14 +119,21 @@ object BlockHeaderValidation {
       header: BlockHeader
     ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
       EitherT
-        .liftF(etaInterpreter.etaToBe(header.parentSlotId, header.slot))
-        .flatMap(expectedEta =>
+        .liftF(
+          etaInterpreter.etaToBe(
+            SlotId.of(header.parentSlot, header.parentHeaderId),
+            header.slot
+          )
+        )
+        .flatMap { expectedEta => // TODO, create for comprehension, and create validation for empty vrfSig, and vrfVK
+
+          val eta = Sized.strictUnsafe[ByteVector, Eta.Length](header.eligibilityCertificate.eta)
           EitherT
             .cond[F](
-              header.eligibilityCertificate.eta === expectedEta,
+              eta === expectedEta,
               header,
               BlockHeaderValidationFailures
-                .InvalidEligibilityCertificateEta(header.eligibilityCertificate.eta, expectedEta)
+                .InvalidEligibilityCertificateEta(eta, expectedEta)
             )
             .flatMap(_ =>
               EitherT(
@@ -125,9 +141,9 @@ object BlockHeaderValidation {
                   .use { implicit ed25519vrf =>
                     ed25519vrf
                       .verify(
-                        header.eligibilityCertificate.vrfSig.bytes.data,
+                        header.eligibilityCertificate.vrfSig.value,
                         VrfArgument(expectedEta, header.slot).signableBytes,
-                        header.eligibilityCertificate.vkVRF.bytes.data
+                        header.eligibilityCertificate.vrfVK.value
                       )
                       .pure[F]
                   }
@@ -136,12 +152,15 @@ object BlockHeaderValidation {
                       _,
                       header,
                       BlockHeaderValidationFailures
-                        .InvalidEligibilityCertificateProof(header.eligibilityCertificate.vrfSig)
+                        .InvalidEligibilityCertificateProof(
+                          header.eligibilityCertificate.vrfSig
+                        )
                     )
                   )
               )
             )
-        )
+
+        }
 
     /**
      * Verifies the given block's Operational Certificate's parent -> linear commitment, and the Operational
@@ -156,7 +175,7 @@ object BlockHeaderValidation {
             kesProduct
               .verify(
                 header.operationalCertificate.parentSignature,
-                header.operationalCertificate.childVK.bytes.data ++ Bytes(Longs.toByteArray(header.slot)),
+                (header.operationalCertificate.childVK.value: Bytes) ++ Bytes(Longs.toByteArray(header.slot)),
                 header.operationalCertificate.parentVK
               )
               .pure[F]
@@ -178,9 +197,9 @@ object BlockHeaderValidation {
                 // Use the ed25519 instance to verify the childSignature against the header's bytes
                 ed25519
                   .verify(
-                    header.operationalCertificate.childSignature.bytes.data,
+                    header.operationalCertificate.childSignature.value,
                     header.signableBytes,
-                    header.operationalCertificate.childVK.bytes.data
+                    header.operationalCertificate.childVK.value
                   )
                   .pure[F]
               )
@@ -204,7 +223,7 @@ object BlockHeaderValidation {
      */
     private def vrfThresholdFor(child: BlockHeader, parent: BlockHeader): F[Ratio] =
       consensusValidationState
-        .operatorRelativeStake(child.id, child.slot)(child.address)
+        .operatorRelativeStake(child.id, child.slot)(StakingAddresses.operatorFromProtoString(child.address))
         .flatMap(relativeStake =>
           leaderElection.getThreshold(
             relativeStake.getOrElse(Ratio.Zero),
@@ -219,10 +238,12 @@ object BlockHeaderValidation {
       header:    BlockHeader,
       threshold: Ratio
     ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
-      EitherT.cond(
-        header.eligibilityCertificate.thresholdEvidence === threshold.typedEvidence.evidence,
+      EitherT.cond[F](
+        ContainsEvidence
+          .ratioEvidenceFromProtobufString(header.eligibilityCertificate.thresholdEvidence)
+          .evidence === threshold.typedEvidence.evidence,
         header,
-        BlockHeaderValidationFailures.InvalidVrfThreshold(threshold)
+        BlockHeaderValidationFailures.InvalidVrfThreshold(threshold): BlockHeaderValidationFailure
       )
 
     /**
@@ -236,7 +257,9 @@ object BlockHeaderValidation {
         .liftF(
           ed25519VRFResource
             .use { implicit ed25519Vrf =>
-              ed25519Vrf.proofToHash(header.eligibilityCertificate.vrfSig.bytes.data).pure[F]
+              ed25519Vrf
+                .proofToHash(header.eligibilityCertificate.vrfSig.value)
+                .pure[F]
             }
             .map(rhoBytes => Rho(Sized.strictUnsafe(rhoBytes)))
             .flatMap(leaderElection.isSlotLeaderForThreshold(threshold))
@@ -257,27 +280,38 @@ object BlockHeaderValidation {
      */
     private[consensus] def registrationVerification(
       header: BlockHeader
-    ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
-      OptionT(consensusValidationState.operatorRegistration(header.id, header.slot)(header.address))
-        .map(_.vrfCommitment)
-        .toRight(BlockHeaderValidationFailures.Unregistered(header.address): BlockHeaderValidationFailure)
+    ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] = {
+      val address = StakingAddresses.operatorFromProtoString(header.address)
+      OptionT(consensusValidationState.operatorRegistration(header.id, header.slot)(address))
+        .map(_.toConsensusModel.vrfCommitment)
+        .toRight(BlockHeaderValidationFailures.Unregistered(address): BlockHeaderValidationFailure)
         .flatMapF(commitment =>
           for {
             message <- blake2b256Resource
-              .use(_.hash(header.eligibilityCertificate.vkVRF.bytes.data, header.address.vk.bytes.data).pure[F])
+              .use(
+                _.hash(
+                  header.eligibilityCertificate.vrfVK.value,
+                  StakingAddresses.operatorFromProtoString(header.address).vk.bytes.data
+                ).pure[F]
+              )
             isValid <- kesProductResource
-              .use(p => p.verify(commitment, message, header.operationalCertificate.parentVK.copy(step = 0)).pure[F])
+              .use(p =>
+                p.verify(commitment, message, header.operationalCertificate.parentVK.copy(step = 0)).pure[F]
+              ) // TODO get ParentVK could fail
           } yield Either.cond(
             isValid,
             header,
             BlockHeaderValidationFailures
               .RegistrationCommitmentMismatch(
                 commitment,
-                header.eligibilityCertificate.vkVRF,
-                header.address.vk
+                header.eligibilityCertificate.vrfVK,
+                address.vk
               )
           )
         )
+
+    }
+
   }
 
   object WithCache {
@@ -302,7 +336,9 @@ object BlockHeaderValidation {
                   .value
               )
 
-          private def validateParent(parent: BlockHeader): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
+          private def validateParent(
+            parent: BlockHeader
+          ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
             if (parent.parentSlot < 0)
               // TODO: Is this a security concern?
               // Could an adversary just "claim" the parentSlot is -1 to circumvent validation?

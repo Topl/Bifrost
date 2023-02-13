@@ -11,6 +11,8 @@
 out/
 *.iml
 .jvmopts
+.sbtopts
+localVersion.sbt
 
 # scala build folders
 target
@@ -32,23 +34,8 @@ ldb_main
 ldb_undo
 genus_db
 
-# for temporary experiments
-sheet.scala
-examples/src/main/scala/examples/sigmastate/
-examples/lib/
-dumps/
-local/
-local.conf
-localVersion.sbt
-
-# monitoring persistent data files
-monit/data/
-
 # docker
 docker/*.jar
 /node/project/build.properties
 /project/project/metals.sbt
 /project/project/project/metals.sbt
-
-.jvmopts
-.sbtopts

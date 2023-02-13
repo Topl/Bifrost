@@ -1,21 +1,24 @@
 package co.topl.genusLibrary.utils
 
-import co.topl.codecs.bytes.tetra.{TetraIdentifiableInstances, TetraScodecCodecs}
+import co.topl.codecs.bytes.tetra.TetraIdentifiableInstances
 import co.topl.genusLibrary.GenusException
-import co.topl.models.{BlockBody, BlockHeader, TypePrefix}
+import co.topl.consensus.models.BlockHeader
+import co.topl.node.models.BlockBody
+import co.topl.{models => legacyModels}
+import legacyModels.TypePrefix
 import scodec.Codec
 
 trait BlockUtils {
 
-  def getParentBlockId(header: BlockHeader): Array[Byte] = header.parentHeaderId.allBytes.toArray
+  def getParentBlockId(header: BlockHeader): Array[Byte] =
+    header.parentHeaderId.value.toByteArray
 
   def getBlockId(header: BlockHeader): Array[Byte] = {
-    val (typePrefix, bytes) = TetraIdentifiableInstances.identifiableBlockHeader.idOf(header)
+    val (typePrefix, bytes) = TetraIdentifiableInstances.identifiableConsensusBlockHeader.idOf(header)
     typedBytesTupleToByteArray((typePrefix, bytes.toArray))
   }
 
-  def blockBodyToByteArray(blockBody: BlockBody): Array[Byte] =
-    encodeToByteArray(blockBody, TetraScodecCodecs.blockBodyCodec, "BlockBody")
+  def blockBodyToByteArray(blockBody: BlockBody): Array[Byte] = blockBody.toByteArray
 
   def typedBytesTupleToByteArray(id: (TypePrefix, Array[Byte])): Array[Byte] = {
     val a: Array[Byte] = new Array(1 + id._2.length)

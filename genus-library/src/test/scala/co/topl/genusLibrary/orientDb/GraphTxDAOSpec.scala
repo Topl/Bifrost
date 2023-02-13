@@ -117,7 +117,7 @@ class GraphTxDAOSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
       (fooVertex
         .setProperty(_: String, _: AnyRef))
         .expects("bar", "john_doe")
-        .returns()
+        .returns(())
         .once()
 
       val response = graphTxDao.createVertex(elem)

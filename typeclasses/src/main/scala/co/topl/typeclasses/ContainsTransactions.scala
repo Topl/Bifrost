@@ -11,7 +11,7 @@ import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.hash.implicits._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
-import co.topl.models.utility.{Lengths, Sized}
+import co.topl.models.utility._
 import co.topl.models._
 import co.topl.typeclasses.IdentityOps._
 import simulacrum.{op, typeclass}
@@ -32,6 +32,9 @@ object ContainsTransactionIds {
     implicit val typedIdentifiersAsTxIds: ContainsTransactionIds[Seq[TypedIdentifier]] = identity
 
     implicit val blockBody: ContainsTransactionIds[BlockBody] = body => body.toSeq
+
+    implicit val blockNodeBody: ContainsTransactionIds[co.topl.node.models.BlockBody] = body =>
+      body.transactionIds.map(t => t: TypedIdentifier)
 
     implicit def containsTxToContainTxsId[G: ContainsTransactions]: ContainsTransactionIds[G] = txs =>
       implicitly[ContainsTransactions[G]].transactionsOf(txs).map(_.id.asTypedBytes)

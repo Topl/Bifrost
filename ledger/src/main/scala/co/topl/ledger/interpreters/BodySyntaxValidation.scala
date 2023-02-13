@@ -6,7 +6,10 @@ import cats.implicits._
 import cats.{Foldable, Order}
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
-import co.topl.models._
+import co.topl.models.utility._
+import co.topl.{models => legacyModels}
+import legacyModels._
+import co.topl.node.models.BlockBody
 
 import scala.collection.immutable.SortedSet
 
@@ -33,7 +36,7 @@ object BodySyntaxValidation {
          */
         def validate(body: BlockBody): F[ValidatedNec[BodySyntaxError, BlockBody]] =
           for {
-            transactions            <- body.toList.traverse(fetchTransaction)
+            transactions <- body.transactionIds.map(t => t: TypedIdentifier).toList.traverse(fetchTransaction)
             validatedDistinctInputs <- validateDistinctInputs(transactions).pure[F]
             validatedTransactions   <- transactions.foldMapM(validateTransaction)
           } yield validatedTransactions.combine(validatedDistinctInputs).as(body)

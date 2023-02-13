@@ -54,7 +54,7 @@ lazy val commonSettings = Seq(
 
 lazy val dockerSettings = Seq(
   dockerBaseImage := "eclipse-temurin:11-jre",
-  dockerUpdateLatest := true,
+  dockerUpdateLatest := sys.env.get("DOCKER_PUBLISH_LATEST_TAG").fold(true)(_.toBoolean),
   dockerLabels ++= Map(
     "bifrost.version" -> version.value
   ),
@@ -104,25 +104,14 @@ def assemblySettings(main: String) = Seq(
       case x if x.contains("google/protobuf")          => MergeStrategy.last
       case x                                           => old(x)
     }
-  },
-  assembly / assemblyExcludedJars := {
-    val cp = (assembly / fullClasspath).value
-    cp filter { el => el.data.getName == "ValkyrieInstrument-1.0.jar" }
   }
 )
 
 lazy val scalamacrosParadiseSettings =
   Seq(
-    scalacOptions ++= {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, v)) if v >= 13 =>
-          Seq(
-            "-Ymacro-annotations"
-          )
-        case _ =>
-          Nil
-      }
-    }
+    scalacOptions ++= Seq(
+      "-Ymacro-annotations"
+    )
   )
 
 lazy val commonScalacOptions = Seq(
@@ -136,16 +125,11 @@ lazy val commonScalacOptions = Seq(
 )
 
 javaOptions ++= Seq(
-  "-Xbootclasspath/a:ValkyrieInstrument-1.0.jar",
-  // from https://groups.google.com/d/msg/akka-user/9s4Yl7aEz3E/zfxmdc0cGQAJ
-  "-XX:+UseG1GC",
-  "-XX:+UseNUMA",
-  "-XX:+AlwaysPreTouch",
-  "-XX:+PerfDisableSharedMem",
-  "-XX:+ParallelRefProcEnabled",
-  "-XX:+UseStringDeduplication",
+  // Force the JVM to exit the first time it encounters an OOM error.  By default, it might not exit.
   "-XX:+ExitOnOutOfMemoryError",
-  "-Xss64m"
+  // Disables the shared memory space for JVM stats, thus preventing external processes from viewing memory/CPU stats.
+  // Disabled to prevent a potential security threat
+  "-XX:+PerfDisableSharedMem"
 )
 
 connectInput / run := true
@@ -359,7 +343,7 @@ lazy val tetraByteCodecs = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.codecs.bytes.tetra"
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.guava)
+  .settings(libraryDependencies ++= Dependencies.test ++ Seq(Dependencies.protobufSpecs))
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test", byteCodecs % "compile->compile;test->test", crypto)
 
@@ -664,7 +648,7 @@ lazy val genusLibrary = project
     tetraByteCodecs,
     toplGrpc,
     munitScalamock % "test->test",
-    numerics % "test->compile"
+    numerics       % "test->compile"
   )
 
 lazy val munitScalamock = project

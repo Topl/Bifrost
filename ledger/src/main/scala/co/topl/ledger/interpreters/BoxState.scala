@@ -9,9 +9,11 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.BoxStateAlgebra
-import co.topl.models.{BlockBody, Box, Transaction, TypedIdentifier}
+import co.topl.node.models.BlockBody
+import co.topl.{models => legacyModels}
+import co.topl.models.utility._
+import legacyModels.{Box, Transaction, TypedIdentifier}
 import co.topl.typeclasses.implicits._
-
 import scala.collection.immutable.SortedSet
 
 object BoxState {
@@ -62,7 +64,7 @@ object BoxState {
     fetchTransaction: TypedIdentifier => F[Transaction]
   )(state:            State[F], blockId: TypedIdentifier): F[State[F]] =
     for {
-      body         <- fetchBlockBody(blockId).map(_.toList)
+      body         <- fetchBlockBody(blockId).map(_.transactionIds.map(t => t: TypedIdentifier).toList)
       transactions <- body.traverse(fetchTransaction)
       _ <- transactions.traverse(transaction =>
         transaction.inputs.traverse(input =>
@@ -93,7 +95,7 @@ object BoxState {
     fetchTransaction: TypedIdentifier => F[Transaction]
   )(state:            State[F], blockId: TypedIdentifier): F[State[F]] =
     for {
-      body         <- fetchBlockBody(blockId).map(_.toList)
+      body         <- fetchBlockBody(blockId).map(_.transactionIds.map(t => t: TypedIdentifier).toList)
       transactions <- body.traverse(fetchTransaction)
       _ <- transactions.traverse(transaction =>
         state.remove(transaction.id) >>

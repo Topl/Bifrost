@@ -3,7 +3,10 @@ package co.topl.networking.blockchain
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
-import co.topl.models._
+import co.topl.{models => legacyModels}
+import legacyModels.{Bytes, Transaction, TypedBytes, TypedIdentifier}
+import co.topl.consensus.models.{BlockHeader, SlotData}
+import co.topl.node.models.BlockBody
 import co.topl.networking.p2p.ConnectedPeer
 import fs2._
 import org.scalacheck.Gen

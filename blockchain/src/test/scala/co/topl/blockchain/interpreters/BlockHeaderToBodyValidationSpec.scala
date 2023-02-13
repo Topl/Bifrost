@@ -28,7 +28,9 @@ class BlockHeaderToBodyValidationSpec extends CatsEffectSuite with ScalaCheckEff
   test("validation should success if block header txRoot is match header body") {
     PropF.forAllF { block: Block =>
       val merkleRootHash = block.body.merkleTreeRootHash
-      val correctBlock = block.copy(header = block.header.copy(txRoot = merkleRootHash))
+      val correctBlock = block.copy(header =
+        block.header.copy(txRoot = com.google.protobuf.ByteString.copyFrom(merkleRootHash.data.toArray))
+      )
       withMock {
         for {
           underTest <- BlockHeaderToBodyValidation.make[F]()

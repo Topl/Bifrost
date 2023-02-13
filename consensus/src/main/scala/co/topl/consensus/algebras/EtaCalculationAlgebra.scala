@@ -1,6 +1,7 @@
 package co.topl.consensus.algebras
 
-import co.topl.models.{Eta, Slot, SlotId}
+import co.topl.models.{Eta, Slot}
+import co.topl.consensus.models.SlotId
 
 trait EtaCalculationAlgebra[F[_]] {
 

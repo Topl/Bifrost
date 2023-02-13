@@ -667,7 +667,7 @@ trait ModelGenerators {
       genSizedStrictBytes[Lengths.`64`.type]().map(Rho(_))
     )
 
-  implicit val arbitrarySlotData: Arbitrary[SlotData] =
+  implicit val arbitrarySlotData: Arbitrary[SlotDataLegacy] =
     Arbitrary(
       for {
         slotId       <- arbitrarySlotId.arbitrary
@@ -675,7 +675,7 @@ trait ModelGenerators {
         rho          <- arbitraryRho.arbitrary
         eta          <- etaGen
         height       <- Gen.posNum[Long]
-      } yield SlotData(slotId, parentSlotId, rho, eta, height)
+      } yield SlotDataLegacy(slotId, parentSlotId, rho, eta, height)
     )
 
   implicit val arbitraryHeader: Arbitrary[BlockHeader] =
@@ -691,8 +691,8 @@ trait ModelGenerators {
   implicit val arbitraryBlock: Arbitrary[Block] =
     Arbitrary(
       for {
-        header <- arbitraryHeader.arbitrary
-        body   <- arbitraryBody.arbitrary
+        header <- co.topl.models.generators.consensus.ModelGenerators.arbitraryHeader.arbitrary
+        body   <- co.topl.models.generators.node.ModelGenerators.arbitraryNodeBody.arbitrary
       } yield Block(header, body)
     )
 

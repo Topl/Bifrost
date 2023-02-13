@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v**"
+
+jobs:
+  validate-helm:
+    uses: ./.github/workflows/_validate_helm.yml
+  sbt-build:
+    uses: ./.github/workflows/_sbt_build.yml
+    with:
+      preserve-cache-between-runs: true
+  sbt-integration-tests:
+    uses: ./.github/workflows/_sbt_integration_tests.yml
+    needs: [sbt-build]
+    with:
+      preserve-cache-between-runs: true
+  publish-docker-images-official:
+    uses: ./.github/workflows/_docker_publish_public.yml
+    needs: [sbt-build, sbt-integration-tests]
+    secrets: inherit
+  build-jar:
+    uses: ./.github/workflows/_sbt_jar.yml
+    needs: [sbt-build, sbt-integration-tests]
+  create-release:
+    runs-on: ubuntu-latest
+    needs: [sbt-build, sbt-integration-tests, build-jar]
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: Bifrost Node Jar (11)
+
+      - name: Find JAR
+        run: echo "JAR_LOCATION=$(find . -maxdepth 1 -name "*.jar")" >> $GITHUB_ENV
+
+      - name: Set MD5 Location
+        run: echo "MD5_LOCATION=$(basename ${{ env.JAR_LOCATION }}).md5" >> $GITHUB_ENV
+
+      - name: Set SHA256 Location
+        run: echo "SHA256_LOCATION=$(basename ${{ env.JAR_LOCATION }}).sha256" >> $GITHUB_ENV
+
+      - name: Generate MD5 Checksum
+        run: md5sum ${{ env.JAR_LOCATION }} > ${{ env.MD5_LOCATION }}
+
+      - name: Generate SHA256 Checksum
+        run: sha256sum ${{ env.JAR_LOCATION }} > ${{ env.SHA256_LOCATION }}
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          fail_on_unmatched_files: true
+          files: |
+            ${{ env.JAR_LOCATION }}
+            ${{ env.MD5_LOCATION }}
+            ${{ env.SHA256_LOCATION }}

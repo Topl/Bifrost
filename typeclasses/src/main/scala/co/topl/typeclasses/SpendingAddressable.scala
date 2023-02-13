@@ -9,6 +9,7 @@ trait SpendingAddressable[T] {
   def spendingAddressOf(t: T): SpendingAddress
 }
 
+// TODO SpendingAddress should be replaced with [[co.topl.proto.models.SpendingAddress]]
 object SpendingAddressable {
 
   trait Instances {

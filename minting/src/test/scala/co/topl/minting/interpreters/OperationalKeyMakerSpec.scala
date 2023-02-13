@@ -14,15 +14,16 @@ import co.topl.interpreters.CatsUnsafeResource
 import co.topl.minting.algebras.{OperationalKeyMakerAlgebra, VrfCalculatorAlgebra}
 import co.topl.models.ModelGenerators._
 import co.topl.models._
-import co.topl.models.utility.Ratio
+import co.topl.models.utility.{Ratio, ReplaceModelUtil}
+import co.topl.consensus.models.{BlockId, SlotId}
 import com.google.common.primitives.Longs
+import com.google.protobuf.ByteString
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{EitherValues, OptionValues}
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import org.typelevel.log4cats.Logger
-
 import scala.collection.immutable.NumericRange
 import scala.util.Random
 
@@ -50,7 +51,7 @@ class OperationalKeyMakerSpec
       val vrfProof = mock[VrfCalculatorAlgebra[F]]
       val etaCalculation = mock[EtaCalculationAlgebra[F]]
       val consensusState = mock[ConsensusValidationStateAlgebra[F]]
-      val parentSlotId = SlotId(10L, TypedBytes(1: Byte, Bytes.fill(32)(0: Byte)))
+      val parentSlotId = SlotId(10L, BlockId.of(ByteString.copyFrom(Array.fill(32)(0: Byte))))
       val operationalPeriodLength = 30L
       val activationOperationalPeriod = 0L
       val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L)
@@ -131,9 +132,9 @@ class OperationalKeyMakerSpec
         out.parentVK shouldBe vk
         kesProduct
           .verify(
-            out.parentSignature,
+            ReplaceModelUtil.signatureKesProduct(out.parentSignature),
             ed25519.getVerificationKey(out.childSK.bytes.data) ++ Bytes(Longs.toByteArray(i)),
-            vk
+            ReplaceModelUtil.verificationKeyKesProduct(vk)
           )
       }
     }
@@ -146,7 +147,7 @@ class OperationalKeyMakerSpec
       val vrfProof = mock[VrfCalculatorAlgebra[F]]
       val etaCalculation = mock[EtaCalculationAlgebra[F]]
       val consensusState = mock[ConsensusValidationStateAlgebra[F]]
-      val parentSlotId = SlotId(10L, TypedBytes(1: Byte, Bytes.fill(32)(0: Byte)))
+      val parentSlotId = SlotId(10L, BlockId.of(ByteString.copyFrom(Array.fill(32)(0: Byte))))
       val operationalPeriodLength = 30L
       val activationOperationalPeriod = 0L
       val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L)
@@ -237,9 +238,9 @@ class OperationalKeyMakerSpec
         out.parentVK shouldBe vk.copy(step = 1)
         kesProduct
           .verify(
-            out.parentSignature,
+            ReplaceModelUtil.signatureKesProduct(out.parentSignature),
             ed25519.getVerificationKey(out.childSK.bytes.data) ++ Bytes(Longs.toByteArray(i)),
-            vk.copy(step = 1)
+            ReplaceModelUtil.verificationKeyKesProduct(vk.copy(step = 1))
           )
       }
     }

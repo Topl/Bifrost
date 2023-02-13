@@ -26,7 +26,6 @@ import java.util.concurrent.TimeoutException
 
 /**
  * Helper for transforming a collection of Typed Sub Handlers into a multiplexed akka stream Flow
- * @tparam F
  * @tparam Client a Client type for interacting with the live-running connection.  (This value is materialized by the
  *                multiplexer Flow)
  */
@@ -43,109 +42,97 @@ trait TypedProtocolSetFactory[F[_], Client] {
 
 object TypedProtocolSetFactory {
 
-  trait Ops {
+  def multiplexed[F[_]: Async: FToFuture: Logger, Client](
+    factory: TypedProtocolSetFactory[F, Client]
+  )(
+    connectedPeer:    ConnectedPeer,
+    connectionLeader: ConnectionLeader
+  ): Resource[F, Flow[ByteString, ByteString, Client]] =
+    multiplexerHandlersIn(factory)(connectedPeer, connectionLeader)
+      .map { case (subHandlers, client) =>
+        Multiplexer(subHandlers, client)
+      }
 
-    implicit class TypedProtocolSetFactoryMultiplexer[F[_]: Async: FToFuture: Logger, Client](
-      factory: TypedProtocolSetFactory[F, Client]
-    ) {
-
-      def multiplexed(
-        connectedPeer:    ConnectedPeer,
-        connectionLeader: ConnectionLeader
-      ): Resource[F, Flow[ByteString, ByteString, Client]] =
-        multiplexerHandlersIn(connectedPeer, connectionLeader).map { case (subHandlers, client) =>
-          Multiplexer(subHandlers, client)
-        }
-
-      private def multiplexerHandlersIn(
-        connectedPeer:    ConnectedPeer,
-        connectionLeader: ConnectionLeader
-      ): Resource[F, (NonEmptyChain[SubHandler], Client)] =
-        Resource
-          .eval(factory.protocolsForPeer(connectedPeer, connectionLeader))
-          .flatMap { case (typedProtocolSet, client) =>
-            typedProtocolSet
-              .traverse { multiplexedSubHandler =>
-                val sh =
-                  multiplexedSubHandler.asInstanceOf[TypedSubHandler[F, multiplexedSubHandler.InState]]
-                val s = sh.initialState.asInstanceOf[Any]
-                implicit val ct: NetworkTypeTag[Any] = sh.initialStateNetworkTypeTag.asInstanceOf[NetworkTypeTag[Any]]
-                Resource
-                  .eval(sh.instance.applier(s))
-                  .flatMap(applier =>
-                    handlerSource(multiplexedSubHandler, applier, multiplexedSubHandler.sessionId).toAkkaSource
-                      .map(
-                        SubHandler(
-                          multiplexedSubHandler.sessionId,
-                          handlerSink(multiplexedSubHandler, applier, multiplexedSubHandler.sessionId),
-                          _
-                        )
-                      )
-                  )
-              }
-              .tupleRight(client)
-          }
-
-      private def handlerSink(
-        multiplexedSubHandler: TypedSubHandler[F, _],
-        applier:               TypedProtocolInstance[F]#MessageApplier,
-        protocolInstanceId:    Byte
-      ): Sink[ByteString, NotUsed] =
-        MessageParserFramer()
-          .map { case (prefix, data) =>
-            multiplexedSubHandler.codec.decode(prefix)(ByteVector(data.toArray)) match {
-              case Right(value)  => value
-              case Left(failure) => throw new IllegalArgumentException(failure.toString)
-            }
-          }
-          .log(s"Received inbound message in protocolInstanceId=$protocolInstanceId", _._1)
-          .mapAsyncF(1) { case (decodedData, networkTypeTag) =>
-            EitherT(
-              applier.apply(decodedData, multiplexedSubHandler.instance.localParty.opposite)(
-                networkTypeTag.asInstanceOf[NetworkTypeTag[Any]]
+  private def multiplexerHandlersIn[F[_]: Async: FToFuture: Logger, Client](
+    factory: TypedProtocolSetFactory[F, Client]
+  )(
+    connectedPeer:    ConnectedPeer,
+    connectionLeader: ConnectionLeader
+  ): Resource[F, (NonEmptyChain[SubHandler], Client)] =
+    Resource
+      .eval(factory.protocolsForPeer(connectedPeer, connectionLeader))
+      .flatMap { case (typedProtocolSet, client) =>
+        typedProtocolSet
+          .traverse { multiplexedSubHandler =>
+            val sh =
+              multiplexedSubHandler.asInstanceOf[TypedSubHandler[F, multiplexedSubHandler.InState]]
+            val s = sh.initialState.asInstanceOf[Any]
+            implicit val ct: NetworkTypeTag[Any] = sh.initialStateNetworkTypeTag.asInstanceOf[NetworkTypeTag[Any]]
+            for {
+              // Stores a deferred callback result.  The Typed Protocol Instance processes messages in the background.
+              // If background processing completes (successfully or with an error), the Deferred is completed.
+              // This acts as a signal to the underlying data stream to complete successfully or error the stream
+              instanceCompletion <- Resource.eval(Deferred[F, Either[Throwable, Unit]])
+              instanceCompletionStream = Stream.exec(instanceCompletion.get.rethrow)
+              applier <- sh.instance.applier(s)(instanceCompletion.complete(_).void)
+              producer <- handlerSource(multiplexedSubHandler, applier, multiplexedSubHandler.sessionId)
+                .mergeHaltR(instanceCompletionStream)
+                .toAkkaSource
+              instanceCompletionSource <- instanceCompletionStream.toAkkaSource
+              subHandler = SubHandler(
+                multiplexedSubHandler.sessionId,
+                Flow[ByteString]
+                  .merge(instanceCompletionSource, eagerComplete = true)
+                  .to(handlerSink(multiplexedSubHandler, applier, multiplexedSubHandler.sessionId)),
+                producer
               )
-            )
-              .leftMap(error => TypedProtocolTransitionFailureException(decodedData, error))
-              .leftSemiflatTap(error => Logger[F].error(error)("Failed to apply inbound message"))
-              .rethrowT
+            } yield subHandler
           }
-          .to(Sink.ignore)
+          .tupleRight(client)
+      }
 
-      private def handlerSource(
-        multiplexedSubHandler: TypedSubHandler[F, _],
-        applier:               TypedProtocolInstance[F]#MessageApplier,
-        protocolInstanceId:    Byte
-      ): Stream[F, ByteString] =
-        multiplexedSubHandler.outboundMessages
-          .evalMap(outboundMessage =>
-            EitherT(
-              applier
-                .apply(outboundMessage.data, multiplexedSubHandler.instance.localParty)(
-                  outboundMessage.networkTypeTag.asInstanceOf[NetworkTypeTag[Any]]
-                )
-            )
-              .leftMap(error => TypedProtocolTransitionFailureException(outboundMessage.data, error))
-              .leftSemiflatTap(error => Logger[F].error(error)("Failed to apply outbound message"))
-              .rethrowT
-              .as(outboundMessage)
+  private def handlerSink[F[_]: FToFuture](
+    multiplexedSubHandler: TypedSubHandler[F, _],
+    applier:               TypedProtocolInstance[F]#MessageApplier,
+    protocolInstanceId:    Byte
+  ): Sink[ByteString, NotUsed] =
+    MessageParserFramer()
+      .map { case (prefix, data) =>
+        multiplexedSubHandler.codec.decode(prefix)(ByteVector(data.toArray)) match {
+          case Right(value)  => value
+          case Left(failure) => throw new IllegalArgumentException(failure.toString)
+        }
+      }
+      .log(s"Received inbound message in protocolInstanceId=$protocolInstanceId", _._1)
+      .mapAsyncF(1) { case (decodedData, networkTypeTag) =>
+        applier.apply(decodedData, multiplexedSubHandler.instance.localParty.opposite)(
+          networkTypeTag.asInstanceOf[NetworkTypeTag[Any]]
+        )
+      }
+      .to(Sink.ignore)
+
+  private def handlerSource[F[_]: Async: Logger](
+    multiplexedSubHandler: TypedSubHandler[F, _],
+    applier:               TypedProtocolInstance[F]#MessageApplier,
+    protocolInstanceId:    Byte
+  ): Stream[F, ByteString] =
+    multiplexedSubHandler.outboundMessages
+      .evalTap(outboundMessage =>
+        applier
+          .apply(outboundMessage.data, multiplexedSubHandler.instance.localParty)(
+            outboundMessage.networkTypeTag.asInstanceOf[NetworkTypeTag[Any]]
           )
-          .evalTap(o =>
-            Logger[F].debug(s"Sending outbound message in protocolInstanceId=$protocolInstanceId. ${o.data}")
-          )
-          .map { o =>
-            val (prefix, byteVector) =
-              multiplexedSubHandler.codec.encode(o.data)(o.networkTypeTag.asInstanceOf[NetworkTypeTag[Any]]) match {
-                case Right(value)  => value
-                case Left(failure) => throw new IllegalArgumentException(failure.toString)
-              }
-            prefix -> ByteString(byteVector.toArray)
+      )
+      .evalTap(o => Logger[F].debug(s"Sending outbound message in protocolInstanceId=$protocolInstanceId. ${o.data}"))
+      .map { o =>
+        val (prefix, byteVector) =
+          multiplexedSubHandler.codec.encode(o.data)(o.networkTypeTag.asInstanceOf[NetworkTypeTag[Any]]) match {
+            case Right(value)  => value
+            case Left(failure) => throw new IllegalArgumentException(failure.toString)
           }
-          .map(MessageSerializerFramer.functionTupled)
-
-    }
-  }
-
-  object implicits extends Ops
+        prefix -> ByteString(byteVector.toArray)
+      }
+      .map(MessageSerializerFramer.functionTupled)
 
   object CommonProtocols {
 

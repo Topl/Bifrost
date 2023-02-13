@@ -39,6 +39,18 @@ class TetraScodecCodecsSpec extends CodecSpec {
     ModelGenerators.arbitraryInt128.arbitrary
   )
 
+  codecBehavior[com.google.protobuf.ByteString](
+    "ProtoByteString",
+    TetraScodecCodecs.protobufByteStringCodec,
+    co.topl.models.generators.common.ModelGenerators.arbitraryByteString.arbitrary
+  )
+
+  codecBehavior[co.topl.proto.models.Int128](
+    "ProtoInt128",
+    TetraScodecCodecs.int128ProtoCodec,
+    co.topl.models.generators.models.ModelGenerators.arbitraryPositiveInt128.arbitrary
+  )
+
   codecBehavior[KesBinaryTree](
     "KesBinaryTree",
     TetraScodecCodecs.kesBinaryTreeCodec,
@@ -173,6 +185,12 @@ class TetraScodecCodecsSpec extends CodecSpec {
     "TypedEvidence",
     TetraScodecCodecs.typedEvidenceCodec,
     ModelGenerators.typedEvidenceGen
+  )
+
+  codecBehavior[co.topl.proto.models.TypedEvidence](
+    "TypedEvidenceProto",
+    TetraScodecCodecs.typedEvidenceProtoCodec,
+    co.topl.models.generators.models.ModelGenerators.typedEvidenceGen
   )
 
   codecBehavior[SpendingAddress]()

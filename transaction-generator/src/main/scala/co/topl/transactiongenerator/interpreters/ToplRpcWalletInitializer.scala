@@ -4,7 +4,10 @@ import cats.data.OptionT
 import cats.effect.Async
 import cats.implicits._
 import co.topl.algebras.ToplRpc
-import co.topl.models._
+import co.topl.proto.models.Transaction
+import co.topl.{models => legacyModels}
+import co.topl.models.utility._
+import legacyModels.TypedIdentifier
 import co.topl.transactiongenerator.algebras.WalletInitializer
 import co.topl.transactiongenerator.models.Wallet
 import fs2._
@@ -51,7 +54,7 @@ object ToplRpcWalletInitializer {
         .parEvalMap(fetchBodyParallelism)(blockId =>
           OptionT(toplRpc.fetchBlockBody(blockId))
             .getOrRaise(new IllegalStateException("Block body not found"))
-            .map(_.toList)
+            .map(_.transactionIds)
         )
         .flatMap(Stream.iterable)
         .parEvalMap(fetchTransactionParallelism)(transactionId =>

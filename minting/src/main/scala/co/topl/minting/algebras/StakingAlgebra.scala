@@ -2,6 +2,7 @@ package co.topl.minting.algebras
 
 import co.topl.minting.models.VrfHit
 import co.topl.models._
+import co.topl.consensus.models.SlotId
 
 /**
  * Staking means participating in the blockchain network.  A staker uses their funds to provide elgibility certificates.

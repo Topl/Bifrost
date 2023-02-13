@@ -2,7 +2,11 @@ package co.topl.models
 
 import cats.data.Chain
 import co.topl.models.utility.StringDataTypes.Latin1Data
-import co.topl.models.utility.{Lengths, Sized}
+import co.topl.models.utility.{Lengths, ReplaceModelUtil, Sized}
+import co.topl.{models => legacyModels}
+import legacyModels.SlotId
+import co.topl.consensus.models._
+import com.google.protobuf.ByteString
 
 // id = hash(headerBytes) INCLUDING kesCertificate proofs
 case class BlockHeader(
@@ -13,8 +17,8 @@ case class BlockHeader(
   timestamp:              Timestamp,
   height:                 Long,
   slot:                   Slot,
-  eligibilityCertificate: EligibilityCertificate,
-  operationalCertificate: OperationalCertificate,
+  eligibilityCertificate: legacyModels.EligibilityCertificate,
+  operationalCertificate: legacyModels.OperationalCertificate,
   // TODO: Discussion on mint signatures
   metadata: Option[BlockHeader.Metadata],
   address:  StakingAddresses.Operator
@@ -26,7 +30,7 @@ object BlockHeader {
 
   type Metadata = Sized.Max[Latin1Data, Lengths.`32`.type]
 
-  case class Unsigned(
+  case class Unsigned( // TODO rename to legacyUnsigned
     parentHeaderId:                TypedIdentifier,
     parentSlot:                    Slot,
     txRoot:                        TxRoot,
@@ -34,13 +38,13 @@ object BlockHeader {
     timestamp:                     Timestamp,
     height:                        Long,
     slot:                          Slot,
-    eligibilityCertificate:        EligibilityCertificate,
+    eligibilityCertificate:        legacyModels.EligibilityCertificate,
     partialOperationalCertificate: Unsigned.PartialOperationalCertificate,
     metadata:                      Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
     address:                       StakingAddresses.Operator
   )
 
-  object Unsigned {
+  object Unsigned { // TODO rename to legacyUnsigned
 
     case class PartialOperationalCertificate(
       parentVK:        VerificationKeys.KesProduct,
@@ -48,12 +52,36 @@ object BlockHeader {
       childVK:         VerificationKeys.Ed25519
     )
   }
+
+  case class UnsignedConsensus( // TODO rename Unsigned
+    parentHeaderId:                BlockId,
+    parentSlot:                    Slot,
+    txRoot:                        ByteString,
+    bloomFilter:                   ByteString,
+    timestamp:                     Timestamp,
+    height:                        Long,
+    slot:                          Slot,
+    eligibilityCertificate:        EligibilityCertificate,
+    partialOperationalCertificate: UnsignedConsensus.PartialOperationalCertificate,
+    metadata:                      ByteString,
+    address:                       ByteString
+  )
+
+  object UnsignedConsensus { // TODO rename Unsigned
+
+    case class PartialOperationalCertificate(
+      parentVK:        VerificationKeyKesProduct,
+      parentSignature: SignatureKesProduct,
+      childVK:         VerificationKeyEd25519
+    )
+  }
 }
 
 // This is a synthetic type, and is not "identifiable"
-case class Block(header: BlockHeader, body: BlockBody)
+case class Block(header: co.topl.consensus.models.BlockHeader, body: co.topl.node.models.BlockBody)
 
 object BlockBody {
+  // TODO: current com.topl.model, we should replce for use new ProtoModel: co.topl.proto.models;, wich will eventually chain to Brambl's IoTransaction
   type Full = Chain[Transaction]
 }
 
@@ -64,5 +92,11 @@ object Block {
     body:           BlockBody
   )
 
-  case class Full(header: BlockHeader, transactions: BlockBody.Full)
+  // TODO remove it after switch protobuf-spsc models
+  case class Full(header: BlockHeader, transactions: BlockBody.Full) {
+
+    // intermediate model to switch protobuf-spsc models, remove after that, todo move more functions to ReplaceModelUtil
+    def toFullConsensus: FullConsensus = FullConsensus(ReplaceModelUtil.consensusHeader(header), transactions)
+  }
+  case class FullConsensus(header: co.topl.consensus.models.BlockHeader, transactions: BlockBody.Full)
 }

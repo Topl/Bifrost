@@ -1,7 +1,7 @@
 package co.topl.networking.typedprotocols
 
 import cats.Applicative
-import cats.effect.IO
+import cats.effect.{Deferred, IO}
 import cats.effect.unsafe.implicits.global
 import co.topl.networking.{NetworkTypeTag, Parties}
 import org.scalamock.scalatest.MockFactory
@@ -39,26 +39,31 @@ class NotificationProtocolSpec
         .withTransition(pushBusyBusy)
         .withTransition(doneBusyDone)
     }
+    instance
+      .applier(TypedProtocol.CommonStates.None)(_ => Applicative[F].unit)
+      .use { applier =>
+        for {
+          _ <- applier(TypedProtocol.CommonMessages.Start, Parties.B)
 
-    val applier = instance.applier(TypedProtocol.CommonStates.None).unsafeRunSync()
+          d1 <- Deferred[F, Unit]
+          _ = handlerF.expects(*).once().returning(d1.complete(()).void)
+          _ <- applier(TypedProtocol.CommonMessages.Push("foo"), Parties.A)
+          _ <- d1.get
 
-    val computation =
-      for {
-        _ <- applier(TypedProtocol.CommonMessages.Start, Parties.B).map(_.value)
-        _ = handlerF.expects(*).once().returning(Applicative[F].unit)
-        _ <- applier(TypedProtocol.CommonMessages.Push("foo"), Parties.A).map(_.value)
-        _ = handlerF.expects(*).once().returning(Applicative[F].unit)
-        _ <- applier(TypedProtocol.CommonMessages.Push("foo"), Parties.A).map(_.value)
-        _ = handlerF.expects(*).once().returning(Applicative[F].unit)
-        _          <- applier(TypedProtocol.CommonMessages.Push("foo"), Parties.A).map(_.value)
-        finalState <- applier(TypedProtocol.CommonMessages.Done, Parties.A).map(_.value)
-      } yield finalState
+          d2 <- Deferred[F, Unit]
+          _ = handlerF.expects(*).once().returning(d2.complete(()).void)
+          _ <- applier(TypedProtocol.CommonMessages.Push("foo"), Parties.A)
+          _ <- d2.get
 
-    val finalState =
-      computation.unsafeRunSync()
+          d3 <- Deferred[F, Unit]
+          _ = handlerF.expects(*).once().returning(d3.complete(()).void)
+          _ <- applier(TypedProtocol.CommonMessages.Push("foo"), Parties.A)
+          _ <- d3.get
 
-    finalState shouldBe TypedProtocol.CommonStates.Done
-
+          _ <- applier(TypedProtocol.CommonMessages.Done, Parties.A)
+        } yield ()
+      }
+      .unsafeRunSync()
   }
 
 }
