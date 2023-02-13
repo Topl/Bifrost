@@ -13,7 +13,7 @@ object Dependencies {
   val orientDbVersion = "3.2.16"
 
   // Reference https://github.com/Topl/protobuf-specs/pull/32
-  val protobufSpecs = "com.github.Topl" % "protobuf-specs" % "c920f90"
+  val protobufSpecs = "com.github.Topl" % "protobuf-specs" % "c920f90" // scala-steward:off
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.5.0"
