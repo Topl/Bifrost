@@ -8,7 +8,7 @@ import cats.effect.kernel.Sync
 import cats.effect.std.{Queue, Semaphore}
 import cats.effect.{Async, Deferred, Resource}
 import cats.implicits._
-import cats.{Applicative, MonadThrow, Show}
+import cats.{Applicative, Functor, MonadThrow, Show}
 import co.topl.catsakka._
 import co.topl.codecs.bytes.typeclasses.Transmittable
 import co.topl.networking.blockchain.NetworkTypeTags._
@@ -21,8 +21,8 @@ import fs2._
 import org.typelevel.log4cats.Logger
 import scodec.bits.ByteVector
 
-import scala.concurrent.duration._
 import java.util.concurrent.TimeoutException
+import scala.concurrent.duration._
 
 /**
  * Helper for transforming a collection of Typed Sub Handlers into a multiplexed akka stream Flow
@@ -111,7 +111,7 @@ object TypedProtocolSetFactory {
       }
       .to(Sink.ignore)
 
-  private def handlerSource[F[_]: Async: Logger](
+  private def handlerSource[F[_]: Functor: Logger](
     multiplexedSubHandler: TypedSubHandler[F, _],
     applier:               TypedProtocolInstance[F]#MessageApplier,
     protocolInstanceId:    Byte

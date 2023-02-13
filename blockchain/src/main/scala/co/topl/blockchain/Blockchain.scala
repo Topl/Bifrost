@@ -1,8 +1,6 @@
 package co.topl.blockchain
 
 import akka.actor.typed.ActorSystem
-import akka.stream.scaladsl.Flow
-import akka.util.ByteString
 import cats.data.{OptionT, Validated}
 import cats.effect._
 import cats.implicits._
@@ -22,7 +20,7 @@ import legacyModels._
 import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.node.models.BlockBody
 import co.topl.networking.blockchain._
-import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, LocalPeer}
+import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer}
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import BlockchainPeerHandler.monoidBlockchainPeerHandler
@@ -60,17 +58,23 @@ object Blockchain {
     ed25519VrfResource:          UnsafeResource[F, Ed25519VRF],
     localPeer:                   LocalPeer,
     remotePeers:                 Stream[F, DisconnectedPeer],
-    peerFlowModifier: (
-      ConnectedPeer,
-      Flow[ByteString, ByteString, F[BlockchainPeerClient[F]]]
-    ) => Flow[ByteString, ByteString, F[BlockchainPeerClient[F]]],
-    rpcHost:         String,
-    rpcPort:         Int
-  )(implicit system: ActorSystem[_], random: Random): Resource[F, Unit] = {
-    implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromClass[F](Blockchain.getClass)
+    rpcHost:                     String,
+    rpcPort:                     Int
+  )(implicit system:             ActorSystem[_], random: Random): Resource[F, Unit] = {
+    implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
     for {
       (localChain, blockAdoptionsTopic)    <- LocalChainBroadcaster.make(_localChain)
       (mempool, transactionAdoptionsTopic) <- MempoolBroadcaster.make(_mempool)
+      // Whenever a block is adopted locally, broadcast all of its corresponding _transactions_ to eagerly notify peers
+      _ <- Async[F].background(
+        blockAdoptionsTopic.subscribeUnbounded
+          .evalMap(id => bodyStore.getOrRaise(id))
+          .flatMap(b => Stream.iterable(b.transactionIds))
+          .map(t => t: TypedIdentifier)
+          .through(transactionAdoptionsTopic.publish)
+          .compile
+          .drain
+      )
       clientHandler <- Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
         List(
           BlockchainPeerHandler.ChainSynchronizer.make[F](
@@ -115,18 +119,35 @@ object Blockchain {
         blockAdoptionsTopic,
         transactionAdoptionsTopic
       ) _
-      (_, p2pFiber) <- remotePeers.toAkkaSource.evalMap(remotePeersSource =>
-        BlockchainNetwork
-          .make[F](
-            localPeer.localAddress.getHostName,
-            localPeer.localAddress.getPort,
-            localPeer,
-            remotePeersSource,
-            clientHandler,
-            peerServerF,
-            peerFlowModifier
+      _ <- BlockchainNetwork
+        .make[F](
+          localPeer.localAddress.host,
+          localPeer.localAddress.port,
+          localPeer,
+          remotePeers,
+          clientHandler,
+          peerServerF
+        )
+      rpcInterpreter <- DroppingTopic(blockAdoptionsTopic, 10)
+        .flatMap(_.subscribeAwaitUnbounded)
+        .evalMap(
+          ToplRpcServer.make(
+            headerStore,
+            bodyStore,
+            transactionStore,
+            mempool,
+            transactionSyntaxValidation,
+            localChain,
+            blockHeights,
+            blockIdTree,
+            _
           )
-      )
+        )
+      _ <- ToplGrpc.Server
+        .serve(rpcHost, rpcPort, rpcInterpreter)
+        .evalTap(rpcServer =>
+          Logger[F].info(s"RPC Server bound at ${rpcServer.getListenSockets.asScala.toList.mkString(",")}")
+        )
       mintedBlockStream =
         for {
           staker <- Stream.fromOption[F](stakerOpt)
@@ -150,7 +171,7 @@ object Blockchain {
                   .evalTap(head => clock.delayedUntilSlot(head.slotId.slot))
                   .append(
                     Stream
-                      .resource(DroppingTopic(blockAdoptionsTopic, 10))
+                      .resource(DroppingTopic(blockAdoptionsTopic, 1))
                       .flatMap(_.subscribeUnbounded)
                       .evalMap(slotDataStore.getOrRaise)
                   ),
@@ -161,27 +182,6 @@ object Blockchain {
           )
           block <- Stream.force(blockProducer.blocks)
         } yield block
-      rpcInterpreter <- DroppingTopic(blockAdoptionsTopic, 10)
-        .flatMap(_.subscribeAwaitUnbounded)
-        .evalMap(
-          ToplRpcServer.make(
-            headerStore,
-            bodyStore,
-            transactionStore,
-            mempool,
-            transactionSyntaxValidation,
-            localChain,
-            blockHeights,
-            blockIdTree,
-            _
-          )
-        )
-      _ <-
-        ToplGrpc.Server
-          .serve(rpcHost, rpcPort, rpcInterpreter)
-          .evalTap(rpcServer =>
-            Logger[F].info(s"RPC Server bound at ${rpcServer.getListenSockets.asScala.toList.mkString(",")}")
-          )
       _ <- Async[F].background(
         mintedBlockStream
           .evalMap(block =>
@@ -198,7 +198,7 @@ object Blockchain {
           .compile
           .drain
       )
-      _ <- Resource.eval(p2pFiber.joinWithUnit)
+      _ <- Resource.never[F, Unit]
     } yield ()
   }
 
