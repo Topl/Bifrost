@@ -22,7 +22,10 @@
 			"jdkDistro": "tem"
 		},
 		"ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {},
-		"ghcr.io/rio/features/k9s:1": {}
+		"ghcr.io/rio/features/k9s:1": {},
+		"ghcr.io/dhoeric/features/google-cloud-cli:1": {
+			"version": "latest"
+		}
 	},
 	"hostRequirements": {
 		"cpus": 6,
