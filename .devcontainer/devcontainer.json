@@ -1,8 +1,7 @@
 {
 	"name": "sbt-dev",
-	"build": {
-		"dockerfile": "Dockerfile"
-	},
+	"image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+	"postCreateCommand": "bash ./.devcontainer/scripts/post-install.sh",
 	"customizations": {
 		"vscode": {
 			"extensions": [
@@ -13,8 +12,21 @@
 			]
 		}
 	},
+	"features": {
+		"ghcr.io/devcontainers/features/docker-in-docker:1": {
+			"version": "latest",
+			"moby": true
+		},
+		"ghcr.io/devcontainers-contrib/features/sbt-sdkman:2": {
+			"jdkVersion": "11.0.18-tem",
+			"jdkDistro": "tem"
+		},
+		"ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {},
+		"ghcr.io/rio/features/k9s:1": {}
+	},
 	"hostRequirements": {
-		"cpus": 4,
-		"memory": "8gb"
+		"cpus": 6,
+		"memory": "12gb",
+		"storage": "20gb"
 	}
 }

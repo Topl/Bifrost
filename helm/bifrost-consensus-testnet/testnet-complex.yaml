@@ -1,0 +1,53 @@
+results:
+  bucket: bifrost-topl-labs-testnet-scenario-results
+
+shared-config:
+  bifrost:
+    big-bang:
+      staker-count: 2
+    protocols:
+      0:
+        slot-duration: 250 milli
+
+configs:
+  producer0:
+    bifrost:
+      big-bang:
+        local-staker-index: 0
+    topology:
+      ingress:
+        throttle:
+          latency: 10 milli
+          downloadBytesPerSecond: 500000
+          uploadBytesPerSecond: 500000
+  producer1:
+    bifrost:
+      big-bang:
+        local-staker-index: 1
+    topology:
+      ingress:
+        throttle:
+          latency: 10 milli
+          downloadBytesPerSecond: 500000
+          uploadBytesPerSecond: 500000
+  relay0:
+    bifrost:
+      big-bang:
+        local-staker-index: -1
+    topology:
+      ingress:
+        throttle:
+          latency: 10 milli
+          downloadBytesPerSecond: 500000
+          uploadBytesPerSecond: 500000
+      egress:
+        - peer: producer0
+          throttle:
+            latency: 10 milli
+            downloadBytesPerSecond: 500000
+            uploadBytesPerSecond: 500000
+        - peer: producer1
+          throttle:
+            latency: 10 milli
+            downloadBytesPerSecond: 500000
+            uploadBytesPerSecond: 500000
