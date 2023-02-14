@@ -13,7 +13,7 @@ import co.topl.genusLibrary.failure.Failures.{
 import co.topl.{models => legacyModels}
 import co.topl.models.utility._
 import legacyModels.ModelGenerators._
-import legacyModels.generators.brambl.ModelGenerators._
+import co.topl.brambl.generators.ModelGenerators._
 import legacyModels.generators.models.ModelGenerators.arbitraryTransaction
 import legacyModels.generators.consensus.ModelGenerators.arbitraryHeader
 import legacyModels._
