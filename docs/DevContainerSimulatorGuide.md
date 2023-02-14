@@ -6,10 +6,9 @@ All pre-requisites should be automatically installed, including: Java, SBT, Dock
 
 ### Bifrost
 1. Run `sbt Docker/publishLocal` from the command line.
-1. Run `./scripts/docker_tag_minikube.sh` from the command line.
+1. Run `./docs/scripts/docker_tag_minikube.sh` from the command line.
 
 ## Run Simulation
-1. Run `cd helm` from the command line.
 1. From terminal, run (modify `my-testnet-name` accordingly)
    ```
    DEMO_NAME=my-testnet-name; \
