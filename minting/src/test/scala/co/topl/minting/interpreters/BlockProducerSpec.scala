@@ -54,16 +54,17 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
           resultFiber    <- Async[F].start(Stream.force(underTest.blocks).enqueueNoneTerminated(results).compile.drain)
           clockDeferment <- IO.deferred[Unit]
           _ = (clock.delayedUntilSlot(_)).expects(vrfHit.slot).once().returning(clockDeferment.get)
-          _            <- parents.offer(parentSlotData.some)
-          _            <- clockDeferment.complete(())
-          Some(result) <- results.take
+          _      <- parents.offer(parentSlotData.some)
+          _      <- clockDeferment.complete(())
+          result <- results.take
           // The `outputBlock` is generated and doesn't line up with the input data of the unsigned block
           // (It's not the responsibility of the BlockProducer to create the resulting full Block; that's the staker
           // during the certification process, and we rely on mocks for that)
-          _ = assert(result == outputBlock)
-          _    <- parents.offer(none)
-          None <- results.take
-          _    <- resultFiber.joinWithNever
+          _ = assert(result.isDefined)
+          _ = assert(result.get == outputBlock)
+          _ <- parents.offer(none)
+          _ <- results.take
+          _ <- resultFiber.joinWithNever
         } yield ()
       }
     }

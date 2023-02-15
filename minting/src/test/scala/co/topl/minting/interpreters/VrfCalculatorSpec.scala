@@ -8,7 +8,6 @@ import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
 import co.topl.consensus.models.VrfConfig
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.interpreters.CatsUnsafeResource
-import co.topl.minting.models.VrfHit
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
@@ -28,7 +27,6 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
     for {
       ed25519Resource <- CatsUnsafeResource.make(new Ed25519VRF, 1)
       vrfCalculator <- VrfCalculator.make[F](
-        vkVrf = null,
         skVrf = SecretKeys.VrfEd25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
         clock = null,
         leaderElectionValidation = null,
@@ -54,7 +52,6 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
     for {
       ed25519Resource <- CatsUnsafeResource.make(new Ed25519VRF, 1)
       vrfCalculator <- VrfCalculator.make[F](
-        vkVrf = null,
         skVrf = SecretKeys.VrfEd25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
         clock = null,
         leaderElectionValidation = null,
@@ -104,7 +101,6 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
       for {
         ed25519Resource <- CatsUnsafeResource.make(new Ed25519VRF, 1)
         vrfCalculator <- VrfCalculator.make[F](
-          vkVrf = null,
           skVrf = SecretKeys.VrfEd25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
           clock,
           leaderElectionValidation,
@@ -148,7 +144,6 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
       for {
         ed25519Resource <- CatsUnsafeResource.make(new Ed25519VRF, 1)
         vrfCalculator <- VrfCalculator.make[F](
-          vkVrf = null,
           skVrf = SecretKeys.VrfEd25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
           clock,
           leaderElectionValidation,
@@ -158,56 +153,6 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
         )
 
         _ <- vrfCalculator.ineligibleSlots(epoch, eta, inRange = None, relativeStake).assertEquals(Vector.empty[Slot])
-      } yield ()
-
-    }
-  }
-
-  test("getHit: with fixed values") {
-    import co.topl.typeclasses.implicits._
-    withMock {
-      val slot = 1L
-      val slotDiff = 1L
-      val eta = Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0))): Eta
-      val relativeStake = Ratio.One
-      val vrfConfig =
-        VrfConfig(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
-      val vkVrf = VerificationKeys.VrfEd25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0))))
-      val skVrf = SecretKeys.VrfEd25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0))))
-
-      val leaderElectionValidation = mock[LeaderElectionValidationAlgebra[F]]
-
-      (leaderElectionValidation.getThreshold _)
-        .expects(relativeStake, slotDiff)
-        .once()
-        .returning(Ratio.One.pure[F])
-
-      (leaderElectionValidation
-        .isSlotLeaderForThreshold(_: Ratio)(_: Rho))
-        .expects(relativeStake, *)
-        .once()
-        .returning(true.pure[F])
-
-      for {
-        ed25519Resource <- CatsUnsafeResource.make(new Ed25519VRF, 1)
-        vrfCalculator <- VrfCalculator.make[F](
-          vkVrf,
-          skVrf,
-          clock = null,
-          leaderElectionValidation,
-          ed25519Resource,
-          vrfConfig,
-          vrfCacheTtl
-        )
-
-        testProof <- vrfCalculator.proofForSlot(slot, eta)
-
-        expectedVrfHit = VrfHit(
-          EligibilityCertificate(testProof, vkVrf, relativeStake.typedEvidence.evidence, eta),
-          slot,
-          relativeStake
-        )
-        _ <- vrfCalculator.getHit(relativeStake, slot, slotDiff, eta).assertEquals(expectedVrfHit.some)
       } yield ()
 
     }
