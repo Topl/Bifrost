@@ -3,6 +3,7 @@ package co.topl.minting.algebras
 import co.topl.minting.models.VrfHit
 import co.topl.models._
 import co.topl.consensus.models.SlotId
+import co.topl.models.utility.Ratio
 
 /**
  * Staking means participating in the blockchain network.  A staker uses their funds to provide elgibility certificates.
@@ -19,4 +20,11 @@ trait StakingAlgebra[F[_]] {
     slot:                 Slot,
     unsignedBlockBuilder: BlockHeader.Unsigned.PartialOperationalCertificate => Block.Unsigned
   ): F[Option[Block]]
+
+  def getHit(
+    relativeStake: Ratio,
+    slot:          Slot,
+    slotDiff:      Long,
+    eta:           Eta
+  ): F[Option[VrfHit]]
 }

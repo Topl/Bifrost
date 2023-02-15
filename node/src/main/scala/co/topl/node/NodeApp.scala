@@ -253,7 +253,6 @@ object NodeApp
             // If uninitialized, generate a new key.  Otherwise, move on.
             .ifM(secureStore.write(UUID.randomUUID().toString, initializer.kesSK), Applicative[F].unit)
           vrfCalculator <- VrfCalculator.make[F](
-            initializer.vrfVK,
             initializer.vrfSK,
             clock,
             leaderElectionThreshold,
@@ -279,11 +278,13 @@ object NodeApp
           )
           staking = Staking.make(
             initializer.stakingAddress,
+            initializer.vrfVK,
             operationalKeys,
             consensusValidationState,
             etaCalculation,
             ed25519Resource,
-            vrfCalculator
+            vrfCalculator,
+            leaderElectionThreshold
           )
         } yield staking
       )
