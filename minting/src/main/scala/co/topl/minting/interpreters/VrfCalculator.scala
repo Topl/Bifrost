@@ -11,11 +11,9 @@ import co.topl.consensus.models.{VrfArgument, VrfConfig}
 import VrfArgument._
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.algebras.VrfCalculatorAlgebra
-import co.topl.minting.models.VrfHit
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.{Ratio, Sized}
-import co.topl.typeclasses.implicits._
 import com.github.benmanes.caffeine.cache.Caffeine
 import scalacache.caffeine.CaffeineCache
 import scala.collection.immutable.NumericRange
@@ -26,7 +24,6 @@ object VrfCalculator {
   private def caffeineCacheBuilder(vrfCacheSize: Long) = Caffeine.newBuilder.maximumSize(vrfCacheSize)
 
   def make[F[_]: Sync: Parallel](
-    vkVrf:                    VerificationKeys.VrfEd25519,
     skVrf:                    SecretKeys.VrfEd25519,
     clock:                    ClockAlgebra[F],
     leaderElectionValidation: LeaderElectionValidationAlgebra[F],
@@ -43,7 +40,6 @@ object VrfCalculator {
           CaffeineCache(caffeineCacheBuilder(vrfCacheSize).build[(Bytes, Long), Entry[Rho]]())
         )
       impl = new Impl[F](
-        vkVrf,
         skVrf,
         clock,
         leaderElectionValidation,
@@ -55,7 +51,6 @@ object VrfCalculator {
     } yield impl
 
   private class Impl[F[_]: Sync: Parallel](
-    vkVrf:                    VerificationKeys.VrfEd25519,
     skVrf:                    SecretKeys.VrfEd25519,
     clock:                    ClockAlgebra[F],
     leaderElectionValidation: LeaderElectionValidationAlgebra[F],
@@ -113,24 +108,5 @@ object VrfCalculator {
         slots = leaderCalculations.collect { case (slot, false) => slot }.toVector
       } yield slots
 
-    def getHit(relativeStake: Ratio, slot: Slot, slotDiff: Long, eta: Eta): F[Option[VrfHit]] =
-      (
-        leaderElectionValidation.getThreshold(relativeStake, slotDiff),
-        proofForSlot(slot, eta),
-        rhoForSlot(slot, eta)
-      ).tupled
-        .flatMap { case (threshold, testProof, rho) =>
-          leaderElectionValidation
-            .isSlotLeaderForThreshold(threshold)(rho)
-            .map(isLeader =>
-              Option.when(isLeader)(
-                VrfHit(
-                  EligibilityCertificate(testProof, vkVrf, threshold.typedEvidence.evidence, eta),
-                  slot,
-                  threshold
-                )
-              )
-            )
-        }
   }
 }
