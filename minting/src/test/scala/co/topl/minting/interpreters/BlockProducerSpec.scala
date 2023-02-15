@@ -63,7 +63,7 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
           _ = assert(result.isDefined)
           _ = assert(result.get == outputBlock)
           _ <- parents.offer(none)
-          _ <- results.take
+          _ <- results.take.assertEquals(None)
           _ <- resultFiber.joinWithNever
         } yield ()
       }
