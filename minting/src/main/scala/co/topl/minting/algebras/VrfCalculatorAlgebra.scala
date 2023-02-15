@@ -1,6 +1,5 @@
 package co.topl.minting.algebras
 
-import co.topl.minting.models.VrfHit
 import co.topl.models._
 import co.topl.models.utility.Ratio
 
@@ -23,10 +22,4 @@ trait VrfCalculatorAlgebra[F[_]] {
     relativeStake: Ratio
   ): F[Vector[Slot]]
 
-  def getHit(
-    relativeStake: Ratio,
-    slot:          Slot,
-    slotDiff:      Long,
-    eta:           Eta
-  ): F[Option[VrfHit]]
 }
