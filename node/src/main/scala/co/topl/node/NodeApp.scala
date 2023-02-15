@@ -15,7 +15,6 @@ import co.topl.consensus.algebras._
 import co.topl.consensus.models.VrfConfig
 import co.topl.consensus.models.SlotData
 import co.topl.consensus.interpreters._
-import co.topl.crypto.signing.{Ed25519VRF, KesProduct}
 import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing._
 import co.topl.eventtree.ParentChildTree
@@ -24,7 +23,7 @@ import co.topl.ledger.interpreters._
 import co.topl.minting.algebras.StakingAlgebra
 import co.topl.minting.interpreters.{OperationalKeyMaker, Staking, VrfCalculator}
 import co.topl.models._
-import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, LocalPeer}
+import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer, RemoteAddress}
 import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
 import fs2._
@@ -33,7 +32,6 @@ import kamon.Kamon
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
-import java.net.InetSocketAddress
 import java.security.SecureRandom
 import java.time.Instant
 import java.util.UUID
@@ -44,12 +42,12 @@ object NodeApp
       createArgs = args => Args.parserArgs.constructOrThrow(args),
       createConfig = IOBaseApp.createTypesafeConfig,
       parseConfig = (args, conf) => ApplicationConfig.unsafe(args, conf),
-      createSystem = (_, _, conf) => ActorSystem[Nothing](Behaviors.empty, "BifrostTetra", conf),
+      createSystem = (_, _, conf) => ActorSystem[Nothing](Behaviors.empty, "Bifrost", conf),
       preInitFunction = config => if (config.kamon.enable) Kamon.init()
     ) {
 
   implicit private val logger: Logger[F] =
-    Slf4jLogger.getLoggerFromClass[F](this.getClass)
+    Slf4jLogger.getLoggerFromName[F]("Bifrost.Node")
 
   def run: IO[Unit] = applicationResource.use_
 
@@ -59,7 +57,7 @@ object NodeApp
       _ <- Resource.eval(Logger[F].info(show"Launching node with args=$args"))
       _ <- Resource.eval(Logger[F].info(show"Node configuration=$appConfig"))
       localPeer = LocalPeer(
-        InetSocketAddress.createUnresolved(appConfig.bifrost.p2p.bindHost, appConfig.bifrost.p2p.bindPort),
+        RemoteAddress(appConfig.bifrost.p2p.bindHost, appConfig.bifrost.p2p.bindPort),
         (0, 0)
       )
       implicit0(networkPrefix: NetworkPrefix) = NetworkPrefix(1: Byte)
@@ -225,7 +223,6 @@ object NodeApp
           Stream.eval(clock.delayedUntilSlot(canonicalHeadSlotData.slotId.slot)) >>
           Stream.iterable[F, DisconnectedPeer](appConfig.bifrost.p2p.knownPeers) ++
           Stream.never[F],
-          (_: ConnectedPeer, flow) => flow,
           appConfig.bifrost.rpc.bindHost,
           appConfig.bifrost.rpc.bindPort
         )
@@ -261,7 +258,8 @@ object NodeApp
             clock,
             leaderElectionThreshold,
             ed25519VRFResource,
-            vrfConfig
+            vrfConfig,
+            protocol.vrfCacheSize
           )
           currentSlot <- clock.globalSlot.map(_.max(0L))
 

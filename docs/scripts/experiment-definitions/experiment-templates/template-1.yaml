@@ -1,0 +1,79 @@
+# These settings control where the results are published
+results:
+  # The Storage Bucket on Google Cloud
+  bucket: bifrost-topl-testnet-scenario-results
+  # The prefix to apply to each uploaded file.  The scenario name is automatically applied as a suffix to this prefix.
+  prefix: /simulation/results/
+
+# These settings control the parameters of the scenario
+scenario:
+  # The height that must be reached by each node in the scenario
+  targetHeight: 1
+  # The number of transactions to generate and broadcast per second.  Transactions are broadcasted to nodes at random.
+  transactionsPerSecond: 1
+  # the maximum timeout in wall clock time to reach the target height, in seconds
+  scenarioTimeout: 1
+  # set the starting random seed, if deterministic behavior is desired
+  randomSeed: 0
+
+# These settings will apply to the configurations of all nodes.
+shared-config:
+  # Define custom application.conf overrides
+  bifrost:
+    big-bang:
+      staker-count: 500
+    protocols:
+      0:
+        slot-duration: 1 milli
+
+# Define an entry for each node you wish to launch in the cluster
+configs:
+  # Name the node
+  producer0:
+    # Define custom application.conf overrides
+    bifrost:
+      big-bang:
+        local-staker-index: 0
+    # Define the network topology of this node
+    topology:
+      # Applies to all connections received by this node
+      ingress:
+        # The amount of throttling to impose on the local node's portion of the connection
+        throttle:
+          latency: 10 milli
+          downloadBytesPerSecond: 500000
+          uploadBytesPerSecond: 500000
+  producer1:
+    bifrost:
+      big-bang:
+        local-staker-index: 1
+    topology:
+      ingress:
+        throttle:
+          latency: 10 milli
+          downloadBytesPerSecond: 500000
+          uploadBytesPerSecond: 500000
+  relay0:
+    bifrost:
+      big-bang:
+        local-staker-index: -1
+    topology:
+      ingress:
+        throttle:
+          latency: 10 milli
+          downloadBytesPerSecond: 500000
+          uploadBytesPerSecond: 500000
+      # Outbound connections are defined here
+      egress:
+        # The name of the peer
+        - peer: producer0
+          # The amount of throttling to impose on the local node's portion of the connection
+          throttle:
+            latency: 10 milli
+            downloadBytesPerSecond: 500000
+            uploadBytesPerSecond: 500000
+        - peer: producer1
+          throttle:
+            latency: 10 milli
+            downloadBytesPerSecond: 500000
+            uploadBytesPerSecond: 500000

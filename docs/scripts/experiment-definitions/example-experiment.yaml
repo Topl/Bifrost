@@ -1,0 +1,28 @@
+# an experiment file consists of several sections that describe different aspects of the experiment
+
+# each key should be the name of the key to override in the template, or a path to that key if nested (e.g. "a/b/c")
+# each value must be a list, to allow for parameter sweeps; if the value is itself a list, it must be nested in another
+#       list, e.g. [[1, 2, 3]] instead of [1, 2, 3]
+
+# values that should sweep a range should be defined as a dictionary with min, max, and step keys
+# e.g. { "min": 0.01, "max": 0.25, "step": 0.005 }
+# this will be generated into the needed list of values before expansion
+# you may also include an optional "suffix" key to append to the end of each value, e.g. " ms" or " MiB"
+
+# this defines the starting template for the experiment; anything not otherwise specified will be taken from here
+"_template": [ "experiment-templates/template-1.yaml" ]
+
+# these settings control the network topology of the experiment
+"_num_producers": [ 2 ]  # note that the number of producers is implicitly equal to the number of stakers
+"_num_relays": [ 0 ]
+"_topology_type": [ "custom" ]  # one of ring, star, small world, erdos renyi, clique, or custom
+  # if topology_type is custom, you can specify (in _topology_edges) the topology as a list of directed edge 5-tuples
+# each tuple is [from, to, latency, download, upload], and you may specify -1 for any value to indicate "no limit"
+# node label indices start at 0, and the first _num_producers nodes are producers, and the next _num_relays are relays
+"_topology_edges": [ [ [ 0, 1, 20, 1000000, 1000000 ], [ 1, 0, 20, 1000000, 1000000 ] ] ]
+
+# override specific settings at these dict-key-paths
+"scenario/transactionsPerSecond": [ 2.5 ]
+"shared-config/bifrost/protocols/0/slot-duration": { "min": 250, "max": 250, "step": 1, "suffix": " milli" }
+"scenario/scenarioTimeout": [ 600 ]
+"scenario/targetHeight": [ 30 ]
