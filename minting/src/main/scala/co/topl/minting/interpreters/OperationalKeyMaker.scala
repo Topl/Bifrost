@@ -13,13 +13,12 @@ import co.topl.crypto.signing._
 import co.topl.minting.algebras._
 import co.topl.minting.models.OperationalKeyOut
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility._
-import co.topl.consensus.models.SlotId
+import co.topl.consensus.models.{SecretKeyEd25519, SlotId, VerificationKeyEd25519}
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
+import com.google.protobuf.ByteString
 import org.typelevel.log4cats.Logger
-
 import java.util.UUID
 
 object OperationalKeyMaker {
@@ -228,10 +227,10 @@ object OperationalKeyMaker {
                         )
                       OperationalKeyOut(
                         slot,
-                        VerificationKeys.Ed25519(Sized.strictUnsafe(childVK)),
-                        SecretKeys.Ed25519(Sized.strictUnsafe(childSK)),
-                        parentSignature,
-                        parentVK
+                        VerificationKeyEd25519.of(ByteString.copyFrom(childVK.toArray)),
+                        SecretKeyEd25519.of(ByteString.copyFrom(childSK.toArray)),
+                        ReplaceModelUtil.signatureKesProduct(parentSignature),
+                        ReplaceModelUtil.verificationKeyKesProduct(parentVK)
                       )
                     }
                   )

@@ -1,6 +1,6 @@
 package co.topl.minting.algebras
 
-import co.topl.models.Block
+import co.topl.node.models.Block
 import fs2.Stream
 
 /**

@@ -12,13 +12,12 @@ import co.topl.minting.models.VrfHit
 import co.topl.models._
 import co.topl.models.utility._
 import co.topl.consensus.models.{SlotData, SlotId}
+import co.topl.node.models.{Block, BlockBody}
 import co.topl.typeclasses.implicits._
+import com.google.protobuf.ByteString
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
-
 import fs2._
-
-import scala.collection.immutable.ListSet
 
 object BlockProducer {
 
@@ -107,7 +106,7 @@ object BlockProducer {
      *
      * @param untilSlot The slot at which the block packer function should be halted and a value extracted
      */
-    private def packBlock(parentId: TypedIdentifier, height: Long, untilSlot: Slot): F[BlockBody.Full] =
+    private def packBlock(parentId: TypedIdentifier, height: Long, untilSlot: Slot): F[co.topl.models.BlockBody.Full] =
       blockPacker
         .improvePackedBlock(parentId, height, untilSlot)
         .flatMap(Iterative.run(Chain.empty[Transaction].pure[F]))
@@ -119,27 +118,27 @@ object BlockProducer {
      */
     private def prepareUnsignedBlock(
       parentSlotData: SlotData,
-      body:           BlockBody.Full,
+      body:           co.topl.models.BlockBody.Full,
       timestamp:      Timestamp,
       nextHit:        VrfHit
-    ): BlockHeader.Unsigned.PartialOperationalCertificate => Block.Unsigned =
-      (partialOperationalCertificate: BlockHeader.Unsigned.PartialOperationalCertificate) =>
-        Block
+    ): BlockHeader.UnsignedConsensus.PartialOperationalCertificate => co.topl.models.Block.Unsigned =
+      (partialOperationalCertificate: BlockHeader.UnsignedConsensus.PartialOperationalCertificate) =>
+        co.topl.models.Block
           .Unsigned(
-            BlockHeader.Unsigned(
+            BlockHeader.UnsignedConsensus(
               parentHeaderId = parentSlotData.slotId.blockId,
               parentSlot = parentSlotData.slotId.slot,
-              txRoot = body.merkleTreeRootHash,
-              bloomFilter = body.bloomFilter,
+              txRoot = ByteString.copyFrom(body.merkleTreeRootHash.data.toArray),
+              bloomFilter = ByteString.copyFrom(body.bloomFilter.data.toArray),
               timestamp = timestamp,
               height = parentSlotData.height + 1,
               slot = nextHit.slot,
               eligibilityCertificate = nextHit.cert,
               partialOperationalCertificate = partialOperationalCertificate,
-              metadata = None,
-              address = stakerAddress
+              metadata = ByteString.EMPTY,
+              address = ByteString.copyFrom(stakerAddress.vk.bytes.data.toArray)
             ),
-            ListSet.empty[TypedIdentifier] ++ body.map(_.id.asTypedBytes).toList
+            body = BlockBody.of(body.map(_.id.asTypedBytes).map(ReplaceModelUtil.ioTransaction32).toList)
           )
   }
 

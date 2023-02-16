@@ -15,19 +15,26 @@ import co.topl.crypto.signing.Ed25519
 import co.topl.minting.algebras._
 import co.topl.minting.models.VrfHit
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.{ReplaceModelUtil, Sized}
 import co.topl.models.utility._
-import co.topl.consensus.models.SlotId
+import co.topl.consensus.models.{
+  BlockHeader,
+  EligibilityCertificate,
+  OperationalCertificate,
+  SignatureEd25519,
+  SlotId,
+  VerificationKeyVrfEd25519
+}
+import co.topl.node.models.Block
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
+import com.google.protobuf.ByteString
 
 object Staking {
 
   def make[F[_]: Sync](
     a:                        StakingAddresses.Operator,
-    vkVrf:                    VerificationKeys.VrfEd25519,
+    vkVrf:                    VerificationKeyVrfEd25519,
     operationalKeyMaker:      OperationalKeyMakerAlgebra[F],
     consensusState:           ConsensusValidationStateAlgebra[F],
     etaCalculation:           EtaCalculationAlgebra[F],
@@ -35,7 +42,7 @@ object Staking {
     vrfCalculator:            VrfCalculatorAlgebra[F],
     leaderElectionValidation: LeaderElectionValidationAlgebra[F]
   ): StakingAlgebra[F] =
-    new StakingAlgebra[F] { // TODO: Ask Sean, should we use the same pattern like VrfCalculator: F[StakingAlgebra[F]]
+    new StakingAlgebra[F] {
       implicit private val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromClass[F](Staking.getClass)
       val address: F[StakingAddresses.Operator] = a.pure[F]
 
@@ -55,14 +62,14 @@ object Staking {
         } yield maybeHit
 
       def certifyBlock(
-        parentSlotId:         SlotId,
-        slot:                 Slot,
-        unsignedBlockBuilder: BlockHeader.Unsigned.PartialOperationalCertificate => Block.Unsigned
+        parentSlotId: SlotId,
+        slot:         Slot,
+        unsignedBlockBuilder: co.topl.models.BlockHeader.UnsignedConsensus.PartialOperationalCertificate => co.topl.models.Block.Unsigned
       ): F[Option[Block]] =
         OptionT(operationalKeyMaker.operationalKeyForSlot(slot, parentSlotId)).semiflatMap { operationalKeyOut =>
           for {
             partialCertificate <- Sync[F].delay(
-              BlockHeader.Unsigned.PartialOperationalCertificate(
+              co.topl.models.BlockHeader.UnsignedConsensus.PartialOperationalCertificate(
                 operationalKeyOut.parentVK,
                 operationalKeyOut.parentSignature,
                 operationalKeyOut.childVK
@@ -70,12 +77,12 @@ object Staking {
             )
             unsignedBlock = unsignedBlockBuilder(partialCertificate)
             messageToSign = unsignedBlock.unsignedHeader.signableBytes
-            signature <- ed25519Resource.use(_.sign(operationalKeyOut.childSK.bytes.data, messageToSign).pure[F])
+            signature <- ed25519Resource.use(_.sign(operationalKeyOut.childSK.value, messageToSign).pure[F])
             operationalCertificate = OperationalCertificate(
               operationalKeyOut.parentVK,
               operationalKeyOut.parentSignature,
               partialCertificate.childVK,
-              Proofs.Knowledge.Ed25519(Sized.strictUnsafe(signature))
+              SignatureEd25519.of(ByteString.copyFrom(signature.toArray))
             )
             header = BlockHeader(
               unsignedBlock.unsignedHeader.parentHeaderId,
@@ -90,8 +97,11 @@ object Staking {
               unsignedBlock.unsignedHeader.metadata,
               unsignedBlock.unsignedHeader.address
             )
-            // TODO use new models instead of Replace Model util
-            block = Block(ReplaceModelUtil.consensusHeader(header), ReplaceModelUtil.nodeBlock(unsignedBlock.body))
+
+            block = Block.of(
+              header.some,
+              unsignedBlock.body.some
+            ) // TODO remove optionals: https://github.com/Topl/protobuf-specs/pull/37
           } yield block
         }.value
 
@@ -104,7 +114,12 @@ object Staking {
           vrfHit <- OptionT
             .when[F, VrfHit](isLeader)(
               VrfHit(
-                EligibilityCertificate(testProof, vkVrf, threshold.typedEvidence.evidence, eta),
+                EligibilityCertificate(
+                  testProof,
+                  vkVrf,
+                  ByteString.copyFrom(threshold.typedEvidence.evidence.data.toArray),
+                  ByteString.copyFrom(eta.data.toArray)
+                ),
                 slot,
                 threshold
               )

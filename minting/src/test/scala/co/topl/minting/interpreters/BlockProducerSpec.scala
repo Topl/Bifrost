@@ -7,8 +7,10 @@ import co.topl.algebras.ClockAlgebra
 import co.topl.minting.algebras.{BlockPackerAlgebra, StakingAlgebra}
 import co.topl.minting.models._
 import co.topl.models.ModelGenerators._
-import co.topl.models.generators.consensus.ModelGenerators.arbitrarySlotData
-import co.topl.models.{Block, StakingAddresses}
+import co.topl.models.generators.consensus.ModelGenerators.{arbitraryEligibilityCertificate, arbitrarySlotData}
+import co.topl.models.generators.node.ModelGenerators.arbitraryBlock
+import co.topl.node.models.Block
+import co.topl.models.StakingAddresses
 import co.topl.consensus.models.SlotData
 import fs2._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -26,7 +28,8 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
   test("Produce a block when eligible") {
     PropF.forAllF { (parentSlotData: SlotData, stakingAddress: StakingAddresses.Operator, outputBlock: Block) =>
       withMock {
-        val vrfHit = VrfHit(eligibilityCertificateGen.first, parentSlotData.slotId.slot + 1, ratioGen.first)
+        val vrfHit =
+          VrfHit(arbitraryEligibilityCertificate.arbitrary.first, parentSlotData.slotId.slot + 1, ratioGen.first)
         val staker = mock[StakingAlgebra[F]]
 
         (() => staker.address).expects().once().returning(stakingAddress.pure[F])

@@ -3,10 +3,12 @@ package co.topl.blockchain
 import cats.data.Chain
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.consensus.models.VerificationKeyVrfEd25519
 import co.topl.crypto.signing.{Ed25519VRF, KesProduct}
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.Ed25519
 import co.topl.models.utility.{Lengths, Sized}
+import co.topl.models.utility._
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.typeclasses.implicits._
@@ -35,8 +37,8 @@ object StakerInitializers {
     kesSK:      SecretKeys.KesProduct
   ) extends StakerInitializer {
 
-    val vrfVK: VerificationKeys.VrfEd25519 =
-      VerificationKeys.VrfEd25519(Sized.strictUnsafe(Ed25519VRF.precomputed().getVerificationKey(vrfSK.bytes.data)))
+    val vrfVK: VerificationKeyVrfEd25519 =
+      VerificationKeyVrfEd25519.of(Ed25519VRF.precomputed().getVerificationKey(vrfSK.bytes.data))
 
     val operatorVK: VerificationKeys.Ed25519 =
       VerificationKeys.Ed25519(Sized.strictUnsafe(Ed25519.instance.getVerificationKey(operatorSK.bytes.data)))

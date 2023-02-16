@@ -688,6 +688,7 @@ trait ModelGenerators {
         .map(ListSet.empty[TypedIdentifier] ++ _)
     )
 
+  // TODO remove Arbitrary implementation, we will not need it: https://github.com/Topl/protobuf-specs/pull/37
   implicit val arbitraryBlock: Arbitrary[Block] =
     Arbitrary(
       for {
