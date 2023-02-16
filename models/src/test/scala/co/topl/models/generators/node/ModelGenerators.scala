@@ -1,6 +1,6 @@
 package co.topl.models.generators.node
 
-import co.topl.models.generators.brambl.ModelGenerators.arbitraryIoTransaction32
+import co.topl.brambl.generators.ModelGenerators.arbitraryIoTransaction32
 import co.topl.node.models._
 import org.scalacheck.{Arbitrary, Gen}
 
