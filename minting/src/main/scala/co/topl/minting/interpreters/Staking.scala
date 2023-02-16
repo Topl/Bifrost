@@ -97,12 +97,7 @@ object Staking {
               unsignedBlock.unsignedHeader.metadata,
               unsignedBlock.unsignedHeader.address
             )
-
-            block = Block.of(
-              header.some,
-              unsignedBlock.body.some
-            ) // TODO remove optionals: https://github.com/Topl/protobuf-specs/pull/37
-          } yield block
+          } yield Block.of(header, unsignedBlock.body)
         }.value
 
       def getHit(relativeStake: Ratio, slot: Slot, slotDiff: Long, eta: Eta): F[Option[VrfHit]] =

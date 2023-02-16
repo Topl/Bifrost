@@ -185,14 +185,13 @@ object Blockchain {
       _ <- Async[F].background(
         mintedBlockStream
           .evalMap(block =>
-            // TODO remove optionals: https://github.com/Topl/protobuf-specs/pull/37
-            blockIdTree.associate(block.header.get.id, block.header.get.parentHeaderId) &>
-            headerStore.put(block.header.get.id, block.header.get) &>
-            bodyStore.put(block.header.get.id, block.body.get) &>
+            blockIdTree.associate(block.header.id, block.header.parentHeaderId) &>
+            headerStore.put(block.header.id, block.header) &>
+            bodyStore.put(block.header.id, block.body) &>
             ed25519VrfResource
-              .use(implicit e => block.header.get.slotData.pure[F])
+              .use(implicit e => block.header.slotData.pure[F])
               .map(ReplaceModelUtil.slotDataFromLegacy)
-              .flatTap(slotDataStore.put(block.header.get.id, _))
+              .flatTap(slotDataStore.put(block.header.id, _))
           )
           .map(Validated.Valid(_))
           .evalTap(localChain.adopt)

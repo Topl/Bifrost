@@ -1,7 +1,7 @@
 package co.topl.models.generators.node
 
-import cats.implicits.catsSyntaxOptionId
-import co.topl.models.generators.brambl.ModelGenerators.arbitraryIoTransaction32
+import co.topl.brambl.generators.ModelGenerators.arbitraryIoTransaction32
+import co.topl.models.generators.consensus.ModelGenerators.arbitraryHeader
 import co.topl.node.models._
 import org.scalacheck.{Arbitrary, Gen}
 
@@ -14,13 +14,12 @@ trait ModelGenerators {
       } yield BlockBody.of(ioTx32)
     )
 
-  // TODO remove optionals: https://github.com/Topl/protobuf-specs/pull/37
   implicit val arbitraryBlock: Arbitrary[Block] =
     Arbitrary(
       for {
-        header <- co.topl.models.generators.consensus.ModelGenerators.arbitraryHeader.arbitrary
-        body   <- co.topl.models.generators.node.ModelGenerators.arbitraryNodeBody.arbitrary
-      } yield Block(header.some, body.some)
+        header <- arbitraryHeader.arbitrary
+        body   <- arbitraryNodeBody.arbitrary
+      } yield Block.of(header, body)
     )
 }
 object ModelGenerators extends ModelGenerators
