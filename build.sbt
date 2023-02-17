@@ -659,6 +659,18 @@ lazy val munitScalamock = project
     libraryDependencies ++= Dependencies.munitScalamock
   )
 
+lazy val byzantineTests = project
+  .in(file("byzantine-tests"))
+  .settings(
+    name := "byzantine-tests",
+    commonSettings,
+    Defaults.itSettings,
+    IntegrationTest / parallelExecution := false,
+//    libraryDependencies ++= Dependencies.byzantineTests
+  )
+  .configs(IntegrationTest)
+  .dependsOn(node)
+
 addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; +test; it:compile")
 addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; +test; it:compile")
 addCommandAlias("checkPRTestQuick", s"; scalafixAll --check; scalafmtCheckAll; testQuick; it:compile")

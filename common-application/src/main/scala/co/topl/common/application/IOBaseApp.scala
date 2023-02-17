@@ -44,7 +44,7 @@ abstract class IOBaseApp[CmdArgs, AppConfig](
   protected def initRuntime(): Unit =
     _ioRuntime = cats.effect.unsafe.IORuntime.global
 
-  final def main(args: Array[String]): Unit = {
+  def initialize(args: Array[String]): Unit = {
     _args = createArgs(args.toList)
     _config = createConfig(_args)
     _appConfig = parseConfig(_args, _config)
@@ -52,9 +52,14 @@ abstract class IOBaseApp[CmdArgs, AppConfig](
     initRuntime()
     _ioApp = new IOApp {
       override protected val runtime: IORuntime = _ioRuntime
+
       def run(args: List[String]): IO[ExitCode] =
         IOBaseApp.this.run.as(ExitCode.Success)
     }
+  }
+
+  final def main(args: Array[String]): Unit = {
+    initialize(args)
     _ioApp.main(Array.empty)
   }
 }

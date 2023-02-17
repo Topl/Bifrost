@@ -37,7 +37,7 @@ import java.time.Instant
 import java.util.UUID
 import scala.util.Random
 
-object NodeApp
+class NodeApp
     extends IOAkkaApp[Args, ApplicationConfig, Nothing](
       createArgs = args => Args.parserArgs.constructOrThrow(args),
       createConfig = IOBaseApp.createTypesafeConfig,
@@ -331,3 +331,5 @@ object NodeApp
         .make[F](vrfConfig, blake2b512Resource, exp, log1p)
     } yield leaderElectionThreshold
 }
+
+object NodeApp extends NodeApp
