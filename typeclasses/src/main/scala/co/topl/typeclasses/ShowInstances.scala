@@ -65,12 +65,19 @@ trait ShowInstances {
 
   implicit val showBlockHeader: Show[BlockHeader] =
     header =>
-      show"BlockHeader(id=${header.id.asTypedBytes}" +
+      show"BlockHeader(" +
+      show"id=${header.id.asTypedBytes}" +
       show" parentId=${header.parentHeaderId}" +
+      show" parentSlot=${header.parentSlot}" +
+      show" timestamp=${Instant.ofEpochMilli(header.timestamp).toString})" +
       show" height=${header.height}" +
       show" slot=${header.slot}" +
-      show" timestamp=${Instant.ofEpochMilli(header.timestamp).toString})" +
-      show" address=${header.address: StakingAddress}"
+      show" txRoot=${header.txRoot.data}" +
+      show" bloomFilter=${header.bloomFilter.data}" +
+      show" eligibilityCertificate=${header.eligibilityCertificate.immutableBytes}" +
+      show" operationalCertificate=${header.operationalCertificate.immutableBytes}" +
+      show" address=${header.address: StakingAddress}" +
+      show")"
 
   implicit val showConsensusBlockHeader: Show[consensusModels.BlockHeader] =
     header =>

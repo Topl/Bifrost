@@ -3,7 +3,8 @@ package co.topl.node
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import cats.Applicative
-import cats.effect.{IO, Resource}
+import cats.effect.implicits._
+import cats.effect.{IO, Resource, Sync}
 import cats.implicits._
 import co.topl.algebras._
 import co.topl.blockchain._
@@ -62,15 +63,24 @@ class NodeApp
       )
       implicit0(networkPrefix: NetworkPrefix) = NetworkPrefix(1: Byte)
       privateBigBang = appConfig.bifrost.bigBang.asInstanceOf[ApplicationConfig.Bifrost.BigBangs.Private]
-      stakerInitializers = PrivateTestnet.stakerInitializers(
-        privateBigBang.timestamp,
-        privateBigBang.stakerCount
-      )
-      implicit0(bigBangConfig: BigBang.Config) = PrivateTestnet.config(
-        privateBigBang.timestamp,
-        stakerInitializers
-      )
+      stakerInitializers <- Sync[F]
+        .delay(
+          PrivateTestnet.stakerInitializers(
+            privateBigBang.timestamp,
+            privateBigBang.stakerCount
+          )
+        )
+        .toResource
+      implicit0(bigBangConfig: BigBang.Config) <- Sync[F]
+        .delay(
+          PrivateTestnet.config(
+            privateBigBang.timestamp,
+            stakerInitializers
+          )
+        )
+        .toResource
       bigBangBlock = BigBang.block
+      _ = println(bigBangBlock.header.show)
       _ <- Resource.eval(Logger[F].info(show"Big Bang Block id=${bigBangBlock.header.id.asTypedBytes}"))
 
       stakingDir = Path(appConfig.bifrost.staking.directory) / bigBangBlock.header.id.asTypedBytes.show
