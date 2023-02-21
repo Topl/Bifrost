@@ -102,7 +102,7 @@ object Dependencies {
   )
 
   val mainargs = Seq(
-    "com.lihaoyi" %% "mainargs" % "0.3.0"
+    "com.lihaoyi" %% "mainargs" % "0.4.0"
   )
 
   val monocle: Seq[ModuleID] = Seq(
@@ -117,9 +117,9 @@ object Dependencies {
   val circeYaml = "io.circe"               %% "circe-yaml"           % "0.14.2"
   val kubernetes = "io.kubernetes"          % "client-java"          % "17.0.1"
 
-  val bramblScCrypto = "com.github.Topl" % "BramblSc" % "v2.0.3"
+  val bramblScCrypto = "com.github.Topl"        % "BramblSc"   % "v2.0.3"
   val bramblScSdk = "com.github.Topl.bramblsc" %% "brambl-sdk" % "652cdaa7a7" // scala-steward:off
-  val quivr4s = "com.github.Topl" % "quivr4s" % "3bcc730" // scala-steward:off
+  val quivr4s = "com.github.Topl"               % "quivr4s"    % "3bcc730" // scala-steward:off
 
   val protobufSpecs: Seq[ModuleID] = Seq(
     "com.github.Topl" % "protobuf-specs" % protobufSpecsVersion
@@ -199,8 +199,8 @@ object Dependencies {
 
   lazy val models: Seq[ModuleID] =
     cats ++ simulacrum ++ newType ++ scodec ++ protobufSpecs ++
-      Seq(bramblScSdk).map(_ classifier ("tests")).map(_ % Test) ++
-      Seq(quivr4s).map(_ classifier ("tests")).map(_ % Test)
+    Seq(bramblScSdk).map(_ classifier ("tests")).map(_ % Test) ++
+    Seq(quivr4s).map(_ classifier ("tests")).map(_ % Test)
 
   lazy val consensus: Seq[ModuleID] =
     Dependencies.mUnitTest ++ externalCrypto ++ Seq(akka("actor-typed")) ++ catsEffect ++ logging ++ scalacache

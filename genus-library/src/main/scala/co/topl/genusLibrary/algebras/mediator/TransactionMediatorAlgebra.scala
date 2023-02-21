@@ -2,7 +2,7 @@ package co.topl.genusLibrary.algebras.mediator
 
 import co.topl.genusLibrary.failure.Failure
 import co.topl.genusLibrary.model.BlockData
-import co.topl.models.Transaction
+import co.topl.brambl.models.transaction.IoTransaction
 
 /**
  * Mediator of transactions inserted to a data store. Based on the Mediator software design pattern.
@@ -19,6 +19,6 @@ trait TransactionMediatorAlgebra[F[_]] {
    * @param block the full block data for context reasons
    * @return Unit
    */
-  def mediate(transaction: Transaction, block: BlockData): F[Either[Failure, Unit]]
+  def mediate(transaction: IoTransaction, block: BlockData): F[Either[Failure, Unit]]
 
 }
