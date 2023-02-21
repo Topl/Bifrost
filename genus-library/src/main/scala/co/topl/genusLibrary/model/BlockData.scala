@@ -3,7 +3,7 @@ package co.topl.genusLibrary.model
 import cats.data.Chain
 import co.topl.node.models.BlockBody
 import co.topl.consensus.models.BlockHeader
-import co.topl.proto.models.Transaction
+import co.topl.brambl.models.transaction.IoTransaction
 
 /**
  * Data structure that encapsulates relation between a possible block data and its height.
@@ -24,5 +24,5 @@ case class HeightData(
 case class BlockData(
   header:       BlockHeader,
   body:         BlockBody,
-  transactions: Chain[Transaction] // TODO use Block.Full after model replacement
+  transactions: Chain[IoTransaction]
 )

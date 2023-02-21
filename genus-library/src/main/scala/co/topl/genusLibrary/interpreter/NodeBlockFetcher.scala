@@ -4,15 +4,15 @@ import cats.data.{Chain, EitherT}
 import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.algebras.ToplRpc
+import co.topl.brambl.models.transaction._
+import co.topl.consensus.models.BlockHeader
 import co.topl.genusLibrary.algebras.BlockFetcherAlgebra
 import co.topl.genusLibrary.failure.{Failure, Failures}
 import co.topl.genusLibrary.model.{BlockData, HeightData}
-import co.topl.{models => legacyModels}
+import co.topl.genusLibrary.utils.ReplaceModelUtil.replaceTransactionLegacyModel
+import co.topl.models.TypedIdentifier
 import co.topl.models.utility._
-import legacyModels.TypedIdentifier
-import co.topl.consensus.models.BlockHeader
 import co.topl.node.models.BlockBody
-import co.topl.proto.models.Transaction
 import com.typesafe.scalalogging.LazyLogging
 import scala.collection.immutable.ListSet
 
@@ -56,20 +56,21 @@ class NodeBlockFetcher[F[_]: Async](toplRpc: ToplRpc[F, Any]) extends BlockFetch
    * If all transactions were retrieved correctly, then all transactions are returned.
    * If one or more transactions is missing, then a failure listing all missing transactions is returned.
    */
-  private def fetchTransactions(body: BlockBody): F[Either[Failure, Chain[Transaction]]] =
+  private def fetchTransactions(body: BlockBody): F[Either[Failure, Chain[IoTransaction]]] =
     body.transactionIds.toList.traverse(ioTx32 =>
       toplRpc
         .fetchTransaction(ioTx32)
+        .map(_.map(replaceTransactionLegacyModel))
         .map(maybeTransaction => (ioTx32, maybeTransaction))
     ) map { e =>
-      e.foldLeft(Chain.empty[co.topl.proto.models.Transaction].asRight[ListSet[TypedIdentifier]]) {
+      e.foldLeft(Chain.empty[IoTransaction].asRight[ListSet[TypedIdentifier]]) {
         case (Right(transactions), (_, Some(transaction)))     => (transactions :+ transaction).asRight
         case (Right(_), (ioTx32, None))                        => ListSet((ioTx32: TypedIdentifier)).asLeft
         case (nonExistentTransactions @ Left(_), (_, Some(_))) => nonExistentTransactions
         case (Left(nonExistentTransactions), (ioTx32, None)) =>
           Left(nonExistentTransactions + ioTx32)
       }
-    } map [Either[Failure, Chain[co.topl.proto.models.Transaction]]] (_.left.map(
+    } map [Either[Failure, Chain[IoTransaction]]] (_.left.map(
       Failures.NonExistentTransactionsFailure
     ))
 

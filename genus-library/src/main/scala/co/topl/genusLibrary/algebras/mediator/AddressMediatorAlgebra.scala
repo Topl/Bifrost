@@ -2,7 +2,7 @@ package co.topl.genusLibrary.algebras.mediator
 
 import co.topl.genusLibrary.failure.Failure
 import co.topl.genusLibrary.model.BlockData
-import co.topl.proto.models.TypedEvidence
+import co.topl.brambl.models.Address
 
 /**
  * Mediator of addresses inserted to a data store. Based on the Mediator software design pattern.
@@ -19,6 +19,6 @@ trait AddressMediatorAlgebra[F[_]] {
    * @param block the full block data for context reasons
    * @return Unit
    */
-  def mediate(address: TypedEvidence, block: BlockData): F[Either[Failure, Unit]]
+  def mediate(address: Address, block: BlockData): F[Either[Failure, Unit]]
 
 }
