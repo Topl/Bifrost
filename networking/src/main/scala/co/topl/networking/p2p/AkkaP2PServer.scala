@@ -127,7 +127,7 @@ object AkkaP2PServer {
     offerConnectionChange:       PeerConnectionChange[Client] => F[Unit],
     peerHandlerFlowWithRemovalF: ConnectedPeer => Flow[ByteString, ByteString, Future[F[Client]]],
     addPeer:                     (ConnectedPeer, F[Client]) => F[Unit],
-    killSwitch: SharedKillSwitch
+    killSwitch:                  SharedKillSwitch
   )(implicit system:             ActorSystem): Resource[F, F[Outcome[F, Throwable, Unit]]] =
     Async[F].background(
       remotePeers
