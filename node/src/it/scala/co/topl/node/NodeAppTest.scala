@@ -22,6 +22,10 @@ class NodeAppTest extends CatsEffectSuite {
   type RpcClient = ToplRpc[F, Stream[F, *]]
 
   test("Two block-producing nodes that maintain consensus") {
+    // Allow the nodes to produce/adopt blocks until reaching this height
+    val targetProductionHeight = 8
+    // All of the nodes should agree on the same block at this height
+    val targetConsensusHeight = 5
     val startTimestamp = System.currentTimeMillis() + 10_000L
     val configNodeA =
       s"""
@@ -68,12 +72,12 @@ class NodeAppTest extends CatsEffectSuite {
         rpcClientB  <- ToplGrpc.Client.make[F]("localhost", 9153, tls = false)
         _           <- (awaitNodeReady(rpcClientA).toResource, awaitNodeReady(rpcClientB).toResource).parTupled
         _ <- (
-          fetchUntilHeight(rpcClientA, 8).toResource,
-          fetchUntilHeight(rpcClientB, 8).toResource
+          fetchUntilHeight(rpcClientA, targetProductionHeight).toResource,
+          fetchUntilHeight(rpcClientB, targetProductionHeight).toResource
         ).parTupled
         (idA, idB) <- (
-          OptionT(rpcClientA.blockIdAtHeight(5)).getOrRaise(new IllegalStateException).toResource,
-          OptionT(rpcClientB.blockIdAtHeight(5)).getOrRaise(new IllegalStateException).toResource
+          OptionT(rpcClientA.blockIdAtHeight(targetConsensusHeight)).getOrRaise(new IllegalStateException).toResource,
+          OptionT(rpcClientB.blockIdAtHeight(targetConsensusHeight)).getOrRaise(new IllegalStateException).toResource
         ).parTupled
         _ <- IO(idA === idB).assert.toResource
       } yield ()
@@ -99,13 +103,14 @@ class NodeAppTest extends CatsEffectSuite {
       .map(_.get)
       .takeWhile(_.height <= height)
       .compile
-      .toList
+      .drain
 
-  private def launch(configFile: Path) =
+  private def launch(configFile: Path): Resource[F, Unit] =
     for {
-      app1 <- Sync[F].delay(new NodeApp).toResource
+      app1 <- Sync[F].delay(new AbstractNodeApp {}).toResource
       _    <- Sync[F].delay(app1.initialize(Array("--config", configFile.toString))).toResource
-      _    <- app1.run.background
+      bg   <- app1.run.start.toResource
+      _    <- Resource.onFinalize(bg.cancel)
     } yield ()
 
   private def awaitNodeReady(client: ToplRpc[F, Stream[F, *]]) =

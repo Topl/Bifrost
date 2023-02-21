@@ -666,7 +666,7 @@ lazy val byzantineTests = project
     commonSettings,
     Defaults.itSettings,
     IntegrationTest / parallelExecution := false,
-//    libraryDependencies ++= Dependencies.byzantineTests
+    libraryDependencies ++= Dependencies.byzantineTests
   )
   .configs(IntegrationTest)
   .dependsOn(node)

@@ -38,7 +38,9 @@ import java.time.Instant
 import java.util.UUID
 import scala.util.Random
 
-class NodeApp
+object NodeApp extends AbstractNodeApp
+
+abstract class AbstractNodeApp
     extends IOAkkaApp[Args, ApplicationConfig, Nothing](
       createArgs = args => Args.parserArgs.constructOrThrow(args),
       createConfig = IOBaseApp.createTypesafeConfig,
@@ -46,6 +48,12 @@ class NodeApp
       createSystem = (_, _, conf) => ActorSystem[Nothing](Behaviors.empty, "Bifrost", conf),
       preInitFunction = config => if (config.kamon.enable) Kamon.init()
     ) {
+  def run: IO[Unit] = new ConfiguredNodeApp(args, appConfig).run
+}
+
+class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit system: ActorSystem[_]) {
+
+  type F[A] = IO[A]
 
   implicit private val logger: Logger[F] =
     Slf4jLogger.getLoggerFromName[F]("Bifrost.Node")
@@ -80,7 +88,6 @@ class NodeApp
         )
         .toResource
       bigBangBlock = BigBang.block
-      _ = println(bigBangBlock.header.show)
       _ <- Resource.eval(Logger[F].info(show"Big Bang Block id=${bigBangBlock.header.id.asTypedBytes}"))
 
       stakingDir = Path(appConfig.bifrost.staking.directory) / bigBangBlock.header.id.asTypedBytes.show
@@ -341,5 +348,3 @@ class NodeApp
         .make[F](vrfConfig, blake2b512Resource, exp, log1p)
     } yield leaderElectionThreshold
 }
-
-object NodeApp extends NodeApp

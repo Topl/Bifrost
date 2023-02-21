@@ -144,7 +144,7 @@ object Dependencies {
     logging ++
     monocle ++
     monitoring ++
-    mUnitTest
+    mUnitTestBase.map(_ % IntegrationTest)
 
   val networkDelayer: Seq[ModuleID] =
     cats ++ catsEffect ++ mainargs ++ logging ++ Seq(
