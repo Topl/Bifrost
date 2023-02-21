@@ -67,8 +67,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: Scala Integration Test Results (${{ matrix.os }})
-          path: node/target/it-reports/*.xml
+          name: Scala Integration Test Results (Java ${{ matrix.java }})
+          path: byzantine-tests/target/it-reports/*.xml
 
       - name: Cleanup before cache
         shell: bash
