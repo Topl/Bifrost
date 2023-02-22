@@ -19,6 +19,11 @@ jobs:
     needs: [sbt-build]
     with:
       preserve-cache-between-runs: true
+  sbt-byzantine-tests:
+    uses: ./.github/workflows/_sbt_byzantine_tests.yml
+    needs: [sbt-build]
+    with:
+      preserve-cache-between-runs: true
   publish-docker-images-unofficial:
     uses: ./.github/workflows/_docker_publish_private.yml
     needs: [sbt-build, sbt-integration-tests]

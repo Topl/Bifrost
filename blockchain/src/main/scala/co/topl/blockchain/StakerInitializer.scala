@@ -39,7 +39,7 @@ object StakerInitializers {
       VerificationKeys.VrfEd25519(Sized.strictUnsafe(Ed25519VRF.precomputed().getVerificationKey(vrfSK.bytes.data)))
 
     val operatorVK: VerificationKeys.Ed25519 =
-      VerificationKeys.Ed25519(Sized.strictUnsafe(Ed25519.instance.getVerificationKey(operatorSK.bytes.data)))
+      VerificationKeys.Ed25519(Sized.strictUnsafe(new Ed25519().getVerificationKey(operatorSK.bytes.data)))
 
     val registration: Box.Values.Registrations.Operator =
       Box.Values.Registrations.Operator(
@@ -52,11 +52,11 @@ object StakerInitializers {
 
     val stakingAddress: StakingAddresses.Operator =
       StakingAddresses.Operator(
-        VerificationKeys.Ed25519(Sized.strictUnsafe(Ed25519.instance.getVerificationKey(operatorSK.bytes.data)))
+        VerificationKeys.Ed25519(Sized.strictUnsafe(new Ed25519().getVerificationKey(operatorSK.bytes.data)))
       )
 
     val spendingVK: VerificationKeys.Ed25519 =
-      VerificationKeys.Ed25519(Sized.strictUnsafe(Ed25519.instance.getVerificationKey(spendingSK.bytes.data)))
+      VerificationKeys.Ed25519(Sized.strictUnsafe(new Ed25519().getVerificationKey(spendingSK.bytes.data)))
 
     val spendingAddress: SpendingAddress =
       spendingVK.spendingAddress
@@ -68,7 +68,7 @@ object StakerInitializers {
         stakingAddress = stakingAddress,
         binding = Proofs.Knowledge.Ed25519(
           Sized.strictUnsafe(
-            Ed25519.instance.sign(
+            new Ed25519().sign(
               walletSK.bytes.data,
               spendingAddress.immutableBytes ++ stakingAddress.immutableBytes
             )
