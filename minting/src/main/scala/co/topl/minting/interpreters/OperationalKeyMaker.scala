@@ -17,7 +17,6 @@ import co.topl.models.utility._
 import co.topl.consensus.models.{SecretKeyEd25519, SlotId, VerificationKeyEd25519}
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
-import com.google.protobuf.ByteString
 import org.typelevel.log4cats.Logger
 import java.util.UUID
 
@@ -227,8 +226,8 @@ object OperationalKeyMaker {
                         )
                       OperationalKeyOut(
                         slot,
-                        VerificationKeyEd25519.of(ByteString.copyFrom(childVK.toArray)),
-                        SecretKeyEd25519.of(ByteString.copyFrom(childSK.toArray)),
+                        VerificationKeyEd25519.of(childVK),
+                        SecretKeyEd25519.of(childSK),
                         ReplaceModelUtil.signatureKesProduct(parentSignature),
                         ReplaceModelUtil.verificationKeyKesProduct(parentVK)
                       )

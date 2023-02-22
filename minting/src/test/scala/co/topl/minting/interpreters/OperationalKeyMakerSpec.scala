@@ -14,6 +14,7 @@ import co.topl.interpreters.CatsUnsafeResource
 import co.topl.minting.algebras.{OperationalKeyMakerAlgebra, VrfCalculatorAlgebra}
 import co.topl.models.ModelGenerators._
 import co.topl.models._
+import co.topl.models.utility._
 import co.topl.models.utility.{Ratio, ReplaceModelUtil}
 import co.topl.consensus.models.{BlockId, SlotId}
 import com.google.common.primitives.Longs
@@ -135,7 +136,7 @@ class OperationalKeyMakerSpec
         kesProduct
           .verify(
             out.parentSignature,
-            ed25519.getVerificationKey(Bytes(out.childSK.value.toByteArray)) ++ Bytes(Longs.toByteArray(i)),
+            ed25519.getVerificationKey(out.childSK.value: Bytes) ++ Bytes(Longs.toByteArray(i)),
             vk
           )
       }

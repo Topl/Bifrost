@@ -128,15 +128,15 @@ object BlockProducer {
             BlockHeader.UnsignedConsensus(
               parentHeaderId = parentSlotData.slotId.blockId,
               parentSlot = parentSlotData.slotId.slot,
-              txRoot = ByteString.copyFrom(body.merkleTreeRootHash.data.toArray),
-              bloomFilter = ByteString.copyFrom(body.bloomFilter.data.toArray),
+              txRoot = body.merkleTreeRootHash.data,
+              bloomFilter = body.bloomFilter.data,
               timestamp = timestamp,
               height = parentSlotData.height + 1,
               slot = nextHit.slot,
               eligibilityCertificate = nextHit.cert,
               partialOperationalCertificate = partialOperationalCertificate,
               metadata = ByteString.EMPTY,
-              address = ByteString.copyFrom(stakerAddress.vk.bytes.data.toArray)
+              address = stakerAddress.vk.bytes.data
             ),
             body = BlockBody.of(body.map(_.id.asTypedBytes).map(ReplaceModelUtil.ioTransaction32).toList)
           )

@@ -28,7 +28,6 @@ import co.topl.node.models.Block
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
-import com.google.protobuf.ByteString
 
 object Staking {
 
@@ -82,7 +81,7 @@ object Staking {
               operationalKeyOut.parentVK,
               operationalKeyOut.parentSignature,
               partialCertificate.childVK,
-              SignatureEd25519.of(ByteString.copyFrom(signature.toArray))
+              SignatureEd25519.of(signature)
             )
             header = BlockHeader(
               unsignedBlock.unsignedHeader.parentHeaderId,
@@ -112,8 +111,8 @@ object Staking {
                 EligibilityCertificate(
                   testProof,
                   vkVrf,
-                  ByteString.copyFrom(threshold.typedEvidence.evidence.data.toArray),
-                  ByteString.copyFrom(eta.data.toArray)
+                  threshold.typedEvidence.evidence.data,
+                  eta.data
                 ),
                 slot,
                 threshold

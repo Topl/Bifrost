@@ -108,8 +108,8 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
             EligibilityCertificate(
               testProof,
               vkVrf,
-              ByteString.copyFrom(relativeStake.typedEvidence.evidence.data.toArray),
-              ByteString.copyFrom(eta.data.toArray)
+              relativeStake.typedEvidence.evidence.data,
+              eta.data
             ),
             slot,
             relativeStake
@@ -215,8 +215,8 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
           EligibilityCertificate(
             testProof,
             vkVrf,
-            ByteString.copyFrom(relativeStake.typedEvidence.evidence.data.toArray),
-            ByteString.copyFrom(eta.data.toArray)
+            relativeStake.typedEvidence.evidence.data,
+            eta.data
           ),
           slot,
           relativeStake

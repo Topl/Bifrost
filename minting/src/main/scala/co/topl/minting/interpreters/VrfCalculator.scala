@@ -16,7 +16,6 @@ import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.{Ratio, Sized}
 import co.topl.models.utility._
 import com.github.benmanes.caffeine.cache.Caffeine
-import com.google.protobuf.ByteString
 import scalacache.caffeine.CaffeineCache
 import scala.collection.immutable.NumericRange
 import scalacache.Entry
@@ -82,14 +81,11 @@ object VrfCalculator {
     ): F[SignatureVrfEd25519] =
       Sync[F].delay(
         SignatureVrfEd25519.of(
-          ByteString.copyFrom(
-            ed25519VRF
-              .sign(
-                skVrf.bytes.data,
-                arg.signableBytes
-              )
-              .toArray
-          )
+          ed25519VRF
+            .sign(
+              skVrf.bytes.data,
+              arg.signableBytes
+            )
         )
       )
 
