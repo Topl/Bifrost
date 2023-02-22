@@ -1,14 +1,14 @@
 package co.topl.typeclasses
 
 import cats.Foldable
+import cats.data.ValidatedNec
 import cats.implicits._
 import co.topl.codecs.bytes.tetra.TetraIdentifiableInstances._
 import co.topl.codecs.bytes.typeclasses.Identifiable.ops._
 import co.topl.crypto.accumulators.LeafData
 import co.topl.crypto.accumulators.merkle.MerkleTree
-import co.topl.crypto.hash.Blake2b
-import co.topl.crypto.hash.digest.Digest32
-import co.topl.crypto.hash.implicits._
+import co.topl.crypto.hash.{Blake2b, Blake2bHash}
+import co.topl.crypto.hash.digest.{Digest, Digest32, InvalidDigestFailure}
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility._
@@ -19,11 +19,22 @@ import simulacrum.{op, typeclass}
 @typeclass trait ContainsTransactionIds[T] {
   @op("transactionIds") def transactionIds(t: T): Seq[TypedIdentifier]
 
-  @op("merkleTree") def merkleTreeOf(t: T): MerkleTree[Blake2b, Digest32] =
+  @op("merkleTree") def merkleTreeOf(t: T): MerkleTree[Blake2b, Digest32] = {
+    // The current MerkleTree implementation will, by default, use a shared digest and hash instance,
+    // which introduces thread-safety issues.  We need to create a new instance for each call to avoid it.
+    implicit val digest: Digest[Digest32] = new Digest[Digest32] {
+      override def size: Int = Digest32.size
+
+      override def from(bytes: Array[Byte]): ValidatedNec[InvalidDigestFailure, Digest32] = Digest32.validated(bytes)
+
+      override def bytes(d: Digest32): Array[Byte] = d.value
+    }
+    implicit val hash: Blake2bHash[Digest32] = new Blake2bHash[Digest32] {}
     MerkleTree[Blake2b, Digest32](transactionIds(t).map(id => LeafData(id.allBytes.toArray)))
+  }
 
   @op("merkleTreeRootHash") def merkleTreeRootHashOf(t: T): TxRoot =
-    Sized.strictUnsafe[Bytes, Lengths.`32`.type](Bytes(merkleTreeOf(t).rootHash.bytes))
+    Sized.strictUnsafe[Bytes, Lengths.`32`.type](Bytes(merkleTreeOf(t).rootHash.value))
 }
 
 object ContainsTransactionIds {

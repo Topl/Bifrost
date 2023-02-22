@@ -3,7 +3,8 @@ package co.topl.node
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import cats.Applicative
-import cats.effect.{IO, Resource}
+import cats.effect.implicits._
+import cats.effect.{IO, Resource, Sync}
 import cats.implicits._
 import co.topl.algebras._
 import co.topl.blockchain._
@@ -37,7 +38,9 @@ import java.time.Instant
 import java.util.UUID
 import scala.util.Random
 
-object NodeApp
+object NodeApp extends AbstractNodeApp
+
+abstract class AbstractNodeApp
     extends IOAkkaApp[Args, ApplicationConfig, Nothing](
       createArgs = args => Args.parserArgs.constructOrThrow(args),
       createConfig = IOBaseApp.createTypesafeConfig,
@@ -45,6 +48,12 @@ object NodeApp
       createSystem = (_, _, conf) => ActorSystem[Nothing](Behaviors.empty, "Bifrost", conf),
       preInitFunction = config => if (config.kamon.enable) Kamon.init()
     ) {
+  def run: IO[Unit] = new ConfiguredNodeApp(args, appConfig).run
+}
+
+class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit system: ActorSystem[_]) {
+
+  type F[A] = IO[A]
 
   implicit private val logger: Logger[F] =
     Slf4jLogger.getLoggerFromName[F]("Bifrost.Node")
@@ -62,14 +71,22 @@ object NodeApp
       )
       implicit0(networkPrefix: NetworkPrefix) = NetworkPrefix(1: Byte)
       privateBigBang = appConfig.bifrost.bigBang.asInstanceOf[ApplicationConfig.Bifrost.BigBangs.Private]
-      stakerInitializers = PrivateTestnet.stakerInitializers(
-        privateBigBang.timestamp,
-        privateBigBang.stakerCount
-      )
-      implicit0(bigBangConfig: BigBang.Config) = PrivateTestnet.config(
-        privateBigBang.timestamp,
-        stakerInitializers
-      )
+      stakerInitializers <- Sync[F]
+        .delay(
+          PrivateTestnet.stakerInitializers(
+            privateBigBang.timestamp,
+            privateBigBang.stakerCount
+          )
+        )
+        .toResource
+      implicit0(bigBangConfig: BigBang.Config) <- Sync[F]
+        .delay(
+          PrivateTestnet.config(
+            privateBigBang.timestamp,
+            stakerInitializers
+          )
+        )
+        .toResource
       bigBangBlock = BigBang.block
       _ <- Resource.eval(Logger[F].info(show"Big Bang Block id=${bigBangBlock.header.id.asTypedBytes}"))
 
