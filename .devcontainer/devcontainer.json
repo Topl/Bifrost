@@ -2,6 +2,7 @@
 	"name": "sbt-dev",
 	"image": "mcr.microsoft.com/devcontainers/base:ubuntu",
 	"postCreateCommand": "bash ./.devcontainer/scripts/post-install.sh",
+	"postStartCommand": "bash ./.devcontainer/scripts/post-start.sh",
 	"customizations": {
 		"vscode": {
 			"extensions": [
