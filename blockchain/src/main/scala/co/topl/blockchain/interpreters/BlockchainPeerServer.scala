@@ -33,7 +33,7 @@ object BlockchainPeerServer {
     newTransactionIds:       Topic[F, TypedIdentifier],
     blockIdBufferSize:       Int = 8,
     transactionIdBufferSize: Int = 64
-  )(peer:                    ConnectedPeer): Resource[F, BlockchainPeerServerAlgebra[F]] =
+  )(peer: ConnectedPeer): Resource[F, BlockchainPeerServerAlgebra[F]] =
     (
       DroppingTopic(newBlockIds, blockIdBufferSize).flatMap(_.subscribeAwaitUnbounded),
       DroppingTopic(newTransactionIds, transactionIdBufferSize).flatMap(_.subscribeAwaitUnbounded)

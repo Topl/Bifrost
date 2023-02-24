@@ -212,7 +212,7 @@ object ConsensusDataEventSourcedState {
 
   private case class StakeChange(address: StakingAddresses.Operator, delta: BigInt)
 
-  implicit
-  val registrationChangesMonoid: Monoid[Map[StakingAddresses.Operator, Option[Box.Values.Registrations.Operator]]] =
+  implicit val registrationChangesMonoid
+    : Monoid[Map[StakingAddresses.Operator, Option[Box.Values.Registrations.Operator]]] =
     Monoid.instance(Map.empty, _ ++ _)
 }

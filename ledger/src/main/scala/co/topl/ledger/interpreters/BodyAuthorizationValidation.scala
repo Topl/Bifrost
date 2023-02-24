@@ -24,7 +24,7 @@ object BodyAuthorizationValidation {
          */
         def validate(
           parentBlockId: TypedIdentifier
-        )(body:          BlockBody): F[ValidatedNec[BodyAuthorizationError, BlockBody]] =
+        )(body: BlockBody): F[ValidatedNec[BodyAuthorizationError, BlockBody]] =
           body.transactionIds
             .map(t => t: TypedIdentifier)
             .toList

@@ -38,7 +38,7 @@ object PrivateTestnet {
    * produced and is publicly spendable.
    */
   def config(timestamp: Timestamp, stakers: Chain[StakerInitializers.Operator])(implicit
-    networkPrefix:      NetworkPrefix
+    networkPrefix: NetworkPrefix
   ): BigBang.Config =
     BigBang.Config(
       timestamp,

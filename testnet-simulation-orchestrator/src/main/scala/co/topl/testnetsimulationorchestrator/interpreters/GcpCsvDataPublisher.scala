@@ -41,8 +41,8 @@ object GcpCsvDataPublisher {
           //  could be useful for analysis.
 
           private def publish[Datum](fileName: String, csvHeaders: Seq[String])(
-            datumToRow:                        Datum => Seq[String]
-          )(results:                           Stream[F, Datum]) =
+            datumToRow: Datum => Seq[String]
+          )(results: Stream[F, Datum]) =
             upload(s"$filePrefix$fileName.csv")(
               Stream(csvHeaders.mkString("", ",", "\n"))
                 .flatMap(header => Stream.chunk(Chunk.array(header.getBytes(StandardCharsets.UTF_8)))) ++

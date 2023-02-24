@@ -24,7 +24,7 @@ object TransactionSemanticValidation {
          *  - for each input, the referenced output is still spendable
          */
         def validate(
-          context:     TransactionValidationContext
+          context: TransactionValidationContext
         )(transaction: Transaction): F[ValidatedNec[TransactionSemanticError, Transaction]] =
           AugmentedBoxState
             .make(boxState)(
@@ -55,7 +55,7 @@ object TransactionSemanticValidation {
    */
   private def dataValidation[F[_]: Functor](
     fetchTransaction: TypedIdentifier => F[Transaction]
-  )(input:            Transaction.Input): F[Validated[NonEmptyChain[TransactionSemanticError], Unit]] =
+  )(input: Transaction.Input): F[Validated[NonEmptyChain[TransactionSemanticError], Unit]] =
     fetchTransaction(input.boxId.transactionId)
       .map(spentTransaction =>
         // Did the output referenced by this input ever exist?  (Not a spend-ability check, just existence)
@@ -78,7 +78,7 @@ object TransactionSemanticValidation {
    */
   private def spendableValidation[F[_]: Monad](
     boxState: BoxStateAlgebra[F]
-  )(blockId:  TypedIdentifier)(input: Transaction.Input): F[ValidatedNec[TransactionSemanticError, Unit]] =
+  )(blockId: TypedIdentifier)(input: Transaction.Input): F[ValidatedNec[TransactionSemanticError, Unit]] =
     boxState
       .boxExistsAt(blockId)(input.boxId)
       .ifM(
@@ -90,7 +90,7 @@ object TransactionSemanticValidation {
    * Is this Transaction valid at the provided Slot?
    */
   private def scheduleValidation[F[_]: Applicative](
-    slot:     Slot
+    slot: Slot
   )(schedule: Transaction.Schedule): F[ValidatedNec[TransactionSemanticError, Unit]] =
     Validated
       .condNec(

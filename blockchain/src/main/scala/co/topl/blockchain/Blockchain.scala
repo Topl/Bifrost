@@ -60,7 +60,7 @@ object Blockchain {
     remotePeers:                 Stream[F, DisconnectedPeer],
     rpcHost:                     String,
     rpcPort:                     Int
-  )(implicit system:             ActorSystem[_], random: Random): Resource[F, Unit] = {
+  )(implicit system: ActorSystem[_], random: Random): Resource[F, Unit] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
     for {
       (localChain, blockAdoptionsTopic)    <- LocalChainBroadcaster.make(_localChain)
