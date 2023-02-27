@@ -18,7 +18,7 @@ All pre-requisites should be automatically installed, including: Java, SBT, Dock
    DEMO_NAME=my-testnet-name; \
     cd /workspaces &&
     helm upgrade --install \
-    -f ./helm-charts/charts/bifrost-consensus-testnet/testnet-simple.yaml \
+    -f ./helm-charts/examples/bifrost-consensus-testnet/testnet-simple.yaml \
     --namespace $DEMO_NAME \
     --create-namespace $DEMO_NAME \
     ./helm-charts/charts/bifrost-consensus-testnet/ \
